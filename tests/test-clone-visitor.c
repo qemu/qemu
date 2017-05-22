@@ -42,29 +42,28 @@ static void test_clone_struct(void)
 
 static void test_clone_alternate(void)
 {
-    AltStrBool *b_src, *s_src, *b_dst, *s_dst;
+    AltEnumBool *b_src, *s_src, *b_dst, *s_dst;
 
-    b_src = g_new0(AltStrBool, 1);
+    b_src = g_new0(AltEnumBool, 1);
     b_src->type = QTYPE_QBOOL;
     b_src->u.b = true;
-    s_src = g_new0(AltStrBool, 1);
+    s_src = g_new0(AltEnumBool, 1);
     s_src->type = QTYPE_QSTRING;
-    s_src->u.s = g_strdup("World");
+    s_src->u.e = ENUM_ONE_VALUE1;
 
-    b_dst = QAPI_CLONE(AltStrBool, b_src);
+    b_dst = QAPI_CLONE(AltEnumBool, b_src);
     g_assert(b_dst);
     g_assert_cmpint(b_dst->type, ==, b_src->type);
     g_assert_cmpint(b_dst->u.b, ==, b_src->u.b);
-    s_dst = QAPI_CLONE(AltStrBool, s_src);
+    s_dst = QAPI_CLONE(AltEnumBool, s_src);
     g_assert(s_dst);
     g_assert_cmpint(s_dst->type, ==, s_src->type);
-    g_assert_cmpstr(s_dst->u.s, ==, s_src->u.s);
-    g_assert(s_dst->u.s != s_src->u.s);
+    g_assert_cmpint(s_dst->u.e, ==, s_src->u.e);
 
-    qapi_free_AltStrBool(b_src);
-    qapi_free_AltStrBool(s_src);
-    qapi_free_AltStrBool(b_dst);
-    qapi_free_AltStrBool(s_dst);
+    qapi_free_AltEnumBool(b_src);
+    qapi_free_AltEnumBool(s_src);
+    qapi_free_AltEnumBool(b_dst);
+    qapi_free_AltEnumBool(s_dst);
 }
 
 static void test_clone_native_list(void)

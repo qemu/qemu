@@ -537,10 +537,10 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     g_assert_cmpint(tmp->u.i, ==, 42);
     qapi_free_UserDefAlternate(tmp);
 
-    v = visitor_input_test_init(data, "'string'");
+    v = visitor_input_test_init(data, "'value1'");
     visit_type_UserDefAlternate(v, NULL, &tmp, &error_abort);
     g_assert_cmpint(tmp->type, ==, QTYPE_QSTRING);
-    g_assert_cmpstr(tmp->u.s, ==, "string");
+    g_assert_cmpint(tmp->u.e, ==, ENUM_ONE_VALUE1);
     qapi_free_UserDefAlternate(tmp);
 
     v = visitor_input_test_init(data, "{'integer':1, 'string':'str', "
@@ -565,10 +565,10 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     g_assert_cmpint(wrap->alt->u.i, ==, 42);
     qapi_free_WrapAlternate(wrap);
 
-    v = visitor_input_test_init(data, "{ 'alt': 'string' }");
+    v = visitor_input_test_init(data, "{ 'alt': 'value1' }");
     visit_type_WrapAlternate(v, NULL, &wrap, &error_abort);
     g_assert_cmpint(wrap->alt->type, ==, QTYPE_QSTRING);
-    g_assert_cmpstr(wrap->alt->u.s, ==, "string");
+    g_assert_cmpint(wrap->alt->u.e, ==, ENUM_ONE_VALUE1);
     qapi_free_WrapAlternate(wrap);
 
     v = visitor_input_test_init(data, "{ 'alt': {'integer':1, 'string':'str', "
@@ -588,37 +588,37 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 {
     Visitor *v;
     Error *err = NULL;
-    AltStrBool *asb;
-    AltStrNum *asn;
-    AltNumStr *ans;
-    AltStrInt *asi;
+    AltEnumBool *aeb;
+    AltEnumNum *aen;
+    AltNumEnum *ans;
+    AltEnumInt *asi;
     AltIntNum *ain;
     AltNumInt *ani;
 
     /* Parsing an int */
 
     v = visitor_input_test_init(data, "42");
-    visit_type_AltStrBool(v, NULL, &asb, &err);
+    visit_type_AltEnumBool(v, NULL, &aeb, &err);
     error_free_or_abort(&err);
-    qapi_free_AltStrBool(asb);
+    qapi_free_AltEnumBool(aeb);
 
     v = visitor_input_test_init(data, "42");
-    visit_type_AltStrNum(v, NULL, &asn, &error_abort);
-    g_assert_cmpint(asn->type, ==, QTYPE_QFLOAT);
-    g_assert_cmpfloat(asn->u.n, ==, 42);
-    qapi_free_AltStrNum(asn);
+    visit_type_AltEnumNum(v, NULL, &aen, &error_abort);
+    g_assert_cmpint(aen->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpfloat(aen->u.n, ==, 42);
+    qapi_free_AltEnumNum(aen);
 
     v = visitor_input_test_init(data, "42");
-    visit_type_AltNumStr(v, NULL, &ans, &error_abort);
+    visit_type_AltNumEnum(v, NULL, &ans, &error_abort);
     g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT);
     g_assert_cmpfloat(ans->u.n, ==, 42);
-    qapi_free_AltNumStr(ans);
+    qapi_free_AltNumEnum(ans);
 
     v = visitor_input_test_init(data, "42");
-    visit_type_AltStrInt(v, NULL, &asi, &error_abort);
+    visit_type_AltEnumInt(v, NULL, &asi, &error_abort);
     g_assert_cmpint(asi->type, ==, QTYPE_QINT);
     g_assert_cmpint(asi->u.i, ==, 42);
-    qapi_free_AltStrInt(asi);
+    qapi_free_AltEnumInt(asi);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltIntNum(v, NULL, &ain, &error_abort);
@@ -635,26 +635,26 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     /* Parsing a double */
 
     v = visitor_input_test_init(data, "42.5");
-    visit_type_AltStrBool(v, NULL, &asb, &err);
+    visit_type_AltEnumBool(v, NULL, &aeb, &err);
     error_free_or_abort(&err);
-    qapi_free_AltStrBool(asb);
+    qapi_free_AltEnumBool(aeb);
 
     v = visitor_input_test_init(data, "42.5");
-    visit_type_AltStrNum(v, NULL, &asn, &error_abort);
-    g_assert_cmpint(asn->type, ==, QTYPE_QFLOAT);
-    g_assert_cmpfloat(asn->u.n, ==, 42.5);
-    qapi_free_AltStrNum(asn);
+    visit_type_AltEnumNum(v, NULL, &aen, &error_abort);
+    g_assert_cmpint(aen->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpfloat(aen->u.n, ==, 42.5);
+    qapi_free_AltEnumNum(aen);
 
     v = visitor_input_test_init(data, "42.5");
-    visit_type_AltNumStr(v, NULL, &ans, &error_abort);
+    visit_type_AltNumEnum(v, NULL, &ans, &error_abort);
     g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT);
     g_assert_cmpfloat(ans->u.n, ==, 42.5);
-    qapi_free_AltNumStr(ans);
+    qapi_free_AltNumEnum(ans);
 
     v = visitor_input_test_init(data, "42.5");
-    visit_type_AltStrInt(v, NULL, &asi, &err);
+    visit_type_AltEnumInt(v, NULL, &asi, &err);
     error_free_or_abort(&err);
-    qapi_free_AltStrInt(asi);
+    qapi_free_AltEnumInt(asi);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltIntNum(v, NULL, &ain, &error_abort);

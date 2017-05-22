@@ -93,16 +93,17 @@
 { 'struct': 'WrapAlternate',
   'data': { 'alt': 'UserDefAlternate' } }
 { 'alternate': 'UserDefAlternate',
-  'data': { 'udfu': 'UserDefFlatUnion', 's': 'str', 'i': 'int' } }
+  'data': { 'udfu': 'UserDefFlatUnion', 'e': 'EnumOne', 'i': 'int' } }
 
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
 # for testing use of 'number' within alternates
-{ 'alternate': 'AltStrBool', 'data': { 's': 'str', 'b': 'bool' } }
-{ 'alternate': 'AltStrNum', 'data': { 's': 'str', 'n': 'number' } }
+{ 'alternate': 'AltEnumBool', 'data': { 'e': 'EnumOne', 'b': 'bool' } }
+{ 'alternate': 'AltEnumNum', 'data': { 'e': 'EnumOne', 'n': 'number' } }
 { 'alternate': 'AltNumStr', 'data': { 'n': 'number', 's': 'str' } }
-{ 'alternate': 'AltStrInt', 'data': { 's': 'str', 'i': 'int' } }
+{ 'alternate': 'AltNumEnum', 'data': { 'n': 'number', 'e': 'EnumOne' } }
+{ 'alternate': 'AltEnumInt', 'data': { 'e': 'EnumOne', 'i': 'int' } }
 { 'alternate': 'AltIntNum', 'data': { 'i': 'int', 'n': 'number' } }
 { 'alternate': 'AltNumInt', 'data': { 'n': 'number', 'i': 'int' } }
 

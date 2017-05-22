@@ -6,4 +6,4 @@
 # @bb: b
 ##
 { 'alternate': 'AorB',
-  'data': { 'a': 'str', 'b': 'int' } }
+  'data': { 'a': 'bool', 'b': 'int' } }

@@ -1,7 +1,23 @@
+alternate AltEnumBool
+    tag type
+    case e: EnumOne
+    case b: bool
+alternate AltEnumInt
+    tag type
+    case e: EnumOne
+    case i: int
+alternate AltEnumNum
+    tag type
+    case e: EnumOne
+    case n: number
 alternate AltIntNum
     tag type
     case i: int
     case n: number
+alternate AltNumEnum
+    tag type
+    case n: number
+    case e: EnumOne
 alternate AltNumInt
     tag type
     case n: number
@@ -10,18 +26,6 @@ alternate AltNumStr
     tag type
     case n: number
     case s: str
-alternate AltStrBool
-    tag type
-    case s: str
-    case b: bool
-alternate AltStrInt
-    tag type
-    case s: str
-    case i: int
-alternate AltStrNum
-    tag type
-    case s: str
-    case n: number
 event EVENT_A None
    boxed=False
 event EVENT_B None
@@ -66,7 +70,7 @@ object UserDefA
 alternate UserDefAlternate
     tag type
     case udfu: UserDefFlatUnion
-    case s: str
+    case e: EnumOne
     case i: int
 object UserDefB
     member intb: int optional=False
