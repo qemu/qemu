@@ -337,8 +337,9 @@ typedef struct BDRVVVFATState {
     unsigned int cluster_size;
     unsigned int sectors_per_cluster;
     unsigned int sectors_per_fat;
-    unsigned int sectors_of_root_directory;
     uint32_t last_cluster_of_root_directory;
+    /* how many entries are available in root directory (0 for FAT32) */
+    uint16_t root_entries;
     uint32_t sector_count; /* total number of sectors of the partition */
     uint32_t cluster_count; /* total number of clusters of this partition */
     uint32_t max_fat_value;
@@ -785,6 +786,12 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
         int is_dot=!strcmp(entry->d_name,".");
         int is_dotdot=!strcmp(entry->d_name,"..");
 
+        if (first_cluster == 0 && s->directory.next >= s->root_entries - 1) {
+            fprintf(stderr, "Too many entries in root directory\n");
+            closedir(dir);
+            return -2;
+        }
+
         if(first_cluster == 0 && (is_dotdot || is_dot))
             continue;
 
@@ -858,15 +865,15 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
         memset(direntry,0,sizeof(direntry_t));
     }
 
-/* TODO: if there are more entries, bootsector has to be adjusted! */
-#define ROOT_ENTRIES (0x02 * 0x10 * s->sectors_per_cluster)
-    if (mapping_index == 0 && s->directory.next < ROOT_ENTRIES) {
+    if (s->fat_type != 32 &&
+        mapping_index == 0 &&
+        s->directory.next < s->root_entries) {
         /* root directory */
         int cur = s->directory.next;
-        array_ensure_allocated(&(s->directory), ROOT_ENTRIES - 1);
-        s->directory.next = ROOT_ENTRIES;
+        array_ensure_allocated(&(s->directory), s->root_entries - 1);
+        s->directory.next = s->root_entries;
         memset(array_get(&(s->directory), cur), 0,
-                (ROOT_ENTRIES - cur) * sizeof(direntry_t));
+                (s->root_entries - cur) * sizeof(direntry_t));
     }
 
     /* re-get the mapping, since s->mapping was possibly realloc()ed */
@@ -931,6 +938,8 @@ static int init_directories(BDRVVVFATState* s,
     /* Now build FAT, and write back information into directory */
     init_fat(s);
 
+    /* TODO: if there are more entries, bootsector has to be adjusted! */
+    s->root_entries = 0x02 * 0x10 * s->sectors_per_cluster;
     s->cluster_count=sector2cluster(s, s->sector_count);
 
     mapping = array_get_next(&(s->mapping));
@@ -999,7 +1008,6 @@ static int init_directories(BDRVVVFATState* s,
     }
 
     mapping = array_get(&(s->mapping), 0);
-    s->sectors_of_root_directory = mapping->end * s->sectors_per_cluster;
     s->last_cluster_of_root_directory = mapping->end;
 
     /* the FAT signature */
@@ -1018,7 +1026,7 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->sectors_per_cluster=s->sectors_per_cluster;
     bootsector->reserved_sectors=cpu_to_le16(1);
     bootsector->number_of_fats=0x2; /* number of FATs */
-    bootsector->root_entries=cpu_to_le16(s->sectors_of_root_directory*0x10);
+    bootsector->root_entries = cpu_to_le16(s->root_entries);
     bootsector->total_sectors16=s->sector_count>0xffff?0:cpu_to_le16(s->sector_count);
     /* media descriptor: hard disk=0xf8, floppy=0xf0 */
     bootsector->media_type = (s->offset_to_bootsector > 0 ? 0xf8 : 0xf0);
