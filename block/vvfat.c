@@ -217,23 +217,30 @@ typedef struct bootsector_t {
     union {
         struct {
             uint8_t drive_number;
-            uint8_t current_head;
+            uint8_t reserved1;
             uint8_t signature;
             uint32_t id;
             uint8_t volume_label[11];
+            uint8_t fat_type[8];
+            uint8_t ignored[0x1c0];
         } QEMU_PACKED fat16;
         struct {
             uint32_t sectors_per_fat;
             uint16_t flags;
             uint8_t major,minor;
-            uint32_t first_cluster_of_root_directory;
+            uint32_t first_cluster_of_root_dir;
             uint16_t info_sector;
             uint16_t backup_boot_sector;
-            uint16_t ignored;
+            uint8_t reserved[12];
+            uint8_t drive_number;
+            uint8_t reserved1;
+            uint8_t signature;
+            uint32_t id;
+            uint8_t volume_label[11];
+            uint8_t fat_type[8];
+            uint8_t ignored[0x1a4];
         } QEMU_PACKED fat32;
     } u;
-    uint8_t fat_type[8];
-    uint8_t ignored[0x1c0];
     uint8_t magic[2];
 } QEMU_PACKED bootsector_t;
 
@@ -973,13 +980,13 @@ static int init_directories(BDRVVVFATState* s,
     /* LATER TODO: if FAT32, this is wrong */
     /* drive_number: fda=0, hda=0x80 */
     bootsector->u.fat16.drive_number = s->offset_to_bootsector == 0 ? 0 : 0x80;
-    bootsector->u.fat16.current_head=0;
     bootsector->u.fat16.signature=0x29;
     bootsector->u.fat16.id=cpu_to_le32(0xfabe1afd);
 
     memcpy(bootsector->u.fat16.volume_label, s->volume_label,
            sizeof(bootsector->u.fat16.volume_label));
-    memcpy(bootsector->fat_type,(s->fat_type==12?"FAT12   ":s->fat_type==16?"FAT16   ":"FAT32   "),8);
+    memcpy(bootsector->u.fat16.fat_type,
+           s->fat_type == 12 ? "FAT12   " : "FAT16   ", 8);
     bootsector->magic[0]=0x55; bootsector->magic[1]=0xaa;
 
     return 0;
