@@ -2968,8 +2968,7 @@ vvfat_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
 static int64_t coroutine_fn vvfat_co_get_block_status(BlockDriverState *bs,
 	int64_t sector_num, int nb_sectors, int *n, BlockDriverState **file)
 {
-    BDRVVVFATState* s = bs->opaque;
-    *n = s->sector_count - sector_num;
+    *n = bs->total_sectors - sector_num;
     if (*n > nb_sectors) {
         *n = nb_sectors;
     } else if (*n < 0) {
