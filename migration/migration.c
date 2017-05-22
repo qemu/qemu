@@ -1825,17 +1825,19 @@ static void migration_completion(MigrationState *s, int current_active_state,
 
         if (!ret) {
             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+            if (ret >= 0) {
+                qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
+                qemu_savevm_state_complete_precopy(s->to_dst_file, false);
+            }
             /*
              * Don't mark the image with BDRV_O_INACTIVE flag if
              * we will go into COLO stage later.
              */
             if (ret >= 0 && !migrate_colo_enabled()) {
                 ret = bdrv_inactivate_all();
-            }
-            if (ret >= 0) {
-                qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
-                qemu_savevm_state_complete_precopy(s->to_dst_file, false);
-                s->block_inactive = true;
+                if (ret >= 0) {
+                    s->block_inactive = true;
+                }
             }
         }
         qemu_mutex_unlock_iothread();
