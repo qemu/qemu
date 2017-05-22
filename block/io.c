@@ -1980,17 +1980,24 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                    bool is_read)
 {
     BlockDriver *drv = bs->drv;
+    int ret = -ENOTSUP;
+
+    bdrv_inc_in_flight(bs);
 
     if (!drv) {
-        return -ENOMEDIUM;
+        ret = -ENOMEDIUM;
     } else if (drv->bdrv_load_vmstate) {
-        return is_read ? drv->bdrv_load_vmstate(bs, qiov, pos)
-                       : drv->bdrv_save_vmstate(bs, qiov, pos);
+        if (is_read) {
+            ret = drv->bdrv_load_vmstate(bs, qiov, pos);
+        } else {
+            ret = drv->bdrv_save_vmstate(bs, qiov, pos);
+        }
     } else if (bs->file) {
-        return bdrv_co_rw_vmstate(bs->file->bs, qiov, pos, is_read);
+        ret = bdrv_co_rw_vmstate(bs->file->bs, qiov, pos, is_read);
     }
 
-    return -ENOTSUP;
+    bdrv_dec_in_flight(bs);
+    return ret;
 }
 
 static void coroutine_fn bdrv_co_rw_vmstate_entry(void *opaque)
