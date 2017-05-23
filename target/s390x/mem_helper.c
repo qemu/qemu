@@ -1082,6 +1082,7 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 
 uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
+    uintptr_t ra = GETPC();
     int cc = 0, i;
 
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
@@ -1095,7 +1096,8 @@ uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 
     /* XXX replace w/ memcpy */
     for (i = 0; i < l; i++) {
-        cpu_stb_secondary(env, a1 + i, cpu_ldub_primary(env, a2 + i));
+        uint8_t x = cpu_ldub_primary_ra(env, a2 + i, ra);
+        cpu_stb_secondary_ra(env, a1 + i, x, ra);
     }
 
     return cc;
@@ -1103,6 +1105,7 @@ uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 
 uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
+    uintptr_t ra = GETPC();
     int cc = 0, i;
 
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
@@ -1116,7 +1119,8 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 
     /* XXX replace w/ memcpy */
     for (i = 0; i < l; i++) {
-        cpu_stb_primary(env, a1 + i, cpu_ldub_secondary(env, a2 + i));
+        uint8_t x = cpu_ldub_secondary_ra(env, a2 + i, ra);
+        cpu_stb_primary_ra(env, a1 + i, x, ra);
     }
 
     return cc;
