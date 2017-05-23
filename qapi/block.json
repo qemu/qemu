@@ -180,7 +180,7 @@
 #
 # Example:
 #
-# -> { "execute": "eject", "arguments": { "device": "ide1-0-1" } }
+# -> { "execute": "eject", "arguments": { "id": "ide1-0-1" } }
 # <- { "return": {} }
 ##
 { 'command': 'eject',
