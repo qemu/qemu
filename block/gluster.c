@@ -1275,7 +1275,14 @@ static int find_allocation(BlockDriverState *bs, off_t start,
     if (offs < 0) {
         return -errno;          /* D3 or D4 */
     }
-    assert(offs >= start);
+
+    if (offs < start) {
+        /* This is not a valid return by lseek().  We are safe to just return
+         * -EIO in this case, and we'll treat it like D4. Unfortunately some
+         *  versions of gluster server will return offs < start, so an assert
+         *  here will unnecessarily abort QEMU. */
+        return -EIO;
+    }
 
     if (offs > start) {
         /* D2: in hole, next data at offs */
@@ -1307,7 +1314,14 @@ static int find_allocation(BlockDriverState *bs, off_t start,
     if (offs < 0) {
         return -errno;          /* D1 and (H3 or H4) */
     }
-    assert(offs >= start);
+
+    if (offs < start) {
+        /* This is not a valid return by lseek().  We are safe to just return
+         * -EIO in this case, and we'll treat it like H4. Unfortunately some
+         *  versions of gluster server will return offs < start, so an assert
+         *  here will unnecessarily abort QEMU. */
+        return -EIO;
+    }
 
     if (offs > start) {
         /*
