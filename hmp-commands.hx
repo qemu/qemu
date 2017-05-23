@@ -1296,7 +1296,7 @@ ETEXI
         .name       = "host_net_add",
         .args_type  = "device:s,opts:s?",
         .params     = "tap|user|socket|vde|netmap|bridge|vhost-user|dump [options]",
-        .help       = "add host VLAN client",
+        .help       = "add host VLAN client (deprecated, use netdev_add instead)",
         .cmd        = hmp_host_net_add,
         .command_completion = host_net_add_completion,
     },
@@ -1304,14 +1304,14 @@ ETEXI
 STEXI
 @item host_net_add
 @findex host_net_add
-Add host VLAN client.
+Add host VLAN client. Deprecated, please use @code{netdev_add} instead.
 ETEXI
 
     {
         .name       = "host_net_remove",
         .args_type  = "vlan_id:i,device:s",
         .params     = "vlan_id name",
-        .help       = "remove host VLAN client",
+        .help       = "remove host VLAN client (deprecated, use netdev_del instead)",
         .cmd        = hmp_host_net_remove,
         .command_completion = host_net_remove_completion,
     },
@@ -1319,7 +1319,7 @@ ETEXI
 STEXI
 @item host_net_remove
 @findex host_net_remove
-Remove host VLAN client.
+Remove host VLAN client. Deprecated, please use @code{netdev_del} instead.
 ETEXI
 
     {
