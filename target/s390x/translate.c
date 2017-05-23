@@ -1200,6 +1200,7 @@ typedef enum DisasFacility {
     FAC_SFLE,               /* store facility list extended */
     FAC_ILA,                /* interlocked access facility 1 */
     FAC_LPP,                /* load-program-parameter */
+    FAC_DAT_ENH,            /* DAT-enhancement */
 } DisasFacility;
 
 struct DisasInsn {
