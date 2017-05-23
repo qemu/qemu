@@ -2006,11 +2006,45 @@ static ExitStatus op_cdsg(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_csp(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGMemOp mop = s->insn->data;
+    TCGv_i64 addr, old, cc;
+    TCGLabel *lab = gen_new_label();
+
+    /* Note that in1 = R1 (zero-extended expected value),
+       out = R1 (original reg), out2 = R1+1 (new value).  */
+
     check_privileged(s);
-    gen_helper_csp(cc_op, cpu_env, r1, o->in2);
-    tcg_temp_free_i32(r1);
-    set_cc_static(s);
+    addr = tcg_temp_new_i64();
+    old = tcg_temp_new_i64();
+    tcg_gen_andi_i64(addr, o->in2, -1ULL << (mop & MO_SIZE));
+    tcg_gen_atomic_cmpxchg_i64(old, addr, o->in1, o->out2,
+                               get_mem_index(s), mop | MO_ALIGN);
+    tcg_temp_free_i64(addr);
+
+    /* Are the memory and expected values (un)equal?  */
+    cc = tcg_temp_new_i64();
+    tcg_gen_setcond_i64(TCG_COND_NE, cc, o->in1, old);
+    tcg_gen_extrl_i64_i32(cc_op, cc);
+
+    /* Write back the output now, so that it happens before the
+       following branch, so that we don't need local temps.  */
+    if ((mop & MO_SIZE) == MO_32) {
+        tcg_gen_deposit_i64(o->out, o->out, old, 0, 32);
+    } else {
+        tcg_gen_mov_i64(o->out, old);
+    }
+    tcg_temp_free_i64(old);
+
+    /* If the comparison was equal, and the LSB of R2 was set,
+       then we need to flush the TLB (for all cpus).  */
+    tcg_gen_xori_i64(cc, cc, 1);
+    tcg_gen_and_i64(cc, cc, o->in2);
+    tcg_gen_brcondi_i64(TCG_COND_EQ, cc, 0, lab);
+    tcg_temp_free_i64(cc);
+
+    gen_helper_purge(cpu_env);
+    gen_set_label(lab);
+
     return NO_EXIT;
 }
 #endif

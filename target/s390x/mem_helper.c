@@ -1056,30 +1056,6 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
     return re >> 1;
 }
 
-/* compare and swap and purge */
-uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
-{
-    S390CPU *cpu = s390_env_get_cpu(env);
-    uint32_t cc;
-    uint32_t o1 = env->regs[r1];
-    uint64_t a2 = r2 & ~3ULL;
-    uint32_t o2 = cpu_ldl_data(env, a2);
-
-    if (o1 == o2) {
-        cpu_stl_data(env, a2, env->regs[(r1 + 1) & 15]);
-        if (r2 & 0x3) {
-            /* flush TLB / ALB */
-            tlb_flush(CPU(cpu));
-        }
-        cc = 0;
-    } else {
-        env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | o2;
-        cc = 1;
-    }
-
-    return cc;
-}
-
 uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
     uintptr_t ra = GETPC();
@@ -1159,6 +1135,14 @@ void HELPER(ptlb)(CPUS390XState *env)
     S390CPU *cpu = s390_env_get_cpu(env);
 
     tlb_flush(CPU(cpu));
+}
+
+/* flush global tlb */
+void HELPER(purge)(CPUS390XState *env)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    tlb_flush_all_cpus_synced(CPU(cpu));
 }
 
 /* load using real address */
