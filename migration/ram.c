@@ -697,6 +697,7 @@ static void migration_bitmap_sync(RAMState *rs)
         /* calculate period counters */
         rs->dirty_pages_rate = rs->num_dirty_pages_period * 1000
             / (end_time - rs->time_last_bitmap_sync);
+        bytes_xfer_now = ram_bytes_transferred();
 
         if (migrate_auto_converge()) {
             /* The following detection logic can be refined later. For now:
@@ -704,7 +705,6 @@ static void migration_bitmap_sync(RAMState *rs)
                amount of bytes that just got transferred since the last time we
                were in this routine. If that happens twice, start or increase
                throttling */
-            bytes_xfer_now = ram_bytes_transferred();
 
             if ((rs->num_dirty_pages_period * TARGET_PAGE_SIZE >
                    (bytes_xfer_now - rs->bytes_xfer_prev) / 2) &&
@@ -713,7 +713,6 @@ static void migration_bitmap_sync(RAMState *rs)
                     rs->dirty_rate_high_cnt = 0;
                     mig_throttle_guest_down();
             }
-            rs->bytes_xfer_prev = bytes_xfer_now;
         }
 
         if (migrate_use_xbzrle()) {
@@ -730,6 +729,7 @@ static void migration_bitmap_sync(RAMState *rs)
         /* reset period counters */
         rs->time_last_bitmap_sync = end_time;
         rs->num_dirty_pages_period = 0;
+        rs->bytes_xfer_prev = bytes_xfer_now;
     }
     if (migrate_use_events()) {
         qapi_event_send_migration_pass(rs->bitmap_sync_count, NULL);
