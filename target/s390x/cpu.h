@@ -88,6 +88,10 @@ typedef struct CPUS390XState {
      */
     CPU_DoubleU vregs[32][2];  /* vector registers */
     uint32_t aregs[16];    /* access registers */
+    uint8_t riccb[64];     /* runtime instrumentation control */
+
+    /* Fields up to this point are not cleared by initial CPU reset */
+    struct {} start_initial_reset_fields;
 
     uint32_t fpc;          /* floating-point control register */
     uint32_t cc_op;
@@ -136,8 +140,6 @@ typedef struct CPUS390XState {
 
     uint64_t gbea;
     uint64_t pp;
-
-    uint8_t riccb[64];
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
@@ -1254,6 +1256,16 @@ static inline void s390_crypto_reset(void)
     if (kvm_enabled()) {
         kvm_s390_crypto_reset();
     }
+}
+
+static inline bool s390_get_squash_mcss(void)
+{
+    if (object_property_get_bool(OBJECT(qdev_get_machine()), "s390-squash-mcss",
+                                 NULL)) {
+        return true;
+    }
+
+    return false;
 }
 
 /* machine check interruption code */

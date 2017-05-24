@@ -19,6 +19,8 @@ static VirtioScsiCmdReq req;
 static VirtioScsiCmdResp resp;
 
 static uint8_t scsi_inquiry_std_response[256];
+static ScsiInquiryEvpdPages scsi_inquiry_evpd_pages_response;
+static ScsiInquiryEvpdBl scsi_inquiry_evpd_bl_response;
 
 static inline void vs_assert(bool term, const char **msgs)
 {
@@ -89,10 +91,13 @@ static void vs_run(const char *title, VirtioCmd *cmd, VDev *vdev,
 
 /* SCSI protocol implementation routines */
 
-static bool scsi_inquiry(VDev *vdev, void *data, uint32_t data_size)
+static bool scsi_inquiry(VDev *vdev, uint8_t evpd, uint8_t page,
+                         void *data, uint32_t data_size)
 {
     ScsiCdbInquiry cdb = {
         .command = 0x12,
+        .b1 = evpd,
+        .b2 = page,
         .alloc_len = data_size < 65535 ? data_size : 65535,
     };
     VirtioCmd inquiry[] = {
@@ -142,19 +147,18 @@ static bool scsi_report_luns(VDev *vdev, void *data, uint32_t data_size)
 }
 
 static bool scsi_read_10(VDev *vdev,
-                         ulong sector, int sectors, void *data)
+                         ulong sector, int sectors, void *data,
+                         unsigned int data_size)
 {
-    int f = vdev->blk_factor;
-    unsigned int data_size = sectors * virtio_get_block_size() * f;
     ScsiCdbRead10 cdb = {
         .command = 0x28,
-        .lba = sector * f,
-        .xfer_length = sectors * f,
+        .lba = sector,
+        .xfer_length = sectors,
     };
     VirtioCmd read_10[] = {
         { &req, sizeof(req), VRING_DESC_F_NEXT },
         { &resp, sizeof(resp), VRING_DESC_F_WRITE | VRING_DESC_F_NEXT },
-        { data, data_size * f, VRING_DESC_F_WRITE },
+        { data, data_size, VRING_DESC_F_WRITE },
     };
 
     debug_print_int("read_10  sector", sector);
@@ -203,6 +207,7 @@ static void virtio_scsi_locate_device(VDev *vdev)
     debug_print_int("config.scsi.max_channel", vdev->config.scsi.max_channel);
     debug_print_int("config.scsi.max_target ", vdev->config.scsi.max_target);
     debug_print_int("config.scsi.max_lun    ", vdev->config.scsi.max_lun);
+    debug_print_int("config.scsi.max_sectors", vdev->config.scsi.max_sectors);
 
     if (vdev->scsi_device_selected) {
         sdev->channel = vdev->selected_scsi_device.channel;
@@ -255,9 +260,23 @@ static void virtio_scsi_locate_device(VDev *vdev)
 int virtio_scsi_read_many(VDev *vdev,
                           ulong sector, void *load_addr, int sec_num)
 {
-    if (!scsi_read_10(vdev, sector, sec_num, load_addr)) {
-        virtio_scsi_verify_response(&resp, "virtio-scsi:read_many");
-    }
+    int sector_count;
+    int f = vdev->blk_factor;
+    unsigned int data_size;
+    unsigned int max_transfer = MIN_NON_ZERO(vdev->config.scsi.max_sectors,
+                                             vdev->max_transfer);
+
+    do {
+        sector_count = MIN_NON_ZERO(sec_num, max_transfer);
+        data_size = sector_count * virtio_get_block_size() * f;
+        if (!scsi_read_10(vdev, sector * f, sector_count * f, load_addr,
+                          data_size)) {
+            virtio_scsi_verify_response(&resp, "virtio-scsi:read_many");
+        }
+        load_addr += data_size;
+        sector += sector_count;
+        sec_num -= sector_count;
+    } while (sec_num > 0);
 
     return 0;
 }
@@ -304,6 +323,9 @@ void virtio_scsi_setup(VDev *vdev)
     int retry_test_unit_ready = 3;
     uint8_t data[256];
     uint32_t data_size = sizeof(data);
+    ScsiInquiryEvpdPages *evpd = &scsi_inquiry_evpd_pages_response;
+    ScsiInquiryEvpdBl *evpd_bl = &scsi_inquiry_evpd_bl_response;
+    int i;
 
     vdev->scsi_device = &default_scsi_device;
     virtio_scsi_locate_device(vdev);
@@ -334,7 +356,10 @@ void virtio_scsi_setup(VDev *vdev)
     }
 
     /* read and cache SCSI INQUIRY response */
-    if (!scsi_inquiry(vdev, scsi_inquiry_std_response,
+    if (!scsi_inquiry(vdev,
+                      SCSI_INQUIRY_STANDARD,
+                      SCSI_INQUIRY_STANDARD_NONE,
+                      scsi_inquiry_std_response,
                       sizeof(scsi_inquiry_std_response))) {
         virtio_scsi_verify_response(&resp, "virtio-scsi:setup:inquiry");
     }
@@ -344,6 +369,44 @@ void virtio_scsi_setup(VDev *vdev)
         vdev->is_cdrom = true;
         vdev->scsi_block_size = VIRTIO_ISO_BLOCK_SIZE;
     }
+
+    if (!scsi_inquiry(vdev,
+                      SCSI_INQUIRY_EVPD,
+                      SCSI_INQUIRY_EVPD_SUPPORTED_PAGES,
+                      evpd,
+                      sizeof(*evpd))) {
+        virtio_scsi_verify_response(&resp, "virtio-scsi:setup:supported_pages");
+    }
+
+    debug_print_int("EVPD length", evpd->page_length);
+
+    for (i = 0; i <= evpd->page_length; i++) {
+        debug_print_int("supported EVPD page", evpd->byte[i]);
+
+        if (evpd->byte[i] != SCSI_INQUIRY_EVPD_BLOCK_LIMITS) {
+            continue;
+        }
+
+        if (!scsi_inquiry(vdev,
+                          SCSI_INQUIRY_EVPD,
+                          SCSI_INQUIRY_EVPD_BLOCK_LIMITS,
+                          evpd_bl,
+                          sizeof(*evpd_bl))) {
+            virtio_scsi_verify_response(&resp, "virtio-scsi:setup:blocklimits");
+        }
+
+        debug_print_int("max transfer", evpd_bl->max_transfer);
+        vdev->max_transfer = evpd_bl->max_transfer;
+    }
+
+    /*
+     * The host sg driver will often be unhappy with particularly large
+     * I/Os that exceed the block iovec limits.  Let's enforce something
+     * reasonable, despite what the device configuration tells us.
+     */
+
+    vdev->max_transfer = MIN_NON_ZERO(VIRTIO_SCSI_MAX_SECTORS,
+                                      vdev->max_transfer);
 
     if (!scsi_read_capacity(vdev, data, data_size)) {
         virtio_scsi_verify_response(&resp, "virtio-scsi:setup:read_capacity");

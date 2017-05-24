@@ -19,6 +19,8 @@
 #define VIRTIO_SCSI_CDB_SIZE   SCSI_DEFAULT_CDB_SIZE
 #define VIRTIO_SCSI_SENSE_SIZE SCSI_DEFAULT_SENSE_SIZE
 
+#define VIRTIO_SCSI_MAX_SECTORS 2048
+
 /* command-specific response values */
 #define VIRTIO_SCSI_S_OK                     0x00
 #define VIRTIO_SCSI_S_BAD_TARGET             0x03
