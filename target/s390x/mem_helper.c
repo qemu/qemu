@@ -200,31 +200,30 @@ uint32_t HELPER(oc)(CPUS390XState *env, uint32_t l, uint64_t dest,
 }
 
 /* memmove */
-static void do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
-                          uint64_t src, uintptr_t ra)
+static uint32_t do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
+                              uint64_t src, uintptr_t ra)
 {
     uint32_t i;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
 
+    /* mvc and memmove do not behave the same when areas overlap! */
     /* mvc with source pointing to the byte after the destination is the
        same as memset with the first source byte */
     if (dest == src + 1) {
         fast_memset(env, dest, cpu_ldub_data_ra(env, src, ra), l + 1, ra);
-        return;
-    }
-
-    /* mvc and memmove do not behave the same when areas overlap! */
-    if (dest < src || src + l < dest) {
+    } else if (dest < src || src + l < dest) {
         fast_memmove(env, dest, src, l + 1, ra);
-        return;
+    } else {
+        /* slow version with byte accesses which always work */
+        for (i = 0; i <= l; i++) {
+            uint8_t x = cpu_ldub_data_ra(env, src + i, ra);
+            cpu_stb_data_ra(env, dest + i, x, ra);
+        }
     }
 
-    /* slow version with byte accesses which always work */
-    for (i = 0; i <= l; i++) {
-        cpu_stb_data_ra(env, dest + i, cpu_ldub_data_ra(env, src + i, ra), ra);
-    }
+    return env->cc_op;
 }
 
 void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
@@ -692,8 +691,8 @@ void HELPER(unpk)(CPUS390XState *env, uint32_t len, uint64_t dest,
     }
 }
 
-static void do_helper_tr(CPUS390XState *env, uint32_t len, uint64_t array,
-                         uint64_t trans, uintptr_t ra)
+static uint32_t do_helper_tr(CPUS390XState *env, uint32_t len, uint64_t array,
+                             uint64_t trans, uintptr_t ra)
 {
     uint32_t i;
 
@@ -702,12 +701,14 @@ static void do_helper_tr(CPUS390XState *env, uint32_t len, uint64_t array,
         uint8_t new_byte = cpu_ldub_data_ra(env, trans + byte, ra);
         cpu_stb_data_ra(env, array + i, new_byte, ra);
     }
+
+    return env->cc_op;
 }
 
 void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
                 uint64_t trans)
 {
-    return do_helper_tr(env, len, array, trans, GETPC());
+    do_helper_tr(env, len, array, trans, GETPC());
 }
 
 uint64_t HELPER(tre)(CPUS390XState *env, uint64_t array,
@@ -1218,6 +1219,41 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
         insn |= (uint64_t)(uint32_t)cpu_ldl_code(env, addr + 2) << 16;
         break;
     default:
+        g_assert_not_reached();
+    }
+
+    /* The very most common cases can be sped up by avoiding a new TB.  */
+    if ((opc & 0xf0) == 0xd0) {
+        typedef uint32_t (*dx_helper)(CPUS390XState *, uint32_t, uint64_t,
+                                      uint64_t, uintptr_t);
+        static const dx_helper dx[16] = {
+            [0x2] = do_helper_mvc,
+            [0x4] = do_helper_nc,
+            [0x5] = do_helper_clc,
+            [0x6] = do_helper_oc,
+            [0x7] = do_helper_xc,
+            [0xc] = do_helper_tr,
+            [0xd] = do_helper_trt,
+        };
+        dx_helper helper = dx[opc & 0xf];
+
+        if (helper) {
+            uint32_t l = extract64(insn, 48, 8);
+            uint32_t b1 = extract64(insn, 44, 4);
+            uint32_t d1 = extract64(insn, 32, 12);
+            uint32_t b2 = extract64(insn, 28, 4);
+            uint32_t d2 = extract64(insn, 16, 12);
+            uint64_t a1 = get_address(env, 0, b1, d1);
+            uint64_t a2 = get_address(env, 0, b2, d2);
+
+            env->cc_op = helper(env, l, a1, a2, 0);
+            env->psw.addr += ilen;
+            return;
+        }
+    } else if (opc == 0x0a) {
+        env->int_svc_code = extract64(insn, 48, 8);
+        env->int_svc_ilen = ilen;
+        helper_exception(env, EXCP_SVC);
         g_assert_not_reached();
     }
 
