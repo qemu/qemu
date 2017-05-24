@@ -433,6 +433,11 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
         return -EINVAL;
     }
 
+    /* We don't support MIDA. */
+    if (ccw.flags & CCW_FLAG_MIDA) {
+        return -EINVAL;
+    }
+
     if (ccw.flags & CCW_FLAG_SUSPEND) {
         return suspend_allowed ? -EINPROGRESS : -EINVAL;
     }
