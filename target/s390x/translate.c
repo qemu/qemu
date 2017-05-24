@@ -58,6 +58,7 @@ struct DisasContext {
     const DisasInsn *insn;
     DisasFields *fields;
     uint64_t pc, next_pc;
+    uint32_t ilen;
     enum cc_op cc_op;
     bool singlestep_enabled;
 };
@@ -349,7 +350,7 @@ static void gen_program_exception(DisasContext *s, int code)
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_code));
     tcg_temp_free_i32(tmp);
 
-    tmp = tcg_const_i32(s->next_pc - s->pc);
+    tmp = tcg_const_i32(s->ilen);
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_ilen));
     tcg_temp_free_i32(tmp);
 
@@ -2212,7 +2213,7 @@ static ExitStatus op_ex(DisasContext *s, DisasOps *o)
         v1 = regs[r1];
     }
 
-    ilen = tcg_const_i32(s->next_pc - s->pc);
+    ilen = tcg_const_i32(s->ilen);
     gen_helper_ex(cpu_env, ilen, v1, o->in2);
     tcg_temp_free_i32(ilen);
 
@@ -4057,7 +4058,7 @@ static ExitStatus op_svc(DisasContext *s, DisasOps *o)
     tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, int_svc_code));
     tcg_temp_free_i32(t);
 
-    t = tcg_const_i32(s->next_pc - s->pc);
+    t = tcg_const_i32(s->ilen);
     tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, int_svc_ilen));
     tcg_temp_free_i32(t);
 
@@ -5196,6 +5197,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     op = (insn >> 8) & 0xff;
     ilen = get_ilen(op);
     s->next_pc = s->pc + ilen;
+    s->ilen = ilen;
 
     switch (ilen) {
     case 2:
