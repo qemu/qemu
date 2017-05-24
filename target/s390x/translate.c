@@ -2164,14 +2164,14 @@ static ExitStatus op_ex(DisasContext *s, DisasOps *o)
        MVC inside of memcpy, which needs a helper call anyway.  So
        perhaps this doesn't bear thinking about any further.  */
 
-    TCGv_i64 tmp;
+    TCGv_i32 ilen;
 
     update_psw_addr(s);
     gen_op_calc_cc(s);
 
-    tmp = tcg_const_i64(s->next_pc);
-    gen_helper_ex(cc_op, cpu_env, cc_op, o->in1, o->in2, tmp);
-    tcg_temp_free_i64(tmp);
+    ilen = tcg_const_i32(s->next_pc - s->pc);
+    gen_helper_ex(cpu_env, ilen, o->in1, o->in2);
+    tcg_temp_free_i32(ilen);
 
     return NO_EXIT;
 }
