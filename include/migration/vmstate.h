@@ -59,14 +59,6 @@ typedef struct SaveVMHandlers {
     LoadStateHandler *load_state;
 } SaveVMHandlers;
 
-int register_savevm(DeviceState *dev,
-                    const char *idstr,
-                    int instance_id,
-                    int version_id,
-                    SaveStateHandler *save_state,
-                    LoadStateHandler *load_state,
-                    void *opaque);
-
 int register_savevm_live(DeviceState *dev,
                          const char *idstr,
                          int instance_id,
