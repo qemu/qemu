@@ -327,9 +327,9 @@
     C(0xeb57, XIY,     SIY,   LD,  m1_8u, i2_8u, new, m1_8, xor, nz64)
 
 /* EXECUTE */
-    C(0x4400, EX,      RX_a,  Z,   r1_o, a2, 0, 0, ex, 0)
+    C(0x4400, EX,      RX_a,  Z,   0, a2, 0, 0, ex, 0)
 /* EXECUTE RELATIVE LONG */
-    C(0xc600, EXRL,    RIL_b, EE,  r1_o, ri2, 0, 0, ex, 0)
+    C(0xc600, EXRL,    RIL_b, EE,  0, ri2, 0, 0, ex, 0)
 
 /* EXTRACT ACCESS */
     C(0xb24f, EAR,     RRE,   Z,   0, 0, new, r1_32, ear, 0)
