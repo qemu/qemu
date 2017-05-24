@@ -164,12 +164,18 @@ static void icp_kvm_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(icp_kvm_reset, dev);
 }
 
+static void icp_kvm_unrealize(DeviceState *dev, Error **errp)
+{
+    qemu_unregister_reset(icp_kvm_reset, dev);
+}
+
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICPStateClass *icpc = ICP_CLASS(klass);
 
     dc->realize = icp_kvm_realize;
+    dc->unrealize = icp_kvm_unrealize;
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
     icpc->cpu_setup = icp_kvm_cpu_setup;
