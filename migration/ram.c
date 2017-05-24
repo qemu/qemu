@@ -673,10 +673,6 @@ static void migration_bitmap_sync(RAMState *rs)
 
     rs->bitmap_sync_count++;
 
-    if (!rs->bytes_xfer_prev) {
-        rs->bytes_xfer_prev = ram_bytes_transferred();
-    }
-
     if (!rs->time_last_bitmap_sync) {
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     }
