@@ -272,7 +272,11 @@ typedef struct SaveStateEntry {
     int instance_id;
     int alias_id;
     int version_id;
+    /* version id read from the stream */
+    int load_version_id;
     int section_id;
+    /* section id read from the stream */
+    int load_section_id;
     SaveVMHandlers *ops;
     const VMStateDescription *vmsd;
     void *opaque;
@@ -1813,7 +1817,7 @@ struct LoadStateEntry {
  * Returns: true if the footer was good
  *          false if there is a problem (and calls error_report to say why)
  */
-static bool check_section_footer(QEMUFile *f, LoadStateEntry *le)
+static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
 {
     uint8_t read_mark;
     uint32_t read_section_id;
@@ -1826,15 +1830,15 @@ static bool check_section_footer(QEMUFile *f, LoadStateEntry *le)
     read_mark = qemu_get_byte(f);
 
     if (read_mark != QEMU_VM_SECTION_FOOTER) {
-        error_report("Missing section footer for %s", le->se->idstr);
+        error_report("Missing section footer for %s", se->idstr);
         return false;
     }
 
     read_section_id = qemu_get_be32(f);
-    if (read_section_id != le->section_id) {
+    if (read_section_id != se->load_section_id) {
         error_report("Mismatched section id in footer for %s -"
                      " read 0x%x expected 0x%x",
-                     le->se->idstr, read_section_id, le->section_id);
+                     se->idstr, read_section_id, se->load_section_id);
         return false;
     }
 
@@ -1887,6 +1891,8 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
                      version_id, idstr, se->version_id);
         return -EINVAL;
     }
+    se->load_version_id = version_id;
+    se->load_section_id = section_id;
 
     /* Validate if it is a device's state */
     if (xen_enabled() && se->is_ram) {
@@ -1902,13 +1908,13 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
     le->version_id = version_id;
     QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
 
-    ret = vmstate_load(f, le->se, le->version_id);
+    ret = vmstate_load(f, se, se->load_version_id);
     if (ret < 0) {
         error_report("error while loading state for instance 0x%x of"
                      " device '%s'", instance_id, idstr);
         return ret;
     }
-    if (!check_section_footer(f, le)) {
+    if (!check_section_footer(f, se)) {
         return -EINVAL;
     }
 
@@ -1919,29 +1925,29 @@ static int
 qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint32_t section_id;
-    LoadStateEntry *le;
+    SaveStateEntry *se;
     int ret;
 
     section_id = qemu_get_be32(f);
 
     trace_qemu_loadvm_state_section_partend(section_id);
-    QLIST_FOREACH(le, &mis->loadvm_handlers, entry) {
-        if (le->section_id == section_id) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->load_section_id == section_id) {
             break;
         }
     }
-    if (le == NULL) {
+    if (se == NULL) {
         error_report("Unknown savevm section %d", section_id);
         return -EINVAL;
     }
 
-    ret = vmstate_load(f, le->se, le->version_id);
+    ret = vmstate_load(f, se, se->load_version_id);
     if (ret < 0) {
         error_report("error while loading state section id %d(%s)",
-                     section_id, le->se->idstr);
+                     section_id, se->idstr);
         return ret;
     }
-    if (!check_section_footer(f, le)) {
+    if (!check_section_footer(f, se)) {
         return -EINVAL;
     }
 
