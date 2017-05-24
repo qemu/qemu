@@ -2059,6 +2059,7 @@ static void ppc_spapr_init(MachineState *machine)
     msi_nonbroken = true;
 
     QLIST_INIT(&spapr->phbs);
+    QTAILQ_INIT(&spapr->pending_dimm_unplugs);
 
     /* Allocate RMA if necessary */
     rma_alloc_size = kvmppc_alloc_rma(&rma);
@@ -2621,56 +2622,56 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-typedef struct sPAPRDIMMState {
+struct sPAPRDIMMState {
+    PCDIMMDevice *dimm;
     uint32_t nr_lmbs;
-} sPAPRDIMMState;
+    QTAILQ_ENTRY(sPAPRDIMMState) next;
+};
+
+static sPAPRDIMMState *spapr_pending_dimm_unplugs_find(sPAPRMachineState *s,
+                                                       PCDIMMDevice *dimm)
+{
+    sPAPRDIMMState *dimm_state = NULL;
+
+    QTAILQ_FOREACH(dimm_state, &s->pending_dimm_unplugs, next) {
+        if (dimm_state->dimm == dimm) {
+            break;
+        }
+    }
+    return dimm_state;
+}
+
+static void spapr_pending_dimm_unplugs_add(sPAPRMachineState *spapr,
+                                           sPAPRDIMMState *dimm_state)
+{
+    g_assert(!spapr_pending_dimm_unplugs_find(spapr, dimm_state->dimm));
+    QTAILQ_INSERT_HEAD(&spapr->pending_dimm_unplugs, dimm_state, next);
+}
+
+static void spapr_pending_dimm_unplugs_remove(sPAPRMachineState *spapr,
+                                              sPAPRDIMMState *dimm_state)
+{
+    QTAILQ_REMOVE(&spapr->pending_dimm_unplugs, dimm_state, next);
+    g_free(dimm_state);
+}
 
 static void spapr_lmb_release(DeviceState *dev, void *opaque)
 {
-    sPAPRDIMMState *ds = (sPAPRDIMMState *)opaque;
-    HotplugHandler *hotplug_ctrl;
+    HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    sPAPRMachineState *spapr = SPAPR_MACHINE(hotplug_ctrl);
+    sPAPRDIMMState *ds = spapr_pending_dimm_unplugs_find(spapr, PC_DIMM(dev));
 
     if (--ds->nr_lmbs) {
         return;
     }
 
-    g_free(ds);
+    spapr_pending_dimm_unplugs_remove(spapr, ds);
 
     /*
      * Now that all the LMBs have been removed by the guest, call the
      * pc-dimm unplug handler to cleanup up the pc-dimm device.
      */
-    hotplug_ctrl = qdev_get_hotplug_handler(dev);
     hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
-}
-
-static void spapr_del_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
-                           Error **errp)
-{
-    sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
-    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
-    int i;
-    sPAPRDIMMState *ds = g_malloc0(sizeof(sPAPRDIMMState));
-    uint64_t addr = addr_start;
-
-    ds->nr_lmbs = nr_lmbs;
-    for (i = 0; i < nr_lmbs; i++) {
-        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
-                addr / SPAPR_MEMORY_BLOCK_SIZE);
-        g_assert(drc);
-
-        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->detach(drc, dev, spapr_lmb_release, ds, errp);
-        addr += SPAPR_MEMORY_BLOCK_SIZE;
-    }
-
-    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
-                                   addr_start / SPAPR_MEMORY_BLOCK_SIZE);
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
-                                              nr_lmbs,
-                                              drck->get_index(drc));
 }
 
 static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -2688,19 +2689,47 @@ static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(hotplug_dev);
     Error *local_err = NULL;
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
     uint64_t size = memory_region_size(mr);
-    uint64_t addr;
+    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
+    uint64_t addr_start, addr;
+    int i;
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+    sPAPRDIMMState *ds;
 
-    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    addr_start = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                         &local_err);
     if (local_err) {
         goto out;
     }
 
-    spapr_del_lmbs(dev, addr, size, &error_abort);
+    ds = g_malloc0(sizeof(sPAPRDIMMState));
+    ds->nr_lmbs = nr_lmbs;
+    ds->dimm = dimm;
+    spapr_pending_dimm_unplugs_add(spapr, ds);
+
+    addr = addr_start;
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                addr / SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drck->detach(drc, dev, spapr_lmb_release, NULL, errp);
+        addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                   addr_start / SPAPR_MEMORY_BLOCK_SIZE);
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                              nr_lmbs,
+                                              drck->get_index(drc));
 out:
     error_propagate(errp, local_err);
 }
