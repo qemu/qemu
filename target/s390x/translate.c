@@ -1168,6 +1168,8 @@ typedef enum {
        the PC (for whatever reason), so there's no need to do it again on
        exiting the TB.  */
     EXIT_PC_UPDATED,
+    /* We have updated the PC and CC values.  */
+    EXIT_PC_CC_UPDATED,
     /* We are exiting the TB, but have neither emitted a goto_tb, nor
        updated the PC for the next instruction to be executed.  */
     EXIT_PC_STALE,
@@ -2221,7 +2223,7 @@ static ExitStatus op_ex(DisasContext *s, DisasOps *o)
         tcg_temp_free_i64(v1);
     }
 
-    return NO_EXIT;
+    return EXIT_PC_CC_UPDATED;
 }
 
 static ExitStatus op_fieb(DisasContext *s, DisasOps *o)
@@ -5494,6 +5496,8 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
         /* Next TB starts off with CC_OP_DYNAMIC, so make sure the
            cc op type is in env */
         update_cc_op(&dc);
+        /* FALLTHRU */
+    case EXIT_PC_CC_UPDATED:
         /* Exit the TB, either by raising a debug exception or by return.  */
         if (do_debug) {
             gen_exception(EXCP_DEBUG);
