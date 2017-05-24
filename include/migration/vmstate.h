@@ -1020,8 +1020,6 @@ extern const VMStateInfo vmstate_info_qtailq;
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
-void loadvm_free_handlers(MigrationIncomingState *mis);
-
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
 void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,

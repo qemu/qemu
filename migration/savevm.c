@@ -1804,13 +1804,6 @@ static int loadvm_process_command(QEMUFile *f)
     return 0;
 }
 
-struct LoadStateEntry {
-    QLIST_ENTRY(LoadStateEntry) entry;
-    SaveStateEntry *se;
-    int section_id;
-    int version_id;
-};
-
 /*
  * Read a footer off the wire and check that it matches the expected section
  *
@@ -1846,22 +1839,11 @@ static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
     return true;
 }
 
-void loadvm_free_handlers(MigrationIncomingState *mis)
-{
-    LoadStateEntry *le, *new_le;
-
-    QLIST_FOREACH_SAFE(le, &mis->loadvm_handlers, entry, new_le) {
-        QLIST_REMOVE(le, entry);
-        g_free(le);
-    }
-}
-
 static int
 qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint32_t instance_id, version_id, section_id;
     SaveStateEntry *se;
-    LoadStateEntry *le;
     char idstr[256];
     int ret;
 
@@ -1899,14 +1881,6 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
         error_report("loadvm: %s RAM loading not allowed on Xen", idstr);
         return -EINVAL;
     }
-
-    /* Add entry */
-    le = g_malloc0(sizeof(*le));
-
-    le->se = se;
-    le->section_id = section_id;
-    le->version_id = version_id;
-    QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
 
     ret = vmstate_load(f, se, se->load_version_id);
     if (ret < 0) {
