@@ -3446,11 +3446,15 @@ static inline bool is_read_only_op(V9fsPDU *pdu)
     }
 }
 
-void pdu_submit(V9fsPDU *pdu)
+void pdu_submit(V9fsPDU *pdu, P9MsgHeader *hdr)
 {
     Coroutine *co;
     CoroutineEntry *handler;
     V9fsState *s = pdu->s;
+
+    pdu->size = le32_to_cpu(hdr->size_le);
+    pdu->id = hdr->id;
+    pdu->tag = le16_to_cpu(hdr->tag_le);
 
     if (pdu->id >= ARRAY_SIZE(pdu_co_handlers) ||
         (pdu_co_handlers[pdu->id] == NULL)) {
@@ -3462,6 +3466,8 @@ void pdu_submit(V9fsPDU *pdu)
     if (is_ro_export(&s->ctx) && !is_read_only_op(pdu)) {
         handler = v9fs_fs_ro;
     }
+
+    qemu_co_queue_init(&pdu->complete);
     co = qemu_coroutine_create(handler, pdu);
     qemu_coroutine_enter(co);
 }

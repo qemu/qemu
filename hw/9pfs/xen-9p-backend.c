@@ -243,14 +243,10 @@ static int xen_9pfs_receive(Xen9pfsRing *ring)
 
     /* cannot fail, because we only handle one request per ring at a time */
     pdu = pdu_alloc(&ring->priv->state);
-    pdu->size = le32_to_cpu(h.size_le);
-    pdu->id = h.id;
-    pdu->tag = le32_to_cpu(h.tag_le);
     ring->out_size = le32_to_cpu(h.size_le);
     ring->out_cons = cons + le32_to_cpu(h.size_le);
 
-    qemu_co_queue_init(&pdu->complete);
-    pdu_submit(pdu);
+    pdu_submit(pdu, &h);
 
     return 0;
 }
