@@ -378,7 +378,6 @@ static int handle_utimensat(FsContext *ctx, V9fsPath *fs_path,
                             const struct timespec *buf)
 {
     int ret;
-#ifdef CONFIG_UTIMENSAT
     int fd;
     struct handle_data *data = (struct handle_data *)ctx->private;
 
@@ -388,10 +387,6 @@ static int handle_utimensat(FsContext *ctx, V9fsPath *fs_path,
     }
     ret = futimens(fd, buf);
     close(fd);
-#else
-    ret = -1;
-    errno = ENOSYS;
-#endif
     return ret;
 }
 
