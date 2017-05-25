@@ -168,7 +168,7 @@ ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
             break;
         }
         default:
-            break;
+            g_assert_not_reached();
         }
         if (copied < 0) {
             return copied;
@@ -281,7 +281,7 @@ ssize_t v9fs_iov_vmarshal(struct iovec *in_sg, int in_num, size_t offset,
             break;
         }
         default:
-            break;
+            g_assert_not_reached();
         }
         if (copied < 0) {
             return copied;
