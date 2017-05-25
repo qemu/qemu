@@ -53,13 +53,37 @@ int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode)
 {
     LocalData *data = fs_ctx->private;
+    int fd = data->mountfd;
 
-    /* All paths are relative to the path data->mountfd points to */
-    while (*path == '/') {
-        path++;
+    while (*path && fd != -1) {
+        const char *c;
+        int next_fd;
+        char *head;
+
+        /* Only relative paths without consecutive slashes */
+        assert(*path != '/');
+
+        head = g_strdup(path);
+        c = strchrnul(path, '/');
+        if (*c) {
+            /* Intermediate path element */
+            head[c - path] = 0;
+            path = c + 1;
+            next_fd = openat_dir(fd, head);
+        } else {
+            /* Rightmost path element */
+            next_fd = openat_file(fd, head, flags, mode);
+            path = c;
+        }
+        g_free(head);
+        if (fd != data->mountfd) {
+            close_preserve_errno(fd);
+        }
+        fd = next_fd;
     }
 
-    return relative_openat_nofollow(data->mountfd, path, flags, mode);
+    assert(fd != data->mountfd);
+    return fd;
 }
 
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
