@@ -107,6 +107,7 @@ static void unlinkat_preserve_errno(int dirfd, const char *path, int flags)
 }
 
 #define VIRTFS_META_DIR ".virtfs_metadata"
+#define VIRTFS_META_ROOT_FILE VIRTFS_META_DIR "_root"
 
 static FILE *local_fopenat(int dirfd, const char *name, const char *mode)
 {
@@ -143,13 +144,17 @@ static void local_mapped_file_attr(int dirfd, const char *name,
     char buf[ATTR_MAX];
     int map_dirfd;
 
-    map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-    if (map_dirfd == -1) {
-        return;
-    }
+    if (strcmp(name, ".")) {
+        map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
+        if (map_dirfd == -1) {
+            return;
+        }
 
-    fp = local_fopenat(map_dirfd, name, "r");
-    close_preserve_errno(map_dirfd);
+        fp = local_fopenat(map_dirfd, name, "r");
+        close_preserve_errno(map_dirfd);
+    } else {
+        fp = local_fopenat(dirfd, VIRTFS_META_ROOT_FILE, "r");
+    }
     if (!fp) {
         return;
     }
@@ -227,25 +232,37 @@ static int local_set_mapped_file_attrat(int dirfd, const char *name,
     int ret;
     char buf[ATTR_MAX];
     int uid = -1, gid = -1, mode = -1, rdev = -1;
-    int map_dirfd;
+    int map_dirfd = -1, map_fd;
+    bool is_root = !strcmp(name, ".");
 
-    ret = mkdirat(dirfd, VIRTFS_META_DIR, 0700);
-    if (ret < 0 && errno != EEXIST) {
-        return -1;
-    }
-
-    map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-    if (map_dirfd == -1) {
-        return -1;
-    }
-
-    fp = local_fopenat(map_dirfd, name, "r");
-    if (!fp) {
-        if (errno == ENOENT) {
-            goto update_map_file;
-        } else {
-            close_preserve_errno(map_dirfd);
+    if (is_root) {
+        fp = local_fopenat(dirfd, VIRTFS_META_ROOT_FILE, "r");
+        if (!fp) {
+            if (errno == ENOENT) {
+                goto update_map_file;
+            } else {
+                return -1;
+            }
+        }
+    } else {
+        ret = mkdirat(dirfd, VIRTFS_META_DIR, 0700);
+        if (ret < 0 && errno != EEXIST) {
             return -1;
+        }
+
+        map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
+        if (map_dirfd == -1) {
+            return -1;
+        }
+
+        fp = local_fopenat(map_dirfd, name, "r");
+        if (!fp) {
+            if (errno == ENOENT) {
+                goto update_map_file;
+            } else {
+                close_preserve_errno(map_dirfd);
+                return -1;
+            }
         }
     }
     memset(buf, 0, ATTR_MAX);
@@ -264,11 +281,25 @@ static int local_set_mapped_file_attrat(int dirfd, const char *name,
     fclose(fp);
 
 update_map_file:
-    fp = local_fopenat(map_dirfd, name, "w");
-    close_preserve_errno(map_dirfd);
+    if (is_root) {
+        fp = local_fopenat(dirfd, VIRTFS_META_ROOT_FILE, "w");
+    } else {
+        fp = local_fopenat(map_dirfd, name, "w");
+        /* We can't go this far with map_dirfd not being a valid file descriptor
+         * but some versions of gcc aren't smart enough to see it.
+         */
+        if (map_dirfd != -1) {
+            close_preserve_errno(map_dirfd);
+        }
+    }
     if (!fp) {
         return -1;
     }
+
+    map_fd = fileno(fp);
+    assert(map_fd != -1);
+    ret = fchmod(map_fd, 0600);
+    assert(ret == 0);
 
     if (credp->fc_uid != -1) {
         uid = credp->fc_uid;
@@ -478,7 +509,8 @@ static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 
 static bool local_is_mapped_file_metadata(FsContext *fs_ctx, const char *name)
 {
-    return !strcmp(name, VIRTFS_META_DIR);
+    return
+        !strcmp(name, VIRTFS_META_DIR) || !strcmp(name, VIRTFS_META_ROOT_FILE);
 }
 
 static struct dirent *local_readdir(FsContext *ctx, V9fsFidOpenState *fs)
@@ -495,7 +527,7 @@ again:
         entry->d_type = DT_UNKNOWN;
     } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         if (local_is_mapped_file_metadata(ctx, entry->d_name)) {
-            /* skip the meta data directory */
+            /* skip the meta data */
             goto again;
         }
         entry->d_type = DT_UNKNOWN;
