@@ -65,11 +65,6 @@ ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     return ret;
 }
 
-static void pdu_push_and_notify(V9fsPDU *pdu)
-{
-    pdu->s->transport->push_and_notify(pdu);
-}
-
 static int omode_to_uflags(int8_t mode)
 {
     int ret = 0;
@@ -668,7 +663,7 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
     pdu->size = len;
     pdu->id = id;
 
-    pdu_push_and_notify(pdu);
+    pdu->s->transport->push_and_notify(pdu);
 
     /* Now wakeup anybody waiting in flush for this request */
     if (!qemu_co_queue_next(&pdu->complete)) {
