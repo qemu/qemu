@@ -1129,12 +1129,12 @@ int main(int argc, char **argv)
         }
     }
 
-    if (chdir("/") < 0) {
-        do_perror("chdir");
-        goto error;
-    }
     if (chroot(rpath) < 0) {
         do_perror("chroot");
+        goto error;
+    }
+    if (chdir("/") < 0) {
+        do_perror("chdir");
         goto error;
     }
 
