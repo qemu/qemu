@@ -992,6 +992,14 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         int map_dirfd;
 
+        /* We need to remove the metadata as well:
+         * - the metadata directory if we're removing a directory
+         * - the metadata file in the parent's metadata directory
+         *
+         * If any of these are missing (ie, ENOENT) then we're probably
+         * trying to remove something that wasn't created in mapped-file
+         * mode. We just ignore the error.
+         */
         if (flags == AT_REMOVEDIR) {
             int fd;
 
@@ -999,32 +1007,20 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
             if (fd == -1) {
                 goto err_out;
             }
-            /*
-             * If directory remove .virtfs_metadata contained in the
-             * directory
-             */
             ret = unlinkat(fd, VIRTFS_META_DIR, AT_REMOVEDIR);
             close_preserve_errno(fd);
             if (ret < 0 && errno != ENOENT) {
-                /*
-                 * We didn't had the .virtfs_metadata file. May be file created
-                 * in non-mapped mode ?. Ignore ENOENT.
-                 */
                 goto err_out;
             }
         }
-        /*
-         * Now remove the name from parent directory
-         * .virtfs_metadata directory.
-         */
         map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-        ret = unlinkat(map_dirfd, name, 0);
-        close_preserve_errno(map_dirfd);
-        if (ret < 0 && errno != ENOENT) {
-            /*
-             * We didn't had the .virtfs_metadata file. May be file created
-             * in non-mapped mode ?. Ignore ENOENT.
-             */
+        if (map_dirfd != -1) {
+            ret = unlinkat(map_dirfd, name, 0);
+            close_preserve_errno(map_dirfd);
+            if (ret < 0 && errno != ENOENT) {
+                goto err_out;
+            }
+        } else if (errno != ENOENT) {
             goto err_out;
         }
     }
