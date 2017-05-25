@@ -658,6 +658,30 @@ static void check_compatibility(const S390CPUModel *max_model,
                   "available in the configuration: ");
 }
 
+/**
+ * The base TCG CPU model "qemu" is based on the z900. However, we already
+ * can also emulate some additional features of later CPU generations, so
+ * we add these additional feature bits here.
+ */
+static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
+{
+    static const int feats[] = {
+        S390_FEAT_STFLE,
+        S390_FEAT_EXTENDED_IMMEDIATE,
+        S390_FEAT_LONG_DISPLACEMENT,
+        S390_FEAT_LONG_DISPLACEMENT_FAST,
+        S390_FEAT_STORE_CLOCK_FAST,
+        S390_FEAT_GENERAL_INSTRUCTIONS_EXT,
+        S390_FEAT_EXECUTE_EXT,
+        S390_FEAT_STFLE_45,
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(feats); i++) {
+        set_bit(feats[i], fbm);
+    }
+}
+
 static S390CPUModel *get_max_cpu_model(Error **errp)
 {
     static S390CPUModel max_model;
@@ -670,10 +694,11 @@ static S390CPUModel *get_max_cpu_model(Error **errp)
     if (kvm_enabled()) {
         kvm_s390_get_host_cpu_model(&max_model, errp);
     } else {
-        /* TCG emulates a z900 */
+        /* TCG emulates a z900 (with some optional additional features) */
         max_model.def = &s390_cpu_defs[0];
         bitmap_copy(max_model.features, max_model.def->default_feat,
                     S390_FEAT_MAX);
+        add_qemu_cpu_model_features(max_model.features);
     }
     if (!*errp) {
         cached = true;
@@ -925,11 +950,14 @@ static void s390_host_cpu_model_initfn(Object *obj)
 
 static void s390_qemu_cpu_model_initfn(Object *obj)
 {
+    static S390CPUDef s390_qemu_cpu_defs;
     S390CPU *cpu = S390_CPU(obj);
 
     cpu->model = g_malloc0(sizeof(*cpu->model));
-    /* TCG emulates a z900 */
-    cpu->model->def = &s390_cpu_defs[0];
+    /* TCG emulates a z900 (with some optional additional features) */
+    memcpy(&s390_qemu_cpu_defs, &s390_cpu_defs[0], sizeof(s390_qemu_cpu_defs));
+    add_qemu_cpu_model_features(s390_qemu_cpu_defs.full_feat);
+    cpu->model->def = &s390_qemu_cpu_defs;
     bitmap_copy(cpu->model->features, cpu->model->def->default_feat,
                 S390_FEAT_MAX);
 }
