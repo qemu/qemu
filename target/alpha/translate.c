@@ -89,6 +89,9 @@ typedef enum {
        updated the PC for the next instruction to be executed.  */
     EXIT_PC_STALE,
 
+    /* We are exiting the TB due to page crossing or space constraints.  */
+    EXIT_FALLTHRU,
+
     /* We are ending the TB with a noreturn function call, e.g. longjmp.
        No following code will be executed.  */
     EXIT_NORETURN,
@@ -2984,7 +2987,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
                 || num_insns >= max_insns
                 || singlestep
                 || ctx.singlestep_enabled)) {
-            ret = EXIT_PC_STALE;
+            ret = EXIT_FALLTHRU;
         }
     } while (ret == NO_EXIT);
 
@@ -2996,6 +2999,13 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     case EXIT_GOTO_TB:
     case EXIT_NORETURN:
         break;
+    case EXIT_FALLTHRU:
+        if (use_goto_tb(&ctx, ctx.pc)) {
+            tcg_gen_goto_tb(0);
+            tcg_gen_movi_i64(cpu_pc, ctx.pc);
+            tcg_gen_exit_tb((uintptr_t)ctx.tb);
+        }
+        /* FALLTHRU */
     case EXIT_PC_STALE:
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
         /* FALLTHRU */
@@ -3007,7 +3017,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         }
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     gen_tb_end(tb, num_insns);
