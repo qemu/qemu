@@ -845,6 +845,8 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 {
     struct sockaddr_un un;
     int sock, fd;
+    char *pathbuf = NULL;
+    const char *path;
 
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
@@ -852,20 +854,22 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         return -1;
     }
 
-    memset(&un, 0, sizeof(un));
-    un.sun_family = AF_UNIX;
-    if (saddr->path && strlen(saddr->path)) {
-        snprintf(un.sun_path, sizeof(un.sun_path), "%s", saddr->path);
+    if (saddr->path && saddr->path[0]) {
+        path = saddr->path;
     } else {
         const char *tmpdir = getenv("TMPDIR");
         tmpdir = tmpdir ? tmpdir : "/tmp";
-        if (snprintf(un.sun_path, sizeof(un.sun_path), "%s/qemu-socket-XXXXXX",
-                     tmpdir) >= sizeof(un.sun_path)) {
-            error_setg_errno(errp, errno,
-                             "TMPDIR environment variable (%s) too large", tmpdir);
-            goto err;
-        }
+        path = pathbuf = g_strdup_printf("%s/qemu-socket-XXXXXX", tmpdir);
+    }
 
+    if (strlen(path) > sizeof(un.sun_path)) {
+        error_setg(errp, "UNIX socket path '%s' is too long", path);
+        error_append_hint(errp, "Path must be less than %zu bytes\n",
+                          sizeof(un.sun_path));
+        goto err;
+    }
+
+    if (pathbuf != NULL) {
         /*
          * This dummy fd usage silences the mktemp() unsecure warning.
          * Using mkstemp() doesn't make things more secure here
@@ -873,24 +877,25 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
          * to unlink first and thus re-open the race window.  The
          * worst case possible is bind() failing, i.e. a DoS attack.
          */
-        fd = mkstemp(un.sun_path);
+        fd = mkstemp(pathbuf);
         if (fd < 0) {
             error_setg_errno(errp, errno,
-                             "Failed to make a temporary socket name in %s", tmpdir);
+                             "Failed to make a temporary socket %s", pathbuf);
             goto err;
         }
         close(fd);
-        if (update_addr) {
-            g_free(saddr->path);
-            saddr->path = g_strdup(un.sun_path);
-        }
     }
 
-    if (unlink(un.sun_path) < 0 && errno != ENOENT) {
+    if (unlink(path) < 0 && errno != ENOENT) {
         error_setg_errno(errp, errno,
-                         "Failed to unlink socket %s", un.sun_path);
+                         "Failed to unlink socket %s", path);
         goto err;
     }
+
+    memset(&un, 0, sizeof(un));
+    un.sun_family = AF_UNIX;
+    strncpy(un.sun_path, path, sizeof(un.sun_path));
+
     if (bind(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
         error_setg_errno(errp, errno, "Failed to bind socket to %s", un.sun_path);
         goto err;
@@ -900,9 +905,16 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         goto err;
     }
 
+    if (update_addr && pathbuf) {
+        g_free(saddr->path);
+        saddr->path = pathbuf;
+    } else {
+        g_free(pathbuf);
+    }
     return sock;
 
 err:
+    g_free(pathbuf);
     closesocket(sock);
     return -1;
 }
@@ -932,9 +944,16 @@ static int unix_connect_saddr(UnixSocketAddress *saddr,
         qemu_set_nonblock(sock);
     }
 
+    if (strlen(saddr->path) > sizeof(un.sun_path)) {
+        error_setg(errp, "UNIX socket path '%s' is too long", saddr->path);
+        error_append_hint(errp, "Path must be less than %zu bytes\n",
+                          sizeof(un.sun_path));
+        goto err;
+    }
+
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
-    snprintf(un.sun_path, sizeof(un.sun_path), "%s", saddr->path);
+    strncpy(un.sun_path, saddr->path, sizeof(un.sun_path));
 
     /* connect to peer */
     do {
@@ -956,13 +975,18 @@ static int unix_connect_saddr(UnixSocketAddress *saddr,
     }
 
     if (rc < 0) {
-        error_setg_errno(errp, -rc, "Failed to connect socket");
-        close(sock);
-        sock = -1;
+        error_setg_errno(errp, -rc, "Failed to connect socket %s",
+                         saddr->path);
+        goto err;
     }
 
     g_free(connect_state);
     return sock;
+
+ err:
+    close(sock);
+    g_free(connect_state);
+    return -1;
 }
 
 #else
