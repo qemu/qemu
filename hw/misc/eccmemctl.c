@@ -295,22 +295,29 @@ static void ecc_reset(DeviceState *d)
     s->regs[ECC_ECR1] = 0;
 }
 
-static int ecc_init1(SysBusDevice *dev)
+static void ecc_init(Object *obj)
 {
-    ECCState *s = ECC_MEMCTL(dev);
+    ECCState *s = ECC_MEMCTL(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(dev, &s->irq);
-    s->regs[0] = s->version;
-    memory_region_init_io(&s->iomem, OBJECT(dev), &ecc_mem_ops, s, "ecc", ECC_SIZE);
+
+    memory_region_init_io(&s->iomem, obj, &ecc_mem_ops, s, "ecc", ECC_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void ecc_realize(DeviceState *dev, Error **errp)
+{
+    ECCState *s = ECC_MEMCTL(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    s->regs[0] = s->version;
 
     if (s->version == ECC_MCC) { // SS-600MP only
         memory_region_init_io(&s->iomem_diag, OBJECT(dev), &ecc_diag_mem_ops, s,
                               "ecc.diag", ECC_DIAG_SIZE);
-        sysbus_init_mmio(dev, &s->iomem_diag);
+        sysbus_init_mmio(sbd, &s->iomem_diag);
     }
-
-    return 0;
 }
 
 static Property ecc_properties[] = {
@@ -321,9 +328,8 @@ static Property ecc_properties[] = {
 static void ecc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = ecc_init1;
+    dc->realize = ecc_realize;
     dc->reset = ecc_reset;
     dc->vmsd = &vmstate_ecc;
     dc->props = ecc_properties;
@@ -333,6 +339,7 @@ static const TypeInfo ecc_info = {
     .name          = TYPE_ECC_MEMCTL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ECCState),
+    .instance_init = ecc_init,
     .class_init    = ecc_class_init,
 };
 
