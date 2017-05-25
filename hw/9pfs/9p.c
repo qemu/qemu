@@ -2571,7 +2571,10 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
             err = -EINVAL;
             goto out;
         }
-        v9fs_co_name_to_path(pdu, &dirfidp->path, name->data, &new_path);
+        err = v9fs_co_name_to_path(pdu, &dirfidp->path, name->data, &new_path);
+        if (err < 0) {
+            goto out;
+        }
     } else {
         old_name = fidp->path.data;
         end = strrchr(old_name, '/');
@@ -2583,8 +2586,11 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
         new_name = g_malloc0(end - old_name + name->size + 1);
         strncat(new_name, old_name, end - old_name);
         strncat(new_name + (end - old_name), name->data, name->size);
-        v9fs_co_name_to_path(pdu, NULL, new_name, &new_path);
+        err = v9fs_co_name_to_path(pdu, NULL, new_name, &new_path);
         g_free(new_name);
+        if (err < 0) {
+            goto out;
+        }
     }
     err = v9fs_co_rename(pdu, &fidp->path, &new_path);
     if (err < 0) {
@@ -2664,20 +2670,26 @@ out_nofid:
     v9fs_string_free(&name);
 }
 
-static void coroutine_fn v9fs_fix_fid_paths(V9fsPDU *pdu, V9fsPath *olddir,
-                                            V9fsString *old_name,
-                                            V9fsPath *newdir,
-                                            V9fsString *new_name)
+static int coroutine_fn v9fs_fix_fid_paths(V9fsPDU *pdu, V9fsPath *olddir,
+                                           V9fsString *old_name,
+                                           V9fsPath *newdir,
+                                           V9fsString *new_name)
 {
     V9fsFidState *tfidp;
     V9fsPath oldpath, newpath;
     V9fsState *s = pdu->s;
-
+    int err;
 
     v9fs_path_init(&oldpath);
     v9fs_path_init(&newpath);
-    v9fs_co_name_to_path(pdu, olddir, old_name->data, &oldpath);
-    v9fs_co_name_to_path(pdu, newdir, new_name->data, &newpath);
+    err = v9fs_co_name_to_path(pdu, olddir, old_name->data, &oldpath);
+    if (err < 0) {
+        goto out;
+    }
+    err = v9fs_co_name_to_path(pdu, newdir, new_name->data, &newpath);
+    if (err < 0) {
+        goto out;
+    }
 
     /*
      * Fixup fid's pointing to the old name to
@@ -2689,8 +2701,10 @@ static void coroutine_fn v9fs_fix_fid_paths(V9fsPDU *pdu, V9fsPath *olddir,
             v9fs_fix_path(&tfidp->path, &newpath, strlen(oldpath.data));
         }
     }
+out:
     v9fs_path_free(&oldpath);
     v9fs_path_free(&newpath);
+    return err;
 }
 
 static int coroutine_fn v9fs_complete_renameat(V9fsPDU *pdu, int32_t olddirfid,
@@ -2724,8 +2738,8 @@ static int coroutine_fn v9fs_complete_renameat(V9fsPDU *pdu, int32_t olddirfid,
     }
     if (s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT) {
         /* Only for path based fid  we need to do the below fixup */
-        v9fs_fix_fid_paths(pdu, &olddirfidp->path, old_name,
-                           &newdirfidp->path, new_name);
+        err = v9fs_fix_fid_paths(pdu, &olddirfidp->path, old_name,
+                                 &newdirfidp->path, new_name);
     }
 out:
     if (olddirfidp) {
