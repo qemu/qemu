@@ -27,6 +27,7 @@ void qemu_timer_notify_cb(void *opaque, QEMUClockType type);
 void cpu_synchronize_all_states(void);
 void cpu_synchronize_all_post_reset(void);
 void cpu_synchronize_all_post_init(void);
+void cpu_synchronize_all_pre_loadvm(void);
 
 void qtest_clock_warp(int64_t dest);
 

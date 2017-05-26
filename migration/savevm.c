@@ -1999,6 +1999,8 @@ int qemu_loadvm_state(QEMUFile *f)
         }
     }
 
+    cpu_synchronize_all_pre_loadvm();
+
     ret = qemu_loadvm_state_main(f, mis);
     qemu_event_set(&mis->main_thread_load_event);
 

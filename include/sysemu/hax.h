@@ -33,6 +33,7 @@ int hax_populate_ram(uint64_t va, uint32_t size);
 void hax_cpu_synchronize_state(CPUState *cpu);
 void hax_cpu_synchronize_post_reset(CPUState *cpu);
 void hax_cpu_synchronize_post_init(CPUState *cpu);
+void hax_cpu_synchronize_pre_loadvm(CPUState *cpu);
 
 #ifdef CONFIG_HAX
 

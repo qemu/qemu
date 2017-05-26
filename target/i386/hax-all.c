@@ -635,6 +635,16 @@ void hax_cpu_synchronize_post_init(CPUState *cpu)
     run_on_cpu(cpu, do_hax_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
 
+static void do_hax_cpu_synchronize_pre_loadvm(CPUState *cpu, run_on_cpu_data arg)
+{
+    cpu->hax_vcpu_dirty = true;
+}
+
+void hax_cpu_synchronize_pre_loadvm(CPUState *cpu)
+{
+    run_on_cpu(cpu, do_hax_cpu_synchronize_pre_loadvm, RUN_ON_CPU_NULL);
+}
+
 int hax_smp_cpu_exec(CPUState *cpu)
 {
     CPUArchState *env = (CPUArchState *) (cpu->env_ptr);
