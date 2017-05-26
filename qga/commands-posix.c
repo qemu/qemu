@@ -2197,12 +2197,10 @@ static void transfer_memory_block(GuestMemoryBlock *mem_blk, bool sys2memblk,
         }
     } else {
         if (mem_blk->online != (strncmp(status, "online", 6) == 0)) {
-            char *new_state = mem_blk->online ? g_strdup("online") :
-                                                g_strdup("offline");
+            const char *new_state = mem_blk->online ? "online" : "offline";
 
             ga_write_sysfs_file(dirfd, "state", new_state, strlen(new_state),
                                 &local_err);
-            g_free(new_state);
             if (local_err) {
                 error_free(local_err);
                 result->response =
