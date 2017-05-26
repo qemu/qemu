@@ -288,8 +288,9 @@ static void *nbd_client_thread(void *arg)
         goto out_socket;
     }
 
-    ret = nbd_init(fd, sioc, nbdflags, size);
+    ret = nbd_init(fd, sioc, nbdflags, size, &local_error);
     if (ret < 0) {
+        error_report_err(local_error);
         goto out_fd;
     }
 

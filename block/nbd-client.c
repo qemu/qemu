@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "nbd-client.h"
 
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ ((uint64_t)(intptr_t)bs))
@@ -70,10 +71,14 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     NBDClientSession *s = opaque;
     uint64_t i;
     int ret;
+    Error *local_err = NULL;
 
     for (;;) {
         assert(s->reply.handle == 0);
-        ret = nbd_receive_reply(s->ioc, &s->reply);
+        ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
+        if (ret < 0) {
+            error_report_err(local_err);
+        }
         if (ret <= 0) {
             break;
         }

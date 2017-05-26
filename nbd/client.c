@@ -627,11 +627,13 @@ fail:
 }
 
 #ifdef __linux__
-int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size,
+             Error **errp)
 {
     unsigned long sectors = size / BDRV_SECTOR_SIZE;
     if (size / BDRV_SECTOR_SIZE != sectors) {
-        LOG("Export size %lld too large for 32-bit kernel", (long long) size);
+        error_setg(errp, "Export size %lld too large for 32-bit kernel",
+                   (long long) size);
         return -E2BIG;
     }
 
@@ -639,7 +641,7 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
 
     if (ioctl(fd, NBD_SET_SOCK, (unsigned long) sioc->fd) < 0) {
         int serrno = errno;
-        LOG("Failed to set NBD socket");
+        error_setg(errp, "Failed to set NBD socket");
         return -serrno;
     }
 
@@ -647,7 +649,7 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
 
     if (ioctl(fd, NBD_SET_BLKSIZE, (unsigned long)BDRV_SECTOR_SIZE) < 0) {
         int serrno = errno;
-        LOG("Failed setting NBD block size");
+        error_setg(errp, "Failed setting NBD block size");
         return -serrno;
     }
 
@@ -659,7 +661,7 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
 
     if (ioctl(fd, NBD_SET_SIZE_BLOCKS, sectors) < 0) {
         int serrno = errno;
-        LOG("Failed setting size (in blocks)");
+        error_setg(errp, "Failed setting size (in blocks)");
         return -serrno;
     }
 
@@ -670,12 +672,12 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size)
 
             if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
                 int serrno = errno;
-                LOG("Failed setting read-only attribute");
+                error_setg(errp, "Failed setting read-only attribute");
                 return -serrno;
             }
         } else {
             int serrno = errno;
-            LOG("Failed setting flags");
+            error_setg(errp, "Failed setting flags");
             return -serrno;
         }
     }
@@ -723,8 +725,10 @@ int nbd_disconnect(int fd)
 }
 
 #else
-int nbd_init(int fd, QIOChannelSocket *ioc, uint16_t flags, off_t size)
+int nbd_init(int fd, QIOChannelSocket *ioc, uint16_t flags, off_t size,
+	     Error **errp)
 {
+    error_setg(errp, "nbd_init is only supported on Linux");
     return -ENOTSUP;
 }
 
@@ -758,19 +762,19 @@ ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
     return write_sync(ioc, buf, sizeof(buf), NULL);
 }
 
-ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
+ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     uint32_t magic;
     ssize_t ret;
 
-    ret = read_sync_eof(ioc, buf, sizeof(buf), NULL);
+    ret = read_sync_eof(ioc, buf, sizeof(buf), errp);
     if (ret <= 0) {
         return ret;
     }
 
     if (ret != sizeof(buf)) {
-        LOG("read failed");
+        error_setg(errp, "read failed");
         return -EINVAL;
     }
 
@@ -788,7 +792,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
 
     if (reply->error == ESHUTDOWN) {
         /* This works even on mingw which lacks a native ESHUTDOWN */
-        LOG("server shutting down");
+        error_setg(errp, "server shutting down");
         return -EINVAL;
     }
     TRACE("Got reply: { magic = 0x%" PRIx32 ", .error = % " PRId32
@@ -796,7 +800,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply)
           magic, reply->error, reply->handle);
 
     if (magic != NBD_REPLY_MAGIC) {
-        LOG("invalid magic (got 0x%" PRIx32 ")", magic);
+        error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
     return sizeof(buf);
