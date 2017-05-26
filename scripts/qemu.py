@@ -85,8 +85,11 @@ class QEMUMachine(object):
                 return
             raise
 
+    def is_running(self):
+        return self._popen and (self._popen.returncode is None)
+
     def get_pid(self):
-        if not self._popen:
+        if not self.is_running():
             return None
         return self._popen.pid
 
@@ -128,16 +131,16 @@ class QEMUMachine(object):
                                            stderr=subprocess.STDOUT, shell=False)
             self._post_launch()
         except:
-            if self._popen:
+            if self.is_running():
                 self._popen.kill()
+                self._popen.wait()
             self._load_io_log()
             self._post_shutdown()
-            self._popen = None
             raise
 
     def shutdown(self):
         '''Terminate the VM and clean up'''
-        if not self._popen is None:
+        if self.is_running():
             try:
                 self._qmp.cmd('quit')
                 self._qmp.close()
@@ -149,7 +152,6 @@ class QEMUMachine(object):
                 sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
             self._load_io_log()
             self._post_shutdown()
-            self._popen = None
 
     underscore_to_dash = string.maketrans('_', '-')
     def qmp(self, cmd, conv_keys=True, **args):
