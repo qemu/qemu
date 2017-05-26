@@ -88,6 +88,11 @@ class QEMUMachine(object):
     def is_running(self):
         return self._popen and (self._popen.returncode is None)
 
+    def exitcode(self):
+        if self._popen is None:
+            return None
+        return self._popen.returncode
+
     def get_pid(self):
         if not self.is_running():
             return None
