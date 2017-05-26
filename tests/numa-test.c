@@ -92,7 +92,7 @@ static QList *get_cpus(QDict **resp)
     *resp = qmp("{ 'execute': 'query-cpus' }");
     g_assert(*resp);
     g_assert(qdict_haskey(*resp, "return"));
-    return  qdict_get_qlist(*resp, "return");
+    return qdict_get_qlist(*resp, "return");
 }
 
 static void test_query_cpus(const void *data)
@@ -100,7 +100,7 @@ static void test_query_cpus(const void *data)
     char *cli;
     QDict *resp;
     QList *cpus;
-    const QObject *e;
+    QObject *e;
 
     cli = make_cli(data, "-smp 8 -numa node,cpus=0-3 -numa node,cpus=4-7");
     qtest_start(cli);
@@ -124,6 +124,7 @@ static void test_query_cpus(const void *data)
         } else {
             g_assert_cmpint(node, ==, 1);
         }
+        qobject_decref(e);
     }
 
     QDECREF(resp);
@@ -136,7 +137,7 @@ static void pc_numa_cpu(const void *data)
     char *cli;
     QDict *resp;
     QList *cpus;
-    const QObject *e;
+    QObject *e;
 
     cli = make_cli(data, "-cpu pentium -smp 8,sockets=2,cores=2,threads=2 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
@@ -176,6 +177,7 @@ static void pc_numa_cpu(const void *data)
         } else {
             g_assert(false);
         }
+        qobject_decref(e);
     }
 
     QDECREF(resp);
@@ -188,7 +190,7 @@ static void spapr_numa_cpu(const void *data)
     char *cli;
     QDict *resp;
     QList *cpus;
-    const QObject *e;
+    QObject *e;
 
     cli = make_cli(data, "-smp 4,cores=4 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
@@ -220,6 +222,7 @@ static void spapr_numa_cpu(const void *data)
         } else {
             g_assert(false);
         }
+        qobject_decref(e);
     }
 
     QDECREF(resp);
@@ -232,7 +235,7 @@ static void aarch64_numa_cpu(const void *data)
     char *cli;
     QDict *resp;
     QList *cpus;
-    const QObject *e;
+    QObject *e;
 
     cli = make_cli(data, "-smp 2 "
         "-numa node,nodeid=0 -numa node,nodeid=1 "
@@ -262,6 +265,7 @@ static void aarch64_numa_cpu(const void *data)
         } else {
             g_assert(false);
         }
+        qobject_decref(e);
     }
 
     QDECREF(resp);
