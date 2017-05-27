@@ -120,7 +120,7 @@ static void rtc_coalesced_timer_update(RTCState *s)
         /* divide each RTC interval to 2 - 8 smaller intervals */
         int c = MIN(s->irq_coalesced, 7) + 1; 
         int64_t next_clock = qemu_clock_get_ns(rtc_clock) +
-            muldiv64(s->period / c, NANOSECONDS_PER_SECOND, RTC_CLOCK_RATE);
+            periodic_clock_to_ns(s->period / c);
         timer_mod(s->coalesced_timer, next_clock);
     }
 }
@@ -178,16 +178,8 @@ static uint32_t rtc_periodic_clock_ticks(RTCState *s)
      }
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
-    if (!period_code) {
-        return 0;
-    }
 
-    if (period_code <= 2) {
-        period_code += 7;
-    }
-
-    /* period in 32 Khz cycles */
-    return 1 << (period_code - 1);
+    return periodic_period_to_clock(period_code);
 }
 
 /*
@@ -260,8 +252,7 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
         assert(lost_clock >= 0 && lost_clock <= period);
 
         next_irq_clock = cur_clock + period - lost_clock;
-        s->next_periodic_time = muldiv64(next_irq_clock, NANOSECONDS_PER_SECOND,
-                                         RTC_CLOCK_RATE) + 1;
+        s->next_periodic_time = periodic_clock_to_ns(next_irq_clock) + 1;
         timer_mod(s->periodic_timer, s->next_periodic_time);
     } else {
         s->irq_coalesced = 0;

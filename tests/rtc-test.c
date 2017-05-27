@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
+#include "qemu/timer.h"
 #include "hw/timer/mc146818rtc_regs.h"
 
 static uint8_t base = 0x70;
@@ -542,6 +543,52 @@ static void register_b_set_flag(void)
     g_assert_cmpint(cmos_read(RTC_CENTURY), ==, 0x20);
 }
 
+#define RTC_PERIOD_CODE1    13   /* 8 Hz */
+#define RTC_PERIOD_CODE2    15   /* 2 Hz */
+
+#define RTC_PERIOD_TEST_NR  50
+
+static uint64_t wait_periodic_interrupt(uint64_t real_time)
+{
+    while (!get_irq(RTC_ISA_IRQ)) {
+        real_time = clock_step_next();
+    }
+
+    g_assert((cmos_read(RTC_REG_C) & REG_C_PF) != 0);
+    return real_time;
+}
+
+static void periodic_timer(void)
+{
+    int i;
+    uint64_t period_clocks, period_time, start_time, real_time;
+
+    /* disable all interrupts. */
+    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) &
+                                   ~(REG_B_PIE | REG_B_AIE | REG_B_UIE));
+    cmos_write(RTC_REG_A, RTC_PERIOD_CODE1);
+    /* enable periodic interrupt after properly configure the period. */
+    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_PIE);
+
+    start_time = real_time = clock_step_next();
+
+    for (i = 0; i < RTC_PERIOD_TEST_NR; i++) {
+        cmos_write(RTC_REG_A, RTC_PERIOD_CODE1);
+        real_time = wait_periodic_interrupt(real_time);
+        cmos_write(RTC_REG_A, RTC_PERIOD_CODE2);
+        real_time = wait_periodic_interrupt(real_time);
+    }
+
+    period_clocks = periodic_period_to_clock(RTC_PERIOD_CODE1) +
+                       periodic_period_to_clock(RTC_PERIOD_CODE2);
+    period_clocks *= RTC_PERIOD_TEST_NR;
+    period_time = periodic_clock_to_ns(period_clocks);
+
+    real_time -= start_time;
+    g_assert_cmpint(ABS((int64_t)(real_time - period_time)), <=,
+                    NANOSECONDS_PER_SECOND * 0.5);
+}
+
 int main(int argc, char **argv)
 {
     QTestState *s = NULL;
@@ -564,6 +611,8 @@ int main(int argc, char **argv)
     qtest_add_func("/rtc/set-year/1980", set_year_1980);
     qtest_add_func("/rtc/misc/register_b_set_flag", register_b_set_flag);
     qtest_add_func("/rtc/misc/fuzz-registers", fuzz_registers);
+    qtest_add_func("/rtc/periodic/interrupt", periodic_timer);
+
     ret = g_test_run();
 
     if (s) {
