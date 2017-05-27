@@ -325,7 +325,7 @@ out:
 
 static int nbd_can_accept(void)
 {
-    return nb_fds < shared;
+    return state == RUNNING && nb_fds < shared;
 }
 
 static void nbd_export_closed(NBDExport *exp)

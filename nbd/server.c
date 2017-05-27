@@ -1358,15 +1358,13 @@ static coroutine_fn void nbd_co_client_start(void *opaque)
 
     if (exp) {
         nbd_export_get(exp);
-    }
-    if (nbd_negotiate(data)) {
-        client_close(client);
-        goto out;
+        QTAILQ_INSERT_TAIL(&exp->clients, client, next);
     }
     qemu_co_mutex_init(&client->send_lock);
 
-    if (exp) {
-        QTAILQ_INSERT_TAIL(&exp->clients, client, next);
+    if (nbd_negotiate(data)) {
+        client_close(client);
+        goto out;
     }
 
     nbd_client_receive_next_request(client);
