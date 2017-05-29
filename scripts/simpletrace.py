@@ -42,7 +42,15 @@ def get_record(edict, idtoname, rechdr, fobj):
         event_id = rechdr[0]
         name = idtoname[event_id]
         rec = (name, rechdr[1], rechdr[3])
-        event = edict[name]
+        try:
+            event = edict[name]
+        except KeyError, e:
+            import sys
+            sys.stderr.write('%s event is logged but is not declared ' \
+                             'in the trace events file, try using ' \
+                             'trace-events-all instead.\n' % str(e))
+            sys.exit(1)
+
         for type, name in event.args:
             if is_string(type):
                 l = fobj.read(4)
