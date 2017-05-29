@@ -19,6 +19,7 @@
 #include "qemu/host-utils.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 #include "kvm_i386.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
@@ -68,6 +69,8 @@ static uint64_t kvmclock_current_nsec(KVMClockState *s)
     uint64_t nsec_lo;
     uint64_t nsec_hi;
     uint64_t nsec;
+
+    cpu_synchronize_state(cpu);
 
     if (!(env->system_time_msr & 1ULL)) {
         /* KVM clock not active */
