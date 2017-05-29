@@ -1797,7 +1797,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
             }
 
             if (offset_into_cluster(s, offset)) {
-                qcow2_signal_corruption(bs, true, -1, -1, "Data cluster offset "
+                qcow2_signal_corruption(bs, true, -1, -1,
+                                        "Cluster allocation offset "
                                         "%#" PRIx64 " unaligned (L2 offset: %#"
                                         PRIx64 ", L2 index: %#x)", offset,
                                         l2_offset, j);
