@@ -50,8 +50,6 @@ common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += migration/
 
-common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
-
 common-obj-y += audio/
 common-obj-y += hw/
 common-obj-y += accel.o
@@ -70,6 +68,7 @@ common-obj-y += tpm.o
 common-obj-$(CONFIG_SLIRP) += slirp/
 
 common-obj-y += backends/
+common-obj-y += chardev/
 
 common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
 
@@ -121,6 +120,7 @@ trace-events-subdirs += io
 trace-events-subdirs += migration
 trace-events-subdirs += block
 trace-events-subdirs += backends
+trace-events-subdirs += chardev
 trace-events-subdirs += hw/block
 trace-events-subdirs += hw/block/dataplane
 trace-events-subdirs += hw/char

@@ -1239,13 +1239,11 @@ M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
 F: chardev/
 F: include/chardev/
-F: backends/msmouse.c
-F: backends/testdev.c
 
 Character Devices (Braille)
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 S: Maintained
-F: backends/baum.c
+F: chardev/baum.c
 
 Command line option argument parsing
 M: Markus Armbruster <armbru@redhat.com>
