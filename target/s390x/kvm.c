@@ -140,6 +140,8 @@ static int cap_mem_op;
 static int cap_s390_irq;
 static int cap_ri;
 
+static int active_cmma;
+
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
 static int kvm_s390_query_mem_limit(KVMState *s, uint64_t *memory_limit)
@@ -177,6 +179,11 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
     return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
 }
 
+int kvm_s390_cmma_active(void)
+{
+    return active_cmma;
+}
+
 static bool kvm_s390_cmma_available(void)
 {
     static bool initialized, value;
@@ -197,7 +204,7 @@ void kvm_s390_cmma_reset(void)
         .attr = KVM_S390_VM_MEM_CLR_CMMA,
     };
 
-    if (mem_path || !kvm_s390_cmma_available()) {
+    if (!kvm_s390_cmma_active()) {
         return;
     }
 
@@ -213,7 +220,13 @@ static void kvm_s390_enable_cmma(void)
         .attr = KVM_S390_VM_MEM_ENABLE_CMMA,
     };
 
+    if (mem_path) {
+        error_report("Warning: CMM will not be enabled because it is not "
+                     "compatible to hugetlbfs.");
+        return;
+    }
     rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+    active_cmma = !rc;
     trace_kvm_enable_cmma(rc);
 }
 
@@ -2641,7 +2654,7 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
 
     if (!model) {
         /* compatibility handling if cpu models are disabled */
-        if (kvm_s390_cmma_available() && !mem_path) {
+        if (kvm_s390_cmma_available()) {
             kvm_s390_enable_cmma();
         }
         return;
@@ -2672,13 +2685,8 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
         error_setg(errp, "KVM: Error configuring CPU subfunctions: %d", rc);
         return;
     }
-    /* enable CMM via CMMA - disable on hugetlbfs */
+    /* enable CMM via CMMA */
     if (test_bit(S390_FEAT_CMM, model->features)) {
-        if (mem_path) {
-            error_report("Warning: CMM will not be enabled because it is not "
-                         "compatible to hugetlbfs.");
-        } else {
-            kvm_s390_enable_cmma();
-        }
+        kvm_s390_enable_cmma();
     }
 }
