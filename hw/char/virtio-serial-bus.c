@@ -1121,6 +1121,9 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
         timer_free(vser->post_load->timer);
         g_free(vser->post_load);
     }
+
+    qbus_set_hotplug_handler(BUS(&vser->bus), NULL, errp);
+
     virtio_cleanup(vdev);
 }
 
