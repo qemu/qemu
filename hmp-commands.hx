@@ -676,7 +676,8 @@ ETEXI
 STEXI
 @item usb_add @var{devname}
 @findex usb_add
-Add the USB device @var{devname}.  For details of available devices see
+Add the USB device @var{devname}. This command is deprecated, please
+use @code{device_add} instead. For details of available devices see
 @ref{usb_devices}
 ETEXI
 
@@ -693,7 +694,8 @@ STEXI
 @findex usb_del
 Remove the USB device @var{devname} from the QEMU virtual USB
 hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
-command @code{info usb} to see the devices you can remove.
+command @code{info usb} to see the devices you can remove. This
+command is deprecated, please use @code{device_del} instead.
 ETEXI
 
     {
