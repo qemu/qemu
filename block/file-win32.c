@@ -276,12 +276,7 @@ static void raw_parse_flags(int flags, bool use_aio, int *access_flags,
 static void raw_parse_filename(const char *filename, QDict *options,
                                Error **errp)
 {
-    /* The filename does not have to be prefixed by the protocol name, since
-     * "file" is the default protocol; therefore, the return value of this
-     * function call can be ignored. */
-    strstart(filename, "file:", &filename);
-
-    qdict_put_str(options, "filename", filename);
+    bdrv_parse_filename_strip_prefix(filename, "file:", options);
 }
 
 static QemuOptsList raw_runtime_opts = {
@@ -671,10 +666,7 @@ static int hdev_probe_device(const char *filename)
 static void hdev_parse_filename(const char *filename, QDict *options,
                                 Error **errp)
 {
-    /* The prefix is optional, just as for "file". */
-    strstart(filename, "host_device:", &filename);
-
-    qdict_put_str(options, "filename", filename);
+    bdrv_parse_filename_strip_prefix(filename, "host_device:", options);
 }
 
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,

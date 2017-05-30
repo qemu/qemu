@@ -280,6 +280,6 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 
 fail:
     if (orig_bs_flags != bdrv_get_flags(bs)) {
-        bdrv_reopen(bs, s->bs_flags, NULL);
+        bdrv_reopen(bs, orig_bs_flags, NULL);
     }
 }

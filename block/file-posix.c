@@ -381,12 +381,7 @@ static void raw_parse_flags(int bdrv_flags, int *open_flags)
 static void raw_parse_filename(const char *filename, QDict *options,
                                Error **errp)
 {
-    /* The filename does not have to be prefixed by the protocol name, since
-     * "file" is the default protocol; therefore, the return value of this
-     * function call can be ignored. */
-    strstart(filename, "file:", &filename);
-
-    qdict_put_str(options, "filename", filename);
+    bdrv_parse_filename_strip_prefix(filename, "file:", options);
 }
 
 static QemuOptsList raw_runtime_opts = {
@@ -2395,10 +2390,7 @@ static int check_hdev_writable(BDRVRawState *s)
 static void hdev_parse_filename(const char *filename, QDict *options,
                                 Error **errp)
 {
-    /* The prefix is optional, just as for "file". */
-    strstart(filename, "host_device:", &filename);
-
-    qdict_put_str(options, "filename", filename);
+    bdrv_parse_filename_strip_prefix(filename, "host_device:", options);
 }
 
 static bool hdev_is_sg(BlockDriverState *bs)
@@ -2697,10 +2689,7 @@ static BlockDriver bdrv_host_device = {
 static void cdrom_parse_filename(const char *filename, QDict *options,
                                  Error **errp)
 {
-    /* The prefix is optional, just as for "file". */
-    strstart(filename, "host_cdrom:", &filename);
-
-    qdict_put_str(options, "filename", filename);
+    bdrv_parse_filename_strip_prefix(filename, "host_cdrom:", options);
 }
 #endif
 

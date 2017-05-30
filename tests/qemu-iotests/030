@@ -147,6 +147,10 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='nonexistent')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
+    def test_job_id_missing(self):
+        result = self.vm.qmp('block-stream', device='mid')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
 
 class TestParallelOps(iotests.QMPTestCase):
     num_ops = 4 # Number of parallel block-stream operations

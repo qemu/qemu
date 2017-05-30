@@ -147,6 +147,13 @@ class BuiltinNBD(NBDBlockdevAddBase):
         self._server_down()
 
     def test_inet6(self):
+        try:
+            socket.getaddrinfo("::0", "0", socket.AF_INET6,
+                               socket.SOCK_STREAM, socket.IPPROTO_TCP,
+                               socket.AI_ADDRCONFIG | socket.AI_CANONNAME)
+        except socket.gaierror:
+            # IPv6 not available, skip
+            return
         address = { 'type': 'inet',
                     'data': {
                         'host': '::1',
