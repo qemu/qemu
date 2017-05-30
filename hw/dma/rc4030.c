@@ -489,7 +489,7 @@ static const MemoryRegionOps jazzio_ops = {
 };
 
 static IOMMUTLBEntry rc4030_dma_translate(MemoryRegion *iommu, hwaddr addr,
-                                          bool is_write)
+                                          IOMMUAccessFlags flag)
 {
     rc4030State *s = container_of(iommu, rc4030State, dma_mr);
     IOMMUTLBEntry ret = {

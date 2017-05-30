@@ -357,7 +357,7 @@ out:
 }
 
 static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *mr, hwaddr addr,
-                                          bool is_write)
+                                          IOMMUAccessFlags flag)
 {
     uint64_t pte;
     uint32_t flags;

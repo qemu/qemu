@@ -162,11 +162,11 @@ fail:
 }
 
 static int process_message_reply(struct vhost_dev *dev,
-                                 VhostUserMsg msg)
+                                 const VhostUserMsg *msg)
 {
     VhostUserMsg msg_reply;
 
-    if ((msg.flags & VHOST_USER_NEED_REPLY_MASK) == 0) {
+    if ((msg->flags & VHOST_USER_NEED_REPLY_MASK) == 0) {
         return 0;
     }
 
@@ -174,10 +174,10 @@ static int process_message_reply(struct vhost_dev *dev,
         return -1;
     }
 
-    if (msg_reply.request != msg.request) {
+    if (msg_reply.request != msg->request) {
         error_report("Received unexpected msg type."
                      "Expected %d received %d",
-                     msg.request, msg_reply.request);
+                     msg->request, msg_reply.request);
         return -1;
     }
 
@@ -324,7 +324,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     }
 
     if (reply_supported) {
-        return process_message_reply(dev, msg);
+        return process_message_reply(dev, &msg);
     }
 
     return 0;
@@ -716,7 +716,7 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
 
     /* If reply_ack supported, slave has to ack specified MTU is valid */
     if (reply_supported) {
-        return process_message_reply(dev, msg);
+        return process_message_reply(dev, &msg);
     }
 
     return 0;

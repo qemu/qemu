@@ -187,6 +187,7 @@
 /* Interrupt Remapping support */
 #define VTD_ECAP_IR                 (1ULL << 3)
 #define VTD_ECAP_EIM                (1ULL << 4)
+#define VTD_ECAP_PT                 (1ULL << 6)
 #define VTD_ECAP_MHMV               (15ULL << 20)
 
 /* CAP_REG */

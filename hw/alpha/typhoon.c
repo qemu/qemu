@@ -664,7 +664,7 @@ static bool window_translate(TyphoonWindow *win, hwaddr addr,
 /* TODO: A translation failure here ought to set PCI error codes on the
    Pchip and generate a machine check interrupt.  */
 static IOMMUTLBEntry typhoon_translate_iommu(MemoryRegion *iommu, hwaddr addr,
-                                             bool is_write)
+                                             IOMMUAccessFlags flag)
 {
     TyphoonPchip *pchip = container_of(iommu, TyphoonPchip, iommu);
     IOMMUTLBEntry ret;
