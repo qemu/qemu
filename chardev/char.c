@@ -841,7 +841,7 @@ chardev_name_foreach(void (*fn)(const char *name, void *opaque), void *opaque)
 
     object_class_foreach(chardev_class_foreach, TYPE_CHARDEV, false, &fe);
 
-    for (i = 0; i < ARRAY_SIZE(chardev_alias_table); i++) {
+    for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
         fn(chardev_alias_table[i].alias, opaque);
     }
 }
@@ -887,7 +887,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         return NULL;
     }
 
-    for (i = 0; i < ARRAY_SIZE(chardev_alias_table); i++) {
+    for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
         if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
             name = chardev_alias_table[i].typename;
             break;
