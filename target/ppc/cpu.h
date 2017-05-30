@@ -1205,6 +1205,7 @@ struct PowerPCCPU {
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
     Object *intc;
+    int32_t node_id; /* NUMA node this CPU belongs to */
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;
