@@ -49,9 +49,10 @@ bool replay_next_event_is(int event)
             res = true;
         }
         switch (replay_state.data_kind) {
-        case EVENT_SHUTDOWN:
+        case EVENT_SHUTDOWN ... EVENT_SHUTDOWN_LAST:
             replay_finish_event();
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(replay_state.data_kind -
+                                         EVENT_SHUTDOWN);
             break;
         default:
             /* clock, time_t, checkpoint and other events */
@@ -170,11 +171,11 @@ bool replay_has_interrupt(void)
     return res;
 }
 
-void replay_shutdown_request(void)
+void replay_shutdown_request(ShutdownCause cause)
 {
     if (replay_mode == REPLAY_MODE_RECORD) {
         replay_mutex_lock();
-        replay_put_event(EVENT_SHUTDOWN);
+        replay_put_event(EVENT_SHUTDOWN + cause);
         replay_mutex_unlock();
     }
 }

@@ -2052,7 +2052,7 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_SHUTDOWN:
             DPRINTF("shutdown\n");
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             ret = EXCP_INTERRUPT;
             break;
         case KVM_EXIT_UNKNOWN:
@@ -2066,11 +2066,11 @@ int kvm_cpu_exec(CPUState *cpu)
         case KVM_EXIT_SYSTEM_EVENT:
             switch (run->system_event.type) {
             case KVM_SYSTEM_EVENT_SHUTDOWN:
-                qemu_system_shutdown_request();
+                qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
                 ret = EXCP_INTERRUPT;
                 break;
             case KVM_SYSTEM_EVENT_RESET:
-                qemu_system_reset_request();
+                qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
                 ret = EXCP_INTERRUPT;
                 break;
             case KVM_SYSTEM_EVENT_CRASH:

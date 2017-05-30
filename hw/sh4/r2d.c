@@ -164,7 +164,7 @@ r2d_fpga_write(void *opaque, hwaddr addr, uint64_t value, unsigned int size)
 	break;
     case PA_POWOFF:
         if (value & 1) {
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         }
         break;
     case PA_VERREG:

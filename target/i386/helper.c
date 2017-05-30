@@ -1212,7 +1212,7 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
                            " triple fault\n",
                            cs->cpu_index);
             qemu_log_mask(CPU_LOG_RESET, "Triple fault\n");
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             return;
         }
         if (banks[1] & MCI_STATUS_VAL) {

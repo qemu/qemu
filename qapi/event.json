@@ -10,6 +10,10 @@
 # Emitted when the virtual machine has shut down, indicating that qemu is
 # about to exit.
 #
+# @guest: If true, the shutdown was triggered by a guest request (such as
+# a guest-initiated ACPI shutdown request or other hardware-specific action)
+# rather than a host request (such as sending qemu a SIGINT). (since 2.10)
+#
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 # not exit, and a STOP event will eventually follow the SHUTDOWN event
 #
@@ -17,11 +21,11 @@
 #
 # Example:
 #
-# <- { "event": "SHUTDOWN",
+# <- { "event": "SHUTDOWN", "data": { "guest": true },
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
-{ 'event': 'SHUTDOWN' }
+{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool' } }
 
 ##
 # @POWERDOWN:
@@ -44,15 +48,20 @@
 #
 # Emitted when the virtual machine is reset
 #
+# @guest: If true, the reset was triggered by a guest request (such as
+# a guest-initiated ACPI reboot request or other hardware-specific action)
+# rather than a host request (such as the QMP command system_reset).
+# (since 2.10)
+#
 # Since: 0.12.0
 #
 # Example:
 #
-# <- { "event": "RESET",
+# <- { "event": "RESET", "data": { "guest": false },
 #      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 #
 ##
-{ 'event': 'RESET' }
+{ 'event': 'RESET', 'data': { 'guest': 'bool' } }
 
 ##
 # @STOP:

@@ -84,7 +84,7 @@ UuidInfo *qmp_query_uuid(Error **errp)
 void qmp_quit(Error **errp)
 {
     no_shutdown = 0;
-    qemu_system_shutdown_request();
+    qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_QMP);
 }
 
 void qmp_stop(Error **errp)
@@ -105,7 +105,7 @@ void qmp_stop(Error **errp)
 
 void qmp_system_reset(Error **errp)
 {
-    qemu_system_reset_request();
+    qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP);
 }
 
 void qmp_system_powerdown(Error **erp)

@@ -148,7 +148,7 @@ static void xen_domain_poll(void *opaque)
     return;
 
 quit:
-    qemu_system_shutdown_request();
+    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
 }
 
 static int xen_domain_watcher(void)

@@ -33,8 +33,26 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 void vm_state_notify(int running, RunState state);
 
-#define VMRESET_SILENT   false
-#define VMRESET_REPORT   true
+/* Enumeration of various causes for shutdown. */
+typedef enum ShutdownCause {
+    SHUTDOWN_CAUSE_NONE,          /* No shutdown request pending */
+    SHUTDOWN_CAUSE_HOST_ERROR,    /* An error prevents further use of guest */
+    SHUTDOWN_CAUSE_HOST_QMP,      /* Reaction to a QMP command, like 'quit' */
+    SHUTDOWN_CAUSE_HOST_SIGNAL,   /* Reaction to a signal, such as SIGINT */
+    SHUTDOWN_CAUSE_HOST_UI,       /* Reaction to UI event, like window close */
+    SHUTDOWN_CAUSE_GUEST_SHUTDOWN,/* Guest shutdown/suspend request, via
+                                     ACPI or other hardware-specific means */
+    SHUTDOWN_CAUSE_GUEST_RESET,   /* Guest reset request, and command line
+                                     turns that into a shutdown */
+    SHUTDOWN_CAUSE_GUEST_PANIC,   /* Guest panicked, and command line turns
+                                     that into a shutdown */
+    SHUTDOWN_CAUSE__MAX,
+} ShutdownCause;
+
+static inline bool shutdown_caused_by_guest(ShutdownCause cause)
+{
+    return cause >= SHUTDOWN_CAUSE_GUEST_SHUTDOWN;
+}
 
 void vm_start(void);
 int vm_prepare_start(void);
@@ -49,23 +67,23 @@ typedef enum WakeupReason {
     QEMU_WAKEUP_REASON_OTHER,
 } WakeupReason;
 
-void qemu_system_reset_request(void);
+void qemu_system_reset_request(ShutdownCause reason);
 void qemu_system_suspend_request(void);
 void qemu_register_suspend_notifier(Notifier *notifier);
 void qemu_system_wakeup_request(WakeupReason reason);
 void qemu_system_wakeup_enable(WakeupReason reason, bool enabled);
 void qemu_register_wakeup_notifier(Notifier *notifier);
-void qemu_system_shutdown_request(void);
+void qemu_system_shutdown_request(ShutdownCause reason);
 void qemu_system_powerdown_request(void);
 void qemu_register_powerdown_notifier(Notifier *notifier);
 void qemu_system_debug_request(void);
 void qemu_system_vmstop_request(RunState reason);
 void qemu_system_vmstop_request_prepare(void);
 bool qemu_vmstop_requested(RunState *r);
-int qemu_shutdown_requested_get(void);
-int qemu_reset_requested_get(void);
+ShutdownCause qemu_shutdown_requested_get(void);
+ShutdownCause qemu_reset_requested_get(void);
 void qemu_system_killed(int signal, pid_t pid);
-void qemu_system_reset(bool report);
+void qemu_system_reset(ShutdownCause reason);
 void qemu_system_guest_panicked(GuestPanicInformation *info);
 
 void qemu_add_exit_notifier(Notifier *notify);

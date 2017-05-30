@@ -98,7 +98,7 @@ static void mpc8544_guts_write(void *opaque, hwaddr addr,
     switch (addr) {
     case MPC8544_GUTS_ADDR_RSTCR:
         if (value & MPC8544_GUTS_RSTCR_RESET) {
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
     default:

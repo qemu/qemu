@@ -396,7 +396,7 @@ void s390_reipl_request(void)
     S390IPLState *ipl = get_ipl_device();
 
     ipl->reipl_requested = true;
-    qemu_system_reset_request();
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
 }
 
 void s390_ipl_prepare_cpu(S390CPU *cpu)

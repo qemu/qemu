@@ -44,14 +44,14 @@ static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
         if (checkonly) {
             return 0;
         }
-        qemu_system_reset_request();
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         return 0;
 
     case IPMI_POWEROFF_CHASSIS:
         if (checkonly) {
             return 0;
         }
-        qemu_system_shutdown_request();
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         return 0;
 
     case IPMI_SEND_NMI:

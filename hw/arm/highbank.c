@@ -108,9 +108,9 @@ static void hb_regs_write(void *opaque, hwaddr offset,
 
     if (offset == 0xf00) {
         if (value == 1 || value == 2) {
-            qemu_system_reset_request();
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         } else if (value == 3) {
-            qemu_system_shutdown_request();
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         }
     }
 

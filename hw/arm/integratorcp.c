@@ -158,7 +158,7 @@ static void integratorcm_do_remap(IntegratorCMState *s)
 static void integratorcm_set_ctrl(IntegratorCMState *s, uint32_t value)
 {
     if (value & 8) {
-        qemu_system_reset_request();
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     }
     if ((s->cm_ctrl ^ value) & 1) {
         /* (value & 1) != 0 means the green "MISC LED" is lit.

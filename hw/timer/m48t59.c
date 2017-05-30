@@ -1,7 +1,7 @@
 /*
  * QEMU M48T59 and M48T08 NVRAM emulation for PPC PREP and Sparc platforms
  *
- * Copyright (c) 2003-2005, 2007 Jocelyn Mayer
+ * Copyright (c) 2003-2005, 2007, 2017 Jocelyn Mayer
  * Copyright (c) 2013 Hervé Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -159,7 +159,7 @@ static void watchdog_cb (void *opaque)
 	NVRAM->buffer[0x1FF7] = 0x00;
 	NVRAM->buffer[0x1FFC] &= ~0x40;
         /* May it be a hw CPU Reset instead ? */
-        qemu_system_reset_request();
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     } else {
 	qemu_set_irq(NVRAM->IRQ, 1);
 	qemu_set_irq(NVRAM->IRQ, 0);
