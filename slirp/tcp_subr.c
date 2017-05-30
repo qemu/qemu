@@ -204,7 +204,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
 	                                         - sizeof(struct ip);
 	    ip = mtod(m, struct ip *);
-	    ip->ip_len = tlen;
+	    ip->ip_len = m->m_len;
 	    ip->ip_dst = tcpiph_save.ti_dst;
 	    ip->ip_src = tcpiph_save.ti_src;
 	    ip->ip_p = tcpiph_save.ti_pr;
@@ -224,7 +224,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	    m->m_len  -= sizeof(struct tcpiphdr) - sizeof(struct tcphdr)
 	                                         - sizeof(struct ip6);
 	    ip6 = mtod(m, struct ip6 *);
-	    ip6->ip_pl = tlen;
+	    ip6->ip_pl = tcpiph_save.ti_len;
 	    ip6->ip_dst = tcpiph_save.ti_dst6;
 	    ip6->ip_src = tcpiph_save.ti_src6;
 	    ip6->ip_nh = tcpiph_save.ti_nh6;

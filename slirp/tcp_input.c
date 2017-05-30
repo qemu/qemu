@@ -1587,11 +1587,11 @@ tcp_mss(struct tcpcb *tp, u_int offer)
 	switch (so->so_ffamily) {
 	case AF_INET:
             mss = MIN(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
-	                              + sizeof(struct ip);
+	                              - sizeof(struct ip);
 	    break;
 	case AF_INET6:
             mss = MIN(IF_MTU, IF_MRU) - sizeof(struct tcphdr)
-	                              + sizeof(struct ip6);
+	                              - sizeof(struct ip6);
 	    break;
 	default:
 	    g_assert_not_reached();
