@@ -42,6 +42,14 @@
 
 static int kernel_xics_fd = -1;
 
+typedef struct KVMEnabledICP {
+    unsigned long vcpu_id;
+    QLIST_ENTRY(KVMEnabledICP) node;
+} KVMEnabledICP;
+
+static QLIST_HEAD(, KVMEnabledICP)
+    kvm_enabled_icps = QLIST_HEAD_INITIALIZER(&kvm_enabled_icps);
+
 /*
  * ICP-KVM
  */
@@ -121,6 +129,8 @@ static void icp_kvm_reset(void *dev)
 static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
+    KVMEnabledICP *enabled_icp;
+    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
     int ret;
 
     if (kernel_xics_fd == -1) {
@@ -132,23 +142,31 @@ static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
      * which was hot-removed earlier we don't have to renable
      * KVM_CAP_IRQ_XICS capability again.
      */
-    if (icp->cap_irq_xics_enabled) {
-        return;
+    QLIST_FOREACH(enabled_icp, &kvm_enabled_icps, node) {
+        if (enabled_icp->vcpu_id == vcpu_id) {
+            return;
+        }
     }
 
-    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd,
-                              kvm_arch_vcpu_id(cs));
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd, vcpu_id);
     if (ret < 0) {
-        error_report("Unable to connect CPU%ld to kernel XICS: %s",
-                     kvm_arch_vcpu_id(cs), strerror(errno));
+        error_report("Unable to connect CPU%ld to kernel XICS: %s", vcpu_id,
+                     strerror(errno));
         exit(1);
     }
-    icp->cap_irq_xics_enabled = true;
+    enabled_icp = g_malloc(sizeof(*enabled_icp));
+    enabled_icp->vcpu_id = vcpu_id;
+    QLIST_INSERT_HEAD(&kvm_enabled_icps, enabled_icp, node);
 }
 
 static void icp_kvm_realize(DeviceState *dev, Error **errp)
 {
     qemu_register_reset(icp_kvm_reset, dev);
+}
+
+static void icp_kvm_unrealize(DeviceState *dev, Error **errp)
+{
+    qemu_unregister_reset(icp_kvm_reset, dev);
 }
 
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
@@ -157,6 +175,7 @@ static void icp_kvm_class_init(ObjectClass *klass, void *data)
     ICPStateClass *icpc = ICP_CLASS(klass);
 
     dc->realize = icp_kvm_realize;
+    dc->unrealize = icp_kvm_unrealize;
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
     icpc->cpu_setup = icp_kvm_cpu_setup;

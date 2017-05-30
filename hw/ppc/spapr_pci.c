@@ -1369,7 +1369,8 @@ out:
     }
 }
 
-static void spapr_phb_remove_pci_device_cb(DeviceState *dev, void *opaque)
+/* Callback to be called during DRC release. */
+void spapr_phb_remove_pci_device_cb(DeviceState *dev)
 {
     /* some version guests do not wait for completion of a device
      * cleanup (generally done asynchronously by the kernel) before
@@ -1392,7 +1393,7 @@ static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    drck->detach(drc, DEVICE(pdev), spapr_phb_remove_pci_device_cb, phb, errp);
+    drck->detach(drc, DEVICE(pdev), errp);
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,

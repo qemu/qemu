@@ -342,20 +342,18 @@ static int rtas_event_log_to_irq(sPAPRMachineState *spapr, int log_type)
     return source->irq;
 }
 
-static void rtas_event_log_queue(int log_type, void *data, bool exception)
+static void rtas_event_log_queue(int log_type, void *data)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry = g_new(sPAPREventLogEntry, 1);
 
     g_assert(data);
     entry->log_type = log_type;
-    entry->exception = exception;
     entry->data = data;
     QTAILQ_INSERT_TAIL(&spapr->pending_events, entry, next);
 }
 
-static sPAPREventLogEntry *rtas_event_log_dequeue(uint32_t event_mask,
-                                                  bool exception)
+static sPAPREventLogEntry *rtas_event_log_dequeue(uint32_t event_mask)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry = NULL;
@@ -363,10 +361,6 @@ static sPAPREventLogEntry *rtas_event_log_dequeue(uint32_t event_mask,
     QTAILQ_FOREACH(entry, &spapr->pending_events, next) {
         const sPAPREventSource *source =
             rtas_event_log_to_source(spapr, entry->log_type);
-
-        if (entry->exception != exception) {
-            continue;
-        }
 
         if (source->mask & event_mask) {
             break;
@@ -380,7 +374,7 @@ static sPAPREventLogEntry *rtas_event_log_dequeue(uint32_t event_mask,
     return entry;
 }
 
-static bool rtas_event_log_contains(uint32_t event_mask, bool exception)
+static bool rtas_event_log_contains(uint32_t event_mask)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry = NULL;
@@ -388,10 +382,6 @@ static bool rtas_event_log_contains(uint32_t event_mask, bool exception)
     QTAILQ_FOREACH(entry, &spapr->pending_events, next) {
         const sPAPREventSource *source =
             rtas_event_log_to_source(spapr, entry->log_type);
-
-        if (entry->exception != exception) {
-            continue;
-        }
 
         if (source->mask & event_mask) {
             return true;
@@ -479,7 +469,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     epow->event_modifier = RTAS_LOG_V6_EPOW_MODIFIER_NORMAL;
     epow->extended_modifier = RTAS_LOG_V6_EPOW_XMODIFIER_PARTITION_SPECIFIC;
 
-    rtas_event_log_queue(RTAS_LOG_TYPE_EPOW, new_epow, true);
+    rtas_event_log_queue(RTAS_LOG_TYPE_EPOW, new_epow);
 
     qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
                                  rtas_event_log_to_irq(spapr,
@@ -572,7 +562,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
             cpu_to_be32(drc_id->count_indexed.index);
     }
 
-    rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp, true);
+    rtas_event_log_queue(RTAS_LOG_TYPE_HOTPLUG, new_hp);
 
     qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
                                  rtas_event_log_to_irq(spapr,
@@ -667,7 +657,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         xinfo |= (uint64_t)rtas_ld(args, 6) << 32;
     }
 
-    event = rtas_event_log_dequeue(mask, true);
+    event = rtas_event_log_dequeue(mask);
     if (!event) {
         goto out_no_events;
     }
@@ -690,7 +680,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
      * interrupts.
      */
     for (i = 0; i < EVENT_CLASS_MAX; i++) {
-        if (rtas_event_log_contains(EVENT_CLASS_MASK(i), true)) {
+        if (rtas_event_log_contains(EVENT_CLASS_MASK(i))) {
             const sPAPREventSource *source =
                 spapr_event_sources_get_source(spapr->event_sources, i);
 
@@ -710,38 +700,10 @@ static void event_scan(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                        target_ulong args,
                        uint32_t nret, target_ulong rets)
 {
-    uint32_t mask, buf, len, event_len;
-    sPAPREventLogEntry *event;
-    struct rtas_error_log *hdr;
-
     if (nargs != 4 || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
-
-    mask = rtas_ld(args, 0);
-    buf = rtas_ld(args, 2);
-    len = rtas_ld(args, 3);
-
-    event = rtas_event_log_dequeue(mask, false);
-    if (!event) {
-        goto out_no_events;
-    }
-
-    hdr = event->data;
-    event_len = be32_to_cpu(hdr->extended_length) + sizeof(*hdr);
-
-    if (event_len < len) {
-        len = event_len;
-    }
-
-    cpu_physical_memory_write(buf, event->data, len);
-    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
-    g_free(event->data);
-    g_free(event);
-    return;
-
-out_no_events:
     rtas_st(rets, 0, RTAS_OUT_NO_ERRORS_FOUND);
 }
 

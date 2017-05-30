@@ -101,21 +101,26 @@ static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
                                   const char *type_ics,
                                   int nr_irqs, Error **errp)
 {
-    Error *err = NULL, *local_err = NULL;
+    Error *local_err = NULL;
     Object *obj;
 
     obj = object_new(type_ics);
-    object_property_add_child(OBJECT(spapr), "ics", obj, NULL);
+    object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
     object_property_add_const_link(obj, "xics", OBJECT(spapr), &error_abort);
-    object_property_set_int(obj, nr_irqs, "nr-irqs", &err);
+    object_property_set_int(obj, nr_irqs, "nr-irqs", &local_err);
+    if (local_err) {
+        goto error;
+    }
     object_property_set_bool(obj, true, "realized", &local_err);
-    error_propagate(&err, local_err);
-    if (err) {
-        error_propagate(errp, err);
-        return NULL;
+    if (local_err) {
+        goto error;
     }
 
     return ICS_SIMPLE(obj);
+
+error:
+    error_propagate(errp, local_err);
+    return NULL;
 }
 
 static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
@@ -123,25 +128,24 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
 
     if (kvm_enabled()) {
-        Error *err = NULL;
-
         if (machine_kernel_irqchip_allowed(machine) &&
             !xics_kvm_init(spapr, errp)) {
             spapr->icp_type = TYPE_KVM_ICP;
-            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs, &err);
+            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs, errp);
         }
         if (machine_kernel_irqchip_required(machine) && !spapr->ics) {
-            error_reportf_err(err,
-                              "kernel_irqchip requested but unavailable: ");
-        } else {
-            error_free(err);
+            error_prepend(errp, "kernel_irqchip requested but unavailable: ");
+            return;
         }
     }
 
     if (!spapr->ics) {
-        xics_spapr_init(spapr, errp);
+        xics_spapr_init(spapr);
         spapr->icp_type = TYPE_ICP;
         spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs, errp);
+        if (!spapr->ics) {
+            return;
+        }
     }
 }
 
@@ -1222,16 +1226,21 @@ static int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
     return shift;
 }
 
+void spapr_free_hpt(sPAPRMachineState *spapr)
+{
+    g_free(spapr->htab);
+    spapr->htab = NULL;
+    spapr->htab_shift = 0;
+    close_htab_fd(spapr);
+}
+
 static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
                                  Error **errp)
 {
     long rc;
 
     /* Clean up any HPT info from a previous boot */
-    g_free(spapr->htab);
-    spapr->htab = NULL;
-    spapr->htab_shift = 0;
-    close_htab_fd(spapr);
+    spapr_free_hpt(spapr);
 
     rc = kvmppc_reset_htab(shift);
     if (rc < 0) {
@@ -2050,6 +2059,7 @@ static void ppc_spapr_init(MachineState *machine)
     msi_nonbroken = true;
 
     QLIST_INIT(&spapr->phbs);
+    QTAILQ_INIT(&spapr->pending_dimm_unplugs);
 
     /* Allocate RMA if necessary */
     rma_alloc_size = kvmppc_alloc_rma(&rma);
@@ -2569,20 +2579,6 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     uint64_t align = memory_region_get_alignment(mr);
     uint64_t size = memory_region_size(mr);
     uint64_t addr;
-    char *mem_dev;
-
-    if (size % SPAPR_MEMORY_BLOCK_SIZE) {
-        error_setg(&local_err, "Hotplugged memory size must be a multiple of "
-                      "%lld MB", SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
-        goto out;
-    }
-
-    mem_dev = object_property_get_str(OBJECT(dimm), PC_DIMM_MEMDEV_PROP, NULL);
-    if (mem_dev && !kvmppc_is_mem_backend_page_size_ok(mem_dev)) {
-        error_setg(&local_err, "Memory backend has bad page size. "
-                   "Use 'memory-backend-file' with correct mem-path.");
-        goto out;
-    }
 
     pc_dimm_memory_plug(dev, &ms->hotplug_memory, mr, align, &local_err);
     if (local_err) {
@@ -2603,56 +2599,121 @@ out:
     error_propagate(errp, local_err);
 }
 
-typedef struct sPAPRDIMMState {
-    uint32_t nr_lmbs;
-} sPAPRDIMMState;
-
-static void spapr_lmb_release(DeviceState *dev, void *opaque)
+static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                  Error **errp)
 {
-    sPAPRDIMMState *ds = (sPAPRDIMMState *)opaque;
-    HotplugHandler *hotplug_ctrl;
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t size = memory_region_size(mr);
+    char *mem_dev;
 
-    if (--ds->nr_lmbs) {
+    if (size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_setg(errp, "Hotplugged memory size must be a multiple of "
+                      "%lld MB", SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
         return;
     }
 
-    g_free(ds);
+    mem_dev = object_property_get_str(OBJECT(dimm), PC_DIMM_MEMDEV_PROP, NULL);
+    if (mem_dev && !kvmppc_is_mem_backend_page_size_ok(mem_dev)) {
+        error_setg(errp, "Memory backend has bad page size. "
+                   "Use 'memory-backend-file' with correct mem-path.");
+        return;
+    }
+}
+
+struct sPAPRDIMMState {
+    PCDIMMDevice *dimm;
+    uint32_t nr_lmbs;
+    QTAILQ_ENTRY(sPAPRDIMMState) next;
+};
+
+static sPAPRDIMMState *spapr_pending_dimm_unplugs_find(sPAPRMachineState *s,
+                                                       PCDIMMDevice *dimm)
+{
+    sPAPRDIMMState *dimm_state = NULL;
+
+    QTAILQ_FOREACH(dimm_state, &s->pending_dimm_unplugs, next) {
+        if (dimm_state->dimm == dimm) {
+            break;
+        }
+    }
+    return dimm_state;
+}
+
+static void spapr_pending_dimm_unplugs_add(sPAPRMachineState *spapr,
+                                           sPAPRDIMMState *dimm_state)
+{
+    g_assert(!spapr_pending_dimm_unplugs_find(spapr, dimm_state->dimm));
+    QTAILQ_INSERT_HEAD(&spapr->pending_dimm_unplugs, dimm_state, next);
+}
+
+static void spapr_pending_dimm_unplugs_remove(sPAPRMachineState *spapr,
+                                              sPAPRDIMMState *dimm_state)
+{
+    QTAILQ_REMOVE(&spapr->pending_dimm_unplugs, dimm_state, next);
+    g_free(dimm_state);
+}
+
+static sPAPRDIMMState *spapr_recover_pending_dimm_state(sPAPRMachineState *ms,
+                                                        PCDIMMDevice *dimm)
+{
+    sPAPRDRConnector *drc;
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t size = memory_region_size(mr);
+    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
+    uint32_t avail_lmbs = 0;
+    uint64_t addr_start, addr;
+    int i;
+    sPAPRDIMMState *ds;
+
+    addr_start = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                         &error_abort);
+
+    addr = addr_start;
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                       addr / SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+        if (drc->indicator_state != SPAPR_DR_INDICATOR_STATE_INACTIVE) {
+            avail_lmbs++;
+        }
+        addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+
+    ds = g_malloc0(sizeof(sPAPRDIMMState));
+    ds->nr_lmbs = avail_lmbs;
+    ds->dimm = dimm;
+    spapr_pending_dimm_unplugs_add(ms, ds);
+    return ds;
+}
+
+/* Callback to be called during DRC release. */
+void spapr_lmb_release(DeviceState *dev)
+{
+    HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    sPAPRMachineState *spapr = SPAPR_MACHINE(hotplug_ctrl);
+    sPAPRDIMMState *ds = spapr_pending_dimm_unplugs_find(spapr, PC_DIMM(dev));
+
+    /* This information will get lost if a migration occurs
+     * during the unplug process. In this case recover it. */
+    if (ds == NULL) {
+        ds = spapr_recover_pending_dimm_state(spapr, PC_DIMM(dev));
+        if (ds->nr_lmbs) {
+            return;
+        }
+    } else if (--ds->nr_lmbs) {
+        return;
+    }
+
+    spapr_pending_dimm_unplugs_remove(spapr, ds);
 
     /*
      * Now that all the LMBs have been removed by the guest, call the
      * pc-dimm unplug handler to cleanup up the pc-dimm device.
      */
-    hotplug_ctrl = qdev_get_hotplug_handler(dev);
     hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
-}
-
-static void spapr_del_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
-                           Error **errp)
-{
-    sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
-    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
-    int i;
-    sPAPRDIMMState *ds = g_malloc0(sizeof(sPAPRDIMMState));
-    uint64_t addr = addr_start;
-
-    ds->nr_lmbs = nr_lmbs;
-    for (i = 0; i < nr_lmbs; i++) {
-        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
-                addr / SPAPR_MEMORY_BLOCK_SIZE);
-        g_assert(drc);
-
-        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-        drck->detach(drc, dev, spapr_lmb_release, ds, errp);
-        addr += SPAPR_MEMORY_BLOCK_SIZE;
-    }
-
-    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
-                                   addr_start / SPAPR_MEMORY_BLOCK_SIZE);
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
-                                              nr_lmbs,
-                                              drck->get_index(drc));
 }
 
 static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -2670,19 +2731,47 @@ static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(hotplug_dev);
     Error *local_err = NULL;
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
     uint64_t size = memory_region_size(mr);
-    uint64_t addr;
+    uint32_t nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
+    uint64_t addr_start, addr;
+    int i;
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+    sPAPRDIMMState *ds;
 
-    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    addr_start = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                         &local_err);
     if (local_err) {
         goto out;
     }
 
-    spapr_del_lmbs(dev, addr, size, &error_abort);
+    ds = g_malloc0(sizeof(sPAPRDIMMState));
+    ds->nr_lmbs = nr_lmbs;
+    ds->dimm = dimm;
+    spapr_pending_dimm_unplugs_add(spapr, ds);
+
+    addr = addr_start;
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                addr / SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drck->detach(drc, dev, errp);
+        addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+
+    drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                   addr_start / SPAPR_MEMORY_BLOCK_SIZE);
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                              nr_lmbs,
+                                              drck->get_index(drc));
 out:
     error_propagate(errp, local_err);
 }
@@ -2715,11 +2804,13 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     CPUCore *cc = CPU_CORE(dev);
     CPUArchId *core_slot = spapr_find_cpu_slot(ms, cc->core_id, NULL);
 
+    assert(core_slot);
     core_slot->cpu = NULL;
     object_unparent(OBJECT(dev));
 }
 
-static void spapr_core_release(DeviceState *dev, void *opaque)
+/* Callback to be called during DRC release. */
+void spapr_core_release(DeviceState *dev)
 {
     HotplugHandler *hotplug_ctrl;
 
@@ -2752,7 +2843,7 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    drck->detach(drc, dev, spapr_core_release, NULL, &local_err);
+    drck->detach(drc, dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -2853,7 +2944,13 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         goto out;
     }
 
-    if (cc->nr_threads != smp_threads) {
+    /*
+     * In general we should have homogeneous threads-per-core, but old
+     * (pre hotplug support) machine types allow the last core to have
+     * reduced threads as a compatibility hack for when we allowed
+     * total vcpus not a multiple of threads-per-core.
+     */
+    if (mc->has_hotpluggable_cpus && (cc->nr_threads != smp_threads)) {
         error_setg(errp, "invalid nr-threads %d, must be %d",
                    cc->nr_threads, smp_threads);
         return;
@@ -2990,7 +3087,9 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
 static void spapr_machine_device_pre_plug(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
-    if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        spapr_memory_pre_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         spapr_core_pre_plug(hotplug_dev, dev, errp);
     }
 }

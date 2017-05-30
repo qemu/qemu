@@ -357,6 +357,10 @@ static void icp_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(icp_reset, dev);
 }
 
+static void icp_unrealize(DeviceState *dev, Error **errp)
+{
+    qemu_unregister_reset(icp_reset, dev);
+}
 
 static void icp_class_init(ObjectClass *klass, void *data)
 {
@@ -364,6 +368,7 @@ static void icp_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_icp_server;
     dc->realize = icp_realize;
+    dc->unrealize = icp_unrealize;
 }
 
 static const TypeInfo icp_info = {

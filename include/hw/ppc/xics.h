@@ -81,7 +81,6 @@ struct ICPState {
     uint8_t pending_priority;
     uint8_t mfrr;
     qemu_irq output;
-    bool cap_irq_xics_enabled;
 
     XICSFabric *xics;
 };
@@ -206,6 +205,6 @@ void icp_resend(ICPState *ss);
 typedef struct sPAPRMachineState sPAPRMachineState;
 
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
-int xics_spapr_init(sPAPRMachineState *spapr, Error **errp);
+void xics_spapr_init(sPAPRMachineState *spapr);
 
 #endif /* XICS_H */

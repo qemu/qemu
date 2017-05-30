@@ -32,6 +32,7 @@ struct sPAPRRTCState {
     int64_t ns_offset;
 };
 
+typedef struct sPAPRDIMMState sPAPRDIMMState;
 typedef struct sPAPRMachineClass sPAPRMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
@@ -103,6 +104,11 @@ struct sPAPRMachineState {
 
     /* RTAS state */
     QTAILQ_HEAD(, sPAPRConfigureConnectorState) ccs_list;
+
+    /* Pending DIMM unplug cache. It is populated when a LMB
+     * unplug starts. It can be regenerated if a migration
+     * occurs during the unplug process. */
+    QTAILQ_HEAD(, sPAPRDIMMState) pending_dimm_unplugs;
 
     /*< public >*/
     char *kvm_type;
@@ -598,7 +604,6 @@ sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);
 
 struct sPAPREventLogEntry {
     int log_type;
-    bool exception;
     void *data;
     QTAILQ_ENTRY(sPAPREventLogEntry) next;
 };
@@ -610,6 +615,7 @@ int spapr_h_cas_compose_response(sPAPRMachineState *sm,
                                  sPAPROptionVector *ov5_updates);
 void close_htab_fd(sPAPRMachineState *spapr);
 void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr);
+void spapr_free_hpt(sPAPRMachineState *spapr);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn);
 void spapr_tce_table_enable(sPAPRTCETable *tcet,
                             uint32_t page_shift, uint64_t bus_offset,
@@ -635,6 +641,10 @@ void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
                                                uint32_t count, uint32_t index);
 void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
                                     sPAPRMachineState *spapr);
+
+/* CPU and LMB DRC release callbacks. */
+void spapr_core_release(DeviceState *dev);
+void spapr_lmb_release(DeviceState *dev);
 
 /* rtas-configure-connector state */
 struct sPAPRConfigureConnectorState {
