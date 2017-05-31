@@ -93,6 +93,23 @@ static inline uint64_t cpu_ldusize_data_ra(CPUS390XState *env, uint64_t addr,
     }
 }
 
+/* Store a to memory according to its size.  */
+static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
+                                      uint64_t value, int wordsize,
+                                      uintptr_t ra)
+{
+    switch (wordsize) {
+    case 1:
+        cpu_stb_data_ra(env, addr, value, ra);
+        break;
+    case 2:
+        cpu_stw_data_ra(env, addr, value, ra);
+        break;
+    default:
+        abort();
+    }
+}
+
 static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
                         uint32_t l, uintptr_t ra)
 {
@@ -1008,10 +1025,10 @@ void HELPER(unpk)(CPUS390XState *env, uint32_t len, uint64_t dest,
     }
 }
 
-uint32_t HELPER(unpka)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
-                       uint64_t src)
+static inline uint32_t do_unpkau(CPUS390XState *env, uint64_t dest,
+                                 uint32_t destlen, int dsize, uint64_t src,
+                                 uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     int i;
     uint32_t cc;
     uint8_t b;
@@ -1020,7 +1037,7 @@ uint32_t HELPER(unpka)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
 
     /* The operands are processed from right to left.  */
     src += srclen - 1;
-    dest += destlen - 1;
+    dest += destlen - dsize;
 
     /* Check for the sign.  */
     b = cpu_ldub_data_ra(env, src, ra);
@@ -1042,21 +1059,33 @@ uint32_t HELPER(unpka)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
     }
 
     /* Now pad every nibble with 0x30, advancing one nibble at a time. */
-    for (i = 0; i < destlen; i++) {
-        if (i == 31) {
-            /* If length is 32 bytes, the leftmost byte is 0. */
+    for (i = 0; i < destlen; i += dsize) {
+        if (i == (31 * dsize)) {
+            /* If length is 32/64 bytes, the leftmost byte is 0. */
             b = 0;
-        } else if (i % 2) {
+        } else if (i % (2 * dsize)) {
             b = cpu_ldub_data_ra(env, src, ra);
             src--;
         } else {
             b >>= 4;
         }
-        cpu_stb_data_ra(env, dest, 0x30 + (b & 0xf), ra);
-        dest--;
+        cpu_stsize_data_ra(env, dest, 0x30 + (b & 0xf), dsize, ra);
+        dest -= dsize;
     }
 
     return cc;
+}
+
+uint32_t HELPER(unpka)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
+                       uint64_t src)
+{
+    return do_unpkau(env, dest, destlen, 1, src, GETPC());
+}
+
+uint32_t HELPER(unpku)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
+                       uint64_t src)
+{
+    return do_unpkau(env, dest, destlen, 2, src, GETPC());
 }
 
 static uint32_t do_helper_tr(CPUS390XState *env, uint32_t len, uint64_t array,
