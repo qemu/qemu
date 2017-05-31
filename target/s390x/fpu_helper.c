@@ -585,6 +585,33 @@ uint64_t HELPER(fixb)(CPUS390XState *env, uint64_t ah, uint64_t al, uint32_t m3)
     return RET128(ret);
 }
 
+/* 32-bit FP compare and signal */
+uint32_t HELPER(keb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
+{
+    int cmp = float32_compare(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return float_comp_to_cc(env, cmp);
+}
+
+/* 64-bit FP compare and signal */
+uint32_t HELPER(kdb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
+{
+    int cmp = float64_compare(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return float_comp_to_cc(env, cmp);
+}
+
+/* 128-bit FP compare and signal */
+uint32_t HELPER(kxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                     uint64_t bh, uint64_t bl)
+{
+    int cmp = float128_compare(make_float128(ah, al),
+                               make_float128(bh, bl),
+                               &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return float_comp_to_cc(env, cmp);
+}
+
 /* 32-bit FP multiply and add */
 uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
