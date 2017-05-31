@@ -570,6 +570,8 @@
     C(0xe548, MVGHI,   SIL,   GIE, la1, i2, 0, m1_64, mov2, 0)
     C(0x9200, MVI,     SI,    Z,   la1, i2, 0, m1_8, mov2, 0)
     C(0xeb52, MVIY,    SIY,   LD,  la1, i2, 0, m1_8, mov2, 0)
+/* MOVE INVERSE */
+    C(0xe800, MVCIN,   SS_a,  Z,   la1, a2, 0, 0, mvcin, 0)
 /* MOVE LONG */
     C(0x0e00, MVCL,    RR_a,  Z,   0, 0, 0, 0, mvcl, 0)
 /* MOVE LONG EXTENDED */
