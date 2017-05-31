@@ -46,6 +46,7 @@ typedef struct S390CPUModel {
     /* values copied from the "host" model, can change during migration */
     uint16_t lowest_ibc;    /* lowest IBC that the hardware supports */
     uint32_t cpu_id;        /* CPU id */
+    uint8_t cpu_id_format;  /* CPU id format bit */
     uint8_t cpu_ver;        /* CPU version, usually "ff" for kvm */
 } S390CPUModel;
 
@@ -54,12 +55,14 @@ typedef struct S390CPUModel {
  *
  * bits 0-7: Zeroes (ff for kvm)
  * bits 8-31: CPU ID (serial number)
- * bits 32-48: Machine type
- * bits 48-63: Zeroes
+ * bits 32-47: Machine type
+ * bit  48: CPU ID format
+ * bits 49-63: Zeroes
  */
 #define cpuid_type(x)     (((x) >> 16) & 0xffff)
 #define cpuid_id(x)       (((x) >> 32) & 0xffffff)
 #define cpuid_ver(x)      (((x) >> 56) & 0xff)
+#define cpuid_format(x)   (((x) >> 15) & 0x1)
 
 #define lowest_ibc(x)     (((uint32_t)(x) >> 16) & 0xfff)
 #define unblocked_ibc(x)  ((uint32_t)(x) & 0xfff)
@@ -92,7 +95,8 @@ static inline uint64_t s390_cpuid_from_cpu_model(const S390CPUModel *model)
 {
     return ((uint64_t)model->cpu_ver << 56) |
            ((uint64_t)model->cpu_id << 32) |
-           ((uint64_t)model->def->type << 16);
+           ((uint64_t)model->def->type << 16) |
+           (model->def->gen == 7 ? 0 : (uint64_t)model->cpu_id_format << 15);
 }
 S390CPUDef const *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
                                     S390FeatBitmap features);

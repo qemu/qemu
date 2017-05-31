@@ -740,6 +740,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     /* copy over properties that can vary */
     cpu->model->lowest_ibc = max_model->lowest_ibc;
     cpu->model->cpu_id = max_model->cpu_id;
+    cpu->model->cpu_id_format = max_model->cpu_id_format;
     cpu->model->cpu_ver = max_model->cpu_ver;
 
     check_consistency(cpu->model);
