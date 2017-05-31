@@ -870,6 +870,15 @@
 /* TRANSLATE EXTENDED */
     C(0xb2a5, TRE,     RRE,   Z,   0, r2, r1_P, 0, tre, 0)
 
+/* TRANSLATE ONE TO ONE */
+    C(0xb993, TROO,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+/* TRANSLATE ONE TO TWO */
+    C(0xb992, TROT,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+/* TRANSLATE TWO TO ONE */
+    C(0xb991, TRTO,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+/* TRANSLATE TWO TO TWO */
+    C(0xb990, TRTT,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+
 /* UNPACK */
     /* Really format SS_b, but we pack both lengths into one argument
        for the helper call, so we might as well leave one 8-bit field.  */

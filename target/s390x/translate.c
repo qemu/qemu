@@ -4340,6 +4340,36 @@ static ExitStatus op_trt(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_trXX(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+    TCGv_i32 sizes = tcg_const_i32(s->insn->opc & 3);
+    TCGv_i32 tst = tcg_temp_new_i32();
+    int m3 = get_field(s->fields, m3);
+
+    /* XXX: the C bit in M3 should be considered as 0 when the
+       ETF2-enhancement facility is not installed.  */
+    if (m3 & 1) {
+        tcg_gen_movi_i32(tst, -1);
+    } else {
+        tcg_gen_extrl_i64_i32(tst, regs[0]);
+        if (s->insn->opc & 3) {
+            tcg_gen_ext8u_i32(tst, tst);
+        } else {
+            tcg_gen_ext16u_i32(tst, tst);
+        }
+    }
+    gen_helper_trXX(cc_op, cpu_env, r1, r2, tst, sizes);
+
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
+    tcg_temp_free_i32(sizes);
+    tcg_temp_free_i32(tst);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ts(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 t1 = tcg_const_i32(0xff);

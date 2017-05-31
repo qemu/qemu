@@ -1196,6 +1196,51 @@ uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
     return do_helper_trt(env, len, array, trans, GETPC());
 }
 
+/* Translate one/two to one/two */
+uint32_t HELPER(trXX)(CPUS390XState *env, uint32_t r1, uint32_t r2,
+                      uint32_t tst, uint32_t sizes)
+{
+    uintptr_t ra = GETPC();
+    int dsize = (sizes & 1) ? 1 : 2;
+    int ssize = (sizes & 2) ? 1 : 2;
+    uint64_t tbl = get_address(env, 1) & ~7;
+    uint64_t dst = get_address(env, r1);
+    uint64_t len = get_length(env, r1 + 1);
+    uint64_t src = get_address(env, r2);
+    uint32_t cc = 3;
+    int i;
+
+    check_alignment(env, len, ssize, ra);
+
+    /* Lest we fail to service interrupts in a timely manner, */
+    /* limit the amount of work we're willing to do.   */
+    for (i = 0; i < 0x2000; i++) {
+        uint16_t sval = cpu_ldusize_data_ra(env, src, ssize, ra);
+        uint64_t tble = tbl + (sval * dsize);
+        uint16_t dval = cpu_ldusize_data_ra(env, tble, dsize, ra);
+        if (dval == tst) {
+            cc = 1;
+            break;
+        }
+        cpu_stsize_data_ra(env, dst, dval, dsize, ra);
+
+        len -= ssize;
+        src += ssize;
+        dst += dsize;
+
+        if (len == 0) {
+            cc = 0;
+            break;
+        }
+    }
+
+    set_address(env, r1, dst);
+    set_length(env, r1 + 1, len);
+    set_address(env, r2, src);
+
+    return cc;
+}
+
 void HELPER(cdsg)(CPUS390XState *env, uint64_t addr,
                   uint32_t r1, uint32_t r3)
 {
