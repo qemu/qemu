@@ -810,6 +810,9 @@
 /* SUPERVISOR CALL */
     C(0x0a00, SVC,     I,     Z,   0, 0, 0, 0, svc, 0)
 
+/* TEST ADDRESSING MODE */
+    C(0x010b, TAM,     E,     Z,   0, 0, 0, 0, tam, 0)
+
 /* TEST AND SET */
     C(0x9300, TS,      S,     Z,   0, a2, 0, 0, ts, 0)
 

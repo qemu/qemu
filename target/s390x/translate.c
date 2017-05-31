@@ -4068,6 +4068,16 @@ static ExitStatus op_svc(DisasContext *s, DisasOps *o)
     return EXIT_NORETURN;
 }
 
+static ExitStatus op_tam(DisasContext *s, DisasOps *o)
+{
+    int cc = 0;
+
+    cc |= (s->tb->flags & FLAG_MASK_64) ? 2 : 0;
+    cc |= (s->tb->flags & FLAG_MASK_32) ? 1 : 0;
+    gen_op_movi_cc(s, cc);
+    return NO_EXIT;
+}
+
 static ExitStatus op_tceb(DisasContext *s, DisasOps *o)
 {
     gen_helper_tceb(cc_op, cpu_env, o->in1, o->in2);
