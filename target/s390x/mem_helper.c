@@ -1073,17 +1073,16 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 }
 
 /* invalidate pte */
-void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr)
+void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
+                  uint32_t m4)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t page = vaddr & TARGET_PAGE_MASK;
     uint64_t pte_addr, pte;
 
-    /* XXX broadcast to other CPUs */
-
     /* Compute the page table entry address */
     pte_addr = (pto & _SEGMENT_ENTRY_ORIGIN);
-    pte_addr += (vaddr & _VADDR_PX) >> 9;
+    pte_addr += (vaddr & VADDR_PX) >> 9;
 
     /* Mark the page table entry as invalid */
     pte = ldq_phys(cs->as, pte_addr);
@@ -1092,13 +1091,19 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr)
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
-    tlb_flush_page(cs, page);
+    /* XXX: the LC bit should be considered as 0 if the local-TLB-clearing
+       facility is not installed.  */
+    if (m4 & 1) {
+        tlb_flush_page(cs, page);
+    } else {
+        tlb_flush_page_all_cpus_synced(cs, page);
+    }
 
     /* XXX 31-bit hack */
-    if (page & 0x80000000) {
-        tlb_flush_page(cs, page & ~0x80000000);
+    if (m4 & 1) {
+        tlb_flush_page(cs, page ^ 0x80000000);
     } else {
-        tlb_flush_page(cs, page | 0x80000000);
+        tlb_flush_page_all_cpus_synced(cs, page ^ 0x80000000);
     }
 }
 
