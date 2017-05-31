@@ -606,7 +606,7 @@ void HELPER(stam)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 static inline uint32_t do_mvcl(CPUS390XState *env,
                                uint64_t *dest, uint64_t *destlen,
                                uint64_t *src, uint64_t *srclen,
-                               uint8_t pad, uintptr_t ra)
+                               uint16_t pad, int wordsize, uintptr_t ra)
 {
     uint64_t len = MIN(*srclen, *destlen);
     uint32_t cc;
@@ -627,9 +627,22 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
     *destlen -= len;
 
     /* Pad the remaining area */
-    fast_memset(env, *dest, pad, *destlen, ra);
-    *dest += *destlen;
-    *destlen = 0;
+    if (wordsize == 1) {
+        fast_memset(env, *dest, pad, *destlen, ra);
+        *dest += *destlen;
+        *destlen = 0;
+    } else {
+        /* If remaining length is odd, pad with odd byte first.  */
+        if (*destlen & 1) {
+            cpu_stb_data_ra(env, *dest, pad & 0xff, ra);
+            *dest += 1;
+            *destlen -= 1;
+        }
+        /* The remaining length is even, pad using words.  */
+        for (; *destlen; *dest += 2, *destlen -= 2) {
+            cpu_stw_data_ra(env, *dest, pad, ra);
+        }
+    }
 
     return cc;
 }
@@ -645,7 +658,7 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint8_t pad = env->regs[r2 + 1] >> 24;
     uint32_t cc;
 
-    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, ra);
+    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, 1, ra);
 
     env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
     env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, srclen);
@@ -667,7 +680,29 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     uint8_t pad = a2;
     uint32_t cc;
 
-    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, ra);
+    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, 1, ra);
+
+    set_length(env, r1 + 1, destlen);
+    set_length(env, r3 + 1, srclen);
+    set_address(env, r1, dest);
+    set_address(env, r3, src);
+
+    return cc;
+}
+
+/* move long unicode */
+uint32_t HELPER(mvclu)(CPUS390XState *env, uint32_t r1, uint64_t a2,
+                       uint32_t r3)
+{
+    uintptr_t ra = GETPC();
+    uint64_t destlen = get_length(env, r1 + 1);
+    uint64_t dest = get_address(env, r1);
+    uint64_t srclen = get_length(env, r3 + 1);
+    uint64_t src = get_address(env, r3);
+    uint16_t pad = a2;
+    uint32_t cc;
+
+    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, 2, ra);
 
     set_length(env, r1 + 1, destlen);
     set_length(env, r3 + 1, srclen);
