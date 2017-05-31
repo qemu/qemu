@@ -256,6 +256,37 @@ void HELPER(mvn)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     }
 }
 
+/* move with offset  */
+void HELPER(mvo)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
+{
+    uintptr_t ra = GETPC();
+    int len_dest = l >> 4;
+    int len_src = l & 0xf;
+    uint8_t byte_dest, byte_src;
+    int i;
+
+    src += len_src;
+    dest += len_dest;
+
+    /* Handle rightmost byte */
+    byte_src = cpu_ldub_data_ra(env, src, ra);
+    byte_dest = cpu_ldub_data_ra(env, dest, ra);
+    byte_dest = (byte_dest & 0x0f) | (byte_src << 4);
+    cpu_stb_data_ra(env, dest, byte_dest, ra);
+
+    /* Process remaining bytes from right to left */
+    for (i = 1; i <= len_dest; i++) {
+        byte_dest = byte_src >> 4;
+        if (len_src - i >= 0) {
+            byte_src = cpu_ldub_data_ra(env, src - i, ra);
+        } else {
+            byte_src = 0;
+        }
+        byte_dest |= byte_src << 4;
+        cpu_stb_data_ra(env, dest - i, byte_dest, ra);
+    }
+}
+
 /* compare unsigned byte arrays */
 static uint32_t do_helper_clc(CPUS390XState *env, uint32_t l, uint64_t s1,
                               uint64_t s2, uintptr_t ra)
