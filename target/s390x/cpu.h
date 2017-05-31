@@ -1035,6 +1035,8 @@ struct sysib_322 {
 #define _SEGMENT_ENTRY_RO       0x200     /* page protection bit              */
 #define _SEGMENT_ENTRY_INV      0x20      /* invalid segment table entry      */
 
+#define VADDR_PX                0xff000   /* page index bits                  */
+
 #define _PAGE_RO        0x200            /* HW read-only bit  */
 #define _PAGE_INVALID   0x400            /* HW invalid bit    */
 #define _PAGE_RES0      0x800            /* bit must be zero  */

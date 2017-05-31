@@ -1073,19 +1073,22 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 }
 
 /* invalidate pte */
-void HELPER(ipte)(CPUS390XState *env, uint64_t pte_addr, uint64_t vaddr)
+void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t page = vaddr & TARGET_PAGE_MASK;
-    uint64_t pte = 0;
+    uint64_t pte_addr, pte;
 
     /* XXX broadcast to other CPUs */
 
-    /* XXX Linux is nice enough to give us the exact pte address.
-       According to spec we'd have to find it out ourselves */
-    /* XXX Linux is fine with overwriting the pte, the spec requires
-       us to only set the invalid bit */
-    stq_phys(cs->as, pte_addr, pte | _PAGE_INVALID);
+    /* Compute the page table entry address */
+    pte_addr = (pto & _SEGMENT_ENTRY_ORIGIN);
+    pte_addr += (vaddr & _VADDR_PX) >> 9;
+
+    /* Mark the page table entry as invalid */
+    pte = ldq_phys(cs->as, pte_addr);
+    pte |= _PAGE_INVALID;
+    stq_phys(cs->as, pte_addr, pte);
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */

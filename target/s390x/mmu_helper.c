@@ -143,8 +143,6 @@ static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
     return 0;
 }
 
-#define VADDR_PX    0xff000         /* Page index bits */
-
 /* Decode segment table entry */
 static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
                                  uint64_t asc, uint64_t st_entry,
