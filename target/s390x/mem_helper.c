@@ -407,6 +407,31 @@ static inline void set_address(CPUS390XState *env, int reg, uint64_t address)
     }
 }
 
+static inline uint64_t wrap_length(CPUS390XState *env, uint64_t length)
+{
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        /* 24-Bit and 31-Bit mode */
+        length &= 0x7fffffff;
+    }
+    return length;
+}
+
+static inline uint64_t get_length(CPUS390XState *env, int reg)
+{
+    return wrap_length(env, env->regs[reg]);
+}
+
+static inline void set_length(CPUS390XState *env, int reg, uint64_t length)
+{
+    if (env->psw.mask & PSW_MASK_64) {
+        /* 64-Bit mode */
+        env->regs[reg] = length;
+    } else {
+        /* 24-Bit and 31-Bit mode */
+        env->regs[reg] = deposit64(env->regs[reg], 0, 32, length);
+    }
+}
+
 /* search string (c is byte to search, r2 is string, r1 end of string) */
 uint64_t HELPER(srst)(CPUS390XState *env, uint64_t r0, uint64_t end,
                       uint64_t str)
@@ -598,18 +623,13 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
                        uint32_t r3)
 {
     uintptr_t ra = GETPC();
-    uint64_t destlen = env->regs[r1 + 1];
+    uint64_t destlen = get_length(env, r1 + 1);
     uint64_t dest = get_address(env, r1);
-    uint64_t srclen = env->regs[r3 + 1];
+    uint64_t srclen = get_length(env, r3 + 1);
     uint64_t src = get_address(env, r3);
     uint8_t pad = a2 & 0xff;
     uint8_t v;
     uint32_t cc;
-
-    if (!(env->psw.mask & PSW_MASK_64)) {
-        destlen = (uint32_t)destlen;
-        srclen = (uint32_t)srclen;
-    }
 
     if (destlen == srclen) {
         cc = 0;
@@ -632,10 +652,9 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
         cpu_stb_data_ra(env, dest, pad, ra);
     }
 
-    env->regs[r1 + 1] = destlen;
+    set_length(env, r1 + 1 , destlen);
     /* can't use srclen here, we trunc'ed it */
-    /* FIXME: 31-bit mode! */
-    env->regs[r3 + 1] -= src - env->regs[r3];
+    set_length(env, r3 + 1, env->regs[r3 + 1] - src - env->regs[r3]);
     set_address(env, r1, dest);
     set_address(env, r3, src);
 
@@ -647,9 +666,9 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
                        uint32_t r3)
 {
     uintptr_t ra = GETPC();
-    uint64_t destlen = env->regs[r1 + 1];
+    uint64_t destlen = get_length(env, r1 + 1);
     uint64_t dest = get_address(env, r1);
-    uint64_t srclen = env->regs[r3 + 1];
+    uint64_t srclen = get_length(env, r3 + 1);
     uint64_t src = get_address(env, r3);
     uint8_t pad = a2 & 0xff;
     uint32_t cc = 0;
@@ -671,9 +690,9 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
         }
     }
 
-    env->regs[r1 + 1] = destlen;
+    set_length(env, r1 + 1, destlen);
     /* can't use srclen here, we trunc'ed it */
-    env->regs[r3 + 1] -= src - env->regs[r3];
+    set_length(env, r3 + 1, env->regs[r3 + 1] - src - env->regs[r3]);
     set_address(env, r1, dest);
     set_address(env, r3, src);
 
