@@ -365,30 +365,23 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
     return cc;
 }
 
-static inline uint64_t fix_address(CPUS390XState *env, uint64_t a)
+static inline uint64_t wrap_address(CPUS390XState *env, uint64_t a)
 {
-    /* 31-Bit mode */
     if (!(env->psw.mask & PSW_MASK_64)) {
-        a &= 0x7fffffff;
+        if (!(env->psw.mask & PSW_MASK_32)) {
+            /* 24-Bit mode */
+            a &= 0x00ffffff;
+        } else {
+            /* 31-Bit mode */
+            a &= 0x7fffffff;
+        }
     }
     return a;
 }
 
-static inline uint64_t get_address(CPUS390XState *env, int x2, int b2, int d2)
+static inline uint64_t get_address(CPUS390XState *env, int reg)
 {
-    uint64_t r = d2;
-    if (x2) {
-        r += env->regs[x2];
-    }
-    if (b2) {
-        r += env->regs[b2];
-    }
-    return fix_address(env, r);
-}
-
-static inline uint64_t get_address_31fix(CPUS390XState *env, int reg)
-{
-    return fix_address(env, env->regs[reg]);
+    return wrap_address(env, env->regs[reg]);
 }
 
 /* search string (c is byte to search, r2 is string, r1 end of string) */
@@ -399,8 +392,8 @@ uint64_t HELPER(srst)(CPUS390XState *env, uint64_t r0, uint64_t end,
     uint32_t len;
     uint8_t v, c = r0;
 
-    str = fix_address(env, str);
-    end = fix_address(env, end);
+    str = wrap_address(env, str);
+    end = wrap_address(env, end);
 
     /* Assume for now that R2 is unmodified.  */
     env->retxl = str;
@@ -434,8 +427,8 @@ uint64_t HELPER(clst)(CPUS390XState *env, uint64_t c, uint64_t s1, uint64_t s2)
     uint32_t len;
 
     c = c & 0xff;
-    s1 = fix_address(env, s1);
-    s2 = fix_address(env, s2);
+    s1 = wrap_address(env, s1);
+    s2 = wrap_address(env, s2);
 
     /* Lest we fail to service interrupts in a timely manner, limit the
        amount of work we're willing to do.  For now, let's cap at 8k.  */
@@ -481,8 +474,8 @@ uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
     uint32_t len;
 
     c = c & 0xff;
-    d = fix_address(env, d);
-    s = fix_address(env, s);
+    d = wrap_address(env, d);
+    s = wrap_address(env, s);
 
     /* Lest we fail to service interrupts in a timely manner, limit the
        amount of work we're willing to do.  For now, let's cap at 8k.  */
@@ -540,9 +533,9 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
     uintptr_t ra = GETPC();
     uint64_t destlen = env->regs[r1 + 1] & 0xffffff;
-    uint64_t dest = get_address_31fix(env, r1);
+    uint64_t dest = get_address(env, r1);
     uint64_t srclen = env->regs[r2 + 1] & 0xffffff;
-    uint64_t src = get_address_31fix(env, r2);
+    uint64_t src = get_address(env, r2);
     uint8_t pad = env->regs[r2 + 1] >> 24;
     uint8_t v;
     uint32_t cc;
@@ -583,9 +576,9 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
 {
     uintptr_t ra = GETPC();
     uint64_t destlen = env->regs[r1 + 1];
-    uint64_t dest = env->regs[r1];
+    uint64_t dest = get_address(env, r1);
     uint64_t srclen = env->regs[r3 + 1];
-    uint64_t src = env->regs[r3];
+    uint64_t src = get_address(env, r3);
     uint8_t pad = a2 & 0xff;
     uint8_t v;
     uint32_t cc;
@@ -593,8 +586,6 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     if (!(env->psw.mask & PSW_MASK_64)) {
         destlen = (uint32_t)destlen;
         srclen = (uint32_t)srclen;
-        dest &= 0x7fffffff;
-        src &= 0x7fffffff;
     }
 
     if (destlen == srclen) {
@@ -634,9 +625,9 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
 {
     uintptr_t ra = GETPC();
     uint64_t destlen = env->regs[r1 + 1];
-    uint64_t dest = get_address_31fix(env, r1);
+    uint64_t dest = get_address(env, r1);
     uint64_t srclen = env->regs[r3 + 1];
-    uint64_t src = get_address_31fix(env, r3);
+    uint64_t src = get_address(env, r3);
     uint8_t pad = a2 & 0xff;
     uint32_t cc = 0;
 
@@ -1020,7 +1011,7 @@ uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
     uint64_t abs_addr;
     int i;
 
-    real_addr = fix_address(env, real_addr);
+    real_addr = wrap_address(env, real_addr);
     abs_addr = mmu_real2abs(env, real_addr) & TARGET_PAGE_MASK;
     if (!address_space_access_valid(&address_space_memory, abs_addr,
                                     TARGET_PAGE_SIZE, true)) {
@@ -1054,7 +1045,7 @@ uint64_t HELPER(iske)(CPUS390XState *env, uint64_t r2)
 {
     static S390SKeysState *ss;
     static S390SKeysClass *skeyclass;
-    uint64_t addr = get_address(env, 0, 0, r2);
+    uint64_t addr = wrap_address(env, r2);
     uint8_t key;
 
     if (addr > ram_size) {
@@ -1077,7 +1068,7 @@ void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
     static S390SKeysState *ss;
     static S390SKeysClass *skeyclass;
-    uint64_t addr = get_address(env, 0, 0, r2);
+    uint64_t addr = wrap_address(env, r2);
     uint8_t key;
 
     if (addr > ram_size) {
@@ -1234,14 +1225,14 @@ uint64_t HELPER(lura)(CPUS390XState *env, uint64_t addr)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
-    return (uint32_t)ldl_phys(cs->as, get_address(env, 0, 0, addr));
+    return (uint32_t)ldl_phys(cs->as, wrap_address(env, addr));
 }
 
 uint64_t HELPER(lurag)(CPUS390XState *env, uint64_t addr)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
-    return ldq_phys(cs->as, get_address(env, 0, 0, addr));
+    return ldq_phys(cs->as, wrap_address(env, addr));
 }
 
 /* store using real address */
@@ -1249,7 +1240,7 @@ void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
-    stl_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
+    stl_phys(cs->as, wrap_address(env, addr), (uint32_t)v1);
 
     if ((env->psw.mask & PSW_MASK_PER) &&
         (env->cregs[9] & PER_CR9_EVENT_STORE) &&
@@ -1264,7 +1255,7 @@ void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
-    stq_phys(cs->as, get_address(env, 0, 0, addr), v1);
+    stq_phys(cs->as, wrap_address(env, addr), v1);
 
     if ((env->psw.mask & PSW_MASK_PER) &&
         (env->cregs[9] & PER_CR9_EVENT_STORE) &&
@@ -1357,8 +1348,8 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
             uint32_t d1 = extract64(insn, 32, 12);
             uint32_t b2 = extract64(insn, 28, 4);
             uint32_t d2 = extract64(insn, 16, 12);
-            uint64_t a1 = get_address(env, 0, b1, d1);
-            uint64_t a2 = get_address(env, 0, b2, d2);
+            uint64_t a1 = wrap_address(env, env->regs[b1] + d1);
+            uint64_t a2 = wrap_address(env, env->regs[b2] + d2);
 
             env->cc_op = helper(env, l, a1, a2, 0);
             env->psw.addr += ilen;
