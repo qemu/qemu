@@ -2979,22 +2979,42 @@ static ExitStatus op_mvcin(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_mvcl(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
-    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
-    gen_helper_mvcl(cc_op, cpu_env, r1, r2);
-    tcg_temp_free_i32(r1);
-    tcg_temp_free_i32(r2);
+    int r1 = get_field(s->fields, r1);
+    int r2 = get_field(s->fields, r2);
+    TCGv_i32 t1, t2;
+
+    /* r1 and r2 must be even.  */
+    if (r1 & 1 || r2 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t2 = tcg_const_i32(r2);
+    gen_helper_mvcl(cc_op, cpu_env, t1, t2);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
     set_cc_static(s);
     return NO_EXIT;
 }
 
 static ExitStatus op_mvcle(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
-    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    gen_helper_mvcle(cc_op, cpu_env, r1, o->in2, r3);
-    tcg_temp_free_i32(r1);
-    tcg_temp_free_i32(r3);
+    int r1 = get_field(s->fields, r1);
+    int r3 = get_field(s->fields, r3);
+    TCGv_i32 t1, t3;
+
+    /* r1 and r3 must be even.  */
+    if (r1 & 1 || r3 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t3 = tcg_const_i32(r3);
+    gen_helper_mvcle(cc_op, cpu_env, t1, o->in2, t3);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t3);
     set_cc_static(s);
     return NO_EXIT;
 }

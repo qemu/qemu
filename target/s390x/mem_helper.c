@@ -576,6 +576,38 @@ void HELPER(stam)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
     }
 }
 
+/* move long helper */
+static inline uint32_t do_mvcl(CPUS390XState *env,
+                               uint64_t *dest, uint64_t *destlen,
+                               uint64_t *src, uint64_t *srclen,
+                               uint8_t pad, uintptr_t ra)
+{
+    uint64_t len = MIN(*srclen, *destlen);
+    uint32_t cc;
+
+    if (*destlen == *srclen) {
+        cc = 0;
+    } else if (*destlen < *srclen) {
+        cc = 1;
+    } else {
+        cc = 2;
+    }
+
+    /* Copy the src array */
+    fast_memmove(env, *dest, *src, len, ra);
+    *src += len;
+    *srclen -= len;
+    *dest += len;
+    *destlen -= len;
+
+    /* Pad the remaining area */
+    fast_memset(env, *dest, pad, *destlen, ra);
+    *dest += *destlen;
+    *destlen = 0;
+
+    return cc;
+}
+
 /* move long */
 uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
@@ -585,40 +617,19 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint64_t srclen = env->regs[r2 + 1] & 0xffffff;
     uint64_t src = get_address(env, r2);
     uint8_t pad = env->regs[r2 + 1] >> 24;
-    uint8_t v;
     uint32_t cc;
 
-    if (destlen == srclen) {
-        cc = 0;
-    } else if (destlen < srclen) {
-        cc = 1;
-    } else {
-        cc = 2;
-    }
+    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, ra);
 
-    if (srclen > destlen) {
-        srclen = destlen;
-    }
-
-    for (; destlen && srclen; src++, dest++, destlen--, srclen--) {
-        v = cpu_ldub_data_ra(env, src, ra);
-        cpu_stb_data_ra(env, dest, v, ra);
-    }
-
-    for (; destlen; dest++, destlen--) {
-        cpu_stb_data_ra(env, dest, pad, ra);
-    }
-
-    env->regs[r1 + 1] = destlen;
-    /* can't use srclen here, we trunc'ed it */
-    env->regs[r2 + 1] -= src - env->regs[r2];
+    env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
+    env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, srclen);
     set_address(env, r1, dest);
     set_address(env, r2, src);
 
     return cc;
 }
 
-/* move long extended another memcopy insn with more bells and whistles */
+/* move long extended */
 uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
                        uint32_t r3)
 {
@@ -627,34 +638,13 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     uint64_t dest = get_address(env, r1);
     uint64_t srclen = get_length(env, r3 + 1);
     uint64_t src = get_address(env, r3);
-    uint8_t pad = a2 & 0xff;
-    uint8_t v;
+    uint8_t pad = a2;
     uint32_t cc;
 
-    if (destlen == srclen) {
-        cc = 0;
-    } else if (destlen < srclen) {
-        cc = 1;
-    } else {
-        cc = 2;
-    }
+    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, ra);
 
-    if (srclen > destlen) {
-        srclen = destlen;
-    }
-
-    for (; destlen && srclen; src++, dest++, destlen--, srclen--) {
-        v = cpu_ldub_data_ra(env, src, ra);
-        cpu_stb_data_ra(env, dest, v, ra);
-    }
-
-    for (; destlen; dest++, destlen--) {
-        cpu_stb_data_ra(env, dest, pad, ra);
-    }
-
-    set_length(env, r1 + 1 , destlen);
-    /* can't use srclen here, we trunc'ed it */
-    set_length(env, r3 + 1, env->regs[r3 + 1] - src - env->regs[r3]);
+    set_length(env, r1 + 1, destlen);
+    set_length(env, r3 + 1, srclen);
     set_address(env, r1, dest);
     set_address(env, r3, src);
 
