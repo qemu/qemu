@@ -661,6 +661,78 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     return cc;
 }
 
+/* compare logical long helper */
+static inline uint32_t do_clcl(CPUS390XState *env,
+                               uint64_t *src1, uint64_t *src1len,
+                               uint64_t *src3, uint64_t *src3len,
+                               uint8_t pad, uint64_t limit,
+                               uintptr_t ra)
+{
+    uint64_t len = MAX(*src1len, *src3len);
+    uint32_t cc = 0;
+
+    if (!len) {
+        return cc;
+    }
+
+    /* Lest we fail to service interrupts in a timely manner, limit the
+       amount of work we're willing to do.  */
+    if (len > limit) {
+        len = limit;
+        cc = 3;
+    }
+
+    for (; len; len--) {
+        uint8_t v1 = pad;
+        uint8_t v3 = pad;
+
+        if (*src1len) {
+            v1 = cpu_ldub_data_ra(env, *src1, ra);
+        }
+        if (*src3len) {
+            v3 = cpu_ldub_data_ra(env, *src3, ra);
+        }
+
+        if (v1 != v3) {
+            cc = (v1 < v3) ? 1 : 2;
+            break;
+        }
+
+        if (*src1len) {
+            *src1 += 1;
+            *src1len -= 1;
+        }
+        if (*src3len) {
+            *src3 += 1;
+            *src3len -= 1;
+        }
+    }
+
+    return cc;
+}
+
+
+/* compare logical long */
+uint32_t HELPER(clcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+{
+    uintptr_t ra = GETPC();
+    uint64_t src1len = extract64(env->regs[r1 + 1], 0, 24);
+    uint64_t src1 = get_address(env, r1);
+    uint64_t src3len = extract64(env->regs[r2 + 1], 0, 24);
+    uint64_t src3 = get_address(env, r2);
+    uint8_t pad = env->regs[r2 + 1] >> 24;
+    uint32_t cc;
+
+    cc = do_clcl(env, &src1, &src1len, &src3, &src3len, pad, -1, ra);
+
+    env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, src1len);
+    env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, src3len);
+    set_address(env, r1, src1);
+    set_address(env, r2, src3);
+
+    return cc;
+}
+
 /* compare logical long extended memcompare insn with padding */
 uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
                        uint32_t r3)
@@ -670,46 +742,10 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     uint64_t src1 = get_address(env, r1);
     uint64_t src3len = get_length(env, r3 + 1);
     uint64_t src3 = get_address(env, r3);
-    uint8_t pad = a2 & 0xff;
-    uint64_t len = MAX(src1len, src3len);
-    uint32_t cc = 0;
+    uint8_t pad = a2;
+    uint32_t cc;
 
-    if (!len) {
-        return cc;
-    }
-
-    /* Lest we fail to service interrupts in a timely manner, limit the
-       amount of work we're willing to do.  For now, let's cap at 8k.  */
-    if (len > 0x2000) {
-        len = 0x2000;
-        cc = 3;
-    }
-
-    for (; len; len--) {
-        uint8_t v1 = pad;
-        uint8_t v3 = pad;
-
-        if (src1len) {
-            v1 = cpu_ldub_data_ra(env, src1, ra);
-        }
-        if (src3len) {
-            v3 = cpu_ldub_data_ra(env, src3, ra);
-        }
-
-        if (v1 != v3) {
-            cc = (v1 < v3) ? 1 : 2;
-            break;
-        }
-
-        if (src1len) {
-            src1++;
-            src1len--;
-        }
-        if (src3len) {
-            src3++;
-            src3len--;
-        }
-    }
+    cc = do_clcl(env, &src1, &src1len, &src3, &src3len, pad, 0x2000, ra);
 
     set_length(env, r1 + 1, src1len);
     set_length(env, r3 + 1, src3len);
