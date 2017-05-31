@@ -667,6 +667,8 @@
     C(0xf200, PACK,    SS_a,  Z,   la1, a2, 0, 0, pack, 0)
 /* PACK ASCII */
     C(0xe900, PKA,     SS_f,  E2,  la1, a2, 0, 0, pka, 0)
+/* PACK UNICODE */
+    C(0xe100, PKU,     SS_f,  E2,  la1, a2, 0, 0, pku, 0)
 
 /* PREFETCH */
     /* Implemented as nops of course.  */

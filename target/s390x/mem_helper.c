@@ -914,10 +914,9 @@ void HELPER(pack)(CPUS390XState *env, uint32_t len, uint64_t dest, uint64_t src)
     }
 }
 
-void HELPER(pka)(CPUS390XState *env, uint64_t dest, uint64_t src,
-                 uint32_t srclen)
+static inline void do_pkau(CPUS390XState *env, uint64_t dest, uint64_t src,
+                           uint32_t srclen, int ssize, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     int i;
     /* The destination operand is always 16 bytes long.  */
     const int destlen = 16;
@@ -932,21 +931,34 @@ void HELPER(pka)(CPUS390XState *env, uint64_t dest, uint64_t src,
         /* Start with a positive sign */
         if (i == 0) {
             b = 0xc;
-        } else if (srclen > 1) {
+        } else if (srclen > ssize) {
             b = cpu_ldub_data_ra(env, src, ra) & 0x0f;
-            src--;
-            srclen--;
+            src -= ssize;
+            srclen -= ssize;
         }
 
-        if (srclen > 1) {
+        if (srclen > ssize) {
             b |= cpu_ldub_data_ra(env, src, ra) << 4;
-            src--;
-            srclen--;
+            src -= ssize;
+            srclen -= ssize;
         }
 
         cpu_stb_data_ra(env, dest, b, ra);
         dest--;
     }
+}
+
+
+void HELPER(pka)(CPUS390XState *env, uint64_t dest, uint64_t src,
+                 uint32_t srclen)
+{
+    do_pkau(env, dest, src, srclen, 1, GETPC());
+}
+
+void HELPER(pku)(CPUS390XState *env, uint64_t dest, uint64_t src,
+                 uint32_t srclen)
+{
+    do_pkau(env, dest, src, srclen, 2, GETPC());
 }
 
 void HELPER(unpk)(CPUS390XState *env, uint32_t len, uint64_t dest,
