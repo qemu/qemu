@@ -80,8 +80,6 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
     cpu_loop_exit(cs);
 }
 
-#ifndef CONFIG_USER_ONLY
-
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
@@ -107,6 +105,8 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
         cpu_loop_exit(cs);
     }
 }
+
+#ifndef CONFIG_USER_ONLY
 
 /* SCLP service call */
 uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)

@@ -67,6 +67,32 @@ static inline uint32_t adj_len_to_page(uint32_t len, uint64_t addr)
     return len;
 }
 
+/* Trigger a SPECIFICATION exception if an address or a length is not
+   naturally aligned.  */
+static inline void check_alignment(CPUS390XState *env, uint64_t v,
+                                   int wordsize, uintptr_t ra)
+{
+    if (v % wordsize) {
+        CPUState *cs = CPU(s390_env_get_cpu(env));
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIFICATION, 6);
+    }
+}
+
+/* Load a value from memory according to its size.  */
+static inline uint64_t cpu_ldusize_data_ra(CPUS390XState *env, uint64_t addr,
+                                           int wordsize, uintptr_t ra)
+{
+    switch (wordsize) {
+    case 1:
+        return cpu_ldub_data_ra(env, addr, ra);
+    case 2:
+        return cpu_lduw_data_ra(env, addr, ra);
+    default:
+        abort();
+    }
+}
+
 static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
                         uint32_t l, uintptr_t ra)
 {
@@ -655,11 +681,13 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
 static inline uint32_t do_clcl(CPUS390XState *env,
                                uint64_t *src1, uint64_t *src1len,
                                uint64_t *src3, uint64_t *src3len,
-                               uint8_t pad, uint64_t limit,
-                               uintptr_t ra)
+                               uint16_t pad, uint64_t limit,
+                               int wordsize, uintptr_t ra)
 {
     uint64_t len = MAX(*src1len, *src3len);
     uint32_t cc = 0;
+
+    check_alignment(env, *src1len | *src3len, wordsize, ra);
 
     if (!len) {
         return cc;
@@ -672,15 +700,15 @@ static inline uint32_t do_clcl(CPUS390XState *env,
         cc = 3;
     }
 
-    for (; len; len--) {
-        uint8_t v1 = pad;
-        uint8_t v3 = pad;
+    for (; len; len -= wordsize) {
+        uint16_t v1 = pad;
+        uint16_t v3 = pad;
 
         if (*src1len) {
-            v1 = cpu_ldub_data_ra(env, *src1, ra);
+            v1 = cpu_ldusize_data_ra(env, *src1, wordsize, ra);
         }
         if (*src3len) {
-            v3 = cpu_ldub_data_ra(env, *src3, ra);
+            v3 = cpu_ldusize_data_ra(env, *src3, wordsize, ra);
         }
 
         if (v1 != v3) {
@@ -689,12 +717,12 @@ static inline uint32_t do_clcl(CPUS390XState *env,
         }
 
         if (*src1len) {
-            *src1 += 1;
-            *src1len -= 1;
+            *src1 += wordsize;
+            *src1len -= wordsize;
         }
         if (*src3len) {
-            *src3 += 1;
-            *src3len -= 1;
+            *src3 += wordsize;
+            *src3len -= wordsize;
         }
     }
 
@@ -713,7 +741,7 @@ uint32_t HELPER(clcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint8_t pad = env->regs[r2 + 1] >> 24;
     uint32_t cc;
 
-    cc = do_clcl(env, &src1, &src1len, &src3, &src3len, pad, -1, ra);
+    cc = do_clcl(env, &src1, &src1len, &src3, &src3len, pad, -1, 1, ra);
 
     env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, src1len);
     env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, src3len);
@@ -735,7 +763,29 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     uint8_t pad = a2;
     uint32_t cc;
 
-    cc = do_clcl(env, &src1, &src1len, &src3, &src3len, pad, 0x2000, ra);
+    cc = do_clcl(env, &src1, &src1len, &src3, &src3len, pad, 0x2000, 1, ra);
+
+    set_length(env, r1 + 1, src1len);
+    set_length(env, r3 + 1, src3len);
+    set_address(env, r1, src1);
+    set_address(env, r3, src3);
+
+    return cc;
+}
+
+/* compare logical long unicode memcompare insn with padding */
+uint32_t HELPER(clclu)(CPUS390XState *env, uint32_t r1, uint64_t a2,
+                       uint32_t r3)
+{
+    uintptr_t ra = GETPC();
+    uint64_t src1len = get_length(env, r1 + 1);
+    uint64_t src1 = get_address(env, r1);
+    uint64_t src3len = get_length(env, r3 + 1);
+    uint64_t src3 = get_address(env, r3);
+    uint16_t pad = a2;
+    uint32_t cc = 0;
+
+    cc = do_clcl(env, &src1, &src1len, &src3, &src3len, pad, 0x1000, 2, ra);
 
     set_length(env, r1 + 1, src1len);
     set_length(env, r3 + 1, src3len);
