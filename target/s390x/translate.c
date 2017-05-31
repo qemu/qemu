@@ -4305,6 +4305,15 @@ static ExitStatus op_tprot(DisasContext *s, DisasOps *o)
 
 #endif
 
+static ExitStatus op_tp(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l1 = tcg_const_i32(get_field(s->fields, l1) + 1);
+    gen_helper_tp(cc_op, cpu_env, o->addr1, l1);
+    tcg_temp_free_i32(l1);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_tr(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));

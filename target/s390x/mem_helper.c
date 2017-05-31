@@ -1088,6 +1088,29 @@ uint32_t HELPER(unpku)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
     return do_unpkau(env, dest, destlen, 2, src, GETPC());
 }
 
+uint32_t HELPER(tp)(CPUS390XState *env, uint64_t dest, uint32_t destlen)
+{
+    uintptr_t ra = GETPC();
+    uint32_t cc = 0;
+    int i;
+
+    for (i = 0; i < destlen; i++) {
+        uint8_t b = cpu_ldub_data_ra(env, dest + i, ra);
+        /* digit */
+        cc |= (b & 0xf0) > 0x90 ? 2 : 0;
+
+        if (i == (destlen - 1)) {
+            /* sign */
+            cc |= (b & 0xf) < 0xa ? 1 : 0;
+        } else {
+            /* digit */
+            cc |= (b & 0xf) > 0x9 ? 2 : 0;
+        }
+    }
+
+    return cc;
+}
+
 static uint32_t do_helper_tr(CPUS390XState *env, uint32_t len, uint64_t array,
                              uint64_t trans, uintptr_t ra)
 {
