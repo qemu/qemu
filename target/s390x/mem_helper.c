@@ -384,6 +384,29 @@ static inline uint64_t get_address(CPUS390XState *env, int reg)
     return wrap_address(env, env->regs[reg]);
 }
 
+static inline void set_address(CPUS390XState *env, int reg, uint64_t address)
+{
+    if (env->psw.mask & PSW_MASK_64) {
+        /* 64-Bit mode */
+        env->regs[reg] = address;
+    } else {
+        if (!(env->psw.mask & PSW_MASK_32)) {
+            /* 24-Bit mode. According to the PoO it is implementation
+            dependent if bits 32-39 remain unchanged or are set to
+            zeros.  Choose the former so that the function can also be
+            used for TRT.  */
+            env->regs[reg] = deposit64(env->regs[reg], 0, 24, address);
+        } else {
+            /* 31-Bit mode. According to the PoO it is implementation
+            dependent if bit 32 remains unchanged or is set to zero.
+            Choose the latter so that the function can also be used for
+            TRT.  */
+            address &= 0x7fffffff;
+            env->regs[reg] = deposit64(env->regs[reg], 0, 32, address);
+        }
+    }
+}
+
 /* search string (c is byte to search, r2 is string, r1 end of string) */
 uint64_t HELPER(srst)(CPUS390XState *env, uint64_t r0, uint64_t end,
                       uint64_t str)
@@ -564,8 +587,8 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     env->regs[r1 + 1] = destlen;
     /* can't use srclen here, we trunc'ed it */
     env->regs[r2 + 1] -= src - env->regs[r2];
-    env->regs[r1] = dest;
-    env->regs[r2] = src;
+    set_address(env, r1, dest);
+    set_address(env, r2, src);
 
     return cc;
 }
@@ -613,8 +636,8 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     /* can't use srclen here, we trunc'ed it */
     /* FIXME: 31-bit mode! */
     env->regs[r3 + 1] -= src - env->regs[r3];
-    env->regs[r1] = dest;
-    env->regs[r3] = src;
+    set_address(env, r1, dest);
+    set_address(env, r3, src);
 
     return cc;
 }
@@ -651,8 +674,8 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     env->regs[r1 + 1] = destlen;
     /* can't use srclen here, we trunc'ed it */
     env->regs[r3 + 1] -= src - env->regs[r3];
-    env->regs[r1] = dest;
-    env->regs[r3] = src;
+    set_address(env, r1, dest);
+    set_address(env, r3, src);
 
     return cc;
 }
@@ -858,7 +881,7 @@ static uint32_t do_helper_trt(CPUS390XState *env, uint32_t len, uint64_t array,
         uint8_t sbyte = cpu_ldub_data_ra(env, trans + byte, ra);
 
         if (sbyte != 0) {
-            env->regs[1] = array + i;
+            set_address(env, 1, array + i);
             env->regs[2] = deposit64(env->regs[2], 0, 8, sbyte);
             return (i == len) ? 2 : 1;
         }
