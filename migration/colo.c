@@ -16,6 +16,7 @@
 #include "qemu-file-channel.h"
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
+#include "savevm.h"
 #include "migration/colo.h"
 #include "migration/block.h"
 #include "io/channel-buffer.h"
