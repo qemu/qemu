@@ -21,7 +21,7 @@ def gen_command_decl(name, arg_type, boxed, ret_type):
 ''',
                  c_type=(ret_type and ret_type.c_type()) or 'void',
                  c_name=c_name(name),
-                 params=gen_params(arg_type, boxed, 'Error **errp'))
+                 params=build_params(arg_type, boxed, 'Error **errp'))
 
 
 def gen_call(name, arg_type, boxed, ret_type):
@@ -82,7 +82,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
                  c_type=ret_type.c_type(), c_name=ret_type.c_name())
 
 
-def gen_marshal_proto(name):
+def build_marshal_proto(name):
     return ('void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)'
             % c_name(name))
 
@@ -91,7 +91,7 @@ def gen_marshal_decl(name):
     return mcgen('''
 %(proto)s;
 ''',
-                 proto=gen_marshal_proto(name))
+                 proto=build_marshal_proto(name))
 
 
 def gen_marshal(name, arg_type, boxed, ret_type):
@@ -103,7 +103,7 @@ def gen_marshal(name, arg_type, boxed, ret_type):
 {
     Error *err = NULL;
 ''',
-                proto=gen_marshal_proto(name))
+                proto=build_marshal_proto(name))
 
     if ret_type:
         ret += mcgen('''
