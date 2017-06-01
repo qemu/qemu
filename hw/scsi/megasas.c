@@ -309,9 +309,11 @@ static int megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
     PCIDevice *pcid = PCI_DEVICE(cmd->state);
     uint32_t pa_hi = 0, pa_lo;
     hwaddr pa;
+    int frame_sense_len;
 
-    if (sense_len > cmd->frame->header.sense_len) {
-        sense_len = cmd->frame->header.sense_len;
+    frame_sense_len = cmd->frame->header.sense_len;
+    if (sense_len > frame_sense_len) {
+        sense_len = frame_sense_len;
     }
     if (sense_len) {
         pa_lo = le32_to_cpu(cmd->frame->pass.sense_addr_lo);
