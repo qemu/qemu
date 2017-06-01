@@ -609,6 +609,9 @@ static void megasas_reset_frames(MegasasState *s)
 static void megasas_abort_command(MegasasCmd *cmd)
 {
     /* Never abort internal commands.  */
+    if (cmd->dcmd_opcode != -1) {
+        return;
+    }
     if (cmd->req != NULL) {
         scsi_req_cancel(cmd->req);
     }
@@ -1017,7 +1020,6 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
     uint64_t pd_size;
     uint16_t pd_id = ((sdev->id & 0xFF) << 8) | (lun & 0xFF);
     uint8_t cmdbuf[6];
-    SCSIRequest *req;
     size_t len, resid;
 
     if (!cmd->iov_buf) {
@@ -1026,8 +1028,8 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
         info->inquiry_data[0] = 0x7f; /* Force PQual 0x3, PType 0x1f */
         info->vpd_page83[0] = 0x7f;
         megasas_setup_inquiry(cmdbuf, 0, sizeof(info->inquiry_data));
-        req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, cmd);
-        if (!req) {
+        cmd->req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, cmd);
+        if (!cmd->req) {
             trace_megasas_dcmd_req_alloc_failed(cmd->index,
                                                 "PD get info std inquiry");
             g_free(cmd->iov_buf);
@@ -1036,26 +1038,26 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
         }
         trace_megasas_dcmd_internal_submit(cmd->index,
                                            "PD get info std inquiry", lun);
-        len = scsi_req_enqueue(req);
+        len = scsi_req_enqueue(cmd->req);
         if (len > 0) {
             cmd->iov_size = len;
-            scsi_req_continue(req);
+            scsi_req_continue(cmd->req);
         }
         return MFI_STAT_INVALID_STATUS;
     } else if (info->inquiry_data[0] != 0x7f && info->vpd_page83[0] == 0x7f) {
         megasas_setup_inquiry(cmdbuf, 0x83, sizeof(info->vpd_page83));
-        req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, cmd);
-        if (!req) {
+        cmd->req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, cmd);
+        if (!cmd->req) {
             trace_megasas_dcmd_req_alloc_failed(cmd->index,
                                                 "PD get info vpd inquiry");
             return MFI_STAT_FLASH_ALLOC_FAIL;
         }
         trace_megasas_dcmd_internal_submit(cmd->index,
                                            "PD get info vpd inquiry", lun);
-        len = scsi_req_enqueue(req);
+        len = scsi_req_enqueue(cmd->req);
         if (len > 0) {
             cmd->iov_size = len;
-            scsi_req_continue(req);
+            scsi_req_continue(cmd->req);
         }
         return MFI_STAT_INVALID_STATUS;
     }
@@ -1217,7 +1219,6 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
     struct mfi_ld_info *info = cmd->iov_buf;
     size_t dcmd_size = sizeof(struct mfi_ld_info);
     uint8_t cdb[6];
-    SCSIRequest *req;
     ssize_t len, resid;
     uint16_t sdev_id = ((sdev->id & 0xFF) << 8) | (lun & 0xFF);
     uint64_t ld_size;
@@ -1226,8 +1227,8 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
         cmd->iov_buf = g_malloc0(dcmd_size);
         info = cmd->iov_buf;
         megasas_setup_inquiry(cdb, 0x83, sizeof(info->vpd_page83));
-        req = scsi_req_new(sdev, cmd->index, lun, cdb, cmd);
-        if (!req) {
+        cmd->req = scsi_req_new(sdev, cmd->index, lun, cdb, cmd);
+        if (!cmd->req) {
             trace_megasas_dcmd_req_alloc_failed(cmd->index,
                                                 "LD get info vpd inquiry");
             g_free(cmd->iov_buf);
@@ -1236,10 +1237,10 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
         }
         trace_megasas_dcmd_internal_submit(cmd->index,
                                            "LD get info vpd inquiry", lun);
-        len = scsi_req_enqueue(req);
+        len = scsi_req_enqueue(cmd->req);
         if (len > 0) {
             cmd->iov_size = len;
-            scsi_req_continue(req);
+            scsi_req_continue(cmd->req);
         }
         return MFI_STAT_INVALID_STATUS;
     }
@@ -1851,7 +1852,7 @@ static void megasas_command_complete(SCSIRequest *req, uint32_t status,
         return;
     }
 
-    if (cmd->req == NULL) {
+    if (cmd->dcmd_opcode != -1) {
         /*
          * Internal command complete
          */
