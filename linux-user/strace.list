@@ -290,7 +290,7 @@
 { TARGET_NR_getegid32, "getegid32" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_geteuid
-{ TARGET_NR_geteuid, "geteuid" , NULL, NULL, NULL },
+{ TARGET_NR_geteuid, "geteuid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_geteuid32
 { TARGET_NR_geteuid32, "geteuid32" , NULL, NULL, NULL },
@@ -338,7 +338,7 @@
 { TARGET_NR_getpmsg, "getpmsg" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getppid
-{ TARGET_NR_getppid, "getppid" , NULL, NULL, NULL },
+{ TARGET_NR_getppid, "getppid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getpriority
 { TARGET_NR_getpriority, "getpriority", "%s(%#x,%#x)", NULL, NULL },
@@ -381,13 +381,13 @@
   NULL, NULL },
 #endif
 #ifdef TARGET_NR_gettid
-{ TARGET_NR_gettid, "gettid" , NULL, NULL, NULL },
+{ TARGET_NR_gettid, "gettid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_gettimeofday
 { TARGET_NR_gettimeofday, "gettimeofday" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getuid
-{ TARGET_NR_getuid, "getuid" , NULL, NULL, NULL },
+{ TARGET_NR_getuid, "getuid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getuid32
 { TARGET_NR_getuid32, "getuid32" , NULL, NULL, NULL },
@@ -1155,7 +1155,7 @@
 { TARGET_NR_rt_sigprocmask, "rt_sigprocmask" , NULL, print_rt_sigprocmask, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigqueueinfo
-{ TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, NULL, NULL },
+{ TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, print_rt_sigqueueinfo, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigreturn
 { TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
@@ -1167,7 +1167,7 @@
 { TARGET_NR_rt_sigtimedwait, "rt_sigtimedwait" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_rt_tgsigqueueinfo
-{ TARGET_NR_rt_tgsigqueueinfo, "rt_tgsigqueueinfo" , NULL, NULL, NULL },
+{ TARGET_NR_rt_tgsigqueueinfo, "rt_tgsigqueueinfo" , NULL, print_rt_tgsigqueueinfo, NULL },
 #endif
 #ifdef TARGET_NR_sched_getaffinity
 { TARGET_NR_sched_getaffinity, "sched_getaffinity" , NULL, NULL, NULL },
@@ -1498,7 +1498,7 @@
 { TARGET_NR_tee, "tee" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_tgkill
-{ TARGET_NR_tgkill, "tgkill" , NULL, NULL, NULL },
+{ TARGET_NR_tgkill, "tgkill" , NULL, print_tgkill, NULL },
 #endif
 #ifdef TARGET_NR_time
 { TARGET_NR_time, "time" , NULL, NULL, NULL },
@@ -1534,7 +1534,7 @@
 { TARGET_NR_times, "times" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_tkill
-{ TARGET_NR_tkill, "tkill" , NULL, NULL, NULL },
+{ TARGET_NR_tkill, "tkill" , NULL, print_tkill, NULL },
 #endif
 #ifdef TARGET_NR_truncate
 { TARGET_NR_truncate, "truncate" , NULL, NULL, NULL },
