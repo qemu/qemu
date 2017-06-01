@@ -185,6 +185,9 @@ void superh_cpu_dump_state(CPUState *cs, FILE *f,
     } else if (env->flags & DELAY_SLOT_CONDITIONAL) {
 	cpu_fprintf(f, "in conditional delay slot (delayed_pc=0x%08x)\n",
 		    env->delayed_pc);
+    } else if (env->flags & DELAY_SLOT_RTE) {
+        cpu_fprintf(f, "in rte delay slot (delayed_pc=0x%08x)\n",
+                    env->delayed_pc);
     }
 }
 
@@ -217,8 +220,7 @@ static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
     if (ctx->delayed_pc != (uint32_t) -1) {
         tcg_gen_movi_i32(cpu_delayed_pc, ctx->delayed_pc);
     }
-    if ((ctx->tbflags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL))
-        != ctx->envflags) {
+    if ((ctx->tbflags & DELAY_SLOT_MASK) != ctx->envflags) {
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
     }
 }
@@ -329,7 +331,7 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define DREG(x) FREG(x) /* Assumes lsb of (x) is always 0 */
 
 #define CHECK_NOT_DELAY_SLOT \
-    if (ctx->envflags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {     \
+    if (ctx->envflags & DELAY_SLOT_MASK) {                           \
         gen_save_cpu_state(ctx, true);                               \
         gen_helper_raise_slot_illegal_instruction(cpu_env);          \
         ctx->bstate = BS_EXCP;                                       \
@@ -339,7 +341,7 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define CHECK_PRIVILEGED                                             \
     if (IS_USER(ctx)) {                                              \
         gen_save_cpu_state(ctx, true);                               \
-        if (ctx->envflags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
+        if (ctx->envflags & DELAY_SLOT_MASK) {                       \
             gen_helper_raise_slot_illegal_instruction(cpu_env);      \
         } else {                                                     \
             gen_helper_raise_illegal_instruction(cpu_env);           \
@@ -351,7 +353,7 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define CHECK_FPU_ENABLED                                            \
     if (ctx->tbflags & (1u << SR_FD)) {                              \
         gen_save_cpu_state(ctx, true);                               \
-        if (ctx->envflags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
+        if (ctx->envflags & DELAY_SLOT_MASK) {                       \
             gen_helper_raise_slot_fpu_disable(cpu_env);              \
         } else {                                                     \
             gen_helper_raise_fpu_disable(cpu_env);                   \
@@ -428,8 +430,9 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_NOT_DELAY_SLOT
         gen_write_sr(cpu_ssr);
 	tcg_gen_mov_i32(cpu_delayed_pc, cpu_spc);
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= DELAY_SLOT_RTE;
 	ctx->delayed_pc = (uint32_t) - 1;
+        ctx->bstate = BS_STOP;
 	return;
     case 0x0058:		/* sets */
         tcg_gen_ori_i32(cpu_sr, cpu_sr, (1u << SR_S));
@@ -1784,7 +1787,7 @@ static void _decode_opc(DisasContext * ctx)
     fflush(stderr);
 #endif
     gen_save_cpu_state(ctx, true);
-    if (ctx->envflags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
+    if (ctx->envflags & DELAY_SLOT_MASK) {
         gen_helper_raise_slot_illegal_instruction(cpu_env);
     } else {
         gen_helper_raise_illegal_instruction(cpu_env);
@@ -1798,14 +1801,14 @@ static void decode_opc(DisasContext * ctx)
 
     _decode_opc(ctx);
 
-    if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
+    if (old_flags & DELAY_SLOT_MASK) {
         /* go out of the delay slot */
-        ctx->envflags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+        ctx->envflags &= ~DELAY_SLOT_MASK;
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
         ctx->bstate = BS_BRANCH;
         if (old_flags & DELAY_SLOT_CONDITIONAL) {
 	    gen_delayed_conditional_jump(ctx);
-        } else if (old_flags & DELAY_SLOT) {
+        } else {
             gen_jump(ctx);
 	}
 
@@ -1824,7 +1827,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     pc_start = tb->pc;
     ctx.pc = pc_start;
     ctx.tbflags = (uint32_t)tb->flags;
-    ctx.envflags = tb->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+    ctx.envflags = tb->flags & DELAY_SLOT_MASK;
     ctx.bstate = BS_NONE;
     ctx.memidx = (ctx.tbflags & (1u << SR_MD)) == 0 ? 1 : 0;
     /* We don't know if the delayed pc came from a dynamic or static branch,
