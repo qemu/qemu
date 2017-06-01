@@ -6027,11 +6027,11 @@ TARGET_ABI_DIR=""
 
 case "$target_name" in
   i386)
-    gdb_xml_files="i386-32bit-core.xml"
+    gdb_xml_files="i386-32bit.xml i386-32bit-core.xml i386-32bit-sse.xml"
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
-    gdb_xml_files="i386-64bit-core.xml"
+    gdb_xml_files="i386-64bit.xml i386-64bit-core.xml i386-64bit-sse.xml"
   ;;
   alpha)
     mttcg="yes"
