@@ -675,15 +675,16 @@ out:
 static int megasas_map_dcmd(MegasasState *s, MegasasCmd *cmd)
 {
     dma_addr_t iov_pa, iov_size;
+    int iov_count;
 
     cmd->flags = le16_to_cpu(cmd->frame->header.flags);
-    if (!cmd->frame->header.sge_count) {
+    iov_count = cmd->frame->header.sge_count;
+    if (!iov_count) {
         trace_megasas_dcmd_zero_sge(cmd->index);
         cmd->iov_size = 0;
         return 0;
-    } else if (cmd->frame->header.sge_count > 1) {
-        trace_megasas_dcmd_invalid_sge(cmd->index,
-                                       cmd->frame->header.sge_count);
+    } else if (iov_count > 1) {
+        trace_megasas_dcmd_invalid_sge(cmd->index, iov_count);
         cmd->iov_size = 0;
         return -EINVAL;
     }
