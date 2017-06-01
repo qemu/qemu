@@ -406,12 +406,12 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     visitor_reset(data);
     tmp = g_new0(UserDefAlternate, 1);
     tmp->type = QTYPE_QSTRING;
-    tmp->u.s = g_strdup("hello");
+    tmp->u.e = ENUM_ONE_VALUE1;
 
     visit_type_UserDefAlternate(data->ov, NULL, &tmp, &error_abort);
     qstr = qobject_to_qstring(visitor_get(data));
     g_assert(qstr);
-    g_assert_cmpstr(qstring_get_str(qstr), ==, "hello");
+    g_assert_cmpstr(qstring_get_str(qstr), ==, "value1");
 
     qapi_free_UserDefAlternate(tmp);
 

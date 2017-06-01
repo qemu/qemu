@@ -1,4 +1,4 @@
-# we reject alternates with multiple object branches
+# alternate branches of object type conflict with each other
 { 'struct': 'One',
   'data': { 'name': 'str' } }
 { 'struct': 'Two',

@@ -614,22 +614,26 @@ static void test_keyval_visit_alternate(void)
     Error *err = NULL;
     Visitor *v;
     QDict *qdict;
-    AltNumStr *ans;
+    AltStrObj *aso;
     AltNumInt *ani;
+    AltEnumBool *aeb;
 
     /*
      * Can't do scalar alternate variants other than string.  You get
      * the string variant if there is one, else an error.
+     * TODO make it work for unambiguous cases like AltEnumBool below
      */
-    qdict = keyval_parse("a=1,b=2", NULL, &error_abort);
+    qdict = keyval_parse("a=1,b=2,c=on", NULL, &error_abort);
     v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
     QDECREF(qdict);
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
-    visit_type_AltNumStr(v, "a", &ans, &error_abort);
-    g_assert_cmpint(ans->type, ==, QTYPE_QSTRING);
-    g_assert_cmpstr(ans->u.s, ==, "1");
-    qapi_free_AltNumStr(ans);
-    visit_type_AltNumInt(v, "a", &ani, &err);
+    visit_type_AltStrObj(v, "a", &aso, &error_abort);
+    g_assert_cmpint(aso->type, ==, QTYPE_QSTRING);
+    g_assert_cmpstr(aso->u.s, ==, "1");
+    qapi_free_AltStrObj(aso);
+    visit_type_AltNumInt(v, "b", &ani, &err);
+    error_free_or_abort(&err);
+    visit_type_AltEnumBool(v, "c", &aeb, &err);
     error_free_or_abort(&err);
     visit_end_struct(v, NULL);
     visit_free(v);

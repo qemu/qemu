@@ -1,0 +1,6 @@
+# alternate branch of 'enum' type that conflicts with bool
+{ 'enum': 'Enum',
+  'data': [ 'aus', 'off' ] }
+{ 'alternate': 'Alt',
+  'data': { 'one': 'Enum',
+            'two': 'bool' } }

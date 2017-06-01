@@ -65,11 +65,11 @@
  * denote numbers, true, false or null.  The special QObject input
  * visitor returned by qobject_input_visitor_new_keyval() mostly hides
  * this by automatically converting strings to the type the visitor
- * expects.  Breaks down for alternate types and type 'any', where the
- * visitor's expectation isn't clear.  Code visiting such types needs
- * to do the conversion itself, but only when using this keyval
- * visitor.  Awkward.  Alternate types without a string member don't
- * work at all.
+ * expects.  Breaks down for type 'any', where the visitor's
+ * expectation isn't clear.  Code visiting 'any' needs to do the
+ * conversion itself, but only when using this keyval visitor.
+ * Awkward.  Note that we carefully restrict alternate types to avoid
+ * similar ambiguity.
  *
  * Additional syntax for use with an implied key:
  *

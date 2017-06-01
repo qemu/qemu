@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <math.h>
 #include "qapi/error.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/visitor-impl.h"
@@ -568,7 +569,7 @@ static void qobject_input_type_number_keyval(Visitor *v, const char *name,
 
     errno = 0;
     *obj = strtod(str, &endp);
-    if (errno || endp == str || *endp) {
+    if (errno || endp == str || *endp || !isfinite(*obj)) {
         /* TODO report -ERANGE more nicely */
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "number");

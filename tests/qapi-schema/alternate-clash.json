@@ -5,4 +5,4 @@
 # the implicit Alt1Kind enum, we would still have a collision with the
 # resulting C union trying to have two members named 'a_b'.
 { 'alternate': 'Alt1',
-  'data': { 'a-b': 'str', 'a_b': 'int' } }
+  'data': { 'a-b': 'bool', 'a_b': 'int' } }

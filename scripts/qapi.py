@@ -812,11 +812,26 @@ def check_alternate(expr, info):
         if not qtype:
             raise QAPISemError(info, "Alternate '%s' member '%s' cannot use "
                                "type '%s'" % (name, key, value))
-        if qtype in types_seen:
+        conflicting = set([qtype])
+        if qtype == 'QTYPE_QSTRING':
+            enum_expr = enum_types.get(value)
+            if enum_expr:
+                for v in enum_expr['data']:
+                    if v in ['on', 'off']:
+                        conflicting.add('QTYPE_QBOOL')
+                    if re.match(r'[-+0-9.]', v): # lazy, could be tightened
+                        conflicting.add('QTYPE_QINT')
+                        conflicting.add('QTYPE_QFLOAT')
+            else:
+                conflicting.add('QTYPE_QINT')
+                conflicting.add('QTYPE_QFLOAT')
+                conflicting.add('QTYPE_QBOOL')
+        if conflicting & set(types_seen):
             raise QAPISemError(info, "Alternate '%s' member '%s' can't "
                                "be distinguished from member '%s'"
                                % (name, key, types_seen[qtype]))
-        types_seen[qtype] = key
+        for qt in conflicting:
+            types_seen[qt] = key
 
 
 def check_enum(expr, info):
