@@ -126,6 +126,11 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
 
     qemu_co_queue_run_restart(co);
 
+    /* Beware, if ret == COROUTINE_YIELD and qemu_co_queue_run_restart()
+     * has started any other coroutine, "co" might have been reentered
+     * and even freed by now!  So be careful and do not touch it.
+     */
+
     switch (ret) {
     case COROUTINE_YIELD:
         return;
