@@ -53,13 +53,37 @@ int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode)
 {
     LocalData *data = fs_ctx->private;
+    int fd = data->mountfd;
 
-    /* All paths are relative to the path data->mountfd points to */
-    while (*path == '/') {
-        path++;
+    while (*path && fd != -1) {
+        const char *c;
+        int next_fd;
+        char *head;
+
+        /* Only relative paths without consecutive slashes */
+        assert(*path != '/');
+
+        head = g_strdup(path);
+        c = strchrnul(path, '/');
+        if (*c) {
+            /* Intermediate path element */
+            head[c - path] = 0;
+            path = c + 1;
+            next_fd = openat_dir(fd, head);
+        } else {
+            /* Rightmost path element */
+            next_fd = openat_file(fd, head, flags, mode);
+            path = c;
+        }
+        g_free(head);
+        if (fd != data->mountfd) {
+            close_preserve_errno(fd);
+        }
+        fd = next_fd;
     }
 
-    return relative_openat_nofollow(data->mountfd, path, flags, mode);
+    assert(fd != data->mountfd);
+    return fd;
 }
 
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path)
@@ -83,6 +107,7 @@ static void unlinkat_preserve_errno(int dirfd, const char *path, int flags)
 }
 
 #define VIRTFS_META_DIR ".virtfs_metadata"
+#define VIRTFS_META_ROOT_FILE VIRTFS_META_DIR "_root"
 
 static FILE *local_fopenat(int dirfd, const char *name, const char *mode)
 {
@@ -119,13 +144,17 @@ static void local_mapped_file_attr(int dirfd, const char *name,
     char buf[ATTR_MAX];
     int map_dirfd;
 
-    map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-    if (map_dirfd == -1) {
-        return;
-    }
+    if (strcmp(name, ".")) {
+        map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
+        if (map_dirfd == -1) {
+            return;
+        }
 
-    fp = local_fopenat(map_dirfd, name, "r");
-    close_preserve_errno(map_dirfd);
+        fp = local_fopenat(map_dirfd, name, "r");
+        close_preserve_errno(map_dirfd);
+    } else {
+        fp = local_fopenat(dirfd, VIRTFS_META_ROOT_FILE, "r");
+    }
     if (!fp) {
         return;
     }
@@ -203,25 +232,37 @@ static int local_set_mapped_file_attrat(int dirfd, const char *name,
     int ret;
     char buf[ATTR_MAX];
     int uid = -1, gid = -1, mode = -1, rdev = -1;
-    int map_dirfd;
+    int map_dirfd = -1, map_fd;
+    bool is_root = !strcmp(name, ".");
 
-    ret = mkdirat(dirfd, VIRTFS_META_DIR, 0700);
-    if (ret < 0 && errno != EEXIST) {
-        return -1;
-    }
-
-    map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-    if (map_dirfd == -1) {
-        return -1;
-    }
-
-    fp = local_fopenat(map_dirfd, name, "r");
-    if (!fp) {
-        if (errno == ENOENT) {
-            goto update_map_file;
-        } else {
-            close_preserve_errno(map_dirfd);
+    if (is_root) {
+        fp = local_fopenat(dirfd, VIRTFS_META_ROOT_FILE, "r");
+        if (!fp) {
+            if (errno == ENOENT) {
+                goto update_map_file;
+            } else {
+                return -1;
+            }
+        }
+    } else {
+        ret = mkdirat(dirfd, VIRTFS_META_DIR, 0700);
+        if (ret < 0 && errno != EEXIST) {
             return -1;
+        }
+
+        map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
+        if (map_dirfd == -1) {
+            return -1;
+        }
+
+        fp = local_fopenat(map_dirfd, name, "r");
+        if (!fp) {
+            if (errno == ENOENT) {
+                goto update_map_file;
+            } else {
+                close_preserve_errno(map_dirfd);
+                return -1;
+            }
         }
     }
     memset(buf, 0, ATTR_MAX);
@@ -240,11 +281,25 @@ static int local_set_mapped_file_attrat(int dirfd, const char *name,
     fclose(fp);
 
 update_map_file:
-    fp = local_fopenat(map_dirfd, name, "w");
-    close_preserve_errno(map_dirfd);
+    if (is_root) {
+        fp = local_fopenat(dirfd, VIRTFS_META_ROOT_FILE, "w");
+    } else {
+        fp = local_fopenat(map_dirfd, name, "w");
+        /* We can't go this far with map_dirfd not being a valid file descriptor
+         * but some versions of gcc aren't smart enough to see it.
+         */
+        if (map_dirfd != -1) {
+            close_preserve_errno(map_dirfd);
+        }
+    }
     if (!fp) {
         return -1;
     }
+
+    map_fd = fileno(fp);
+    assert(map_fd != -1);
+    ret = fchmod(map_fd, 0600);
+    assert(ret == 0);
 
     if (credp->fc_uid != -1) {
         uid = credp->fc_uid;
@@ -454,7 +509,8 @@ static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 
 static bool local_is_mapped_file_metadata(FsContext *fs_ctx, const char *name)
 {
-    return !strcmp(name, VIRTFS_META_DIR);
+    return
+        !strcmp(name, VIRTFS_META_DIR) || !strcmp(name, VIRTFS_META_ROOT_FILE);
 }
 
 static struct dirent *local_readdir(FsContext *ctx, V9fsFidOpenState *fs)
@@ -471,7 +527,7 @@ again:
         entry->d_type = DT_UNKNOWN;
     } else if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         if (local_is_mapped_file_metadata(ctx, entry->d_name)) {
-            /* skip the meta data directory */
+            /* skip the meta data */
             goto again;
         }
         entry->d_type = DT_UNKNOWN;
@@ -992,6 +1048,14 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
     if (ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         int map_dirfd;
 
+        /* We need to remove the metadata as well:
+         * - the metadata directory if we're removing a directory
+         * - the metadata file in the parent's metadata directory
+         *
+         * If any of these are missing (ie, ENOENT) then we're probably
+         * trying to remove something that wasn't created in mapped-file
+         * mode. We just ignore the error.
+         */
         if (flags == AT_REMOVEDIR) {
             int fd;
 
@@ -999,32 +1063,20 @@ static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
             if (fd == -1) {
                 goto err_out;
             }
-            /*
-             * If directory remove .virtfs_metadata contained in the
-             * directory
-             */
             ret = unlinkat(fd, VIRTFS_META_DIR, AT_REMOVEDIR);
             close_preserve_errno(fd);
             if (ret < 0 && errno != ENOENT) {
-                /*
-                 * We didn't had the .virtfs_metadata file. May be file created
-                 * in non-mapped mode ?. Ignore ENOENT.
-                 */
                 goto err_out;
             }
         }
-        /*
-         * Now remove the name from parent directory
-         * .virtfs_metadata directory.
-         */
         map_dirfd = openat_dir(dirfd, VIRTFS_META_DIR);
-        ret = unlinkat(map_dirfd, name, 0);
-        close_preserve_errno(map_dirfd);
-        if (ret < 0 && errno != ENOENT) {
-            /*
-             * We didn't had the .virtfs_metadata file. May be file created
-             * in non-mapped mode ?. Ignore ENOENT.
-             */
+        if (map_dirfd != -1) {
+            ret = unlinkat(map_dirfd, name, 0);
+            close_preserve_errno(map_dirfd);
+            if (ret < 0 && errno != ENOENT) {
+                goto err_out;
+            }
+        } else if (errno != ENOENT) {
             goto err_out;
         }
     }
@@ -1138,14 +1190,32 @@ static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,
     }
 
     if (dir_path) {
-        v9fs_path_sprintf(target, "%s/%s", dir_path->data, name);
-    } else if (strcmp(name, "/")) {
-        v9fs_path_sprintf(target, "%s", name);
+        if (!strcmp(name, ".")) {
+            /* "." relative to "foo/bar" is "foo/bar" */
+            v9fs_path_copy(target, dir_path);
+        } else if (!strcmp(name, "..")) {
+            if (!strcmp(dir_path->data, ".")) {
+                /* ".." relative to the root is "." */
+                v9fs_path_sprintf(target, ".");
+            } else {
+                char *tmp = g_path_get_dirname(dir_path->data);
+                /* Symbolic links are resolved by the client. We can assume
+                 * that ".." relative to "foo/bar" is equivalent to "foo"
+                 */
+                v9fs_path_sprintf(target, "%s", tmp);
+                g_free(tmp);
+            }
+        } else {
+            assert(!strchr(name, '/'));
+            v9fs_path_sprintf(target, "%s/%s", dir_path->data, name);
+        }
+    } else if (!strcmp(name, "/") || !strcmp(name, ".") ||
+               !strcmp(name, "..")) {
+            /* This is the root fid */
+        v9fs_path_sprintf(target, ".");
     } else {
-        /* We want the path of the export root to be relative, otherwise
-         * "*at()" syscalls would treat it as "/" in the host.
-         */
-        v9fs_path_sprintf(target, "%s", ".");
+        assert(!strchr(name, '/'));
+        v9fs_path_sprintf(target, "./%s", name);
     }
     return 0;
 }

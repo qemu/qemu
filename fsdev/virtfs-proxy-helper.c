@@ -945,7 +945,8 @@ static int process_requests(int sock)
                                      &spec[0].tv_sec, &spec[0].tv_nsec,
                                      &spec[1].tv_sec, &spec[1].tv_nsec);
             if (retval > 0) {
-                retval = qemu_utimens(path.data, spec);
+                retval = utimensat(AT_FDCWD, path.data, spec,
+                                   AT_SYMLINK_NOFOLLOW);
                 if (retval < 0) {
                     retval = -errno;
                 }
@@ -1129,12 +1130,12 @@ int main(int argc, char **argv)
         }
     }
 
-    if (chdir("/") < 0) {
-        do_perror("chdir");
-        goto error;
-    }
     if (chroot(rpath) < 0) {
         do_perror("chroot");
+        goto error;
+    }
+    if (chdir("/") < 0) {
+        do_perror("chdir");
         goto error;
     }
 
