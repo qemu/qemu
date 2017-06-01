@@ -178,7 +178,6 @@ typedef struct sPAPRDRConnectorClass {
     uint32_t (*entity_sense)(sPAPRDRConnector *drc, sPAPRDREntitySense *state);
 
     /* QEMU interfaces for managing FDT/configure-connector */
-    const void *(*get_fdt)(sPAPRDRConnector *drc, int *fdt_start_offset);
     void (*set_configured)(sPAPRDRConnector *drc);
 
     /* QEMU interfaces for managing hotplug operations */

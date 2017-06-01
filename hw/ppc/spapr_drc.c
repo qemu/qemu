@@ -199,14 +199,6 @@ static const char *get_name(sPAPRDRConnector *drc)
     return drc->name;
 }
 
-static const void *get_fdt(sPAPRDRConnector *drc, int *fdt_start_offset)
-{
-    if (fdt_start_offset) {
-        *fdt_start_offset = drc->fdt_start_offset;
-    }
-    return drc->fdt;
-}
-
 static void set_configured(sPAPRDRConnector *drc)
 {
     trace_spapr_drc_set_configured(get_index(drc));
@@ -753,7 +745,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->get_index = get_index;
     drck->get_type = get_type;
     drck->get_name = get_name;
-    drck->get_fdt = get_fdt;
     drck->set_configured = set_configured;
     drck->entity_sense = entity_sense;
     drck->attach = attach;
@@ -1126,7 +1117,6 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     sPAPRConfigureConnectorState *ccs;
     sPAPRDRCCResponse resp = SPAPR_DR_CC_RESPONSE_CONTINUE;
     int rc;
-    const void *fdt;
 
     if (nargs != 2 || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -1144,8 +1134,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     }
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    fdt = drck->get_fdt(drc, NULL);
-    if (!fdt) {
+    if (!drc->fdt) {
         trace_spapr_rtas_ibm_configure_connector_missing_fdt(drc_index);
         rc = SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE;
         goto out;
@@ -1154,7 +1143,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     ccs = spapr_ccs_find(spapr, drc_index);
     if (!ccs) {
         ccs = g_new0(sPAPRConfigureConnectorState, 1);
-        (void)drck->get_fdt(drc, &ccs->fdt_offset);
+        ccs->fdt_offset = drc->fdt_start_offset;
         ccs->drc_index = drc_index;
         spapr_ccs_add(spapr, ccs);
     }
@@ -1165,12 +1154,12 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
         const struct fdt_property *prop;
         int fdt_offset_next, prop_len;
 
-        tag = fdt_next_tag(fdt, ccs->fdt_offset, &fdt_offset_next);
+        tag = fdt_next_tag(drc->fdt, ccs->fdt_offset, &fdt_offset_next);
 
         switch (tag) {
         case FDT_BEGIN_NODE:
             ccs->fdt_depth++;
-            name = fdt_get_name(fdt, ccs->fdt_offset, NULL);
+            name = fdt_get_name(drc->fdt, ccs->fdt_offset, NULL);
 
             /* provide the name of the next OF node */
             wa_offset = CC_VAL_DATA_OFFSET;
@@ -1193,9 +1182,9 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             }
             break;
         case FDT_PROP:
-            prop = fdt_get_property_by_offset(fdt, ccs->fdt_offset,
+            prop = fdt_get_property_by_offset(drc->fdt, ccs->fdt_offset,
                                               &prop_len);
-            name = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
+            name = fdt_string(drc->fdt, fdt32_to_cpu(prop->nameoff));
 
             /* provide the name of the next OF property */
             wa_offset = CC_VAL_DATA_OFFSET;
