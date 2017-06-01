@@ -123,6 +123,9 @@ typedef struct {
  *    Returns an array of @CPUArchId architecture-dependent CPU IDs
  *    which includes CPU IDs for present and possible to hotplug CPUs.
  *    Caller is responsible for freeing returned list.
+ * @get_default_cpu_node_id:
+ *    returns default board specific node_id value for CPU slot specified by
+ *    index @idx in @ms->possible_cpus[]
  * @has_hotpluggable_cpus:
  *    If true, board supports CPUs creation with -device/device_add.
  * @default_cpu_type:
@@ -196,6 +199,7 @@ struct MachineClass {
     CpuInstanceProperties (*cpu_index_to_instance_props)(MachineState *machine,
                                                          unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
+    int64_t (*get_default_cpu_node_id)(const MachineState *ms, int idx);
 };
 
 /**
