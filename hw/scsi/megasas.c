@@ -1591,12 +1591,13 @@ static int megasas_handle_dcmd(MegasasState *s, MegasasCmd *cmd)
 }
 
 static int megasas_finish_internal_dcmd(MegasasCmd *cmd,
-                                        SCSIRequest *req)
+                                        SCSIRequest *req, size_t resid)
 {
     int retval = MFI_STAT_OK;
     int lun = req->lun;
 
     trace_megasas_dcmd_internal_finish(cmd->index, cmd->dcmd_opcode, lun);
+    cmd->iov_size -= resid;
     switch (cmd->dcmd_opcode) {
     case MFI_DCMD_PD_GET_INFO:
         retval = megasas_pd_get_info_submit(req->dev, lun, cmd);
@@ -1649,11 +1650,12 @@ static int megasas_enqueue_req(MegasasCmd *cmd, bool is_write)
 }
 
 static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
-                               bool is_logical)
+                               int frame_cmd)
 {
     uint8_t *cdb;
     bool is_write;
     struct SCSIDevice *sdev = NULL;
+    bool is_logical = (frame_cmd == MFI_CMD_LD_SCSI_IO);
 
     cdb = cmd->frame->pass.cdb;
 
@@ -1661,7 +1663,7 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
         if (cmd->frame->header.target_id >= MFI_MAX_LD ||
             cmd->frame->header.lun_id != 0) {
             trace_megasas_scsi_target_not_present(
-                mfi_frame_desc[cmd->frame->header.frame_cmd], is_logical,
+                mfi_frame_desc[frame_cmd], is_logical,
                 cmd->frame->header.target_id, cmd->frame->header.lun_id);
             return MFI_STAT_DEVICE_NOT_FOUND;
         }
@@ -1671,19 +1673,20 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
 
     cmd->iov_size = le32_to_cpu(cmd->frame->header.data_len);
     trace_megasas_handle_scsi(mfi_frame_desc[cmd->frame->header.frame_cmd],
-                              is_logical, cmd->frame->header.target_id,
+    trace_megasas_handle_scsi(mfi_frame_desc[frame_cmd], is_logical,
+                              cmd->frame->header.target_id,
                               cmd->frame->header.lun_id, sdev, cmd->iov_size);
 
     if (!sdev || (megasas_is_jbod(s) && is_logical)) {
         trace_megasas_scsi_target_not_present(
-            mfi_frame_desc[cmd->frame->header.frame_cmd], is_logical,
+            mfi_frame_desc[frame_cmd], is_logical,
             cmd->frame->header.target_id, cmd->frame->header.lun_id);
         return MFI_STAT_DEVICE_NOT_FOUND;
     }
 
     if (cmd->frame->header.cdb_len > 16) {
         trace_megasas_scsi_invalid_cdb_len(
-                mfi_frame_desc[cmd->frame->header.frame_cmd], is_logical,
+                mfi_frame_desc[frame_cmd], is_logical,
                 cmd->frame->header.target_id, cmd->frame->header.lun_id,
                 cmd->frame->header.cdb_len);
         megasas_write_sense(cmd, SENSE_CODE(INVALID_OPCODE));
@@ -1703,7 +1706,7 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
                             cmd->frame->header.lun_id, cdb, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
-                mfi_frame_desc[cmd->frame->header.frame_cmd],
+                mfi_frame_desc[frame_cmd],
                 cmd->frame->header.target_id, cmd->frame->header.lun_id);
         megasas_write_sense(cmd, SENSE_CODE(NO_SENSE));
         cmd->frame->header.scsi_status = BUSY;
@@ -1725,11 +1728,11 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
     return MFI_STAT_INVALID_STATUS;
 }
 
-static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd)
+static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
 {
     uint32_t lba_count, lba_start_hi, lba_start_lo;
     uint64_t lba_start;
-    bool is_write = (cmd->frame->header.frame_cmd == MFI_CMD_LD_WRITE);
+    bool is_write = (frame_cmd == MFI_CMD_LD_WRITE);
     uint8_t cdb[16];
     int len;
     struct SCSIDevice *sdev = NULL;
@@ -1746,20 +1749,20 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd)
     }
 
     trace_megasas_handle_io(cmd->index,
-                            mfi_frame_desc[cmd->frame->header.frame_cmd],
+                            mfi_frame_desc[frame_cmd],
                             cmd->frame->header.target_id,
                             cmd->frame->header.lun_id,
                             (unsigned long)lba_start, (unsigned long)lba_count);
     if (!sdev) {
         trace_megasas_io_target_not_present(cmd->index,
-            mfi_frame_desc[cmd->frame->header.frame_cmd],
+            mfi_frame_desc[frame_cmd],
             cmd->frame->header.target_id, cmd->frame->header.lun_id);
         return MFI_STAT_DEVICE_NOT_FOUND;
     }
 
     if (cmd->frame->header.cdb_len > 16) {
         trace_megasas_scsi_invalid_cdb_len(
-            mfi_frame_desc[cmd->frame->header.frame_cmd], 1,
+            mfi_frame_desc[frame_cmd], 1,
             cmd->frame->header.target_id, cmd->frame->header.lun_id,
             cmd->frame->header.cdb_len);
         megasas_write_sense(cmd, SENSE_CODE(INVALID_OPCODE));
@@ -1781,7 +1784,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd)
                             cmd->frame->header.lun_id, cdb, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
-            mfi_frame_desc[cmd->frame->header.frame_cmd],
+            mfi_frame_desc[frame_cmd],
             cmd->frame->header.target_id, cmd->frame->header.lun_id);
         megasas_write_sense(cmd, SENSE_CODE(NO_SENSE));
         cmd->frame->header.scsi_status = BUSY;
@@ -1799,23 +1802,11 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd)
     return MFI_STAT_INVALID_STATUS;
 }
 
-static int megasas_finish_internal_command(MegasasCmd *cmd,
-                                           SCSIRequest *req, size_t resid)
-{
-    int retval = MFI_STAT_INVALID_CMD;
-
-    if (cmd->frame->header.frame_cmd == MFI_CMD_DCMD) {
-        cmd->iov_size -= resid;
-        retval = megasas_finish_internal_dcmd(cmd, req);
-    }
-    return retval;
-}
-
 static QEMUSGList *megasas_get_sg_list(SCSIRequest *req)
 {
     MegasasCmd *cmd = req->hba_private;
 
-    if (cmd->frame->header.frame_cmd == MFI_CMD_DCMD) {
+    if (cmd->dcmd_opcode != -1) {
         return NULL;
     } else {
         return &cmd->qsg;
@@ -1829,7 +1820,7 @@ static void megasas_xfer_complete(SCSIRequest *req, uint32_t len)
 
     trace_megasas_io_complete(cmd->index, len);
 
-    if (cmd->frame->header.frame_cmd != MFI_CMD_DCMD) {
+    if (cmd->dcmd_opcode != -1) {
         scsi_req_continue(req);
         return;
     }
@@ -1872,7 +1863,7 @@ static void megasas_command_complete(SCSIRequest *req, uint32_t status,
         /*
          * Internal command complete
          */
-        cmd_status = megasas_finish_internal_command(cmd, req, resid);
+        cmd_status = megasas_finish_internal_dcmd(cmd, req, resid);
         if (cmd_status == MFI_STAT_INVALID_STATUS) {
             return;
         }
@@ -1943,6 +1934,7 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
 {
     uint8_t frame_status = MFI_STAT_INVALID_CMD;
     uint64_t frame_context;
+    int frame_cmd;
     MegasasCmd *cmd;
 
     /*
@@ -1961,7 +1953,8 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
         s->event_count++;
         return;
     }
-    switch (cmd->frame->header.frame_cmd) {
+    frame_cmd = cmd->frame->header.frame_cmd;
+    switch (frame_cmd) {
     case MFI_CMD_INIT:
         frame_status = megasas_init_firmware(s, cmd);
         break;
@@ -1972,18 +1965,15 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
         frame_status = megasas_handle_abort(s, cmd);
         break;
     case MFI_CMD_PD_SCSI_IO:
-        frame_status = megasas_handle_scsi(s, cmd, 0);
-        break;
     case MFI_CMD_LD_SCSI_IO:
-        frame_status = megasas_handle_scsi(s, cmd, 1);
+        frame_status = megasas_handle_scsi(s, cmd, frame_cmd);
         break;
     case MFI_CMD_LD_READ:
     case MFI_CMD_LD_WRITE:
-        frame_status = megasas_handle_io(s, cmd);
+        frame_status = megasas_handle_io(s, cmd, frame_cmd);
         break;
     default:
-        trace_megasas_unhandled_frame_cmd(cmd->index,
-                                          cmd->frame->header.frame_cmd);
+        trace_megasas_unhandled_frame_cmd(cmd->index, frame_cmd);
         s->event_count++;
         break;
     }
