@@ -216,18 +216,35 @@ static uint32_t icv_gprio_mask(GICv3CPUState *cs, int group)
 {
     /* Return a mask word which clears the subpriority bits from
      * a priority value for a virtual interrupt in the specified group.
-     * This depends on the VBPR value:
+     * This depends on the VBPR value.
+     * If using VBPR0 then:
      *  a BPR of 0 means the group priority bits are [7:1];
      *  a BPR of 1 means they are [7:2], and so on down to
      *  a BPR of 7 meaning no group priority bits at all.
+     * If using VBPR1 then:
+     *  a BPR of 0 is impossible (the minimum value is 1)
+     *  a BPR of 1 means the group priority bits are [7:1];
+     *  a BPR of 2 means they are [7:2], and so on down to
+     *  a BPR of 7 meaning the group priority is [7].
+     *
      * Which BPR to use depends on the group of the interrupt and
      * the current ICH_VMCR_EL2.VCBPR settings.
+     *
+     * This corresponds to the VGroupBits() pseudocode.
      */
+    int bpr;
+
     if (group == GICV3_G1NS && cs->ich_vmcr_el2 & ICH_VMCR_EL2_VCBPR) {
         group = GICV3_G0;
     }
 
-    return ~0U << (read_vbpr(cs, group) + 1);
+    bpr = read_vbpr(cs, group);
+    if (group == GICV3_G1NS) {
+        assert(bpr > 0);
+        bpr--;
+    }
+
+    return ~0U << (bpr + 1);
 }
 
 static bool icv_hppi_can_preempt(GICv3CPUState *cs, uint64_t lr)
@@ -674,20 +691,37 @@ static uint32_t icc_gprio_mask(GICv3CPUState *cs, int group)
 {
     /* Return a mask word which clears the subpriority bits from
      * a priority value for an interrupt in the specified group.
-     * This depends on the BPR value:
+     * This depends on the BPR value. For CBPR0 (S or NS):
      *  a BPR of 0 means the group priority bits are [7:1];
      *  a BPR of 1 means they are [7:2], and so on down to
      *  a BPR of 7 meaning no group priority bits at all.
+     * For CBPR1 NS:
+     *  a BPR of 0 is impossible (the minimum value is 1)
+     *  a BPR of 1 means the group priority bits are [7:1];
+     *  a BPR of 2 means they are [7:2], and so on down to
+     *  a BPR of 7 meaning the group priority is [7].
+     *
      * Which BPR to use depends on the group of the interrupt and
      * the current ICC_CTLR.CBPR settings.
+     *
+     * This corresponds to the GroupBits() pseudocode.
      */
+    int bpr;
+
     if ((group == GICV3_G1 && cs->icc_ctlr_el1[GICV3_S] & ICC_CTLR_EL1_CBPR) ||
         (group == GICV3_G1NS &&
          cs->icc_ctlr_el1[GICV3_NS] & ICC_CTLR_EL1_CBPR)) {
         group = GICV3_G0;
     }
 
-    return ~0U << ((cs->icc_bpr[group] & 7) + 1);
+    bpr = cs->icc_bpr[group] & 7;
+
+    if (group == GICV3_G1NS) {
+        assert(bpr > 0);
+        bpr--;
+    }
+
+    return ~0U << (bpr + 1);
 }
 
 static bool icc_no_enabled_hppi(GICv3CPUState *cs)
