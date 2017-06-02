@@ -2014,7 +2014,7 @@ static void icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     cs->ich_hcr_el2 = 0;
     memset(cs->ich_lr_el2, 0, sizeof(cs->ich_lr_el2));
     cs->ich_vmcr_el2 = ICH_VMCR_EL2_VFIQEN |
-        (icv_min_vbpr(cs) << ICH_VMCR_EL2_VBPR1_SHIFT) |
+        ((icv_min_vbpr(cs) + 1) << ICH_VMCR_EL2_VBPR1_SHIFT) |
         (icv_min_vbpr(cs) << ICH_VMCR_EL2_VBPR0_SHIFT);
 }
 
