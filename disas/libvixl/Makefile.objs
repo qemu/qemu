@@ -7,5 +7,8 @@ libvixl_OBJS = vixl/utils.o \
 # The -Wno-sign-compare is needed only for gcc 4.6, which complains about
 # some signed-unsigned equality comparisons which later gcc versions do not.
 $(addprefix $(obj)/,$(libvixl_OBJS)): QEMU_CFLAGS := -I$(SRC_PATH)/disas/libvixl $(QEMU_CFLAGS) -Wno-sign-compare
+# Ensure that C99 macros are defined regardless of the inclusion order of
+# headers in vixl. This is required at least on NetBSD.
+$(addprefix $(obj)/,$(libvixl_OBJS)): QEMU_CFLAGS += -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
 
 common-obj-$(CONFIG_ARM_A64_DIS) += $(libvixl_OBJS)
