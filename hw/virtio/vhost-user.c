@@ -62,11 +62,13 @@ typedef enum VhostUserRequest {
     VHOST_USER_SEND_RARP = 19,
     VHOST_USER_NET_SET_MTU = 20,
     VHOST_USER_SET_SLAVE_REQ_FD = 21,
+    VHOST_USER_IOTLB_MSG = 22,
     VHOST_USER_MAX
 } VhostUserRequest;
 
 typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_NONE = 0,
+    VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -104,6 +106,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
         VhostUserLog log;
+        struct vhost_iotlb_msg iotlb;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -615,6 +618,9 @@ static void slave_read(void *opaque)
     }
 
     switch (msg.request) {
+    case VHOST_USER_SLAVE_IOTLB_MSG:
+        ret = vhost_backend_handle_iotlb_msg(dev, &msg.payload.iotlb);
+        break;
     default:
         error_report("Received unexpected msg type.");
         ret = -EINVAL;
@@ -697,7 +703,7 @@ out:
 
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
-    uint64_t features;
+    uint64_t features, protocol_features;
     struct vhost_user *u;
     int err;
 
@@ -717,12 +723,13 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
         dev->backend_features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 
         err = vhost_user_get_u64(dev, VHOST_USER_GET_PROTOCOL_FEATURES,
-                                 &features);
+                                 &protocol_features);
         if (err < 0) {
             return err;
         }
 
-        dev->protocol_features = features & VHOST_USER_PROTOCOL_FEATURE_MASK;
+        dev->protocol_features =
+            protocol_features & VHOST_USER_PROTOCOL_FEATURE_MASK;
         err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
             return err;
@@ -735,6 +742,16 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
             if (err < 0) {
                 return err;
             }
+        }
+
+        if (virtio_has_feature(features, VIRTIO_F_IOMMU_PLATFORM) &&
+                !(virtio_has_feature(dev->protocol_features,
+                    VHOST_USER_PROTOCOL_F_SLAVE_REQ) &&
+                 virtio_has_feature(dev->protocol_features,
+                    VHOST_USER_PROTOCOL_F_REPLY_ACK))) {
+            error_report("IOMMU support requires reply-ack and "
+                         "slave-req protocol features.");
+            return -1;
         }
     }
 
@@ -862,6 +879,29 @@ static int vhost_user_net_set_mtu(struct vhost_dev *dev, uint16_t mtu)
     return 0;
 }
 
+static int vhost_user_send_device_iotlb_msg(struct vhost_dev *dev,
+                                            struct vhost_iotlb_msg *imsg)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_IOTLB_MSG,
+        .size = sizeof(msg.payload.iotlb),
+        .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .payload.iotlb = *imsg,
+    };
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -EFAULT;
+    }
+
+    return process_message_reply(dev, &msg);
+}
+
+
+static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
+{
+    /* No-op as the receive channel is not dedicated to IOTLB messages. */
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -886,4 +926,6 @@ const VhostOps user_ops = {
         .vhost_migration_done = vhost_user_migration_done,
         .vhost_backend_can_merge = vhost_user_can_merge,
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
+        .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
+        .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
 };
