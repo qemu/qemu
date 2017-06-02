@@ -36,7 +36,7 @@
 #include "exec/ram_addr.h"
 #include "exec/address-spaces.h"
 #include "qemu/event_notifier.h"
-#include "trace-root.h"
+#include "trace.h"
 #include "hw/irq.h"
 
 #include "hw/boards.h"

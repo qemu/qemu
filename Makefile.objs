@@ -163,6 +163,7 @@ trace-events-subdirs += qom
 trace-events-subdirs += linux-user
 trace-events-subdirs += qapi
 trace-events-subdirs += accel/tcg
+trace-events-subdirs += accel/kvm
 
 trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
 

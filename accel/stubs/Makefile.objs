@@ -1,0 +1,1 @@
+obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o

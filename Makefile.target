@@ -88,7 +88,7 @@ all: $(PROGS) stap
 
 #########################################################
 # cpu emulator library
-obj-y = exec.o
+obj-y += exec.o
 obj-y += accel/
 obj-y += tcg/tcg.o tcg/tcg-op.o tcg/optimize.o
 obj-y += tcg/tcg-common.o tcg/tcg-runtime.o
@@ -99,7 +99,6 @@ obj-y += target/$(TARGET_BASE_ARCH)/
 obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
 obj-$(call lnot,$(CONFIG_HAX)) += hax-stub.o
-obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
 
 obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decContext.o
 obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decNumber.o
@@ -140,7 +139,6 @@ ifdef CONFIG_SOFTMMU
 obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o numa.o
 obj-y += qtest.o bootdevice.o
 obj-y += hw/
-obj-$(CONFIG_KVM) += kvm-all.o
 obj-y += memory.o
 obj-y += memory_mapping.o
 obj-y += dump.o
