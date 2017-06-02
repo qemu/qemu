@@ -89,6 +89,10 @@ static void commit_complete(BlockJob *job, void *opaque)
     int ret = data->ret;
     bool remove_commit_top_bs = false;
 
+    /* Make sure overlay_bs and top stay around until bdrv_set_backing_hd() */
+    bdrv_ref(top);
+    bdrv_ref(overlay_bs);
+
     /* Remove base node parent that still uses BLK_PERM_WRITE/RESIZE before
      * the normal backing chain can be restored. */
     blk_unref(s->base);
@@ -124,6 +128,9 @@ static void commit_complete(BlockJob *job, void *opaque)
     if (remove_commit_top_bs) {
         bdrv_set_backing_hd(overlay_bs, top, &error_abort);
     }
+
+    bdrv_unref(overlay_bs);
+    bdrv_unref(top);
 }
 
 static void coroutine_fn commit_run(void *opaque)
