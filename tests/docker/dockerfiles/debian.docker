@@ -14,4 +14,4 @@ RUN cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list
 
 # Install common build utilities
 RUN apt update
-RUN apt install -yy build-essential clang
+RUN apt install -yy build-essential clang ca-certificates
