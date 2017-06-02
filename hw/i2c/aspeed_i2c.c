@@ -203,7 +203,7 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
         bus->cmd &= ~I2CD_M_TX_CMD;
     }
 
-    if (bus->cmd & I2CD_M_RX_CMD) {
+    if (bus->cmd & (I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST)) {
         int ret = i2c_recv(bus->bus);
         if (ret < 0) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: read failed\n", __func__);
@@ -212,10 +212,13 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
             bus->intr_status |= I2CD_INTR_RX_DONE;
         }
         bus->buf = (ret & I2CD_BYTE_BUF_RX_MASK) << I2CD_BYTE_BUF_RX_SHIFT;
-        bus->cmd &= ~I2CD_M_RX_CMD;
+        if (bus->cmd & I2CD_M_S_RX_CMD_LAST) {
+            i2c_nack(bus->bus);
+        }
+        bus->cmd &= ~(I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST);
     }
 
-    if (bus->cmd & (I2CD_M_STOP_CMD | I2CD_M_S_RX_CMD_LAST)) {
+    if (bus->cmd & I2CD_M_STOP_CMD) {
         if (!i2c_bus_busy(bus->bus)) {
             bus->intr_status |= I2CD_INTR_ABNORMAL;
         } else {
