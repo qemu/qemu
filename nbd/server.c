@@ -625,11 +625,11 @@ fail:
     return rc;
 }
 
-static ssize_t nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
+static int nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
     uint32_t magic;
-    ssize_t ret;
+    int ret;
 
     ret = nbd_read(ioc, buf, sizeof(buf), NULL);
     if (ret < 0) {
@@ -663,7 +663,7 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
     return 0;
 }
 
-static ssize_t nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
+static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
 
@@ -969,11 +969,10 @@ void nbd_export_close_all(void)
     }
 }
 
-static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
-                                 int len)
+static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len)
 {
     NBDClient *client = req->client;
-    ssize_t rc, ret;
+    int rc, ret;
 
     g_assert(qemu_in_coroutine());
     qemu_co_mutex_lock(&client->send_lock);
@@ -1003,11 +1002,10 @@ static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
  * and any other negative value to report an error to the client
  * (although the caller may still need to disconnect after reporting
  * the error).  */
-static ssize_t nbd_co_receive_request(NBDRequestData *req,
-                                      NBDRequest *request)
+static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
 {
     NBDClient *client = req->client;
-    ssize_t rc;
+    int rc;
 
     g_assert(qemu_in_coroutine());
     assert(client->recv_coroutine == qemu_coroutine_self());
@@ -1105,7 +1103,7 @@ static coroutine_fn void nbd_trip(void *opaque)
     NBDRequestData *req;
     NBDRequest request = { 0 };    /* GCC thinks it can be used uninitialized */
     NBDReply reply;
-    ssize_t ret;
+    int ret;
     int flags;
 
     TRACE("Reading request.");
