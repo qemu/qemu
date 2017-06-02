@@ -1851,16 +1851,6 @@ int memory_region_get_fd(MemoryRegion *mr)
     return fd;
 }
 
-void memory_region_set_fd(MemoryRegion *mr, int fd)
-{
-    rcu_read_lock();
-    while (mr->alias) {
-        mr = mr->alias;
-    }
-    mr->ram_block->fd = fd;
-    rcu_read_unlock();
-}
-
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
 {
     void *ptr;

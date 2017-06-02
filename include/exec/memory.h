@@ -825,17 +825,6 @@ static inline bool memory_region_is_rom(MemoryRegion *mr)
 int memory_region_get_fd(MemoryRegion *mr);
 
 /**
- * memory_region_set_fd: Mark a RAM memory region as backed by a
- * file descriptor.
- *
- * This function is typically used after memory_region_init_ram_ptr().
- *
- * @mr: the memory region being queried.
- * @fd: the file descriptor that backs @mr.
- */
-void memory_region_set_fd(MemoryRegion *mr, int fd);
-
-/**
  * memory_region_from_host: Convert a pointer into a RAM memory region
  * and an offset within it.
  *
