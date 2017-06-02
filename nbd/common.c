@@ -65,6 +65,32 @@ ssize_t nbd_rwv(QIOChannel *ioc, struct iovec *iov, size_t niov, size_t length,
     return done;
 }
 
+/* Discard length bytes from channel.  Return -errno on failure and 0 on
+ * success */
+int nbd_drop(QIOChannel *ioc, size_t size, Error **errp)
+{
+    ssize_t ret = 0;
+    char small[1024];
+    char *buffer;
+
+    buffer = sizeof(small) >= size ? small : g_malloc(MIN(65536, size));
+    while (size > 0) {
+        ssize_t count = MIN(65536, size);
+        ret = nbd_read(ioc, buffer, MIN(65536, size), errp);
+
+        if (ret < 0) {
+            goto cleanup;
+        }
+        size -= count;
+    }
+
+ cleanup:
+    if (buffer != small) {
+        g_free(buffer);
+    }
+    return ret;
+}
+
 
 void nbd_tls_handshake(QIOTask *task,
                        void *opaque)

@@ -86,32 +86,6 @@ static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
 */
 
-/* Discard length bytes from channel.  Return -errno on failure and 0 on
- * success*/
-static int nbd_drop(QIOChannel *ioc, size_t size, Error **errp)
-{
-    ssize_t ret = 0;
-    char small[1024];
-    char *buffer;
-
-    buffer = sizeof(small) >= size ? small : g_malloc(MIN(65536, size));
-    while (size > 0) {
-        ssize_t count = MIN(65536, size);
-        ret = nbd_read(ioc, buffer, MIN(65536, size), errp);
-
-        if (ret < 0) {
-            goto cleanup;
-        }
-        size -= count;
-    }
-
- cleanup:
-    if (buffer != small) {
-        g_free(buffer);
-    }
-    return ret;
-}
-
 /* Send an option request.
  *
  * The request is for option @opt, with @data containing @len bytes of
