@@ -88,17 +88,15 @@ all: $(PROGS) stap
 
 #########################################################
 # cpu emulator library
-obj-y = exec.o translate-all.o
+obj-y = exec.o
 obj-y += accel/
-obj-y += translate-common.o
 obj-y += tcg/tcg.o tcg/tcg-op.o tcg/optimize.o
+obj-y += tcg/tcg-common.o tcg/tcg-runtime.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
-obj-y += tcg/tcg-common.o
 obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o
 obj-y += fpu/softfloat.o
 obj-y += target/$(TARGET_BASE_ARCH)/
 obj-y += disas.o
-obj-y += tcg-runtime.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
 obj-$(call lnot,$(CONFIG_HAX)) += hax-stub.o
 obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
