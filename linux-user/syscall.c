@@ -7542,10 +7542,10 @@ static int open_net_route(void *cpu_env, int fd)
     /* read routes */
 
     while ((read = getline(&line, &len, fp)) != -1) {
-        char iface[16];
+        char iface[16+1];
         uint32_t dest, gw, mask;
         unsigned int flags, refcnt, use, metric, mtu, window, irtt;
-        sscanf(line, "%s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
+        sscanf(line, "%16[^\t]%*s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
                      iface, &dest, &gw, &flags, &refcnt, &use, &metric,
                      &mask, &mtu, &window, &irtt);
         dprintf(fd, "%s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
