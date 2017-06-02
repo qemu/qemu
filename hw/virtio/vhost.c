@@ -724,8 +724,8 @@ static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     struct vhost_dev *hdev = iommu->hdev;
     hwaddr iova = iotlb->iova + iommu->iommu_offset;
 
-    if (hdev->vhost_ops->vhost_invalidate_device_iotlb(hdev, iova,
-                                                       iotlb->addr_mask + 1)) {
+    if (vhost_backend_invalidate_device_iotlb(hdev, iova,
+                                              iotlb->addr_mask + 1)) {
         error_report("Fail to invalidate device iotlb");
     }
 }
@@ -993,8 +993,8 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
         len = MIN(iotlb.addr_mask + 1, len);
         iova = iova & ~iotlb.addr_mask;
 
-        ret = dev->vhost_ops->vhost_update_device_iotlb(dev, iova, uaddr,
-                                                      len, iotlb.perm);
+        ret = vhost_backend_update_device_iotlb(dev, iova, uaddr,
+                                                len, iotlb.perm);
         if (ret) {
             error_report("Fail to update device iotlb");
             goto out;
