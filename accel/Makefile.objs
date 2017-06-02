@@ -1,0 +1,2 @@
+obj-$(CONFIG_SOFTMMU) += accel.o
+obj-y += tcg/

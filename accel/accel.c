@@ -34,15 +34,6 @@
 #include "hw/xen/xen.h"
 #include "qom/object.h"
 
-int tcg_tb_size;
-static bool tcg_allowed = true;
-
-static int tcg_init(MachineState *ms)
-{
-    tcg_exec_init(tcg_tb_size * 1024 * 1024);
-    return 0;
-}
-
 static const TypeInfo accel_type = {
     .name = TYPE_ACCEL,
     .parent = TYPE_OBJECT,
@@ -129,27 +120,9 @@ void configure_accelerator(MachineState *ms)
     }
 }
 
-
-static void tcg_accel_class_init(ObjectClass *oc, void *data)
-{
-    AccelClass *ac = ACCEL_CLASS(oc);
-    ac->name = "tcg";
-    ac->init_machine = tcg_init;
-    ac->allowed = &tcg_allowed;
-}
-
-#define TYPE_TCG_ACCEL ACCEL_CLASS_NAME("tcg")
-
-static const TypeInfo tcg_accel_type = {
-    .name = TYPE_TCG_ACCEL,
-    .parent = TYPE_ACCEL,
-    .class_init = tcg_accel_class_init,
-};
-
 static void register_accel_types(void)
 {
     type_register_static(&accel_type);
-    type_register_static(&tcg_accel_type);
 }
 
 type_init(register_accel_types);
