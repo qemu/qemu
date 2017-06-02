@@ -1388,6 +1388,7 @@ static void icc_bpr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
     int grp = (ri->crm == 8) ? GICV3_G0 : GICV3_G1;
+    uint64_t minval;
 
     if (icv_access(env, grp == GICV3_G0 ? HCR_FMO : HCR_IMO)) {
         icv_bpr_write(env, ri, value);
@@ -1413,6 +1414,11 @@ static void icc_bpr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         (cs->icc_ctlr_el1[GICV3_NS] & ICC_CTLR_EL1_CBPR)) {
         /* reads return bpr0 + 1 sat to 7, writes ignored */
         return;
+    }
+
+    minval = (grp == GICV3_G1NS) ? GIC_MIN_BPR_NS : GIC_MIN_BPR;
+    if (value < minval) {
+        value = minval;
     }
 
     cs->icc_bpr[grp] = value & 7;
