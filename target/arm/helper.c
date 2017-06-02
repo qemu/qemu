@@ -8227,8 +8227,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
         }
 
         if (n == -1) { /* no hits */
-            if (cpu->pmsav7_dregion &&
-                (is_user || !(regime_sctlr(env, mmu_idx) & SCTLR_BR))) {
+            if (is_user || !(regime_sctlr(env, mmu_idx) & SCTLR_BR)) {
                 /* background fault */
                 *fsr = 0;
                 return true;
