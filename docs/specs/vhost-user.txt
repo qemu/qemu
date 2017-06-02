@@ -97,6 +97,25 @@ Depending on the request type, payload can be:
    log offset: offset from start of supplied file descriptor
        where logging starts (i.e. where guest address 0 would be logged)
 
+ * An IOTLB message
+   ---------------------------------------------------------
+   | iova | size | user address | permissions flags | type |
+   ---------------------------------------------------------
+
+   IOVA: a 64-bit I/O virtual address programmed by the guest
+   Size: a 64-bit size
+   User address: a 64-bit user address
+   Permissions: a 8-bit value:
+    - 0: No access
+    - 1: Read access
+    - 2: Write access
+    - 3: Read/Write access
+   Type: a 8-bit IOTLB message type:
+    - 1: IOTLB miss
+    - 2: IOTLB update
+    - 3: IOTLB invalidate
+    - 4: IOTLB access fail
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -109,6 +128,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
         VhostUserLog log;
+        struct vhost_iotlb_msg iotlb;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -139,6 +159,7 @@ in the ancillary data:
  * VHOST_USER_SET_VRING_KICK
  * VHOST_USER_SET_VRING_CALL
  * VHOST_USER_SET_VRING_ERR
+ * VHOST_USER_SET_SLAVE_REQ_FD
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
@@ -252,6 +273,50 @@ Once the source has finished migration, rings will be stopped by
 the source. No further update must be done before rings are
 restarted.
 
+IOMMU support
+-------------
+
+When the VIRTIO_F_IOMMU_PLATFORM feature has been negotiated, the master
+sends IOTLB entries update & invalidation by sending VHOST_USER_IOTLB_MSG
+requests to the slave with a struct vhost_iotlb_msg as payload. For update
+events, the iotlb payload has to be filled with the update message type (2),
+the I/O virtual address, the size, the user virtual address, and the
+permissions flags. Addresses and size must be within vhost memory regions set
+via the VHOST_USER_SET_MEM_TABLE request. For invalidation events, the iotlb
+payload has to be filled with the invalidation message type (3), the I/O virtual
+address and the size. On success, the slave is expected to reply with a zero
+payload, non-zero otherwise.
+
+The slave relies on the slave communcation channel (see "Slave communication"
+section below) to send IOTLB miss and access failure events, by sending
+VHOST_USER_SLAVE_IOTLB_MSG requests to the master with a struct vhost_iotlb_msg
+as payload. For miss events, the iotlb payload has to be filled with the miss
+message type (1), the I/O virtual address and the permissions flags. For access
+failure event, the iotlb payload has to be filled with the access failure
+message type (4), the I/O virtual address and the permissions flags.
+For synchronization purpose, the slave may rely on the reply-ack feature,
+so the master may send a reply when operation is completed if the reply-ack
+feature is negotiated and slaves requests a reply. For miss events, completed
+operation means either master sent an update message containing the IOTLB entry
+containing requested address and permission, or master sent nothing if the IOTLB
+miss message is invalid (invalid IOVA or permission).
+
+The master isn't expected to take the initiative to send IOTLB update messages,
+as the slave sends IOTLB miss messages for the guest virtual memory areas it
+needs to access.
+
+Slave communication
+-------------------
+
+An optional communication channel is provided if the slave declares
+VHOST_USER_PROTOCOL_F_SLAVE_REQ protocol feature, to allow the slave to make
+requests to the master.
+
+The fd is provided via VHOST_USER_SET_SLAVE_REQ_FD ancillary data.
+
+A slave may then send VHOST_USER_SLAVE_* messages to the master
+using this fd communication channel.
+
 Protocol features
 -----------------
 
@@ -260,9 +325,10 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_RARP           2
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
 #define VHOST_USER_PROTOCOL_F_MTU            4
+#define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 
-Message types
--------------
+Master message types
+--------------------
 
  * VHOST_USER_GET_FEATURES
 
@@ -485,6 +551,52 @@ Message types
       VHOST_USER_GET_PROTOCOL_FEATURES.
       If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated, slave must respond
       with zero in case the specified MTU is valid, or non-zero otherwise.
+
+ * VHOST_USER_SET_SLAVE_REQ_FD
+
+      Id: 21
+      Equivalent ioctl: N/A
+      Master payload: N/A
+
+      Set the socket file descriptor for slave initiated requests. It is passed
+      in the ancillary data.
+      This request should be sent only when VHOST_USER_F_PROTOCOL_FEATURES
+      has been negotiated, and protocol feature bit VHOST_USER_PROTOCOL_F_SLAVE_REQ
+      bit is present in VHOST_USER_GET_PROTOCOL_FEATURES.
+      If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated, slave must respond
+      with zero for success, non-zero otherwise.
+
+ * VHOST_USER_IOTLB_MSG
+
+      Id: 22
+      Equivalent ioctl: N/A (equivalent to VHOST_IOTLB_MSG message type)
+      Master payload: struct vhost_iotlb_msg
+      Slave payload: u64
+
+      Send IOTLB messages with struct vhost_iotlb_msg as payload.
+      Master sends such requests to update and invalidate entries in the device
+      IOTLB. The slave has to acknowledge the request with sending zero as u64
+      payload for success, non-zero otherwise.
+      This request should be send only when VIRTIO_F_IOMMU_PLATFORM feature
+      has been successfully negotiated.
+
+Slave message types
+-------------------
+
+ * VHOST_USER_SLAVE_IOTLB_MSG
+
+      Id: 1
+      Equivalent ioctl: N/A (equivalent to VHOST_IOTLB_MSG message type)
+      Slave payload: struct vhost_iotlb_msg
+      Master payload: N/A
+
+      Send IOTLB messages with struct vhost_iotlb_msg as payload.
+      Slave sends such requests to notify of an IOTLB miss, or an IOTLB
+      access failure. If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated,
+      and slave set the VHOST_USER_NEED_REPLY flag, master must respond with
+      zero when operation is successfully completed, or non-zero otherwise.
+      This request should be send only when VIRTIO_F_IOMMU_PLATFORM feature
+      has been successfully negotiated.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------

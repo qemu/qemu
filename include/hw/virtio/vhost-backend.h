@@ -27,6 +27,7 @@ struct vhost_vring_file;
 struct vhost_vring_state;
 struct vhost_vring_addr;
 struct vhost_scsi_target;
+struct vhost_iotlb_msg;
 
 typedef int (*vhost_backend_init)(struct vhost_dev *dev, void *opaque);
 typedef int (*vhost_backend_cleanup)(struct vhost_dev *dev);
@@ -81,12 +82,8 @@ typedef int (*vhost_vsock_set_guest_cid_op)(struct vhost_dev *dev,
 typedef int (*vhost_vsock_set_running_op)(struct vhost_dev *dev, int start);
 typedef void (*vhost_set_iotlb_callback_op)(struct vhost_dev *dev,
                                            int enabled);
-typedef int (*vhost_update_device_iotlb_op)(struct vhost_dev *dev,
-                                            uint64_t iova, uint64_t uaddr,
-                                            uint64_t len,
-                                            IOMMUAccessFlags perm);
-typedef int (*vhost_invalidate_device_iotlb_op)(struct vhost_dev *dev,
-                                                uint64_t iova, uint64_t len);
+typedef int (*vhost_send_device_iotlb_msg_op)(struct vhost_dev *dev,
+                                              struct vhost_iotlb_msg *imsg);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
@@ -120,13 +117,23 @@ typedef struct VhostOps {
     vhost_vsock_set_guest_cid_op vhost_vsock_set_guest_cid;
     vhost_vsock_set_running_op vhost_vsock_set_running;
     vhost_set_iotlb_callback_op vhost_set_iotlb_callback;
-    vhost_update_device_iotlb_op vhost_update_device_iotlb;
-    vhost_invalidate_device_iotlb_op vhost_invalidate_device_iotlb;
+    vhost_send_device_iotlb_msg_op vhost_send_device_iotlb_msg;
 } VhostOps;
 
 extern const VhostOps user_ops;
 
 int vhost_set_backend_type(struct vhost_dev *dev,
                            VhostBackendType backend_type);
+
+int vhost_backend_update_device_iotlb(struct vhost_dev *dev,
+                                             uint64_t iova, uint64_t uaddr,
+                                             uint64_t len,
+                                             IOMMUAccessFlags perm);
+
+int vhost_backend_invalidate_device_iotlb(struct vhost_dev *dev,
+                                                 uint64_t iova, uint64_t len);
+
+int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
+                                          struct vhost_iotlb_msg *imsg);
 
 #endif /* VHOST_BACKEND_H */

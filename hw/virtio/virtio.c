@@ -815,6 +815,7 @@ static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_nu
 
     assert(sz >= sizeof(VirtQueueElement));
     elem = g_malloc(out_sg_end);
+    trace_virtqueue_alloc_element(elem, sz, in_num, out_num);
     elem->out_num = out_num;
     elem->in_num = in_num;
     elem->in_addr = (void *)elem + in_addr_ofs;
