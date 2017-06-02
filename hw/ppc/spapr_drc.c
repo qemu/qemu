@@ -70,7 +70,7 @@ static sPAPRDRConnectorTypeShift get_type_shift(sPAPRDRConnectorType type)
     return shift;
 }
 
-static uint32_t get_index(sPAPRDRConnector *drc)
+uint32_t spapr_drc_index(sPAPRDRConnector *drc)
 {
     /* no set format for a drc index: it only needs to be globally
      * unique. this is how we encode the DRC type on bare-metal
@@ -85,7 +85,7 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    trace_spapr_drc_set_isolation_state(get_index(drc), state);
+    trace_spapr_drc_set_isolation_state(spapr_drc_index(drc), state);
 
     if (state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) {
         /* cannot unisolate a non-existent resource, and, or resources
@@ -126,11 +126,12 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
          * PAPR+ 2.7, 13.4
          */
         if (drc->awaiting_release) {
+            uint32_t drc_index = spapr_drc_index(drc);
             if (drc->configured) {
-                trace_spapr_drc_set_isolation_state_finalizing(get_index(drc));
+                trace_spapr_drc_set_isolation_state_finalizing(drc_index);
                 drck->detach(drc, DEVICE(drc->dev), NULL);
             } else {
-                trace_spapr_drc_set_isolation_state_deferring(get_index(drc));
+                trace_spapr_drc_set_isolation_state_deferring(drc_index);
             }
         }
         drc->configured = false;
@@ -142,7 +143,7 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
 static uint32_t set_indicator_state(sPAPRDRConnector *drc,
                                     sPAPRDRIndicatorState state)
 {
-    trace_spapr_drc_set_indicator_state(get_index(drc), state);
+    trace_spapr_drc_set_indicator_state(spapr_drc_index(drc), state);
     drc->indicator_state = state;
     return RTAS_OUT_SUCCESS;
 }
@@ -152,7 +153,7 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    trace_spapr_drc_set_allocation_state(get_index(drc), state);
+    trace_spapr_drc_set_allocation_state(spapr_drc_index(drc), state);
 
     if (state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
         /* if there's no resource/device associated with the DRC, there's
@@ -180,7 +181,8 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         drc->allocation_state = state;
         if (drc->awaiting_release &&
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-            trace_spapr_drc_set_allocation_state_finalizing(get_index(drc));
+            uint32_t drc_index = spapr_drc_index(drc);
+            trace_spapr_drc_set_allocation_state_finalizing(drc_index);
             drck->detach(drc, DEVICE(drc->dev), NULL);
         } else if (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
             drc->awaiting_allocation = false;
@@ -189,7 +191,7 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
     return RTAS_OUT_SUCCESS;
 }
 
-static uint32_t get_type(sPAPRDRConnector *drc)
+sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc)
 {
     return drc->type;
 }
@@ -243,7 +245,7 @@ static uint32_t entity_sense(sPAPRDRConnector *drc, sPAPRDREntitySense *state)
         }
     }
 
-    trace_spapr_drc_entity_sense(get_index(drc), *state);
+    trace_spapr_drc_entity_sense(spapr_drc_index(drc), *state);
     return RTAS_OUT_SUCCESS;
 }
 
@@ -251,8 +253,7 @@ static void prop_get_index(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    uint32_t value = (uint32_t)drck->get_index(drc);
+    uint32_t value = spapr_drc_index(drc);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -260,8 +261,7 @@ static void prop_get_type(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    uint32_t value = (uint32_t)drck->get_type(drc);
+    uint32_t value = (uint32_t)spapr_drc_type(drc);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -362,7 +362,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
 static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                    int fdt_start_offset, bool coldplug, Error **errp)
 {
-    trace_spapr_drc_attach(get_index(drc));
+    trace_spapr_drc_attach(spapr_drc_index(drc));
 
     if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
         error_setg(errp, "an attached device is still awaiting release");
@@ -413,7 +413,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
 
 static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
 {
-    trace_spapr_drc_detach(get_index(drc));
+    trace_spapr_drc_detach(spapr_drc_index(drc));
 
     /* if we've signalled device presence to the guest, or if the guest
      * has gone ahead and configured the device (via manually-executed
@@ -436,14 +436,14 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     }
 
     if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
-        trace_spapr_drc_awaiting_isolated(get_index(drc));
+        trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
         drc->awaiting_release = true;
         return;
     }
 
     if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI &&
         drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-        trace_spapr_drc_awaiting_unusable(get_index(drc));
+        trace_spapr_drc_awaiting_unusable(spapr_drc_index(drc));
         drc->awaiting_release = true;
         return;
     }
@@ -451,7 +451,7 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     if (drc->awaiting_allocation) {
         if (!drc->awaiting_allocation_skippable) {
             drc->awaiting_release = true;
-            trace_spapr_drc_awaiting_allocation(get_index(drc));
+            trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
             return;
         }
     }
@@ -495,7 +495,7 @@ static void reset(DeviceState *d)
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     sPAPRDREntitySense state;
 
-    trace_spapr_drc_reset(drck->get_index(drc));
+    trace_spapr_drc_reset(spapr_drc_index(drc));
     /* immediately upon reset we can safely assume DRCs whose devices
      * are pending removal can be safely removed, and that they will
      * subsequently be left in an ISOLATED state. move the DRC to this
@@ -584,13 +584,12 @@ static const VMStateDescription vmstate_spapr_drc = {
 static void realize(DeviceState *d, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     Object *root_container;
     char link_name[256];
     gchar *child_name;
     Error *err = NULL;
 
-    trace_spapr_drc_realize(drck->get_index(drc));
+    trace_spapr_drc_realize(spapr_drc_index(drc));
     /* NOTE: we do this as part of realize/unrealize due to the fact
      * that the guest will communicate with the DRC via RTAS calls
      * referencing the global DRC index. By unlinking the DRC
@@ -599,9 +598,9 @@ static void realize(DeviceState *d, Error **errp)
      * existing in the composition tree
      */
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
-    snprintf(link_name, sizeof(link_name), "%x", drck->get_index(drc));
+    snprintf(link_name, sizeof(link_name), "%x", spapr_drc_index(drc));
     child_name = object_get_canonical_path_component(OBJECT(drc));
-    trace_spapr_drc_realize_child(drck->get_index(drc), child_name);
+    trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name, &err);
     if (err) {
@@ -609,22 +608,21 @@ static void realize(DeviceState *d, Error **errp)
         object_unref(OBJECT(drc));
     }
     g_free(child_name);
-    vmstate_register(DEVICE(drc), drck->get_index(drc), &vmstate_spapr_drc,
+    vmstate_register(DEVICE(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
-    trace_spapr_drc_realize_complete(drck->get_index(drc));
+    trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
 
 static void unrealize(DeviceState *d, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     Object *root_container;
     char name[256];
     Error *err = NULL;
 
-    trace_spapr_drc_unrealize(drck->get_index(drc));
+    trace_spapr_drc_unrealize(spapr_drc_index(drc));
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
-    snprintf(name, sizeof(name), "%x", drck->get_index(drc));
+    snprintf(name, sizeof(name), "%x", spapr_drc_index(drc));
     object_property_del(root_container, name, &err);
     if (err) {
         error_report_err(err);
@@ -645,7 +643,8 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
     drc->type = type;
     drc->id = id;
     drc->owner = owner;
-    prop_name = g_strdup_printf("dr-connector[%"PRIu32"]", get_index(drc));
+    prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
+                                spapr_drc_index(drc));
     object_property_add_child(owner, prop_name, OBJECT(drc), NULL);
     object_property_set_bool(OBJECT(drc), true, "realized", NULL);
     g_free(prop_name);
@@ -730,8 +729,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->set_isolation_state = set_isolation_state;
     drck->set_indicator_state = set_indicator_state;
     drck->set_allocation_state = set_allocation_state;
-    drck->get_index = get_index;
-    drck->get_type = get_type;
     drck->get_name = get_name;
     drck->entity_sense = entity_sense;
     drck->attach = attach;
@@ -868,7 +865,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
         drc_count++;
 
         /* ibm,drc-indexes */
-        drc_index = cpu_to_be32(drck->get_index(drc));
+        drc_index = cpu_to_be32(spapr_drc_index(drc));
         g_array_append_val(drc_indexes, drc_index);
 
         /* ibm,drc-power-domains */
@@ -1156,15 +1153,16 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             ccs->fdt_depth--;
             if (ccs->fdt_depth == 0) {
                 sPAPRDRIsolationState state = drc->isolation_state;
+                uint32_t drc_index = spapr_drc_index(drc);
                 /* done sending the device tree, don't need to track
                  * the state anymore
                  */
-                trace_spapr_drc_set_configured(get_index(drc));
+                trace_spapr_drc_set_configured(drc_index);
                 if (state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) {
                     drc->configured = true;
                 } else {
                     /* guest should be not configuring an isolated device */
-                    trace_spapr_drc_set_configured_skipping(get_index(drc));
+                    trace_spapr_drc_set_configured_skipping(drc_index);
                 }
                 spapr_ccs_remove(spapr, ccs);
                 ccs = NULL;

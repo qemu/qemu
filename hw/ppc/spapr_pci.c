@@ -1417,14 +1417,12 @@ static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
                                             PCIDevice *pdev)
 {
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
-    sPAPRDRConnectorClass *drck;
 
     if (!drc) {
         return 0;
     }
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    return drck->get_index(drc);
+    return spapr_drc_index(drc);
 }
 
 static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,

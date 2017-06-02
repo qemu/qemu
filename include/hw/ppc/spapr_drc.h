@@ -171,8 +171,6 @@ typedef struct sPAPRDRConnectorClass {
                                     sPAPRDRIndicatorState state);
     uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state);
-    uint32_t (*get_index)(sPAPRDRConnector *drc);
-    uint32_t (*get_type)(sPAPRDRConnector *drc);
     const char *(*get_name)(sPAPRDRConnector *drc);
 
     uint32_t (*entity_sense)(sPAPRDRConnector *drc, sPAPRDREntitySense *state);
@@ -184,6 +182,9 @@ typedef struct sPAPRDRConnectorClass {
     bool (*release_pending)(sPAPRDRConnector *drc);
     void (*set_signalled)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
+
+uint32_t spapr_drc_index(sPAPRDRConnector *drc);
+sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc);
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
                                          sPAPRDRConnectorType type,
