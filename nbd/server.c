@@ -1006,14 +1006,11 @@ static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len)
 static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
 {
     NBDClient *client = req->client;
-    int rc;
 
     g_assert(qemu_in_coroutine());
     assert(client->recv_coroutine == qemu_coroutine_self());
-    rc = nbd_receive_request(client->ioc, request);
-    if (rc < 0) {
-        rc = -EIO;
-        goto out;
+    if (nbd_receive_request(client->ioc, request) < 0) {
+        return -EIO;
     }
 
     TRACE("Decoding type");
@@ -1027,8 +1024,7 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
         /* Special case: we're going to disconnect without a reply,
          * whether or not flags, from, or len are bogus */
         TRACE("Request type is DISCONNECT");
-        rc = -EIO;
-        goto out;
+        return -EIO;
     }
 
     /* Check for sanity in the parameters, part 1.  Defer as many
@@ -1036,22 +1032,19 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
      * payload, so we can try and keep the connection alive.  */
     if ((request->from + request->len) < request->from) {
         LOG("integer overflow detected, you're probably being attacked");
-        rc = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE) {
         if (request->len > NBD_MAX_BUFFER_SIZE) {
             LOG("len (%" PRIu32" ) is larger than max len (%u)",
                 request->len, NBD_MAX_BUFFER_SIZE);
-            rc = -EINVAL;
-            goto out;
+            return -EINVAL;
         }
 
         req->data = blk_try_blockalign(client->exp->blk, request->len);
         if (req->data == NULL) {
-            rc = -ENOMEM;
-            goto out;
+            return -ENOMEM;
         }
     }
     if (request->type == NBD_CMD_WRITE) {
@@ -1059,8 +1052,7 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
 
         if (nbd_read(client->ioc, req->data, request->len, NULL) < 0) {
             LOG("reading from socket failed");
-            rc = -EIO;
-            goto out;
+            return -EIO;
         }
         req->complete = true;
     }
@@ -1070,28 +1062,19 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
         LOG("operation past EOF; From: %" PRIu64 ", Len: %" PRIu32
             ", Size: %" PRIu64, request->from, request->len,
             (uint64_t)client->exp->size);
-        rc = request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
-        goto out;
+        return request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
     }
     if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE)) {
         LOG("unsupported flags (got 0x%x)", request->flags);
-        rc = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
     if (request->type != NBD_CMD_WRITE_ZEROES &&
         (request->flags & NBD_CMD_FLAG_NO_HOLE)) {
         LOG("unexpected flags (got 0x%x)", request->flags);
-        rc = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
-    rc = 0;
-
-out:
-    client->recv_coroutine = NULL;
-    nbd_client_receive_next_request(client);
-
-    return rc;
+    return 0;
 }
 
 /* Owns a reference to the NBDClient passed as opaque.  */
@@ -1113,6 +1096,8 @@ static coroutine_fn void nbd_trip(void *opaque)
 
     req = nbd_request_get(client);
     ret = nbd_co_receive_request(req, &request);
+    client->recv_coroutine = NULL;
+    nbd_client_receive_next_request(client);
     if (ret == -EIO) {
         goto out;
     }
