@@ -972,7 +972,7 @@ void nbd_export_close_all(void)
 static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len)
 {
     NBDClient *client = req->client;
-    int rc, ret;
+    int rc;
 
     g_assert(qemu_in_coroutine());
     qemu_co_mutex_lock(&client->send_lock);
@@ -983,9 +983,9 @@ static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len)
     } else {
         qio_channel_set_cork(client->ioc, true);
         rc = nbd_send_reply(client->ioc, reply);
-        if (rc >= 0) {
-            ret = nbd_write(client->ioc, req->data, len, NULL);
-            if (ret < 0) {
+        if (rc == 0) {
+            rc = nbd_write(client->ioc, req->data, len, NULL);
+            if (rc < 0) {
                 rc = -EIO;
             }
         }
