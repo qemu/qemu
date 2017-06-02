@@ -199,18 +199,6 @@ static const char *get_name(sPAPRDRConnector *drc)
     return drc->name;
 }
 
-static void set_configured(sPAPRDRConnector *drc)
-{
-    trace_spapr_drc_set_configured(get_index(drc));
-
-    if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_UNISOLATED) {
-        /* guest should be not configuring an isolated device */
-        trace_spapr_drc_set_configured_skipping(get_index(drc));
-        return;
-    }
-    drc->configured = true;
-}
-
 /* has the guest been notified of device attachment? */
 static void set_signalled(sPAPRDRConnector *drc)
 {
@@ -745,7 +733,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->get_index = get_index;
     drck->get_type = get_type;
     drck->get_name = get_name;
-    drck->set_configured = set_configured;
     drck->entity_sense = entity_sense;
     drck->attach = attach;
     drck->detach = detach;
@@ -1113,7 +1100,6 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     uint64_t wa_offset;
     uint32_t drc_index;
     sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
     sPAPRConfigureConnectorState *ccs;
     sPAPRDRCCResponse resp = SPAPR_DR_CC_RESPONSE_CONTINUE;
     int rc;
@@ -1133,7 +1119,6 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
         goto out;
     }
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     if (!drc->fdt) {
         trace_spapr_rtas_ibm_configure_connector_missing_fdt(drc_index);
         rc = SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE;
@@ -1170,10 +1155,17 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
         case FDT_END_NODE:
             ccs->fdt_depth--;
             if (ccs->fdt_depth == 0) {
+                sPAPRDRIsolationState state = drc->isolation_state;
                 /* done sending the device tree, don't need to track
                  * the state anymore
                  */
-                drck->set_configured(drc);
+                trace_spapr_drc_set_configured(get_index(drc));
+                if (state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) {
+                    drc->configured = true;
+                } else {
+                    /* guest should be not configuring an isolated device */
+                    trace_spapr_drc_set_configured_skipping(get_index(drc));
+                }
                 spapr_ccs_remove(spapr, ccs);
                 ccs = NULL;
                 resp = SPAPR_DR_CC_RESPONSE_SUCCESS;
