@@ -270,23 +270,28 @@ static const VMStateDescription vmstate_dma = {
     }
 };
 
-static int sparc32_dma_init1(SysBusDevice *sbd)
+static void sparc32_dma_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(sbd);
-    DMAState *s = SPARC32_DMA(dev);
-    int reg_size;
+    DeviceState *dev = DEVICE(obj);
+    DMAState *s = SPARC32_DMA(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(sbd, &s->irq);
 
-    reg_size = s->is_ledma ? DMA_ETH_SIZE : DMA_SIZE;
-    memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
-                          "dma", reg_size);
     sysbus_init_mmio(sbd, &s->iomem);
 
     qdev_init_gpio_in(dev, dma_set_irq, 1);
     qdev_init_gpio_out(dev, s->gpio, 2);
+}
 
-    return 0;
+static void sparc32_dma_realize(DeviceState *dev, Error **errp)
+{
+    DMAState *s = SPARC32_DMA(dev);
+    int reg_size;
+
+    reg_size = s->is_ledma ? DMA_ETH_SIZE : DMA_SIZE;
+    memory_region_init_io(&s->iomem, OBJECT(dev), &dma_mem_ops, s,
+                          "dma", reg_size);
 }
 
 static Property sparc32_dma_properties[] = {
@@ -298,12 +303,11 @@ static Property sparc32_dma_properties[] = {
 static void sparc32_dma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = sparc32_dma_init1;
     dc->reset = dma_reset;
     dc->vmsd = &vmstate_dma;
     dc->props = sparc32_dma_properties;
+    dc->realize = sparc32_dma_realize;
     /* Reason: pointer property "iommu_opaque" */
     dc->user_creatable = false;
 }
@@ -312,6 +316,7 @@ static const TypeInfo sparc32_dma_info = {
     .name          = TYPE_SPARC32_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(DMAState),
+    .instance_init = sparc32_dma_init,
     .class_init    = sparc32_dma_class_init,
 };
 

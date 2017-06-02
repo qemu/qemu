@@ -349,17 +349,16 @@ static void iommu_reset(DeviceState *d)
     s->regs[IOMMU_MASK_ID] = IOMMU_TS_MASK;
 }
 
-static int iommu_init1(SysBusDevice *dev)
+static void iommu_init(Object *obj)
 {
-    IOMMUState *s = SUN4M_IOMMU(dev);
+    IOMMUState *s = SUN4M_IOMMU(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &iommu_mem_ops, s, "iommu",
+    memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
                           IOMMU_NREGS * sizeof(uint32_t));
     sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
 }
 
 static Property iommu_properties[] = {
@@ -370,9 +369,7 @@ static Property iommu_properties[] = {
 static void iommu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = iommu_init1;
     dc->reset = iommu_reset;
     dc->vmsd = &vmstate_iommu;
     dc->props = iommu_properties;
@@ -382,6 +379,7 @@ static const TypeInfo iommu_info = {
     .name          = TYPE_SUN4M_IOMMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IOMMUState),
+    .instance_init = iommu_init,
     .class_init    = iommu_class_init,
 };
 
