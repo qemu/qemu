@@ -546,20 +546,16 @@ static bool spapr_drc_needed(void *opaque)
      */
     switch (drc->type) {
     case SPAPR_DR_CONNECTOR_TYPE_PCI:
-        rc = !((drc->isolation_state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) &&
-               (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) &&
-               drc->configured && drc->signalled && !drc->awaiting_release);
-        break;
     case SPAPR_DR_CONNECTOR_TYPE_CPU:
     case SPAPR_DR_CONNECTOR_TYPE_LMB:
-        rc = !((drc->isolation_state == SPAPR_DR_ISOLATION_STATE_ISOLATED) &&
-               (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) &&
+        rc = !((drc->isolation_state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) &&
+               (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) &&
                drc->configured && drc->signalled && !drc->awaiting_release);
         break;
     case SPAPR_DR_CONNECTOR_TYPE_PHB:
     case SPAPR_DR_CONNECTOR_TYPE_VIO:
     default:
-        g_assert(false);
+        g_assert_not_reached();
     }
     return rc;
 }
