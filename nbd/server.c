@@ -997,11 +997,12 @@ static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len)
     return rc;
 }
 
-/* Collect a client request.  Return 0 if request looks valid, -EAGAIN
- * to keep trying the collection, -EIO to drop connection right away,
- * and any other negative value to report an error to the client
- * (although the caller may still need to disconnect after reporting
- * the error).  */
+/* nbd_co_receive_request
+ * Collect a client request. Return 0 if request looks valid, -EIO to drop
+ * connection right away, and any other negative value to report an error to
+ * the client (although the caller may still need to disconnect after reporting
+ * the error).
+ */
 static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
 {
     NBDClient *client = req->client;
@@ -1011,9 +1012,7 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request)
     assert(client->recv_coroutine == qemu_coroutine_self());
     rc = nbd_receive_request(client->ioc, request);
     if (rc < 0) {
-        if (rc != -EAGAIN) {
-            rc = -EIO;
-        }
+        rc = -EIO;
         goto out;
     }
 
@@ -1114,9 +1113,6 @@ static coroutine_fn void nbd_trip(void *opaque)
 
     req = nbd_request_get(client);
     ret = nbd_co_receive_request(req, &request);
-    if (ret == -EAGAIN) {
-        goto done;
-    }
     if (ret == -EIO) {
         goto out;
     }
