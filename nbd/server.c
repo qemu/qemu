@@ -607,7 +607,8 @@ static coroutine_fn int nbd_negotiate(NBDClient *client)
         stq_be_p(buf + 18, client->exp->size);
         stw_be_p(buf + 26, client->exp->nbdflags | myflags);
         len = client->no_zeroes ? 10 : sizeof(buf) - 18;
-        if (nbd_write(client->ioc, buf + 18, len, NULL) < 0) {
+        rc = nbd_write(client->ioc, buf + 18, len, NULL);
+        if (rc < 0) {
             LOG("write failed");
             goto fail;
         }
