@@ -418,6 +418,7 @@ typedef struct CPUARMState {
         uint32_t dfsr; /* Debug Fault Status Register */
         uint32_t mmfar; /* MemManage Fault Address */
         uint32_t bfar; /* BusFault Address */
+        unsigned mpu_ctrl; /* MPU_CTRL (some bits kept in sctlr_el[1]) */
         int exception;
     } v7m;
 
@@ -1167,6 +1168,11 @@ FIELD(V7M_DFSR, BKPT, 1, 1)
 FIELD(V7M_DFSR, DWTTRAP, 2, 1)
 FIELD(V7M_DFSR, VCATCH, 3, 1)
 FIELD(V7M_DFSR, EXTERNAL, 4, 1)
+
+/* v7M MPU_CTRL bits */
+FIELD(V7M_MPU_CTRL, ENABLE, 0, 1)
+FIELD(V7M_MPU_CTRL, HFNMIENA, 1, 1)
+FIELD(V7M_MPU_CTRL, PRIVDEFENA, 2, 1)
 
 /* If adding a feature bit which corresponds to a Linux ELF
  * HWCAP bit, remember to update the feature-bit-to-hwcap
