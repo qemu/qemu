@@ -2045,6 +2045,18 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
  * for the accesses done as part of a stage 1 page table walk, rather than
  * having to walk the stage 2 page table over and over.)
  *
+ * R profile CPUs have an MPU, but can use the same set of MMU indexes
+ * as A profile. They only need to distinguish NS EL0 and NS EL1 (and
+ * NS EL2 if we ever model a Cortex-R52).
+ *
+ * M profile CPUs are rather different as they do not have a true MMU.
+ * They have the following different MMU indexes:
+ *  User
+ *  Privileged
+ *  Execution priority negative (this is like privileged, but the
+ *  MPU HFNMIENA bit means that it may have different access permission
+ *  check results to normal privileged code, so can't share a TLB).
+ *
  * The ARMMMUIdx and the mmu index value used by the core QEMU TLB code
  * are not quite the same -- different CPU types (most notably M profile
  * vs A/R profile) would like to use MMU indexes with different semantics,
@@ -2080,6 +2092,7 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_S2NS = 6 | ARM_MMU_IDX_A,
     ARMMMUIdx_MUser = 0 | ARM_MMU_IDX_M,
     ARMMMUIdx_MPriv = 1 | ARM_MMU_IDX_M,
+    ARMMMUIdx_MNegPri = 2 | ARM_MMU_IDX_M,
     /* Indexes below here don't have TLBs and are used only for AT system
      * instructions or for the first stage of an S12 page table walk.
      */
@@ -2100,6 +2113,7 @@ typedef enum ARMMMUIdxBit {
     ARMMMUIdxBit_S2NS = 1 << 6,
     ARMMMUIdxBit_MUser = 1 << 0,
     ARMMMUIdxBit_MPriv = 1 << 1,
+    ARMMMUIdxBit_MNegPri = 1 << 2,
 } ARMMMUIdxBit;
 
 #define MMU_USER_IDX 0
@@ -2125,7 +2139,7 @@ static inline int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
     case ARM_MMU_IDX_A:
         return mmu_idx & 3;
     case ARM_MMU_IDX_M:
-        return mmu_idx & 1;
+        return mmu_idx == ARMMMUIdx_MUser ? 0 : 1;
     default:
         g_assert_not_reached();
     }
@@ -2138,6 +2152,14 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
 
     if (arm_feature(env, ARM_FEATURE_M)) {
         ARMMMUIdx mmu_idx = el == 0 ? ARMMMUIdx_MUser : ARMMMUIdx_MPriv;
+
+        /* Execution priority is negative if FAULTMASK is set or
+         * we're in a HardFault or NMI handler.
+         */
+        if ((env->v7m.exception > 0 && env->v7m.exception <= 3)
+            || env->daif & PSTATE_F) {
+            return arm_to_core_mmu_idx(ARMMMUIdx_MNegPri);
+        }
 
         return arm_to_core_mmu_idx(mmu_idx);
     }
