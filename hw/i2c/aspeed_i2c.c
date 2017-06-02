@@ -171,6 +171,7 @@ static uint64_t aspeed_i2c_bus_read(void *opaque, hwaddr offset,
 
 static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
 {
+    bus->cmd &= ~0xFFFF;
     bus->cmd |= value & 0xFFFF;
     bus->intr_status = 0;
 
@@ -182,15 +183,27 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
             bus->intr_status |= I2CD_INTR_TX_ACK;
         }
 
-    } else if (bus->cmd & I2CD_M_TX_CMD) {
+        /* START command is also a TX command, as the slave address is
+         * sent on the bus */
+        bus->cmd &= ~(I2CD_M_START_CMD | I2CD_M_TX_CMD);
+
+        /* No slave found */
+        if (!i2c_bus_busy(bus->bus)) {
+            return;
+        }
+    }
+
+    if (bus->cmd & I2CD_M_TX_CMD) {
         if (i2c_send(bus->bus, bus->buf)) {
             bus->intr_status |= (I2CD_INTR_TX_NAK | I2CD_INTR_ABNORMAL);
             i2c_end_transfer(bus->bus);
         } else {
             bus->intr_status |= I2CD_INTR_TX_ACK;
         }
+        bus->cmd &= ~I2CD_M_TX_CMD;
+    }
 
-    } else if (bus->cmd & I2CD_M_RX_CMD) {
+    if (bus->cmd & I2CD_M_RX_CMD) {
         int ret = i2c_recv(bus->bus);
         if (ret < 0) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: read failed\n", __func__);
@@ -199,6 +212,7 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
             bus->intr_status |= I2CD_INTR_RX_DONE;
         }
         bus->buf = (ret & I2CD_BYTE_BUF_RX_MASK) << I2CD_BYTE_BUF_RX_SHIFT;
+        bus->cmd &= ~I2CD_M_RX_CMD;
     }
 
     if (bus->cmd & (I2CD_M_STOP_CMD | I2CD_M_S_RX_CMD_LAST)) {
@@ -208,11 +222,8 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
             i2c_end_transfer(bus->bus);
             bus->intr_status |= I2CD_INTR_NORMAL_STOP;
         }
+        bus->cmd &= ~I2CD_M_STOP_CMD;
     }
-
-    /* command is handled, reset it and check for interrupts  */
-    bus->cmd &= ~0xFFFF;
-    aspeed_i2c_bus_raise_interrupt(bus);
 }
 
 static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
@@ -262,6 +273,7 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
         }
 
         aspeed_i2c_bus_handle_cmd(bus, value);
+        aspeed_i2c_bus_raise_interrupt(bus);
         break;
 
     default:
