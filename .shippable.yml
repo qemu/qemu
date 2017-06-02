@@ -1,5 +1,7 @@
 language: c
 env:
+  global:
+    - LC_ALL=C
   matrix:
     - IMAGE=debian-armhf-cross
       TARGET_LIST=arm-softmmu,arm-linux-user
