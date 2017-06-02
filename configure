@@ -3029,6 +3029,8 @@ int main(void) {
 EOF
   IFS=:
   for curses_inc in $curses_inc_list; do
+    # Make sure we get the wide character prototypes
+    curses_inc="-DNCURSES_WIDECHAR $curses_inc"
     IFS=:
     for curses_lib in $curses_lib_list; do
       unset IFS
