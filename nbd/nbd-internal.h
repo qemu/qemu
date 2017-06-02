@@ -94,14 +94,14 @@
 #define NBD_ENOSPC     28
 #define NBD_ESHUTDOWN  108
 
-/* read_sync_eof
+/* nbd_read_eof
  * Tries to read @size bytes from @ioc. Returns number of bytes actually read.
  * May return a value >= 0 and < size only on EOF, i.e. when iteratively called
- * qio_channel_readv() returns 0. So, there are no needs to call read_sync_eof
+ * qio_channel_readv() returns 0. So, there is no need to call nbd_read_eof
  * iteratively.
  */
-static inline ssize_t read_sync_eof(QIOChannel *ioc, void *buffer, size_t size,
-                                    Error **errp)
+static inline ssize_t nbd_read_eof(QIOChannel *ioc, void *buffer, size_t size,
+                                   Error **errp)
 {
     struct iovec iov = { .iov_base = buffer, .iov_len = size };
     /* Sockets are kept in blocking mode in the negotiation phase.  After
@@ -109,16 +109,16 @@ static inline ssize_t read_sync_eof(QIOChannel *ioc, void *buffer, size_t size,
      * our request/reply.  Synchronization is done with recv_coroutine, so
      * that this is coroutine-safe.
      */
-    return nbd_wr_syncv(ioc, &iov, 1, size, true, errp);
+    return nbd_rwv(ioc, &iov, 1, size, true, errp);
 }
 
-/* read_sync
+/* nbd_read
  * Reads @size bytes from @ioc. Returns 0 on success.
  */
-static inline int read_sync(QIOChannel *ioc, void *buffer, size_t size,
-                            Error **errp)
+static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
+                           Error **errp)
 {
-    ssize_t ret = read_sync_eof(ioc, buffer, size, errp);
+    ssize_t ret = nbd_read_eof(ioc, buffer, size, errp);
 
     if (ret >= 0 && ret != size) {
         ret = -EINVAL;
@@ -128,15 +128,15 @@ static inline int read_sync(QIOChannel *ioc, void *buffer, size_t size,
     return ret < 0 ? ret : 0;
 }
 
-/* write_sync
+/* nbd_write
  * Writes @size bytes to @ioc. Returns 0 on success.
  */
-static inline int write_sync(QIOChannel *ioc, const void *buffer, size_t size,
-                             Error **errp)
+static inline int nbd_write(QIOChannel *ioc, const void *buffer, size_t size,
+                            Error **errp)
 {
     struct iovec iov = { .iov_base = (void *) buffer, .iov_len = size };
 
-    ssize_t ret = nbd_wr_syncv(ioc, &iov, 1, size, false, errp);
+    ssize_t ret = nbd_rwv(ioc, &iov, 1, size, false, errp);
 
     assert(ret < 0 || ret == size);
 

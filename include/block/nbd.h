@@ -123,12 +123,8 @@ enum {
  * aren't overflowing some other buffer. */
 #define NBD_MAX_NAME_SIZE 256
 
-ssize_t nbd_wr_syncv(QIOChannel *ioc,
-                     struct iovec *iov,
-                     size_t niov,
-                     size_t length,
-                     bool do_read,
-                     Error **errp);
+ssize_t nbd_rwv(QIOChannel *ioc, struct iovec *iov, size_t niov, size_t length,
+                bool do_read, Error **errp);
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
                           QIOChannel **outioc,

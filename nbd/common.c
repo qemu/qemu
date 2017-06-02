@@ -24,12 +24,8 @@
  * The function may be called from coroutine or from non-coroutine context.
  * When called from non-coroutine context @ioc must be in blocking mode.
  */
-ssize_t nbd_wr_syncv(QIOChannel *ioc,
-                     struct iovec *iov,
-                     size_t niov,
-                     size_t length,
-                     bool do_read,
-                     Error **errp)
+ssize_t nbd_rwv(QIOChannel *ioc, struct iovec *iov, size_t niov, size_t length,
+                bool do_read, Error **errp)
 {
     ssize_t done = 0;
     struct iovec *local_iov = g_new(struct iovec, niov);

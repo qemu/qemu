@@ -124,7 +124,7 @@ static int nbd_negotiate_read(QIOChannel *ioc, void *buffer, size_t size)
                                   nbd_negotiate_continue,
                                   qemu_coroutine_self(),
                                   NULL);
-    ret = read_sync(ioc, buffer, size, NULL);
+    ret = nbd_read(ioc, buffer, size, NULL);
     g_source_remove(watch);
     return ret;
 
@@ -142,7 +142,7 @@ static int nbd_negotiate_write(QIOChannel *ioc, const void *buffer, size_t size)
                                   nbd_negotiate_continue,
                                   qemu_coroutine_self(),
                                   NULL);
-    ret = write_sync(ioc, buffer, size, NULL);
+    ret = nbd_write(ioc, buffer, size, NULL);
     g_source_remove(watch);
     return ret;
 }
@@ -694,7 +694,7 @@ static ssize_t nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
     uint32_t magic;
     ssize_t ret;
 
-    ret = read_sync(ioc, buf, sizeof(buf), NULL);
+    ret = nbd_read(ioc, buf, sizeof(buf), NULL);
     if (ret < 0) {
         return ret;
     }
@@ -745,7 +745,7 @@ static ssize_t nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
     stl_be_p(buf + 4, reply->error);
     stq_be_p(buf + 8, reply->handle);
 
-    return write_sync(ioc, buf, sizeof(buf), NULL);
+    return nbd_write(ioc, buf, sizeof(buf), NULL);
 }
 
 #define MAX_NBD_REQUESTS 16
@@ -1048,7 +1048,7 @@ static ssize_t nbd_co_send_reply(NBDRequestData *req, NBDReply *reply,
         qio_channel_set_cork(client->ioc, true);
         rc = nbd_send_reply(client->ioc, reply);
         if (rc >= 0) {
-            ret = write_sync(client->ioc, req->data, len, NULL);
+            ret = nbd_write(client->ioc, req->data, len, NULL);
             if (ret < 0) {
                 rc = -EIO;
             }
@@ -1123,7 +1123,7 @@ static ssize_t nbd_co_receive_request(NBDRequestData *req,
     if (request->type == NBD_CMD_WRITE) {
         TRACE("Reading %" PRIu32 " byte(s)", request->len);
 
-        if (read_sync(client->ioc, req->data, request->len, NULL) < 0) {
+        if (nbd_read(client->ioc, req->data, request->len, NULL) < 0) {
             LOG("reading from socket failed");
             rc = -EIO;
             goto out;
