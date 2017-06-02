@@ -110,6 +110,10 @@ static VhostUserMsg m __attribute__ ((unused));
 /* The version of the protocol we support */
 #define VHOST_USER_VERSION    (0x1)
 
+struct vhost_user {
+    CharBackend *chr;
+};
+
 static bool ioeventfd_enabled(void)
 {
     return kvm_enabled() && kvm_eventfds_enabled();
@@ -117,7 +121,8 @@ static bool ioeventfd_enabled(void)
 
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
-    CharBackend *chr = dev->opaque;
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->chr;
     uint8_t *p = (uint8_t *) msg;
     int r, size = VHOST_USER_HDR_SIZE;
 
@@ -202,7 +207,8 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
 static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
                             int *fds, int fd_num)
 {
-    CharBackend *chr = dev->opaque;
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->chr;
     int ret, size = VHOST_USER_HDR_SIZE + msg->size;
 
     /*
@@ -575,11 +581,14 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
     uint64_t features;
+    struct vhost_user *u;
     int err;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
-    dev->opaque = opaque;
+    u = g_new0(struct vhost_user, 1);
+    u->chr = opaque;
+    dev->opaque = u;
 
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
@@ -624,8 +633,12 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 
 static int vhost_user_cleanup(struct vhost_dev *dev)
 {
+    struct vhost_user *u;
+
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
+    u = dev->opaque;
+    g_free(u);
     dev->opaque = 0;
 
     return 0;
