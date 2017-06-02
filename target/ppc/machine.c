@@ -8,6 +8,7 @@
 #include "helper_regs.h"
 #include "mmu-hash64.h"
 #include "migration/cpu.h"
+#include "qapi/error.h"
 
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
 {
@@ -195,6 +196,27 @@ static void cpu_pre_save(void *opaque)
     }
 }
 
+/*
+ * Determine if a given PVR is a "close enough" match to the CPU
+ * object.  For TCG and KVM PR it would probably be sufficient to
+ * require an exact PVR match.  However for KVM HV the user is
+ * restricted to a PVR exactly matching the host CPU.  The correct way
+ * to handle this is to put the guest into an architected
+ * compatibility mode.  However, to allow a more forgiving transition
+ * and migration from before this was widely done, we allow migration
+ * between sufficiently similar PVRs, as determined by the CPU class's
+ * pvr_match() hook.
+ */
+static bool pvr_match(PowerPCCPU *cpu, uint32_t pvr)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+
+    if (pvr == pcc->pvr) {
+        return true;
+    }
+    return pcc->pvr_match(pcc, pvr);
+}
+
 static int cpu_post_load(void *opaque, int version_id)
 {
     PowerPCCPU *cpu = opaque;
@@ -203,10 +225,31 @@ static int cpu_post_load(void *opaque, int version_id)
     target_ulong msr;
 
     /*
-     * We always ignore the source PVR. The user or management
-     * software has to take care of running QEMU in a compatible mode.
+     * If we're operating in compat mode, we should be ok as long as
+     * the destination supports the same compatiblity mode.
+     *
+     * Otherwise, however, we require that the destination has exactly
+     * the same CPU model as the source.
      */
-    env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
+
+#if defined(TARGET_PPC64)
+    if (cpu->compat_pvr) {
+        Error *local_err = NULL;
+
+        ppc_set_compat(cpu, cpu->compat_pvr, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(local_err);
+            return -1;
+        }
+    } else
+#endif
+    {
+        if (!pvr_match(cpu, env->spr[SPR_PVR])) {
+            return -1;
+        }
+    }
+
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
     cpu_write_xer(env, env->spr[SPR_XER]);
@@ -560,6 +603,25 @@ static const VMStateDescription vmstate_tlbmas = {
     }
 };
 
+static bool compat_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+
+    assert(!(cpu->compat_pvr && !cpu->vhyp));
+    return !cpu->pre_2_10_migration && cpu->compat_pvr != 0;
+}
+
+static const VMStateDescription vmstate_compat = {
+    .name = "cpu/compat",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = compat_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(compat_pvr, PowerPCCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ppc_cpu = {
     .name = "cpu",
     .version_id = 5,
@@ -613,6 +675,7 @@ const VMStateDescription vmstate_ppc_cpu = {
         &vmstate_tlb6xx,
         &vmstate_tlbemb,
         &vmstate_tlbmas,
+        &vmstate_compat,
         NULL
     }
 };

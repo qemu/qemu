@@ -3362,7 +3362,12 @@ DEFINE_SPAPR_MACHINE(2_10, "2.10", true);
  * pseries-2.9
  */
 #define SPAPR_COMPAT_2_9                                               \
-    HW_COMPAT_2_9
+    HW_COMPAT_2_9                                                      \
+    {                                                                  \
+        .driver = TYPE_POWERPC_CPU,                                    \
+        .property = "pre-2.10-migration",                              \
+        .value    = "on",                                              \
+    },                                                                 \
 
 static void spapr_machine_2_9_instance_options(MachineState *machine)
 {

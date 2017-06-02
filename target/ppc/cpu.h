@@ -1211,6 +1211,7 @@ struct PowerPCCPU {
     uint64_t mig_insns_flags;
     uint64_t mig_insns_flags2;
     uint32_t mig_nb_BATs;
+    bool pre_2_10_migration;
 };
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)

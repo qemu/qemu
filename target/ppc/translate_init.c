@@ -10606,6 +10606,8 @@ static gchar *ppc_gdb_arch_name(CPUState *cs)
 
 static Property ppc_cpu_properties[] = {
     DEFINE_PROP_BOOL("pre-2.8-migration", PowerPCCPU, pre_2_8_migration, false),
+    DEFINE_PROP_BOOL("pre-2.10-migration", PowerPCCPU, pre_2_10_migration,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
