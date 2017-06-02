@@ -169,12 +169,33 @@ static uint64_t aspeed_i2c_bus_read(void *opaque, hwaddr offset,
     }
 }
 
+static void aspeed_i2c_set_state(AspeedI2CBus *bus, uint8_t state)
+{
+    bus->cmd &= ~(I2CD_TX_STATE_MASK << I2CD_TX_STATE_SHIFT);
+    bus->cmd |= (state & I2CD_TX_STATE_MASK) << I2CD_TX_STATE_SHIFT;
+}
+
+static uint8_t aspeed_i2c_get_state(AspeedI2CBus *bus)
+{
+    return (bus->cmd >> I2CD_TX_STATE_SHIFT) & I2CD_TX_STATE_MASK;
+}
+
+/*
+ * The state machine needs some refinement. It is only used to track
+ * invalid STOP commands for the moment.
+ */
 static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
 {
+    bus->cmd &= ~0xFFFF;
     bus->cmd |= value & 0xFFFF;
     bus->intr_status = 0;
 
     if (bus->cmd & I2CD_M_START_CMD) {
+        uint8_t state = aspeed_i2c_get_state(bus) & I2CD_MACTIVE ?
+            I2CD_MSTARTR : I2CD_MSTART;
+
+        aspeed_i2c_set_state(bus, state);
+
         if (i2c_start_transfer(bus->bus, extract32(bus->buf, 1, 7),
                                extract32(bus->buf, 0, 1))) {
             bus->intr_status |= I2CD_INTR_TX_NAK;
@@ -182,16 +203,34 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
             bus->intr_status |= I2CD_INTR_TX_ACK;
         }
 
-    } else if (bus->cmd & I2CD_M_TX_CMD) {
+        /* START command is also a TX command, as the slave address is
+         * sent on the bus */
+        bus->cmd &= ~(I2CD_M_START_CMD | I2CD_M_TX_CMD);
+
+        /* No slave found */
+        if (!i2c_bus_busy(bus->bus)) {
+            return;
+        }
+        aspeed_i2c_set_state(bus, I2CD_MACTIVE);
+    }
+
+    if (bus->cmd & I2CD_M_TX_CMD) {
+        aspeed_i2c_set_state(bus, I2CD_MTXD);
         if (i2c_send(bus->bus, bus->buf)) {
-            bus->intr_status |= (I2CD_INTR_TX_NAK | I2CD_INTR_ABNORMAL);
+            bus->intr_status |= (I2CD_INTR_TX_NAK);
             i2c_end_transfer(bus->bus);
         } else {
             bus->intr_status |= I2CD_INTR_TX_ACK;
         }
+        bus->cmd &= ~I2CD_M_TX_CMD;
+        aspeed_i2c_set_state(bus, I2CD_MACTIVE);
+    }
 
-    } else if (bus->cmd & I2CD_M_RX_CMD) {
-        int ret = i2c_recv(bus->bus);
+    if (bus->cmd & (I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST)) {
+        int ret;
+
+        aspeed_i2c_set_state(bus, I2CD_MRXD);
+        ret = i2c_recv(bus->bus);
         if (ret < 0) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: read failed\n", __func__);
             ret = 0xff;
@@ -199,20 +238,25 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
             bus->intr_status |= I2CD_INTR_RX_DONE;
         }
         bus->buf = (ret & I2CD_BYTE_BUF_RX_MASK) << I2CD_BYTE_BUF_RX_SHIFT;
+        if (bus->cmd & I2CD_M_S_RX_CMD_LAST) {
+            i2c_nack(bus->bus);
+        }
+        bus->cmd &= ~(I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST);
+        aspeed_i2c_set_state(bus, I2CD_MACTIVE);
     }
 
-    if (bus->cmd & (I2CD_M_STOP_CMD | I2CD_M_S_RX_CMD_LAST)) {
-        if (!i2c_bus_busy(bus->bus)) {
+    if (bus->cmd & I2CD_M_STOP_CMD) {
+        if (!(aspeed_i2c_get_state(bus) & I2CD_MACTIVE)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: abnormal stop\n", __func__);
             bus->intr_status |= I2CD_INTR_ABNORMAL;
         } else {
+            aspeed_i2c_set_state(bus, I2CD_MSTOP);
             i2c_end_transfer(bus->bus);
             bus->intr_status |= I2CD_INTR_NORMAL_STOP;
         }
+        bus->cmd &= ~I2CD_M_STOP_CMD;
+        aspeed_i2c_set_state(bus, I2CD_IDLE);
     }
-
-    /* command is handled, reset it and check for interrupts  */
-    bus->cmd &= ~0xFFFF;
-    aspeed_i2c_bus_raise_interrupt(bus);
 }
 
 static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
@@ -262,6 +306,7 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
         }
 
         aspeed_i2c_bus_handle_cmd(bus, value);
+        aspeed_i2c_bus_raise_interrupt(bus);
         break;
 
     default:

@@ -101,21 +101,27 @@ void a64_translate_init(void)
         offsetof(CPUARMState, exclusive_high), "exclusive_high");
 }
 
-static inline ARMMMUIdx get_a64_user_mem_index(DisasContext *s)
+static inline int get_a64_user_mem_index(DisasContext *s)
 {
-    /* Return the mmu_idx to use for A64 "unprivileged load/store" insns:
+    /* Return the core mmu_idx to use for A64 "unprivileged load/store" insns:
      *  if EL1, access as if EL0; otherwise access at current EL
      */
+    ARMMMUIdx useridx;
+
     switch (s->mmu_idx) {
     case ARMMMUIdx_S12NSE1:
-        return ARMMMUIdx_S12NSE0;
+        useridx = ARMMMUIdx_S12NSE0;
+        break;
     case ARMMMUIdx_S1SE1:
-        return ARMMMUIdx_S1SE0;
+        useridx = ARMMMUIdx_S1SE0;
+        break;
     case ARMMMUIdx_S2NS:
         g_assert_not_reached();
     default:
-        return s->mmu_idx;
+        useridx = s->mmu_idx;
+        break;
     }
+    return arm_to_core_mmu_idx(useridx);
 }
 
 void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
@@ -11212,7 +11218,7 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
     dc->be_data = ARM_TBFLAG_BE_DATA(tb->flags) ? MO_BE : MO_LE;
     dc->condexec_mask = 0;
     dc->condexec_cond = 0;
-    dc->mmu_idx = ARM_TBFLAG_MMUIDX(tb->flags);
+    dc->mmu_idx = core_to_arm_mmu_idx(env, ARM_TBFLAG_MMUIDX(tb->flags));
     dc->tbi0 = ARM_TBFLAG_TBI0(tb->flags);
     dc->tbi1 = ARM_TBFLAG_TBI1(tb->flags);
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);

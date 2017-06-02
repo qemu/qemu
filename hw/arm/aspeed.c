@@ -39,6 +39,7 @@ typedef struct AspeedBoardConfig {
     const char *fmc_model;
     const char *spi_model;
     uint32_t num_cs;
+    void (*i2c_init)(AspeedBoardState *bmc);
 } AspeedBoardConfig;
 
 enum {
@@ -82,6 +83,9 @@ enum {
         SCU_AST2500_HW_STRAP_ACPI_ENABLE |                              \
         SCU_HW_STRAP_SPI_MODE(SCU_HW_STRAP_SPI_MASTER))
 
+static void palmetto_bmc_i2c_init(AspeedBoardState *bmc);
+static void ast2500_evb_i2c_init(AspeedBoardState *bmc);
+
 static const AspeedBoardConfig aspeed_boards[] = {
     [PALMETTO_BMC] = {
         .soc_name  = "ast2400-a1",
@@ -89,6 +93,7 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .fmc_model = "n25q256a",
         .spi_model = "mx25l25635e",
         .num_cs    = 1,
+        .i2c_init  = palmetto_bmc_i2c_init,
     },
     [AST2500_EVB]  = {
         .soc_name  = "ast2500-a1",
@@ -96,6 +101,7 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .fmc_model = "n25q256a",
         .spi_model = "mx25l25635e",
         .num_cs    = 1,
+        .i2c_init  = ast2500_evb_i2c_init,
     },
     [ROMULUS_BMC]  = {
         .soc_name  = "ast2500-a1",
@@ -223,7 +229,20 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_binfo.ram_size = ram_size;
     aspeed_board_binfo.loader_start = sc->info->sdram_base;
 
+    if (cfg->i2c_init) {
+        cfg->i2c_init(bmc);
+    }
+
     arm_load_kernel(ARM_CPU(first_cpu), &aspeed_board_binfo);
+}
+
+static void palmetto_bmc_i2c_init(AspeedBoardState *bmc)
+{
+    AspeedSoCState *soc = &bmc->soc;
+
+    /* The palmetto platform expects a ds3231 RTC but a ds1338 is
+     * enough to provide basic RTC features. Alarms will be missing */
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 0), "ds1338", 0x68);
 }
 
 static void palmetto_bmc_init(MachineState *machine)
@@ -249,6 +268,14 @@ static const TypeInfo palmetto_bmc_type = {
     .parent = TYPE_MACHINE,
     .class_init = palmetto_bmc_class_init,
 };
+
+static void ast2500_evb_i2c_init(AspeedBoardState *bmc)
+{
+    AspeedSoCState *soc = &bmc->soc;
+
+    /* The AST2500 EVB expects a LM75 but a TMP105 is compatible */
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 7), "tmp105", 0x4d);
+}
 
 static void ast2500_evb_init(MachineState *machine)
 {

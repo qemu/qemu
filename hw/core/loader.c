@@ -611,8 +611,9 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
         return -1;
 
     size = read(fd, hdr, sizeof(uboot_image_header_t));
-    if (size < 0)
+    if (size < sizeof(uboot_image_header_t)) {
         goto out;
+    }
 
     bswap_uboot_header(hdr);
 

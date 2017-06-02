@@ -19,6 +19,7 @@
 #include "hw/arm/arm.h"
 #include "hw/arm/armv7m_nvic.h"
 #include "target/arm/cpu.h"
+#include "exec/exec-all.h"
 #include "qemu/log.h"
 #include "trace.h"
 
@@ -528,6 +529,39 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
     case 0xd70: /* ISAR4.  */
         return 0x01310102;
     /* TODO: Implement debug registers.  */
+    case 0xd90: /* MPU_TYPE */
+        /* Unified MPU; if the MPU is not present this value is zero */
+        return cpu->pmsav7_dregion << 8;
+        break;
+    case 0xd94: /* MPU_CTRL */
+        return cpu->env.v7m.mpu_ctrl;
+    case 0xd98: /* MPU_RNR */
+        return cpu->env.cp15.c6_rgnr;
+    case 0xd9c: /* MPU_RBAR */
+    case 0xda4: /* MPU_RBAR_A1 */
+    case 0xdac: /* MPU_RBAR_A2 */
+    case 0xdb4: /* MPU_RBAR_A3 */
+    {
+        int region = cpu->env.cp15.c6_rgnr;
+
+        if (region >= cpu->pmsav7_dregion) {
+            return 0;
+        }
+        return (cpu->env.pmsav7.drbar[region] & 0x1f) | (region & 0xf);
+    }
+    case 0xda0: /* MPU_RASR */
+    case 0xda8: /* MPU_RASR_A1 */
+    case 0xdb0: /* MPU_RASR_A2 */
+    case 0xdb8: /* MPU_RASR_A3 */
+    {
+        int region = cpu->env.cp15.c6_rgnr;
+
+        if (region >= cpu->pmsav7_dregion) {
+            return 0;
+        }
+        return ((cpu->env.pmsav7.dracr[region] & 0xffff) << 16) |
+            (cpu->env.pmsav7.drsr[region] & 0xffff);
+    }
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "NVIC: Bad read offset 0x%x\n", offset);
         return 0;
@@ -627,6 +661,76 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         qemu_log_mask(LOG_UNIMP,
                       "NVIC: Aux fault status registers unimplemented\n");
         break;
+    case 0xd90: /* MPU_TYPE */
+        return; /* RO */
+    case 0xd94: /* MPU_CTRL */
+        if ((value &
+             (R_V7M_MPU_CTRL_HFNMIENA_MASK | R_V7M_MPU_CTRL_ENABLE_MASK))
+            == R_V7M_MPU_CTRL_HFNMIENA_MASK) {
+            qemu_log_mask(LOG_GUEST_ERROR, "MPU_CTRL: HFNMIENA and !ENABLE is "
+                          "UNPREDICTABLE\n");
+        }
+        cpu->env.v7m.mpu_ctrl = value & (R_V7M_MPU_CTRL_ENABLE_MASK |
+                                         R_V7M_MPU_CTRL_HFNMIENA_MASK |
+                                         R_V7M_MPU_CTRL_PRIVDEFENA_MASK);
+        tlb_flush(CPU(cpu));
+        break;
+    case 0xd98: /* MPU_RNR */
+        if (value >= cpu->pmsav7_dregion) {
+            qemu_log_mask(LOG_GUEST_ERROR, "MPU region out of range %"
+                          PRIu32 "/%" PRIu32 "\n",
+                          value, cpu->pmsav7_dregion);
+        } else {
+            cpu->env.cp15.c6_rgnr = value;
+        }
+        break;
+    case 0xd9c: /* MPU_RBAR */
+    case 0xda4: /* MPU_RBAR_A1 */
+    case 0xdac: /* MPU_RBAR_A2 */
+    case 0xdb4: /* MPU_RBAR_A3 */
+    {
+        int region;
+
+        if (value & (1 << 4)) {
+            /* VALID bit means use the region number specified in this
+             * value and also update MPU_RNR.REGION with that value.
+             */
+            region = extract32(value, 0, 4);
+            if (region >= cpu->pmsav7_dregion) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "MPU region out of range %u/%" PRIu32 "\n",
+                              region, cpu->pmsav7_dregion);
+                return;
+            }
+            cpu->env.cp15.c6_rgnr = region;
+        } else {
+            region = cpu->env.cp15.c6_rgnr;
+        }
+
+        if (region >= cpu->pmsav7_dregion) {
+            return;
+        }
+
+        cpu->env.pmsav7.drbar[region] = value & ~0x1f;
+        tlb_flush(CPU(cpu));
+        break;
+    }
+    case 0xda0: /* MPU_RASR */
+    case 0xda8: /* MPU_RASR_A1 */
+    case 0xdb0: /* MPU_RASR_A2 */
+    case 0xdb8: /* MPU_RASR_A3 */
+    {
+        int region = cpu->env.cp15.c6_rgnr;
+
+        if (region >= cpu->pmsav7_dregion) {
+            return;
+        }
+
+        cpu->env.pmsav7.drsr[region] = value & 0xff3f;
+        cpu->env.pmsav7.dracr[region] = (value >> 16) & 0x173f;
+        tlb_flush(CPU(cpu));
+        break;
+    }
     case 0xf00: /* Software Triggered Interrupt Register */
     {
         /* user mode can only write to STIR if CCR.USERSETMPEND permits it */
