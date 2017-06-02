@@ -1495,12 +1495,6 @@ static void *file_ram_alloc(RAMBlock *block,
     int fd = -1;
     int64_t file_size;
 
-    if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        error_setg(errp,
-                   "host lacks kvm mmu notifiers, -mem-path unsupported");
-        return NULL;
-    }
-
     for (;;) {
         fd = open(path, O_RDWR);
         if (fd >= 0) {
@@ -1940,6 +1934,12 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
 
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");
+        return NULL;
+    }
+
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        error_setg(errp,
+                   "host lacks kvm mmu notifiers, -mem-path unsupported");
         return NULL;
     }
 
