@@ -2039,6 +2039,16 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
  * for the accesses done as part of a stage 1 page table walk, rather than
  * having to walk the stage 2 page table over and over.)
  *
+ * The ARMMMUIdx and the mmu index value used by the core QEMU TLB code
+ * are not quite the same -- different CPU types (most notably M profile
+ * vs A/R profile) would like to use MMU indexes with different semantics,
+ * but since we don't ever need to use all of those in a single CPU we
+ * can avoid setting NB_MMU_MODES to more than 8. The lower bits of
+ * ARMMMUIdx are the core TLB mmu index, and the higher bits are always
+ * the same for any particular CPU.
+ * Variables of type ARMMUIdx are always full values, and the core
+ * index values are in variables of type 'int'.
+ *
  * Our enumeration includes at the end some entries which are not "true"
  * mmu_idx values in that they don't have corresponding TLBs and are only
  * valid for doing slow path page table walks.
@@ -2047,28 +2057,61 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
  * of the AT/ATS operations.
  * The values used are carefully arranged to make mmu_idx => EL lookup easy.
  */
+#define ARM_MMU_IDX_A 0x10 /* A profile (and M profile, for the moment) */
+#define ARM_MMU_IDX_NOTLB 0x20 /* does not have a TLB */
+
+#define ARM_MMU_IDX_TYPE_MASK (~0x7)
+#define ARM_MMU_IDX_COREIDX_MASK 0x7
+
 typedef enum ARMMMUIdx {
-    ARMMMUIdx_S12NSE0 = 0,
-    ARMMMUIdx_S12NSE1 = 1,
-    ARMMMUIdx_S1E2 = 2,
-    ARMMMUIdx_S1E3 = 3,
-    ARMMMUIdx_S1SE0 = 4,
-    ARMMMUIdx_S1SE1 = 5,
-    ARMMMUIdx_S2NS = 6,
+    ARMMMUIdx_S12NSE0 = 0 | ARM_MMU_IDX_A,
+    ARMMMUIdx_S12NSE1 = 1 | ARM_MMU_IDX_A,
+    ARMMMUIdx_S1E2 = 2 | ARM_MMU_IDX_A,
+    ARMMMUIdx_S1E3 = 3 | ARM_MMU_IDX_A,
+    ARMMMUIdx_S1SE0 = 4 | ARM_MMU_IDX_A,
+    ARMMMUIdx_S1SE1 = 5 | ARM_MMU_IDX_A,
+    ARMMMUIdx_S2NS = 6 | ARM_MMU_IDX_A,
     /* Indexes below here don't have TLBs and are used only for AT system
      * instructions or for the first stage of an S12 page table walk.
      */
-    ARMMMUIdx_S1NSE0 = 7,
-    ARMMMUIdx_S1NSE1 = 8,
+    ARMMMUIdx_S1NSE0 = 0 | ARM_MMU_IDX_NOTLB,
+    ARMMMUIdx_S1NSE1 = 1 | ARM_MMU_IDX_NOTLB,
 } ARMMMUIdx;
 
+/* Bit macros for the core-mmu-index values for each index,
+ * for use when calling tlb_flush_by_mmuidx() and friends.
+ */
+typedef enum ARMMMUIdxBit {
+    ARMMMUIdxBit_S12NSE0 = 1 << 0,
+    ARMMMUIdxBit_S12NSE1 = 1 << 1,
+    ARMMMUIdxBit_S1E2 = 1 << 2,
+    ARMMMUIdxBit_S1E3 = 1 << 3,
+    ARMMMUIdxBit_S1SE0 = 1 << 4,
+    ARMMMUIdxBit_S1SE1 = 1 << 5,
+    ARMMMUIdxBit_S2NS = 1 << 6,
+} ARMMMUIdxBit;
+
 #define MMU_USER_IDX 0
+
+static inline int arm_to_core_mmu_idx(ARMMMUIdx mmu_idx)
+{
+    return mmu_idx & ARM_MMU_IDX_COREIDX_MASK;
+}
+
+static inline ARMMMUIdx core_to_arm_mmu_idx(CPUARMState *env, int mmu_idx)
+{
+    return mmu_idx | ARM_MMU_IDX_A;
+}
 
 /* Return the exception level we're running at if this is our mmu_idx */
 static inline int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
 {
-    assert(mmu_idx < ARMMMUIdx_S2NS);
-    return mmu_idx & 3;
+    switch (mmu_idx & ARM_MMU_IDX_TYPE_MASK) {
+    case ARM_MMU_IDX_A:
+        return mmu_idx & 3;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 /* Determine the current mmu_idx to use for normal loads/stores */
@@ -2077,7 +2120,7 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
     int el = arm_current_el(env);
 
     if (el < 2 && arm_is_secure_below_el3(env)) {
-        return ARMMMUIdx_S1SE0 + el;
+        return arm_to_core_mmu_idx(ARMMMUIdx_S1SE0 + el);
     }
     return el;
 }
@@ -2473,7 +2516,7 @@ static inline uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx)
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
-    ARMMMUIdx mmu_idx = cpu_mmu_index(env, false);
+    ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
     if (is_a64(env)) {
         *pc = env->pc;
         *flags = ARM_TBFLAG_AARCH64_STATE_MASK;
@@ -2498,7 +2541,7 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                    << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
     }
 
-    *flags |= (mmu_idx << ARM_TBFLAG_MMUIDX_SHIFT);
+    *flags |= (arm_to_core_mmu_idx(mmu_idx) << ARM_TBFLAG_MMUIDX_SHIFT);
 
     /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
      * states defined in the ARM ARM for software singlestep:

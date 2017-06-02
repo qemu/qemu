@@ -145,9 +145,9 @@ static void disas_set_da_iss(DisasContext *s, TCGMemOp memop, ISSInfo issinfo)
     disas_set_insn_syndrome(s, syn);
 }
 
-static inline ARMMMUIdx get_a32_user_mem_index(DisasContext *s)
+static inline int get_a32_user_mem_index(DisasContext *s)
 {
-    /* Return the mmu_idx to use for A32/T32 "unprivileged load/store"
+    /* Return the core mmu_idx to use for A32/T32 "unprivileged load/store"
      * insns:
      *  if PL2, UNPREDICTABLE (we choose to implement as if PL0)
      *  otherwise, access as if at PL0.
@@ -156,11 +156,11 @@ static inline ARMMMUIdx get_a32_user_mem_index(DisasContext *s)
     case ARMMMUIdx_S1E2:        /* this one is UNPREDICTABLE */
     case ARMMMUIdx_S12NSE0:
     case ARMMMUIdx_S12NSE1:
-        return ARMMMUIdx_S12NSE0;
+        return arm_to_core_mmu_idx(ARMMMUIdx_S12NSE0);
     case ARMMMUIdx_S1E3:
     case ARMMMUIdx_S1SE0:
     case ARMMMUIdx_S1SE1:
-        return ARMMMUIdx_S1SE0;
+        return arm_to_core_mmu_idx(ARMMMUIdx_S1SE0);
     case ARMMMUIdx_S2NS:
     default:
         g_assert_not_reached();
@@ -11816,7 +11816,7 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
     dc->be_data = ARM_TBFLAG_BE_DATA(tb->flags) ? MO_BE : MO_LE;
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
     dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
-    dc->mmu_idx = ARM_TBFLAG_MMUIDX(tb->flags);
+    dc->mmu_idx = core_to_arm_mmu_idx(env, ARM_TBFLAG_MMUIDX(tb->flags));
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);

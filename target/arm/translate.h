@@ -88,7 +88,7 @@ static inline int arm_dc_feature(DisasContext *dc, int feature)
 
 static inline int get_mem_index(DisasContext *s)
 {
-    return s->mmu_idx;
+    return arm_to_core_mmu_idx(s->mmu_idx);
 }
 
 /* Function used to determine the target exception EL when otherwise not known

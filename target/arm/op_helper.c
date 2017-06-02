@@ -194,6 +194,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     int target_el;
     bool same_el;
     uint32_t syn;
+    ARMMMUIdx arm_mmu_idx = core_to_arm_mmu_idx(env, mmu_idx);
 
     if (retaddr) {
         /* now we have a real cpu fault */
@@ -208,7 +209,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     /* the DFSR for an alignment fault depends on whether we're using
      * the LPAE long descriptor format, or the short descriptor format
      */
-    if (arm_s1_regime_using_lpae_format(env, mmu_idx)) {
+    if (arm_s1_regime_using_lpae_format(env, arm_mmu_idx)) {
         env->exception.fsr = (1 << 9) | 0x21;
     } else {
         env->exception.fsr = 0x1;
