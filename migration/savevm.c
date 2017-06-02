@@ -35,7 +35,10 @@
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "migration/migration.h"
+#include "migration/snapshot.h"
+#include "ram.h"
 #include "qemu-file-channel.h"
+#include "qemu-file.h"
 #include "savevm.h"
 #include "postcopy-ram.h"
 #include "qapi/qmp/qerror.h"
@@ -272,7 +275,11 @@ typedef struct SaveStateEntry {
     int instance_id;
     int alias_id;
     int version_id;
+    /* version id read from the stream */
+    int load_version_id;
     int section_id;
+    /* section id read from the stream */
+    int load_section_id;
     SaveVMHandlers *ops;
     const VMStateDescription *vmsd;
     void *opaque;
@@ -742,13 +749,13 @@ void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
     }
 }
 
-static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
+static int vmstate_load(QEMUFile *f, SaveStateEntry *se)
 {
     trace_vmstate_load(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
     if (!se->vmsd) {         /* Old style */
-        return se->ops->load_state(f, se->opaque, version_id);
+        return se->ops->load_state(f, se->opaque, se->load_version_id);
     }
-    return vmstate_load_state(f, se->vmsd, se->opaque, version_id);
+    return vmstate_load_state(f, se->vmsd, se->opaque, se->load_version_id);
 }
 
 static void vmstate_save_old_style(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
@@ -1800,20 +1807,13 @@ static int loadvm_process_command(QEMUFile *f)
     return 0;
 }
 
-struct LoadStateEntry {
-    QLIST_ENTRY(LoadStateEntry) entry;
-    SaveStateEntry *se;
-    int section_id;
-    int version_id;
-};
-
 /*
  * Read a footer off the wire and check that it matches the expected section
  *
  * Returns: true if the footer was good
  *          false if there is a problem (and calls error_report to say why)
  */
-static bool check_section_footer(QEMUFile *f, LoadStateEntry *le)
+static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
 {
     uint8_t read_mark;
     uint32_t read_section_id;
@@ -1826,15 +1826,15 @@ static bool check_section_footer(QEMUFile *f, LoadStateEntry *le)
     read_mark = qemu_get_byte(f);
 
     if (read_mark != QEMU_VM_SECTION_FOOTER) {
-        error_report("Missing section footer for %s", le->se->idstr);
+        error_report("Missing section footer for %s", se->idstr);
         return false;
     }
 
     read_section_id = qemu_get_be32(f);
-    if (read_section_id != le->section_id) {
+    if (read_section_id != se->load_section_id) {
         error_report("Mismatched section id in footer for %s -"
                      " read 0x%x expected 0x%x",
-                     le->se->idstr, read_section_id, le->section_id);
+                     se->idstr, read_section_id, se->load_section_id);
         return false;
     }
 
@@ -1842,22 +1842,11 @@ static bool check_section_footer(QEMUFile *f, LoadStateEntry *le)
     return true;
 }
 
-void loadvm_free_handlers(MigrationIncomingState *mis)
-{
-    LoadStateEntry *le, *new_le;
-
-    QLIST_FOREACH_SAFE(le, &mis->loadvm_handlers, entry, new_le) {
-        QLIST_REMOVE(le, entry);
-        g_free(le);
-    }
-}
-
 static int
 qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint32_t instance_id, version_id, section_id;
     SaveStateEntry *se;
-    LoadStateEntry *le;
     char idstr[256];
     int ret;
 
@@ -1887,6 +1876,8 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
                      version_id, idstr, se->version_id);
         return -EINVAL;
     }
+    se->load_version_id = version_id;
+    se->load_section_id = section_id;
 
     /* Validate if it is a device's state */
     if (xen_enabled() && se->is_ram) {
@@ -1894,21 +1885,13 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
         return -EINVAL;
     }
 
-    /* Add entry */
-    le = g_malloc0(sizeof(*le));
-
-    le->se = se;
-    le->section_id = section_id;
-    le->version_id = version_id;
-    QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
-
-    ret = vmstate_load(f, le->se, le->version_id);
+    ret = vmstate_load(f, se);
     if (ret < 0) {
         error_report("error while loading state for instance 0x%x of"
                      " device '%s'", instance_id, idstr);
         return ret;
     }
-    if (!check_section_footer(f, le)) {
+    if (!check_section_footer(f, se)) {
         return -EINVAL;
     }
 
@@ -1919,29 +1902,29 @@ static int
 qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
 {
     uint32_t section_id;
-    LoadStateEntry *le;
+    SaveStateEntry *se;
     int ret;
 
     section_id = qemu_get_be32(f);
 
     trace_qemu_loadvm_state_section_partend(section_id);
-    QLIST_FOREACH(le, &mis->loadvm_handlers, entry) {
-        if (le->section_id == section_id) {
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->load_section_id == section_id) {
             break;
         }
     }
-    if (le == NULL) {
+    if (se == NULL) {
         error_report("Unknown savevm section %d", section_id);
         return -EINVAL;
     }
 
-    ret = vmstate_load(f, le->se, le->version_id);
+    ret = vmstate_load(f, se);
     if (ret < 0) {
         error_report("error while loading state section id %d(%s)",
-                     section_id, le->se->idstr);
+                     section_id, se->idstr);
         return ret;
     }
-    if (!check_section_footer(f, le)) {
+    if (!check_section_footer(f, se)) {
         return -EINVAL;
     }
 
@@ -2086,7 +2069,7 @@ int qemu_loadvm_state(QEMUFile *f)
     return ret;
 }
 
-int save_vmstate(const char *name, Error **errp)
+int save_snapshot(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -2243,7 +2226,7 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     migration_incoming_state_destroy();
 }
 
-int load_vmstate(const char *name, Error **errp)
+int load_snapshot(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs_vm_state;
     QEMUSnapshotInfo sn;

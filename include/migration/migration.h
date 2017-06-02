@@ -18,7 +18,6 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
-#include "io/channel.h"
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
@@ -49,8 +48,6 @@ enum mig_rp_message_type {
 
     MIG_RP_MSG_MAX
 };
-
-typedef QLIST_HEAD(, LoadStateEntry) LoadStateEntry_Head;
 
 /* State for the incoming migration */
 struct MigrationIncomingState {
@@ -89,9 +86,6 @@ struct MigrationIncomingState {
     /* The coroutine we should enter (back) after failover */
     Coroutine *migration_incoming_co;
     QemuSemaphore colo_incoming_sem;
-
-    /* See savevm.c */
-    LoadStateEntry_Head loadvm_handlers;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
@@ -157,36 +151,7 @@ void migration_fd_process_incoming(QEMUFile *f);
 
 void qemu_start_incoming_migration(const char *uri, Error **errp);
 
-void migration_tls_channel_process_incoming(MigrationState *s,
-                                            QIOChannel *ioc,
-                                            Error **errp);
-
-void migration_tls_channel_connect(MigrationState *s,
-                                   QIOChannel *ioc,
-                                   const char *hostname,
-                                   Error **errp);
-
 uint64_t migrate_max_downtime(void);
-
-void exec_start_incoming_migration(const char *host_port, Error **errp);
-
-void exec_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
-
-void tcp_start_incoming_migration(const char *host_port, Error **errp);
-
-void tcp_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
-
-void unix_start_incoming_migration(const char *path, Error **errp);
-
-void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp);
-
-void fd_start_incoming_migration(const char *path, Error **errp);
-
-void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp);
-
-void rdma_start_outgoing_migration(void *opaque, const char *host_port, Error **errp);
-
-void rdma_start_incoming_migration(const char *host_port, Error **errp);
 
 void migrate_fd_error(MigrationState *s, const Error *error);
 
@@ -206,38 +171,6 @@ bool migration_in_postcopy(void);
 bool migration_in_postcopy_after_devices(MigrationState *);
 MigrationState *migrate_get_current(void);
 
-void migrate_compress_threads_create(void);
-void migrate_compress_threads_join(void);
-void migrate_decompress_threads_create(void);
-void migrate_decompress_threads_join(void);
-uint64_t ram_bytes_remaining(void);
-uint64_t ram_bytes_transferred(void);
-uint64_t ram_bytes_total(void);
-uint64_t ram_dirty_sync_count(void);
-uint64_t ram_dirty_pages_rate(void);
-uint64_t ram_postcopy_requests(void);
-void free_xbzrle_decoded_buf(void);
-
-void acct_update_position(QEMUFile *f, size_t size, bool zero);
-
-uint64_t dup_mig_pages_transferred(void);
-uint64_t norm_mig_pages_transferred(void);
-uint64_t xbzrle_mig_bytes_transferred(void);
-uint64_t xbzrle_mig_pages_transferred(void);
-uint64_t xbzrle_mig_pages_overflow(void);
-uint64_t xbzrle_mig_pages_cache_miss(void);
-double xbzrle_mig_cache_miss_rate(void);
-
-void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
-void ram_debug_dump_bitmap(unsigned long *todump, bool expected,
-                           unsigned long pages);
-/* For outgoing discard bitmap */
-int ram_postcopy_send_discard_bitmap(MigrationState *ms);
-/* For incoming postcopy discard */
-int ram_discard_range(const char *block_name, uint64_t start, size_t length);
-int ram_postcopy_incoming_init(MigrationIncomingState *mis);
-void ram_postcopy_migrated_memory_release(MigrationState *ms);
-
 bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);
 bool migrate_zero_blocks(void);
@@ -247,8 +180,6 @@ bool migrate_auto_converge(void);
 int migrate_use_xbzrle(void);
 int64_t migrate_xbzrle_cache_size(void);
 bool migrate_colo_enabled(void);
-
-int64_t xbzrle_cache_resize(int64_t new_size);
 
 bool migrate_use_block(void);
 bool migrate_use_block_incremental(void);
@@ -288,7 +219,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                              ram_addr_t offset, size_t size,
                              uint64_t *bytes_sent);
 
-void ram_mig_init(void);
 void savevm_skip_section_footers(void);
 void register_global_state(void);
 void global_state_set_optional(void);
@@ -296,7 +226,4 @@ void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
 
-void migration_page_queue_free(void);
-int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len);
-uint64_t ram_pagesize_summary(void);
 #endif

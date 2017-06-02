@@ -28,7 +28,6 @@
 #define HW_ACPI_PCIHP_H
 
 #include "hw/acpi/acpi.h"
-#include "migration/vmstate.h"
 #include "hw/hotplug.h"
 
 #define ACPI_PCIHP_IO_BASE_PROP "acpi-pcihp-io-base"

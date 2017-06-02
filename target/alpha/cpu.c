@@ -23,7 +23,6 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "qemu-common.h"
-#include "migration/vmstate.h"
 #include "exec/exec-all.h"
 
 

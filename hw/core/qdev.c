@@ -37,7 +37,6 @@
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "qapi-event.h"
-#include "migration/vmstate.h"
 
 bool qdev_hotplug = false;
 static bool qdev_hot_added = false;

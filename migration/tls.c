@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "channel.h"
 #include "migration/migration.h"
+#include "tls.h"
 #include "io/channel-tls.h"
 #include "crypto/tlscreds.h"
 #include "qemu/error-report.h"

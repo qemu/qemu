@@ -18,10 +18,15 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "migration/blocker.h"
+#include "exec.h"
+#include "fd.h"
+#include "socket.h"
+#include "rdma.h"
+#include "ram.h"
 #include "migration/migration.h"
 #include "savevm.h"
 #include "qemu-file-channel.h"
-#include "migration/qemu-file.h"
+#include "qemu-file.h"
 #include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "block/block.h"
@@ -29,7 +34,7 @@
 #include "qapi/util.h"
 #include "qemu/sockets.h"
 #include "qemu/rcu.h"
-#include "migration/block.h"
+#include "block.h"
 #include "postcopy-ram.h"
 #include "qemu/thread.h"
 #include "qmp-commands.h"
@@ -40,7 +45,6 @@
 #include "exec/address-spaces.h"
 #include "exec/target_page.h"
 #include "io/channel-buffer.h"
-#include "io/channel-tls.h"
 #include "migration/colo.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
@@ -122,7 +126,6 @@ MigrationIncomingState *migration_incoming_get_current(void)
     if (!once) {
         mis_current.state = MIGRATION_STATUS_NONE;
         memset(&mis_current, 0, sizeof(MigrationIncomingState));
-        QLIST_INIT(&mis_current.loadvm_handlers);
         qemu_mutex_init(&mis_current.rp_mutex);
         qemu_event_init(&mis_current.main_thread_load_event, false);
         once = true;
@@ -134,8 +137,19 @@ void migration_incoming_state_destroy(void)
 {
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
+    if (mis->to_src_file) {
+        /* Tell source that we are done */
+        migrate_send_rp_shut(mis, qemu_file_get_error(mis->from_src_file) != 0);
+        qemu_fclose(mis->to_src_file);
+        mis->to_src_file = NULL;
+    }
+
+    if (mis->from_src_file) {
+        qemu_fclose(mis->from_src_file);
+        mis->from_src_file = NULL;
+    }
+
     qemu_event_destroy(&mis->main_thread_load_event);
-    loadvm_free_handlers(mis);
 }
 
 
@@ -432,7 +446,6 @@ static void process_incoming_migration_co(void *opaque)
         exit(EXIT_FAILURE);
     }
 
-    qemu_fclose(f);
     free_xbzrle_decoded_buf();
 
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);

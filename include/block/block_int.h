@@ -601,8 +601,8 @@ struct BlockDriverState {
     int copy_on_read;
 
     /* If we are reading a disk image, give its size in sectors.
-     * Generally read-only; it is written to by load_vmstate and save_vmstate,
-     * but the block layer is quiescent during those.
+     * Generally read-only; it is written to by load_snapshot and
+     * save_snaphost, but the block layer is quiescent during those.
      */
     int64_t total_sectors;
 

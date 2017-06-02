@@ -86,7 +86,8 @@ int main(int argc, char **argv)
 #include "qemu/log.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
-#include "migration/block.h"
+#include "migration/misc.h"
+#include "migration/snapshot.h"
 #include "sysemu/tpm.h"
 #include "sysemu/dma.h"
 #include "hw/audio/soundhw.h"
@@ -4722,7 +4723,7 @@ int main(int argc, char **argv, char **envp)
         replay_vmstate_init();
     } else if (loadvm) {
         Error *local_err = NULL;
-        if (load_vmstate(loadvm, &local_err) < 0) {
+        if (load_snapshot(loadvm, &local_err) < 0) {
             error_report_err(local_err);
             autostart = 0;
         }

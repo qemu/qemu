@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "qemu/log.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/i2c-ddc.h"

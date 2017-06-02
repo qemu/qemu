@@ -3,7 +3,6 @@
 
 #include "hw/qdev-core.h"
 #include "hw/acpi/acpi.h"
-#include "migration/vmstate.h"
 #include "hw/acpi/aml-build.h"
 
 /**
