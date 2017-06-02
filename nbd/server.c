@@ -1078,6 +1078,7 @@ static coroutine_fn void nbd_trip(void *opaque)
     NBDReply reply;
     int ret;
     int flags;
+    int reply_data_len = 0;
 
     TRACE("Reading request.");
     if (client->closing) {
@@ -1090,7 +1091,7 @@ static coroutine_fn void nbd_trip(void *opaque)
     client->recv_coroutine = NULL;
     nbd_client_receive_next_request(client);
     if (ret == -EIO) {
-        goto out;
+        goto disconnect;
     }
 
     reply.handle = request.handle;
@@ -1098,7 +1099,7 @@ static coroutine_fn void nbd_trip(void *opaque)
 
     if (ret < 0) {
         reply.error = -ret;
-        goto error_reply;
+        goto reply;
     }
 
     if (client->closing) {
@@ -1119,7 +1120,7 @@ static coroutine_fn void nbd_trip(void *opaque)
             if (ret < 0) {
                 LOG("flush failed");
                 reply.error = -ret;
-                goto error_reply;
+                break;
             }
         }
 
@@ -1128,12 +1129,12 @@ static coroutine_fn void nbd_trip(void *opaque)
         if (ret < 0) {
             LOG("reading from file failed");
             reply.error = -ret;
-            goto error_reply;
+            break;
         }
 
+        reply_data_len = request.len;
         TRACE("Read %" PRIu32" byte(s)", request.len);
-        if (nbd_co_send_reply(req, &reply, request.len) < 0)
-            goto out;
+
         break;
     case NBD_CMD_WRITE:
         TRACE("Request type is WRITE");
@@ -1141,7 +1142,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
             TRACE("Server is read-only, return error");
             reply.error = EROFS;
-            goto error_reply;
+            break;
         }
 
         TRACE("Writing to device");
@@ -1155,21 +1156,16 @@ static coroutine_fn void nbd_trip(void *opaque)
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;
-            goto error_reply;
         }
 
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
-            goto out;
-        }
         break;
-
     case NBD_CMD_WRITE_ZEROES:
         TRACE("Request type is WRITE_ZEROES");
 
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
             TRACE("Server is read-only, return error");
             reply.error = EROFS;
-            goto error_reply;
+            break;
         }
 
         TRACE("Writing to device");
@@ -1186,14 +1182,9 @@ static coroutine_fn void nbd_trip(void *opaque)
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;
-            goto error_reply;
         }
 
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
-            goto out;
-        }
         break;
-
     case NBD_CMD_DISC:
         /* unreachable, thanks to special case in nbd_co_receive_request() */
         abort();
@@ -1206,9 +1197,7 @@ static coroutine_fn void nbd_trip(void *opaque)
             LOG("flush failed");
             reply.error = -ret;
         }
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
-            goto out;
-        }
+
         break;
     case NBD_CMD_TRIM:
         TRACE("Request type is TRIM");
@@ -1218,21 +1207,19 @@ static coroutine_fn void nbd_trip(void *opaque)
             LOG("discard failed");
             reply.error = -ret;
         }
-        if (nbd_co_send_reply(req, &reply, 0) < 0) {
-            goto out;
-        }
+
         break;
     default:
         LOG("invalid request type (%" PRIu32 ") received", request.type);
         reply.error = EINVAL;
-    error_reply:
-        /* We must disconnect after NBD_CMD_WRITE if we did not
-         * read the payload.
-         */
-        if (nbd_co_send_reply(req, &reply, 0) < 0 || !req->complete) {
-            goto out;
-        }
-        break;
+    }
+
+reply:
+    /* We must disconnect after NBD_CMD_WRITE if we did not
+     * read the payload.
+     */
+    if (nbd_co_send_reply(req, &reply, reply_data_len) < 0 || !req->complete) {
+        goto disconnect;
     }
 
     TRACE("Request/Reply complete");
@@ -1242,7 +1229,7 @@ done:
     nbd_client_put(client);
     return;
 
-out:
+disconnect:
     nbd_request_put(req);
     client_close(client, true);
     nbd_client_put(client);
