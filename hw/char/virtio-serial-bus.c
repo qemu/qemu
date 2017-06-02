@@ -186,6 +186,9 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                   port->elem->out_sg[i].iov_base
                                   + port->iov_offset,
                                   buf_size);
+            if (!port->elem) { /* bail if we got disconnected */
+                return;
+            }
             if (port->throttled) {
                 port->iov_idx = i;
                 if (ret > 0) {
