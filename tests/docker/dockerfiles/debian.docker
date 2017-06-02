@@ -14,4 +14,7 @@ RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.lis
 
 # Install common build utilities
 RUN apt update
-RUN apt install -yy build-essential clang ca-certificates
+RUN DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
+    ca-certificates build-essential clang git bison flex
