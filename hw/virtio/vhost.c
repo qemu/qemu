@@ -971,18 +971,20 @@ static int vhost_memory_region_lookup(struct vhost_dev *hdev,
     return -EFAULT;
 }
 
-void vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
+int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
 {
     IOMMUTLBEntry iotlb;
     uint64_t uaddr, len;
+    int ret = -EFAULT;
 
     rcu_read_lock();
 
     iotlb = address_space_get_iotlb_entry(dev->vdev->dma_as,
                                           iova, write);
     if (iotlb.target_as != NULL) {
-        if (vhost_memory_region_lookup(dev, iotlb.translated_addr,
-                                       &uaddr, &len)) {
+        ret = vhost_memory_region_lookup(dev, iotlb.translated_addr,
+                                         &uaddr, &len);
+        if (ret) {
             error_report("Fail to lookup the translated address "
                          "%"PRIx64, iotlb.translated_addr);
             goto out;
@@ -991,14 +993,17 @@ void vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
         len = MIN(iotlb.addr_mask + 1, len);
         iova = iova & ~iotlb.addr_mask;
 
-        if (dev->vhost_ops->vhost_update_device_iotlb(dev, iova, uaddr,
-                                                      len, iotlb.perm)) {
+        ret = dev->vhost_ops->vhost_update_device_iotlb(dev, iova, uaddr,
+                                                      len, iotlb.perm);
+        if (ret) {
             error_report("Fail to update device iotlb");
             goto out;
         }
     }
 out:
     rcu_read_unlock();
+
+    return ret;
 }
 
 static int vhost_virtqueue_start(struct vhost_dev *dev,
