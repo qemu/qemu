@@ -265,7 +265,6 @@ static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length)
 
 static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length)
 {
-    int rc = -EINVAL;
     char name[NBD_MAX_NAME_SIZE + 1];
 
     /* Client sends:
@@ -274,11 +273,11 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length)
     TRACE("Checking length");
     if (length >= sizeof(name)) {
         LOG("Bad length received");
-        goto fail;
+        return -EINVAL;
     }
     if (nbd_read(client->ioc, name, length, NULL) < 0) {
         LOG("read failed");
-        goto fail;
+        return -EINVAL;
     }
     name[length] = '\0';
 
@@ -287,14 +286,13 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length)
     client->exp = nbd_export_find(name);
     if (!client->exp) {
         LOG("export not found");
-        goto fail;
+        return -EINVAL;
     }
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
     nbd_export_get(client->exp);
-    rc = 0;
-fail:
-    return rc;
+
+    return 0;
 }
 
 /* Handle NBD_OPT_STARTTLS. Return NULL to drop connection, or else the
@@ -564,7 +562,6 @@ static coroutine_fn int nbd_negotiate(NBDClient *client)
      */
 
     qio_channel_set_blocking(client->ioc, false, NULL);
-    rc = -EINVAL;
 
     TRACE("Beginning negotiation.");
     memset(buf, 0, sizeof(buf));
@@ -585,21 +582,21 @@ static coroutine_fn int nbd_negotiate(NBDClient *client)
     if (oldStyle) {
         if (client->tlscreds) {
             TRACE("TLS cannot be enabled with oldstyle protocol");
-            goto fail;
+            return -EINVAL;
         }
         if (nbd_write(client->ioc, buf, sizeof(buf), NULL) < 0) {
             LOG("write failed");
-            goto fail;
+            return -EINVAL;
         }
     } else {
         if (nbd_write(client->ioc, buf, 18, NULL) < 0) {
             LOG("write failed");
-            goto fail;
+            return -EINVAL;
         }
         rc = nbd_negotiate_options(client);
         if (rc != 0) {
             LOG("option negotiation failed");
-            goto fail;
+            return rc;
         }
 
         TRACE("advertising size %" PRIu64 " and flags %x",
@@ -610,14 +607,13 @@ static coroutine_fn int nbd_negotiate(NBDClient *client)
         rc = nbd_write(client->ioc, buf + 18, len, NULL);
         if (rc < 0) {
             LOG("write failed");
-            goto fail;
+            return rc;
         }
     }
 
     TRACE("Negotiation succeeded.");
-    rc = 0;
-fail:
-    return rc;
+
+    return 0;
 }
 
 static int nbd_receive_request(QIOChannel *ioc, NBDRequest *request)
