@@ -750,8 +750,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     if (!cpu->has_pmu) {
-        cpu->has_pmu = false;
         unset_feature(env, ARM_FEATURE_PMU);
+        cpu->id_aa64dfr0 &= ~0xf00;
     }
 
     if (!arm_feature(env, ARM_FEATURE_EL2)) {
