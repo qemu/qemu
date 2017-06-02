@@ -184,9 +184,12 @@ class QEMUMonitorProtocol:
 
     def command(self, cmd, **kwds):
         ret = self.cmd(cmd, kwds)
-        if ret.has_key('error'):
-            raise Exception(ret['error']['desc'])
-        return ret['return']
+        if not ret:
+            return
+        else:
+            if ret.has_key('error'):
+                raise Exception(ret['error']['desc'])
+            return ret['return']
 
     def pull_event(self, wait=False):
         """
