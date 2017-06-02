@@ -139,6 +139,7 @@ in the ancillary data:
  * VHOST_USER_SET_VRING_KICK
  * VHOST_USER_SET_VRING_CALL
  * VHOST_USER_SET_VRING_ERR
+ * VHOST_USER_SET_SLAVE_REQ_FD
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
@@ -252,6 +253,18 @@ Once the source has finished migration, rings will be stopped by
 the source. No further update must be done before rings are
 restarted.
 
+Slave communication
+-------------------
+
+An optional communication channel is provided if the slave declares
+VHOST_USER_PROTOCOL_F_SLAVE_REQ protocol feature, to allow the slave to make
+requests to the master.
+
+The fd is provided via VHOST_USER_SET_SLAVE_REQ_FD ancillary data.
+
+A slave may then send VHOST_USER_SLAVE_* messages to the master
+using this fd communication channel.
+
 Protocol features
 -----------------
 
@@ -260,9 +273,10 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_RARP           2
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
 #define VHOST_USER_PROTOCOL_F_MTU            4
+#define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 
-Message types
--------------
+Master message types
+--------------------
 
  * VHOST_USER_GET_FEATURES
 
@@ -485,6 +499,20 @@ Message types
       VHOST_USER_GET_PROTOCOL_FEATURES.
       If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated, slave must respond
       with zero in case the specified MTU is valid, or non-zero otherwise.
+
+ * VHOST_USER_SET_SLAVE_REQ_FD
+
+      Id: 21
+      Equivalent ioctl: N/A
+      Master payload: N/A
+
+      Set the socket file descriptor for slave initiated requests. It is passed
+      in the ancillary data.
+      This request should be sent only when VHOST_USER_F_PROTOCOL_FEATURES
+      has been negotiated, and protocol feature bit VHOST_USER_PROTOCOL_F_SLAVE_REQ
+      bit is present in VHOST_USER_GET_PROTOCOL_FEATURES.
+      If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated, slave must respond
+      with zero for success, non-zero otherwise.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------

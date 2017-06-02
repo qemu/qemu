@@ -32,6 +32,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_RARP = 2,
     VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
     VHOST_USER_PROTOCOL_F_NET_MTU = 4,
+    VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -60,8 +61,14 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_SEND_RARP = 19,
     VHOST_USER_NET_SET_MTU = 20,
+    VHOST_USER_SET_SLAVE_REQ_FD = 21,
     VHOST_USER_MAX
 } VhostUserRequest;
+
+typedef enum VhostUserSlaveRequest {
+    VHOST_USER_SLAVE_NONE = 0,
+    VHOST_USER_SLAVE_MAX
+}  VhostUserSlaveRequest;
 
 typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
@@ -112,6 +119,7 @@ static VhostUserMsg m __attribute__ ((unused));
 
 struct vhost_user {
     CharBackend *chr;
+    int slave_fd;
 };
 
 static bool ioeventfd_enabled(void)
@@ -578,6 +586,115 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
     return 0;
 }
 
+static void slave_read(void *opaque)
+{
+    struct vhost_dev *dev = opaque;
+    struct vhost_user *u = dev->opaque;
+    VhostUserMsg msg = { 0, };
+    int size, ret = 0;
+
+    /* Read header */
+    size = read(u->slave_fd, &msg, VHOST_USER_HDR_SIZE);
+    if (size != VHOST_USER_HDR_SIZE) {
+        error_report("Failed to read from slave.");
+        goto err;
+    }
+
+    if (msg.size > VHOST_USER_PAYLOAD_SIZE) {
+        error_report("Failed to read msg header."
+                " Size %d exceeds the maximum %zu.", msg.size,
+                VHOST_USER_PAYLOAD_SIZE);
+        goto err;
+    }
+
+    /* Read payload */
+    size = read(u->slave_fd, &msg.payload, msg.size);
+    if (size != msg.size) {
+        error_report("Failed to read payload from slave.");
+        goto err;
+    }
+
+    switch (msg.request) {
+    default:
+        error_report("Received unexpected msg type.");
+        ret = -EINVAL;
+    }
+
+    /*
+     * REPLY_ACK feature handling. Other reply types has to be managed
+     * directly in their request handlers.
+     */
+    if (msg.flags & VHOST_USER_NEED_REPLY_MASK) {
+        msg.flags &= ~VHOST_USER_NEED_REPLY_MASK;
+        msg.flags |= VHOST_USER_REPLY_MASK;
+
+        msg.payload.u64 = !!ret;
+        msg.size = sizeof(msg.payload.u64);
+
+        size = write(u->slave_fd, &msg, VHOST_USER_HDR_SIZE + msg.size);
+        if (size != VHOST_USER_HDR_SIZE + msg.size) {
+            error_report("Failed to send msg reply to slave.");
+            goto err;
+        }
+    }
+
+    return;
+
+err:
+    qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
+    close(u->slave_fd);
+    u->slave_fd = -1;
+    return;
+}
+
+static int vhost_setup_slave_channel(struct vhost_dev *dev)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_SLAVE_REQ_FD,
+        .flags = VHOST_USER_VERSION,
+    };
+    struct vhost_user *u = dev->opaque;
+    int sv[2], ret = 0;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_SLAVE_REQ)) {
+        return 0;
+    }
+
+    if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1) {
+        error_report("socketpair() failed");
+        return -1;
+    }
+
+    u->slave_fd = sv[0];
+    qemu_set_fd_handler(u->slave_fd, slave_read, NULL, dev);
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    ret = vhost_user_write(dev, &msg, &sv[1], 1);
+    if (ret) {
+        goto out;
+    }
+
+    if (reply_supported) {
+        ret = process_message_reply(dev, &msg);
+    }
+
+out:
+    close(sv[1]);
+    if (ret) {
+        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
+        close(u->slave_fd);
+        u->slave_fd = -1;
+    }
+
+    return ret;
+}
+
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
     uint64_t features;
@@ -588,6 +705,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 
     u = g_new0(struct vhost_user, 1);
     u->chr = opaque;
+    u->slave_fd = -1;
     dev->opaque = u;
 
     err = vhost_user_get_features(dev, &features);
@@ -628,6 +746,11 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
                    "VHOST_USER_PROTOCOL_F_LOG_SHMFD feature.");
     }
 
+    err = vhost_setup_slave_channel(dev);
+    if (err < 0) {
+        return err;
+    }
+
     return 0;
 }
 
@@ -638,6 +761,10 @@ static int vhost_user_cleanup(struct vhost_dev *dev)
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     u = dev->opaque;
+    if (u->slave_fd >= 0) {
+        close(u->slave_fd);
+        u->slave_fd = -1;
+    }
     g_free(u);
     dev->opaque = 0;
 
