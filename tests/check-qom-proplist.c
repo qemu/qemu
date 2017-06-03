@@ -438,9 +438,9 @@ static void test_dummy_createcmdl(void)
      * check for this in user_creatable_del() and remove the QemuOpts if
      * it is present.
      *
-     * FIXME: add an assert to verify that the QemuOpts is cleaned up
-     * once the corresponding cleanup code is added.
+     * The below check ensures this works as expected.
      */
+    g_assert_null(qemu_opts_find(&qemu_object_opts, "dev0"));
 }
 
 static void test_dummy_badenum(void)
