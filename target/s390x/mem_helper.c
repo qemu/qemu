@@ -1262,6 +1262,8 @@ void HELPER(cdsg)(CPUS390XState *env, uint64_t addr,
     } else {
         uint64_t oldh, oldl;
 
+        check_alignment(env, addr, 16, ra);
+
         oldh = cpu_ldq_data_ra(env, addr + 0, ra);
         oldl = cpu_ldq_data_ra(env, addr + 8, ra);
 
