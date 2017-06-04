@@ -27,34 +27,6 @@
 #define DRC_INDEX_TYPE_SHIFT 28
 #define DRC_INDEX_ID_MASK ((1ULL << DRC_INDEX_TYPE_SHIFT) - 1)
 
-static sPAPRConfigureConnectorState *spapr_ccs_find(sPAPRMachineState *spapr,
-                                                    uint32_t drc_index)
-{
-    sPAPRConfigureConnectorState *ccs = NULL;
-
-    QTAILQ_FOREACH(ccs, &spapr->ccs_list, next) {
-        if (ccs->drc_index == drc_index) {
-            break;
-        }
-    }
-
-    return ccs;
-}
-
-static void spapr_ccs_add(sPAPRMachineState *spapr,
-                          sPAPRConfigureConnectorState *ccs)
-{
-    g_assert(!spapr_ccs_find(spapr, ccs->drc_index));
-    QTAILQ_INSERT_HEAD(&spapr->ccs_list, ccs, next);
-}
-
-static void spapr_ccs_remove(sPAPRMachineState *spapr,
-                             sPAPRConfigureConnectorState *ccs)
-{
-    QTAILQ_REMOVE(&spapr->ccs_list, ccs, next);
-    g_free(ccs);
-}
-
 sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -80,6 +52,16 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     trace_spapr_drc_set_isolation_state(spapr_drc_index(drc), state);
+
+    /* if the guest is configuring a device attached to this DRC, we
+     * should reset the configuration state at this point since it may
+     * no longer be reliable (guest released device and needs to start
+     * over, or unplug occurred so the FDT is no longer valid)
+     */
+    if (state == SPAPR_DR_ISOLATION_STATE_ISOLATED) {
+        g_free(drc->ccs);
+        drc->ccs = NULL;
+    }
 
     if (state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) {
         /* cannot unisolate a non-existent resource, and, or resources
@@ -485,6 +467,10 @@ static void reset(DeviceState *d)
     sPAPRDREntitySense state;
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
+
+    g_free(drc->ccs);
+    drc->ccs = NULL;
+
     /* immediately upon reset we can safely assume DRCs whose devices
      * are pending removal can be safely removed, and that they will
      * subsequently be left in an ISOLATED state. move the DRC to this
@@ -1019,19 +1005,6 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     switch (sensor_type) {
     case RTAS_SENSOR_TYPE_ISOLATION_STATE:
-        /* if the guest is configuring a device attached to this
-         * DRC, we should reset the configuration state at this
-         * point since it may no longer be reliable (guest released
-         * device and needs to start over, or unplug occurred so
-         * the FDT is no longer valid)
-         */
-        if (sensor_state == SPAPR_DR_ISOLATION_STATE_ISOLATED) {
-            sPAPRConfigureConnectorState *ccs = spapr_ccs_find(spapr,
-                                                               sensor_index);
-            if (ccs) {
-                spapr_ccs_remove(spapr, ccs);
-            }
-        }
         ret = drck->set_isolation_state(drc, sensor_state);
         break;
     case RTAS_SENSOR_TYPE_DR:
@@ -1115,16 +1088,6 @@ static void configure_connector_st(target_ulong addr, target_ulong offset,
                               buf, MIN(len, CC_WA_LEN - offset));
 }
 
-void spapr_ccs_reset_hook(void *opaque)
-{
-    sPAPRMachineState *spapr = opaque;
-    sPAPRConfigureConnectorState *ccs, *ccs_tmp;
-
-    QTAILQ_FOREACH_SAFE(ccs, &spapr->ccs_list, next, ccs_tmp) {
-        spapr_ccs_remove(spapr, ccs);
-    }
-}
-
 static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
                                          sPAPRMachineState *spapr,
                                          uint32_t token, uint32_t nargs,
@@ -1160,12 +1123,11 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
         goto out;
     }
 
-    ccs = spapr_ccs_find(spapr, drc_index);
+    ccs = drc->ccs;
     if (!ccs) {
         ccs = g_new0(sPAPRConfigureConnectorState, 1);
         ccs->fdt_offset = drc->fdt_start_offset;
-        ccs->drc_index = drc_index;
-        spapr_ccs_add(spapr, ccs);
+        drc->ccs = ccs;
     }
 
     do {
@@ -1202,7 +1164,8 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
                     /* guest should be not configuring an isolated device */
                     trace_spapr_drc_set_configured_skipping(drc_index);
                 }
-                spapr_ccs_remove(spapr, ccs);
+                g_free(ccs);
+                drc->ccs = NULL;
                 ccs = NULL;
                 resp = SPAPR_DR_CC_RESPONSE_SUCCESS;
             } else {

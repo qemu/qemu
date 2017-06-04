@@ -172,6 +172,12 @@ typedef enum {
     SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE = -9003,
 } sPAPRDRCCResponse;
 
+/* rtas-configure-connector state */
+typedef struct sPAPRConfigureConnectorState {
+    int fdt_offset;
+    int fdt_depth;
+} sPAPRConfigureConnectorState;
+
 typedef struct sPAPRDRConnector {
     /*< private >*/
     DeviceState parent;
@@ -189,6 +195,7 @@ typedef struct sPAPRDRConnector {
     void *fdt;
     int fdt_start_offset;
     bool configured;
+    sPAPRConfigureConnectorState *ccs;
 
     bool awaiting_release;
     bool signalled;
