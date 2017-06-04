@@ -712,6 +712,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_CPU;
+    drck->typename = "CPU";
 }
 
 static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
@@ -719,6 +720,7 @@ static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PCI;
+    drck->typename = "28";
 }
 
 static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
@@ -726,6 +728,7 @@ static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_LMB;
+    drck->typename = "MEM";
 }
 
 static const TypeInfo spapr_dr_connector_info = {
@@ -793,31 +796,6 @@ sPAPRDRConnector *spapr_drc_by_id(const char *type, uint32_t id)
 
     return spapr_drc_by_index(drck->typeshift << DRC_INDEX_TYPE_SHIFT
                               | (id & DRC_INDEX_ID_MASK));
-}
-
-/* generate a string the describes the DRC to encode into the
- * device tree.
- *
- * as documented by PAPR+ v2.7, 13.5.2.6 and C.6.1
- */
-static const char *spapr_drc_get_type_str(sPAPRDRConnectorType type)
-{
-    switch (type) {
-    case SPAPR_DR_CONNECTOR_TYPE_CPU:
-        return "CPU";
-    case SPAPR_DR_CONNECTOR_TYPE_PHB:
-        return "PHB";
-    case SPAPR_DR_CONNECTOR_TYPE_VIO:
-        return "SLOT";
-    case SPAPR_DR_CONNECTOR_TYPE_PCI:
-        return "28";
-    case SPAPR_DR_CONNECTOR_TYPE_LMB:
-        return "MEM";
-    default:
-        g_assert(false);
-    }
-
-    return NULL;
 }
 
 /**
@@ -901,8 +879,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
         drc_names = g_string_insert_len(drc_names, -1, "\0", 1);
 
         /* ibm,drc-types */
-        drc_types = g_string_append(drc_types,
-                                    spapr_drc_get_type_str(spapr_drc_type(drc)));
+        drc_types = g_string_append(drc_types, drck->typename);
         drc_types = g_string_insert_len(drc_types, -1, "\0", 1);
     }
 

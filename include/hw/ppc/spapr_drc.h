@@ -212,6 +212,7 @@ typedef struct sPAPRDRConnectorClass {
 
     /*< public >*/
     sPAPRDRConnectorTypeShift typeshift;
+    const char *typename; /* used in device tree, PAPR 13.5.2.6 & C.6.1 */
 
     /* accessors for guest-visible (generally via RTAS) DR state */
     uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
