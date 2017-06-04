@@ -228,30 +228,11 @@ static void prop_get_index(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, &value, errp);
 }
 
-static void prop_get_type(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
-{
-    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    uint32_t value = (uint32_t)spapr_drc_type(drc);
-    visit_type_uint32(v, name, &value, errp);
-}
-
 static char *prop_get_name(Object *obj, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     return g_strdup(drck->get_name(drc));
-}
-
-static void prop_get_entity_sense(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    uint32_t value;
-
-    drck->entity_sense(drc, &value);
-    visit_type_uint32(v, name, &value, errp);
 }
 
 static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
@@ -666,20 +647,10 @@ static void spapr_dr_connector_instance_init(Object *obj)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
 
-    object_property_add_uint32_ptr(obj, "isolation-state",
-                                   &drc->isolation_state, NULL);
-    object_property_add_uint32_ptr(obj, "indicator-state",
-                                   &drc->indicator_state, NULL);
-    object_property_add_uint32_ptr(obj, "allocation-state",
-                                   &drc->allocation_state, NULL);
     object_property_add_uint32_ptr(obj, "id", &drc->id, NULL);
     object_property_add(obj, "index", "uint32", prop_get_index,
                         NULL, NULL, NULL, NULL);
-    object_property_add(obj, "connector_type", "uint32", prop_get_type,
-                        NULL, NULL, NULL, NULL);
     object_property_add_str(obj, "name", prop_get_name, NULL, NULL);
-    object_property_add(obj, "entity-sense", "uint32", prop_get_entity_sense,
-                        NULL, NULL, NULL, NULL);
     object_property_add(obj, "fdt", "struct", prop_get_fdt,
                         NULL, NULL, NULL, NULL);
 }
