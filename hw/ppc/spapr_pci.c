@@ -1400,10 +1400,8 @@ static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
                                                     uint32_t busnr,
                                                     int32_t devfn)
 {
-    return spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_PCI,
-                                    (phb->index << 16) |
-                                    (busnr << 8) |
-                                    devfn);
+    return spapr_drc_by_id(TYPE_SPAPR_DRC_PCI,
+                           (phb->index << 16) | (busnr << 8) | devfn);
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_drc(sPAPRPHBState *phb,

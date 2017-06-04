@@ -55,21 +55,6 @@ static void spapr_ccs_remove(sPAPRMachineState *spapr,
     g_free(ccs);
 }
 
-static sPAPRDRConnectorTypeShift get_type_shift(sPAPRDRConnectorType type)
-{
-    uint32_t shift = 0;
-
-    /* make sure this isn't SPAPR_DR_CONNECTOR_TYPE_ANY, or some
-     * other wonky value.
-     */
-    g_assert(is_power_of_2(type));
-
-    while (type != (1 << shift)) {
-        shift++;
-    }
-    return shift;
-}
-
 sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -804,7 +789,7 @@ static const TypeInfo spapr_drc_lmb_info = {
 
 /* helper functions for external users */
 
-sPAPRDRConnector *spapr_dr_connector_by_index(uint32_t index)
+sPAPRDRConnector *spapr_drc_by_index(uint32_t index)
 {
     Object *obj;
     char name[256];
@@ -815,12 +800,13 @@ sPAPRDRConnector *spapr_dr_connector_by_index(uint32_t index)
     return !obj ? NULL : SPAPR_DR_CONNECTOR(obj);
 }
 
-sPAPRDRConnector *spapr_dr_connector_by_id(sPAPRDRConnectorType type,
-                                           uint32_t id)
+sPAPRDRConnector *spapr_drc_by_id(const char *type, uint32_t id)
 {
-    return spapr_dr_connector_by_index(
-            (get_type_shift(type) << DRC_INDEX_TYPE_SHIFT) |
-            (id & DRC_INDEX_ID_MASK));
+    sPAPRDRConnectorClass *drck
+        = SPAPR_DR_CONNECTOR_CLASS(object_class_by_name(type));
+
+    return spapr_drc_by_index(drck->typeshift << DRC_INDEX_TYPE_SHIFT
+                              | (id & DRC_INDEX_ID_MASK));
 }
 
 /* generate a string the describes the DRC to encode into the
@@ -1023,7 +1009,7 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     /* if this is a DR sensor we can assume sensor_index == drc_index */
-    drc = spapr_dr_connector_by_index(sensor_index);
+    drc = spapr_drc_by_index(sensor_index);
     if (!drc) {
         trace_spapr_rtas_set_indicator_invalid(sensor_index);
         ret = RTAS_OUT_PARAM_ERROR;
@@ -1096,7 +1082,7 @@ static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         goto out;
     }
 
-    drc = spapr_dr_connector_by_index(sensor_index);
+    drc = spapr_drc_by_index(sensor_index);
     if (!drc) {
         trace_spapr_rtas_get_sensor_state_invalid(sensor_index);
         ret = RTAS_OUT_PARAM_ERROR;
@@ -1161,7 +1147,7 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     wa_addr = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 0);
 
     drc_index = rtas_ld(wa_addr, 0);
-    drc = spapr_dr_connector_by_index(drc_index);
+    drc = spapr_drc_by_index(drc_index);
     if (!drc) {
         trace_spapr_rtas_ibm_configure_connector_invalid(drc_index);
         rc = RTAS_OUT_PARAM_ERROR;

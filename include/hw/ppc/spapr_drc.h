@@ -230,9 +230,8 @@ sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc);
 
 sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
                                          uint32_t id);
-sPAPRDRConnector *spapr_dr_connector_by_index(uint32_t index);
-sPAPRDRConnector *spapr_dr_connector_by_id(sPAPRDRConnectorType type,
-                                           uint32_t id);
+sPAPRDRConnector *spapr_drc_by_index(uint32_t index);
+sPAPRDRConnector *spapr_drc_by_id(const char *type, uint32_t id);
 int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                           uint32_t drc_type_mask);
 
