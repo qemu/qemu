@@ -70,14 +70,23 @@ static sPAPRDRConnectorTypeShift get_type_shift(sPAPRDRConnectorType type)
     return shift;
 }
 
+sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    return 1 << drck->typeshift;
+}
+
 uint32_t spapr_drc_index(sPAPRDRConnector *drc)
 {
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
     /* no set format for a drc index: it only needs to be globally
      * unique. this is how we encode the DRC type on bare-metal
      * however, so might as well do that here
      */
-    return (get_type_shift(drc->type) << DRC_INDEX_TYPE_SHIFT) |
-            (drc->id & DRC_INDEX_ID_MASK);
+    return (drck->typeshift << DRC_INDEX_TYPE_SHIFT)
+        | (drc->id & DRC_INDEX_ID_MASK);
 }
 
 static uint32_t set_isolation_state(sPAPRDRConnector *drc,
@@ -107,7 +116,7 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
      * If the LMB being removed doesn't belong to a DIMM device that is
      * actually being unplugged, fail the isolation request here.
      */
-    if (drc->type == SPAPR_DR_CONNECTOR_TYPE_LMB) {
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB) {
         if ((state == SPAPR_DR_ISOLATION_STATE_ISOLATED) &&
              !drc->awaiting_release) {
             return RTAS_OUT_HW_ERROR;
@@ -177,7 +186,7 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         }
     }
 
-    if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI) {
+    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->allocation_state = state;
         if (drc->awaiting_release &&
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
@@ -189,11 +198,6 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         }
     }
     return RTAS_OUT_SUCCESS;
-}
-
-sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc)
-{
-    return drc->type;
 }
 
 static const char *get_name(sPAPRDRConnector *drc)
@@ -217,7 +221,7 @@ static void set_signalled(sPAPRDRConnector *drc)
 static uint32_t entity_sense(sPAPRDRConnector *drc, sPAPRDREntitySense *state)
 {
     if (drc->dev) {
-        if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI &&
+        if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
             /* for logical DR, we return a state of UNUSABLE
              * iff the allocation state UNUSABLE.
@@ -235,7 +239,7 @@ static uint32_t entity_sense(sPAPRDRConnector *drc, sPAPRDREntitySense *state)
             *state = SPAPR_DR_ENTITY_SENSE_PRESENT;
         }
     } else {
-        if (drc->type == SPAPR_DR_CONNECTOR_TYPE_PCI) {
+        if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
             /* PCI devices, and only PCI devices, use EMPTY
              * in cases where we'd otherwise use UNUSABLE
              */
@@ -368,7 +372,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
         error_setg(errp, "an attached device is still awaiting release");
         return;
     }
-    if (drc->type == SPAPR_DR_CONNECTOR_TYPE_PCI) {
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         g_assert(drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE);
     }
     g_assert(fdt || coldplug);
@@ -380,7 +384,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
      * may be accessing the device, we can easily crash the guest, so we
      * we defer completion of removal in such cases to the reset() hook.
      */
-    if (drc->type == SPAPR_DR_CONNECTOR_TYPE_PCI) {
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
     }
     drc->indicator_state = SPAPR_DR_INDICATOR_STATE_ACTIVE;
@@ -398,10 +402,10 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
      * 'physical' DR resources such as PCI where each device/resource is
      * signalled individually.
      */
-    drc->signalled = (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI)
+    drc->signalled = (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI)
                      ? true : coldplug;
 
-    if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI) {
+    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->awaiting_allocation = true;
     }
 
@@ -441,7 +445,7 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
         return;
     }
 
-    if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI &&
+    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
         drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
         trace_spapr_drc_awaiting_unusable(spapr_drc_index(drc));
         drc->awaiting_release = true;
@@ -458,8 +462,8 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
 
     drc->indicator_state = SPAPR_DR_INDICATOR_STATE_INACTIVE;
 
-    /* Calling release callbacks based on drc->type. */
-    switch (drc->type) {
+    /* Calling release callbacks based on spapr_drc_type(drc). */
+    switch (spapr_drc_type(drc)) {
     case SPAPR_DR_CONNECTOR_TYPE_CPU:
         spapr_core_release(drc->dev);
         break;
@@ -515,7 +519,7 @@ static void reset(DeviceState *d)
         }
 
         /* non-PCI devices may be awaiting a transition to UNUSABLE */
-        if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI &&
+        if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
             drc->awaiting_release) {
             drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_UNUSABLE);
         }
@@ -544,7 +548,7 @@ static bool spapr_drc_needed(void *opaque)
      * If there is dev plugged in, we need to migrate the DRC state when
      * it is different from cold-plugged state
      */
-    switch (drc->type) {
+    switch (spapr_drc_type(drc)) {
     case SPAPR_DR_CONNECTOR_TYPE_PCI:
     case SPAPR_DR_CONNECTOR_TYPE_CPU:
     case SPAPR_DR_CONNECTOR_TYPE_LMB:
@@ -626,17 +630,12 @@ static void unrealize(DeviceState *d, Error **errp)
     }
 }
 
-sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
-                                         sPAPRDRConnectorType type,
+sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
                                          uint32_t id)
 {
-    sPAPRDRConnector *drc =
-        SPAPR_DR_CONNECTOR(object_new(TYPE_SPAPR_DR_CONNECTOR));
+    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(object_new(type));
     char *prop_name;
 
-    g_assert(type);
-
-    drc->type = type;
     drc->id = id;
     drc->owner = owner;
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
@@ -666,7 +665,7 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
      * DRC names as documented by PAPR+ v2.7, 13.5.2.4
      * location codes as documented by PAPR+ v2.7, 12.3.1.5
      */
-    switch (drc->type) {
+    switch (spapr_drc_type(drc)) {
     case SPAPR_DR_CONNECTOR_TYPE_CPU:
         drc->name = g_strdup_printf("CPU %d", id);
         break;
@@ -685,7 +684,7 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
     }
 
     /* PCI slot always start in a USABLE state, and stay there */
-    if (drc->type == SPAPR_DR_CONNECTOR_TYPE_PCI) {
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_USABLE;
     }
 
@@ -737,6 +736,27 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     dk->user_creatable = false;
 }
 
+static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_CPU;
+}
+
+static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PCI;
+}
+
+static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_LMB;
+}
+
 static const TypeInfo spapr_dr_connector_info = {
     .name          = TYPE_SPAPR_DR_CONNECTOR,
     .parent        = TYPE_DEVICE,
@@ -744,6 +764,42 @@ static const TypeInfo spapr_dr_connector_info = {
     .instance_init = spapr_dr_connector_instance_init,
     .class_size    = sizeof(sPAPRDRConnectorClass),
     .class_init    = spapr_dr_connector_class_init,
+    .abstract      = true,
+};
+
+static const TypeInfo spapr_drc_physical_info = {
+    .name          = TYPE_SPAPR_DRC_PHYSICAL,
+    .parent        = TYPE_SPAPR_DR_CONNECTOR,
+    .instance_size = sizeof(sPAPRDRConnector),
+    .abstract      = true,
+};
+
+static const TypeInfo spapr_drc_logical_info = {
+    .name          = TYPE_SPAPR_DRC_LOGICAL,
+    .parent        = TYPE_SPAPR_DR_CONNECTOR,
+    .instance_size = sizeof(sPAPRDRConnector),
+    .abstract      = true,
+};
+
+static const TypeInfo spapr_drc_cpu_info = {
+    .name          = TYPE_SPAPR_DRC_CPU,
+    .parent        = TYPE_SPAPR_DRC_LOGICAL,
+    .instance_size = sizeof(sPAPRDRConnector),
+    .class_init    = spapr_drc_cpu_class_init,
+};
+
+static const TypeInfo spapr_drc_pci_info = {
+    .name          = TYPE_SPAPR_DRC_PCI,
+    .parent        = TYPE_SPAPR_DRC_PHYSICAL,
+    .instance_size = sizeof(sPAPRDRConnector),
+    .class_init    = spapr_drc_pci_class_init,
+};
+
+static const TypeInfo spapr_drc_lmb_info = {
+    .name          = TYPE_SPAPR_DRC_LMB,
+    .parent        = TYPE_SPAPR_DRC_LOGICAL,
+    .instance_size = sizeof(sPAPRDRConnector),
+    .class_init    = spapr_drc_lmb_class_init,
 };
 
 /* helper functions for external users */
@@ -854,7 +910,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
             continue;
         }
 
-        if ((drc->type & drc_type_mask) == 0) {
+        if ((spapr_drc_type(drc) & drc_type_mask) == 0) {
             continue;
         }
 
@@ -874,7 +930,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
 
         /* ibm,drc-types */
         drc_types = g_string_append(drc_types,
-                                    spapr_drc_get_type_str(drc->type));
+                                    spapr_drc_get_type_str(spapr_drc_type(drc)));
         drc_types = g_string_insert_len(drc_types, -1, "\0", 1);
     }
 
@@ -1206,6 +1262,11 @@ out:
 static void spapr_drc_register_types(void)
 {
     type_register_static(&spapr_dr_connector_info);
+    type_register_static(&spapr_drc_physical_info);
+    type_register_static(&spapr_drc_logical_info);
+    type_register_static(&spapr_drc_cpu_info);
+    type_register_static(&spapr_drc_pci_info);
+    type_register_static(&spapr_drc_lmb_info);
 
     spapr_rtas_register(RTAS_SET_INDICATOR, "set-indicator",
                         rtas_set_indicator);

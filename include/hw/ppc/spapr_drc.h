@@ -26,6 +26,48 @@
 #define SPAPR_DR_CONNECTOR(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
                                              TYPE_SPAPR_DR_CONNECTOR)
 
+#define TYPE_SPAPR_DRC_PHYSICAL "spapr-drc-physical"
+#define SPAPR_DRC_PHYSICAL_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(sPAPRDRConnectorClass, obj, TYPE_SPAPR_DRC_PHYSICAL)
+#define SPAPR_DRC_PHYSICAL_CLASS(klass) \
+        OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, \
+                           TYPE_SPAPR_DRC_PHYSICAL)
+#define SPAPR_DRC_PHYSICAL(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+                                             TYPE_SPAPR_DRC_PHYSICAL)
+
+#define TYPE_SPAPR_DRC_LOGICAL "spapr-drc-logical"
+#define SPAPR_DRC_LOGICAL_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(sPAPRDRConnectorClass, obj, TYPE_SPAPR_DRC_LOGICAL)
+#define SPAPR_DRC_LOGICAL_CLASS(klass) \
+        OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, \
+                           TYPE_SPAPR_DRC_LOGICAL)
+#define SPAPR_DRC_LOGICAL(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+                                             TYPE_SPAPR_DRC_LOGICAL)
+
+#define TYPE_SPAPR_DRC_CPU "spapr-drc-cpu"
+#define SPAPR_DRC_CPU_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(sPAPRDRConnectorClass, obj, TYPE_SPAPR_DRC_CPU)
+#define SPAPR_DRC_CPU_CLASS(klass) \
+        OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, TYPE_SPAPR_DRC_CPU)
+#define SPAPR_DRC_CPU(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+                                        TYPE_SPAPR_DRC_CPU)
+
+#define TYPE_SPAPR_DRC_PCI "spapr-drc-pci"
+#define SPAPR_DRC_PCI_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(sPAPRDRConnectorClass, obj, TYPE_SPAPR_DRC_PCI)
+#define SPAPR_DRC_PCI_CLASS(klass) \
+        OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, TYPE_SPAPR_DRC_PCI)
+#define SPAPR_DRC_PCI(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+                                        TYPE_SPAPR_DRC_PCI)
+
+#define TYPE_SPAPR_DRC_LMB "spapr-drc-lmb"
+#define SPAPR_DRC_LMB_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(sPAPRDRConnectorClass, obj, TYPE_SPAPR_DRC_LMB)
+#define SPAPR_DRC_LMB_CLASS(klass) \
+        OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, TYPE_SPAPR_DRC_LMB)
+#define SPAPR_DRC_LMB(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+                                        TYPE_SPAPR_DRC_LMB)
+
 /*
  * Various hotplug types managed by sPAPRDRConnector
  *
@@ -134,7 +176,6 @@ typedef struct sPAPRDRConnector {
     /*< private >*/
     DeviceState parent;
 
-    sPAPRDRConnectorType type;
     uint32_t id;
     Object *owner;
     const char *name;
@@ -163,6 +204,7 @@ typedef struct sPAPRDRConnectorClass {
     DeviceClass parent;
 
     /*< public >*/
+    sPAPRDRConnectorTypeShift typeshift;
 
     /* accessors for guest-visible (generally via RTAS) DR state */
     uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
@@ -186,8 +228,7 @@ typedef struct sPAPRDRConnectorClass {
 uint32_t spapr_drc_index(sPAPRDRConnector *drc);
 sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc);
 
-sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
-                                         sPAPRDRConnectorType type,
+sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
                                          uint32_t id);
 sPAPRDRConnector *spapr_dr_connector_by_index(uint32_t index);
 sPAPRDRConnector *spapr_dr_connector_by_id(sPAPRDRConnectorType type,
