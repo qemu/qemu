@@ -3088,6 +3088,8 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
     QDict *qdict;
     const mon_cmd_t *cmd;
 
+    trace_handle_hmp_command(mon, cmdline);
+
     cmd = monitor_parse_command(mon, &cmdline, mon->cmd_table);
     if (!cmd) {
         return;
