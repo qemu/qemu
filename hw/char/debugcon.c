@@ -27,7 +27,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
 

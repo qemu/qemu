@@ -20,7 +20,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 
@@ -178,15 +178,15 @@ static void filter_mirror_cleanup(NetFilterState *nf)
 {
     MirrorState *s = FILTER_MIRROR(nf);
 
-    qemu_chr_fe_deinit(&s->chr_out);
+    qemu_chr_fe_deinit(&s->chr_out, false);
 }
 
 static void filter_redirector_cleanup(NetFilterState *nf)
 {
     MirrorState *s = FILTER_REDIRECTOR(nf);
 
-    qemu_chr_fe_deinit(&s->chr_in);
-    qemu_chr_fe_deinit(&s->chr_out);
+    qemu_chr_fe_deinit(&s->chr_in, false);
+    qemu_chr_fe_deinit(&s->chr_out, false);
 }
 
 static void filter_mirror_setup(NetFilterState *nf, Error **errp)

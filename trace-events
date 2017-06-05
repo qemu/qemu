@@ -41,13 +41,6 @@ system_wakeup_request(int reason) "reason=%d"
 qemu_system_shutdown_request(int reason) "reason=%d"
 qemu_system_powerdown_request(void) ""
 
-# spice-qemu-char.c
-spice_vmc_write(ssize_t out, int len) "spice wrote %zd of requested %d"
-spice_vmc_read(int bytes, int len) "spice read %d of requested %d"
-spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
-spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
-spice_vmc_event(int event) "spice vmc event %d"
-
 # monitor.c
 monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
 monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"

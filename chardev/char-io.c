@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "char-io.h"
+#include "chardev/char-io.h"
 
 typedef struct IOWatchPoll {
     GSource parent;

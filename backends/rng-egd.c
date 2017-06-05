@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/rng.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 
@@ -145,7 +145,7 @@ static void rng_egd_finalize(Object *obj)
 {
     RngEgd *s = RNG_EGD(obj);
 
-    qemu_chr_fe_deinit(&s->chr);
+    qemu_chr_fe_deinit(&s->chr, false);
     g_free(s->chr_name);
 }
 

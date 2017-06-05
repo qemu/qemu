@@ -19,7 +19,7 @@
 #define HW_CHAR_DIGIC_UART_H
 
 #include "hw/sysbus.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 
 #define TYPE_DIGIC_UART "digic-uart"
 #define DIGIC_UART(obj) \

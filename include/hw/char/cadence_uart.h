@@ -19,7 +19,7 @@
 #ifndef CADENCE_UART_H
 
 #include "hw/sysbus.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "qemu/timer.h"
 
 #define CADENCE_UART_RX_FIFO_SIZE           16

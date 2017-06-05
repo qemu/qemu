@@ -17,7 +17,7 @@
 #include "cpu.h"
 #include "sysemu/qtest.h"
 #include "hw/qdev.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
 #include "hw/irq.h"

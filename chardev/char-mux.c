@@ -24,9 +24,9 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/block-backend.h"
-#include "char-mux.h"
+#include "chardev/char-mux.h"
 
 /* MUX driver for serial I/O splitting */
 
@@ -266,7 +266,7 @@ static void char_mux_finalize(Object *obj)
             be->chr = NULL;
         }
     }
-    qemu_chr_fe_deinit(&d->chr);
+    qemu_chr_fe_deinit(&d->chr, false);
 }
 
 void mux_chr_set_handlers(Chardev *chr, GMainContext *context)

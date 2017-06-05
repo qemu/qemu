@@ -21,33 +21,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_WIN_H
-#define CHAR_WIN_H
+#ifndef CHAR_MUX_H
+#define CHAR_MUX_H
 
-#include "sysemu/char.h"
+#include "chardev/char.h"
+#include "chardev/char-fe.h"
 
-typedef struct {
+extern bool muxes_realized;
+
+#define MAX_MUX 4
+#define MUX_BUFFER_SIZE 32 /* Must be a power of 2.  */
+#define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
+typedef struct MuxChardev {
     Chardev parent;
+    CharBackend *backends[MAX_MUX];
+    CharBackend chr;
+    int focus;
+    int mux_cnt;
+    int term_got_escape;
     int max_size;
-    HANDLE hcom, hrecv, hsend;
-    OVERLAPPED orecv;
-    BOOL fpipe;
-    DWORD len;
+    /* Intermediate input buffer catches escape sequences even if the
+       currently active device is not accepting any input - but only until it
+       is full as well. */
+    unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
+    int prod[MAX_MUX];
+    int cons[MAX_MUX];
+    int timestamps;
 
     /* Protected by the Chardev chr_write_lock.  */
-    OVERLAPPED osend;
-    /* FIXME: file/console do not finalize */
-    bool skip_free;
-} WinChardev;
+    int linestart;
+    int64_t timestamps_start;
+} MuxChardev;
 
-#define NSENDBUF 2048
-#define NRECVBUF 2048
+#define MUX_CHARDEV(obj) OBJECT_CHECK(MuxChardev, (obj), TYPE_CHARDEV_MUX)
+#define CHARDEV_IS_MUX(chr)                             \
+    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
 
-#define TYPE_CHARDEV_WIN "chardev-win"
-#define WIN_CHARDEV(obj) OBJECT_CHECK(WinChardev, (obj), TYPE_CHARDEV_WIN)
+void mux_chr_set_handlers(Chardev *chr, GMainContext *context);
+void mux_set_focus(Chardev *chr, int focus);
+void mux_chr_send_all_event(Chardev *chr, int event);
 
-void qemu_chr_open_win_file(Chardev *chr, HANDLE fd_out);
-int win_chr_init(Chardev *chr, const char *filename, Error **errp);
-int win_chr_pipe_poll(void *opaque);
-
-#endif /* CHAR_WIN_H */
+#endif /* CHAR_MUX_H */

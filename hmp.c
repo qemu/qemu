@@ -17,7 +17,7 @@
 #include "hmp.h"
 #include "net/net.h"
 #include "net/eth.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"

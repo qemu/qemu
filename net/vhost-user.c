@@ -12,7 +12,7 @@
 #include "clients.h"
 #include "net/vhost_net.h"
 #include "net/vhost-user.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
@@ -151,10 +151,7 @@ static void vhost_user_cleanup(NetClientState *nc)
         s->vhost_net = NULL;
     }
     if (nc->queue_index == 0) {
-        Chardev *chr = qemu_chr_fe_get_driver(&s->chr);
-
-        qemu_chr_fe_deinit(&s->chr);
-        object_unparent(OBJECT(chr));
+        qemu_chr_fe_deinit(&s->chr, true);
     }
 
     qemu_purge_queued_packets(nc);

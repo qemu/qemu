@@ -4,7 +4,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/qdev.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 

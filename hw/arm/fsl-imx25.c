@@ -30,7 +30,7 @@
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 static void fsl_imx25_init(Object *obj)
 {

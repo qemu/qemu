@@ -17,7 +17,7 @@
 #include "hw/qdev.h"
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"

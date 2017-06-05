@@ -19,7 +19,7 @@
 
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 
 typedef struct ASCIIConsoleData {
     EventBufferHeader ebh;

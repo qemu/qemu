@@ -21,43 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_MUX_H
-#define CHAR_MUX_H
+#ifndef CHAR_FD_H
+#define CHAR_FD_H
 
-#include "sysemu/char.h"
+#include "io/channel.h"
+#include "chardev/char.h"
 
-extern bool muxes_realized;
-
-#define MAX_MUX 4
-#define MUX_BUFFER_SIZE 32 /* Must be a power of 2.  */
-#define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
-typedef struct MuxChardev {
+typedef struct FDChardev {
     Chardev parent;
-    CharBackend *backends[MAX_MUX];
-    CharBackend chr;
-    int focus;
-    int mux_cnt;
-    int term_got_escape;
+    Chardev *chr;
+    QIOChannel *ioc_in, *ioc_out;
     int max_size;
-    /* Intermediate input buffer catches escape sequences even if the
-       currently active device is not accepting any input - but only until it
-       is full as well. */
-    unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
-    int prod[MAX_MUX];
-    int cons[MAX_MUX];
-    int timestamps;
+} FDChardev;
 
-    /* Protected by the Chardev chr_write_lock.  */
-    int linestart;
-    int64_t timestamps_start;
-} MuxChardev;
+#define TYPE_CHARDEV_FD "chardev-fd"
 
-#define MUX_CHARDEV(obj) OBJECT_CHECK(MuxChardev, (obj), TYPE_CHARDEV_MUX)
-#define CHARDEV_IS_MUX(chr)                             \
-    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
+#define FD_CHARDEV(obj) OBJECT_CHECK(FDChardev, (obj), TYPE_CHARDEV_FD)
 
-void mux_chr_set_handlers(Chardev *chr, GMainContext *context);
-void mux_set_focus(Chardev *chr, int focus);
-void mux_chr_send_all_event(Chardev *chr, int event);
+void qemu_chr_open_fd(Chardev *chr, int fd_in, int fd_out);
+int qmp_chardev_open_file_source(char *src, int flags, Error **errp);
 
-#endif /* CHAR_MUX_H */
+#endif /* CHAR_FD_H */

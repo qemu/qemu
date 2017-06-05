@@ -21,7 +21,7 @@
 #include "qemu/config-file.h"
 #include "qemu/uuid.h"
 #include "qmp-commands.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 #include "ui/qemu-spice.h"
 #include "ui/vnc.h"
 #include "sysemu/kvm.h"

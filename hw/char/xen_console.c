@@ -25,7 +25,7 @@
 
 #include "qapi/error.h"
 #include "hw/hw.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "hw/xen/xen_backend.h"
 #include "qapi/error.h"
 
@@ -261,7 +261,7 @@ static void con_disconnect(struct XenDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
-    qemu_chr_fe_deinit(&con->chr);
+    qemu_chr_fe_deinit(&con->chr, false);
     xen_pv_unbind_evtchn(&con->xendev);
 
     if (con->sring) {

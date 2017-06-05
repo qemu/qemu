@@ -22,14 +22,14 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "char-win.h"
+#include "chardev/char-win.h"
 
 static void qemu_chr_open_win_con(Chardev *chr,
                                   ChardevBackend *backend,
                                   bool *be_opened,
                                   Error **errp)
 {
-    qemu_chr_open_win_file(chr, GetStdHandle(STD_OUTPUT_HANDLE));
+    win_chr_set_file(chr, GetStdHandle(STD_OUTPUT_HANDLE), true);
 }
 
 static void char_console_class_init(ObjectClass *oc, void *data)

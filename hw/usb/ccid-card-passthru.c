@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "ccid.h"
@@ -264,10 +264,7 @@ static void ccid_card_vscard_handle_message(PassthruState *card,
 
 static void ccid_card_vscard_drop_connection(PassthruState *card)
 {
-    Chardev *chr = qemu_chr_fe_get_driver(&card->cs);
-
-    qemu_chr_fe_deinit(&card->cs);
-    object_unparent(OBJECT(chr));
+    qemu_chr_fe_deinit(&card->cs, true);
     card->vscard_in_pos = card->vscard_in_hdr = 0;
 }
 

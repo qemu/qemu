@@ -23,12 +23,12 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #ifdef _WIN32
-#include "char-win.h"
+#include "chardev/char-win.h"
 #else
-#include "char-fd.h"
+#include "chardev/char-fd.h"
 #endif
 
 #ifdef _WIN32
@@ -58,27 +58,27 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     }
 
     openname = g_strdup_printf("\\\\.\\pipe\\%s", filename);
-    s->hcom = CreateNamedPipe(openname,
+    s->file = CreateNamedPipe(openname,
                               PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
                               PIPE_TYPE_BYTE | PIPE_READMODE_BYTE |
                               PIPE_WAIT,
                               MAXCONNECT, NSENDBUF, NRECVBUF, NTIMEOUT, NULL);
     g_free(openname);
-    if (s->hcom == INVALID_HANDLE_VALUE) {
+    if (s->file == INVALID_HANDLE_VALUE) {
         error_setg(errp, "Failed CreateNamedPipe (%lu)", GetLastError());
-        s->hcom = NULL;
+        s->file = NULL;
         goto fail;
     }
 
     ZeroMemory(&ov, sizeof(ov));
     ov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    ret = ConnectNamedPipe(s->hcom, &ov);
+    ret = ConnectNamedPipe(s->file, &ov);
     if (ret) {
         error_setg(errp, "Failed ConnectNamedPipe");
         goto fail;
     }
 
-    ret = GetOverlappedResult(s->hcom, &ov, &size, TRUE);
+    ret = GetOverlappedResult(s->file, &ov, &size, TRUE);
     if (!ret) {
         error_setg(errp, "Failed GetOverlappedResult");
         if (ov.hEvent) {

@@ -26,7 +26,7 @@
 
 #include "qemu-common.h"
 #include "io/channel.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 /* Can only be used for read */
 GSource *io_add_watch_poll(Chardev *chr,

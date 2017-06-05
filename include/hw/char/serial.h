@@ -28,10 +28,10 @@
 
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/char.h"
+#include "chardev/char-fe.h"
 #include "exec/memory.h"
 #include "qemu/fifo8.h"
-#include "sysemu/char.h"
+#include "chardev/char.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
