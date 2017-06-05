@@ -345,33 +345,40 @@ sosendoob(struct socket *so)
 	if (sb->sb_rptr < sb->sb_wptr) {
 		/* We can send it directly */
 		n = slirp_send(so, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
-		so->so_urgc -= n;
-
-		DEBUG_MISC((dfd, " --- sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 	} else {
 		/*
 		 * Since there's no sendv or sendtov like writev,
 		 * we must copy all data to a linear buffer then
 		 * send it all
 		 */
+		uint32_t urgc = so->so_urgc;
 		len = (sb->sb_data + sb->sb_datalen) - sb->sb_rptr;
-		if (len > so->so_urgc) len = so->so_urgc;
+		if (len > urgc) {
+			len = urgc;
+		}
 		memcpy(buff, sb->sb_rptr, len);
-		so->so_urgc -= len;
-		if (so->so_urgc) {
+		urgc -= len;
+		if (urgc) {
 			n = sb->sb_wptr - sb->sb_data;
-			if (n > so->so_urgc) n = so->so_urgc;
+			if (n > urgc) {
+				n = urgc;
+			}
 			memcpy((buff + len), sb->sb_data, n);
-			so->so_urgc -= n;
 			len += n;
 		}
 		n = slirp_send(so, buff, len, (MSG_OOB)); /* |MSG_DONTWAIT)); */
-#ifdef DEBUG
-		if (n != len)
-		   DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
-#endif
-		DEBUG_MISC((dfd, " ---2 sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 	}
+
+#ifdef DEBUG
+	if (n != len) {
+		DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
+	}
+#endif
+	if (n < 0) {
+		return n;
+	}
+	so->so_urgc -= n;
+	DEBUG_MISC((dfd, " ---2 sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
 
 	sb->sb_cc -= n;
 	sb->sb_rptr += n;
