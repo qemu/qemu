@@ -88,6 +88,24 @@
 #define smp_read_barrier_depends()   barrier()
 #endif
 
+/* Sanity check that the size of an atomic operation isn't "overly large".
+ * Despite the fact that e.g. i686 has 64-bit atomic operations, we do not
+ * want to use them because we ought not need them, and this lets us do a
+ * bit of sanity checking that other 32-bit hosts might build.
+ *
+ * That said, we have a problem on 64-bit ILP32 hosts in that in order to
+ * sync with TCG_OVERSIZED_GUEST, this must match TCG_TARGET_REG_BITS.
+ * We'd prefer not want to pull in everything else TCG related, so handle
+ * those few cases by hand.
+ *
+ * Note that x32 is fully detected with __x64_64__ + _ILP32, and that for
+ * Sparc we always force the use of sparcv9 in configure.
+ */
+#if defined(__x86_64__) || defined(__sparc__)
+# define ATOMIC_REG_SIZE  8
+#else
+# define ATOMIC_REG_SIZE  sizeof(void *)
+#endif
 
 /* Weak atomic operations prevent the compiler moving other
  * loads/stores past the atomic operation load/store. However there is
@@ -104,7 +122,7 @@
 
 #define atomic_read(ptr)                              \
     ({                                                \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
     atomic_read__nocheck(ptr);                        \
     })
 
@@ -112,7 +130,7 @@
     __atomic_store_n(ptr, i, __ATOMIC_RELAXED)
 
 #define atomic_set(ptr, i)  do {                      \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
     atomic_set__nocheck(ptr, i);                      \
 } while(0)
 
@@ -130,27 +148,27 @@
 
 #define atomic_rcu_read(ptr)                          \
     ({                                                \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
     typeof_strip_qual(*ptr) _val;                     \
     atomic_rcu_read__nocheck(ptr, &_val);             \
     _val;                                             \
     })
 
 #define atomic_rcu_set(ptr, i) do {                   \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *)); \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
     __atomic_store_n(ptr, i, __ATOMIC_RELEASE);       \
 } while(0)
 
 #define atomic_load_acquire(ptr)                        \
     ({                                                  \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);  \
     typeof_strip_qual(*ptr) _val;                       \
     __atomic_load(ptr, &_val, __ATOMIC_ACQUIRE);        \
     _val;                                               \
     })
 
 #define atomic_store_release(ptr, i)  do {              \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));   \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);  \
     __atomic_store_n(ptr, i, __ATOMIC_RELEASE);         \
 } while(0)
 
@@ -162,7 +180,7 @@
 })
 
 #define atomic_xchg(ptr, i)    ({                           \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));       \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);      \
     atomic_xchg__nocheck(ptr, i);                           \
 })
 
@@ -175,7 +193,7 @@
 })
 
 #define atomic_cmpxchg(ptr, old, new)    ({                             \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > sizeof(void *));                   \
+    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);                  \
     atomic_cmpxchg__nocheck(ptr, old, new);                             \
 })
 

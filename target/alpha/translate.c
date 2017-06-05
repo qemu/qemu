@@ -89,6 +89,9 @@ typedef enum {
        updated the PC for the next instruction to be executed.  */
     EXIT_PC_STALE,
 
+    /* We are exiting the TB due to page crossing or space constraints.  */
+    EXIT_FALLTHRU,
+
     /* We are ending the TB with a noreturn function call, e.g. longjmp.
        No following code will be executed.  */
     EXIT_NORETURN,
@@ -1157,6 +1160,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 #ifndef CONFIG_USER_ONLY
     /* Privileged PAL code */
     if (palcode < 0x40 && (ctx->tb->flags & TB_FLAGS_USER_MODE) == 0) {
+        TCGv tmp;
         switch (palcode) {
         case 0x01:
             /* CFLUSH */
@@ -1182,10 +1186,8 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
                            offsetof(CPUAlphaState, sysval));
             break;
 
-        case 0x35: {
+        case 0x35:
             /* SWPIPL */
-            TCGv tmp;
-
             /* Note that we already know we're in kernel mode, so we know
                that PS only contains the 3 IPL bits.  */
             tcg_gen_ld8u_i64(ctx->ir[IR_V0], cpu_env,
@@ -1197,7 +1199,6 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, ps));
             tcg_temp_free(tmp);
             break;
-        }
 
         case 0x36:
             /* RDPS */
@@ -1219,6 +1220,14 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_ld32s_i64(ctx->ir[IR_V0], cpu_env,
                 -offsetof(AlphaCPU, env) + offsetof(CPUState, cpu_index));
             break;
+
+        case 0x3E:
+            /* WTINT */
+            tmp = tcg_const_i64(1);
+            tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
+                                           offsetof(CPUState, halted));
+            tcg_gen_movi_i64(ctx->ir[IR_V0], 0);
+            return gen_excp(ctx, EXCP_HALTED, 0);
 
         default:
             palcode &= 0x3f;
@@ -1369,7 +1378,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
         tmp = tcg_const_i64(1);
         tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
                                        offsetof(CPUState, halted));
-        return gen_excp(ctx, EXCP_HLT, 0);
+        return gen_excp(ctx, EXCP_HALTED, 0);
 
     case 252:
         /* HALT */
@@ -2978,7 +2987,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
                 || num_insns >= max_insns
                 || singlestep
                 || ctx.singlestep_enabled)) {
-            ret = EXIT_PC_STALE;
+            ret = EXIT_FALLTHRU;
         }
     } while (ret == NO_EXIT);
 
@@ -2990,6 +2999,13 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     case EXIT_GOTO_TB:
     case EXIT_NORETURN:
         break;
+    case EXIT_FALLTHRU:
+        if (use_goto_tb(&ctx, ctx.pc)) {
+            tcg_gen_goto_tb(0);
+            tcg_gen_movi_i64(cpu_pc, ctx.pc);
+            tcg_gen_exit_tb((uintptr_t)ctx.tb);
+        }
+        /* FALLTHRU */
     case EXIT_PC_STALE:
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
         /* FALLTHRU */
@@ -3001,7 +3017,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         }
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     gen_tb_end(tb, num_insns);

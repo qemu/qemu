@@ -1741,9 +1741,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_exit_tb:
-        /* return value */
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, args[0]);
-        tgen_gotoi(s, S390_CC_ALWAYS, tb_ret_addr);
+        /* Reuse the zeroing that exists for goto_ptr.  */
+        a0 = args[0];
+        if (a0 == 0) {
+            tgen_gotoi(s, S390_CC_ALWAYS, s->code_gen_epilogue);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, a0);
+            tgen_gotoi(s, S390_CC_ALWAYS, tb_ret_addr);
+        }
         break;
 
     case INDEX_op_goto_tb:
@@ -1765,6 +1770,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_TMP0);
         }
         s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
+        break;
+
+    case INDEX_op_goto_ptr:
+        tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, args[0]);
         break;
 
     OP_32_64(ld8u):
@@ -2241,6 +2250,7 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_br, { } },
+    { INDEX_op_goto_ptr, { "r" } },
 
     { INDEX_op_ld8u_i32, { "r", "r" } },
     { INDEX_op_ld8s_i32, { "r", "r" } },
@@ -2439,6 +2449,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* br %r3 (go to TB) */
     tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, tcg_target_call_iarg_regs[1]);
 
+    /*
+     * Return path for goto_ptr. Set return value to 0, a-la exit_tb,
+     * and fall through to the rest of the epilogue.
+     */
+    s->code_gen_epilogue = s->code_ptr;
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, 0);
+
+    /* TB epilogue */
     tb_ret_addr = s->code_ptr;
 
     /* lmg %r6,%r15,fs+48(%r15) (restore registers) */
