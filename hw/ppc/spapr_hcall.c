@@ -992,9 +992,10 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
 
     /* Update the UPRT and GTSE bits in the LPCR for all cpus */
     CPU_FOREACH(cs) {
-        set_spr(cs, SPR_LPCR, LPCR_UPRT | LPCR_GTSE,
+        set_spr(cs, SPR_LPCR,
                 ((flags & (FLAG_RADIX | FLAG_HASH_PROC_TBL)) ? LPCR_UPRT : 0) |
-                ((flags & FLAG_GTSE) ? LPCR_GTSE : 0));
+                ((flags & FLAG_GTSE) ? LPCR_GTSE : 0),
+                LPCR_UPRT | LPCR_GTSE);
     }
 
     if (kvm_enabled()) {
