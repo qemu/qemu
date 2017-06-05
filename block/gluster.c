@@ -493,8 +493,7 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
     Error *local_err = NULL;
     char *str = NULL;
     const char *ptr;
-    size_t num_servers;
-    int i, type;
+    int i, type, num_servers;
 
     /* create opts info from runtime_json_opts list */
     opts = qemu_opts_create(&runtime_json_opts, NULL, 0, &error_abort);
