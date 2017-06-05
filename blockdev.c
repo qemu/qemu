@@ -595,7 +595,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             autostart = 0;
         }
 
-        block_acct_init(blk_get_stats(blk), account_invalid, account_failed);
+        block_acct_setup(blk_get_stats(blk), account_invalid, account_failed);
 
         if (!parse_stats_intervals(blk_get_stats(blk), interval_list, errp)) {
             blk_unref(blk);

@@ -61,7 +61,8 @@ typedef struct BlockAcctCookie {
     enum BlockAcctType type;
 } BlockAcctCookie;
 
-void block_acct_init(BlockAcctStats *stats, bool account_invalid,
+void block_acct_init(BlockAcctStats *stats);
+void block_acct_setup(BlockAcctStats *stats, bool account_invalid,
                      bool account_failed);
 void block_acct_cleanup(BlockAcctStats *stats);
 void block_acct_add_interval(BlockAcctStats *stats, unsigned interval_length);

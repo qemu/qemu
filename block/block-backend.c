@@ -219,6 +219,7 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
     qemu_co_mutex_init(&blk->public.throttled_reqs_lock);
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
     qemu_co_queue_init(&blk->public.throttled_reqs[1]);
+    block_acct_init(&blk->stats);
 
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);

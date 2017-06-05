@@ -32,15 +32,18 @@
 static QEMUClockType clock_type = QEMU_CLOCK_REALTIME;
 static const int qtest_latency_ns = NANOSECONDS_PER_SECOND / 1000;
 
-void block_acct_init(BlockAcctStats *stats, bool account_invalid,
-                     bool account_failed)
+void block_acct_init(BlockAcctStats *stats)
 {
-    stats->account_invalid = account_invalid;
-    stats->account_failed = account_failed;
-
     if (qtest_enabled()) {
         clock_type = QEMU_CLOCK_VIRTUAL;
     }
+}
+
+void block_acct_setup(BlockAcctStats *stats, bool account_invalid,
+                      bool account_failed)
+{
+    stats->account_invalid = account_invalid;
+    stats->account_failed = account_failed;
 }
 
 void block_acct_cleanup(BlockAcctStats *stats)
