@@ -2483,6 +2483,16 @@ DISAS_INSN(nop)
 {
 }
 
+DISAS_INSN(rtd)
+{
+    TCGv tmp;
+    int16_t offset = read_im16(env, s);
+
+    tmp = gen_load(s, OS_LONG, QREG_SP, 0);
+    tcg_gen_addi_i32(QREG_SP, QREG_SP, offset + 4);
+    gen_jmp(s, tmp);
+}
+
 DISAS_INSN(rts)
 {
     TCGv tmp;
@@ -4904,6 +4914,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(nop,       4e71, ffff);
     BASE(stop,      4e72, ffff);
     BASE(rte,       4e73, ffff);
+    INSN(rtd,       4e74, ffff, RTD);
     BASE(rts,       4e75, ffff);
     INSN(movec,     4e7b, ffff, CF_ISA_A);
     BASE(jump,      4e80, ffc0);
