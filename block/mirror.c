@@ -1058,7 +1058,7 @@ static int64_t coroutine_fn bdrv_mirror_top_get_block_status(
 {
     *pnum = nb_sectors;
     *file = bs->backing->bs;
-    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID | BDRV_BLOCK_DATA |
+    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID |
            (sector_num << BDRV_SECTOR_BITS);
 }
 
