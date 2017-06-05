@@ -31,8 +31,8 @@ A QEMU block device (drive) has a host and a guest part.
 
 In the general case, the guest device is connected to a controller
 device.  For instance, the IDE controller provides two IDE buses, each
-of which can have up to two ide-drive devices, and each ide-drive
-device is a guest part, and is connected to a host part.
+of which can have up to two devices, and each device is a guest part,
+and is connected to a host part.
 
 Except we sometimes lump controller, bus(es) and drive device(s) all
 together into a single device.  For instance, the ISA floppy
@@ -399,12 +399,13 @@ type.
 some DEVNAMEs:
 
     default device      suppressing DEVNAMEs
-    CD-ROM              ide-cd, ide-drive, scsi-cd
-    isa-fdc's driveA    isa-fdc
+    CD-ROM              ide-cd, ide-drive, ide-hd, scsi-cd, scsi-hd
+    isa-fdc's driveA    floppy, isa-fdc
     parallel            isa-parallel
     serial              isa-serial
-    VGA                 VGA, cirrus-vga, vmware-svga
-    virtioconsole       virtio-serial-pci, virtio-serial-s390, virtio-serial
+    VGA                 VGA, cirrus-vga, isa-vga, isa-cirrus-vga,
+                        vmware-svga, qxl-vga, virtio-vga
+    virtioconsole       virtio-serial-pci, virtio-serial
 
 The default NIC is connected to a default part created along with it.
 It is *not* suppressed by configuring a NIC with -device (you may call

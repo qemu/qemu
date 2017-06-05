@@ -214,7 +214,7 @@ static void isa_irq_handler(void *opaque, int n, int level)
     qemu_irq *irqs = opaque;
     int ivec;
 
-    assert(n < 16);
+    assert(n < ARRAY_SIZE(isa_irq_to_ivec));
     ivec = isa_irq_to_ivec[n];
     EBUS_DPRINTF("Set ISA IRQ %d level %d -> ivec 0x%x\n", n, level, ivec);
     if (ivec) {
