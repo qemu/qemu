@@ -506,6 +506,8 @@ static void mirror_exit(BlockJob *job, void *opaque)
     BlockDriverState *mirror_top_bs = s->mirror_top_bs;
     Error *local_err = NULL;
 
+    bdrv_release_dirty_bitmap(src, s->dirty_bitmap);
+
     /* Make sure that the source BDS doesn't go away before we called
      * block_job_completed(). */
     bdrv_ref(src);
@@ -904,7 +906,6 @@ immediate_exit:
     g_free(s->cow_bitmap);
     g_free(s->in_flight_bitmap);
     bdrv_dirty_iter_free(s->dbi);
-    bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
