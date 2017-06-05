@@ -1669,14 +1669,27 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_goto_tb:
-        tcg_debug_assert(s->tb_jmp_insn_offset == 0);
         {
             /* Indirect jump method */
-            intptr_t ptr = (intptr_t)(s->tb_jmp_target_addr + args[0]);
-            tcg_out_movi32(s, COND_AL, TCG_REG_R0, ptr & ~0xfff);
-            tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_R0, ptr & 0xfff);
+            intptr_t ptr, dif, dil;
+            TCGReg base = TCG_REG_PC;
+
+            tcg_debug_assert(s->tb_jmp_insn_offset == 0);
+            ptr = (intptr_t)(s->tb_jmp_target_addr + args[0]);
+            dif = ptr - ((intptr_t)s->code_ptr + 8);
+            dil = sextract32(dif, 0, 12);
+            if (dif != dil) {
+                /* The TB is close, but outside the 12 bits addressable by
+                   the load.  We can extend this to 20 bits with a sub of a
+                   shifted immediate from pc.  In the vastly unlikely event
+                   the code requires more than 1MB, we'll use 2 insns and
+                   be no worse off.  */
+                base = TCG_REG_R0;
+                tcg_out_movi32(s, COND_AL, base, ptr - dil);
+            }
+            tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, base, dil);
+            s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         }
-        s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_goto_ptr:
         tcg_out_bx(s, COND_AL, args[0]);
