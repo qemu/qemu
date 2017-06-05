@@ -378,8 +378,9 @@ static void powernv_populate_ipmi_bt(ISADevice *d, void *fdt, int lpc_off)
     _FDT(node);
     g_free(name);
 
-    fdt_setprop(fdt, node, "reg", io_regs, sizeof(io_regs));
-    fdt_setprop(fdt, node, "compatible", compatible, sizeof(compatible));
+    _FDT((fdt_setprop(fdt, node, "reg", io_regs, sizeof(io_regs))));
+    _FDT((fdt_setprop(fdt, node, "compatible", compatible,
+                      sizeof(compatible))));
 
     /* Mark it as reserved to avoid Linux trying to claim it */
     _FDT((fdt_setprop_string(fdt, node, "status", "reserved")));
