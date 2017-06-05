@@ -33,10 +33,12 @@ Is another process using the image?
 _qemu_io_wrapper -c open  TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image?
+no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r  TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get shared "write" lock
 Is another process using the image?
+no file open, try 'help open'
 
 _qemu_img_wrapper info TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
@@ -99,6 +101,7 @@ _qemu_io_wrapper -U -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open -U TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r -U TEST_DIR/t.qcow2 -c read 0 512
 
@@ -166,6 +169,7 @@ _qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
 _qemu_io_wrapper -c open  TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image?
+no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r  TEST_DIR/t.qcow2 -c read 0 512
 
@@ -214,6 +218,7 @@ _qemu_io_wrapper -U -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open -U TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r -U TEST_DIR/t.qcow2 -c read 0 512
 
@@ -313,6 +318,7 @@ _qemu_io_wrapper -U -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open -U TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r -U TEST_DIR/t.qcow2 -c read 0 512
 
