@@ -86,7 +86,8 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
     cookie->type = type;
 }
 
-void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
+static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
+                                 bool failed)
 {
     BlockAcctTimedStats *s;
     int64_t time_ns = qemu_clock_get_ns(clock_type);
@@ -98,31 +99,14 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
-    stats->nr_bytes[cookie->type] += cookie->bytes;
-    stats->nr_ops[cookie->type]++;
-    stats->total_time_ns[cookie->type] += latency_ns;
-    stats->last_access_time_ns = time_ns;
-
-    QSLIST_FOREACH(s, &stats->intervals, entries) {
-        timed_average_account(&s->latency[cookie->type], latency_ns);
+    if (failed) {
+        stats->failed_ops[cookie->type]++;
+    } else {
+        stats->nr_bytes[cookie->type] += cookie->bytes;
+        stats->nr_ops[cookie->type]++;
     }
-}
 
-void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
-{
-    assert(cookie->type < BLOCK_MAX_IOTYPE);
-
-    stats->failed_ops[cookie->type]++;
-
-    if (stats->account_failed) {
-        BlockAcctTimedStats *s;
-        int64_t time_ns = qemu_clock_get_ns(clock_type);
-        int64_t latency_ns = time_ns - cookie->start_time_ns;
-
-        if (qtest_enabled()) {
-            latency_ns = qtest_latency_ns;
-        }
-
+    if (!failed || stats->account_failed) {
         stats->total_time_ns[cookie->type] += latency_ns;
         stats->last_access_time_ns = time_ns;
 
@@ -132,15 +116,24 @@ void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
     }
 }
 
+void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
+{
+    block_account_one_io(stats, cookie, false);
+}
+
+void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
+{
+    block_account_one_io(stats, cookie, true);
+}
+
 void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type)
 {
     assert(type < BLOCK_MAX_IOTYPE);
 
-    /* block_acct_done() and block_acct_failed() update
-     * total_time_ns[], but this one does not. The reason is that
-     * invalid requests are accounted during their submission,
-     * therefore there's no actual I/O involved. */
-
+    /* block_account_one_io() updates total_time_ns[], but this one does
+     * not.  The reason is that invalid requests are accounted during their
+     * submission, therefore there's no actual I/O involved.
+     */
     stats->invalid_ops[type]++;
 
     if (stats->account_invalid) {
