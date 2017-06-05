@@ -228,6 +228,44 @@ int main(int argc, char **argv)
     add_cpuid_test("x86/cpuid/auto-xlevel2/pc-2.7",
                    "-machine pc-i440fx-2.7 -cpu 486,+xstore",
                    "xlevel2", 0);
+    /*
+     * QEMU 1.4.0 had auto-level enabled for CPUID[7], already,
+     * and the compat code that sets default level shouldn't
+     * disable the auto-level=7 code:
+     */
+    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.4/off",
+                   "-machine pc-i440fx-1.4 -cpu Nehalem",
+                   "level", 2);
+    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.5/on",
+                   "-machine pc-i440fx-1.4 -cpu Nehalem,+smap",
+                   "level", 7);
+    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/off",
+                   "-machine pc-i440fx-2.3 -cpu Penryn",
+                   "level", 4);
+    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/on",
+                   "-machine pc-i440fx-2.3 -cpu Penryn,+erms",
+                   "level", 7);
+    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
+                   "-machine pc-i440fx-2.9 -cpu Conroe",
+                   "level", 10);
+    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/on",
+                   "-machine pc-i440fx-2.9 -cpu Conroe,+erms",
+                   "level", 10);
+
+    /*
+     * xlevel doesn't have any feature that triggers auto-level
+     * code on old machine-types.  Just check that the compat code
+     * is working correctly:
+     */
+    add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.3",
+                   "-machine pc-i440fx-2.3 -cpu SandyBridge",
+                   "xlevel", 0x8000000a);
+    add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-off",
+                   "-machine pc-i440fx-2.4 -cpu SandyBridge,",
+                   "xlevel", 0x80000008);
+    add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-on",
+                   "-machine pc-i440fx-2.4 -cpu SandyBridge,+npt",
+                   "xlevel", 0x80000008);
 
     return g_test_run();
 }
