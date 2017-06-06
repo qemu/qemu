@@ -2598,12 +2598,12 @@ fi
 # sdl-config even without cross prefix, and favour pkg-config over sdl-config.
 
 if test "$sdlabi" = ""; then
-    if $pkg_config --exists "sdl"; then
-        sdlabi=1.2
-    elif $pkg_config --exists "sdl2"; then
+    if $pkg_config --exists "sdl2"; then
         sdlabi=2.0
-    else
+    elif $pkg_config --exists "sdl"; then
         sdlabi=1.2
+    else
+        sdlabi=2.0
     fi
 fi
 
@@ -2630,7 +2630,7 @@ elif has ${sdl_config}; then
   sdlversion=$($sdlconfig --version)
 else
   if test "$sdl" = "yes" ; then
-    feature_not_found "sdl" "Install SDL devel"
+    feature_not_found "sdl" "Install SDL2-devel"
   fi
   sdl=no
 fi
