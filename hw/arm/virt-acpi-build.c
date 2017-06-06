@@ -496,12 +496,10 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     srat->reserved1 = cpu_to_le32(1);
 
     for (i = 0; i < cpu_list->len; ++i) {
-        int node_id = cpu_list->cpus[i].props.has_node_id ?
-            cpu_list->cpus[i].props.node_id : 0;
         core = acpi_data_push(table_data, sizeof(*core));
         core->type = ACPI_SRAT_PROCESSOR_GICC;
         core->length = sizeof(*core);
-        core->proximity = cpu_to_le32(node_id);
+        core->proximity = cpu_to_le32(cpu_list->cpus[i].props.node_id);
         core->acpi_processor_uid = cpu_to_le32(i);
         core->flags = cpu_to_le32(1);
     }

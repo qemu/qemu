@@ -701,26 +701,43 @@ static char *cpu_slot_to_string(const CPUArchId *cpu)
     return g_string_free(s, false);
 }
 
-static void machine_numa_validate(MachineState *machine)
+static void machine_numa_finish_init(MachineState *machine)
 {
     int i;
+    bool default_mapping;
     GString *s = g_string_new(NULL);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(machine);
 
     assert(nb_numa_nodes);
     for (i = 0; i < possible_cpus->len; i++) {
+        if (possible_cpus->cpus[i].props.has_node_id) {
+            break;
+        }
+    }
+    default_mapping = (i == possible_cpus->len);
+
+    for (i = 0; i < possible_cpus->len; i++) {
         const CPUArchId *cpu_slot = &possible_cpus->cpus[i];
 
-        /* at this point numa mappings are initilized by CLI options
-         * or with default mappings so it's sufficient to list
-         * all not yet mapped CPUs here */
-        /* TODO: make it hard error in future */
         if (!cpu_slot->props.has_node_id) {
-            char *cpu_str = cpu_slot_to_string(cpu_slot);
-            g_string_append_printf(s, "%sCPU %d [%s]", s->len ? ", " : "", i,
-                                   cpu_str);
-            g_free(cpu_str);
+            /* fetch default mapping from board and enable it */
+            CpuInstanceProperties props = cpu_slot->props;
+
+            if (!default_mapping) {
+                /* record slots with not set mapping,
+                 * TODO: make it hard error in future */
+                char *cpu_str = cpu_slot_to_string(cpu_slot);
+                g_string_append_printf(s, "%sCPU %d [%s]",
+                                       s->len ? ", " : "", i, cpu_str);
+                g_free(cpu_str);
+
+                /* non mapped cpus used to fallback to node 0 */
+                props.node_id = 0;
+            }
+
+            props.has_node_id = true;
+            machine_set_cpu_numa_node(machine, &props, &error_fatal);
         }
     }
     if (s->len && !qtest_enabled()) {
@@ -738,7 +755,7 @@ void machine_run_board_init(MachineState *machine)
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
 
     if (nb_numa_nodes) {
-        machine_numa_validate(machine);
+        machine_numa_finish_init(machine);
     }
     machine_class->init(machine);
 }
