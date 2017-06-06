@@ -847,6 +847,7 @@ void qemu_spice_init(void)
             exit(1);
         }
         display_opengl = 1;
+        spice_opengl = 1;
     }
 #endif
 }
