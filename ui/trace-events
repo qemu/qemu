@@ -46,3 +46,8 @@ qemu_spice_create_primary_surface(int qid, uint32_t sid, void *surface, int asyn
 qemu_spice_destroy_primary_surface(int qid, uint32_t sid, int async) "%d sid=%u async=%d"
 qemu_spice_wakeup(uint32_t qid) "%d"
 qemu_spice_create_update(uint32_t left, uint32_t right, uint32_t top, uint32_t bottom) "lr %d -> %d,  tb -> %d -> %d"
+
+# ui/keymaps.c
+keymap_parse(const char *file) "file %s"
+keymap_add(const char *type, int sym, int code, const char *line) "%-6s sym=0x%04x code=0x%04x (line: %s)"
+keymap_unmapped(int sym) "sym=0x%04x"

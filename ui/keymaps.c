@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "keymaps.h"
 #include "sysemu/sysemu.h"
+#include "trace.h"
 
 static int get_keysym(const name2keysym_t *table,
                       const char *name)
@@ -71,18 +72,14 @@ static void add_to_key_range(struct key_range **krp, int code) {
 
 static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k) {
     if (keysym < MAX_NORMAL_KEYCODE) {
-        /* fprintf(stderr,"Setting keysym %s (%d) to %d\n",
-                   line, keysym, keycode); */
+        trace_keymap_add("normal", keysym, keycode, line);
         k->keysym2keycode[keysym] = keycode;
     } else {
         if (k->extra_count >= MAX_EXTRA_COUNT) {
             fprintf(stderr, "Warning: Could not assign keysym %s (0x%x)"
                     " because of memory constraints.\n", line, keysym);
         } else {
-#if 0
-            fprintf(stderr, "Setting %d: %d,%d\n",
-                    k->extra_count, keysym, keycode);
-#endif
+            trace_keymap_add("extra", keysym, keycode, line);
             k->keysym2keycode_extra[k->extra_count].
             keysym = keysym;
             k->keysym2keycode_extra[k->extra_count].
@@ -99,9 +96,11 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
     FILE *f;
     char * filename;
     char line[1024];
+    char keyname[64];
     int len;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_KEYMAP, language);
+    trace_keymap_parse(filename);
     f = filename ? fopen(filename, "r") : NULL;
     g_free(filename);
     if (!f) {
@@ -130,18 +129,21 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
         if (!strncmp(line, "include ", 8)) {
             parse_keyboard_layout(table, line + 8, k);
         } else {
-            char *end_of_keysym = line;
-            while (*end_of_keysym != 0 && *end_of_keysym != ' ') {
-                end_of_keysym++;
+            int offset = 0;
+            while (line[offset] != 0 &&
+                   line[offset] != ' ' &&
+                   offset < sizeof(keyname) - 1) {
+                keyname[offset] = line[offset];
+                offset++;
             }
-            if (*end_of_keysym) {
+            keyname[offset] = 0;
+            if (strlen(keyname)) {
                 int keysym;
-                *end_of_keysym = 0;
-                keysym = get_keysym(table, line);
+                keysym = get_keysym(table, keyname);
                 if (keysym == 0) {
                     /* fprintf(stderr, "Warning: unknown keysym %s\n", line);*/
                 } else {
-                    const char *rest = end_of_keysym + 1;
+                    const char *rest = line + offset + 1;
                     int keycode = strtol(rest, NULL, 0);
 
                     if (strstr(rest, "numlock")) {
@@ -165,10 +167,10 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 
                     if (strstr(rest, "addupper")) {
                         char *c;
-                        for (c = line; *c; c++) {
+                        for (c = keyname; *c; c++) {
                             *c = qemu_toupper(*c);
                         }
-                        keysym = get_keysym(table, line);
+                        keysym = get_keysym(table, keyname);
                         if (keysym) {
                             add_keysym(line, keysym,
                                        keycode | SCANCODE_SHIFT, k);
@@ -194,6 +196,7 @@ int keysym2scancode(void *kbd_layout, int keysym)
     kbd_layout_t *k = kbd_layout;
     if (keysym < MAX_NORMAL_KEYCODE) {
         if (k->keysym2keycode[keysym] == 0) {
+            trace_keymap_unmapped(keysym);
             fprintf(stderr, "Warning: no scancode found for keysym %d\n",
                     keysym);
         }
