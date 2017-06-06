@@ -149,7 +149,7 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
 
     vs->qs = qvirtio_scsi_start("-drive file=blkdebug::null-co://,"
                                 "if=none,id=dr1,format=raw,file.align=4k "
-                                "-device scsi-disk,drive=dr1,lun=0,scsi-id=1");
+                                "-device scsi-hd,drive=dr1,lun=0,scsi-id=1");
     dev = qvirtio_pci_device_find(vs->qs->pcibus, VIRTIO_ID_SCSI);
     vs->dev = (QVirtioDevice *)dev;
     g_assert(dev != NULL);
