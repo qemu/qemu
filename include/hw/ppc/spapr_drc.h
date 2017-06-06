@@ -199,7 +199,6 @@ typedef struct sPAPRDRConnector {
     sPAPRConfigureConnectorState *ccs;
 
     bool awaiting_release;
-    bool signalled;
     bool awaiting_allocation;
 
     /* device pointer, via link property */
@@ -225,7 +224,6 @@ typedef struct sPAPRDRConnectorClass {
 
     /* QEMU interfaces for managing hotplug operations */
     bool (*release_pending)(sPAPRDRConnector *drc);
-    void (*set_signalled)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
 
 uint32_t spapr_drc_index(sPAPRDRConnector *drc);

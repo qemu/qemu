@@ -172,12 +172,6 @@ static const char *spapr_drc_name(sPAPRDRConnector *drc)
     return g_strdup_printf("%s%d", drck->drc_name_prefix, drc->id);
 }
 
-/* has the guest been notified of device attachment? */
-static void set_signalled(sPAPRDRConnector *drc)
-{
-    drc->signalled = true;
-}
-
 /*
  * dr-entity-sense sensor value
  * returned via get-sensor-state RTAS calls
@@ -310,17 +304,6 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
     drc->configured = coldplug;
-    /* 'logical' DR resources such as memory/cpus are in some cases treated
-     * as a pool of resources from which the guest is free to choose from
-     * based on only a count. for resources that can be assigned in this
-     * fashion, we must assume the resource is signalled immediately
-     * since a single hotplug request might make an arbitrary number of
-     * such attached resources available to the guest, as opposed to
-     * 'physical' DR resources such as PCI where each device/resource is
-     * signalled individually.
-     */
-    drc->signalled = (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI)
-                     ? true : coldplug;
 
     if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->awaiting_allocation = true;
@@ -335,26 +318,6 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
 void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
 {
     trace_spapr_drc_detach(spapr_drc_index(drc));
-
-    /* if we've signalled device presence to the guest, or if the guest
-     * has gone ahead and configured the device (via manually-executed
-     * device add via drmgr in guest, namely), we need to wait
-     * for the guest to quiesce the device before completing detach.
-     * Otherwise, we can assume the guest hasn't seen it and complete the
-     * detach immediately. Note that there is a small race window
-     * just before, or during, configuration, which is this context
-     * refers mainly to fetching the device tree via RTAS.
-     * During this window the device access will be arbitrated by
-     * associated DRC, which will simply fail the RTAS calls as invalid.
-     * This is recoverable within guest and current implementations of
-     * drmgr should be able to cope.
-     */
-    if (!drc->signalled && !drc->configured) {
-        /* if the guest hasn't seen the device we can't rely on it to
-         * set it back to an isolated state via RTAS, so do it here manually
-         */
-        drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
-    }
 
     if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
         trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
@@ -441,10 +404,6 @@ static void reset(DeviceState *d)
             drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_UNUSABLE);
         }
     }
-
-    if (drck->dr_entity_sense(drc) == SPAPR_DR_ENTITY_SENSE_PRESENT) {
-        drck->set_signalled(drc);
-    }
 }
 
 static bool spapr_drc_needed(void *opaque)
@@ -469,7 +428,7 @@ static bool spapr_drc_needed(void *opaque)
     case SPAPR_DR_CONNECTOR_TYPE_LMB:
         rc = !((drc->isolation_state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) &&
                (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) &&
-               drc->configured && drc->signalled && !drc->awaiting_release);
+               drc->configured && !drc->awaiting_release);
         break;
     case SPAPR_DR_CONNECTOR_TYPE_PHB:
     case SPAPR_DR_CONNECTOR_TYPE_VIO:
@@ -491,7 +450,6 @@ static const VMStateDescription vmstate_spapr_drc = {
         VMSTATE_BOOL(configured, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_release, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_allocation, sPAPRDRConnector),
-        VMSTATE_BOOL(signalled, sPAPRDRConnector),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -589,7 +547,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->set_isolation_state = set_isolation_state;
     drck->set_allocation_state = set_allocation_state;
     drck->release_pending = release_pending;
-    drck->set_signalled = set_signalled;
     /*
      * Reason: it crashes FIXME find and document the real reason
      */
