@@ -2262,6 +2262,11 @@ static const MemoryRegionOps b1_ops = {
     },
 };
 
+static SaveVMHandlers savevm_vmxnet3_msix = {
+    .save_state = vmxnet3_msix_save,
+    .load_state = vmxnet3_msix_load,
+};
+
 static uint64_t vmxnet3_device_serial_num(VMXNET3State *s)
 {
     uint64_t dsn_payload;
@@ -2331,8 +2336,7 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
                               vmxnet3_device_serial_num(s));
     }
 
-    register_savevm(dev, "vmxnet3-msix", -1, 1,
-                    vmxnet3_msix_save, vmxnet3_msix_load, s);
+    register_savevm_live(dev, "vmxnet3-msix", -1, 1, &savevm_vmxnet3_msix, s);
 }
 
 static void vmxnet3_instance_init(Object *obj)

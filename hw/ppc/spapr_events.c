@@ -477,7 +477,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
 
 static void spapr_hotplug_set_signalled(uint32_t drc_index)
 {
-    sPAPRDRConnector *drc = spapr_dr_connector_by_index(drc_index);
+    sPAPRDRConnector *drc = spapr_drc_by_index(drc_index);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     drck->set_signalled(drc);
 }
@@ -570,22 +570,20 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
 
 void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    sPAPRDRConnectorType drc_type = drck->get_type(drc);
+    sPAPRDRConnectorType drc_type = spapr_drc_type(drc);
     union drc_identifier drc_id;
 
-    drc_id.index = drck->get_index(drc);
+    drc_id.index = spapr_drc_index(drc);
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
                             RTAS_LOG_V6_HP_ACTION_ADD, drc_type, &drc_id);
 }
 
 void spapr_hotplug_req_remove_by_index(sPAPRDRConnector *drc)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    sPAPRDRConnectorType drc_type = drck->get_type(drc);
+    sPAPRDRConnectorType drc_type = spapr_drc_type(drc);
     union drc_identifier drc_id;
 
-    drc_id.index = drck->get_index(drc);
+    drc_id.index = spapr_drc_index(drc);
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_INDEX,
                             RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
 }

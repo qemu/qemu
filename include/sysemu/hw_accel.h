@@ -45,4 +45,14 @@ static inline void cpu_synchronize_post_init(CPUState *cpu)
     }
 }
 
+static inline void cpu_synchronize_pre_loadvm(CPUState *cpu)
+{
+    if (kvm_enabled()) {
+        kvm_cpu_synchronize_pre_loadvm(cpu);
+    }
+    if (hax_enabled()) {
+        hax_cpu_synchronize_pre_loadvm(cpu);
+    }
+}
+
 #endif /* QEMU_HW_ACCEL_H */

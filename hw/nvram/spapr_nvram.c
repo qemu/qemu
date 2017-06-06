@@ -144,7 +144,15 @@ static void spapr_nvram_realize(VIOsPAPRDevice *dev, Error **errp)
     int ret;
 
     if (nvram->blk) {
-        nvram->size = blk_getlength(nvram->blk);
+        int64_t len = blk_getlength(nvram->blk);
+
+        if (len < 0) {
+            error_setg_errno(errp, -len,
+                             "could not get length of backing image");
+            return;
+        }
+
+        nvram->size = len;
 
         ret = blk_set_perm(nvram->blk,
                            BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,

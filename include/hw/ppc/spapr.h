@@ -11,7 +11,6 @@
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
 struct sPAPRNVRAM;
-typedef struct sPAPRConfigureConnectorState sPAPRConfigureConnectorState;
 typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 typedef struct sPAPREventSource sPAPREventSource;
 
@@ -101,9 +100,6 @@ struct sPAPRMachineState {
     int htab_save_index;
     bool htab_first_pass;
     int htab_fd;
-
-    /* RTAS state */
-    QTAILQ_HEAD(, sPAPRConfigureConnectorState) ccs_list;
 
     /* Pending DIMM unplug cache. It is populated when a LMB
      * unplug starts. It can be regenerated if a migration
@@ -645,16 +641,6 @@ void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
 /* CPU and LMB DRC release callbacks. */
 void spapr_core_release(DeviceState *dev);
 void spapr_lmb_release(DeviceState *dev);
-
-/* rtas-configure-connector state */
-struct sPAPRConfigureConnectorState {
-    uint32_t drc_index;
-    int fdt_offset;
-    int fdt_depth;
-    QTAILQ_ENTRY(sPAPRConfigureConnectorState) next;
-};
-
-void spapr_ccs_reset_hook(void *opaque);
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);

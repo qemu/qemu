@@ -796,27 +796,24 @@ static uint64_t openpic_gbl_read(void *opaque, hwaddr addr, unsigned len)
 }
 
 static void openpic_tmr_write(void *opaque, hwaddr addr, uint64_t val,
-                                unsigned len)
+                              unsigned len)
 {
     OpenPICState *opp = opaque;
     int idx;
 
-    addr += 0x10f0;
-
     DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
-            __func__, addr, val);
+            __func__, (addr + 0x10f0), val);
     if (addr & 0xF) {
         return;
     }
 
-    if (addr == 0x10f0) {
+    if (addr == 0) {
         /* TFRR */
         opp->tfrr = val;
         return;
     }
-
+    addr -= 0x10;  /* correct for TFRR */
     idx = (addr >> 6) & 0x3;
-    addr = addr & 0x30;
 
     switch (addr & 0x30) {
     case 0x00: /* TCCR */
@@ -844,16 +841,17 @@ static uint64_t openpic_tmr_read(void *opaque, hwaddr addr, unsigned len)
     uint32_t retval = -1;
     int idx;
 
-    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
+    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr + 0x10f0);
     if (addr & 0xF) {
         goto out;
     }
-    idx = (addr >> 6) & 0x3;
-    if (addr == 0x0) {
+    if (addr == 0) {
         /* TFRR */
         retval = opp->tfrr;
         goto out;
     }
+    addr -= 0x10;  /* correct for TFRR */
+    idx = (addr >> 6) & 0x3;
     switch (addr & 0x30) {
     case 0x00: /* TCCR */
         retval = opp->timers[idx].tccr;
@@ -861,10 +859,10 @@ static uint64_t openpic_tmr_read(void *opaque, hwaddr addr, unsigned len)
     case 0x10: /* TBCR */
         retval = opp->timers[idx].tbcr;
         break;
-    case 0x20: /* TIPV */
+    case 0x20: /* TVPR */
         retval = read_IRQreg_ivpr(opp, opp->irq_tim0 + idx);
         break;
-    case 0x30: /* TIDE (TIDR) */
+    case 0x30: /* TDR */
         retval = read_IRQreg_idr(opp, opp->irq_tim0 + idx);
         break;
     }
