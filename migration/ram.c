@@ -74,6 +74,8 @@ static inline bool is_zero_range(uint8_t *p, uint64_t size)
     return buffer_is_zero(p, size);
 }
 
+XBZRLECacheStats xbzrle_counters;
+
 /* struct contains XBZRLE cache and a static page
    used by the compression */
 static struct {
@@ -177,8 +179,6 @@ struct RAMState {
     bool ram_bulk_stage;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
-    /* How many times we have synchronized the bitmap */
-    uint64_t bitmap_sync_count;
     /* these variables are used for bitmap sync */
     /* last time we did a full bitmap_sync */
     int64_t time_last_bitmap_sync;
@@ -190,33 +190,11 @@ struct RAMState {
     uint64_t xbzrle_cache_miss_prev;
     /* number of iterations at the beginning of period */
     uint64_t iterations_prev;
-    /* Accounting fields */
-    /* number of zero pages.  It used to be pages filled by the same char. */
-    uint64_t zero_pages;
-    /* number of normal transferred pages */
-    uint64_t norm_pages;
     /* Iterations since start */
     uint64_t iterations;
-    /* xbzrle transmitted bytes.  Notice that this is with
-     * compression, they can't be calculated from the pages */
-    uint64_t xbzrle_bytes;
-    /* xbzrle transmmited pages */
-    uint64_t xbzrle_pages;
-    /* xbzrle number of cache miss */
-    uint64_t xbzrle_cache_miss;
-    /* xbzrle miss rate */
-    double xbzrle_cache_miss_rate;
-    /* xbzrle number of overflows */
-    uint64_t xbzrle_overflows;
-    /* number of dirty bits in the bitmap */
-    uint64_t migration_dirty_pages;
-    /* total number of bytes transferred */
-    uint64_t bytes_transferred;
-    /* number of dirtied pages in the last second */
-    uint64_t dirty_pages_rate;
-    /* Count of requests incoming from destination */
-    uint64_t postcopy_requests;
     /* protects modification of the bitmap */
+    uint64_t migration_dirty_pages;
+    /* number of dirty bits in the bitmap */
     QemuMutex bitmap_mutex;
     /* The RAMBlock used in the last src_page_requests */
     RAMBlock *last_req_rb;
@@ -228,65 +206,12 @@ typedef struct RAMState RAMState;
 
 static RAMState ram_state;
 
-uint64_t dup_mig_pages_transferred(void)
-{
-    return ram_state.zero_pages;
-}
-
-uint64_t norm_mig_pages_transferred(void)
-{
-    return ram_state.norm_pages;
-}
-
-uint64_t xbzrle_mig_bytes_transferred(void)
-{
-    return ram_state.xbzrle_bytes;
-}
-
-uint64_t xbzrle_mig_pages_transferred(void)
-{
-    return ram_state.xbzrle_pages;
-}
-
-uint64_t xbzrle_mig_pages_cache_miss(void)
-{
-    return ram_state.xbzrle_cache_miss;
-}
-
-double xbzrle_mig_cache_miss_rate(void)
-{
-    return ram_state.xbzrle_cache_miss_rate;
-}
-
-uint64_t xbzrle_mig_pages_overflow(void)
-{
-    return ram_state.xbzrle_overflows;
-}
-
-uint64_t ram_bytes_transferred(void)
-{
-    return ram_state.bytes_transferred;
-}
-
 uint64_t ram_bytes_remaining(void)
 {
     return ram_state.migration_dirty_pages * TARGET_PAGE_SIZE;
 }
 
-uint64_t ram_dirty_sync_count(void)
-{
-    return ram_state.bitmap_sync_count;
-}
-
-uint64_t ram_dirty_pages_rate(void)
-{
-    return ram_state.dirty_pages_rate;
-}
-
-uint64_t ram_postcopy_requests(void)
-{
-    return ram_state.postcopy_requests;
-}
+MigrationStats ram_counters;
 
 /* used by the search for pages to send */
 struct PageSearchStatus {
@@ -513,7 +438,7 @@ static void xbzrle_cache_zero_page(RAMState *rs, ram_addr_t current_addr)
     /* We don't care if this fails to allocate a new cache page
      * as long as it updated an old one */
     cache_insert(XBZRLE.cache, current_addr, XBZRLE.zero_target_page,
-                 rs->bitmap_sync_count);
+                 ram_counters.dirty_sync_count);
 }
 
 #define ENCODING_FLAG_XBZRLE 0x1
@@ -539,11 +464,12 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     int encoded_len = 0, bytes_xbzrle;
     uint8_t *prev_cached_page;
 
-    if (!cache_is_cached(XBZRLE.cache, current_addr, rs->bitmap_sync_count)) {
-        rs->xbzrle_cache_miss++;
+    if (!cache_is_cached(XBZRLE.cache, current_addr,
+                         ram_counters.dirty_sync_count)) {
+        xbzrle_counters.cache_miss++;
         if (!last_stage) {
             if (cache_insert(XBZRLE.cache, current_addr, *current_data,
-                             rs->bitmap_sync_count) == -1) {
+                             ram_counters.dirty_sync_count) == -1) {
                 return -1;
             } else {
                 /* update *current_data when the page has been
@@ -568,7 +494,7 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
         return 0;
     } else if (encoded_len == -1) {
         trace_save_xbzrle_page_overflow();
-        rs->xbzrle_overflows++;
+        xbzrle_counters.overflow++;
         /* update data in the cache */
         if (!last_stage) {
             memcpy(prev_cached_page, *current_data, TARGET_PAGE_SIZE);
@@ -589,9 +515,9 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     qemu_put_be16(rs->f, encoded_len);
     qemu_put_buffer(rs->f, XBZRLE.encoded_buf, encoded_len);
     bytes_xbzrle += encoded_len + 1 + 2;
-    rs->xbzrle_pages++;
-    rs->xbzrle_bytes += bytes_xbzrle;
-    rs->bytes_transferred += bytes_xbzrle;
+    xbzrle_counters.pages++;
+    xbzrle_counters.bytes += bytes_xbzrle;
+    ram_counters.transferred += bytes_xbzrle;
 
     return 1;
 }
@@ -673,7 +599,7 @@ static void migration_bitmap_sync(RAMState *rs)
     int64_t end_time;
     uint64_t bytes_xfer_now;
 
-    rs->bitmap_sync_count++;
+    ram_counters.dirty_sync_count++;
 
     if (!rs->time_last_bitmap_sync) {
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
@@ -697,9 +623,9 @@ static void migration_bitmap_sync(RAMState *rs)
     /* more than 1 second = 1000 millisecons */
     if (end_time > rs->time_last_bitmap_sync + 1000) {
         /* calculate period counters */
-        rs->dirty_pages_rate = rs->num_dirty_pages_period * 1000
+        ram_counters.dirty_pages_rate = rs->num_dirty_pages_period * 1000
             / (end_time - rs->time_last_bitmap_sync);
-        bytes_xfer_now = ram_bytes_transferred();
+        bytes_xfer_now = ram_counters.transferred;
 
         if (migrate_auto_converge()) {
             /* The following detection logic can be refined later. For now:
@@ -719,13 +645,13 @@ static void migration_bitmap_sync(RAMState *rs)
 
         if (migrate_use_xbzrle()) {
             if (rs->iterations_prev != rs->iterations) {
-                rs->xbzrle_cache_miss_rate =
-                   (double)(rs->xbzrle_cache_miss -
+                xbzrle_counters.cache_miss_rate =
+                   (double)(xbzrle_counters.cache_miss -
                             rs->xbzrle_cache_miss_prev) /
                    (rs->iterations - rs->iterations_prev);
             }
             rs->iterations_prev = rs->iterations;
-            rs->xbzrle_cache_miss_prev = rs->xbzrle_cache_miss;
+            rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
         }
 
         /* reset period counters */
@@ -734,7 +660,7 @@ static void migration_bitmap_sync(RAMState *rs)
         rs->bytes_xfer_prev = bytes_xfer_now;
     }
     if (migrate_use_events()) {
-        qapi_event_send_migration_pass(rs->bitmap_sync_count, NULL);
+        qapi_event_send_migration_pass(ram_counters.dirty_sync_count, NULL);
     }
 }
 
@@ -754,11 +680,11 @@ static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
     int pages = -1;
 
     if (is_zero_range(p, TARGET_PAGE_SIZE)) {
-        rs->zero_pages++;
-        rs->bytes_transferred +=
+        ram_counters.duplicate++;
+        ram_counters.transferred +=
             save_page_header(rs, rs->f, block, offset | RAM_SAVE_FLAG_ZERO);
         qemu_put_byte(rs->f, 0);
-        rs->bytes_transferred += 1;
+        ram_counters.transferred += 1;
         pages = 1;
     }
 
@@ -806,7 +732,7 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     ret = ram_control_save_page(rs->f, block->offset,
                            offset, TARGET_PAGE_SIZE, &bytes_xmit);
     if (bytes_xmit) {
-        rs->bytes_transferred += bytes_xmit;
+        ram_counters.transferred += bytes_xmit;
         pages = 1;
     }
 
@@ -817,9 +743,9 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
             if (bytes_xmit > 0) {
-                rs->norm_pages++;
+                ram_counters.normal++;
             } else if (bytes_xmit == 0) {
-                rs->zero_pages++;
+                ram_counters.duplicate++;
             }
         }
     } else {
@@ -845,8 +771,8 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
 
     /* XBZRLE overflow or normal page */
     if (pages == -1) {
-        rs->bytes_transferred += save_page_header(rs, rs->f, block,
-                                                  offset | RAM_SAVE_FLAG_PAGE);
+        ram_counters.transferred +=
+            save_page_header(rs, rs->f, block, offset | RAM_SAVE_FLAG_PAGE);
         if (send_async) {
             qemu_put_buffer_async(rs->f, p, TARGET_PAGE_SIZE,
                                   migrate_release_ram() &
@@ -854,9 +780,9 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
         } else {
             qemu_put_buffer(rs->f, p, TARGET_PAGE_SIZE);
         }
-        rs->bytes_transferred += TARGET_PAGE_SIZE;
+        ram_counters.transferred += TARGET_PAGE_SIZE;
         pages = 1;
-        rs->norm_pages++;
+        ram_counters.normal++;
     }
 
     XBZRLE_cache_unlock();
@@ -908,7 +834,7 @@ static void flush_compressed_data(RAMState *rs)
         qemu_mutex_lock(&comp_param[idx].mutex);
         if (!comp_param[idx].quit) {
             len = qemu_put_qemu_file(rs->f, comp_param[idx].file);
-            rs->bytes_transferred += len;
+            ram_counters.transferred += len;
         }
         qemu_mutex_unlock(&comp_param[idx].mutex);
     }
@@ -938,8 +864,8 @@ static int compress_page_with_multi_thread(RAMState *rs, RAMBlock *block,
                 qemu_cond_signal(&comp_param[idx].cond);
                 qemu_mutex_unlock(&comp_param[idx].mutex);
                 pages = 1;
-                rs->norm_pages++;
-                rs->bytes_transferred += bytes_xmit;
+                ram_counters.normal++;
+                ram_counters.transferred += bytes_xmit;
                 break;
             }
         }
@@ -979,15 +905,15 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
     ret = ram_control_save_page(rs->f, block->offset,
                                 offset, TARGET_PAGE_SIZE, &bytes_xmit);
     if (bytes_xmit) {
-        rs->bytes_transferred += bytes_xmit;
+        ram_counters.transferred += bytes_xmit;
         pages = 1;
     }
     if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
         if (ret != RAM_SAVE_CONTROL_DELAYED) {
             if (bytes_xmit > 0) {
-                rs->norm_pages++;
+                ram_counters.normal++;
             } else if (bytes_xmit == 0) {
-                rs->zero_pages++;
+                ram_counters.duplicate++;
             }
         }
     } else {
@@ -1007,8 +933,8 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
                 blen = qemu_put_compression_data(rs->f, p, TARGET_PAGE_SIZE,
                                                  migrate_compress_level());
                 if (blen > 0) {
-                    rs->bytes_transferred += bytes_xmit + blen;
-                    rs->norm_pages++;
+                    ram_counters.transferred += bytes_xmit + blen;
+                    ram_counters.normal++;
                     pages = 1;
                 } else {
                     qemu_file_set_error(rs->f, blen);
@@ -1216,7 +1142,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     RAMBlock *ramblock;
     RAMState *rs = &ram_state;
 
-    rs->postcopy_requests++;
+    ram_counters.postcopy_requests++;
     rcu_read_lock();
     if (!rbname) {
         /* Reuse last RAMBlock */
@@ -1404,13 +1330,12 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
 void acct_update_position(QEMUFile *f, size_t size, bool zero)
 {
     uint64_t pages = size / TARGET_PAGE_SIZE;
-    RAMState *rs = &ram_state;
 
     if (zero) {
-        rs->zero_pages += pages;
+        ram_counters.duplicate += pages;
     } else {
-        rs->norm_pages += pages;
-        rs->bytes_transferred += size;
+        ram_counters.normal += pages;
+        ram_counters.transferred += size;
         qemu_update_position(f, size);
     }
 }
@@ -2060,7 +1985,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     ram_control_after_iterate(f, RAM_CONTROL_ROUND);
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
-    rs->bytes_transferred += 8;
+    ram_counters.transferred += 8;
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {

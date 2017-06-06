@@ -32,19 +32,11 @@
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
 
+extern MigrationStats ram_counters;
+extern XBZRLECacheStats xbzrle_counters;
+
 int64_t xbzrle_cache_resize(int64_t new_size);
-uint64_t dup_mig_pages_transferred(void);
-uint64_t norm_mig_pages_transferred(void);
-uint64_t xbzrle_mig_bytes_transferred(void);
-uint64_t xbzrle_mig_pages_transferred(void);
-uint64_t xbzrle_mig_pages_cache_miss(void);
-double xbzrle_mig_cache_miss_rate(void);
-uint64_t xbzrle_mig_pages_overflow(void);
-uint64_t ram_bytes_transferred(void);
 uint64_t ram_bytes_remaining(void);
-uint64_t ram_dirty_sync_count(void);
-uint64_t ram_dirty_pages_rate(void);
-uint64_t ram_postcopy_requests(void);
 uint64_t ram_bytes_total(void);
 
 void migrate_compress_threads_create(void);
