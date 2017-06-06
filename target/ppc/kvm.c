@@ -486,6 +486,7 @@ bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
 
     if (mempath) {
         pagesize = qemu_mempath_getpagesize(mempath);
+        g_free(mempath);
     } else {
         pagesize = getpagesize();
     }
