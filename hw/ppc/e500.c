@@ -928,9 +928,9 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     /* Register spinning region */
     sysbus_create_simple("e500-spin", params->spin_base, NULL);
 
-    if (cur_base < (32 * 1024 * 1024)) {
+    if (cur_base < (1 * 1024 * 1024)) {
         /* u-boot occupies memory up to 32MB, so load blobs above */
-        cur_base = (32 * 1024 * 1024);
+        cur_base = (1 * 1024 * 1024);
     }
 
     if (params->has_mpc8xxx_gpio) {
