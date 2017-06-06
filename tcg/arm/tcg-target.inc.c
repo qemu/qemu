@@ -418,23 +418,37 @@ static inline void tcg_out_dat_imm(TCGContext *s,
 
 static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
 {
-    int rot, opc, rn;
+    int rot, opc, rn, diff;
 
-    /* For armv7, make sure not to use movw+movt when mov/mvn would do.
-       Speed things up by only checking when movt would be required.
-       Prior to armv7, have one go at fully rotated immediates before
-       doing the decomposition thing below.  */
-    if (!use_armv7_instructions || (arg & 0xffff0000)) {
-        rot = encode_imm(arg);
+    /* Check a single MOV/MVN before anything else.  */
+    rot = encode_imm(arg);
+    if (rot >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0,
+                        rotl(arg, rot) | (rot << 7));
+        return;
+    }
+    rot = encode_imm(~arg);
+    if (rot >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0,
+                        rotl(~arg, rot) | (rot << 7));
+        return;
+    }
+
+    /* Check for a pc-relative address.  This will usually be the TB,
+       or within the TB, which is immediately before the code block.  */
+    diff = arg - ((intptr_t)s->code_ptr + 8);
+    if (diff >= 0) {
+        rot = encode_imm(diff);
         if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0,
-                            rotl(arg, rot) | (rot << 7));
+            tcg_out_dat_imm(s, cond, ARITH_ADD, rd, TCG_REG_PC,
+                            rotl(diff, rot) | (rot << 7));
             return;
         }
-        rot = encode_imm(~arg);
+    } else {
+        rot = encode_imm(-diff);
         if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0,
-                            rotl(~arg, rot) | (rot << 7));
+            tcg_out_dat_imm(s, cond, ARITH_SUB, rd, TCG_REG_PC,
+                            rotl(-diff, rot) | (rot << 7));
             return;
         }
     }
