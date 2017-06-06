@@ -226,9 +226,6 @@ typedef struct sPAPRDRConnectorClass {
     const char *(*get_name)(sPAPRDRConnector *drc);
 
     /* QEMU interfaces for managing hotplug operations */
-    void (*attach)(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                   int fdt_start_offset, bool coldplug, Error **errp);
-    void (*detach)(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
     bool (*release_pending)(sPAPRDRConnector *drc);
     void (*set_signalled)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
@@ -242,5 +239,9 @@ sPAPRDRConnector *spapr_drc_by_index(uint32_t index);
 sPAPRDRConnector *spapr_drc_by_id(const char *type, uint32_t id);
 int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                           uint32_t drc_type_mask);
+
+void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
+                      int fdt_start_offset, bool coldplug, Error **errp);
+void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
 
 #endif /* HW_SPAPR_DRC_H */

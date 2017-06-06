@@ -49,8 +49,6 @@ uint32_t spapr_drc_index(sPAPRDRConnector *drc)
 static uint32_t set_isolation_state(sPAPRDRConnector *drc,
                                     sPAPRDRIsolationState state)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
     trace_spapr_drc_set_isolation_state(spapr_drc_index(drc), state);
 
     /* if the guest is configuring a device attached to this DRC, we
@@ -105,7 +103,7 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
             uint32_t drc_index = spapr_drc_index(drc);
             if (drc->configured) {
                 trace_spapr_drc_set_isolation_state_finalizing(drc_index);
-                drck->detach(drc, DEVICE(drc->dev), NULL);
+                spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
             } else {
                 trace_spapr_drc_set_isolation_state_deferring(drc_index);
             }
@@ -119,8 +117,6 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
 static uint32_t set_allocation_state(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
     trace_spapr_drc_set_allocation_state(spapr_drc_index(drc), state);
 
     if (state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
@@ -151,7 +147,7 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
             uint32_t drc_index = spapr_drc_index(drc);
             trace_spapr_drc_set_allocation_state_finalizing(drc_index);
-            drck->detach(drc, DEVICE(drc->dev), NULL);
+            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
         } else if (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
             drc->awaiting_allocation = false;
         }
@@ -289,8 +285,8 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
     } while (fdt_depth != 0);
 }
 
-static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                   int fdt_start_offset, bool coldplug, Error **errp)
+void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
+                      int fdt_start_offset, bool coldplug, Error **errp)
 {
     trace_spapr_drc_attach(spapr_drc_index(drc));
 
@@ -341,7 +337,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                              NULL, 0, NULL);
 }
 
-static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
+void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
 {
     trace_spapr_drc_detach(spapr_drc_index(drc));
 
@@ -444,7 +440,7 @@ static void reset(DeviceState *d)
          * force removal if we are
          */
         if (drc->awaiting_release) {
-            drck->detach(drc, DEVICE(drc->dev), NULL);
+            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
         }
 
         /* non-PCI devices may be awaiting a transition to UNUSABLE */
@@ -641,8 +637,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->set_isolation_state = set_isolation_state;
     drck->set_allocation_state = set_allocation_state;
     drck->get_name = get_name;
-    drck->attach = attach;
-    drck->detach = detach;
     drck->release_pending = release_pending;
     drck->set_signalled = set_signalled;
     /*

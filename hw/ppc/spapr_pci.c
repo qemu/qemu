@@ -1349,7 +1349,6 @@ static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
                                      PCIDevice *pdev,
                                      Error **errp)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     DeviceState *dev = DEVICE(pdev);
     void *fdt = NULL;
     int fdt_start_offset = 0, fdt_size;
@@ -1361,8 +1360,8 @@ static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
         goto out;
     }
 
-    drck->attach(drc, DEVICE(pdev),
-                 fdt, fdt_start_offset, !dev->hotplugged, errp);
+    spapr_drc_attach(drc, DEVICE(pdev),
+                     fdt, fdt_start_offset, !dev->hotplugged, errp);
 out:
     if (*errp) {
         g_free(fdt);
@@ -1391,9 +1390,7 @@ static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
                                         PCIDevice *pdev,
                                         Error **errp)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
-    drck->detach(drc, DEVICE(pdev), errp);
+    spapr_drc_detach(drc, DEVICE(pdev), errp);
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
