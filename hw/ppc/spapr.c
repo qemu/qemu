@@ -2676,7 +2676,7 @@ static sPAPRDIMMState *spapr_recover_pending_dimm_state(sPAPRMachineState *ms,
         drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
                               addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
-        if (drc->indicator_state != SPAPR_DR_INDICATOR_STATE_INACTIVE) {
+        if (drc->dev) {
             avail_lmbs++;
         }
         addr += SPAPR_MEMORY_BLOCK_SIZE;
@@ -2700,10 +2700,11 @@ void spapr_lmb_release(DeviceState *dev)
      * during the unplug process. In this case recover it. */
     if (ds == NULL) {
         ds = spapr_recover_pending_dimm_state(spapr, PC_DIMM(dev));
-        if (ds->nr_lmbs) {
-            return;
-        }
-    } else if (--ds->nr_lmbs) {
+        /* The DRC being examined by the caller at least must be counted */
+        g_assert(ds->nr_lmbs);
+    }
+
+    if (--ds->nr_lmbs) {
         return;
     }
 
