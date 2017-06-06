@@ -304,16 +304,6 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     }
     g_assert(fdt || coldplug);
 
-    /* NOTE: setting initial isolation state to UNISOLATED means we can't
-     * detach unless guest has a userspace/kernel that moves this state
-     * back to ISOLATED in response to an unplug event, or this is done
-     * manually by the admin prior. if we force things while the guest
-     * may be accessing the device, we can easily crash the guest, so we
-     * we defer completion of removal in such cases to the reset() hook.
-     */
-    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
-        drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
-    }
     drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
 
     drc->dev = d;
