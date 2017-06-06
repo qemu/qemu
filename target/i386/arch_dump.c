@@ -18,6 +18,11 @@
 #include "elf.h"
 #include "sysemu/memory_mapping.h"
 
+#define ELF_NOTE_SIZE(hdr_size, name_size, desc_size)   \
+    ((DIV_ROUND_UP((hdr_size), 4)                       \
+      + DIV_ROUND_UP((name_size), 4)                    \
+      + DIV_ROUND_UP((desc_size), 4)) * 4)
+
 #ifdef TARGET_X86_64
 typedef struct {
     target_ulong r15, r14, r13, r12, rbp, rbx, r11, r10;
@@ -77,8 +82,7 @@ static int x86_64_write_elf64_note(WriteCoreDumpFunction f,
     regs.gs = env->segs[R_GS].selector;
 
     descsz = sizeof(x86_64_elf_prstatus);
-    note_size = (DIV_ROUND_UP(sizeof(Elf64_Nhdr), 4) + DIV_ROUND_UP(name_size, 4) +
-                DIV_ROUND_UP(descsz, 4)) * 4;
+    note_size = ELF_NOTE_SIZE(sizeof(Elf64_Nhdr), name_size, descsz);
     note = g_malloc0(note_size);
     note->n_namesz = cpu_to_le32(name_size);
     note->n_descsz = cpu_to_le32(descsz);
@@ -156,8 +160,7 @@ static int x86_write_elf64_note(WriteCoreDumpFunction f, CPUX86State *env,
 
     x86_fill_elf_prstatus(&prstatus, env, id);
     descsz = sizeof(x86_elf_prstatus);
-    note_size = (DIV_ROUND_UP(sizeof(Elf64_Nhdr), 4) + DIV_ROUND_UP(name_size, 4) +
-                DIV_ROUND_UP(descsz, 4)) * 4;
+    note_size = ELF_NOTE_SIZE(sizeof(Elf64_Nhdr), name_size, descsz);
     note = g_malloc0(note_size);
     note->n_namesz = cpu_to_le32(name_size);
     note->n_descsz = cpu_to_le32(descsz);
@@ -211,8 +214,7 @@ int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
 
     x86_fill_elf_prstatus(&prstatus, &cpu->env, cpuid);
     descsz = sizeof(x86_elf_prstatus);
-    note_size = (DIV_ROUND_UP(sizeof(Elf32_Nhdr), 4) + DIV_ROUND_UP(name_size, 4) +
-                DIV_ROUND_UP(descsz, 4)) * 4;
+    note_size = ELF_NOTE_SIZE(sizeof(Elf32_Nhdr), name_size, descsz);
     note = g_malloc0(note_size);
     note->n_namesz = cpu_to_le32(name_size);
     note->n_descsz = cpu_to_le32(descsz);
@@ -443,10 +445,8 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 #endif
     qemu_desc_size = sizeof(QEMUCPUState);
 
-    elf_note_size = (DIV_ROUND_UP(note_head_size, 4) + DIV_ROUND_UP(name_size, 4) +
-                     DIV_ROUND_UP(elf_desc_size, 4)) * 4;
-    qemu_note_size = (DIV_ROUND_UP(note_head_size, 4) + DIV_ROUND_UP(name_size, 4) +
-                      DIV_ROUND_UP(qemu_desc_size, 4)) * 4;
+    elf_note_size = ELF_NOTE_SIZE(note_head_size, name_size, elf_desc_size);
+    qemu_note_size = ELF_NOTE_SIZE(note_head_size, name_size, qemu_desc_size);
 
     return (elf_note_size + qemu_note_size) * nr_cpus;
 }
