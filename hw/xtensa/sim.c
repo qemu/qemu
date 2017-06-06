@@ -114,6 +114,9 @@ static void xtensa_sim_init(MachineState *machine)
         xtensa_create_memory_regions(&sysram, "xtensa.sysram");
     }
 
+    if (serial_hds[0]) {
+        xtensa_sim_open_console(serial_hds[0]);
+    }
     if (kernel_filename) {
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
@@ -136,6 +139,7 @@ static void xtensa_sim_machine_init(MachineClass *mc)
     mc->is_default = true;
     mc->init = xtensa_sim_init;
     mc->max_cpus = 4;
+    mc->no_serial = 1;
 }
 
 DEFINE_MACHINE("sim", xtensa_sim_machine_init)
