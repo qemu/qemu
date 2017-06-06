@@ -2276,7 +2276,6 @@ int load_snapshot(const char *name, Error **errp)
 
     aio_context_acquire(aio_context);
     ret = qemu_loadvm_state(f);
-    qemu_fclose(f);
     aio_context_release(aio_context);
 
     migration_incoming_state_destroy();
