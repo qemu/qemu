@@ -903,74 +903,78 @@ out:
  * RTAS calls
  */
 
-static bool sensor_type_is_dr(uint32_t sensor_type)
+static uint32_t rtas_set_isolation_state(uint32_t idx, uint32_t state)
 {
-    switch (sensor_type) {
-    case RTAS_SENSOR_TYPE_ISOLATION_STATE:
-    case RTAS_SENSOR_TYPE_DR:
-    case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
-        return true;
+    sPAPRDRConnector *drc = spapr_drc_by_index(idx);
+    sPAPRDRConnectorClass *drck;
+
+    if (!drc) {
+        return RTAS_OUT_PARAM_ERROR;
     }
 
-    return false;
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    return drck->set_isolation_state(drc, state);
+}
+
+static uint32_t rtas_set_allocation_state(uint32_t idx, uint32_t state)
+{
+    sPAPRDRConnector *drc = spapr_drc_by_index(idx);
+    sPAPRDRConnectorClass *drck;
+
+    if (!drc) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    return drck->set_allocation_state(drc, state);
+}
+
+static uint32_t rtas_set_indicator_state(uint32_t idx, uint32_t state)
+{
+    sPAPRDRConnector *drc = spapr_drc_by_index(idx);
+    sPAPRDRConnectorClass *drck;
+
+    if (!drc) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    return drck->set_indicator_state(drc, state);
 }
 
 static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
-                               uint32_t token, uint32_t nargs,
-                               target_ulong args, uint32_t nret,
-                               target_ulong rets)
+                               uint32_t token,
+                               uint32_t nargs, target_ulong args,
+                               uint32_t nret, target_ulong rets)
 {
-    uint32_t sensor_type;
-    uint32_t sensor_index;
-    uint32_t sensor_state;
+    uint32_t type, idx, state;
     uint32_t ret = RTAS_OUT_SUCCESS;
-    sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
 
     if (nargs != 3 || nret != 1) {
         ret = RTAS_OUT_PARAM_ERROR;
         goto out;
     }
 
-    sensor_type = rtas_ld(args, 0);
-    sensor_index = rtas_ld(args, 1);
-    sensor_state = rtas_ld(args, 2);
+    type = rtas_ld(args, 0);
+    idx = rtas_ld(args, 1);
+    state = rtas_ld(args, 2);
 
-    if (!sensor_type_is_dr(sensor_type)) {
-        goto out_unimplemented;
-    }
-
-    /* if this is a DR sensor we can assume sensor_index == drc_index */
-    drc = spapr_drc_by_index(sensor_index);
-    if (!drc) {
-        trace_spapr_rtas_set_indicator_invalid(sensor_index);
-        ret = RTAS_OUT_PARAM_ERROR;
-        goto out;
-    }
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
-    switch (sensor_type) {
+    switch (type) {
     case RTAS_SENSOR_TYPE_ISOLATION_STATE:
-        ret = drck->set_isolation_state(drc, sensor_state);
+        ret = rtas_set_isolation_state(idx, state);
         break;
     case RTAS_SENSOR_TYPE_DR:
-        ret = drck->set_indicator_state(drc, sensor_state);
+        ret = rtas_set_indicator_state(idx, state);
         break;
     case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
-        ret = drck->set_allocation_state(drc, sensor_state);
+        ret = rtas_set_allocation_state(idx, state);
         break;
     default:
-        goto out_unimplemented;
+        ret = RTAS_OUT_NOT_SUPPORTED;
     }
 
 out:
     rtas_st(rets, 0, ret);
-    return;
-
-out_unimplemented:
-    /* currently only DR-related sensors are implemented */
-    trace_spapr_rtas_set_indicator_not_supported(sensor_index, sensor_type);
-    rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
 }
 
 static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
