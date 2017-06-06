@@ -116,14 +116,6 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
     return RTAS_OUT_SUCCESS;
 }
 
-static uint32_t set_indicator_state(sPAPRDRConnector *drc,
-                                    sPAPRDRIndicatorState state)
-{
-    trace_spapr_drc_set_indicator_state(spapr_drc_index(drc), state);
-    drc->indicator_state = state;
-    return RTAS_OUT_SUCCESS;
-}
-
 static uint32_t set_allocation_state(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state)
 {
@@ -321,7 +313,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
     }
-    drc->indicator_state = SPAPR_DR_INDICATOR_STATE_ACTIVE;
+    drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
 
     drc->dev = d;
     drc->fdt = fdt;
@@ -394,7 +386,7 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
         }
     }
 
-    drc->indicator_state = SPAPR_DR_INDICATOR_STATE_INACTIVE;
+    drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
 
     /* Calling release callbacks based on spapr_drc_type(drc). */
     switch (spapr_drc_type(drc)) {
@@ -507,7 +499,7 @@ static const VMStateDescription vmstate_spapr_drc = {
     .fields  = (VMStateField []) {
         VMSTATE_UINT32(isolation_state, sPAPRDRConnector),
         VMSTATE_UINT32(allocation_state, sPAPRDRConnector),
-        VMSTATE_UINT32(indicator_state, sPAPRDRConnector),
+        VMSTATE_UINT32(dr_indicator, sPAPRDRConnector),
         VMSTATE_BOOL(configured, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_release, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_allocation, sPAPRDRConnector),
@@ -647,7 +639,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     dk->realize = realize;
     dk->unrealize = unrealize;
     drck->set_isolation_state = set_isolation_state;
-    drck->set_indicator_state = set_indicator_state;
     drck->set_allocation_state = set_allocation_state;
     drck->get_name = get_name;
     drck->attach = attach;
@@ -929,17 +920,17 @@ static uint32_t rtas_set_allocation_state(uint32_t idx, uint32_t state)
     return drck->set_allocation_state(drc, state);
 }
 
-static uint32_t rtas_set_indicator_state(uint32_t idx, uint32_t state)
+static uint32_t rtas_set_dr_indicator(uint32_t idx, uint32_t state)
 {
     sPAPRDRConnector *drc = spapr_drc_by_index(idx);
-    sPAPRDRConnectorClass *drck;
 
     if (!drc) {
         return RTAS_OUT_PARAM_ERROR;
     }
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    return drck->set_indicator_state(drc, state);
+    trace_spapr_drc_set_dr_indicator(idx, state);
+    drc->dr_indicator = state;
+    return RTAS_OUT_SUCCESS;
 }
 
 static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
@@ -964,7 +955,7 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         ret = rtas_set_isolation_state(idx, state);
         break;
     case RTAS_SENSOR_TYPE_DR:
-        ret = rtas_set_indicator_state(idx, state);
+        ret = rtas_set_dr_indicator(idx, state);
         break;
     case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
         ret = rtas_set_allocation_state(idx, state);

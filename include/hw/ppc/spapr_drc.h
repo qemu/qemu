@@ -125,7 +125,7 @@ typedef enum {
 } sPAPRDRAllocationState;
 
 /*
- * LED/visual indicator state
+ * DR-indicator (LED/visual indicator)
  *
  * set via set-indicator RTAS calls
  * as documented by PAPR+ 2.7 13.5.3.4, Table 177,
@@ -137,10 +137,10 @@ typedef enum {
  * action: (currently unused)
  */
 typedef enum {
-    SPAPR_DR_INDICATOR_STATE_INACTIVE   = 0,
-    SPAPR_DR_INDICATOR_STATE_ACTIVE     = 1,
-    SPAPR_DR_INDICATOR_STATE_IDENTIFY   = 2,
-    SPAPR_DR_INDICATOR_STATE_ACTION     = 3,
+    SPAPR_DR_INDICATOR_INACTIVE   = 0,
+    SPAPR_DR_INDICATOR_ACTIVE     = 1,
+    SPAPR_DR_INDICATOR_IDENTIFY   = 2,
+    SPAPR_DR_INDICATOR_ACTION     = 3,
 } sPAPRDRIndicatorState;
 
 /*
@@ -186,10 +186,12 @@ typedef struct sPAPRDRConnector {
     Object *owner;
     const char *name;
 
+    /* DR-indicator */
+    uint32_t dr_indicator;
+
     /* sensor/indicator states */
     uint32_t isolation_state;
     uint32_t allocation_state;
-    uint32_t indicator_state;
 
     /* configure-connector state */
     void *fdt;
@@ -219,8 +221,6 @@ typedef struct sPAPRDRConnectorClass {
     /* accessors for guest-visible (generally via RTAS) DR state */
     uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
                                     sPAPRDRIsolationState state);
-    uint32_t (*set_indicator_state)(sPAPRDRConnector *drc,
-                                    sPAPRDRIndicatorState state);
     uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state);
     const char *(*get_name)(sPAPRDRConnector *drc);
