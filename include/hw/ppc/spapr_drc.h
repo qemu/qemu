@@ -184,7 +184,6 @@ typedef struct sPAPRDRConnector {
 
     uint32_t id;
     Object *owner;
-    const char *name;
 
     /* DR-indicator */
     uint32_t dr_indicator;
@@ -215,6 +214,7 @@ typedef struct sPAPRDRConnectorClass {
     /*< public >*/
     sPAPRDRConnectorTypeShift typeshift;
     const char *typename; /* used in device tree, PAPR 13.5.2.6 & C.6.1 */
+    const char *drc_name_prefix; /* used other places in device tree */
 
     sPAPRDREntitySense (*dr_entity_sense)(sPAPRDRConnector *drc);
 
@@ -223,7 +223,6 @@ typedef struct sPAPRDRConnectorClass {
                                     sPAPRDRIsolationState state);
     uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state);
-    const char *(*get_name)(sPAPRDRConnector *drc);
 
     /* QEMU interfaces for managing hotplug operations */
     bool (*release_pending)(sPAPRDRConnector *drc);
