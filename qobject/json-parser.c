@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qapi/qmp/types.h"
@@ -472,6 +473,13 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
     } else if (!strcmp(token->str, "%lld") ||
                !strcmp(token->str, "%I64d")) {
         return QOBJECT(qnum_from_int(va_arg(*ap, long long)));
+    } else if (!strcmp(token->str, "%u")) {
+        return QOBJECT(qnum_from_uint(va_arg(*ap, unsigned int)));
+    } else if (!strcmp(token->str, "%lu")) {
+        return QOBJECT(qnum_from_uint(va_arg(*ap, unsigned long)));
+    } else if (!strcmp(token->str, "%llu") ||
+               !strcmp(token->str, "%I64u")) {
+        return QOBJECT(qnum_from_uint(va_arg(*ap, unsigned long long)));
     } else if (!strcmp(token->str, "%s")) {
         return QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
     } else if (!strcmp(token->str, "%f")) {
@@ -493,20 +501,32 @@ static QObject *parse_literal(JSONParserContext *ctxt)
     case JSON_INTEGER: {
         /*
          * Represent JSON_INTEGER as QNUM_I64 if possible, else as
-         * QNUM_DOUBLE.  Note that strtoll() fails with ERANGE when
-         * it's not possible.
+         * QNUM_U64, else as QNUM_DOUBLE.  Note that qemu_strtoi64()
+         * and qemu_strtou64() fail with ERANGE when it's not
+         * possible.
          *
          * qnum_get_int() will then work for any signed 64-bit
-         * JSON_INTEGER, and qnum_get_double() both for any
-         * JSON_INTEGER and any JSON_FLOAT (with precision loss for
-         * integers beyond 53 bits)
+         * JSON_INTEGER, qnum_get_uint() for any unsigned 64-bit
+         * integer, and qnum_get_double() both for any JSON_INTEGER
+         * and any JSON_FLOAT (with precision loss for integers beyond
+         * 53 bits)
          */
+        int ret;
         int64_t value;
+        uint64_t uvalue;
 
-        errno = 0; /* strtoll doesn't set errno on success */
-        value = strtoll(token->str, NULL, 10);
-        if (errno != ERANGE) {
+        ret = qemu_strtoi64(token->str, NULL, 10, &value);
+        if (!ret) {
             return QOBJECT(qnum_from_int(value));
+        }
+        assert(ret == -ERANGE);
+
+        if (token->str[0] != '-') {
+            ret = qemu_strtou64(token->str, NULL, 10, &uvalue);
+            if (!ret) {
+                return QOBJECT(qnum_from_uint(uvalue));
+            }
+            assert(ret == -ERANGE);
         }
         /* fall through to JSON_FLOAT */
     }

@@ -227,15 +227,18 @@ static const uint8_t json_lexer[][256] =  {
     /* escape */
     [IN_ESCAPE_LL] = {
         ['d'] = JSON_ESCAPE,
+        ['u'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_L] = {
         ['d'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_LL,
+        ['u'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_I64] = {
         ['d'] = JSON_ESCAPE,
+        ['u'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_I6] = {
@@ -251,6 +254,7 @@ static const uint8_t json_lexer[][256] =  {
         ['i'] = JSON_ESCAPE,
         ['p'] = JSON_ESCAPE,
         ['s'] = JSON_ESCAPE,
+        ['u'] = JSON_ESCAPE,
         ['f'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_L,
         ['I'] = IN_ESCAPE_I,

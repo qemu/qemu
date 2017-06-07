@@ -906,6 +906,49 @@ static void simple_number(void)
     }
 }
 
+static void large_number(void)
+{
+    const char *maxu64 = "18446744073709551615"; /* 2^64-1 */
+    const char *gtu64 = "18446744073709551616"; /* 2^64 */
+    const char *lti64 = "-9223372036854775809"; /* -2^63 - 1 */
+    QNum *qnum;
+    QString *str;
+    uint64_t val;
+    int64_t ival;
+
+    qnum = qobject_to_qnum(qobject_from_json(maxu64, &error_abort));
+    g_assert(qnum);
+    g_assert_cmpuint(qnum_get_uint(qnum), ==, 18446744073709551615U);
+    g_assert(!qnum_get_try_int(qnum, &ival));
+
+    str = qobject_to_json(QOBJECT(qnum));
+    g_assert_cmpstr(qstring_get_str(str), ==, maxu64);
+    QDECREF(str);
+    QDECREF(qnum);
+
+    qnum = qobject_to_qnum(qobject_from_json(gtu64, &error_abort));
+    g_assert(qnum);
+    g_assert_cmpfloat(qnum_get_double(qnum), ==, 18446744073709552e3);
+    g_assert(!qnum_get_try_uint(qnum, &val));
+    g_assert(!qnum_get_try_int(qnum, &ival));
+
+    str = qobject_to_json(QOBJECT(qnum));
+    g_assert_cmpstr(qstring_get_str(str), ==, gtu64);
+    QDECREF(str);
+    QDECREF(qnum);
+
+    qnum = qobject_to_qnum(qobject_from_json(lti64, &error_abort));
+    g_assert(qnum);
+    g_assert_cmpfloat(qnum_get_double(qnum), ==, -92233720368547758e2);
+    g_assert(!qnum_get_try_uint(qnum, &val));
+    g_assert(!qnum_get_try_int(qnum, &ival));
+
+    str = qobject_to_json(QOBJECT(qnum));
+    g_assert_cmpstr(qstring_get_str(str), ==, "-9223372036854775808");
+    QDECREF(str);
+    QDECREF(qnum);
+}
+
 static void float_number(void)
 {
     int i;
@@ -1475,6 +1518,7 @@ int main(int argc, char **argv)
     g_test_add_func("/literals/string/vararg", vararg_string);
 
     g_test_add_func("/literals/number/simple", simple_number);
+    g_test_add_func("/literals/number/large", large_number);
     g_test_add_func("/literals/number/float", float_number);
     g_test_add_func("/literals/number/vararg", vararg_number);
 
