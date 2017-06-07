@@ -39,6 +39,21 @@ static void qnum_from_int_test(void)
     QDECREF(qn);
 }
 
+static void qnum_from_uint_test(void)
+{
+    QNum *qn;
+    const uint64_t value = UINT64_MAX;
+
+    qn = qnum_from_uint(value);
+    g_assert(qn != NULL);
+    g_assert_cmpint(qn->kind, ==, QNUM_U64);
+    g_assert(qn->u.u64 == value);
+    g_assert(qn->base.refcnt == 1);
+    g_assert(qobject_type(QOBJECT(qn)) == QTYPE_QNUM);
+
+    QDECREF(qn);
+}
+
 static void qnum_from_double_test(void)
 {
     QNum *qn;
@@ -73,6 +88,37 @@ static void qnum_get_int_test(void)
     qn = qnum_from_int(value);
     g_assert_cmpint(qnum_get_int(qn), ==, value);
 
+    QDECREF(qn);
+}
+
+static void qnum_get_uint_test(void)
+{
+    QNum *qn;
+    const int value = 123456;
+    uint64_t val;
+    int64_t ival;
+
+    qn = qnum_from_uint(value);
+    g_assert(qnum_get_try_uint(qn, &val));
+    g_assert_cmpuint(val, ==, value);
+    QDECREF(qn);
+
+    qn = qnum_from_int(value);
+    g_assert(qnum_get_try_uint(qn, &val));
+    g_assert_cmpuint(val, ==, value);
+    QDECREF(qn);
+
+    /* invalid cases */
+    qn = qnum_from_int(-1);
+    g_assert(!qnum_get_try_uint(qn, &val));
+    QDECREF(qn);
+
+    qn = qnum_from_uint(-1ULL);
+    g_assert(!qnum_get_try_int(qn, &ival));
+    QDECREF(qn);
+
+    qn = qnum_from_double(0.42);
+    g_assert(!qnum_get_try_uint(qn, &val));
     QDECREF(qn);
 }
 
@@ -112,9 +158,11 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/qnum/from_int", qnum_from_int_test);
+    g_test_add_func("/qnum/from_uint", qnum_from_uint_test);
     g_test_add_func("/qnum/from_double", qnum_from_double_test);
     g_test_add_func("/qnum/from_int64", qnum_from_int64_test);
     g_test_add_func("/qnum/get_int", qnum_get_int_test);
+    g_test_add_func("/qnum/get_uint", qnum_get_uint_test);
     g_test_add_func("/qnum/to_qnum", qobject_to_qnum_test);
     g_test_add_func("/qnum/to_string", qnum_to_string_test);
 

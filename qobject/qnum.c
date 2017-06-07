@@ -35,6 +35,22 @@ QNum *qnum_from_int(int64_t value)
 }
 
 /**
+ * qnum_from_uint(): Create a new QNum from an uint64_t
+ *
+ * Return strong reference.
+ */
+QNum *qnum_from_uint(uint64_t value)
+{
+    QNum *qn = g_new(QNum, 1);
+
+    qobject_init(QOBJECT(qn), QTYPE_QNUM);
+    qn->kind = QNUM_U64;
+    qn->u.u64 = value;
+
+    return qn;
+}
+
+/**
  * qnum_from_double(): Create a new QNum from a double
  *
  * Return strong reference.
@@ -61,6 +77,12 @@ bool qnum_get_try_int(const QNum *qn, int64_t *val)
     case QNUM_I64:
         *val = qn->u.i64;
         return true;
+    case QNUM_U64:
+        if (qn->u.u64 > INT64_MAX) {
+            return false;
+        }
+        *val = qn->u.u64;
+        return true;
     case QNUM_DOUBLE:
         return false;
     }
@@ -83,6 +105,44 @@ int64_t qnum_get_int(const QNum *qn)
 }
 
 /**
+ * qnum_get_uint(): Get an unsigned integer from the number
+ *
+ * Return true on success.
+ */
+bool qnum_get_try_uint(const QNum *qn, uint64_t *val)
+{
+    switch (qn->kind) {
+    case QNUM_I64:
+        if (qn->u.i64 < 0) {
+            return false;
+        }
+        *val = qn->u.i64;
+        return true;
+    case QNUM_U64:
+        *val = qn->u.u64;
+        return true;
+    case QNUM_DOUBLE:
+        return false;
+    }
+
+    assert(0);
+    return false;
+}
+
+/**
+ * qnum_get_uint(): Get an unsigned integer from the number
+ *
+ * assert() on failure.
+ */
+uint64_t qnum_get_uint(const QNum *qn)
+{
+    uint64_t val;
+    bool success = qnum_get_try_uint(qn, &val);
+    assert(success);
+    return val;
+}
+
+/**
  * qnum_get_double(): Get a float representation of the number
  *
  * qnum_get_double() loses precision for integers beyond 53 bits.
@@ -92,6 +152,8 @@ double qnum_get_double(QNum *qn)
     switch (qn->kind) {
     case QNUM_I64:
         return qn->u.i64;
+    case QNUM_U64:
+        return qn->u.u64;
     case QNUM_DOUBLE:
         return qn->u.dbl;
     }
@@ -108,6 +170,8 @@ char *qnum_to_string(QNum *qn)
     switch (qn->kind) {
     case QNUM_I64:
         return g_strdup_printf("%" PRId64, qn->u.i64);
+    case QNUM_U64:
+        return g_strdup_printf("%" PRIu64, qn->u.u64);
     case QNUM_DOUBLE:
         /* FIXME: snprintf() is locale dependent; but JSON requires
          * numbers to be formatted as if in the C locale. Dependence
