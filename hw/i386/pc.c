@@ -1098,7 +1098,7 @@ static void pc_new_cpu(const char *typename, int64_t apic_id, Error **errp)
 
     cpu = object_new(typename);
 
-    object_property_set_int(cpu, apic_id, "apic-id", &local_err);
+    object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
     object_property_set_bool(cpu, true, "realized", &local_err);
 
     object_unref(cpu);
