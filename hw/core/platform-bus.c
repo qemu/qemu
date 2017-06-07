@@ -71,7 +71,7 @@ hwaddr platform_bus_get_mmio_addr(PlatformBusDevice *pbus, SysBusDevice *sbdev,
         return -1;
     }
 
-    return object_property_get_int(OBJECT(sbdev_mr), "addr", NULL);
+    return object_property_get_uint(OBJECT(sbdev_mr), "addr", NULL);
 }
 
 static void platform_bus_count_irqs(SysBusDevice *sbdev, void *opaque)
