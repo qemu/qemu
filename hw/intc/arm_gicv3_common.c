@@ -268,7 +268,7 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
          *  VLPIS == 0 (virtual LPIs not supported)
          *  PLPIS == 0 (physical LPIs not supported)
          */
-        cpu_affid = object_property_get_int(OBJECT(cpu), "mp-affinity", NULL);
+        cpu_affid = object_property_get_uint(OBJECT(cpu), "mp-affinity", NULL);
         last = (i == s->num_cpu - 1);
 
         /* The CPU mp-affinity property is in MPIDR register format; squash
