@@ -1558,7 +1558,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
              * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
              * IRQ8 and IRQ2.
              */
-            uint8_t compat = object_property_get_int(OBJECT(hpet),
+            uint8_t compat = object_property_get_uint(OBJECT(hpet),
                     HPET_INTCAP, NULL);
             if (!compat) {
                 qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
