@@ -58,13 +58,15 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
                                  const void *unused)
 {
     int64_t value = -42;
-    QInt *qint;
+    int64_t val;
+    QNum *qnum;
 
     visit_type_int(data->ov, NULL, &value, &error_abort);
 
-    qint = qobject_to_qint(visitor_get(data));
-    g_assert(qint);
-    g_assert_cmpint(qint_get_int(qint), ==, value);
+    qnum = qobject_to_qnum(visitor_get(data));
+    g_assert(qnum);
+    g_assert(qnum_get_try_int(qnum, &val));
+    g_assert_cmpint(val, ==, value);
 }
 
 static void test_visitor_out_bool(TestOutputVisitorData *data,
@@ -84,13 +86,13 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
                                     const void *unused)
 {
     double value = 3.14;
-    QFloat *qfloat;
+    QNum *qnum;
 
     visit_type_number(data->ov, NULL, &value, &error_abort);
 
-    qfloat = qobject_to_qfloat(visitor_get(data));
-    g_assert(qfloat);
-    g_assert(qfloat_get_double(qfloat) == value);
+    qnum = qobject_to_qnum(visitor_get(data));
+    g_assert(qnum);
+    g_assert(qnum_get_double(qnum) == value);
 }
 
 static void test_visitor_out_string(TestOutputVisitorData *data,
@@ -329,16 +331,18 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
                                  const void *unused)
 {
     QObject *qobj;
-    QInt *qint;
+    QNum *qnum;
     QBool *qbool;
     QString *qstring;
     QDict *qdict;
+    int64_t val;
 
-    qobj = QOBJECT(qint_from_int(-42));
+    qobj = QOBJECT(qnum_from_int(-42));
     visit_type_any(data->ov, NULL, &qobj, &error_abort);
-    qint = qobject_to_qint(visitor_get(data));
-    g_assert(qint);
-    g_assert_cmpint(qint_get_int(qint), ==, -42);
+    qnum = qobject_to_qnum(visitor_get(data));
+    g_assert(qnum);
+    g_assert(qnum_get_try_int(qnum, &val));
+    g_assert_cmpint(val, ==, -42);
     qobject_decref(qobj);
 
     visitor_reset(data);
@@ -351,9 +355,10 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qobject_decref(qobj);
     qdict = qobject_to_qdict(visitor_get(data));
     g_assert(qdict);
-    qint = qobject_to_qint(qdict_get(qdict, "integer"));
-    g_assert(qint);
-    g_assert_cmpint(qint_get_int(qint), ==, -42);
+    qnum = qobject_to_qnum(qdict_get(qdict, "integer"));
+    g_assert(qnum);
+    g_assert(qnum_get_try_int(qnum, &val));
+    g_assert_cmpint(val, ==, -42);
     qbool = qobject_to_qbool(qdict_get(qdict, "boolean"));
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
@@ -388,18 +393,20 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
                                        const void *unused)
 {
     UserDefAlternate *tmp;
-    QInt *qint;
+    QNum *qnum;
     QString *qstr;
     QDict *qdict;
+    int64_t val;
 
     tmp = g_new0(UserDefAlternate, 1);
-    tmp->type = QTYPE_QINT;
+    tmp->type = QTYPE_QNUM;
     tmp->u.i = 42;
 
     visit_type_UserDefAlternate(data->ov, NULL, &tmp, &error_abort);
-    qint = qobject_to_qint(visitor_get(data));
-    g_assert(qint);
-    g_assert_cmpint(qint_get_int(qint), ==, 42);
+    qnum = qobject_to_qnum(visitor_get(data));
+    g_assert(qnum);
+    g_assert(qnum_get_try_int(qnum, &val));
+    g_assert_cmpint(val, ==, 42);
 
     qapi_free_UserDefAlternate(tmp);
 
@@ -603,18 +610,22 @@ static void check_native_list(QObject *qobj,
     case USER_DEF_NATIVE_LIST_UNION_KIND_U16:
     case USER_DEF_NATIVE_LIST_UNION_KIND_U32:
     case USER_DEF_NATIVE_LIST_UNION_KIND_U64:
-        /* all integer elements in JSON arrays get stored into QInts when
-         * we convert to QObjects, so we can check them all in the same
-         * fashion, so simply fall through here
+        /*
+         * All integer elements in JSON arrays get stored into QNums
+         * when we convert to QObjects, so we can check them all in
+         * the same fashion, so simply fall through here.
          */
     case USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER:
         for (i = 0; i < 32; i++) {
             QObject *tmp;
-            QInt *qvalue;
+            QNum *qvalue;
+            int64_t val;
+
             tmp = qlist_peek(qlist);
             g_assert(tmp);
-            qvalue = qobject_to_qint(tmp);
-            g_assert_cmpint(qint_get_int(qvalue), ==, i);
+            qvalue = qobject_to_qnum(tmp);
+            g_assert(qnum_get_try_int(qvalue, &val));
+            g_assert_cmpint(val, ==, i);
             qobject_decref(qlist_pop(qlist));
         }
         break;
@@ -645,15 +656,15 @@ static void check_native_list(QObject *qobj,
     case USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER:
         for (i = 0; i < 32; i++) {
             QObject *tmp;
-            QFloat *qvalue;
+            QNum *qvalue;
             GString *double_expected = g_string_new("");
             GString *double_actual = g_string_new("");
 
             tmp = qlist_peek(qlist);
             g_assert(tmp);
-            qvalue = qobject_to_qfloat(tmp);
+            qvalue = qobject_to_qnum(tmp);
             g_string_printf(double_expected, "%.6f", (double)i / 3);
-            g_string_printf(double_actual, "%.6f", qfloat_get_double(qvalue));
+            g_string_printf(double_actual, "%.6f", qnum_get_double(qvalue));
             g_assert_cmpstr(double_actual->str, ==, double_expected->str);
 
             qobject_decref(qlist_pop(qlist));

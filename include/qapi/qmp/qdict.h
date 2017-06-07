@@ -15,6 +15,7 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qnum.h"
 #include "qemu/queue.h"
 
 #define QDICT_BUCKET_MAX 512
@@ -54,7 +55,7 @@ void qdict_destroy_obj(QObject *obj);
 
 /* Helpers for int, bool, and string */
 #define qdict_put_int(qdict, key, value) \
-        qdict_put(qdict, key, qint_from_int(value))
+        qdict_put(qdict, key, qnum_from_int(value))
 #define qdict_put_bool(qdict, key, value) \
         qdict_put(qdict, key, qbool_from_bool(value))
 #define qdict_put_str(qdict, key, value) \

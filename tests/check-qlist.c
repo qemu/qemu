@@ -11,7 +11,8 @@
  */
 #include "qemu/osdep.h"
 
-#include "qapi/qmp/qint.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qlist.h"
 
 /*
@@ -35,11 +36,11 @@ static void qlist_new_test(void)
 
 static void qlist_append_test(void)
 {
-    QInt *qi;
+    QNum *qi;
     QList *qlist;
     QListEntry *entry;
 
-    qi = qint_from_int(42);
+    qi = qnum_from_int(42);
 
     qlist = qlist_new();
     qlist_append(qlist, qi);
@@ -84,13 +85,17 @@ static const int iter_max = 42;
 
 static void iter_func(QObject *obj, void *opaque)
 {
-    QInt *qi;
+    QNum *qi;
+    int64_t val;
 
     g_assert(opaque == NULL);
 
-    qi = qobject_to_qint(obj);
+    qi = qobject_to_qnum(obj);
     g_assert(qi != NULL);
-    g_assert((qint_get_int(qi) >= 0) && (qint_get_int(qi) <= iter_max));
+
+    g_assert(qnum_get_try_int(qi, &val));
+    g_assert_cmpint(val, >=, 0);
+    g_assert_cmpint(val, <=, iter_max);
 
     iter_called++;
 }

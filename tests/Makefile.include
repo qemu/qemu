@@ -10,10 +10,8 @@ check-unit-y = tests/check-qdict$(EXESUF)
 gcov-files-check-qdict-y = qobject/qdict.c
 check-unit-y += tests/test-char$(EXESUF)
 gcov-files-check-qdict-y = chardev/char.c
-check-unit-y += tests/check-qfloat$(EXESUF)
-gcov-files-check-qfloat-y = qobject/qfloat.c
-check-unit-y += tests/check-qint$(EXESUF)
-gcov-files-check-qint-y = qobject/qint.c
+check-unit-y += tests/check-qnum$(EXESUF)
+gcov-files-check-qnum-y = qobject/qnum.c
 check-unit-y += tests/check-qstring$(EXESUF)
 gcov-files-check-qstring-y = qobject/qstring.c
 check-unit-y += tests/check-qlist$(EXESUF)
@@ -506,8 +504,8 @@ GENERATED_FILES += tests/test-qapi-types.h tests/test-qapi-visit.h \
 	tests/test-qmp-commands.h tests/test-qapi-event.h \
 	tests/test-qmp-introspect.h
 
-test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
-	tests/check-qlist.o tests/check-qfloat.o tests/check-qnull.o \
+test-obj-y = tests/check-qnum.o tests/check-qstring.o tests/check-qdict.o \
+	tests/check-qlist.o tests/check-qnull.o \
 	tests/check-qjson.o \
 	tests/test-coroutine.o tests/test-string-output-visitor.o \
 	tests/test-string-input-visitor.o tests/test-qobject-output-visitor.o \
@@ -535,11 +533,10 @@ test-crypto-obj-y = $(crypto-obj-y) $(test-qom-obj-y)
 test-io-obj-y = $(io-obj-y) $(test-crypto-obj-y)
 test-block-obj-y = $(block-obj-y) $(test-io-obj-y) tests/iothread.o
 
-tests/check-qint$(EXESUF): tests/check-qint.o $(test-util-obj-y)
+tests/check-qnum$(EXESUF): tests/check-qnum.o $(test-util-obj-y)
 tests/check-qstring$(EXESUF): tests/check-qstring.o $(test-util-obj-y)
 tests/check-qdict$(EXESUF): tests/check-qdict.o $(test-util-obj-y)
 tests/check-qlist$(EXESUF): tests/check-qlist.o $(test-util-obj-y)
-tests/check-qfloat$(EXESUF): tests/check-qfloat.o $(test-util-obj-y)
 tests/check-qnull$(EXESUF): tests/check-qnull.o $(test-util-obj-y)
 tests/check-qjson$(EXESUF): tests/check-qjson.o $(test-util-obj-y)
 tests/check-qom-interface$(EXESUF): tests/check-qom-interface.o $(test-qom-obj-y)

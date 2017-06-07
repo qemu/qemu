@@ -14,11 +14,10 @@
 static void (*qdestroy[QTYPE__MAX])(QObject *) = {
     [QTYPE_NONE] = NULL,               /* No such object exists */
     [QTYPE_QNULL] = NULL,              /* qnull_ is indestructible */
-    [QTYPE_QINT] = qint_destroy_obj,
+    [QTYPE_QNUM] = qnum_destroy_obj,
     [QTYPE_QSTRING] = qstring_destroy_obj,
     [QTYPE_QDICT] = qdict_destroy_obj,
     [QTYPE_QLIST] = qlist_destroy_obj,
-    [QTYPE_QFLOAT] = qfloat_destroy_obj,
     [QTYPE_QBOOL] = qbool_destroy_obj,
 };
 

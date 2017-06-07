@@ -1,9 +1,8 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qstring.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qbool.h"
 #include "libqtest.h"
 
@@ -57,12 +56,14 @@ static void test_cpuid_prop(const void *data)
 {
     const CpuidTestArgs *args = data;
     char *path;
-    QInt *value;
+    QNum *value;
+    int64_t val;
 
     qtest_start(args->cmdline);
     path = get_cpu0_qom_path();
-    value = qobject_to_qint(qom_get(path, args->property));
-    g_assert_cmpint(qint_get_int(value), ==, args->expected_value);
+    value = qobject_to_qnum(qom_get(path, args->property));
+    g_assert(qnum_get_try_int(value, &val));
+    g_assert_cmpint(val, ==, args->expected_value);
     qtest_end();
 
     QDECREF(value);
@@ -109,12 +110,15 @@ static uint32_t get_feature_word(QList *features, uint32_t eax, uint32_t ecx,
         uint32_t reax = qdict_get_int(w, "cpuid-input-eax");
         bool has_ecx = qdict_haskey(w, "cpuid-input-ecx");
         uint32_t recx = 0;
+        int64_t val;
 
         if (has_ecx) {
             recx = qdict_get_int(w, "cpuid-input-ecx");
         }
         if (eax == reax && (!has_ecx || ecx == recx) && !strcmp(rreg, reg)) {
-            return qint_get_int(qobject_to_qint(qdict_get(w, "features")));
+            g_assert(qnum_get_try_int(qobject_to_qnum(qdict_get(w, "features")),
+                                  &val));
+            return val;
         }
     }
     return 0;

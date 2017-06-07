@@ -37,7 +37,6 @@
 #include "hw/pci/pci_bus.h"
 #include "qapi/error.h"
 #include "qom/qom-qobject.h"
-#include "qapi/qmp/qint.h"
 
 //#define DEBUG
 

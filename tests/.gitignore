@@ -1,7 +1,6 @@
 atomic_add-bench
 check-qdict
-check-qfloat
-check-qint
+check-qnum
 check-qjson
 check-qlist
 check-qnull

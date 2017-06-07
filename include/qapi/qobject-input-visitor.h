@@ -30,9 +30,9 @@ typedef struct QObjectInputVisitor QObjectInputVisitor;
  * visit_type_FOO() creates an instance of QAPI type FOO.  The visited
  * QObject must match FOO.  QDict matches struct/union types, QList
  * matches list types, QString matches type 'str' and enumeration
- * types, QInt matches integer types, QFloat matches type 'number',
- * QBool matches type 'bool'.  Type 'any' is matched by QObject.  A
- * QAPI alternate type is matched when one of its member types is.
+ * types, QNum matches integer and float types, QBool matches type
+ * 'bool'.  Type 'any' is matched by QObject.  A QAPI alternate type
+ * is matched when one of its member types is.
  *
  * visit_start_struct() ... visit_end_struct() visits a QDict and
  * creates a QAPI struct/union.  Visits in between visit the

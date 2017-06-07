@@ -28,10 +28,10 @@ typedef struct QObjectOutputVisitor QObjectOutputVisitor;
  *
  * visit_type_FOO() creates a QObject for QAPI type FOO.  It creates a
  * QDict for struct/union types, a QList for list types, QString for
- * type 'str' and enumeration types, QInt for integer types, QFloat
- * for type 'number', QBool for type 'bool'.  For type 'any', it
- * increments the QObject's reference count.  For QAPI alternate
- * types, it creates the QObject for the member that is in use.
+ * type 'str' and enumeration types, QNum for integer and float
+ * types, QBool for type 'bool'.  For type 'any', it increments the
+ * QObject's reference count.  For QAPI alternate types, it creates
+ * the QObject for the member that is in use.
  *
  * visit_start_struct() ... visit_end_struct() visits a QAPI
  * struct/union and creates a QDict.  Visits in between visit the

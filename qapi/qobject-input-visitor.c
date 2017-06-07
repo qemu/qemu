@@ -378,9 +378,6 @@ static void qobject_input_start_alternate(Visitor *v, const char *name,
     }
     *obj = g_malloc0(size);
     (*obj)->type = qobject_type(qobj);
-    if (promote_int && (*obj)->type == QTYPE_QINT) {
-        (*obj)->type = QTYPE_QFLOAT;
-    }
 }
 
 static void qobject_input_type_int64(Visitor *v, const char *name, int64_t *obj,
@@ -388,21 +385,17 @@ static void qobject_input_type_int64(Visitor *v, const char *name, int64_t *obj,
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, true, errp);
-    QInt *qint;
+    QNum *qnum;
 
     if (!qobj) {
         return;
     }
-    qint = qobject_to_qint(qobj);
-    if (!qint) {
+    qnum = qobject_to_qnum(qobj);
+    if (!qnum || !qnum_get_try_int(qnum, obj)) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "integer");
-        return;
     }
-
-    *obj = qint_get_int(qint);
 }
-
 
 static void qobject_input_type_int64_keyval(Visitor *v, const char *name,
                                             int64_t *obj, Error **errp)
@@ -424,22 +417,21 @@ static void qobject_input_type_int64_keyval(Visitor *v, const char *name,
 static void qobject_input_type_uint64(Visitor *v, const char *name,
                                       uint64_t *obj, Error **errp)
 {
-    /* FIXME: qobject_to_qint mishandles values over INT64_MAX */
+    /* FIXME: qobject_to_qnum mishandles values over INT64_MAX */
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, true, errp);
-    QInt *qint;
+    QNum *qnum;
+    int64_t val;
 
     if (!qobj) {
         return;
     }
-    qint = qobject_to_qint(qobj);
-    if (!qint) {
+    qnum = qobject_to_qnum(qobj);
+    if (!qnum || !qnum_get_try_int(qnum, &val)) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "integer");
-        return;
     }
-
-    *obj = qint_get_int(qint);
+    *obj = val;
 }
 
 static void qobject_input_type_uint64_keyval(Visitor *v, const char *name,
@@ -534,26 +526,19 @@ static void qobject_input_type_number(Visitor *v, const char *name, double *obj,
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, true, errp);
-    QInt *qint;
-    QFloat *qfloat;
+    QNum *qnum;
 
     if (!qobj) {
         return;
     }
-    qint = qobject_to_qint(qobj);
-    if (qint) {
-        *obj = qint_get_int(qobject_to_qint(qobj));
-        return;
-    }
-
-    qfloat = qobject_to_qfloat(qobj);
-    if (!qfloat) {
+    qnum = qobject_to_qnum(qobj);
+    if (!qnum) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "number");
         return;
     }
 
-    *obj = qfloat_get_double(qobject_to_qfloat(qobj));
+    *obj = qnum_get_double(qnum);
 }
 
 static void qobject_input_type_number_keyval(Visitor *v, const char *name,

@@ -31,7 +31,6 @@
 #include "qemu/module.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
 #include "sysemu/qtest.h"
 
