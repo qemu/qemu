@@ -228,6 +228,7 @@ struct Property {
     uint8_t      bitnr;
     union {
         int64_t i;
+        uint64_t u;
     } defval;
     int          arrayoffset;
     PropertyInfo *arrayinfo;

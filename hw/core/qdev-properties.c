@@ -128,7 +128,7 @@ static void prop_set_bit(Object *obj, Visitor *v, const char *name,
 
 static void set_default_value_bool(Object *obj, const Property *prop)
 {
-    object_property_set_bool(obj, prop->defval.i, prop->name, &error_abort);
+    object_property_set_bool(obj, prop->defval.u, prop->name, &error_abort);
 }
 
 PropertyInfo qdev_prop_bit = {
@@ -264,11 +264,16 @@ static void set_default_value_int(Object *obj, const Property *prop)
     object_property_set_int(obj, prop->defval.i, prop->name, &error_abort);
 }
 
+static void set_default_value_uint(Object *obj, const Property *prop)
+{
+    object_property_set_uint(obj, prop->defval.u, prop->name, &error_abort);
+}
+
 PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
     .get   = get_uint8,
     .set   = set_uint8,
-    .set_default_value = set_default_value_int,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- 16bit integer --- */
@@ -302,7 +307,7 @@ PropertyInfo qdev_prop_uint16 = {
     .name  = "uint16",
     .get   = get_uint16,
     .set   = set_uint16,
-    .set_default_value = set_default_value_int,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- 32bit integer --- */
@@ -361,7 +366,7 @@ PropertyInfo qdev_prop_uint32 = {
     .name  = "uint32",
     .get   = get_uint32,
     .set   = set_uint32,
-    .set_default_value = set_default_value_int,
+    .set_default_value = set_default_value_uint,
 };
 
 PropertyInfo qdev_prop_int32 = {
@@ -402,7 +407,7 @@ PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
     .get   = get_uint64,
     .set   = set_uint64,
-    .set_default_value = set_default_value_int,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- string --- */
@@ -725,7 +730,7 @@ PropertyInfo qdev_prop_blocksize = {
     .description = "A power of two between 512 and 32768",
     .get   = get_uint16,
     .set   = set_blocksize,
-    .set_default_value = set_default_value_int,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- pci host address --- */
@@ -948,7 +953,7 @@ PropertyInfo qdev_prop_arraylen = {
     .name = "uint32",
     .get = get_uint32,
     .set = set_prop_arraylen,
-    .set_default_value = set_default_value_int,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- public helpers --- */
@@ -1185,5 +1190,5 @@ PropertyInfo qdev_prop_size = {
     .name  = "size",
     .get = get_size,
     .set = set_size,
-    .set_default_value = set_default_value_int,
+    .set_default_value = set_default_value_uint,
 };
