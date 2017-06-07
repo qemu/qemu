@@ -108,9 +108,16 @@ static void qdict_get_try_int_test(void)
     QDict *tests_dict = qdict_new();
 
     qdict_put_int(tests_dict, key, value);
+    qdict_put_str(tests_dict, "string", "test");
 
     ret = qdict_get_try_int(tests_dict, key, 0);
     g_assert(ret == value);
+
+    ret = qdict_get_try_int(tests_dict, "missing", -42);
+    g_assert_cmpuint(ret, ==, -42);
+
+    ret = qdict_get_try_int(tests_dict, "string", -42);
+    g_assert_cmpuint(ret, ==, -42);
 
     QDECREF(tests_dict);
 }
