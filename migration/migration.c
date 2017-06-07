@@ -588,40 +588,42 @@ static bool migration_is_setup_or_active(int state)
     }
 }
 
-static void get_xbzrle_cache_stats(MigrationInfo *info)
-{
-    if (migrate_use_xbzrle()) {
-        info->has_xbzrle_cache = true;
-        info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
-        info->xbzrle_cache->cache_size = migrate_xbzrle_cache_size();
-        info->xbzrle_cache->bytes = xbzrle_mig_bytes_transferred();
-        info->xbzrle_cache->pages = xbzrle_mig_pages_transferred();
-        info->xbzrle_cache->cache_miss = xbzrle_mig_pages_cache_miss();
-        info->xbzrle_cache->cache_miss_rate = xbzrle_mig_cache_miss_rate();
-        info->xbzrle_cache->overflow = xbzrle_mig_pages_overflow();
-    }
-}
-
 static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_ram = true;
     info->ram = g_malloc0(sizeof(*info->ram));
-    info->ram->transferred = ram_bytes_transferred();
+    info->ram->transferred = ram_counters.transferred;
     info->ram->total = ram_bytes_total();
-    info->ram->duplicate = dup_mig_pages_transferred();
+    info->ram->duplicate = ram_counters.duplicate;
     /* legacy value.  It is not used anymore */
     info->ram->skipped = 0;
-    info->ram->normal = norm_mig_pages_transferred();
-    info->ram->normal_bytes = norm_mig_pages_transferred() *
+    info->ram->normal = ram_counters.normal;
+    info->ram->normal_bytes = ram_counters.normal *
         qemu_target_page_size();
     info->ram->mbps = s->mbps;
-    info->ram->dirty_sync_count = ram_dirty_sync_count();
-    info->ram->postcopy_requests = ram_postcopy_requests();
+    info->ram->dirty_sync_count = ram_counters.dirty_sync_count;
+    info->ram->postcopy_requests = ram_counters.postcopy_requests;
     info->ram->page_size = qemu_target_page_size();
+
+    if (migrate_use_xbzrle()) {
+        info->has_xbzrle_cache = true;
+        info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
+        info->xbzrle_cache->cache_size = migrate_xbzrle_cache_size();
+        info->xbzrle_cache->bytes = xbzrle_counters.bytes;
+        info->xbzrle_cache->pages = xbzrle_counters.pages;
+        info->xbzrle_cache->cache_miss = xbzrle_counters.cache_miss;
+        info->xbzrle_cache->cache_miss_rate = xbzrle_counters.cache_miss_rate;
+        info->xbzrle_cache->overflow = xbzrle_counters.overflow;
+    }
+
+    if (cpu_throttle_active()) {
+        info->has_cpu_throttle_percentage = true;
+        info->cpu_throttle_percentage = cpu_throttle_get_percentage();
+    }
 
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
-        info->ram->dirty_pages_rate = ram_dirty_pages_rate();
+        info->ram->dirty_pages_rate = ram_counters.dirty_pages_rate;
     }
 }
 
@@ -659,12 +661,6 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             info->disk->total = blk_mig_bytes_total();
         }
 
-        if (cpu_throttle_active()) {
-            info->has_cpu_throttle_percentage = true;
-            info->cpu_throttle_percentage = cpu_throttle_get_percentage();
-        }
-
-        get_xbzrle_cache_stats(info);
         break;
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
         /* Mostly the same as active; TODO add some postcopy stats */
@@ -687,15 +683,12 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             info->disk->total = blk_mig_bytes_total();
         }
 
-        get_xbzrle_cache_stats(info);
         break;
     case MIGRATION_STATUS_COLO:
         info->has_status = true;
         /* TODO: display COLO specific information (checkpoint info etc.) */
         break;
     case MIGRATION_STATUS_COMPLETED:
-        get_xbzrle_cache_stats(info);
-
         info->has_status = true;
         info->has_total_time = true;
         info->total_time = s->total_time;
@@ -954,8 +947,6 @@ static void migrate_fd_cleanup(void *opaque)
 
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
-
-    migration_page_queue_free();
 
     if (s->to_dst_file) {
         trace_migrate_fd_cleanup();
@@ -2027,8 +2018,8 @@ static void *migration_thread(void *opaque)
                                       bandwidth, threshold_size);
             /* if we haven't sent anything, we don't want to recalculate
                10000 is a small enough number for our purposes */
-            if (ram_dirty_pages_rate() && transferred_bytes > 10000) {
-                s->expected_downtime = ram_dirty_pages_rate() *
+            if (ram_counters.dirty_pages_rate && transferred_bytes > 10000) {
+                s->expected_downtime = ram_counters.dirty_pages_rate *
                     qemu_target_page_size() / bandwidth;
             }
 
