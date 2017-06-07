@@ -42,7 +42,7 @@ extern PropertyInfo qdev_prop_arraylen;
         .info      = &(_prop),                                          \
         .offset    = offsetof(_state, _field)                           \
             + type_check(_type,typeof_field(_state, _field)),           \
-        .defval    = (_type)_defval,                                    \
+        .defval.i  = (_type)_defval,                                    \
         }
 #define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval) {  \
         .name      = (_name),                                    \
@@ -50,7 +50,7 @@ extern PropertyInfo qdev_prop_arraylen;
         .bitnr    = (_bit),                                      \
         .offset    = offsetof(_state, _field)                    \
             + type_check(uint32_t,typeof_field(_state, _field)), \
-        .defval    = (bool)_defval,                              \
+        .defval.i  = (bool)_defval,                              \
         }
 #define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval) {       \
         .name      = (_name),                                           \
@@ -58,7 +58,7 @@ extern PropertyInfo qdev_prop_arraylen;
         .bitnr    = (_bit),                                             \
         .offset    = offsetof(_state, _field)                           \
             + type_check(uint64_t, typeof_field(_state, _field)),       \
-        .defval    = (bool)_defval,                                     \
+        .defval.i  = (bool)_defval,                                     \
         }
 
 #define DEFINE_PROP_BOOL(_name, _state, _field, _defval) {       \
@@ -66,7 +66,7 @@ extern PropertyInfo qdev_prop_arraylen;
         .info      = &(qdev_prop_bool),                          \
         .offset    = offsetof(_state, _field)                    \
             + type_check(bool, typeof_field(_state, _field)),    \
-        .defval    = (bool)_defval,                              \
+        .defval.i  = (bool)_defval,                              \
         }
 
 #define PROP_ARRAY_LEN_PREFIX "len-"

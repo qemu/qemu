@@ -71,7 +71,7 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
 
 static void set_default_value_enum(Object *obj, const Property *prop)
 {
-    object_property_set_str(obj, prop->info->enum_table[prop->defval],
+    object_property_set_str(obj, prop->info->enum_table[prop->defval.i],
                             prop->name, &error_abort);
 }
 
@@ -128,7 +128,7 @@ static void prop_set_bit(Object *obj, Visitor *v, const char *name,
 
 static void set_default_value_bool(Object *obj, const Property *prop)
 {
-    object_property_set_bool(obj, prop->defval, prop->name, &error_abort);
+    object_property_set_bool(obj, prop->defval.i, prop->name, &error_abort);
 }
 
 PropertyInfo qdev_prop_bit = {
@@ -261,7 +261,7 @@ static void set_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
 
 static void set_default_value_int(Object *obj, const Property *prop)
 {
-    object_property_set_int(obj, prop->defval, prop->name, &error_abort);
+    object_property_set_int(obj, prop->defval.i, prop->name, &error_abort);
 }
 
 PropertyInfo qdev_prop_uint8 = {
