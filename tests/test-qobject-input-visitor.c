@@ -107,6 +107,7 @@ static void test_visitor_in_int(TestInputVisitorData *data,
                                 const void *unused)
 {
     int64_t res = 0;
+    double dbl;
     int value = -42;
     Visitor *v;
 
@@ -114,6 +115,9 @@ static void test_visitor_in_int(TestInputVisitorData *data,
 
     visit_type_int(v, NULL, &res, &error_abort);
     g_assert_cmpint(res, ==, value);
+
+    visit_type_number(v, NULL, &dbl, &error_abort);
+    g_assert_cmpfloat(dbl, ==, -42.0);
 }
 
 static void test_visitor_in_uint(TestInputVisitorData *data,
@@ -121,6 +125,8 @@ static void test_visitor_in_uint(TestInputVisitorData *data,
 {
     Error *err = NULL;
     uint64_t res = 0;
+    int64_t i64;
+    double dbl;
     int value = 42;
     Visitor *v;
 
@@ -129,8 +135,13 @@ static void test_visitor_in_uint(TestInputVisitorData *data,
     visit_type_uint64(v, NULL, &res, &error_abort);
     g_assert_cmpuint(res, ==, (uint64_t)value);
 
-    /* BUG: value between INT64_MIN and -1 accepted modulo 2^64 */
+    visit_type_int(v, NULL, &i64, &error_abort);
+    g_assert_cmpint(i64, ==, value);
 
+    visit_type_number(v, NULL, &dbl, &error_abort);
+    g_assert_cmpfloat(dbl, ==, value);
+
+    /* BUG: value between INT64_MIN and -1 accepted modulo 2^64 */
     v = visitor_input_test_init(data, "%d", -value);
 
     visit_type_uint64(v, NULL, &res, &error_abort);
@@ -142,6 +153,9 @@ static void test_visitor_in_uint(TestInputVisitorData *data,
 
     visit_type_uint64(v, NULL, &res, &err);
     error_free_or_abort(&err);
+
+    visit_type_number(v, NULL, &dbl, &error_abort);
+    g_assert_cmpfloat(dbl, ==, 18446744073709552000.0);
 }
 
 static void test_visitor_in_int_overflow(TestInputVisitorData *data,
@@ -258,6 +272,27 @@ static void test_visitor_in_number(TestInputVisitorData *data,
 
     visit_type_number(v, NULL, &res, &error_abort);
     g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_large_number(TestInputVisitorData *data,
+                                         const void *unused)
+{
+    Error *err = NULL;
+    double res = 0;
+    int64_t i64;
+    uint64_t u64;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "-18446744073709551616"); /* -2^64 */
+
+    visit_type_number(v, NULL, &res, &error_abort);
+    g_assert_cmpfloat(res, ==, -18446744073709552e3);
+
+    visit_type_int(v, NULL, &i64, &err);
+    error_free_or_abort(&err);
+
+    visit_type_uint64(v, NULL, &u64, &err);
+    error_free_or_abort(&err);
 }
 
 static void test_visitor_in_number_keyval(TestInputVisitorData *data,
@@ -1253,6 +1288,8 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_bool_str_fail);
     input_visitor_test_add("/visitor/input/number",
                            NULL, test_visitor_in_number);
+    input_visitor_test_add("/visitor/input/large_number",
+                           NULL, test_visitor_in_large_number);
     input_visitor_test_add("/visitor/input/number_keyval",
                            NULL, test_visitor_in_number_keyval);
     input_visitor_test_add("/visitor/input/number_str_keyval",
