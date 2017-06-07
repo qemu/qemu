@@ -129,9 +129,8 @@ static void q35_host_get_mmcfg_size(Object *obj, Visitor *v, const char *name,
                                     void *opaque, Error **errp)
 {
     PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
-    uint32_t value = e->size;
 
-    visit_type_uint32(v, name, &value, errp);
+    visit_type_uint64(v, name, &e->size, errp);
 }
 
 static Property mch_props[] = {
