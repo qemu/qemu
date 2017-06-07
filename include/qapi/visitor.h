@@ -410,15 +410,13 @@ void visit_end_list(Visitor *v, void **list);
  * the qtype of the next thing to be visited, stored in (*@obj)->type.
  * Other visitors will leave @obj unchanged.
  *
- * If @promote_int, treat integers as QTYPE_FLOAT.
- *
  * If successful, this must be paired with visit_end_alternate() with
  * the same @obj to clean up, even if visiting the contents of the
  * alternate fails.
  */
 void visit_start_alternate(Visitor *v, const char *name,
                            GenericAlternate **obj, size_t size,
-                           bool promote_int, Error **errp);
+                           Error **errp);
 
 /*
  * Finish visiting an alternate type.

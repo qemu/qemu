@@ -367,7 +367,7 @@ static void qobject_input_end_list(Visitor *v, void **obj)
 
 static void qobject_input_start_alternate(Visitor *v, const char *name,
                                           GenericAlternate **obj, size_t size,
-                                          bool promote_int, Error **errp)
+                                          Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, false, errp);

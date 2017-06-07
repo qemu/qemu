@@ -1105,7 +1105,7 @@ static void test_visitor_in_fail_struct_missing(TestInputVisitorData *data,
     error_free_or_abort(&err);
     visit_start_list(v, "list", NULL, 0, &err);
     error_free_or_abort(&err);
-    visit_start_alternate(v, "alternate", &alt, sizeof(*alt), false, &err);
+    visit_start_alternate(v, "alternate", &alt, sizeof(*alt), &err);
     error_free_or_abort(&err);
     visit_optional(v, "optional", &present);
     g_assert(!present);
