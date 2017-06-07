@@ -51,7 +51,7 @@ static void powernv_cpu_init(PowerPCCPU *cpu, Error **errp)
     int thread_index = 0; /* TODO: TCG supports only one thread */
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
 
-    core_pir = object_property_get_int(OBJECT(cpu), "core-pir", &error_abort);
+    core_pir = object_property_get_uint(OBJECT(cpu), "core-pir", &error_abort);
 
     /*
      * The PIR of a thread is the core PIR + the thread index. We will
