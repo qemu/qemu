@@ -170,20 +170,21 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     qobject_decref(o);
 
     /* Fill in mandatory properties */
-    pm->sci_int = object_property_get_int(obj, ACPI_PM_PROP_SCI_INT, NULL);
+    pm->sci_int = object_property_get_uint(obj, ACPI_PM_PROP_SCI_INT, NULL);
 
-    pm->acpi_enable_cmd = object_property_get_int(obj,
-                                                  ACPI_PM_PROP_ACPI_ENABLE_CMD,
-                                                  NULL);
-    pm->acpi_disable_cmd = object_property_get_int(obj,
-                                                  ACPI_PM_PROP_ACPI_DISABLE_CMD,
-                                                  NULL);
-    pm->io_base = object_property_get_int(obj, ACPI_PM_PROP_PM_IO_BASE,
-                                          NULL);
-    pm->gpe0_blk = object_property_get_int(obj, ACPI_PM_PROP_GPE0_BLK,
+    pm->acpi_enable_cmd = object_property_get_uint(obj,
+                                                   ACPI_PM_PROP_ACPI_ENABLE_CMD,
+                                                   NULL);
+    pm->acpi_disable_cmd =
+        object_property_get_uint(obj,
+                                 ACPI_PM_PROP_ACPI_DISABLE_CMD,
+                                 NULL);
+    pm->io_base = object_property_get_uint(obj, ACPI_PM_PROP_PM_IO_BASE,
                                            NULL);
-    pm->gpe0_blk_len = object_property_get_int(obj, ACPI_PM_PROP_GPE0_BLK_LEN,
-                                               NULL);
+    pm->gpe0_blk = object_property_get_uint(obj, ACPI_PM_PROP_GPE0_BLK,
+                                            NULL);
+    pm->gpe0_blk_len = object_property_get_uint(obj, ACPI_PM_PROP_GPE0_BLK_LEN,
+                                                NULL);
     pm->pcihp_bridge_en =
         object_property_get_bool(obj, "acpi-pci-hotplug-with-bridge-support",
                                  NULL);
