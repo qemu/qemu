@@ -32,8 +32,7 @@ static void qdict_new_test(void)
     g_assert(qdict->base.refcnt == 1);
     g_assert(qobject_type(QOBJECT(qdict)) == QTYPE_QDICT);
 
-    // destroy doesn't exit yet
-    g_free(qdict);
+    QDECREF(qdict);
 }
 
 static void qdict_put_obj_test(void)
@@ -53,11 +52,7 @@ static void qdict_put_obj_test(void)
     qn = qobject_to_qnum(ent->value);
     g_assert_cmpint(qnum_get_int(qn), ==, num);
 
-    // destroy doesn't exit yet
-    QDECREF(qn);
-    g_free(ent->key);
-    g_free(ent);
-    g_free(qdict);
+    QDECREF(qdict);
 }
 
 static void qdict_destroy_simple_test(void)

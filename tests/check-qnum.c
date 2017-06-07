@@ -36,8 +36,7 @@ static void qnum_from_int_test(void)
     g_assert_cmpint(qn->base.refcnt, ==, 1);
     g_assert_cmpint(qobject_type(QOBJECT(qn)), ==, QTYPE_QNUM);
 
-    // destroy doesn't exit yet
-    g_free(qn);
+    QDECREF(qn);
 }
 
 static void qnum_from_double_test(void)
@@ -52,8 +51,7 @@ static void qnum_from_double_test(void)
     g_assert_cmpint(qn->base.refcnt, ==, 1);
     g_assert_cmpint(qobject_type(QOBJECT(qn)), ==, QTYPE_QNUM);
 
-    // destroy doesn't exit yet
-    g_free(qn);
+    QDECREF(qn);
 }
 
 static void qnum_from_int64_test(void)
@@ -109,24 +107,12 @@ static void qnum_to_string_test(void)
     QDECREF(qn);
 }
 
-static void qnum_destroy_test(void)
-{
-    QNum *qn;
-
-    qn = qnum_from_int(0);
-    QDECREF(qn);
-
-    qn = qnum_from_double(0.42);
-    QDECREF(qn);
-}
-
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/qnum/from_int", qnum_from_int_test);
     g_test_add_func("/qnum/from_double", qnum_from_double_test);
-    g_test_add_func("/qnum/destroy", qnum_destroy_test);
     g_test_add_func("/qnum/from_int64", qnum_from_int64_test);
     g_test_add_func("/qnum/get_int", qnum_get_int_test);
     g_test_add_func("/qnum/to_qnum", qobject_to_qnum_test);

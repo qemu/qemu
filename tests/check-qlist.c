@@ -30,8 +30,7 @@ static void qlist_new_test(void)
     g_assert(qlist->base.refcnt == 1);
     g_assert(qobject_type(QOBJECT(qlist)) == QTYPE_QLIST);
 
-    // destroy doesn't exist yet
-    g_free(qlist);
+    QDECREF(qlist);
 }
 
 static void qlist_append_test(void)
@@ -49,10 +48,7 @@ static void qlist_append_test(void)
     g_assert(entry != NULL);
     g_assert(entry->value == QOBJECT(qi));
 
-    // destroy doesn't exist yet
-    QDECREF(qi);
-    g_free(entry);
-    g_free(qlist);
+    QDECREF(qlist);
 }
 
 static void qobject_to_qlist_test(void)
@@ -62,20 +58,6 @@ static void qobject_to_qlist_test(void)
     qlist = qlist_new();
 
     g_assert(qobject_to_qlist(QOBJECT(qlist)) == qlist);
-
-    // destroy doesn't exist yet
-    g_free(qlist);
-}
-
-static void qlist_destroy_test(void)
-{
-    int i;
-    QList *qlist;
-
-    qlist = qlist_new();
-
-    for (i = 0; i < 42; i++)
-        qlist_append_int(qlist, i);
 
     QDECREF(qlist);
 }
@@ -125,7 +107,6 @@ int main(int argc, char **argv)
     g_test_add_func("/public/new", qlist_new_test);
     g_test_add_func("/public/append", qlist_append_test);
     g_test_add_func("/public/to_qlist", qobject_to_qlist_test);
-    g_test_add_func("/public/destroy", qlist_destroy_test);
     g_test_add_func("/public/iter", qlist_iter_test);
 
     return g_test_run();
