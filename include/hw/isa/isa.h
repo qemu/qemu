@@ -29,7 +29,7 @@ static inline uint16_t applesmc_port(void)
     Object *obj = object_resolve_path_type("", TYPE_APPLE_SMC, NULL);
 
     if (obj) {
-        return object_property_get_int(obj, APPLESMC_PROP_IO_BASE, NULL);
+        return object_property_get_uint(obj, APPLESMC_PROP_IO_BASE, NULL);
     }
     return 0;
 }
