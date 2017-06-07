@@ -1122,7 +1122,7 @@ char *object_property_get_str(Object *obj, const char *name,
         retval = g_strdup(qstring_get_str(qstring));
     }
 
-    QDECREF(qstring);
+    qobject_decref(ret);
     return retval;
 }
 
@@ -1183,7 +1183,7 @@ bool object_property_get_bool(Object *obj, const char *name,
         retval = qbool_get_bool(qbool);
     }
 
-    QDECREF(qbool);
+    qobject_decref(ret);
     return retval;
 }
 
@@ -1214,7 +1214,7 @@ int64_t object_property_get_int(Object *obj, const char *name,
         retval = qint_get_int(qint);
     }
 
-    QDECREF(qint);
+    qobject_decref(ret);
     return retval;
 }
 
