@@ -42,7 +42,6 @@ extern PropertyInfo qdev_prop_arraylen;
         .info      = &(_prop),                                          \
         .offset    = offsetof(_state, _field)                           \
             + type_check(_type,typeof_field(_state, _field)),           \
-        .qtype     = QTYPE_QINT,                                        \
         .defval    = (_type)_defval,                                    \
         }
 #define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval) {  \
@@ -51,7 +50,6 @@ extern PropertyInfo qdev_prop_arraylen;
         .bitnr    = (_bit),                                      \
         .offset    = offsetof(_state, _field)                    \
             + type_check(uint32_t,typeof_field(_state, _field)), \
-        .qtype     = QTYPE_QBOOL,                                \
         .defval    = (bool)_defval,                              \
         }
 #define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval) {       \
@@ -60,7 +58,6 @@ extern PropertyInfo qdev_prop_arraylen;
         .bitnr    = (_bit),                                             \
         .offset    = offsetof(_state, _field)                           \
             + type_check(uint64_t, typeof_field(_state, _field)),       \
-        .qtype     = QTYPE_QBOOL,                                       \
         .defval    = (bool)_defval,                                     \
         }
 
@@ -69,7 +66,6 @@ extern PropertyInfo qdev_prop_arraylen;
         .info      = &(qdev_prop_bool),                          \
         .offset    = offsetof(_state, _field)                    \
             + type_check(bool, typeof_field(_state, _field)),    \
-        .qtype     = QTYPE_QBOOL,                                \
         .defval    = (bool)_defval,                              \
         }
 
@@ -105,7 +101,6 @@ extern PropertyInfo qdev_prop_arraylen;
         .info = &(qdev_prop_arraylen),                                  \
         .offset = offsetof(_state, _field)                              \
             + type_check(uint32_t, typeof_field(_state, _field)),       \
-        .qtype = QTYPE_QINT,                                            \
         .arrayinfo = &(_arrayprop),                                     \
         .arrayfieldsize = sizeof(_arraytype),                           \
         .arrayoffset = offsetof(_state, _arrayfield),                   \
