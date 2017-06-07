@@ -219,8 +219,6 @@ typedef struct sPAPRDRConnectorClass {
     /* accessors for guest-visible (generally via RTAS) DR state */
     uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
                                     sPAPRDRIsolationState state);
-    uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
-                                     sPAPRDRAllocationState state);
 
     /* QEMU interfaces for managing hotplug operations */
     bool (*release_pending)(sPAPRDRConnector *drc);
