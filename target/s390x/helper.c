@@ -204,7 +204,7 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
     if (raddr > ram_size) {
         DPRINTF("%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
                 (uint64_t)raddr, (uint64_t)ram_size);
-        trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_LATER);
+        trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_LATER_INC);
         return 1;
     }
 
@@ -642,6 +642,11 @@ bool s390_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         S390CPU *cpu = S390_CPU(cs);
         CPUS390XState *env = &cpu->env;
 
+        if (env->ex_value) {
+            /* Execution of the target insn is indivisible from
+               the parent EXECUTE insn.  */
+            return false;
+        }
         if (env->psw.mask & PSW_MASK_EXT) {
             s390_cpu_do_interrupt(cs);
             return true;

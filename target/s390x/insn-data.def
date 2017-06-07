@@ -154,6 +154,12 @@
     C(0xb349, CXBR,    RRE,   Z,   x1_o, x2_o, 0, 0, cxb, 0)
     C(0xed09, CEB,     RXE,   Z,   e1, m2_32u, 0, 0, ceb, 0)
     C(0xed19, CDB,     RXE,   Z,   f1_o, m2_64, 0, 0, cdb, 0)
+/* COMPARE AND SIGNAL */
+    C(0xb308, KEBR,    RRE,   Z,   e1, e2, 0, 0, keb, 0)
+    C(0xb318, KDBR,    RRE,   Z,   f1_o, f2_o, 0, 0, kdb, 0)
+    C(0xb348, KXBR,    RRE,   Z,   x1_o, x2_o, 0, 0, kxb, 0)
+    C(0xed08, KEB,     RXE,   Z,   e1, m2_32u, 0, 0, keb, 0)
+    C(0xed18, KDB,     RXE,   Z,   f1_o, m2_64, 0, 0, kdb, 0)
 /* COMPARE IMMEDIATE */
     C(0xc20d, CFI,     RIL_a, EI,  r1, i2, 0, 0, 0, cmps32)
     C(0xc20c, CGFI,    RIL_a, EI,  r1, i2, 0, 0, 0, cmps64)
@@ -210,8 +216,12 @@
     C(0xc60e, CLGFRL,  RIL_b, GIE, r1_o, mri2_32u, 0, 0, 0, cmpu64)
     C(0xc607, CLHRL,   RIL_b, GIE, r1_o, mri2_16u, 0, 0, 0, cmpu32)
     C(0xc606, CLGHRL,  RIL_b, GIE, r1_o, mri2_16u, 0, 0, 0, cmpu64)
+/* COMPARE LOGICAL LONG */
+    C(0x0f00, CLCL,    RR_a,  Z,   0, 0, 0, 0, clcl, 0)
 /* COMPARE LOGICAL LONG EXTENDED */
     C(0xa900, CLCLE,   RS_a,  Z,   0, a2, 0, 0, clcle, 0)
+/* COMPARE LOGICAL LONG UNICODE */
+    C(0xeb8f, CLCLU,   RSY_a, E2,  0, a2, 0, 0, clclu, 0)
 /* COMPARE LOGICAL CHARACTERS UNDER MASK */
     C(0xbd00, CLM,     RS_b,  Z,   r1_o, a2, 0, 0, clm, 0)
     C(0xeb21, CLMY,    RSY_b, LD,  r1_o, a2, 0, 0, clm, 0)
@@ -327,9 +337,9 @@
     C(0xeb57, XIY,     SIY,   LD,  m1_8u, i2_8u, new, m1_8, xor, nz64)
 
 /* EXECUTE */
-    C(0x4400, EX,      RX_a,  Z,   r1_o, a2, 0, 0, ex, 0)
+    C(0x4400, EX,      RX_a,  Z,   0, a2, 0, 0, ex, 0)
 /* EXECUTE RELATIVE LONG */
-    C(0xc600, EXRL,    RIL_b, EE,  r1_o, ri2, 0, 0, ex, 0)
+    C(0xc600, EXRL,    RIL_b, EE,  0, ri2, 0, 0, ex, 0)
 
 /* EXTRACT ACCESS */
     C(0xb24f, EAR,     RRE,   Z,   0, 0, new, r1_32, ear, 0)
@@ -507,6 +517,8 @@
 /* LOAD PAIR DISJOINT */
     D(0xc804, LPD,     SSF,   ILA, 0, 0, new_P, r3_P32, lpd, 0, MO_TEUL)
     D(0xc805, LPDG,    SSF,   ILA, 0, 0, new_P, r3_P64, lpd, 0, MO_TEQ)
+/* LOAD PAIR FROM QUADWORD */
+    C(0xe38f, LPQ,     RXY_a, Z,   0, a2, r1_P, 0, lpq, 0)
 /* LOAD POSITIVE */
     C(0x1000, LPR,     RR_a,  Z,   0, r2_32s, new, r1_32, abs, abs32)
     C(0xb900, LPGR,    RRE,   Z,   0, r2, r1, 0, abs, abs64)
@@ -564,14 +576,26 @@
     C(0xe548, MVGHI,   SIL,   GIE, la1, i2, 0, m1_64, mov2, 0)
     C(0x9200, MVI,     SI,    Z,   la1, i2, 0, m1_8, mov2, 0)
     C(0xeb52, MVIY,    SIY,   LD,  la1, i2, 0, m1_8, mov2, 0)
+/* MOVE INVERSE */
+    C(0xe800, MVCIN,   SS_a,  Z,   la1, a2, 0, 0, mvcin, 0)
 /* MOVE LONG */
     C(0x0e00, MVCL,    RR_a,  Z,   0, 0, 0, 0, mvcl, 0)
 /* MOVE LONG EXTENDED */
     C(0xa800, MVCLE,   RS_a,  Z,   0, a2, 0, 0, mvcle, 0)
+/* MOVE LONG UNICODE */
+    C(0xeb8e, MVCLU,   RSY_a, E2,  0, a2, 0, 0, mvclu, 0)
+/* MOVE NUMERICS */
+    C(0xd100, MVN,     SS_a,  Z,   la1, a2, 0, 0, mvn, 0)
 /* MOVE PAGE */
     C(0xb254, MVPG,    RRE,   Z,   r1_o, r2_o, 0, 0, mvpg, 0)
 /* MOVE STRING */
     C(0xb255, MVST,    RRE,   Z,   r1_o, r2_o, 0, 0, mvst, 0)
+/* MOVE WITH OFFSET */
+    /* Really format SS_b, but we pack both lengths into one argument
+       for the helper call, so we might as well leave one 8-bit field.  */
+    C(0xf100, MVO,     SS_a,  Z,   la1, a2, 0, 0, mvo, 0)
+/* MOVE ZONES */
+    C(0xd300, MVZ,     SS_a,  Z,   la1, a2, 0, 0, mvz, 0)
 
 /* MULTIPLY */
     C(0x1c00, MR,      RR_a,  Z,   r1p1_32s, r2_32s, new, r1_D32, mul, 0)
@@ -638,6 +662,15 @@
     D(0xa50b, OILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1000)
     C(0x9600, OI,      SI,    Z,   m1_8u, i2_8u, new, m1_8, or, nz64)
     C(0xeb56, OIY,     SIY,   LD,  m1_8u, i2_8u, new, m1_8, or, nz64)
+
+/* PACK */
+    /* Really format SS_b, but we pack both lengths into one argument
+       for the helper call, so we might as well leave one 8-bit field.  */
+    C(0xf200, PACK,    SS_a,  Z,   la1, a2, 0, 0, pack, 0)
+/* PACK ASCII */
+    C(0xe900, PKA,     SS_f,  E2,  la1, a2, 0, 0, pka, 0)
+/* PACK UNICODE */
+    C(0xe100, PKU,     SS_f,  E2,  la1, a2, 0, 0, pku, 0)
 
 /* PREFETCH */
     /* Implemented as nops of course.  */
@@ -763,6 +796,8 @@
 /* STORE ACCESS MULTIPLE */
     C(0x9b00, STAM,    RS_a,  Z,   0, a2, 0, 0, stam, 0)
     C(0xeb9b, STAMY,   RSY_a, LD,  0, a2, 0, 0, stam, 0)
+/* STORE PAIR TO QUADWORD */
+    C(0xe38e, STPQ,    RXY_a, Z,   0, a2, r1_P, 0, stpq, 0)
 
 /* SUBTRACT */
     C(0x1b00, SR,      RR_a,  Z,   r1, r2, new, r1_32, sub, subs32)
@@ -810,10 +845,19 @@
 /* SUPERVISOR CALL */
     C(0x0a00, SVC,     I,     Z,   0, 0, 0, 0, svc, 0)
 
+/* TEST ADDRESSING MODE */
+    C(0x010b, TAM,     E,     Z,   0, 0, 0, 0, tam, 0)
+
+/* TEST AND SET */
+    C(0x9300, TS,      S,     Z,   0, a2, 0, 0, ts, 0)
+
 /* TEST DATA CLASS */
     C(0xed10, TCEB,    RXE,   Z,   e1, a2, 0, 0, tceb, 0)
     C(0xed11, TCDB,    RXE,   Z,   f1_o, a2, 0, 0, tcdb, 0)
     C(0xed12, TCXB,    RXE,   Z,   x1_o, a2, 0, 0, tcxb, 0)
+
+/* TEST DECIMAL */
+    C(0xebc0, TP,      RSL,   E2,  la1, 0, 0, 0, tp, 0)
 
 /* TEST UNDER MASK */
     C(0x9100, TM,      SI,    Z,   m1_8u, i2_8u, 0, 0, 0, tm32)
@@ -830,14 +874,28 @@
 /* TRANSLATE EXTENDED */
     C(0xb2a5, TRE,     RRE,   Z,   0, r2, r1_P, 0, tre, 0)
 
+/* TRANSLATE ONE TO ONE */
+    C(0xb993, TROO,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+/* TRANSLATE ONE TO TWO */
+    C(0xb992, TROT,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+/* TRANSLATE TWO TO ONE */
+    C(0xb991, TRTO,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+/* TRANSLATE TWO TO TWO */
+    C(0xb990, TRTT,    RRF_c, E2,  0, 0, 0, 0, trXX, 0)
+
 /* UNPACK */
     /* Really format SS_b, but we pack both lengths into one argument
        for the helper call, so we might as well leave one 8-bit field.  */
     C(0xf300, UNPK,    SS_a,  Z,   la1, a2, 0, 0, unpk, 0)
+/* UNPACK ASCII */
+    C(0xea00, UNPKA,   SS_a,  E2,  la1, a2, 0, 0, unpka, 0)
+/* UNPACK UNICODE */
+    C(0xe200, UNPKU,   SS_a,  E2,  la1, a2, 0, 0, unpku, 0)
 
 #ifndef CONFIG_USER_ONLY
 /* COMPARE AND SWAP AND PURGE */
-    C(0xb250, CSP,     RRE,   Z,   0, ra2, 0, 0, csp, 0)
+    D(0xb250, CSP,     RRE,   Z,   r1_32u, ra2, r1_P, 0, csp, 0, MO_TEUL)
+    D(0xb98a, CSPG,    RRE, DAT_ENH, r1_o, ra2, r1_P, 0, csp, 0, MO_TEQ)
 /* DIAGNOSE (KVM hypercall) */
     C(0x8300, DIAG,    RSI,   Z,   0, 0, 0, 0, diag, 0)
 /* INSERT STORAGE KEY EXTENDED */
@@ -918,6 +976,8 @@
 /* STORE USING REAL ADDRESS */
     C(0xb246, STURA,   RRE,   Z,   r1_o, r2_o, 0, 0, stura, 0)
     C(0xb925, STURG,   RRE,   Z,   r1_o, r2_o, 0, 0, sturg, 0)
+/* TEST BLOCK */
+    C(0xb22c, TB,      RRE,   Z,   0, r2_o, 0, 0, testblock, 0)
 /* TEST PROTECTION */
     C(0xe501, TPROT,   SSE,   Z,   la1, a2, 0, 0, tprot, 0)
 

@@ -57,7 +57,9 @@ struct DisasContext {
     struct TranslationBlock *tb;
     const DisasInsn *insn;
     DisasFields *fields;
+    uint64_t ex_value;
     uint64_t pc, next_pc;
+    uint32_t ilen;
     enum cc_op cc_op;
     bool singlestep_enabled;
 };
@@ -349,7 +351,7 @@ static void gen_program_exception(DisasContext *s, int code)
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_code));
     tcg_temp_free_i32(tmp);
 
-    tmp = tcg_const_i32(s->next_pc - s->pc);
+    tmp = tcg_const_i32(s->ilen);
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_ilen));
     tcg_temp_free_i32(tmp);
 
@@ -1167,6 +1169,8 @@ typedef enum {
        the PC (for whatever reason), so there's no need to do it again on
        exiting the TB.  */
     EXIT_PC_UPDATED,
+    /* We have updated the PC and CC values.  */
+    EXIT_PC_CC_UPDATED,
     /* We are exiting the TB, but have neither emitted a goto_tb, nor
        updated the PC for the next instruction to be executed.  */
     EXIT_PC_STALE,
@@ -1200,6 +1204,8 @@ typedef enum DisasFacility {
     FAC_SFLE,               /* store facility list extended */
     FAC_ILA,                /* interlocked access facility 1 */
     FAC_LPP,                /* load-program-parameter */
+    FAC_DAT_ENH,            /* DAT-enhancement */
+    FAC_E2,                 /* extended-translation facility 2 */
 } DisasFacility;
 
 struct DisasInsn {
@@ -1871,7 +1877,6 @@ static ExitStatus op_cksm(DisasContext *s, DisasOps *o)
     int r2 = get_field(s->fields, r2);
     TCGv_i64 len = tcg_temp_new_i64();
 
-    potential_page_fault(s);
     gen_helper_cksm(len, cpu_env, o->in1, o->in2, regs[r2 + 1]);
     set_cc_static(s);
     return_low128(o->out);
@@ -1906,7 +1911,6 @@ static ExitStatus op_clc(DisasContext *s, DisasOps *o)
         tcg_gen_qemu_ld64(cc_dst, o->in2, get_mem_index(s));
         break;
     default:
-        potential_page_fault(s);
         vl = tcg_const_i32(l);
         gen_helper_clc(cc_op, cpu_env, vl, o->addr1, o->in2);
         tcg_temp_free_i32(vl);
@@ -1917,14 +1921,65 @@ static ExitStatus op_clc(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_clcl(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    int r2 = get_field(s->fields, r2);
+    TCGv_i32 t1, t2;
+
+    /* r1 and r2 must be even.  */
+    if (r1 & 1 || r2 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t2 = tcg_const_i32(r2);
+    gen_helper_clcl(cc_op, cpu_env, t1, t2);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_clcle(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
-    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    potential_page_fault(s);
-    gen_helper_clcle(cc_op, cpu_env, r1, o->in2, r3);
-    tcg_temp_free_i32(r1);
-    tcg_temp_free_i32(r3);
+    int r1 = get_field(s->fields, r1);
+    int r3 = get_field(s->fields, r3);
+    TCGv_i32 t1, t3;
+
+    /* r1 and r3 must be even.  */
+    if (r1 & 1 || r3 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t3 = tcg_const_i32(r3);
+    gen_helper_clcle(cc_op, cpu_env, t1, o->in2, t3);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t3);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_clclu(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    int r3 = get_field(s->fields, r3);
+    TCGv_i32 t1, t3;
+
+    /* r1 and r3 must be even.  */
+    if (r1 & 1 || r3 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t3 = tcg_const_i32(r3);
+    gen_helper_clclu(cc_op, cpu_env, t1, o->in2, t3);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t3);
     set_cc_static(s);
     return NO_EXIT;
 }
@@ -1934,7 +1989,6 @@ static ExitStatus op_clm(DisasContext *s, DisasOps *o)
     TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
     TCGv_i32 t1 = tcg_temp_new_i32();
     tcg_gen_extrl_i64_i32(t1, o->in1);
-    potential_page_fault(s);
     gen_helper_clm(cc_op, cpu_env, t1, m3, o->in2);
     set_cc_static(s);
     tcg_temp_free_i32(t1);
@@ -1944,7 +1998,6 @@ static ExitStatus op_clm(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_clst(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_clst(o->in1, cpu_env, regs[0], o->in1, o->in2);
     set_cc_static(s);
     return_low128(o->in2);
@@ -2011,11 +2064,45 @@ static ExitStatus op_cdsg(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_csp(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGMemOp mop = s->insn->data;
+    TCGv_i64 addr, old, cc;
+    TCGLabel *lab = gen_new_label();
+
+    /* Note that in1 = R1 (zero-extended expected value),
+       out = R1 (original reg), out2 = R1+1 (new value).  */
+
     check_privileged(s);
-    gen_helper_csp(cc_op, cpu_env, r1, o->in2);
-    tcg_temp_free_i32(r1);
-    set_cc_static(s);
+    addr = tcg_temp_new_i64();
+    old = tcg_temp_new_i64();
+    tcg_gen_andi_i64(addr, o->in2, -1ULL << (mop & MO_SIZE));
+    tcg_gen_atomic_cmpxchg_i64(old, addr, o->in1, o->out2,
+                               get_mem_index(s), mop | MO_ALIGN);
+    tcg_temp_free_i64(addr);
+
+    /* Are the memory and expected values (un)equal?  */
+    cc = tcg_temp_new_i64();
+    tcg_gen_setcond_i64(TCG_COND_NE, cc, o->in1, old);
+    tcg_gen_extrl_i64_i32(cc_op, cc);
+
+    /* Write back the output now, so that it happens before the
+       following branch, so that we don't need local temps.  */
+    if ((mop & MO_SIZE) == MO_32) {
+        tcg_gen_deposit_i64(o->out, o->out, old, 0, 32);
+    } else {
+        tcg_gen_mov_i64(o->out, old);
+    }
+    tcg_temp_free_i64(old);
+
+    /* If the comparison was equal, and the LSB of R2 was set,
+       then we need to flush the TLB (for all cpus).  */
+    tcg_gen_xori_i64(cc, cc, 1);
+    tcg_gen_and_i64(cc, cc, o->in2);
+    tcg_gen_brcondi_i64(TCG_COND_EQ, cc, 0, lab);
+    tcg_temp_free_i64(cc);
+
+    gen_helper_purge(cpu_env);
+    gen_set_label(lab);
+
     return NO_EXIT;
 }
 #endif
@@ -2158,27 +2245,34 @@ static ExitStatus op_epsw(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_ex(DisasContext *s, DisasOps *o)
 {
-    /* ??? Perhaps a better way to implement EXECUTE is to set a bit in
-       tb->flags, (ab)use the tb->cs_base field as the address of
-       the template in memory, and grab 8 bits of tb->flags/cflags for
-       the contents of the register.  We would then recognize all this
-       in gen_intermediate_code_internal, generating code for exactly
-       one instruction.  This new TB then gets executed normally.
+    int r1 = get_field(s->fields, r1);
+    TCGv_i32 ilen;
+    TCGv_i64 v1;
 
-       On the other hand, this seems to be mostly used for modifying
-       MVC inside of memcpy, which needs a helper call anyway.  So
-       perhaps this doesn't bear thinking about any further.  */
-
-    TCGv_i64 tmp;
+    /* Nested EXECUTE is not allowed.  */
+    if (unlikely(s->ex_value)) {
+        gen_program_exception(s, PGM_EXECUTE);
+        return EXIT_NORETURN;
+    }
 
     update_psw_addr(s);
-    gen_op_calc_cc(s);
+    update_cc_op(s);
 
-    tmp = tcg_const_i64(s->next_pc);
-    gen_helper_ex(cc_op, cpu_env, cc_op, o->in1, o->in2, tmp);
-    tcg_temp_free_i64(tmp);
+    if (r1 == 0) {
+        v1 = tcg_const_i64(0);
+    } else {
+        v1 = regs[r1];
+    }
 
-    return NO_EXIT;
+    ilen = tcg_const_i32(s->ilen);
+    gen_helper_ex(cpu_env, ilen, v1, o->in2);
+    tcg_temp_free_i32(ilen);
+
+    if (r1 == 0) {
+        tcg_temp_free_i64(v1);
+    }
+
+    return EXIT_PC_CC_UPDATED;
 }
 
 static ExitStatus op_fieb(DisasContext *s, DisasOps *o)
@@ -2316,8 +2410,12 @@ static ExitStatus op_ipm(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_ipte(DisasContext *s, DisasOps *o)
 {
+    TCGv_i32 m4;
+
     check_privileged(s);
-    gen_helper_ipte(cpu_env, o->in1, o->in2);
+    m4 = tcg_const_i32(get_field(s->fields, m4));
+    gen_helper_ipte(cpu_env, o->in1, o->in2, m4);
+    tcg_temp_free_i32(m4);
     return NO_EXIT;
 }
 
@@ -2328,6 +2426,27 @@ static ExitStatus op_iske(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 #endif
+
+static ExitStatus op_keb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_keb(cc_op, cpu_env, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_kdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_kdb(cc_op, cpu_env, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_kxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_kxb(cc_op, cpu_env, o->out, o->out2, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
 
 static ExitStatus op_laa(DisasContext *s, DisasOps *o)
 {
@@ -2550,7 +2669,6 @@ static ExitStatus op_lctl(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_lctl(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -2562,7 +2680,6 @@ static ExitStatus op_lctlg(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_lctlg(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -2572,7 +2689,6 @@ static ExitStatus op_lctlg(DisasContext *s, DisasOps *o)
 static ExitStatus op_lra(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_lra(o->out, cpu_env, o->in2);
     set_cc_static(s);
     return NO_EXIT;
@@ -2629,7 +2745,6 @@ static ExitStatus op_lam(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    potential_page_fault(s);
     gen_helper_lam(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -2794,6 +2909,13 @@ static ExitStatus op_lpd(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_lpq(DisasContext *s, DisasOps *o)
+{
+    gen_helper_lpq(o->out, cpu_env, o->in2);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_lura(DisasContext *s, DisasOps *o)
 {
@@ -2871,32 +2993,78 @@ static ExitStatus op_movx(DisasContext *s, DisasOps *o)
 static ExitStatus op_mvc(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
-    potential_page_fault(s);
     gen_helper_mvc(cpu_env, l, o->addr1, o->in2);
+    tcg_temp_free_i32(l);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvcin(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
+    gen_helper_mvcin(cpu_env, l, o->addr1, o->in2);
     tcg_temp_free_i32(l);
     return NO_EXIT;
 }
 
 static ExitStatus op_mvcl(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
-    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
-    potential_page_fault(s);
-    gen_helper_mvcl(cc_op, cpu_env, r1, r2);
-    tcg_temp_free_i32(r1);
-    tcg_temp_free_i32(r2);
+    int r1 = get_field(s->fields, r1);
+    int r2 = get_field(s->fields, r2);
+    TCGv_i32 t1, t2;
+
+    /* r1 and r2 must be even.  */
+    if (r1 & 1 || r2 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t2 = tcg_const_i32(r2);
+    gen_helper_mvcl(cc_op, cpu_env, t1, t2);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
     set_cc_static(s);
     return NO_EXIT;
 }
 
 static ExitStatus op_mvcle(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
-    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    potential_page_fault(s);
-    gen_helper_mvcle(cc_op, cpu_env, r1, o->in2, r3);
-    tcg_temp_free_i32(r1);
-    tcg_temp_free_i32(r3);
+    int r1 = get_field(s->fields, r1);
+    int r3 = get_field(s->fields, r3);
+    TCGv_i32 t1, t3;
+
+    /* r1 and r3 must be even.  */
+    if (r1 & 1 || r3 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t3 = tcg_const_i32(r3);
+    gen_helper_mvcle(cc_op, cpu_env, t1, o->in2, t3);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t3);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvclu(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    int r3 = get_field(s->fields, r3);
+    TCGv_i32 t1, t3;
+
+    /* r1 and r3 must be even.  */
+    if (r1 & 1 || r3 & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+
+    t1 = tcg_const_i32(r1);
+    t3 = tcg_const_i32(r3);
+    gen_helper_mvclu(cc_op, cpu_env, t1, o->in2, t3);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t3);
     set_cc_static(s);
     return NO_EXIT;
 }
@@ -2906,7 +3074,6 @@ static ExitStatus op_mvcp(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, l1);
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_mvcp(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
     set_cc_static(s);
     return NO_EXIT;
@@ -2916,27 +3083,48 @@ static ExitStatus op_mvcs(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, l1);
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_mvcs(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
     set_cc_static(s);
     return NO_EXIT;
 }
 #endif
 
+static ExitStatus op_mvn(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
+    gen_helper_mvn(cpu_env, l, o->addr1, o->in2);
+    tcg_temp_free_i32(l);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvo(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
+    gen_helper_mvo(cpu_env, l, o->addr1, o->in2);
+    tcg_temp_free_i32(l);
+    return NO_EXIT;
+}
+
 static ExitStatus op_mvpg(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
-    gen_helper_mvpg(cpu_env, regs[0], o->in1, o->in2);
+    gen_helper_mvpg(cc_op, cpu_env, regs[0], o->in1, o->in2);
     set_cc_static(s);
     return NO_EXIT;
 }
 
 static ExitStatus op_mvst(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_mvst(o->in1, cpu_env, regs[0], o->in1, o->in2);
     set_cc_static(s);
     return_low128(o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvz(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
+    gen_helper_mvz(cpu_env, l, o->addr1, o->in2);
+    tcg_temp_free_i32(l);
     return NO_EXIT;
 }
 
@@ -3048,7 +3236,6 @@ static ExitStatus op_nabsf128(DisasContext *s, DisasOps *o)
 static ExitStatus op_nc(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
-    potential_page_fault(s);
     gen_helper_nc(cc_op, cpu_env, l, o->addr1, o->in2);
     tcg_temp_free_i32(l);
     set_cc_static(s);
@@ -3083,7 +3270,6 @@ static ExitStatus op_negf128(DisasContext *s, DisasOps *o)
 static ExitStatus op_oc(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
-    potential_page_fault(s);
     gen_helper_oc(cc_op, cpu_env, l, o->addr1, o->in2);
     tcg_temp_free_i32(l);
     set_cc_static(s);
@@ -3109,6 +3295,46 @@ static ExitStatus op_ori(DisasContext *s, DisasOps *o)
     /* Produce the CC from only the bits manipulated.  */
     tcg_gen_andi_i64(cc_dst, o->out, mask);
     set_cc_nz_u64(s, cc_dst);
+    return NO_EXIT;
+}
+
+static ExitStatus op_pack(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
+    gen_helper_pack(cpu_env, l, o->addr1, o->in2);
+    tcg_temp_free_i32(l);
+    return NO_EXIT;
+}
+
+static ExitStatus op_pka(DisasContext *s, DisasOps *o)
+{
+    int l2 = get_field(s->fields, l2) + 1;
+    TCGv_i32 l;
+
+    /* The length must not exceed 32 bytes.  */
+    if (l2 > 32) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+    l = tcg_const_i32(l2);
+    gen_helper_pka(cpu_env, o->addr1, o->in2, l);
+    tcg_temp_free_i32(l);
+    return NO_EXIT;
+}
+
+static ExitStatus op_pku(DisasContext *s, DisasOps *o)
+{
+    int l2 = get_field(s->fields, l2) + 1;
+    TCGv_i32 l;
+
+    /* The length must be even and should not exceed 64 bytes.  */
+    if ((l2 & 1) || (l2 > 64)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+    l = tcg_const_i32(l2);
+    gen_helper_pku(cpu_env, o->addr1, o->in2, l);
+    tcg_temp_free_i32(l);
     return NO_EXIT;
 }
 
@@ -3632,7 +3858,6 @@ static ExitStatus op_stctg(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_stctg(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -3644,7 +3869,6 @@ static ExitStatus op_stctl(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_stctl(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -3876,7 +4100,6 @@ static ExitStatus op_stam(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    potential_page_fault(s);
     gen_helper_stam(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -3980,9 +4203,14 @@ static ExitStatus op_stmh(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_stpq(DisasContext *s, DisasOps *o)
+{
+    gen_helper_stpq(cpu_env, o->in2, o->out2, o->out);
+    return NO_EXIT;
+}
+
 static ExitStatus op_srst(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_srst(o->in1, cpu_env, regs[0], o->in1, o->in2);
     set_cc_static(s);
     return_low128(o->in2);
@@ -4032,12 +4260,22 @@ static ExitStatus op_svc(DisasContext *s, DisasOps *o)
     tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, int_svc_code));
     tcg_temp_free_i32(t);
 
-    t = tcg_const_i32(s->next_pc - s->pc);
+    t = tcg_const_i32(s->ilen);
     tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, int_svc_ilen));
     tcg_temp_free_i32(t);
 
     gen_exception(EXCP_SVC);
     return EXIT_NORETURN;
+}
+
+static ExitStatus op_tam(DisasContext *s, DisasOps *o)
+{
+    int cc = 0;
+
+    cc |= (s->tb->flags & FLAG_MASK_64) ? 2 : 0;
+    cc |= (s->tb->flags & FLAG_MASK_32) ? 1 : 0;
+    gen_op_movi_cc(s, cc);
+    return NO_EXIT;
 }
 
 static ExitStatus op_tceb(DisasContext *s, DisasOps *o)
@@ -4062,19 +4300,36 @@ static ExitStatus op_tcxb(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+
+static ExitStatus op_testblock(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_testblock(cc_op, cpu_env, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_tprot(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_tprot(cc_op, o->addr1, o->in2);
     set_cc_static(s);
     return NO_EXIT;
 }
+
 #endif
+
+static ExitStatus op_tp(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l1 = tcg_const_i32(get_field(s->fields, l1) + 1);
+    gen_helper_tp(cc_op, cpu_env, o->addr1, l1);
+    tcg_temp_free_i32(l1);
+    set_cc_static(s);
+    return NO_EXIT;
+}
 
 static ExitStatus op_tr(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
-    potential_page_fault(s);
     gen_helper_tr(cpu_env, l, o->addr1, o->in2);
     tcg_temp_free_i32(l);
     set_cc_static(s);
@@ -4083,7 +4338,6 @@ static ExitStatus op_tr(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_tre(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_tre(o->out, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out2);
     set_cc_static(s);
@@ -4093,9 +4347,48 @@ static ExitStatus op_tre(DisasContext *s, DisasOps *o)
 static ExitStatus op_trt(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
-    potential_page_fault(s);
     gen_helper_trt(cc_op, cpu_env, l, o->addr1, o->in2);
     tcg_temp_free_i32(l);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_trXX(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+    TCGv_i32 sizes = tcg_const_i32(s->insn->opc & 3);
+    TCGv_i32 tst = tcg_temp_new_i32();
+    int m3 = get_field(s->fields, m3);
+
+    /* XXX: the C bit in M3 should be considered as 0 when the
+       ETF2-enhancement facility is not installed.  */
+    if (m3 & 1) {
+        tcg_gen_movi_i32(tst, -1);
+    } else {
+        tcg_gen_extrl_i64_i32(tst, regs[0]);
+        if (s->insn->opc & 3) {
+            tcg_gen_ext8u_i32(tst, tst);
+        } else {
+            tcg_gen_ext16u_i32(tst, tst);
+        }
+    }
+    gen_helper_trXX(cc_op, cpu_env, r1, r2, tst, sizes);
+
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
+    tcg_temp_free_i32(sizes);
+    tcg_temp_free_i32(tst);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ts(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 t1 = tcg_const_i32(0xff);
+    tcg_gen_atomic_xchg_i32(t1, o->in2, t1, get_mem_index(s), MO_UB);
+    tcg_gen_extract_i32(cc_op, t1, 7, 1);
+    tcg_temp_free_i32(t1);
     set_cc_static(s);
     return NO_EXIT;
 }
@@ -4103,11 +4396,45 @@ static ExitStatus op_trt(DisasContext *s, DisasOps *o)
 static ExitStatus op_unpk(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
-    potential_page_fault(s);
     gen_helper_unpk(cpu_env, l, o->addr1, o->in2);
     tcg_temp_free_i32(l);
     return NO_EXIT;
 }
+
+static ExitStatus op_unpka(DisasContext *s, DisasOps *o)
+{
+    int l1 = get_field(s->fields, l1) + 1;
+    TCGv_i32 l;
+
+    /* The length must not exceed 32 bytes.  */
+    if (l1 > 32) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+    l = tcg_const_i32(l1);
+    gen_helper_unpka(cc_op, cpu_env, o->addr1, l, o->in2);
+    tcg_temp_free_i32(l);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_unpku(DisasContext *s, DisasOps *o)
+{
+    int l1 = get_field(s->fields, l1) + 1;
+    TCGv_i32 l;
+
+    /* The length must be even and should not exceed 64 bytes.  */
+    if ((l1 & 1) || (l1 > 64)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+    l = tcg_const_i32(l1);
+    gen_helper_unpku(cc_op, cpu_env, o->addr1, l, o->in2);
+    tcg_temp_free_i32(l);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 
 static ExitStatus op_xc(DisasContext *s, DisasOps *o)
 {
@@ -4156,7 +4483,6 @@ static ExitStatus op_xc(DisasContext *s, DisasOps *o)
     /* But in general we'll defer to a helper.  */
     o->in2 = get_address(s, 0, b2, d2);
     t32 = tcg_const_i32(l);
-    potential_page_fault(s);
     gen_helper_xc(cc_op, cpu_env, t32, o->addr1, o->in2);
     tcg_temp_free_i32(t32);
     set_cc_static(s);
@@ -5163,24 +5489,36 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     int op, op2, ilen;
     const DisasInsn *info;
 
-    insn = ld_code2(env, pc);
-    op = (insn >> 8) & 0xff;
-    ilen = get_ilen(op);
-    s->next_pc = s->pc + ilen;
+    if (unlikely(s->ex_value)) {
+        /* Drop the EX data now, so that it's clear on exception paths.  */
+        TCGv_i64 zero = tcg_const_i64(0);
+        tcg_gen_st_i64(zero, cpu_env, offsetof(CPUS390XState, ex_value));
+        tcg_temp_free_i64(zero);
 
-    switch (ilen) {
-    case 2:
-        insn = insn << 48;
-        break;
-    case 4:
-        insn = ld_code4(env, pc) << 32;
-        break;
-    case 6:
-        insn = (insn << 48) | (ld_code4(env, pc + 2) << 16);
-        break;
-    default:
-        abort();
+        /* Extract the values saved by EXECUTE.  */
+        insn = s->ex_value & 0xffffffffffff0000ull;
+        ilen = s->ex_value & 0xf;
+        op = insn >> 56;
+    } else {
+        insn = ld_code2(env, pc);
+        op = (insn >> 8) & 0xff;
+        ilen = get_ilen(op);
+        switch (ilen) {
+        case 2:
+            insn = insn << 48;
+            break;
+        case 4:
+            insn = ld_code4(env, pc) << 32;
+            break;
+        case 6:
+            insn = (insn << 48) | (ld_code4(env, pc + 2) << 16);
+            break;
+        default:
+            g_assert_not_reached();
+        }
     }
+    s->next_pc = s->pc + ilen;
+    s->ilen = ilen;
 
     /* We can't actually determine the insn format until we've looked up
        the full insn opcode.  Which we can't do without locating the
@@ -5397,6 +5735,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     dc.tb = tb;
     dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
+    dc.ex_value = tb->cs_base;
     do_debug = dc.singlestep_enabled = cs->singlestep_enabled;
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -5431,10 +5770,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
             gen_io_start();
         }
 
-        status = NO_EXIT;
-        if (status == NO_EXIT) {
-            status = translate_one(env, &dc);
-        }
+        status = translate_one(env, &dc);
 
         /* If we reach a page boundary, are single stepping,
            or exhaust instruction count, stop generation.  */
@@ -5443,7 +5779,8 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
                 || tcg_op_buf_full()
                 || num_insns >= max_insns
                 || singlestep
-                || cs->singlestep_enabled)) {
+                || cs->singlestep_enabled
+                || dc.ex_value)) {
             status = EXIT_PC_STALE;
         }
     } while (status == NO_EXIT);
@@ -5463,6 +5800,8 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
         /* Next TB starts off with CC_OP_DYNAMIC, so make sure the
            cc op type is in env */
         update_cc_op(&dc);
+        /* FALLTHRU */
+    case EXIT_PC_CC_UPDATED:
         /* Exit the TB, either by raising a debug exception or by return.  */
         if (do_debug) {
             gen_exception(EXCP_DEBUG);
@@ -5485,9 +5824,14 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
-        qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc.pc - pc_start, 1);
-        qemu_log("\n");
+        if (unlikely(dc.ex_value)) {
+            /* ??? Unfortunately log_target_disas can't use host memory.  */
+            qemu_log("IN: EXECUTE %016" PRIx64 "\n", dc.ex_value);
+        } else {
+            qemu_log("IN: %s\n", lookup_symbol(pc_start));
+            log_target_disas(cs, pc_start, dc.pc - pc_start, 1);
+            qemu_log("\n");
+        }
         qemu_log_unlock();
     }
 #endif
