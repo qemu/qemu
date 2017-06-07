@@ -347,7 +347,7 @@ static int check_fdc(Object *obj, void *opaque)
         return 0;
     }
 
-    iobase = object_property_get_int(obj, "iobase", &local_err);
+    iobase = object_property_get_uint(obj, "iobase", &local_err);
     if (local_err || iobase != 0x3f0) {
         error_free(local_err);
         return 0;
