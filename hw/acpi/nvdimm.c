@@ -236,14 +236,14 @@ static void
 nvdimm_build_structure_spa(GArray *structures, DeviceState *dev)
 {
     NvdimmNfitSpa *nfit_spa;
-    uint64_t addr = object_property_get_int(OBJECT(dev), PC_DIMM_ADDR_PROP,
-                                            NULL);
+    uint64_t addr = object_property_get_uint(OBJECT(dev), PC_DIMM_ADDR_PROP,
+                                             NULL);
     uint64_t size = object_property_get_int(OBJECT(dev), PC_DIMM_SIZE_PROP,
                                             NULL);
-    uint32_t node = object_property_get_int(OBJECT(dev), PC_DIMM_NODE_PROP,
-                                            NULL);
+    uint32_t node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP,
+                                             NULL);
     int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
-                                            NULL);
+                                       NULL);
 
     nfit_spa = acpi_data_push(structures, sizeof(*nfit_spa));
 
