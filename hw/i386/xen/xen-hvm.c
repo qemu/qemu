@@ -182,9 +182,9 @@ static void xen_ram_init(PCMachineState *pcms,
 {
     MemoryRegion *sysmem = get_system_memory();
     ram_addr_t block_len;
-    uint64_t user_lowmem = object_property_get_int(qdev_get_machine(),
-                                                   PC_MACHINE_MAX_RAM_BELOW_4G,
-                                                   &error_abort);
+    uint64_t user_lowmem = object_property_get_uint(qdev_get_machine(),
+                                                    PC_MACHINE_MAX_RAM_BELOW_4G,
+                                                    &error_abort);
 
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(xen limit, user limit).
