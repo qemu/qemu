@@ -315,29 +315,8 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                              NULL, 0, NULL);
 }
 
-void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
+static void spapr_drc_release(sPAPRDRConnector *drc)
 {
-    trace_spapr_drc_detach(spapr_drc_index(drc));
-
-    if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
-        trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
-        drc->awaiting_release = true;
-        return;
-    }
-
-    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
-        drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-        trace_spapr_drc_awaiting_unusable(spapr_drc_index(drc));
-        drc->awaiting_release = true;
-        return;
-    }
-
-    if (drc->awaiting_allocation) {
-        drc->awaiting_release = true;
-        trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
-        return;
-    }
-
     drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
 
     /* Calling release callbacks based on spapr_drc_type(drc). */
@@ -363,6 +342,32 @@ void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     drc->fdt_start_offset = 0;
     object_property_del(OBJECT(drc), "device", NULL);
     drc->dev = NULL;
+}
+
+void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
+{
+    trace_spapr_drc_detach(spapr_drc_index(drc));
+
+    if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
+        trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
+        drc->awaiting_release = true;
+        return;
+    }
+
+    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
+        drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
+        trace_spapr_drc_awaiting_unusable(spapr_drc_index(drc));
+        drc->awaiting_release = true;
+        return;
+    }
+
+    if (drc->awaiting_allocation) {
+        drc->awaiting_release = true;
+        trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
+        return;
+    }
+
+    spapr_drc_release(drc);
 }
 
 static bool release_pending(sPAPRDRConnector *drc)
