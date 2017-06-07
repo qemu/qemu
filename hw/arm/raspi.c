@@ -153,8 +153,8 @@ static void raspi2_init(MachineState *machine)
     qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
     object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
 
-    vcram_size = object_property_get_int(OBJECT(&s->soc), "vcram-size",
-                                         &error_abort);
+    vcram_size = object_property_get_uint(OBJECT(&s->soc), "vcram-size",
+                                          &error_abort);
     setup_boot(machine, 2, machine->ram_size - vcram_size);
 }
 
