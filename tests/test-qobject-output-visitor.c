@@ -602,14 +602,28 @@ static void check_native_list(QObject *qobj,
     qlist = qlist_copy(qobject_to_qlist(qdict_get(qdict, "data")));
 
     switch (kind) {
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S8:
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S16:
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S32:
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S64:
     case USER_DEF_NATIVE_LIST_UNION_KIND_U8:
     case USER_DEF_NATIVE_LIST_UNION_KIND_U16:
     case USER_DEF_NATIVE_LIST_UNION_KIND_U32:
     case USER_DEF_NATIVE_LIST_UNION_KIND_U64:
+        for (i = 0; i < 32; i++) {
+            QObject *tmp;
+            QNum *qvalue;
+            uint64_t val;
+
+            tmp = qlist_peek(qlist);
+            g_assert(tmp);
+            qvalue = qobject_to_qnum(tmp);
+            g_assert(qnum_get_try_uint(qvalue, &val));
+            g_assert_cmpint(val, ==, i);
+            qobject_decref(qlist_pop(qlist));
+        }
+        break;
+
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S8:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S16:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S32:
+    case USER_DEF_NATIVE_LIST_UNION_KIND_S64:
         /*
          * All integer elements in JSON arrays get stored into QNums
          * when we convert to QObjects, so we can check them all in
