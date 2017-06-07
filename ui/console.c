@@ -1872,8 +1872,8 @@ QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head)
         if (DEVICE(obj) != dev) {
             continue;
         }
-        h = object_property_get_int(OBJECT(consoles[i]),
-                                    "head", &error_abort);
+        h = object_property_get_uint(OBJECT(consoles[i]),
+                                     "head", &error_abort);
         if (h != head) {
             continue;
         }
