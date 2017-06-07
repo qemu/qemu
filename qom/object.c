@@ -1216,6 +1216,35 @@ int64_t object_property_get_int(Object *obj, const char *name,
     return retval;
 }
 
+void object_property_set_uint(Object *obj, uint64_t value,
+                              const char *name, Error **errp)
+{
+    QNum *qnum = qnum_from_uint(value);
+
+    object_property_set_qobject(obj, QOBJECT(qnum), name, errp);
+    QDECREF(qnum);
+}
+
+uint64_t object_property_get_uint(Object *obj, const char *name,
+                                  Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QNum *qnum;
+    uint64_t retval;
+
+    if (!ret) {
+        return 0;
+    }
+    qnum = qobject_to_qnum(ret);
+    if (!qnum || !qnum_get_try_uint(qnum, &retval)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, "uint");
+        retval = 0;
+    }
+
+    qobject_decref(ret);
+    return retval;
+}
+
 typedef struct EnumProperty {
     const char * const *strings;
     int (*get)(Object *, Error **);
