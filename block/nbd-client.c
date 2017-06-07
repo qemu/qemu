@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "nbd-client.h"
 
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ ((uint64_t)(intptr_t)bs))
@@ -70,10 +71,14 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     NBDClientSession *s = opaque;
     uint64_t i;
     int ret;
+    Error *local_err = NULL;
 
     for (;;) {
         assert(s->reply.handle == 0);
-        ret = nbd_receive_reply(s->ioc, &s->reply);
+        ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
+        if (ret < 0) {
+            error_report_err(local_err);
+        }
         if (ret <= 0) {
             break;
         }
@@ -114,6 +119,10 @@ static int nbd_co_send_request(BlockDriverState *bs,
     int rc, ret, i;
 
     qemu_co_mutex_lock(&s->send_mutex);
+    while (s->in_flight == MAX_NBD_REQUESTS) {
+        qemu_co_queue_wait(&s->free_sema, &s->send_mutex);
+    }
+    s->in_flight++;
 
     for (i = 0; i < MAX_NBD_REQUESTS; i++) {
         if (s->recv_coroutine[i] == NULL) {
@@ -136,7 +145,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
         rc = nbd_send_request(s->ioc, request);
         if (rc >= 0) {
             ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov, request->len,
-                               false);
+                               false, NULL);
             if (ret != request->len) {
                 rc = -EIO;
             }
@@ -165,7 +174,7 @@ static void nbd_co_receive_reply(NBDClientSession *s,
     } else {
         if (qiov && reply->error == 0) {
             ret = nbd_wr_syncv(s->ioc, qiov->iov, qiov->niov, request->len,
-                               true);
+                               true, NULL);
             if (ret != request->len) {
                 reply->error = EIO;
             }
@@ -176,20 +185,6 @@ static void nbd_co_receive_reply(NBDClientSession *s,
     }
 }
 
-static void nbd_coroutine_start(NBDClientSession *s,
-                                NBDRequest *request)
-{
-    /* Poor man semaphore.  The free_sema is locked when no other request
-     * can be accepted, and unlocked after receiving one reply.  */
-    if (s->in_flight == MAX_NBD_REQUESTS) {
-        qemu_co_queue_wait(&s->free_sema, NULL);
-        assert(s->in_flight < MAX_NBD_REQUESTS);
-    }
-    s->in_flight++;
-
-    /* s->recv_coroutine[i] is set as soon as we get the send_lock.  */
-}
-
 static void nbd_coroutine_end(BlockDriverState *bs,
                               NBDRequest *request)
 {
@@ -197,13 +192,16 @@ static void nbd_coroutine_end(BlockDriverState *bs,
     int i = HANDLE_TO_INDEX(s, request->handle);
 
     s->recv_coroutine[i] = NULL;
-    s->in_flight--;
-    qemu_co_queue_next(&s->free_sema);
 
     /* Kick the read_reply_co to get the next reply.  */
     if (s->read_reply_co) {
         aio_co_wake(s->read_reply_co);
     }
+
+    qemu_co_mutex_lock(&s->send_mutex);
+    s->in_flight--;
+    qemu_co_queue_next(&s->free_sema);
+    qemu_co_mutex_unlock(&s->send_mutex);
 }
 
 int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
@@ -221,7 +219,6 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
     assert(!flags);
 
-    nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         reply.error = -ret;
@@ -251,7 +248,6 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
 
-    nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, qiov);
     if (ret < 0) {
         reply.error = -ret;
@@ -286,7 +282,6 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
         request.flags |= NBD_CMD_FLAG_NO_HOLE;
     }
 
-    nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         reply.error = -ret;
@@ -311,7 +306,6 @@ int nbd_client_co_flush(BlockDriverState *bs)
     request.from = 0;
     request.len = 0;
 
-    nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         reply.error = -ret;
@@ -337,7 +331,6 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
         return 0;
     }
 
-    nbd_coroutine_start(client, &request);
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         reply.error = -ret;

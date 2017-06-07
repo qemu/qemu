@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2010-2017 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!-- I386 with SSE -->
+
+<!DOCTYPE target SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.i386.32bit">
+  <xi:include href="i386-32bit-core.xml"/>
+  <xi:include href="i386-32bit-sse.xml"/>
+</feature>

@@ -1144,6 +1144,7 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
     }
     clear_gsi(s, virq);
     kvm_arch_release_virq_post(virq);
+    trace_kvm_irqchip_release_virq(virq);
 }
 
 static unsigned int kvm_hash_msi(uint32_t data)
@@ -1287,7 +1288,8 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
         return -EINVAL;
     }
 
-    trace_kvm_irqchip_add_msi_route(virq);
+    trace_kvm_irqchip_add_msi_route(dev ? dev->name : (char *)"N/A",
+                                    vector, virq);
 
     kvm_add_routing_entry(s, &kroute);
     kvm_arch_add_msi_route_post(&kroute, vector, dev);
@@ -1746,6 +1748,8 @@ static int kvm_init(MachineState *ms)
     kvm_ioeventfd_any_length_allowed =
         (kvm_check_extension(s, KVM_CAP_IOEVENTFD_ANY_LENGTH) > 0);
 
+    kvm_state = s;
+
     ret = kvm_arch_init(ms, s);
     if (ret < 0) {
         goto err;
@@ -1754,8 +1758,6 @@ static int kvm_init(MachineState *ms)
     if (machine_kernel_irqchip_allowed(ms)) {
         kvm_irqchip_create(ms, s);
     }
-
-    kvm_state = s;
 
     if (kvm_eventfds_allowed) {
         s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;

@@ -43,6 +43,7 @@
 #include "standard-headers/asm-x86/hyperv.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
 #include "migration/blocker.h"
 #include "exec/memattrs.h"
 #include "trace.h"
@@ -1254,7 +1255,9 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
-    if (kvm_check_extension(s, KVM_CAP_X86_SMM)) {
+    if (kvm_check_extension(s, KVM_CAP_X86_SMM) &&
+        object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE) &&
+        pc_machine_is_smm_enabled(PC_MACHINE(ms))) {
         smram_machine_done.notify = register_smram_listener;
         qemu_add_machine_init_done_notifier(&smram_machine_done);
     }
@@ -1300,18 +1303,14 @@ static void get_seg(SegmentCache *lhs, const struct kvm_segment *rhs)
     lhs->selector = rhs->selector;
     lhs->base = rhs->base;
     lhs->limit = rhs->limit;
-    if (rhs->unusable) {
-        lhs->flags = 0;
-    } else {
-        lhs->flags = (rhs->type << DESC_TYPE_SHIFT) |
-                     (rhs->present * DESC_P_MASK) |
-                     (rhs->dpl << DESC_DPL_SHIFT) |
-                     (rhs->db << DESC_B_SHIFT) |
-                     (rhs->s * DESC_S_MASK) |
-                     (rhs->l << DESC_L_SHIFT) |
-                     (rhs->g * DESC_G_MASK) |
-                     (rhs->avl * DESC_AVL_MASK);
-    }
+    lhs->flags = (rhs->type << DESC_TYPE_SHIFT) |
+                 ((rhs->present && !rhs->unusable) * DESC_P_MASK) |
+                 (rhs->dpl << DESC_DPL_SHIFT) |
+                 (rhs->db << DESC_B_SHIFT) |
+                 (rhs->s * DESC_S_MASK) |
+                 (rhs->l << DESC_L_SHIFT) |
+                 (rhs->g * DESC_G_MASK) |
+                 (rhs->avl * DESC_AVL_MASK);
 }
 
 static void kvm_getput_reg(__u64 *kvm_reg, target_ulong *qemu_reg, int set)
@@ -3510,12 +3509,17 @@ static void kvm_update_msi_routes_all(void *private, bool global,
     int cnt = 0;
     MSIRouteEntry *entry;
     MSIMessage msg;
+    PCIDevice *dev;
+
     /* TODO: explicit route update */
     QLIST_FOREACH(entry, &msi_route_list, list) {
         cnt++;
-        msg = pci_get_msi_message(entry->dev, entry->vector);
-        kvm_irqchip_update_msi_route(kvm_state, entry->virq,
-                                     msg, entry->dev);
+        dev = entry->dev;
+        if (!msix_enabled(dev) && !msi_enabled(dev)) {
+            continue;
+        }
+        msg = pci_get_msi_message(dev, entry->vector);
+        kvm_irqchip_update_msi_route(kvm_state, entry->virq, msg, dev);
     }
     kvm_irqchip_commit_routes(kvm_state);
     trace_kvm_x86_update_msi_routes(cnt);
