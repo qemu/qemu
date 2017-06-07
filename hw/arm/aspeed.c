@@ -180,8 +180,8 @@ static void aspeed_board_init(MachineState *machine,
 
     sc = ASPEED_SOC_GET_CLASS(&bmc->soc);
 
-    object_property_set_int(OBJECT(&bmc->soc), ram_size, "ram-size",
-                           &error_abort);
+    object_property_set_uint(OBJECT(&bmc->soc), ram_size, "ram-size",
+                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap1, "hw-strap1",
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->num_cs, "num-cs",
@@ -193,8 +193,8 @@ static void aspeed_board_init(MachineState *machine,
      * Allocate RAM after the memory controller has checked the size
      * was valid. If not, a default value is used.
      */
-    ram_size = object_property_get_int(OBJECT(&bmc->soc), "ram-size",
-                                       &error_abort);
+    ram_size = object_property_get_uint(OBJECT(&bmc->soc), "ram-size",
+                                        &error_abort);
 
     memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
     memory_region_add_subregion(get_system_memory(), sc->info->sdram_base,
