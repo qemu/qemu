@@ -214,6 +214,8 @@ typedef struct sPAPRDRConnectorClass {
     sPAPRDRConnectorTypeShift typeshift;
     const char *typename; /* used in device tree, PAPR 13.5.2.6 & C.6.1 */
 
+    sPAPRDREntitySense (*dr_entity_sense)(sPAPRDRConnector *drc);
+
     /* accessors for guest-visible (generally via RTAS) DR state */
     uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
                                     sPAPRDRIsolationState state);
@@ -222,8 +224,6 @@ typedef struct sPAPRDRConnectorClass {
     uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state);
     const char *(*get_name)(sPAPRDRConnector *drc);
-
-    uint32_t (*entity_sense)(sPAPRDRConnector *drc, sPAPRDREntitySense *state);
 
     /* QEMU interfaces for managing hotplug operations */
     void (*attach)(sPAPRDRConnector *drc, DeviceState *d, void *fdt,

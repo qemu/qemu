@@ -44,7 +44,6 @@ spapr_drc_set_allocation_state(uint32_t index, int state) "drc: 0x%"PRIx32", sta
 spapr_drc_set_allocation_state_finalizing(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_set_configured(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_set_configured_skipping(uint32_t index) "drc: 0x%"PRIx32", isolated device"
-spapr_drc_entity_sense(uint32_t index, int state) "drc: 0x%"PRIx32", state: 0x%x"
 spapr_drc_attach(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_detach(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_awaiting_isolated(uint32_t index) "drc: 0x%"PRIx32

@@ -185,39 +185,25 @@ static void set_signalled(sPAPRDRConnector *drc)
  * based on the current allocation/indicator/power states
  * for the DR connector.
  */
-static uint32_t entity_sense(sPAPRDRConnector *drc, sPAPRDREntitySense *state)
+static sPAPRDREntitySense physical_entity_sense(sPAPRDRConnector *drc)
 {
-    if (drc->dev) {
-        if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
-            drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-            /* for logical DR, we return a state of UNUSABLE
-             * iff the allocation state UNUSABLE.
-             * Otherwise, report the state as USABLE/PRESENT,
-             * as we would for PCI.
-             */
-            *state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
-        } else {
-            /* this assumes all PCI devices are assigned to
-             * a 'live insertion' power domain, where QEMU
-             * manages power state automatically as opposed
-             * to the guest. present, non-PCI resources are
-             * unaffected by power state.
-             */
-            *state = SPAPR_DR_ENTITY_SENSE_PRESENT;
-        }
-    } else {
-        if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
-            /* PCI devices, and only PCI devices, use EMPTY
-             * in cases where we'd otherwise use UNUSABLE
-             */
-            *state = SPAPR_DR_ENTITY_SENSE_EMPTY;
-        } else {
-            *state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
-        }
-    }
+    /* this assumes all PCI devices are assigned to a 'live insertion'
+     * power domain, where QEMU manages power state automatically as
+     * opposed to the guest. present, non-PCI resources are unaffected
+     * by power state.
+     */
+    return drc->dev ? SPAPR_DR_ENTITY_SENSE_PRESENT
+        : SPAPR_DR_ENTITY_SENSE_EMPTY;
+}
 
-    trace_spapr_drc_entity_sense(spapr_drc_index(drc), *state);
-    return RTAS_OUT_SUCCESS;
+static sPAPRDREntitySense logical_entity_sense(sPAPRDRConnector *drc)
+{
+    if (drc->dev
+        && (drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE)) {
+        return SPAPR_DR_ENTITY_SENSE_PRESENT;
+    } else {
+        return SPAPR_DR_ENTITY_SENSE_UNUSABLE;
+    }
 }
 
 static void prop_get_index(Object *obj, Visitor *v, const char *name,
@@ -445,7 +431,6 @@ static void reset(DeviceState *d)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    sPAPRDREntitySense state;
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
@@ -477,8 +462,7 @@ static void reset(DeviceState *d)
         }
     }
 
-    drck->entity_sense(drc, &state);
-    if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+    if (drck->dr_entity_sense(drc) == SPAPR_DR_ENTITY_SENSE_PRESENT) {
         drck->set_signalled(drc);
     }
 }
@@ -488,8 +472,7 @@ static bool spapr_drc_needed(void *opaque)
     sPAPRDRConnector *drc = (sPAPRDRConnector *)opaque;
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     bool rc = false;
-    sPAPRDREntitySense value;
-    drck->entity_sense(drc, &value);
+    sPAPRDREntitySense value = drck->dr_entity_sense(drc);
 
     /* If no dev is plugged in there is no need to migrate the DRC state */
     if (value != SPAPR_DR_ENTITY_SENSE_PRESENT) {
@@ -667,7 +650,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->set_indicator_state = set_indicator_state;
     drck->set_allocation_state = set_allocation_state;
     drck->get_name = get_name;
-    drck->entity_sense = entity_sense;
     drck->attach = attach;
     drck->detach = detach;
     drck->release_pending = release_pending;
@@ -676,6 +658,20 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
      * Reason: it crashes FIXME find and document the real reason
      */
     dk->user_creatable = false;
+}
+
+static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    drck->dr_entity_sense = physical_entity_sense;
+}
+
+static void spapr_drc_logical_class_init(ObjectClass *k, void *data)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    drck->dr_entity_sense = logical_entity_sense;
 }
 
 static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
@@ -716,6 +712,7 @@ static const TypeInfo spapr_drc_physical_info = {
     .name          = TYPE_SPAPR_DRC_PHYSICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
     .instance_size = sizeof(sPAPRDRConnector),
+    .class_init    = spapr_drc_physical_class_init,
     .abstract      = true,
 };
 
@@ -723,6 +720,7 @@ static const TypeInfo spapr_drc_logical_info = {
     .name          = TYPE_SPAPR_DRC_LOGICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
     .instance_size = sizeof(sPAPRDRConnector),
+    .class_init    = spapr_drc_logical_class_init,
     .abstract      = true,
 };
 
@@ -1010,7 +1008,7 @@ static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         goto out;
     }
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    ret = drck->entity_sense(drc, &sensor_state);
+    sensor_state = drck->dr_entity_sense(drc);
 
 out:
     rtas_st(rets, 0, ret);

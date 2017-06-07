@@ -1481,7 +1481,7 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
             func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
                                                   PCI_DEVFN(slotnr, i));
             func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-            func_drck->entity_sense(func_drc, &state);
+            state = func_drck->dr_entity_sense(func_drc);
 
             if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
                 spapr_hotplug_req_add_by_index(func_drc);
@@ -1522,7 +1522,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
                 func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
                                                       PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-                func_drck->entity_sense(func_drc, &state);
+                state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
                     && !func_drck->release_pending(func_drc)) {
                     error_setg(errp,
@@ -1548,7 +1548,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
                 func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
                                                       PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-                func_drck->entity_sense(func_drc, &state);
+                state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
                     spapr_hotplug_req_remove_by_index(func_drc);
                 }
