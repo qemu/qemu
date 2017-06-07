@@ -483,4 +483,7 @@ char *qemu_get_pid_name(pid_t pid);
  */
 pid_t qemu_fork(Error **errp);
 
+extern int qemu_icache_linesize;
+extern int qemu_dcache_linesize;
+
 #endif
