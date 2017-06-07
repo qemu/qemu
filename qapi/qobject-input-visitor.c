@@ -547,13 +547,13 @@ static void qobject_input_type_number(Visitor *v, const char *name, double *obj,
     }
 
     qfloat = qobject_to_qfloat(qobj);
-    if (qfloat) {
-        *obj = qfloat_get_double(qobject_to_qfloat(qobj));
+    if (!qfloat) {
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
+                   full_name(qiv, name), "number");
         return;
     }
 
-    error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
-               full_name(qiv, name), "number");
+    *obj = qfloat_get_double(qobject_to_qfloat(qobj));
 }
 
 static void qobject_input_type_number_keyval(Visitor *v, const char *name,
