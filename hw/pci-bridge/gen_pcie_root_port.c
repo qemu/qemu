@@ -20,6 +20,14 @@
 #define GEN_PCIE_ROOT_PORT_AER_OFFSET           0x100
 #define GEN_PCIE_ROOT_PORT_MSIX_NR_VECTOR       1
 
+typedef struct GenPCIERootPort {
+    /*< private >*/
+    PCIESlot parent_obj;
+    /*< public >*/
+
+    bool migrate_msix;
+} GenPCIERootPort;
+
 static uint8_t gen_rp_aer_vector(const PCIDevice *d)
 {
     return 0;
@@ -45,6 +53,13 @@ static void gen_rp_interrupts_uninit(PCIDevice *d)
     msix_uninit_exclusive_bar(d);
 }
 
+static bool gen_rp_test_migrate_msix(void *opaque, int version_id)
+{
+    GenPCIERootPort *rp = opaque;
+
+    return rp->migrate_msix;
+}
+
 static const VMStateDescription vmstate_rp_dev = {
     .name = "pcie-root-port",
     .version_id = 1,
@@ -54,8 +69,16 @@ static const VMStateDescription vmstate_rp_dev = {
         VMSTATE_PCI_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
         VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
                        PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
+        VMSTATE_MSIX_TEST(parent_obj.parent_obj.parent_obj.parent_obj,
+                          GenPCIERootPort,
+                          gen_rp_test_migrate_msix),
         VMSTATE_END_OF_LIST()
     }
+};
+
+static Property gen_rp_props[] = {
+    DEFINE_PROP_BOOL("x-migrate-msix", GenPCIERootPort, migrate_msix, true),
+    DEFINE_PROP_END_OF_LIST()
 };
 
 static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
@@ -68,6 +91,7 @@ static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_REDHAT_PCIE_RP;
     dc->desc = "PCI Express Root Port";
     dc->vmsd = &vmstate_rp_dev;
+    dc->props = gen_rp_props;
     rpc->aer_vector = gen_rp_aer_vector;
     rpc->interrupts_init = gen_rp_interrupts_init;
     rpc->interrupts_uninit = gen_rp_interrupts_uninit;
@@ -77,6 +101,7 @@ static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
 static const TypeInfo gen_rp_dev_info = {
     .name          = TYPE_GEN_PCIE_ROOT_PORT,
     .parent        = TYPE_PCIE_ROOT_PORT,
+    .instance_size = sizeof(GenPCIERootPort),
     .class_init    = gen_rp_dev_class_init,
 };
 
