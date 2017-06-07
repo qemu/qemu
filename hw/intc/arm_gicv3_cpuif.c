@@ -2039,11 +2039,7 @@ static void icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     cs->icc_pmr_el1 = 0;
     cs->icc_bpr[GICV3_G0] = GIC_MIN_BPR;
     cs->icc_bpr[GICV3_G1] = GIC_MIN_BPR;
-    if (arm_feature(env, ARM_FEATURE_EL3)) {
-        cs->icc_bpr[GICV3_G1NS] = GIC_MIN_BPR_NS;
-    } else {
-        cs->icc_bpr[GICV3_G1NS] = GIC_MIN_BPR;
-    }
+    cs->icc_bpr[GICV3_G1NS] = GIC_MIN_BPR_NS;
     memset(cs->icc_apr, 0, sizeof(cs->icc_apr));
     memset(cs->icc_igrpen, 0, sizeof(cs->icc_igrpen));
     cs->icc_ctlr_el3 = ICC_CTLR_EL3_NDS | ICC_CTLR_EL3_A3V |
