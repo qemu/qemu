@@ -10,18 +10,10 @@ alternate AltEnumNum
     tag type
     case e: EnumOne
     case n: number
-alternate AltIntNum
-    tag type
-    case i: int
-    case n: number
 alternate AltNumEnum
     tag type
     case n: number
     case e: EnumOne
-alternate AltNumInt
-    tag type
-    case n: number
-    case i: int
 alternate AltStrObj
     tag type
     case s: str
