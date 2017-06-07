@@ -1111,7 +1111,7 @@ static void powernv_machine_initfn(Object *obj)
 
 static void powernv_machine_class_props_init(ObjectClass *oc)
 {
-    object_class_property_add(oc, "num-chips", "uint32_t",
+    object_class_property_add(oc, "num-chips", "uint32",
                               pnv_get_num_chips, pnv_set_num_chips,
                               NULL, NULL, NULL);
     object_class_property_set_description(oc, "num-chips",
