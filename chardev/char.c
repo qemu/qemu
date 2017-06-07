@@ -450,12 +450,12 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     }
     if (strstart(filename, "/dev/parport", NULL) ||
         strstart(filename, "/dev/ppi", NULL)) {
-        qemu_opt_set(opts, "backend", "parport", &error_abort);
+        qemu_opt_set(opts, "backend", "parallel", &error_abort);
         qemu_opt_set(opts, "path", filename, &error_abort);
         return opts;
     }
     if (strstart(filename, "/dev/", NULL)) {
-        qemu_opt_set(opts, "backend", "tty", &error_abort);
+        qemu_opt_set(opts, "backend", "serial", &error_abort);
         qemu_opt_set(opts, "path", filename, &error_abort);
         return opts;
     }
