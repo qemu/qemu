@@ -216,7 +216,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         }
 
         object_ref(o);
-        numa_info[nodenr].node_mem = object_property_get_int(o, "size", NULL);
+        numa_info[nodenr].node_mem = object_property_get_uint(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
     }
     numa_info[nodenr].present = true;
@@ -641,8 +641,8 @@ static int query_memdev(Object *obj, void *opaque)
         m->value->id = object_property_get_str(obj, "id", NULL);
         m->value->has_id = !!m->value->id;
 
-        m->value->size = object_property_get_int(obj, "size",
-                                                 &error_abort);
+        m->value->size = object_property_get_uint(obj, "size",
+                                                  &error_abort);
         m->value->merge = object_property_get_bool(obj, "merge",
                                                    &error_abort);
         m->value->dump = object_property_get_bool(obj, "dump",
