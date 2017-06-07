@@ -110,19 +110,8 @@ static int icp_set_kvm_state(ICPState *icp, int version_id)
     return 0;
 }
 
-static void icp_kvm_reset(void *dev)
+static void icp_kvm_reset(ICPState *icp)
 {
-    ICPState *icp = ICP(dev);
-
-    icp->xirr = 0;
-    icp->pending_priority = 0xff;
-    icp->mfrr = 0xff;
-
-    /* Make all outputs as deasserted only if the CPU thread is in use */
-    if (icp->output) {
-        qemu_set_irq(icp->output, 0);
-    }
-
     icp_set_kvm_state(icp, 1);
 }
 
@@ -159,26 +148,14 @@ static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
     QLIST_INSERT_HEAD(&kvm_enabled_icps, enabled_icp, node);
 }
 
-static void icp_kvm_realize(DeviceState *dev, Error **errp)
-{
-    qemu_register_reset(icp_kvm_reset, dev);
-}
-
-static void icp_kvm_unrealize(DeviceState *dev, Error **errp)
-{
-    qemu_unregister_reset(icp_kvm_reset, dev);
-}
-
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     ICPStateClass *icpc = ICP_CLASS(klass);
 
-    dc->realize = icp_kvm_realize;
-    dc->unrealize = icp_kvm_unrealize;
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
     icpc->cpu_setup = icp_kvm_cpu_setup;
+    icpc->reset = icp_kvm_reset;
 }
 
 static const TypeInfo icp_kvm_info = {
