@@ -72,7 +72,6 @@ int xtensa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
                       __func__, n, reg->type);
         memset(mem_buf, 0, reg->size);
         return reg->size;
-        return 0;
     }
 }
 
