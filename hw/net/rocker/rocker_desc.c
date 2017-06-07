@@ -69,9 +69,7 @@ char *desc_get_buf(DescInfo *info, bool read_only)
         return NULL;
     }
 
-    if (pci_dma_read(dev, le64_to_cpu(info->desc.buf_addr), info->buf, size)) {
-        return NULL;
-    }
+    pci_dma_read(dev, le64_to_cpu(info->desc.buf_addr), info->buf, size);
 
     return info->buf;
 }
