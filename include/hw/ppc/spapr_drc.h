@@ -215,10 +215,8 @@ typedef struct sPAPRDRConnectorClass {
     const char *drc_name_prefix; /* used other places in device tree */
 
     sPAPRDREntitySense (*dr_entity_sense)(sPAPRDRConnector *drc);
-
-    /* accessors for guest-visible (generally via RTAS) DR state */
-    uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
-                                    sPAPRDRIsolationState state);
+    uint32_t (*isolate)(sPAPRDRConnector *drc);
+    uint32_t (*unisolate)(sPAPRDRConnector *drc);
 
     /* QEMU interfaces for managing hotplug operations */
     bool (*release_pending)(sPAPRDRConnector *drc);
