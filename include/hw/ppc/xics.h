@@ -87,6 +87,7 @@ struct ICPState {
 };
 
 #define ICP_PROP_XICS "xics"
+#define ICP_PROP_CPU "cpu"
 
 struct PnvICPState {
     ICPState parent_obj;
@@ -187,8 +188,6 @@ void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle);
 
 qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
 ICPState *xics_icp_get(XICSFabric *xi, int server);
-void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu, ICPState *icp);
-void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu);
 
 /* Internal XICS interfaces */
 void icp_set_cppr(ICPState *icp, uint8_t cppr);

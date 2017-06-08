@@ -38,50 +38,6 @@
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 
-void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu)
-{
-    CPUState *cs = CPU(cpu);
-    ICPState *icp = ICP(cpu->intc);
-
-    assert(icp);
-    assert(cs == icp->cs);
-
-    icp->output = NULL;
-    icp->cs = NULL;
-}
-
-void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu, ICPState *icp)
-{
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-    ICPStateClass *icpc;
-
-    assert(icp);
-
-    cpu->intc = OBJECT(icp);
-    icp->cs = cs;
-
-    icpc = ICP_GET_CLASS(icp);
-    if (icpc->cpu_setup) {
-        icpc->cpu_setup(icp, cpu);
-    }
-
-    switch (PPC_INPUT(env)) {
-    case PPC_FLAGS_INPUT_POWER7:
-        icp->output = env->irq_inputs[POWER7_INPUT_INT];
-        break;
-
-    case PPC_FLAGS_INPUT_970:
-        icp->output = env->irq_inputs[PPC970_INPUT_INT];
-        break;
-
-    default:
-        error_report("XICS interrupt controller does not support this CPU "
-                     "bus model");
-        abort();
-    }
-}
-
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
     int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
@@ -343,6 +299,8 @@ static void icp_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
     ICPStateClass *icpc = ICP_GET_CLASS(dev);
+    PowerPCCPU *cpu;
+    CPUPPCState *env;
     Object *obj;
     Error *err = NULL;
 
@@ -354,6 +312,36 @@ static void icp_realize(DeviceState *dev, Error **errp)
     }
 
     icp->xics = XICS_FABRIC(obj);
+
+    obj = object_property_get_link(OBJECT(dev), ICP_PROP_CPU, &err);
+    if (!obj) {
+        error_setg(errp, "%s: required link '" ICP_PROP_CPU "' not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
+    }
+
+    cpu = POWERPC_CPU(obj);
+    cpu->intc = OBJECT(icp);
+    icp->cs = CPU(obj);
+
+    if (icpc->cpu_setup) {
+        icpc->cpu_setup(icp, cpu);
+    }
+
+    env = &cpu->env;
+    switch (PPC_INPUT(env)) {
+    case PPC_FLAGS_INPUT_POWER7:
+        icp->output = env->irq_inputs[POWER7_INPUT_INT];
+        break;
+
+    case PPC_FLAGS_INPUT_970:
+        icp->output = env->irq_inputs[PPC970_INPUT_INT];
+        break;
+
+    default:
+        error_setg(errp, "XICS interrupt controller does not support this CPU bus model");
+        return;
+    }
 
     if (icpc->realize) {
         icpc->realize(icp, errp);
