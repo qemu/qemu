@@ -33,7 +33,7 @@
 #define SPAPR_DRC_PHYSICAL_CLASS(klass) \
         OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, \
                            TYPE_SPAPR_DRC_PHYSICAL)
-#define SPAPR_DRC_PHYSICAL(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+#define SPAPR_DRC_PHYSICAL(obj) OBJECT_CHECK(sPAPRDRCPhysical, (obj), \
                                              TYPE_SPAPR_DRC_PHYSICAL)
 
 #define TYPE_SPAPR_DRC_LOGICAL "spapr-drc-logical"
@@ -198,9 +198,6 @@ typedef struct sPAPRDRConnector {
     uint32_t id;
     Object *owner;
 
-    /* DR-indicator */
-    uint32_t dr_indicator;
-
     uint32_t state;
 
     /* RTAS ibm,configure-connector state */
@@ -231,6 +228,14 @@ typedef struct sPAPRDRConnectorClass {
     uint32_t (*unisolate)(sPAPRDRConnector *drc);
     void (*release)(DeviceState *dev);
 } sPAPRDRConnectorClass;
+
+typedef struct sPAPRDRCPhysical {
+    /*< private >*/
+    sPAPRDRConnector parent;
+
+    /* DR-indicator */
+    uint32_t dr_indicator;
+} sPAPRDRCPhysical;
 
 static inline bool spapr_drc_hotplugged(DeviceState *dev)
 {

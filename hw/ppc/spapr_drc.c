@@ -478,7 +478,6 @@ static const VMStateDescription vmstate_spapr_drc = {
     .needed = spapr_drc_needed,
     .fields  = (VMStateField []) {
         VMSTATE_UINT32(state, sPAPRDRConnector),
-        VMSTATE_UINT32(dr_indicator, sPAPRDRConnector),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -575,10 +574,63 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     dk->user_creatable = false;
 }
 
+static bool drc_physical_needed(void *opaque)
+{
+    sPAPRDRCPhysical *drcp = (sPAPRDRCPhysical *)opaque;
+    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(drcp);
+
+    if ((drc->dev && (drcp->dr_indicator == SPAPR_DR_INDICATOR_ACTIVE))
+        || (!drc->dev && (drcp->dr_indicator == SPAPR_DR_INDICATOR_INACTIVE))) {
+        return false;
+    }
+    return true;
+}
+
+static const VMStateDescription vmstate_spapr_drc_physical = {
+    .name = "spapr_drc/physical",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = drc_physical_needed,
+    .fields  = (VMStateField []) {
+        VMSTATE_UINT32(dr_indicator, sPAPRDRCPhysical),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void drc_physical_reset(void *opaque)
+{
+    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(opaque);
+    sPAPRDRCPhysical *drcp = SPAPR_DRC_PHYSICAL(drc);
+
+    if (drc->dev) {
+        drcp->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
+    } else {
+        drcp->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
+    }
+}
+
+static void realize_physical(DeviceState *d, Error **errp)
+{
+    sPAPRDRCPhysical *drcp = SPAPR_DRC_PHYSICAL(d);
+    Error *local_err = NULL;
+
+    realize(d, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    vmstate_register(DEVICE(drcp), spapr_drc_index(SPAPR_DR_CONNECTOR(drcp)),
+                     &vmstate_spapr_drc_physical, drcp);
+    qemu_register_reset(drc_physical_reset, drcp);
+}
+
 static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
 {
+    DeviceClass *dk = DEVICE_CLASS(k);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
+    dk->realize = realize_physical;
     drck->dr_entity_sense = physical_entity_sense;
     drck->isolate = drc_isolate_physical;
     drck->unisolate = drc_unisolate_physical;
@@ -640,6 +692,7 @@ static const TypeInfo spapr_dr_connector_info = {
 static const TypeInfo spapr_drc_physical_info = {
     .name          = TYPE_SPAPR_DRC_PHYSICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
+    .instance_size = sizeof(sPAPRDRCPhysical),
     .class_init    = spapr_drc_physical_class_init,
     .abstract      = true,
 };
@@ -878,12 +931,18 @@ static uint32_t rtas_set_dr_indicator(uint32_t idx, uint32_t state)
 {
     sPAPRDRConnector *drc = spapr_drc_by_index(idx);
 
-    if (!drc) {
-        return RTAS_OUT_PARAM_ERROR;
+    if (!drc || !object_dynamic_cast(OBJECT(drc), TYPE_SPAPR_DRC_PHYSICAL)) {
+        return RTAS_OUT_NO_SUCH_INDICATOR;
+    }
+    if ((state != SPAPR_DR_INDICATOR_INACTIVE)
+        && (state != SPAPR_DR_INDICATOR_ACTIVE)
+        && (state != SPAPR_DR_INDICATOR_IDENTIFY)
+        && (state != SPAPR_DR_INDICATOR_ACTION)) {
+        return RTAS_OUT_PARAM_ERROR; /* bad state parameter */
     }
 
     trace_spapr_drc_set_dr_indicator(idx, state);
-    drc->dr_indicator = state;
+    SPAPR_DRC_PHYSICAL(drc)->dr_indicator = state;
     return RTAS_OUT_SUCCESS;
 }
 
