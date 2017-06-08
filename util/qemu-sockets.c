@@ -1325,40 +1325,6 @@ SocketAddress *socket_remote_address(int fd, Error **errp)
     return socket_sockaddr_to_address(&ss, sslen, errp);
 }
 
-char *socket_address_to_string(struct SocketAddress *addr, Error **errp)
-{
-    char *buf;
-    InetSocketAddress *inet;
-
-    switch (addr->type) {
-    case SOCKET_ADDRESS_TYPE_INET:
-        inet = &addr->u.inet;
-        if (strchr(inet->host, ':') == NULL) {
-            buf = g_strdup_printf("%s:%s", inet->host, inet->port);
-        } else {
-            buf = g_strdup_printf("[%s]:%s", inet->host, inet->port);
-        }
-        break;
-
-    case SOCKET_ADDRESS_TYPE_UNIX:
-        buf = g_strdup(addr->u.q_unix.path);
-        break;
-
-    case SOCKET_ADDRESS_TYPE_FD:
-        buf = g_strdup(addr->u.fd.str);
-        break;
-
-    case SOCKET_ADDRESS_TYPE_VSOCK:
-        buf = g_strdup_printf("%s:%s",
-                              addr->u.vsock.cid,
-                              addr->u.vsock.port);
-        break;
-
-    default:
-        abort();
-    }
-    return buf;
-}
 
 SocketAddress *socket_address_flatten(SocketAddressLegacy *addr_legacy)
 {
