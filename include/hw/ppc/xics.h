@@ -86,6 +86,8 @@ struct ICPState {
     XICSFabric *xics;
 };
 
+#define ICP_PROP_XICS "xics"
+
 struct PnvICPState {
     ICPState parent_obj;
 
@@ -129,6 +131,8 @@ struct ICSState {
     ICSIRQState *irqs;
     XICSFabric *xics;
 };
+
+#define ICS_PROP_XICS "xics"
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
 {

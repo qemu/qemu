@@ -107,7 +107,8 @@ static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
 
     obj = object_new(type_ics);
     object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
-    object_property_add_const_link(obj, "xics", OBJECT(spapr), &error_abort);
+    object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
+                                   &error_abort);
     object_property_set_int(obj, nr_irqs, "nr-irqs", &local_err);
     if (local_err) {
         goto error;

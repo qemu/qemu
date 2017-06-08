@@ -121,7 +121,8 @@ static void pnv_core_realize_child(Object *child, XICSFabric *xi, Error **errp)
     obj = object_new(TYPE_PNV_ICP);
     object_property_add_child(OBJECT(cpu), "icp", obj, &error_abort);
     object_unref(obj);
-    object_property_add_const_link(obj, "xics", OBJECT(xi), &error_abort);
+    object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
+                                   &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

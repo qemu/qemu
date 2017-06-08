@@ -346,9 +346,9 @@ static void icp_realize(DeviceState *dev, Error **errp)
     Object *obj;
     Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "xics", &err);
+    obj = object_property_get_link(OBJECT(dev), ICP_PROP_XICS, &err);
     if (!obj) {
-        error_setg(errp, "%s: required link 'xics' not found: %s",
+        error_setg(errp, "%s: required link '" ICP_PROP_XICS "' not found: %s",
                    __func__, error_get_pretty(err));
         return;
     }
@@ -654,9 +654,9 @@ static void ics_base_realize(DeviceState *dev, Error **errp)
     Object *obj;
     Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "xics", &err);
+    obj = object_property_get_link(OBJECT(dev), ICS_PROP_XICS, &err);
     if (!obj) {
-        error_setg(errp, "%s: required link 'xics' not found: %s",
+        error_setg(errp, "%s: required link '" ICS_PROP_XICS "' not found: %s",
                    __func__, error_get_pretty(err));
         return;
     }
