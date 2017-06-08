@@ -981,9 +981,7 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
     return;
 
 xilinx_enet_realize_fail:
-    if (!*errp) {
-        *errp = local_err;
-    }
+    error_propagate(errp, local_err);
 }
 
 static void xilinx_enet_init(Object *obj)
