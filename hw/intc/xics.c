@@ -356,7 +356,7 @@ static void icp_realize(DeviceState *dev, Error **errp)
     icp->xics = XICS_FABRIC(obj);
 
     if (icpc->realize) {
-        icpc->realize(dev, errp);
+        icpc->realize(icp, errp);
     }
 
     qemu_register_reset(icp_reset, dev);
@@ -606,10 +606,8 @@ static void ics_simple_initfn(Object *obj)
     ics->offset = XICS_IRQ_BASE;
 }
 
-static void ics_simple_realize(DeviceState *dev, Error **errp)
+static void ics_simple_realize(ICSState *ics, Error **errp)
 {
-    ICSState *ics = ICS_SIMPLE(dev);
-
     if (!ics->nr_irqs) {
         error_setg(errp, "Number of interrupts needs to be greater 0");
         return;
@@ -617,7 +615,7 @@ static void ics_simple_realize(DeviceState *dev, Error **errp)
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
     ics->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
 
-    qemu_register_reset(ics_simple_reset, dev);
+    qemu_register_reset(ics_simple_reset, ics);
 }
 
 static Property ics_simple_properties[] = {
@@ -664,7 +662,7 @@ static void ics_base_realize(DeviceState *dev, Error **errp)
 
 
     if (icsc->realize) {
-        icsc->realize(dev, errp);
+        icsc->realize(ics, errp);
     }
 }
 

@@ -65,9 +65,9 @@ typedef struct XICSFabric XICSFabric;
 struct ICPStateClass {
     DeviceClass parent_class;
 
-    void (*realize)(DeviceState *dev, Error **errp);
-    void (*pre_save)(ICPState *s);
-    int (*post_load)(ICPState *s, int version_id);
+    void (*realize)(ICPState *icp, Error **errp);
+    void (*pre_save)(ICPState *icp);
+    int (*post_load)(ICPState *icp, int version_id);
     void (*cpu_setup)(ICPState *icp, PowerPCCPU *cpu);
     void (*reset)(ICPState *icp);
 };
@@ -113,7 +113,7 @@ struct PnvICPState {
 struct ICSStateClass {
     DeviceClass parent_class;
 
-    void (*realize)(DeviceState *dev, Error **errp);
+    void (*realize)(ICSState *s, Error **errp);
     void (*pre_save)(ICSState *s);
     int (*post_load)(ICSState *s, int version_id);
     void (*reject)(ICSState *s, uint32_t irq);

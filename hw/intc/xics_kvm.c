@@ -328,10 +328,8 @@ static void ics_kvm_reset(void *dev)
     ics_set_kvm_state(ics, 1);
 }
 
-static void ics_kvm_realize(DeviceState *dev, Error **errp)
+static void ics_kvm_realize(ICSState *ics, Error **errp)
 {
-    ICSState *ics = ICS_SIMPLE(dev);
-
     if (!ics->nr_irqs) {
         error_setg(errp, "Number of interrupts needs to be greater 0");
         return;
@@ -339,7 +337,7 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 
-    qemu_register_reset(ics_kvm_reset, dev);
+    qemu_register_reset(ics_kvm_reset, ics);
 }
 
 static void ics_kvm_class_init(ObjectClass *klass, void *data)

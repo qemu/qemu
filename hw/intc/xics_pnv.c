@@ -159,11 +159,11 @@ static const MemoryRegionOps pnv_icp_ops = {
     },
 };
 
-static void pnv_icp_realize(DeviceState *dev, Error **errp)
+static void pnv_icp_realize(ICPState *icp, Error **errp)
 {
-    PnvICPState *icp = PNV_ICP(dev);
+    PnvICPState *pnv_icp = PNV_ICP(icp);
 
-    memory_region_init_io(&icp->mmio, OBJECT(dev), &pnv_icp_ops,
+    memory_region_init_io(&pnv_icp->mmio, OBJECT(icp), &pnv_icp_ops,
                           icp, "icp-thread", 0x1000);
 }
 
