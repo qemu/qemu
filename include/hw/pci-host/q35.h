@@ -60,6 +60,7 @@ typedef struct MCHPCIState {
     uint64_t above_4g_mem_size;
     uint64_t pci_hole64_size;
     uint32_t short_root_bus;
+    uint16_t ext_tseg_mbytes;
 } MCHPCIState;
 
 typedef struct Q35PCIHost {
@@ -90,6 +91,11 @@ typedef struct Q35PCIHost {
 
 /* D0:F0 configuration space */
 #define MCH_HOST_BRIDGE_REVISION_DEFAULT       0x0
+
+#define MCH_HOST_BRIDGE_EXT_TSEG_MBYTES        0x50
+#define MCH_HOST_BRIDGE_EXT_TSEG_MBYTES_SIZE   2
+#define MCH_HOST_BRIDGE_EXT_TSEG_MBYTES_QUERY  0xffff
+#define MCH_HOST_BRIDGE_EXT_TSEG_MBYTES_MAX    0xfff
 
 #define MCH_HOST_BRIDGE_PCIEXBAR               0x60    /* 64bit register */
 #define MCH_HOST_BRIDGE_PCIEXBAR_SIZE          8       /* 64bit register */
