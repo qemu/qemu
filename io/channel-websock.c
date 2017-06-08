@@ -856,7 +856,7 @@ static ssize_t qio_channel_websock_readv(QIOChannel *ioc,
     ssize_t ret;
 
     if (wioc->io_err) {
-        *errp = error_copy(wioc->io_err);
+        error_propagate(errp, error_copy(wioc->io_err));
         return -1;
     }
 
@@ -902,7 +902,7 @@ static ssize_t qio_channel_websock_writev(QIOChannel *ioc,
     ssize_t ret;
 
     if (wioc->io_err) {
-        *errp = error_copy(wioc->io_err);
+        error_propagate(errp, error_copy(wioc->io_err));
         return -1;
     }
 
