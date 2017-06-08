@@ -201,7 +201,6 @@ typedef struct sPAPRDRConnector {
     bool awaiting_release;
     bool signalled;
     bool awaiting_allocation;
-    bool awaiting_allocation_skippable;
 
     /* device pointer, via link property */
     DeviceState *dev;

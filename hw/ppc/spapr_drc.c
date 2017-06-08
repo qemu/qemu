@@ -128,17 +128,6 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         if (!drc->dev) {
             return RTAS_OUT_NO_SUCH_INDICATOR;
         }
-        if (drc->awaiting_release && drc->awaiting_allocation) {
-            /* kernel is acknowledging a previous hotplug event
-             * while we are already removing it.
-             * it's safe to ignore awaiting_allocation here since we know the
-             * situation is predicated on the guest either already having done
-             * so (boot-time hotplug), or never being able to acquire in the
-             * first place (hotplug followed by immediate unplug).
-             */
-            drc->awaiting_allocation_skippable = true;
-            return RTAS_OUT_NO_SUCH_INDICATOR;
-        }
     }
 
     if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
@@ -391,11 +380,9 @@ void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     }
 
     if (drc->awaiting_allocation) {
-        if (!drc->awaiting_allocation_skippable) {
-            drc->awaiting_release = true;
-            trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
-            return;
-        }
+        drc->awaiting_release = true;
+        trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
+        return;
     }
 
     drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
@@ -418,7 +405,6 @@ void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     }
 
     drc->awaiting_release = false;
-    drc->awaiting_allocation_skippable = false;
     g_free(drc->fdt);
     drc->fdt = NULL;
     drc->fdt_start_offset = 0;
