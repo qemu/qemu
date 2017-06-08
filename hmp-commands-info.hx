@@ -100,9 +100,9 @@ ETEXI
 
     {
         .name       = "registers",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the cpu registers",
+        .args_type  = "cpustate_all:-a",
+        .params     = "[-a]",
+        .help       = "show the cpu registers (-a: all - show register info for all cpus)",
         .cmd        = hmp_info_registers,
     },
 
