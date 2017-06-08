@@ -353,8 +353,6 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     }
     g_assert(fdt || coldplug);
 
-    drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
-
     drc->dev = d;
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
@@ -372,8 +370,6 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
 
 static void spapr_drc_release(sPAPRDRConnector *drc)
 {
-    drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
-
     /* Calling release callbacks based on spapr_drc_type(drc). */
     switch (spapr_drc_type(drc)) {
     case SPAPR_DR_CONNECTOR_TYPE_CPU:
@@ -454,12 +450,14 @@ static void reset(DeviceState *d)
         if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
             drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_USABLE;
         }
+        drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
     } else {
         /* Otherwise device is absent, but might be hotplugged */
         drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
         if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
             drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_UNUSABLE;
         }
+        drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
     }
 }
 
