@@ -324,10 +324,6 @@ static void icp_realize(DeviceState *dev, Error **errp)
     cpu->intc = OBJECT(icp);
     icp->cs = CPU(obj);
 
-    if (icpc->cpu_setup) {
-        icpc->cpu_setup(icp, cpu);
-    }
-
     env = &cpu->env;
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER7:

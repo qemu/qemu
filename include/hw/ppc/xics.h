@@ -68,7 +68,6 @@ struct ICPStateClass {
     void (*realize)(ICPState *icp, Error **errp);
     void (*pre_save)(ICPState *icp);
     int (*post_load)(ICPState *icp, int version_id);
-    void (*cpu_setup)(ICPState *icp, PowerPCCPU *cpu);
     void (*reset)(ICPState *icp);
 };
 

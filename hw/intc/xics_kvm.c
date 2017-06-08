@@ -115,9 +115,9 @@ static void icp_kvm_reset(ICPState *icp)
     icp_set_kvm_state(icp, 1);
 }
 
-static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
+static void icp_kvm_realize(ICPState *icp, Error **errp)
 {
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = icp->cs;
     KVMEnabledICP *enabled_icp;
     unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
     int ret;
@@ -139,9 +139,9 @@ static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd, vcpu_id);
     if (ret < 0) {
-        error_report("Unable to connect CPU%ld to kernel XICS: %s", vcpu_id,
-                     strerror(errno));
-        exit(1);
+        error_setg(errp, "Unable to connect CPU%ld to kernel XICS: %s", vcpu_id,
+                   strerror(errno));
+        return;
     }
     enabled_icp = g_malloc(sizeof(*enabled_icp));
     enabled_icp->vcpu_id = vcpu_id;
@@ -154,7 +154,7 @@ static void icp_kvm_class_init(ObjectClass *klass, void *data)
 
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
-    icpc->cpu_setup = icp_kvm_cpu_setup;
+    icpc->realize = icp_kvm_realize;
     icpc->reset = icp_kvm_reset;
 }
 
