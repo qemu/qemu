@@ -426,9 +426,9 @@ static bool release_pending(sPAPRDRConnector *drc)
     return drc->awaiting_release;
 }
 
-static void reset(DeviceState *d)
+static void drc_reset(void *opaque)
 {
-    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
+    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(opaque);
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
@@ -538,6 +538,7 @@ static void realize(DeviceState *d, Error **errp)
     g_free(child_name);
     vmstate_register(DEVICE(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
+    qemu_register_reset(drc_reset, drc);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
 
@@ -596,7 +597,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     DeviceClass *dk = DEVICE_CLASS(k);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
-    dk->reset = reset;
     dk->realize = realize;
     dk->unrealize = unrealize;
     drck->release_pending = release_pending;

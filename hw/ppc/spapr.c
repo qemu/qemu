@@ -1967,24 +1967,6 @@ static void spapr_boot_set(void *opaque, const char *boot_device,
     machine->boot_order = g_strdup(boot_device);
 }
 
-/*
- * Reset routine for LMB DR devices.
- *
- * Unlike PCI DR devices, LMB DR devices explicitly register this reset
- * routine. Reset for PCI DR devices will be handled by PHB reset routine
- * when it walks all its children devices. LMB devices reset occurs
- * as part of ppc_spapr_reset().
- */
-static void spapr_drc_reset(void *opaque)
-{
-    sPAPRDRConnector *drc = opaque;
-    DeviceState *d = DEVICE(drc);
-
-    if (d) {
-        device_reset(d);
-    }
-}
-
 static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
@@ -1993,13 +1975,11 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
     int i;
 
     for (i = 0; i < nr_lmbs; i++) {
-        sPAPRDRConnector *drc;
         uint64_t addr;
 
         addr = i * lmb_size + spapr->hotplug_memory.base;
-        drc = spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_LMB,
-                                     addr/lmb_size);
-        qemu_register_reset(spapr_drc_reset, drc);
+        spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_LMB,
+                               addr / lmb_size);
     }
 }
 
@@ -2093,11 +2073,8 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
         int core_id = i * smp_threads;
 
         if (mc->has_hotpluggable_cpus) {
-            sPAPRDRConnector *drc =
-                spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_CPU,
-                                       (core_id / smp_threads) * smt);
-
-            qemu_register_reset(spapr_drc_reset, drc);
+            spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_CPU,
+                                   (core_id / smp_threads) * smt);
         }
 
         if (i < boot_cores_nr) {
