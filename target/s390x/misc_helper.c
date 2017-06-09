@@ -668,6 +668,7 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
         if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
             CPUState *cs = CPU(s390_env_get_cpu(env));
 
+            env->per_perc_atmid |= PER_CODE_EVENT_NULLIFICATION;
             env->int_pgm_code = PGM_PER;
             env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, addr));
 
