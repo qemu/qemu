@@ -1,0 +1,206 @@
+#!/bin/bash
+#
+# Test exiting qemu while jobs are still running
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1 # failure is the default!
+
+MIG_SOCKET="${TEST_DIR}/migrate"
+
+_cleanup()
+{
+    rm -f "${TEST_IMG}.mid"
+    rm -f "${TEST_IMG}.copy"
+    _cleanup_test_img
+    _cleanup_qemu
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+size=64M
+TEST_IMG="${TEST_IMG}.base" _make_test_img $size
+
+echo
+echo === Starting VM ===
+echo
+
+qemu_comm_method="qmp"
+
+_launch_qemu \
+    -drive file="${TEST_IMG}.base",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+h=$QEMU_HANDLE
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
+
+echo
+echo === Creating backing chain ===
+echo
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'blockdev-snapshot-sync',
+       'arguments': { 'device': 'disk',
+                      'snapshot-file': '$TEST_IMG.mid',
+                      'format': '$IMGFMT',
+                      'mode': 'absolute-paths' } }" \
+    "return"
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io disk \"write 0 4M\"' } }" \
+    "return"
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'blockdev-snapshot-sync',
+       'arguments': { 'device': 'disk',
+                      'snapshot-file': '$TEST_IMG',
+                      'format': '$IMGFMT',
+                      'mode': 'absolute-paths' } }" \
+    "return"
+
+echo
+echo === Start commit job and exit qemu ===
+echo
+
+# Note that the reference output intentionally includes the 'offset' field in
+# BLOCK_JOB_CANCELLED events for all of the following block jobs. They are
+# predictable and any change in the offsets would hint at a bug in the job
+# throttling code.
+#
+# In order to achieve these predictable offsets, all of the following tests
+# use speed=65536. Each job will perform exactly one iteration before it has
+# to sleep at least for a second, which is plenty of time for the 'quit' QMP
+# command to be received (after receiving the command, the rest runs
+# synchronously, so jobs can arbitrarily continue or complete).
+#
+# The buffer size for commit and streaming is 512k (waiting for 8 seconds after
+# the first request), for active commit and mirror it's large enough to cover
+# the full 4M, and for backup it's the qcow2 cluster size, which we know is
+# 64k. As all of these are at least as large as the speed, we are sure that the
+# offset doesn't advance after the first iteration before qemu exits.
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'block-commit',
+       'arguments': { 'device': 'disk',
+                      'base':'$TEST_IMG.base',
+                      'top': '$TEST_IMG.mid',
+                      'speed': 65536 } }" \
+    "return"
+
+_send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
+wait=1 _cleanup_qemu
+
+echo
+echo === Start active commit job and exit qemu ===
+echo
+
+_launch_qemu \
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+h=$QEMU_HANDLE
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'block-commit',
+       'arguments': { 'device': 'disk',
+                      'base':'$TEST_IMG.base',
+                      'speed': 65536 } }" \
+    "return"
+
+_send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
+wait=1 _cleanup_qemu
+
+echo
+echo === Start mirror job and exit qemu ===
+echo
+
+_launch_qemu \
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+h=$QEMU_HANDLE
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'drive-mirror',
+       'arguments': { 'device': 'disk',
+                      'target': '$TEST_IMG.copy',
+                      'format': '$IMGFMT',
+                      'sync': 'full',
+                      'speed': 65536 } }" \
+    "return"
+
+_send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
+wait=1 _cleanup_qemu
+
+echo
+echo === Start backup job and exit qemu ===
+echo
+
+_launch_qemu \
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+h=$QEMU_HANDLE
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'drive-backup',
+       'arguments': { 'device': 'disk',
+                      'target': '$TEST_IMG.copy',
+                      'format': '$IMGFMT',
+                      'sync': 'full',
+                      'speed': 65536 } }" \
+    "return"
+
+_send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
+wait=1 _cleanup_qemu
+
+echo
+echo === Start streaming job and exit qemu ===
+echo
+
+_launch_qemu \
+    -drive file="${TEST_IMG}",cache=$CACHEMODE,driver=$IMGFMT,id=disk
+h=$QEMU_HANDLE
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'block-stream',
+       'arguments': { 'device': 'disk',
+                      'speed': 65536 } }" \
+    "return"
+
+_send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
+wait=1 _cleanup_qemu
+
+_check_test_img
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
