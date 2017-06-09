@@ -222,5 +222,8 @@ function _cleanup_qemu()
         rm -f "${QEMU_FIFO_IN}_${i}" "${QEMU_FIFO_OUT}_${i}"
         eval "exec ${QEMU_IN[$i]}<&-"   # close file descriptors
         eval "exec ${QEMU_OUT[$i]}<&-"
+
+        unset QEMU_IN[$i]
+        unset QEMU_OUT[$i]
     done
 }
