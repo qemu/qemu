@@ -1069,8 +1069,10 @@ out:
  * @devfn: The devfn, which is the  combined of device and function number
  * @is_write: The access is a write operation
  * @entry: IOMMUTLBEntry that contain the addr to be translated and result
+ *
+ * Returns true if translation is successful, otherwise false.
  */
-static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
+static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
                                    uint8_t devfn, hwaddr addr, bool is_write,
                                    IOMMUTLBEntry *entry)
 {
@@ -1104,6 +1106,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         page_mask = iotlb_entry->mask;
         goto out;
     }
+
     /* Try to fetch context-entry from cache first */
     if (cc_entry->context_cache_gen == s->context_cache_gen) {
         trace_vtd_iotlb_cc_hit(bus_num, devfn, cc_entry->context_entry.hi,
@@ -1121,7 +1124,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
             } else {
                 vtd_report_dmar_fault(s, source_id, addr, ret_fr, is_write);
             }
-            return;
+            goto error;
         }
         /* Update context-cache */
         trace_vtd_iotlb_cc_update(bus_num, devfn, ce.hi, ce.lo,
@@ -1136,8 +1139,9 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
      * Also, let's ignore IOTLB caching as well for PT devices.
      */
     if (vtd_ce_get_type(&ce) == VTD_CONTEXT_TT_PASS_THROUGH) {
+        entry->iova = addr & VTD_PAGE_MASK;
         entry->translated_addr = entry->iova;
-        entry->addr_mask = VTD_PAGE_SIZE - 1;
+        entry->addr_mask = VTD_PAGE_MASK;
         entry->perm = IOMMU_RW;
         trace_vtd_translate_pt(source_id, entry->iova);
 
@@ -1152,7 +1156,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
          */
         vtd_pt_enable_fast_path(s, source_id);
 
-        return;
+        return true;
     }
 
     ret_fr = vtd_iova_to_slpte(&ce, addr, is_write, &slpte, &level,
@@ -1164,7 +1168,7 @@ static void vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         } else {
             vtd_report_dmar_fault(s, source_id, addr, ret_fr, is_write);
         }
-        return;
+        goto error;
     }
 
     page_mask = vtd_slpt_level_page_mask(level);
@@ -1175,6 +1179,14 @@ out:
     entry->translated_addr = vtd_get_slpte_addr(slpte) & page_mask;
     entry->addr_mask = ~page_mask;
     entry->perm = IOMMU_ACCESS_FLAG(reads, writes);
+    return true;
+
+error:
+    entry->iova = 0;
+    entry->translated_addr = 0;
+    entry->addr_mask = 0;
+    entry->perm = IOMMU_NONE;
+    return false;
 }
 
 static void vtd_root_table_setup(IntelIOMMUState *s)
@@ -2252,32 +2264,38 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
-    IOMMUTLBEntry ret = {
+    IOMMUTLBEntry iotlb = {
+        /* We'll fill in the rest later. */
         .target_as = &address_space_memory,
-        .iova = addr,
-        .translated_addr = 0,
-        .addr_mask = ~(hwaddr)0,
-        .perm = IOMMU_NONE,
     };
+    bool success;
 
-    if (!s->dmar_enabled) {
+    if (likely(s->dmar_enabled)) {
+        success = vtd_do_iommu_translate(vtd_as, vtd_as->bus, vtd_as->devfn,
+                                         addr, flag & IOMMU_WO, &iotlb);
+    } else {
         /* DMAR disabled, passthrough, use 4k-page*/
-        ret.iova = addr & VTD_PAGE_MASK_4K;
-        ret.translated_addr = addr & VTD_PAGE_MASK_4K;
-        ret.addr_mask = ~VTD_PAGE_MASK_4K;
-        ret.perm = IOMMU_RW;
-        return ret;
+        iotlb.iova = addr & VTD_PAGE_MASK_4K;
+        iotlb.translated_addr = addr & VTD_PAGE_MASK_4K;
+        iotlb.addr_mask = ~VTD_PAGE_MASK_4K;
+        iotlb.perm = IOMMU_RW;
+        success = true;
     }
 
-    vtd_do_iommu_translate(vtd_as, vtd_as->bus, vtd_as->devfn, addr,
-                           flag & IOMMU_WO, &ret);
+    if (likely(success)) {
+        trace_vtd_dmar_translate(pci_bus_num(vtd_as->bus),
+                                 VTD_PCI_SLOT(vtd_as->devfn),
+                                 VTD_PCI_FUNC(vtd_as->devfn),
+                                 iotlb.iova, iotlb.translated_addr,
+                                 iotlb.addr_mask);
+    } else {
+        trace_vtd_err_dmar_translate(pci_bus_num(vtd_as->bus),
+                                     VTD_PCI_SLOT(vtd_as->devfn),
+                                     VTD_PCI_FUNC(vtd_as->devfn),
+                                     iotlb.iova);
+    }
 
-    trace_vtd_dmar_translate(pci_bus_num(vtd_as->bus),
-                             VTD_PCI_SLOT(vtd_as->devfn),
-                             VTD_PCI_FUNC(vtd_as->devfn),
-                             ret.iova, ret.translated_addr, ret.addr_mask);
-
-    return ret;
+    return iotlb;
 }
 
 static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
