@@ -1116,14 +1116,14 @@ iscsi_getlength(BlockDriverState *bs)
 }
 
 static int
-coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
+coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
     struct unmap_list list;
     int r = 0;
 
-    if (!is_byte_request_lun_aligned(offset, count, iscsilun)) {
+    if (!is_byte_request_lun_aligned(offset, bytes, iscsilun)) {
         return -ENOTSUP;
     }
 
@@ -1133,7 +1133,7 @@ coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
     }
 
     list.lba = offset / iscsilun->block_size;
-    list.num = count / iscsilun->block_size;
+    list.num = bytes / iscsilun->block_size;
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
     qemu_mutex_lock(&iscsilun->mutex);
@@ -1174,7 +1174,7 @@ retry:
     }
 
     iscsi_allocmap_set_invalid(iscsilun, offset >> BDRV_SECTOR_BITS,
-                               count >> BDRV_SECTOR_BITS);
+                               bytes >> BDRV_SECTOR_BITS);
 
 out_unlock:
     qemu_mutex_unlock(&iscsilun->mutex);
@@ -1183,7 +1183,7 @@ out_unlock:
 
 static int
 coroutine_fn iscsi_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
-                                    int count, BdrvRequestFlags flags)
+                                    int bytes, BdrvRequestFlags flags)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
@@ -1192,7 +1192,7 @@ coroutine_fn iscsi_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     bool use_16_for_ws = iscsilun->use_16_for_rw;
     int r = 0;
 
-    if (!is_byte_request_lun_aligned(offset, count, iscsilun)) {
+    if (!is_byte_request_lun_aligned(offset, bytes, iscsilun)) {
         return -ENOTSUP;
     }
 
@@ -1215,7 +1215,7 @@ coroutine_fn iscsi_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     }
 
     lba = offset / iscsilun->block_size;
-    nb_blocks = count / iscsilun->block_size;
+    nb_blocks = bytes / iscsilun->block_size;
 
     if (iscsilun->zeroblock == NULL) {
         iscsilun->zeroblock = g_try_malloc0(iscsilun->block_size);
@@ -1273,17 +1273,17 @@ retry:
 
     if (iTask.status != SCSI_STATUS_GOOD) {
         iscsi_allocmap_set_invalid(iscsilun, offset >> BDRV_SECTOR_BITS,
-                                   count >> BDRV_SECTOR_BITS);
+                                   bytes >> BDRV_SECTOR_BITS);
         r = iTask.err_code;
         goto out_unlock;
     }
 
     if (flags & BDRV_REQ_MAY_UNMAP) {
         iscsi_allocmap_set_invalid(iscsilun, offset >> BDRV_SECTOR_BITS,
-                                   count >> BDRV_SECTOR_BITS);
+                                   bytes >> BDRV_SECTOR_BITS);
     } else {
         iscsi_allocmap_set_allocated(iscsilun, offset >> BDRV_SECTOR_BITS,
-                                     count >> BDRV_SECTOR_BITS);
+                                     bytes >> BDRV_SECTOR_BITS);
     }
 
 out_unlock:

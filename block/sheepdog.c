@@ -2935,7 +2935,7 @@ static int sd_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
 
 
 static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
-                                      int count)
+                                      int bytes)
 {
     SheepdogAIOCB acb;
     BDRVSheepdogState *s = bs->opaque;
@@ -2953,11 +2953,11 @@ static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
     iov.iov_len = sizeof(zero);
     discard_iov.iov = &iov;
     discard_iov.niov = 1;
-    if (!QEMU_IS_ALIGNED(offset | count, BDRV_SECTOR_SIZE)) {
+    if (!QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE)) {
         return -ENOTSUP;
     }
     sd_aio_setup(&acb, s, &discard_iov, offset >> BDRV_SECTOR_BITS,
-                 count >> BDRV_SECTOR_BITS, AIOCB_DISCARD_OBJ);
+                 bytes >> BDRV_SECTOR_BITS, AIOCB_DISCARD_OBJ);
     sd_co_rw_vector(&acb);
     sd_aio_complete(&acb);
 

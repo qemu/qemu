@@ -1317,7 +1317,7 @@ static int coroutine_fn bdrv_qed_co_writev(BlockDriverState *bs,
 
 static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
                                                   int64_t offset,
-                                                  int count,
+                                                  int bytes,
                                                   BdrvRequestFlags flags)
 {
     BDRVQEDState *s = bs->opaque;
@@ -1326,7 +1326,7 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
 
     /* Fall back if the request is not aligned */
     if (qed_offset_into_cluster(s, offset) ||
-        qed_offset_into_cluster(s, count)) {
+        qed_offset_into_cluster(s, bytes)) {
         return -ENOTSUP;
     }
 
@@ -1334,11 +1334,11 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
      * then it will be allocated during request processing.
      */
     iov.iov_base = NULL;
-    iov.iov_len = count;
+    iov.iov_len = bytes;
 
     qemu_iovec_init_external(&qiov, &iov, 1);
     return qed_co_request(bs, offset >> BDRV_SECTOR_BITS, &qiov,
-                          count >> BDRV_SECTOR_BITS,
+                          bytes >> BDRV_SECTOR_BITS,
                           QED_AIOCB_WRITE | QED_AIOCB_ZERO);
 }
 

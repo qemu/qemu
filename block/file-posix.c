@@ -1485,7 +1485,7 @@ static int aio_worker(void *arg)
 
 static int paio_submit_co(BlockDriverState *bs, int fd,
                           int64_t offset, QEMUIOVector *qiov,
-                          int count, int type)
+                          int bytes, int type)
 {
     RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
     ThreadPool *pool;
@@ -1494,22 +1494,22 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
 
-    acb->aio_nbytes = count;
+    acb->aio_nbytes = bytes;
     acb->aio_offset = offset;
 
     if (qiov) {
         acb->aio_iov = qiov->iov;
         acb->aio_niov = qiov->niov;
-        assert(qiov->size == count);
+        assert(qiov->size == bytes);
     }
 
-    trace_paio_submit_co(offset, count, type);
+    trace_paio_submit_co(offset, bytes, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_co(pool, aio_worker, acb);
 }
 
 static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
-        int64_t offset, QEMUIOVector *qiov, int count,
+        int64_t offset, QEMUIOVector *qiov, int bytes,
         BlockCompletionFunc *cb, void *opaque, int type)
 {
     RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
@@ -1519,7 +1519,7 @@ static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
 
-    acb->aio_nbytes = count;
+    acb->aio_nbytes = bytes;
     acb->aio_offset = offset;
 
     if (qiov) {
@@ -1528,7 +1528,7 @@ static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
         assert(qiov->size == acb->aio_nbytes);
     }
 
-    trace_paio_submit(acb, opaque, offset, count, type);
+    trace_paio_submit(acb, opaque, offset, bytes, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
@@ -2109,26 +2109,26 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
 }
 
 static coroutine_fn BlockAIOCB *raw_aio_pdiscard(BlockDriverState *bs,
-    int64_t offset, int count,
+    int64_t offset, int bytes,
     BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
 
-    return paio_submit(bs, s->fd, offset, NULL, count,
+    return paio_submit(bs, s->fd, offset, NULL, bytes,
                        cb, opaque, QEMU_AIO_DISCARD);
 }
 
 static int coroutine_fn raw_co_pwrite_zeroes(
     BlockDriverState *bs, int64_t offset,
-    int count, BdrvRequestFlags flags)
+    int bytes, BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
 
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return paio_submit_co(bs, s->fd, offset, NULL, count,
+        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
                               QEMU_AIO_WRITE_ZEROES);
     } else if (s->discard_zeroes) {
-        return paio_submit_co(bs, s->fd, offset, NULL, count,
+        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
                               QEMU_AIO_DISCARD);
     }
     return -ENOTSUP;
@@ -2560,7 +2560,7 @@ static int fd_open(BlockDriverState *bs)
 }
 
 static coroutine_fn BlockAIOCB *hdev_aio_pdiscard(BlockDriverState *bs,
-    int64_t offset, int count,
+    int64_t offset, int bytes,
     BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
@@ -2568,12 +2568,12 @@ static coroutine_fn BlockAIOCB *hdev_aio_pdiscard(BlockDriverState *bs,
     if (fd_open(bs) < 0) {
         return NULL;
     }
-    return paio_submit(bs, s->fd, offset, NULL, count,
+    return paio_submit(bs, s->fd, offset, NULL, bytes,
                        cb, opaque, QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
 }
 
 static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
-    int64_t offset, int count, BdrvRequestFlags flags)
+    int64_t offset, int bytes, BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
     int rc;
@@ -2583,10 +2583,10 @@ static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
         return rc;
     }
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return paio_submit_co(bs, s->fd, offset, NULL, count,
+        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
                               QEMU_AIO_WRITE_ZEROES|QEMU_AIO_BLKDEV);
     } else if (s->discard_zeroes) {
-        return paio_submit_co(bs, s->fd, offset, NULL, count,
+        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
                               QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
     }
     return -ENOTSUP;
