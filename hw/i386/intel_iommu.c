@@ -2520,7 +2520,8 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     trace_vtd_ir_remap_msi_req(origin->address, origin->data);
 
     if (!iommu || !iommu->intr_enabled) {
-        goto do_not_translate;
+        memcpy(translated, origin, sizeof(*origin));
+        goto out;
     }
 
     if (origin->address & VTD_MSI_ADDR_HI_MASK) {
@@ -2537,7 +2538,8 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
 
     /* This is compatible mode. */
     if (addr.addr.int_mode != VTD_IR_INT_FORMAT_REMAP) {
-        goto do_not_translate;
+        memcpy(translated, origin, sizeof(*origin));
+        goto out;
     }
 
     index = addr.addr.index_h << 15 | le16_to_cpu(addr.addr.index_l);
@@ -2589,13 +2591,9 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     /* Translate VTDIrq to MSI message */
     vtd_generate_msi_message(&irq, translated);
 
+out:
     trace_vtd_ir_remap_msi(origin->address, origin->data,
                            translated->address, translated->data);
-
-    return 0;
-
-do_not_translate:
-    memcpy(translated, origin, sizeof(*origin));
     return 0;
 }
 
