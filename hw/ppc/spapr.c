@@ -2636,6 +2636,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
     int i, fdt_offset, fdt_size;
     void *fdt;
     uint64_t addr = addr_start;
+    bool hotplugged = spapr_drc_hotplugged(dev);
     Error *local_err = NULL;
 
     for (i = 0; i < nr_lmbs; i++) {
@@ -2659,12 +2660,15 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
             error_propagate(errp, local_err);
             return;
         }
+        if (!hotplugged) {
+            spapr_drc_reset(drc);
+        }
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
     /* send hotplug notification to the
      * guest only in case of hotplugged memory
      */
-    if (dev->hotplugged) {
+    if (hotplugged) {
         if (dedicated_hp_event_source) {
             drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
                                   addr_start / SPAPR_MEMORY_BLOCK_SIZE);
@@ -2998,6 +3002,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     int smt = kvmppc_smt_threads();
     CPUArchId *core_slot;
     int index;
+    bool hotplugged = spapr_drc_hotplugged(dev);
 
     core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index);
     if (!core_slot) {
@@ -3018,15 +3023,18 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             error_propagate(errp, local_err);
             return;
         }
+
+        if (hotplugged) {
+            /*
+             * Send hotplug notification interrupt to the guest only
+             * in case of hotplugged CPUs.
+             */
+            spapr_hotplug_req_add_by_index(drc);
+        } else {
+            spapr_drc_reset(drc);
+        }
     }
 
-    if (dev->hotplugged) {
-        /*
-         * Send hotplug notification interrupt to the guest only in case
-         * of hotplugged CPUs.
-         */
-        spapr_hotplug_req_add_by_index(drc);
-    }
     core_slot->cpu = OBJECT(dev);
 
     if (smc->pre_2_10_has_unused_icps) {

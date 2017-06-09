@@ -412,10 +412,8 @@ static bool release_pending(sPAPRDRConnector *drc)
     return drc->awaiting_release;
 }
 
-static void drc_reset(void *opaque)
+void spapr_drc_reset(sPAPRDRConnector *drc)
 {
-    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(opaque);
-
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
     g_free(drc->ccs);
@@ -445,6 +443,11 @@ static void drc_reset(void *opaque)
         }
         drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
     }
+}
+
+static void drc_reset(void *opaque)
+{
+    spapr_drc_reset(SPAPR_DR_CONNECTOR(opaque));
 }
 
 static bool spapr_drc_needed(void *opaque)

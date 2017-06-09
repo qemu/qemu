@@ -15,6 +15,7 @@
 
 #include <libfdt.h>
 #include "qom/object.h"
+#include "sysemu/sysemu.h"
 #include "hw/qdev.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
@@ -222,6 +223,13 @@ typedef struct sPAPRDRConnectorClass {
     /* QEMU interfaces for managing hotplug operations */
     bool (*release_pending)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
+
+static inline bool spapr_drc_hotplugged(DeviceState *dev)
+{
+    return dev->hotplugged && !runstate_check(RUN_STATE_INMIGRATE);
+}
+
+void spapr_drc_reset(sPAPRDRConnector *drc);
 
 uint32_t spapr_drc_index(sPAPRDRConnector *drc);
 sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc);

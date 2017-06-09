@@ -1443,7 +1443,9 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     /* If this is function 0, signal hotplug for all the device functions.
      * Otherwise defer sending the hotplug event.
      */
-    if (plugged_dev->hotplugged && PCI_FUNC(pdev->devfn) == 0) {
+    if (!spapr_drc_hotplugged(plugged_dev)) {
+        spapr_drc_reset(drc);
+    } else if (PCI_FUNC(pdev->devfn) == 0) {
         int i;
 
         for (i = 0; i < 8; i++) {
