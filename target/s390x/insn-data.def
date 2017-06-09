@@ -960,7 +960,7 @@
 /* STORE CPU ADDRESS */
     C(0xb212, STAP,    S,     Z,   la2, 0, new, m1_16, stap, 0)
 /* STORE CPU ID */
-    C(0xb202, STIDP,   S,     Z,   la2, 0, new, m1_64, stidp, 0)
+    C(0xb202, STIDP,   S,     Z,   la2, 0, new, 0, stidp, 0)
 /* STORE CPU TIMER */
     C(0xb209, STPT,    S,     Z,   la2, 0, new, m1_64, stpt, 0)
 /* STORE FACILITY LIST */

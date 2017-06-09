@@ -149,7 +149,7 @@ typedef struct CPUS390XState {
     CPU_COMMON
 
     uint32_t cpu_num;
-    uint32_t machine_type;
+    uint64_t cpuid;
 
     uint64_t tod_offset;
     uint64_t tod_basetime;
