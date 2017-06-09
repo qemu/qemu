@@ -355,8 +355,7 @@ static void gen_program_exception(DisasContext *s, int code)
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_ilen));
     tcg_temp_free_i32(tmp);
 
-    /* Advance past instruction.  */
-    s->pc = s->next_pc;
+    /* update the psw */
     update_psw_addr(s);
 
     /* Save off cc.  */
