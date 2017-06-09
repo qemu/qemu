@@ -428,6 +428,8 @@ static void test_dummy_createcmdl(void)
     g_assert(err == NULL);
     error_free(err);
 
+    object_unref(OBJECT(dobj));
+
     /*
      * cmdline-parsing via qemu_opts_parse() results in a QemuOpts entry
      * corresponding to the Object's ID to be added to the QemuOptsList
