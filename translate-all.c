@@ -843,9 +843,6 @@ static TranslationBlock *tb_alloc(target_ulong pc)
         ctx->tbs = g_renew(TranslationBlock *, ctx->tbs, ctx->tbs_size);
     }
     ctx->tbs[ctx->nb_tbs++] = tb;
-    tb->pc = pc;
-    tb->cflags = 0;
-    tb->invalid = false;
     return tb;
 }
 
@@ -1289,9 +1286,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     gen_code_buf = tcg_ctx.code_gen_ptr;
     tb->tc_ptr = gen_code_buf;
+    tb->pc = pc;
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
+    tb->invalid = false;
 
 #ifdef CONFIG_PROFILER
     tcg_ctx.tb_count1++; /* includes aborted translations because of
