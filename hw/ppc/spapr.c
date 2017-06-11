@@ -2131,7 +2131,7 @@ static void ppc_spapr_init(MachineState *machine)
         machine->cpu_model = kvm_enabled() ? "host" : smc->tcg_default_cpu;
     }
 
-    ppc_cpu_parse_features(machine->cpu_model);
+    spapr_cpu_parse_features(spapr);
 
     spapr_init_cpus(spapr);
 
@@ -2503,6 +2503,10 @@ static void spapr_machine_initfn(Object *obj)
                                     " place of standard EPOW events when possible"
                                     " (required for memory hot-unplug support)",
                                     NULL);
+
+    ppc_compat_add_property(obj, "max-cpu-compat", &spapr->max_compat_pvr,
+                            "Maximum permitted CPU compatibility mode",
+                            &error_fatal);
 }
 
 static void spapr_machine_finalizefn(Object *obj)

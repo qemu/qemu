@@ -1045,11 +1045,11 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
     }
 }
 
-static uint32_t cas_check_pvr(PowerPCCPU *cpu, target_ulong *addr,
-                              Error **errp)
+static uint32_t cas_check_pvr(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+                              target_ulong *addr, Error **errp)
 {
     bool explicit_match = false; /* Matched the CPU's real PVR */
-    uint32_t max_compat = cpu->max_compat;
+    uint32_t max_compat = spapr->max_compat_pvr;
     uint32_t best_compat = 0;
     int i;
 
@@ -1105,7 +1105,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     bool guest_radix;
     Error *local_err = NULL;
 
-    cas_pvr = cas_check_pvr(cpu, &addr, &local_err);
+    cas_pvr = cas_check_pvr(spapr, cpu, &addr, &local_err);
     if (local_err) {
         error_report_err(local_err);
         return H_HARDWARE;
