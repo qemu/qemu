@@ -599,16 +599,35 @@ static uint64_t apb_pci_config_read(void *opaque, hwaddr addr,
 /* The APB host has an IRQ line for each IRQ line of each slot.  */
 static int pci_apb_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    return ((pci_dev->devfn & 0x18) >> 1) + irq_num;
+    /* Return the irq as swizzled by the PBM */
+    return irq_num;
 }
 
 static int pci_pbm_map_irq(PCIDevice *pci_dev, int irq_num)
 {
+    PBMPCIBridge *br = PBM_PCI_BRIDGE(pci_bridge_get_device(
+                           PCI_BUS(qdev_get_parent_bus(DEVICE(pci_dev)))));
+
     int bus_offset;
-    if (pci_dev->devfn & 1)
-        bus_offset = 16;
-    else
-        bus_offset = 0;
+    if (br->busA) {
+        bus_offset = 0x0;
+
+        /* The on-board devices have fixed (legacy) OBIO intnos */
+        switch (PCI_SLOT(pci_dev->devfn)) {
+        case 1:
+            /* Onboard NIC */
+            return 0x21;
+        case 3:
+            /* Onboard IDE */
+            return 0x20;
+
+        default:
+            /* Normal intno, fall through */
+            break;
+        }
+    } else {
+        bus_offset = 0x10;
+    }
     return (bus_offset + (PCI_SLOT(pci_dev->devfn) << 2) + irq_num) & 0x1f;
 }
 
@@ -669,6 +688,12 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
                  PCI_STATUS_FAST_BACK | PCI_STATUS_66MHZ |
                  PCI_STATUS_DEVSEL_MEDIUM);
 
+    /* Allow 32-bit IO addresses */
+    pci_set_word(dev->config + PCI_IO_BASE, PCI_IO_RANGE_TYPE_32);
+    pci_set_word(dev->config + PCI_IO_LIMIT, PCI_IO_RANGE_TYPE_32);
+    pci_set_word(dev->wmask + PCI_IO_BASE_UPPER16, 0xffff);
+    pci_set_word(dev->wmask + PCI_IO_LIMIT_UPPER16, 0xffff);
+
     pci_bridge_update_mappings(PCI_BRIDGE(br));
 }
 
@@ -690,9 +715,9 @@ PCIBus *pci_apb_init(hwaddr special_base,
     d = APB_DEVICE(dev);
     phb = PCI_HOST_BRIDGE(dev);
     phb->bus = pci_register_bus(DEVICE(phb), "pci",
-                                pci_apb_set_irq, pci_pbm_map_irq, d,
+                                pci_apb_set_irq, pci_apb_map_irq, d,
                                 &d->pci_mmio,
-                                get_system_io(),
+                                &d->pci_ioport,
                                 0, 32, TYPE_PCI_BUS);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
@@ -725,14 +750,14 @@ PCIBus *pci_apb_init(hwaddr special_base,
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
                                    TYPE_PBM_PCI_BRIDGE);
     br = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(br, "pciB", pci_apb_map_irq);
+    pci_bridge_map_irq(br, "pciB", pci_pbm_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
     *busB = pci_bridge_get_sec_bus(br);
 
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
                                    TYPE_PBM_PCI_BRIDGE);
     br = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(br, "pciA", pci_apb_map_irq);
+    pci_bridge_map_irq(br, "pciA", pci_pbm_map_irq);
     qdev_prop_set_bit(DEVICE(pci_dev), "busA", true);
     qdev_init_nofail(&pci_dev->qdev);
     *busA = pci_bridge_get_sec_bus(br);
@@ -798,8 +823,8 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->pci_config);
 
     /* pci_ioport */
-    memory_region_init_alias(&s->pci_ioport, OBJECT(s), "apb-pci-ioport",
-                             get_system_io(), 0, 0x10000);
+    memory_region_init(&s->pci_ioport, OBJECT(s), "apb-pci-ioport", 0x1000000);
+
     /* at region 2 */
     sysbus_init_mmio(dev, &s->pci_ioport);
 
