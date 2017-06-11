@@ -1745,6 +1745,22 @@ Removes the chardev @var{id}.
 ETEXI
 
     {
+        .name       = "chardev-send-break",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "send a break on chardev",
+        .cmd        = hmp_chardev_send_break,
+        .command_completion = chardev_remove_completion,
+    },
+
+STEXI
+@item chardev-send-break id
+@findex chardev-send-break
+Send a break on the chardev @var{id}.
+
+ETEXI
+
+    {
         .name       = "qemu-io",
         .args_type  = "device:B,command:s",
         .params     = "[device] \"[command]\"",

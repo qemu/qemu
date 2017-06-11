@@ -2236,6 +2236,14 @@ void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &local_err);
 }
 
+void hmp_chardev_send_break(Monitor *mon, const QDict *qdict)
+{
+    Error *local_err = NULL;
+
+    qmp_chardev_send_break(qdict_get_str(qdict, "id"), &local_err);
+    hmp_handle_error(mon, &local_err);
+}
+
 void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
     BlockBackend *blk;
