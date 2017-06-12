@@ -1803,7 +1803,11 @@ static void external_snapshot_abort(BlkActionState *common)
                              DO_UPCAST(ExternalSnapshotState, common, common);
     if (state->new_bs) {
         if (state->overlay_appended) {
+            bdrv_ref(state->old_bs);   /* we can't let bdrv_set_backind_hd()
+                                          close state->old_bs; we need it */
+            bdrv_set_backing_hd(state->new_bs, NULL, &error_abort);
             bdrv_replace_node(state->new_bs, state->old_bs, &error_abort);
+            bdrv_unref(state->old_bs); /* bdrv_replace_node() ref'ed old_bs */
         }
     }
 }

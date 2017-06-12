@@ -70,7 +70,9 @@ class ImageCommitTestCase(iotests.QMPTestCase):
         self.wait_for_complete()
 
 class TestSingleDrive(ImageCommitTestCase):
-    image_len = 1 * 1024 * 1024
+    # Need some space after the copied data so that throttling is effective in
+    # tests that use it rather than just completing the job immediately
+    image_len = 2 * 1024 * 1024
     test_len = 1 * 1024 * 256
 
     def setUp(self):
@@ -79,7 +81,9 @@ class TestSingleDrive(ImageCommitTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', backing_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288', mid_img)
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM().add_drive(test_img, interface="none")
+        self.vm.add_device("virtio-scsi-pci")
+        self.vm.add_device("scsi-hd,id=scsi0,drive=drive0")
         self.vm.launch()
 
     def tearDown(self):
@@ -131,6 +135,33 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
         self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % mid_img)
 
+    # When the job is running on a BB that is automatically deleted on hot
+    # unplug, the job is cancelled when the device disappears
+    def test_hot_unplug(self):
+        if self.image_len == 0:
+            return
+
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top=mid_img,
+                             base=backing_img, speed=(self.image_len / 4))
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp('device_del', id='scsi0')
+        self.assert_qmp(result, 'return', {})
+
+        cancelled = False
+        deleted = False
+        while not cancelled or not deleted:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'DEVICE_DELETED':
+                    self.assert_qmp(event, 'data/device', 'scsi0')
+                    deleted = True
+                elif event['event'] == 'BLOCK_JOB_CANCELLED':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    cancelled = True
+                else:
+                    self.fail("Unexpected event %s" % (event['event']))
+
+        self.assert_no_active_block_jobs()
 
 class TestRelativePaths(ImageCommitTestCase):
     image_len = 1 * 1024 * 1024

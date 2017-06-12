@@ -852,6 +852,7 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
             header_size += backing_filename_len;
         } else {
             /* special backing file for vvfat */
+            g_free(backing_file);
             backing_file = NULL;
         }
         header.cluster_bits = 9; /* 512 byte cluster to avoid copying
