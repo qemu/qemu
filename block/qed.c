@@ -94,7 +94,7 @@ int qed_write_header_sync(BDRVQEDState *s)
  * This function only updates known header fields in-place and does not affect
  * extra data after the QED header.
  */
-static int qed_write_header(BDRVQEDState *s)
+static int coroutine_fn qed_write_header(BDRVQEDState *s)
 {
     /* We must write full sectors for O_DIRECT but cannot necessarily generate
      * the data following the header if an unrecognized compat feature is
@@ -264,7 +264,7 @@ static void qed_unplug_allocating_write_reqs(BDRVQEDState *s)
     qemu_co_enter_next(&s->allocating_write_reqs);
 }
 
-static void qed_need_check_timer_entry(void *opaque)
+static void coroutine_fn qed_need_check_timer_entry(void *opaque)
 {
     BDRVQEDState *s = opaque;
     int ret;
@@ -757,9 +757,9 @@ static BDRVQEDState *acb_to_s(QEDAIOCB *acb)
  * This function reads qiov->size bytes starting at pos from the backing file.
  * If there is no backing file then zeroes are read.
  */
-static int qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
-                                 QEMUIOVector *qiov,
-                                 QEMUIOVector **backing_qiov)
+static int coroutine_fn qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
+                                              QEMUIOVector *qiov,
+                                              QEMUIOVector **backing_qiov)
 {
     uint64_t backing_length = 0;
     size_t size;
@@ -811,8 +811,9 @@ static int qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
  * @len:        Number of bytes
  * @offset:     Byte offset in image file
  */
-static int qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
-                                      uint64_t len, uint64_t offset)
+static int coroutine_fn qed_copy_from_backing_file(BDRVQEDState *s,
+                                                   uint64_t pos, uint64_t len,
+                                                   uint64_t offset)
 {
     QEMUIOVector qiov;
     QEMUIOVector *backing_qiov = NULL;
@@ -865,8 +866,9 @@ out:
  * The cluster offset may be an allocated byte offset in the image file, the
  * zero cluster marker, or the unallocated cluster marker.
  */
-static void qed_update_l2_table(BDRVQEDState *s, QEDTable *table, int index,
-                                unsigned int n, uint64_t cluster)
+static void coroutine_fn qed_update_l2_table(BDRVQEDState *s, QEDTable *table,
+                                             int index, unsigned int n,
+                                             uint64_t cluster)
 {
     int i;
     for (i = index; i < index + n; i++) {
@@ -878,7 +880,7 @@ static void qed_update_l2_table(BDRVQEDState *s, QEDTable *table, int index,
     }
 }
 
-static void qed_aio_complete(QEDAIOCB *acb)
+static void coroutine_fn qed_aio_complete(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
 
@@ -911,7 +913,7 @@ static void qed_aio_complete(QEDAIOCB *acb)
 /**
  * Update L1 table with new L2 table offset and write it out
  */
-static int qed_aio_write_l1_update(QEDAIOCB *acb)
+static int coroutine_fn qed_aio_write_l1_update(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     CachedL2Table *l2_table = acb->request.l2_table;
@@ -939,7 +941,7 @@ static int qed_aio_write_l1_update(QEDAIOCB *acb)
 /**
  * Update L2 table with new cluster offsets and write them out
  */
-static int qed_aio_write_l2_update(QEDAIOCB *acb, uint64_t offset)
+static int coroutine_fn qed_aio_write_l2_update(QEDAIOCB *acb, uint64_t offset)
 {
     BDRVQEDState *s = acb_to_s(acb);
     bool need_alloc = acb->find_cluster_ret == QED_CLUSTER_L1;
@@ -975,7 +977,7 @@ static int qed_aio_write_l2_update(QEDAIOCB *acb, uint64_t offset)
 /**
  * Write data to the image file
  */
-static int qed_aio_write_main(QEDAIOCB *acb)
+static int coroutine_fn qed_aio_write_main(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t offset = acb->cur_cluster +
@@ -1018,7 +1020,7 @@ static int qed_aio_write_main(QEDAIOCB *acb)
 /**
  * Populate untouched regions of new data cluster
  */
-static int qed_aio_write_cow(QEDAIOCB *acb)
+static int coroutine_fn qed_aio_write_cow(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t start, len, offset;
@@ -1071,7 +1073,7 @@ static bool qed_should_set_need_check(BDRVQEDState *s)
  *
  * This path is taken when writing to previously unallocated clusters.
  */
-static int qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
+static int coroutine_fn qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
 {
     BDRVQEDState *s = acb_to_s(acb);
     int ret;
@@ -1132,7 +1134,8 @@ static int qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
  *
  * This path is taken when writing to already allocated clusters.
  */
-static int qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset, size_t len)
+static int coroutine_fn qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset,
+                                              size_t len)
 {
     /* Allocate buffer for zero writes */
     if (acb->flags & QED_AIOCB_ZERO) {
@@ -1163,8 +1166,8 @@ static int qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset, size_t len)
  * @offset:     Cluster offset in bytes
  * @len:        Length in bytes
  */
-static int qed_aio_write_data(void *opaque, int ret,
-                              uint64_t offset, size_t len)
+static int coroutine_fn qed_aio_write_data(void *opaque, int ret,
+                                           uint64_t offset, size_t len)
 {
     QEDAIOCB *acb = opaque;
 
@@ -1194,7 +1197,8 @@ static int qed_aio_write_data(void *opaque, int ret,
  * @offset:     Cluster offset in bytes
  * @len:        Length in bytes
  */
-static int qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
+static int coroutine_fn qed_aio_read_data(void *opaque, int ret,
+                                          uint64_t offset, size_t len)
 {
     QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
@@ -1227,7 +1231,7 @@ static int qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
 /**
  * Begin next I/O or complete the request
  */
-static int qed_aio_next_io(QEDAIOCB *acb)
+static int coroutine_fn qed_aio_next_io(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t offset;

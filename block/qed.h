@@ -213,8 +213,9 @@ int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
 /**
  * Cluster functions
  */
-int qed_find_cluster(BDRVQEDState *s, QEDRequest *request, uint64_t pos,
-                     size_t *len, uint64_t *img_offset);
+int coroutine_fn qed_find_cluster(BDRVQEDState *s, QEDRequest *request,
+                                  uint64_t pos, size_t *len,
+                                  uint64_t *img_offset);
 
 /**
  * Consistency check
