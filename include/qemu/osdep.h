@@ -284,6 +284,19 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 
 #endif
 
+#ifdef _WIN32
+#define HAVE_CHARDEV_SERIAL 1
+#elif defined(__linux__) || defined(__sun__) || defined(__FreeBSD__)    \
+    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) \
+    || defined(__GLIBC__)
+#define HAVE_CHARDEV_SERIAL 1
+#endif
+
+#if defined(__linux__) || defined(__FreeBSD__) ||               \
+    defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#define HAVE_CHARDEV_PARPORT 1
+#endif
+
 #if defined(CONFIG_LINUX)
 #ifndef BUS_MCEERR_AR
 #define BUS_MCEERR_AR 4

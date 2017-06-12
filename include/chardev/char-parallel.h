@@ -26,11 +26,6 @@
 
 #include "chardev/char.h"
 
-#if defined(__linux__) || defined(__FreeBSD__) ||               \
-    defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#define HAVE_CHARDEV_PARPORT 1
-#endif
-
 #define CHR_IOCTL_PP_READ_DATA        3
 #define CHR_IOCTL_PP_WRITE_DATA       4
 #define CHR_IOCTL_PP_READ_CONTROL     5
