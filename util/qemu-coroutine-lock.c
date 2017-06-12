@@ -77,10 +77,25 @@ void coroutine_fn qemu_co_queue_wait(CoQueue *queue, CoMutex *mutex)
 void qemu_co_queue_run_restart(Coroutine *co)
 {
     Coroutine *next;
+    QSIMPLEQ_HEAD(, Coroutine) tmp_queue_wakeup =
+        QSIMPLEQ_HEAD_INITIALIZER(tmp_queue_wakeup);
 
     trace_qemu_co_queue_run_restart(co);
-    while ((next = QSIMPLEQ_FIRST(&co->co_queue_wakeup))) {
-        QSIMPLEQ_REMOVE_HEAD(&co->co_queue_wakeup, co_queue_next);
+
+    /* Because "co" has yielded, any coroutine that we wakeup can resume it.
+     * If this happens and "co" terminates, co->co_queue_wakeup becomes
+     * invalid memory.  Therefore, use a temporary queue and do not touch
+     * the "co" coroutine as soon as you enter another one.
+     *
+     * In its turn resumed "co" can pupulate "co_queue_wakeup" queue with
+     * new coroutines to be woken up.  The caller, who has resumed "co",
+     * will be responsible for traversing the same queue, which may cause
+     * a different wakeup order but not any missing wakeups.
+     */
+    QSIMPLEQ_CONCAT(&tmp_queue_wakeup, &co->co_queue_wakeup);
+
+    while ((next = QSIMPLEQ_FIRST(&tmp_queue_wakeup))) {
+        QSIMPLEQ_REMOVE_HEAD(&tmp_queue_wakeup, co_queue_next);
         qemu_coroutine_enter(next);
     }
 }

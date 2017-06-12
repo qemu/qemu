@@ -402,7 +402,7 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
     /* touch pages simultaneously */
     if (touch_all_pages(area, hpagesize, numpages, smp_cpus)) {
         error_setg(errp, "os_mem_prealloc: Insufficient free host memory "
-            "pages available to allocate guest RAM\n");
+            "pages available to allocate guest RAM");
     }
 
     ret = sigaction(SIGBUS, &oldact, NULL);

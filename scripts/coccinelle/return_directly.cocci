@@ -1,4 +1,4 @@
-// replace 'R = X; return R;' with 'return R;'
+// replace 'R = X; return R;' with 'return X;'
 @@
 identifier VAR;
 expression E;
