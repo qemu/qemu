@@ -130,13 +130,24 @@ static uint64_t calculate_next(struct AspeedTimer *t)
             next = seq[1];
         } else if (now < seq[2]) {
             next = seq[2];
-        } else {
+        } else if (t->reload) {
             reload_ns = muldiv64(t->reload, NANOSECONDS_PER_SECOND, rate);
             t->start = now - ((now - t->start) % reload_ns);
+        } else {
+            /* no reload value, return 0 */
+            break;
         }
     }
 
     return next;
+}
+
+static void aspeed_timer_mod(AspeedTimer *t)
+{
+    uint64_t next = calculate_next(t);
+    if (next) {
+        timer_mod(&t->timer, next);
+    }
 }
 
 static void aspeed_timer_expire(void *opaque)
@@ -164,7 +175,7 @@ static void aspeed_timer_expire(void *opaque)
         qemu_set_irq(t->irq, t->level);
     }
 
-    timer_mod(&t->timer, calculate_next(t));
+    aspeed_timer_mod(t);
 }
 
 static uint64_t aspeed_timer_get_value(AspeedTimer *t, int reg)
@@ -227,10 +238,23 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
                                    uint32_t value)
 {
     AspeedTimer *t;
+    uint32_t old_reload;
 
     trace_aspeed_timer_set_value(timer, reg, value);
     t = &s->timers[timer];
     switch (reg) {
+    case TIMER_REG_RELOAD:
+        old_reload = t->reload;
+        t->reload = value;
+
+        /* If the reload value was not previously set, or zero, and
+         * the current value is valid, try to start the timer if it is
+         * enabled.
+         */
+        if (old_reload || !t->reload) {
+            break;
+        }
+
     case TIMER_REG_STATUS:
         if (timer_enabled(t)) {
             uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -238,17 +262,14 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
             uint32_t rate = calculate_rate(t);
 
             t->start += muldiv64(delta, NANOSECONDS_PER_SECOND, rate);
-            timer_mod(&t->timer, calculate_next(t));
+            aspeed_timer_mod(t);
         }
-        break;
-    case TIMER_REG_RELOAD:
-        t->reload = value;
         break;
     case TIMER_REG_MATCH_FIRST:
     case TIMER_REG_MATCH_SECOND:
         t->match[reg - 2] = value;
         if (timer_enabled(t)) {
-            timer_mod(&t->timer, calculate_next(t));
+            aspeed_timer_mod(t);
         }
         break;
     default:
@@ -268,7 +289,7 @@ static void aspeed_timer_ctrl_enable(AspeedTimer *t, bool enable)
     trace_aspeed_timer_ctrl_enable(t->id, enable);
     if (enable) {
         t->start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        timer_mod(&t->timer, calculate_next(t));
+        aspeed_timer_mod(t);
     } else {
         timer_del(&t->timer);
     }
