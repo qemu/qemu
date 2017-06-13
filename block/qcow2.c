@@ -2486,11 +2486,16 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
 static int preallocate(BlockDriverState *bs,
                        uint64_t offset, uint64_t new_length)
 {
+    BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
     uint64_t host_offset = 0;
     unsigned int cur_bytes;
     int ret;
     QCowL2Meta *meta;
+
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_lock(&s->lock);
+    }
 
     assert(offset <= new_length);
     bytes = new_length - offset;
@@ -2500,7 +2505,7 @@ static int preallocate(BlockDriverState *bs,
         ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
                                          &host_offset, &meta);
         if (ret < 0) {
-            return ret;
+            goto done;
         }
 
         while (meta) {
@@ -2510,7 +2515,7 @@ static int preallocate(BlockDriverState *bs,
             if (ret < 0) {
                 qcow2_free_any_clusters(bs, meta->alloc_offset,
                                         meta->nb_clusters, QCOW2_DISCARD_NEVER);
-                return ret;
+                goto done;
             }
 
             /* There are no dependent requests, but we need to remove our
@@ -2537,11 +2542,17 @@ static int preallocate(BlockDriverState *bs,
         ret = bdrv_pwrite(bs->file, (host_offset + cur_bytes) - 1,
                           &data, 1);
         if (ret < 0) {
-            return ret;
+            goto done;
         }
     }
 
-    return 0;
+    ret = 0;
+
+done:
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_unlock(&s->lock);
+    }
+    return ret;
 }
 
 /* qcow2_refcount_metadata_size:
@@ -2835,10 +2846,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
     /* And if we're supposed to preallocate metadata, do that now */
     if (prealloc != PREALLOC_MODE_OFF) {
-        BDRVQcow2State *s = blk_bs(blk)->opaque;
-        qemu_co_mutex_lock(&s->lock);
         ret = preallocate(blk_bs(blk), 0, total_size);
-        qemu_co_mutex_unlock(&s->lock);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not preallocate metadata");
             goto out;
