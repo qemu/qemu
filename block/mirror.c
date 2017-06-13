@@ -739,7 +739,8 @@ static void coroutine_fn mirror_run(void *opaque)
         }
 
         if (s->bdev_length > base_length) {
-            ret = blk_truncate(s->target, s->bdev_length, NULL);
+            ret = blk_truncate(s->target, s->bdev_length, PREALLOC_MODE_OFF,
+                               NULL);
             if (ret < 0) {
                 goto immediate_exit;
             }

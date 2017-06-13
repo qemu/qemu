@@ -508,7 +508,7 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
 
     blk_set_allow_write_beyond_eof(file, true);
 
-    ret = blk_truncate(file, 0, errp);
+    ret = blk_truncate(file, 0, PREALLOC_MODE_OFF, errp);
     if (ret < 0) {
         goto exit;
     }

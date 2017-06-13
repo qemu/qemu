@@ -3537,7 +3537,7 @@ static int img_resize(int argc, char **argv)
         goto out;
     }
 
-    ret = blk_truncate(blk, total_size, &err);
+    ret = blk_truncate(blk, total_size, PREALLOC_MODE_OFF, &err);
     if (!ret) {
         qprintf(quiet, "Image resized.\n");
     } else {
