@@ -220,12 +220,18 @@ vubr_handle_tx(VuDev *dev, int qidx)
     free(elem);
 }
 
+
+/* this function reverse the effect of iov_discard_front() it must be
+ * called with 'front' being the original struct iovec and 'bytes'
+ * being the number of bytes you shaved off
+ */
 static void
 iov_restore_front(struct iovec *front, struct iovec *iov, size_t bytes)
 {
     struct iovec *cur;
 
-    for (cur = front; front != iov; cur++) {
+    for (cur = front; cur != iov; cur++) {
+        assert(bytes >= cur->iov_len);
         bytes -= cur->iov_len;
     }
 
@@ -302,7 +308,8 @@ vubr_backend_recv_cb(int sock, void *ctx)
             }
             iov_from_buf(sg, elem->in_num, 0, &hdr, sizeof hdr);
             total += hdrlen;
-            assert(iov_discard_front(&sg, &num, hdrlen) == hdrlen);
+            ret = iov_discard_front(&sg, &num, hdrlen);
+            assert(ret == hdrlen);
         }
 
         struct msghdr msg = {

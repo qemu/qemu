@@ -338,9 +338,10 @@ static void nvdimm_build_structure_dcr(GArray *structures, DeviceState *dev)
     nfit_dcr->revision_id = cpu_to_le16(1 /* Current Revision supported
                                              in ACPI 6.0 is 1. */);
     nfit_dcr->serial_number = cpu_to_le32(sn);
-    nfit_dcr->fic = cpu_to_le16(0x201 /* Format Interface Code. See Chapter
-                                         2: NVDIMM Device Specific Method
-                                         (DSM) in DSM Spec Rev1.*/);
+    nfit_dcr->fic = cpu_to_le16(0x301 /* Format Interface Code:
+                                         Byte addressable, no energy backed.
+                                         See ACPI 6.2, sect 5.2.25.6 and
+                                         JEDEC Annex L Release 3. */);
 }
 
 static GArray *nvdimm_build_device_structure(void)
