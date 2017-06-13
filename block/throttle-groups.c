@@ -49,7 +49,7 @@
  * Again, all this is handled internally and is mostly transparent to
  * the outside. The 'throttle_timers' field however has an additional
  * constraint because it may be temporarily invalid (see for example
- * bdrv_set_aio_context()). Therefore in this file a thread will
+ * blk_set_aio_context()). Therefore in this file a thread will
  * access some other BlockBackend's timers only after verifying that
  * that BlockBackend has throttled requests in the queue.
  */
