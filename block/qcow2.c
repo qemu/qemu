@@ -2476,17 +2476,24 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
 }
 
 
-static int preallocate(BlockDriverState *bs)
+/**
+ * Preallocates metadata structures for data clusters between @offset (in the
+ * guest disk) and @new_length (which is thus generally the new guest disk
+ * size).
+ *
+ * Returns: 0 on success, -errno on failure.
+ */
+static int preallocate(BlockDriverState *bs,
+                       uint64_t offset, uint64_t new_length)
 {
     uint64_t bytes;
-    uint64_t offset;
     uint64_t host_offset = 0;
     unsigned int cur_bytes;
     int ret;
     QCowL2Meta *meta;
 
-    bytes = bdrv_getlength(bs);
-    offset = 0;
+    assert(offset <= new_length);
+    bytes = new_length - offset;
 
     while (bytes) {
         cur_bytes = MIN(bytes, INT_MAX);
@@ -2830,7 +2837,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     if (prealloc != PREALLOC_MODE_OFF) {
         BDRVQcow2State *s = blk_bs(blk)->opaque;
         qemu_co_mutex_lock(&s->lock);
-        ret = preallocate(blk_bs(blk));
+        ret = preallocate(blk_bs(blk), 0, total_size);
         qemu_co_mutex_unlock(&s->lock);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not preallocate metadata");
