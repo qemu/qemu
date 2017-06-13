@@ -1745,12 +1745,6 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset,
     struct stat st;
     int ret;
 
-    if (prealloc != PREALLOC_MODE_OFF) {
-        error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
-        return -ENOTSUP;
-    }
-
     if (fstat(s->fd, &st)) {
         ret = -errno;
         error_setg_errno(errp, -ret, "Failed to fstat() the file");
@@ -1758,12 +1752,16 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     if (S_ISREG(st.st_mode)) {
-        if (ftruncate(s->fd, offset) < 0) {
-            ret = -errno;
-            error_setg_errno(errp, -ret, "Failed to resize the file");
-            return ret;
-        }
-    } else if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+        return raw_regular_truncate(s->fd, offset, prealloc, errp);
+    }
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Preallocation mode '%s' unsupported for this "
+                   "non-regular file", PreallocMode_lookup[prealloc]);
+        return -ENOTSUP;
+    }
+
+    if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
         if (offset > raw_getlength(bs)) {
             error_setg(errp, "Cannot grow device files");
             return -EINVAL;
