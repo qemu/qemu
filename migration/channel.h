@@ -18,8 +18,7 @@
 
 #include "io/channel.h"
 
-void migration_channel_process_incoming(MigrationState *s,
-                                        QIOChannel *ioc);
+void migration_channel_process_incoming(QIOChannel *ioc);
 
 void migration_channel_connect(MigrationState *s,
                                QIOChannel *ioc,

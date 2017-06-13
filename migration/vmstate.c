@@ -12,8 +12,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "migration/vmstate.h"
+#include "migration/savevm.h"
 #include "qemu-file.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"

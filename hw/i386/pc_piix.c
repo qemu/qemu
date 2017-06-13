@@ -52,7 +52,8 @@
 #include <xen/hvm/hvm_info_table.h>
 #include "hw/xen/xen_pt.h"
 #endif
-#include "migration/migration.h"
+#include "migration/global_state.h"
+#include "migration/misc.h"
 #include "kvm_i386.h"
 #include "sysemu/numa.h"
 

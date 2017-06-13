@@ -19,7 +19,7 @@
 #include "qemu-common.h"
 #include "channel.h"
 #include "fd.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "monitor/monitor.h"
 #include "io/channel-util.h"
 #include "trace.h"
@@ -49,7 +49,7 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
                                              GIOCondition condition,
                                              gpointer opaque)
 {
-    migration_channel_process_incoming(migrate_get_current(), ioc);
+    migration_channel_process_incoming(ioc);
     object_unref(OBJECT(ioc));
     return FALSE; /* unregister */
 }

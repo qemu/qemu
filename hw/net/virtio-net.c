@@ -25,6 +25,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi-event.h"
 #include "hw/virtio/virtio-access.h"
+#include "migration/misc.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 

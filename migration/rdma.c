@@ -18,7 +18,7 @@
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "rdma.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "qemu-file.h"
 #include "ram.h"
 #include "qemu-file-channel.h"

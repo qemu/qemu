@@ -14,7 +14,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu-file-channel.h"
-#include "migration/migration.h"
+#include "migration.h"
 #include "qemu-file.h"
 #include "savevm.h"
 #include "migration/colo.h"

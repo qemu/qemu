@@ -35,7 +35,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/notify.h"
-#include "migration/migration.h"
+#include "migration/misc.h"
 #include "hw/hw.h"
 #include "ui/spice-display.h"
 #include "qapi-event.h"

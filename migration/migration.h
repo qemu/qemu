@@ -22,33 +22,6 @@
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
 
-#define QEMU_VM_FILE_MAGIC           0x5145564d
-#define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
-#define QEMU_VM_FILE_VERSION         0x00000003
-
-#define QEMU_VM_EOF                  0x00
-#define QEMU_VM_SECTION_START        0x01
-#define QEMU_VM_SECTION_PART         0x02
-#define QEMU_VM_SECTION_END          0x03
-#define QEMU_VM_SECTION_FULL         0x04
-#define QEMU_VM_SUBSECTION           0x05
-#define QEMU_VM_VMDESCRIPTION        0x06
-#define QEMU_VM_CONFIGURATION        0x07
-#define QEMU_VM_COMMAND              0x08
-#define QEMU_VM_SECTION_FOOTER       0x7e
-
-/* Messages sent on the return path from destination to source */
-enum mig_rp_message_type {
-    MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
-    MIG_RP_MSG_SHUT,         /* sibling will not send any more RP messages */
-    MIG_RP_MSG_PONG,         /* Response to a PING; data (seq: be32 ) */
-
-    MIG_RP_MSG_REQ_PAGES_ID, /* data (start: be64, len: be32, id: string) */
-    MIG_RP_MSG_REQ_PAGES,    /* data (start: be64, len: be32) */
-
-    MIG_RP_MSG_MAX
-};
-
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -149,26 +122,16 @@ void migrate_set_state(int *state, int old_state, int new_state);
 
 void migration_fd_process_incoming(QEMUFile *f);
 
-void qemu_start_incoming_migration(const char *uri, Error **errp);
-
 uint64_t migrate_max_downtime(void);
 
 void migrate_fd_error(MigrationState *s, const Error *error);
 
 void migrate_fd_connect(MigrationState *s);
 
-void add_migration_state_change_notifier(Notifier *notify);
-void remove_migration_state_change_notifier(Notifier *notify);
 MigrationState *migrate_init(void);
 bool migration_is_blocked(Error **errp);
-bool migration_in_setup(MigrationState *);
-bool migration_is_idle(void);
-bool migration_has_finished(MigrationState *);
-bool migration_has_failed(MigrationState *);
 /* True if outgoing migration has entered postcopy phase */
 bool migration_in_postcopy(void);
-/* ...and after the device transmission */
-bool migration_in_postcopy_after_devices(MigrationState *);
 MigrationState *migrate_get_current(void);
 
 bool migrate_release_ram(void);
@@ -191,39 +154,11 @@ int migrate_decompress_threads(void);
 bool migrate_use_events(void);
 
 /* Sending on the return path - generic and then for each message type */
-void migrate_send_rp_message(MigrationIncomingState *mis,
-                             enum mig_rp_message_type message_type,
-                             uint16_t len, void *data);
 void migrate_send_rp_shut(MigrationIncomingState *mis,
                           uint32_t value);
 void migrate_send_rp_pong(MigrationIncomingState *mis,
                           uint32_t value);
 void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
                               ram_addr_t start, size_t len);
-
-void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
-void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
-void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data);
-
-/* Whenever this is found in the data stream, the flags
- * will be passed to ram_control_load_hook in the incoming-migration
- * side. This lets before_ram_iterate/after_ram_iterate add
- * transport-specific sections to the RAM migration data.
- */
-#define RAM_SAVE_FLAG_HOOK     0x80
-
-#define RAM_SAVE_CONTROL_NOT_SUPP -1000
-#define RAM_SAVE_CONTROL_DELAYED  -2000
-
-size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
-                             ram_addr_t offset, size_t size,
-                             uint64_t *bytes_sent);
-
-void savevm_skip_section_footers(void);
-void register_global_state(void);
-void global_state_set_optional(void);
-void savevm_skip_configuration(void);
-int global_state_store(void);
-void global_state_store_running(void);
 
 #endif

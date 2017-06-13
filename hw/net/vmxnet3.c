@@ -26,6 +26,7 @@
 #include "qemu/bswap.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/msi.h"
+#include "migration/register.h"
 
 #include "vmxnet3.h"
 #include "vmxnet_debug.h"

@@ -23,7 +23,9 @@
 #include "socket.h"
 #include "rdma.h"
 #include "ram.h"
-#include "migration/migration.h"
+#include "migration/global_state.h"
+#include "migration/misc.h"
+#include "migration.h"
 #include "savevm.h"
 #include "qemu-file-channel.h"
 #include "qemu-file.h"
@@ -85,6 +87,18 @@ static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
 static bool deferred_incoming;
+
+/* Messages sent on the return path from destination to source */
+enum mig_rp_message_type {
+    MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
+    MIG_RP_MSG_SHUT,         /* sibling will not send any more RP messages */
+    MIG_RP_MSG_PONG,         /* Response to a PING; data (seq: be32 ) */
+
+    MIG_RP_MSG_REQ_PAGES_ID, /* data (start: be64, len: be32, id: string) */
+    MIG_RP_MSG_REQ_PAGES,    /* data (start: be64, len: be32) */
+
+    MIG_RP_MSG_MAX
+};
 
 /* When we add fault tolerance, we could have several
    migrations at once.  For now we don't need to add
@@ -152,126 +166,6 @@ void migration_incoming_state_destroy(void)
     qemu_event_destroy(&mis->main_thread_load_event);
 }
 
-
-typedef struct {
-    bool optional;
-    uint32_t size;
-    uint8_t runstate[100];
-    RunState state;
-    bool received;
-} GlobalState;
-
-static GlobalState global_state;
-
-int global_state_store(void)
-{
-    if (!runstate_store((char *)global_state.runstate,
-                        sizeof(global_state.runstate))) {
-        error_report("runstate name too big: %s", global_state.runstate);
-        trace_migrate_state_too_big();
-        return -EINVAL;
-    }
-    return 0;
-}
-
-void global_state_store_running(void)
-{
-    const char *state = RunState_lookup[RUN_STATE_RUNNING];
-    strncpy((char *)global_state.runstate,
-           state, sizeof(global_state.runstate));
-}
-
-static bool global_state_received(void)
-{
-    return global_state.received;
-}
-
-static RunState global_state_get_runstate(void)
-{
-    return global_state.state;
-}
-
-void global_state_set_optional(void)
-{
-    global_state.optional = true;
-}
-
-static bool global_state_needed(void *opaque)
-{
-    GlobalState *s = opaque;
-    char *runstate = (char *)s->runstate;
-
-    /* If it is not optional, it is mandatory */
-
-    if (s->optional == false) {
-        return true;
-    }
-
-    /* If state is running or paused, it is not needed */
-
-    if (strcmp(runstate, "running") == 0 ||
-        strcmp(runstate, "paused") == 0) {
-        return false;
-    }
-
-    /* for any other state it is needed */
-    return true;
-}
-
-static int global_state_post_load(void *opaque, int version_id)
-{
-    GlobalState *s = opaque;
-    Error *local_err = NULL;
-    int r;
-    char *runstate = (char *)s->runstate;
-
-    s->received = true;
-    trace_migrate_global_state_post_load(runstate);
-
-    r = qapi_enum_parse(RunState_lookup, runstate, RUN_STATE__MAX,
-                                -1, &local_err);
-
-    if (r == -1) {
-        if (local_err) {
-            error_report_err(local_err);
-        }
-        return -EINVAL;
-    }
-    s->state = r;
-
-    return 0;
-}
-
-static void global_state_pre_save(void *opaque)
-{
-    GlobalState *s = opaque;
-
-    trace_migrate_global_state_pre_save((char *)s->runstate);
-    s->size = strlen((char *)s->runstate) + 1;
-}
-
-static const VMStateDescription vmstate_globalstate = {
-    .name = "globalstate",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .post_load = global_state_post_load,
-    .pre_save = global_state_pre_save,
-    .needed = global_state_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(size, GlobalState),
-        VMSTATE_BUFFER(runstate, GlobalState),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
-void register_global_state(void)
-{
-    /* We would use it independently that we receive it */
-    strcpy((char *)&global_state.runstate, "");
-    global_state.received = false;
-    vmstate_register(NULL, 0, &vmstate_globalstate, &global_state);
-}
-
 static void migrate_generate_event(int new_state)
 {
     if (migrate_use_events()) {
@@ -290,6 +184,23 @@ static void deferred_incoming_migration(Error **errp)
         error_setg(errp, "Incoming migration already deferred");
     }
     deferred_incoming = true;
+}
+
+/*
+ * Send a message on the return channel back to the source
+ * of the migration.
+ */
+static void migrate_send_rp_message(MigrationIncomingState *mis,
+                                    enum mig_rp_message_type message_type,
+                                    uint16_t len, void *data)
+{
+    trace_migrate_send_rp_message((int)message_type, len);
+    qemu_mutex_lock(&mis->rp_mutex);
+    qemu_put_be16(mis->to_src_file, (unsigned int)message_type);
+    qemu_put_be16(mis->to_src_file, len);
+    qemu_put_buffer(mis->to_src_file, data, len);
+    qemu_fflush(mis->to_src_file);
+    qemu_mutex_unlock(&mis->rp_mutex);
 }
 
 /* Request a range of pages from the source VM at the given
@@ -462,23 +373,6 @@ void migration_fd_process_incoming(QEMUFile *f)
 }
 
 /*
- * Send a message on the return channel back to the source
- * of the migration.
- */
-void migrate_send_rp_message(MigrationIncomingState *mis,
-                             enum mig_rp_message_type message_type,
-                             uint16_t len, void *data)
-{
-    trace_migrate_send_rp_message((int)message_type, len);
-    qemu_mutex_lock(&mis->rp_mutex);
-    qemu_put_be16(mis->to_src_file, (unsigned int)message_type);
-    qemu_put_be16(mis->to_src_file, len);
-    qemu_put_buffer(mis->to_src_file, data, len);
-    qemu_fflush(mis->to_src_file);
-    qemu_mutex_unlock(&mis->rp_mutex);
-}
-
-/*
  * Send a 'SHUT' message on the return channel with the given value
  * to indicate that we've finished with the RP.  Non-0 value indicates
  * error.
@@ -627,6 +521,17 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     }
 }
 
+static void populate_disk_info(MigrationInfo *info)
+{
+    if (blk_mig_active()) {
+        info->has_disk = true;
+        info->disk = g_malloc0(sizeof(*info->disk));
+        info->disk->transferred = blk_mig_bytes_transferred();
+        info->disk->remaining = blk_mig_bytes_remaining();
+        info->disk->total = blk_mig_bytes_total();
+    }
+}
+
 MigrationInfo *qmp_query_migrate(Error **errp)
 {
     MigrationInfo *info = g_malloc0(sizeof(*info));
@@ -642,28 +547,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         break;
     case MIGRATION_STATUS_ACTIVE:
     case MIGRATION_STATUS_CANCELLING:
-        info->has_status = true;
-        info->has_total_time = true;
-        info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
-            - s->total_time;
-        info->has_expected_downtime = true;
-        info->expected_downtime = s->expected_downtime;
-        info->has_setup_time = true;
-        info->setup_time = s->setup_time;
-
-        populate_ram_info(info, s);
-
-        if (blk_mig_active()) {
-            info->has_disk = true;
-            info->disk = g_malloc0(sizeof(*info->disk));
-            info->disk->transferred = blk_mig_bytes_transferred();
-            info->disk->remaining = blk_mig_bytes_remaining();
-            info->disk->total = blk_mig_bytes_total();
-        }
-
-        break;
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
-        /* Mostly the same as active; TODO add some postcopy stats */
+         /* TODO add some postcopy stats */
         info->has_status = true;
         info->has_total_time = true;
         info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
@@ -674,15 +559,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->setup_time = s->setup_time;
 
         populate_ram_info(info, s);
-
-        if (blk_mig_active()) {
-            info->has_disk = true;
-            info->disk = g_malloc0(sizeof(*info->disk));
-            info->disk->transferred = blk_mig_bytes_transferred();
-            info->disk->remaining = blk_mig_bytes_remaining();
-            info->disk->total = blk_mig_bytes_total();
-        }
-
+        populate_disk_info(info);
         break;
     case MIGRATION_STATUS_COLO:
         info->has_status = true;
@@ -1179,7 +1056,7 @@ bool migration_is_blocked(Error **errp)
     }
 
     if (migration_blockers) {
-        *errp = error_copy(migration_blockers->data);
+        error_propagate(errp, error_copy(migration_blockers->data));
         return true;
     }
 
@@ -1857,13 +1734,12 @@ static void migration_completion(MigrationState *s, int current_active_state,
      * cleaning everything else up (since if there are no failures
      * it will wait for the destination to send it's status in
      * a SHUT command).
-     * Postcopy opens rp if enabled (even if it's not avtivated)
      */
-    if (migrate_postcopy_ram()) {
+    if (s->rp_state.from_dst_file) {
         int rp_error;
-        trace_migration_completion_postcopy_end_before_rp();
+        trace_migration_return_path_end_before();
         rp_error = await_return_path_close_on_source(s);
-        trace_migration_completion_postcopy_end_after_rp(rp_error);
+        trace_migration_return_path_end_after(rp_error);
         if (rp_error) {
             goto fail_invalidate;
         }
@@ -1938,13 +1814,15 @@ static void *migration_thread(void *opaque)
 
     qemu_savevm_state_header(s->to_dst_file);
 
-    if (migrate_postcopy_ram()) {
+    if (s->to_dst_file) {
         /* Now tell the dest that it should open its end so it can reply */
         qemu_savevm_send_open_return_path(s->to_dst_file);
 
         /* And do a ping that will make stuff easier to debug */
         qemu_savevm_send_ping(s->to_dst_file, 1);
+    }
 
+    if (migrate_postcopy_ram()) {
         /*
          * Tell the destination that we *might* want to do postcopy later;
          * if the other end can't do postcopy it should fail now, nice and
