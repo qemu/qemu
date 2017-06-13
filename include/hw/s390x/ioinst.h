@@ -182,6 +182,7 @@ typedef struct CCW1 {
 #define CCW_FLAG_PCI             0x08
 #define CCW_FLAG_IDA             0x04
 #define CCW_FLAG_SUSPEND         0x02
+#define CCW_FLAG_MIDA            0x01
 
 #define CCW_CMD_NOOP             0x03
 #define CCW_CMD_BASIC_SENSE      0x04

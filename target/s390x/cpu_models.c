@@ -184,6 +184,7 @@ const S390CPUDef *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
                                     S390FeatBitmap features)
 {
     const S390CPUDef *last_compatible = NULL;
+    const S390CPUDef *matching_cpu_type = NULL;
     int i;
 
     if (!gen) {
@@ -218,7 +219,15 @@ const S390CPUDef *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
         if (def->type == type && def->ec_ga == ec_ga) {
             return def;
         }
+        /* remember if we've at least seen one with the same cpu type */
+        if (def->type == type) {
+            matching_cpu_type = def;
+        }
         last_compatible = def;
+    }
+    /* prefer the model with the same cpu type, esp. don't take the BC for EC */
+    if (matching_cpu_type) {
+        return matching_cpu_type;
     }
     return last_compatible;
 }
@@ -767,6 +776,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     /* copy over properties that can vary */
     cpu->model->lowest_ibc = max_model->lowest_ibc;
     cpu->model->cpu_id = max_model->cpu_id;
+    cpu->model->cpu_id_format = max_model->cpu_id_format;
     cpu->model->cpu_ver = max_model->cpu_ver;
 
     check_consistency(cpu->model);

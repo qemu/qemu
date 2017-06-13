@@ -2580,6 +2580,7 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         unblocked_ibc = unblocked_ibc(prop.ibc);
     }
     model->cpu_id = cpuid_id(prop.cpuid);
+    model->cpu_id_format = cpuid_format(prop.cpuid);
     model->cpu_ver = 0xff;
 
     /* get supported cpu features indicated via STFL(E) */
