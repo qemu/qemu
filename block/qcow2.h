@@ -525,6 +525,10 @@ static inline uint64_t refcount_diff(uint64_t r1, uint64_t r2)
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
 
+int64_t qcow2_refcount_metadata_size(int64_t clusters, size_t cluster_size,
+                                     int refcount_order, bool generous_increase,
+                                     uint64_t *refblock_count);
+
 int qcow2_mark_dirty(BlockDriverState *bs);
 int qcow2_mark_corrupt(BlockDriverState *bs);
 int qcow2_mark_consistent(BlockDriverState *bs);

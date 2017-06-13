@@ -2559,12 +2559,14 @@ done:
  * @clusters: number of clusters to refcount (including data and L1/L2 tables)
  * @cluster_size: size of a cluster, in bytes
  * @refcount_order: refcount bits power-of-2 exponent
+ * @generous_increase: allow for the refcount table to be 1.5x as large as it
+ *                     needs to be
  *
  * Returns: Number of bytes required for refcount blocks and table metadata.
  */
-static int64_t qcow2_refcount_metadata_size(int64_t clusters,
-                                            size_t cluster_size,
-                                            int refcount_order)
+int64_t qcow2_refcount_metadata_size(int64_t clusters, size_t cluster_size,
+                                     int refcount_order, bool generous_increase,
+                                     uint64_t *refblock_count)
 {
     /*
      * Every host cluster is reference-counted, including metadata (even
@@ -2587,7 +2589,17 @@ static int64_t qcow2_refcount_metadata_size(int64_t clusters,
         blocks = DIV_ROUND_UP(clusters + table + blocks, refcounts_per_block);
         table = DIV_ROUND_UP(blocks, blocks_per_table_cluster);
         n = clusters + blocks + table;
+
+        if (n == last && generous_increase) {
+            clusters += DIV_ROUND_UP(table, 2);
+            n = 0; /* force another loop */
+            generous_increase = false;
+        }
     } while (n != last);
+
+    if (refblock_count) {
+        *refblock_count = blocks;
+    }
 
     return (blocks + table) * cluster_size;
 }
@@ -2625,7 +2637,7 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
     /* total size of refcount table and blocks */
     meta_size += qcow2_refcount_metadata_size(
             (meta_size + aligned_total_size) / cluster_size,
-            cluster_size, refcount_order);
+            cluster_size, refcount_order, false, NULL);
 
     return meta_size + aligned_total_size;
 }
