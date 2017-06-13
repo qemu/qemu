@@ -1344,31 +1344,6 @@ static int spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
     return offset;
 }
 
-static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
-                                     sPAPRPHBState *phb,
-                                     PCIDevice *pdev,
-                                     Error **errp)
-{
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    DeviceState *dev = DEVICE(pdev);
-    void *fdt = NULL;
-    int fdt_start_offset = 0, fdt_size;
-
-    fdt = create_device_tree(&fdt_size);
-    fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
-    if (!fdt_start_offset) {
-        error_setg(errp, "Failed to create pci child device tree node");
-        goto out;
-    }
-
-    drck->attach(drc, DEVICE(pdev),
-                 fdt, fdt_start_offset, !dev->hotplugged, errp);
-out:
-    if (*errp) {
-        g_free(fdt);
-    }
-}
-
 /* Callback to be called during DRC release. */
 void spapr_phb_remove_pci_device_cb(DeviceState *dev)
 {
@@ -1384,16 +1359,6 @@ void spapr_phb_remove_pci_device_cb(DeviceState *dev)
      */
     pci_device_reset(PCI_DEVICE(dev));
     object_unparent(OBJECT(dev));
-}
-
-static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
-                                        sPAPRPHBState *phb,
-                                        PCIDevice *pdev,
-                                        Error **errp)
-{
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
-    drck->detach(drc, DEVICE(pdev), errp);
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
@@ -1432,6 +1397,8 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
     Error *local_err = NULL;
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
+    void *fdt = NULL;
+    int fdt_start_offset, fdt_size;
 
     /* if DR is disabled we don't need to do anything in the case of
      * hotplug or coldplug callbacks
@@ -1441,10 +1408,10 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
          * we need to let them know it's not enabled
          */
         if (plugged_dev->hotplugged) {
-            error_setg(errp, QERR_BUS_NO_HOTPLUG,
+            error_setg(&local_err, QERR_BUS_NO_HOTPLUG,
                        object_get_typename(OBJECT(phb)));
         }
-        return;
+        goto out;
     }
 
     g_assert(drc);
@@ -1455,16 +1422,23 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
      */
     if (plugged_dev->hotplugged && bus->devices[PCI_DEVFN(slotnr, 0)] &&
         PCI_FUNC(pdev->devfn) != 0) {
-        error_setg(errp, "PCI: slot %d function 0 already ocuppied by %s,"
+        error_setg(&local_err, "PCI: slot %d function 0 already ocuppied by %s,"
                    " additional functions can no longer be exposed to guest.",
                    slotnr, bus->devices[PCI_DEVFN(slotnr, 0)]->name);
-        return;
+        goto out;
     }
 
-    spapr_phb_add_pci_device(drc, phb, pdev, &local_err);
+    fdt = create_device_tree(&fdt_size);
+    fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
+    if (!fdt_start_offset) {
+        error_setg(&local_err, "Failed to create pci child device tree node");
+        goto out;
+    }
+
+    spapr_drc_attach(drc, DEVICE(pdev), fdt, fdt_start_offset,
+                     !plugged_dev->hotplugged, &local_err);
     if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+        goto out;
     }
 
     /* If this is function 0, signal hotplug for all the device functions.
@@ -1481,12 +1455,18 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
             func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
                                                   PCI_DEVFN(slotnr, i));
             func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-            func_drck->entity_sense(func_drc, &state);
+            state = func_drck->dr_entity_sense(func_drc);
 
             if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
                 spapr_hotplug_req_add_by_index(func_drc);
             }
         }
+    }
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(fdt);
     }
 }
 
@@ -1522,7 +1502,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
                 func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
                                                       PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-                func_drck->entity_sense(func_drc, &state);
+                state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
                     && !func_drck->release_pending(func_drc)) {
                     error_setg(errp,
@@ -1534,7 +1514,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
             }
         }
 
-        spapr_phb_remove_pci_device(drc, phb, pdev, &local_err);
+        spapr_drc_detach(drc, DEVICE(pdev), &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -1548,7 +1528,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
                 func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
                                                       PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-                func_drck->entity_sense(func_drc, &state);
+                state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
                     spapr_hotplug_req_remove_by_index(func_drc);
                 }

@@ -65,10 +65,10 @@ typedef struct XICSFabric XICSFabric;
 struct ICPStateClass {
     DeviceClass parent_class;
 
-    void (*realize)(DeviceState *dev, Error **errp);
-    void (*pre_save)(ICPState *s);
-    int (*post_load)(ICPState *s, int version_id);
-    void (*cpu_setup)(ICPState *icp, PowerPCCPU *cpu);
+    void (*realize)(ICPState *icp, Error **errp);
+    void (*pre_save)(ICPState *icp);
+    int (*post_load)(ICPState *icp, int version_id);
+    void (*reset)(ICPState *icp);
 };
 
 struct ICPState {
@@ -84,6 +84,9 @@ struct ICPState {
 
     XICSFabric *xics;
 };
+
+#define ICP_PROP_XICS "xics"
+#define ICP_PROP_CPU "cpu"
 
 struct PnvICPState {
     ICPState parent_obj;
@@ -110,7 +113,7 @@ struct PnvICPState {
 struct ICSStateClass {
     DeviceClass parent_class;
 
-    void (*realize)(DeviceState *dev, Error **errp);
+    void (*realize)(ICSState *s, Error **errp);
     void (*pre_save)(ICSState *s);
     int (*post_load)(ICSState *s, int version_id);
     void (*reject)(ICSState *s, uint32_t irq);
@@ -128,6 +131,8 @@ struct ICSState {
     ICSIRQState *irqs;
     XICSFabric *xics;
 };
+
+#define ICS_PROP_XICS "xics"
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
 {
@@ -182,8 +187,6 @@ void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle);
 
 qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
 ICPState *xics_icp_get(XICSFabric *xi, int server);
-void xics_cpu_setup(XICSFabric *xi, PowerPCCPU *cpu, ICPState *icp);
-void xics_cpu_destroy(XICSFabric *xi, PowerPCCPU *cpu);
 
 /* Internal XICS interfaces */
 void icp_set_cppr(ICPState *icp, uint8_t cppr);

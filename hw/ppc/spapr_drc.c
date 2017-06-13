@@ -49,8 +49,6 @@ uint32_t spapr_drc_index(sPAPRDRConnector *drc)
 static uint32_t set_isolation_state(sPAPRDRConnector *drc,
                                     sPAPRDRIsolationState state)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
     trace_spapr_drc_set_isolation_state(spapr_drc_index(drc), state);
 
     /* if the guest is configuring a device attached to this DRC, we
@@ -105,7 +103,7 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
             uint32_t drc_index = spapr_drc_index(drc);
             if (drc->configured) {
                 trace_spapr_drc_set_isolation_state_finalizing(drc_index);
-                drck->detach(drc, DEVICE(drc->dev), NULL);
+                spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
             } else {
                 trace_spapr_drc_set_isolation_state_deferring(drc_index);
             }
@@ -116,19 +114,9 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
     return RTAS_OUT_SUCCESS;
 }
 
-static uint32_t set_indicator_state(sPAPRDRConnector *drc,
-                                    sPAPRDRIndicatorState state)
-{
-    trace_spapr_drc_set_indicator_state(spapr_drc_index(drc), state);
-    drc->indicator_state = state;
-    return RTAS_OUT_SUCCESS;
-}
-
 static uint32_t set_allocation_state(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
     trace_spapr_drc_set_allocation_state(spapr_drc_index(drc), state);
 
     if (state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
@@ -140,17 +128,6 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
         if (!drc->dev) {
             return RTAS_OUT_NO_SUCH_INDICATOR;
         }
-        if (drc->awaiting_release && drc->awaiting_allocation) {
-            /* kernel is acknowledging a previous hotplug event
-             * while we are already removing it.
-             * it's safe to ignore awaiting_allocation here since we know the
-             * situation is predicated on the guest either already having done
-             * so (boot-time hotplug), or never being able to acquire in the
-             * first place (hotplug followed by immediate unplug).
-             */
-            drc->awaiting_allocation_skippable = true;
-            return RTAS_OUT_NO_SUCH_INDICATOR;
-        }
     }
 
     if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
@@ -159,7 +136,7 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
             uint32_t drc_index = spapr_drc_index(drc);
             trace_spapr_drc_set_allocation_state_finalizing(drc_index);
-            drck->detach(drc, DEVICE(drc->dev), NULL);
+            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
         } else if (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
             drc->awaiting_allocation = false;
         }
@@ -167,9 +144,32 @@ static uint32_t set_allocation_state(sPAPRDRConnector *drc,
     return RTAS_OUT_SUCCESS;
 }
 
-static const char *get_name(sPAPRDRConnector *drc)
+static const char *spapr_drc_name(sPAPRDRConnector *drc)
 {
-    return drc->name;
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    /* human-readable name for a DRC to encode into the DT
+     * description. this is mainly only used within a guest in place
+     * of the unique DRC index.
+     *
+     * in the case of VIO/PCI devices, it corresponds to a "location
+     * code" that maps a logical device/function (DRC index) to a
+     * physical (or virtual in the case of VIO) location in the system
+     * by chaining together the "location label" for each
+     * encapsulating component.
+     *
+     * since this is more to do with diagnosing physical hardware
+     * issues than guest compatibility, we choose location codes/DRC
+     * names that adhere to the documented format, but avoid encoding
+     * the entire topology information into the label/code, instead
+     * just using the location codes based on the labels for the
+     * endpoints (VIO/PCI adaptor connectors), which is basically just
+     * "C" followed by an integer ID.
+     *
+     * DRC names as documented by PAPR+ v2.7, 13.5.2.4
+     * location codes as documented by PAPR+ v2.7, 12.3.1.5
+     */
+    return g_strdup_printf("%s%d", drck->drc_name_prefix, drc->id);
 }
 
 /* has the guest been notified of device attachment? */
@@ -185,39 +185,25 @@ static void set_signalled(sPAPRDRConnector *drc)
  * based on the current allocation/indicator/power states
  * for the DR connector.
  */
-static uint32_t entity_sense(sPAPRDRConnector *drc, sPAPRDREntitySense *state)
+static sPAPRDREntitySense physical_entity_sense(sPAPRDRConnector *drc)
 {
-    if (drc->dev) {
-        if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
-            drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-            /* for logical DR, we return a state of UNUSABLE
-             * iff the allocation state UNUSABLE.
-             * Otherwise, report the state as USABLE/PRESENT,
-             * as we would for PCI.
-             */
-            *state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
-        } else {
-            /* this assumes all PCI devices are assigned to
-             * a 'live insertion' power domain, where QEMU
-             * manages power state automatically as opposed
-             * to the guest. present, non-PCI resources are
-             * unaffected by power state.
-             */
-            *state = SPAPR_DR_ENTITY_SENSE_PRESENT;
-        }
-    } else {
-        if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
-            /* PCI devices, and only PCI devices, use EMPTY
-             * in cases where we'd otherwise use UNUSABLE
-             */
-            *state = SPAPR_DR_ENTITY_SENSE_EMPTY;
-        } else {
-            *state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
-        }
-    }
+    /* this assumes all PCI devices are assigned to a 'live insertion'
+     * power domain, where QEMU manages power state automatically as
+     * opposed to the guest. present, non-PCI resources are unaffected
+     * by power state.
+     */
+    return drc->dev ? SPAPR_DR_ENTITY_SENSE_PRESENT
+        : SPAPR_DR_ENTITY_SENSE_EMPTY;
+}
 
-    trace_spapr_drc_entity_sense(spapr_drc_index(drc), *state);
-    return RTAS_OUT_SUCCESS;
+static sPAPRDREntitySense logical_entity_sense(sPAPRDRConnector *drc)
+{
+    if (drc->dev
+        && (drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE)) {
+        return SPAPR_DR_ENTITY_SENSE_PRESENT;
+    } else {
+        return SPAPR_DR_ENTITY_SENSE_UNUSABLE;
+    }
 }
 
 static void prop_get_index(Object *obj, Visitor *v, const char *name,
@@ -226,13 +212,6 @@ static void prop_get_index(Object *obj, Visitor *v, const char *name,
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     uint32_t value = spapr_drc_index(drc);
     visit_type_uint32(v, name, &value, errp);
-}
-
-static char *prop_get_name(Object *obj, Error **errp)
-{
-    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    return g_strdup(drck->get_name(drc));
 }
 
 static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
@@ -311,8 +290,8 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
     } while (fdt_depth != 0);
 }
 
-static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                   int fdt_start_offset, bool coldplug, Error **errp)
+void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
+                      int fdt_start_offset, bool coldplug, Error **errp)
 {
     trace_spapr_drc_attach(spapr_drc_index(drc));
 
@@ -335,7 +314,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
     }
-    drc->indicator_state = SPAPR_DR_INDICATOR_STATE_ACTIVE;
+    drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
 
     drc->dev = d;
     drc->fdt = fdt;
@@ -363,7 +342,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                              NULL, 0, NULL);
 }
 
-static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
+void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
 {
     trace_spapr_drc_detach(spapr_drc_index(drc));
 
@@ -401,14 +380,12 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     }
 
     if (drc->awaiting_allocation) {
-        if (!drc->awaiting_allocation_skippable) {
-            drc->awaiting_release = true;
-            trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
-            return;
-        }
+        drc->awaiting_release = true;
+        trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
+        return;
     }
 
-    drc->indicator_state = SPAPR_DR_INDICATOR_STATE_INACTIVE;
+    drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
 
     /* Calling release callbacks based on spapr_drc_type(drc). */
     switch (spapr_drc_type(drc)) {
@@ -428,7 +405,6 @@ static void detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     }
 
     drc->awaiting_release = false;
-    drc->awaiting_allocation_skippable = false;
     g_free(drc->fdt);
     drc->fdt = NULL;
     drc->fdt_start_offset = 0;
@@ -445,7 +421,6 @@ static void reset(DeviceState *d)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    sPAPRDREntitySense state;
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
@@ -467,7 +442,7 @@ static void reset(DeviceState *d)
          * force removal if we are
          */
         if (drc->awaiting_release) {
-            drck->detach(drc, DEVICE(drc->dev), NULL);
+            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
         }
 
         /* non-PCI devices may be awaiting a transition to UNUSABLE */
@@ -477,8 +452,7 @@ static void reset(DeviceState *d)
         }
     }
 
-    drck->entity_sense(drc, &state);
-    if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+    if (drck->dr_entity_sense(drc) == SPAPR_DR_ENTITY_SENSE_PRESENT) {
         drck->set_signalled(drc);
     }
 }
@@ -488,8 +462,7 @@ static bool spapr_drc_needed(void *opaque)
     sPAPRDRConnector *drc = (sPAPRDRConnector *)opaque;
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     bool rc = false;
-    sPAPRDREntitySense value;
-    drck->entity_sense(drc, &value);
+    sPAPRDREntitySense value = drck->dr_entity_sense(drc);
 
     /* If no dev is plugged in there is no need to migrate the DRC state */
     if (value != SPAPR_DR_ENTITY_SENSE_PRESENT) {
@@ -524,7 +497,7 @@ static const VMStateDescription vmstate_spapr_drc = {
     .fields  = (VMStateField []) {
         VMSTATE_UINT32(isolation_state, sPAPRDRConnector),
         VMSTATE_UINT32(allocation_state, sPAPRDRConnector),
-        VMSTATE_UINT32(indicator_state, sPAPRDRConnector),
+        VMSTATE_UINT32(dr_indicator, sPAPRDRConnector),
         VMSTATE_BOOL(configured, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_release, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_allocation, sPAPRDRConnector),
@@ -596,45 +569,6 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner, const char *type,
     object_property_set_bool(OBJECT(drc), true, "realized", NULL);
     g_free(prop_name);
 
-    /* human-readable name for a DRC to encode into the DT
-     * description. this is mainly only used within a guest in place
-     * of the unique DRC index.
-     *
-     * in the case of VIO/PCI devices, it corresponds to a
-     * "location code" that maps a logical device/function (DRC index)
-     * to a physical (or virtual in the case of VIO) location in the
-     * system by chaining together the "location label" for each
-     * encapsulating component.
-     *
-     * since this is more to do with diagnosing physical hardware
-     * issues than guest compatibility, we choose location codes/DRC
-     * names that adhere to the documented format, but avoid encoding
-     * the entire topology information into the label/code, instead
-     * just using the location codes based on the labels for the
-     * endpoints (VIO/PCI adaptor connectors), which is basically
-     * just "C" followed by an integer ID.
-     *
-     * DRC names as documented by PAPR+ v2.7, 13.5.2.4
-     * location codes as documented by PAPR+ v2.7, 12.3.1.5
-     */
-    switch (spapr_drc_type(drc)) {
-    case SPAPR_DR_CONNECTOR_TYPE_CPU:
-        drc->name = g_strdup_printf("CPU %d", id);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_PHB:
-        drc->name = g_strdup_printf("PHB %d", id);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_VIO:
-    case SPAPR_DR_CONNECTOR_TYPE_PCI:
-        drc->name = g_strdup_printf("C%d", id);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_LMB:
-        drc->name = g_strdup_printf("LMB %d", id);
-        break;
-    default:
-        g_assert(false);
-    }
-
     /* PCI slot always start in a USABLE state, and stay there */
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_USABLE;
@@ -650,7 +584,6 @@ static void spapr_dr_connector_instance_init(Object *obj)
     object_property_add_uint32_ptr(obj, "id", &drc->id, NULL);
     object_property_add(obj, "index", "uint32", prop_get_index,
                         NULL, NULL, NULL, NULL);
-    object_property_add_str(obj, "name", prop_get_name, NULL, NULL);
     object_property_add(obj, "fdt", "struct", prop_get_fdt,
                         NULL, NULL, NULL, NULL);
 }
@@ -664,12 +597,7 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     dk->realize = realize;
     dk->unrealize = unrealize;
     drck->set_isolation_state = set_isolation_state;
-    drck->set_indicator_state = set_indicator_state;
     drck->set_allocation_state = set_allocation_state;
-    drck->get_name = get_name;
-    drck->entity_sense = entity_sense;
-    drck->attach = attach;
-    drck->detach = detach;
     drck->release_pending = release_pending;
     drck->set_signalled = set_signalled;
     /*
@@ -678,12 +606,27 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     dk->user_creatable = false;
 }
 
+static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    drck->dr_entity_sense = physical_entity_sense;
+}
+
+static void spapr_drc_logical_class_init(ObjectClass *k, void *data)
+{
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
+
+    drck->dr_entity_sense = logical_entity_sense;
+}
+
 static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_CPU;
     drck->typename = "CPU";
+    drck->drc_name_prefix = "CPU ";
 }
 
 static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
@@ -692,6 +635,7 @@ static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PCI;
     drck->typename = "28";
+    drck->drc_name_prefix = "C";
 }
 
 static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
@@ -700,6 +644,7 @@ static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_LMB;
     drck->typename = "MEM";
+    drck->drc_name_prefix = "LMB ";
 }
 
 static const TypeInfo spapr_dr_connector_info = {
@@ -716,6 +661,7 @@ static const TypeInfo spapr_drc_physical_info = {
     .name          = TYPE_SPAPR_DRC_PHYSICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
     .instance_size = sizeof(sPAPRDRConnector),
+    .class_init    = spapr_drc_physical_class_init,
     .abstract      = true,
 };
 
@@ -723,6 +669,7 @@ static const TypeInfo spapr_drc_logical_info = {
     .name          = TYPE_SPAPR_DRC_LOGICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
     .instance_size = sizeof(sPAPRDRConnector),
+    .class_init    = spapr_drc_logical_class_init,
     .abstract      = true,
 };
 
@@ -846,7 +793,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
         g_array_append_val(drc_power_domains, drc_power_domain);
 
         /* ibm,drc-names */
-        drc_names = g_string_append(drc_names, drck->get_name(drc));
+        drc_names = g_string_append(drc_names, spapr_drc_name(drc));
         drc_names = g_string_insert_len(drc_names, -1, "\0", 1);
 
         /* ibm,drc-types */
@@ -905,74 +852,78 @@ out:
  * RTAS calls
  */
 
-static bool sensor_type_is_dr(uint32_t sensor_type)
+static uint32_t rtas_set_isolation_state(uint32_t idx, uint32_t state)
 {
-    switch (sensor_type) {
-    case RTAS_SENSOR_TYPE_ISOLATION_STATE:
-    case RTAS_SENSOR_TYPE_DR:
-    case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
-        return true;
+    sPAPRDRConnector *drc = spapr_drc_by_index(idx);
+    sPAPRDRConnectorClass *drck;
+
+    if (!drc) {
+        return RTAS_OUT_PARAM_ERROR;
     }
 
-    return false;
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    return drck->set_isolation_state(drc, state);
+}
+
+static uint32_t rtas_set_allocation_state(uint32_t idx, uint32_t state)
+{
+    sPAPRDRConnector *drc = spapr_drc_by_index(idx);
+    sPAPRDRConnectorClass *drck;
+
+    if (!drc) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    return drck->set_allocation_state(drc, state);
+}
+
+static uint32_t rtas_set_dr_indicator(uint32_t idx, uint32_t state)
+{
+    sPAPRDRConnector *drc = spapr_drc_by_index(idx);
+
+    if (!drc) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    trace_spapr_drc_set_dr_indicator(idx, state);
+    drc->dr_indicator = state;
+    return RTAS_OUT_SUCCESS;
 }
 
 static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
-                               uint32_t token, uint32_t nargs,
-                               target_ulong args, uint32_t nret,
-                               target_ulong rets)
+                               uint32_t token,
+                               uint32_t nargs, target_ulong args,
+                               uint32_t nret, target_ulong rets)
 {
-    uint32_t sensor_type;
-    uint32_t sensor_index;
-    uint32_t sensor_state;
+    uint32_t type, idx, state;
     uint32_t ret = RTAS_OUT_SUCCESS;
-    sPAPRDRConnector *drc;
-    sPAPRDRConnectorClass *drck;
 
     if (nargs != 3 || nret != 1) {
         ret = RTAS_OUT_PARAM_ERROR;
         goto out;
     }
 
-    sensor_type = rtas_ld(args, 0);
-    sensor_index = rtas_ld(args, 1);
-    sensor_state = rtas_ld(args, 2);
+    type = rtas_ld(args, 0);
+    idx = rtas_ld(args, 1);
+    state = rtas_ld(args, 2);
 
-    if (!sensor_type_is_dr(sensor_type)) {
-        goto out_unimplemented;
-    }
-
-    /* if this is a DR sensor we can assume sensor_index == drc_index */
-    drc = spapr_drc_by_index(sensor_index);
-    if (!drc) {
-        trace_spapr_rtas_set_indicator_invalid(sensor_index);
-        ret = RTAS_OUT_PARAM_ERROR;
-        goto out;
-    }
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
-    switch (sensor_type) {
+    switch (type) {
     case RTAS_SENSOR_TYPE_ISOLATION_STATE:
-        ret = drck->set_isolation_state(drc, sensor_state);
+        ret = rtas_set_isolation_state(idx, state);
         break;
     case RTAS_SENSOR_TYPE_DR:
-        ret = drck->set_indicator_state(drc, sensor_state);
+        ret = rtas_set_dr_indicator(idx, state);
         break;
     case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
-        ret = drck->set_allocation_state(drc, sensor_state);
+        ret = rtas_set_allocation_state(idx, state);
         break;
     default:
-        goto out_unimplemented;
+        ret = RTAS_OUT_NOT_SUPPORTED;
     }
 
 out:
     rtas_st(rets, 0, ret);
-    return;
-
-out_unimplemented:
-    /* currently only DR-related sensors are implemented */
-    trace_spapr_rtas_set_indicator_not_supported(sensor_index, sensor_type);
-    rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
 }
 
 static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
@@ -1010,7 +961,7 @@ static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         goto out;
     }
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    ret = drck->entity_sense(drc, &sensor_state);
+    sensor_state = drck->dr_entity_sense(drc);
 
 out:
     rtas_st(rets, 0, ret);

@@ -293,12 +293,9 @@ static void rtas_ibm_os_term(PowerPCCPU *cpu,
                             target_ulong args,
                             uint32_t nret, target_ulong rets)
 {
-    target_ulong ret = 0;
+    qemu_system_guest_panicked(NULL);
 
-    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, false, NULL,
-                                   &error_abort);
-
-    rtas_st(rets, 0, ret);
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_set_power_level(PowerPCCPU *cpu, sPAPRMachineState *spapr,

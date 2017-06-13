@@ -110,25 +110,14 @@ static int icp_set_kvm_state(ICPState *icp, int version_id)
     return 0;
 }
 
-static void icp_kvm_reset(void *dev)
+static void icp_kvm_reset(ICPState *icp)
 {
-    ICPState *icp = ICP(dev);
-
-    icp->xirr = 0;
-    icp->pending_priority = 0xff;
-    icp->mfrr = 0xff;
-
-    /* Make all outputs as deasserted only if the CPU thread is in use */
-    if (icp->output) {
-        qemu_set_irq(icp->output, 0);
-    }
-
     icp_set_kvm_state(icp, 1);
 }
 
-static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
+static void icp_kvm_realize(ICPState *icp, Error **errp)
 {
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = icp->cs;
     KVMEnabledICP *enabled_icp;
     unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
     int ret;
@@ -150,35 +139,23 @@ static void icp_kvm_cpu_setup(ICPState *icp, PowerPCCPU *cpu)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd, vcpu_id);
     if (ret < 0) {
-        error_report("Unable to connect CPU%ld to kernel XICS: %s", vcpu_id,
-                     strerror(errno));
-        exit(1);
+        error_setg(errp, "Unable to connect CPU%ld to kernel XICS: %s", vcpu_id,
+                   strerror(errno));
+        return;
     }
     enabled_icp = g_malloc(sizeof(*enabled_icp));
     enabled_icp->vcpu_id = vcpu_id;
     QLIST_INSERT_HEAD(&kvm_enabled_icps, enabled_icp, node);
 }
 
-static void icp_kvm_realize(DeviceState *dev, Error **errp)
-{
-    qemu_register_reset(icp_kvm_reset, dev);
-}
-
-static void icp_kvm_unrealize(DeviceState *dev, Error **errp)
-{
-    qemu_unregister_reset(icp_kvm_reset, dev);
-}
-
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     ICPStateClass *icpc = ICP_CLASS(klass);
 
-    dc->realize = icp_kvm_realize;
-    dc->unrealize = icp_kvm_unrealize;
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
-    icpc->cpu_setup = icp_kvm_cpu_setup;
+    icpc->realize = icp_kvm_realize;
+    icpc->reset = icp_kvm_reset;
 }
 
 static const TypeInfo icp_kvm_info = {
@@ -351,10 +328,8 @@ static void ics_kvm_reset(void *dev)
     ics_set_kvm_state(ics, 1);
 }
 
-static void ics_kvm_realize(DeviceState *dev, Error **errp)
+static void ics_kvm_realize(ICSState *ics, Error **errp)
 {
-    ICSState *ics = ICS_SIMPLE(dev);
-
     if (!ics->nr_irqs) {
         error_setg(errp, "Number of interrupts needs to be greater 0");
         return;
@@ -362,7 +337,7 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 
-    qemu_register_reset(ics_kvm_reset, dev);
+    qemu_register_reset(ics_kvm_reset, ics);
 }
 
 static void ics_kvm_class_init(ObjectClass *klass, void *data)

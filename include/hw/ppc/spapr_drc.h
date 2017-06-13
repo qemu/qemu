@@ -125,7 +125,7 @@ typedef enum {
 } sPAPRDRAllocationState;
 
 /*
- * LED/visual indicator state
+ * DR-indicator (LED/visual indicator)
  *
  * set via set-indicator RTAS calls
  * as documented by PAPR+ 2.7 13.5.3.4, Table 177,
@@ -137,10 +137,10 @@ typedef enum {
  * action: (currently unused)
  */
 typedef enum {
-    SPAPR_DR_INDICATOR_STATE_INACTIVE   = 0,
-    SPAPR_DR_INDICATOR_STATE_ACTIVE     = 1,
-    SPAPR_DR_INDICATOR_STATE_IDENTIFY   = 2,
-    SPAPR_DR_INDICATOR_STATE_ACTION     = 3,
+    SPAPR_DR_INDICATOR_INACTIVE   = 0,
+    SPAPR_DR_INDICATOR_ACTIVE     = 1,
+    SPAPR_DR_INDICATOR_IDENTIFY   = 2,
+    SPAPR_DR_INDICATOR_ACTION     = 3,
 } sPAPRDRIndicatorState;
 
 /*
@@ -184,12 +184,13 @@ typedef struct sPAPRDRConnector {
 
     uint32_t id;
     Object *owner;
-    const char *name;
+
+    /* DR-indicator */
+    uint32_t dr_indicator;
 
     /* sensor/indicator states */
     uint32_t isolation_state;
     uint32_t allocation_state;
-    uint32_t indicator_state;
 
     /* configure-connector state */
     void *fdt;
@@ -200,7 +201,6 @@ typedef struct sPAPRDRConnector {
     bool awaiting_release;
     bool signalled;
     bool awaiting_allocation;
-    bool awaiting_allocation_skippable;
 
     /* device pointer, via link property */
     DeviceState *dev;
@@ -213,22 +213,17 @@ typedef struct sPAPRDRConnectorClass {
     /*< public >*/
     sPAPRDRConnectorTypeShift typeshift;
     const char *typename; /* used in device tree, PAPR 13.5.2.6 & C.6.1 */
+    const char *drc_name_prefix; /* used other places in device tree */
+
+    sPAPRDREntitySense (*dr_entity_sense)(sPAPRDRConnector *drc);
 
     /* accessors for guest-visible (generally via RTAS) DR state */
     uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
                                     sPAPRDRIsolationState state);
-    uint32_t (*set_indicator_state)(sPAPRDRConnector *drc,
-                                    sPAPRDRIndicatorState state);
     uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
                                      sPAPRDRAllocationState state);
-    const char *(*get_name)(sPAPRDRConnector *drc);
-
-    uint32_t (*entity_sense)(sPAPRDRConnector *drc, sPAPRDREntitySense *state);
 
     /* QEMU interfaces for managing hotplug operations */
-    void (*attach)(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                   int fdt_start_offset, bool coldplug, Error **errp);
-    void (*detach)(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
     bool (*release_pending)(sPAPRDRConnector *drc);
     void (*set_signalled)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
@@ -242,5 +237,9 @@ sPAPRDRConnector *spapr_drc_by_index(uint32_t index);
 sPAPRDRConnector *spapr_drc_by_id(const char *type, uint32_t id);
 int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                           uint32_t drc_type_mask);
+
+void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
+                      int fdt_start_offset, bool coldplug, Error **errp);
+void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
 
 #endif /* HW_SPAPR_DRC_H */
