@@ -1780,7 +1780,7 @@ int blk_truncate(BlockBackend *blk, int64_t offset, Error **errp)
         return -ENOMEDIUM;
     }
 
-    return bdrv_truncate(blk->root, offset, errp);
+    return bdrv_truncate(blk->root, offset, PREALLOC_MODE_OFF, errp);
 }
 
 static void blk_pdiscard_entry(void *opaque)

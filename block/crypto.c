@@ -367,15 +367,9 @@ static int block_crypto_truncate(BlockDriverState *bs, int64_t offset,
     size_t payload_offset =
         qcrypto_block_get_payload_offset(crypto->block);
 
-    if (prealloc != PREALLOC_MODE_OFF) {
-        error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
-        return -ENOTSUP;
-    }
-
     offset += payload_offset;
 
-    return bdrv_truncate(bs->file, offset, errp);
+    return bdrv_truncate(bs->file, offset, prealloc, errp);
 }
 
 static void block_crypto_close(BlockDriverState *bs)

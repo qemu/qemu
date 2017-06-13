@@ -824,13 +824,7 @@ static int64_t blkdebug_getlength(BlockDriverState *bs)
 static int blkdebug_truncate(BlockDriverState *bs, int64_t offset,
                              PreallocMode prealloc, Error **errp)
 {
-    if (prealloc != PREALLOC_MODE_OFF) {
-        error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
-        return -ENOTSUP;
-    }
-
-    return bdrv_truncate(bs->file, offset, errp);
+    return bdrv_truncate(bs->file, offset, prealloc, errp);
 }
 
 static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
