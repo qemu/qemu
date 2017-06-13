@@ -1,0 +1,50 @@
+QA output created by 106
+=== Testing image growth ===
+
+--- create_mode=off growth_mode=off ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=off
+Image resized.
+
+--- create_mode=off growth_mode=falloc ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=off
+Image resized.
+
+--- create_mode=off growth_mode=full ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=off
+Image resized.
+
+--- create_mode=falloc growth_mode=off ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=falloc
+Image resized.
+
+--- create_mode=falloc growth_mode=falloc ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=falloc
+Image resized.
+
+--- create_mode=falloc growth_mode=full ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=falloc
+Image resized.
+
+--- create_mode=full growth_mode=off ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=full
+Image resized.
+
+--- create_mode=full growth_mode=falloc ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=full
+Image resized.
+
+--- create_mode=full growth_mode=full ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 preallocation=full
+Image resized.
+
+=== Testing image shrinking ===
+
+--- growth_mode=falloc ---
+qemu-img: Preallocation can only be used for growing images
+
+--- growth_mode=full ---
+qemu-img: Preallocation can only be used for growing images
+
+--- growth_mode=off ---
+Image resized.
+*** done
