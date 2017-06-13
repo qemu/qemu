@@ -529,7 +529,7 @@ qemu-img rebase -b base.img diff.qcow2
 At this point, @code{modified.img} can be discarded, since
 @code{base.img + diff.qcow2} contains the same information.
 
-@item resize @var{filename} [+ | -]@var{size}
+@item resize [--preallocation=@var{prealloc}] @var{filename} [+ | -]@var{size}
 
 Change the disk image as if it had been created with @var{size}.
 
@@ -540,6 +540,11 @@ sizes accordingly.  Failure to do so will result in data loss!
 After using this command to grow a disk image, you must use file system and
 partitioning tools inside the VM to actually begin using the new space on the
 device.
+
+When growing an image, the @code{--preallocation} option may be used to specify
+how the additional image area should be allocated on the host.  See the format
+description in the @code{NOTES} section which values are allowed.  Using this
+option may result in slightly more data being allocated than necessary.
 
 @item amend [-p] [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 
