@@ -34,10 +34,6 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                             int64_t offset, int64_t length, uint64_t addend,
                             bool decrease, enum qcow2_discard_type type);
-static int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t offset,
-                                   uint64_t additional_clusters,
-                                   bool exact_size, int new_refblock_index,
-                                   uint64_t new_refblock_offset);
 
 static uint64_t get_refcount_ro0(const void *refcount_array, uint64_t index);
 static uint64_t get_refcount_ro1(const void *refcount_array, uint64_t index);
@@ -517,10 +513,10 @@ fail:
  * Returns: The offset after the new refcount structures (i.e. where the
  *          @additional_clusters may be placed) on success, -errno on error.
  */
-static int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t start_offset,
-                                   uint64_t additional_clusters,
-                                   bool exact_size, int new_refblock_index,
-                                   uint64_t new_refblock_offset)
+int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t start_offset,
+                            uint64_t additional_clusters, bool exact_size,
+                            int new_refblock_index,
+                            uint64_t new_refblock_offset)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t total_refblock_count_u64, additional_refblock_count;

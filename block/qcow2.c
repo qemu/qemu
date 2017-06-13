@@ -3093,7 +3093,9 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
     int64_t new_l1_size;
     int ret;
 
-    if (prealloc != PREALLOC_MODE_OFF && prealloc != PREALLOC_MODE_METADATA) {
+    if (prealloc != PREALLOC_MODE_OFF && prealloc != PREALLOC_MODE_METADATA &&
+        prealloc != PREALLOC_MODE_FALLOC && prealloc != PREALLOC_MODE_FULL)
+    {
         error_setg(errp, "Unsupported preallocation mode '%s'",
                    PreallocMode_lookup[prealloc]);
         return -ENOTSUP;
@@ -3143,6 +3145,102 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
             return ret;
         }
         break;
+
+    case PREALLOC_MODE_FALLOC:
+    case PREALLOC_MODE_FULL:
+    {
+        int64_t allocation_start, host_offset, guest_offset;
+        int64_t clusters_allocated;
+        int64_t old_file_size, new_file_size;
+        uint64_t nb_new_data_clusters, nb_new_l2_tables;
+
+        old_file_size = bdrv_getlength(bs->file->bs);
+        if (old_file_size < 0) {
+            error_setg_errno(errp, -old_file_size,
+                             "Failed to inquire current file length");
+            return ret;
+        }
+
+        nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
+                                            s->cluster_size);
+
+        /* This is an overestimation; we will not actually allocate space for
+         * these in the file but just make sure the new refcount structures are
+         * able to cover them so we will not have to allocate new refblocks
+         * while entering the data blocks in the potentially new L2 tables.
+         * (We do not actually care where the L2 tables are placed. Maybe they
+         *  are already allocated or they can be placed somewhere before
+         *  @old_file_size. It does not matter because they will be fully
+         *  allocated automatically, so they do not need to be covered by the
+         *  preallocation. All that matters is that we will not have to allocate
+         *  new refcount structures for them.) */
+        nb_new_l2_tables = DIV_ROUND_UP(nb_new_data_clusters,
+                                        s->cluster_size / sizeof(uint64_t));
+        /* The cluster range may not be aligned to L2 boundaries, so add one L2
+         * table for a potential head/tail */
+        nb_new_l2_tables++;
+
+        allocation_start = qcow2_refcount_area(bs, old_file_size,
+                                               nb_new_data_clusters +
+                                               nb_new_l2_tables,
+                                               true, 0, 0);
+        if (allocation_start < 0) {
+            error_setg_errno(errp, -allocation_start,
+                             "Failed to resize refcount structures");
+            return -allocation_start;
+        }
+
+        clusters_allocated = qcow2_alloc_clusters_at(bs, allocation_start,
+                                                     nb_new_data_clusters);
+        if (clusters_allocated < 0) {
+            error_setg_errno(errp, -clusters_allocated,
+                             "Failed to allocate data clusters");
+            return -clusters_allocated;
+        }
+
+        assert(clusters_allocated == nb_new_data_clusters);
+
+        /* Allocate the data area */
+        new_file_size = allocation_start +
+                        nb_new_data_clusters * s->cluster_size;
+        ret = bdrv_truncate(bs->file, new_file_size, prealloc, errp);
+        if (ret < 0) {
+            error_prepend(errp, "Failed to resize underlying file: ");
+            qcow2_free_clusters(bs, allocation_start,
+                                nb_new_data_clusters * s->cluster_size,
+                                QCOW2_DISCARD_OTHER);
+            return ret;
+        }
+
+        /* Create the necessary L2 entries */
+        host_offset = allocation_start;
+        guest_offset = old_length;
+        while (nb_new_data_clusters) {
+            int64_t guest_cluster = guest_offset >> s->cluster_bits;
+            int64_t nb_clusters = MIN(nb_new_data_clusters,
+                                      s->l2_size - guest_cluster % s->l2_size);
+            QCowL2Meta allocation = {
+                .offset       = guest_offset,
+                .alloc_offset = host_offset,
+                .nb_clusters  = nb_clusters,
+            };
+            qemu_co_queue_init(&allocation.dependent_requests);
+
+            ret = qcow2_alloc_cluster_link_l2(bs, &allocation);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Failed to update L2 tables");
+                qcow2_free_clusters(bs, host_offset,
+                                    nb_new_data_clusters * s->cluster_size,
+                                    QCOW2_DISCARD_OTHER);
+                return ret;
+            }
+
+            guest_offset += nb_clusters * s->cluster_size;
+            host_offset += nb_clusters * s->cluster_size;
+            nb_new_data_clusters -= nb_clusters;
+        }
+        break;
+    }
 
     default:
         g_assert_not_reached();

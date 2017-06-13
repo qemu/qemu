@@ -549,6 +549,11 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
                                   uint64_t addend, bool decrease,
                                   enum qcow2_discard_type type);
 
+int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t offset,
+                            uint64_t additional_clusters, bool exact_size,
+                            int new_refblock_index,
+                            uint64_t new_refblock_offset);
+
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size);
 int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
                                 int64_t nb_clusters);
