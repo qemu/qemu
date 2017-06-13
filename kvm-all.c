@@ -23,6 +23,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
@@ -2216,8 +2217,8 @@ int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
     return kvm_device_ioctl(dev_fd, KVM_HAS_DEVICE_ATTR, &attribute) ? 0 : 1;
 }
 
-void kvm_device_access(int fd, int group, uint64_t attr,
-                       void *val, bool write)
+int kvm_device_access(int fd, int group, uint64_t attr,
+                      void *val, bool write, Error **errp)
 {
     struct kvm_device_attr kvmattr;
     int err;
@@ -2231,11 +2232,12 @@ void kvm_device_access(int fd, int group, uint64_t attr,
                            write ? KVM_SET_DEVICE_ATTR : KVM_GET_DEVICE_ATTR,
                            &kvmattr);
     if (err < 0) {
-        error_report("KVM_%s_DEVICE_ATTR failed: %s",
-                     write ? "SET" : "GET", strerror(-err));
-        error_printf("Group %d attr 0x%016" PRIx64 "\n", group, attr);
-        abort();
+        error_setg_errno(errp, -err,
+                         "KVM_%s_DEVICE_ATTR failed: Group %d "
+                         "attr 0x%016" PRIx64,
+                         write ? "SET" : "GET", group, attr);
     }
+    return err;
 }
 
 /* Return 1 on success, 0 on failure */

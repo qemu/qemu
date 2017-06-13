@@ -93,7 +93,7 @@ static inline void kvm_gicd_access(GICv3State *s, int offset,
 {
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_DIST_REGS,
                       KVM_VGIC_ATTR(offset, 0),
-                      val, write);
+                      val, write, &error_abort);
 }
 
 static inline void kvm_gicr_access(GICv3State *s, int offset, int cpu,
@@ -101,7 +101,7 @@ static inline void kvm_gicr_access(GICv3State *s, int offset, int cpu,
 {
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_REDIST_REGS,
                       KVM_VGIC_ATTR(offset, s->cpu[cpu].gicr_typer),
-                      val, write);
+                      val, write, &error_abort);
 }
 
 static inline void kvm_gicc_access(GICv3State *s, uint64_t reg, int cpu,
@@ -109,7 +109,7 @@ static inline void kvm_gicc_access(GICv3State *s, uint64_t reg, int cpu,
 {
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS,
                       KVM_VGIC_ATTR(reg, s->cpu[cpu].gicr_typer),
-                      val, write);
+                      val, write, &error_abort);
 }
 
 static inline void kvm_gic_line_level_access(GICv3State *s, int irq, int cpu,
@@ -119,7 +119,7 @@ static inline void kvm_gic_line_level_access(GICv3State *s, int irq, int cpu,
                       KVM_VGIC_ATTR(irq, s->cpu[cpu].gicr_typer) |
                       (VGIC_LEVEL_INFO_LINE_LEVEL <<
                        KVM_DEV_ARM_VGIC_LINE_LEVEL_INFO_SHIFT),
-                      val, write);
+                      val, write, &error_abort);
 }
 
 /* Loop through each distributor IRQ related register; since bits
@@ -630,7 +630,7 @@ static void arm_gicv3_icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     /* Initialize to actual HW supported configuration */
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS,
                       KVM_VGIC_ATTR(ICC_CTLR_EL1, cpu->mp_affinity),
-                      &c->icc_ctlr_el1[GICV3_NS], false);
+                      &c->icc_ctlr_el1[GICV3_NS], false, &error_abort);
 
     c->icc_ctlr_el1[GICV3_S] = c->icc_ctlr_el1[GICV3_NS];
 }
@@ -717,11 +717,11 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
     }
 
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
-                      0, &s->num_irq, true);
+                      0, &s->num_irq, true, &error_abort);
 
     /* Tell the kernel to complete VGIC initialization now */
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-                      KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+                      KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true, &error_abort);
 
     kvm_arm_register_device(&s->iomem_dist, -1, KVM_DEV_ARM_VGIC_GRP_ADDR,
                             KVM_VGIC_V3_ADDR_TYPE_DIST, s->dev_fd);

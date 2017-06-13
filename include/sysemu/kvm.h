@@ -294,12 +294,15 @@ int kvm_device_check_attr(int fd, uint32_t group, uint64_t attr);
  * @attr: the attribute of that group to set or get
  * @val: pointer to a storage area for the value
  * @write: true for set and false for get operation
+ * @errp: error object handle
  *
- * This function is not allowed to fail. Use kvm_device_check_attr()
- * in order to check for the availability of optional attributes.
+ * Returns: 0 on success
+ *          < 0 on error
+ * Use kvm_device_check_attr() in order to check for the availability
+ * of optional attributes.
  */
-void kvm_device_access(int fd, int group, uint64_t attr,
-                       void *val, bool write);
+int kvm_device_access(int fd, int group, uint64_t attr,
+                      void *val, bool write, Error **errp);
 
 /**
  * kvm_create_device - create a KVM device for the device control API
