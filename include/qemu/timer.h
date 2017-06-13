@@ -1020,10 +1020,9 @@ static inline int64_t cpu_get_host_ticks(void)
 /* The host CPU doesn't have an easily accessible cycle counter.
    Just return a monotonically increasing value.  This will be
    totally wrong, but hopefully better than nothing.  */
-static inline int64_t cpu_get_host_ticks (void)
+static inline int64_t cpu_get_host_ticks(void)
 {
-    static int64_t ticks = 0;
-    return ticks++;
+    return get_clock();
 }
 #endif
 
