@@ -205,7 +205,7 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
         return -EINVAL;
     }
 
-    if (strcmp(uri->scheme, "ssh") != 0) {
+    if (g_strcmp0(uri->scheme, "ssh") != 0) {
         error_setg(errp, "URI scheme must be 'ssh'");
         goto err;
     }
