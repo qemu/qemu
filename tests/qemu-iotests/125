@@ -1,0 +1,130 @@
+#!/bin/bash
+#
+# Test preallocated growth of qcow2 images
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+here=$PWD
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+get_image_size_on_host()
+{
+    $QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep "disk size" \
+        | sed -e 's/^[^0-9]*\([0-9]\+\).*$/\1/'
+}
+
+# get standard environment and filters
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+if [ -z "$TEST_IMG_FILE" ]; then
+    TEST_IMG_FILE=$TEST_IMG
+fi
+
+# Generally, we create some image with or without existing preallocation and
+# then resize it. Then we write some data into the image and verify that its
+# size does not change if we have used preallocation.
+
+# With a cluster size of 512 B, one L2 table covers 64 * 512 B = 32 kB.
+# One cluster of the L1 table covers 64 * 32 kB = 2 MB.
+# There are multiple cases we want to test:
+# (1) Grow an image without having to allocate a new L2 table.
+# (2) Grow an image, having to allocate a new L2 table.
+# (3) Grow an image, having to grow the L1 table.
+# Therefore, we create an image that is 48 kB below 2 MB. Then:
+# (1) We resize it to 2 MB - 32 kB. (+ 16 kB)
+# (2) We resize it to 2 MB.         (+ 48 kB)
+# (3) We resize it to 2 MB + 32 kB. (+ 80 kB)
+
+# in B
+CREATION_SIZE=$((2 * 1024 * 1024 - 48 * 1024))
+
+# in kB
+for GROWTH_SIZE in 16 48 80; do
+    for create_mode in off metadata falloc full; do
+        for growth_mode in off metadata falloc full; do
+            echo "--- growth_size=$GROWTH_SIZE create_mode=$create_mode growth_mode=$growth_mode ---"
+
+            IMGOPTS="preallocation=$create_mode,cluster_size=512" _make_test_img ${CREATION_SIZE}
+            $QEMU_IMG resize -f "$IMGFMT" --preallocation=$growth_mode "$TEST_IMG" +${GROWTH_SIZE}K
+
+            host_size_0=$(get_image_size_on_host)
+            file_length_0=$(stat -c '%s' "$TEST_IMG_FILE")
+
+            $QEMU_IO -c "write 0 $CREATION_SIZE" "$TEST_IMG" | _filter_qemu_io
+
+            host_size_1=$(get_image_size_on_host)
+            file_length_1=$(stat -c '%s' "$TEST_IMG_FILE")
+
+            $QEMU_IO -c "write $CREATION_SIZE ${GROWTH_SIZE}K" "$TEST_IMG" | _filter_qemu_io
+
+            host_size_2=$(get_image_size_on_host)
+            file_length_2=$(stat -c '%s' "$TEST_IMG_FILE")
+
+            # Test creation preallocation: Compare #0 against #1
+            if [ $create_mode != off ]; then
+                # The image length should not have grown
+                if [ $file_length_1 -gt $file_length_0 ]; then
+                    echo "ERROR (create): Image length has grown from $file_length_0 to $file_length_1"
+                fi
+                if [ $create_mode != metadata ]; then
+                    # The host size should not have grown either
+                    if [ $host_size_1 -gt $host_size_0 ]; then
+                        echo "ERROR (create): Host size has grown from $host_size_0 to $host_size_1"
+                    fi
+                fi
+            fi
+
+            # Test resize preallocation: Compare #2 against #1
+            if [ $growth_mode != off ]; then
+                # The image length should not have grown
+                if [ $file_length_2 -gt $file_length_1 ]; then
+                    echo "ERROR (grow): Image length has grown from $file_length_1 to $file_length_2"
+                fi
+                if [ $create_mode != metadata ]; then
+                    # The host size should not have grown either
+                    if [ $host_size_2 -gt $host_size_1 ]; then
+                        echo "ERROR (grow): Host size has grown from $host_size_1 to $host_size_2"
+                    fi
+                fi
+            fi
+
+            echo
+        done
+    done
+done
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
