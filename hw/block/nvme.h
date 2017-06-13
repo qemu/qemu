@@ -712,6 +712,7 @@ typedef struct NvmeRequest {
     NvmeCqe                 cqe;
     BlockAcctCookie         acct;
     QEMUSGList              qsg;
+    QEMUIOVector            iov;
     QTAILQ_ENTRY(NvmeRequest)entry;
 } NvmeRequest;
 
