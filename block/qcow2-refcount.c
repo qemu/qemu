@@ -381,7 +381,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
         ret = qcow2_cache_get_empty(bs, s->refcount_block_cache, new_block,
                                     refcount_block);
         if (ret < 0) {
-            goto fail_block;
+            goto fail;
         }
 
         memset(*refcount_block, 0, s->cluster_size);
@@ -396,12 +396,12 @@ static int alloc_refcount_block(BlockDriverState *bs,
         ret = update_refcount(bs, new_block, s->cluster_size, 1, false,
                               QCOW2_DISCARD_NEVER);
         if (ret < 0) {
-            goto fail_block;
+            goto fail;
         }
 
         ret = qcow2_cache_flush(bs, s->refcount_block_cache);
         if (ret < 0) {
-            goto fail_block;
+            goto fail;
         }
 
         /* Initialize the new refcount block only after updating its refcount,
@@ -409,7 +409,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
         ret = qcow2_cache_get_empty(bs, s->refcount_block_cache, new_block,
                                     refcount_block);
         if (ret < 0) {
-            goto fail_block;
+            goto fail;
         }
 
         memset(*refcount_block, 0, s->cluster_size);
@@ -420,7 +420,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     qcow2_cache_entry_mark_dirty(bs, s->refcount_block_cache, *refcount_block);
     ret = qcow2_cache_flush(bs, s->refcount_block_cache);
     if (ret < 0) {
-        goto fail_block;
+        goto fail;
     }
 
     /* If the refcount table is big enough, just hook the block up there */
@@ -431,7 +431,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
             s->refcount_table_offset + refcount_table_index * sizeof(uint64_t),
             &data64, sizeof(data64));
         if (ret < 0) {
-            goto fail_block;
+            goto fail;
         }
 
         s->refcount_table[refcount_table_index] = new_block;
@@ -495,7 +495,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
      * allocated metadata. Make the caller search some new space. */
     return -EAGAIN;
 
-fail_block:
+fail:
     if (*refcount_block != NULL) {
         qcow2_cache_put(bs, s->refcount_block_cache, refcount_block);
     }
