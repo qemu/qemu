@@ -239,10 +239,19 @@ static void aspeed_board_init(MachineState *machine,
 static void palmetto_bmc_i2c_init(AspeedBoardState *bmc)
 {
     AspeedSoCState *soc = &bmc->soc;
+    DeviceState *dev;
 
     /* The palmetto platform expects a ds3231 RTC but a ds1338 is
      * enough to provide basic RTC features. Alarms will be missing */
     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 0), "ds1338", 0x68);
+
+    /* add a TMP423 temperature sensor */
+    dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 2),
+                           "tmp423", 0x4c);
+    object_property_set_int(OBJECT(dev), 31000, "temperature0", &error_abort);
+    object_property_set_int(OBJECT(dev), 28000, "temperature1", &error_abort);
+    object_property_set_int(OBJECT(dev), 20000, "temperature2", &error_abort);
+    object_property_set_int(OBJECT(dev), 110000, "temperature3", &error_abort);
 }
 
 static void palmetto_bmc_init(MachineState *machine)

@@ -100,14 +100,14 @@ static void kvm_gicd_access(GICState *s, int offset, int cpu,
                             uint32_t *val, bool write)
 {
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_DIST_REGS,
-                      KVM_VGIC_ATTR(offset, cpu), val, write);
+                      KVM_VGIC_ATTR(offset, cpu), val, write, &error_abort);
 }
 
 static void kvm_gicc_access(GICState *s, int offset, int cpu,
                             uint32_t *val, bool write)
 {
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CPU_REGS,
-                      KVM_VGIC_ATTR(offset, cpu), val, write);
+                      KVM_VGIC_ATTR(offset, cpu), val, write, &error_abort);
 }
 
 #define for_each_irq_reg(_ctr, _max_irq, _field_width) \
@@ -538,13 +538,14 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
         if (kvm_device_check_attr(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS, 0)) {
             uint32_t numirqs = s->num_irq;
             kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS, 0,
-                              &numirqs, true);
+                              &numirqs, true, &error_abort);
         }
         /* Tell the kernel to complete VGIC initialization now */
         if (kvm_device_check_attr(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
                                   KVM_DEV_ARM_VGIC_CTRL_INIT)) {
             kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-                              KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+                              KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true,
+                              &error_abort);
         }
     } else if (ret != -ENODEV && ret != -ENOTSUP) {
         error_setg_errno(errp, -ret, "error creating in-kernel VGIC");
