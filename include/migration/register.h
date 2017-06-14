@@ -14,9 +14,6 @@
 #ifndef MIGRATION_REGISTER_H
 #define MIGRATION_REGISTER_H
 
-typedef void SaveStateHandler(QEMUFile *f, void *opaque);
-typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
-
 typedef struct SaveVMHandlers {
     /* This runs inside the iothread lock.  */
     SaveStateHandler *save_state;
