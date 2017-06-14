@@ -52,8 +52,8 @@ typedef struct VirtualGfxConsole {
     EGLSurface esurface;
     int glupdates;
     int x, y, w, h;
-    GLuint tex_id;
-    GLuint fbo_id;
+    egl_fb guest_fb;
+    egl_fb win_fb;
     bool y0_top;
     bool scanout_mode;
 #endif

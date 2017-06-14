@@ -30,14 +30,7 @@ static void gtk_egl_set_scanout_mode(VirtualConsole *vc, bool scanout)
 
     vc->gfx.scanout_mode = scanout;
     if (!vc->gfx.scanout_mode) {
-        if (vc->gfx.fbo_id) {
-            glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT,
-                                      GL_COLOR_ATTACHMENT0_EXT,
-                                      GL_TEXTURE_2D, 0, 0);
-            glBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
-            glDeleteFramebuffers(1, &vc->gfx.fbo_id);
-            vc->gfx.fbo_id = 0;
-        }
+        egl_fb_destroy(&vc->gfx.guest_fb);
         if (vc->gfx.surface) {
             surface_gl_destroy_texture(vc->gfx.gls, vc->gfx.ds);
             surface_gl_create_texture(vc->gfx.gls, vc->gfx.ds);
@@ -176,7 +169,6 @@ void gd_egl_scanout_disable(DisplayChangeListener *dcl)
 
     vc->gfx.w = 0;
     vc->gfx.h = 0;
-    vc->gfx.tex_id = 0;
     gtk_egl_set_scanout_mode(vc, false);
 }
 
@@ -192,20 +184,14 @@ void gd_egl_scanout_texture(DisplayChangeListener *dcl,
     vc->gfx.y = y;
     vc->gfx.w = w;
     vc->gfx.h = h;
-    vc->gfx.tex_id = backing_id;
     vc->gfx.y0_top = backing_y_0_top;
 
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                    vc->gfx.esurface, vc->gfx.ectx);
 
     gtk_egl_set_scanout_mode(vc, true);
-    if (!vc->gfx.fbo_id) {
-        glGenFramebuffers(1, &vc->gfx.fbo_id);
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER_EXT, vc->gfx.fbo_id);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
-                              GL_TEXTURE_2D, vc->gfx.tex_id, 0);
+    egl_fb_create_for_tex(&vc->gfx.guest_fb, backing_width, backing_height,
+                          backing_id);
 }
 
 void gd_egl_scanout_flush(DisplayChangeListener *dcl,
@@ -213,30 +199,22 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     GdkWindow *window;
-    int ww, wh, y1, y2;
+    int ww, wh;
 
     if (!vc->gfx.scanout_mode) {
         return;
     }
-    if (!vc->gfx.fbo_id) {
+    if (!vc->gfx.guest_fb.framebuffer) {
         return;
     }
 
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                    vc->gfx.esurface, vc->gfx.ectx);
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, vc->gfx.fbo_id);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
     window = gtk_widget_get_window(vc->gfx.drawing_area);
     gdk_drawable_get_size(window, &ww, &wh);
-    glViewport(0, 0, ww, wh);
-    y1 = vc->gfx.y0_top ? 0 : vc->gfx.h;
-    y2 = vc->gfx.y0_top ? vc->gfx.h : 0;
-    glBlitFramebuffer(0, y1, vc->gfx.w, y2,
-                      0, 0, ww, wh,
-                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    glBindFramebuffer(GL_FRAMEBUFFER_EXT, vc->gfx.fbo_id);
+    egl_fb_setup_default(&vc->gfx.win_fb, ww, wh);
+    egl_fb_blit(&vc->gfx.win_fb, &vc->gfx.guest_fb, !vc->gfx.y0_top);
 
     eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
 }
