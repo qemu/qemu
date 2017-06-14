@@ -1173,6 +1173,8 @@ typedef enum {
     /* We are exiting the TB, but have neither emitted a goto_tb, nor
        updated the PC for the next instruction to be executed.  */
     EXIT_PC_STALE,
+    /* We are exiting the TB to the main loop.  */
+    EXIT_PC_STALE_NOCHAIN,
     /* We are ending the TB with a noreturn function call, e.g. longjmp.
        No following code will be executed.  */
     EXIT_NORETURN,
@@ -3795,7 +3797,8 @@ static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
-    return NO_EXIT;
+    /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
+    return EXIT_PC_STALE_NOCHAIN;
 }
 
 static ExitStatus op_stap(DisasContext *s, DisasOps *o)
@@ -4038,7 +4041,9 @@ static ExitStatus op_stnosm(DisasContext *s, DisasOps *o)
     } else {
         tcg_gen_ori_i64(psw_mask, psw_mask, i2 << 56);
     }
-    return NO_EXIT;
+
+    /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
+    return EXIT_PC_STALE_NOCHAIN;
 }
 
 static ExitStatus op_stura(DisasContext *s, DisasOps *o)
@@ -5788,6 +5793,7 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
     case EXIT_NORETURN:
         break;
     case EXIT_PC_STALE:
+    case EXIT_PC_STALE_NOCHAIN:
         update_psw_addr(&dc);
         /* FALLTHRU */
     case EXIT_PC_UPDATED:
@@ -5799,14 +5805,14 @@ void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
         /* Exit the TB, either by raising a debug exception or by return.  */
         if (do_debug) {
             gen_exception(EXCP_DEBUG);
-        } else if (use_exit_tb(&dc)) {
+        } else if (use_exit_tb(&dc) || status == EXIT_PC_STALE_NOCHAIN) {
             tcg_gen_exit_tb(0);
         } else {
             tcg_gen_lookup_and_goto_ptr(psw_addr);
         }
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     gen_tb_end(tb, num_insns);
