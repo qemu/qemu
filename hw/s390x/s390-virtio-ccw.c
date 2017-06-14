@@ -122,6 +122,9 @@ static void ccw_init(MachineState *machine)
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
 
+    /* init CPUs */
+    s390_init_cpus(machine);
+
     s390_flic_init();
 
     /* get a BUS */
@@ -137,9 +140,6 @@ static void ccw_init(MachineState *machine)
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
-
-    /* init CPUs */
-    s390_init_cpus(machine);
 
     if (kvm_enabled()) {
         kvm_s390_enable_css_support(s390_cpu_addr2state(0));
