@@ -340,6 +340,10 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Legacy rados key/value option parameters",
         },
+        {
+            .name = "filename",
+            .type = QEMU_OPT_STRING,
+        },
         { /* end of list */ }
     },
 };
@@ -541,11 +545,26 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVRBDState *s = bs->opaque;
     const char *pool, *snap, *conf, *user, *image_name, *keypairs;
-    const char *secretid;
+    const char *secretid, *filename;
     QemuOpts *opts;
     Error *local_err = NULL;
     char *mon_host = NULL;
     int r;
+
+    /* If we are given a filename, parse the filename, with precedence given to
+     * filename encoded options */
+    filename = qdict_get_try_str(options, "filename");
+    if (filename) {
+        error_report("Warning: 'filename' option specified. "
+                      "This is an unsupported option, and may be deprecated "
+                      "in the future");
+        qemu_rbd_parse_filename(filename, options, &local_err);
+        if (local_err) {
+            r = -EINVAL;
+            error_propagate(errp, local_err);
+            goto exit;
+        }
+    }
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -665,6 +684,7 @@ failed_shutdown:
 failed_opts:
     qemu_opts_del(opts);
     g_free(mon_host);
+exit:
     return r;
 }
 
