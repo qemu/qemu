@@ -61,5 +61,25 @@
 #pragma GCC poison CPU_INTERRUPT_TGT_INT_1
 #pragma GCC poison CPU_INTERRUPT_TGT_INT_2
 
+#pragma GCC poison CONFIG_ALPHA_DIS
+#pragma GCC poison CONFIG_ARM_A64_DIS
+#pragma GCC poison CONFIG_ARM_DIS
+#pragma GCC poison CONFIG_CRIS_DIS
+#pragma GCC poison CONFIG_I386_DIS
+#pragma GCC poison CONFIG_LM32_DIS
+#pragma GCC poison CONFIG_M68K_DIS
+#pragma GCC poison CONFIG_MICROBLAZE_DIS
+#pragma GCC poison CONFIG_MIPS_DIS
+#pragma GCC poison CONFIG_MOXIE_DIS
+#pragma GCC poison CONFIG_NIOS2_DIS
+#pragma GCC poison CONFIG_PPC_DIS
+#pragma GCC poison CONFIG_S390_DIS
+#pragma GCC poison CONFIG_SH4_DIS
+#pragma GCC poison CONFIG_SPARC_DIS
+#pragma GCC poison CONFIG_XTENSA_DIS
+
+#pragma GCC poison CONFIG_LINUX_USER
+#pragma GCC poison CONFIG_VHOST_NET
+
 #endif
 #endif
