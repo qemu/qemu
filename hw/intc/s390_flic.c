@@ -163,9 +163,10 @@ static void s390_flic_common_realize(DeviceState *dev, Error **errp)
     if (max_batch > ADAPTER_ROUTES_MAX_GSI) {
         error_setg(errp, "flic property adapter_routes_max_batch too big"
                    " (%d > %d)", max_batch, ADAPTER_ROUTES_MAX_GSI);
+        return;
     }
 
-    fs->ais_supported = true;
+    fs->ais_supported = s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION);
 }
 
 static void s390_flic_class_init(ObjectClass *oc, void *data)

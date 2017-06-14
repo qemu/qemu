@@ -302,6 +302,9 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
+    /* Try to enable AIS facility */
+    kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0);
+
     qemu_mutex_init(&qemu_sigp_mutex);
 
     return 0;
@@ -2634,6 +2637,10 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     if (kvm_s390_cmma_available()) {
         set_bit(S390_FEAT_CMM, model->features);
     }
+
+    /* set zpci and aen facilities */
+    set_bit(S390_FEAT_ZPCI, model->features);
+    set_bit(S390_FEAT_ADAPTER_EVENT_NOTIFICATION, model->features);
 
     if (s390_known_cpu_type(cpu_type)) {
         /* we want the exact model, even if some features are missing */

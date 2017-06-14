@@ -444,7 +444,6 @@ typedef struct KVMS390FLICStateClass {
 
 static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 {
-    S390FLICState *fs = S390_FLIC_COMMON(dev);
     KVMS390FLICState *flic_state = KVM_S390_FLIC(dev);
     struct kvm_create_device cd = {0};
     struct kvm_device_attr test_attr = {0};
@@ -476,8 +475,6 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     test_attr.group = KVM_DEV_FLIC_CLEAR_IO_IRQ;
     flic_state->clear_io_supported = !ioctl(flic_state->fd,
                                             KVM_HAS_DEVICE_ATTR, test_attr);
-
-    fs->ais_supported = false;
     return;
 fail:
     error_propagate(errp, errp_local);
