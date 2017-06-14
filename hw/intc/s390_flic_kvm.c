@@ -392,6 +392,17 @@ static const VMStateDescription kvm_s390_flic_vmstate = {
     }
 };
 
+typedef struct KVMS390FLICStateClass {
+    S390FLICStateClass parent_class;
+    DeviceRealize parent_realize;
+} KVMS390FLICStateClass;
+
+#define KVM_S390_FLIC_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(KVMS390FLICStateClass, (obj), TYPE_KVM_S390_FLIC)
+
+#define KVM_S390_FLIC_CLASS(klass) \
+    OBJECT_CLASS_CHECK(KVMS390FLICStateClass, (klass), TYPE_KVM_S390_FLIC)
+
 static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 {
     KVMS390FLICState *flic_state = KVM_S390_FLIC(dev);
@@ -400,6 +411,10 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     int ret;
     Error *errp_local = NULL;
 
+    KVM_S390_FLIC_GET_CLASS(dev)->parent_realize(dev, &errp_local);
+    if (errp_local) {
+        goto fail;
+    }
     flic_state->fd = -1;
     if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
         error_setg_errno(&errp_local, errno, "KVM is missing capability"
@@ -454,6 +469,7 @@ static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
+    KVM_S390_FLIC_CLASS(oc)->parent_realize = dc->realize;
     dc->realize = kvm_s390_flic_realize;
     dc->vmsd = &kvm_s390_flic_vmstate;
     dc->reset = kvm_s390_flic_reset;
@@ -468,6 +484,7 @@ static const TypeInfo kvm_s390_flic_info = {
     .name          = TYPE_KVM_S390_FLIC,
     .parent        = TYPE_S390_FLIC_COMMON,
     .instance_size = sizeof(KVMS390FLICState),
+    .class_size    = sizeof(KVMS390FLICStateClass),
     .class_init    = kvm_s390_flic_class_init,
 };
 
