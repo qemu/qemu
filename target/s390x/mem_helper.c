@@ -110,6 +110,20 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
     }
 }
 
+static inline uint64_t wrap_address(CPUS390XState *env, uint64_t a)
+{
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        if (!(env->psw.mask & PSW_MASK_32)) {
+            /* 24-Bit mode */
+            a &= 0x00ffffff;
+        } else {
+            /* 31-Bit mode */
+            a &= 0x7fffffff;
+        }
+    }
+    return a;
+}
+
 static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
                         uint32_t l, uintptr_t ra)
 {
@@ -132,6 +146,68 @@ static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
         }
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+static void fast_memmove_idx(CPUS390XState *env, uint64_t dest, uint64_t src,
+                             uint32_t len, int dest_idx, int src_idx,
+                             uintptr_t ra)
+{
+    TCGMemOpIdx oi_dest = make_memop_idx(MO_UB, dest_idx);
+    TCGMemOpIdx oi_src = make_memop_idx(MO_UB, src_idx);
+    uint32_t len_adj;
+    void *src_p;
+    void *dest_p;
+    uint8_t x;
+
+    while (len > 0) {
+        src = wrap_address(env, src);
+        dest = wrap_address(env, dest);
+        src_p = tlb_vaddr_to_host(env, src, MMU_DATA_LOAD, src_idx);
+        dest_p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, dest_idx);
+
+        if (src_p && dest_p) {
+            /* Access to both whole pages granted.  */
+            len_adj = adj_len_to_page(adj_len_to_page(len, src), dest);
+            memmove(dest_p, src_p, len_adj);
+        } else {
+            /* We failed to get access to one or both whole pages. The next
+               read or write access will likely fill the QEMU TLB for the
+               next iteration.  */
+            len_adj = 1;
+            x = helper_ret_ldub_mmu(env, src, oi_src, ra);
+            helper_ret_stb_mmu(env, dest, x, oi_dest, ra);
+        }
+        src += len_adj;
+        dest += len_adj;
+        len -= len_adj;
+    }
+}
+
+static int mmu_idx_from_as(uint8_t as)
+{
+    switch (as) {
+    case AS_PRIMARY:
+        return MMU_PRIMARY_IDX;
+    case AS_SECONDARY:
+        return MMU_SECONDARY_IDX;
+    case AS_HOME:
+        return MMU_HOME_IDX;
+    default:
+        /* FIXME AS_ACCREG */
+        g_assert_not_reached();
+    }
+}
+
+static void fast_memmove_as(CPUS390XState *env, uint64_t dest, uint64_t src,
+                            uint32_t len, uint8_t dest_as, uint8_t src_as,
+                            uintptr_t ra)
+{
+    int src_idx = mmu_idx_from_as(src_as);
+    int dest_idx = mmu_idx_from_as(dest_as);
+
+    fast_memmove_idx(env, dest, src, len, dest_idx, src_idx, ra);
+}
+#endif
 
 static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
                          uint32_t l, uintptr_t ra)
@@ -406,20 +482,6 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
 
     HELPER_LOG("\n");
     return cc;
-}
-
-static inline uint64_t wrap_address(CPUS390XState *env, uint64_t a)
-{
-    if (!(env->psw.mask & PSW_MASK_64)) {
-        if (!(env->psw.mask & PSW_MASK_32)) {
-            /* 24-Bit mode */
-            a &= 0x00ffffff;
-        } else {
-            /* 31-Bit mode */
-            a &= 0x7fffffff;
-        }
-    }
-    return a;
 }
 
 static inline uint64_t get_address(CPUS390XState *env, int reg)
@@ -1788,4 +1850,95 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
        that ex_value is non-zero, which flags that we are in a state
        that requires such execution.  */
     env->ex_value = insn | ilen;
+}
+
+uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
+                       uint64_t len)
+{
+    const uint8_t psw_key = (env->psw.mask & PSW_MASK_KEY) >> PSW_SHIFT_KEY;
+    const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
+    const uint64_t r0 = env->regs[0];
+    const uintptr_t ra = GETPC();
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+    uint8_t dest_key, dest_as, dest_k, dest_a;
+    uint8_t src_key, src_as, src_k, src_a;
+    uint64_t val;
+    int cc = 0;
+
+    HELPER_LOG("%s dest %" PRIx64 ", src %" PRIx64 ", len %" PRIx64 "\n",
+               __func__, dest, src, len);
+
+    if (!(env->psw.mask & PSW_MASK_DAT)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+
+    /* OAC (operand access control) for the first operand -> dest */
+    val = (r0 & 0xffff0000ULL) >> 16;
+    dest_key = (val >> 12) & 0xf;
+    dest_as = (val >> 6) & 0x3;
+    dest_k = (val >> 1) & 0x1;
+    dest_a = val & 0x1;
+
+    /* OAC (operand access control) for the second operand -> src */
+    val = (r0 & 0x0000ffffULL);
+    src_key = (val >> 12) & 0xf;
+    src_as = (val >> 6) & 0x3;
+    src_k = (val >> 1) & 0x1;
+    src_a = val & 0x1;
+
+    if (!dest_k) {
+        dest_key = psw_key;
+    }
+    if (!src_k) {
+        src_key = psw_key;
+    }
+    if (!dest_a) {
+        dest_as = psw_as;
+    }
+    if (!src_a) {
+        src_as = psw_as;
+    }
+
+    if (dest_a && dest_as == AS_HOME && (env->psw.mask & PSW_MASK_PSTATE)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+    if (!(env->cregs[0] & CR0_SECONDARY) &&
+        (dest_as == AS_SECONDARY || src_as == AS_SECONDARY)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+    if (!psw_key_valid(env, dest_key) || !psw_key_valid(env, src_key)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_PRIVILEGED, 6);
+    }
+
+    len = wrap_length(env, len);
+    if (len > 4096) {
+        cc = 3;
+        len = 4096;
+    }
+
+    /* FIXME: AR-mode and proper problem state mode (using PSW keys) missing */
+    if (src_as == AS_ACCREG || dest_as == AS_ACCREG ||
+        (env->psw.mask & PSW_MASK_PSTATE)) {
+        qemu_log_mask(LOG_UNIMP, "%s: AR-mode and PSTATE support missing\n",
+                      __func__);
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_ADDRESSING, 6);
+    }
+
+    /* FIXME: a) LAP
+     *        b) Access using correct keys
+     *        c) AR-mode
+     */
+#ifdef CONFIG_USER_ONLY
+    /* psw keys are never valid in user mode, we will never reach this */
+    g_assert_not_reached();
+#else
+    fast_memmove_as(env, dest, src, len, dest_as, src_as, ra);
+#endif
+
+    return cc;
 }

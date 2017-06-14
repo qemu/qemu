@@ -304,6 +304,7 @@ void s390x_cpu_debug_excp_handler(CPUState *cs);
 #undef PSW_MASK_WAIT
 #undef PSW_MASK_PSTATE
 #undef PSW_MASK_ASC
+#undef PSW_SHIFT_ASC
 #undef PSW_MASK_CC
 #undef PSW_MASK_PM
 #undef PSW_MASK_64
@@ -320,6 +321,7 @@ void s390x_cpu_debug_excp_handler(CPUState *cs);
 #define PSW_MASK_WAIT           0x0002000000000000ULL
 #define PSW_MASK_PSTATE         0x0001000000000000ULL
 #define PSW_MASK_ASC            0x0000C00000000000ULL
+#define PSW_SHIFT_ASC           46
 #define PSW_MASK_CC             0x0000300000000000ULL
 #define PSW_MASK_PM             0x00000F0000000000ULL
 #define PSW_MASK_64             0x0000000100000000ULL
@@ -335,6 +337,12 @@ void s390x_cpu_debug_excp_handler(CPUState *cs);
 #define PSW_ASC_ACCREG          0x0000400000000000ULL
 #define PSW_ASC_SECONDARY       0x0000800000000000ULL
 #define PSW_ASC_HOME            0x0000C00000000000ULL
+
+/* the address space values shifted */
+#define AS_PRIMARY              0
+#define AS_ACCREG               1
+#define AS_SECONDARY            2
+#define AS_HOME                 3
 
 /* tb flags */
 
@@ -354,6 +362,7 @@ void s390x_cpu_debug_excp_handler(CPUState *cs);
 
 /* Control register 0 bits */
 #define CR0_LOWPROT             0x0000000010000000ULL
+#define CR0_SECONDARY           0x0000000004000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
 
 /* MMU */
@@ -361,7 +370,18 @@ void s390x_cpu_debug_excp_handler(CPUState *cs);
 #define MMU_SECONDARY_IDX       1
 #define MMU_HOME_IDX            2
 
-static inline int cpu_mmu_index (CPUS390XState *env, bool ifetch)
+static inline bool psw_key_valid(CPUS390XState *env, uint8_t psw_key)
+{
+    uint16_t pkm = env->cregs[3] >> 16;
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        /* PSW key has range 0..15, it is valid if the bit is 1 in the PKM */
+        return pkm & (0x80 >> psw_key);
+    }
+    return true;
+}
+
+static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 {
     switch (env->psw.mask & PSW_MASK_ASC) {
     case PSW_ASC_PRIMARY:

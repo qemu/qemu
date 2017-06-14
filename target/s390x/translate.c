@@ -3041,6 +3041,14 @@ static ExitStatus op_mvclu(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_mvcos(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    gen_helper_mvcos(cc_op, cpu_env, o->addr1, o->in2, regs[r3]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_mvcp(DisasContext *s, DisasOps *o)
 {
@@ -5413,6 +5421,7 @@ enum DisasInsnEnum {
 #define FAC_SCF         S390_FEAT_STORE_CLOCK_FAST
 #define FAC_SFLE        S390_FEAT_STFLE
 #define FAC_ILA         S390_FEAT_STFLE_45 /* interlocked-access-facility 1 */
+#define FAC_MVCOS       S390_FEAT_MOVE_WITH_OPTIONAL_SPEC
 #define FAC_LPP         S390_FEAT_SET_PROGRAM_PARAMETERS /* load-program-parameter */
 #define FAC_DAT_ENH     S390_FEAT_DAT_ENH
 #define FAC_E2          S390_FEAT_EXTENDED_TRANSLATION_2
