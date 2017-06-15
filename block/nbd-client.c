@@ -352,14 +352,14 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
 void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
-    qio_channel_detach_aio_context(QIO_CHANNEL(client->sioc));
+    qio_channel_detach_aio_context(QIO_CHANNEL(client->ioc));
 }
 
 void nbd_client_attach_aio_context(BlockDriverState *bs,
                                    AioContext *new_context)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
-    qio_channel_attach_aio_context(QIO_CHANNEL(client->sioc), new_context);
+    qio_channel_attach_aio_context(QIO_CHANNEL(client->ioc), new_context);
     aio_co_schedule(new_context, client->read_reply_co);
 }
 
