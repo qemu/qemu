@@ -9825,14 +9825,14 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         error_append_hint(errp, "Adjust the number of cpus to %d "
                           "or try to raise the number of threads per core\n",
                           cpu->cpu_dt_id * smp_threads / max_smt);
-        return;
+        goto unrealize;
     }
 #endif
 
     if (tcg_enabled()) {
         if (ppc_fixup_cpu(cpu) != 0) {
             error_setg(errp, "Unable to emulate selected CPU with TCG");
-            return;
+            goto unrealize;
         }
     }
 
@@ -9841,14 +9841,14 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         error_setg(errp, "CPU does not possess a BookE or 4xx MMU. "
                    "Please use qemu-system-ppc or qemu-system-ppc64 instead "
                    "or choose another CPU model.");
-        return;
+        goto unrealize;
     }
 #endif
 
     create_ppc_opcodes(cpu, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
-        return;
+        goto unrealize;
     }
     init_ppc_proc(cpu);
 
@@ -10033,6 +10033,10 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         fflush(stdout);
     }
 #endif
+    return;
+
+unrealize:
+    cpu_exec_unrealizefn(cs);
 }
 
 static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
