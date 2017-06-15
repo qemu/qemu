@@ -18712,10 +18712,14 @@ static void gen_msa_elm_df(CPUMIPSState *env, DisasContext *ctx, uint32_t df,
 #endif
         switch (MASK_MSA_ELM(ctx->opcode)) {
         case OPC_COPY_S_df:
-            gen_helper_msa_copy_s_df(cpu_env, tdf, twd, tws, tn);
+            if (likely(wd != 0)) {
+                gen_helper_msa_copy_s_df(cpu_env, tdf, twd, tws, tn);
+            }
             break;
         case OPC_COPY_U_df:
-            gen_helper_msa_copy_u_df(cpu_env, tdf, twd, tws, tn);
+            if (likely(wd != 0)) {
+                gen_helper_msa_copy_u_df(cpu_env, tdf, twd, tws, tn);
+            }
             break;
         case OPC_INSERT_df:
             gen_helper_msa_insert_df(cpu_env, tdf, twd, tws, tn);
