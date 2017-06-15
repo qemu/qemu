@@ -79,13 +79,13 @@ static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
         return;
     }
 
-    trigger_access_exception(env, PGM_PROTECTION, ILEN_LATER_INC, tec);
+    trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, tec);
 }
 
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
                                uint32_t type, uint64_t asc, int rw, bool exc)
 {
-    int ilen = ILEN_LATER;
+    int ilen = ILEN_AUTO;
     uint64_t tec;
 
     tec = vaddr | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ) | asc >> 46;
@@ -431,7 +431,7 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
     for (i = 0; i < nr_pages; i++) {
         /* Low-address protection? */
         if (lowprot && (addr < 512 || (addr >= 4096 && addr < 4096 + 512))) {
-            trigger_access_exception(env, PGM_PROTECTION, ILEN_LATER_INC, 0);
+            trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, 0);
             return -EACCES;
         }
         ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, true);

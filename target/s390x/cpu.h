@@ -149,7 +149,7 @@ typedef struct CPUS390XState {
     CPU_COMMON
 
     uint32_t cpu_num;
-    uint32_t machine_type;
+    uint64_t cpuid;
 
     uint64_t tod_offset;
     uint64_t tod_basetime;
@@ -460,11 +460,6 @@ static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
 }
 
 #ifndef CONFIG_USER_ONLY
-/* In several cases of runtime exceptions, we havn't recorded the true
-   instruction length.  Use these codes when raising exceptions in order
-   to re-compute the length by examining the insn in memory.  */
-#define ILEN_LATER       0x20
-#define ILEN_LATER_INC   0x21
 void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
 #endif
 
@@ -1133,6 +1128,8 @@ uint32_t set_cc_nz_f128(float128 v);
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3);
 void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
 #endif
+/* automatically detect the instruction length */
+#define ILEN_AUTO                   0xff
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
 void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr);

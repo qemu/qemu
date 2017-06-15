@@ -204,7 +204,7 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
     if (raddr > ram_size) {
         DPRINTF("%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
                 (uint64_t)raddr, (uint64_t)ram_size);
-        trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_LATER_INC);
+        trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_AUTO);
         return 1;
     }
 
@@ -331,16 +331,42 @@ static void do_program_interrupt(CPUS390XState *env)
     LowCore *lowcore;
     int ilen = env->int_pgm_ilen;
 
-    switch (ilen) {
-    case ILEN_LATER:
+    if (ilen == ILEN_AUTO) {
         ilen = get_ilen(cpu_ldub_code(env, env->psw.addr));
-        break;
-    case ILEN_LATER_INC:
-        ilen = get_ilen(cpu_ldub_code(env, env->psw.addr));
+    }
+    assert(ilen == 2 || ilen == 4 || ilen == 6);
+
+    switch (env->int_pgm_code) {
+    case PGM_PER:
+        if (env->per_perc_atmid & PER_CODE_EVENT_NULLIFICATION) {
+            break;
+        }
+        /* FALL THROUGH */
+    case PGM_OPERATION:
+    case PGM_PRIVILEGED:
+    case PGM_EXECUTE:
+    case PGM_PROTECTION:
+    case PGM_ADDRESSING:
+    case PGM_SPECIFICATION:
+    case PGM_DATA:
+    case PGM_FIXPT_OVERFLOW:
+    case PGM_FIXPT_DIVIDE:
+    case PGM_DEC_OVERFLOW:
+    case PGM_DEC_DIVIDE:
+    case PGM_HFP_EXP_OVERFLOW:
+    case PGM_HFP_EXP_UNDERFLOW:
+    case PGM_HFP_SIGNIFICANCE:
+    case PGM_HFP_DIVIDE:
+    case PGM_TRANS_SPEC:
+    case PGM_SPECIAL_OP:
+    case PGM_OPERAND:
+    case PGM_HFP_SQRT:
+    case PGM_PC_TRANS_SPEC:
+    case PGM_ALET_SPEC:
+    case PGM_MONITOR:
+        /* advance the PSW if our exception is not nullifying */
         env->psw.addr += ilen;
         break;
-    default:
-        assert(ilen == 2 || ilen == 4 || ilen == 6);
     }
 
     qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilen=%d\n",
@@ -737,6 +763,6 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     if (retaddr) {
         cpu_restore_state(cs, retaddr);
     }
-    program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER);
+    program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO);
 }
 #endif /* CONFIG_USER_ONLY */

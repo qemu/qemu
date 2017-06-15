@@ -54,18 +54,13 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
                                      uintptr_t retaddr)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
-    int t;
 
     cs->exception_index = EXCP_PGM;
     env->int_pgm_code = excp;
+    env->int_pgm_ilen = ILEN_AUTO;
 
     /* Use the (ultimate) callers address to find the insn that trapped.  */
     cpu_restore_state(cs, retaddr);
-
-    /* Advance past the insn.  */
-    t = cpu_ldub_code(env, env->psw.addr);
-    env->int_pgm_ilen = t = get_ilen(t);
-    env->psw.addr += t;
 
     cpu_loop_exit(cs);
 }
@@ -199,12 +194,12 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
     IplParameterBlock *iplb;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, ILEN_LATER_INC);
+        program_interrupt(env, PGM_PRIVILEGED, ILEN_AUTO);
         return;
     }
 
     if ((subcode & ~0x0ffffULL) || (subcode > 6)) {
-        program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+        program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO);
         return;
     }
 
@@ -229,12 +224,12 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
         break;
     case 5:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
-            program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+            program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO);
             return;
         }
         if (!address_space_access_valid(&address_space_memory, addr,
                                         sizeof(IplParameterBlock), false)) {
-            program_interrupt(env, PGM_ADDRESSING, ILEN_LATER_INC);
+            program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO);
             return;
         }
         iplb = g_malloc0(sizeof(IplParameterBlock));
@@ -258,12 +253,12 @@ out:
         return;
     case 6:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
-            program_interrupt(env, PGM_SPECIFICATION, ILEN_LATER_INC);
+            program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO);
             return;
         }
         if (!address_space_access_valid(&address_space_memory, addr,
                                         sizeof(IplParameterBlock), true)) {
-            program_interrupt(env, PGM_ADDRESSING, ILEN_LATER_INC);
+            program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO);
             return;
         }
         iplb = s390_ipl_get_iplb();
@@ -307,7 +302,7 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
     }
 
     if (r) {
-        program_interrupt(env, PGM_OPERATION, ILEN_LATER_INC);
+        program_interrupt(env, PGM_OPERATION, ILEN_AUTO);
     }
 }
 
@@ -383,6 +378,7 @@ uint64_t HELPER(stpt)(CPUS390XState *env)
 uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                       uint64_t r0, uint64_t r1)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     int cc = 0;
     int sel1, sel2;
 
@@ -402,12 +398,14 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
         if ((sel1 == 1) && (sel2 == 1)) {
             /* Basic Machine Configuration */
             struct sysib_111 sysib;
+            char type[5] = {};
 
             memset(&sysib, 0, sizeof(sysib));
             ebcdic_put(sysib.manuf, "QEMU            ", 16);
-            /* same as machine type number in STORE CPU ID */
-            ebcdic_put(sysib.type, "QEMU", 4);
-            /* same as model number in STORE CPU ID */
+            /* same as machine type number in STORE CPU ID, but in EBCDIC */
+            snprintf(type, ARRAY_SIZE(type), "%X", cpu->model->def->type);
+            ebcdic_put(sysib.type, type, 4);
+            /* model number (not stored in STORE CPU ID for z/Architecure) */
             ebcdic_put(sysib.model, "QEMU            ", 16);
             ebcdic_put(sysib.sequence, "QEMU            ", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
@@ -668,6 +666,7 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
         if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
             CPUState *cs = CPU(s390_env_get_cpu(env));
 
+            env->per_perc_atmid |= PER_CODE_EVENT_NULLIFICATION;
             env->int_pgm_code = PGM_PER;
             env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, addr));
 
