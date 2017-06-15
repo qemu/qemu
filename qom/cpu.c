@@ -274,7 +274,6 @@ void cpu_reset(CPUState *cpu)
 static void cpu_common_reset(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    int i;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", cpu->cpu_index);
@@ -292,9 +291,7 @@ static void cpu_common_reset(CPUState *cpu)
     cpu->crash_occurred = false;
 
     if (tcg_enabled()) {
-        for (i = 0; i < TB_JMP_CACHE_SIZE; ++i) {
-            atomic_set(&cpu->tb_jmp_cache[i], NULL);
-        }
+        cpu_tb_jmp_cache_clear(cpu);
 
 #ifdef CONFIG_SOFTMMU
         tlb_flush(cpu, 0);
