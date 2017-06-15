@@ -26,14 +26,12 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include <zlib.h>
 #include "qapi-event.h"
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
-#include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "xbzrle.h"
 #include "ram.h"
@@ -41,9 +39,7 @@
 #include "migration/register.h"
 #include "migration/misc.h"
 #include "qemu-file.h"
-#include "migration/vmstate.h"
 #include "postcopy-ram.h"
-#include "exec/address-spaces.h"
 #include "migration/page_cache.h"
 #include "qemu/error-report.h"
 #include "trace.h"
@@ -2238,6 +2234,9 @@ void migrate_decompress_threads_create(void)
 {
     int i, thread_count;
 
+    if (!migrate_use_compression()) {
+        return;
+    }
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
     decomp_param = g_new0(DecompressParam, thread_count);
@@ -2259,6 +2258,9 @@ void migrate_decompress_threads_join(void)
 {
     int i, thread_count;
 
+    if (!migrate_use_compression()) {
+        return;
+    }
     thread_count = migrate_decompress_threads();
     for (i = 0; i < thread_count; i++) {
         qemu_mutex_lock(&decomp_param[i].mutex);
@@ -2459,7 +2461,7 @@ static int ram_load_postcopy(QEMUFile *f)
 
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
-    int flags = 0, ret = 0;
+    int flags = 0, ret = 0, invalid_flags = 0;
     static uint64_t seq_iter;
     int len = 0;
     /*
@@ -2476,6 +2478,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         ret = -EINVAL;
     }
 
+    if (!migrate_use_compression()) {
+        invalid_flags |= RAM_SAVE_FLAG_COMPRESS_PAGE;
+    }
     /* This RCU critical section can be very long running.
      * When RCU reclaims in the code start to become numerous,
      * it will be necessary to reduce the granularity of this
@@ -2495,6 +2500,15 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr = qemu_get_be64(f);
         flags = addr & ~TARGET_PAGE_MASK;
         addr &= TARGET_PAGE_MASK;
+
+        if (flags & invalid_flags) {
+            if (flags & invalid_flags & RAM_SAVE_FLAG_COMPRESS_PAGE) {
+                error_report("Received an unexpected compressed page");
+            }
+
+            ret = -EINVAL;
+            break;
+        }
 
         if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {

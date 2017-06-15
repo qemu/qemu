@@ -17,8 +17,6 @@
  */
 
 #include "qemu/osdep.h"
-
-#include "qemu-common.h"
 #include "exec/target_page.h"
 #include "migration.h"
 #include "qemu-file.h"

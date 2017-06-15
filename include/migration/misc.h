@@ -14,6 +14,8 @@
 #ifndef MIGRATION_MISC_H
 #define MIGRATION_MISC_H
 
+#include "qemu/notify.h"
+
 /* migration/ram.c */
 
 void ram_mig_init(void);

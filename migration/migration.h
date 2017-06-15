@@ -14,10 +14,8 @@
 #ifndef QEMU_MIGRATION_H
 #define QEMU_MIGRATION_H
 
-#include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
 #include "qemu/thread.h"
-#include "qemu/notify.h"
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"

@@ -13,6 +13,8 @@
 #include "qemu/osdep.h"
 #include "migration/colo.h"
 #include "migration/failover.h"
+#include "qemu/main-loop.h"
+#include "migration.h"
 #include "qmp-commands.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
