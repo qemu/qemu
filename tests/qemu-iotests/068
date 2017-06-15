@@ -53,15 +53,20 @@ _make_test_img $IMG_SIZE
 case "$QEMU_DEFAULT_MACHINE" in
   s390-ccw-virtio)
       platform_parm="-no-shutdown"
+      hba=virtio-scsi-ccw
       ;;
   *)
       platform_parm=""
+      hba=virtio-scsi-pci
       ;;
 esac
 
 _qemu()
 {
-    $QEMU $platform_parm -nographic -monitor stdio -serial none -hda "$TEST_IMG" \
+    $QEMU $platform_parm -nographic -monitor stdio -serial none \
+          -drive if=none,id=drive0,file="$TEST_IMG",format="$IMGFMT" \
+          -device $hba,id=hba0 \
+          -device scsi-hd,drive=drive0 \
           "$@" |\
     _filter_qemu | _filter_hmp
 }
