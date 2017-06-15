@@ -661,7 +661,7 @@ static void dec_barrel(DisasContext *dc)
 {
     TCGv t0;
     unsigned int imm_w, imm_s;
-    bool s, t, e = false;
+    bool s, t, e = false, i = false;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
           && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
@@ -673,6 +673,7 @@ static void dec_barrel(DisasContext *dc)
 
     if (dc->type_b) {
         /* Insert and extract are only available in immediate mode.  */
+        i = extract32(dc->imm, 15, 1);
         e = extract32(dc->imm, 14, 1);
     }
     s = extract32(dc->imm, 10, 1);
@@ -691,6 +692,17 @@ static void dec_barrel(DisasContext *dc)
                           imm_w, imm_s);
         } else {
             tcg_gen_extract_i32(cpu_R[dc->rd], cpu_R[dc->ra], imm_s, imm_w);
+        }
+    } else if (i) {
+        int width = imm_w - imm_s + 1;
+
+        if (imm_w < imm_s) {
+            /* These inputs have an undefined behavior.  */
+            qemu_log_mask(LOG_GUEST_ERROR, "bsifi: Bad input w=%d s=%d\n",
+                          imm_w, imm_s);
+        } else {
+            tcg_gen_deposit_i32(cpu_R[dc->rd], cpu_R[dc->rd], cpu_R[dc->ra],
+                                imm_s, width);
         }
     } else {
         t0 = tcg_temp_new();
