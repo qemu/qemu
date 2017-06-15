@@ -2300,11 +2300,11 @@ int load_snapshot(const char *name, Error **errp)
 
     aio_context_acquire(aio_context);
     ret = qemu_loadvm_state(f);
+    migration_incoming_state_destroy();
     aio_context_release(aio_context);
 
     bdrv_drain_all_end();
 
-    migration_incoming_state_destroy();
     if (ret < 0) {
         error_setg(errp, "Error %d while loading VM state", ret);
         return ret;
