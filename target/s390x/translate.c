@@ -2033,6 +2033,18 @@ static ExitStatus op_cdsg(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_csst(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    TCGv_i32 t_r3 = tcg_const_i32(r3);
+
+    gen_helper_csst(cc_op, cpu_env, t_r3, o->in1, o->in2);
+    tcg_temp_free_i32(t_r3);
+
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_csp(DisasContext *s, DisasOps *o)
 {
@@ -5437,7 +5449,6 @@ enum DisasInsnEnum {
 /* Give smaller names to the various facilities.  */
 #define FAC_Z           S390_FEAT_ZARCH
 #define FAC_CASS        S390_FEAT_COMPARE_AND_SWAP_AND_STORE
-#define FAC_CASS2       S390_FEAT_COMPARE_AND_SWAP_AND_STORE_2
 #define FAC_DFP         S390_FEAT_DFP
 #define FAC_DFPR        S390_FEAT_FLOATING_POINT_SUPPPORT_ENH /* DFP-rounding */
 #define FAC_DO          S390_FEAT_STFLE_45 /* distinct-operands */
