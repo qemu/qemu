@@ -1376,7 +1376,6 @@ static void ppc_spapr_reset(void)
          * Set the GR bit in PATB so that we know there is no HPT. */
         spapr->patb_entry = PATBE1_GR;
     } else {
-        spapr->patb_entry = 0;
         spapr_setup_hpt_and_vrma(spapr);
     }
 
