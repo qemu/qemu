@@ -3641,7 +3641,7 @@ static ExitStatus op_sigp(DisasContext *s, DisasOps *o)
 static ExitStatus op_soc(DisasContext *s, DisasOps *o)
 {
     DisasCompare c;
-    TCGv_i64 a;
+    TCGv_i64 a, h;
     TCGLabel *lab;
     int r1;
 
@@ -3661,10 +3661,21 @@ static ExitStatus op_soc(DisasContext *s, DisasOps *o)
 
     r1 = get_field(s->fields, r1);
     a = get_address(s, 0, get_field(s->fields, b2), get_field(s->fields, d2));
-    if (s->insn->data) {
+    switch (s->insn->data) {
+    case 1: /* STOCG */
         tcg_gen_qemu_st64(regs[r1], a, get_mem_index(s));
-    } else {
+        break;
+    case 0: /* STOC */
         tcg_gen_qemu_st32(regs[r1], a, get_mem_index(s));
+        break;
+    case 2: /* STOCFH */
+        h = tcg_temp_new_i64();
+        tcg_gen_shri_i64(h, regs[r1], 32);
+        tcg_gen_qemu_st32(h, a, get_mem_index(s));
+        tcg_temp_free_i64(h);
+        break;
+    default:
+        g_assert_not_reached();
     }
     tcg_temp_free_i64(a);
 
@@ -5416,6 +5427,7 @@ enum DisasInsnEnum {
 #define FAC_MIE         S390_FEAT_STFLE_49 /* misc-instruction-extensions */
 #define FAC_LAT         S390_FEAT_STFLE_49 /* load-and-trap */
 #define FAC_LOC         S390_FEAT_STFLE_45 /* load/store on condition 1 */
+#define FAC_LOC2        S390_FEAT_STFLE_53 /* load/store on condition 2 */
 #define FAC_LD          S390_FEAT_LONG_DISPLACEMENT
 #define FAC_PC          S390_FEAT_STFLE_45 /* population count */
 #define FAC_SCF         S390_FEAT_STORE_CLOCK_FAST
