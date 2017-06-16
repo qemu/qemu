@@ -665,7 +665,7 @@ static void dec_barrel(DisasContext *dc)
 
     if ((dc->tb_flags & MSR_EE_FLAG)
           && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !(dc->cpu->env.pvr.regs[0] & PVR0_USE_BARREL_MASK)) {
+          && !dc->cpu->cfg.use_barrel) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
