@@ -178,7 +178,7 @@ static void spapr_cpu_core_realize_child(Object *child, Error **errp)
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUState *cs = CPU(child);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    Object *obj = NULL;
+    Object *obj;
 
     object_property_set_bool(child, true, "realized", &local_err);
     if (local_err) {
@@ -198,13 +198,14 @@ static void spapr_cpu_core_realize_child(Object *child, Error **errp)
     object_property_add_const_link(obj, ICP_PROP_CPU, child, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
-        goto error;
+        goto free_icp;
     }
 
     return;
 
-error:
+free_icp:
     object_unparent(obj);
+error:
     error_propagate(errp, local_err);
 }
 
