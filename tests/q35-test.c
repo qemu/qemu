@@ -42,6 +42,8 @@ static void test_smram_lock(void)
     QPCIDevice *pcidev;
     QDict *response;
 
+    qtest_start("-M q35");
+
     pcibus = qpci_init_pc(NULL);
     g_assert(pcibus != NULL);
 
@@ -74,19 +76,15 @@ static void test_smram_lock(void)
 
     g_free(pcidev);
     qpci_free_pc(pcibus);
+
+    qtest_end();
 }
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/q35/smram/lock", test_smram_lock);
 
-    qtest_start("-M q35");
-    ret = g_test_run();
-    qtest_end();
-
-    return ret;
+    return g_test_run();
 }
