@@ -39,21 +39,24 @@
 /* #define DEBUG_SMC */
 
 #define APPLESMC_DEFAULT_IOBASE        0x300
-/* data port used by Apple SMC */
-#define APPLESMC_DATA_PORT             0x0
-/* command/status port used by Apple SMC */
-#define APPLESMC_CMD_PORT              0x4
-#define APPLESMC_NR_PORTS              32
 
-#define APPLESMC_READ_CMD              0x10
-#define APPLESMC_WRITE_CMD             0x11
-#define APPLESMC_GET_KEY_BY_INDEX_CMD  0x12
-#define APPLESMC_GET_KEY_TYPE_CMD      0x13
+enum {
+    APPLESMC_DATA_PORT               = 0x00,
+    APPLESMC_CMD_PORT                = 0x04,
+    APPLESMC_NUM_PORTS               = 0x20,
+};
+
+enum {
+    APPLESMC_READ_CMD                = 0x10,
+    APPLESMC_WRITE_CMD               = 0x11,
+    APPLESMC_GET_KEY_BY_INDEX_CMD    = 0x12,
+    APPLESMC_GET_KEY_TYPE_CMD        = 0x13,
+};
 
 #ifdef DEBUG_SMC
 #define smc_debug(...) fprintf(stderr, "AppleSMC: " __VA_ARGS__)
 #else
-#define smc_debug(...) do { } while(0)
+#define smc_debug(...) do { } while (0)
 #endif
 
 static char default_osk[64] = "This is a dummy key. Enter the real key "
@@ -77,12 +80,11 @@ struct AppleSMCState {
     uint32_t iobase;
     uint8_t cmd;
     uint8_t status;
-    uint8_t key[4];
+    char key[4];
     uint8_t read_pos;
     uint8_t data_len;
     uint8_t data_pos;
     uint8_t data[255];
-    uint8_t charactic[4];
     char *osk;
     QLIST_HEAD(, AppleSMCData) data_def;
 };
@@ -93,10 +95,10 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
     AppleSMCState *s = opaque;
 
     smc_debug("CMD Write B: %#x = %#x\n", addr, val);
-    switch(val) {
-        case APPLESMC_READ_CMD:
-            s->status = 0x0c;
-            break;
+    switch (val) {
+    case APPLESMC_READ_CMD:
+        s->status = 0x0c;
+        break;
     }
     s->cmd = val;
     s->read_pos = 0;
@@ -123,54 +125,54 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
     AppleSMCState *s = opaque;
 
     smc_debug("DATA Write B: %#x = %#x\n", addr, val);
-    switch(s->cmd) {
-        case APPLESMC_READ_CMD:
-            if(s->read_pos < 4) {
-                s->key[s->read_pos] = val;
-                s->status = 0x04;
-            } else if(s->read_pos == 4) {
-                s->data_len = val;
-                s->status = 0x05;
-                s->data_pos = 0;
-                smc_debug("Key = %c%c%c%c Len = %d\n", s->key[0],
-                          s->key[1], s->key[2], s->key[3], val);
-                applesmc_fill_data(s);
-            }
-            s->read_pos++;
-            break;
+    switch (s->cmd) {
+    case APPLESMC_READ_CMD:
+        if (s->read_pos < 4) {
+            s->key[s->read_pos] = val;
+            s->status = 0x04;
+        } else if (s->read_pos == 4) {
+            s->data_len = val;
+            s->status = 0x05;
+            s->data_pos = 0;
+            smc_debug("Key = %c%c%c%c Len = %d\n", s->key[0],
+                      s->key[1], s->key[2], s->key[3], val);
+            applesmc_fill_data(s);
+        }
+        s->read_pos++;
+        break;
     }
 }
 
-static uint64_t applesmc_io_data_read(void *opaque, hwaddr addr1,
-                                      unsigned size)
+static uint64_t applesmc_io_data_read(void *opaque, hwaddr addr, unsigned size)
 {
     AppleSMCState *s = opaque;
     uint8_t retval = 0;
 
-    switch(s->cmd) {
-        case APPLESMC_READ_CMD:
-            if(s->data_pos < s->data_len) {
-                retval = s->data[s->data_pos];
-                smc_debug("READ_DATA[%d] = %#hhx\n", s->data_pos,
-                          retval);
-                s->data_pos++;
-                if(s->data_pos == s->data_len) {
-                    s->status = 0x00;
-                    smc_debug("EOF\n");
-                } else
-                    s->status = 0x05;
+    switch (s->cmd) {
+    case APPLESMC_READ_CMD:
+        if (s->data_pos < s->data_len) {
+            retval = s->data[s->data_pos];
+            smc_debug("READ_DATA[%d] = %#hhx\n", s->data_pos,
+                      retval);
+            s->data_pos++;
+            if (s->data_pos == s->data_len) {
+                s->status = 0x00;
+                smc_debug("EOF\n");
+            } else {
+                s->status = 0x05;
             }
+        }
     }
-    smc_debug("DATA Read b: %#x = %#x\n", addr1, retval);
+    smc_debug("DATA Read b: %#x = %#x\n", addr, retval);
 
     return retval;
 }
 
-static uint64_t applesmc_io_cmd_read(void *opaque, hwaddr addr1, unsigned size)
+static uint64_t applesmc_io_cmd_read(void *opaque, hwaddr addr, unsigned size)
 {
     AppleSMCState *s = opaque;
 
-    smc_debug("CMD Read B: %#x\n", addr1);
+    smc_debug("CMD Read B: %#x\n", addr);
     return s->status;
 }
 
