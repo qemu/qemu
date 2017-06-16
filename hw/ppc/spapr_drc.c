@@ -370,22 +370,9 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
 
 static void spapr_drc_release(sPAPRDRConnector *drc)
 {
-    /* Calling release callbacks based on spapr_drc_type(drc). */
-    switch (spapr_drc_type(drc)) {
-    case SPAPR_DR_CONNECTOR_TYPE_CPU:
-        spapr_core_release(drc->dev);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_PCI:
-        spapr_phb_remove_pci_device_cb(drc->dev);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_LMB:
-        spapr_lmb_release(drc->dev);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_PHB:
-    case SPAPR_DR_CONNECTOR_TYPE_VIO:
-    default:
-        g_assert(false);
-    }
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    drck->release(drc->dev);
 
     drc->awaiting_release = false;
     g_free(drc->fdt);
@@ -631,6 +618,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_CPU;
     drck->typename = "CPU";
     drck->drc_name_prefix = "CPU ";
+    drck->release = spapr_core_release;
 }
 
 static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
@@ -640,6 +628,7 @@ static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PCI;
     drck->typename = "28";
     drck->drc_name_prefix = "C";
+    drck->release = spapr_phb_remove_pci_device_cb;
 }
 
 static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
@@ -649,6 +638,7 @@ static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_LMB;
     drck->typename = "MEM";
     drck->drc_name_prefix = "LMB ";
+    drck->release = spapr_lmb_release;
 }
 
 static const TypeInfo spapr_dr_connector_info = {

@@ -217,6 +217,7 @@ typedef struct sPAPRDRConnectorClass {
     sPAPRDREntitySense (*dr_entity_sense)(sPAPRDRConnector *drc);
     uint32_t (*isolate)(sPAPRDRConnector *drc);
     uint32_t (*unisolate)(sPAPRDRConnector *drc);
+    void (*release)(DeviceState *dev);
 
     /* QEMU interfaces for managing hotplug operations */
     bool (*release_pending)(sPAPRDRConnector *drc);
