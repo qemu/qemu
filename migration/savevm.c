@@ -1104,7 +1104,8 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
     qemu_fflush(f);
 }
 
-void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
+int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
+                                       bool inactivate_disks)
 {
     QJSON *vmdesc;
     int vmdesc_len;
@@ -1138,12 +1139,12 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
         save_section_footer(f, se);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
-            return;
+            return -1;
         }
     }
 
     if (iterable_only) {
-        return;
+        return 0;
     }
 
     vmdesc = qjson_new();
@@ -1173,6 +1174,15 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
         json_end_object(vmdesc);
     }
 
+    if (inactivate_disks) {
+        /* Inactivate before sending QEMU_VM_EOF so that the
+         * bdrv_invalidate_cache_all() on the other end won't fail. */
+        ret = bdrv_inactivate_all();
+        if (ret) {
+            qemu_file_set_error(f, ret);
+            return ret;
+        }
+    }
     if (!in_postcopy) {
         /* Postcopy stream will still be going */
         qemu_put_byte(f, QEMU_VM_EOF);
@@ -1190,6 +1200,7 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
     qjson_destroy(vmdesc);
 
     qemu_fflush(f);
+    return 0;
 }
 
 /* Give an estimate of the amount left to be transferred,
@@ -1263,7 +1274,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 
     ret = qemu_file_get_error(f);
     if (ret == 0) {
-        qemu_savevm_state_complete_precopy(f, false);
+        qemu_savevm_state_complete_precopy(f, false, false);
         ret = qemu_file_get_error(f);
     }
     qemu_savevm_state_cleanup();
