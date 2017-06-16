@@ -110,6 +110,33 @@ for offset in $TEST_OFFSETS; do
     io_zero readv $(( offset + 64 * 1024 + 65536 * 4 )) 65536 65536 1
 done
 _check_test_img
+_cleanup
+TEST_IMG=$TEST_IMG_SAVE
+
+echo
+echo 'Testing failing commit'
+echo
+
+# Create an image with a null backing file to which committing will fail (with
+# ENOSPC so we can distinguish the result from some generic EIO which may be
+# generated anywhere in the block layer)
+_make_test_img -b "json:{'driver': 'raw',
+                         'file': {
+                             'driver': 'blkdebug',
+                             'inject-error': [{
+                                 'event': 'write_aio',
+                                 'errno': 28,
+                                 'once': true
+                             }],
+                             'image': {
+                                 'driver': 'null-co'
+                             }}}"
+
+# Just write anything so committing will not be a no-op
+$QEMU_IO -c 'writev 0 64k' "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IMG commit "$TEST_IMG"
+_cleanup_test_img
 
 # success, all done
 echo "*** done"
