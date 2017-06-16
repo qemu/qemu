@@ -316,12 +316,12 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     AppleSMCState *s = APPLE_SMC(dev);
 
     memory_region_init_io(&s->io_data, OBJECT(s), &applesmc_data_io_ops, s,
-                          "applesmc-data", 4);
+                          "applesmc-data", 1);
     isa_register_ioport(&s->parent_obj, &s->io_data,
                         s->iobase + APPLESMC_DATA_PORT);
 
     memory_region_init_io(&s->io_cmd, OBJECT(s), &applesmc_cmd_io_ops, s,
-                          "applesmc-cmd", 4);
+                          "applesmc-cmd", 1);
     isa_register_ioport(&s->parent_obj, &s->io_cmd,
                         s->iobase + APPLESMC_CMD_PORT);
 
