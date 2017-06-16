@@ -2906,6 +2906,12 @@ static ExitStatus op_lurag(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static ExitStatus op_lzrb(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_andi_i64(o->out, o->in2, -256);
+    return NO_EXIT;
+}
+
 static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
 {
     o->out = o->in2;
@@ -5437,6 +5443,7 @@ enum DisasInsnEnum {
 #define FAC_LPP         S390_FEAT_SET_PROGRAM_PARAMETERS /* load-program-parameter */
 #define FAC_DAT_ENH     S390_FEAT_DAT_ENH
 #define FAC_E2          S390_FEAT_EXTENDED_TRANSLATION_2
+#define FAC_LZRB        S390_FEAT_STFLE_53 /* load-and-zero-rightmost-byte */
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"
