@@ -59,6 +59,7 @@ typedef enum TCGReg {
 #define FACILITY_LOAD_ON_COND         (1ULL << (63 - 45))
 #define FACILITY_FAST_BCR_SER         FACILITY_LOAD_ON_COND
 #define FACILITY_DISTINCT_OPS         FACILITY_LOAD_ON_COND
+#define FACILITY_LOAD_ON_COND2        (1ULL << (63 - 53))
 
 extern uint64_t s390_facilities;
 
