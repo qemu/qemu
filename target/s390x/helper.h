@@ -107,6 +107,12 @@ DEF_HELPER_2(stfle, i32, env, i64)
 DEF_HELPER_FLAGS_2(lpq, TCG_CALL_NO_WG, i64, env, i64)
 DEF_HELPER_FLAGS_4(stpq, TCG_CALL_NO_WG, void, env, i64, i64, i64)
 DEF_HELPER_4(mvcos, i32, env, i64, i64, i64)
+DEF_HELPER_4(cu12, i32, env, i32, i32, i32)
+DEF_HELPER_4(cu14, i32, env, i32, i32, i32)
+DEF_HELPER_4(cu21, i32, env, i32, i32, i32)
+DEF_HELPER_4(cu24, i32, env, i32, i32, i32)
+DEF_HELPER_4(cu41, i32, env, i32, i32, i32)
+DEF_HELPER_4(cu42, i32, env, i32, i32, i32)
 
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_3(servc, i32, env, i64, i64)

@@ -313,6 +313,19 @@
     C(0xb3a1, CDLGBR,  RRF_e, FPE, 0, r2_o, f1, 0, cdlgb, 0)
     C(0xb3a2, CXLGBR,  RRF_e, FPE, 0, r2_o, x1, 0, cxlgb, 0)
 
+/* CONVERT UTF-8 TO UTF-16 */
+    D(0xb2a7, CU12,    RRF_c, Z,   0, 0, 0, 0, cuXX, 0, 12)
+/* CONVERT UTF-8 TO UTF-32 */
+    D(0xb9b0, CU14,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 14)
+/* CONVERT UTF-16 to UTF-8 */
+    D(0xb2a6, CU21,    RRF_c, Z,   0, 0, 0, 0, cuXX, 0, 21)
+/* CONVERT UTF-16 to UTF-32 */
+    D(0xb9b1, CU24,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 24)
+/* CONVERT UTF-32 to UTF-8 */
+    D(0xb9b2, CU41,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 41)
+/* CONVERT UTF-32 to UTF-16 */
+    D(0xb9b3, CU42,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 42)
+
 /* DIVIDE */
     C(0x1d00, DR,      RR_a,  Z,   r1_D32, r2_32s, new_P, r1_P32, divs32, 0)
     C(0x5d00, D,       RX_a,  Z,   r1_D32, m2_32s, new_P, r1_P32, divs32, 0)

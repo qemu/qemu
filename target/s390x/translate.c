@@ -2122,6 +2122,56 @@ static ExitStatus op_ct(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_cuXX(DisasContext *s, DisasOps *o)
+{
+    int m3 = get_field(s->fields, m3);
+    int r1 = get_field(s->fields, r1);
+    int r2 = get_field(s->fields, r2);
+    TCGv_i32 tr1, tr2, chk;
+
+    /* R1 and R2 must both be even.  */
+    if ((r1 | r2) & 1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return EXIT_NORETURN;
+    }
+    if (!s390_has_feat(S390_FEAT_ETF3_ENH)) {
+        m3 = 0;
+    }
+
+    tr1 = tcg_const_i32(r1);
+    tr2 = tcg_const_i32(r2);
+    chk = tcg_const_i32(m3);
+
+    switch (s->insn->data) {
+    case 12:
+        gen_helper_cu12(cc_op, cpu_env, tr1, tr2, chk);
+        break;
+    case 14:
+        gen_helper_cu14(cc_op, cpu_env, tr1, tr2, chk);
+        break;
+    case 21:
+        gen_helper_cu21(cc_op, cpu_env, tr1, tr2, chk);
+        break;
+    case 24:
+        gen_helper_cu24(cc_op, cpu_env, tr1, tr2, chk);
+        break;
+    case 41:
+        gen_helper_cu41(cc_op, cpu_env, tr1, tr2, chk);
+        break;
+    case 42:
+        gen_helper_cu42(cc_op, cpu_env, tr1, tr2, chk);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    tcg_temp_free_i32(tr1);
+    tcg_temp_free_i32(tr2);
+    tcg_temp_free_i32(chk);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_diag(DisasContext *s, DisasOps *o)
 {
@@ -5477,6 +5527,7 @@ enum DisasInsnEnum {
 #define FAC_EH          S390_FEAT_STFLE_49 /* execution-hint */
 #define FAC_PPA         S390_FEAT_STFLE_49 /* processor-assist */
 #define FAC_LZRB        S390_FEAT_STFLE_53 /* load-and-zero-rightmost-byte */
+#define FAC_ETF3        S390_FEAT_EXTENDED_TRANSLATION_3
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"
