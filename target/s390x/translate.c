@@ -4356,8 +4356,9 @@ static ExitStatus op_trXX(DisasContext *s, DisasOps *o)
     TCGv_i32 tst = tcg_temp_new_i32();
     int m3 = get_field(s->fields, m3);
 
-    /* XXX: the C bit in M3 should be considered as 0 when the
-       ETF2-enhancement facility is not installed.  */
+    if (!s390_has_feat(S390_FEAT_ETF2_ENH)) {
+        m3 = 0;
+    }
     if (m3 & 1) {
         tcg_gen_movi_i32(tst, -1);
     } else {

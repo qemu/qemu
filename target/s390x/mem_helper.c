@@ -1265,12 +1265,21 @@ uint32_t HELPER(trXX)(CPUS390XState *env, uint32_t r1, uint32_t r2,
     uintptr_t ra = GETPC();
     int dsize = (sizes & 1) ? 1 : 2;
     int ssize = (sizes & 2) ? 1 : 2;
-    uint64_t tbl = get_address(env, 1) & ~7;
+    uint64_t tbl = get_address(env, 1);
     uint64_t dst = get_address(env, r1);
     uint64_t len = get_length(env, r1 + 1);
     uint64_t src = get_address(env, r2);
     uint32_t cc = 3;
     int i;
+
+    /* The lower address bits of TBL are ignored.  For TROO, TROT, it's
+       the low 3 bits (double-word aligned).  For TRTO, TRTT, it's either
+       the low 12 bits (4K, without ETF2-ENH) or 3 bits (with ETF2-ENH).  */
+    if (ssize == 2 && !s390_has_feat(S390_FEAT_ETF2_ENH)) {
+        tbl &= -4096;
+    } else {
+        tbl &= -8;
+    }
 
     check_alignment(env, len, ssize, ra);
 
