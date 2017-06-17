@@ -5444,6 +5444,7 @@ enum DisasInsnEnum {
 #define FAC_DAT_ENH     S390_FEAT_DAT_ENH
 #define FAC_E2          S390_FEAT_EXTENDED_TRANSLATION_2
 #define FAC_EH          S390_FEAT_STFLE_49 /* execution-hint */
+#define FAC_PPA         S390_FEAT_STFLE_49 /* processor-assist */
 #define FAC_LZRB        S390_FEAT_STFLE_53 /* load-and-zero-rightmost-byte */
 
 static const DisasInsn insn_info[] = {

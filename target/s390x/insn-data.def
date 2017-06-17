@@ -699,6 +699,9 @@
     /* Implemented as nops of course.  */
     C(0xe336, PFD,     RXY_b, GIE, 0, 0, 0, 0, 0, 0)
     C(0xc602, PFDRL,   RIL_c, GIE, 0, 0, 0, 0, 0, 0)
+/* PERFORM PROCESSOR ASSIST */
+    /* Implemented as nop of course.  */
+    C(0xb2e8, PPA,     RRF_c, PPA, 0, 0, 0, 0, 0, 0)
 
 /* POPULATION COUNT */
     C(0xb9e1, POPCNT,  RRE,   PC,  0, r2_o, r1, 0, popcnt, nz64)
