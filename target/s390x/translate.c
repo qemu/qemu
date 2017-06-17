@@ -5443,6 +5443,7 @@ enum DisasInsnEnum {
 #define FAC_LPP         S390_FEAT_SET_PROGRAM_PARAMETERS /* load-program-parameter */
 #define FAC_DAT_ENH     S390_FEAT_DAT_ENH
 #define FAC_E2          S390_FEAT_EXTENDED_TRANSLATION_2
+#define FAC_EH          S390_FEAT_STFLE_49 /* execution-hint */
 #define FAC_LZRB        S390_FEAT_STFLE_53 /* load-and-zero-rightmost-byte */
 
 static const DisasInsn insn_info[] = {
@@ -5556,7 +5557,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     case 0x80: /* S */
     case 0x82: /* S */
     case 0x93: /* S */
-    case 0xb2: /* S, RRF, RRE */
+    case 0xb2: /* S, RRF, RRE, IE */
     case 0xb3: /* RRE, RRD, RRF */
     case 0xb9: /* RRE, RRF */
     case 0xe5: /* SSE, SIL */
@@ -5572,6 +5573,8 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     case 0xcc: /* RIL */
         op2 = (insn << 12) >> 60;
         break;
+    case 0xc5: /* MII */
+    case 0xc7: /* SMI */
     case 0xd0 ... 0xdf: /* SS */
     case 0xe1: /* SS */
     case 0xe2: /* SS */

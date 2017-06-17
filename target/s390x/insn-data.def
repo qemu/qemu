@@ -134,6 +134,15 @@
     D(0x8500, BRXLE,   RSI,   Z,   0, 0, 0, 0, bx32, 0, 1)
     D(0xec44, BRXHG,   RIE_e, Z,   0, 0, 0, 0, bx64, 0, 0)
     D(0xec45, BRXHLE,  RIE_e, Z,   0, 0, 0, 0, bx64, 0, 1)
+/* BRANCH PREDICTION PRELOAD */
+    /* ??? Format is SMI, but implemented as NOP, so we need no fields.  */
+    C(0xc700, BPP,     E,     EH,  0, 0, 0, 0, 0, 0)
+/* BRANCH PREDICTION RELATIVE PRELOAD */
+    /* ??? Format is MII, but implemented as NOP, so we need no fields.  */
+    C(0xc500, BPRP,    E,     EH,  0, 0, 0, 0, 0, 0)
+/* NEXT INSTRUCTION ACCESS INTENT */
+    /* ??? Format is IE, but implemented as NOP, so we need no fields.  */
+    C(0xb2fa, NIAI,    E,     EH,  0, 0, 0, 0, 0, 0)
 
 /* CHECKSUM */
     C(0xb241, CKSM,    RRE,   Z,   r1_o, ra2, new, r1_32, cksm, 0)
