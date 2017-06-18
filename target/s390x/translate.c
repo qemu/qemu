@@ -4298,6 +4298,19 @@ static ExitStatus op_srst(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_srstu(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+
+    gen_helper_srstu(cpu_env, r1, r2);
+
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_sub(DisasContext *s, DisasOps *o)
 {
     tcg_gen_sub_i64(o->out, o->in1, o->in2);
