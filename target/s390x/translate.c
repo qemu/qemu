@@ -4287,9 +4287,14 @@ static ExitStatus op_stpq(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_srst(DisasContext *s, DisasOps *o)
 {
-    gen_helper_srst(o->in1, cpu_env, regs[0], o->in1, o->in2);
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+
+    gen_helper_srst(cpu_env, r1, r2);
+
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
     set_cc_static(s);
-    return_low128(o->in2);
     return NO_EXIT;
 }
 
