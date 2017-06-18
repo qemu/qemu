@@ -318,7 +318,7 @@ int kvm_init_vcpu(CPUState *cpu)
 
     cpu->kvm_fd = ret;
     cpu->kvm_state = s;
-    cpu->kvm_vcpu_dirty = true;
+    cpu->vcpu_dirty = true;
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
@@ -1864,15 +1864,15 @@ void kvm_flush_coalesced_mmio_buffer(void)
 
 static void do_kvm_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
 {
-    if (!cpu->kvm_vcpu_dirty) {
+    if (!cpu->vcpu_dirty) {
         kvm_arch_get_registers(cpu);
-        cpu->kvm_vcpu_dirty = true;
+        cpu->vcpu_dirty = true;
     }
 }
 
 void kvm_cpu_synchronize_state(CPUState *cpu)
 {
-    if (!cpu->kvm_vcpu_dirty) {
+    if (!cpu->vcpu_dirty) {
         run_on_cpu(cpu, do_kvm_cpu_synchronize_state, RUN_ON_CPU_NULL);
     }
 }
@@ -1880,7 +1880,7 @@ void kvm_cpu_synchronize_state(CPUState *cpu)
 static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
 {
     kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
-    cpu->kvm_vcpu_dirty = false;
+    cpu->vcpu_dirty = false;
 }
 
 void kvm_cpu_synchronize_post_reset(CPUState *cpu)
@@ -1891,7 +1891,7 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
 {
     kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
-    cpu->kvm_vcpu_dirty = false;
+    cpu->vcpu_dirty = false;
 }
 
 void kvm_cpu_synchronize_post_init(CPUState *cpu)
@@ -1901,7 +1901,7 @@ void kvm_cpu_synchronize_post_init(CPUState *cpu)
 
 static void do_kvm_cpu_synchronize_pre_loadvm(CPUState *cpu, run_on_cpu_data arg)
 {
-    cpu->kvm_vcpu_dirty = true;
+    cpu->vcpu_dirty = true;
 }
 
 void kvm_cpu_synchronize_pre_loadvm(CPUState *cpu)
@@ -1982,9 +1982,9 @@ int kvm_cpu_exec(CPUState *cpu)
     do {
         MemTxAttrs attrs;
 
-        if (cpu->kvm_vcpu_dirty) {
+        if (cpu->vcpu_dirty) {
             kvm_arch_put_registers(cpu, KVM_PUT_RUNTIME_STATE);
-            cpu->kvm_vcpu_dirty = false;
+            cpu->vcpu_dirty = false;
         }
 
         kvm_arch_pre_run(cpu, run);
