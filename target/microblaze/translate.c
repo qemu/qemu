@@ -643,7 +643,7 @@ static void dec_div(DisasContext *dc)
     LOG_DIS("div\n");
 
     if ((dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !((dc->cpu->env.pvr.regs[0] & PVR0_USE_DIV_MASK))) {
+          && !dc->cpu->cfg.use_div) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }

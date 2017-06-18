@@ -150,8 +150,7 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    env->pvr.regs[0] = PVR0_USE_DIV_MASK \
-                       | PVR0_USE_HW_MUL_MASK \
+    env->pvr.regs[0] = PVR0_USE_HW_MUL_MASK \
                        | PVR0_USE_EXC_MASK \
                        | PVR0_USE_ICACHE_MASK \
                        | PVR0_USE_DCACHE_MASK;
@@ -161,7 +160,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         | PVR2_I_LMB_MASK \
                         | PVR2_USE_MSR_INSTR \
                         | PVR2_USE_PCMP_INSTR \
-                        | PVR2_USE_DIV_MASK \
                         | PVR2_USE_HW_MUL_MASK \
                         | PVR2_USE_MUL64_MASK \
                         | PVR2_FPU_EXC_MASK \
@@ -181,6 +179,7 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     env->pvr.regs[0] |= (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
                         (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_barrel ? PVR0_USE_BARREL_MASK : 0) |
+                        (cpu->cfg.use_div ? PVR0_USE_DIV_MASK : 0) |
                         (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0) |
                         (cpu->cfg.endi ? PVR0_ENDI_MASK : 0) |
                         (version_code << PVR0_VERSION_SHIFT) |
@@ -188,7 +187,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
                         (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0) |
-                        (cpu->cfg.use_barrel ? PVR2_USE_BARREL_MASK : 0);
+                        (cpu->cfg.use_barrel ? PVR2_USE_BARREL_MASK : 0) |
+                        (cpu->cfg.use_div ? PVR2_USE_DIV_MASK : 0);
 
     env->pvr.regs[5] |= cpu->cfg.dcache_writeback ?
                                         PVR5_DCACHE_WRITEBACK_MASK : 0;
@@ -236,6 +236,7 @@ static Property mb_properties[] = {
      */
     DEFINE_PROP_UINT8("use-fpu", MicroBlazeCPU, cfg.use_fpu, 2),
     DEFINE_PROP_BOOL("use-barrel", MicroBlazeCPU, cfg.use_barrel, true),
+    DEFINE_PROP_BOOL("use-div", MicroBlazeCPU, cfg.use_div, true),
     DEFINE_PROP_BOOL("use-mmu", MicroBlazeCPU, cfg.use_mmu, true),
     DEFINE_PROP_BOOL("dcache-writeback", MicroBlazeCPU, cfg.dcache_writeback,
                      false),
