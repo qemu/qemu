@@ -916,6 +916,8 @@
     C(0xdc00, TR,      SS_a,  Z,   la1, a2, 0, 0, tr, 0)
 /* TRANSLATE AND TEST */
     C(0xdd00, TRT,     SS_a,  Z,   la1, a2, 0, 0, trt, 0)
+/* TRANSLATE AND TEST REVERSE */
+    C(0xd000, TRTR,    SS_a,  ETF3, la1, a2, 0, 0, trtr, 0)
 /* TRANSLATE EXTENDED */
     C(0xb2a5, TRE,     RRE,   Z,   0, r2, r1_P, 0, tre, 0)
 
