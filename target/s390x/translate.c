@@ -323,11 +323,11 @@ static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
 static int get_mem_index(DisasContext *s)
 {
     switch (s->tb->flags & FLAG_MASK_ASC) {
-    case PSW_ASC_PRIMARY >> 32:
+    case PSW_ASC_PRIMARY >> FLAG_MASK_PSW_SHIFT:
         return 0;
-    case PSW_ASC_SECONDARY >> 32:
+    case PSW_ASC_SECONDARY >> FLAG_MASK_PSW_SHIFT:
         return 1;
-    case PSW_ASC_HOME >> 32:
+    case PSW_ASC_HOME >> FLAG_MASK_PSW_SHIFT:
         return 2;
     default:
         tcg_abort();
@@ -387,7 +387,7 @@ static inline void gen_trap(DisasContext *s)
 #ifndef CONFIG_USER_ONLY
 static void check_privileged(DisasContext *s)
 {
-    if (s->tb->flags & (PSW_MASK_PSTATE >> 32)) {
+    if (s->tb->flags & FLAG_MASK_PSTATE) {
         gen_program_exception(s, PGM_PRIVILEGED);
     }
 }
@@ -2932,20 +2932,20 @@ static ExitStatus op_mov2e(DisasContext *s, DisasOps *o)
     o->g_in2 = false;
 
     switch (s->tb->flags & FLAG_MASK_ASC) {
-    case PSW_ASC_PRIMARY >> 32:
+    case PSW_ASC_PRIMARY >> FLAG_MASK_PSW_SHIFT:
         tcg_gen_movi_i64(ar1, 0);
         break;
-    case PSW_ASC_ACCREG >> 32:
+    case PSW_ASC_ACCREG >> FLAG_MASK_PSW_SHIFT:
         tcg_gen_movi_i64(ar1, 1);
         break;
-    case PSW_ASC_SECONDARY >> 32:
+    case PSW_ASC_SECONDARY >> FLAG_MASK_PSW_SHIFT:
         if (b2) {
             tcg_gen_ld32u_i64(ar1, cpu_env, offsetof(CPUS390XState, aregs[b2]));
         } else {
             tcg_gen_movi_i64(ar1, 0);
         }
         break;
-    case PSW_ASC_HOME >> 32:
+    case PSW_ASC_HOME >> FLAG_MASK_PSW_SHIFT:
         tcg_gen_movi_i64(ar1, 2);
         break;
     }

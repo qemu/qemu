@@ -346,19 +346,14 @@ void s390x_cpu_debug_excp_handler(CPUState *cs);
 
 /* tb flags */
 
-#define FLAG_MASK_PER           (PSW_MASK_PER    >> 32)
-#define FLAG_MASK_DAT           (PSW_MASK_DAT    >> 32)
-#define FLAG_MASK_IO            (PSW_MASK_IO     >> 32)
-#define FLAG_MASK_EXT           (PSW_MASK_EXT    >> 32)
-#define FLAG_MASK_KEY           (PSW_MASK_KEY    >> 32)
-#define FLAG_MASK_MCHECK        (PSW_MASK_MCHECK >> 32)
-#define FLAG_MASK_WAIT          (PSW_MASK_WAIT   >> 32)
-#define FLAG_MASK_PSTATE        (PSW_MASK_PSTATE >> 32)
-#define FLAG_MASK_ASC           (PSW_MASK_ASC    >> 32)
-#define FLAG_MASK_CC            (PSW_MASK_CC     >> 32)
-#define FLAG_MASK_PM            (PSW_MASK_PM     >> 32)
-#define FLAG_MASK_64            (PSW_MASK_64     >> 32)
-#define FLAG_MASK_32            0x00001000
+#define FLAG_MASK_PSW_SHIFT     31
+#define FLAG_MASK_PER           (PSW_MASK_PER    >> FLAG_MASK_PSW_SHIFT)
+#define FLAG_MASK_PSTATE        (PSW_MASK_PSTATE >> FLAG_MASK_PSW_SHIFT)
+#define FLAG_MASK_ASC           (PSW_MASK_ASC    >> FLAG_MASK_PSW_SHIFT)
+#define FLAG_MASK_64            (PSW_MASK_64     >> FLAG_MASK_PSW_SHIFT)
+#define FLAG_MASK_32            (PSW_MASK_32     >> FLAG_MASK_PSW_SHIFT)
+#define FLAG_MASK_PSW		(FLAG_MASK_PER | FLAG_MASK_PSTATE \
+                                | FLAG_MASK_ASC | FLAG_MASK_64 | FLAG_MASK_32)
 
 /* Control register 0 bits */
 #define CR0_LOWPROT             0x0000000010000000ULL
@@ -416,8 +411,7 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 {
     *pc = env->psw.addr;
     *cs_base = env->ex_value;
-    *flags = ((env->psw.mask >> 32) & ~FLAG_MASK_CC) |
-             ((env->psw.mask & PSW_MASK_32) ? FLAG_MASK_32 : 0);
+    *flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
 }
 
 #define MAX_ILEN 6
