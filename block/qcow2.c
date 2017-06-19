@@ -1575,6 +1575,44 @@ fail:
     return ret;
 }
 
+/* Check if it's possible to merge a write request with the writing of
+ * the data from the COW regions */
+static bool merge_cow(uint64_t offset, unsigned bytes,
+                      QEMUIOVector *hd_qiov, QCowL2Meta *l2meta)
+{
+    QCowL2Meta *m;
+
+    for (m = l2meta; m != NULL; m = m->next) {
+        /* If both COW regions are empty then there's nothing to merge */
+        if (m->cow_start.nb_bytes == 0 && m->cow_end.nb_bytes == 0) {
+            continue;
+        }
+
+        /* The data (middle) region must be immediately after the
+         * start region */
+        if (l2meta_cow_start(m) + m->cow_start.nb_bytes != offset) {
+            continue;
+        }
+
+        /* The end region must be immediately after the data (middle)
+         * region */
+        if (m->offset + m->cow_end.offset != offset + bytes) {
+            continue;
+        }
+
+        /* Make sure that adding both COW regions to the QEMUIOVector
+         * does not exceed IOV_MAX */
+        if (hd_qiov->niov > IOV_MAX - 2) {
+            continue;
+        }
+
+        m->data_qiov = hd_qiov;
+        return true;
+    }
+
+    return false;
+}
+
 static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
@@ -1657,16 +1695,22 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
             goto fail;
         }
 
-        qemu_co_mutex_unlock(&s->lock);
-        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-        trace_qcow2_writev_data(qemu_coroutine_self(),
-                                cluster_offset + offset_in_cluster);
-        ret = bdrv_co_pwritev(bs->file,
-                              cluster_offset + offset_in_cluster,
-                              cur_bytes, &hd_qiov, 0);
-        qemu_co_mutex_lock(&s->lock);
-        if (ret < 0) {
-            goto fail;
+        /* If we need to do COW, check if it's possible to merge the
+         * writing of the guest data together with that of the COW regions.
+         * If it's not possible (or not necessary) then write the
+         * guest data now. */
+        if (!merge_cow(offset, cur_bytes, &hd_qiov, l2meta)) {
+            qemu_co_mutex_unlock(&s->lock);
+            BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
+            trace_qcow2_writev_data(qemu_coroutine_self(),
+                                    cluster_offset + offset_in_cluster);
+            ret = bdrv_co_pwritev(bs->file,
+                                  cluster_offset + offset_in_cluster,
+                                  cur_bytes, &hd_qiov, 0);
+            qemu_co_mutex_lock(&s->lock);
+            if (ret < 0) {
+                goto fail;
+            }
         }
 
         while (l2meta != NULL) {

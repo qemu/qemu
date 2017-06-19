@@ -343,6 +343,13 @@ typedef struct QCowL2Meta
      */
     Qcow2COWRegion cow_end;
 
+    /**
+     * The I/O vector with the data from the actual guest write request.
+     * If non-NULL, this is meant to be merged together with the data
+     * from @cow_start and @cow_end into one single write operation.
+     */
+    QEMUIOVector *data_qiov;
+
     /** Pointer to next L2Meta of the same write request */
     struct QCowL2Meta *next;
 
