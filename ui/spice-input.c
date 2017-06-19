@@ -87,7 +87,7 @@ static void kbd_leds(void *opaque, int ledstate)
     if (ledstate & QEMU_CAPS_LOCK_LED) {
         kbd->ledstate |= SPICE_KEYBOARD_MODIFIER_FLAGS_CAPS_LOCK;
     }
-    spice_server_kbd_leds(&kbd->sin, ledstate);
+    spice_server_kbd_leds(&kbd->sin, kbd->ledstate);
 }
 
 /* mouse bits */
