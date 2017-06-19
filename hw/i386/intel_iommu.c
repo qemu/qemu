@@ -1450,10 +1450,7 @@ static uint64_t vtd_iotlb_flush(IntelIOMMUState *s, uint64_t val)
     return iaig;
 }
 
-static inline bool vtd_queued_inv_enable_check(IntelIOMMUState *s)
-{
-    return s->iq_tail == 0;
-}
+static void vtd_fetch_inv_desc(IntelIOMMUState *s);
 
 static inline bool vtd_queued_inv_disable_check(IntelIOMMUState *s)
 {
@@ -1468,16 +1465,24 @@ static void vtd_handle_gcmd_qie(IntelIOMMUState *s, bool en)
     trace_vtd_inv_qi_enable(en);
 
     if (en) {
-        if (vtd_queued_inv_enable_check(s)) {
-            s->iq = iqa_val & VTD_IQA_IQA_MASK;
-            /* 2^(x+8) entries */
-            s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8);
-            s->qi_enabled = true;
-            trace_vtd_inv_qi_setup(s->iq, s->iq_size);
-            /* Ok - report back to driver */
-            vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_QIES);
-        } else {
-            trace_vtd_err_qi_enable(s->iq_tail);
+        s->iq = iqa_val & VTD_IQA_IQA_MASK;
+        /* 2^(x+8) entries */
+        s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8);
+        s->qi_enabled = true;
+        trace_vtd_inv_qi_setup(s->iq, s->iq_size);
+        /* Ok - report back to driver */
+        vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_QIES);
+
+        if (s->iq_tail != 0) {
+            /*
+             * This is a spec violation but Windows guests are known to set up
+             * Queued Invalidation this way so we allow the write and process
+             * Invalidation Descriptors right away.
+             */
+            trace_vtd_warn_invalid_qi_tail(s->iq_tail);
+            if (!(vtd_get_long_raw(s, DMAR_FSTS_REG) & VTD_FSTS_IQE)) {
+                vtd_fetch_inv_desc(s);
+            }
         }
     } else {
         if (vtd_queued_inv_disable_check(s)) {
