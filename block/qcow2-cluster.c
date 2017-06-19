@@ -440,16 +440,14 @@ static int coroutine_fn do_perform_cow(BlockDriverState *bs,
     }
 
     if (bs->encrypted) {
-        Error *err = NULL;
         int64_t sector = (src_cluster_offset + offset_in_cluster)
                          >> BDRV_SECTOR_BITS;
         assert(s->cipher);
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
         if (qcow2_encrypt_sectors(s, sector, iov.iov_base, iov.iov_base,
-                                  bytes >> BDRV_SECTOR_BITS, true, &err) < 0) {
+                                  bytes >> BDRV_SECTOR_BITS, true, NULL) < 0) {
             ret = -EIO;
-            error_free(err);
             goto out;
         }
     }
