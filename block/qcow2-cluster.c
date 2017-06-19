@@ -406,8 +406,8 @@ int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
 static int coroutine_fn do_perform_cow(BlockDriverState *bs,
                                        uint64_t src_cluster_offset,
                                        uint64_t cluster_offset,
-                                       int offset_in_cluster,
-                                       int bytes)
+                                       unsigned offset_in_cluster,
+                                       unsigned bytes)
 {
     BDRVQcow2State *s = bs->opaque;
     QEMUIOVector qiov;

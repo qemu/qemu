@@ -301,10 +301,10 @@ typedef struct Qcow2COWRegion {
      * Offset of the COW region in bytes from the start of the first cluster
      * touched by the request.
      */
-    uint64_t    offset;
+    unsigned    offset;
 
     /** Number of bytes to copy */
-    int         nb_bytes;
+    unsigned    nb_bytes;
 } Qcow2COWRegion;
 
 /**
