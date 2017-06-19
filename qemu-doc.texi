@@ -2566,6 +2566,8 @@ so should only be used with trusted guest OS.
 
 @end table
 
+@c man end
+
 @node ColdFire System emulator
 @section ColdFire System emulator
 @cindex system emulation (ColdFire)
@@ -2609,6 +2611,8 @@ Note that this allows guest direct access to the host filesystem,
 so should only be used with trusted guest OS.
 
 @end table
+
+@c man end
 
 @node Cris System emulator
 @section Cris System emulator
@@ -2681,6 +2685,8 @@ Note that this allows guest direct access to the host filesystem,
 so should only be used with trusted guest OS.
 
 @end table
+
+@c man end
 
 @node QEMU Guest Agent
 @chapter QEMU Guest Agent invocation
