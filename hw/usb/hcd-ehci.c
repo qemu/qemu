@@ -2241,6 +2241,11 @@ static void ehci_work_bh(void *opaque)
     uint64_t uframes, skipped_uframes;
     int i;
 
+    if (ehci->working) {
+        return;
+    }
+    ehci->working = true;
+
     t_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ns_elapsed = t_now - ehci->last_run_ns;
     uframes = ns_elapsed / UFRAME_TIMER_NS;
@@ -2322,6 +2327,8 @@ static void ehci_work_bh(void *opaque)
         }
         timer_mod(ehci->frame_timer, expire_time);
     }
+
+    ehci->working = false;
 }
 
 static void ehci_work_timer(void *opaque)

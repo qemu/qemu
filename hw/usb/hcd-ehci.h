@@ -297,6 +297,7 @@ struct EHCIState {
      */
     QEMUTimer *frame_timer;
     QEMUBH *async_bh;
+    bool working;
     uint32_t astate;         /* Current state in asynchronous schedule */
     uint32_t pstate;         /* Current state in periodic schedule     */
     USBPort ports[NB_PORTS];
