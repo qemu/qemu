@@ -4255,15 +4255,12 @@ static int img_dd(int argc, char **argv)
         case 'U':
             force_share = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
+        case OPTION_OBJECT:
+            if (!qemu_opts_parse_noisily(&qemu_object_opts, optarg, true)) {
                 ret = -1;
                 goto out;
             }
-        }   break;
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
