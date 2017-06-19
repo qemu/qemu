@@ -234,7 +234,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                           uint32_t drc_type_mask);
 
 void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                      int fdt_start_offset, bool coldplug, Error **errp);
+                      int fdt_start_offset, Error **errp);
 void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
 
 #endif /* HW_SPAPR_DRC_H */

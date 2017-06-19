@@ -340,7 +340,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
 }
 
 void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                      int fdt_start_offset, bool coldplug, Error **errp)
+                      int fdt_start_offset, Error **errp)
 {
     trace_spapr_drc_attach(spapr_drc_index(drc));
 
@@ -351,12 +351,11 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         g_assert(drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE);
     }
-    g_assert(fdt || coldplug);
+    g_assert(fdt);
 
     drc->dev = d;
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
-    drc->configured = coldplug;
 
     if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->awaiting_allocation = true;

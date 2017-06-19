@@ -1435,8 +1435,7 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
         goto out;
     }
 
-    spapr_drc_attach(drc, DEVICE(pdev), fdt, fdt_start_offset,
-                     !plugged_dev->hotplugged, &local_err);
+    spapr_drc_attach(drc, DEVICE(pdev), fdt, fdt_start_offset, &local_err);
     if (local_err) {
         goto out;
     }
