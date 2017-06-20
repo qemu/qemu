@@ -595,7 +595,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             autostart = 0;
         }
 
-        block_acct_init(blk_get_stats(blk), account_invalid, account_failed);
+        block_acct_setup(blk_get_stats(blk), account_invalid, account_failed);
 
         if (!parse_stats_intervals(blk_get_stats(blk), interval_list, errp)) {
             blk_unref(blk);
@@ -1362,12 +1362,10 @@ out_aio_context:
 static BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
                                                   const char *name,
                                                   BlockDriverState **pbs,
-                                                  AioContext **paio,
                                                   Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
-    AioContext *aio_context;
 
     if (!node) {
         error_setg(errp, "Node cannot be NULL");
@@ -1383,29 +1381,17 @@ static BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
         return NULL;
     }
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
     bitmap = bdrv_find_dirty_bitmap(bs, name);
     if (!bitmap) {
         error_setg(errp, "Dirty bitmap '%s' not found", name);
-        goto fail;
+        return NULL;
     }
 
     if (pbs) {
         *pbs = bs;
     }
-    if (paio) {
-        *paio = aio_context;
-    } else {
-        aio_context_release(aio_context);
-    }
 
     return bitmap;
-
- fail:
-    aio_context_release(aio_context);
-    return NULL;
 }
 
 /* New and old BlockDriverState structs for atomic group operations */
@@ -1791,7 +1777,7 @@ static void external_snapshot_commit(BlkActionState *common)
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
      * don't want to abort all of them if one of them fails the reopen */
-    if (!state->old_bs->copy_on_read) {
+    if (!atomic_read(&state->old_bs->copy_on_read)) {
         bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
                     NULL);
     }
@@ -2025,7 +2011,6 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
     state->bitmap = block_dirty_bitmap_lookup(action->node,
                                               action->name,
                                               &state->bs,
-                                              &state->aio_context,
                                               errp);
     if (!state->bitmap) {
         return;
@@ -2733,7 +2718,6 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
                                 bool has_granularity, uint32_t granularity,
                                 Error **errp)
 {
-    AioContext *aio_context;
     BlockDriverState *bs;
 
     if (!name || name[0] == '\0') {
@@ -2746,14 +2730,11 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         return;
     }
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
     if (has_granularity) {
         if (granularity < 512 || !is_power_of_2(granularity)) {
             error_setg(errp, "Granularity must be power of 2 "
                              "and at least 512");
-            goto out;
+            return;
         }
     } else {
         /* Default to cluster size, if available: */
@@ -2761,19 +2742,15 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     }
 
     bdrv_create_dirty_bitmap(bs, granularity, name, errp);
-
- out:
-    aio_context_release(aio_context);
 }
 
 void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
                                    Error **errp)
 {
-    AioContext *aio_context;
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
 
-    bitmap = block_dirty_bitmap_lookup(node, name, &bs, &aio_context, errp);
+    bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
     if (!bitmap || !bs) {
         return;
     }
@@ -2782,13 +2759,10 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         error_setg(errp,
                    "Bitmap '%s' is currently frozen and cannot be removed",
                    name);
-        goto out;
+        return;
     }
     bdrv_dirty_bitmap_make_anon(bitmap);
     bdrv_release_dirty_bitmap(bs, bitmap);
-
- out:
-    aio_context_release(aio_context);
 }
 
 /**
@@ -2798,11 +2772,10 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
 void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
                                   Error **errp)
 {
-    AioContext *aio_context;
     BdrvDirtyBitmap *bitmap;
     BlockDriverState *bs;
 
-    bitmap = block_dirty_bitmap_lookup(node, name, &bs, &aio_context, errp);
+    bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
     if (!bitmap || !bs) {
         return;
     }
@@ -2811,18 +2784,15 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
         error_setg(errp,
                    "Bitmap '%s' is currently frozen and cannot be modified",
                    name);
-        goto out;
+        return;
     } else if (!bdrv_dirty_bitmap_enabled(bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently disabled and cannot be cleared",
                    name);
-        goto out;
+        return;
     }
 
     bdrv_clear_dirty_bitmap(bitmap, NULL);
-
- out:
-    aio_context_release(aio_context);
 }
 
 void hmp_drive_del(Monitor *mon, const QDict *qdict)

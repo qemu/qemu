@@ -26,8 +26,10 @@
 #define BLOCK_ACCOUNTING_H
 
 #include "qemu/timed-average.h"
+#include "qemu/thread.h"
 
 typedef struct BlockAcctTimedStats BlockAcctTimedStats;
+typedef struct BlockAcctStats BlockAcctStats;
 
 enum BlockAcctType {
     BLOCK_ACCT_READ,
@@ -37,12 +39,14 @@ enum BlockAcctType {
 };
 
 struct BlockAcctTimedStats {
+    BlockAcctStats *stats;
     TimedAverage latency[BLOCK_MAX_IOTYPE];
     unsigned interval_length; /* in seconds */
     QSLIST_ENTRY(BlockAcctTimedStats) entries;
 };
 
-typedef struct BlockAcctStats {
+struct BlockAcctStats {
+    QemuMutex lock;
     uint64_t nr_bytes[BLOCK_MAX_IOTYPE];
     uint64_t nr_ops[BLOCK_MAX_IOTYPE];
     uint64_t invalid_ops[BLOCK_MAX_IOTYPE];
@@ -53,7 +57,7 @@ typedef struct BlockAcctStats {
     QSLIST_HEAD(, BlockAcctTimedStats) intervals;
     bool account_invalid;
     bool account_failed;
-} BlockAcctStats;
+};
 
 typedef struct BlockAcctCookie {
     int64_t bytes;
@@ -61,7 +65,8 @@ typedef struct BlockAcctCookie {
     enum BlockAcctType type;
 } BlockAcctCookie;
 
-void block_acct_init(BlockAcctStats *stats, bool account_invalid,
+void block_acct_init(BlockAcctStats *stats);
+void block_acct_setup(BlockAcctStats *stats, bool account_invalid,
                      bool account_failed);
 void block_acct_cleanup(BlockAcctStats *stats);
 void block_acct_add_interval(BlockAcctStats *stats, unsigned interval_length);

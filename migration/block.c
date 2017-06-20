@@ -341,10 +341,8 @@ static int set_dirty_tracking(void)
     int ret;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        aio_context_acquire(blk_get_aio_context(bmds->blk));
         bmds->dirty_bitmap = bdrv_create_dirty_bitmap(blk_bs(bmds->blk),
                                                       BLOCK_SIZE, NULL, NULL);
-        aio_context_release(blk_get_aio_context(bmds->blk));
         if (!bmds->dirty_bitmap) {
             ret = -errno;
             goto fail;
@@ -355,9 +353,7 @@ static int set_dirty_tracking(void)
 fail:
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->dirty_bitmap) {
-            aio_context_acquire(blk_get_aio_context(bmds->blk));
             bdrv_release_dirty_bitmap(blk_bs(bmds->blk), bmds->dirty_bitmap);
-            aio_context_release(blk_get_aio_context(bmds->blk));
         }
     }
     return ret;
@@ -370,9 +366,7 @@ static void unset_dirty_tracking(void)
     BlkMigDevState *bmds;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        aio_context_acquire(blk_get_aio_context(bmds->blk));
         bdrv_release_dirty_bitmap(blk_bs(bmds->blk), bmds->dirty_bitmap);
-        aio_context_release(blk_get_aio_context(bmds->blk));
     }
 }
 
@@ -531,13 +525,16 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
         } else {
             blk_mig_unlock();
         }
-        if (bdrv_get_dirty(bs, bmds->dirty_bitmap, sector)) {
-
+        bdrv_dirty_bitmap_lock(bmds->dirty_bitmap);
+        if (bdrv_get_dirty_locked(bs, bmds->dirty_bitmap, sector)) {
             if (total_sectors - sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
                 nr_sectors = total_sectors - sector;
             } else {
                 nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
             }
+            bdrv_reset_dirty_bitmap_locked(bmds->dirty_bitmap, sector, nr_sectors);
+            bdrv_dirty_bitmap_unlock(bmds->dirty_bitmap);
+
             blk = g_new(BlkMigBlock, 1);
             blk->buf = g_malloc(BLOCK_SIZE);
             blk->bmds = bmds;
@@ -570,12 +567,12 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                 g_free(blk);
             }
 
-            bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, sector, nr_sectors);
             sector += nr_sectors;
             bmds->cur_dirty = sector;
-
             break;
         }
+
+        bdrv_dirty_bitmap_unlock(bmds->dirty_bitmap);
         sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
         bmds->cur_dirty = sector;
     }

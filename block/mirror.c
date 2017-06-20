@@ -342,6 +342,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     int max_io_sectors = MAX((s->buf_size >> BDRV_SECTOR_BITS) / MAX_IN_FLIGHT,
                              MAX_IO_SECTORS);
 
+    bdrv_dirty_bitmap_lock(s->dirty_bitmap);
     sector_num = bdrv_dirty_iter_next(s->dbi);
     if (sector_num < 0) {
         bdrv_set_dirty_iter(s->dbi, 0);
@@ -349,6 +350,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         trace_mirror_restart_iter(s, bdrv_get_dirty_count(s->dirty_bitmap));
         assert(sector_num >= 0);
     }
+    bdrv_dirty_bitmap_unlock(s->dirty_bitmap);
 
     first_chunk = sector_num / sectors_per_chunk;
     while (test_bit(first_chunk, s->in_flight_bitmap)) {
@@ -360,12 +362,13 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 
     /* Find the number of consective dirty chunks following the first dirty
      * one, and wait for in flight requests in them. */
+    bdrv_dirty_bitmap_lock(s->dirty_bitmap);
     while (nb_chunks * sectors_per_chunk < (s->buf_size >> BDRV_SECTOR_BITS)) {
         int64_t next_dirty;
         int64_t next_sector = sector_num + nb_chunks * sectors_per_chunk;
         int64_t next_chunk = next_sector / sectors_per_chunk;
         if (next_sector >= end ||
-            !bdrv_get_dirty(source, s->dirty_bitmap, next_sector)) {
+            !bdrv_get_dirty_locked(source, s->dirty_bitmap, next_sector)) {
             break;
         }
         if (test_bit(next_chunk, s->in_flight_bitmap)) {
@@ -386,8 +389,10 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
      * calling bdrv_get_block_status_above could yield - if some blocks are
      * marked dirty in this window, we need to know.
      */
-    bdrv_reset_dirty_bitmap(s->dirty_bitmap, sector_num,
-                            nb_chunks * sectors_per_chunk);
+    bdrv_reset_dirty_bitmap_locked(s->dirty_bitmap, sector_num,
+                                  nb_chunks * sectors_per_chunk);
+    bdrv_dirty_bitmap_unlock(s->dirty_bitmap);
+
     bitmap_set(s->in_flight_bitmap, sector_num / sectors_per_chunk, nb_chunks);
     while (nb_chunks > 0 && sector_num < end) {
         int64_t ret;
@@ -505,6 +510,8 @@ static void mirror_exit(BlockJob *job, void *opaque)
     BlockDriverState *target_bs = blk_bs(s->target);
     BlockDriverState *mirror_top_bs = s->mirror_top_bs;
     Error *local_err = NULL;
+
+    bdrv_release_dirty_bitmap(src, s->dirty_bitmap);
 
     /* Make sure that the source BDS doesn't go away before we called
      * block_job_completed(). */
@@ -904,7 +911,6 @@ immediate_exit:
     g_free(s->cow_bitmap);
     g_free(s->in_flight_bitmap);
     bdrv_dirty_iter_free(s->dbi);
-    bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;

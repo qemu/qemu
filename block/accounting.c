@@ -32,15 +32,19 @@
 static QEMUClockType clock_type = QEMU_CLOCK_REALTIME;
 static const int qtest_latency_ns = NANOSECONDS_PER_SECOND / 1000;
 
-void block_acct_init(BlockAcctStats *stats, bool account_invalid,
-                     bool account_failed)
+void block_acct_init(BlockAcctStats *stats)
 {
-    stats->account_invalid = account_invalid;
-    stats->account_failed = account_failed;
-
+    qemu_mutex_init(&stats->lock);
     if (qtest_enabled()) {
         clock_type = QEMU_CLOCK_VIRTUAL;
     }
+}
+
+void block_acct_setup(BlockAcctStats *stats, bool account_invalid,
+                      bool account_failed)
+{
+    stats->account_invalid = account_invalid;
+    stats->account_failed = account_failed;
 }
 
 void block_acct_cleanup(BlockAcctStats *stats)
@@ -49,6 +53,7 @@ void block_acct_cleanup(BlockAcctStats *stats)
     QSLIST_FOREACH_SAFE(s, &stats->intervals, entries, next) {
         g_free(s);
     }
+    qemu_mutex_destroy(&stats->lock);
 }
 
 void block_acct_add_interval(BlockAcctStats *stats, unsigned interval_length)
@@ -58,12 +63,15 @@ void block_acct_add_interval(BlockAcctStats *stats, unsigned interval_length)
 
     s = g_new0(BlockAcctTimedStats, 1);
     s->interval_length = interval_length;
+    s->stats = stats;
+    qemu_mutex_lock(&stats->lock);
     QSLIST_INSERT_HEAD(&stats->intervals, s, entries);
 
     for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
         timed_average_init(&s->latency[i], clock_type,
                            (uint64_t) interval_length * NANOSECONDS_PER_SECOND);
     }
+    qemu_mutex_unlock(&stats->lock);
 }
 
 BlockAcctTimedStats *block_acct_interval_next(BlockAcctStats *stats,
@@ -86,7 +94,8 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
     cookie->type = type;
 }
 
-void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
+static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
+                                 bool failed)
 {
     BlockAcctTimedStats *s;
     int64_t time_ns = qemu_clock_get_ns(clock_type);
@@ -98,31 +107,16 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
-    stats->nr_bytes[cookie->type] += cookie->bytes;
-    stats->nr_ops[cookie->type]++;
-    stats->total_time_ns[cookie->type] += latency_ns;
-    stats->last_access_time_ns = time_ns;
+    qemu_mutex_lock(&stats->lock);
 
-    QSLIST_FOREACH(s, &stats->intervals, entries) {
-        timed_average_account(&s->latency[cookie->type], latency_ns);
+    if (failed) {
+        stats->failed_ops[cookie->type]++;
+    } else {
+        stats->nr_bytes[cookie->type] += cookie->bytes;
+        stats->nr_ops[cookie->type]++;
     }
-}
 
-void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
-{
-    assert(cookie->type < BLOCK_MAX_IOTYPE);
-
-    stats->failed_ops[cookie->type]++;
-
-    if (stats->account_failed) {
-        BlockAcctTimedStats *s;
-        int64_t time_ns = qemu_clock_get_ns(clock_type);
-        int64_t latency_ns = time_ns - cookie->start_time_ns;
-
-        if (qtest_enabled()) {
-            latency_ns = qtest_latency_ns;
-        }
-
+    if (!failed || stats->account_failed) {
         stats->total_time_ns[cookie->type] += latency_ns;
         stats->last_access_time_ns = time_ns;
 
@@ -130,29 +124,45 @@ void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
             timed_average_account(&s->latency[cookie->type], latency_ns);
         }
     }
+
+    qemu_mutex_unlock(&stats->lock);
+}
+
+void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
+{
+    block_account_one_io(stats, cookie, false);
+}
+
+void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
+{
+    block_account_one_io(stats, cookie, true);
 }
 
 void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type)
 {
     assert(type < BLOCK_MAX_IOTYPE);
 
-    /* block_acct_done() and block_acct_failed() update
-     * total_time_ns[], but this one does not. The reason is that
-     * invalid requests are accounted during their submission,
-     * therefore there's no actual I/O involved. */
-
+    /* block_account_one_io() updates total_time_ns[], but this one does
+     * not.  The reason is that invalid requests are accounted during their
+     * submission, therefore there's no actual I/O involved.
+     */
+    qemu_mutex_lock(&stats->lock);
     stats->invalid_ops[type]++;
 
     if (stats->account_invalid) {
         stats->last_access_time_ns = qemu_clock_get_ns(clock_type);
     }
+    qemu_mutex_unlock(&stats->lock);
 }
 
 void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
                       int num_requests)
 {
     assert(type < BLOCK_MAX_IOTYPE);
+
+    qemu_mutex_lock(&stats->lock);
     stats->merged[type] += num_requests;
+    qemu_mutex_unlock(&stats->lock);
 }
 
 int64_t block_acct_idle_time_ns(BlockAcctStats *stats)
@@ -167,7 +177,9 @@ double block_acct_queue_depth(BlockAcctTimedStats *stats,
 
     assert(type < BLOCK_MAX_IOTYPE);
 
+    qemu_mutex_lock(&stats->stats->lock);
     sum = timed_average_sum(&stats->latency[type], &elapsed);
+    qemu_mutex_unlock(&stats->stats->lock);
 
     return (double) sum / elapsed;
 }
