@@ -751,6 +751,11 @@ static inline TCGTemp *arg_temp(TCGArg a)
     return a == TCG_CALL_DUMMY_ARG ? NULL : &tcg_ctx.temps[a];
 }
 
+static inline size_t arg_index(TCGArg a)
+{
+    return a;
+}
+
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
     tcg_ctx.gen_op_buf[op_idx].args[arg] = v;
