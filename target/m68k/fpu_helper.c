@@ -21,92 +21,101 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/exec-all.h"
 
-uint32_t HELPER(f64_to_i32)(CPUM68KState *env, float64 val)
+int32_t HELPER(reds32)(CPUM68KState *env, FPReg *val)
 {
-    return float64_to_int32(val, &env->fp_status);
+    return floatx80_to_int32(val->d, &env->fp_status);
 }
 
-float32 HELPER(f64_to_f32)(CPUM68KState *env, float64 val)
+float32 HELPER(redf32)(CPUM68KState *env, FPReg *val)
 {
-    return float64_to_float32(val, &env->fp_status);
+    return floatx80_to_float32(val->d, &env->fp_status);
 }
 
-float64 HELPER(i32_to_f64)(CPUM68KState *env, uint32_t val)
+void HELPER(exts32)(CPUM68KState *env, FPReg *res, int32_t val)
 {
-    return int32_to_float64(val, &env->fp_status);
+    res->d = int32_to_floatx80(val, &env->fp_status);
 }
 
-float64 HELPER(f32_to_f64)(CPUM68KState *env, float32 val)
+void HELPER(extf32)(CPUM68KState *env, FPReg *res, float32 val)
 {
-    return float32_to_float64(val, &env->fp_status);
+    res->d = float32_to_floatx80(val, &env->fp_status);
 }
 
-float64 HELPER(iround_f64)(CPUM68KState *env, float64 val)
+void HELPER(extf64)(CPUM68KState *env, FPReg *res, float64 val)
 {
-    return float64_round_to_int(val, &env->fp_status);
+    res->d = float64_to_floatx80(val, &env->fp_status);
 }
 
-float64 HELPER(itrunc_f64)(CPUM68KState *env, float64 val)
+float64 HELPER(redf64)(CPUM68KState *env, FPReg *val)
 {
-    return float64_trunc_to_int(val, &env->fp_status);
+    return floatx80_to_float64(val->d, &env->fp_status);
 }
 
-float64 HELPER(sqrt_f64)(CPUM68KState *env, float64 val)
+void HELPER(firound)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    return float64_sqrt(val, &env->fp_status);
+    res->d = floatx80_round_to_int(val->d, &env->fp_status);
 }
 
-float64 HELPER(abs_f64)(float64 val)
+void HELPER(fitrunc)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    return float64_abs(val);
+    res->d = floatx80_round_to_int(val->d, &env->fp_status);
 }
 
-float64 HELPER(chs_f64)(float64 val)
+void HELPER(fsqrt)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    return float64_chs(val);
+    res->d = floatx80_sqrt(val->d, &env->fp_status);
 }
 
-float64 HELPER(add_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(fabs)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    return float64_add(a, b, &env->fp_status);
+    res->d = floatx80_abs(val->d);
 }
 
-float64 HELPER(sub_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(fchs)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    return float64_sub(a, b, &env->fp_status);
+    res->d = floatx80_chs(val->d);
 }
 
-float64 HELPER(mul_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(fadd)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
-    return float64_mul(a, b, &env->fp_status);
+    res->d = floatx80_add(val0->d, val1->d, &env->fp_status);
 }
 
-float64 HELPER(div_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(fsub)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
-    return float64_div(a, b, &env->fp_status);
+    res->d = floatx80_sub(val1->d, val0->d, &env->fp_status);
 }
 
-float64 HELPER(sub_cmp_f64)(CPUM68KState *env, float64 a, float64 b)
+void HELPER(fmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    res->d = floatx80_mul(val0->d, val1->d, &env->fp_status);
+}
+
+void HELPER(fdiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    res->d = floatx80_div(val1->d, val0->d, &env->fp_status);
+}
+
+void HELPER(fsub_cmp)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
     /* ??? This may incorrectly raise exceptions.  */
     /* ??? Should flush denormals to zero.  */
-    float64 res;
-    res = float64_sub(a, b, &env->fp_status);
-    if (float64_is_quiet_nan(res, &env->fp_status)) {
+    res->d = floatx80_sub(val0->d, val1->d, &env->fp_status);
+    if (floatx80_is_quiet_nan(res->d, &env->fp_status)) {
         /* +/-inf compares equal against itself, but sub returns nan.  */
-        if (!float64_is_quiet_nan(a, &env->fp_status)
-            && !float64_is_quiet_nan(b, &env->fp_status)) {
-            res = float64_zero;
-            if (float64_lt_quiet(a, res, &env->fp_status)) {
-                res = float64_chs(res);
+        if (!floatx80_is_quiet_nan(val0->d, &env->fp_status)
+            && !floatx80_is_quiet_nan(val1->d, &env->fp_status)) {
+            res->d = floatx80_zero;
+            if (floatx80_lt_quiet(val0->d, res->d, &env->fp_status)) {
+                res->d = floatx80_chs(res->d);
             }
         }
     }
-    return res;
 }
 
-uint32_t HELPER(compare_f64)(CPUM68KState *env, float64 val)
+uint32_t HELPER(fcompare)(CPUM68KState *env, FPReg *val)
 {
-    return float64_compare_quiet(val, float64_zero, &env->fp_status);
+    return floatx80_compare_quiet(val->d, floatx80_zero, &env->fp_status);
 }

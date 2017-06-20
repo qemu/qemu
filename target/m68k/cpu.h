@@ -55,14 +55,23 @@
 #define EXCP_UNINITIALIZED  15
 #define EXCP_TRAP0          32   /* User trap #0.  */
 #define EXCP_TRAP15         47   /* User trap #15.  */
+#define EXCP_FP_BSUN        48 /* Branch Set on Unordered */
+#define EXCP_FP_INEX        49 /* Inexact result */
+#define EXCP_FP_DZ          50 /* Divide by Zero */
+#define EXCP_FP_UNFL        51 /* Underflow */
+#define EXCP_FP_OPERR       52 /* Operand Error */
+#define EXCP_FP_OVFL        53 /* Overflow */
+#define EXCP_FP_SNAN        54 /* Signaling Not-A-Number */
+#define EXCP_FP_UNIMP       55 /* Unimplemented Data type */
 #define EXCP_UNSUPPORTED    61
-#define EXCP_ICE            13
 
 #define EXCP_RTE            0x100
 #define EXCP_HALT_INSN      0x101
 
 #define NB_MMU_MODES 2
 #define TARGET_INSN_START_EXTRA_WORDS 1
+
+typedef CPU_LDoubleU FPReg;
 
 typedef struct CPUM68KState {
     uint32_t dregs[8];
@@ -82,8 +91,8 @@ typedef struct CPUM68KState {
     uint32_t cc_c; /* either 0/1, unused, or computed from cc_n and cc_v */
     uint32_t cc_z; /* == 0 or unused */
 
-    float64 fregs[8];
-    float64 fp_result;
+    FPReg fregs[8];
+    FPReg fp_result;
     uint32_t fpcr;
     uint32_t fpsr;
     float_status fp_status;

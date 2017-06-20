@@ -49,7 +49,7 @@ static void m68k_cpu_reset(CPUState *s)
     M68kCPU *cpu = M68K_CPU(s);
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(cpu);
     CPUM68KState *env = &cpu->env;
-    float64 nan = float64_default_nan(NULL);
+    floatx80 nan = floatx80_default_nan(NULL);
     int i;
 
     mcc->parent_reset(s);
@@ -60,7 +60,7 @@ static void m68k_cpu_reset(CPUState *s)
 #endif
     m68k_switch_sp(env);
     for (i = 0; i < 8; i++) {
-        env->fregs[i] = nan;
+        env->fregs[i].d = nan;
     }
     env->fpcr = 0;
     env->fpsr = 0;
