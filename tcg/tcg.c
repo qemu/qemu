@@ -473,13 +473,6 @@ void tcg_func_start(TCGContext *s)
     s->gen_next_op_idx = 1;
 }
 
-static inline int temp_idx(TCGContext *s, TCGTemp *ts)
-{
-    ptrdiff_t n = ts - s->temps;
-    tcg_debug_assert(n >= 0 && n < s->nb_temps);
-    return n;
-}
-
 static inline TCGTemp *tcg_temp_alloc(TCGContext *s)
 {
     int n = s->nb_temps++;
@@ -516,7 +509,7 @@ static int tcg_global_reg_new_internal(TCGContext *s, TCGType type,
     ts->name = name;
     tcg_regset_set_reg(s->reserved_regs, reg);
 
-    return temp_idx(s, ts);
+    return temp_idx(ts);
 }
 
 void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size)
@@ -605,7 +598,7 @@ int tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
         ts->mem_offset = offset;
         ts->name = name;
     }
-    return temp_idx(s, ts);
+    return temp_idx(ts);
 }
 
 static int tcg_temp_new_internal(TCGType type, int temp_local)
@@ -645,7 +638,7 @@ static int tcg_temp_new_internal(TCGType type, int temp_local)
             ts->temp_allocated = 1;
             ts->temp_local = temp_local;
         }
-        idx = temp_idx(s, ts);
+        idx = temp_idx(ts);
     }
 
 #if defined(CONFIG_DEBUG_TCG)
@@ -1193,7 +1186,7 @@ static void tcg_reg_alloc_start(TCGContext *s)
 static char *tcg_get_arg_str_ptr(TCGContext *s, char *buf, int buf_size,
                                  TCGTemp *ts)
 {
-    int idx = temp_idx(s, ts);
+    int idx = temp_idx(ts);
 
     if (ts->temp_global) {
         pstrcpy(buf, buf_size, ts->name);
@@ -1941,7 +1934,7 @@ static bool liveness_pass_2(TCGContext *s, uint8_t *temp_state)
                     TCGOp *lop = tcg_op_insert_before(s, op, lopc, 3);
 
                     lop->args[0] = dir;
-                    lop->args[1] = temp_idx(s, its->mem_base);
+                    lop->args[1] = temp_arg(its->mem_base);
                     lop->args[2] = its->mem_offset;
 
                     /* Loaded, but synced with memory.  */
@@ -2012,7 +2005,7 @@ static bool liveness_pass_2(TCGContext *s, uint8_t *temp_state)
                 TCGOp *sop = tcg_op_insert_after(s, op, sopc, 3);
 
                 sop->args[0] = dir;
-                sop->args[1] = temp_idx(s, its->mem_base);
+                sop->args[1] = temp_arg(its->mem_base);
                 sop->args[2] = its->mem_offset;
 
                 temp_state[arg] = TS_MEM;
