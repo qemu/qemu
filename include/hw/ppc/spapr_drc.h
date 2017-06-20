@@ -173,6 +173,24 @@ typedef enum {
     SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE = -9003,
 } sPAPRDRCCResponse;
 
+typedef enum {
+    /*
+     * Values come from Fig. 12 in LoPAPR section 13.4
+     *
+     * These are exposed in the migration stream, so don't change
+     * them.
+     */
+    SPAPR_DRC_STATE_INVALID             = 0,
+    SPAPR_DRC_STATE_LOGICAL_UNUSABLE    = 1,
+    SPAPR_DRC_STATE_LOGICAL_AVAILABLE   = 2,
+    SPAPR_DRC_STATE_LOGICAL_UNISOLATE   = 3,
+    SPAPR_DRC_STATE_LOGICAL_CONFIGURED  = 4,
+    SPAPR_DRC_STATE_PHYSICAL_AVAILABLE  = 5,
+    SPAPR_DRC_STATE_PHYSICAL_POWERON    = 6,
+    SPAPR_DRC_STATE_PHYSICAL_UNISOLATE  = 7,
+    SPAPR_DRC_STATE_PHYSICAL_CONFIGURED = 8,
+} sPAPRDRCState;
+
 /* rtas-configure-connector state */
 typedef struct sPAPRConfigureConnectorState {
     int fdt_offset;
@@ -189,14 +207,11 @@ typedef struct sPAPRDRConnector {
     /* DR-indicator */
     uint32_t dr_indicator;
 
-    /* sensor/indicator states */
-    uint32_t isolation_state;
-    uint32_t allocation_state;
+    uint32_t state;
 
     /* configure-connector state */
     void *fdt;
     int fdt_start_offset;
-    bool configured;
     sPAPRConfigureConnectorState *ccs;
 
     /* device pointer, via link property */
@@ -207,6 +222,8 @@ typedef struct sPAPRDRConnector {
 typedef struct sPAPRDRConnectorClass {
     /*< private >*/
     DeviceClass parent;
+    sPAPRDRCState empty_state;
+    sPAPRDRCState ready_state;
 
     /*< public >*/
     sPAPRDRConnectorTypeShift typeshift;
