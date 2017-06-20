@@ -6066,7 +6066,7 @@ case "$target_name" in
   ;;
   m68k)
     bflt="yes"
-    gdb_xml_files="cf-core.xml cf-fp.xml"
+    gdb_xml_files="cf-core.xml cf-fp.xml m68k-fp.xml"
   ;;
   microblaze|microblazeel)
     TARGET_ARCH=microblaze
