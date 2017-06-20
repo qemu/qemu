@@ -589,7 +589,7 @@ static void dec_mul(DisasContext *dc)
 
     if ((dc->tb_flags & MSR_EE_FLAG)
          && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-         && !(dc->cpu->env.pvr.regs[0] & PVR0_USE_HW_MUL_MASK)) {
+         && !dc->cpu->cfg.use_hw_mul) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
@@ -604,8 +604,7 @@ static void dec_mul(DisasContext *dc)
     }
 
     /* mulh, mulhsu and mulhu are not available if C_USE_HW_MUL is < 2.  */
-    if (subcode >= 1 && subcode <= 3
-        && !((dc->cpu->env.pvr.regs[2] & PVR2_USE_MUL64_MASK))) {
+    if (subcode >= 1 && subcode <= 3 && dc->cpu->cfg.use_hw_mul < 2) {
         /* nop??? */
     }
 

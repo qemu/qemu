@@ -298,6 +298,7 @@ struct MicroBlazeCPU {
         bool stackprot;
         uint32_t base_vectors;
         uint8_t use_fpu;
+        uint8_t use_hw_mul;
         bool use_barrel;
         bool use_div;
         bool use_mmu;
