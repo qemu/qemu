@@ -171,6 +171,7 @@ int cpu_m68k_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 uint32_t cpu_m68k_get_ccr(CPUM68KState *env);
 void cpu_m68k_set_ccr(CPUM68KState *env, uint32_t);
+void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val);
 
 
 /* Instead of computing the condition codes after each m68k instruction,
@@ -215,6 +216,43 @@ typedef enum {
 #define M68K_SSP    0
 #define M68K_USP    1
 
+#define M68K_FPIAR_SHIFT  0
+#define M68K_FPIAR        (1 << M68K_FPIAR_SHIFT)
+#define M68K_FPSR_SHIFT   1
+#define M68K_FPSR         (1 << M68K_FPSR_SHIFT)
+#define M68K_FPCR_SHIFT   2
+#define M68K_FPCR         (1 << M68K_FPCR_SHIFT)
+
+/* Floating-Point Status Register */
+
+/* Condition Code */
+#define FPSR_CC_MASK  0x0f000000
+#define FPSR_CC_A     0x01000000 /* Not-A-Number */
+#define FPSR_CC_I     0x02000000 /* Infinity */
+#define FPSR_CC_Z     0x04000000 /* Zero */
+#define FPSR_CC_N     0x08000000 /* Negative */
+
+/* Quotient */
+
+#define FPSR_QT_MASK  0x00ff0000
+
+/* Floating-Point Control Register */
+/* Rounding mode */
+#define FPCR_RND_MASK   0x0030
+#define FPCR_RND_N      0x0000
+#define FPCR_RND_Z      0x0010
+#define FPCR_RND_M      0x0020
+#define FPCR_RND_P      0x0030
+
+/* Rounding precision */
+#define FPCR_PREC_MASK  0x00c0
+#define FPCR_PREC_X     0x0000
+#define FPCR_PREC_S     0x0040
+#define FPCR_PREC_D     0x0080
+#define FPCR_PREC_U     0x00c0
+
+#define FPCR_EXCP_MASK 0xff00
+
 /* CACR fields are implementation defined, but some bits are common.  */
 #define M68K_CACR_EUSP  0x10
 
@@ -230,8 +268,6 @@ typedef enum {
 
 void m68k_set_irq_level(M68kCPU *cpu, int level, uint8_t vector);
 void m68k_switch_sp(CPUM68KState *env);
-
-#define M68K_FPCR_PREC (1 << 6)
 
 void do_m68k_semihosting(CPUM68KState *env, int nr);
 
@@ -310,8 +346,7 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->fpcr & M68K_FPCR_PREC)       /* Bit  6 */
-            | (env->sr & SR_S)                  /* Bit  13 */
+    *flags = (env->sr & SR_S)                   /* Bit  13 */
             | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
 }
 

@@ -62,7 +62,7 @@ static void m68k_cpu_reset(CPUState *s)
     for (i = 0; i < 8; i++) {
         env->fregs[i].d = nan;
     }
-    env->fpcr = 0;
+    cpu_m68k_set_fpcr(env, 0);
     env->fpsr = 0;
 
     cpu_m68k_set_ccr(env, 0);
