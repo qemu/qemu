@@ -556,7 +556,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     /* find the cluster offset for the given disk offset */
 
-    l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
+    l2_index = offset_to_l2_index(s, offset);
     *cluster_offset = be64_to_cpu(l2_table[l2_index]);
 
     nb_clusters = size_to_clusters(s, bytes_needed);
@@ -693,7 +693,7 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
 
     /* find the cluster offset for the given disk offset */
 
-    l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
+    l2_index = offset_to_l2_index(s, offset);
 
     *new_l2_table = l2_table;
     *new_l2_index = l2_index;

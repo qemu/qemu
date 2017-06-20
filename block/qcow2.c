@@ -356,7 +356,7 @@ static int validate_table_offset(BlockDriverState *bs, uint64_t offset,
     }
 
     /* Tables must be cluster aligned */
-    if (offset & (s->cluster_size - 1)) {
+    if (offset_into_cluster(s, offset) != 0) {
         return -EINVAL;
     }
 
