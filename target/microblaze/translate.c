@@ -443,7 +443,7 @@ static void dec_msr(DisasContext *dc)
         LOG_DIS("msr%s r%d imm=%x\n", clr ? "clr" : "set",
                 dc->rd, dc->imm);
 
-        if (!(dc->cpu->env.pvr.regs[2] & PVR2_USE_MSR_INSTR)) {
+        if (!dc->cpu->cfg.use_msr_instr) {
             /* nop??? */
             return;
         }
