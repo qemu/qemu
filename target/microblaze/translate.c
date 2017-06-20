@@ -326,7 +326,7 @@ static void dec_pattern(DisasContext *dc)
 
     if ((dc->tb_flags & MSR_EE_FLAG)
           && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !((dc->cpu->env.pvr.regs[2] & PVR2_USE_PCMP_INSTR))) {
+          && !dc->cpu->cfg.use_pcmp_instr) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
@@ -762,11 +762,11 @@ static void dec_bit(DisasContext *dc)
         case 0xe0:
             if ((dc->tb_flags & MSR_EE_FLAG)
                 && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-                && !((dc->cpu->env.pvr.regs[2] & PVR2_USE_PCMP_INSTR))) {
+                && !dc->cpu->cfg.use_pcmp_instr) {
                 tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
                 t_gen_raise_exception(dc, EXCP_HW_EXCP);
             }
-            if (dc->cpu->env.pvr.regs[2] & PVR2_USE_PCMP_INSTR) {
+            if (dc->cpu->cfg.use_pcmp_instr) {
                 tcg_gen_clzi_i32(cpu_R[dc->rd], cpu_R[dc->ra], 32);
             }
             break;

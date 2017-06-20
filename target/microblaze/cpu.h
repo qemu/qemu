@@ -302,6 +302,7 @@ struct MicroBlazeCPU {
         bool use_barrel;
         bool use_div;
         bool use_msr_instr;
+        bool use_pcmp_instr;
         bool use_mmu;
         bool dcache_writeback;
         bool endi;

@@ -157,7 +157,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         | PVR2_D_LMB_MASK \
                         | PVR2_I_OPB_MASK \
                         | PVR2_I_LMB_MASK \
-                        | PVR2_USE_PCMP_INSTR \
                         | PVR2_FPU_EXC_MASK \
                         | 0;
 
@@ -188,7 +187,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         (cpu->cfg.use_hw_mul > 1 ? PVR2_USE_MUL64_MASK : 0) |
                         (cpu->cfg.use_barrel ? PVR2_USE_BARREL_MASK : 0) |
                         (cpu->cfg.use_div ? PVR2_USE_DIV_MASK : 0) |
-                        (cpu->cfg.use_msr_instr ? PVR2_USE_MSR_INSTR : 0);
+                        (cpu->cfg.use_msr_instr ? PVR2_USE_MSR_INSTR : 0) |
+                        (cpu->cfg.use_pcmp_instr ? PVR2_USE_PCMP_INSTR : 0);
 
     env->pvr.regs[5] |= cpu->cfg.dcache_writeback ?
                                         PVR5_DCACHE_WRITEBACK_MASK : 0;
@@ -242,6 +242,7 @@ static Property mb_properties[] = {
     DEFINE_PROP_BOOL("use-barrel", MicroBlazeCPU, cfg.use_barrel, true),
     DEFINE_PROP_BOOL("use-div", MicroBlazeCPU, cfg.use_div, true),
     DEFINE_PROP_BOOL("use-msr-instr", MicroBlazeCPU, cfg.use_msr_instr, true),
+    DEFINE_PROP_BOOL("use-pcmp-instr", MicroBlazeCPU, cfg.use_pcmp_instr, true),
     DEFINE_PROP_BOOL("use-mmu", MicroBlazeCPU, cfg.use_mmu, true),
     DEFINE_PROP_BOOL("dcache-writeback", MicroBlazeCPU, cfg.dcache_writeback,
                      false),
