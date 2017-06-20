@@ -491,9 +491,9 @@ static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
 
 static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
 {
+    Error *local_err = NULL;
     struct stat buf;
     size_t size;
-    void *ptr;
 
     if (s->ivshmem_bar2) {
         error_setg(errp, "server sent unexpected shared memory message");
@@ -522,15 +522,13 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
     }
 
     /* mmap the region and map into the BAR2 */
-    ptr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (ptr == MAP_FAILED) {
-        error_setg_errno(errp, errno, "Failed to mmap shared memory");
-        close(fd);
+    memory_region_init_ram_from_fd(&s->server_bar2, OBJECT(s),
+                                   "ivshmem.bar2", size, true, fd, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
-    memory_region_init_ram_ptr(&s->server_bar2, OBJECT(s),
-                               "ivshmem.bar2", size, ptr);
-    memory_region_set_fd(&s->server_bar2, fd);
+
     s->ivshmem_bar2 = &s->server_bar2;
 }
 

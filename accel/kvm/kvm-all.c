@@ -36,7 +36,7 @@
 #include "exec/ram_addr.h"
 #include "exec/address-spaces.h"
 #include "qemu/event_notifier.h"
-#include "trace-root.h"
+#include "trace.h"
 #include "hw/irq.h"
 
 #include "hw/boards.h"
@@ -1977,6 +1977,7 @@ int kvm_cpu_exec(CPUState *cpu)
     }
 
     qemu_mutex_unlock_iothread();
+    cpu_exec_start(cpu);
 
     do {
         MemTxAttrs attrs;
@@ -2106,6 +2107,7 @@ int kvm_cpu_exec(CPUState *cpu)
         }
     } while (ret == 0);
 
+    cpu_exec_end(cpu);
     qemu_mutex_lock_iothread();
 
     if (ret < 0) {

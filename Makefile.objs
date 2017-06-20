@@ -52,7 +52,6 @@ common-obj-y += migration/
 
 common-obj-y += audio/
 common-obj-y += hw/
-common-obj-y += accel.o
 
 common-obj-y += replay/
 
@@ -111,6 +110,10 @@ qga-vss-dll-obj-y = qga/
 ivshmem-client-obj-y = contrib/ivshmem-client/
 ivshmem-server-obj-y = contrib/ivshmem-server/
 libvhost-user-obj-y = contrib/libvhost-user/
+vhost-user-scsi.o-cflags := $(LIBISCSI_CFLAGS)
+vhost-user-scsi.o-libs := $(LIBISCSI_LIBS)
+vhost-user-scsi-obj-y = contrib/vhost-user-scsi/
+vhost-user-scsi-obj-y += contrib/libvhost-user/libvhost-user.o
 
 ######################################################################
 trace-events-subdirs =
@@ -163,6 +166,8 @@ trace-events-subdirs += target/ppc
 trace-events-subdirs += qom
 trace-events-subdirs += linux-user
 trace-events-subdirs += qapi
+trace-events-subdirs += accel/tcg
+trace-events-subdirs += accel/kvm
 
 trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
 

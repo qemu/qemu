@@ -24,12 +24,8 @@
  * The function may be called from coroutine or from non-coroutine context.
  * When called from non-coroutine context @ioc must be in blocking mode.
  */
-ssize_t nbd_wr_syncv(QIOChannel *ioc,
-                     struct iovec *iov,
-                     size_t niov,
-                     size_t length,
-                     bool do_read,
-                     Error **errp)
+ssize_t nbd_rwv(QIOChannel *ioc, struct iovec *iov, size_t niov, size_t length,
+                bool do_read, Error **errp)
 {
     ssize_t done = 0;
     struct iovec *local_iov = g_new(struct iovec, niov);
@@ -67,6 +63,32 @@ ssize_t nbd_wr_syncv(QIOChannel *ioc,
  cleanup:
     g_free(local_iov_head);
     return done;
+}
+
+/* Discard length bytes from channel.  Return -errno on failure and 0 on
+ * success */
+int nbd_drop(QIOChannel *ioc, size_t size, Error **errp)
+{
+    ssize_t ret = 0;
+    char small[1024];
+    char *buffer;
+
+    buffer = sizeof(small) >= size ? small : g_malloc(MIN(65536, size));
+    while (size > 0) {
+        ssize_t count = MIN(65536, size);
+        ret = nbd_read(ioc, buffer, MIN(65536, size), errp);
+
+        if (ret < 0) {
+            goto cleanup;
+        }
+        size -= count;
+    }
+
+ cleanup:
+    if (buffer != small) {
+        g_free(buffer);
+    }
+    return ret;
 }
 
 

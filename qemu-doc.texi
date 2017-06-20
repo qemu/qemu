@@ -1,11 +1,12 @@
 \input texinfo @c -*- texinfo -*-
 @c %**start of header
 @setfilename qemu-doc.info
+@include version.texi
 
 @documentlanguage en
 @documentencoding UTF-8
 
-@settitle QEMU Emulator User Documentation
+@settitle QEMU version @value{VERSION} User Documentation
 @exampleindent 0
 @paragraphindent 0
 @c %**end of header
@@ -19,7 +20,7 @@
 @iftex
 @titlepage
 @sp 7
-@center @titlefont{QEMU Emulator}
+@center @titlefont{QEMU version @value{VERSION}}
 @sp 1
 @center @titlefont{User Documentation}
 @sp 3
