@@ -1476,7 +1476,6 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
 {
     sPAPRPHBState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    sPAPRDRConnectorClass *drck;
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
 
     if (!phb->dr_enabled) {
@@ -1488,8 +1487,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     g_assert(drc);
     g_assert(drc->dev == plugged_dev);
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    if (!drck->release_pending(drc)) {
+    if (!spapr_drc_unplug_requested(drc)) {
         PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
         uint32_t slotnr = PCI_SLOT(pdev->devfn);
         sPAPRDRConnector *func_drc;
@@ -1505,7 +1503,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
                 state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
-                    && !func_drck->release_pending(func_drc)) {
+                    && !spapr_drc_unplug_requested(func_drc)) {
                     error_setg(errp,
                                "PCI: slot %d, function %d still present. "
                                "Must unplug all non-0 functions first.",

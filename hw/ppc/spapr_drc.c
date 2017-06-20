@@ -66,7 +66,7 @@ static uint32_t drc_isolate_physical(sPAPRDRConnector *drc)
      * configured state, as suggested by the state diagram from PAPR+
      * 2.7, 13.4
      */
-    if (drc->awaiting_release) {
+    if (drc->unplug_requested) {
         uint32_t drc_index = spapr_drc_index(drc);
         if (drc->configured) {
             trace_spapr_drc_set_isolation_state_finalizing(drc_index);
@@ -116,7 +116,7 @@ static uint32_t drc_isolate_logical(sPAPRDRConnector *drc)
      * actually being unplugged, fail the isolation request here.
      */
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB
-        && !drc->awaiting_release) {
+        && !drc->unplug_requested) {
         return RTAS_OUT_HW_ERROR;
     }
 
@@ -130,7 +130,7 @@ static uint32_t drc_isolate_logical(sPAPRDRConnector *drc)
      * configured state, as suggested by the state diagram from PAPR+
      * 2.7, 13.4
      */
-    if (drc->awaiting_release) {
+    if (drc->unplug_requested) {
         uint32_t drc_index = spapr_drc_index(drc);
         if (drc->configured) {
             trace_spapr_drc_set_isolation_state_finalizing(drc_index);
@@ -170,7 +170,7 @@ static uint32_t drc_set_usable(sPAPRDRConnector *drc)
     if (!drc->dev) {
         return RTAS_OUT_NO_SUCH_INDICATOR;
     }
-    if (drc->awaiting_release) {
+    if (drc->unplug_requested) {
         /* Don't allow the guest to move a device away from UNUSABLE
          * state when we want to unplug it */
         return RTAS_OUT_NO_SUCH_INDICATOR;
@@ -184,7 +184,7 @@ static uint32_t drc_set_usable(sPAPRDRConnector *drc)
 static uint32_t drc_set_unusable(sPAPRDRConnector *drc)
 {
     drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_UNUSABLE;
-    if (drc->awaiting_release) {
+    if (drc->unplug_requested) {
         uint32_t drc_index = spapr_drc_index(drc);
         trace_spapr_drc_set_allocation_state_finalizing(drc_index);
         spapr_drc_detach(drc);
@@ -363,7 +363,7 @@ static void spapr_drc_release(sPAPRDRConnector *drc)
 
     drck->release(drc->dev);
 
-    drc->awaiting_release = false;
+    drc->unplug_requested = false;
     g_free(drc->fdt);
     drc->fdt = NULL;
     drc->fdt_start_offset = 0;
@@ -375,7 +375,7 @@ void spapr_drc_detach(sPAPRDRConnector *drc)
 {
     trace_spapr_drc_detach(spapr_drc_index(drc));
 
-    drc->awaiting_release = true;
+    drc->unplug_requested = true;
 
     if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
         trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
@@ -391,11 +391,6 @@ void spapr_drc_detach(sPAPRDRConnector *drc)
     spapr_drc_release(drc);
 }
 
-static bool release_pending(sPAPRDRConnector *drc)
-{
-    return drc->awaiting_release;
-}
-
 void spapr_drc_reset(sPAPRDRConnector *drc)
 {
     trace_spapr_drc_reset(spapr_drc_index(drc));
@@ -406,7 +401,7 @@ void spapr_drc_reset(sPAPRDRConnector *drc)
     /* immediately upon reset we can safely assume DRCs whose devices
      * are pending removal can be safely removed.
      */
-    if (drc->awaiting_release) {
+    if (drc->unplug_requested) {
         spapr_drc_release(drc);
     }
 
@@ -454,7 +449,7 @@ static bool spapr_drc_needed(void *opaque)
     case SPAPR_DR_CONNECTOR_TYPE_LMB:
         rc = !((drc->isolation_state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) &&
                (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) &&
-               drc->configured && !drc->awaiting_release);
+               drc->configured);
         break;
     case SPAPR_DR_CONNECTOR_TYPE_PHB:
     case SPAPR_DR_CONNECTOR_TYPE_VIO:
@@ -474,7 +469,6 @@ static const VMStateDescription vmstate_spapr_drc = {
         VMSTATE_UINT32(allocation_state, sPAPRDRConnector),
         VMSTATE_UINT32(dr_indicator, sPAPRDRConnector),
         VMSTATE_BOOL(configured, sPAPRDRConnector),
-        VMSTATE_BOOL(awaiting_release, sPAPRDRConnector),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -565,11 +559,9 @@ static void spapr_dr_connector_instance_init(Object *obj)
 static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
 {
     DeviceClass *dk = DEVICE_CLASS(k);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     dk->realize = realize;
     dk->unrealize = unrealize;
-    drck->release_pending = release_pending;
     /*
      * Reason: it crashes FIXME find and document the real reason
      */

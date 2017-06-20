@@ -199,10 +199,9 @@ typedef struct sPAPRDRConnector {
     bool configured;
     sPAPRConfigureConnectorState *ccs;
 
-    bool awaiting_release;
-
     /* device pointer, via link property */
     DeviceState *dev;
+    bool unplug_requested;
 } sPAPRDRConnector;
 
 typedef struct sPAPRDRConnectorClass {
@@ -218,9 +217,6 @@ typedef struct sPAPRDRConnectorClass {
     uint32_t (*isolate)(sPAPRDRConnector *drc);
     uint32_t (*unisolate)(sPAPRDRConnector *drc);
     void (*release)(DeviceState *dev);
-
-    /* QEMU interfaces for managing hotplug operations */
-    bool (*release_pending)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
 
 static inline bool spapr_drc_hotplugged(DeviceState *dev)
@@ -243,5 +239,10 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
 void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                       int fdt_start_offset, Error **errp);
 void spapr_drc_detach(sPAPRDRConnector *drc);
+
+static inline bool spapr_drc_unplug_requested(sPAPRDRConnector *drc)
+{
+    return drc->unplug_requested;
+}
 
 #endif /* HW_SPAPR_DRC_H */
