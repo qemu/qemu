@@ -4099,6 +4099,35 @@ DISAS_INSN(trap)
     gen_exception(s, s->pc - 2, EXCP_TRAP0 + (insn & 0xf));
 }
 
+static void gen_op_fmove_fcr(CPUM68KState *env, DisasContext *s,
+                             uint32_t insn, uint32_t ext)
+{
+    int mask = (ext >> 10) & 7;
+    int is_write = (ext >> 13) & 1;
+    TCGv val;
+
+    switch (mask) {
+    case 1: /* FPIAR */
+    case 2: /* FPSR */
+    default:
+        qemu_log_mask(LOG_UNIMP, "Unimplemented: fmove to/from control %d",
+                      mask);
+        goto undef;
+    case 4: /* FPCR */
+        if (is_write) {
+            val = tcg_const_i32(0);
+            DEST_EA(env, insn, OS_LONG, val, NULL);
+            tcg_temp_free(val);
+        }
+        /* Not implemented. Ignore register update */
+        break;
+    }
+    return;
+undef:
+    s->pc -= 2;
+    disas_undef_fpu(env, s, insn);
+}
+
 /* ??? FP exceptions are not implemented.  Most exceptions are deferred until
    immediately before the next FP instruction is executed.  */
 DISAS_INSN(fpu)
@@ -4177,32 +4206,9 @@ DISAS_INSN(fpu)
         tcg_temp_free_i32(tmp32);
         return;
     case 4: /* fmove to control register.  */
-        switch ((ext >> 10) & 7) {
-        case 4: /* FPCR */
-            /* Not implemented.  Ignore writes.  */
-            break;
-        case 1: /* FPIAR */
-        case 2: /* FPSR */
-        default:
-            cpu_abort(NULL, "Unimplemented: fmove to control %d",
-                      (ext >> 10) & 7);
-        }
-        break;
     case 5: /* fmove from control register.  */
-        switch ((ext >> 10) & 7) {
-        case 4: /* FPCR */
-            /* Not implemented.  Always return zero.  */
-            tmp32 = tcg_const_i32(0);
-            break;
-        case 1: /* FPIAR */
-        case 2: /* FPSR */
-        default:
-            cpu_abort(NULL, "Unimplemented: fmove from control %d",
-                      (ext >> 10) & 7);
-            goto undef;
-        }
-        DEST_EA(env, insn, OS_LONG, tmp32, NULL);
-        break;
+        gen_op_fmove_fcr(env, s, insn, ext);
+        return;
     case 6: /* fmovem */
     case 7:
         {
