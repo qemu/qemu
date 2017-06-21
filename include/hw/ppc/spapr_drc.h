@@ -191,12 +191,6 @@ typedef enum {
     SPAPR_DRC_STATE_PHYSICAL_CONFIGURED = 8,
 } sPAPRDRCState;
 
-/* rtas-configure-connector state */
-typedef struct sPAPRConfigureConnectorState {
-    int fdt_offset;
-    int fdt_depth;
-} sPAPRConfigureConnectorState;
-
 typedef struct sPAPRDRConnector {
     /*< private >*/
     DeviceState parent;
@@ -209,14 +203,16 @@ typedef struct sPAPRDRConnector {
 
     uint32_t state;
 
-    /* configure-connector state */
-    void *fdt;
-    int fdt_start_offset;
-    sPAPRConfigureConnectorState *ccs;
+    /* RTAS ibm,configure-connector state */
+    /* (only valid in UNISOLATE state) */
+    int ccs_offset;
+    int ccs_depth;
 
     /* device pointer, via link property */
     DeviceState *dev;
     bool unplug_requested;
+    void *fdt;
+    int fdt_start_offset;
 } sPAPRDRConnector;
 
 typedef struct sPAPRDRConnectorClass {

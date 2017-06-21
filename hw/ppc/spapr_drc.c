@@ -59,14 +59,6 @@ static uint32_t drc_isolate_physical(sPAPRDRConnector *drc)
         g_assert_not_reached();
     }
 
-    /* if the guest is configuring a device attached to this DRC, we
-     * should reset the configuration state at this point since it may
-     * no longer be reliable (guest released device and needs to start
-     * over, or unplug occurred so the FDT is no longer valid)
-     */
-    g_free(drc->ccs);
-    drc->ccs = NULL;
-
     drc->state = SPAPR_DRC_STATE_PHYSICAL_POWERON;
 
     if (drc->unplug_requested) {
@@ -99,6 +91,8 @@ static uint32_t drc_unisolate_physical(sPAPRDRConnector *drc)
     }
 
     drc->state = SPAPR_DRC_STATE_PHYSICAL_UNISOLATE;
+    drc->ccs_offset = drc->fdt_start_offset;
+    drc->ccs_depth = 0;
 
     return RTAS_OUT_SUCCESS;
 }
@@ -116,14 +110,6 @@ static uint32_t drc_isolate_logical(sPAPRDRConnector *drc)
     default:
         g_assert_not_reached();
     }
-
-    /* if the guest is configuring a device attached to this DRC, we
-     * should reset the configuration state at this point since it may
-     * no longer be reliable (guest released device and needs to start
-     * over, or unplug occurred so the FDT is no longer valid)
-     */
-    g_free(drc->ccs);
-    drc->ccs = NULL;
 
     /*
      * Fail any requests to ISOLATE the LMB DRC if this LMB doesn't
@@ -176,6 +162,9 @@ static uint32_t drc_unisolate_logical(sPAPRDRConnector *drc)
     g_assert(drc->dev);
 
     drc->state = SPAPR_DRC_STATE_LOGICAL_UNISOLATE;
+    drc->ccs_offset = drc->fdt_start_offset;
+    drc->ccs_depth = 0;
+
     return RTAS_OUT_SUCCESS;
 }
 
@@ -441,9 +430,6 @@ void spapr_drc_reset(sPAPRDRConnector *drc)
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
-    g_free(drc->ccs);
-    drc->ccs = NULL;
-
     /* immediately upon reset we can safely assume DRCs whose devices
      * are pending removal can be safely removed.
      */
@@ -457,6 +443,9 @@ void spapr_drc_reset(sPAPRDRConnector *drc)
     } else {
         drc->state = drck->empty_state;
     }
+
+    drc->ccs_offset = -1;
+    drc->ccs_depth = -1;
 }
 
 static void drc_reset(void *opaque)
@@ -1005,7 +994,6 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     uint32_t drc_index;
     sPAPRDRConnector *drc;
     sPAPRDRConnectorClass *drck;
-    sPAPRConfigureConnectorState *ccs;
     sPAPRDRCCResponse resp = SPAPR_DR_CC_RESPONSE_CONTINUE;
     int rc;
 
@@ -1035,25 +1023,18 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    ccs = drc->ccs;
-    if (!ccs) {
-        ccs = g_new0(sPAPRConfigureConnectorState, 1);
-        ccs->fdt_offset = drc->fdt_start_offset;
-        drc->ccs = ccs;
-    }
-
     do {
         uint32_t tag;
         const char *name;
         const struct fdt_property *prop;
         int fdt_offset_next, prop_len;
 
-        tag = fdt_next_tag(drc->fdt, ccs->fdt_offset, &fdt_offset_next);
+        tag = fdt_next_tag(drc->fdt, drc->ccs_offset, &fdt_offset_next);
 
         switch (tag) {
         case FDT_BEGIN_NODE:
-            ccs->fdt_depth++;
-            name = fdt_get_name(drc->fdt, ccs->fdt_offset, NULL);
+            drc->ccs_depth++;
+            name = fdt_get_name(drc->fdt, drc->ccs_offset, NULL);
 
             /* provide the name of the next OF node */
             wa_offset = CC_VAL_DATA_OFFSET;
@@ -1062,23 +1043,22 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             resp = SPAPR_DR_CC_RESPONSE_NEXT_CHILD;
             break;
         case FDT_END_NODE:
-            ccs->fdt_depth--;
-            if (ccs->fdt_depth == 0) {
+            drc->ccs_depth--;
+            if (drc->ccs_depth == 0) {
                 uint32_t drc_index = spapr_drc_index(drc);
 
                 /* done sending the device tree, move to configured state */
                 trace_spapr_drc_set_configured(drc_index);
                 drc->state = drck->ready_state;
-                g_free(ccs);
-                drc->ccs = NULL;
-                ccs = NULL;
+                drc->ccs_offset = -1;
+                drc->ccs_depth = -1;
                 resp = SPAPR_DR_CC_RESPONSE_SUCCESS;
             } else {
                 resp = SPAPR_DR_CC_RESPONSE_PREV_PARENT;
             }
             break;
         case FDT_PROP:
-            prop = fdt_get_property_by_offset(drc->fdt, ccs->fdt_offset,
+            prop = fdt_get_property_by_offset(drc->fdt, drc->ccs_offset,
                                               &prop_len);
             name = fdt_string(drc->fdt, fdt32_to_cpu(prop->nameoff));
 
@@ -1103,8 +1083,8 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
             /* keep seeking for an actionable tag */
             break;
         }
-        if (ccs) {
-            ccs->fdt_offset = fdt_offset_next;
+        if (drc->ccs_offset >= 0) {
+            drc->ccs_offset = fdt_offset_next;
         }
     } while (resp == SPAPR_DR_CC_RESPONSE_CONTINUE);
 
