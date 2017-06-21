@@ -931,11 +931,13 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         }
         new_stack = 0;
         esp = env->regs[R_ESP];
-        dpl = cpl;
     } else {
         raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
         new_stack = 0; /* avoid warning */
         esp = 0; /* avoid warning */
+    }
+    if (e2 & DESC_C_MASK) {
+        dpl = cpl;
     }
     esp &= ~0xfLL; /* align stack */
 
@@ -956,7 +958,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 
     if (new_stack) {
         ss = 0 | dpl;
-        cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, 0);
+        cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, dpl << DESC_DPL_SHIFT);
     }
     env->regs[R_ESP] = esp;
 
