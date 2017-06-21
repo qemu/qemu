@@ -130,7 +130,7 @@ static uint32_t adlib_read(void *opaque, uint32_t nport)
     return data;
 }
 
-static void timer_handler (int c, double interval_Sec)
+static void timer_handler (void *opaque, int c, double interval_Sec)
 {
     AdlibState *s = glob_adlib;
     unsigned n = c & 1;
