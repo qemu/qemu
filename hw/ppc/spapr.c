@@ -2636,12 +2636,6 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
 
         spapr_drc_attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, errp);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
-        if (!dev->hotplugged) {
-            sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-            /* guests expect coldplugged LMBs to be pre-allocated */
-            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
-            drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
-        }
     }
     /* send hotplug notification to the
      * guest only in case of hotplugged memory
@@ -3009,15 +3003,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
          * of hotplugged CPUs.
          */
         spapr_hotplug_req_add_by_index(drc);
-    } else {
-        /*
-         * Set the right DRC states for cold plugged CPU.
-         */
-        if (drc) {
-            sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_USABLE);
-            drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_UNISOLATED);
-        }
     }
     core_slot->cpu = OBJECT(dev);
 
