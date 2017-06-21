@@ -1022,11 +1022,18 @@ static int blk_init(struct XenDevice *xendev)
 
     blkdev->file_blk  = BLOCK_SIZE;
 
+    blkdev->feature_grant_copy =
+                (xengnttab_grant_copy(blkdev->xendev.gnttabdev, 0, NULL) == 0);
+
+    xen_pv_printf(&blkdev->xendev, 3, "grant copy operation %s\n",
+                  blkdev->feature_grant_copy ? "enabled" : "disabled");
+
     /* fill info
      * blk_connect supplies sector-size and sectors
      */
     xenstore_write_be_int(&blkdev->xendev, "feature-flush-cache", 1);
-    xenstore_write_be_int(&blkdev->xendev, "feature-persistent", 1);
+    xenstore_write_be_int(&blkdev->xendev, "feature-persistent",
+                          !blkdev->feature_grant_copy);
     xenstore_write_be_int(&blkdev->xendev, "info", info);
 
     blk_parse_discard(blkdev);
@@ -1200,12 +1207,6 @@ static int blk_connect(struct XenDevice *xendev)
     }
 
     xen_be_bind_evtchn(&blkdev->xendev);
-
-    blkdev->feature_grant_copy =
-                (xengnttab_grant_copy(blkdev->xendev.gnttabdev, 0, NULL) == 0);
-
-    xen_pv_printf(&blkdev->xendev, 3, "grant copy operation %s\n",
-                  blkdev->feature_grant_copy ? "enabled" : "disabled");
 
     xen_pv_printf(&blkdev->xendev, 1, "ok: proto %s, ring-ref %d, "
                   "remote port %d, local port %d\n",
