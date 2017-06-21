@@ -9,14 +9,6 @@
 #
 FROM debian:stable-slim
 
-# Setup some basic tools we need
-RUN apt update
-RUN apt install -yy curl aptitude
-
-# Setup Emdebian
-RUN echo "deb http://emdebian.org/tools/debian/ jessie main" >> /etc/apt/sources.list
-RUN curl http://emdebian.org/tools/debian/emdebian-toolchain-archive.key | apt-key add -
-
 # Duplicate deb line as deb-src
 RUN cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list
 
