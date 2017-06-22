@@ -902,7 +902,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
     }
 
     sector_offset = offset % VHDX_LOG_SECTOR_SIZE;
-    file_offset = (offset / VHDX_LOG_SECTOR_SIZE) * VHDX_LOG_SECTOR_SIZE;
+    file_offset = QEMU_ALIGN_DOWN(offset, VHDX_LOG_SECTOR_SIZE);
 
     aligned_length = length;
 
