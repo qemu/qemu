@@ -57,9 +57,9 @@ static inline bool in6_equal_mach(const struct in6_addr *a,
                                   const struct in6_addr *b,
                                   int prefix_len)
 {
-    if (memcmp(&(a->s6_addr[(prefix_len + 7) / 8]),
-               &(b->s6_addr[(prefix_len + 7) / 8]),
-               16 - (prefix_len + 7) / 8) != 0) {
+    if (memcmp(&(a->s6_addr[DIV_ROUND_UP(prefix_len, 8)]),
+               &(b->s6_addr[DIV_ROUND_UP(prefix_len, 8)]),
+               16 - DIV_ROUND_UP(prefix_len, 8)) != 0) {
         return 0;
     }
 
