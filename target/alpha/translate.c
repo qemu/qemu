@@ -84,6 +84,7 @@ typedef enum {
        the PC (for whatever reason), so there's no need to do it again on
        exiting the TB.  */
     EXIT_PC_UPDATED,
+    EXIT_PC_UPDATED_NOCHAIN,
 
     /* We are exiting the TB, but have neither emitted a goto_tb, nor
        updated the PC for the next instruction to be executed.  */
@@ -458,11 +459,17 @@ static bool in_superpage(DisasContext *ctx, int64_t addr)
 #endif
 }
 
+static bool use_exit_tb(DisasContext *ctx)
+{
+    return ((ctx->tb->cflags & CF_LAST_IO)
+            || ctx->singlestep_enabled
+            || singlestep);
+}
+
 static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
 {
     /* Suppress goto_tb in the case of single-steping and IO.  */
-    if ((ctx->tb->cflags & CF_LAST_IO)
-        || ctx->singlestep_enabled || singlestep) {
+    if (unlikely(use_exit_tb(ctx))) {
         return false;
     }
 #ifndef CONFIG_USER_ONLY
@@ -1198,7 +1205,10 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             tcg_gen_andi_i64(tmp, ctx->ir[IR_A0], PS_INT_MASK);
             tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, ps));
             tcg_temp_free(tmp);
-            break;
+
+            /* Allow interrupts to be recognized right away.  */
+            tcg_gen_movi_i64(cpu_pc, ctx->pc);
+            return EXIT_PC_UPDATED_NOCHAIN;
 
         case 0x36:
             /* RDPS */
@@ -1266,7 +1276,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
            need the page permissions check.  We'll see the existence of
            the page when we create the TB, and we'll flush all TBs if
            we change the PAL base register.  */
-        if (!ctx->singlestep_enabled && !(ctx->tb->cflags & CF_LAST_IO)) {
+        if (!use_exit_tb(ctx)) {
             tcg_gen_goto_tb(0);
             tcg_gen_movi_i64(cpu_pc, entry);
             tcg_gen_exit_tb((uintptr_t)ctx->tb);
@@ -2686,7 +2696,8 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         tcg_gen_andi_i64(tmp, vb, 1);
         tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, pal_mode));
         tcg_gen_andi_i64(cpu_pc, vb, ~3);
-        ret = EXIT_PC_UPDATED;
+        /* Allow interrupts to be recognized right away.  */
+        ret = EXIT_PC_UPDATED_NOCHAIN;
         break;
 #else
         goto invalid_opc;
@@ -3010,6 +3021,12 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
         /* FALLTHRU */
     case EXIT_PC_UPDATED:
+        if (!use_exit_tb(&ctx)) {
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            break;
+        }
+        /* FALLTHRU */
+    case EXIT_PC_UPDATED_NOCHAIN:
         if (ctx.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG, 0);
         } else {

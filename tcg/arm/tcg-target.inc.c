@@ -418,23 +418,37 @@ static inline void tcg_out_dat_imm(TCGContext *s,
 
 static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
 {
-    int rot, opc, rn;
+    int rot, opc, rn, diff;
 
-    /* For armv7, make sure not to use movw+movt when mov/mvn would do.
-       Speed things up by only checking when movt would be required.
-       Prior to armv7, have one go at fully rotated immediates before
-       doing the decomposition thing below.  */
-    if (!use_armv7_instructions || (arg & 0xffff0000)) {
-        rot = encode_imm(arg);
+    /* Check a single MOV/MVN before anything else.  */
+    rot = encode_imm(arg);
+    if (rot >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0,
+                        rotl(arg, rot) | (rot << 7));
+        return;
+    }
+    rot = encode_imm(~arg);
+    if (rot >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0,
+                        rotl(~arg, rot) | (rot << 7));
+        return;
+    }
+
+    /* Check for a pc-relative address.  This will usually be the TB,
+       or within the TB, which is immediately before the code block.  */
+    diff = arg - ((intptr_t)s->code_ptr + 8);
+    if (diff >= 0) {
+        rot = encode_imm(diff);
         if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0,
-                            rotl(arg, rot) | (rot << 7));
+            tcg_out_dat_imm(s, cond, ARITH_ADD, rd, TCG_REG_PC,
+                            rotl(diff, rot) | (rot << 7));
             return;
         }
-        rot = encode_imm(~arg);
+    } else {
+        rot = encode_imm(-diff);
         if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0,
-                            rotl(~arg, rot) | (rot << 7));
+            tcg_out_dat_imm(s, cond, ARITH_SUB, rd, TCG_REG_PC,
+                            rotl(-diff, rot) | (rot << 7));
             return;
         }
     }
@@ -1024,16 +1038,6 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *addr)
         tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_PC, -4);
         tcg_out32(s, addri);
     }
-}
-
-void arm_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
-{
-    tcg_insn_unit *code_ptr = (tcg_insn_unit *)jmp_addr;
-    tcg_insn_unit *target = (tcg_insn_unit *)addr;
-
-    /* we could use a ldr pc, [pc, #-4] kind of branch and avoid the flush */
-    reloc_pc24_atomic(code_ptr, target);
-    flush_icache_range(jmp_addr, jmp_addr + 4);
 }
 
 static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
@@ -1665,17 +1669,27 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_insn_offset) {
-            /* Direct jump method */
-            s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
-            tcg_out_b_noaddr(s, COND_AL);
-        } else {
+        {
             /* Indirect jump method */
-            intptr_t ptr = (intptr_t)(s->tb_jmp_target_addr + args[0]);
-            tcg_out_movi32(s, COND_AL, TCG_REG_R0, ptr & ~0xfff);
-            tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_R0, ptr & 0xfff);
+            intptr_t ptr, dif, dil;
+            TCGReg base = TCG_REG_PC;
+
+            tcg_debug_assert(s->tb_jmp_insn_offset == 0);
+            ptr = (intptr_t)(s->tb_jmp_target_addr + args[0]);
+            dif = ptr - ((intptr_t)s->code_ptr + 8);
+            dil = sextract32(dif, 0, 12);
+            if (dif != dil) {
+                /* The TB is close, but outside the 12 bits addressable by
+                   the load.  We can extend this to 20 bits with a sub of a
+                   shifted immediate from pc.  In the vastly unlikely event
+                   the code requires more than 1MB, we'll use 2 insns and
+                   be no worse off.  */
+                base = TCG_REG_R0;
+                tcg_out_movi32(s, COND_AL, base, ptr - dil);
+            }
+            tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, base, dil);
+            s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         }
-        s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_goto_ptr:
         tcg_out_bx(s, COND_AL, args[0]);

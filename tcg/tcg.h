@@ -697,7 +697,6 @@ struct TCGContext {
        here, because there's too much arithmetic throughout that relies
        on addition and subtraction working on bytes.  Rely on the GCC
        extension that allows arithmetic on void*.  */
-    int code_gen_max_blocks;
     void *code_gen_prologue;
     void *code_gen_epilogue;
     void *code_gen_buffer;
@@ -756,6 +755,7 @@ static inline bool tcg_op_buf_full(void)
 /* tb_lock must be held for tcg_malloc_internal. */
 void *tcg_malloc_internal(TCGContext *s, int size);
 void tcg_pool_reset(TCGContext *s);
+TranslationBlock *tcg_tb_alloc(TCGContext *s);
 
 void tb_lock(void);
 void tb_unlock(void);
