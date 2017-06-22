@@ -1490,7 +1490,7 @@ F: tests/vmstate-static-checker-data/
 F: docs/migration.txt
 
 Seccomp
-M: Eduardo Otubo <eduardo.otubo@profitbricks.com>
+M: Eduardo Otubo <otubo@redhat.com>
 S: Supported
 F: qemu-seccomp.c
 F: include/sysemu/seccomp.h
