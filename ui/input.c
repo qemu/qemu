@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include "hw/qdev.h"
 #include "sysemu/sysemu.h"
 #include "qapi-types.h"
 #include "qemu/error-report.h"

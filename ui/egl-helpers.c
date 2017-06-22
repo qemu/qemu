@@ -24,6 +24,82 @@
 EGLDisplay *qemu_egl_display;
 EGLConfig qemu_egl_config;
 
+/* ------------------------------------------------------------------ */
+
+void egl_fb_destroy(egl_fb *fb)
+{
+    if (!fb->framebuffer) {
+        return;
+    }
+
+    if (fb->delete_texture) {
+        glDeleteTextures(1, &fb->texture);
+        fb->delete_texture = false;
+    }
+    glDeleteFramebuffers(1, &fb->framebuffer);
+
+    fb->width = 0;
+    fb->height = 0;
+    fb->texture = 0;
+    fb->framebuffer = 0;
+}
+
+void egl_fb_setup_default(egl_fb *fb, int width, int height)
+{
+    fb->width = width;
+    fb->height = height;
+    fb->framebuffer = 0; /* default framebuffer */
+}
+
+void egl_fb_create_for_tex(egl_fb *fb, int width, int height, GLuint texture)
+{
+    fb->width = width;
+    fb->height = height;
+    fb->texture = texture;
+    if (!fb->framebuffer) {
+        glGenFramebuffers(1, &fb->framebuffer);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER_EXT, fb->framebuffer);
+    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+                              GL_TEXTURE_2D, fb->texture, 0);
+}
+
+void egl_fb_create_new_tex(egl_fb *fb, int width, int height)
+{
+    GLuint texture;
+
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height,
+                 0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+
+    egl_fb_create_for_tex(fb, width, height, texture);
+    fb->delete_texture = true;
+}
+
+void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)
+{
+    GLuint y1, y2;
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst->framebuffer);
+    glViewport(0, 0, dst->width, dst->height);
+    y1 = flip ? src->height : 0;
+    y2 = flip ? 0 : src->height;
+    glBlitFramebuffer(0, y1, src->width, y2,
+                      0, 0, dst->width, dst->height,
+                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+void egl_fb_read(void *dst, egl_fb *src)
+{
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer);
+    glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+    glReadPixels(0, 0, src->width, src->height,
+                 GL_BGRA, GL_UNSIGNED_BYTE, dst);
+}
+
 /* ---------------------------------------------------------------------- */
 
 #ifdef CONFIG_OPENGL_DMABUF

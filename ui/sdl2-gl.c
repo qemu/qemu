@@ -42,14 +42,7 @@ static void sdl2_set_scanout_mode(struct sdl2_console *scon, bool scanout)
 
     scon->scanout_mode = scanout;
     if (!scon->scanout_mode) {
-        if (scon->fbo_id) {
-            glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT,
-                                      GL_COLOR_ATTACHMENT0_EXT,
-                                      GL_TEXTURE_2D, 0, 0);
-            glDeleteFramebuffers(1, &scon->fbo_id);
-            glBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
-            scon->fbo_id = 0;
-        }
+        egl_fb_destroy(&scon->guest_fb);
         if (scon->surface) {
             surface_gl_destroy_texture(scon->gls, scon->surface);
             surface_gl_create_texture(scon->gls, scon->surface);
@@ -191,7 +184,6 @@ void sdl2_gl_scanout_disable(DisplayChangeListener *dcl)
     assert(scon->opengl);
     scon->w = 0;
     scon->h = 0;
-    scon->tex_id = 0;
     sdl2_set_scanout_mode(scon, false);
 }
 
@@ -210,48 +202,34 @@ void sdl2_gl_scanout_texture(DisplayChangeListener *dcl,
     scon->y = y;
     scon->w = w;
     scon->h = h;
-    scon->tex_id = backing_id;
     scon->y0_top = backing_y_0_top;
 
     SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
 
     sdl2_set_scanout_mode(scon, true);
-    if (!scon->fbo_id) {
-        glGenFramebuffers(1, &scon->fbo_id);
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER_EXT, scon->fbo_id);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
-                              GL_TEXTURE_2D, scon->tex_id, 0);
+    egl_fb_create_for_tex(&scon->guest_fb, backing_width, backing_height,
+                          backing_id);
 }
 
 void sdl2_gl_scanout_flush(DisplayChangeListener *dcl,
                            uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
-    int ww, wh, y1, y2;
+    int ww, wh;
 
     assert(scon->opengl);
     if (!scon->scanout_mode) {
         return;
     }
-    if (!scon->fbo_id) {
+    if (!scon->guest_fb.framebuffer) {
         return;
     }
 
     SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, scon->fbo_id);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
     SDL_GetWindowSize(scon->real_window, &ww, &wh);
-    glViewport(0, 0, ww, wh);
-    y1 = scon->y0_top ? 0 : scon->h;
-    y2 = scon->y0_top ? scon->h : 0;
-    glBlitFramebuffer(0, y1, scon->w, y2,
-                      0, 0, ww, wh,
-                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    glBindFramebuffer(GL_FRAMEBUFFER_EXT, scon->fbo_id);
+    egl_fb_setup_default(&scon->win_fb, ww, wh);
+    egl_fb_blit(&scon->win_fb, &scon->guest_fb, !scon->y0_top);
 
     SDL_GL_SwapWindow(scon->real_window);
 }
