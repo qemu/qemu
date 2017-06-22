@@ -69,6 +69,12 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
 }
 
+static void set_default_value_enum(Object *obj, const Property *prop)
+{
+    object_property_set_str(obj, prop->info->enum_table[prop->defval.i],
+                            prop->name, &error_abort);
+}
+
 /* Bit */
 
 static uint32_t qdev_get_prop_mask(Property *prop)
@@ -120,11 +126,17 @@ static void prop_set_bit(Object *obj, Visitor *v, const char *name,
     bit_prop_set(dev, prop, value);
 }
 
+static void set_default_value_bool(Object *obj, const Property *prop)
+{
+    object_property_set_bool(obj, prop->defval.u, prop->name, &error_abort);
+}
+
 PropertyInfo qdev_prop_bit = {
     .name  = "bool",
     .description = "on/off",
     .get   = prop_get_bit,
     .set   = prop_set_bit,
+    .set_default_value = set_default_value_bool,
 };
 
 /* Bit64 */
@@ -183,6 +195,7 @@ PropertyInfo qdev_prop_bit64 = {
     .description = "on/off",
     .get   = prop_get_bit64,
     .set   = prop_set_bit64,
+    .set_default_value = set_default_value_bool,
 };
 
 /* --- bool --- */
@@ -216,6 +229,7 @@ PropertyInfo qdev_prop_bool = {
     .name  = "bool",
     .get   = get_bool,
     .set   = set_bool,
+    .set_default_value = set_default_value_bool,
 };
 
 /* --- 8bit integer --- */
@@ -245,10 +259,21 @@ static void set_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_uint8(v, name, ptr, errp);
 }
 
+static void set_default_value_int(Object *obj, const Property *prop)
+{
+    object_property_set_int(obj, prop->defval.i, prop->name, &error_abort);
+}
+
+static void set_default_value_uint(Object *obj, const Property *prop)
+{
+    object_property_set_uint(obj, prop->defval.u, prop->name, &error_abort);
+}
+
 PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
     .get   = get_uint8,
     .set   = set_uint8,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- 16bit integer --- */
@@ -282,6 +307,7 @@ PropertyInfo qdev_prop_uint16 = {
     .name  = "uint16",
     .get   = get_uint16,
     .set   = set_uint16,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- 32bit integer --- */
@@ -340,12 +366,14 @@ PropertyInfo qdev_prop_uint32 = {
     .name  = "uint32",
     .get   = get_uint32,
     .set   = set_uint32,
+    .set_default_value = set_default_value_uint,
 };
 
 PropertyInfo qdev_prop_int32 = {
     .name  = "int32",
     .get   = get_int32,
     .set   = set_int32,
+    .set_default_value = set_default_value_int,
 };
 
 /* --- 64bit integer --- */
@@ -379,6 +407,7 @@ PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
     .get   = get_uint64,
     .set   = set_uint64,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- string --- */
@@ -526,6 +555,7 @@ PropertyInfo qdev_prop_on_off_auto = {
     .enum_table = OnOffAuto_lookup,
     .get = get_enum,
     .set = set_enum,
+    .set_default_value = set_default_value_enum,
 };
 
 /* --- lost tick policy --- */
@@ -537,6 +567,7 @@ PropertyInfo qdev_prop_losttickpolicy = {
     .enum_table  = LostTickPolicy_lookup,
     .get   = get_enum,
     .set   = set_enum,
+    .set_default_value = set_default_value_enum,
 };
 
 /* --- Block device error handling policy --- */
@@ -550,6 +581,7 @@ PropertyInfo qdev_prop_blockdev_on_error = {
     .enum_table = BlockdevOnError_lookup,
     .get = get_enum,
     .set = set_enum,
+    .set_default_value = set_default_value_enum,
 };
 
 /* --- BIOS CHS translation */
@@ -563,6 +595,7 @@ PropertyInfo qdev_prop_bios_chs_trans = {
     .enum_table = BiosAtaTranslation_lookup,
     .get = get_enum,
     .set = set_enum,
+    .set_default_value = set_default_value_enum,
 };
 
 /* --- FDC default drive types */
@@ -573,7 +606,8 @@ PropertyInfo qdev_prop_fdc_drive_type = {
                    "144/288/120/none/auto",
     .enum_table = FloppyDriveType_lookup,
     .get = get_enum,
-    .set = set_enum
+    .set = set_enum,
+    .set_default_value = set_default_value_enum,
 };
 
 /* --- pci address --- */
@@ -648,6 +682,7 @@ PropertyInfo qdev_prop_pci_devfn = {
     .print = print_pci_devfn,
     .get   = get_int32,
     .set   = set_pci_devfn,
+    .set_default_value = set_default_value_int,
 };
 
 /* --- blocksize --- */
@@ -695,6 +730,7 @@ PropertyInfo qdev_prop_blocksize = {
     .description = "A power of two between 512 and 32768",
     .get   = get_uint16,
     .set   = set_blocksize,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- pci host address --- */
@@ -917,6 +953,7 @@ PropertyInfo qdev_prop_arraylen = {
     .name = "uint32",
     .get = get_uint32,
     .set = set_prop_arraylen,
+    .set_default_value = set_default_value_uint,
 };
 
 /* --- public helpers --- */
@@ -1153,4 +1190,5 @@ PropertyInfo qdev_prop_size = {
     .name  = "size",
     .get = get_size,
     .set = set_size,
+    .set_default_value = set_default_value_uint,
 };

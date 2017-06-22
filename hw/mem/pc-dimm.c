@@ -46,7 +46,8 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     uint64_t existing_dimms_capacity = 0;
     uint64_t addr;
 
-    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    addr = object_property_get_uint(OBJECT(dimm),
+                                    PC_DIMM_ADDR_PROP, &local_err);
     if (local_err) {
         goto out;
     }
@@ -73,7 +74,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
         goto out;
     }
 
-    object_property_set_int(OBJECT(dev), addr, PC_DIMM_ADDR_PROP, &local_err);
+    object_property_set_uint(OBJECT(dev), addr, PC_DIMM_ADDR_PROP, &local_err);
     if (local_err) {
         goto out;
     }
@@ -135,7 +136,7 @@ static int pc_existing_dimms_capacity_internal(Object *obj, void *opaque)
         DeviceState *dev = DEVICE(obj);
 
         if (dev->realized) {
-            (*size) += object_property_get_int(obj, PC_DIMM_SIZE_PROP,
+            (*size) += object_property_get_uint(obj, PC_DIMM_SIZE_PROP,
                 cap->errp);
         }
 
@@ -181,8 +182,8 @@ int qmp_pc_dimm_device_list(Object *obj, void *opaque)
             di->addr = dimm->addr;
             di->slot = dimm->slot;
             di->node = dimm->node;
-            di->size = object_property_get_int(OBJECT(dimm), PC_DIMM_SIZE_PROP,
-                                               NULL);
+            di->size = object_property_get_uint(OBJECT(dimm), PC_DIMM_SIZE_PROP,
+                                                NULL);
             di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
 
             info->u.dimm.data = di;
@@ -313,9 +314,9 @@ uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
     /* find address range that will fit new DIMM */
     for (item = list; item; item = g_slist_next(item)) {
         PCDIMMDevice *dimm = item->data;
-        uint64_t dimm_size = object_property_get_int(OBJECT(dimm),
-                                                     PC_DIMM_SIZE_PROP,
-                                                     errp);
+        uint64_t dimm_size = object_property_get_uint(OBJECT(dimm),
+                                                      PC_DIMM_SIZE_PROP,
+                                                      errp);
         if (errp && *errp) {
             goto out;
         }
@@ -355,7 +356,7 @@ static Property pc_dimm_properties[] = {
 static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
-    int64_t value;
+    uint64_t value;
     MemoryRegion *mr;
     PCDIMMDevice *dimm = PC_DIMM(obj);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(obj);
@@ -363,7 +364,7 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     mr = ddc->get_memory_region(dimm);
     value = memory_region_size(mr);
 
-    visit_type_int(v, name, &value, errp);
+    visit_type_uint64(v, name, &value, errp);
 }
 
 static void pc_dimm_check_memdev_is_busy(Object *obj, const char *name,
@@ -386,7 +387,7 @@ static void pc_dimm_init(Object *obj)
 {
     PCDIMMDevice *dimm = PC_DIMM(obj);
 
-    object_property_add(obj, PC_DIMM_SIZE_PROP, "int", pc_dimm_get_size,
+    object_property_add(obj, PC_DIMM_SIZE_PROP, "uint64", pc_dimm_get_size,
                         NULL, NULL, NULL, &error_abort);
     object_property_add_link(obj, PC_DIMM_MEMDEV_PROP, TYPE_MEMORY_BACKEND,
                              (Object **)&dimm->hostmem,

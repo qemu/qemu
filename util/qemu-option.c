@@ -941,9 +941,8 @@ typedef struct OptsFromQDictState {
 static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
 {
     OptsFromQDictState *state = opaque;
-    char buf[32];
+    char buf[32], *tmp = NULL;
     const char *value;
-    int n;
 
     if (!strcmp(key, "id") || *state->errp) {
         return;
@@ -953,17 +952,9 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
     case QTYPE_QSTRING:
         value = qstring_get_str(qobject_to_qstring(obj));
         break;
-    case QTYPE_QINT:
-        n = snprintf(buf, sizeof(buf), "%" PRId64,
-                     qint_get_int(qobject_to_qint(obj)));
-        assert(n < sizeof(buf));
-        value = buf;
-        break;
-    case QTYPE_QFLOAT:
-        n = snprintf(buf, sizeof(buf), "%.17g",
-                     qfloat_get_double(qobject_to_qfloat(obj)));
-        assert(n < sizeof(buf));
-        value = buf;
+    case QTYPE_QNUM:
+        tmp = qnum_to_string(qobject_to_qnum(obj));
+        value = tmp;
         break;
     case QTYPE_QBOOL:
         pstrcpy(buf, sizeof(buf),
@@ -975,13 +966,14 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
     }
 
     qemu_opt_set(state->opts, key, value, state->errp);
+    g_free(tmp);
 }
 
 /*
  * Create QemuOpts from a QDict.
- * Use value of key "id" as ID if it exists and is a QString.
- * Only QStrings, QInts, QFloats and QBools are copied.  Entries with
- * other types are silently ignored.
+ * Use value of key "id" as ID if it exists and is a QString.  Only
+ * QStrings, QNums and QBools are copied.  Entries with other types
+ * are silently ignored.
  */
 QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
                                Error **errp)

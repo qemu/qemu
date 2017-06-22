@@ -6,7 +6,7 @@ object Object
     tag base1
     case one: Variant1
     case two: Variant2
-enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
 object SugaredUnion
     member type: SugaredUnionKind optional=False

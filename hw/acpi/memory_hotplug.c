@@ -83,23 +83,25 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
     o = OBJECT(mdev->dimm);
     switch (addr) {
     case 0x0: /* Lo part of phys address where DIMM is mapped */
-        val = o ? object_property_get_int(o, PC_DIMM_ADDR_PROP, NULL) : 0;
+        val = o ? object_property_get_uint(o, PC_DIMM_ADDR_PROP, NULL) : 0;
         trace_mhp_acpi_read_addr_lo(mem_st->selector, val);
         break;
     case 0x4: /* Hi part of phys address where DIMM is mapped */
-        val = o ? object_property_get_int(o, PC_DIMM_ADDR_PROP, NULL) >> 32 : 0;
+        val =
+            o ? object_property_get_uint(o, PC_DIMM_ADDR_PROP, NULL) >> 32 : 0;
         trace_mhp_acpi_read_addr_hi(mem_st->selector, val);
         break;
     case 0x8: /* Lo part of DIMM size */
-        val = o ? object_property_get_int(o, PC_DIMM_SIZE_PROP, NULL) : 0;
+        val = o ? object_property_get_uint(o, PC_DIMM_SIZE_PROP, NULL) : 0;
         trace_mhp_acpi_read_size_lo(mem_st->selector, val);
         break;
     case 0xc: /* Hi part of DIMM size */
-        val = o ? object_property_get_int(o, PC_DIMM_SIZE_PROP, NULL) >> 32 : 0;
+        val =
+            o ? object_property_get_uint(o, PC_DIMM_SIZE_PROP, NULL) >> 32 : 0;
         trace_mhp_acpi_read_size_hi(mem_st->selector, val);
         break;
     case 0x10: /* node proximity for _PXM method */
-        val = o ? object_property_get_int(o, PC_DIMM_NODE_PROP, NULL) : 0;
+        val = o ? object_property_get_uint(o, PC_DIMM_NODE_PROP, NULL) : 0;
         trace_mhp_acpi_read_pxm(mem_st->selector, val);
         break;
     case 0x14: /* pack and return is_* fields */

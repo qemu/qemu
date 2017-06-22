@@ -615,7 +615,7 @@ static void test_keyval_visit_alternate(void)
     Visitor *v;
     QDict *qdict;
     AltStrObj *aso;
-    AltNumInt *ani;
+    AltNumEnum *ane;
     AltEnumBool *aeb;
 
     /*
@@ -631,7 +631,7 @@ static void test_keyval_visit_alternate(void)
     g_assert_cmpint(aso->type, ==, QTYPE_QSTRING);
     g_assert_cmpstr(aso->u.s, ==, "1");
     qapi_free_AltStrObj(aso);
-    visit_type_AltNumInt(v, "b", &ani, &err);
+    visit_type_AltNumEnum(v, "b", &ane, &err);
     error_free_or_abort(&err);
     visit_type_AltEnumBool(v, "c", &aeb, &err);
     error_free_or_abort(&err);

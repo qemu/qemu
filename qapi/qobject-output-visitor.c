@@ -144,15 +144,14 @@ static void qobject_output_type_int64(Visitor *v, const char *name,
                                       int64_t *obj, Error **errp)
 {
     QObjectOutputVisitor *qov = to_qov(v);
-    qobject_output_add(qov, name, qint_from_int(*obj));
+    qobject_output_add(qov, name, qnum_from_int(*obj));
 }
 
 static void qobject_output_type_uint64(Visitor *v, const char *name,
                                        uint64_t *obj, Error **errp)
 {
-    /* FIXME values larger than INT64_MAX become negative */
     QObjectOutputVisitor *qov = to_qov(v);
-    qobject_output_add(qov, name, qint_from_int(*obj));
+    qobject_output_add(qov, name, qnum_from_uint(*obj));
 }
 
 static void qobject_output_type_bool(Visitor *v, const char *name, bool *obj,
@@ -177,7 +176,7 @@ static void qobject_output_type_number(Visitor *v, const char *name,
                                        double *obj, Error **errp)
 {
     QObjectOutputVisitor *qov = to_qov(v);
-    qobject_output_add(qov, name, qfloat_from_double(*obj));
+    qobject_output_add(qov, name, qnum_from_double(*obj));
 }
 
 static void qobject_output_type_any(Visitor *v, const char *name,

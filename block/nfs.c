@@ -36,7 +36,6 @@
 #include "qemu/cutils.h"
 #include "sysemu/sysemu.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi-visit.h"
 #include "qapi/qobject-input-visitor.h"

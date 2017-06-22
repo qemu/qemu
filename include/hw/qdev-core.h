@@ -226,8 +226,10 @@ struct Property {
     PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
-    QType        qtype;
-    int64_t      defval;
+    union {
+        int64_t i;
+        uint64_t u;
+    } defval;
     int          arrayoffset;
     PropertyInfo *arrayinfo;
     int          arrayfieldsize;
@@ -238,6 +240,7 @@ struct PropertyInfo {
     const char *description;
     const char * const *enum_table;
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
+    void (*set_default_value)(Object *obj, const Property *prop);
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
     ObjectPropertyRelease *release;

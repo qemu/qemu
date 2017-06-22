@@ -244,7 +244,7 @@ static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
 
     monitor_printf(mon, "%*smemory " TARGET_FMT_plx "/" TARGET_FMT_plx "\n",
                    indent, "",
-                   object_property_get_int(OBJECT(s->mmio), "addr", NULL),
+                   object_property_get_uint(OBJECT(s->mmio), "addr", NULL),
                    memory_region_size(s->mmio));
 }
 

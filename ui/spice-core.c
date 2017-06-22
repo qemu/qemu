@@ -30,7 +30,6 @@
 #include "qemu-x509.h"
 #include "qemu/sockets.h"
 #include "qmp-commands.h"
-#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"

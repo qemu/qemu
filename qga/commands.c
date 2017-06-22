@@ -485,7 +485,7 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp)
 {
     /* Exploit the fact that we picked values to match QGA_SEEK_*. */
     if (whence->type == QTYPE_QSTRING) {
-        whence->type = QTYPE_QINT;
+        whence->type = QTYPE_QNUM;
         whence->u.value = whence->u.name;
     }
     switch (whence->u.value) {

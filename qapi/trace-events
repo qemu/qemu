@@ -11,7 +11,7 @@ visit_next_list(void *v, void *tail, size_t size) "v=%p tail=%p size=%zu"
 visit_check_list(void *v) "v=%p"
 visit_end_list(void *v, void *obj) "v=%p obj=%p"
 
-visit_start_alternate(void *v, const char *name, void *obj, size_t size, bool promote_int) "v=%p name=%s obj=%p size=%zu promote_int=%d"
+visit_start_alternate(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
 visit_end_alternate(void *v, void *obj) "v=%p obj=%p"
 
 visit_optional(void *v, const char *name, bool *present) "v=%p name=%s present=%p"

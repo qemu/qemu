@@ -334,8 +334,9 @@ static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
             break;
         }
 
-        case QTYPE_QINT: {
-            int64_t length = qint_get_int(qobject_to_qint(entry->value));
+        case QTYPE_QNUM: {
+            int64_t length = qnum_get_int(qobject_to_qnum(entry->value));
+
             if (length > 0 && length <= UINT_MAX) {
                 block_acct_add_interval(stats, (unsigned) length);
             } else {

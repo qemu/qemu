@@ -14,6 +14,7 @@
 #define QLIST_H
 
 #include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qnum.h"
 #include "qemu/queue.h"
 
 typedef struct QListEntry {
@@ -31,7 +32,7 @@ typedef struct QList {
 
 /* Helpers for int, bool, and string */
 #define qlist_append_int(qlist, value) \
-        qlist_append(qlist, qint_from_int(value))
+        qlist_append(qlist, qnum_from_int(value))
 #define qlist_append_bool(qlist, value) \
         qlist_append(qlist, qbool_from_bool(value))
 #define qlist_append_str(qlist, value) \
