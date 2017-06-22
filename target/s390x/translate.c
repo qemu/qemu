@@ -2385,7 +2385,11 @@ static ExitStatus op_ipte(DisasContext *s, DisasOps *o)
     TCGv_i32 m4;
 
     check_privileged(s);
-    m4 = tcg_const_i32(get_field(s->fields, m4));
+    if (s390_has_feat(S390_FEAT_LOCAL_TLB_CLEARING)) {
+        m4 = tcg_const_i32(get_field(s->fields, m4));
+    } else {
+        m4 = tcg_const_i32(0);
+    }
     gen_helper_ipte(cpu_env, o->in1, o->in2, m4);
     tcg_temp_free_i32(m4);
     return NO_EXIT;
