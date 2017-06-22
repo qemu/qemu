@@ -2624,8 +2624,8 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
     int stx = x / VNC_STAT_RECT;
     int has_dirty = 0;
 
-    y = y / VNC_STAT_RECT * VNC_STAT_RECT;
-    x = x / VNC_STAT_RECT * VNC_STAT_RECT;
+    y = QEMU_ALIGN_DOWN(y, VNC_STAT_RECT);
+    x = QEMU_ALIGN_DOWN(x, VNC_STAT_RECT);
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         int j;
@@ -2714,8 +2714,8 @@ double vnc_update_freq(VncState *vs, int x, int y, int w, int h)
     double total = 0;
     int num = 0;
 
-    x =  (x / VNC_STAT_RECT) * VNC_STAT_RECT;
-    y =  (y / VNC_STAT_RECT) * VNC_STAT_RECT;
+    x =  QEMU_ALIGN_DOWN(x, VNC_STAT_RECT);
+    y =  QEMU_ALIGN_DOWN(y, VNC_STAT_RECT);
 
     for (j = y; j <= y + h; j += VNC_STAT_RECT) {
         for (i = x; i <= x + w; i += VNC_STAT_RECT) {
