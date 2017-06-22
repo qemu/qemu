@@ -109,7 +109,7 @@ static const USBDescIface desc_iface_hub = {
         {
             .bEndpointAddress      = USB_DIR_IN | 0x01,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 1 + (NUM_PORTS + 7) / 8,
+            .wMaxPacketSize        = 1 + DIV_ROUND_UP(NUM_PORTS, 8),
             .bInterval             = 0xff,
         },
     }
@@ -442,14 +442,14 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             data[2] = NUM_PORTS;
 
             /* fill DeviceRemovable bits */
-            limit = ((NUM_PORTS + 1 + 7) / 8) + 7;
+            limit = DIV_ROUND_UP(NUM_PORTS + 1, 8) + 7;
             for (n = 7; n < limit; n++) {
                 data[n] = 0x00;
                 var_hub_size++;
             }
 
             /* fill PortPwrCtrlMask bits */
-            limit = limit + ((NUM_PORTS + 7) / 8);
+            limit = limit + DIV_ROUND_UP(NUM_PORTS, 8);
             for (;n < limit; n++) {
                 data[n] = 0xff;
                 var_hub_size++;
@@ -477,7 +477,7 @@ static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
             unsigned int status;
             uint8_t buf[4];
             int i, n;
-            n = (NUM_PORTS + 1 + 7) / 8;
+            n = DIV_ROUND_UP(NUM_PORTS + 1, 8);
             if (p->iov.size == 1) { /* FreeBSD workaround */
                 n = 1;
             } else if (n > p->iov.size) {
