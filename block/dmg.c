@@ -111,7 +111,7 @@ static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
         uncompressed_sectors = s->sectorcounts[chunk];
         break;
     case 1: /* copy */
-        uncompressed_sectors = (s->lengths[chunk] + 511) / 512;
+        uncompressed_sectors = DIV_ROUND_UP(s->lengths[chunk], 512);
         break;
     case 2: /* zero */
         /* as the all-zeroes block may be large, it is treated specially: the
