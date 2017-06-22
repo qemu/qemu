@@ -1621,7 +1621,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
            s->line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
     addr1 = (s->start_addr * 4);
-    bwidth = (width * bits + 7) / 8;
+    bwidth = DIV_ROUND_UP(width * bits, 8);
     y_start = -1;
     d = surface_data(surface);
     linesize = surface_stride(surface);
