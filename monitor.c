@@ -1349,7 +1349,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
 
     switch(format) {
     case 'o':
-        max_digits = (wsize * 8 + 2) / 3;
+        max_digits = DIV_ROUND_UP(wsize * 8, 3);
         break;
     default:
     case 'x':
@@ -1357,7 +1357,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         break;
     case 'u':
     case 'd':
-        max_digits = (wsize * 8 * 10 + 32) / 33;
+        max_digits = DIV_ROUND_UP(wsize * 8 * 10, 33);
         break;
     case 'c':
         wsize = 1;
