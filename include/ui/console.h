@@ -328,7 +328,7 @@ static inline int surface_bits_per_pixel(DisplaySurface *s)
 static inline int surface_bytes_per_pixel(DisplaySurface *s)
 {
     int bits = PIXMAN_FORMAT_BPP(s->format);
-    return (bits + 7) / 8;
+    return DIV_ROUND_UP(bits, 8);
 }
 
 static inline pixman_format_code_t surface_format(DisplaySurface *s)
