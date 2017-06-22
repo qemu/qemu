@@ -69,7 +69,7 @@ static inline void generate_samples(PCSpkState *s)
         const uint32_t n = ((uint64_t)PIT_FREQ << 32) / m;
 
         /* multiple of wavelength for gapless looping */
-        s->samples = (PCSPK_BUF_LEN * PIT_FREQ / m * m / (PIT_FREQ >> 1) + 1) >> 1;
+        s->samples = (QEMU_ALIGN_DOWN(PCSPK_BUF_LEN * PIT_FREQ, m) / (PIT_FREQ >> 1) + 1) >> 1;
         for (i = 0; i < s->samples; ++i)
             s->sample_buf[i] = (64 & (n * i >> 25)) - 32;
     } else {
