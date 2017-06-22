@@ -2880,7 +2880,7 @@ static void gen_lswi(DisasContext *ctx)
     }
     if (nb == 0)
         nb = 32;
-    nr = (nb + 3) / 4;
+    nr = DIV_ROUND_UP(nb, 4);
     if (unlikely(lsw_reg_in_range(start, nr, ra))) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
         return;
