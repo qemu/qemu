@@ -663,7 +663,7 @@ static void virtio_serial_save_device(VirtIODevice *vdev, QEMUFile *f)
 
     /* The ports map */
     max_nr_ports = s->serial.max_virtserial_ports;
-    for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
+    for (i = 0; i < DIV_ROUND_UP(max_nr_ports, 32); i++) {
         qemu_put_be32s(f, &s->ports_map[i]);
     }
 
@@ -798,7 +798,7 @@ static int virtio_serial_load_device(VirtIODevice *vdev, QEMUFile *f,
     qemu_get_be32s(f, &tmp);
 
     max_nr_ports = s->serial.max_virtserial_ports;
-    for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
+    for (i = 0; i < DIV_ROUND_UP(max_nr_ports, 32); i++) {
         qemu_get_be32s(f, &ports_map);
 
         if (ports_map != s->ports_map[i]) {
@@ -863,7 +863,7 @@ static uint32_t find_free_port_id(VirtIOSerial *vser)
     unsigned int i, max_nr_ports;
 
     max_nr_ports = vser->serial.max_virtserial_ports;
-    for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
+    for (i = 0; i < DIV_ROUND_UP(max_nr_ports, 32); i++) {
         uint32_t map, zeroes;
 
         map = vser->ports_map[i];
@@ -1075,7 +1075,7 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
         vser->ovqs[i] = virtio_add_queue(vdev, 128, handle_output);
     }
 
-    vser->ports_map = g_malloc0(((vser->serial.max_virtserial_ports + 31) / 32)
+    vser->ports_map = g_malloc0((DIV_ROUND_UP(vser->serial.max_virtserial_ports, 32))
         * sizeof(vser->ports_map[0]));
     /*
      * Reserve location 0 for a console port for backward compat
