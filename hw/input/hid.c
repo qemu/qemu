@@ -487,6 +487,7 @@ void hid_reset(HIDState *hs)
         memset(hs->kbd.keycodes, 0, sizeof(hs->kbd.keycodes));
         memset(hs->kbd.key, 0, sizeof(hs->kbd.key));
         hs->kbd.keys = 0;
+        hs->kbd.modifiers = 0;
         break;
     case HID_MOUSE:
     case HID_TABLET:
