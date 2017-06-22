@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2008 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.coldfire.fp">
+  <reg name="fp0" bitsize="96" type="float" group="float"/>
+  <reg name="fp1" bitsize="96" type="float" group="float"/>
+  <reg name="fp2" bitsize="96" type="float" group="float"/>
+  <reg name="fp3" bitsize="96" type="float" group="float"/>
+  <reg name="fp4" bitsize="96" type="float" group="float"/>
+  <reg name="fp5" bitsize="96" type="float" group="float"/>
+  <reg name="fp6" bitsize="96" type="float" group="float"/>
+  <reg name="fp7" bitsize="96" type="float" group="float"/>
+
+  <reg name="fpcontrol" bitsize="32" group="float"/>
+  <reg name="fpstatus" bitsize="32" group="float"/>,
+  <reg name="fpiaddr" bitsize="32" type="code_ptr" group="float"/>
+</feature>
