@@ -1107,7 +1107,7 @@ static void usb_host_detach_kernel(USBHostDevice *s)
     if (rc != 0) {
         return;
     }
-    for (i = 0; i < conf->bNumInterfaces; i++) {
+    for (i = 0; i < USB_MAX_INTERFACES; i++) {
         rc = libusb_kernel_driver_active(s->dh, i);
         usb_host_libusb_error("libusb_kernel_driver_active", rc);
         if (rc != 1) {
@@ -1130,7 +1130,7 @@ static void usb_host_attach_kernel(USBHostDevice *s)
     if (rc != 0) {
         return;
     }
-    for (i = 0; i < conf->bNumInterfaces; i++) {
+    for (i = 0; i < USB_MAX_INTERFACES; i++) {
         if (!s->ifs[i].detached) {
             continue;
         }
@@ -1145,7 +1145,7 @@ static int usb_host_claim_interfaces(USBHostDevice *s, int configuration)
 {
     USBDevice *udev = USB_DEVICE(s);
     struct libusb_config_descriptor *conf;
-    int rc, i;
+    int rc, i, claimed;
 
     for (i = 0; i < USB_MAX_INTERFACES; i++) {
         udev->altsetting[i] = 0;
@@ -1164,14 +1164,19 @@ static int usb_host_claim_interfaces(USBHostDevice *s, int configuration)
         return USB_RET_STALL;
     }
 
-    for (i = 0; i < conf->bNumInterfaces; i++) {
+    claimed = 0;
+    for (i = 0; i < USB_MAX_INTERFACES; i++) {
         trace_usb_host_claim_interface(s->bus_num, s->addr, configuration, i);
         rc = libusb_claim_interface(s->dh, i);
-        usb_host_libusb_error("libusb_claim_interface", rc);
-        if (rc != 0) {
-            return USB_RET_STALL;
+        if (rc == 0) {
+            s->ifs[i].claimed = true;
+            if (++claimed == conf->bNumInterfaces) {
+                break;
+            }
         }
-        s->ifs[i].claimed = true;
+    }
+    if (claimed != conf->bNumInterfaces) {
+        return USB_RET_STALL;
     }
 
     udev->ninterfaces   = conf->bNumInterfaces;
@@ -1183,10 +1188,9 @@ static int usb_host_claim_interfaces(USBHostDevice *s, int configuration)
 
 static void usb_host_release_interfaces(USBHostDevice *s)
 {
-    USBDevice *udev = USB_DEVICE(s);
     int i, rc;
 
-    for (i = 0; i < udev->ninterfaces; i++) {
+    for (i = 0; i < USB_MAX_INTERFACES; i++) {
         if (!s->ifs[i].claimed) {
             continue;
         }
