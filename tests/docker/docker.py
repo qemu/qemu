@@ -38,6 +38,9 @@ def _text_checksum(text):
     """Calculate a digest string unique to the text content"""
     return hashlib.sha1(text).hexdigest()
 
+def _file_checksum(filename):
+    return _text_checksum(open(filename, 'rb').read())
+
 def _guess_docker_command():
     """ Guess a working docker command or raise exception if not found"""
     commands = [["docker"], ["sudo", "-n", "docker"]]
@@ -52,7 +55,7 @@ def _guess_docker_command():
     raise Exception("Cannot find working docker command. Tried:\n%s" % \
                     commands_txt)
 
-def _copy_with_mkdir(src, root_dir, sub_path):
+def _copy_with_mkdir(src, root_dir, sub_path='.'):
     """Copy src into root_dir, creating sub_path as needed."""
     dest_dir = os.path.normpath("%s/%s" % (root_dir, sub_path))
     try:
@@ -154,7 +157,7 @@ class Docker(object):
         return labels.get("com.qemu.dockerfile-checksum", "")
 
     def build_image(self, tag, docker_dir, dockerfile,
-                    quiet=True, user=False, argv=None):
+                    quiet=True, user=False, argv=None, extra_files_cksum=[]):
         if argv == None:
             argv = []
 
@@ -170,7 +173,8 @@ class Docker(object):
 
         tmp_df.write("\n")
         tmp_df.write("LABEL com.qemu.dockerfile-checksum=%s" %
-                     _text_checksum(dockerfile))
+                     _text_checksum("\n".join([dockerfile] +
+                                    extra_files_cksum)))
         tmp_df.flush()
 
         self._do(["build", "-t", tag, "-f", tmp_df.name] + argv + \
@@ -237,6 +241,10 @@ class BuildCommand(SubCommand):
                             help="""Specify a binary that will be copied to the
                             container together with all its dependent
                             libraries""")
+        parser.add_argument("--extra-files", "-f", nargs='*',
+                            help="""Specify files that will be copied in the
+                            Docker image, fulfilling the ADD directive from the
+                            Dockerfile""")
         parser.add_argument("--add-current-user", "-u", dest="user",
                             action="store_true",
                             help="Add the current user to image's passwd")
@@ -270,16 +278,24 @@ class BuildCommand(SubCommand):
                     print "%s exited with code %d" % (docker_pre, rc)
                     return 1
 
-            # Do we include a extra binary?
+            # Copy any extra files into the Docker context. These can be
+            # included by the use of the ADD directive in the Dockerfile.
+            cksum = []
             if args.include_executable:
-                _copy_binary_with_libs(args.include_executable,
-                                       docker_dir)
+                # FIXME: there is no checksum of this executable and the linked
+                # libraries, once the image built any change of this executable
+                # or any library won't trigger another build.
+                _copy_binary_with_libs(args.include_executable, docker_dir)
+            for filename in args.extra_files or []:
+                _copy_with_mkdir(filename, docker_dir)
+                cksum += [_file_checksum(filename)]
 
             argv += ["--build-arg=" + k.lower() + "=" + v
                         for k, v in os.environ.iteritems()
                         if k.lower() in FILTERED_ENV_NAMES]
             dkr.build_image(tag, docker_dir, dockerfile,
-                            quiet=args.quiet, user=args.user, argv=argv)
+                            quiet=args.quiet, user=args.user, argv=argv,
+                            extra_files_cksum=cksum)
 
             rmtree(docker_dir)
 

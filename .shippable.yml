@@ -1,15 +1,22 @@
 language: c
+git:
+   submodules: false
 env:
+  global:
+    - LC_ALL=C
   matrix:
     - IMAGE=debian-armhf-cross
-      TARGET_LIST=arm-softmmu,arm-linux-user
+      TARGET_LIST=arm-softmmu,arm-linux-user,armeb-linux-user
     - IMAGE=debian-arm64-cross
       TARGET_LIST=aarch64-softmmu,aarch64-linux-user
     - IMAGE=debian-s390x-cross
       TARGET_LIST=s390x-softmmu,s390x-linux-user
+    # mips64el-softmmu disabled due to libfdt problem
+    - IMAGE=debian-mipsel-cross
+      TARGET_LIST=mipsel-softmmu,mipsel-linux-user,mips64el-linux-user
 build:
   pre_ci:
-    - make docker-image-${IMAGE}
+    - make docker-image-${IMAGE} V=1
   pre_ci_boot:
     image_name: qemu
     image_tag: ${IMAGE}
@@ -17,5 +24,13 @@ build:
     options: "-e HOME=/root"
   ci:
     - unset CC
+    # some targets require newer up to date packages, for example TARGET_LIST matching
+    # aarch64*-softmmu|arm*-softmmu|ppc*-softmmu|microblaze*-softmmu|mips64el-softmmu)
+    # see the configure script:
+    #    error_exit "DTC (libfdt) version >= 1.4.2 not present. Your options:"
+    #    "  (1) Preferred: Install the DTC (libfdt) devel package"
+    #    "  (2) Fetch the DTC submodule, using:"
+    #    "      git submodule update --init dtc"
+    - dpkg --compare-versions `dpkg-query --showformat='${Version}' --show libfdt-dev` ge 1.4.2 || git submodule update --init dtc
     - ./configure ${QEMU_CONFIGURE_OPTS} --target-list=${TARGET_LIST}
-    - make -j2
+    - make -j$(($(getconf _NPROCESSORS_ONLN) + 1))
