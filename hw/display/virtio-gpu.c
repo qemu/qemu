@@ -408,7 +408,7 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
     }
 
     format = pixman_image_get_format(res->image);
-    bpp = (PIXMAN_FORMAT_BPP(format) + 7) / 8;
+    bpp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
     stride = pixman_image_get_stride(res->image);
 
     if (t2d.offset || t2d.r.x || t2d.r.y ||
@@ -570,7 +570,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     scanout = &g->scanout[ss.scanout_id];
 
     format = pixman_image_get_format(res->image);
-    bpp = (PIXMAN_FORMAT_BPP(format) + 7) / 8;
+    bpp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
     offset = (ss.r.x * bpp) + ss.r.y * pixman_image_get_stride(res->image);
     if (!scanout->ds || surface_data(scanout->ds)
         != ((uint8_t *)pixman_image_get_data(res->image) + offset) ||
