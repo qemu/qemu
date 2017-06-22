@@ -438,7 +438,7 @@ void msix_save(PCIDevice *dev, QEMUFile *f)
     }
 
     qemu_put_buffer(f, dev->msix_table, n * PCI_MSIX_ENTRY_SIZE);
-    qemu_put_buffer(f, dev->msix_pba, (n + 7) / 8);
+    qemu_put_buffer(f, dev->msix_pba, DIV_ROUND_UP(n, 8));
 }
 
 /* Should be called after restoring the config space. */
@@ -453,7 +453,7 @@ void msix_load(PCIDevice *dev, QEMUFile *f)
 
     msix_clear_all_vectors(dev);
     qemu_get_buffer(f, dev->msix_table, n * PCI_MSIX_ENTRY_SIZE);
-    qemu_get_buffer(f, dev->msix_pba, (n + 7) / 8);
+    qemu_get_buffer(f, dev->msix_pba, DIV_ROUND_UP(n, 8));
     msix_update_function_masked(dev);
 
     for (vector = 0; vector < n; vector++) {
