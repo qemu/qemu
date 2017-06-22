@@ -61,7 +61,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
             new_l1_size = 1;
         }
         while (min_size > new_l1_size) {
-            new_l1_size = (new_l1_size * 3 + 1) / 2;
+            new_l1_size = DIV_ROUND_UP(new_l1_size * 3, 2);
         }
     }
 
