@@ -14,9 +14,6 @@
 #
 # @CommandNotFound: the requested command has not been found
 #
-# @DeviceEncrypted: the requested operation can't be fulfilled because the
-#                   selected device is encrypted
-#
 # @DeviceNotActive: a device has failed to be become active
 #
 # @DeviceNotFound: the requested device has not been found
@@ -28,7 +25,7 @@
 ##
 { 'enum': 'QapiErrorClass',
   # Keep this in sync with ErrorClass in error.h
-  'data': [ 'GenericError', 'CommandNotFound', 'DeviceEncrypted',
+  'data': [ 'GenericError', 'CommandNotFound',
             'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
 
 ##

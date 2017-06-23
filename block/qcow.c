@@ -220,7 +220,13 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
         bs->encrypted = true;
-        bs->valid_key = true;
+    } else {
+        if (encryptfmt) {
+            error_setg(errp, "No encryption in image header, but options "
+                       "specified format '%s'", encryptfmt);
+            ret = -EINVAL;
+            goto fail;
+        }
     }
     s->cluster_bits = header.cluster_bits;
     s->cluster_size = 1 << s->cluster_bits;

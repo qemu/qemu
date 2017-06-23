@@ -259,8 +259,7 @@
 #
 # @encrypted: true if the backing device is encrypted
 #
-# @encryption_key_missing: true if the backing device is encrypted but an
-#                          valid encryption key is missing
+# @encryption_key_missing: Deprecated; always false
 #
 # @detect_zeroes: detect and optimize zero writes (Since 2.1)
 #
@@ -946,39 +945,7 @@
 # This command sets the password of a block device that has not been open
 # with a password and requires one.
 #
-# The two cases where this can happen are a block device is created through
-# QEMU's initial command line or a block device is changed through the legacy
-# @change interface.
-#
-# In the event that the block device is created through the initial command
-# line, the VM will start in the stopped state regardless of whether '-S' is
-# used.  The intention is for a management tool to query the block devices to
-# determine which ones are encrypted, set the passwords with this command, and
-# then start the guest with the @cont command.
-#
-# Either @device or @node-name must be set but not both.
-#
-# @device: the name of the block backend device to set the password on
-#
-# @node-name: graph node name to set the password on (Since 2.0)
-#
-# @password: the password to use for the device
-#
-# Returns: nothing on success
-#          If @device is not a valid block device, DeviceNotFound
-#          If @device is not encrypted, DeviceNotEncrypted
-#
-# Notes:  Not all block formats support encryption and some that do are not
-#         able to validate that a password is correct.  Disk corruption may
-#         occur if an invalid password is specified.
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "block_passwd", "arguments": { "device": "ide0-hd0",
-#                                                "password": "12345" } }
-# <- { "return": {} }
+# This command is now obsolete and will always return an error since 2.10
 #
 ##
 { 'command': 'block_passwd', 'data': {'*device': 'str',
