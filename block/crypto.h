@@ -29,51 +29,51 @@
 #define BLOCK_CRYPTO_OPT_LUKS_HASH_ALG "hash-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_ITER_TIME "iter-time"
 
-#define BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET                            \
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(prefix)                    \
     {                                                                   \
-        .name = BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,                       \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,                \
         .type = QEMU_OPT_STRING,                                        \
         .help = "ID of the secret that provides the keyslot passphrase", \
     }
 
-#define BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG               \
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG(prefix)       \
     {                                                      \
-        .name = BLOCK_CRYPTO_OPT_LUKS_CIPHER_ALG,          \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_CIPHER_ALG,   \
         .type = QEMU_OPT_STRING,                           \
         .help = "Name of encryption cipher algorithm",     \
     }
 
-#define BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE         \
-    {                                                 \
-        .name = BLOCK_CRYPTO_OPT_LUKS_CIPHER_MODE,    \
-        .type = QEMU_OPT_STRING,                      \
-        .help = "Name of encryption cipher mode",     \
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE(prefix)      \
+    {                                                      \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_CIPHER_MODE,  \
+        .type = QEMU_OPT_STRING,                           \
+        .help = "Name of encryption cipher mode",          \
     }
 
-#define BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG           \
-    {                                                 \
-        .name = BLOCK_CRYPTO_OPT_LUKS_IVGEN_ALG,      \
-        .type = QEMU_OPT_STRING,                      \
-        .help = "Name of IV generator algorithm",     \
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG(prefix)     \
+    {                                                   \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_IVGEN_ALG, \
+        .type = QEMU_OPT_STRING,                        \
+        .help = "Name of IV generator algorithm",       \
     }
 
-#define BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG                \
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG(prefix)        \
     {                                                           \
-        .name = BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG,           \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG,    \
         .type = QEMU_OPT_STRING,                                \
         .help = "Name of IV generator hash algorithm",          \
     }
 
-#define BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG               \
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG(prefix)       \
     {                                                    \
-        .name = BLOCK_CRYPTO_OPT_LUKS_HASH_ALG,          \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_HASH_ALG,   \
         .type = QEMU_OPT_STRING,                         \
         .help = "Name of encryption hash algorithm",     \
     }
 
-#define BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME                   \
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME(prefix)           \
     {                                                         \
-        .name = BLOCK_CRYPTO_OPT_LUKS_ITER_TIME,              \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_ITER_TIME,       \
         .type = QEMU_OPT_NUMBER,                              \
         .help = "Time to spend in PBKDF in milliseconds",     \
     }

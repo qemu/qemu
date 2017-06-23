@@ -129,7 +129,7 @@ static QemuOptsList block_crypto_runtime_opts_luks = {
     .name = "crypto",
     .head = QTAILQ_HEAD_INITIALIZER(block_crypto_runtime_opts_luks.head),
     .desc = {
-        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(""),
         { /* end of list */ }
     },
 };
@@ -144,13 +144,13 @@ static QemuOptsList block_crypto_create_opts_luks = {
             .type = QEMU_OPT_SIZE,
             .help = "Virtual disk size"
         },
-        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG,
-        BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME,
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME(""),
         { /* end of list */ }
     },
 };
