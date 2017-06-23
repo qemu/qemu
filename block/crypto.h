@@ -21,6 +21,19 @@
 #ifndef BLOCK_CRYPTO_H__
 #define BLOCK_CRYPTO_H__
 
+#define BLOCK_CRYPTO_OPT_DEF_KEY_SECRET(prefix, helpstr)                \
+    {                                                                   \
+        .name = prefix BLOCK_CRYPTO_OPT_QCOW_KEY_SECRET,                \
+        .type = QEMU_OPT_STRING,                                        \
+        .help = helpstr,                                                \
+    }
+
+#define BLOCK_CRYPTO_OPT_QCOW_KEY_SECRET "key-secret"
+
+#define BLOCK_CRYPTO_OPT_DEF_QCOW_KEY_SECRET(prefix)                    \
+    BLOCK_CRYPTO_OPT_DEF_KEY_SECRET(prefix,                             \
+        "ID of the secret that provides the AES encryption key")
+
 #define BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET "key-secret"
 #define BLOCK_CRYPTO_OPT_LUKS_CIPHER_ALG "cipher-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_CIPHER_MODE "cipher-mode"
@@ -30,11 +43,8 @@
 #define BLOCK_CRYPTO_OPT_LUKS_ITER_TIME "iter-time"
 
 #define BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(prefix)                    \
-    {                                                                   \
-        .name = prefix BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,                \
-        .type = QEMU_OPT_STRING,                                        \
-        .help = "ID of the secret that provides the keyslot passphrase", \
-    }
+    BLOCK_CRYPTO_OPT_DEF_KEY_SECRET(prefix,                             \
+        "ID of the secret that provides the keyslot passphrase")
 
 #define BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG(prefix)       \
     {                                                      \
