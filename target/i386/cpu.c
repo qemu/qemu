@@ -1331,7 +1331,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_RTM | CPUID_7_0_EBX_RDSEED | CPUID_7_0_EBX_ADX |
             CPUID_7_0_EBX_SMAP | CPUID_7_0_EBX_MPX,
         /* Missing: XSAVES (not supported by some Linux versions,
-         * including v4.1 to v4.6).
+         * including v4.1 to v4.12).
          * KVM doesn't yet expose any XSAVES state save component,
          * and the only one defined in Skylake (processor tracing)
          * probably will block migration anyway.
