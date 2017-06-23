@@ -478,6 +478,7 @@ int load_elf_ram(const char *filename,
     }
 
     if (target_data_order != e_ident[EI_DATA]) {
+        fprintf(stderr, "%s: wrong endianness\n", filename);
         ret = ELF_LOAD_WRONG_ENDIAN;
         goto fail;
     }
