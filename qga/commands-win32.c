@@ -512,7 +512,7 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
             } else {
                 error_setg_win32(errp, GetLastError(),
                         "failed to get device name");
-                goto out;
+                goto free_dev_info;
             }
         }
 
@@ -560,6 +560,9 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
         pci->bus = bus;
         break;
     }
+
+free_dev_info:
+    SetupDiDestroyDeviceInfoList(dev_info);
 out:
     g_free(buffer);
     g_free(name);
