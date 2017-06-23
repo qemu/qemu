@@ -36,6 +36,7 @@
 
 #define QCOW_CRYPT_NONE 0
 #define QCOW_CRYPT_AES  1
+#define QCOW_CRYPT_LUKS 2
 
 #define QCOW_MAX_CRYPT_CLUSTERS 32
 #define QCOW_MAX_SNAPSHOTS 65536
@@ -163,6 +164,11 @@ typedef struct QCowSnapshot {
 struct Qcow2Cache;
 typedef struct Qcow2Cache Qcow2Cache;
 
+typedef struct Qcow2CryptoHeaderExtension {
+    uint64_t offset;
+    uint64_t length;
+} QEMU_PACKED Qcow2CryptoHeaderExtension;
+
 typedef struct Qcow2UnknownHeaderExtension {
     uint32_t magic;
     uint32_t len;
@@ -257,8 +263,11 @@ typedef struct BDRVQcow2State {
 
     CoMutex lock;
 
+    Qcow2CryptoHeaderExtension crypto_header; /* QCow2 header extension */
     QCryptoBlockOpenOptions *crypto_opts; /* Disk encryption runtime options */
     QCryptoBlock *crypto; /* Disk encryption format driver */
+    bool crypt_physical_offset; /* Whether to use virtual or physical offset
+                                   for encryption initialization vector tweak */
     uint32_t crypt_method_header;
     uint64_t snapshots_offset;
     int snapshots_size;

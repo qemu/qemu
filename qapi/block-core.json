@@ -2325,7 +2325,7 @@
 # Since: 2.10
 ##
 { 'enum': 'BlockdevQcow2EncryptionFormat',
-  'data': [ 'aes' ] }
+  'data': [ 'aes', 'luks' ] }
 
 ##
 # @BlockdevQcow2Encryption:
@@ -2335,7 +2335,8 @@
 { 'union': 'BlockdevQcow2Encryption',
   'base': { 'format': 'BlockdevQcow2EncryptionFormat' },
   'discriminator': 'format',
-  'data': { 'aes': 'QCryptoBlockOptionsQCow' } }
+  'data': { 'aes': 'QCryptoBlockOptionsQCow',
+            'luks': 'QCryptoBlockOptionsLUKS'} }
 
 ##
 # @BlockdevOptionsQcow2:

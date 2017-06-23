@@ -49,8 +49,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -64,8 +70,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -79,8 +91,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -94,8 +112,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -109,8 +133,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -124,8 +154,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -139,8 +175,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -154,8 +196,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -184,8 +232,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -248,8 +302,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -263,8 +323,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -278,8 +344,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -293,8 +365,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -308,8 +386,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -323,8 +407,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -338,8 +428,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -353,8 +449,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -383,8 +485,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -444,8 +552,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -459,8 +573,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -474,8 +594,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -489,8 +615,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -504,8 +636,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -519,8 +657,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -534,8 +678,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -549,8 +699,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
@@ -581,8 +737,14 @@ compat           Compatibility level (0.10 or 1.1)
 backing_file     File name of a base image
 backing_fmt      Image format of the base image
 encryption       Encrypt the image with format 'aes'. (Deprecated in favor of encrypt.format=aes)
-encrypt.format   Encrypt the image, format choices: 'aes'
-encrypt.key-secret ID of the secret that provides the AES encryption key
+encrypt.format   Encrypt the image, format choices: 'aes', 'luks'
+encrypt.key-secret ID of secret providing qcow AES key or LUKS passphrase
+encrypt.cipher-alg Name of encryption cipher algorithm
+encrypt.cipher-mode Name of encryption cipher mode
+encrypt.ivgen-alg Name of IV generator algorithm
+encrypt.ivgen-hash-alg Name of IV generator hash algorithm
+encrypt.hash-alg Name of encryption hash algorithm
+encrypt.iter-time Time to spend in PBKDF in milliseconds
 cluster_size     qcow2 cluster size
 preallocation    Preallocation mode (allowed values: off, metadata, falloc, full)
 lazy_refcounts   Postpone refcount updates
