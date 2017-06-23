@@ -2431,8 +2431,6 @@
 # Since:  0.14.0
 #
 # Returns:  If successful, nothing
-#           If QEMU was started with an encrypted block device and a key has
-#              not yet been set, DeviceEncrypted.
 #
 # Notes:  This command will succeed if the guest is currently running.  It
 #         will also succeed if the guest is in the "inmigrate" state; in
@@ -2713,8 +2711,7 @@
 #        * This command is stateless, this means that commands that depend
 #          on state information (such as getfd) might not work
 #
-#        * Commands that prompt the user for data (eg. 'cont' when the block
-#          device is encrypted) don't currently work
+#        * Commands that prompt the user for data don't currently work
 #
 # Example:
 #
@@ -3019,11 +3016,6 @@
 #
 # Returns: Nothing on success.
 #          If @device is not a valid block device, DeviceNotFound
-#          If the new block device is encrypted, DeviceEncrypted.  Note that
-#          if this error is returned, the device has been opened successfully
-#          and an additional call to @block_passwd is required to set the
-#          device's password.  The behavior of reads and writes to the block
-#          device between when these calls are executed is undefined.
 #
 # Notes:  This interface is deprecated, and it is strongly recommended that you
 #         avoid using it.  For changing block devices, use

@@ -260,29 +260,6 @@ static int print_block_option_help(const char *filename, const char *fmt)
 }
 
 
-static int img_open_password(BlockBackend *blk, const char *filename,
-                             int flags, bool quiet)
-{
-    BlockDriverState *bs;
-    char password[256];
-
-    bs = blk_bs(blk);
-    if (bdrv_is_encrypted(bs) && bdrv_key_required(bs) &&
-        !(flags & BDRV_O_NO_IO)) {
-        qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
-        if (qemu_read_password(password, sizeof(password)) < 0) {
-            error_report("No password given");
-            return -1;
-        }
-        if (bdrv_set_key(bs, password) < 0) {
-            error_report("invalid password");
-            return -1;
-        }
-    }
-    return 0;
-}
-
-
 static BlockBackend *img_open_opts(const char *optstr,
                                    QemuOpts *opts, int flags, bool writethrough,
                                    bool quiet, bool force_share)
@@ -307,10 +284,6 @@ static BlockBackend *img_open_opts(const char *optstr,
     }
     blk_set_enable_write_cache(blk, !writethrough);
 
-    if (img_open_password(blk, optstr, flags, quiet) < 0) {
-        blk_unref(blk);
-        return NULL;
-    }
     return blk;
 }
 
@@ -340,10 +313,6 @@ static BlockBackend *img_open_file(const char *filename,
     }
     blk_set_enable_write_cache(blk, !writethrough);
 
-    if (img_open_password(blk, filename, flags, quiet) < 0) {
-        blk_unref(blk);
-        return NULL;
-    }
     return blk;
 }
 
