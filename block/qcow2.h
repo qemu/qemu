@@ -25,7 +25,7 @@
 #ifndef BLOCK_QCOW2_H
 #define BLOCK_QCOW2_H
 
-#include "crypto/cipher.h"
+#include "crypto/block.h"
 #include "qemu/coroutine.h"
 
 //#define DEBUG_ALLOC
@@ -257,7 +257,8 @@ typedef struct BDRVQcow2State {
 
     CoMutex lock;
 
-    QCryptoCipher *cipher; /* current cipher, NULL if no key yet */
+    QCryptoBlockOpenOptions *crypto_opts; /* Disk encryption runtime options */
+    QCryptoBlock *crypto; /* Disk encryption format driver */
     uint32_t crypt_method_header;
     uint64_t snapshots_offset;
     int snapshots_size;

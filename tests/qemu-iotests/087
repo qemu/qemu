@@ -122,24 +122,18 @@ echo
 echo === Encrypted image ===
 echo
 
-_make_test_img -o encryption=on $size
-run_qemu -S <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "blockdev-add",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "node-name": "disk",
-      "file": {
-          "driver": "file",
-          "filename": "$TEST_IMG"
-      }
-    }
-  }
-{ "execute": "quit" }
-EOF
-
+_make_test_img --object secret,id=sec0,data=123456 -o encryption=on,encrypt.key-secret=sec0 $size
 run_qemu <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "object-add",
+  "arguments": {
+      "qom-type": "secret",
+      "id": "sec0",
+      "props": {
+          "data": "123456"
+      }
+  }
+}
 { "execute": "blockdev-add",
   "arguments": {
       "driver": "$IMGFMT",
@@ -147,6 +141,10 @@ run_qemu <<EOF
       "file": {
           "driver": "file",
           "filename": "$TEST_IMG"
+      },
+      "encrypt": {
+          "format": "aes",
+          "key-secret": "sec0"
       }
     }
   }
@@ -157,7 +155,7 @@ echo
 echo === Missing driver ===
 echo
 
-_make_test_img -o encryption=on $size
+_make_test_img --object secret,id=sec0,data=123456 -o encryption=on,encrypt.key-secret=sec0 $size
 run_qemu -S <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",

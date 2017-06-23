@@ -45,34 +45,39 @@ _supported_os Linux
 
 size=128M
 TEST_IMG_BASE=$TEST_IMG.base
+SECRET="secret,id=sec0,data=astrochicken"
 
 TEST_IMG_SAVE=$TEST_IMG
 TEST_IMG=$TEST_IMG_BASE
 echo "== create base =="
-IMGOPTS="encryption=on" _make_test_img $size
+_make_test_img --object $SECRET -o "encryption=on,encrypt.key-secret=sec0" $size
 TEST_IMG=$TEST_IMG_SAVE
+
+IMGSPECBASE="driver=$IMGFMT,file.filename=$TEST_IMG_BASE,encrypt.key-secret=sec0"
+IMGSPEC="driver=$IMGFMT,file.filename=$TEST_IMG,backing.driver=$IMGFMT,backing.file.filename=$TEST_IMG_BASE,backing.encrypt.key-secret=sec0,encrypt.key-secret=sec0"
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
 
 echo
 echo "== writing whole image =="
-echo "astrochicken" | $QEMU_IO -c "write -P 0xa 0 $size" "$TEST_IMG_BASE" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET -c "write -P 0xa 0 $size" --image-opts $IMGSPECBASE | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== verify pattern =="
-echo "astrochicken" | $QEMU_IO -c "read -P 0xa 0 $size" "$TEST_IMG_BASE" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET -c "read -P 0xa 0 $size" --image-opts $IMGSPECBASE | _filter_qemu_io | _filter_testdir
 
 echo "== create overlay =="
-IMGOPTS="encryption=on" _make_test_img -b "$TEST_IMG_BASE" $size
+_make_test_img --object $SECRET -o "encryption=on,encrypt.key-secret=sec0" -b "$TEST_IMG_BASE" $size
 
 echo
 echo "== writing part of a cluster =="
-echo "astrochicken" | $QEMU_IO -c "write -P 0xe 0 1024" "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET -c "write -P 0xe 0 1024" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== verify pattern =="
-echo "astrochicken" | $QEMU_IO -c "read -P 0xe 0 1024" "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET -c "read -P 0xe 0 1024" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
 echo
 echo "== verify pattern =="
-echo "astrochicken" | $QEMU_IO -c "read -P 0xa 1024 64512" "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET -c "read -P 0xa 1024 64512" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
 
 
 # success, all done

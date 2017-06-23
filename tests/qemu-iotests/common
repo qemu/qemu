@@ -50,6 +50,7 @@ export IMGPROTO=file
 export IMGOPTS=""
 export CACHEMODE="writeback"
 export QEMU_IO_OPTIONS=""
+export QEMU_IO_OPTIONS_NO_FMT=""
 export CACHEMODE_IS_DEFAULT=true
 export QEMU_OPTIONS="-nodefaults -machine accel=qtest"
 export VALGRIND_QEMU=
@@ -413,10 +414,11 @@ BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
 done
 
 # Set qemu-io cache mode with $CACHEMODE we have
-if [ "$IMGOPTSSYNTAX" = "true" ]; then
-    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --cache $CACHEMODE"
-else
-    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS -f $IMGFMT --cache $CACHEMODE"
+QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --cache $CACHEMODE"
+
+QEMU_IO_OPTIONS_NO_FMT="$QEMU_IO_OPTIONS"
+if [ "$IMGOPTSSYNTAX" != "true" ]; then
+    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS -f $IMGFMT"
 fi
 
 # Set default options for qemu-img create -o if they were not specified
