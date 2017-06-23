@@ -208,8 +208,8 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
             if (flags & BDRV_O_NO_IO) {
                 cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
             }
-            s->crypto = qcrypto_block_open(crypto_opts, NULL, NULL,
-                                           cflags, errp);
+            s->crypto = qcrypto_block_open(crypto_opts, "encrypt.",
+                                           NULL, NULL, cflags, errp);
             if (!s->crypto) {
                 ret = -EINVAL;
                 goto fail;
@@ -866,7 +866,8 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
             goto exit;
         }
 
-        crypto = qcrypto_block_create(crypto_opts, NULL, NULL, NULL, errp);
+        crypto = qcrypto_block_create(crypto_opts, "encrypt.",
+                                      NULL, NULL, NULL, errp);
         if (!crypto) {
             ret = -EINVAL;
             goto exit;

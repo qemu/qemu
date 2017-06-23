@@ -279,7 +279,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             if (flags & BDRV_O_NO_IO) {
                 cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
             }
-            s->crypto = qcrypto_block_open(s->crypto_opts,
+            s->crypto = qcrypto_block_open(s->crypto_opts, "encrypt.",
                                            qcow2_crypto_hdr_read_func,
                                            bs, cflags, errp);
             if (!s->crypto) {
@@ -1313,8 +1313,8 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
             if (flags & BDRV_O_NO_IO) {
                 cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
             }
-            s->crypto = qcrypto_block_open(s->crypto_opts, NULL, NULL,
-                                           cflags, errp);
+            s->crypto = qcrypto_block_open(s->crypto_opts, "encrypt.",
+                                           NULL, NULL, cflags, errp);
             if (!s->crypto) {
                 ret = -EINVAL;
                 goto fail;
@@ -2318,7 +2318,7 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
     }
     s->crypt_method_header = fmt;
 
-    crypto = qcrypto_block_create(cryptoopts,
+    crypto = qcrypto_block_create(cryptoopts, "encrypt.",
                                   qcow2_crypto_hdr_init_func,
                                   qcow2_crypto_hdr_write_func,
                                   bs, errp);

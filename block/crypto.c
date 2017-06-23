@@ -296,7 +296,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     if (flags & BDRV_O_NO_IO) {
         cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
     }
-    crypto->block = qcrypto_block_open(open_opts,
+    crypto->block = qcrypto_block_open(open_opts, NULL,
                                        block_crypto_read_func,
                                        bs,
                                        cflags,
@@ -340,7 +340,7 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
         return -1;
     }
 
-    crypto = qcrypto_block_create(create_opts,
+    crypto = qcrypto_block_create(create_opts, NULL,
                                   block_crypto_init_func,
                                   block_crypto_write_func,
                                   &data,
