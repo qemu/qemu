@@ -134,6 +134,15 @@
     D(0x8500, BRXLE,   RSI,   Z,   0, 0, 0, 0, bx32, 0, 1)
     D(0xec44, BRXHG,   RIE_e, Z,   0, 0, 0, 0, bx64, 0, 0)
     D(0xec45, BRXHLE,  RIE_e, Z,   0, 0, 0, 0, bx64, 0, 1)
+/* BRANCH PREDICTION PRELOAD */
+    /* ??? Format is SMI, but implemented as NOP, so we need no fields.  */
+    C(0xc700, BPP,     E,     EH,  0, 0, 0, 0, 0, 0)
+/* BRANCH PREDICTION RELATIVE PRELOAD */
+    /* ??? Format is MII, but implemented as NOP, so we need no fields.  */
+    C(0xc500, BPRP,    E,     EH,  0, 0, 0, 0, 0, 0)
+/* NEXT INSTRUCTION ACCESS INTENT */
+    /* ??? Format is IE, but implemented as NOP, so we need no fields.  */
+    C(0xb2fa, NIAI,    E,     EH,  0, 0, 0, 0, 0, 0)
 
 /* CHECKSUM */
     C(0xb241, CKSM,    RRE,   Z,   r1_o, ra2, new, r1_32, cksm, 0)
@@ -427,6 +436,11 @@
 /* LOAD AND TRAP */
     C(0xe39f, LAT,     RXY_a, LAT, 0, m2_32u, r1, 0, lat, 0)
     C(0xe385, LGAT,    RXY_a, LAT, 0, a2, r1, 0, lgat, 0)
+/* LOAD AND ZERO RIGHTMOST BYTE */
+    C(0xe3eb, LZRF,    RXY_a, LZRB, 0, m2_32u, new, r1_32, lzrb, 0)
+    C(0xe32a, LZRG,    RXY_a, LZRB, 0, m2_64, r1, 0, lzrb, 0)
+/* LOAD LOGICAL AND ZERO RIGHTMOST BYTE */
+    C(0xe33a, LLZRGF,  RXY_a, LZRB, 0, m2_32u, r1, 0, lzrb, 0)
 /* LOAD BYTE */
     C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
@@ -514,6 +528,13 @@
     C(0xb9e2, LOCGR,   RRF_c, LOC, r1, r2, r1, 0, loc, 0)
     C(0xebf2, LOC,     RSY_b, LOC, r1, m2_32u, new, r1_32, loc, 0)
     C(0xebe2, LOCG,    RSY_b, LOC, r1, m2_64, r1, 0, loc, 0)
+/* LOAD HALFWORD IMMEDIATE ON CONDITION */
+    C(0xec42, LOCHI,   RIE_g, LOC2, r1, i2, new, r1_32, loc, 0)
+    C(0xec46, LOCGHI,  RIE_g, LOC2, r1, i2, r1, 0, loc, 0)
+    C(0xec4e, LOCHHI,  RIE_g, LOC2, r1_sr32, i2, new, r1_32h, loc, 0)
+/* LOAD HIGH ON CONDITION */
+    C(0xb9e0, LOCFHR,  RRF_c, LOC2, r1_sr32, r2, new, r1_32h, loc, 0)
+    C(0xebe0, LOCFH,   RSY_b, LOC2, r1_sr32, m2_32u, new, r1_32h, loc, 0)
 /* LOAD PAIR DISJOINT */
     D(0xc804, LPD,     SSF,   ILA, 0, 0, new_P, r3_P32, lpd, 0, MO_TEUL)
     D(0xc805, LPDG,    SSF,   ILA, 0, 0, new_P, r3_P64, lpd, 0, MO_TEQ)
@@ -590,6 +611,8 @@
     C(0xb254, MVPG,    RRE,   Z,   r1_o, r2_o, 0, 0, mvpg, 0)
 /* MOVE STRING */
     C(0xb255, MVST,    RRE,   Z,   r1_o, r2_o, 0, 0, mvst, 0)
+/* MOVE WITH OPTIONAL SPECIFICATION */
+    C(0xc800, MVCOS,   SSF,   MVCOS, la1, a2, 0, 0, mvcos, 0)
 /* MOVE WITH OFFSET */
     /* Really format SS_b, but we pack both lengths into one argument
        for the helper call, so we might as well leave one 8-bit field.  */
@@ -676,6 +699,9 @@
     /* Implemented as nops of course.  */
     C(0xe336, PFD,     RXY_b, GIE, 0, 0, 0, 0, 0, 0)
     C(0xc602, PFDRL,   RIL_c, GIE, 0, 0, 0, 0, 0, 0)
+/* PERFORM PROCESSOR ASSIST */
+    /* Implemented as nop of course.  */
+    C(0xb2e8, PPA,     RRF_c, PPA, 0, 0, 0, 0, 0, 0)
 
 /* POPULATION COUNT */
     C(0xb9e1, POPCNT,  RRE,   PC,  0, r2_o, r1, 0, popcnt, nz64)
@@ -777,6 +803,8 @@
 /* STORE ON CONDITION */
     D(0xebf3, STOC,    RSY_b, LOC, 0, 0, 0, 0, soc, 0, 0)
     D(0xebe3, STOCG,   RSY_b, LOC, 0, 0, 0, 0, soc, 0, 1)
+/* STORE HIGH ON CONDITION */
+    D(0xebe1, STOCFH,  RSY_b, LOC2, 0, 0, 0, 0, soc, 0, 2)
 /* STORE REVERSED */
     C(0xe33f, STRVH,   RXY_a, Z,   la2, r1_16u, new, m1_16, rev16, 0)
     C(0xe33e, STRV,    RXY_a, Z,   la2, r1_32u, new, m1_32, rev32, 0)
@@ -900,6 +928,8 @@
     C(0x8300, DIAG,    RSI,   Z,   0, 0, 0, 0, diag, 0)
 /* INSERT STORAGE KEY EXTENDED */
     C(0xb229, ISKE,    RRE,   Z,   0, r2_o, new, r1_8, iske, 0)
+/* INVALIDATE DAT TABLE ENTRY */
+    C(0xb98e, IPDE,    RRF_b, Z,   r1_o, r2_o, 0, 0, idte, 0)
 /* INVALIDATE PAGE TABLE ENTRY */
     C(0xb221, IPTE,    RRF_a, Z,   r1_o, r2_o, 0, 0, ipte, 0)
 /* LOAD CONTROL */

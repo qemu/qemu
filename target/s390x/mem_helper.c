@@ -110,6 +110,20 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
     }
 }
 
+static inline uint64_t wrap_address(CPUS390XState *env, uint64_t a)
+{
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        if (!(env->psw.mask & PSW_MASK_32)) {
+            /* 24-Bit mode */
+            a &= 0x00ffffff;
+        } else {
+            /* 31-Bit mode */
+            a &= 0x7fffffff;
+        }
+    }
+    return a;
+}
+
 static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
                         uint32_t l, uintptr_t ra)
 {
@@ -132,6 +146,68 @@ static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
         }
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+static void fast_memmove_idx(CPUS390XState *env, uint64_t dest, uint64_t src,
+                             uint32_t len, int dest_idx, int src_idx,
+                             uintptr_t ra)
+{
+    TCGMemOpIdx oi_dest = make_memop_idx(MO_UB, dest_idx);
+    TCGMemOpIdx oi_src = make_memop_idx(MO_UB, src_idx);
+    uint32_t len_adj;
+    void *src_p;
+    void *dest_p;
+    uint8_t x;
+
+    while (len > 0) {
+        src = wrap_address(env, src);
+        dest = wrap_address(env, dest);
+        src_p = tlb_vaddr_to_host(env, src, MMU_DATA_LOAD, src_idx);
+        dest_p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, dest_idx);
+
+        if (src_p && dest_p) {
+            /* Access to both whole pages granted.  */
+            len_adj = adj_len_to_page(adj_len_to_page(len, src), dest);
+            memmove(dest_p, src_p, len_adj);
+        } else {
+            /* We failed to get access to one or both whole pages. The next
+               read or write access will likely fill the QEMU TLB for the
+               next iteration.  */
+            len_adj = 1;
+            x = helper_ret_ldub_mmu(env, src, oi_src, ra);
+            helper_ret_stb_mmu(env, dest, x, oi_dest, ra);
+        }
+        src += len_adj;
+        dest += len_adj;
+        len -= len_adj;
+    }
+}
+
+static int mmu_idx_from_as(uint8_t as)
+{
+    switch (as) {
+    case AS_PRIMARY:
+        return MMU_PRIMARY_IDX;
+    case AS_SECONDARY:
+        return MMU_SECONDARY_IDX;
+    case AS_HOME:
+        return MMU_HOME_IDX;
+    default:
+        /* FIXME AS_ACCREG */
+        g_assert_not_reached();
+    }
+}
+
+static void fast_memmove_as(CPUS390XState *env, uint64_t dest, uint64_t src,
+                            uint32_t len, uint8_t dest_as, uint8_t src_as,
+                            uintptr_t ra)
+{
+    int src_idx = mmu_idx_from_as(src_as);
+    int dest_idx = mmu_idx_from_as(dest_as);
+
+    fast_memmove_idx(env, dest, src, len, dest_idx, src_idx, ra);
+}
+#endif
 
 static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
                          uint32_t l, uintptr_t ra)
@@ -406,20 +482,6 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
 
     HELPER_LOG("\n");
     return cc;
-}
-
-static inline uint64_t wrap_address(CPUS390XState *env, uint64_t a)
-{
-    if (!(env->psw.mask & PSW_MASK_64)) {
-        if (!(env->psw.mask & PSW_MASK_32)) {
-            /* 24-Bit mode */
-            a &= 0x00ffffff;
-        } else {
-            /* 31-Bit mode */
-            a &= 0x7fffffff;
-        }
-    }
-    return a;
 }
 
 static inline uint64_t get_address(CPUS390XState *env, int reg)
@@ -1203,12 +1265,21 @@ uint32_t HELPER(trXX)(CPUS390XState *env, uint32_t r1, uint32_t r2,
     uintptr_t ra = GETPC();
     int dsize = (sizes & 1) ? 1 : 2;
     int ssize = (sizes & 2) ? 1 : 2;
-    uint64_t tbl = get_address(env, 1) & ~7;
+    uint64_t tbl = get_address(env, 1);
     uint64_t dst = get_address(env, r1);
     uint64_t len = get_length(env, r1 + 1);
     uint64_t src = get_address(env, r2);
     uint32_t cc = 3;
     int i;
+
+    /* The lower address bits of TBL are ignored.  For TROO, TROT, it's
+       the low 3 bits (double-word aligned).  For TRTO, TRTT, it's either
+       the low 12 bits (4K, without ETF2-ENH) or 3 bits (with ETF2-ENH).  */
+    if (ssize == 2 && !s390_has_feat(S390_FEAT_ETF2_ENH)) {
+        tbl &= -4096;
+    } else {
+        tbl &= -8;
+    }
 
     check_alignment(env, len, ssize, ra);
 
@@ -1539,6 +1610,57 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
     return cc;
 }
 
+void HELPER(idte)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint32_t m4)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+    const uintptr_t ra = GETPC();
+    uint64_t table, entry, raddr;
+    uint16_t entries, i, index = 0;
+
+    if (r2 & 0xff000) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIFICATION, 4);
+    }
+
+    if (!(r2 & 0x800)) {
+        /* invalidation-and-clearing operation */
+        table = r1 & _ASCE_ORIGIN;
+        entries = (r2 & 0x7ff) + 1;
+
+        switch (r1 & _ASCE_TYPE_MASK) {
+        case _ASCE_TYPE_REGION1:
+            index = (r2 >> 53) & 0x7ff;
+            break;
+        case _ASCE_TYPE_REGION2:
+            index = (r2 >> 42) & 0x7ff;
+            break;
+        case _ASCE_TYPE_REGION3:
+            index = (r2 >> 31) & 0x7ff;
+            break;
+        case _ASCE_TYPE_SEGMENT:
+            index = (r2 >> 20) & 0x7ff;
+            break;
+        }
+        for (i = 0; i < entries; i++) {
+            /* addresses are not wrapped in 24/31bit mode but table index is */
+            raddr = table + ((index + i) & 0x7ff) * sizeof(entry);
+            entry = ldq_phys(cs->as, raddr);
+            if (!(entry & _REGION_ENTRY_INV)) {
+                /* we are allowed to not store if already invalid */
+                entry |= _REGION_ENTRY_INV;
+                stq_phys(cs->as, raddr, entry);
+            }
+        }
+    }
+
+    /* We simply flush the complete tlb, therefore we can ignore r3. */
+    if (m4 & 1) {
+        tlb_flush(cs);
+    } else {
+        tlb_flush_all_cpus_synced(cs);
+    }
+}
+
 /* invalidate pte */
 void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
                   uint32_t m4)
@@ -1558,19 +1680,24 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
-    /* XXX: the LC bit should be considered as 0 if the local-TLB-clearing
-       facility is not installed.  */
     if (m4 & 1) {
-        tlb_flush_page(cs, page);
+        if (vaddr & ~VADDR_PX) {
+            tlb_flush_page(cs, page);
+            /* XXX 31-bit hack */
+            tlb_flush_page(cs, page ^ 0x80000000);
+        } else {
+            /* looks like we don't have a valid virtual address */
+            tlb_flush(cs);
+        }
     } else {
-        tlb_flush_page_all_cpus_synced(cs, page);
-    }
-
-    /* XXX 31-bit hack */
-    if (m4 & 1) {
-        tlb_flush_page(cs, page ^ 0x80000000);
-    } else {
-        tlb_flush_page_all_cpus_synced(cs, page ^ 0x80000000);
+        if (vaddr & ~VADDR_PX) {
+            tlb_flush_page_all_cpus_synced(cs, page);
+            /* XXX 31-bit hack */
+            tlb_flush_page_all_cpus_synced(cs, page ^ 0x80000000);
+        } else {
+            /* looks like we don't have a valid virtual address */
+            tlb_flush_all_cpus_synced(cs);
+        }
     }
 }
 
@@ -1788,4 +1915,95 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
        that ex_value is non-zero, which flags that we are in a state
        that requires such execution.  */
     env->ex_value = insn | ilen;
+}
+
+uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
+                       uint64_t len)
+{
+    const uint8_t psw_key = (env->psw.mask & PSW_MASK_KEY) >> PSW_SHIFT_KEY;
+    const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
+    const uint64_t r0 = env->regs[0];
+    const uintptr_t ra = GETPC();
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+    uint8_t dest_key, dest_as, dest_k, dest_a;
+    uint8_t src_key, src_as, src_k, src_a;
+    uint64_t val;
+    int cc = 0;
+
+    HELPER_LOG("%s dest %" PRIx64 ", src %" PRIx64 ", len %" PRIx64 "\n",
+               __func__, dest, src, len);
+
+    if (!(env->psw.mask & PSW_MASK_DAT)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+
+    /* OAC (operand access control) for the first operand -> dest */
+    val = (r0 & 0xffff0000ULL) >> 16;
+    dest_key = (val >> 12) & 0xf;
+    dest_as = (val >> 6) & 0x3;
+    dest_k = (val >> 1) & 0x1;
+    dest_a = val & 0x1;
+
+    /* OAC (operand access control) for the second operand -> src */
+    val = (r0 & 0x0000ffffULL);
+    src_key = (val >> 12) & 0xf;
+    src_as = (val >> 6) & 0x3;
+    src_k = (val >> 1) & 0x1;
+    src_a = val & 0x1;
+
+    if (!dest_k) {
+        dest_key = psw_key;
+    }
+    if (!src_k) {
+        src_key = psw_key;
+    }
+    if (!dest_a) {
+        dest_as = psw_as;
+    }
+    if (!src_a) {
+        src_as = psw_as;
+    }
+
+    if (dest_a && dest_as == AS_HOME && (env->psw.mask & PSW_MASK_PSTATE)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+    if (!(env->cregs[0] & CR0_SECONDARY) &&
+        (dest_as == AS_SECONDARY || src_as == AS_SECONDARY)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_SPECIAL_OP, 6);
+    }
+    if (!psw_key_valid(env, dest_key) || !psw_key_valid(env, src_key)) {
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_PRIVILEGED, 6);
+    }
+
+    len = wrap_length(env, len);
+    if (len > 4096) {
+        cc = 3;
+        len = 4096;
+    }
+
+    /* FIXME: AR-mode and proper problem state mode (using PSW keys) missing */
+    if (src_as == AS_ACCREG || dest_as == AS_ACCREG ||
+        (env->psw.mask & PSW_MASK_PSTATE)) {
+        qemu_log_mask(LOG_UNIMP, "%s: AR-mode and PSTATE support missing\n",
+                      __func__);
+        cpu_restore_state(cs, ra);
+        program_interrupt(env, PGM_ADDRESSING, 6);
+    }
+
+    /* FIXME: a) LAP
+     *        b) Access using correct keys
+     *        c) AR-mode
+     */
+#ifdef CONFIG_USER_ONLY
+    /* psw keys are never valid in user mode, we will never reach this */
+    g_assert_not_reached();
+#else
+    fast_memmove_as(env, dest, src, len, dest_as, src_as, ra);
+#endif
+
+    return cc;
 }

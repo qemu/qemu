@@ -323,11 +323,11 @@ static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
 static int get_mem_index(DisasContext *s)
 {
     switch (s->tb->flags & FLAG_MASK_ASC) {
-    case PSW_ASC_PRIMARY >> 32:
+    case PSW_ASC_PRIMARY >> FLAG_MASK_PSW_SHIFT:
         return 0;
-    case PSW_ASC_SECONDARY >> 32:
+    case PSW_ASC_SECONDARY >> FLAG_MASK_PSW_SHIFT:
         return 1;
-    case PSW_ASC_HOME >> 32:
+    case PSW_ASC_HOME >> FLAG_MASK_PSW_SHIFT:
         return 2;
     default:
         tcg_abort();
@@ -387,7 +387,7 @@ static inline void gen_trap(DisasContext *s)
 #ifndef CONFIG_USER_ONLY
 static void check_privileged(DisasContext *s)
 {
-    if (s->tb->flags & (PSW_MASK_PSTATE >> 32)) {
+    if (s->tb->flags & FLAG_MASK_PSTATE) {
         gen_program_exception(s, PGM_PRIVILEGED);
     }
 }
@@ -1180,39 +1180,10 @@ typedef enum {
     EXIT_NORETURN,
 } ExitStatus;
 
-typedef enum DisasFacility {
-    FAC_Z,                  /* zarch (default) */
-    FAC_CASS,               /* compare and swap and store */
-    FAC_CASS2,              /* compare and swap and store 2*/
-    FAC_DFP,                /* decimal floating point */
-    FAC_DFPR,               /* decimal floating point rounding */
-    FAC_DO,                 /* distinct operands */
-    FAC_EE,                 /* execute extensions */
-    FAC_EI,                 /* extended immediate */
-    FAC_FPE,                /* floating point extension */
-    FAC_FPSSH,              /* floating point support sign handling */
-    FAC_FPRGR,              /* FPR-GR transfer */
-    FAC_GIE,                /* general instructions extension */
-    FAC_HFP_MA,             /* HFP multiply-and-add/subtract */
-    FAC_HW,                 /* high-word */
-    FAC_IEEEE_SIM,          /* IEEE exception sumilation */
-    FAC_MIE,                /* miscellaneous-instruction-extensions */
-    FAC_LAT,                /* load-and-trap */
-    FAC_LOC,                /* load/store on condition */
-    FAC_LD,                 /* long displacement */
-    FAC_PC,                 /* population count */
-    FAC_SCF,                /* store clock fast */
-    FAC_SFLE,               /* store facility list extended */
-    FAC_ILA,                /* interlocked access facility 1 */
-    FAC_LPP,                /* load-program-parameter */
-    FAC_DAT_ENH,            /* DAT-enhancement */
-    FAC_E2,                 /* extended-translation facility 2 */
-} DisasFacility;
-
 struct DisasInsn {
     unsigned opc:16;
     DisasFormat fmt:8;
-    DisasFacility fac:8;
+    unsigned fac:8;
     unsigned spec:8;
 
     const char *name;
@@ -2409,12 +2380,31 @@ static ExitStatus op_ipm(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+static ExitStatus op_idte(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m4;
+
+    check_privileged(s);
+    if (s390_has_feat(S390_FEAT_LOCAL_TLB_CLEARING)) {
+        m4 = tcg_const_i32(get_field(s->fields, m4));
+    } else {
+        m4 = tcg_const_i32(0);
+    }
+    gen_helper_idte(cpu_env, o->in1, o->in2, m4);
+    tcg_temp_free_i32(m4);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ipte(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 m4;
 
     check_privileged(s);
-    m4 = tcg_const_i32(get_field(s->fields, m4));
+    if (s390_has_feat(S390_FEAT_LOCAL_TLB_CLEARING)) {
+        m4 = tcg_const_i32(get_field(s->fields, m4));
+    } else {
+        m4 = tcg_const_i32(0);
+    }
     gen_helper_ipte(cpu_env, o->in1, o->in2, m4);
     tcg_temp_free_i32(m4);
     return NO_EXIT;
@@ -2935,6 +2925,12 @@ static ExitStatus op_lurag(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static ExitStatus op_lzrb(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_andi_i64(o->out, o->in2, -256);
+    return NO_EXIT;
+}
+
 static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
 {
     o->out = o->in2;
@@ -2955,20 +2951,20 @@ static ExitStatus op_mov2e(DisasContext *s, DisasOps *o)
     o->g_in2 = false;
 
     switch (s->tb->flags & FLAG_MASK_ASC) {
-    case PSW_ASC_PRIMARY >> 32:
+    case PSW_ASC_PRIMARY >> FLAG_MASK_PSW_SHIFT:
         tcg_gen_movi_i64(ar1, 0);
         break;
-    case PSW_ASC_ACCREG >> 32:
+    case PSW_ASC_ACCREG >> FLAG_MASK_PSW_SHIFT:
         tcg_gen_movi_i64(ar1, 1);
         break;
-    case PSW_ASC_SECONDARY >> 32:
+    case PSW_ASC_SECONDARY >> FLAG_MASK_PSW_SHIFT:
         if (b2) {
             tcg_gen_ld32u_i64(ar1, cpu_env, offsetof(CPUS390XState, aregs[b2]));
         } else {
             tcg_gen_movi_i64(ar1, 0);
         }
         break;
-    case PSW_ASC_HOME >> 32:
+    case PSW_ASC_HOME >> FLAG_MASK_PSW_SHIFT:
         tcg_gen_movi_i64(ar1, 2);
         break;
     }
@@ -3066,6 +3062,14 @@ static ExitStatus op_mvclu(DisasContext *s, DisasOps *o)
     gen_helper_mvclu(cc_op, cpu_env, t1, o->in2, t3);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t3);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvcos(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    gen_helper_mvcos(cc_op, cpu_env, o->addr1, o->in2, regs[r3]);
     set_cc_static(s);
     return NO_EXIT;
 }
@@ -3662,7 +3666,7 @@ static ExitStatus op_sigp(DisasContext *s, DisasOps *o)
 static ExitStatus op_soc(DisasContext *s, DisasOps *o)
 {
     DisasCompare c;
-    TCGv_i64 a;
+    TCGv_i64 a, h;
     TCGLabel *lab;
     int r1;
 
@@ -3682,10 +3686,21 @@ static ExitStatus op_soc(DisasContext *s, DisasOps *o)
 
     r1 = get_field(s->fields, r1);
     a = get_address(s, 0, get_field(s->fields, b2), get_field(s->fields, d2));
-    if (s->insn->data) {
+    switch (s->insn->data) {
+    case 1: /* STOCG */
         tcg_gen_qemu_st64(regs[r1], a, get_mem_index(s));
-    } else {
+        break;
+    case 0: /* STOC */
         tcg_gen_qemu_st32(regs[r1], a, get_mem_index(s));
+        break;
+    case 2: /* STOCFH */
+        h = tcg_temp_new_i64();
+        tcg_gen_shri_i64(h, regs[r1], 32);
+        tcg_gen_qemu_st32(h, a, get_mem_index(s));
+        tcg_temp_free_i64(h);
+        break;
+    default:
+        g_assert_not_reached();
     }
     tcg_temp_free_i64(a);
 
@@ -3782,7 +3797,7 @@ static ExitStatus op_spka(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_shri_i64(o->in2, o->in2, 4);
-    tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, PSW_SHIFT_KEY - 4, 4);
+    tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, PSW_SHIFT_KEY, 4);
     return NO_EXIT;
 }
 
@@ -4360,8 +4375,9 @@ static ExitStatus op_trXX(DisasContext *s, DisasOps *o)
     TCGv_i32 tst = tcg_temp_new_i32();
     int m3 = get_field(s->fields, m3);
 
-    /* XXX: the C bit in M3 should be considered as 0 when the
-       ETF2-enhancement facility is not installed.  */
+    if (!s390_has_feat(S390_FEAT_ETF2_ENH)) {
+        m3 = 0;
+    }
     if (m3 & 1) {
         tcg_gen_movi_i32(tst, -1);
     } else {
@@ -5418,6 +5434,39 @@ enum DisasInsnEnum {
 #define SPEC_prep_0 0
 #define SPEC_wout_0 0
 
+/* Give smaller names to the various facilities.  */
+#define FAC_Z           S390_FEAT_ZARCH
+#define FAC_CASS        S390_FEAT_COMPARE_AND_SWAP_AND_STORE
+#define FAC_CASS2       S390_FEAT_COMPARE_AND_SWAP_AND_STORE_2
+#define FAC_DFP         S390_FEAT_DFP
+#define FAC_DFPR        S390_FEAT_FLOATING_POINT_SUPPPORT_ENH /* DFP-rounding */
+#define FAC_DO          S390_FEAT_STFLE_45 /* distinct-operands */
+#define FAC_EE          S390_FEAT_EXECUTE_EXT
+#define FAC_EI          S390_FEAT_EXTENDED_IMMEDIATE
+#define FAC_FPE         S390_FEAT_FLOATING_POINT_EXT
+#define FAC_FPSSH       S390_FEAT_FLOATING_POINT_SUPPPORT_ENH /* FPS-sign-handling */
+#define FAC_FPRGR       S390_FEAT_FLOATING_POINT_SUPPPORT_ENH /* FPR-GR-transfer */
+#define FAC_GIE         S390_FEAT_GENERAL_INSTRUCTIONS_EXT
+#define FAC_HFP_MA      S390_FEAT_HFP_MADDSUB
+#define FAC_HW          S390_FEAT_STFLE_45 /* high-word */
+#define FAC_IEEEE_SIM   S390_FEAT_FLOATING_POINT_SUPPPORT_ENH /* IEEE-exception-simulation */
+#define FAC_MIE         S390_FEAT_STFLE_49 /* misc-instruction-extensions */
+#define FAC_LAT         S390_FEAT_STFLE_49 /* load-and-trap */
+#define FAC_LOC         S390_FEAT_STFLE_45 /* load/store on condition 1 */
+#define FAC_LOC2        S390_FEAT_STFLE_53 /* load/store on condition 2 */
+#define FAC_LD          S390_FEAT_LONG_DISPLACEMENT
+#define FAC_PC          S390_FEAT_STFLE_45 /* population count */
+#define FAC_SCF         S390_FEAT_STORE_CLOCK_FAST
+#define FAC_SFLE        S390_FEAT_STFLE
+#define FAC_ILA         S390_FEAT_STFLE_45 /* interlocked-access-facility 1 */
+#define FAC_MVCOS       S390_FEAT_MOVE_WITH_OPTIONAL_SPEC
+#define FAC_LPP         S390_FEAT_SET_PROGRAM_PARAMETERS /* load-program-parameter */
+#define FAC_DAT_ENH     S390_FEAT_DAT_ENH
+#define FAC_E2          S390_FEAT_EXTENDED_TRANSLATION_2
+#define FAC_EH          S390_FEAT_STFLE_49 /* execution-hint */
+#define FAC_PPA         S390_FEAT_STFLE_49 /* processor-assist */
+#define FAC_LZRB        S390_FEAT_STFLE_53 /* load-and-zero-rightmost-byte */
+
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"
 };
@@ -5529,7 +5578,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     case 0x80: /* S */
     case 0x82: /* S */
     case 0x93: /* S */
-    case 0xb2: /* S, RRF, RRE */
+    case 0xb2: /* S, RRF, RRE, IE */
     case 0xb3: /* RRE, RRD, RRF */
     case 0xb9: /* RRE, RRF */
     case 0xe5: /* SSE, SIL */
@@ -5545,6 +5594,8 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     case 0xcc: /* RIL */
         op2 = (insn << 12) >> 60;
         break;
+    case 0xc5: /* MII */
+    case 0xc7: /* SMI */
     case 0xd0 ... 0xdf: /* SS */
     case 0xe1: /* SS */
     case 0xe2: /* SS */
