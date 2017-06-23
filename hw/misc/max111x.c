@@ -116,7 +116,7 @@ static const VMStateDescription vmstate_max111x = {
         VMSTATE_UINT8(tb1, MAX111xState),
         VMSTATE_UINT8(rb2, MAX111xState),
         VMSTATE_UINT8(rb3, MAX111xState),
-        VMSTATE_INT32_EQUAL(inputs, MAX111xState),
+        VMSTATE_INT32_EQUAL(inputs, MAX111xState, NULL),
         VMSTATE_INT32(com, MAX111xState),
         VMSTATE_ARRAY_INT32_UNSAFE(input, MAX111xState, inputs,
                                    vmstate_info_uint8, uint8_t),

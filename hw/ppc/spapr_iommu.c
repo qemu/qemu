@@ -231,7 +231,7 @@ static const VMStateDescription vmstate_spapr_tce_table = {
     .post_load = spapr_tce_table_post_load,
     .fields      = (VMStateField []) {
         /* Sanity check */
-        VMSTATE_UINT32_EQUAL(liobn, sPAPRTCETable),
+        VMSTATE_UINT32_EQUAL(liobn, sPAPRTCETable, NULL),
 
         /* IOMMU state */
         VMSTATE_UINT32(mig_nb_table, sPAPRTCETable),

@@ -126,6 +126,9 @@ static int get_int32_equal(QEMUFile *f, void *pv, size_t size,
         return 0;
     }
     error_report("%" PRIx32 " != %" PRIx32, *v, v2);
+    if (field->err_hint) {
+        error_printf("%s\n", field->err_hint);
+    }
     return -EINVAL;
 }
 
@@ -267,6 +270,9 @@ static int get_uint32_equal(QEMUFile *f, void *pv, size_t size,
         return 0;
     }
     error_report("%" PRIx32 " != %" PRIx32, *v, v2);
+    if (field->err_hint) {
+        error_printf("%s\n", field->err_hint);
+    }
     return -EINVAL;
 }
 
@@ -341,6 +347,9 @@ static int get_uint64_equal(QEMUFile *f, void *pv, size_t size,
         return 0;
     }
     error_report("%" PRIx64 " != %" PRIx64, *v, v2);
+    if (field->err_hint) {
+        error_printf("%s\n", field->err_hint);
+    }
     return -EINVAL;
 }
 
@@ -364,6 +373,9 @@ static int get_uint8_equal(QEMUFile *f, void *pv, size_t size,
         return 0;
     }
     error_report("%x != %x", *v, v2);
+    if (field->err_hint) {
+        error_printf("%s\n", field->err_hint);
+    }
     return -EINVAL;
 }
 
@@ -387,6 +399,9 @@ static int get_uint16_equal(QEMUFile *f, void *pv, size_t size,
         return 0;
     }
     error_report("%x != %x", *v, v2);
+    if (field->err_hint) {
+        error_printf("%s\n", field->err_hint);
+    }
     return -EINVAL;
 }
 

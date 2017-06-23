@@ -557,8 +557,8 @@ const VMStateDescription vmstate_spapr_vio = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         /* Sanity check */
-        VMSTATE_UINT32_EQUAL(reg, VIOsPAPRDevice),
-        VMSTATE_UINT32_EQUAL(irq, VIOsPAPRDevice),
+        VMSTATE_UINT32_EQUAL(reg, VIOsPAPRDevice, NULL),
+        VMSTATE_UINT32_EQUAL(irq, VIOsPAPRDevice, NULL),
 
         /* General VIO device state */
         VMSTATE_UINT64(signal_state, VIOsPAPRDevice),
