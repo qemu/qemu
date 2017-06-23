@@ -33,6 +33,27 @@
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
 
 ##
+# @ImageInfoSpecificQCow2EncryptionBase:
+#
+# @format: The encryption format
+#
+# Since: 2.10
+##
+{ 'struct': 'ImageInfoSpecificQCow2EncryptionBase',
+  'data': { 'format': 'BlockdevQcow2EncryptionFormat'}}
+
+##
+# @ImageInfoSpecificQCow2Encryption:
+#
+# Since: 2.10
+##
+{ 'union': 'ImageInfoSpecificQCow2Encryption',
+  'base': 'ImageInfoSpecificQCow2EncryptionBase',
+  'discriminator': 'format',
+  'data': { 'aes': 'QCryptoBlockInfoQCow',
+            'luks': 'QCryptoBlockInfoLUKS' } }
+
+##
 # @ImageInfoSpecificQCow2:
 #
 # @compat: compatibility level
@@ -44,6 +65,9 @@
 #
 # @refcount-bits: width of a refcount entry in bits (since 2.3)
 #
+# @encrypt: details about encryption parameters; only set if image
+#           is encrypted (since 2.10)
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2',
@@ -51,7 +75,8 @@
       'compat': 'str',
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
-      'refcount-bits': 'int'
+      'refcount-bits': 'int',
+      '*encrypt': 'ImageInfoSpecificQCow2Encryption'
   } }
 
 ##

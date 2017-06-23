@@ -3241,8 +3241,14 @@ static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
-    ImageInfoSpecific *spec_info = g_new(ImageInfoSpecific, 1);
+    ImageInfoSpecific *spec_info;
+    QCryptoBlockInfo *encrypt_info = NULL;
 
+    if (s->crypto != NULL) {
+        encrypt_info = qcrypto_block_get_info(s->crypto, &error_abort);
+    }
+
+    spec_info = g_new(ImageInfoSpecific, 1);
     *spec_info = (ImageInfoSpecific){
         .type  = IMAGE_INFO_SPECIFIC_KIND_QCOW2,
         .u.qcow2.data = g_new(ImageInfoSpecificQCow2, 1),
@@ -3267,6 +3273,30 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
         /* if this assertion fails, this probably means a new version was
          * added without having it covered here */
         assert(false);
+    }
+
+    if (encrypt_info) {
+        ImageInfoSpecificQCow2Encryption *qencrypt =
+            g_new(ImageInfoSpecificQCow2Encryption, 1);
+        switch (encrypt_info->format) {
+        case Q_CRYPTO_BLOCK_FORMAT_QCOW:
+            qencrypt->format = BLOCKDEV_QCOW2_ENCRYPTION_FORMAT_AES;
+            qencrypt->u.aes = encrypt_info->u.qcow;
+            break;
+        case Q_CRYPTO_BLOCK_FORMAT_LUKS:
+            qencrypt->format = BLOCKDEV_QCOW2_ENCRYPTION_FORMAT_LUKS;
+            qencrypt->u.luks = encrypt_info->u.luks;
+            break;
+        default:
+            abort();
+        }
+        /* Since we did shallow copy above, erase any pointers
+         * in the original info */
+        memset(&encrypt_info->u, 0, sizeof(encrypt_info->u));
+        qapi_free_QCryptoBlockInfo(encrypt_info);
+
+        spec_info->u.qcow2.data->has_encrypt = true;
+        spec_info->u.qcow2.data->encrypt = qencrypt;
     }
 
     return spec_info;
