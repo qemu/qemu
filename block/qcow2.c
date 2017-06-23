@@ -2144,7 +2144,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
                          const char *backing_file, const char *backing_format,
                          int flags, size_t cluster_size, PreallocMode prealloc,
                          QemuOpts *opts, int version, int refcount_order,
-                         Error **errp)
+                         const char *encryptfmt, Error **errp)
 {
     int cluster_bits;
     QDict *options;
@@ -2273,7 +2273,13 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         .header_length              = cpu_to_be32(sizeof(*header)),
     };
 
-    if (flags & BLOCK_FLAG_ENCRYPT) {
+    if (encryptfmt) {
+        if (!g_str_equal(encryptfmt, "aes")) {
+            error_setg(errp, "Unknown encryption format '%s', expected 'aes'",
+                       encryptfmt);
+            ret = -EINVAL;
+            goto out;
+        }
         header->crypt_method = cpu_to_be32(QCOW_CRYPT_AES);
     } else {
         header->crypt_method = cpu_to_be32(QCOW_CRYPT_NONE);
@@ -2402,6 +2408,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     int version = 3;
     uint64_t refcount_bits = 16;
     int refcount_order;
+    const char *encryptfmt = NULL;
     Error *local_err = NULL;
     int ret;
 
@@ -2410,8 +2417,16 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
                     BDRV_SECTOR_SIZE);
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
     backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
-    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
-        flags |= BLOCK_FLAG_ENCRYPT;
+    encryptfmt = qemu_opt_get_del(opts, BLOCK_OPT_ENCRYPT_FORMAT);
+    if (encryptfmt) {
+        if (qemu_opt_get_del(opts, BLOCK_OPT_ENCRYPT)) {
+            error_setg(errp, "Options " BLOCK_OPT_ENCRYPT " and "
+                       BLOCK_OPT_ENCRYPT_FORMAT " are mutually exclusive");
+            ret = -EINVAL;
+            goto finish;
+        }
+    } else if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
+        encryptfmt = "aes";
     }
     cluster_size = qemu_opt_get_size_del(opts, BLOCK_OPT_CLUSTER_SIZE,
                                          DEFAULT_CLUSTER_SIZE);
@@ -2477,7 +2492,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 
     ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
                         cluster_size, prealloc, opts, version, refcount_order,
-                        &local_err);
+                        encryptfmt, &local_err);
     error_propagate(errp, local_err);
 
 finish:
@@ -3431,8 +3446,13 @@ static QemuOptsList qcow2_create_opts = {
         {
             .name = BLOCK_OPT_ENCRYPT,
             .type = QEMU_OPT_BOOL,
-            .help = "Encrypt the image",
-            .def_value_str = "off"
+            .help = "Encrypt the image with format 'aes'. (Deprecated "
+                    "in favor of " BLOCK_OPT_ENCRYPT_FORMAT "=aes)",
+        },
+        {
+            .name = BLOCK_OPT_ENCRYPT_FORMAT,
+            .type = QEMU_OPT_STRING,
+            .help = "Encrypt the image, format choices: 'aes'",
         },
         {
             .name = BLOCK_OPT_CLUSTER_SIZE,

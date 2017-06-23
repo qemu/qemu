@@ -803,10 +803,10 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     uint8_t *tmp;
     int64_t total_size = 0;
     char *backing_file = NULL;
-    int flags = 0;
     Error *local_err = NULL;
     int ret;
     BlockBackend *qcow_blk;
+    const char *encryptfmt = NULL;
 
     /* Read out options */
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
@@ -818,8 +818,16 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     }
 
     backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
-    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
-        flags |= BLOCK_FLAG_ENCRYPT;
+    encryptfmt = qemu_opt_get_del(opts, BLOCK_OPT_ENCRYPT_FORMAT);
+    if (encryptfmt) {
+        if (qemu_opt_get(opts, BLOCK_OPT_ENCRYPT)) {
+            error_setg(errp, "Options " BLOCK_OPT_ENCRYPT " and "
+                       BLOCK_OPT_ENCRYPT_FORMAT " are mutually exclusive");
+            ret = -EINVAL;
+            goto cleanup;
+        }
+    } else if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
+        encryptfmt = "aes";
     }
 
     ret = bdrv_create_file(filename, opts, &local_err);
@@ -873,7 +881,13 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     l1_size = (total_size + (1LL << shift) - 1) >> shift;
 
     header.l1_table_offset = cpu_to_be64(header_size);
-    if (flags & BLOCK_FLAG_ENCRYPT) {
+    if (encryptfmt) {
+        if (!g_str_equal(encryptfmt, "aes")) {
+            error_setg(errp, "Unknown encryption format '%s', expected 'aes'",
+                       encryptfmt);
+            ret = -EINVAL;
+            goto exit;
+        }
         header.crypt_method = cpu_to_be32(QCOW_CRYPT_AES);
     } else {
         header.crypt_method = cpu_to_be32(QCOW_CRYPT_NONE);
@@ -1047,8 +1061,13 @@ static QemuOptsList qcow_create_opts = {
         {
             .name = BLOCK_OPT_ENCRYPT,
             .type = QEMU_OPT_BOOL,
-            .help = "Encrypt the image",
-            .def_value_str = "off"
+            .help = "Encrypt the image with format 'aes'. (Deprecated "
+                    "in favor of " BLOCK_OPT_ENCRYPT_FORMAT "=aes)",
+        },
+        {
+            .name = BLOCK_OPT_ENCRYPT_FORMAT,
+            .type = QEMU_OPT_STRING,
+            .help = "Encrypt the image, format choices: 'aes'",
         },
         { /* end of list */ }
     }
