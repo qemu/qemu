@@ -841,8 +841,9 @@ static int64_t load_kernel (void)
     if (loaderparams.initrd_filename) {
         initrd_size = get_image_size (loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
-            if (initrd_offset + initrd_size > ram_size) {
+            initrd_offset = (loaderparams.ram_low_size - initrd_size
+                             - ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
+            if (kernel_high >= initrd_offset) {
                 fprintf(stderr,
                         "qemu: memory too small for initial ram disk '%s'\n",
                         loaderparams.initrd_filename);
