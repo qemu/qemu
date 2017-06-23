@@ -1543,7 +1543,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                 assert((cur_bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
                 Error *err = NULL;
                 if (qcow2_encrypt_sectors(s, offset >> BDRV_SECTOR_BITS,
-                                          cluster_data, cluster_data,
+                                          cluster_data,
                                           cur_bytes >> BDRV_SECTOR_BITS,
                                           false, &err) < 0) {
                     error_free(err);
@@ -1677,7 +1677,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
             qemu_iovec_to_buf(&hd_qiov, 0, cluster_data, hd_qiov.size);
 
             if (qcow2_encrypt_sectors(s, offset >> BDRV_SECTOR_BITS,
-                                      cluster_data, cluster_data,
+                                      cluster_data,
                                       cur_bytes >>BDRV_SECTOR_BITS,
                                       true, &err) < 0) {
                 error_free(err);

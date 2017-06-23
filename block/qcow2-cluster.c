@@ -358,11 +358,9 @@ static int count_contiguous_clusters_unallocated(int nb_clusters,
 }
 
 /* The crypt function is compatible with the linux cryptoloop
-   algorithm for < 4 GB images. NOTE: out_buf == in_buf is
-   supported */
+   algorithm for < 4 GB images. */
 int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
-                          uint8_t *out_buf, const uint8_t *in_buf,
-                          int nb_sectors, bool enc,
+                          uint8_t *buf, int nb_sectors, bool enc,
                           Error **errp)
 {
     union {
@@ -382,14 +380,12 @@ int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
         }
         if (enc) {
             ret = qcrypto_cipher_encrypt(s->cipher,
-                                         in_buf,
-                                         out_buf,
+                                         buf, buf,
                                          512,
                                          errp);
         } else {
             ret = qcrypto_cipher_decrypt(s->cipher,
-                                         in_buf,
-                                         out_buf,
+                                         buf, buf,
                                          512,
                                          errp);
         }
@@ -397,8 +393,7 @@ int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
             return -1;
         }
         sector_num++;
-        in_buf += 512;
-        out_buf += 512;
+        buf += 512;
     }
     return 0;
 }
@@ -446,7 +441,7 @@ static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
         assert(s->cipher);
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
-        if (qcow2_encrypt_sectors(s, sector, buffer, buffer,
+        if (qcow2_encrypt_sectors(s, sector, buffer,
                                   bytes >> BDRV_SECTOR_BITS, true, NULL) < 0) {
             return false;
         }
