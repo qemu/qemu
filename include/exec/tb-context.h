@@ -41,4 +41,6 @@ struct TBContext {
     int tb_phys_invalidate_count;
 };
 
+extern TBContext tb_ctx;
+
 #endif
