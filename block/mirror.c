@@ -1063,15 +1063,15 @@ static int64_t coroutine_fn bdrv_mirror_top_get_block_status(
 }
 
 static int coroutine_fn bdrv_mirror_top_pwrite_zeroes(BlockDriverState *bs,
-    int64_t offset, int count, BdrvRequestFlags flags)
+    int64_t offset, int bytes, BdrvRequestFlags flags)
 {
-    return bdrv_co_pwrite_zeroes(bs->backing, offset, count, flags);
+    return bdrv_co_pwrite_zeroes(bs->backing, offset, bytes, flags);
 }
 
 static int coroutine_fn bdrv_mirror_top_pdiscard(BlockDriverState *bs,
-    int64_t offset, int count)
+    int64_t offset, int bytes)
 {
-    return bdrv_co_pdiscard(bs->backing->bs, offset, count);
+    return bdrv_co_pdiscard(bs->backing->bs, offset, bytes);
 }
 
 static void bdrv_mirror_top_refresh_filename(BlockDriverState *bs, QDict *opts)

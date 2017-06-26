@@ -264,7 +264,7 @@ static int64_t coroutine_fn raw_co_get_block_status(BlockDriverState *bs,
 }
 
 static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
-                                             int64_t offset, int count,
+                                             int64_t offset, int bytes,
                                              BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
@@ -272,18 +272,18 @@ static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
         return -EINVAL;
     }
     offset += s->offset;
-    return bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
+    return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
 static int coroutine_fn raw_co_pdiscard(BlockDriverState *bs,
-                                        int64_t offset, int count)
+                                        int64_t offset, int bytes)
 {
     BDRVRawState *s = bs->opaque;
     if (offset > UINT64_MAX - s->offset) {
         return -EINVAL;
     }
     offset += s->offset;
-    return bdrv_co_pdiscard(bs->file->bs, offset, count);
+    return bdrv_co_pdiscard(bs->file->bs, offset, bytes);
 }
 
 static int64_t raw_getlength(BlockDriverState *bs)

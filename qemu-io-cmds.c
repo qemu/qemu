@@ -451,13 +451,13 @@ fail:
 }
 
 static int do_pread(BlockBackend *blk, char *buf, int64_t offset,
-                    int64_t count, int64_t *total)
+                    int64_t bytes, int64_t *total)
 {
-    if (count > INT_MAX) {
+    if (bytes > INT_MAX) {
         return -ERANGE;
     }
 
-    *total = blk_pread(blk, offset, (uint8_t *)buf, count);
+    *total = blk_pread(blk, offset, (uint8_t *)buf, bytes);
     if (*total < 0) {
         return *total;
     }
@@ -465,13 +465,13 @@ static int do_pread(BlockBackend *blk, char *buf, int64_t offset,
 }
 
 static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
-                     int64_t count, int flags, int64_t *total)
+                     int64_t bytes, int flags, int64_t *total)
 {
-    if (count > INT_MAX) {
+    if (bytes > INT_MAX) {
         return -ERANGE;
     }
 
-    *total = blk_pwrite(blk, offset, (uint8_t *)buf, count, flags);
+    *total = blk_pwrite(blk, offset, (uint8_t *)buf, bytes, flags);
     if (*total < 0) {
         return *total;
     }
@@ -481,7 +481,7 @@ static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
 typedef struct {
     BlockBackend *blk;
     int64_t offset;
-    int64_t count;
+    int64_t bytes;
     int64_t *total;
     int flags;
     int ret;
@@ -492,7 +492,7 @@ static void coroutine_fn co_pwrite_zeroes_entry(void *opaque)
 {
     CoWriteZeroes *data = opaque;
 
-    data->ret = blk_co_pwrite_zeroes(data->blk, data->offset, data->count,
+    data->ret = blk_co_pwrite_zeroes(data->blk, data->offset, data->bytes,
                                      data->flags);
     data->done = true;
     if (data->ret < 0) {
@@ -500,23 +500,23 @@ static void coroutine_fn co_pwrite_zeroes_entry(void *opaque)
         return;
     }
 
-    *data->total = data->count;
+    *data->total = data->bytes;
 }
 
 static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
-                               int64_t count, int flags, int64_t *total)
+                               int64_t bytes, int flags, int64_t *total)
 {
     Coroutine *co;
     CoWriteZeroes data = {
         .blk    = blk,
         .offset = offset,
-        .count  = count,
+        .bytes  = bytes,
         .total  = total,
         .flags  = flags,
         .done   = false,
     };
 
-    if (count > INT_MAX) {
+    if (bytes > INT_MAX) {
         return -ERANGE;
     }
 
@@ -533,19 +533,19 @@ static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
 }
 
 static int do_write_compressed(BlockBackend *blk, char *buf, int64_t offset,
-                               int64_t count, int64_t *total)
+                               int64_t bytes, int64_t *total)
 {
     int ret;
 
-    if (count >> 9 > BDRV_REQUEST_MAX_SECTORS) {
+    if (bytes >> 9 > BDRV_REQUEST_MAX_SECTORS) {
         return -ERANGE;
     }
 
-    ret = blk_pwrite_compressed(blk, offset, buf, count);
+    ret = blk_pwrite_compressed(blk, offset, buf, bytes);
     if (ret < 0) {
         return ret;
     }
-    *total = count;
+    *total = bytes;
     return 1;
 }
 
@@ -1701,7 +1701,7 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     struct timeval t1, t2;
     bool Cflag = false, qflag = false;
     int c, ret;
-    int64_t offset, count;
+    int64_t offset, bytes;
 
     while ((c = getopt(argc, argv, "Cq")) != -1) {
         switch (c) {
@@ -1727,11 +1727,11 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     }
 
     optind++;
-    count = cvtnum(argv[optind]);
-    if (count < 0) {
-        print_cvtnum_err(count, argv[optind]);
+    bytes = cvtnum(argv[optind]);
+    if (bytes < 0) {
+        print_cvtnum_err(bytes, argv[optind]);
         return 0;
-    } else if (count >> BDRV_SECTOR_BITS > BDRV_REQUEST_MAX_SECTORS) {
+    } else if (bytes >> BDRV_SECTOR_BITS > BDRV_REQUEST_MAX_SECTORS) {
         printf("length cannot exceed %"PRIu64", given %s\n",
                (uint64_t)BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS,
                argv[optind]);
@@ -1739,7 +1739,7 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     }
 
     gettimeofday(&t1, NULL);
-    ret = blk_pdiscard(blk, offset, count);
+    ret = blk_pdiscard(blk, offset, bytes);
     gettimeofday(&t2, NULL);
 
     if (ret < 0) {
@@ -1750,7 +1750,7 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     /* Finally, report back -- -C gives a parsable format */
     if (!qflag) {
         t2 = tsub(t2, t1);
-        print_report("discard", &t2, offset, count, count, 1, Cflag);
+        print_report("discard", &t2, offset, bytes, bytes, 1, Cflag);
     }
 
 out:

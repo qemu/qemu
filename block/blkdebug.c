@@ -575,7 +575,7 @@ static int blkdebug_co_flush(BlockDriverState *bs)
 }
 
 static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
-                                                  int64_t offset, int count,
+                                                  int64_t offset, int bytes,
                                                   BdrvRequestFlags flags)
 {
     uint32_t align = MAX(bs->bl.request_alignment,
@@ -586,29 +586,29 @@ static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
      * preferred alignment (so that we test the fallback to writes on
      * unaligned portions), and check that the block layer never hands
      * us anything unaligned that crosses an alignment boundary.  */
-    if (count < align) {
+    if (bytes < align) {
         assert(QEMU_IS_ALIGNED(offset, align) ||
-               QEMU_IS_ALIGNED(offset + count, align) ||
+               QEMU_IS_ALIGNED(offset + bytes, align) ||
                DIV_ROUND_UP(offset, align) ==
-               DIV_ROUND_UP(offset + count, align));
+               DIV_ROUND_UP(offset + bytes, align));
         return -ENOTSUP;
     }
     assert(QEMU_IS_ALIGNED(offset, align));
-    assert(QEMU_IS_ALIGNED(count, align));
+    assert(QEMU_IS_ALIGNED(bytes, align));
     if (bs->bl.max_pwrite_zeroes) {
-        assert(count <= bs->bl.max_pwrite_zeroes);
+        assert(bytes <= bs->bl.max_pwrite_zeroes);
     }
 
-    err = rule_check(bs, offset, count);
+    err = rule_check(bs, offset, bytes);
     if (err) {
         return err;
     }
 
-    return bdrv_co_pwrite_zeroes(bs->file, offset, count, flags);
+    return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
 static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int count)
+                                             int64_t offset, int bytes)
 {
     uint32_t align = bs->bl.pdiscard_alignment;
     int err;
@@ -616,29 +616,29 @@ static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
     /* Only pass through requests that are larger than requested
      * minimum alignment, and ensure that unaligned requests do not
      * cross optimum discard boundaries. */
-    if (count < bs->bl.request_alignment) {
+    if (bytes < bs->bl.request_alignment) {
         assert(QEMU_IS_ALIGNED(offset, align) ||
-               QEMU_IS_ALIGNED(offset + count, align) ||
+               QEMU_IS_ALIGNED(offset + bytes, align) ||
                DIV_ROUND_UP(offset, align) ==
-               DIV_ROUND_UP(offset + count, align));
+               DIV_ROUND_UP(offset + bytes, align));
         return -ENOTSUP;
     }
     assert(QEMU_IS_ALIGNED(offset, bs->bl.request_alignment));
-    assert(QEMU_IS_ALIGNED(count, bs->bl.request_alignment));
-    if (align && count >= align) {
+    assert(QEMU_IS_ALIGNED(bytes, bs->bl.request_alignment));
+    if (align && bytes >= align) {
         assert(QEMU_IS_ALIGNED(offset, align));
-        assert(QEMU_IS_ALIGNED(count, align));
+        assert(QEMU_IS_ALIGNED(bytes, align));
     }
     if (bs->bl.max_pdiscard) {
-        assert(count <= bs->bl.max_pdiscard);
+        assert(bytes <= bs->bl.max_pdiscard);
     }
 
-    err = rule_check(bs, offset, count);
+    err = rule_check(bs, offset, bytes);
     if (err) {
         return err;
     }
 
-    return bdrv_co_pdiscard(bs->file->bs, offset, count);
+    return bdrv_co_pdiscard(bs->file->bs, offset, bytes);
 }
 
 static void blkdebug_close(BlockDriverState *bs)
@@ -839,9 +839,13 @@ static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
     }
 
     if (!force_json && bs->file->bs->exact_filename[0]) {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
-                 "blkdebug:%s:%s", s->config_file ?: "",
-                 bs->file->bs->exact_filename);
+        int ret = snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                           "blkdebug:%s:%s", s->config_file ?: "",
+                           bs->file->bs->exact_filename);
+        if (ret >= sizeof(bs->exact_filename)) {
+            /* An overflow makes the filename unusable, so do not report any */
+            bs->exact_filename[0] = 0;
+        }
     }
 
     opts = qdict_new();
