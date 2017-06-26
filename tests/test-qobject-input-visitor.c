@@ -567,7 +567,6 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
                                       const void *unused)
 {
     Visitor *v;
-    Error *err = NULL;
     UserDefAlternate *tmp;
     WrapAlternate *wrap;
 
@@ -597,11 +596,6 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     g_assert_cmpint(tmp->u.udfu.enum1, ==, ENUM_ONE_VALUE1);
     g_assert_cmpint(tmp->u.udfu.u.value1.boolean, ==, true);
     g_assert_cmpint(tmp->u.udfu.u.value1.has_a_b, ==, false);
-    qapi_free_UserDefAlternate(tmp);
-
-    v = visitor_input_test_init(data, "false");
-    visit_type_UserDefAlternate(v, NULL, &tmp, &err);
-    error_free_or_abort(&err);
     qapi_free_UserDefAlternate(tmp);
 
     v = visitor_input_test_init(data, "{ 'alt': 42 }");
