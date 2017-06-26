@@ -177,6 +177,7 @@ bool migrate_colo_enabled(void);
 
 bool migrate_use_block(void);
 bool migrate_use_block_incremental(void);
+bool migrate_use_return_path(void);
 
 bool migrate_use_compression(void);
 int migrate_compress_level(void);

@@ -1311,6 +1311,15 @@ bool migrate_use_block(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK];
 }
 
+bool migrate_use_return_path(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
+}
+
 bool migrate_use_block_incremental(void)
 {
     MigrationState *s;
@@ -1975,10 +1984,11 @@ void migrate_fd_connect(MigrationState *s)
     notifier_list_notify(&migration_state_notifiers, s);
 
     /*
-     * Open the return path; currently for postcopy but other things might
-     * also want it.
+     * Open the return path. For postcopy, it is used exclusively. For
+     * precopy, only if user specified "return-path" capability would
+     * QEMU uses the return path.
      */
-    if (migrate_postcopy_ram()) {
+    if (migrate_postcopy_ram() || migrate_use_return_path()) {
         if (open_return_path_on_source(s)) {
             error_report("Unable to open return-path for postcopy");
             migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,

@@ -900,12 +900,15 @@
 #          offers more flexibility.
 #          (Since 2.10)
 #
+# @return-path: If enabled, migration will use the return path even
+#               for precopy. (since 2.10)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
-           'block' ] }
+           'block', 'return-path' ] }
 
 ##
 # @MigrationCapabilityStatus:
