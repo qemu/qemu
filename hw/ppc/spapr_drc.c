@@ -297,12 +297,14 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
+    QNull *null = NULL;
     Error *err = NULL;
     int fdt_offset_next, fdt_offset, fdt_depth;
     void *fdt;
 
     if (!drc->fdt) {
-        visit_type_null(v, NULL, errp);
+        visit_type_null(v, NULL, &null, errp);
+        QDECREF(null);
         return;
     }
 

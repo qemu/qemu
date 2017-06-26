@@ -445,11 +445,12 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
 static void test_visitor_out_null(TestOutputVisitorData *data,
                                   const void *unused)
 {
+    QNull *null = NULL;
     QDict *qdict;
     QObject *nil;
 
     visit_start_struct(data->ov, NULL, NULL, 0, &error_abort);
-    visit_type_null(data->ov, "a", &error_abort);
+    visit_type_null(data->ov, "a", &null, &error_abort);
     visit_check_struct(data->ov, &error_abort);
     visit_end_struct(data->ov, NULL);
     qdict = qobject_to_qdict(visitor_get(data));

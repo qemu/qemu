@@ -587,11 +587,13 @@ static void qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
     *obj = qobj;
 }
 
-static void qobject_input_type_null(Visitor *v, const char *name, Error **errp)
+static void qobject_input_type_null(Visitor *v, const char *name,
+                                    QNull **obj, Error **errp)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qobject_input_get_object(qiv, name, true, errp);
 
+    *obj = NULL;
     if (!qobj) {
         return;
     }
@@ -599,7 +601,9 @@ static void qobject_input_type_null(Visitor *v, const char *name, Error **errp)
     if (qobject_type(qobj) != QTYPE_QNULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE,
                    full_name(qiv, name), "null");
+        return;
     }
+    *obj = qnull();
 }
 
 static void qobject_input_type_size_keyval(Visitor *v, const char *name,

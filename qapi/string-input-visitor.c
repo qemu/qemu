@@ -326,14 +326,20 @@ static void parse_type_number(Visitor *v, const char *name, double *obj,
     *obj = val;
 }
 
-static void parse_type_null(Visitor *v, const char *name, Error **errp)
+static void parse_type_null(Visitor *v, const char *name, QNull **obj,
+                            Error **errp)
 {
     StringInputVisitor *siv = to_siv(v);
+
+    *obj = NULL;
 
     if (!siv->string || siv->string[0]) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "null");
+        return;
     }
+
+    *obj = qnull();
 }
 
 static void string_input_free(Visitor *v)
