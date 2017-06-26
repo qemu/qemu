@@ -186,7 +186,7 @@ def chown(config):
     msg = proc.communicate()[0]
 
     if proc.returncode != 0:
-        raise Exception("Cannot change owner on %s" % path)
+        raise Exception(msg)
 
 
 def cryptsetup_open(config):
@@ -271,6 +271,8 @@ def qemu_io_image_args(config, dev=False):
 def qemu_io_write_pattern(config, pattern, offset_mb, size_mb, dev=False):
     """Write a pattern of data to a LUKS image or device"""
 
+    if dev:
+        chown(config)
     args = ["-c", "write -P 0x%x %dM %dM" % (pattern, offset_mb, size_mb)]
     args.extend(qemu_io_image_args(config, dev))
     iotests.log("qemu-io " + " ".join(args), filters=[iotests.filter_test_dir])
@@ -281,6 +283,8 @@ def qemu_io_write_pattern(config, pattern, offset_mb, size_mb, dev=False):
 def qemu_io_read_pattern(config, pattern, offset_mb, size_mb, dev=False):
     """Read a pattern of data to a LUKS image or device"""
 
+    if dev:
+        chown(config)
     args = ["-c", "read -P 0x%x %dM %dM" % (pattern, offset_mb, size_mb)]
     args.extend(qemu_io_image_args(config, dev))
     iotests.log("qemu-io " + " ".join(args), filters=[iotests.filter_test_dir])
@@ -331,9 +335,6 @@ def test_once(config, qemu_img=False):
         cryptsetup_open(config)
 
         try:
-            iotests.log("# Set dev owner")
-            chown(config)
-
             iotests.log("# Write test pattern 0xa7")
             qemu_io_write_pattern(config, 0xa7, lowOffsetMB, 10, dev=True)
             iotests.log("# Write test pattern 0x13")
@@ -365,9 +366,6 @@ def test_once(config, qemu_img=False):
         cryptsetup_open(config)
 
         try:
-            iotests.log("# Set dev owner")
-            chown(config)
-
             iotests.log("# Read test pattern 0x91")
             qemu_io_read_pattern(config, 0x91, lowOffsetMB, 10, dev=True)
             iotests.log("# Read test pattern 0x5e")
