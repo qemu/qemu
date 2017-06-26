@@ -136,6 +136,7 @@ def cryptsetup_add_password(config, slot):
         args = ["luksAddKey", config.image_path(),
                 "--key-slot", slot,
                 "--key-file", "-",
+                "--iter-time", "10",
                 pwfile]
 
         cryptsetup(args, password)
@@ -164,6 +165,7 @@ def cryptsetup_format(config):
         args.extend(["--hash", config.hash])
     args.extend(["--key-slot", slot])
     args.extend(["--key-file", "-"])
+    args.extend(["--iter-time", "10"])
     args.append(config.image_path())
 
     cryptsetup(args, password)
@@ -230,6 +232,7 @@ def qemu_img_create(config, size_mb):
 
     opts = [
         "key-secret=sec0",
+        "iter-time=10",
         "cipher-alg=%s-%d" % (config.cipher, config.keylen),
         "cipher-mode=%s" % config.mode,
         "ivgen-alg=%s" % config.ivgen,
