@@ -259,14 +259,14 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
 }
 
 int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
-                                int count, BdrvRequestFlags flags)
+                                int bytes, BdrvRequestFlags flags)
 {
     ssize_t ret;
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = {
         .type = NBD_CMD_WRITE_ZEROES,
         .from = offset,
-        .len = count,
+        .len = bytes,
     };
     NBDReply reply;
 
@@ -316,13 +316,13 @@ int nbd_client_co_flush(BlockDriverState *bs)
     return -reply.error;
 }
 
-int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
+int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = {
         .type = NBD_CMD_TRIM,
         .from = offset,
-        .len = count,
+        .len = bytes,
     };
     NBDReply reply;
     ssize_t ret;

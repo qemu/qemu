@@ -887,22 +887,28 @@ static void common_block_job_cb(void *opaque, int ret)
 static void run_block_job(BlockJob *job, Error **errp)
 {
     AioContext *aio_context = blk_get_aio_context(job->blk);
+    int ret = 0;
 
-    /* FIXME In error cases, the job simply goes away and we access a dangling
-     * pointer below. */
     aio_context_acquire(aio_context);
+    block_job_ref(job);
     do {
         aio_poll(aio_context, true);
         qemu_progress_print(job->len ?
                             ((float)job->offset / job->len * 100.f) : 0.0f, 0);
-    } while (!job->ready);
+    } while (!job->ready && !job->completed);
 
-    block_job_complete_sync(job, errp);
+    if (!job->completed) {
+        ret = block_job_complete_sync(job, errp);
+    } else {
+        ret = job->ret;
+    }
+    block_job_unref(job);
     aio_context_release(aio_context);
 
-    /* A block job may finish instantaneously without publishing any progress,
-     * so just signal completion here */
-    qemu_progress_print(100.f, 0);
+    /* publish completion progress only when success */
+    if (!ret) {
+        qemu_progress_print(100.f, 0);
+    }
 }
 
 static int img_commit(int argc, char **argv)
@@ -4249,15 +4255,12 @@ static int img_dd(int argc, char **argv)
         case 'U':
             force_share = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
+        case OPTION_OBJECT:
+            if (!qemu_opts_parse_noisily(&qemu_object_opts, optarg, true)) {
                 ret = -1;
                 goto out;
             }
-        }   break;
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;

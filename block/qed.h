@@ -129,8 +129,7 @@ enum {
 };
 
 typedef struct QEDAIOCB {
-    BlockAIOCB common;
-    int bh_ret;                     /* final return status for completion bh */
+    BlockDriverState *bs;
     QSIMPLEQ_ENTRY(QEDAIOCB) next;  /* next request */
     int flags;                      /* QED_AIOCB_* bits ORed together */
     uint64_t end_pos;               /* request end on block device, in bytes */
@@ -163,7 +162,8 @@ typedef struct {
     uint32_t l2_mask;
 
     /* Allocating write request queue */
-    QSIMPLEQ_HEAD(, QEDAIOCB) allocating_write_reqs;
+    QEDAIOCB *allocating_acb;
+    CoQueue allocating_write_reqs;
     bool allocating_write_reqs_plugged;
 
     /* Periodic flush and clear need check flag */
@@ -177,40 +177,8 @@ enum {
     QED_CLUSTER_L1,            /* cluster missing in L1 */
 };
 
-/**
- * qed_find_cluster() completion callback
- *
- * @opaque:     User data for completion callback
- * @ret:        QED_CLUSTER_FOUND   Success
- *              QED_CLUSTER_L2      Data cluster unallocated in L2
- *              QED_CLUSTER_L1      L2 unallocated in L1
- *              -errno              POSIX error occurred
- * @offset:     Data cluster offset
- * @len:        Contiguous bytes starting from cluster offset
- *
- * This function is invoked when qed_find_cluster() completes.
- *
- * On success ret is QED_CLUSTER_FOUND and offset/len are a contiguous range
- * in the image file.
- *
- * On failure ret is QED_CLUSTER_L2 or QED_CLUSTER_L1 for missing L2 or L1
- * table offset, respectively.  len is number of contiguous unallocated bytes.
- */
-typedef void QEDFindClusterFunc(void *opaque, int ret, uint64_t offset, size_t len);
-
 void qed_acquire(BDRVQEDState *s);
 void qed_release(BDRVQEDState *s);
-
-/**
- * Generic callback for chaining async callbacks
- */
-typedef struct {
-    BlockCompletionFunc *cb;
-    void *opaque;
-} GenericCB;
-
-void *gencb_alloc(size_t len, BlockCompletionFunc *cb, void *opaque);
-void gencb_complete(void *opaque, int ret);
 
 /**
  * Header functions
@@ -231,25 +199,23 @@ void qed_commit_l2_cache_entry(L2TableCache *l2_cache, CachedL2Table *l2_table);
  * Table I/O functions
  */
 int qed_read_l1_table_sync(BDRVQEDState *s);
-void qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n,
-                        BlockCompletionFunc *cb, void *opaque);
+int qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n);
 int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
                             unsigned int n);
 int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                            uint64_t offset);
-void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
-                       BlockCompletionFunc *cb, void *opaque);
-void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
-                        unsigned int index, unsigned int n, bool flush,
-                        BlockCompletionFunc *cb, void *opaque);
+int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset);
+int qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
+                       unsigned int index, unsigned int n, bool flush);
 int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
                             unsigned int index, unsigned int n, bool flush);
 
 /**
  * Cluster functions
  */
-void qed_find_cluster(BDRVQEDState *s, QEDRequest *request, uint64_t pos,
-                      size_t len, QEDFindClusterFunc *cb, void *opaque);
+int coroutine_fn qed_find_cluster(BDRVQEDState *s, QEDRequest *request,
+                                  uint64_t pos, size_t *len,
+                                  uint64_t *img_offset);
 
 /**
  * Consistency check

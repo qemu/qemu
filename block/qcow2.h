@@ -301,10 +301,10 @@ typedef struct Qcow2COWRegion {
      * Offset of the COW region in bytes from the start of the first cluster
      * touched by the request.
      */
-    uint64_t    offset;
+    unsigned    offset;
 
     /** Number of bytes to copy */
-    int         nb_bytes;
+    unsigned    nb_bytes;
 } Qcow2COWRegion;
 
 /**
@@ -342,6 +342,13 @@ typedef struct QCowL2Meta
      * end of the last allocated cluster.
      */
     Qcow2COWRegion cow_end;
+
+    /**
+     * The I/O vector with the data from the actual guest write request.
+     * If non-NULL, this is meant to be merged together with the data
+     * from @cow_start and @cow_end into one single write operation.
+     */
+    QEMUIOVector *data_qiov;
 
     /** Pointer to next L2Meta of the same write request */
     struct QCowL2Meta *next;

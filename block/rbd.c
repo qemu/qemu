@@ -1065,11 +1065,11 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
 #ifdef LIBRBD_SUPPORTS_DISCARD
 static BlockAIOCB *qemu_rbd_aio_pdiscard(BlockDriverState *bs,
                                          int64_t offset,
-                                         int count,
+                                         int bytes,
                                          BlockCompletionFunc *cb,
                                          void *opaque)
 {
-    return rbd_start_aio(bs, offset, NULL, count, cb, opaque,
+    return rbd_start_aio(bs, offset, NULL, bytes, cb, opaque,
                          RBD_AIO_DISCARD);
 }
 #endif

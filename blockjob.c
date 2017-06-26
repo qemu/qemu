@@ -139,7 +139,7 @@ static void block_job_resume(BlockJob *job)
     block_job_enter(job);
 }
 
-static void block_job_ref(BlockJob *job)
+void block_job_ref(BlockJob *job)
 {
     ++job->refcnt;
 }
@@ -148,7 +148,7 @@ static void block_job_attached_aio_context(AioContext *new_context,
                                            void *opaque);
 static void block_job_detach_aio_context(void *opaque);
 
-static void block_job_unref(BlockJob *job)
+void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
         BlockDriverState *bs = blk_bs(job->blk);

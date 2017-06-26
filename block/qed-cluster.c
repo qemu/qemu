@@ -61,37 +61,64 @@ static unsigned int qed_count_contiguous_clusters(BDRVQEDState *s,
     return i - index;
 }
 
-typedef struct {
-    BDRVQEDState *s;
-    uint64_t pos;
-    size_t len;
-
-    QEDRequest *request;
-
-    /* User callback */
-    QEDFindClusterFunc *cb;
-    void *opaque;
-} QEDFindClusterCB;
-
-static void qed_find_cluster_cb(void *opaque, int ret)
+/**
+ * Find the offset of a data cluster
+ *
+ * @s:          QED state
+ * @request:    L2 cache entry
+ * @pos:        Byte position in device
+ * @len:        Number of bytes (may be shortened on return)
+ * @img_offset: Contains offset in the image file on success
+ *
+ * This function translates a position in the block device to an offset in the
+ * image file. The translated offset or unallocated range in the image file is
+ * reported back in *img_offset and *len.
+ *
+ * If the L2 table exists, request->l2_table points to the L2 table cache entry
+ * and the caller must free the reference when they are finished.  The cache
+ * entry is exposed in this way to avoid callers having to read the L2 table
+ * again later during request processing.  If request->l2_table is non-NULL it
+ * will be unreferenced before taking on the new cache entry.
+ *
+ * On success QED_CLUSTER_FOUND is returned and img_offset/len are a contiguous
+ * range in the image file.
+ *
+ * On failure QED_CLUSTER_L2 or QED_CLUSTER_L1 is returned for missing L2 or L1
+ * table offset, respectively. len is number of contiguous unallocated bytes.
+ */
+int coroutine_fn qed_find_cluster(BDRVQEDState *s, QEDRequest *request,
+                                  uint64_t pos, size_t *len,
+                                  uint64_t *img_offset)
 {
-    QEDFindClusterCB *find_cluster_cb = opaque;
-    BDRVQEDState *s = find_cluster_cb->s;
-    QEDRequest *request = find_cluster_cb->request;
+    uint64_t l2_offset;
     uint64_t offset = 0;
-    size_t len = 0;
     unsigned int index;
     unsigned int n;
+    int ret;
 
+    /* Limit length to L2 boundary.  Requests are broken up at the L2 boundary
+     * so that a request acts on one L2 table at a time.
+     */
+    *len = MIN(*len, (((pos >> s->l1_shift) + 1) << s->l1_shift) - pos);
+
+    l2_offset = s->l1_table->offsets[qed_l1_index(s, pos)];
+    if (qed_offset_is_unalloc_cluster(l2_offset)) {
+        *img_offset = 0;
+        return QED_CLUSTER_L1;
+    }
+    if (!qed_check_table_offset(s, l2_offset)) {
+        *img_offset = *len = 0;
+        return -EINVAL;
+    }
+
+    ret = qed_read_l2_table(s, request, l2_offset);
     qed_acquire(s);
     if (ret) {
         goto out;
     }
 
-    index = qed_l2_index(s, find_cluster_cb->pos);
-    n = qed_bytes_to_clusters(s,
-                              qed_offset_into_cluster(s, find_cluster_cb->pos) +
-                              find_cluster_cb->len);
+    index = qed_l2_index(s, pos);
+    n = qed_bytes_to_clusters(s, qed_offset_into_cluster(s, pos) + *len);
     n = qed_count_contiguous_clusters(s, request->l2_table->table,
                                       index, n, &offset);
 
@@ -105,64 +132,11 @@ static void qed_find_cluster_cb(void *opaque, int ret)
         ret = -EINVAL;
     }
 
-    len = MIN(find_cluster_cb->len, n * s->header.cluster_size -
-              qed_offset_into_cluster(s, find_cluster_cb->pos));
+    *len = MIN(*len,
+               n * s->header.cluster_size - qed_offset_into_cluster(s, pos));
 
 out:
-    find_cluster_cb->cb(find_cluster_cb->opaque, ret, offset, len);
+    *img_offset = offset;
     qed_release(s);
-    g_free(find_cluster_cb);
-}
-
-/**
- * Find the offset of a data cluster
- *
- * @s:          QED state
- * @request:    L2 cache entry
- * @pos:        Byte position in device
- * @len:        Number of bytes
- * @cb:         Completion function
- * @opaque:     User data for completion function
- *
- * This function translates a position in the block device to an offset in the
- * image file.  It invokes the cb completion callback to report back the
- * translated offset or unallocated range in the image file.
- *
- * If the L2 table exists, request->l2_table points to the L2 table cache entry
- * and the caller must free the reference when they are finished.  The cache
- * entry is exposed in this way to avoid callers having to read the L2 table
- * again later during request processing.  If request->l2_table is non-NULL it
- * will be unreferenced before taking on the new cache entry.
- */
-void qed_find_cluster(BDRVQEDState *s, QEDRequest *request, uint64_t pos,
-                      size_t len, QEDFindClusterFunc *cb, void *opaque)
-{
-    QEDFindClusterCB *find_cluster_cb;
-    uint64_t l2_offset;
-
-    /* Limit length to L2 boundary.  Requests are broken up at the L2 boundary
-     * so that a request acts on one L2 table at a time.
-     */
-    len = MIN(len, (((pos >> s->l1_shift) + 1) << s->l1_shift) - pos);
-
-    l2_offset = s->l1_table->offsets[qed_l1_index(s, pos)];
-    if (qed_offset_is_unalloc_cluster(l2_offset)) {
-        cb(opaque, QED_CLUSTER_L1, 0, len);
-        return;
-    }
-    if (!qed_check_table_offset(s, l2_offset)) {
-        cb(opaque, -EINVAL, 0, 0);
-        return;
-    }
-
-    find_cluster_cb = g_malloc(sizeof(*find_cluster_cb));
-    find_cluster_cb->s = s;
-    find_cluster_cb->pos = pos;
-    find_cluster_cb->len = len;
-    find_cluster_cb->cb = cb;
-    find_cluster_cb->opaque = opaque;
-    find_cluster_cb->request = request;
-
-    qed_read_l2_table(s, request, l2_offset,
-                      qed_find_cluster_cb, find_cluster_cb);
+    return ret;
 }

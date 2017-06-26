@@ -403,30 +403,21 @@ int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
     return 0;
 }
 
-static int coroutine_fn do_perform_cow(BlockDriverState *bs,
-                                       uint64_t src_cluster_offset,
-                                       uint64_t cluster_offset,
-                                       int offset_in_cluster,
-                                       int bytes)
+static int coroutine_fn do_perform_cow_read(BlockDriverState *bs,
+                                            uint64_t src_cluster_offset,
+                                            unsigned offset_in_cluster,
+                                            QEMUIOVector *qiov)
 {
-    BDRVQcow2State *s = bs->opaque;
-    QEMUIOVector qiov;
-    struct iovec iov;
     int ret;
 
-    iov.iov_len = bytes;
-    iov.iov_base = qemu_try_blockalign(bs, iov.iov_len);
-    if (iov.iov_base == NULL) {
-        return -ENOMEM;
+    if (qiov->size == 0) {
+        return 0;
     }
-
-    qemu_iovec_init_external(&qiov, &iov, 1);
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_READ);
 
     if (!bs->drv) {
-        ret = -ENOMEDIUM;
-        goto out;
+        return -ENOMEDIUM;
     }
 
     /* Call .bdrv_co_readv() directly instead of using the public block-layer
@@ -434,43 +425,60 @@ static int coroutine_fn do_perform_cow(BlockDriverState *bs,
      * which can lead to deadlock when block layer copy-on-read is enabled.
      */
     ret = bs->drv->bdrv_co_preadv(bs, src_cluster_offset + offset_in_cluster,
-                                  bytes, &qiov, 0);
+                                  qiov->size, qiov, 0);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
 
-    if (bs->encrypted) {
-        Error *err = NULL;
+    return 0;
+}
+
+static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
+                                                uint64_t src_cluster_offset,
+                                                unsigned offset_in_cluster,
+                                                uint8_t *buffer,
+                                                unsigned bytes)
+{
+    if (bytes && bs->encrypted) {
+        BDRVQcow2State *s = bs->opaque;
         int64_t sector = (src_cluster_offset + offset_in_cluster)
                          >> BDRV_SECTOR_BITS;
         assert(s->cipher);
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
-        if (qcow2_encrypt_sectors(s, sector, iov.iov_base, iov.iov_base,
-                                  bytes >> BDRV_SECTOR_BITS, true, &err) < 0) {
-            ret = -EIO;
-            error_free(err);
-            goto out;
+        if (qcow2_encrypt_sectors(s, sector, buffer, buffer,
+                                  bytes >> BDRV_SECTOR_BITS, true, NULL) < 0) {
+            return false;
         }
+    }
+    return true;
+}
+
+static int coroutine_fn do_perform_cow_write(BlockDriverState *bs,
+                                             uint64_t cluster_offset,
+                                             unsigned offset_in_cluster,
+                                             QEMUIOVector *qiov)
+{
+    int ret;
+
+    if (qiov->size == 0) {
+        return 0;
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0,
-            cluster_offset + offset_in_cluster, bytes);
+            cluster_offset + offset_in_cluster, qiov->size);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
     ret = bdrv_co_pwritev(bs->file, cluster_offset + offset_in_cluster,
-                          bytes, &qiov, 0);
+                          qiov->size, qiov, 0);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
 
-    ret = 0;
-out:
-    qemu_vfree(iov.iov_base);
-    return ret;
+    return 0;
 }
 
 
@@ -548,7 +556,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     /* find the cluster offset for the given disk offset */
 
-    l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
+    l2_index = offset_to_l2_index(s, offset);
     *cluster_offset = be64_to_cpu(l2_table[l2_index]);
 
     nb_clusters = size_to_clusters(s, bytes_needed);
@@ -685,7 +693,7 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
 
     /* find the cluster offset for the given disk offset */
 
-    l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
+    l2_index = offset_to_l2_index(s, offset);
 
     *new_l2_table = l2_table;
     *new_l2_index = l2_index;
@@ -753,31 +761,133 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     return cluster_offset;
 }
 
-static int perform_cow(BlockDriverState *bs, QCowL2Meta *m, Qcow2COWRegion *r)
+static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
 {
     BDRVQcow2State *s = bs->opaque;
+    Qcow2COWRegion *start = &m->cow_start;
+    Qcow2COWRegion *end = &m->cow_end;
+    unsigned buffer_size;
+    unsigned data_bytes = end->offset - (start->offset + start->nb_bytes);
+    bool merge_reads;
+    uint8_t *start_buffer, *end_buffer;
+    QEMUIOVector qiov;
     int ret;
 
-    if (r->nb_bytes == 0) {
+    assert(start->nb_bytes <= UINT_MAX - end->nb_bytes);
+    assert(start->nb_bytes + end->nb_bytes <= UINT_MAX - data_bytes);
+    assert(start->offset + start->nb_bytes <= end->offset);
+    assert(!m->data_qiov || m->data_qiov->size == data_bytes);
+
+    if (start->nb_bytes == 0 && end->nb_bytes == 0) {
         return 0;
     }
 
-    qemu_co_mutex_unlock(&s->lock);
-    ret = do_perform_cow(bs, m->offset, m->alloc_offset, r->offset, r->nb_bytes);
-    qemu_co_mutex_lock(&s->lock);
-
-    if (ret < 0) {
-        return ret;
+    /* If we have to read both the start and end COW regions and the
+     * middle region is not too large then perform just one read
+     * operation */
+    merge_reads = start->nb_bytes && end->nb_bytes && data_bytes <= 16384;
+    if (merge_reads) {
+        buffer_size = start->nb_bytes + data_bytes + end->nb_bytes;
+    } else {
+        /* If we have to do two reads, add some padding in the middle
+         * if necessary to make sure that the end region is optimally
+         * aligned. */
+        size_t align = bdrv_opt_mem_align(bs);
+        assert(align > 0 && align <= UINT_MAX);
+        assert(QEMU_ALIGN_UP(start->nb_bytes, align) <=
+               UINT_MAX - end->nb_bytes);
+        buffer_size = QEMU_ALIGN_UP(start->nb_bytes, align) + end->nb_bytes;
     }
+
+    /* Reserve a buffer large enough to store all the data that we're
+     * going to read */
+    start_buffer = qemu_try_blockalign(bs, buffer_size);
+    if (start_buffer == NULL) {
+        return -ENOMEM;
+    }
+    /* The part of the buffer where the end region is located */
+    end_buffer = start_buffer + buffer_size - end->nb_bytes;
+
+    qemu_iovec_init(&qiov, 2 + (m->data_qiov ? m->data_qiov->niov : 0));
+
+    qemu_co_mutex_unlock(&s->lock);
+    /* First we read the existing data from both COW regions. We
+     * either read the whole region in one go, or the start and end
+     * regions separately. */
+    if (merge_reads) {
+        qemu_iovec_add(&qiov, start_buffer, buffer_size);
+        ret = do_perform_cow_read(bs, m->offset, start->offset, &qiov);
+    } else {
+        qemu_iovec_add(&qiov, start_buffer, start->nb_bytes);
+        ret = do_perform_cow_read(bs, m->offset, start->offset, &qiov);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        qemu_iovec_reset(&qiov);
+        qemu_iovec_add(&qiov, end_buffer, end->nb_bytes);
+        ret = do_perform_cow_read(bs, m->offset, end->offset, &qiov);
+    }
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* Encrypt the data if necessary before writing it */
+    if (bs->encrypted) {
+        if (!do_perform_cow_encrypt(bs, m->offset, start->offset,
+                                    start_buffer, start->nb_bytes) ||
+            !do_perform_cow_encrypt(bs, m->offset, end->offset,
+                                    end_buffer, end->nb_bytes)) {
+            ret = -EIO;
+            goto fail;
+        }
+    }
+
+    /* And now we can write everything. If we have the guest data we
+     * can write everything in one single operation */
+    if (m->data_qiov) {
+        qemu_iovec_reset(&qiov);
+        if (start->nb_bytes) {
+            qemu_iovec_add(&qiov, start_buffer, start->nb_bytes);
+        }
+        qemu_iovec_concat(&qiov, m->data_qiov, 0, data_bytes);
+        if (end->nb_bytes) {
+            qemu_iovec_add(&qiov, end_buffer, end->nb_bytes);
+        }
+        /* NOTE: we have a write_aio blkdebug event here followed by
+         * a cow_write one in do_perform_cow_write(), but there's only
+         * one single I/O operation */
+        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
+        ret = do_perform_cow_write(bs, m->alloc_offset, start->offset, &qiov);
+    } else {
+        /* If there's no guest data then write both COW regions separately */
+        qemu_iovec_reset(&qiov);
+        qemu_iovec_add(&qiov, start_buffer, start->nb_bytes);
+        ret = do_perform_cow_write(bs, m->alloc_offset, start->offset, &qiov);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        qemu_iovec_reset(&qiov);
+        qemu_iovec_add(&qiov, end_buffer, end->nb_bytes);
+        ret = do_perform_cow_write(bs, m->alloc_offset, end->offset, &qiov);
+    }
+
+fail:
+    qemu_co_mutex_lock(&s->lock);
 
     /*
      * Before we update the L2 table to actually point to the new cluster, we
      * need to be sure that the refcounts have been increased and COW was
      * handled.
      */
-    qcow2_cache_depends_on_flush(s->l2_table_cache);
+    if (ret == 0) {
+        qcow2_cache_depends_on_flush(s->l2_table_cache);
+    }
 
-    return 0;
+    qemu_vfree(start_buffer);
+    qemu_iovec_destroy(&qiov);
+    return ret;
 }
 
 int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
@@ -797,12 +907,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     }
 
     /* copy content of unmodified sectors */
-    ret = perform_cow(bs, m, &m->cow_start);
-    if (ret < 0) {
-        goto err;
-    }
-
-    ret = perform_cow(bs, m, &m->cow_end);
+    ret = perform_cow(bs, m);
     if (ret < 0) {
         goto err;
     }
