@@ -445,7 +445,7 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
     } else if (!strcmp(token->str, "false")) {
         return QOBJECT(qbool_from_bool(false));
     } else if (!strcmp(token->str, "null")) {
-        return qnull();
+        return QOBJECT(qnull());
     }
     parse_error(ctxt, token, "invalid keyword '%s'", token->str);
     return NULL;

@@ -1012,7 +1012,7 @@ static void keyword_literal(void)
 {
     QObject *obj;
     QBool *qbool;
-    QObject *null;
+    QNull *null;
     QString *str;
 
     obj = qobject_from_json("true", &error_abort);
@@ -1053,10 +1053,10 @@ static void keyword_literal(void)
     g_assert(qobject_type(obj) == QTYPE_QNULL);
 
     null = qnull();
-    g_assert(null == obj);
+    g_assert(QOBJECT(null) == obj);
 
     qobject_decref(obj);
-    qobject_decref(null);
+    QDECREF(null);
 }
 
 typedef struct LiteralQDictEntry LiteralQDictEntry;

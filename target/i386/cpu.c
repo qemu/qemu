@@ -2442,7 +2442,7 @@ static QDict *x86_cpu_static_props(void)
 
     d = qdict_new();
     for (i = 0; props[i]; i++) {
-        qdict_put_obj(d, props[i], qnull());
+        qdict_put(d, props[i], qnull());
     }
 
     for (w = 0; w < FEATURE_WORDS; w++) {
@@ -2452,7 +2452,7 @@ static QDict *x86_cpu_static_props(void)
             if (!fi->feat_names[bit]) {
                 continue;
             }
-            qdict_put_obj(d, fi->feat_names[bit], qnull());
+            qdict_put(d, fi->feat_names[bit], qnull());
         }
     }
 

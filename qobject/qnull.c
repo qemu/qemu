@@ -14,7 +14,9 @@
 #include "qemu-common.h"
 #include "qapi/qmp/qobject.h"
 
-QObject qnull_ = {
-    .type = QTYPE_QNULL,
-    .refcnt = 1,
+QNull qnull_ = {
+    .base = {
+        .type = QTYPE_QNULL,
+        .refcnt = 1,
+    },
 };
