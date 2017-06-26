@@ -457,8 +457,12 @@ configs = [
 
 
     # LUKS default but diff hash
+    LUKSConfig("aes-256-xts-plain64-sha224",
+               "aes", 256, "xts", "plain64", None, "sha224"),
     LUKSConfig("aes-256-xts-plain64-sha256",
                "aes", 256, "xts", "plain64", None, "sha256"),
+    LUKSConfig("aes-256-xts-plain64-sha384",
+               "aes", 256, "xts", "plain64", None, "sha384"),
     LUKSConfig("aes-256-xts-plain64-sha512",
                "aes", 256, "xts", "plain64", None, "sha512"),
     LUKSConfig("aes-256-xts-plain64-ripemd160",
@@ -504,12 +508,6 @@ blacklist = [
 
     # GCrypt doesn't support Twofish with 192 bit key
     "twofish-192-xts-plain64-sha1",
-
-    # We don't have sha512 hash wired up yet
-    "aes-256-xts-plain64-sha512",
-
-    # We don't have ripemd160 hash wired up yet
-    "aes-256-xts-plain64-ripemd160",
 ]
 
 whitelist = []
