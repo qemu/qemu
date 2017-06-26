@@ -19,10 +19,17 @@
 #include "exec/memattrs.h"
 #include "hw/irq.h"
 
-#ifdef CONFIG_KVM
-#include <linux/kvm.h>
-#include <linux/kvm_para.h>
+#ifdef NEED_CPU_H
+# ifdef CONFIG_KVM
+#  include <linux/kvm.h>
+#  include <linux/kvm_para.h>
+#  define CONFIG_KVM_IS_POSSIBLE
+# endif
+#else
+# define CONFIG_KVM_IS_POSSIBLE
 #endif
+
+#ifdef CONFIG_KVM_IS_POSSIBLE
 
 extern bool kvm_allowed;
 extern bool kvm_kernel_irqchip;
@@ -40,7 +47,6 @@ extern bool kvm_direct_msi_allowed;
 extern bool kvm_ioeventfd_any_length_allowed;
 extern bool kvm_msi_use_devid;
 
-#if defined CONFIG_KVM || !defined NEED_CPU_H
 #define kvm_enabled()           (kvm_allowed)
 /**
  * kvm_irqchip_in_kernel:
@@ -163,6 +169,7 @@ extern bool kvm_msi_use_devid;
 #define kvm_msi_devid_required() (kvm_msi_use_devid)
 
 #else
+
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
 #define kvm_irqchip_is_split() (false)
@@ -178,7 +185,8 @@ extern bool kvm_msi_use_devid;
 #define kvm_direct_msi_enabled() (false)
 #define kvm_ioeventfd_any_length_enabled() (false)
 #define kvm_msi_devid_required() (false)
-#endif
+
+#endif  /* CONFIG_KVM_IS_POSSIBLE */
 
 struct kvm_run;
 struct kvm_lapic_state;

@@ -33,7 +33,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/tco.h"
-#include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 
 #include "hw/i386/ich9.h"
