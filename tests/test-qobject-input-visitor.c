@@ -583,6 +583,11 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     g_assert_cmpint(tmp->u.e, ==, ENUM_ONE_VALUE1);
     qapi_free_UserDefAlternate(tmp);
 
+    v = visitor_input_test_init(data, "null");
+    visit_type_UserDefAlternate(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, QTYPE_QNULL);
+    qapi_free_UserDefAlternate(tmp);
+
     v = visitor_input_test_init(data, "{'integer':1, 'string':'str', "
                                 "'enum1':'value1', 'boolean':true}");
     visit_type_UserDefAlternate(v, NULL, &tmp, &error_abort);

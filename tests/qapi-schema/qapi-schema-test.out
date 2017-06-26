@@ -64,6 +64,7 @@ alternate UserDefAlternate
     case udfu: UserDefFlatUnion
     case e: EnumOne
     case i: int
+    case n: null
 object UserDefB
     member intb: int optional=False
     member a-b: bool optional=True

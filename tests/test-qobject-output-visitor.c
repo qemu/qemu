@@ -424,6 +424,16 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
 
     visitor_reset(data);
     tmp = g_new0(UserDefAlternate, 1);
+    tmp->type = QTYPE_QNULL;
+    tmp->u.n = qnull();
+
+    visit_type_UserDefAlternate(data->ov, NULL, &tmp, &error_abort);
+    g_assert_cmpint(qobject_type(visitor_get(data)), ==, QTYPE_QNULL);
+
+    qapi_free_UserDefAlternate(tmp);
+
+    visitor_reset(data);
+    tmp = g_new0(UserDefAlternate, 1);
     tmp->type = QTYPE_QDICT;
     tmp->u.udfu.integer = 1;
     tmp->u.udfu.string = g_strdup("str");

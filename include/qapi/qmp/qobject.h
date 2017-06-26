@@ -93,9 +93,9 @@ static inline QType qobject_type(const QObject *obj)
     return obj->type;
 }
 
-typedef struct QNull {
+struct QNull {
     QObject base;
-} QNull;
+};
 
 extern QNull qnull_;
 

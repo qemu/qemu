@@ -282,6 +282,7 @@ The following types are predefined, and map to C as follows:
   size      uint64_t   like uint64_t, except StringInputVisitor
                        accepts size suffixes
   bool      bool       JSON true or false
+  null      QNull *    JSON null
   any       QObject *  any JSON value
   QType     QType      JSON string matching enum QType values
 
@@ -536,10 +537,11 @@ can only express a choice between types represented differently in
 JSON.  If a branch is typed as the 'bool' built-in, the alternate
 accepts true and false; if it is typed as any of the various numeric
 built-ins, it accepts a JSON number; if it is typed as a 'str'
-built-in or named enum type, it accepts a JSON string; and if it is
-typed as a complex type (struct or union), it accepts a JSON object.
-Two different complex types, for instance, aren't permitted, because
-both are represented as a JSON object.
+built-in or named enum type, it accepts a JSON string; if it is typed
+as the 'null' built-in, it accepts JSON null; and if it is typed as a
+complex type (struct or union), it accepts a JSON object.  Two
+different complex types, for instance, aren't permitted, because both
+are represented as a JSON object.
 
 The example alternate declaration above allows using both of the
 following example objects:
