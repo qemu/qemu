@@ -52,8 +52,15 @@ _make_test_img 64k
 
 $QEMU_IO -c 'write -P 42 0 64k' "$TEST_IMG" | _filter_qemu_io
 
+if test "$IMGOPTSSYNTAX" = "true"
+then
+    SYSEMU_DRIVE_ARG=if=none,media=cdrom,id=drv,"$TEST_IMG"
+else
+    SYSEMU_DRIVE_ARG=if=none,media=cdrom,id=drv,file="$TEST_IMG",driver=$IMGFMT
+fi
+
 keep_stderr=y \
-_launch_qemu -drive if=none,media=cdrom,id=drv,file="$TEST_IMG",format=$IMGFMT \
+_launch_qemu -drive $SYSEMU_DRIVE_ARG \
     2> >(_filter_nbd)
 
 _send_qemu_cmd $QEMU_HANDLE \

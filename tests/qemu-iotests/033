@@ -50,10 +50,18 @@ do_test()
 	local align=$1
 	local iocmd=$2
 	local img=$3
+	if [ "$IMGOPTSSYNTAX" = "true" ]
+	then
+	    IO_OPEN_ARG="$img"
+	    IO_EXTRA_ARGS="--image-opts"
+	else
+	    IO_OPEN_ARG="-o driver=$IMGFMT,file.align=$align blkdebug::$img"
+	    IO_EXTRA_ARGS=""
+	fi
 	{
-		echo "open -o driver=$IMGFMT,file.align=$align blkdebug::$img"
+		echo "open $IO_OPEN_ARG"
 		echo $iocmd
-	} | $QEMU_IO
+	} | $QEMU_IO $IO_EXTRA_ARGS
 }
 
 for write_zero_cmd in "write -z" "aio_write -z"; do

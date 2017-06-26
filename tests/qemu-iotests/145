@@ -43,8 +43,23 @@ _supported_proto generic
 _supported_os Linux
 
 _make_test_img 1M
-echo quit | $QEMU -nographic -hda "$TEST_IMG" -incoming 'exec:true' -snapshot -serial none -monitor stdio |
-    _filter_qemu | _filter_hmp
+
+if test "$IMGOPTSSYNTAX" = "true"
+then
+    SYSEMU_DRIVE_ARG=if=none,$TEST_IMG
+    SYSEMU_EXTRA_ARGS=""
+    if [ -n "$IMGKEYSECRET" ]; then
+        SECRET_ARG="secret,id=keysec0,data=$IMGKEYSECRET"
+        SYSEMU_EXTRA_ARGS="-object $SECRET_ARG"
+    fi
+else
+    SYSEMU_DRIVE_ARG=if=none,file="$TEST_IMG",driver=$IMGFMT
+    SYSEMU_EXTRA_ARGS=""
+fi
+
+echo quit | $QEMU -nographic $SYSEMU_EXTRA_ARGS -drive $SYSEMU_DRIVE_ARG \
+                  -incoming 'exec:true' -snapshot -serial none -monitor stdio \
+          | _filter_qemu | _filter_hmp
 
 # success, all done
 echo "*** done"
