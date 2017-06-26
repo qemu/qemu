@@ -26,6 +26,7 @@
 #include "qemu/notify.h"
 #include "qemu/log.h"
 #include "exec/log.h"
+#include "exec/cpu-common.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "hw/qdev-properties.h"
@@ -293,9 +294,7 @@ static void cpu_common_reset(CPUState *cpu)
     if (tcg_enabled()) {
         cpu_tb_jmp_cache_clear(cpu);
 
-#ifdef CONFIG_SOFTMMU
-        tlb_flush(cpu, 0);
-#endif
+        tcg_flush_softmmu_tlb(cpu);
     }
 }
 
