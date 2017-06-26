@@ -27,7 +27,7 @@
 #include "sysemu/sysemu.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
-#include "hw/hw.h"
+#include "sysemu/reset.h"
 #include "hw/qdev-core.h"
 
 typedef struct FWBootEntry FWBootEntry;
