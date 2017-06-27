@@ -43,6 +43,7 @@
 #include "io/channel-buffer.h"
 #include "migration/colo.h"
 #include "hw/boards.h"
+#include "monitor/monitor.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -1991,6 +1992,16 @@ void migrate_fd_connect(MigrationState *s)
     qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
                        QEMU_THREAD_JOINABLE);
     s->migration_thread_running = true;
+}
+
+void migration_global_dump(Monitor *mon)
+{
+    MigrationState *ms = migrate_get_current();
+
+    monitor_printf(mon, "globals: store-global-state=%d, only_migratable=%d, "
+                   "send-configuration=%d, send-section-footer=%d\n",
+                   ms->store_global_state, ms->only_migratable,
+                   ms->send_configuration, ms->send_section_footer);
 }
 
 static Property migration_properties[] = {
