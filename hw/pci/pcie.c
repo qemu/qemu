@@ -91,11 +91,14 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
     /* PCIe cap v2 init */
     int pos;
     uint8_t *exp_cap;
+    Error *local_err = NULL;
 
     assert(pci_is_express(dev));
 
-    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER2_SIZEOF);
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
+                             PCI_EXP_VER2_SIZEOF, &local_err);
     if (pos < 0) {
+        error_report_err(local_err);
         return pos;
     }
     dev->exp.exp_cap = pos;
@@ -123,11 +126,14 @@ int pcie_cap_v1_init(PCIDevice *dev, uint8_t offset, uint8_t type,
 {
     /* PCIe cap v1 init */
     int pos;
+    Error *local_err = NULL;
 
     assert(pci_is_express(dev));
 
-    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER1_SIZEOF);
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
+                             PCI_EXP_VER1_SIZEOF, &local_err);
     if (pos < 0) {
+        error_report_err(local_err);
         return pos;
     }
     dev->exp.exp_cap = pos;

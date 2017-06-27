@@ -2264,15 +2264,13 @@ static void pci_del_option_rom(PCIDevice *pdev)
  * in pci config space
  */
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
-                       uint8_t offset, uint8_t size)
+                       uint8_t offset, uint8_t size,
+                       Error **errp)
 {
     int ret;
-    Error *local_err = NULL;
 
-    ret = pci_add_capability2(pdev, cap_id, offset, size, &local_err);
-    if (ret < 0) {
-        error_report_err(local_err);
-    }
+    ret = pci_add_capability2(pdev, cap_id, offset, size, errp);
+
     return ret;
 }
 

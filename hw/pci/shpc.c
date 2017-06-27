@@ -450,9 +450,12 @@ static int shpc_cap_add_config(PCIDevice *d)
 {
     uint8_t *config;
     int config_offset;
+    Error *local_err = NULL;
     config_offset = pci_add_capability(d, PCI_CAP_ID_SHPC,
-                                       0, SHPC_CAP_LENGTH);
+                                       0, SHPC_CAP_LENGTH,
+                                       &local_err);
     if (config_offset < 0) {
+        error_report_err(local_err);
         return config_offset;
     }
     config = d->config + config_offset;

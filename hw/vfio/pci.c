@@ -1743,10 +1743,13 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
                                PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
     }
 
-    pos = pci_add_capability(&vdev->pdev, PCI_CAP_ID_EXP, pos, size);
-    if (pos > 0) {
-        vdev->pdev.exp.exp_cap = pos;
+    pos = pci_add_capability(&vdev->pdev, PCI_CAP_ID_EXP, pos, size,
+                             errp);
+    if (pos < 0) {
+        return pos;
     }
+
+    vdev->pdev.exp.exp_cap = pos;
 
     return pos;
 }
