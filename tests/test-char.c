@@ -20,13 +20,9 @@ typedef struct FeHandler {
 
 static void main_loop(void)
 {
-    bool nonblocking;
-    int last_io = 0;
-
     quit = false;
     do {
-        nonblocking = last_io > 0;
-        last_io = main_loop_wait(nonblocking);
+        main_loop_wait(false);
     } while (!quit);
 }
 
