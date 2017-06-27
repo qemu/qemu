@@ -45,6 +45,7 @@ void savevm_skip_section_footers(void);
 void savevm_skip_configuration(void);
 
 /* migration/migration.c */
+void migration_object_init(void);
 void qemu_start_incoming_migration(const char *uri, Error **errp);
 bool migration_is_idle(void);
 void add_migration_state_change_notifier(Notifier *notify);

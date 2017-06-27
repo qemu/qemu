@@ -19,6 +19,7 @@
 #include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
+#include "hw/qdev.h"
 
 /* State for the incoming migration */
 struct MigrationIncomingState {
@@ -62,8 +63,26 @@ struct MigrationIncomingState {
 MigrationIncomingState *migration_incoming_get_current(void);
 void migration_incoming_state_destroy(void);
 
+#define TYPE_MIGRATION "migration"
+
+#define MIGRATION_CLASS(klass) \
+    OBJECT_CLASS_CHECK(MigrationClass, (klass), TYPE_MIGRATION)
+#define MIGRATION_OBJ(obj) \
+    OBJECT_CHECK(MigrationState, (obj), TYPE_MIGRATION)
+#define MIGRATION_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(MigrationClass, (obj), TYPE_MIGRATION)
+
+typedef struct MigrationClass {
+    /*< private >*/
+    DeviceClass parent_class;
+} MigrationClass;
+
 struct MigrationState
 {
+    /*< private >*/
+    DeviceState parent_obj;
+
+    /*< public >*/
     size_t bytes_xfer;
     size_t xfer_limit;
     QemuThread thread;

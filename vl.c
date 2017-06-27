@@ -4596,6 +4596,12 @@ int main(int argc, char **argv, char **envp)
      */
     register_global_properties(current_machine);
 
+    /*
+     * Migration object can only be created after global properties
+     * are applied correctly.
+     */
+    migration_object_init();
+
     /* This checkpoint is required by replay to separate prior clock
        reading from the other reads, because timer polling functions query
        clock values from the log. */
