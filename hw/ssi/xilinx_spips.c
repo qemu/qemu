@@ -496,6 +496,18 @@ static const MemoryRegionOps spips_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void xilinx_qspips_invalidate_mmio_ptr(XilinxQSPIPS *q)
+{
+    XilinxSPIPS *s = &q->parent_obj;
+
+    if (q->lqspi_cached_addr != ~0ULL) {
+        /* Invalidate the current mapped mmio */
+        memory_region_invalidate_mmio_ptr(&s->mmlqspi, q->lqspi_cached_addr,
+                                          LQSPI_CACHE_SIZE);
+        q->lqspi_cached_addr = ~0ULL;
+    }
+}
+
 static void xilinx_qspips_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
@@ -505,7 +517,7 @@ static void xilinx_qspips_write(void *opaque, hwaddr addr,
     addr >>= 2;
 
     if (addr == R_LQSPI_CFG) {
-        q->lqspi_cached_addr = ~0ULL;
+        xilinx_qspips_invalidate_mmio_ptr(q);
     }
 }
 
@@ -517,27 +529,20 @@ static const MemoryRegionOps qspips_ops = {
 
 #define LQSPI_CACHE_SIZE 1024
 
-static uint64_t
-lqspi_read(void *opaque, hwaddr addr, unsigned int size)
+static void lqspi_load_cache(void *opaque, hwaddr addr)
 {
-    int i;
     XilinxQSPIPS *q = opaque;
     XilinxSPIPS *s = opaque;
-    uint32_t ret;
+    int i;
+    int flash_addr = ((addr & ~(LQSPI_CACHE_SIZE - 1))
+                   / num_effective_busses(s));
+    int slave = flash_addr >> LQSPI_ADDRESS_BITS;
+    int cache_entry = 0;
+    uint32_t u_page_save = s->regs[R_LQSPI_STS] & ~LQSPI_CFG_U_PAGE;
 
-    if (addr >= q->lqspi_cached_addr &&
-            addr <= q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
-        uint8_t *retp = &q->lqspi_buf[addr - q->lqspi_cached_addr];
-        ret = cpu_to_le32(*(uint32_t *)retp);
-        DB_PRINT_L(1, "addr: %08x, data: %08x\n", (unsigned)addr,
-                   (unsigned)ret);
-        return ret;
-    } else {
-        int flash_addr = (addr / num_effective_busses(s));
-        int slave = flash_addr >> LQSPI_ADDRESS_BITS;
-        int cache_entry = 0;
-        uint32_t u_page_save = s->regs[R_LQSPI_STS] & ~LQSPI_CFG_U_PAGE;
-
+    if (addr < q->lqspi_cached_addr ||
+            addr > q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
+        xilinx_qspips_invalidate_mmio_ptr(q);
         s->regs[R_LQSPI_STS] &= ~LQSPI_CFG_U_PAGE;
         s->regs[R_LQSPI_STS] |= slave ? LQSPI_CFG_U_PAGE : 0;
 
@@ -589,12 +594,43 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
         xilinx_spips_update_cs_lines(s);
 
         q->lqspi_cached_addr = flash_addr * num_effective_busses(s);
+    }
+}
+
+static void *lqspi_request_mmio_ptr(void *opaque, hwaddr addr, unsigned *size,
+                                    unsigned *offset)
+{
+    XilinxQSPIPS *q = opaque;
+    hwaddr offset_within_the_region = addr & ~(LQSPI_CACHE_SIZE - 1);
+
+    lqspi_load_cache(opaque, offset_within_the_region);
+    *size = LQSPI_CACHE_SIZE;
+    *offset = offset_within_the_region;
+    return q->lqspi_buf;
+}
+
+static uint64_t
+lqspi_read(void *opaque, hwaddr addr, unsigned int size)
+{
+    XilinxQSPIPS *q = opaque;
+    uint32_t ret;
+
+    if (addr >= q->lqspi_cached_addr &&
+            addr <= q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
+        uint8_t *retp = &q->lqspi_buf[addr - q->lqspi_cached_addr];
+        ret = cpu_to_le32(*(uint32_t *)retp);
+        DB_PRINT_L(1, "addr: %08x, data: %08x\n", (unsigned)addr,
+                   (unsigned)ret);
+        return ret;
+    } else {
+        lqspi_load_cache(opaque, addr);
         return lqspi_read(opaque, addr, size);
     }
 }
 
 static const MemoryRegionOps lqspi_ops = {
     .read = lqspi_read,
+    .request_ptr = lqspi_request_mmio_ptr,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,

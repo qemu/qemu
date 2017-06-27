@@ -137,6 +137,15 @@ struct MemoryRegionOps {
                                     uint64_t data,
                                     unsigned size,
                                     MemTxAttrs attrs);
+    /* Instruction execution pre-callback:
+     * @addr is the address of the access relative to the @mr.
+     * @size is the size of the area returned by the callback.
+     * @offset is the location of the pointer inside @mr.
+     *
+     * Returns a pointer to a location which contains guest code.
+     */
+    void *(*request_ptr)(void *opaque, hwaddr addr, unsigned *size,
+                         unsigned *offset);
 
     enum device_endian endianness;
     /* Guest-visible constraints: */
@@ -1361,6 +1370,32 @@ void memory_global_dirty_log_start(void);
 void memory_global_dirty_log_stop(void);
 
 void mtree_info(fprintf_function mon_printf, void *f, bool flatview);
+
+/**
+ * memory_region_request_mmio_ptr: request a pointer to an mmio
+ * MemoryRegion. If it is possible map a RAM MemoryRegion with this pointer.
+ * When the device wants to invalidate the pointer it will call
+ * memory_region_invalidate_mmio_ptr.
+ *
+ * @mr: #MemoryRegion to check
+ * @addr: address within that region
+ *
+ * Returns true on success, false otherwise.
+ */
+bool memory_region_request_mmio_ptr(MemoryRegion *mr, hwaddr addr);
+
+/**
+ * memory_region_invalidate_mmio_ptr: invalidate the pointer to an mmio
+ * previously requested.
+ * In the end that means that if something wants to execute from this area it
+ * will need to request the pointer again.
+ *
+ * @mr: #MemoryRegion associated to the pointer.
+ * @addr: address within that region
+ * @size: size of that area.
+ */
+void memory_region_invalidate_mmio_ptr(MemoryRegion *mr, hwaddr offset,
+                                       unsigned size);
 
 /**
  * memory_region_dispatch_read: perform a read directly to the specified

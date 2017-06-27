@@ -746,41 +746,6 @@ static inline ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
     return ram_addr;
 }
 
-/* NOTE: this function can trigger an exception */
-/* NOTE2: the returned address is not exactly the physical address: it
- * is actually a ram_addr_t (in system mode; the user mode emulation
- * version of this function returns a guest virtual address).
- */
-tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
-{
-    int mmu_idx, page_index, pd;
-    void *p;
-    MemoryRegion *mr;
-    CPUState *cpu = ENV_GET_CPU(env1);
-    CPUIOTLBEntry *iotlbentry;
-
-    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env1, true);
-    if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code !=
-                 (addr & TARGET_PAGE_MASK))) {
-        cpu_ldub_code(env1, addr);
-    }
-    iotlbentry = &env1->iotlb[mmu_idx][page_index];
-    pd = iotlbentry->addr & ~TARGET_PAGE_MASK;
-    mr = iotlb_to_region(cpu, pd, iotlbentry->attrs);
-    if (memory_region_is_unassigned(mr)) {
-        cpu_unassigned_access(cpu, addr, false, true, 0, 4);
-        /* The CPU's unassigned access hook might have longjumped out
-         * with an exception. If it didn't (or there was no hook) then
-         * we can't proceed further.
-         */
-        report_bad_exec(cpu, addr);
-        exit(1);
-    }
-    p = (void *)((uintptr_t)addr + env1->tlb_table[mmu_idx][page_index].addend);
-    return qemu_ram_addr_from_host_nofail(p);
-}
-
 static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
                          target_ulong addr, uintptr_t retaddr, int size)
 {
@@ -867,6 +832,53 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
 #define VICTIM_TLB_HIT(TY, ADDR) \
   victim_tlb_hit(env, mmu_idx, index, offsetof(CPUTLBEntry, TY), \
                  (ADDR) & TARGET_PAGE_MASK)
+
+/* NOTE: this function can trigger an exception */
+/* NOTE2: the returned address is not exactly the physical address: it
+ * is actually a ram_addr_t (in system mode; the user mode emulation
+ * version of this function returns a guest virtual address).
+ */
+tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
+{
+    int mmu_idx, index, pd;
+    void *p;
+    MemoryRegion *mr;
+    CPUState *cpu = ENV_GET_CPU(env);
+    CPUIOTLBEntry *iotlbentry;
+
+    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    mmu_idx = cpu_mmu_index(env, true);
+    if (unlikely(env->tlb_table[mmu_idx][index].addr_code !=
+                 (addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
+        if (!VICTIM_TLB_HIT(addr_read, addr)) {
+            tlb_fill(ENV_GET_CPU(env), addr, MMU_INST_FETCH, mmu_idx, 0);
+        }
+    }
+    iotlbentry = &env->iotlb[mmu_idx][index];
+    pd = iotlbentry->addr & ~TARGET_PAGE_MASK;
+    mr = iotlb_to_region(cpu, pd, iotlbentry->attrs);
+    if (memory_region_is_unassigned(mr)) {
+        qemu_mutex_lock_iothread();
+        if (memory_region_request_mmio_ptr(mr, addr)) {
+            qemu_mutex_unlock_iothread();
+            /* A MemoryRegion is potentially added so re-run the
+             * get_page_addr_code.
+             */
+            return get_page_addr_code(env, addr);
+        }
+        qemu_mutex_unlock_iothread();
+
+        cpu_unassigned_access(cpu, addr, false, true, 0, 4);
+        /* The CPU's unassigned access hook might have longjumped out
+         * with an exception. If it didn't (or there was no hook) then
+         * we can't proceed further.
+         */
+        report_bad_exec(cpu, addr);
+        exit(1);
+    }
+    p = (void *)((uintptr_t)addr + env->tlb_table[mmu_idx][index].addend);
+    return qemu_ram_addr_from_host_nofail(p);
+}
 
 /* Probe for whether the specified guest write access is permitted.
  * If it is not permitted then an exception will be taken in the same
