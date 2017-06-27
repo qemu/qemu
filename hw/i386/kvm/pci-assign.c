@@ -1232,7 +1232,6 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
     AssignedDevice *dev = PCI_ASSIGN(pci_dev);
     PCIRegion *pci_region = dev->real_device.regions;
     int ret, pos;
-    Error *local_err = NULL;
 
     /* Clear initial capabilities pointer and status copied from hw */
     pci_set_byte(pci_dev->config + PCI_CAPABILITY_LIST, 0);
@@ -1251,9 +1250,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSI;
         /* Only 32-bit/no-mask currently supported */
         ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSI, pos, 10,
-                                  &local_err);
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msi_cap = pos;
@@ -1283,9 +1281,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         dev->dev.cap_present |= QEMU_PCI_CAP_MSIX;
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSIX;
         ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSIX, pos, 12,
-                                  &local_err);
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msix_cap = pos;
@@ -1313,9 +1310,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         uint16_t pmc;
 
         ret = pci_add_capability(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF,
-                                  &local_err);
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1381,9 +1377,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         }
 
         ret = pci_add_capability(pci_dev, PCI_CAP_ID_EXP, pos, size,
-                                  &local_err);
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1457,9 +1452,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
 
         /* Only expose the minimum, 8 byte capability */
         ret = pci_add_capability(pci_dev, PCI_CAP_ID_PCIX, pos, 8,
-                                  &local_err);
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1485,9 +1479,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
     if (pos) {
         /* Direct R/W passthrough */
         ret = pci_add_capability(pci_dev, PCI_CAP_ID_VPD, pos, 8,
-                                  &local_err);
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1503,9 +1496,8 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         uint8_t len = pci_get_byte(pci_dev->config + pos + PCI_CAP_FLAGS);
         /* Direct R/W passthrough */
         ret = pci_add_capability(pci_dev, PCI_CAP_ID_VNDR, pos, len,
-                                  &local_err);
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
