@@ -1744,7 +1744,7 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
     }
 
     pos = pci_add_capability(&vdev->pdev, PCI_CAP_ID_EXP, pos, size);
-    if (pos >= 0) {
+    if (pos > 0) {
         vdev->pdev.exp.exp_cap = pos;
     }
 

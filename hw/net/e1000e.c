@@ -374,7 +374,7 @@ e1000e_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
 {
     int ret = pci_add_capability(pdev, PCI_CAP_ID_PM, offset, PCI_PM_SIZEOF);
 
-    if (ret >= 0) {
+    if (ret > 0) {
         pci_set_word(pdev->config + offset + PCI_PM_PMC,
                      PCI_PM_CAP_VER_1_1 |
                      pmc);
