@@ -16,7 +16,6 @@
 #include "sysemu/sysemu.h"
 
 void register_global_state(void);
-void global_state_set_optional(void);
 int global_state_store(void);
 void global_state_store_running(void);
 bool global_state_received(void);

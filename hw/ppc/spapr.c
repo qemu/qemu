@@ -3581,7 +3581,6 @@ static void spapr_machine_2_3_instance_options(MachineState *machine)
 {
     spapr_machine_2_4_instance_options(machine);
     savevm_skip_section_footers();
-    global_state_set_optional();
     savevm_skip_configuration();
 }
 
