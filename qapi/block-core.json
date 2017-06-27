@@ -1457,12 +1457,23 @@
 #
 # @device:  the device name or node-name of a root node
 #
-# @base:   The file name of the backing image to write data into.
-#                    If not specified, this is the deepest backing image.
+# @base-node: The node name of the backing image to write data into.
+#             If not specified, this is the deepest backing image.
+#             (since: 3.1)
 #
-# @top:    The file name of the backing image within the image chain,
-#                    which contains the topmost data to be committed down. If
-#                    not specified, this is the active layer.
+# @base: Same as @base-node, except that it is a file name rather than a node
+#        name. This must be the exact filename string that was used to open the
+#        node; other strings, even if addressing the same file, are not
+#        accepted (deprecated, use @base-node instead)
+#
+# @top-node: The node name of the backing image within the image chain
+#            which contains the topmost data to be committed down. If
+#            not specified, this is the active layer. (since: 3.1)
+#
+# @top: Same as @top-node, except that it is a file name rather than a node
+#       name. This must be the exact filename string that was used to open the
+#       node; other strings, even if addressing the same file, are not
+#       accepted (deprecated, use @base-node instead)
 #
 # @backing-file:  The backing file string to write into the overlay
 #                           image of 'top'.  If 'top' is the active layer,
@@ -1528,7 +1539,8 @@
 #
 ##
 { 'command': 'block-commit',
-  'data': { '*job-id': 'str', 'device': 'str', '*base': 'str', '*top': 'str',
+  'data': { '*job-id': 'str', 'device': 'str', '*base-node': 'str',
+            '*base': 'str', '*top-node': 'str', '*top': 'str',
             '*backing-file': 'str', '*speed': 'int',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
