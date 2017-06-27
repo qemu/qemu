@@ -142,6 +142,9 @@ struct MigrationState
 
     /* Whether the VM is only allowing for migratable devices */
     bool only_migratable;
+
+    /* Whether we send QEMU_VM_CONFIGURATION during migration */
+    bool send_configuration;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

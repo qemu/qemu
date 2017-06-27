@@ -139,7 +139,6 @@ static int xen_init(MachineState *ms)
     }
     qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
 
-    savevm_skip_configuration();
     savevm_skip_section_footers();
 
     return 0;
@@ -149,6 +148,11 @@ static GlobalProperty xen_compat_props[] = {
     {
         .driver = "migration",
         .property = "store-global-state",
+        .value = "off",
+    },
+    {
+        .driver = "migration",
+        .property = "send-configuration",
         .value = "off",
     },
     { /* end of list */ },
