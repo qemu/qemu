@@ -138,9 +138,6 @@ static int xen_init(MachineState *ms)
         return -1;
     }
     qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
-
-    savevm_skip_section_footers();
-
     return 0;
 }
 
@@ -153,6 +150,11 @@ static GlobalProperty xen_compat_props[] = {
     {
         .driver = "migration",
         .property = "send-configuration",
+        .value = "off",
+    },
+    {
+        .driver = "migration",
+        .property = "send-section-footer",
         .value = "off",
     },
     { /* end of list */ },

@@ -145,6 +145,8 @@ struct MigrationState
 
     /* Whether we send QEMU_VM_CONFIGURATION during migration */
     bool send_configuration;
+    /* Whether we send section footer during migration */
+    bool send_section_footer;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

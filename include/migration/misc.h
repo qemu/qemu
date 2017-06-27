@@ -41,7 +41,6 @@ int64_t self_announce_delay(int round)
 /* migration/savevm.c */
 
 void dump_vmstate_json_to_file(FILE *out_fp);
-void savevm_skip_section_footers(void);
 
 /* migration/migration.c */
 void migration_object_init(void);
