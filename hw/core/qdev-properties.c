@@ -1098,6 +1098,13 @@ void register_compat_prop(const char *driver,
     qdev_prop_register_global(p);
 }
 
+void register_compat_props_array(GlobalProperty *prop)
+{
+    for (; prop && prop->driver; prop++) {
+        register_compat_prop(prop->driver, prop->property, prop->value);
+    }
+}
+
 void qdev_prop_register_global_list(GlobalProperty *props)
 {
     int i;
