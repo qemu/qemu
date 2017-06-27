@@ -42,6 +42,7 @@
 #include "exec/target_page.h"
 #include "io/channel-buffer.h"
 #include "migration/colo.h"
+#include "hw/boards.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -102,9 +103,20 @@ static MigrationState *current_migration;
 
 void migration_object_init(void)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+
     /* This can only be called once. */
     assert(!current_migration);
     current_migration = MIGRATION_OBJ(object_new(TYPE_MIGRATION));
+
+    /*
+     * We cannot really do this in migration_instance_init() since at
+     * that time global properties are not yet applied, then this
+     * value will be definitely replaced by something else.
+     */
+    if (ms->enforce_config_section) {
+        current_migration->send_configuration = true;
+    }
 }
 
 /* For outgoing */
