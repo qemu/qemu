@@ -287,10 +287,6 @@ class TestParallelOps(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='node6', base=self.imgs[4], job_id='stream-node6-v2')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        # This fails because block-commit needs to block node6, the overlay of the 'top' image
-        result = self.vm.qmp('block-stream', device='node7', base=self.imgs[5], job_id='stream-node6-v3')
-        self.assert_qmp(result, 'error/class', 'GenericError')
-
         # This fails because block-commit currently blocks the active layer even if it's not used
         result = self.vm.qmp('block-stream', device='drive0', base=self.imgs[5], job_id='stream-drive0')
         self.assert_qmp(result, 'error/class', 'GenericError')
