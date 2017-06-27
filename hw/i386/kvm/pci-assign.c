@@ -824,12 +824,13 @@ static void assign_device(AssignedDevice *dev, Error **errp)
     }
 }
 
-static void verify_irqchip_in_kernel(Error **errp)
+static int verify_irqchip_in_kernel(Error **errp)
 {
     if (kvm_irqchip_in_kernel()) {
-        return;
+        return -1;
     }
     error_setg(errp, "pci-assign requires KVM with in-kernel irqchip enabled");
+    return 0;
 }
 
 static int assign_intx(AssignedDevice *dev, Error **errp)
@@ -838,7 +839,6 @@ static int assign_intx(AssignedDevice *dev, Error **errp)
     PCIINTxRoute intx_route;
     bool intx_host_msi;
     int r;
-    Error *local_err = NULL;
 
     /* Interrupt PIN 0 means don't use INTx */
     if (assigned_dev_pci_read_byte(&dev->dev, PCI_INTERRUPT_PIN) == 0) {
@@ -846,9 +846,7 @@ static int assign_intx(AssignedDevice *dev, Error **errp)
         return 0;
     }
 
-    verify_irqchip_in_kernel(&local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (verify_irqchip_in_kernel(errp) < 0) {
         return -ENOTSUP;
     }
 
@@ -1246,9 +1244,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
      * MSI capability is the 1st capability in capability config */
     pos = pci_find_cap_offset(pci_dev, PCI_CAP_ID_MSI, 0);
     if (pos != 0 && kvm_check_extension(kvm_state, KVM_CAP_ASSIGN_DEV_IRQ)) {
-        verify_irqchip_in_kernel(&local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (verify_irqchip_in_kernel(errp) < 0) {
             return -ENOTSUP;
         }
         dev->dev.cap_present |= QEMU_PCI_CAP_MSI;
@@ -1281,9 +1277,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         uint32_t msix_table_entry;
         uint16_t msix_max;
 
-        verify_irqchip_in_kernel(&local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (verify_irqchip_in_kernel(errp) < 0) {
             return -ENOTSUP;
         }
         dev->dev.cap_present |= QEMU_PCI_CAP_MSIX;
