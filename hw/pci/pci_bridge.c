@@ -41,15 +41,14 @@
 #define PCI_SSVID_SSID          6
 
 int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
-                          uint16_t svid, uint16_t ssid)
+                          uint16_t svid, uint16_t ssid,
+                          Error **errp)
 {
     int pos;
-    Error *local_err = NULL;
 
     pos = pci_add_capability(dev, PCI_CAP_ID_SSVID, offset,
-                             PCI_SSVID_SIZEOF, &local_err);
+                             PCI_SSVID_SIZEOF, errp);
     if (pos < 0) {
-        error_report_err(local_err);
         return pos;
     }
 

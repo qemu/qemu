@@ -33,7 +33,8 @@
 #define PCI_BRIDGE_DEV_PROP_SHPC       "shpc"
 
 int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
-                          uint16_t svid, uint16_t ssid);
+                          uint16_t svid, uint16_t ssid,
+                          Error **errp);
 
 PCIDevice *pci_bridge_get_device(PCIBus *bus);
 PCIBus *pci_bridge_get_sec_bus(PCIBridge *br);
