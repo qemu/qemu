@@ -139,6 +139,9 @@ struct MigrationState
      * during migration.
      */
     bool store_global_state;
+
+    /* Whether the VM is only allowing for migratable devices */
+    bool only_migratable;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
