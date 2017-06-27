@@ -216,7 +216,7 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     }
 
     cap_size = msi_cap_sizeof(flags);
-    config_offset = pci_add_capability2(dev, PCI_CAP_ID_MSI, offset,
+    config_offset = pci_add_capability(dev, PCI_CAP_ID_MSI, offset,
                                         cap_size, errp);
     if (config_offset < 0) {
         return config_offset;

@@ -2259,28 +2259,12 @@ static void pci_del_option_rom(PCIDevice *pdev)
 }
 
 /*
- * if offset = 0,
- * Find and reserve space and add capability to the linked list
- * in pci config space
- */
-int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
-                       uint8_t offset, uint8_t size,
-                       Error **errp)
-{
-    int ret;
-
-    ret = pci_add_capability2(pdev, cap_id, offset, size, errp);
-
-    return ret;
-}
-
-/*
- * On success, pci_add_capability2() returns a positive value
+ * On success, pci_add_capability() returns a positive value
  * that the offset of the pci capability.
  * On failure, it sets an error and returns a negative error
  * code.
  */
-int pci_add_capability2(PCIDevice *pdev, uint8_t cap_id,
+int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size,
                        Error **errp)
 {

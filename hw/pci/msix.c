@@ -301,7 +301,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
         return -EINVAL;
     }
 
-    cap = pci_add_capability2(dev, PCI_CAP_ID_MSIX,
+    cap = pci_add_capability(dev, PCI_CAP_ID_MSIX,
                               cap_pos, MSIX_CAP_LENGTH, errp);
     if (cap < 0) {
         return cap;
