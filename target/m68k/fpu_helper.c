@@ -253,6 +253,20 @@ void HELPER(fdmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
     PREC_END();
 }
 
+void HELPER(fsglmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    int rounding_mode = get_float_rounding_mode(&env->fp_status);
+    floatx80 a, b;
+
+    PREC_BEGIN(32);
+    set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+    a = floatx80_round(val0->d, &env->fp_status);
+    b = floatx80_round(val1->d, &env->fp_status);
+    set_float_rounding_mode(rounding_mode, &env->fp_status);
+    res->d = floatx80_mul(a, b, &env->fp_status);
+    PREC_END();
+}
+
 void HELPER(fdiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
     res->d = floatx80_div(val1->d, val0->d, &env->fp_status);
@@ -269,6 +283,20 @@ void HELPER(fddiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
     PREC_BEGIN(64);
     res->d = floatx80_div(val1->d, val0->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fsgldiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    int rounding_mode = get_float_rounding_mode(&env->fp_status);
+    floatx80 a, b;
+
+    PREC_BEGIN(32);
+    set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+    a = floatx80_round(val1->d, &env->fp_status);
+    b = floatx80_round(val0->d, &env->fp_status);
+    set_float_rounding_mode(rounding_mode, &env->fp_status);
+    res->d = floatx80_div(a, b, &env->fp_status);
     PREC_END();
 }
 
