@@ -352,9 +352,6 @@ static void process_incoming_migration_co(void *opaque)
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
     }
-
-    free_xbzrle_decoded_buf();
-
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
     qemu_bh_schedule(mis->bh);
 }

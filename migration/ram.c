@@ -85,10 +85,9 @@ static struct {
     QemuMutex lock;
     /* it will store a page full of zeros */
     uint8_t *zero_target_page;
+    /* buffer used for XBZRLE decoding */
+    uint8_t *decoded_buf;
 } XBZRLE;
-
-/* buffer used for XBZRLE decoding */
-static uint8_t *xbzrle_decoded_buf;
 
 static void XBZRLE_cache_lock(void)
 {
@@ -1350,13 +1349,18 @@ uint64_t ram_bytes_total(void)
     return total;
 }
 
-void free_xbzrle_decoded_buf(void)
+static void xbzrle_load_setup(void)
 {
-    g_free(xbzrle_decoded_buf);
-    xbzrle_decoded_buf = NULL;
+    XBZRLE.decoded_buf = g_malloc(TARGET_PAGE_SIZE);
 }
 
-static void ram_migration_cleanup(void *opaque)
+static void xbzrle_load_cleanup(void)
+{
+    g_free(XBZRLE.decoded_buf);
+    XBZRLE.decoded_buf = NULL;
+}
+
+static void ram_save_cleanup(void *opaque)
 {
     RAMState **rsp = opaque;
     RAMBlock *block;
@@ -2078,11 +2082,6 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
     int xh_flags;
     uint8_t *loaded_data;
 
-    if (!xbzrle_decoded_buf) {
-        xbzrle_decoded_buf = g_malloc(TARGET_PAGE_SIZE);
-    }
-    loaded_data = xbzrle_decoded_buf;
-
     /* extract RLE header */
     xh_flags = qemu_get_byte(f);
     xh_len = qemu_get_be16(f);
@@ -2096,7 +2095,9 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
         error_report("Failed to load XBZRLE page - len overflow!");
         return -1;
     }
+    loaded_data = XBZRLE.decoded_buf;
     /* load data and decode */
+    /* it can change loaded_data to point to an internal buffer */
     qemu_get_buffer_in_place(f, &loaded_data, xh_len);
 
     /* decode RLE */
@@ -2307,6 +2308,26 @@ static void decompress_data_with_multi_threads(QEMUFile *f,
         }
     }
     qemu_mutex_unlock(&decomp_done_lock);
+}
+
+/**
+ * ram_load_setup: Setup RAM for migration incoming side
+ *
+ * Returns zero to indicate success and negative for error
+ *
+ * @f: QEMUFile where to receive the data
+ * @opaque: RAMState pointer
+ */
+static int ram_load_setup(QEMUFile *f, void *opaque)
+{
+    xbzrle_load_setup();
+    return 0;
+}
+
+static int ram_load_cleanup(void *opaque)
+{
+    xbzrle_load_cleanup();
+    return 0;
 }
 
 /**
@@ -2629,7 +2650,9 @@ static SaveVMHandlers savevm_ram_handlers = {
     .save_live_complete_precopy = ram_save_complete,
     .save_live_pending = ram_save_pending,
     .load_state = ram_load,
-    .save_cleanup = ram_migration_cleanup,
+    .save_cleanup = ram_save_cleanup,
+    .load_setup = ram_load_setup,
+    .load_cleanup = ram_load_cleanup,
 };
 
 void ram_mig_init(void)
