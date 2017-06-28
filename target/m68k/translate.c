@@ -4604,8 +4604,14 @@ DISAS_INSN(fpu)
     case 3: /* fintrz */
         gen_helper_fitrunc(cpu_env, cpu_dest, cpu_src);
         break;
-    case 4: case 0x41: case 0x45: /* fsqrt */
+    case 4: /* fsqrt */
         gen_helper_fsqrt(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x41: /* fssqrt */
+        gen_helper_fssqrt(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x45: /* fdsqrt */
+        gen_helper_fdsqrt(cpu_env, cpu_dest, cpu_src);
         break;
     case 0x18: case 0x58: case 0x5c: /* fabs */
         gen_helper_fabs(cpu_env, cpu_dest, cpu_src);
@@ -4613,17 +4619,41 @@ DISAS_INSN(fpu)
     case 0x1a: case 0x5a: case 0x5e: /* fneg */
         gen_helper_fchs(cpu_env, cpu_dest, cpu_src);
         break;
-    case 0x20: case 0x60: case 0x64: /* fdiv */
+    case 0x20: /* fdiv */
         gen_helper_fdiv(cpu_env, cpu_dest, cpu_src, cpu_dest);
         break;
-    case 0x22: case 0x62: case 0x66: /* fadd */
+    case 0x60: /* fsdiv */
+        gen_helper_fsdiv(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x64: /* fddiv */
+        gen_helper_fddiv(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x22: /* fadd */
         gen_helper_fadd(cpu_env, cpu_dest, cpu_src, cpu_dest);
         break;
-    case 0x23: case 0x63: case 0x67: /* fmul */
+    case 0x62: /* fsadd */
+        gen_helper_fsadd(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x66: /* fdadd */
+        gen_helper_fdadd(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x23: /* fmul */
         gen_helper_fmul(cpu_env, cpu_dest, cpu_src, cpu_dest);
         break;
-    case 0x28: case 0x68: case 0x6c: /* fsub */
+    case 0x63: /* fsmul */
+        gen_helper_fsmul(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x67: /* fdmul */
+        gen_helper_fdmul(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x28: /* fsub */
         gen_helper_fsub(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x68: /* fssub */
+        gen_helper_fssub(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x6c: /* fdsub */
+        gen_helper_fdsub(cpu_env, cpu_dest, cpu_src, cpu_dest);
         break;
     case 0x38: /* fcmp */
         gen_helper_fcmp(cpu_env, cpu_src, cpu_dest);
