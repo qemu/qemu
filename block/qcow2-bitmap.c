@@ -826,3 +826,64 @@ fail:
 
     return false;
 }
+
+int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2BitmapList *bm_list;
+    Qcow2Bitmap *bm;
+    GSList *ro_dirty_bitmaps = NULL;
+    int ret = 0;
+
+    if (s->nb_bitmaps == 0) {
+        /* No bitmaps - nothing to do */
+        return 0;
+    }
+
+    if (!can_write(bs)) {
+        error_setg(errp, "Can't write to the image on reopening bitmaps rw");
+        return -EINVAL;
+    }
+
+    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
+                               s->bitmap_directory_size, errp);
+    if (bm_list == NULL) {
+        return -EINVAL;
+    }
+
+    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+        if (!(bm->flags & BME_FLAG_IN_USE)) {
+            BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(bs, bm->name);
+            if (bitmap == NULL) {
+                continue;
+            }
+
+            if (!bdrv_dirty_bitmap_readonly(bitmap)) {
+                error_setg(errp, "Bitmap %s is not readonly but not marked"
+                                 "'IN_USE' in the image. Something went wrong,"
+                                 "all the bitmaps may be corrupted", bm->name);
+                ret = -EINVAL;
+                goto out;
+            }
+
+            bm->flags |= BME_FLAG_IN_USE;
+            ro_dirty_bitmaps = g_slist_append(ro_dirty_bitmaps, bitmap);
+        }
+    }
+
+    if (ro_dirty_bitmaps != NULL) {
+        /* in_use flags must be updated */
+        ret = update_ext_header_and_dir_in_place(bs, bm_list);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Can't update bitmap directory");
+            goto out;
+        }
+        g_slist_foreach(ro_dirty_bitmaps, set_readonly_helper, false);
+    }
+
+out:
+    g_slist_free(ro_dirty_bitmaps);
+    bitmap_list_free(bm_list);
+
+    return ret;
+}
