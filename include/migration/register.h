@@ -39,6 +39,8 @@ typedef struct SaveVMHandlers {
                               uint64_t *non_postcopiable_pending,
                               uint64_t *postcopiable_pending);
     LoadStateHandler *load_state;
+    int (*load_setup)(QEMUFile *f, void *opaque);
+    int (*load_cleanup)(void *opaque);
 } SaveVMHandlers;
 
 int register_savevm_live(DeviceState *dev,
