@@ -116,6 +116,35 @@ uint8_t qvirtio_wait_status_byte_no_isr(QVirtioDevice *d,
     return val;
 }
 
+/*
+ * qvirtio_wait_used_elem:
+ * @desc_idx: The next expected vq->desc[] index in the used ring
+ * @timeout_us: How many microseconds to wait before failing
+ *
+ * This function waits for the next completed request on the used ring.
+ */
+void qvirtio_wait_used_elem(QVirtioDevice *d,
+                            QVirtQueue *vq,
+                            uint32_t desc_idx,
+                            gint64 timeout_us)
+{
+    gint64 start_time = g_get_monotonic_time();
+
+    for (;;) {
+        uint32_t got_desc_idx;
+
+        clock_step(100);
+
+        if (d->bus->get_queue_isr_status(d, vq) &&
+            qvirtqueue_get_buf(vq, &got_desc_idx)) {
+            g_assert_cmpint(got_desc_idx, ==, desc_idx);
+            return;
+        }
+
+        g_assert(g_get_monotonic_time() - start_time <= timeout_us);
+    }
+}
+
 void qvirtio_wait_config_isr(QVirtioDevice *d, gint64 timeout_us)
 {
     gint64 start_time = g_get_monotonic_time();
@@ -270,6 +299,37 @@ void qvirtqueue_kick(QVirtioDevice *d, QVirtQueue *vq, uint32_t free_head)
                             (!vq->event || (uint16_t)(idx-avail_event) < 1)) {
         d->bus->virtqueue_kick(d, vq);
     }
+}
+
+/*
+ * qvirtqueue_get_buf:
+ * @desc_idx: A pointer that is filled with the vq->desc[] index, may be NULL
+ *
+ * This function gets the next used element if there is one ready.
+ *
+ * Returns: true if an element was ready, false otherwise
+ */
+bool qvirtqueue_get_buf(QVirtQueue *vq, uint32_t *desc_idx)
+{
+    uint16_t idx;
+
+    idx = readw(vq->used + offsetof(struct vring_used, idx));
+    if (idx == vq->last_used_idx) {
+        return false;
+    }
+
+    if (desc_idx) {
+        uint64_t elem_addr;
+
+        elem_addr = vq->used +
+                    offsetof(struct vring_used, ring) +
+                    (vq->last_used_idx % vq->size) *
+                    sizeof(struct vring_used_elem);
+        *desc_idx = readl(elem_addr + offsetof(struct vring_used_elem, id));
+    }
+
+    vq->last_used_idx++;
+    return true;
 }
 
 void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx)
