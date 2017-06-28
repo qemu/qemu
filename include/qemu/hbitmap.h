@@ -256,10 +256,9 @@ void hbitmap_free(HBitmap *hb);
  * the lowest-numbered bit that is set in @hb, starting at @first.
  *
  * Concurrent setting of bits is acceptable, and will at worst cause the
- * iteration to miss some of those bits.  Resetting bits before the current
- * position of the iterator is also okay.  However, concurrent resetting of
- * bits can lead to unexpected behavior if the iterator has not yet reached
- * those bits.
+ * iteration to miss some of those bits.
+ *
+ * The concurrent resetting of bits is OK.
  */
 void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first);
 
@@ -298,24 +297,7 @@ void hbitmap_free_meta(HBitmap *hb);
  * Return the next bit that is set in @hbi's associated HBitmap,
  * or -1 if all remaining bits are zero.
  */
-static inline int64_t hbitmap_iter_next(HBitmapIter *hbi)
-{
-    unsigned long cur = hbi->cur[HBITMAP_LEVELS - 1];
-    int64_t item;
-
-    if (cur == 0) {
-        cur = hbitmap_iter_skip_words(hbi);
-        if (cur == 0) {
-            return -1;
-        }
-    }
-
-    /* The next call will resume work from the next bit.  */
-    hbi->cur[HBITMAP_LEVELS - 1] = cur & (cur - 1);
-    item = ((uint64_t)hbi->pos << BITS_PER_LEVEL) + ctzl(cur);
-
-    return item << hbi->granularity;
-}
+int64_t hbitmap_iter_next(HBitmapIter *hbi);
 
 /**
  * hbitmap_iter_next_word:

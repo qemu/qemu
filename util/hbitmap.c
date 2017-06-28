@@ -106,8 +106,9 @@ unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi)
 
     unsigned long cur;
     do {
-        cur = hbi->cur[--i];
+        i--;
         pos >>= BITS_PER_LEVEL;
+        cur = hbi->cur[i] & hb->levels[i][pos];
     } while (cur == 0);
 
     /* Check for end of iteration.  We always use fewer than BITS_PER_LONG
@@ -137,6 +138,26 @@ unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi)
 
     assert(cur);
     return cur;
+}
+
+int64_t hbitmap_iter_next(HBitmapIter *hbi)
+{
+    unsigned long cur = hbi->cur[HBITMAP_LEVELS - 1] &
+            hbi->hb->levels[HBITMAP_LEVELS - 1][hbi->pos];
+    int64_t item;
+
+    if (cur == 0) {
+        cur = hbitmap_iter_skip_words(hbi);
+        if (cur == 0) {
+            return -1;
+        }
+    }
+
+    /* The next call will resume work from the next bit.  */
+    hbi->cur[HBITMAP_LEVELS - 1] = cur & (cur - 1);
+    item = ((uint64_t)hbi->pos << BITS_PER_LEVEL) + ctzl(cur);
+
+    return item << hbi->granularity;
 }
 
 void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first)
