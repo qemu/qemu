@@ -67,6 +67,7 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 #define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
 #define  QCOW2_EXT_MAGIC_CRYPTO_HEADER 0x0537be77
+#define  QCOW2_EXT_MAGIC_BITMAPS 0x23852875
 
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -170,12 +171,18 @@ static ssize_t qcow2_crypto_hdr_write_func(QCryptoBlock *block, size_t offset,
  */
 static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                                  uint64_t end_offset, void **p_feature_table,
-                                 int flags, Error **errp)
+                                 int flags, bool *need_update_header,
+                                 Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowExtension ext;
     uint64_t offset;
     int ret;
+    Qcow2BitmapHeaderExt bitmaps_ext;
+
+    if (need_update_header != NULL) {
+        *need_update_header = false;
+    }
 
 #ifdef DEBUG_EXT
     printf("qcow2_read_extensions: start=%ld end=%ld\n", start_offset, end_offset);
@@ -286,6 +293,85 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 return -EINVAL;
             }
         }   break;
+
+        case QCOW2_EXT_MAGIC_BITMAPS:
+            if (ext.len != sizeof(bitmaps_ext)) {
+                error_setg_errno(errp, -ret, "bitmaps_ext: "
+                                 "Invalid extension length");
+                return -EINVAL;
+            }
+
+            if (!(s->autoclear_features & QCOW2_AUTOCLEAR_BITMAPS)) {
+                error_report("WARNING: a program lacking bitmap support "
+                             "modified this file, so all bitmaps are now "
+                             "considered inconsistent. Some clusters may be "
+                             "leaked, run 'qemu-img check -r' on the image "
+                             "file to fix.");
+                if (need_update_header != NULL) {
+                    /* Updating is needed to drop invalid bitmap extension. */
+                    *need_update_header = true;
+                }
+                break;
+            }
+
+            ret = bdrv_pread(bs->file, offset, &bitmaps_ext, ext.len);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "bitmaps_ext: "
+                                 "Could not read ext header");
+                return ret;
+            }
+
+            if (bitmaps_ext.reserved32 != 0) {
+                error_setg_errno(errp, -ret, "bitmaps_ext: "
+                                 "Reserved field is not zero");
+                return -EINVAL;
+            }
+
+            be32_to_cpus(&bitmaps_ext.nb_bitmaps);
+            be64_to_cpus(&bitmaps_ext.bitmap_directory_size);
+            be64_to_cpus(&bitmaps_ext.bitmap_directory_offset);
+
+            if (bitmaps_ext.nb_bitmaps > QCOW2_MAX_BITMAPS) {
+                error_setg(errp,
+                           "bitmaps_ext: Image has %" PRIu32 " bitmaps, "
+                           "exceeding the QEMU supported maximum of %d",
+                           bitmaps_ext.nb_bitmaps, QCOW2_MAX_BITMAPS);
+                return -EINVAL;
+            }
+
+            if (bitmaps_ext.nb_bitmaps == 0) {
+                error_setg(errp, "found bitmaps extension with zero bitmaps");
+                return -EINVAL;
+            }
+
+            if (bitmaps_ext.bitmap_directory_offset & (s->cluster_size - 1)) {
+                error_setg(errp, "bitmaps_ext: "
+                                 "invalid bitmap directory offset");
+                return -EINVAL;
+            }
+
+            if (bitmaps_ext.bitmap_directory_size >
+                QCOW2_MAX_BITMAP_DIRECTORY_SIZE) {
+                error_setg(errp, "bitmaps_ext: "
+                                 "bitmap directory size (%" PRIu64 ") exceeds "
+                                 "the maximum supported size (%d)",
+                                 bitmaps_ext.bitmap_directory_size,
+                                 QCOW2_MAX_BITMAP_DIRECTORY_SIZE);
+                return -EINVAL;
+            }
+
+            s->nb_bitmaps = bitmaps_ext.nb_bitmaps;
+            s->bitmap_directory_offset =
+                    bitmaps_ext.bitmap_directory_offset;
+            s->bitmap_directory_size =
+                    bitmaps_ext.bitmap_directory_size;
+
+#ifdef DEBUG_EXT
+            printf("Qcow2: Got bitmaps extension: "
+                   "offset=%" PRIu64 " nb_bitmaps=%" PRIu32 "\n",
+                   s->bitmap_directory_offset, s->nb_bitmaps);
+#endif
+            break;
 
         default:
             /* unknown magic - save it in case we need to rewrite the header */
@@ -1008,6 +1094,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     uint64_t ext_end;
     uint64_t l1_vm_state_index;
+    bool update_header = false;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -1113,7 +1200,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->incompatible_features & ~QCOW2_INCOMPAT_MASK) {
         void *feature_table = NULL;
         qcow2_read_extensions(bs, header.header_length, ext_end,
-                              &feature_table, flags, NULL);
+                              &feature_table, flags, NULL, NULL);
         report_unsupported_feature(errp, feature_table,
                                    s->incompatible_features &
                                    ~QCOW2_INCOMPAT_MASK);
@@ -1297,7 +1384,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* read qcow2 extensions */
     if (qcow2_read_extensions(bs, header.header_length, ext_end, NULL,
-                              flags, &local_err)) {
+                              flags, &update_header, &local_err)) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail;
@@ -1357,8 +1444,10 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Clear unknown autoclear feature bits */
-    if (!bs->read_only && !(flags & BDRV_O_INACTIVE) && s->autoclear_features) {
-        s->autoclear_features = 0;
+    update_header |= s->autoclear_features & ~QCOW2_AUTOCLEAR_MASK;
+
+    if (update_header && !bs->read_only && !(flags & BDRV_O_INACTIVE)) {
+        s->autoclear_features &= QCOW2_AUTOCLEAR_MASK;
         ret = qcow2_update_header(bs);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not update qcow2 header");
@@ -2203,6 +2292,25 @@ int qcow2_update_header(BlockDriverState *bs)
         buflen -= ret;
     }
 
+    /* Bitmap extension */
+    if (s->nb_bitmaps > 0) {
+        Qcow2BitmapHeaderExt bitmaps_header = {
+            .nb_bitmaps = cpu_to_be32(s->nb_bitmaps),
+            .bitmap_directory_size =
+                    cpu_to_be64(s->bitmap_directory_size),
+            .bitmap_directory_offset =
+                    cpu_to_be64(s->bitmap_directory_offset)
+        };
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_BITMAPS,
+                             &bitmaps_header, sizeof(bitmaps_header),
+                             buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
+    }
+
     /* Keep unknown header extensions */
     QLIST_FOREACH(uext, &s->unknown_header_ext, next) {
         ret = header_ext_add(buf, uext->magic, uext->data, uext->len, buflen);
@@ -2881,6 +2989,13 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
     /* cannot proceed if image has snapshots */
     if (s->nb_snapshots) {
         error_setg(errp, "Can't resize an image which has snapshots");
+        return -ENOTSUP;
+    }
+
+    /* cannot proceed if image has bitmaps */
+    if (s->nb_bitmaps) {
+        /* TODO: resize bitmaps in the image */
+        error_setg(errp, "Can't resize an image which has bitmaps");
         return -ENOTSUP;
     }
 

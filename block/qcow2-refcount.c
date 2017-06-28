@@ -1869,6 +1869,12 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         }
     }
 
+    /* bitmaps */
+    ret = qcow2_check_bitmaps_refcounts(bs, res, refcount_table, nb_clusters);
+    if (ret < 0) {
+        return ret;
+    }
+
     return check_refblocks(bs, res, fix, rebuild, refcount_table, nb_clusters);
 }
 

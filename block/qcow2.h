@@ -53,6 +53,10 @@
  * space for snapshot names and IDs */
 #define QCOW_MAX_SNAPSHOTS_SIZE (1024 * QCOW_MAX_SNAPSHOTS)
 
+/* Bitmap header extension constraints */
+#define QCOW2_MAX_BITMAPS 65535
+#define QCOW2_MAX_BITMAP_DIRECTORY_SIZE (1024 * QCOW2_MAX_BITMAPS)
+
 /* indicate that the refcount of the referenced cluster is exactly one. */
 #define QCOW_OFLAG_COPIED     (1ULL << 63)
 /* indicate that the cluster is compressed (they never have the copied flag) */
@@ -201,6 +205,14 @@ enum {
     QCOW2_COMPAT_FEAT_MASK            = QCOW2_COMPAT_LAZY_REFCOUNTS,
 };
 
+/* Autoclear feature bits */
+enum {
+    QCOW2_AUTOCLEAR_BITMAPS_BITNR = 0,
+    QCOW2_AUTOCLEAR_BITMAPS       = 1 << QCOW2_AUTOCLEAR_BITMAPS_BITNR,
+
+    QCOW2_AUTOCLEAR_MASK          = QCOW2_AUTOCLEAR_BITMAPS,
+};
+
 enum qcow2_discard_type {
     QCOW2_DISCARD_NEVER = 0,
     QCOW2_DISCARD_ALWAYS,
@@ -227,6 +239,13 @@ typedef uint64_t Qcow2GetRefcountFunc(const void *refcount_array,
                                       uint64_t index);
 typedef void Qcow2SetRefcountFunc(void *refcount_array,
                                   uint64_t index, uint64_t value);
+
+typedef struct Qcow2BitmapHeaderExt {
+    uint32_t nb_bitmaps;
+    uint32_t reserved32;
+    uint64_t bitmap_directory_size;
+    uint64_t bitmap_directory_offset;
+} QEMU_PACKED Qcow2BitmapHeaderExt;
 
 typedef struct BDRVQcow2State {
     int cluster_bits;
@@ -273,6 +292,10 @@ typedef struct BDRVQcow2State {
     int snapshots_size;
     unsigned int nb_snapshots;
     QCowSnapshot *snapshots;
+
+    uint32_t nb_bitmaps;
+    uint64_t bitmap_directory_size;
+    uint64_t bitmap_directory_offset;
 
     int flags;
     int qcow_version;
@@ -618,4 +641,8 @@ int qcow2_cache_get_empty(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
     void **table);
 void qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table);
 
+/* qcow2-bitmap.c functions */
+int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
+                                  void **refcount_table,
+                                  int64_t *refcount_table_size);
 #endif
