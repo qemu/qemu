@@ -2629,7 +2629,7 @@ static SaveVMHandlers savevm_ram_handlers = {
     .save_live_complete_precopy = ram_save_complete,
     .save_live_pending = ram_save_pending,
     .load_state = ram_load,
-    .cleanup = ram_migration_cleanup,
+    .save_cleanup = ram_migration_cleanup,
 };
 
 void ram_mig_init(void)
