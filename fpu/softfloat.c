@@ -5086,6 +5086,22 @@ float128 floatx80_to_float128(floatx80 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Rounds the extended double-precision floating-point value `a'
+| to the precision provided by floatx80_rounding_precision and returns the
+| result as an extended double-precision floating-point value.
+| The operation is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+floatx80 floatx80_round(floatx80 a, float_status *status)
+{
+    return roundAndPackFloatx80(status->floatx80_rounding_precision,
+                                extractFloatx80Sign(a),
+                                extractFloatx80Exp(a),
+                                extractFloatx80Frac(a), 0, status);
+}
+
+/*----------------------------------------------------------------------------
 | Rounds the extended double-precision floating-point value `a' to an integer,
 | and returns the result as an extended quadruple-precision floating-point
 | value.  The operation is performed according to the IEC/IEEE Standard for
