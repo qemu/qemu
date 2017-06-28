@@ -571,7 +571,7 @@ QemuCocoaView *cocoaView;
                 // bitmask.
 
                 if (qemu_console_is_graphic(NULL)) {
-                    NSEventModifierFlags modifiers = [event modifierFlags];
+                    NSUInteger modifiers = [event modifierFlags];
 
                     if (!!(modifiers & NSEventModifierFlagCapsLock) != !!modifiers_state[Q_KEY_CODE_CAPS_LOCK]) {
                         [self toggleStatefulModifier:Q_KEY_CODE_CAPS_LOCK];
