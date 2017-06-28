@@ -46,6 +46,12 @@ struct BdrvDirtyBitmap {
     bool disabled;              /* Bitmap is disabled. It ignores all writes to
                                    the device */
     int active_iterators;       /* How many iterators are active */
+    bool readonly;              /* Bitmap is read-only. This field also
+                                   prevents the respective image from being
+                                   modified (i.e. blocks writes and discards).
+                                   Such operations must fail and both the image
+                                   and this bitmap must remain unchanged while
+                                   this flag is set. */
     QLIST_ENTRY(BdrvDirtyBitmap) list;
 };
 
@@ -505,6 +511,7 @@ void bdrv_set_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap,
                                   int64_t cur_sector, int64_t nr_sectors)
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
+    assert(!bdrv_dirty_bitmap_readonly(bitmap));
     hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
 }
 
@@ -521,6 +528,7 @@ void bdrv_reset_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap,
                                     int64_t cur_sector, int64_t nr_sectors)
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
+    assert(!bdrv_dirty_bitmap_readonly(bitmap));
     hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
 }
 
@@ -535,6 +543,7 @@ void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
 void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap **out)
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
+    assert(!bdrv_dirty_bitmap_readonly(bitmap));
     bdrv_dirty_bitmap_lock(bitmap);
     if (!out) {
         hbitmap_reset_all(bitmap->bitmap);
@@ -551,6 +560,7 @@ void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in)
 {
     HBitmap *tmp = bitmap->bitmap;
     assert(bdrv_dirty_bitmap_enabled(bitmap));
+    assert(!bdrv_dirty_bitmap_readonly(bitmap));
     bitmap->bitmap = in;
     hbitmap_free(tmp);
 }
@@ -613,6 +623,7 @@ void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
         if (!bdrv_dirty_bitmap_enabled(bitmap)) {
             continue;
         }
+        assert(!bdrv_dirty_bitmap_readonly(bitmap));
         hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
     }
     bdrv_dirty_bitmaps_unlock(bs);
@@ -634,4 +645,29 @@ int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap)
 int64_t bdrv_get_meta_dirty_count(BdrvDirtyBitmap *bitmap)
 {
     return hbitmap_count(bitmap->meta);
+}
+
+bool bdrv_dirty_bitmap_readonly(const BdrvDirtyBitmap *bitmap)
+{
+    return bitmap->readonly;
+}
+
+/* Called with BQL taken. */
+void bdrv_dirty_bitmap_set_readonly(BdrvDirtyBitmap *bitmap, bool value)
+{
+    qemu_mutex_lock(bitmap->mutex);
+    bitmap->readonly = value;
+    qemu_mutex_unlock(bitmap->mutex);
+}
+
+bool bdrv_has_readonly_bitmaps(BlockDriverState *bs)
+{
+    BdrvDirtyBitmap *bm;
+    QLIST_FOREACH(bm, &bs->dirty_bitmaps, list) {
+        if (bm->readonly) {
+            return true;
+        }
+    }
+
+    return false;
 }
