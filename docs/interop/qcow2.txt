@@ -203,7 +203,7 @@ The fields of the bitmaps extension are:
 
           8 - 15:  bitmap_directory_size
                    Size of the bitmap directory in bytes. It is the cumulative
-                   size of all (nb_bitmaps) bitmap headers.
+                   size of all (nb_bitmaps) bitmap directory entries.
 
          16 - 23:  bitmap_directory_offset
                    Offset into the image file at which the bitmap directory
@@ -529,8 +529,7 @@ Each bitmap saved in the image is described in a bitmap directory entry. The
 bitmap directory is a contiguous area in the image file, whose starting offset
 and length are given by the header extension fields bitmap_directory_offset and
 bitmap_directory_size. The entries of the bitmap directory have variable
-length, depending on the lengths of the bitmap name and extra data. These
-entries are also called bitmap headers.
+length, depending on the lengths of the bitmap name and extra data.
 
 Structure of a bitmap directory entry:
 
