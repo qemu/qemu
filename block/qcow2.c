@@ -2046,6 +2046,7 @@ static int qcow2_inactivate(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret, result = 0;
+    Error *local_err = NULL;
 
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
     if (ret) {
@@ -2059,6 +2060,14 @@ static int qcow2_inactivate(BlockDriverState *bs)
         result = ret;
         error_report("Failed to flush the refcount block cache: %s",
                      strerror(-ret));
+    }
+
+    qcow2_store_persistent_dirty_bitmaps(bs, &local_err);
+    if (local_err != NULL) {
+        result = -EINVAL;
+        error_report_err(local_err);
+        error_report("Persistent bitmaps are lost for node '%s'",
+                     bdrv_get_device_or_node_name(bs));
     }
 
     if (result == 0) {
