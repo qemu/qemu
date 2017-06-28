@@ -3346,7 +3346,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     *
     *   a0 = signal number
     *   a1 = pointer to siginfo_t
-    *   a2 = pointer to struct ucontext
+    *   a2 = pointer to ucontext_t
     *
     * $25 and PC point to the signal handler, $29 points to the
     * struct sigframe.
@@ -3764,7 +3764,7 @@ struct target_signal_frame {
 
 struct rt_signal_frame {
     siginfo_t info;
-    struct ucontext uc;
+    ucontext_t uc;
     uint32_t tramp[2];
 };
 
@@ -3980,7 +3980,7 @@ struct rt_signal_frame {
     siginfo_t *pinfo;
     void *puc;
     siginfo_t info;
-    struct ucontext uc;
+    ucontext_t uc;
     uint16_t retcode[4];      /* Trampoline code. */
 };
 
@@ -4515,7 +4515,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
         tswap_siginfo(&frame->info, info);
     }
 
-    /*err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));*/
+    /*err |= __clear_user(&frame->uc, offsetof(ucontext_t, uc_mcontext));*/
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);
     __put_user(target_sigaltstack_used.ss_sp,
@@ -5007,7 +5007,7 @@ enum {
 
 struct target_ucontext {
     target_ulong tuc_flags;
-    target_ulong tuc_link;    /* struct ucontext __user * */
+    target_ulong tuc_link;    /* ucontext_t __user * */
     struct target_sigaltstack tuc_stack;
 #if !defined(TARGET_PPC64)
     int32_t tuc_pad[7];
