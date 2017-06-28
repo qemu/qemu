@@ -26,7 +26,7 @@ typedef struct QVirtioDevice {
 typedef struct QVirtQueue {
     uint64_t desc; /* This points to an array of struct vring_desc */
     uint64_t avail; /* This points to a struct vring_avail */
-    uint64_t used; /* This points to a struct vring_desc */
+    uint64_t used; /* This points to a struct vring_used */
     uint16_t index;
     uint32_t size;
     uint32_t free_head;
