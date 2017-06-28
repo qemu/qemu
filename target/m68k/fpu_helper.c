@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
 
 /* Undefined offsets may be different on various FPU.
  * On 68040 they return 0.0 (floatx80_zero)
@@ -387,4 +388,123 @@ void HELPER(ftst)(CPUM68KState *env, FPReg *val)
 void HELPER(fconst)(CPUM68KState *env, FPReg *val, uint32_t offset)
 {
     val->d = fpu_rom[offset];
+}
+
+typedef int (*float_access)(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                            uintptr_t ra);
+
+static uint32_t fmovem_predec(CPUM68KState *env, uint32_t addr, uint32_t mask,
+                               float_access access)
+{
+    uintptr_t ra = GETPC();
+    int i, size;
+
+    for (i = 7; i >= 0; i--, mask <<= 1) {
+        if (mask & 0x80) {
+            size = access(env, addr, &env->fregs[i], ra);
+            if ((mask & 0xff) != 0x80) {
+                addr -= size;
+            }
+        }
+    }
+
+    return addr;
+}
+
+static uint32_t fmovem_postinc(CPUM68KState *env, uint32_t addr, uint32_t mask,
+                               float_access access)
+{
+    uintptr_t ra = GETPC();
+    int i, size;
+
+    for (i = 0; i < 8; i++, mask <<= 1) {
+        if (mask & 0x80) {
+            size = access(env, addr, &env->fregs[i], ra);
+            addr += size;
+        }
+    }
+
+    return addr;
+}
+
+static int cpu_ld_floatx80_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                              uintptr_t ra)
+{
+    uint32_t high;
+    uint64_t low;
+
+    high = cpu_ldl_data_ra(env, addr, ra);
+    low = cpu_ldq_data_ra(env, addr + 4, ra);
+
+    fp->l.upper = high >> 16;
+    fp->l.lower = low;
+
+    return 12;
+}
+
+static int cpu_st_floatx80_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                               uintptr_t ra)
+{
+    cpu_stl_data_ra(env, addr, fp->l.upper << 16, ra);
+    cpu_stq_data_ra(env, addr + 4, fp->l.lower, ra);
+
+    return 12;
+}
+
+static int cpu_ld_float64_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                             uintptr_t ra)
+{
+    uint64_t val;
+
+    val = cpu_ldq_data_ra(env, addr, ra);
+    fp->d = float64_to_floatx80(*(float64 *)&val, &env->fp_status);
+
+    return 8;
+}
+
+static int cpu_st_float64_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                             uintptr_t ra)
+{
+    float64 val;
+
+    val = floatx80_to_float64(fp->d, &env->fp_status);
+    cpu_stq_data_ra(env, addr, *(uint64_t *)&val, ra);
+
+    return 8;
+}
+
+uint32_t HELPER(fmovemx_st_predec)(CPUM68KState *env, uint32_t addr,
+                                   uint32_t mask)
+{
+    return fmovem_predec(env, addr, mask, cpu_st_floatx80_ra);
+}
+
+uint32_t HELPER(fmovemx_st_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_st_floatx80_ra);
+}
+
+uint32_t HELPER(fmovemx_ld_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_ld_floatx80_ra);
+}
+
+uint32_t HELPER(fmovemd_st_predec)(CPUM68KState *env, uint32_t addr,
+                                   uint32_t mask)
+{
+    return fmovem_predec(env, addr, mask, cpu_st_float64_ra);
+}
+
+uint32_t HELPER(fmovemd_st_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_st_float64_ra);
+}
+
+uint32_t HELPER(fmovemd_ld_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_ld_float64_ra);
 }

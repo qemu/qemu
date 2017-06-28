@@ -4505,13 +4505,72 @@ static void gen_op_fmove_fcr(CPUM68KState *env, DisasContext *s,
     tcg_temp_free_i32(addr);
 }
 
+static void gen_op_fmovem(CPUM68KState *env, DisasContext *s,
+                          uint32_t insn, uint32_t ext)
+{
+    int opsize;
+    TCGv addr, tmp;
+    int mode = (ext >> 11) & 0x3;
+    int is_load = ((ext & 0x2000) == 0);
+
+    if (m68k_feature(s->env, M68K_FEATURE_FPU)) {
+        opsize = OS_EXTENDED;
+    } else {
+        opsize = OS_DOUBLE;  /* FIXME */
+    }
+
+    addr = gen_lea(env, s, insn, opsize);
+    if (IS_NULL_QREG(addr)) {
+        gen_addr_fault(s);
+        return;
+    }
+
+    tmp = tcg_temp_new();
+    if (mode & 0x1) {
+        /* Dynamic register list */
+        tcg_gen_ext8u_i32(tmp, DREG(ext, 4));
+    } else {
+        /* Static register list */
+        tcg_gen_movi_i32(tmp, ext & 0xff);
+    }
+
+    if (!is_load && (mode & 2) == 0) {
+        /* predecrement addressing mode
+         * only available to store register to memory
+         */
+        if (opsize == OS_EXTENDED) {
+            gen_helper_fmovemx_st_predec(tmp, cpu_env, addr, tmp);
+        } else {
+            gen_helper_fmovemd_st_predec(tmp, cpu_env, addr, tmp);
+        }
+    } else {
+        /* postincrement addressing mode */
+        if (opsize == OS_EXTENDED) {
+            if (is_load) {
+                gen_helper_fmovemx_ld_postinc(tmp, cpu_env, addr, tmp);
+            } else {
+                gen_helper_fmovemx_st_postinc(tmp, cpu_env, addr, tmp);
+            }
+        } else {
+            if (is_load) {
+                gen_helper_fmovemd_ld_postinc(tmp, cpu_env, addr, tmp);
+            } else {
+                gen_helper_fmovemd_st_postinc(tmp, cpu_env, addr, tmp);
+            }
+        }
+    }
+    if ((insn & 070) == 030 || (insn & 070) == 040) {
+        tcg_gen_mov_i32(AREG(insn, 0), tmp);
+    }
+    tcg_temp_free(tmp);
+}
+
 /* ??? FP exceptions are not implemented.  Most exceptions are deferred until
    immediately before the next FP instruction is executed.  */
 DISAS_INSN(fpu)
 {
     uint16_t ext;
     int opmode;
-    TCGv tmp32;
     int opsize;
     TCGv_ptr cpu_src, cpu_dest;
 
@@ -4548,36 +4607,10 @@ DISAS_INSN(fpu)
         return;
     case 6: /* fmovem */
     case 7:
-        {
-            TCGv addr;
-            TCGv_ptr fp;
-            uint16_t mask;
-            int i;
-            if ((ext & 0x1f00) != 0x1000 || (ext & 0xff) == 0)
-                goto undef;
-            tmp32 = gen_lea(env, s, insn, OS_LONG);
-            if (IS_NULL_QREG(tmp32)) {
-                gen_addr_fault(s);
-                return;
-            }
-            addr = tcg_temp_new_i32();
-            tcg_gen_mov_i32(addr, tmp32);
-            mask = 0x80;
-            fp = tcg_temp_new_ptr();
-            for (i = 0; i < 8; i++) {
-                if (ext & mask) {
-                    tcg_gen_addi_ptr(fp, cpu_env,
-                                     offsetof(CPUM68KState, fregs[i]));
-                    gen_ldst_fp(s, OS_DOUBLE, addr, fp,
-                                (ext & (1 << 13)) ?  EA_STORE : EA_LOADS);
-                    if (ext & (mask - 1))
-                        tcg_gen_addi_i32(addr, addr, 8);
-                }
-                mask >>= 1;
-            }
-            tcg_temp_free_i32(addr);
-            tcg_temp_free_ptr(fp);
+        if ((ext & 0x1000) == 0 && !m68k_feature(s->env, M68K_FEATURE_FPU)) {
+            goto undef;
         }
+        gen_op_fmovem(env, s, insn, ext);
         return;
     }
     if (ext & (1 << 14)) {
