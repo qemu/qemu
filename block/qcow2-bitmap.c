@@ -1366,3 +1366,25 @@ fail:
 
     bitmap_list_free(bm_list);
 }
+
+int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
+{
+    BdrvDirtyBitmap *bitmap;
+    Error *local_err = NULL;
+
+    qcow2_store_persistent_dirty_bitmaps(bs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return -EINVAL;
+    }
+
+    for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap != NULL;
+         bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
+    {
+        if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
+            bdrv_dirty_bitmap_set_readonly(bitmap, true);
+        }
+    }
+
+    return 0;
+}

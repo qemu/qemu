@@ -1555,6 +1555,11 @@ static int qcow2_reopen_prepare(BDRVReopenState *state,
 
     /* We need to write out any unwritten data if we reopen read-only. */
     if ((state->flags & BDRV_O_RDWR) == 0) {
+        ret = qcow2_reopen_bitmaps_ro(state->bs, errp);
+        if (ret < 0) {
+            goto fail;
+        }
+
         ret = bdrv_flush(state->bs);
         if (ret < 0) {
             goto fail;
