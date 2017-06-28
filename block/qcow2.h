@@ -544,6 +544,10 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
                                  int64_t size);
 int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
                                   int64_t size);
+int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
+                             void **refcount_table,
+                             int64_t *refcount_table_size,
+                             int64_t offset, int64_t size);
 
 int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
                                 BlockDriverAmendStatusCB *status_cb,
