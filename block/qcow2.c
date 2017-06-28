@@ -1445,9 +1445,22 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Clear unknown autoclear feature bits */
     update_header |= s->autoclear_features & ~QCOW2_AUTOCLEAR_MASK;
-
-    if (update_header && !bs->read_only && !(flags & BDRV_O_INACTIVE)) {
+    update_header =
+        update_header && !bs->read_only && !(flags & BDRV_O_INACTIVE);
+    if (update_header) {
         s->autoclear_features &= QCOW2_AUTOCLEAR_MASK;
+    }
+
+    if (qcow2_load_autoloading_dirty_bitmaps(bs, &local_err)) {
+        update_header = false;
+    }
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    if (update_header) {
         ret = qcow2_update_header(bs);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not update qcow2 header");
