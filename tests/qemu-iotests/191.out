@@ -1,0 +1,827 @@
+QA output created by 191
+
+=== Preparing and starting VM ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
+Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
+wrote 65536/65536 bytes at offset 1048576
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "return": {
+    }
+}
+
+=== Perform commit job ===
+
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "BLOCK_JOB_COMPLETED",
+    "data": {
+        "device": "commit0",
+        "len": 67108864,
+        "offset": 67108864,
+        "speed": 0,
+        "type": "commit"
+    }
+}
+
+=== Check that both top and top2 point to base now ===
+
+{
+    "return": [
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "backing-image": {
+                    "virtual-size": 67108864,
+                    "filename": "TEST_DIR/t.qcow2.base",
+                    "cluster-size": 65536,
+                    "format": "qcow2",
+                    "actual-size": 397312,
+                    "format-specific": {
+                        "type": "qcow2",
+                        "data": {
+                            "compat": "1.1",
+                            "lazy-refcounts": false,
+                            "refcount-bits": 16,
+                            "corrupt": false
+                        }
+                    },
+                    "dirty-flag": false
+                },
+                "backing-filename-format": "qcow2",
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2.ovl2",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 200704,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "full-backing-filename": "TEST_DIR/t.qcow2.base",
+                "backing-filename": "TEST_DIR/t.qcow2.base",
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "top2",
+            "backing_file_depth": 1,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "backing_file": "TEST_DIR/t.qcow2.base",
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.ovl2",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 197120,
+                "filename": "TEST_DIR/t.qcow2.ovl2",
+                "format": "file",
+                "actual-size": 200704,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.ovl2",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "backing-image": {
+                    "virtual-size": 67108864,
+                    "filename": "TEST_DIR/t.qcow2.base",
+                    "cluster-size": 65536,
+                    "format": "qcow2",
+                    "actual-size": 397312,
+                    "format-specific": {
+                        "type": "qcow2",
+                        "data": {
+                            "compat": "1.1",
+                            "lazy-refcounts": false,
+                            "refcount-bits": 16,
+                            "corrupt": false
+                        }
+                    },
+                    "dirty-flag": false
+                },
+                "backing-filename-format": "qcow2",
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 200704,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "full-backing-filename": "TEST_DIR/t.qcow2.base",
+                "backing-filename": "TEST_DIR/t.qcow2.base",
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "top",
+            "backing_file_depth": 1,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "backing_file": "TEST_DIR/t.qcow2.base",
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 197120,
+                "filename": "TEST_DIR/t.qcow2",
+                "format": "file",
+                "actual-size": 200704,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "backing-image": {
+                    "virtual-size": 67108864,
+                    "filename": "TEST_DIR/t.qcow2.base",
+                    "cluster-size": 65536,
+                    "format": "qcow2",
+                    "actual-size": 397312,
+                    "format-specific": {
+                        "type": "qcow2",
+                        "data": {
+                            "compat": "1.1",
+                            "lazy-refcounts": false,
+                            "refcount-bits": 16,
+                            "corrupt": false
+                        }
+                    },
+                    "dirty-flag": false
+                },
+                "backing-filename-format": "qcow2",
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2.mid",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 397312,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "full-backing-filename": "TEST_DIR/t.qcow2.base",
+                "backing-filename": "TEST_DIR/t.qcow2.base",
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "mid",
+            "backing_file_depth": 1,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "backing_file": "TEST_DIR/t.qcow2.base",
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.mid",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 393216,
+                "filename": "TEST_DIR/t.qcow2.mid",
+                "format": "file",
+                "actual-size": 397312,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.mid",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2.base",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 397312,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "base",
+            "backing_file_depth": 0,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.base",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 393216,
+                "filename": "TEST_DIR/t.qcow2.base",
+                "format": "file",
+                "actual-size": 397312,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.base",
+            "encryption_key_missing": false
+        }
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "SHUTDOWN",
+    "data": {
+        "guest": false
+    }
+}
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+backing file: TEST_DIR/t.IMGFMT.base
+backing file format: IMGFMT
+image: TEST_DIR/t.IMGFMT.ovl2
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+backing file: TEST_DIR/t.IMGFMT.base
+backing file format: IMGFMT
+
+=== Preparing and starting VM with -drive ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
+Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
+Formatting 'TEST_DIR/t.IMGFMT.ovl3', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.ovl2
+wrote 65536/65536 bytes at offset 1048576
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "return": {
+    }
+}
+
+=== Perform commit job ===
+
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "BLOCK_JOB_COMPLETED",
+    "data": {
+        "device": "commit0",
+        "len": 67108864,
+        "offset": 67108864,
+        "speed": 0,
+        "type": "commit"
+    }
+}
+
+=== Check that both top and top2 point to base now ===
+
+{
+    "return": [
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "backing-image": {
+                    "virtual-size": 67108864,
+                    "filename": "TEST_DIR/t.qcow2.base",
+                    "cluster-size": 65536,
+                    "format": "qcow2",
+                    "actual-size": 397312,
+                    "format-specific": {
+                        "type": "qcow2",
+                        "data": {
+                            "compat": "1.1",
+                            "lazy-refcounts": false,
+                            "refcount-bits": 16,
+                            "corrupt": false
+                        }
+                    },
+                    "dirty-flag": false
+                },
+                "backing-filename-format": "qcow2",
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2.ovl2",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 200704,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "full-backing-filename": "TEST_DIR/t.qcow2.base",
+                "backing-filename": "TEST_DIR/t.qcow2.base",
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": true,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 1,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "backing_file": "TEST_DIR/t.qcow2.base",
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.ovl2",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 197120,
+                "filename": "TEST_DIR/t.qcow2.ovl2",
+                "format": "file",
+                "actual-size": 200704,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": true,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.ovl2",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "backing-image": {
+                    "backing-image": {
+                        "virtual-size": 67108864,
+                        "filename": "TEST_DIR/t.qcow2.base",
+                        "cluster-size": 65536,
+                        "format": "qcow2",
+                        "actual-size": 397312,
+                        "format-specific": {
+                            "type": "qcow2",
+                            "data": {
+                                "compat": "1.1",
+                                "lazy-refcounts": false,
+                                "refcount-bits": 16,
+                                "corrupt": false
+                            }
+                        },
+                        "dirty-flag": false
+                    },
+                    "backing-filename-format": "qcow2",
+                    "virtual-size": 67108864,
+                    "filename": "TEST_DIR/t.qcow2.ovl2",
+                    "cluster-size": 65536,
+                    "format": "qcow2",
+                    "actual-size": 200704,
+                    "format-specific": {
+                        "type": "qcow2",
+                        "data": {
+                            "compat": "1.1",
+                            "lazy-refcounts": false,
+                            "refcount-bits": 16,
+                            "corrupt": false
+                        }
+                    },
+                    "full-backing-filename": "TEST_DIR/t.qcow2.base",
+                    "backing-filename": "TEST_DIR/t.qcow2.base",
+                    "dirty-flag": false
+                },
+                "backing-filename-format": "qcow2",
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2.ovl3",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 200704,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "full-backing-filename": "TEST_DIR/t.qcow2.ovl2",
+                "backing-filename": "TEST_DIR/t.qcow2.ovl2",
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "top2",
+            "backing_file_depth": 2,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "backing_file": "TEST_DIR/t.qcow2.ovl2",
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.ovl3",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 197120,
+                "filename": "TEST_DIR/t.qcow2.ovl3",
+                "format": "file",
+                "actual-size": 200704,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.ovl3",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2.base",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 397312,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": true,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.base",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 393216,
+                "filename": "TEST_DIR/t.qcow2.base",
+                "format": "file",
+                "actual-size": 397312,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": true,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.base",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "backing-image": {
+                    "virtual-size": 67108864,
+                    "filename": "TEST_DIR/t.qcow2.base",
+                    "cluster-size": 65536,
+                    "format": "qcow2",
+                    "actual-size": 397312,
+                    "format-specific": {
+                        "type": "qcow2",
+                        "data": {
+                            "compat": "1.1",
+                            "lazy-refcounts": false,
+                            "refcount-bits": 16,
+                            "corrupt": false
+                        }
+                    },
+                    "dirty-flag": false
+                },
+                "backing-filename-format": "qcow2",
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": 200704,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "full-backing-filename": "TEST_DIR/t.qcow2.base",
+                "backing-filename": "TEST_DIR/t.qcow2.base",
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "top",
+            "backing_file_depth": 1,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "backing_file": "TEST_DIR/t.qcow2.base",
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 197120,
+                "filename": "TEST_DIR/t.qcow2",
+                "format": "file",
+                "actual-size": 200704,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": false,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2",
+            "encryption_key_missing": false
+        }
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "SHUTDOWN",
+    "data": {
+        "guest": false
+    }
+}
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+backing file: TEST_DIR/t.IMGFMT.base
+backing file format: IMGFMT
+image: TEST_DIR/t.IMGFMT.ovl2
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+backing file: TEST_DIR/t.IMGFMT.base
+backing file format: IMGFMT
+*** done
