@@ -913,6 +913,7 @@ static void fw_cfg_init1(DeviceState *dev)
 {
     FWCfgState *s = FW_CFG(dev);
     MachineState *machine = MACHINE(qdev_get_machine());
+    uint32_t version = FW_CFG_VERSION;
 
     assert(!object_resolve_path(FW_CFG_PATH, NULL));
 
@@ -927,6 +928,12 @@ static void fw_cfg_init1(DeviceState *dev)
     fw_cfg_bootsplash(s);
     fw_cfg_reboot(s);
 
+    if (s->dma_enabled) {
+        version |= FW_CFG_VERSION_DMA;
+    }
+
+    fw_cfg_add_i32(s, FW_CFG_ID, version);
+
     s->machine_ready.notify = fw_cfg_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);
 }
@@ -938,7 +945,6 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
     SysBusDevice *sbd;
     FWCfgIoState *ios;
     FWCfgState *s;
-    uint32_t version = FW_CFG_VERSION;
     bool dma_requested = dma_iobase && dma_as;
 
     dev = qdev_create(NULL, TYPE_FW_CFG_IO);
@@ -959,11 +965,7 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
         s->dma_as = dma_as;
         s->dma_addr = 0;
         sysbus_add_io(sbd, dma_iobase, &s->dma_iomem);
-
-        version |= FW_CFG_VERSION_DMA;
     }
-
-    fw_cfg_add_i32(s, FW_CFG_ID, version);
 
     return s;
 }
@@ -980,7 +982,6 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
     DeviceState *dev;
     SysBusDevice *sbd;
     FWCfgState *s;
-    uint32_t version = FW_CFG_VERSION;
     bool dma_requested = dma_addr && dma_as;
 
     dev = qdev_create(NULL, TYPE_FW_CFG_MEM);
@@ -1001,10 +1002,7 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
         s->dma_as = dma_as;
         s->dma_addr = 0;
         sysbus_mmio_map(sbd, 2, dma_addr);
-        version |= FW_CFG_VERSION_DMA;
     }
-
-    fw_cfg_add_i32(s, FW_CFG_ID, version);
 
     return s;
 }
