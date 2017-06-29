@@ -147,7 +147,8 @@ static ssize_t xen_9pfs_pdu_vunmarshal(V9fsPDU *pdu,
 
 static void xen_9pfs_init_out_iov_from_pdu(V9fsPDU *pdu,
                                            struct iovec **piov,
-                                           unsigned int *pniov)
+                                           unsigned int *pniov,
+                                           size_t size)
 {
     Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
     Xen9pfsRing *ring = &xen_9pfs->rings[pdu->tag % xen_9pfs->num_rings];
