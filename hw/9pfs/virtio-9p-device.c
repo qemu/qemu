@@ -61,7 +61,6 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         }
         QEMU_BUILD_BUG_ON(sizeof(out) != 7);
 
-        v->elems[pdu->idx] = elem;
         len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                          &out, sizeof(out));
         if (len != sizeof(out)) {
@@ -69,6 +68,8 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
                          "header size is %zd, should be 7", len);
             goto out_free_req;
         }
+
+        v->elems[pdu->idx] = elem;
 
         pdu_submit(pdu, &out);
     }
