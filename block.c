@@ -981,6 +981,21 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
     *child_flags = flags;
 }
 
+static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
+                                        const char *filename, Error **errp)
+{
+    BlockDriverState *parent = c->opaque;
+    int ret;
+
+    ret = bdrv_change_backing_file(parent, filename,
+                                   base->drv ? base->drv->format_name : "");
+    if (ret < 0) {
+        error_setg_errno(errp, ret, "Could not update backing file link");
+    }
+
+    return ret;
+}
+
 const BdrvChildRole child_backing = {
     .get_parent_desc = bdrv_child_get_parent_desc,
     .attach          = bdrv_backing_attach,
@@ -989,6 +1004,7 @@ const BdrvChildRole child_backing = {
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,
     .inactivate      = bdrv_child_cb_inactivate,
+    .update_filename = bdrv_backing_update_filename,
 };
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
@@ -3470,6 +3486,8 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     Error *local_err = NULL;
     int ret = -EIO;
 
+    bdrv_ref(top);
+
     if (!top->drv || !base->drv) {
         goto exit;
     }
@@ -3494,11 +3512,15 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     }
 
     /* success - we can delete the intermediate states, and link top->base */
-    backing_file_str = backing_file_str ? backing_file_str : base->filename;
-    ret = bdrv_change_backing_file(new_top_bs, backing_file_str,
-                                   base->drv ? base->drv->format_name : "");
-    if (ret) {
-        goto exit;
+    if (new_top_bs->backing->role->update_filename) {
+        backing_file_str = backing_file_str ? backing_file_str : base->filename;
+        ret = new_top_bs->backing->role->update_filename(new_top_bs->backing,
+                                                         base, backing_file_str,
+                                                         &local_err);
+        if (ret < 0) {
+            bdrv_set_backing_hd(new_top_bs, top, &error_abort);
+            goto exit;
+        }
     }
 
     bdrv_set_backing_hd(new_top_bs, base, &local_err);
@@ -3510,6 +3532,7 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
 
     ret = 0;
 exit:
+    bdrv_unref(top);
     return ret;
 }
 
