@@ -496,12 +496,6 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
     return block_offset;
 }
 
-static inline int64_t get_sector_offset(BlockDriverState *bs,
-                                        int64_t sector_num, bool write)
-{
-    return get_image_offset(bs, sector_num * BDRV_SECTOR_SIZE, write);
-}
-
 /*
  * Writes the footer to the end of the image file. This is needed when the
  * file grows as it overwrites the old footer
@@ -696,6 +690,7 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
     VHDFooter *footer = (VHDFooter*) s->footer_buf;
     int64_t start, offset;
     bool allocated;
+    int64_t ret;
     int n;
 
     if (be32_to_cpu(footer->type) == VHD_FIXED) {
@@ -705,10 +700,13 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
                (sector_num << BDRV_SECTOR_BITS);
     }
 
-    offset = get_sector_offset(bs, sector_num, 0);
+    qemu_co_mutex_lock(&s->lock);
+
+    offset = get_image_offset(bs, sector_num << BDRV_SECTOR_BITS, false);
     start = offset;
     allocated = (offset != -1);
     *pnum = 0;
+    ret = 0;
 
     do {
         /* All sectors in a block are contiguous (without using the bitmap) */
@@ -723,15 +721,17 @@ static int64_t coroutine_fn vpc_co_get_block_status(BlockDriverState *bs,
          * sectors since there is always a bitmap in between. */
         if (allocated) {
             *file = bs->file->bs;
-            return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+            ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | start;
+            break;
         }
         if (nb_sectors == 0) {
             break;
         }
-        offset = get_sector_offset(bs, sector_num, 0);
+        offset = get_image_offset(bs, sector_num << BDRV_SECTOR_BITS, false);
     } while (offset == -1);
 
-    return 0;
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
 }
 
 /*
