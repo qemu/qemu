@@ -96,7 +96,6 @@ struct FWCfgIoState {
     /*< public >*/
 
     MemoryRegion comb_iomem;
-    uint32_t iobase, dma_iobase;
 };
 
 struct FWCfgMemState {
@@ -936,24 +935,30 @@ FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
                                 AddressSpace *dma_as)
 {
     DeviceState *dev;
+    SysBusDevice *sbd;
+    FWCfgIoState *ios;
     FWCfgState *s;
     uint32_t version = FW_CFG_VERSION;
     bool dma_requested = dma_iobase && dma_as;
 
     dev = qdev_create(NULL, TYPE_FW_CFG_IO);
-    qdev_prop_set_uint32(dev, "iobase", iobase);
-    qdev_prop_set_uint32(dev, "dma_iobase", dma_iobase);
     if (!dma_requested) {
         qdev_prop_set_bit(dev, "dma_enabled", false);
     }
 
     fw_cfg_init1(dev);
+
+    sbd = SYS_BUS_DEVICE(dev);
+    ios = FW_CFG_IO(dev);
+    sysbus_add_io(sbd, iobase, &ios->comb_iomem);
+
     s = FW_CFG(dev);
 
     if (s->dma_enabled) {
         /* 64 bits for the address field */
         s->dma_as = dma_as;
         s->dma_addr = 0;
+        sysbus_add_io(sbd, dma_iobase, &s->dma_iomem);
 
         version |= FW_CFG_VERSION_DMA;
     }
@@ -1059,8 +1064,6 @@ static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp)
 }
 
 static Property fw_cfg_io_properties[] = {
-    DEFINE_PROP_UINT32("iobase", FWCfgIoState, iobase, -1),
-    DEFINE_PROP_UINT32("dma_iobase", FWCfgIoState, dma_iobase, -1),
     DEFINE_PROP_BOOL("dma_enabled", FWCfgIoState, parent_obj.dma_enabled,
                      true),
     DEFINE_PROP_UINT16("x-file-slots", FWCfgIoState, parent_obj.file_slots,
@@ -1071,7 +1074,6 @@ static Property fw_cfg_io_properties[] = {
 static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
 {
     FWCfgIoState *s = FW_CFG_IO(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     Error *local_err = NULL;
 
     fw_cfg_file_slots_allocate(FW_CFG(s), &local_err);
@@ -1085,13 +1087,11 @@ static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
      * of the i/o region used is FW_CFG_CTL_SIZE */
     memory_region_init_io(&s->comb_iomem, OBJECT(s), &fw_cfg_comb_mem_ops,
                           FW_CFG(s), "fwcfg", FW_CFG_CTL_SIZE);
-    sysbus_add_io(sbd, s->iobase, &s->comb_iomem);
 
     if (FW_CFG(s)->dma_enabled) {
         memory_region_init_io(&FW_CFG(s)->dma_iomem, OBJECT(s),
                               &fw_cfg_dma_mem_ops, FW_CFG(s), "fwcfg.dma",
                               sizeof(dma_addr_t));
-        sysbus_add_io(sbd, s->dma_iobase, &FW_CFG(s)->dma_iomem);
     }
 }
 
