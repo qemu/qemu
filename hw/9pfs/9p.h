@@ -124,6 +124,11 @@ typedef struct {
     uint8_t id;
     uint16_t tag_le;
 } QEMU_PACKED P9MsgHeader;
+/* According to the specification, 9p messages start with a 7-byte header.
+ * Since most of the code uses this header size in literal form, we must be
+ * sure this is indeed the case.
+ */
+QEMU_BUILD_BUG_ON(sizeof(P9MsgHeader) != 7);
 
 struct V9fsPDU
 {

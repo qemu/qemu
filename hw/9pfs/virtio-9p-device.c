@@ -53,17 +53,15 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
             goto out_free_pdu;
         }
 
-        if (elem->in_num == 0) {
+        if (iov_size(elem->in_sg, elem->in_num) < 7) {
             virtio_error(vdev,
                          "The guest sent a VirtFS request without space for "
                          "the reply");
             goto out_free_req;
         }
-        QEMU_BUILD_BUG_ON(sizeof(out) != 7);
 
-        len = iov_to_buf(elem->out_sg, elem->out_num, 0,
-                         &out, sizeof(out));
-        if (len != sizeof(out)) {
+        len = iov_to_buf(elem->out_sg, elem->out_num, 0, &out, 7);
+        if (len != 7) {
             virtio_error(vdev, "The guest sent a malformed VirtFS request: "
                          "header size is %zd, should be 7", len);
             goto out_free_req;
