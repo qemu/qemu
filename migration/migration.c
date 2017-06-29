@@ -42,6 +42,8 @@
 #include "exec/target_page.h"
 #include "io/channel-buffer.h"
 #include "migration/colo.h"
+#include "hw/boards.h"
+#include "monitor/monitor.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -98,32 +100,37 @@ enum mig_rp_message_type {
    migrations at once.  For now we don't need to add
    dynamic creation of migration */
 
+static MigrationState *current_migration;
+
+void migration_object_init(void)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    /* This can only be called once. */
+    assert(!current_migration);
+    current_migration = MIGRATION_OBJ(object_new(TYPE_MIGRATION));
+
+    /*
+     * We cannot really do this in migration_instance_init() since at
+     * that time global properties are not yet applied, then this
+     * value will be definitely replaced by something else.
+     */
+    if (ms->enforce_config_section) {
+        current_migration->send_configuration = true;
+    }
+}
+
 /* For outgoing */
 MigrationState *migrate_get_current(void)
 {
-    static bool once;
-    static MigrationState current_migration = {
-        .state = MIGRATION_STATUS_NONE,
-        .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
-        .mbps = -1,
-        .parameters = {
-            .compress_level = DEFAULT_MIGRATE_COMPRESS_LEVEL,
-            .compress_threads = DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
-            .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
-            .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
-            .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
-            .max_bandwidth = MAX_THROTTLE,
-            .downtime_limit = DEFAULT_MIGRATE_SET_DOWNTIME,
-            .x_checkpoint_delay = DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
-        },
-    };
+    /* This can only be called after the object created. */
+    assert(current_migration);
+    return current_migration;
+}
 
-    if (!once) {
-        current_migration.parameters.tls_creds = g_strdup("");
-        current_migration.parameters.tls_hostname = g_strdup("");
-        once = true;
-    }
-    return &current_migration;
+void migration_only_migratable_set(void)
+{
+    migrate_get_current()->only_migratable = true;
 }
 
 MigrationIncomingState *migration_incoming_get_current(void)
@@ -997,7 +1004,7 @@ static GSList *migration_blockers;
 
 int migrate_add_blocker(Error *reason, Error **errp)
 {
-    if (only_migratable) {
+    if (migrate_get_current()->only_migratable) {
         error_propagate(errp, error_copy(reason));
         error_prepend(errp, "disallowing migration blocker "
                           "(--only_migratable) for: ");
@@ -1302,6 +1309,15 @@ bool migrate_use_block(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK];
+}
+
+bool migrate_use_return_path(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
 }
 
 bool migrate_use_block_incremental(void)
@@ -1968,10 +1984,11 @@ void migrate_fd_connect(MigrationState *s)
     notifier_list_notify(&migration_state_notifiers, s);
 
     /*
-     * Open the return path; currently for postcopy but other things might
-     * also want it.
+     * Open the return path. For postcopy, it is used exclusively. For
+     * precopy, only if user specified "return-path" capability would
+     * QEMU uses the return path.
      */
-    if (migrate_postcopy_ram()) {
+    if (migrate_postcopy_ram() || migrate_use_return_path()) {
         if (open_return_path_on_source(s)) {
             error_report("Unable to open return-path for postcopy");
             migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
@@ -1987,3 +2004,76 @@ void migrate_fd_connect(MigrationState *s)
     s->migration_thread_running = true;
 }
 
+void migration_global_dump(Monitor *mon)
+{
+    MigrationState *ms = migrate_get_current();
+
+    monitor_printf(mon, "globals: store-global-state=%d, only_migratable=%d, "
+                   "send-configuration=%d, send-section-footer=%d\n",
+                   ms->store_global_state, ms->only_migratable,
+                   ms->send_configuration, ms->send_section_footer);
+}
+
+static Property migration_properties[] = {
+    DEFINE_PROP_BOOL("store-global-state", MigrationState,
+                     store_global_state, true),
+    DEFINE_PROP_BOOL("only-migratable", MigrationState, only_migratable, false),
+    DEFINE_PROP_BOOL("send-configuration", MigrationState,
+                     send_configuration, true),
+    DEFINE_PROP_BOOL("send-section-footer", MigrationState,
+                     send_section_footer, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void migration_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->user_creatable = false;
+    dc->props = migration_properties;
+}
+
+static void migration_instance_init(Object *obj)
+{
+    MigrationState *ms = MIGRATION_OBJ(obj);
+
+    ms->state = MIGRATION_STATUS_NONE;
+    ms->xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE;
+    ms->mbps = -1;
+    ms->parameters = (MigrationParameters) {
+        .compress_level = DEFAULT_MIGRATE_COMPRESS_LEVEL,
+        .compress_threads = DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
+        .decompress_threads = DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
+        .cpu_throttle_initial = DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL,
+        .cpu_throttle_increment = DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT,
+        .max_bandwidth = MAX_THROTTLE,
+        .downtime_limit = DEFAULT_MIGRATE_SET_DOWNTIME,
+        .x_checkpoint_delay = DEFAULT_MIGRATE_X_CHECKPOINT_DELAY,
+    };
+    ms->parameters.tls_creds = g_strdup("");
+    ms->parameters.tls_hostname = g_strdup("");
+}
+
+static const TypeInfo migration_type = {
+    .name = TYPE_MIGRATION,
+    /*
+     * NOTE: "migration" itself is not really a device. We used
+     * TYPE_DEVICE here only to leverage some existing QDev features
+     * like "-global" properties, and HW_COMPAT_* fields (which are
+     * finally applied as global properties as well). If one day the
+     * global property feature can be migrated from QDev to QObject in
+     * general, then we can switch to QObject as well.
+     */
+    .parent = TYPE_DEVICE,
+    .class_init = migration_class_init,
+    .class_size = sizeof(MigrationClass),
+    .instance_size = sizeof(MigrationState),
+    .instance_init = migration_instance_init,
+};
+
+static void register_migration_types(void)
+{
+    type_register_static(&migration_type);
+}
+
+type_init(register_migration_types);

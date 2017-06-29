@@ -1217,7 +1217,7 @@ static const VMStateDescription vmstate_fdc = {
         VMSTATE_UINT8(config, FDCtrl),
         VMSTATE_UINT8(lock, FDCtrl),
         VMSTATE_UINT8(pwrd, FDCtrl),
-        VMSTATE_UINT8_EQUAL(num_floppies, FDCtrl),
+        VMSTATE_UINT8_EQUAL(num_floppies, FDCtrl, NULL),
         VMSTATE_STRUCT_ARRAY(drives, FDCtrl, MAX_FD, 1,
                              vmstate_fdrive, FDrive),
         VMSTATE_END_OF_LIST()

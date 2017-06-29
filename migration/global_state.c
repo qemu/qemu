@@ -15,12 +15,12 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/util.h"
+#include "migration.h"
 #include "migration/global_state.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 
 typedef struct {
-    bool optional;
     uint32_t size;
     uint8_t runstate[100];
     RunState state;
@@ -57,11 +57,6 @@ RunState global_state_get_runstate(void)
     return global_state.state;
 }
 
-void global_state_set_optional(void)
-{
-    global_state.optional = true;
-}
-
 static bool global_state_needed(void *opaque)
 {
     GlobalState *s = opaque;
@@ -69,7 +64,7 @@ static bool global_state_needed(void *opaque)
 
     /* If it is not optional, it is mandatory */
 
-    if (s->optional == false) {
+    if (migrate_get_current()->store_global_state) {
         return true;
     }
 
