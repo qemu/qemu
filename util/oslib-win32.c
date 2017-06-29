@@ -438,10 +438,8 @@ static int poll_rest(gboolean poll_msgs, HANDLE *handles, gint nhandles,
         if (timeout == 0 && nhandles > 1) {
             /* Remove the handle that fired */
             int i;
-            if (ready < nhandles - 1) {
-                for (i = ready - WAIT_OBJECT_0 + 1; i < nhandles; i++) {
-                    handles[i-1] = handles[i];
-                }
+            for (i = ready - WAIT_OBJECT_0 + 1; i < nhandles; i++) {
+                handles[i-1] = handles[i];
             }
             nhandles--;
             recursed_result = poll_rest(FALSE, handles, nhandles, fds, nfds, 0);
