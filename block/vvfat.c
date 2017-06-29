@@ -3078,8 +3078,14 @@ static int coroutine_fn
 write_target_commit(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                     QEMUIOVector *qiov, int flags)
 {
+    int ret;
+
     BDRVVVFATState* s = *((BDRVVVFATState**) bs->opaque);
-    return try_commit(s);
+    qemu_co_mutex_lock(&s->lock);
+    ret = try_commit(s);
+    qemu_co_mutex_unlock(&s->lock);
+
+    return ret;
 }
 
 static void write_target_close(BlockDriverState *bs) {
