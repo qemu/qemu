@@ -363,6 +363,15 @@ static void coroutine_fn bdrv_qed_co_drain(BlockDriverState *bs)
     }
 }
 
+static void bdrv_qed_init_state(BlockDriverState *bs)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    memset(s, 0, sizeof(BDRVQEDState));
+    s->bs = bs;
+    qemu_co_queue_init(&s->allocating_write_reqs);
+}
+
 static int bdrv_qed_do_open(BlockDriverState *bs, QDict *options, int flags,
                             Error **errp)
 {
@@ -370,9 +379,6 @@ static int bdrv_qed_do_open(BlockDriverState *bs, QDict *options, int flags,
     QEDHeader le_header;
     int64_t file_size;
     int ret;
-
-    s->bs = bs;
-    qemu_co_queue_init(&s->allocating_write_reqs);
 
     ret = bdrv_pread(bs->file, 0, &le_header, sizeof(le_header));
     if (ret < 0) {
@@ -507,6 +513,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    bdrv_qed_init_state(bs);
     return bdrv_qed_do_open(bs, options, flags, errp);
 }
 
@@ -1462,13 +1469,12 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
 
 static void bdrv_qed_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
-    BDRVQEDState *s = bs->opaque;
     Error *local_err = NULL;
     int ret;
 
     bdrv_qed_close(bs);
 
-    memset(s, 0, sizeof(BDRVQEDState));
+    bdrv_qed_init_state(bs);
     ret = bdrv_qed_do_open(bs, NULL, bs->open_flags, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
