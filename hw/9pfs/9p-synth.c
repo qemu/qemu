@@ -494,8 +494,7 @@ static int synth_name_to_path(FsContext *ctx, V9fsPath *dir_path,
     }
 out:
     /* Copy the node pointer to fid */
-    target->data = g_malloc(sizeof(void *));
-    memcpy(target->data, &node, sizeof(void *));
+    target->data = g_memdup(&node, sizeof(void *));
     target->size = sizeof(void *);
     return 0;
 }

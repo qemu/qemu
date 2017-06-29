@@ -53,22 +53,21 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
             goto out_free_pdu;
         }
 
-        if (elem->in_num == 0) {
+        if (iov_size(elem->in_sg, elem->in_num) < 7) {
             virtio_error(vdev,
                          "The guest sent a VirtFS request without space for "
                          "the reply");
             goto out_free_req;
         }
-        QEMU_BUILD_BUG_ON(sizeof(out) != 7);
 
-        v->elems[pdu->idx] = elem;
-        len = iov_to_buf(elem->out_sg, elem->out_num, 0,
-                         &out, sizeof(out));
-        if (len != sizeof(out)) {
+        len = iov_to_buf(elem->out_sg, elem->out_num, 0, &out, 7);
+        if (len != 7) {
             virtio_error(vdev, "The guest sent a malformed VirtFS request: "
                          "header size is %zd, should be 7", len);
             goto out_free_req;
         }
+
+        v->elems[pdu->idx] = elem;
 
         pdu_submit(pdu, &out);
     }
@@ -147,8 +146,16 @@ static ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
+    ssize_t ret;
 
-    return v9fs_iov_vmarshal(elem->in_sg, elem->in_num, offset, 1, fmt, ap);
+    ret = v9fs_iov_vmarshal(elem->in_sg, elem->in_num, offset, 1, fmt, ap);
+    if (ret < 0) {
+        VirtIODevice *vdev = VIRTIO_DEVICE(v);
+
+        virtio_error(vdev, "Failed to encode VirtFS reply type %d",
+                     pdu->id + 1);
+    }
+    return ret;
 }
 
 static ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
@@ -157,28 +164,52 @@ static ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
+    ssize_t ret;
 
-    return v9fs_iov_vunmarshal(elem->out_sg, elem->out_num, offset, 1, fmt, ap);
+    ret = v9fs_iov_vunmarshal(elem->out_sg, elem->out_num, offset, 1, fmt, ap);
+    if (ret < 0) {
+        VirtIODevice *vdev = VIRTIO_DEVICE(v);
+
+        virtio_error(vdev, "Failed to decode VirtFS request type %d", pdu->id);
+    }
+    return ret;
 }
 
-/* The size parameter is used by other transports. Do not drop it. */
 static void virtio_init_in_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
                                         unsigned int *pniov, size_t size)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
+    size_t buf_size = iov_size(elem->in_sg, elem->in_num);
+
+    if (buf_size < size) {
+        VirtIODevice *vdev = VIRTIO_DEVICE(v);
+
+        virtio_error(vdev,
+                     "VirtFS reply type %d needs %zu bytes, buffer has %zu",
+                     pdu->id + 1, size, buf_size);
+    }
 
     *piov = elem->in_sg;
     *pniov = elem->in_num;
 }
 
 static void virtio_init_out_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
-                                         unsigned int *pniov)
+                                         unsigned int *pniov, size_t size)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
+    size_t buf_size = iov_size(elem->out_sg, elem->out_num);
+
+    if (buf_size < size) {
+        VirtIODevice *vdev = VIRTIO_DEVICE(v);
+
+        virtio_error(vdev,
+                     "VirtFS request type %d needs %zu bytes, buffer has %zu",
+                     pdu->id, size, buf_size);
+    }
 
     *piov = elem->out_sg;
     *pniov = elem->out_num;
