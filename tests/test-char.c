@@ -53,7 +53,9 @@ static void fe_event(void *opaque, int event)
     FeHandler *h = opaque;
 
     h->last_event = event;
-    quit = true;
+    if (event != CHR_EVENT_BREAK) {
+        quit = true;
+    }
 }
 
 #ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
@@ -517,7 +519,7 @@ static void char_file_test(void)
 
         file.in = fifo;
         file.has_in = true;
-        chr = qemu_chardev_new(NULL, TYPE_CHARDEV_FILE, &backend,
+        chr = qemu_chardev_new("label-file", TYPE_CHARDEV_FILE, &backend,
                                &error_abort);
 
         qemu_chr_fe_init(&be, chr, &error_abort);
@@ -526,6 +528,12 @@ static void char_file_test(void)
                                  fe_read,
                                  fe_event,
                                  &fe, NULL, true);
+
+        g_assert_cmpint(fe.last_event, !=, CHR_EVENT_BREAK);
+        qmp_chardev_send_break("label-foo", NULL);
+        g_assert_cmpint(fe.last_event, !=, CHR_EVENT_BREAK);
+        qmp_chardev_send_break("label-file", NULL);
+        g_assert_cmpint(fe.last_event, ==, CHR_EVENT_BREAK);
 
         main_loop();
 

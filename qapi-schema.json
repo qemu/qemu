@@ -5117,6 +5117,26 @@
 { 'command': 'chardev-remove', 'data': {'id': 'str'} }
 
 ##
+# @chardev-send-break:
+#
+# Send a break to a character device
+#
+# @id: the chardev's ID, must exist
+#
+# Returns: Nothing on success
+#
+# Since: 2.10
+#
+# Example:
+#
+# -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'chardev-send-break', 'data': {'id': 'str'} }
+
+
+##
 # @TpmModel:
 #
 # An enumeration of TPM models

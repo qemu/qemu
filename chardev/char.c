@@ -951,6 +951,18 @@ void qmp_chardev_remove(const char *id, Error **errp)
     object_unparent(OBJECT(chr));
 }
 
+void qmp_chardev_send_break(const char *id, Error **errp)
+{
+    Chardev *chr;
+
+    chr = qemu_chr_find(id);
+    if (chr == NULL) {
+        error_setg(errp, "Chardev '%s' not found", id);
+        return;
+    }
+    qemu_chr_be_event(chr, CHR_EVENT_BREAK);
+}
+
 void qemu_chr_cleanup(void)
 {
     object_unparent(get_chardevs_root());
