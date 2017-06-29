@@ -151,15 +151,21 @@ typedef struct QEDAIOCB {
 
 typedef struct {
     BlockDriverState *bs;           /* device */
-    uint64_t file_size;             /* length of image file, in bytes */
 
+    /* Written only by an allocating write or the timer handler (the latter
+     * while allocating reqs are plugged).
+     */
     QEDHeader header;               /* always cpu-endian */
+
+    /* Protected by table_lock.  */
+    CoMutex table_lock;
     QEDTable *l1_table;
     L2TableCache l2_cache;          /* l2 table cache */
     uint32_t table_nelems;
     uint32_t l1_shift;
     uint32_t l2_shift;
     uint32_t l2_mask;
+    uint64_t file_size;             /* length of image file, in bytes */
 
     /* Allocating write request queue */
     QEDAIOCB *allocating_acb;
@@ -176,9 +182,6 @@ enum {
     QED_CLUSTER_L2,            /* cluster missing in L2 */
     QED_CLUSTER_L1,            /* cluster missing in L1 */
 };
-
-void qed_acquire(BDRVQEDState *s);
-void qed_release(BDRVQEDState *s);
 
 /**
  * Header functions

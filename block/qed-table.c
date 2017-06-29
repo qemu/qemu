@@ -18,6 +18,7 @@
 #include "qed.h"
 #include "qemu/bswap.h"
 
+/* Called either from qed_check or with table_lock held.  */
 static int qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table)
 {
     QEMUIOVector qiov;
@@ -32,18 +33,22 @@ static int qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table)
 
     trace_qed_read_table(s, offset, table);
 
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_unlock(&s->table_lock);
+    }
     ret = bdrv_preadv(s->bs->file, offset, &qiov);
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_lock(&s->table_lock);
+    }
     if (ret < 0) {
         goto out;
     }
 
     /* Byteswap offsets */
-    qed_acquire(s);
     noffsets = qiov.size / sizeof(uint64_t);
     for (i = 0; i < noffsets; i++) {
         table->offsets[i] = le64_to_cpu(table->offsets[i]);
     }
-    qed_release(s);
 
     ret = 0;
 out:
@@ -61,6 +66,8 @@ out:
  * @index:      Index of first element
  * @n:          Number of elements
  * @flush:      Whether or not to sync to disk
+ *
+ * Called either from qed_check or with table_lock held.
  */
 static int qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
                            unsigned int index, unsigned int n, bool flush)
@@ -97,16 +104,20 @@ static int qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     /* Adjust for offset into table */
     offset += start * sizeof(uint64_t);
 
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_unlock(&s->table_lock);
+    }
     ret = bdrv_pwritev(s->bs->file, offset, &qiov);
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_lock(&s->table_lock);
+    }
     trace_qed_write_table_cb(s, table, flush, ret);
     if (ret < 0) {
         goto out;
     }
 
     if (flush) {
-        qed_acquire(s);
         ret = bdrv_flush(s->bs);
-        qed_release(s);
         if (ret < 0) {
             goto out;
         }
@@ -123,6 +134,7 @@ int qed_read_l1_table_sync(BDRVQEDState *s)
     return qed_read_table(s, s->header.l1_table_offset, s->l1_table);
 }
 
+/* Called either from qed_check or with table_lock held.  */
 int qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n)
 {
     BLKDBG_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
@@ -136,6 +148,7 @@ int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
     return qed_write_l1_table(s, index, n);
 }
 
+/* Called either from qed_check or with table_lock held.  */
 int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
 {
     int ret;
@@ -154,7 +167,6 @@ int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
     BLKDBG_EVENT(s->bs->file, BLKDBG_L2_LOAD);
     ret = qed_read_table(s, offset, request->l2_table->table);
 
-    qed_acquire(s);
     if (ret) {
         /* can't trust loaded L2 table anymore */
         qed_unref_l2_cache_entry(request->l2_table);
@@ -170,7 +182,6 @@ int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
         request->l2_table = qed_find_l2_cache_entry(&s->l2_cache, offset);
         assert(request->l2_table != NULL);
     }
-    qed_release(s);
 
     return ret;
 }
@@ -180,6 +191,7 @@ int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request, uint64_t offset
     return qed_read_l2_table(s, request, offset);
 }
 
+/* Called either from qed_check or with table_lock held.  */
 int qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
                        unsigned int index, unsigned int n, bool flush)
 {

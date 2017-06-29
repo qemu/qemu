@@ -85,6 +85,8 @@ static unsigned int qed_count_contiguous_clusters(BDRVQEDState *s,
  *
  * On failure QED_CLUSTER_L2 or QED_CLUSTER_L1 is returned for missing L2 or L1
  * table offset, respectively. len is number of contiguous unallocated bytes.
+ *
+ * Called with table_lock held.
  */
 int coroutine_fn qed_find_cluster(BDRVQEDState *s, QEDRequest *request,
                                   uint64_t pos, size_t *len,
@@ -112,7 +114,6 @@ int coroutine_fn qed_find_cluster(BDRVQEDState *s, QEDRequest *request,
     }
 
     ret = qed_read_l2_table(s, request, l2_offset);
-    qed_acquire(s);
     if (ret) {
         goto out;
     }
@@ -137,6 +138,5 @@ int coroutine_fn qed_find_cluster(BDRVQEDState *s, QEDRequest *request,
 
 out:
     *img_offset = offset;
-    qed_release(s);
     return ret;
 }
