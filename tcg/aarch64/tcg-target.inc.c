@@ -372,6 +372,7 @@ typedef enum {
     I3510_EON       = 0x4a200000,
     I3510_ANDS      = 0x6a000000,
 
+    NOP             = 0xd503201f,
     /* System instructions.  */
     DMB_ISH         = 0xd50338bf,
     DMB_LD          = 0x00000100,
@@ -865,11 +866,27 @@ static inline void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
 
 void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
 {
-    tcg_insn_unit *code_ptr = (tcg_insn_unit *)jmp_addr;
-    tcg_insn_unit *target = (tcg_insn_unit *)addr;
+    tcg_insn_unit i1, i2;
+    TCGType rt = TCG_TYPE_I64;
+    TCGReg  rd = TCG_REG_TMP;
+    uint64_t pair;
 
-    reloc_pc26_atomic(code_ptr, target);
-    flush_icache_range(jmp_addr, jmp_addr + 4);
+    ptrdiff_t offset = addr - jmp_addr;
+
+    if (offset == sextract64(offset, 0, 26)) {
+        i1 = I3206_B | ((offset >> 2) & 0x3ffffff);
+        i2 = NOP;
+    } else {
+        offset = (addr >> 12) - (jmp_addr >> 12);
+
+        /* patch ADRP */
+        i1 = I3406_ADRP | (offset & 3) << 29 | (offset & 0x1ffffc) << (5 - 2) | rd;
+        /* patch ADDI */
+        i2 = I3401_ADDI | rt << 31 | (addr & 0xfff) << 10 | rd << 5 | rd;
+    }
+    pair = (uint64_t)i2 << 32 | i1;
+    atomic_set((uint64_t *)jmp_addr, pair);
+    flush_icache_range(jmp_addr, jmp_addr + 8);
 }
 
 static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
@@ -1388,10 +1405,17 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 #endif
         /* consistency for USE_DIRECT_JUMP */
         tcg_debug_assert(s->tb_jmp_insn_offset != NULL);
+        /* Ensure that ADRP+ADD are 8-byte aligned so that an atomic
+           write can be used to patch the target address. */
+        if ((uintptr_t)s->code_ptr & 7) {
+            tcg_out32(s, NOP);
+        }
         s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
         /* actual branch destination will be patched by
-           aarch64_tb_set_jmp_target later, beware retranslation. */
-        tcg_out_goto_noaddr(s);
+           aarch64_tb_set_jmp_target later. */
+        tcg_out_insn(s, 3406, ADRP, TCG_REG_TMP, 0);
+        tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_TMP, TCG_REG_TMP, 0);
+        tcg_out_insn(s, 3207, BR, TCG_REG_TMP);
         s->tb_jmp_reset_offset[a0] = tcg_current_code_size(s);
         break;
 
