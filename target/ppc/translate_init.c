@@ -33,6 +33,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/ppc/ppc.h"
 #include "mmu-book3s-v3.h"
+#include "sysemu/qtest.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -8413,73 +8414,38 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
     pcc->l1_icache_size = 0x10000;
 }
 
-static void powerpc_get_compat(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
+/*
+ * The CPU used to have a "compat" property which set the
+ * compatibility mode PVR.  However, this was conceptually broken - it
+ * only makes sense on the pseries machine type (otherwise the guest
+ * owns the PCR and can control the compatibility mode itself).  It's
+ * been replaced with the 'max-cpu-compat' property on the pseries
+ * machine type.  For backwards compatibility, pseries specially
+ * parses the -cpu parameter and converts old compat= parameters into
+ * the appropriate machine parameters.  This stub implementation of
+ * the parameter catches any uses on explicitly created CPUs.
+ */
+static void getset_compat_deprecated(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
 {
-    char *value = (char *)"";
-    Property *prop = opaque;
-    uint32_t *max_compat = qdev_get_prop_ptr(DEVICE(obj), prop);
-
-    switch (*max_compat) {
-    case CPU_POWERPC_LOGICAL_2_05:
-        value = (char *)"power6";
-        break;
-    case CPU_POWERPC_LOGICAL_2_06:
-        value = (char *)"power7";
-        break;
-    case CPU_POWERPC_LOGICAL_2_07:
-        value = (char *)"power8";
-        break;
-    case 0:
-        break;
-    default:
-        error_report("Internal error: compat is set to %x", *max_compat);
-        abort();
-        break;
+    if (!qtest_enabled()) {
+        error_report("CPU 'compat' property is deprecated and has no effect; "
+                     "use max-cpu-compat machine property instead");
     }
-
-    visit_type_str(v, name, &value, errp);
+    visit_type_null(v, name, NULL);
 }
 
-static void powerpc_set_compat(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    Error *error = NULL;
-    char *value = NULL;
-    Property *prop = opaque;
-    uint32_t *max_compat = qdev_get_prop_ptr(DEVICE(obj), prop);
-
-    visit_type_str(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-
-    if (strcmp(value, "power6") == 0) {
-        *max_compat = CPU_POWERPC_LOGICAL_2_05;
-    } else if (strcmp(value, "power7") == 0) {
-        *max_compat = CPU_POWERPC_LOGICAL_2_06;
-    } else if (strcmp(value, "power8") == 0) {
-        *max_compat = CPU_POWERPC_LOGICAL_2_07;
-    } else {
-        error_setg(errp, "Invalid compatibility mode \"%s\"", value);
-    }
-
-    g_free(value);
-}
-
-static PropertyInfo powerpc_compat_propinfo = {
+static PropertyInfo ppc_compat_deprecated_propinfo = {
     .name = "str",
-    .description = "compatibility mode, power6/power7/power8",
-    .get = powerpc_get_compat,
-    .set = powerpc_set_compat,
+    .description = "compatibility mode (deprecated)",
+    .get = getset_compat_deprecated,
+    .set = getset_compat_deprecated,
 };
-
-#define DEFINE_PROP_POWERPC_COMPAT(_n, _s, _f) \
-    DEFINE_PROP(_n, _s, _f, powerpc_compat_propinfo, uint32_t)
-
 static Property powerpc_servercpu_properties[] = {
-    DEFINE_PROP_POWERPC_COMPAT("compat", PowerPCCPU, max_compat),
+    {
+        .name = "compat",
+        .info = &ppc_compat_deprecated_propinfo,
+    },
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -9859,14 +9825,14 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         error_append_hint(errp, "Adjust the number of cpus to %d "
                           "or try to raise the number of threads per core\n",
                           cpu->cpu_dt_id * smp_threads / max_smt);
-        return;
+        goto unrealize;
     }
 #endif
 
     if (tcg_enabled()) {
         if (ppc_fixup_cpu(cpu) != 0) {
             error_setg(errp, "Unable to emulate selected CPU with TCG");
-            return;
+            goto unrealize;
         }
     }
 
@@ -9875,14 +9841,14 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         error_setg(errp, "CPU does not possess a BookE or 4xx MMU. "
                    "Please use qemu-system-ppc or qemu-system-ppc64 instead "
                    "or choose another CPU model.");
-        return;
+        goto unrealize;
     }
 #endif
 
     create_ppc_opcodes(cpu, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
-        return;
+        goto unrealize;
     }
     init_ppc_proc(cpu);
 
@@ -10067,6 +10033,10 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
         fflush(stdout);
     }
 #endif
+    return;
+
+unrealize:
+    cpu_exec_unrealizefn(cs);
 }
 
 static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
@@ -10640,6 +10610,8 @@ static gchar *ppc_gdb_arch_name(CPUState *cs)
 
 static Property ppc_cpu_properties[] = {
     DEFINE_PROP_BOOL("pre-2.8-migration", PowerPCCPU, pre_2_8_migration, false),
+    DEFINE_PROP_BOOL("pre-2.10-migration", PowerPCCPU, pre_2_10_migration,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

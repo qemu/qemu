@@ -53,6 +53,7 @@ struct sPAPRMachineClass {
     bool dr_lmb_enabled;       /* enable dynamic-reconfig/hotplug of LMBs */
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
     const char *tcg_default_cpu; /* which (TCG) CPU to simulate by default */
+    bool pre_2_10_has_unused_icps;
     void (*phb_placement)(sPAPRMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
                           hwaddr *mmio32, hwaddr *mmio64,
@@ -86,15 +87,18 @@ struct sPAPRMachineState {
     uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;
     bool has_graphics;
-    sPAPROptionVector *ov5;         /* QEMU-supported option vectors */
-    sPAPROptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
-    bool cas_reboot;
-    bool cas_legacy_guest_workaround;
 
     Notifier epow_notifier;
     QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
     bool use_hotplug_event_source;
     sPAPREventSource *event_sources;
+
+    /* ibm,client-architecture-support option negotiation */
+    bool cas_reboot;
+    bool cas_legacy_guest_workaround;
+    sPAPROptionVector *ov5;         /* QEMU-supported option vectors */
+    sPAPROptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
+    uint32_t max_compat_pvr;
 
     /* Migration state */
     int htab_save_index;
@@ -635,6 +639,7 @@ void spapr_hotplug_req_add_by_count_indexed(sPAPRDRConnectorType drc_type,
                                             uint32_t count, uint32_t index);
 void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
                                                uint32_t count, uint32_t index);
+void spapr_cpu_parse_features(sPAPRMachineState *spapr);
 void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
                                     sPAPRMachineState *spapr);
 

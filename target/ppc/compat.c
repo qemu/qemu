@@ -24,9 +24,11 @@
 #include "sysemu/cpus.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "cpu-models.h"
 
 typedef struct {
+    const char *name;
     uint32_t pvr;
     uint64_t pcr;
     uint64_t pcr_level;
@@ -38,6 +40,7 @@ static const CompatInfo compat_table[] = {
      * Ordered from oldest to newest - the code relies on this
      */
     { /* POWER6, ISA2.05 */
+        .name = "power6",
         .pvr = CPU_POWERPC_LOGICAL_2_05,
         .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 |
                PCR_COMPAT_2_05 | PCR_TM_DIS | PCR_VSX_DIS,
@@ -45,24 +48,28 @@ static const CompatInfo compat_table[] = {
         .max_threads = 2,
     },
     { /* POWER7, ISA2.06 */
+        .name = "power7",
         .pvr = CPU_POWERPC_LOGICAL_2_06,
         .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     {
+        .name = "power7+",
         .pvr = CPU_POWERPC_LOGICAL_2_06_PLUS,
         .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07 | PCR_COMPAT_2_06 | PCR_TM_DIS,
         .pcr_level = PCR_COMPAT_2_06,
         .max_threads = 4,
     },
     { /* POWER8, ISA2.07 */
+        .name = "power8",
         .pvr = CPU_POWERPC_LOGICAL_2_07,
         .pcr = PCR_COMPAT_3_00 | PCR_COMPAT_2_07,
         .pcr_level = PCR_COMPAT_2_07,
         .max_threads = 8,
     },
     { /* POWER9, ISA3.00 */
+        .name = "power9",
         .pvr = CPU_POWERPC_LOGICAL_3_00,
         .pcr = PCR_COMPAT_3_00,
         .pcr_level = PCR_COMPAT_3_00,
@@ -188,4 +195,99 @@ int ppc_compat_max_threads(PowerPCCPU *cpu)
     }
 
     return n_threads;
+}
+
+static void ppc_compat_prop_get(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    uint32_t compat_pvr = *((uint32_t *)opaque);
+    const char *value;
+
+    if (!compat_pvr) {
+        value = "";
+    } else {
+        const CompatInfo *compat = compat_by_pvr(compat_pvr);
+
+        g_assert(compat);
+
+        value = compat->name;
+    }
+
+    visit_type_str(v, name, (char **)&value, errp);
+}
+
+static void ppc_compat_prop_set(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    Error *local_err = NULL;
+    char *value;
+    uint32_t compat_pvr;
+
+    visit_type_str(v, name, &value, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (strcmp(value, "") == 0) {
+        compat_pvr = 0;
+    } else {
+        int i;
+        const CompatInfo *compat = NULL;
+
+        for (i = 0; i < ARRAY_SIZE(compat_table); i++) {
+            if (strcmp(value, compat_table[i].name) == 0) {
+                compat = &compat_table[i];
+                break;
+
+            }
+        }
+
+        if (!compat) {
+            error_setg(errp, "Invalid compatibility mode \"%s\"", value);
+            goto out;
+        }
+        compat_pvr = compat->pvr;
+    }
+
+    *((uint32_t *)opaque) = compat_pvr;
+
+out:
+    g_free(value);
+}
+
+void ppc_compat_add_property(Object *obj, const char *name,
+                             uint32_t *compat_pvr, const char *basedesc,
+                             Error **errp)
+{
+    Error *local_err = NULL;
+    gchar *namesv[ARRAY_SIZE(compat_table) + 1];
+    gchar *names, *desc;
+    int i;
+
+    object_property_add(obj, name, "string",
+                        ppc_compat_prop_get, ppc_compat_prop_set, NULL,
+                        compat_pvr, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(compat_table); i++) {
+        /*
+         * Have to discard const here, because g_strjoinv() takes
+         * (gchar **), not (const gchar **) :(
+         */
+        namesv[i] = (gchar *)compat_table[i].name;
+    }
+    namesv[ARRAY_SIZE(compat_table)] = NULL;
+
+    names = g_strjoinv(", ", namesv);
+    desc = g_strdup_printf("%s. Valid values are %s.", basedesc, names);
+    object_property_set_description(obj, name, desc, &local_err);
+
+    g_free(names);
+    g_free(desc);
+
+out:
+    error_propagate(errp, local_err);
 }

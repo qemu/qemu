@@ -46,30 +46,64 @@ uint32_t spapr_drc_index(sPAPRDRConnector *drc)
         | (drc->id & DRC_INDEX_ID_MASK);
 }
 
-static uint32_t set_isolation_state(sPAPRDRConnector *drc,
-                                    sPAPRDRIsolationState state)
+static uint32_t drc_isolate_physical(sPAPRDRConnector *drc)
 {
-    trace_spapr_drc_set_isolation_state(spapr_drc_index(drc), state);
-
     /* if the guest is configuring a device attached to this DRC, we
      * should reset the configuration state at this point since it may
      * no longer be reliable (guest released device and needs to start
      * over, or unplug occurred so the FDT is no longer valid)
      */
-    if (state == SPAPR_DR_ISOLATION_STATE_ISOLATED) {
-        g_free(drc->ccs);
-        drc->ccs = NULL;
-    }
+    g_free(drc->ccs);
+    drc->ccs = NULL;
 
-    if (state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) {
-        /* cannot unisolate a non-existent resource, and, or resources
-         * which are in an 'UNUSABLE' allocation state. (PAPR 2.7, 13.5.3.5)
-         */
-        if (!drc->dev ||
-            drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-            return RTAS_OUT_NO_SUCH_INDICATOR;
+    drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
+
+    /* if we're awaiting release, but still in an unconfigured state,
+     * it's likely the guest is still in the process of configuring
+     * the device and is transitioning the devices to an ISOLATED
+     * state as a part of that process. so we only complete the
+     * removal when this transition happens for a device in a
+     * configured state, as suggested by the state diagram from PAPR+
+     * 2.7, 13.4
+     */
+    if (drc->awaiting_release) {
+        uint32_t drc_index = spapr_drc_index(drc);
+        if (drc->configured) {
+            trace_spapr_drc_set_isolation_state_finalizing(drc_index);
+            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
+        } else {
+            trace_spapr_drc_set_isolation_state_deferring(drc_index);
         }
     }
+    drc->configured = false;
+
+    return RTAS_OUT_SUCCESS;
+}
+
+static uint32_t drc_unisolate_physical(sPAPRDRConnector *drc)
+{
+    /* cannot unisolate a non-existent resource, and, or resources
+     * which are in an 'UNUSABLE' allocation state. (PAPR 2.7,
+     * 13.5.3.5)
+     */
+    if (!drc->dev) {
+        return RTAS_OUT_NO_SUCH_INDICATOR;
+    }
+
+    drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
+
+    return RTAS_OUT_SUCCESS;
+}
+
+static uint32_t drc_isolate_logical(sPAPRDRConnector *drc)
+{
+    /* if the guest is configuring a device attached to this DRC, we
+     * should reset the configuration state at this point since it may
+     * no longer be reliable (guest released device and needs to start
+     * over, or unplug occurred so the FDT is no longer valid)
+     */
+    g_free(drc->ccs);
+    drc->ccs = NULL;
 
     /*
      * Fail any requests to ISOLATE the LMB DRC if this LMB doesn't
@@ -81,66 +115,87 @@ static uint32_t set_isolation_state(sPAPRDRConnector *drc,
      * If the LMB being removed doesn't belong to a DIMM device that is
      * actually being unplugged, fail the isolation request here.
      */
-    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB) {
-        if ((state == SPAPR_DR_ISOLATION_STATE_ISOLATED) &&
-             !drc->awaiting_release) {
-            return RTAS_OUT_HW_ERROR;
-        }
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB
+        && !drc->awaiting_release) {
+        return RTAS_OUT_HW_ERROR;
     }
 
-    drc->isolation_state = state;
+    drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
 
-    if (drc->isolation_state == SPAPR_DR_ISOLATION_STATE_ISOLATED) {
-        /* if we're awaiting release, but still in an unconfigured state,
-         * it's likely the guest is still in the process of configuring
-         * the device and is transitioning the devices to an ISOLATED
-         * state as a part of that process. so we only complete the
-         * removal when this transition happens for a device in a
-         * configured state, as suggested by the state diagram from
-         * PAPR+ 2.7, 13.4
-         */
-        if (drc->awaiting_release) {
-            uint32_t drc_index = spapr_drc_index(drc);
-            if (drc->configured) {
-                trace_spapr_drc_set_isolation_state_finalizing(drc_index);
-                spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
-            } else {
-                trace_spapr_drc_set_isolation_state_deferring(drc_index);
-            }
+    /* if we're awaiting release, but still in an unconfigured state,
+     * it's likely the guest is still in the process of configuring
+     * the device and is transitioning the devices to an ISOLATED
+     * state as a part of that process. so we only complete the
+     * removal when this transition happens for a device in a
+     * configured state, as suggested by the state diagram from PAPR+
+     * 2.7, 13.4
+     */
+    if (drc->awaiting_release) {
+        uint32_t drc_index = spapr_drc_index(drc);
+        if (drc->configured) {
+            trace_spapr_drc_set_isolation_state_finalizing(drc_index);
+            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
+        } else {
+            trace_spapr_drc_set_isolation_state_deferring(drc_index);
         }
-        drc->configured = false;
     }
+    drc->configured = false;
 
     return RTAS_OUT_SUCCESS;
 }
 
-static uint32_t set_allocation_state(sPAPRDRConnector *drc,
-                                     sPAPRDRAllocationState state)
+static uint32_t drc_unisolate_logical(sPAPRDRConnector *drc)
 {
-    trace_spapr_drc_set_allocation_state(spapr_drc_index(drc), state);
+    /* cannot unisolate a non-existent resource, and, or resources
+     * which are in an 'UNUSABLE' allocation state. (PAPR 2.7,
+     * 13.5.3.5)
+     */
+    if (!drc->dev ||
+        drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
+        return RTAS_OUT_NO_SUCH_INDICATOR;
+    }
 
-    if (state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
-        /* if there's no resource/device associated with the DRC, there's
-         * no way for us to put it in an allocation state consistent with
-         * being 'USABLE'. PAPR 2.7, 13.5.3.4 documents that this should
-         * result in an RTAS return code of -3 / "no such indicator"
+    drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
+
+    return RTAS_OUT_SUCCESS;
+}
+
+static uint32_t drc_set_usable(sPAPRDRConnector *drc)
+{
+    /* if there's no resource/device associated with the DRC, there's
+     * no way for us to put it in an allocation state consistent with
+     * being 'USABLE'. PAPR 2.7, 13.5.3.4 documents that this should
+     * result in an RTAS return code of -3 / "no such indicator"
+     */
+    if (!drc->dev) {
+        return RTAS_OUT_NO_SUCH_INDICATOR;
+    }
+    if (drc->awaiting_release && drc->awaiting_allocation) {
+        /* kernel is acknowledging a previous hotplug event
+         * while we are already removing it.
+         * it's safe to ignore awaiting_allocation here since we know the
+         * situation is predicated on the guest either already having done
+         * so (boot-time hotplug), or never being able to acquire in the
+         * first place (hotplug followed by immediate unplug).
          */
-        if (!drc->dev) {
-            return RTAS_OUT_NO_SUCH_INDICATOR;
-        }
+        return RTAS_OUT_NO_SUCH_INDICATOR;
     }
 
-    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
-        drc->allocation_state = state;
-        if (drc->awaiting_release &&
-            drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-            uint32_t drc_index = spapr_drc_index(drc);
-            trace_spapr_drc_set_allocation_state_finalizing(drc_index);
-            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
-        } else if (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) {
-            drc->awaiting_allocation = false;
-        }
+    drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_USABLE;
+    drc->awaiting_allocation = false;
+
+    return RTAS_OUT_SUCCESS;
+}
+
+static uint32_t drc_set_unusable(sPAPRDRConnector *drc)
+{
+    drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_UNUSABLE;
+    if (drc->awaiting_release) {
+        uint32_t drc_index = spapr_drc_index(drc);
+        trace_spapr_drc_set_allocation_state_finalizing(drc_index);
+        spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
     }
+
     return RTAS_OUT_SUCCESS;
 }
 
@@ -170,12 +225,6 @@ static const char *spapr_drc_name(sPAPRDRConnector *drc)
      * location codes as documented by PAPR+ v2.7, 12.3.1.5
      */
     return g_strdup_printf("%s%d", drck->drc_name_prefix, drc->id);
-}
-
-/* has the guest been notified of device attachment? */
-static void set_signalled(sPAPRDRConnector *drc)
-{
-    drc->signalled = true;
 }
 
 /*
@@ -304,33 +353,12 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     }
     g_assert(fdt || coldplug);
 
-    /* NOTE: setting initial isolation state to UNISOLATED means we can't
-     * detach unless guest has a userspace/kernel that moves this state
-     * back to ISOLATED in response to an unplug event, or this is done
-     * manually by the admin prior. if we force things while the guest
-     * may be accessing the device, we can easily crash the guest, so we
-     * we defer completion of removal in such cases to the reset() hook.
-     */
-    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
-        drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
-    }
     drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
 
     drc->dev = d;
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
     drc->configured = coldplug;
-    /* 'logical' DR resources such as memory/cpus are in some cases treated
-     * as a pool of resources from which the guest is free to choose from
-     * based on only a count. for resources that can be assigned in this
-     * fashion, we must assume the resource is signalled immediately
-     * since a single hotplug request might make an arbitrary number of
-     * such attached resources available to the guest, as opposed to
-     * 'physical' DR resources such as PCI where each device/resource is
-     * signalled individually.
-     */
-    drc->signalled = (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI)
-                     ? true : coldplug;
 
     if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->awaiting_allocation = true;
@@ -342,49 +370,8 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                              NULL, 0, NULL);
 }
 
-void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
+static void spapr_drc_release(sPAPRDRConnector *drc)
 {
-    trace_spapr_drc_detach(spapr_drc_index(drc));
-
-    /* if we've signalled device presence to the guest, or if the guest
-     * has gone ahead and configured the device (via manually-executed
-     * device add via drmgr in guest, namely), we need to wait
-     * for the guest to quiesce the device before completing detach.
-     * Otherwise, we can assume the guest hasn't seen it and complete the
-     * detach immediately. Note that there is a small race window
-     * just before, or during, configuration, which is this context
-     * refers mainly to fetching the device tree via RTAS.
-     * During this window the device access will be arbitrated by
-     * associated DRC, which will simply fail the RTAS calls as invalid.
-     * This is recoverable within guest and current implementations of
-     * drmgr should be able to cope.
-     */
-    if (!drc->signalled && !drc->configured) {
-        /* if the guest hasn't seen the device we can't rely on it to
-         * set it back to an isolated state via RTAS, so do it here manually
-         */
-        drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
-    }
-
-    if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
-        trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
-        drc->awaiting_release = true;
-        return;
-    }
-
-    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
-        drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
-        trace_spapr_drc_awaiting_unusable(spapr_drc_index(drc));
-        drc->awaiting_release = true;
-        return;
-    }
-
-    if (drc->awaiting_allocation) {
-        drc->awaiting_release = true;
-        trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
-        return;
-    }
-
     drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
 
     /* Calling release callbacks based on spapr_drc_type(drc). */
@@ -412,6 +399,32 @@ void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
     drc->dev = NULL;
 }
 
+void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
+{
+    trace_spapr_drc_detach(spapr_drc_index(drc));
+
+    if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
+        trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
+        drc->awaiting_release = true;
+        return;
+    }
+
+    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
+        drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
+        trace_spapr_drc_awaiting_unusable(spapr_drc_index(drc));
+        drc->awaiting_release = true;
+        return;
+    }
+
+    if (drc->awaiting_allocation) {
+        drc->awaiting_release = true;
+        trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
+        return;
+    }
+
+    spapr_drc_release(drc);
+}
+
 static bool release_pending(sPAPRDRConnector *drc)
 {
     return drc->awaiting_release;
@@ -420,7 +433,6 @@ static bool release_pending(sPAPRDRConnector *drc)
 static void reset(DeviceState *d)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
@@ -428,32 +440,26 @@ static void reset(DeviceState *d)
     drc->ccs = NULL;
 
     /* immediately upon reset we can safely assume DRCs whose devices
-     * are pending removal can be safely removed, and that they will
-     * subsequently be left in an ISOLATED state. move the DRC to this
-     * state in these cases (which will in turn complete any pending
-     * device removals)
+     * are pending removal can be safely removed.
      */
     if (drc->awaiting_release) {
-        drck->set_isolation_state(drc, SPAPR_DR_ISOLATION_STATE_ISOLATED);
-        /* generally this should also finalize the removal, but if the device
-         * hasn't yet been configured we normally defer removal under the
-         * assumption that this transition is taking place as part of device
-         * configuration. so check if we're still waiting after this, and
-         * force removal if we are
-         */
-        if (drc->awaiting_release) {
-            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
-        }
-
-        /* non-PCI devices may be awaiting a transition to UNUSABLE */
-        if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
-            drc->awaiting_release) {
-            drck->set_allocation_state(drc, SPAPR_DR_ALLOCATION_STATE_UNUSABLE);
-        }
+        spapr_drc_release(drc);
     }
 
-    if (drck->dr_entity_sense(drc) == SPAPR_DR_ENTITY_SENSE_PRESENT) {
-        drck->set_signalled(drc);
+    drc->awaiting_allocation = false;
+
+    if (drc->dev) {
+        /* A device present at reset is coldplugged */
+        drc->isolation_state = SPAPR_DR_ISOLATION_STATE_UNISOLATED;
+        if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
+            drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_USABLE;
+        }
+    } else {
+        /* Otherwise device is absent, but might be hotplugged */
+        drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
+        if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
+            drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_UNUSABLE;
+        }
     }
 }
 
@@ -479,7 +485,7 @@ static bool spapr_drc_needed(void *opaque)
     case SPAPR_DR_CONNECTOR_TYPE_LMB:
         rc = !((drc->isolation_state == SPAPR_DR_ISOLATION_STATE_UNISOLATED) &&
                (drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE) &&
-               drc->configured && drc->signalled && !drc->awaiting_release);
+               drc->configured && !drc->awaiting_release);
         break;
     case SPAPR_DR_CONNECTOR_TYPE_PHB:
     case SPAPR_DR_CONNECTOR_TYPE_VIO:
@@ -501,7 +507,6 @@ static const VMStateDescription vmstate_spapr_drc = {
         VMSTATE_BOOL(configured, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_release, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_allocation, sPAPRDRConnector),
-        VMSTATE_BOOL(signalled, sPAPRDRConnector),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -596,10 +601,7 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     dk->reset = reset;
     dk->realize = realize;
     dk->unrealize = unrealize;
-    drck->set_isolation_state = set_isolation_state;
-    drck->set_allocation_state = set_allocation_state;
     drck->release_pending = release_pending;
-    drck->set_signalled = set_signalled;
     /*
      * Reason: it crashes FIXME find and document the real reason
      */
@@ -611,6 +613,8 @@ static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->dr_entity_sense = physical_entity_sense;
+    drck->isolate = drc_isolate_physical;
+    drck->unisolate = drc_unisolate_physical;
 }
 
 static void spapr_drc_logical_class_init(ObjectClass *k, void *data)
@@ -618,6 +622,8 @@ static void spapr_drc_logical_class_init(ObjectClass *k, void *data)
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->dr_entity_sense = logical_entity_sense;
+    drck->isolate = drc_isolate_logical;
+    drck->unisolate = drc_unisolate_logical;
 }
 
 static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
@@ -858,24 +864,45 @@ static uint32_t rtas_set_isolation_state(uint32_t idx, uint32_t state)
     sPAPRDRConnectorClass *drck;
 
     if (!drc) {
-        return RTAS_OUT_PARAM_ERROR;
+        return RTAS_OUT_NO_SUCH_INDICATOR;
     }
 
+    trace_spapr_drc_set_isolation_state(spapr_drc_index(drc), state);
+
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    return drck->set_isolation_state(drc, state);
+
+    switch (state) {
+    case SPAPR_DR_ISOLATION_STATE_ISOLATED:
+        return drck->isolate(drc);
+
+    case SPAPR_DR_ISOLATION_STATE_UNISOLATED:
+        return drck->unisolate(drc);
+
+    default:
+        return RTAS_OUT_PARAM_ERROR;
+    }
 }
 
 static uint32_t rtas_set_allocation_state(uint32_t idx, uint32_t state)
 {
     sPAPRDRConnector *drc = spapr_drc_by_index(idx);
-    sPAPRDRConnectorClass *drck;
 
-    if (!drc) {
-        return RTAS_OUT_PARAM_ERROR;
+    if (!drc || !object_dynamic_cast(OBJECT(drc), TYPE_SPAPR_DRC_LOGICAL)) {
+        return RTAS_OUT_NO_SUCH_INDICATOR;
     }
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    return drck->set_allocation_state(drc, state);
+    trace_spapr_drc_set_allocation_state(spapr_drc_index(drc), state);
+
+    switch (state) {
+    case SPAPR_DR_ALLOCATION_STATE_USABLE:
+        return drc_set_usable(drc);
+
+    case SPAPR_DR_ALLOCATION_STATE_UNUSABLE:
+        return drc_set_unusable(drc);
+
+    default:
+        return RTAS_OUT_PARAM_ERROR;
+    }
 }
 
 static uint32_t rtas_set_dr_indicator(uint32_t idx, uint32_t state)

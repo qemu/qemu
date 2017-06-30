@@ -256,6 +256,19 @@ static void print_type_number(Visitor *v, const char *name, double *obj,
     string_output_set(sov, g_strdup_printf("%f", *obj));
 }
 
+static void print_type_null(Visitor *v, const char *name, Error **errp)
+{
+    StringOutputVisitor *sov = to_sov(v);
+    char *out;
+
+    if (sov->human) {
+        out = g_strdup("<null>");
+    } else {
+        out = g_strdup("");
+    }
+    string_output_set(sov, out);
+}
+
 static void
 start_list(Visitor *v, const char *name, GenericList **list, size_t size,
            Error **errp)
@@ -341,6 +354,7 @@ Visitor *string_output_visitor_new(bool human, char **result)
     v->visitor.type_bool = print_type_bool;
     v->visitor.type_str = print_type_str;
     v->visitor.type_number = print_type_number;
+    v->visitor.type_null = print_type_null;
     v->visitor.start_list = start_list;
     v->visitor.next_list = next_list;
     v->visitor.end_list = end_list;

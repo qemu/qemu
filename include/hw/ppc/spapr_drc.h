@@ -199,7 +199,6 @@ typedef struct sPAPRDRConnector {
     sPAPRConfigureConnectorState *ccs;
 
     bool awaiting_release;
-    bool signalled;
     bool awaiting_allocation;
 
     /* device pointer, via link property */
@@ -216,16 +215,11 @@ typedef struct sPAPRDRConnectorClass {
     const char *drc_name_prefix; /* used other places in device tree */
 
     sPAPRDREntitySense (*dr_entity_sense)(sPAPRDRConnector *drc);
-
-    /* accessors for guest-visible (generally via RTAS) DR state */
-    uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
-                                    sPAPRDRIsolationState state);
-    uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
-                                     sPAPRDRAllocationState state);
+    uint32_t (*isolate)(sPAPRDRConnector *drc);
+    uint32_t (*unisolate)(sPAPRDRConnector *drc);
 
     /* QEMU interfaces for managing hotplug operations */
     bool (*release_pending)(sPAPRDRConnector *drc);
-    void (*set_signalled)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
 
 uint32_t spapr_drc_index(sPAPRDRConnector *drc);
