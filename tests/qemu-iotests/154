@@ -334,8 +334,6 @@ $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 # Repeat with backing file holding unallocated cluster.
-# TODO: Note that this forces an allocation, because we aren't yet able to
-# quickly detect that reads beyond EOF of the backing file are always zero
 CLUSTER_SIZE=2048 TEST_IMG="$TEST_IMG.base" _make_test_img $((size + 1024))
 
 # Write at the front: sector-wise, the request is:
@@ -371,8 +369,6 @@ $QEMU_IO -c "alloc $size 2048" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 # Repeat with backing file holding zero'd cluster
-# TODO: Note that this forces an allocation, because we aren't yet able to
-# quickly detect that reads beyond EOF of the backing file are always zero
 $QEMU_IO -c "write -z $size 512" "$TEST_IMG.base" | _filter_qemu_io
 
 # Write at the front: sector-wise, the request is:
