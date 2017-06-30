@@ -50,7 +50,7 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    trace_virtio_blk_req_complete(req, status);
+    trace_virtio_blk_req_complete(vdev, req, status);
 
     stb_p(&req->in->status, status);
     virtqueue_push(req->vq, &req->elem, req->in_len);
@@ -88,12 +88,13 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *next = opaque;
     VirtIOBlock *s = next->dev;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
     while (next) {
         VirtIOBlockReq *req = next;
         next = req->mr_next;
-        trace_virtio_blk_rw_complete(req, ret);
+        trace_virtio_blk_rw_complete(vdev, req, ret);
 
         if (req->qiov.nalloc != -1) {
             /* If nalloc is != 1 req->qiov is a local copy of the original
@@ -355,7 +356,8 @@ static inline void submit_requests(BlockBackend *blk, MultiReqBuffer *mrb,
             mrb->reqs[i - 1]->mr_next = mrb->reqs[i];
         }
 
-        trace_virtio_blk_submit_multireq(mrb, start, num_reqs,
+        trace_virtio_blk_submit_multireq(VIRTIO_DEVICE(mrb->reqs[start]->dev),
+                                         mrb, start, num_reqs,
                                          sector_num << BDRV_SECTOR_BITS,
                                          qiov->size, is_write);
         block_acct_merge_done(blk_get_stats(blk),
@@ -526,11 +528,11 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 
         if (is_write) {
             qemu_iovec_init_external(&req->qiov, iov, out_num);
-            trace_virtio_blk_handle_write(req, req->sector_num,
+            trace_virtio_blk_handle_write(vdev, req, req->sector_num,
                                           req->qiov.size / BDRV_SECTOR_SIZE);
         } else {
             qemu_iovec_init_external(&req->qiov, in_iov, in_num);
-            trace_virtio_blk_handle_read(req, req->sector_num,
+            trace_virtio_blk_handle_read(vdev, req, req->sector_num,
                                          req->qiov.size / BDRV_SECTOR_SIZE);
         }
 

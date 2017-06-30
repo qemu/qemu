@@ -26,12 +26,13 @@ typedef struct QVirtioDevice {
 typedef struct QVirtQueue {
     uint64_t desc; /* This points to an array of struct vring_desc */
     uint64_t avail; /* This points to a struct vring_avail */
-    uint64_t used; /* This points to a struct vring_desc */
+    uint64_t used; /* This points to a struct vring_used */
     uint16_t index;
     uint32_t size;
     uint32_t free_head;
     uint32_t num_free;
     uint32_t align;
+    uint16_t last_used_idx;
     bool indirect;
     bool event;
 } QVirtQueue;
@@ -120,6 +121,10 @@ uint8_t qvirtio_wait_status_byte_no_isr(QVirtioDevice *d,
                                         QVirtQueue *vq,
                                         uint64_t addr,
                                         gint64 timeout_us);
+void qvirtio_wait_used_elem(QVirtioDevice *d,
+                            QVirtQueue *vq,
+                            uint32_t desc_idx,
+                            gint64 timeout_us);
 void qvirtio_wait_config_isr(QVirtioDevice *d, gint64 timeout_us);
 QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
                              QGuestAllocator *alloc, uint16_t index);
@@ -135,6 +140,7 @@ uint32_t qvirtqueue_add(QVirtQueue *vq, uint64_t data, uint32_t len, bool write,
                                                                     bool next);
 uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect);
 void qvirtqueue_kick(QVirtioDevice *d, QVirtQueue *vq, uint32_t free_head);
+bool qvirtqueue_get_buf(QVirtQueue *vq, uint32_t *desc_idx);
 
 void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx);
 #endif
