@@ -377,9 +377,8 @@ struct sPAPRMachineState {
  * as well.
  *
  * We also need some hcalls which are specific to qemu / KVM-on-POWER.
- * So far we just need one for H_RTAS, but in future we'll need more
- * for extensions like virtio.  We put those into the 0xf000-0xfffc
- * range which is reserved by PAPR for "platform-specific" hcalls.
+ * We put those into the 0xf000-0xfffc range which is reserved by PAPR
+ * for "platform-specific" hcalls.
  */
 #define KVMPPC_HCALL_BASE       0xf000
 #define KVMPPC_H_RTAS           (KVMPPC_HCALL_BASE + 0x0)
