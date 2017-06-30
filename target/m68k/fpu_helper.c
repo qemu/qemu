@@ -22,6 +22,36 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
+
+/* Undefined offsets may be different on various FPU.
+ * On 68040 they return 0.0 (floatx80_zero)
+ */
+
+static const floatx80 fpu_rom[128] = {
+    [0x00] = floatx80_pi,                                   /* Pi */
+    [0x0b] = make_floatx80(0x3ffd, 0x9a209a84fbcff798ULL),  /* Log10(2) */
+    [0x0c] = make_floatx80(0x4000, 0xadf85458a2bb4a9aULL),  /* e        */
+    [0x0d] = make_floatx80(0x3fff, 0xb8aa3b295c17f0bcULL),  /* Log2(e)  */
+    [0x0e] = make_floatx80(0x3ffd, 0xde5bd8a937287195ULL),  /* Log10(e) */
+    [0x0f] = floatx80_zero,                                 /* Zero     */
+    [0x30] = floatx80_ln2,                                  /* ln(2)    */
+    [0x31] = make_floatx80(0x4000, 0x935d8dddaaa8ac17ULL),  /* ln(10)   */
+    [0x32] = floatx80_one,                                  /* 10^0     */
+    [0x33] = make_floatx80(0x4002, 0xa000000000000000ULL),  /* 10^1     */
+    [0x34] = make_floatx80(0x4005, 0xc800000000000000ULL),  /* 10^2     */
+    [0x35] = make_floatx80(0x400c, 0x9c40000000000000ULL),  /* 10^4     */
+    [0x36] = make_floatx80(0x4019, 0xbebc200000000000ULL),  /* 10^8     */
+    [0x37] = make_floatx80(0x4034, 0x8e1bc9bf04000000ULL),  /* 10^16    */
+    [0x38] = make_floatx80(0x4069, 0x9dc5ada82b70b59eULL),  /* 10^32    */
+    [0x39] = make_floatx80(0x40d3, 0xc2781f49ffcfa6d5ULL),  /* 10^64    */
+    [0x3a] = make_floatx80(0x41a8, 0x93ba47c980e98ce0ULL),  /* 10^128   */
+    [0x3b] = make_floatx80(0x4351, 0xaa7eebfb9df9de8eULL),  /* 10^256   */
+    [0x3c] = make_floatx80(0x46a3, 0xe319a0aea60e91c7ULL),  /* 10^512   */
+    [0x3d] = make_floatx80(0x4d48, 0xc976758681750c17ULL),  /* 10^1024  */
+    [0x3e] = make_floatx80(0x5a92, 0x9e8b3b5dc53d5de5ULL),  /* 10^2048  */
+    [0x3f] = make_floatx80(0x7525, 0xc46052028a20979bULL),  /* 10^4096  */
+};
 
 int32_t HELPER(reds32)(CPUM68KState *env, FPReg *val)
 {
@@ -128,19 +158,85 @@ void HELPER(set_fpcr)(CPUM68KState *env, uint32_t val)
     cpu_m68k_set_fpcr(env, val);
 }
 
+#define PREC_BEGIN(prec)                                        \
+    do {                                                        \
+        int old;                                                \
+        old = get_floatx80_rounding_precision(&env->fp_status); \
+        set_floatx80_rounding_precision(prec, &env->fp_status)  \
+
+#define PREC_END()                                              \
+        set_floatx80_rounding_precision(old, &env->fp_status);  \
+    } while (0)
+
+void HELPER(fsround)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    PREC_BEGIN(32);
+    res->d = floatx80_round(val->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fdround)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    PREC_BEGIN(64);
+    res->d = floatx80_round(val->d, &env->fp_status);
+    PREC_END();
+}
+
 void HELPER(fsqrt)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_sqrt(val->d, &env->fp_status);
 }
 
-void HELPER(fabs)(CPUM68KState *env, FPReg *res, FPReg *val)
+void HELPER(fssqrt)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    res->d = floatx80_abs(val->d);
+    PREC_BEGIN(32);
+    res->d = floatx80_sqrt(val->d, &env->fp_status);
+    PREC_END();
 }
 
-void HELPER(fchs)(CPUM68KState *env, FPReg *res, FPReg *val)
+void HELPER(fdsqrt)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
-    res->d = floatx80_chs(val->d);
+    PREC_BEGIN(64);
+    res->d = floatx80_sqrt(val->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fabs)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_round(floatx80_abs(val->d), &env->fp_status);
+}
+
+void HELPER(fsabs)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    PREC_BEGIN(32);
+    res->d = floatx80_round(floatx80_abs(val->d), &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fdabs)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    PREC_BEGIN(64);
+    res->d = floatx80_round(floatx80_abs(val->d), &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fneg)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_round(floatx80_chs(val->d), &env->fp_status);
+}
+
+void HELPER(fsneg)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    PREC_BEGIN(32);
+    res->d = floatx80_round(floatx80_chs(val->d), &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fdneg)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    PREC_BEGIN(64);
+    res->d = floatx80_round(floatx80_chs(val->d), &env->fp_status);
+    PREC_END();
 }
 
 void HELPER(fadd)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
@@ -148,9 +244,37 @@ void HELPER(fadd)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
     res->d = floatx80_add(val0->d, val1->d, &env->fp_status);
 }
 
+void HELPER(fsadd)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(32);
+    res->d = floatx80_add(val0->d, val1->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fdadd)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(64);
+    res->d = floatx80_add(val0->d, val1->d, &env->fp_status);
+    PREC_END();
+}
+
 void HELPER(fsub)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
     res->d = floatx80_sub(val1->d, val0->d, &env->fp_status);
+}
+
+void HELPER(fssub)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(32);
+    res->d = floatx80_sub(val1->d, val0->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fdsub)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(64);
+    res->d = floatx80_sub(val1->d, val0->d, &env->fp_status);
+    PREC_END();
 }
 
 void HELPER(fmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
@@ -158,9 +282,65 @@ void HELPER(fmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
     res->d = floatx80_mul(val0->d, val1->d, &env->fp_status);
 }
 
+void HELPER(fsmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(32);
+    res->d = floatx80_mul(val0->d, val1->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fdmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(64);
+    res->d = floatx80_mul(val0->d, val1->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fsglmul)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    int rounding_mode = get_float_rounding_mode(&env->fp_status);
+    floatx80 a, b;
+
+    PREC_BEGIN(32);
+    set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+    a = floatx80_round(val0->d, &env->fp_status);
+    b = floatx80_round(val1->d, &env->fp_status);
+    set_float_rounding_mode(rounding_mode, &env->fp_status);
+    res->d = floatx80_mul(a, b, &env->fp_status);
+    PREC_END();
+}
+
 void HELPER(fdiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
     res->d = floatx80_div(val1->d, val0->d, &env->fp_status);
+}
+
+void HELPER(fsdiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(32);
+    res->d = floatx80_div(val1->d, val0->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fddiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    PREC_BEGIN(64);
+    res->d = floatx80_div(val1->d, val0->d, &env->fp_status);
+    PREC_END();
+}
+
+void HELPER(fsgldiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    int rounding_mode = get_float_rounding_mode(&env->fp_status);
+    floatx80 a, b;
+
+    PREC_BEGIN(32);
+    set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+    a = floatx80_round(val1->d, &env->fp_status);
+    b = floatx80_round(val0->d, &env->fp_status);
+    set_float_rounding_mode(rounding_mode, &env->fp_status);
+    res->d = floatx80_div(a, b, &env->fp_status);
+    PREC_END();
 }
 
 static int float_comp_to_cc(int float_compare)
@@ -203,4 +383,128 @@ void HELPER(ftst)(CPUM68KState *env, FPReg *val)
         cc |= FPSR_CC_Z;
     }
     env->fpsr = (env->fpsr & ~FPSR_CC_MASK) | cc;
+}
+
+void HELPER(fconst)(CPUM68KState *env, FPReg *val, uint32_t offset)
+{
+    val->d = fpu_rom[offset];
+}
+
+typedef int (*float_access)(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                            uintptr_t ra);
+
+static uint32_t fmovem_predec(CPUM68KState *env, uint32_t addr, uint32_t mask,
+                               float_access access)
+{
+    uintptr_t ra = GETPC();
+    int i, size;
+
+    for (i = 7; i >= 0; i--, mask <<= 1) {
+        if (mask & 0x80) {
+            size = access(env, addr, &env->fregs[i], ra);
+            if ((mask & 0xff) != 0x80) {
+                addr -= size;
+            }
+        }
+    }
+
+    return addr;
+}
+
+static uint32_t fmovem_postinc(CPUM68KState *env, uint32_t addr, uint32_t mask,
+                               float_access access)
+{
+    uintptr_t ra = GETPC();
+    int i, size;
+
+    for (i = 0; i < 8; i++, mask <<= 1) {
+        if (mask & 0x80) {
+            size = access(env, addr, &env->fregs[i], ra);
+            addr += size;
+        }
+    }
+
+    return addr;
+}
+
+static int cpu_ld_floatx80_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                              uintptr_t ra)
+{
+    uint32_t high;
+    uint64_t low;
+
+    high = cpu_ldl_data_ra(env, addr, ra);
+    low = cpu_ldq_data_ra(env, addr + 4, ra);
+
+    fp->l.upper = high >> 16;
+    fp->l.lower = low;
+
+    return 12;
+}
+
+static int cpu_st_floatx80_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                               uintptr_t ra)
+{
+    cpu_stl_data_ra(env, addr, fp->l.upper << 16, ra);
+    cpu_stq_data_ra(env, addr + 4, fp->l.lower, ra);
+
+    return 12;
+}
+
+static int cpu_ld_float64_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                             uintptr_t ra)
+{
+    uint64_t val;
+
+    val = cpu_ldq_data_ra(env, addr, ra);
+    fp->d = float64_to_floatx80(*(float64 *)&val, &env->fp_status);
+
+    return 8;
+}
+
+static int cpu_st_float64_ra(CPUM68KState *env, uint32_t addr, FPReg *fp,
+                             uintptr_t ra)
+{
+    float64 val;
+
+    val = floatx80_to_float64(fp->d, &env->fp_status);
+    cpu_stq_data_ra(env, addr, *(uint64_t *)&val, ra);
+
+    return 8;
+}
+
+uint32_t HELPER(fmovemx_st_predec)(CPUM68KState *env, uint32_t addr,
+                                   uint32_t mask)
+{
+    return fmovem_predec(env, addr, mask, cpu_st_floatx80_ra);
+}
+
+uint32_t HELPER(fmovemx_st_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_st_floatx80_ra);
+}
+
+uint32_t HELPER(fmovemx_ld_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_ld_floatx80_ra);
+}
+
+uint32_t HELPER(fmovemd_st_predec)(CPUM68KState *env, uint32_t addr,
+                                   uint32_t mask)
+{
+    return fmovem_predec(env, addr, mask, cpu_st_float64_ra);
+}
+
+uint32_t HELPER(fmovemd_st_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_st_float64_ra);
+}
+
+uint32_t HELPER(fmovemd_ld_postinc)(CPUM68KState *env, uint32_t addr,
+                                    uint32_t mask)
+{
+    return fmovem_postinc(env, addr, mask, cpu_ld_float64_ra);
 }
