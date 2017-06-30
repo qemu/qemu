@@ -1973,7 +1973,7 @@ static void spapr_boot_set(void *opaque, const char *boot_device,
  * Unlike PCI DR devices, LMB DR devices explicitly register this reset
  * routine. Reset for PCI DR devices will be handled by PHB reset routine
  * when it walks all its children devices. LMB devices reset occurs
- * as part of spapr_ppc_reset().
+ * as part of ppc_spapr_reset().
  */
 static void spapr_drc_reset(void *opaque)
 {
