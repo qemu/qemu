@@ -1691,9 +1691,8 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf04d: /* fneg FRn/DRn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
-	{
-	    gen_helper_fneg_T(cpu_fregs[FREG(B11_8)], cpu_fregs[FREG(B11_8)]);
-	}
+        tcg_gen_xori_i32(cpu_fregs[FREG(B11_8)], cpu_fregs[FREG(B11_8)],
+                         0x80000000);
 	return;
     case 0xf05d: /* fabs FRn/DRn - FPCSR: Nothing */
 	CHECK_FPU_ENABLED

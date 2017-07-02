@@ -384,11 +384,6 @@ float64 helper_fmul_DT(CPUSH4State *env, float64 t0, float64 t1)
     return t0;
 }
 
-float32 helper_fneg_T(float32 t0)
-{
-    return float32_chs(t0);
-}
-
 float32 helper_fsqrt_FT(CPUSH4State *env, float32 t0)
 {
     set_float_exception_flags(0, &env->fp_status);
