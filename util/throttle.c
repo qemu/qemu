@@ -388,24 +388,14 @@ static void throttle_unfix_bucket(LeakyBucket *bkt)
     }
 }
 
-/* take care of canceling a timer */
-static void throttle_cancel_timer(QEMUTimer *timer)
-{
-    assert(timer != NULL);
-
-    timer_del(timer);
-}
-
 /* Used to configure the throttle
  *
  * @ts: the throttle state we are working on
  * @clock_type: the group's clock_type
- * @tt: the throttle timers we use in this aio context
  * @cfg: the config to set
  */
 void throttle_config(ThrottleState *ts,
                      QEMUClockType clock_type,
-                     ThrottleTimers *tt,
                      ThrottleConfig *cfg)
 {
     int i;
@@ -417,10 +407,6 @@ void throttle_config(ThrottleState *ts,
     }
 
     ts->previous_leak = qemu_clock_get_ns(clock_type);
-
-    for (i = 0; i < 2; i++) {
-        throttle_cancel_timer(tt->timers[i]);
-    }
 }
 
 /* used to get config
