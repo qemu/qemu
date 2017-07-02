@@ -252,16 +252,6 @@ static void update_fpscr(CPUSH4State *env, uintptr_t retaddr)
     }
 }
 
-float32 helper_fabs_FT(float32 t0)
-{
-    return float32_abs(t0);
-}
-
-float64 helper_fabs_DT(float64 t0)
-{
-    return float64_abs(t0);
-}
-
 float32 helper_fadd_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);

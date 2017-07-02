@@ -16,8 +16,6 @@ DEF_HELPER_3(macw, void, env, i32, i32)
 
 DEF_HELPER_2(ld_fpscr, void, env, i32)
 
-DEF_HELPER_FLAGS_1(fabs_FT, TCG_CALL_NO_RWG_SE, f32, f32)
-DEF_HELPER_FLAGS_1(fabs_DT, TCG_CALL_NO_RWG_SE, f64, f64)
 DEF_HELPER_FLAGS_3(fadd_FT, TCG_CALL_NO_WG, f32, env, f32, f32)
 DEF_HELPER_FLAGS_3(fadd_DT, TCG_CALL_NO_WG, f64, env, f64, f64)
 DEF_HELPER_FLAGS_2(fcnvsd_FT_DT, TCG_CALL_NO_WG, f64, env, f32)

@@ -1695,19 +1695,10 @@ static void _decode_opc(DisasContext * ctx)
 	    gen_helper_fneg_T(cpu_fregs[FREG(B11_8)], cpu_fregs[FREG(B11_8)]);
 	}
 	return;
-    case 0xf05d: /* fabs FRn/DRn */
+    case 0xf05d: /* fabs FRn/DRn - FPCSR: Nothing */
 	CHECK_FPU_ENABLED
-        if (ctx->tbflags & FPSCR_PR) {
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
-	    TCGv_i64 fp = tcg_temp_new_i64();
-	    gen_load_fpr64(fp, DREG(B11_8));
-	    gen_helper_fabs_DT(fp, fp);
-	    gen_store_fpr64(fp, DREG(B11_8));
-	    tcg_temp_free_i64(fp);
-	} else {
-	    gen_helper_fabs_FT(cpu_fregs[FREG(B11_8)], cpu_fregs[FREG(B11_8)]);
-	}
+        tcg_gen_andi_i32(cpu_fregs[FREG(B11_8)], cpu_fregs[FREG(B11_8)],
+                         0x7fffffff);
 	return;
     case 0xf06d: /* fsqrt FRn */
 	CHECK_FPU_ENABLED
