@@ -268,44 +268,44 @@ float64 helper_fadd_DT(CPUSH4State *env, float64 t0, float64 t1)
     return t0;
 }
 
-void helper_fcmp_eq_FT(CPUSH4State *env, float32 t0, float32 t1)
+uint32_t helper_fcmp_eq_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float32_compare(t0, t1, &env->fp_status);
     update_fpscr(env, GETPC());
-    env->sr_t = (relation == float_relation_equal);
+    return relation == float_relation_equal;
 }
 
-void helper_fcmp_eq_DT(CPUSH4State *env, float64 t0, float64 t1)
+uint32_t helper_fcmp_eq_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float64_compare(t0, t1, &env->fp_status);
     update_fpscr(env, GETPC());
-    env->sr_t = (relation == float_relation_equal);
+    return relation == float_relation_equal;
 }
 
-void helper_fcmp_gt_FT(CPUSH4State *env, float32 t0, float32 t1)
+uint32_t helper_fcmp_gt_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float32_compare(t0, t1, &env->fp_status);
     update_fpscr(env, GETPC());
-    env->sr_t = (relation == float_relation_greater);
+    return relation == float_relation_greater;
 }
 
-void helper_fcmp_gt_DT(CPUSH4State *env, float64 t0, float64 t1)
+uint32_t helper_fcmp_gt_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float64_compare(t0, t1, &env->fp_status);
     update_fpscr(env, GETPC());
-    env->sr_t = (relation == float_relation_greater);
+    return relation == float_relation_greater;
 }
 
 float64 helper_fcnvsd_FT_DT(CPUSH4State *env, float32 t0)

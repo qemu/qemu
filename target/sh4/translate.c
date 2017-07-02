@@ -1077,10 +1077,10 @@ static void _decode_opc(DisasContext * ctx)
                     gen_helper_fdiv_DT(fp0, cpu_env, fp0, fp1);
                     break;
                 case 0xf004:		/* fcmp/eq Rm,Rn */
-                    gen_helper_fcmp_eq_DT(cpu_env, fp0, fp1);
+                    gen_helper_fcmp_eq_DT(cpu_sr_t, cpu_env, fp0, fp1);
                     return;
                 case 0xf005:		/* fcmp/gt Rm,Rn */
-                    gen_helper_fcmp_gt_DT(cpu_env, fp0, fp1);
+                    gen_helper_fcmp_gt_DT(cpu_sr_t, cpu_env, fp0, fp1);
                     return;
                 }
 		gen_store_fpr64(fp0, DREG(B11_8));
@@ -1109,11 +1109,13 @@ static void _decode_opc(DisasContext * ctx)
                                        cpu_fregs[FREG(B7_4)]);
                     break;
                 case 0xf004:		/* fcmp/eq Rm,Rn */
-                    gen_helper_fcmp_eq_FT(cpu_env, cpu_fregs[FREG(B11_8)],
+                    gen_helper_fcmp_eq_FT(cpu_sr_t, cpu_env,
+                                          cpu_fregs[FREG(B11_8)],
                                           cpu_fregs[FREG(B7_4)]);
                     return;
                 case 0xf005:		/* fcmp/gt Rm,Rn */
-                    gen_helper_fcmp_gt_FT(cpu_env, cpu_fregs[FREG(B11_8)],
+                    gen_helper_fcmp_gt_FT(cpu_sr_t, cpu_env,
+                                          cpu_fregs[FREG(B11_8)],
                                           cpu_fregs[FREG(B7_4)]);
                     return;
                 }
