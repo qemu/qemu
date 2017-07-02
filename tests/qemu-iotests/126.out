@@ -1,0 +1,23 @@
+QA output created by 126
+
+=== Testing plain files ===
+
+Formatting 'TEST_DIR/a:b.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/a:b.IMGFMT', fmt=IMGFMT size=67108864
+
+=== Testing relative backing filename resolution ===
+
+Formatting 'TEST_DIR/image:base.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/image:top.IMGFMT', fmt=IMGFMT size=67108864 backing_file=./image:base.IMGFMT
+image: TEST_DIR/image:top.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+backing file: ./image:base.IMGFMT (actual path: TEST_DIR/./image:base.IMGFMT)
+
+Formatting 'base.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'file:image:top.IMGFMT', fmt=IMGFMT size=67108864 backing_file=base.IMGFMT
+image: ./image:top.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+backing file: base.IMGFMT (actual path: ./base.IMGFMT)
+*** done
