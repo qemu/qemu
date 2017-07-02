@@ -219,29 +219,29 @@ static void update_fpscr(CPUSH4State *env, uintptr_t retaddr)
 
     xcpt = get_float_exception_flags(&env->fp_status);
 
-    /* Clear the flag entries */
-    env->fpscr &= ~FPSCR_FLAG_MASK;
+    /* Clear the cause entries */
+    env->fpscr &= ~FPSCR_CAUSE_MASK;
 
     if (unlikely(xcpt)) {
         if (xcpt & float_flag_invalid) {
-            env->fpscr |= FPSCR_FLAG_V;
+            env->fpscr |= FPSCR_CAUSE_V;
         }
         if (xcpt & float_flag_divbyzero) {
-            env->fpscr |= FPSCR_FLAG_Z;
+            env->fpscr |= FPSCR_CAUSE_Z;
         }
         if (xcpt & float_flag_overflow) {
-            env->fpscr |= FPSCR_FLAG_O;
+            env->fpscr |= FPSCR_CAUSE_O;
         }
         if (xcpt & float_flag_underflow) {
-            env->fpscr |= FPSCR_FLAG_U;
+            env->fpscr |= FPSCR_CAUSE_U;
         }
         if (xcpt & float_flag_inexact) {
-            env->fpscr |= FPSCR_FLAG_I;
+            env->fpscr |= FPSCR_CAUSE_I;
         }
 
-        /* Accumulate in cause entries */
-        env->fpscr |= (env->fpscr & FPSCR_FLAG_MASK)
-                      << (FPSCR_CAUSE_SHIFT - FPSCR_FLAG_SHIFT);
+        /* Accumulate in flag entries */
+        env->fpscr |= (env->fpscr & FPSCR_CAUSE_MASK)
+                      >> (FPSCR_CAUSE_SHIFT - FPSCR_FLAG_SHIFT);
 
         /* Generate an exception if enabled */
         cause = (env->fpscr & FPSCR_CAUSE_MASK) >> FPSCR_CAUSE_SHIFT;
