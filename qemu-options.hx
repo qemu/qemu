@@ -4374,7 +4374,7 @@ The simplest (insecure) usage is to provide the secret inline
 
 The simplest secure usage is to provide the secret via a file
 
- # echo -n "letmein" > mypasswd.txt
+ # printf "letmein" > mypasswd.txt
  # $QEMU -object secret,id=sec0,file=mypasswd.txt,format=raw
 
 For greater security, AES-256-CBC should be used. To illustrate usage,
@@ -4402,7 +4402,7 @@ telling openssl to base64 encode the result, but it could be left
 as raw bytes if desired.
 
 @example
- # SECRET=$(echo -n "letmein" |
+ # SECRET=$(printf "letmein" |
             openssl enc -aes-256-cbc -a -K $KEY -iv $IV)
 @end example
 

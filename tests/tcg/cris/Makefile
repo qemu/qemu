@@ -150,17 +150,17 @@ check_addcv17.tst: crtv10.o sysv10.o
 build: $(CRT) $(SYS) $(TESTCASES)
 
 check: $(CRT) $(SYS) $(TESTCASES)
-	@echo -e "\nQEMU simulator."
+	@printf "\nQEMU simulator.\n"
 	for case in $(TESTCASES); do \
-		echo -n "$$case "; \
+		printf %s "$$case "; \
 		SIMARGS=; \
 		case $$case in *v17*) SIMARGS="-cpu crisv17";; esac; \
 		$(SIM) $$SIMARGS ./$$case; \
 	done
 check-g: $(CRT) $(SYS) $(TESTCASES)
-	@echo -e "\nGDB simulator."
+	@printf "\nGDB simulator.\n"
 	@for case in $(TESTCASES); do \
-		echo -n "$$case "; \
+		printf %s "$$case "; \
 		$(SIMG) $$case; \
 	done
 
