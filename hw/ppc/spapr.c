@@ -2601,6 +2601,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
     int i, fdt_offset, fdt_size;
     void *fdt;
     uint64_t addr = addr_start;
+    Error *local_err = NULL;
 
     for (i = 0; i < nr_lmbs; i++) {
         drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
@@ -2611,7 +2612,18 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
         fdt_offset = spapr_populate_memory_node(fdt, node, addr,
                                                 SPAPR_MEMORY_BLOCK_SIZE);
 
-        spapr_drc_attach(drc, dev, fdt, fdt_offset, errp);
+        spapr_drc_attach(drc, dev, fdt, fdt_offset, &local_err);
+        if (local_err) {
+            while (addr > addr_start) {
+                addr -= SPAPR_MEMORY_BLOCK_SIZE;
+                drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
+                                      addr / SPAPR_MEMORY_BLOCK_SIZE);
+                spapr_drc_detach(drc, dev, NULL);
+            }
+            g_free(fdt);
+            error_propagate(errp, local_err);
+            return;
+        }
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
     /* send hotplug notification to the
@@ -2651,14 +2663,20 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     addr = object_property_get_uint(OBJECT(dimm),
                                     PC_DIMM_ADDR_PROP, &local_err);
     if (local_err) {
-        pc_dimm_memory_unplug(dev, &ms->hotplug_memory, mr);
-        goto out;
+        goto out_unplug;
     }
 
     spapr_add_lmbs(dev, addr, size, node,
                    spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT),
-                   &error_abort);
+                   &local_err);
+    if (local_err) {
+        goto out_unplug;
+    }
 
+    return;
+
+out_unplug:
+    pc_dimm_memory_unplug(dev, &ms->hotplug_memory, mr);
 out:
     error_propagate(errp, local_err);
 }
