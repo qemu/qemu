@@ -28,7 +28,7 @@
 #include "sysemu/sysemu.h"
 #include "qom/object.h"
 
-int tcg_tb_size;
+unsigned long tcg_tb_size;
 static bool tcg_allowed = true;
 
 static int tcg_init(MachineState *ms)
