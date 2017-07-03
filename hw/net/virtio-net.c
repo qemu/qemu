@@ -498,6 +498,24 @@ static void virtio_net_set_mrg_rx_bufs(VirtIONet *n, int mergeable_rx_bufs,
     }
 }
 
+static int virtio_net_max_tx_queue_size(VirtIONet *n)
+{
+    NetClientState *peer = n->nic_conf.peers.ncs[0];
+
+    /*
+     * Backends other than vhost-user don't support max queue size.
+     */
+    if (!peer) {
+        return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
+    }
+
+    if (peer->info->type != NET_CLIENT_DRIVER_VHOST_USER) {
+        return VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
+    }
+
+    return VIRTQUEUE_MAX_SIZE;
+}
+
 static int peer_attach(VirtIONet *n, int index)
 {
     NetClientState *nc = qemu_get_subqueue(n->nic, index);
@@ -1964,14 +1982,8 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         error_report("Defaulting to \"bh\"");
     }
 
-    /*
-     * Currently, backends other than vhost-user don't support 1024 queue
-     * size.
-     */
-    if (n->net_conf.tx_queue_size == VIRTQUEUE_MAX_SIZE &&
-        n->nic_conf.peers.ncs[0]->info->type != NET_CLIENT_DRIVER_VHOST_USER) {
-        n->net_conf.tx_queue_size = VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE;
-    }
+    n->net_conf.tx_queue_size = MIN(virtio_net_max_tx_queue_size(n),
+                                    n->net_conf.tx_queue_size);
 
     for (i = 0; i < n->max_queues; i++) {
         virtio_net_add_queue(n, i);
