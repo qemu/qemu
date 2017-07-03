@@ -784,6 +784,7 @@ static void tb_htable_init(void)
    size. */
 void tcg_exec_init(unsigned long tb_size)
 {
+    tcg_allowed = true;
     cpu_gen_init();
     page_init();
     tb_htable_init();
@@ -793,11 +794,6 @@ void tcg_exec_init(unsigned long tb_size)
        initialize the prologue now.  */
     tcg_prologue_init(&tcg_ctx);
 #endif
-}
-
-bool tcg_enabled(void)
-{
-    return tcg_ctx.code_gen_buffer != NULL;
 }
 
 /*

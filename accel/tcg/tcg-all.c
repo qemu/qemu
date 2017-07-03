@@ -33,7 +33,6 @@
 #include "qemu/main-loop.h"
 
 unsigned long tcg_tb_size;
-static bool tcg_allowed = true;
 
 #ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */
