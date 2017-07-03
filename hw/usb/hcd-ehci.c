@@ -2483,6 +2483,11 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
                    NB_PORTS);
         return;
     }
+    if (s->maxframes < 8 || s->maxframes > 512)  {
+        error_setg(errp, "maxframes %d out if range (8 .. 512)",
+                   s->maxframes);
+        return;
+    }
 
     usb_bus_new(&s->bus, sizeof(s->bus), s->companion_enable ?
                 &ehci_bus_ops_companion : &ehci_bus_ops_standalone, dev);
