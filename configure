@@ -40,14 +40,18 @@ printf " '%s'" "$0" "$@" >> config.log
 echo >> config.log
 echo "#" >> config.log
 
-error_exit() {
-    echo
+print_error() {
+    (echo
     echo "ERROR: $1"
     while test -n "$2"; do
         echo "       $2"
         shift
     done
-    echo
+    echo) >&2
+}
+
+error_exit() {
+    print_error "$@"
     exit 1
 }
 
@@ -205,6 +209,30 @@ supported_xen_target() {
         ;;
     esac
     return 1
+}
+
+supported_target() {
+    case "$1" in
+        *-softmmu)
+            ;;
+        *-linux-user)
+            if test "$linux" != "yes"; then
+                print_error "Target '$target' is only available on a Linux host"
+                return 1
+            fi
+            ;;
+        *-bsd-user)
+            if test "$bsd" != "yes"; then
+                print_error "Target '$target' is only available on a BSD host"
+                return 1
+            fi
+            ;;
+        *)
+            print_error "Invalid target name '$target'"
+            return 1
+            ;;
+    esac
+    return 0
 }
 
 # default parameters
@@ -1734,22 +1762,26 @@ if test "$solaris" = "yes" ; then
 fi
 
 if test -z "${target_list+xxx}" ; then
-    target_list="$default_target_list"
+    for target in $default_target_list; do
+        supported_target $target 2>/dev/null && \
+            target_list="$target_list $target"
+    done
+    target_list="${target_list# }"
 else
     target_list=$(echo "$target_list" | sed -e 's/,/ /g')
+    for target in $target_list; do
+        # Check that we recognised the target name; this allows a more
+        # friendly error message than if we let it fall through.
+        case " $default_target_list " in
+            *" $target "*)
+                ;;
+            *)
+                error_exit "Unknown target name '$target'"
+                ;;
+        esac
+        supported_target $target || exit 1
+    done
 fi
-
-# Check that we recognised the target name; this allows a more
-# friendly error message than if we let it fall through.
-for target in $target_list; do
-    case " $default_target_list " in
-        *" $target "*)
-            ;;
-        *)
-            error_exit "Unknown target name '$target'"
-            ;;
-    esac
-done
 
 # see if system emulation was really requested
 case " $target_list " in
@@ -6050,16 +6082,10 @@ case "$target" in
     target_softmmu="yes"
     ;;
   ${target_name}-linux-user)
-    if test "$linux" != "yes" ; then
-      error_exit "Target '$target' is only available on a Linux host"
-    fi
     target_user_only="yes"
     target_linux_user="yes"
     ;;
   ${target_name}-bsd-user)
-    if test "$bsd" != "yes" ; then
-      error_exit "Target '$target' is only available on a BSD host"
-    fi
     target_user_only="yes"
     target_bsd_user="yes"
     ;;
