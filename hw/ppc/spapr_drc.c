@@ -170,19 +170,13 @@ static uint32_t drc_set_usable(sPAPRDRConnector *drc)
     if (!drc->dev) {
         return RTAS_OUT_NO_SUCH_INDICATOR;
     }
-    if (drc->awaiting_release && drc->awaiting_allocation) {
-        /* kernel is acknowledging a previous hotplug event
-         * while we are already removing it.
-         * it's safe to ignore awaiting_allocation here since we know the
-         * situation is predicated on the guest either already having done
-         * so (boot-time hotplug), or never being able to acquire in the
-         * first place (hotplug followed by immediate unplug).
-         */
+    if (drc->awaiting_release) {
+        /* Don't allow the guest to move a device away from UNUSABLE
+         * state when we want to unplug it */
         return RTAS_OUT_NO_SUCH_INDICATOR;
     }
 
     drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_USABLE;
-    drc->awaiting_allocation = false;
 
     return RTAS_OUT_SUCCESS;
 }
@@ -357,10 +351,6 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
 
-    if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
-        drc->awaiting_allocation = true;
-    }
-
     object_property_add_link(OBJECT(drc), "device",
                              object_get_typename(OBJECT(drc->dev)),
                              (Object **)(&drc->dev),
@@ -398,12 +388,6 @@ void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
         return;
     }
 
-    if (drc->awaiting_allocation) {
-        drc->awaiting_release = true;
-        trace_spapr_drc_awaiting_allocation(spapr_drc_index(drc));
-        return;
-    }
-
     spapr_drc_release(drc);
 }
 
@@ -425,8 +409,6 @@ void spapr_drc_reset(sPAPRDRConnector *drc)
     if (drc->awaiting_release) {
         spapr_drc_release(drc);
     }
-
-    drc->awaiting_allocation = false;
 
     if (drc->dev) {
         /* A device present at reset is coldplugged */
@@ -493,7 +475,6 @@ static const VMStateDescription vmstate_spapr_drc = {
         VMSTATE_UINT32(dr_indicator, sPAPRDRConnector),
         VMSTATE_BOOL(configured, sPAPRDRConnector),
         VMSTATE_BOOL(awaiting_release, sPAPRDRConnector),
-        VMSTATE_BOOL(awaiting_allocation, sPAPRDRConnector),
         VMSTATE_END_OF_LIST()
     }
 };

@@ -200,7 +200,6 @@ typedef struct sPAPRDRConnector {
     sPAPRConfigureConnectorState *ccs;
 
     bool awaiting_release;
-    bool awaiting_allocation;
 
     /* device pointer, via link property */
     DeviceState *dev;
