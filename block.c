@@ -2781,6 +2781,10 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     bs_entry->state.explicit_options = explicit_options;
     bs_entry->state.flags = flags;
 
+    /* This needs to be overwritten in bdrv_reopen_prepare() */
+    bs_entry->state.perm = UINT64_MAX;
+    bs_entry->state.shared_perm = 0;
+
     QLIST_FOREACH(child, &bs->children, next) {
         QDict *new_child_options;
         char *child_key_dot;
@@ -2887,6 +2891,52 @@ int bdrv_reopen(BlockDriverState *bs, int bdrv_flags, Error **errp)
     return ret;
 }
 
+static BlockReopenQueueEntry *find_parent_in_reopen_queue(BlockReopenQueue *q,
+                                                          BdrvChild *c)
+{
+    BlockReopenQueueEntry *entry;
+
+    QSIMPLEQ_FOREACH(entry, q, entry) {
+        BlockDriverState *bs = entry->state.bs;
+        BdrvChild *child;
+
+        QLIST_FOREACH(child, &bs->children, next) {
+            if (child == c) {
+                return entry;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+static void bdrv_reopen_perm(BlockReopenQueue *q, BlockDriverState *bs,
+                             uint64_t *perm, uint64_t *shared)
+{
+    BdrvChild *c;
+    BlockReopenQueueEntry *parent;
+    uint64_t cumulative_perms = 0;
+    uint64_t cumulative_shared_perms = BLK_PERM_ALL;
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        parent = find_parent_in_reopen_queue(q, c);
+        if (!parent) {
+            cumulative_perms |= c->perm;
+            cumulative_shared_perms &= c->shared_perm;
+        } else {
+            uint64_t nperm, nshared;
+
+            bdrv_child_perm(parent->state.bs, bs, c, c->role, q,
+                            parent->state.perm, parent->state.shared_perm,
+                            &nperm, &nshared);
+
+            cumulative_perms |= nperm;
+            cumulative_shared_perms &= nshared;
+        }
+    }
+    *perm = cumulative_perms;
+    *shared = cumulative_shared_perms;
+}
 
 /*
  * Prepares a BlockDriverState for reopen. All changes are staged in the
@@ -2952,6 +3002,9 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         goto error;
     }
 
+    /* Calculate required permissions after reopening */
+    bdrv_reopen_perm(queue, reopen_state->bs,
+                     &reopen_state->perm, &reopen_state->shared_perm);
 
     ret = bdrv_flush(reopen_state->bs);
     if (ret) {
@@ -3007,6 +3060,12 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         } while ((entry = qdict_next(reopen_state->options, entry)));
     }
 
+    ret = bdrv_check_perm(reopen_state->bs, queue, reopen_state->perm,
+                          reopen_state->shared_perm, NULL, errp);
+    if (ret < 0) {
+        goto error;
+    }
+
     ret = 0;
 
 error:
@@ -3047,6 +3106,9 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
 
     bdrv_refresh_limits(bs, NULL);
 
+    bdrv_set_perm(reopen_state->bs, reopen_state->perm,
+                  reopen_state->shared_perm);
+
     new_can_write =
         !bdrv_is_read_only(bs) && !(bdrv_get_flags(bs) & BDRV_O_INACTIVE);
     if (!old_can_write && new_can_write && drv->bdrv_reopen_bitmaps_rw) {
@@ -3080,6 +3142,8 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
     }
 
     QDECREF(reopen_state->explicit_options);
+
+    bdrv_abort_perm_update(reopen_state->bs);
 }
 
 
