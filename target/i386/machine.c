@@ -280,7 +280,10 @@ static int cpu_post_load(void *opaque, int version_id)
     for(i = 0; i < 8; i++) {
         env->fptags[i] = (env->fptag_vmstate >> i) & 1;
     }
-    update_fp_status(env);
+    if (tcg_enabled()) {
+        update_fp_status(env);
+        update_mxcsr_status(env);
+    }
 
     cpu_breakpoint_remove_all(cs, BP_CPU);
     cpu_watchpoint_remove_all(cs, BP_CPU);
