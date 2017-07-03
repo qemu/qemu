@@ -27,6 +27,10 @@ typedef struct CcwDevice {
     CssDevId subch_id;
 } CcwDevice;
 
+extern const VMStateDescription vmstate_ccw_dev;
+#define VMSTATE_CCW_DEVICE(_field, _state)                     \
+    VMSTATE_STRUCT(_field, _state, 1, vmstate_ccw_dev, CcwDevice)
+
 typedef struct CCWDeviceClass {
     DeviceClass parent_class;
     void (*unplug)(HotplugHandler *, DeviceState *, Error **);
