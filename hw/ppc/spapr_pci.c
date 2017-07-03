@@ -1388,8 +1388,8 @@ static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
     return spapr_drc_index(drc);
 }
 
-static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
-                                     DeviceState *plugged_dev, Error **errp)
+static void spapr_pci_plug(HotplugHandler *plug_handler,
+                           DeviceState *plugged_dev, Error **errp)
 {
     sPAPRPHBState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
@@ -1469,8 +1469,8 @@ out:
     }
 }
 
-static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
-                                       DeviceState *plugged_dev, Error **errp)
+static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
+                                     DeviceState *plugged_dev, Error **errp)
 {
     sPAPRPHBState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
@@ -1485,6 +1485,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
     }
 
     g_assert(drc);
+    g_assert(drc->dev == plugged_dev);
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     if (!drck->release_pending(drc)) {
@@ -1972,8 +1973,8 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     /* Supported by TYPE_SPAPR_MACHINE */
     dc->user_creatable = true;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    hp->plug = spapr_phb_hot_plug_child;
-    hp->unplug = spapr_phb_hot_unplug_child;
+    hp->plug = spapr_pci_plug;
+    hp->unplug_request = spapr_pci_unplug_request;
 }
 
 static const TypeInfo spapr_phb_info = {
