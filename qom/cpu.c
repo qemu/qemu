@@ -32,6 +32,8 @@
 #include "hw/qdev-properties.h"
 #include "trace-root.h"
 
+CPUInterruptHandler cpu_interrupt_handler;
+
 bool cpu_exists(int64_t id)
 {
     CPUState *cpu;
@@ -416,6 +418,17 @@ static vaddr cpu_adjust_watchpoint_address(CPUState *cpu, vaddr addr, int len)
 {
     return addr;
 }
+
+static void generic_handle_interrupt(CPUState *cpu, int mask)
+{
+    cpu->interrupt_request |= mask;
+
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
+    }
+}
+
+CPUInterruptHandler cpu_interrupt_handler = generic_handle_interrupt;
 
 static void cpu_class_init(ObjectClass *klass, void *data)
 {

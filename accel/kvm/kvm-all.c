@@ -981,15 +981,6 @@ static MemoryListener kvm_io_listener = {
     .priority = 10,
 };
 
-static void kvm_handle_interrupt(CPUState *cpu, int mask)
-{
-    cpu->interrupt_request |= mask;
-
-    if (!qemu_cpu_is_self(cpu)) {
-        qemu_cpu_kick(cpu);
-    }
-}
-
 int kvm_set_irq(KVMState *s, int irq, int level)
 {
     struct kvm_irq_level event;
@@ -1773,8 +1764,6 @@ static int kvm_init(MachineState *ms)
                              &address_space_io);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
-
-    cpu_interrupt_handler = kvm_handle_interrupt;
 
     return 0;
 
