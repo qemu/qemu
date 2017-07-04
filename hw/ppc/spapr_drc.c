@@ -70,7 +70,7 @@ static uint32_t drc_isolate_physical(sPAPRDRConnector *drc)
         uint32_t drc_index = spapr_drc_index(drc);
         if (drc->configured) {
             trace_spapr_drc_set_isolation_state_finalizing(drc_index);
-            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
+            spapr_drc_detach(drc);
         } else {
             trace_spapr_drc_set_isolation_state_deferring(drc_index);
         }
@@ -134,7 +134,7 @@ static uint32_t drc_isolate_logical(sPAPRDRConnector *drc)
         uint32_t drc_index = spapr_drc_index(drc);
         if (drc->configured) {
             trace_spapr_drc_set_isolation_state_finalizing(drc_index);
-            spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
+            spapr_drc_detach(drc);
         } else {
             trace_spapr_drc_set_isolation_state_deferring(drc_index);
         }
@@ -187,7 +187,7 @@ static uint32_t drc_set_unusable(sPAPRDRConnector *drc)
     if (drc->awaiting_release) {
         uint32_t drc_index = spapr_drc_index(drc);
         trace_spapr_drc_set_allocation_state_finalizing(drc_index);
-        spapr_drc_detach(drc, DEVICE(drc->dev), NULL);
+        spapr_drc_detach(drc);
     }
 
     return RTAS_OUT_SUCCESS;
@@ -371,20 +371,20 @@ static void spapr_drc_release(sPAPRDRConnector *drc)
     drc->dev = NULL;
 }
 
-void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
+void spapr_drc_detach(sPAPRDRConnector *drc)
 {
     trace_spapr_drc_detach(spapr_drc_index(drc));
 
+    drc->awaiting_release = true;
+
     if (drc->isolation_state != SPAPR_DR_ISOLATION_STATE_ISOLATED) {
         trace_spapr_drc_awaiting_isolated(spapr_drc_index(drc));
-        drc->awaiting_release = true;
         return;
     }
 
     if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI &&
         drc->allocation_state != SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
         trace_spapr_drc_awaiting_unusable(spapr_drc_index(drc));
-        drc->awaiting_release = true;
         return;
     }
 
