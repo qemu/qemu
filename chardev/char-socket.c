@@ -423,8 +423,12 @@ static void update_disconnected_filename(SocketChardev *s)
     Chardev *chr = CHARDEV(s);
 
     g_free(chr->filename);
-    chr->filename = SocketAddress_to_str("disconnected:", s->addr,
-                                         s->is_listen, s->is_telnet);
+    if (s->addr) {
+        chr->filename = SocketAddress_to_str("disconnected:", s->addr,
+                                             s->is_listen, s->is_telnet);
+    } else {
+        chr->filename = g_strdup("disconnected:socket");
+    }
 }
 
 /* NB may be called even if tcp_chr_connect has not been
