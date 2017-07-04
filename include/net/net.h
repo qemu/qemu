@@ -100,6 +100,7 @@ struct NetClientState {
     unsigned int queue_index;
     unsigned rxfilter_notify_enabled:1;
     int vring_enable;
+    int vnet_hdr_len;
     QTAILQ_HEAD(NetFilterHead, NetFilterState) filters;
 };
 
