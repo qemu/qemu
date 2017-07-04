@@ -1264,7 +1264,11 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
                                               uint32_t sch_id, int vq,
                                               bool assign)
 {
-    return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
+    if (kvm_enabled()) {
+        return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
+    } else {
+        return 0;
+    }
 }
 
 static inline void s390_crypto_reset(void)
