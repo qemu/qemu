@@ -64,6 +64,10 @@ static const struct {
     {"9.1", 0x1D},
     {"9.2", 0x1F},
     {"9.3", 0x20},
+    {"9.4", 0x21},
+    {"9.5", 0x22},
+    {"9.6", 0x23},
+    {"10.0", 0x24},
     {NULL, 0},
 };
 
@@ -147,23 +151,13 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    env->pvr.regs[0] = PVR0_USE_BARREL_MASK \
-                       | PVR0_USE_DIV_MASK \
-                       | PVR0_USE_HW_MUL_MASK \
-                       | PVR0_USE_EXC_MASK \
+    env->pvr.regs[0] = PVR0_USE_EXC_MASK \
                        | PVR0_USE_ICACHE_MASK \
-                       | PVR0_USE_DCACHE_MASK \
-                       | (0xb << 8);
+                       | PVR0_USE_DCACHE_MASK;
     env->pvr.regs[2] = PVR2_D_OPB_MASK \
                         | PVR2_D_LMB_MASK \
                         | PVR2_I_OPB_MASK \
                         | PVR2_I_LMB_MASK \
-                        | PVR2_USE_MSR_INSTR \
-                        | PVR2_USE_PCMP_INSTR \
-                        | PVR2_USE_BARREL_MASK \
-                        | PVR2_USE_DIV_MASK \
-                        | PVR2_USE_HW_MUL_MASK \
-                        | PVR2_USE_MUL64_MASK \
                         | PVR2_FPU_EXC_MASK \
                         | 0;
 
@@ -180,13 +174,22 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     env->pvr.regs[0] |= (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
                         (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
+                        (cpu->cfg.use_hw_mul ? PVR0_USE_HW_MUL_MASK : 0) |
+                        (cpu->cfg.use_barrel ? PVR0_USE_BARREL_MASK : 0) |
+                        (cpu->cfg.use_div ? PVR0_USE_DIV_MASK : 0) |
                         (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0) |
                         (cpu->cfg.endi ? PVR0_ENDI_MASK : 0) |
-                        (version_code << 16) |
+                        (version_code << PVR0_VERSION_SHIFT) |
                         (cpu->cfg.pvr == C_PVR_FULL ? PVR0_PVR_FULL_MASK : 0);
 
     env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
-                        (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0);
+                        (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0) |
+                        (cpu->cfg.use_hw_mul ? PVR2_USE_HW_MUL_MASK : 0) |
+                        (cpu->cfg.use_hw_mul > 1 ? PVR2_USE_MUL64_MASK : 0) |
+                        (cpu->cfg.use_barrel ? PVR2_USE_BARREL_MASK : 0) |
+                        (cpu->cfg.use_div ? PVR2_USE_DIV_MASK : 0) |
+                        (cpu->cfg.use_msr_instr ? PVR2_USE_MSR_INSTR : 0) |
+                        (cpu->cfg.use_pcmp_instr ? PVR2_USE_PCMP_INSTR : 0);
 
     env->pvr.regs[5] |= cpu->cfg.dcache_writeback ?
                                         PVR5_DCACHE_WRITEBACK_MASK : 0;
@@ -233,6 +236,14 @@ static Property mb_properties[] = {
      *                  are enabled
      */
     DEFINE_PROP_UINT8("use-fpu", MicroBlazeCPU, cfg.use_fpu, 2),
+    /* If use-hw-mul > 0 - Multiplier is enabled
+     * If use-hw-mul = 2 - 64-bit multiplier is enabled
+     */
+    DEFINE_PROP_UINT8("use-hw-mul", MicroBlazeCPU, cfg.use_hw_mul, 2),
+    DEFINE_PROP_BOOL("use-barrel", MicroBlazeCPU, cfg.use_barrel, true),
+    DEFINE_PROP_BOOL("use-div", MicroBlazeCPU, cfg.use_div, true),
+    DEFINE_PROP_BOOL("use-msr-instr", MicroBlazeCPU, cfg.use_msr_instr, true),
+    DEFINE_PROP_BOOL("use-pcmp-instr", MicroBlazeCPU, cfg.use_pcmp_instr, true),
     DEFINE_PROP_BOOL("use-mmu", MicroBlazeCPU, cfg.use_mmu, true),
     DEFINE_PROP_BOOL("dcache-writeback", MicroBlazeCPU, cfg.dcache_writeback,
                      false),

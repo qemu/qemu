@@ -129,6 +129,8 @@ typedef struct CPUMBState CPUMBState;
 #define PVR0_USER1_MASK                 0x000000FF
 #define PVR0_SPROT_MASK                 0x00000001
 
+#define PVR0_VERSION_SHIFT              8
+
 /* User 2 PVR mask */
 #define PVR1_USER2_MASK                 0xFFFFFFFF
 
@@ -296,6 +298,11 @@ struct MicroBlazeCPU {
         bool stackprot;
         uint32_t base_vectors;
         uint8_t use_fpu;
+        uint8_t use_hw_mul;
+        bool use_barrel;
+        bool use_div;
+        bool use_msr_instr;
+        bool use_pcmp_instr;
         bool use_mmu;
         bool dcache_writeback;
         bool endi;
