@@ -446,12 +446,13 @@ static void shpc_cap_update_dword(PCIDevice *d)
 }
 
 /* Add SHPC capability to the config space for the device. */
-static int shpc_cap_add_config(PCIDevice *d)
+static int shpc_cap_add_config(PCIDevice *d, Error **errp)
 {
     uint8_t *config;
     int config_offset;
     config_offset = pci_add_capability(d, PCI_CAP_ID_SHPC,
-                                       0, SHPC_CAP_LENGTH);
+                                       0, SHPC_CAP_LENGTH,
+                                       errp);
     if (config_offset < 0) {
         return config_offset;
     }
@@ -581,13 +582,14 @@ void shpc_device_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
 }
 
 /* Initialize the SHPC structure in bridge's BAR. */
-int shpc_init(PCIDevice *d, PCIBus *sec_bus, MemoryRegion *bar, unsigned offset)
+int shpc_init(PCIDevice *d, PCIBus *sec_bus, MemoryRegion *bar,
+              unsigned offset, Error **errp)
 {
     int i, ret;
     int nslots = SHPC_MAX_SLOTS; /* TODO: qdev property? */
     SHPCDevice *shpc = d->shpc = g_malloc0(sizeof(*d->shpc));
     shpc->sec_bus = sec_bus;
-    ret = shpc_cap_add_config(d);
+    ret = shpc_cap_add_config(d, errp);
     if (ret) {
         g_free(d->shpc);
         return ret;

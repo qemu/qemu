@@ -47,6 +47,7 @@
 #include "e1000e_core.h"
 
 #include "trace.h"
+#include "qapi/error.h"
 
 #define TYPE_E1000E "e1000e"
 #define E1000E(obj) OBJECT_CHECK(E1000EState, (obj), TYPE_E1000E)
@@ -372,21 +373,26 @@ e1000e_gen_dsn(uint8_t *mac)
 static int
 e1000e_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
 {
-    int ret = pci_add_capability(pdev, PCI_CAP_ID_PM, offset, PCI_PM_SIZEOF);
+    Error *local_err = NULL;
+    int ret = pci_add_capability(pdev, PCI_CAP_ID_PM, offset,
+                                 PCI_PM_SIZEOF, &local_err);
 
-    if (ret >= 0) {
-        pci_set_word(pdev->config + offset + PCI_PM_PMC,
-                     PCI_PM_CAP_VER_1_1 |
-                     pmc);
-
-        pci_set_word(pdev->wmask + offset + PCI_PM_CTRL,
-                     PCI_PM_CTRL_STATE_MASK |
-                     PCI_PM_CTRL_PME_ENABLE |
-                     PCI_PM_CTRL_DATA_SEL_MASK);
-
-        pci_set_word(pdev->w1cmask + offset + PCI_PM_CTRL,
-                     PCI_PM_CTRL_PME_STATUS);
+    if (local_err) {
+        error_report_err(local_err);
+        return ret;
     }
+
+    pci_set_word(pdev->config + offset + PCI_PM_PMC,
+                 PCI_PM_CAP_VER_1_1 |
+                 pmc);
+
+    pci_set_word(pdev->wmask + offset + PCI_PM_CTRL,
+                 PCI_PM_CTRL_STATE_MASK |
+                 PCI_PM_CTRL_PME_ENABLE |
+                 PCI_PM_CTRL_DATA_SEL_MASK);
+
+    pci_set_word(pdev->w1cmask + offset + PCI_PM_CTRL,
+                 PCI_PM_CTRL_PME_STATUS);
 
     return ret;
 }

@@ -44,6 +44,7 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/ich9.h"
+#include "qapi/error.h"
 
 
 /*****************************************************************************/
@@ -58,24 +59,23 @@ typedef struct I82801b11Bridge {
     /*< public >*/
 } I82801b11Bridge;
 
-static int i82801b11_bridge_initfn(PCIDevice *d)
+static void i82801b11_bridge_realize(PCIDevice *d, Error **errp)
 {
     int rc;
 
     pci_bridge_initfn(d, TYPE_PCI_BUS);
 
     rc = pci_bridge_ssvid_init(d, I82801ba_SSVID_OFFSET,
-                               I82801ba_SSVID_SVID, I82801ba_SSVID_SSID);
+                               I82801ba_SSVID_SVID, I82801ba_SSVID_SSID,
+                               errp);
     if (rc < 0) {
         goto err_bridge;
     }
     pci_config_set_prog_interface(d->config, PCI_CLASS_BRIDGE_PCI_INF_SUB);
-    return 0;
+    return;
 
 err_bridge:
     pci_bridge_exitfn(d);
-
-    return rc;
 }
 
 static const VMStateDescription i82801b11_bridge_dev_vmstate = {
@@ -95,7 +95,7 @@ static void i82801b11_bridge_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801BA_11;
     k->revision = ICH9_D2P_A2_REVISION;
-    k->init = i82801b11_bridge_initfn;
+    k->realize = i82801b11_bridge_realize;
     k->config_write = pci_bridge_write_config;
     dc->vmsd = &i82801b11_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);

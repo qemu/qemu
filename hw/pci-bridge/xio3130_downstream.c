@@ -56,33 +56,33 @@ static void xio3130_downstream_reset(DeviceState *qdev)
     pci_bridge_reset(qdev);
 }
 
-static int xio3130_downstream_initfn(PCIDevice *d)
+static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
 {
     PCIEPort *p = PCIE_PORT(d);
     PCIESlot *s = PCIE_SLOT(d);
     int rc;
-    Error *err = NULL;
 
     pci_bridge_initfn(d, TYPE_PCIE_BUS);
     pcie_port_init_reg(d);
 
     rc = msi_init(d, XIO3130_MSI_OFFSET, XIO3130_MSI_NR_VECTOR,
                   XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
-                  XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT, &err);
+                  XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT,
+                  errp);
     if (rc < 0) {
         assert(rc == -ENOTSUP);
-        error_report_err(err);
         goto err_bridge;
     }
 
     rc = pci_bridge_ssvid_init(d, XIO3130_SSVID_OFFSET,
-                               XIO3130_SSVID_SVID, XIO3130_SSVID_SSID);
+                               XIO3130_SSVID_SVID, XIO3130_SSVID_SSID,
+                               errp);
     if (rc < 0) {
         goto err_bridge;
     }
 
     rc = pcie_cap_init(d, XIO3130_EXP_OFFSET, PCI_EXP_TYPE_DOWNSTREAM,
-                       p->port);
+                       p->port, errp);
     if (rc < 0) {
         goto err_msi;
     }
@@ -98,13 +98,12 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     }
 
     rc = pcie_aer_init(d, PCI_ERR_VER, XIO3130_AER_OFFSET,
-                       PCI_ERR_SIZEOF, &err);
+                       PCI_ERR_SIZEOF, errp);
     if (rc < 0) {
-        error_report_err(err);
         goto err;
     }
 
-    return 0;
+    return;
 
 err:
     pcie_chassis_del_slot(s);
@@ -114,7 +113,6 @@ err_msi:
     msi_uninit(d);
 err_bridge:
     pci_bridge_exitfn(d);
-    return rc;
 }
 
 static void xio3130_downstream_exitfn(PCIDevice *d)
@@ -181,7 +179,7 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     k->is_express = 1;
     k->is_bridge = 1;
     k->config_write = xio3130_downstream_write_config;
-    k->init = xio3130_downstream_initfn;
+    k->realize = xio3130_downstream_realize;
     k->exit = xio3130_downstream_exitfn;
     k->vendor_id = PCI_VENDOR_ID_TI;
     k->device_id = PCI_DEVICE_ID_TI_XIO3130D;

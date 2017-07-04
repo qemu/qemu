@@ -86,7 +86,9 @@ pcie_cap_v1_fill(PCIDevice *dev, uint8_t port, uint8_t type, uint8_t version)
     pci_set_word(cmask + PCI_EXP_LNKSTA, 0);
 }
 
-int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
+int pcie_cap_init(PCIDevice *dev, uint8_t offset,
+                  uint8_t type, uint8_t port,
+                  Error **errp)
 {
     /* PCIe cap v2 init */
     int pos;
@@ -94,7 +96,8 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
 
     assert(pci_is_express(dev));
 
-    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER2_SIZEOF);
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
+                             PCI_EXP_VER2_SIZEOF, errp);
     if (pos < 0) {
         return pos;
     }
@@ -123,11 +126,14 @@ int pcie_cap_v1_init(PCIDevice *dev, uint8_t offset, uint8_t type,
 {
     /* PCIe cap v1 init */
     int pos;
+    Error *local_err = NULL;
 
     assert(pci_is_express(dev));
 
-    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset, PCI_EXP_VER1_SIZEOF);
+    pos = pci_add_capability(dev, PCI_CAP_ID_EXP, offset,
+                             PCI_EXP_VER1_SIZEOF, &local_err);
     if (pos < 0) {
+        error_report_err(local_err);
         return pos;
     }
     dev->exp.exp_cap = pos;
@@ -141,6 +147,8 @@ static int
 pcie_endpoint_cap_common_init(PCIDevice *dev, uint8_t offset, uint8_t cap_size)
 {
     uint8_t type = PCI_EXP_TYPE_ENDPOINT;
+    Error *local_err = NULL;
+    int ret;
 
     /*
      * Windows guests will report Code 10, device cannot start, if
@@ -151,9 +159,17 @@ pcie_endpoint_cap_common_init(PCIDevice *dev, uint8_t offset, uint8_t cap_size)
         type = PCI_EXP_TYPE_RC_END;
     }
 
-    return (cap_size == PCI_EXP_VER1_SIZEOF)
-        ? pcie_cap_v1_init(dev, offset, type, 0)
-        : pcie_cap_init(dev, offset, type, 0);
+    if (cap_size == PCI_EXP_VER1_SIZEOF) {
+        return pcie_cap_v1_init(dev, offset, type, 0);
+    } else {
+        ret = pcie_cap_init(dev, offset, type, 0, &local_err);
+
+        if (ret < 0) {
+            error_report_err(local_err);
+        }
+
+        return ret;
+    }
 }
 
 int pcie_endpoint_cap_init(PCIDevice *dev, uint8_t offset)

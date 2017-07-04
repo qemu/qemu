@@ -779,6 +779,7 @@ static int vhost_user_cleanup(struct vhost_dev *dev)
 
     u = dev->opaque;
     if (u->slave_fd >= 0) {
+        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
         close(u->slave_fd);
         u->slave_fd = -1;
     }

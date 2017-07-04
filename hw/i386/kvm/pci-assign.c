@@ -824,12 +824,13 @@ static void assign_device(AssignedDevice *dev, Error **errp)
     }
 }
 
-static void verify_irqchip_in_kernel(Error **errp)
+static int verify_irqchip_in_kernel(Error **errp)
 {
     if (kvm_irqchip_in_kernel()) {
-        return;
+        return -1;
     }
     error_setg(errp, "pci-assign requires KVM with in-kernel irqchip enabled");
+    return 0;
 }
 
 static int assign_intx(AssignedDevice *dev, Error **errp)
@@ -838,7 +839,6 @@ static int assign_intx(AssignedDevice *dev, Error **errp)
     PCIINTxRoute intx_route;
     bool intx_host_msi;
     int r;
-    Error *local_err = NULL;
 
     /* Interrupt PIN 0 means don't use INTx */
     if (assigned_dev_pci_read_byte(&dev->dev, PCI_INTERRUPT_PIN) == 0) {
@@ -846,9 +846,7 @@ static int assign_intx(AssignedDevice *dev, Error **errp)
         return 0;
     }
 
-    verify_irqchip_in_kernel(&local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (verify_irqchip_in_kernel(errp) < 0) {
         return -ENOTSUP;
     }
 
@@ -1234,7 +1232,6 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
     AssignedDevice *dev = PCI_ASSIGN(pci_dev);
     PCIRegion *pci_region = dev->real_device.regions;
     int ret, pos;
-    Error *local_err = NULL;
 
     /* Clear initial capabilities pointer and status copied from hw */
     pci_set_byte(pci_dev->config + PCI_CAPABILITY_LIST, 0);
@@ -1246,18 +1243,15 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
      * MSI capability is the 1st capability in capability config */
     pos = pci_find_cap_offset(pci_dev, PCI_CAP_ID_MSI, 0);
     if (pos != 0 && kvm_check_extension(kvm_state, KVM_CAP_ASSIGN_DEV_IRQ)) {
-        verify_irqchip_in_kernel(&local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (verify_irqchip_in_kernel(errp) < 0) {
             return -ENOTSUP;
         }
         dev->dev.cap_present |= QEMU_PCI_CAP_MSI;
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSI;
         /* Only 32-bit/no-mask currently supported */
-        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSI, pos, 10,
-                                  &local_err);
+        ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSI, pos, 10,
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msi_cap = pos;
@@ -1281,17 +1275,14 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         uint32_t msix_table_entry;
         uint16_t msix_max;
 
-        verify_irqchip_in_kernel(&local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (verify_irqchip_in_kernel(errp) < 0) {
             return -ENOTSUP;
         }
         dev->dev.cap_present |= QEMU_PCI_CAP_MSIX;
         dev->cap.available |= ASSIGNED_DEVICE_CAP_MSIX;
-        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_MSIX, pos, 12,
-                                  &local_err);
+        ret = pci_add_capability(pci_dev, PCI_CAP_ID_MSIX, pos, 12,
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
         pci_dev->msix_cap = pos;
@@ -1318,10 +1309,9 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
     if (pos) {
         uint16_t pmc;
 
-        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF,
-                                  &local_err);
+        ret = pci_add_capability(pci_dev, PCI_CAP_ID_PM, pos, PCI_PM_SIZEOF,
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1386,10 +1376,9 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
             return -EINVAL;
         }
 
-        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_EXP, pos, size,
-                                  &local_err);
+        ret = pci_add_capability(pci_dev, PCI_CAP_ID_EXP, pos, size,
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1462,10 +1451,9 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         uint32_t status;
 
         /* Only expose the minimum, 8 byte capability */
-        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_PCIX, pos, 8,
-                                  &local_err);
+        ret = pci_add_capability(pci_dev, PCI_CAP_ID_PCIX, pos, 8,
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1490,10 +1478,9 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
     pos = pci_find_cap_offset(pci_dev, PCI_CAP_ID_VPD, 0);
     if (pos) {
         /* Direct R/W passthrough */
-        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VPD, pos, 8,
-                                  &local_err);
+        ret = pci_add_capability(pci_dev, PCI_CAP_ID_VPD, pos, 8,
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
@@ -1508,10 +1495,9 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
         pos += PCI_CAP_LIST_NEXT) {
         uint8_t len = pci_get_byte(pci_dev->config + pos + PCI_CAP_FLAGS);
         /* Direct R/W passthrough */
-        ret = pci_add_capability2(pci_dev, PCI_CAP_ID_VNDR, pos, len,
-                                  &local_err);
+        ret = pci_add_capability(pci_dev, PCI_CAP_ID_VNDR, pos, len,
+                                  errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
 
