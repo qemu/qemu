@@ -675,6 +675,8 @@ struct TCGContext {
     struct TCGLabelPoolData *pool_labels;
 #endif
 
+    TCGLabel *exitreq_label;
+
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 

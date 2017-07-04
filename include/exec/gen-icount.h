@@ -6,13 +6,12 @@
 /* Helpers for instruction counting code generation.  */
 
 static int icount_start_insn_idx;
-static TCGLabel *exitreq_label;
 
 static inline void gen_tb_start(TranslationBlock *tb)
 {
     TCGv_i32 count, imm;
 
-    exitreq_label = gen_new_label();
+    tcg_ctx->exitreq_label = gen_new_label();
     if (tb_cflags(tb) & CF_USE_ICOUNT) {
         count = tcg_temp_local_new_i32();
     } else {
@@ -34,7 +33,7 @@ static inline void gen_tb_start(TranslationBlock *tb)
         tcg_temp_free_i32(imm);
     }
 
-    tcg_gen_brcondi_i32(TCG_COND_LT, count, 0, exitreq_label);
+    tcg_gen_brcondi_i32(TCG_COND_LT, count, 0, tcg_ctx->exitreq_label);
 
     if (tb_cflags(tb) & CF_USE_ICOUNT) {
         tcg_gen_st16_i32(count, tcg_ctx->tcg_env,
@@ -52,7 +51,7 @@ static inline void gen_tb_end(TranslationBlock *tb, int num_insns)
         tcg_set_insn_param(icount_start_insn_idx, 1, num_insns);
     }
 
-    gen_set_label(exitreq_label);
+    gen_set_label(tcg_ctx->exitreq_label);
     tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_REQUESTED);
 
     /* Terminate the linked list.  */
