@@ -743,8 +743,8 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize);
-    net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize);
+    net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize, false);
+    net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize, false);
 
     g_queue_init(&s->conn_list);
 

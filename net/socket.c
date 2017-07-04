@@ -174,7 +174,7 @@ static void net_socket_send(void *opaque)
         closesocket(s->fd);
 
         s->fd = -1;
-        net_socket_rs_init(&s->rs, net_socket_rs_finalize);
+        net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
         s->nc.link_down = true;
         memset(s->nc.info_str, 0, sizeof(s->nc.info_str));
 
@@ -366,7 +366,7 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
     s->fd = fd;
     s->listen_fd = -1;
     s->send_fn = net_socket_send_dgram;
-    net_socket_rs_init(&s->rs, net_socket_rs_finalize);
+    net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
     net_socket_read_poll(s, true);
 
     /* mcast: save bound address as dst */
@@ -417,7 +417,7 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
 
     s->fd = fd;
     s->listen_fd = -1;
-    net_socket_rs_init(&s->rs, net_socket_rs_finalize);
+    net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
 
     /* Disable Nagle algorithm on TCP sockets to reduce latency */
     socket_set_nodelay(fd);
@@ -522,7 +522,7 @@ static int net_socket_listen_init(NetClientState *peer,
     s->fd = -1;
     s->listen_fd = fd;
     s->nc.link_down = true;
-    net_socket_rs_init(&s->rs, net_socket_rs_finalize);
+    net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
 
     qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
     return 0;
