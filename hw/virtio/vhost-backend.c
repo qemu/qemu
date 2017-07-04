@@ -52,11 +52,13 @@ static int vhost_kernel_memslots_limit(struct vhost_dev *dev)
                             &s, NULL, NULL)) {
         uint64_t val = g_ascii_strtoull(s, NULL, 10);
         if (!((val == G_MAXUINT64 || !val) && errno)) {
+            g_free(s);
             return val;
         }
         error_report("ignoring invalid max_mem_regions value in vhost module:"
                      " %s", s);
     }
+    g_free(s);
     return limit;
 }
 
