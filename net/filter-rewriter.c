@@ -158,7 +158,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
     char *buf = g_malloc0(size);
 
     iov_to_buf(iov, iovcnt, 0, buf, size);
-    pkt = packet_new(buf, size);
+    pkt = packet_new(buf, size, 0);
     g_free(buf);
 
     /*

@@ -43,6 +43,8 @@ typedef struct Packet {
     int size;
     /* Time of packet creation, in wall clock ms */
     int64_t creation_ms;
+    /* Get vnet_hdr_len from filter */
+    uint32_t vnet_hdr_len;
 } Packet;
 
 typedef struct ConnectionKey {
@@ -82,7 +84,7 @@ Connection *connection_get(GHashTable *connection_track_table,
                            ConnectionKey *key,
                            GQueue *conn_list);
 void connection_hashtable_reset(GHashTable *connection_track_table);
-Packet *packet_new(const void *data, int size);
+Packet *packet_new(const void *data, int size, int vnet_hdr_len);
 void packet_destroy(void *opaque, void *user_data);
 
 #endif /* QEMU_COLO_PROXY_H */
