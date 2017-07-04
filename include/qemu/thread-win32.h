@@ -5,11 +5,13 @@
 
 struct QemuMutex {
     SRWLOCK lock;
+    bool initialized;
 };
 
 typedef struct QemuRecMutex QemuRecMutex;
 struct QemuRecMutex {
     CRITICAL_SECTION lock;
+    bool initialized;
 };
 
 void qemu_rec_mutex_destroy(QemuRecMutex *mutex);
@@ -19,15 +21,18 @@ void qemu_rec_mutex_unlock(QemuRecMutex *mutex);
 
 struct QemuCond {
     CONDITION_VARIABLE var;
+    bool initialized;
 };
 
 struct QemuSemaphore {
     HANDLE sema;
+    bool initialized;
 };
 
 struct QemuEvent {
     int value;
     HANDLE event;
+    bool initialized;
 };
 
 typedef struct QemuThreadData QemuThreadData;

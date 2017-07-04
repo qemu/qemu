@@ -12,10 +12,12 @@ typedef QemuMutex QemuRecMutex;
 
 struct QemuMutex {
     pthread_mutex_t lock;
+    bool initialized;
 };
 
 struct QemuCond {
     pthread_cond_t cond;
+    bool initialized;
 };
 
 struct QemuSemaphore {
@@ -26,6 +28,7 @@ struct QemuSemaphore {
 #else
     sem_t sem;
 #endif
+    bool initialized;
 };
 
 struct QemuEvent {
@@ -34,6 +37,7 @@ struct QemuEvent {
     pthread_cond_t cond;
 #endif
     unsigned value;
+    bool initialized;
 };
 
 struct QemuThread {
