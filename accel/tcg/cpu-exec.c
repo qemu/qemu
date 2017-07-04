@@ -280,6 +280,7 @@ struct tb_desc {
     CPUArchState *env;
     tb_page_addr_t phys_page1;
     uint32_t flags;
+    uint32_t trace_vcpu_dstate;
 };
 
 static bool tb_cmp(const void *p, const void *d)
@@ -291,6 +292,7 @@ static bool tb_cmp(const void *p, const void *d)
         tb->page_addr[0] == desc->phys_page1 &&
         tb->cs_base == desc->cs_base &&
         tb->flags == desc->flags &&
+        tb->trace_vcpu_dstate == desc->trace_vcpu_dstate &&
         !atomic_read(&tb->invalid)) {
         /* check next page if needed */
         if (tb->page_addr[1] == -1) {
@@ -319,10 +321,11 @@ TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
     desc.env = (CPUArchState *)cpu->env_ptr;
     desc.cs_base = cs_base;
     desc.flags = flags;
+    desc.trace_vcpu_dstate = *cpu->trace_dstate;
     desc.pc = pc;
     phys_pc = get_page_addr_code(desc.env, pc);
     desc.phys_page1 = phys_pc & TARGET_PAGE_MASK;
-    h = tb_hash_func(phys_pc, pc, flags);
+    h = tb_hash_func(phys_pc, pc, flags, *cpu->trace_dstate);
     return qht_lookup(&tcg_ctx.tb_ctx.htable, tb_cmp, &desc, h);
 }
 
@@ -342,7 +345,8 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
     tb = atomic_rcu_read(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)]);
     if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
-                 tb->flags != flags)) {
+                 tb->flags != flags ||
+                 tb->trace_vcpu_dstate != *cpu->trace_dstate)) {
         tb = tb_htable_lookup(cpu, pc, cs_base, flags);
         if (!tb) {
 
