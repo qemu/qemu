@@ -464,7 +464,7 @@ static int img_create(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":F:b:f:he6o:q",
+        c = getopt_long(argc, argv, ":F:b:f:ho:q",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -488,14 +488,6 @@ static int img_create(int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
-        case 'e':
-            error_report("option -e is deprecated, please use \'-o "
-                  "encryption\' instead!");
-            goto fail;
-        case '6':
-            error_report("option -6 is deprecated, please use \'-o "
-                  "compat6\' instead!");
-            goto fail;
         case 'o':
             if (!is_valid_option_list(optarg)) {
                 error_report("Invalid option list: %s", optarg);
@@ -1985,7 +1977,7 @@ static int img_convert(int argc, char **argv)
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:O:B:ce6o:s:l:S:pt:T:qnm:WU",
+        c = getopt_long(argc, argv, ":hf:O:B:co:s:l:S:pt:T:qnm:WU",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -2012,14 +2004,6 @@ static int img_convert(int argc, char **argv)
         case 'c':
             s.compressed = true;
             break;
-        case 'e':
-            error_report("option -e is deprecated, please use \'-o "
-                  "encryption\' instead!");
-            goto fail_getopt;
-        case '6':
-            error_report("option -6 is deprecated, please use \'-o "
-                  "compat6\' instead!");
-            goto fail_getopt;
         case 'o':
             if (!is_valid_option_list(optarg)) {
                 error_report("Invalid option list: %s", optarg);
