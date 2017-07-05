@@ -418,7 +418,7 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
             error_report_err(err);
             vm_stop(RUN_STATE_INTERNAL_ERROR);
         }
-        ipl->iplb.ccw.netboot_start_addr = ipl->start_addr;
+        ipl->iplb.ccw.netboot_start_addr = cpu_to_be64(ipl->start_addr);
     }
 }
 
