@@ -18,6 +18,9 @@
 #include <wbemidl.h>
 #include <comdef.h>
 #include <comutil.h>
+#include <sddl.h>
+
+#define BUFFER_SIZE 1024
 
 extern HINSTANCE g_hinstDll;
 
@@ -135,6 +138,27 @@ out:
     return hr;
 }
 
+/* Acquire group or user name by SID */
+static HRESULT getNameByStringSID(
+    const wchar_t *sid, LPWSTR buffer, LPDWORD bufferLen)
+{
+    HRESULT hr = S_OK;
+    PSID psid = NULL;
+    SID_NAME_USE groupType;
+    DWORD domainNameLen = BUFFER_SIZE;
+    wchar_t domainName[BUFFER_SIZE];
+
+    chk(ConvertStringSidToSidW(sid, &psid));
+    LookupAccountSidW(NULL, psid, buffer, bufferLen,
+                domainName, &domainNameLen, &groupType);
+    hr = HRESULT_FROM_WIN32(GetLastError());
+
+    LocalFree(psid);
+
+out:
+    return hr;
+}
+
 /* Find and iterate QGA VSS provider in COM+ Application Catalog */
 static HRESULT QGAProviderFind(
     HRESULT (*found)(ICatalogCollection *, int, void *), void *arg)
@@ -216,6 +240,10 @@ STDAPI COMRegister(void)
     CHAR dllPath[MAX_PATH], tlbPath[MAX_PATH];
     bool unregisterOnFailure = false;
     int count = 0;
+    DWORD bufferLen = BUFFER_SIZE;
+    wchar_t buffer[BUFFER_SIZE];
+    const wchar_t *administratorsGroupSID = L"S-1-5-32-544";
+    const wchar_t *systemUserSID = L"S-1-5-18";
 
     if (!g_hinstDll) {
         errmsg(E_FAIL, "Failed to initialize DLL");
@@ -284,11 +312,12 @@ STDAPI COMRegister(void)
 
     /* Setup roles of the applicaion */
 
+    chk(getNameByStringSID(administratorsGroupSID, buffer, &bufferLen));
     chk(pApps->GetCollection(_bstr_t(L"Roles"), key,
                              (IDispatch **)pRoles.replace()));
     chk(pRoles->Populate());
     chk(pRoles->Add((IDispatch **)pObj.replace()));
-    chk(put_Value(pObj, L"Name",        L"Administrators"));
+    chk(put_Value(pObj, L"Name", buffer));
     chk(put_Value(pObj, L"Description", L"Administrators group"));
     chk(pRoles->SaveChanges(&n));
     chk(pObj->get_Key(&key));
@@ -303,8 +332,10 @@ STDAPI COMRegister(void)
     chk(GetAdminName(&name));
     chk(put_Value(pObj, L"User", _bstr_t(".\\") + name));
 
+    bufferLen = BUFFER_SIZE;
+    chk(getNameByStringSID(systemUserSID, buffer, &bufferLen));
     chk(pUsersInRole->Add((IDispatch **)pObj.replace()));
-    chk(put_Value(pObj, L"User", L"SYSTEM"));
+    chk(put_Value(pObj, L"User", buffer));
     chk(pUsersInRole->SaveChanges(&n));
 
 out:
