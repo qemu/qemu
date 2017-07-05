@@ -338,6 +338,11 @@ do
                 reference="$reference_machine"
             fi
 
+            reference_format="$source_iotests/$seq.out.$IMGFMT"
+            if [ -f "$reference_format" ]; then
+                reference="$reference_format"
+            fi
+
             if [ "$CACHEMODE" = "none" ]; then
                 [ -f "$source_iotests/$seq.out.nocache" ] && reference="$source_iotests/$seq.out.nocache"
             fi
