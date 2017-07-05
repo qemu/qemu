@@ -438,6 +438,36 @@ preallocated.
 For more information, consult @file{include/block/block.h} in QEMU's
 source code.
 
+@item measure [--output=@var{ofmt}] [-O @var{output_fmt}] [-o @var{options}] [--size @var{N} | [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [-l @var{snapshot_param}] @var{filename}]
+
+Calculate the file size required for a new image.  This information can be used
+to size logical volumes or SAN LUNs appropriately for the image that will be
+placed in them.  The values reported are guaranteed to be large enough to fit
+the image.  The command can output in the format @var{ofmt} which is either
+@code{human} or @code{json}.
+
+If the size @var{N} is given then act as if creating a new empty image file
+using @command{qemu-img create}.  If @var{filename} is given then act as if
+converting an existing image file using @command{qemu-img convert}.  The format
+of the new file is given by @var{output_fmt} while the format of an existing
+file is given by @var{fmt}.
+
+A snapshot in an existing image can be specified using @var{snapshot_param}.
+
+The following fields are reported:
+@example
+required size: 524288
+fully allocated size: 1074069504
+@end example
+
+The @code{required size} is the file size of the new image.  It may be smaller
+than the virtual disk size if the image format supports compact representation.
+
+The @code{fully allocated size} is the file size of the new image once data has
+been written to all sectors.  This is the maximum size that the image file can
+occupy with the exception of internal snapshots, dirty bitmaps, vmstate data,
+and other advanced image format features.
+
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
 
 List, apply, create or delete snapshots in image @var{filename}.
