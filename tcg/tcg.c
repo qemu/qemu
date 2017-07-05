@@ -318,6 +318,7 @@ typedef struct TCGHelperInfo {
 static const TCGHelperInfo all_helpers[] = {
 #include "exec/helper-tcg.h"
 };
+static GHashTable *helper_table;
 
 static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
 static void process_op_defs(TCGContext *s);
@@ -328,7 +329,6 @@ void tcg_context_init(TCGContext *s)
     TCGOpDef *def;
     TCGArgConstraint *args_ct;
     int *sorted_args;
-    GHashTable *helper_table;
 
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
@@ -356,7 +356,7 @@ void tcg_context_init(TCGContext *s)
 
     /* Register helpers.  */
     /* Use g_direct_hash/equal for direct pointer comparisons on func.  */
-    s->helpers = helper_table = g_hash_table_new(NULL, NULL);
+    helper_table = g_hash_table_new(NULL, NULL);
 
     for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
         g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
@@ -982,7 +982,7 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
     unsigned sizemask, flags;
     TCGHelperInfo *info;
 
-    info = g_hash_table_lookup(s->helpers, (gpointer)func);
+    info = g_hash_table_lookup(helper_table, (gpointer)func);
     flags = info->flags;
     sizemask = info->sizemask;
 
@@ -1211,8 +1211,8 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf,
 static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val)
 {
     const char *ret = NULL;
-    if (s->helpers) {
-        TCGHelperInfo *info = g_hash_table_lookup(s->helpers, (gpointer)val);
+    if (helper_table) {
+        TCGHelperInfo *info = g_hash_table_lookup(helper_table, (gpointer)val);
         if (info) {
             ret = info->name;
         }
