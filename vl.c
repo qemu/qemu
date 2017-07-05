@@ -3962,7 +3962,7 @@ int main(int argc, char **argv, char **envp)
                  *
                  * "-global migration.only-migratable=true"
                  */
-                migration_only_migratable_set();
+                qemu_global_option("migration.only-migratable=true");
                 break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;

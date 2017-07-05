@@ -128,11 +128,6 @@ MigrationState *migrate_get_current(void)
     return current_migration;
 }
 
-void migration_only_migratable_set(void)
-{
-    migrate_get_current()->only_migratable = true;
-}
-
 MigrationIncomingState *migration_incoming_get_current(void)
 {
     static bool once;
