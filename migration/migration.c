@@ -2052,12 +2052,12 @@ static void migration_instance_init(Object *obj)
 static const TypeInfo migration_type = {
     .name = TYPE_MIGRATION,
     /*
-     * NOTE: "migration" itself is not really a device. We used
-     * TYPE_DEVICE here only to leverage some existing QDev features
-     * like "-global" properties, and HW_COMPAT_* fields (which are
-     * finally applied as global properties as well). If one day the
-     * global property feature can be migrated from QDev to QObject in
-     * general, then we can switch to QObject as well.
+     * NOTE: TYPE_MIGRATION is not really a device, as the object is
+     * not created using qdev_create(), it is not attached to the qdev
+     * device tree, and it is never realized.
+     *
+     * TODO: Make this TYPE_OBJECT once QOM provides something like
+     * TYPE_DEVICE's "-global" properties.
      */
     .parent = TYPE_DEVICE,
     .class_init = migration_class_init,
