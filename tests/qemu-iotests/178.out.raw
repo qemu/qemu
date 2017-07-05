@@ -1,0 +1,158 @@
+QA output created by 178
+== Input validation ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+qemu-img: Either --size N or one filename must be specified.
+qemu-img: --size N cannot be used together with a filename.
+qemu-img: At most one filename argument is allowed.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: Invalid option list: ,
+qemu-img: Invalid parameter 'snapshot.foo'
+qemu-img: Failed in parsing snapshot param 'snapshot.foo'
+qemu-img: --output must be used with human or json as argument.
+qemu-img: Image size must be less than 8 EiB!
+qemu-img: Unknown file format 'foo'
+
+== Size calculation for a new file (human) ==
+
+required size: 0
+fully allocated size: 0
+required size: 2147483648
+fully allocated size: 2147483648
+required size: 68719476736
+fully allocated size: 68719476736
+required size: 274877906944
+fully allocated size: 274877906944
+required size: 1099511627776
+fully allocated size: 1099511627776
+required size: 2251799813685248
+fully allocated size: 2251799813685248
+required size: 8070450532247928832
+fully allocated size: 8070450532247928832
+
+== Empty raw input image (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
+required size: 0
+fully allocated size: 0
+
+converted image file size in bytes: 0
+
+== raw input image with data (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+required size: 1073741824
+fully allocated size: 1073741824
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 1073741824
+fully allocated size: 1073741824
+
+converted image file size in bytes: 1073741824
+
+== raw input image and preallocation (human) ==
+
+required size: 1073741824
+fully allocated size: 1073741824
+
+converted image file size in bytes: 1073741824
+
+== Fully-allocated raw input image (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 8388608
+fully allocated size: 8388608
+
+converted image file size in bytes: 8388608
+
+== Size calculation for a new file (json) ==
+
+{
+    "required": 0,
+    "fully-allocated": 0
+}
+{
+    "required": 2147483648,
+    "fully-allocated": 2147483648
+}
+{
+    "required": 68719476736,
+    "fully-allocated": 68719476736
+}
+{
+    "required": 274877906944,
+    "fully-allocated": 274877906944
+}
+{
+    "required": 1099511627776,
+    "fully-allocated": 1099511627776
+}
+{
+    "required": 2251799813685248,
+    "fully-allocated": 2251799813685248
+}
+{
+    "required": 8070450532247928832,
+    "fully-allocated": 8070450532247928832
+}
+
+== Empty raw input image (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
+{
+    "required": 0,
+    "fully-allocated": 0
+}
+
+converted image file size in bytes: 0
+
+== raw input image with data (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+{
+    "required": 1073741824,
+    "fully-allocated": 1073741824
+}
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 1073741824,
+    "fully-allocated": 1073741824
+}
+
+converted image file size in bytes: 1073741824
+
+== raw input image and preallocation (json) ==
+
+{
+    "required": 1073741824,
+    "fully-allocated": 1073741824
+}
+
+converted image file size in bytes: 1073741824
+
+== Fully-allocated raw input image (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 8388608,
+    "fully-allocated": 8388608
+}
+
+converted image file size in bytes: 8388608
+*** done
