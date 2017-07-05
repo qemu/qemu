@@ -2537,6 +2537,43 @@ static int preallocate(BlockDriverState *bs)
     return 0;
 }
 
+/* qcow2_refcount_metadata_size:
+ * @clusters: number of clusters to refcount (including data and L1/L2 tables)
+ * @cluster_size: size of a cluster, in bytes
+ * @refcount_order: refcount bits power-of-2 exponent
+ *
+ * Returns: Number of bytes required for refcount blocks and table metadata.
+ */
+static int64_t qcow2_refcount_metadata_size(int64_t clusters,
+                                            size_t cluster_size,
+                                            int refcount_order)
+{
+    /*
+     * Every host cluster is reference-counted, including metadata (even
+     * refcount metadata is recursively included).
+     *
+     * An accurate formula for the size of refcount metadata size is difficult
+     * to derive.  An easier method of calculation is finding the fixed point
+     * where no further refcount blocks or table clusters are required to
+     * reference count every cluster.
+     */
+    int64_t blocks_per_table_cluster = cluster_size / sizeof(uint64_t);
+    int64_t refcounts_per_block = cluster_size * 8 / (1 << refcount_order);
+    int64_t table = 0;  /* number of refcount table clusters */
+    int64_t blocks = 0; /* number of refcount block clusters */
+    int64_t last;
+    int64_t n = 0;
+
+    do {
+        last = n;
+        blocks = DIV_ROUND_UP(clusters + table + blocks, refcounts_per_block);
+        table = DIV_ROUND_UP(blocks, blocks_per_table_cluster);
+        n = clusters + blocks + table;
+    } while (n != last);
+
+    return (blocks + table) * cluster_size;
+}
+
 /**
  * qcow2_calc_prealloc_size:
  * @total_size: virtual disk size in bytes
@@ -2550,22 +2587,9 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
                                         size_t cluster_size,
                                         int refcount_order)
 {
-    /* Note: The following calculation does not need to be exact; if it is a
-     * bit off, either some bytes will be "leaked" (which is fine) or we
-     * will need to increase the file size by some bytes (which is fine,
-     * too, as long as the bulk is allocated here). Therefore, using
-     * floating point arithmetic is fine. */
     int64_t meta_size = 0;
-    uint64_t nreftablee, nrefblocke, nl1e, nl2e, refblock_count;
+    uint64_t nl1e, nl2e;
     int64_t aligned_total_size = align_offset(total_size, cluster_size);
-    int cluster_bits = ctz32(cluster_size);
-    int refblock_bits, refblock_size;
-    /* refcount entry size in bytes */
-    double rces = (1 << refcount_order) / 8.;
-
-    /* see qcow2_open() */
-    refblock_bits = cluster_bits - (refcount_order - 3);
-    refblock_size = 1 << refblock_bits;
 
     /* header: 1 cluster */
     meta_size += cluster_size;
@@ -2580,33 +2604,10 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
     nl1e = align_offset(nl1e, cluster_size / sizeof(uint64_t));
     meta_size += nl1e * sizeof(uint64_t);
 
-    /* total size of refcount blocks
-     *
-     * note: every host cluster is reference-counted, including metadata
-     * (even refcount blocks are recursively included).
-     * Let:
-     *   a = total_size (this is the guest disk size)
-     *   m = meta size not including refcount blocks and refcount tables
-     *   c = cluster size
-     *   y1 = number of refcount blocks entries
-     *   y2 = meta size including everything
-     *   rces = refcount entry size in bytes
-     * then,
-     *   y1 = (y2 + a)/c
-     *   y2 = y1 * rces + y1 * rces * sizeof(u64) / c + m
-     * we can get y1:
-     *   y1 = (a + m) / (c - rces - rces * sizeof(u64) / c)
-     */
-    nrefblocke = (aligned_total_size + meta_size + cluster_size)
-        / (cluster_size - rces - rces * sizeof(uint64_t)
-                / cluster_size);
-    refblock_count = DIV_ROUND_UP(nrefblocke, refblock_size);
-    meta_size += refblock_count * cluster_size;
-
-    /* total size of refcount tables */
-    nreftablee = align_offset(refblock_count,
-                              cluster_size / sizeof(uint64_t));
-    meta_size += nreftablee * sizeof(uint64_t);
+    /* total size of refcount table and blocks */
+    meta_size += qcow2_refcount_metadata_size(
+            (meta_size + aligned_total_size) / cluster_size,
+            cluster_size, refcount_order);
 
     return meta_size + aligned_total_size;
 }
