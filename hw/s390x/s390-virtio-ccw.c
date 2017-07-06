@@ -118,12 +118,11 @@ static void ccw_init(MachineState *machine)
 {
     int ret;
     VirtualCssBus *css_bus;
-    DeviceState *dev;
 
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
 
-    /* init CPUs */
+    /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
 
     s390_flic_init();
@@ -134,10 +133,13 @@ static void ccw_init(MachineState *machine)
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
 
-    dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
-    object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
-                              OBJECT(dev), NULL);
-    qdev_init_nofail(dev);
+    if (s390_has_feat(S390_FEAT_ZPCI)) {
+        DeviceState *dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
+        object_property_add_child(qdev_get_machine(),
+                                  TYPE_S390_PCI_HOST_BRIDGE,
+                                  OBJECT(dev), NULL);
+        qdev_init_nofail(dev);
+    }
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
