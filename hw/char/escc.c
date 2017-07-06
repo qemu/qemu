@@ -1016,7 +1016,7 @@ static void escc_realize(DeviceState *dev, Error **errp)
         if (qemu_chr_fe_get_driver(&s->chn[i].chr)) {
             s->chn[i].clock = s->frequency / 2;
             qemu_chr_fe_set_handlers(&s->chn[i].chr, serial_can_receive,
-                                     serial_receive1, serial_event,
+                                     serial_receive1, serial_event, NULL,
                                      &s->chn[i], NULL, true);
         }
     }

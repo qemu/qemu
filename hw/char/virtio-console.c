@@ -188,11 +188,11 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
          */
         if (k->is_console) {
             qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
-                                     NULL, vcon, NULL, true);
+                                     NULL, NULL, vcon, NULL, true);
             virtio_serial_open(port);
         } else {
             qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
-                                     chr_event, vcon, NULL, false);
+                                     chr_event, NULL, vcon, NULL, false);
         }
     }
 }

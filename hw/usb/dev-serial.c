@@ -502,7 +502,7 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
     }
 
     qemu_chr_fe_set_handlers(&s->cs, usb_serial_can_read, usb_serial_read,
-                             usb_serial_event, s, NULL, true);
+                             usb_serial_event, NULL, s, NULL, true);
     usb_serial_handle_reset(dev);
 
     if (chr->be_open && !dev->attached) {

@@ -106,7 +106,7 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
 
     /* FIXME we should resubmit pending requests when the CDS reconnects. */
     qemu_chr_fe_set_handlers(&s->chr, rng_egd_chr_can_read,
-                             rng_egd_chr_read, NULL, s, NULL, true);
+                             rng_egd_chr_read, NULL, NULL, s, NULL, true);
 }
 
 static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)

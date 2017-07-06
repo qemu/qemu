@@ -278,6 +278,7 @@ void mux_chr_set_handlers(Chardev *chr, GMainContext *context)
                              mux_chr_can_read,
                              mux_chr_read,
                              mux_chr_event,
+                             NULL,
                              chr,
                              context, true);
 }

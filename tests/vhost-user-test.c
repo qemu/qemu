@@ -464,7 +464,7 @@ static void test_server_create_chr(TestServer *server, const gchar *opt)
 
     qemu_chr_fe_init(&server->chr, chr, &error_abort);
     qemu_chr_fe_set_handlers(&server->chr, chr_can_read, chr_read,
-                             chr_event, server, NULL, true);
+                             chr_event, NULL, server, NULL, true);
 }
 
 static void test_server_listen(TestServer *server)

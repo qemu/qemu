@@ -1247,7 +1247,7 @@ static void strongarm_uart_realize(DeviceState *dev, Error **errp)
                              strongarm_uart_can_receive,
                              strongarm_uart_receive,
                              strongarm_uart_event,
-                             s, NULL, true);
+                             NULL, s, NULL, true);
 }
 
 static void strongarm_uart_reset(DeviceState *dev)

@@ -1970,7 +1970,8 @@ static void pxa2xx_fir_realize(DeviceState *dev, Error **errp)
     PXA2xxFIrState *s = PXA2XX_FIR(dev);
 
     qemu_chr_fe_set_handlers(&s->chr, pxa2xx_fir_is_empty,
-                             pxa2xx_fir_rx, pxa2xx_fir_event, s, NULL, true);
+                             pxa2xx_fir_rx, pxa2xx_fir_event, NULL, s, NULL,
+                             true);
 }
 
 static bool pxa2xx_fir_vmstate_validate(void *opaque, int version_id)

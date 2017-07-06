@@ -207,7 +207,8 @@ static void stm32f2xx_usart_realize(DeviceState *dev, Error **errp)
     STM32F2XXUsartState *s = STM32F2XX_USART(dev);
 
     qemu_chr_fe_set_handlers(&s->chr, stm32f2xx_usart_can_receive,
-                             stm32f2xx_usart_receive, NULL, s, NULL, true);
+                             stm32f2xx_usart_receive, NULL, NULL,
+                             s, NULL, true);
 }
 
 static void stm32f2xx_usart_class_init(ObjectClass *klass, void *data)

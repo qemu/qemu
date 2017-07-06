@@ -158,7 +158,7 @@ void xtensa_sim_open_console(Chardev *chr)
     static CharBackend console;
 
     qemu_chr_fe_init(&console, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&console, NULL, NULL, NULL, NULL, NULL, true);
+    qemu_chr_fe_set_handlers(&console, NULL, NULL, NULL, NULL, NULL, NULL, true);
     xtensa_sim_console = &console;
 }
 

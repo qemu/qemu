@@ -4,6 +4,7 @@
 #include "chardev/char.h"
 
 typedef void IOEventHandler(void *opaque, int event);
+typedef int BackendChangeHandler(void *opaque);
 
 /* This is the backend as seen by frontend, the actual backend is
  * Chardev */
@@ -12,6 +13,7 @@ struct CharBackend {
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
     IOReadHandler *chr_read;
+    BackendChangeHandler *chr_be_change;
     void *opaque;
     int tag;
     int fe_open;
@@ -54,6 +56,8 @@ Chardev *qemu_chr_fe_get_driver(CharBackend *be);
  *               receive
  * @fd_read: callback to receive data from char
  * @fd_event: event callback
+ * @be_change: backend change callback; passing NULL means hot backend change
+ *             is not supported and will not be attempted
  * @opaque: an opaque pointer for the callbacks
  * @context: a main loop context or NULL for the default
  * @set_open: whether to call qemu_chr_fe_set_open() implicitely when
@@ -68,6 +72,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
                               IOReadHandler *fd_read,
                               IOEventHandler *fd_event,
+                              BackendChangeHandler *be_change,
                               void *opaque,
                               GMainContext *context,
                               bool set_open);

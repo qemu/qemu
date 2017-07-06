@@ -279,7 +279,7 @@ static void bcm2835_aux_realize(DeviceState *dev, Error **errp)
     BCM2835AuxState *s = BCM2835_AUX(dev);
 
     qemu_chr_fe_set_handlers(&s->chr, bcm2835_aux_can_receive,
-                             bcm2835_aux_receive, NULL, s, NULL, true);
+                             bcm2835_aux_receive, NULL, NULL, s, NULL, true);
 }
 
 static Property bcm2835_aux_props[] = {

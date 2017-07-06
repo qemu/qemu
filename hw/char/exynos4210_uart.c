@@ -645,7 +645,7 @@ static void exynos4210_uart_realize(DeviceState *dev, Error **errp)
 
     qemu_chr_fe_set_handlers(&s->chr, exynos4210_uart_can_receive,
                              exynos4210_uart_receive, exynos4210_uart_event,
-                             s, NULL, true);
+                             NULL, s, NULL, true);
 }
 
 static Property exynos4210_uart_properties[] = {

@@ -533,7 +533,7 @@ static void boston_mach_init(MachineState *machine)
     chr = qemu_chr_new("lcd", "vc:320x240");
     qemu_chr_fe_init(&s->lcd_display, chr, NULL);
     qemu_chr_fe_set_handlers(&s->lcd_display, NULL, NULL,
-                             boston_lcd_event, s, NULL, true);
+                             boston_lcd_event, NULL, s, NULL, true);
 
     ahci = pci_create_simple_multifunction(&PCI_BRIDGE(&pcie2->root)->sec_bus,
                                            PCI_DEVFN(0, 0),
