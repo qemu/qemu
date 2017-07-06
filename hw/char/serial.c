@@ -312,6 +312,24 @@ static void serial_write_fcr(SerialState *s, uint8_t val)
     }
 }
 
+static void serial_update_tiocm(SerialState *s)
+{
+    int flags;
+
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
+
+    flags &= ~(CHR_TIOCM_RTS | CHR_TIOCM_DTR);
+
+    if (s->mcr & UART_MCR_RTS) {
+        flags |= CHR_TIOCM_RTS;
+    }
+    if (s->mcr & UART_MCR_DTR) {
+        flags |= CHR_TIOCM_DTR;
+    }
+
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
+}
+
 static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size)
 {
@@ -426,24 +444,13 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case 4:
         {
-            int flags;
             int old_mcr = s->mcr;
             s->mcr = val & 0x1f;
             if (val & UART_MCR_LOOP)
                 break;
 
             if (s->poll_msl >= 0 && old_mcr != s->mcr) {
-
-                qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
-
-                flags &= ~(CHR_TIOCM_RTS | CHR_TIOCM_DTR);
-
-                if (val & UART_MCR_RTS)
-                    flags |= CHR_TIOCM_RTS;
-                if (val & UART_MCR_DTR)
-                    flags |= CHR_TIOCM_DTR;
-
-                qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
+                serial_update_tiocm(s);
                 /* Update the modem status after a one-character-send wait-time, since there may be a response
                    from the device/computer at the other end of the serial line */
                 timer_mod(s->modem_status_poll, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time);
