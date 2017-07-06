@@ -44,10 +44,10 @@
 #define SCLP_CMDW_DECONFIGURE_CPU               0x00100001
 
 /* SCLP PCI codes */
-#define SCLP_HAS_PCI_RECONFIG                   0x0000000040000000ULL
-#define SCLP_CMDW_CONFIGURE_PCI                 0x001a0001
-#define SCLP_CMDW_DECONFIGURE_PCI               0x001b0001
-#define SCLP_RECONFIG_PCI_ATPYE                 2
+#define SCLP_HAS_IOA_RECONFIG                   0x0000000040000000ULL
+#define SCLP_CMDW_CONFIGURE_IOA                 0x001a0001
+#define SCLP_CMDW_DECONFIGURE_IOA               0x001b0001
+#define SCLP_RECONFIG_PCI_ATYPE                 2
 
 /* SCLP response codes */
 #define SCLP_RC_NORMAL_READ_COMPLETION          0x0010
@@ -167,6 +167,14 @@ typedef struct AssignStorage {
     SCCBHeader h;
     uint16_t rn;
 } QEMU_PACKED AssignStorage;
+
+typedef struct IoaCfgSccb {
+    SCCBHeader header;
+    uint8_t atype;
+    uint8_t reserved1;
+    uint16_t reserved2;
+    uint32_t aid;
+} QEMU_PACKED IoaCfgSccb;
 
 typedef struct SCCB {
     SCCBHeader h;

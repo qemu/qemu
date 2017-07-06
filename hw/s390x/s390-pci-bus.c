@@ -122,15 +122,10 @@ S390PCIBusDevice *s390_pci_find_dev_by_fid(S390pciState *s, uint32_t fid)
 
 void s390_pci_sclp_configure(SCCB *sccb)
 {
-    PciCfgSccb *psccb = (PciCfgSccb *)sccb;
+    IoaCfgSccb *psccb = (IoaCfgSccb *)sccb;
     S390PCIBusDevice *pbdev = s390_pci_find_dev_by_fid(s390_get_phb(),
                                                        be32_to_cpu(psccb->aid));
     uint16_t rc;
-
-    if (be16_to_cpu(sccb->h.length) < 16) {
-        rc = SCLP_RC_INSUFFICIENT_SCCB_LENGTH;
-        goto out;
-    }
 
     if (!pbdev) {
         DPRINTF("sclp config no dev found\n");
@@ -155,15 +150,10 @@ out:
 
 void s390_pci_sclp_deconfigure(SCCB *sccb)
 {
-    PciCfgSccb *psccb = (PciCfgSccb *)sccb;
+    IoaCfgSccb *psccb = (IoaCfgSccb *)sccb;
     S390PCIBusDevice *pbdev = s390_pci_find_dev_by_fid(s390_get_phb(),
                                                        be32_to_cpu(psccb->aid));
     uint16_t rc;
-
-    if (be16_to_cpu(sccb->h.length) < 16) {
-        rc = SCLP_RC_INSUFFICIENT_SCCB_LENGTH;
-        goto out;
-    }
 
     if (!pbdev) {
         DPRINTF("sclp deconfig no dev found\n");
