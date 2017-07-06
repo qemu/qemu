@@ -556,17 +556,23 @@ help_string_append(const char *name, void *opaque)
     g_string_append_printf(str, "\n%s", name);
 }
 
-Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
-                                Error **errp)
+static const char *chardev_alias_translate(const char *name)
+{
+    int i;
+    for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
+        if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
+            return chardev_alias_table[i].typename;
+        }
+    }
+    return name;
+}
+
+static ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     const ChardevClass *cc;
-    Chardev *chr;
-    int i;
     ChardevBackend *backend = NULL;
-    const char *name = qemu_opt_get(opts, "backend");
-    const char *id = qemu_opts_id(opts);
-    char *bid = NULL;
+    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
 
     if (name == NULL) {
         error_setg(errp, "chardev: \"%s\" missing backend",
@@ -574,7 +580,40 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         return NULL;
     }
 
-    if (is_help_option(name)) {
+    cc = char_get_class(name, errp);
+    if (cc == NULL) {
+        return NULL;
+    }
+
+    backend = g_new0(ChardevBackend, 1);
+    backend->type = CHARDEV_BACKEND_KIND_NULL;
+
+    if (cc->parse) {
+        cc->parse(opts, backend, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            qapi_free_ChardevBackend(backend);
+            return NULL;
+        }
+    } else {
+        ChardevCommon *ccom = g_new0(ChardevCommon, 1);
+        qemu_chr_parse_common(opts, ccom);
+        backend->u.null.data = ccom; /* Any ChardevCommon member would work */
+    }
+
+    return backend;
+}
+
+Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
+{
+    const ChardevClass *cc;
+    Chardev *chr = NULL;
+    ChardevBackend *backend = NULL;
+    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
+    const char *id = qemu_opts_id(opts);
+    char *bid = NULL;
+
+    if (name && is_help_option(name)) {
         GString *str = g_string_new("");
 
         chardev_name_foreach(help_string_append, str);
@@ -589,36 +628,18 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
         return NULL;
     }
 
-    for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
-        if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
-            name = chardev_alias_table[i].typename;
-            break;
-        }
+    backend = qemu_chr_parse_opts(opts, errp);
+    if (backend == NULL) {
+        return NULL;
     }
 
     cc = char_get_class(name, errp);
     if (cc == NULL) {
-        return NULL;
+        goto out;
     }
-
-    backend = g_new0(ChardevBackend, 1);
-    backend->type = CHARDEV_BACKEND_KIND_NULL;
 
     if (qemu_opt_get_bool(opts, "mux", 0)) {
         bid = g_strdup_printf("%s-base", id);
-    }
-
-    chr = NULL;
-    if (cc->parse) {
-        cc->parse(opts, backend, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            goto out;
-        }
-    } else {
-        ChardevCommon *ccom = g_new0(ChardevCommon, 1);
-        qemu_chr_parse_common(opts, ccom);
-        backend->u.null.data = ccom; /* Any ChardevCommon member would work */
     }
 
     chr = qemu_chardev_new(bid ? bid : id,
