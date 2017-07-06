@@ -407,16 +407,11 @@ static void char_pipe_test(void)
 }
 #endif
 
-static void char_udp_test(void)
+static int make_udp_socket(int *port)
 {
-    struct sockaddr_in addr = { 0, }, other;
-    SocketIdleData d = { 0, };
-    Chardev *chr;
-    CharBackend be;
+    struct sockaddr_in addr = { 0, };
     socklen_t alen = sizeof(addr);
     int ret, sock = qemu_socket(PF_INET, SOCK_DGRAM, 0);
-    char buf[10];
-    char *tmp;
 
     g_assert_cmpint(sock, >, 0);
     addr.sin_family = AF_INET ;
@@ -427,19 +422,41 @@ static void char_udp_test(void)
     ret = getsockname(sock, (struct sockaddr *)&addr, &alen);
     g_assert_cmpint(ret, ==, 0);
 
-    tmp = g_strdup_printf("udp:127.0.0.1:%d",
-                          ntohs(addr.sin_port));
-    chr = qemu_chr_new("client", tmp);
-    g_assert_nonnull(chr);
+    *port = ntohs(addr.sin_port);
+    return sock;
+}
+
+static void char_udp_test_internal(Chardev *reuse_chr, int sock)
+{
+    struct sockaddr_in other;
+    SocketIdleData d = { 0, };
+    Chardev *chr;
+    CharBackend *be;
+    socklen_t alen = sizeof(other);
+    int ret;
+    char buf[10];
+    char *tmp = NULL;
+
+    if (reuse_chr) {
+        chr = reuse_chr;
+        be = chr->be;
+    } else {
+        int port;
+        sock = make_udp_socket(&port);
+        tmp = g_strdup_printf("udp:127.0.0.1:%d", port);
+        chr = qemu_chr_new("client", tmp);
+        g_assert_nonnull(chr);
+
+        be = g_alloca(sizeof(CharBackend));
+        qemu_chr_fe_init(be, chr, &error_abort);
+    }
 
     d.chr = chr;
-    qemu_chr_fe_init(&be, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&be, socket_can_read_hello, socket_read_hello,
+    qemu_chr_fe_set_handlers(be, socket_can_read_hello, socket_read_hello,
                              NULL, NULL, &d, NULL, true);
     ret = qemu_chr_write_all(chr, (uint8_t *)"hello", 5);
     g_assert_cmpint(ret, ==, 5);
 
-    alen = sizeof(addr);
     ret = recvfrom(sock, buf, sizeof(buf), 0,
                    (struct sockaddr *)&other, &alen);
     g_assert_cmpint(ret, ==, 5);
@@ -448,9 +465,16 @@ static void char_udp_test(void)
 
     main_loop();
 
-    close(sock);
+    if (!reuse_chr) {
+        close(sock);
+        qemu_chr_fe_deinit(be, true);
+    }
     g_free(tmp);
-    qemu_chr_fe_deinit(&be, true);
+}
+
+static void char_udp_test(void)
+{
+    char_udp_test_internal(NULL, 0);
 }
 
 #ifdef HAVE_CHARDEV_SERIAL
