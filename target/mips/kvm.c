@@ -523,7 +523,7 @@ static void kvm_mips_update_state(void *opaque, int running, RunState state)
      * already saved and can be restored when it is synced back to KVM.
      */
     if (!running) {
-        if (!cs->kvm_vcpu_dirty) {
+        if (!cs->vcpu_dirty) {
             ret = kvm_mips_save_count(cs);
             if (ret < 0) {
                 fprintf(stderr, "Failed saving count\n");
@@ -539,7 +539,7 @@ static void kvm_mips_update_state(void *opaque, int running, RunState state)
             return;
         }
 
-        if (!cs->kvm_vcpu_dirty) {
+        if (!cs->vcpu_dirty) {
             ret = kvm_mips_restore_count(cs);
             if (ret < 0) {
                 fprintf(stderr, "Failed restoring count\n");

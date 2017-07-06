@@ -1,0 +1,22 @@
+/*
+ * QEMU TCG accelerator stub
+ *
+ * Copyright Red Hat, Inc. 2013
+ *
+ * Author: Paolo Bonzini     <pbonzini@redhat.com>
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ *
+ */
+
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "cpu.h"
+#include "tcg/tcg.h"
+#include "exec/cpu-common.h"
+#include "exec/exec-all.h"
+
+void tb_flush(CPUState *cpu)
+{
+}

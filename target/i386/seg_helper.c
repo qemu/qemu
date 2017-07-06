@@ -692,7 +692,10 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     if (!(e2 & DESC_P_MASK)) {
         raise_exception_err(env, EXCP0B_NOSEG, selector & 0xfffc);
     }
-    if (!(e2 & DESC_C_MASK) && dpl < cpl) {
+    if (e2 & DESC_C_MASK) {
+        dpl = cpl;
+    }
+    if (dpl < cpl) {
         /* to inner privilege */
         get_ss_esp_from_tss(env, &ss, &esp, dpl, 0);
         if ((ss & 0xfffc) == 0) {
@@ -719,7 +722,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         new_stack = 1;
         sp_mask = get_sp_mask(ss_e2);
         ssp = get_seg_base(ss_e1, ss_e2);
-    } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
+    } else  {
         /* to same privilege */
         if (vm86) {
             raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
@@ -728,13 +731,6 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         sp_mask = get_sp_mask(env->segs[R_SS].flags);
         ssp = env->segs[R_SS].base;
         esp = env->regs[R_ESP];
-        dpl = cpl;
-    } else {
-        raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
-        new_stack = 0; /* avoid warning */
-        sp_mask = 0; /* avoid warning */
-        ssp = 0; /* avoid warning */
-        esp = 0; /* avoid warning */
     }
 
     shift = type >> 3;
@@ -919,23 +915,21 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     if (!(e2 & DESC_L_MASK) || (e2 & DESC_B_MASK)) {
         raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
     }
-    if ((!(e2 & DESC_C_MASK) && dpl < cpl) || ist != 0) {
+    if (e2 & DESC_C_MASK) {
+        dpl = cpl;
+    }
+    if (dpl < cpl || ist != 0) {
         /* to inner privilege */
         new_stack = 1;
         esp = get_rsp_from_tss(env, ist != 0 ? ist + 3 : dpl);
         ss = 0;
-    } else if ((e2 & DESC_C_MASK) || dpl == cpl) {
+    } else {
         /* to same privilege */
         if (env->eflags & VM_MASK) {
             raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
         }
         new_stack = 0;
         esp = env->regs[R_ESP];
-        dpl = cpl;
-    } else {
-        raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
-        new_stack = 0; /* avoid warning */
-        esp = 0; /* avoid warning */
     }
     esp &= ~0xfLL; /* align stack */
 
@@ -956,7 +950,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 
     if (new_stack) {
         ss = 0 | dpl;
-        cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, 0);
+        cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, dpl << DESC_DPL_SHIFT);
     }
     env->regs[R_ESP] = esp;
 

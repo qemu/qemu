@@ -23,6 +23,8 @@
 #include "exec/exec-all.h"
 #include "exec/memory-internal.h"
 
+bool tcg_allowed;
+
 /* exit the current TB, but without causing any exception to be raised */
 void cpu_loop_exit_noexc(CPUState *cpu)
 {

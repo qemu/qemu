@@ -63,7 +63,7 @@ typedef struct AccelClass {
 #define ACCEL_GET_CLASS(obj) \
     OBJECT_GET_CLASS(AccelClass, (obj), TYPE_ACCEL)
 
-extern int tcg_tb_size;
+extern unsigned long tcg_tb_size;
 
 void configure_accelerator(MachineState *ms);
 /* Register accelerator specific global properties */
