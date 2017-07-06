@@ -46,7 +46,6 @@
 struct common {
     struct XenDevice  xendev;  /* must be first */
     void              *page;
-    QemuConsole       *con;
 };
 
 struct XenInput {
@@ -61,6 +60,7 @@ struct XenInput {
 
 struct XenFB {
     struct common     c;
+    QemuConsole       *con;
     size_t            fb_len;
     int               row_stride;
     int               depth;
@@ -71,7 +71,6 @@ struct XenFB {
     int               fbpages;
     int               feature_update;
     int               bug_trigger;
-    int               have_console;
     int               do_resize;
 
     struct {
@@ -80,6 +79,7 @@ struct XenFB {
     int               up_count;
     int               up_fullscreen;
 };
+static const GraphicHwOps xenfb_ops;
 
 /* -------------------------------------------------------------------- */
 
@@ -306,10 +306,18 @@ static void xenfb_mouse_event(void *opaque,
 			      int dx, int dy, int dz, int button_state)
 {
     struct XenInput *xenfb = opaque;
-    DisplaySurface *surface = qemu_console_surface(xenfb->c.con);
-    int dw = surface_width(surface);
-    int dh = surface_height(surface);
-    int i;
+    QemuConsole *con = qemu_console_lookup_by_index(0);
+    DisplaySurface *surface;
+    int dw, dh, i;
+
+    if (!con) {
+        xen_pv_printf(&xenfb->c.xendev, 0, "No QEMU console available");
+        return;
+    }
+
+    surface = qemu_console_surface(con);
+    dw = surface_width(surface);
+    dh = surface_height(surface);
 
     trace_xenfb_mouse_event(opaque, dx, dy, dz, button_state,
                             xenfb->abs_pointer_wanted);
@@ -343,11 +351,6 @@ static int input_initialise(struct XenDevice *xendev)
 {
     struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
     int rc;
-
-    if (!in->c.con) {
-        xen_pv_printf(xendev, 1, "ds not set (yet)\n");
-        return -1;
-    }
 
     rc = common_bind(&in->c);
     if (rc != 0)
@@ -608,7 +611,7 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
  */
 static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
 {
-    DisplaySurface *surface = qemu_console_surface(xenfb->c.con);
+    DisplaySurface *surface = qemu_console_surface(xenfb->con);
     int line, oops = 0;
     int bpp = surface_bits_per_pixel(surface);
     int linesize = surface_stride(surface);
@@ -642,7 +645,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
         xen_pv_printf(&xenfb->c.xendev, 0, "%s: oops: convert %d -> %d bpp?\n",
                       __FUNCTION__, xenfb->depth, bpp);
 
-    dpy_gfx_update(xenfb->c.con, x, y, w, h);
+    dpy_gfx_update(xenfb->con, x, y, w, h);
 }
 
 #ifdef XENFB_TYPE_REFRESH_PERIOD
@@ -728,7 +731,7 @@ static void xenfb_update(void *opaque)
             surface = qemu_create_displaysurface(xenfb->width, xenfb->height);
             break;
         }
-        dpy_gfx_replace_surface(xenfb->c.con, surface);
+        dpy_gfx_replace_surface(xenfb->con, surface);
         xen_pv_printf(&xenfb->c.xendev, 1,
                       "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
@@ -877,16 +880,7 @@ static int fb_initialise(struct XenDevice *xendev)
     if (rc != 0)
 	return rc;
 
-#if 0  /* handled in xen_init_display() for now */
-    if (!fb->have_console) {
-        fb->c.ds = graphic_console_init(xenfb_update,
-                                        xenfb_invalidate,
-                                        NULL,
-                                        NULL,
-                                        fb);
-        fb->have_console = 1;
-    }
-#endif
+    fb->con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
 
     if (xenstore_read_fe_int(xendev, "feature-update", &fb->feature_update) == -1)
 	fb->feature_update = 0;
@@ -972,42 +966,3 @@ static const GraphicHwOps xenfb_ops = {
     .gfx_update  = xenfb_update,
     .update_interval = xenfb_update_interval,
 };
-
-/*
- * FIXME/TODO: Kill this.
- * Temporary needed while DisplayState reorganization is in flight.
- */
-void xen_init_display(int domid)
-{
-    struct XenDevice *xfb, *xin;
-    struct XenFB *fb;
-    struct XenInput *in;
-    int i = 0;
-
-wait_more:
-    i++;
-    main_loop_wait(true);
-    xfb = xen_pv_find_xendev("vfb", domid, 0);
-    xin = xen_pv_find_xendev("vkbd", domid, 0);
-    if (!xfb || !xin) {
-        if (i < 256) {
-            usleep(10000);
-            goto wait_more;
-        }
-        xen_pv_printf(NULL, 1, "displaystate setup failed\n");
-        return;
-    }
-
-    /* vfb */
-    fb = container_of(xfb, struct XenFB, c.xendev);
-    fb->c.con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
-    fb->have_console = 1;
-
-    /* vkbd */
-    in = container_of(xin, struct XenInput, c.xendev);
-    in->c.con = fb->c.con;
-
-    /* retry ->init() */
-    xen_be_check_state(xin);
-    xen_be_check_state(xfb);
-}

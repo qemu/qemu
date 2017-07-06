@@ -94,9 +94,6 @@ static void xen_init_pv(MachineState *machine)
 
     /* config cleanup hook */
     atexit(xen_config_cleanup);
-
-    /* setup framebuffer */
-    xen_init_display(xen_domid);
 }
 
 static void xenpv_machine_init(MachineClass *mc)
