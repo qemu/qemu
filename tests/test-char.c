@@ -658,6 +658,76 @@ static void char_invalid_test(void)
     g_assert_null(chr);
 }
 
+static int chardev_change(void *opaque)
+{
+    return 0;
+}
+
+static int chardev_change_denied(void *opaque)
+{
+    return -1;
+}
+
+static void char_hotswap_test(void)
+{
+    char *chr_args;
+    Chardev *chr;
+    CharBackend be;
+
+    gchar *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
+    char *filename = g_build_filename(tmp_path, "file", NULL);
+    ChardevFile file = { .out = filename };
+    ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
+                               .u.file.data = &file };
+    ChardevReturn *ret;
+
+    int port;
+    int sock = make_udp_socket(&port);
+    g_assert_cmpint(sock, >, 0);
+
+    chr_args = g_strdup_printf("udp:127.0.0.1:%d", port);
+
+    chr = qemu_chr_new("chardev", chr_args);
+    qemu_chr_fe_init(&be, chr, &error_abort);
+
+    /* check that chardev operates correctly */
+    char_udp_test_internal(chr, sock);
+
+    /* set the handler that denies the hotswap */
+    qemu_chr_fe_set_handlers(&be, NULL, NULL,
+                             NULL, chardev_change_denied, NULL, NULL, true);
+
+    /* now, change is denied and has to keep the old backend operating */
+    ret = qmp_chardev_change("chardev", &backend, NULL);
+    g_assert(!ret);
+    g_assert(be.chr == chr);
+
+    char_udp_test_internal(chr, sock);
+
+    /* now allow the change */
+    qemu_chr_fe_set_handlers(&be, NULL, NULL,
+                             NULL, chardev_change, NULL, NULL, true);
+
+    /* has to succeed now */
+    ret = qmp_chardev_change("chardev", &backend, &error_abort);
+    g_assert(be.chr != chr);
+
+    close(sock);
+    chr = be.chr;
+
+    /* run the file chardev test */
+    char_file_test_internal(chr, filename);
+
+    object_unparent(OBJECT(chr));
+
+    qapi_free_ChardevReturn(ret);
+    g_unlink(filename);
+    g_free(filename);
+    g_rmdir(tmp_path);
+    g_free(tmp_path);
+    g_free(chr_args);
+}
+
 int main(int argc, char **argv)
 {
     qemu_init_main_loop(&error_abort);
@@ -692,6 +762,7 @@ int main(int argc, char **argv)
 #ifdef HAVE_CHARDEV_SERIAL
     g_test_add_func("/char/serial", char_serial_test);
 #endif
+    g_test_add_func("/char/hotswap", char_hotswap_test);
 
     return g_test_run();
 }
