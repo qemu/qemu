@@ -92,8 +92,18 @@ static void flush_all_helper(CPUState *src, run_on_cpu_func fn,
     }
 }
 
-/* statistics */
-int tlb_flush_count;
+size_t tlb_flush_count(void)
+{
+    CPUState *cpu;
+    size_t count = 0;
+
+    CPU_FOREACH(cpu) {
+        CPUArchState *env = cpu->env_ptr;
+
+        count += atomic_read(&env->tlb_flush_count);
+    }
+    return count;
+}
 
 /* This is OK because CPU architectures generally permit an
  * implementation to drop entries from the TLB at any time, so
@@ -112,7 +122,8 @@ static void tlb_flush_nocheck(CPUState *cpu)
     }
 
     assert_cpu_is_self(cpu);
-    tlb_debug("(count: %d)\n", tlb_flush_count++);
+    atomic_set(&env->tlb_flush_count, env->tlb_flush_count + 1);
+    tlb_debug("(count: %zu)\n", tlb_flush_count());
 
     tb_lock();
 
