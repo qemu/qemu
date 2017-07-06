@@ -891,6 +891,34 @@ static void serial_reset(void *opaque)
     s->msr &= ~UART_MSR_ANY_DELTA;
 }
 
+static int serial_be_change(void *opaque)
+{
+    SerialState *s = opaque;
+
+    qemu_chr_fe_set_handlers(&s->chr, serial_can_receive1, serial_receive1,
+                             serial_event, serial_be_change, s, NULL, true);
+
+    serial_update_parameters(s);
+
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
+                      &s->last_break_enable);
+
+    s->poll_msl = (s->ier & UART_IER_MSI) ? 1 : 0;
+    serial_update_msl(s);
+
+    if (s->poll_msl >= 0 && !(s->mcr & UART_MCR_LOOP)) {
+        serial_update_tiocm(s);
+    }
+
+    if (s->watch_tag > 0) {
+        g_source_remove(s->watch_tag);
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                                             serial_watch_cb, s);
+    }
+
+    return 0;
+}
+
 void serial_realize_core(SerialState *s, Error **errp)
 {
     if (!qemu_chr_fe_backend_connected(&s->chr)) {
@@ -904,7 +932,7 @@ void serial_realize_core(SerialState *s, Error **errp)
     qemu_register_reset(serial_reset, s);
 
     qemu_chr_fe_set_handlers(&s->chr, serial_can_receive1, serial_receive1,
-                             serial_event, NULL, s, NULL, true);
+                             serial_event, serial_be_change, s, NULL, true);
     fifo8_create(&s->recv_fifo, UART_FIFO_LENGTH);
     fifo8_create(&s->xmit_fifo, UART_FIFO_LENGTH);
     serial_reset(s);
