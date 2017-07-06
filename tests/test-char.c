@@ -503,80 +503,108 @@ static void char_serial_test(void)
 }
 #endif
 
-static void char_file_test(void)
+#ifndef _WIN32
+static void char_file_fifo_test(void)
 {
+    Chardev *chr;
+    CharBackend be;
     char *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
+    char *fifo = g_build_filename(tmp_path, "fifo", NULL);
     char *out = g_build_filename(tmp_path, "out", NULL);
-    char *contents = NULL;
-    ChardevFile file = { .out = out };
+    ChardevFile file = { .in = fifo,
+                         .has_in = true,
+                         .out = out };
     ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
                                .u.file.data = &file };
+    FeHandler fe = { 0, };
+    int fd, ret;
+
+    if (mkfifo(fifo, 0600) < 0) {
+        abort();
+    }
+
+    fd = open(fifo, O_RDWR);
+    ret = write(fd, "fifo-in", 8);
+    g_assert_cmpint(ret, ==, 8);
+
+    chr = qemu_chardev_new("label-file", TYPE_CHARDEV_FILE, &backend,
+                           &error_abort);
+
+    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&be,
+                             fe_can_read,
+                             fe_read,
+                             fe_event,
+                             NULL,
+                             &fe, NULL, true);
+
+    g_assert_cmpint(fe.last_event, !=, CHR_EVENT_BREAK);
+    qmp_chardev_send_break("label-foo", NULL);
+    g_assert_cmpint(fe.last_event, !=, CHR_EVENT_BREAK);
+    qmp_chardev_send_break("label-file", NULL);
+    g_assert_cmpint(fe.last_event, ==, CHR_EVENT_BREAK);
+
+    main_loop();
+
+    close(fd);
+
+    g_assert_cmpint(fe.read_count, ==, 8);
+    g_assert_cmpstr(fe.read_buf, ==, "fifo-in");
+
+    qemu_chr_fe_deinit(&be, true);
+
+    g_unlink(fifo);
+    g_free(fifo);
+    g_unlink(out);
+    g_free(out);
+    g_rmdir(tmp_path);
+    g_free(tmp_path);
+}
+#endif
+
+static void char_file_test_internal(Chardev *ext_chr, const char *filepath)
+{
+    char *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
+    char *out;
     Chardev *chr;
+    char *contents = NULL;
+    ChardevFile file = {};
+    ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
+                               .u.file.data = &file };
     gsize length;
     int ret;
 
-    chr = qemu_chardev_new(NULL, TYPE_CHARDEV_FILE, &backend,
-                           &error_abort);
+    if (ext_chr) {
+        chr = ext_chr;
+        out = g_strdup(filepath);
+        file.out = out;
+    } else {
+        out = g_build_filename(tmp_path, "out", NULL);
+        file.out = out;
+        chr = qemu_chardev_new(NULL, TYPE_CHARDEV_FILE, &backend,
+                               &error_abort);
+    }
     ret = qemu_chr_write_all(chr, (uint8_t *)"hello!", 6);
     g_assert_cmpint(ret, ==, 6);
-    object_unref(OBJECT(chr));
 
     ret = g_file_get_contents(out, &contents, &length, NULL);
     g_assert(ret == TRUE);
     g_assert_cmpint(length, ==, 6);
     g_assert(strncmp(contents, "hello!", 6) == 0);
-    g_free(contents);
 
-#ifndef _WIN32
-    {
-        CharBackend be;
-        FeHandler fe = { 0, };
-        char *fifo = g_build_filename(tmp_path, "fifo", NULL);
-        int fd;
-
-        if (mkfifo(fifo, 0600) < 0) {
-            abort();
-        }
-
-        fd = open(fifo, O_RDWR);
-        ret = write(fd, "fifo-in", 8);
-        g_assert_cmpint(ret, ==, 8);
-
-        file.in = fifo;
-        file.has_in = true;
-        chr = qemu_chardev_new("label-file", TYPE_CHARDEV_FILE, &backend,
-                               &error_abort);
-
-        qemu_chr_fe_init(&be, chr, &error_abort);
-        qemu_chr_fe_set_handlers(&be,
-                                 fe_can_read,
-                                 fe_read,
-                                 fe_event,
-                                 NULL,
-                                 &fe, NULL, true);
-
-        g_assert_cmpint(fe.last_event, !=, CHR_EVENT_BREAK);
-        qmp_chardev_send_break("label-foo", NULL);
-        g_assert_cmpint(fe.last_event, !=, CHR_EVENT_BREAK);
-        qmp_chardev_send_break("label-file", NULL);
-        g_assert_cmpint(fe.last_event, ==, CHR_EVENT_BREAK);
-
-        main_loop();
-
-        close(fd);
-
-        g_assert_cmpint(fe.read_count, ==, 8);
-        g_assert_cmpstr(fe.read_buf, ==, "fifo-in");
-        qemu_chr_fe_deinit(&be, true);
-        g_unlink(fifo);
-        g_free(fifo);
+    if (!ext_chr) {
+        object_unref(OBJECT(chr));
+        g_unlink(out);
     }
-#endif
-
-    g_unlink(out);
+    g_free(contents);
     g_rmdir(tmp_path);
     g_free(tmp_path);
     g_free(out);
+}
+
+static void char_file_test(void)
+{
+    char_file_test_internal(NULL, NULL);
 }
 
 static void char_null_test(void)
@@ -656,6 +684,9 @@ int main(int argc, char **argv)
     g_test_add_func("/char/pipe", char_pipe_test);
 #endif
     g_test_add_func("/char/file", char_file_test);
+#ifndef _WIN32
+    g_test_add_func("/char/file-fifo", char_file_fifo_test);
+#endif
     g_test_add_func("/char/socket", char_socket_test);
     g_test_add_func("/char/udp", char_udp_test);
 #ifdef HAVE_CHARDEV_SERIAL
