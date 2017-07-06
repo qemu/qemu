@@ -567,7 +567,7 @@ static const char *chardev_alias_translate(const char *name)
     return name;
 }
 
-static ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
+ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     const ChardevClass *cc;
