@@ -47,7 +47,7 @@ S390pciState *s390_get_phb(void)
     return phb;
 }
 
-int chsc_sei_nt2_get_event(void *res)
+int pci_chsc_sei_nt2_get_event(void *res)
 {
     ChscSeiNt2Res *nt2_res = (ChscSeiNt2Res *)res;
     PciCcdfAvail *accdf;
@@ -87,7 +87,7 @@ int chsc_sei_nt2_get_event(void *res)
     return rc;
 }
 
-int chsc_sei_nt2_have_event(void)
+int pci_chsc_sei_nt2_have_event(void)
 {
     S390pciState *s = s390_get_phb();
 

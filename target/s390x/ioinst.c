@@ -599,6 +599,22 @@ static int chsc_sei_nt0_have_event(void)
     return 0;
 }
 
+static int chsc_sei_nt2_get_event(void *res)
+{
+    if (s390_has_feat(S390_FEAT_ZPCI)) {
+        return pci_chsc_sei_nt2_get_event(res);
+    }
+    return 1;
+}
+
+static int chsc_sei_nt2_have_event(void)
+{
+    if (s390_has_feat(S390_FEAT_ZPCI)) {
+        return pci_chsc_sei_nt2_have_event();
+    }
+    return 0;
+}
+
 #define CHSC_SEI_NT0    (1ULL << 63)
 #define CHSC_SEI_NT2    (1ULL << 61)
 static void ioinst_handle_chsc_sei(ChscReq *req, ChscResp *res)

@@ -7,12 +7,12 @@
 #include "s390-pci-bus.h"
 
 /* target/s390x/ioinst.c */
-int chsc_sei_nt2_get_event(void *res)
+int pci_chsc_sei_nt2_get_event(void *res)
 {
     return 1;
 }
 
-int chsc_sei_nt2_have_event(void)
+int pci_chsc_sei_nt2_have_event(void)
 {
     return 0;
 }

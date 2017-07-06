@@ -319,8 +319,8 @@ typedef struct S390pciState {
 } S390pciState;
 
 S390pciState *s390_get_phb(void);
-int chsc_sei_nt2_get_event(void *res);
-int chsc_sei_nt2_have_event(void);
+int pci_chsc_sei_nt2_get_event(void *res);
+int pci_chsc_sei_nt2_have_event(void);
 void s390_pci_sclp_configure(SCCB *sccb);
 void s390_pci_sclp_deconfigure(SCCB *sccb);
 void s390_pci_iommu_enable(S390PCIIOMMU *iommu);
