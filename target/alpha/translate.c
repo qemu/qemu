@@ -49,6 +49,7 @@ struct DisasContext {
 #ifndef CONFIG_USER_ONLY
     uint64_t palbr;
 #endif
+    uint32_t tbflags;
     int mem_idx;
 
     /* implver and amask values for this CPU.  */
@@ -452,7 +453,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
 static bool in_superpage(DisasContext *ctx, int64_t addr)
 {
 #ifndef CONFIG_USER_ONLY
-    return ((ctx->tb->flags & TB_FLAGS_USER_MODE) == 0
+    return ((ctx->tbflags & TB_FLAGS_USER_MODE) == 0
             && addr >> TARGET_VIRT_ADDR_SPACE_BITS == -1
             && ((addr >> 41) & 3) == 2);
 #else
@@ -1167,7 +1168,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
 #ifndef CONFIG_USER_ONLY
     /* Privileged PAL code */
-    if (palcode < 0x40 && (ctx->tb->flags & TB_FLAGS_USER_MODE) == 0) {
+    if (palcode < 0x40 && (ctx->tbflags & TB_FLAGS_USER_MODE) == 0) {
         TCGv tmp;
         switch (palcode) {
         case 0x01:
@@ -1258,7 +1259,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
         uint64_t exc_addr = ctx->pc;
         uint64_t entry = ctx->palbr;
 
-        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
+        if (ctx->tbflags & TB_FLAGS_PAL_MODE) {
             exc_addr |= 1;
         } else {
             tcg_gen_movi_i64(tmp, 1);
@@ -1452,7 +1453,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 
 #define REQUIRE_TB_FLAG(FLAG)                   \
     do {                                        \
-        if ((ctx->tb->flags & (FLAG)) == 0) {   \
+        if ((ctx->tbflags & (FLAG)) == 0) {     \
             goto invalid_opc;                   \
         }                                       \
     } while (0)
@@ -2932,6 +2933,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
 
     ctx.tb = tb;
     ctx.pc = pc_start;
+    ctx.tbflags = tb->flags;
     ctx.mem_idx = cpu_mmu_index(env, false);
     ctx.implver = env->implver;
     ctx.amask = env->amask;
@@ -2941,7 +2943,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     ctx.ir = cpu_std_ir;
 #else
     ctx.palbr = env->palbr;
-    ctx.ir = (tb->flags & TB_FLAGS_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
+    ctx.ir = (ctx.tbflags & TB_FLAGS_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
 #endif
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
