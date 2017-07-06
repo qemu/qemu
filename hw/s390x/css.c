@@ -22,6 +22,7 @@
 #include "hw/s390x/css.h"
 #include "trace.h"
 #include "hw/s390x/s390_flic.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 typedef struct CrwContainer {
     CRW crw;
@@ -39,6 +40,181 @@ typedef struct SubchSet {
     unsigned long schids_used[BITS_TO_LONGS(MAX_SCHID + 1)];
     unsigned long devnos_used[BITS_TO_LONGS(MAX_SCHID + 1)];
 } SubchSet;
+
+static const VMStateDescription vmstate_scsw = {
+    .name = "s390_scsw",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16(flags, SCSW),
+        VMSTATE_UINT16(ctrl, SCSW),
+        VMSTATE_UINT32(cpa, SCSW),
+        VMSTATE_UINT8(dstat, SCSW),
+        VMSTATE_UINT8(cstat, SCSW),
+        VMSTATE_UINT16(count, SCSW),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_pmcw = {
+    .name = "s390_pmcw",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(intparm, PMCW),
+        VMSTATE_UINT16(flags, PMCW),
+        VMSTATE_UINT16(devno, PMCW),
+        VMSTATE_UINT8(lpm, PMCW),
+        VMSTATE_UINT8(pnom, PMCW),
+        VMSTATE_UINT8(lpum, PMCW),
+        VMSTATE_UINT8(pim, PMCW),
+        VMSTATE_UINT16(mbi, PMCW),
+        VMSTATE_UINT8(pom, PMCW),
+        VMSTATE_UINT8(pam, PMCW),
+        VMSTATE_UINT8_ARRAY(chpid, PMCW, 8),
+        VMSTATE_UINT32(chars, PMCW),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_schib = {
+    .name = "s390_schib",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(pmcw, SCHIB, 0, vmstate_pmcw, PMCW),
+        VMSTATE_STRUCT(scsw, SCHIB, 0, vmstate_scsw, SCSW),
+        VMSTATE_UINT64(mba, SCHIB),
+        VMSTATE_UINT8_ARRAY(mda, SCHIB, 4),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
+static const VMStateDescription vmstate_ccw1 = {
+    .name = "s390_ccw1",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(cmd_code, CCW1),
+        VMSTATE_UINT8(flags, CCW1),
+        VMSTATE_UINT16(count, CCW1),
+        VMSTATE_UINT32(cda, CCW1),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_ciw = {
+    .name = "s390_ciw",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(type, CIW),
+        VMSTATE_UINT8(command, CIW),
+        VMSTATE_UINT16(count, CIW),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_sense_id = {
+    .name = "s390_sense_id",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(reserved, SenseId),
+        VMSTATE_UINT16(cu_type, SenseId),
+        VMSTATE_UINT8(cu_model, SenseId),
+        VMSTATE_UINT16(dev_type, SenseId),
+        VMSTATE_UINT8(dev_model, SenseId),
+        VMSTATE_UINT8(unused, SenseId),
+        VMSTATE_STRUCT_ARRAY(ciw, SenseId, MAX_CIWS, 0, vmstate_ciw, CIW),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int subch_dev_post_load(void *opaque, int version_id);
+static void subch_dev_pre_save(void *opaque);
+
+const char err_hint_devno[] = "Devno mismatch, tried to load wrong section!"
+    " Likely reason: some sequences of plug and unplug  can break"
+    " migration for machine versions prior to  2.7 (known design flaw).";
+
+const VMStateDescription vmstate_subch_dev = {
+    .name = "s390_subch_dev",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = subch_dev_post_load,
+    .pre_save = subch_dev_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_EQUAL(cssid, SubchDev, "Bug!"),
+        VMSTATE_UINT8_EQUAL(ssid, SubchDev, "Bug!"),
+        VMSTATE_UINT16(migrated_schid, SubchDev),
+        VMSTATE_UINT16_EQUAL(devno, SubchDev, err_hint_devno),
+        VMSTATE_BOOL(thinint_active, SubchDev),
+        VMSTATE_STRUCT(curr_status, SubchDev, 0, vmstate_schib, SCHIB),
+        VMSTATE_UINT8_ARRAY(sense_data, SubchDev, 32),
+        VMSTATE_UINT64(channel_prog, SubchDev),
+        VMSTATE_STRUCT(last_cmd, SubchDev, 0, vmstate_ccw1, CCW1),
+        VMSTATE_BOOL(last_cmd_valid, SubchDev),
+        VMSTATE_STRUCT(id, SubchDev, 0, vmstate_sense_id, SenseId),
+        VMSTATE_BOOL(ccw_fmt_1, SubchDev),
+        VMSTATE_UINT8(ccw_no_data_cnt, SubchDev),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+typedef struct IndAddrPtrTmp {
+    IndAddr **parent;
+    uint64_t addr;
+    int32_t len;
+} IndAddrPtrTmp;
+
+static int post_load_ind_addr(void *opaque, int version_id)
+{
+    IndAddrPtrTmp *ptmp = opaque;
+    IndAddr **ind_addr = ptmp->parent;
+
+    if (ptmp->len != 0) {
+        *ind_addr = get_indicator(ptmp->addr, ptmp->len);
+    } else {
+        *ind_addr = NULL;
+    }
+    return 0;
+}
+
+static void pre_save_ind_addr(void *opaque)
+{
+    IndAddrPtrTmp *ptmp = opaque;
+    IndAddr *ind_addr = *(ptmp->parent);
+
+    if (ind_addr != NULL) {
+        ptmp->len = ind_addr->len;
+        ptmp->addr = ind_addr->addr;
+    } else {
+        ptmp->len = 0;
+        ptmp->addr = 0L;
+    }
+}
+
+const VMStateDescription vmstate_ind_addr_tmp = {
+    .name = "s390_ind_addr_tmp",
+    .pre_save = pre_save_ind_addr,
+    .post_load = post_load_ind_addr,
+
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(len, IndAddrPtrTmp),
+        VMSTATE_UINT64(addr, IndAddrPtrTmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_ind_addr = {
+    .name = "s390_ind_addr_tmp",
+    .fields = (VMStateField[]) {
+        VMSTATE_WITH_TMP(IndAddr*, IndAddrPtrTmp, vmstate_ind_addr_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 typedef struct CssImage {
     SubchSet *sch_set[MAX_SSID + 1];
@@ -76,6 +252,52 @@ static ChannelSubSys channel_subsys = {
     .indicator_addresses =
         QTAILQ_HEAD_INITIALIZER(channel_subsys.indicator_addresses),
 };
+
+static void subch_dev_pre_save(void *opaque)
+{
+    SubchDev *s = opaque;
+
+    /* Prepare remote_schid for save */
+    s->migrated_schid = s->schid;
+}
+
+static int subch_dev_post_load(void *opaque, int version_id)
+{
+
+    SubchDev *s = opaque;
+
+    /* Re-assign the subchannel to remote_schid if necessary */
+    if (s->migrated_schid != s->schid) {
+        if (css_find_subch(true, s->cssid, s->ssid, s->schid) == s) {
+            /*
+             * Cleanup the slot before moving to s->migrated_schid provided
+             * it still belongs to us, i.e. it was not changed by previous
+             * invocation of this function.
+             */
+            css_subch_assign(s->cssid, s->ssid, s->schid, s->devno, NULL);
+        }
+        /* It's OK to re-assign without a prior de-assign. */
+        s->schid = s->migrated_schid;
+        css_subch_assign(s->cssid, s->ssid, s->schid, s->devno, s);
+    }
+
+    /*
+     * Hack alert. If we don't migrate the channel subsystem status
+     * we still need to find out if the guest enabled mss/mcss-e.
+     * If the subchannel is enabled, it certainly was able to access it,
+     * so adjust the max_ssid/max_cssid values for relevant ssid/cssid
+     * values. This is not watertight, but better than nothing.
+     */
+    if (s->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA) {
+        if (s->ssid) {
+            channel_subsys.max_ssid = MAX_SSID;
+        }
+        if (s->cssid != channel_subsys.default_cssid) {
+            channel_subsys.max_cssid = MAX_CSSID;
+        }
+    }
+    return 0;
+}
 
 IndAddr *get_indicator(hwaddr ind_addr, int len)
 {
@@ -1744,162 +1966,6 @@ int css_enable_mss(void)
 {
     trace_css_enable_facility("mss");
     channel_subsys.max_ssid = MAX_SSID;
-    return 0;
-}
-
-void subch_device_save(SubchDev *s, QEMUFile *f)
-{
-    int i;
-
-    qemu_put_byte(f, s->cssid);
-    qemu_put_byte(f, s->ssid);
-    qemu_put_be16(f, s->schid);
-    qemu_put_be16(f, s->devno);
-    qemu_put_byte(f, s->thinint_active);
-    /* SCHIB */
-    /*     PMCW */
-    qemu_put_be32(f, s->curr_status.pmcw.intparm);
-    qemu_put_be16(f, s->curr_status.pmcw.flags);
-    qemu_put_be16(f, s->curr_status.pmcw.devno);
-    qemu_put_byte(f, s->curr_status.pmcw.lpm);
-    qemu_put_byte(f, s->curr_status.pmcw.pnom);
-    qemu_put_byte(f, s->curr_status.pmcw.lpum);
-    qemu_put_byte(f, s->curr_status.pmcw.pim);
-    qemu_put_be16(f, s->curr_status.pmcw.mbi);
-    qemu_put_byte(f, s->curr_status.pmcw.pom);
-    qemu_put_byte(f, s->curr_status.pmcw.pam);
-    qemu_put_buffer(f, s->curr_status.pmcw.chpid, 8);
-    qemu_put_be32(f, s->curr_status.pmcw.chars);
-    /*     SCSW */
-    qemu_put_be16(f, s->curr_status.scsw.flags);
-    qemu_put_be16(f, s->curr_status.scsw.ctrl);
-    qemu_put_be32(f, s->curr_status.scsw.cpa);
-    qemu_put_byte(f, s->curr_status.scsw.dstat);
-    qemu_put_byte(f, s->curr_status.scsw.cstat);
-    qemu_put_be16(f, s->curr_status.scsw.count);
-    qemu_put_be64(f, s->curr_status.mba);
-    qemu_put_buffer(f, s->curr_status.mda, 4);
-    /* end SCHIB */
-    qemu_put_buffer(f, s->sense_data, 32);
-    qemu_put_be64(f, s->channel_prog);
-    /* last cmd */
-    qemu_put_byte(f, s->last_cmd.cmd_code);
-    qemu_put_byte(f, s->last_cmd.flags);
-    qemu_put_be16(f, s->last_cmd.count);
-    qemu_put_be32(f, s->last_cmd.cda);
-    qemu_put_byte(f, s->last_cmd_valid);
-    qemu_put_byte(f, s->id.reserved);
-    qemu_put_be16(f, s->id.cu_type);
-    qemu_put_byte(f, s->id.cu_model);
-    qemu_put_be16(f, s->id.dev_type);
-    qemu_put_byte(f, s->id.dev_model);
-    qemu_put_byte(f, s->id.unused);
-    for (i = 0; i < ARRAY_SIZE(s->id.ciw); i++) {
-        qemu_put_byte(f, s->id.ciw[i].type);
-        qemu_put_byte(f, s->id.ciw[i].command);
-        qemu_put_be16(f, s->id.ciw[i].count);
-    }
-    qemu_put_byte(f, s->ccw_fmt_1);
-    qemu_put_byte(f, s->ccw_no_data_cnt);
-}
-
-int subch_device_load(SubchDev *s, QEMUFile *f)
-{
-    SubchDev *old_s;
-    Error *err = NULL;
-    uint16_t old_schid = s->schid;
-    uint16_t old_devno = s->devno;
-    int i;
-
-    s->cssid = qemu_get_byte(f);
-    s->ssid = qemu_get_byte(f);
-    s->schid = qemu_get_be16(f);
-    s->devno = qemu_get_be16(f);
-    if (s->devno != old_devno) {
-        /* Only possible if machine < 2.7 (no css_dev_path) */
-
-        error_setg(&err, "%x != %x", old_devno,  s->devno);
-        error_append_hint(&err, "Devno mismatch, tried to load wrong section!"
-                          " Likely reason: some sequences of plug and unplug"
-                          " can break migration for machine versions prior to"
-                          " 2.7 (known design flaw).\n");
-        error_report_err(err);
-        return -EINVAL;
-    }
-    /* Re-assign subch. */
-    if (old_schid != s->schid) {
-        old_s = channel_subsys.css[s->cssid]->sch_set[s->ssid]->sch[old_schid];
-        /*
-         * (old_s != s) means that some other device has its correct
-         * subchannel already assigned (in load).
-         */
-        if (old_s == s) {
-            css_subch_assign(s->cssid, s->ssid, old_schid, s->devno, NULL);
-        }
-        /* It's OK to re-assign without a prior de-assign. */
-        css_subch_assign(s->cssid, s->ssid, s->schid, s->devno, s);
-    }
-    s->thinint_active = qemu_get_byte(f);
-    /* SCHIB */
-    /*     PMCW */
-    s->curr_status.pmcw.intparm = qemu_get_be32(f);
-    s->curr_status.pmcw.flags = qemu_get_be16(f);
-    s->curr_status.pmcw.devno = qemu_get_be16(f);
-    s->curr_status.pmcw.lpm = qemu_get_byte(f);
-    s->curr_status.pmcw.pnom  = qemu_get_byte(f);
-    s->curr_status.pmcw.lpum = qemu_get_byte(f);
-    s->curr_status.pmcw.pim = qemu_get_byte(f);
-    s->curr_status.pmcw.mbi = qemu_get_be16(f);
-    s->curr_status.pmcw.pom = qemu_get_byte(f);
-    s->curr_status.pmcw.pam = qemu_get_byte(f);
-    qemu_get_buffer(f, s->curr_status.pmcw.chpid, 8);
-    s->curr_status.pmcw.chars = qemu_get_be32(f);
-    /*     SCSW */
-    s->curr_status.scsw.flags = qemu_get_be16(f);
-    s->curr_status.scsw.ctrl = qemu_get_be16(f);
-    s->curr_status.scsw.cpa = qemu_get_be32(f);
-    s->curr_status.scsw.dstat = qemu_get_byte(f);
-    s->curr_status.scsw.cstat = qemu_get_byte(f);
-    s->curr_status.scsw.count = qemu_get_be16(f);
-    s->curr_status.mba = qemu_get_be64(f);
-    qemu_get_buffer(f, s->curr_status.mda, 4);
-    /* end SCHIB */
-    qemu_get_buffer(f, s->sense_data, 32);
-    s->channel_prog = qemu_get_be64(f);
-    /* last cmd */
-    s->last_cmd.cmd_code = qemu_get_byte(f);
-    s->last_cmd.flags = qemu_get_byte(f);
-    s->last_cmd.count = qemu_get_be16(f);
-    s->last_cmd.cda = qemu_get_be32(f);
-    s->last_cmd_valid = qemu_get_byte(f);
-    s->id.reserved = qemu_get_byte(f);
-    s->id.cu_type = qemu_get_be16(f);
-    s->id.cu_model = qemu_get_byte(f);
-    s->id.dev_type = qemu_get_be16(f);
-    s->id.dev_model = qemu_get_byte(f);
-    s->id.unused = qemu_get_byte(f);
-    for (i = 0; i < ARRAY_SIZE(s->id.ciw); i++) {
-        s->id.ciw[i].type = qemu_get_byte(f);
-        s->id.ciw[i].command = qemu_get_byte(f);
-        s->id.ciw[i].count = qemu_get_be16(f);
-    }
-    s->ccw_fmt_1 = qemu_get_byte(f);
-    s->ccw_no_data_cnt = qemu_get_byte(f);
-    /*
-     * Hack alert. We don't migrate the channel subsystem status (no
-     * device!), but we need to find out if the guest enabled mss/mcss-e.
-     * If the subchannel is enabled, it certainly was able to access it,
-     * so adjust the max_ssid/max_cssid values for relevant ssid/cssid
-     * values. This is not watertight, but better than nothing.
-     */
-    if (s->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA) {
-        if (s->ssid) {
-            channel_subsys.max_ssid = MAX_SSID;
-        }
-        if (s->cssid != channel_subsys.default_cssid) {
-            channel_subsys.max_cssid = MAX_CSSID;
-        }
-    }
     return 0;
 }
 

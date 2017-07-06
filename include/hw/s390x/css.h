@@ -88,6 +88,7 @@ struct SubchDev {
     bool ccw_fmt_1;
     bool thinint_active;
     uint8_t ccw_no_data_cnt;
+    uint16_t migrated_schid; /* used for missmatch detection */
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
@@ -95,6 +96,8 @@ struct SubchDev {
     SenseId id;
     void *driver_data;
 };
+
+extern const VMStateDescription vmstate_subch_dev;
 
 /*
  * Identify a device within the channel subsystem.
@@ -118,9 +121,14 @@ typedef struct IndAddr {
     hwaddr addr;
     uint64_t map;
     unsigned long refcnt;
-    int len;
+    int32_t len;
     QTAILQ_ENTRY(IndAddr) sibling;
 } IndAddr;
+
+extern const VMStateDescription vmstate_ind_addr;
+
+#define VMSTATE_PTR_TO_IND_ADDR(_f, _s)                                   \
+    VMSTATE_STRUCT(_f, _s, 1, vmstate_ind_addr, IndAddr*)
 
 IndAddr *get_indicator(hwaddr ind_addr, int len);
 void release_indicator(AdapterInfo *adapter, IndAddr *indicator);
@@ -128,8 +136,6 @@ int map_indicator(AdapterInfo *adapter, IndAddr *indicator);
 
 typedef SubchDev *(*css_subch_cb_func)(uint8_t m, uint8_t cssid, uint8_t ssid,
                                        uint16_t schid);
-void subch_device_save(SubchDev *s, QEMUFile *f);
-int subch_device_load(SubchDev *s, QEMUFile *f);
 int css_create_css_image(uint8_t cssid, bool default_image);
 bool css_devno_used(uint8_t cssid, uint8_t ssid, uint16_t devno);
 void css_subch_assign(uint8_t cssid, uint8_t ssid, uint16_t schid,

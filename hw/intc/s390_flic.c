@@ -17,6 +17,7 @@
 #include "trace.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 S390FLICState *s390_get_flic(void)
 {
@@ -100,8 +101,8 @@ static void s390_flic_common_realize(DeviceState *dev, Error **errp)
     uint32_t max_batch = S390_FLIC_COMMON(dev)->adapter_routes_max_batch;
 
     if (max_batch > ADAPTER_ROUTES_MAX_GSI) {
-        error_setg(errp, "flic adapter_routes_max_batch too big"
-                   "%d (%d allowed)", max_batch, ADAPTER_ROUTES_MAX_GSI);
+        error_setg(errp, "flic property adapter_routes_max_batch too big"
+                   " (%d > %d)", max_batch, ADAPTER_ROUTES_MAX_GSI);
     }
 }
 
@@ -136,3 +137,30 @@ static void qemu_s390_flic_register_types(void)
 }
 
 type_init(qemu_s390_flic_register_types)
+
+const VMStateDescription vmstate_adapter_info = {
+    .name = "s390_adapter_info",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(ind_offset, AdapterInfo),
+        /*
+         * We do not have to migrate neither the id nor the addresses.
+         * The id is set by css_register_io_adapter and the addresses
+         * are set based on the IndAddr objects after those get mapped.
+         */
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+const VMStateDescription vmstate_adapter_routes = {
+
+    .name = "s390_adapter_routes",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(adapter, AdapterRoutes, 1, vmstate_adapter_info,
+                       AdapterInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};

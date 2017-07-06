@@ -50,6 +50,16 @@ static void ccw_device_class_init(ObjectClass *klass, void *data)
     dc->props = ccw_device_properties;
 }
 
+const VMStateDescription vmstate_ccw_dev = {
+    .name = "s390_ccw_dev",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_POINTER(sch, CcwDevice, vmstate_subch_dev, SubchDev),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const TypeInfo ccw_device_info = {
     .name = TYPE_CCW_DEVICE,
     .parent = TYPE_DEVICE,
