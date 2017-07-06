@@ -487,14 +487,6 @@ enum {
     TB_FLAGS_PAL_MODE = 1,
     TB_FLAGS_FEN = 2,
     TB_FLAGS_USER_MODE = 8,
-
-    TB_FLAGS_AMASK_SHIFT = 4,
-    TB_FLAGS_AMASK_BWX = AMASK_BWX << TB_FLAGS_AMASK_SHIFT,
-    TB_FLAGS_AMASK_FIX = AMASK_FIX << TB_FLAGS_AMASK_SHIFT,
-    TB_FLAGS_AMASK_CIX = AMASK_CIX << TB_FLAGS_AMASK_SHIFT,
-    TB_FLAGS_AMASK_MVI = AMASK_MVI << TB_FLAGS_AMASK_SHIFT,
-    TB_FLAGS_AMASK_TRAP = AMASK_TRAP << TB_FLAGS_AMASK_SHIFT,
-    TB_FLAGS_AMASK_PREFETCH = AMASK_PREFETCH << TB_FLAGS_AMASK_SHIFT,
 };
 
 static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
@@ -513,7 +505,6 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     if (env->fen) {
         flags |= TB_FLAGS_FEN;
     }
-    flags |= env->amask << TB_FLAGS_AMASK_SHIFT;
 
     *pflags = flags;
 }

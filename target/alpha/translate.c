@@ -51,13 +51,14 @@ struct DisasContext {
 #endif
     int mem_idx;
 
+    /* implver and amask values for this CPU.  */
+    int implver;
+    int amask;
+
     /* Current rounding mode for this TB.  */
     int tb_rm;
     /* Current flush-to-zero setting for this TB.  */
     int tb_ftz;
-
-    /* implver value for this CPU.  */
-    int implver;
 
     /* The set of registers active in the current context.  */
     TCGv *ir;
@@ -1442,6 +1443,13 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
         }                                       \
     } while (0)
 
+#define REQUIRE_AMASK(FLAG)                     \
+    do {                                        \
+        if ((ctx->amask & AMASK_##FLAG) == 0) { \
+            goto invalid_opc;                   \
+        }                                       \
+    } while (0)
+
 #define REQUIRE_TB_FLAG(FLAG)                   \
     do {                                        \
         if ((ctx->tb->flags & (FLAG)) == 0) {   \
@@ -1532,7 +1540,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 
     case 0x0A:
         /* LDBU */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_load_mem(ctx, &tcg_gen_qemu_ld8u, ra, rb, disp16, 0, 0);
         break;
     case 0x0B:
@@ -1541,17 +1549,17 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x0C:
         /* LDWU */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_load_mem(ctx, &tcg_gen_qemu_ld16u, ra, rb, disp16, 0, 0);
         break;
     case 0x0D:
         /* STW */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0);
         break;
     case 0x0E:
         /* STB */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0);
         break;
     case 0x0F:
@@ -1832,10 +1840,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x61:
             /* AMASK */
             REQUIRE_REG_31(ra);
-            {
-                uint64_t amask = ctx->tb->flags >> TB_FLAGS_AMASK_SHIFT;
-                tcg_gen_andi_i64(vc, vb, ~amask);
-            }
+            tcg_gen_andi_i64(vc, vb, ~ctx->amask);
             break;
         case 0x64:
             /* CMOVLE */
@@ -2048,7 +2053,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
 
     case 0x14:
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+        REQUIRE_AMASK(FIX);
         vc = dest_fpr(ctx, rc);
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x04:
@@ -2525,14 +2530,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         vc = dest_gpr(ctx, rc);
         if (fn7 == 0x70) {
             /* FTOIT */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+            REQUIRE_AMASK(FIX);
             REQUIRE_REG_31(rb);
             va = load_fpr(ctx, ra);
             tcg_gen_mov_i64(vc, va);
             break;
         } else if (fn7 == 0x78) {
             /* FTOIS */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+            REQUIRE_AMASK(FIX);
             REQUIRE_REG_31(rb);
             t32 = tcg_temp_new_i32();
             va = load_fpr(ctx, ra);
@@ -2546,117 +2551,117 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x00:
             /* SEXTB */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+            REQUIRE_AMASK(BWX);
             REQUIRE_REG_31(ra);
             tcg_gen_ext8s_i64(vc, vb);
             break;
         case 0x01:
             /* SEXTW */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+            REQUIRE_AMASK(BWX);
             REQUIRE_REG_31(ra);
             tcg_gen_ext16s_i64(vc, vb);
             break;
         case 0x30:
             /* CTPOP */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_AMASK(CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             tcg_gen_ctpop_i64(vc, vb);
             break;
         case 0x31:
             /* PERR */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_NO_LIT;
             va = load_gpr(ctx, ra);
             gen_helper_perr(vc, va, vb);
             break;
         case 0x32:
             /* CTLZ */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_AMASK(CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             tcg_gen_clzi_i64(vc, vb, 64);
             break;
         case 0x33:
             /* CTTZ */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_AMASK(CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             tcg_gen_ctzi_i64(vc, vb, 64);
             break;
         case 0x34:
             /* UNPKBW */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_unpkbw(vc, vb);
             break;
         case 0x35:
             /* UNPKBL */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_unpkbl(vc, vb);
             break;
         case 0x36:
             /* PKWB */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_pkwb(vc, vb);
             break;
         case 0x37:
             /* PKLB */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_pklb(vc, vb);
             break;
         case 0x38:
             /* MINSB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minsb8(vc, va, vb);
             break;
         case 0x39:
             /* MINSW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minsw4(vc, va, vb);
             break;
         case 0x3A:
             /* MINUB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minub8(vc, va, vb);
             break;
         case 0x3B:
             /* MINUW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minuw4(vc, va, vb);
             break;
         case 0x3C:
             /* MAXUB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxub8(vc, va, vb);
             break;
         case 0x3D:
             /* MAXUW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxuw4(vc, va, vb);
             break;
         case 0x3E:
             /* MAXSB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxsb8(vc, va, vb);
             break;
         case 0x3F:
             /* MAXSW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxsw4(vc, va, vb);
             break;
@@ -2929,6 +2934,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     ctx.pc = pc_start;
     ctx.mem_idx = cpu_mmu_index(env, false);
     ctx.implver = env->implver;
+    ctx.amask = env->amask;
     ctx.singlestep_enabled = cs->singlestep_enabled;
 
 #ifdef CONFIG_USER_ONLY
