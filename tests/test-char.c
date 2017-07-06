@@ -450,6 +450,7 @@ static void char_udp_test(void)
 
     close(sock);
     g_free(tmp);
+    qemu_chr_fe_deinit(&be, true);
 }
 
 #ifdef HAVE_CHARDEV_SERIAL
