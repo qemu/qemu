@@ -239,7 +239,7 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd,
             return 0;
         }
     }
-    if (!qemu_chr_fe_get_driver(&t->chr)) {
+    if (!qemu_chr_fe_backend_connected(&t->chr)) {
         /* We just say we consumed all data if there's no backend. */
         return count;
     }

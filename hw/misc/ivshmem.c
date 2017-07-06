@@ -1128,7 +1128,7 @@ static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
 
-    if (!qemu_chr_fe_get_driver(&s->server_chr)) {
+    if (!qemu_chr_fe_backend_connected(&s->server_chr)) {
         error_setg(errp, "You must specify a 'chardev'");
         return;
     }
@@ -1257,7 +1257,7 @@ static void ivshmem_realize(PCIDevice *dev, Error **errp)
                      " or ivshmem-doorbell instead");
     }
 
-    if (!!qemu_chr_fe_get_driver(&s->server_chr) + !!s->shmobj != 1) {
+    if (qemu_chr_fe_backend_connected(&s->server_chr) + !!s->shmobj != 1) {
         error_setg(errp, "You must specify either 'shm' or 'chardev'");
         return;
     }

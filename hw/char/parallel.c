@@ -513,7 +513,7 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
     int base;
     uint8_t dummy;
 
-    if (!qemu_chr_fe_get_driver(&s->chr)) {
+    if (!qemu_chr_fe_backend_connected(&s->chr)) {
         error_setg(errp, "Can't create parallel device, empty char device");
         return;
     }

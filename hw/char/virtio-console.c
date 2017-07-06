@@ -49,7 +49,7 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     ssize_t ret;
 
-    if (!qemu_chr_fe_get_driver(&vcon->chr)) {
+    if (!qemu_chr_fe_backend_connected(&vcon->chr)) {
         /* If there's no backend, we can just say we consumed all data. */
         return len;
     }
@@ -168,7 +168,6 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtConsole *vcon = VIRTIO_CONSOLE(dev);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
-    Chardev *chr = qemu_chr_fe_get_driver(&vcon->chr);
 
     if (port->id == 0 && !k->is_console) {
         error_setg(errp, "Port number 0 on virtio-serial devices reserved "
@@ -176,7 +175,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (chr) {
+    if (qemu_chr_fe_backend_connected(&vcon->chr)) {
         /*
          * For consoles we don't block guest data transfer just
          * because nothing is connected - we'll just let it go

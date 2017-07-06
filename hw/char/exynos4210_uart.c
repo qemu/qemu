@@ -380,7 +380,7 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
         break;
 
     case UTXH:
-        if (qemu_chr_fe_get_driver(&s->chr)) {
+        if (qemu_chr_fe_backend_connected(&s->chr)) {
             s->reg[I_(UTRSTAT)] &= ~(UTRSTAT_TRANSMITTER_EMPTY |
                     UTRSTAT_Tx_BUFFER_EMPTY);
             ch = (uint8_t)val;

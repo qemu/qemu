@@ -150,7 +150,7 @@ static void xencons_send(struct XenConsole *con)
     ssize_t len, size;
 
     size = con->buffer.size - con->buffer.consumed;
-    if (qemu_chr_fe_get_driver(&con->chr)) {
+    if (qemu_chr_fe_backend_connected(&con->chr)) {
         len = qemu_chr_fe_write(&con->chr,
                                 con->buffer.data + con->buffer.consumed,
                                 size);

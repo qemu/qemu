@@ -78,7 +78,7 @@ static void spapr_vty_realize(VIOsPAPRDevice *sdev, Error **errp)
 {
     VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(sdev);
 
-    if (!qemu_chr_fe_get_driver(&dev->chardev)) {
+    if (!qemu_chr_fe_backend_connected(&dev->chardev)) {
         error_setg(errp, "chardev property not set");
         return;
     }

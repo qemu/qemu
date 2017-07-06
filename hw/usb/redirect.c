@@ -273,10 +273,9 @@ static gboolean usbredir_write_unblocked(GIOChannel *chan, GIOCondition cond,
 static int usbredir_write(void *priv, uint8_t *data, int count)
 {
     USBRedirDevice *dev = priv;
-    Chardev *chr = qemu_chr_fe_get_driver(&dev->cs);
     int r;
 
-    if (!chr->be_open) {
+    if (!qemu_chr_fe_backend_open(&dev->cs)) {
         return 0;
     }
 
@@ -1366,7 +1365,7 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     USBRedirDevice *dev = USB_REDIRECT(udev);
     int i;
 
-    if (!qemu_chr_fe_get_driver(&dev->cs)) {
+    if (!qemu_chr_fe_backend_connected(&dev->cs)) {
         error_setg(errp, QERR_MISSING_PARAMETER, "chardev");
         return;
     }

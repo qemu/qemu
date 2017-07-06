@@ -60,6 +60,13 @@ Chardev *qemu_chr_fe_get_driver(CharBackend *be);
 bool qemu_chr_fe_backend_connected(CharBackend *be);
 
 /**
+ * @qemu_chr_fe_backend_open:
+ *
+ * Returns true if chardevice associated with @be is open.
+ */
+bool qemu_chr_fe_backend_open(CharBackend *be);
+
+/**
  * @qemu_chr_fe_set_handlers:
  * @b: a CharBackend
  * @fd_can_read: callback to get the amount of data the frontend may

@@ -484,13 +484,12 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
 {
     USBSerialState *s = USB_SERIAL_DEV(dev);
     Error *local_err = NULL;
-    Chardev *chr = qemu_chr_fe_get_driver(&s->cs);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     dev->auto_attach = 0;
 
-    if (!chr) {
+    if (!qemu_chr_fe_backend_connected(&s->cs)) {
         error_setg(errp, "Property chardev is required");
         return;
     }
@@ -505,7 +504,7 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
                              usb_serial_event, NULL, s, NULL, true);
     usb_serial_handle_reset(dev);
 
-    if (chr->be_open && !dev->attached) {
+    if (qemu_chr_fe_backend_open(&s->cs) && !dev->attached) {
         usb_device_attach(dev, &error_abort);
     }
 }

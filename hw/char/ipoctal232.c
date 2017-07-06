@@ -542,7 +542,7 @@ static void ipoctal_realize(DeviceState *dev, Error **errp)
         ch->ipoctal = s;
 
         /* Redirect IP-Octal channels to host character devices */
-        if (qemu_chr_fe_get_driver(&ch->dev)) {
+        if (qemu_chr_fe_backend_connected(&ch->dev)) {
             qemu_chr_fe_set_handlers(&ch->dev, hostdev_can_receive,
                                      hostdev_receive, hostdev_event,
                                      NULL, ch, NULL, true);

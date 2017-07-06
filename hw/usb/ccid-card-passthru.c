@@ -322,7 +322,7 @@ static void passthru_apdu_from_guest(
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
-    if (!qemu_chr_fe_get_driver(&card->cs)) {
+    if (!qemu_chr_fe_backend_connected(&card->cs)) {
         printf("ccid-passthru: no chardev, discarding apdu length %d\n", len);
         return;
     }
@@ -343,7 +343,7 @@ static int passthru_initfn(CCIDCardState *base)
 
     card->vscard_in_pos = 0;
     card->vscard_in_hdr = 0;
-    if (qemu_chr_fe_get_driver(&card->cs)) {
+    if (qemu_chr_fe_backend_connected(&card->cs)) {
         DPRINTF(card, D_INFO, "initing chardev\n");
         qemu_chr_fe_set_handlers(&card->cs,
             ccid_card_vscard_can_read,

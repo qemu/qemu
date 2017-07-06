@@ -195,7 +195,7 @@ static int write_console_data(SCLPEvent *event, const uint8_t *buf, int len)
 {
     SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
-    if (!qemu_chr_fe_get_driver(&scon->chr)) {
+    if (!qemu_chr_fe_backend_connected(&scon->chr)) {
         /* If there's no backend, we can just say we consumed all data. */
         return len;
     }
