@@ -209,7 +209,8 @@ static void coroutine_fn commit_run(void *opaque)
         s->common.offset += n * BDRV_SECTOR_SIZE;
 
         if (copy && s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, n);
+            delay_ns = ratelimit_calculate_delay(&s->limit,
+                                                 n * BDRV_SECTOR_SIZE);
         }
     }
 
@@ -231,7 +232,7 @@ static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
-    ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
+    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
 }
 
 static const BlockJobDriver commit_job_driver = {

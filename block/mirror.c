@@ -396,7 +396,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     bitmap_set(s->in_flight_bitmap, sector_num / sectors_per_chunk, nb_chunks);
     while (nb_chunks > 0 && sector_num < end) {
         int64_t ret;
-        int io_sectors, io_sectors_acct;
+        int io_sectors;
+        int64_t io_bytes_acct;
         BlockDriverState *file;
         enum MirrorMethod {
             MIRROR_METHOD_COPY,
@@ -444,16 +445,16 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         switch (mirror_method) {
         case MIRROR_METHOD_COPY:
             io_sectors = mirror_do_read(s, sector_num, io_sectors);
-            io_sectors_acct = io_sectors;
+            io_bytes_acct = io_sectors * BDRV_SECTOR_SIZE;
             break;
         case MIRROR_METHOD_ZERO:
         case MIRROR_METHOD_DISCARD:
             mirror_do_zero_or_discard(s, sector_num, io_sectors,
                                       mirror_method == MIRROR_METHOD_DISCARD);
             if (write_zeroes_ok) {
-                io_sectors_acct = 0;
+                io_bytes_acct = 0;
             } else {
-                io_sectors_acct = io_sectors;
+                io_bytes_acct = io_sectors * BDRV_SECTOR_SIZE;
             }
             break;
         default:
@@ -463,7 +464,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         sector_num += io_sectors;
         nb_chunks -= DIV_ROUND_UP(io_sectors, sectors_per_chunk);
         if (s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, io_sectors_acct);
+            delay_ns = ratelimit_calculate_delay(&s->limit, io_bytes_acct);
         }
     }
     return delay_ns;
@@ -929,7 +930,7 @@ static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
-    ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
+    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)
