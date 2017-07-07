@@ -91,6 +91,37 @@ one of whose subregions is a low priority "background" region covering
 the whole address range; this is often clearer and is preferred.
 Subregions cannot be added to an alias region.
 
+Migration
+---------
+
+Where the memory region is backed by host memory (RAM, ROM and
+ROM device memory region types), this host memory needs to be
+copied to the destination on migration. These APIs which allocate
+the host memory for you will also register the memory so it is
+migrated:
+ - memory_region_init_ram()
+ - memory_region_init_rom()
+ - memory_region_init_rom_device()
+
+For most devices and boards this is the correct thing. If you
+have a special case where you need to manage the migration of
+the backing memory yourself, you can call the functions:
+ - memory_region_init_ram_nomigrate()
+ - memory_region_init_rom_nomigrate()
+ - memory_region_init_rom_device_nomigrate()
+which only initialize the MemoryRegion and leave handling
+migration to the caller.
+
+The functions:
+ - memory_region_init_resizeable_ram()
+ - memory_region_init_ram_from_file()
+ - memory_region_init_ram_from_fd()
+ - memory_region_init_ram_ptr()
+ - memory_region_init_ram_device_ptr()
+are for special cases only, and so they do not automatically
+register the backing memory for migration; the caller must
+manage migration if necessary.
+
 Region names
 ------------
 
