@@ -305,8 +305,8 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
 }
 
 static void mirror_do_zero_or_discard(MirrorBlockJob *s,
-                                      int64_t sector_num,
-                                      int nb_sectors,
+                                      int64_t offset,
+                                      uint64_t bytes,
                                       bool is_discard)
 {
     MirrorOp *op;
@@ -315,16 +315,16 @@ static void mirror_do_zero_or_discard(MirrorBlockJob *s,
      * so the freeing in mirror_iteration_done is nop. */
     op = g_new0(MirrorOp, 1);
     op->s = s;
-    op->offset = sector_num * BDRV_SECTOR_SIZE;
-    op->bytes = nb_sectors * BDRV_SECTOR_SIZE;
+    op->offset = offset;
+    op->bytes = bytes;
 
     s->in_flight++;
-    s->bytes_in_flight += nb_sectors * BDRV_SECTOR_SIZE;
+    s->bytes_in_flight += bytes;
     if (is_discard) {
-        blk_aio_pdiscard(s->target, sector_num << BDRV_SECTOR_BITS,
+        blk_aio_pdiscard(s->target, offset,
                          op->bytes, mirror_write_complete, op);
     } else {
-        blk_aio_pwrite_zeroes(s->target, sector_num * BDRV_SECTOR_SIZE,
+        blk_aio_pwrite_zeroes(s->target, offset,
                               op->bytes, s->unmap ? BDRV_REQ_MAY_UNMAP : 0,
                               mirror_write_complete, op);
     }
@@ -453,7 +453,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             break;
         case MIRROR_METHOD_ZERO:
         case MIRROR_METHOD_DISCARD:
-            mirror_do_zero_or_discard(s, sector_num, io_sectors,
+            mirror_do_zero_or_discard(s, sector_num * BDRV_SECTOR_SIZE,
+                                      io_sectors * BDRV_SECTOR_SIZE,
                                       mirror_method == MIRROR_METHOD_DISCARD);
             if (write_zeroes_ok) {
                 io_bytes_acct = 0;
@@ -657,7 +658,8 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
                 continue;
             }
 
-            mirror_do_zero_or_discard(s, sector_num, nb_sectors, false);
+            mirror_do_zero_or_discard(s, sector_num * BDRV_SECTOR_SIZE,
+                                      nb_sectors * BDRV_SECTOR_SIZE, false);
             sector_num += nb_sectors;
         }
 
