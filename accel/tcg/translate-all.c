@@ -1300,7 +1300,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #ifdef CONFIG_PROFILER
     tcg_ctx.tb_count++;
     tcg_ctx.interm_time += profile_getclock() - ti;
-    tcg_ctx.code_time -= profile_getclock();
+    ti = profile_getclock();
 #endif
 
     /* ??? Overflow could be handled better here.  In particular, we
@@ -1318,7 +1318,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 
 #ifdef CONFIG_PROFILER
-    tcg_ctx.code_time += profile_getclock();
+    tcg_ctx.code_time += profile_getclock() - ti;
     tcg_ctx.code_in_len += tb->size;
     tcg_ctx.code_out_len += gen_code_size;
     tcg_ctx.search_out_len += search_size;
