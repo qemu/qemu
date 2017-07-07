@@ -121,6 +121,30 @@ static bool tcg_out_ldst_finalize(TCGContext *s);
 static TCGContext **tcg_ctxs;
 static unsigned int n_tcg_ctxs;
 
+/*
+ * We divide code_gen_buffer into equally-sized "regions" that TCG threads
+ * dynamically allocate from as demand dictates. Given appropriate region
+ * sizing, this minimizes flushes even when some TCG threads generate a lot
+ * more code than others.
+ */
+struct tcg_region_state {
+    QemuMutex lock;
+
+    /* fields set at init time */
+    void *start;
+    void *start_aligned;
+    void *end;
+    size_t n;
+    size_t size; /* size of one region */
+    size_t stride; /* .size + guard size */
+
+    /* fields protected by the lock */
+    size_t current; /* current region index */
+    size_t agg_size_full; /* aggregate size of full regions */
+};
+
+static struct tcg_region_state region;
+
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
 
@@ -257,6 +281,196 @@ TCGLabel *gen_new_label(void)
 }
 
 #include "tcg-target.inc.c"
+
+static void tcg_region_bounds(size_t curr_region, void **pstart, void **pend)
+{
+    void *start, *end;
+
+    start = region.start_aligned + curr_region * region.stride;
+    end = start + region.size;
+
+    if (curr_region == 0) {
+        start = region.start;
+    }
+    if (curr_region == region.n - 1) {
+        end = region.end;
+    }
+
+    *pstart = start;
+    *pend = end;
+}
+
+static void tcg_region_assign(TCGContext *s, size_t curr_region)
+{
+    void *start, *end;
+
+    tcg_region_bounds(curr_region, &start, &end);
+
+    s->code_gen_buffer = start;
+    s->code_gen_ptr = start;
+    s->code_gen_buffer_size = end - start;
+    s->code_gen_highwater = end - TCG_HIGHWATER;
+}
+
+static bool tcg_region_alloc__locked(TCGContext *s)
+{
+    if (region.current == region.n) {
+        return true;
+    }
+    tcg_region_assign(s, region.current);
+    region.current++;
+    return false;
+}
+
+/*
+ * Request a new region once the one in use has filled up.
+ * Returns true on error.
+ */
+static bool tcg_region_alloc(TCGContext *s)
+{
+    bool err;
+    /* read the region size now; alloc__locked will overwrite it on success */
+    size_t size_full = s->code_gen_buffer_size;
+
+    qemu_mutex_lock(&region.lock);
+    err = tcg_region_alloc__locked(s);
+    if (!err) {
+        region.agg_size_full += size_full - TCG_HIGHWATER;
+    }
+    qemu_mutex_unlock(&region.lock);
+    return err;
+}
+
+/*
+ * Perform a context's first region allocation.
+ * This function does _not_ increment region.agg_size_full.
+ */
+static inline bool tcg_region_initial_alloc__locked(TCGContext *s)
+{
+    return tcg_region_alloc__locked(s);
+}
+
+/* Call from a safe-work context */
+void tcg_region_reset_all(void)
+{
+    unsigned int i;
+
+    qemu_mutex_lock(&region.lock);
+    region.current = 0;
+    region.agg_size_full = 0;
+
+    for (i = 0; i < n_tcg_ctxs; i++) {
+        bool err = tcg_region_initial_alloc__locked(tcg_ctxs[i]);
+
+        g_assert(!err);
+    }
+    qemu_mutex_unlock(&region.lock);
+}
+
+/*
+ * Initializes region partitioning.
+ *
+ * Called at init time from the parent thread (i.e. the one calling
+ * tcg_context_init), after the target's TCG globals have been set.
+ */
+void tcg_region_init(void)
+{
+    void *buf = tcg_init_ctx.code_gen_buffer;
+    void *aligned;
+    size_t size = tcg_init_ctx.code_gen_buffer_size;
+    size_t page_size = qemu_real_host_page_size;
+    size_t region_size;
+    size_t n_regions;
+    size_t i;
+
+    /* We do not yet support multiple TCG contexts, so use one region for now */
+    n_regions = 1;
+
+    /* The first region will be 'aligned - buf' bytes larger than the others */
+    aligned = QEMU_ALIGN_PTR_UP(buf, page_size);
+    g_assert(aligned < tcg_init_ctx.code_gen_buffer + size);
+    /*
+     * Make region_size a multiple of page_size, using aligned as the start.
+     * As a result of this we might end up with a few extra pages at the end of
+     * the buffer; we will assign those to the last region.
+     */
+    region_size = (size - (aligned - buf)) / n_regions;
+    region_size = QEMU_ALIGN_DOWN(region_size, page_size);
+
+    /* A region must have at least 2 pages; one code, one guard */
+    g_assert(region_size >= 2 * page_size);
+
+    /* init the region struct */
+    qemu_mutex_init(&region.lock);
+    region.n = n_regions;
+    region.size = region_size - page_size;
+    region.stride = region_size;
+    region.start = buf;
+    region.start_aligned = aligned;
+    /* page-align the end, since its last page will be a guard page */
+    region.end = QEMU_ALIGN_PTR_DOWN(buf + size, page_size);
+    /* account for that last guard page */
+    region.end -= page_size;
+
+    /* set guard pages */
+    for (i = 0; i < region.n; i++) {
+        void *start, *end;
+        int rc;
+
+        tcg_region_bounds(i, &start, &end);
+        rc = qemu_mprotect_none(end, page_size);
+        g_assert(!rc);
+    }
+
+    /* We do not yet support multiple TCG contexts so allocate the region now */
+    {
+        bool err = tcg_region_initial_alloc__locked(tcg_ctx);
+
+        g_assert(!err);
+    }
+}
+
+/*
+ * Returns the size (in bytes) of all translated code (i.e. from all regions)
+ * currently in the cache.
+ * See also: tcg_code_capacity()
+ * Do not confuse with tcg_current_code_size(); that one applies to a single
+ * TCG context.
+ */
+size_t tcg_code_size(void)
+{
+    unsigned int i;
+    size_t total;
+
+    qemu_mutex_lock(&region.lock);
+    total = region.agg_size_full;
+    for (i = 0; i < n_tcg_ctxs; i++) {
+        const TCGContext *s = tcg_ctxs[i];
+        size_t size;
+
+        size = atomic_read(&s->code_gen_ptr) - s->code_gen_buffer;
+        g_assert(size <= s->code_gen_buffer_size);
+        total += size;
+    }
+    qemu_mutex_unlock(&region.lock);
+    return total;
+}
+
+/*
+ * Returns the code capacity (in bytes) of the entire cache, i.e. including all
+ * regions.
+ * See also: tcg_code_size()
+ */
+size_t tcg_code_capacity(void)
+{
+    size_t guard_size, capacity;
+
+    /* no need for synchronization; these variables are set at init time */
+    guard_size = region.stride - region.size;
+    capacity = region.end + guard_size - region.start;
+    capacity -= region.n * (guard_size + TCG_HIGHWATER);
+    return capacity;
+}
 
 /* pool based memory allocation */
 void *tcg_malloc_internal(TCGContext *s, int size)
@@ -401,13 +615,17 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
     TranslationBlock *tb;
     void *next;
 
+ retry:
     tb = (void *)ROUND_UP((uintptr_t)s->code_gen_ptr, align);
     next = (void *)ROUND_UP((uintptr_t)(tb + 1), align);
 
     if (unlikely(next > s->code_gen_highwater)) {
-        return NULL;
+        if (tcg_region_alloc(s)) {
+            return NULL;
+        }
+        goto retry;
     }
-    s->code_gen_ptr = next;
+    atomic_set(&s->code_gen_ptr, next);
     s->data_gen_ptr = NULL;
     return tb;
 }
