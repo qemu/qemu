@@ -176,12 +176,12 @@ static void mirror_read_complete(void *opaque, int ret)
     aio_context_release(blk_get_aio_context(s->common.blk));
 }
 
-static inline void mirror_clip_sectors(MirrorBlockJob *s,
-                                       int64_t sector_num,
-                                       int *nb_sectors)
+static inline int mirror_clip_sectors(MirrorBlockJob *s,
+                                      int64_t sector_num,
+                                      int nb_sectors)
 {
-    *nb_sectors = MIN(*nb_sectors,
-                      s->bdev_length / BDRV_SECTOR_SIZE - sector_num);
+    return MIN(nb_sectors,
+               s->bdev_length / BDRV_SECTOR_SIZE - sector_num);
 }
 
 /* Round sector_num and/or nb_sectors to target cluster if COW is needed, and
@@ -216,7 +216,8 @@ static int mirror_cow_align(MirrorBlockJob *s,
     }
     /* Clipping may result in align_nb_sectors unaligned to chunk boundary, but
      * that doesn't matter because it's already the end of source image. */
-    mirror_clip_sectors(s, align_sector_num, &align_nb_sectors);
+    align_nb_sectors = mirror_clip_sectors(s, align_sector_num,
+                                           align_nb_sectors);
 
     ret = align_sector_num + align_nb_sectors - (*sector_num + *nb_sectors);
     *sector_num = align_sector_num;
@@ -445,7 +446,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             return 0;
         }
 
-        mirror_clip_sectors(s, sector_num, &io_sectors);
+        io_sectors = mirror_clip_sectors(s, sector_num, io_sectors);
         switch (mirror_method) {
         case MIRROR_METHOD_COPY:
             io_sectors = mirror_do_read(s, sector_num, io_sectors);
