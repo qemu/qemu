@@ -1,0 +1,56 @@
+# nbd/client.c
+nbd_unknown_error(int err) "Squashing unexpected error %d to EINVAL"
+nbd_send_option_request(uint32_t opt, uint32_t len) "Sending option request %" PRIu32", len %" PRIu32
+nbd_receive_option_reply(uint32_t option, uint32_t type, uint32_t length) "Received option reply %" PRIx32", type %" PRIx32", len %" PRIu32
+nbd_reply_err_unsup(uint32_t option) "server doesn't understand request %" PRIx32 ", attempting fallback"
+nbd_receive_query_exports_start(const char *wantname) "Querying export list for '%s'"
+nbd_receive_query_exports_success(const char *wantname) "Found desired export name '%s'"
+nbd_receive_starttls_request(void) "Requesting TLS from server"
+nbd_receive_starttls_reply(void) "Getting TLS reply from server"
+nbd_receive_starttls_new_client(void) "TLS request approved, setting up TLS"
+nbd_receive_starttls_tls_handshake(void) "Starting TLS handshake"
+nbd_receive_negotiate(void *tlscreds, const char *hostname) "Receiving negotiation tlscreds=%p hostname=%s"
+nbd_receive_negotiate_magic(uint64_t magic) "Magic is 0x%" PRIx64
+nbd_receive_negotiate_server_flags(uint32_t globalflags) "Global flags are %" PRIx32
+nbd_receive_negotiate_default_name(void) "Using default NBD export name \"\""
+nbd_receive_negotiate_size_flags(uint64_t size, uint16_t flags) "Size is %" PRIu64 ", export flags %" PRIx16
+nbd_init_set_socket(void) "Setting NBD socket"
+nbd_init_set_block_size(unsigned long block_size) "Setting block size to %lu"
+nbd_init_set_size(unsigned long sectors) "Setting size to %lu block(s)"
+nbd_init_trailing_bytes(int ignored_bytes) "Ignoring trailing %d bytes of export"
+nbd_init_set_readonly(void) "Setting readonly attribute"
+nbd_init_finish(void) "Negotiation ended"
+nbd_client_loop(void) "Doing NBD loop"
+nbd_client_loop_ret(int ret, const char *error) "NBD loop returned %d: %s"
+nbd_client_clear_queue(void) "Clearing NBD queue"
+nbd_client_clear_socket(void) "Clearing NBD socket"
+nbd_send_request(uint64_t from, uint32_t len, uint64_t handle, uint16_t flags, uint16_t type) "Sending request to server: { .from = %" PRIu64", .len = %" PRIu32 ", .handle = %" PRIu64 ", .flags = %" PRIx16 ", .type = %" PRIu16 " }"
+nbd_receive_reply(uint32_t magic, int32_t error, uint64_t handle) "Got reply: { magic = 0x%" PRIx32 ", .error = % " PRId32 ", handle = %" PRIu64" }"
+
+# nbd/server.c
+nbd_negotiate_send_rep_len(uint32_t opt, uint32_t type, uint32_t len) "Reply opt=%" PRIx32 " type=%" PRIx32 " len=%" PRIu32
+nbd_negotiate_send_rep_err(const char *msg) "sending error message \"%s\""
+nbd_negotiate_send_rep_list(const char *name, const char *desc) "Advertising export name '%s' description '%s'"
+nbd_negotiate_handle_export_name(void) "Checking length"
+nbd_negotiate_handle_export_name_request(const char *name) "Client requested export '%s'"
+nbd_negotiate_handle_starttls(void) "Setting up TLS"
+nbd_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
+nbd_negotiate_options_flags(void) "Checking client flags"
+nbd_negotiate_options_newstyle(void) "Client supports fixed newstyle handshake"
+nbd_negotiate_options_no_zeroes(void) "Client supports no zeroes at handshake end"
+nbd_negotiate_options_check_magic(uint64_t magic) "Checking opts magic 0x%" PRIx64
+nbd_negotiate_options_check_option(uint32_t option) "Checking option 0x%" PRIx32
+nbd_opt_abort_reply_failed(const char *error) "Reply to NBD_OPT_ABORT request failed: %s"
+nbd_negotiate_begin(void) "Beginning negotiation"
+nbd_negotiate_old_style(uint64_t size, unsigned flags) "advertising size %" PRIu64 " and flags %x"
+nbd_negotiate_new_style_size_flags(uint64_t size, unsigned flags) "advertising size %" PRIu64 " and flags %x"
+nbd_negotiate_success(void) "Negotiation succeeded"
+nbd_receive_request(uint32_t magic, uint16_t flags, uint16_t type, uint64_t from, uint32_t len) "Got request: { magic = 0x%" PRIx32 ", .flags = %" PRIx16 ", .type = %" PRIx16 ", from = %" PRIu64 ", len = %" PRIu32 " }"
+nbd_send_reply(int32_t error, uint64_t handle) "Sending response to client: { .error = %" PRId32 ", handle = %" PRIu64 " }"
+nbd_blk_aio_attached(const char *name, void *ctx) "Export %s: Attaching clients to AIO context %p\n"
+nbd_blk_aio_detach(const char *name, void *ctx) "Export %s: Detaching clients from AIO context %p\n"
+nbd_co_send_reply(uint64_t handle, uint32_t error, int len) "Send reply: handle = %" PRIu64 ", error = %" PRIu32 ", len = %d"
+nbd_co_receive_request_decode_type(uint64_t handle, uint16_t type) "Decoding type: handle = %" PRIu64 ", type = %" PRIu16
+nbd_co_receive_request_payload_received(uint64_t handle, uint32_t len) "Payload received: handle = %" PRIu64 ", len = %" PRIu32
+nbd_co_receive_request_cmd_write(uint32_t len) "Reading %" PRIu32 " byte(s)"
+nbd_trip(void) "Reading request"
