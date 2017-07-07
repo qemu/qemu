@@ -1000,6 +1000,10 @@ static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len,
     int ret;
 
     g_assert(qemu_in_coroutine());
+
+    TRACE("Send reply: handle = %" PRIu64 ", error = %" PRIu32 ", len = %d",
+          reply->handle, reply->error, len);
+
     qemu_co_mutex_lock(&client->send_lock);
     client->send_coroutine = qemu_coroutine_self();
 
@@ -1039,7 +1043,8 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         return -EIO;
     }
 
-    TRACE("Decoding type");
+    TRACE("Decoding type: handle = %" PRIu64 ", type = %" PRIu16,
+          request->handle, request->type);
 
     if (request->type != NBD_CMD_WRITE) {
         /* No payload, we are ready to read the next request.  */
@@ -1049,7 +1054,6 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
     if (request->type == NBD_CMD_DISC) {
         /* Special case: we're going to disconnect without a reply,
          * whether or not flags, from, or len are bogus */
-        TRACE("Request type is DISCONNECT");
         return -EIO;
     }
 
@@ -1076,13 +1080,14 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         }
     }
     if (request->type == NBD_CMD_WRITE) {
-        TRACE("Reading %" PRIu32 " byte(s)", request->len);
-
         if (nbd_read(client->ioc, req->data, request->len, errp) < 0) {
             error_prepend(errp, "reading from socket failed: ");
             return -EIO;
         }
         req->complete = true;
+
+        TRACE("Payload received: handle = %" PRIu64 ", len = %" PRIu32,
+              request->handle, request->len);
     }
 
     /* Sanity checks, part 2. */
@@ -1150,8 +1155,6 @@ static coroutine_fn void nbd_trip(void *opaque)
 
     switch (request.type) {
     case NBD_CMD_READ:
-        TRACE("Request type is READ");
-
         /* XXX: NBD Protocol only documents use of FUA with WRITE */
         if (request.flags & NBD_CMD_FLAG_FUA) {
             ret = blk_co_flush(exp->blk);
@@ -1171,19 +1174,13 @@ static coroutine_fn void nbd_trip(void *opaque)
         }
 
         reply_data_len = request.len;
-        TRACE("Read %" PRIu32" byte(s)", request.len);
 
         break;
     case NBD_CMD_WRITE:
-        TRACE("Request type is WRITE");
-
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            TRACE("Server is read-only, return error");
             reply.error = EROFS;
             break;
         }
-
-        TRACE("Writing to device");
 
         flags = 0;
         if (request.flags & NBD_CMD_FLAG_FUA) {
@@ -1198,15 +1195,11 @@ static coroutine_fn void nbd_trip(void *opaque)
 
         break;
     case NBD_CMD_WRITE_ZEROES:
-        TRACE("Request type is WRITE_ZEROES");
-
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
             error_setg(&local_err, "Server is read-only, return error");
             reply.error = EROFS;
             break;
         }
-
-        TRACE("Writing to device");
 
         flags = 0;
         if (request.flags & NBD_CMD_FLAG_FUA) {
@@ -1228,8 +1221,6 @@ static coroutine_fn void nbd_trip(void *opaque)
         abort();
 
     case NBD_CMD_FLUSH:
-        TRACE("Request type is FLUSH");
-
         ret = blk_co_flush(exp->blk);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "flush failed");
@@ -1238,7 +1229,6 @@ static coroutine_fn void nbd_trip(void *opaque)
 
         break;
     case NBD_CMD_TRIM:
-        TRACE("Request type is TRIM");
         ret = blk_co_pdiscard(exp->blk, request.from + exp->dev_offset,
                               request.len);
         if (ret < 0) {
@@ -1273,8 +1263,6 @@ reply:
         error_setg(&local_err, "Request handling failed in intermediate state");
         goto disconnect;
     }
-
-    TRACE("Request/Reply complete");
 
 done:
     nbd_request_put(req);
