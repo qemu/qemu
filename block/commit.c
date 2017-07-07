@@ -146,7 +146,7 @@ static void coroutine_fn commit_run(void *opaque)
     int64_t offset;
     uint64_t delay_ns = 0;
     int ret = 0;
-    int n = 0; /* sectors */
+    int64_t n = 0; /* bytes */
     void *buf = NULL;
     int bytes_written = 0;
     int64_t base_len;
@@ -171,7 +171,7 @@ static void coroutine_fn commit_run(void *opaque)
 
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
-    for (offset = 0; offset < s->common.len; offset += n * BDRV_SECTOR_SIZE) {
+    for (offset = 0; offset < s->common.len; offset += n) {
         bool copy;
 
         /* Note that even when no rate limit is applied we need to yield
@@ -183,15 +183,12 @@ static void coroutine_fn commit_run(void *opaque)
         }
         /* Copy if allocated above the base */
         ret = bdrv_is_allocated_above(blk_bs(s->top), blk_bs(s->base),
-                                      offset / BDRV_SECTOR_SIZE,
-                                      COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
-                                      &n);
+                                      offset, COMMIT_BUFFER_SIZE, &n);
         copy = (ret == 1);
-        trace_commit_one_iteration(s, offset, n * BDRV_SECTOR_SIZE, ret);
+        trace_commit_one_iteration(s, offset, n, ret);
         if (copy) {
-            ret = commit_populate(s->top, s->base, offset,
-                                  n * BDRV_SECTOR_SIZE, buf);
-            bytes_written += n * BDRV_SECTOR_SIZE;
+            ret = commit_populate(s->top, s->base, offset, n, buf);
+            bytes_written += n;
         }
         if (ret < 0) {
             BlockErrorAction action =
@@ -204,11 +201,10 @@ static void coroutine_fn commit_run(void *opaque)
             }
         }
         /* Publish progress */
-        s->common.offset += n * BDRV_SECTOR_SIZE;
+        s->common.offset += n;
 
         if (copy && s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit,
-                                                 n * BDRV_SECTOR_SIZE);
+            delay_ns = ratelimit_calculate_delay(&s->limit, n);
         }
     }
 

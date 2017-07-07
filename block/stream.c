@@ -111,7 +111,7 @@ static void coroutine_fn stream_run(void *opaque)
     uint64_t delay_ns = 0;
     int error = 0;
     int ret = 0;
-    int n = 0; /* sectors */
+    int64_t n = 0; /* bytes */
     void *buf;
 
     if (!bs->backing) {
@@ -135,9 +135,8 @@ static void coroutine_fn stream_run(void *opaque)
         bdrv_enable_copy_on_read(bs);
     }
 
-    for ( ; offset < s->common.len; offset += n * BDRV_SECTOR_SIZE) {
+    for ( ; offset < s->common.len; offset += n) {
         bool copy;
-        int64_t count = 0;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -149,28 +148,25 @@ static void coroutine_fn stream_run(void *opaque)
 
         copy = false;
 
-        ret = bdrv_is_allocated(bs, offset, STREAM_BUFFER_SIZE, &count);
-        /* TODO relax this once bdrv_is_allocated does not enforce sectors */
-        assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
-        n = count >> BDRV_SECTOR_BITS;
+        ret = bdrv_is_allocated(bs, offset, STREAM_BUFFER_SIZE, &n);
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
         } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).  */
             ret = bdrv_is_allocated_above(backing_bs(bs), base,
-                                          offset / BDRV_SECTOR_SIZE, n, &n);
+                                          offset, n, &n);
 
             /* Finish early if end of backing file has been reached */
             if (ret == 0 && n == 0) {
-                n = (s->common.len - offset) / BDRV_SECTOR_SIZE;
+                n = s->common.len - offset;
             }
 
             copy = (ret == 1);
         }
-        trace_stream_one_iteration(s, offset, n * BDRV_SECTOR_SIZE, ret);
+        trace_stream_one_iteration(s, offset, n, ret);
         if (copy) {
-            ret = stream_populate(blk, offset, n * BDRV_SECTOR_SIZE, buf);
+            ret = stream_populate(blk, offset, n, buf);
         }
         if (ret < 0) {
             BlockErrorAction action =
@@ -189,10 +185,9 @@ static void coroutine_fn stream_run(void *opaque)
         ret = 0;
 
         /* Publish progress */
-        s->common.offset += n * BDRV_SECTOR_SIZE;
+        s->common.offset += n;
         if (copy && s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit,
-                                                 n * BDRV_SECTOR_SIZE);
+            delay_ns = ratelimit_calculate_delay(&s->limit, n);
         }
     }
 

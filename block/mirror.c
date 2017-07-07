@@ -621,6 +621,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
     BlockDriverState *bs = s->source;
     BlockDriverState *target_bs = blk_bs(s->target);
     int ret, n;
+    int64_t count;
 
     end = s->bdev_length / BDRV_SECTOR_SIZE;
 
@@ -670,11 +671,16 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             return 0;
         }
 
-        ret = bdrv_is_allocated_above(bs, base, sector_num, nb_sectors, &n);
+        ret = bdrv_is_allocated_above(bs, base, sector_num * BDRV_SECTOR_SIZE,
+                                      nb_sectors * BDRV_SECTOR_SIZE, &count);
         if (ret < 0) {
             return ret;
         }
 
+        /* TODO: Relax this once bdrv_is_allocated_above and dirty
+         * bitmaps no longer require sector alignment. */
+        assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
+        n = count >> BDRV_SECTOR_BITS;
         assert(n > 0);
         if (ret == 1) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);

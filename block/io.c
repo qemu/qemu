@@ -1926,50 +1926,48 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
 /*
  * Given an image chain: ... -> [BASE] -> [INTER1] -> [INTER2] -> [TOP]
  *
- * Return true if the given sector is allocated in any image between
- * BASE and TOP (inclusive).  BASE can be NULL to check if the given
- * sector is allocated in any image of the chain.  Return false otherwise,
+ * Return true if (a prefix of) the given range is allocated in any image
+ * between BASE and TOP (inclusive).  BASE can be NULL to check if the given
+ * offset is allocated in any image of the chain.  Return false otherwise,
  * or negative errno on failure.
  *
- * 'pnum' is set to the number of sectors (including and immediately following
- *  the specified sector) that are known to be in the same
- *  allocated/unallocated state.
+ * 'pnum' is set to the number of bytes (including and immediately
+ * following the specified offset) that are known to be in the same
+ * allocated/unallocated state.  Note that a subsequent call starting
+ * at 'offset + *pnum' may return the same allocation status (in other
+ * words, the result is not necessarily the maximum possible range);
+ * but 'pnum' will only be 0 when end of file is reached.
  *
  */
 int bdrv_is_allocated_above(BlockDriverState *top,
                             BlockDriverState *base,
-                            int64_t sector_num,
-                            int nb_sectors, int *pnum)
+                            int64_t offset, int64_t bytes, int64_t *pnum)
 {
     BlockDriverState *intermediate;
-    int ret, n = nb_sectors;
+    int ret;
+    int64_t n = bytes;
 
     intermediate = top;
     while (intermediate && intermediate != base) {
         int64_t pnum_inter;
         int64_t size_inter;
-        int psectors_inter;
 
-        ret = bdrv_is_allocated(intermediate, sector_num * BDRV_SECTOR_SIZE,
-                                nb_sectors * BDRV_SECTOR_SIZE,
-                                &pnum_inter);
+        ret = bdrv_is_allocated(intermediate, offset, bytes, &pnum_inter);
         if (ret < 0) {
             return ret;
         }
-        assert(pnum_inter < INT_MAX * BDRV_SECTOR_SIZE);
-        psectors_inter = pnum_inter >> BDRV_SECTOR_BITS;
         if (ret) {
-            *pnum = psectors_inter;
+            *pnum = pnum_inter;
             return 1;
         }
 
-        size_inter = bdrv_nb_sectors(intermediate);
+        size_inter = bdrv_getlength(intermediate);
         if (size_inter < 0) {
             return size_inter;
         }
-        if (n > psectors_inter &&
-            (intermediate == top || sector_num + psectors_inter < size_inter)) {
-            n = psectors_inter;
+        if (n > pnum_inter &&
+            (intermediate == top || offset + pnum_inter < size_inter)) {
+            n = pnum_inter;
         }
 
         intermediate = backing_bs(intermediate);
