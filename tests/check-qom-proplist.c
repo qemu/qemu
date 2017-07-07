@@ -593,14 +593,17 @@ static void test_qom_partial_path(void)
     ambiguous = false;
     g_assert(!object_resolve_path_type("", TYPE_DUMMY, &ambiguous));
     g_assert(ambiguous);
+    g_assert(!object_resolve_path_type("", TYPE_DUMMY, NULL));
 
     ambiguous = false;
     g_assert(!object_resolve_path("obj2", &ambiguous));
     g_assert(ambiguous);
+    g_assert(!object_resolve_path("obj2", NULL));
 
     ambiguous = false;
     g_assert(object_resolve_path("obj1", &ambiguous) == obj1);
     g_assert(!ambiguous);
+    g_assert(object_resolve_path("obj1", NULL) == obj1);
 
     object_unparent(obj2b);
     object_unparent(cont1);
