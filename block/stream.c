@@ -59,7 +59,6 @@ static int coroutine_fn stream_populate(BlockBackend *blk,
 
 typedef struct {
     int ret;
-    bool reached_end;
 } StreamCompleteData;
 
 static void stream_complete(BlockJob *job, void *opaque)
@@ -70,7 +69,7 @@ static void stream_complete(BlockJob *job, void *opaque)
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
 
-    if (!block_job_is_cancelled(&s->common) && data->reached_end &&
+    if (!block_job_is_cancelled(&s->common) && bs->backing &&
         data->ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
@@ -211,7 +210,6 @@ out:
     /* Modify backing chain and close BDSes in main loop */
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    data->reached_end = sector_num == end;
     block_job_defer_to_main_loop(&s->common, stream_complete, data);
 }
 
