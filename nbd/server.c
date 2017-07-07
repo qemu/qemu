@@ -687,7 +687,7 @@ static int nbd_receive_request(QIOChannel *ioc, NBDRequest *request,
     return 0;
 }
 
-static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
+static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
 {
     uint8_t buf[NBD_REPLY_SIZE];
 
@@ -706,7 +706,7 @@ static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply)
     stl_be_p(buf + 4, reply->error);
     stq_be_p(buf + 8, reply->handle);
 
-    return nbd_write(ioc, buf, sizeof(buf), NULL);
+    return nbd_write(ioc, buf, sizeof(buf), errp);
 }
 
 #define MAX_NBD_REQUESTS 16
@@ -993,7 +993,8 @@ void nbd_export_close_all(void)
     }
 }
 
-static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len)
+static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len,
+                             Error **errp)
 {
     NBDClient *client = req->client;
     int ret;
@@ -1003,12 +1004,12 @@ static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len)
     client->send_coroutine = qemu_coroutine_self();
 
     if (!len) {
-        ret = nbd_send_reply(client->ioc, reply);
+        ret = nbd_send_reply(client->ioc, reply, errp);
     } else {
         qio_channel_set_cork(client->ioc, true);
-        ret = nbd_send_reply(client->ioc, reply);
+        ret = nbd_send_reply(client->ioc, reply, errp);
         if (ret == 0) {
-            ret = nbd_write(client->ioc, req->data, len, NULL);
+            ret = nbd_write(client->ioc, req->data, len, errp);
             if (ret < 0) {
                 ret = -EIO;
             }
@@ -1260,8 +1261,8 @@ reply:
         local_err = NULL;
     }
 
-    if (nbd_co_send_reply(req, &reply, reply_data_len) < 0) {
-        error_setg(&local_err, "Failed to send reply");
+    if (nbd_co_send_reply(req, &reply, reply_data_len, &local_err) < 0) {
+        error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
     }
 
