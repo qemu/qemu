@@ -64,7 +64,7 @@ static void coroutine_fn wait_for_overlapping_requests(BackupBlockJob *job,
     do {
         retry = false;
         QLIST_FOREACH(req, &job->inflight_reqs, list) {
-            if (end > req->start && start < req->end) {
+            if (end > req->start_byte && start < req->end_byte) {
                 qemu_co_queue_wait(&req->wait_queue, NULL);
                 retry = true;
                 break;
@@ -75,10 +75,10 @@ static void coroutine_fn wait_for_overlapping_requests(BackupBlockJob *job,
 
 /* Keep track of an in-flight request */
 static void cow_request_begin(CowRequest *req, BackupBlockJob *job,
-                                     int64_t start, int64_t end)
+                              int64_t start, int64_t end)
 {
-    req->start = start;
-    req->end = end;
+    req->start_byte = start;
+    req->end_byte = end;
     qemu_co_queue_init(&req->wait_queue);
     QLIST_INSERT_HEAD(&job->inflight_reqs, req, list);
 }
@@ -114,8 +114,10 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                               sector_num * BDRV_SECTOR_SIZE,
                               nb_sectors * BDRV_SECTOR_SIZE);
 
-    wait_for_overlapping_requests(job, start, end);
-    cow_request_begin(&cow_request, job, start, end);
+    wait_for_overlapping_requests(job, start * job->cluster_size,
+                                  end * job->cluster_size);
+    cow_request_begin(&cow_request, job, start * job->cluster_size,
+                      end * job->cluster_size);
 
     for (; start < end; start++) {
         if (test_bit(start, job->done_bitmap)) {
@@ -277,32 +279,29 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
     bitmap_zero(backup_job->done_bitmap, len);
 }
 
-void backup_wait_for_overlapping_requests(BlockJob *job, int64_t sector_num,
-                                          int nb_sectors)
+void backup_wait_for_overlapping_requests(BlockJob *job, int64_t offset,
+                                          uint64_t bytes)
 {
     BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
-    int64_t sectors_per_cluster = cluster_size_sectors(backup_job);
     int64_t start, end;
 
     assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
 
-    start = sector_num / sectors_per_cluster;
-    end = DIV_ROUND_UP(sector_num + nb_sectors, sectors_per_cluster);
+    start = QEMU_ALIGN_DOWN(offset, backup_job->cluster_size);
+    end = QEMU_ALIGN_UP(offset + bytes, backup_job->cluster_size);
     wait_for_overlapping_requests(backup_job, start, end);
 }
 
 void backup_cow_request_begin(CowRequest *req, BlockJob *job,
-                              int64_t sector_num,
-                              int nb_sectors)
+                              int64_t offset, uint64_t bytes)
 {
     BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
-    int64_t sectors_per_cluster = cluster_size_sectors(backup_job);
     int64_t start, end;
 
     assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
 
-    start = sector_num / sectors_per_cluster;
-    end = DIV_ROUND_UP(sector_num + nb_sectors, sectors_per_cluster);
+    start = QEMU_ALIGN_DOWN(offset, backup_job->cluster_size);
+    end = QEMU_ALIGN_UP(offset + bytes, backup_job->cluster_size);
     cow_request_begin(req, backup_job, start, end);
 }
 

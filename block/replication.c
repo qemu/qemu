@@ -234,10 +234,14 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
     }
 
     if (job) {
-        backup_wait_for_overlapping_requests(child->bs->job, sector_num,
-                                             remaining_sectors);
-        backup_cow_request_begin(&req, child->bs->job, sector_num,
-                                 remaining_sectors);
+        uint64_t remaining_bytes = remaining_sectors * BDRV_SECTOR_SIZE;
+
+        backup_wait_for_overlapping_requests(child->bs->job,
+                                             sector_num * BDRV_SECTOR_SIZE,
+                                             remaining_bytes);
+        backup_cow_request_begin(&req, child->bs->job,
+                                 sector_num * BDRV_SECTOR_SIZE,
+                                 remaining_bytes);
         ret = bdrv_co_readv(bs->file, sector_num, remaining_sectors,
                             qiov);
         backup_cow_request_end(&req);
