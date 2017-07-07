@@ -123,9 +123,8 @@ static void sx1_init(MachineState *machine, const int version)
                            machine->cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram_nomigrate(flash, NULL, "omap_sx1.flash0-0", flash_size,
+    memory_region_init_ram(flash, NULL, "omap_sx1.flash0-0", flash_size,
                            &error_fatal);
-    vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space, OMAP_CS0_BASE, flash);
 
@@ -167,9 +166,8 @@ static void sx1_init(MachineState *machine, const int version)
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         MemoryRegion *flash_1 = g_new(MemoryRegion, 1);
-        memory_region_init_ram_nomigrate(flash_1, NULL, "omap_sx1.flash1-0", flash1_size,
-                               &error_fatal);
-        vmstate_register_ram_global(flash_1);
+        memory_region_init_ram(flash_1, NULL, "omap_sx1.flash1-0",
+                               flash1_size, &error_fatal);
         memory_region_set_readonly(flash_1, true);
         memory_region_add_subregion(address_space, OMAP_CS1_BASE, flash_1);
 

@@ -48,10 +48,8 @@ static void xtensa_create_memory_regions(const XtensaMemory *memory,
 
         g_string_printf(num_name, "%s%u", name, i);
         m = g_new(MemoryRegion, 1);
-        memory_region_init_ram_nomigrate(m, NULL, num_name->str,
-                               memory->location[i].size,
-                               &error_fatal);
-        vmstate_register_ram_global(m);
+        memory_region_init_ram(m, NULL, num_name->str,
+                               memory->location[i].size, &error_fatal);
         memory_region_add_subregion(get_system_memory(),
                                     memory->location[i].addr, m);
     }

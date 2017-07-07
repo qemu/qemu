@@ -239,7 +239,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
                                 &s->rom);
 
     /* initialize internal RAM (16 KB) */
-    memory_region_init_ram_nomigrate(&s->iram, NULL, "imx31.iram", FSL_IMX31_IRAM_SIZE,
+    memory_region_init_ram(&s->iram, NULL, "imx31.iram", FSL_IMX31_IRAM_SIZE,
                            &err);
     if (err) {
         error_propagate(errp, err);
@@ -247,7 +247,6 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
     }
     memory_region_add_subregion(get_system_memory(), FSL_IMX31_IRAM_ADDR,
                                 &s->iram);
-    vmstate_register_ram_global(&s->iram);
 
     /* internal RAM (16 KB) is aliased over 256 MB - 16 KB */
     memory_region_init_alias(&s->iram_alias, NULL, "imx31.iram_alias",

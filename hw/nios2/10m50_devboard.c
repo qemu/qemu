@@ -57,19 +57,19 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
     int i;
 
     /* Physical TCM (tb_ram_1k) with alias at 0xc0000000 */
-    memory_region_init_ram_nomigrate(phys_tcm, NULL, "nios2.tcm", tcm_size, &error_abort);
+    memory_region_init_ram(phys_tcm, NULL, "nios2.tcm", tcm_size,
+                           &error_abort);
     memory_region_init_alias(phys_tcm_alias, NULL, "nios2.tcm.alias",
                              phys_tcm, 0, tcm_size);
-    vmstate_register_ram_global(phys_tcm);
     memory_region_add_subregion(address_space_mem, tcm_base, phys_tcm);
     memory_region_add_subregion(address_space_mem, 0xc0000000 + tcm_base,
                                 phys_tcm_alias);
 
     /* Physical DRAM with alias at 0xc0000000 */
-    memory_region_init_ram_nomigrate(phys_ram, NULL, "nios2.ram", ram_size, &error_abort);
+    memory_region_init_ram(phys_ram, NULL, "nios2.ram", ram_size,
+                           &error_abort);
     memory_region_init_alias(phys_ram_alias, NULL, "nios2.ram.alias",
                              phys_ram, 0, ram_size);
-    vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(address_space_mem, ram_base, phys_ram);
     memory_region_add_subregion(address_space_mem, 0xc0000000 + ram_base,
                                 phys_ram_alias);

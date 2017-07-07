@@ -266,14 +266,13 @@ static void assign_storage(SCLPDevice *sclp, SCCB *sccb)
                 this_subregion_size = mhd->standby_subregion_size;
             }
 
-            memory_region_init_ram_nomigrate(standby_ram, NULL, id, this_subregion_size,
+            memory_region_init_ram(standby_ram, NULL, id, this_subregion_size,
                                    &error_fatal);
             /* This is a hack to make memory hotunplug work again. Once we have
              * subdevices, we have to unparent them when unassigning memory,
              * instead of doing it via the ref count of the MemoryRegion. */
             object_ref(OBJECT(standby_ram));
             object_unparent(OBJECT(standby_ram));
-            vmstate_register_ram_global(standby_ram);
             memory_region_add_subregion(sysmem, offset, standby_ram);
         }
         /* The specified subregion is no longer in standby */

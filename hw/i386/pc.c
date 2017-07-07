@@ -1441,9 +1441,8 @@ void pc_memory_init(PCMachineState *pcms,
     pc_system_firmware_init(rom_memory, !pcmc->pci_enabled);
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
-    memory_region_init_ram_nomigrate(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE,
+    memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE,
                            &error_fatal);
-    vmstate_register_ram_global(option_rom_mr);
     memory_region_add_subregion_overlap(rom_memory,
                                         PC_ROM_MIN_VGA,
                                         option_rom_mr,

@@ -390,9 +390,8 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     /* 0x2b060000: SP805 watchdog: not modelled */
     /* 0x2b0a0000: PL341 dynamic memory controller: not modelled */
     /* 0x2e000000: system SRAM */
-    memory_region_init_ram_nomigrate(sram, NULL, "vexpress.a15sram", 0x10000,
+    memory_region_init_ram(sram, NULL, "vexpress.a15sram", 0x10000,
                            &error_fatal);
-    vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, 0x2e000000, sram);
 
     /* 0x7ffb0000: DMA330 DMA controller: not modelled */
@@ -673,15 +672,13 @@ static void vexpress_common_init(MachineState *machine)
     }
 
     sram_size = 0x2000000;
-    memory_region_init_ram_nomigrate(sram, NULL, "vexpress.sram", sram_size,
+    memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size,
                            &error_fatal);
-    vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, map[VE_SRAM], sram);
 
     vram_size = 0x800000;
-    memory_region_init_ram_nomigrate(vram, NULL, "vexpress.vram", vram_size,
+    memory_region_init_ram(vram, NULL, "vexpress.vram", vram_size,
                            &error_fatal);
-    vmstate_register_ram_global(vram);
     memory_region_add_subregion(sysmem, map[VE_VIDEORAM], vram);
 
     /* 0x4e000000 LAN9118 Ethernet */

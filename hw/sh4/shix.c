@@ -63,17 +63,14 @@ static void shix_init(MachineState *machine)
     }
 
     /* Allocate memory space */
-    memory_region_init_ram_nomigrate(rom, NULL, "shix.rom", 0x4000, &error_fatal);
-    vmstate_register_ram_global(rom);
+    memory_region_init_ram(rom, NULL, "shix.rom", 0x4000, &error_fatal);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(sysmem, 0x00000000, rom);
-    memory_region_init_ram_nomigrate(&sdram[0], NULL, "shix.sdram1", 0x01000000,
+    memory_region_init_ram(&sdram[0], NULL, "shix.sdram1", 0x01000000,
                            &error_fatal);
-    vmstate_register_ram_global(&sdram[0]);
     memory_region_add_subregion(sysmem, 0x08000000, &sdram[0]);
-    memory_region_init_ram_nomigrate(&sdram[1], NULL, "shix.sdram2", 0x01000000,
+    memory_region_init_ram(&sdram[1], NULL, "shix.sdram2", 0x01000000,
                            &error_fatal);
-    vmstate_register_ram_global(&sdram[1]);
     memory_region_add_subregion(sysmem, 0x0c000000, &sdram[1]);
 
     /* Load BIOS in 0 (and access it through P2, 0xA0000000) */
