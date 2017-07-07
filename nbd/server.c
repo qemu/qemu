@@ -365,6 +365,8 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
     uint16_t request;
     uint32_t namelen;
     bool sendname = false;
+    bool blocksize = false;
+    uint32_t sizes[3];
     char buf[sizeof(uint64_t) + sizeof(uint16_t)];
     const char *msg;
 
@@ -412,11 +414,16 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
         length -= sizeof(request);
         trace_nbd_negotiate_handle_info_request(request,
                                                 nbd_info_lookup(request));
-        /* For now, we only care about NBD_INFO_NAME; everything else
-         * is either a request we don't know or something we send
-         * regardless of request. */
-        if (request == NBD_INFO_NAME) {
+        /* We care about NBD_INFO_NAME and NBD_INFO_BLOCK_SIZE;
+         * everything else is either a request we don't know or
+         * something we send regardless of request */
+        switch (request) {
+        case NBD_INFO_NAME:
             sendname = true;
+            break;
+        case NBD_INFO_BLOCK_SIZE:
+            blocksize = true;
+            break;
         }
     }
 
@@ -448,6 +455,27 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
         }
     }
 
+    /* Send NBD_INFO_BLOCK_SIZE always, but tweak the minimum size
+     * according to whether the client requested it, and according to
+     * whether this is OPT_INFO or OPT_GO. */
+    /* minimum - 1 for back-compat, or 512 if client is new enough.
+     * TODO: consult blk_bs(blk)->bl.request_alignment? */
+    sizes[0] = (opt == NBD_OPT_INFO || blocksize) ? BDRV_SECTOR_SIZE : 1;
+    /* preferred - Hard-code to 4096 for now.
+     * TODO: is blk_bs(blk)->bl.opt_transfer appropriate? */
+    sizes[1] = 4096;
+    /* maximum - At most 32M, but smaller as appropriate. */
+    sizes[2] = MIN(blk_get_max_transfer(exp->blk), NBD_MAX_BUFFER_SIZE);
+    trace_nbd_negotiate_handle_info_block_size(sizes[0], sizes[1], sizes[2]);
+    cpu_to_be32s(&sizes[0]);
+    cpu_to_be32s(&sizes[1]);
+    cpu_to_be32s(&sizes[2]);
+    rc = nbd_negotiate_send_info(client, opt, NBD_INFO_BLOCK_SIZE,
+                                 sizeof(sizes), sizes, errp);
+    if (rc < 0) {
+        return rc;
+    }
+
     /* Send NBD_INFO_EXPORT always */
     trace_nbd_negotiate_new_style_size_flags(exp->size,
                                              exp->nbdflags | myflags);
@@ -457,6 +485,18 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
                                  sizeof(buf), buf, errp);
     if (rc < 0) {
         return rc;
+    }
+
+    /* If the client is just asking for NBD_OPT_INFO, but forgot to
+     * request block sizes, return an error.
+     * TODO: consult blk_bs(blk)->request_align, and only error if it
+     * is not 1? */
+    if (opt == NBD_OPT_INFO && !blocksize) {
+        return nbd_negotiate_send_rep_err(client->ioc,
+                                          NBD_REP_ERR_BLOCK_SIZE_REQD, opt,
+                                          errp,
+                                          "request NBD_INFO_BLOCK_SIZE to "
+                                          "use this export");
     }
 
     /* Final reply */
