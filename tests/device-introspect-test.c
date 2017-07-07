@@ -103,6 +103,33 @@ static void test_device_intro_list(void)
     qtest_end();
 }
 
+static void test_qom_list_fields(void)
+{
+    QList *all_types;
+    QList *non_abstract;
+    QListEntry *e;
+
+    qtest_start(common_args);
+
+    all_types = qom_list_types(NULL, true);
+    non_abstract = qom_list_types(NULL, false);
+
+    QLIST_FOREACH_ENTRY(all_types, e) {
+        QDict *d = qobject_to_qdict(qlist_entry_obj(e));
+        const char *name = qdict_get_str(d, "name");
+        bool abstract = qdict_haskey(d, "abstract") ?
+                        qdict_get_bool(d, "abstract") :
+                        false;
+        bool expected_abstract = !type_list_find(non_abstract, name);
+
+        g_assert(abstract == expected_abstract);
+    }
+
+    QDECREF(all_types);
+    QDECREF(non_abstract);
+    qtest_end();
+}
+
 static void test_device_intro_none(void)
 {
     qtest_start(common_args);
@@ -144,25 +171,24 @@ static void test_abstract_interfaces(void)
     QListEntry *e;
 
     qtest_start(common_args);
-    /* qom-list-types implements=interface would return any type
-     * that implements _any_ interface (not just interface types),
-     * so use a trick to find the interface type names:
-     * - list all object types
-     * - list all types, and look for items that are not
-     *   on the first list
+    /*
+     * qom-list-types implements=interface returns all types that
+     * implement _any_ interface (not just interface types), but
+     * we can filter them out because interfaces don't implement
+     * the "object" type.
      */
-    all_types = qom_list_types(NULL, false);
-    obj_types = qom_list_types("object", false);
+    all_types = qom_list_types("interface", true);
+    obj_types = qom_list_types("object", true);
 
     QLIST_FOREACH_ENTRY(all_types, e) {
         QDict *d = qobject_to_qdict(qlist_entry_obj(e));
 
-        /*
-         * An interface (incorrectly) marked as non-abstract would
-         * appear on all_types, but not on obj_types:
-         */
-        g_assert(type_list_find(obj_types, qdict_get_str(d, "name")));
+        if (type_list_find(obj_types, qdict_get_str(d, "name"))) {
+            /* Not an interface type */
+            continue;
+        }
 
+        g_assert(qdict_haskey(d, "abstract") && qdict_get_bool(d, "abstract"));
     }
 
     QDECREF(all_types);
@@ -175,6 +201,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("device/introspect/list", test_device_intro_list);
+    qtest_add_func("device/introspect/list-fields", test_qom_list_fields);
     qtest_add_func("device/introspect/none", test_device_intro_none);
     qtest_add_func("device/introspect/abstract", test_device_intro_abstract);
     qtest_add_func("device/introspect/concrete", test_device_intro_concrete);

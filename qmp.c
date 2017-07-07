@@ -433,6 +433,7 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
 
     info = g_malloc0(sizeof(*info));
     info->name = g_strdup(object_class_get_name(klass));
+    info->has_abstract = info->abstract = object_class_is_abstract(klass);
 
     e = g_malloc0(sizeof(*e));
     e->value = info;
