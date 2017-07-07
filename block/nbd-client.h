@@ -20,8 +20,7 @@
 typedef struct NBDClientSession {
     QIOChannelSocket *sioc; /* The master data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
-    uint16_t nbdflags;
-    off_t size;
+    NBDExportInfo info;
 
     CoMutex send_mutex;
     CoQueue free_sema;

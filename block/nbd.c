@@ -492,7 +492,7 @@ static int64_t nbd_getlength(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
 
-    return s->client.size;
+    return s->client.info.size;
 }
 
 static void nbd_detach_aio_context(BlockDriverState *bs)

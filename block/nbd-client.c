@@ -242,7 +242,7 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
     ssize_t ret;
 
     if (flags & BDRV_REQ_FUA) {
-        assert(client->nbdflags & NBD_FLAG_SEND_FUA);
+        assert(client->info.flags & NBD_FLAG_SEND_FUA);
         request.flags |= NBD_CMD_FLAG_FUA;
     }
 
@@ -270,12 +270,12 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     };
     NBDReply reply;
 
-    if (!(client->nbdflags & NBD_FLAG_SEND_WRITE_ZEROES)) {
+    if (!(client->info.flags & NBD_FLAG_SEND_WRITE_ZEROES)) {
         return -ENOTSUP;
     }
 
     if (flags & BDRV_REQ_FUA) {
-        assert(client->nbdflags & NBD_FLAG_SEND_FUA);
+        assert(client->info.flags & NBD_FLAG_SEND_FUA);
         request.flags |= NBD_CMD_FLAG_FUA;
     }
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
@@ -299,7 +299,7 @@ int nbd_client_co_flush(BlockDriverState *bs)
     NBDReply reply;
     ssize_t ret;
 
-    if (!(client->nbdflags & NBD_FLAG_SEND_FLUSH)) {
+    if (!(client->info.flags & NBD_FLAG_SEND_FLUSH)) {
         return 0;
     }
 
@@ -327,7 +327,7 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
     NBDReply reply;
     ssize_t ret;
 
-    if (!(client->nbdflags & NBD_FLAG_SEND_TRIM)) {
+    if (!(client->info.flags & NBD_FLAG_SEND_TRIM)) {
         return 0;
     }
 
@@ -385,19 +385,17 @@ int nbd_client_init(BlockDriverState *bs,
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
-                                &client->nbdflags,
                                 tlscreds, hostname,
-                                &client->ioc,
-                                &client->size, errp);
+                                &client->ioc, &client->info, errp);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;
     }
-    if (client->nbdflags & NBD_FLAG_SEND_FUA) {
+    if (client->info.flags & NBD_FLAG_SEND_FUA) {
         bs->supported_write_flags = BDRV_REQ_FUA;
         bs->supported_zero_flags |= BDRV_REQ_FUA;
     }
-    if (client->nbdflags & NBD_FLAG_SEND_WRITE_ZEROES) {
+    if (client->info.flags & NBD_FLAG_SEND_WRITE_ZEROES) {
         bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
     }
 
