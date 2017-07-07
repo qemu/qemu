@@ -143,16 +143,15 @@ static void coroutine_fn commit_run(void *opaque)
 {
     CommitBlockJob *s = opaque;
     CommitCompleteData *data;
-    int64_t sector_num, end;
+    int64_t offset;
     uint64_t delay_ns = 0;
     int ret = 0;
-    int n = 0;
+    int n = 0; /* sectors */
     void *buf = NULL;
     int bytes_written = 0;
     int64_t base_len;
 
     ret = s->common.len = blk_getlength(s->top);
-
 
     if (s->common.len < 0) {
         goto out;
@@ -170,10 +169,9 @@ static void coroutine_fn commit_run(void *opaque)
         }
     }
 
-    end = s->common.len >> BDRV_SECTOR_BITS;
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
-    for (sector_num = 0; sector_num < end; sector_num += n) {
+    for (offset = 0; offset < s->common.len; offset += n * BDRV_SECTOR_SIZE) {
         bool copy;
 
         /* Note that even when no rate limit is applied we need to yield
@@ -185,15 +183,13 @@ static void coroutine_fn commit_run(void *opaque)
         }
         /* Copy if allocated above the base */
         ret = bdrv_is_allocated_above(blk_bs(s->top), blk_bs(s->base),
-                                      sector_num,
+                                      offset / BDRV_SECTOR_SIZE,
                                       COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
                                       &n);
         copy = (ret == 1);
-        trace_commit_one_iteration(s, sector_num * BDRV_SECTOR_SIZE,
-                                   n * BDRV_SECTOR_SIZE, ret);
+        trace_commit_one_iteration(s, offset, n * BDRV_SECTOR_SIZE, ret);
         if (copy) {
-            ret = commit_populate(s->top, s->base,
-                                  sector_num * BDRV_SECTOR_SIZE,
+            ret = commit_populate(s->top, s->base, offset,
                                   n * BDRV_SECTOR_SIZE, buf);
             bytes_written += n * BDRV_SECTOR_SIZE;
         }
