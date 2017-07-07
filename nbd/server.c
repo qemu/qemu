@@ -84,7 +84,6 @@ struct NBDClient {
     int refcount;
     void (*close_fn)(NBDClient *client, bool negotiated);
 
-    bool no_zeroes;
     NBDExport *exp;
     QCryptoTLSCreds *tlscreds;
     char *tlsaclname;
@@ -277,9 +276,13 @@ static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length,
 }
 
 static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
+                                            uint16_t myflags, bool no_zeroes,
                                             Error **errp)
 {
     char name[NBD_MAX_NAME_SIZE + 1];
+    char buf[8 + 4 + 124] = "";
+    size_t len;
+    int ret;
 
     /* Client sends:
         [20 ..  xx]   export name (length bytes)
@@ -301,6 +304,17 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
     if (!client->exp) {
         error_setg(errp, "export not found");
         return -EINVAL;
+    }
+
+    trace_nbd_negotiate_new_style_size_flags(client->exp->size,
+                                             client->exp->nbdflags | myflags);
+    stq_be_p(buf, client->exp->size);
+    stw_be_p(buf + 8, client->exp->nbdflags | myflags);
+    len = no_zeroes ? 10 : sizeof(buf);
+    ret = nbd_write(client->ioc, buf, len, errp);
+    if (ret < 0) {
+        error_prepend(errp, "write failed: ");
+        return ret;
     }
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
@@ -373,14 +387,17 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
  * 1       if client sent NBD_OPT_ABORT, i.e. on valid disconnect,
  *         errp is not set
  */
-static int nbd_negotiate_options(NBDClient *client, Error **errp)
+static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
+                                 Error **errp)
 {
     uint32_t flags;
     bool fixedNewstyle = false;
+    bool no_zeroes = false;
 
     /* Client sends:
         [ 0 ..   3]   client flags
 
+       Then we loop until NBD_OPT_EXPORT_NAME:
         [ 0 ..   7]   NBD_OPTS_MAGIC
         [ 8 ..  11]   NBD option
         [12 ..  15]   Data length
@@ -403,7 +420,7 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
         flags &= ~NBD_FLAG_C_FIXED_NEWSTYLE;
     }
     if (flags & NBD_FLAG_C_NO_ZEROES) {
-        client->no_zeroes = true;
+        no_zeroes = true;
         flags &= ~NBD_FLAG_C_NO_ZEROES;
     }
     if (flags != 0) {
@@ -503,7 +520,9 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                 return 1;
 
             case NBD_OPT_EXPORT_NAME:
-                return nbd_negotiate_handle_export_name(client, length, errp);
+                return nbd_negotiate_handle_export_name(client, length,
+                                                        myflags, no_zeroes,
+                                                        errp);
 
             case NBD_OPT_STARTTLS:
                 if (nbd_drop(client->ioc, length, errp) < 0) {
@@ -546,7 +565,9 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
              */
             switch (option) {
             case NBD_OPT_EXPORT_NAME:
-                return nbd_negotiate_handle_export_name(client, length, errp);
+                return nbd_negotiate_handle_export_name(client, length,
+                                                        myflags, no_zeroes,
+                                                        errp);
 
             default:
                 error_setg(errp, "Unsupported option 0x%" PRIx32 " (%s)",
@@ -572,7 +593,6 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
                               NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA |
                               NBD_FLAG_SEND_WRITE_ZEROES);
     bool oldStyle;
-    size_t len;
 
     /* Old style negotiation header without options
         [ 0 ..   7]   passwd       ("NBDMAGIC")
@@ -586,10 +606,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
         [ 0 ..   7]   passwd       ("NBDMAGIC")
         [ 8 ..  15]   magic        (NBD_OPTS_MAGIC)
         [16 ..  17]   server flags (0)
-        ....options sent....
-        [18 ..  25]   size
-        [26 ..  27]   export flags
-        [28 .. 151]   reserved     (0, omit if no_zeroes)
+        ....options sent, ending in NBD_OPT_EXPORT_NAME....
      */
 
     qio_channel_set_blocking(client->ioc, false, NULL);
@@ -618,22 +635,11 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
             error_prepend(errp, "write failed: ");
             return -EINVAL;
         }
-        ret = nbd_negotiate_options(client, errp);
+        ret = nbd_negotiate_options(client, myflags, errp);
         if (ret != 0) {
             if (ret < 0) {
                 error_prepend(errp, "option negotiation failed: ");
             }
-            return ret;
-        }
-
-        trace_nbd_negotiate_new_style_size_flags(
-            client->exp->size, client->exp->nbdflags | myflags);
-        stq_be_p(buf + 18, client->exp->size);
-        stw_be_p(buf + 26, client->exp->nbdflags | myflags);
-        len = client->no_zeroes ? 10 : sizeof(buf) - 18;
-        ret = nbd_write(client->ioc, buf + 18, len, errp);
-        if (ret < 0) {
-            error_prepend(errp, "write failed: ");
             return ret;
         }
     }
