@@ -3,6 +3,9 @@ nbd_unknown_error(int err) "Squashing unexpected error %d to EINVAL"
 nbd_send_option_request(uint32_t opt, const char *name, uint32_t len) "Sending option request %" PRIu32" (%s), len %" PRIu32
 nbd_receive_option_reply(uint32_t option, const char *optname, uint32_t type, const char *typename, uint32_t length) "Received option reply %" PRIx32" (%s), type %" PRIx32" (%s), len %" PRIu32
 nbd_reply_err_unsup(uint32_t option, const char *name) "server doesn't understand request %" PRIx32 " (%s), attempting fallback"
+nbd_opt_go_start(const char *name) "Attempting NBD_OPT_GO for export '%s'"
+nbd_opt_go_success(void) "Export is good to go"
+nbd_opt_go_info_unknown(int info, const char *name) "Ignoring unknown info %d (%s)"
 nbd_receive_query_exports_start(const char *wantname) "Querying export list for '%s'"
 nbd_receive_query_exports_success(const char *wantname) "Found desired export name '%s'"
 nbd_receive_starttls_request(void) "Requesting TLS from server"

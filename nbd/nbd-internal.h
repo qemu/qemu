@@ -37,8 +37,11 @@
  * https://github.com/yoe/nbd/blob/master/doc/proto.md
  */
 
+/* Size of all NBD_OPT_*, without payload */
 #define NBD_REQUEST_SIZE        (4 + 2 + 2 + 8 + 8 + 4)
+/* Size of all NBD_REP_* sent in answer to most NBD_OPT_*, without payload */
 #define NBD_REPLY_SIZE          (4 + 4 + 8)
+
 #define NBD_REQUEST_MAGIC       0x25609513
 #define NBD_REPLY_MAGIC         0x67446698
 #define NBD_OPTS_MAGIC          0x49484156454F5054LL
