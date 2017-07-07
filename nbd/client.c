@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016 Red Hat, Inc.
+ *  Copyright (C) 2016-2017 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -104,7 +104,7 @@ static int nbd_send_option_request(QIOChannel *ioc, uint32_t opt,
     if (len == -1) {
         req.length = len = strlen(data);
     }
-    trace_nbd_send_option_request(opt, len);
+    trace_nbd_send_option_request(opt, nbd_opt_lookup(opt), len);
 
     stq_be_p(&req.magic, NBD_OPTS_MAGIC);
     stl_be_p(&req.option, opt);
@@ -154,7 +154,9 @@ static int nbd_receive_option_reply(QIOChannel *ioc, uint32_t opt,
     be32_to_cpus(&reply->type);
     be32_to_cpus(&reply->length);
 
-    trace_nbd_receive_option_reply(reply->option, reply->type, reply->length);
+    trace_nbd_receive_option_reply(reply->option, nbd_opt_lookup(reply->option),
+                                   reply->type, nbd_rep_lookup(reply->type),
+                                   reply->length);
 
     if (reply->magic != NBD_REP_MAGIC) {
         error_setg(errp, "Unexpected option reply magic");
@@ -188,12 +190,16 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
 
     if (reply->length) {
         if (reply->length > NBD_MAX_BUFFER_SIZE) {
-            error_setg(errp, "server's error message is too long");
+            error_setg(errp, "server error 0x%" PRIx32
+                       " (%s) message is too long",
+                       reply->type, nbd_rep_lookup(reply->type));
             goto cleanup;
         }
         msg = g_malloc(reply->length + 1);
         if (nbd_read(ioc, msg, reply->length, errp) < 0) {
-            error_prepend(errp, "failed to read option error message");
+            error_prepend(errp, "failed to read option error 0x%" PRIx32
+                          " (%s) message",
+                          reply->type, nbd_rep_lookup(reply->type));
             goto cleanup;
         }
         msg[reply->length] = '\0';
@@ -201,38 +207,48 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
 
     switch (reply->type) {
     case NBD_REP_ERR_UNSUP:
-        trace_nbd_reply_err_unsup(reply->option);
+        trace_nbd_reply_err_unsup(reply->option, nbd_opt_lookup(reply->option));
         result = 0;
         goto cleanup;
 
     case NBD_REP_ERR_POLICY:
-        error_setg(errp, "Denied by server for option %" PRIx32,
-                   reply->option);
+        error_setg(errp, "Denied by server for option %" PRIx32 " (%s)",
+                   reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_INVALID:
-        error_setg(errp, "Invalid data length for option %" PRIx32,
-                   reply->option);
+        error_setg(errp, "Invalid data length for option %" PRIx32 " (%s)",
+                   reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_PLATFORM:
-        error_setg(errp, "Server lacks support for option %" PRIx32,
-                   reply->option);
+        error_setg(errp, "Server lacks support for option %" PRIx32 " (%s)",
+                   reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_TLS_REQD:
-        error_setg(errp, "TLS negotiation required before option %" PRIx32,
-                   reply->option);
+        error_setg(errp, "TLS negotiation required before option %" PRIx32
+                   " (%s)", reply->option, nbd_opt_lookup(reply->option));
+        break;
+
+    case NBD_REP_ERR_UNKNOWN:
+        error_setg(errp, "Requested export not available for option %" PRIx32
+                   " (%s)", reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_SHUTDOWN:
-        error_setg(errp, "Server shutting down before option %" PRIx32,
-                   reply->option);
+        error_setg(errp, "Server shutting down before option %" PRIx32 " (%s)",
+                   reply->option, nbd_opt_lookup(reply->option));
+        break;
+
+    case NBD_REP_ERR_BLOCK_SIZE_REQD:
+        error_setg(errp, "Server requires INFO_BLOCK_SIZE for option %" PRIx32
+                   " (%s)", reply->option, nbd_opt_lookup(reply->option));
         break;
 
     default:
-        error_setg(errp, "Unknown error code when asking for option %" PRIx32,
-                   reply->option);
+        error_setg(errp, "Unknown error code when asking for option %" PRIx32
+                   " (%s)", reply->option, nbd_opt_lookup(reply->option));
         break;
     }
 

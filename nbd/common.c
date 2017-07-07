@@ -101,3 +101,95 @@ void nbd_tls_handshake(QIOTask *task,
     data->complete = true;
     g_main_loop_quit(data->loop);
 }
+
+
+const char *nbd_opt_lookup(uint32_t opt)
+{
+    switch (opt) {
+    case NBD_OPT_EXPORT_NAME:
+        return "export name";
+    case NBD_OPT_ABORT:
+        return "abort";
+    case NBD_OPT_LIST:
+        return "list";
+    case NBD_OPT_STARTTLS:
+        return "starttls";
+    case NBD_OPT_INFO:
+        return "info";
+    case NBD_OPT_GO:
+        return "go";
+    case NBD_OPT_STRUCTURED_REPLY:
+        return "structured reply";
+    default:
+        return "<unknown>";
+    }
+}
+
+
+const char *nbd_rep_lookup(uint32_t rep)
+{
+    switch (rep) {
+    case NBD_REP_ACK:
+        return "ack";
+    case NBD_REP_SERVER:
+        return "server";
+    case NBD_REP_INFO:
+        return "info";
+    case NBD_REP_ERR_UNSUP:
+        return "unsupported";
+    case NBD_REP_ERR_POLICY:
+        return "denied by policy";
+    case NBD_REP_ERR_INVALID:
+        return "invalid";
+    case NBD_REP_ERR_PLATFORM:
+        return "platform lacks support";
+    case NBD_REP_ERR_TLS_REQD:
+        return "TLS required";
+    case NBD_REP_ERR_UNKNOWN:
+        return "export unknown";
+    case NBD_REP_ERR_SHUTDOWN:
+        return "server shutting down";
+    case NBD_REP_ERR_BLOCK_SIZE_REQD:
+        return "block size required";
+    default:
+        return "<unknown>";
+    }
+}
+
+
+const char *nbd_info_lookup(uint16_t info)
+{
+    switch (info) {
+    case NBD_INFO_EXPORT:
+        return "export";
+    case NBD_INFO_NAME:
+        return "name";
+    case NBD_INFO_DESCRIPTION:
+        return "description";
+    case NBD_INFO_BLOCK_SIZE:
+        return "block size";
+    default:
+        return "<unknown>";
+    }
+}
+
+
+const char *nbd_cmd_lookup(uint16_t cmd)
+{
+    switch (cmd) {
+    case NBD_CMD_READ:
+        return "read";
+    case NBD_CMD_WRITE:
+        return "write";
+    case NBD_CMD_DISC:
+        return "discard";
+    case NBD_CMD_FLUSH:
+        return "flush";
+    case NBD_CMD_TRIM:
+        return "trim";
+    case NBD_CMD_WRITE_ZEROES:
+        return "write zeroes";
+    default:
+        return "<unknown>";
+    }
+}

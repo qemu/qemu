@@ -57,12 +57,6 @@
 #define NBD_SET_TIMEOUT         _IO(0xab, 9)
 #define NBD_SET_FLAGS           _IO(0xab, 10)
 
-#define NBD_OPT_EXPORT_NAME     (1)
-#define NBD_OPT_ABORT           (2)
-#define NBD_OPT_LIST            (3)
-#define NBD_OPT_PEEK_EXPORT     (4)
-#define NBD_OPT_STARTTLS        (5)
-
 /* NBD errors are based on errno numbers, so there is a 1:1 mapping,
  * but only a limited set of errno values is specified in the protocol.
  * Everything else is squashed to EINVAL.
@@ -133,6 +127,10 @@ struct NBDTLSHandshakeData {
 
 void nbd_tls_handshake(QIOTask *task,
                        void *opaque);
+const char *nbd_opt_lookup(uint32_t opt);
+const char *nbd_rep_lookup(uint32_t rep);
+const char *nbd_info_lookup(uint16_t info);
+const char *nbd_cmd_lookup(uint16_t info);
 
 int nbd_drop(QIOChannel *ioc, size_t size, Error **errp);
 

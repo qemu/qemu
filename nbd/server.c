@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016 Red Hat, Inc.
+ *  Copyright (C) 2016-2017 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Server Side
@@ -139,7 +139,8 @@ static int nbd_negotiate_send_rep_len(QIOChannel *ioc, uint32_t type,
 {
     uint64_t magic;
 
-    trace_nbd_negotiate_send_rep_len(opt, type, len);
+    trace_nbd_negotiate_send_rep_len(opt, nbd_opt_lookup(opt),
+                                     type, nbd_rep_lookup(type), len);
 
     magic = cpu_to_be64(NBD_REP_MAGIC);
     if (nbd_write(ioc, &magic, sizeof(magic), errp) < 0) {
@@ -441,7 +442,8 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
         }
         length = be32_to_cpu(length);
 
-        trace_nbd_negotiate_options_check_option(option);
+        trace_nbd_negotiate_options_check_option(option,
+                                                 nbd_opt_lookup(option));
         if (client->tlscreds &&
             client->ioc == (QIOChannel *)client->sioc) {
             QIOChannel *tioc;
@@ -532,8 +534,8 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                                                  NBD_REP_ERR_UNSUP,
                                                  option, errp,
                                                  "Unsupported option 0x%"
-                                                 PRIx32,
-                                                 option);
+                                                 PRIx32 " (%s)", option,
+                                                 nbd_opt_lookup(option));
                 if (ret < 0) {
                     return ret;
                 }
@@ -549,7 +551,8 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                 return nbd_negotiate_handle_export_name(client, length, errp);
 
             default:
-                error_setg(errp, "Unsupported option 0x%" PRIx32, option);
+                error_setg(errp, "Unsupported option 0x%" PRIx32 " (%s)",
+                           option, nbd_opt_lookup(option));
                 return -EINVAL;
             }
         }
@@ -1033,7 +1036,8 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         return -EIO;
     }
 
-    trace_nbd_co_receive_request_decode_type(request->handle, request->type);
+    trace_nbd_co_receive_request_decode_type(request->handle, request->type,
+                                             nbd_cmd_lookup(request->type));
 
     if (request->type != NBD_CMD_WRITE) {
         /* No payload, we are ready to read the next request.  */
