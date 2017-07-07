@@ -41,20 +41,20 @@ typedef struct StreamBlockJob {
 } StreamBlockJob;
 
 static int coroutine_fn stream_populate(BlockBackend *blk,
-                                        int64_t sector_num, int nb_sectors,
+                                        int64_t offset, uint64_t bytes,
                                         void *buf)
 {
     struct iovec iov = {
         .iov_base = buf,
-        .iov_len  = nb_sectors * BDRV_SECTOR_SIZE,
+        .iov_len  = bytes,
     };
     QEMUIOVector qiov;
 
+    assert(bytes < SIZE_MAX);
     qemu_iovec_init_external(&qiov, &iov, 1);
 
     /* Copy-on-read the unallocated clusters */
-    return blk_co_preadv(blk, sector_num * BDRV_SECTOR_SIZE, qiov.size, &qiov,
-                         BDRV_REQ_COPY_ON_READ);
+    return blk_co_preadv(blk, offset, qiov.size, &qiov, BDRV_REQ_COPY_ON_READ);
 }
 
 typedef struct {
@@ -171,7 +171,8 @@ static void coroutine_fn stream_run(void *opaque)
         trace_stream_one_iteration(s, sector_num * BDRV_SECTOR_SIZE,
                                    n * BDRV_SECTOR_SIZE, ret);
         if (copy) {
-            ret = stream_populate(blk, sector_num, n, buf);
+            ret = stream_populate(blk, sector_num * BDRV_SECTOR_SIZE,
+                                  n * BDRV_SECTOR_SIZE, buf);
         }
         if (ret < 0) {
             BlockErrorAction action =
