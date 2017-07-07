@@ -349,9 +349,13 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
     return QIO_CHANNEL(tioc);
 }
 
-
-/* Process all NBD_OPT_* client option commands.
- * Return -errno on error, 0 on success. */
+/* nbd_negotiate_options
+ * Process all NBD_OPT_* client option commands.
+ * Return:
+ * -errno  on error
+ * 0       on successful negotiation
+ * 1       if client sent NBD_OPT_ABORT, i.e. on valid disconnect
+ */
 static int nbd_negotiate_options(NBDClient *client)
 {
     uint32_t flags;
@@ -459,7 +463,7 @@ static int nbd_negotiate_options(NBDClient *client)
                 }
                 /* Let the client keep trying, unless they asked to quit */
                 if (clientflags == NBD_OPT_ABORT) {
-                    return -EINVAL;
+                    return 1;
                 }
                 break;
             }
@@ -477,7 +481,7 @@ static int nbd_negotiate_options(NBDClient *client)
                  * disconnecting, but that we must also tolerate
                  * guests that don't wait for our reply. */
                 nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, clientflags);
-                return -EINVAL;
+                return 1;
 
             case NBD_OPT_EXPORT_NAME:
                 return nbd_negotiate_handle_export_name(client, length);
@@ -533,6 +537,12 @@ static int nbd_negotiate_options(NBDClient *client)
     }
 }
 
+/* nbd_negotiate
+ * Return:
+ * -errno  on error
+ * 0       on successful negotiation
+ * 1       if client sent NBD_OPT_ABORT, i.e. on valid disconnect
+ */
 static coroutine_fn int nbd_negotiate(NBDClient *client)
 {
     char buf[8 + 8 + 8 + 128];
