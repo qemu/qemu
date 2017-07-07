@@ -35,9 +35,7 @@ nbd_negotiate_handle_export_name(void) "Checking length"
 nbd_negotiate_handle_export_name_request(const char *name) "Client requested export '%s'"
 nbd_negotiate_handle_starttls(void) "Setting up TLS"
 nbd_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
-nbd_negotiate_options_flags(void) "Checking client flags"
-nbd_negotiate_options_newstyle(void) "Client supports fixed newstyle handshake"
-nbd_negotiate_options_no_zeroes(void) "Client supports no zeroes at handshake end"
+nbd_negotiate_options_flags(uint32_t flags) "Received client flags 0x%" PRIx32
 nbd_negotiate_options_check_magic(uint64_t magic) "Checking opts magic 0x%" PRIx64
 nbd_negotiate_options_check_option(uint32_t option, const char *name) "Checking option 0x%" PRIx32 " (%s)"
 nbd_negotiate_begin(void) "Beginning negotiation"
