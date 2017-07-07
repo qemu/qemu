@@ -168,7 +168,8 @@ static void coroutine_fn stream_run(void *opaque)
 
             copy = (ret == 1);
         }
-        trace_stream_one_iteration(s, sector_num, n, ret);
+        trace_stream_one_iteration(s, sector_num * BDRV_SECTOR_SIZE,
+                                   n * BDRV_SECTOR_SIZE, ret);
         if (copy) {
             ret = stream_populate(blk, sector_num, n, buf);
         }

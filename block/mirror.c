@@ -103,7 +103,8 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
     int64_t chunk_num;
     int i, nb_chunks, sectors_per_chunk;
 
-    trace_mirror_iteration_done(s, op->sector_num, op->nb_sectors, ret);
+    trace_mirror_iteration_done(s, op->sector_num * BDRV_SECTOR_SIZE,
+                                op->nb_sectors * BDRV_SECTOR_SIZE, ret);
 
     s->in_flight--;
     s->sectors_in_flight -= op->nb_sectors;
@@ -268,7 +269,8 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
     nb_chunks = DIV_ROUND_UP(nb_sectors, sectors_per_chunk);
 
     while (s->buf_free_count < nb_chunks) {
-        trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
+        trace_mirror_yield_in_flight(s, sector_num * BDRV_SECTOR_SIZE,
+                                     s->in_flight);
         mirror_wait_for_io(s);
     }
 
@@ -294,7 +296,8 @@ static int mirror_do_read(MirrorBlockJob *s, int64_t sector_num,
     /* Copy the dirty cluster.  */
     s->in_flight++;
     s->sectors_in_flight += nb_sectors;
-    trace_mirror_one_iteration(s, sector_num, nb_sectors);
+    trace_mirror_one_iteration(s, sector_num * BDRV_SECTOR_SIZE,
+                               nb_sectors * BDRV_SECTOR_SIZE);
 
     blk_aio_preadv(source, sector_num * BDRV_SECTOR_SIZE, &op->qiov, 0,
                    mirror_read_complete, op);
@@ -347,14 +350,16 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     if (sector_num < 0) {
         bdrv_set_dirty_iter(s->dbi, 0);
         sector_num = bdrv_dirty_iter_next(s->dbi);
-        trace_mirror_restart_iter(s, bdrv_get_dirty_count(s->dirty_bitmap));
+        trace_mirror_restart_iter(s, bdrv_get_dirty_count(s->dirty_bitmap) *
+                                  BDRV_SECTOR_SIZE);
         assert(sector_num >= 0);
     }
     bdrv_dirty_bitmap_unlock(s->dirty_bitmap);
 
     first_chunk = sector_num / sectors_per_chunk;
     while (test_bit(first_chunk, s->in_flight_bitmap)) {
-        trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
+        trace_mirror_yield_in_flight(s, sector_num * BDRV_SECTOR_SIZE,
+                                     s->in_flight);
         mirror_wait_for_io(s);
     }
 
@@ -433,7 +438,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         }
 
         while (s->in_flight >= MAX_IN_FLIGHT) {
-            trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
+            trace_mirror_yield_in_flight(s, sector_num * BDRV_SECTOR_SIZE,
+                                         s->in_flight);
             mirror_wait_for_io(s);
         }
 
@@ -823,7 +829,8 @@ static void coroutine_fn mirror_run(void *opaque)
             s->common.iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
-                trace_mirror_yield(s, cnt, s->buf_free_count, s->in_flight);
+                trace_mirror_yield(s, cnt * BDRV_SECTOR_SIZE,
+                                   s->buf_free_count, s->in_flight);
                 mirror_wait_for_io(s);
                 continue;
             } else if (cnt != 0) {
@@ -864,7 +871,7 @@ static void coroutine_fn mirror_run(void *opaque)
              * whether to switch to target check one last time if I/O has
              * come in the meanwhile, and if not flush the data to disk.
              */
-            trace_mirror_before_drain(s, cnt);
+            trace_mirror_before_drain(s, cnt * BDRV_SECTOR_SIZE);
 
             bdrv_drained_begin(bs);
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
@@ -883,7 +890,8 @@ static void coroutine_fn mirror_run(void *opaque)
         }
 
         ret = 0;
-        trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
+        trace_mirror_before_sleep(s, cnt * BDRV_SECTOR_SIZE,
+                                  s->synced, delay_ns);
         if (!s->synced) {
             block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
             if (block_job_is_cancelled(&s->common)) {

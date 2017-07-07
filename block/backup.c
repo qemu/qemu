@@ -102,6 +102,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
     void *bounce_buffer = NULL;
     int ret = 0;
     int64_t sectors_per_cluster = cluster_size_sectors(job);
+    int64_t bytes_per_cluster = sectors_per_cluster * BDRV_SECTOR_SIZE;
     int64_t start, end;
     int n;
 
@@ -110,18 +111,20 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
     start = sector_num / sectors_per_cluster;
     end = DIV_ROUND_UP(sector_num + nb_sectors, sectors_per_cluster);
 
-    trace_backup_do_cow_enter(job, start, sector_num, nb_sectors);
+    trace_backup_do_cow_enter(job, start * bytes_per_cluster,
+                              sector_num * BDRV_SECTOR_SIZE,
+                              nb_sectors * BDRV_SECTOR_SIZE);
 
     wait_for_overlapping_requests(job, start, end);
     cow_request_begin(&cow_request, job, start, end);
 
     for (; start < end; start++) {
         if (test_bit(start, job->done_bitmap)) {
-            trace_backup_do_cow_skip(job, start);
+            trace_backup_do_cow_skip(job, start * bytes_per_cluster);
             continue; /* already copied */
         }
 
-        trace_backup_do_cow_process(job, start);
+        trace_backup_do_cow_process(job, start * bytes_per_cluster);
 
         n = MIN(sectors_per_cluster,
                 job->common.len / BDRV_SECTOR_SIZE -
@@ -138,7 +141,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                             bounce_qiov.size, &bounce_qiov,
                             is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0);
         if (ret < 0) {
-            trace_backup_do_cow_read_fail(job, start, ret);
+            trace_backup_do_cow_read_fail(job, start * bytes_per_cluster, ret);
             if (error_is_read) {
                 *error_is_read = true;
             }
@@ -154,7 +157,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                                  job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
         }
         if (ret < 0) {
-            trace_backup_do_cow_write_fail(job, start, ret);
+            trace_backup_do_cow_write_fail(job, start * bytes_per_cluster, ret);
             if (error_is_read) {
                 *error_is_read = false;
             }
@@ -177,7 +180,8 @@ out:
 
     cow_request_end(&cow_request);
 
-    trace_backup_do_cow_return(job, sector_num, nb_sectors, ret);
+    trace_backup_do_cow_return(job, sector_num * BDRV_SECTOR_SIZE,
+                               nb_sectors * BDRV_SECTOR_SIZE, ret);
 
     qemu_co_rwlock_unlock(&job->flush_rwlock);
 

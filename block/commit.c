@@ -190,7 +190,8 @@ static void coroutine_fn commit_run(void *opaque)
                                       COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
                                       &n);
         copy = (ret == 1);
-        trace_commit_one_iteration(s, sector_num, n, ret);
+        trace_commit_one_iteration(s, sector_num * BDRV_SECTOR_SIZE,
+                                   n * BDRV_SECTOR_SIZE, ret);
         if (copy) {
             ret = commit_populate(s->top, s->base, sector_num, n, buf);
             bytes_written += n * BDRV_SECTOR_SIZE;
