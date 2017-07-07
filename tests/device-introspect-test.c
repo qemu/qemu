@@ -45,6 +45,22 @@ static QList *qom_list_types(const char *implements, bool abstract)
     return ret;
 }
 
+/* Find an entry on a list returned by qom-list-types */
+static QDict *type_list_find(QList *types, const char *name)
+{
+    QListEntry *e;
+
+    QLIST_FOREACH_ENTRY(types, e) {
+        QDict *d = qobject_to_qdict(qlist_entry_obj(e));
+        const char *ename = qdict_get_str(d, "name");
+        if (!strcmp(ename, name)) {
+            return d;
+        }
+    }
+
+    return NULL;
+}
+
 static QList *device_type_list(bool abstract)
 {
     return qom_list_types("device", abstract);
@@ -125,7 +141,7 @@ static void test_abstract_interfaces(void)
 {
     QList *all_types;
     QList *obj_types;
-    QListEntry *ae;
+    QListEntry *e;
 
     qtest_start(common_args);
     /* qom-list-types implements=interface would return any type
@@ -138,24 +154,15 @@ static void test_abstract_interfaces(void)
     all_types = qom_list_types(NULL, false);
     obj_types = qom_list_types("object", false);
 
-    QLIST_FOREACH_ENTRY(all_types, ae) {
-        QDict *at = qobject_to_qdict(qlist_entry_obj(ae));
-        const char *aname = qdict_get_str(at, "name");
-        QListEntry *oe;
-        const char *found = NULL;
+    QLIST_FOREACH_ENTRY(all_types, e) {
+        QDict *d = qobject_to_qdict(qlist_entry_obj(e));
 
-        QLIST_FOREACH_ENTRY(obj_types, oe) {
-            QDict *ot = qobject_to_qdict(qlist_entry_obj(oe));
-            const char *oname = qdict_get_str(ot, "name");
-            if (!strcmp(aname, oname)) {
-                found = oname;
-                break;
-            }
-        }
+        /*
+         * An interface (incorrectly) marked as non-abstract would
+         * appear on all_types, but not on obj_types:
+         */
+        g_assert(type_list_find(obj_types, qdict_get_str(d, "name")));
 
-        /* Using g_assert_cmpstr() will give more useful failure
-         * messages than g_assert(found) */
-        g_assert_cmpstr(aname, ==, found);
     }
 
     QDECREF(all_types);
