@@ -466,7 +466,7 @@ static int milkymist_minimac2_init(SysBusDevice *sbd)
     sysbus_init_mmio(sbd, &s->regs_region);
 
     /* register buffers memory */
-    memory_region_init_ram(&s->buffers, OBJECT(dev), "milkymist-minimac2.buffers",
+    memory_region_init_ram_nomigrate(&s->buffers, OBJECT(dev), "milkymist-minimac2.buffers",
                            buffers_size, &error_fatal);
     vmstate_register_ram_global(&s->buffers);
     s->rx0_buf = memory_region_get_ram_ptr(&s->buffers);

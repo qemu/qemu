@@ -420,8 +420,9 @@ void memory_region_init_io(MemoryRegion *mr,
                            uint64_t size);
 
 /**
- * memory_region_init_ram:  Initialize RAM memory region.  Accesses into the
- *                          region will modify memory directly.
+ * memory_region_init_ram_nomigrate:  Initialize RAM memory region.  Accesses
+ *                                    into the region will modify memory
+ *                                    directly.
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
@@ -433,11 +434,11 @@ void memory_region_init_io(MemoryRegion *mr,
  * Note that this function does not do anything to cause the data in the
  * RAM memory region to be migrated; that is the responsibility of the caller.
  */
-void memory_region_init_ram(MemoryRegion *mr,
-                            struct Object *owner,
-                            const char *name,
-                            uint64_t size,
-                            Error **errp);
+void memory_region_init_ram_nomigrate(MemoryRegion *mr,
+                                      struct Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      Error **errp);
 
 /**
  * memory_region_init_resizeable_ram:  Initialize memory region with resizeable

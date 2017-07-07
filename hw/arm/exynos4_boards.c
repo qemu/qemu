@@ -110,7 +110,7 @@ static void exynos4_boards_init_ram(Exynos4BoardState *s,
     unsigned long mem_size = ram_size;
 
     if (mem_size > EXYNOS4210_DRAM_MAX_SIZE) {
-        memory_region_init_ram(&s->dram1_mem, NULL, "exynos4210.dram1",
+        memory_region_init_ram_nomigrate(&s->dram1_mem, NULL, "exynos4210.dram1",
                                mem_size - EXYNOS4210_DRAM_MAX_SIZE,
                                &error_fatal);
         vmstate_register_ram_global(&s->dram1_mem);
@@ -119,7 +119,7 @@ static void exynos4_boards_init_ram(Exynos4BoardState *s,
         mem_size = EXYNOS4210_DRAM_MAX_SIZE;
     }
 
-    memory_region_init_ram(&s->dram0_mem, NULL, "exynos4210.dram0", mem_size,
+    memory_region_init_ram_nomigrate(&s->dram0_mem, NULL, "exynos4210.dram0", mem_size,
                            &error_fatal);
     vmstate_register_ram_global(&s->dram0_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_DRAM0_BASE_ADDR,

@@ -120,7 +120,7 @@ static void xilinx_pcie_host_realize(DeviceState *dev, Error **errp)
     memory_region_set_enabled(&s->mmio, false);
 
     /* dummy I/O region */
-    memory_region_init_ram(&s->io, OBJECT(s), "io", 16, NULL);
+    memory_region_init_ram_nomigrate(&s->io, OBJECT(s), "io", 16, NULL);
     memory_region_set_enabled(&s->io, false);
 
     /* interrupt out */

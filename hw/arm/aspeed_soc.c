@@ -211,7 +211,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* SRAM */
-    memory_region_init_ram(&s->sram, OBJECT(dev), "aspeed.sram",
+    memory_region_init_ram_nomigrate(&s->sram, OBJECT(dev), "aspeed.sram",
                            sc->info->sram_size, &err);
     if (err) {
         error_propagate(errp, err);

@@ -419,7 +419,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                 &s->caam);
 
     /* OCRAM memory */
-    memory_region_init_ram(&s->ocram, NULL, "imx6.ocram", FSL_IMX6_OCRAM_SIZE,
+    memory_region_init_ram_nomigrate(&s->ocram, NULL, "imx6.ocram", FSL_IMX6_OCRAM_SIZE,
                            &err);
     if (err) {
         error_propagate(errp, err);

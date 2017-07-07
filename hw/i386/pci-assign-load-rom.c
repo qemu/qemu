@@ -59,7 +59,7 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev, struct Object *owner,
     fseek(fp, 0, SEEK_SET);
 
     snprintf(name, sizeof(name), "%s.rom", object_get_typename(owner));
-    memory_region_init_ram(&dev->rom, owner, name, st.st_size, &error_abort);
+    memory_region_init_ram_nomigrate(&dev->rom, owner, name, st.st_size, &error_abort);
     vmstate_register_ram(&dev->rom, &dev->qdev);
     ptr = memory_region_get_ram_ptr(&dev->rom);
     memset(ptr, 0xff, st.st_size);

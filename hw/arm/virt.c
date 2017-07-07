@@ -1155,7 +1155,7 @@ static void create_secure_ram(VirtMachineState *vms,
     hwaddr base = vms->memmap[VIRT_SECURE_MEM].base;
     hwaddr size = vms->memmap[VIRT_SECURE_MEM].size;
 
-    memory_region_init_ram(secram, NULL, "virt.secure-ram", size, &error_fatal);
+    memory_region_init_ram_nomigrate(secram, NULL, "virt.secure-ram", size, &error_fatal);
     vmstate_register_ram_global(secram);
     memory_region_add_subregion(secure_sysmem, base, secram);
 

@@ -236,7 +236,7 @@ void mips_r4k_init(MachineState *machine)
 #endif
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
         bios = g_new(MemoryRegion, 1);
-        memory_region_init_ram(bios, NULL, "mips_r4k.bios", BIOS_SIZE,
+        memory_region_init_ram_nomigrate(bios, NULL, "mips_r4k.bios", BIOS_SIZE,
                                &error_fatal);
         vmstate_register_ram_global(bios);
         memory_region_set_readonly(bios, true);

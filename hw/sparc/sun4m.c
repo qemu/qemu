@@ -590,7 +590,7 @@ static void idreg_init1(Object *obj)
     IDRegState *s = MACIO_ID_REGISTER(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_ram(&s->mem, obj,
+    memory_region_init_ram_nomigrate(&s->mem, obj,
                            "sun4m.idreg", sizeof(idreg_data), &error_fatal);
     vmstate_register_ram_global(&s->mem);
     memory_region_set_readonly(&s->mem, true);
@@ -631,7 +631,7 @@ static void afx_init1(Object *obj)
     AFXState *s = TCX_AFX(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_ram(&s->mem, obj, "sun4m.afx", 4, &error_fatal);
+    memory_region_init_ram_nomigrate(&s->mem, obj, "sun4m.afx", 4, &error_fatal);
     vmstate_register_ram_global(&s->mem);
     sysbus_init_mmio(dev, &s->mem);
 }
@@ -698,7 +698,7 @@ static void prom_init1(Object *obj)
     PROMState *s = OPENPROM(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_ram(&s->prom, obj, "sun4m.prom", PROM_SIZE_MAX,
+    memory_region_init_ram_nomigrate(&s->prom, obj, "sun4m.prom", PROM_SIZE_MAX,
                            &error_fatal);
     vmstate_register_ram_global(&s->prom);
     memory_region_set_readonly(&s->prom, true);

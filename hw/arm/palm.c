@@ -214,7 +214,7 @@ static void palmte_init(MachineState *machine)
     mpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram(flash, NULL, "palmte.flash", flash_size,
+    memory_region_init_ram_nomigrate(flash, NULL, "palmte.flash", flash_size,
                            &error_fatal);
     vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);

@@ -212,7 +212,7 @@ static void xen_ram_init(PCMachineState *pcms,
          */
         block_len = (1ULL << 32) + pcms->above_4g_mem_size;
     }
-    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len,
+    memory_region_init_ram_nomigrate(&ram_memory, NULL, "xen.ram", block_len,
                            &error_fatal);
     *ram_memory_p = &ram_memory;
     vmstate_register_ram_global(&ram_memory);

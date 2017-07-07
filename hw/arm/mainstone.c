@@ -128,7 +128,7 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
 
     /* Setup CPU & memory */
     mpu = pxa270_init(address_space_mem, mainstone_binfo.ram_size, cpu_model);
-    memory_region_init_ram(rom, NULL, "mainstone.rom", MAINSTONE_ROM,
+    memory_region_init_ram_nomigrate(rom, NULL, "mainstone.rom", MAINSTONE_ROM,
                            &error_fatal);
     vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);

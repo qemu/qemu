@@ -57,7 +57,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
     /* map the last 128KB of the BIOS in ISA space */
     isa_bios_size = MIN(flash_size, 128 * 1024);
     isa_bios = g_malloc(sizeof(*isa_bios));
-    memory_region_init_ram(isa_bios, NULL, "isa-bios", isa_bios_size,
+    memory_region_init_ram_nomigrate(isa_bios, NULL, "isa-bios", isa_bios_size,
                            &error_fatal);
     vmstate_register_ram_global(isa_bios);
     memory_region_add_subregion_overlap(rom_memory,
@@ -195,7 +195,7 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
         goto bios_error;
     }
     bios = g_malloc(sizeof(*bios));
-    memory_region_init_ram(bios, NULL, "pc.bios", bios_size, &error_fatal);
+    memory_region_init_ram_nomigrate(bios, NULL, "pc.bios", bios_size, &error_fatal);
     vmstate_register_ram_global(bios);
     if (!isapc_ram_fw) {
         memory_region_set_readonly(bios, true);

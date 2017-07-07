@@ -267,7 +267,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
                                 &s->rom[1]);
 
     /* initialize internal RAM (128 KB) */
-    memory_region_init_ram(&s->iram, NULL, "imx25.iram", FSL_IMX25_IRAM_SIZE,
+    memory_region_init_ram_nomigrate(&s->iram, NULL, "imx25.iram", FSL_IMX25_IRAM_SIZE,
                            &err);
     if (err) {
         error_propagate(errp, err);

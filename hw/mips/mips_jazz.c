@@ -175,7 +175,7 @@ static void mips_jazz_init(MachineState *machine,
                                          machine->ram_size);
     memory_region_add_subregion(address_space, 0, ram);
 
-    memory_region_init_ram(bios, NULL, "mips_jazz.bios", MAGNUM_BIOS_SIZE,
+    memory_region_init_ram_nomigrate(bios, NULL, "mips_jazz.bios", MAGNUM_BIOS_SIZE,
                            &error_fatal);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
@@ -242,7 +242,7 @@ static void mips_jazz_init(MachineState *machine,
         {
             /* Simple ROM, so user doesn't have to provide one */
             MemoryRegion *rom_mr = g_new(MemoryRegion, 1);
-            memory_region_init_ram(rom_mr, NULL, "g364fb.rom", 0x80000,
+            memory_region_init_ram_nomigrate(rom_mr, NULL, "g364fb.rom", 0x80000,
                                    &error_fatal);
             vmstate_register_ram_global(rom_mr);
             memory_region_set_readonly(rom_mr, true);

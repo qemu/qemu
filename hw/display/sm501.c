@@ -1578,7 +1578,7 @@ static void sm501_init(SM501State *s, DeviceState *dev,
                   s->local_mem_size_index);
 
     /* local memory */
-    memory_region_init_ram(&s->local_mem_region, OBJECT(dev), "sm501.local",
+    memory_region_init_ram_nomigrate(&s->local_mem_region, OBJECT(dev), "sm501.local",
                            get_local_mem_size(s), &error_fatal);
     vmstate_register_ram_global(&s->local_mem_region);
     memory_region_set_log(&s->local_mem_region, true, DIRTY_MEMORY_VGA);
