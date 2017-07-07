@@ -370,11 +370,10 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
     int ret = 0;
     int clusters_per_iter;
     uint32_t granularity;
-    int64_t sector;
+    int64_t offset;
     int64_t cluster;
     int64_t end;
     int64_t last_cluster = -1;
-    int64_t sectors_per_cluster = cluster_size_sectors(job);
     BdrvDirtyBitmapIter *dbi;
 
     granularity = bdrv_dirty_bitmap_granularity(job->sync_bitmap);
@@ -382,8 +381,8 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
     dbi = bdrv_dirty_iter_new(job->sync_bitmap, 0);
 
     /* Find the next dirty sector(s) */
-    while ((sector = bdrv_dirty_iter_next(dbi)) != -1) {
-        cluster = sector / sectors_per_cluster;
+    while ((offset = bdrv_dirty_iter_next(dbi) * BDRV_SECTOR_SIZE) >= 0) {
+        cluster = offset / job->cluster_size;
 
         /* Fake progress updates for any clusters we skipped */
         if (cluster != last_cluster + 1) {
@@ -410,7 +409,8 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
         /* If the bitmap granularity is smaller than the backup granularity,
          * we need to advance the iterator pointer to the next cluster. */
         if (granularity < job->cluster_size) {
-            bdrv_set_dirty_iter(dbi, cluster * sectors_per_cluster);
+            bdrv_set_dirty_iter(dbi,
+                                cluster * job->cluster_size / BDRV_SECTOR_SIZE);
         }
 
         last_cluster = cluster - 1;
@@ -432,17 +432,15 @@ static void coroutine_fn backup_run(void *opaque)
     BackupBlockJob *job = opaque;
     BackupCompleteData *data;
     BlockDriverState *bs = blk_bs(job->common.blk);
-    int64_t start, end;
+    int64_t offset;
     int64_t sectors_per_cluster = cluster_size_sectors(job);
     int ret = 0;
 
     QLIST_INIT(&job->inflight_reqs);
     qemu_co_rwlock_init(&job->flush_rwlock);
 
-    start = 0;
-    end = DIV_ROUND_UP(job->common.len, job->cluster_size);
-
-    job->done_bitmap = bitmap_new(end);
+    job->done_bitmap = bitmap_new(DIV_ROUND_UP(job->common.len,
+                                               job->cluster_size));
 
     job->before_write.notify = backup_before_write_notify;
     bdrv_add_before_write_notifier(bs, &job->before_write);
@@ -457,7 +455,8 @@ static void coroutine_fn backup_run(void *opaque)
         ret = backup_run_incremental(job);
     } else {
         /* Both FULL and TOP SYNC_MODE's require copying.. */
-        for (; start < end; start++) {
+        for (offset = 0; offset < job->common.len;
+             offset += job->cluster_size) {
             bool error_is_read;
             int alloced = 0;
 
@@ -480,8 +479,8 @@ static void coroutine_fn backup_run(void *opaque)
                      * needed but at some point that is always the case. */
                     alloced =
                         bdrv_is_allocated(bs,
-                                start * sectors_per_cluster + i,
-                                sectors_per_cluster - i, &n);
+                                          (offset >> BDRV_SECTOR_BITS) + i,
+                                          sectors_per_cluster - i, &n);
                     i += n;
 
                     if (alloced || n == 0) {
@@ -499,9 +498,8 @@ static void coroutine_fn backup_run(void *opaque)
             if (alloced < 0) {
                 ret = alloced;
             } else {
-                ret = backup_do_cow(job, start * job->cluster_size,
-                                    job->cluster_size, &error_is_read,
-                                    false);
+                ret = backup_do_cow(job, offset, job->cluster_size,
+                                    &error_is_read, false);
             }
             if (ret < 0) {
                 /* Depending on error action, fail now or retry cluster */
@@ -510,7 +508,7 @@ static void coroutine_fn backup_run(void *opaque)
                 if (action == BLOCK_ERROR_ACTION_REPORT) {
                     break;
                 } else {
-                    start--;
+                    offset -= job->cluster_size;
                     continue;
                 }
             }
