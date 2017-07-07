@@ -1248,7 +1248,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     int virq;
     MSIMessage msg = {0, 0};
 
-    if (dev) {
+    if (pci_available && dev) {
         msg = pci_get_msi_message(dev, vector);
     }
 
@@ -1271,7 +1271,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
-    if (kvm_msi_devid_required()) {
+    if (pci_available && kvm_msi_devid_required()) {
         kroute.flags = KVM_MSI_VALID_DEVID;
         kroute.u.msi.devid = pci_requester_id(dev);
     }
@@ -1309,7 +1309,7 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
-    if (kvm_msi_devid_required()) {
+    if (pci_available && kvm_msi_devid_required()) {
         kroute.flags = KVM_MSI_VALID_DEVID;
         kroute.u.msi.devid = pci_requester_id(dev);
     }

@@ -10,6 +10,8 @@
 
 #include "hw/pci/pcie.h"
 
+extern bool pci_available;
+
 /* PCI bus */
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
