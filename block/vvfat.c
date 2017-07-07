@@ -1482,24 +1482,27 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
         if (sector_num >= bs->total_sectors)
            return -1;
         if (s->qcow) {
-            int n;
+            int64_t n;
             int ret;
-            ret = bdrv_is_allocated(s->qcow->bs, sector_num,
-                                    nb_sectors - i, &n);
+            ret = bdrv_is_allocated(s->qcow->bs, sector_num * BDRV_SECTOR_SIZE,
+                                    (nb_sectors - i) * BDRV_SECTOR_SIZE, &n);
             if (ret < 0) {
                 return ret;
             }
             if (ret) {
-                DLOG(fprintf(stderr, "sectors %d+%d allocated\n",
-                             (int)sector_num, n));
-                if (bdrv_read(s->qcow, sector_num, buf + i * 0x200, n)) {
+                DLOG(fprintf(stderr, "sectors %" PRId64 "+%" PRId64
+                             " allocated\n", sector_num,
+                             n >> BDRV_SECTOR_BITS));
+                if (bdrv_read(s->qcow, sector_num, buf + i * 0x200,
+                              n >> BDRV_SECTOR_BITS)) {
                     return -1;
                 }
-                i += n - 1;
-                sector_num += n - 1;
+                i += (n >> BDRV_SECTOR_BITS) - 1;
+                sector_num += (n >> BDRV_SECTOR_BITS) - 1;
                 continue;
             }
-DLOG(fprintf(stderr, "sector %d not allocated\n", (int)sector_num));
+            DLOG(fprintf(stderr, "sector %" PRId64 " not allocated\n",
+                         sector_num));
         }
         if (sector_num < s->offset_to_root_dir) {
             if (sector_num < s->offset_to_fat) {
@@ -1779,7 +1782,7 @@ static inline bool cluster_was_modified(BDRVVVFATState *s,
                                         uint32_t cluster_num)
 {
     int was_modified = 0;
-    int i, dummy;
+    int i;
 
     if (s->qcow == NULL) {
         return 0;
@@ -1787,8 +1790,9 @@ static inline bool cluster_was_modified(BDRVVVFATState *s,
 
     for (i = 0; !was_modified && i < s->sectors_per_cluster; i++) {
         was_modified = bdrv_is_allocated(s->qcow->bs,
-                                         cluster2sector(s, cluster_num) + i,
-                                         1, &dummy);
+                                         (cluster2sector(s, cluster_num) +
+                                          i) * BDRV_SECTOR_SIZE,
+                                         BDRV_SECTOR_SIZE, NULL);
     }
 
     /*
@@ -1935,7 +1939,7 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
             }
 
             if (copy_it) {
-                int i, dummy;
+                int i;
                 /*
                  * This is horribly inefficient, but that is okay, since
                  * it is rarely executed, if at all.
@@ -1946,7 +1950,9 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
                 for (i = 0; i < s->sectors_per_cluster; i++) {
                     int res;
 
-                    res = bdrv_is_allocated(s->qcow->bs, offset + i, 1, &dummy);
+                    res = bdrv_is_allocated(s->qcow->bs,
+                                            (offset + i) * BDRV_SECTOR_SIZE,
+                                            BDRV_SECTOR_SIZE, NULL);
                     if (res < 0) {
                         return -1;
                     }

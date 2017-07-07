@@ -1760,12 +1760,12 @@ out:
 static int alloc_f(BlockBackend *blk, int argc, char **argv)
 {
     BlockDriverState *bs = blk_bs(blk);
-    int64_t offset, sector_num, nb_sectors, remaining, count;
+    int64_t offset, start, remaining, count;
     char s1[64];
-    int num, ret;
-    int64_t sum_alloc;
+    int ret;
+    int64_t num, sum_alloc;
 
-    offset = cvtnum(argv[1]);
+    start = offset = cvtnum(argv[1]);
     if (offset < 0) {
         print_cvtnum_err(offset, argv[1]);
         return 0;
@@ -1793,32 +1793,30 @@ static int alloc_f(BlockBackend *blk, int argc, char **argv)
                count);
         return 0;
     }
-    nb_sectors = count >> BDRV_SECTOR_BITS;
 
-    remaining = nb_sectors;
+    remaining = count;
     sum_alloc = 0;
-    sector_num = offset >> 9;
     while (remaining) {
-        ret = bdrv_is_allocated(bs, sector_num, remaining, &num);
+        ret = bdrv_is_allocated(bs, offset, remaining, &num);
         if (ret < 0) {
             printf("is_allocated failed: %s\n", strerror(-ret));
             return 0;
         }
-        sector_num += num;
+        offset += num;
         remaining -= num;
         if (ret) {
             sum_alloc += num;
         }
         if (num == 0) {
-            nb_sectors -= remaining;
+            count -= remaining;
             remaining = 0;
         }
     }
 
-    cvtstr(offset, s1, sizeof(s1));
+    cvtstr(start, s1, sizeof(s1));
 
     printf("%"PRId64"/%"PRId64" bytes allocated at offset %s\n",
-           sum_alloc << BDRV_SECTOR_BITS, nb_sectors << BDRV_SECTOR_BITS, s1);
+           sum_alloc, count, s1);
     return 0;
 }
 
@@ -1833,14 +1831,15 @@ static const cmdinfo_t alloc_cmd = {
 };
 
 
-static int map_is_allocated(BlockDriverState *bs, int64_t sector_num,
-                            int64_t nb_sectors, int64_t *pnum)
+static int map_is_allocated(BlockDriverState *bs, int64_t offset,
+                            int64_t bytes, int64_t *pnum)
 {
-    int num, num_checked;
+    int64_t num;
+    int num_checked;
     int ret, firstret;
 
-    num_checked = MIN(nb_sectors, INT_MAX);
-    ret = bdrv_is_allocated(bs, sector_num, num_checked, &num);
+    num_checked = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
+    ret = bdrv_is_allocated(bs, offset, num_checked, &num);
     if (ret < 0) {
         return ret;
     }
@@ -1848,12 +1847,12 @@ static int map_is_allocated(BlockDriverState *bs, int64_t sector_num,
     firstret = ret;
     *pnum = num;
 
-    while (nb_sectors > 0 && ret == firstret) {
-        sector_num += num;
-        nb_sectors -= num;
+    while (bytes > 0 && ret == firstret) {
+        offset += num;
+        bytes -= num;
 
-        num_checked = MIN(nb_sectors, INT_MAX);
-        ret = bdrv_is_allocated(bs, sector_num, num_checked, &num);
+        num_checked = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
+        ret = bdrv_is_allocated(bs, offset, num_checked, &num);
         if (ret == firstret && num) {
             *pnum += num;
         } else {
@@ -1866,25 +1865,21 @@ static int map_is_allocated(BlockDriverState *bs, int64_t sector_num,
 
 static int map_f(BlockBackend *blk, int argc, char **argv)
 {
-    int64_t offset;
-    int64_t nb_sectors, total_sectors;
+    int64_t offset, bytes;
     char s1[64], s2[64];
     int64_t num;
     int ret;
     const char *retstr;
 
     offset = 0;
-    total_sectors = blk_nb_sectors(blk);
-    if (total_sectors < 0) {
-        error_report("Failed to query image length: %s",
-                     strerror(-total_sectors));
+    bytes = blk_getlength(blk);
+    if (bytes < 0) {
+        error_report("Failed to query image length: %s", strerror(-bytes));
         return 0;
     }
 
-    nb_sectors = total_sectors;
-
-    do {
-        ret = map_is_allocated(blk_bs(blk), offset, nb_sectors, &num);
+    while (bytes) {
+        ret = map_is_allocated(blk_bs(blk), offset, bytes, &num);
         if (ret < 0) {
             error_report("Failed to get allocation status: %s", strerror(-ret));
             return 0;
@@ -1894,15 +1889,14 @@ static int map_f(BlockBackend *blk, int argc, char **argv)
         }
 
         retstr = ret ? "    allocated" : "not allocated";
-        cvtstr(num << BDRV_SECTOR_BITS, s1, sizeof(s1));
-        cvtstr(offset << BDRV_SECTOR_BITS, s2, sizeof(s2));
+        cvtstr(num, s1, sizeof(s1));
+        cvtstr(offset, s2, sizeof(s2));
         printf("%s (0x%" PRIx64 ") bytes %s at offset %s (0x%" PRIx64 ")\n",
-               s1, num << BDRV_SECTOR_BITS, retstr,
-               s2, offset << BDRV_SECTOR_BITS);
+               s1, num, retstr, s2, offset);
 
         offset += num;
-        nb_sectors -= num;
-    } while (offset < total_sectors);
+        bytes -= num;
+    }
 
     return 0;
 }

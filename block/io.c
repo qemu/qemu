@@ -1033,17 +1033,18 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
     }
 
     if (flags & BDRV_REQ_COPY_ON_READ) {
-        int64_t start_sector = offset >> BDRV_SECTOR_BITS;
-        int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
-        unsigned int nb_sectors = end_sector - start_sector;
-        int pnum;
+        /* TODO: Simplify further once bdrv_is_allocated no longer
+         * requires sector alignment */
+        int64_t start = QEMU_ALIGN_DOWN(offset, BDRV_SECTOR_SIZE);
+        int64_t end = QEMU_ALIGN_UP(offset + bytes, BDRV_SECTOR_SIZE);
+        int64_t pnum;
 
-        ret = bdrv_is_allocated(bs, start_sector, nb_sectors, &pnum);
+        ret = bdrv_is_allocated(bs, start, end - start, &pnum);
         if (ret < 0) {
             goto out;
         }
 
-        if (!ret || pnum != nb_sectors) {
+        if (!ret || pnum != end - start) {
             ret = bdrv_co_do_copy_on_readv(child, offset, bytes, qiov);
             goto out;
         }
@@ -1900,14 +1901,24 @@ int64_t bdrv_get_block_status(BlockDriverState *bs,
                                        sector_num, nb_sectors, pnum, file);
 }
 
-int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
-                                   int nb_sectors, int *pnum)
+int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
+                                   int64_t bytes, int64_t *pnum)
 {
     BlockDriverState *file;
-    int64_t ret = bdrv_get_block_status(bs, sector_num, nb_sectors, pnum,
-                                        &file);
+    int64_t sector_num = offset >> BDRV_SECTOR_BITS;
+    int nb_sectors = bytes >> BDRV_SECTOR_BITS;
+    int64_t ret;
+    int psectors;
+
+    assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
+    assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE) && bytes < INT_MAX);
+    ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &psectors,
+                                &file);
     if (ret < 0) {
         return ret;
+    }
+    if (pnum) {
+        *pnum = psectors * BDRV_SECTOR_SIZE;
     }
     return !!(ret & BDRV_BLOCK_ALLOCATED);
 }
@@ -1917,7 +1928,8 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num,
  *
  * Return true if the given sector is allocated in any image between
  * BASE and TOP (inclusive).  BASE can be NULL to check if the given
- * sector is allocated in any image of the chain.  Return false otherwise.
+ * sector is allocated in any image of the chain.  Return false otherwise,
+ * or negative errno on failure.
  *
  * 'pnum' is set to the number of sectors (including and immediately following
  *  the specified sector) that are known to be in the same
@@ -1934,13 +1946,19 @@ int bdrv_is_allocated_above(BlockDriverState *top,
 
     intermediate = top;
     while (intermediate && intermediate != base) {
-        int pnum_inter;
-        ret = bdrv_is_allocated(intermediate, sector_num, nb_sectors,
+        int64_t pnum_inter;
+        int psectors_inter;
+
+        ret = bdrv_is_allocated(intermediate, sector_num * BDRV_SECTOR_SIZE,
+                                nb_sectors * BDRV_SECTOR_SIZE,
                                 &pnum_inter);
         if (ret < 0) {
             return ret;
-        } else if (ret) {
-            *pnum = pnum_inter;
+        }
+        assert(pnum_inter < INT_MAX * BDRV_SECTOR_SIZE);
+        psectors_inter = pnum_inter >> BDRV_SECTOR_BITS;
+        if (ret) {
+            *pnum = psectors_inter;
             return 1;
         }
 
@@ -1950,10 +1968,10 @@ int bdrv_is_allocated_above(BlockDriverState *top,
          *
          * [sector_num+x, nr_sectors] allocated.
          */
-        if (n > pnum_inter &&
+        if (n > psectors_inter &&
             (intermediate == top ||
-             sector_num + pnum_inter < intermediate->total_sectors)) {
-            n = pnum_inter;
+             sector_num + psectors_inter < intermediate->total_sectors)) {
+            n = psectors_inter;
         }
 
         intermediate = backing_bs(intermediate);

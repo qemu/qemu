@@ -443,7 +443,7 @@ fail:
 }
 
 
-#define COMMIT_BUF_SECTORS 2048
+#define COMMIT_BUF_SIZE (2048 * BDRV_SECTOR_SIZE)
 
 /* commit COW file into the raw image */
 int bdrv_commit(BlockDriverState *bs)
@@ -452,8 +452,9 @@ int bdrv_commit(BlockDriverState *bs)
     BlockDriverState *backing_file_bs = NULL;
     BlockDriverState *commit_top_bs = NULL;
     BlockDriver *drv = bs->drv;
-    int64_t sector, total_sectors, length, backing_length;
-    int n, ro, open_flags;
+    int64_t offset, length, backing_length;
+    int ro, open_flags;
+    int64_t n;
     int ret = 0;
     uint8_t *buf = NULL;
     Error *local_err = NULL;
@@ -531,30 +532,26 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    total_sectors = length >> BDRV_SECTOR_BITS;
-
     /* blk_try_blockalign() for src will choose an alignment that works for
      * backing as well, so no need to compare the alignment manually. */
-    buf = blk_try_blockalign(src, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
+    buf = blk_try_blockalign(src, COMMIT_BUF_SIZE);
     if (buf == NULL) {
         ret = -ENOMEM;
         goto ro_cleanup;
     }
 
-    for (sector = 0; sector < total_sectors; sector += n) {
-        ret = bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n);
+    for (offset = 0; offset < length; offset += n) {
+        ret = bdrv_is_allocated(bs, offset, COMMIT_BUF_SIZE, &n);
         if (ret < 0) {
             goto ro_cleanup;
         }
         if (ret) {
-            ret = blk_pread(src, sector * BDRV_SECTOR_SIZE, buf,
-                            n * BDRV_SECTOR_SIZE);
+            ret = blk_pread(src, offset, buf, n);
             if (ret < 0) {
                 goto ro_cleanup;
             }
 
-            ret = blk_pwrite(backing, sector * BDRV_SECTOR_SIZE, buf,
-                             n * BDRV_SECTOR_SIZE, 0);
+            ret = blk_pwrite(backing, offset, buf, n, 0);
             if (ret < 0) {
                 goto ro_cleanup;
             }

@@ -47,12 +47,6 @@ typedef struct BackupBlockJob {
     QLIST_HEAD(, CowRequest) inflight_reqs;
 } BackupBlockJob;
 
-/* Size of a cluster in sectors, instead of bytes. */
-static inline int64_t cluster_size_sectors(BackupBlockJob *job)
-{
-  return job->cluster_size / BDRV_SECTOR_SIZE;
-}
-
 /* See if in-flight requests overlap and wait for them to complete */
 static void coroutine_fn wait_for_overlapping_requests(BackupBlockJob *job,
                                                        int64_t start,
@@ -433,7 +427,6 @@ static void coroutine_fn backup_run(void *opaque)
     BackupCompleteData *data;
     BlockDriverState *bs = blk_bs(job->common.blk);
     int64_t offset;
-    int64_t sectors_per_cluster = cluster_size_sectors(job);
     int ret = 0;
 
     QLIST_INIT(&job->inflight_reqs);
@@ -465,12 +458,13 @@ static void coroutine_fn backup_run(void *opaque)
             }
 
             if (job->sync_mode == MIRROR_SYNC_MODE_TOP) {
-                int i, n;
+                int i;
+                int64_t n;
 
                 /* Check to see if these blocks are already in the
                  * backing file. */
 
-                for (i = 0; i < sectors_per_cluster;) {
+                for (i = 0; i < job->cluster_size;) {
                     /* bdrv_is_allocated() only returns true/false based
                      * on the first set of sectors it comes across that
                      * are are all in the same state.
@@ -478,9 +472,8 @@ static void coroutine_fn backup_run(void *opaque)
                      * backup cluster length.  We end up copying more than
                      * needed but at some point that is always the case. */
                     alloced =
-                        bdrv_is_allocated(bs,
-                                          (offset >> BDRV_SECTOR_BITS) + i,
-                                          sectors_per_cluster - i, &n);
+                        bdrv_is_allocated(bs, offset + i,
+                                          job->cluster_size - i, &n);
                     i += n;
 
                     if (alloced || n == 0) {

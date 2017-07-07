@@ -137,6 +137,7 @@ static void coroutine_fn stream_run(void *opaque)
 
     for ( ; offset < s->common.len; offset += n * BDRV_SECTOR_SIZE) {
         bool copy;
+        int64_t count = 0;
 
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
@@ -148,8 +149,10 @@ static void coroutine_fn stream_run(void *opaque)
 
         copy = false;
 
-        ret = bdrv_is_allocated(bs, offset / BDRV_SECTOR_SIZE,
-                                STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        ret = bdrv_is_allocated(bs, offset, STREAM_BUFFER_SIZE, &count);
+        /* TODO relax this once bdrv_is_allocated does not enforce sectors */
+        assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
+        n = count >> BDRV_SECTOR_BITS;
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
         } else if (ret >= 0) {

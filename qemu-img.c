@@ -3258,6 +3258,7 @@ static int img_rebase(int argc, char **argv)
         int64_t new_backing_num_sectors = 0;
         uint64_t sector;
         int n;
+        int64_t count;
         float local_progress = 0;
 
         buf_old = blk_blockalign(blk, IO_BUF_SIZE);
@@ -3305,12 +3306,17 @@ static int img_rebase(int argc, char **argv)
             }
 
             /* If the cluster is allocated, we don't need to take action */
-            ret = bdrv_is_allocated(bs, sector, n, &n);
+            ret = bdrv_is_allocated(bs, sector << BDRV_SECTOR_BITS,
+                                    n << BDRV_SECTOR_BITS, &count);
             if (ret < 0) {
                 error_report("error while reading image metadata: %s",
                              strerror(-ret));
                 goto out;
             }
+            /* TODO relax this once bdrv_is_allocated does not enforce
+             * sector alignment */
+            assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
+            n = count >> BDRV_SECTOR_BITS;
             if (ret) {
                 continue;
             }
