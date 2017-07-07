@@ -679,6 +679,94 @@ void memory_region_init_iommu(void *_iommu_mr,
                               uint64_t size);
 
 /**
+ * memory_region_init_ram - Initialize RAM memory region.  Accesses into the
+ *                          region will modify memory directly.
+ *
+ * @mr: the #MemoryRegion to be initialized
+ * @owner: the object that tracks the region's reference count (must be
+ *         TYPE_DEVICE or a subclass of TYPE_DEVICE, or NULL)
+ * @name: name of the memory region
+ * @size: size of the region in bytes
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * This function allocates RAM for a board model or device, and
+ * arranges for it to be migrated (by calling vmstate_register_ram()
+ * if @owner is a DeviceState, or vmstate_register_ram_global() if
+ * @owner is NULL).
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ */
+void memory_region_init_ram(MemoryRegion *mr,
+                            struct Object *owner,
+                            const char *name,
+                            uint64_t size,
+                            Error **errp);
+
+/**
+ * memory_region_init_rom: Initialize a ROM memory region.
+ *
+ * This has the same effect as calling memory_region_init_ram()
+ * and then marking the resulting region read-only with
+ * memory_region_set_readonly(). This includes arranging for the
+ * contents to be migrated.
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_rom(MemoryRegion *mr,
+                            struct Object *owner,
+                            const char *name,
+                            uint64_t size,
+                            Error **errp);
+
+/**
+ * memory_region_init_rom_device:  Initialize a ROM memory region.
+ *                                 Writes are handled via callbacks.
+ *
+ * This function initializes a memory region backed by RAM for reads
+ * and callbacks for writes, and arranges for the RAM backing to
+ * be migrated (by calling vmstate_register_ram()
+ * if @owner is a DeviceState, or vmstate_register_ram_global() if
+ * @owner is NULL).
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @ops: callbacks for write access handling (must not be NULL).
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_rom_device(MemoryRegion *mr,
+                                   struct Object *owner,
+                                   const MemoryRegionOps *ops,
+                                   void *opaque,
+                                   const char *name,
+                                   uint64_t size,
+                                   Error **errp);
+
+
+/**
  * memory_region_owner: get a memory region's owner.
  *
  * @mr: the memory region being queried.
