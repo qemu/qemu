@@ -384,6 +384,7 @@ int nbd_client_init(BlockDriverState *bs,
     logout("session init %s\n", export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
+    client->info.request_sizes = true;
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
                                 tlscreds, hostname,
                                 &client->ioc, &client->info, errp);
@@ -397,6 +398,9 @@ int nbd_client_init(BlockDriverState *bs,
     }
     if (client->info.flags & NBD_FLAG_SEND_WRITE_ZEROES) {
         bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
+    }
+    if (client->info.min_block > bs->bl.request_alignment) {
+        bs->bl.request_alignment = client->info.min_block;
     }
 
     qemu_co_mutex_init(&client->send_mutex);

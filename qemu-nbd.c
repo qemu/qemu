@@ -255,7 +255,7 @@ static void *show_parts(void *arg)
 static void *nbd_client_thread(void *arg)
 {
     char *device = arg;
-    NBDExportInfo info;
+    NBDExportInfo info = { .request_sizes = false, };
     QIOChannelSocket *sioc;
     int fd;
     int ret;

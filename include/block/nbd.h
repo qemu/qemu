@@ -144,8 +144,14 @@ enum {
 
 /* Details collected by NBD_OPT_EXPORT_NAME and NBD_OPT_GO */
 struct NBDExportInfo {
+    /* Set by client before nbd_receive_negotiate() */
+    bool request_sizes;
+    /* Set by server results during nbd_receive_negotiate() */
     uint64_t size;
     uint16_t flags;
+    uint32_t min_block;
+    uint32_t opt_block;
+    uint32_t max_block;
 };
 typedef struct NBDExportInfo NBDExportInfo;
 
