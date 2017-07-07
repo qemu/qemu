@@ -33,6 +33,9 @@ nbd_negotiate_send_rep_err(const char *msg) "sending error message \"%s\""
 nbd_negotiate_send_rep_list(const char *name, const char *desc) "Advertising export name '%s' description '%s'"
 nbd_negotiate_handle_export_name(void) "Checking length"
 nbd_negotiate_handle_export_name_request(const char *name) "Client requested export '%s'"
+nbd_negotiate_send_info(int info, const char *name, uint32_t length) "Sending NBD_REP_INFO type %d (%s) with remaining length %" PRIu32
+nbd_negotiate_handle_info_requests(int requests) "Client requested %d items of info"
+nbd_negotiate_handle_info_request(int request, const char *name) "Client requested info %d (%s)"
 nbd_negotiate_handle_starttls(void) "Setting up TLS"
 nbd_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
 nbd_negotiate_options_flags(uint32_t flags) "Received client flags 0x%" PRIx32
