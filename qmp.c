@@ -430,10 +430,15 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
 {
     ObjectTypeInfoList *e, **pret = data;
     ObjectTypeInfo *info;
+    ObjectClass *parent = object_class_get_parent(klass);
 
     info = g_malloc0(sizeof(*info));
     info->name = g_strdup(object_class_get_name(klass));
     info->has_abstract = info->abstract = object_class_is_abstract(klass);
+    if (parent) {
+        info->has_parent = true;
+        info->parent = g_strdup(object_class_get_name(parent));
+    }
 
     e = g_malloc0(sizeof(*e));
     e->value = info;

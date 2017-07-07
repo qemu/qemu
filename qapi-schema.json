@@ -3054,10 +3054,12 @@
 # @abstract: the type is abstract and can't be directly instantiated.
 #            Omitted if false. (since 2.10)
 #
+# @parent: Name of parent type, if any (since 2.10)
+#
 # Since: 1.1
 ##
 { 'struct': 'ObjectTypeInfo',
-  'data': { 'name': 'str', '*abstract': 'bool' } }
+  'data': { 'name': 'str', '*abstract': 'bool', '*parent': 'str' } }
 
 ##
 # @qom-list-types:
