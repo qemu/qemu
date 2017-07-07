@@ -584,21 +584,15 @@ static coroutine_fn int nbd_negotiate(NBDClient *client)
         stq_be_p(buf + 8, NBD_CLIENT_MAGIC);
         stq_be_p(buf + 16, client->exp->size);
         stw_be_p(buf + 26, client->exp->nbdflags | myflags);
-    } else {
-        stq_be_p(buf + 8, NBD_OPTS_MAGIC);
-        stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE | NBD_FLAG_NO_ZEROES);
-    }
 
-    if (oldStyle) {
-        if (client->tlscreds) {
-            TRACE("TLS cannot be enabled with oldstyle protocol");
-            return -EINVAL;
-        }
         if (nbd_write(client->ioc, buf, sizeof(buf), NULL) < 0) {
             LOG("write failed");
             return -EINVAL;
         }
     } else {
+        stq_be_p(buf + 8, NBD_OPTS_MAGIC);
+        stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE | NBD_FLAG_NO_ZEROES);
+
         if (nbd_write(client->ioc, buf, 18, NULL) < 0) {
             LOG("write failed");
             return -EINVAL;
