@@ -376,7 +376,6 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
 {
     uint32_t flags;
     bool fixedNewstyle = false;
-    Error *local_err = NULL;
 
     /* Client sends:
         [ 0 ..   3]   client flags
@@ -479,7 +478,9 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                 if (ret < 0) {
                     return ret;
                 }
-                /* Let the client keep trying, unless they asked to quit */
+                /* Let the client keep trying, unless they asked to
+                 * quit. In this mode, we've already sent an error, so
+                 * we can't ack the abort.  */
                 if (option == NBD_OPT_ABORT) {
                     return 1;
                 }
@@ -498,15 +499,7 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                 /* NBD spec says we must try to reply before
                  * disconnecting, but that we must also tolerate
                  * guests that don't wait for our reply. */
-                nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, option,
-                                       &local_err);
-
-                if (local_err != NULL) {
-                    const char *error = error_get_pretty(local_err);
-                    trace_nbd_opt_abort_reply_failed(error);
-                    error_free(local_err);
-                }
-
+                nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, option, NULL);
                 return 1;
 
             case NBD_OPT_EXPORT_NAME:

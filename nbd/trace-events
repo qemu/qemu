@@ -40,7 +40,6 @@ nbd_negotiate_options_newstyle(void) "Client supports fixed newstyle handshake"
 nbd_negotiate_options_no_zeroes(void) "Client supports no zeroes at handshake end"
 nbd_negotiate_options_check_magic(uint64_t magic) "Checking opts magic 0x%" PRIx64
 nbd_negotiate_options_check_option(uint32_t option) "Checking option 0x%" PRIx32
-nbd_opt_abort_reply_failed(const char *error) "Reply to NBD_OPT_ABORT request failed: %s"
 nbd_negotiate_begin(void) "Beginning negotiation"
 nbd_negotiate_old_style(uint64_t size, unsigned flags) "advertising size %" PRIu64 " and flags %x"
 nbd_negotiate_new_style_size_flags(uint64_t size, unsigned flags) "advertising size %" PRIu64 " and flags %x"
