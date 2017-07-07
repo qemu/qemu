@@ -135,13 +135,16 @@ class QEMUMachine(object):
             self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
                                            stderr=subprocess.STDOUT, shell=False)
             self._post_launch()
-        except:
+        except Exception as details:
+            self._load_io_log()
             if self.is_running():
                 self._popen.kill()
                 self._popen.wait()
-            self._load_io_log()
+            else:
+                details.message += ("\nCommand:\n%s\nOutput:\n%s" %
+                                    (' '.join(args), self._iolog))
             self._post_shutdown()
-            raise
+            raise details.__class__(details.message)
 
     def shutdown(self):
         '''Terminate the VM and clean up'''
