@@ -743,7 +743,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         return NULL;
 #endif
 
-    memory_region_init_rom_device(
+    memory_region_init_rom_device_nomigrate(
         &pfl->mem, OBJECT(dev),
         &pflash_cfi01_ops,
         pfl,

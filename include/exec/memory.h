@@ -586,11 +586,15 @@ void memory_region_init_alias(MemoryRegion *mr,
                               uint64_t size);
 
 /**
- * memory_region_init_rom: Initialize a ROM memory region.
+ * memory_region_init_rom_nomigrate: Initialize a ROM memory region.
  *
- * This has the same effect as calling memory_region_init_ram()
+ * This has the same effect as calling memory_region_init_ram_nomigrate()
  * and then marking the resulting region read-only with
  * memory_region_set_readonly().
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM side of the memory region to be migrated; that is the responsibility
+ * of the caller.
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
@@ -599,15 +603,19 @@ void memory_region_init_alias(MemoryRegion *mr,
  * @size: size of the region.
  * @errp: pointer to Error*, to store an error if it happens.
  */
-void memory_region_init_rom(MemoryRegion *mr,
-                            struct Object *owner,
-                            const char *name,
-                            uint64_t size,
-                            Error **errp);
+void memory_region_init_rom_nomigrate(MemoryRegion *mr,
+                                      struct Object *owner,
+                                      const char *name,
+                                      uint64_t size,
+                                      Error **errp);
 
 /**
- * memory_region_init_rom_device:  Initialize a ROM memory region.  Writes are
- *                                 handled via callbacks.
+ * memory_region_init_rom_device_nomigrate:  Initialize a ROM memory region.
+ *                                 Writes are handled via callbacks.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM side of the memory region to be migrated; that is the responsibility
+ * of the caller.
  *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
@@ -617,13 +625,13 @@ void memory_region_init_rom(MemoryRegion *mr,
  * @size: size of the region.
  * @errp: pointer to Error*, to store an error if it happens.
  */
-void memory_region_init_rom_device(MemoryRegion *mr,
-                                   struct Object *owner,
-                                   const MemoryRegionOps *ops,
-                                   void *opaque,
-                                   const char *name,
-                                   uint64_t size,
-                                   Error **errp);
+void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
+                                             struct Object *owner,
+                                             const MemoryRegionOps *ops,
+                                             void *opaque,
+                                             const char *name,
+                                             uint64_t size,
+                                             Error **errp);
 
 /**
  * memory_region_init_reservation: Initialize a memory region that reserves

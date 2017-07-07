@@ -621,7 +621,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
         return NULL;
 #endif
 
-    memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl), pfl->be ?
+    memory_region_init_rom_device_nomigrate(&pfl->orig_mem, OBJECT(pfl), pfl->be ?
                                   &pflash_cfi02_ops_be : &pflash_cfi02_ops_le,
                                   pfl, pfl->name, chip_len, &local_err);
     if (local_err) {
