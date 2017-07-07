@@ -47,26 +47,25 @@ typedef struct CommitBlockJob {
 } CommitBlockJob;
 
 static int coroutine_fn commit_populate(BlockBackend *bs, BlockBackend *base,
-                                        int64_t sector_num, int nb_sectors,
+                                        int64_t offset, uint64_t bytes,
                                         void *buf)
 {
     int ret = 0;
     QEMUIOVector qiov;
     struct iovec iov = {
         .iov_base = buf,
-        .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+        .iov_len = bytes,
     };
 
+    assert(bytes < SIZE_MAX);
     qemu_iovec_init_external(&qiov, &iov, 1);
 
-    ret = blk_co_preadv(bs, sector_num * BDRV_SECTOR_SIZE,
-                        qiov.size, &qiov, 0);
+    ret = blk_co_preadv(bs, offset, qiov.size, &qiov, 0);
     if (ret < 0) {
         return ret;
     }
 
-    ret = blk_co_pwritev(base, sector_num * BDRV_SECTOR_SIZE,
-                         qiov.size, &qiov, 0);
+    ret = blk_co_pwritev(base, offset, qiov.size, &qiov, 0);
     if (ret < 0) {
         return ret;
     }
@@ -193,7 +192,9 @@ static void coroutine_fn commit_run(void *opaque)
         trace_commit_one_iteration(s, sector_num * BDRV_SECTOR_SIZE,
                                    n * BDRV_SECTOR_SIZE, ret);
         if (copy) {
-            ret = commit_populate(s->top, s->base, sector_num, n, buf);
+            ret = commit_populate(s->top, s->base,
+                                  sector_num * BDRV_SECTOR_SIZE,
+                                  n * BDRV_SECTOR_SIZE, buf);
             bytes_written += n * BDRV_SECTOR_SIZE;
         }
         if (ret < 0) {
