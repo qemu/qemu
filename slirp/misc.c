@@ -112,7 +112,9 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		    bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
 		    listen(s, 1) < 0) {
 			error_report("Error: inet socket: %s", strerror(errno));
-			closesocket(s);
+			if (s >= 0) {
+			    closesocket(s);
+			}
 
 			return 0;
 		}
