@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "trace.h"
 #include "nbd-internal.h"
 
 static int nbd_errno_to_system_errno(int err)
@@ -44,7 +45,7 @@ static int nbd_errno_to_system_errno(int err)
         ret = ESHUTDOWN;
         break;
     default:
-        TRACE("Squashing unexpected error %d to EINVAL", err);
+        trace_nbd_unknown_error(err);
         /* fallthrough */
     case NBD_EINVAL:
         ret = EINVAL;
@@ -103,7 +104,7 @@ static int nbd_send_option_request(QIOChannel *ioc, uint32_t opt,
     if (len == -1) {
         req.length = len = strlen(data);
     }
-    TRACE("Sending option request %" PRIu32", len %" PRIu32, opt, len);
+    trace_nbd_send_option_request(opt, len);
 
     stq_be_p(&req.magic, NBD_OPTS_MAGIC);
     stl_be_p(&req.option, opt);
@@ -153,8 +154,7 @@ static int nbd_receive_option_reply(QIOChannel *ioc, uint32_t opt,
     be32_to_cpus(&reply->type);
     be32_to_cpus(&reply->length);
 
-    TRACE("Received option reply %" PRIx32", type %" PRIx32", len %" PRIu32,
-          reply->option, reply->type, reply->length);
+    trace_nbd_receive_option_reply(reply->option, reply->type, reply->length);
 
     if (reply->magic != NBD_REP_MAGIC) {
         error_setg(errp, "Unexpected option reply magic");
@@ -201,8 +201,7 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
 
     switch (reply->type) {
     case NBD_REP_ERR_UNSUP:
-        TRACE("server doesn't understand request %" PRIx32
-              ", attempting fallback", reply->option);
+        trace_nbd_reply_err_unsup(reply->option);
         result = 0;
         goto cleanup;
 
@@ -342,12 +341,11 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
 {
     bool foundExport = false;
 
-    TRACE("Querying export list for '%s'", wantname);
+    trace_nbd_receive_query_exports_start(wantname);
     if (nbd_send_option_request(ioc, NBD_OPT_LIST, 0, NULL, errp) < 0) {
         return -1;
     }
 
-    TRACE("Reading available export names");
     while (1) {
         int ret = nbd_receive_list(ioc, wantname, &foundExport, errp);
 
@@ -362,7 +360,7 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
                 nbd_send_opt_abort(ioc);
                 return -1;
             }
-            TRACE("Found desired export name '%s'", wantname);
+            trace_nbd_receive_query_exports_success(wantname);
             return 0;
         }
     }
@@ -376,12 +374,12 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     QIOChannelTLS *tioc;
     struct NBDTLSHandshakeData data = { 0 };
 
-    TRACE("Requesting TLS from server");
+    trace_nbd_receive_starttls_request();
     if (nbd_send_option_request(ioc, NBD_OPT_STARTTLS, 0, NULL, errp) < 0) {
         return NULL;
     }
 
-    TRACE("Getting TLS reply from server");
+    trace_nbd_receive_starttls_reply();
     if (nbd_receive_option_reply(ioc, NBD_OPT_STARTTLS, &reply, errp) < 0) {
         return NULL;
     }
@@ -400,14 +398,14 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
         return NULL;
     }
 
-    TRACE("TLS request approved, setting up TLS");
+    trace_nbd_receive_starttls_new_client();
     tioc = qio_channel_tls_new_client(ioc, tlscreds, hostname, errp);
     if (!tioc) {
         return NULL;
     }
     qio_channel_set_name(QIO_CHANNEL(tioc), "nbd-client-tls");
     data.loop = g_main_loop_new(g_main_context_default(), FALSE);
-    TRACE("Starting TLS handshake");
+    trace_nbd_receive_starttls_tls_handshake();
     qio_channel_tls_handshake(tioc,
                               nbd_tls_handshake,
                               &data,
@@ -437,8 +435,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
     int rc;
     bool zeroes = true;
 
-    TRACE("Receiving negotiation tlscreds=%p hostname=%s.",
-          tlscreds, hostname ? hostname : "<null>");
+    trace_nbd_receive_negotiate(tlscreds, hostname ? hostname : "<null>");
 
     rc = -EINVAL;
 
@@ -461,15 +458,8 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
         goto fail;
     }
 
-    TRACE("Magic is %c%c%c%c%c%c%c%c",
-          qemu_isprint(buf[0]) ? buf[0] : '.',
-          qemu_isprint(buf[1]) ? buf[1] : '.',
-          qemu_isprint(buf[2]) ? buf[2] : '.',
-          qemu_isprint(buf[3]) ? buf[3] : '.',
-          qemu_isprint(buf[4]) ? buf[4] : '.',
-          qemu_isprint(buf[5]) ? buf[5] : '.',
-          qemu_isprint(buf[6]) ? buf[6] : '.',
-          qemu_isprint(buf[7]) ? buf[7] : '.');
+    magic = ldq_be_p(buf);
+    trace_nbd_receive_negotiate_magic(magic);
 
     if (memcmp(buf, "NBDMAGIC", 8) != 0) {
         error_setg(errp, "Invalid magic received");
@@ -481,7 +471,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
         goto fail;
     }
     magic = be64_to_cpu(magic);
-    TRACE("Magic is 0x%" PRIx64, magic);
+    trace_nbd_receive_negotiate_magic(magic);
 
     if (magic == NBD_OPTS_MAGIC) {
         uint32_t clientflags = 0;
@@ -493,15 +483,13 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             goto fail;
         }
         globalflags = be16_to_cpu(globalflags);
-        TRACE("Global flags are %" PRIx32, globalflags);
+        trace_nbd_receive_negotiate_server_flags(globalflags);
         if (globalflags & NBD_FLAG_FIXED_NEWSTYLE) {
             fixedNewStyle = true;
-            TRACE("Server supports fixed new style");
             clientflags |= NBD_FLAG_C_FIXED_NEWSTYLE;
         }
         if (globalflags & NBD_FLAG_NO_ZEROES) {
             zeroes = false;
-            TRACE("Server supports no zeroes");
             clientflags |= NBD_FLAG_C_NO_ZEROES;
         }
         /* client requested flags */
@@ -523,7 +511,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             }
         }
         if (!name) {
-            TRACE("Using default NBD export name \"\"");
+            trace_nbd_receive_negotiate_default_name();
             name = "";
         }
         if (fixedNewStyle) {
@@ -572,7 +560,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
             goto fail;
         }
         *size = be64_to_cpu(s);
-        TRACE("Size is %" PRIu64, *size);
 
         if (nbd_read(ioc, &oldflags, sizeof(oldflags), errp) < 0) {
             error_prepend(errp, "Failed to read export flags");
@@ -589,7 +576,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
         goto fail;
     }
 
-    TRACE("Size is %" PRIu64 ", export flags %" PRIx16, *size, *flags);
+    trace_nbd_receive_negotiate_size_flags(*size, *flags);
     if (zeroes && nbd_drop(ioc, 124, errp) < 0) {
         error_prepend(errp, "Failed to read reserved block");
         goto fail;
@@ -611,7 +598,7 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size,
         return -E2BIG;
     }
 
-    TRACE("Setting NBD socket");
+    trace_nbd_init_set_socket();
 
     if (ioctl(fd, NBD_SET_SOCK, (unsigned long) sioc->fd) < 0) {
         int serrno = errno;
@@ -619,7 +606,7 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size,
         return -serrno;
     }
 
-    TRACE("Setting block size to %lu", (unsigned long)BDRV_SECTOR_SIZE);
+    trace_nbd_init_set_block_size(BDRV_SECTOR_SIZE);
 
     if (ioctl(fd, NBD_SET_BLKSIZE, (unsigned long)BDRV_SECTOR_SIZE) < 0) {
         int serrno = errno;
@@ -627,10 +614,9 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size,
         return -serrno;
     }
 
-    TRACE("Setting size to %lu block(s)", sectors);
+    trace_nbd_init_set_size(sectors);
     if (size % BDRV_SECTOR_SIZE) {
-        TRACE("Ignoring trailing %d bytes of export",
-              (int) (size % BDRV_SECTOR_SIZE));
+        trace_nbd_init_trailing_bytes(size % BDRV_SECTOR_SIZE);
     }
 
     if (ioctl(fd, NBD_SET_SIZE_BLOCKS, sectors) < 0) {
@@ -642,7 +628,7 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size,
     if (ioctl(fd, NBD_SET_FLAGS, (unsigned long) flags) < 0) {
         if (errno == ENOTTY) {
             int read_only = (flags & NBD_FLAG_READ_ONLY) != 0;
-            TRACE("Setting readonly attribute");
+            trace_nbd_init_set_readonly();
 
             if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
                 int serrno = errno;
@@ -656,7 +642,7 @@ int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size,
         }
     }
 
-    TRACE("Negotiation ended");
+    trace_nbd_init_finish();
 
     return 0;
 }
@@ -666,7 +652,7 @@ int nbd_client(int fd)
     int ret;
     int serrno;
 
-    TRACE("Doing NBD loop");
+    trace_nbd_client_loop();
 
     ret = ioctl(fd, NBD_DO_IT);
     if (ret < 0 && errno == EPIPE) {
@@ -678,12 +664,12 @@ int nbd_client(int fd)
     }
     serrno = errno;
 
-    TRACE("NBD loop returned %d: %s", ret, strerror(serrno));
+    trace_nbd_client_loop_ret(ret, strerror(serrno));
 
-    TRACE("Clearing NBD queue");
+    trace_nbd_client_clear_queue();
     ioctl(fd, NBD_CLEAR_QUE);
 
-    TRACE("Clearing NBD socket");
+    trace_nbd_client_clear_socket();
     ioctl(fd, NBD_CLEAR_SOCK);
 
     errno = serrno;
@@ -720,11 +706,8 @@ ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
 
-    TRACE("Sending request to server: "
-          "{ .from = %" PRIu64", .len = %" PRIu32 ", .handle = %" PRIu64
-          ", .flags = %" PRIx16 ", .type = %" PRIu16 " }",
-          request->from, request->len, request->handle,
-          request->flags, request->type);
+    trace_nbd_send_request(request->from, request->len, request->handle,
+                           request->flags, request->type);
 
     stl_be_p(buf, NBD_REQUEST_MAGIC);
     stw_be_p(buf + 4, request->flags);
@@ -769,9 +752,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
         error_setg(errp, "server shutting down");
         return -EINVAL;
     }
-    TRACE("Got reply: { magic = 0x%" PRIx32 ", .error = % " PRId32
-          ", handle = %" PRIu64" }",
-          magic, reply->error, reply->handle);
+    trace_nbd_receive_reply(magic, reply->error, reply->handle);
 
     if (magic != NBD_REPLY_MAGIC) {
         error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
