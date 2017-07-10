@@ -2849,11 +2849,17 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     return ret;
 }
 
+static bool ram_has_postcopy(void *opaque)
+{
+    return migrate_postcopy_ram();
+}
+
 static SaveVMHandlers savevm_ram_handlers = {
     .save_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
     .save_live_complete_postcopy = ram_save_complete,
     .save_live_complete_precopy = ram_save_complete,
+    .has_postcopy = ram_has_postcopy,
     .save_live_pending = ram_save_pending,
     .load_state = ram_load,
     .save_cleanup = ram_save_cleanup,
