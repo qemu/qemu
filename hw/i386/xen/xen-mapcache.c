@@ -239,7 +239,7 @@ static uint8_t *xen_map_cache_unlocked(hwaddr phys_addr, hwaddr size,
     hwaddr address_offset;
     hwaddr cache_size = size;
     hwaddr test_bit_size;
-    bool translated = false;
+    bool translated G_GNUC_UNUSED = false;
     bool dummy = false;
 
 tryagain:
@@ -307,11 +307,13 @@ tryagain:
                 test_bit_size >> XC_PAGE_SHIFT,
                 entry->valid_mapping)) {
         mapcache->last_entry = NULL;
+#ifdef XEN_COMPAT_PHYSMAP
         if (!translated && mapcache->phys_offset_to_gaddr) {
             phys_addr = mapcache->phys_offset_to_gaddr(phys_addr, size, mapcache->opaque);
             translated = true;
             goto tryagain;
         }
+#endif
         if (!dummy && runstate_check(RUN_STATE_INMIGRATE)) {
             dummy = true;
             goto tryagain;

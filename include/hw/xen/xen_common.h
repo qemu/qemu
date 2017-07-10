@@ -80,6 +80,7 @@ extern xenforeignmemory_handle *xen_fmem;
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41000
 
+#define XEN_COMPAT_PHYSMAP
 static inline void *xenforeignmemory_map2(xenforeignmemory_handle *h,
                                           uint32_t dom, void *addr,
                                           int prot, int flags, size_t pages,
