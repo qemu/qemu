@@ -115,6 +115,7 @@ typedef struct VFIODevice {
     struct VFIOGroup *group;
     char *sysfsdev;
     char *name;
+    DeviceState *dev;
     int fd;
     int type;
     bool reset_works;
