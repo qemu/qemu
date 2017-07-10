@@ -53,6 +53,8 @@ typedef struct MapCacheEntry {
     uint8_t *vaddr_base;
     unsigned long *valid_mapping;
     uint8_t lock;
+#define XEN_MAPCACHE_ENTRY_DUMMY (1 << 0)
+    uint8_t flags;
     hwaddr size;
     struct MapCacheEntry *next;
 } MapCacheEntry;
@@ -150,7 +152,8 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
 
 static void xen_remap_bucket(MapCacheEntry *entry,
                              hwaddr size,
-                             hwaddr address_index)
+                             hwaddr address_index,
+                             bool dummy)
 {
     uint8_t *vaddr_base;
     xen_pfn_t *pfns;
@@ -177,11 +180,25 @@ static void xen_remap_bucket(MapCacheEntry *entry,
         pfns[i] = (address_index << (MCACHE_BUCKET_SHIFT-XC_PAGE_SHIFT)) + i;
     }
 
-    vaddr_base = xenforeignmemory_map(xen_fmem, xen_domid, PROT_READ|PROT_WRITE,
-                                      nb_pfn, pfns, err);
-    if (vaddr_base == NULL) {
-        perror("xenforeignmemory_map");
-        exit(-1);
+    if (!dummy) {
+        vaddr_base = xenforeignmemory_map(xen_fmem, xen_domid,
+                                           PROT_READ | PROT_WRITE,
+                                           nb_pfn, pfns, err);
+        if (vaddr_base == NULL) {
+            perror("xenforeignmemory_map");
+            exit(-1);
+        }
+    } else {
+        /*
+         * We create dummy mappings where we are unable to create a foreign
+         * mapping immediately due to certain circumstances (i.e. on resume now)
+         */
+        vaddr_base = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                          MAP_ANON | MAP_SHARED, -1, 0);
+        if (vaddr_base == NULL) {
+            perror("mmap");
+            exit(-1);
+        }
     }
 
     entry->vaddr_base = vaddr_base;
@@ -189,6 +206,12 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     entry->size = size;
     entry->valid_mapping = (unsigned long *) g_malloc0(sizeof(unsigned long) *
             BITS_TO_LONGS(size >> XC_PAGE_SHIFT));
+
+    if (dummy) {
+        entry->flags |= XEN_MAPCACHE_ENTRY_DUMMY;
+    } else {
+        entry->flags &= ~(XEN_MAPCACHE_ENTRY_DUMMY);
+    }
 
     ram_block_notify_add(entry->vaddr_base, entry->size);
     bitmap_zero(entry->valid_mapping, nb_pfn);
@@ -211,6 +234,7 @@ static uint8_t *xen_map_cache_unlocked(hwaddr phys_addr, hwaddr size,
     hwaddr cache_size = size;
     hwaddr test_bit_size;
     bool translated = false;
+    bool dummy = false;
 
 tryagain:
     address_index  = phys_addr >> MCACHE_BUCKET_SHIFT;
@@ -262,14 +286,14 @@ tryagain:
     if (!entry) {
         entry = g_malloc0(sizeof (MapCacheEntry));
         pentry->next = entry;
-        xen_remap_bucket(entry, cache_size, address_index);
+        xen_remap_bucket(entry, cache_size, address_index, dummy);
     } else if (!entry->lock) {
         if (!entry->vaddr_base || entry->paddr_index != address_index ||
                 entry->size != cache_size ||
                 !test_bits(address_offset >> XC_PAGE_SHIFT,
                     test_bit_size >> XC_PAGE_SHIFT,
                     entry->valid_mapping)) {
-            xen_remap_bucket(entry, cache_size, address_index);
+            xen_remap_bucket(entry, cache_size, address_index, dummy);
         }
     }
 
@@ -280,6 +304,10 @@ tryagain:
         if (!translated && mapcache->phys_offset_to_gaddr) {
             phys_addr = mapcache->phys_offset_to_gaddr(phys_addr, size, mapcache->opaque);
             translated = true;
+            goto tryagain;
+        }
+        if (!dummy && runstate_check(RUN_STATE_INMIGRATE)) {
+            dummy = true;
             goto tryagain;
         }
         trace_xen_map_cache_return(NULL);
