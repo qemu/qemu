@@ -85,7 +85,7 @@ void xen_pt_log(const PCIDevice *d, const char *f, ...)
 static int xen_pt_pci_config_access_check(PCIDevice *d, uint32_t addr, int len)
 {
     /* check offset range */
-    if (addr >= 0xFF) {
+    if (addr > 0xFF) {
         XEN_PT_ERR(d, "Failed to access register with offset exceeding 0xFF. "
                    "(addr: 0x%02x, len: %d)\n", addr, len);
         return -1;

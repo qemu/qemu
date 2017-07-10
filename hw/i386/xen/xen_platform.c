@@ -102,8 +102,19 @@ static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
     }
 }
 
+/* Remove the peer of the NIC device. Normally, this would be a tap device. */
+static void del_nic_peer(NICState *nic, void *opaque)
+{
+    NetClientState *nc;
+
+    nc = qemu_get_queue(nic);
+    if (nc->peer)
+        qemu_del_net_client(nc->peer);
+}
+
 static void pci_unplug_nics(PCIBus *bus)
 {
+    qemu_foreach_nic(del_nic_peer, NULL);
     pci_for_each_device(bus, 0, unplug_nic, NULL);
 }
 

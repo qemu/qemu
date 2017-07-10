@@ -55,8 +55,6 @@ extern struct XenDevOps xen_netdev_ops;       /* xen_nic.c         */
 extern struct XenDevOps xen_usb_ops;          /* xen-usb.c         */
 #endif
 
-void xen_init_display(int domid);
-
 /* configuration (aka xenbus setup) */
 void xen_config_cleanup(void);
 int xen_config_dev_blk(DriveInfo *disk);
