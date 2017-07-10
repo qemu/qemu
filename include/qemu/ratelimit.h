@@ -24,7 +24,8 @@ typedef struct {
 
 /** Calculate and return delay for next request in ns
  *
- * Record that we sent @p n data units. If we may send more data units
+ * Record that we sent @n data units (where @n matches the scale chosen
+ * during ratelimit_set_speed). If we may send more data units
  * in the current time slice, return 0 (i.e. no delay). Otherwise
  * return the amount of time (in ns) until the start of the next time
  * slice that will permit sending the next chunk of data.

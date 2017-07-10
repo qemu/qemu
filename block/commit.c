@@ -47,26 +47,25 @@ typedef struct CommitBlockJob {
 } CommitBlockJob;
 
 static int coroutine_fn commit_populate(BlockBackend *bs, BlockBackend *base,
-                                        int64_t sector_num, int nb_sectors,
+                                        int64_t offset, uint64_t bytes,
                                         void *buf)
 {
     int ret = 0;
     QEMUIOVector qiov;
     struct iovec iov = {
         .iov_base = buf,
-        .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+        .iov_len = bytes,
     };
 
+    assert(bytes < SIZE_MAX);
     qemu_iovec_init_external(&qiov, &iov, 1);
 
-    ret = blk_co_preadv(bs, sector_num * BDRV_SECTOR_SIZE,
-                        qiov.size, &qiov, 0);
+    ret = blk_co_preadv(bs, offset, qiov.size, &qiov, 0);
     if (ret < 0) {
         return ret;
     }
 
-    ret = blk_co_pwritev(base, sector_num * BDRV_SECTOR_SIZE,
-                         qiov.size, &qiov, 0);
+    ret = blk_co_pwritev(base, offset, qiov.size, &qiov, 0);
     if (ret < 0) {
         return ret;
     }
@@ -144,16 +143,15 @@ static void coroutine_fn commit_run(void *opaque)
 {
     CommitBlockJob *s = opaque;
     CommitCompleteData *data;
-    int64_t sector_num, end;
+    int64_t offset;
     uint64_t delay_ns = 0;
     int ret = 0;
-    int n = 0;
+    int64_t n = 0; /* bytes */
     void *buf = NULL;
     int bytes_written = 0;
     int64_t base_len;
 
     ret = s->common.len = blk_getlength(s->top);
-
 
     if (s->common.len < 0) {
         goto out;
@@ -171,10 +169,9 @@ static void coroutine_fn commit_run(void *opaque)
         }
     }
 
-    end = s->common.len >> BDRV_SECTOR_BITS;
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
-    for (sector_num = 0; sector_num < end; sector_num += n) {
+    for (offset = 0; offset < s->common.len; offset += n) {
         bool copy;
 
         /* Note that even when no rate limit is applied we need to yield
@@ -186,14 +183,12 @@ static void coroutine_fn commit_run(void *opaque)
         }
         /* Copy if allocated above the base */
         ret = bdrv_is_allocated_above(blk_bs(s->top), blk_bs(s->base),
-                                      sector_num,
-                                      COMMIT_BUFFER_SIZE / BDRV_SECTOR_SIZE,
-                                      &n);
+                                      offset, COMMIT_BUFFER_SIZE, &n);
         copy = (ret == 1);
-        trace_commit_one_iteration(s, sector_num, n, ret);
+        trace_commit_one_iteration(s, offset, n, ret);
         if (copy) {
-            ret = commit_populate(s->top, s->base, sector_num, n, buf);
-            bytes_written += n * BDRV_SECTOR_SIZE;
+            ret = commit_populate(s->top, s->base, offset, n, buf);
+            bytes_written += n;
         }
         if (ret < 0) {
             BlockErrorAction action =
@@ -206,7 +201,7 @@ static void coroutine_fn commit_run(void *opaque)
             }
         }
         /* Publish progress */
-        s->common.offset += n * BDRV_SECTOR_SIZE;
+        s->common.offset += n;
 
         if (copy && s->common.speed) {
             delay_ns = ratelimit_calculate_delay(&s->limit, n);
@@ -231,7 +226,7 @@ static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
-    ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
+    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
 }
 
 static const BlockJobDriver commit_job_driver = {
@@ -253,7 +248,7 @@ static int64_t coroutine_fn bdrv_commit_top_get_block_status(
 {
     *pnum = nb_sectors;
     *file = bs->backing->bs;
-    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID | BDRV_BLOCK_DATA |
+    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID |
            (sector_num << BDRV_SECTOR_BITS);
 }
 
@@ -444,7 +439,7 @@ fail:
 }
 
 
-#define COMMIT_BUF_SECTORS 2048
+#define COMMIT_BUF_SIZE (2048 * BDRV_SECTOR_SIZE)
 
 /* commit COW file into the raw image */
 int bdrv_commit(BlockDriverState *bs)
@@ -453,8 +448,9 @@ int bdrv_commit(BlockDriverState *bs)
     BlockDriverState *backing_file_bs = NULL;
     BlockDriverState *commit_top_bs = NULL;
     BlockDriver *drv = bs->drv;
-    int64_t sector, total_sectors, length, backing_length;
-    int n, ro, open_flags;
+    int64_t offset, length, backing_length;
+    int ro, open_flags;
+    int64_t n;
     int ret = 0;
     uint8_t *buf = NULL;
     Error *local_err = NULL;
@@ -532,30 +528,26 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    total_sectors = length >> BDRV_SECTOR_BITS;
-
     /* blk_try_blockalign() for src will choose an alignment that works for
      * backing as well, so no need to compare the alignment manually. */
-    buf = blk_try_blockalign(src, COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
+    buf = blk_try_blockalign(src, COMMIT_BUF_SIZE);
     if (buf == NULL) {
         ret = -ENOMEM;
         goto ro_cleanup;
     }
 
-    for (sector = 0; sector < total_sectors; sector += n) {
-        ret = bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n);
+    for (offset = 0; offset < length; offset += n) {
+        ret = bdrv_is_allocated(bs, offset, COMMIT_BUF_SIZE, &n);
         if (ret < 0) {
             goto ro_cleanup;
         }
         if (ret) {
-            ret = blk_pread(src, sector * BDRV_SECTOR_SIZE, buf,
-                            n * BDRV_SECTOR_SIZE);
+            ret = blk_pread(src, offset, buf, n);
             if (ret < 0) {
                 goto ro_cleanup;
             }
 
-            ret = blk_pwrite(backing, sector * BDRV_SECTOR_SIZE, buf,
-                             n * BDRV_SECTOR_SIZE, 0);
+            ret = blk_pwrite(backing, offset, buf, n, 0);
             if (ret < 0) {
                 goto ro_cleanup;
             }

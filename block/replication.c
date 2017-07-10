@@ -234,10 +234,14 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
     }
 
     if (job) {
-        backup_wait_for_overlapping_requests(child->bs->job, sector_num,
-                                             remaining_sectors);
-        backup_cow_request_begin(&req, child->bs->job, sector_num,
-                                 remaining_sectors);
+        uint64_t remaining_bytes = remaining_sectors * BDRV_SECTOR_SIZE;
+
+        backup_wait_for_overlapping_requests(child->bs->job,
+                                             sector_num * BDRV_SECTOR_SIZE,
+                                             remaining_bytes);
+        backup_cow_request_begin(&req, child->bs->job,
+                                 sector_num * BDRV_SECTOR_SIZE,
+                                 remaining_bytes);
         ret = bdrv_co_readv(bs->file, sector_num, remaining_sectors,
                             qiov);
         backup_cow_request_end(&req);
@@ -260,7 +264,8 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
     BdrvChild *top = bs->file;
     BdrvChild *base = s->secondary_disk;
     BdrvChild *target;
-    int ret, n;
+    int ret;
+    int64_t n;
 
     ret = replication_get_io_status(s);
     if (ret < 0) {
@@ -279,14 +284,20 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
      */
     qemu_iovec_init(&hd_qiov, qiov->niov);
     while (remaining_sectors > 0) {
-        ret = bdrv_is_allocated_above(top->bs, base->bs, sector_num,
-                                      remaining_sectors, &n);
+        int64_t count;
+
+        ret = bdrv_is_allocated_above(top->bs, base->bs,
+                                      sector_num * BDRV_SECTOR_SIZE,
+                                      remaining_sectors * BDRV_SECTOR_SIZE,
+                                      &count);
         if (ret < 0) {
             goto out1;
         }
 
+        assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
+        n = count >> BDRV_SECTOR_BITS;
         qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_concat(&hd_qiov, qiov, bytes_done, n * BDRV_SECTOR_SIZE);
+        qemu_iovec_concat(&hd_qiov, qiov, bytes_done, count);
 
         target = ret ? top : base;
         ret = bdrv_co_writev(target, sector_num, n, &hd_qiov);
@@ -296,7 +307,7 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
 
         remaining_sectors -= n;
         sector_num += n;
-        bytes_done += n * BDRV_SECTOR_SIZE;
+        bytes_done += count;
     }
 
 out1:

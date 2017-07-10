@@ -43,6 +43,7 @@ _supported_proto file
 CLUSTER_SIZE=1M
 size=128M
 options=driver=blkdebug,image.driver=qcow2
+nested_opts=image.file.driver=file,image.file.filename=$TEST_IMG
 
 echo
 echo "== setting up files =="
@@ -106,6 +107,8 @@ function verify_io()
 }
 
 verify_io | $QEMU_IO -r "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --image-opts "$options,$nested_opts,align=4k" \
+    | _filter_qemu_img_map
 
 _check_test_img
 

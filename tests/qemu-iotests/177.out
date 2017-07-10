@@ -45,5 +45,10 @@ read 30408704/30408704 bytes at offset 80740352
 29 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 23068672/23068672 bytes at offset 111149056
 22 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          File
+0               0x800000        TEST_DIR/t.IMGFMT
+0x900000        0x2400000       TEST_DIR/t.IMGFMT
+0x3c00000       0x1100000       TEST_DIR/t.IMGFMT
+0x6a00000       0x1600000       TEST_DIR/t.IMGFMT
 No errors were found on the image.
 *** done
