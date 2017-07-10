@@ -1743,6 +1743,18 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
                                PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
     }
 
+    /*
+     * Intel 82599 SR-IOV VFs report an invalid PCIe capability version 0
+     * (Niantic errate #35) causing Windows to error with a Code 10 for the
+     * device on Q35.  Fixup any such devices to report version 1.  If we
+     * were to remove the capability entirely the guest would lose extended
+     * config space.
+     */
+    if ((flags & PCI_EXP_FLAGS_VERS) == 0) {
+        vfio_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
+                               1, PCI_EXP_FLAGS_VERS);
+    }
+
     pos = pci_add_capability(&vdev->pdev, PCI_CAP_ID_EXP, pos, size,
                              errp);
     if (pos < 0) {
