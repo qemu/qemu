@@ -39,15 +39,9 @@ int64_t xbzrle_cache_resize(int64_t new_size);
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_total(void);
 
-void migrate_compress_threads_create(void);
-void migrate_compress_threads_join(void);
-void migrate_decompress_threads_create(void);
-void migrate_decompress_threads_join(void);
-
 uint64_t ram_pagesize_summary(void);
 int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len);
 void acct_update_position(QEMUFile *f, size_t size, bool zero);
-void free_xbzrle_decoded_buf(void);
 void ram_debug_dump_bitmap(unsigned long *todump, bool expected,
                            unsigned long pages);
 void ram_postcopy_migrated_memory_release(MigrationState *ms);

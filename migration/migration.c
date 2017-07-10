@@ -128,11 +128,6 @@ MigrationState *migrate_get_current(void)
     return current_migration;
 }
 
-void migration_only_migratable_set(void)
-{
-    migrate_get_current()->only_migratable = true;
-}
-
 MigrationIncomingState *migration_incoming_get_current(void)
 {
     static bool once;
@@ -291,7 +286,6 @@ static void process_incoming_migration_bh(void *opaque)
     } else {
         runstate_set(global_state_get_runstate());
     }
-    migrate_decompress_threads_join();
     /*
      * This must happen after any state changes since as soon as an external
      * observer sees this event they might start to prod at the VM assuming
@@ -354,12 +348,8 @@ static void process_incoming_migration_co(void *opaque)
         migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                           MIGRATION_STATUS_FAILED);
         error_report("load of migration failed: %s", strerror(-ret));
-        migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
     }
-
-    free_xbzrle_decoded_buf();
-
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
     qemu_bh_schedule(mis->bh);
 }
@@ -368,7 +358,6 @@ void migration_fd_process_incoming(QEMUFile *f)
 {
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, f);
 
-    migrate_decompress_threads_create();
     qemu_file_set_blocking(f, false);
     qemu_coroutine_enter(co);
 }
@@ -835,7 +824,6 @@ static void migrate_fd_cleanup(void *opaque)
         }
         qemu_mutex_lock_iothread();
 
-        migrate_compress_threads_join();
         qemu_fclose(s->to_dst_file);
         s->to_dst_file = NULL;
     }
@@ -1840,7 +1828,7 @@ static void *migration_thread(void *opaque)
         qemu_savevm_send_postcopy_advise(s->to_dst_file);
     }
 
-    qemu_savevm_state_begin(s->to_dst_file);
+    qemu_savevm_state_setup(s->to_dst_file);
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
@@ -1998,7 +1986,6 @@ void migrate_fd_connect(MigrationState *s)
         }
     }
 
-    migrate_compress_threads_create();
     qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
                        QEMU_THREAD_JOINABLE);
     s->migration_thread_running = true;
@@ -2057,12 +2044,12 @@ static void migration_instance_init(Object *obj)
 static const TypeInfo migration_type = {
     .name = TYPE_MIGRATION,
     /*
-     * NOTE: "migration" itself is not really a device. We used
-     * TYPE_DEVICE here only to leverage some existing QDev features
-     * like "-global" properties, and HW_COMPAT_* fields (which are
-     * finally applied as global properties as well). If one day the
-     * global property feature can be migrated from QDev to QObject in
-     * general, then we can switch to QObject as well.
+     * NOTE: TYPE_MIGRATION is not really a device, as the object is
+     * not created using qdev_create(), it is not attached to the qdev
+     * device tree, and it is never realized.
+     *
+     * TODO: Make this TYPE_OBJECT once QOM provides something like
+     * TYPE_DEVICE's "-global" properties.
      */
     .parent = TYPE_DEVICE,
     .class_init = migration_class_init,

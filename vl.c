@@ -3962,7 +3962,7 @@ int main(int argc, char **argv, char **envp)
                  *
                  * "-global migration.only-migratable=true"
                  */
-                migration_only_migratable_set();
+                qemu_global_option("migration.only-migratable=true");
                 break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
@@ -4418,6 +4418,18 @@ int main(int argc, char **argv, char **envp)
 
     configure_accelerator(current_machine);
 
+    /*
+     * Register all the global properties, including accel properties,
+     * machine properties, and user-specified ones.
+     */
+    register_global_properties(current_machine);
+
+    /*
+     * Migration object can only be created after global properties
+     * are applied correctly.
+     */
+    migration_object_init();
+
     if (qtest_chrdev) {
         qtest_init(qtest_chrdev, qtest_log, &error_fatal);
     }
@@ -4600,18 +4612,6 @@ int main(int argc, char **argv, char **envp)
         if (i > 0)
             exit (i == 1 ? 1 : 0);
     }
-
-    /*
-     * Register all the global properties, including accel properties,
-     * machine properties, and user-specified ones.
-     */
-    register_global_properties(current_machine);
-
-    /*
-     * Migration object can only be created after global properties
-     * are applied correctly.
-     */
-    migration_object_init();
 
     /* This checkpoint is required by replay to separate prior clock
        reading from the other reads, because timer polling functions query
