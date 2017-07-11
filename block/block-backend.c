@@ -83,7 +83,6 @@ static const AIOCBInfo block_backend_aiocb_info = {
 
 static void drive_info_del(DriveInfo *dinfo);
 static BlockBackend *bdrv_first_blk(BlockDriverState *bs);
-static char *blk_get_attached_dev_id(BlockBackend *blk);
 
 /* All BlockBackends */
 static QTAILQ_HEAD(, BlockBackend) block_backends =
@@ -726,7 +725,7 @@ void *blk_get_attached_dev(BlockBackend *blk)
 
 /* Return the qdev ID, or if no ID is assigned the QOM path, of the block
  * device attached to the BlockBackend. */
-static char *blk_get_attached_dev_id(BlockBackend *blk)
+char *blk_get_attached_dev_id(BlockBackend *blk)
 {
     DeviceState *dev;
 
