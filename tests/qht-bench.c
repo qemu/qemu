@@ -163,7 +163,7 @@ static void do_rw(struct thread_info *info)
             bool written = false;
 
             if (qht_lookup(&ht, p, hash) == NULL) {
-                written = qht_insert(&ht, p, hash);
+                written = qht_insert(&ht, p, hash, NULL);
             }
             if (written) {
                 stats->in++;
@@ -322,7 +322,7 @@ static void htable_init(void)
             r = xorshift64star(r);
             p = &keys[r & (init_range - 1)];
             hash = h(*p);
-            if (qht_insert(&ht, p, hash)) {
+            if (qht_insert(&ht, p, hash, NULL)) {
                 break;
             }
             retries++;

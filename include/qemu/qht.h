@@ -70,6 +70,7 @@ void qht_destroy(struct qht *ht);
  * @ht: QHT to insert to
  * @p: pointer to be inserted
  * @hash: hash corresponding to @p
+ * @existing: address where the pointer to an existing entry can be copied to
  *
  * Attempting to insert a NULL @p is a bug.
  * Inserting the same pointer @p with different @hash values is a bug.
@@ -78,9 +79,11 @@ void qht_destroy(struct qht *ht);
  * inserted into the hash table.
  *
  * Returns true on success.
- * Returns false if the @p-@hash pair already exists in the hash table.
+ * Returns false if there is an existing entry in the table that is equivalent
+ * (i.e. ht->cmp matches and the hash is the same) to @p-@h. If @existing
+ * is !NULL, a pointer to this existing entry is copied to it.
  */
-bool qht_insert(struct qht *ht, void *p, uint32_t hash);
+bool qht_insert(struct qht *ht, void *p, uint32_t hash, void **existing);
 
 /**
  * qht_lookup_custom - Look up a pointer using a custom comparison function.
