@@ -600,50 +600,92 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
     qapi_free_BlockStatsList(stats_list);
 }
 
+/* Helper for hmp_info_vnc_clients, _servers */
+static void hmp_info_VncBasicInfo(Monitor *mon, VncBasicInfo *info,
+                                  const char *name)
+{
+    monitor_printf(mon, "  %s: %s:%s (%s%s)\n",
+                   name,
+                   info->host,
+                   info->service,
+                   NetworkAddressFamily_lookup[info->family],
+                   info->websocket ? " (Websocket)" : "");
+}
+
+/* Helper displaying and auth and crypt info */
+static void hmp_info_vnc_authcrypt(Monitor *mon, const char *indent,
+                                   VncPrimaryAuth auth,
+                                   VncVencryptSubAuth *vencrypt)
+{
+    monitor_printf(mon, "%sAuth: %s (Sub: %s)\n", indent,
+                   VncPrimaryAuth_lookup[auth],
+                   vencrypt ? VncVencryptSubAuth_lookup[*vencrypt] : "none");
+}
+
+static void hmp_info_vnc_clients(Monitor *mon, VncClientInfoList *client)
+{
+    while (client) {
+        VncClientInfo *cinfo = client->value;
+
+        hmp_info_VncBasicInfo(mon, qapi_VncClientInfo_base(cinfo), "Client");
+        monitor_printf(mon, "    x509_dname: %s\n",
+                       cinfo->has_x509_dname ?
+                       cinfo->x509_dname : "none");
+        monitor_printf(mon, "    sasl_username: %s\n",
+                       cinfo->has_sasl_username ?
+                       cinfo->sasl_username : "none");
+
+        client = client->next;
+    }
+}
+
+static void hmp_info_vnc_servers(Monitor *mon, VncServerInfo2List *server)
+{
+    while (server) {
+        VncServerInfo2 *sinfo = server->value;
+        hmp_info_VncBasicInfo(mon, qapi_VncServerInfo2_base(sinfo), "Server");
+        hmp_info_vnc_authcrypt(mon, "    ", sinfo->auth,
+                               sinfo->has_vencrypt ? &sinfo->vencrypt : NULL);
+        server = server->next;
+    }
+}
+
 void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 {
-    VncInfo *info;
+    VncInfo2List *info2l;
     Error *err = NULL;
-    VncClientInfoList *client;
 
-    info = qmp_query_vnc(&err);
+    info2l = qmp_query_vnc_servers(&err);
     if (err) {
         error_report_err(err);
         return;
     }
-
-    if (!info->enabled) {
-        monitor_printf(mon, "Server: disabled\n");
-        goto out;
+    if (!info2l) {
+        monitor_printf(mon, "None\n");
+        return;
     }
 
-    monitor_printf(mon, "Server:\n");
-    if (info->has_host && info->has_service) {
-        monitor_printf(mon, "     address: %s:%s\n", info->host, info->service);
-    }
-    if (info->has_auth) {
-        monitor_printf(mon, "        auth: %s\n", info->auth);
-    }
-
-    if (!info->has_clients || info->clients == NULL) {
-        monitor_printf(mon, "Client: none\n");
-    } else {
-        for (client = info->clients; client; client = client->next) {
-            monitor_printf(mon, "Client:\n");
-            monitor_printf(mon, "     address: %s:%s\n",
-                           client->value->host,
-                           client->value->service);
-            monitor_printf(mon, "  x509_dname: %s\n",
-                           client->value->x509_dname ?
-                           client->value->x509_dname : "none");
-            monitor_printf(mon, "    username: %s\n",
-                           client->value->has_sasl_username ?
-                           client->value->sasl_username : "none");
+    while (info2l) {
+        VncInfo2 *info = info2l->value;
+        monitor_printf(mon, "%s:\n", info->id);
+        hmp_info_vnc_servers(mon, info->server);
+        hmp_info_vnc_clients(mon, info->clients);
+        if (!info->server) {
+            /* The server entry displays its auth, we only
+             * need to display in the case of 'reverse' connections
+             * where there's no server.
+             */
+            hmp_info_vnc_authcrypt(mon, "  ", info->auth,
+                               info->has_vencrypt ? &info->vencrypt : NULL);
         }
+        if (info->has_display) {
+            monitor_printf(mon, "  Display: %s\n", info->display);
+        }
+        info2l = info2l->next;
     }
 
-out:
-    qapi_free_VncInfo(info);
+    qapi_free_VncInfo2List(info2l);
+
 }
 
 #ifdef CONFIG_SPICE
