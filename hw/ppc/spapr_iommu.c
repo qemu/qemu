@@ -248,12 +248,6 @@ static const VMStateDescription vmstate_spapr_tce_table = {
     }
 };
 
-static MemoryRegionIOMMUOps spapr_iommu_ops = {
-    .translate = spapr_tce_translate_iommu,
-    .get_min_page_size = spapr_tce_get_min_page_size,
-    .notify_flag_changed = spapr_tce_notify_flag_changed,
-};
-
 static int spapr_tce_table_realize(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
@@ -266,7 +260,9 @@ static int spapr_tce_table_realize(DeviceState *dev)
     memory_region_init(&tcet->root, tcetobj, tmp, UINT64_MAX);
 
     snprintf(tmp, sizeof(tmp), "tce-iommu-%x", tcet->liobn);
-    memory_region_init_iommu(&tcet->iommu, tcetobj, &spapr_iommu_ops, tmp, 0);
+    memory_region_init_iommu(&tcet->iommu, sizeof(tcet->iommu),
+                             TYPE_SPAPR_IOMMU_MEMORY_REGION,
+                             tcetobj, tmp, 0);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
@@ -639,9 +635,25 @@ static TypeInfo spapr_tce_table_info = {
     .class_init = spapr_tce_table_class_init,
 };
 
+static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = spapr_tce_translate_iommu;
+    imrc->get_min_page_size = spapr_tce_get_min_page_size;
+    imrc->notify_flag_changed = spapr_tce_notify_flag_changed;
+}
+
+static const TypeInfo spapr_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
+    .class_init = spapr_iommu_memory_region_class_init,
+};
+
 static void register_types(void)
 {
     type_register_static(&spapr_tce_table_info);
+    type_register_static(&spapr_iommu_memory_region_info);
 }
 
 type_init(register_types);

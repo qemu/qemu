@@ -54,6 +54,8 @@ typedef struct dma_pagetable_entry {
 #define RC4030(obj) \
     OBJECT_CHECK(rc4030State, (obj), TYPE_RC4030)
 
+#define TYPE_RC4030_IOMMU_MEMORY_REGION "rc4030-iommu-memory-region"
+
 typedef struct rc4030State
 {
     SysBusDevice parent;
@@ -516,10 +518,6 @@ static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static const MemoryRegionIOMMUOps rc4030_dma_ops = {
-    .translate = rc4030_dma_translate,
-};
-
 static void rc4030_reset(DeviceState *dev)
 {
     rc4030State *s = RC4030(dev);
@@ -677,8 +675,9 @@ static void rc4030_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->iomem_jazzio, NULL, &jazzio_ops, s,
                           "rc4030.jazzio", 0x00001000);
 
-    memory_region_init_iommu(&s->dma_mr, o, &rc4030_dma_ops,
-                             "rc4030.dma", UINT32_MAX);
+    memory_region_init_iommu(&s->dma_mr, sizeof(s->dma_mr),
+                             TYPE_RC4030_IOMMU_MEMORY_REGION,
+                             o, "rc4030.dma", UINT32_MAX);
     address_space_init(&s->dma_as, MEMORY_REGION(&s->dma_mr), "rc4030-dma");
 }
 
@@ -710,9 +709,24 @@ static const TypeInfo rc4030_info = {
     .class_init = rc4030_class_init,
 };
 
+static void rc4030_iommu_memory_region_class_init(ObjectClass *klass,
+                                                  void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = rc4030_dma_translate;
+}
+
+static const TypeInfo rc4030_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_RC4030_IOMMU_MEMORY_REGION,
+    .class_init = rc4030_iommu_memory_region_class_init,
+};
+
 static void rc4030_register_types(void)
 {
     type_register_static(&rc4030_info);
+    type_register_static(&rc4030_iommu_memory_region_info);
 }
 
 type_init(rc4030_register_types)

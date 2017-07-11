@@ -25,6 +25,7 @@
 #include "qemu/notify.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
+#include "hw/qdev-core.h"
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
@@ -38,6 +39,12 @@
 #define TYPE_IOMMU_MEMORY_REGION "qemu:iommu-memory-region"
 #define IOMMU_MEMORY_REGION(obj) \
         OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_IOMMU_MEMORY_REGION)
+#define IOMMU_MEMORY_REGION_CLASS(klass) \
+        OBJECT_CLASS_CHECK(IOMMUMemoryRegionClass, (klass), \
+                         TYPE_IOMMU_MEMORY_REGION)
+#define IOMMU_MEMORY_REGION_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(IOMMUMemoryRegionClass, (obj), \
+                         TYPE_IOMMU_MEMORY_REGION)
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
@@ -193,9 +200,10 @@ struct MemoryRegionOps {
     const MemoryRegionMmio old_mmio;
 };
 
-typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
+typedef struct IOMMUMemoryRegionClass {
+    /* private */
+    struct DeviceClass parent_class;
 
-struct MemoryRegionIOMMUOps {
     /*
      * Return a TLB entry that contains a given address. Flag should
      * be the access permission of this translation operation. We can
@@ -212,7 +220,7 @@ struct MemoryRegionIOMMUOps {
                                 IOMMUNotifierFlag new_flags);
     /* Set this up to provide customized IOMMU replay function */
     void (*replay)(IOMMUMemoryRegion *iommu, IOMMUNotifier *notifier);
-};
+} IOMMUMemoryRegionClass;
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
@@ -261,7 +269,6 @@ struct MemoryRegion {
 struct IOMMUMemoryRegion {
     MemoryRegion parent_obj;
 
-    const MemoryRegionIOMMUOps *iommu_ops;
     QLIST_HEAD(, IOMMUNotifier) iommu_notify;
     IOMMUNotifierFlag iommu_notify_flags;
 };
@@ -622,21 +629,24 @@ static inline void memory_region_init_reservation(MemoryRegion *mr,
 }
 
 /**
- * memory_region_init_iommu: Initialize a memory region that translates
- * addresses
+ * memory_region_init_iommu: Initialize a memory region of a custom type
+ * that translates addresses
  *
  * An IOMMU region translates addresses and forwards accesses to a target
  * memory region.
  *
- * @iommu_mr: the #IOMMUMemoryRegion to be initialized
+ * @typename: QOM class name
+ * @_iommu_mr: the #IOMMUMemoryRegion to be initialized
+ * @instance_size: the IOMMUMemoryRegion subclass instance size
  * @owner: the object that tracks the region's reference count
  * @ops: a function that translates addresses into the @target region
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region.
  */
-void memory_region_init_iommu(IOMMUMemoryRegion *iommu_mr,
-                              struct Object *owner,
-                              const MemoryRegionIOMMUOps *ops,
+void memory_region_init_iommu(void *_iommu_mr,
+                              size_t instance_size,
+                              const char *mrtypename,
+                              Object *owner,
                               const char *name,
                               uint64_t size);
 
@@ -705,6 +715,21 @@ static inline IOMMUMemoryRegion *memory_region_get_iommu(MemoryRegion *mr)
         return (IOMMUMemoryRegion *) mr;
     }
     return NULL;
+}
+
+/**
+ * memory_region_get_iommu_class_nocheck: returns iommu memory region class
+ *   if an iommu or NULL if not
+ *
+ * Returns pointer to IOMMUMemoryRegioniClass if a memory region is an iommu,
+ * otherwise NULL. This is fast path avoinding QOM checking, use with caution.
+ *
+ * @mr: the memory region being queried
+ */
+static inline IOMMUMemoryRegionClass *memory_region_get_iommu_class_nocheck(
+        IOMMUMemoryRegion *iommu_mr)
+{
+    return (IOMMUMemoryRegionClass *) (((Object *)iommu_mr)->class);
 }
 
 #define memory_region_is_iommu(mr) (memory_region_get_iommu(mr) != NULL)

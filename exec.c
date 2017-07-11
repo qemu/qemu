@@ -481,6 +481,7 @@ static MemoryRegionSection address_space_do_translate(AddressSpace *as,
     IOMMUTLBEntry iotlb;
     MemoryRegionSection *section;
     IOMMUMemoryRegion *iommu_mr;
+    IOMMUMemoryRegionClass *imrc;
 
     for (;;) {
         AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
@@ -490,9 +491,10 @@ static MemoryRegionSection address_space_do_translate(AddressSpace *as,
         if (!iommu_mr) {
             break;
         }
+        imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
 
-        iotlb = iommu_mr->iommu_ops->translate(iommu_mr, addr, is_write ?
-                                               IOMMU_WO : IOMMU_RO);
+        iotlb = imrc->translate(iommu_mr, addr, is_write ?
+                                IOMMU_WO : IOMMU_RO);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
         *plen = MIN(*plen, (addr | iotlb.addr_mask) - addr + 1);

@@ -564,6 +564,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     hwaddr start, end;
     IOMMUTLBEntry entry;
     IOMMUMemoryRegion *iommu_mr;
+    IOMMUMemoryRegionClass *imrc;
 
     cpu_synchronize_state(CPU(cpu));
 
@@ -623,8 +624,10 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     }
 
     iommu_mr = &iommu->iommu_mr;
+    imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+
     while (start < end) {
-        entry = iommu_mr->iommu_ops->translate(iommu_mr, start, IOMMU_NONE);
+        entry = imrc->translate(iommu_mr, start, IOMMU_NONE);
 
         if (!entry.translated_addr) {
             pbdev->state = ZPCI_FS_ERROR;

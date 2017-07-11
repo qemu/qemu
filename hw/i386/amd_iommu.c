@@ -1044,8 +1044,11 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
         iommu_as[devfn]->devfn = (uint8_t)devfn;
         iommu_as[devfn]->iommu_state = s;
 
-        memory_region_init_iommu(&iommu_as[devfn]->iommu, OBJECT(s),
-                                 &s->iommu_ops, "amd-iommu", UINT64_MAX);
+        memory_region_init_iommu(&iommu_as[devfn]->iommu,
+                                 sizeof(iommu_as[devfn]->iommu),
+                                 TYPE_AMD_IOMMU_MEMORY_REGION,
+                                 OBJECT(s),
+                                 "amd-iommu", UINT64_MAX);
         address_space_init(&iommu_as[devfn]->as,
                            MEMORY_REGION(&iommu_as[devfn]->iommu),
                            "amd-iommu");
@@ -1086,8 +1089,6 @@ static void amdvi_init(AMDVIState *s)
 {
     amdvi_iotlb_reset(s);
 
-    s->iommu_ops.translate = amdvi_translate;
-    s->iommu_ops.notify_flag_changed = amdvi_iommu_notify_flag_changed;
     s->devtab_len = 0;
     s->cmdbuf_len = 0;
     s->cmdbuf_head = 0;
@@ -1228,10 +1229,25 @@ static const TypeInfo amdviPCI = {
     .instance_size = sizeof(AMDVIPCIState),
 };
 
+static void amdvi_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = amdvi_translate;
+    imrc->notify_flag_changed = amdvi_iommu_notify_flag_changed;
+}
+
+static const TypeInfo amdvi_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_AMD_IOMMU_MEMORY_REGION,
+    .class_init = amdvi_iommu_memory_region_class_init,
+};
+
 static void amdviPCI_register_types(void)
 {
     type_register_static(&amdviPCI);
     type_register_static(&amdvi);
+    type_register_static(&amdvi_iommu_memory_region_info);
 }
 
 type_init(amdviPCI_register_types);

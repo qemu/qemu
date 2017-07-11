@@ -133,6 +133,8 @@ typedef struct IOMMUState {
 #define APB_DEVICE(obj) \
     OBJECT_CHECK(APBState, (obj), TYPE_APB)
 
+#define TYPE_APB_IOMMU_MEMORY_REGION "pbm-iommu-memory-region"
+
 typedef struct APBState {
     PCIHostState parent_obj;
 
@@ -321,10 +323,6 @@ static IOMMUTLBEntry pbm_translate_iommu(IOMMUMemoryRegion *iommu, hwaddr addr,
 
     return ret;
 }
-
-static MemoryRegionIOMMUOps pbm_iommu_ops = {
-    .translate = pbm_translate_iommu,
-};
 
 static void iommu_config_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
@@ -697,7 +695,8 @@ PCIBus *pci_apb_init(hwaddr special_base,
     is = &d->iommu;
     memset(is, 0, sizeof(IOMMUState));
 
-    memory_region_init_iommu(&is->iommu, OBJECT(dev), &pbm_iommu_ops,
+    memory_region_init_iommu(&is->iommu, sizeof(is->iommu),
+                             TYPE_APB_IOMMU_MEMORY_REGION, OBJECT(dev),
                              "iommu-apb", UINT64_MAX);
     address_space_init(&is->iommu_as, MEMORY_REGION(&is->iommu), "pbm-as");
     pci_setup_iommu(phb->bus, pbm_pci_dma_iommu, is);
@@ -860,11 +859,25 @@ static const TypeInfo pbm_pci_bridge_info = {
     .class_init    = pbm_pci_bridge_class_init,
 };
 
+static void pbm_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = pbm_translate_iommu;
+}
+
+static const TypeInfo pbm_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_APB_IOMMU_MEMORY_REGION,
+    .class_init = pbm_iommu_memory_region_class_init,
+};
+
 static void pbm_register_types(void)
 {
     type_register_static(&pbm_host_info);
     type_register_static(&pbm_pci_host_info);
     type_register_static(&pbm_pci_bridge_info);
+    type_register_static(&pbm_iommu_memory_region_info);
 }
 
 type_init(pbm_register_types)
