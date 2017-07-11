@@ -155,4 +155,9 @@ void kvm_init_cpu_signals(CPUState *cpu)
 {
     abort();
 }
+
+bool kvm_arm_supports_user_irq(void)
+{
+    return false;
+}
 #endif

@@ -25,6 +25,7 @@
 #include "qom/cpu.h"
 #include "qemu/log.h"
 #include "trace.h"
+#include "sysemu/kvm.h"
 
 /* #define DEBUG_GIC */
 
@@ -1409,6 +1410,12 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     agc->parent_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        return;
+    }
+
+    if (kvm_enabled() && !kvm_arm_supports_user_irq()) {
+        error_setg(errp, "KVM with user space irqchip only works when the "
+                         "host kernel supports KVM_CAP_ARM_USER_IRQ");
         return;
     }
 
