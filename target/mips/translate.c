@@ -4303,7 +4303,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
             save_cpu_state(ctx, 0);
             gen_helper_raise_exception_debug(cpu_env);
         }
-        tcg_gen_lookup_and_goto_ptr(cpu_PC);
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 
@@ -10883,7 +10883,7 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
                 save_cpu_state(ctx, 0);
                 gen_helper_raise_exception_debug(cpu_env);
             }
-            tcg_gen_lookup_and_goto_ptr(cpu_PC);
+            tcg_gen_lookup_and_goto_ptr();
             break;
         default:
             fprintf(stderr, "unknown branch 0x%x\n", proc_hflags);

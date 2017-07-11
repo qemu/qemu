@@ -4173,10 +4173,7 @@ static inline bool use_goto_tb(DisasContext *s, target_ulong dest)
 
 static void gen_goto_ptr(void)
 {
-    TCGv addr = tcg_temp_new();
-    tcg_gen_extu_i32_tl(addr, cpu_R[15]);
-    tcg_gen_lookup_and_goto_ptr(addr);
-    tcg_temp_free(addr);
+    tcg_gen_lookup_and_goto_ptr();
 }
 
 /* This will end the TB but doesn't guarantee we'll return to

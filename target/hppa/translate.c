@@ -505,7 +505,7 @@ static void gen_goto_tb(DisasContext *ctx, int which,
         if (ctx->base.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
         } else {
-            tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
+            tcg_gen_lookup_and_goto_ptr();
         }
     }
 }
@@ -1515,7 +1515,7 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv dest,
         if (link != 0) {
             tcg_gen_movi_tl(cpu_gr[link], ctx->iaoq_n);
         }
-        tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
+        tcg_gen_lookup_and_goto_ptr();
         return nullify_end(ctx, DISAS_NEXT);
     } else {
         cond_prep(&ctx->null_cond);
@@ -3873,7 +3873,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         if (ctx->base.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
         } else {
-            tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
+            tcg_gen_lookup_and_goto_ptr();
         }
         break;
     default:
