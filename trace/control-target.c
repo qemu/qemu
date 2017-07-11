@@ -1,7 +1,7 @@
 /*
  * Interface for configuring and controlling the state of tracing events.
  *
- * Copyright (C) 2014-2016 Lluís Vilanova <vilanova@ac.upc.edu>
+ * Copyright (C) 2014-2017 Lluís Vilanova <vilanova@ac.upc.edu>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -38,12 +38,16 @@ void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
 {
     CPUState *vcpu;
     assert(trace_event_get_state_static(ev));
-    if (trace_event_is_vcpu(ev)) {
+    if (trace_event_is_vcpu(ev) && likely(first_cpu != NULL)) {
         CPU_FOREACH(vcpu) {
             trace_event_set_vcpu_state_dynamic(vcpu, ev, state);
         }
     } else {
-        /* Without the "vcpu" property, dstate can only be 1 or 0 */
+        /*
+         * Without the "vcpu" property, dstate can only be 1 or 0. With it, we
+         * haven't instantiated any vCPU yet, so we will set a global state
+         * instead, and trace_init_vcpu will reconcile it afterwards.
+         */
         bool state_pre = *ev->dstate;
         if (state_pre != state) {
             if (state) {

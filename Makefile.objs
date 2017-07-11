@@ -122,7 +122,6 @@ trace-events-subdirs += crypto
 trace-events-subdirs += io
 trace-events-subdirs += migration
 trace-events-subdirs += block
-trace-events-subdirs += backends
 trace-events-subdirs += chardev
 trace-events-subdirs += hw/block
 trace-events-subdirs += hw/block/dataplane
