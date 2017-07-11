@@ -2384,9 +2384,14 @@ static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
 static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    int ret;
 
     if (!dev->conf.blk) {
+        /* Anonymous BlockBackend for an empty drive. As we put it into
+         * dev->conf, qdev takes care of detaching on unplug. */
         dev->conf.blk = blk_new(0, BLK_PERM_ALL);
+        ret = blk_attach_dev(dev->conf.blk, &dev->qdev);
+        assert(ret == 0);
     }
 
     s->qdev.blocksize = 2048;
