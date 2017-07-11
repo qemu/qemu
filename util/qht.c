@@ -351,11 +351,14 @@ static struct qht_map *qht_map_create(size_t n_buckets)
     return map;
 }
 
-void qht_init(struct qht *ht, size_t n_elems, unsigned int mode)
+void qht_init(struct qht *ht, qht_cmp_func_t cmp, size_t n_elems,
+              unsigned int mode)
 {
     struct qht_map *map;
     size_t n_buckets = qht_elems_to_buckets(n_elems);
 
+    g_assert(cmp);
+    ht->cmp = cmp;
     ht->mode = mode;
     qemu_mutex_init(&ht->lock);
     map = qht_map_create(n_buckets);
@@ -479,8 +482,8 @@ void *qht_lookup__slowpath(struct qht_bucket *b, qht_lookup_func_t func,
     return ret;
 }
 
-void *qht_lookup(struct qht *ht, qht_lookup_func_t func, const void *userp,
-                 uint32_t hash)
+void *qht_lookup_custom(struct qht *ht, const void *userp, uint32_t hash,
+                        qht_lookup_func_t func)
 {
     struct qht_bucket *b;
     struct qht_map *map;
@@ -500,6 +503,11 @@ void *qht_lookup(struct qht *ht, qht_lookup_func_t func, const void *userp,
      * running a 100%-lookup microbenchmark.
      */
     return qht_lookup__slowpath(b, func, userp, hash);
+}
+
+void *qht_lookup(struct qht *ht, const void *userp, uint32_t hash)
+{
+    return qht_lookup_custom(ht, userp, hash, ht->cmp);
 }
 
 /* call with head->lock held */

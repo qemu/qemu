@@ -295,7 +295,7 @@ struct tb_desc {
     uint32_t trace_vcpu_dstate;
 };
 
-static bool tb_cmp(const void *p, const void *d)
+static bool tb_lookup_cmp(const void *p, const void *d)
 {
     const TranslationBlock *tb = p;
     const struct tb_desc *desc = d;
@@ -340,7 +340,7 @@ TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
     phys_pc = get_page_addr_code(desc.env, pc);
     desc.phys_page1 = phys_pc & TARGET_PAGE_MASK;
     h = tb_hash_func(phys_pc, pc, flags, cf_mask, *cpu->trace_dstate);
-    return qht_lookup(&tb_ctx.htable, tb_cmp, &desc, h);
+    return qht_lookup_custom(&tb_ctx.htable, &desc, h, tb_lookup_cmp);
 }
 
 void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr)

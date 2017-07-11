@@ -93,10 +93,10 @@ static void usage_complete(int argc, char *argv[])
     exit(-1);
 }
 
-static bool is_equal(const void *obj, const void *userp)
+static bool is_equal(const void *ap, const void *bp)
 {
-    const long *a = obj;
-    const long *b = userp;
+    const long *a = ap;
+    const long *b = bp;
 
     return *a == *b;
 }
@@ -150,7 +150,7 @@ static void do_rw(struct thread_info *info)
 
         p = &keys[info->r & (lookup_range - 1)];
         hash = h(*p);
-        read = qht_lookup(&ht, is_equal, p, hash);
+        read = qht_lookup(&ht, p, hash);
         if (read) {
             stats->rd++;
         } else {
@@ -162,7 +162,7 @@ static void do_rw(struct thread_info *info)
         if (info->write_op) {
             bool written = false;
 
-            if (qht_lookup(&ht, is_equal, p, hash) == NULL) {
+            if (qht_lookup(&ht, p, hash) == NULL) {
                 written = qht_insert(&ht, p, hash);
             }
             if (written) {
@@ -173,7 +173,7 @@ static void do_rw(struct thread_info *info)
         } else {
             bool removed = false;
 
-            if (qht_lookup(&ht, is_equal, p, hash)) {
+            if (qht_lookup(&ht, p, hash)) {
                 removed = qht_remove(&ht, p, hash);
             }
             if (removed) {
@@ -308,7 +308,7 @@ static void htable_init(void)
     }
 
     /* initialize the hash table */
-    qht_init(&ht, qht_n_elems, qht_mode);
+    qht_init(&ht, is_equal, qht_n_elems, qht_mode);
     assert(init_size <= init_range);
 
     pr_params();
