@@ -342,7 +342,7 @@ void blk_unref(BlockBackend *blk)
  * Behaves similarly to blk_next() but iterates over all BlockBackends, even the
  * ones which are hidden (i.e. are not referenced by the monitor).
  */
-static BlockBackend *blk_all_next(BlockBackend *blk)
+BlockBackend *blk_all_next(BlockBackend *blk)
 {
     return blk ? QTAILQ_NEXT(blk, link)
                : QTAILQ_FIRST(&block_backends);
