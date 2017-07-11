@@ -165,6 +165,36 @@ static const VMStateDescription vmstate_sense_id = {
     }
 };
 
+static const VMStateDescription vmstate_orb = {
+    .name = "s390_orb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(intparm, ORB),
+        VMSTATE_UINT16(ctrl0, ORB),
+        VMSTATE_UINT8(lpm, ORB),
+        VMSTATE_UINT8(ctrl1, ORB),
+        VMSTATE_UINT32(cpa, ORB),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool vmstate_schdev_orb_needed(void *opaque)
+{
+    return css_migration_enabled();
+}
+
+static const VMStateDescription vmstate_schdev_orb = {
+    .name = "s390_subch_dev/orb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmstate_schdev_orb_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(orb, SubchDev, 1, vmstate_orb, ORB),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int subch_dev_post_load(void *opaque, int version_id);
 static void subch_dev_pre_save(void *opaque);
 
@@ -193,6 +223,10 @@ const VMStateDescription vmstate_subch_dev = {
         VMSTATE_BOOL(ccw_fmt_1, SubchDev),
         VMSTATE_UINT8(ccw_no_data_cnt, SubchDev),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_schdev_orb,
+        NULL
     }
 };
 
@@ -1386,6 +1420,7 @@ int css_do_ssch(SubchDev *sch, ORB *orb)
     if (channel_subsys.chnmon_active) {
         css_update_chnmon(sch);
     }
+    sch->orb = *orb;
     sch->channel_prog = orb->cpa;
     /* Trigger the start function. */
     s->ctrl |= (SCSW_FCTL_START_FUNC | SCSW_ACTL_START_PEND);
