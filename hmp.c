@@ -425,6 +425,9 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     }
 
     if (info) {
+        if (info->has_qdev) {
+            monitor_printf(mon, "    Attached to:      %s\n", info->qdev);
+        }
         if (info->has_io_status && info->io_status != BLOCK_DEVICE_IO_STATUS_OK) {
             monitor_printf(mon, "    I/O status:       %s\n",
                            BlockDeviceIoStatus_lookup[info->io_status]);

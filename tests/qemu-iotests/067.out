@@ -57,6 +57,7 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk -device virti
                 "file": "TEST_DIR/t.qcow2",
                 "encryption_key_missing": false
             },
+            "qdev": "/machine/peripheral/virtio0/virtio-backend",
             "type": "unknown"
         }
     ]

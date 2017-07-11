@@ -322,10 +322,20 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
 {
     BlockInfo *info = g_malloc0(sizeof(*info));
     BlockDriverState *bs = blk_bs(blk);
+    char *qdev;
+
     info->device = g_strdup(blk_name(blk));
     info->type = g_strdup("unknown");
     info->locked = blk_dev_is_medium_locked(blk);
     info->removable = blk_dev_has_removable_media(blk);
+
+    qdev = blk_get_attached_dev_id(blk);
+    if (qdev && *qdev) {
+        info->has_qdev = true;
+        info->qdev = qdev;
+    } else {
+        g_free(qdev);
+    }
 
     if (blk_dev_has_tray(blk)) {
         info->has_tray_open = true;
