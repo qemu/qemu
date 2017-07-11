@@ -255,36 +255,35 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
     ms->dea_key_wrap = value;
 }
 
+static S390CcwMachineClass *current_mc;
+
+static S390CcwMachineClass *get_machine_class(void)
+{
+    if (unlikely(!current_mc)) {
+        /*
+        * No s390 ccw machine was instantiated, we are likely to
+        * be called for the 'none' machine. The properties will
+        * have their after-initialization values.
+        */
+        current_mc = S390_MACHINE_CLASS(
+                     object_class_by_name(TYPE_S390_CCW_MACHINE));
+    }
+    return current_mc;
+}
+
 bool ri_allowed(void)
 {
-    if (kvm_enabled()) {
-        MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
-        if (object_class_dynamic_cast(OBJECT_CLASS(mc),
-                                      TYPE_S390_CCW_MACHINE)) {
-            S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
-
-            return s390mc->ri_allowed;
-        }
-        /*
-         * Make sure the "none" machine can have ri, otherwise it won't * be
-         * unlocked in KVM and therefore the host CPU model might be wrong.
-         */
-        return true;
+    if (!kvm_enabled()) {
+        return false;
     }
-    return 0;
+    /* for "none" machine this results in true */
+    return get_machine_class()->ri_allowed;
 }
 
 bool cpu_model_allowed(void)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
-    if (object_class_dynamic_cast(OBJECT_CLASS(mc),
-                                  TYPE_S390_CCW_MACHINE)) {
-        S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
-
-        return s390mc->cpu_model_allowed;
-    }
-    /* allow CPU model qmp queries with the "none" machine */
-    return true;
+    /* for "none" machine this results in true */
+    return get_machine_class()->cpu_model_allowed;
 }
 
 static char *machine_get_loadparm(Object *obj, Error **errp)
@@ -394,6 +393,7 @@ static const TypeInfo ccw_machine_info = {
     static void ccw_machine_##suffix##_instance_init(Object *obj)             \
     {                                                                         \
         MachineState *machine = MACHINE(obj);                                 \
+        current_mc = S390_MACHINE_CLASS(MACHINE_GET_CLASS(machine));          \
         ccw_machine_##suffix##_instance_options(machine);                     \
     }                                                                         \
     static const TypeInfo ccw_machine_##suffix##_info = {                     \
