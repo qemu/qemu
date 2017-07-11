@@ -200,6 +200,22 @@ static void qemu_s390_flic_register_types(void)
 
 type_init(qemu_s390_flic_register_types)
 
+static bool adapter_info_so_needed(void *opaque)
+{
+    return css_migration_enabled();
+}
+
+const VMStateDescription vmstate_adapter_info_so = {
+    .name = "s390_adapter_info/summary_offset",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = adapter_info_so_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(summary_offset, AdapterInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_adapter_info = {
     .name = "s390_adapter_info",
     .version_id = 1,
@@ -213,6 +229,10 @@ const VMStateDescription vmstate_adapter_info = {
          */
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_adapter_info_so,
+        NULL
+    }
 };
 
 const VMStateDescription vmstate_adapter_routes = {

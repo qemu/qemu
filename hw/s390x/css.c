@@ -29,11 +29,44 @@ typedef struct CrwContainer {
     QTAILQ_ENTRY(CrwContainer) sibling;
 } CrwContainer;
 
+static const VMStateDescription vmstate_crw = {
+    .name = "s390_crw",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16(flags, CRW),
+        VMSTATE_UINT16(rsid, CRW),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_crw_container = {
+    .name = "s390_crw_container",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(crw, CrwContainer, 0, vmstate_crw, CRW),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 typedef struct ChpInfo {
     uint8_t in_use;
     uint8_t type;
     uint8_t is_virtual;
 } ChpInfo;
+
+static const VMStateDescription vmstate_chp_info = {
+    .name = "s390_chp_info",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(in_use, ChpInfo),
+        VMSTATE_UINT8(type, ChpInfo),
+        VMSTATE_UINT8(is_virtual, ChpInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 typedef struct SubchSet {
     SubchDev *sch[MAX_SCHID + 1];
@@ -221,6 +254,19 @@ typedef struct CssImage {
     ChpInfo chpids[MAX_CHPID + 1];
 } CssImage;
 
+static const VMStateDescription vmstate_css_img = {
+    .name = "s390_css_img",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        /* Subchannel sets have no relevant state. */
+        VMSTATE_STRUCT_ARRAY(chpids, CssImage, MAX_CHPID + 1, 0,
+                             vmstate_chp_info, ChpInfo),
+        VMSTATE_END_OF_LIST()
+    }
+
+};
+
 typedef struct IoAdapter {
     uint32_t id;
     uint8_t type;
@@ -239,9 +285,33 @@ typedef struct ChannelSubSys {
     uint64_t chnmon_area;
     CssImage *css[MAX_CSSID + 1];
     uint8_t default_cssid;
+    /* don't migrate, see css_register_io_adapters */
     IoAdapter *io_adapters[CSS_IO_ADAPTER_TYPE_NUMS][MAX_ISC + 1];
+    /* don't migrate, see get_indicator and IndAddrPtrTmp */
     QTAILQ_HEAD(, IndAddr) indicator_addresses;
 } ChannelSubSys;
+
+static const VMStateDescription vmstate_css = {
+    .name = "s390_css",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_QTAILQ_V(pending_crws, ChannelSubSys, 1, vmstate_crw_container,
+                         CrwContainer, sibling),
+        VMSTATE_BOOL(sei_pending, ChannelSubSys),
+        VMSTATE_BOOL(do_crw_mchk, ChannelSubSys),
+        VMSTATE_BOOL(crws_lost, ChannelSubSys),
+        /* These were kind of migrated by virtio */
+        VMSTATE_UINT8(max_cssid, ChannelSubSys),
+        VMSTATE_UINT8(max_ssid, ChannelSubSys),
+        VMSTATE_BOOL(chnmon_active, ChannelSubSys),
+        VMSTATE_UINT64(chnmon_area, ChannelSubSys),
+        VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(css, ChannelSubSys, MAX_CSSID + 1,
+                0, vmstate_css_img, CssImage),
+        VMSTATE_UINT8(default_cssid, ChannelSubSys),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static ChannelSubSys channel_subsys = {
     .pending_crws = QTAILQ_HEAD_INITIALIZER(channel_subsys.pending_crws),
@@ -282,6 +352,10 @@ static int subch_dev_post_load(void *opaque, int version_id)
         css_subch_assign(s->cssid, s->ssid, s->schid, s->devno, s);
     }
 
+    if (css_migration_enabled()) {
+        /* No compat voodoo to do ;) */
+        return 0;
+    }
     /*
      * Hack alert. If we don't migrate the channel subsystem status
      * we still need to find out if the guest enabled mss/mcss-e.
