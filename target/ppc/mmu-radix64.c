@@ -147,11 +147,10 @@ static void ppc_radix64_set_rc(PowerPCCPU *cpu, int rwx, uint64_t pte,
     }
 }
 
-static uint64_t ppc_radix64_walk_tree(PowerPCCPU *cpu, int rwx, vaddr eaddr,
+static uint64_t ppc_radix64_walk_tree(PowerPCCPU *cpu, vaddr eaddr,
                                       uint64_t base_addr, uint64_t nls,
                                       hwaddr *raddr, int *psize,
-                                      int *fault_cause, int *prot,
-                                      hwaddr *pte_addr)
+                                      int *fault_cause, hwaddr *pte_addr)
 {
     CPUState *cs = CPU(cpu);
     uint64_t index, pde;
@@ -177,10 +176,6 @@ static uint64_t ppc_radix64_walk_tree(PowerPCCPU *cpu, int rwx, vaddr eaddr,
         uint64_t rpn = pde & R_PTE_RPN;
         uint64_t mask = (1UL << *psize) - 1;
 
-        if (ppc_radix64_check_prot(cpu, rwx, pde, fault_cause, prot)) {
-            return 0; /* Protection Denied Access */
-        }
-
         /* Or high bits of rpn and low bits to ea to form whole real addr */
         *raddr = (rpn & ~mask) | (eaddr & mask);
         *pte_addr = base_addr + (index * sizeof(pde));
@@ -188,9 +183,8 @@ static uint64_t ppc_radix64_walk_tree(PowerPCCPU *cpu, int rwx, vaddr eaddr,
     }
 
     /* Next Level of Radix Tree */
-    return ppc_radix64_walk_tree(cpu, rwx, eaddr, pde & R_PDE_NLB,
-                                 pde & R_PDE_NLS, raddr, psize,
-                                 fault_cause, prot, pte_addr);
+    return ppc_radix64_walk_tree(cpu, eaddr, pde & R_PDE_NLB, pde & R_PDE_NLS,
+                                 raddr, psize, fault_cause, pte_addr);
 }
 
 int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
@@ -241,11 +235,11 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
     /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
     page_size = PRTBE_R_GET_RTS(prtbe0);
-    pte = ppc_radix64_walk_tree(cpu, rwx, eaddr & R_EADDR_MASK,
+    pte = ppc_radix64_walk_tree(cpu, eaddr & R_EADDR_MASK,
                                 prtbe0 & PRTBE_R_RPDB, prtbe0 & PRTBE_R_RPDS,
-                                &raddr, &page_size, &fault_cause, &prot,
-                                &pte_addr);
-    if (!pte) {
+                                &raddr, &page_size, &fault_cause, &pte_addr);
+    if (!pte || ppc_radix64_check_prot(cpu, rwx, pte, &fault_cause, &prot)) {
+        /* Couldn't get pte or access denied due to protection */
         ppc_radix64_raise_si(cpu, rwx, eaddr, fault_cause);
         return 1;
     }
@@ -256,4 +250,49 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
                  prot, mmu_idx, 1UL << page_size);
     return 0;
+}
+
+hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    PPCVirtualHypervisorClass *vhc =
+        PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+    hwaddr raddr, pte_addr;
+    uint64_t lpid = 0, pid = 0, offset, size, patbe, prtbe0, pte;
+    int page_size, fault_cause = 0;
+
+    /* Handle Real Mode */
+    if (msr_dr == 0) {
+        /* In real mode top 4 effective addr bits (mostly) ignored */
+        return eaddr & 0x0FFFFFFFFFFFFFFFULL;
+    }
+
+    /* Virtual Mode Access - get the fully qualified address */
+    if (!ppc_radix64_get_fully_qualified_addr(env, eaddr, &lpid, &pid)) {
+        return -1;
+    }
+
+    /* Get Process Table */
+    patbe = vhc->get_patbe(cpu->vhyp);
+
+    /* Index Process Table by PID to Find Corresponding Process Table Entry */
+    offset = pid * sizeof(struct prtb_entry);
+    size = 1ULL << ((patbe & PATBE1_R_PRTS) + 12);
+    if (offset >= size) {
+        /* offset exceeds size of the process table */
+        return -1;
+    }
+    prtbe0 = ldq_phys(cs->as, (patbe & PATBE1_R_PRTB) + offset);
+
+    /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
+    page_size = PRTBE_R_GET_RTS(prtbe0);
+    pte = ppc_radix64_walk_tree(cpu, eaddr & R_EADDR_MASK,
+                                prtbe0 & PRTBE_R_RPDB, prtbe0 & PRTBE_R_RPDS,
+                                &raddr, &page_size, &fault_cause, &pte_addr);
+    if (!pte) {
+        return -1;
+    }
+
+    return raddr & TARGET_PAGE_MASK;
 }

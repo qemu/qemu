@@ -340,7 +340,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
 }
 
 void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                      int fdt_start_offset, bool coldplug, Error **errp)
+                      int fdt_start_offset, Error **errp)
 {
     trace_spapr_drc_attach(spapr_drc_index(drc));
 
@@ -351,14 +351,11 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_PCI) {
         g_assert(drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_USABLE);
     }
-    g_assert(fdt || coldplug);
-
-    drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
+    g_assert(fdt);
 
     drc->dev = d;
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
-    drc->configured = coldplug;
 
     if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
         drc->awaiting_allocation = true;
@@ -372,24 +369,9 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
 
 static void spapr_drc_release(sPAPRDRConnector *drc)
 {
-    drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    /* Calling release callbacks based on spapr_drc_type(drc). */
-    switch (spapr_drc_type(drc)) {
-    case SPAPR_DR_CONNECTOR_TYPE_CPU:
-        spapr_core_release(drc->dev);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_PCI:
-        spapr_phb_remove_pci_device_cb(drc->dev);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_LMB:
-        spapr_lmb_release(drc->dev);
-        break;
-    case SPAPR_DR_CONNECTOR_TYPE_PHB:
-    case SPAPR_DR_CONNECTOR_TYPE_VIO:
-    default:
-        g_assert(false);
-    }
+    drck->release(drc->dev);
 
     drc->awaiting_release = false;
     g_free(drc->fdt);
@@ -430,9 +412,9 @@ static bool release_pending(sPAPRDRConnector *drc)
     return drc->awaiting_release;
 }
 
-static void reset(DeviceState *d)
+static void drc_reset(void *opaque)
 {
-    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(d);
+    sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(opaque);
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
@@ -454,12 +436,14 @@ static void reset(DeviceState *d)
         if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
             drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_USABLE;
         }
+        drc->dr_indicator = SPAPR_DR_INDICATOR_ACTIVE;
     } else {
         /* Otherwise device is absent, but might be hotplugged */
         drc->isolation_state = SPAPR_DR_ISOLATION_STATE_ISOLATED;
         if (spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PCI) {
             drc->allocation_state = SPAPR_DR_ALLOCATION_STATE_UNUSABLE;
         }
+        drc->dr_indicator = SPAPR_DR_INDICATOR_INACTIVE;
     }
 }
 
@@ -540,6 +524,7 @@ static void realize(DeviceState *d, Error **errp)
     g_free(child_name);
     vmstate_register(DEVICE(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
+    qemu_register_reset(drc_reset, drc);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
 
@@ -598,7 +583,6 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     DeviceClass *dk = DEVICE_CLASS(k);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
-    dk->reset = reset;
     dk->realize = realize;
     dk->unrealize = unrealize;
     drck->release_pending = release_pending;
@@ -633,6 +617,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_CPU;
     drck->typename = "CPU";
     drck->drc_name_prefix = "CPU ";
+    drck->release = spapr_core_release;
 }
 
 static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
@@ -642,6 +627,7 @@ static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PCI;
     drck->typename = "28";
     drck->drc_name_prefix = "C";
+    drck->release = spapr_phb_remove_pci_device_cb;
 }
 
 static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
@@ -651,6 +637,7 @@ static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_LMB;
     drck->typename = "MEM";
     drck->drc_name_prefix = "LMB ";
+    drck->release = spapr_lmb_release;
 }
 
 static const TypeInfo spapr_dr_connector_info = {
