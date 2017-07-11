@@ -770,18 +770,11 @@ static void machine_class_finalize(ObjectClass *klass, void *data)
     g_free(mc->name);
 }
 
-static void machine_register_compat_for_subclass(ObjectClass *oc, void *opaque)
-{
-    GlobalProperty *p = opaque;
-    register_compat_prop(object_class_get_name(oc), p->property, p->value);
-}
-
 void machine_register_compat_props(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     int i;
     GlobalProperty *p;
-    ObjectClass *oc;
 
     if (!mc->compat_props) {
         return;
@@ -789,22 +782,9 @@ void machine_register_compat_props(MachineState *machine)
 
     for (i = 0; i < mc->compat_props->len; i++) {
         p = g_array_index(mc->compat_props, GlobalProperty *, i);
-        oc = object_class_by_name(p->driver);
-        if (oc && object_class_is_abstract(oc)) {
-            /* temporary hack to make sure we do not override
-             * globals set explicitly on -global: if an abstract class
-             * is on compat_props, register globals for all its
-             * non-abstract subtypes instead.
-             *
-             * This doesn't solve the problem for cases where
-             * a non-abstract typename mentioned on compat_props
-             * has subclasses, like spapr-pci-host-bridge.
-             */
-            object_class_foreach(machine_register_compat_for_subclass,
-                                 p->driver, false, p);
-        } else {
-            register_compat_prop(p->driver, p->property, p->value);
-        }
+        /* Machine compat_props must never cause errors: */
+        p->errp = &error_abort;
+        qdev_prop_register_global(p);
     }
 }
 
