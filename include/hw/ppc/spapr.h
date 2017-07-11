@@ -594,7 +594,8 @@ struct sPAPRTCETable {
     bool bypass;
     bool need_vfio;
     int fd;
-    MemoryRegion root, iommu;
+    MemoryRegion root;
+    IOMMUMemoryRegion iommu;
     struct VIOsPAPRDevice *vdev; /* for @bypass migration compatibility only */
     QLIST_ENTRY(sPAPRTCETable) list;
 };

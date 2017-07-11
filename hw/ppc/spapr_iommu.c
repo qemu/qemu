@@ -110,7 +110,8 @@ static void spapr_tce_free_table(uint64_t *table, int fd, uint32_t nb_table)
 }
 
 /* Called from RCU critical section */
-static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry spapr_tce_translate_iommu(IOMMUMemoryRegion *iommu,
+                                               hwaddr addr,
                                                IOMMUAccessFlags flag)
 {
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
@@ -150,14 +151,14 @@ static void spapr_tce_table_pre_save(void *opaque)
                                tcet->bus_offset, tcet->page_shift);
 }
 
-static uint64_t spapr_tce_get_min_page_size(MemoryRegion *iommu)
+static uint64_t spapr_tce_get_min_page_size(IOMMUMemoryRegion *iommu)
 {
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
 
     return 1ULL << tcet->page_shift;
 }
 
-static void spapr_tce_notify_flag_changed(MemoryRegion *iommu,
+static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                           IOMMUNotifierFlag old,
                                           IOMMUNotifierFlag new)
 {
@@ -348,9 +349,10 @@ void spapr_tce_table_enable(sPAPRTCETable *tcet,
                                         &tcet->fd,
                                         tcet->need_vfio);
 
-    memory_region_set_size(&tcet->iommu,
+    memory_region_set_size(MEMORY_REGION(&tcet->iommu),
                            (uint64_t)tcet->nb_table << tcet->page_shift);
-    memory_region_add_subregion(&tcet->root, tcet->bus_offset, &tcet->iommu);
+    memory_region_add_subregion(&tcet->root, tcet->bus_offset,
+                                MEMORY_REGION(&tcet->iommu));
 }
 
 void spapr_tce_table_disable(sPAPRTCETable *tcet)
@@ -359,8 +361,8 @@ void spapr_tce_table_disable(sPAPRTCETable *tcet)
         return;
     }
 
-    memory_region_del_subregion(&tcet->root, &tcet->iommu);
-    memory_region_set_size(&tcet->iommu, 0);
+    memory_region_del_subregion(&tcet->root, MEMORY_REGION(&tcet->iommu));
+    memory_region_set_size(MEMORY_REGION(&tcet->iommu), 0);
 
     spapr_tce_free_table(tcet->table, tcet->fd, tcet->nb_table);
     tcet->fd = -1;

@@ -123,7 +123,7 @@ do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct IOMMUState {
     AddressSpace iommu_as;
-    MemoryRegion iommu;
+    IOMMUMemoryRegion iommu;
 
     uint64_t regs[IOMMU_NREGS];
 } IOMMUState;
@@ -208,7 +208,7 @@ static AddressSpace *pbm_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 }
 
 /* Called from RCU critical section */
-static IOMMUTLBEntry pbm_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry pbm_translate_iommu(IOMMUMemoryRegion *iommu, hwaddr addr,
                                          IOMMUAccessFlags flag)
 {
     IOMMUState *is = container_of(iommu, IOMMUState, iommu);
@@ -699,7 +699,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
 
     memory_region_init_iommu(&is->iommu, OBJECT(dev), &pbm_iommu_ops,
                              "iommu-apb", UINT64_MAX);
-    address_space_init(&is->iommu_as, &is->iommu, "pbm-as");
+    address_space_init(&is->iommu_as, MEMORY_REGION(&is->iommu), "pbm-as");
     pci_setup_iommu(phb->bus, pbm_pci_dma_iommu, is);
 
     /* APB secondary busses */

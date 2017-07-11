@@ -41,7 +41,7 @@ typedef struct TyphoonPchip {
     MemoryRegion reg_conf;
 
     AddressSpace iommu_as;
-    MemoryRegion iommu;
+    IOMMUMemoryRegion iommu;
 
     uint64_t ctl;
     TyphoonWindow win[4];
@@ -663,7 +663,8 @@ static bool window_translate(TyphoonWindow *win, hwaddr addr,
 /* Handle PCI-to-system address translation.  */
 /* TODO: A translation failure here ought to set PCI error codes on the
    Pchip and generate a machine check interrupt.  */
-static IOMMUTLBEntry typhoon_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry typhoon_translate_iommu(IOMMUMemoryRegion *iommu,
+                                             hwaddr addr,
                                              IOMMUAccessFlags flag)
 {
     TyphoonPchip *pchip = container_of(iommu, TyphoonPchip, iommu);
@@ -893,7 +894,8 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     /* Host memory as seen from the PCI side, via the IOMMU.  */
     memory_region_init_iommu(&s->pchip.iommu, OBJECT(s), &typhoon_iommu_ops,
                              "iommu-typhoon", UINT64_MAX);
-    address_space_init(&s->pchip.iommu_as, &s->pchip.iommu, "pchip0-pci");
+    address_space_init(&s->pchip.iommu_as, MEMORY_REGION(&s->pchip.iommu),
+                       "pchip0-pci");
     pci_setup_iommu(b, typhoon_pci_dma_iommu, s);
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */

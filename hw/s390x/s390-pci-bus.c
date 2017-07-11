@@ -356,7 +356,7 @@ out:
     return pte;
 }
 
-static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *mr, hwaddr addr,
+static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
                                           IOMMUAccessFlags flag)
 {
     uint64_t pte;
@@ -525,14 +525,14 @@ void s390_pci_iommu_enable(S390PCIIOMMU *iommu)
     memory_region_init_iommu(&iommu->iommu_mr, OBJECT(&iommu->mr),
                              &s390_iommu_ops, name, iommu->pal + 1);
     iommu->enabled = true;
-    memory_region_add_subregion(&iommu->mr, 0, &iommu->iommu_mr);
+    memory_region_add_subregion(&iommu->mr, 0, MEMORY_REGION(&iommu->iommu_mr));
     g_free(name);
 }
 
 void s390_pci_iommu_disable(S390PCIIOMMU *iommu)
 {
     iommu->enabled = false;
-    memory_region_del_subregion(&iommu->mr, &iommu->iommu_mr);
+    memory_region_del_subregion(&iommu->mr, MEMORY_REGION(&iommu->iommu_mr));
     object_unparent(OBJECT(&iommu->iommu_mr));
 }
 

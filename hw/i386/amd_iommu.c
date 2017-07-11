@@ -52,7 +52,7 @@ struct AMDVIAddressSpace {
     uint8_t bus_num;            /* bus number                           */
     uint8_t devfn;              /* device function                      */
     AMDVIState *iommu_state;    /* AMDVI - one per machine              */
-    MemoryRegion iommu;         /* Device's address translation region  */
+    IOMMUMemoryRegion iommu;    /* Device's address translation region  */
     MemoryRegion iommu_ir;      /* Device's interrupt remapping region  */
     AddressSpace as;            /* device's corresponding address space */
 };
@@ -987,7 +987,7 @@ static inline bool amdvi_is_interrupt_addr(hwaddr addr)
     return addr >= AMDVI_INT_ADDR_FIRST && addr <= AMDVI_INT_ADDR_LAST;
 }
 
-static IOMMUTLBEntry amdvi_translate(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
                                      IOMMUAccessFlags flag)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
@@ -1046,7 +1046,8 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
         memory_region_init_iommu(&iommu_as[devfn]->iommu, OBJECT(s),
                                  &s->iommu_ops, "amd-iommu", UINT64_MAX);
-        address_space_init(&iommu_as[devfn]->as, &iommu_as[devfn]->iommu,
+        address_space_init(&iommu_as[devfn]->as,
+                           MEMORY_REGION(&iommu_as[devfn]->iommu),
                            "amd-iommu");
     }
     return &iommu_as[devfn]->as;
@@ -1067,7 +1068,7 @@ static const MemoryRegionOps mmio_mem_ops = {
     }
 };
 
-static void amdvi_iommu_notify_flag_changed(MemoryRegion *iommu,
+static void amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                             IOMMUNotifierFlag old,
                                             IOMMUNotifierFlag new)
 {

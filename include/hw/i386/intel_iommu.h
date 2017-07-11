@@ -83,7 +83,7 @@ struct VTDAddressSpace {
     PCIBus *bus;
     uint8_t devfn;
     AddressSpace as;
-    MemoryRegion iommu;
+    IOMMUMemoryRegion iommu;
     MemoryRegion root;
     MemoryRegion sys_alias;
     MemoryRegion iommu_ir;      /* Interrupt region: 0xfeeXXXXX */

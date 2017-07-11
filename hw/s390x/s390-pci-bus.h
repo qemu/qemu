@@ -266,7 +266,7 @@ typedef struct S390PCIIOMMU {
     S390PCIBusDevice *pbdev;
     AddressSpace as;
     MemoryRegion mr;
-    MemoryRegion iommu_mr;
+    IOMMUMemoryRegion iommu_mr;
     bool enabled;
     uint64_t g_iota;
     uint64_t pba;

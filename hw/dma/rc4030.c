@@ -90,7 +90,7 @@ typedef struct rc4030State
     qemu_irq jazz_bus_irq;
 
     /* whole DMA memory region, root of DMA address space */
-    MemoryRegion dma_mr;
+    IOMMUMemoryRegion dma_mr;
     AddressSpace dma_as;
 
     MemoryRegion iomem_chipset;
@@ -488,7 +488,7 @@ static const MemoryRegionOps jazzio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static IOMMUTLBEntry rc4030_dma_translate(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
                                           IOMMUAccessFlags flag)
 {
     rc4030State *s = container_of(iommu, rc4030State, dma_mr);
@@ -679,7 +679,7 @@ static void rc4030_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_iommu(&s->dma_mr, o, &rc4030_dma_ops,
                              "rc4030.dma", UINT32_MAX);
-    address_space_init(&s->dma_as, &s->dma_mr, "rc4030-dma");
+    address_space_init(&s->dma_as, MEMORY_REGION(&s->dma_mr), "rc4030-dma");
 }
 
 static void rc4030_unrealize(DeviceState *dev, Error **errp)
@@ -717,7 +717,7 @@ static void rc4030_register_types(void)
 
 type_init(rc4030_register_types)
 
-DeviceState *rc4030_init(rc4030_dma **dmas, MemoryRegion **dma_mr)
+DeviceState *rc4030_init(rc4030_dma **dmas, IOMMUMemoryRegion **dma_mr)
 {
     DeviceState *dev;
 
