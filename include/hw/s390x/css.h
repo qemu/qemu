@@ -234,4 +234,8 @@ extern PropertyInfo css_devid_ro_propinfo;
  */
 SubchDev *css_create_sch(CssDevId bus_id, bool is_virtual, bool squash_mcss,
                          Error **errp);
+
+/** Turn on css migration */
+void css_register_vmstate(void);
+
 #endif

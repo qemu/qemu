@@ -209,7 +209,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
 
     s390mc->ri_allowed = true;
     s390mc->cpu_model_allowed = true;
-    s390mc->css_migration_enabled = false; /* TODO: set to true */
+    s390mc->css_migration_enabled = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -490,10 +490,9 @@ bool css_migration_enabled(void)
 
 static void ccw_machine_2_10_instance_options(MachineState *machine)
 {
-    /*
-     * TODO Once preparations are done register vmstate for the css if
-     * css_migration_enabled().
-     */
+    if (css_migration_enabled()) {
+        css_register_vmstate();
+    }
 }
 
 static void ccw_machine_2_10_class_options(MachineClass *mc)
