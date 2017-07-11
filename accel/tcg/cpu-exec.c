@@ -294,7 +294,7 @@ static bool tb_cmp(const void *p, const void *d)
         tb->cs_base == desc->cs_base &&
         tb->flags == desc->flags &&
         tb->trace_vcpu_dstate == desc->trace_vcpu_dstate &&
-        !atomic_read(&tb->invalid)) {
+        !(atomic_read(&tb->cflags) & CF_INVALID)) {
         /* check next page if needed */
         if (tb->page_addr[1] == -1) {
             return true;
@@ -412,7 +412,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
             tb_lock();
             acquired_tb_lock = true;
         }
-        if (!tb->invalid) {
+        if (!(tb->cflags & CF_INVALID)) {
             tb_add_jump(last_tb, tb_exit, tb);
         }
     }

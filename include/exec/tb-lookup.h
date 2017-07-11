@@ -35,7 +35,7 @@ tb_lookup__cpu_state(CPUState *cpu, target_ulong *pc, target_ulong *cs_base,
                tb->cs_base == *cs_base &&
                tb->flags == *flags &&
                tb->trace_vcpu_dstate == *cpu->trace_dstate &&
-               !atomic_read(&tb->invalid))) {
+               !(atomic_read(&tb->cflags) & CF_INVALID))) {
         return tb;
     }
     tb = tb_htable_lookup(cpu, *pc, *cs_base, *flags);
