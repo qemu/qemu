@@ -325,6 +325,9 @@ struct TranslationBlock {
 #define CF_USE_ICOUNT  0x20000
 #define CF_IGNORE_ICOUNT 0x40000 /* Do not generate icount code */
 #define CF_INVALID     0x80000 /* TB is stale. Setters must acquire tb_lock */
+#define CF_PARALLEL    0x100000 /* Generate code for a parallel context */
+/* cflags' mask for hashing/comparison */
+#define CF_HASH_MASK (CF_PARALLEL)
 
     /* Per-vCPU dynamic tracing state used to generate this TB */
     uint32_t trace_vcpu_dstate;
@@ -365,11 +368,26 @@ struct TranslationBlock {
     uintptr_t jmp_list_first;
 };
 
+extern bool parallel_cpus;
+
+/* Hide the atomic_read to make code a little easier on the eyes */
+static inline uint32_t tb_cflags(const TranslationBlock *tb)
+{
+    return atomic_read(&tb->cflags);
+}
+
+/* current cflags for hashing/comparison */
+static inline uint32_t curr_cflags(void)
+{
+    return parallel_cpus ? CF_PARALLEL : 0;
+}
+
 void tb_free(TranslationBlock *tb);
 void tb_flush(CPUState *cpu);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
-                                   target_ulong cs_base, uint32_t flags);
+                                   target_ulong cs_base, uint32_t flags,
+                                   uint32_t cf_mask);
 void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
 
 /* GETPC is the true target of the return instruction that we'll execute.  */

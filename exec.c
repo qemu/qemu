@@ -2476,7 +2476,7 @@ static void check_watchpoint(int offset, int len, MemTxAttrs attrs, int flags)
                     cpu_loop_exit(cpu);
                 } else {
                     cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
-                    tb_gen_code(cpu, pc, cs_base, cpu_flags, 1);
+                    tb_gen_code(cpu, pc, cs_base, cpu_flags, 1 | curr_cflags());
                     cpu_loop_exit_noexc(cpu);
                 }
             }

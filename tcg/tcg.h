@@ -690,7 +690,6 @@ struct TCGContext {
 };
 
 extern TCGContext tcg_ctx;
-extern bool parallel_cpus;
 
 static inline size_t temp_idx(TCGTemp *ts)
 {
