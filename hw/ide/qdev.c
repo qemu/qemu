@@ -164,6 +164,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
     Error *err = NULL;
+    int ret;
 
     if (!dev->conf.blk) {
         if (kind != IDE_CD) {
@@ -172,6 +173,8 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         } else {
             /* Anonymous BlockBackend for an empty drive */
             dev->conf.blk = blk_new(0, BLK_PERM_ALL);
+            ret = blk_attach_dev(dev->conf.blk, &dev->qdev);
+            assert(ret == 0);
         }
     }
 
