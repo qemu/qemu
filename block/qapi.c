@@ -475,7 +475,7 @@ BlockInfoList *qmp_query_block(Error **errp)
     for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
         BlockInfoList *info;
 
-        if (!*blk_name(blk)) {
+        if (!*blk_name(blk) && !blk_get_attached_dev(blk)) {
             continue;
         }
 
