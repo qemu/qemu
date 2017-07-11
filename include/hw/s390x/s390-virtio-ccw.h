@@ -39,11 +39,18 @@ typedef struct S390CcwMachineClass {
     /*< public >*/
     bool ri_allowed;
     bool cpu_model_allowed;
+    bool css_migration_enabled;
 } S390CcwMachineClass;
 
 /* runtime-instrumentation allowed by the machine */
 bool ri_allowed(void);
 /* cpu model allowed by the machine */
 bool cpu_model_allowed(void);
+
+/**
+ * Returns true if (vmstate based) migration of the channel subsystem
+ * is enabled, false if it is disabled.
+ */
+bool css_migration_enabled(void);
 
 #endif
