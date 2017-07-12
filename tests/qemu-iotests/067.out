@@ -416,4 +416,43 @@ Testing:
     "return": {
     }
 }
+
+=== Empty drive with -device and device_del ===
+
+Testing: -device virtio-scsi-pci -device scsi-cd,id=cd0
+{
+    QMP_VERSION
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
+        {
+            "device": "",
+            "locked": false,
+            "removable": true,
+            "qdev": "cd0",
+            "tray_open": false,
+            "type": "unknown"
+        }
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
+    ]
+}
+{
+    "return": {
+    }
+}
 *** done
