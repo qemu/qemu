@@ -232,6 +232,15 @@ void error_report_err(Error *err)
     error_free(err);
 }
 
+void warn_report_err(Error *err)
+{
+    warn_report("%s", error_get_pretty(err));
+    if (err->hint) {
+        error_printf_unless_qmp("%s", err->hint->str);
+    }
+    error_free(err);
+}
+
 void error_reportf_err(Error *err, const char *fmt, ...)
 {
     va_list ap;
@@ -240,6 +249,17 @@ void error_reportf_err(Error *err, const char *fmt, ...)
     error_vprepend(&err, fmt, ap);
     va_end(ap);
     error_report_err(err);
+}
+
+
+void warn_reportf_err(Error *err, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vprepend(&err, fmt, ap);
+    va_end(ap);
+    warn_report_err(err);
 }
 
 void error_free(Error *err)
