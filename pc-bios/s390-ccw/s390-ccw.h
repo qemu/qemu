@@ -44,6 +44,8 @@ typedef unsigned long long __u64;
                             ((b) == 0 ? (a) : (MIN(a, b))))
 #endif
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
 #include "cio.h"
 #include "iplb.h"
 
