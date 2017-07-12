@@ -2974,8 +2974,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     CPUState *cs = CPU(core->threads);
     sPAPRDRConnector *drc;
     Error *local_err = NULL;
-    void *fdt = NULL;
-    int fdt_offset = 0;
     int smt = kvmppc_smt_threads();
     CPUArchId *core_slot;
     int index;
@@ -2991,9 +2989,12 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     g_assert(drc || !mc->has_hotpluggable_cpus);
 
-    fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
-
     if (drc) {
+        void *fdt;
+        int fdt_offset;
+
+        fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
+
         spapr_drc_attach(drc, dev, fdt, fdt_offset, &local_err);
         if (local_err) {
             g_free(fdt);
