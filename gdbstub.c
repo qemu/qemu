@@ -938,23 +938,16 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
             if (res) {
                 goto out;
             }
-            idx = tmp;
-            /* 0 means any thread, so we pick the first valid CPU */
-            if (!idx) {
-                idx = cpu_gdb_index(first_cpu);
-            }
 
-            /*
-             * If we are in user mode, the thread specified is actually a
-             * thread id, and not an index. We need to find the actual
-             * CPU first, and only then we can use its index.
-             */
-            cpu = find_cpu(idx);
+            /* 0 means any thread, so we pick the first valid CPU */
+            cpu = tmp ? find_cpu(tmp) : first_cpu;
+
             /* invalid CPU/thread specified */
-            if (!idx || !cpu) {
+            if (!cpu) {
                 res = -EINVAL;
                 goto out;
             }
+
             /* only use if no previous match occourred */
             if (newstates[cpu->cpu_index] == 1) {
                 newstates[cpu->cpu_index] = cur_action;
