@@ -42,7 +42,6 @@
 #include "hw/ppc/spapr_ovec.h"
 #include <libfdt.h>
 
-/* Macros related to rtas_error_log struct defined in spapr.h */
 #define RTAS_LOG_VERSION_MASK                   0xff000000
 #define   RTAS_LOG_VERSION_6                    0x06000000
 #define RTAS_LOG_SEVERITY_MASK                  0x00e00000
@@ -84,6 +83,11 @@
 #define   RTAS_LOG_TYPE_ECC_CORR                0x0000000a
 #define   RTAS_LOG_TYPE_EPOW                    0x00000040
 #define   RTAS_LOG_TYPE_HOTPLUG                 0x000000e5
+
+struct rtas_error_log {
+    uint32_t summary;
+    uint32_t extended_length;
+} QEMU_PACKED;
 
 struct rtas_event_log_v6 {
     uint8_t b0;
@@ -338,7 +342,7 @@ static int rtas_event_log_to_irq(sPAPRMachineState *spapr, int log_type)
 
 static uint32_t spapr_event_log_entry_type(sPAPREventLogEntry *entry)
 {
-    return entry->header.summary & RTAS_LOG_TYPE_MASK;
+    return entry->summary & RTAS_LOG_TYPE_MASK;
 }
 
 static void rtas_event_log_queue(sPAPRMachineState *spapr,
@@ -426,7 +430,6 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry;
-    struct rtas_error_log *hdr;
     struct rtas_event_log_v6 *v6hdr;
     struct rtas_event_log_v6_maina *maina;
     struct rtas_event_log_v6_mainb *mainb;
@@ -437,18 +440,17 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     new_epow = g_malloc0(sizeof(*new_epow));
     entry->extended_log = new_epow;
 
-    hdr = &entry->header;
     v6hdr = &new_epow->v6hdr;
     maina = &new_epow->maina;
     mainb = &new_epow->mainb;
     epow = &new_epow->epow;
 
-    hdr->summary = RTAS_LOG_VERSION_6
+    entry->summary = RTAS_LOG_VERSION_6
                        | RTAS_LOG_SEVERITY_EVENT
                        | RTAS_LOG_DISPOSITION_NOT_RECOVERED
                        | RTAS_LOG_OPTIONAL_PART_PRESENT
                        | RTAS_LOG_TYPE_EPOW;
-    hdr->extended_length = sizeof(*new_epow);
+    entry->extended_length = sizeof(*new_epow);
 
     spapr_init_v6hdr(v6hdr);
     spapr_init_maina(maina, 3 /* Main-A, Main-B and EPOW */);
@@ -482,7 +484,6 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPREventLogEntry *entry;
     struct hp_extended_log *new_hp;
-    struct rtas_error_log *hdr;
     struct rtas_event_log_v6 *v6hdr;
     struct rtas_event_log_v6_maina *maina;
     struct rtas_event_log_v6_mainb *mainb;
@@ -492,19 +493,18 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     new_hp = g_malloc0(sizeof(struct hp_extended_log));
     entry->extended_log = new_hp;
 
-    hdr = &entry->header;
     v6hdr = &new_hp->v6hdr;
     maina = &new_hp->maina;
     mainb = &new_hp->mainb;
     hp = &new_hp->hp;
 
-    hdr->summary = RTAS_LOG_VERSION_6
-                       | RTAS_LOG_SEVERITY_EVENT
-                       | RTAS_LOG_DISPOSITION_NOT_RECOVERED
-                       | RTAS_LOG_OPTIONAL_PART_PRESENT
-                       | RTAS_LOG_INITIATOR_HOTPLUG
-                       | RTAS_LOG_TYPE_HOTPLUG;
-    hdr->extended_length = sizeof(*new_hp);
+    entry->summary = RTAS_LOG_VERSION_6
+        | RTAS_LOG_SEVERITY_EVENT
+        | RTAS_LOG_DISPOSITION_NOT_RECOVERED
+        | RTAS_LOG_OPTIONAL_PART_PRESENT
+        | RTAS_LOG_INITIATOR_HOTPLUG
+        | RTAS_LOG_TYPE_HOTPLUG;
+    entry->extended_length = sizeof(*new_hp);
 
     spapr_init_v6hdr(v6hdr);
     spapr_init_maina(maina, 3 /* Main-A, Main-B, HP */);
@@ -628,10 +628,10 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong args,
                             uint32_t nret, target_ulong rets)
 {
-    CPUState *cs = CPU(cpu);
     uint32_t mask, buf, len, event_len;
     uint64_t xinfo;
     sPAPREventLogEntry *event;
+    struct rtas_error_log header;
     int i;
 
     if ((nargs < 6) || (nargs > 7) || nret != 1) {
@@ -652,18 +652,17 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         goto out_no_events;
     }
 
-    event_len = event->header.extended_length + sizeof(event->header);
+    event_len = event->extended_length + sizeof(header);
 
     if (event_len < len) {
         len = event_len;
     }
 
-    stl_be_phys(cs->as, buf, event->header.summary);
-    stl_be_phys(cs->as, buf + sizeof(event->header.summary),
-                event->header.extended_length);
-    cpu_physical_memory_write(buf + sizeof(event->header),
-                              event->extended_log,
-                              event->header.extended_length);
+    header.summary = cpu_to_be32(event->summary);
+    header.extended_length = cpu_to_be32(event->extended_length);
+    cpu_physical_memory_write(buf, &header, sizeof(header));
+    cpu_physical_memory_write(buf + sizeof(header), event->extended_log,
+                              event->extended_length);
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     g_free(event->extended_log);
     g_free(event);

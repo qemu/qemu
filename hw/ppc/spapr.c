@@ -1528,10 +1528,10 @@ static const VMStateDescription vmstate_spapr_event_entry = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(header.summary, sPAPREventLogEntry),
-        VMSTATE_UINT32(header.extended_length, sPAPREventLogEntry),
+        VMSTATE_UINT32(summary, sPAPREventLogEntry),
+        VMSTATE_UINT32(extended_length, sPAPREventLogEntry),
         VMSTATE_VBUFFER_ALLOC_UINT32(extended_log, sPAPREventLogEntry, 0,
-                                     NULL, header.extended_length),
+                                     NULL, extended_length),
         VMSTATE_END_OF_LIST()
     },
 };

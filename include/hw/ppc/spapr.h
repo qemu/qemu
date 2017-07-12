@@ -606,13 +606,9 @@ struct sPAPRTCETable {
 
 sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);
 
-struct rtas_error_log {
+struct sPAPREventLogEntry {
     uint32_t summary;
     uint32_t extended_length;
-} QEMU_PACKED;
-
-struct sPAPREventLogEntry {
-    struct rtas_error_log header;
     void *extended_log;
     QTAILQ_ENTRY(sPAPREventLogEntry) next;
 };
