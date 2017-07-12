@@ -426,6 +426,44 @@ static void cancel_hpt_prepare(sPAPRMachineState *spapr)
     free_pending_hpt(pending);
 }
 
+/* Convert a return code from the KVM ioctl()s implementing resize HPT
+ * into a PAPR hypercall return code */
+static target_ulong resize_hpt_convert_rc(int ret)
+{
+    if (ret >= 100000) {
+        return H_LONG_BUSY_ORDER_100_SEC;
+    } else if (ret >= 10000) {
+        return H_LONG_BUSY_ORDER_10_SEC;
+    } else if (ret >= 1000) {
+        return H_LONG_BUSY_ORDER_1_SEC;
+    } else if (ret >= 100) {
+        return H_LONG_BUSY_ORDER_100_MSEC;
+    } else if (ret >= 10) {
+        return H_LONG_BUSY_ORDER_10_MSEC;
+    } else if (ret > 0) {
+        return H_LONG_BUSY_ORDER_1_MSEC;
+    }
+
+    switch (ret) {
+    case 0:
+        return H_SUCCESS;
+    case -EPERM:
+        return H_AUTHORITY;
+    case -EINVAL:
+        return H_PARAMETER;
+    case -ENXIO:
+        return H_CLOSED;
+    case -ENOSPC:
+        return H_PTEG_FULL;
+    case -EBUSY:
+        return H_BUSY;
+    case -ENOMEM:
+        return H_NO_MEM;
+    default:
+        return H_HARDWARE;
+    }
+}
+
 static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
                                          sPAPRMachineState *spapr,
                                          target_ulong opcode,
@@ -435,6 +473,7 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
     int shift = args[1];
     sPAPRPendingHPT *pending = spapr->pending_hpt;
     uint64_t current_ram_size = MACHINE(spapr)->ram_size;
+    int rc;
 
     if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DISABLED) {
         return H_AUTHORITY;
@@ -462,6 +501,11 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
      * chunk of resources in the HPT */
     if (shift > (spapr_hpt_shift_for_ramsize(current_ram_size) + 1)) {
         return H_RESOURCE;
+    }
+
+    rc = kvmppc_resize_hpt_prepare(cpu, flags, shift);
+    if (rc != -ENOSYS) {
+        return resize_hpt_convert_rc(rc);
     }
 
     if (pending) {
@@ -659,6 +703,11 @@ static target_ulong h_resize_hpt_commit(PowerPCCPU *cpu,
 
     trace_spapr_h_resize_hpt_commit(flags, shift);
 
+    rc = kvmppc_resize_hpt_commit(cpu, flags, shift);
+    if (rc != -ENOSYS) {
+        return resize_hpt_convert_rc(rc);
+    }
+
     if (flags != 0) {
         return H_PARAMETER;
     }
@@ -683,6 +732,13 @@ static target_ulong h_resize_hpt_commit(PowerPCCPU *cpu,
         qemu_vfree(spapr->htab);
         spapr->htab = pending->hpt;
         spapr->htab_shift = pending->shift;
+
+        if (kvm_enabled()) {
+            /* For KVM PR, update the HPT pointer */
+            target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
+                | (spapr->htab_shift - 18);
+            kvmppc_update_sdr1(sdr1);
+        }
 
         pending->hpt = NULL; /* so it's not free()d */
     }
@@ -1494,11 +1550,21 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         }
 
         if (spapr->htab_shift < maxshift) {
+            CPUState *cs;
+
             /* Guest doesn't know about HPT resizing, so we
              * pre-emptively resize for the maximum permitted RAM.  At
              * the point this is called, nothing should have been
              * entered into the existing HPT */
             spapr_reallocate_hpt(spapr, maxshift, &error_fatal);
+            CPU_FOREACH(cs) {
+                if (kvm_enabled()) {
+                    /* For KVM PR, update the HPT pointer */
+                    target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
+                        | (spapr->htab_shift - 18);
+                    kvmppc_update_sdr1(sdr1);
+                }
+            }
         }
     }
 
