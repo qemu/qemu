@@ -1636,13 +1636,8 @@ static void max_x86_cpu_initfn(Object *obj)
         X86CPUDefinition host_cpudef = { };
         uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
-        host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
-        x86_cpu_vendor_words2str(host_cpudef.vendor, ebx, edx, ecx);
-
-        host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
-        host_cpudef.family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
-        host_cpudef.model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
-        host_cpudef.stepping = eax & 0x0F;
+        host_vendor_fms(host_cpudef.vendor, &host_cpudef.family,
+                        &host_cpudef.model, &host_cpudef.stepping);
 
         cpu_x86_fill_model_id(host_cpudef.model_id);
 
