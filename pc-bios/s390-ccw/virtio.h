@@ -291,6 +291,12 @@ struct VirtioCmd {
 };
 typedef struct VirtioCmd VirtioCmd;
 
+bool vring_notify(VRing *vr);
+int drain_irqs(SubChannelId schid);
+void vring_send_buf(VRing *vr, void *p, int len, int flags);
+int vr_poll(VRing *vr);
+int vring_wait_reply(void);
 int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd);
+void virtio_setup_ccw(VDev *vdev);
 
 #endif /* VIRTIO_H */

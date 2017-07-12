@@ -74,7 +74,7 @@ void sclp_get_loadparm_ascii(char *loadparm);
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
                                  ulong subchan_id, void *load_addr);
 bool virtio_is_supported(SubChannelId schid);
-void virtio_setup_device(SubChannelId schid);
+void virtio_blk_setup_device(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
 ulong get_second(void);

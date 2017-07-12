@@ -144,7 +144,7 @@ static void virtio_setup(void)
         sclp_print("Network boot device detected\n");
         vdev->netboot_start_addr = iplb.ccw.netboot_start_addr;
     } else {
-        virtio_setup_device(blk_schid);
+        virtio_blk_setup_device(blk_schid);
 
         IPL_assert(virtio_ipl_disk_is_valid(), "No valid IPL device detected");
     }
