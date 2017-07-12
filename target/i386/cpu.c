@@ -1585,6 +1585,17 @@ static bool lmce_supported(void)
     return !!(mce_cap & MCG_LMCE_P);
 }
 
+#define CPUID_MODEL_ID_SZ 48
+
+/**
+ * cpu_x86_fill_model_id:
+ * Get CPUID model ID string from host CPU.
+ *
+ * @str should have at least CPUID_MODEL_ID_SZ bytes
+ *
+ * The function does NOT add a null terminator to the string
+ * automatically.
+ */
 static int cpu_x86_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
