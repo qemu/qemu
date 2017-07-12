@@ -112,11 +112,9 @@ class Docker(object):
         signal.signal(signal.SIGTERM, self._kill_instances)
         signal.signal(signal.SIGHUP, self._kill_instances)
 
-    def _do(self, cmd, quiet=True, infile=None, **kwargs):
+    def _do(self, cmd, quiet=True, **kwargs):
         if quiet:
             kwargs["stdout"] = DEVNULL
-        if infile:
-            kwargs["stdin"] = infile
         return subprocess.call(self._command + cmd, **kwargs)
 
     def _do_kill_instances(self, only_known, only_active=True):
@@ -184,7 +182,7 @@ class Docker(object):
     def update_image(self, tag, tarball, quiet=True):
         "Update a tagged image using "
 
-        self._do(["build", "-t", tag, "-"], quiet=quiet, infile=tarball)
+        self._do(["build", "-t", tag, "-"], quiet=quiet, stdin=tarball)
 
     def image_matches_dockerfile(self, tag, dockerfile):
         try:
