@@ -1288,8 +1288,8 @@ void spapr_free_hpt(sPAPRMachineState *spapr)
     close_htab_fd(spapr);
 }
 
-static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
-                                 Error **errp)
+void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
+                          Error **errp)
 {
     long rc;
 
@@ -1337,9 +1337,17 @@ static void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
 
 void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
 {
-    spapr_reallocate_hpt(spapr,
-                     spapr_hpt_shift_for_ramsize(MACHINE(spapr)->maxram_size),
-                     &error_fatal);
+    int hpt_shift;
+
+    if ((spapr->resize_hpt == SPAPR_RESIZE_HPT_DISABLED)
+        || (spapr->cas_reboot
+            && !spapr_ovec_test(spapr->ov5_cas, OV5_HPT_RESIZE))) {
+        hpt_shift = spapr_hpt_shift_for_ramsize(MACHINE(spapr)->maxram_size);
+    } else {
+        hpt_shift = spapr_hpt_shift_for_ramsize(MACHINE(spapr)->ram_size);
+    }
+    spapr_reallocate_hpt(spapr, hpt_shift, &error_fatal);
+
     if (spapr->vrma_adjust) {
         spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
                                           spapr->htab_shift);
@@ -2252,6 +2260,11 @@ static void ppc_spapr_init(MachineState *machine)
     /* advertise support for dedicated HP event source to guests */
     if (spapr->use_hotplug_event_source) {
         spapr_ovec_set(spapr->ov5, OV5_HP_EVT);
+    }
+
+    /* advertise support for HPT resizing */
+    if (spapr->resize_hpt != SPAPR_RESIZE_HPT_DISABLED) {
+        spapr_ovec_set(spapr->ov5, OV5_HPT_RESIZE);
     }
 
     /* init CPUs */

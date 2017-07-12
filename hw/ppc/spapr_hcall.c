@@ -1473,6 +1473,35 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     guest_radix = spapr_ovec_test(ov5_guest, OV5_MMU_RADIX_300);
     spapr_ovec_clear(ov5_guest, OV5_MMU_RADIX_300);
 
+    /*
+     * HPT resizing is a bit of a special case, because when enabled
+     * we assume an HPT guest will support it until it says it
+     * doesn't, instead of assuming it won't support it until it says
+     * it does.  Strictly speaking that approach could break for
+     * guests which don't make a CAS call, but those are so old we
+     * don't care about them.  Without that assumption we'd have to
+     * make at least a temporary allocation of an HPT sized for max
+     * memory, which could be impossibly difficult under KVM HV if
+     * maxram is large.
+     */
+    if (!guest_radix && !spapr_ovec_test(ov5_guest, OV5_HPT_RESIZE)) {
+        int maxshift = spapr_hpt_shift_for_ramsize(MACHINE(spapr)->maxram_size);
+
+        if (spapr->resize_hpt == SPAPR_RESIZE_HPT_REQUIRED) {
+            error_report(
+                "h_client_architecture_support: Guest doesn't support HPT resizing, but resize-hpt=required");
+            exit(1);
+        }
+
+        if (spapr->htab_shift < maxshift) {
+            /* Guest doesn't know about HPT resizing, so we
+             * pre-emptively resize for the maximum permitted RAM.  At
+             * the point this is called, nothing should have been
+             * entered into the existing HPT */
+            spapr_reallocate_hpt(spapr, maxshift, &error_fatal);
+        }
+    }
+
     /* NOTE: there are actually a number of ov5 bits where input from the
      * guest is always zero, and the platform/QEMU enables them independently
      * of guest input. To model these properly we'd want some sort of mask,
