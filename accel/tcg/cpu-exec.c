@@ -220,7 +220,7 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
 
     tb_lock();
     tb_phys_invalidate(tb, -1);
-    tb_free(tb);
+    tb_remove(tb);
     tb_unlock();
 }
 #endif
