@@ -64,7 +64,8 @@ static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
 static inline int cpu_gdb_index(CPUState *cpu)
 {
 #if defined(CONFIG_USER_ONLY)
-    return cpu->host_tid;
+    TaskState *ts = (TaskState *) cpu->opaque;
+    return ts->ts_tid;
 #else
     return cpu->cpu_index + 1;
 #endif
