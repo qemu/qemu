@@ -48,3 +48,5 @@ parenleft 0xa shift
 parenright 0xb shift
 underscore 0xc shift
 plus 0xd shift
+minus 0xc
+equal 0xd
