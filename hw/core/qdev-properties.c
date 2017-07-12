@@ -1169,7 +1169,7 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
                 error_propagate(prop->errp, err);
             } else {
                 assert(prop->user_provided);
-                error_reportf_err(err, "Warning: ");
+                warn_report_err(err);
             }
         }
     }
