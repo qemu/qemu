@@ -65,6 +65,12 @@
 /* make various TB consistency checks */
 /* #define DEBUG_TB_CHECK */
 
+#ifdef DEBUG_TB_INVALIDATE
+#define DEBUG_TB_INVALIDATE_GATE 1
+#else
+#define DEBUG_TB_INVALIDATE_GATE 0
+#endif
+
 #ifdef DEBUG_TB_FLUSH
 #define DEBUG_TB_FLUSH_GATE 1
 #else
@@ -1192,9 +1198,9 @@ static inline void tb_alloc_page(TranslationBlock *tb,
           }
         mprotect(g2h(page_addr), qemu_host_page_size,
                  (prot & PAGE_BITS) & ~PAGE_WRITE);
-#ifdef DEBUG_TB_INVALIDATE
-        printf("protecting code page: 0x" TB_PAGE_ADDR_FMT "\n", page_addr);
-#endif
+        if (DEBUG_TB_INVALIDATE_GATE) {
+            printf("protecting code page: 0x" TB_PAGE_ADDR_FMT "\n", page_addr);
+        }
     }
 #else
     /* if some code is already present, then the pages are already
