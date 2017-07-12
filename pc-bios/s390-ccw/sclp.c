@@ -12,6 +12,8 @@
 #include "s390-ccw.h"
 #include "sclp.h"
 
+long write(int fd, const void *str, size_t len);
+
 static char _sccb[PAGE_SIZE] __attribute__((__aligned__(4096)));
 
 const unsigned char ebc2asc[256] =
@@ -71,10 +73,13 @@ static int _strlen(const char *str)
     return i;
 }
 
-void sclp_print(const char *str)
+long write(int fd, const void *str, size_t len)
 {
-    int len = _strlen(str);
     WriteEventData *sccb = (void *)_sccb;
+
+    if (fd != 1 && fd != 2) {
+        return -EIO;
+    }
 
     sccb->h.length = sizeof(WriteEventData) + len;
     sccb->h.function_code = SCLP_FC_NORMAL_WRITE;
@@ -84,6 +89,13 @@ void sclp_print(const char *str)
     memcpy(sccb->data, str, len);
 
     sclp_service_call(SCLP_CMD_WRITE_EVENT_DATA, sccb);
+
+    return len;
+}
+
+void sclp_print(const char *str)
+{
+    write(1, str, _strlen(str));
 }
 
 void sclp_get_loadparm_ascii(char *loadparm)
