@@ -243,7 +243,7 @@ static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
 
 TCGLabel *gen_new_label(void)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     TCGLabel *l = tcg_malloc(sizeof(TCGLabel));
 
     *l = (TCGLabel){
@@ -382,6 +382,8 @@ void tcg_context_init(TCGContext *s)
     for (; i < ARRAY_SIZE(tcg_target_reg_alloc_order); ++i) {
         indirect_reg_alloc_order[i] = tcg_target_reg_alloc_order[i];
     }
+
+    tcg_ctx = s;
 }
 
 /*
@@ -522,7 +524,7 @@ void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size)
 
 TCGv_i32 tcg_global_reg_new_i32(TCGReg reg, const char *name)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     TCGTemp *t;
 
     if (tcg_regset_test_reg(s->reserved_regs, reg)) {
@@ -534,7 +536,7 @@ TCGv_i32 tcg_global_reg_new_i32(TCGReg reg, const char *name)
 
 TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     TCGTemp *t;
 
     if (tcg_regset_test_reg(s->reserved_regs, reg)) {
@@ -547,7 +549,7 @@ TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name)
 TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
                                      intptr_t offset, const char *name)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     TCGTemp *base_ts = tcgv_ptr_temp(base);
     TCGTemp *ts = tcg_global_alloc(s);
     int indirect_reg = 0, bigendian = 0;
@@ -602,7 +604,7 @@ TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
 
 static TCGTemp *tcg_temp_new_internal(TCGType type, int temp_local)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     TCGTemp *ts;
     int idx, k;
 
@@ -659,7 +661,7 @@ TCGv_i64 tcg_temp_new_internal_i64(int temp_local)
 
 static void tcg_temp_free_internal(TCGTemp *ts)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     int k, idx;
 
 #if defined(CONFIG_DEBUG_TCG)
@@ -723,13 +725,13 @@ TCGv_i64 tcg_const_local_i64(int64_t val)
 #if defined(CONFIG_DEBUG_TCG)
 void tcg_clear_temp_count(void)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     s->temps_in_use = 0;
 }
 
 int tcg_check_temp_count(void)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     if (s->temps_in_use) {
         /* Clear the count so that we don't give another
          * warning immediately next time around.
@@ -969,7 +971,7 @@ bool tcg_op_supported(TCGOpcode op)
    and endian swap in tcg_reg_alloc_call(). */
 void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     int i, real_args, nb_rets, pi;
     unsigned sizemask, flags;
     TCGHelperInfo *info;
@@ -2908,7 +2910,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef CONFIG_PROFILER
 void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     int64_t tb_count = s->tb_count;
     int64_t tb_div_count = tb_count ? tb_count : 1;
     int64_t tot = s->interm_time + s->code_time;

@@ -19,7 +19,7 @@ static inline void gen_tb_start(TranslationBlock *tb)
         count = tcg_temp_new_i32();
     }
 
-    tcg_gen_ld_i32(count, tcg_ctx.tcg_env,
+    tcg_gen_ld_i32(count, tcg_ctx->tcg_env,
                    -ENV_OFFSET + offsetof(CPUState, icount_decr.u32));
 
     if (tb_cflags(tb) & CF_USE_ICOUNT) {
@@ -37,7 +37,7 @@ static inline void gen_tb_start(TranslationBlock *tb)
     tcg_gen_brcondi_i32(TCG_COND_LT, count, 0, exitreq_label);
 
     if (tb_cflags(tb) & CF_USE_ICOUNT) {
-        tcg_gen_st16_i32(count, tcg_ctx.tcg_env,
+        tcg_gen_st16_i32(count, tcg_ctx->tcg_env,
                          -ENV_OFFSET + offsetof(CPUState, icount_decr.u16.low));
     }
 
@@ -56,13 +56,13 @@ static inline void gen_tb_end(TranslationBlock *tb, int num_insns)
     tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_REQUESTED);
 
     /* Terminate the linked list.  */
-    tcg_ctx.gen_op_buf[tcg_ctx.gen_op_buf[0].prev].next = 0;
+    tcg_ctx->gen_op_buf[tcg_ctx->gen_op_buf[0].prev].next = 0;
 }
 
 static inline void gen_io_start(void)
 {
     TCGv_i32 tmp = tcg_const_i32(1);
-    tcg_gen_st_i32(tmp, tcg_ctx.tcg_env,
+    tcg_gen_st_i32(tmp, tcg_ctx->tcg_env,
                    -ENV_OFFSET + offsetof(CPUState, can_do_io));
     tcg_temp_free_i32(tmp);
 }
@@ -70,7 +70,7 @@ static inline void gen_io_start(void)
 static inline void gen_io_end(void)
 {
     TCGv_i32 tmp = tcg_const_i32(0);
-    tcg_gen_st_i32(tmp, tcg_ctx.tcg_env,
+    tcg_gen_st_i32(tmp, tcg_ctx->tcg_env,
                    -ENV_OFFSET + offsetof(CPUState, can_do_io));
     tcg_temp_free_i32(tmp);
 }

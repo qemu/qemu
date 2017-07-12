@@ -688,12 +688,13 @@ struct TCGContext {
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
 };
 
-extern TCGContext tcg_ctx;
+extern TCGContext tcg_init_ctx;
+extern TCGContext *tcg_ctx;
 
 static inline size_t temp_idx(TCGTemp *ts)
 {
-    ptrdiff_t n = ts - tcg_ctx.temps;
-    tcg_debug_assert(n >= 0 && n < tcg_ctx.nb_temps);
+    ptrdiff_t n = ts - tcg_ctx->temps;
+    tcg_debug_assert(n >= 0 && n < tcg_ctx->nb_temps);
     return n;
 }
 
@@ -713,7 +714,7 @@ static inline TCGTemp *arg_temp(TCGArg a)
 static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
     uintptr_t o = (uintptr_t)v;
-    TCGTemp *t = (void *)&tcg_ctx + o;
+    TCGTemp *t = (void *)tcg_ctx + o;
     tcg_debug_assert(offsetof(TCGContext, temps[temp_idx(t)]) == o);
     return t;
 }
@@ -746,7 +747,7 @@ static inline TCGArg tcgv_ptr_arg(TCGv_ptr v)
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
     (void)temp_idx(t); /* trigger embedded assert */
-    return (TCGv_i32)((void *)t - (void *)&tcg_ctx);
+    return (TCGv_i32)((void *)t - (void *)tcg_ctx);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
@@ -773,13 +774,13 @@ static inline TCGv_i32 TCGV_HIGH(TCGv_i64 t)
 
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
-    tcg_ctx.gen_op_buf[op_idx].args[arg] = v;
+    tcg_ctx->gen_op_buf[op_idx].args[arg] = v;
 }
 
 /* The number of opcodes emitted so far.  */
 static inline int tcg_op_buf_count(void)
 {
-    return tcg_ctx.gen_next_op_idx;
+    return tcg_ctx->gen_next_op_idx;
 }
 
 /* Test for whether to terminate the TB for using too many opcodes.  */
@@ -798,7 +799,7 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s);
 /* Called with tb_lock held.  */
 static inline void *tcg_malloc(int size)
 {
-    TCGContext *s = &tcg_ctx;
+    TCGContext *s = tcg_ctx;
     uint8_t *ptr, *ptr_end;
 
     /* ??? This is a weak placeholder for minimum malloc alignment.  */
@@ -807,7 +808,7 @@ static inline void *tcg_malloc(int size)
     ptr = s->pool_cur;
     ptr_end = ptr + size;
     if (unlikely(ptr_end > s->pool_end)) {
-        return tcg_malloc_internal(&tcg_ctx, size);
+        return tcg_malloc_internal(tcg_ctx, size);
     } else {
         s->pool_cur = ptr_end;
         return ptr;
@@ -1147,7 +1148,7 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
 uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr);
 #else
 # define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((uintptr_t (*)(void *, void *))tcg_ctx.code_gen_prologue)(env, tb_ptr)
+    ((uintptr_t (*)(void *, void *))tcg_ctx->code_gen_prologue)(env, tb_ptr)
 #endif
 
 void tcg_register_jit(void *buf, size_t buf_size);

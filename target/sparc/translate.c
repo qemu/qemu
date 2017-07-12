@@ -5912,7 +5912,7 @@ void sparc_tcg_init(void)
     unsigned int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
+    tcg_ctx->tcg_env = cpu_env;
 
     cpu_regwptr = tcg_global_mem_new_ptr(cpu_env,
                                          offsetof(CPUSPARCState, regwptr),
