@@ -118,6 +118,9 @@ static bool tcg_out_ldst_finalize(TCGContext *s);
 
 #define TCG_HIGHWATER 1024
 
+static TCGContext **tcg_ctxs;
+static unsigned int n_tcg_ctxs;
+
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
 
@@ -384,6 +387,8 @@ void tcg_context_init(TCGContext *s)
     }
 
     tcg_ctx = s;
+    tcg_ctxs = &tcg_ctx;
+    n_tcg_ctxs = 1;
 }
 
 /*
