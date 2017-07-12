@@ -32,24 +32,6 @@ enum VirtioDevType {
 };
 typedef enum VirtioDevType VirtioDevType;
 
-struct VirtioDevHeader {
-    VirtioDevType type:8;
-    uint8_t num_vq;
-    uint8_t feature_len;
-    uint8_t config_len;
-    uint8_t status;
-    uint8_t vqconfig[];
-} __attribute__((packed));
-typedef struct VirtioDevHeader VirtioDevHeader;
-
-struct VirtioVqConfig {
-    uint64_t token;
-    uint64_t address;
-    uint16_t num;
-    uint8_t pad[6];
-} __attribute__((packed));
-typedef struct VirtioVqConfig VirtioVqConfig;
-
 struct VqInfo {
     uint64_t queue;
     uint32_t align;
@@ -63,15 +45,6 @@ struct VqConfig {
     uint16_t num;
 } __attribute__((packed));
 typedef struct VqConfig VqConfig;
-
-struct VirtioDev {
-    VirtioDevHeader *header;
-    VirtioVqConfig *vqconfig;
-    char *host_features;
-    char *guest_features;
-    char *config;
-};
-typedef struct VirtioDev VirtioDev;
 
 #define VIRTIO_RING_SIZE            (PAGE_SIZE * 8)
 #define VIRTIO_MAX_VQS              3
