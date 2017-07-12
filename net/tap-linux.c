@@ -55,7 +55,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
     if (ioctl(fd, TUNGETFEATURES, &features) == -1) {
-        error_report("warning: TUNGETFEATURES failed: %s", strerror(errno));
+        warn_report("TUNGETFEATURES failed: %s", strerror(errno));
         features = 0;
     }
 

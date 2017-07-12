@@ -193,7 +193,7 @@ static void usbredir_handle_status(USBRedirDevice *dev, USBPacket *p,
 #define WARNING(...) \
     do { \
         if (dev->debug >= usbredirparser_warning) { \
-            error_report("usb-redir warning: " __VA_ARGS__); \
+            warn_report("" __VA_ARGS__); \
         } \
     } while (0)
 #define INFO(...) \

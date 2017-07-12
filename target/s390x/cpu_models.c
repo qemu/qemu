@@ -677,9 +677,9 @@ static void check_consistency(const S390CPUModel *model)
     for (i = 0; i < ARRAY_SIZE(dep); i++) {
         if (test_bit(dep[i][0], model->features) &&
             !test_bit(dep[i][1], model->features)) {
-            error_report("Warning: \'%s\' requires \'%s\'.",
-                         s390_feat_def(dep[i][0])->name,
-                         s390_feat_def(dep[i][1])->name);
+            warn_report("\'%s\' requires \'%s\'.",
+                        s390_feat_def(dep[i][0])->name,
+                        s390_feat_def(dep[i][1])->name);
         }
     }
 }

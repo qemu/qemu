@@ -2766,17 +2766,17 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
                      ACPI_BUILD_ALIGN_SIZE);
         if (tables_blob->len > legacy_table_size) {
             /* Should happen only with PCI bridges and -M pc-i440fx-2.0.  */
-            error_report("Warning: migration may not work.");
+            warn_report("migration may not work.");
         }
         g_array_set_size(tables_blob, legacy_table_size);
     } else {
         /* Make sure we have a buffer in case we need to resize the tables. */
         if (tables_blob->len > ACPI_BUILD_TABLE_SIZE / 2) {
             /* As of QEMU 2.1, this fires with 160 VCPUs and 255 memory slots.  */
-            error_report("Warning: ACPI tables are larger than 64k.");
-            error_report("Warning: migration may not work.");
-            error_report("Warning: please remove CPUs, NUMA nodes, "
-                         "memory slots or PCI bridges.");
+            warn_report("ACPI tables are larger than 64k.");
+            warn_report("migration may not work.");
+            warn_report("please remove CPUs, NUMA nodes, "
+                        "memory slots or PCI bridges.");
         }
         acpi_align_size(tables_blob, ACPI_BUILD_TABLE_SIZE);
     }

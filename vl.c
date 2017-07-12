@@ -952,8 +952,8 @@ static void bt_vhci_add(int vlan_id)
     struct bt_scatternet_s *vlan = qemu_find_bt_vlan(vlan_id);
 
     if (!vlan->slave)
-        error_report("warning: adding a VHCI to an empty scatternet %i",
-                     vlan_id);
+        warn_report("adding a VHCI to an empty scatternet %i",
+                    vlan_id);
 
     bt_vhci_init(bt_new_hci(vlan));
 }
@@ -979,8 +979,8 @@ static struct bt_device_s *bt_device_add(const char *opt)
     vlan = qemu_find_bt_vlan(vlan_id);
 
     if (!vlan->slave)
-        error_report("warning: adding a slave device to an empty scatternet %i",
-                     vlan_id);
+        warn_report("adding a slave device to an empty scatternet %i",
+                    vlan_id);
 
     if (!strcmp(devname, "keyboard"))
         return bt_keyboard_init(vlan);
@@ -2302,8 +2302,8 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
     if (strncmp(name, "opt/", 4) != 0) {
-        error_report("warning: externally provided fw_cfg item names "
-                     "should be prefixed with \"opt/\"");
+        warn_report("externally provided fw_cfg item names "
+                    "should be prefixed with \"opt/\"");
     }
     if (nonempty_str(str)) {
         size = strlen(str); /* NUL terminator NOT included in fw_cfg blob */
@@ -3760,7 +3760,7 @@ int main(int argc, char **argv, char **envp)
                 qemu_opts_parse_noisily(olist, "accel=tcg", false);
                 break;
             case QEMU_OPTION_no_kvm_pit: {
-                error_report("warning: ignoring deprecated option");
+                warn_report("ignoring deprecated option");
                 break;
             }
             case QEMU_OPTION_no_kvm_pit_reinjection: {
@@ -3770,8 +3770,8 @@ int main(int argc, char **argv, char **envp)
                     .value    = "discard",
                 };
 
-                error_report("warning: deprecated, replaced by "
-                             "-global kvm-pit.lost_tick_policy=discard");
+                warn_report("deprecated, replaced by "
+                            "-global kvm-pit.lost_tick_policy=discard");
                 qdev_prop_register_global(&kvm_pit_lost_tick_policy);
                 break;
             }
@@ -3896,7 +3896,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_tdf:
-                error_report("warning: ignoring deprecated option");
+                warn_report("ignoring deprecated option");
                 break;
             case QEMU_OPTION_name:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("name"),

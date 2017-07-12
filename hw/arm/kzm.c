@@ -79,9 +79,9 @@ static void kzm_init(MachineState *machine)
 
     /* Check the amount of memory is compatible with the SOC */
     if (machine->ram_size > (FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE)) {
-        error_report("WARNING: RAM size " RAM_ADDR_FMT " above max supported, "
-                     "reduced to %x", machine->ram_size,
-                     FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE);
+        warn_report("RAM size " RAM_ADDR_FMT " above max supported, "
+                    "reduced to %x", machine->ram_size,
+                    FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE);
         machine->ram_size = FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE;
     }
 

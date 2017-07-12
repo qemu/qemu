@@ -157,8 +157,8 @@ static int ast2400_rambits(AspeedSDMCState *s)
     }
 
     /* use a common default */
-    error_report("warning: Invalid RAM size 0x%" PRIx64
-                 ". Using default 256M", s->ram_size);
+    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 256M",
+                s->ram_size);
     s->ram_size = 256 << 20;
     return ASPEED_SDMC_DRAM_256MB;
 }
@@ -179,8 +179,8 @@ static int ast2500_rambits(AspeedSDMCState *s)
     }
 
     /* use a common default */
-    error_report("warning: Invalid RAM size 0x%" PRIx64
-                 ". Using default 512M", s->ram_size);
+    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 512M",
+                s->ram_size);
     s->ram_size = 512 << 20;
     return ASPEED_SDMC_AST2500_512MB;
 }

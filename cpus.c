@@ -557,7 +557,7 @@ void qemu_start_warp_timer(void)
     if (deadline < 0) {
         static bool notified;
         if (!icount_sleep && !notified) {
-            error_report("WARNING: icount sleep disabled and no active timers");
+            warn_report("icount sleep disabled and no active timers");
             notified = true;
         }
         return;

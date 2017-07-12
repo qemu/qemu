@@ -1353,9 +1353,9 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev, Error **errp)
                            PCI_CAP_ID_EXP);
                 return -EINVAL;
             } else if (size != 0x3c) {
-                error_report("WARNING, %s: PCIe cap-id 0x%x has "
-                             "non-standard size 0x%x; std size should be 0x3c",
-                             __func__, PCI_CAP_ID_EXP, size);
+                warn_report("%s: PCIe cap-id 0x%x has "
+                            "non-standard size 0x%x; std size should be 0x3c",
+                            __func__, PCI_CAP_ID_EXP, size);
             }
         } else if (version == 0) {
             uint16_t vid, did;
