@@ -260,7 +260,7 @@ static target_long decode_sleb128(uint8_t **pp)
    which comes from the host pc of the end of the code implementing the insn.
 
    Each line of the table is encoded as sleb128 deltas from the previous
-   line.  The seed for the first line is { tb->pc, 0..., tb->tc_ptr }.
+   line.  The seed for the first line is { tb->pc, 0..., tb->tc.ptr }.
    That is, the first column is seeded with the guest pc, the last column
    with the host pc, and the middle columns with zeros.  */
 
@@ -270,7 +270,7 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
     uint8_t *p = block;
     int i, j, n;
 
-    tb->tc_search = block;
+    tb->tc.search = block;
 
     for (i = 0, n = tb->icount; i < n; ++i) {
         target_ulong prev;
@@ -305,9 +305,9 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                      uintptr_t searched_pc)
 {
     target_ulong data[TARGET_INSN_START_WORDS] = { tb->pc };
-    uintptr_t host_pc = (uintptr_t)tb->tc_ptr;
+    uintptr_t host_pc = (uintptr_t)tb->tc.ptr;
     CPUArchState *env = cpu->env_ptr;
-    uint8_t *p = tb->tc_search;
+    uint8_t *p = tb->tc.search;
     int i, j, num_insns = tb->icount;
 #ifdef CONFIG_PROFILER
     int64_t ti = profile_getclock();
@@ -858,7 +858,7 @@ void tb_free(TranslationBlock *tb)
             tb == tcg_ctx.tb_ctx.tbs[tcg_ctx.tb_ctx.nb_tbs - 1]) {
         size_t struct_size = ROUND_UP(sizeof(*tb), qemu_icache_linesize);
 
-        tcg_ctx.code_gen_ptr = tb->tc_ptr - struct_size;
+        tcg_ctx.code_gen_ptr = tb->tc.ptr - struct_size;
         tcg_ctx.tb_ctx.nb_tbs--;
     }
 }
@@ -1059,7 +1059,7 @@ static inline void tb_remove_from_jmp_list(TranslationBlock *tb, int n)
    another TB */
 static inline void tb_reset_jump(TranslationBlock *tb, int n)
 {
-    uintptr_t addr = (uintptr_t)(tb->tc_ptr + tb->jmp_reset_offset[n]);
+    uintptr_t addr = (uintptr_t)(tb->tc.ptr + tb->jmp_reset_offset[n]);
     tb_set_jmp_target(tb, n, addr);
 }
 
@@ -1288,7 +1288,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 
     gen_code_buf = tcg_ctx.code_gen_ptr;
-    tb->tc_ptr = gen_code_buf;
+    tb->tc.ptr = gen_code_buf;
     tb->pc = pc;
     tb->cs_base = cs_base;
     tb->flags = flags;
@@ -1307,7 +1307,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     gen_intermediate_code(cpu, tb);
     tcg_ctx.cpu = NULL;
 
-    trace_translate_block(tb, tb->pc, tb->tc_ptr);
+    trace_translate_block(tb, tb->pc, tb->tc.ptr);
 
     /* generate machine code */
     tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
@@ -1354,11 +1354,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         qemu_log_lock();
         qemu_log("OUT: [size=%d]\n", gen_code_size);
         if (tcg_ctx.data_gen_ptr) {
-            size_t code_size = tcg_ctx.data_gen_ptr - tb->tc_ptr;
+            size_t code_size = tcg_ctx.data_gen_ptr - tb->tc.ptr;
             size_t data_size = gen_code_size - code_size;
             size_t i;
 
-            log_disas(tb->tc_ptr, code_size);
+            log_disas(tb->tc.ptr, code_size);
 
             for (i = 0; i < data_size; i += sizeof(tcg_target_ulong)) {
                 if (sizeof(tcg_target_ulong) == 8) {
@@ -1372,7 +1372,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                 }
             }
         } else {
-            log_disas(tb->tc_ptr, gen_code_size);
+            log_disas(tb->tc.ptr, gen_code_size);
         }
         qemu_log("\n");
         qemu_log_flush();
@@ -1699,7 +1699,7 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
     while (m_min <= m_max) {
         m = (m_min + m_max) >> 1;
         tb = tcg_ctx.tb_ctx.tbs[m];
-        v = (uintptr_t)tb->tc_ptr;
+        v = (uintptr_t)tb->tc.ptr;
         if (v == tc_ptr) {
             return tb;
         } else if (tc_ptr < v) {

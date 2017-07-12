@@ -2836,8 +2836,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
     tcg_reg_alloc_start(s);
 
-    s->code_buf = tb->tc_ptr;
-    s->code_ptr = tb->tc_ptr;
+    s->code_buf = tb->tc.ptr;
+    s->code_ptr = tb->tc.ptr;
 
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     s->ldst_labels = NULL;

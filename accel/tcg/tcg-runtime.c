@@ -157,9 +157,9 @@ void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     }
     qemu_log_mask_and_addr(CPU_LOG_EXEC, pc,
                            "Chain %p [%d: " TARGET_FMT_lx "] %s\n",
-                           tb->tc_ptr, cpu->cpu_index, pc,
+                           tb->tc.ptr, cpu->cpu_index, pc,
                            lookup_symbol(pc));
-    return tb->tc_ptr;
+    return tb->tc.ptr;
 }
 
 void HELPER(exit_atomic)(CPUArchState *env)

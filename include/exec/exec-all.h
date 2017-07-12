@@ -303,6 +303,14 @@ static inline void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 #define CODE_GEN_AVG_BLOCK_SIZE 150
 #endif
 
+/*
+ * Translation Cache-related fields of a TB.
+ */
+struct tb_tc {
+    void *ptr;    /* pointer to the translated code */
+    uint8_t *search;  /* pointer to search data */
+};
+
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
@@ -321,8 +329,8 @@ struct TranslationBlock {
     /* Per-vCPU dynamic tracing state used to generate this TB */
     uint32_t trace_vcpu_dstate;
 
-    void *tc_ptr;    /* pointer to the translated code */
-    uint8_t *tc_search;  /* pointer to search data */
+    struct tb_tc tc;
+
     /* original tb when cflags has CF_NOCACHE */
     struct TranslationBlock *orig_tb;
     /* first and second physical page containing code. The lower bit
