@@ -11,8 +11,6 @@
 #ifndef VIRTIO_H
 #define VIRTIO_H
 
-#include "s390-ccw.h"
-
 /* Status byte for guest to report progress, and synchronize features. */
 /* We have seen device and processed generic fields (VIRTIO_CONFIG_F_VIRTIO) */
 #define VIRTIO_CONFIG_S_ACKNOWLEDGE     1
@@ -227,6 +225,13 @@ struct ScsiDevice {
 };
 typedef struct ScsiDevice ScsiDevice;
 
+struct VirtioNetConfig {
+    uint8_t mac[6];
+    /* uint16_t status; */               /* Only with VIRTIO_NET_F_STATUS */
+    /* uint16_t max_virtqueue_pairs; */  /* Only with VIRTIO_NET_F_MQ */
+};
+typedef struct VirtioNetConfig VirtioNetConfig;
+
 struct VDev {
     int nr_vqs;
     VRing *vrings;
@@ -239,6 +244,7 @@ struct VDev {
     union {
         VirtioBlkConfig blk;
         VirtioScsiConfig scsi;
+        VirtioNetConfig net;
     } config;
     ScsiDevice *scsi_device;
     bool is_cdrom;
@@ -272,5 +278,7 @@ int vr_poll(VRing *vr);
 int vring_wait_reply(void);
 int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd);
 void virtio_setup_ccw(VDev *vdev);
+
+int virtio_net_init(void *mac_addr);
 
 #endif /* VIRTIO_H */
