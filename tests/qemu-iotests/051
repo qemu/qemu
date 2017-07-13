@@ -217,7 +217,7 @@ run_qemu -drive driver=null-co,cache=invalid_value
 # Test 142 checks the direct=on cases
 
 for cache in writeback writethrough unsafe invalid_value; do
-    echo -e "info block\ninfo block file\ninfo block backing\ninfo block backing-file" | \
+    printf "info block %s\n" '' file backing backing-file | \
     run_qemu -drive file="$TEST_IMG",cache=$cache,backing.file.filename="$TEST_IMG.base",backing.cache.no-flush=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=$device_id -nodefaults
 done
 
@@ -325,8 +325,9 @@ echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="$TEST_I
 
 $QEMU_IO -c "read -P 0x22 0 4k" "$TEST_IMG" | _filter_qemu_io
 
-echo -e "qemu-io $device_id \"write -P 0x33 0 4k\"\ncommit $device_id" | run_qemu -drive file="$TEST_IMG",snapshot=on,if=none,id=$device_id\
-                                                                       | _filter_qemu_io
+printf %b "qemu-io $device_id \"write -P 0x33 0 4k\"\ncommit $device_id\n" |
+    run_qemu -drive file="$TEST_IMG",snapshot=on,if=none,id=$device_id |
+    _filter_qemu_io
 
 $QEMU_IO -c "read -P 0x33 0 4k" "$TEST_IMG" | _filter_qemu_io
 

@@ -71,6 +71,7 @@ typedef enum {
 /**
  * qcrypto_block_open:
  * @options: the encryption options
+ * @optprefix: name prefix for options
  * @readfunc: callback for reading data from the volume
  * @opaque: data to pass to @readfunc
  * @flags: bitmask of QCryptoBlockOpenFlags values
@@ -102,6 +103,7 @@ typedef enum {
  * Returns: a block encryption format, or NULL on error
  */
 QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
+                                 const char *optprefix,
                                  QCryptoBlockReadFunc readfunc,
                                  void *opaque,
                                  unsigned int flags,
@@ -109,7 +111,8 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
 
 /**
  * qcrypto_block_create:
- * @format: the encryption format
+ * @options: the encryption options
+ * @optprefix: name prefix for options
  * @initfunc: callback for initializing volume header
  * @writefunc: callback for writing data to the volume header
  * @opaque: data to pass to @initfunc and @writefunc
@@ -133,6 +136,7 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
  * Returns: a block encryption format, or NULL on error
  */
 QCryptoBlock *qcrypto_block_create(QCryptoBlockCreateOptions *options,
+                                   const char *optprefix,
                                    QCryptoBlockInitFunc initfunc,
                                    QCryptoBlockWriteFunc writefunc,
                                    void *opaque,

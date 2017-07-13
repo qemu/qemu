@@ -1088,37 +1088,12 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
     g_free(data);
 }
 
-static void hmp_cont_cb(void *opaque, int err)
-{
-    if (!err) {
-        qmp_cont(NULL);
-    }
-}
-
-static bool key_is_missing(const BlockInfo *bdev)
-{
-    return (bdev->inserted && bdev->inserted->encryption_key_missing);
-}
-
 void hmp_cont(Monitor *mon, const QDict *qdict)
 {
-    BlockInfoList *bdev_list, *bdev;
     Error *err = NULL;
-
-    bdev_list = qmp_query_block(NULL);
-    for (bdev = bdev_list; bdev; bdev = bdev->next) {
-        if (key_is_missing(bdev->value)) {
-            monitor_read_block_device_key(mon, bdev->value->device,
-                                          hmp_cont_cb, NULL);
-            goto out;
-        }
-    }
 
     qmp_cont(&err);
     hmp_handle_error(mon, &err);
-
-out:
-    qapi_free_BlockInfoList(bdev_list);
 }
 
 void hmp_system_wakeup(Monitor *mon, const QDict *qdict)
@@ -1741,12 +1716,6 @@ void hmp_change(Monitor *mon, const QDict *qdict)
         qmp_blockdev_change_medium(true, device, false, NULL, target,
                                    !!arg, arg, !!read_only, read_only_mode,
                                    &err);
-        if (err &&
-            error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
-            error_free(err);
-            monitor_read_block_device_key(mon, device, NULL, NULL);
-            return;
-        }
     }
 
     hmp_handle_error(mon, &err);

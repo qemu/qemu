@@ -1,0 +1,286 @@
+QA output created by 178
+== Input validation ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+qemu-img: Either --size N or one filename must be specified.
+qemu-img: --size N cannot be used together with a filename.
+qemu-img: At most one filename argument is allowed.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: --object, --image-opts, -f, and -l require a filename argument.
+qemu-img: Invalid option list: ,
+qemu-img: Invalid parameter 'snapshot.foo'
+qemu-img: Failed in parsing snapshot param 'snapshot.foo'
+qemu-img: --output must be used with human or json as argument.
+qemu-img: Image size must be less than 8 EiB!
+qemu-img: Unknown file format 'foo'
+
+== Size calculation for a new file (human) ==
+
+required size: 196608
+fully allocated size: 196608
+required size: 589824
+fully allocated size: 2148073472
+required size: 10747904
+fully allocated size: 68730224640
+required size: 42205184
+fully allocated size: 274920112128
+required size: 168034304
+fully allocated size: 1099679662080
+required size: 343650009088
+fully allocated size: 2252143463694336
+qemu-img: The image size is too large (try using a larger cluster size)
+
+== Empty qcow2 input image (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
+required size: 196608
+fully allocated size: 196608
+
+converted image file size in bytes: 196608
+
+== qcow2 input image with data (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+required size: 393216
+fully allocated size: 1074135040
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 589824
+fully allocated size: 1074135040
+
+converted image file size in bytes: 524288
+
+== qcow2 input image with internal snapshot (human) ==
+
+required size: 524288
+fully allocated size: 1074135040
+
+converted image file size in bytes: 458752
+
+== qcow2 input image and a backing file (human) ==
+
+required size: 1074135040
+fully allocated size: 1074135040
+
+== qcow2 input image and preallocation (human) ==
+
+required size: 1074135040
+fully allocated size: 1074135040
+
+converted image file size in bytes: 1074135040
+
+== Fully-allocated qcow2 input image (human) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 8716288
+fully allocated size: 8716288
+
+converted image file size in bytes: 8716288
+
+== Empty raw input image (human) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=0
+required size: 196608
+fully allocated size: 196608
+
+converted image file size in bytes: 196608
+
+== raw input image with data (human) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=1073741824
+required size: 393216
+fully allocated size: 1074135040
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 589824
+fully allocated size: 1074135040
+
+converted image file size in bytes: 524288
+
+== raw input image and a backing file (human) ==
+
+required size: 1074135040
+fully allocated size: 1074135040
+
+== raw input image and preallocation (human) ==
+
+required size: 1074135040
+fully allocated size: 1074135040
+
+converted image file size in bytes: 1074135040
+
+== Fully-allocated raw input image (human) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+required size: 8716288
+fully allocated size: 8716288
+
+converted image file size in bytes: 8716288
+
+== Size calculation for a new file (json) ==
+
+{
+    "required": 196608,
+    "fully-allocated": 196608
+}
+{
+    "required": 589824,
+    "fully-allocated": 2148073472
+}
+{
+    "required": 10747904,
+    "fully-allocated": 68730224640
+}
+{
+    "required": 42205184,
+    "fully-allocated": 274920112128
+}
+{
+    "required": 168034304,
+    "fully-allocated": 1099679662080
+}
+{
+    "required": 343650009088,
+    "fully-allocated": 2252143463694336
+}
+qemu-img: The image size is too large (try using a larger cluster size)
+
+== Empty qcow2 input image (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
+{
+    "required": 196608,
+    "fully-allocated": 196608
+}
+
+converted image file size in bytes: 196608
+
+== qcow2 input image with data (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824
+{
+    "required": 393216,
+    "fully-allocated": 1074135040
+}
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 589824,
+    "fully-allocated": 1074135040
+}
+
+converted image file size in bytes: 524288
+
+== qcow2 input image with internal snapshot (json) ==
+
+{
+    "required": 524288,
+    "fully-allocated": 1074135040
+}
+
+converted image file size in bytes: 458752
+
+== qcow2 input image and a backing file (json) ==
+
+{
+    "required": 1074135040,
+    "fully-allocated": 1074135040
+}
+
+== qcow2 input image and preallocation (json) ==
+
+{
+    "required": 1074135040,
+    "fully-allocated": 1074135040
+}
+
+converted image file size in bytes: 1074135040
+
+== Fully-allocated qcow2 input image (json) ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 8716288,
+    "fully-allocated": 8716288
+}
+
+converted image file size in bytes: 8716288
+
+== Empty raw input image (json) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=0
+{
+    "required": 196608,
+    "fully-allocated": 196608
+}
+
+converted image file size in bytes: 196608
+
+== raw input image with data (json) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=1073741824
+{
+    "required": 393216,
+    "fully-allocated": 1074135040
+}
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 64512/64512 bytes at offset 134217728
+63 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 589824,
+    "fully-allocated": 1074135040
+}
+
+converted image file size in bytes: 524288
+
+== raw input image and a backing file (json) ==
+
+{
+    "required": 1074135040,
+    "fully-allocated": 1074135040
+}
+
+== raw input image and preallocation (json) ==
+
+{
+    "required": 1074135040,
+    "fully-allocated": 1074135040
+}
+
+converted image file size in bytes: 1074135040
+
+== Fully-allocated raw input image (json) ==
+
+Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=8388608
+wrote 8388608/8388608 bytes at offset 0
+8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{
+    "required": 8716288,
+    "fully-allocated": 8716288
+}
+
+converted image file size in bytes: 8716288
+*** done

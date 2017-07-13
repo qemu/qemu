@@ -24,16 +24,10 @@
 #include "sysemu/block-backend.h"
 #include "crypto/block.h"
 #include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
-
-#define BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET "key-secret"
-#define BLOCK_CRYPTO_OPT_LUKS_CIPHER_ALG "cipher-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_CIPHER_MODE "cipher-mode"
-#define BLOCK_CRYPTO_OPT_LUKS_IVGEN_ALG "ivgen-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG "ivgen-hash-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_HASH_ALG "hash-alg"
-#define BLOCK_CRYPTO_OPT_LUKS_ITER_TIME "iter-time"
+#include "block/crypto.h"
 
 typedef struct BlockCrypto BlockCrypto;
 
@@ -135,11 +129,7 @@ static QemuOptsList block_crypto_runtime_opts_luks = {
     .name = "crypto",
     .head = QTAILQ_HEAD_INITIALIZER(block_crypto_runtime_opts_luks.head),
     .desc = {
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,
-            .type = QEMU_OPT_STRING,
-            .help = "ID of the secret that provides the encryption key",
-        },
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(""),
         { /* end of list */ }
     },
 };
@@ -154,49 +144,21 @@ static QemuOptsList block_crypto_create_opts_luks = {
             .type = QEMU_OPT_SIZE,
             .help = "Virtual disk size"
         },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,
-            .type = QEMU_OPT_STRING,
-            .help = "ID of the secret that provides the encryption key",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_CIPHER_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of encryption cipher algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_CIPHER_MODE,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of encryption cipher mode",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_IVGEN_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of IV generator algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of IV generator hash algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_HASH_ALG,
-            .type = QEMU_OPT_STRING,
-            .help = "Name of encryption hash algorithm",
-        },
-        {
-            .name = BLOCK_CRYPTO_OPT_LUKS_ITER_TIME,
-            .type = QEMU_OPT_NUMBER,
-            .help = "Time to spend in PBKDF in milliseconds",
-        },
+        BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_CIPHER_MODE(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_IVGEN_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_HASH_ALG(""),
+        BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME(""),
         { /* end of list */ }
     },
 };
 
 
-static QCryptoBlockOpenOptions *
+QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QCryptoBlockFormat format,
-                            QemuOpts *opts,
+                            QDict *opts,
                             Error **errp)
 {
     Visitor *v;
@@ -206,7 +168,7 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
     ret = g_new0(QCryptoBlockOpenOptions, 1);
     ret->format = format;
 
-    v = opts_visitor_new(opts);
+    v = qobject_input_visitor_new_keyval(QOBJECT(opts));
 
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
@@ -217,6 +179,11 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
     case Q_CRYPTO_BLOCK_FORMAT_LUKS:
         visit_type_QCryptoBlockOptionsLUKS_members(
             v, &ret->u.luks, &local_err);
+        break;
+
+    case Q_CRYPTO_BLOCK_FORMAT_QCOW:
+        visit_type_QCryptoBlockOptionsQCow_members(
+            v, &ret->u.qcow, &local_err);
         break;
 
     default:
@@ -240,9 +207,9 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
 }
 
 
-static QCryptoBlockCreateOptions *
+QCryptoBlockCreateOptions *
 block_crypto_create_opts_init(QCryptoBlockFormat format,
-                              QemuOpts *opts,
+                              QDict *opts,
                               Error **errp)
 {
     Visitor *v;
@@ -252,7 +219,7 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
     ret = g_new0(QCryptoBlockCreateOptions, 1);
     ret->format = format;
 
-    v = opts_visitor_new(opts);
+    v = qobject_input_visitor_new_keyval(QOBJECT(opts));
 
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
@@ -263,6 +230,11 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
     case Q_CRYPTO_BLOCK_FORMAT_LUKS:
         visit_type_QCryptoBlockCreateOptionsLUKS_members(
             v, &ret->u.luks, &local_err);
+        break;
+
+    case Q_CRYPTO_BLOCK_FORMAT_QCOW:
+        visit_type_QCryptoBlockOptionsQCow_members(
+            v, &ret->u.qcow, &local_err);
         break;
 
     default:
@@ -299,6 +271,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     int ret = -EINVAL;
     QCryptoBlockOpenOptions *open_opts = NULL;
     unsigned int cflags = 0;
+    QDict *cryptoopts = NULL;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
                                false, errp);
@@ -313,7 +286,9 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
         goto cleanup;
     }
 
-    open_opts = block_crypto_open_opts_init(format, opts, errp);
+    cryptoopts = qemu_opts_to_qdict(opts, NULL);
+
+    open_opts = block_crypto_open_opts_init(format, cryptoopts, errp);
     if (!open_opts) {
         goto cleanup;
     }
@@ -321,7 +296,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     if (flags & BDRV_O_NO_IO) {
         cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
     }
-    crypto->block = qcrypto_block_open(open_opts,
+    crypto->block = qcrypto_block_open(open_opts, NULL,
                                        block_crypto_read_func,
                                        bs,
                                        cflags,
@@ -333,10 +308,10 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     }
 
     bs->encrypted = true;
-    bs->valid_key = true;
 
     ret = 0;
  cleanup:
+    QDECREF(cryptoopts);
     qapi_free_QCryptoBlockOpenOptions(open_opts);
     return ret;
 }
@@ -356,13 +331,16 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
         .opts = opts,
         .filename = filename,
     };
+    QDict *cryptoopts;
 
-    create_opts = block_crypto_create_opts_init(format, opts, errp);
+    cryptoopts = qemu_opts_to_qdict(opts, NULL);
+
+    create_opts = block_crypto_create_opts_init(format, cryptoopts, errp);
     if (!create_opts) {
         return -1;
     }
 
-    crypto = qcrypto_block_create(create_opts,
+    crypto = qcrypto_block_create(create_opts, NULL,
                                   block_crypto_init_func,
                                   block_crypto_write_func,
                                   &data,
@@ -375,6 +353,7 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
 
     ret = 0;
  cleanup:
+    QDECREF(cryptoopts);
     qcrypto_block_free(crypto);
     blk_unref(data.blk);
     qapi_free_QCryptoBlockCreateOptions(create_opts);
@@ -382,7 +361,7 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
 }
 
 static int block_crypto_truncate(BlockDriverState *bs, int64_t offset,
-                                 Error **errp)
+                                 PreallocMode prealloc, Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
     size_t payload_offset =
@@ -390,7 +369,7 @@ static int block_crypto_truncate(BlockDriverState *bs, int64_t offset,
 
     offset += payload_offset;
 
-    return bdrv_truncate(bs->file, offset, errp);
+    return bdrv_truncate(bs->file, offset, prealloc, errp);
 }
 
 static void block_crypto_close(BlockDriverState *bs)

@@ -164,10 +164,8 @@ SpiceInfo *qmp_query_spice(Error **errp)
 
 void qmp_cont(Error **errp)
 {
-    Error *local_err = NULL;
     BlockBackend *blk;
-    BlockDriverState *bs;
-    BdrvNextIterator it;
+    Error *local_err = NULL;
 
     /* if there is a dump in background, we should wait until the dump
      * finished */
@@ -185,14 +183,6 @@ void qmp_cont(Error **errp)
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         blk_iostatus_reset(blk);
-    }
-
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        bdrv_add_key(bs, NULL, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
     }
 
     /* Continuing after completed migration. Images have been inactivated to

@@ -141,7 +141,7 @@ _wallclock()
 _timestamp()
 {
     now=`date "+%T"`
-    echo -n " [$now]"
+    printf %s " [$now]"
 }
 
 _wrapup()
@@ -255,7 +255,7 @@ seq="check"
 for seq in $list
 do
     err=false
-    echo -n "$seq"
+    printf %s "$seq"
     if [ -n "$TESTS_REMAINING_LOG" ] ; then
         sed -e "s/$seq//" -e 's/  / /' -e 's/^ *//' $TESTS_REMAINING_LOG > $TESTS_REMAINING_LOG.tmp
         mv $TESTS_REMAINING_LOG.tmp $TESTS_REMAINING_LOG
@@ -281,9 +281,9 @@ do
         rm -f $seq.out.bad
         lasttime=`sed -n -e "/^$seq /s/.* //p" <$TIMESTAMP_FILE`
         if [ "X$lasttime" != X ]; then
-                echo -n " ${lasttime}s ..."
+                printf %s " ${lasttime}s ..."
         else
-                echo -n "        "        # prettier output with timestamps.
+                printf "        "        # prettier output with timestamps.
         fi
         rm -f core $seq.notrun
 
@@ -291,7 +291,7 @@ do
         echo "$seq" > "${TEST_DIR}"/check.sts
 
         start=`_wallclock`
-        $timestamp && echo -n "        ["`date "+%T"`"]"
+        $timestamp && printf %s "        [$(date "+%T")]"
 
         if [ "$(head -n 1 "$source_iotests/$seq")" == "#!/usr/bin/env python" ]; then
             run_command="$PYTHON $seq"
@@ -314,21 +314,21 @@ do
 
         if [ -f core ]
         then
-            echo -n " [dumped core]"
+            printf " [dumped core]"
             mv core $seq.core
             err=true
         fi
 
         if [ -f $seq.notrun ]
         then
-            $timestamp || echo -n " [not run] "
-            $timestamp && echo " [not run]" && echo -n "        $seq -- "
+            $timestamp || printf " [not run] "
+            $timestamp && echo " [not run]" && printf %s "        $seq -- "
             cat $seq.notrun
             notrun="$notrun $seq"
         else
             if [ $sts -ne 0 ]
             then
-                echo -n " [failed, exit status $sts]"
+                printf %s " [failed, exit status $sts]"
                 err=true
             fi
 
@@ -336,6 +336,11 @@ do
             reference_machine="$source_iotests/$seq.$QEMU_DEFAULT_MACHINE.out"
             if [ -f "$reference_machine" ]; then
                 reference="$reference_machine"
+            fi
+
+            reference_format="$source_iotests/$seq.out.$IMGFMT"
+            if [ -f "$reference_format" ]; then
+                reference="$reference_format"
             fi
 
             if [ "$CACHEMODE" = "none" ]; then

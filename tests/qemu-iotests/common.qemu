@@ -153,14 +153,19 @@ function _launch_qemu()
     mkfifo "${fifo_out}"
     mkfifo "${fifo_in}"
 
+    object_options=
+    if [ -n "$IMGKEYSECRET" ]; then
+        object_options="--object secret,id=keysec0,data=$IMGKEYSECRET"
+    fi
+
     if [ -z "$keep_stderr" ]; then
         QEMU_NEED_PID='y'\
-        ${QEMU} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
+        ${QEMU} ${object_options} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
                                                        2>&1 \
                                                        <"${fifo_in}" &
     elif [ "$keep_stderr" = "y" ]; then
         QEMU_NEED_PID='y'\
-        ${QEMU} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
+        ${QEMU} ${object_options} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
                                                        <"${fifo_in}" &
     else
         exit 1

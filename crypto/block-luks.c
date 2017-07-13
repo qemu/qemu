@@ -638,6 +638,7 @@ qcrypto_block_luks_find_key(QCryptoBlock *block,
 static int
 qcrypto_block_luks_open(QCryptoBlock *block,
                         QCryptoBlockOpenOptions *options,
+                        const char *optprefix,
                         QCryptoBlockReadFunc readfunc,
                         void *opaque,
                         unsigned int flags,
@@ -661,7 +662,8 @@ qcrypto_block_luks_open(QCryptoBlock *block,
 
     if (!(flags & QCRYPTO_BLOCK_OPEN_NO_IO)) {
         if (!options->u.luks.key_secret) {
-            error_setg(errp, "Parameter 'key-secret' is required for cipher");
+            error_setg(errp, "Parameter '%skey-secret' is required for cipher",
+                       optprefix ? optprefix : "");
             return -1;
         }
         password = qcrypto_secret_lookup_as_utf8(
@@ -885,6 +887,7 @@ qcrypto_block_luks_uuid_gen(uint8_t *uuidstr)
 static int
 qcrypto_block_luks_create(QCryptoBlock *block,
                           QCryptoBlockCreateOptions *options,
+                          const char *optprefix,
                           QCryptoBlockInitFunc initfunc,
                           QCryptoBlockWriteFunc writefunc,
                           void *opaque,
@@ -937,7 +940,8 @@ qcrypto_block_luks_create(QCryptoBlock *block,
      * be silently ignored, for compatibility with dm-crypt */
 
     if (!options->u.luks.key_secret) {
-        error_setg(errp, "Parameter 'key-secret' is required for cipher");
+        error_setg(errp, "Parameter '%skey-secret' is required for cipher",
+                   optprefix ? optprefix : "");
         return -1;
     }
     password = qcrypto_secret_lookup_as_utf8(luks_opts.key_secret, errp);

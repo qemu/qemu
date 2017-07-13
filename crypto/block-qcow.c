@@ -94,6 +94,7 @@ qcrypto_block_qcow_init(QCryptoBlock *block,
 static int
 qcrypto_block_qcow_open(QCryptoBlock *block,
                         QCryptoBlockOpenOptions *options,
+                        const char *optprefix,
                         QCryptoBlockReadFunc readfunc G_GNUC_UNUSED,
                         void *opaque G_GNUC_UNUSED,
                         unsigned int flags,
@@ -104,7 +105,8 @@ qcrypto_block_qcow_open(QCryptoBlock *block,
     } else {
         if (!options->u.qcow.key_secret) {
             error_setg(errp,
-                       "Parameter 'key-secret' is required for cipher");
+                       "Parameter '%skey-secret' is required for cipher",
+                       optprefix ? optprefix : "");
             return -1;
         }
         return qcrypto_block_qcow_init(block,
@@ -116,13 +118,15 @@ qcrypto_block_qcow_open(QCryptoBlock *block,
 static int
 qcrypto_block_qcow_create(QCryptoBlock *block,
                           QCryptoBlockCreateOptions *options,
+                          const char *optprefix,
                           QCryptoBlockInitFunc initfunc G_GNUC_UNUSED,
                           QCryptoBlockWriteFunc writefunc G_GNUC_UNUSED,
                           void *opaque G_GNUC_UNUSED,
                           Error **errp)
 {
     if (!options->u.qcow.key_secret) {
-        error_setg(errp, "Parameter 'key-secret' is required for cipher");
+        error_setg(errp, "Parameter '%skey-secret' is required for cipher",
+                   optprefix ? optprefix : "");
         return -1;
     }
     /* QCow2 has no special header, since everything is hardwired */

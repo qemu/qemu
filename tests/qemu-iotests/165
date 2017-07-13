@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+#
+# Tests for persistent dirty bitmaps.
+#
+# Copyright: Vladimir Sementsov-Ogievskiy 2015-2017
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import re
+import iotests
+from iotests import qemu_img
+
+disk = os.path.join(iotests.test_dir, 'disk')
+disk_size = 0x40000000 # 1G
+
+# regions for qemu_io: (start, count) in bytes
+regions1 = ((0,        0x100000),
+            (0x200000, 0x100000))
+
+regions2 = ((0x10000000, 0x20000),
+            (0x3fff0000, 0x10000))
+
+class TestPersistentDirtyBitmap(iotests.QMPTestCase):
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, disk, str(disk_size))
+
+    def tearDown(self):
+        os.remove(disk)
+
+    def mkVm(self):
+        return iotests.VM().add_drive(disk)
+
+    def mkVmRo(self):
+        return iotests.VM().add_drive(disk, opts='readonly=on')
+
+    def getSha256(self):
+        result = self.vm.qmp('x-debug-block-dirty-bitmap-sha256',
+                             node='drive0', name='bitmap0')
+        return result['return']['sha256']
+
+    def checkBitmap(self, sha256):
+        result = self.vm.qmp('x-debug-block-dirty-bitmap-sha256',
+                             node='drive0', name='bitmap0')
+        self.assert_qmp(result, 'return/sha256', sha256);
+
+    def writeRegions(self, regions):
+        for r in regions:
+            self.vm.hmp_qemu_io('drive0',
+                                'write %d %d' % r)
+
+    def qmpAddBitmap(self):
+        self.vm.qmp('block-dirty-bitmap-add', node='drive0',
+                    name='bitmap0', persistent=True, autoload=True)
+
+    def test_persistent(self):
+        self.vm = self.mkVm()
+        self.vm.launch()
+        self.qmpAddBitmap()
+
+        self.writeRegions(regions1)
+        sha256 = self.getSha256()
+
+        self.vm.shutdown()
+
+        self.vm = self.mkVmRo()
+        self.vm.launch()
+        self.vm.shutdown()
+
+        #catch 'Persistent bitmaps are lost' possible error
+        log = self.vm.get_log()
+        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+        log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+        if log:
+            print log
+
+        self.vm = self.mkVm()
+        self.vm.launch()
+
+        self.checkBitmap(sha256)
+        self.writeRegions(regions2)
+        sha256 = self.getSha256()
+
+        self.vm.shutdown()
+        self.vm.launch()
+
+        self.checkBitmap(sha256)
+
+        self.vm.shutdown()
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])

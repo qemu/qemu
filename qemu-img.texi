@@ -438,6 +438,36 @@ preallocated.
 For more information, consult @file{include/block/block.h} in QEMU's
 source code.
 
+@item measure [--output=@var{ofmt}] [-O @var{output_fmt}] [-o @var{options}] [--size @var{N} | [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [-l @var{snapshot_param}] @var{filename}]
+
+Calculate the file size required for a new image.  This information can be used
+to size logical volumes or SAN LUNs appropriately for the image that will be
+placed in them.  The values reported are guaranteed to be large enough to fit
+the image.  The command can output in the format @var{ofmt} which is either
+@code{human} or @code{json}.
+
+If the size @var{N} is given then act as if creating a new empty image file
+using @command{qemu-img create}.  If @var{filename} is given then act as if
+converting an existing image file using @command{qemu-img convert}.  The format
+of the new file is given by @var{output_fmt} while the format of an existing
+file is given by @var{fmt}.
+
+A snapshot in an existing image can be specified using @var{snapshot_param}.
+
+The following fields are reported:
+@example
+required size: 524288
+fully allocated size: 1074069504
+@end example
+
+The @code{required size} is the file size of the new image.  It may be smaller
+than the virtual disk size if the image format supports compact representation.
+
+The @code{fully allocated size} is the file size of the new image once data has
+been written to all sectors.  This is the maximum size that the image file can
+occupy with the exception of internal snapshots, dirty bitmaps, vmstate data,
+and other advanced image format features.
+
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
 
 List, apply, create or delete snapshots in image @var{filename}.
@@ -499,7 +529,7 @@ qemu-img rebase -b base.img diff.qcow2
 At this point, @code{modified.img} can be discarded, since
 @code{base.img + diff.qcow2} contains the same information.
 
-@item resize @var{filename} [+ | -]@var{size}
+@item resize [--preallocation=@var{prealloc}] @var{filename} [+ | -]@var{size}
 
 Change the disk image as if it had been created with @var{size}.
 
@@ -510,6 +540,11 @@ sizes accordingly.  Failure to do so will result in data loss!
 After using this command to grow a disk image, you must use file system and
 partitioning tools inside the VM to actually begin using the new space on the
 device.
+
+When growing an image, the @code{--preallocation} option may be used to specify
+how the additional image area should be allocated on the host.  See the format
+description in the @code{NOTES} section which values are allowed.  Using this
+option may result in slightly more data being allocated than necessary.
 
 @item amend [-p] [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 
@@ -567,16 +602,29 @@ The use of encryption in qcow and qcow2 images is considered to be flawed by
 modern cryptography standards, suffering from a number of design problems:
 
 @itemize @minus
-@item The AES-CBC cipher is used with predictable initialization vectors based
+@item
+The AES-CBC cipher is used with predictable initialization vectors based
 on the sector number. This makes it vulnerable to chosen plaintext attacks
 which can reveal the existence of encrypted data.
-@item The user passphrase is directly used as the encryption key. A poorly
+@item
+The user passphrase is directly used as the encryption key. A poorly
 chosen or short passphrase will compromise the security of the encryption.
-@item In the event of the passphrase being compromised there is no way to
+@item
+In the event of the passphrase being compromised there is no way to
 change the passphrase to protect data in any qcow images. The files must
 be cloned, using a different encryption passphrase in the new file. The
 original file must then be securely erased using a program like shred,
 though even this is ineffective with many modern storage technologies.
+@item
+Initialization vectors used to encrypt sectors are based on the
+guest virtual sector number, instead of the host physical sector. When
+a disk image has multiple internal snapshots this means that data in
+multiple physical sectors is encrypted with the same initialization
+vector. With the CBC mode, this opens the possibility of watermarking
+attacks if the attack can collect multiple sectors encrypted with the
+same IV and some predictable data. Having multiple qcow2 images with
+the same passphrase also exposes this weakness since the passphrase
+is directly used as the key.
 @end itemize
 
 Use of qcow / qcow2 encryption is thus strongly discouraged. Users are

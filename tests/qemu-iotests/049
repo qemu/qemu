@@ -106,7 +106,7 @@ test_qemu_img create -f $IMGFMT -o preallocation=1234 "$TEST_IMG" 64M
 echo "== Check encryption option =="
 echo
 test_qemu_img create -f $IMGFMT -o encryption=off "$TEST_IMG" 64M
-test_qemu_img create -f $IMGFMT -o encryption=on "$TEST_IMG" 64M
+test_qemu_img create -f $IMGFMT --object secret,id=sec0,data=123456 -o encryption=on,encrypt.key-secret=sec0 "$TEST_IMG" 64M
 
 echo "== Check lazy_refcounts option (only with v3) =="
 echo

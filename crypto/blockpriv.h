@@ -41,6 +41,7 @@ struct QCryptoBlock {
 struct QCryptoBlockDriver {
     int (*open)(QCryptoBlock *block,
                 QCryptoBlockOpenOptions *options,
+                const char *optprefix,
                 QCryptoBlockReadFunc readfunc,
                 void *opaque,
                 unsigned int flags,
@@ -48,6 +49,7 @@ struct QCryptoBlockDriver {
 
     int (*create)(QCryptoBlock *block,
                   QCryptoBlockCreateOptions *options,
+                  const char *optprefix,
                   QCryptoBlockInitFunc initfunc,
                   QCryptoBlockWriteFunc writefunc,
                   void *opaque,

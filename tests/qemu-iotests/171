@@ -45,15 +45,15 @@ _supported_os Linux
 
 # Create JSON with options
 img_json() {
-    echo -n 'json:{"driver":"raw", '
-    echo -n "\"offset\":\"$img_offset\", "
+    printf %s 'json:{"driver":"raw", '
+    printf %s "\"offset\":\"$img_offset\", "
     if [ "$img_size" -ne -1 ] ; then
-        echo -n "\"size\":\"$img_size\", "
+        printf %s "\"size\":\"$img_size\", "
     fi
-    echo -n '"file": {'
-    echo -n    '"driver":"file", '
-    echo -n    "\"filename\":\"$TEST_IMG\" "
-    echo -n "} }"
+    printf %s '"file": {'
+    printf %s   '"driver":"file", '
+    printf %s   "\"filename\":\"$TEST_IMG\" "
+    printf %s "} }"
 }
 
 do_general_test() {

@@ -357,52 +357,6 @@ static int count_contiguous_clusters_unallocated(int nb_clusters,
     return i;
 }
 
-/* The crypt function is compatible with the linux cryptoloop
-   algorithm for < 4 GB images. NOTE: out_buf == in_buf is
-   supported */
-int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
-                          uint8_t *out_buf, const uint8_t *in_buf,
-                          int nb_sectors, bool enc,
-                          Error **errp)
-{
-    union {
-        uint64_t ll[2];
-        uint8_t b[16];
-    } ivec;
-    int i;
-    int ret;
-
-    for(i = 0; i < nb_sectors; i++) {
-        ivec.ll[0] = cpu_to_le64(sector_num);
-        ivec.ll[1] = 0;
-        if (qcrypto_cipher_setiv(s->cipher,
-                                 ivec.b, G_N_ELEMENTS(ivec.b),
-                                 errp) < 0) {
-            return -1;
-        }
-        if (enc) {
-            ret = qcrypto_cipher_encrypt(s->cipher,
-                                         in_buf,
-                                         out_buf,
-                                         512,
-                                         errp);
-        } else {
-            ret = qcrypto_cipher_decrypt(s->cipher,
-                                         in_buf,
-                                         out_buf,
-                                         512,
-                                         errp);
-        }
-        if (ret < 0) {
-            return -1;
-        }
-        sector_num++;
-        in_buf += 512;
-        out_buf += 512;
-    }
-    return 0;
-}
-
 static int coroutine_fn do_perform_cow_read(BlockDriverState *bs,
                                             uint64_t src_cluster_offset,
                                             unsigned offset_in_cluster,
@@ -435,19 +389,22 @@ static int coroutine_fn do_perform_cow_read(BlockDriverState *bs,
 
 static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
                                                 uint64_t src_cluster_offset,
+                                                uint64_t cluster_offset,
                                                 unsigned offset_in_cluster,
                                                 uint8_t *buffer,
                                                 unsigned bytes)
 {
     if (bytes && bs->encrypted) {
         BDRVQcow2State *s = bs->opaque;
-        int64_t sector = (src_cluster_offset + offset_in_cluster)
+        int64_t sector = (s->crypt_physical_offset ?
+                          (cluster_offset + offset_in_cluster) :
+                          (src_cluster_offset + offset_in_cluster))
                          >> BDRV_SECTOR_BITS;
-        assert(s->cipher);
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
-        if (qcow2_encrypt_sectors(s, sector, buffer, buffer,
-                                  bytes >> BDRV_SECTOR_BITS, true, NULL) < 0) {
+        assert(s->crypto);
+        if (qcrypto_block_encrypt(s->crypto, sector, buffer,
+                                  bytes, NULL) < 0) {
             return false;
         }
     }
@@ -834,10 +791,11 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
 
     /* Encrypt the data if necessary before writing it */
     if (bs->encrypted) {
-        if (!do_perform_cow_encrypt(bs, m->offset, start->offset,
-                                    start_buffer, start->nb_bytes) ||
-            !do_perform_cow_encrypt(bs, m->offset, end->offset,
-                                    end_buffer, end->nb_bytes)) {
+        if (!do_perform_cow_encrypt(bs, m->offset, m->alloc_offset,
+                                    start->offset, start_buffer,
+                                    start->nb_bytes) ||
+            !do_perform_cow_encrypt(bs, m->offset, m->alloc_offset,
+                                    end->offset, end_buffer, end->nb_bytes)) {
             ret = -EIO;
             goto fail;
         }

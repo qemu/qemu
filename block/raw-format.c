@@ -312,6 +312,31 @@ static int64_t raw_getlength(BlockDriverState *bs)
     return s->size;
 }
 
+static BlockMeasureInfo *raw_measure(QemuOpts *opts, BlockDriverState *in_bs,
+                                     Error **errp)
+{
+    BlockMeasureInfo *info;
+    int64_t required;
+
+    if (in_bs) {
+        required = bdrv_getlength(in_bs);
+        if (required < 0) {
+            error_setg_errno(errp, -required, "Unable to get image size");
+            return NULL;
+        }
+    } else {
+        required = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                            BDRV_SECTOR_SIZE);
+    }
+
+    info = g_new(BlockMeasureInfo, 1);
+    info->required = required;
+
+    /* Unallocated sectors count towards the file size in raw images */
+    info->fully_allocated = info->required;
+    return info;
+}
+
 static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return bdrv_get_info(bs->file->bs, bdi);
@@ -327,7 +352,8 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 }
 
-static int raw_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
+static int raw_truncate(BlockDriverState *bs, int64_t offset,
+                        PreallocMode prealloc, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -343,7 +369,7 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset, Error **errp)
 
     s->size = offset;
     offset += s->offset;
-    return bdrv_truncate(bs->file, offset, errp);
+    return bdrv_truncate(bs->file, offset, prealloc, errp);
 }
 
 static int raw_media_changed(BlockDriverState *bs)
@@ -479,6 +505,7 @@ BlockDriver bdrv_raw = {
     .bdrv_truncate        = &raw_truncate,
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
+    .bdrv_measure         = &raw_measure,
     .bdrv_get_info        = &raw_get_info,
     .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,

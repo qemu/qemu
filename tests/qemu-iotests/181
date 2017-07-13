@@ -43,6 +43,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.qemu
 
 _supported_fmt generic
+# Formats that do not support live migration
+_unsupported_fmt qcow vdi vhdx vmdk vpc vvfat
 _supported_proto generic
 _supported_os Linux
 
@@ -55,13 +57,24 @@ echo
 
 qemu_comm_method="monitor"
 
-_launch_qemu \
-    -drive file="${TEST_IMG}",cache=${CACHEMODE},driver=$IMGFMT,id=disk
+if [ "$IMGOPTSSYNTAX" = "true" ]; then
+    _launch_qemu \
+        -drive "${TEST_IMG}",cache=${CACHEMODE},id=disk
+else
+    _launch_qemu \
+        -drive file="${TEST_IMG}",cache=${CACHEMODE},driver=$IMGFMT,id=disk
+fi
 src=$QEMU_HANDLE
 
-_launch_qemu \
-    -drive file="${TEST_IMG}",cache=${CACHEMODE},driver=$IMGFMT,id=disk \
-    -incoming "unix:${MIG_SOCKET}"
+if [ "$IMGOPTSSYNTAX" = "true" ]; then
+    _launch_qemu \
+        -drive "${TEST_IMG}",cache=${CACHEMODE},id=disk \
+        -incoming "unix:${MIG_SOCKET}"
+else
+    _launch_qemu \
+        -drive file="${TEST_IMG}",cache=${CACHEMODE},driver=$IMGFMT,id=disk \
+        -incoming "unix:${MIG_SOCKET}"
+fi
 dest=$QEMU_HANDLE
 
 echo

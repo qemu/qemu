@@ -107,6 +107,9 @@ _set_default_imgopts()
     if [ "$IMGFMT" == "qcow2" ] && ! (echo "$IMGOPTS" | grep "compat=" > /dev/null); then
         IMGOPTS=$(_optstr_add "$IMGOPTS" "compat=1.1")
     fi
+    if [ "$IMGFMT" == "luks" ] && ! (echo "$IMGOPTS" | grep "iter-time=" > /dev/null); then
+        IMGOPTS=$(_optstr_add "$IMGOPTS" "iter-time=10")
+    fi
 }
 
 _use_sample_img()
