@@ -31,8 +31,10 @@
    type.  */
 #if defined(CONFIG_USER_ONLY)
 typedef abi_ulong tb_page_addr_t;
+#define TB_PAGE_ADDR_FMT TARGET_ABI_FMT_lx
 #else
 typedef ram_addr_t tb_page_addr_t;
+#define TB_PAGE_ADDR_FMT RAM_ADDR_FMT
 #endif
 
 #include "qemu/log.h"

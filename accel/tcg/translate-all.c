@@ -1193,8 +1193,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
         mprotect(g2h(page_addr), qemu_host_page_size,
                  (prot & PAGE_BITS) & ~PAGE_WRITE);
 #ifdef DEBUG_TB_INVALIDATE
-        printf("protecting code page: 0x" TARGET_FMT_lx "\n",
-               page_addr);
+        printf("protecting code page: 0x" TB_PAGE_ADDR_FMT "\n", page_addr);
 #endif
     }
 #else
