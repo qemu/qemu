@@ -62,6 +62,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .spi_bases    = aspeed_soc_ast2400_spi_bases,
         .fmc_typename = "aspeed.smc.fmc",
         .spi_typename = aspeed_soc_ast2400_typenames,
+        .wdts_num     = 2,
     }, {
         .name         = "ast2400-a1",
         .cpu_model    = "arm926",
@@ -72,6 +73,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .spi_bases    = aspeed_soc_ast2400_spi_bases,
         .fmc_typename = "aspeed.smc.fmc",
         .spi_typename = aspeed_soc_ast2400_typenames,
+        .wdts_num     = 2,
     }, {
         .name         = "ast2400",
         .cpu_model    = "arm926",
@@ -82,6 +84,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .spi_bases    = aspeed_soc_ast2400_spi_bases,
         .fmc_typename = "aspeed.smc.fmc",
         .spi_typename = aspeed_soc_ast2400_typenames,
+        .wdts_num     = 2,
     }, {
         .name         = "ast2500-a1",
         .cpu_model    = "arm1176",
@@ -92,6 +95,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .spi_bases    = aspeed_soc_ast2500_spi_bases,
         .fmc_typename = "aspeed.smc.ast2500-fmc",
         .spi_typename = aspeed_soc_ast2500_typenames,
+        .wdts_num     = 3,
     },
 };
 
@@ -175,9 +179,11 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
                               "ram-size", &error_abort);
 
-    object_initialize(&s->wdt, sizeof(s->wdt), TYPE_ASPEED_WDT);
-    object_property_add_child(obj, "wdt", OBJECT(&s->wdt), NULL);
-    qdev_set_parent_bus(DEVICE(&s->wdt), sysbus_get_default());
+    for (i = 0; i < sc->info->wdts_num; i++) {
+        object_initialize(&s->wdt[i], sizeof(s->wdt[i]), TYPE_ASPEED_WDT);
+        object_property_add_child(obj, "wdt[*]", OBJECT(&s->wdt[i]), NULL);
+        qdev_set_parent_bus(DEVICE(&s->wdt[i]), sysbus_get_default());
+    }
 
     object_initialize(&s->ftgmac100, sizeof(s->ftgmac100), TYPE_FTGMAC100);
     object_property_add_child(obj, "ftgmac100", OBJECT(&s->ftgmac100), NULL);
@@ -300,12 +306,15 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sdmc), 0, ASPEED_SOC_SDMC_BASE);
 
     /* Watch dog */
-    object_property_set_bool(OBJECT(&s->wdt), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
+    for (i = 0; i < sc->info->wdts_num; i++) {
+        object_property_set_bool(OBJECT(&s->wdt[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0,
+                        ASPEED_SOC_WDT_BASE + i * 0x20);
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt), 0, ASPEED_SOC_WDT_BASE);
 
     /* Net */
     qdev_set_nic_properties(DEVICE(&s->ftgmac100), &nd_table[0]);
