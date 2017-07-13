@@ -3842,7 +3842,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     req_json = qobject_to_json(req);
     trace_handle_qmp_command(mon, qstring_get_str(req_json));
-    qobject_decref(QOBJECT(req_json));
+    QDECREF(req_json);
 
     rsp = qmp_dispatch(cur_mon->qmp.commands, req);
 
