@@ -106,21 +106,6 @@ SocketAddress *socket_local_address(int fd, Error **errp);
 SocketAddress *socket_remote_address(int fd, Error **errp);
 
 /**
- * socket_address_to_string:
- * @addr: the socket address struct
- * @errp: pointer to uninitialized error object
- *
- * Get the string representation of the socket
- * address. A pointer to the char array containing
- * string format will be returned, the caller is
- * required to release the returned value when no
- * longer required with g_free.
- *
- * Returns: the socket address in string format, or NULL on error
- */
-char *socket_address_to_string(struct SocketAddress *addr, Error **errp);
-
-/**
  * socket_address_flatten:
  * @addr: the socket address to flatten
  *

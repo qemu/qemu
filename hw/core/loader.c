@@ -150,7 +150,9 @@ int load_image_targphys_as(const char *filename,
         return -1;
     }
     if (size > 0) {
-        rom_add_file_fixed_as(filename, addr, -1, as);
+        if (rom_add_file_fixed_as(filename, addr, -1, as) < 0) {
+            return -1;
+        }
     }
     return size;
 }
@@ -478,6 +480,7 @@ int load_elf_ram(const char *filename,
     }
 
     if (target_data_order != e_ident[EI_DATA]) {
+        fprintf(stderr, "%s: wrong endianness\n", filename);
         ret = ELF_LOAD_WRONG_ENDIAN;
         goto fail;
     }
