@@ -28,8 +28,6 @@
 
 #define PSIHB_XSCOM_MAX         0x20
 
-typedef struct XICSState XICSState;
-
 typedef struct PnvPsi {
     SysBusDevice parent;
 
