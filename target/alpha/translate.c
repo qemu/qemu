@@ -3013,6 +3013,8 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     }
 
     gen_tb_start(tb);
+    tcg_clear_temp_count();
+
     do {
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
@@ -3034,6 +3036,10 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
         free_context_temps(ctxp);
+
+        if (tcg_check_temp_count()) {
+            qemu_log("TCG temporary leak before "TARGET_FMT_lx"\n", ctx.pc);
+        }
 
         /* If we reach a page boundary, are single stepping,
            or exhaust instruction count, stop generation.  */
