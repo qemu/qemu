@@ -1189,7 +1189,6 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 #ifndef CONFIG_USER_ONLY
     /* Privileged PAL code */
     if (palcode < 0x40 && (ctx->tbflags & ENV_FLAG_PS_USER) == 0) {
-        TCGv tmp;
         switch (palcode) {
         case 0x01:
             /* CFLUSH */
@@ -1222,10 +1221,12 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             ld_flag_byte(ctx->ir[IR_V0], ENV_FLAG_PS_SHIFT);
 
             /* But make sure and store only the 3 IPL bits from the user.  */
-            tmp = tcg_temp_new();
-            tcg_gen_andi_i64(tmp, ctx->ir[IR_A0], PS_INT_MASK);
-            st_flag_byte(tmp, ENV_FLAG_PS_SHIFT);
-            tcg_temp_free(tmp);
+            {
+                TCGv tmp = tcg_temp_new();
+                tcg_gen_andi_i64(tmp, ctx->ir[IR_A0], PS_INT_MASK);
+                st_flag_byte(tmp, ENV_FLAG_PS_SHIFT);
+                tcg_temp_free(tmp);
+            }
 
             /* Allow interrupts to be recognized right away.  */
             tcg_gen_movi_i64(cpu_pc, ctx->pc);
@@ -1254,9 +1255,12 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
         case 0x3E:
             /* WTINT */
-            tmp = tcg_const_i64(1);
-            tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
-                                           offsetof(CPUState, halted));
+            {
+                TCGv_i32 tmp = tcg_const_i32(1);
+                tcg_gen_st_i32(tmp, cpu_env, -offsetof(AlphaCPU, env) +
+                                             offsetof(CPUState, halted));
+                tcg_temp_free_i32(tmp);
+            }
             tcg_gen_movi_i64(ctx->ir[IR_V0], 0);
             return gen_excp(ctx, EXCP_HALTED, 0);
 
