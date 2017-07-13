@@ -1392,7 +1392,6 @@ static ExitStatus gen_mfpr(DisasContext *ctx, TCGv va, int regno)
 
 static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 {
-    TCGv tmp;
     int data;
 
     switch (regno) {
@@ -1408,9 +1407,12 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 
     case 253:
         /* WAIT */
-        tmp = tcg_const_i64(1);
-        tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
-                                       offsetof(CPUState, halted));
+        {
+            TCGv_i32 tmp = tcg_const_i32(1);
+            tcg_gen_st_i32(tmp, cpu_env, -offsetof(AlphaCPU, env) +
+                                         offsetof(CPUState, halted));
+            tcg_temp_free_i32(tmp);
+        }
         return gen_excp(ctx, EXCP_HALTED, 0);
 
     case 252:
