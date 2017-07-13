@@ -587,7 +587,7 @@ static bool hyperv_crash_enable_needed(void *opaque)
     CPUX86State *env = &cpu->env;
     int i;
 
-    for (i = 0; i < HV_X64_MSR_CRASH_PARAMS; i++) {
+    for (i = 0; i < HV_CRASH_PARAMS; i++) {
         if (env->msr_hv_crash_params[i]) {
             return true;
         }
@@ -601,8 +601,7 @@ static const VMStateDescription vmstate_msr_hyperv_crash = {
     .minimum_version_id = 1,
     .needed = hyperv_crash_enable_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64_ARRAY(env.msr_hv_crash_params,
-                             X86CPU, HV_X64_MSR_CRASH_PARAMS),
+        VMSTATE_UINT64_ARRAY(env.msr_hv_crash_params, X86CPU, HV_CRASH_PARAMS),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -660,8 +659,7 @@ static const VMStateDescription vmstate_msr_hyperv_synic = {
         VMSTATE_UINT64(env.msr_hv_synic_control, X86CPU),
         VMSTATE_UINT64(env.msr_hv_synic_evt_page, X86CPU),
         VMSTATE_UINT64(env.msr_hv_synic_msg_page, X86CPU),
-        VMSTATE_UINT64_ARRAY(env.msr_hv_synic_sint, X86CPU,
-                             HV_SYNIC_SINT_COUNT),
+        VMSTATE_UINT64_ARRAY(env.msr_hv_synic_sint, X86CPU, HV_SINT_COUNT),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -686,10 +684,9 @@ static const VMStateDescription vmstate_msr_hyperv_stimer = {
     .minimum_version_id = 1,
     .needed = hyperv_stimer_enable_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_config,
-                             X86CPU, HV_SYNIC_STIMER_COUNT),
-        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_count,
-                             X86CPU, HV_SYNIC_STIMER_COUNT),
+        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_config, X86CPU,
+                             HV_STIMER_COUNT),
+        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_count, X86CPU, HV_STIMER_COUNT),
         VMSTATE_END_OF_LIST()
     }
 };

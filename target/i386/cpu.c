@@ -3934,12 +3934,12 @@ static GuestPanicInformation *x86_cpu_get_crash_info(CPUState *cs)
     CPUX86State *env = &cpu->env;
     GuestPanicInformation *panic_info = NULL;
 
-    if (env->features[FEAT_HYPERV_EDX] & HV_X64_GUEST_CRASH_MSR_AVAILABLE) {
+    if (env->features[FEAT_HYPERV_EDX] & HV_GUEST_CRASH_MSR_AVAILABLE) {
         panic_info = g_malloc0(sizeof(GuestPanicInformation));
 
         panic_info->type = GUEST_PANIC_INFORMATION_TYPE_HYPER_V;
 
-        assert(HV_X64_MSR_CRASH_PARAMS >= 5);
+        assert(HV_CRASH_PARAMS >= 5);
         panic_info->u.hyper_v.arg1 = env->msr_hv_crash_params[0];
         panic_info->u.hyper_v.arg2 = env->msr_hv_crash_params[1];
         panic_info->u.hyper_v.arg3 = env->msr_hv_crash_params[2];
