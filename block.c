@@ -4192,20 +4192,6 @@ bool bdrv_is_inserted(BlockDriverState *bs)
 }
 
 /**
- * Return whether the media changed since the last call to this
- * function, or -ENOTSUP if we don't know.  Most drivers don't know.
- */
-int bdrv_media_changed(BlockDriverState *bs)
-{
-    BlockDriver *drv = bs->drv;
-
-    if (drv && drv->bdrv_media_changed) {
-        return drv->bdrv_media_changed(bs);
-    }
-    return -ENOTSUP;
-}
-
-/**
  * If eject_flag is TRUE, eject the media. Otherwise, close the tray
  */
 void bdrv_eject(BlockDriverState *bs, bool eject_flag)
