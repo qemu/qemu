@@ -565,16 +565,16 @@ static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
 static ExitStatus gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
                             int32_t disp, int mask)
 {
-    TCGv cmp_tmp;
-
     if (mask) {
-        cmp_tmp = tcg_temp_new();
-        tcg_gen_andi_i64(cmp_tmp, load_gpr(ctx, ra), 1);
-    } else {
-        cmp_tmp = load_gpr(ctx, ra);
-    }
+        TCGv tmp = tcg_temp_new();
+        ExitStatus ret;
 
-    return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
+        tcg_gen_andi_i64(tmp, load_gpr(ctx, ra), 1);
+        ret = gen_bcond_internal(ctx, cond, tmp, disp);
+        tcg_temp_free(tmp);
+        return ret;
+    }
+    return gen_bcond_internal(ctx, cond, load_gpr(ctx, ra), disp);
 }
 
 /* Fold -0.0 for comparison with COND.  */
