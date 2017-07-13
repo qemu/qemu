@@ -367,7 +367,7 @@ static void spapr_drc_release(sPAPRDRConnector *drc)
     g_free(drc->fdt);
     drc->fdt = NULL;
     drc->fdt_start_offset = 0;
-    object_property_del(OBJECT(drc), "device", NULL);
+    object_property_del(OBJECT(drc), "device", &error_abort);
     drc->dev = NULL;
 }
 
