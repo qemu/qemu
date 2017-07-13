@@ -132,7 +132,7 @@ static char disk[] = "tests/vmgenid-test-disk-XXXXXX";
 
 static char *guid_cmd_strdup(const char *guid)
 {
-    return g_strdup_printf("-machine accel=tcg "
+    return g_strdup_printf("-machine accel=kvm:tcg "
                            "-device vmgenid,id=testvgid,guid=%s "
                            "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",
