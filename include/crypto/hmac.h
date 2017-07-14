@@ -18,6 +18,7 @@ typedef struct QCryptoHmac QCryptoHmac;
 struct QCryptoHmac {
     QCryptoHashAlgorithm alg;
     void *opaque;
+    void *driver;
 };
 
 /**
