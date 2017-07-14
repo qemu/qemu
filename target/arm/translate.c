@@ -11883,6 +11883,11 @@ static int arm_tr_init_disas_context(DisasContextBase *dcbase,
     dc->next_page_start =
         (dc->base.pc_first & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
 
+    /* If architectural single step active, limit to 1.  */
+    if (is_singlestepping(dc)) {
+        max_insns = 1;
+    }
+
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
@@ -12037,11 +12042,9 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.  */
 
-        if (is_singlestepping(dc)) {
-            dc->base.is_jmp = DISAS_TOO_MANY;
-        } else if ((dc->pc >= dc->next_page_start) ||
-                   ((dc->pc >= dc->next_page_start - 3) &&
-                    insn_crosses_page(env, dc))) {
+        if (dc->pc >= dc->next_page_start ||
+            (dc->pc >= dc->next_page_start - 3 &&
+             insn_crosses_page(env, dc))) {
             /* We want to stop the TB if the next insn starts in a new page,
              * or if it spans between this page and the next. This means that
              * if we're looking at the last halfword in the page we need to
