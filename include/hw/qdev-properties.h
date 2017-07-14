@@ -272,7 +272,8 @@ void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
  * This function should be used as the check() argument to
  * object_property_add_link().
  */
-void qdev_prop_allow_set_link_before_realize(Object *obj, const char *name,
+void qdev_prop_allow_set_link_before_realize(const Object *obj,
+                                             const char *name,
                                              Object *val, Error **errp);
 
 #endif

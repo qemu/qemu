@@ -1009,7 +1009,7 @@ static const TypeInfo ivshmem_common_info = {
     .class_init    = ivshmem_common_class_init,
 };
 
-static void ivshmem_check_memdev_is_busy(Object *obj, const char *name,
+static void ivshmem_check_memdev_is_busy(const Object *obj, const char *name,
                                          Object *val, Error **errp)
 {
     if (host_memory_backend_is_mapped(MEMORY_BACKEND(val))) {

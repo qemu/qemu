@@ -367,7 +367,7 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, &value, errp);
 }
 
-static void pc_dimm_check_memdev_is_busy(Object *obj, const char *name,
+static void pc_dimm_check_memdev_is_busy(const Object *obj, const char *name,
                                       Object *val, Error **errp)
 {
     Error *local_err = NULL;

@@ -889,7 +889,7 @@ static void virtio_crypto_class_init(ObjectClass *klass, void *data)
 }
 
 static void
-virtio_crypto_check_cryptodev_is_used(Object *obj, const char *name,
+virtio_crypto_check_cryptodev_is_used(const Object *obj, const char *name,
                                       Object *val, Error **errp)
 {
     if (cryptodev_backend_is_used(CRYPTODEV_BACKEND(val))) {
