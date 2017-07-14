@@ -8518,6 +8518,21 @@ static void i386_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     }
 }
 
+static void i386_tr_disas_log(const DisasContextBase *dcbase,
+                              CPUState *cpu)
+{
+    DisasContext *dc = container_of(dcbase, DisasContext, base);
+    int disas_flags = !dc->code32;
+
+    qemu_log("IN: %s\n", lookup_symbol(dc->base.pc_first));
+#ifdef TARGET_X86_64
+    if (dc->code64) {
+        disas_flags = 2;
+    }
+#endif
+    log_target_disas(cpu, dc->base.pc_first, dc->base.tb->size, disas_flags);
+}
+
 /* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
 {
@@ -8593,28 +8608,19 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         gen_io_end();
     gen_tb_end(tb, num_insns);
 
+    tb->size = dc->base.pc_next - dc->base.pc_first;
+    tb->icount = num_insns;
+
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(dc->base.pc_first)) {
-        int disas_flags;
         qemu_log_lock();
         qemu_log("----------------\n");
-        qemu_log("IN: %s\n", lookup_symbol(dc->base.pc_first));
-#ifdef TARGET_X86_64
-        if (dc->code64)
-            disas_flags = 2;
-        else
-#endif
-            disas_flags = !dc->code32;
-        log_target_disas(cs, dc->base.pc_first, dc->base.pc_next - dc->base.pc_first,
-                         disas_flags);
+        i386_tr_disas_log(&dc->base, cs);
         qemu_log("\n");
         qemu_log_unlock();
     }
 #endif
-
-    tb->size = dc->base.pc_next - dc->base.pc_first;
-    tb->icount = num_insns;
 }
 
 void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb,
