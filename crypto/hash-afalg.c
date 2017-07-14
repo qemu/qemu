@@ -1,5 +1,5 @@
 /*
- * QEMU Crypto af_alg-backend hash support
+ * QEMU Crypto af_alg-backend hash/hmac support
  *
  * Copyright (c) 2017 HUAWEI TECHNOLOGIES CO., LTD.
  *
@@ -16,10 +16,13 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "crypto/hash.h"
+#include "crypto/hmac.h"
 #include "hashpriv.h"
+#include "hmacpriv.h"
 
 static char *
 qcrypto_afalg_hash_format_name(QCryptoHashAlgorithm alg,
+                               bool is_hmac,
                                Error **errp)
 {
     char *name;
@@ -53,18 +56,24 @@ qcrypto_afalg_hash_format_name(QCryptoHashAlgorithm alg,
         return NULL;
     }
 
-    name = g_strdup_printf("%s", alg_name);
+    if (is_hmac) {
+        name = g_strdup_printf("hmac(%s)", alg_name);
+    } else {
+        name = g_strdup_printf("%s", alg_name);
+    }
 
     return name;
 }
 
 static QCryptoAFAlg *
-qcrypto_afalg_hash_ctx_new(QCryptoHashAlgorithm alg, Error **errp)
+qcrypto_afalg_hash_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                                const uint8_t *key, size_t nkey,
+                                bool is_hmac, Error **errp)
 {
     QCryptoAFAlg *afalg;
     char *name;
 
-    name = qcrypto_afalg_hash_format_name(alg, errp);
+    name = qcrypto_afalg_hash_format_name(alg, is_hmac, errp);
     if (!name) {
         return NULL;
     }
@@ -77,19 +86,46 @@ qcrypto_afalg_hash_ctx_new(QCryptoHashAlgorithm alg, Error **errp)
 
     g_free(name);
 
+    /* HMAC needs setkey */
+    if (is_hmac) {
+        if (qemu_setsockopt(afalg->tfmfd, SOL_ALG, ALG_SET_KEY,
+                            key, nkey) != 0) {
+            error_setg_errno(errp, errno, "Set hmac key failed");
+            qcrypto_afalg_comm_free(afalg);
+            return NULL;
+        }
+    }
+
     return afalg;
 }
 
+static QCryptoAFAlg *
+qcrypto_afalg_hash_ctx_new(QCryptoHashAlgorithm alg,
+                           Error **errp)
+{
+    return qcrypto_afalg_hash_hmac_ctx_new(alg, NULL, 0, false, errp);
+}
+
+QCryptoAFAlg *
+qcrypto_afalg_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                           const uint8_t *key, size_t nkey,
+                           Error **errp)
+{
+    return qcrypto_afalg_hash_hmac_ctx_new(alg, key, nkey, true, errp);
+}
+
 static int
-qcrypto_afalg_hash_bytesv(QCryptoHashAlgorithm alg,
-                          const struct iovec *iov,
-                          size_t niov, uint8_t **result,
-                          size_t *resultlen,
-                          Error **errp)
+qcrypto_afalg_hash_hmac_bytesv(QCryptoAFAlg *hmac,
+                               QCryptoHashAlgorithm alg,
+                               const struct iovec *iov,
+                               size_t niov, uint8_t **result,
+                               size_t *resultlen,
+                               Error **errp)
 {
     QCryptoAFAlg *afalg;
     struct iovec outv;
     int ret = 0;
+    bool is_hmac = (hmac != NULL) ? true : false;
     const int expect_len = qcrypto_hash_digest_len(alg);
 
     if (*resultlen == 0) {
@@ -102,9 +138,13 @@ qcrypto_afalg_hash_bytesv(QCryptoHashAlgorithm alg,
         return -1;
     }
 
-    afalg = qcrypto_afalg_hash_ctx_new(alg, errp);
-    if (!afalg) {
-        return -1;
+    if (is_hmac) {
+        afalg = hmac;
+    } else {
+        afalg = qcrypto_afalg_hash_ctx_new(alg, errp);
+        if (!afalg) {
+            return -1;
+        }
     }
 
     /* send data to kernel's crypto core */
@@ -127,10 +167,48 @@ qcrypto_afalg_hash_bytesv(QCryptoHashAlgorithm alg,
     }
 
 out:
-    qcrypto_afalg_comm_free(afalg);
+    if (!is_hmac) {
+        qcrypto_afalg_comm_free(afalg);
+    }
     return ret;
+}
+
+static int
+qcrypto_afalg_hash_bytesv(QCryptoHashAlgorithm alg,
+                          const struct iovec *iov,
+                          size_t niov, uint8_t **result,
+                          size_t *resultlen,
+                          Error **errp)
+{
+    return qcrypto_afalg_hash_hmac_bytesv(NULL, alg, iov, niov, result,
+                                          resultlen, errp);
+}
+
+static int
+qcrypto_afalg_hmac_bytesv(QCryptoHmac *hmac,
+                          const struct iovec *iov,
+                          size_t niov, uint8_t **result,
+                          size_t *resultlen,
+                          Error **errp)
+{
+    return qcrypto_afalg_hash_hmac_bytesv(hmac->opaque, hmac->alg,
+                                          iov, niov, result, resultlen,
+                                          errp);
+}
+
+static void qcrypto_afalg_hmac_ctx_free(QCryptoHmac *hmac)
+{
+    QCryptoAFAlg *afalg;
+
+    afalg = hmac->opaque;
+    qcrypto_afalg_comm_free(afalg);
 }
 
 QCryptoHashDriver qcrypto_hash_afalg_driver = {
     .hash_bytesv = qcrypto_afalg_hash_bytesv,
+};
+
+QCryptoHmacDriver qcrypto_hmac_afalg_driver = {
+    .hmac_bytesv = qcrypto_afalg_hmac_bytesv,
+    .hmac_free = qcrypto_afalg_hmac_ctx_free,
 };
