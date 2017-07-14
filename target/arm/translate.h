@@ -124,12 +124,8 @@ static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
  * defer them until after the conditional execution state has been updated.
  * WFI also needs special handling when single-stepping.
  */
-#define DISAS_WFI 4
-#define DISAS_SWI 5
-/* For instructions which unconditionally cause an exception we can skip
- * emitting unreachable code at the end of the TB in the A64 decoder
- */
-#define DISAS_EXC 6
+#define DISAS_WFI 5
+#define DISAS_SWI 6
 /* WFE */
 #define DISAS_WFE 7
 #define DISAS_HVC 8
