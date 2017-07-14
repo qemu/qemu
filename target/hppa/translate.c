@@ -2291,9 +2291,17 @@ static DisasJumpType trans_stby(DisasContext *ctx, uint32_t insn,
     val = load_gpr(ctx, rt);
 
     if (a) {
-        gen_helper_stby_e(cpu_env, addr, val);
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stby_e_parallel(cpu_env, addr, val);
+        } else {
+            gen_helper_stby_e(cpu_env, addr, val);
+        }
     } else {
-        gen_helper_stby_b(cpu_env, addr, val);
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stby_b_parallel(cpu_env, addr, val);
+        } else {
+            gen_helper_stby_b(cpu_env, addr, val);
+        }
     }
 
     if (m) {
