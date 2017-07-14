@@ -107,8 +107,8 @@ qga-vss-dll-obj-y = qga/
 
 ######################################################################
 # contrib
-ivshmem-client-obj-y = contrib/ivshmem-client/
-ivshmem-server-obj-y = contrib/ivshmem-server/
+ivshmem-client-obj-$(CONFIG_IVSHMEM) = contrib/ivshmem-client/
+ivshmem-server-obj-$(CONFIG_IVSHMEM) = contrib/ivshmem-server/
 libvhost-user-obj-y = contrib/libvhost-user/
 vhost-user-scsi.o-cflags := $(LIBISCSI_CFLAGS)
 vhost-user-scsi.o-libs := $(LIBISCSI_LIBS)
