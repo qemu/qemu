@@ -80,12 +80,12 @@ static void gcrypt_cipher_free_ctx(QCryptoCipherGcrypt *ctx,
 }
 
 
-QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
-                                  QCryptoCipherMode mode,
-                                  const uint8_t *key, size_t nkey,
-                                  Error **errp)
+static QCryptoCipherGcrypt *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
+                                                   QCryptoCipherMode mode,
+                                                   const uint8_t *key,
+                                                   size_t nkey,
+                                                   Error **errp)
 {
-    QCryptoCipher *cipher;
     QCryptoCipherGcrypt *ctx;
     gcry_error_t err;
     int gcryalg, gcrymode;
@@ -162,10 +162,6 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         return NULL;
     }
 
-    cipher = g_new0(QCryptoCipher, 1);
-    cipher->alg = alg;
-    cipher->mode = mode;
-
     ctx = g_new0(QCryptoCipherGcrypt, 1);
 
     err = gcry_cipher_open(&ctx->handle, gcryalg, gcrymode, 0);
@@ -174,7 +170,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                    gcry_strerror(err));
         goto error;
     }
-    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+    if (mode == QCRYPTO_CIPHER_MODE_XTS) {
         err = gcry_cipher_open(&ctx->tweakhandle, gcryalg, gcrymode, 0);
         if (err != 0) {
             error_setg(errp, "Cannot initialize cipher: %s",
@@ -183,7 +179,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         }
     }
 
-    if (cipher->alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
+    if (alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
         /* We're using standard DES cipher from gcrypt, so we need
          * to munge the key so that the results are the same as the
          * bizarre RFB variant of DES :-)
@@ -193,7 +189,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         g_free(rfbkey);
         ctx->blocksize = 8;
     } else {
-        if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
             nkey /= 2;
             err = gcry_cipher_setkey(ctx->handle, key, nkey);
             if (err != 0) {
@@ -210,7 +206,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                        gcry_strerror(err));
             goto error;
         }
-        switch (cipher->alg) {
+        switch (alg) {
         case QCRYPTO_CIPHER_ALG_AES_128:
         case QCRYPTO_CIPHER_ALG_AES_192:
         case QCRYPTO_CIPHER_ALG_AES_256:
@@ -230,7 +226,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         }
     }
 
-    if (cipher->mode == QCRYPTO_CIPHER_MODE_XTS) {
+    if (mode == QCRYPTO_CIPHER_MODE_XTS) {
         if (ctx->blocksize != XTS_BLOCK_SIZE) {
             error_setg(errp,
                        "Cipher block size %zu must equal XTS block size %d",
@@ -240,12 +236,10 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         ctx->iv = g_new0(uint8_t, ctx->blocksize);
     }
 
-    cipher->opaque = ctx;
-    return cipher;
+    return ctx;
 
  error:
     gcrypt_cipher_free_ctx(ctx, mode);
-    g_free(cipher);
     return NULL;
 }
 
@@ -384,4 +378,26 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
     }
 
     return 0;
+}
+
+
+QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
+                                  QCryptoCipherMode mode,
+                                  const uint8_t *key, size_t nkey,
+                                  Error **errp)
+{
+    QCryptoCipher *cipher;
+    QCryptoCipherGcrypt *ctx;
+
+    ctx = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
+    if (!ctx) {
+        return NULL;
+    }
+
+    cipher = g_new0(QCryptoCipher, 1);
+    cipher->alg = alg;
+    cipher->mode = mode;
+    cipher->opaque = ctx;
+
+    return cipher;
 }
