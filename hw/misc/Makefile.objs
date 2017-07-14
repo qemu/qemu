@@ -23,7 +23,7 @@ common-obj-$(CONFIG_PUV3) += puv3_pm.o
 
 common-obj-$(CONFIG_MACIO) += macio/
 
-obj-$(CONFIG_IVSHMEM) += ivshmem.o
+obj-$(CONFIG_IVSHMEM_DEVICE) += ivshmem.o
 
 obj-$(CONFIG_REALVIEW) += arm_sysctl.o
 obj-$(CONFIG_NSERIES) += cbus.o
