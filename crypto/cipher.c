@@ -163,18 +163,33 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                                   Error **errp)
 {
     QCryptoCipher *cipher;
-    void *ctx;
+    void *ctx = NULL;
+    Error *err2 = NULL;
+    QCryptoCipherDriver *drv = NULL;
 
-    ctx = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
+#ifdef CONFIG_AF_ALG
+    ctx = qcrypto_afalg_cipher_ctx_new(alg, mode, key, nkey, &err2);
+    if (ctx) {
+        drv = &qcrypto_cipher_afalg_driver;
+    }
+#endif
+
     if (!ctx) {
-        return NULL;
+        ctx = qcrypto_cipher_ctx_new(alg, mode, key, nkey, errp);
+        if (!ctx) {
+            error_free(err2);
+            return NULL;
+        }
+
+        drv = &qcrypto_cipher_lib_driver;
+        error_free(err2);
     }
 
     cipher = g_new0(QCryptoCipher, 1);
     cipher->alg = alg;
     cipher->mode = mode;
     cipher->opaque = ctx;
-    cipher->driver = (void *)&qcrypto_cipher_lib_driver;
+    cipher->driver = (void *)drv;
 
     return cipher;
 }

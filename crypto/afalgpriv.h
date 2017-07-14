@@ -19,6 +19,15 @@
 #define SALG_TYPE_LEN_MAX 14
 #define SALG_NAME_LEN_MAX 64
 
+#ifndef SOL_ALG
+#define SOL_ALG 279
+#endif
+
+#define AFALG_TYPE_CIPHER "skcipher"
+
+#define ALG_OPTYPE_LEN 4
+#define ALG_MSGIV_LEN(len) (sizeof(struct af_alg_iv) + (len))
+
 typedef struct QCryptoAFAlg QCryptoAFAlg;
 
 struct QCryptoAFAlg {
