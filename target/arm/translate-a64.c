@@ -11206,6 +11206,7 @@ static int aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUARMState *env = cpu->env_ptr;
     ARMCPU *arm_cpu = arm_env_get_cpu(env);
+    int bound;
 
     dc->pc = dc->base.pc_first;
     dc->condjmp = 0;
@@ -11254,8 +11255,14 @@ static int aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->is_ldex = false;
     dc->ss_same_el = (arm_debug_target_el(env) == dc->current_el);
 
-    dc->next_page_start =
-        (dc->base.pc_first & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    /* Bound the number of insns to execute to those left on the page.  */
+    bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
+
+    /* If architectural single step active, limit to 1.  */
+    if (dc->ss_active) {
+        bound = 1;
+    }
+    max_insns = MIN(max_insns, bound);
 
     init_tmp_a64_array(dc);
 
@@ -11321,12 +11328,6 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         dc->base.is_jmp = DISAS_NORETURN;
     } else {
         disas_a64_insn(env, dc);
-    }
-
-    if (dc->base.is_jmp == DISAS_NEXT) {
-        if (dc->ss_active || dc->pc >= dc->next_page_start) {
-            dc->base.is_jmp = DISAS_TOO_MANY;
-        }
     }
 
     dc->base.pc_next = dc->pc;
