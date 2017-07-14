@@ -14,8 +14,7 @@ for debugging, profiling, and observing execution.
 
 2. Create a file with the events you want to trace:
 
-   echo bdrv_aio_readv   > /tmp/events
-   echo bdrv_aio_writev >> /tmp/events
+   echo memory_region_ops_read >/tmp/events
 
 3. Run the virtual machine to produce a trace file:
 
