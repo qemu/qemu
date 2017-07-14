@@ -1,4 +1,5 @@
 atomic_add-bench
+benchmark-crypto-cipher
 check-qdict
 check-qnum
 check-qjson
