@@ -1119,20 +1119,19 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         } else {
             error_setg_errno(errp, -ret, "Could not open image");
         }
-        goto free_and_fail;
+        goto open_failed;
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
-        goto free_and_fail;
+        return ret;
     }
 
     bdrv_refresh_limits(bs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto free_and_fail;
+        return -EINVAL;
     }
 
     assert(bdrv_opt_mem_align(bs) != 0);
@@ -1140,12 +1139,14 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
     assert(is_power_of_2(bs->bl.request_alignment));
 
     return 0;
-
-free_and_fail:
-    /* FIXME Close bs first if already opened*/
+open_failed:
+    bs->drv = NULL;
+    if (bs->file != NULL) {
+        bdrv_unref_child(bs, bs->file);
+        bs->file = NULL;
+    }
     g_free(bs->opaque);
     bs->opaque = NULL;
-    bs->drv = NULL;
     return ret;
 }
 
@@ -1166,7 +1167,9 @@ BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
     ret = bdrv_open_driver(bs, drv, node_name, bs->options, flags, errp);
     if (ret < 0) {
         QDECREF(bs->explicit_options);
+        bs->explicit_options = NULL;
         QDECREF(bs->options);
+        bs->options = NULL;
         bdrv_unref(bs);
         return NULL;
     }
@@ -2600,9 +2603,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
 fail:
     blk_unref(file);
-    if (bs->file != NULL) {
-        bdrv_unref_child(bs, bs->file);
-    }
     QDECREF(snapshot_options);
     QDECREF(bs->explicit_options);
     QDECREF(bs->options);
