@@ -86,6 +86,9 @@ matrix:
     - env: CONFIG="--enable-trace-backends=ust"
            TEST_CMD=""
       compiler: gcc
+    - env: CONFIG="--disable-tcg"
+           TEST_CMD=""
+      compiler: gcc
     - env: CONFIG=""
       os: osx
       compiler: clang
