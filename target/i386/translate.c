@@ -24,14 +24,13 @@
 #include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
+#include "exec/translator.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
 #include "trace-tcg.h"
 #include "exec/log.h"
-
-#define DISAS_TOO_MANY 5
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02

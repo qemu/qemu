@@ -35,36 +35,6 @@ typedef abi_ulong tb_page_addr_t;
 typedef ram_addr_t tb_page_addr_t;
 #endif
 
-/* DisasContext is_jmp field values
- *
- * is_jmp starts as DISAS_NEXT. The translator will keep processing
- * instructions until an exit condition is reached. If we reach the
- * exit condition and is_jmp is still DISAS_NEXT (because of some
- * other condition) we simply "jump" to the next address.
- * The remaining exit cases are:
- *
- *   DISAS_JUMP    - Only the PC was modified dynamically (e.g computed)
- *   DISAS_TB_JUMP - Only the PC was modified statically (e.g. branch)
- *
- * In these cases as long as the PC is updated we can chain to the
- * next TB either by exiting the loop or looking up the next TB via
- * the loookup helper.
- *
- *   DISAS_UPDATE  - CPU State was modified dynamically
- *
- * This covers any other CPU state which necessities us exiting the
- * TCG code to the main run-loop. Typically this includes anything
- * that might change the interrupt state.
- *
- * Individual translators may define additional exit cases to deal
- * with per-target special conditions.
- */
-#define DISAS_NEXT    0 /* next instruction can be analyzed */
-#define DISAS_JUMP    1 /* only pc was modified dynamically */
-#define DISAS_TB_JUMP 2 /* only pc was modified statically */
-#define DISAS_UPDATE  3 /* cpu state was modified dynamically */
-#define DISAS_NORETURN 4 /* the tb has already been exited */
-
 #include "qemu/log.h"
 
 void gen_intermediate_code(CPUState *cpu, struct TranslationBlock *tb);
