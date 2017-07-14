@@ -613,8 +613,12 @@ static ExitStatus gen_fbcond(DisasContext *ctx, TCGCond cond, int ra,
                              int32_t disp)
 {
     TCGv cmp_tmp = tcg_temp_new();
+    ExitStatus ret;
+
     gen_fold_mzero(cond, cmp_tmp, load_fpr(ctx, ra));
-    return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
+    ret = gen_bcond_internal(ctx, cond, cmp_tmp, disp);
+    tcg_temp_free(cmp_tmp);
+    return ret;
 }
 
 static void gen_fcmov(DisasContext *ctx, TCGCond cond, int ra, int rb, int rc)
