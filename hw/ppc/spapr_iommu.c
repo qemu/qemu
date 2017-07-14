@@ -110,7 +110,8 @@ static void spapr_tce_free_table(uint64_t *table, int fd, uint32_t nb_table)
 }
 
 /* Called from RCU critical section */
-static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry spapr_tce_translate_iommu(IOMMUMemoryRegion *iommu,
+                                               hwaddr addr,
                                                IOMMUAccessFlags flag)
 {
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
@@ -150,14 +151,14 @@ static void spapr_tce_table_pre_save(void *opaque)
                                tcet->bus_offset, tcet->page_shift);
 }
 
-static uint64_t spapr_tce_get_min_page_size(MemoryRegion *iommu)
+static uint64_t spapr_tce_get_min_page_size(IOMMUMemoryRegion *iommu)
 {
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
 
     return 1ULL << tcet->page_shift;
 }
 
-static void spapr_tce_notify_flag_changed(MemoryRegion *iommu,
+static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                           IOMMUNotifierFlag old,
                                           IOMMUNotifierFlag new)
 {
@@ -247,12 +248,6 @@ static const VMStateDescription vmstate_spapr_tce_table = {
     }
 };
 
-static MemoryRegionIOMMUOps spapr_iommu_ops = {
-    .translate = spapr_tce_translate_iommu,
-    .get_min_page_size = spapr_tce_get_min_page_size,
-    .notify_flag_changed = spapr_tce_notify_flag_changed,
-};
-
 static int spapr_tce_table_realize(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
@@ -265,7 +260,9 @@ static int spapr_tce_table_realize(DeviceState *dev)
     memory_region_init(&tcet->root, tcetobj, tmp, UINT64_MAX);
 
     snprintf(tmp, sizeof(tmp), "tce-iommu-%x", tcet->liobn);
-    memory_region_init_iommu(&tcet->iommu, tcetobj, &spapr_iommu_ops, tmp, 0);
+    memory_region_init_iommu(&tcet->iommu, sizeof(tcet->iommu),
+                             TYPE_SPAPR_IOMMU_MEMORY_REGION,
+                             tcetobj, tmp, 0);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
@@ -348,9 +345,10 @@ void spapr_tce_table_enable(sPAPRTCETable *tcet,
                                         &tcet->fd,
                                         tcet->need_vfio);
 
-    memory_region_set_size(&tcet->iommu,
+    memory_region_set_size(MEMORY_REGION(&tcet->iommu),
                            (uint64_t)tcet->nb_table << tcet->page_shift);
-    memory_region_add_subregion(&tcet->root, tcet->bus_offset, &tcet->iommu);
+    memory_region_add_subregion(&tcet->root, tcet->bus_offset,
+                                MEMORY_REGION(&tcet->iommu));
 }
 
 void spapr_tce_table_disable(sPAPRTCETable *tcet)
@@ -359,8 +357,8 @@ void spapr_tce_table_disable(sPAPRTCETable *tcet)
         return;
     }
 
-    memory_region_del_subregion(&tcet->root, &tcet->iommu);
-    memory_region_set_size(&tcet->iommu, 0);
+    memory_region_del_subregion(&tcet->root, MEMORY_REGION(&tcet->iommu));
+    memory_region_set_size(MEMORY_REGION(&tcet->iommu), 0);
 
     spapr_tce_free_table(tcet->table, tcet->fd, tcet->nb_table);
     tcet->fd = -1;
@@ -637,9 +635,25 @@ static TypeInfo spapr_tce_table_info = {
     .class_init = spapr_tce_table_class_init,
 };
 
+static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = spapr_tce_translate_iommu;
+    imrc->get_min_page_size = spapr_tce_get_min_page_size;
+    imrc->notify_flag_changed = spapr_tce_notify_flag_changed;
+}
+
+static const TypeInfo spapr_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
+    .class_init = spapr_iommu_memory_region_class_init,
+};
+
 static void register_types(void)
 {
     type_register_static(&spapr_tce_table_info);
+    type_register_static(&spapr_iommu_memory_region_info);
 }
 
 type_init(register_types);

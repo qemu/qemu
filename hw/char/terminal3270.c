@@ -179,7 +179,7 @@ static void terminal_init(EmulatedCcw3270Device *dev, Error **errp)
     }
     terminal_available = true;
     qemu_chr_fe_set_handlers(&t->chr, terminal_can_read,
-                             terminal_read, chr_event, t, NULL, true);
+                             terminal_read, chr_event, NULL, t, NULL, true);
 }
 
 static int read_payload_3270(EmulatedCcw3270Device *dev, uint32_t cda,
@@ -239,7 +239,7 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd,
             return 0;
         }
     }
-    if (!qemu_chr_fe_get_driver(&t->chr)) {
+    if (!qemu_chr_fe_backend_connected(&t->chr)) {
         /* We just say we consumed all data if there's no backend. */
         return count;
     }

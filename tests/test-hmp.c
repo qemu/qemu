@@ -23,6 +23,7 @@ static const char *hmp_cmds[] = {
     "boot_set ndc",
     "chardev-add null,id=testchardev1",
     "chardev-send-break testchardev2",
+    "chardev-change testchardev1 ringbuf",
     "chardev-remove testchardev1",
     "commit all",
     "cpu-add 1",

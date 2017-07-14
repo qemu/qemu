@@ -356,7 +356,7 @@ out:
     return pte;
 }
 
-static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *mr, hwaddr addr,
+static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
                                           IOMMUAccessFlags flag)
 {
     uint64_t pte;
@@ -406,10 +406,6 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *mr, hwaddr addr,
 
     return ret;
 }
-
-static const MemoryRegionIOMMUOps s390_iommu_ops = {
-    .translate = s390_translate_iommu,
-};
 
 static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
                                         int devfn)
@@ -522,17 +518,18 @@ static const MemoryRegionOps s390_msi_ctrl_ops = {
 void s390_pci_iommu_enable(S390PCIIOMMU *iommu)
 {
     char *name = g_strdup_printf("iommu-s390-%04x", iommu->pbdev->uid);
-    memory_region_init_iommu(&iommu->iommu_mr, OBJECT(&iommu->mr),
-                             &s390_iommu_ops, name, iommu->pal + 1);
+    memory_region_init_iommu(&iommu->iommu_mr, sizeof(iommu->iommu_mr),
+                             TYPE_S390_IOMMU_MEMORY_REGION, OBJECT(&iommu->mr),
+                             name, iommu->pal + 1);
     iommu->enabled = true;
-    memory_region_add_subregion(&iommu->mr, 0, &iommu->iommu_mr);
+    memory_region_add_subregion(&iommu->mr, 0, MEMORY_REGION(&iommu->iommu_mr));
     g_free(name);
 }
 
 void s390_pci_iommu_disable(S390PCIIOMMU *iommu)
 {
     iommu->enabled = false;
-    memory_region_del_subregion(&iommu->mr, &iommu->iommu_mr);
+    memory_region_del_subregion(&iommu->mr, MEMORY_REGION(&iommu->iommu_mr));
     object_unparent(OBJECT(&iommu->iommu_mr));
 }
 
@@ -1018,7 +1015,7 @@ static void s390_pci_set_fid(Object *obj, Visitor *v, const char *name,
     zpci->fid_defined = true;
 }
 
-static PropertyInfo s390_pci_fid_propinfo = {
+static const PropertyInfo s390_pci_fid_propinfo = {
     .name = "zpci_fid",
     .get = s390_pci_get_fid,
     .set = s390_pci_set_fid,
@@ -1058,12 +1055,26 @@ static TypeInfo s390_pci_iommu_info = {
     .instance_size = sizeof(S390PCIIOMMU),
 };
 
+static void s390_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = s390_translate_iommu;
+}
+
+static const TypeInfo s390_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_S390_IOMMU_MEMORY_REGION,
+    .class_init = s390_iommu_memory_region_class_init,
+};
+
 static void s390_pci_register_types(void)
 {
     type_register_static(&s390_pcihost_info);
     type_register_static(&s390_pcibus_info);
     type_register_static(&s390_pci_device_info);
     type_register_static(&s390_pci_iommu_info);
+    type_register_static(&s390_iommu_memory_region_info);
 }
 
 type_init(s390_pci_register_types)

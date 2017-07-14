@@ -329,7 +329,7 @@ static void pl011_realize(DeviceState *dev, Error **errp)
     PL011State *s = PL011(dev);
 
     qemu_chr_fe_set_handlers(&s->chr, pl011_can_receive, pl011_receive,
-                             pl011_event, s, NULL, true);
+                             pl011_event, NULL, s, NULL, true);
 }
 
 static void pl011_class_init(ObjectClass *oc, void *data)

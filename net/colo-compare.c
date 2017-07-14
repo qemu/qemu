@@ -543,7 +543,7 @@ static void compare_pri_chr_in(void *opaque, const uint8_t *buf, int size)
 
     ret = net_fill_rstate(&s->pri_rs, buf, size);
     if (ret == -1) {
-        qemu_chr_fe_set_handlers(&s->chr_pri_in, NULL, NULL, NULL,
+        qemu_chr_fe_set_handlers(&s->chr_pri_in, NULL, NULL, NULL, NULL,
                                  NULL, NULL, true);
         error_report("colo-compare primary_in error");
     }
@@ -560,7 +560,7 @@ static void compare_sec_chr_in(void *opaque, const uint8_t *buf, int size)
 
     ret = net_fill_rstate(&s->sec_rs, buf, size);
     if (ret == -1) {
-        qemu_chr_fe_set_handlers(&s->chr_sec_in, NULL, NULL, NULL,
+        qemu_chr_fe_set_handlers(&s->chr_sec_in, NULL, NULL, NULL, NULL,
                                  NULL, NULL, true);
         error_report("colo-compare secondary_in error");
     }
@@ -588,9 +588,11 @@ static void *colo_compare_thread(void *opaque)
     s->worker_context = g_main_context_new();
 
     qemu_chr_fe_set_handlers(&s->chr_pri_in, compare_chr_can_read,
-                          compare_pri_chr_in, NULL, s, s->worker_context, true);
+                             compare_pri_chr_in, NULL, NULL,
+                             s, s->worker_context, true);
     qemu_chr_fe_set_handlers(&s->chr_sec_in, compare_chr_can_read,
-                          compare_sec_chr_in, NULL, s, s->worker_context, true);
+                             compare_sec_chr_in, NULL, NULL,
+                             s, s->worker_context, true);
 
     s->compare_loop = g_main_loop_new(s->worker_context, FALSE);
 

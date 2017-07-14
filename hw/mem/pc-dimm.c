@@ -350,6 +350,8 @@ static Property pc_dimm_properties[] = {
     DEFINE_PROP_UINT32(PC_DIMM_NODE_PROP, PCDIMMDevice, node, 0),
     DEFINE_PROP_INT32(PC_DIMM_SLOT_PROP, PCDIMMDevice, slot,
                       PC_DIMM_UNASSIGNED_SLOT),
+    DEFINE_PROP_LINK(PC_DIMM_MEMDEV_PROP, PCDIMMDevice, hostmem,
+                     TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -367,33 +369,10 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, &value, errp);
 }
 
-static void pc_dimm_check_memdev_is_busy(Object *obj, const char *name,
-                                      Object *val, Error **errp)
-{
-    Error *local_err = NULL;
-
-    if (host_memory_backend_is_mapped(MEMORY_BACKEND(val))) {
-        char *path = object_get_canonical_path_component(val);
-        error_setg(&local_err, "can't use already busy memdev: %s", path);
-        g_free(path);
-    } else {
-        qdev_prop_allow_set_link_before_realize(obj, name, val, &local_err);
-    }
-
-    error_propagate(errp, local_err);
-}
-
 static void pc_dimm_init(Object *obj)
 {
-    PCDIMMDevice *dimm = PC_DIMM(obj);
-
     object_property_add(obj, PC_DIMM_SIZE_PROP, "uint64", pc_dimm_get_size,
                         NULL, NULL, NULL, &error_abort);
-    object_property_add_link(obj, PC_DIMM_MEMDEV_PROP, TYPE_MEMORY_BACKEND,
-                             (Object **)&dimm->hostmem,
-                             pc_dimm_check_memdev_is_busy,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
 }
 
 static void pc_dimm_realize(DeviceState *dev, Error **errp)
@@ -403,6 +382,11 @@ static void pc_dimm_realize(DeviceState *dev, Error **errp)
 
     if (!dimm->hostmem) {
         error_setg(errp, "'" PC_DIMM_MEMDEV_PROP "' property is not set");
+        return;
+    } else if (host_memory_backend_is_mapped(dimm->hostmem)) {
+        char *path = object_get_canonical_path_component(OBJECT(dimm->hostmem));
+        error_setg(errp, "can't use already busy memdev: %s", path);
+        g_free(path);
         return;
     }
     if (((nb_numa_nodes > 0) && (dimm->node >= nb_numa_nodes)) ||

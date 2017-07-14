@@ -778,7 +778,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
         fwd->slirp = s->slirp;
 
         qemu_chr_fe_set_handlers(&fwd->hd, guestfwd_can_read, guestfwd_read,
-                                 NULL, fwd, NULL, true);
+                                 NULL, NULL, fwd, NULL, true);
     }
     return 0;
 

@@ -480,13 +480,14 @@ static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
              * for removal.  This conditional should be removed along with
              * it.
              */
-            if (!prop->info->set) {
+            if (!prop->info->set && !prop->info->create) {
                 return NULL;           /* no way to set it, don't show */
             }
 
             info = g_malloc0(sizeof(*info));
             info->name = g_strdup(prop->name);
-            info->type = g_strdup(prop->info->name);
+            info->type = default_type ? g_strdup(default_type)
+                                      : g_strdup(prop->info->name);
             info->has_description = !!prop->info->description;
             info->description = g_strdup(prop->info->description);
             return info;

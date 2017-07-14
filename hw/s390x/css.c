@@ -2095,7 +2095,7 @@ out:
     g_free(str);
 }
 
-PropertyInfo css_devid_propinfo = {
+const PropertyInfo css_devid_propinfo = {
     .name = "str",
     .description = "Identifier of an I/O device in the channel "
                    "subsystem, example: fe.1.23ab",
@@ -2103,7 +2103,7 @@ PropertyInfo css_devid_propinfo = {
     .set = set_css_devid,
 };
 
-PropertyInfo css_devid_ro_propinfo = {
+const PropertyInfo css_devid_ro_propinfo = {
     .name = "str",
     .description = "Read-only identifier of an I/O device in the channel "
                    "subsystem, example: fe.1.23ab",

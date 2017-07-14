@@ -279,7 +279,7 @@ static gboolean cadence_uart_xmit(GIOChannel *chan, GIOCondition cond,
     int ret;
 
     /* instant drain the fifo when there's no back-end */
-    if (!qemu_chr_fe_get_driver(&s->chr)) {
+    if (!qemu_chr_fe_backend_connected(&s->chr)) {
         s->tx_count = 0;
         return FALSE;
     }
@@ -485,7 +485,7 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
                                           fifo_trigger_update, s);
 
     qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
-                             uart_event, s, NULL, true);
+                             uart_event, NULL, s, NULL, true);
 }
 
 static void cadence_uart_init(Object *obj)

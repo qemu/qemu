@@ -159,7 +159,7 @@ static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
     set_pointer(obj, v, opaque, parse_drive, name, errp);
 }
 
-PropertyInfo qdev_prop_drive = {
+const PropertyInfo qdev_prop_drive = {
     .name  = "str",
     .description = "Node name or ID of a block device to use as a backend",
     .get   = get_drive,
@@ -228,7 +228,7 @@ static void release_chr(Object *obj, const char *name, void *opaque)
     qemu_chr_fe_deinit(be, false);
 }
 
-PropertyInfo qdev_prop_chr = {
+const PropertyInfo qdev_prop_chr = {
     .name  = "str",
     .description = "ID of a chardev to use as a backend",
     .get   = get_chr,
@@ -313,7 +313,7 @@ out:
     g_free(str);
 }
 
-PropertyInfo qdev_prop_netdev = {
+const PropertyInfo qdev_prop_netdev = {
     .name  = "str",
     .description = "ID of a netdev to use as a backend",
     .get   = get_netdev,
@@ -393,7 +393,7 @@ static void set_vlan(Object *obj, Visitor *v, const char *name, void *opaque,
     *ptr = hubport;
 }
 
-PropertyInfo qdev_prop_vlan = {
+const PropertyInfo qdev_prop_vlan = {
     .name  = "int32",
     .description = "Integer VLAN id to connect to",
     .print = print_vlan,

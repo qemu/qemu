@@ -58,15 +58,6 @@ void gdb_register_coprocessor(CPUState *cpu,
                               gdb_reg_cb get_reg, gdb_reg_cb set_reg,
                               int num_regs, const char *xml, int g_pos);
 
-static inline int cpu_index(CPUState *cpu)
-{
-#if defined(CONFIG_USER_ONLY)
-    return cpu->host_tid;
-#else
-    return cpu->cpu_index + 1;
-#endif
-}
-
 /* The GDB remote protocol transfers values in target byte order.  This means
  * we can use the raw memory access routines to access the value buffer.
  * Conveniently, these also handle the case where the buffer is mis-aligned.

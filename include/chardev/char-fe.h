@@ -4,6 +4,7 @@
 #include "chardev/char.h"
 
 typedef void IOEventHandler(void *opaque, int event);
+typedef int BackendChangeHandler(void *opaque);
 
 /* This is the backend as seen by frontend, the actual backend is
  * Chardev */
@@ -12,6 +13,7 @@ struct CharBackend {
     IOEventHandler *chr_event;
     IOCanReadHandler *chr_can_read;
     IOReadHandler *chr_read;
+    BackendChangeHandler *chr_be_change;
     void *opaque;
     int tag;
     int fe_open;
@@ -44,8 +46,25 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del);
  *
  * Returns the driver associated with a CharBackend or NULL if no
  * associated Chardev.
+ * Note: avoid this function as the driver should never be accessed directly,
+ *       especially by the frontends that support chardevice hotswap.
+ *       Consider qemu_chr_fe_backend_connected() to check for driver existence
  */
 Chardev *qemu_chr_fe_get_driver(CharBackend *be);
+
+/**
+ * @qemu_chr_fe_backend_connected:
+ *
+ * Returns true if there is a chardevice associated with @be.
+ */
+bool qemu_chr_fe_backend_connected(CharBackend *be);
+
+/**
+ * @qemu_chr_fe_backend_open:
+ *
+ * Returns true if chardevice associated with @be is open.
+ */
+bool qemu_chr_fe_backend_open(CharBackend *be);
 
 /**
  * @qemu_chr_fe_set_handlers:
@@ -54,6 +73,8 @@ Chardev *qemu_chr_fe_get_driver(CharBackend *be);
  *               receive
  * @fd_read: callback to receive data from char
  * @fd_event: event callback
+ * @be_change: backend change callback; passing NULL means hot backend change
+ *             is not supported and will not be attempted
  * @opaque: an opaque pointer for the callbacks
  * @context: a main loop context or NULL for the default
  * @set_open: whether to call qemu_chr_fe_set_open() implicitely when
@@ -68,6 +89,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
                               IOReadHandler *fd_read,
                               IOEventHandler *fd_event,
+                              BackendChangeHandler *be_change,
                               void *opaque,
                               GMainContext *context,
                               bool set_open);

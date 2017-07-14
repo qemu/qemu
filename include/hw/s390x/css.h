@@ -112,7 +112,7 @@ typedef struct CssDevId {
     bool valid;
 } CssDevId;
 
-extern PropertyInfo css_devid_propinfo;
+extern const PropertyInfo css_devid_propinfo;
 
 #define DEFINE_PROP_CSS_DEV_ID(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, css_devid_propinfo, CssDevId)
@@ -196,7 +196,7 @@ int css_do_rchp(uint8_t cssid, uint8_t chpid);
 bool css_present(uint8_t cssid);
 #endif
 
-extern PropertyInfo css_devid_ro_propinfo;
+extern const PropertyInfo css_devid_ro_propinfo;
 
 #define DEFINE_PROP_CSS_DEV_ID_RO(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, css_devid_ro_propinfo, CssDevId)

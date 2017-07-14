@@ -1851,11 +1851,6 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
 
     tb_lock();
 
-    if (!tcg_enabled()) {
-        cpu_fprintf(f, "TCG not enabled\n");
-        return;
-    }
-
     target_code_size = 0;
     max_target_code_size = 0;
     cross_page = 0;

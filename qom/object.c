@@ -740,7 +740,7 @@ out:
     return ret;
 }
 
-const char *object_get_typename(Object *obj)
+const char *object_get_typename(const Object *obj)
 {
     return obj->class->type->name;
 }
@@ -1428,7 +1428,7 @@ out:
     g_free(type);
 }
 
-void object_property_allow_set_link(Object *obj, const char *name,
+void object_property_allow_set_link(const Object *obj, const char *name,
                                     Object *val, Error **errp)
 {
     /* Allow the link to be set, always */
@@ -1436,7 +1436,7 @@ void object_property_allow_set_link(Object *obj, const char *name,
 
 typedef struct {
     Object **child;
-    void (*check)(Object *, const char *, Object *, Error **);
+    void (*check)(const Object *, const char *, Object *, Error **);
     ObjectPropertyLinkFlags flags;
 } LinkProperty;
 
@@ -1552,7 +1552,7 @@ static void object_release_link_property(Object *obj, const char *name,
 
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
-                              void (*check)(Object *, const char *,
+                              void (*check)(const Object *, const char *,
                                             Object *, Error **),
                               ObjectPropertyLinkFlags flags,
                               Error **errp)

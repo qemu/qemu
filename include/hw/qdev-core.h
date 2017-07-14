@@ -223,7 +223,7 @@ struct BusState {
 
 struct Property {
     const char   *name;
-    PropertyInfo *info;
+    const PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
     union {
@@ -231,8 +231,9 @@ struct Property {
         uint64_t u;
     } defval;
     int          arrayoffset;
-    PropertyInfo *arrayinfo;
+    const PropertyInfo *arrayinfo;
     int          arrayfieldsize;
+    const char   *link_type;
 };
 
 struct PropertyInfo {
@@ -241,6 +242,7 @@ struct PropertyInfo {
     const char * const *enum_table;
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     void (*set_default_value)(Object *obj, const Property *prop);
+    void (*create)(Object *obj, Property *prop, Error **errp);
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
     ObjectPropertyRelease *release;

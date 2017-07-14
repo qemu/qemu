@@ -503,6 +503,10 @@ static const VMStateDescription vmstate_parallel_isa = {
     }
 };
 
+static int parallel_can_receive(void *opaque)
+{
+     return 1;
+}
 
 static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
 {
@@ -513,7 +517,7 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
     int base;
     uint8_t dummy;
 
-    if (!qemu_chr_fe_get_driver(&s->chr)) {
+    if (!qemu_chr_fe_backend_connected(&s->chr)) {
         error_setg(errp, "Can't create parallel device, empty char device");
         return;
     }
@@ -535,6 +539,8 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
     isa_init_irq(isadev, &s->irq, isa->isairq);
     qemu_register_reset(parallel_reset, s);
 
+    qemu_chr_fe_set_handlers(&s->chr, parallel_can_receive, NULL,
+                             NULL, NULL, s, NULL, true);
     if (qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_READ_STATUS, &dummy) == 0) {
         s->hw_driver = 1;
         s->status = dummy;

@@ -312,6 +312,24 @@ static void serial_write_fcr(SerialState *s, uint8_t val)
     }
 }
 
+static void serial_update_tiocm(SerialState *s)
+{
+    int flags;
+
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
+
+    flags &= ~(CHR_TIOCM_RTS | CHR_TIOCM_DTR);
+
+    if (s->mcr & UART_MCR_RTS) {
+        flags |= CHR_TIOCM_RTS;
+    }
+    if (s->mcr & UART_MCR_DTR) {
+        flags |= CHR_TIOCM_DTR;
+    }
+
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
+}
+
 static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size)
 {
@@ -426,24 +444,13 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case 4:
         {
-            int flags;
             int old_mcr = s->mcr;
             s->mcr = val & 0x1f;
             if (val & UART_MCR_LOOP)
                 break;
 
             if (s->poll_msl >= 0 && old_mcr != s->mcr) {
-
-                qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
-
-                flags &= ~(CHR_TIOCM_RTS | CHR_TIOCM_DTR);
-
-                if (val & UART_MCR_RTS)
-                    flags |= CHR_TIOCM_RTS;
-                if (val & UART_MCR_DTR)
-                    flags |= CHR_TIOCM_DTR;
-
-                qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
+                serial_update_tiocm(s);
                 /* Update the modem status after a one-character-send wait-time, since there may be a response
                    from the device/computer at the other end of the serial line */
                 timer_mod(s->modem_status_poll, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time);
@@ -884,9 +891,37 @@ static void serial_reset(void *opaque)
     s->msr &= ~UART_MSR_ANY_DELTA;
 }
 
+static int serial_be_change(void *opaque)
+{
+    SerialState *s = opaque;
+
+    qemu_chr_fe_set_handlers(&s->chr, serial_can_receive1, serial_receive1,
+                             serial_event, serial_be_change, s, NULL, true);
+
+    serial_update_parameters(s);
+
+    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
+                      &s->last_break_enable);
+
+    s->poll_msl = (s->ier & UART_IER_MSI) ? 1 : 0;
+    serial_update_msl(s);
+
+    if (s->poll_msl >= 0 && !(s->mcr & UART_MCR_LOOP)) {
+        serial_update_tiocm(s);
+    }
+
+    if (s->watch_tag > 0) {
+        g_source_remove(s->watch_tag);
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                                             serial_watch_cb, s);
+    }
+
+    return 0;
+}
+
 void serial_realize_core(SerialState *s, Error **errp)
 {
-    if (!qemu_chr_fe_get_driver(&s->chr)) {
+    if (!qemu_chr_fe_backend_connected(&s->chr)) {
         error_setg(errp, "Can't create serial device, empty char device");
         return;
     }
@@ -897,7 +932,7 @@ void serial_realize_core(SerialState *s, Error **errp)
     qemu_register_reset(serial_reset, s);
 
     qemu_chr_fe_set_handlers(&s->chr, serial_can_receive1, serial_receive1,
-                             serial_event, s, NULL, true);
+                             serial_event, serial_be_change, s, NULL, true);
     fifo8_create(&s->recv_fifo, UART_FIFO_LENGTH);
     fifo8_create(&s->xmit_fifo, UART_FIFO_LENGTH);
     serial_reset(s);

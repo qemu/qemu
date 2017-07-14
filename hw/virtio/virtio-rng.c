@@ -246,6 +246,7 @@ static Property virtio_rng_properties[] = {
      */
     DEFINE_PROP_UINT64("max-bytes", VirtIORNG, conf.max_bytes, INT64_MAX),
     DEFINE_PROP_UINT32("period", VirtIORNG, conf.period_ms, 1 << 16),
+    DEFINE_PROP_LINK("rng", VirtIORNG, conf.rng, TYPE_RNG_BACKEND, RngBackend *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -262,21 +263,10 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
     vdc->get_features = get_features;
 }
 
-static void virtio_rng_initfn(Object *obj)
-{
-    VirtIORNG *vrng = VIRTIO_RNG(obj);
-
-    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
-                             (Object **)&vrng->conf.rng,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
-}
-
 static const TypeInfo virtio_rng_info = {
     .name = TYPE_VIRTIO_RNG,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIORNG),
-    .instance_init = virtio_rng_initfn,
     .class_init = virtio_rng_class_init,
 };
 

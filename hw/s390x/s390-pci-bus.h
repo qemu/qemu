@@ -24,6 +24,7 @@
 #define TYPE_S390_PCI_BUS "s390-pcibus"
 #define TYPE_S390_PCI_DEVICE "zpci"
 #define TYPE_S390_PCI_IOMMU "s390-pci-iommu"
+#define TYPE_S390_IOMMU_MEMORY_REGION "s390-iommu-memory-region"
 #define FH_MASK_ENABLE   0x80000000
 #define FH_MASK_INSTANCE 0x7f000000
 #define FH_MASK_SHM      0x00ff0000
@@ -266,7 +267,7 @@ typedef struct S390PCIIOMMU {
     S390PCIBusDevice *pbdev;
     AddressSpace as;
     MemoryRegion mr;
-    MemoryRegion iommu_mr;
+    IOMMUMemoryRegion iommu_mr;
     bool enabled;
     uint64_t g_iota;
     uint64_t pba;

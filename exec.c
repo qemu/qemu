@@ -27,6 +27,7 @@
 #include "exec/target_page.h"
 #include "tcg.h"
 #include "hw/qdev-core.h"
+#include "hw/qdev-properties.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/boards.h"
 #include "hw/xen/xen.h"
@@ -480,19 +481,21 @@ static MemoryRegionSection address_space_do_translate(AddressSpace *as,
 {
     IOMMUTLBEntry iotlb;
     MemoryRegionSection *section;
-    MemoryRegion *mr;
+    IOMMUMemoryRegion *iommu_mr;
+    IOMMUMemoryRegionClass *imrc;
 
     for (;;) {
         AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
         section = address_space_translate_internal(d, addr, &addr, plen, is_mmio);
-        mr = section->mr;
 
-        if (!mr->iommu_ops) {
+        iommu_mr = memory_region_get_iommu(section->mr);
+        if (!iommu_mr) {
             break;
         }
+        imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
 
-        iotlb = mr->iommu_ops->translate(mr, addr, is_write ?
-                                         IOMMU_WO : IOMMU_RO);
+        iotlb = imrc->translate(iommu_mr, addr, is_write ?
+                                IOMMU_WO : IOMMU_RO);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
         *plen = MIN(*plen, (addr | iotlb.addr_mask) - addr + 1);
@@ -588,7 +591,7 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
 
     section = address_space_translate_internal(d, addr, xlat, plen, false);
 
-    assert(!section->mr->iommu_ops);
+    assert(!memory_region_is_iommu(section->mr));
     return section;
 }
 #endif
@@ -735,6 +738,20 @@ void cpu_exec_unrealizefn(CPUState *cpu)
     }
 }
 
+Property cpu_common_props[] = {
+#ifndef CONFIG_USER_ONLY
+    /* Create a memory property for softmmu CPU object,
+     * so users can wire up its memory. (This can't go in qom/cpu.c
+     * because that file is compiled only once for both user-mode
+     * and system builds.) The default if no link is set up is to use
+     * the system address space.
+     */
+    DEFINE_PROP_LINK("memory", CPUState, memory, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+#endif
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 void cpu_exec_initfn(CPUState *cpu)
 {
     cpu->as = NULL;
@@ -742,18 +759,6 @@ void cpu_exec_initfn(CPUState *cpu)
 
 #ifndef CONFIG_USER_ONLY
     cpu->thread_id = qemu_get_thread_id();
-
-    /* This is a softmmu CPU object, so create a property for it
-     * so users can wire up its memory. (This can't go in qom/cpu.c
-     * because that file is compiled only once for both user-mode
-     * and system builds.) The default if no link is set up is to use
-     * the system address space.
-     */
-    object_property_add_link(OBJECT(cpu), "memory", TYPE_MEMORY_REGION,
-                             (Object **)&cpu->memory,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
     cpu->memory = system_memory;
     object_ref(OBJECT(cpu->memory));
 #endif
@@ -775,15 +780,28 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 #endif
 }
 
+#if defined(CONFIG_USER_ONLY)
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
-    /* Flush the whole TB as this will not have race conditions
-     * even if we don't have proper locking yet.
-     * Ideally we would just invalidate the TBs for the
-     * specified PC.
-     */
-    tb_flush(cpu);
+    mmap_lock();
+    tb_lock();
+    tb_invalidate_phys_page_range(pc, pc + 1, 0);
+    tb_unlock();
+    mmap_unlock();
 }
+#else
+static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
+{
+    MemTxAttrs attrs;
+    hwaddr phys = cpu_get_phys_page_attrs_debug(cpu, pc, &attrs);
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    if (phys != -1) {
+        /* Locks grabbed by tb_invalidate_phys_addr */
+        tb_invalidate_phys_addr(cpu->cpu_ases[asidx].as,
+                                phys | (pc & ~TARGET_PAGE_MASK));
+    }
+}
+#endif
 
 #if defined(CONFIG_USER_ONLY)
 void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
@@ -2929,7 +2947,7 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
             }
         } else {
             /* RAM case */
-            ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+            ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l);
             memcpy(ptr, buf, l);
             invalidate_and_set_dirty(mr, addr1, l);
         }
@@ -3020,7 +3038,7 @@ MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
             }
         } else {
             /* RAM case */
-            ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+            ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l);
             memcpy(buf, ptr, l);
         }
 

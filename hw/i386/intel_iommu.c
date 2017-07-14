@@ -972,9 +972,9 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
     /* Turn off first then on the other */
     if (use_iommu) {
         memory_region_set_enabled(&as->sys_alias, false);
-        memory_region_set_enabled(&as->iommu, true);
+        memory_region_set_enabled(MEMORY_REGION(&as->iommu), true);
     } else {
-        memory_region_set_enabled(&as->iommu, false);
+        memory_region_set_enabled(MEMORY_REGION(&as->iommu), false);
         memory_region_set_enabled(&as->sys_alias, true);
     }
 
@@ -1366,7 +1366,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 static int vtd_page_invalidate_notify_hook(IOMMUTLBEntry *entry,
                                            void *private)
 {
-    memory_region_notify_iommu((MemoryRegion *)private, *entry);
+    memory_region_notify_iommu((IOMMUMemoryRegion *)private, *entry);
     return 0;
 }
 
@@ -2264,7 +2264,7 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
     }
 }
 
-static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
+static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
                                          IOMMUAccessFlags flag)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
@@ -2303,7 +2303,7 @@ static IOMMUTLBEntry vtd_iommu_translate(MemoryRegion *iommu, hwaddr addr,
     return iotlb;
 }
 
-static void vtd_iommu_notify_flag_changed(MemoryRegion *iommu,
+static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                           IOMMUNotifierFlag old,
                                           IOMMUNotifierFlag new)
 {
@@ -2718,8 +2718,9 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
          * vtd_sys_alias and intel_iommu regions. IR region is always
          * enabled.
          */
-        memory_region_init_iommu(&vtd_dev_as->iommu, OBJECT(s),
-                                 &s->iommu_ops, "intel_iommu_dmar",
+        memory_region_init_iommu(&vtd_dev_as->iommu, sizeof(vtd_dev_as->iommu),
+                                 TYPE_INTEL_IOMMU_MEMORY_REGION, OBJECT(s),
+                                 "intel_iommu_dmar",
                                  UINT64_MAX);
         memory_region_init_alias(&vtd_dev_as->sys_alias, OBJECT(s),
                                  "vtd_sys_alias", get_system_memory(),
@@ -2736,7 +2737,8 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
                                             &vtd_dev_as->sys_alias, 1);
         memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
-                                            &vtd_dev_as->iommu, 1);
+                                            MEMORY_REGION(&vtd_dev_as->iommu),
+                                            1);
         vtd_switch_address_space(vtd_dev_as);
     }
     return vtd_dev_as;
@@ -2816,9 +2818,9 @@ static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
     return 0;
 }
 
-static void vtd_iommu_replay(MemoryRegion *mr, IOMMUNotifier *n)
+static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
 {
-    VTDAddressSpace *vtd_as = container_of(mr, VTDAddressSpace, iommu);
+    VTDAddressSpace *vtd_as = container_of(iommu_mr, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
     uint8_t bus_n = pci_bus_num(vtd_as->bus);
     VTDContextEntry ce;
@@ -2856,9 +2858,6 @@ static void vtd_init(IntelIOMMUState *s)
     memset(s->w1cmask, 0, DMAR_REG_SIZE);
     memset(s->womask, 0, DMAR_REG_SIZE);
 
-    s->iommu_ops.translate = vtd_iommu_translate;
-    s->iommu_ops.notify_flag_changed = vtd_iommu_notify_flag_changed;
-    s->iommu_ops.replay = vtd_iommu_replay;
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;
@@ -3073,9 +3072,26 @@ static const TypeInfo vtd_info = {
     .class_init    = vtd_class_init,
 };
 
+static void vtd_iommu_memory_region_class_init(ObjectClass *klass,
+                                                     void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = vtd_iommu_translate;
+    imrc->notify_flag_changed = vtd_iommu_notify_flag_changed;
+    imrc->replay = vtd_iommu_replay;
+}
+
+static const TypeInfo vtd_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_INTEL_IOMMU_MEMORY_REGION,
+    .class_init = vtd_iommu_memory_region_class_init,
+};
+
 static void vtd_register_types(void)
 {
     type_register_static(&vtd_info);
+    type_register_static(&vtd_iommu_memory_region_info);
 }
 
 type_init(vtd_register_types)

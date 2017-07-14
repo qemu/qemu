@@ -179,7 +179,19 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
 
 Chardev *qemu_chr_fe_get_driver(CharBackend *be)
 {
+    /* this is unsafe for the users that support chardev hotswap */
+    assert(be->chr_be_change == NULL);
     return be->chr;
+}
+
+bool qemu_chr_fe_backend_connected(CharBackend *be)
+{
+    return !!be->chr;
+}
+
+bool qemu_chr_fe_backend_open(CharBackend *be)
+{
+    return be->chr && be->chr->be_open;
 }
 
 bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
@@ -216,7 +228,7 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del)
     assert(b);
 
     if (b->chr) {
-        qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL, true);
+        qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL, NULL, true);
         if (b->chr->be == b) {
             b->chr->be = NULL;
         }
@@ -235,6 +247,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
                               IOReadHandler *fd_read,
                               IOEventHandler *fd_event,
+                              BackendChangeHandler *be_change,
                               void *opaque,
                               GMainContext *context,
                               bool set_open)
@@ -258,6 +271,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
     b->chr_can_read = fd_can_read;
     b->chr_read = fd_read;
     b->chr_event = fd_event;
+    b->chr_be_change = be_change;
     b->opaque = opaque;
     if (cc->chr_update_read_handler) {
         cc->chr_update_read_handler(s, context);

@@ -582,6 +582,10 @@ typedef struct sPAPRTCETable sPAPRTCETable;
 #define SPAPR_TCE_TABLE(obj) \
     OBJECT_CHECK(sPAPRTCETable, (obj), TYPE_SPAPR_TCE_TABLE)
 
+#define TYPE_SPAPR_IOMMU_MEMORY_REGION "spapr-iommu-memory-region"
+#define SPAPR_IOMMU_MEMORY_REGION(obj) \
+        OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_SPAPR_IOMMU_MEMORY_REGION)
+
 struct sPAPRTCETable {
     DeviceState parent;
     uint32_t liobn;
@@ -594,7 +598,8 @@ struct sPAPRTCETable {
     bool bypass;
     bool need_vfio;
     int fd;
-    MemoryRegion root, iommu;
+    MemoryRegion root;
+    IOMMUMemoryRegion iommu;
     struct VIOsPAPRDevice *vdev; /* for @bypass migration compatibility only */
     QLIST_ENTRY(sPAPRTCETable) list;
 };

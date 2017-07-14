@@ -181,18 +181,6 @@ static void mips_gcr_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MIPSGCRState *s = MIPS_GCR(obj);
 
-    object_property_add_link(obj, "gic", TYPE_MEMORY_REGION,
-                             (Object **)&s->gic_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
-
-    object_property_add_link(obj, "cpc", TYPE_MEMORY_REGION,
-                             (Object **)&s->cpc_mr,
-                             qdev_prop_allow_set_link_before_realize,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                             &error_abort);
-
     memory_region_init_io(&s->iomem, OBJECT(s), &gcr_ops, s,
                           "mips-gcr", GCR_ADDRSPACE_SZ);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -227,6 +215,10 @@ static Property mips_gcr_properties[] = {
     DEFINE_PROP_INT32("num-vp", MIPSGCRState, num_vps, 1),
     DEFINE_PROP_INT32("gcr-rev", MIPSGCRState, gcr_rev, 0x800),
     DEFINE_PROP_UINT64("gcr-base", MIPSGCRState, gcr_base, GCR_BASE_ADDR),
+    DEFINE_PROP_LINK("gic", MIPSGCRState, gic_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_LINK("cpc", MIPSGCRState, cpc_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -211,7 +211,7 @@ static void chr_closed_bh(void *opaque)
     vhost_user_stop(queues, ncs);
 
     qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, net_vhost_user_event,
-                             opaque, NULL, true);
+                             NULL, opaque, NULL, true);
 
     if (err) {
         error_report_err(err);
@@ -257,7 +257,7 @@ static void net_vhost_user_event(void *opaque, int event)
 
             g_source_remove(s->watch);
             s->watch = 0;
-            qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL,
+            qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL,
                                      NULL, NULL, false);
 
             aio_bh_schedule_oneshot(ctx, chr_closed_bh, opaque);
@@ -305,7 +305,8 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
             return -1;
         }
         qemu_chr_fe_set_handlers(&s->chr, NULL, NULL,
-                                 net_vhost_user_event, nc0->name, NULL, true);
+                                 net_vhost_user_event, NULL, nc0->name, NULL,
+                                 true);
     } while (!s->started);
 
     assert(s->vhost_net);

@@ -199,7 +199,7 @@ static void milkymist_uart_realize(DeviceState *dev, Error **errp)
     MilkymistUartState *s = MILKYMIST_UART(dev);
 
     qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
-                             uart_event, s, NULL, true);
+                             uart_event, NULL, s, NULL, true);
 }
 
 static void milkymist_uart_init(Object *obj)

@@ -130,7 +130,7 @@ static void mips_jazz_init(MachineState *machine,
     CPUMIPSState *env;
     qemu_irq *i8259;
     rc4030_dma *dmas;
-    MemoryRegion *rc4030_dma_mr;
+    IOMMUMemoryRegion *rc4030_dma_mr;
     MemoryRegion *isa_mem = g_new(MemoryRegion, 1);
     MemoryRegion *isa_io = g_new(MemoryRegion, 1);
     MemoryRegion *rtc = g_new(MemoryRegion, 1);

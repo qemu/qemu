@@ -143,7 +143,8 @@ int vfio_spapr_create_window(VFIOContainer *container,
                              hwaddr *pgsize)
 {
     int ret;
-    unsigned pagesize = memory_region_iommu_get_min_page_size(section->mr);
+    IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
+    unsigned pagesize = memory_region_iommu_get_min_page_size(iommu_mr);
     unsigned entries, pages;
     struct vfio_iommu_spapr_tce_create create = { .argsz = sizeof(create) };
 

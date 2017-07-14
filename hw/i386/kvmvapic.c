@@ -383,8 +383,7 @@ static void patch_byte(X86CPU *cpu, target_ulong addr, uint8_t byte)
     cpu_memory_rw_debug(CPU(cpu), addr, &byte, 1, 1);
 }
 
-static void patch_call(VAPICROMState *s, X86CPU *cpu, target_ulong ip,
-                       uint32_t target)
+static void patch_call(X86CPU *cpu, target_ulong ip, uint32_t target)
 {
     uint32_t offset;
 
@@ -393,16 +392,59 @@ static void patch_call(VAPICROMState *s, X86CPU *cpu, target_ulong ip,
     cpu_memory_rw_debug(CPU(cpu), ip + 1, (void *)&offset, sizeof(offset), 1);
 }
 
+typedef struct PatchInfo {
+    VAPICHandlers *handler;
+    target_ulong ip;
+} PatchInfo;
+
+static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
+{
+    X86CPU *x86_cpu = X86_CPU(cs);
+    PatchInfo *info = (PatchInfo *) data.host_ptr;
+    VAPICHandlers *handlers = info->handler;
+    target_ulong ip = info->ip;
+    uint8_t opcode[2];
+    uint32_t imm32 = 0;
+
+    cpu_memory_rw_debug(cs, ip, opcode, sizeof(opcode), 0);
+
+    switch (opcode[0]) {
+    case 0x89: /* mov r32 to r/m32 */
+        patch_byte(x86_cpu, ip, 0x50 + modrm_reg(opcode[1]));  /* push reg */
+        patch_call(x86_cpu, ip + 1, handlers->set_tpr);
+        break;
+    case 0x8b: /* mov r/m32 to r32 */
+        patch_byte(x86_cpu, ip, 0x90);
+        patch_call(x86_cpu, ip + 1, handlers->get_tpr[modrm_reg(opcode[1])]);
+        break;
+    case 0xa1: /* mov abs to eax */
+        patch_call(x86_cpu, ip, handlers->get_tpr[0]);
+        break;
+    case 0xa3: /* mov eax to abs */
+        patch_call(x86_cpu, ip, handlers->set_tpr_eax);
+        break;
+    case 0xc7: /* mov imm32, r/m32 (c7/0) */
+        patch_byte(x86_cpu, ip, 0x68);  /* push imm32 */
+        cpu_memory_rw_debug(cs, ip + 6, (void *)&imm32, sizeof(imm32), 0);
+        cpu_memory_rw_debug(cs, ip + 1, (void *)&imm32, sizeof(imm32), 1);
+        patch_call(x86_cpu, ip + 5, handlers->set_tpr);
+        break;
+    case 0xff: /* push r/m32 */
+        patch_byte(x86_cpu, ip, 0x50); /* push eax */
+        patch_call(x86_cpu, ip + 1, handlers->get_tpr_stack);
+        break;
+    default:
+        abort();
+    }
+
+    g_free(info);
+}
+
 static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 {
     CPUState *cs = CPU(cpu);
-    CPUX86State *env = &cpu->env;
     VAPICHandlers *handlers;
-    uint8_t opcode[2];
-    uint32_t imm32 = 0;
-    target_ulong current_pc = 0;
-    target_ulong current_cs_base = 0;
-    uint32_t current_flags = 0;
+    PatchInfo *info;
 
     if (smp_cpus == 1) {
         handlers = &s->rom_state.up;
@@ -410,60 +452,11 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
         handlers = &s->rom_state.mp;
     }
 
-    if (tcg_enabled()) {
-        cpu_restore_state(cs, cs->mem_io_pc);
-        cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
-                             &current_flags);
-        /* Account this instruction, because we will exit the tb.
-           This is the first instruction in the block. Therefore
-           there is no need in restoring CPU state. */
-        if (use_icount) {
-            --cs->icount_decr.u16.low;
-        }
-    }
+    info  = g_new(PatchInfo, 1);
+    info->handler = handlers;
+    info->ip = ip;
 
-    pause_all_vcpus();
-
-    cpu_memory_rw_debug(cs, ip, opcode, sizeof(opcode), 0);
-
-    switch (opcode[0]) {
-    case 0x89: /* mov r32 to r/m32 */
-        patch_byte(cpu, ip, 0x50 + modrm_reg(opcode[1]));  /* push reg */
-        patch_call(s, cpu, ip + 1, handlers->set_tpr);
-        break;
-    case 0x8b: /* mov r/m32 to r32 */
-        patch_byte(cpu, ip, 0x90);
-        patch_call(s, cpu, ip + 1, handlers->get_tpr[modrm_reg(opcode[1])]);
-        break;
-    case 0xa1: /* mov abs to eax */
-        patch_call(s, cpu, ip, handlers->get_tpr[0]);
-        break;
-    case 0xa3: /* mov eax to abs */
-        patch_call(s, cpu, ip, handlers->set_tpr_eax);
-        break;
-    case 0xc7: /* mov imm32, r/m32 (c7/0) */
-        patch_byte(cpu, ip, 0x68);  /* push imm32 */
-        cpu_memory_rw_debug(cs, ip + 6, (void *)&imm32, sizeof(imm32), 0);
-        cpu_memory_rw_debug(cs, ip + 1, (void *)&imm32, sizeof(imm32), 1);
-        patch_call(s, cpu, ip + 5, handlers->set_tpr);
-        break;
-    case 0xff: /* push r/m32 */
-        patch_byte(cpu, ip, 0x50); /* push eax */
-        patch_call(s, cpu, ip + 1, handlers->get_tpr_stack);
-        break;
-    default:
-        abort();
-    }
-
-    resume_all_vcpus();
-
-    if (tcg_enabled()) {
-        /* Both tb_lock and iothread_mutex will be reset when
-         *  longjmps back into the cpu_exec loop. */
-        tb_lock();
-        tb_gen_code(cs, current_pc, current_cs_base, current_flags, 1);
-        cpu_loop_exit_noexc(cs);
-    }
+    async_safe_run_on_cpu(cs, do_patch_instruction, RUN_ON_CPU_HOST_PTR(info));
 }
 
 void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,

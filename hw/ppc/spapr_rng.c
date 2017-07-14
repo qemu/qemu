@@ -96,17 +96,11 @@ static target_ulong h_random(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
 static void spapr_rng_instance_init(Object *obj)
 {
-    sPAPRRngState *rngstate = SPAPR_RNG(obj);
-
     if (object_resolve_path_type("", TYPE_SPAPR_RNG, NULL) != NULL) {
         error_report("spapr-rng can not be instantiated twice!");
         return;
     }
 
-    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
-                             (Object **)&rngstate->backend,
-                             object_property_allow_set_link,
-                             OBJ_PROP_LINK_UNREF_ON_RELEASE, NULL);
     object_property_set_description(obj, "rng",
                                     "ID of the random number generator backend",
                                     NULL);
@@ -163,6 +157,8 @@ int spapr_rng_populate_dt(void *fdt)
 
 static Property spapr_rng_properties[] = {
     DEFINE_PROP_BOOL("use-kvm", sPAPRRngState, use_kvm, false),
+    DEFINE_PROP_LINK("rng", sPAPRRngState, backend, TYPE_RNG_BACKEND,
+                     RngBackend *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

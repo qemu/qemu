@@ -201,7 +201,7 @@ static void grlib_apbuart_write(void *opaque, hwaddr addr,
     case DATA_OFFSET:
     case DATA_OFFSET + 3:       /* When only one byte write */
         /* Transmit when character device available and transmitter enabled */
-        if (qemu_chr_fe_get_driver(&uart->chr) &&
+        if (qemu_chr_fe_backend_connected(&uart->chr) &&
             (uart->control & UART_TRANSMIT_ENABLE)) {
             c = value & 0xFF;
             /* XXX this blocks entire thread. Rewrite to use
@@ -247,7 +247,7 @@ static int grlib_apbuart_init(SysBusDevice *dev)
                              grlib_apbuart_can_receive,
                              grlib_apbuart_receive,
                              grlib_apbuart_event,
-                             uart, NULL, true);
+                             NULL, uart, NULL, true);
 
     sysbus_init_irq(dev, &uart->irq);
 

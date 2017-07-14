@@ -150,7 +150,7 @@ static void xencons_send(struct XenConsole *con)
     ssize_t len, size;
 
     size = con->buffer.size - con->buffer.consumed;
-    if (qemu_chr_fe_get_driver(&con->chr)) {
+    if (qemu_chr_fe_backend_connected(&con->chr)) {
         len = qemu_chr_fe_write(&con->chr,
                                 con->buffer.data + con->buffer.consumed,
                                 size);
@@ -246,7 +246,7 @@ static int con_initialise(struct XenDevice *xendev)
 
     xen_be_bind_evtchn(&con->xendev);
     qemu_chr_fe_set_handlers(&con->chr, xencons_can_receive,
-                             xencons_receive, NULL, con, NULL, true);
+                             xencons_receive, NULL, NULL, con, NULL, true);
 
     xen_pv_printf(xendev, 1,
                   "ring mfn %d, remote port %d, local port %d, limit %zd\n",

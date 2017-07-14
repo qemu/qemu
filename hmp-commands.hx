@@ -1726,7 +1726,23 @@ ETEXI
 STEXI
 @item chardev-add args
 @findex chardev-add
-chardev_add accepts the same parameters as the -chardev command line switch.
+chardev-add accepts the same parameters as the -chardev command line switch.
+
+ETEXI
+
+    {
+        .name       = "chardev-change",
+        .args_type  = "id:s,args:s",
+        .params     = "id args",
+        .help       = "change chardev",
+        .cmd        = hmp_chardev_change,
+    },
+
+STEXI
+@item chardev-change args
+@findex chardev-change
+chardev-change accepts existing chardev @var{id} and then the same arguments
+as the -chardev command line switch (except for "id").
 
 ETEXI
 

@@ -447,13 +447,13 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(dev);
 
-    if (!qemu_chr_fe_get_driver(&ibe->chr)) {
+    if (!qemu_chr_fe_backend_connected(&ibe->chr)) {
         error_setg(errp, "IPMI external bmc requires chardev attribute");
         return;
     }
 
     qemu_chr_fe_set_handlers(&ibe->chr, can_receive, receive,
-                             chr_event, ibe, NULL, true);
+                             chr_event, NULL, ibe, NULL, true);
 }
 
 static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)

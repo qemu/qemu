@@ -81,6 +81,16 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
 void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
 
 /**
+ * @qemu_chr_parse_opts:
+ *
+ * Parse the options to the ChardevBackend struct.
+ *
+ * Returns: a new backend or NULL on error
+ */
+ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts,
+                                    Error **errp);
+
+/**
  * @qemu_chr_new:
  *
  * Create a new character backend from a URI.
@@ -91,6 +101,15 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
  * Returns: a new character backend
  */
 Chardev *qemu_chr_new(const char *label, const char *filename);
+
+/**
+ * @qemu_chr_change:
+ *
+ * Change an existing character backend
+ *
+ * @opts the new backend options
+ */
+void qemu_chr_change(QemuOpts *opts, Error **errp);
 
 /**
  * @qemu_chr_cleanup:

@@ -56,6 +56,21 @@ static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
     return cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
 }
 
+/* Return the GDB index for a given vCPU state.
+ *
+ * For user mode this is simply the thread id. In system mode GDB
+ * numbers CPUs from 1 as 0 is reserved as an "any cpu" index.
+ */
+static inline int cpu_gdb_index(CPUState *cpu)
+{
+#if defined(CONFIG_USER_ONLY)
+    TaskState *ts = (TaskState *) cpu->opaque;
+    return ts->ts_tid;
+#else
+    return cpu->cpu_index + 1;
+#endif
+}
+
 enum {
     GDB_SIGNAL_0 = 0,
     GDB_SIGNAL_INT = 2,
@@ -272,7 +287,20 @@ static int gdb_signal_to_target (int sig)
         return -1;
 }
 
-//#define DEBUG_GDB
+/* #define DEBUG_GDB */
+
+#ifdef DEBUG_GDB
+# define DEBUG_GDB_GATE 1
+#else
+# define DEBUG_GDB_GATE 0
+#endif
+
+#define gdb_debug(fmt, ...) do { \
+    if (DEBUG_GDB_GATE) { \
+        fprintf(stderr, "%s: " fmt, __func__, ## __VA_ARGS__); \
+    } \
+} while (0)
+
 
 typedef struct GDBRegisterState {
     int base_reg;
@@ -548,9 +576,7 @@ static int put_packet_binary(GDBState *s, const char *buf, int len)
 /* return -1 if error, 0 if OK */
 static int put_packet(GDBState *s, const char *buf)
 {
-#ifdef DEBUG_GDB
-    printf("reply='%s'\n", buf);
-#endif
+    gdb_debug("reply='%s'\n", buf);
 
     return put_packet_binary(s, buf, strlen(buf));
 }
@@ -827,7 +853,7 @@ static CPUState *find_cpu(uint32_t thread_id)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        if (cpu_index(cpu) == thread_id) {
+        if (cpu_gdb_index(cpu) == thread_id) {
             return cpu;
         }
     }
@@ -912,23 +938,16 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
             if (res) {
                 goto out;
             }
-            idx = tmp;
-            /* 0 means any thread, so we pick the first valid CPU */
-            if (!idx) {
-                idx = cpu_index(first_cpu);
-            }
 
-            /*
-             * If we are in user mode, the thread specified is actually a
-             * thread id, and not an index. We need to find the actual
-             * CPU first, and only then we can use its index.
-             */
-            cpu = find_cpu(idx);
+            /* 0 means any thread, so we pick the first valid CPU */
+            cpu = tmp ? find_cpu(tmp) : first_cpu;
+
             /* invalid CPU/thread specified */
-            if (!idx || !cpu) {
+            if (!cpu) {
                 res = -EINVAL;
                 goto out;
             }
+
             /* only use if no previous match occourred */
             if (newstates[cpu->cpu_index] == 1) {
                 newstates[cpu->cpu_index] = cur_action;
@@ -956,16 +975,16 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     uint8_t *registers;
     target_ulong addr, len;
 
-#ifdef DEBUG_GDB
-    printf("command='%s'\n", line_buf);
-#endif
+
+    gdb_debug("command='%s'\n", line_buf);
+
     p = line_buf;
     ch = *p++;
     switch(ch) {
     case '?':
         /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
-                 cpu_index(s->c_cpu));
+                 cpu_gdb_index(s->c_cpu));
         put_packet(s, buf);
         /* Remove all the breakpoints when this query is issued,
          * because gdb is doing and initial connect and the state
@@ -1233,7 +1252,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         } else if (strcmp(p,"sThreadInfo") == 0) {
         report_cpuinfo:
             if (s->query_cpu) {
-                snprintf(buf, sizeof(buf), "m%x", cpu_index(s->query_cpu));
+                snprintf(buf, sizeof(buf), "m%x", cpu_gdb_index(s->query_cpu));
                 put_packet(s, buf);
                 s->query_cpu = CPU_NEXT(s->query_cpu);
             } else
@@ -1390,7 +1409,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
             }
             snprintf(buf, sizeof(buf),
                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
-                     GDB_SIGNAL_TRAP, cpu_index(cpu), type,
+                     GDB_SIGNAL_TRAP, cpu_gdb_index(cpu), type,
                      (target_ulong)cpu->watchpoint_hit->vaddr);
             cpu->watchpoint_hit = NULL;
             goto send_packet;
@@ -1424,7 +1443,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
         break;
     }
     gdb_set_stop_cpu(cpu);
-    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, cpu_index(cpu));
+    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, cpu_gdb_index(cpu));
 
 send_packet:
     put_packet(s, buf);
@@ -1519,17 +1538,14 @@ static void gdb_read_byte(GDBState *s, int ch)
         /* Waiting for a response to the last packet.  If we see the start
            of a new command then abandon the previous response.  */
         if (ch == '-') {
-#ifdef DEBUG_GDB
-            printf("Got NACK, retransmitting\n");
-#endif
+            gdb_debug("Got NACK, retransmitting\n");
             put_buffer(s, (uint8_t *)s->last_packet, s->last_packet_len);
+        } else if (ch == '+') {
+            gdb_debug("Got ACK\n");
+        } else {
+            gdb_debug("Got '%c' when expecting ACK/NACK\n", ch);
         }
-#ifdef DEBUG_GDB
-        else if (ch == '+')
-            printf("Got ACK\n");
-        else
-            printf("Got '%c' when expecting ACK/NACK\n", ch);
-#endif
+
         if (ch == '+' || ch == '$')
             s->last_packet_len = 0;
         if (ch != '$')
@@ -1550,9 +1566,7 @@ static void gdb_read_byte(GDBState *s, int ch)
                 s->line_sum = 0;
                 s->state = RS_GETLINE;
             } else {
-#ifdef DEBUG_GDB
-                printf("gdbstub received garbage between packets: 0x%x\n", ch);
-#endif
+                gdb_debug("received garbage between packets: 0x%x\n", ch);
             }
             break;
         case RS_GETLINE:
@@ -1568,9 +1582,7 @@ static void gdb_read_byte(GDBState *s, int ch)
                 /* end of command, start of checksum*/
                 s->state = RS_CHKSUM1;
             } else if (s->line_buf_index >= sizeof(s->line_buf) - 1) {
-#ifdef DEBUG_GDB
-                printf("gdbstub command buffer overrun, dropping command\n");
-#endif
+                gdb_debug("command buffer overrun, dropping command\n");
                 s->state = RS_IDLE;
             } else {
                 /* unescaped command character */
@@ -1584,9 +1596,7 @@ static void gdb_read_byte(GDBState *s, int ch)
                 s->state = RS_CHKSUM1;
             } else if (s->line_buf_index >= sizeof(s->line_buf) - 1) {
                 /* command buffer overrun */
-#ifdef DEBUG_GDB
-                printf("gdbstub command buffer overrun, dropping command\n");
-#endif
+                gdb_debug("command buffer overrun, dropping command\n");
                 s->state = RS_IDLE;
             } else {
                 /* parse escaped character and leave escape state */
@@ -1598,25 +1608,18 @@ static void gdb_read_byte(GDBState *s, int ch)
         case RS_GETLINE_RLE:
             if (ch < ' ') {
                 /* invalid RLE count encoding */
-#ifdef DEBUG_GDB
-                printf("gdbstub got invalid RLE count: 0x%x\n", ch);
-#endif
+                gdb_debug("got invalid RLE count: 0x%x\n", ch);
                 s->state = RS_GETLINE;
             } else {
                 /* decode repeat length */
                 int repeat = (unsigned char)ch - ' ' + 3;
                 if (s->line_buf_index + repeat >= sizeof(s->line_buf) - 1) {
                     /* that many repeats would overrun the command buffer */
-#ifdef DEBUG_GDB
-                    printf("gdbstub command buffer overrun,"
-                           " dropping command\n");
-#endif
+                    gdb_debug("command buffer overrun, dropping command\n");
                     s->state = RS_IDLE;
                 } else if (s->line_buf_index < 1) {
                     /* got a repeat but we have nothing to repeat */
-#ifdef DEBUG_GDB
-                    printf("gdbstub got invalid RLE sequence\n");
-#endif
+                    gdb_debug("got invalid RLE sequence\n");
                     s->state = RS_GETLINE;
                 } else {
                     /* repeat the last character */
@@ -1631,9 +1634,7 @@ static void gdb_read_byte(GDBState *s, int ch)
         case RS_CHKSUM1:
             /* get high hex digit of checksum */
             if (!isxdigit(ch)) {
-#ifdef DEBUG_GDB
-                printf("gdbstub got invalid command checksum digit\n");
-#endif
+                gdb_debug("got invalid command checksum digit\n");
                 s->state = RS_GETLINE;
                 break;
             }
@@ -1644,21 +1645,17 @@ static void gdb_read_byte(GDBState *s, int ch)
         case RS_CHKSUM2:
             /* get low hex digit of checksum */
             if (!isxdigit(ch)) {
-#ifdef DEBUG_GDB
-                printf("gdbstub got invalid command checksum digit\n");
-#endif
+                gdb_debug("got invalid command checksum digit\n");
                 s->state = RS_GETLINE;
                 break;
             }
             s->line_csum |= fromhex(ch);
 
             if (s->line_csum != (s->line_sum & 0xff)) {
+                gdb_debug("got command packet with incorrect checksum\n");
                 /* send NAK reply */
                 reply = '-';
                 put_buffer(s, &reply, 1);
-#ifdef DEBUG_GDB
-                printf("gdbstub got command packet with incorrect checksum\n");
-#endif
                 s->state = RS_IDLE;
             } else {
                 /* send ACK reply */
@@ -2003,7 +2000,7 @@ int gdbserver_start(const char *device)
     if (chr) {
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
         qemu_chr_fe_set_handlers(&s->chr, gdb_chr_can_receive, gdb_chr_receive,
-                                 gdb_chr_event, NULL, NULL, true);
+                                 gdb_chr_event, NULL, NULL, NULL, true);
     }
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;

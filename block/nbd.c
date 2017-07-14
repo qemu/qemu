@@ -472,9 +472,17 @@ static int nbd_co_flush(BlockDriverState *bs)
 
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
-    bs->bl.max_pdiscard = NBD_MAX_BUFFER_SIZE;
-    bs->bl.max_pwrite_zeroes = NBD_MAX_BUFFER_SIZE;
-    bs->bl.max_transfer = NBD_MAX_BUFFER_SIZE;
+    NBDClientSession *s = nbd_get_client_session(bs);
+    uint32_t max = MIN_NON_ZERO(NBD_MAX_BUFFER_SIZE, s->info.max_block);
+
+    bs->bl.max_pdiscard = max;
+    bs->bl.max_pwrite_zeroes = max;
+    bs->bl.max_transfer = max;
+
+    if (s->info.opt_block &&
+        s->info.opt_block > bs->bl.opt_transfer) {
+        bs->bl.opt_transfer = s->info.opt_block;
+    }
 }
 
 static void nbd_close(BlockDriverState *bs)
@@ -492,7 +500,7 @@ static int64_t nbd_getlength(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
 
-    return s->client.size;
+    return s->client.info.size;
 }
 
 static void nbd_detach_aio_context(BlockDriverState *bs)

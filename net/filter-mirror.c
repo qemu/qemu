@@ -112,7 +112,7 @@ static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
 
     if (ret == -1) {
         qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL,
-                                 NULL, NULL, true);
+                                 NULL, NULL, NULL, true);
     }
 }
 
@@ -124,7 +124,7 @@ static void redirector_chr_event(void *opaque, int event)
     switch (event) {
     case CHR_EVENT_CLOSED:
         qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL,
-                                 NULL, NULL, true);
+                                 NULL, NULL, NULL, true);
         break;
     default:
         break;
@@ -163,7 +163,7 @@ static ssize_t filter_redirector_receive_iov(NetFilterState *nf,
     MirrorState *s = FILTER_REDIRECTOR(nf);
     int ret;
 
-    if (qemu_chr_fe_get_driver(&s->chr_out)) {
+    if (qemu_chr_fe_backend_connected(&s->chr_out)) {
         ret = filter_send(&s->chr_out, iov, iovcnt);
         if (ret) {
             error_report("filter redirector send failed(%s)", strerror(-ret));
@@ -245,7 +245,7 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
 
         qemu_chr_fe_set_handlers(&s->chr_in, redirector_chr_can_read,
                                  redirector_chr_read, redirector_chr_event,
-                                 nf, NULL, true);
+                                 NULL, nf, NULL, true);
     }
 
     if (s->outdev) {

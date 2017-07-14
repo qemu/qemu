@@ -764,7 +764,7 @@ ObjectClass *object_get_class(Object *obj);
  *
  * Returns: The QOM typename of @obj.
  */
-const char *object_get_typename(Object *obj);
+const char *object_get_typename(const Object *obj);
 
 /**
  * type_register_static:
@@ -1319,7 +1319,7 @@ typedef enum {
  * callback function.  It allows the link property to be set and never returns
  * an error.
  */
-void object_property_allow_set_link(Object *, const char *,
+void object_property_allow_set_link(const Object *, const char *,
                                     Object *, Error **);
 
 /**
@@ -1352,7 +1352,7 @@ void object_property_allow_set_link(Object *, const char *,
  */
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
-                              void (*check)(Object *obj, const char *name,
+                              void (*check)(const Object *obj, const char *name,
                                             Object *val, Error **errp),
                               ObjectPropertyLinkFlags flags,
                               Error **errp);

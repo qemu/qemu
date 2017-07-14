@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016 Red Hat, Inc.
+ *  Copyright (C) 2016-2017 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -83,18 +83,37 @@ typedef struct NBDReply NBDReply;
 #define NBD_FLAG_C_FIXED_NEWSTYLE (1 << 0) /* Fixed newstyle protocol. */
 #define NBD_FLAG_C_NO_ZEROES      (1 << 1) /* End handshake without zeroes. */
 
-/* Reply types. */
+/* Option requests. */
+#define NBD_OPT_EXPORT_NAME      (1)
+#define NBD_OPT_ABORT            (2)
+#define NBD_OPT_LIST             (3)
+/* #define NBD_OPT_PEEK_EXPORT   (4) not in use */
+#define NBD_OPT_STARTTLS         (5)
+#define NBD_OPT_INFO             (6)
+#define NBD_OPT_GO               (7)
+#define NBD_OPT_STRUCTURED_REPLY (8)
+
+/* Option reply types. */
 #define NBD_REP_ERR(value) ((UINT32_C(1) << 31) | (value))
 
 #define NBD_REP_ACK             (1)             /* Data sending finished. */
 #define NBD_REP_SERVER          (2)             /* Export description. */
+#define NBD_REP_INFO            (3)             /* NBD_OPT_INFO/GO. */
 
-#define NBD_REP_ERR_UNSUP       NBD_REP_ERR(1)  /* Unknown option */
-#define NBD_REP_ERR_POLICY      NBD_REP_ERR(2)  /* Server denied */
-#define NBD_REP_ERR_INVALID     NBD_REP_ERR(3)  /* Invalid length */
-#define NBD_REP_ERR_PLATFORM    NBD_REP_ERR(4)  /* Not compiled in */
-#define NBD_REP_ERR_TLS_REQD    NBD_REP_ERR(5)  /* TLS required */
-#define NBD_REP_ERR_SHUTDOWN    NBD_REP_ERR(7)  /* Server shutting down */
+#define NBD_REP_ERR_UNSUP           NBD_REP_ERR(1)  /* Unknown option */
+#define NBD_REP_ERR_POLICY          NBD_REP_ERR(2)  /* Server denied */
+#define NBD_REP_ERR_INVALID         NBD_REP_ERR(3)  /* Invalid length */
+#define NBD_REP_ERR_PLATFORM        NBD_REP_ERR(4)  /* Not compiled in */
+#define NBD_REP_ERR_TLS_REQD        NBD_REP_ERR(5)  /* TLS required */
+#define NBD_REP_ERR_UNKNOWN         NBD_REP_ERR(6)  /* Export unknown */
+#define NBD_REP_ERR_SHUTDOWN        NBD_REP_ERR(7)  /* Server shutting down */
+#define NBD_REP_ERR_BLOCK_SIZE_REQD NBD_REP_ERR(8)  /* Need INFO_BLOCK_SIZE */
+
+/* Info types, used during NBD_REP_INFO */
+#define NBD_INFO_EXPORT         0
+#define NBD_INFO_NAME           1
+#define NBD_INFO_DESCRIPTION    2
+#define NBD_INFO_BLOCK_SIZE     3
 
 /* Request flags, sent from client to server during transmission phase */
 #define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
@@ -123,13 +142,26 @@ enum {
  * aren't overflowing some other buffer. */
 #define NBD_MAX_NAME_SIZE 256
 
+/* Details collected by NBD_OPT_EXPORT_NAME and NBD_OPT_GO */
+struct NBDExportInfo {
+    /* Set by client before nbd_receive_negotiate() */
+    bool request_sizes;
+    /* Set by server results during nbd_receive_negotiate() */
+    uint64_t size;
+    uint16_t flags;
+    uint32_t min_block;
+    uint32_t opt_block;
+    uint32_t max_block;
+};
+typedef struct NBDExportInfo NBDExportInfo;
+
 ssize_t nbd_rwv(QIOChannel *ioc, struct iovec *iov, size_t niov, size_t length,
                 bool do_read, Error **errp);
-int nbd_receive_negotiate(QIOChannel *ioc, const char *name, uint16_t *flags,
+int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
-                          QIOChannel **outioc,
-                          off_t *size, Error **errp);
-int nbd_init(int fd, QIOChannelSocket *sioc, uint16_t flags, off_t size,
+                          QIOChannel **outioc, NBDExportInfo *info,
+                          Error **errp);
+int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info,
              Error **errp);
 ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request);
 ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp);

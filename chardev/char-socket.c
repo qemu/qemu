@@ -454,7 +454,9 @@ static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
         return 0;
     }
 
+    qio_channel_set_blocking(s->ioc, true, NULL);
     size = tcp_chr_recv(chr, (void *) buf, len);
+    qio_channel_set_blocking(s->ioc, false, NULL);
     if (size == 0) {
         /* connection closed */
         tcp_chr_disconnect(chr);
