@@ -282,9 +282,9 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
                 continue;       /* claimed */
             }
             if (!dinfo->is_default) {
-                error_report("warning: bus=%d,unit=%d is deprecated with this"
-                             " machine type",
-                             bus->busnr, unit);
+                warn_report("bus=%d,unit=%d is deprecated with this"
+                            " machine type",
+                            bus->busnr, unit);
             }
         }
         scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),

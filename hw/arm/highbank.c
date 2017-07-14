@@ -383,9 +383,9 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         highbank_binfo.write_board_setup = hb_write_board_setup;
         highbank_binfo.secure_board_setup = true;
     } else {
-        error_report("WARNING: cannot load built-in Monitor support "
-                     "if KVM is enabled. Some guests (such as Linux) "
-                     "may not boot.");
+        warn_report("cannot load built-in Monitor support "
+                    "if KVM is enabled. Some guests (such as Linux) "
+                    "may not boot.");
     }
 
     arm_load_kernel(ARM_CPU(first_cpu), &highbank_binfo);

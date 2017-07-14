@@ -534,13 +534,13 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop_cell(fdt, offset, "d-cache-size",
                                pcc->l1_dcache_size)));
     } else {
-        error_report("Warning: Unknown L1 dcache size for cpu");
+        warn_report("Unknown L1 dcache size for cpu");
     }
     if (pcc->l1_icache_size) {
         _FDT((fdt_setprop_cell(fdt, offset, "i-cache-size",
                                pcc->l1_icache_size)));
     } else {
-        error_report("Warning: Unknown L1 icache size for cpu");
+        warn_report("Unknown L1 icache size for cpu");
     }
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));

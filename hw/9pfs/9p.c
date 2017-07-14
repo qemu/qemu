@@ -2376,7 +2376,7 @@ static void coroutine_fn v9fs_flush(void *opaque)
     trace_v9fs_flush(pdu->tag, pdu->id, tag);
 
     if (pdu->tag == tag) {
-        error_report("Warning: the guest sent a self-referencing 9P flush request");
+        warn_report("the guest sent a self-referencing 9P flush request");
     } else {
         QLIST_FOREACH(cancel_pdu, &s->active_list, next) {
             if (cancel_pdu->tag == tag) {

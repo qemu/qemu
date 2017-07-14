@@ -131,10 +131,10 @@ static void pc_init1(MachineState *machine,
                     lowmem = 0xc0000000;
                 }
                 if (lowmem & ((1ULL << 30) - 1)) {
-                    error_report("Warning: Large machine and max_ram_below_4g "
-                                 "(%" PRIu64 ") not a multiple of 1G; "
-                                 "possible bad performance.",
-                                 pcms->max_ram_below_4g);
+                    warn_report("Large machine and max_ram_below_4g "
+                                "(%" PRIu64 ") not a multiple of 1G; "
+                                "possible bad performance.",
+                                pcms->max_ram_below_4g);
                 }
             }
         }

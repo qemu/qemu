@@ -639,12 +639,12 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     ret = bdrv_get_info(target, &bdi);
     if (ret == -ENOTSUP && !target->backing) {
         /* Cluster size is not defined */
-        error_report("WARNING: The target block device doesn't provide "
-                     "information about the block size and it doesn't have a "
-                     "backing file. The default block size of %u bytes is "
-                     "used. If the actual block size of the target exceeds "
-                     "this default, the backup may be unusable",
-                     BACKUP_CLUSTER_SIZE_DEFAULT);
+        warn_report("The target block device doesn't provide "
+                    "information about the block size and it doesn't have a "
+                    "backing file. The default block size of %u bytes is "
+                    "used. If the actual block size of the target exceeds "
+                    "this default, the backup may be unusable",
+                    BACKUP_CLUSTER_SIZE_DEFAULT);
         job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
     } else if (ret < 0 && !target->backing) {
         error_setg_errno(errp, -ret,

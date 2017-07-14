@@ -910,7 +910,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     copy_on_read = qemu_opt_get_bool(legacy_opts, "copy-on-read", false);
 
     if (read_only && copy_on_read) {
-        error_report("warning: disabling copy-on-read on read-only drive");
+        warn_report("disabling copy-on-read on read-only drive");
         copy_on_read = false;
     }
 

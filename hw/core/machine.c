@@ -741,11 +741,11 @@ static void machine_numa_finish_init(MachineState *machine)
         }
     }
     if (s->len && !qtest_enabled()) {
-        error_report("warning: CPU(s) not present in any NUMA nodes: %s",
-                     s->str);
-        error_report("warning: All CPU(s) up to maxcpus should be described "
-                     "in NUMA config, ability to start up with partial NUMA "
-                     "mappings is obsoleted and will be removed in future");
+        warn_report("CPU(s) not present in any NUMA nodes: %s",
+                    s->str);
+        warn_report("All CPU(s) up to maxcpus should be described "
+                    "in NUMA config, ability to start up with partial NUMA "
+                    "mappings is obsoleted and will be removed in future");
     }
     g_string_free(s, true);
 }

@@ -781,7 +781,7 @@ static int get_fw_cfg_order(FWCfgState *s, const char *name)
     }
 
     /* Stick unknown stuff at the end. */
-    error_report("warning: Unknown firmware file in legacy mode: %s", name);
+    warn_report("Unknown firmware file in legacy mode: %s", name);
     return FW_CFG_ORDER_OVERRIDE_LAST;
 }
 

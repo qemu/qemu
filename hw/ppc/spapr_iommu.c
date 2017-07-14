@@ -334,7 +334,7 @@ void spapr_tce_table_enable(sPAPRTCETable *tcet,
                             uint32_t nb_table)
 {
     if (tcet->nb_table) {
-        error_report("Warning: trying to enable already enabled TCE table");
+        warn_report("trying to enable already enabled TCE table");
         return;
     }
 

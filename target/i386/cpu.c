@@ -2060,15 +2060,15 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         name = featurestr;
 
         if (g_list_find_custom(plus_features, name, compare_string)) {
-            error_report("warning: Ambiguous CPU model string. "
-                         "Don't mix both \"+%s\" and \"%s=%s\"",
-                         name, name, val);
+            warn_report("Ambiguous CPU model string. "
+                        "Don't mix both \"+%s\" and \"%s=%s\"",
+                        name, name, val);
             ambiguous = true;
         }
         if (g_list_find_custom(minus_features, name, compare_string)) {
-            error_report("warning: Ambiguous CPU model string. "
-                         "Don't mix both \"-%s\" and \"%s=%s\"",
-                         name, name, val);
+            warn_report("Ambiguous CPU model string. "
+                        "Don't mix both \"-%s\" and \"%s=%s\"",
+                        name, name, val);
             ambiguous = true;
         }
 
@@ -2096,8 +2096,8 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     }
 
     if (ambiguous) {
-        error_report("warning: Compatibility of ambiguous CPU model "
-                     "strings won't be kept on future QEMU versions");
+        warn_report("Compatibility of ambiguous CPU model "
+                    "strings won't be kept on future QEMU versions");
     }
 }
 
@@ -3547,9 +3547,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
              */
             if (cpu->phys_bits != host_phys_bits && cpu->phys_bits != 0 &&
                 !warned) {
-                error_report("Warning: Host physical bits (%u)"
-                                 " does not match phys-bits property (%u)",
-                                 host_phys_bits, cpu->phys_bits);
+                warn_report("Host physical bits (%u)"
+                            " does not match phys-bits property (%u)",
+                            host_phys_bits, cpu->phys_bits);
                 warned = true;
             }
 

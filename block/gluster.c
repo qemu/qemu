@@ -345,8 +345,7 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
         is_unix = true;
     } else if (!strcmp(uri->scheme, "gluster+rdma")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_INET;
-        error_report("Warning: rdma feature is not supported, falling "
-                     "back to tcp");
+        warn_report("rdma feature is not supported, falling back to tcp");
     } else {
         ret = -EINVAL;
         goto out;

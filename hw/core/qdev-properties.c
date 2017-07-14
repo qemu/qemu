@@ -1132,15 +1132,15 @@ int qdev_prop_check_globals(void)
         oc = object_class_by_name(prop->driver);
         oc = object_class_dynamic_cast(oc, TYPE_DEVICE);
         if (!oc) {
-            error_report("Warning: global %s.%s has invalid class name",
-                       prop->driver, prop->property);
+            warn_report("global %s.%s has invalid class name",
+                        prop->driver, prop->property);
             ret = 1;
             continue;
         }
         dc = DEVICE_CLASS(oc);
         if (!dc->hotpluggable && !prop->used) {
-            error_report("Warning: global %s.%s=%s not used",
-                       prop->driver, prop->property, prop->value);
+            warn_report("global %s.%s=%s not used",
+                        prop->driver, prop->property, prop->value);
             ret = 1;
             continue;
         }
@@ -1169,7 +1169,7 @@ static void qdev_prop_set_globals_for_type(DeviceState *dev,
                 error_propagate(prop->errp, err);
             } else {
                 assert(prop->user_provided);
-                error_reportf_err(err, "Warning: ");
+                warn_report_err(err);
             }
         }
     }
