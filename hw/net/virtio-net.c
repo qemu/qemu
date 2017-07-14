@@ -758,6 +758,8 @@ static int virtio_net_handle_offloads(VirtIONet *n, uint8_t cmd,
     if (cmd == VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET) {
         uint64_t supported_offloads;
 
+        offloads = virtio_ldq_p(vdev, &offloads);
+
         if (!n->has_vnet_hdr) {
             return VIRTIO_NET_ERR;
         }
