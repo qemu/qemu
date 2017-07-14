@@ -24,6 +24,7 @@
 #endif
 
 #define AFALG_TYPE_CIPHER "skcipher"
+#define AFALG_TYPE_HASH "hash"
 
 #define ALG_OPTYPE_LEN 4
 #define ALG_MSGIV_LEN(len) (sizeof(struct af_alg_iv) + (len))
