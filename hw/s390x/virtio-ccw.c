@@ -1594,9 +1594,6 @@ static void virtio_ccw_crypto_instance_init(Object *obj)
     ccw_dev->force_revision_1 = true;
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_CRYPTO);
-
-    object_property_add_alias(obj, "cryptodev", OBJECT(&dev->vdev),
-                              "cryptodev", &error_abort);
 }
 
 static void virtio_ccw_crypto_class_init(ObjectClass *klass, void *data)
