@@ -1966,7 +1966,11 @@ static ExitStatus op_cdsg(DisasContext *s, DisasOps *o)
     addr = get_address(s, 0, b2, d2);
     t_r1 = tcg_const_i32(r1);
     t_r3 = tcg_const_i32(r3);
-    gen_helper_cdsg(cpu_env, addr, t_r1, t_r3);
+    if (tb_cflags(s->tb) & CF_PARALLEL) {
+        gen_helper_cdsg_parallel(cpu_env, addr, t_r1, t_r3);
+    } else {
+        gen_helper_cdsg(cpu_env, addr, t_r1, t_r3);
+    }
     tcg_temp_free_i64(addr);
     tcg_temp_free_i32(t_r1);
     tcg_temp_free_i32(t_r3);
@@ -1980,7 +1984,11 @@ static ExitStatus op_csst(DisasContext *s, DisasOps *o)
     int r3 = get_field(s->fields, r3);
     TCGv_i32 t_r3 = tcg_const_i32(r3);
 
-    gen_helper_csst(cc_op, cpu_env, t_r3, o->in1, o->in2);
+    if (tb_cflags(s->tb) & CF_PARALLEL) {
+        gen_helper_csst_parallel(cc_op, cpu_env, t_r3, o->in1, o->in2);
+    } else {
+        gen_helper_csst(cc_op, cpu_env, t_r3, o->in1, o->in2);
+    }
     tcg_temp_free_i32(t_r3);
 
     set_cc_static(s);
@@ -2939,7 +2947,7 @@ static ExitStatus op_lpd(DisasContext *s, DisasOps *o)
     TCGMemOp mop = s->insn->data;
 
     /* In a parallel context, stop the world and single step.  */
-    if (parallel_cpus) {
+    if (tb_cflags(s->tb) & CF_PARALLEL) {
         potential_page_fault(s);
         gen_exception(EXCP_ATOMIC);
         return EXIT_NORETURN;
@@ -2960,7 +2968,11 @@ static ExitStatus op_lpd(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_lpq(DisasContext *s, DisasOps *o)
 {
-    gen_helper_lpq(o->out, cpu_env, o->in2);
+    if (tb_cflags(s->tb) & CF_PARALLEL) {
+        gen_helper_lpq_parallel(o->out, cpu_env, o->in2);
+    } else {
+        gen_helper_lpq(o->out, cpu_env, o->in2);
+    }
     return_low128(o->out2);
     return NO_EXIT;
 }
@@ -4281,7 +4293,11 @@ static ExitStatus op_stmh(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_stpq(DisasContext *s, DisasOps *o)
 {
-    gen_helper_stpq(cpu_env, o->in2, o->out2, o->out);
+    if (tb_cflags(s->tb) & CF_PARALLEL) {
+        gen_helper_stpq_parallel(cpu_env, o->in2, o->out2, o->out);
+    } else {
+        gen_helper_stpq(cpu_env, o->in2, o->out2, o->out);
+    }
     return NO_EXIT;
 }
 
