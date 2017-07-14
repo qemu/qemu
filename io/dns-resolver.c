@@ -116,8 +116,10 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
             .numeric = true,
             .has_to = iaddr->has_to,
             .to = iaddr->to,
-            .has_ipv4 = false,
-            .has_ipv6 = false,
+            .has_ipv4 = iaddr->has_ipv4,
+            .ipv4 = iaddr->ipv4,
+            .has_ipv6 = iaddr->has_ipv6,
+            .ipv6 = iaddr->ipv6,
         };
 
         (*addrs)[i] = newaddr;
