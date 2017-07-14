@@ -15,6 +15,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/uuid.h"
 #include "hw/acpi/acpi-defs.h"
+#include "boot-sector.h"
 #include "acpi-utils.h"
 #include "libqtest.h"
 
@@ -23,8 +24,6 @@
                                   * OVMF SDT Header Probe Supressor
                                   */
 #define RSDP_ADDR_INVALID 0x100000 /* RSDP must be below this address */
-#define RSDP_SLEEP_US     100000   /* Sleep for 100ms between tries */
-#define RSDP_TRIES_MAX    100      /* Max total time is 10 seconds */
 
 typedef struct {
     AcpiTableHeader header;
@@ -47,14 +46,12 @@ static uint32_t acpi_find_vgia(void)
     VgidTable vgid_table;
     int i;
 
-    /* Tables may take a short time to be set up by the guest */
-    for (i = 0; i < RSDP_TRIES_MAX; i++) {
-        rsdp_offset = acpi_find_rsdp_address();
-        if (rsdp_offset < RSDP_ADDR_INVALID) {
-            break;
-        }
-        g_usleep(RSDP_SLEEP_US);
-    }
+    /* Wait for guest firmware to finish and start the payload. */
+    boot_sector_test();
+
+    /* Tables should be initialized now. */
+    rsdp_offset = acpi_find_rsdp_address();
+
     g_assert_cmphex(rsdp_offset, <, RSDP_ADDR_INVALID);
 
     acpi_parse_rsdp_table(rsdp_offset, &rsdp_table);
@@ -131,6 +128,18 @@ static void read_guid_from_monitor(QemuUUID *guid)
     QDECREF(rsp);
 }
 
+static char disk[] = "tests/vmgenid-test-disk-XXXXXX";
+
+static char *guid_cmd_strdup(const char *guid)
+{
+    return g_strdup_printf("-machine accel=tcg "
+                           "-device vmgenid,id=testvgid,guid=%s "
+                           "-drive id=hd0,if=none,file=%s,format=raw "
+                           "-device ide-hd,drive=hd0 ",
+                           guid, disk);
+}
+
+
 static void vmgenid_set_guid_test(void)
 {
     QemuUUID expected, measured;
@@ -138,8 +147,7 @@ static void vmgenid_set_guid_test(void)
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    cmd = g_strdup_printf("-machine accel=tcg -device vmgenid,id=testvgid,"
-                          "guid=%s", VGID_GUID);
+    cmd = guid_cmd_strdup(VGID_GUID);
     qtest_start(cmd);
 
     /* Read the GUID from accessing guest memory */
@@ -152,10 +160,10 @@ static void vmgenid_set_guid_test(void)
 
 static void vmgenid_set_guid_auto_test(void)
 {
-    const char *cmd;
+    char *cmd;
     QemuUUID measured;
 
-    cmd = "-machine accel=tcg -device vmgenid,id=testvgid," "guid=auto";
+    cmd = guid_cmd_strdup("auto");
     qtest_start(cmd);
 
     read_guid_from_memory(&measured);
@@ -164,6 +172,7 @@ static void vmgenid_set_guid_auto_test(void)
     g_assert(!qemu_uuid_is_null(&measured));
 
     qtest_quit(global_qtest);
+    g_free(cmd);
 }
 
 static void vmgenid_query_monitor_test(void)
@@ -173,8 +182,7 @@ static void vmgenid_query_monitor_test(void)
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    cmd = g_strdup_printf("-machine accel=tcg -device vmgenid,id=testvgid,"
-                          "guid=%s", VGID_GUID);
+    cmd = guid_cmd_strdup(VGID_GUID);
     qtest_start(cmd);
 
     /* Read the GUID via the monitor */
@@ -189,6 +197,11 @@ int main(int argc, char **argv)
 {
     int ret;
 
+    ret = boot_sector_init(disk);
+    if (ret) {
+        return ret;
+    }
+
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/vmgenid/vmgenid/set-guid",
@@ -198,6 +211,7 @@ int main(int argc, char **argv)
     qtest_add_func("/vmgenid/vmgenid/query-monitor",
                    vmgenid_query_monitor_test);
     ret = g_test_run();
+    boot_sector_cleanup(disk);
 
     return ret;
 }
