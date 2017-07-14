@@ -936,6 +936,60 @@ static void test_qga_guest_exec_invalid(gconstpointer fix)
     QDECREF(ret);
 }
 
+static void test_qga_guest_get_osinfo(gconstpointer data)
+{
+    TestFixture fixture;
+    const gchar *str;
+    gchar *cwd, *env[2];
+    QDict *ret, *val;
+
+    cwd = g_get_current_dir();
+    env[0] = g_strdup_printf(
+        "QGA_OS_RELEASE=%s%ctests%cdata%ctest-qga-os-release",
+        cwd, G_DIR_SEPARATOR, G_DIR_SEPARATOR, G_DIR_SEPARATOR);
+    env[1] = NULL;
+    g_free(cwd);
+    fixture_setup(&fixture, NULL, env);
+
+    ret = qmp_fd(fixture.fd, "{'execute': 'guest-get-osinfo'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    val = qdict_get_qdict(ret, "return");
+
+    str = qdict_get_try_str(val, "id");
+    g_assert_nonnull(str);
+    g_assert_cmpstr(str, ==, "qemu-ga-test");
+
+    str = qdict_get_try_str(val, "name");
+    g_assert_nonnull(str);
+    g_assert_cmpstr(str, ==, "QEMU-GA");
+
+    str = qdict_get_try_str(val, "pretty-name");
+    g_assert_nonnull(str);
+    g_assert_cmpstr(str, ==, "QEMU Guest Agent test");
+
+    str = qdict_get_try_str(val, "version");
+    g_assert_nonnull(str);
+    g_assert_cmpstr(str, ==, "Test 1");
+
+    str = qdict_get_try_str(val, "version-id");
+    g_assert_nonnull(str);
+    g_assert_cmpstr(str, ==, "1");
+
+    str = qdict_get_try_str(val, "variant");
+    g_assert_nonnull(str);
+    g_assert_cmpstr(str, ==, "Unit test \"'$`\\ and \\\\ etc.");
+
+    str = qdict_get_try_str(val, "variant-id");
+    g_assert_nonnull(str);
+    g_assert_cmpstr(str, ==, "unit-test");
+
+    QDECREF(ret);
+    g_free(env[0]);
+    fixture_tear_down(&fixture, NULL);
+}
+
 int main(int argc, char **argv)
 {
     TestFixture fix;
@@ -972,6 +1026,8 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/guest-exec", &fix, test_qga_guest_exec);
     g_test_add_data_func("/qga/guest-exec-invalid", &fix,
                          test_qga_guest_exec_invalid);
+    g_test_add_data_func("/qga/guest-get-osinfo", &fix,
+                         test_qga_guest_get_osinfo);
 
     if (g_getenv("QGA_TEST_SIDE_EFFECTING")) {
         g_test_add_data_func("/qga/fsfreeze-and-thaw", &fix,
