@@ -49,11 +49,11 @@ bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg)
     return false;
 }
 
-QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
-                              const uint8_t *key, size_t nkey,
-                              Error **errp)
+static QCryptoHmacGlib *
+qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                     const uint8_t *key, size_t nkey,
+                     Error **errp)
 {
-    QCryptoHmac *hmac;
     QCryptoHmacGlib *ctx;
 
     if (!qcrypto_hmac_supports(alg)) {
@@ -61,9 +61,6 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
                    QCryptoHashAlgorithm_lookup[alg]);
         return NULL;
     }
-
-    hmac = g_new0(QCryptoHmac, 1);
-    hmac->alg = alg;
 
     ctx = g_new0(QCryptoHmacGlib, 1);
 
@@ -74,12 +71,10 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
         goto error;
     }
 
-    hmac->opaque = ctx;
-    return hmac;
+    return ctx;
 
 error:
     g_free(ctx);
-    g_free(hmac);
     return NULL;
 }
 
@@ -132,6 +127,25 @@ int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
     g_hmac_get_digest(ctx->ghmac, *result, resultlen);
 
     return 0;
+}
+
+QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
+                              const uint8_t *key, size_t nkey,
+                              Error **errp)
+{
+    QCryptoHmac *hmac;
+    QCryptoHmacGlib *ctx;
+
+    ctx = qcrypto_hmac_ctx_new(alg, key, nkey, errp);
+    if (!ctx) {
+        return NULL;
+    }
+
+    hmac = g_new0(QCryptoHmac, 1);
+    hmac->alg = alg;
+    hmac->opaque = ctx;
+
+    return hmac;
 }
 
 #else
