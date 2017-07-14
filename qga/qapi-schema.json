@@ -1126,3 +1126,68 @@
 ##
 { 'command': 'guest-get-timezone',
   'returns': 'GuestTimezone' }
+
+##
+# @GuestOSInfo:
+#
+# @kernel-release:
+#     * POSIX: release field returned by uname(2)
+#     * Windows: version number of the OS
+# @kernel-version:
+#     * POSIX: version field returned by uname(2)
+#     * Windows: build number of the OS
+# @machine:
+#     * POSIX: machine field returned by uname(2)
+#     * Windows: one of x86, x86_64, arm, ia64
+# @id:
+#     * POSIX: as defined by os-release(5)
+#     * Windows: contains string "mswindows"
+# @name:
+#     * POSIX: as defined by os-release(5)
+#     * Windows: contains string "Microsoft Windows"
+# @pretty-name:
+#     * POSIX: as defined by os-release(5)
+#     * Windows: product name, e.g. "Microsoft Windows 10 Enterprise"
+# @version:
+#     * POSIX: as defined by os-release(5)
+#     * Windows: long version string, e.g. "Microsoft Windows Server 2008"
+# @version-id:
+#     * POSIX: as defined by os-release(5)
+#     * Windows: short version identifier, e.g. "7" or "20012r2"
+# @variant:
+#     * POSIX: as defined by os-release(5)
+#     * Windows: contains string "server" or "client"
+# @variant-id:
+#     * POSIX: as defined by os-release(5)
+#     * Windows: contains string "server" or "client"
+#
+# Notes:
+#
+# On POSIX systems the fields @id, @name, @pretty-name, @version, @version-id,
+# @variant and @variant-id follow the definition specified in os-release(5).
+# Refer to the manual page for exact description of the fields. Their values
+# are taken from the os-release file. If the file is not present in the system,
+# or the values are not present in the file, the fields are not included.
+#
+# On Windows the values are filled from information gathered from the system.
+#
+# Since: 2.10
+##
+{ 'struct': 'GuestOSInfo',
+  'data': {
+      '*kernel-release': 'str', '*kernel-version': 'str',
+      '*machine': 'str', '*id': 'str', '*name': 'str',
+      '*pretty-name': 'str', '*version': 'str', '*version-id': 'str',
+      '*variant': 'str', '*variant-id': 'str' } }
+
+##
+# @guest-get-osinfo:
+#
+# Retrieve guest operating system information
+#
+# Returns: @GuestOSInfo
+#
+# Since: 2.10
+##
+{ 'command': 'guest-get-osinfo',
+  'returns': 'GuestOSInfo' }

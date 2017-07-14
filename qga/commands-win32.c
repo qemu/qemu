@@ -1642,3 +1642,194 @@ GuestUserList *qmp_guest_get_users(Error **err)
     return NULL;
 #endif
 }
+
+typedef struct _ga_matrix_lookup_t {
+    int major;
+    int minor;
+    char const *version;
+    char const *version_id;
+} ga_matrix_lookup_t;
+
+static ga_matrix_lookup_t const WIN_VERSION_MATRIX[2][8] = {
+    {
+        /* Desktop editions */
+        { 5, 0, "Microsoft Windows 2000",   "2000"},
+        { 5, 1, "Microsoft Windows XP",     "xp"},
+        { 6, 0, "Microsoft Windows Vista",  "vista"},
+        { 6, 1, "Microsoft Windows 7"       "7"},
+        { 6, 2, "Microsoft Windows 8",      "8"},
+        { 6, 3, "Microsoft Windows 8.1",    "8.1"},
+        {10, 0, "Microsoft Windows 10",     "10"},
+        { 0, 0, 0}
+    },{
+        /* Server editions */
+        { 5, 2, "Microsoft Windows Server 2003",        "2003"},
+        { 6, 0, "Microsoft Windows Server 2008",        "2008"},
+        { 6, 1, "Microsoft Windows Server 2008 R2",     "2008r2"},
+        { 6, 2, "Microsoft Windows Server 2012",        "2012"},
+        { 6, 3, "Microsoft Windows Server 2012 R2",     "2012r2"},
+        {10, 0, "Microsoft Windows Server 2016",        "2016"},
+        { 0, 0, 0},
+        { 0, 0, 0}
+    }
+};
+
+static void ga_get_win_version(RTL_OSVERSIONINFOEXW *info, Error **errp)
+{
+    typedef NTSTATUS(WINAPI * rtl_get_version_t)(
+        RTL_OSVERSIONINFOEXW *os_version_info_ex);
+
+    info->dwOSVersionInfoSize = sizeof(RTL_OSVERSIONINFOEXW);
+
+    HMODULE module = GetModuleHandle("ntdll");
+    PVOID fun = GetProcAddress(module, "RtlGetVersion");
+    if (fun == NULL) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
+            "Failed to get address of RtlGetVersion");
+        return;
+    }
+
+    rtl_get_version_t rtl_get_version = (rtl_get_version_t)fun;
+    rtl_get_version(info);
+    return;
+}
+
+static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version, bool id)
+{
+    DWORD major = os_version->dwMajorVersion;
+    DWORD minor = os_version->dwMinorVersion;
+    int tbl_idx = (os_version->wProductType != VER_NT_WORKSTATION);
+    ga_matrix_lookup_t const *table = WIN_VERSION_MATRIX[tbl_idx];
+    while (table->version != NULL) {
+        if (major == table->major && minor == table->minor) {
+            if (id) {
+                return g_strdup(table->version_id);
+            } else {
+                return g_strdup(table->version);
+            }
+        }
+        ++table;
+    }
+    slog("failed to lookup Windows version: major=%lu, minor=%lu",
+        major, minor);
+    return g_strdup("N/A");
+}
+
+static char *ga_get_win_product_name(Error **errp)
+{
+    HKEY key = NULL;
+    DWORD size = 128;
+    char *result = g_malloc0(size);
+    LONG err = ERROR_SUCCESS;
+
+    err = RegOpenKeyA(HKEY_LOCAL_MACHINE,
+                      "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                      &key);
+    if (err != ERROR_SUCCESS) {
+        error_setg_win32(errp, err, "failed to open registry key");
+        goto fail;
+    }
+
+    err = RegQueryValueExA(key, "ProductName", NULL, NULL,
+                            (LPBYTE)result, &size);
+    if (err == ERROR_MORE_DATA) {
+        slog("ProductName longer than expected (%lu bytes), retrying",
+                size);
+        g_free(result);
+        result = NULL;
+        if (size > 0) {
+            result = g_malloc0(size);
+            err = RegQueryValueExA(key, "ProductName", NULL, NULL,
+                                    (LPBYTE)result, &size);
+        }
+    }
+    if (err != ERROR_SUCCESS) {
+        error_setg_win32(errp, err, "failed to retrive ProductName");
+        goto fail;
+    }
+
+    return result;
+
+fail:
+    g_free(result);
+    return NULL;
+}
+
+static char *ga_get_current_arch(void)
+{
+    SYSTEM_INFO info;
+    GetNativeSystemInfo(&info);
+    char *result = NULL;
+    switch (info.wProcessorArchitecture) {
+    case PROCESSOR_ARCHITECTURE_AMD64:
+        result = g_strdup("x86_64");
+        break;
+    case PROCESSOR_ARCHITECTURE_ARM:
+        result = g_strdup("arm");
+        break;
+    case PROCESSOR_ARCHITECTURE_IA64:
+        result = g_strdup("ia64");
+        break;
+    case PROCESSOR_ARCHITECTURE_INTEL:
+        result = g_strdup("x86");
+        break;
+    case PROCESSOR_ARCHITECTURE_UNKNOWN:
+    default:
+        slog("unknown processor architecture 0x%0x",
+            info.wProcessorArchitecture);
+        result = g_strdup("unknown");
+        break;
+    }
+    return result;
+}
+
+GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
+{
+    Error *local_err = NULL;
+    OSVERSIONINFOEXW os_version = {0};
+    bool server;
+    char *product_name;
+    GuestOSInfo *info;
+
+    ga_get_win_version(&os_version, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    server = os_version.wProductType != VER_NT_WORKSTATION;
+    product_name = ga_get_win_product_name(&local_err);
+    if (product_name == NULL) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    info = g_new0(GuestOSInfo, 1);
+
+    info->has_kernel_version = true;
+    info->kernel_version = g_strdup_printf("%lu.%lu",
+        os_version.dwMajorVersion,
+        os_version.dwMinorVersion);
+    info->has_kernel_release = true;
+    info->kernel_release = g_strdup_printf("%lu",
+        os_version.dwBuildNumber);
+    info->has_machine = true;
+    info->machine = ga_get_current_arch();
+
+    info->has_id = true;
+    info->id = g_strdup("mswindows");
+    info->has_name = true;
+    info->name = g_strdup("Microsoft Windows");
+    info->has_pretty_name = true;
+    info->pretty_name = product_name;
+    info->has_version = true;
+    info->version = ga_get_win_name(&os_version, false);
+    info->has_version_id = true;
+    info->version_id = ga_get_win_name(&os_version, true);
+    info->has_variant = true;
+    info->variant = g_strdup(server ? "server" : "client");
+    info->has_variant_id = true;
+    info->variant_id = g_strdup(server ? "server" : "client");
+
+    return info;
+}
