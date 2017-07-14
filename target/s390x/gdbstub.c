@@ -286,6 +286,26 @@ static int cpu_write_virt_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
 }
 #endif
 
+/* the values represent the positions in s390-gs.xml */
+#define S390_GS_RESERVED_REGNUM 0
+#define S390_GS_GSD_REGNUM      1
+#define S390_GS_GSSM_REGNUM     2
+#define S390_GS_GSEPLA_REGNUM   3
+/* total number of registers in s390-gs.xml */
+#define S390_NUM_GS_REGS 4
+
+static int cpu_read_gs_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    return gdb_get_regl(mem_buf, env->gscb[n]);
+}
+
+static int cpu_write_gs_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    env->gscb[n] = ldtul_p(mem_buf);
+    cpu_synchronize_post_init(ENV_GET_CPU(env));
+    return 8;
+}
+
 void s390_cpu_gdb_init(CPUState *cs)
 {
     gdb_register_coprocessor(cs, cpu_read_ac_reg,
@@ -299,6 +319,10 @@ void s390_cpu_gdb_init(CPUState *cs)
     gdb_register_coprocessor(cs, cpu_read_vreg,
                              cpu_write_vreg,
                              S390_NUM_VREGS, "s390-vx.xml", 0);
+
+    gdb_register_coprocessor(cs, cpu_read_gs_reg,
+                             cpu_write_gs_reg,
+                             S390_NUM_GS_REGS, "s390-gs.xml", 0);
 
 #ifndef CONFIG_USER_ONLY
     gdb_register_coprocessor(cs, cpu_read_c_reg,

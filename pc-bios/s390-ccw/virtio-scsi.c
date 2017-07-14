@@ -9,6 +9,7 @@
  * directory.
  */
 
+#include "libc.h"
 #include "s390-ccw.h"
 #include "virtio.h"
 #include "scsi.h"

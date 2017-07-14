@@ -182,6 +182,33 @@
     S390_FEAT_MSA_EXT_5, \
     S390_FEAT_PPNO_SHA_512_DRNG
 
+#define S390_FEAT_GROUP_MSA_EXT_6 \
+    S390_FEAT_KIMD_SHA3_224, \
+    S390_FEAT_KIMD_SHA3_256, \
+    S390_FEAT_KIMD_SHA3_384, \
+    S390_FEAT_KIMD_SHA3_512, \
+    S390_FEAT_KIMD_SHAKE_128, \
+    S390_FEAT_KIMD_SHAKE_256, \
+    S390_FEAT_KLMD_SHA3_224, \
+    S390_FEAT_KLMD_SHA3_256, \
+    S390_FEAT_KLMD_SHA3_384, \
+    S390_FEAT_KLMD_SHA3_512, \
+    S390_FEAT_KLMD_SHAKE_128, \
+    S390_FEAT_KLMD_SHAKE_256
+
+#define S390_FEAT_GROUP_MSA_EXT_7 \
+    S390_FEAT_PRNO_TRNG_QRTCR, \
+    S390_FEAT_PRNO_TRNG
+
+#define S390_FEAT_GROUP_MSA_EXT_8 \
+    S390_FEAT_MSA_EXT_8, \
+    S390_FEAT_KMA_GCM_AES_128, \
+    S390_FEAT_KMA_GCM_AES_192, \
+    S390_FEAT_KMA_GCM_AES_256 , \
+    S390_FEAT_KMA_GCM_EAES_128, \
+    S390_FEAT_KMA_GCM_EAES_192, \
+    S390_FEAT_KMA_GCM_EAES_256
+
 /* cpu feature groups */
 static uint16_t group_PLO[] = {
     S390_FEAT_GROUP_PLO,
@@ -210,15 +237,30 @@ static uint16_t group_MSA_EXT_4[] = {
 static uint16_t group_MSA_EXT_5[] = {
     S390_FEAT_GROUP_MSA_EXT_5,
 };
+static uint16_t group_MSA_EXT_6[] = {
+    S390_FEAT_GROUP_MSA_EXT_6,
+};
+static uint16_t group_MSA_EXT_7[] = {
+    S390_FEAT_GROUP_MSA_EXT_7,
+};
+static uint16_t group_MSA_EXT_8[] = {
+    S390_FEAT_GROUP_MSA_EXT_8,
+};
 
-/* base features in order of release */
+/* Base features (in order of release)
+ * Only non-hypervisor managed features belong here.
+ * Base feature sets are static meaning they do not change in future QEMU
+ * releases.
+ */
 static uint16_t base_GEN7_GA1[] = {
     S390_FEAT_GROUP_PLO,
     S390_FEAT_ESAN3,
     S390_FEAT_ZARCH,
 };
+
 #define base_GEN7_GA2 EmptyFeat
 #define base_GEN7_GA3 EmptyFeat
+
 static uint16_t base_GEN8_GA1[] = {
     S390_FEAT_DAT_ENH,
     S390_FEAT_EXTENDED_TRANSLATION_2,
@@ -227,10 +269,12 @@ static uint16_t base_GEN8_GA1[] = {
     S390_FEAT_LONG_DISPLACEMENT_FAST,
     S390_FEAT_HFP_MADDSUB,
 };
+
 #define base_GEN8_GA2 EmptyFeat
 #define base_GEN8_GA3 EmptyFeat
 #define base_GEN8_GA4 EmptyFeat
 #define base_GEN8_GA5 EmptyFeat
+
 static uint16_t base_GEN9_GA1[] = {
     S390_FEAT_IDTE_SEGMENT,
     S390_FEAT_ASN_LX_REUSE,
@@ -245,8 +289,10 @@ static uint16_t base_GEN9_GA1[] = {
     S390_FEAT_ETF3_ENH,
     S390_FEAT_DAT_ENH_2,
 };
+
 #define base_GEN9_GA2 EmptyFeat
 #define base_GEN9_GA3 EmptyFeat
+
 static uint16_t base_GEN10_GA1[] = {
     S390_FEAT_CONDITIONAL_SSKE,
     S390_FEAT_PARSING_ENH,
@@ -263,6 +309,7 @@ static uint16_t base_GEN10_GA1[] = {
 };
 #define base_GEN10_GA2 EmptyFeat
 #define base_GEN10_GA3 EmptyFeat
+
 static uint16_t base_GEN11_GA1[] = {
     S390_FEAT_NONQ_KEY_SETTING,
     S390_FEAT_ENHANCED_MONITOR,
@@ -272,21 +319,30 @@ static uint16_t base_GEN11_GA1[] = {
     S390_FEAT_CMPSC_ENH,
     S390_FEAT_INTERLOCKED_ACCESS_2,
 };
+
 #define base_GEN11_GA2 EmptyFeat
+
 static uint16_t base_GEN12_GA1[] = {
     S390_FEAT_DFP_ZONED_CONVERSION,
     S390_FEAT_STFLE_49,
     S390_FEAT_LOCAL_TLB_CLEARING,
 };
+
 #define base_GEN12_GA2 EmptyFeat
+
 static uint16_t base_GEN13_GA1[] = {
     S390_FEAT_STFLE_53,
     S390_FEAT_DFP_PACKED_CONVERSION,
     S390_FEAT_GROUP_GEN13_PTFF,
 };
+
 #define base_GEN13_GA2 EmptyFeat
 
-/* full features differing to the base in order of release */
+/* Full features (in order of release)
+ * Automatically includes corresponding base features.
+ * Full features are all features this hardware supports even if kvm/QEMU do not
+ * support these features yet.
+ */
 static uint16_t full_GEN7_GA1[] = {
     S390_FEAT_SIE_F2,
     S390_FEAT_SIE_SKEY,
@@ -294,30 +350,38 @@ static uint16_t full_GEN7_GA1[] = {
     S390_FEAT_SIE_IB,
     S390_FEAT_SIE_CEI,
 };
+
 static uint16_t full_GEN7_GA2[] = {
     S390_FEAT_EXTENDED_TRANSLATION_2,
 };
+
 static uint16_t full_GEN7_GA3[] = {
     S390_FEAT_LONG_DISPLACEMENT,
     S390_FEAT_SIE_SIIF,
 };
+
 static uint16_t full_GEN8_GA1[] = {
     S390_FEAT_SIE_GSLS,
     S390_FEAT_SIE_64BSCAO,
 };
+
 #define full_GEN8_GA2 EmptyFeat
+
 static uint16_t full_GEN8_GA3[] = {
     S390_FEAT_ASN_LX_REUSE,
     S390_FEAT_EXTENDED_TRANSLATION_3,
 };
+
 #define full_GEN8_GA4 EmptyFeat
 #define full_GEN8_GA5 EmptyFeat
+
 static uint16_t full_GEN9_GA1[] = {
     S390_FEAT_STORE_HYPERVISOR_INFO,
     S390_FEAT_GROUP_MSA_EXT_1,
     S390_FEAT_CMM,
     S390_FEAT_SIE_CMMA,
 };
+
 static uint16_t full_GEN9_GA2[] = {
     S390_FEAT_MOVE_WITH_OPTIONAL_SPEC,
     S390_FEAT_EXTRACT_CPU_TIME,
@@ -325,10 +389,12 @@ static uint16_t full_GEN9_GA2[] = {
     S390_FEAT_FLOATING_POINT_SUPPPORT_ENH,
     S390_FEAT_DFP,
 };
+
 static uint16_t full_GEN9_GA3[] = {
     S390_FEAT_CONDITIONAL_SSKE,
     S390_FEAT_PFPO,
 };
+
 static uint16_t full_GEN10_GA1[] = {
     S390_FEAT_EDAT,
     S390_FEAT_CONFIGURATION_TOPOLOGY,
@@ -337,34 +403,50 @@ static uint16_t full_GEN10_GA1[] = {
     S390_FEAT_SIE_PFMFI,
     S390_FEAT_SIE_SIGPIF,
 };
+
 static uint16_t full_GEN10_GA2[] = {
     S390_FEAT_SET_PROGRAM_PARAMETERS,
     S390_FEAT_SIE_IBS,
 };
+
 static uint16_t full_GEN10_GA3[] = {
     S390_FEAT_GROUP_MSA_EXT_3,
 };
+
 static uint16_t full_GEN11_GA1[] = {
     S390_FEAT_IPTE_RANGE,
     S390_FEAT_ACCESS_EXCEPTION_FS_INDICATION,
     S390_FEAT_GROUP_MSA_EXT_4,
 };
+
 #define full_GEN11_GA2 EmptyFeat
+
 static uint16_t full_GEN12_GA1[] = {
     S390_FEAT_CONSTRAINT_TRANSACTIONAL_EXE,
     S390_FEAT_TRANSACTIONAL_EXE,
     S390_FEAT_RUNTIME_INSTRUMENTATION,
+    S390_FEAT_ZPCI,
+    S390_FEAT_ADAPTER_EVENT_NOTIFICATION,
+    S390_FEAT_ADAPTER_INT_SUPPRESSION,
     S390_FEAT_EDAT_2,
+    S390_FEAT_SIDE_EFFECT_ACCESS_ESOP2,
 };
+
 static uint16_t full_GEN12_GA2[] = {
     S390_FEAT_GROUP_MSA_EXT_5,
 };
+
 static uint16_t full_GEN13_GA1[] = {
     S390_FEAT_VECTOR,
 };
+
 #define full_GEN13_GA2 EmptyFeat
 
-/* default features differing to the base in order of release */
+/* Default features (in order of release)
+ * Automatically includes corresponding base features.
+ * Default features are all features this version of QEMU supports for this
+ * hardware model. Default feature sets can grow with new QEMU releases.
+ */
 #define default_GEN7_GA1 EmptyFeat
 #define default_GEN7_GA2 EmptyFeat
 #define default_GEN7_GA3 EmptyFeat
@@ -373,37 +455,51 @@ static uint16_t full_GEN13_GA1[] = {
 #define default_GEN8_GA3 EmptyFeat
 #define default_GEN8_GA4 EmptyFeat
 #define default_GEN8_GA5 EmptyFeat
+
 static uint16_t default_GEN9_GA1[] = {
     S390_FEAT_STORE_HYPERVISOR_INFO,
     S390_FEAT_GROUP_MSA_EXT_1,
     S390_FEAT_CMM,
 };
+
 #define default_GEN9_GA2 EmptyFeat
 #define default_GEN9_GA3 EmptyFeat
+
 static uint16_t default_GEN10_GA1[] = {
     S390_FEAT_EDAT,
     S390_FEAT_GROUP_MSA_EXT_2,
 };
+
 #define default_GEN10_GA2 EmptyFeat
 #define default_GEN10_GA3 EmptyFeat
+
 static uint16_t default_GEN11_GA1[] = {
     S390_FEAT_GROUP_MSA_EXT_3,
     S390_FEAT_IPTE_RANGE,
     S390_FEAT_ACCESS_EXCEPTION_FS_INDICATION,
     S390_FEAT_GROUP_MSA_EXT_4,
 };
+
 #define default_GEN11_GA2 EmptyFeat
+
 static uint16_t default_GEN12_GA1[] = {
     S390_FEAT_CONSTRAINT_TRANSACTIONAL_EXE,
     S390_FEAT_TRANSACTIONAL_EXE,
     S390_FEAT_RUNTIME_INSTRUMENTATION,
+    S390_FEAT_ZPCI,
+    S390_FEAT_ADAPTER_EVENT_NOTIFICATION,
     S390_FEAT_EDAT_2,
+    S390_FEAT_ESOP,
+    S390_FEAT_SIDE_EFFECT_ACCESS_ESOP2,
 };
+
 #define default_GEN12_GA2 EmptyFeat
+
 static uint16_t default_GEN13_GA1[] = {
     S390_FEAT_GROUP_MSA_EXT_5,
     S390_FEAT_VECTOR,
 };
+
 #define default_GEN13_GA2 EmptyFeat
 
 /****** END FEATURE DEFS ******/
@@ -491,6 +587,9 @@ static FeatGroupDefSpec FeatGroupDef[] = {
     FEAT_GROUP_INITIALIZER(MSA_EXT_3),
     FEAT_GROUP_INITIALIZER(MSA_EXT_4),
     FEAT_GROUP_INITIALIZER(MSA_EXT_5),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_6),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_7),
+    FEAT_GROUP_INITIALIZER(MSA_EXT_8),
 };
 
 static void set_bits(uint64_t list[], BitSpec bits)

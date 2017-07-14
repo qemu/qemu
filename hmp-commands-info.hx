@@ -777,6 +777,22 @@ STEXI
 Display the value of a storage key (s390 only)
 ETEXI
 
+#if defined(TARGET_S390X)
+    {
+        .name       = "cmma",
+        .args_type  = "addr:l,count:l?",
+        .params     = "address [count]",
+        .help       = "Display the values of the CMMA storage attributes for a range of pages",
+        .cmd        = hmp_info_cmma,
+    },
+#endif
+
+STEXI
+@item info cmma @var{address}
+@findex cmma
+Display the values of the CMMA storage attributes for a range of pages (s390 only)
+ETEXI
+
     {
         .name       = "dump",
         .args_type  = "",

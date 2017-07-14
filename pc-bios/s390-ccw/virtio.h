@@ -11,8 +11,6 @@
 #ifndef VIRTIO_H
 #define VIRTIO_H
 
-#include "s390-ccw.h"
-
 /* Status byte for guest to report progress, and synchronize features. */
 /* We have seen device and processed generic fields (VIRTIO_CONFIG_F_VIRTIO) */
 #define VIRTIO_CONFIG_S_ACKNOWLEDGE     1
@@ -32,24 +30,6 @@ enum VirtioDevType {
 };
 typedef enum VirtioDevType VirtioDevType;
 
-struct VirtioDevHeader {
-    VirtioDevType type:8;
-    uint8_t num_vq;
-    uint8_t feature_len;
-    uint8_t config_len;
-    uint8_t status;
-    uint8_t vqconfig[];
-} __attribute__((packed));
-typedef struct VirtioDevHeader VirtioDevHeader;
-
-struct VirtioVqConfig {
-    uint64_t token;
-    uint64_t address;
-    uint16_t num;
-    uint8_t pad[6];
-} __attribute__((packed));
-typedef struct VirtioVqConfig VirtioVqConfig;
-
 struct VqInfo {
     uint64_t queue;
     uint32_t align;
@@ -63,15 +43,6 @@ struct VqConfig {
     uint16_t num;
 } __attribute__((packed));
 typedef struct VqConfig VqConfig;
-
-struct VirtioDev {
-    VirtioDevHeader *header;
-    VirtioVqConfig *vqconfig;
-    char *host_features;
-    char *guest_features;
-    char *config;
-};
-typedef struct VirtioDev VirtioDev;
 
 #define VIRTIO_RING_SIZE            (PAGE_SIZE * 8)
 #define VIRTIO_MAX_VQS              3
@@ -254,6 +225,13 @@ struct ScsiDevice {
 };
 typedef struct ScsiDevice ScsiDevice;
 
+struct VirtioNetConfig {
+    uint8_t mac[6];
+    /* uint16_t status; */               /* Only with VIRTIO_NET_F_STATUS */
+    /* uint16_t max_virtqueue_pairs; */  /* Only with VIRTIO_NET_F_MQ */
+};
+typedef struct VirtioNetConfig VirtioNetConfig;
+
 struct VDev {
     int nr_vqs;
     VRing *vrings;
@@ -266,6 +244,7 @@ struct VDev {
     union {
         VirtioBlkConfig blk;
         VirtioScsiConfig scsi;
+        VirtioNetConfig net;
     } config;
     ScsiDevice *scsi_device;
     bool is_cdrom;
@@ -278,6 +257,7 @@ struct VDev {
     ScsiDevice selected_scsi_device;
     uint64_t netboot_start_addr;
     uint32_t max_transfer;
+    uint32_t guest_features[2];
 };
 typedef struct VDev VDev;
 
@@ -291,6 +271,14 @@ struct VirtioCmd {
 };
 typedef struct VirtioCmd VirtioCmd;
 
+bool vring_notify(VRing *vr);
+int drain_irqs(SubChannelId schid);
+void vring_send_buf(VRing *vr, void *p, int len, int flags);
+int vr_poll(VRing *vr);
+int vring_wait_reply(void);
 int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd);
+void virtio_setup_ccw(VDev *vdev);
+
+int virtio_net_init(void *mac_addr);
 
 #endif /* VIRTIO_H */

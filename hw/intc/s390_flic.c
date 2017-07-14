@@ -13,8 +13,11 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
+#include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390_flic.h"
+#include "hw/s390x/css.h"
 #include "trace.h"
+#include "cpu.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
 #include "hw/s390x/s390-virtio-ccw.h"
@@ -48,7 +51,7 @@ void s390_flic_init(void)
 
 static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
                                          uint8_t isc, bool swap,
-                                         bool is_maskable)
+                                         bool is_maskable, uint8_t flags)
 {
     /* nothing to do */
     return 0;
@@ -79,15 +82,91 @@ static int qemu_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
     return -ENOSYS;
 }
 
+static int qemu_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
+                                     uint16_t mode)
+{
+    QEMUS390FLICState *flic  = QEMU_S390_FLIC(fs);
+
+    switch (mode) {
+    case SIC_IRQ_MODE_ALL:
+        flic->simm &= ~AIS_MODE_MASK(isc);
+        flic->nimm &= ~AIS_MODE_MASK(isc);
+        break;
+    case SIC_IRQ_MODE_SINGLE:
+        flic->simm |= AIS_MODE_MASK(isc);
+        flic->nimm &= ~AIS_MODE_MASK(isc);
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
+                                 uint8_t isc, uint8_t flags)
+{
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    bool flag = flags & S390_ADAPTER_SUPPRESSIBLE;
+    uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
+
+    if (flag && (flic->nimm & AIS_MODE_MASK(isc))) {
+        trace_qemu_s390_airq_suppressed(type, isc);
+        return 0;
+    }
+
+    s390_io_interrupt(0, 0, 0, io_int_word);
+
+    if (flag && (flic->simm & AIS_MODE_MASK(isc))) {
+        flic->nimm |= AIS_MODE_MASK(isc);
+        trace_qemu_s390_suppress_airq(isc, "Single-Interruption Mode",
+                                      "NO-Interruptions Mode");
+    }
+
+    return 0;
+}
+
+static void qemu_s390_flic_reset(DeviceState *dev)
+{
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(dev);
+
+    flic->simm = 0;
+    flic->nimm = 0;
+}
+
+bool ais_needed(void *opaque)
+{
+    S390FLICState *s = opaque;
+
+    return s->ais_supported;
+}
+
+static const VMStateDescription qemu_s390_flic_vmstate = {
+    .name = "qemu-s390-flic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ais_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(simm, QEMUS390FLICState),
+        VMSTATE_UINT8(nimm, QEMUS390FLICState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
 
+    dc->reset = qemu_s390_flic_reset;
+    dc->vmsd = &qemu_s390_flic_vmstate;
     fsc->register_io_adapter = qemu_s390_register_io_adapter;
     fsc->io_adapter_map = qemu_s390_io_adapter_map;
     fsc->add_adapter_routes = qemu_s390_add_adapter_routes;
     fsc->release_adapter_routes = qemu_s390_release_adapter_routes;
     fsc->clear_io_irq = qemu_s390_clear_io_flic;
+    fsc->modify_ais_mode = qemu_s390_modify_ais_mode;
+    fsc->inject_airq = qemu_s390_inject_airq;
 }
 
 static Property s390_flic_common_properties[] = {
@@ -98,12 +177,16 @@ static Property s390_flic_common_properties[] = {
 
 static void s390_flic_common_realize(DeviceState *dev, Error **errp)
 {
-    uint32_t max_batch = S390_FLIC_COMMON(dev)->adapter_routes_max_batch;
+    S390FLICState *fs = S390_FLIC_COMMON(dev);
+    uint32_t max_batch = fs->adapter_routes_max_batch;
 
     if (max_batch > ADAPTER_ROUTES_MAX_GSI) {
         error_setg(errp, "flic property adapter_routes_max_batch too big"
                    " (%d > %d)", max_batch, ADAPTER_ROUTES_MAX_GSI);
+        return;
     }
+
+    fs->ais_supported = s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION);
 }
 
 static void s390_flic_class_init(ObjectClass *oc, void *data)
@@ -138,6 +221,22 @@ static void qemu_s390_flic_register_types(void)
 
 type_init(qemu_s390_flic_register_types)
 
+static bool adapter_info_so_needed(void *opaque)
+{
+    return css_migration_enabled();
+}
+
+const VMStateDescription vmstate_adapter_info_so = {
+    .name = "s390_adapter_info/summary_offset",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = adapter_info_so_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(summary_offset, AdapterInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_adapter_info = {
     .name = "s390_adapter_info",
     .version_id = 1,
@@ -151,6 +250,10 @@ const VMStateDescription vmstate_adapter_info = {
          */
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_adapter_info_so,
+        NULL
+    }
 };
 
 const VMStateDescription vmstate_adapter_routes = {

@@ -12,6 +12,7 @@
 #ifndef CSS_H
 #define CSS_H
 
+#include "cpu.h"
 #include "hw/s390x/adapter.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/ioinst.h"
@@ -89,10 +90,11 @@ struct SubchDev {
     bool thinint_active;
     uint8_t ccw_no_data_cnt;
     uint16_t migrated_schid; /* used for missmatch detection */
+    ORB orb;
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
-    int (*do_subchannel_work) (SubchDev *, ORB *);
+    int (*do_subchannel_work) (SubchDev *);
     SenseId id;
     void *driver_data;
 };
@@ -154,10 +156,9 @@ void css_generate_sch_crws(uint8_t cssid, uint8_t ssid, uint16_t schid,
 void css_generate_chp_crws(uint8_t cssid, uint8_t chpid);
 void css_generate_css_crws(uint8_t cssid);
 void css_clear_sei_pending(void);
-void css_adapter_interrupt(uint8_t isc);
 int s390_ccw_cmd_request(ORB *orb, SCSW *scsw, void *data);
-int do_subchannel_work_virtual(SubchDev *sub, ORB *orb);
-int do_subchannel_work_passthrough(SubchDev *sub, ORB *orb);
+int do_subchannel_work_virtual(SubchDev *sub);
+int do_subchannel_work_passthrough(SubchDev *sub);
 
 typedef enum {
     CSS_IO_ADAPTER_VIRTIO = 0,
@@ -165,9 +166,17 @@ typedef enum {
     CSS_IO_ADAPTER_TYPE_NUMS,
 } CssIoAdapterType;
 
+void css_adapter_interrupt(CssIoAdapterType type, uint8_t isc);
+int css_do_sic(CPUS390XState *env, uint8_t isc, uint16_t mode);
 uint32_t css_get_adapter_id(CssIoAdapterType type, uint8_t isc);
 void css_register_io_adapters(CssIoAdapterType type, bool swap, bool maskable,
-                              Error **errp);
+                              uint8_t flags, Error **errp);
+
+#ifndef CONFIG_KVM
+#define S390_ADAPTER_SUPPRESSIBLE 0x01
+#else
+#define S390_ADAPTER_SUPPRESSIBLE KVM_S390_ADAPTER_SUPPRESSIBLE
+#endif
 
 #ifndef CONFIG_USER_ONLY
 SubchDev *css_find_subch(uint8_t m, uint8_t cssid, uint8_t ssid,
@@ -225,4 +234,8 @@ extern const PropertyInfo css_devid_ro_propinfo;
  */
 SubchDev *css_create_sch(CssDevId bus_id, bool is_virtual, bool squash_mcss,
                          Error **errp);
+
+/** Turn on css migration */
+void css_register_vmstate(void);
+
 #endif

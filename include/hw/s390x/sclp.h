@@ -123,8 +123,7 @@ typedef struct ReadInfo {
     uint64_t facilities;                /* 48-55 */
     uint8_t  _reserved0[76 - 56];       /* 56-75 */
     uint32_t ibc_val;
-    uint8_t  conf_char[96 - 80];        /* 80-95 */
-    uint8_t  _reserved4[99 - 96];       /* 96-98 */
+    uint8_t  conf_char[99 - 80];        /* 80-98 */
     uint8_t mha_pow;
     uint32_t rnsize2;
     uint64_t rnmax2;

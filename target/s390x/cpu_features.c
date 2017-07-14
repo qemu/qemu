@@ -59,6 +59,7 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("exrl", S390_FEAT_TYPE_STFL, 35, "Execute-extensions facility"),
     FEAT_INIT("emon", S390_FEAT_TYPE_STFL, 36, "Enhanced-monitor facility"),
     FEAT_INIT("fpe", S390_FEAT_TYPE_STFL, 37, "Floating-point extension facility"),
+    FEAT_INIT("opc", S390_FEAT_TYPE_STFL, 38, "Order Preserving Compression facility"),
     FEAT_INIT("sprogp", S390_FEAT_TYPE_STFL, 40, "Set-program-parameters facility"),
     FEAT_INIT("fpseh", S390_FEAT_TYPE_STFL, 41, "Floating-point-support-enhancement facilities"),
     FEAT_INIT("dfp", S390_FEAT_TYPE_STFL, 42, "DFP (decimal-floating-point) facility"),
@@ -72,8 +73,15 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("ltlbc", S390_FEAT_TYPE_STFL, 51, "Local-TLB-clearing facility"),
     FEAT_INIT("iacc2", S390_FEAT_TYPE_STFL, 52, "Interlocked-access facility 2"),
     FEAT_INIT("stfle53", S390_FEAT_TYPE_STFL, 53, "Various facilities introduced with z13"),
+    FEAT_INIT("eec", S390_FEAT_TYPE_STFL, 54, "Entropy encoding compression facility"),
     FEAT_INIT("msa5-base", S390_FEAT_TYPE_STFL, 57, "Message-security-assist-extension-5 facility (excluding subfunctions)"),
+    FEAT_INIT("minste2", S390_FEAT_TYPE_STFL, 58, "Miscellaneous-instruction-extensions facility 2"),
+    FEAT_INIT("sema", S390_FEAT_TYPE_STFL, 59, "Semaphore-assist facility"),
+    FEAT_INIT("tsi", S390_FEAT_TYPE_STFL, 60, "Time-slice Instrumentation facility"),
     FEAT_INIT("ri", S390_FEAT_TYPE_STFL, 64, "CPU runtime-instrumentation facility"),
+    FEAT_INIT("zpci", S390_FEAT_TYPE_STFL, 69, "z/PCI facility"),
+    FEAT_INIT("aen", S390_FEAT_TYPE_STFL, 71, "General-purpose-adapter-event-notification facility"),
+    FEAT_INIT("ais", S390_FEAT_TYPE_STFL, 72, "General-purpose-adapter-interruption-suppression facility"),
     FEAT_INIT("te", S390_FEAT_TYPE_STFL, 73, "Transactional-execution facility"),
     FEAT_INIT("sthyi", S390_FEAT_TYPE_STFL, 74, "Store-hypervisor-information facility"),
     FEAT_INIT("aefsi", S390_FEAT_TYPE_STFL, 75, "Access-exception-fetch/store-indication facility"),
@@ -82,10 +90,24 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("edat2", S390_FEAT_TYPE_STFL, 78, "Enhanced-DAT facility 2"),
     FEAT_INIT("dfppc", S390_FEAT_TYPE_STFL, 80, "Decimal-floating-point packed-conversion facility"),
     FEAT_INIT("vx", S390_FEAT_TYPE_STFL, 129, "Vector facility"),
+    FEAT_INIT("iep", S390_FEAT_TYPE_STFL, 130, "Instruction-execution-protection facility"),
+    FEAT_INIT("sea_esop2", S390_FEAT_TYPE_STFL, 131, "Side-effect-access facility and Enhanced-suppression-on-protection facility 2"),
+    FEAT_INIT("gs", S390_FEAT_TYPE_STFL, 133, "Guarded-storage facility"),
+    FEAT_INIT("vxpd", S390_FEAT_TYPE_STFL, 134, "Vector packed decimal facility"),
+    FEAT_INIT("vxeh", S390_FEAT_TYPE_STFL, 135, "Vector enhancements facility"),
+    FEAT_INIT("mepoch", S390_FEAT_TYPE_STFL, 139, "Multiple-epoch facility"),
+    FEAT_INIT("tpei", S390_FEAT_TYPE_STFL, 144, "Test-pending-external-interruption facility"),
+    FEAT_INIT("irbm", S390_FEAT_TYPE_STFL, 145, "Insert-reference-bits-multiple facility"),
+    FEAT_INIT("msa8-base", S390_FEAT_TYPE_STFL, 146, "Message-security-assist-extension-8 facility (excluding subfunctions)"),
+    FEAT_INIT("cmmnt", S390_FEAT_TYPE_STFL, 147, "CMM: ESSA-enhancement (no translate) facility"),
 
+    /* SCLP SCCB Byte 80 - 98  (bit numbers relative to byte-80) */
     FEAT_INIT("gsls", S390_FEAT_TYPE_SCLP_CONF_CHAR, 40, "SIE: Guest-storage-limit-suppression facility"),
     FEAT_INIT("esop", S390_FEAT_TYPE_SCLP_CONF_CHAR, 46, "Enhanced-suppression-on-protection facility"),
+    FEAT_INIT("hpma2", S390_FEAT_TYPE_SCLP_CONF_CHAR, 90, "Host page management assist 2 Facility"), /* 91-2 */
+    FEAT_INIT("kss", S390_FEAT_TYPE_SCLP_CONF_CHAR, 151, "SIE: Keyless-subset facility"),  /* 98-7 */
 
+    /* SCLP SCCB Byte 116 - 119 (bit numbers relative to byte-116) */
     FEAT_INIT("64bscao", S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT, 0, "SIE: 64-bit-SCAO facility"),
     FEAT_INIT("cmma", S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT, 1, "SIE: Collaborative-memory-management assist"),
     FEAT_INIT("pfmfi", S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT, 9, "SIE: PFMF interpretation facility"),
@@ -182,10 +204,23 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("kimd-sha-1", S390_FEAT_TYPE_KIMD, 1, "KIMD SHA-1"),
     FEAT_INIT("kimd-sha-256", S390_FEAT_TYPE_KIMD, 2, "KIMD SHA-256"),
     FEAT_INIT("kimd-sha-512", S390_FEAT_TYPE_KIMD, 3, "KIMD SHA-512"),
+    FEAT_INIT("kimd-sha3-224", S390_FEAT_TYPE_KIMD, 32, "KIMD SHA3-224"),
+    FEAT_INIT("kimd-sha3-256", S390_FEAT_TYPE_KIMD, 33, "KIMD SHA3-256"),
+    FEAT_INIT("kimd-sha3-384", S390_FEAT_TYPE_KIMD, 34, "KIMD SHA3-384"),
+    FEAT_INIT("kimd-sha3-512", S390_FEAT_TYPE_KIMD, 35, "KIMD SHA3-512"),
+    FEAT_INIT("kimd-shake-128", S390_FEAT_TYPE_KIMD, 36, "KIMD SHAKE-128"),
+    FEAT_INIT("kimd-shake-256", S390_FEAT_TYPE_KIMD, 37, "KIMD SHAKE-256"),
     FEAT_INIT("kimd-ghash", S390_FEAT_TYPE_KIMD, 65, "KIMD GHASH"),
+
     FEAT_INIT("klmd-sha-1", S390_FEAT_TYPE_KLMD, 1, "KLMD SHA-1"),
     FEAT_INIT("klmd-sha-256", S390_FEAT_TYPE_KLMD, 2, "KLMD SHA-256"),
     FEAT_INIT("klmd-sha-512", S390_FEAT_TYPE_KLMD, 3, "KLMD SHA-512"),
+    FEAT_INIT("klmd-sha3-224", S390_FEAT_TYPE_KLMD, 32, "KLMD SHA3-224"),
+    FEAT_INIT("klmd-sha3-256", S390_FEAT_TYPE_KLMD, 33, "KLMD SHA3-256"),
+    FEAT_INIT("klmd-sha3-384", S390_FEAT_TYPE_KLMD, 34, "KLMD SHA3-384"),
+    FEAT_INIT("klmd-sha3-512", S390_FEAT_TYPE_KLMD, 35, "KLMD SHA3-512"),
+    FEAT_INIT("klmd-shake-128", S390_FEAT_TYPE_KLMD, 36, "KLMD SHAKE-128"),
+    FEAT_INIT("klmd-shake-256", S390_FEAT_TYPE_KLMD, 37, "KLMD SHAKE-256"),
 
     FEAT_INIT("pckmo-edea", S390_FEAT_TYPE_PCKMO, 1, "PCKMO Encrypted-DEA-Key"),
     FEAT_INIT("pckmo-etdea-128", S390_FEAT_TYPE_PCKMO, 2, "PCKMO Encrypted-TDEA-128-Key"),
@@ -251,6 +286,15 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("pcc-xts-eaes-256", S390_FEAT_TYPE_PCC, 60, "PCC Compute-XTS-Parameter-Using-Encrypted-AES-256"),
 
     FEAT_INIT("ppno-sha-512-drng", S390_FEAT_TYPE_PPNO, 3, "PPNO SHA-512-DRNG"),
+    FEAT_INIT("prno-trng-qrtcr", S390_FEAT_TYPE_PPNO, 112, "PRNO TRNG-Query-Raw-to-Conditioned-Ratio"),
+    FEAT_INIT("prno-trng", S390_FEAT_TYPE_PPNO, 114, "PRNO TRNG"),
+
+    FEAT_INIT("kma-gcm-aes-128", S390_FEAT_TYPE_KMA, 18, "KMA GCM-AES-128"),
+    FEAT_INIT("kma-gcm-aes-192", S390_FEAT_TYPE_KMA, 19, "KMA GCM-AES-192"),
+    FEAT_INIT("kma-gcm-aes-256", S390_FEAT_TYPE_KMA, 20, "KMA GCM-AES-256"),
+    FEAT_INIT("kma-gcm-eaes-128", S390_FEAT_TYPE_KMA, 26, "KMA GCM-Encrypted-AES-128"),
+    FEAT_INIT("kma-gcm-eaes-192", S390_FEAT_TYPE_KMA, 27, "KMA GCM-Encrypted-AES-192"),
+    FEAT_INIT("kma-gcm-eaes-256", S390_FEAT_TYPE_KMA, 28, "KMA GCM-Encrypted-AES-256"),
 };
 
 const S390FeatDef *s390_feat_def(S390Feat feat)
@@ -293,8 +337,9 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
     int bit_nr;
 
     if (type == S390_FEAT_TYPE_STFL && test_bit(S390_FEAT_ZARCH, features)) {
-        /* z/Architecture is always active if around */
-        data[0] |= 0x20;
+        /* Features that are always active */
+        data[0] |= 0x20;  /* z/Architecture */
+        data[17] |= 0x20; /* Configuration-z-architectural-mode */
     }
 
     feat = find_first_bit(features, S390_FEAT_MAX);
@@ -383,6 +428,9 @@ static S390FeatGroupDef s390_feature_groups[] = {
     FEAT_GROUP_INIT("msa3", MSA_EXT_3, "Message-security-assist-extension 3 facility"),
     FEAT_GROUP_INIT("msa4", MSA_EXT_4, "Message-security-assist-extension 4 facility"),
     FEAT_GROUP_INIT("msa5", MSA_EXT_5, "Message-security-assist-extension 5 facility"),
+    FEAT_GROUP_INIT("msa6", MSA_EXT_6, "Message-security-assist-extension 6 facility"),
+    FEAT_GROUP_INIT("msa7", MSA_EXT_7, "Message-security-assist-extension 7 facility"),
+    FEAT_GROUP_INIT("msa8", MSA_EXT_8, "Message-security-assist-extension 8 facility"),
 };
 
 const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group)

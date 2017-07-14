@@ -8,6 +8,7 @@ css_new_image(uint8_t cssid, const char *default_cssid) "CSS: add css image %02x
 css_assign_subch(const char *do_assign, uint8_t cssid, uint8_t ssid, uint16_t schid, uint16_t devno) "CSS: %s %x.%x.%04x (devno %04x)"
 css_io_interrupt(int cssid, int ssid, int schid, uint32_t intparm, uint8_t isc, const char *conditional) "CSS: I/O interrupt on sch %x.%x.%04x (intparm %08x, isc %x) %s"
 css_adapter_interrupt(uint8_t isc) "CSS: adapter I/O interrupt (isc %x)"
+css_do_sic(uint16_t mode, uint8_t isc) "CSS: set interruption mode %x on isc %x"
 
 # hw/s390x/virtio-ccw.c
 virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command %x"

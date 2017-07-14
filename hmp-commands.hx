@@ -1153,6 +1153,22 @@ STEXI
 Save guest storage keys to a file.
 ETEXI
 
+#if defined(TARGET_S390X)
+    {
+        .name       = "migration_mode",
+        .args_type  = "mode:i",
+        .params     = "mode",
+        .help       = "Enables or disables migration mode\n",
+        .cmd        = hmp_migrationmode,
+    },
+#endif
+
+STEXI
+@item migration_mode @var{mode}
+@findex migration_mode
+Enables or disables migration mode.
+ETEXI
+
     {
         .name       = "snapshot_blkdev",
         .args_type  = "reuse:-n,device:B,snapshot-file:s?,format:s?",

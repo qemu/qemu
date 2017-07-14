@@ -110,7 +110,7 @@ VirtualCssBus *virtual_css_bus_init(void)
     qbus_set_hotplug_handler(bus, dev, &error_abort);
 
     css_register_io_adapters(CSS_IO_ADAPTER_VIRTIO, true, false,
-                             &error_abort);
+                             0, &error_abort);
 
     return cbus;
  }

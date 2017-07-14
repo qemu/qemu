@@ -44,7 +44,7 @@ typedef struct S390FLICState {
     SysBusDevice parent_obj;
     /* to limit AdapterRoutes.num_routes for compat */
     uint32_t adapter_routes_max_batch;
-
+    bool ais_supported;
 } S390FLICState;
 
 #define S390_FLIC_COMMON_CLASS(klass) \
@@ -56,13 +56,16 @@ typedef struct S390FLICStateClass {
     DeviceClass parent_class;
 
     int (*register_io_adapter)(S390FLICState *fs, uint32_t id, uint8_t isc,
-                               bool swap, bool maskable);
+                               bool swap, bool maskable, uint8_t flags);
     int (*io_adapter_map)(S390FLICState *fs, uint32_t id, uint64_t map_addr,
                           bool do_map);
     int (*add_adapter_routes)(S390FLICState *fs, AdapterRoutes *routes);
     void (*release_adapter_routes)(S390FLICState *fs, AdapterRoutes *routes);
     int (*clear_io_irq)(S390FLICState *fs, uint16_t subchannel_id,
                         uint16_t subchannel_nr);
+    int (*modify_ais_mode)(S390FLICState *fs, uint8_t isc, uint16_t mode);
+    int (*inject_airq)(S390FLICState *fs, uint8_t type, uint8_t isc,
+                       uint8_t flags);
 } S390FLICStateClass;
 
 #define TYPE_KVM_S390_FLIC "s390-flic-kvm"
@@ -73,13 +76,20 @@ typedef struct S390FLICStateClass {
 #define QEMU_S390_FLIC(obj) \
     OBJECT_CHECK(QEMUS390FLICState, (obj), TYPE_QEMU_S390_FLIC)
 
+#define SIC_IRQ_MODE_ALL 0
+#define SIC_IRQ_MODE_SINGLE 1
+#define AIS_MODE_MASK(isc) (0x80 >> isc)
+
 typedef struct QEMUS390FLICState {
     S390FLICState parent_obj;
+    uint8_t simm;
+    uint8_t nimm;
 } QEMUS390FLICState;
 
 void s390_flic_init(void);
 
 S390FLICState *s390_get_flic(void);
+bool ais_needed(void *opaque);
 
 #ifdef CONFIG_KVM
 DeviceState *s390_flic_kvm_create(void);

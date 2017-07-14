@@ -8,10 +8,24 @@
  * directory.
  */
 
+#include "libc.h"
 #include "s390-ccw.h"
 #include "sclp.h"
 
+long write(int fd, const void *str, size_t len);
+
 static char _sccb[PAGE_SIZE] __attribute__((__aligned__(4096)));
+
+const unsigned char ebc2asc[256] =
+      /* 0123456789abcdef0123456789abcdef */
+        "................................" /* 1F */
+        "................................" /* 3F */
+        " ...........<(+|&.........!$*);." /* 5F first.chr.here.is.real.space */
+        "-/.........,%_>?.........`:#@'=\""/* 7F */
+        ".abcdefghi.......jklmnopqr......" /* 9F */
+        "..stuvwxyz......................" /* BF */
+        ".ABCDEFGHI.......JKLMNOPQR......" /* DF */
+        "..STUVWXYZ......0123456789......";/* FF */
 
 /* Perform service call. Return 0 on success, non-zero otherwise. */
 static int sclp_service_call(unsigned int command, void *sccb)
@@ -59,26 +73,29 @@ static int _strlen(const char *str)
     return i;
 }
 
-static void _memcpy(char *dest, const char *src, int len)
+long write(int fd, const void *str, size_t len)
 {
-    int i;
-    for (i = 0; i < len; i++)
-        dest[i] = src[i];
-}
-
-void sclp_print(const char *str)
-{
-    int len = _strlen(str);
     WriteEventData *sccb = (void *)_sccb;
+
+    if (fd != 1 && fd != 2) {
+        return -EIO;
+    }
 
     sccb->h.length = sizeof(WriteEventData) + len;
     sccb->h.function_code = SCLP_FC_NORMAL_WRITE;
     sccb->ebh.length = sizeof(EventBufferHeader) + len;
     sccb->ebh.type = SCLP_EVENT_ASCII_CONSOLE_DATA;
     sccb->ebh.flags = 0;
-    _memcpy(sccb->data, str, len);
+    memcpy(sccb->data, str, len);
 
     sclp_service_call(SCLP_CMD_WRITE_EVENT_DATA, sccb);
+
+    return len;
+}
+
+void sclp_print(const char *str)
+{
+    write(1, str, _strlen(str));
 }
 
 void sclp_get_loadparm_ascii(char *loadparm)

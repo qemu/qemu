@@ -18,12 +18,6 @@ typedef unsigned short     u16;
 typedef unsigned int       u32;
 typedef unsigned long long u64;
 typedef unsigned long      ulong;
-typedef long               size_t;
-typedef int                bool;
-typedef unsigned char      uint8_t;
-typedef unsigned short     uint16_t;
-typedef unsigned int       uint32_t;
-typedef unsigned long long uint64_t;
 typedef unsigned char      __u8;
 typedef unsigned short     __u16;
 typedef unsigned int       __u32;
@@ -49,6 +43,8 @@ typedef unsigned long long __u64;
 #define MIN_NON_ZERO(a, b) ((a) == 0 ? (b) : \
                             ((b) == 0 ? (a) : (MIN(a, b))))
 #endif
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #include "cio.h"
 #include "iplb.h"
@@ -80,25 +76,13 @@ void sclp_get_loadparm_ascii(char *loadparm);
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
                                  ulong subchan_id, void *load_addr);
 bool virtio_is_supported(SubChannelId schid);
-void virtio_setup_device(SubChannelId schid);
+void virtio_blk_setup_device(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
 ulong get_second(void);
 
 /* bootmap.c */
 void zipl_load(void);
-
-static inline void *memset(void *s, int c, size_t n)
-{
-    int i;
-    unsigned char *p = s;
-
-    for (i = 0; i < n; i++) {
-        p[i] = c;
-    }
-
-    return s;
-}
 
 static inline void fill_hex(char *out, unsigned char val)
 {
@@ -167,17 +151,6 @@ static inline void sleep(unsigned int seconds)
     while (get_second() < target) {
         yield();
     }
-}
-
-static inline void *memcpy(void *s1, const void *s2, size_t n)
-{
-    uint8_t *p1 = s1;
-    const uint8_t *p2 = s2;
-
-    while (n--) {
-        p1[n] = p2[n];
-    }
-    return s1;
 }
 
 static inline void IPL_assert(bool term, const char *message)

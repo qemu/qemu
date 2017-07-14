@@ -8,9 +8,11 @@
  * directory.
  */
 
+#include "libc.h"
 #include "s390-ccw.h"
 #include "bootmap.h"
 #include "virtio.h"
+#include "bswap.h"
 
 #ifdef DEBUG
 /* #define DEBUG_FALLBACK */

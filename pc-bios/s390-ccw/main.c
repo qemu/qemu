@@ -8,6 +8,7 @@
  * directory.
  */
 
+#include "libc.h"
 #include "s390-ccw.h"
 #include "virtio.h"
 
@@ -15,17 +16,6 @@ char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 static char loadparm[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-const unsigned char ebc2asc[256] =
-      /* 0123456789abcdef0123456789abcdef */
-        "................................" /* 1F */
-        "................................" /* 3F */
-        " ...........<(+|&.........!$*);." /* 5F first.chr.here.is.real.space */
-        "-/.........,%_>?.........`:#@'=\""/* 7F */
-        ".abcdefghi.......jklmnopqr......" /* 9F */
-        "..stuvwxyz......................" /* BF */
-        ".ABCDEFGHI.......JKLMNOPQR......" /* DF */
-        "..STUVWXYZ......0123456789......";/* FF */
 
 /*
  * Priniciples of Operations (SA22-7832-09) chapter 17 requires that
@@ -154,7 +144,7 @@ static void virtio_setup(void)
         sclp_print("Network boot device detected\n");
         vdev->netboot_start_addr = iplb.ccw.netboot_start_addr;
     } else {
-        virtio_setup_device(blk_schid);
+        virtio_blk_setup_device(blk_schid);
 
         IPL_assert(virtio_ipl_disk_is_valid(), "No valid IPL device detected");
     }

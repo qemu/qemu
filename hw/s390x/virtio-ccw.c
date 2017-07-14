@@ -1070,7 +1070,7 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
                                   0x80 >> ((ind_bit + vector) % 8));
             if (!virtio_set_ind_atomic(sch, dev->summary_indicator->addr,
                                        0x01)) {
-                css_adapter_interrupt(dev->thinint_isc);
+                css_adapter_interrupt(CSS_IO_ADAPTER_VIRTIO, dev->thinint_isc);
             }
         } else {
             indicators = address_space_ldq(&address_space_memory,
