@@ -223,7 +223,7 @@ struct BusState {
 
 struct Property {
     const char   *name;
-    PropertyInfo *info;
+    const PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
     union {
@@ -231,7 +231,7 @@ struct Property {
         uint64_t u;
     } defval;
     int          arrayoffset;
-    PropertyInfo *arrayinfo;
+    const PropertyInfo *arrayinfo;
     int          arrayfieldsize;
     const char   *link_type;
 };

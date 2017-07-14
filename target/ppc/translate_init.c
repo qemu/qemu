@@ -8435,7 +8435,7 @@ static void getset_compat_deprecated(Object *obj, Visitor *v, const char *name,
     visit_type_null(v, name, NULL);
 }
 
-static PropertyInfo ppc_compat_deprecated_propinfo = {
+static const PropertyInfo ppc_compat_deprecated_propinfo = {
     .name = "str",
     .description = "compatibility mode (deprecated)",
     .get = getset_compat_deprecated,

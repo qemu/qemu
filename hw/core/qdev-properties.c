@@ -132,7 +132,7 @@ static void set_default_value_bool(Object *obj, const Property *prop)
     object_property_set_bool(obj, prop->defval.u, prop->name, &error_abort);
 }
 
-PropertyInfo qdev_prop_bit = {
+const PropertyInfo qdev_prop_bit = {
     .name  = "bool",
     .description = "on/off",
     .get   = prop_get_bit,
@@ -191,7 +191,7 @@ static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
     bit64_prop_set(dev, prop, value);
 }
 
-PropertyInfo qdev_prop_bit64 = {
+const PropertyInfo qdev_prop_bit64 = {
     .name  = "bool",
     .description = "on/off",
     .get   = prop_get_bit64,
@@ -226,7 +226,7 @@ static void set_bool(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_bool(v, name, ptr, errp);
 }
 
-PropertyInfo qdev_prop_bool = {
+const PropertyInfo qdev_prop_bool = {
     .name  = "bool",
     .get   = get_bool,
     .set   = set_bool,
@@ -270,7 +270,7 @@ static void set_default_value_uint(Object *obj, const Property *prop)
     object_property_set_uint(obj, prop->defval.u, prop->name, &error_abort);
 }
 
-PropertyInfo qdev_prop_uint8 = {
+const PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
     .get   = get_uint8,
     .set   = set_uint8,
@@ -304,7 +304,7 @@ static void set_uint16(Object *obj, Visitor *v, const char *name,
     visit_type_uint16(v, name, ptr, errp);
 }
 
-PropertyInfo qdev_prop_uint16 = {
+const PropertyInfo qdev_prop_uint16 = {
     .name  = "uint16",
     .get   = get_uint16,
     .set   = set_uint16,
@@ -363,14 +363,14 @@ static void set_int32(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_int32(v, name, ptr, errp);
 }
 
-PropertyInfo qdev_prop_uint32 = {
+const PropertyInfo qdev_prop_uint32 = {
     .name  = "uint32",
     .get   = get_uint32,
     .set   = set_uint32,
     .set_default_value = set_default_value_uint,
 };
 
-PropertyInfo qdev_prop_int32 = {
+const PropertyInfo qdev_prop_int32 = {
     .name  = "int32",
     .get   = get_int32,
     .set   = set_int32,
@@ -404,7 +404,7 @@ static void set_uint64(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, ptr, errp);
 }
 
-PropertyInfo qdev_prop_uint64 = {
+const PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
     .get   = get_uint64,
     .set   = set_uint64,
@@ -457,7 +457,7 @@ static void set_string(Object *obj, Visitor *v, const char *name,
     *ptr = str;
 }
 
-PropertyInfo qdev_prop_string = {
+const PropertyInfo qdev_prop_string = {
     .name  = "str",
     .release = release_string,
     .get   = get_string,
@@ -467,7 +467,7 @@ PropertyInfo qdev_prop_string = {
 /* --- pointer --- */
 
 /* Not a proper property, just for dirty hacks.  TODO Remove it!  */
-PropertyInfo qdev_prop_ptr = {
+const PropertyInfo qdev_prop_ptr = {
     .name  = "ptr",
 };
 
@@ -541,7 +541,7 @@ inval:
     g_free(str);
 }
 
-PropertyInfo qdev_prop_macaddr = {
+const PropertyInfo qdev_prop_macaddr = {
     .name  = "str",
     .description = "Ethernet 6-byte MAC Address, example: 52:54:00:12:34:56",
     .get   = get_mac,
@@ -550,7 +550,7 @@ PropertyInfo qdev_prop_macaddr = {
 
 /* --- on/off/auto --- */
 
-PropertyInfo qdev_prop_on_off_auto = {
+const PropertyInfo qdev_prop_on_off_auto = {
     .name = "OnOffAuto",
     .description = "on/off/auto",
     .enum_table = OnOffAuto_lookup,
@@ -563,7 +563,7 @@ PropertyInfo qdev_prop_on_off_auto = {
 
 QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
-PropertyInfo qdev_prop_losttickpolicy = {
+const PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
     .enum_table  = LostTickPolicy_lookup,
     .get   = get_enum,
@@ -575,7 +575,7 @@ PropertyInfo qdev_prop_losttickpolicy = {
 
 QEMU_BUILD_BUG_ON(sizeof(BlockdevOnError) != sizeof(int));
 
-PropertyInfo qdev_prop_blockdev_on_error = {
+const PropertyInfo qdev_prop_blockdev_on_error = {
     .name = "BlockdevOnError",
     .description = "Error handling policy, "
                    "report/ignore/enospc/stop/auto",
@@ -589,7 +589,7 @@ PropertyInfo qdev_prop_blockdev_on_error = {
 
 QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
 
-PropertyInfo qdev_prop_bios_chs_trans = {
+const PropertyInfo qdev_prop_bios_chs_trans = {
     .name = "BiosAtaTranslation",
     .description = "Logical CHS translation algorithm, "
                    "auto/none/lba/large/rechs",
@@ -601,7 +601,7 @@ PropertyInfo qdev_prop_bios_chs_trans = {
 
 /* --- FDC default drive types */
 
-PropertyInfo qdev_prop_fdc_drive_type = {
+const PropertyInfo qdev_prop_fdc_drive_type = {
     .name = "FdcDriveType",
     .description = "FDC drive type, "
                    "144/288/120/none/auto",
@@ -677,7 +677,7 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest,
     }
 }
 
-PropertyInfo qdev_prop_pci_devfn = {
+const PropertyInfo qdev_prop_pci_devfn = {
     .name  = "int32",
     .description = "Slot and optional function number, example: 06.0 or 06",
     .print = print_pci_devfn,
@@ -726,7 +726,7 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
     *ptr = value;
 }
 
-PropertyInfo qdev_prop_blocksize = {
+const PropertyInfo qdev_prop_blocksize = {
     .name  = "uint16",
     .description = "A power of two between 512 and 32768",
     .get   = get_uint16,
@@ -841,7 +841,7 @@ inval:
     g_free(str);
 }
 
-PropertyInfo qdev_prop_pci_host_devaddr = {
+const PropertyInfo qdev_prop_pci_host_devaddr = {
     .name = "str",
     .description = "Address (bus/device/function) of "
                    "the host device, example: 04:10.0",
@@ -950,7 +950,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
     }
 }
 
-PropertyInfo qdev_prop_arraylen = {
+const PropertyInfo qdev_prop_arraylen = {
     .name = "uint32",
     .get = get_uint32,
     .set = set_prop_arraylen,
@@ -1208,7 +1208,7 @@ static void set_size(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_size(v, name, ptr, errp);
 }
 
-PropertyInfo qdev_prop_size = {
+const PropertyInfo qdev_prop_size = {
     .name  = "size",
     .get = get_size,
     .set = set_size,
@@ -1228,7 +1228,7 @@ static void create_link_property(Object *obj, Property *prop, Error **errp)
                              errp);
 }
 
-PropertyInfo qdev_prop_link = {
+const PropertyInfo qdev_prop_link = {
     .name = "link",
     .create = create_link_property,
 };

@@ -5,32 +5,32 @@
 
 /*** qdev-properties.c ***/
 
-extern PropertyInfo qdev_prop_bit;
-extern PropertyInfo qdev_prop_bit64;
-extern PropertyInfo qdev_prop_bool;
-extern PropertyInfo qdev_prop_uint8;
-extern PropertyInfo qdev_prop_uint16;
-extern PropertyInfo qdev_prop_uint32;
-extern PropertyInfo qdev_prop_int32;
-extern PropertyInfo qdev_prop_uint64;
-extern PropertyInfo qdev_prop_size;
-extern PropertyInfo qdev_prop_string;
-extern PropertyInfo qdev_prop_chr;
-extern PropertyInfo qdev_prop_ptr;
-extern PropertyInfo qdev_prop_macaddr;
-extern PropertyInfo qdev_prop_on_off_auto;
-extern PropertyInfo qdev_prop_losttickpolicy;
-extern PropertyInfo qdev_prop_blockdev_on_error;
-extern PropertyInfo qdev_prop_bios_chs_trans;
-extern PropertyInfo qdev_prop_fdc_drive_type;
-extern PropertyInfo qdev_prop_drive;
-extern PropertyInfo qdev_prop_netdev;
-extern PropertyInfo qdev_prop_vlan;
-extern PropertyInfo qdev_prop_pci_devfn;
-extern PropertyInfo qdev_prop_blocksize;
-extern PropertyInfo qdev_prop_pci_host_devaddr;
-extern PropertyInfo qdev_prop_arraylen;
-extern PropertyInfo qdev_prop_link;
+extern const PropertyInfo qdev_prop_bit;
+extern const PropertyInfo qdev_prop_bit64;
+extern const PropertyInfo qdev_prop_bool;
+extern const PropertyInfo qdev_prop_uint8;
+extern const PropertyInfo qdev_prop_uint16;
+extern const PropertyInfo qdev_prop_uint32;
+extern const PropertyInfo qdev_prop_int32;
+extern const PropertyInfo qdev_prop_uint64;
+extern const PropertyInfo qdev_prop_size;
+extern const PropertyInfo qdev_prop_string;
+extern const PropertyInfo qdev_prop_chr;
+extern const PropertyInfo qdev_prop_ptr;
+extern const PropertyInfo qdev_prop_macaddr;
+extern const PropertyInfo qdev_prop_on_off_auto;
+extern const PropertyInfo qdev_prop_losttickpolicy;
+extern const PropertyInfo qdev_prop_blockdev_on_error;
+extern const PropertyInfo qdev_prop_bios_chs_trans;
+extern const PropertyInfo qdev_prop_fdc_drive_type;
+extern const PropertyInfo qdev_prop_drive;
+extern const PropertyInfo qdev_prop_netdev;
+extern const PropertyInfo qdev_prop_vlan;
+extern const PropertyInfo qdev_prop_pci_devfn;
+extern const PropertyInfo qdev_prop_blocksize;
+extern const PropertyInfo qdev_prop_pci_host_devaddr;
+extern const PropertyInfo qdev_prop_arraylen;
+extern const PropertyInfo qdev_prop_link;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
         .name      = (_name),                                    \

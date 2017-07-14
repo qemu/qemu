@@ -1961,7 +1961,7 @@ static void x86_set_hv_spinlocks(Object *obj, Visitor *v, const char *name,
     cpu->hyperv_spinlock_attempts = value;
 }
 
-static PropertyInfo qdev_prop_spinlocks = {
+static const PropertyInfo qdev_prop_spinlocks = {
     .name  = "int",
     .get   = x86_get_hv_spinlocks,
     .set   = x86_set_hv_spinlocks,
