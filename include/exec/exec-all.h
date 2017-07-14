@@ -63,6 +63,7 @@ typedef ram_addr_t tb_page_addr_t;
 #define DISAS_JUMP    1 /* only pc was modified dynamically */
 #define DISAS_TB_JUMP 2 /* only pc was modified statically */
 #define DISAS_UPDATE  3 /* cpu state was modified dynamically */
+#define DISAS_NORETURN 4 /* the tb has already been exited */
 
 #include "qemu/log.h"
 
