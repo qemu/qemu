@@ -9011,8 +9011,16 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
         /* By default we choose legacy mode and switch to new hash or radix
          * when a register process table hcall is made. So disable process
          * tables and guest translation shootdown by default
+         *
+         * Hot-plugged CPUs inherit from the guest radix setting under
+         * KVM but not under TCG. Update the default LPCR to keep new
+         * CPUs in sync when radix is enabled.
          */
-        lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
+        if (ppc64_radix_guest(cpu)) {
+            lpcr->default_value |= LPCR_UPRT | LPCR_GTSE;
+        } else {
+            lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
+        }
         lpcr->default_value |= LPCR_PDEE | LPCR_HDEE | LPCR_EEE | LPCR_DEE |
                                LPCR_OEE;
         break;
