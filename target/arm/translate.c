@@ -11888,6 +11888,13 @@ static int arm_tr_init_disas_context(DisasContextBase *dcbase,
         max_insns = 1;
     }
 
+    /* ARM is a fixed-length ISA.  Bound the number of insns to execute
+       to those left on the page.  */
+    if (!dc->thumb) {
+        int bound = (dc->next_page_start - dc->base.pc_first) / 4;
+        max_insns = MIN(max_insns, bound);
+    }
+
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
@@ -12015,34 +12022,12 @@ static bool arm_pre_translate_insn(DisasContext *dc)
     return false;
 }
 
-static void arm_post_translate_insn(CPUARMState *env, DisasContext *dc)
+static void arm_post_translate_insn(DisasContext *dc)
 {
     if (dc->condjmp && !dc->base.is_jmp) {
         gen_set_label(dc->condlabel);
         dc->condjmp = 0;
     }
-
-    /* Translation stops when a conditional branch is encountered.
-     * Otherwise the subsequent code could get translated several times.
-     * Also stop translation when a page boundary is reached.  This
-     * ensures prefetch aborts occur at the right place.
-     *
-     * We want to stop the TB if the next insn starts in a new page,
-     * or if it spans between this page and the next. This means that
-     * if we're looking at the last halfword in the page we need to
-     * see if it's a 16-bit Thumb insn (which will fit in this TB)
-     * or a 32-bit Thumb insn (which won't).
-     * This is to avoid generating a silly TB with a single 16-bit insn
-     * in it at the end of this page (which would execute correctly
-     * but isn't very efficient).
-     */
-    if (dc->base.is_jmp == DISAS_NEXT
-        && (dc->pc >= dc->next_page_start
-            || (dc->pc >= dc->next_page_start - 3
-                && insn_crosses_page(env, dc)))) {
-        dc->base.is_jmp = DISAS_TOO_MANY;
-    }
-
     dc->base.pc_next = dc->pc;
     translator_loop_temp_check(&dc->base);
 }
@@ -12061,7 +12046,10 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     dc->pc += 4;
     disas_arm_insn(dc, insn);
 
-    arm_post_translate_insn(env, dc);
+    arm_post_translate_insn(dc);
+
+    /* ARM is a fixed-length ISA.  We performed the cross-page check
+       in init_disas_context by adjusting max_insns.  */
 }
 
 static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
@@ -12085,7 +12073,27 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         }
     }
 
-    arm_post_translate_insn(env, dc);
+    arm_post_translate_insn(dc);
+
+    /* Thumb is a variable-length ISA.  Stop translation when the next insn
+     * will touch a new page.  This ensures that prefetch aborts occur at
+     * the right place.
+     *
+     * We want to stop the TB if the next insn starts in a new page,
+     * or if it spans between this page and the next. This means that
+     * if we're looking at the last halfword in the page we need to
+     * see if it's a 16-bit Thumb insn (which will fit in this TB)
+     * or a 32-bit Thumb insn (which won't).
+     * This is to avoid generating a silly TB with a single 16-bit insn
+     * in it at the end of this page (which would execute correctly
+     * but isn't very efficient).
+     */
+    if (dc->base.is_jmp == DISAS_NEXT
+        && (dc->pc >= dc->next_page_start
+            || (dc->pc >= dc->next_page_start - 3
+                && insn_crosses_page(env, dc)))) {
+        dc->base.is_jmp = DISAS_TOO_MANY;
+    }
 }
 
 static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
