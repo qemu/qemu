@@ -361,6 +361,7 @@ void HELPER(divsll)(CPUM68KState *env, int numr, int regr, int32_t den)
     env->dregs[numr] = quot;
 }
 
+/* We're executing in a serial context -- no need to be atomic.  */
 void HELPER(cas2w)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
 {
     uint32_t Dc1 = extract32(regs, 9, 3);
@@ -374,17 +375,11 @@ void HELPER(cas2w)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
     int16_t l1, l2;
     uintptr_t ra = GETPC();
 
-    if (parallel_cpus) {
-        /* Tell the main loop we need to serialize this insn.  */
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
-    } else {
-        /* We're executing in a serial context -- no need to be atomic.  */
-        l1 = cpu_lduw_data_ra(env, a1, ra);
-        l2 = cpu_lduw_data_ra(env, a2, ra);
-        if (l1 == c1 && l2 == c2) {
-            cpu_stw_data_ra(env, a1, u1, ra);
-            cpu_stw_data_ra(env, a2, u2, ra);
-        }
+    l1 = cpu_lduw_data_ra(env, a1, ra);
+    l2 = cpu_lduw_data_ra(env, a2, ra);
+    if (l1 == c1 && l2 == c2) {
+        cpu_stw_data_ra(env, a1, u1, ra);
+        cpu_stw_data_ra(env, a2, u2, ra);
     }
 
     if (c1 != l1) {
@@ -399,7 +394,8 @@ void HELPER(cas2w)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
     env->dregs[Dc2] = deposit32(env->dregs[Dc2], 0, 16, l2);
 }
 
-void HELPER(cas2l)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
+static void do_cas2l(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2,
+                     bool parallel)
 {
     uint32_t Dc1 = extract32(regs, 9, 3);
     uint32_t Dc2 = extract32(regs, 6, 3);
@@ -416,7 +412,7 @@ void HELPER(cas2l)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
     TCGMemOpIdx oi;
 #endif
 
-    if (parallel_cpus) {
+    if (parallel) {
         /* We're executing in a parallel context -- must be atomic.  */
 #ifdef CONFIG_ATOMIC64
         uint64_t c, u, l;
@@ -468,6 +464,17 @@ void HELPER(cas2l)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
     env->cc_op = CC_OP_CMPL;
     env->dregs[Dc1] = l1;
     env->dregs[Dc2] = l2;
+}
+
+void HELPER(cas2l)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
+{
+    do_cas2l(env, regs, a1, a2, false);
+}
+
+void HELPER(cas2l_parallel)(CPUM68KState *env, uint32_t regs, uint32_t a1,
+                            uint32_t a2)
+{
+    do_cas2l(env, regs, a1, a2, true);
 }
 
 struct bf_data {

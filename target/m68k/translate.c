@@ -2312,7 +2312,11 @@ DISAS_INSN(cas2w)
                          (REG(ext1, 6) << 3) |
                          (REG(ext2, 0) << 6) |
                          (REG(ext1, 0) << 9));
-    gen_helper_cas2w(cpu_env, regs, addr1, addr2);
+    if (tb_cflags(s->tb) & CF_PARALLEL) {
+        gen_helper_exit_atomic(cpu_env);
+    } else {
+        gen_helper_cas2w(cpu_env, regs, addr1, addr2);
+    }
     tcg_temp_free(regs);
 
     /* Note that cas2w also assigned to env->cc_op.  */
@@ -2358,7 +2362,11 @@ DISAS_INSN(cas2l)
                          (REG(ext1, 6) << 3) |
                          (REG(ext2, 0) << 6) |
                          (REG(ext1, 0) << 9));
-    gen_helper_cas2l(cpu_env, regs, addr1, addr2);
+    if (tb_cflags(s->tb) & CF_PARALLEL) {
+        gen_helper_cas2l_parallel(cpu_env, regs, addr1, addr2);
+    } else {
+        gen_helper_cas2l(cpu_env, regs, addr1, addr2);
+    }
     tcg_temp_free(regs);
 
     /* Note that cas2l also assigned to env->cc_op.  */
