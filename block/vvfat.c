@@ -71,6 +71,11 @@ void nonono(const char* file, int line, const char* msg) {
 
 #endif
 
+#define DIR_DELETED 0xe5
+#define DIR_KANJI DIR_DELETED
+#define DIR_KANJI_FAKE 0x05
+#define DIR_FREE 0x00
+
 /* dynamic array functions */
 typedef struct array_t {
     char* pointer;
@@ -466,7 +471,7 @@ static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
 
 static char is_free(const direntry_t* direntry)
 {
-    return direntry->name[0]==0xe5 || direntry->name[0]==0x00;
+    return direntry->name[0] == DIR_DELETED || direntry->name[0] == DIR_FREE;
 }
 
 static char is_volume_label(const direntry_t* direntry)
@@ -487,7 +492,7 @@ static char is_short_name(const direntry_t* direntry)
 
 static char is_directory(const direntry_t* direntry)
 {
-    return direntry->attributes & 0x10 && direntry->name[0] != 0xe5;
+    return direntry->attributes & 0x10 && direntry->name[0] != DIR_DELETED;
 }
 
 static inline char is_dot(const direntry_t* direntry)
@@ -589,8 +594,8 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
         }
     }
 
-    if (entry->name[0] == 0xe5) {
-        entry->name[0] = 0x05;
+    if (entry->name[0] == DIR_KANJI) {
+        entry->name[0] = DIR_KANJI_FAKE;
     }
 
     /* numeric-tail generation */
@@ -1748,8 +1753,8 @@ static int parse_short_name(BDRVVVFATState* s,
     } else
         lfn->name[i + j + 1] = '\0';
 
-    if (lfn->name[0] == 0x05) {
-        lfn->name[0] = 0xe5;
+    if (lfn->name[0] == DIR_KANJI_FAKE) {
+        lfn->name[0] = DIR_KANJI;
     }
     lfn->len = strlen((char*)lfn->name);
 
