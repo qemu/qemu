@@ -38,7 +38,7 @@ typedef struct DisasCond {
 } DisasCond;
 
 typedef struct DisasContext {
-    struct TranslationBlock *tb;
+    DisasContextBase base;
     CPUState *cs;
 
     target_ulong iaoq_f;
@@ -52,7 +52,6 @@ typedef struct DisasContext {
     DisasCond null_cond;
     TCGLabel *null_lab;
 
-    bool singlestep_enabled;
     bool psw_n_nonzero;
 } DisasContext;
 
@@ -476,7 +475,7 @@ static DisasJumpType gen_illegal(DisasContext *ctx)
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
     /* Suppress goto_tb in the case of single-steping and IO.  */
-    if ((ctx->tb->cflags & CF_LAST_IO) || ctx->singlestep_enabled) {
+    if ((ctx->base.tb->cflags & CF_LAST_IO) || ctx->base.singlestep_enabled) {
         return false;
     }
     return true;
@@ -499,11 +498,11 @@ static void gen_goto_tb(DisasContext *ctx, int which,
         tcg_gen_goto_tb(which);
         tcg_gen_movi_tl(cpu_iaoq_f, f);
         tcg_gen_movi_tl(cpu_iaoq_b, b);
-        tcg_gen_exit_tb((uintptr_t)ctx->tb + which);
+        tcg_gen_exit_tb((uintptr_t)ctx->base.tb + which);
     } else {
         copy_iaoq_entry(cpu_iaoq_f, f, cpu_iaoq_b);
         copy_iaoq_entry(cpu_iaoq_b, b, ctx->iaoq_n_var);
-        if (ctx->singlestep_enabled) {
+        if (ctx->base.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
         } else {
             tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
@@ -3737,11 +3736,11 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     DisasJumpType ret;
     int num_insns, max_insns, i;
 
-    ctx.tb = tb;
+    ctx.base.tb = tb;
+    ctx.base.singlestep_enabled = cs->singlestep_enabled;
     ctx.cs = cs;
     ctx.iaoq_f = tb->pc;
     ctx.iaoq_b = tb->cs_base;
-    ctx.singlestep_enabled = cs->singlestep_enabled;
 
     ctx.ntemps = 0;
     for (i = 0; i < ARRAY_SIZE(ctx.temps); ++i) {
@@ -3755,7 +3754,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
-    if (ctx.singlestep_enabled || singlestep) {
+    if (ctx.base.singlestep_enabled || singlestep) {
         max_insns = 1;
     } else if (max_insns > TCG_MAX_INSNS) {
         max_insns = TCG_MAX_INSNS;
@@ -3868,7 +3867,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         nullify_save(&ctx);
         /* FALLTHRU */
     case DISAS_IAQ_N_UPDATED:
-        if (ctx.singlestep_enabled) {
+        if (ctx.base.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
         } else {
             tcg_gen_lookup_and_goto_ptr(cpu_iaoq_f);
