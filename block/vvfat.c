@@ -1669,6 +1669,7 @@ typedef struct {
      * filename length is 0x3f * 13 bytes.
      */
     unsigned char name[0x3f * 13 + 1];
+    gunichar2 name2[0x3f * 13 + 1];
     int checksum, len;
     int sequence_number;
 } long_file_name;
@@ -1690,16 +1691,21 @@ static int parse_long_name(long_file_name* lfn,
         return 1;
 
     if (pointer[0] & 0x40) {
+        /* first entry; do some initialization */
         lfn->sequence_number = pointer[0] & 0x3f;
         lfn->checksum = pointer[13];
         lfn->name[0] = 0;
         lfn->name[lfn->sequence_number * 13] = 0;
-    } else if ((pointer[0] & 0x3f) != --lfn->sequence_number)
+    } else if ((pointer[0] & 0x3f) != --lfn->sequence_number) {
+        /* not the expected sequence number */
         return -1;
-    else if (pointer[13] != lfn->checksum)
+    } else if (pointer[13] != lfn->checksum) {
+        /* not the expected checksum */
         return -2;
-    else if (pointer[12] || pointer[26] || pointer[27])
+    } else if (pointer[12] || pointer[26] || pointer[27]) {
+        /* invalid zero fields */
         return -3;
+    }
 
     offset = 13 * (lfn->sequence_number - 1);
     for (i = 0, j = 1; i < 13; i++, j+=2) {
@@ -1708,16 +1714,29 @@ static int parse_long_name(long_file_name* lfn,
         else if (j == 26)
             j = 28;
 
-        if (pointer[j+1] == 0)
-            lfn->name[offset + i] = pointer[j];
-        else if (pointer[j+1] != 0xff || (pointer[0] & 0x40) == 0)
-            return -4;
-        else
-            lfn->name[offset + i] = 0;
+        if (pointer[j] == 0 && pointer[j + 1] == 0) {
+            /* end of long file name */
+            break;
+        }
+        gunichar2 c = (pointer[j + 1] << 8) + pointer[j];
+        lfn->name2[offset + i] = c;
     }
 
-    if (pointer[0] & 0x40)
-        lfn->len = offset + strlen((char*)lfn->name + offset);
+    if (pointer[0] & 0x40) {
+        /* first entry; set len */
+        lfn->len = offset + i;
+    }
+    if ((pointer[0] & 0x3f) == 0x01) {
+        /* last entry; finalize entry */
+        glong olen;
+        gchar *utf8 = g_utf16_to_utf8(lfn->name2, lfn->len, NULL, &olen, NULL);
+        if (!utf8) {
+            return -4;
+        }
+        lfn->len = olen;
+        memcpy(lfn->name, utf8, olen + 1);
+        g_free(utf8);
+    }
 
     return 0;
 }
@@ -1733,12 +1752,14 @@ static int parse_short_name(BDRVVVFATState* s,
 
     for (j = 7; j >= 0 && direntry->name[j] == ' '; j--);
     for (i = 0; i <= j; i++) {
-        if (direntry->name[i] <= ' ' || direntry->name[i] > 0x7f)
+        uint8_t c = direntry->name[i];
+        if (c != to_valid_short_char(c)) {
             return -1;
-        else if (s->downcase_short_names)
+        } else if (s->downcase_short_names) {
             lfn->name[i] = qemu_tolower(direntry->name[i]);
-        else
+        } else {
             lfn->name[i] = direntry->name[i];
+        }
     }
 
     for (j = 2; j >= 0 && direntry->name[8 + j] == ' '; j--) {
@@ -1748,7 +1769,7 @@ static int parse_short_name(BDRVVVFATState* s,
         lfn->name[i + j + 1] = '\0';
         for (;j >= 0; j--) {
             uint8_t c = direntry->name[8 + j];
-            if (c <= ' ' || c > 0x7f) {
+            if (c != to_valid_short_char(c)) {
                 return -2;
             } else if (s->downcase_short_names) {
                 lfn->name[i + j] = qemu_tolower(c);
@@ -2966,7 +2987,6 @@ DLOG(checkpoint());
     /*
      * Some sanity checks:
      * - do not allow writing to the boot sector
-     * - do not allow to write non-ASCII filenames
      */
 
     if (sector_num < s->offset_to_fat)
@@ -3000,13 +3020,8 @@ DLOG(checkpoint());
                 direntries = (direntry_t*)(buf + 0x200 * (begin - sector_num));
 
                 for (k = 0; k < (end - begin) * 0x10; k++) {
-                    /* do not allow non-ASCII filenames */
-                    if (parse_long_name(&lfn, direntries + k) < 0) {
-                        fprintf(stderr, "Warning: non-ASCII filename\n");
-                        return -1;
-                    }
                     /* no access to the direntry of a read-only file */
-                    else if (is_short_name(direntries+k) &&
+                    if (is_short_name(direntries + k) &&
                             (direntries[k].attributes & 1)) {
                         if (memcmp(direntries + k,
                                     array_get(&(s->directory), dir_index + k),
