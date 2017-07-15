@@ -115,6 +115,7 @@ static inline int array_ensure_allocated(array_t* array, int index)
         array->pointer = g_realloc(array->pointer, new_size);
         if (!array->pointer)
             return -1;
+        memset(array->pointer + array->size, 0, new_size - array->size);
         array->size = new_size;
         array->next = index + 1;
     }
