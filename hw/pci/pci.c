@@ -953,6 +953,11 @@ uint16_t pci_requester_id(PCIDevice *dev)
     return pci_req_id_cache_extract(&dev->requester_id_cache);
 }
 
+static bool pci_bus_devfn_available(PCIBus *bus, int devfn)
+{
+    return !(bus->devices[devfn]);
+}
+
 /* -1 for devfn means auto assign */
 static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,
@@ -976,14 +981,15 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
             devfn += PCI_FUNC_MAX) {
-            if (!bus->devices[devfn])
+            if (pci_bus_devfn_available(bus, devfn)) {
                 goto found;
+            }
         }
         error_setg(errp, "PCI: no slot/function available for %s, all in use",
                    name);
         return NULL;
     found: ;
-    } else if (bus->devices[devfn]) {
+    } else if (!pci_bus_devfn_available(bus, devfn)) {
         error_setg(errp, "PCI: slot %d function %d not available for %s,"
                    " in use by %s",
                    PCI_SLOT(devfn), PCI_FUNC(devfn), name,
