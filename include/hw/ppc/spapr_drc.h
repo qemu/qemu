@@ -15,6 +15,7 @@
 
 #include <libfdt.h>
 #include "qom/object.h"
+#include "sysemu/sysemu.h"
 #include "hw/qdev.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
@@ -32,7 +33,7 @@
 #define SPAPR_DRC_PHYSICAL_CLASS(klass) \
         OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, \
                            TYPE_SPAPR_DRC_PHYSICAL)
-#define SPAPR_DRC_PHYSICAL(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+#define SPAPR_DRC_PHYSICAL(obj) OBJECT_CHECK(sPAPRDRCPhysical, (obj), \
                                              TYPE_SPAPR_DRC_PHYSICAL)
 
 #define TYPE_SPAPR_DRC_LOGICAL "spapr-drc-logical"
@@ -172,11 +173,23 @@ typedef enum {
     SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE = -9003,
 } sPAPRDRCCResponse;
 
-/* rtas-configure-connector state */
-typedef struct sPAPRConfigureConnectorState {
-    int fdt_offset;
-    int fdt_depth;
-} sPAPRConfigureConnectorState;
+typedef enum {
+    /*
+     * Values come from Fig. 12 in LoPAPR section 13.4
+     *
+     * These are exposed in the migration stream, so don't change
+     * them.
+     */
+    SPAPR_DRC_STATE_INVALID             = 0,
+    SPAPR_DRC_STATE_LOGICAL_UNUSABLE    = 1,
+    SPAPR_DRC_STATE_LOGICAL_AVAILABLE   = 2,
+    SPAPR_DRC_STATE_LOGICAL_UNISOLATE   = 3,
+    SPAPR_DRC_STATE_LOGICAL_CONFIGURED  = 4,
+    SPAPR_DRC_STATE_PHYSICAL_AVAILABLE  = 5,
+    SPAPR_DRC_STATE_PHYSICAL_POWERON    = 6,
+    SPAPR_DRC_STATE_PHYSICAL_UNISOLATE  = 7,
+    SPAPR_DRC_STATE_PHYSICAL_CONFIGURED = 8,
+} sPAPRDRCState;
 
 typedef struct sPAPRDRConnector {
     /*< private >*/
@@ -185,29 +198,25 @@ typedef struct sPAPRDRConnector {
     uint32_t id;
     Object *owner;
 
-    /* DR-indicator */
-    uint32_t dr_indicator;
+    uint32_t state;
 
-    /* sensor/indicator states */
-    uint32_t isolation_state;
-    uint32_t allocation_state;
-
-    /* configure-connector state */
-    void *fdt;
-    int fdt_start_offset;
-    bool configured;
-    sPAPRConfigureConnectorState *ccs;
-
-    bool awaiting_release;
-    bool awaiting_allocation;
+    /* RTAS ibm,configure-connector state */
+    /* (only valid in UNISOLATE state) */
+    int ccs_offset;
+    int ccs_depth;
 
     /* device pointer, via link property */
     DeviceState *dev;
+    bool unplug_requested;
+    void *fdt;
+    int fdt_start_offset;
 } sPAPRDRConnector;
 
 typedef struct sPAPRDRConnectorClass {
     /*< private >*/
     DeviceClass parent;
+    sPAPRDRCState empty_state;
+    sPAPRDRCState ready_state;
 
     /*< public >*/
     sPAPRDRConnectorTypeShift typeshift;
@@ -218,10 +227,22 @@ typedef struct sPAPRDRConnectorClass {
     uint32_t (*isolate)(sPAPRDRConnector *drc);
     uint32_t (*unisolate)(sPAPRDRConnector *drc);
     void (*release)(DeviceState *dev);
-
-    /* QEMU interfaces for managing hotplug operations */
-    bool (*release_pending)(sPAPRDRConnector *drc);
 } sPAPRDRConnectorClass;
+
+typedef struct sPAPRDRCPhysical {
+    /*< private >*/
+    sPAPRDRConnector parent;
+
+    /* DR-indicator */
+    uint32_t dr_indicator;
+} sPAPRDRCPhysical;
+
+static inline bool spapr_drc_hotplugged(DeviceState *dev)
+{
+    return dev->hotplugged && !runstate_check(RUN_STATE_INMIGRATE);
+}
+
+void spapr_drc_reset(sPAPRDRConnector *drc);
 
 uint32_t spapr_drc_index(sPAPRDRConnector *drc);
 sPAPRDRConnectorType spapr_drc_type(sPAPRDRConnector *drc);
@@ -235,6 +256,11 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
 
 void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                       int fdt_start_offset, Error **errp);
-void spapr_drc_detach(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
+void spapr_drc_detach(sPAPRDRConnector *drc);
+
+static inline bool spapr_drc_unplug_requested(sPAPRDRConnector *drc)
+{
+    return drc->unplug_requested;
+}
 
 #endif /* HW_SPAPR_DRC_H */

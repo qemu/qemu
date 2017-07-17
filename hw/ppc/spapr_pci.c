@@ -1443,7 +1443,9 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     /* If this is function 0, signal hotplug for all the device functions.
      * Otherwise defer sending the hotplug event.
      */
-    if (plugged_dev->hotplugged && PCI_FUNC(pdev->devfn) == 0) {
+    if (!spapr_drc_hotplugged(plugged_dev)) {
+        spapr_drc_reset(drc);
+    } else if (PCI_FUNC(pdev->devfn) == 0) {
         int i;
 
         for (i = 0; i < 8; i++) {
@@ -1474,9 +1476,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
 {
     sPAPRPHBState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    sPAPRDRConnectorClass *drck;
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
-    Error *local_err = NULL;
 
     if (!phb->dr_enabled) {
         error_setg(errp, QERR_BUS_NO_HOTPLUG,
@@ -1487,8 +1487,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     g_assert(drc);
     g_assert(drc->dev == plugged_dev);
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    if (!drck->release_pending(drc)) {
+    if (!spapr_drc_unplug_requested(drc)) {
         PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
         uint32_t slotnr = PCI_SLOT(pdev->devfn);
         sPAPRDRConnector *func_drc;
@@ -1504,7 +1503,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
                 state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
-                    && !func_drck->release_pending(func_drc)) {
+                    && !spapr_drc_unplug_requested(func_drc)) {
                     error_setg(errp,
                                "PCI: slot %d, function %d still present. "
                                "Must unplug all non-0 functions first.",
@@ -1514,11 +1513,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
             }
         }
 
-        spapr_drc_detach(drc, DEVICE(pdev), &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
+        spapr_drc_detach(drc);
 
         /* if this isn't func 0, defer unplug event. otherwise signal removal
          * for all present functions

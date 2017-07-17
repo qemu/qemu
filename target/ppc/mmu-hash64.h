@@ -63,11 +63,15 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HASH_PTE_SIZE_64        16
 #define HASH_PTEG_SIZE_64       (HASH_PTE_SIZE_64 * HPTES_PER_GROUP)
 
+#define HPTE64_V_SSIZE          SLB_VSID_B
+#define HPTE64_V_SSIZE_256M     SLB_VSID_B_256M
+#define HPTE64_V_SSIZE_1T       SLB_VSID_B_1T
 #define HPTE64_V_SSIZE_SHIFT    62
 #define HPTE64_V_AVPN_SHIFT     7
 #define HPTE64_V_AVPN           0x3fffffffffffff80ULL
 #define HPTE64_V_AVPN_VAL(x)    (((x) & HPTE64_V_AVPN) >> HPTE64_V_AVPN_SHIFT)
 #define HPTE64_V_COMPARE(x, y)  (!(((x) ^ (y)) & 0xffffffffffffff83ULL))
+#define HPTE64_V_BOLTED         0x0000000000000010ULL
 #define HPTE64_V_LARGE          0x0000000000000004ULL
 #define HPTE64_V_SECONDARY      0x0000000000000002ULL
 #define HPTE64_V_VALID          0x0000000000000001ULL

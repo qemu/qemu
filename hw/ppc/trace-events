@@ -16,6 +16,8 @@ spapr_cas_continue(unsigned long n) "Copy changes to the guest: %ld bytes"
 # hw/ppc/spapr_hcall.c
 spapr_cas_pvr_try(uint32_t pvr) "%x"
 spapr_cas_pvr(uint32_t cur_pvr, bool explicit_match, uint32_t new_pvr) "current=%x, explicit_match=%u, new=%x"
+spapr_h_resize_hpt_prepare(uint64_t flags, uint64_t shift) "flags=0x%"PRIx64", shift=%"PRIu64
+spapr_h_resize_hpt_commit(uint64_t flags, uint64_t shift) "flags=0x%"PRIx64", shift=%"PRIu64
 
 # hw/ppc/spapr_iommu.c
 spapr_iommu_put(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tce=0x%"PRIx64" ret=%"PRId64
@@ -46,8 +48,7 @@ spapr_drc_set_configured(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_set_configured_skipping(uint32_t index) "drc: 0x%"PRIx32", isolated device"
 spapr_drc_attach(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_detach(uint32_t index) "drc: 0x%"PRIx32
-spapr_drc_awaiting_isolated(uint32_t index) "drc: 0x%"PRIx32
-spapr_drc_awaiting_unusable(uint32_t index) "drc: 0x%"PRIx32
+spapr_drc_awaiting_quiesce(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_awaiting_allocation(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_reset(uint32_t index) "drc: 0x%"PRIx32
 spapr_drc_realize(uint32_t index) "drc: 0x%"PRIx32

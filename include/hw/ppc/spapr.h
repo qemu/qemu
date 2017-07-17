@@ -13,6 +13,7 @@ struct sPAPRPHBState;
 struct sPAPRNVRAM;
 typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 typedef struct sPAPREventSource sPAPREventSource;
+typedef struct sPAPRPendingHPT sPAPRPendingHPT;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
@@ -42,6 +43,13 @@ typedef struct sPAPRMachineClass sPAPRMachineClass;
 #define SPAPR_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(sPAPRMachineClass, klass, TYPE_SPAPR_MACHINE)
 
+typedef enum {
+    SPAPR_RESIZE_HPT_DEFAULT = 0,
+    SPAPR_RESIZE_HPT_DISABLED,
+    SPAPR_RESIZE_HPT_ENABLED,
+    SPAPR_RESIZE_HPT_REQUIRED,
+} sPAPRResizeHPT;
+
 /**
  * sPAPRMachineClass:
  */
@@ -58,6 +66,7 @@ struct sPAPRMachineClass {
                           uint64_t *buid, hwaddr *pio, 
                           hwaddr *mmio32, hwaddr *mmio64,
                           unsigned n_dma, uint32_t *liobns, Error **errp);
+    sPAPRResizeHPT resize_hpt_default;
 };
 
 /**
@@ -73,9 +82,12 @@ struct sPAPRMachineState {
     ICSState *ics;
     sPAPRRTCState rtc;
 
+    sPAPRResizeHPT resize_hpt;
     void *htab;
     uint32_t htab_shift;
     uint64_t patb_entry; /* Process tbl registed in H_REGISTER_PROCESS_TABLE */
+    sPAPRPendingHPT *pending_hpt; /* in-progress resize */
+
     hwaddr rma_size;
     int vrma_adjust;
     ssize_t rtas_size;
@@ -367,6 +379,8 @@ struct sPAPRMachineState {
 #define H_XIRR_X                0x2FC
 #define H_RANDOM                0x300
 #define H_SET_MODE              0x31C
+#define H_RESIZE_HPT_PREPARE    0x36C
+#define H_RESIZE_HPT_COMMIT     0x370
 #define H_CLEAN_SLB             0x374
 #define H_INVALIDATE_PID        0x378
 #define H_REGISTER_PROC_TBL     0x37C
@@ -607,8 +621,9 @@ struct sPAPRTCETable {
 sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn);
 
 struct sPAPREventLogEntry {
-    int log_type;
-    void *data;
+    uint32_t summary;
+    uint32_t extended_length;
+    void *extended_log;
     QTAILQ_ENTRY(sPAPREventLogEntry) next;
 };
 
@@ -644,6 +659,9 @@ void spapr_hotplug_req_add_by_count_indexed(sPAPRDRConnectorType drc_type,
 void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
                                                uint32_t count, uint32_t index);
 void spapr_cpu_parse_features(sPAPRMachineState *spapr);
+int spapr_hpt_shift_for_ramsize(uint64_t ramsize);
+void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
+                          Error **errp);
 
 /* CPU and LMB DRC release callbacks. */
 void spapr_core_release(DeviceState *dev);
@@ -683,5 +701,7 @@ int spapr_rng_populate_dt(void *fdt);
 #define SPAPR_LMB_FLAGS_RESERVED 0x00000080
 
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
+
+#define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
 #endif /* HW_SPAPR_H */
