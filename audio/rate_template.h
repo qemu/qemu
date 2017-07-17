@@ -71,6 +71,12 @@ void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
         while (rate->ipos <= (rate->opos >> 32)) {
             ilast = *ibuf++;
             rate->ipos++;
+
+            /* if ipos overflow, there is  a infinite loop */
+            if (rate->ipos == 0xffffffff) {
+                rate->ipos = 1;
+                rate->opos = rate->opos & 0xffffffff;
+            }
             /* See if we finished the input buffer yet */
             if (ibuf >= iend) {
                 goto the_end;

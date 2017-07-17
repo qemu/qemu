@@ -74,8 +74,6 @@ typedef struct {
     PortioList port_list;
 } AdlibState;
 
-static AdlibState *glob_adlib;
-
 static void adlib_stop_opl_timer (AdlibState *s, size_t n)
 {
     OPLTimerOver (s->opl, n);
@@ -130,9 +128,9 @@ static uint32_t adlib_read(void *opaque, uint32_t nport)
     return data;
 }
 
-static void timer_handler (int c, double interval_Sec)
+static void timer_handler (void *opaque, int c, double interval_Sec)
 {
-    AdlibState *s = glob_adlib;
+    AdlibState *s = opaque;
     unsigned n = c & 1;
 #ifdef DEBUG
     double interval;
@@ -259,19 +257,13 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     AdlibState *s = ADLIB(dev);
     struct audsettings as;
 
-    if (glob_adlib) {
-        error_setg (errp, "Cannot create more than 1 adlib device");
-        return;
-    }
-    glob_adlib = s;
-
     s->opl = OPLCreate (3579545, s->freq);
     if (!s->opl) {
         error_setg (errp, "OPLCreate %d failed", s->freq);
         return;
     }
     else {
-        OPLSetTimerHandler (s->opl, timer_handler, 0);
+        OPLSetTimerHandler(s->opl, timer_handler, s);
         s->enabled = 1;
     }
 

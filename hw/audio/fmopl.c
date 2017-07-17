@@ -788,14 +788,18 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 				{
 					double interval = st2 ? (double)OPL->T[1]*OPL->TimerBase : 0.0;
 					OPL->st[1] = st2;
-					if (OPL->TimerHandler) (OPL->TimerHandler)(OPL->TimerParam+1,interval);
+                    if (OPL->TimerHandler) {
+                        (OPL->TimerHandler)(OPL->TimerParam, 1, interval);
+                    }
 				}
 				/* timer 1 */
 				if(OPL->st[0] != st1)
 				{
 					double interval = st1 ? (double)OPL->T[0]*OPL->TimerBase : 0.0;
 					OPL->st[0] = st1;
-					if (OPL->TimerHandler) (OPL->TimerHandler)(OPL->TimerParam+0,interval);
+                    if (OPL->TimerHandler) {
+                        (OPL->TimerHandler)(OPL->TimerParam, 0, interval);
+                    }
 				}
 			}
 			return;
@@ -1128,10 +1132,11 @@ void OPLDestroy(FM_OPL *OPL)
 
 /* ----------  Option handlers ----------       */
 
-void OPLSetTimerHandler(FM_OPL *OPL,OPL_TIMERHANDLER TimerHandler,int channelOffset)
+void OPLSetTimerHandler(FM_OPL *OPL, OPL_TIMERHANDLER TimerHandler,
+                        void *param)
 {
 	OPL->TimerHandler   = TimerHandler;
-	OPL->TimerParam = channelOffset;
+    OPL->TimerParam = param;
 }
 
 /* ---------- YM3812 I/O interface ---------- */
@@ -1197,6 +1202,9 @@ int OPLTimerOver(FM_OPL *OPL,int c)
 		}
 	}
 	/* reload timer */
-	if (OPL->TimerHandler) (OPL->TimerHandler)(OPL->TimerParam+c,(double)OPL->T[c]*OPL->TimerBase);
+    if (OPL->TimerHandler) {
+        (OPL->TimerHandler)(OPL->TimerParam, c,
+                            (double)OPL->T[c] * OPL->TimerBase);
+    }
 	return OPL->status>>7;
 }
