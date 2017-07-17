@@ -112,12 +112,15 @@ class Docker(object):
         signal.signal(signal.SIGTERM, self._kill_instances)
         signal.signal(signal.SIGHUP, self._kill_instances)
 
-    def _do(self, cmd, quiet=True, infile=None, **kwargs):
+    def _do(self, cmd, quiet=True, **kwargs):
         if quiet:
             kwargs["stdout"] = DEVNULL
-        if infile:
-            kwargs["stdin"] = infile
         return subprocess.call(self._command + cmd, **kwargs)
+
+    def _do_check(self, cmd, quiet=True, **kwargs):
+        if quiet:
+            kwargs["stdout"] = DEVNULL
+        return subprocess.check_call(self._command + cmd, **kwargs)
 
     def _do_kill_instances(self, only_known, only_active=True):
         cmd = ["ps", "-q"]
@@ -177,14 +180,14 @@ class Docker(object):
                                     extra_files_cksum)))
         tmp_df.flush()
 
-        self._do(["build", "-t", tag, "-f", tmp_df.name] + argv + \
-                 [docker_dir],
-                 quiet=quiet)
+        self._do_check(["build", "-t", tag, "-f", tmp_df.name] + argv + \
+                       [docker_dir],
+                       quiet=quiet)
 
     def update_image(self, tag, tarball, quiet=True):
         "Update a tagged image using "
 
-        self._do(["build", "-t", tag, "-"], quiet=quiet, infile=tarball)
+        self._do_check(["build", "-t", tag, "-"], quiet=quiet, stdin=tarball)
 
     def image_matches_dockerfile(self, tag, dockerfile):
         try:
@@ -197,9 +200,9 @@ class Docker(object):
         label = uuid.uuid1().hex
         if not keep:
             self._instances.append(label)
-        ret = self._do(["run", "--label",
-                        "com.qemu.instance.uuid=" + label] + cmd,
-                       quiet=quiet)
+        ret = self._do_check(["run", "--label",
+                             "com.qemu.instance.uuid=" + label] + cmd,
+                             quiet=quiet)
         if not keep:
             self._instances.remove(label)
         return ret

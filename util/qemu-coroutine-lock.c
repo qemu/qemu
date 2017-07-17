@@ -402,6 +402,21 @@ void qemu_co_rwlock_unlock(CoRwlock *lock)
     qemu_co_mutex_unlock(&lock->mutex);
 }
 
+void qemu_co_rwlock_downgrade(CoRwlock *lock)
+{
+    Coroutine *self = qemu_coroutine_self();
+
+    /* lock->mutex critical section started in qemu_co_rwlock_wrlock or
+     * qemu_co_rwlock_upgrade.
+     */
+    assert(lock->reader == 0);
+    lock->reader++;
+    qemu_co_mutex_unlock(&lock->mutex);
+
+    /* The rest of the read-side critical section is run without the mutex.  */
+    self->locks_held++;
+}
+
 void qemu_co_rwlock_wrlock(CoRwlock *lock)
 {
     qemu_co_mutex_lock(&lock->mutex);
@@ -415,4 +430,24 @@ void qemu_co_rwlock_wrlock(CoRwlock *lock)
      * the mutex taken, so that lock->reader remains zero.
      * There is no need to update self->locks_held.
      */
+}
+
+void qemu_co_rwlock_upgrade(CoRwlock *lock)
+{
+    Coroutine *self = qemu_coroutine_self();
+
+    qemu_co_mutex_lock(&lock->mutex);
+    assert(lock->reader > 0);
+    lock->reader--;
+    lock->pending_writer++;
+    while (lock->reader) {
+        qemu_co_queue_wait(&lock->queue, &lock->mutex);
+    }
+    lock->pending_writer--;
+
+    /* The rest of the write-side critical section is run with
+     * the mutex taken, similar to qemu_co_rwlock_wrlock.  Do
+     * not account for the lock twice in self->locks_held.
+     */
+    self->locks_held--;
 }

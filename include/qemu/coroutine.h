@@ -229,6 +229,24 @@ void qemu_co_rwlock_init(CoRwlock *lock);
 void qemu_co_rwlock_rdlock(CoRwlock *lock);
 
 /**
+ * Write Locks the CoRwlock from a reader.  This is a bit more efficient than
+ * @qemu_co_rwlock_unlock followed by a separate @qemu_co_rwlock_wrlock.
+ * However, if the lock cannot be upgraded immediately, control is transferred
+ * to the caller of the current coroutine.  Also, @qemu_co_rwlock_upgrade
+ * only overrides CoRwlock fairness if there are no concurrent readers, so
+ * another writer might run while @qemu_co_rwlock_upgrade blocks.
+ */
+void qemu_co_rwlock_upgrade(CoRwlock *lock);
+
+/**
+ * Downgrades a write-side critical section to a reader.  Downgrading with
+ * @qemu_co_rwlock_downgrade never blocks, unlike @qemu_co_rwlock_unlock
+ * followed by @qemu_co_rwlock_rdlock.  This makes it more efficient, but
+ * may also sometimes be necessary for correctness.
+ */
+void qemu_co_rwlock_downgrade(CoRwlock *lock);
+
+/**
  * Write Locks the mutex. If the lock cannot be taken immediately because
  * of a parallel reader, control is transferred to the caller of the current
  * coroutine.

@@ -2025,8 +2025,6 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
     ret = 0;
 
 fail:
-    qemu_co_mutex_unlock(&s->lock);
-
     while (l2meta != NULL) {
         QCowL2Meta *next;
 
@@ -2039,6 +2037,8 @@ fail:
         g_free(l2meta);
         l2meta = next;
     }
+
+    qemu_co_mutex_unlock(&s->lock);
 
     qemu_iovec_destroy(&hd_qiov);
     qemu_vfree(cluster_data);

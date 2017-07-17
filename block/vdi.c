@@ -172,7 +172,7 @@ typedef struct {
     /* VDI header (converted to host endianness). */
     VdiHeader header;
 
-    CoMutex write_lock;
+    CoRwlock bmap_lock;
 
     Error *migration_blocker;
 } BDRVVdiState;
@@ -485,7 +485,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail_free_bmap;
     }
 
-    qemu_co_mutex_init(&s->write_lock);
+    qemu_co_rwlock_init(&s->bmap_lock);
 
     return 0;
 
@@ -557,7 +557,9 @@ vdi_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                n_bytes, offset);
 
         /* prepare next AIO request */
+        qemu_co_rwlock_rdlock(&s->bmap_lock);
         bmap_entry = le32_to_cpu(s->bmap[block_index]);
+        qemu_co_rwlock_unlock(&s->bmap_lock);
         if (!VDI_IS_ALLOCATED(bmap_entry)) {
             /* Block not allocated, return zeros, no need to wait. */
             qemu_iovec_memset(qiov, bytes_done, 0, n_bytes);
@@ -595,6 +597,7 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     uint32_t block_index;
     uint32_t offset_in_block;
     uint32_t n_bytes;
+    uint64_t data_offset;
     uint32_t bmap_first = VDI_UNALLOCATED;
     uint32_t bmap_last = VDI_UNALLOCATED;
     uint8_t *block = NULL;
@@ -614,10 +617,19 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                n_bytes, offset);
 
         /* prepare next AIO request */
+        qemu_co_rwlock_rdlock(&s->bmap_lock);
         bmap_entry = le32_to_cpu(s->bmap[block_index]);
         if (!VDI_IS_ALLOCATED(bmap_entry)) {
             /* Allocate new block and write to it. */
             uint64_t data_offset;
+            qemu_co_rwlock_upgrade(&s->bmap_lock);
+            bmap_entry = le32_to_cpu(s->bmap[block_index]);
+            if (VDI_IS_ALLOCATED(bmap_entry)) {
+                /* A concurrent allocation did the work for us.  */
+                qemu_co_rwlock_downgrade(&s->bmap_lock);
+                goto nonallocating_write;
+            }
+
             bmap_entry = s->header.blocks_allocated;
             s->bmap[block_index] = cpu_to_le32(bmap_entry);
             s->header.blocks_allocated++;
@@ -635,30 +647,18 @@ vdi_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
             memset(block + offset_in_block + n_bytes, 0,
                    s->block_size - n_bytes - offset_in_block);
 
-            /* Note that this coroutine does not yield anywhere from reading the
-             * bmap entry until here, so in regards to all the coroutines trying
-             * to write to this cluster, the one doing the allocation will
-             * always be the first to try to acquire the lock.
-             * Therefore, it is also the first that will actually be able to
-             * acquire the lock and thus the padded cluster is written before
-             * the other coroutines can write to the affected area. */
-            qemu_co_mutex_lock(&s->write_lock);
+            /* Write the new block under CoRwLock write-side protection,
+             * so this full-cluster write does not overlap a partial write
+             * of the same cluster, issued from the "else" branch.
+             */
             ret = bdrv_pwrite(bs->file, data_offset, block, s->block_size);
-            qemu_co_mutex_unlock(&s->write_lock);
+            qemu_co_rwlock_unlock(&s->bmap_lock);
         } else {
-            uint64_t data_offset = s->header.offset_data +
-                                   (uint64_t)bmap_entry * s->block_size +
-                                   offset_in_block;
-            qemu_co_mutex_lock(&s->write_lock);
-            /* This lock is only used to make sure the following write operation
-             * is executed after the write issued by the coroutine allocating
-             * this cluster, therefore we do not need to keep it locked.
-             * As stated above, the allocating coroutine will always try to lock
-             * the mutex before all the other concurrent accesses to that
-             * cluster, therefore at this point we can be absolutely certain
-             * that that write operation has returned (there may be other writes
-             * in flight, but they do not concern this very operation). */
-            qemu_co_mutex_unlock(&s->write_lock);
+nonallocating_write:
+            data_offset = s->header.offset_data +
+                           (uint64_t)bmap_entry * s->block_size +
+                           offset_in_block;
+            qemu_co_rwlock_unlock(&s->bmap_lock);
 
             qemu_iovec_reset(&local_qiov);
             qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
