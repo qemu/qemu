@@ -901,7 +901,8 @@ ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
     uint8_t buf[NBD_REQUEST_SIZE];
 
     trace_nbd_send_request(request->from, request->len, request->handle,
-                           request->flags, request->type);
+                           request->flags, request->type,
+                           nbd_cmd_lookup(request->type));
 
     stl_be_p(buf, NBD_REQUEST_MAGIC);
     stw_be_p(buf + 4, request->flags);
