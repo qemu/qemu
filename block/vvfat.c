@@ -549,7 +549,7 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
     const gchar *p, *last_dot = NULL;
     gunichar c;
     bool lossy_conversion = false;
-    char tail[11];
+    char tail[8];
 
     if (!entry) {
         return NULL;
@@ -614,7 +614,8 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
     for (i = lossy_conversion ? 1 : 0; i < 999999; i++) {
         direntry_t *entry1;
         if (i > 0) {
-            int len = sprintf(tail, "~%d", i);
+            int len = snprintf(tail, sizeof(tail), "~%u", (unsigned)i);
+            assert(len <= 7);
             memcpy(entry->name + MIN(j, 8 - len), tail, len);
         }
         for (entry1 = array_get(&(s->directory), directory_start);
