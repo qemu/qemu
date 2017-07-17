@@ -54,6 +54,7 @@
 #include "exec/tb-hash.h"
 #include "translate-all.h"
 #include "qemu/bitmap.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "exec/log.h"
@@ -111,6 +112,11 @@ typedef struct PageDesc {
 /* Size of the L2 (and L3, etc) page tables.  */
 #define V_L2_BITS 10
 #define V_L2_SIZE (1 << V_L2_BITS)
+
+/* Make sure all possible CPU event bits fit in tb->trace_vcpu_dstate */
+QEMU_BUILD_BUG_ON(CPU_TRACE_DSTATE_MAX_EVENTS >
+                  sizeof(((TranslationBlock *)0)->trace_vcpu_dstate)
+                  * BITS_PER_BYTE);
 
 /*
  * L1 Mapping properties
@@ -1071,7 +1077,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* remove the TB from the hash list */
     phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags, tb->trace_vcpu_dstate);
     qht_remove(&tcg_ctx.tb_ctx.htable, tb, h);
 
     /* remove the TB from the page list */
@@ -1216,7 +1222,7 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     }
 
     /* add in the hash table */
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags);
+    h = tb_hash_func(phys_pc, tb->pc, tb->flags, tb->trace_vcpu_dstate);
     qht_insert(&tcg_ctx.tb_ctx.htable, tb, h);
 
 #ifdef DEBUG_TB_CHECK
@@ -1262,6 +1268,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
+    tb->trace_vcpu_dstate = *cpu->trace_dstate;
     tb->invalid = false;
 
 #ifdef CONFIG_PROFILER

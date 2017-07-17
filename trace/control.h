@@ -165,6 +165,9 @@ void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
  * Set the dynamic tracing state of an event for the given vCPU.
  *
  * Pre-condition: trace_event_get_vcpu_state_static(ev) == true
+ *
+ * Note: Changes for execution-time events with the 'tcg' property will not be
+ *       propagated until the next TB is executed (iff executing in TCG mode).
  */
 void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
                                         TraceEvent *ev, bool state);

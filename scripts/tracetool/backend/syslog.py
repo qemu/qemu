@@ -35,9 +35,9 @@ def generate_h(event, group):
     else:
         cond = "trace_event_get_state(%s)" % ("TRACE_" + event.name.upper())
 
-    out('        if (%(cond)s) {',
-        '            syslog(LOG_INFO, "%(name)s " %(fmt)s %(argnames)s);',
-        '        }',
+    out('    if (%(cond)s) {',
+        '        syslog(LOG_INFO, "%(name)s " %(fmt)s %(argnames)s);',
+        '    }',
         cond=cond,
         name=event.name,
         fmt=event.fmt.rstrip("\n"),

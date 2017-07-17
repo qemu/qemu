@@ -158,7 +158,8 @@ void *HELPER(lookup_tb_ptr)(CPUArchState *env, target_ulong addr)
     if (unlikely(!(tb
                    && tb->pc == addr
                    && tb->cs_base == cs_base
-                   && tb->flags == flags))) {
+                   && tb->flags == flags
+                   && tb->trace_vcpu_dstate == *cpu->trace_dstate))) {
         tb = tb_htable_lookup(cpu, addr, cs_base, flags);
         if (!tb) {
             return tcg_ctx.code_gen_epilogue;
