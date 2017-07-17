@@ -35,6 +35,8 @@
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/timer/cmsdk-apb-timer.h"
 #include "hw/misc/mps2-scc.h"
+#include "hw/devices.h"
+#include "net/net.h"
 
 typedef enum MPS2FPGAType {
     FPGA_AN385,
@@ -209,7 +211,6 @@ static void mps2_common_init(MachineState *machine)
     create_unimplemented_device("Extra peripheral region @0x40020000",
                                 0x40020000, 0x00010000);
     create_unimplemented_device("RESERVED 4", 0x40030000, 0x001D0000);
-    create_unimplemented_device("Ethernet", 0x40200000, 0x00100000);
     create_unimplemented_device("VGA", 0x41000000, 0x0200000);
 
     switch (mmc->fpga_type) {
@@ -309,6 +310,13 @@ static void mps2_common_init(MachineState *machine)
     object_property_set_bool(OBJECT(&mms->scc), true, "realized",
                              &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sccdev), 0, 0x4002f000);
+
+    /* In hardware this is a LAN9220; the LAN9118 is software compatible
+     * except that it doesn't support the checksum-offload feature.
+     */
+    lan9118_init(&nd_table[0], 0x40200000,
+                 qdev_get_gpio_in(armv7m,
+                                  mmc->fpga_type == FPGA_AN385 ? 13 : 47));
 
     system_clock_scale = NANOSECONDS_PER_SECOND / SYSCLK_FRQ;
 
