@@ -825,11 +825,11 @@ def check_alternate(expr, info):
             else:
                 conflicting.add('QTYPE_QNUM')
                 conflicting.add('QTYPE_QBOOL')
-        if conflicting & set(types_seen):
-            raise QAPISemError(info, "Alternate '%s' member '%s' can't "
-                               "be distinguished from member '%s'"
-                               % (name, key, types_seen[qtype]))
         for qt in conflicting:
+            if qt in types_seen:
+                raise QAPISemError(info, "Alternate '%s' member '%s' can't "
+                                   "be distinguished from member '%s'"
+                                   % (name, key, types_seen[qt]))
             types_seen[qt] = key
 
 
