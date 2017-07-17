@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <dirent.h>
-#include <utmpx.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
@@ -24,6 +23,10 @@
 #include "qemu/sockets.h"
 #include "qemu/base64.h"
 #include "qemu/cutils.h"
+
+#ifdef HAVE_UTMPX
+#include <utmpx.h>
+#endif
 
 #ifndef CONFIG_HAS_ENVIRON
 #ifdef __APPLE__
@@ -2519,6 +2522,8 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
 #endif
 }
 
+#ifdef HAVE_UTMPX
+
 #define QGA_MICRO_SECOND_TO_SECOND 1000000
 
 static double ga_get_login_time(struct utmpx *user_info)
@@ -2577,3 +2582,13 @@ GuestUserList *qmp_guest_get_users(Error **err)
     g_hash_table_destroy(cache);
     return head;
 }
+
+#else
+
+GuestUserList *qmp_guest_get_users(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+#endif
