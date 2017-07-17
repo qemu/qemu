@@ -10,6 +10,7 @@ sterling 0x4 altgr
 cent 0x5 altgr
 currency 0x6 altgr
 notsign 0x7 altgr
+numbersign 0x29
 bar 0x29 shift
 twosuperior 0x9 altgr
 threesuperior 0xa altgr
@@ -38,6 +39,10 @@ dead_cedilla 0x1b
 dead_diaeresis 0x1b shift
 exclam 0x2 shift
 quotedbl 0x3 shift
+comma 0x33
+apostrophe 0x33 shift
+period 0x34
+period 0x34 shift
 slash 0x4 shift
 dollar 0x5 shift
 percent 0x6 shift
@@ -47,6 +52,9 @@ asterisk 0x9 shift
 parenleft 0xa shift
 parenright 0xb shift
 underscore 0xc shift
-plus 0xd shift
 minus 0xc
+underscore 0xc shift
 equal 0xd
+plus 0xd shift
+semicolon 0x27
+colon 0x27 shift
