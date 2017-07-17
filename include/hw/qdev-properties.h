@@ -44,7 +44,15 @@ extern const PropertyInfo qdev_prop_link;
         .info      = &(_prop),                                          \
         .offset    = offsetof(_state, _field)                           \
             + type_check(_type,typeof_field(_state, _field)),           \
+        .set_default = true,                                            \
         .defval.i  = (_type)_defval,                                    \
+        }
+
+#define DEFINE_PROP_SIGNED_NODEFAULT(_name, _state, _field, _prop, _type) { \
+        .name      = (_name),                                           \
+        .info      = &(_prop),                                          \
+        .offset    = offsetof(_state, _field)                           \
+            + type_check(_type, typeof_field(_state, _field)),          \
         }
 
 #define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval) {  \
@@ -53,6 +61,7 @@ extern const PropertyInfo qdev_prop_link;
         .bitnr    = (_bit),                                      \
         .offset    = offsetof(_state, _field)                    \
             + type_check(uint32_t,typeof_field(_state, _field)), \
+        .set_default = true,                                     \
         .defval.u  = (bool)_defval,                              \
         }
 
@@ -61,7 +70,15 @@ extern const PropertyInfo qdev_prop_link;
         .info      = &(_prop),                                          \
         .offset    = offsetof(_state, _field)                           \
             + type_check(_type, typeof_field(_state, _field)),          \
+        .set_default = true,                                            \
         .defval.u  = (_type)_defval,                                    \
+        }
+
+#define DEFINE_PROP_UNSIGNED_NODEFAULT(_name, _state, _field, _prop, _type) { \
+        .name      = (_name),                                           \
+        .info      = &(_prop),                                          \
+        .offset    = offsetof(_state, _field)                           \
+            + type_check(_type, typeof_field(_state, _field)),          \
         }
 
 #define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval) {       \
@@ -70,6 +87,7 @@ extern const PropertyInfo qdev_prop_link;
         .bitnr    = (_bit),                                             \
         .offset    = offsetof(_state, _field)                           \
             + type_check(uint64_t, typeof_field(_state, _field)),       \
+        .set_default = true,                                            \
         .defval.u  = (bool)_defval,                                     \
         }
 
@@ -78,6 +96,7 @@ extern const PropertyInfo qdev_prop_link;
         .info      = &(qdev_prop_bool),                          \
         .offset    = offsetof(_state, _field)                    \
             + type_check(bool, typeof_field(_state, _field)),    \
+        .set_default = true,                                     \
         .defval.u    = (bool)_defval,                            \
         }
 
@@ -111,6 +130,7 @@ extern const PropertyInfo qdev_prop_link;
                           _arrayfield, _arrayprop, _arraytype) {        \
         .name = (PROP_ARRAY_LEN_PREFIX _name),                          \
         .info = &(qdev_prop_arraylen),                                  \
+        .set_default = true,                                            \
         .defval.u = 0,                                                  \
         .offset = offsetof(_state, _field)                              \
             + type_check(uint32_t, typeof_field(_state, _field)),       \

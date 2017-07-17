@@ -800,7 +800,7 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
                                     prop->info->description,
                                     &error_abort);
 
-    if (prop->info->set_default_value) {
+    if (prop->set_default) {
         prop->info->set_default_value(obj, prop);
     }
 }
