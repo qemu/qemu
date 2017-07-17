@@ -1139,9 +1139,9 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
      * Also, let's ignore IOTLB caching as well for PT devices.
      */
     if (vtd_ce_get_type(&ce) == VTD_CONTEXT_TT_PASS_THROUGH) {
-        entry->iova = addr & VTD_PAGE_MASK;
+        entry->iova = addr & VTD_PAGE_MASK_4K;
         entry->translated_addr = entry->iova;
-        entry->addr_mask = VTD_PAGE_MASK;
+        entry->addr_mask = ~VTD_PAGE_MASK_4K;
         entry->perm = IOMMU_RW;
         trace_vtd_translate_pt(source_id, entry->iova);
 
