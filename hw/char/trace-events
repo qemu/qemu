@@ -56,3 +56,12 @@ pl011_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 pl011_can_receive(uint32_t lcr, int read_count, int r) "LCR %08x read_count %d returning %d"
 pl011_put_fifo(uint32_t c, int read_count) "new char 0x%x read_count now %d"
 pl011_put_fifo_full(void) "FIFO now full, RXFF set"
+
+# hw/char/cmsdk_apb_uart.c
+cmsdk_apb_uart_read(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB UART read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+cmsdk_apb_uart_write(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB UART write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+cmsdk_apb_uart_reset(void) "CMSDK APB UART: reset"
+cmsdk_apb_uart_receive(uint8_t c) "CMSDK APB UART: got character 0x%x from backend"
+cmsdk_apb_uart_tx_pending(void) "CMSDK APB UART: character send to backend pending"
+cmsdk_apb_uart_tx(uint8_t c) "CMSDK APB UART: character 0x%x sent to backend"
+cmsdk_apb_uart_set_params(int speed) "CMSDK APB UART: params set to %d 8N1"
