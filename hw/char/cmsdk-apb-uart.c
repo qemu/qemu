@@ -339,7 +339,7 @@ static void cmsdk_apb_uart_realize(DeviceState *dev, Error **errp)
      * an event handler to deal with CHR_EVENT_BREAK.
      */
     qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
-                             NULL, s, NULL, true);
+                             NULL, NULL, s, NULL, true);
 }
 
 static int cmsdk_apb_uart_post_load(void *opaque, int version_id)
