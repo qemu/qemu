@@ -653,7 +653,6 @@ static const TypeInfo spapr_dr_connector_info = {
 static const TypeInfo spapr_drc_physical_info = {
     .name          = TYPE_SPAPR_DRC_PHYSICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
-    .instance_size = sizeof(sPAPRDRConnector),
     .class_init    = spapr_drc_physical_class_init,
     .abstract      = true,
 };
@@ -661,7 +660,6 @@ static const TypeInfo spapr_drc_physical_info = {
 static const TypeInfo spapr_drc_logical_info = {
     .name          = TYPE_SPAPR_DRC_LOGICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
-    .instance_size = sizeof(sPAPRDRConnector),
     .class_init    = spapr_drc_logical_class_init,
     .abstract      = true,
 };
@@ -669,21 +667,18 @@ static const TypeInfo spapr_drc_logical_info = {
 static const TypeInfo spapr_drc_cpu_info = {
     .name          = TYPE_SPAPR_DRC_CPU,
     .parent        = TYPE_SPAPR_DRC_LOGICAL,
-    .instance_size = sizeof(sPAPRDRConnector),
     .class_init    = spapr_drc_cpu_class_init,
 };
 
 static const TypeInfo spapr_drc_pci_info = {
     .name          = TYPE_SPAPR_DRC_PCI,
     .parent        = TYPE_SPAPR_DRC_PHYSICAL,
-    .instance_size = sizeof(sPAPRDRConnector),
     .class_init    = spapr_drc_pci_class_init,
 };
 
 static const TypeInfo spapr_drc_lmb_info = {
     .name          = TYPE_SPAPR_DRC_LMB,
     .parent        = TYPE_SPAPR_DRC_LOGICAL,
-    .instance_size = sizeof(sPAPRDRConnector),
     .class_init    = spapr_drc_lmb_class_init,
 };
 
