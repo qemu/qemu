@@ -2359,7 +2359,6 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
     assert(max_pdiscard >= bs->bl.request_alignment);
 
     while (bytes > 0) {
-        int ret;
         int num = bytes;
 
         if (head) {
