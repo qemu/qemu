@@ -2273,15 +2273,14 @@
 # besides their data source and an optional backing file.
 #
 # @backing:     reference to or definition of the backing file block
-#               device (if missing, taken from the image file content). It is
-#               allowed to pass an empty string here in order to disable the
-#               default backing file.
+#               device, null disables the backing file entirely.
+#               Defaults to the backing file stored the image file.
 #
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsGenericCOWFormat',
   'base': 'BlockdevOptionsGenericFormat',
-  'data': { '*backing': 'BlockdevRef' } }
+  'data': { '*backing': 'BlockdevRefOrNull' } }
 
 ##
 # @Qcow2OverlapCheckMode:
@@ -3120,15 +3119,31 @@
 # Reference to a block device.
 #
 # @definition:      defines a new block device inline
-# @reference:       references the ID of an existing block device. An
-#                   empty string means that no block device should be
-#                   referenced.
+# @reference:       references the ID of an existing block device
 #
 # Since: 2.9
 ##
 { 'alternate': 'BlockdevRef',
   'data': { 'definition': 'BlockdevOptions',
             'reference': 'str' } }
+
+##
+# @BlockdevRefOrNull:
+#
+# Reference to a block device.
+#
+# @definition:      defines a new block device inline
+# @reference:       references the ID of an existing block device.
+#                   An empty string means that no block device should
+#                   be referenced.  Deprecated; use null instead.
+# @null:            No block device should be referenced (since 2.10)
+#
+# Since: 2.9
+##
+{ 'alternate': 'BlockdevRefOrNull',
+  'data': { 'definition': 'BlockdevOptions',
+            'reference': 'str',
+            'null': 'null' } }
 
 ##
 # @blockdev-add:

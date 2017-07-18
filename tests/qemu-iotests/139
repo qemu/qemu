@@ -69,7 +69,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
                          '-b', base_img, new_img, '1M')
         opts = {'driver': iotests.imgfmt,
                 'node-name': node,
-                'backing': '',
+                'backing': None,
                 'file': {'driver': 'file',
                          'filename': new_img}}
         result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
