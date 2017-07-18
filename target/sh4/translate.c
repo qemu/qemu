@@ -369,16 +369,9 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
         goto do_illegal_slot;               \
     }
 
-#define CHECK_PRIVILEGED                                             \
-    if (IS_USER(ctx)) {                                              \
-        gen_save_cpu_state(ctx, true);                               \
-        if (ctx->envflags & DELAY_SLOT_MASK) {                       \
-            gen_helper_raise_slot_illegal_instruction(cpu_env);      \
-        } else {                                                     \
-            gen_helper_raise_illegal_instruction(cpu_env);           \
-        }                                                            \
-        ctx->bstate = BS_EXCP;                                       \
-        return;                                                      \
+#define CHECK_PRIVILEGED \
+    if (IS_USER(ctx)) {                     \
+        goto do_illegal;                    \
     }
 
 #define CHECK_FPU_ENABLED                                            \
@@ -1793,6 +1786,7 @@ static void _decode_opc(DisasContext * ctx)
 	    ctx->opcode, ctx->pc);
     fflush(stderr);
 #endif
+ do_illegal:
     if (ctx->envflags & DELAY_SLOT_MASK) {
  do_illegal_slot:
         gen_save_cpu_state(ctx, true);
