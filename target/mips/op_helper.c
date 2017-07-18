@@ -1322,6 +1322,30 @@ void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
     restore_pamask(env);
 }
 
+void helper_mtc0_segctl0(CPUMIPSState *env, target_ulong arg1)
+{
+    CPUState *cs = CPU(mips_env_get_cpu(env));
+
+    env->CP0_SegCtl0 = arg1 & CP0SC0_MASK;
+    tlb_flush(cs);
+}
+
+void helper_mtc0_segctl1(CPUMIPSState *env, target_ulong arg1)
+{
+    CPUState *cs = CPU(mips_env_get_cpu(env));
+
+    env->CP0_SegCtl1 = arg1 & CP0SC1_MASK;
+    tlb_flush(cs);
+}
+
+void helper_mtc0_segctl2(CPUMIPSState *env, target_ulong arg1)
+{
+    CPUState *cs = CPU(mips_env_get_cpu(env));
+
+    env->CP0_SegCtl2 = arg1 & CP0SC2_MASK;
+    tlb_flush(cs);
+}
+
 void helper_mtc0_wired(CPUMIPSState *env, target_ulong arg1)
 {
     if (env->insn_flags & ISA_MIPS32R6) {

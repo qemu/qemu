@@ -306,6 +306,36 @@ struct CPUMIPSState {
 #define CP0PG_XIE 30
 #define CP0PG_ELPA 29
 #define CP0PG_IEC 27
+    target_ulong CP0_SegCtl0;
+    target_ulong CP0_SegCtl1;
+    target_ulong CP0_SegCtl2;
+#define CP0SC_PA        9
+#define CP0SC_PA_MASK   (0x7FULL << CP0SC_PA)
+#define CP0SC_PA_1GMASK (0x7EULL << CP0SC_PA)
+#define CP0SC_AM        4
+#define CP0SC_AM_MASK   (0x7ULL << CP0SC_AM)
+#define CP0SC_AM_UK     0ULL
+#define CP0SC_AM_MK     1ULL
+#define CP0SC_AM_MSK    2ULL
+#define CP0SC_AM_MUSK   3ULL
+#define CP0SC_AM_MUSUK  4ULL
+#define CP0SC_AM_USK    5ULL
+#define CP0SC_AM_UUSK   7ULL
+#define CP0SC_EU        3
+#define CP0SC_EU_MASK   (1ULL << CP0SC_EU)
+#define CP0SC_C         0
+#define CP0SC_C_MASK    (0x7ULL << CP0SC_C)
+#define CP0SC_MASK      (CP0SC_C_MASK | CP0SC_EU_MASK | CP0SC_AM_MASK | \
+                         CP0SC_PA_MASK)
+#define CP0SC_1GMASK    (CP0SC_C_MASK | CP0SC_EU_MASK | CP0SC_AM_MASK | \
+                         CP0SC_PA_1GMASK)
+#define CP0SC0_MASK     (CP0SC_MASK | (CP0SC_MASK << 16))
+#define CP0SC1_XAM      59
+#define CP0SC1_XAM_MASK (0x7ULL << CP0SC1_XAM)
+#define CP0SC1_MASK     (CP0SC_MASK | (CP0SC_MASK << 16) | CP0SC1_XAM_MASK)
+#define CP0SC2_XR       56
+#define CP0SC2_XR_MASK  (0xFFULL << CP0SC2_XR)
+#define CP0SC2_MASK     (CP0SC_1GMASK | (CP0SC_1GMASK << 16) | CP0SC2_XR_MASK)
     int32_t CP0_Wired;
     int32_t CP0_SRSConf0_rw_bitmask;
     int32_t CP0_SRSConf0;
