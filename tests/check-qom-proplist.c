@@ -568,6 +568,47 @@ static void test_dummy_delchild(void)
     object_unparent(OBJECT(dev));
 }
 
+static void test_qom_partial_path(void)
+{
+    Object *root  = object_get_objects_root();
+    Object *cont1 = container_get(root, "/cont1");
+    Object *obj1  = object_new(TYPE_DUMMY);
+    Object *obj2a = object_new(TYPE_DUMMY);
+    Object *obj2b = object_new(TYPE_DUMMY);
+    bool ambiguous;
+
+    /* Objects created:
+     * /cont1
+     * /cont1/obj1
+     * /cont1/obj2 (obj2a)
+     * /obj2 (obj2b)
+     */
+    object_property_add_child(cont1, "obj1", obj1, &error_abort);
+    object_unref(obj1);
+    object_property_add_child(cont1, "obj2", obj2a, &error_abort);
+    object_unref(obj2a);
+    object_property_add_child(root,  "obj2", obj2b, &error_abort);
+    object_unref(obj2b);
+
+    ambiguous = false;
+    g_assert(!object_resolve_path_type("", TYPE_DUMMY, &ambiguous));
+    g_assert(ambiguous);
+    g_assert(!object_resolve_path_type("", TYPE_DUMMY, NULL));
+
+    ambiguous = false;
+    g_assert(!object_resolve_path("obj2", &ambiguous));
+    g_assert(ambiguous);
+    g_assert(!object_resolve_path("obj2", NULL));
+
+    ambiguous = false;
+    g_assert(object_resolve_path("obj1", &ambiguous) == obj1);
+    g_assert(!ambiguous);
+    g_assert(object_resolve_path("obj1", NULL) == obj1);
+
+    object_unparent(obj2b);
+    object_unparent(cont1);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -585,6 +626,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qom/proplist/getenum", test_dummy_getenum);
     g_test_add_func("/qom/proplist/iterator", test_dummy_iterator);
     g_test_add_func("/qom/proplist/delchild", test_dummy_delchild);
+    g_test_add_func("/qom/resolve/partial", test_qom_partial_path);
 
     return g_test_run();
 }

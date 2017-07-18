@@ -33,6 +33,8 @@
 #define STATIC_TYPE(obj) \
     OBJECT_CHECK(MyType, (obj), TYPE_STATIC_PROPS)
 
+#define TYPE_SUBCLASS "static_prop_subtype"
+
 #define PROP_DEFAULT 100
 
 typedef struct MyType {
@@ -61,6 +63,11 @@ static const TypeInfo static_prop_type = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(MyType),
     .class_init = static_prop_class_init,
+};
+
+static const TypeInfo subclass_type = {
+    .name = TYPE_SUBCLASS,
+    .parent = TYPE_STATIC_PROPS,
 };
 
 /* Test simple static property setting to default value */
@@ -279,12 +286,35 @@ static void test_dynamic_globalprop_nouser(void)
     g_test_trap_assert_stdout("");
 }
 
+/* Test if global props affecting subclasses are applied in the right order */
+static void test_subclass_global_props(void)
+{
+    MyType *mt;
+    /* Global properties must be applied in the order they were registered */
+    static GlobalProperty props[] = {
+        { TYPE_STATIC_PROPS, "prop1", "101" },
+        { TYPE_SUBCLASS,     "prop1", "102" },
+        { TYPE_SUBCLASS,     "prop2", "103" },
+        { TYPE_STATIC_PROPS, "prop2", "104" },
+        {}
+    };
+
+    qdev_prop_register_global_list(props);
+
+    mt = STATIC_TYPE(object_new(TYPE_SUBCLASS));
+    qdev_init_nofail(DEVICE(mt));
+
+    g_assert_cmpuint(mt->prop1, ==, 102);
+    g_assert_cmpuint(mt->prop2, ==, 104);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     module_call_init(MODULE_INIT_QOM);
     type_register_static(&static_prop_type);
+    type_register_static(&subclass_type);
     type_register_static(&dynamic_prop_type);
     type_register_static(&hotplug_type);
     type_register_static(&nohotplug_type);
@@ -309,6 +339,9 @@ int main(int argc, char **argv)
                     test_dynamic_globalprop_nouser_subprocess);
     g_test_add_func("/qdev/properties/dynamic/global/nouser",
                     test_dynamic_globalprop_nouser);
+
+    g_test_add_func("/qdev/properties/global/subclass",
+                    test_subclass_global_props);
 
     g_test_run();
 
