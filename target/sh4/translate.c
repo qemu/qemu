@@ -42,6 +42,7 @@ typedef struct DisasContext {
     int bstate;
     int memidx;
     int gbank;
+    int fbank;
     uint32_t delayed_pc;
     int singlestep_enabled;
     uint32_t features;
@@ -353,12 +354,12 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 
 #define REG(x)     cpu_gregs[(x) ^ ctx->gbank]
 #define ALTREG(x)  cpu_gregs[(x) ^ ctx->gbank ^ 0x10]
+#define FREG(x)    cpu_fregs[(x) ^ ctx->fbank]
 
-#define FREG(x) cpu_fregs[ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x)]
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
-#define XREG(x) FREG(XHACK(x))
+#define XREG(x)  FREG(XHACK(x))
 /* Assumes lsb of (x) is always 0 */
-#define DREG(x) (ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x))
+#define DREG(x)  ((x) ^ ctx->fbank)
 
 #define CHECK_NOT_DELAY_SLOT \
     if (ctx->envflags & DELAY_SLOT_MASK) {                           \
@@ -2232,6 +2233,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     ctx.has_movcal = (ctx.tbflags & TB_FLAG_PENDING_MOVCA);
     ctx.gbank = ((ctx.tbflags & (1 << SR_MD)) &&
                  (ctx.tbflags & (1 << SR_RB))) * 0x10;
+    ctx.fbank = ctx.tbflags & FPSCR_FR ? 0x10 : 0;
 
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
