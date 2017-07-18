@@ -13,9 +13,9 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <dirent.h>
-#include <utmpx.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
@@ -24,6 +24,10 @@
 #include "qemu/sockets.h"
 #include "qemu/base64.h"
 #include "qemu/cutils.h"
+
+#ifdef HAVE_UTMPX
+#include <utmpx.h>
+#endif
 
 #ifndef CONFIG_HAS_ENVIRON
 #ifdef __APPLE__
@@ -2519,6 +2523,8 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
 #endif
 }
 
+#ifdef HAVE_UTMPX
+
 #define QGA_MICRO_SECOND_TO_SECOND 1000000
 
 static double ga_get_login_time(struct utmpx *user_info)
@@ -2576,4 +2582,153 @@ GuestUserList *qmp_guest_get_users(Error **err)
     endutxent();
     g_hash_table_destroy(cache);
     return head;
+}
+
+#else
+
+GuestUserList *qmp_guest_get_users(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+#endif
+
+/* Replace escaped special characters with theire real values. The replacement
+ * is done in place -- returned value is in the original string.
+ */
+static void ga_osrelease_replace_special(gchar *value)
+{
+    gchar *p, *p2, quote;
+
+    /* Trim the string at first space or semicolon if it is not enclosed in
+     * single or double quotes. */
+    if ((value[0] != '"') || (value[0] == '\'')) {
+        p = strchr(value, ' ');
+        if (p != NULL) {
+            *p = 0;
+        }
+        p = strchr(value, ';');
+        if (p != NULL) {
+            *p = 0;
+        }
+        return;
+    }
+
+    quote = value[0];
+    p2 = value;
+    p = value + 1;
+    while (*p != 0) {
+        if (*p == '\\') {
+            p++;
+            switch (*p) {
+            case '$':
+            case '\'':
+            case '"':
+            case '\\':
+            case '`':
+                break;
+            default:
+                /* Keep literal backslash followed by whatever is there */
+                p--;
+                break;
+            }
+        } else if (*p == quote) {
+            *p2 = 0;
+            break;
+        }
+        *(p2++) = *(p++);
+    }
+}
+
+static GKeyFile *ga_parse_osrelease(const char *fname)
+{
+    gchar *content = NULL;
+    gchar *content2 = NULL;
+    GError *err = NULL;
+    GKeyFile *keys = g_key_file_new();
+    const char *group = "[os-release]\n";
+
+    if (!g_file_get_contents(fname, &content, NULL, &err)) {
+        slog("failed to read '%s', error: %s", fname, err->message);
+        goto fail;
+    }
+
+    if (!g_utf8_validate(content, -1, NULL)) {
+        slog("file is not utf-8 encoded: %s", fname);
+        goto fail;
+    }
+    content2 = g_strdup_printf("%s%s", group, content);
+
+    if (!g_key_file_load_from_data(keys, content2, -1, G_KEY_FILE_NONE,
+                                   &err)) {
+        slog("failed to parse file '%s', error: %s", fname, err->message);
+        goto fail;
+    }
+
+    g_free(content);
+    g_free(content2);
+    return keys;
+
+fail:
+    g_error_free(err);
+    g_free(content);
+    g_free(content2);
+    g_key_file_free(keys);
+    return NULL;
+}
+
+GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
+{
+    GuestOSInfo *info = NULL;
+    struct utsname kinfo;
+    GKeyFile *osrelease = NULL;
+    const char *qga_os_release = g_getenv("QGA_OS_RELEASE");
+
+    info = g_new0(GuestOSInfo, 1);
+
+    if (uname(&kinfo) != 0) {
+        error_setg_errno(errp, errno, "uname failed");
+    } else {
+        info->has_kernel_version = true;
+        info->kernel_version = g_strdup(kinfo.version);
+        info->has_kernel_release = true;
+        info->kernel_release = g_strdup(kinfo.release);
+        info->has_machine = true;
+        info->machine = g_strdup(kinfo.machine);
+    }
+
+    if (qga_os_release != NULL) {
+        osrelease = ga_parse_osrelease(qga_os_release);
+    } else {
+        osrelease = ga_parse_osrelease("/etc/os-release");
+        if (osrelease == NULL) {
+            osrelease = ga_parse_osrelease("/usr/lib/os-release");
+        }
+    }
+
+    if (osrelease != NULL) {
+        char *value;
+
+#define GET_FIELD(field, osfield) do { \
+    value = g_key_file_get_value(osrelease, "os-release", osfield, NULL); \
+    if (value != NULL) { \
+        ga_osrelease_replace_special(value); \
+        info->has_ ## field = true; \
+        info->field = value; \
+    } \
+} while (0)
+        GET_FIELD(id, "ID");
+        GET_FIELD(name, "NAME");
+        GET_FIELD(pretty_name, "PRETTY_NAME");
+        GET_FIELD(version, "VERSION");
+        GET_FIELD(version_id, "VERSION_ID");
+        GET_FIELD(variant, "VARIANT");
+        GET_FIELD(variant_id, "VARIANT_ID");
+#undef GET_FIELD
+
+        g_key_file_free(osrelease);
+    }
+
+    return info;
 }
