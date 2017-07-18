@@ -24,3 +24,6 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         librdmacm-dev:arm64 \
         libsnappy-dev:arm64 \
         libxen-dev:arm64
+
+# nettle
+ENV QEMU_CONFIGURE_OPTS $QEMU_CONFIGURE_OPTS --enable-nettle
