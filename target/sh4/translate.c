@@ -374,16 +374,9 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
         goto do_illegal;                    \
     }
 
-#define CHECK_FPU_ENABLED                                            \
-    if (ctx->tbflags & (1u << SR_FD)) {                              \
-        gen_save_cpu_state(ctx, true);                               \
-        if (ctx->envflags & DELAY_SLOT_MASK) {                       \
-            gen_helper_raise_slot_fpu_disable(cpu_env);              \
-        } else {                                                     \
-            gen_helper_raise_fpu_disable(cpu_env);                   \
-        }                                                            \
-        ctx->bstate = BS_EXCP;                                       \
-        return;                                                      \
+#define CHECK_FPU_ENABLED \
+    if (ctx->tbflags & (1u << SR_FD)) {     \
+        goto do_fpu_disabled;               \
     }
 
 static void _decode_opc(DisasContext * ctx)
@@ -1796,6 +1789,17 @@ static void _decode_opc(DisasContext * ctx)
         gen_helper_raise_illegal_instruction(cpu_env);
     }
     ctx->bstate = BS_EXCP;
+    return;
+
+ do_fpu_disabled:
+    gen_save_cpu_state(ctx, true);
+    if (ctx->envflags & DELAY_SLOT_MASK) {
+        gen_helper_raise_slot_fpu_disable(cpu_env);
+    } else {
+        gen_helper_raise_fpu_disable(cpu_env);
+    }
+    ctx->bstate = BS_EXCP;
+    return;
 }
 
 static void decode_opc(DisasContext * ctx)
