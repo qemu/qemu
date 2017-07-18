@@ -220,7 +220,7 @@ static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
     if (ctx->delayed_pc != (uint32_t) -1) {
         tcg_gen_movi_i32(cpu_delayed_pc, ctx->delayed_pc);
     }
-    if ((ctx->tbflags & DELAY_SLOT_MASK) != ctx->envflags) {
+    if ((ctx->tbflags & TB_FLAG_ENVFLAGS_MASK) != ctx->envflags) {
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
     }
 }
@@ -1819,7 +1819,7 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     pc_start = tb->pc;
     ctx.pc = pc_start;
     ctx.tbflags = (uint32_t)tb->flags;
-    ctx.envflags = tb->flags & DELAY_SLOT_MASK;
+    ctx.envflags = tb->flags & TB_FLAG_ENVFLAGS_MASK;
     ctx.bstate = BS_NONE;
     ctx.memidx = (ctx.tbflags & (1u << SR_MD)) == 0 ? 1 : 0;
     /* We don't know if the delayed pc came from a dynamic or static branch,
