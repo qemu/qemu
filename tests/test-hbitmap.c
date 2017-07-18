@@ -813,7 +813,7 @@ static void test_hbitmap_serialize_basic(TestHBitmapData *data,
     size_t buf_size;
     uint8_t *buf;
     uint64_t positions[] = { 0, 1, L1 - 1, L1, L2 - 1, L2, L2 + 1, L3 - 1 };
-    int num_positions = sizeof(positions) / sizeof(positions[0]);
+    int num_positions = ARRAY_SIZE(positions);
 
     hbitmap_test_init(data, L3, 0);
     g_assert(hbitmap_is_serializable(data->hb));
@@ -838,7 +838,7 @@ static void test_hbitmap_serialize_part(TestHBitmapData *data,
     size_t buf_size;
     uint8_t *buf;
     uint64_t positions[] = { 0, 1, L1 - 1, L1, L2 - 1, L2, L2 + 1, L3 - 1 };
-    int num_positions = sizeof(positions) / sizeof(positions[0]);
+    int num_positions = ARRAY_SIZE(positions);
 
     hbitmap_test_init(data, L3, 0);
     buf_size = L2;
@@ -880,7 +880,7 @@ static void test_hbitmap_serialize_zeroes(TestHBitmapData *data,
     int64_t next;
     uint64_t min_l1 = MAX(L1, 64);
     uint64_t positions[] = { 0, min_l1, L2, L3 - min_l1};
-    int num_positions = sizeof(positions) / sizeof(positions[0]);
+    int num_positions = ARRAY_SIZE(positions);
 
     hbitmap_test_init(data, L3, 0);
 
