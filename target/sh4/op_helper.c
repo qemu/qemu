@@ -406,6 +406,22 @@ float64 helper_fsqrt_DT(CPUSH4State *env, float64 t0)
     return t0;
 }
 
+float32 helper_fsrra_FT(CPUSH4State *env, float32 t0)
+{
+    set_float_exception_flags(0, &env->fp_status);
+    /* "Approximate" 1/sqrt(x) via actual computation.  */
+    t0 = float32_sqrt(t0, &env->fp_status);
+    t0 = float32_div(float32_one, t0, &env->fp_status);
+    /* Since this is supposed to be an approximation, an imprecision
+       exception is required.  One supposes this also follows the usual
+       IEEE rule that other exceptions take precidence.  */
+    if (get_float_exception_flags(&env->fp_status) == 0) {
+        set_float_exception_flags(float_flag_inexact, &env->fp_status);
+    }
+    update_fpscr(env, GETPC());
+    return t0;
+}
+
 float32 helper_fsub_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);

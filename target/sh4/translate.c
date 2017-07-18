@@ -1731,6 +1731,8 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf07d: /* fsrra FRn */
 	CHECK_FPU_ENABLED
+        CHECK_FPSCR_PR_0
+        gen_helper_fsrra_FT(FREG(B11_8), cpu_env, FREG(B11_8));
 	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	CHECK_FPU_ENABLED
