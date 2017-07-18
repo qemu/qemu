@@ -1450,7 +1450,7 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
                 old, old & env->CP0_Cause & CP0Ca_IP_mask,
                 val, val & env->CP0_Cause & CP0Ca_IP_mask,
                 env->CP0_Cause);
-        switch (env->hflags & MIPS_HFLAG_KSU) {
+        switch (cpu_mmu_index(env, false)) {
         case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
         case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
         case MIPS_HFLAG_KM: qemu_log("\n"); break;
@@ -2244,7 +2244,7 @@ static void debug_post_eret(CPUMIPSState *env)
             qemu_log(" ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
         if (env->hflags & MIPS_HFLAG_DM)
             qemu_log(" DEPC " TARGET_FMT_lx, env->CP0_DEPC);
-        switch (env->hflags & MIPS_HFLAG_KSU) {
+        switch (cpu_mmu_index(env, false)) {
         case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
         case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
         case MIPS_HFLAG_KM: qemu_log("\n"); break;
