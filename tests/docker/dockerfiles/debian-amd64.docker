@@ -1,7 +1,8 @@
 #
 # Docker x86_64 target
 #
-# This docker target builds on the debian Stretch base image.
+# This docker target builds on the debian Stretch base image. Further
+# libraries which are not widely available are installed by hand.
 #
 FROM qemu:debian9
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
@@ -16,3 +17,12 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         librdmacm-dev \
         libsnappy-dev \
         libvte-dev
+
+# virgl
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        libegl1-mesa-dev \
+        libepoxy-dev \
+        libgbm-dev
+RUN git clone git://anongit.freedesktop.org/virglrenderer /usr/src/virglrenderer
+RUN cd /usr/src/virglrenderer && ./autogen.sh && ./configure --with-glx --disable-tests && make install
