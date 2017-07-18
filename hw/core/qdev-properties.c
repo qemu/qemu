@@ -404,11 +404,43 @@ static void set_uint64(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, ptr, errp);
 }
 
+static void get_int64(Object *obj, Visitor *v, const char *name,
+                      void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    int64_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_int64(v, name, ptr, errp);
+}
+
+static void set_int64(Object *obj, Visitor *v, const char *name,
+                      void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    int64_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_int64(v, name, ptr, errp);
+}
+
 const PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
     .get   = get_uint64,
     .set   = set_uint64,
     .set_default_value = set_default_value_uint,
+};
+
+const PropertyInfo qdev_prop_int64 = {
+    .name  = "int64",
+    .get   = get_int64,
+    .set   = set_int64,
+    .set_default_value = set_default_value_int,
 };
 
 /* --- string --- */
