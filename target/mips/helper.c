@@ -109,11 +109,11 @@ int r4k_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
 
 static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
                                 int *prot, target_ulong real_address,
-                                int rw, int access_type)
+                                int rw, int access_type, int mmu_idx)
 {
     /* User mode can only access useg/xuseg */
-    int user_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_UM;
-    int supervisor_mode = (env->hflags & MIPS_HFLAG_MODE) == MIPS_HFLAG_SM;
+    int user_mode = mmu_idx == MIPS_HFLAG_UM;
+    int supervisor_mode = mmu_idx == MIPS_HFLAG_SM;
     int kernel_mode = !user_mode && !supervisor_mode;
 #if defined(TARGET_MIPS64)
     int UX = (env->CP0_Status & (1 << CP0St_UX)) != 0;
@@ -413,11 +413,12 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
 hwaddr mips_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
     hwaddr phys_addr;
     int prot;
 
-    if (get_physical_address(&cpu->env, &phys_addr, &prot, addr, 0,
-                             ACCESS_INT) != 0) {
+    if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT,
+                             cpu_mmu_index(env, false)) != 0) {
         return -1;
     }
     return phys_addr;
@@ -449,7 +450,7 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
        correctly */
     access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
-                               address, rw, access_type);
+                               address, rw, access_type, mmu_idx);
     switch (ret) {
     case TLBRET_MATCH:
         qemu_log_mask(CPU_LOG_MMU,
@@ -487,8 +488,8 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address, int r
 
     /* data access */
     access_type = ACCESS_INT;
-    ret = get_physical_address(env, &physical, &prot,
-                               address, rw, access_type);
+    ret = get_physical_address(env, &physical, &prot, address, rw, access_type,
+                               cpu_mmu_index(env, false));
     if (ret != TLBRET_MATCH) {
         raise_mmu_exception(env, address, rw, ret);
         return -1LL;
