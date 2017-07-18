@@ -1556,7 +1556,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
     Visitor *v = string_input_visitor_new(valuestr);
-    MigrationParameters *p = g_new0(MigrationParameters, 1);
+    MigrateSetParameters *p = g_new0(MigrateSetParameters, 1);
     uint64_t valuebw = 0;
     Error *err = NULL;
     int i, ret;
@@ -1634,7 +1634,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
  cleanup:
-    qapi_free_MigrationParameters(p);
+    qapi_free_MigrateSetParameters(p);
     visit_free(v);
     if (err) {
         error_report_err(err);

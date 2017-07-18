@@ -1035,6 +1035,77 @@
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental' ] }
 
 ##
+# @MigrateSetParameters:
+#
+# @compress-level: compression level
+#
+# @compress-threads: compression thread count
+#
+# @decompress-threads: decompression thread count
+#
+# @cpu-throttle-initial: Initial percentage of time guest cpus are
+#                        throttled when migration auto-converge is activated.
+#                        The default value is 20. (Since 2.7)
+#
+# @cpu-throttle-increment: throttle percentage increase each time
+#                          auto-converge detects that migration is not making
+#                          progress. The default value is 10. (Since 2.7)
+#
+# @tls-creds: ID of the 'tls-creds' object that provides credentials
+#             for establishing a TLS connection over the migration data
+#             channel. On the outgoing side of the migration, the credentials
+#             must be for a 'client' endpoint, while for the incoming side the
+#             credentials must be for a 'server' endpoint. Setting this
+#             to a non-empty string enables TLS for all migrations.
+#             An empty string means that QEMU will use plain text mode for
+#             migration, rather than TLS (Since 2.9)
+#             Previously (since 2.7), this was reported by omitting
+#             tls-creds instead.
+#
+# @tls-hostname: hostname of the target host for the migration. This
+#                is required when using x509 based TLS credentials and the
+#                migration URI does not already include a hostname. For
+#                example if using fd: or exec: based migration, the
+#                hostname must be provided so that the server's x509
+#                certificate identity can be validated. (Since 2.7)
+#                An empty string means that QEMU will use the hostname
+#                associated with the migration URI, if any. (Since 2.9)
+#                Previously (since 2.7), this was reported by omitting
+#                tls-hostname instead.
+#
+# @max-bandwidth: to set maximum speed for migration. maximum speed in
+#                 bytes per second. (Since 2.8)
+#
+# @downtime-limit: set maximum tolerated downtime for migration. maximum
+#                  downtime in milliseconds (Since 2.8)
+#
+# @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
+#
+# @block-incremental: Affects how much storage is migrated when the
+# 	block migration capability is enabled.  When false, the entire
+# 	storage backing chain is migrated into a flattened image at
+# 	the destination; when true, only the active qcow2 layer is
+# 	migrated and the destination must already have access to the
+# 	same backing chain as was used on the source.  (since 2.10)
+#
+# Since: 2.4
+##
+# TODO either fuse back into MigrationParameters, or make
+# MigrationParameters members mandatory
+{ 'struct': 'MigrateSetParameters',
+  'data': { '*compress-level': 'int',
+            '*compress-threads': 'int',
+            '*decompress-threads': 'int',
+            '*cpu-throttle-initial': 'int',
+            '*cpu-throttle-increment': 'int',
+            '*tls-creds': 'str',
+            '*tls-hostname': 'str',
+            '*max-bandwidth': 'int',
+            '*downtime-limit': 'int',
+            '*x-checkpoint-delay': 'int',
+            '*block-incremental': 'bool' } }
+
+##
 # @migrate-set-parameters:
 #
 # Set various migration parameters.
@@ -1048,13 +1119,12 @@
 #
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
-  'data': 'MigrationParameters' }
+  'data': 'MigrateSetParameters' }
 
 ##
 # @MigrationParameters:
 #
-# Optional members can be omitted on input ('migrate-set-parameters')
-# but members will always be present on output.
+# The optional members aren't actually optional.
 #
 # @compress-level: compression level
 #
@@ -1063,19 +1133,18 @@
 # @decompress-threads: decompression thread count
 #
 # @cpu-throttle-initial: Initial percentage of time guest cpus are
-#                        throttledwhen migration auto-converge is activated.
-#                        The default value is 20. (Since 2.7)
+#                        throttled when migration auto-converge is activated.
+#                        (Since 2.7)
 #
 # @cpu-throttle-increment: throttle percentage increase each time
 #                          auto-converge detects that migration is not making
-#                          progress. The default value is 10. (Since 2.7)
+#                          progress. (Since 2.7)
 #
 # @tls-creds: ID of the 'tls-creds' object that provides credentials
 #             for establishing a TLS connection over the migration data
 #             channel. On the outgoing side of the migration, the credentials
 #             must be for a 'client' endpoint, while for the incoming side the
-#             credentials must be for a 'server' endpoint. Setting this
-#             to a non-empty string enables TLS for all migrations.
+#             credentials must be for a 'server' endpoint.
 #             An empty string means that QEMU will use plain text mode for
 #             migration, rather than TLS (Since 2.7)
 #             Note: 2.8 reports this by omitting tls-creds instead.
