@@ -1132,9 +1132,9 @@ static void test_migrate_sanity(void)
     AHCIQState *src, *dst;
     char *uri = g_strdup_printf("unix:%s", mig_socket);
 
-    src = ahci_boot("-m 1024 -M q35 "
+    src = ahci_boot("-m 384 -M q35 "
                     "-drive if=ide,file=%s,format=%s ", tmp_path, imgfmt);
-    dst = ahci_boot("-m 1024 -M q35 "
+    dst = ahci_boot("-m 384 -M q35 "
                     "-drive if=ide,file=%s,format=%s "
                     "-incoming %s", tmp_path, imgfmt, uri);
 
@@ -1157,10 +1157,10 @@ static void ahci_migrate_simple(uint8_t cmd_read, uint8_t cmd_write)
     unsigned char *rx = g_malloc0(bufsize);
     char *uri = g_strdup_printf("unix:%s", mig_socket);
 
-    src = ahci_boot_and_enable("-m 1024 -M q35 "
+    src = ahci_boot_and_enable("-m 384 -M q35 "
                                "-drive if=ide,format=%s,file=%s ",
                                imgfmt, tmp_path);
-    dst = ahci_boot("-m 1024 -M q35 "
+    dst = ahci_boot("-m 384 -M q35 "
                     "-drive if=ide,format=%s,file=%s "
                     "-incoming %s", imgfmt, tmp_path, uri);
 
