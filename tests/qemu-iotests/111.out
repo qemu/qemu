@@ -1,3 +1,4 @@
 QA output created by 111
 qemu-img: TEST_DIR/t.IMGFMT: Could not open 'TEST_DIR/t.IMGFMT.inexistent': No such file or directory
+Could not open backing image to determine size.
 *** done
