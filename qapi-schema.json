@@ -1054,9 +1054,7 @@
 # @MigrationParameters:
 #
 # Optional members can be omitted on input ('migrate-set-parameters')
-# but most members will always be present on output
-# ('query-migrate-parameters'), with the exception of tls-creds and
-# tls-hostname.
+# but members will always be present on output.
 #
 # @compress-level: compression level
 #
@@ -1077,10 +1075,10 @@
 #             channel. On the outgoing side of the migration, the credentials
 #             must be for a 'client' endpoint, while for the incoming side the
 #             credentials must be for a 'server' endpoint. Setting this
-#             will enable TLS for all migrations. The default is unset,
-#             resulting in unsecured migration at the QEMU level. (Since 2.7)
+#             to a non-empty string enables TLS for all migrations.
 #             An empty string means that QEMU will use plain text mode for
-#             migration, rather than TLS (Since 2.9)
+#             migration, rather than TLS (Since 2.7)
+#             Note: 2.8 reports this by omitting tls-creds instead.
 #
 # @tls-hostname: hostname of the target host for the migration. This
 #                is required when using x509 based TLS credentials and the
@@ -1090,6 +1088,7 @@
 #                certificate identity can be validated. (Since 2.7)
 #                An empty string means that QEMU will use the hostname
 #                associated with the migration URI, if any. (Since 2.9)
+#                Note: 2.8 reports this by omitting tls-hostname instead.
 #
 # @max-bandwidth: to set maximum speed for migration. maximum speed in
 #                 bytes per second. (Since 2.8)
