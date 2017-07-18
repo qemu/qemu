@@ -21,9 +21,10 @@
  *
  */
 
-#ifndef HW_IDE_AHCI_H
-#define HW_IDE_AHCI_H
+#ifndef HW_IDE_AHCI_INTERNAL_H
+#define HW_IDE_AHCI_INTERNAL_H
 
+#include "hw/ide/ahci_public.h"
 #include "hw/sysbus.h"
 
 #define AHCI_MEM_BAR_SIZE         0x1000
@@ -210,14 +211,6 @@
 #define SATA_CAP_REV            0x2
 #define SATA_CAP_BAR            0x4
 
-typedef struct AHCIControlRegs {
-    uint32_t    cap;
-    uint32_t    ghc;
-    uint32_t    irqstatus;
-    uint32_t    impl;
-    uint32_t    version;
-} AHCIControlRegs;
-
 typedef struct AHCIPortRegs {
     uint32_t    lst_addr;
     uint32_t    lst_addr_hi;
@@ -250,8 +243,6 @@ typedef struct AHCI_SG {
     uint32_t    reserved;
     uint32_t    flags_size;
 } QEMU_PACKED AHCI_SG;
-
-typedef struct AHCIDevice AHCIDevice;
 
 typedef struct NCQTransferState {
     AHCIDevice *drive;
@@ -286,27 +277,13 @@ struct AHCIDevice {
     NCQTransferState ncq_tfs[AHCI_MAX_CMDS];
 };
 
-typedef struct AHCIState {
-    DeviceState *container;
-
-    AHCIDevice *dev;
-    AHCIControlRegs control_regs;
-    MemoryRegion mem;
-    MemoryRegion idp;       /* Index-Data Pair I/O port space */
-    unsigned idp_offset;    /* Offset of index in I/O port space */
-    uint32_t idp_index;     /* Current IDP index */
-    int32_t ports;
-    qemu_irq irq;
-    AddressSpace *as;
-} AHCIState;
-
-typedef struct AHCIPCIState {
+struct AHCIPCIState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
 
     AHCIState ahci;
-} AHCIPCIState;
+};
 
 #define TYPE_ICH9_AHCI "ich9-ahci"
 
@@ -372,35 +349,11 @@ void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);
 
-int32_t ahci_get_num_ports(PCIDevice *dev);
-void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
-
 #define TYPE_SYSBUS_AHCI "sysbus-ahci"
 #define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
-
-typedef struct SysbusAHCIState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    AHCIState ahci;
-    uint32_t num_ports;
-} SysbusAHCIState;
 
 #define TYPE_ALLWINNER_AHCI "allwinner-ahci"
 #define ALLWINNER_AHCI(obj) OBJECT_CHECK(AllwinnerAHCIState, (obj), \
                        TYPE_ALLWINNER_AHCI)
-
-#define ALLWINNER_AHCI_MMIO_OFF  0x80
-#define ALLWINNER_AHCI_MMIO_SIZE 0x80
-
-struct AllwinnerAHCIState {
-    /*< private >*/
-    SysbusAHCIState parent_obj;
-    /*< public >*/
-
-    MemoryRegion mmio;
-    uint32_t regs[ALLWINNER_AHCI_MMIO_SIZE/4];
-};
 
 #endif /* HW_IDE_AHCI_H */
