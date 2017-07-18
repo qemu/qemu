@@ -1,5 +1,5 @@
 #
-# Docker mipsel cross-compiler target
+# Docker mips cross-compiler target
 #
 # This docker target builds on the debian Stretch base image.
 #
@@ -8,22 +8,22 @@ FROM qemu:debian9
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
 # Add the foreign architecture we want and install dependencies
-RUN dpkg --add-architecture mipsel
+RUN dpkg --add-architecture mips
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
-        gcc-mipsel-linux-gnu
+        gcc-mips-linux-gnu
 
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get build-dep -yy -a mipsel qemu
+    apt-get build-dep -yy -a mips qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
-ENV QEMU_CONFIGURE_OPTS --cross-prefix=mipsel-linux-gnu-
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=mips-linux-gnu-
 
 # Install extra libraries to increase code coverage
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
-        libbz2-dev:mipsel \
-        liblzo2-dev:mipsel \
-        librdmacm-dev:mipsel \
-        libsnappy-dev:mipsel
+        libbz2-dev:mips \
+        liblzo2-dev:mips \
+        librdmacm-dev:mips \
+        libsnappy-dev:mips
