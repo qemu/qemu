@@ -98,7 +98,18 @@
 
 #define TB_FLAG_PENDING_MOVCA  (1 << 3)
 
-#define TB_FLAG_ENVFLAGS_MASK  DELAY_SLOT_MASK
+#define GUSA_SHIFT             4
+#ifdef CONFIG_USER_ONLY
+#define GUSA_EXCLUSIVE         (1 << 12)
+#define GUSA_MASK              ((0xff << GUSA_SHIFT) | GUSA_EXCLUSIVE)
+#else
+/* Provide dummy versions of the above to allow tests against tbflags
+   to be elided while avoiding ifdefs.  */
+#define GUSA_EXCLUSIVE         0
+#define GUSA_MASK              0
+#endif
+
+#define TB_FLAG_ENVFLAGS_MASK  (DELAY_SLOT_MASK | GUSA_MASK)
 
 typedef struct tlb_t {
     uint32_t vpn;		/* virtual page number */
@@ -389,8 +400,9 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
-    *cs_base = 0;
-    *flags = env->flags                                        /* Bits  0-2 */
+    /* For a gUSA region, notice the end of the region.  */
+    *cs_base = env->flags & GUSA_MASK ? env->gregs[0] : 0;
+    *flags = env->flags /* TB_FLAG_ENVFLAGS_MASK: bits 0-2, 4-12 */
             | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
             | (env->sr & ((1u << SR_MD) | (1u << SR_RB)))      /* Bits 29-30 */
             | (env->sr & (1u << SR_FD))                        /* Bit 15 */

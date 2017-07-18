@@ -6,6 +6,7 @@ DEF_HELPER_1(raise_slot_fpu_disable, noreturn, env)
 DEF_HELPER_1(debug, noreturn, env)
 DEF_HELPER_1(sleep, noreturn, env)
 DEF_HELPER_2(trapa, noreturn, env, i32)
+DEF_HELPER_1(exclusive, noreturn, env)
 
 DEF_HELPER_3(movcal, void, env, i32, i32)
 DEF_HELPER_1(discard_movcal_backup, void, env)
