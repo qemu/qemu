@@ -372,6 +372,7 @@ void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);
 
+int32_t ahci_get_num_ports(PCIDevice *dev);
 void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
 
 #define TYPE_SYSBUS_AHCI "sysbus-ahci"
