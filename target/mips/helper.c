@@ -290,7 +290,7 @@ void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
 #if defined(TARGET_MIPS64)
     if ((env->CP0_Status ^ old) & (old & (7 << CP0St_UX))) {
         /* Access to at least one of the 64-bit segments has been disabled */
-        cpu_mips_tlb_flush(env);
+        tlb_flush(CPU(mips_env_get_cpu(env)));
     }
 #endif
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
