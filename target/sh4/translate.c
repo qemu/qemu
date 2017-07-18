@@ -41,6 +41,7 @@ typedef struct DisasContext {
     uint32_t envflags;   /* should stay in sync with env->flags using TCG ops */
     int bstate;
     int memidx;
+    int gbank;
     uint32_t delayed_pc;
     int singlestep_enabled;
     uint32_t features;
@@ -64,7 +65,7 @@ enum {
 
 /* global register indexes */
 static TCGv_env cpu_env;
-static TCGv cpu_gregs[24];
+static TCGv cpu_gregs[32];
 static TCGv cpu_sr, cpu_sr_m, cpu_sr_q, cpu_sr_t;
 static TCGv cpu_pc, cpu_ssr, cpu_spc, cpu_gbr;
 static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
@@ -98,16 +99,19 @@ void sh4_translate_init(void)
         "FPR12_BANK1", "FPR13_BANK1", "FPR14_BANK1", "FPR15_BANK1",
     };
 
-    if (done_init)
+    if (done_init) {
         return;
+    }
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
 
-    for (i = 0; i < 24; i++)
+    for (i = 0; i < 24; i++) {
         cpu_gregs[i] = tcg_global_mem_new_i32(cpu_env,
                                               offsetof(CPUSH4State, gregs[i]),
                                               gregnames[i]);
+    }
+    memcpy(cpu_gregs + 24, cpu_gregs + 8, 8 * sizeof(TCGv));
 
     cpu_pc = tcg_global_mem_new_i32(cpu_env,
                                     offsetof(CPUSH4State, pc), "PC");
@@ -347,13 +351,8 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define B11_8 ((ctx->opcode >> 8) & 0xf)
 #define B15_12 ((ctx->opcode >> 12) & 0xf)
 
-#define REG(x) ((x) < 8 && (ctx->tbflags & (1u << SR_MD))\
-                        && (ctx->tbflags & (1u << SR_RB))\
-                ? (cpu_gregs[x + 16]) : (cpu_gregs[x]))
-
-#define ALTREG(x) ((x) < 8 && (!(ctx->tbflags & (1u << SR_MD))\
-                               || !(ctx->tbflags & (1u << SR_RB)))\
-		? (cpu_gregs[x + 16]) : (cpu_gregs[x]))
+#define REG(x)     cpu_gregs[(x) ^ ctx->gbank]
+#define ALTREG(x)  cpu_gregs[(x) ^ ctx->gbank ^ 0x10]
 
 #define FREG(x) (ctx->tbflags & FPSCR_FR ? (x) ^ 0x10 : (x))
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
@@ -2252,6 +2251,8 @@ void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
     ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.features = env->features;
     ctx.has_movcal = (ctx.tbflags & TB_FLAG_PENDING_MOVCA);
+    ctx.gbank = ((ctx.tbflags & (1 << SR_MD)) &&
+                 (ctx.tbflags & (1 << SR_RB))) * 0x10;
 
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
