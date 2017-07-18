@@ -365,11 +365,8 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
 
 #define CHECK_NOT_DELAY_SLOT \
-    if (ctx->envflags & DELAY_SLOT_MASK) {                           \
-        gen_save_cpu_state(ctx, true);                               \
-        gen_helper_raise_slot_illegal_instruction(cpu_env);          \
-        ctx->bstate = BS_EXCP;                                       \
-        return;                                                      \
+    if (ctx->envflags & DELAY_SLOT_MASK) {  \
+        goto do_illegal_slot;               \
     }
 
 #define CHECK_PRIVILEGED                                             \
@@ -1796,10 +1793,12 @@ static void _decode_opc(DisasContext * ctx)
 	    ctx->opcode, ctx->pc);
     fflush(stderr);
 #endif
-    gen_save_cpu_state(ctx, true);
     if (ctx->envflags & DELAY_SLOT_MASK) {
+ do_illegal_slot:
+        gen_save_cpu_state(ctx, true);
         gen_helper_raise_slot_illegal_instruction(cpu_env);
     } else {
+        gen_save_cpu_state(ctx, true);
         gen_helper_raise_illegal_instruction(cpu_env);
     }
     ctx->bstate = BS_EXCP;
