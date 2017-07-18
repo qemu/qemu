@@ -338,6 +338,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
     vcdev->vdev.type = VFIO_DEVICE_TYPE_CCW;
     vcdev->vdev.name = g_strdup_printf("%x.%x.%04x", cdev->hostid.cssid,
                                        cdev->hostid.ssid, cdev->hostid.devid);
+    vcdev->vdev.dev = dev;
     QLIST_FOREACH(vbasedev, &group->device_list, next) {
         if (strcmp(vbasedev->name, vcdev->vdev.name) == 0) {
             error_setg(&err, "vfio: subchannel %s has already been attached",
