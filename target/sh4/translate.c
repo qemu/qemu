@@ -1068,8 +1068,9 @@ static void _decode_opc(DisasContext * ctx)
             if (ctx->tbflags & FPSCR_PR) {
                 TCGv_i64 fp0, fp1;
 
-		if (ctx->opcode & 0x0110)
-		    break; /* illegal instruction */
+                if (ctx->opcode & 0x0110) {
+                    goto do_illegal;
+                }
 		fp0 = tcg_temp_new_i64();
 		fp1 = tcg_temp_new_i64();
                 gen_load_fpr64(ctx, fp0, B11_8);
@@ -1131,7 +1132,7 @@ static void _decode_opc(DisasContext * ctx)
         {
             CHECK_FPU_ENABLED
             if (ctx->tbflags & FPSCR_PR) {
-                break; /* illegal instruction */
+                goto do_illegal;
             } else {
                 gen_helper_fmac_FT(FREG(B11_8), cpu_env,
                                    FREG(0), FREG(B7_4), FREG(B11_8));
@@ -1669,8 +1670,9 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_PR) {
 	    TCGv_i64 fp;
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
+            if (ctx->opcode & 0x0100) {
+                goto do_illegal;
+            }
 	    fp = tcg_temp_new_i64();
             gen_helper_float_DT(fp, cpu_env, cpu_fpul);
             gen_store_fpr64(ctx, fp, B11_8);
@@ -1684,8 +1686,9 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_PR) {
 	    TCGv_i64 fp;
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
+            if (ctx->opcode & 0x0100) {
+                goto do_illegal;
+            }
 	    fp = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp, B11_8);
             gen_helper_ftrc_DT(cpu_fpul, cpu_env, fp);
@@ -1706,8 +1709,9 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf06d: /* fsqrt FRn */
 	CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_PR) {
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
+            if (ctx->opcode & 0x0100) {
+                goto do_illegal;
+            }
 	    TCGv_i64 fp = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp, B11_8);
             gen_helper_fsqrt_DT(fp, cpu_env, fp);
