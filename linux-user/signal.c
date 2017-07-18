@@ -3549,6 +3549,7 @@ static void restore_sigcontext(CPUSH4State *regs, struct target_sigcontext *sc)
     __get_user(regs->fpul, &sc->sc_fpul);
 
     regs->tra = -1;         /* disable syscall checks */
+    regs->flags &= ~(DELAY_SLOT_MASK | GUSA_MASK);
 }
 
 static void setup_frame(int sig, struct target_sigaction *ka,
@@ -3592,6 +3593,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     regs->gregs[5] = 0;
     regs->gregs[6] = frame_addr += offsetof(typeof(*frame), sc);
     regs->pc = (unsigned long) ka->_sa_handler;
+    regs->flags &= ~(DELAY_SLOT_MASK | GUSA_MASK);
 
     unlock_user_struct(frame, frame_addr, 1);
     return;
@@ -3654,6 +3656,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     regs->gregs[5] = frame_addr + offsetof(typeof(*frame), info);
     regs->gregs[6] = frame_addr + offsetof(typeof(*frame), uc);
     regs->pc = (unsigned long) ka->_sa_handler;
+    regs->flags &= ~(DELAY_SLOT_MASK | GUSA_MASK);
 
     unlock_user_struct(frame, frame_addr, 1);
     return;
