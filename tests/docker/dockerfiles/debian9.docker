@@ -18,11 +18,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
         bison \
-        binutils-multiarch \
         build-essential \
         ca-certificates \
-        clang \
         flex \
         git \
         pkg-config \
-        python-minimal
+        psmisc \
+        python \
+        texinfo \
+        $(apt-get -s build-dep qemu | egrep ^Inst | fgrep '[all]' | cut -d\  -f2)
