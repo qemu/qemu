@@ -842,14 +842,27 @@ void migrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
-void migrate_set_block_enabled(bool value, Error **errp)
+static MigrationCapabilityStatusList *migrate_cap_add(
+    MigrationCapabilityStatusList *list,
+    MigrationCapability index,
+    bool state)
 {
     MigrationCapabilityStatusList *cap;
 
     cap = g_new0(MigrationCapabilityStatusList, 1);
     cap->value = g_new0(MigrationCapabilityStatus, 1);
-    cap->value->capability = MIGRATION_CAPABILITY_BLOCK;
-    cap->value->state = value;
+    cap->value->capability = index;
+    cap->value->state = state;
+    cap->next = list;
+
+    return cap;
+}
+
+void migrate_set_block_enabled(bool value, Error **errp)
+{
+    MigrationCapabilityStatusList *cap;
+
+    cap = migrate_cap_add(NULL, MIGRATION_CAPABILITY_BLOCK, value);
     qmp_migrate_set_capabilities(cap, errp);
     qapi_free_MigrationCapabilityStatusList(cap);
 }
