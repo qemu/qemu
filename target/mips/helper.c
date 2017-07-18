@@ -831,11 +831,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         goto set_EPC;
     case EXCP_CACHE:
         cause = 30;
-        if (env->CP0_Status & (1 << CP0St_BEV)) {
-            offset = 0x100;
-        } else {
-            offset = 0x20000100;
-        }
+        offset = 0x100;
  set_EPC:
         if (!(env->CP0_Status & (1 << CP0St_EXL))) {
             env->CP0_EPC = exception_resume_pc(env);
@@ -861,9 +857,15 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->hflags &= ~MIPS_HFLAG_BMASK;
         if (env->CP0_Status & (1 << CP0St_BEV)) {
             env->active_tc.PC = env->exception_base + 0x200;
+        } else if (cause == 30 && !(env->CP0_Config3 & (1 << CP0C3_SC) &&
+                                    env->CP0_Config5 & (1 << CP0C5_CV))) {
+            /* Force KSeg1 for cache errors */
+            env->active_tc.PC = (int32_t)KSEG1_BASE |
+                                (env->CP0_EBase & 0x1FFFF000);
         } else {
-            env->active_tc.PC = (int32_t)(env->CP0_EBase & ~0x3ff);
+            env->active_tc.PC = env->CP0_EBase & ~0xfff;
         }
+
         env->active_tc.PC += offset;
         set_hflags_for_handler(env);
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
