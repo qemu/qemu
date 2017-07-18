@@ -265,6 +265,8 @@
     D(0xbb00, CDS,     RS_a,  Z,   r3_D32, r1_D32, new, r1_D32, cs, 0, MO_TEQ)
     D(0xeb31, CDSY,    RSY_a, LD,  r3_D32, r1_D32, new, r1_D32, cs, 0, MO_TEQ)
     C(0xeb3e, CDSG,    RSY_a, Z,   0, 0, 0, 0, cdsg, 0)
+/* COMPARE AND SWAP AND STORE */
+    C(0xc802, CSST,    SSF,   CASS, la1, a2, 0, 0, csst, 0)
 
 /* COMPARE AND TRAP */
     D(0xb972, CRT,     RRF_c, GIE, r1_32s, r2_32s, 0, 0, ct, 0, 0)
@@ -310,6 +312,19 @@
     C(0xb3a0, CELGBR,  RRF_e, FPE, 0, r2_o, new, e1, celgb, 0)
     C(0xb3a1, CDLGBR,  RRF_e, FPE, 0, r2_o, f1, 0, cdlgb, 0)
     C(0xb3a2, CXLGBR,  RRF_e, FPE, 0, r2_o, x1, 0, cxlgb, 0)
+
+/* CONVERT UTF-8 TO UTF-16 */
+    D(0xb2a7, CU12,    RRF_c, Z,   0, 0, 0, 0, cuXX, 0, 12)
+/* CONVERT UTF-8 TO UTF-32 */
+    D(0xb9b0, CU14,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 14)
+/* CONVERT UTF-16 to UTF-8 */
+    D(0xb2a6, CU21,    RRF_c, Z,   0, 0, 0, 0, cuXX, 0, 21)
+/* CONVERT UTF-16 to UTF-32 */
+    D(0xb9b1, CU24,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 24)
+/* CONVERT UTF-32 to UTF-8 */
+    D(0xb9b2, CU41,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 41)
+/* CONVERT UTF-32 to UTF-16 */
+    D(0xb9b3, CU42,    RRF_c, ETF3, 0, 0, 0, 0, cuXX, 0, 42)
 
 /* DIVIDE */
     C(0x1d00, DR,      RR_a,  Z,   r1_D32, r2_32s, new_P, r1_P32, divs32, 0)
@@ -721,7 +736,9 @@
     C(0xec57, RXSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
 
 /* SEARCH STRING */
-    C(0xb25e, SRST,    RRE,   Z,   r1_o, r2_o, 0, 0, srst, 0)
+    C(0xb25e, SRST,    RRE,   Z,   0, 0, 0, 0, srst, 0)
+/* SEARCH STRING UNICODE */
+    C(0xb9be, SRSTU,   RRE,   ETF3, 0, 0, 0, 0, srstu, 0)
 
 /* SET ACCESS */
     C(0xb24e, SAR,     RRE,   Z,   0, r2_o, 0, 0, sar, 0)
@@ -899,6 +916,8 @@
     C(0xdc00, TR,      SS_a,  Z,   la1, a2, 0, 0, tr, 0)
 /* TRANSLATE AND TEST */
     C(0xdd00, TRT,     SS_a,  Z,   la1, a2, 0, 0, trt, 0)
+/* TRANSLATE AND TEST REVERSE */
+    C(0xd000, TRTR,    SS_a,  ETF3, la1, a2, 0, 0, trtr, 0)
 /* TRANSLATE EXTENDED */
     C(0xb2a5, TRE,     RRE,   Z,   0, r2, r1_P, 0, tre, 0)
 
