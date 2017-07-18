@@ -23,10 +23,7 @@ ENV QEMU_CONFIGURE_OPTS --cross-prefix=s390x-linux-gnu-
 # Install extra libraries to increase code coverage
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
-        glusterfs-common:s390x \
         libbz2-dev:s390x \
         liblzo2-dev:s390x \
-        libncursesw5-dev:s390x \
-        libnfs-dev:s390x \
         librdmacm-dev:s390x \
         libsnappy-dev:s390x
