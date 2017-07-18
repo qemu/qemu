@@ -2029,7 +2029,7 @@ void r4k_helper_tlbwi(CPUMIPSState *env)
     int idx;
     target_ulong VPN;
     uint16_t ASID;
-    bool G, V0, D0, V1, D1;
+    bool EHINV, G, V0, D0, V1, D1, XI0, XI1, RI0, RI1;
 
     idx = (env->CP0_Index & ~0x80000000) % env->tlb->nb_tlb;
     tlb = &env->tlb->mmu.r4k.tlb[idx];
@@ -2038,17 +2038,25 @@ void r4k_helper_tlbwi(CPUMIPSState *env)
     VPN &= env->SEGMask;
 #endif
     ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
+    EHINV = (env->CP0_EntryHi & (1 << CP0EnHi_EHINV)) != 0;
     G = env->CP0_EntryLo0 & env->CP0_EntryLo1 & 1;
     V0 = (env->CP0_EntryLo0 & 2) != 0;
     D0 = (env->CP0_EntryLo0 & 4) != 0;
+    XI0 = (env->CP0_EntryLo0 >> CP0EnLo_XI) &1;
+    RI0 = (env->CP0_EntryLo0 >> CP0EnLo_RI) &1;
     V1 = (env->CP0_EntryLo1 & 2) != 0;
     D1 = (env->CP0_EntryLo1 & 4) != 0;
+    XI1 = (env->CP0_EntryLo1 >> CP0EnLo_XI) &1;
+    RI1 = (env->CP0_EntryLo1 >> CP0EnLo_RI) &1;
 
     /* Discard cached TLB entries, unless tlbwi is just upgrading access
        permissions on the current entry. */
     if (tlb->VPN != VPN || tlb->ASID != ASID || tlb->G != G ||
+        (!tlb->EHINV && EHINV) ||
         (tlb->V0 && !V0) || (tlb->D0 && !D0) ||
-        (tlb->V1 && !V1) || (tlb->D1 && !D1)) {
+        (!tlb->XI0 && XI0) || (!tlb->RI0 && RI0) ||
+        (tlb->V1 && !V1) || (tlb->D1 && !D1) ||
+        (!tlb->XI1 && XI1) || (!tlb->RI1 && RI1)) {
         r4k_mips_tlb_flush_extra(env, env->tlb->nb_tlb);
     }
 
