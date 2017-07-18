@@ -357,7 +357,6 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 #define FREG(x)    cpu_fregs[(x) ^ ctx->fbank]
 
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
-#define XREG(x)  FREG(XHACK(x))
 /* Assumes lsb of (x) is always 0 */
 #define DREG(x)  ((x) ^ ctx->fbank)
 
