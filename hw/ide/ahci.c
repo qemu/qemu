@@ -32,7 +32,7 @@
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
-#include "hw/ide/ahci.h"
+#include "hw/ide/ahci_internal.h"
 
 #define DEBUG_AHCI 0
 
