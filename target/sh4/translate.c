@@ -379,6 +379,16 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
         goto do_fpu_disabled;               \
     }
 
+#define CHECK_FPSCR_PR_0 \
+    if (ctx->tbflags & FPSCR_PR) {          \
+        goto do_illegal;                    \
+    }
+
+#define CHECK_FPSCR_PR_1 \
+    if (!(ctx->tbflags & FPSCR_PR)) {       \
+        goto do_illegal;                    \
+    }
+
 static void _decode_opc(DisasContext * ctx)
 {
     /* This code tries to make movcal emulation sufficiently
@@ -1129,16 +1139,11 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf00e: /* fmac FR0,RM,Rn */
-        {
-            CHECK_FPU_ENABLED
-            if (ctx->tbflags & FPSCR_PR) {
-                goto do_illegal;
-            } else {
-                gen_helper_fmac_FT(FREG(B11_8), cpu_env,
-                                   FREG(0), FREG(B7_4), FREG(B11_8));
-                return;
-            }
-        }
+        CHECK_FPU_ENABLED
+        CHECK_FPSCR_PR_0
+        gen_helper_fmac_FT(FREG(B11_8), cpu_env,
+                           FREG(0), FREG(B7_4), FREG(B11_8));
+        return;
     }
 
     switch (ctx->opcode & 0xff00) {
@@ -1726,16 +1731,14 @@ static void _decode_opc(DisasContext * ctx)
 	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	CHECK_FPU_ENABLED
-        if (!(ctx->tbflags & FPSCR_PR)) {
-            tcg_gen_movi_i32(FREG(B11_8), 0);
-	}
-	return;
+        CHECK_FPSCR_PR_0
+        tcg_gen_movi_i32(FREG(B11_8), 0);
+        return;
     case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
 	CHECK_FPU_ENABLED
-        if (!(ctx->tbflags & FPSCR_PR)) {
-            tcg_gen_movi_i32(FREG(B11_8), 0x3f800000);
-	}
-	return;
+        CHECK_FPSCR_PR_0
+        tcg_gen_movi_i32(FREG(B11_8), 0x3f800000);
+        return;
     case 0xf0ad: /* fcnvsd FPUL,DRn */
 	CHECK_FPU_ENABLED
 	{
@@ -1756,10 +1759,10 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf0ed: /* fipr FVm,FVn */
         CHECK_FPU_ENABLED
-        if ((ctx->tbflags & FPSCR_PR) == 0) {
-            TCGv m, n;
-            m = tcg_const_i32((ctx->opcode >> 8) & 3);
-            n = tcg_const_i32((ctx->opcode >> 10) & 3);
+        CHECK_FPSCR_PR_1
+        {
+            TCGv m = tcg_const_i32((ctx->opcode >> 8) & 3);
+            TCGv n = tcg_const_i32((ctx->opcode >> 10) & 3);
             gen_helper_fipr(cpu_env, m, n);
             tcg_temp_free(m);
             tcg_temp_free(n);
@@ -1768,10 +1771,12 @@ static void _decode_opc(DisasContext * ctx)
         break;
     case 0xf0fd: /* ftrv XMTRX,FVn */
         CHECK_FPU_ENABLED
-        if ((ctx->opcode & 0x0300) == 0x0100 &&
-            (ctx->tbflags & FPSCR_PR) == 0) {
-            TCGv n;
-            n = tcg_const_i32((ctx->opcode >> 10) & 3);
+        CHECK_FPSCR_PR_1
+        {
+            if ((ctx->opcode & 0x0300) != 0x0100) {
+                goto do_illegal;
+            }
+            TCGv n = tcg_const_i32((ctx->opcode >> 10) & 3);
             gen_helper_ftrv(cpu_env, n);
             tcg_temp_free(n);
             return;
