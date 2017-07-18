@@ -1,0 +1,13 @@
+# This template is deprecated and was previously based on Jessie on QEMU 2.9.
+# Now than Stretch is out, please use qemu:debian8 as base for Jessie,
+# and qemu:debian9 for Stretch.
+#
+FROM qemu:debian9
+
+MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+RUN for n in $(seq 8); do echo; done && \
+    echo "\n\t\tThis image is deprecated." && echo && \
+    echo "\tUse 'FROM qemu:debian9' to use the stable Debian Stretch image" && \
+    echo "\tor 'FROM qemu:debian8' to use old Debian Jessie." && \
+    for n in $(seq 8); do echo; done
