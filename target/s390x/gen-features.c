@@ -338,6 +338,14 @@ static uint16_t base_GEN13_GA1[] = {
 
 #define base_GEN13_GA2 EmptyFeat
 
+static uint16_t base_GEN14_GA1[] = {
+    S390_FEAT_ENTROPY_ENC_COMP,
+    S390_FEAT_MISC_INSTRUCTION_EXT,
+    S390_FEAT_SEMAPHORE_ASSIST,
+    S390_FEAT_TIME_SLICE_INSTRUMENTATION,
+    S390_FEAT_ORDER_PRESERVING_COMPRESSION,
+};
+
 /* Full features (in order of release)
  * Automatically includes corresponding base features.
  * Full features are all features this hardware supports even if kvm/QEMU do not
@@ -442,6 +450,22 @@ static uint16_t full_GEN13_GA1[] = {
 
 #define full_GEN13_GA2 EmptyFeat
 
+static uint16_t full_GEN14_GA1[] = {
+    S390_FEAT_INSTRUCTION_EXEC_PROT,
+    S390_FEAT_GUARDED_STORAGE,
+    S390_FEAT_VECTOR_PACKED_DECIMAL,
+    S390_FEAT_VECTOR_ENH,
+    S390_FEAT_MULTIPLE_EPOCH,
+    S390_FEAT_TEST_PENDING_EXT_INTERRUPTION,
+    S390_FEAT_INSERT_REFERENCE_BITS_MULT,
+    S390_FEAT_GROUP_MSA_EXT_6,
+    S390_FEAT_GROUP_MSA_EXT_7,
+    S390_FEAT_GROUP_MSA_EXT_8,
+    S390_FEAT_CMM_NT,
+    S390_FEAT_HPMA2,
+    S390_FEAT_SIE_KSS,
+};
+
 /* Default features (in order of release)
  * Automatically includes corresponding base features.
  * Default features are all features this version of QEMU supports for this
@@ -502,6 +526,18 @@ static uint16_t default_GEN13_GA1[] = {
 
 #define default_GEN13_GA2 EmptyFeat
 
+static uint16_t default_GEN14_GA1[] = {
+    S390_FEAT_ADAPTER_INT_SUPPRESSION,
+    S390_FEAT_INSTRUCTION_EXEC_PROT,
+    S390_FEAT_GUARDED_STORAGE,
+    S390_FEAT_VECTOR_PACKED_DECIMAL,
+    S390_FEAT_VECTOR_ENH,
+    S390_FEAT_GROUP_MSA_EXT_6,
+    S390_FEAT_GROUP_MSA_EXT_7,
+    S390_FEAT_GROUP_MSA_EXT_8,
+    S390_FEAT_SIE_KSS,
+};
+
 /****** END FEATURE DEFS ******/
 
 #define _YEARS  "2016"
@@ -559,6 +595,7 @@ static CpuFeatDefSpec CpuFeatDef[] = {
     CPU_FEAT_INITIALIZER(GEN12_GA2),
     CPU_FEAT_INITIALIZER(GEN13_GA1),
     CPU_FEAT_INITIALIZER(GEN13_GA2),
+    CPU_FEAT_INITIALIZER(GEN14_GA1),
 };
 
 #define FEAT_GROUP_INITIALIZER(_name)                  \
