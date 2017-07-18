@@ -770,11 +770,13 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
 
     if (params->has_tls_creds) {
-        dest->tls_creds = g_strdup(params->tls_creds);
+        assert(params->tls_creds->type == QTYPE_QSTRING);
+        dest->tls_creds = g_strdup(params->tls_creds->u.s);
     }
 
     if (params->has_tls_hostname) {
-        dest->tls_hostname = g_strdup(params->tls_hostname);
+        assert(params->tls_hostname->type == QTYPE_QSTRING);
+        dest->tls_hostname = g_strdup(params->tls_hostname->u.s);
     }
 
     if (params->has_max_bandwidth) {
@@ -822,12 +824,14 @@ static void migrate_params_apply(MigrateSetParameters *params)
 
     if (params->has_tls_creds) {
         g_free(s->parameters.tls_creds);
-        s->parameters.tls_creds = g_strdup(params->tls_creds);
+        assert(params->tls_creds->type == QTYPE_QSTRING);
+        s->parameters.tls_creds = g_strdup(params->tls_creds->u.s);
     }
 
     if (params->has_tls_hostname) {
         g_free(s->parameters.tls_hostname);
-        s->parameters.tls_hostname = g_strdup(params->tls_hostname);
+        assert(params->tls_hostname->type == QTYPE_QSTRING);
+        s->parameters.tls_hostname = g_strdup(params->tls_hostname->u.s);
     }
 
     if (params->has_max_bandwidth) {
@@ -857,6 +861,21 @@ static void migrate_params_apply(MigrateSetParameters *params)
 void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
 {
     MigrationParameters tmp;
+
+    /* TODO Rewrite "" to null instead */
+    if (params->has_tls_creds
+        && params->tls_creds->type == QTYPE_QNULL) {
+        QDECREF(params->tls_creds->u.n);
+        params->tls_creds->type = QTYPE_QSTRING;
+        params->tls_creds->u.s = strdup("");
+    }
+    /* TODO Rewrite "" to null instead */
+    if (params->has_tls_hostname
+        && params->tls_hostname->type == QTYPE_QNULL) {
+        QDECREF(params->tls_hostname->u.n);
+        params->tls_hostname->type = QTYPE_QSTRING;
+        params->tls_hostname->u.s = strdup("");
+    }
 
     migrate_params_test_apply(params, &tmp);
 

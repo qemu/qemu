@@ -1586,11 +1586,15 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
                 break;
             case MIGRATION_PARAMETER_TLS_CREDS:
                 p->has_tls_creds = true;
-                visit_type_str(v, param, &p->tls_creds, &err);
+                p->tls_creds = g_new0(StrOrNull, 1);
+                p->tls_creds->type = QTYPE_QSTRING;
+                visit_type_str(v, param, &p->tls_creds->u.s, &err);
                 break;
             case MIGRATION_PARAMETER_TLS_HOSTNAME:
                 p->has_tls_hostname = true;
-                visit_type_str(v, param, &p->tls_hostname, &err);
+                p->tls_hostname = g_new0(StrOrNull, 1);
+                p->tls_hostname->type = QTYPE_QSTRING;
+                visit_type_str(v, param, &p->tls_hostname->u.s, &err);
                 break;
             case MIGRATION_PARAMETER_MAX_BANDWIDTH:
                 p->has_max_bandwidth = true;
