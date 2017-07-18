@@ -230,12 +230,15 @@ static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
     }
 }
 
+static inline bool use_exit_tb(DisasContext *ctx)
+{
+    return (ctx->tbflags & GUSA_EXCLUSIVE) != 0;
+}
+
 static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
-    if (unlikely(ctx->singlestep_enabled)) {
-        return false;
-    }
-    if (ctx->tbflags & GUSA_EXCLUSIVE) {
+    /* Use a direct jump if in same page and singlestep not enabled */
+    if (unlikely(ctx->singlestep_enabled || use_exit_tb(ctx))) {
         return false;
     }
 #ifndef CONFIG_USER_ONLY
@@ -248,28 +251,35 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     if (use_goto_tb(ctx, dest)) {
-	/* Use a direct jump if in same page and singlestep not enabled */
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb((uintptr_t)ctx->tb + n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
-        if (ctx->singlestep_enabled)
+        if (ctx->singlestep_enabled) {
             gen_helper_debug(cpu_env);
-        tcg_gen_exit_tb(0);
+        } else if (use_exit_tb(ctx)) {
+            tcg_gen_exit_tb(0);
+        } else {
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+        }
     }
 }
 
 static void gen_jump(DisasContext * ctx)
 {
-    if (ctx->delayed_pc == (uint32_t) - 1) {
+    if (ctx->delayed_pc == -1) {
 	/* Target is not statically known, it comes necessarily from a
 	   delayed jump as immediate jump are conditinal jumps */
 	tcg_gen_mov_i32(cpu_pc, cpu_delayed_pc);
         tcg_gen_discard_i32(cpu_delayed_pc);
-	if (ctx->singlestep_enabled)
+        if (ctx->singlestep_enabled) {
             gen_helper_debug(cpu_env);
-	tcg_gen_exit_tb(0);
+        } else if (use_exit_tb(ctx)) {
+            tcg_gen_exit_tb(0);
+        } else {
+            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+        }
     } else {
 	gen_goto_tb(ctx, 0, ctx->delayed_pc);
     }
