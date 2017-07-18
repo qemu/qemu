@@ -102,13 +102,21 @@ enum mig_rp_message_type {
 
 static MigrationState *current_migration;
 
+static bool migration_object_check(MigrationState *ms, Error **errp);
+
 void migration_object_init(void)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
+    Error *err = NULL;
 
     /* This can only be called once. */
     assert(!current_migration);
     current_migration = MIGRATION_OBJ(object_new(TYPE_MIGRATION));
+
+    if (!migration_object_check(current_migration, &err)) {
+        error_report_err(err);
+        exit(1);
+    }
 
     /*
      * We cannot really do this in migration_instance_init() since at
@@ -2102,12 +2110,38 @@ static void migration_class_init(ObjectClass *klass, void *data)
 static void migration_instance_init(Object *obj)
 {
     MigrationState *ms = MIGRATION_OBJ(obj);
+    MigrationParameters *params = &ms->parameters;
 
     ms->state = MIGRATION_STATUS_NONE;
     ms->xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE;
     ms->mbps = -1;
-    ms->parameters.tls_creds = g_strdup("");
-    ms->parameters.tls_hostname = g_strdup("");
+
+    params->tls_hostname = g_strdup("");
+    params->tls_creds = g_strdup("");
+
+    /* Set has_* up only for parameter checks */
+    params->has_compress_level = true;
+    params->has_compress_threads = true;
+    params->has_decompress_threads = true;
+    params->has_cpu_throttle_initial = true;
+    params->has_cpu_throttle_increment = true;
+    params->has_max_bandwidth = true;
+    params->has_downtime_limit = true;
+    params->has_x_checkpoint_delay = true;
+    params->has_block_incremental = true;
+}
+
+/*
+ * Return true if check pass, false otherwise. Error will be put
+ * inside errp if provided.
+ */
+static bool migration_object_check(MigrationState *ms, Error **errp)
+{
+    if (!migrate_params_check(&ms->parameters, errp)) {
+        return false;
+    }
+
+    return true;
 }
 
 static const TypeInfo migration_type = {
