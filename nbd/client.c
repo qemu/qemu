@@ -232,8 +232,7 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
         break;
 
     case NBD_REP_ERR_UNKNOWN:
-        error_setg(errp, "Requested export not available for option %" PRIx32
-                   " (%s)", reply->option, nbd_opt_lookup(reply->option));
+        error_setg(errp, "Requested export not available");
         break;
 
     case NBD_REP_ERR_SHUTDOWN:
@@ -253,7 +252,7 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
     }
 
     if (msg) {
-        error_append_hint(errp, "%s\n", msg);
+        error_append_hint(errp, "server reported: %s\n", msg);
     }
 
  cleanup:
@@ -902,7 +901,8 @@ ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
     uint8_t buf[NBD_REQUEST_SIZE];
 
     trace_nbd_send_request(request->from, request->len, request->handle,
-                           request->flags, request->type);
+                           request->flags, request->type,
+                           nbd_cmd_lookup(request->type));
 
     stl_be_p(buf, NBD_REQUEST_MAGIC);
     stw_be_p(buf + 4, request->flags);

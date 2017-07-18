@@ -38,9 +38,13 @@
  */
 
 /* Size of all NBD_OPT_*, without payload */
-#define NBD_REQUEST_SIZE        (4 + 2 + 2 + 8 + 8 + 4)
+#define NBD_REQUEST_SIZE            (4 + 2 + 2 + 8 + 8 + 4)
 /* Size of all NBD_REP_* sent in answer to most NBD_OPT_*, without payload */
-#define NBD_REPLY_SIZE          (4 + 4 + 8)
+#define NBD_REPLY_SIZE              (4 + 4 + 8)
+/* Size of reply to NBD_OPT_EXPORT_NAME */
+#define NBD_REPLY_EXPORT_NAME_SIZE  (8 + 2 + 124)
+/* Size of oldstyle negotiation */
+#define NBD_OLDSTYLE_NEGOTIATE_SIZE (8 + 8 + 8 + 4 + 124)
 
 #define NBD_REQUEST_MAGIC       0x25609513
 #define NBD_REPLY_MAGIC         0x67446698

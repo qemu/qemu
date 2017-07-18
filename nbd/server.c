@@ -283,12 +283,16 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
                                             Error **errp)
 {
     char name[NBD_MAX_NAME_SIZE + 1];
-    char buf[8 + 4 + 124] = "";
+    char buf[NBD_REPLY_EXPORT_NAME_SIZE] = "";
     size_t len;
     int ret;
 
     /* Client sends:
         [20 ..  xx]   export name (length bytes)
+       Server replies:
+        [ 0 ..   7]   size
+        [ 8 ..   9]   export flags
+        [10 .. 133]   reserved     (0) [unless no_zeroes]
      */
     trace_nbd_negotiate_handle_export_name();
     if (length >= sizeof(name)) {
@@ -800,22 +804,21 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
  */
 static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
 {
-    char buf[8 + 8 + 8 + 128];
+    char buf[NBD_OLDSTYLE_NEGOTIATE_SIZE] = "";
     int ret;
     const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                               NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA |
                               NBD_FLAG_SEND_WRITE_ZEROES);
     bool oldStyle;
 
-    /* Old style negotiation header without options
+    /* Old style negotiation header, no room for options
         [ 0 ..   7]   passwd       ("NBDMAGIC")
         [ 8 ..  15]   magic        (NBD_CLIENT_MAGIC)
         [16 ..  23]   size
-        [24 ..  25]   server flags (0)
-        [26 ..  27]   export flags
+        [24 ..  27]   export flags (zero-extended)
         [28 .. 151]   reserved     (0)
 
-       New style negotiation header with options
+       New style negotiation header, client can send options
         [ 0 ..   7]   passwd       ("NBDMAGIC")
         [ 8 ..  15]   magic        (NBD_OPTS_MAGIC)
         [16 ..  17]   server flags (0)
@@ -825,7 +828,6 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     qio_channel_set_blocking(client->ioc, false, NULL);
 
     trace_nbd_negotiate_begin();
-    memset(buf, 0, sizeof(buf));
     memcpy(buf, "NBDMAGIC", 8);
 
     oldStyle = client->exp != NULL && !client->tlscreds;
@@ -834,7 +836,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
                                       client->exp->nbdflags | myflags);
         stq_be_p(buf + 8, NBD_CLIENT_MAGIC);
         stq_be_p(buf + 16, client->exp->size);
-        stw_be_p(buf + 26, client->exp->nbdflags | myflags);
+        stl_be_p(buf + 24, client->exp->nbdflags | myflags);
 
         if (nbd_write(client->ioc, buf, sizeof(buf), errp) < 0) {
             error_prepend(errp, "write failed: ");
