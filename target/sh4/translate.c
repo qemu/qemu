@@ -981,10 +981,10 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_SZ) {
-	    TCGv_i64 fp = tcg_temp_new_i64();
-            gen_load_fpr64(ctx, fp, XHACK(B7_4));
-            gen_store_fpr64(ctx, fp, XHACK(B11_8));
-	    tcg_temp_free_i64(fp);
+            int xsrc = XHACK(B7_4);
+            int xdst = XHACK(B11_8);
+            tcg_gen_mov_i32(FREG(xdst), FREG(xsrc));
+            tcg_gen_mov_i32(FREG(xdst + 1), FREG(xsrc + 1));
 	} else {
             tcg_gen_mov_i32(FREG(B11_8), FREG(B7_4));
 	}
