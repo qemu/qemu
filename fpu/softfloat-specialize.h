@@ -445,9 +445,10 @@ static float32 commonNaNToFloat32(commonNaNT a, float_status *status)
 
 #if defined(TARGET_ARM)
 static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
-                    flag aIsLargerSignificand)
+                   flag aIsLargerSignificand)
 {
-    /* ARM mandated NaN propagation rules: take the first of:
+    /* ARM mandated NaN propagation rules (see FPProcessNaNs()), take
+     * the first of:
      *  1. A if it is signaling
      *  2. B if it is signaling
      *  3. A (quiet)
