@@ -53,6 +53,8 @@ typedef struct MapCacheEntry {
     uint8_t *vaddr_base;
     unsigned long *valid_mapping;
     uint8_t lock;
+#define XEN_MAPCACHE_ENTRY_DUMMY (1 << 0)
+    uint8_t flags;
     hwaddr size;
     struct MapCacheEntry *next;
 } MapCacheEntry;
@@ -149,8 +151,10 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
 }
 
 static void xen_remap_bucket(MapCacheEntry *entry,
+                             void *vaddr,
                              hwaddr size,
-                             hwaddr address_index)
+                             hwaddr address_index,
+                             bool dummy)
 {
     uint8_t *vaddr_base;
     xen_pfn_t *pfns;
@@ -164,7 +168,9 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     err = g_malloc0(nb_pfn * sizeof (int));
 
     if (entry->vaddr_base != NULL) {
-        ram_block_notify_remove(entry->vaddr_base, entry->size);
+        if (!(entry->flags & XEN_MAPCACHE_ENTRY_DUMMY)) {
+            ram_block_notify_remove(entry->vaddr_base, entry->size);
+        }
         if (munmap(entry->vaddr_base, entry->size) != 0) {
             perror("unmap fails");
             exit(-1);
@@ -177,11 +183,29 @@ static void xen_remap_bucket(MapCacheEntry *entry,
         pfns[i] = (address_index << (MCACHE_BUCKET_SHIFT-XC_PAGE_SHIFT)) + i;
     }
 
-    vaddr_base = xenforeignmemory_map(xen_fmem, xen_domid, PROT_READ|PROT_WRITE,
-                                      nb_pfn, pfns, err);
-    if (vaddr_base == NULL) {
-        perror("xenforeignmemory_map");
-        exit(-1);
+    if (!dummy) {
+        vaddr_base = xenforeignmemory_map2(xen_fmem, xen_domid, vaddr,
+                                           PROT_READ | PROT_WRITE, 0,
+                                           nb_pfn, pfns, err);
+        if (vaddr_base == NULL) {
+            perror("xenforeignmemory_map2");
+            exit(-1);
+        }
+    } else {
+        /*
+         * We create dummy mappings where we are unable to create a foreign
+         * mapping immediately due to certain circumstances (i.e. on resume now)
+         */
+        vaddr_base = mmap(vaddr, size, PROT_READ | PROT_WRITE,
+                          MAP_ANON | MAP_SHARED, -1, 0);
+        if (vaddr_base == NULL) {
+            perror("mmap");
+            exit(-1);
+        }
+    }
+
+    if (!(entry->flags & XEN_MAPCACHE_ENTRY_DUMMY)) {
+        ram_block_notify_add(vaddr_base, size);
     }
 
     entry->vaddr_base = vaddr_base;
@@ -190,7 +214,12 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     entry->valid_mapping = (unsigned long *) g_malloc0(sizeof(unsigned long) *
             BITS_TO_LONGS(size >> XC_PAGE_SHIFT));
 
-    ram_block_notify_add(entry->vaddr_base, entry->size);
+    if (dummy) {
+        entry->flags |= XEN_MAPCACHE_ENTRY_DUMMY;
+    } else {
+        entry->flags &= ~(XEN_MAPCACHE_ENTRY_DUMMY);
+    }
+
     bitmap_zero(entry->valid_mapping, nb_pfn);
     for (i = 0; i < nb_pfn; i++) {
         if (!err[i]) {
@@ -210,7 +239,8 @@ static uint8_t *xen_map_cache_unlocked(hwaddr phys_addr, hwaddr size,
     hwaddr address_offset;
     hwaddr cache_size = size;
     hwaddr test_bit_size;
-    bool translated = false;
+    bool translated G_GNUC_UNUSED = false;
+    bool dummy = false;
 
 tryagain:
     address_index  = phys_addr >> MCACHE_BUCKET_SHIFT;
@@ -262,14 +292,14 @@ tryagain:
     if (!entry) {
         entry = g_malloc0(sizeof (MapCacheEntry));
         pentry->next = entry;
-        xen_remap_bucket(entry, cache_size, address_index);
+        xen_remap_bucket(entry, NULL, cache_size, address_index, dummy);
     } else if (!entry->lock) {
         if (!entry->vaddr_base || entry->paddr_index != address_index ||
                 entry->size != cache_size ||
                 !test_bits(address_offset >> XC_PAGE_SHIFT,
                     test_bit_size >> XC_PAGE_SHIFT,
                     entry->valid_mapping)) {
-            xen_remap_bucket(entry, cache_size, address_index);
+            xen_remap_bucket(entry, NULL, cache_size, address_index, dummy);
         }
     }
 
@@ -277,9 +307,15 @@ tryagain:
                 test_bit_size >> XC_PAGE_SHIFT,
                 entry->valid_mapping)) {
         mapcache->last_entry = NULL;
+#ifdef XEN_COMPAT_PHYSMAP
         if (!translated && mapcache->phys_offset_to_gaddr) {
             phys_addr = mapcache->phys_offset_to_gaddr(phys_addr, size, mapcache->opaque);
             translated = true;
+            goto tryagain;
+        }
+#endif
+        if (!dummy && runstate_check(RUN_STATE_INMIGRATE)) {
+            dummy = true;
             goto tryagain;
         }
         trace_xen_map_cache_return(NULL);
@@ -461,4 +497,67 @@ void xen_invalidate_map_cache(void)
     mapcache->last_entry = NULL;
 
     mapcache_unlock();
+}
+
+static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
+                                                 hwaddr new_phys_addr,
+                                                 hwaddr size)
+{
+    MapCacheEntry *entry;
+    hwaddr address_index, address_offset;
+    hwaddr test_bit_size, cache_size = size;
+
+    address_index  = old_phys_addr >> MCACHE_BUCKET_SHIFT;
+    address_offset = old_phys_addr & (MCACHE_BUCKET_SIZE - 1);
+
+    assert(size);
+    /* test_bit_size is always a multiple of XC_PAGE_SIZE */
+    test_bit_size = size + (old_phys_addr & (XC_PAGE_SIZE - 1));
+    if (test_bit_size % XC_PAGE_SIZE) {
+        test_bit_size += XC_PAGE_SIZE - (test_bit_size % XC_PAGE_SIZE);
+    }
+    cache_size = size + address_offset;
+    if (cache_size % MCACHE_BUCKET_SIZE) {
+        cache_size += MCACHE_BUCKET_SIZE - (cache_size % MCACHE_BUCKET_SIZE);
+    }
+
+    entry = &mapcache->entry[address_index % mapcache->nr_buckets];
+    while (entry && !(entry->paddr_index == address_index &&
+                      entry->size == cache_size)) {
+        entry = entry->next;
+    }
+    if (!entry) {
+        DPRINTF("Trying to update an entry for %lx " \
+                "that is not in the mapcache!\n", old_phys_addr);
+        return NULL;
+    }
+
+    address_index  = new_phys_addr >> MCACHE_BUCKET_SHIFT;
+    address_offset = new_phys_addr & (MCACHE_BUCKET_SIZE - 1);
+
+    fprintf(stderr, "Replacing a dummy mapcache entry for %lx with %lx\n",
+            old_phys_addr, new_phys_addr);
+
+    xen_remap_bucket(entry, entry->vaddr_base,
+                     cache_size, address_index, false);
+    if (!test_bits(address_offset >> XC_PAGE_SHIFT,
+                test_bit_size >> XC_PAGE_SHIFT,
+                entry->valid_mapping)) {
+        DPRINTF("Unable to update a mapcache entry for %lx!\n", old_phys_addr);
+        return NULL;
+    }
+
+    return entry->vaddr_base + address_offset;
+}
+
+uint8_t *xen_replace_cache_entry(hwaddr old_phys_addr,
+                                 hwaddr new_phys_addr,
+                                 hwaddr size)
+{
+    uint8_t *p;
+
+    mapcache_lock();
+    p = xen_replace_cache_entry_unlocked(old_phys_addr, new_phys_addr, size);
+    mapcache_unlock();
+    return p;
 }

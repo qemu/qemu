@@ -535,7 +535,11 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
         return -1;
     }
 
-    xen_host_pci_get_word(hd, base + PCI_MSIX_FLAGS, &control);
+    rc = xen_host_pci_get_word(hd, base + PCI_MSIX_FLAGS, &control);
+    if (rc) {
+        XEN_PT_ERR(d, "Failed to read PCI_MSIX_FLAGS field\n");
+        return rc;
+    }
     total_entries = control & PCI_MSIX_FLAGS_QSIZE;
     total_entries += 1;
 
@@ -554,7 +558,11 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
                            + XC_PAGE_SIZE - 1)
                           & XC_PAGE_MASK);
 
-    xen_host_pci_get_long(hd, base + PCI_MSIX_TABLE, &table_off);
+    rc = xen_host_pci_get_long(hd, base + PCI_MSIX_TABLE, &table_off);
+    if (rc) {
+        XEN_PT_ERR(d, "Failed to read PCI_MSIX_TABLE field\n");
+        goto error_out;
+    }
     bar_index = msix->bar_index = table_off & PCI_MSIX_FLAGS_BIRMASK;
     table_off = table_off & ~PCI_MSIX_FLAGS_BIRMASK;
     msix->table_base = s->real_device.io_regions[bar_index].base_addr;

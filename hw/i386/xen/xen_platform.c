@@ -87,10 +87,30 @@ static void log_writeb(PCIXenPlatformState *s, char val)
     }
 }
 
-/* Xen Platform, Fixed IOPort */
-#define UNPLUG_ALL_DISKS 1
-#define UNPLUG_ALL_NICS 2
-#define UNPLUG_AUX_IDE_DISKS 4
+/*
+ * Unplug device flags.
+ *
+ * The logic got a little confused at some point in the past but this is
+ * what they do now.
+ *
+ * bit 0: Unplug all IDE and SCSI disks.
+ * bit 1: Unplug all NICs.
+ * bit 2: Unplug IDE disks except primary master. This is overridden if
+ *        bit 0 is also present in the mask.
+ * bit 3: Unplug all NVMe disks.
+ *
+ */
+#define _UNPLUG_IDE_SCSI_DISKS 0
+#define UNPLUG_IDE_SCSI_DISKS (1u << _UNPLUG_IDE_SCSI_DISKS)
+
+#define _UNPLUG_ALL_NICS 1
+#define UNPLUG_ALL_NICS (1u << _UNPLUG_ALL_NICS)
+
+#define _UNPLUG_AUX_IDE_DISKS 2
+#define UNPLUG_AUX_IDE_DISKS (1u << _UNPLUG_AUX_IDE_DISKS)
+
+#define _UNPLUG_NVME_DISKS 3
+#define UNPLUG_NVME_DISKS (1u << _UNPLUG_NVME_DISKS)
 
 static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
 {
@@ -122,7 +142,7 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *opaque)
 {
     uint32_t flags = *(uint32_t *)opaque;
     bool aux = (flags & UNPLUG_AUX_IDE_DISKS) &&
-        !(flags & UNPLUG_ALL_DISKS);
+        !(flags & UNPLUG_IDE_SCSI_DISKS);
 
     /* We have to ignore passthrough devices */
     if (!strcmp(d->name, "xen-pci-passthrough")) {
@@ -135,11 +155,15 @@ static void unplug_disks(PCIBus *b, PCIDevice *d, void *opaque)
         break;
 
     case PCI_CLASS_STORAGE_SCSI:
-    case PCI_CLASS_STORAGE_EXPRESS:
         if (!aux) {
             object_unparent(OBJECT(d));
         }
         break;
+
+    case PCI_CLASS_STORAGE_EXPRESS:
+        if (flags & UNPLUG_NVME_DISKS) {
+            object_unparent(OBJECT(d));
+        }
 
     default:
         break;
@@ -158,10 +182,9 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
     switch (addr) {
     case 0: {
         PCIDevice *pci_dev = PCI_DEVICE(s);
-        /* Unplug devices.  Value is a bitmask of which devices to
-           unplug, with bit 0 the disk devices, bit 1 the network
-           devices, and bit 2 the non-primary-master IDE devices. */
-        if (val & (UNPLUG_ALL_DISKS | UNPLUG_AUX_IDE_DISKS)) {
+        /* Unplug devices. See comment above flag definitions */
+        if (val & (UNPLUG_IDE_SCSI_DISKS | UNPLUG_AUX_IDE_DISKS |
+                   UNPLUG_NVME_DISKS)) {
             DPRINTF("unplug disks\n");
             pci_unplug_disks(pci_dev->bus, val);
         }
@@ -349,14 +372,14 @@ static void xen_platform_ioport_writeb(void *opaque, hwaddr addr,
              * If VMDP was to control both disk and LAN it would use 4.
              * If it controlled just disk or just LAN, it would use 8 below.
              */
-            pci_unplug_disks(pci_dev->bus, UNPLUG_ALL_DISKS);
+            pci_unplug_disks(pci_dev->bus, UNPLUG_IDE_SCSI_DISKS);
             pci_unplug_nics(pci_dev->bus);
         }
         break;
     case 8:
         switch (val) {
         case 1:
-            pci_unplug_disks(pci_dev->bus, UNPLUG_ALL_DISKS);
+            pci_unplug_disks(pci_dev->bus, UNPLUG_IDE_SCSI_DISKS);
             break;
         case 2:
             pci_unplug_nics(pci_dev->bus);

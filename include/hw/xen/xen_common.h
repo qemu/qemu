@@ -78,6 +78,21 @@ static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
 
 extern xenforeignmemory_handle *xen_fmem;
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41000
+
+#define XEN_COMPAT_PHYSMAP
+static inline void *xenforeignmemory_map2(xenforeignmemory_handle *h,
+                                          uint32_t dom, void *addr,
+                                          int prot, int flags, size_t pages,
+                                          const xen_pfn_t arr[/*pages*/],
+                                          int err[/*pages*/])
+{
+    assert(addr == NULL && flags == 0);
+    return xenforeignmemory_map(h, dom, prot, pages, arr, err);
+}
+
+#endif
+
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40900
 
 typedef xc_interface xendevicemodel_handle;
