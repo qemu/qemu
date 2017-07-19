@@ -201,6 +201,15 @@ static void vreport(report_type type, const char *fmt, va_list ap)
     GTimeVal tv;
     gchar *timestr;
 
+    if (enable_timestamp_msg && !cur_mon) {
+        g_get_current_time(&tv);
+        timestr = g_time_val_to_iso8601(&tv);
+        error_printf("%s ", timestr);
+        g_free(timestr);
+    }
+
+    print_loc();
+
     switch (type) {
     case REPORT_TYPE_ERROR:
         break;
@@ -212,14 +221,6 @@ static void vreport(report_type type, const char *fmt, va_list ap)
         break;
     }
 
-    if (enable_timestamp_msg && !cur_mon) {
-        g_get_current_time(&tv);
-        timestr = g_time_val_to_iso8601(&tv);
-        error_printf("%s ", timestr);
-        g_free(timestr);
-    }
-
-    print_loc();
     error_vprintf(fmt, ap);
     error_printf("\n");
 }
