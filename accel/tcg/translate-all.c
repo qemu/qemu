@@ -154,7 +154,7 @@ static void *l1_map[V_L1_MAX_SIZE];
 
 /* code generation context */
 TCGContext tcg_init_ctx;
-TCGContext *tcg_ctx;
+__thread TCGContext *tcg_ctx;
 TBContext tb_ctx;
 bool parallel_cpus;
 
