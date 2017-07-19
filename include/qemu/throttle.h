@@ -139,7 +139,7 @@ bool throttle_enabled(ThrottleConfig *cfg);
 bool throttle_is_valid(ThrottleConfig *cfg, Error **errp);
 
 void throttle_config(ThrottleState *ts,
-                     ThrottleTimers *tt,
+                     QEMUClockType clock_type,
                      ThrottleConfig *cfg);
 
 void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg);

@@ -61,6 +61,7 @@ typedef struct ThrottleGroup {
     QLIST_HEAD(, BlockBackendPublic) head;
     BlockBackend *tokens[2];
     bool any_timer_armed[2];
+    QEMUClockType clock_type;
 
     /* These two are protected by the global throttle_groups_lock */
     unsigned refcount;
@@ -98,6 +99,12 @@ ThrottleState *throttle_group_incref(const char *name)
     if (!tg) {
         tg = g_new0(ThrottleGroup, 1);
         tg->name = g_strdup(name);
+        tg->clock_type = QEMU_CLOCK_REALTIME;
+
+        if (qtest_enabled()) {
+            /* For testing block IO throttling only */
+            tg->clock_type = QEMU_CLOCK_VIRTUAL;
+        }
         qemu_mutex_init(&tg->lock);
         throttle_init(&tg->ts);
         QLIST_INIT(&tg->head);
@@ -310,7 +317,7 @@ static void schedule_next_request(BlockBackend *blk, bool is_write)
             token = blk;
         } else {
             ThrottleTimers *tt = &blk_get_public(token)->throttle_timers;
-            int64_t now = qemu_clock_get_ns(tt->clock_type);
+            int64_t now = qemu_clock_get_ns(tg->clock_type);
             timer_mod(tt->timers[is_write], now);
             tg->any_timer_armed[is_write] = true;
         }
@@ -419,18 +426,10 @@ void throttle_group_restart_blk(BlockBackend *blk)
 void throttle_group_config(BlockBackend *blk, ThrottleConfig *cfg)
 {
     BlockBackendPublic *blkp = blk_get_public(blk);
-    ThrottleTimers *tt = &blkp->throttle_timers;
     ThrottleState *ts = blkp->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     qemu_mutex_lock(&tg->lock);
-    /* throttle_config() cancels the timers */
-    if (timer_pending(tt->timers[0])) {
-        tg->any_timer_armed[0] = false;
-    }
-    if (timer_pending(tt->timers[1])) {
-        tg->any_timer_armed[1] = false;
-    }
-    throttle_config(ts, tt, cfg);
+    throttle_config(ts, tg->clock_type, cfg);
     qemu_mutex_unlock(&tg->lock);
 
     throttle_group_restart_blk(blk);
@@ -497,13 +496,6 @@ void throttle_group_register_blk(BlockBackend *blk, const char *groupname)
     BlockBackendPublic *blkp = blk_get_public(blk);
     ThrottleState *ts = throttle_group_incref(groupname);
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
-    int clock_type = QEMU_CLOCK_REALTIME;
-
-    if (qtest_enabled()) {
-        /* For testing block IO throttling only */
-        clock_type = QEMU_CLOCK_VIRTUAL;
-    }
-
     blkp->throttle_state = ts;
 
     qemu_mutex_lock(&tg->lock);
@@ -518,7 +510,7 @@ void throttle_group_register_blk(BlockBackend *blk, const char *groupname)
 
     throttle_timers_init(&blkp->throttle_timers,
                          blk_get_aio_context(blk),
-                         clock_type,
+                         tg->clock_type,
                          read_timer_cb,
                          write_timer_cb,
                          blk);

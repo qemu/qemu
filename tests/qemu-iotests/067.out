@@ -57,6 +57,7 @@ Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,if=none,id=disk -device virti
                 "file": "TEST_DIR/t.qcow2",
                 "encryption_key_missing": false
             },
+            "qdev": "/machine/peripheral/virtio0/virtio-backend",
             "type": "unknown"
         }
     ]
@@ -409,6 +410,45 @@ Testing:
             "file": "TEST_DIR/t.qcow2",
             "encryption_key_missing": false
         }
+    ]
+}
+{
+    "return": {
+    }
+}
+
+=== Empty drive with -device and device_del ===
+
+Testing: -device virtio-scsi-pci -device scsi-cd,id=cd0
+{
+    QMP_VERSION
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
+        {
+            "device": "",
+            "locked": false,
+            "removable": true,
+            "qdev": "cd0",
+            "tray_open": false,
+            "type": "unknown"
+        }
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
     ]
 }
 {

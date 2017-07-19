@@ -104,7 +104,7 @@ function add_snapshot_image()
 {
     base_image="${TEST_DIR}/$((${1}-1))-${snapshot_virt0}"
     snapshot_file="${TEST_DIR}/${1}-${snapshot_virt0}"
-    _make_test_img -b "${base_image}" "$size"
+    _make_test_img -u -b "${base_image}" "$size"
     mv "${TEST_IMG}" "${snapshot_file}"
     do_blockdev_add "$1" "'backing': '', " "${snapshot_file}"
 }

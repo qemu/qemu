@@ -457,6 +457,9 @@
 #
 # @device: The device name associated with the virtual device.
 #
+# @qdev: The qdev ID, or if no ID is assigned, the QOM path of the block
+#        device. (since 2.10)
+#
 # @type: This field is returned only for compatibility reasons, it should
 #        not be used (always returns 'unknown')
 #
@@ -482,7 +485,7 @@
 # Since:  0.14.0
 ##
 { 'struct': 'BlockInfo',
-  'data': {'device': 'str', 'type': 'str', 'removable': 'bool',
+  'data': {'device': 'str', '*qdev': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
            '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
            '*dirty-bitmaps': ['BlockDirtyInfo'] } }
@@ -577,6 +580,7 @@
 #                   }
 #                }
 #             },
+#             "qdev": "ide_disk",
 #             "type":"unknown"
 #          },
 #          {
@@ -584,12 +588,15 @@
 #             "device":"ide1-cd0",
 #             "locked":false,
 #             "removable":true,
+#             "qdev": "/machine/unattached/device[23]",
+#             "tray_open": false,
 #             "type":"unknown"
 #          },
 #          {
 #             "device":"floppy0",
 #             "locked":false,
 #             "removable":true,
+#             "qdev": "/machine/unattached/device[20]",
 #             "type":"unknown"
 #          },
 #          {

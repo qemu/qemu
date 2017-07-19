@@ -71,6 +71,17 @@ void nonono(const char* file, int line, const char* msg) {
 
 #endif
 
+/* bootsector OEM name. see related compatibility problems at:
+ * https://jdebp.eu/FGA/volume-boot-block-oem-name-field.html
+ * http://seasip.info/Misc/oemid.html
+ */
+#define BOOTSECTOR_OEM_NAME "MSWIN4.1"
+
+#define DIR_DELETED 0xe5
+#define DIR_KANJI DIR_DELETED
+#define DIR_KANJI_FAKE 0x05
+#define DIR_FREE 0x00
+
 /* dynamic array functions */
 typedef struct array_t {
     char* pointer;
@@ -104,6 +115,7 @@ static inline int array_ensure_allocated(array_t* array, int index)
         array->pointer = g_realloc(array->pointer, new_size);
         if (!array->pointer)
             return -1;
+        memset(array->pointer + array->size, 0, new_size - array->size);
         array->size = new_size;
         array->next = index + 1;
     }
@@ -466,7 +478,7 @@ static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
 
 static char is_free(const direntry_t* direntry)
 {
-    return direntry->name[0]==0xe5 || direntry->name[0]==0x00;
+    return direntry->name[0] == DIR_DELETED || direntry->name[0] == DIR_FREE;
 }
 
 static char is_volume_label(const direntry_t* direntry)
@@ -487,7 +499,7 @@ static char is_short_name(const direntry_t* direntry)
 
 static char is_directory(const direntry_t* direntry)
 {
-    return direntry->attributes & 0x10 && direntry->name[0] != 0xe5;
+    return direntry->attributes & 0x10 && direntry->name[0] != DIR_DELETED;
 }
 
 static inline char is_dot(const direntry_t* direntry)
@@ -537,7 +549,7 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
     const gchar *p, *last_dot = NULL;
     gunichar c;
     bool lossy_conversion = false;
-    char tail[11];
+    char tail[8];
 
     if (!entry) {
         return NULL;
@@ -589,8 +601,8 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
         }
     }
 
-    if (entry->name[0] == 0xe5) {
-        entry->name[0] = 0x05;
+    if (entry->name[0] == DIR_KANJI) {
+        entry->name[0] = DIR_KANJI_FAKE;
     }
 
     /* numeric-tail generation */
@@ -602,7 +614,8 @@ static direntry_t *create_short_filename(BDRVVVFATState *s,
     for (i = lossy_conversion ? 1 : 0; i < 999999; i++) {
         direntry_t *entry1;
         if (i > 0) {
-            int len = sprintf(tail, "~%d", i);
+            int len = snprintf(tail, sizeof(tail), "~%u", (unsigned)i);
+            assert(len <= 7);
             memcpy(entry->name + MIN(j, 8 - len), tail, len);
         }
         for (entry1 = array_get(&(s->directory), directory_start);
@@ -1023,7 +1036,7 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->jump[0]=0xeb;
     bootsector->jump[1]=0x3e;
     bootsector->jump[2]=0x90;
-    memcpy(bootsector->name, "MSWIN4.1", 8);
+    memcpy(bootsector->name, BOOTSECTOR_OEM_NAME, 8);
     bootsector->sector_size=cpu_to_le16(0x200);
     bootsector->sectors_per_cluster=s->sectors_per_cluster;
     bootsector->reserved_sectors=cpu_to_le16(1);
@@ -1658,6 +1671,7 @@ typedef struct {
      * filename length is 0x3f * 13 bytes.
      */
     unsigned char name[0x3f * 13 + 1];
+    gunichar2 name2[0x3f * 13 + 1];
     int checksum, len;
     int sequence_number;
 } long_file_name;
@@ -1679,16 +1693,21 @@ static int parse_long_name(long_file_name* lfn,
         return 1;
 
     if (pointer[0] & 0x40) {
+        /* first entry; do some initialization */
         lfn->sequence_number = pointer[0] & 0x3f;
         lfn->checksum = pointer[13];
         lfn->name[0] = 0;
         lfn->name[lfn->sequence_number * 13] = 0;
-    } else if ((pointer[0] & 0x3f) != --lfn->sequence_number)
+    } else if ((pointer[0] & 0x3f) != --lfn->sequence_number) {
+        /* not the expected sequence number */
         return -1;
-    else if (pointer[13] != lfn->checksum)
+    } else if (pointer[13] != lfn->checksum) {
+        /* not the expected checksum */
         return -2;
-    else if (pointer[12] || pointer[26] || pointer[27])
+    } else if (pointer[12] || pointer[26] || pointer[27]) {
+        /* invalid zero fields */
         return -3;
+    }
 
     offset = 13 * (lfn->sequence_number - 1);
     for (i = 0, j = 1; i < 13; i++, j+=2) {
@@ -1697,16 +1716,29 @@ static int parse_long_name(long_file_name* lfn,
         else if (j == 26)
             j = 28;
 
-        if (pointer[j+1] == 0)
-            lfn->name[offset + i] = pointer[j];
-        else if (pointer[j+1] != 0xff || (pointer[0] & 0x40) == 0)
-            return -4;
-        else
-            lfn->name[offset + i] = 0;
+        if (pointer[j] == 0 && pointer[j + 1] == 0) {
+            /* end of long file name */
+            break;
+        }
+        gunichar2 c = (pointer[j + 1] << 8) + pointer[j];
+        lfn->name2[offset + i] = c;
     }
 
-    if (pointer[0] & 0x40)
-        lfn->len = offset + strlen((char*)lfn->name + offset);
+    if (pointer[0] & 0x40) {
+        /* first entry; set len */
+        lfn->len = offset + i;
+    }
+    if ((pointer[0] & 0x3f) == 0x01) {
+        /* last entry; finalize entry */
+        glong olen;
+        gchar *utf8 = g_utf16_to_utf8(lfn->name2, lfn->len, NULL, &olen, NULL);
+        if (!utf8) {
+            return -4;
+        }
+        lfn->len = olen;
+        memcpy(lfn->name, utf8, olen + 1);
+        g_free(utf8);
+    }
 
     return 0;
 }
@@ -1722,12 +1754,14 @@ static int parse_short_name(BDRVVVFATState* s,
 
     for (j = 7; j >= 0 && direntry->name[j] == ' '; j--);
     for (i = 0; i <= j; i++) {
-        if (direntry->name[i] <= ' ' || direntry->name[i] > 0x7f)
+        uint8_t c = direntry->name[i];
+        if (c != to_valid_short_char(c)) {
             return -1;
-        else if (s->downcase_short_names)
+        } else if (s->downcase_short_names) {
             lfn->name[i] = qemu_tolower(direntry->name[i]);
-        else
+        } else {
             lfn->name[i] = direntry->name[i];
+        }
     }
 
     for (j = 2; j >= 0 && direntry->name[8 + j] == ' '; j--) {
@@ -1737,7 +1771,7 @@ static int parse_short_name(BDRVVVFATState* s,
         lfn->name[i + j + 1] = '\0';
         for (;j >= 0; j--) {
             uint8_t c = direntry->name[8 + j];
-            if (c <= ' ' || c > 0x7f) {
+            if (c != to_valid_short_char(c)) {
                 return -2;
             } else if (s->downcase_short_names) {
                 lfn->name[i + j] = qemu_tolower(c);
@@ -1748,8 +1782,8 @@ static int parse_short_name(BDRVVVFATState* s,
     } else
         lfn->name[i + j + 1] = '\0';
 
-    if (lfn->name[0] == 0x05) {
-        lfn->name[0] = 0xe5;
+    if (lfn->name[0] == DIR_KANJI_FAKE) {
+        lfn->name[0] = DIR_KANJI;
     }
     lfn->len = strlen((char*)lfn->name);
 
@@ -2955,7 +2989,6 @@ DLOG(checkpoint());
     /*
      * Some sanity checks:
      * - do not allow writing to the boot sector
-     * - do not allow to write non-ASCII filenames
      */
 
     if (sector_num < s->offset_to_fat)
@@ -2989,13 +3022,8 @@ DLOG(checkpoint());
                 direntries = (direntry_t*)(buf + 0x200 * (begin - sector_num));
 
                 for (k = 0; k < (end - begin) * 0x10; k++) {
-                    /* do not allow non-ASCII filenames */
-                    if (parse_long_name(&lfn, direntries + k) < 0) {
-                        fprintf(stderr, "Warning: non-ASCII filename\n");
-                        return -1;
-                    }
                     /* no access to the direntry of a read-only file */
-                    else if (is_short_name(direntries+k) &&
+                    if (is_short_name(direntries + k) &&
                             (direntries[k].attributes & 1)) {
                         if (memcmp(direntries + k,
                                     array_get(&(s->directory), dir_index + k),

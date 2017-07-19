@@ -90,7 +90,9 @@ static void commit_complete(BlockJob *job, void *opaque)
 
     /* Make sure overlay_bs and top stay around until bdrv_set_backing_hd() */
     bdrv_ref(top);
-    bdrv_ref(overlay_bs);
+    if (overlay_bs) {
+        bdrv_ref(overlay_bs);
+    }
 
     /* Remove base node parent that still uses BLK_PERM_WRITE/RESIZE before
      * the normal backing chain can be restored. */
