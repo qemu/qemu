@@ -15,7 +15,6 @@
 
 #include "qemu-common.h"
 
-bool colo_supported(void);
 void colo_info_init(void);
 
 void migrate_start_colo_process(MigrationState *s);

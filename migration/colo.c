@@ -29,11 +29,6 @@ static bool vmstate_loading;
 
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
-bool colo_supported(void)
-{
-    return true;
-}
-
 bool migration_in_colo_state(void)
 {
     MigrationState *s = migrate_get_current();
