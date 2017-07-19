@@ -3037,15 +3037,12 @@ void cpu_loop(CPUAlphaState *env)
     abi_long sysret;
 
     while (1) {
+        bool arch_interrupt = true;
+
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
-
-        /* All of the traps imply a transition through PALcode, which
-           implies an REI instruction has been executed.  Which means
-           that the intr_flag should be cleared.  */
-        env->intr_flag = 0;
 
         switch (trapnr) {
         case EXCP_RESET:
@@ -3063,7 +3060,6 @@ void cpu_loop(CPUAlphaState *env)
             exit(EXIT_FAILURE);
             break;
         case EXCP_MMFAULT:
-            env->lock_addr = -1;
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
             info.si_code = (page_get_flags(env->trap_arg0) & PAGE_VALID
@@ -3072,7 +3068,6 @@ void cpu_loop(CPUAlphaState *env)
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
         case EXCP_UNALIGN:
-            env->lock_addr = -1;
             info.si_signo = TARGET_SIGBUS;
             info.si_errno = 0;
             info.si_code = TARGET_BUS_ADRALN;
@@ -3081,7 +3076,6 @@ void cpu_loop(CPUAlphaState *env)
             break;
         case EXCP_OPCDEC:
         do_sigill:
-            env->lock_addr = -1;
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_ILLOPC;
@@ -3089,7 +3083,6 @@ void cpu_loop(CPUAlphaState *env)
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
         case EXCP_ARITH:
-            env->lock_addr = -1;
             info.si_signo = TARGET_SIGFPE;
             info.si_errno = 0;
             info.si_code = TARGET_FPE_FLTINV;
@@ -3100,7 +3093,6 @@ void cpu_loop(CPUAlphaState *env)
             /* No-op.  Linux simply re-enables the FPU.  */
             break;
         case EXCP_CALL_PAL:
-            env->lock_addr = -1;
             switch (env->error_code) {
             case 0x80:
                 /* BPT */
@@ -3197,10 +3189,11 @@ void cpu_loop(CPUAlphaState *env)
         case EXCP_DEBUG:
             info.si_signo = gdb_handlesig(cs, TARGET_SIGTRAP);
             if (info.si_signo) {
-                env->lock_addr = -1;
                 info.si_errno = 0;
                 info.si_code = TARGET_TRAP_BRKPT;
                 queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+            } else {
+                arch_interrupt = false;
             }
             break;
         case EXCP_INTERRUPT:
@@ -3208,6 +3201,7 @@ void cpu_loop(CPUAlphaState *env)
             break;
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
+            arch_interrupt = false;
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
@@ -3215,6 +3209,15 @@ void cpu_loop(CPUAlphaState *env)
             exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
+
+        /* Most of the traps imply a transition through PALcode, which
+           implies an REI instruction has been executed.  Which means
+           that RX and LOCK_ADDR should be cleared.  But there are a
+           few exceptions for traps internal to QEMU.  */
+        if (arch_interrupt) {
+            env->flags &= ~ENV_FLAG_RX_FLAG;
+            env->lock_addr = -1;
+        }
     }
 }
 #endif /* TARGET_ALPHA */

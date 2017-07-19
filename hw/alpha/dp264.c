@@ -123,7 +123,6 @@ static void clipper_init(MachineState *machine)
 
     /* Start all cpus at the PALcode RESET entry point.  */
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i]->env.pal_mode = 1;
         cpus[i]->env.pc = palcode_entry;
         cpus[i]->env.palbr = palcode_entry;
     }

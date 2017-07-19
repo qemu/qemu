@@ -48,11 +48,7 @@ static VMStateField vmstate_env_fields[] = {
     VMSTATE_UINTTL(lock_addr, CPUAlphaState),
     VMSTATE_UINTTL(lock_value, CPUAlphaState),
 
-    VMSTATE_UINT8(ps, CPUAlphaState),
-    VMSTATE_UINT8(intr_flag, CPUAlphaState),
-    VMSTATE_UINT8(pal_mode, CPUAlphaState),
-    VMSTATE_UINT8(fen, CPUAlphaState),
-
+    VMSTATE_UINT32(flags, CPUAlphaState),
     VMSTATE_UINT32(pcc_ofs, CPUAlphaState),
 
     VMSTATE_UINTTL(trap_arg0, CPUAlphaState),
@@ -74,8 +70,8 @@ static VMStateField vmstate_env_fields[] = {
 
 static const VMStateDescription vmstate_env = {
     .name = "env",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = vmstate_env_fields,
 };
 

@@ -81,7 +81,7 @@ void helper_store_fpcr(CPUAlphaState *env, uint64_t val)
 static uint64_t *cpu_alpha_addr_gr(CPUAlphaState *env, unsigned reg)
 {
 #ifndef CONFIG_USER_ONLY
-    if (env->pal_mode) {
+    if (env->flags & ENV_FLAG_PAL_MODE) {
         if (reg >= 8 && reg <= 14) {
             return &env->shadow[reg - 8];
         } else if (reg == 25) {
@@ -364,13 +364,13 @@ void alpha_cpu_do_interrupt(CPUState *cs)
 
     /* Remember where the exception happened.  Emulate real hardware in
        that the low bit of the PC indicates PALmode.  */
-    env->exc_addr = env->pc | env->pal_mode;
+    env->exc_addr = env->pc | (env->flags & ENV_FLAG_PAL_MODE);
 
     /* Continue execution at the PALcode entry point.  */
     env->pc = env->palbr + i;
 
     /* Switch to PALmode.  */
-    env->pal_mode = 1;
+    env->flags |= ENV_FLAG_PAL_MODE;
 #endif /* !USER_ONLY */
 }
 
@@ -381,14 +381,14 @@ bool alpha_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     int idx = -1;
 
     /* We never take interrupts while in PALmode.  */
-    if (env->pal_mode) {
+    if (env->flags & ENV_FLAG_PAL_MODE) {
         return false;
     }
 
     /* Fall through the switch, collecting the highest priority
        interrupt that isn't masked by the processor status IPL.  */
     /* ??? This hard-codes the OSF/1 interrupt levels.  */
-    switch (env->ps & PS_INT_MASK) {
+    switch ((env->flags >> ENV_FLAG_PS_SHIFT) & PS_INT_MASK) {
     case 0 ... 3:
         if (interrupt_request & CPU_INTERRUPT_HARD) {
             idx = EXCP_DEV_INTERRUPT;
@@ -432,7 +432,7 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     int i;
 
     cpu_fprintf(f, "     PC  " TARGET_FMT_lx "      PS  %02x\n",
-                env->pc, env->ps);
+                env->pc, extract32(env->flags, ENV_FLAG_PS_SHIFT, 8));
     for (i = 0; i < 31; i++) {
         cpu_fprintf(f, "IR%02d %s " TARGET_FMT_lx " ", i,
                     linux_reg_names[i], cpu_alpha_load_gr(env, i));

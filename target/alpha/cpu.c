@@ -276,14 +276,15 @@ static void alpha_cpu_initfn(Object *obj)
 
     alpha_translate_init();
 
+    env->lock_addr = -1;
 #if defined(CONFIG_USER_ONLY)
-    env->ps = PS_USER_MODE;
+    env->flags = ENV_FLAG_PS_USER | ENV_FLAG_FEN;
     cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
                                | FPCR_UNFD | FPCR_INED | FPCR_DNOD
                                | FPCR_DYN_NORMAL));
+#else
+    env->flags = ENV_FLAG_PAL_MODE | ENV_FLAG_FEN;
 #endif
-    env->lock_addr = -1;
-    env->fen = 1;
 }
 
 static void alpha_cpu_class_init(ObjectClass *oc, void *data)

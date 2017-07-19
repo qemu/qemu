@@ -49,15 +49,17 @@ struct DisasContext {
 #ifndef CONFIG_USER_ONLY
     uint64_t palbr;
 #endif
+    uint32_t tbflags;
     int mem_idx;
+
+    /* implver and amask values for this CPU.  */
+    int implver;
+    int amask;
 
     /* Current rounding mode for this TB.  */
     int tb_rm;
     /* Current flush-to-zero setting for this TB.  */
     int tb_ftz;
-
-    /* implver value for this CPU.  */
-    int implver;
 
     /* The set of registers active in the current context.  */
     TCGv *ir;
@@ -267,6 +269,27 @@ static TCGv dest_fpr(DisasContext *ctx, unsigned reg)
     }
 }
 
+static int get_flag_ofs(unsigned shift)
+{
+    int ofs = offsetof(CPUAlphaState, flags);
+#ifdef HOST_WORDS_BIGENDIAN
+    ofs += 3 - (shift / 8);
+#else
+    ofs += shift / 8;
+#endif
+    return ofs;
+}
+
+static void ld_flag_byte(TCGv val, unsigned shift)
+{
+    tcg_gen_ld8u_i64(val, cpu_env, get_flag_ofs(shift));
+}
+
+static void st_flag_byte(TCGv val, unsigned shift)
+{
+    tcg_gen_st8_i64(val, cpu_env, get_flag_ofs(shift));
+}
+
 static void gen_excp_1(int exception, int error_code)
 {
     TCGv_i32 tmp1, tmp2;
@@ -451,7 +474,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
 static bool in_superpage(DisasContext *ctx, int64_t addr)
 {
 #ifndef CONFIG_USER_ONLY
-    return ((ctx->tb->flags & TB_FLAGS_USER_MODE) == 0
+    return ((ctx->tbflags & ENV_FLAG_PS_USER) == 0
             && addr >> TARGET_VIRT_ADDR_SPACE_BITS == -1
             && ((addr >> 41) & 3) == 2);
 #else
@@ -542,16 +565,16 @@ static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
 static ExitStatus gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
                             int32_t disp, int mask)
 {
-    TCGv cmp_tmp;
-
     if (mask) {
-        cmp_tmp = tcg_temp_new();
-        tcg_gen_andi_i64(cmp_tmp, load_gpr(ctx, ra), 1);
-    } else {
-        cmp_tmp = load_gpr(ctx, ra);
-    }
+        TCGv tmp = tcg_temp_new();
+        ExitStatus ret;
 
-    return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
+        tcg_gen_andi_i64(tmp, load_gpr(ctx, ra), 1);
+        ret = gen_bcond_internal(ctx, cond, tmp, disp);
+        tcg_temp_free(tmp);
+        return ret;
+    }
+    return gen_bcond_internal(ctx, cond, load_gpr(ctx, ra), disp);
 }
 
 /* Fold -0.0 for comparison with COND.  */
@@ -590,8 +613,12 @@ static ExitStatus gen_fbcond(DisasContext *ctx, TCGCond cond, int ra,
                              int32_t disp)
 {
     TCGv cmp_tmp = tcg_temp_new();
+    ExitStatus ret;
+
     gen_fold_mzero(cond, cmp_tmp, load_fpr(ctx, ra));
-    return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
+    ret = gen_bcond_internal(ctx, cond, cmp_tmp, disp);
+    tcg_temp_free(cmp_tmp);
+    return ret;
 }
 
 static void gen_fcmov(DisasContext *ctx, TCGCond cond, int ra, int rb, int rc)
@@ -1123,16 +1150,15 @@ static void gen_msk_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
 
 static void gen_rx(DisasContext *ctx, int ra, int set)
 {
-    TCGv_i32 tmp;
+    TCGv tmp;
 
     if (ra != 31) {
-        tcg_gen_ld8u_i64(ctx->ir[ra], cpu_env,
-                         offsetof(CPUAlphaState, intr_flag));
+        ld_flag_byte(ctx->ir[ra], ENV_FLAG_RX_SHIFT);
     }
 
-    tmp = tcg_const_i32(set);
-    tcg_gen_st8_i32(tmp, cpu_env, offsetof(CPUAlphaState, intr_flag));
-    tcg_temp_free_i32(tmp);
+    tmp = tcg_const_i64(set);
+    st_flag_byte(ctx->ir[ra], ENV_FLAG_RX_SHIFT);
+    tcg_temp_free(tmp);
 }
 
 static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
@@ -1166,8 +1192,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
 #ifndef CONFIG_USER_ONLY
     /* Privileged PAL code */
-    if (palcode < 0x40 && (ctx->tb->flags & TB_FLAGS_USER_MODE) == 0) {
-        TCGv tmp;
+    if (palcode < 0x40 && (ctx->tbflags & ENV_FLAG_PS_USER) == 0) {
         switch (palcode) {
         case 0x01:
             /* CFLUSH */
@@ -1197,14 +1222,15 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             /* SWPIPL */
             /* Note that we already know we're in kernel mode, so we know
                that PS only contains the 3 IPL bits.  */
-            tcg_gen_ld8u_i64(ctx->ir[IR_V0], cpu_env,
-                             offsetof(CPUAlphaState, ps));
+            ld_flag_byte(ctx->ir[IR_V0], ENV_FLAG_PS_SHIFT);
 
             /* But make sure and store only the 3 IPL bits from the user.  */
-            tmp = tcg_temp_new();
-            tcg_gen_andi_i64(tmp, ctx->ir[IR_A0], PS_INT_MASK);
-            tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, ps));
-            tcg_temp_free(tmp);
+            {
+                TCGv tmp = tcg_temp_new();
+                tcg_gen_andi_i64(tmp, ctx->ir[IR_A0], PS_INT_MASK);
+                st_flag_byte(tmp, ENV_FLAG_PS_SHIFT);
+                tcg_temp_free(tmp);
+            }
 
             /* Allow interrupts to be recognized right away.  */
             tcg_gen_movi_i64(cpu_pc, ctx->pc);
@@ -1212,9 +1238,9 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
         case 0x36:
             /* RDPS */
-            tcg_gen_ld8u_i64(ctx->ir[IR_V0], cpu_env,
-                             offsetof(CPUAlphaState, ps));
+            ld_flag_byte(ctx->ir[IR_V0], ENV_FLAG_PS_SHIFT);
             break;
+
         case 0x38:
             /* WRUSP */
             tcg_gen_st_i64(ctx->ir[IR_A0], cpu_env,
@@ -1233,9 +1259,12 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
         case 0x3E:
             /* WTINT */
-            tmp = tcg_const_i64(1);
-            tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
-                                           offsetof(CPUState, halted));
+            {
+                TCGv_i32 tmp = tcg_const_i32(1);
+                tcg_gen_st_i32(tmp, cpu_env, -offsetof(AlphaCPU, env) +
+                                             offsetof(CPUState, halted));
+                tcg_temp_free_i32(tmp);
+            }
             tcg_gen_movi_i64(ctx->ir[IR_V0], 0);
             return gen_excp(ctx, EXCP_HALTED, 0);
 
@@ -1257,11 +1286,11 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
         uint64_t exc_addr = ctx->pc;
         uint64_t entry = ctx->palbr;
 
-        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
+        if (ctx->tbflags & ENV_FLAG_PAL_MODE) {
             exc_addr |= 1;
         } else {
             tcg_gen_movi_i64(tmp, 1);
-            tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, pal_mode));
+            st_flag_byte(tmp, ENV_FLAG_PAL_SHIFT);
         }
 
         tcg_gen_movi_i64(tmp, exc_addr);
@@ -1291,14 +1320,11 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
 #ifndef CONFIG_USER_ONLY
 
-#define PR_BYTE         0x100000
 #define PR_LONG         0x200000
 
 static int cpu_pr_data(int pr)
 {
     switch (pr) {
-    case  0: return offsetof(CPUAlphaState, ps) | PR_BYTE;
-    case  1: return offsetof(CPUAlphaState, fen) | PR_BYTE;
     case  2: return offsetof(CPUAlphaState, pcc_ofs) | PR_LONG;
     case  3: return offsetof(CPUAlphaState, trap_arg0);
     case  4: return offsetof(CPUAlphaState, trap_arg1);
@@ -1348,14 +1374,19 @@ static ExitStatus gen_mfpr(DisasContext *ctx, TCGv va, int regno)
         }
         break;
 
+    case 0: /* PS */
+        ld_flag_byte(va, ENV_FLAG_PS_SHIFT);
+        break;
+    case 1: /* FEN */
+        ld_flag_byte(va, ENV_FLAG_FEN_SHIFT);
+        break;
+
     default:
         /* The basic registers are data only, and unknown registers
            are read-zero, write-ignore.  */
         data = cpu_pr_data(regno);
         if (data == 0) {
             tcg_gen_movi_i64(va, 0);
-        } else if (data & PR_BYTE) {
-            tcg_gen_ld8u_i64(va, cpu_env, data & ~PR_BYTE);
         } else if (data & PR_LONG) {
             tcg_gen_ld32s_i64(va, cpu_env, data & ~PR_LONG);
         } else {
@@ -1369,7 +1400,6 @@ static ExitStatus gen_mfpr(DisasContext *ctx, TCGv va, int regno)
 
 static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 {
-    TCGv tmp;
     int data;
 
     switch (regno) {
@@ -1385,9 +1415,12 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 
     case 253:
         /* WAIT */
-        tmp = tcg_const_i64(1);
-        tcg_gen_st32_i64(tmp, cpu_env, -offsetof(AlphaCPU, env) +
-                                       offsetof(CPUState, halted));
+        {
+            TCGv_i32 tmp = tcg_const_i32(1);
+            tcg_gen_st_i32(tmp, cpu_env, -offsetof(AlphaCPU, env) +
+                                         offsetof(CPUState, halted));
+            tcg_temp_free_i32(tmp);
+        }
         return gen_excp(ctx, EXCP_HALTED, 0);
 
     case 252:
@@ -1415,14 +1448,19 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
         tcg_gen_mov_i64(cpu_std_ir[regno], vb);
         break;
 
+    case 0: /* PS */
+        st_flag_byte(vb, ENV_FLAG_PS_SHIFT);
+        break;
+    case 1: /* FEN */
+        st_flag_byte(vb, ENV_FLAG_FEN_SHIFT);
+        break;
+
     default:
         /* The basic registers are data only, and unknown registers
            are read-zero, write-ignore.  */
         data = cpu_pr_data(regno);
         if (data != 0) {
-            if (data & PR_BYTE) {
-                tcg_gen_st8_i64(vb, cpu_env, data & ~PR_BYTE);
-            } else if (data & PR_LONG) {
+            if (data & PR_LONG) {
                 tcg_gen_st32_i64(vb, cpu_env, data & ~PR_LONG);
             } else {
                 tcg_gen_st_i64(vb, cpu_env, data);
@@ -1442,9 +1480,16 @@ static ExitStatus gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
         }                                       \
     } while (0)
 
+#define REQUIRE_AMASK(FLAG)                     \
+    do {                                        \
+        if ((ctx->amask & AMASK_##FLAG) == 0) { \
+            goto invalid_opc;                   \
+        }                                       \
+    } while (0)
+
 #define REQUIRE_TB_FLAG(FLAG)                   \
     do {                                        \
-        if ((ctx->tb->flags & (FLAG)) == 0) {   \
+        if ((ctx->tbflags & (FLAG)) == 0) {     \
             goto invalid_opc;                   \
         }                                       \
     } while (0)
@@ -1532,7 +1577,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 
     case 0x0A:
         /* LDBU */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_load_mem(ctx, &tcg_gen_qemu_ld8u, ra, rb, disp16, 0, 0);
         break;
     case 0x0B:
@@ -1541,17 +1586,17 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x0C:
         /* LDWU */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_load_mem(ctx, &tcg_gen_qemu_ld16u, ra, rb, disp16, 0, 0);
         break;
     case 0x0D:
         /* STW */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0);
         break;
     case 0x0E:
         /* STB */
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+        REQUIRE_AMASK(BWX);
         gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0);
         break;
     case 0x0F:
@@ -1832,10 +1877,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x61:
             /* AMASK */
             REQUIRE_REG_31(ra);
-            {
-                uint64_t amask = ctx->tb->flags >> TB_FLAGS_AMASK_SHIFT;
-                tcg_gen_andi_i64(vc, vb, ~amask);
-            }
+            tcg_gen_andi_i64(vc, vb, ~ctx->amask);
             break;
         case 0x64:
             /* CMOVLE */
@@ -2048,7 +2090,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
 
     case 0x14:
-        REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+        REQUIRE_AMASK(FIX);
         vc = dest_fpr(ctx, rc);
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x04:
@@ -2424,7 +2466,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x19:
         /* HW_MFPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
-        REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
+        REQUIRE_TB_FLAG(ENV_FLAG_PAL_MODE);
         va = dest_gpr(ctx, ra);
         ret = gen_mfpr(ctx, va, insn & 0xffff);
         break;
@@ -2446,7 +2488,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x1B:
         /* HW_LD (PALcode) */
 #ifndef CONFIG_USER_ONLY
-        REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
+        REQUIRE_TB_FLAG(ENV_FLAG_PAL_MODE);
         {
             TCGv addr = tcg_temp_new();
             vb = load_gpr(ctx, rb);
@@ -2525,14 +2567,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         vc = dest_gpr(ctx, rc);
         if (fn7 == 0x70) {
             /* FTOIT */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+            REQUIRE_AMASK(FIX);
             REQUIRE_REG_31(rb);
             va = load_fpr(ctx, ra);
             tcg_gen_mov_i64(vc, va);
             break;
         } else if (fn7 == 0x78) {
             /* FTOIS */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_FIX);
+            REQUIRE_AMASK(FIX);
             REQUIRE_REG_31(rb);
             t32 = tcg_temp_new_i32();
             va = load_fpr(ctx, ra);
@@ -2546,117 +2588,117 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x00:
             /* SEXTB */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+            REQUIRE_AMASK(BWX);
             REQUIRE_REG_31(ra);
             tcg_gen_ext8s_i64(vc, vb);
             break;
         case 0x01:
             /* SEXTW */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_BWX);
+            REQUIRE_AMASK(BWX);
             REQUIRE_REG_31(ra);
             tcg_gen_ext16s_i64(vc, vb);
             break;
         case 0x30:
             /* CTPOP */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_AMASK(CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             tcg_gen_ctpop_i64(vc, vb);
             break;
         case 0x31:
             /* PERR */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_NO_LIT;
             va = load_gpr(ctx, ra);
             gen_helper_perr(vc, va, vb);
             break;
         case 0x32:
             /* CTLZ */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_AMASK(CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             tcg_gen_clzi_i64(vc, vb, 64);
             break;
         case 0x33:
             /* CTTZ */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_CIX);
+            REQUIRE_AMASK(CIX);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             tcg_gen_ctzi_i64(vc, vb, 64);
             break;
         case 0x34:
             /* UNPKBW */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_unpkbw(vc, vb);
             break;
         case 0x35:
             /* UNPKBL */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_unpkbl(vc, vb);
             break;
         case 0x36:
             /* PKWB */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_pkwb(vc, vb);
             break;
         case 0x37:
             /* PKLB */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             REQUIRE_REG_31(ra);
             REQUIRE_NO_LIT;
             gen_helper_pklb(vc, vb);
             break;
         case 0x38:
             /* MINSB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minsb8(vc, va, vb);
             break;
         case 0x39:
             /* MINSW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minsw4(vc, va, vb);
             break;
         case 0x3A:
             /* MINUB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minub8(vc, va, vb);
             break;
         case 0x3B:
             /* MINUW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_minuw4(vc, va, vb);
             break;
         case 0x3C:
             /* MAXUB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxub8(vc, va, vb);
             break;
         case 0x3D:
             /* MAXUW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxuw4(vc, va, vb);
             break;
         case 0x3E:
             /* MAXSB8 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxsb8(vc, va, vb);
             break;
         case 0x3F:
             /* MAXSW4 */
-            REQUIRE_TB_FLAG(TB_FLAGS_AMASK_MVI);
+            REQUIRE_AMASK(MVI);
             va = load_gpr(ctx, ra);
             gen_helper_maxsw4(vc, va, vb);
             break;
@@ -2668,7 +2710,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x1D:
         /* HW_MTPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
-        REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
+        REQUIRE_TB_FLAG(ENV_FLAG_PAL_MODE);
         vb = load_gpr(ctx, rb);
         ret = gen_mtpr(ctx, vb, insn & 0xffff);
         break;
@@ -2679,7 +2721,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x1E:
         /* HW_RET (PALcode) */
 #ifndef CONFIG_USER_ONLY
-        REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
+        REQUIRE_TB_FLAG(ENV_FLAG_PAL_MODE);
         if (rb == 31) {
             /* Pre-EV6 CPUs interpreted this as HW_REI, loading the return
                address from EXC_ADDR.  This turns out to be useful for our
@@ -2689,12 +2731,13 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         } else {
             vb = load_gpr(ctx, rb);
         }
+        tcg_gen_movi_i64(cpu_lock_addr, -1);
         tmp = tcg_temp_new();
         tcg_gen_movi_i64(tmp, 0);
-        tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, intr_flag));
-        tcg_gen_movi_i64(cpu_lock_addr, -1);
+        st_flag_byte(tmp, ENV_FLAG_RX_SHIFT);
         tcg_gen_andi_i64(tmp, vb, 1);
-        tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, pal_mode));
+        st_flag_byte(tmp, ENV_FLAG_PAL_SHIFT);
+        tcg_temp_free(tmp);
         tcg_gen_andi_i64(cpu_pc, vb, ~3);
         /* Allow interrupts to be recognized right away.  */
         ret = EXIT_PC_UPDATED_NOCHAIN;
@@ -2706,7 +2749,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x1F:
         /* HW_ST (PALcode) */
 #ifndef CONFIG_USER_ONLY
-        REQUIRE_TB_FLAG(TB_FLAGS_PAL_MODE);
+        REQUIRE_TB_FLAG(ENV_FLAG_PAL_MODE);
         {
             switch ((insn >> 12) & 0xF) {
             case 0x0:
@@ -2927,15 +2970,17 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
 
     ctx.tb = tb;
     ctx.pc = pc_start;
+    ctx.tbflags = tb->flags;
     ctx.mem_idx = cpu_mmu_index(env, false);
     ctx.implver = env->implver;
+    ctx.amask = env->amask;
     ctx.singlestep_enabled = cs->singlestep_enabled;
 
 #ifdef CONFIG_USER_ONLY
     ctx.ir = cpu_std_ir;
 #else
     ctx.palbr = env->palbr;
-    ctx.ir = (tb->flags & TB_FLAGS_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
+    ctx.ir = (ctx.tbflags & ENV_FLAG_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
 #endif
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
@@ -2968,6 +3013,8 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
     }
 
     gen_tb_start(tb);
+    tcg_clear_temp_count();
+
     do {
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
@@ -2989,6 +3036,10 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
         free_context_temps(ctxp);
+
+        if (tcg_check_temp_count()) {
+            qemu_log("TCG temporary leak before "TARGET_FMT_lx"\n", ctx.pc);
+        }
 
         /* If we reach a page boundary, are single stepping,
            or exhaust instruction count, stop generation.  */
