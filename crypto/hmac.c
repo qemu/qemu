@@ -12,8 +12,21 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "crypto/hmac.h"
+#include "hmacpriv.h"
 
 static const char hex[] = "0123456789abcdef";
+
+int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
+                        const struct iovec *iov,
+                        size_t niov,
+                        uint8_t **result,
+                        size_t *resultlen,
+                        Error **errp)
+{
+    QCryptoHmacDriver *drv = hmac->driver;
+
+    return drv->hmac_bytesv(hmac, iov, niov, result, resultlen, errp);
+}
 
 int qcrypto_hmac_bytes(QCryptoHmac *hmac,
                        const char *buf,
@@ -69,4 +82,49 @@ int qcrypto_hmac_digest(QCryptoHmac *hmac,
     };
 
     return qcrypto_hmac_digestv(hmac, &iov, 1, digest, errp);
+}
+
+QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
+                              const uint8_t *key, size_t nkey,
+                              Error **errp)
+{
+    QCryptoHmac *hmac;
+    void *ctx = NULL;
+    Error *err2 = NULL;
+    QCryptoHmacDriver *drv = NULL;
+
+#ifdef CONFIG_AF_ALG
+    ctx = qcrypto_afalg_hmac_ctx_new(alg, key, nkey, &err2);
+    if (ctx) {
+        drv = &qcrypto_hmac_afalg_driver;
+    }
+#endif
+
+    if (!ctx) {
+        ctx = qcrypto_hmac_ctx_new(alg, key, nkey, errp);
+        if (!ctx) {
+            return NULL;
+        }
+
+        drv = &qcrypto_hmac_lib_driver;
+        error_free(err2);
+    }
+
+    hmac = g_new0(QCryptoHmac, 1);
+    hmac->alg = alg;
+    hmac->opaque = ctx;
+    hmac->driver = (void *)drv;
+
+    return hmac;
+}
+
+void qcrypto_hmac_free(QCryptoHmac *hmac)
+{
+    QCryptoHmacDriver *drv;
+
+    if (hmac) {
+        drv = hmac->driver;
+        drv->hmac_free(hmac);
+        g_free(hmac);
+    }
 }

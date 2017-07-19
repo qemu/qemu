@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "crypto/hmac.h"
+#include "hmacpriv.h"
 #include <gcrypt.h>
 
 static int qcrypto_hmac_alg_map[QCRYPTO_HASH_ALG__MAX] = {
@@ -42,11 +43,10 @@ bool qcrypto_hmac_supports(QCryptoHashAlgorithm alg)
     return false;
 }
 
-QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
-                              const uint8_t *key, size_t nkey,
-                              Error **errp)
+void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
+                           const uint8_t *key, size_t nkey,
+                           Error **errp)
 {
-    QCryptoHmac *hmac;
     QCryptoHmacGcrypt *ctx;
     gcry_error_t err;
 
@@ -55,9 +55,6 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
                    QCryptoHashAlgorithm_lookup[alg]);
         return NULL;
     }
-
-    hmac = g_new0(QCryptoHmac, 1);
-    hmac->alg = alg;
 
     ctx = g_new0(QCryptoHmacGcrypt, 1);
 
@@ -73,39 +70,35 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
     if (err != 0) {
         error_setg(errp, "Cannot set key: %s",
                    gcry_strerror(err));
+        gcry_mac_close(ctx->handle);
         goto error;
     }
 
-    hmac->opaque = ctx;
-    return hmac;
+    return ctx;
 
 error:
     g_free(ctx);
-    g_free(hmac);
     return NULL;
 }
 
-void qcrypto_hmac_free(QCryptoHmac *hmac)
+static void
+qcrypto_gcrypt_hmac_ctx_free(QCryptoHmac *hmac)
 {
     QCryptoHmacGcrypt *ctx;
-
-    if (!hmac) {
-        return;
-    }
 
     ctx = hmac->opaque;
     gcry_mac_close(ctx->handle);
 
     g_free(ctx);
-    g_free(hmac);
 }
 
-int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
-                        const struct iovec *iov,
-                        size_t niov,
-                        uint8_t **result,
-                        size_t *resultlen,
-                        Error **errp)
+static int
+qcrypto_gcrypt_hmac_bytesv(QCryptoHmac *hmac,
+                           const struct iovec *iov,
+                           size_t niov,
+                           uint8_t **result,
+                           size_t *resultlen,
+                           Error **errp)
 {
     QCryptoHmacGcrypt *ctx;
     gcry_error_t err;
@@ -150,3 +143,8 @@ int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
 
     return 0;
 }
+
+QCryptoHmacDriver qcrypto_hmac_lib_driver = {
+    .hmac_bytesv = qcrypto_gcrypt_hmac_bytesv,
+    .hmac_free = qcrypto_gcrypt_hmac_ctx_free,
+};
