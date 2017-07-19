@@ -109,25 +109,16 @@ static const int tcg_target_call_oarg_regs[] = {
    detection, as we're not going to go so far as our own inline assembly.
    If not available, default values will be assumed.  */
 #if defined(CONFIG_CPUID_H)
-#include <cpuid.h>
+#include "qemu/cpuid.h"
 #endif
 
-/* For 32-bit, we are going to attempt to determine at runtime whether cmov
-   is available.  */
+/* For 64-bit, we always know that CMOV is available.  */
 #if TCG_TARGET_REG_BITS == 64
 # define have_cmov 1
-#elif defined(CONFIG_CPUID_H) && defined(bit_CMOV)
+#elif defined(CONFIG_CPUID_H)
 static bool have_cmov;
 #else
 # define have_cmov 0
-#endif
-
-/* If bit_MOVBE is defined in cpuid.h (added in GCC version 4.6), we are
-   going to attempt to determine at runtime whether movbe is available.  */
-#if defined(CONFIG_CPUID_H) && defined(bit_MOVBE)
-static bool have_movbe;
-#else
-# define have_movbe 0
 #endif
 
 /* We need these symbols in tcg-target.h, and we can't properly conditionalize
@@ -135,14 +126,13 @@ static bool have_movbe;
 bool have_bmi1;
 bool have_popcnt;
 
-#if defined(CONFIG_CPUID_H) && defined(bit_BMI2)
+#ifdef CONFIG_CPUID_H
+static bool have_movbe;
 static bool have_bmi2;
-#else
-# define have_bmi2 0
-#endif
-#if defined(CONFIG_CPUID_H) && defined(bit_LZCNT)
 static bool have_lzcnt;
 #else
+# define have_movbe 0
+# define have_bmi2 0
 # define have_lzcnt 0
 #endif
 
@@ -2619,36 +2609,26 @@ static void tcg_target_init(TCGContext *s)
            available, we'll use a small forward branch.  */
         have_cmov = (d & bit_CMOV) != 0;
 #endif
-#ifndef have_movbe
         /* MOVBE is only available on Intel Atom and Haswell CPUs, so we
            need to probe for it.  */
         have_movbe = (c & bit_MOVBE) != 0;
-#endif
-#ifdef bit_POPCNT
         have_popcnt = (c & bit_POPCNT) != 0;
-#endif
     }
 
     if (max >= 7) {
         /* BMI1 is available on AMD Piledriver and Intel Haswell CPUs.  */
         __cpuid_count(7, 0, a, b, c, d);
-#ifdef bit_BMI
         have_bmi1 = (b & bit_BMI) != 0;
-#endif
-#ifndef have_bmi2
         have_bmi2 = (b & bit_BMI2) != 0;
-#endif
     }
-#endif
 
-#ifndef have_lzcnt
     max = __get_cpuid_max(0x8000000, 0);
     if (max >= 1) {
         __cpuid(0x80000001, a, b, c, d);
         /* LZCNT was introduced with AMD Barcelona and Intel Haswell CPUs.  */
         have_lzcnt = (c & bit_LZCNT) != 0;
     }
-#endif
+#endif /* CONFIG_CPUID_H */
 
     if (TCG_TARGET_REG_BITS == 64) {
         tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);

@@ -197,7 +197,7 @@ buffer_zero_avx2(const void *buf, size_t len)
 
 /* Make sure that these variables are appropriately initialized when
  * SSE2 is enabled on the compiler command-line, but the compiler is
- * too old to support <cpuid.h>.
+ * too old to support CONFIG_AVX2_OPT.
  */
 #ifdef CONFIG_AVX2_OPT
 # define INIT_CACHE 0
@@ -231,7 +231,8 @@ static void init_accel(unsigned cache)
 }
 
 #ifdef CONFIG_AVX2_OPT
-#include <cpuid.h>
+#include "qemu/cpuid.h"
+
 static void __attribute__((constructor)) init_cpuid_cache(void)
 {
     int max = __get_cpuid_max(0, NULL);
@@ -243,7 +244,6 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
         if (d & bit_SSE2) {
             cache |= CACHE_SSE2;
         }
-#ifdef CONFIG_AVX2_OPT
         if (c & bit_SSE4_1) {
             cache |= CACHE_SSE4;
         }
@@ -257,7 +257,6 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
                 cache |= CACHE_AVX2;
             }
         }
-#endif
     }
     cpuid_cache = cache;
     init_accel(cache);
