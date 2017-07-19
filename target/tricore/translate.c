@@ -8790,7 +8790,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     int num_insns, max_insns;
 
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }

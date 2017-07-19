@@ -7704,7 +7704,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             break;
         }
 
-        if ((s->base.tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
+        if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
             gen_io_start();
         }
 
@@ -7795,7 +7795,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             }
         }
 
-        if ((s->base.tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
+        if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
             /* I/O operations must end the TB here (whether read or write) */
             gen_io_end();
             gen_lookup_tb(s);
@@ -12253,7 +12253,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    if (dc->base.tb->cflags & CF_LAST_IO && dc->condjmp) {
+    if (tb_cflags(dc->base.tb) & CF_LAST_IO && dc->condjmp) {
         /* FIXME: This can theoretically happen with self-modifying code. */
         cpu_abort(cpu, "IO on conditional branch instruction");
     }

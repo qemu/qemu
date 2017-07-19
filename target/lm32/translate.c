@@ -880,24 +880,24 @@ static void dec_wcsr(DisasContext *dc)
         break;
     case CSR_IM:
         /* mark as an io operation because it could cause an interrupt */
-        if (dc->tb->cflags & CF_USE_ICOUNT) {
+        if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
             gen_io_start();
         }
         gen_helper_wcsr_im(cpu_env, cpu_R[dc->r1]);
         tcg_gen_movi_tl(cpu_pc, dc->pc + 4);
-        if (dc->tb->cflags & CF_USE_ICOUNT) {
+        if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
             gen_io_end();
         }
         dc->is_jmp = DISAS_UPDATE;
         break;
     case CSR_IP:
         /* mark as an io operation because it could cause an interrupt */
-        if (dc->tb->cflags & CF_USE_ICOUNT) {
+        if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
             gen_io_start();
         }
         gen_helper_wcsr_ip(cpu_env, cpu_R[dc->r1]);
         tcg_gen_movi_tl(cpu_pc, dc->pc + 4);
-        if (dc->tb->cflags & CF_USE_ICOUNT) {
+        if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
             gen_io_end();
         }
         dc->is_jmp = DISAS_UPDATE;
@@ -1078,7 +1078,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -1106,7 +1106,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);
 
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -1119,7 +1119,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
          && (dc->pc < next_page_start)
          && num_insns < max_insns);
 
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 

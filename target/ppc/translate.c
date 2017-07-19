@@ -7273,7 +7273,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     msr_se = 1;
 #endif
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -7301,7 +7301,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         LOG_DISAS("----------------\n");
         LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
                   ctx.nip, ctx.mem_idx, (int)msr_ir);
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO))
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO))
             gen_io_start();
         if (unlikely(need_byteswap(&ctx))) {
             ctx.opcode = bswap32(cpu_ldl_code(env, ctx.nip));
@@ -7382,7 +7382,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
             exit(1);
         }
     }
-    if (tb->cflags & CF_LAST_IO)
+    if (tb_cflags(tb) & CF_LAST_IO)
         gen_io_end();
     if (ctx.exception == POWERPC_EXCP_NONE) {
         gen_goto_tb(&ctx, 0, ctx.nip);

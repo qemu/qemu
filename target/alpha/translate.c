@@ -455,7 +455,7 @@ static bool in_superpage(DisasContext *ctx, int64_t addr)
 
 static bool use_exit_tb(DisasContext *ctx)
 {
-    return ((ctx->base.tb->cflags & CF_LAST_IO)
+    return ((tb_cflags(ctx->base.tb) & CF_LAST_IO)
             || ctx->base.singlestep_enabled
             || singlestep);
 }
@@ -2399,7 +2399,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
         case 0xC000:
             /* RPCC */
             va = dest_gpr(ctx, ra);
-            if (ctx->base.tb->cflags & CF_USE_ICOUNT) {
+            if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
                 gen_io_start();
                 gen_helper_load_pcc(va, cpu_env);
                 gen_io_end();
