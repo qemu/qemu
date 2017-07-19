@@ -279,15 +279,9 @@ static void qio_channel_set_aio_fd_handlers(QIOChannel *ioc)
 void qio_channel_attach_aio_context(QIOChannel *ioc,
                                     AioContext *ctx)
 {
-    AioContext *old_ctx;
-    if (ioc->ctx == ctx) {
-        return;
-    }
-
-    old_ctx = ioc->ctx ? ioc->ctx : iohandler_get_aio_context();
-    qio_channel_set_aio_fd_handler(ioc, old_ctx, NULL, NULL, NULL);
+    assert(!ioc->read_coroutine);
+    assert(!ioc->write_coroutine);
     ioc->ctx = ctx;
-    qio_channel_set_aio_fd_handlers(ioc);
 }
 
 void qio_channel_detach_aio_context(QIOChannel *ioc)
