@@ -32,7 +32,7 @@
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
-#include "hw/ide/ahci.h"
+#include "hw/ide/ahci_internal.h"
 
 #define DEBUG_AHCI 0
 
@@ -1832,6 +1832,14 @@ static void sysbus_ahci_register_types(void)
 }
 
 type_init(sysbus_ahci_register_types)
+
+int32_t ahci_get_num_ports(PCIDevice *dev)
+{
+    AHCIPCIState *d = ICH_AHCI(dev);
+    AHCIState *ahci = &d->ahci;
+
+    return ahci->ports;
+}
 
 void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd)
 {
