@@ -2506,41 +2506,28 @@ static int configure_cpu_subfunc(const S390FeatBitmap features)
     s390_fill_feat_block(features, S390_FEAT_TYPE_PLO, prop.plo);
     if (test_bit(S390_FEAT_TOD_CLOCK_STEERING, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_PTFF, prop.ptff);
-        prop.ptff[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMAC, prop.kmac);
-        prop.kmac[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMC, prop.kmc);
-        prop.kmc[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KM, prop.km);
-        prop.km[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KIMD, prop.kimd);
-        prop.kimd[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KLMD, prop.klmd);
-        prop.klmd[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_3, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_PCKMO, prop.pckmo);
-        prop.pckmo[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_4, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMCTR, prop.kmctr);
-        prop.kmctr[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMF, prop.kmf);
-        prop.kmf[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMO, prop.kmo);
-        prop.kmo[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_PCC, prop.pcc);
-        prop.pcc[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_5, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_PPNO, prop.ppno);
-        prop.ppno[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_8, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMA, prop.kma);
-        prop.kma[0] |= 0x80; /* query is always available */
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
