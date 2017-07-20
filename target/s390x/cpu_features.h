@@ -92,6 +92,5 @@ typedef struct {
 const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group);
 
 #define BE_BIT_NR(BIT) (BIT ^ (BITS_PER_LONG - 1))
-#define BE_BIT(BIT) (1ULL < BE_BIT_NR(BIT))
 
 #endif /* TARGET_S390X_CPU_FEATURES_H */
