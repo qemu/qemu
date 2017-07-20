@@ -1,0 +1,29 @@
+#
+# order file for git, to produce patches which are easier to review
+# by diffing the important stuff like interface changes first.
+#
+# one-off usage:
+#   git diff -O scripts/git.orderfile ...
+#
+# add to git config:
+#   git config diff.orderFile scripts/git.orderfile
+#
+
+# Documentation
+docs/*
+*.texi
+
+# build system
+configure
+Makefile*
+*.mak
+
+# qapi schema
+*.json
+
+# headers
+*.h
+
+# code
+*.c
+
