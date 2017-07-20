@@ -586,7 +586,7 @@ void qemu_free_stack(void *stack, size_t sz)
 void sigaction_invoke(struct sigaction *action,
                       struct qemu_signalfd_siginfo *info)
 {
-    siginfo_t si = { 0 };
+    siginfo_t si = {};
     si.si_signo = info->ssi_signo;
     si.si_errno = info->ssi_errno;
     si.si_code = info->ssi_code;
