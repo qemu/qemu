@@ -723,6 +723,7 @@ static void check_consistency(const S390CPUModel *model)
         { S390_FEAT_KLMD_SHAKE_256, S390_FEAT_MSA },
         { S390_FEAT_PRNO_TRNG_QRTCR, S390_FEAT_MSA_EXT_5 },
         { S390_FEAT_PRNO_TRNG, S390_FEAT_MSA_EXT_5 },
+        { S390_FEAT_SIE_KSS, S390_FEAT_SIE_F2 },
     };
     int i;
 
