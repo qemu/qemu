@@ -78,6 +78,9 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x3906, 14, 1, 47, 0x08000000U, "z14", "IBM z14 GA1"),
 };
 
+/* features part of a base model but not relevant for finding a base model */
+S390FeatBitmap ignored_base_feat;
+
 void s390_cpudef_featoff(uint8_t gen, uint8_t ec_ga, S390Feat feat)
 {
     const S390CPUDef *def;
@@ -237,6 +240,11 @@ const S390CPUDef *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
         if (features) {
             /* see if the model satisfies the minimum features */
             bitmap_andnot(missing, def->base_feat, features, S390_FEAT_MAX);
+            /*
+             * Ignore certain features that are in the base model, but not
+             * relevant for the search (esp. MSA subfunctions).
+             */
+            bitmap_andnot(missing, missing, ignored_base_feat, S390_FEAT_MAX);
             if (!bitmap_empty(missing, S390_FEAT_MAX)) {
                 break;
             }
@@ -1210,9 +1218,34 @@ static const TypeInfo host_s390_cpu_type_info = {
 };
 #endif
 
+static void init_ignored_base_feat(void)
+{
+    static const int feats[] = {
+         /* MSA subfunctions that could not be available on certain machines */
+         S390_FEAT_KMAC_DEA,
+         S390_FEAT_KMAC_TDEA_128,
+         S390_FEAT_KMAC_TDEA_192,
+         S390_FEAT_KMC_DEA,
+         S390_FEAT_KMC_TDEA_128,
+         S390_FEAT_KMC_TDEA_192,
+         S390_FEAT_KM_DEA,
+         S390_FEAT_KM_TDEA_128,
+         S390_FEAT_KM_TDEA_192,
+         S390_FEAT_KIMD_SHA_1,
+         S390_FEAT_KLMD_SHA_1,
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(feats); i++) {
+        set_bit(feats[i], ignored_base_feat);
+    }
+}
+
 static void register_types(void)
 {
     int i;
+
+    init_ignored_base_feat();
 
     /* init all bitmaps from gnerated data initially */
     for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
