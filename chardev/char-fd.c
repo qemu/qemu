@@ -141,7 +141,6 @@ void qemu_chr_open_fd(Chardev *chr,
     qio_channel_set_name(QIO_CHANNEL(s->ioc_out), name);
     g_free(name);
     qemu_set_nonblock(fd_out);
-    s->chr = chr;
 }
 
 static void char_fd_class_init(ObjectClass *oc, void *data)

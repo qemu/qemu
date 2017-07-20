@@ -29,7 +29,7 @@
 
 typedef struct FDChardev {
     Chardev parent;
-    Chardev *chr;
+
     QIOChannel *ioc_in, *ioc_out;
     int max_size;
 } FDChardev;
