@@ -93,4 +93,12 @@ const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group);
 
 #define BE_BIT_NR(BIT) (BIT ^ (BITS_PER_LONG - 1))
 
+static inline void set_be_bit(unsigned int bit_nr, uint8_t *array)
+{
+    array[bit_nr / 8] |= 0x80 >> (bit_nr % 8);
+}
+static inline bool test_be_bit(unsigned int bit_nr, const uint8_t *array)
+{
+    return array[bit_nr / 8] & (0x80 >> (bit_nr % 8));
+}
 #endif /* TARGET_S390X_CPU_FEATURES_H */

@@ -2430,16 +2430,6 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
     abort();
 }
 
-static inline int test_bit_inv(long nr, const unsigned long *addr)
-{
-    return test_bit(BE_BIT_NR(nr), addr);
-}
-
-static inline void set_bit_inv(long nr, unsigned long *addr)
-{
-    set_bit(BE_BIT_NR(nr), addr);
-}
-
 static int query_cpu_subfunc(S390FeatBitmap features)
 {
     struct kvm_s390_vm_cpu_subfunc prop;
@@ -2566,7 +2556,7 @@ static int query_cpu_feat(S390FeatBitmap features)
     }
 
     for (i = 0; i < ARRAY_SIZE(kvm_to_feat); i++) {
-        if (test_bit_inv(kvm_to_feat[i][0], (unsigned long *)prop.feat)) {
+        if (test_be_bit(kvm_to_feat[i][0], (uint8_t *) prop.feat)) {
             set_bit(kvm_to_feat[i][1], features);
         }
     }
@@ -2585,7 +2575,7 @@ static int configure_cpu_feat(const S390FeatBitmap features)
 
     for (i = 0; i < ARRAY_SIZE(kvm_to_feat); i++) {
         if (test_bit(kvm_to_feat[i][1], features)) {
-            set_bit_inv(kvm_to_feat[i][0], (unsigned long *)prop.feat);
+            set_be_bit(kvm_to_feat[i][0], (uint8_t *) prop.feat);
         }
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);

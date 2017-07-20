@@ -340,8 +340,8 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
     case S390_FEAT_TYPE_STFL:
         if (test_bit(S390_FEAT_ZARCH, features)) {
             /* Features that are always active */
-            data[0] |= 0x20;  /* z/Architecture */
-            data[17] |= 0x20; /* Configuration-z-architectural-mode */
+            set_be_bit(2, data);   /* z/Architecture */
+            set_be_bit(138, data); /* Configuration-z-architectural-mode */
         }
         break;
     case S390_FEAT_TYPE_PTFF:
@@ -357,7 +357,7 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
     case S390_FEAT_TYPE_PCC:
     case S390_FEAT_TYPE_PPNO:
     case S390_FEAT_TYPE_KMA:
-        data[0] |= 0x80; /* query is always available */
+        set_be_bit(0, data); /* query is always available */
         break;
     default:
         break;
@@ -368,7 +368,7 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
         if (s390_features[feat].type == type) {
             bit_nr = s390_features[feat].bit;
             /* big endian on uint8_t array */
-            data[bit_nr / 8] |= 0x80 >> (bit_nr % 8);
+            set_be_bit(bit_nr, data);
         }
         feat = find_next_bit(features, S390_FEAT_MAX, feat + 1);
     }
