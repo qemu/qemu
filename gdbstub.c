@@ -911,7 +911,7 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
 
         cur_action = *p++;
         if (cur_action == 'C' || cur_action == 'S') {
-            cur_action = tolower(cur_action);
+            cur_action = qemu_tolower(cur_action);
             res = qemu_strtoul(p + 1, &p, 16, &tmp);
             if (res) {
                 goto out;

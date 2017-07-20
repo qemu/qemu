@@ -318,7 +318,7 @@ static void machine_set_loadparm(Object *obj, const char *val, Error **errp)
     int i;
 
     for (i = 0; i < sizeof(ms->loadparm) && val[i]; i++) {
-        uint8_t c = toupper(val[i]); /* mimic HMC */
+        uint8_t c = qemu_toupper(val[i]); /* mimic HMC */
 
         if (('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (c == '.') ||
             (c == ' ')) {

@@ -406,7 +406,7 @@ static int read_naa_id(const uint8_t *p, uint64_t *p_wwn)
         }
         *p_wwn = 0;
         for (i = 8; i < 24; i++) {
-            char c = toupper(p[i]);
+            char c = qemu_toupper(p[i]);
             c -= (c >= '0' && c <= '9' ? '0' : 'A' - 10);
             *p_wwn = (*p_wwn << 4) | c;
         }
