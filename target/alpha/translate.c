@@ -783,11 +783,9 @@ static void gen_cvtlq(TCGv vc, TCGv vb)
 
     /* The arithmetic right shift here, plus the sign-extended mask below
        yields a sign-extended result without an explicit ext32s_i64.  */
-    tcg_gen_sari_i64(tmp, vb, 32);
-    tcg_gen_shri_i64(vc, vb, 29);
-    tcg_gen_andi_i64(tmp, tmp, (int32_t)0xc0000000);
-    tcg_gen_andi_i64(vc, vc, 0x3fffffff);
-    tcg_gen_or_i64(vc, vc, tmp);
+    tcg_gen_shri_i64(tmp, vb, 29);
+    tcg_gen_sari_i64(vc, vb, 32);
+    tcg_gen_deposit_i64(vc, vc, tmp, 0, 30);
 
     tcg_temp_free(tmp);
 }
@@ -2954,10 +2952,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 {
-    AlphaCPU *cpu = alpha_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUAlphaState *env = cs->env_ptr;
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
     target_ulong pc_mask;

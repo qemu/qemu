@@ -129,6 +129,7 @@ static void arch_cache_info(int *isize, int *dsize)
 }
 
 #elif defined(_ARCH_PPC) && defined(__linux__)
+# include "elf.h"
 
 static void arch_cache_info(int *isize, int *dsize)
 {
