@@ -3559,6 +3559,7 @@ ckvexprefix (void)
     } else {
         /* Two byte VEX prefix.  */
         newrex |= (vex2 & 0x80 ? 0 : REX_R);
+        newpfx |= PREFIX_VEX_0F;
         codep += 2;
     }
 
