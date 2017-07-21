@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include <getopt.h>
+
 #include "qemu-version.h"
 #include "qapi/error.h"
 #include "qapi/util.h"
@@ -43,7 +45,6 @@
 #include "block/qapi.h"
 #include "crypto/init.h"
 #include "trace/control.h"
-#include <getopt.h>
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION QEMU_PKGVERSION \
                           "\n" QEMU_COPYRIGHT "\n"

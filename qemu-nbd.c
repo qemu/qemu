@@ -17,6 +17,10 @@
  */
 
 #include "qemu/osdep.h"
+#include <getopt.h>
+#include <libgen.h>
+#include <pthread.h>
+
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
@@ -37,10 +41,6 @@
 #include "crypto/init.h"
 #include "trace/control.h"
 #include "qemu-version.h"
-
-#include <getopt.h>
-#include <libgen.h>
-#include <pthread.h>
 
 #define SOCKET_PATH                "/var/lock/qemu-nbd-%s"
 #define QEMU_NBD_OPT_CACHE         256
