@@ -649,7 +649,7 @@ vpc_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     int64_t image_offset;
     int64_t n_bytes;
     int64_t bytes_done = 0;
-    int ret;
+    int ret = 0;
     VHDFooter *footer =  (VHDFooter *) s->footer_buf;
     QEMUIOVector local_qiov;
 
