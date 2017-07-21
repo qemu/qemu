@@ -440,7 +440,7 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
         }
         if (!address_space_access_valid(&address_space_memory, pages[i],
                                         TARGET_PAGE_SIZE, is_write)) {
-            program_interrupt(env, PGM_ADDRESSING, 0);
+            program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO);
             return -EFAULT;
         }
         addr += TARGET_PAGE_SIZE;
