@@ -134,7 +134,7 @@ struct CPUMIPSFPUContext {
 #define FP_UNIMPLEMENTED  32
 };
 
-#define NB_MMU_MODES 3
+#define NB_MMU_MODES 4
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
 typedef struct CPUMIPSMVPContext CPUMIPSMVPContext;
@@ -306,6 +306,36 @@ struct CPUMIPSState {
 #define CP0PG_XIE 30
 #define CP0PG_ELPA 29
 #define CP0PG_IEC 27
+    target_ulong CP0_SegCtl0;
+    target_ulong CP0_SegCtl1;
+    target_ulong CP0_SegCtl2;
+#define CP0SC_PA        9
+#define CP0SC_PA_MASK   (0x7FULL << CP0SC_PA)
+#define CP0SC_PA_1GMASK (0x7EULL << CP0SC_PA)
+#define CP0SC_AM        4
+#define CP0SC_AM_MASK   (0x7ULL << CP0SC_AM)
+#define CP0SC_AM_UK     0ULL
+#define CP0SC_AM_MK     1ULL
+#define CP0SC_AM_MSK    2ULL
+#define CP0SC_AM_MUSK   3ULL
+#define CP0SC_AM_MUSUK  4ULL
+#define CP0SC_AM_USK    5ULL
+#define CP0SC_AM_UUSK   7ULL
+#define CP0SC_EU        3
+#define CP0SC_EU_MASK   (1ULL << CP0SC_EU)
+#define CP0SC_C         0
+#define CP0SC_C_MASK    (0x7ULL << CP0SC_C)
+#define CP0SC_MASK      (CP0SC_C_MASK | CP0SC_EU_MASK | CP0SC_AM_MASK | \
+                         CP0SC_PA_MASK)
+#define CP0SC_1GMASK    (CP0SC_C_MASK | CP0SC_EU_MASK | CP0SC_AM_MASK | \
+                         CP0SC_PA_1GMASK)
+#define CP0SC0_MASK     (CP0SC_MASK | (CP0SC_MASK << 16))
+#define CP0SC1_XAM      59
+#define CP0SC1_XAM_MASK (0x7ULL << CP0SC1_XAM)
+#define CP0SC1_MASK     (CP0SC_MASK | (CP0SC_MASK << 16) | CP0SC1_XAM_MASK)
+#define CP0SC2_XR       56
+#define CP0SC2_XR_MASK  (0xFFULL << CP0SC2_XR)
+#define CP0SC2_MASK     (CP0SC_1GMASK | (CP0SC_1GMASK << 16) | CP0SC2_XR_MASK)
     int32_t CP0_Wired;
     int32_t CP0_SRSConf0_rw_bitmask;
     int32_t CP0_SRSConf0;
@@ -399,7 +429,9 @@ struct CPUMIPSState {
 #define CP0Ca_EC    2
     target_ulong CP0_EPC;
     int32_t CP0_PRid;
-    int32_t CP0_EBase;
+    target_ulong CP0_EBase;
+    target_ulong CP0_EBaseWG_rw_bitmask;
+#define CP0EBase_WG 11
     target_ulong CP0_CMGCRBase;
     int32_t CP0_Config0;
 #define CP0C0_M    31
@@ -447,6 +479,7 @@ struct CPUMIPSState {
 #define CP0C3_MSAP  28
 #define CP0C3_BP 27
 #define CP0C3_BI 26
+#define CP0C3_SC 25
 #define CP0C3_IPLW 21
 #define CP0C3_MMAR 18
 #define CP0C3_MCU  17
@@ -548,7 +581,7 @@ struct CPUMIPSState {
 #define EXCP_INST_NOTAVAIL 0x2 /* No valid instruction word for BadInstr */
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAG_TMASK  0xF5807FF
+#define MIPS_HFLAG_TMASK  0x1F5807FF
 #define MIPS_HFLAG_MODE   0x00007 /* execution modes                    */
     /* The KSU flags must be the lowest bits in hflags. The flag order
        must be the same as defined for CP0 Status. This allows to use
@@ -598,6 +631,7 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_FRE   0x2000000 /* FRE enabled */
 #define MIPS_HFLAG_ELPA  0x4000000
 #define MIPS_HFLAG_ITC_CACHE  0x8000000 /* CACHE instr. operates on ITC tag */
+#define MIPS_HFLAG_ERL   0x10000000 /* error level flag */
     target_ulong btarget;        /* Jump / branch target               */
     target_ulong bcond;          /* Branch condition (if needed)       */
 
@@ -695,10 +729,21 @@ extern uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env);
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _super
 #define MMU_MODE2_SUFFIX _user
+#define MMU_MODE3_SUFFIX _error
 #define MMU_USER_IDX 2
+
+static inline int hflags_mmu_index(uint32_t hflags)
+{
+    if (hflags & MIPS_HFLAG_ERL) {
+        return 3; /* ERL */
+    } else {
+        return hflags & MIPS_HFLAG_KSU;
+    }
+}
+
 static inline int cpu_mmu_index (CPUMIPSState *env, bool ifetch)
 {
-    return env->hflags & MIPS_HFLAG_KSU;
+    return hflags_mmu_index(env->hflags);
 }
 
 static inline bool cpu_mips_hw_interrupts_enabled(CPUMIPSState *env)
@@ -962,7 +1007,10 @@ static inline void compute_hflags(CPUMIPSState *env)
                      MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU |
                      MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2 |
                      MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA | MIPS_HFLAG_FRE |
-                     MIPS_HFLAG_ELPA);
+                     MIPS_HFLAG_ELPA | MIPS_HFLAG_ERL);
+    if (env->CP0_Status & (1 << CP0St_ERL)) {
+        env->hflags |= MIPS_HFLAG_ERL;
+    }
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
         !(env->hflags & MIPS_HFLAG_DM)) {

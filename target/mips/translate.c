@@ -427,6 +427,24 @@ enum {
     OPC_EXTR_W_DSP     = 0x38 | OPC_SPECIAL3,
     OPC_DEXTR_W_DSP    = 0x3C | OPC_SPECIAL3,
 
+    /* EVA */
+    OPC_LWLE           = 0x19 | OPC_SPECIAL3,
+    OPC_LWRE           = 0x1A | OPC_SPECIAL3,
+    OPC_CACHEE         = 0x1B | OPC_SPECIAL3,
+    OPC_SBE            = 0x1C | OPC_SPECIAL3,
+    OPC_SHE            = 0x1D | OPC_SPECIAL3,
+    OPC_SCE            = 0x1E | OPC_SPECIAL3,
+    OPC_SWE            = 0x1F | OPC_SPECIAL3,
+    OPC_SWLE           = 0x21 | OPC_SPECIAL3,
+    OPC_SWRE           = 0x22 | OPC_SPECIAL3,
+    OPC_PREFE          = 0x23 | OPC_SPECIAL3,
+    OPC_LBUE           = 0x28 | OPC_SPECIAL3,
+    OPC_LHUE           = 0x29 | OPC_SPECIAL3,
+    OPC_LBE            = 0x2C | OPC_SPECIAL3,
+    OPC_LHE            = 0x2D | OPC_SPECIAL3,
+    OPC_LLE            = 0x2E | OPC_SPECIAL3,
+    OPC_LWE            = 0x2F | OPC_SPECIAL3,
+
     /* R6 */
     R6_OPC_PREF        = 0x35 | OPC_SPECIAL3,
     R6_OPC_CACHE       = 0x25 | OPC_SPECIAL3,
@@ -1431,6 +1449,8 @@ typedef struct DisasContext {
     bool bp;
     uint64_t PAMask;
     bool mvh;
+    bool eva;
+    bool sc;
     int CP0_LLAddr_shift;
     bool ps;
     bool vp;
@@ -2029,7 +2049,8 @@ FOP_CONDNS(s, FMT_S, 32, gen_store_fpr32(ctx, fp0, fd))
 /* load/store instructions. */
 #ifdef CONFIG_USER_ONLY
 #define OP_LD_ATOMIC(insn,fname)                                           \
-static inline void op_ld_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)    \
+static inline void op_ld_##insn(TCGv ret, TCGv arg1, int mem_idx,          \
+                                DisasContext *ctx)                         \
 {                                                                          \
     TCGv t0 = tcg_temp_new();                                              \
     tcg_gen_mov_tl(t0, arg1);                                              \
@@ -2040,9 +2061,10 @@ static inline void op_ld_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)    \
 }
 #else
 #define OP_LD_ATOMIC(insn,fname)                                           \
-static inline void op_ld_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)    \
+static inline void op_ld_##insn(TCGv ret, TCGv arg1, int mem_idx,          \
+                                DisasContext *ctx)                         \
 {                                                                          \
-    gen_helper_1e1i(insn, ret, arg1, ctx->mem_idx);                        \
+    gen_helper_1e1i(insn, ret, arg1, mem_idx);                             \
 }
 #endif
 OP_LD_ATOMIC(ll,ld32s);
@@ -2053,7 +2075,8 @@ OP_LD_ATOMIC(lld,ld64);
 
 #ifdef CONFIG_USER_ONLY
 #define OP_ST_ATOMIC(insn,fname,ldname,almask)                               \
-static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
+static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, int mem_idx,   \
+                                DisasContext *ctx)                           \
 {                                                                            \
     TCGv t0 = tcg_temp_new();                                                \
     TCGLabel *l1 = gen_new_label();                                          \
@@ -2077,10 +2100,11 @@ static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx)
 }
 #else
 #define OP_ST_ATOMIC(insn,fname,ldname,almask)                               \
-static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
+static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, int mem_idx,   \
+                                DisasContext *ctx)                           \
 {                                                                            \
     TCGv t0 = tcg_temp_new();                                                \
-    gen_helper_1e2i(insn, t0, arg1, arg2, ctx->mem_idx);                     \
+    gen_helper_1e2i(insn, t0, arg1, arg2, mem_idx);                          \
     gen_store_gpr(t0, rt);                                                   \
     tcg_temp_free(t0);                                                       \
 }
@@ -2123,6 +2147,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
                    int rt, int base, int16_t offset)
 {
     TCGv t0, t1, t2;
+    int mem_idx = ctx->mem_idx;
 
     if (rt == 0 && ctx->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F)) {
         /* Loongson CPU uses a load to zero register for prefetch.
@@ -2137,32 +2162,32 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL |
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUL |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         break;
     case OPC_LD:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         break;
     case OPC_LLD:
     case R6_OPC_LLD:
-        op_ld_lld(t0, t0, ctx);
+        op_ld_lld(t0, t0, mem_idx, ctx);
         gen_store_gpr(t0, rt);
         break;
     case OPC_LDL:
         t1 = tcg_temp_new();
         /* Do a byte access to possibly trigger a page
            fault with the unaligned address.  */
-        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 7);
 #ifndef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 7);
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
         tcg_gen_shl_tl(t0, t0, t1);
         t2 = tcg_const_tl(-1);
         tcg_gen_shl_tl(t2, t2, t1);
@@ -2177,14 +2202,14 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_temp_new();
         /* Do a byte access to possibly trigger a page
            fault with the unaligned address.  */
-        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 7);
 #ifdef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 7);
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
         tcg_gen_shr_tl(t0, t0, t1);
         tcg_gen_xori_tl(t1, t1, 63);
         t2 = tcg_const_tl(0xfffffffffffffffeull);
@@ -2200,7 +2225,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_const_tl(pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         tcg_temp_free(t1);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
         gen_store_gpr(t0, rt);
         break;
 #endif
@@ -2208,44 +2233,62 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_const_tl(pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         tcg_temp_free(t1);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TESL);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LWE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LW:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL |
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TESL |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LHE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LH:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW |
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TESW |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LHUE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LHU:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW |
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUW |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LBE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LB:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_SB);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_SB);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LBUE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LBU:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_UB);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LWLE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LWL:
         t1 = tcg_temp_new();
         /* Do a byte access to possibly trigger a page
            fault with the unaligned address.  */
-        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 3);
 #ifndef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 3);
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~3);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUL);
         tcg_gen_shl_tl(t0, t0, t1);
         t2 = tcg_const_tl(-1);
         tcg_gen_shl_tl(t2, t2, t1);
@@ -2257,18 +2300,21 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         tcg_gen_ext32s_tl(t0, t0);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LWRE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LWR:
         t1 = tcg_temp_new();
         /* Do a byte access to possibly trigger a page
            fault with the unaligned address.  */
-        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 3);
 #ifdef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 3);
 #endif
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~3);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUL);
         tcg_gen_shr_tl(t0, t0, t1);
         tcg_gen_xori_tl(t1, t1, 31);
         t2 = tcg_const_tl(0xfffffffeull);
@@ -2281,9 +2327,12 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         tcg_gen_ext32s_tl(t0, t0);
         gen_store_gpr(t0, rt);
         break;
+    case OPC_LLE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_LL:
     case R6_OPC_LL:
-        op_ld_ll(t0, t0, ctx);
+        op_ld_ll(t0, t0, mem_idx, ctx);
         gen_store_gpr(t0, rt);
         break;
     }
@@ -2296,38 +2345,54 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
 {
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
 
     gen_base_offset_addr(ctx, t0, base, offset);
     gen_load_gpr(t1, rt);
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SD:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEQ |
                            ctx->default_tcg_memop_mask);
         break;
     case OPC_SDL:
-        gen_helper_0e2i(sdl, t1, t0, ctx->mem_idx);
+        gen_helper_0e2i(sdl, t1, t0, mem_idx);
         break;
     case OPC_SDR:
-        gen_helper_0e2i(sdr, t1, t0, ctx->mem_idx);
+        gen_helper_0e2i(sdr, t1, t0, mem_idx);
         break;
 #endif
+    case OPC_SWE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_SW:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUL |
                            ctx->default_tcg_memop_mask);
         break;
+    case OPC_SHE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_SH:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW |
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUW |
                            ctx->default_tcg_memop_mask);
         break;
+    case OPC_SBE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_SB:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_8);
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_8);
         break;
+    case OPC_SWLE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_SWL:
-        gen_helper_0e2i(swl, t1, t0, ctx->mem_idx);
+        gen_helper_0e2i(swl, t1, t0, mem_idx);
         break;
+    case OPC_SWRE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_SWR:
-        gen_helper_0e2i(swr, t1, t0, ctx->mem_idx);
+        gen_helper_0e2i(swr, t1, t0, mem_idx);
         break;
     }
     tcg_temp_free(t0);
@@ -2340,6 +2405,7 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
                          int base, int16_t offset)
 {
     TCGv t0, t1;
+    int mem_idx = ctx->mem_idx;
 
 #ifdef CONFIG_USER_ONLY
     t0 = tcg_temp_local_new();
@@ -2354,12 +2420,15 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
 #if defined(TARGET_MIPS64)
     case OPC_SCD:
     case R6_OPC_SCD:
-        op_st_scd(t1, t0, rt, ctx);
+        op_st_scd(t1, t0, rt, mem_idx, ctx);
         break;
 #endif
+    case OPC_SCE:
+        mem_idx = MIPS_HFLAG_UM;
+        /* fall through */
     case OPC_SC:
     case R6_OPC_SC:
-        op_st_sc(t1, t0, rt, ctx);
+        op_st_sc(t1, t0, rt, mem_idx, ctx);
         break;
     }
     tcg_temp_free(t1);
@@ -5144,8 +5213,9 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             goto cp0_unimplemented;
         case 2:
             CP0_CHECK(ctx->ulri);
-            tcg_gen_ld32s_tl(arg, cpu_env,
-                             offsetof(CPUMIPSState, active_tc.CP0_UserLocal));
+            tcg_gen_ld_tl(arg, cpu_env,
+                          offsetof(CPUMIPSState, active_tc.CP0_UserLocal));
+            tcg_gen_ext32s_tl(arg, arg);
             rn = "UserLocal";
             break;
         default:
@@ -5162,6 +5232,24 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PageGrain));
             rn = "PageGrain";
+            break;
+        case 2:
+            CP0_CHECK(ctx->sc);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl0));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "SegCtl0";
+            break;
+        case 3:
+            CP0_CHECK(ctx->sc);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl1));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "SegCtl1";
+            break;
+        case 4:
+            CP0_CHECK(ctx->sc);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl2));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "SegCtl2";
             break;
         default:
             goto cp0_unimplemented;
@@ -5331,7 +5419,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             break;
         case 1:
             check_insn(ctx, ISA_MIPS32R2);
-            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_EBase));
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EBase));
+            tcg_gen_ext32s_tl(arg, arg);
             rn = "EBase";
             break;
         case 3:
@@ -5815,6 +5904,21 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_helper_mtc0_pagegrain(cpu_env, arg);
             rn = "PageGrain";
             ctx->bstate = BS_STOP;
+            break;
+        case 2:
+            CP0_CHECK(ctx->sc);
+            gen_helper_mtc0_segctl0(cpu_env, arg);
+            rn = "SegCtl0";
+            break;
+        case 3:
+            CP0_CHECK(ctx->sc);
+            gen_helper_mtc0_segctl1(cpu_env, arg);
+            rn = "SegCtl1";
+            break;
+        case 4:
+            CP0_CHECK(ctx->sc);
+            gen_helper_mtc0_segctl2(cpu_env, arg);
+            rn = "SegCtl2";
             break;
         default:
             goto cp0_unimplemented;
@@ -6477,6 +6581,21 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PageGrain));
             rn = "PageGrain";
             break;
+        case 2:
+            CP0_CHECK(ctx->sc);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl0));
+            rn = "SegCtl0";
+            break;
+        case 3:
+            CP0_CHECK(ctx->sc);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl1));
+            rn = "SegCtl1";
+            break;
+        case 4:
+            CP0_CHECK(ctx->sc);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl2));
+            rn = "SegCtl2";
+            break;
         default:
             goto cp0_unimplemented;
         }
@@ -6642,7 +6761,7 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             break;
         case 1:
             check_insn(ctx, ISA_MIPS32R2);
-            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_EBase));
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EBase));
             rn = "EBase";
             break;
         case 3:
@@ -7112,6 +7231,21 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_pagegrain(cpu_env, arg);
             rn = "PageGrain";
+            break;
+        case 2:
+            CP0_CHECK(ctx->sc);
+            gen_helper_mtc0_segctl0(cpu_env, arg);
+            rn = "SegCtl0";
+            break;
+        case 3:
+            CP0_CHECK(ctx->sc);
+            gen_helper_mtc0_segctl1(cpu_env, arg);
+            rn = "SegCtl1";
+            break;
+        case 4:
+            CP0_CHECK(ctx->sc);
+            gen_helper_mtc0_segctl2(cpu_env, arg);
+            rn = "SegCtl2";
             break;
         default:
             goto cp0_unimplemented;
@@ -12449,17 +12583,43 @@ enum {
     LWR = 0x1,
     SWR = 0x9,
     PREF = 0x2,
-    /* 0xa is reserved */
+    ST_EVA = 0xa,
     LL = 0x3,
     SC = 0xb,
     LDL = 0x4,
     SDL = 0xc,
     LDR = 0x5,
     SDR = 0xd,
-    /* 0x6 is reserved */
+    LD_EVA = 0x6,
     LWU = 0xe,
     LLD = 0x7,
     SCD = 0xf
+};
+
+/* POOL32C LD-EVA encoding of minor opcode field (bits 11..9) */
+
+enum {
+    LBUE = 0x0,
+    LHUE = 0x1,
+    LWLE = 0x2,
+    LWRE = 0x3,
+    LBE = 0x4,
+    LHE = 0x5,
+    LLE = 0x6,
+    LWE = 0x7,
+};
+
+/* POOL32C ST-EVA encoding of minor opcode field (bits 11..9) */
+
+enum {
+    SWLE = 0x0,
+    SWRE = 0x1,
+    PREFE = 0x2,
+    CACHEE = 0x3,
+    SBE = 0x4,
+    SHE = 0x5,
+    SCE = 0x6,
+    SWE = 0x7,
 };
 
 /* POOL32F encoding of minor opcode field (bits 5..0) */
@@ -13762,7 +13922,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
     uint16_t insn;
     int rt, rs, rd, rr;
     int16_t imm;
-    uint32_t op, minor, mips32_op;
+    uint32_t op, minor, minor2, mips32_op;
     uint32_t cond, fmt, cc;
 
     insn = cpu_lduw_code(env, ctx->pc + 2);
@@ -14707,7 +14867,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             gen_ld(ctx, mips32_op, rt, rs, offset);
             break;
         do_st_lr:
-            gen_st(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_st(ctx, mips32_op, rt, rs, offset);
             break;
         case SC:
             gen_st_cond(ctx, OPC_SC, rt, rs, offset);
@@ -14719,6 +14879,91 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             gen_st_cond(ctx, OPC_SCD, rt, rs, offset);
             break;
 #endif
+        case LD_EVA:
+            if (!ctx->eva) {
+                MIPS_INVAL("pool32c ld-eva");
+                generate_exception_end(ctx, EXCP_RI);
+                break;
+            }
+            check_cp0_enabled(ctx);
+
+            minor2 = (ctx->opcode >> 9) & 0x7;
+            offset = sextract32(ctx->opcode, 0, 9);
+            switch (minor2) {
+            case LBUE:
+                mips32_op = OPC_LBUE;
+                goto do_ld_lr;
+            case LHUE:
+                mips32_op = OPC_LHUE;
+                goto do_ld_lr;
+            case LWLE:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
+                mips32_op = OPC_LWLE;
+                goto do_ld_lr;
+            case LWRE:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
+                mips32_op = OPC_LWRE;
+                goto do_ld_lr;
+            case LBE:
+                mips32_op = OPC_LBE;
+                goto do_ld_lr;
+            case LHE:
+                mips32_op = OPC_LHE;
+                goto do_ld_lr;
+            case LLE:
+                mips32_op = OPC_LLE;
+                goto do_ld_lr;
+            case LWE:
+                mips32_op = OPC_LWE;
+                goto do_ld_lr;
+            };
+            break;
+        case ST_EVA:
+            if (!ctx->eva) {
+                MIPS_INVAL("pool32c st-eva");
+                generate_exception_end(ctx, EXCP_RI);
+                break;
+            }
+            check_cp0_enabled(ctx);
+
+            minor2 = (ctx->opcode >> 9) & 0x7;
+            offset = sextract32(ctx->opcode, 0, 9);
+            switch (minor2) {
+            case SWLE:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
+                mips32_op = OPC_SWLE;
+                goto do_st_lr;
+            case SWRE:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
+                mips32_op = OPC_SWRE;
+                goto do_st_lr;
+            case PREFE:
+                /* Treat as no-op */
+                if ((ctx->insn_flags & ISA_MIPS32R6) && (rt >= 24)) {
+                    /* hint codes 24-31 are reserved and signal RI */
+                    generate_exception(ctx, EXCP_RI);
+                }
+                break;
+            case CACHEE:
+                /* Treat as no-op */
+                if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
+                    gen_cache_operation(ctx, rt, rs, offset);
+                }
+                break;
+            case SBE:
+                mips32_op = OPC_SBE;
+                goto do_st_lr;
+            case SHE:
+                mips32_op = OPC_SHE;
+                goto do_st_lr;
+            case SCE:
+                gen_st_cond(ctx, OPC_SCE, rt, rs, offset);
+                break;
+            case SWE:
+                mips32_op = OPC_SWE;
+                goto do_st_lr;
+            };
+            break;
         case PREF:
             /* Treat as no-op */
             if ((ctx->insn_flags & ISA_MIPS32R6) && (rt >= 24)) {
@@ -18011,13 +18256,57 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
     uint32_t op1, op2;
+    int16_t imm;
 
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
     rd = (ctx->opcode >> 11) & 0x1f;
     sa = (ctx->opcode >> 6) & 0x1f;
+    imm = sextract32(ctx->opcode, 7, 9);
 
     op1 = MASK_SPECIAL3(ctx->opcode);
+
+    /*
+     * EVA loads and stores overlap Loongson 2E instructions decoded by
+     * decode_opc_special3_legacy(), so be careful to allow their decoding when
+     * EVA is absent.
+     */
+    if (ctx->eva) {
+        switch (op1) {
+        case OPC_LWLE ... OPC_LWRE:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
+            /* fall through */
+        case OPC_LBUE ... OPC_LHUE:
+        case OPC_LBE ... OPC_LWE:
+            check_cp0_enabled(ctx);
+            gen_ld(ctx, op1, rt, rs, imm);
+            return;
+        case OPC_SWLE ... OPC_SWRE:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
+            /* fall through */
+        case OPC_SBE ... OPC_SHE:
+        case OPC_SWE:
+            check_cp0_enabled(ctx);
+            gen_st(ctx, op1, rt, rs, imm);
+            return;
+        case OPC_SCE:
+            check_cp0_enabled(ctx);
+            gen_st_cond(ctx, op1, rt, rs, imm);
+            return;
+        case OPC_CACHEE:
+            check_cp0_enabled(ctx);
+            if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
+                gen_cache_operation(ctx, rt, rs, imm);
+            }
+            /* Treat as NOP. */
+            return;
+        case OPC_PREFE:
+            check_cp0_enabled(ctx);
+            /* Treat as NOP. */
+            return;
+        }
+    }
+
     switch (op1) {
     case OPC_EXT:
     case OPC_INS:
@@ -19916,6 +20205,8 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     ctx.bp = (env->CP0_Config3 >> CP0C3_BP) & 1;
     ctx.PAMask = env->PAMask;
     ctx.mvh = (env->CP0_Config5 >> CP0C5_MVH) & 1;
+    ctx.eva = (env->CP0_Config5 >> CP0C5_EVA) & 1;
+    ctx.sc = (env->CP0_Config3 >> CP0C3_SC) & 1;
     ctx.CP0_LLAddr_shift = env->CP0_LLAddr_shift;
     ctx.cmgcr = (env->CP0_Config3 >> CP0C3_CMGCR) & 1;
     /* Restore delay slot state from the tb context.  */
@@ -19931,7 +20222,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 #ifdef CONFIG_USER_ONLY
         ctx.mem_idx = MIPS_HFLAG_UM;
 #else
-        ctx.mem_idx = ctx.hflags & MIPS_HFLAG_KSU;
+        ctx.mem_idx = hflags_mmu_index(ctx.hflags);
 #endif
     ctx.default_tcg_memop_mask = (ctx.insn_flags & ISA_MIPS32R6) ?
                                  MO_UNALN : MO_ALIGN;
@@ -20300,6 +20591,7 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_SRSConf4 = env->cpu_model->CP0_SRSConf4;
     env->CP0_PageGrain_rw_bitmask = env->cpu_model->CP0_PageGrain_rw_bitmask;
     env->CP0_PageGrain = env->cpu_model->CP0_PageGrain;
+    env->CP0_EBaseWG_rw_bitmask = env->cpu_model->CP0_EBaseWG_rw_bitmask;
     env->active_fpu.fcr0 = env->cpu_model->CP1_fcr0;
     env->active_fpu.fcr31_rw_bitmask = env->cpu_model->CP1_fcr31_rw_bitmask;
     env->active_fpu.fcr31 = env->cpu_model->CP1_fcr31;
@@ -20350,7 +20642,7 @@ void cpu_state_reset(CPUMIPSState *env)
     if (kvm_enabled()) {
         env->CP0_EBase |= 0x40000000;
     } else {
-        env->CP0_EBase |= 0x80000000;
+        env->CP0_EBase |= (int32_t)0x80000000;
     }
     if (env->CP0_Config3 & (1 << CP0C3_CMGCR)) {
         env->CP0_CMGCRBase = 0x1fbf8000 >> 4;
@@ -20401,6 +20693,29 @@ void cpu_state_reset(CPUMIPSState *env)
             env->tcs[0].CP0_TCStatus = (1 << CP0TCSt_A);
         }
     }
+
+    /*
+     * Configure default legacy segmentation control. We use this regardless of
+     * whether segmentation control is presented to the guest.
+     */
+    /* KSeg3 (seg0 0xE0000000..0xFFFFFFFF) */
+    env->CP0_SegCtl0 =   (CP0SC_AM_MK << CP0SC_AM);
+    /* KSeg2 (seg1 0xC0000000..0xDFFFFFFF) */
+    env->CP0_SegCtl0 |= ((CP0SC_AM_MSK << CP0SC_AM)) << 16;
+    /* KSeg1 (seg2 0xA0000000..0x9FFFFFFF) */
+    env->CP0_SegCtl1 =   (0 << CP0SC_PA) | (CP0SC_AM_UK << CP0SC_AM) |
+                         (2 << CP0SC_C);
+    /* KSeg0 (seg3 0x80000000..0x9FFFFFFF) */
+    env->CP0_SegCtl1 |= ((0 << CP0SC_PA) | (CP0SC_AM_UK << CP0SC_AM) |
+                         (3 << CP0SC_C)) << 16;
+    /* USeg (seg4 0x40000000..0x7FFFFFFF) */
+    env->CP0_SegCtl2 =   (2 << CP0SC_PA) | (CP0SC_AM_MUSK << CP0SC_AM) |
+                         (1 << CP0SC_EU) | (2 << CP0SC_C);
+    /* USeg (seg5 0x00000000..0x3FFFFFFF) */
+    env->CP0_SegCtl2 |= ((0 << CP0SC_PA) | (CP0SC_AM_MUSK << CP0SC_AM) |
+                         (1 << CP0SC_EU) | (2 << CP0SC_C)) << 16;
+    /* XKPhys (note, SegCtl2.XR = 0, so XAM won't be used) */
+    env->CP0_SegCtl1 |= (CP0SC_AM_UK << CP0SC1_XAM);
 #endif
     if ((env->insn_flags & ISA_MIPS32R6) &&
         (env->active_fpu.fcr0 & (1 << FCR0_F64))) {
