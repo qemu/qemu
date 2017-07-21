@@ -36,6 +36,7 @@
 #include "io/channel-socket.h"
 #include "crypto/init.h"
 #include "trace/control.h"
+#include "qemu-version.h"
 
 #include <getopt.h>
 #include <libgen.h>
@@ -129,10 +130,10 @@ static void usage(const char *name)
 static void version(const char *name)
 {
     printf(
-"%s version 0.0.1\n"
+"%s " QEMU_VERSION QEMU_PKGVERSION "\n"
 "Written by Anthony Liguori.\n"
 "\n"
-"Copyright (C) 2006 Anthony Liguori <anthony@codemonkey.ws>.\n"
+QEMU_COPYRIGHT "\n"
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
     , name);
