@@ -1,0 +1,32 @@
+#
+# Docker mingw32 cross-compiler target
+#
+# This docker target builds on the debian Jessie MXE base image.
+#
+FROM qemu:debian8-mxe
+
+MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+ENV TARGET i686
+
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        mxe-$TARGET-w64-mingw32.shared-bzip2 \
+        mxe-$TARGET-w64-mingw32.shared-curl \
+        mxe-$TARGET-w64-mingw32.shared-glib \
+        mxe-$TARGET-w64-mingw32.shared-libgcrypt \
+        mxe-$TARGET-w64-mingw32.shared-libssh2 \
+        mxe-$TARGET-w64-mingw32.shared-libusb1 \
+        mxe-$TARGET-w64-mingw32.shared-lzo \
+        mxe-$TARGET-w64-mingw32.shared-nettle \
+        mxe-$TARGET-w64-mingw32.shared-ncurses \
+        mxe-$TARGET-w64-mingw32.shared-pixman \
+        mxe-$TARGET-w64-mingw32.shared-pkgconf \
+        mxe-$TARGET-w64-mingw32.shared-pthreads \
+        mxe-$TARGET-w64-mingw32.shared-sdl2 \
+        mxe-$TARGET-w64-mingw32.shared-sdl2-mixer \
+        mxe-$TARGET-w64-mingw32.shared-sdl2-gfx \
+        mxe-$TARGET-w64-mingw32.shared-zlib
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=$TARGET-w64-mingw32.shared-

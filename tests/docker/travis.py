@@ -21,13 +21,12 @@ def load_yaml(fname):
 def conf_iter(conf):
     def env_to_list(env):
         return env if isinstance(env, list) else [env]
-    global_env = conf["env"]["global"]
     for entry in conf["matrix"]["include"]:
-        yield {"env": global_env + env_to_list(entry["env"]),
+        yield {"env": env_to_list(entry["env"]),
                "compiler": entry["compiler"]}
     for entry in itertools.product(conf["compiler"],
                                    conf["env"]["matrix"]):
-        yield {"env": global_env + env_to_list(entry[1]),
+        yield {"env": env_to_list(entry[1]),
                "compiler": entry[0]}
 
 def main():
@@ -35,6 +34,7 @@ def main():
         sys.stderr.write("Usage: %s <travis-file>\n" % sys.argv[0])
         return 1
     conf = load_yaml(sys.argv[1])
+    print "\n".join((": ${%s}" % var for var in conf["env"]["global"]))
     for config in conf_iter(conf):
         print "("
         print "\n".join(config["env"])

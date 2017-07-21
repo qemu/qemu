@@ -1,20 +1,13 @@
+# This template is deprecated and was previously based on Jessie on QEMU 2.9.
+# Now than Stretch is out, please use qemu:debian8 as base for Jessie,
+# and qemu:debian9 for Stretch.
 #
-# Docker multiarch cross-compiler target
-#
-# This docker target is builds on Debian and Emdebian's cross compiler targets
-# to build distro with a selection of cross compilers for building test binaries.
-#
-# On its own you can't build much but the docker-foo-cross targets
-# build on top of the base debian image.
-#
-FROM debian:stable-slim
+FROM qemu:debian9
 
-# Duplicate deb line as deb-src
-RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
+MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
-# Install common build utilities
-RUN apt update
-RUN DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-    ca-certificates build-essential clang git bison flex
+RUN for n in $(seq 8); do echo; done && \
+    echo "\n\t\tThis image is deprecated." && echo && \
+    echo "\tUse 'FROM qemu:debian9' to use the stable Debian Stretch image" && \
+    echo "\tor 'FROM qemu:debian8' to use old Debian Jessie." && \
+    for n in $(seq 8); do echo; done

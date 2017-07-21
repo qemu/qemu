@@ -55,10 +55,22 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
 		"BUILD","$*")
 
+docker-image-debian-powerpc-cross: EXTRA_FILES:=tests/docker/dockerfiles/debian-apt-fake.sh
+
 # Enforce dependancies for composite images
-docker-image-debian-armhf-cross: docker-image-debian
-docker-image-debian-arm64-cross: docker-image-debian
-docker-image-debian-mipsel-cross: docker-image-debian
+docker-image-debian: docker-image-debian9
+docker-image-debian8-mxe: docker-image-debian8
+docker-image-debian-amd64: docker-image-debian9
+docker-image-debian-armel-cross: docker-image-debian9
+docker-image-debian-armhf-cross: docker-image-debian9
+docker-image-debian-arm64-cross: docker-image-debian9
+docker-image-debian-mips-cross: docker-image-debian9
+docker-image-debian-mips64el-cross: docker-image-debian9
+docker-image-debian-powerpc-cross: docker-image-debian8
+docker-image-debian-ppc64el-cross: docker-image-debian9
+docker-image-debian-s390x-cross: docker-image-debian9
+docker-image-debian-win32-cross: docker-image-debian8-mxe
+docker-image-debian-win64-cross: docker-image-debian8-mxe
 
 # Expand all the pre-requistes for each docker image and test combination
 $(foreach i,$(DOCKER_IMAGES), \
