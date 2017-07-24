@@ -37,6 +37,7 @@
 
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 16
+#define CPU_TLB_BITS_MAX 12
 #define TCG_TARGET_NB_REGS 32
 
 typedef enum {

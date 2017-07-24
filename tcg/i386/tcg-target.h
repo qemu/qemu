@@ -162,6 +162,8 @@ extern bool have_popcnt;
 # define TCG_AREG0 TCG_REG_EBP
 #endif
 
+#define CPU_TLB_BITS_MAX 12
+
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
 }

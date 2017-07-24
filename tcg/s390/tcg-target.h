@@ -27,6 +27,7 @@
 
 #define TCG_TARGET_INSN_UNIT_SIZE 2
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 19
+#define CPU_TLB_BITS_MAX 12
 
 typedef enum TCGReg {
     TCG_REG_R0 = 0,
