@@ -303,7 +303,7 @@ static void mps2_common_init(MachineState *machine)
 
     object_initialize(&mms->scc, sizeof(mms->scc), TYPE_MPS2_SCC);
     sccdev = DEVICE(&mms->scc);
-    qdev_set_parent_bus(armv7m, sysbus_get_default());
+    qdev_set_parent_bus(sccdev, sysbus_get_default());
     qdev_prop_set_uint32(sccdev, "scc-cfg4", 0x2);
     qdev_prop_set_uint32(sccdev, "scc-aid", 0x02000008);
     qdev_prop_set_uint32(sccdev, "scc-id", mmc->scc_id);
