@@ -155,6 +155,8 @@ void migrate_set_state(int *state, int old_state, int new_state);
 void migration_fd_process_incoming(QEMUFile *f);
 void migration_ioc_process_incoming(QIOChannel *ioc);
 
+bool  migration_has_all_channels(void);
+
 uint64_t migrate_max_downtime(void);
 
 void migrate_fd_error(MigrationState *s, const Error *error);

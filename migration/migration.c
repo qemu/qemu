@@ -384,6 +384,17 @@ void migration_ioc_process_incoming(QIOChannel *ioc)
     /* We still only have a single channel.  Nothing to do here yet */
 }
 
+/**
+ * @migration_has_all_channels: We have received all channels that we need
+ *
+ * Returns true when we have got connections to all the channels that
+ * we need for migration.
+ */
+bool migration_has_all_channels(void)
+{
+    return true;
+}
+
 /*
  * Send a 'SHUT' message on the return channel with the given value
  * to indicate that we've finished with the RP.  Non-0 value indicates
