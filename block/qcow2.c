@@ -3669,8 +3669,8 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
             for (sector_num = 0;
                  sector_num < ssize / BDRV_SECTOR_SIZE;
                  sector_num += pnum) {
-                int nb_sectors = MAX(ssize / BDRV_SECTOR_SIZE - sector_num,
-                                     INT_MAX);
+                int nb_sectors = MIN(ssize / BDRV_SECTOR_SIZE - sector_num,
+                                     BDRV_REQUEST_MAX_SECTORS);
                 BlockDriverState *file;
                 int64_t ret;
 

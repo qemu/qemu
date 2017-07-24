@@ -81,7 +81,7 @@ class TestSingleDrive(ImageCommitTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', backing_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288', mid_img)
-        self.vm = iotests.VM().add_drive(test_img, interface="none")
+        self.vm = iotests.VM().add_drive(test_img, "node-name=top,backing.node-name=mid,backing.backing.node-name=base", interface="none")
         self.vm.add_device("virtio-scsi-pci")
         self.vm.add_device("scsi-hd,id=scsi0,drive=drive0")
         self.vm.launch()
@@ -161,6 +161,34 @@ class TestSingleDrive(ImageCommitTestCase):
                 else:
                     self.fail("Unexpected event %s" % (event['event']))
 
+        self.assert_no_active_block_jobs()
+
+    # Tests that the insertion of the commit_top filter node doesn't make a
+    # difference to query-blockstat
+    def test_implicit_node(self):
+        if self.image_len == 0:
+            return
+
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top=mid_img,
+                             base=backing_img, speed=(self.image_len / 4))
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('query-block')
+        self.assert_qmp(result, 'return[0]/inserted/file', test_img)
+        self.assert_qmp(result, 'return[0]/inserted/drv', iotests.imgfmt)
+        self.assert_qmp(result, 'return[0]/inserted/backing_file', mid_img)
+        self.assert_qmp(result, 'return[0]/inserted/backing_file_depth', 2)
+        self.assert_qmp(result, 'return[0]/inserted/image/filename', test_img)
+        self.assert_qmp(result, 'return[0]/inserted/image/backing-image/filename', mid_img)
+        self.assert_qmp(result, 'return[0]/inserted/image/backing-image/backing-image/filename', backing_img)
+
+        result = self.vm.qmp('query-blockstats')
+        self.assert_qmp(result, 'return[0]/node-name', 'top')
+        self.assert_qmp(result, 'return[0]/backing/node-name', 'mid')
+        self.assert_qmp(result, 'return[0]/backing/backing/node-name', 'base')
+
+        self.cancel_and_wait()
         self.assert_no_active_block_jobs()
 
 class TestRelativePaths(ImageCommitTestCase):

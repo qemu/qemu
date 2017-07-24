@@ -89,11 +89,12 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.vm.resume_drive('drive0')
-        time.sleep(1)
+        self.pause_job('drive0')
+
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
 
-        time.sleep(1)
+        time.sleep(0.5)
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/offset', offset)
 
@@ -302,11 +303,12 @@ class TestSingleTransaction(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.vm.resume_drive('drive0')
-        time.sleep(1)
+        self.pause_job('drive0')
+
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
 
-        time.sleep(1)
+        time.sleep(0.5)
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/offset', offset)
 
@@ -529,11 +531,12 @@ class TestDriveCompression(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.vm.resume_drive('drive0')
-        time.sleep(1)
+        self.pause_job('drive0')
+
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
 
-        time.sleep(1)
+        time.sleep(0.5)
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/offset', offset)
 

@@ -42,7 +42,7 @@ class TestSingleDrive(iotests.QMPTestCase):
     def setUp(self):
         iotests.create_image(backing_img, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM().add_drive(test_img, "node-name=top,backing.node-name=base")
         if iotests.qemu_default_machine == 'pc':
             self.vm.add_drive(None, 'media=cdrom', 'ide')
         self.vm.launch()
@@ -103,14 +103,12 @@ class TestSingleDrive(iotests.QMPTestCase):
                              target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block-job-pause', device='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.pause_job('drive0')
 
-        time.sleep(1)
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
 
-        time.sleep(1)
+        time.sleep(0.5)
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/offset', offset)
 
@@ -168,6 +166,42 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.vm.shutdown()
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
+
+    # Tests that the insertion of the mirror_top filter node doesn't make a
+    # difference to query-block
+    def test_implicit_node(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             target=self.qmp_target)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('query-block')
+        self.assert_qmp(result, 'return[0]/inserted/file', test_img)
+        self.assert_qmp(result, 'return[0]/inserted/drv', iotests.imgfmt)
+        self.assert_qmp(result, 'return[0]/inserted/backing_file', backing_img)
+        self.assert_qmp(result, 'return[0]/inserted/backing_file_depth', 1)
+        self.assert_qmp(result, 'return[0]/inserted/image/filename', test_img)
+        self.assert_qmp(result, 'return[0]/inserted/image/backing-image/filename', backing_img)
+
+        result = self.vm.qmp('query-blockstats')
+        self.assert_qmp(result, 'return[0]/node-name', 'top')
+        self.assert_qmp(result, 'return[0]/backing/node-name', 'base')
+
+        self.cancel_and_wait(force=True)
+        result = self.vm.qmp('query-block')
+        self.assert_qmp(result, 'return[0]/inserted/file', test_img)
+        self.assert_qmp(result, 'return[0]/inserted/drv', iotests.imgfmt)
+        self.assert_qmp(result, 'return[0]/inserted/backing_file', backing_img)
+        self.assert_qmp(result, 'return[0]/inserted/backing_file_depth', 1)
+        self.assert_qmp(result, 'return[0]/inserted/image/filename', test_img)
+        self.assert_qmp(result, 'return[0]/inserted/image/backing-image/filename', backing_img)
+
+        result = self.vm.qmp('query-blockstats')
+        self.assert_qmp(result, 'return[0]/node-name', 'top')
+        self.assert_qmp(result, 'return[0]/backing/node-name', 'base')
+
+        self.vm.shutdown()
 
     def test_medium_not_found(self):
         if iotests.qemu_default_machine != 'pc':
@@ -860,14 +894,12 @@ class TestRepairQuorum(iotests.QMPTestCase):
                              target=quorum_repair_img, format=iotests.imgfmt)
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block-job-pause', device='job0')
-        self.assert_qmp(result, 'return', {})
+        self.pause_job('job0')
 
-        time.sleep(1)
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
 
-        time.sleep(1)
+        time.sleep(0.5)
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return[0]/offset', offset)
 
