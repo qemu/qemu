@@ -1,0 +1,11 @@
+QA output created by 190
+== Huge file ==
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2199023255552
+required size: 2199023255552
+fully allocated size: 2199023255552
+required size: 335806464
+fully allocated size: 2199359062016
+required size: 18874368
+fully allocated size: 2199042129920
+*** done
