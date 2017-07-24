@@ -36,8 +36,7 @@ void migration_channel_process_incoming(QIOChannel *ioc)
             error_report_err(local_err);
         }
     } else {
-        QEMUFile *f = qemu_fopen_channel_input(ioc);
-        migration_fd_process_incoming(f);
+        migration_ioc_process_incoming(ioc);
     }
 }
 
