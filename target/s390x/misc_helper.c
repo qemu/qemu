@@ -68,32 +68,6 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
     cpu_loop_exit(cs);
 }
 
-void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
-{
-    S390CPU *cpu = s390_env_get_cpu(env);
-
-    qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
-                  env->psw.addr);
-
-    if (kvm_enabled()) {
-#ifdef CONFIG_KVM
-        struct kvm_s390_irq irq = {
-            .type = KVM_S390_PROGRAM_INT,
-            .u.pgm.code = code,
-        };
-
-        kvm_s390_vcpu_interrupt(cpu, &irq);
-#endif
-    } else {
-        CPUState *cs = CPU(cpu);
-
-        env->int_pgm_code = code;
-        env->int_pgm_ilen = ilen;
-        cs->exception_index = EXCP_PGM;
-        cpu_loop_exit(cs);
-    }
-}
-
 #ifndef CONFIG_USER_ONLY
 
 /* SCLP service call */
