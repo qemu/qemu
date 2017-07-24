@@ -234,7 +234,8 @@ static void xen_remap_bucket(MapCacheEntry *entry,
 static uint8_t *xen_map_cache_unlocked(hwaddr phys_addr, hwaddr size,
                                        uint8_t lock, bool dma)
 {
-    MapCacheEntry *entry, *pentry = NULL;
+    MapCacheEntry *entry, *pentry = NULL,
+                  *free_entry = NULL, *free_pentry = NULL;
     hwaddr address_index;
     hwaddr address_offset;
     hwaddr cache_size = size;
@@ -281,13 +282,21 @@ tryagain:
 
     entry = &mapcache->entry[address_index % mapcache->nr_buckets];
 
-    while (entry && entry->lock && entry->vaddr_base &&
+    while (entry && (lock || entry->lock) && entry->vaddr_base &&
             (entry->paddr_index != address_index || entry->size != cache_size ||
              !test_bits(address_offset >> XC_PAGE_SHIFT,
                  test_bit_size >> XC_PAGE_SHIFT,
                  entry->valid_mapping))) {
+        if (!free_entry && !entry->lock) {
+            free_entry = entry;
+            free_pentry = pentry;
+        }
         pentry = entry;
         entry = entry->next;
+    }
+    if (!entry && free_entry) {
+        entry = free_entry;
+        pentry = free_pentry;
     }
     if (!entry) {
         entry = g_malloc0(sizeof (MapCacheEntry));
@@ -527,7 +536,7 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
         entry = entry->next;
     }
     if (!entry) {
-        DPRINTF("Trying to update an entry for %lx " \
+        DPRINTF("Trying to update an entry for "TARGET_FMT_plx \
                 "that is not in the mapcache!\n", old_phys_addr);
         return NULL;
     }
@@ -535,15 +544,16 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
     address_index  = new_phys_addr >> MCACHE_BUCKET_SHIFT;
     address_offset = new_phys_addr & (MCACHE_BUCKET_SIZE - 1);
 
-    fprintf(stderr, "Replacing a dummy mapcache entry for %lx with %lx\n",
-            old_phys_addr, new_phys_addr);
+    fprintf(stderr, "Replacing a dummy mapcache entry for "TARGET_FMT_plx \
+            " with "TARGET_FMT_plx"\n", old_phys_addr, new_phys_addr);
 
     xen_remap_bucket(entry, entry->vaddr_base,
                      cache_size, address_index, false);
     if (!test_bits(address_offset >> XC_PAGE_SHIFT,
                 test_bit_size >> XC_PAGE_SHIFT,
                 entry->valid_mapping)) {
-        DPRINTF("Unable to update a mapcache entry for %lx!\n", old_phys_addr);
+        DPRINTF("Unable to update a mapcache entry for "TARGET_FMT_plx"!\n",
+                old_phys_addr);
         return NULL;
     }
 
