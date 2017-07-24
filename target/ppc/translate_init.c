@@ -8428,11 +8428,14 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
 static void getset_compat_deprecated(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
+    QNull *null = NULL;
+
     if (!qtest_enabled()) {
         error_report("CPU 'compat' property is deprecated and has no effect; "
                      "use max-cpu-compat machine property instead");
     }
-    visit_type_null(v, name, NULL);
+    visit_type_null(v, name, &null, NULL);
+    QDECREF(null);
 }
 
 static const PropertyInfo ppc_compat_deprecated_propinfo = {

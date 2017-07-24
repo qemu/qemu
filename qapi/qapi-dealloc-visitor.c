@@ -103,8 +103,12 @@ static void qapi_dealloc_type_anything(Visitor *v, const char *name,
     }
 }
 
-static void qapi_dealloc_type_null(Visitor *v, const char *name, Error **errp)
+static void qapi_dealloc_type_null(Visitor *v, const char *name,
+                                   QNull **obj, Error **errp)
 {
+    if (obj) {
+        QDECREF(*obj);
+    }
 }
 
 static void qapi_dealloc_free(Visitor *v)

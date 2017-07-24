@@ -256,7 +256,8 @@ static void print_type_number(Visitor *v, const char *name, double *obj,
     string_output_set(sov, g_strdup_printf("%f", *obj));
 }
 
-static void print_type_null(Visitor *v, const char *name, Error **errp)
+static void print_type_null(Visitor *v, const char *name, QNull **obj,
+                            Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
     char *out;

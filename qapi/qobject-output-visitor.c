@@ -187,10 +187,11 @@ static void qobject_output_type_any(Visitor *v, const char *name,
     qobject_output_add_obj(qov, name, *obj);
 }
 
-static void qobject_output_type_null(Visitor *v, const char *name, Error **errp)
+static void qobject_output_type_null(Visitor *v, const char *name,
+                                     QNull **obj, Error **errp)
 {
     QObjectOutputVisitor *qov = to_qov(v);
-    qobject_output_add_obj(qov, name, qnull());
+    qobject_output_add(qov, name, qnull());
 }
 
 /* Finish building, and return the root object.

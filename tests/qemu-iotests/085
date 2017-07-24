@@ -106,7 +106,7 @@ function add_snapshot_image()
     snapshot_file="${TEST_DIR}/${1}-${snapshot_virt0}"
     _make_test_img -u -b "${base_image}" "$size"
     mv "${TEST_IMG}" "${snapshot_file}"
-    do_blockdev_add "$1" "'backing': '', " "${snapshot_file}"
+    do_blockdev_add "$1" "'backing': null, " "${snapshot_file}"
 }
 
 # ${1}: unique identifier for the snapshot filename

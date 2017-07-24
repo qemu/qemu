@@ -313,12 +313,14 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRId64 "\n",
             MigrationParameter_lookup[MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT],
             params->cpu_throttle_increment);
+        assert(params->has_tls_creds);
         monitor_printf(mon, "%s: '%s'\n",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_CREDS],
-            params->has_tls_creds ? params->tls_creds : "");
+            params->tls_creds);
+        assert(params->has_tls_hostname);
         monitor_printf(mon, "%s: '%s'\n",
             MigrationParameter_lookup[MIGRATION_PARAMETER_TLS_HOSTNAME],
-            params->has_tls_hostname ? params->tls_hostname : "");
+            params->tls_hostname);
         assert(params->has_max_bandwidth);
         monitor_printf(mon, "%s: %" PRId64 " bytes/second\n",
             MigrationParameter_lookup[MIGRATION_PARAMETER_MAX_BANDWIDTH],
@@ -1554,90 +1556,79 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
     Visitor *v = string_input_visitor_new(valuestr);
+    MigrateSetParameters *p = g_new0(MigrateSetParameters, 1);
     uint64_t valuebw = 0;
-    int64_t valueint = 0;
-    bool valuebool = false;
     Error *err = NULL;
-    bool use_int_value = false;
     int i, ret;
 
     for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
         if (strcmp(param, MigrationParameter_lookup[i]) == 0) {
-            MigrationParameters p = { 0 };
             switch (i) {
             case MIGRATION_PARAMETER_COMPRESS_LEVEL:
-                p.has_compress_level = true;
-                use_int_value = true;
+                p->has_compress_level = true;
+                visit_type_int(v, param, &p->compress_level, &err);
                 break;
             case MIGRATION_PARAMETER_COMPRESS_THREADS:
-                p.has_compress_threads = true;
-                use_int_value = true;
+                p->has_compress_threads = true;
+                visit_type_int(v, param, &p->compress_threads, &err);
                 break;
             case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
-                p.has_decompress_threads = true;
-                use_int_value = true;
+                p->has_decompress_threads = true;
+                visit_type_int(v, param, &p->decompress_threads, &err);
                 break;
             case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
-                p.has_cpu_throttle_initial = true;
-                use_int_value = true;
+                p->has_cpu_throttle_initial = true;
+                visit_type_int(v, param, &p->cpu_throttle_initial, &err);
                 break;
             case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
-                p.has_cpu_throttle_increment = true;
-                use_int_value = true;
+                p->has_cpu_throttle_increment = true;
+                visit_type_int(v, param, &p->cpu_throttle_increment, &err);
                 break;
             case MIGRATION_PARAMETER_TLS_CREDS:
-                p.has_tls_creds = true;
-                p.tls_creds = (char *) valuestr;
+                p->has_tls_creds = true;
+                p->tls_creds = g_new0(StrOrNull, 1);
+                p->tls_creds->type = QTYPE_QSTRING;
+                visit_type_str(v, param, &p->tls_creds->u.s, &err);
                 break;
             case MIGRATION_PARAMETER_TLS_HOSTNAME:
-                p.has_tls_hostname = true;
-                p.tls_hostname = (char *) valuestr;
+                p->has_tls_hostname = true;
+                p->tls_hostname = g_new0(StrOrNull, 1);
+                p->tls_hostname->type = QTYPE_QSTRING;
+                visit_type_str(v, param, &p->tls_hostname->u.s, &err);
                 break;
             case MIGRATION_PARAMETER_MAX_BANDWIDTH:
-                p.has_max_bandwidth = true;
+                p->has_max_bandwidth = true;
+                /*
+                 * Can't use visit_type_size() here, because it
+                 * defaults to Bytes rather than Mebibytes.
+                 */
                 ret = qemu_strtosz_MiB(valuestr, NULL, &valuebw);
                 if (ret < 0 || valuebw > INT64_MAX
                     || (size_t)valuebw != valuebw) {
                     error_setg(&err, "Invalid size %s", valuestr);
-                    goto cleanup;
+                    break;
                 }
-                p.max_bandwidth = valuebw;
+                p->max_bandwidth = valuebw;
                 break;
             case MIGRATION_PARAMETER_DOWNTIME_LIMIT:
-                p.has_downtime_limit = true;
-                use_int_value = true;
+                p->has_downtime_limit = true;
+                visit_type_int(v, param, &p->downtime_limit, &err);
                 break;
             case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
-                p.has_x_checkpoint_delay = true;
-                use_int_value = true;
+                p->has_x_checkpoint_delay = true;
+                visit_type_int(v, param, &p->x_checkpoint_delay, &err);
                 break;
             case MIGRATION_PARAMETER_BLOCK_INCREMENTAL:
-                p.has_block_incremental = true;
-                visit_type_bool(v, param, &valuebool, &err);
-                if (err) {
-                    goto cleanup;
-                }
-                p.block_incremental = valuebool;
+                p->has_block_incremental = true;
+                visit_type_bool(v, param, &p->block_incremental, &err);
                 break;
             }
 
-            if (use_int_value) {
-                visit_type_int(v, param, &valueint, &err);
-                if (err) {
-                    goto cleanup;
-                }
-                /* Set all integers; only one has_FOO will be set, and
-                 * the code ignores the remaining values */
-                p.compress_level = valueint;
-                p.compress_threads = valueint;
-                p.decompress_threads = valueint;
-                p.cpu_throttle_initial = valueint;
-                p.cpu_throttle_increment = valueint;
-                p.downtime_limit = valueint;
-                p.x_checkpoint_delay = valueint;
+            if (err) {
+                goto cleanup;
             }
 
-            qmp_migrate_set_parameters(&p, &err);
+            qmp_migrate_set_parameters(p, &err);
             break;
         }
     }
@@ -1647,6 +1638,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
  cleanup:
+    qapi_free_MigrateSetParameters(p);
     visit_free(v);
     if (err) {
         error_report_err(err);

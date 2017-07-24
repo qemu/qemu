@@ -424,6 +424,16 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
 
     visitor_reset(data);
     tmp = g_new0(UserDefAlternate, 1);
+    tmp->type = QTYPE_QNULL;
+    tmp->u.n = qnull();
+
+    visit_type_UserDefAlternate(data->ov, NULL, &tmp, &error_abort);
+    g_assert_cmpint(qobject_type(visitor_get(data)), ==, QTYPE_QNULL);
+
+    qapi_free_UserDefAlternate(tmp);
+
+    visitor_reset(data);
+    tmp = g_new0(UserDefAlternate, 1);
     tmp->type = QTYPE_QDICT;
     tmp->u.udfu.integer = 1;
     tmp->u.udfu.string = g_strdup("str");
@@ -445,11 +455,12 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
 static void test_visitor_out_null(TestOutputVisitorData *data,
                                   const void *unused)
 {
+    QNull *null = NULL;
     QDict *qdict;
     QObject *nil;
 
     visit_start_struct(data->ov, NULL, NULL, 0, &error_abort);
-    visit_type_null(data->ov, "a", &error_abort);
+    visit_type_null(data->ov, "a", &null, &error_abort);
     visit_check_struct(data->ov, &error_abort);
     visit_end_struct(data->ov, NULL);
     qdict = qobject_to_qdict(visitor_get(data));

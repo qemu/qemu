@@ -93,11 +93,15 @@ static inline QType qobject_type(const QObject *obj)
     return obj->type;
 }
 
-extern QObject qnull_;
+struct QNull {
+    QObject base;
+};
 
-static inline QObject *qnull(void)
+extern QNull qnull_;
+
+static inline QNull *qnull(void)
 {
-    qobject_incref(&qnull_);
+    QINCREF(&qnull_);
     return &qnull_;
 }
 
