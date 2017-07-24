@@ -276,9 +276,8 @@ static void integratorcm_init(Object *obj)
     s->cm_init = 0x00000112;
     s->cm_refcnt_offset = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
                                    1000);
-    memory_region_init_ram_nomigrate(&s->flash, obj, "integrator.flash", 0x100000,
+    memory_region_init_ram(&s->flash, obj, "integrator.flash", 0x100000,
                            &error_fatal);
-    vmstate_register_ram_global(&s->flash);
 
     memory_region_init_io(&s->iomem, obj, &integratorcm_ops, s,
                           "integratorcm", 0x00800000);
