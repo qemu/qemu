@@ -93,66 +93,6 @@ static uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
     return pc;
 }
 
-void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                         int flags)
-{
-    S390CPU *cpu = S390_CPU(cs);
-    CPUS390XState *env = &cpu->env;
-    int i;
-
-    if (env->cc_op > 3) {
-        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %15s\n",
-                    env->psw.mask, env->psw.addr, cc_name(env->cc_op));
-    } else {
-        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %02x\n",
-                    env->psw.mask, env->psw.addr, env->cc_op);
-    }
-
-    for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "R%02d=%016" PRIx64, i, env->regs[i]);
-        if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
-        } else {
-            cpu_fprintf(f, " ");
-        }
-    }
-
-    for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "F%02d=%016" PRIx64, i, get_freg(env, i)->ll);
-        if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
-        } else {
-            cpu_fprintf(f, " ");
-        }
-    }
-
-    for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64, i,
-                    env->vregs[i][0].ll, env->vregs[i][1].ll);
-        cpu_fprintf(f, (i % 2) ? "\n" : " ");
-    }
-
-#ifndef CONFIG_USER_ONLY
-    for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "C%02d=%016" PRIx64, i, env->cregs[i]);
-        if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
-        } else {
-            cpu_fprintf(f, " ");
-        }
-    }
-#endif
-
-#ifdef DEBUG_INLINE_BRANCHES
-    for (i = 0; i < CC_OP_MAX; i++) {
-        cpu_fprintf(f, "  %15s = %10ld\t%10ld\n", cc_name(i),
-                    inline_branch_miss[i], inline_branch_hit[i]);
-    }
-#endif
-
-    cpu_fprintf(f, "\n");
-}
-
 static TCGv_i64 psw_addr;
 static TCGv_i64 psw_mask;
 static TCGv_i64 gbea;
