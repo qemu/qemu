@@ -90,6 +90,7 @@ typedef struct AcpiMcfgInfo {
 } AcpiMcfgInfo;
 
 typedef struct AcpiPmInfo {
+    bool force_rev1_fadt;
     bool s3_disabled;
     bool s4_disabled;
     bool pcihp_bridge_en;
@@ -129,10 +130,13 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     Object *obj = NULL;
     QObject *o;
 
+    pm->force_rev1_fadt = false;
     pm->cpu_hp_io_base = 0;
     pm->pcihp_io_base = 0;
     pm->pcihp_io_len = 0;
     if (piix) {
+        /* w2k requires FADT(rev1) or it won't boot, keep PC compatible */
+        pm->force_rev1_fadt = true;
         obj = piix;
         pm->cpu_hp_io_base = PIIX4_CPU_HOTPLUG_IO_BASE;
         pm->pcihp_io_base =
@@ -304,6 +308,9 @@ static void fadt_setup(AcpiFadtDescriptorRev3 *fadt, AcpiPmInfo *pm)
         fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL);
     }
     fadt->century = RTC_CENTURY;
+    if (pm->force_rev1_fadt) {
+        return;
+    }
 
     fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_RESET_REG_SUP);
     fadt->reset_value = 0xf;
@@ -342,6 +349,8 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
     unsigned fw_ctrl_offset = (char *)&fadt->firmware_ctrl - table_data->data;
     unsigned dsdt_entry_offset = (char *)&fadt->dsdt - table_data->data;
     unsigned xdsdt_entry_offset = (char *)&fadt->x_dsdt - table_data->data;
+    int fadt_size = sizeof(*fadt);
+    int rev = 3;
 
     /* FACS address to be filled by Guest linker */
     bios_linker_loader_add_pointer(linker,
@@ -353,12 +362,17 @@ build_fadt(GArray *table_data, BIOSLinker *linker, AcpiPmInfo *pm,
     bios_linker_loader_add_pointer(linker,
         ACPI_BUILD_TABLE_FILE, dsdt_entry_offset, sizeof(fadt->dsdt),
         ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset);
-    bios_linker_loader_add_pointer(linker,
-        ACPI_BUILD_TABLE_FILE, xdsdt_entry_offset, sizeof(fadt->x_dsdt),
-        ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset);
+    if (pm->force_rev1_fadt) {
+        rev = 1;
+        fadt_size = offsetof(typeof(*fadt), reset_register);
+    } else {
+        bios_linker_loader_add_pointer(linker,
+            ACPI_BUILD_TABLE_FILE, xdsdt_entry_offset, sizeof(fadt->x_dsdt),
+            ACPI_BUILD_TABLE_FILE, dsdt_tbl_offset);
+    }
 
     build_header(linker, table_data,
-                 (void *)fadt, "FACP", sizeof(*fadt), 3, oem_id, oem_table_id);
+                 (void *)fadt, "FACP", fadt_size, rev, oem_id, oem_table_id);
 }
 
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
