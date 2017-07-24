@@ -8558,8 +8558,8 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
                                    phys_ptr, prot, fsr);
         qemu_log_mask(CPU_LOG_MMU, "PMSAv7 MPU lookup for %s at 0x%08" PRIx32
                       " mmu_idx %u -> %s (prot %c%c%c)\n",
-                      access_type == 1 ? "reading" :
-                      (access_type == 2 ? "writing" : "execute"),
+                      access_type == MMU_DATA_LOAD ? "reading" :
+                      (access_type == MMU_DATA_STORE ? "writing" : "execute"),
                       (uint32_t)address, mmu_idx,
                       ret ? "Miss" : "Hit",
                       *prot & PAGE_READ ? 'r' : '-',
