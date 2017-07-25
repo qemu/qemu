@@ -768,7 +768,7 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
     Error *local_err = NULL;
     int ret;
     BlockBackend *qcow_blk;
-    const char *encryptfmt = NULL;
+    char *encryptfmt = NULL;
     QDict *options;
     QDict *encryptopts = NULL;
     QCryptoBlockCreateOptions *crypto_opts = NULL;
@@ -793,7 +793,7 @@ static int qcow_create(const char *filename, QemuOpts *opts, Error **errp)
             goto cleanup;
         }
     } else if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
-        encryptfmt = "aes";
+        encryptfmt = g_strdup("aes");
     }
 
     ret = bdrv_create_file(filename, opts, &local_err);
@@ -908,6 +908,7 @@ exit:
     blk_unref(qcow_blk);
 cleanup:
     QDECREF(encryptopts);
+    g_free(encryptfmt);
     qcrypto_block_free(crypto);
     qapi_free_QCryptoBlockCreateOptions(crypto_opts);
     g_free(backing_file);

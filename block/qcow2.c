@@ -2905,7 +2905,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     int version;
     uint64_t refcount_bits;
     int refcount_order;
-    const char *encryptfmt = NULL;
+    char *encryptfmt = NULL;
     Error *local_err = NULL;
     int ret;
 
@@ -2916,14 +2916,14 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
     backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
     encryptfmt = qemu_opt_get_del(opts, BLOCK_OPT_ENCRYPT_FORMAT);
     if (encryptfmt) {
-        if (qemu_opt_get_del(opts, BLOCK_OPT_ENCRYPT)) {
+        if (qemu_opt_get(opts, BLOCK_OPT_ENCRYPT)) {
             error_setg(errp, "Options " BLOCK_OPT_ENCRYPT " and "
                        BLOCK_OPT_ENCRYPT_FORMAT " are mutually exclusive");
             ret = -EINVAL;
             goto finish;
         }
     } else if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
-        encryptfmt = "aes";
+        encryptfmt = g_strdup("aes");
     }
     cluster_size = qcow2_opt_get_cluster_size_del(opts, &local_err);
     if (local_err) {
@@ -2983,6 +2983,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 finish:
     g_free(backing_file);
     g_free(backing_fmt);
+    g_free(encryptfmt);
     g_free(buf);
     return ret;
 }

@@ -487,6 +487,10 @@ static inline void bitmap_directory_to_be(uint8_t *dir, size_t size)
 
 static void bitmap_free(Qcow2Bitmap *bm)
 {
+    if (bm == NULL) {
+        return;
+    }
+
     g_free(bm->name);
     g_free(bm);
 }
