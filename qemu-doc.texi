@@ -38,6 +38,7 @@
 * QEMU Guest Agent::
 * QEMU User space emulator::
 * Implementation notes::
+* Deprecated features::
 * License::
 * Index::
 @end menu
@@ -3127,6 +3128,180 @@ Run the emulation in single step mode.
 
 
 @include qemu-tech.texi
+
+@node Deprecated features
+@appendix Deprecated features
+
+In general features are intended to be supported indefinitely once
+introduced into QEMU. In the event that a feature needs to be removed,
+it will be listed in this appendix. The feature will remain functional
+for 2 releases prior to actual removal. Deprecated features may also
+generate warnings on the console when QEMU starts up, or if activated
+via a monitor command, however, this is not a mandatory requirement.
+
+Prior to the 2.10.0 release there was no official policy on how
+long features would be deprecated prior to their removal, nor
+any documented list of which features were deprecated. Thus
+any features deprecated prior to 2.10.0 will be treated as if
+they were first deprecated in the 2.10.0 release.
+
+What follows is a list of all features currently marked as
+deprecated.
+
+@section System emulator command line arguments
+
+@subsection -drive boot=on|off (since 1.3.0)
+
+The ``boot=on|off'' option to the ``-drive'' argument is
+ignored. Applications should use the ``bootindex=N'' parameter
+to set an absolute ordering between devices instead.
+
+@subsection -tdf (since 1.3.0)
+
+The ``-tdf'' argument is ignored. The behaviour implemented
+by this argument is now the default when using the KVM PIT,
+but can be requested explicitly using
+``-global kvm-pit.lost_tick_policy=slew''.
+
+@subsection -no-kvm-pit-reinjection (since 1.3.0)
+
+The ``-no-kvm-pit-reinjection'' argument is now a
+synonym for setting ``-global kvm-pit.lost_tick_policy=discard''.
+
+@subsection -no-kvm-irqchip (since 1.3.0)
+
+The ``-no-kvm-irqchip'' argument is now a synonym for
+setting ``-machine kernel_irqchip=off''.
+
+@subsection -no-kvm-pit (since 1.3.0)
+
+The ``-no-kvm-pit'' argument is ignored. It is no longer
+possible to disable the KVM PIT directly.
+
+@subsection -no-kvm (since 1.3.0)
+
+The ``-no-kvm'' argument is now a synonym for setting
+``-machine accel=tcg''.
+
+@subsection -mon default=on (since 2.4.0)
+
+The ``default'' option to the ``-mon'' argument is
+now ignored. When multiple monitors were enabled, it
+indicated which monitor would receive log messages
+from the various subsystems. This feature is no longer
+required as messages are now only sent to the monitor
+in response to explicitly monitor commands.
+
+@subsection -vnc tls (since 2.5.0)
+
+The ``-vnc tls'' argument is now a synonym for setting
+``-object tls-creds-anon,id=tls0'' combined with
+``-vnc tls-creds=tls0'
+
+@subsection -vnc x509 (since 2.5.0)
+
+The ``-vnc x509=/path/to/certs'' argument is now a
+synonym for setting
+``-object tls-creds-x509,dir=/path/to/certs,id=tls0,verify-peer=no''
+combined with ``-vnc tls-creds=tls0'
+
+@subsection -vnc x509verify (since 2.5.0)
+
+The ``-vnc x509verify=/path/to/certs'' argument is now a
+synonym for setting
+``-object tls-creds-x509,dir=/path/to/certs,id=tls0,verify-peer=yes''
+combined with ``-vnc tls-creds=tls0'
+
+@subsection -tftp (since 2.6.0)
+
+The ``-tftp /some/dir'' argument is now a synonym for setting
+the ``-netdev user,tftp=/some/dir' argument. The new syntax
+allows different settings to be provided per NIC.
+
+@subsection -bootp (since 2.6.0)
+
+The ``-bootp /some/file'' argument is now a synonym for setting
+the ``-netdev user,bootp=/some/file' argument. The new syntax
+allows different settings to be provided per NIC.
+
+@subsection -redir (since 2.6.0)
+
+The ``-redir ARGS'' argument is now a synonym for setting
+the ``-netdev user,hostfwd=ARGS'' argument instead. The new
+syntax allows different settings to be provided per NIC.
+
+@subsection -smb (since 2.6.0)
+
+The ``-smb /some/dir'' argument is now a synonym for setting
+the ``-netdev user,smb=/some/dir'' argument instead. The new
+syntax allows different settings to be provided per NIC.
+
+@subsection -net channel (since 2.6.0)
+
+The ``--net channel,ARGS'' argument is now a synonym for setting
+the ``-netdev user,guestfwd=ARGS'' argument instead.
+
+@subsection -net vlan (since 2.9.0)
+
+The ``-net van=NN'' argument is partially replaced with the
+new ``-netdev'' argument. The remaining use cases will no
+longer be directly supported in QEMU.
+
+@subsection -drive if=scsi (since 2.9.0)
+
+The ``-drive if=scsi'' argument is replaced by the the
+``-device BUS-TYPE'' argument combined with ``-drive if=none''.
+
+@subsection -net dump (since 2.10.0)
+
+The ``--net dump'' argument is now replaced with the
+``-object filter-dump'' argument which works in combination
+with the modern ``-netdev`` backends instead.
+
+@subsection -hdachs (since 2.10.0)
+
+The ``-hdachs'' argument is now a synonym for setting
+the ``cyls'', ``heads'', ``secs'', and ``trans'' properties
+on the ``ide-hd'' device using the ``-device'' argument.
+The new syntax allows different settings to be provided
+per disk.
+
+@subsection -usbdevice (since 2.10.0)
+
+The ``-usbdevice DEV'' argument is now a synonym for setting
+the ``-device usb-DEV'' argument instead. The deprecated syntax
+would automatically enable USB support on the machine type.
+If using the new syntax, USB support must be explicitly
+enabled via the ``-machine usb=on'' argument.
+
+@section qemu-img command line arguments
+
+@subsection convert -s (since 2.0.0)
+
+The ``convert -s snapshot_id_or_name'' argument is obsoleted
+by the ``convert -l snapshot_param'' argument instead.
+
+@section System emulator human monitor commands
+
+@subsection usb_add (since 2.10.0)
+
+The ``usb_add'' command is replaced by the ``device_add'' command.
+
+@subsection usb_del (since 2.10.0)
+
+The ``usb_del'' command is replaced by the ``device_del'' command.
+
+@section System emulator devices
+
+@subsection ivshmem (since 2.6.0)
+
+The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
+or ``ivshmem-doorbell`` device types.
+
+@subsection spapr-pci-vfio-host-bridge (since 2.6.0)
+
+The ``spapr-pci-vfio-host-bridge'' device type is replaced by
+the ``spapr-pci-host-bridge'' device type.
 
 @node License
 @appendix License
