@@ -1752,8 +1752,8 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                        i, sphb->dtbusname);
             return;
         }
-        memory_region_add_subregion_overlap(&sphb->iommu_root, 0,
-                                            spapr_tce_get_iommu(tcet), 0);
+        memory_region_add_subregion(&sphb->iommu_root, 0,
+                                    spapr_tce_get_iommu(tcet));
     }
 
     sphb->msi = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
