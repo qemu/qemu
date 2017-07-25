@@ -168,7 +168,7 @@ static void vfio_ccw_register_io_notifier(VFIOCCWDevice *vcdev, Error **errp)
         return;
     }
 
-    argsz = sizeof(*irq_set);
+    argsz = sizeof(*irq_info);
     irq_info = g_malloc0(argsz);
     irq_info->index = VFIO_CCW_IO_IRQ_INDEX;
     irq_info->argsz = argsz;
@@ -338,6 +338,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
     vcdev->vdev.type = VFIO_DEVICE_TYPE_CCW;
     vcdev->vdev.name = g_strdup_printf("%x.%x.%04x", cdev->hostid.cssid,
                                        cdev->hostid.ssid, cdev->hostid.devid);
+    vcdev->vdev.dev = dev;
     QLIST_FOREACH(vbasedev, &group->device_list, next) {
         if (strcmp(vbasedev->name, vcdev->vdev.name) == 0) {
             error_setg(&err, "vfio: subchannel %s has already been attached",

@@ -535,7 +535,6 @@ static uint16_t default_GEN14_GA1[] = {
     S390_FEAT_GROUP_MSA_EXT_6,
     S390_FEAT_GROUP_MSA_EXT_7,
     S390_FEAT_GROUP_MSA_EXT_8,
-    S390_FEAT_SIE_KSS,
 };
 
 /****** END FEATURE DEFS ******/

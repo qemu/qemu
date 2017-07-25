@@ -1032,7 +1032,7 @@ void kvm_s390_service_interrupt(uint32_t parm)
     kvm_s390_floating_interrupt(&irq);
 }
 
-static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
+void kvm_s390_program_interrupt(S390CPU *cpu, uint16_t code)
 {
     struct kvm_s390_irq irq = {
         .type = KVM_S390_PROGRAM_INT,
@@ -1068,7 +1068,7 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
 
     r = sclp_service_call(env, sccb, code);
     if (r < 0) {
-        enter_pgmcheck(cpu, -r);
+        kvm_s390_program_interrupt(cpu, -r);
     } else {
         setcc(cpu, r);
     }
@@ -1236,7 +1236,7 @@ static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
     isc = (env->regs[r3] >> 27) & 0x7;
     r = css_do_sic(env, isc, mode);
     if (r) {
-        enter_pgmcheck(cpu, -r);
+        kvm_s390_program_interrupt(cpu, -r);
     }
 
     return 0;
@@ -1357,7 +1357,7 @@ static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
     cpu_synchronize_state(CPU(cpu));
     ret = s390_virtio_hypercall(env);
     if (ret == -EINVAL) {
-        enter_pgmcheck(cpu, PGM_SPECIFICATION);
+        kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
         return 0;
     }
 
@@ -1374,7 +1374,7 @@ static void kvm_handle_diag_288(S390CPU *cpu, struct kvm_run *run)
     r3 = run->s390_sieic.ipa & 0x000f;
     rc = handle_diag_288(&cpu->env, r1, r3);
     if (rc) {
-        enter_pgmcheck(cpu, PGM_SPECIFICATION);
+        kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
     }
 }
 
@@ -1431,7 +1431,7 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         break;
     default:
         DPRINTF("KVM: unknown DIAG: 0x%x\n", func_code);
-        enter_pgmcheck(cpu, PGM_SPECIFICATION);
+        kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
         break;
     }
 
@@ -1899,7 +1899,7 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
 
     if (r < 0) {
         r = 0;
-        enter_pgmcheck(cpu, 0x0001);
+        kvm_s390_program_interrupt(cpu, PGM_OPERATION);
     }
 
     return r;
@@ -2009,7 +2009,7 @@ static int handle_intercept(S390CPU *cpu)
                 /* Then check for potential pgm check loops */
                 r = handle_oper_loop(cpu, run);
                 if (r == 0) {
-                    enter_pgmcheck(cpu, PGM_OPERATION);
+                    kvm_s390_program_interrupt(cpu, PGM_OPERATION);
                 }
             }
             break;
@@ -2430,16 +2430,6 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
     abort();
 }
 
-static inline int test_bit_inv(long nr, const unsigned long *addr)
-{
-    return test_bit(BE_BIT_NR(nr), addr);
-}
-
-static inline void set_bit_inv(long nr, unsigned long *addr)
-{
-    set_bit(BE_BIT_NR(nr), addr);
-}
-
 static int query_cpu_subfunc(S390FeatBitmap features)
 {
     struct kvm_s390_vm_cpu_subfunc prop;
@@ -2506,41 +2496,28 @@ static int configure_cpu_subfunc(const S390FeatBitmap features)
     s390_fill_feat_block(features, S390_FEAT_TYPE_PLO, prop.plo);
     if (test_bit(S390_FEAT_TOD_CLOCK_STEERING, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_PTFF, prop.ptff);
-        prop.ptff[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMAC, prop.kmac);
-        prop.kmac[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMC, prop.kmc);
-        prop.kmc[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KM, prop.km);
-        prop.km[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KIMD, prop.kimd);
-        prop.kimd[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KLMD, prop.klmd);
-        prop.klmd[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_3, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_PCKMO, prop.pckmo);
-        prop.pckmo[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_4, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMCTR, prop.kmctr);
-        prop.kmctr[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMF, prop.kmf);
-        prop.kmf[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMO, prop.kmo);
-        prop.kmo[0] |= 0x80; /* query is always available */
         s390_fill_feat_block(features, S390_FEAT_TYPE_PCC, prop.pcc);
-        prop.pcc[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_5, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_PPNO, prop.ppno);
-        prop.ppno[0] |= 0x80; /* query is always available */
     }
     if (test_bit(S390_FEAT_MSA_EXT_8, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMA, prop.kma);
-        prop.kma[0] |= 0x80; /* query is always available */
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
@@ -2579,7 +2556,7 @@ static int query_cpu_feat(S390FeatBitmap features)
     }
 
     for (i = 0; i < ARRAY_SIZE(kvm_to_feat); i++) {
-        if (test_bit_inv(kvm_to_feat[i][0], (unsigned long *)prop.feat)) {
+        if (test_be_bit(kvm_to_feat[i][0], (uint8_t *) prop.feat)) {
             set_bit(kvm_to_feat[i][1], features);
         }
     }
@@ -2598,7 +2575,7 @@ static int configure_cpu_feat(const S390FeatBitmap features)
 
     for (i = 0; i < ARRAY_SIZE(kvm_to_feat); i++) {
         if (test_bit(kvm_to_feat[i][1], features)) {
-            set_bit_inv(kvm_to_feat[i][0], (unsigned long *)prop.feat);
+            set_be_bit(kvm_to_feat[i][0], (uint8_t *) prop.feat);
         }
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
@@ -2684,7 +2661,7 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         clear_bit(S390_FEAT_CMM_NT, model->features);
     }
 
-    /* set zpci and aen facilities */
+    /* We emulate a zPCI bus and AEN, therefore we don't need HW support */
     set_bit(S390_FEAT_ZPCI, model->features);
     set_bit(S390_FEAT_ADAPTER_EVENT_NOTIFICATION, model->features);
 
