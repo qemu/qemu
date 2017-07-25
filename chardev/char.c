@@ -620,7 +620,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
 
         error_report("Available chardev backend types: %s", str->str);
         g_string_free(str, true);
-        exit(0);
+        return NULL;
     }
 
     if (id == NULL) {
