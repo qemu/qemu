@@ -723,9 +723,7 @@ static PCIINTxRoute spapr_route_intx_pin_to_irq(void *opaque, int pin)
 /*
  * MSI/MSIX memory region implementation.
  * The handler handles both MSI and MSIX.
- * For MSI-X, the vector number is encoded as a part of the address,
- * data is set to 0.
- * For MSI, the vector number is encoded in least bits in data.
+ * The vector number is encoded in least bits in data.
  */
 static void spapr_msi_write(void *opaque, hwaddr addr,
                             uint64_t data, unsigned size)

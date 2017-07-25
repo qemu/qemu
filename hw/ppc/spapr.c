@@ -1827,7 +1827,7 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
     /* Iteration header */
     if (!spapr->htab_shift) {
         qemu_put_be32(f, -1);
-        return 0;
+        return 1;
     } else {
         qemu_put_be32(f, 0);
     }
@@ -2850,11 +2850,26 @@ static sPAPRDIMMState *spapr_pending_dimm_unplugs_find(sPAPRMachineState *s,
     return dimm_state;
 }
 
-static void spapr_pending_dimm_unplugs_add(sPAPRMachineState *spapr,
-                                           sPAPRDIMMState *dimm_state)
+static sPAPRDIMMState *spapr_pending_dimm_unplugs_add(sPAPRMachineState *spapr,
+                                                      uint32_t nr_lmbs,
+                                                      PCDIMMDevice *dimm)
 {
-    g_assert(!spapr_pending_dimm_unplugs_find(spapr, dimm_state->dimm));
-    QTAILQ_INSERT_HEAD(&spapr->pending_dimm_unplugs, dimm_state, next);
+    sPAPRDIMMState *ds = NULL;
+
+    /*
+     * If this request is for a DIMM whose removal had failed earlier
+     * (due to guest's refusal to remove the LMBs), we would have this
+     * dimm already in the pending_dimm_unplugs list. In that
+     * case don't add again.
+     */
+    ds = spapr_pending_dimm_unplugs_find(spapr, dimm);
+    if (!ds) {
+        ds = g_malloc0(sizeof(sPAPRDIMMState));
+        ds->nr_lmbs = nr_lmbs;
+        ds->dimm = dimm;
+        QTAILQ_INSERT_HEAD(&spapr->pending_dimm_unplugs, ds, next);
+    }
+    return ds;
 }
 
 static void spapr_pending_dimm_unplugs_remove(sPAPRMachineState *spapr,
@@ -2875,7 +2890,6 @@ static sPAPRDIMMState *spapr_recover_pending_dimm_state(sPAPRMachineState *ms,
     uint32_t avail_lmbs = 0;
     uint64_t addr_start, addr;
     int i;
-    sPAPRDIMMState *ds;
 
     addr_start = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
                                          &error_abort);
@@ -2891,11 +2905,7 @@ static sPAPRDIMMState *spapr_recover_pending_dimm_state(sPAPRMachineState *ms,
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
 
-    ds = g_malloc0(sizeof(sPAPRDIMMState));
-    ds->nr_lmbs = avail_lmbs;
-    ds->dimm = dimm;
-    spapr_pending_dimm_unplugs_add(ms, ds);
-    return ds;
+    return spapr_pending_dimm_unplugs_add(ms, avail_lmbs, dimm);
 }
 
 /* Callback to be called during DRC release. */
@@ -2911,6 +2921,7 @@ void spapr_lmb_release(DeviceState *dev)
      * during the unplug process. In this case recover it. */
     if (ds == NULL) {
         ds = spapr_recover_pending_dimm_state(spapr, PC_DIMM(dev));
+        g_assert(ds);
         /* The DRC being examined by the caller at least must be counted */
         g_assert(ds->nr_lmbs);
     }
@@ -2942,18 +2953,13 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
     uint64_t addr_start, addr;
     int i;
     sPAPRDRConnector *drc;
-    sPAPRDIMMState *ds;
-
     addr_start = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
                                          &local_err);
     if (local_err) {
         goto out;
     }
 
-    ds = g_malloc0(sizeof(sPAPRDIMMState));
-    ds->nr_lmbs = nr_lmbs;
-    ds->dimm = dimm;
-    spapr_pending_dimm_unplugs_add(spapr, ds);
+    spapr_pending_dimm_unplugs_add(spapr, nr_lmbs, dimm);
 
     addr = addr_start;
     for (i = 0; i < nr_lmbs; i++) {
