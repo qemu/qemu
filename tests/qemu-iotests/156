@@ -38,7 +38,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_qemu
-    rm -f "$TEST_IMG{,.target}{,.backing,.overlay}"
+    rm -f "$TEST_IMG"{,.target}{,.backing,.overlay}
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -83,7 +83,7 @@ _send_qemu_cmd $QEMU_HANDLE \
     'return'
 
 # Create target image
-TEST_IMG="$TEST_IMG.target.overlay" _make_test_img -b "$TEST_IMG.target" 1M
+TEST_IMG="$TEST_IMG.target.overlay" _make_test_img -u -b "$TEST_IMG.target" 1M
 
 # Mirror snapshot
 _send_qemu_cmd $QEMU_HANDLE \
