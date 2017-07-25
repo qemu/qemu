@@ -224,6 +224,7 @@ typedef enum S390Opcode {
     RXY_LRVG    = 0xe30f,
     RXY_LRVH    = 0xe31f,
     RXY_LY      = 0xe358,
+    RXY_NG      = 0xe380,
     RXY_STCY    = 0xe372,
     RXY_STG     = 0xe324,
     RXY_STHY    = 0xe370,
@@ -985,8 +986,17 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
         return;
     }
 
-    /* Fall back to loading the constant.  */
-    tcg_out_movi(s, type, TCG_TMP0, val);
+    /* Use the constant pool if USE_REG_TB, but not for small constants.  */
+    if (USE_REG_TB) {
+        if (!maybe_out_small_movi(s, type, TCG_TMP0, val)) {
+            tcg_out_insn(s, RXY, NG, dest, TCG_REG_TB, TCG_REG_NONE, 0);
+            new_pool_label(s, val & valid, R_390_20, s->code_ptr - 2,
+                           -(intptr_t)s->code_gen_ptr);
+            return;
+        }
+    } else {
+        tcg_out_movi(s, type, TCG_TMP0, val);
+    }
     if (type == TCG_TYPE_I32) {
         tcg_out_insn(s, RR, NR, dest, TCG_TMP0);
     } else {
@@ -2341,6 +2351,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &r_r_ri;
     case INDEX_op_sub_i32:
     case INDEX_op_sub_i64:
+    case INDEX_op_and_i32:
+    case INDEX_op_and_i64:
         return (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_ri : &r_0_ri);
 
     case INDEX_op_mul_i32:
@@ -2374,10 +2386,6 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return (s390_facilities & FACILITY_EXT_IMM
                 ? (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_rM : &r_0_rM)
                 : &r_0_r);
-
-    case INDEX_op_and_i32:
-    case INDEX_op_and_i64:
-        return (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_ri : &r_0_ri);
 
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
