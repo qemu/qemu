@@ -885,7 +885,8 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
             ret = -EINVAL;
             break;
         }
-        if (ccw.flags & (CCW_FLAG_CC | CCW_FLAG_DC)) {
+        if (ccw.flags || ccw.count) {
+            /* We have already sanitized these if converted from fmt 0. */
             ret = -EINVAL;
             break;
         }
