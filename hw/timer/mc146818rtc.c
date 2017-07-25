@@ -291,26 +291,14 @@ static void check_update_timer(RTCState *s)
 
     /* From the data sheet: "Holding the dividers in reset prevents
      * interrupts from operating, while setting the SET bit allows"
-     * them to occur.  However, it will prevent an alarm interrupt
-     * from occurring, because the time of day is not updated.
+     * them to occur.
      */
     if ((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) {
         timer_del(s->update_timer);
         return;
     }
-    if ((s->cmos_data[RTC_REG_C] & REG_C_UF) &&
-        (s->cmos_data[RTC_REG_B] & REG_B_SET)) {
-        timer_del(s->update_timer);
-        return;
-    }
-    if ((s->cmos_data[RTC_REG_C] & REG_C_UF) &&
-        (s->cmos_data[RTC_REG_C] & REG_C_AF)) {
-        timer_del(s->update_timer);
-        return;
-    }
 
     guest_nsec = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
-    /* if UF is clear, reprogram to next second */
     next_update_time = qemu_clock_get_ns(rtc_clock)
         + NANOSECONDS_PER_SECOND - guest_nsec;
 
@@ -321,7 +309,17 @@ static void check_update_timer(RTCState *s)
     s->next_alarm_time = next_update_time +
                          (next_alarm_sec - 1) * NANOSECONDS_PER_SECOND;
 
+    /* If UF is already set, we might be able to optimize. */
     if (s->cmos_data[RTC_REG_C] & REG_C_UF) {
+        /* If AF cannot change (i.e. either it is set already, or
+         * SET=1 and then the time is not updated), nothing to do.
+         */
+        if ((s->cmos_data[RTC_REG_B] & REG_B_SET) ||
+            (s->cmos_data[RTC_REG_C] & REG_C_AF)) {
+            timer_del(s->update_timer);
+            return;
+        }
+
         /* UF is set, but AF is clear.  Program the timer to target
          * the alarm time.  */
         next_update_time = s->next_alarm_time;
