@@ -442,7 +442,7 @@ ide0-cd0 (NODE_NAME): null-co:// (null-co, read-only)
     Cache mode:       writeback
 (qemu) quit
 
-warning: qemu-system-x86_64: -drive if=scsi,driver=null-co: bus=0,unit=0 is deprecated with this machine type
+qemu-system-x86_64: -drive if=scsi,driver=null-co: warning: bus=0,unit=0 is deprecated with this machine type
 Testing: -drive if=scsi,driver=null-co
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
@@ -451,7 +451,7 @@ scsi0-hd0 (NODE_NAME): null-co:// (null-co)
     Cache mode:       writeback
 (qemu) quit
 
-warning: qemu-system-x86_64: -drive if=scsi,media=cdrom: bus=0,unit=0 is deprecated with this machine type
+qemu-system-x86_64: -drive if=scsi,media=cdrom: warning: bus=0,unit=0 is deprecated with this machine type
 Testing: -drive if=scsi,media=cdrom
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
@@ -460,7 +460,7 @@ scsi0-cd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
-warning: qemu-system-x86_64: -drive if=scsi,driver=null-co,media=cdrom: bus=0,unit=0 is deprecated with this machine type
+qemu-system-x86_64: -drive if=scsi,driver=null-co,media=cdrom: warning: bus=0,unit=0 is deprecated with this machine type
 Testing: -drive if=scsi,driver=null-co,media=cdrom
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
