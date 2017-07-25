@@ -252,17 +252,19 @@ static int spapr_tce_table_realize(DeviceState *dev)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
     Object *tcetobj = OBJECT(tcet);
-    char tmp[32];
+    gchar *tmp;
 
     tcet->fd = -1;
     tcet->need_vfio = false;
-    snprintf(tmp, sizeof(tmp), "tce-root-%x", tcet->liobn);
+    tmp = g_strdup_printf("tce-root-%x", tcet->liobn);
     memory_region_init(&tcet->root, tcetobj, tmp, UINT64_MAX);
+    g_free(tmp);
 
-    snprintf(tmp, sizeof(tmp), "tce-iommu-%x", tcet->liobn);
+    tmp = g_strdup_printf("tce-iommu-%x", tcet->liobn);
     memory_region_init_iommu(&tcet->iommu, sizeof(tcet->iommu),
                              TYPE_SPAPR_IOMMU_MEMORY_REGION,
                              tcetobj, tmp, 0);
+    g_free(tmp);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
@@ -307,7 +309,7 @@ void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio)
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
 {
     sPAPRTCETable *tcet;
-    char tmp[32];
+    gchar *tmp;
 
     if (spapr_tce_find_by_liobn(liobn)) {
         error_report("Attempted to create TCE table with duplicate"
@@ -318,8 +320,9 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
     tcet = SPAPR_TCE_TABLE(object_new(TYPE_SPAPR_TCE_TABLE));
     tcet->liobn = liobn;
 
-    snprintf(tmp, sizeof(tmp), "tce-table-%x", liobn);
+    tmp = g_strdup_printf("tce-table-%x", liobn);
     object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet), NULL);
+    g_free(tmp);
 
     object_property_set_bool(OBJECT(tcet), true, "realized", NULL);
 
