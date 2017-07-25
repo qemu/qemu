@@ -321,6 +321,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
     tmp = g_strdup_printf("tce-table-%x", liobn);
     object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet), NULL);
     g_free(tmp);
+    object_unref(OBJECT(tcet));
 
     object_property_set_bool(OBJECT(tcet), true, "realized", NULL);
 
