@@ -374,6 +374,8 @@ static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
 
+    vmstate_unregister(DEVICE(tcet), &vmstate_spapr_tce_table, tcet);
+
     QLIST_REMOVE(tcet, list);
 
     spapr_tce_table_disable(tcet);
