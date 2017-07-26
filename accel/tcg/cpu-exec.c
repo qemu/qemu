@@ -224,7 +224,7 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
 
     tb_lock();
     tb_phys_invalidate(tb, -1);
-    tb_remove(tb);
+    tcg_tb_remove(tb);
     tb_unlock();
 }
 #endif

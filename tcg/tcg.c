@@ -135,6 +135,12 @@ static TCGContext **tcg_ctxs;
 static unsigned int n_tcg_ctxs;
 TCGv_env cpu_env = 0;
 
+struct tcg_region_tree {
+    QemuMutex lock;
+    GTree *tree;
+    /* padding to avoid false sharing is computed at run-time */
+};
+
 /*
  * We divide code_gen_buffer into equally-sized "regions" that TCG threads
  * dynamically allocate from as demand dictates. Given appropriate region
@@ -158,6 +164,13 @@ struct tcg_region_state {
 };
 
 static struct tcg_region_state region;
+/*
+ * This is an array of struct tcg_region_tree's, with padding.
+ * We use void * to simplify the computation of region_trees[i]; each
+ * struct is found every tree_size bytes.
+ */
+static void *region_trees;
+static size_t tree_size;
 static TCGRegSet tcg_target_available_regs[TCG_TYPE_COUNT];
 static TCGRegSet tcg_target_call_clobber_regs;
 
@@ -295,6 +308,180 @@ TCGLabel *gen_new_label(void)
 
 #include "tcg-target.inc.c"
 
+/* compare a pointer @ptr and a tb_tc @s */
+static int ptr_cmp_tb_tc(const void *ptr, const struct tb_tc *s)
+{
+    if (ptr >= s->ptr + s->size) {
+        return 1;
+    } else if (ptr < s->ptr) {
+        return -1;
+    }
+    return 0;
+}
+
+static gint tb_tc_cmp(gconstpointer ap, gconstpointer bp)
+{
+    const struct tb_tc *a = ap;
+    const struct tb_tc *b = bp;
+
+    /*
+     * When both sizes are set, we know this isn't a lookup.
+     * This is the most likely case: every TB must be inserted; lookups
+     * are a lot less frequent.
+     */
+    if (likely(a->size && b->size)) {
+        if (a->ptr > b->ptr) {
+            return 1;
+        } else if (a->ptr < b->ptr) {
+            return -1;
+        }
+        /* a->ptr == b->ptr should happen only on deletions */
+        g_assert(a->size == b->size);
+        return 0;
+    }
+    /*
+     * All lookups have either .size field set to 0.
+     * From the glib sources we see that @ap is always the lookup key. However
+     * the docs provide no guarantee, so we just mark this case as likely.
+     */
+    if (likely(a->size == 0)) {
+        return ptr_cmp_tb_tc(a->ptr, b);
+    }
+    return ptr_cmp_tb_tc(b->ptr, a);
+}
+
+static void tcg_region_trees_init(void)
+{
+    size_t i;
+
+    tree_size = ROUND_UP(sizeof(struct tcg_region_tree), qemu_dcache_linesize);
+    region_trees = qemu_memalign(qemu_dcache_linesize, region.n * tree_size);
+    for (i = 0; i < region.n; i++) {
+        struct tcg_region_tree *rt = region_trees + i * tree_size;
+
+        qemu_mutex_init(&rt->lock);
+        rt->tree = g_tree_new(tb_tc_cmp);
+    }
+}
+
+static struct tcg_region_tree *tc_ptr_to_region_tree(void *p)
+{
+    size_t region_idx;
+
+    if (p < region.start_aligned) {
+        region_idx = 0;
+    } else {
+        ptrdiff_t offset = p - region.start_aligned;
+
+        if (offset > region.stride * (region.n - 1)) {
+            region_idx = region.n - 1;
+        } else {
+            region_idx = offset / region.stride;
+        }
+    }
+    return region_trees + region_idx * tree_size;
+}
+
+void tcg_tb_insert(TranslationBlock *tb)
+{
+    struct tcg_region_tree *rt = tc_ptr_to_region_tree(tb->tc.ptr);
+
+    qemu_mutex_lock(&rt->lock);
+    g_tree_insert(rt->tree, &tb->tc, tb);
+    qemu_mutex_unlock(&rt->lock);
+}
+
+void tcg_tb_remove(TranslationBlock *tb)
+{
+    struct tcg_region_tree *rt = tc_ptr_to_region_tree(tb->tc.ptr);
+
+    qemu_mutex_lock(&rt->lock);
+    g_tree_remove(rt->tree, &tb->tc);
+    qemu_mutex_unlock(&rt->lock);
+}
+
+/*
+ * Find the TB 'tb' such that
+ * tb->tc.ptr <= tc_ptr < tb->tc.ptr + tb->tc.size
+ * Return NULL if not found.
+ */
+TranslationBlock *tcg_tb_lookup(uintptr_t tc_ptr)
+{
+    struct tcg_region_tree *rt = tc_ptr_to_region_tree((void *)tc_ptr);
+    TranslationBlock *tb;
+    struct tb_tc s = { .ptr = (void *)tc_ptr };
+
+    qemu_mutex_lock(&rt->lock);
+    tb = g_tree_lookup(rt->tree, &s);
+    qemu_mutex_unlock(&rt->lock);
+    return tb;
+}
+
+static void tcg_region_tree_lock_all(void)
+{
+    size_t i;
+
+    for (i = 0; i < region.n; i++) {
+        struct tcg_region_tree *rt = region_trees + i * tree_size;
+
+        qemu_mutex_lock(&rt->lock);
+    }
+}
+
+static void tcg_region_tree_unlock_all(void)
+{
+    size_t i;
+
+    for (i = 0; i < region.n; i++) {
+        struct tcg_region_tree *rt = region_trees + i * tree_size;
+
+        qemu_mutex_unlock(&rt->lock);
+    }
+}
+
+void tcg_tb_foreach(GTraverseFunc func, gpointer user_data)
+{
+    size_t i;
+
+    tcg_region_tree_lock_all();
+    for (i = 0; i < region.n; i++) {
+        struct tcg_region_tree *rt = region_trees + i * tree_size;
+
+        g_tree_foreach(rt->tree, func, user_data);
+    }
+    tcg_region_tree_unlock_all();
+}
+
+size_t tcg_nb_tbs(void)
+{
+    size_t nb_tbs = 0;
+    size_t i;
+
+    tcg_region_tree_lock_all();
+    for (i = 0; i < region.n; i++) {
+        struct tcg_region_tree *rt = region_trees + i * tree_size;
+
+        nb_tbs += g_tree_nnodes(rt->tree);
+    }
+    tcg_region_tree_unlock_all();
+    return nb_tbs;
+}
+
+static void tcg_region_tree_reset_all(void)
+{
+    size_t i;
+
+    tcg_region_tree_lock_all();
+    for (i = 0; i < region.n; i++) {
+        struct tcg_region_tree *rt = region_trees + i * tree_size;
+
+        /* Increment the refcount first so that destroy acts as a reset */
+        g_tree_ref(rt->tree);
+        g_tree_destroy(rt->tree);
+    }
+    tcg_region_tree_unlock_all();
+}
+
 static void tcg_region_bounds(size_t curr_region, void **pstart, void **pend)
 {
     void *start, *end;
@@ -380,6 +567,8 @@ void tcg_region_reset_all(void)
         g_assert(!err);
     }
     qemu_mutex_unlock(&region.lock);
+
+    tcg_region_tree_reset_all();
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -495,6 +684,8 @@ void tcg_region_init(void)
         rc = qemu_mprotect_none(end, page_size);
         g_assert(!rc);
     }
+
+    tcg_region_trees_init();
 
     /* In user-mode we support only one ctx, so do the initial allocation now */
 #ifdef CONFIG_USER_ONLY

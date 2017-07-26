@@ -405,7 +405,6 @@ static inline uint32_t curr_cflags(void)
          | (use_icount ? CF_USE_ICOUNT : 0);
 }
 
-void tb_remove(TranslationBlock *tb);
 void tb_flush(CPUState *cpu);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,

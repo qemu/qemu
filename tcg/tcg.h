@@ -866,6 +866,12 @@ void tcg_region_reset_all(void);
 size_t tcg_code_size(void);
 size_t tcg_code_capacity(void);
 
+void tcg_tb_insert(TranslationBlock *tb);
+void tcg_tb_remove(TranslationBlock *tb);
+TranslationBlock *tcg_tb_lookup(uintptr_t tc_ptr);
+void tcg_tb_foreach(GTraverseFunc func, gpointer user_data);
+size_t tcg_nb_tbs(void);
+
 /* user-mode: Called with tb_lock held.  */
 static inline void *tcg_malloc(int size)
 {
