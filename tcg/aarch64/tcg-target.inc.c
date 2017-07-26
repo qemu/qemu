@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory for details.
  */
 
+#include "tcg-pool.inc.c"
 #include "qemu/bitops.h"
 
 /* We're going to re-use TCGType in setting of the SF bit, which controls
@@ -587,9 +588,11 @@ static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
                          tcg_target_long value)
 {
-    int i, wantinv, shift;
     tcg_target_long svalue = value;
     tcg_target_long ivalue = ~value;
+    tcg_target_long t0, t1, t2;
+    int s0, s1;
+    AArch64Insn opc;
 
     /* For 32-bit values, discard potential garbage in value.  For 64-bit
        values within [2**31, 2**32-1], we can create smaller sequences by
@@ -638,38 +641,29 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         }
     }
 
-    /* Would it take fewer insns to begin with MOVN?  For the value and its
-       inverse, count the number of 16-bit lanes that are 0.  */
-    for (i = wantinv = 0; i < 64; i += 16) {
-        tcg_target_long mask = 0xffffull << i;
-        wantinv -= ((value & mask) == 0);
-        wantinv += ((ivalue & mask) == 0);
+    /* Would it take fewer insns to begin with MOVN?  */
+    if (ctpop64(value) >= 32) {
+        t0 = ivalue;
+        opc = I3405_MOVN;
+    } else {
+        t0 = value;
+        opc = I3405_MOVZ;
+    }
+    s0 = ctz64(t0) & (63 & -16);
+    t1 = t0 & ~(0xffffUL << s0);
+    s1 = ctz64(t1) & (63 & -16);
+    t2 = t1 & ~(0xffffUL << s1);
+    if (t2 == 0) {
+        tcg_out_insn_3405(s, opc, type, rd, t0 >> s0, s0);
+        if (t1 != 0) {
+            tcg_out_insn(s, 3405, MOVK, type, rd, value >> s1, s1);
+        }
+        return;
     }
 
-    if (wantinv <= 0) {
-        /* Find the lowest lane that is not 0x0000.  */
-        shift = ctz64(value) & (63 & -16);
-        tcg_out_insn(s, 3405, MOVZ, type, rd, value >> shift, shift);
-        /* Clear out the lane that we just set.  */
-        value &= ~(0xffffUL << shift);
-        /* Iterate until all non-zero lanes have been processed.  */
-        while (value) {
-            shift = ctz64(value) & (63 & -16);
-            tcg_out_insn(s, 3405, MOVK, type, rd, value >> shift, shift);
-            value &= ~(0xffffUL << shift);
-        }
-    } else {
-        /* Like above, but with the inverted value and MOVN to start.  */
-        shift = ctz64(ivalue) & (63 & -16);
-        tcg_out_insn(s, 3405, MOVN, type, rd, ivalue >> shift, shift);
-        ivalue &= ~(0xffffUL << shift);
-        while (ivalue) {
-            shift = ctz64(ivalue) & (63 & -16);
-            /* Provide MOVK with the non-inverted value.  */
-            tcg_out_insn(s, 3405, MOVK, type, rd, ~(ivalue >> shift), shift);
-            ivalue &= ~(0xffffUL << shift);
-        }
-    }
+    /* For more than 2 insns, dump it into the constant pool.  */
+    new_pool_label(s, value, R_AARCH64_CONDBR19, s->code_ptr, 0);
+    tcg_out_insn(s, 3305, LDR, 0, rd);
 }
 
 /* Define something more legible for general use.  */
@@ -2028,6 +2022,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_insn(s, 3314, LDP, TCG_REG_FP, TCG_REG_LR,
                  TCG_REG_SP, PUSH_SIZE, 0, 1);
     tcg_out_insn(s, 3207, RET, TCG_REG_LR);
+}
+
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+{
+    int i;
+    for (i = 0; i < count; ++i) {
+        p[i] = NOP;
+    }
 }
 
 typedef struct {
