@@ -254,7 +254,9 @@ static const name2keysym_t name2keysym[]={
 {"Left", 0xff51},      /* XK_Left */
 {"Up", 0xff52},        /* XK_Up */
 {"Down", 0xff54},      /* XK_Down */
+{"Next", 0xff56},
 {"Page_Down", 0xff56}, /* XK_Page_Down */
+{"Prior", 0xff55},
 {"Page_Up", 0xff55},   /* XK_Page_Up */
 {"Insert", 0xff63},    /* XK_Insert */
 {"Delete", 0xffff},    /* XK_Delete */
