@@ -755,6 +755,16 @@ CPUState *qemu_get_cpu(int index);
 bool cpu_exists(int64_t id);
 
 /**
+ * cpu_by_arch_id:
+ * @id: Guest-exposed CPU ID of the CPU to obtain.
+ *
+ * Get a CPU with matching @id.
+ *
+ * Returns: The CPU or %NULL if there is no matching CPU.
+ */
+CPUState *cpu_by_arch_id(int64_t id);
+
+/**
  * cpu_throttle_set:
  * @new_throttle_pct: Percent of sleep time. Valid range is 1 to 99.
  *

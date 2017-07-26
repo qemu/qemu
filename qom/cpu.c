@@ -34,7 +34,7 @@
 
 CPUInterruptHandler cpu_interrupt_handler;
 
-bool cpu_exists(int64_t id)
+CPUState *cpu_by_arch_id(int64_t id)
 {
     CPUState *cpu;
 
@@ -42,10 +42,15 @@ bool cpu_exists(int64_t id)
         CPUClass *cc = CPU_GET_CLASS(cpu);
 
         if (cc->get_arch_id(cpu) == id) {
-            return true;
+            return cpu;
         }
     }
-    return false;
+    return NULL;
+}
+
+bool cpu_exists(int64_t id)
+{
+    return !!cpu_by_arch_id(id);
 }
 
 CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
