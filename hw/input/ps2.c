@@ -224,7 +224,6 @@ static const uint16_t qcode_to_keycode_set1[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_DOT] = 0x34,
     [Q_KEY_CODE_SLASH] = 0x35,
 
-#if 0
     [Q_KEY_CODE_POWER] = 0x0e5e,
     [Q_KEY_CODE_SLEEP] = 0x0e5f,
     [Q_KEY_CODE_WAKE] = 0x0e63,
@@ -247,7 +246,6 @@ static const uint16_t qcode_to_keycode_set1[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_AC_STOP] = 0xe068,
     [Q_KEY_CODE_AC_REFRESH] = 0xe067,
     [Q_KEY_CODE_AC_BOOKMARKS] = 0xe066,
-#endif
 
     [Q_KEY_CODE_ASTERISK] = 0x37,
     [Q_KEY_CODE_LESS] = 0x56,
@@ -366,7 +364,6 @@ static const uint16_t qcode_to_keycode_set2[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_DOT] = 0x49,
     [Q_KEY_CODE_SLASH] = 0x4a,
 
-#if 0
     [Q_KEY_CODE_POWER] = 0x0e37,
     [Q_KEY_CODE_SLEEP] = 0x0e3f,
     [Q_KEY_CODE_WAKE] = 0x0e5e,
@@ -389,7 +386,6 @@ static const uint16_t qcode_to_keycode_set2[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_AC_STOP] = 0xe028,
     [Q_KEY_CODE_AC_REFRESH] = 0xe020,
     [Q_KEY_CODE_AC_BOOKMARKS] = 0xe018,
-#endif
 
     [Q_KEY_CODE_ALTGR] = 0x08,
     [Q_KEY_CODE_ALTGR_R] = 0xe008,
