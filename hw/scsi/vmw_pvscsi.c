@@ -1138,10 +1138,6 @@ pvscsi_init(PCIDevice *pci_dev)
     }
 
     s->completion_worker = qemu_bh_new(pvscsi_process_completion_queue, s);
-    if (!s->completion_worker) {
-        pvscsi_cleanup_msi(s);
-        return -ENOMEM;
-    }
 
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(pci_dev),
                  &pvscsi_scsi_info, NULL);
