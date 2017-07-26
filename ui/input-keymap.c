@@ -116,6 +116,28 @@ static int linux_to_qcode[KEY_CNT] = {
     [KEY_LEFTMETA]       = Q_KEY_CODE_META_L,
     [KEY_RIGHTMETA]      = Q_KEY_CODE_META_R,
     [KEY_MENU]           = Q_KEY_CODE_MENU,
+
+    [KEY_SLEEP]          = Q_KEY_CODE_SLEEP,
+    [KEY_WAKEUP]         = Q_KEY_CODE_WAKE,
+    [KEY_CALC]           = Q_KEY_CODE_CALCULATOR,
+    [KEY_MAIL]           = Q_KEY_CODE_MAIL,
+    [KEY_COMPUTER]       = Q_KEY_CODE_COMPUTER,
+
+    [KEY_STOP]           = Q_KEY_CODE_AC_STOP,
+    [KEY_BOOKMARKS]      = Q_KEY_CODE_AC_BOOKMARKS,
+    [KEY_BACK]           = Q_KEY_CODE_AC_BACK,
+    [KEY_FORWARD]        = Q_KEY_CODE_AC_FORWARD,
+    [KEY_HOMEPAGE]       = Q_KEY_CODE_AC_HOME,
+    [KEY_REFRESH]        = Q_KEY_CODE_AC_REFRESH,
+    [KEY_FIND]           = Q_KEY_CODE_AC_SEARCH,
+
+    [KEY_NEXTSONG]       = Q_KEY_CODE_AUDIONEXT,
+    [KEY_PREVIOUSSONG]   = Q_KEY_CODE_AUDIOPREV,
+    [KEY_STOPCD]         = Q_KEY_CODE_AUDIOSTOP,
+    [KEY_PLAYCD]         = Q_KEY_CODE_AUDIOPLAY,
+    [KEY_MUTE]           = Q_KEY_CODE_AUDIOMUTE,
+    [KEY_VOLUMEDOWN]     = Q_KEY_CODE_VOLUMEDOWN,
+    [KEY_VOLUMEUP]       = Q_KEY_CODE_VOLUMEUP,
 };
 
 static const int qcode_to_number[] = {
@@ -251,6 +273,28 @@ static const int qcode_to_number[] = {
     [Q_KEY_CODE_POWER] = 0xde,
     [Q_KEY_CODE_YEN] = 0x7d,
     [Q_KEY_CODE_KP_COMMA] = 0x7e,
+
+    [Q_KEY_CODE_SLEEP] = 0xdf,
+    [Q_KEY_CODE_WAKE] = 0xe3,
+    [Q_KEY_CODE_CALCULATOR] = 0xa1,
+    [Q_KEY_CODE_MAIL] = 0xec,
+    [Q_KEY_CODE_COMPUTER] = 0xeb,
+
+    [Q_KEY_CODE_AC_STOP] = 0xe8,
+    [Q_KEY_CODE_AC_BOOKMARKS] = 0xe6,
+    [Q_KEY_CODE_AC_BACK] = 0xea,
+    [Q_KEY_CODE_AC_FORWARD] = 0xe9,
+    [Q_KEY_CODE_AC_HOME] = 0xb2,
+    [Q_KEY_CODE_AC_REFRESH] = 0xe7,
+    [Q_KEY_CODE_AC_SEARCH] = 0xe5,
+
+    [Q_KEY_CODE_AUDIONEXT] = 0x99,
+    [Q_KEY_CODE_AUDIOPREV] = 0x90,
+    [Q_KEY_CODE_AUDIOSTOP] = 0xa4,
+    [Q_KEY_CODE_AUDIOPLAY] = 0xa2,
+    [Q_KEY_CODE_AUDIOMUTE] = 0xa0,
+    [Q_KEY_CODE_VOLUMEDOWN] = 0xae,
+    [Q_KEY_CODE_VOLUMEUP] = 0xb0,
 
     [Q_KEY_CODE__MAX] = 0,
 };

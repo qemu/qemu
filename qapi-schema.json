@@ -4843,6 +4843,27 @@
 # @henkan: since 2.9
 # @yen: since 2.9
 #
+# @sleep: since 2.10
+# @wake: since 2.10
+# @audionext: since 2.10
+# @audioprev: since 2.10
+# @audiostop: since 2.10
+# @audioplay: since 2.10
+# @audiomute: since 2.10
+# @volumeup: since 2.10
+# @volumedown: since 2.10
+# @mediaselect: since 2.10
+# @mail: since 2.10
+# @calculator: since 2.10
+# @computer: since 2.10
+# @ac_search: since 2.10
+# @ac_home: since 2.10
+# @ac_back: since 2.10
+# @ac_forward: since 2.10
+# @ac_stop: since 2.10
+# @ac_refresh: since 2.10
+# @ac_bookmarks: since 2.10
+#
 # Since: 1.3.0
 #
 ##
@@ -4864,7 +4885,12 @@
             'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
             'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause',
             'ro', 'hiragana', 'henkan', 'yen',
-            'kp_comma', 'kp_equals', 'power' ] }
+            'kp_comma', 'kp_equals', 'power', 'sleep', 'wake',
+            'audionext', 'audioprev', 'audiostop', 'audioplay', 'audiomute',
+            'volumeup', 'volumedown', 'mediaselect',
+            'mail', 'calculator', 'computer',
+            'ac_search', 'ac_home', 'ac_back', 'ac_forward', 'ac_stop',
+            'ac_refresh', 'ac_bookmarks' ] }
 
 ##
 # @KeyValue:
