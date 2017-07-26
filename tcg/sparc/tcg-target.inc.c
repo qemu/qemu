@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-pool.inc.c"
+
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%g0",
@@ -292,33 +294,46 @@ static inline int check_fit_i32(int32_t val, unsigned int bits)
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
-    uint32_t insn;
+    uint32_t insn = *code_ptr;
+    intptr_t pcrel;
 
-    tcg_debug_assert(addend == 0);
-    value = tcg_ptr_byte_diff((tcg_insn_unit *)value, code_ptr);
+    value += addend;
+    pcrel = tcg_ptr_byte_diff((tcg_insn_unit *)value, code_ptr);
 
     switch (type) {
     case R_SPARC_WDISP16:
-        if (!check_fit_ptr(value >> 2, 16)) {
-            tcg_abort();
-        }
-        insn = *code_ptr;
+        assert(check_fit_ptr(pcrel >> 2, 16));
         insn &= ~INSN_OFF16(-1);
-        insn |= INSN_OFF16(value);
-        *code_ptr = insn;
+        insn |= INSN_OFF16(pcrel);
         break;
     case R_SPARC_WDISP19:
-        if (!check_fit_ptr(value >> 2, 19)) {
-            tcg_abort();
-        }
-        insn = *code_ptr;
+        assert(check_fit_ptr(pcrel >> 2, 19));
         insn &= ~INSN_OFF19(-1);
-        insn |= INSN_OFF19(value);
-        *code_ptr = insn;
+        insn |= INSN_OFF19(pcrel);
         break;
+    case R_SPARC_13:
+        /* Note that we're abusing this reloc type for our own needs.  */
+        if (!check_fit_ptr(value, 13)) {
+            int adj = (value > 0 ? 0xff8 : -0x1000);
+            value -= adj;
+            assert(check_fit_ptr(value, 13));
+            *code_ptr++ = (ARITH_ADD | INSN_RD(TCG_REG_T2)
+                           | INSN_RS1(TCG_REG_TB) | INSN_IMM13(adj));
+            insn ^= INSN_RS1(TCG_REG_TB) ^ INSN_RS1(TCG_REG_T2);
+        }
+        insn &= ~INSN_IMM13(-1);
+        insn |= INSN_IMM13(value);
+        break;
+    case R_SPARC_32:
+        /* Note that we're abusing this reloc type for our own needs.  */
+        code_ptr[0] = deposit32(code_ptr[0], 0, 22, value >> 10);
+        code_ptr[1] = deposit32(code_ptr[1], 0, 10, value);
+        return;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
+
+    *code_ptr = insn;
 }
 
 /* parse target specific constraints */
@@ -474,12 +489,24 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
         return;
     }
 
-    if (USE_REG_TB && !in_prologue) {
-        intptr_t diff = arg - (uintptr_t)s->code_gen_ptr;
-        if (check_fit_ptr(diff, 13)) {
-            tcg_out_arithi(s, ret, TCG_REG_TB, diff, ARITH_ADD);
-            return;
+    if (!in_prologue) {
+        if (USE_REG_TB) {
+            intptr_t diff = arg - (uintptr_t)s->code_gen_ptr;
+            if (check_fit_ptr(diff, 13)) {
+                tcg_out_arithi(s, ret, TCG_REG_TB, diff, ARITH_ADD);
+            } else {
+                new_pool_label(s, arg, R_SPARC_13, s->code_ptr,
+                               -(intptr_t)s->code_gen_ptr);
+                tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(TCG_REG_TB));
+                /* May be used to extend the 13-bit range in patch_reloc.  */
+                tcg_out32(s, NOP);
+            }
+        } else {
+            new_pool_label(s, arg, R_SPARC_32, s->code_ptr, 0);
+            tcg_out_sethi(s, ret, 0);
+            tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) | INSN_IMM13(0));
         }
+        return;
     }
 
     /* A 64-bit constant decomposed into 2 32-bit pieces.  */
@@ -1056,6 +1083,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 #ifdef CONFIG_SOFTMMU
     build_trampolines(s);
 #endif
+}
+
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+{
+    int i;
+    for (i = 0; i < count; ++i) {
+        p[i] = NOP;
+    }
 }
 
 #if defined(CONFIG_SOFTMMU)
