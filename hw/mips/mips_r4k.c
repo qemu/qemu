@@ -31,6 +31,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 #define MAX_IDE_BUS 2
 
@@ -96,8 +97,9 @@ static int64_t load_kernel(void)
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
     } else {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                loaderparams.kernel_filename);
+        error_report("qemu: could not load kernel '%s': %s",
+                     loaderparams.kernel_filename,
+                     load_elf_strerror(kernel_size));
         exit(1);
     }
 
