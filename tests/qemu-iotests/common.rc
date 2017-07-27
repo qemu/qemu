@@ -92,6 +92,7 @@ else
         TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
     fi
 fi
+ORIG_TEST_IMG="$TEST_IMG"
 
 _optstr_add()
 {
@@ -228,6 +229,8 @@ _cleanup_test_img()
             if [ -n "$SAMPLE_IMG_FILE" ]
             then
                 rm -f "$TEST_DIR/$SAMPLE_IMG_FILE"
+                SAMPLE_IMG_FILE=
+                TEST_IMG="$ORIG_TEST_IMG"
             fi
             ;;
 
