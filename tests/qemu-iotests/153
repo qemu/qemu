@@ -35,6 +35,7 @@ _cleanup()
     rm -f "${TEST_IMG}.convert"
     rm -f "${TEST_IMG}.a"
     rm -f "${TEST_IMG}.b"
+    rm -f "${TEST_IMG}.c"
     rm -f "${TEST_IMG}.lnk"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
