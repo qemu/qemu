@@ -1346,6 +1346,7 @@ F: monitor.c
 F: hmp.[ch]
 F: hmp-commands*.hx
 F: include/monitor/hmp-target.h
+F: tests/test-hmp.c
 
 Network device backends
 M: Jason Wang <jasowang@redhat.com>
