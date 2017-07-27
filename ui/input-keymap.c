@@ -233,6 +233,7 @@ static const int qcode_to_number[] = {
     [Q_KEY_CODE_KP_ENTER] = 0x9c,
     [Q_KEY_CODE_KP_DECIMAL] = 0x53,
     [Q_KEY_CODE_SYSRQ] = 0x54,
+    [Q_KEY_CODE_PAUSE] = 0xc6,
 
     [Q_KEY_CODE_KP_0] = 0x52,
     [Q_KEY_CODE_KP_1] = 0x4f,

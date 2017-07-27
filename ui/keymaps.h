@@ -59,6 +59,7 @@ typedef struct {
 /* "grey" keys will usually need a 0xe0 prefix */
 #define SCANCODE_GREY   0x80
 #define SCANCODE_EMUL0  0xE0
+#define SCANCODE_EMUL1  0xE1
 /* "up" flag */
 #define SCANCODE_UP     0x80
 
