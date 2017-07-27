@@ -1202,7 +1202,9 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     }
 
     /* We checked that the offset is contained within 16 bits above.  */
-    if (add_off > 0xfff || (use_armv6_instructions && cmp_off > 0xff)) {
+    if (add_off > 0xfff
+        || (use_armv6_instructions && TARGET_LONG_BITS == 64
+            && cmp_off > 0xff)) {
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R2, base,
                         (24 << 7) | (cmp_off >> 8));
         base = TCG_REG_R2;
