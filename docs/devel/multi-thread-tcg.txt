@@ -134,8 +134,8 @@ tb_set_jmp_target() code. Modification to the linked lists that allow
 searching for linked pages are done under the protect of the
 tb_lock().
 
-The global page table is protected by the tb_lock() in system-mode and
-mmap_lock() in linux-user mode.
+The global page table is a lockless radix tree; cmpxchg is used
+to atomically insert new elements.
 
 The lookup caches are updated atomically and the lookup hash uses QHT
 which is designed for concurrent safe lookup.
