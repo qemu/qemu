@@ -722,7 +722,6 @@ static const uint8_t qcode_to_keycode[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_SHIFT_R]       = 110,
     [Q_KEY_CODE_ALT]           = 19,
     [Q_KEY_CODE_ALT_R]         = 13,
-    [Q_KEY_CODE_ALTGR]         = 13,
     [Q_KEY_CODE_CTRL]          = 76,
     [Q_KEY_CODE_CTRL_R]        = 76,
     [Q_KEY_CODE_ESC]           = 29,

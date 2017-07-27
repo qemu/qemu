@@ -201,7 +201,6 @@ int qcode_to_adb_keycode[] = {
     [Q_KEY_CODE_SHIFT_R]       = ADB_KEY_RIGHT_SHIFT,
     [Q_KEY_CODE_ALT]           = ADB_KEY_LEFT_OPTION,
     [Q_KEY_CODE_ALT_R]         = ADB_KEY_RIGHT_OPTION,
-    [Q_KEY_CODE_ALTGR]         = ADB_KEY_RIGHT_OPTION,
     [Q_KEY_CODE_CTRL]          = ADB_KEY_LEFT_CONTROL,
     [Q_KEY_CODE_CTRL_R]        = ADB_KEY_RIGHT_CONTROL,
     [Q_KEY_CODE_META_L]        = ADB_KEY_COMMAND,

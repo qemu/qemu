@@ -32,6 +32,7 @@ typedef struct QemuSpiceKbd {
     SpiceKbdInstance sin;
     int ledstate;
     bool emul0;
+    size_t pauseseq;
 } QemuSpiceKbd;
 
 static void kbd_push_key(SpiceKbdInstance *sin, uint8_t frag);
@@ -62,6 +63,25 @@ static void kbd_push_key(SpiceKbdInstance *sin, uint8_t scancode)
     if (kbd->emul0) {
         kbd->emul0 = false;
         keycode |= SCANCODE_GREY;
+    }
+
+    if (scancode == SCANCODE_EMUL1) {
+        kbd->pauseseq++;
+        return;
+    } else if (kbd->pauseseq == 1) {
+        if (keycode == 0x1d) {
+            kbd->pauseseq++;
+            return;
+        } else {
+            kbd->pauseseq = 0;
+        }
+    } else if (kbd->pauseseq == 2) {
+        if (keycode == 0x45) {
+            qemu_input_event_send_key_qcode(NULL, Q_KEY_CODE_PAUSE, !up);
+            kbd->pauseseq = 0;
+            return;
+        }
+        kbd->pauseseq = 0;
     }
 
     qemu_input_event_send_key_number(NULL, keycode, !up);
