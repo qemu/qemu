@@ -1622,6 +1622,7 @@ static inline abi_long host_to_target_sockaddr(abi_ulong target_addr,
     if (len == 0) {
         return 0;
     }
+    assert(addr);
 
     target_saddr = lock_user(VERIFY_WRITE, target_addr, len, 0);
     if (!target_saddr)
