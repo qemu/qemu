@@ -5573,6 +5573,7 @@ static abi_long do_ioctl_rt(const IOCTLEntry *ie, uint8_t *buf_temp,
                                     field_types, THUNK_HOST);
     }
     unlock_user(argptr, arg, 0);
+    assert(host_rt_dev_ptr);
 
     ret = get_errno(safe_ioctl(fd, ie->host_cmd, buf_temp));
     if (*host_rt_dev_ptr != 0) {
