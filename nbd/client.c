@@ -376,9 +376,11 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
     if (info->request_sizes) {
         stw_be_p(buf + 4 + len + 2, NBD_INFO_BLOCK_SIZE);
     }
-    if (nbd_send_option_request(ioc, NBD_OPT_GO,
-                                4 + len + 2 + 2 * info->request_sizes, buf,
-                                errp) < 0) {
+    error = nbd_send_option_request(ioc, NBD_OPT_GO,
+                                    4 + len + 2 + 2 * info->request_sizes,
+                                    buf, errp);
+    g_free(buf);
+    if (error < 0) {
         return -1;
     }
 
