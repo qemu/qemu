@@ -31,7 +31,7 @@ status=1	# failure is the default!
 _cleanup()
 {
 	_cleanup_test_img
-	rm -f "$TEST_IMG.orig" "$TEST_IMG.raw" "$TEST_IMG.raw2"
+	rm -f "$TEST_IMG.orig" "$TEST_IMG.raw1" "$TEST_IMG.raw2"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -90,8 +90,6 @@ _make_test_img 2M
 if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG.orig" "$TEST_IMG" >/dev/null 2>&1; then
     exit 1
 fi
-
-rm -f "$TEST_IMG.orig" "$TEST_IMG.raw" "$TEST_IMG.raw2"
 
 echo "*** done"
 rm -f $seq.full
