@@ -381,18 +381,23 @@ static inline uint64_t pow2floor(uint64_t value)
     return 0x8000000000000000ull >> clz64(value);
 }
 
-/* round up to the nearest power of 2 (0 if overflow) */
+/*
+ * Return @value rounded up to the nearest power of two modulo 2^64.
+ * This is *zero* for @value > 2^63, so be careful.
+ */
 static inline uint64_t pow2ceil(uint64_t value)
 {
-    uint8_t nlz = clz64(value);
+    int n = clz64(value - 1);
 
-    if (is_power_of_2(value)) {
-        return value;
+    if (!n) {
+        /*
+         * @value - 1 has no leading zeroes, thus @value - 1 >= 2^63
+         * Therefore, either @value == 0 or @value > 2^63.
+         * If it's 0, return 1, else return 0.
+         */
+        return !value;
     }
-    if (!nlz) {
-        return 0;
-    }
-    return 1ULL << (64 - nlz);
+    return 0x8000000000000000ull >> (n - 1);
 }
 
 /**
