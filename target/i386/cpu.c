@@ -1585,6 +1585,17 @@ static bool lmce_supported(void)
     return !!(mce_cap & MCG_LMCE_P);
 }
 
+#define CPUID_MODEL_ID_SZ 48
+
+/**
+ * cpu_x86_fill_model_id:
+ * Get CPUID model ID string from host CPU.
+ *
+ * @str should have at least CPUID_MODEL_ID_SZ bytes
+ *
+ * The function does NOT add a null terminator to the string
+ * automatically.
+ */
 static int cpu_x86_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
@@ -1633,20 +1644,21 @@ static void max_x86_cpu_initfn(Object *obj)
     cpu->max_features = true;
 
     if (kvm_enabled()) {
-        X86CPUDefinition host_cpudef = { };
-        uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
+        char vendor[CPUID_VENDOR_SZ + 1] = { 0 };
+        char model_id[CPUID_MODEL_ID_SZ + 1] = { 0 };
+        int family, model, stepping;
 
-        host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
-        x86_cpu_vendor_words2str(host_cpudef.vendor, ebx, edx, ecx);
+        host_vendor_fms(vendor, &family, &model, &stepping);
 
-        host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
-        host_cpudef.family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
-        host_cpudef.model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
-        host_cpudef.stepping = eax & 0x0F;
+        cpu_x86_fill_model_id(model_id);
 
-        cpu_x86_fill_model_id(host_cpudef.model_id);
-
-        x86_cpu_load_def(cpu, &host_cpudef, &error_abort);
+        object_property_set_str(OBJECT(cpu), vendor, "vendor", &error_abort);
+        object_property_set_int(OBJECT(cpu), family, "family", &error_abort);
+        object_property_set_int(OBJECT(cpu), model, "model", &error_abort);
+        object_property_set_int(OBJECT(cpu), stepping, "stepping",
+                                &error_abort);
+        object_property_set_str(OBJECT(cpu), model_id, "model-id",
+                                &error_abort);
 
         env->cpuid_min_level =
             kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
