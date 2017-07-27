@@ -387,8 +387,6 @@ static const uint16_t qcode_to_keycode_set2[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_AC_REFRESH] = 0xe020,
     [Q_KEY_CODE_AC_BOOKMARKS] = 0xe018,
 
-    [Q_KEY_CODE_ALTGR] = 0x08,
-    [Q_KEY_CODE_ALTGR_R] = 0xe008,
     [Q_KEY_CODE_ASTERISK] = 0x7c,
     [Q_KEY_CODE_LESS] = 0x61,
     [Q_KEY_CODE_SYSRQ] = 0x7f,

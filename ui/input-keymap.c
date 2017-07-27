@@ -146,8 +146,6 @@ static const int qcode_to_number[] = {
 
     [Q_KEY_CODE_ALT] = 0x38,
     [Q_KEY_CODE_ALT_R] = 0xb8,
-    [Q_KEY_CODE_ALTGR] = 0x64,
-    [Q_KEY_CODE_ALTGR_R] = 0xe4,
     [Q_KEY_CODE_CTRL] = 0x1d,
     [Q_KEY_CODE_CTRL_R] = 0x9d,
 
