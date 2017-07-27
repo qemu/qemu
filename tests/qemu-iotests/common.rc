@@ -482,11 +482,6 @@ _full_imgfmt_details()
     fi
 }
 
-_full_imgproto_details()
-{
-    echo "$IMGPROTO"
-}
-
 _full_platform_details()
 {
     os=`uname -s`
