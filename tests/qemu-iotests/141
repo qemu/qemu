@@ -31,7 +31,7 @@ _cleanup()
 {
     _cleanup_qemu
     _cleanup_test_img
-    rm -f "$TEST_DIR/{b,m,o}.$IMGFMT"
+    rm -f "$TEST_DIR"/{b,m,o}.$IMGFMT
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
