@@ -50,6 +50,7 @@ static const SpiceKbdInterface kbd_interface = {
 
 static void kbd_push_key(SpiceKbdInstance *sin, uint8_t scancode)
 {
+    static const uint8_t pauseseq[] = { 0xe1, 0x1d, 0x45, 0xe1, 0x9d, 0xc5 };
     QemuSpiceKbd *kbd = container_of(sin, QemuSpiceKbd, sin);
     int keycode;
     bool up;
@@ -58,30 +59,23 @@ static void kbd_push_key(SpiceKbdInstance *sin, uint8_t scancode)
         kbd->emul0 = true;
         return;
     }
+
+    if (scancode == pauseseq[kbd->pauseseq]) {
+        kbd->pauseseq++;
+        if (kbd->pauseseq == G_N_ELEMENTS(pauseseq)) {
+            qemu_input_event_send_key_qcode(NULL, Q_KEY_CODE_PAUSE, true);
+            kbd->pauseseq = 0;
+        }
+        return;
+    } else {
+        kbd->pauseseq = 0;
+    }
+
     keycode = scancode & ~SCANCODE_UP;
     up = scancode & SCANCODE_UP;
     if (kbd->emul0) {
         kbd->emul0 = false;
         keycode |= SCANCODE_GREY;
-    }
-
-    if (scancode == SCANCODE_EMUL1) {
-        kbd->pauseseq++;
-        return;
-    } else if (kbd->pauseseq == 1) {
-        if (keycode == 0x1d) {
-            kbd->pauseseq++;
-            return;
-        } else {
-            kbd->pauseseq = 0;
-        }
-    } else if (kbd->pauseseq == 2) {
-        if (keycode == 0x45) {
-            qemu_input_event_send_key_qcode(NULL, Q_KEY_CODE_PAUSE, !up);
-            kbd->pauseseq = 0;
-            return;
-        }
-        kbd->pauseseq = 0;
     }
 
     qemu_input_event_send_key_number(NULL, keycode, !up);
