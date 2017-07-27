@@ -536,13 +536,13 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
     case 0xd94: /* MPU_CTRL */
         return cpu->env.v7m.mpu_ctrl;
     case 0xd98: /* MPU_RNR */
-        return cpu->env.cp15.c6_rgnr;
+        return cpu->env.pmsav7.rnr;
     case 0xd9c: /* MPU_RBAR */
     case 0xda4: /* MPU_RBAR_A1 */
     case 0xdac: /* MPU_RBAR_A2 */
     case 0xdb4: /* MPU_RBAR_A3 */
     {
-        int region = cpu->env.cp15.c6_rgnr;
+        int region = cpu->env.pmsav7.rnr;
 
         if (region >= cpu->pmsav7_dregion) {
             return 0;
@@ -554,7 +554,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
     case 0xdb0: /* MPU_RASR_A2 */
     case 0xdb8: /* MPU_RASR_A3 */
     {
-        int region = cpu->env.cp15.c6_rgnr;
+        int region = cpu->env.pmsav7.rnr;
 
         if (region >= cpu->pmsav7_dregion) {
             return 0;
@@ -681,7 +681,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
                           PRIu32 "/%" PRIu32 "\n",
                           value, cpu->pmsav7_dregion);
         } else {
-            cpu->env.cp15.c6_rgnr = value;
+            cpu->env.pmsav7.rnr = value;
         }
         break;
     case 0xd9c: /* MPU_RBAR */
@@ -702,9 +702,9 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
                               region, cpu->pmsav7_dregion);
                 return;
             }
-            cpu->env.cp15.c6_rgnr = region;
+            cpu->env.pmsav7.rnr = region;
         } else {
-            region = cpu->env.cp15.c6_rgnr;
+            region = cpu->env.pmsav7.rnr;
         }
 
         if (region >= cpu->pmsav7_dregion) {
@@ -720,7 +720,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
     case 0xdb0: /* MPU_RASR_A2 */
     case 0xdb8: /* MPU_RASR_A3 */
     {
-        int region = cpu->env.cp15.c6_rgnr;
+        int region = cpu->env.pmsav7.rnr;
 
         if (region >= cpu->pmsav7_dregion) {
             return;
