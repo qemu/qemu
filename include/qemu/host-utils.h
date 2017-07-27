@@ -369,13 +369,16 @@ static inline bool is_power_of_2(uint64_t value)
     return !(value & (value - 1));
 }
 
-/* round down to the nearest power of 2*/
-static inline int64_t pow2floor(int64_t value)
+/**
+ * Return @value rounded down to the nearest power of two or zero.
+ */
+static inline uint64_t pow2floor(uint64_t value)
 {
-    if (!is_power_of_2(value)) {
-        value = 0x8000000000000000ULL >> clz64(value);
+    if (!value) {
+        /* Avoid undefined shift by 64 */
+        return 0;
     }
-    return value;
+    return 0x8000000000000000ull >> clz64(value);
 }
 
 /* round up to the nearest power of 2 (0 if overflow) */
