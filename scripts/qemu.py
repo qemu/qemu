@@ -13,6 +13,7 @@
 #
 
 import errno
+import logging
 import string
 import os
 import sys
@@ -20,11 +21,19 @@ import subprocess
 import qmp.qmp
 
 
+logging.basicConfig()
+LOG = logging.getLogger(__name__)
+
+
 class QEMUMachine(object):
     '''A QEMU VM'''
 
     def __init__(self, binary, args=[], wrapper=[], name=None, test_dir="/var/tmp",
                  monitor_address=None, socket_scm_helper=None, debug=False):
+        if debug:
+            LOG.setLevel(logging.DEBUG)
+        else:
+            LOG.setLevel(logging.INFO)
         if name is None:
             name = "qemu-%d" % os.getpid()
         if monitor_address is None:
@@ -62,10 +71,10 @@ class QEMUMachine(object):
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
         if self._socket_scm_helper is None:
-            print >>sys.stderr, "No path to socket_scm_helper set"
+            LOG.error("No path to socket_scm_helper set")
             return -1
         if os.path.exists(self._socket_scm_helper) == False:
-            print >>sys.stderr, "%s does not exist" % self._socket_scm_helper
+            LOG.error("%s does not exist", self._socket_scm_helper)
             return -1
         fd_param = ["%s" % self._socket_scm_helper,
                     "%d" % self._qmp.get_sock_fd(),
@@ -154,7 +163,8 @@ class QEMUMachine(object):
 
             exitcode = self._popen.wait()
             if exitcode < 0:
-                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
+                LOG.error('qemu received signal %i: %s', -exitcode,
+                          ' '.join(self._args))
             self._load_io_log()
             self._post_shutdown()
 
