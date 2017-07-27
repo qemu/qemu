@@ -171,6 +171,29 @@ static const VMStateDescription vmstate_pmsav7 = {
     }
 };
 
+static bool pmsav7_rnr_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    /* For R profile cores pmsav7.rnr is migrated via the cpreg
+     * "RGNR" definition in helper.h. For M profile we have to
+     * migrate it separately.
+     */
+    return arm_feature(env, ARM_FEATURE_M);
+}
+
+static const VMStateDescription vmstate_pmsav7_rnr = {
+    .name = "cpu/pmsav7-rnr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pmsav7_rnr_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.pmsav7.rnr, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
                     VMStateField *field)
 {
@@ -377,6 +400,11 @@ const VMStateDescription vmstate_arm_cpu = {
         &vmstate_iwmmxt,
         &vmstate_m,
         &vmstate_thumb2ee,
+        /* pmsav7_rnr must come before pmsav7 so that we have the
+         * region number before we test it in the VMSTATE_VALIDATE
+         * in vmstate_pmsav7.
+         */
+        &vmstate_pmsav7_rnr,
         &vmstate_pmsav7,
         NULL
     }
