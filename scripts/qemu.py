@@ -13,6 +13,7 @@
 #
 
 import errno
+import logging
 import string
 import os
 import sys
@@ -20,17 +21,30 @@ import subprocess
 import qmp.qmp
 
 
+logging.basicConfig()
+LOG = logging.getLogger(__name__)
+
+
+class QEMULaunchError(Exception):
+    pass
+
+
 class QEMUMachine(object):
     '''A QEMU VM'''
 
     def __init__(self, binary, args=[], wrapper=[], name=None, test_dir="/var/tmp",
                  monitor_address=None, socket_scm_helper=None, debug=False):
+        if debug:
+            LOG.setLevel(logging.DEBUG)
+        else:
+            LOG.setLevel(logging.INFO)
         if name is None:
             name = "qemu-%d" % os.getpid()
         if monitor_address is None:
             monitor_address = os.path.join(test_dir, name + "-monitor.sock")
         self._monitor_address = monitor_address
         self._qemu_log_path = os.path.join(test_dir, name + ".log")
+        self._qemu_log_fd = None
         self._popen = None
         self._binary = binary
         self._args = list(args) # Force copy args in case we modify them
@@ -39,6 +53,9 @@ class QEMUMachine(object):
         self._iolog = None
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
+        self._qemu_full_args = None
+        self._created_files = []
+        self._pending_shutdown = False
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
@@ -62,15 +79,15 @@ class QEMUMachine(object):
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
         if self._socket_scm_helper is None:
-            print >>sys.stderr, "No path to socket_scm_helper set"
+            LOG.error("No path to socket_scm_helper set")
             return -1
         if os.path.exists(self._socket_scm_helper) == False:
-            print >>sys.stderr, "%s does not exist" % self._socket_scm_helper
+            LOG.error("%s does not exist", self._socket_scm_helper)
             return -1
         fd_param = ["%s" % self._socket_scm_helper,
                     "%d" % self._qmp.get_sock_fd(),
                     "%s" % fd_file_path]
-        devnull = open('/dev/null', 'rb')
+        devnull = open(os.path.devnull, 'rb')
         p = subprocess.Popen(fd_param, stdin=devnull, stdout=sys.stdout,
                              stderr=sys.stderr)
         return p.wait()
@@ -86,12 +103,12 @@ class QEMUMachine(object):
             raise
 
     def is_running(self):
-        return self._popen and (self._popen.returncode is None)
+        return self._popen is not None and (self._popen.poll() is None)
 
     def exitcode(self):
         if self._popen is None:
             return None
-        return self._popen.returncode
+        return self._popen.poll()
 
     def get_pid(self):
         if not self.is_running():
@@ -99,8 +116,9 @@ class QEMUMachine(object):
         return self._popen.pid
 
     def _load_io_log(self):
-        with open(self._qemu_log_path, "r") as fh:
-            self._iolog = fh.read()
+        if os.path.exists(self._qemu_log_path):
+            with open(self._qemu_log_path, "r") as fh:
+                self._iolog = fh.read()
 
     def _base_args(self):
         if isinstance(self._monitor_address, tuple):
@@ -114,34 +132,71 @@ class QEMUMachine(object):
                 '-display', 'none', '-vga', 'none']
 
     def _pre_launch(self):
-        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address, server=True,
+        if (not isinstance(self._monitor_address, tuple) and
+                os.path.exists(self._monitor_address)):
+            raise QEMULaunchError('File %s exists. Please remove it.' %
+                                  self._monitor_address)
+
+        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address,
+                                                server=True,
                                                 debug=self._debug)
+        if not isinstance(self._monitor_address, tuple):
+            self._created_files.append(self._monitor_address)
+
+        if os.path.exists(self._qemu_log_path):
+            raise QEMULaunchError('File %s exists. Please remove it.' %
+                                  self._qemu_log_path)
+
+        self._qemu_log_fd = open(self._qemu_log_path, 'wb')
+        self._created_files.append(self._qemu_log_path)
 
     def _post_launch(self):
         self._qmp.accept()
 
     def _post_shutdown(self):
-        if not isinstance(self._monitor_address, tuple):
-            self._remove_if_exists(self._monitor_address)
-        self._remove_if_exists(self._qemu_log_path)
+        while self._created_files:
+            self._remove_if_exists(self._created_files.pop())
 
     def launch(self):
-        '''Launch the VM and establish a QMP connection'''
-        devnull = open('/dev/null', 'rb')
-        qemulog = open(self._qemu_log_path, 'wb')
+        '''
+        Try to launch the VM and make sure we cleanup and expose the
+        command line/output in case of exception.
+        '''
+
+        if self.is_running():
+            raise QEMULaunchError('VM already running.')
+
+        if self._pending_shutdown:
+            raise QEMULaunchError('Shutdown after the previous launch '
+                                  'is pending. Please call shutdown() '
+                                  'before launching again.')
+
         try:
-            self._pre_launch()
-            args = self._wrapper + [self._binary] + self._base_args() + self._args
-            self._popen = subprocess.Popen(args, stdin=devnull, stdout=qemulog,
-                                           stderr=subprocess.STDOUT, shell=False)
-            self._post_launch()
+            self._iolog = None
+            self._qemu_full_args = None
+            self._qemu_full_args = (self._wrapper + [self._binary] +
+                                    self._base_args() + self._args)
+            self._launch()
+            self._pending_shutdown = True
         except:
-            if self.is_running():
-                self._popen.kill()
-                self._popen.wait()
-            self._load_io_log()
-            self._post_shutdown()
+            self.shutdown()
+            LOG.debug('Error launching VM.%s%s',
+                      ' Command: %r.' % ' '.join(self._qemu_full_args)
+                      if self._qemu_full_args else '',
+                      ' Output: %r.' % self._iolog
+                      if self._iolog else '')
             raise
+
+    def _launch(self):
+        '''Launch the VM and establish a QMP connection.'''
+        self._pre_launch()
+        devnull = open(os.path.devnull, 'rb')
+        self._popen = subprocess.Popen(self._qemu_full_args,
+                                       stdin=devnull,
+                                       stdout=self._qemu_log_fd,
+                                       stderr=subprocess.STDOUT,
+                                       shell=False)
+        self._post_launch()
 
     def shutdown(self):
         '''Terminate the VM and clean up'''
@@ -151,12 +206,18 @@ class QEMUMachine(object):
                 self._qmp.close()
             except:
                 self._popen.kill()
+            self._popen.wait()
 
-            exitcode = self._popen.wait()
-            if exitcode < 0:
-                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
-            self._load_io_log()
-            self._post_shutdown()
+        if self._pending_shutdown:
+            exit_code = self.exitcode()
+            if exit_code is not None and exit_code < 0:
+                LOG.error('qemu received signal %i: %s', -exit_code,
+                          ' Command: %r.' % ' '.join(self._qemu_full_args)
+                          if self._qemu_full_args else '')
+
+        self._load_io_log()
+        self._post_shutdown()
+        self._pending_shutdown = False
 
     underscore_to_dash = string.maketrans('_', '-')
     def qmp(self, cmd, conv_keys=True, **args):
