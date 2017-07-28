@@ -795,6 +795,10 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
     if (!ccw_addr) {
         return -EIO;
     }
+    /* Check doubleword aligned and 31 or 24 (fmt 0) bit addressable. */
+    if (ccw_addr & (sch->ccw_fmt_1 ? 0x80000007 : 0xff000007)) {
+        return -EINVAL;
+    }
 
     /* Translate everything to format-1 ccws - the information is the same. */
     ccw = copy_ccw_from_guest(ccw_addr, sch->ccw_fmt_1);
@@ -881,7 +885,8 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
             ret = -EINVAL;
             break;
         }
-        if (ccw.flags & (CCW_FLAG_CC | CCW_FLAG_DC)) {
+        if (ccw.flags || ccw.count) {
+            /* We have already sanitized these if converted from fmt 0. */
             ret = -EINVAL;
             break;
         }
