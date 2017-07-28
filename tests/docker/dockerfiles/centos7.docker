@@ -1,0 +1,31 @@
+FROM centos:7
+RUN yum install -y epel-release centos-release-xen
+RUN yum -y update
+ENV PACKAGES \
+    bison \
+    bzip2-devel \
+    ccache \
+    csnappy-devel \
+    flex \
+    g++ \
+    gcc \
+    git \
+    glib2-devel \
+    libepoxy-devel \
+    libfdt-devel \
+    librdmacm-devel \
+    lzo-devel \
+    make \
+    mesa-libEGL-devel \
+    mesa-libgbm-devel \
+    pixman-devel \
+    SDL-devel \
+    spice-glib-devel \
+    spice-server-devel \
+    tar \
+    vte-devel \
+    xen-devel \
+    zlib-devel
+RUN yum install -y $PACKAGES
+RUN rpm -q $PACKAGES | sort > /packages.txt
+
