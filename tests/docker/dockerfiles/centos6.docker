@@ -1,5 +1,5 @@
 FROM centos:6
-RUN yum install -y epel-release
+RUN yum install -y epel-release centos-release-xen
 ENV PACKAGES \
     bison \
     ccache \
@@ -13,6 +13,7 @@ ENV PACKAGES \
     pixman-devel \
     SDL-devel \
     tar \
+    xen-devel \
     zlib-devel
 RUN yum install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
