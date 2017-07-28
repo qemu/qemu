@@ -160,7 +160,17 @@ typedef enum {
 
     INSN_DMB_ISH   = 0x5bf07ff5,
     INSN_DMB_MCR   = 0xba0f07ee,
+
+    /* Architected nop introduced in v6k.  */
+    /* ??? This is an MSR (imm) 0,0,0 insn.  Anyone know if this
+       also Just So Happened to do nothing on pre-v6k so that we
+       don't need to conditionalize it?  */
+    INSN_NOP_v6k   = 0xe320f000,
+    /* Otherwise the assembler uses mov r0,r0 */
+    INSN_NOP_v4    = (COND_AL << 28) | ARITH_MOV,
 } ARMInsn;
+
+#define INSN_NOP   (use_armv7_instructions ? INSN_NOP_v6k : INSN_NOP_v4)
 
 static const uint8_t tcg_cond_to_arm_cond[] = {
     [TCG_COND_EQ] = COND_EQ,
@@ -375,16 +385,7 @@ static inline void tcg_out_dat_reg(TCGContext *s,
 
 static inline void tcg_out_nop(TCGContext *s)
 {
-    if (use_armv7_instructions) {
-        /* Architected nop introduced in v6k.  */
-        /* ??? This is an MSR (imm) 0,0,0 insn.  Anyone know if this
-           also Just So Happened to do nothing on pre-v6k so that we
-           don't need to conditionalize it?  */
-        tcg_out32(s, 0xe320f000);
-    } else {
-        /* Prior to that the assembler uses mov r0, r0.  */
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV, 0, 0, 0, SHIFT_IMM_LSL(0));
-    }
+    tcg_out32(s, INSN_NOP);
 }
 
 static inline void tcg_out_mov_reg(TCGContext *s, int cond, int rd, int rm)
