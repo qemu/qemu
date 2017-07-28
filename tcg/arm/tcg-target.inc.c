@@ -23,6 +23,7 @@
  */
 
 #include "elf.h"
+#include "tcg-pool.inc.c"
 
 int arm_arch = __ARM_ARCH;
 
@@ -203,9 +204,39 @@ static inline void reloc_pc24_atomic(tcg_insn_unit *code_ptr, tcg_insn_unit *tar
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
-    tcg_debug_assert(type == R_ARM_PC24);
     tcg_debug_assert(addend == 0);
-    reloc_pc24(code_ptr, (tcg_insn_unit *)value);
+
+    if (type == R_ARM_PC24) {
+        reloc_pc24(code_ptr, (tcg_insn_unit *)value);
+    } else if (type == R_ARM_PC13) {
+        intptr_t diff = value - (uintptr_t)(code_ptr + 2);
+        tcg_insn_unit insn = *code_ptr;
+        bool u;
+
+        if (diff >= -0xfff && diff <= 0xfff) {
+            u = (diff >= 0);
+            if (!u) {
+                diff = -diff;
+            }
+        } else {
+            int rd = extract32(insn, 12, 4);
+            int rt = rd == TCG_REG_PC ? TCG_REG_TMP : rd;
+            assert(diff >= 0x1000 && diff < 0x100000);
+            /* add rt, pc, #high */
+            *code_ptr++ = ((insn & 0xf0000000) | (1 << 25) | ARITH_ADD
+                           | (TCG_REG_PC << 16) | (rt << 12)
+                           | (20 << 7) | (diff >> 12));
+            /* ldr rd, [rt, #low] */
+            insn = deposit32(insn, 12, 4, rt);
+            diff &= 0xfff;
+            u = 1;
+        }
+        insn = deposit32(insn, 23, 1, u);
+        insn = deposit32(insn, 0, 12, diff);
+        *code_ptr = insn;
+    } else {
+        g_assert_not_reached();
+    }
 }
 
 #define TCG_CT_CONST_ARM  0x100
@@ -581,9 +612,20 @@ static inline void tcg_out_ld8s_r(TCGContext *s, int cond, TCGReg rt,
     tcg_out_memop_r(s, cond, INSN_LDRSB_REG, rt, rn, rm, 1, 1, 0);
 }
 
+static void tcg_out_movi_pool(TCGContext *s, int cond, int rd, uint32_t arg)
+{
+    /* The 12-bit range on the ldr insn is sometimes a bit too small.
+       In order to get around that we require two insns, one of which
+       will usually be a nop, but may be replaced in patch_reloc.  */
+    new_pool_label(s, arg, R_ARM_PC13, s->code_ptr, 0);
+    tcg_out_ld32_12(s, cond, rd, TCG_REG_PC, 0);
+    tcg_out_nop(s);
+}
+
 static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
 {
-    int rot, opc, rn, diff;
+    int rot, diff, opc, sh1, sh2;
+    uint32_t tt0, tt1, tt2;
 
     /* Check a single MOV/MVN before anything else.  */
     rot = encode_imm(arg);
@@ -631,24 +673,30 @@ static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
         return;
     }
 
-    /* TODO: This is very suboptimal, we can easily have a constant
-       pool somewhere after all the instructions.  */
+    /* Look for sequences of two insns.  If we have lots of 1's, we can
+       shorten the sequence by beginning with mvn and then clearing
+       higher bits with eor.  */
+    tt0 = arg;
     opc = ARITH_MOV;
-    rn = 0;
-    /* If we have lots of leading 1's, we can shorten the sequence by
-       beginning with mvn and then clearing higher bits with eor.  */
-    if (clz32(~arg) > clz32(arg)) {
-        opc = ARITH_MVN, arg = ~arg;
+    if (ctpop32(arg) > 16) {
+        tt0 = ~arg;
+        opc = ARITH_MVN;
     }
-    do {
-        int i = ctz32(arg) & ~1;
-        rot = ((32 - i) << 7) & 0xf00;
-        tcg_out_dat_imm(s, cond, opc, rd, rn, ((arg >> i) & 0xff) | rot);
-        arg &= ~(0xff << i);
+    sh1 = ctz32(tt0) & ~1;
+    tt1 = tt0 & ~(0xff << sh1);
+    sh2 = ctz32(tt1) & ~1;
+    tt2 = tt1 & ~(0xff << sh2);
+    if (tt2 == 0) {
+        rot = ((32 - sh1) << 7) & 0xf00;
+        tcg_out_dat_imm(s, cond, opc, rd,  0, ((tt0 >> sh1) & 0xff) | rot);
+        rot = ((32 - sh2) << 7) & 0xf00;
+        tcg_out_dat_imm(s, cond, ARITH_EOR, rd, rd,
+                        ((tt0 >> sh2) & 0xff) | rot);
+        return;
+    }
 
-        opc = ARITH_EOR;
-        rn = rd;
-    } while (arg);
+    /* Otherwise, drop it into the constant pool.  */
+    tcg_out_movi_pool(s, cond, rd, arg);
 }
 
 static inline void tcg_out_dat_rI(TCGContext *s, int cond, int opc, TCGArg dst,
@@ -2162,6 +2210,14 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
                                 TCGReg ret, tcg_target_long arg)
 {
     tcg_out_movi32(s, COND_AL, ret, arg);
+}
+
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+{
+    int i;
+    for (i = 0; i < count; ++i) {
+        p[i] = INSN_NOP;
+    }
 }
 
 /* Compute frame size via macros, to share between tcg_target_qemu_prologue
