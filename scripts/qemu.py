@@ -86,7 +86,7 @@ class QEMUMachine(object):
             raise
 
     def is_running(self):
-        return self._popen and (self._popen.poll() is None)
+        return self._popen is not None and (self._popen.poll() is None)
 
     def exitcode(self):
         if self._popen is None:
