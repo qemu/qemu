@@ -1,4 +1,4 @@
-# See docs/tracing.txt for syntax documentation.
+# See docs/devel/tracing.txt for syntax documentation.
 
 # net/vhost-user.c
 vhost_user_event(const char *chr, int event) "chr: %s got event: %d"

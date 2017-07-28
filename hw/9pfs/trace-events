@@ -1,4 +1,4 @@
-# See docs/tracing.txt for syntax documentation.
+# See docs/devel/tracing.txt for syntax documentation.
 
 # hw/9pfs/virtio-9p.c
 v9fs_rerror(uint16_t tag, uint8_t id, int err) "tag %d id %d err %d"

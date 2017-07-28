@@ -1,4 +1,4 @@
-# See docs/tracing.txt for syntax documentation.
+# See docs/devel/tracing.txt for syntax documentation.
 
 # util/aio-posix.c
 run_poll_handlers_begin(void *ctx, int64_t max_ns) "ctx %p max_ns %"PRId64

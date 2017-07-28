@@ -1,4 +1,4 @@
-# See docs/tracing.txt for syntax documentation.
+# See docs/devel/tracing.txt for syntax documentation.
 
 # hw/intc/apic_common.c
 cpu_set_apic_base(uint64_t val) "%016"PRIx64
