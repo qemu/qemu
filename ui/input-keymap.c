@@ -116,6 +116,7 @@ static int linux_to_qcode[KEY_CNT] = {
     [KEY_LEFTMETA]       = Q_KEY_CODE_META_L,
     [KEY_RIGHTMETA]      = Q_KEY_CODE_META_R,
     [KEY_MENU]           = Q_KEY_CODE_MENU,
+    [KEY_PAUSE]          = Q_KEY_CODE_PAUSE,
 
     [KEY_SLEEP]          = Q_KEY_CODE_SLEEP,
     [KEY_WAKEUP]         = Q_KEY_CODE_WAKE,
