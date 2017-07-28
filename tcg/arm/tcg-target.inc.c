@@ -1054,10 +1054,7 @@ static void tcg_out_goto(TCGContext *s, int cond, tcg_insn_unit *addr)
         tcg_out_b(s, cond, disp);
         return;
     }
-
-    assert(use_armv5t_instructions || (addri & 1) == 0);
-    tcg_out_movi32(s, cond, TCG_REG_TMP, addri);
-    tcg_out_bx(s, cond, TCG_REG_TMP);
+    tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
 }
 
 /* The call case is mostly used for helpers - so it's not unreasonable
@@ -1081,9 +1078,9 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *addr)
         tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
         tcg_out_blx(s, COND_AL, TCG_REG_TMP);
     } else {
+        /* ??? Know that movi_pool emits exactly 2 insns.  */
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R14, TCG_REG_PC, 4);
-        tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_PC, -4);
-        tcg_out32(s, addri);
+        tcg_out_movi_pool(s, COND_AL, TCG_REG_PC, addri);
     }
 }
 
