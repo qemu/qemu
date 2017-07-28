@@ -1,8 +1,18 @@
 FROM centos:6
 RUN yum install -y epel-release
-ENV PACKAGES libfdt-devel ccache \
-    tar git make gcc g++ flex bison \
-    zlib-devel glib2-devel SDL-devel pixman-devel \
-    epel-release
+ENV PACKAGES \
+    bison \
+    ccache \
+    flex \
+    g++ \
+    gcc \
+    git \
+    glib2-devel \
+    libfdt-devel \
+    make \
+    pixman-devel \
+    SDL-devel \
+    tar \
+    zlib-devel
 RUN yum install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
