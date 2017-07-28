@@ -158,7 +158,10 @@ class QEMUMachine(object):
             self._remove_if_exists(self._created_files.pop())
 
     def launch(self):
-        '''Launch the VM and establish a QMP connection'''
+        '''
+        Try to launch the VM and make sure we cleanup and expose the
+        command line/output in case of exception.
+        '''
 
         if self.is_running():
             raise QEMULaunchError('VM already running.')
@@ -169,6 +172,7 @@ class QEMUMachine(object):
                                   'before launching again.')
 
         try:
+            self._iolog = None
             self._qemu_full_args = None
             self._qemu_full_args = (self._wrapper + [self._binary] +
                                     self._base_args() + self._args)
@@ -176,9 +180,15 @@ class QEMUMachine(object):
             self._pending_shutdown = True
         except:
             self.shutdown()
+            LOG.debug('Error launching VM.%s%s',
+                      ' Command: %r.' % ' '.join(self._qemu_full_args)
+                      if self._qemu_full_args else '',
+                      ' Output: %r.' % self._iolog
+                      if self._iolog else '')
             raise
 
     def _launch(self):
+        '''Launch the VM and establish a QMP connection.'''
         self._pre_launch()
         devnull = open(os.path.devnull, 'rb')
         self._popen = subprocess.Popen(self._qemu_full_args,
