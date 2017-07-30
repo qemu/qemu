@@ -22,8 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "tcg-be-ldst.h"
-
 #if defined _CALL_DARWIN || defined __APPLE__
 #define TCG_TARGET_CALL_DARWIN
 #endif
@@ -1418,6 +1416,8 @@ static const uint32_t qemu_exts_opc[4] = {
 };
 
 #if defined (CONFIG_SOFTMMU)
+#include "tcg-ldst.inc.c"
+
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
  *                                 int mmu_idx, uintptr_t ra)
  */

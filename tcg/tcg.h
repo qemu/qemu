@@ -712,8 +712,10 @@ struct TCGContext {
     CPUState *cpu;                      /* *_trans */
     TCGv_env tcg_env;                   /* *_exec  */
 
-    /* The TCGBackendData structure is private to tcg-target.inc.c.  */
-    struct TCGBackendData *be;
+    /* These structures are private to tcg-target.inc.c.  */
+#ifdef TCG_TARGET_NEED_LDST_LABELS
+    struct TCGLabelQemuLdst *ldst_labels;
+#endif
 
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */

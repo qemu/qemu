@@ -112,10 +112,9 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
 static void tcg_out_call(TCGContext *s, tcg_insn_unit *target);
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct);
-static void tcg_out_tb_init(TCGContext *s);
-static bool tcg_out_tb_finalize(TCGContext *s);
-
-
+#ifdef TCG_TARGET_NEED_LDST_LABELS
+static bool tcg_out_ldst_finalize(TCGContext *s);
+#endif
 
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
@@ -470,8 +469,6 @@ void tcg_func_start(TCGContext *s)
     s->gen_op_buf[0].prev = 0;
     s->gen_next_op_idx = 1;
     s->gen_next_parm_idx = 0;
-
-    s->be = tcg_malloc(sizeof(TCGBackendData));
 }
 
 static inline int temp_idx(TCGContext *s, TCGTemp *ts)
@@ -2619,7 +2616,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     s->code_buf = tb->tc_ptr;
     s->code_ptr = tb->tc_ptr;
 
-    tcg_out_tb_init(s);
+#ifdef TCG_TARGET_NEED_LDST_LABELS
+    s->ldst_labels = NULL;
+#endif
 
     num_insns = -1;
     for (oi = s->gen_op_buf[0].next; oi != 0; oi = oi_next) {
@@ -2694,9 +2693,11 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
     /* Generate TB finalization at the end of block */
-    if (!tcg_out_tb_finalize(s)) {
+#ifdef TCG_TARGET_NEED_LDST_LABELS
+    if (!tcg_out_ldst_finalize(s)) {
         return -1;
     }
+#endif
 
     /* flush instruction cache */
     flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);

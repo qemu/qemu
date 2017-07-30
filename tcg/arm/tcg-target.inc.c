@@ -23,7 +23,6 @@
  */
 
 #include "elf.h"
-#include "tcg-be-ldst.h"
 
 int arm_arch = __ARM_ARCH;
 
@@ -1060,6 +1059,8 @@ static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
 }
 
 #ifdef CONFIG_SOFTMMU
+#include "tcg-ldst.inc.c"
+
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
  */

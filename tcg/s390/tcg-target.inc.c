@@ -24,8 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include "tcg-be-ldst.h"
-
 /* We only support generating code for 64-bit mode.  */
 #if TCG_TARGET_REG_BITS != 64
 #error "unsupported code generation mode"
@@ -1458,6 +1456,8 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
 }
 
 #if defined(CONFIG_SOFTMMU)
+#include "tcg-ldst.inc.c"
+
 /* We're expecting to use a 20-bit signed offset on the tlb memory ops.
    Using the offset of the second entry in the last tlb table ensures
    that we can index all of the elements of the first entry.  */

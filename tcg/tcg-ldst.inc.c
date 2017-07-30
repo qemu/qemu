@@ -20,8 +20,6 @@
  * THE SOFTWARE.
  */
 
-#ifdef CONFIG_SOFTMMU
-
 typedef struct TCGLabelQemuLdst {
     bool is_ld;             /* qemu_ld: true, qemu_st: false */
     TCGMemOpIdx oi;
@@ -35,19 +33,6 @@ typedef struct TCGLabelQemuLdst {
     struct TCGLabelQemuLdst *next;
 } TCGLabelQemuLdst;
 
-typedef struct TCGBackendData {
-    TCGLabelQemuLdst *labels;
-} TCGBackendData;
-
-
-/*
- * Initialize TB backend data at the beginning of the TB.
- */
-
-static inline void tcg_out_tb_init(TCGContext *s)
-{
-    s->be->labels = NULL;
-}
 
 /*
  * Generate TB finalization at the end of block
@@ -56,12 +41,12 @@ static inline void tcg_out_tb_init(TCGContext *s)
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
 
-static bool tcg_out_tb_finalize(TCGContext *s)
+static bool tcg_out_ldst_finalize(TCGContext *s)
 {
     TCGLabelQemuLdst *lb;
 
     /* qemu_ld/st slow paths */
-    for (lb = s->be->labels; lb != NULL; lb = lb->next) {
+    for (lb = s->ldst_labels; lb != NULL; lb = lb->next) {
         if (lb->is_ld) {
             tcg_out_qemu_ld_slow_path(s, lb);
         } else {
@@ -85,13 +70,9 @@ static bool tcg_out_tb_finalize(TCGContext *s)
 
 static inline TCGLabelQemuLdst *new_ldst_label(TCGContext *s)
 {
-    TCGBackendData *be = s->be;
     TCGLabelQemuLdst *l = tcg_malloc(sizeof(*l));
 
-    l->next = be->labels;
-    be->labels = l;
+    l->next = s->ldst_labels;
+    s->ldst_labels = l;
     return l;
 }
-#else
-#include "tcg-be-null.h"
-#endif /* CONFIG_SOFTMMU */
