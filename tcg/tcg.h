@@ -702,6 +702,7 @@ struct TCGContext {
     void *code_gen_buffer;
     size_t code_gen_buffer_size;
     void *code_gen_ptr;
+    void *data_gen_ptr;
 
     /* Threshold to flush the translated code buffer.  */
     void *code_gen_highwater;
@@ -715,6 +716,9 @@ struct TCGContext {
     /* These structures are private to tcg-target.inc.c.  */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     struct TCGLabelQemuLdst *ldst_labels;
+#endif
+#ifdef TCG_TARGET_NEED_POOL_LABELS
+    struct TCGLabelPoolData *pool_labels;
 #endif
 
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];

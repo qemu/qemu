@@ -399,6 +399,7 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
         return NULL;
     }
     s->code_gen_ptr = next;
+    s->data_gen_ptr = NULL;
     return tb;
 }
 
@@ -2619,6 +2620,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     s->ldst_labels = NULL;
 #endif
+#ifdef TCG_TARGET_NEED_POOL_LABELS
+    s->pool_labels = NULL;
+#endif
 
     num_insns = -1;
     for (oi = s->gen_op_buf[0].next; oi != 0; oi = oi_next) {
@@ -2695,6 +2699,11 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     /* Generate TB finalization at the end of block */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     if (!tcg_out_ldst_finalize(s)) {
+        return -1;
+    }
+#endif
+#ifdef TCG_TARGET_NEED_POOL_LABELS
+    if (!tcg_out_pool_finalize(s)) {
         return -1;
     }
 #endif
