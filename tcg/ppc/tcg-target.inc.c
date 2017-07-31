@@ -593,11 +593,26 @@ static inline void tcg_out_shri64(TCGContext *s, TCGReg dst, TCGReg src, int c)
     tcg_out_rld(s, RLDICL, dst, src, 64 - c, c);
 }
 
+/* Emit a move into ret of arg, if it can be done in one insn.  */
+static bool tcg_out_movi_one(TCGContext *s, TCGReg ret, tcg_target_long arg)
+{
+    if (arg == (int16_t)arg) {
+        tcg_out32(s, ADDI | TAI(ret, 0, arg));
+        return true;
+    }
+    if (arg == (int32_t)arg && (arg & 0xffff) == 0) {
+        tcg_out32(s, ADDIS | TAI(ret, 0, arg >> 16));
+        return true;
+    }
+    return false;
+}
+
 static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
                              tcg_target_long arg, bool in_prologue)
 {
     intptr_t tb_diff;
-    int32_t high;
+    tcg_target_long tmp;
+    int shift;
 
     tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
 
@@ -606,8 +621,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     }
 
     /* Load 16-bit immediates with one insn.  */
-    if (arg == (int16_t)arg) {
-        tcg_out32(s, ADDI | TAI(ret, 0, arg));
+    if (tcg_out_movi_one(s, ret, arg)) {
         return;
     }
 
@@ -618,17 +632,41 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
         return;
     }
 
-    /* Load 32-bit immediates with two insns.  */
+    /* Load 32-bit immediates with two insns.  Note that we've already
+       eliminated bare ADDIS, so we know both insns are required.  */
     if (TCG_TARGET_REG_BITS == 32 || arg == (int32_t)arg) {
         tcg_out32(s, ADDIS | TAI(ret, 0, arg >> 16));
-        if (arg & 0xffff) {
-            tcg_out32(s, ORI | SAI(ret, ret, arg));
-        }
+        tcg_out32(s, ORI | SAI(ret, ret, arg));
         return;
     }
     if (arg == (uint32_t)arg && !(arg & 0x8000)) {
         tcg_out32(s, ADDI | TAI(ret, 0, arg));
         tcg_out32(s, ORIS | SAI(ret, ret, arg >> 16));
+        return;
+    }
+
+    /* Load masked 16-bit value.  */
+    if (arg > 0 && (arg & 0x8000)) {
+        tmp = arg | 0x7fff;
+        if ((tmp & (tmp + 1)) == 0) {
+            int mb = clz64(tmp + 1) + 1;
+            tcg_out32(s, ADDI | TAI(ret, 0, arg));
+            tcg_out_rld(s, RLDICL, ret, ret, 0, mb);
+            return;
+        }
+    }
+
+    /* Load common masks with 2 insns.  */
+    shift = ctz64(arg);
+    tmp = arg >> shift;
+    if (tmp == (int16_t)tmp) {
+        tcg_out32(s, ADDI | TAI(ret, 0, tmp));
+        tcg_out_shli64(s, ret, ret, shift);
+        return;
+    }
+    shift = clz64(arg);
+    if (tcg_out_movi_one(s, ret, arg << shift)) {
+        tcg_out_shri64(s, ret, ret, shift);
         return;
     }
 
@@ -638,9 +676,9 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
         return;
     }
 
-    high = arg >> 31 >> 1;
-    tcg_out_movi(s, TCG_TYPE_I32, ret, high);
-    if (high) {
+    tmp = arg >> 31 >> 1;
+    tcg_out_movi(s, TCG_TYPE_I32, ret, tmp);
+    if (tmp) {
         tcg_out_shli64(s, ret, ret, 32);
     }
     if (arg & 0xffff0000) {
