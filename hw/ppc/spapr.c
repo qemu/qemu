@@ -776,11 +776,6 @@ static int spapr_dt_cas_updates(sPAPRMachineState *spapr, void *fdt,
         }
     }
 
-    /* /interrupt controller */
-    if (!spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)) {
-        spapr_dt_xics(xics_max_server_number(), fdt, PHANDLE_XICP);
-    }
-
     offset = fdt_path_offset(fdt, "/chosen");
     if (offset < 0) {
         offset = fdt_add_subnode(fdt, 0, "chosen");
@@ -804,7 +799,7 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
 
     size -= sizeof(hdr);
 
-    /* Create skeleton */
+    /* Create sceleton */
     fdt_skel = g_malloc0(size);
     _FDT((fdt_create(fdt_skel, size)));
     _FDT((fdt_begin_node(fdt_skel, "")));
@@ -1076,6 +1071,9 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
 
     _FDT(fdt_setprop_cell(fdt, 0, "#address-cells", 2));
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
+
+    /* /interrupt controller */
+    spapr_dt_xics(xics_max_server_number(), fdt, PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
