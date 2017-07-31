@@ -6386,8 +6386,6 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         default:
             goto cp0_unimplemented;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     default:
        goto cp0_unimplemented;
@@ -7714,8 +7712,6 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         default:
             goto cp0_unimplemented;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     default:
         goto cp0_unimplemented;
