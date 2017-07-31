@@ -24,6 +24,8 @@
 #include "hw/hw.h"
 #include "hw/mips/cpudevs.h"
 
+static int mips_um_ksegs;
+
 uint64_t cpu_mips_kseg0_to_phys(void *opaque, uint64_t addr)
 {
     return addr & 0x1fffffffll;
@@ -37,4 +39,14 @@ uint64_t cpu_mips_phys_to_kseg0(void *opaque, uint64_t addr)
 uint64_t cpu_mips_kvm_um_phys_to_kseg0(void *opaque, uint64_t addr)
 {
     return addr | 0x40000000ll;
+}
+
+bool mips_um_ksegs_enabled(void)
+{
+    return mips_um_ksegs;
+}
+
+void mips_um_ksegs_enable(void)
+{
+    mips_um_ksegs = 1;
 }

@@ -19,10 +19,10 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
-#include "sysemu/kvm.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
+#include "hw/mips/cpudevs.h"
 
 enum {
     TLBRET_XI = -6,
@@ -225,7 +225,7 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
 #define KVM_KSEG0_BASE  ((target_ulong)(int32_t)0x40000000UL)
 #define KVM_KSEG2_BASE  ((target_ulong)(int32_t)0x60000000UL)
 
-    if (kvm_enabled()) {
+    if (mips_um_ksegs_enabled()) {
         /* KVM T&E adds guest kernel segments in useg */
         if (real_address >= KVM_KSEG0_BASE) {
             if (real_address < KVM_KSEG2_BASE) {

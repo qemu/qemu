@@ -818,23 +818,20 @@ static int64_t load_kernel (void)
         exit(1);
     }
 
-    /* Sanity check where the kernel has been linked */
-    if (kvm_enabled()) {
-        if (kernel_entry & 0x80000000ll) {
+    /* Check where the kernel has been linked */
+    if (kernel_entry & 0x80000000ll) {
+        if (kvm_enabled()) {
             error_report("KVM guest kernels must be linked in useg. "
                          "Did you forget to enable CONFIG_KVM_GUEST?");
             exit(1);
         }
 
-        xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
-    } else {
-        if (!(kernel_entry & 0x80000000ll)) {
-            error_report("KVM guest kernels aren't supported with TCG. "
-                         "Did you unintentionally enable CONFIG_KVM_GUEST?");
-            exit(1);
-        }
-
         xlate_to_kseg0 = cpu_mips_phys_to_kseg0;
+    } else {
+        /* if kernel entry is in useg it is probably a KVM T&E kernel */
+        mips_um_ksegs_enable();
+
+        xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
     }
 
     /* load initrd */
