@@ -216,14 +216,14 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
     /* effective address (modified for KVM T&E kernel segments) */
     target_ulong address = real_address;
 
-#define USEG_LIMIT      0x7FFFFFFFUL
-#define KSEG0_BASE      0x80000000UL
-#define KSEG1_BASE      0xA0000000UL
-#define KSEG2_BASE      0xC0000000UL
-#define KSEG3_BASE      0xE0000000UL
+#define USEG_LIMIT      ((target_ulong)(int32_t)0x7FFFFFFFUL)
+#define KSEG0_BASE      ((target_ulong)(int32_t)0x80000000UL)
+#define KSEG1_BASE      ((target_ulong)(int32_t)0xA0000000UL)
+#define KSEG2_BASE      ((target_ulong)(int32_t)0xC0000000UL)
+#define KSEG3_BASE      ((target_ulong)(int32_t)0xE0000000UL)
 
-#define KVM_KSEG0_BASE  0x40000000UL
-#define KVM_KSEG2_BASE  0x60000000UL
+#define KVM_KSEG0_BASE  ((target_ulong)(int32_t)0x40000000UL)
+#define KVM_KSEG2_BASE  ((target_ulong)(int32_t)0x60000000UL)
 
     if (kvm_enabled()) {
         /* KVM T&E adds guest kernel segments in useg */
@@ -307,17 +307,17 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
             ret = TLBRET_BADADDR;
         }
 #endif
-    } else if (address < (int32_t)KSEG1_BASE) {
+    } else if (address < KSEG1_BASE) {
         /* kseg0 */
         ret = get_segctl_physical_address(env, physical, prot, real_address, rw,
                                           access_type, mmu_idx,
                                           env->CP0_SegCtl1 >> 16, 0x1FFFFFFF);
-    } else if (address < (int32_t)KSEG2_BASE) {
+    } else if (address < KSEG2_BASE) {
         /* kseg1 */
         ret = get_segctl_physical_address(env, physical, prot, real_address, rw,
                                           access_type, mmu_idx,
                                           env->CP0_SegCtl1, 0x1FFFFFFF);
-    } else if (address < (int32_t)KSEG3_BASE) {
+    } else if (address < KSEG3_BASE) {
         /* sseg (kseg2) */
         ret = get_segctl_physical_address(env, physical, prot, real_address, rw,
                                           access_type, mmu_idx,
@@ -974,8 +974,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         } else if (cause == 30 && !(env->CP0_Config3 & (1 << CP0C3_SC) &&
                                     env->CP0_Config5 & (1 << CP0C5_CV))) {
             /* Force KSeg1 for cache errors */
-            env->active_tc.PC = (int32_t)KSEG1_BASE |
-                                (env->CP0_EBase & 0x1FFFF000);
+            env->active_tc.PC = KSEG1_BASE | (env->CP0_EBase & 0x1FFFF000);
         } else {
             env->active_tc.PC = env->CP0_EBase & ~0xfff;
         }
