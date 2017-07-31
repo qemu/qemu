@@ -49,6 +49,16 @@ def generate(events, backend, group):
     backend.generate_begin(events, group)
 
     for e in events:
+        # tracer-specific dstate
+        out('',
+            '#define %(api)s() ( \\',
+            api=e.api(e.QEMU_BACKEND_DSTATE))
+
+        if "disable" not in e.properties:
+            backend.generate_backend_dstate(e, group)
+
+        out('    false)')
+
         # tracer without checks
         out('',
             'static inline void %(api)s(%(args)s)',

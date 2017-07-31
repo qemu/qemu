@@ -42,6 +42,11 @@ def generate_h(event, group):
         args=", ".join(event.args.names()))
 
 
+def generate_h_backend_dstate(event, group):
+    out('    trace_event_get_state_dynamic_by_id(%(event_id)s) || \\',
+        event_id="TRACE_" + event.name.upper())
+
+
 def generate_c_begin(events, group):
     out('#include "qemu/osdep.h"',
         '#include "trace/control.h"',
