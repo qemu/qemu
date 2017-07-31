@@ -1,14 +1,14 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # hw/net/lance.c
-lance_mem_readw(uint64_t addr, uint32_t ret) "addr=%"PRIx64"val=0x%04x"
-lance_mem_writew(uint64_t addr, uint32_t val) "addr=%"PRIx64"val=0x%04x"
+lance_mem_readw(uint64_t addr, uint32_t ret) "addr=0x%"PRIx64"val=0x%04x"
+lance_mem_writew(uint64_t addr, uint32_t val) "addr=0x%"PRIx64"val=0x%04x"
 
 # hw/net/milkymist-minimac2.c
-milkymist_minimac2_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_minimac2_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_minimac2_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
-milkymist_minimac2_mdio_read(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
+milkymist_minimac2_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+milkymist_minimac2_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+milkymist_minimac2_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr 0x%02x addr 0x%02x value 0x%04x"
+milkymist_minimac2_mdio_read(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr 0x%02x addr 0x%02x value 0x%04x"
 milkymist_minimac2_tx_frame(uint32_t length) "length %u"
 milkymist_minimac2_rx_frame(const void *buf, uint32_t length) "buf %p length %u"
 milkymist_minimac2_rx_transfer(const void *buf, uint32_t length) "buf %p length %d"
@@ -21,21 +21,21 @@ mipsnet_send(uint32_t size) "sending len=%u"
 mipsnet_receive(uint32_t size) "receiving len=%u"
 mipsnet_read(uint64_t addr, uint32_t val) "read addr=0x%" PRIx64 " val=0x%x"
 mipsnet_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64
-mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (%02x)"
+mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (0x%02x)"
 
 # hw/net/opencores_eth.c
-open_eth_mii_write(unsigned idx, uint16_t v) "MII[%02x] <- %04x"
-open_eth_mii_read(unsigned idx, uint16_t v) "MII[%02x] -> %04x"
-open_eth_update_irq(uint32_t v) "IRQ <- %x"
+open_eth_mii_write(unsigned idx, uint16_t v) "MII[0x%02x] <- 0x%04x"
+open_eth_mii_read(unsigned idx, uint16_t v) "MII[0x%02x] -> 0x%04x"
+open_eth_update_irq(uint32_t v) "IRQ <- 0x%x"
 open_eth_receive(unsigned len) "RX: len: %u"
 open_eth_receive_mcast(unsigned idx, uint32_t h0, uint32_t h1) "MCAST: idx = %u, hash: %08x:%08x"
 open_eth_receive_reject(void) "RX: rejected"
-open_eth_receive_desc(uint32_t addr, uint32_t len_flags) "RX: %08x, len_flags: %08x"
-open_eth_start_xmit(uint32_t addr, unsigned len, unsigned tx_len) "TX: %08x, len: %u, tx_len: %u"
-open_eth_reg_read(uint32_t addr, uint32_t v) "MAC[%02x] -> %08x"
-open_eth_reg_write(uint32_t addr, uint32_t v) "MAC[%02x] <- %08x"
-open_eth_desc_read(uint32_t addr, uint32_t v) "DESC[%04x] -> %08x"
-open_eth_desc_write(uint32_t addr, uint32_t v) "DESC[%04x] <- %08x"
+open_eth_receive_desc(uint32_t addr, uint32_t len_flags) "RX: 0x%08x, len_flags: 0x%08x"
+open_eth_start_xmit(uint32_t addr, unsigned len, unsigned tx_len) "TX: 0x%08x, len: %u, tx_len: %u"
+open_eth_reg_read(uint32_t addr, uint32_t v) "MAC[0x%02x] -> 0x%08x"
+open_eth_reg_write(uint32_t addr, uint32_t v) "MAC[0x%02x] <- 0x%08x"
+open_eth_desc_read(uint32_t addr, uint32_t v) "DESC[0x%04x] -> 0x%08x"
+open_eth_desc_write(uint32_t addr, uint32_t v) "DESC[0x%04x] <- 0x%08x"
 
 # hw/net/pcnet.c
 pcnet_s_reset(void *s) "s=%p"
@@ -98,7 +98,7 @@ e1000x_rx_can_recv_disabled(bool link_up, bool rx_enabled, bool pci_master) "lin
 e1000x_vlan_is_vlan_pkt(bool is_vlan_pkt, uint16_t eth_proto, uint16_t vet) "Is VLAN packet: %d, ETH proto: 0x%X, VET: 0x%X"
 e1000x_rx_flt_ucast_match(uint32_t idx, uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "unicast match[%d]: %02x:%02x:%02x:%02x:%02x:%02x"
 e1000x_rx_flt_ucast_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "unicast mismatch: %02x:%02x:%02x:%02x:%02x:%02x"
-e1000x_rx_flt_inexact_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint32_t mo, uint32_t mta, uint32_t mta_val) "inexact mismatch: %02x:%02x:%02x:%02x:%02x:%02x MO %d MTA[%d] %x"
+e1000x_rx_flt_inexact_mismatch(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint32_t mo, uint32_t mta, uint32_t mta_val) "inexact mismatch: %02x:%02x:%02x:%02x:%02x:%02x MO %d MTA[%d] 0x%x"
 e1000x_rx_link_down(uint32_t status_reg) "Received packet dropped because the link is down STATUS = %u"
 e1000x_rx_disabled(uint32_t rctl_reg) "Received packet dropped because receive is disabled RCTL = %u"
 e1000x_rx_oversized(size_t size) "Received packet dropped because it was oversized (%zu bytes)"

@@ -7,8 +7,8 @@ cs4231_mem_writel_reg(uint32_t reg, uint32_t old, uint32_t val) "write reg %d: 0
 cs4231_mem_writel_dreg(uint32_t reg, uint32_t old, uint32_t val) "write dreg %d: 0x%02x -> 0x%02x"
 
 # hw/audio/milkymist-ac97.c
-milkymist_ac97_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_ac97_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_ac97_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+milkymist_ac97_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 milkymist_ac97_pulse_irq_crrequest(void) "Pulse IRQ CR request"
 milkymist_ac97_pulse_irq_crreply(void) "Pulse IRQ CR reply"
 milkymist_ac97_pulse_irq_dmaw(void) "Pulse IRQ DMA write"

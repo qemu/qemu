@@ -20,8 +20,8 @@ virtio_rng_vm_state_change(void *rng, int running, int state) "rng %p: state cha
 
 # hw/virtio/virtio-balloon.c
 #
-virtio_balloon_bad_addr(uint64_t gpa) "%"PRIx64
-virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s gpa: %"PRIx64
+virtio_balloon_bad_addr(uint64_t gpa) "0x%"PRIx64
+virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s gpa: 0x%"PRIx64
 virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
 virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
-virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: %"PRIx64" num_pages: %d"
+virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: 0x%"PRIx64" num_pages: %d"

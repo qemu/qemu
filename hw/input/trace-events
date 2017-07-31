@@ -16,8 +16,8 @@ ps2_kbd_init(void *s) "%p"
 ps2_mouse_init(void *s) "%p"
 
 # hw/input/milkymist-softusb.c
-milkymist_softusb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_softusb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+milkymist_softusb_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+milkymist_softusb_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 milkymist_softusb_mevt(uint8_t m) "m %d"
 milkymist_softusb_kevt(uint8_t m) "m %d"
 milkymist_softusb_pulse_irq(void) "Pulse IRQ"
