@@ -353,7 +353,7 @@ NETBSD
 L: qemu-devel@nongnu.org
 M: Kamil Rytarowski <kamil@netbsd.org>
 S: Maintained
-K: (?i)NetBSD
+K: ^Subject:.*(?i)NetBSD
 
 W32, W64
 L: qemu-devel@nongnu.org
