@@ -1,7 +1,7 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # block.c
-bdrv_open_common(void *bs, const char *filename, int flags, const char *format_name) "bs %p filename \"%s\" flags %#x format_name \"%s\""
+bdrv_open_common(void *bs, const char *filename, int flags, const char *format_name) "bs %p filename \"%s\" flags 0x%x format_name \"%s\""
 bdrv_lock_medium(void *bs, bool locked) "bs %p locked %d"
 
 # block/block-backend.c
@@ -11,7 +11,7 @@ blk_co_pwritev(void *blk, void *bs, int64_t offset, unsigned int bytes, int flag
 # block/io.c
 bdrv_co_readv(void *bs, int64_t sector_num, int nb_sector) "bs %p sector_num %"PRId64" nb_sectors %d"
 bdrv_co_writev(void *bs, int64_t sector_num, int nb_sector) "bs %p sector_num %"PRId64" nb_sectors %d"
-bdrv_co_pwrite_zeroes(void *bs, int64_t offset, int count, int flags) "bs %p offset %"PRId64" count %d flags %#x"
+bdrv_co_pwrite_zeroes(void *bs, int64_t offset, int count, int flags) "bs %p offset %"PRId64" count %d flags 0x%x"
 bdrv_co_do_copy_on_readv(void *bs, int64_t offset, unsigned int bytes, int64_t cluster_offset, unsigned int cluster_bytes) "bs %p offset %"PRId64" bytes %u cluster_offset %"PRId64" cluster_bytes %u"
 
 # block/stream.c
@@ -100,7 +100,7 @@ qed_need_check_timer_cb(void *s) "s %p"
 qed_start_need_check_timer(void *s) "s %p"
 qed_cancel_need_check_timer(void *s) "s %p"
 qed_aio_complete(void *s, void *acb, int ret) "s %p acb %p ret %d"
-qed_aio_setup(void *s, void *acb, int64_t sector_num, int nb_sectors, void *opaque, int flags) "s %p acb %p sector_num %"PRId64" nb_sectors %d opaque %p flags %#x"
+qed_aio_setup(void *s, void *acb, int64_t sector_num, int nb_sectors, void *opaque, int flags) "s %p acb %p sector_num %"PRId64" nb_sectors %d opaque %p flags 0x%x"
 qed_aio_next_io(void *s, void *acb, int ret, uint64_t cur_pos) "s %p acb %p ret %d cur_pos %"PRIu64
 qed_aio_read_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
 qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"

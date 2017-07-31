@@ -11,10 +11,10 @@ scsi_req_continue_canceled(int target, int lun, int tag) "target %d lun %d tag %
 scsi_req_parsed(int target, int lun, int tag, int cmd, int mode, int xfer) "target %d lun %d tag %d command %d dir %d length %d"
 scsi_req_parsed_lba(int target, int lun, int tag, int cmd, uint64_t lba) "target %d lun %d tag %d command %d lba %"PRIu64
 scsi_req_parse_bad(int target, int lun, int tag, int cmd) "target %d lun %d tag %d command %d"
-scsi_req_build_sense(int target, int lun, int tag, int key, int asc, int ascq) "target %d lun %d tag %d key %#02x asc %#02x ascq %#02x"
-scsi_device_set_ua(int target, int lun, int key, int asc, int ascq) "target %d lun %d key %#02x asc %#02x ascq %#02x"
+scsi_req_build_sense(int target, int lun, int tag, int key, int asc, int ascq) "target %d lun %d tag %d key 0x%02x asc 0x%02x ascq 0x%02x"
+scsi_device_set_ua(int target, int lun, int key, int asc, int ascq) "target %d lun %d key 0x%02x asc 0x%02x ascq 0x%02x"
 scsi_report_luns(int target, int lun, int tag) "target %d lun %d tag %d"
-scsi_inquiry(int target, int lun, int tag, int cdb1, int cdb2) "target %d lun %d tag %d page %#02x/%#02x"
+scsi_inquiry(int target, int lun, int tag, int cdb1, int cdb2) "target %d lun %d tag %d page 0x%02x/0x%02x"
 scsi_test_unit_ready(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_request_sense(int target, int lun, int tag) "target %d lun %d tag %d"
 
