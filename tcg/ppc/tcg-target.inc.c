@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+#include "elf.h"
+#include "tcg-pool.inc.c"
+
 #if defined _CALL_DARWIN || defined __APPLE__
 #define TCG_TARGET_CALL_DARWIN
 #endif
@@ -57,8 +60,6 @@
 #define TCG_CT_CONST_WSZ  0x4000
 
 static tcg_insn_unit *tb_ret_addr;
-
-#include "elf.h"
 
 bool have_isa_2_06;
 bool have_isa_3_00;
@@ -224,15 +225,24 @@ static inline void tcg_out_bc_noaddr(TCGContext *s, int insn)
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
-    tcg_insn_unit *target = (tcg_insn_unit *)value;
+    tcg_insn_unit *target;
+    tcg_insn_unit old;
 
-    tcg_debug_assert(addend == 0);
+    value += addend;
+    target = (tcg_insn_unit *)value;
+
     switch (type) {
     case R_PPC_REL14:
         reloc_pc14(code_ptr, target);
         break;
     case R_PPC_REL24:
         reloc_pc24(code_ptr, target);
+        break;
+    case R_PPC_ADDR16:
+        assert(value == (int16_t)value);
+        old = *code_ptr;
+        old = deposit32(old, 0, 16, value);
+        *code_ptr = old;
         break;
     default:
         tcg_abort();
@@ -673,6 +683,14 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     /* Load addresses within 2GB of TB with 2 (or rarely 3) insns.  */
     if (!in_prologue && USE_REG_TB && tb_diff == (int32_t)tb_diff) {
         tcg_out_mem_long(s, ADDI, ADD, ret, TCG_REG_TB, tb_diff);
+        return;
+    }
+
+    /* Use the constant pool, if possible.  */
+    if (!in_prologue && USE_REG_TB) {
+        new_pool_label(s, arg, R_PPC_ADDR16, s->code_ptr,
+                       -(intptr_t)s->code_gen_ptr);
+        tcg_out32(s, LD | TAI(ret, TCG_REG_TB, 0));
         return;
     }
 
@@ -1856,6 +1874,14 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
 #endif
+}
+
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+{
+    int i;
+    for (i = 0; i < count; ++i) {
+        p[i] = NOP;
+    }
 }
 
 /* Parameters for function call generation, used in tcg.c.  */
