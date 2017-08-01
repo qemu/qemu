@@ -67,7 +67,8 @@ function run_qemu()
         _send_qemu_cmd $QEMU_HANDLE '' "BLOCK_JOB_COMPLETED"
     fi
     _send_qemu_cmd $QEMU_HANDLE '{"execute":"query-block-jobs"}' "return"
-    _cleanup_qemu
+    _send_qemu_cmd $QEMU_HANDLE '{"execute":"quit"}' "return"
+    wait=1 _cleanup_qemu
 }
 
 for fmt in qcow qcow2 qed vdi vmdk vpc; do
