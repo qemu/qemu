@@ -791,6 +791,20 @@ size_t tcg_code_capacity(void)
     return capacity;
 }
 
+size_t tcg_tb_phys_invalidate_count(void)
+{
+    unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
+    unsigned int i;
+    size_t total = 0;
+
+    for (i = 0; i < n_ctxs; i++) {
+        const TCGContext *s = atomic_read(&tcg_ctxs[i]);
+
+        total += atomic_read(&s->tb_phys_invalidate_count);
+    }
+    return total;
+}
+
 /* pool based memory allocation */
 void *tcg_malloc_internal(TCGContext *s, int size)
 {
