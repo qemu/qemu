@@ -29,6 +29,7 @@
 #error "unsupported code generation mode"
 #endif
 
+#include "tcg-pool.inc.c"
 #include "elf.h"
 
 /* ??? The translation blocks produced by TCG are generally small enough to
@@ -361,6 +362,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     intptr_t pcrel2;
+    uint32_t old;
 
     value += addend;
     pcrel2 = (tcg_insn_unit *)value - code_ptr;
@@ -373,6 +375,12 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     case R_390_PC32DBL:
         assert(pcrel2 == (int32_t)pcrel2);
         tcg_patch32(code_ptr, pcrel2);
+        break;
+    case R_390_20:
+        assert(value == sextract64(value, 0, 20));
+        old = *(uint32_t *)code_ptr & 0xf00000ff;
+        old |= ((value & 0xfff) << 16) | ((value & 0xff000) >> 4);
+        tcg_patch32(code_ptr, old);
         break;
     default:
         g_assert_not_reached();
@@ -562,14 +570,16 @@ static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
     }
 }
 
-/* load a register with an immediate value */
-static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
-                             tcg_target_long sval, bool in_prologue)
-{
-    static const S390Opcode lli_insns[4] = {
-        RI_LLILL, RI_LLILH, RI_LLIHL, RI_LLIHH
-    };
+static const S390Opcode lli_insns[4] = {
+    RI_LLILL, RI_LLILH, RI_LLIHL, RI_LLIHH
+};
+static const S390Opcode ii_insns[4] = {
+    RI_IILL, RI_IILH, RI_IIHL, RI_IIHH
+};
 
+static bool maybe_out_small_movi(TCGContext *s, TCGType type,
+                                 TCGReg ret, tcg_target_long sval)
+{
     tcg_target_ulong uval = sval;
     int i;
 
@@ -581,15 +591,35 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     /* Try all 32-bit insns that can load it in one go.  */
     if (sval >= -0x8000 && sval < 0x8000) {
         tcg_out_insn(s, RI, LGHI, ret, sval);
-        return;
+        return true;
     }
 
     for (i = 0; i < 4; i++) {
         tcg_target_long mask = 0xffffull << i*16;
         if ((uval & mask) == uval) {
             tcg_out_insn_RI(s, lli_insns[i], ret, uval >> i*16);
-            return;
+            return true;
         }
+    }
+
+    return false;
+}
+
+/* load a register with an immediate value */
+static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
+                             tcg_target_long sval, bool in_prologue)
+{
+    tcg_target_ulong uval;
+
+    /* Try all 32-bit insns that can load it in one go.  */
+    if (maybe_out_small_movi(s, type, ret, sval)) {
+        return;
+    }
+
+    uval = sval;
+    if (type == TCG_TYPE_I32) {
+        uval = (uint32_t)sval;
+        sval = (int32_t)sval;
     }
 
     /* Try all 48-bit insns that can load it in one go.  */
@@ -603,7 +633,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
             return;
         }
         if ((uval & 0xffffffff) == 0) {
-            tcg_out_insn(s, RIL, LLIHF, ret, uval >> 31 >> 1);
+            tcg_out_insn(s, RIL, LLIHF, ret, uval >> 32);
             return;
         }
     }
@@ -626,55 +656,44 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
         }
     }
 
-    /* If extended immediates are not present, then we may have to issue
-       several instructions to load the low 32 bits.  */
-    if (!(s390_facilities & FACILITY_EXT_IMM)) {
-        /* A 32-bit unsigned value can be loaded in 2 insns.  And given
-           that the lli_insns loop above did not succeed, we know that
-           both insns are required.  */
-        if (uval <= 0xffffffff) {
-            tcg_out_insn(s, RI, LLILL, ret, uval);
-            tcg_out_insn(s, RI, IILH, ret, uval >> 16);
-            return;
-        }
-
-        /* If all high bits are set, the value can be loaded in 2 or 3 insns.
-           We first want to make sure that all the high bits get set.  With
-           luck the low 16-bits can be considered negative to perform that for
-           free, otherwise we load an explicit -1.  */
-        if (sval >> 31 >> 1 == -1) {
-            if (uval & 0x8000) {
-                tcg_out_insn(s, RI, LGHI, ret, uval);
-            } else {
-                tcg_out_insn(s, RI, LGHI, ret, -1);
-                tcg_out_insn(s, RI, IILL, ret, uval);
-            }
-            tcg_out_insn(s, RI, IILH, ret, uval >> 16);
-            return;
-        }
+    /* A 32-bit unsigned value can be loaded in 2 insns.  And given
+       that LLILL, LLIHL, LLILF above did not succeed, we know that
+       both insns are required.  */
+    if (uval <= 0xffffffff) {
+        tcg_out_insn(s, RI, LLILL, ret, uval);
+        tcg_out_insn(s, RI, IILH, ret, uval >> 16);
+        return;
     }
 
-    /* If we get here, both the high and low parts have non-zero bits.  */
-
-    /* Recurse to load the lower 32-bits.  */
-    tcg_out_movi(s, TCG_TYPE_I64, ret, uval & 0xffffffff);
-
-    /* Insert data into the high 32-bits.  */
-    uval = uval >> 31 >> 1;
-    if (s390_facilities & FACILITY_EXT_IMM) {
-        if (uval < 0x10000) {
-            tcg_out_insn(s, RI, IIHL, ret, uval);
-        } else if ((uval & 0xffff) == 0) {
-            tcg_out_insn(s, RI, IIHH, ret, uval >> 16);
+    /* When allowed, stuff it in the constant pool.  */
+    if (!in_prologue) {
+        if (USE_REG_TB) {
+            tcg_out_insn(s, RXY, LG, ret, TCG_REG_TB, TCG_REG_NONE, 0);
+            new_pool_label(s, sval, R_390_20, s->code_ptr - 2,
+                           -(intptr_t)s->code_gen_ptr);
         } else {
-            tcg_out_insn(s, RIL, IIHF, ret, uval);
+            tcg_out_insn(s, RIL, LGRL, ret, 0);
+            new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
         }
+        return;
+    }
+
+    /* What's left is for the prologue, loading GUEST_BASE, and because
+       it failed to match above, is known to be a full 64-bit quantity.
+       We could try more than this, but it probably wouldn't pay off.  */
+    if (s390_facilities & FACILITY_EXT_IMM) {
+        tcg_out_insn(s, RIL, LLILF, ret, uval);
+        tcg_out_insn(s, RIL, IIHF, ret, uval >> 32);
     } else {
-        if (uval & 0xffff) {
-            tcg_out_insn(s, RI, IIHL, ret, uval);
-        }
-        if (uval & 0xffff0000) {
-            tcg_out_insn(s, RI, IIHH, ret, uval >> 16);
+        const S390Opcode *insns = lli_insns;
+        int i;
+
+        for (i = 0; i < 4; i++) {
+            uint16_t part = uval >> (16 * i);
+            if (part) {
+                tcg_out_insn_RI(s, insns[i], ret, part);
+                insns = ii_insns;
+            }
         }
     }
 }
@@ -2571,6 +2590,11 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* br %r14 (return) */
     tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_R14);
+}
+
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+{
+    memset(p, 0x07, count * sizeof(tcg_insn_unit));
 }
 
 typedef struct {
