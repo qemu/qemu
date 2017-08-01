@@ -1708,7 +1708,8 @@ void tcg_register_jit(void *buf, size_t buf_size)
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
 
-void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
+void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
+                              uintptr_t addr)
 {
     uint32_t *ptr = (uint32_t *)jmp_addr;
     uintptr_t disp = addr - jmp_addr;

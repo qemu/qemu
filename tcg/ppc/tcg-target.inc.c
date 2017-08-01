@@ -1296,7 +1296,8 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
 }
 
 #ifdef __powerpc64__
-void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
+void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
+                              uintptr_t addr)
 {
     tcg_insn_unit i1, i2;
     uint64_t pair;
@@ -1328,7 +1329,8 @@ void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
     flush_icache_range(jmp_addr, jmp_addr + 8);
 }
 #else
-void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
+void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
+                              uintptr_t addr)
 {
     intptr_t diff = addr - jmp_addr;
     tcg_debug_assert(in_range_b(diff));

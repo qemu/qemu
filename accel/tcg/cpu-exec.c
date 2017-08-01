@@ -329,6 +329,41 @@ TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
     return qht_lookup(&tcg_ctx.tb_ctx.htable, tb_cmp, &desc, h);
 }
 
+void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr)
+{
+    if (TCG_TARGET_HAS_direct_jump) {
+        uintptr_t offset = tb->jmp_target_arg[n];
+        uintptr_t tc_ptr = (uintptr_t)tb->tc_ptr;
+        tb_target_set_jmp_target(tc_ptr, tc_ptr + offset, addr);
+    } else {
+        tb->jmp_target_arg[n] = addr;
+    }
+}
+
+/* Called with tb_lock held.  */
+static inline void tb_add_jump(TranslationBlock *tb, int n,
+                               TranslationBlock *tb_next)
+{
+    assert(n < ARRAY_SIZE(tb->jmp_list_next));
+    if (tb->jmp_list_next[n]) {
+        /* Another thread has already done this while we were
+         * outside of the lock; nothing to do in this case */
+        return;
+    }
+    qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
+                           "Linking TBs %p [" TARGET_FMT_lx
+                           "] index %d -> %p [" TARGET_FMT_lx "]\n",
+                           tb->tc_ptr, tb->pc, n,
+                           tb_next->tc_ptr, tb_next->pc);
+
+    /* patch the native jump address */
+    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
+
+    /* add in TB jmp circular list */
+    tb->jmp_list_next[n] = tb_next->jmp_list_first;
+    tb_next->jmp_list_first = (uintptr_t)tb | n;
+}
+
 static inline TranslationBlock *tb_find(CPUState *cpu,
                                         TranslationBlock *last_tb,
                                         int tb_exit)

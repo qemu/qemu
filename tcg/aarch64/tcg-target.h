@@ -111,12 +111,15 @@ typedef enum {
 #define TCG_TARGET_HAS_muls2_i64        0
 #define TCG_TARGET_HAS_muluh_i64        1
 #define TCG_TARGET_HAS_mulsh_i64        1
+#define TCG_TARGET_HAS_direct_jump      1
+
+#define TCG_TARGET_DEFAULT_MO (0)
 
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
     __builtin___clear_cache((char *)start, (char *)stop);
 }
 
-#define TCG_TARGET_DEFAULT_MO (0)
+void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);
 
 #endif /* AARCH64_TCG_TARGET_H */

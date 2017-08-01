@@ -86,6 +86,7 @@
 #define TCG_TARGET_HAS_muluh_i32        0
 #define TCG_TARGET_HAS_mulsh_i32        0
 #define TCG_TARGET_HAS_goto_ptr         0
+#define TCG_TARGET_HAS_direct_jump      1
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_extrl_i64_i32    0
@@ -196,5 +197,13 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
    on the host.  But if you want performance, you use the normal backend.
    We prefer consistency across hosts on this.  */
 #define TCG_TARGET_DEFAULT_MO  (0)
+
+static inline void tb_target_set_jmp_target(uintptr_t tc_ptr,
+                                            uintptr_t jmp_addr, uintptr_t addr)
+{
+    /* patch the branch destination */
+    atomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
+    /* no need to flush icache explicitly */
+}
 
 #endif /* TCG_TARGET_H */
