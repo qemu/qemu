@@ -418,6 +418,7 @@ new_state = "1"
     def tearDown(self):
         self.vm.shutdown()
         os.remove(test_img)
+        os.remove(target_img)
         os.remove(backing_img)
         os.remove(self.blkdebug_file)
 
@@ -568,6 +569,7 @@ new_state = "1"
     def tearDown(self):
         self.vm.shutdown()
         os.remove(test_img)
+        os.remove(target_img)
         os.remove(backing_img)
         os.remove(self.blkdebug_file)
 
@@ -821,7 +823,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for i in self.IMAGES + [ quorum_repair_img ]:
+        for i in self.IMAGES + [ quorum_repair_img, quorum_snapshot_file ]:
             # Do a try/except because the test may have deleted some images
             try:
                 os.remove(i)

@@ -29,7 +29,8 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    _cleanup_test_img
+    rm -f "$TEST_IMG.qcow2"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -72,15 +73,18 @@ echo
 echo "=== Testing monolithicFlat creation and opening ==="
 IMGOPTS="subformat=monolithicFlat" _make_test_img 2G
 _img_info
+_cleanup_test_img
 
 echo
 echo "=== Testing monolithicFlat with zeroed_grain ==="
 IMGOPTS="subformat=monolithicFlat,zeroed_grain=on" _make_test_img 2G
+_cleanup_test_img
 
 echo
 echo "=== Testing big twoGbMaxExtentFlat ==="
 IMGOPTS="subformat=twoGbMaxExtentFlat" _make_test_img 1000G
 $QEMU_IMG info $TEST_IMG | _filter_testdir | sed -e 's/cid: [0-9]*/cid: XXXXXXXX/'
+_cleanup_test_img
 
 echo
 echo "=== Testing malformed VMFS extent description line ==="
@@ -114,6 +118,7 @@ echo "=== Testing monolithicFlat with internally generated JSON file name ==="
 IMGOPTS="subformat=monolithicFlat" _make_test_img 64M
 $QEMU_IO -c "open -o driver=$IMGFMT,file.driver=blkdebug,file.image.filename=$TEST_IMG,file.inject-error.0.event=read_aio" 2>&1 \
     | _filter_testdir | _filter_imgfmt
+_cleanup_test_img
 
 echo
 echo "=== Testing version 3 ==="
@@ -123,6 +128,7 @@ for i in {0..99}; do
     $QEMU_IO -r -c "read -P $(( i % 10 + 0x30 )) $(( i * 64 * 1024 * 10 + i * 512 )) 512" $TEST_IMG \
         | _filter_qemu_io
 done
+_cleanup_test_img
 
 echo
 echo "=== Testing 4TB monolithicFlat creation and IO ==="
@@ -130,6 +136,7 @@ IMGOPTS="subformat=monolithicFlat" _make_test_img 4T
 _img_info
 $QEMU_IO -c "write -P 0xa 900G 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c "read -v 900G 1024" "$TEST_IMG" | _filter_qemu_io
+_cleanup_test_img
 
 echo
 echo "=== Testing qemu-img map on extents ==="
@@ -139,12 +146,14 @@ for fmt in monolithicSparse twoGbMaxExtentSparse; do
     $QEMU_IO -c "write 2147483136 1k" "$TEST_IMG" | _filter_qemu_io
     $QEMU_IO -c "write 5G 1k" "$TEST_IMG" | _filter_qemu_io
     $QEMU_IMG map "$TEST_IMG" | _filter_testdir
+    _cleanup_test_img
 done
 
 echo
 echo "=== Testing afl image with a very large capacity ==="
 _use_sample_img afl9.vmdk.bz2
 _img_info
+_cleanup_test_img
 
 # success, all done
 echo "*** done"

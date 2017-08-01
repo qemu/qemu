@@ -145,8 +145,9 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
 
         /* Skip automatically inserted nodes that the user isn't aware of for
          * query-block (blk != NULL), but not for query-named-block-nodes */
-        while (blk && bs0 && bs0->drv && bs0->implicit) {
+        while (blk && bs0->drv && bs0->implicit) {
             bs0 = backing_bs(bs0);
+            assert(bs0);
         }
     }
 
