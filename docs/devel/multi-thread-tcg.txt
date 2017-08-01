@@ -140,6 +140,9 @@ to atomically insert new elements.
 The lookup caches are updated atomically and the lookup hash uses QHT
 which is designed for concurrent safe lookup.
 
+Parallel code generation is supported. QHT is used at insertion time
+as the synchronization point across threads, thereby ensuring that we only
+keep track of a single TranslationBlock for each guest code block.
 
 Memory maps and TLBs
 --------------------
