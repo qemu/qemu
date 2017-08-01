@@ -188,7 +188,7 @@ static int packet_enqueue(CompareState *s, int mode)
  */
 static int colo_packet_compare_common(Packet *ppkt, Packet *spkt, int offset)
 {
-    if (trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+    if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
         char pri_ip_src[20], pri_ip_dst[20], sec_ip_src[20], sec_ip_dst[20];
 
         strcpy(pri_ip_src, inet_ntoa(ppkt->ip->ip_src));
@@ -274,7 +274,8 @@ static int colo_packet_compare_tcp(Packet *spkt, Packet *ppkt)
         res = -1;
     }
 
-    if (res != 0 && trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+    if (res != 0 &&
+        trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
         char pri_ip_src[20], pri_ip_dst[20], sec_ip_src[20], sec_ip_dst[20];
 
         strcpy(pri_ip_src, inet_ntoa(ppkt->ip->ip_src));
@@ -334,7 +335,7 @@ static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
     if (ret) {
         trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
         trace_colo_compare_udp_miscompare("Secondary pkt size", spkt->size);
-        if (trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+        if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
             qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
                          ppkt->size);
             qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
@@ -371,7 +372,7 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
                                            ppkt->size);
         trace_colo_compare_icmp_miscompare("Secondary pkt size",
                                            spkt->size);
-        if (trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+        if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
             qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
                          ppkt->size);
             qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
@@ -390,7 +391,7 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
 static int colo_packet_compare_other(Packet *spkt, Packet *ppkt)
 {
     trace_colo_compare_main("compare other");
-    if (trace_event_get_state(TRACE_COLO_COMPARE_MISCOMPARE)) {
+    if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
         char pri_ip_src[20], pri_ip_dst[20], sec_ip_src[20], sec_ip_dst[20];
 
         strcpy(pri_ip_src, inet_ntoa(ppkt->ip->ip_src));

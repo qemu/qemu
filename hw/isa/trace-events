@@ -1,8 +1,8 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # hw/isa/pc87312.c
-pc87312_io_read(uint32_t addr, uint32_t val) "read addr=%x val=%x"
-pc87312_io_write(uint32_t addr, uint32_t val) "write addr=%x val=%x"
+pc87312_io_read(uint32_t addr, uint32_t val) "read addr=0x%x val=0x%x"
+pc87312_io_write(uint32_t addr, uint32_t val) "write addr=0x%x val=0x%x"
 pc87312_info_floppy(uint32_t base) "base 0x%x"
 pc87312_info_ide(uint32_t base) "base 0x%x"
 pc87312_info_parallel(uint32_t base, uint32_t irq) "base 0x%x, irq %u"

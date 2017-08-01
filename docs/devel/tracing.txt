@@ -353,7 +353,7 @@ guard such computations and avoid its compilation when the event is disabled:
     }
 
 You can check both if the event has been disabled and is dynamically enabled at
-the same time using the 'trace_event_get_state' routine (see header
+the same time using the 'trace_event_get_state_backends' routine (see header
 "trace/control.h" for more information).
 
 === "tcg" ===

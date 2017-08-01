@@ -69,7 +69,7 @@ static int handle_primary_tcp_pkt(NetFilterState *nf,
     struct tcphdr *tcp_pkt;
 
     tcp_pkt = (struct tcphdr *)pkt->transport_header;
-    if (trace_event_get_state(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
+    if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
         trace_colo_filter_rewriter_pkt_info(__func__,
                     inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
@@ -115,7 +115,7 @@ static int handle_secondary_tcp_pkt(NetFilterState *nf,
 
     tcp_pkt = (struct tcphdr *)pkt->transport_header;
 
-    if (trace_event_get_state(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
+    if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
         trace_colo_filter_rewriter_pkt_info(__func__,
                     inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),

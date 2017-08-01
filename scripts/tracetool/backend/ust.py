@@ -27,6 +27,11 @@ def generate_h_begin(events, group):
 
     out('#include <lttng/tracepoint.h>',
         '#include "%s"' % header,
+        '',
+        '/* tracepoint_enabled() was introduced in LTTng UST 2.7 */',
+        '#ifndef tracepoint_enabled',
+        '#define tracepoint_enabled(a, b) true',
+        '#endif',
         '')
 
 
@@ -38,3 +43,8 @@ def generate_h(event, group):
     out('    tracepoint(qemu, %(name)s%(tp_args)s);',
         name=event.name,
         tp_args=argnames)
+
+
+def generate_h_backend_dstate(event, group):
+    out('    tracepoint_enabled(qemu, %(name)s) || \\',
+        name=event.name)

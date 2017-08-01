@@ -44,8 +44,20 @@ def generate_h_begin(events, group):
     out('#include "%s"' % header,
         '')
 
+    # SystemTap defines <provider>_<name>_ENABLED() but other DTrace
+    # implementations might not.
+    for e in events:
+        out('#ifndef QEMU_%(uppername)s_ENABLED',
+            '#define QEMU_%(uppername)s_ENABLED() true',
+            '#endif',
+            uppername=e.name.upper())
 
 def generate_h(event, group):
     out('    QEMU_%(uppername)s(%(argnames)s);',
         uppername=event.name.upper(),
         argnames=", ".join(event.args.names()))
+
+
+def generate_h_backend_dstate(event, group):
+    out('    QEMU_%(uppername)s_ENABLED() || \\',
+        uppername=event.name.upper())

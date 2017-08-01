@@ -96,13 +96,29 @@ static const char * trace_event_get_name(TraceEvent *ev);
  * trace_event_get_state:
  * @id: Event identifier name.
  *
- * Get the tracing state of an event (both static and dynamic).
+ * Get the tracing state of an event, both static and the QEMU dynamic state.
  *
  * If the event has the disabled property, the check will have no performance
  * impact.
  */
 #define trace_event_get_state(id)                       \
     ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
+
+/**
+ * trace_event_get_state_backends:
+ * @id: Event identifier name.
+ *
+ * Get the tracing state of an event, both static and dynamic state from all
+ * compiled-in backends.
+ *
+ * If the event has the disabled property, the check will have no performance
+ * impact.
+ *
+ * Returns: true if at least one backend has the event enabled and the event
+ * does not have the disabled property.
+ */
+#define trace_event_get_state_backends(id)              \
+    ((id ##_ENABLED) && id ##_BACKEND_DSTATE())
 
 /**
  * trace_event_get_vcpu_state:
