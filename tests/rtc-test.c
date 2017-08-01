@@ -17,6 +17,8 @@
 #include "qemu/timer.h"
 #include "hw/timer/mc146818rtc_regs.h"
 
+#define UIP_HOLD_LENGTH           (8 * NANOSECONDS_PER_SECOND / 32768)
+
 static uint8_t base = 0x70;
 
 static int bcd2dec(int value)
@@ -297,15 +299,53 @@ static void alarm_time(void)
     g_assert(cmos_read(RTC_REG_C) == 0);
 }
 
-static void set_time(int mode, int h, int m, int s)
+static void set_time_regs(int h, int m, int s)
 {
-    /* set BCD 12 hour mode */
-    cmos_write(RTC_REG_B, mode);
-
-    cmos_write(RTC_REG_A, 0x76);
     cmos_write(RTC_HOURS, h);
     cmos_write(RTC_MINUTES, m);
     cmos_write(RTC_SECONDS, s);
+}
+
+static void set_time(int mode, int h, int m, int s)
+{
+    cmos_write(RTC_REG_B, mode);
+    cmos_write(RTC_REG_A, 0x76);
+    set_time_regs(h, m, s);
+    cmos_write(RTC_REG_A, 0x26);
+}
+
+static void set_datetime_bcd(int h, int min, int s, int d, int m, int y)
+{
+    cmos_write(RTC_HOURS, h);
+    cmos_write(RTC_MINUTES, min);
+    cmos_write(RTC_SECONDS, s);
+    cmos_write(RTC_YEAR, y & 0xFF);
+    cmos_write(RTC_CENTURY, y >> 8);
+    cmos_write(RTC_MONTH, m);
+    cmos_write(RTC_DAY_OF_MONTH, d);
+}
+
+static void set_datetime_dec(int h, int min, int s, int d, int m, int y)
+{
+    cmos_write(RTC_HOURS, h);
+    cmos_write(RTC_MINUTES, min);
+    cmos_write(RTC_SECONDS, s);
+    cmos_write(RTC_YEAR, y % 100);
+    cmos_write(RTC_CENTURY, y / 100);
+    cmos_write(RTC_MONTH, m);
+    cmos_write(RTC_DAY_OF_MONTH, d);
+}
+
+static void set_datetime(int mode, int h, int min, int s, int d, int m, int y)
+{
+    cmos_write(RTC_REG_B, mode);
+
+    cmos_write(RTC_REG_A, 0x76);
+    if (mode & REG_B_DM) {
+        set_datetime_dec(h, min, s, d, m, y);
+    } else {
+        set_datetime_bcd(h, min, s, d, m, y);
+    }
     cmos_write(RTC_REG_A, 0x26);
 }
 
@@ -314,6 +354,17 @@ static void set_time(int mode, int h, int m, int s)
         g_assert_cmpint(cmos_read(RTC_HOURS), ==, h); \
         g_assert_cmpint(cmos_read(RTC_MINUTES), ==, m); \
         g_assert_cmpint(cmos_read(RTC_SECONDS), ==, s); \
+    } while(0)
+
+#define assert_datetime_bcd(h, min, s, d, m, y) \
+    do { \
+        g_assert_cmpint(cmos_read(RTC_HOURS), ==, h); \
+        g_assert_cmpint(cmos_read(RTC_MINUTES), ==, min); \
+        g_assert_cmpint(cmos_read(RTC_SECONDS), ==, s); \
+        g_assert_cmpint(cmos_read(RTC_DAY_OF_MONTH), ==, d); \
+        g_assert_cmpint(cmos_read(RTC_MONTH), ==, m); \
+        g_assert_cmpint(cmos_read(RTC_YEAR), ==, (y & 0xFF)); \
+        g_assert_cmpint(cmos_read(RTC_CENTURY), ==, (y >> 8)); \
     } while(0)
 
 static void basic_12h_bcd(void)
@@ -506,41 +557,84 @@ static void fuzz_registers(void)
 
 static void register_b_set_flag(void)
 {
+    if (cmos_read(RTC_REG_A) & REG_A_UIP) {
+        clock_step(UIP_HOLD_LENGTH + NANOSECONDS_PER_SECOND / 5);
+    }
+    g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
+
     /* Enable binary-coded decimal (BCD) mode and SET flag in Register B*/
     cmos_write(RTC_REG_B, REG_B_24H | REG_B_SET);
 
-    cmos_write(RTC_REG_A, 0x76);
-    cmos_write(RTC_YEAR, 0x11);
-    cmos_write(RTC_CENTURY, 0x20);
-    cmos_write(RTC_MONTH, 0x02);
-    cmos_write(RTC_DAY_OF_MONTH, 0x02);
-    cmos_write(RTC_HOURS, 0x02);
-    cmos_write(RTC_MINUTES, 0x04);
-    cmos_write(RTC_SECONDS, 0x58);
-    cmos_write(RTC_REG_A, 0x26);
+    set_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
-    /* Since SET flag is still enabled, these are equality checks. */
-    g_assert_cmpint(cmos_read(RTC_HOURS), ==, 0x02);
-    g_assert_cmpint(cmos_read(RTC_MINUTES), ==, 0x04);
-    g_assert_cmpint(cmos_read(RTC_SECONDS), ==, 0x58);
-    g_assert_cmpint(cmos_read(RTC_DAY_OF_MONTH), ==, 0x02);
-    g_assert_cmpint(cmos_read(RTC_MONTH), ==, 0x02);
-    g_assert_cmpint(cmos_read(RTC_YEAR), ==, 0x11);
-    g_assert_cmpint(cmos_read(RTC_CENTURY), ==, 0x20);
+    assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
+
+    /* Since SET flag is still enabled, time does not advance. */
+    clock_step(1000000000LL);
+    assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
     /* Disable SET flag in Register B */
     cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) & ~REG_B_SET);
 
-    g_assert_cmpint(cmos_read(RTC_HOURS), ==, 0x02);
-    g_assert_cmpint(cmos_read(RTC_MINUTES), ==, 0x04);
+    assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
 
-    /* Since SET flag is disabled, this is an inequality check.
-     * We (reasonably) assume that no (sexagesimal) overflow occurs. */
-    g_assert_cmpint(cmos_read(RTC_SECONDS), >=, 0x58);
-    g_assert_cmpint(cmos_read(RTC_DAY_OF_MONTH), ==, 0x02);
-    g_assert_cmpint(cmos_read(RTC_MONTH), ==, 0x02);
-    g_assert_cmpint(cmos_read(RTC_YEAR), ==, 0x11);
-    g_assert_cmpint(cmos_read(RTC_CENTURY), ==, 0x20);
+    /* Since SET flag is disabled, the clock now advances.  */
+    clock_step(1000000000LL);
+    assert_datetime_bcd(0x02, 0x04, 0x59, 0x02, 0x02, 0x2011);
+}
+
+static void divider_reset(void)
+{
+    /* Enable binary-coded decimal (BCD) mode in Register B*/
+    cmos_write(RTC_REG_B, REG_B_24H);
+
+    /* Enter divider reset */
+    cmos_write(RTC_REG_A, 0x76);
+    set_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
+
+    assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
+
+    /* Since divider reset flag is still enabled, these are equality checks. */
+    clock_step(1000000000LL);
+    assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
+
+    /* The first update ends 500 ms after divider reset */
+    cmos_write(RTC_REG_A, 0x26);
+    clock_step(500000000LL - UIP_HOLD_LENGTH - 1);
+    g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
+    assert_datetime_bcd(0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
+
+    clock_step(1);
+    g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, !=, 0);
+    clock_step(UIP_HOLD_LENGTH);
+    g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
+
+    assert_datetime_bcd(0x02, 0x04, 0x59, 0x02, 0x02, 0x2011);
+}
+
+static void uip_stuck(void)
+{
+    set_datetime(REG_B_24H, 0x02, 0x04, 0x58, 0x02, 0x02, 0x2011);
+
+    /* The first update ends 500 ms after divider reset */
+    (void)cmos_read(RTC_REG_C);
+    clock_step(500000000LL);
+    g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
+    assert_datetime_bcd(0x02, 0x04, 0x59, 0x02, 0x02, 0x2011);
+
+    /* UF is now set.  */
+    cmos_write(RTC_HOURS_ALARM, 0x02);
+    cmos_write(RTC_MINUTES_ALARM, 0xC0);
+    cmos_write(RTC_SECONDS_ALARM, 0xC0);
+
+    /* Because the alarm will fire soon, reading register A will latch UIP.  */
+    clock_step(1000000000LL - UIP_HOLD_LENGTH / 2);
+    g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, !=, 0);
+
+    /* Move the alarm far away.  This must not cause UIP to remain stuck!  */
+    cmos_write(RTC_HOURS_ALARM, 0x03);
+    clock_step(UIP_HOLD_LENGTH);
+    g_assert_cmpint(cmos_read(RTC_REG_A) & REG_A_UIP, ==, 0);
 }
 
 #define RTC_PERIOD_CODE1    13   /* 8 Hz */
@@ -609,7 +703,9 @@ int main(int argc, char **argv)
     qtest_add_func("/rtc/basic/bcd-12h", basic_12h_bcd);
     qtest_add_func("/rtc/set-year/20xx", set_year_20xx);
     qtest_add_func("/rtc/set-year/1980", set_year_1980);
-    qtest_add_func("/rtc/misc/register_b_set_flag", register_b_set_flag);
+    qtest_add_func("/rtc/update/register_b_set_flag", register_b_set_flag);
+    qtest_add_func("/rtc/update/divider-reset", divider_reset);
+    qtest_add_func("/rtc/update/uip-stuck", uip_stuck);
     qtest_add_func("/rtc/misc/fuzz-registers", fuzz_registers);
     qtest_add_func("/rtc/periodic/interrupt", periodic_timer);
 

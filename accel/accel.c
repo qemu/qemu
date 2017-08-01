@@ -33,6 +33,7 @@
 #include "sysemu/qtest.h"
 #include "hw/xen/xen.h"
 #include "qom/object.h"
+#include "qemu/error-report.h"
 
 static const TypeInfo accel_type = {
     .name = TYPE_ACCEL,
@@ -69,19 +70,20 @@ static int accel_init_machine(AccelClass *acc, MachineState *ms)
 
 void configure_accelerator(MachineState *ms)
 {
-    const char *p;
+    const char *accel, *p;
     char buf[10];
     int ret;
     bool accel_initialised = false;
     bool init_failed = false;
     AccelClass *acc = NULL;
 
-    p = qemu_opt_get(qemu_get_machine_opts(), "accel");
-    if (p == NULL) {
+    accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
+    if (accel == NULL) {
         /* Use the default "accelerator", tcg */
-        p = "tcg";
+        accel = "tcg";
     }
 
+    p = accel;
     while (!accel_initialised && *p != '\0') {
         if (*p == ':') {
             p++;
@@ -89,7 +91,6 @@ void configure_accelerator(MachineState *ms)
         p = get_opt_name(buf, sizeof(buf), p, ':');
         acc = accel_find(buf);
         if (!acc) {
-            fprintf(stderr, "\"%s\" accelerator not found.\n", buf);
             continue;
         }
         if (acc->available && !acc->available()) {
@@ -100,9 +101,8 @@ void configure_accelerator(MachineState *ms)
         ret = accel_init_machine(acc, ms);
         if (ret < 0) {
             init_failed = true;
-            fprintf(stderr, "failed to initialize %s: %s\n",
-                    acc->name,
-                    strerror(-ret));
+            error_report("failed to initialize %s: %s",
+                         acc->name, strerror(-ret));
         } else {
             accel_initialised = true;
         }
@@ -110,13 +110,13 @@ void configure_accelerator(MachineState *ms)
 
     if (!accel_initialised) {
         if (!init_failed) {
-            fprintf(stderr, "No accelerator found!\n");
+            error_report("-machine accel=%s: No accelerator found", accel);
         }
         exit(1);
     }
 
     if (init_failed) {
-        fprintf(stderr, "Back to %s accelerator.\n", acc->name);
+        error_report("Back to %s accelerator", acc->name);
     }
 }
 

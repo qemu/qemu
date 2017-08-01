@@ -65,7 +65,9 @@ struct Chardev {
  *
  * @opts see qemu-config.c for a list of valid options
  *
- * Returns: a new character backend
+ * Returns: on success: a new character backend
+ *          otherwise:  NULL; @errp specifies the error
+ *                            or left untouched in case of help option
  */
 Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
                                 Error **errp);
