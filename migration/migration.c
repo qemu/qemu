@@ -2214,6 +2214,15 @@ static void migration_class_init(ObjectClass *klass, void *data)
     dc->props = migration_properties;
 }
 
+static void migration_instance_finalize(Object *obj)
+{
+    MigrationState *ms = MIGRATION_OBJ(obj);
+    MigrationParameters *params = &ms->parameters;
+
+    g_free(params->tls_hostname);
+    g_free(params->tls_creds);
+}
+
 static void migration_instance_init(Object *obj)
 {
     MigrationState *ms = MIGRATION_OBJ(obj);
@@ -2282,6 +2291,7 @@ static const TypeInfo migration_type = {
     .class_size = sizeof(MigrationClass),
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,
+    .instance_finalize = migration_instance_finalize,
 };
 
 static void register_migration_types(void)

@@ -340,10 +340,11 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
     cioc->fd = qemu_accept(ioc->fd, (struct sockaddr *)&cioc->remoteAddr,
                            &cioc->remoteAddrLen);
     if (cioc->fd < 0) {
-        trace_qio_channel_socket_accept_fail(ioc);
         if (errno == EINTR) {
             goto retry;
         }
+        error_setg_errno(errp, errno, "Unable to accept connection");
+        trace_qio_channel_socket_accept_fail(ioc);
         goto error;
     }
 
