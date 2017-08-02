@@ -239,7 +239,6 @@ static int cpu_post_load(void *opaque, int version_id)
         ppc_set_compat(cpu, cpu->compat_pvr, &local_err);
         if (local_err) {
             error_report_err(local_err);
-            error_free(local_err);
             return -1;
         }
     } else
