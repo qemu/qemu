@@ -10755,8 +10755,19 @@ static void gen_rdhwr(DisasContext *ctx, int rt, int rd, int sel)
         gen_store_gpr(t0, rt);
         break;
     case 2:
+        if (ctx->tb->cflags & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_helper_rdhwr_cc(t0, cpu_env);
+        if (ctx->tb->cflags & CF_USE_ICOUNT) {
+            gen_io_end();
+        }
         gen_store_gpr(t0, rt);
+        /* Break the TB to be able to take timer interrupts immediately
+           after reading count. BS_STOP isn't sufficient, we need to ensure
+           we break completely out of translated code.  */
+        gen_save_pc(ctx->pc + 4);
+        ctx->bstate = BS_EXCP;
         break;
     case 3:
         gen_helper_rdhwr_ccres(t0, cpu_env);
