@@ -103,8 +103,7 @@ struct VTDIOTLBEntry {
     uint16_t domain_id;
     uint64_t slpte;
     uint64_t mask;
-    bool read_flags;
-    bool write_flags;
+    uint8_t access_flags;
 };
 
 /* VT-d Source-ID Qualifier types */

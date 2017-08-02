@@ -151,6 +151,10 @@ static void vhost_user_cleanup(NetClientState *nc)
         s->vhost_net = NULL;
     }
     if (nc->queue_index == 0) {
+        if (s->watch) {
+            g_source_remove(s->watch);
+            s->watch = 0;
+        }
         qemu_chr_fe_deinit(&s->chr, true);
     }
 

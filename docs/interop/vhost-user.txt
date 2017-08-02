@@ -326,6 +326,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
 #define VHOST_USER_PROTOCOL_F_MTU            4
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
+#define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
 
 Master message types
 --------------------
@@ -579,6 +580,21 @@ Master message types
       payload for success, non-zero otherwise.
       This request should be send only when VIRTIO_F_IOMMU_PLATFORM feature
       has been successfully negotiated.
+
+ * VHOST_USER_SET_VRING_ENDIAN
+
+      Id: 23
+      Equivalent ioctl: VHOST_SET_VRING_ENDIAN
+      Master payload: vring state description
+
+      Set the endianess of a VQ for legacy devices. Little-endian is indicated
+      with state.num set to 0 and big-endian is indicated with state.num set
+      to 1. Other values are invalid.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_CROSS_ENDIAN
+      has been negotiated.
+      Backends that negotiated this feature should handle both endianesses
+      and expect this message once (per VQ) during device configuration
+      (ie. before the master starts the VQ).
 
 Slave message types
 -------------------

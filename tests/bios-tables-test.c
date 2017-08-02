@@ -108,7 +108,7 @@ static void test_acpi_rsdt_table(test_data *data)
     /* compute the table entries in rsdt */
     tables_nr = (rsdt_table->length - sizeof(AcpiRsdtDescriptorRev1)) /
                 sizeof(uint32_t);
-    g_assert_cmpint(tables_nr, >, 0);
+    g_assert(tables_nr > 0);
 
     /* get the addresses of the tables pointed by rsdt */
     tables = g_new0(uint32_t, tables_nr);

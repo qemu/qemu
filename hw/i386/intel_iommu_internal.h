@@ -384,7 +384,6 @@ typedef struct VTDIOTLBPageInvInfo VTDIOTLBPageInvInfo;
 /* Pagesize of VTD paging structures, including root and context tables */
 #define VTD_PAGE_SHIFT              12
 #define VTD_PAGE_SIZE               (1ULL << VTD_PAGE_SHIFT)
-#define VTD_PAGE_MASK               (VTD_PAGE_SIZE - 1)
 
 #define VTD_PAGE_SHIFT_4K           12
 #define VTD_PAGE_MASK_4K            (~((1ULL << VTD_PAGE_SHIFT_4K) - 1))

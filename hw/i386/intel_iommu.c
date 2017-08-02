@@ -237,8 +237,7 @@ out:
 
 static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
                              uint16_t domain_id, hwaddr addr, uint64_t slpte,
-                             bool read_flags, bool write_flags,
-                             uint32_t level)
+                             uint8_t access_flags, uint32_t level)
 {
     VTDIOTLBEntry *entry = g_malloc(sizeof(*entry));
     uint64_t *key = g_malloc(sizeof(*key));
@@ -253,8 +252,7 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     entry->gfn = gfn;
     entry->domain_id = domain_id;
     entry->slpte = slpte;
-    entry->read_flags = read_flags;
-    entry->write_flags = write_flags;
+    entry->access_flags = access_flags;
     entry->mask = vtd_slpt_level_page_mask(level);
     *key = vtd_get_iotlb_key(gfn, source_id, level);
     g_hash_table_replace(s->iotlb, key, entry);
@@ -1087,6 +1085,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     bool is_fpd_set = false;
     bool reads = true;
     bool writes = true;
+    uint8_t access_flags;
     VTDIOTLBEntry *iotlb_entry;
 
     /*
@@ -1101,8 +1100,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         trace_vtd_iotlb_page_hit(source_id, addr, iotlb_entry->slpte,
                                  iotlb_entry->domain_id);
         slpte = iotlb_entry->slpte;
-        reads = iotlb_entry->read_flags;
-        writes = iotlb_entry->write_flags;
+        access_flags = iotlb_entry->access_flags;
         page_mask = iotlb_entry->mask;
         goto out;
     }
@@ -1139,9 +1137,9 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
      * Also, let's ignore IOTLB caching as well for PT devices.
      */
     if (vtd_ce_get_type(&ce) == VTD_CONTEXT_TT_PASS_THROUGH) {
-        entry->iova = addr & VTD_PAGE_MASK;
+        entry->iova = addr & VTD_PAGE_MASK_4K;
         entry->translated_addr = entry->iova;
-        entry->addr_mask = VTD_PAGE_MASK;
+        entry->addr_mask = ~VTD_PAGE_MASK_4K;
         entry->perm = IOMMU_RW;
         trace_vtd_translate_pt(source_id, entry->iova);
 
@@ -1172,13 +1170,14 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     }
 
     page_mask = vtd_slpt_level_page_mask(level);
+    access_flags = IOMMU_ACCESS_FLAG(reads, writes);
     vtd_update_iotlb(s, source_id, VTD_CONTEXT_ENTRY_DID(ce.hi), addr, slpte,
-                     reads, writes, level);
+                     access_flags, level);
 out:
     entry->iova = addr & page_mask;
     entry->translated_addr = vtd_get_slpte_addr(slpte) & page_mask;
     entry->addr_mask = ~page_mask;
-    entry->perm = IOMMU_ACCESS_FLAG(reads, writes);
+    entry->perm = access_flags;
     return true;
 
 error:
