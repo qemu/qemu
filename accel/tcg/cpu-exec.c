@@ -352,28 +352,43 @@ void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr)
     }
 }
 
-/* Called with tb_lock held.  */
 static inline void tb_add_jump(TranslationBlock *tb, int n,
                                TranslationBlock *tb_next)
 {
+    uintptr_t old;
+
     assert(n < ARRAY_SIZE(tb->jmp_list_next));
-    if (tb->jmp_list_next[n]) {
-        /* Another thread has already done this while we were
-         * outside of the lock; nothing to do in this case */
-        return;
+    qemu_spin_lock(&tb_next->jmp_lock);
+
+    /* make sure the destination TB is valid */
+    if (tb_next->cflags & CF_INVALID) {
+        goto out_unlock_next;
     }
+    /* Atomically claim the jump destination slot only if it was NULL */
+    old = atomic_cmpxchg(&tb->jmp_dest[n], (uintptr_t)NULL, (uintptr_t)tb_next);
+    if (old) {
+        goto out_unlock_next;
+    }
+
+    /* patch the native jump address */
+    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc.ptr);
+
+    /* add in TB jmp list */
+    tb->jmp_list_next[n] = tb_next->jmp_list_head;
+    tb_next->jmp_list_head = (uintptr_t)tb | n;
+
+    qemu_spin_unlock(&tb_next->jmp_lock);
+
     qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
                            "Linking TBs %p [" TARGET_FMT_lx
                            "] index %d -> %p [" TARGET_FMT_lx "]\n",
                            tb->tc.ptr, tb->pc, n,
                            tb_next->tc.ptr, tb_next->pc);
+    return;
 
-    /* patch the native jump address */
-    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc.ptr);
-
-    /* add in TB jmp circular list */
-    tb->jmp_list_next[n] = tb_next->jmp_list_first;
-    tb_next->jmp_list_first = (uintptr_t)tb | n;
+ out_unlock_next:
+    qemu_spin_unlock(&tb_next->jmp_lock);
+    return;
 }
 
 static inline TranslationBlock *tb_find(CPUState *cpu,
@@ -416,9 +431,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
             tb_lock();
             acquired_tb_lock = true;
         }
-        if (!(tb->cflags & CF_INVALID)) {
-            tb_add_jump(last_tb, tb_exit, tb);
-        }
+        tb_add_jump(last_tb, tb_exit, tb);
     }
     if (acquired_tb_lock) {
         tb_unlock();

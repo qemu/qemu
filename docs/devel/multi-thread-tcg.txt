@@ -131,8 +131,10 @@ DESIGN REQUIREMENT: Safely handle invalidation of TBs
 
 The direct jump themselves are updated atomically by the TCG
 tb_set_jmp_target() code. Modification to the linked lists that allow
-searching for linked pages are done under the protect of the
-tb_lock().
+searching for linked pages are done under the protection of tb->jmp_lock,
+where tb is the destination block of a jump. Each origin block keeps a
+pointer to its destinations so that the appropriate lock can be acquired before
+iterating over a jump list.
 
 The global page table is a lockless radix tree; cmpxchg is used
 to atomically insert new elements.
