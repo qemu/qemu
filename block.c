@@ -246,7 +246,8 @@ bool bdrv_is_writable(BlockDriverState *bs)
     return !bdrv_is_read_only(bs) && !(bs->open_flags & BDRV_O_INACTIVE);
 }
 
-int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
+int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
+                           bool ignore_allow_rdw, Error **errp)
 {
     /* Do not set read_only if copy_on_read is enabled */
     if (bs->copy_on_read && read_only) {
@@ -256,7 +257,9 @@ int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
     }
 
     /* Do not clear read_only if it is prohibited */
-    if (!read_only && !(bs->open_flags & BDRV_O_ALLOW_RDWR)) {
+    if (!read_only && !(bs->open_flags & BDRV_O_ALLOW_RDWR) &&
+        !ignore_allow_rdw)
+    {
         error_setg(errp, "Node '%s' is read only",
                    bdrv_get_device_or_node_name(bs));
         return -EPERM;
@@ -269,7 +272,7 @@ int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
 {
     int ret = 0;
 
-    ret = bdrv_can_set_read_only(bs, read_only, errp);
+    ret = bdrv_can_set_read_only(bs, read_only, false, errp);
     if (ret < 0) {
         return ret;
     }
@@ -2907,7 +2910,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
      * to r/w. Attempting to set to r/w may fail if either BDRV_O_ALLOW_RDWR is
      * not set, or if the BDS still has copy_on_read enabled */
     read_only = !(reopen_state->flags & BDRV_O_RDWR);
-    ret = bdrv_can_set_read_only(reopen_state->bs, read_only, &local_err);
+    ret = bdrv_can_set_read_only(reopen_state->bs, read_only, true, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error;
