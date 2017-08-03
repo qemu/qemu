@@ -1359,19 +1359,19 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
 }
 
 /* CPU device-tree ID helpers */
-int ppc_get_vcpu_dt_id(PowerPCCPU *cpu)
+int ppc_get_vcpu_id(PowerPCCPU *cpu)
 {
-    return cpu->cpu_dt_id;
+    return cpu->vcpu_id;
 }
 
-PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
+PowerPCCPU *ppc_get_cpu_by_vcpu_id(int vcpu_id)
 {
     CPUState *cs;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        if (cpu->cpu_dt_id == cpu_dt_id) {
+        if (cpu->vcpu_id == vcpu_id) {
             return cpu;
         }
     }

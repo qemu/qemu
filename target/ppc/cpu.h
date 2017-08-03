@@ -1188,7 +1188,7 @@ typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
 /**
  * PowerPCCPU:
  * @env: #CPUPPCState
- * @cpu_dt_id: CPU index used in the device tree. KVM uses this index too
+ * @vcpu_id: vCPU identifier given to KVM
  * @compat_pvr: Current logical PVR, zero if in "raw" mode
  *
  * A PowerPC CPU.
@@ -1199,7 +1199,7 @@ struct PowerPCCPU {
     /*< public >*/
 
     CPUPPCState env;
-    int cpu_dt_id;
+    int vcpu_id;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
     Object *intc;
@@ -2515,22 +2515,22 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
 
 /**
- * ppc_get_vcpu_dt_id:
+ * ppc_get_vcpu_id:
  * @cs: a PowerPCCPU struct.
  *
  * Returns a device-tree ID for a CPU.
  */
-int ppc_get_vcpu_dt_id(PowerPCCPU *cpu);
+int ppc_get_vcpu_id(PowerPCCPU *cpu);
 
 /**
- * ppc_get_vcpu_by_dt_id:
- * @cpu_dt_id: a device tree id
+ * ppc_get_cpu_by_vcpu_id:
+ * @vcpu_id: a VCPU ID
  *
- * Searches for a CPU by @cpu_dt_id.
+ * Searches for a CPU by @vcpu_id.
  *
  * Returns: a PowerPCCPU struct
  */
-PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id);
+PowerPCCPU *ppc_get_cpu_by_vcpu_id(int vcpu_id);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
 #endif /* PPC_CPU_H */
