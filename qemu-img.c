@@ -201,7 +201,7 @@ static void QEMU_NORETURN help(void)
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
-    printf("\n");
+    printf("\n\n" QEMU_HELP_BOTTOM "\n");
     exit(EXIT_SUCCESS);
 }
 

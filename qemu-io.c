@@ -262,8 +262,9 @@ static void usage(const char *name)
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
 "\n"
-"See '%s -c help' for information on available commands."
-"\n",
+"See '%s -c help' for information on available commands.\n"
+"\n"
+QEMU_HELP_BOTTOM "\n",
     name, name);
 }
 
