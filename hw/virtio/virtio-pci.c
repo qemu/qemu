@@ -2135,7 +2135,7 @@ static const TypeInfo vhost_scsi_pci_info = {
 };
 #endif
 
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
 /* vhost-user-scsi-pci */
 static Property vhost_user_scsi_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
@@ -2665,7 +2665,7 @@ static void virtio_pci_register_types(void)
 #ifdef CONFIG_VHOST_SCSI
     type_register_static(&vhost_scsi_pci_info);
 #endif
-#ifdef CONFIG_LINUX
+#if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
     type_register_static(&vhost_user_scsi_pci_info);
 #endif
 #ifdef CONFIG_VHOST_VSOCK
