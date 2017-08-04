@@ -925,11 +925,6 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
         return ret;
     }
 
-    if (ret != sizeof(buf)) {
-        error_setg(errp, "read failed");
-        return -EINVAL;
-    }
-
     /* Reply
        [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
        [ 4 ..  7]    error   (0 == no error)
