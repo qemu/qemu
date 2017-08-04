@@ -75,7 +75,7 @@ sector = "%d"
         drive_args.append("stats-account-failed=%s" %
                           (self.account_failed and "on" or "off"))
         self.create_blkdebug_file()
-        self.vm = iotests.VM().add_drive('blkdebug:%s:%s ' %
+        self.vm = iotests.VM().add_drive('blkdebug:%s:%s' %
                                          (blkdebug_file, self.test_img),
                                          ','.join(drive_args))
         self.vm.launch()
