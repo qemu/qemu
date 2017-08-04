@@ -192,7 +192,7 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
                                  int nb_sectors, int *pnum)
 {
     BDRVParallelsState *s = bs->opaque;
-    int64_t pos, space, idx, to_allocate, i;
+    int64_t pos, space, idx, to_allocate, i, len;
 
     pos = block_status(s, sector_num, nb_sectors, pnum);
     if (pos > 0) {
@@ -214,7 +214,11 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
     assert(idx < s->bat_size && idx + to_allocate <= s->bat_size);
 
     space = to_allocate * s->tracks;
-    if (s->data_end + space > bdrv_getlength(bs->file->bs) >> BDRV_SECTOR_BITS) {
+    len = bdrv_getlength(bs->file->bs);
+    if (len < 0) {
+        return len;
+    }
+    if (s->data_end + space > (len >> BDRV_SECTOR_BITS)) {
         int ret;
         space += s->prealloc_size;
         if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
