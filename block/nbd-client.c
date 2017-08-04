@@ -230,7 +230,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
         .len = bytes,
     };
     NBDReply reply;
-    ssize_t ret;
+    int ret;
 
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
     assert(!flags);
@@ -254,7 +254,7 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
         .len = bytes,
     };
     NBDReply reply;
-    ssize_t ret;
+    int ret;
 
     if (flags & BDRV_REQ_FUA) {
         assert(client->info.flags & NBD_FLAG_SEND_FUA);
@@ -275,7 +275,7 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
 int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
                                 int bytes, BdrvRequestFlags flags)
 {
-    ssize_t ret;
+    int ret;
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = {
         .type = NBD_CMD_WRITE_ZEROES,
@@ -310,7 +310,7 @@ int nbd_client_co_flush(BlockDriverState *bs)
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = { .type = NBD_CMD_FLUSH };
     NBDReply reply;
-    ssize_t ret;
+    int ret;
 
     if (!(client->info.flags & NBD_FLAG_SEND_FLUSH)) {
         return 0;
@@ -337,7 +337,7 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
         .len = bytes,
     };
     NBDReply reply;
-    ssize_t ret;
+    int ret;
 
     if (!(client->info.flags & NBD_FLAG_SEND_TRIM)) {
         return 0;
