@@ -244,6 +244,9 @@ only the differences from @var{backing_file}. No size needs to be specified in
 this case. @var{backing_file} will never be modified unless you use the
 @code{commit} monitor command (or qemu-img commit).
 
+If a relative path name is given, the backing file is looked up relative to
+the directory containing @var{filename}.
+
 Note that a given backing file will be opened to check that it is valid. Use
 the @code{-u} option to enable unsafe backing file mode, which means that the
 image will be created even if the associated backing file cannot be opened. A
@@ -342,6 +345,9 @@ You can use the @var{backing_file} option to force the output image to be
 created as a copy on write image of the specified base image; the
 @var{backing_file} should have the same content as the input's base image,
 however the path, image format, etc may differ.
+
+If a relative path name is given, the backing file is looked up relative to
+the directory containing @var{output_filename}.
 
 If the @code{-n} option is specified, the target volume creation will be
 skipped. This is useful for formats such as @code{rbd} if the target
@@ -489,6 +495,9 @@ The backing file is changed to @var{backing_file} and (if the image format of
 @var{backing_fmt}. If @var{backing_file} is specified as ``'' (the empty
 string), then the image is rebased onto no backing file (i.e. it will exist
 independently of any backing file).
+
+If a relative path name is given, the backing file is looked up relative to
+the directory containing @var{filename}.
 
 @var{cache} specifies the cache mode to be used for @var{filename}, whereas
 @var{src_cache} specifies the cache mode for reading backing files.
