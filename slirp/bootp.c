@@ -123,6 +123,9 @@ static void dhcp_decode(const struct bootp_t *bp, int *pmsg_type,
             if (p >= p_end)
                 break;
             len = *p++;
+            if (p + len > p_end) {
+                break;
+            }
             DPRINTF("dhcp: tag=%d len=%d\n", tag, len);
 
             switch(tag) {
