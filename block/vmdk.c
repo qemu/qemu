@@ -2236,6 +2236,7 @@ static int vmdk_check(BlockDriverState *bs, BdrvCheckResult *result,
             fprintf(stderr,
                     "ERROR: could not find extent for sector %" PRId64 "\n",
                     sector_num);
+            ret = -EINVAL;
             break;
         }
         ret = get_cluster_offset(bs, extent, NULL,
@@ -2247,19 +2248,28 @@ static int vmdk_check(BlockDriverState *bs, BdrvCheckResult *result,
                     PRId64 "\n", sector_num);
             break;
         }
-        if (ret == VMDK_OK &&
-            cluster_offset >= bdrv_getlength(extent->file->bs))
-        {
-            fprintf(stderr,
-                    "ERROR: cluster offset for sector %"
-                    PRId64 " points after EOF\n", sector_num);
-            break;
+        if (ret == VMDK_OK) {
+            int64_t extent_len = bdrv_getlength(extent->file->bs);
+            if (extent_len < 0) {
+                fprintf(stderr,
+                        "ERROR: could not get extent file length for sector %"
+                        PRId64 "\n", sector_num);
+                ret = extent_len;
+                break;
+            }
+            if (cluster_offset >= extent_len) {
+                fprintf(stderr,
+                        "ERROR: cluster offset for sector %"
+                        PRId64 " points after EOF\n", sector_num);
+                ret = -EINVAL;
+                break;
+            }
         }
         sector_num += extent->cluster_sectors;
     }
 
     result->corruptions++;
-    return 0;
+    return ret;
 }
 
 static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs)
