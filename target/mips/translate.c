@@ -27,10 +27,10 @@
 #include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
+#include "hw/mips/cpudevs.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-#include "sysemu/kvm.h"
 #include "exec/semihost.h"
 
 #include "target/mips/trace.h"
@@ -5334,8 +5334,10 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
                 gen_io_end();
             }
             /* Break the TB to be able to take timer interrupts immediately
-               after reading count.  */
-            ctx->bstate = BS_STOP;
+               after reading count. BS_STOP isn't sufficient, we need to ensure
+               we break completely out of translated code.  */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -6061,6 +6063,11 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 0:
             save_cpu_state(ctx, 1);
             gen_helper_mtc0_cause(cpu_env, arg);
+            /* Stop translation as we may have triggered an interrupt. BS_STOP
+             * isn't sufficient, we need to ensure we break out of translated
+             * code to check for pending interrupts.  */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Cause";
             break;
         default:
@@ -6386,8 +6393,6 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         default:
             goto cp0_unimplemented;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     default:
        goto cp0_unimplemented;
@@ -6397,7 +6402,10 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     /* For simplicity assume that all writes can cause interrupts.  */
     if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
-        ctx->bstate = BS_STOP;
+        /* BS_STOP isn't sufficient, we need to ensure we break out of
+         * translated code to check for pending interrupts.  */
+        gen_save_pc(ctx->pc + 4);
+        ctx->bstate = BS_EXCP;
     }
     return;
 
@@ -6678,8 +6686,10 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
                 gen_io_end();
             }
             /* Break the TB to be able to take timer interrupts immediately
-               after reading count.  */
-            ctx->bstate = BS_STOP;
+               after reading count. BS_STOP isn't sufficient, we need to ensure
+               we break completely out of translated code.  */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -7391,17 +7401,12 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case 0:
             save_cpu_state(ctx, 1);
-            /* Mark as an IO operation because we may trigger a software
-               interrupt.  */
-            if (ctx->tb->cflags & CF_USE_ICOUNT) {
-                gen_io_start();
-            }
             gen_helper_mtc0_cause(cpu_env, arg);
-            if (ctx->tb->cflags & CF_USE_ICOUNT) {
-                gen_io_end();
-            }
-            /* Stop translation as we may have triggered an intetrupt */
-            ctx->bstate = BS_STOP;
+            /* Stop translation as we may have triggered an intetrupt. BS_STOP
+             * isn't sufficient, we need to ensure we break out of translated
+             * code to check for pending interrupts.  */
+            gen_save_pc(ctx->pc + 4);
+            ctx->bstate = BS_EXCP;
             rn = "Cause";
             break;
         default:
@@ -7714,8 +7719,6 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         default:
             goto cp0_unimplemented;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     default:
         goto cp0_unimplemented;
@@ -7725,7 +7728,10 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     /* For simplicity assume that all writes can cause interrupts.  */
     if (ctx->tb->cflags & CF_USE_ICOUNT) {
         gen_io_end();
-        ctx->bstate = BS_STOP;
+        /* BS_STOP isn't sufficient, we need to ensure we break out of
+         * translated code to check for pending interrupts.  */
+        gen_save_pc(ctx->pc + 4);
+        ctx->bstate = BS_EXCP;
     }
     return;
 
@@ -10749,8 +10755,19 @@ static void gen_rdhwr(DisasContext *ctx, int rt, int rd, int sel)
         gen_store_gpr(t0, rt);
         break;
     case 2:
+        if (ctx->tb->cflags & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_helper_rdhwr_cc(t0, cpu_env);
+        if (ctx->tb->cflags & CF_USE_ICOUNT) {
+            gen_io_end();
+        }
         gen_store_gpr(t0, rt);
+        /* Break the TB to be able to take timer interrupts immediately
+           after reading count. BS_STOP isn't sufficient, we need to ensure
+           we break completely out of translated code.  */
+        gen_save_pc(ctx->pc + 4);
+        ctx->bstate = BS_EXCP;
         break;
     case 3:
         gen_helper_rdhwr_ccres(t0, cpu_env);
@@ -13569,8 +13586,10 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
                 save_cpu_state(ctx, 1);
                 gen_helper_ei(t0, cpu_env);
                 gen_store_gpr(t0, rs);
-                /* Stop translation as we may have switched the execution mode */
-                ctx->bstate = BS_STOP;
+                /* BS_STOP isn't sufficient, we need to ensure we break out
+                   of translated code to check for pending interrupts.  */
+                gen_save_pc(ctx->pc + 4);
+                ctx->bstate = BS_EXCP;
                 tcg_temp_free(t0);
             }
             break;
@@ -19692,9 +19711,10 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
                     save_cpu_state(ctx, 1);
                     gen_helper_ei(t0, cpu_env);
                     gen_store_gpr(t0, rt);
-                    /* Stop translation as we may have switched
-                       the execution mode.  */
-                    ctx->bstate = BS_STOP;
+                    /* BS_STOP isn't sufficient, we need to ensure we break out
+                       of translated code to check for pending interrupts.  */
+                    gen_save_pc(ctx->pc + 4);
+                    ctx->bstate = BS_EXCP;
                     break;
                 default:            /* Invalid */
                     MIPS_INVAL("mfmc0");
@@ -20639,7 +20659,7 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_Wired = 0;
     env->CP0_GlobalNumber = (cs->cpu_index & 0xFF) << CP0GN_VPId;
     env->CP0_EBase = (cs->cpu_index & 0x3FF);
-    if (kvm_enabled()) {
+    if (mips_um_ksegs_enabled()) {
         env->CP0_EBase |= 0x40000000;
     } else {
         env->CP0_EBase |= (int32_t)0x80000000;
