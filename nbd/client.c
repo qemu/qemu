@@ -896,7 +896,7 @@ int nbd_disconnect(int fd)
 }
 #endif
 
-ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
+int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
 
