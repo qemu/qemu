@@ -399,12 +399,10 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
                phase, but make sure it sent flags */
             if (len) {
                 error_setg(errp, "server sent invalid NBD_REP_ACK");
-                nbd_send_opt_abort(ioc);
                 return -1;
             }
             if (!info->flags) {
                 error_setg(errp, "broken server omitted NBD_INFO_EXPORT");
-                nbd_send_opt_abort(ioc);
                 return -1;
             }
             trace_nbd_opt_go_success();
