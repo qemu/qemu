@@ -34,7 +34,7 @@
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ ((uint64_t)(intptr_t)bs))
 #define INDEX_TO_HANDLE(bs, index)  ((index)  ^ ((uint64_t)(intptr_t)bs))
 
-static void nbd_recv_coroutines_enter_all(NBDClientSession *s)
+static void nbd_recv_coroutines_wake_all(NBDClientSession *s)
 {
     int i;
 
@@ -112,7 +112,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     }
 
     s->quit = true;
-    nbd_recv_coroutines_enter_all(s);
+    nbd_recv_coroutines_wake_all(s);
     s->read_reply_co = NULL;
 }
 
