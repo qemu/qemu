@@ -914,11 +914,16 @@ ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
     return nbd_write(ioc, buf, sizeof(buf), NULL);
 }
 
-ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
+/* nbd_receive_reply
+ * Returns 1 on success
+ *         0 on eof, when no data was read (errp is not set)
+ *         negative errno on failure (errp is set)
+ */
+int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     uint32_t magic;
-    ssize_t ret;
+    int ret;
 
     ret = nbd_read_eof(ioc, buf, sizeof(buf), errp);
     if (ret <= 0) {
@@ -948,6 +953,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
         error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
-    return sizeof(buf);
+
+    return 1;
 }
 
