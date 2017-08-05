@@ -355,7 +355,6 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
 }
 
 /* The cpu state corresponding to 'searched_pc' is restored.
- * Called with tb_lock held.
  * When reset_icount is true, current TB will be interrupted and
  * icount should be recalculated.
  */
