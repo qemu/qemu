@@ -32,8 +32,6 @@ typedef struct TBContext TBContext;
 struct TBContext {
 
     struct qht htable;
-    /* any access to the tbs or the page table must use this lock */
-    QemuMutex tb_lock;
 
     /* statistics */
     unsigned tb_flush_count;

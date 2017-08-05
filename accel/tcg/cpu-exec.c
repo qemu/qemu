@@ -212,20 +212,20 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
        We only end up here when an existing TB is too long.  */
     cflags |= MIN(max_cycles, CF_COUNT_MASK);
 
-    tb_lock();
+    mmap_lock();
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base,
                      orig_tb->flags, cflags);
     tb->orig_tb = orig_tb;
-    tb_unlock();
+    mmap_unlock();
 
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
     cpu_tb_exec(cpu, tb);
 
-    tb_lock();
+    mmap_lock();
     tb_phys_invalidate(tb, -1);
+    mmap_unlock();
     tcg_tb_remove(tb);
-    tb_unlock();
 }
 #endif
 
@@ -244,9 +244,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
         tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, cf_mask);
         if (tb == NULL) {
             mmap_lock();
-            tb_lock();
             tb = tb_gen_code(cpu, pc, cs_base, flags, cflags);
-            tb_unlock();
             mmap_unlock();
         }
 
@@ -261,15 +259,13 @@ void cpu_exec_step_atomic(CPUState *cpu)
         cpu_tb_exec(cpu, tb);
         cc->cpu_exec_exit(cpu);
     } else {
-        /* We may have exited due to another problem here, so we need
-         * to reset any tb_locks we may have taken but didn't release.
+        /*
          * The mmap_lock is dropped by tb_gen_code if it runs out of
          * memory.
          */
 #ifndef CONFIG_SOFTMMU
         tcg_debug_assert(!have_mmap_lock());
 #endif
-        tb_lock_reset();
         assert_no_pages_locked();
     }
 
@@ -398,20 +394,11 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     uint32_t flags;
-    bool acquired_tb_lock = false;
 
     tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, cf_mask);
     if (tb == NULL) {
-        /* mmap_lock is needed by tb_gen_code, and mmap_lock must be
-         * taken outside tb_lock. As system emulation is currently
-         * single threaded the locks are NOPs.
-         */
         mmap_lock();
-        tb_lock();
-        acquired_tb_lock = true;
-
         tb = tb_gen_code(cpu, pc, cs_base, flags, cf_mask);
-
         mmap_unlock();
         /* We add the TB in the virtual pc hash table for the fast lookup */
         atomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)], tb);
@@ -427,14 +414,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
 #endif
     /* See if we can patch the calling TB. */
     if (last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
-        if (!acquired_tb_lock) {
-            tb_lock();
-            acquired_tb_lock = true;
-        }
         tb_add_jump(last_tb, tb_exit, tb);
-    }
-    if (acquired_tb_lock) {
-        tb_unlock();
     }
     return tb;
 }
@@ -710,7 +690,9 @@ int cpu_exec(CPUState *cpu)
         g_assert(cpu == current_cpu);
         g_assert(cc == CPU_GET_CLASS(cpu));
 #endif /* buggy compiler */
-        tb_lock_reset();
+#ifndef CONFIG_SOFTMMU
+        tcg_debug_assert(!have_mmap_lock());
+#endif
         if (qemu_mutex_iothread_locked()) {
             qemu_mutex_unlock_iothread();
         }

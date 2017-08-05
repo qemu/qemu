@@ -88,13 +88,13 @@
 #endif
 
 /* Access to the various translations structures need to be serialised via locks
- * for consistency. This is automatic for SoftMMU based system
- * emulation due to its single threaded nature. In user-mode emulation
- * access to the memory related structures are protected with the
- * mmap_lock.
+ * for consistency.
+ * In user-mode emulation access to the memory related structures are protected
+ * with mmap_lock.
+ * In !user-mode we use per-page locks.
  */
 #ifdef CONFIG_SOFTMMU
-#define assert_memory_lock() tcg_debug_assert(have_tb_lock)
+#define assert_memory_lock()
 #else
 #define assert_memory_lock() tcg_debug_assert(have_mmap_lock())
 #endif
@@ -216,9 +216,6 @@ __thread TCGContext *tcg_ctx;
 TBContext tb_ctx;
 bool parallel_cpus;
 
-/* translation block context */
-static __thread int have_tb_lock;
-
 static void page_table_config_init(void)
 {
     uint32_t v_l1_bits;
@@ -237,31 +234,6 @@ static void page_table_config_init(void)
     assert(v_l1_bits <= V_L1_MAX_BITS);
     assert(v_l1_shift % V_L2_BITS == 0);
     assert(v_l2_levels >= 0);
-}
-
-#define assert_tb_locked() tcg_debug_assert(have_tb_lock)
-#define assert_tb_unlocked() tcg_debug_assert(!have_tb_lock)
-
-void tb_lock(void)
-{
-    assert_tb_unlocked();
-    qemu_mutex_lock(&tb_ctx.tb_lock);
-    have_tb_lock++;
-}
-
-void tb_unlock(void)
-{
-    assert_tb_locked();
-    have_tb_lock--;
-    qemu_mutex_unlock(&tb_ctx.tb_lock);
-}
-
-void tb_lock_reset(void)
-{
-    if (have_tb_lock) {
-        qemu_mutex_unlock(&tb_ctx.tb_lock);
-        have_tb_lock = 0;
-    }
 }
 
 void cpu_gen_init(void)
@@ -420,8 +392,7 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
      *  - fault during translation (instruction fetch)
      *  - fault from helper (not using GETPC() macro)
      *
-     * Either way we need return early to avoid blowing up on a
-     * recursive tb_lock() as we can't resolve it here.
+     * Either way we need return early as we can't resolve it here.
      *
      * We are using unsigned arithmetic so if host_pc <
      * tcg_init_ctx.code_gen_buffer check_offset will wrap to way
@@ -430,7 +401,6 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
     check_offset = host_pc - (uintptr_t) tcg_init_ctx.code_gen_buffer;
 
     if (check_offset < tcg_init_ctx.code_gen_buffer_size) {
-        tb_lock();
         tb = tcg_tb_lookup(host_pc);
         if (tb) {
             cpu_restore_state_from_tb(cpu, tb, host_pc, will_exit);
@@ -441,7 +411,6 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
             }
             r = true;
         }
-        tb_unlock();
     }
 
     return r;
@@ -1130,7 +1099,6 @@ static inline void code_gen_alloc(size_t tb_size)
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
     }
-    qemu_mutex_init(&tb_ctx.tb_lock);
 }
 
 static bool tb_cmp(const void *ap, const void *bp)
@@ -1174,14 +1142,12 @@ void tcg_exec_init(unsigned long tb_size)
 /*
  * Allocate a new translation block. Flush the translation buffer if
  * too many translation blocks or too much generated code.
- *
- * Called with tb_lock held.
  */
 static TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
-    assert_tb_locked();
+    assert_memory_lock();
 
     tb = tcg_tb_alloc(tcg_ctx);
     if (unlikely(tb == NULL)) {
@@ -1248,8 +1214,7 @@ static gboolean tb_host_size_iter(gpointer key, gpointer value, gpointer data)
 /* flush all the translation blocks */
 static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 {
-    tb_lock();
-
+    mmap_lock();
     /* If it is already been done on request of another CPU,
      * just retry.
      */
@@ -1279,7 +1244,7 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     atomic_mb_set(&tb_ctx.tb_flush_count, tb_ctx.tb_flush_count + 1);
 
 done:
-    tb_unlock();
+    mmap_unlock();
 }
 
 void tb_flush(CPUState *cpu)
@@ -1313,7 +1278,7 @@ do_tb_invalidate_check(struct qht *ht, void *p, uint32_t hash, void *userp)
 
 /* verify that all the pages have correct rights for code
  *
- * Called with tb_lock held.
+ * Called with mmap_lock held.
  */
 static void tb_invalidate_check(target_ulong address)
 {
@@ -1343,7 +1308,10 @@ static void tb_page_check(void)
 
 #endif /* CONFIG_USER_ONLY */
 
-/* call with @pd->lock held */
+/*
+ * user-mode: call with mmap_lock held
+ * !user-mode: call with @pd->lock held
+ */
 static inline void tb_page_remove(PageDesc *pd, TranslationBlock *tb)
 {
     TranslationBlock *tb1;
@@ -1437,7 +1405,11 @@ static inline void tb_jmp_unlink(TranslationBlock *dest)
     qemu_spin_unlock(&dest->jmp_lock);
 }
 
-/* If @rm_from_page_list is set, call with the TB's pages' locks held */
+/*
+ * In user-mode, call with mmap_lock held.
+ * In !user-mode, if @rm_from_page_list is set, call with the TB's pages'
+ * locks held.
+ */
 static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
 {
     CPUState *cpu;
@@ -1445,7 +1417,7 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
     uint32_t h;
     tb_page_addr_t phys_pc;
 
-    assert_tb_locked();
+    assert_memory_lock();
 
     /* make sure no further incoming jumps will be chained to this TB */
     qemu_spin_lock(&tb->jmp_lock);
@@ -1498,7 +1470,7 @@ static void tb_phys_invalidate__locked(TranslationBlock *tb)
 
 /* invalidate one TB
  *
- * Called with tb_lock held.
+ * Called with mmap_lock held in user-mode.
  */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
@@ -1543,7 +1515,7 @@ static void build_page_bitmap(PageDesc *p)
 /* add the tb in the target page and protect it if necessary
  *
  * Called with mmap_lock held for user-mode emulation.
- * Called with @p->lock held.
+ * Called with @p->lock held in !user-mode.
  */
 static inline void tb_page_add(PageDesc *p, TranslationBlock *tb,
                                unsigned int n, tb_page_addr_t page_addr)
@@ -1815,10 +1787,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     if ((pc & TARGET_PAGE_MASK) != virt_page2) {
         phys_page2 = get_page_addr_code(env, virt_page2);
     }
-    /* As long as consistency of the TB stuff is provided by tb_lock in user
-     * mode and is implicit in single-threaded softmmu emulation, no explicit
-     * memory barrier is required before tb_link_page() makes the TB visible
-     * through the physical hash table and physical page list.
+    /*
+     * No explicit memory barrier is required -- tb_link_page() makes the
+     * TB visible in a consistent state.
      */
     existing_tb = tb_link_page(tb, phys_pc, phys_page2);
     /* if the TB already exists, discard what we just translated */
@@ -1834,8 +1805,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 }
 
 /*
- * Call with all @pages locked.
  * @p must be non-NULL.
+ * user-mode: call with mmap_lock held.
+ * !user-mode: call with all @pages locked.
  */
 static void
 tb_invalidate_phys_page_range__locked(struct page_collection *pages,
@@ -1920,6 +1892,7 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
         page_collection_unlock(pages);
         /* Force execution of one insn next time.  */
         cpu->cflags_next_tb = 1 | curr_cflags();
+        mmap_unlock();
         cpu_loop_exit_noexc(cpu);
     }
 #endif
@@ -1932,8 +1905,7 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
  *
- * Called with tb_lock/mmap_lock held for user-mode emulation
- * Called with tb_lock held for system-mode emulation
+ * Called with mmap_lock held for user-mode emulation
  */
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
@@ -1942,7 +1914,6 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     PageDesc *p;
 
     assert_memory_lock();
-    assert_tb_locked();
 
     p = page_find(start >> TARGET_PAGE_BITS);
     if (p == NULL) {
@@ -1961,13 +1932,14 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
  *
- * Called with mmap_lock held for user-mode emulation, grabs tb_lock
- * Called with tb_lock held for system-mode emulation
+ * Called with mmap_lock held for user-mode emulation.
  */
-static void tb_invalidate_phys_range_1(tb_page_addr_t start, tb_page_addr_t end)
+void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 {
     struct page_collection *pages;
     tb_page_addr_t next;
+
+    assert_memory_lock();
 
     pages = page_collection_lock(start, end);
     for (next = (start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -1985,29 +1957,15 @@ static void tb_invalidate_phys_range_1(tb_page_addr_t start, tb_page_addr_t end)
 }
 
 #ifdef CONFIG_SOFTMMU
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
-{
-    assert_tb_locked();
-    tb_invalidate_phys_range_1(start, end);
-}
-#else
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
-{
-    assert_memory_lock();
-    tb_lock();
-    tb_invalidate_phys_range_1(start, end);
-    tb_unlock();
-}
-#endif
-
-#ifdef CONFIG_SOFTMMU
 /* len must be <= 8 and start must be a multiple of len.
  * Called via softmmu_template.h when code areas are written to with
  * iothread mutex not held.
+ *
+ * Call with all @pages in the range [@start, @start + len[ locked.
  */
-void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
+void tb_invalidate_phys_page_fast(struct page_collection *pages,
+                                  tb_page_addr_t start, int len)
 {
-    struct page_collection *pages;
     PageDesc *p;
 
 #if 0
@@ -2026,7 +1984,6 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
         return;
     }
 
-    pages = page_collection_lock(start, start + len);
     assert_page_locked(p);
     if (!p->code_bitmap &&
         ++p->code_write_count >= SMC_BITMAP_USE_THRESHOLD) {
@@ -2045,7 +2002,6 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
     do_invalidate:
         tb_invalidate_phys_page_range__locked(pages, p, start, start + len, 1);
     }
-    page_collection_unlock(pages);
 }
 #else
 /* Called with mmap_lock held. If pc is not 0 then it indicates the
@@ -2077,7 +2033,6 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
         return false;
     }
 
-    tb_lock();
 #ifdef TARGET_HAS_PRECISE_SMC
     if (p->first_tb && pc != 0) {
         current_tb = tcg_tb_lookup(pc);
@@ -2110,12 +2065,9 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
     if (current_tb_modified) {
         /* Force execution of one insn next time.  */
         cpu->cflags_next_tb = 1 | curr_cflags();
-        /* tb_lock will be reset after cpu_loop_exit_noexc longjmps
-         * back into the cpu_exec loop. */
         return true;
     }
 #endif
-    tb_unlock();
 
     return false;
 }
@@ -2136,17 +2088,17 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs)
         return;
     }
     ram_addr = memory_region_get_ram_addr(mr) + addr;
-    tb_lock();
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
-    tb_unlock();
     rcu_read_unlock();
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-/* Called with tb_lock held.  */
+/* user-mode: call with mmap_lock held */
 void tb_check_watchpoint(CPUState *cpu)
 {
     TranslationBlock *tb;
+
+    assert_memory_lock();
 
     tb = tcg_tb_lookup(cpu->mem_io_pc);
     if (tb) {
@@ -2181,7 +2133,6 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     TranslationBlock *tb;
     uint32_t n;
 
-    tb_lock();
     tb = tcg_tb_lookup(retaddr);
     if (!tb) {
         cpu_abort(cpu, "cpu_io_recompile: could not find TB for pc=%p",
@@ -2229,9 +2180,6 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
      *  repeating the fault, which is horribly inefficient.
      *  Better would be to execute just this insn uncached, or generate a
      *  second new TB.
-     *
-     * cpu_loop_exit_noexc will longjmp back to cpu_exec where the
-     * tb_lock gets reset.
      */
     cpu_loop_exit_noexc(cpu);
 }
