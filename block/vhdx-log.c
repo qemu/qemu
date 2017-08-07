@@ -558,7 +558,11 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
                     ret = -EINVAL;
                     goto exit;
                 }
-                bdrv_truncate(bs->file, new_file_size, PREALLOC_MODE_OFF, NULL);
+                ret = bdrv_truncate(bs->file, new_file_size, PREALLOC_MODE_OFF,
+                                    NULL);
+                if (ret < 0) {
+                    goto exit;
+                }
             }
         }
         qemu_vfree(desc_entries);
