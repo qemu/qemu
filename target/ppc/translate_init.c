@@ -1842,7 +1842,7 @@ static inline uint32_t gen_tlbncfg(uint32_t assoc, uint32_t minsize,
 
 /* BookE 2.06 storage control registers */
 static void gen_spr_BookE206(CPUPPCState *env, uint32_t mas_mask,
-                              uint32_t *tlbncfg)
+                             uint32_t *tlbncfg, uint32_t mmucfg)
 {
 #if !defined(CONFIG_USER_ONLY)
     const char *mas_names[8] = {
@@ -1886,7 +1886,7 @@ static void gen_spr_BookE206(CPUPPCState *env, uint32_t mas_mask,
     spr_register(env, SPR_MMUCFG, "MMUCFG",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
-                 0x00000000); /* TOFIX */
+                 mmucfg);
     switch (env->nb_ways) {
     case 4:
         spr_register(env, SPR_BOOKE_TLB3CFG, "TLB3CFG",
@@ -4615,7 +4615,7 @@ static void init_proc_e200(CPUPPCState *env)
                  &spr_read_spefscr, &spr_write_spefscr,
                  0x00000000);
     /* Memory management */
-    gen_spr_BookE206(env, 0x0000005D, NULL);
+    gen_spr_BookE206(env, 0x0000005D, NULL, 0);
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -4900,6 +4900,7 @@ static void init_proc_e500(CPUPPCState *env, int version)
                     | 0x0020; /* 32 kb */
     uint32_t l1cfg1 = 0x3800  /* 8 ways */
                     | 0x0020; /* 32 kb */
+    uint32_t mmucfg = 0;
 #if !defined(CONFIG_USER_ONLY)
     int i;
 #endif
@@ -4974,7 +4975,7 @@ static void init_proc_e500(CPUPPCState *env, int version)
     default:
         cpu_abort(CPU(cpu), "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
     }
-    gen_spr_BookE206(env, 0x000000DF, tlbncfg);
+    gen_spr_BookE206(env, 0x000000DF, tlbncfg, mmucfg);
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
