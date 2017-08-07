@@ -565,7 +565,10 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
         desc_entries = NULL;
     }
 
-    bdrv_flush(bs);
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        goto exit;
+    }
     /* once the log is fully flushed, indicate that we have an empty log
      * now.  This also sets the log guid to 0, to indicate an empty log */
     vhdx_log_reset(bs, s);
@@ -1039,7 +1042,11 @@ int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
 
     /* Make sure data written (new and/or changed blocks) is stable
      * on disk, before creating log entry */
-    bdrv_flush(bs);
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        goto exit;
+    }
+
     ret = vhdx_log_write(bs, s, data, length, offset);
     if (ret < 0) {
         goto exit;
@@ -1047,7 +1054,11 @@ int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
     logs.log = s->log;
 
     /* Make sure log is stable on disk */
-    bdrv_flush(bs);
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        goto exit;
+    }
+
     ret = vhdx_log_flush(bs, s, &logs);
     if (ret < 0) {
         goto exit;
