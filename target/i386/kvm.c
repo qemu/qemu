@@ -611,6 +611,15 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
     return 0;
 }
 
+static bool tsc_is_stable_and_known(CPUX86State *env)
+{
+    if (!env->tsc_khz) {
+        return false;
+    }
+    return (env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC)
+        || env->user_tsc_khz;
+}
+
 static int hyperv_handle_properties(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -986,9 +995,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         && cpu->expose_kvm
         && kvm_base == KVM_CPUID_SIGNATURE
         /* TSC clock must be stable and known for this feature. */
-        && ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC)
-            || env->user_tsc_khz != 0)
-        && env->tsc_khz != 0) {
+        && tsc_is_stable_and_known(env)) {
 
         c = &cpuid_data.entries[cpuid_i++];
         c->function = KVM_CPUID_SIGNATURE | 0x10;
