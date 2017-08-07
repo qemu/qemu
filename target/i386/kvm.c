@@ -89,6 +89,7 @@ static bool has_msr_hv_vpindex;
 static bool has_msr_hv_runtime;
 static bool has_msr_hv_synic;
 static bool has_msr_hv_stimer;
+static bool has_msr_hv_frequencies;
 static bool has_msr_xss;
 
 static bool has_msr_architectural_pmu;
@@ -640,7 +641,13 @@ static int hyperv_handle_properties(CPUState *cs)
     if (cpu->hyperv_time) {
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_TIME_REF_COUNT_AVAILABLE;
-        env->features[FEAT_HYPERV_EAX] |= 0x200;
+        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_REFERENCE_TSC_AVAILABLE;
+
+        if (has_msr_hv_frequencies && tsc_is_stable_and_known(env)) {
+            env->features[FEAT_HYPERV_EAX] |= HV_X64_ACCESS_FREQUENCY_MSRS;
+            env->features[FEAT_HYPERV_EDX] |=
+                HV_FEATURE_FREQUENCY_MSRS_AVAILABLE;
+        }
     }
     if (cpu->hyperv_crash && has_msr_hv_crash) {
         env->features[FEAT_HYPERV_EDX] |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
@@ -1133,6 +1140,9 @@ static int kvm_get_supported_msrs(KVMState *s)
                     break;
                 case HV_X64_MSR_STIMER0_CONFIG:
                     has_msr_hv_stimer = true;
+                    break;
+                case HV_X64_MSR_TSC_FREQUENCY:
+                    has_msr_hv_frequencies = true;
                     break;
                 }
             }
