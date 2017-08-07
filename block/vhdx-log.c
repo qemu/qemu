@@ -491,6 +491,7 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
     uint32_t cnt, sectors_read;
     uint64_t new_file_size;
     void *data = NULL;
+    int64_t file_length;
     VHDXLogDescEntries *desc_entries = NULL;
     VHDXLogEntryHeader hdr_tmp = { 0 };
 
@@ -510,10 +511,15 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
         if (ret < 0) {
             goto exit;
         }
+        file_length = bdrv_getlength(bs->file->bs);
+        if (file_length < 0) {
+            ret = file_length;
+            goto exit;
+        }
         /* if the log shows a FlushedFileOffset larger than our current file
          * size, then that means the file has been truncated / corrupted, and
          * we must refused to open it / use it */
-        if (hdr_tmp.flushed_file_offset > bdrv_getlength(bs->file->bs)) {
+        if (hdr_tmp.flushed_file_offset > file_length) {
             ret = -EINVAL;
             goto exit;
         }
@@ -543,7 +549,7 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
                 goto exit;
             }
         }
-        if (bdrv_getlength(bs->file->bs) < desc_entries->hdr.last_file_offset) {
+        if (file_length < desc_entries->hdr.last_file_offset) {
             new_file_size = desc_entries->hdr.last_file_offset;
             if (new_file_size % (1024*1024)) {
                 /* round up to nearest 1MB boundary */
@@ -851,6 +857,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
     uint32_t partial_sectors = 0;
     uint32_t bytes_written = 0;
     uint64_t file_offset;
+    int64_t file_length;
     VHDXHeader *header;
     VHDXLogEntryHeader new_hdr;
     VHDXLogDescriptor *new_desc = NULL;
@@ -904,6 +911,12 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
 
     sectors += partial_sectors;
 
+    file_length = bdrv_getlength(bs->file->bs);
+    if (file_length < 0) {
+        ret = file_length;
+        goto exit;
+    }
+
     /* sectors is now how many sectors the data itself takes, not
      * including the header and descriptor metadata */
 
@@ -913,11 +926,11 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
                 .sequence_number     = s->log.sequence,
                 .descriptor_count    = sectors,
                 .reserved            = 0,
-                .flushed_file_offset = bdrv_getlength(bs->file->bs),
-                .last_file_offset    = bdrv_getlength(bs->file->bs),
+                .flushed_file_offset = file_length,
+                .last_file_offset    = file_length,
+                .log_guid            = header->log_guid,
               };
 
-    new_hdr.log_guid = header->log_guid;
 
     desc_sectors = vhdx_compute_desc_sectors(new_hdr.descriptor_count);
 
