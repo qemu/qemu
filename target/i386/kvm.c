@@ -1081,65 +1081,52 @@ static int kvm_get_supported_msrs(KVMState *s)
             int i;
 
             for (i = 0; i < kvm_msr_list->nmsrs; i++) {
-                if (kvm_msr_list->indices[i] == MSR_STAR) {
+                switch (kvm_msr_list->indices[i]) {
+                case MSR_STAR:
                     has_msr_star = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_VM_HSAVE_PA) {
+                    break;
+                case MSR_VM_HSAVE_PA:
                     has_msr_hsave_pa = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_TSC_AUX) {
+                    break;
+                case MSR_TSC_AUX:
                     has_msr_tsc_aux = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_TSC_ADJUST) {
+                    break;
+                case MSR_TSC_ADJUST:
                     has_msr_tsc_adjust = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_TSCDEADLINE) {
+                    break;
+                case MSR_IA32_TSCDEADLINE:
                     has_msr_tsc_deadline = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_SMBASE) {
+                    break;
+                case MSR_IA32_SMBASE:
                     has_msr_smbase = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_MISC_ENABLE) {
+                    break;
+                case MSR_IA32_MISC_ENABLE:
                     has_msr_misc_enable = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_BNDCFGS) {
+                    break;
+                case MSR_IA32_BNDCFGS:
                     has_msr_bndcfgs = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_XSS) {
+                    break;
+                case MSR_IA32_XSS:
                     has_msr_xss = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_CRASH_CTL) {
+                    break;;
+                case HV_X64_MSR_CRASH_CTL:
                     has_msr_hv_crash = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_RESET) {
+                    break;
+                case HV_X64_MSR_RESET:
                     has_msr_hv_reset = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_INDEX) {
+                    break;
+                case HV_X64_MSR_VP_INDEX:
                     has_msr_hv_vpindex = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_RUNTIME) {
+                    break;
+                case HV_X64_MSR_VP_RUNTIME:
                     has_msr_hv_runtime = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_SCONTROL) {
+                    break;
+                case HV_X64_MSR_SCONTROL:
                     has_msr_hv_synic = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_STIMER0_CONFIG) {
+                    break;
+                case HV_X64_MSR_STIMER0_CONFIG:
                     has_msr_hv_stimer = true;
-                    continue;
+                    break;
                 }
             }
         }
