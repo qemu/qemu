@@ -206,7 +206,10 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     char port[33];
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
-    int slisten, rc, port_min, port_max, p;
+    int rc, port_min, port_max, p;
+    int slisten = 0;
+    int saved_errno = 0;
+    bool socket_created = false;
     Error *err = NULL;
 
     memset(&ai,0, sizeof(ai));
@@ -258,7 +261,7 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         return -1;
     }
 
-    /* create socket + bind */
+    /* create socket + bind/listen */
     for (e = res; e != NULL; e = e->ai_next) {
         getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
 		        uaddr,INET6_ADDRSTRLEN,uport,32,
@@ -266,37 +269,58 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
 
         slisten = create_fast_reuse_socket(e);
         if (slisten < 0) {
-            if (!e->ai_next) {
-                error_setg_errno(errp, errno, "Failed to create socket");
-            }
             continue;
         }
 
+        socket_created = true;
         port_min = inet_getport(e);
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
             inet_setport(e, p);
-            if (try_bind(slisten, saddr, e) >= 0) {
-                goto listen;
-            }
-            if (p == port_max) {
-                if (!e->ai_next) {
+            rc = try_bind(slisten, saddr, e);
+            if (rc) {
+                if (errno == EADDRINUSE) {
+                    continue;
+                } else {
                     error_setg_errno(errp, errno, "Failed to bind socket");
+                    goto listen_failed;
                 }
             }
+            if (!listen(slisten, 1)) {
+                goto listen_ok;
+            }
+            if (errno != EADDRINUSE) {
+                error_setg_errno(errp, errno, "Failed to listen on socket");
+                goto listen_failed;
+            }
+            /* Someone else managed to bind to the same port and beat us
+             * to listen on it! Socket semantics does not allow us to
+             * recover from this situation, so we need to recreate the
+             * socket to allow bind attempts for subsequent ports:
+             */
+            closesocket(slisten);
+            slisten = create_fast_reuse_socket(e);
+            if (slisten < 0) {
+                error_setg_errno(errp, errno,
+                                 "Failed to recreate failed listening socket");
+                goto listen_failed;
+            }
         }
+    }
+    error_setg_errno(errp, errno,
+                     socket_created ?
+                     "Failed to find an available port" :
+                     "Failed to create a socket");
+listen_failed:
+    saved_errno = errno;
+    if (slisten >= 0) {
         closesocket(slisten);
     }
     freeaddrinfo(res);
+    errno = saved_errno;
     return -1;
 
-listen:
-    if (listen(slisten,1) != 0) {
-        error_setg_errno(errp, errno, "Failed to listen on socket");
-        closesocket(slisten);
-        freeaddrinfo(res);
-        return -1;
-    }
+listen_ok:
     if (update_addr) {
         g_free(saddr->host);
         saddr->host = g_strdup(uaddr);
