@@ -4298,7 +4298,9 @@ int main(int argc, char **argv, char **envp)
     init_qemu_uname_release();
 
     if (cpu_model == NULL) {
-#if defined(TARGET_I386)
+#if defined(TARGET_EXPLICIT_CPU)
+        cpu_model = TARGET_EXPLICIT_CPU;
+#elif defined(TARGET_I386)
 #ifdef TARGET_X86_64
         cpu_model = "qemu64";
 #else

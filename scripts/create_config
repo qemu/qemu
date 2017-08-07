@@ -107,6 +107,9 @@ case $line in
     target_name=${line#*=}
     echo "#define TARGET_NAME \"$target_name\""
     ;;
+ TARGET_EXPLICIT_CPU=*)
+    echo "#define TARGET_EXPLICIT_CPU \"${line#*=}\""
+    ;;
  TARGET_DIRS=*)
     # do nothing
     ;;
