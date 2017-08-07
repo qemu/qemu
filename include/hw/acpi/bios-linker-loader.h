@@ -7,6 +7,8 @@ typedef struct BIOSLinker {
     GArray *file_list;
 } BIOSLinker;
 
+bool bios_linker_loader_can_write_pointer(void);
+
 BIOSLinker *bios_linker_loader_init(void);
 
 void bios_linker_loader_alloc(BIOSLinker *linker,

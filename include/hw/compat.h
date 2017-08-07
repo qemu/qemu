@@ -153,10 +153,6 @@
         .driver   = "fw_cfg_io",\
         .property = "dma_enabled",\
         .value    = "off",\
-    },{\
-        .driver   = "vmgenid",\
-        .property = "x-write-pointer-available",\
-        .value    = "off",\
     },
 
 #define HW_COMPAT_2_3 \
