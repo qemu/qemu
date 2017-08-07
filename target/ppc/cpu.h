@@ -2473,10 +2473,10 @@ static inline ppcmas_tlb_t *booke206_get_tlbm(CPUPPCState *env, const int tlbn,
 /* returns bitmap of supported page sizes for a given TLB */
 static inline uint32_t booke206_tlbnps(CPUPPCState *env, const int tlbn)
 {
-    bool mav2 = false;
     uint32_t ret = 0;
 
-    if (mav2) {
+    if ((env->spr[SPR_MMUCFG] & MMUCFG_MAVN) == MMUCFG_MAVN_V2) {
+        /* MAV2 */
         ret = env->spr[SPR_BOOKE_TLB0PS + tlbn];
     } else {
         uint32_t tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
