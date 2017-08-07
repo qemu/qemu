@@ -1135,6 +1135,8 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     bool use_local_qiov = false;
     int ret;
 
+    trace_bdrv_co_preadv(child->bs, offset, bytes, flags);
+
     if (!drv) {
         return -ENOMEDIUM;
     }
@@ -1207,8 +1209,6 @@ static int coroutine_fn bdrv_co_do_readv(BdrvChild *child,
 int coroutine_fn bdrv_co_readv(BdrvChild *child, int64_t sector_num,
                                int nb_sectors, QEMUIOVector *qiov)
 {
-    trace_bdrv_co_readv(child->bs, sector_num, nb_sectors);
-
     return bdrv_co_do_readv(child, sector_num, nb_sectors, qiov, 0);
 }
 
@@ -1526,6 +1526,8 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
     bool use_local_qiov = false;
     int ret;
 
+    trace_bdrv_co_pwritev(child->bs, offset, bytes, flags);
+
     if (!bs->drv) {
         return -ENOMEDIUM;
     }
@@ -1660,8 +1662,6 @@ static int coroutine_fn bdrv_co_do_writev(BdrvChild *child,
 int coroutine_fn bdrv_co_writev(BdrvChild *child, int64_t sector_num,
     int nb_sectors, QEMUIOVector *qiov)
 {
-    trace_bdrv_co_writev(child->bs, sector_num, nb_sectors);
-
     return bdrv_co_do_writev(child, sector_num, nb_sectors, qiov, 0);
 }
 
