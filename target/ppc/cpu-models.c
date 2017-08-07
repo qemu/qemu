@@ -693,6 +693,8 @@
 #ifdef TARGET_PPC64
     POWERPC_DEF_SVR("e5500", "e5500",
                     CPU_POWERPC_e5500,        POWERPC_SVR_E500,      e5500)
+    POWERPC_DEF_SVR("e6500", "e6500",
+                    CPU_POWERPC_e6500,        POWERPC_SVR_E500,      e6500)
 #endif
     /* PowerPC e500 microcontrollers                                         */
     POWERPC_DEF_SVR("MPC8533_v10", "MPC8533 v1.0",
