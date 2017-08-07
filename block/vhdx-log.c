@@ -553,7 +553,11 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
             new_file_size = desc_entries->hdr.last_file_offset;
             if (new_file_size % (1024*1024)) {
                 /* round up to nearest 1MB boundary */
-                new_file_size = ((new_file_size >> 20) + 1) << 20;
+                new_file_size = QEMU_ALIGN_UP(new_file_size, MiB);
+                if (new_file_size > INT64_MAX) {
+                    ret = -EINVAL;
+                    goto exit;
+                }
                 bdrv_truncate(bs->file, new_file_size, PREALLOC_MODE_OFF, NULL);
             }
         }
