@@ -2491,6 +2491,28 @@ static inline uint32_t booke206_tlbnps(CPUPPCState *env, const int tlbn)
     return ret;
 }
 
+static inline void booke206_fixed_size_tlbn(CPUPPCState *env, const int tlbn,
+                                            ppcmas_tlb_t *tlb)
+{
+    uint8_t i;
+    int32_t tsize = -1;
+
+    for (i = 0; i < 32; i++) {
+        if ((env->spr[SPR_BOOKE_TLB0PS + tlbn]) & (1ULL << i)) {
+            if (tsize == -1) {
+                tsize = i;
+            } else {
+                return;
+            }
+        }
+    }
+
+    /* TLBnPS unimplemented? Odd.. */
+    assert(tsize != -1);
+    tlb->mas1 &= ~MAS1_TSIZE_MASK;
+    tlb->mas1 |= ((uint32_t)tsize) << MAS1_TSIZE_SHIFT;
+}
+
 #endif
 
 static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
