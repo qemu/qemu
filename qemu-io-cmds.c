@@ -1920,6 +1920,7 @@ static void reopen_help(void)
 " 'reopen -o lazy-refcounts=on' - activates lazy refcount writeback on a qcow2 image\n"
 "\n"
 " -r, -- Reopen the image read-only\n"
+" -w, -- Reopen the image read-write\n"
 " -c, -- Change the cache mode to the given value\n"
 " -o, -- Changes block driver options (cf. 'open' command)\n"
 "\n");
@@ -1942,7 +1943,7 @@ static const cmdinfo_t reopen_cmd = {
        .argmin         = 0,
        .argmax         = -1,
        .cfunc          = reopen_f,
-       .args           = "[-r] [-c cache] [-o options]",
+       .args           = "[(-r|-w)] [-c cache] [-o options]",
        .oneline        = "reopens an image with new options",
        .help           = reopen_help,
 };
@@ -1955,11 +1956,12 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     int c;
     int flags = bs->open_flags;
     bool writethrough = !blk_enable_write_cache(blk);
+    bool has_rw_option = false;
 
     BlockReopenQueue *brq;
     Error *local_err = NULL;
 
-    while ((c = getopt(argc, argv, "c:o:r")) != -1) {
+    while ((c = getopt(argc, argv, "c:o:rw")) != -1) {
         switch (c) {
         case 'c':
             if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
@@ -1974,7 +1976,20 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
             }
             break;
         case 'r':
+            if (has_rw_option) {
+                error_report("Only one -r/-w option may be given");
+                return 0;
+            }
             flags &= ~BDRV_O_RDWR;
+            has_rw_option = true;
+            break;
+        case 'w':
+            if (has_rw_option) {
+                error_report("Only one -r/-w option may be given");
+                return 0;
+            }
+            flags |= BDRV_O_RDWR;
+            has_rw_option = true;
             break;
         default:
             qemu_opts_reset(&reopen_opts);

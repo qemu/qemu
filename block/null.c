@@ -30,11 +30,6 @@ static QemuOptsList runtime_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
     .desc = {
         {
-            .name = "filename",
-            .type = QEMU_OPT_STRING,
-            .help = "",
-        },
-        {
             .name = BLOCK_OPT_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "size of the null block",
@@ -53,6 +48,30 @@ static QemuOptsList runtime_opts = {
         { /* end of list */ }
     },
 };
+
+static void null_co_parse_filename(const char *filename, QDict *options,
+                                   Error **errp)
+{
+    /* This functions only exists so that a null-co:// filename is accepted
+     * with the null-co driver. */
+    if (strcmp(filename, "null-co://")) {
+        error_setg(errp, "The only allowed filename for this driver is "
+                         "'null-co://'");
+        return;
+    }
+}
+
+static void null_aio_parse_filename(const char *filename, QDict *options,
+                                    Error **errp)
+{
+    /* This functions only exists so that a null-aio:// filename is accepted
+     * with the null-aio driver. */
+    if (strcmp(filename, "null-aio://")) {
+        error_setg(errp, "The only allowed filename for this driver is "
+                         "'null-aio://'");
+        return;
+    }
+}
 
 static int null_file_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
@@ -242,6 +261,7 @@ static BlockDriver bdrv_null_co = {
     .instance_size          = sizeof(BDRVNullState),
 
     .bdrv_file_open         = null_file_open,
+    .bdrv_parse_filename    = null_co_parse_filename,
     .bdrv_close             = null_close,
     .bdrv_getlength         = null_getlength,
 
@@ -261,6 +281,7 @@ static BlockDriver bdrv_null_aio = {
     .instance_size          = sizeof(BDRVNullState),
 
     .bdrv_file_open         = null_file_open,
+    .bdrv_parse_filename    = null_aio_parse_filename,
     .bdrv_close             = null_close,
     .bdrv_getlength         = null_getlength,
 
