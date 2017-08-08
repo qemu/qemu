@@ -7,4 +7,4 @@ common-obj-$(CONFIG_OPEN_BY_HANDLE) +=  9p-handle.o
 common-obj-y += 9p-proxy.o
 common-obj-$(CONFIG_XEN) += xen-9p-backend.o
 
-obj-y += virtio-9p-device.o
+obj-$(CONFIG_VIRTIO) += virtio-9p-device.o
