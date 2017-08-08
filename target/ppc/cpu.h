@@ -1451,6 +1451,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_TEXASR            (0x082)
 #define SPR_TEXASRU           (0x083)
 #define SPR_UCTRL             (0x088)
+#define SPR_TIDR              (0x090)
 #define SPR_MPC_CMPA          (0x090)
 #define SPR_MPC_CMPB          (0x091)
 #define SPR_MPC_CMPC          (0x092)
