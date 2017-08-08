@@ -89,6 +89,40 @@ out:
     return cpu;
 }
 
+void *cpu_alloc_env(CPUState *cpu)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->alloc_env ? cc->alloc_env(cpu) : NULL;
+}
+
+void cpu_get_env(CPUState *cpu, void *env)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->get_env) {
+        cc->get_env(cpu, env);
+    }
+}
+
+void cpu_set_env(CPUState *cpu, void *env)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->set_env) {
+        cc->set_env(cpu, env);
+    }
+}
+
+void cpu_free_env(CPUState *cpu, void *env)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->free_env) {
+        cc->free_env(cpu, env);
+    }
+}
+
 bool cpu_paging_enabled(const CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
