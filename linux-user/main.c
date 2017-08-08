@@ -4136,7 +4136,9 @@ static void usage(int exitcode)
            "    -E var1=val2,var2=val2 -U LD_PRELOAD,LD_DEBUG\n"
            "    QEMU_SET_ENV=var1=val2,var2=val2 QEMU_UNSET_ENV=LD_PRELOAD,LD_DEBUG\n"
            "Note that if you provide several changes to a single variable\n"
-           "the last change will stay in effect.\n");
+           "the last change will stay in effect.\n"
+           "\n"
+           QEMU_HELP_BOTTOM "\n");
 
     exit(exitcode);
 }
