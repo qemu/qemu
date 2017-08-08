@@ -4080,6 +4080,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             if (sse_fn_eppi == SSE_SPECIAL) {
                 ot = mo_64_32(s->dflag);
                 rm = (modrm & 7) | REX_B(s);
+                s->rip_offset = 1;
                 if (mod != 3)
                     gen_lea_modrm(env, s, modrm);
                 reg = ((modrm >> 3) & 7) | rex_r;
