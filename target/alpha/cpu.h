@@ -486,9 +486,11 @@ void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val);
 uint64_t cpu_alpha_load_gr(CPUAlphaState *env, unsigned reg);
 void cpu_alpha_store_gr(CPUAlphaState *env, unsigned reg, uint64_t val);
 #ifndef CONFIG_USER_ONLY
-QEMU_NORETURN void alpha_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
-                                               bool is_write, bool is_exec,
-                                               int unused, unsigned size);
+void alpha_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
+                                     vaddr addr, unsigned size,
+                                     MMUAccessType access_type,
+                                     int mmu_idx, MemTxAttrs attrs,
+                                     MemTxResult response, uintptr_t retaddr);
 #endif
 
 static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
