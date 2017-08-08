@@ -300,6 +300,28 @@ Show dynamic compiler opcode counters
 ETEXI
 
     {
+        .name       = "sync-profile",
+        .args_type  = "mean:-m,no_coalesce:-n,max:i?",
+        .params     = "[-m] [-n] [max]",
+        .help       = "show synchronization profiling info, up to max entries "
+                      "(default: 10), sorted by total wait time. (-m: sort by "
+                      "mean wait time; -n: do not coalesce objects with the "
+                      "same call site)",
+        .cmd        = hmp_info_sync_profile,
+    },
+
+STEXI
+@item info sync-profile [-m|-n] [@var{max}]
+@findex info sync-profile
+Show synchronization profiling info, up to @var{max} entries (default: 10),
+sorted by total wait time.
+        -m: sort by mean wait time
+        -n: do not coalesce objects with the same call site
+When different objects that share the same call site are coalesced, the "Object"
+field shows---enclosed in brackets---the number of objects being coalesced.
+ETEXI
+
+    {
         .name       = "kvm",
         .args_type  = "",
         .params     = "",
