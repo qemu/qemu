@@ -320,6 +320,7 @@ numa=""
 tcmalloc="no"
 jemalloc="no"
 replication="yes"
+extsnap=""
 
 supported_cpu="no"
 supported_os="no"
@@ -1183,6 +1184,10 @@ for opt do
   ;;
   --enable-replication) replication="yes"
   ;;
+  --disable-extsnap) extsnap="no"
+  ;;
+  --enable-extsnap) extsnap="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1415,6 +1420,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   xfsctl          xfsctl support
   qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-image tools
+  extsnap         external snapshots support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5149,6 +5155,7 @@ echo "tcmalloc support  $tcmalloc"
 echo "jemalloc support  $jemalloc"
 echo "avx2 optimization $avx2_opt"
 echo "replication support $replication"
+echo "external snapshots support $extsnap"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -5776,6 +5783,10 @@ fi
 
 if test "$have_sysmacros" = "yes" ; then
   echo "CONFIG_SYSMACROS=y" >> $config_host_mak
+fi
+
+if test "$extsnap" = "yes" ; then
+  echo "CONFIG_EXTSNAP=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:
