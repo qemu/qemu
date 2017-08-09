@@ -3282,12 +3282,15 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     z_stream strm;
     int ret, out_len;
     uint8_t *buf, *out_buf;
-    uint64_t cluster_offset;
+    int64_t cluster_offset;
 
     if (bytes == 0) {
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file->bs);
+        if (cluster_offset < 0) {
+            return cluster_offset;
+        }
         return bdrv_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
     }
 
