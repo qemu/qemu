@@ -945,7 +945,6 @@ static void coroutine_fn v9fs_version(void *opaque)
     v9fs_string_init(&version);
     err = pdu_unmarshal(pdu, offset, "ds", &s->msize, &version);
     if (err < 0) {
-        offset = err;
         goto out;
     }
     trace_v9fs_version(pdu->tag, pdu->id, s->msize, version.data);
@@ -962,13 +961,12 @@ static void coroutine_fn v9fs_version(void *opaque)
 
     err = pdu_marshal(pdu, offset, "ds", s->msize, &version);
     if (err < 0) {
-        offset = err;
         goto out;
     }
-    offset += err;
+    err += offset;
     trace_v9fs_version_return(pdu->tag, pdu->id, s->msize, version.data);
 out:
-    pdu_complete(pdu, offset);
+    pdu_complete(pdu, err);
     v9fs_string_free(&version);
 }
 
