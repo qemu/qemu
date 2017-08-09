@@ -219,6 +219,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t pagetable_size;
     int disk_type = VHD_DYNAMIC;
     int ret;
+    int64_t bs_size;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
                                false, errp);
@@ -411,7 +412,13 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             }
         }
 
-        if (s->free_data_block_offset > bdrv_getlength(bs->file->bs)) {
+        bs_size = bdrv_getlength(bs->file->bs);
+        if (bs_size < 0) {
+            error_setg_errno(errp, -bs_size, "Unable to learn image size");
+            ret = bs_size;
+            goto fail;
+        }
+        if (s->free_data_block_offset > bs_size) {
             error_setg(errp, "block-vpc: free_data_block_offset points after "
                              "the end of file. The image has been truncated.");
             ret = -EINVAL;
