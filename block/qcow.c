@@ -357,7 +357,8 @@ static int get_cluster_offset(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     int min_index, i, j, l1_index, l2_index, ret;
-    uint64_t l2_offset, *l2_table, cluster_offset, tmp;
+    int64_t l2_offset;
+    uint64_t *l2_table, cluster_offset, tmp;
     uint32_t min_count;
     int new_l2_table;
 
@@ -370,8 +371,11 @@ static int get_cluster_offset(BlockDriverState *bs,
             return 0;
         /* allocate a new l2 entry */
         l2_offset = bdrv_getlength(bs->file->bs);
+        if (l2_offset < 0) {
+            return l2_offset;
+        }
         /* round to cluster size */
-        l2_offset = (l2_offset + s->cluster_size - 1) & ~(s->cluster_size - 1);
+        l2_offset = QEMU_ALIGN_UP(l2_offset, s->cluster_size);
         /* update the L1 entry */
         s->l1_table[l1_index] = l2_offset;
         tmp = cpu_to_be64(l2_offset);
@@ -438,8 +442,10 @@ static int get_cluster_offset(BlockDriverState *bs,
                 return -EIO;
             }
             cluster_offset = bdrv_getlength(bs->file->bs);
-            cluster_offset = (cluster_offset + s->cluster_size - 1) &
-                ~(s->cluster_size - 1);
+            if ((int64_t) cluster_offset < 0) {
+                return cluster_offset;
+            }
+            cluster_offset = QEMU_ALIGN_UP(cluster_offset, s->cluster_size);
             /* write the cluster content */
             ret = bdrv_pwrite(bs->file, cluster_offset, s->cluster_cache,
                               s->cluster_size);
@@ -448,12 +454,20 @@ static int get_cluster_offset(BlockDriverState *bs,
             }
         } else {
             cluster_offset = bdrv_getlength(bs->file->bs);
+            if ((int64_t) cluster_offset < 0) {
+                return cluster_offset;
+            }
             if (allocate == 1) {
                 /* round to cluster size */
-                cluster_offset = (cluster_offset + s->cluster_size - 1) &
-                    ~(s->cluster_size - 1);
-                bdrv_truncate(bs->file, cluster_offset + s->cluster_size,
-                              PREALLOC_MODE_OFF, NULL);
+                cluster_offset = QEMU_ALIGN_UP(cluster_offset, s->cluster_size);
+                if (cluster_offset + s->cluster_size > INT64_MAX) {
+                    return -E2BIG;
+                }
+                ret = bdrv_truncate(bs->file, cluster_offset + s->cluster_size,
+                                    PREALLOC_MODE_OFF, NULL);
+                if (ret < 0) {
+                    return ret;
+                }
                 /* if encrypted, we must initialize the cluster
                    content which won't be written */
                 if (bs->encrypted &&
