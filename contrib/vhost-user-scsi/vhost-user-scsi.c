@@ -17,14 +17,6 @@
 
 #include <glib.h>
 
-/* Small compat shim from glib 2.32 */
-#ifndef G_SOURCE_CONTINUE
-#define G_SOURCE_CONTINUE TRUE
-#endif
-#ifndef G_SOURCE_REMOVE
-#define G_SOURCE_REMOVE FALSE
-#endif
-
 /* #define VUS_DEBUG 1 */
 
 /** Log helpers **/
