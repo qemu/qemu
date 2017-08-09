@@ -9,6 +9,7 @@
 #include "mmu-hash64.h"
 #include "migration/cpu.h"
 #include "qapi/error.h"
+#include "kvm_ppc.h"
 
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
 {
@@ -248,6 +249,27 @@ static int cpu_post_load(void *opaque, int version_id)
             return -1;
         }
     }
+
+    /*
+     * If we're running with KVM HV, there is a chance that the guest
+     * is running with KVM HV and its kernel does not have the
+     * capability of dealing with a different PVR other than this
+     * exact host PVR in KVM_SET_SREGS. If that happens, the
+     * guest freezes after migration.
+     *
+     * The function kvmppc_pvr_workaround_required does this verification
+     * by first checking if the kernel has the cap, returning true immediately
+     * if that is the case. Otherwise, it checks if we're running in KVM PR.
+     * If the guest kernel does not have the cap and we're not running KVM-PR
+     * (so, it is running KVM-HV), we need to ensure that KVM_SET_SREGS will
+     * receive the PVR it expects as a workaround.
+     *
+     */
+#if defined(CONFIG_KVM)
+    if (kvmppc_pvr_workaround_required(cpu)) {
+        env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
+    }
+#endif
 
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
