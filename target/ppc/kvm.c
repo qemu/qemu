@@ -520,7 +520,7 @@ bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
 
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 {
-    return ppc_get_vcpu_id(POWERPC_CPU(cpu));
+    return POWERPC_CPU(cpu)->vcpu_id;
 }
 
 /* e500 supports 2 h/w breakpoint and 2 watchpoint.

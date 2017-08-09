@@ -705,4 +705,7 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
 
+int spapr_vcpu_id(PowerPCCPU *cpu);
+PowerPCCPU *spapr_find_cpu(int vcpu_id);
+
 #endif /* HW_SPAPR_H */
