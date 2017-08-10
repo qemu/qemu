@@ -3283,6 +3283,14 @@ by the ``convert -l snapshot_param'' argument instead.
 
 @section System emulator human monitor commands
 
+@subsection host_net_add (since 2.10.0)
+
+The ``host_net_add'' command is replaced by the ``netdev_add'' command.
+
+@subsection host_net_remove (since 2.10.0)
+
+The ``host_net_remove'' command is replaced by the ``netdev_del'' command.
+
 @subsection usb_add (since 2.10.0)
 
 The ``usb_add'' command is replaced by the ``device_add'' command.
