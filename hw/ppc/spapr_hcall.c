@@ -1431,11 +1431,10 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
 
     } else {
         /* Unicast */
-        CPU_FOREACH(cs) {
-            if (cpu->cpu_dt_id == target) {
-                run_on_cpu(cs, spapr_do_system_reset_on_cpu, RUN_ON_CPU_NULL);
-                return H_SUCCESS;
-            }
+        cs = CPU(ppc_get_vcpu_by_dt_id(target));
+        if (cs) {
+            run_on_cpu(cs, spapr_do_system_reset_on_cpu, RUN_ON_CPU_NULL);
+            return H_SUCCESS;
         }
         return H_PARAMETER;
     }
