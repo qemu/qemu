@@ -140,8 +140,8 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     /* Only install SIGABRT handler once */
     if (!abrt_hooks.is_setup) {
         g_hook_list_init(&abrt_hooks, sizeof(GHook));
-        setup_sigabrt_handler();
     }
+    setup_sigabrt_handler();
 
     hook = g_hook_alloc(&abrt_hooks);
     hook->func = fn;
