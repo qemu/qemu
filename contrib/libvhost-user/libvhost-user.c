@@ -13,13 +13,34 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#include <qemu/osdep.h>
+/* this code avoids GLib dependency */
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <string.h>
+#include <assert.h>
+#include <inttypes.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/eventfd.h>
+#include <sys/mman.h>
 #include <linux/vhost.h>
 
+#include "qemu/compiler.h"
 #include "qemu/atomic.h"
 
 #include "libvhost-user.h"
+
+/* usually provided by GLib */
+#ifndef MIN
+#define MIN(x, y) ({                            \
+            typeof(x) _min1 = (x);              \
+            typeof(y) _min2 = (y);              \
+            (void) (&_min1 == &_min2);          \
+            _min1 < _min2 ? _min1 : _min2; })
+#endif
 
 #define VHOST_USER_HDR_SIZE offsetof(VhostUserMsg, payload.u64)
 
@@ -81,7 +102,9 @@ vu_panic(VuDev *dev, const char *msg, ...)
     va_list ap;
 
     va_start(ap, msg);
-    buf = g_strdup_vprintf(msg, ap);
+    if (vasprintf(&buf, msg, ap) < 0) {
+        buf = NULL;
+    }
     va_end(ap);
 
     dev->broken = true;
@@ -853,7 +876,7 @@ vu_dispatch(VuDev *dev)
     success = true;
 
 end:
-    g_free(vmsg.data);
+    free(vmsg.data);
     return success;
 }
 
