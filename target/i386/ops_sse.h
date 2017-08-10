@@ -1655,14 +1655,17 @@ SSE_HELPER_Q(helper_pcmpeqq, FCMPEQQ)
 
 void glue(helper_packusdw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 {
-    d->W(0) = satuw((int32_t) d->L(0));
-    d->W(1) = satuw((int32_t) d->L(1));
-    d->W(2) = satuw((int32_t) d->L(2));
-    d->W(3) = satuw((int32_t) d->L(3));
-    d->W(4) = satuw((int32_t) s->L(0));
-    d->W(5) = satuw((int32_t) s->L(1));
-    d->W(6) = satuw((int32_t) s->L(2));
-    d->W(7) = satuw((int32_t) s->L(3));
+    Reg r;
+
+    r.W(0) = satuw((int32_t) d->L(0));
+    r.W(1) = satuw((int32_t) d->L(1));
+    r.W(2) = satuw((int32_t) d->L(2));
+    r.W(3) = satuw((int32_t) d->L(3));
+    r.W(4) = satuw((int32_t) s->L(0));
+    r.W(5) = satuw((int32_t) s->L(1));
+    r.W(6) = satuw((int32_t) s->L(2));
+    r.W(7) = satuw((int32_t) s->L(3));
+    *d = r;
 }
 
 #define FMINSB(d, s) MIN((int8_t)d, (int8_t)s)
