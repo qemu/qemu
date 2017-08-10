@@ -32,7 +32,6 @@
 #define VIRTIO_SCSI(obj) \
         OBJECT_CHECK(VirtIOSCSI, (obj), TYPE_VIRTIO_SCSI)
 
-#define VIRTIO_SCSI_VQ_SIZE     128
 #define VIRTIO_SCSI_MAX_CHANNEL 0
 #define VIRTIO_SCSI_MAX_TARGET  255
 #define VIRTIO_SCSI_MAX_LUN     16383
@@ -48,6 +47,7 @@ typedef struct virtio_scsi_config VirtIOSCSIConfig;
 
 struct VirtIOSCSIConf {
     uint32_t num_queues;
+    uint32_t virtqueue_size;
     uint32_t max_sectors;
     uint32_t cmd_per_lun;
 #ifdef CONFIG_VHOST_SCSI
