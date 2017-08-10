@@ -78,6 +78,12 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify);
 void hmp_savevm(Monitor *mon, const QDict *qdict);
 int save_vmstate(Monitor *mon, const char *name);
 int load_vmstate(const char *name);
+#ifdef CONFIG_EXTSNAP
+int save_vmstate_ext(Monitor *mon, const char *name);
+int incremental_load_vmstate_ext(const char *name, Monitor* mon);
+int create_tmp_overlay(void);
+int delete_tmp_overlay(void);
+#endif
 void hmp_delvm(Monitor *mon, const QDict *qdict);
 void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
 

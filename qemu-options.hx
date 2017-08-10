@@ -3420,6 +3420,26 @@ STEXI
 Start right away with a saved state (@code{loadvm} in monitor)
 ETEXI
 
+DEF("loadext", HAS_ARG, QEMU_OPTION_loadext, \
+    "-loadext [tag|id]\n" \
+    "                start right away with a externally saved state (loadvm-ext in monitor)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -loadext @var{file}
+@findex -loadext
+Start right away with a externally saved state (@code{loadvm-ext} in monitor)
+ETEXI
+
+#ifndef _WIN32
+DEF("exton", 0, QEMU_OPTION_exton, \
+    "-exton      use external snapshots subsystem\n", QEMU_ARCH_ALL)
+#endif
+STEXI
+@item -exton
+@findex -exton
+Use the external snapshot subsystem.
+ETEXI
+
 #ifndef _WIN32
 DEF("daemonize", 0, QEMU_OPTION_daemonize, \
     "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)

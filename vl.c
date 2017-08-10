@@ -2976,6 +2976,10 @@ int main(int argc, char **argv, char **envp)
     Error *main_loop_err = NULL;
     Error *err = NULL;
     bool list_data_dirs = false;
+#ifdef CONFIG_EXTSNAP
+    bool exton = false;
+    const char* loadext = NULL;
+#endif
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -3252,6 +3256,22 @@ int main(int argc, char **argv, char **envp)
                 display_type = DT_CURSES;
 #else
                 error_report("curses support is disabled");
+                exit(1);
+#endif
+                break;
+            case QEMU_OPTION_exton:
+#ifdef CONFIG_EXTSNAP
+                exton = true;
+#else
+                error_report("External snapshots support is disabled");
+                exit(1);
+#endif
+                break;
+            case QEMU_OPTION_loadext:
+#ifdef CONFIG_EXTSNAP
+                loadext = optarg;
+#else
+                error_report("External snapshots support is disabled");
                 exit(1);
 #endif
                 break;
@@ -4685,7 +4705,20 @@ int main(int argc, char **argv, char **envp)
             autostart = 0;
         }
     }
-
+#ifdef CONFIG_EXTSNAP
+    if (exton) {
+        if(create_tmp_overlay() < 0){
+            fprintf(stdout, "External snapshots subsystem can not be loaded\n");
+            exit(1);
+	}
+    }
+    if (loadext) {
+        if(incremental_load_vmstate_ext(loadext, NULL) < 0){
+            fprintf(stdout, "External snapshot with args: %s, can not be loaded\n", loadext);
+            exit(1);
+	}
+    }
+#endif
     qdev_prop_check_globals();
     if (vmstate_dump_file) {
         /* dump and exit */
@@ -4709,7 +4742,11 @@ int main(int argc, char **argv, char **envp)
     main_loop();
     replay_disable_events();
     iothread_stop_all();
-
+#ifdef CONFIG_EXTSNAP
+    if (exton == true) {
+       delete_tmp_overlay();
+    }
+#endif
     bdrv_close_all();
     pause_all_vcpus();
     res_free();
