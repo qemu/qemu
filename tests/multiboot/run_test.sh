@@ -26,7 +26,7 @@ run_qemu() {
     local kernel=$1
     shift
 
-    printf %b "\n\n=== Running test case: $kernel $@ ===\n\n" >> test.log
+    printf %b "\n\n=== Running test case: $kernel $* ===\n\n" >> test.log
 
     $QEMU \
         -kernel $kernel \

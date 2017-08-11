@@ -3282,12 +3282,15 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     z_stream strm;
     int ret, out_len;
     uint8_t *buf, *out_buf;
-    uint64_t cluster_offset;
+    int64_t cluster_offset;
 
     if (bytes == 0) {
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
         cluster_offset = bdrv_getlength(bs->file->bs);
+        if (cluster_offset < 0) {
+            return cluster_offset;
+        }
         return bdrv_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
     }
 
@@ -3797,27 +3800,6 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
 
     return spec_info;
 }
-
-#if 0
-static void dump_refcounts(BlockDriverState *bs)
-{
-    BDRVQcow2State *s = bs->opaque;
-    int64_t nb_clusters, k, k1, size;
-    int refcount;
-
-    size = bdrv_getlength(bs->file->bs);
-    nb_clusters = size_to_clusters(s, size);
-    for(k = 0; k < nb_clusters;) {
-        k1 = k;
-        refcount = get_refcount(bs, k);
-        k++;
-        while (k < nb_clusters && get_refcount(bs, k) == refcount)
-            k++;
-        printf("%" PRId64 ": refcount=%d nb=%" PRId64 "\n", k, refcount,
-               k - k1);
-    }
-}
-#endif
 
 static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                               int64_t pos)

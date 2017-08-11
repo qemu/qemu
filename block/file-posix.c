@@ -457,22 +457,19 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     switch (locking) {
     case ON_OFF_AUTO_ON:
         s->use_lock = true;
-#ifndef F_OFD_SETLK
-        fprintf(stderr,
-                "File lock requested but OFD locking syscall is unavailable, "
-                "falling back to POSIX file locks.\n"
-                "Due to the implementation, locks can be lost unexpectedly.\n");
-#endif
+        if (!qemu_has_ofd_lock()) {
+            fprintf(stderr,
+                    "File lock requested but OFD locking syscall is "
+                    "unavailable, falling back to POSIX file locks.\n"
+                    "Due to the implementation, locks can be lost "
+                    "unexpectedly.\n");
+        }
         break;
     case ON_OFF_AUTO_OFF:
         s->use_lock = false;
         break;
     case ON_OFF_AUTO_AUTO:
-#ifdef F_OFD_SETLK
-        s->use_lock = true;
-#else
-        s->use_lock = false;
-#endif
+        s->use_lock = qemu_has_ofd_lock();
         break;
     default:
         abort();
