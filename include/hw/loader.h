@@ -231,4 +231,9 @@ int rom_add_option(const char *file, int32_t bootindex);
  * overflow on real hardware too. */
 #define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
 
+#ifdef CONFIG_EXTSNAP
+void rom_cache_reset(void);
+void rom_reset(void *unused);
+#endif
+
 #endif

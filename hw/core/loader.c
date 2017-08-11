@@ -1057,7 +1057,20 @@ int rom_add_option(const char *file, int32_t bootindex)
     return rom_add_file(file, "genroms", 0, bootindex, true, NULL, NULL);
 }
 
+#ifdef CONFIG_EXTSNAP
+void rom_cache_reset(void)
+{
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+	cpu_flush_icache_range(rom->addr, rom->datasize);
+    }
+}
+
+void rom_reset (void *unused)
+#else
 static void rom_reset(void *unused)
+#endif
 {
     Rom *rom;
 

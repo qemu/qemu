@@ -1468,7 +1468,9 @@ static void ram_migration_cleanup(void *opaque)
     RAMBitmap *bitmap = rs->ram_bitmap;
     atomic_rcu_set(&rs->ram_bitmap, NULL);
     if (bitmap) {
+#ifndef CONFIG_EXTSNAP
         memory_global_dirty_log_stop();
+#endif
         call_rcu(bitmap, migration_bitmap_free, rcu);
     }
 
@@ -1966,7 +1968,11 @@ static int ram_state_init(RAMState *rs)
     if (ram_bytes_total()) {
         ram_bitmap_pages = last_ram_page();
         rs->ram_bitmap->bmap = bitmap_new(ram_bitmap_pages);
+#ifdef CONFIG_EXTSNAP
+        bitmap_clear(rs->ram_bitmap->bmap, 0, ram_bitmap_pages);
+#else
         bitmap_set(rs->ram_bitmap->bmap, 0, ram_bitmap_pages);
+#endif
 
         if (migrate_postcopy_ram()) {
             rs->ram_bitmap->unsentmap = bitmap_new(ram_bitmap_pages);
@@ -2611,6 +2617,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
+#ifdef CONFIG_EXTSNAP
+            ram_list_clean(addr, block->used_length);
+#endif
         }
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
