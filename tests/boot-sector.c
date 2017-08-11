@@ -67,6 +67,21 @@ static uint8_t x86_boot_sector[512] = {
     [0x1FF] = 0xAA,
 };
 
+/* For s390x, use a mini "kernel" with the appropriate signature */
+static const uint8_t s390x_psw[] = {
+    0x00, 0x08, 0x00, 0x00, 0x80, 0x01, 0x00, 0x00
+};
+static const uint8_t s390x_code[] = {
+    0xa7, 0xf4, 0x00, 0x0a,                                /* j 0x10010 */
+    0x00, 0x00, 0x00, 0x00,
+    'S', '3', '9', '0',
+    'E', 'P', 0x00, 0x01,
+    0xa7, 0x38, HIGH(SIGNATURE_ADDR), LOW(SIGNATURE_ADDR), /* lhi r3,0x7c10 */
+    0xa7, 0x48, LOW(SIGNATURE), HIGH(SIGNATURE),           /* lhi r4,0xadde */
+    0x40, 0x40, 0x30, 0x00,                                /* sth r4,0(r3) */
+    0xa7, 0xf4, 0xff, 0xfa                                 /* j 0x10010 */
+};
+
 /* Create boot disk file.  */
 int boot_sector_init(char *fname)
 {
@@ -92,6 +107,11 @@ int boot_sector_init(char *fname)
                                     LOW(SIGNATURE), SIGNATURE_ADDR,
                                     HIGH(SIGNATURE), SIGNATURE_ADDR + 1);
         len = strlen(boot_code);
+    } else if (g_str_equal(arch, "s390x")) {
+        len = 0x10000 + sizeof(s390x_code);
+        boot_code = g_malloc0(len);
+        memcpy(boot_code, s390x_psw, sizeof(s390x_psw));
+        memcpy(&boot_code[0x10000], s390x_code, sizeof(s390x_code));
     } else {
         g_assert_not_reached();
     }
