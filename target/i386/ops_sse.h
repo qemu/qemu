@@ -1710,10 +1710,10 @@ void glue(helper_phminposuw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
         idx = 7;
     }
 
-    d->Q(1) = 0;
-    d->L(1) = 0;
-    d->W(1) = idx;
     d->W(0) = s->W(idx);
+    d->W(1) = idx;
+    d->L(1) = 0;
+    d->Q(1) = 0;
 }
 
 void glue(helper_roundps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
