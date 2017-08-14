@@ -140,16 +140,17 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
 
     cpu_synchronize_state(CPU(cpu));
 
-    cpu->compat_pvr = compat_pvr;
-    env->spr[SPR_PCR] = pcr & pcc->pcr_mask;
-
-    if (kvm_enabled()) {
+    if (kvm_enabled() && cpu->compat_pvr != compat_pvr) {
         int ret = kvmppc_set_compat(cpu, cpu->compat_pvr);
         if (ret < 0) {
             error_setg_errno(errp, -ret,
                              "Unable to set CPU compatibility mode in KVM");
+            return;
         }
     }
+
+    cpu->compat_pvr = compat_pvr;
+    env->spr[SPR_PCR] = pcr & pcc->pcr_mask;
 }
 
 typedef struct {
