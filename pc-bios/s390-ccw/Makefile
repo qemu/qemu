@@ -36,4 +36,4 @@ s390-netboot.img:
 endif
 
 clean:
-	$(RM) *.o *.d *.img *.elf *~ *.a
+	rm -f *.o *.d *.img *.elf *~ *.a
