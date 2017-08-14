@@ -69,10 +69,10 @@ struct rocker {
     QLIST_ENTRY(rocker) next;
 };
 
-#define ROCKER "rocker"
+#define TYPE_ROCKER "rocker"
 
-#define to_rocker(obj) \
-    OBJECT_CHECK(Rocker, (obj), ROCKER)
+#define ROCKER(obj) \
+    OBJECT_CHECK(Rocker, (obj), TYPE_ROCKER)
 
 static QLIST_HEAD(, rocker) rockers;
 
@@ -1285,7 +1285,7 @@ static World *rocker_world_type_by_name(Rocker *r, const char *name)
 
 static void pci_rocker_realize(PCIDevice *dev, Error **errp)
 {
-    Rocker *r = to_rocker(dev);
+    Rocker *r = ROCKER(dev);
     const MACAddr zero = { .a = { 0, 0, 0, 0, 0, 0 } };
     const MACAddr dflt = { .a = { 0x52, 0x54, 0x00, 0x12, 0x35, 0x01 } };
     static int sw_index;
@@ -1331,7 +1331,7 @@ static void pci_rocker_realize(PCIDevice *dev, Error **errp)
     /* validate switch properties */
 
     if (!r->name) {
-        r->name = g_strdup(ROCKER);
+        r->name = g_strdup(TYPE_ROCKER);
     }
 
     if (rocker_find(r->name)) {
@@ -1427,7 +1427,7 @@ err_world_type_by_name:
 
 static void pci_rocker_uninit(PCIDevice *dev)
 {
-    Rocker *r = to_rocker(dev);
+    Rocker *r = ROCKER(dev);
     int i;
 
     QLIST_REMOVE(r, next);
@@ -1460,7 +1460,7 @@ static void pci_rocker_uninit(PCIDevice *dev)
 
 static void rocker_reset(DeviceState *dev)
 {
-    Rocker *r = to_rocker(dev);
+    Rocker *r = ROCKER(dev);
     int i;
 
     for (i = 0; i < ROCKER_WORLD_TYPE_MAX; i++) {
@@ -1498,7 +1498,7 @@ static Property rocker_properties[] = {
 };
 
 static const VMStateDescription rocker_vmsd = {
-    .name = ROCKER,
+    .name = TYPE_ROCKER,
     .unmigratable = 1,
 };
 
@@ -1521,7 +1521,7 @@ static void rocker_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo rocker_info = {
-    .name          = ROCKER,
+    .name          = TYPE_ROCKER,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(Rocker),
     .class_init    = rocker_class_init,
