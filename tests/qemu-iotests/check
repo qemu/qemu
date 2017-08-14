@@ -123,12 +123,6 @@ fi
 # we need common
 . "$source_iotests/common"
 
-#if [ `id -u` -ne 0 ]
-#then
-#    echo "check: QA must be run as root"
-#    exit 1
-#fi
-
 TIMESTAMP_FILE=check.time-$IMGPROTO-$IMGFMT
 
 tmp="${TEST_DIR}"/$$
@@ -228,10 +222,7 @@ rm -f check.full
 [ -f $TIMESTAMP_FILE ] || touch $TIMESTAMP_FILE
 
 FULL_IMGFMT_DETAILS=`_full_imgfmt_details`
-FULL_IMGPROTO_DETAILS=`_full_imgproto_details`
 FULL_HOST_DETAILS=`_full_platform_details`
-#FULL_MKFS_OPTIONS=`_scratch_mkfs_options`
-#FULL_MOUNT_OPTIONS=`_scratch_mount_options`
 
 cat <<EOF
 QEMU          -- "$QEMU_PROG" $QEMU_OPTIONS
@@ -239,14 +230,12 @@ QEMU_IMG      -- "$QEMU_IMG_PROG" $QEMU_IMG_OPTIONS
 QEMU_IO       -- "$QEMU_IO_PROG" $QEMU_IO_OPTIONS
 QEMU_NBD      -- "$QEMU_NBD_PROG" $QEMU_NBD_OPTIONS
 IMGFMT        -- $FULL_IMGFMT_DETAILS
-IMGPROTO      -- $FULL_IMGPROTO_DETAILS
+IMGPROTO      -- $IMGPROTO
 PLATFORM      -- $FULL_HOST_DETAILS
 TEST_DIR      -- $TEST_DIR
 SOCKET_SCM_HELPER -- $SOCKET_SCM_HELPER
 
 EOF
-#MKFS_OPTIONS  -- $FULL_MKFS_OPTIONS
-#MOUNT_OPTIONS -- $FULL_MOUNT_OPTIONS
 
 seq="check"
 
