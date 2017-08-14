@@ -239,10 +239,6 @@ static int tx_consume(Rocker *r, DescInfo *info)
         }
         iov[iovcnt].iov_len = frag_len;
         iov[iovcnt].iov_base = g_malloc(frag_len);
-        if (!iov[iovcnt].iov_base) {
-            err = -ROCKER_ENOMEM;
-            goto err_no_mem;
-        }
 
         pci_dma_read(dev, frag_addr, iov[iovcnt].iov_base,
                      iov[iovcnt].iov_len);
@@ -259,7 +255,6 @@ static int tx_consume(Rocker *r, DescInfo *info)
     err = fp_port_eg(r->fp_port[port], iov, iovcnt);
 
 err_too_many_frags:
-err_no_mem:
 err_bad_attr:
     for (i = 0; i < ROCKER_TX_FRAGS_MAX; i++) {
         g_free(iov[i].iov_base);
@@ -671,10 +666,7 @@ int rx_produce(World *world, uint32_t pport,
      */
 
     data = g_malloc(data_size);
-    if (!data) {
-        err = -ROCKER_ENOMEM;
-        goto out;
-    }
+
     iov_to_buf(iov, iovcnt, 0, data, data_size);
     pci_dma_write(dev, frag_addr, data, data_size);
     g_free(data);
@@ -718,11 +710,6 @@ static void rocker_test_dma_ctrl(Rocker *r, uint32_t val)
     int i;
 
     buf = g_malloc(r->test_dma_size);
-
-    if (!buf) {
-        DPRINTF("test dma buffer alloc failed");
-        return;
-    }
 
     switch (val) {
     case ROCKER_TEST_DMA_CTRL_CLEAR:
@@ -1310,13 +1297,6 @@ static int pci_rocker_init(PCIDevice *dev)
 
     r->worlds[ROCKER_WORLD_TYPE_OF_DPA] = of_dpa_world_alloc(r);
 
-    for (i = 0; i < ROCKER_WORLD_TYPE_MAX; i++) {
-        if (!r->worlds[i]) {
-            err = -ENOMEM;
-            goto err_world_alloc;
-        }
-    }
-
     if (!r->world_name) {
         r->world_name = g_strdup(world_name(r->worlds[ROCKER_WORLD_TYPE_OF_DPA]));
     }
@@ -1393,9 +1373,6 @@ static int pci_rocker_init(PCIDevice *dev)
     }
 
     r->rings = g_new(DescRing *, rocker_pci_ring_count(r));
-    if (!r->rings) {
-        goto err_rings_alloc;
-    }
 
     /* Rings are ordered like this:
      * - command ring
@@ -1407,13 +1384,8 @@ static int pci_rocker_init(PCIDevice *dev)
      * .....
      */
 
-    err = -ENOMEM;
     for (i = 0; i < rocker_pci_ring_count(r); i++) {
         DescRing *ring = desc_ring_alloc(r, i);
-
-        if (!ring) {
-            goto err_ring_alloc;
-        }
 
         if (i == ROCKER_RING_CMD) {
             desc_ring_set_consume(ring, cmd_consume, ROCKER_MSIX_VEC_CMD);
@@ -1434,10 +1406,6 @@ static int pci_rocker_init(PCIDevice *dev)
             fp_port_alloc(r, r->name, &r->fp_start_macaddr,
                           i, &r->fp_ports_peers[i]);
 
-        if (!port) {
-            goto err_port_alloc;
-        }
-
         r->fp_port[i] = port;
         fp_port_set_world(port, r->world_dflt);
     }
@@ -1446,25 +1414,12 @@ static int pci_rocker_init(PCIDevice *dev)
 
     return 0;
 
-err_port_alloc:
-    for (--i; i >= 0; i--) {
-        FpPort *port = r->fp_port[i];
-        fp_port_free(port);
-    }
-    i = rocker_pci_ring_count(r);
-err_ring_alloc:
-    for (--i; i >= 0; i--) {
-        desc_ring_free(r->rings[i]);
-    }
-    g_free(r->rings);
-err_rings_alloc:
 err_duplicate:
     rocker_msix_uninit(r);
 err_msix_init:
     object_unparent(OBJECT(&r->msix_bar));
     object_unparent(OBJECT(&r->mmio));
 err_world_type_by_name:
-err_world_alloc:
     for (i = 0; i < ROCKER_WORLD_TYPE_MAX; i++) {
         if (r->worlds[i]) {
             world_free(r->worlds[i]);

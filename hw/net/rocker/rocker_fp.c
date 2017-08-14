@@ -226,10 +226,6 @@ FpPort *fp_port_alloc(Rocker *r, char *sw_name,
 {
     FpPort *port = g_new0(FpPort, 1);
 
-    if (!port) {
-        return NULL;
-    }
-
     port->r = r;
     port->index = index;
     port->pport = index + 1;
