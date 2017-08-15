@@ -1045,10 +1045,21 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
                           bool writethrough, BlockBackend *on_eject_blk,
                           Error **errp)
 {
+    AioContext *ctx;
     BlockBackend *blk;
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
     uint64_t perm;
     int ret;
+
+    /*
+     * NBD exports are used for non-shared storage migration.  Make sure
+     * that BDRV_O_INACTIVE is cleared and the image is ready for write
+     * access since the export could be available before migration handover.
+     */
+    ctx = bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
+    bdrv_invalidate_cache(bs, NULL);
+    aio_context_release(ctx);
 
     /* Don't allow resize while the NBD server is running, otherwise we don't
      * care what happens with the node. */
@@ -1087,15 +1098,6 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
         exp->eject_notifier.notify = nbd_eject_notifier;
         blk_add_remove_bs_notifier(on_eject_blk, &exp->eject_notifier);
     }
-
-    /*
-     * NBD exports are used for non-shared storage migration.  Make sure
-     * that BDRV_O_INACTIVE is cleared and the image is ready for write
-     * access since the export could be available before migration handover.
-     */
-    aio_context_acquire(exp->ctx);
-    blk_invalidate_cache(blk, NULL);
-    aio_context_release(exp->ctx);
     return exp;
 
 fail:
