@@ -133,6 +133,10 @@ class ThrottleTestCase(iotests.QMPTestCase):
             self.assertTrue(check_limit(params['iops_rd'], rd_iops))
             self.assertTrue(check_limit(params['iops_wr'], wr_iops))
 
+        # Allow remaining requests to finish.  We submitted twice as many to
+        # ensure the throttle limit is reached.
+        self.vm.qtest("clock_step %d" % ns)
+
     # Connect N drives to a VM and test I/O in all of them
     def test_all(self):
         params = {"bps": 4096,
