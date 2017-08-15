@@ -97,11 +97,17 @@ def read_trace_header(fobj):
         raise ValueError('Log format %d not supported with this QEMU release!'
                          % log_version)
 
-def read_trace_records(edict, fobj):
-    """Deserialize trace records from a file, yielding record tuples (event_num, timestamp, pid, arg1, ..., arg6)."""
-    idtoname = {
-        dropped_event_id: "dropped"
-    }
+def read_trace_records(edict, idtoname, fobj):
+    """Deserialize trace records from a file, yielding record tuples (event_num, timestamp, pid, arg1, ..., arg6).
+
+    Note that `idtoname` is modified if the file contains mapping records.
+
+    Args:
+        edict (str -> Event): events dict, indexed by name
+        idtoname (int -> str): event names dict, indexed by event ID
+        fobj (file): input file
+
+    """
     while True:
         t = fobj.read(8)
         if len(t) == 0:
@@ -171,9 +177,15 @@ def process(events, log, analyzer, read_header=True):
 
     dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
     edict = {"dropped": dropped_event}
+    idtoname = {dropped_event_id: "dropped"}
 
     for event in events:
         edict[event.name] = event
+
+    # If there is no header assume event ID mapping matches events list
+    if not read_header:
+        for event_id, event in enumerate(events):
+            idtoname[event_id] = event.name
 
     def build_fn(analyzer, event):
         if isinstance(event, str):
@@ -197,7 +209,7 @@ def process(events, log, analyzer, read_header=True):
 
     analyzer.begin()
     fn_cache = {}
-    for rec in read_trace_records(edict, log):
+    for rec in read_trace_records(edict, idtoname, log):
         event_num = rec[0]
         event = edict[event_num]
         if event_num not in fn_cache:
