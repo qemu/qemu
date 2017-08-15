@@ -48,31 +48,9 @@ static void test_uhci_hotplug(void)
 
 static void test_usb_storage_hotplug(void)
 {
-    QDict *response;
+    qtest_qmp_device_add("usb-storage", "usbdev0", "'drive': 'drive0'");
 
-    response = qmp("{'execute': 'device_add',"
-                   " 'arguments': {"
-                   "   'driver': 'usb-storage',"
-                   "   'drive': 'drive0',"
-                   "   'id': 'usbdev0'"
-                   "}}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
-
-    response = qmp("{'execute': 'device_del',"
-                           " 'arguments': {"
-                           "   'id': 'usbdev0'"
-                           "}}");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
-
-    response = qmp("");
-    g_assert(response);
-    g_assert(qdict_haskey(response, "event"));
-    g_assert(!strcmp(qdict_get_str(response, "event"), "DEVICE_DELETED"));
-    QDECREF(response);
+    qtest_qmp_device_del("usbdev0");
 }
 
 int main(int argc, char **argv)
