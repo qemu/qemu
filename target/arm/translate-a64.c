@@ -1861,7 +1861,7 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
         g_assert(size >= 2);
         if (size == 2) {
             /* The pair must be single-copy atomic for the doubleword.  */
-            memop |= MO_64;
+            memop |= MO_64 | MO_ALIGN;
             tcg_gen_qemu_ld_i64(cpu_exclusive_val, addr, idx, memop);
             if (s->be_data == MO_LE) {
                 tcg_gen_extract_i64(cpu_reg(s, rt), cpu_exclusive_val, 0, 32);
@@ -1871,10 +1871,11 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
                 tcg_gen_extract_i64(cpu_reg(s, rt2), cpu_exclusive_val, 0, 32);
             }
         } else {
-            /* The pair must be single-copy atomic for *each* doubleword,
-               but not the entire quadword.  */
+            /* The pair must be single-copy atomic for *each* doubleword, not
+               the entire quadword, however it must be quadword aligned.  */
             memop |= MO_64;
-            tcg_gen_qemu_ld_i64(cpu_exclusive_val, addr, idx, memop);
+            tcg_gen_qemu_ld_i64(cpu_exclusive_val, addr, idx,
+                                memop | MO_ALIGN_16);
 
             TCGv_i64 addr2 = tcg_temp_new_i64();
             tcg_gen_addi_i64(addr2, addr, 8);
@@ -1885,7 +1886,7 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
             tcg_gen_mov_i64(cpu_reg(s, rt2), cpu_exclusive_high);
         }
     } else {
-        memop |= size;
+        memop |= size | MO_ALIGN;
         tcg_gen_qemu_ld_i64(cpu_exclusive_val, addr, idx, memop);
         tcg_gen_mov_i64(cpu_reg(s, rt), cpu_exclusive_val);
     }
