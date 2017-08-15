@@ -1,3 +1,26 @@
+
+.PHONY: check-help
+check-help:
+	@echo "Regression testing targets:"
+	@echo
+	@echo " make check                Run all tests"
+	@echo " make check-qtest-TARGET   Run qtest tests for given target"
+	@echo " make check-qtest          Run qtest tests"
+	@echo " make check-unit           Run qobject tests"
+	@echo " make check-speed          Run qobject speed tests"
+	@echo " make check-qapi-schema    Run QAPI schema tests"
+	@echo " make check-block          Run block tests"
+	@echo " make check-report.html    Generates an HTML test report"
+	@echo " make check-clean          Clean the tests"
+	@echo
+	@echo "Please note that HTML reports do not regenerate if the unit tests"
+	@echo "has not changed."
+	@echo
+	@echo "The variable SPEED can be set to control the gtester speed setting."
+	@echo "Default options are -k and (for make V=1) --verbose; they can be"
+	@echo "changed with variable GTESTER_OPTIONS."
+
+ifneq ($(wildcard config-host.mak),)
 export SRC_PATH
 
 qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
@@ -802,27 +825,6 @@ $(check-qtest-y): $(qtest-obj-y)
 
 tests/test-qga: tests/test-qga.o $(qtest-obj-y)
 
-.PHONY: check-help
-check-help:
-	@echo "Regression testing targets:"
-	@echo
-	@echo " make check                Run all tests"
-	@echo " make check-qtest-TARGET   Run qtest tests for given target"
-	@echo " make check-qtest          Run qtest tests"
-	@echo " make check-unit           Run qobject tests"
-	@echo " make check-speed          Run qobject speed tests"
-	@echo " make check-qapi-schema    Run QAPI schema tests"
-	@echo " make check-block          Run block tests"
-	@echo " make check-report.html    Generates an HTML test report"
-	@echo " make check-clean          Clean the tests"
-	@echo
-	@echo "Please note that HTML reports do not regenerate if the unit tests"
-	@echo "has not changed."
-	@echo
-	@echo "The variable SPEED can be set to control the gtester speed setting."
-	@echo "Default options are -k and (for make V=1) --verbose; they can be"
-	@echo "changed with variable GTESTER_OPTIONS."
-
 SPEED = quick
 GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
 GCOV_OPTIONS = -n $(if $(V),-f,)
@@ -917,3 +919,5 @@ all: $(QEMU_IOTESTS_HELPERS-y)
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/libqos/*.d)
+
+endif

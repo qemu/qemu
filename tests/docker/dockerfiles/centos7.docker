@@ -1,5 +1,6 @@
-FROM centos:6
+FROM centos:7
 RUN yum install -y epel-release centos-release-xen
+RUN yum -y update
 ENV PACKAGES \
     bison \
     bzip2-devel \
@@ -27,3 +28,4 @@ ENV PACKAGES \
     zlib-devel
 RUN yum install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
+
