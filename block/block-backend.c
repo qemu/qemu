@@ -20,6 +20,7 @@
 #include "qapi-event.h"
 #include "qemu/id.h"
 #include "trace.h"
+#include "migration/misc.h"
 
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
@@ -68,6 +69,7 @@ struct BlockBackend {
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
 
     int quiesce_counter;
+    VMChangeStateEntry *vmsh;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -129,6 +131,23 @@ static const char *blk_root_get_name(BdrvChild *child)
     return blk_name(child->opaque);
 }
 
+static void blk_vm_state_changed(void *opaque, int running, RunState state)
+{
+    Error *local_err = NULL;
+    BlockBackend *blk = opaque;
+
+    if (state == RUN_STATE_INMIGRATE) {
+        return;
+    }
+
+    qemu_del_vm_change_state_handler(blk->vmsh);
+    blk->vmsh = NULL;
+    blk_set_perm(blk, blk->perm, blk->shared_perm, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+}
+
 /*
  * Notifies the user of the BlockBackend that migration has completed. qdev
  * devices can tighten their permissions in response (specifically revoke
@@ -146,6 +165,24 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
     }
 
     blk->disable_perm = false;
+
+    blk_set_perm(blk, blk->perm, BLK_PERM_ALL, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        blk->disable_perm = true;
+        return;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        /* Activation can happen when migration process is still active, for
+         * example when nbd_server_add is called during non-shared storage
+         * migration. Defer the shared_perm update to migration completion. */
+        if (!blk->vmsh) {
+            blk->vmsh = qemu_add_vm_change_state_handler(blk_vm_state_changed,
+                                                         blk);
+        }
+        return;
+    }
 
     blk_set_perm(blk, blk->perm, blk->shared_perm, &local_err);
     if (local_err) {
@@ -290,6 +327,10 @@ static void blk_delete(BlockBackend *blk)
     }
     if (blk->root) {
         blk_remove_bs(blk);
+    }
+    if (blk->vmsh) {
+        qemu_del_vm_change_state_handler(blk->vmsh);
+        blk->vmsh = NULL;
     }
     assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->insert_bs_notifiers.notifiers));
