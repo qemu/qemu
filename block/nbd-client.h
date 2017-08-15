@@ -29,6 +29,7 @@ typedef struct NBDClientSession {
 
     Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
     NBDReply reply;
+    bool quit;
 } NBDClientSession;
 
 NBDClientSession *nbd_get_client_session(BlockDriverState *bs);

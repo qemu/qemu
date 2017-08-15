@@ -182,7 +182,7 @@ const char *nbd_cmd_lookup(uint16_t cmd)
     case NBD_CMD_WRITE:
         return "write";
     case NBD_CMD_DISC:
-        return "discard";
+        return "disconnect";
     case NBD_CMD_FLUSH:
         return "flush";
     case NBD_CMD_TRIM:
