@@ -53,8 +53,6 @@
 
 /** vhost-user-scsi specific definitions **/
 
- /* Only 1 LUN and device supported today */
-#define VUS_MAX_LUNS 1
 #define VUS_ISCSI_INITIATOR "iqn.2016-11.com.nutanix:vhost-user-scsi"
 
 typedef struct iscsi_lun {
@@ -67,7 +65,7 @@ typedef struct vhost_scsi_dev {
     int server_sock;
     GMainLoop *loop;
     GTree *fdmap;   /* fd -> gsource context id */
-    iscsi_lun_t luns[VUS_MAX_LUNS];
+    iscsi_lun_t lun;
 } vhost_scsi_dev_t;
 
 /** glib event loop integration for libvhost-user and misc callbacks **/
@@ -535,7 +533,7 @@ static void vus_proc_req(VuDev *vu_dev, int idx)
         }
         rsp = (VirtIOSCSICmdResp *)elem->in_sg[0].iov_base;
 
-        if (handle_cmd_sync(vdev_scsi->luns[0].iscsi_ctx,
+        if (handle_cmd_sync(vdev_scsi->lun.iscsi_ctx,
                             req, &elem->out_sg[1], elem->out_num - 1,
                             rsp, &elem->in_sg[1], elem->in_num - 1) != 0) {
             vus_panic_cb(vu_dev, NULL);
@@ -720,7 +718,7 @@ int main(int argc, char **argv)
     }
     vdev_scsi = vdev_scsi_new(sock);
 
-    if (iscsi_add_lun(&vdev_scsi->luns[0], iscsi_uri) != 0) {
+    if (iscsi_add_lun(&vdev_scsi->lun, iscsi_uri) != 0) {
         goto err;
     }
 
