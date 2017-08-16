@@ -684,7 +684,7 @@ static int vdev_scsi_run(vhost_scsi_dev_t *vdev_scsi)
     assert(vdev_scsi->server_sock >= 0);
     assert(vdev_scsi->loop);
 
-    cli_sock = accept(vdev_scsi->server_sock, (void *)0, (void *)0);
+    cli_sock = accept(vdev_scsi->server_sock, NULL, NULL);
     if (cli_sock < 0) {
         perror("accept");
         return -1;
