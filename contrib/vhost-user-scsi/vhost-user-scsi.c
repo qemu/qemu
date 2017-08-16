@@ -693,6 +693,7 @@ static void vdev_scsi_free(vhost_scsi_dev_t *vdev_scsi)
     }
 
     g_main_loop_unref(vdev_scsi->loop);
+    g_tree_destroy(vdev_scsi->fdmap);
     g_free(vdev_scsi);
 }
 
