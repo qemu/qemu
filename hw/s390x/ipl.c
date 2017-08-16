@@ -442,6 +442,8 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
     dc->reset = s390_ipl_reset;
     dc->vmsd = &vmstate_ipl;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    /* Reason: Loads the ROMs and thus can only be used one time - internally */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo s390_ipl_info = {
