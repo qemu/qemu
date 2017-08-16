@@ -257,6 +257,7 @@ static int iscsi_add_lun(iscsi_lun_t *lun, char *iscsi_uri)
 
     assert(lun);
     assert(iscsi_uri);
+    assert(!lun->iscsi_ctx);
 
     iscsi_ctx = iscsi_create_context(VUS_ISCSI_INITIATOR);
     if (!iscsi_ctx) {
@@ -662,11 +663,6 @@ static int vdev_scsi_add_iscsi_lun(vhost_scsi_dev_t *vdev_scsi,
     assert(vdev_scsi);
     assert(iscsi_uri);
     assert(lun < VUS_MAX_LUNS);
-
-    if (vdev_scsi->luns[lun].iscsi_ctx) {
-        PERR("Lun %d already configured", lun);
-        return -1;
-    }
 
     if (iscsi_add_lun(&vdev_scsi->luns[lun], iscsi_uri) != 0) {
         return -1;
