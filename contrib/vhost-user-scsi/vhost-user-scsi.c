@@ -715,11 +715,9 @@ static void vdev_scsi_deinit(vhost_scsi_dev_t *vdev_scsi)
     }
 }
 
-static vhost_scsi_dev_t *vdev_scsi_new(char *unix_fn)
+static vhost_scsi_dev_t *vdev_scsi_new(int server_sock)
 {
     vhost_scsi_dev_t *vdev_scsi = NULL;
-
-    assert(unix_fn);
 
     vdev_scsi = calloc(1, sizeof(vhost_scsi_dev_t));
     if (!vdev_scsi) {
@@ -727,11 +725,7 @@ static vhost_scsi_dev_t *vdev_scsi_new(char *unix_fn)
         return NULL;
     }
 
-    vdev_scsi->server_sock = unix_sock_new(unix_fn);
-    if (vdev_scsi->server_sock < 0) {
-        goto err;
-    }
-
+    vdev_scsi->server_sock = server_sock;
     vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
     if (!vdev_scsi->loop) {
         PERR("Error creating glib event loop");
@@ -815,7 +809,7 @@ int main(int argc, char **argv)
     vhost_scsi_dev_t *vdev_scsi = NULL;
     char *unix_fn = NULL;
     char *iscsi_uri = NULL;
-    int opt, err = EXIT_SUCCESS;
+    int sock, opt, err = EXIT_SUCCESS;
 
     while ((opt = getopt(argc, argv, "u:i:")) != -1) {
         switch (opt) {
@@ -835,7 +829,11 @@ int main(int argc, char **argv)
         goto help;
     }
 
-    vdev_scsi = vdev_scsi_new(unix_fn);
+    sock = unix_sock_new(unix_fn);
+    if (sock < 0) {
+        goto err;
+    }
+    vdev_scsi = vdev_scsi_new(sock);
     if (!vdev_scsi) {
         goto err;
     }
