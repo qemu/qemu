@@ -312,12 +312,7 @@ static struct scsi_task *scsi_task_new(int cdb_len, uint8_t *cdb, int dir,
     assert(cdb_len > 0);
     assert(cdb);
 
-    task = calloc(1, sizeof(struct scsi_task));
-    if (!task) {
-        PERR("Error allocating task: %s", strerror(errno));
-        return NULL;
-    }
-
+    task = g_new0(struct scsi_task, 1);
     memcpy(task->cdb, cdb, cdb_len);
     task->cdb_size = cdb_len;
     task->xfer_dir = dir;
@@ -393,10 +388,6 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
     }
 
     task = scsi_task_new(cdb_len, req->cdb, dir, len);
-    if (!task) {
-        PERR("Unable to create iscsi task");
-        return -1;
-    }
 
     if (dir == SCSI_XFER_TO_DEV) {
         task->iovector_out.iov = (struct scsi_iovec *)out;
@@ -410,7 +401,7 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
          cdb_len, dir, task);
     if (!iscsi_scsi_command_sync(ctx, 0, task, NULL)) {
         PERR("Error serving SCSI command");
-        free(task);
+        g_free(task);
         return -1;
     }
 
@@ -425,7 +416,7 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
         memcpy(rsp->sense, &task->datain.data[2], rsp->sense_len);
     }
 
-    free(task);
+    g_free(task);
 
     PDBG("Filled in rsp: status=%hhX, resid=%u, response=%hhX, sense_len=%u",
          rsp->status, rsp->resid, rsp->response, rsp->sense_len);
@@ -692,7 +683,7 @@ static vhost_scsi_dev_t *vdev_scsi_find_by_vu(VuDev *vu_dev)
     return NULL;
 }
 
-static void vdev_scsi_deinit(vhost_scsi_dev_t *vdev_scsi)
+static void vdev_scsi_free(vhost_scsi_dev_t *vdev_scsi)
 {
     if (!vdev_scsi) {
         return;
@@ -716,18 +707,14 @@ static void vdev_scsi_deinit(vhost_scsi_dev_t *vdev_scsi)
         g_main_loop_unref(vdev_scsi->loop);
         vdev_scsi->loop = NULL;
     }
+    g_free(vdev_scsi);
 }
 
 static vhost_scsi_dev_t *vdev_scsi_new(int server_sock)
 {
-    vhost_scsi_dev_t *vdev_scsi = NULL;
+    vhost_scsi_dev_t *vdev_scsi;
 
-    vdev_scsi = calloc(1, sizeof(vhost_scsi_dev_t));
-    if (!vdev_scsi) {
-        PERR("calloc: %s", strerror(errno));
-        return NULL;
-    }
-
+    vdev_scsi = g_new0(vhost_scsi_dev_t, 1);
     vdev_scsi->server_sock = server_sock;
     vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
     if (!vdev_scsi->loop) {
@@ -744,8 +731,7 @@ static vhost_scsi_dev_t *vdev_scsi_new(int server_sock)
     return vdev_scsi;
 
 err:
-    vdev_scsi_deinit(vdev_scsi);
-    free(vdev_scsi);
+    vdev_scsi_free(vdev_scsi);
 
     return NULL;
 }
@@ -852,10 +838,7 @@ int main(int argc, char **argv)
     }
 
 out:
-    if (vdev_scsi) {
-        vdev_scsi_deinit(vdev_scsi);
-        free(vdev_scsi);
-    }
+    vdev_scsi_free(vdev_scsi);
     g_free(unix_fn);
     g_free(iscsi_uri);
 
