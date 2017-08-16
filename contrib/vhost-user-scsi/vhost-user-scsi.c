@@ -471,16 +471,6 @@ static void vus_del_watch_cb(VuDev *vu_dev, int fd)
     }
 }
 
-static void vus_proc_ctl(VuDev *vu_dev, int idx)
-{
-    /* Control VQ not implemented */
-}
-
-static void vus_proc_evt(VuDev *vu_dev, int idx)
-{
-    /* Event VQ not implemented */
-}
-
 static void vus_proc_req(VuDev *vu_dev, int idx)
 {
     vhost_scsi_dev_t *vdev_scsi;
@@ -561,14 +551,9 @@ static void vus_queue_set_started(VuDev *vu_dev, int idx, bool started)
 
     vq = vu_get_queue(vu_dev, idx);
 
-    switch (idx) {
-    case 0:
-        vu_set_queue_handler(vu_dev, vq, started ? vus_proc_ctl : NULL);
-        break;
-    case 1:
-        vu_set_queue_handler(vu_dev, vq, started ? vus_proc_evt : NULL);
-        break;
-    default:
+    if (idx == 0 || idx == 1) {
+        PDBG("queue %d unimplemented", idx);
+    } else {
         vu_set_queue_handler(vu_dev, vq, started ? vus_proc_req : NULL);
     }
 }
