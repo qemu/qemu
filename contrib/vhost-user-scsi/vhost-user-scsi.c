@@ -657,20 +657,6 @@ static vhost_scsi_dev_t *vdev_scsi_new(int server_sock)
     return vdev_scsi;
 }
 
-static int vdev_scsi_add_iscsi_lun(vhost_scsi_dev_t *vdev_scsi,
-                                   char *iscsi_uri, uint32_t lun)
-{
-    assert(vdev_scsi);
-    assert(iscsi_uri);
-    assert(lun < VUS_MAX_LUNS);
-
-    if (iscsi_add_lun(&vdev_scsi->luns[lun], iscsi_uri) != 0) {
-        return -1;
-    }
-
-    return 0;
-}
-
 static int vdev_scsi_run(vhost_scsi_dev_t *vdev_scsi)
 {
     int cli_sock;
@@ -734,7 +720,7 @@ int main(int argc, char **argv)
     }
     vdev_scsi = vdev_scsi_new(sock);
 
-    if (vdev_scsi_add_iscsi_lun(vdev_scsi, iscsi_uri, 0) != 0) {
+    if (iscsi_add_lun(&vdev_scsi->luns[0], iscsi_uri) != 0) {
         goto err;
     }
 
