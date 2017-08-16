@@ -55,8 +55,6 @@
 
  /* Only 1 LUN and device supported today */
 #define VUS_MAX_LUNS 1
-#define VUS_MAX_DEVS 1
-
 #define VUS_ISCSI_INITIATOR "iqn.2016-11.com.nutanix:vhost-user-scsi"
 
 typedef struct iscsi_lun {
@@ -71,8 +69,6 @@ typedef struct vhost_scsi_dev {
     GTree *fdmap;   /* fd -> gsource context id */
     iscsi_lun_t luns[VUS_MAX_LUNS];
 } vhost_scsi_dev_t;
-
-static vhost_scsi_dev_t *vhost_scsi_devs[VUS_MAX_DEVS];
 
 /** glib event loop integration for libvhost-user and misc callbacks **/
 
@@ -420,16 +416,13 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
 
 /** libvhost-user callbacks **/
 
-static vhost_scsi_dev_t *vdev_scsi_find_by_vu(VuDev *vu_dev);
-
 static void vus_panic_cb(VuDev *vu_dev, const char *buf)
 {
     vhost_scsi_dev_t *vdev_scsi;
 
     assert(vu_dev);
 
-    vdev_scsi = vdev_scsi_find_by_vu(vu_dev);
-
+    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
     if (buf) {
         PERR("vu_panic: %s", buf);
     }
@@ -447,12 +440,7 @@ static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
     assert(fd >= 0);
     assert(cb);
 
-    vdev_scsi = vdev_scsi_find_by_vu(vu_dev);
-    if (!vdev_scsi) {
-        vus_panic_cb(vu_dev, NULL);
-        return;
-    }
-
+    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
     id = (guint)(uintptr_t)g_tree_lookup(vdev_scsi->fdmap,
                                          (gpointer)(uintptr_t)fd);
     if (id) {
@@ -473,12 +461,7 @@ static void vus_del_watch_cb(VuDev *vu_dev, int fd)
     assert(vu_dev);
     assert(fd >= 0);
 
-    vdev_scsi = vdev_scsi_find_by_vu(vu_dev);
-    if (!vdev_scsi) {
-        vus_panic_cb(vu_dev, NULL);
-        return;
-    }
-
+    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
     id = (guint)(uintptr_t)g_tree_lookup(vdev_scsi->fdmap,
                                          (gpointer)(uintptr_t)fd);
     if (id) {
@@ -506,12 +489,7 @@ static void vus_proc_req(VuDev *vu_dev, int idx)
 
     assert(vu_dev);
 
-    vdev_scsi = vdev_scsi_find_by_vu(vu_dev);
-    if (!vdev_scsi) {
-        vus_panic_cb(vu_dev, NULL);
-        return;
-    }
-
+    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
     if (idx < 0 || idx >= VHOST_MAX_NR_VIRTQUEUE) {
         PERR("VQ Index out of range: %d", idx);
         vus_panic_cb(vu_dev, NULL);
@@ -656,22 +634,6 @@ fail:
 
 /** vhost-user-scsi **/
 
-static vhost_scsi_dev_t *vdev_scsi_find_by_vu(VuDev *vu_dev)
-{
-    int i;
-
-    assert(vu_dev);
-
-    for (i = 0; i < VUS_MAX_DEVS; i++) {
-        if (&vhost_scsi_devs[i]->vu_dev == vu_dev) {
-            return vhost_scsi_devs[i];
-        }
-    }
-
-    PERR("Unknown VuDev %p", vu_dev);
-    return NULL;
-}
-
 static void vdev_scsi_free(vhost_scsi_dev_t *vdev_scsi)
 {
     if (!vdev_scsi) {
@@ -790,7 +752,6 @@ int main(int argc, char **argv)
         goto err;
     }
     vdev_scsi = vdev_scsi_new(sock);
-    vhost_scsi_devs[0] = vdev_scsi;
 
     if (vdev_scsi_add_iscsi_lun(vdev_scsi, iscsi_uri, 0) != 0) {
         goto err;
