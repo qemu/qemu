@@ -103,6 +103,10 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
         handle_diag_308(env, r1, r3);
         r = 0;
         break;
+    case 0x288:
+        /* time bomb (watchdog) */
+        r = handle_diag_288(env, r1, r3);
+        break;
     default:
         r = -1;
         break;
