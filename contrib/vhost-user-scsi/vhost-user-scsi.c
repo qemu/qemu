@@ -822,10 +822,10 @@ int main(int argc, char **argv)
         case 'h':
             goto help;
         case 'u':
-            unix_fn = strdup(optarg);
+            unix_fn = g_strdup(optarg);
             break;
         case 'i':
-            iscsi_uri = strdup(optarg);
+            iscsi_uri = g_strdup(optarg);
             break;
         default:
             goto help;
@@ -854,12 +854,8 @@ out:
         vdev_scsi_deinit(vdev_scsi);
         free(vdev_scsi);
     }
-    if (unix_fn) {
-        free(unix_fn);
-    }
-    if (iscsi_uri) {
-        free(iscsi_uri);
-    }
+    g_free(unix_fn);
+    g_free(iscsi_uri);
 
     return err;
 
