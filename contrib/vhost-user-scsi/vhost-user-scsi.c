@@ -636,24 +636,9 @@ fail:
 
 static void vdev_scsi_free(vhost_scsi_dev_t *vdev_scsi)
 {
-    if (!vdev_scsi) {
-        return;
-    }
-
     if (vdev_scsi->server_sock >= 0) {
-        struct sockaddr_storage ss;
-        socklen_t sslen = sizeof(ss);
-
-        if (getsockname(vdev_scsi->server_sock, (struct sockaddr *)&ss,
-                        &sslen) == 0) {
-            struct sockaddr_un *su = (struct sockaddr_un *)&ss;
-            (void)unlink(su->sun_path);
-        }
-
-        (void)close(vdev_scsi->server_sock);
-        vdev_scsi->server_sock = -1;
+        close(vdev_scsi->server_sock);
     }
-
     g_main_loop_unref(vdev_scsi->loop);
     g_tree_destroy(vdev_scsi->fdmap);
     g_free(vdev_scsi);
@@ -762,7 +747,10 @@ int main(int argc, char **argv)
     }
 
 out:
-    vdev_scsi_free(vdev_scsi);
+    if (vdev_scsi) {
+        vdev_scsi_free(vdev_scsi);
+        unlink(unix_fn);
+    }
     g_free(unix_fn);
     g_free(iscsi_uri);
 
