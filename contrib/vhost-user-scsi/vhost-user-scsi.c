@@ -139,8 +139,8 @@ static GSourceFuncs vus_gsrc_funcs = {
     NULL
 };
 
-static int vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
-                        vu_watch_cb vu_cb, GSourceFunc gsrc_cb, gpointer data)
+static void vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
+                         vu_watch_cb vu_cb, GSourceFunc gsrc_cb, gpointer data)
 {
     GSource *vus_gsrc;
     vus_gsrc_t *vus_src;
@@ -152,10 +152,6 @@ static int vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
     assert(!(vu_cb && gsrc_cb));
 
     vus_gsrc = g_source_new(&vus_gsrc_funcs, sizeof(vus_gsrc_t));
-    if (!vus_gsrc) {
-        PERR("Error creating GSource for new watch");
-        return -1;
-    }
     vus_src = (vus_gsrc_t *)vus_gsrc;
 
     vus_src->vdev_scsi = vdev_scsi;
@@ -171,8 +167,6 @@ static int vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
 
     g_tree_insert(vdev_scsi->fdmap, (gpointer)(uintptr_t)fd,
                                     (gpointer)(uintptr_t)id);
-
-    return 0;
 }
 
 /* from libiscsi's scsi-lowlevel.h **
@@ -440,10 +434,7 @@ static void vus_panic_cb(VuDev *vu_dev, const char *buf)
         PERR("vu_panic: %s", buf);
     }
 
-    if (vdev_scsi) {
-        assert(vdev_scsi->loop);
-        g_main_loop_quit(vdev_scsi->loop);
-    }
+    g_main_loop_quit(vdev_scsi->loop);
 }
 
 static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
@@ -471,9 +462,7 @@ static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
         (void)g_tree_remove(vdev_scsi->fdmap, (gpointer)(uintptr_t)fd);
     }
 
-    if (vus_gsrc_new(vdev_scsi, fd, vu_evt, cb, NULL, pvt)) {
-        vus_panic_cb(vu_dev, NULL);
-    }
+    vus_gsrc_new(vdev_scsi, fd, vu_evt, cb, NULL, pvt);
 }
 
 static void vus_del_watch_cb(VuDev *vu_dev, int fd)
@@ -703,10 +692,7 @@ static void vdev_scsi_free(vhost_scsi_dev_t *vdev_scsi)
         vdev_scsi->server_sock = -1;
     }
 
-    if (vdev_scsi->loop) {
-        g_main_loop_unref(vdev_scsi->loop);
-        vdev_scsi->loop = NULL;
-    }
+    g_main_loop_unref(vdev_scsi->loop);
     g_free(vdev_scsi);
 }
 
@@ -717,23 +703,9 @@ static vhost_scsi_dev_t *vdev_scsi_new(int server_sock)
     vdev_scsi = g_new0(vhost_scsi_dev_t, 1);
     vdev_scsi->server_sock = server_sock;
     vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
-    if (!vdev_scsi->loop) {
-        PERR("Error creating glib event loop");
-        goto err;
-    }
-
     vdev_scsi->fdmap = g_tree_new(vus_fdmap_compare);
-    if (!vdev_scsi->fdmap) {
-        PERR("Error creating glib tree for fdmap");
-        goto err;
-    }
 
     return vdev_scsi;
-
-err:
-    vdev_scsi_free(vdev_scsi);
-
-    return NULL;
 }
 
 static int vdev_scsi_add_iscsi_lun(vhost_scsi_dev_t *vdev_scsi,
@@ -777,21 +749,14 @@ static int vdev_scsi_run(vhost_scsi_dev_t *vdev_scsi)
             vus_del_watch_cb,
             &vus_iface);
 
-    if (vus_gsrc_new(vdev_scsi, cli_sock, G_IO_IN, NULL, vus_vhost_cb,
-                     &vdev_scsi->vu_dev)) {
-        goto fail;
-    }
+    vus_gsrc_new(vdev_scsi, cli_sock, G_IO_IN, NULL, vus_vhost_cb,
+                 &vdev_scsi->vu_dev);
 
     g_main_loop_run(vdev_scsi->loop);
 
-out:
     vu_deinit(&vdev_scsi->vu_dev);
 
     return ret;
-
-fail:
-    ret = -1;
-    goto out;
 }
 
 int main(int argc, char **argv)
@@ -824,9 +789,6 @@ int main(int argc, char **argv)
         goto err;
     }
     vdev_scsi = vdev_scsi_new(sock);
-    if (!vdev_scsi) {
-        goto err;
-    }
     vhost_scsi_devs[0] = vdev_scsi;
 
     if (vdev_scsi_add_iscsi_lun(vdev_scsi, iscsi_uri, 0) != 0) {
