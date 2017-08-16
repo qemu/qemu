@@ -305,7 +305,8 @@ fail:
 }
 
 static struct scsi_task *scsi_task_new(int cdb_len, uint8_t *cdb, int dir,
-                                       int xfer_len) {
+                                       int xfer_len)
+{
     struct scsi_task *task;
 
     assert(cdb_len > 0);
@@ -344,7 +345,8 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
                            VirtIOSCSICmdReq *req,
                            struct iovec *out, unsigned int out_len,
                            VirtIOSCSICmdResp *rsp,
-                           struct iovec *in, unsigned int in_len) {
+                           struct iovec *in, unsigned int in_len)
+{
     struct scsi_task *task;
     uint32_t dir;
     uint32_t len;
@@ -454,7 +456,8 @@ static void vus_panic_cb(VuDev *vu_dev, const char *buf)
 }
 
 static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
-                             void *pvt) {
+                             void *pvt)
+{
     vhost_scsi_dev_t *vdev_scsi;
     guint id;
 
@@ -529,7 +532,7 @@ static void vus_proc_req(VuDev *vu_dev, int idx)
         return;
     }
 
-    if ((idx < 0) || (idx >= VHOST_MAX_NR_VIRTQUEUE)) {
+    if (idx < 0 || idx >= VHOST_MAX_NR_VIRTQUEUE) {
         PERR("VQ Index out of range: %d", idx);
         vus_panic_cb(vu_dev, NULL);
         return;
@@ -556,8 +559,8 @@ static void vus_proc_req(VuDev *vu_dev, int idx)
         }
         PDBG("Popped elem@%p", elem);
 
-        assert(!((elem->out_num > 1) && (elem->in_num > 1)));
-        assert((elem->out_num > 0) && (elem->in_num > 0));
+        assert(!(elem->out_num > 1 && elem->in_num > 1));
+        assert(elem->out_num > 0 && elem->in_num > 0);
 
         if (elem->out_sg[0].iov_len < sizeof(VirtIOSCSICmdReq)) {
             PERR("Invalid virtio-scsi req header");
@@ -593,7 +596,7 @@ static void vus_queue_set_started(VuDev *vu_dev, int idx, bool started)
 
     assert(vu_dev);
 
-    if ((idx < 0) || (idx >= VHOST_MAX_NR_VIRTQUEUE)) {
+    if (idx < 0 || idx >= VHOST_MAX_NR_VIRTQUEUE) {
         PERR("VQ Index out of range: %d", idx);
         vus_panic_cb(vu_dev, NULL);
         return;
@@ -748,7 +751,8 @@ err:
 }
 
 static int vdev_scsi_add_iscsi_lun(vhost_scsi_dev_t *vdev_scsi,
-                                   char *iscsi_uri, uint32_t lun) {
+                                   char *iscsi_uri, uint32_t lun)
+{
     assert(vdev_scsi);
     assert(iscsi_uri);
     assert(lun < VUS_MAX_LUNS);
