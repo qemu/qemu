@@ -65,7 +65,7 @@ typedef struct VusDev {
     VuDev vu_dev;
     int server_sock;
     GMainLoop *loop;
-    GTree *fdmap;   /* fd -> gsource context id */
+    GHashTable *fdmap;   /* fd -> gsource */
     VusIscsiLun lun;
 } VusDev;
 
@@ -82,11 +82,6 @@ typedef struct vus_gsrc {
     VusDev *vdev_scsi;
     GPollFD gfd;
 } vus_gsrc_t;
-
-static gint vus_fdmap_compare(gconstpointer a, gconstpointer b)
-{
-    return (b > a) - (b < a);
-}
 
 static gboolean vus_gsrc_prepare(GSource *src, gint *timeout)
 {
@@ -128,8 +123,8 @@ static GSourceFuncs vus_gsrc_funcs = {
     NULL
 };
 
-static void vus_gsrc_new(VusDev *vdev_scsi, int fd, GIOCondition cond,
-                         vu_watch_cb vu_cb, GSourceFunc gsrc_cb, gpointer data)
+static GSource *vus_gsrc_new(VusDev *vdev_scsi, int fd, GIOCondition cond,
+                             vu_watch_cb vu_cb, GSourceFunc gsrc_cb, gpointer data)
 {
     GSource *vus_gsrc;
     vus_gsrc_t *vus_src;
@@ -143,7 +138,6 @@ static void vus_gsrc_new(VusDev *vdev_scsi, int fd, GIOCondition cond,
     vus_gsrc = g_source_new(&vus_gsrc_funcs, sizeof(vus_gsrc_t));
     g_source_set_callback(vus_gsrc, (GSourceFunc) vu_cb, data, NULL);
     vus_src = (vus_gsrc_t *)vus_gsrc;
-
     vus_src->vdev_scsi = vdev_scsi;
     vus_src->gfd.fd = fd;
     vus_src->gfd.events = cond;
@@ -154,8 +148,7 @@ static void vus_gsrc_new(VusDev *vdev_scsi, int fd, GIOCondition cond,
     assert(id);
     g_source_unref(vus_gsrc);
 
-    g_tree_insert(vdev_scsi->fdmap, (gpointer)(uintptr_t)fd,
-                                    (gpointer)(uintptr_t)id);
+    return vus_gsrc;
 }
 
 /** libiscsi integration **/
@@ -348,43 +341,27 @@ static void vus_panic_cb(VuDev *vu_dev, const char *buf)
 static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
                              void *pvt)
 {
+    GSource *src;
     VusDev *vdev_scsi;
-    guint id;
 
     assert(vu_dev);
     assert(fd >= 0);
     assert(cb);
 
     vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
-    id = (guint)(uintptr_t)g_tree_lookup(vdev_scsi->fdmap,
-                                         (gpointer)(uintptr_t)fd);
-    if (id) {
-        GSource *vus_src = g_main_context_find_source_by_id(NULL, id);
-        assert(vus_src);
-        g_source_destroy(vus_src);
-        (void)g_tree_remove(vdev_scsi->fdmap, (gpointer)(uintptr_t)fd);
-    }
-
-    vus_gsrc_new(vdev_scsi, fd, vu_evt, cb, NULL, pvt);
+    src = vus_gsrc_new(vdev_scsi, fd, vu_evt, cb, NULL, pvt);
+    g_hash_table_replace(vdev_scsi->fdmap, GINT_TO_POINTER(fd), src);
 }
 
 static void vus_del_watch_cb(VuDev *vu_dev, int fd)
 {
     VusDev *vdev_scsi;
-    guint id;
 
     assert(vu_dev);
     assert(fd >= 0);
 
     vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
-    id = (guint)(uintptr_t)g_tree_lookup(vdev_scsi->fdmap,
-                                         (gpointer)(uintptr_t)fd);
-    if (id) {
-        GSource *vus_src = g_main_context_find_source_by_id(NULL, id);
-        assert(vus_src);
-        g_source_destroy(vus_src);
-        (void)g_tree_remove(vdev_scsi->fdmap, (gpointer)(uintptr_t)fd);
-    }
+    g_hash_table_remove(vdev_scsi->fdmap, GINT_TO_POINTER(fd));
 }
 
 static void vus_proc_req(VuDev *vu_dev, int idx)
@@ -540,7 +517,7 @@ static void vdev_scsi_free(VusDev *vdev_scsi)
         close(vdev_scsi->server_sock);
     }
     g_main_loop_unref(vdev_scsi->loop);
-    g_tree_destroy(vdev_scsi->fdmap);
+    g_hash_table_unref(vdev_scsi->fdmap);
     g_free(vdev_scsi);
 }
 
@@ -551,7 +528,9 @@ static VusDev *vdev_scsi_new(int server_sock)
     vdev_scsi = g_new0(VusDev, 1);
     vdev_scsi->server_sock = server_sock;
     vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
-    vdev_scsi->fdmap = g_tree_new(vus_fdmap_compare);
+    vdev_scsi->fdmap =
+        g_hash_table_new_full(NULL, NULL, NULL,
+                              (GDestroyNotify) g_source_destroy);
 
     return vdev_scsi;
 }
