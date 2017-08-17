@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "contrib/libvhost-user/libvhost-user-glib.h"
 #include "standard-headers/linux/virtio_scsi.h"
 #include "iscsi/iscsi.h"
 #include "iscsi/scsi-lowlevel.h"
@@ -26,94 +26,12 @@ typedef struct VusIscsiLun {
 } VusIscsiLun;
 
 typedef struct VusDev {
-    VuDev vu_dev;
+    VugDev parent;
+
     int server_sock;
-    GMainLoop *loop;
-    GHashTable *fdmap;   /* fd -> gsource */
     VusIscsiLun lun;
+    GMainLoop *loop;
 } VusDev;
-
-/** glib event loop integration for libvhost-user and misc callbacks **/
-
-QEMU_BUILD_BUG_ON((int)G_IO_IN != (int)VU_WATCH_IN);
-QEMU_BUILD_BUG_ON((int)G_IO_OUT != (int)VU_WATCH_OUT);
-QEMU_BUILD_BUG_ON((int)G_IO_PRI != (int)VU_WATCH_PRI);
-QEMU_BUILD_BUG_ON((int)G_IO_ERR != (int)VU_WATCH_ERR);
-QEMU_BUILD_BUG_ON((int)G_IO_HUP != (int)VU_WATCH_HUP);
-
-typedef struct vus_gsrc {
-    GSource parent;
-    VusDev *vdev_scsi;
-    GPollFD gfd;
-} vus_gsrc_t;
-
-static gboolean vus_gsrc_prepare(GSource *src, gint *timeout)
-{
-    assert(timeout);
-
-    *timeout = -1;
-    return FALSE;
-}
-
-static gboolean vus_gsrc_check(GSource *src)
-{
-    vus_gsrc_t *vus_src = (vus_gsrc_t *)src;
-
-    assert(vus_src);
-
-    return vus_src->gfd.revents & vus_src->gfd.events;
-}
-
-static gboolean vus_gsrc_dispatch(GSource *src, GSourceFunc cb, gpointer data)
-{
-    VusDev *vdev_scsi;
-    vus_gsrc_t *vus_src = (vus_gsrc_t *)src;
-
-    assert(vus_src);
-
-    vdev_scsi = vus_src->vdev_scsi;
-
-    assert(vdev_scsi);
-
-    ((vu_watch_cb)cb)(&vdev_scsi->vu_dev, vus_src->gfd.revents, data);
-
-    return G_SOURCE_CONTINUE;
-}
-
-static GSourceFuncs vus_gsrc_funcs = {
-    vus_gsrc_prepare,
-    vus_gsrc_check,
-    vus_gsrc_dispatch,
-    NULL
-};
-
-static GSource *vus_gsrc_new(VusDev *vdev_scsi, int fd, GIOCondition cond,
-                             vu_watch_cb vu_cb, GSourceFunc gsrc_cb, gpointer data)
-{
-    GSource *vus_gsrc;
-    vus_gsrc_t *vus_src;
-    guint id;
-
-    assert(vdev_scsi);
-    assert(fd >= 0);
-    assert(vu_cb || gsrc_cb);
-    assert(!(vu_cb && gsrc_cb));
-
-    vus_gsrc = g_source_new(&vus_gsrc_funcs, sizeof(vus_gsrc_t));
-    g_source_set_callback(vus_gsrc, (GSourceFunc) vu_cb, data, NULL);
-    vus_src = (vus_gsrc_t *)vus_gsrc;
-    vus_src->vdev_scsi = vdev_scsi;
-    vus_src->gfd.fd = fd;
-    vus_src->gfd.events = cond;
-
-    g_source_add_poll(vus_gsrc, &vus_src->gfd);
-    g_source_set_callback(vus_gsrc, gsrc_cb, data, NULL);
-    id = g_source_attach(vus_gsrc, NULL);
-    assert(id);
-    g_source_unref(vus_gsrc);
-
-    return vus_gsrc;
-}
 
 /** libiscsi integration **/
 
@@ -291,11 +209,13 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
 
 static void vus_panic_cb(VuDev *vu_dev, const char *buf)
 {
+    VugDev *gdev;
     VusDev *vdev_scsi;
 
     assert(vu_dev);
 
-    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
+    gdev = container_of(vu_dev, VugDev, parent);
+    vdev_scsi = container_of(gdev, VusDev, parent);
     if (buf) {
         g_warning("vu_panic: %s", buf);
     }
@@ -303,40 +223,16 @@ static void vus_panic_cb(VuDev *vu_dev, const char *buf)
     g_main_loop_quit(vdev_scsi->loop);
 }
 
-static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
-                             void *pvt)
-{
-    GSource *src;
-    VusDev *vdev_scsi;
-
-    assert(vu_dev);
-    assert(fd >= 0);
-    assert(cb);
-
-    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
-    src = vus_gsrc_new(vdev_scsi, fd, vu_evt, cb, NULL, pvt);
-    g_hash_table_replace(vdev_scsi->fdmap, GINT_TO_POINTER(fd), src);
-}
-
-static void vus_del_watch_cb(VuDev *vu_dev, int fd)
-{
-    VusDev *vdev_scsi;
-
-    assert(vu_dev);
-    assert(fd >= 0);
-
-    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
-    g_hash_table_remove(vdev_scsi->fdmap, GINT_TO_POINTER(fd));
-}
-
 static void vus_proc_req(VuDev *vu_dev, int idx)
 {
+    VugDev *gdev;
     VusDev *vdev_scsi;
     VuVirtq *vq;
 
     assert(vu_dev);
 
-    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
+    gdev = container_of(vu_dev, VugDev, parent);
+    vdev_scsi = container_of(gdev, VusDev, parent);
     if (idx < 0 || idx >= VHOST_MAX_NR_VIRTQUEUE) {
         g_warning("VQ Index out of range: %d", idx);
         vus_panic_cb(vu_dev, NULL);
@@ -420,21 +316,6 @@ static const VuDevIface vus_iface = {
     .queue_set_started = vus_queue_set_started,
 };
 
-static gboolean vus_vhost_cb(gpointer data)
-{
-    VuDev *vu_dev = (VuDev *)data;
-
-    assert(vu_dev);
-
-    if (!vu_dispatch(vu_dev) != 0) {
-        g_warning("Error processing vhost message");
-        vus_panic_cb(vu_dev, NULL);
-        return G_SOURCE_REMOVE;
-    }
-
-    return G_SOURCE_CONTINUE;
-}
-
 /** misc helpers **/
 
 static int unix_sock_new(char *unix_fn)
@@ -482,7 +363,6 @@ static void vdev_scsi_free(VusDev *vdev_scsi)
         close(vdev_scsi->server_sock);
     }
     g_main_loop_unref(vdev_scsi->loop);
-    g_hash_table_unref(vdev_scsi->fdmap);
     g_free(vdev_scsi);
 }
 
@@ -493,9 +373,6 @@ static VusDev *vdev_scsi_new(int server_sock)
     vdev_scsi = g_new0(VusDev, 1);
     vdev_scsi->server_sock = server_sock;
     vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
-    vdev_scsi->fdmap =
-        g_hash_table_new_full(NULL, NULL, NULL,
-                              (GDestroyNotify) g_source_destroy);
 
     return vdev_scsi;
 }
@@ -503,11 +380,9 @@ static VusDev *vdev_scsi_new(int server_sock)
 static int vdev_scsi_run(VusDev *vdev_scsi)
 {
     int cli_sock;
-    int ret = 0;
 
     assert(vdev_scsi);
     assert(vdev_scsi->server_sock >= 0);
-    assert(vdev_scsi->loop);
 
     cli_sock = accept(vdev_scsi->server_sock, NULL, NULL);
     if (cli_sock < 0) {
@@ -515,21 +390,16 @@ static int vdev_scsi_run(VusDev *vdev_scsi)
         return -1;
     }
 
-    vu_init(&vdev_scsi->vu_dev,
-            cli_sock,
-            vus_panic_cb,
-            vus_add_watch_cb,
-            vus_del_watch_cb,
-            &vus_iface);
-
-    vus_gsrc_new(vdev_scsi, cli_sock, G_IO_IN, NULL, vus_vhost_cb,
-                 &vdev_scsi->vu_dev);
+    vug_init(&vdev_scsi->parent,
+             cli_sock,
+             vus_panic_cb,
+             &vus_iface);
 
     g_main_loop_run(vdev_scsi->loop);
 
-    vu_deinit(&vdev_scsi->vu_dev);
+    vug_deinit(&vdev_scsi->parent);
 
-    return ret;
+    return 0;
 }
 
 int main(int argc, char **argv)
