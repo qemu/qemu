@@ -30,10 +30,10 @@
 
 #ifdef __x86_64__
 # define TCG_TARGET_REG_BITS  64
-# define TCG_TARGET_NB_REGS   16
+# define TCG_TARGET_NB_REGS   32
 #else
 # define TCG_TARGET_REG_BITS  32
-# define TCG_TARGET_NB_REGS    8
+# define TCG_TARGET_NB_REGS   24
 #endif
 
 typedef enum {
@@ -56,6 +56,26 @@ typedef enum {
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_R15,
+
+    TCG_REG_XMM0,
+    TCG_REG_XMM1,
+    TCG_REG_XMM2,
+    TCG_REG_XMM3,
+    TCG_REG_XMM4,
+    TCG_REG_XMM5,
+    TCG_REG_XMM6,
+    TCG_REG_XMM7,
+
+    /* 64-bit registers; likewise always define.  */
+    TCG_REG_XMM8,
+    TCG_REG_XMM9,
+    TCG_REG_XMM10,
+    TCG_REG_XMM11,
+    TCG_REG_XMM12,
+    TCG_REG_XMM13,
+    TCG_REG_XMM14,
+    TCG_REG_XMM15,
+
     TCG_REG_RAX = TCG_REG_EAX,
     TCG_REG_RCX = TCG_REG_ECX,
     TCG_REG_RDX = TCG_REG_EDX,
@@ -77,6 +97,8 @@ typedef enum {
 
 extern bool have_bmi1;
 extern bool have_popcnt;
+extern bool have_avx1;
+extern bool have_avx2;
 
 /* optional instructions */
 #define TCG_TARGET_HAS_div2_i32         1
@@ -145,6 +167,21 @@ extern bool have_popcnt;
 #define TCG_TARGET_HAS_muluh_i64        0
 #define TCG_TARGET_HAS_mulsh_i64        0
 #endif
+
+/* We do not support older SSE systems, only beginning with AVX1.  */
+#define TCG_TARGET_HAS_v64              have_avx1
+#define TCG_TARGET_HAS_v128             have_avx1
+#define TCG_TARGET_HAS_v256             have_avx2
+
+#define TCG_TARGET_HAS_andc_vec         1
+#define TCG_TARGET_HAS_orc_vec          0
+#define TCG_TARGET_HAS_not_vec          0
+#define TCG_TARGET_HAS_neg_vec          0
+#define TCG_TARGET_HAS_shi_vec          1
+#define TCG_TARGET_HAS_shs_vec          0
+#define TCG_TARGET_HAS_shv_vec          0
+#define TCG_TARGET_HAS_cmp_vec          1
+#define TCG_TARGET_HAS_mul_vec          1
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
     (((ofs) == 0 && (len) == 8) || ((ofs) == 8 && (len) == 8) || \
