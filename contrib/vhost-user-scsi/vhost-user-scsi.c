@@ -81,7 +81,6 @@ typedef struct vus_gsrc {
     GSource parent;
     VusDev *vdev_scsi;
     GPollFD gfd;
-    vu_watch_cb vu_cb;
 } vus_gsrc_t;
 
 static gint vus_fdmap_compare(gconstpointer a, gconstpointer b)
@@ -112,18 +111,13 @@ static gboolean vus_gsrc_dispatch(GSource *src, GSourceFunc cb, gpointer data)
     vus_gsrc_t *vus_src = (vus_gsrc_t *)src;
 
     assert(vus_src);
-    assert(!(vus_src->vu_cb && cb));
 
     vdev_scsi = vus_src->vdev_scsi;
 
     assert(vdev_scsi);
 
-    if (cb) {
-        return cb(data);
-    }
-    if (vus_src->vu_cb) {
-        vus_src->vu_cb(&vdev_scsi->vu_dev, vus_src->gfd.revents, data);
-    }
+    ((vu_watch_cb)cb)(&vdev_scsi->vu_dev, vus_src->gfd.revents, data);
+
     return G_SOURCE_CONTINUE;
 }
 
@@ -147,12 +141,12 @@ static void vus_gsrc_new(VusDev *vdev_scsi, int fd, GIOCondition cond,
     assert(!(vu_cb && gsrc_cb));
 
     vus_gsrc = g_source_new(&vus_gsrc_funcs, sizeof(vus_gsrc_t));
+    g_source_set_callback(vus_gsrc, (GSourceFunc) vu_cb, data, NULL);
     vus_src = (vus_gsrc_t *)vus_gsrc;
 
     vus_src->vdev_scsi = vdev_scsi;
     vus_src->gfd.fd = fd;
     vus_src->gfd.events = cond;
-    vus_src->vu_cb = vu_cb;
 
     g_source_add_poll(vus_gsrc, &vus_src->gfd);
     g_source_set_callback(vus_gsrc, gsrc_cb, data, NULL);
