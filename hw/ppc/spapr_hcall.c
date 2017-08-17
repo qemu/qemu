@@ -1441,7 +1441,8 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
 }
 
 static uint32_t cas_check_pvr(sPAPRMachineState *spapr, PowerPCCPU *cpu,
-                              target_ulong *addr, Error **errp)
+                              target_ulong *addr, bool *raw_mode_supported,
+                              Error **errp)
 {
     bool explicit_match = false; /* Matched the CPU's real PVR */
     uint32_t max_compat = spapr->max_compat_pvr;
@@ -1481,6 +1482,8 @@ static uint32_t cas_check_pvr(sPAPRMachineState *spapr, PowerPCCPU *cpu,
         return 0;
     }
 
+    *raw_mode_supported = explicit_match;
+
     /* Parsing finished */
     trace_spapr_cas_pvr(cpu->compat_pvr, explicit_match, best_compat);
 
@@ -1499,8 +1502,9 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     sPAPROptionVector *ov1_guest, *ov5_guest, *ov5_cas_old, *ov5_updates;
     bool guest_radix;
     Error *local_err = NULL;
+    bool raw_mode_supported = false;
 
-    cas_pvr = cas_check_pvr(spapr, cpu, &addr, &local_err);
+    cas_pvr = cas_check_pvr(spapr, cpu, &addr, &raw_mode_supported, &local_err);
     if (local_err) {
         error_report_err(local_err);
         return H_HARDWARE;
@@ -1510,8 +1514,14 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     if (cpu->compat_pvr != cas_pvr) {
         ppc_set_compat_all(cas_pvr, &local_err);
         if (local_err) {
-            error_report_err(local_err);
-            return H_HARDWARE;
+            /* We fail to set compat mode (likely because running with KVM PR),
+             * but maybe we can fallback to raw mode if the guest supports it.
+             */
+            if (!raw_mode_supported) {
+                error_report_err(local_err);
+                return H_HARDWARE;
+            }
+            local_err = NULL;
         }
     }
 
