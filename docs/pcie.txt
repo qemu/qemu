@@ -46,7 +46,7 @@ Place only the following kinds of devices directly on the Root Complex:
     (2) PCI Express Root Ports (ioh3420), for starting exclusively PCI Express
         hierarchies.
 
-    (3) DMI-PCI Bridges (i82801b11-bridge), for starting legacy PCI
+    (3) PCI Express to PCI Bridge (pcie-pci-bridge), for starting legacy PCI
         hierarchies.
 
     (4) Extra Root Complexes (pxb-pcie), if multiple PCI Express Root Buses
@@ -55,18 +55,18 @@ Place only the following kinds of devices directly on the Root Complex:
    pcie.0 bus
    ----------------------------------------------------------------------------
         |                |                    |                  |
-   -----------   ------------------   ------------------   --------------
-   | PCI Dev |   | PCIe Root Port |   | DMI-PCI Bridge |   |  pxb-pcie  |
-   -----------   ------------------   ------------------   --------------
+   -----------   ------------------   -------------------   --------------
+   | PCI Dev |   | PCIe Root Port |   | PCIe-PCI Bridge |   |  pxb-pcie  |
+   -----------   ------------------   -------------------   --------------
 
 2.1.1 To plug a device into pcie.0 as a Root Complex Integrated Endpoint use:
           -device <dev>[,bus=pcie.0]
 2.1.2 To expose a new PCI Express Root Bus use:
           -device pxb-pcie,id=pcie.1,bus_nr=x[,numa_node=y][,addr=z]
-      Only PCI Express Root Ports and DMI-PCI bridges can be connected
-      to the pcie.1 bus:
+      PCI Express Root Ports and PCI Express to PCI bridges can be
+      connected to the pcie.1 bus:
           -device ioh3420,id=root_port1[,bus=pcie.1][,chassis=x][,slot=y][,addr=z]                                     \
-          -device i82801b11-bridge,id=dmi_pci_bridge1,bus=pcie.1
+          -device pcie-pci-bridge,id=pcie_pci_bridge1,bus=pcie.1
 
 
 2.2 PCI Express only hierarchy
@@ -130,24 +130,24 @@ Notes:
 Legacy PCI devices can be plugged into pcie.0 as Integrated Endpoints,
 but, as mentioned in section 5, doing so means the legacy PCI
 device in question will be incapable of hot-unplugging.
-Besides that use DMI-PCI Bridges (i82801b11-bridge) in combination
-with PCI-PCI Bridges (pci-bridge) to start PCI hierarchies.
+Besides that use PCI Express to PCI Bridges (pcie-pci-bridge) in
+combination with PCI-PCI Bridges (pci-bridge) to start PCI hierarchies.
 
-Prefer flat hierarchies. For most scenarios a single DMI-PCI Bridge
+Prefer flat hierarchies. For most scenarios a single PCI Express to PCI Bridge
 (having 32 slots) and several PCI-PCI Bridges attached to it
 (each supporting also 32 slots) will support hundreds of legacy devices.
-The recommendation is to populate one PCI-PCI Bridge under the DMI-PCI Bridge
-until is full and then plug a new PCI-PCI Bridge...
+The recommendation is to populate one PCI-PCI Bridge under the
+PCI Express to PCI Bridge until is full and then plug a new PCI-PCI Bridge...
 
    pcie.0 bus
    ----------------------------------------------
         |                            |
-   -----------               ------------------
-   | PCI Dev |               | DMI-PCI BRIDGE |
-   ----------                ------------------
+   -----------               -------------------
+   | PCI Dev |               | PCIe-PCI Bridge |
+   -----------               -------------------
                                |            |
                   ------------------    ------------------
-                  | PCI-PCI Bridge |    | PCI-PCI Bridge |   ...
+                  | PCI-PCI Bridge |    | PCI-PCI Bridge |
                   ------------------    ------------------
                                          |           |
                                   -----------     -----------
@@ -157,11 +157,11 @@ until is full and then plug a new PCI-PCI Bridge...
 2.3.1 To plug a PCI device into pcie.0 as an Integrated Endpoint use:
       -device <dev>[,bus=pcie.0]
 2.3.2 Plugging a PCI device into a PCI-PCI Bridge:
-      -device i82801b11-bridge,id=dmi_pci_bridge1[,bus=pcie.0]                        \
-      -device pci-bridge,id=pci_bridge1,bus=dmi_pci_bridge1[,chassis_nr=x][,addr=y]   \
+      -device pcie-pci-bridge,id=pcie_pci_bridge1[,bus=pcie.0] \
+      -device pci-bridge,id=pci_bridge1,bus=pcie_pci_bridge1[,chassis_nr=x][,addr=y] \
       -device <dev>,bus=pci_bridge1[,addr=x]
       Note that 'addr' cannot be 0 unless shpc=off parameter is passed to
-      the PCI Bridge.
+      the PCI Bridge/PCI Express to PCI Bridge.
 
 3. IO space issues
 ===================
@@ -219,14 +219,16 @@ do not support hot-plug, so any devices plugged into Root Complexes
 cannot be hot-plugged/hot-unplugged:
     (1) PCI Express Integrated Endpoints
     (2) PCI Express Root Ports
-    (3) DMI-PCI Bridges
+    (3) PCI Express to PCI Bridges
     (4) pxb-pcie
 
 Be aware that PCI Express Downstream Ports can't be hot-plugged into
 an existing PCI Express Upstream Port.
 
-PCI devices can be hot-plugged into PCI-PCI Bridges. The PCI hot-plug is ACPI
-based and can work side by side with the PCI Express native hot-plug.
+PCI devices can be hot-plugged into PCI Express to PCI and PCI-PCI Bridges.
+The PCI hot-plug into PCI-PCI bridge is ACPI based, whereas hot-plug into
+PCI Express to PCI bridges is SHPC-based. They both can work side by side with
+the PCI Express native hot-plug.
 
 PCI Express devices can be natively hot-plugged/hot-unplugged into/from
 PCI Express Root Ports (and PCI Express Downstream Ports).
@@ -234,10 +236,11 @@ PCI Express Root Ports (and PCI Express Downstream Ports).
 5.1 Planning for hot-plug:
     (1) PCI hierarchy
         Leave enough PCI-PCI Bridge slots empty or add one
-        or more empty PCI-PCI Bridges to the DMI-PCI Bridge.
+        or more empty PCI-PCI Bridges to the PCI Express to PCI Bridge.
 
         For each such PCI-PCI Bridge the Guest Firmware is expected to reserve
         4K IO space and 2M MMIO range to be used for all devices behind it.
+        Appropriate PCI capability is designed, see pcie_pci_bridge.txt.
 
         Because of the hard IO limit of around 10 PCI Bridges (~ 40K space)
         per system don't use more than 9 PCI-PCI Bridges, leaving 4K for the

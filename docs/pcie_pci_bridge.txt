@@ -1,0 +1,114 @@
+Generic PCI Express to PCI Bridge
+================================
+
+Description
+===========
+PCIE-to-PCI bridge is a new method for legacy PCI
+hierarchies creation on Q35 machines.
+
+Previously Intel DMI-to-PCI bridge was used for this purpose.
+But due to its strict limitations - no support of hot-plug,
+no cross-platform and cross-architecture support - a new generic
+PCIE-to-PCI bridge should now be used for any legacy PCI device usage
+with PCI Express machine.
+
+This generic PCIE-PCI bridge is a cross-platform device,
+can be hot-plugged into appropriate root port (requires additional actions,
+see 'PCIE-PCI bridge hot-plug' section),
+and supports devices hot-plug into the bridge itself
+(with some limitations, see below).
+
+Hot-plug of legacy PCI devices into the bridge
+is provided by bridge's built-in Standard hot-plug Controller.
+Though it still has some limitations, see below.
+
+PCIE-PCI bridge hot-plug
+=======================
+Guest OSes require extra efforts to enable PCIE-PCI bridge hot-plug.
+Motivation - now on init any PCI Express root port which doesn't have
+any device plugged in, has no free buses reserved to provide any of them
+to a hot-plugged devices in future.
+
+To solve this problem we reserve additional buses on a firmware level.
+Currently only SeaBIOS is supported.
+The way of bus number to reserve delivery is special
+Red Hat vendor-specific PCI capability, added to the root port
+that is planned to have PCIE-PCI bridge hot-plugged in.
+
+Capability layout (defined in include/hw/pci/pci_bridge.h):
+
+    uint8_t id;     Standard PCI capability header field
+    uint8_t next;   Standard PCI capability header field
+    uint8_t len;    Standard PCI vendor-specific capability header field
+
+    uint8_t type;   Red Hat vendor-specific capability type
+                    List of currently existing types:
+                        RESOURCE_RESERVE = 1
+
+
+    uint32_t bus_res;   Minimum number of buses to reserve
+
+    uint64_t io;           IO space to reserve
+    uint32_t mem           Non-prefetchable memory to reserve
+
+    At most one of the following two fields may be set to a value
+    different from -1:
+    uint32_t mem_pref_32;  Prefetchable memory to reserve (32-bit MMIO)
+    uint64_t mem_pref_64;  Prefetchable memory to reserve (64-bit MMIO)
+
+If any reservation field is -1 then this kind of reservation is not
+needed and must be ignored by firmware.
+
+At the moment this capability is used only in QEMU generic PCIe root port
+(-device pcie-root-port). Capability construction function takes all reservation
+fields values from corresponding device properties. By default all of them are
+set to -1 to leave root port's default behavior unchanged.
+
+Usage
+=====
+A detailed command line would be:
+
+[qemu-bin + storage options] \
+-m 2G \
+-device pcie-root-port,bus=pcie.0,id=rp1 \
+-device pcie-root-port,bus=pcie.0,id=rp2 \
+-device pcie-root-port,bus=pcie.0,id=rp3,bus-reserve=1 \
+-device pcie-pci-bridge,id=br1,bus=rp1 \
+-device pcie-pci-bridge,id=br2,bus=rp2 \
+-device e1000,bus=br1,addr=8
+
+Then in monitor it's OK to execute next commands:
+device_add pcie-pci-bridge,id=br3,bus=rp3 \
+device_add e1000,bus=br2,addr=1 \
+device_add e1000,bus=br3,addr=1
+
+Here you have:
+ (1) Cold-plugged:
+    - Root ports: 1 QEMU generic root port with the capability mentioned above,
+                  2 QEMU generic root ports without this capability;
+    - 2 PCIE-PCI bridges plugged into 2 different root ports;
+    - e1000 plugged into the first bridge.
+ (2) Hot-plugged:
+    - PCIE-PCI bridge, plugged into QEMU generic root port;
+    - 2 e1000 cards, one plugged into the cold-plugged PCIE-PCI bridge,
+                     another plugged into the hot-plugged bridge.
+
+Limitations
+===========
+The PCIE-PCI bridge can be hot-plugged only into pcie-root-port that
+has proper 'bus-reserve' property value to provide secondary bus for the
+hot-plugged bridge.
+
+Windows 7 and older versions don't support hot-plug devices into the PCIE-PCI bridge.
+To enable device hot-plug into the bridge on Linux there're 3 ways:
+1) Build shpchp module with this patch http://www.spinics.net/lists/linux-pci/msg63052.html
+2) Use kernel 4.14+ where the patch mentioned above is already merged.
+3) Set 'msi' property to off - this forces the bridge to use legacy INTx,
+    which allows the bridge to notify the OS about hot-plug event without having
+    BUSMASTER set.
+
+Implementation
+==============
+The PCIE-PCI bridge is based on PCI-PCI bridge, but also accumulates PCI Express
+features as a PCI Express device (is_express=1).
+
