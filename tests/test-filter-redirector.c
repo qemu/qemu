@@ -59,9 +59,6 @@
 
 static void test_redirector_tx(void)
 {
-#ifndef _WIN32
-/* socketpair(PF_UNIX) which does not exist on windows */
-
     int backend_sock[2], recv_sock;
     char *cmdline;
     uint32_t ret = 0, len = 0;
@@ -129,15 +126,10 @@ static void test_redirector_tx(void)
     unlink(sock_path0);
     unlink(sock_path1);
     qtest_end();
-
-#endif
 }
 
 static void test_redirector_rx(void)
 {
-#ifndef _WIN32
-/* socketpair(PF_UNIX) which does not exist on windows */
-
     int backend_sock[2], send_sock;
     char *cmdline;
     uint32_t ret = 0, len = 0;
@@ -203,8 +195,6 @@ static void test_redirector_rx(void)
     unlink(sock_path0);
     unlink(sock_path1);
     qtest_end();
-
-#endif
 }
 
 int main(int argc, char **argv)

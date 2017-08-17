@@ -17,9 +17,6 @@
 
 static void test_mirror(void)
 {
-#ifndef _WIN32
-/* socketpair(PF_UNIX) which does not exist on windows */
-
     int send_sock[2], recv_sock;
     char *cmdline;
     uint32_t ret = 0, len = 0;
@@ -74,8 +71,6 @@ static void test_mirror(void)
     g_free(recv_buf);
     close(recv_sock);
     unlink(sock_path);
-
-#endif
 }
 
 int main(int argc, char **argv)
