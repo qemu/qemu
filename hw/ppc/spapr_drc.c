@@ -442,12 +442,17 @@ void spapr_drc_reset(sPAPRDRConnector *drc)
     if (drc->dev) {
         /* A device present at reset is ready to go, same as coldplugged */
         drc->state = drck->ready_state;
+        /*
+         * Ensure that we are able to send the FDT fragment again
+         * via configure-connector call if the guest requests.
+         */
+        drc->ccs_offset = drc->fdt_start_offset;
+        drc->ccs_depth = 0;
     } else {
         drc->state = drck->empty_state;
+        drc->ccs_offset = -1;
+        drc->ccs_depth = -1;
     }
-
-    drc->ccs_offset = -1;
-    drc->ccs_depth = -1;
 }
 
 static void drc_reset(void *opaque)
@@ -1071,8 +1076,14 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     }
 
     if ((drc->state != SPAPR_DRC_STATE_LOGICAL_UNISOLATE)
-        && (drc->state != SPAPR_DRC_STATE_PHYSICAL_UNISOLATE)) {
-        /* Need to unisolate the device before configuring */
+        && (drc->state != SPAPR_DRC_STATE_PHYSICAL_UNISOLATE)
+        && (drc->state != SPAPR_DRC_STATE_LOGICAL_CONFIGURED)
+        && (drc->state != SPAPR_DRC_STATE_PHYSICAL_CONFIGURED)) {
+        /*
+         * Need to unisolate the device before configuring
+         * or it should already be in configured state to
+         * allow configure-connector be called repeatedly.
+         */
         rc = SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE;
         goto out;
     }
@@ -1108,8 +1119,13 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
                 /* done sending the device tree, move to configured state */
                 trace_spapr_drc_set_configured(drc_index);
                 drc->state = drck->ready_state;
-                drc->ccs_offset = -1;
-                drc->ccs_depth = -1;
+                /*
+                 * Ensure that we are able to send the FDT fragment
+                 * again via configure-connector call if the guest requests.
+                 */
+                drc->ccs_offset = drc->fdt_start_offset;
+                drc->ccs_depth = 0;
+                fdt_offset_next = drc->fdt_start_offset;
                 resp = SPAPR_DR_CC_RESPONSE_SUCCESS;
             } else {
                 resp = SPAPR_DR_CC_RESPONSE_PREV_PARENT;
