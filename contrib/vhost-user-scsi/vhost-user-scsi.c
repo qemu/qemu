@@ -28,7 +28,6 @@ typedef struct VusIscsiLun {
 typedef struct VusDev {
     VugDev parent;
 
-    int server_sock;
     VusIscsiLun lun;
     GMainLoop *loop;
 } VusDev;
@@ -357,57 +356,12 @@ fail:
 
 /** vhost-user-scsi **/
 
-static void vdev_scsi_free(VusDev *vdev_scsi)
-{
-    if (vdev_scsi->server_sock >= 0) {
-        close(vdev_scsi->server_sock);
-    }
-    g_main_loop_unref(vdev_scsi->loop);
-    g_free(vdev_scsi);
-}
-
-static VusDev *vdev_scsi_new(int server_sock)
-{
-    VusDev *vdev_scsi;
-
-    vdev_scsi = g_new0(VusDev, 1);
-    vdev_scsi->server_sock = server_sock;
-    vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
-
-    return vdev_scsi;
-}
-
-static int vdev_scsi_run(VusDev *vdev_scsi)
-{
-    int cli_sock;
-
-    assert(vdev_scsi);
-    assert(vdev_scsi->server_sock >= 0);
-
-    cli_sock = accept(vdev_scsi->server_sock, NULL, NULL);
-    if (cli_sock < 0) {
-        perror("accept");
-        return -1;
-    }
-
-    vug_init(&vdev_scsi->parent,
-             cli_sock,
-             vus_panic_cb,
-             &vus_iface);
-
-    g_main_loop_run(vdev_scsi->loop);
-
-    vug_deinit(&vdev_scsi->parent);
-
-    return 0;
-}
-
 int main(int argc, char **argv)
 {
     VusDev *vdev_scsi = NULL;
     char *unix_fn = NULL;
     char *iscsi_uri = NULL;
-    int sock, opt, err = EXIT_SUCCESS;
+    int lsock = -1, csock = -1, opt, err = EXIT_SUCCESS;
 
     while ((opt = getopt(argc, argv, "u:i:")) != -1) {
         switch (opt) {
@@ -427,24 +381,41 @@ int main(int argc, char **argv)
         goto help;
     }
 
-    sock = unix_sock_new(unix_fn);
-    if (sock < 0) {
+    lsock = unix_sock_new(unix_fn);
+    if (lsock < 0) {
         goto err;
     }
-    vdev_scsi = vdev_scsi_new(sock);
+
+    csock = accept(lsock, NULL, NULL);
+    if (csock < 0) {
+        perror("accept");
+        goto err;
+    }
+
+    vdev_scsi = g_new0(VusDev, 1);
+    vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
 
     if (vus_iscsi_add_lun(&vdev_scsi->lun, iscsi_uri) != 0) {
         goto err;
     }
 
-    if (vdev_scsi_run(vdev_scsi) != 0) {
-        goto err;
-    }
+    vug_init(&vdev_scsi->parent, csock, vus_panic_cb, &vus_iface);
+
+    g_main_loop_run(vdev_scsi->loop);
+
+    vug_deinit(&vdev_scsi->parent);
 
 out:
     if (vdev_scsi) {
-        vdev_scsi_free(vdev_scsi);
+        g_main_loop_unref(vdev_scsi->loop);
+        g_free(vdev_scsi);
         unlink(unix_fn);
+    }
+    if (csock >= 0) {
+        close(csock);
+    }
+    if (lsock >= 0) {
+        close(lsock);
     }
     g_free(unix_fn);
     g_free(iscsi_uri);
