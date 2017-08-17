@@ -55,18 +55,18 @@
 
 #define VUS_ISCSI_INITIATOR "iqn.2016-11.com.nutanix:vhost-user-scsi"
 
-typedef struct iscsi_lun {
+typedef struct VusIscsiLun {
     struct iscsi_context *iscsi_ctx;
     int iscsi_lun;
-} iscsi_lun_t;
+} VusIscsiLun;
 
-typedef struct vhost_scsi_dev {
+typedef struct VusDev {
     VuDev vu_dev;
     int server_sock;
     GMainLoop *loop;
     GTree *fdmap;   /* fd -> gsource context id */
-    iscsi_lun_t lun;
-} vhost_scsi_dev_t;
+    VusIscsiLun lun;
+} VusDev;
 
 /** glib event loop integration for libvhost-user and misc callbacks **/
 
@@ -78,7 +78,7 @@ QEMU_BUILD_BUG_ON((int)G_IO_HUP != (int)VU_WATCH_HUP);
 
 typedef struct vus_gsrc {
     GSource parent;
-    vhost_scsi_dev_t *vdev_scsi;
+    VusDev *vdev_scsi;
     GPollFD gfd;
     vu_watch_cb vu_cb;
 } vus_gsrc_t;
@@ -107,7 +107,7 @@ static gboolean vus_gsrc_check(GSource *src)
 
 static gboolean vus_gsrc_dispatch(GSource *src, GSourceFunc cb, gpointer data)
 {
-    vhost_scsi_dev_t *vdev_scsi;
+    VusDev *vdev_scsi;
     vus_gsrc_t *vus_src = (vus_gsrc_t *)src;
 
     assert(vus_src);
@@ -133,7 +133,7 @@ static GSourceFuncs vus_gsrc_funcs = {
     NULL
 };
 
-static void vus_gsrc_new(vhost_scsi_dev_t *vdev_scsi, int fd, GIOCondition cond,
+static void vus_gsrc_new(VusDev *vdev_scsi, int fd, GIOCondition cond,
                          vu_watch_cb vu_cb, GSourceFunc gsrc_cb, gpointer data)
 {
     GSource *vus_gsrc;
@@ -247,7 +247,7 @@ struct scsi_task {
 
 /** libiscsi integration **/
 
-static int iscsi_add_lun(iscsi_lun_t *lun, char *iscsi_uri)
+static int iscsi_add_lun(VusIscsiLun *lun, char *iscsi_uri)
 {
     struct iscsi_url *iscsi_url;
     struct iscsi_context *iscsi_ctx;
@@ -417,11 +417,11 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
 
 static void vus_panic_cb(VuDev *vu_dev, const char *buf)
 {
-    vhost_scsi_dev_t *vdev_scsi;
+    VusDev *vdev_scsi;
 
     assert(vu_dev);
 
-    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
+    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
     if (buf) {
         PERR("vu_panic: %s", buf);
     }
@@ -432,14 +432,14 @@ static void vus_panic_cb(VuDev *vu_dev, const char *buf)
 static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
                              void *pvt)
 {
-    vhost_scsi_dev_t *vdev_scsi;
+    VusDev *vdev_scsi;
     guint id;
 
     assert(vu_dev);
     assert(fd >= 0);
     assert(cb);
 
-    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
+    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
     id = (guint)(uintptr_t)g_tree_lookup(vdev_scsi->fdmap,
                                          (gpointer)(uintptr_t)fd);
     if (id) {
@@ -454,13 +454,13 @@ static void vus_add_watch_cb(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb,
 
 static void vus_del_watch_cb(VuDev *vu_dev, int fd)
 {
-    vhost_scsi_dev_t *vdev_scsi;
+    VusDev *vdev_scsi;
     guint id;
 
     assert(vu_dev);
     assert(fd >= 0);
 
-    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
+    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
     id = (guint)(uintptr_t)g_tree_lookup(vdev_scsi->fdmap,
                                          (gpointer)(uintptr_t)fd);
     if (id) {
@@ -473,12 +473,12 @@ static void vus_del_watch_cb(VuDev *vu_dev, int fd)
 
 static void vus_proc_req(VuDev *vu_dev, int idx)
 {
-    vhost_scsi_dev_t *vdev_scsi;
+    VusDev *vdev_scsi;
     VuVirtq *vq;
 
     assert(vu_dev);
 
-    vdev_scsi = container_of(vu_dev, vhost_scsi_dev_t, vu_dev);
+    vdev_scsi = container_of(vu_dev, VusDev, vu_dev);
     if (idx < 0 || idx >= VHOST_MAX_NR_VIRTQUEUE) {
         PERR("VQ Index out of range: %d", idx);
         vus_panic_cb(vu_dev, NULL);
@@ -618,7 +618,7 @@ fail:
 
 /** vhost-user-scsi **/
 
-static void vdev_scsi_free(vhost_scsi_dev_t *vdev_scsi)
+static void vdev_scsi_free(VusDev *vdev_scsi)
 {
     if (vdev_scsi->server_sock >= 0) {
         close(vdev_scsi->server_sock);
@@ -628,11 +628,11 @@ static void vdev_scsi_free(vhost_scsi_dev_t *vdev_scsi)
     g_free(vdev_scsi);
 }
 
-static vhost_scsi_dev_t *vdev_scsi_new(int server_sock)
+static VusDev *vdev_scsi_new(int server_sock)
 {
-    vhost_scsi_dev_t *vdev_scsi;
+    VusDev *vdev_scsi;
 
-    vdev_scsi = g_new0(vhost_scsi_dev_t, 1);
+    vdev_scsi = g_new0(VusDev, 1);
     vdev_scsi->server_sock = server_sock;
     vdev_scsi->loop = g_main_loop_new(NULL, FALSE);
     vdev_scsi->fdmap = g_tree_new(vus_fdmap_compare);
@@ -640,7 +640,7 @@ static vhost_scsi_dev_t *vdev_scsi_new(int server_sock)
     return vdev_scsi;
 }
 
-static int vdev_scsi_run(vhost_scsi_dev_t *vdev_scsi)
+static int vdev_scsi_run(VusDev *vdev_scsi)
 {
     int cli_sock;
     int ret = 0;
@@ -674,7 +674,7 @@ static int vdev_scsi_run(vhost_scsi_dev_t *vdev_scsi)
 
 int main(int argc, char **argv)
 {
-    vhost_scsi_dev_t *vdev_scsi = NULL;
+    VusDev *vdev_scsi = NULL;
     char *unix_fn = NULL;
     char *iscsi_uri = NULL;
     int sock, opt, err = EXIT_SUCCESS;
