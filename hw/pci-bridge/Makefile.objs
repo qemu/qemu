@@ -1,4 +1,4 @@
-common-obj-y += pci_bridge_dev.o
+common-obj-y += pci_bridge_dev.o pcie_pci_bridge.o
 common-obj-$(CONFIG_PCIE_PORT) += pcie_root_port.o gen_pcie_root_port.o
 common-obj-$(CONFIG_PXB) += pci_expander_bridge.o
 common-obj-$(CONFIG_XIO3130) += xio3130_upstream.o xio3130_downstream.o
