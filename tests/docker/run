@@ -52,10 +52,12 @@ if test -n "$SHOW_ENV"; then
 fi
 
 export QEMU_SRC="$TEST_DIR/src"
+export BUILD_DIR="$TEST_DIR/build"
+export INSTALL_DIR="$TEST_DIR/install"
 
 cd "$QEMU_SRC/tests/docker"
 
-CMD="$QEMU_SRC/tests/docker/$@"
+CMD="./$@"
 
 if test -z "$DEBUG"; then
     exec $CMD
