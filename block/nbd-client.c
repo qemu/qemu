@@ -70,7 +70,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
 {
     NBDClientSession *s = opaque;
     uint64_t i;
-    int ret;
+    int ret = 0;
     Error *local_err = NULL;
 
     while (!s->quit) {
