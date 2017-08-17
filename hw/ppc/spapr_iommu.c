@@ -618,6 +618,8 @@ static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
     dc->init = spapr_tce_table_realize;
     dc->reset = spapr_tce_reset;
     dc->unrealize = spapr_tce_table_unrealize;
+    /* Reason: This is just an internal device for handling the hypercalls */
+    dc->user_creatable = false;
 
     QLIST_INIT(&spapr_tce_tables);
 
