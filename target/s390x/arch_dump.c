@@ -16,7 +16,6 @@
 #include "elf.h"
 #include "exec/cpu-all.h"
 #include "sysemu/dump.h"
-#include "sysemu/kvm.h"
 
 
 struct S390xUserRegsStruct {

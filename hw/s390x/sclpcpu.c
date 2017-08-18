@@ -18,7 +18,6 @@
 #include "hw/s390x/event-facility.h"
 #include "cpu.h"
 #include "sysemu/cpus.h"
-#include "sysemu/kvm.h"
 
 typedef struct ConfigMgtData {
     EventBufferHeader ebh;
