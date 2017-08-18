@@ -742,53 +742,7 @@ enum cc_op {
     CC_OP_MAX
 };
 
-static const char *cc_names[] = {
-    [CC_OP_CONST0]    = "CC_OP_CONST0",
-    [CC_OP_CONST1]    = "CC_OP_CONST1",
-    [CC_OP_CONST2]    = "CC_OP_CONST2",
-    [CC_OP_CONST3]    = "CC_OP_CONST3",
-    [CC_OP_DYNAMIC]   = "CC_OP_DYNAMIC",
-    [CC_OP_STATIC]    = "CC_OP_STATIC",
-    [CC_OP_NZ]        = "CC_OP_NZ",
-    [CC_OP_LTGT_32]   = "CC_OP_LTGT_32",
-    [CC_OP_LTGT_64]   = "CC_OP_LTGT_64",
-    [CC_OP_LTUGTU_32] = "CC_OP_LTUGTU_32",
-    [CC_OP_LTUGTU_64] = "CC_OP_LTUGTU_64",
-    [CC_OP_LTGT0_32]  = "CC_OP_LTGT0_32",
-    [CC_OP_LTGT0_64]  = "CC_OP_LTGT0_64",
-    [CC_OP_ADD_64]    = "CC_OP_ADD_64",
-    [CC_OP_ADDU_64]   = "CC_OP_ADDU_64",
-    [CC_OP_ADDC_64]   = "CC_OP_ADDC_64",
-    [CC_OP_SUB_64]    = "CC_OP_SUB_64",
-    [CC_OP_SUBU_64]   = "CC_OP_SUBU_64",
-    [CC_OP_SUBB_64]   = "CC_OP_SUBB_64",
-    [CC_OP_ABS_64]    = "CC_OP_ABS_64",
-    [CC_OP_NABS_64]   = "CC_OP_NABS_64",
-    [CC_OP_ADD_32]    = "CC_OP_ADD_32",
-    [CC_OP_ADDU_32]   = "CC_OP_ADDU_32",
-    [CC_OP_ADDC_32]   = "CC_OP_ADDC_32",
-    [CC_OP_SUB_32]    = "CC_OP_SUB_32",
-    [CC_OP_SUBU_32]   = "CC_OP_SUBU_32",
-    [CC_OP_SUBB_32]   = "CC_OP_SUBB_32",
-    [CC_OP_ABS_32]    = "CC_OP_ABS_32",
-    [CC_OP_NABS_32]   = "CC_OP_NABS_32",
-    [CC_OP_COMP_32]   = "CC_OP_COMP_32",
-    [CC_OP_COMP_64]   = "CC_OP_COMP_64",
-    [CC_OP_TM_32]     = "CC_OP_TM_32",
-    [CC_OP_TM_64]     = "CC_OP_TM_64",
-    [CC_OP_NZ_F32]    = "CC_OP_NZ_F32",
-    [CC_OP_NZ_F64]    = "CC_OP_NZ_F64",
-    [CC_OP_NZ_F128]   = "CC_OP_NZ_F128",
-    [CC_OP_ICM]       = "CC_OP_ICM",
-    [CC_OP_SLA_32]    = "CC_OP_SLA_32",
-    [CC_OP_SLA_64]    = "CC_OP_SLA_64",
-    [CC_OP_FLOGR]     = "CC_OP_FLOGR",
-};
-
-static inline const char *cc_name(int cc_op)
-{
-    return cc_names[cc_op];
-}
+const char *cc_name(enum cc_op cc_op);
 
 static inline void setcc(S390CPU *cpu, uint64_t cc)
 {
