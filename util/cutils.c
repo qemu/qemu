@@ -30,6 +30,7 @@
 #include "qemu/iov.h"
 #include "net/net.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 void strpadcpy(char *buf, int buf_size, const char *str, char pad)
 {
@@ -601,7 +602,7 @@ int parse_debug_env(const char *name, int max, int initial)
         return initial;
     }
     if (debug < 0 || debug > max || errno != 0) {
-        fprintf(stderr, "warning: %s not in [0, %d]", name, max);
+        warn_report("%s not in [0, %d]", name, max);
         return initial;
     }
     return debug;
