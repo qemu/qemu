@@ -109,7 +109,7 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
     }
 
     if (r) {
-        program_interrupt(env, PGM_OPERATION, ILEN_AUTO);
+        program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO);
     }
 }
 
