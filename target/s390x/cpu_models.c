@@ -1200,6 +1200,14 @@ ObjectClass *s390_cpu_class_by_name(const char *name)
     return oc;
 }
 
+const char *s390_default_cpu_model_name(void)
+{
+     if (kvm_enabled()) {
+        return "host";
+     }
+     return "qemu";
+}
+
 static const TypeInfo qemu_s390_cpu_type_info = {
     .name = S390_CPU_TYPE_NAME("qemu"),
     .parent = TYPE_S390_CPU,
