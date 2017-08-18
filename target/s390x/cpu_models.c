@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "gen-features.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

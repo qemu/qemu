@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
+#include "internal.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/timer.h"

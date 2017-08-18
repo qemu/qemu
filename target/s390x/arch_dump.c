@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "elf.h"
 #include "exec/cpu-all.h"
 #include "sysemu/dump.h"

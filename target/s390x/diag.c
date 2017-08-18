@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "exec/address-spaces.h"
 #include "exec/exec-all.h"
 #include "hw/watchdog/wdt_diag288.h"

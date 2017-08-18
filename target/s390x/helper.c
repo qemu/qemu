@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
+#include "internal.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "exec/exec-all.h"
