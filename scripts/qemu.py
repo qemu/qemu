@@ -13,7 +13,6 @@
 #
 
 import errno
-import string
 import os
 import sys
 import subprocess
@@ -195,14 +194,12 @@ class QEMUMachine(object):
             self._load_io_log()
             self._post_shutdown()
 
-    underscore_to_dash = string.maketrans('_', '-')
-
     def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the response dict'''
         qmp_args = dict()
         for key, value in args.iteritems():
             if conv_keys:
-                qmp_args[key.translate(self.underscore_to_dash)] = value
+                qmp_args[key.replace('_', '-')] = value
             else:
                 qmp_args[key] = value
 
