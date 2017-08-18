@@ -19,6 +19,19 @@ import subprocess
 import qmp.qmp
 
 
+class MonitorResponseError(qmp.qmp.QMPError):
+    '''
+    Represents erroneous QMP monitor reply
+    '''
+    def __init__(self, reply):
+        try:
+            desc = reply["error"]["desc"]
+        except KeyError:
+            desc = reply
+        super(MonitorResponseError, self).__init__(desc)
+        self.reply = reply
+
+
 class QEMUMachine(object):
     '''A QEMU VM
 
@@ -213,9 +226,9 @@ class QEMUMachine(object):
         '''
         reply = self.qmp(cmd, conv_keys, **args)
         if reply is None:
-            raise Exception("Monitor is closed")
+            raise qmp.qmp.QMPError("Monitor is closed")
         if "error" in reply:
-            raise Exception(reply["error"]["desc"])
+            raise MonitorResponseError(reply)
         return reply["return"]
 
     def get_qmp_event(self, wait=False):
