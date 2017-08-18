@@ -438,17 +438,6 @@ static inline uint8_t get_per_atmid(CPUS390XState *env)
            ((env->psw.mask & PSW_ASC_ACCREG)?    (1 << 2) : 0);
 }
 
-/* Check if an address is within the PER starting address and the PER
-   ending address.  The address range might loop.  */
-static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
-{
-    if (env->cregs[10] <= env->cregs[11]) {
-        return env->cregs[10] <= addr && addr <= env->cregs[11];
-    } else {
-        return env->cregs[10] <= addr || addr <= env->cregs[11];
-    }
-}
-
 S390CPU *cpu_s390x_init(const char *cpu_model);
 S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp);
 S390CPU *cpu_s390x_create(const char *cpu_model, Error **errp);
