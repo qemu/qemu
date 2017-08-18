@@ -163,7 +163,7 @@ static void ccw_init(MachineState *machine)
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
 
     /* Register savevm handler for guest TOD clock */
-    register_savevm_live(NULL, "todclock", 0, 1, &savevm_gtod, kvm_state);
+    register_savevm_live(NULL, "todclock", 0, 1, &savevm_gtod, NULL);
 }
 
 static void s390_cpu_plug(HotplugHandler *hotplug_dev,
