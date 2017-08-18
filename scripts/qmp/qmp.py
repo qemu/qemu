@@ -177,19 +177,19 @@ class QEMUMonitorProtocol(object):
             print >>sys.stderr, "QMP:<<< %s" % resp
         return resp
 
-    def cmd(self, name, args=None, id=None):
+    def cmd(self, name, args=None, cmd_id=None):
         """
         Build a QMP command and send it to the QMP Monitor.
 
         @param name: command name (string)
         @param args: command arguments (dict)
-        @param id: command id (dict, list, string or int)
+        @param cmd_id: command id (dict, list, string or int)
         """
         qmp_cmd = {'execute': name}
         if args:
             qmp_cmd['arguments'] = args
-        if id:
-            qmp_cmd['id'] = id
+        if cmd_id:
+            qmp_cmd['id'] = cmd_id
         return self.cmd_obj(qmp_cmd)
 
     def command(self, cmd, **kwds):
