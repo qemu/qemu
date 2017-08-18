@@ -13,6 +13,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internal.h"
+#include "kvm_s390x.h"
+#include "sysemu/kvm.h"
 #include "gen-features.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

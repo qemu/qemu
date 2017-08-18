@@ -27,6 +27,8 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "internal.h"
+#include "kvm_s390x.h"
+#include "sysemu/kvm.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/timer.h"

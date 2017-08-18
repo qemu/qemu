@@ -18,6 +18,7 @@
 #include "hw/hw.h"
 #include "cpu.h"
 #include "internal.h"
+#include "kvm_s390x.h"
 #include "sysemu/kvm.h"
 
 static int cpu_post_load(void *opaque, int version_id)
