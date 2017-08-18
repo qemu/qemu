@@ -26,6 +26,7 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "hw/hw.h"
@@ -2165,6 +2166,61 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     g_free(type);
 }
 
+static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
+{
+    Error *local_err = NULL;
+    bool vsmt_user = !!spapr->vsmt;
+    int kvm_smt = kvmppc_smt_threads();
+    int ret;
+
+    if (!kvm_enabled() && (smp_threads > 1)) {
+        error_setg(&local_err, "TCG cannot support more than 1 thread/core "
+                     "on a pseries machine");
+        goto out;
+    }
+    if (!is_power_of_2(smp_threads)) {
+        error_setg(&local_err, "Cannot support %d threads/core on a pseries "
+                     "machine because it must be a power of 2", smp_threads);
+        goto out;
+    }
+
+    /* Detemine the VSMT mode to use: */
+    if (vsmt_user) {
+        if (spapr->vsmt < smp_threads) {
+            error_setg(&local_err, "Cannot support VSMT mode %d"
+                         " because it must be >= threads/core (%d)",
+                         spapr->vsmt, smp_threads);
+            goto out;
+        }
+        /* In this case, spapr->vsmt has been set by the command line */
+    } else {
+        /* Choose a VSMT mode that may be higher than necessary but is
+         * likely to be compatible with hosts that don't have VSMT. */
+        spapr->vsmt = MAX(kvm_smt, smp_threads);
+    }
+
+    /* KVM: If necessary, set the SMT mode: */
+    if (kvm_enabled() && (spapr->vsmt != kvm_smt)) {
+        ret = kvmppc_set_smt_threads(spapr->vsmt);
+        if (ret) {
+            error_setg(&local_err,
+                       "Failed to set KVM's VSMT mode to %d (errno %d)",
+                       spapr->vsmt, ret);
+            if (!vsmt_user) {
+                error_append_hint(&local_err, "On PPC, a VM with %d threads/"
+                             "core on a host with %d threads/core requires "
+                             " the use of VSMT mode %d.\n",
+                             smp_threads, kvm_smt, spapr->vsmt);
+            }
+            kvmppc_hint_smt_possible(&local_err);
+            goto out;
+        }
+    }
+    /* else TCG: nothing to do currently */
+out:
+    error_propagate(errp, local_err);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(MachineState *machine)
 {
@@ -2296,6 +2352,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     spapr_cpu_parse_features(spapr);
+
+    spapr_set_vsmt_mode(spapr, &error_fatal);
 
     spapr_init_cpus(spapr);
 
@@ -2681,6 +2739,18 @@ static void spapr_set_resize_hpt(Object *obj, const char *value, Error **errp)
     }
 }
 
+static void spapr_get_vsmt(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    visit_type_uint32(v, name, (uint32_t *)opaque, errp);
+}
+
+static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    visit_type_uint32(v, name, (uint32_t *)opaque, errp);
+}
+
 static void spapr_machine_initfn(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
@@ -2711,6 +2781,11 @@ static void spapr_machine_initfn(Object *obj)
     object_property_set_description(obj, "resize-hpt",
                                     "Resizing of the Hash Page Table (enabled, disabled, required)",
                                     NULL);
+    object_property_add(obj, "vsmt", "uint32", spapr_get_vsmt,
+                        spapr_set_vsmt, NULL, &spapr->vsmt, &error_abort);
+    object_property_set_description(obj, "vsmt",
+                                    "Virtual SMT: KVM behaves as if this were"
+                                    " the host's SMT mode", &error_abort);
 }
 
 static void spapr_machine_finalizefn(Object *obj)

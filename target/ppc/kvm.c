@@ -74,6 +74,7 @@ static int cap_interrupt_level = false;
 static int cap_segstate;
 static int cap_booke_sregs;
 static int cap_ppc_smt;
+static int cap_ppc_smt_possible;
 static int cap_ppc_rma;
 static int cap_spapr_tce;
 static int cap_spapr_tce_64;
@@ -130,7 +131,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_interrupt_level = kvm_check_extension(s, KVM_CAP_PPC_IRQ_LEVEL);
     cap_segstate = kvm_check_extension(s, KVM_CAP_PPC_SEGSTATE);
     cap_booke_sregs = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_SREGS);
-    cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
+    cap_ppc_smt_possible = kvm_check_extension(s, KVM_CAP_PPC_SMT_POSSIBLE);
     cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
     cap_spapr_tce_64 = kvm_check_extension(s, KVM_CAP_SPAPR_TCE_64);
@@ -144,6 +145,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * only activated after this by kvmppc_set_papr() */
     cap_htab_fd = kvm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
     cap_fixup_hcalls = kvm_check_extension(s, KVM_CAP_PPC_FIXUP_HCALL);
+    cap_ppc_smt = kvm_vm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_htm = kvm_vm_check_extension(s, KVM_CAP_PPC_HTM);
     cap_mmu_radix = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_RADIX);
     cap_mmu_hash_v3 = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_HASH_V3);
@@ -2133,6 +2135,41 @@ int kvmppc_smt_threads(void)
 {
     return cap_ppc_smt ? cap_ppc_smt : 1;
 }
+
+int kvmppc_set_smt_threads(int smt)
+{
+    int ret;
+
+    ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_PPC_SMT, 0, smt, 0);
+    if (!ret) {
+        cap_ppc_smt = smt;
+    }
+    return ret;
+}
+
+void kvmppc_hint_smt_possible(Error **errp)
+{
+    int i;
+    GString *g;
+    char *s;
+
+    assert(kvm_enabled());
+    if (cap_ppc_smt_possible) {
+        g = g_string_new("Available VSMT modes:");
+        for (i = 63; i >= 0; i--) {
+            if ((1UL << i) & cap_ppc_smt_possible) {
+                g_string_append_printf(g, " %lu", (1UL << i));
+            }
+        }
+        s = g_string_free(g, false);
+        error_append_hint(errp, "%s.\n", s);
+        g_free(s);
+    } else {
+        error_append_hint(errp,
+                          "This KVM seems to be too old to support VSMT.\n");
+    }
+}
+
 
 #ifdef TARGET_PPC64
 off_t kvmppc_alloc_rma(void **rma)
