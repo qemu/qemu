@@ -39,6 +39,13 @@ static int modified_clear_reset(S390CPU *cpu)
     return 0;
 }
 
+static inline void s390_do_cpu_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->cpu_reset(cs);
+}
+
 static int load_normal_reset(S390CPU *cpu)
 {
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
