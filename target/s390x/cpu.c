@@ -471,6 +471,13 @@ bool s390_get_squash_mcss(void)
 
     return false;
 }
+
+void s390_enable_css_support(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        kvm_s390_enable_css_support(cpu);
+    }
+}
 #endif
 
 static gchar *s390_gdb_arch_name(CPUState *cs)

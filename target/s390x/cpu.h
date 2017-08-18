@@ -404,6 +404,7 @@ int cpu_s390x_signal_handler(int host_signum, void *pinfo,
 
 #ifndef CONFIG_USER_ONLY
 
+void s390_enable_css_support(S390CPU *cpu);
 int s390_virtio_hypercall(CPUS390XState *env);
 
 #ifdef CONFIG_KVM
