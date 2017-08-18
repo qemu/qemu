@@ -30,7 +30,7 @@ class QEMUMachine(object):
         # vm is guaranteed to be shut down here
     '''
 
-    def __init__(self, binary, args=[], wrapper=[], name=None,
+    def __init__(self, binary, args=None, wrapper=None, name=None,
                  test_dir="/var/tmp", monitor_address=None,
                  socket_scm_helper=None, debug=False):
         '''
@@ -46,6 +46,10 @@ class QEMUMachine(object):
         @param debug: enable debug mode
         @note: Qemu process is not started until launch() is used.
         '''
+        if args is None:
+            args = []
+        if wrapper is None:
+            wrapper = []
         if name is None:
             name = "qemu-%d" % os.getpid()
         if monitor_address is None:
