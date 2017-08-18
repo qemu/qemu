@@ -1164,7 +1164,7 @@ void kvm_s390_enable_css_support(S390CPU *cpu);
 int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
-int kvm_s390_get_memslot_count(KVMState *s);
+int kvm_s390_get_memslot_count(void);
 int kvm_s390_cmma_active(void);
 void kvm_s390_cmma_reset(void);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
@@ -1204,7 +1204,7 @@ static inline int kvm_s390_cpu_restart(S390CPU *cpu)
 static inline void kvm_s390_cmma_reset(void)
 {
 }
-static inline int kvm_s390_get_memslot_count(KVMState *s)
+static inline int kvm_s390_get_memslot_count(void)
 {
   return MAX_AVAIL_SLOTS;
 }
@@ -1263,10 +1263,10 @@ static inline int s390_cpu_restart(S390CPU *cpu)
     return -ENOSYS;
 }
 
-static inline int s390_get_memslot_count(KVMState *s)
+static inline int s390_get_memslot_count(void)
 {
     if (kvm_enabled()) {
-        return kvm_s390_get_memslot_count(s);
+        return kvm_s390_get_memslot_count();
     } else {
         return MAX_AVAIL_SLOTS;
     }

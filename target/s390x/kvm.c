@@ -2317,9 +2317,9 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
     return kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &kick);
 }
 
-int kvm_s390_get_memslot_count(KVMState *s)
+int kvm_s390_get_memslot_count(void)
 {
-    return kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
+    return kvm_check_extension(kvm_state, KVM_CAP_NR_MEMSLOTS);
 }
 
 int kvm_s390_get_ri(void)

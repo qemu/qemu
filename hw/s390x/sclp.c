@@ -57,7 +57,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     CPUState *cpu;
     int cpu_count = 0;
     int rnsize, rnmax;
-    int slots = MIN(machine->ram_slots, s390_get_memslot_count(kvm_state));
+    int slots = MIN(machine->ram_slots, s390_get_memslot_count());
     IplParameterBlock *ipib = s390_ipl_get_iplb();
 
     CPU_FOREACH(cpu) {
