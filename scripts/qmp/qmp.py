@@ -30,7 +30,7 @@ class QMPTimeoutError(QMPError):
     pass
 
 
-class QEMUMonitorProtocol:
+class QEMUMonitorProtocol(object):
 
     #: Socket's error class
     error = socket.error
