@@ -278,9 +278,6 @@ static S390CcwMachineClass *get_machine_class(void)
 
 bool ri_allowed(void)
 {
-    if (!kvm_enabled()) {
-        return false;
-    }
     /* for "none" machine this results in true */
     return get_machine_class()->ri_allowed;
 }
