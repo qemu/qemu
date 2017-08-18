@@ -145,7 +145,7 @@ static int active_cmma;
 
 static void *legacy_s390_alloc(size_t size, uint64_t *align);
 
-static int kvm_s390_query_mem_limit(KVMState *s, uint64_t *memory_limit)
+static int kvm_s390_query_mem_limit(uint64_t *memory_limit)
 {
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_MEM_CTRL,
@@ -153,10 +153,10 @@ static int kvm_s390_query_mem_limit(KVMState *s, uint64_t *memory_limit)
         .addr = (uint64_t) memory_limit,
     };
 
-    return kvm_vm_ioctl(s, KVM_GET_DEVICE_ATTR, &attr);
+    return kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
 }
 
-int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
+int kvm_s390_set_mem_limit(uint64_t new_limit, uint64_t *hw_limit)
 {
     int rc;
 
@@ -166,18 +166,18 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
         .addr = (uint64_t) &new_limit,
     };
 
-    if (!kvm_vm_check_mem_attr(s, KVM_S390_VM_MEM_LIMIT_SIZE)) {
+    if (!kvm_vm_check_mem_attr(kvm_state, KVM_S390_VM_MEM_LIMIT_SIZE)) {
         return 0;
     }
 
-    rc = kvm_s390_query_mem_limit(s, hw_limit);
+    rc = kvm_s390_query_mem_limit(hw_limit);
     if (rc) {
         return rc;
     } else if (*hw_limit < new_limit) {
         return -E2BIG;
     }
 
-    return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
 
 int kvm_s390_cmma_active(void)

@@ -1169,7 +1169,7 @@ int kvm_s390_cmma_active(void);
 void kvm_s390_cmma_reset(void);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
 void kvm_s390_reset_vcpu(S390CPU *cpu);
-int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
+int kvm_s390_set_mem_limit(uint64_t new_limit, uint64_t *hw_limit);
 void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu);
 int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu);
 int kvm_s390_get_ri(void);
@@ -1215,8 +1215,7 @@ static inline int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
 static inline void kvm_s390_reset_vcpu(S390CPU *cpu)
 {
 }
-static inline int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit,
-                                         uint64_t *hw_limit)
+static inline int kvm_s390_set_mem_limit(uint64_t new_limit, uint64_t *hw_limit)
 {
     return 0;
 }
@@ -1243,7 +1242,7 @@ static inline void kvm_s390_crypto_reset(void)
 static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
 {
     if (kvm_enabled()) {
-        return kvm_s390_set_mem_limit(kvm_state, new_limit, hw_limit);
+        return kvm_s390_set_mem_limit(new_limit, hw_limit);
     }
     return 0;
 }
