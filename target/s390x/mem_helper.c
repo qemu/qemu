@@ -56,6 +56,17 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
 #define HELPER_LOG(x...)
 #endif
 
+static inline bool psw_key_valid(CPUS390XState *env, uint8_t psw_key)
+{
+    uint16_t pkm = env->cregs[3] >> 16;
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        /* PSW key has range 0..15, it is valid if the bit is 1 in the PKM */
+        return pkm & (0x80 >> psw_key);
+    }
+    return true;
+}
+
 /* Reduce the length so that addr + len doesn't cross a page boundary.  */
 static inline uint32_t adj_len_to_page(uint32_t len, uint64_t addr)
 {

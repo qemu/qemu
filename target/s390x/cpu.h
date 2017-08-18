@@ -366,17 +366,6 @@ void s390x_cpu_debug_excp_handler(CPUState *cs);
 #define MMU_SECONDARY_IDX       1
 #define MMU_HOME_IDX            2
 
-static inline bool psw_key_valid(CPUS390XState *env, uint8_t psw_key)
-{
-    uint16_t pkm = env->cregs[3] >> 16;
-
-    if (env->psw.mask & PSW_MASK_PSTATE) {
-        /* PSW key has range 0..15, it is valid if the bit is 1 in the PKM */
-        return pkm & (0x80 >> psw_key);
-    }
-    return true;
-}
-
 static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 {
     switch (env->psw.mask & PSW_MASK_ASC) {
