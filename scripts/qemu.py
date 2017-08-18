@@ -200,11 +200,11 @@ class QEMUMachine(object):
     def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the response dict'''
         qmp_args = dict()
-        for key in args.keys():
+        for key, value in args.iteritems():
             if conv_keys:
-                qmp_args[key.translate(self.underscore_to_dash)] = args[key]
+                qmp_args[key.translate(self.underscore_to_dash)] = value
             else:
-                qmp_args[key] = args[key]
+                qmp_args[key] = value
 
         return self._qmp.cmd(cmd, args=qmp_args)
 
