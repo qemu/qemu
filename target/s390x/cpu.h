@@ -594,9 +594,6 @@ static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
     return cpu->env.cpu_state;
 }
 
-void gtod_save(QEMUFile *f, void *opaque);
-int gtod_load(QEMUFile *f, void *opaque, int version_id);
-
 void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
                     uint64_t param64);
 
