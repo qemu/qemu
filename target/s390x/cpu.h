@@ -439,25 +439,8 @@ static inline void kvm_s390_access_exception(S390CPU *cpu, uint16_t code,
 }
 #endif
 
-static inline int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_get_clock(tod_high, tod_low);
-    }
-    /* Fixme TCG */
-    *tod_high = 0;
-    *tod_low = 0;
-    return 0;
-}
-
-static inline int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_set_clock(tod_high, tod_low);
-    }
-    /* Fixme TCG */
-    return 0;
-}
+int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low);
+int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low);
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu);
@@ -805,69 +788,17 @@ static inline void kvm_s390_crypto_reset(void)
 }
 #endif
 
-static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_set_mem_limit(new_limit, hw_limit);
-    }
-    return 0;
-}
-
-static inline void s390_cmma_reset(void)
-{
-    if (kvm_enabled()) {
-        kvm_s390_cmma_reset();
-    }
-}
-
-static inline int s390_cpu_restart(S390CPU *cpu)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_cpu_restart(cpu);
-    }
-    return -ENOSYS;
-}
-
-static inline int s390_get_memslot_count(void)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_get_memslot_count();
-    } else {
-        return MAX_AVAIL_SLOTS;
-    }
-}
-
+int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit);
+void s390_cmma_reset(void);
+int s390_cpu_restart(S390CPU *cpu);
+int s390_get_memslot_count(void);
 void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
                        uint32_t io_int_parm, uint32_t io_int_word);
 void s390_crw_mchk(void);
-
-static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
-                                              uint32_t sch_id, int vq,
-                                              bool assign)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
-    } else {
-        return 0;
-    }
-}
-
-static inline void s390_crypto_reset(void)
-{
-    if (kvm_enabled()) {
-        kvm_s390_crypto_reset();
-    }
-}
-
-static inline bool s390_get_squash_mcss(void)
-{
-    if (object_property_get_bool(OBJECT(qdev_get_machine()), "s390-squash-mcss",
-                                 NULL)) {
-        return true;
-    }
-
-    return false;
-}
+int s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch_id,
+                                int vq, bool assign);
+void s390_crypto_reset(void);
+bool s390_get_squash_mcss(void);
 
 /* machine check interruption code */
 
