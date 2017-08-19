@@ -38,6 +38,7 @@
 
 #define IPMI_NETFN_SENSOR_EVENT       0x04
 
+#define IPMI_CMD_PLATFORM_EVENT_MSG       0x02
 #define IPMI_CMD_SET_SENSOR_EVT_ENABLE    0x28
 #define IPMI_CMD_GET_SENSOR_EVT_ENABLE    0x29
 #define IPMI_CMD_REARM_SENSOR_EVTS        0x2a
@@ -1581,6 +1582,28 @@ static void set_sel_time(IPMIBmcSim *ibs,
     ibs->sel.time_offset = now.tv_sec - ((long) val);
 }
 
+static void platform_event_msg(IPMIBmcSim *ibs,
+                               uint8_t *cmd, unsigned int cmd_len,
+                               RspBuffer *rsp)
+{
+    uint8_t event[16];
+
+    event[2] = 2; /* System event record */
+    event[7] = cmd[2]; /* Generator ID */
+    event[8] = 0;
+    event[9] = cmd[3]; /* EvMRev */
+    event[10] = cmd[4]; /* Sensor type */
+    event[11] = cmd[5]; /* Sensor number */
+    event[12] = cmd[6]; /* Event dir / Event type */
+    event[13] = cmd[7]; /* Event data 1 */
+    event[14] = cmd[8]; /* Event data 2 */
+    event[15] = cmd[9]; /* Event data 3 */
+
+    if (sel_add_event(ibs, event)) {
+        rsp_buffer_set_error(rsp, IPMI_CC_OUT_OF_SPACE);
+    }
+}
+
 static void set_sensor_evt_enable(IPMIBmcSim *ibs,
                                   uint8_t *cmd, unsigned int cmd_len,
                                   RspBuffer *rsp)
@@ -1757,6 +1780,7 @@ static const IPMINetfn chassis_netfn = {
 };
 
 static const IPMICmdHandler sensor_event_cmds[] = {
+    [IPMI_CMD_PLATFORM_EVENT_MSG] = { platform_event_msg, 10 },
     [IPMI_CMD_SET_SENSOR_EVT_ENABLE] = { set_sensor_evt_enable, 4 },
     [IPMI_CMD_GET_SENSOR_EVT_ENABLE] = { get_sensor_evt_enable, 3 },
     [IPMI_CMD_REARM_SENSOR_EVTS] = { rearm_sensor_evts, 4 },
