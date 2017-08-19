@@ -443,16 +443,21 @@ static void sel_inc_reservation(IPMISel *sel)
 /* Returns 1 if the SEL is full and can't hold the event. */
 static int sel_add_event(IPMIBmcSim *ibs, uint8_t *event)
 {
+    uint8_t ts[4];
+
     event[0] = 0xff;
     event[1] = 0xff;
-    set_timestamp(ibs, event + 3);
+    set_timestamp(ibs, ts);
+    if (event[2] < 0xe0) { /* Don't set timestamps for type 0xe0-0xff. */
+        memcpy(event + 3, ts, 4);
+    }
     if (ibs->sel.next_free == MAX_SEL_SIZE) {
         ibs->sel.overflow = 1;
         return 1;
     }
     event[0] = ibs->sel.next_free & 0xff;
     event[1] = (ibs->sel.next_free >> 8) & 0xff;
-    memcpy(ibs->sel.last_addition, event + 3, 4);
+    memcpy(ibs->sel.last_addition, ts, 4);
     memcpy(ibs->sel.sel[ibs->sel.next_free], event, 16);
     ibs->sel.next_free++;
     sel_inc_reservation(&ibs->sel);
