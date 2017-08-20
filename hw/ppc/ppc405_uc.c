@@ -2281,7 +2281,7 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
     mal_irqs[1] = pic[12];
     mal_irqs[2] = pic[13];
     mal_irqs[3] = pic[14];
-    ppc405_mal_init(env, mal_irqs);
+    ppc4xx_mal_init(env, 4, 2, mal_irqs);
     /* Ethernet */
     /* Uses pic[9], pic[15], pic[17] */
     /* CPU control */
