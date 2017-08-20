@@ -174,7 +174,7 @@ static void ppc4xx_plb_reset (void *opaque)
     plb->besr = 0x00000000;
 }
 
-static void ppc4xx_plb_init(CPUPPCState *env)
+void ppc4xx_plb_init(CPUPPCState *env)
 {
     ppc4xx_plb_t *plb;
 
@@ -585,7 +585,7 @@ static void ebc_reset (void *opaque)
     ebc->cfg = 0x80400000;
 }
 
-static void ppc405_ebc_init(CPUPPCState *env)
+void ppc405_ebc_init(CPUPPCState *env)
 {
     ppc4xx_ebc_t *ebc;
 
