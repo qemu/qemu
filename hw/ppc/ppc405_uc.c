@@ -28,6 +28,7 @@
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
+#include "hw/i2c/ppc4xx_i2c.h"
 #include "ppc405.h"
 #include "hw/char/serial.h"
 #include "qemu/timer.h"
@@ -1663,7 +1664,7 @@ CPUPPCState *ppc405cr_init(MemoryRegion *address_space_mem,
                        DEVICE_BIG_ENDIAN);
     }
     /* IIC controller */
-    ppc405_i2c_init(0xef600500, pic[2]);
+    sysbus_create_simple(TYPE_PPC4xx_I2C, 0xef600500, pic[2]);
     /* GPIO */
     ppc405_gpio_init(0xef600700);
     /* CPU control */
@@ -2010,7 +2011,7 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
     dma_irqs[3] = pic[8];
     ppc405_dma_init(env, dma_irqs);
     /* IIC controller */
-    ppc405_i2c_init(0xef600500, pic[2]);
+    sysbus_create_simple(TYPE_PPC4xx_I2C, 0xef600500, pic[2]);
     /* GPIO */
     ppc405_gpio_init(0xef600700);
     /* Serial ports */
