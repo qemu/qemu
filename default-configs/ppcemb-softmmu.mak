@@ -3,6 +3,7 @@
 include pci.mak
 include sound.mak
 include usb.mak
+CONFIG_PPC4XX=y
 CONFIG_M48T59=y
 CONFIG_SERIAL=y
 CONFIG_SERIAL_ISA=y
