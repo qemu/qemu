@@ -1360,16 +1360,6 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    s->cluster_cache = g_malloc(s->cluster_size);
-    /* one more sector for decompressed data alignment */
-    s->cluster_data = qemu_try_blockalign(bs->file->bs, QCOW_MAX_CRYPT_CLUSTERS
-                                                    * s->cluster_size + 512);
-    if (s->cluster_data == NULL) {
-        error_setg(errp, "Could not allocate temporary cluster buffer");
-        ret = -ENOMEM;
-        goto fail;
-    }
-
     s->cluster_cache_offset = -1;
     s->flags = flags;
 
@@ -1507,8 +1497,6 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->refcount_block_cache) {
         qcow2_cache_destroy(bs, s->refcount_block_cache);
     }
-    g_free(s->cluster_cache);
-    qemu_vfree(s->cluster_data);
     qcrypto_block_free(s->crypto);
     qapi_free_QCryptoBlockOpenOptions(s->crypto_opts);
     return ret;
