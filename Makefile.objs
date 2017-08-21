@@ -171,6 +171,7 @@ trace-events-subdirs += qapi
 trace-events-subdirs += accel/tcg
 trace-events-subdirs += accel/kvm
 trace-events-subdirs += nbd
+trace-events-subdirs += scsi
 
 trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
 

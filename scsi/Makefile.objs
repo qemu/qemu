@@ -1,1 +1,3 @@
 block-obj-y += utils.o
+
+block-obj-$(CONFIG_LINUX) += pr-manager.o
