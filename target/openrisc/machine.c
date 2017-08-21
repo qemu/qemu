@@ -147,7 +147,6 @@ static const VMStateDescription vmstate_env = {
 
         VMSTATE_TIMER_PTR(timer, CPUOpenRISCState),
         VMSTATE_UINT32(ttmr, CPUOpenRISCState),
-        VMSTATE_UINT32(ttcr, CPUOpenRISCState),
 
         VMSTATE_UINT32(picmr, CPUOpenRISCState),
         VMSTATE_UINT32(picsr, CPUOpenRISCState),
