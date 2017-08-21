@@ -58,3 +58,33 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
         return EIO;
     }
 }
+
+int scsi_sense_buf_to_errno(const uint8_t *sense, size_t sense_size)
+{
+    int key, asc, ascq;
+    if (sense_size < 1) {
+        return EIO;
+    }
+    switch (sense[0]) {
+    case 0x70: /* Fixed format sense data. */
+        if (sense_size < 14) {
+            return EIO;
+        }
+        key = sense[2] & 0xF;
+        asc = sense[12];
+        ascq = sense[13];
+        break;
+    case 0x72: /* Descriptor format sense data. */
+        if (sense_size < 4) {
+            return EIO;
+        }
+        key = sense[1] & 0xF;
+        asc = sense[2];
+        ascq = sense[3];
+        break;
+    default:
+        return EIO;
+        break;
+    }
+    return scsi_sense_to_errno(key, asc, ascq);
+}

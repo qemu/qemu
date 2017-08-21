@@ -15,5 +15,6 @@
 #define QEMU_SCSI_H
 
 int scsi_sense_to_errno(int key, int asc, int ascq);
+int scsi_sense_buf_to_errno(const uint8_t *sense, size_t sense_size);
 
 #endif
