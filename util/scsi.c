@@ -18,13 +18,16 @@
 int scsi_sense_to_errno(int key, int asc, int ascq)
 {
     switch (key) {
-    case 0x02: /* NOT READY */
-        return EBUSY;
-    case 0x07: /* DATA PROTECTION */
-        return EACCES;
+    case 0x00: /* NO SENSE */
+    case 0x01: /* RECOVERED ERROR */
+    case 0x06: /* UNIT ATTENTION */
+        /* These sense keys are not errors */
+        return 0;
     case 0x0b: /* COMMAND ABORTED */
         return ECANCELED;
+    case 0x02: /* NOT READY */
     case 0x05: /* ILLEGAL REQUEST */
+    case 0x07: /* DATA PROTECTION */
         /* Parse ASCQ */
         break;
     default:
@@ -37,6 +40,7 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
     case 0x2600: /* INVALID FIELD IN PARAMETER LIST */
         return EINVAL;
     case 0x2100: /* LBA OUT OF RANGE */
+    case 0x2707: /* SPACE ALLOC FAILED */
         return ENOSPC;
     case 0x2500: /* LOGICAL UNIT NOT SUPPORTED */
         return ENOTSUP;
@@ -46,6 +50,10 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
         return ENOMEDIUM;
     case 0x2700: /* WRITE PROTECTED */
         return EACCES;
+    case 0x0401: /* NOT READY, IN PROGRESS OF BECOMING READY */
+        return EAGAIN;
+    case 0x0402: /* NOT READY, INITIALIZING COMMAND REQUIRED */
+        return ENOTCONN;
     default:
         return EIO;
     }
