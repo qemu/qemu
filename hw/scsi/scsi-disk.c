@@ -1987,8 +1987,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         break;
     case REQUEST_SENSE:
         /* Just return "NO SENSE".  */
-        buflen = scsi_build_sense(NULL, 0, outbuf, r->buflen,
-                                  (req->cmd.buf[1] & 1) == 0);
+        buflen = scsi_convert_sense(NULL, 0, outbuf, r->buflen,
+                                    (req->cmd.buf[1] & 1) == 0);
         if (buflen < 0) {
             goto illegal_request;
         }

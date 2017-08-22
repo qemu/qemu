@@ -244,8 +244,8 @@ extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
 uint32_t scsi_data_cdb_xfer(uint8_t *buf);
 uint32_t scsi_cdb_xfer(uint8_t *buf);
 int scsi_cdb_length(uint8_t *buf);
-int scsi_build_sense(uint8_t *in_buf, int in_len,
-                     uint8_t *buf, int len, bool fixed);
+int scsi_convert_sense(uint8_t *in_buf, int in_len,
+                       uint8_t *buf, int len, bool fixed);
 
 SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
                             uint32_t tag, uint32_t lun, void *hba_private);
