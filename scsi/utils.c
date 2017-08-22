@@ -501,3 +501,38 @@ const char *scsi_command_name(uint8_t cmd)
     }
     return names[cmd];
 }
+
+#ifdef CONFIG_LINUX
+int sg_io_sense_from_errno(int errno_value, struct sg_io_hdr *io_hdr,
+                           SCSISense *sense)
+{
+    if (errno_value != 0) {
+        switch (errno_value) {
+        case EDOM:
+            return TASK_SET_FULL;
+        case ENOMEM:
+            *sense = SENSE_CODE(TARGET_FAILURE);
+            return CHECK_CONDITION;
+        default:
+            *sense = SENSE_CODE(IO_ERROR);
+            return CHECK_CONDITION;
+        }
+    } else {
+        if (io_hdr->host_status == SG_ERR_DID_NO_CONNECT ||
+            io_hdr->host_status == SG_ERR_DID_BUS_BUSY ||
+            io_hdr->host_status == SG_ERR_DID_TIME_OUT ||
+            (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT)) {
+            return BUSY;
+        } else if (io_hdr->host_status) {
+            *sense = SENSE_CODE(I_T_NEXUS_LOSS);
+            return CHECK_CONDITION;
+        } else if (io_hdr->status) {
+            return io_hdr->status;
+        } else if (io_hdr->driver_status & SG_ERR_DRIVER_SENSE) {
+            return CHECK_CONDITION;
+        } else {
+            return GOOD;
+        }
+    }
+}
+#endif
