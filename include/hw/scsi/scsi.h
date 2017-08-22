@@ -4,44 +4,19 @@
 #include "hw/qdev.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
+#include "scsi/utils.h"
 #include "qemu/notify.h"
 
 #define MAX_SCSI_DEVS	255
 
-#define SCSI_CMD_BUF_SIZE      16
-#define SCSI_SENSE_LEN         18
-#define SCSI_SENSE_LEN_SCANNER 32
-#define SCSI_INQUIRY_LEN       36
-
 typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusInfo SCSIBusInfo;
-typedef struct SCSICommand SCSICommand;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIRequest SCSIRequest;
 typedef struct SCSIReqOps SCSIReqOps;
 
-enum SCSIXferMode {
-    SCSI_XFER_NONE,      /*  TEST_UNIT_READY, ...            */
-    SCSI_XFER_FROM_DEV,  /*  READ, INQUIRY, MODE_SENSE, ...  */
-    SCSI_XFER_TO_DEV,    /*  WRITE, MODE_SELECT, ...         */
-};
-
-typedef struct SCSISense {
-    uint8_t key;
-    uint8_t asc;
-    uint8_t ascq;
-} SCSISense;
-
 #define SCSI_SENSE_BUF_SIZE_OLD 96
 #define SCSI_SENSE_BUF_SIZE 252
-
-struct SCSICommand {
-    uint8_t buf[SCSI_CMD_BUF_SIZE];
-    int len;
-    size_t xfer;
-    uint64_t lba;
-    enum SCSIXferMode mode;
-};
 
 struct SCSIRequest {
     SCSIBus           *bus;
@@ -179,73 +154,6 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
                                       const char *serial, Error **errp);
 void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated);
 void scsi_legacy_handle_cmdline(void);
-
-/*
- * Predefined sense codes
- */
-
-/* No sense data available */
-extern const struct SCSISense sense_code_NO_SENSE;
-/* LUN not ready, Manual intervention required */
-extern const struct SCSISense sense_code_LUN_NOT_READY;
-/* LUN not ready, Medium not present */
-extern const struct SCSISense sense_code_NO_MEDIUM;
-/* LUN not ready, medium removal prevented */
-extern const struct SCSISense sense_code_NOT_READY_REMOVAL_PREVENTED;
-/* Hardware error, internal target failure */
-extern const struct SCSISense sense_code_TARGET_FAILURE;
-/* Illegal request, invalid command operation code */
-extern const struct SCSISense sense_code_INVALID_OPCODE;
-/* Illegal request, LBA out of range */
-extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
-/* Illegal request, Invalid field in CDB */
-extern const struct SCSISense sense_code_INVALID_FIELD;
-/* Illegal request, Invalid field in parameter list */
-extern const struct SCSISense sense_code_INVALID_PARAM;
-/* Illegal request, Parameter list length error */
-extern const struct SCSISense sense_code_INVALID_PARAM_LEN;
-/* Illegal request, LUN not supported */
-extern const struct SCSISense sense_code_LUN_NOT_SUPPORTED;
-/* Illegal request, Saving parameters not supported */
-extern const struct SCSISense sense_code_SAVING_PARAMS_NOT_SUPPORTED;
-/* Illegal request, Incompatible format */
-extern const struct SCSISense sense_code_INCOMPATIBLE_FORMAT;
-/* Illegal request, medium removal prevented */
-extern const struct SCSISense sense_code_ILLEGAL_REQ_REMOVAL_PREVENTED;
-/* Illegal request, Invalid Transfer Tag */
-extern const struct SCSISense sense_code_INVALID_TAG;
-/* Command aborted, I/O process terminated */
-extern const struct SCSISense sense_code_IO_ERROR;
-/* Command aborted, I_T Nexus loss occurred */
-extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
-/* Command aborted, Logical Unit failure */
-extern const struct SCSISense sense_code_LUN_FAILURE;
-/* Command aborted, Overlapped Commands Attempted */
-extern const struct SCSISense sense_code_OVERLAPPED_COMMANDS;
-/* LUN not ready, Capacity data has changed */
-extern const struct SCSISense sense_code_CAPACITY_CHANGED;
-/* LUN not ready, Medium not present */
-extern const struct SCSISense sense_code_UNIT_ATTENTION_NO_MEDIUM;
-/* Unit attention, Power on, reset or bus device reset occurred */
-extern const struct SCSISense sense_code_RESET;
-/* Unit attention, Medium may have changed*/
-extern const struct SCSISense sense_code_MEDIUM_CHANGED;
-/* Unit attention, Reported LUNs data has changed */
-extern const struct SCSISense sense_code_REPORTED_LUNS_CHANGED;
-/* Unit attention, Device internal reset */
-extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
-/* Data Protection, Write Protected */
-extern const struct SCSISense sense_code_WRITE_PROTECTED;
-/* Data Protection, Space Allocation Failed Write Protect */
-extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
-
-#define SENSE_CODE(x) sense_code_ ## x
-
-uint32_t scsi_data_cdb_xfer(uint8_t *buf);
-uint32_t scsi_cdb_xfer(uint8_t *buf);
-int scsi_cdb_length(uint8_t *buf);
-int scsi_convert_sense(uint8_t *in_buf, int in_len,
-                       uint8_t *buf, int len, bool fixed);
 
 SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
                             uint32_t tag, uint32_t lun, void *hba_private);

@@ -36,14 +36,6 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #include <scsi/sg.h>
 #include "block/scsi.h"
 
-#define SG_ERR_DRIVER_TIMEOUT  0x06
-#define SG_ERR_DRIVER_SENSE    0x08
-
-#define SG_ERR_DID_OK          0x00
-#define SG_ERR_DID_NO_CONNECT  0x01
-#define SG_ERR_DID_BUS_BUSY    0x02
-#define SG_ERR_DID_TIME_OUT    0x03
-
 #ifndef MAX_UINT
 #define MAX_UINT ((unsigned int)-1)
 #endif

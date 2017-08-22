@@ -1215,6 +1215,13 @@ F: migration/block*
 F: include/block/aio.h
 T: git git://github.com/stefanha/qemu.git block
 
+Block SCSI subsystem
+M: Paolo Bonzini <pbonzini@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: include/scsi/*
+F: scsi/*
+
 Block Jobs
 M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
