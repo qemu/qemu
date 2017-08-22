@@ -29,6 +29,7 @@
 #endif
 #include <lm.h>
 #include <wtsapi32.h>
+#include <wininet.h>
 
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
@@ -1277,8 +1278,41 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
          * RTC yet:
          *
          * https://msdn.microsoft.com/en-us/library/aa908981.aspx
+         *
+         * Instead, a workaround is to use the Windows win32tm command to
+         * resync the time using the Windows Time service.
          */
-        error_setg(errp, "Time argument is required on this platform");
+        LPVOID msg_buffer;
+        DWORD ret_flags;
+
+        HRESULT hr = system("w32tm /resync /nowait");
+
+        if (GetLastError() != 0) {
+            strerror_s((LPTSTR) & msg_buffer, 0, errno);
+            error_setg(errp, "system(...) failed: %s", (LPCTSTR)msg_buffer);
+        } else if (hr != 0) {
+            if (hr == HRESULT_FROM_WIN32(ERROR_SERVICE_NOT_ACTIVE)) {
+                error_setg(errp, "Windows Time service not running on the "
+                                 "guest");
+            } else {
+                if (!FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                   FORMAT_MESSAGE_FROM_SYSTEM |
+                                   FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                                   (DWORD)hr, MAKELANGID(LANG_NEUTRAL,
+                                   SUBLANG_DEFAULT), (LPTSTR) & msg_buffer, 0,
+                                   NULL)) {
+                    error_setg(errp, "w32tm failed with error (0x%lx), couldn'"
+                                     "t retrieve error message", hr);
+                } else {
+                    error_setg(errp, "w32tm failed with error (0x%lx): %s", hr,
+                               (LPCTSTR)msg_buffer);
+                    LocalFree(msg_buffer);
+                }
+            }
+        } else if (!InternetGetConnectedState(&ret_flags, 0)) {
+            error_setg(errp, "No internet connection on guest, sync not "
+                             "accurate");
+        }
         return;
     }
 
