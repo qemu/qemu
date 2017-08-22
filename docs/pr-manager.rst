@@ -60,6 +60,7 @@ system service and supports the following option:
 
 -d, --daemon              run in the background
 -q, --quiet               decrease verbosity
+-v, --verbose             increase verbosity
 -f, --pidfile=path        PID file when running as a daemon
 -k, --socket=path         path to the socket
 -T, --trace=trace-opts    tracing options
@@ -82,3 +83,29 @@ its operation.  To do this, add the following options:
 
 -u, --user=user           user to drop privileges to
 -g, --group=group         group to drop privileges to
+
+---------------------------------------------
+Multipath devices and persistent reservations
+---------------------------------------------
+
+Proper support of persistent reservation for multipath devices requires
+communication with the multipath daemon, so that the reservation is
+registered and applied when a path is newly discovered or becomes online
+again.  :command:`qemu-pr-helper` can do this if the ``libmpathpersist``
+library was available on the system at build time.
+
+As of August 2017, a reservation key must be specified in ``multipath.conf``
+for ``multipathd`` to check for persistent reservation for newly
+discovered paths or reinstated paths.  The attribute can be added
+to the ``defaults`` section or the ``multipaths`` section; for example::
+
+    multipaths {
+        multipath {
+            wwid   XXXXXXXXXXXXXXXX
+            alias      yellow
+            reservation_key  0x123abc
+        }
+    }
+
+Linking :program:`qemu-pr-helper` to ``libmpathpersist`` does not impede
+its usage on regular SCSI devices.

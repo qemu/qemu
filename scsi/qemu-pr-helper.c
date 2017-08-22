@@ -30,6 +30,12 @@
 #include <pwd.h>
 #include <grp.h>
 
+#ifdef CONFIG_MPATH
+#include <libudev.h>
+#include <mpath_cmd.h>
+#include <mpath_persist.h>
+#endif
+
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
@@ -60,6 +66,7 @@ static enum { RUNNING, TERMINATE, TERMINATING } state;
 static QIOChannelSocket *server_ioc;
 static int server_watch;
 static int num_active_sockets = 1;
+static int noisy;
 static int verbose;
 
 #ifdef CONFIG_LIBCAP
@@ -204,9 +211,316 @@ static int do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
     return r;
 }
 
+/* Device mapper interface */
+
+#ifdef CONFIG_MPATH
+#define CONTROL_PATH "/dev/mapper/control"
+
+typedef struct DMData {
+    struct dm_ioctl dm;
+    uint8_t data[1024];
+} DMData;
+
+static int control_fd;
+
+static void *dm_ioctl(int ioc, struct dm_ioctl *dm)
+{
+    static DMData d;
+    memcpy(&d.dm, dm, sizeof(d.dm));
+    QEMU_BUILD_BUG_ON(sizeof(d.data) < sizeof(struct dm_target_spec));
+
+    d.dm.version[0] = DM_VERSION_MAJOR;
+    d.dm.version[1] = 0;
+    d.dm.version[2] = 0;
+    d.dm.data_size = 1024;
+    d.dm.data_start = offsetof(DMData, data);
+    if (ioctl(control_fd, ioc, &d) < 0) {
+        return NULL;
+    }
+    memcpy(dm, &d.dm, sizeof(d.dm));
+    return &d.data;
+}
+
+static void *dm_dev_ioctl(int fd, int ioc, struct dm_ioctl *dm)
+{
+    struct stat st;
+    int r;
+
+    r = fstat(fd, &st);
+    if (r < 0) {
+        perror("fstat");
+        exit(1);
+    }
+
+    dm->dev = st.st_rdev;
+    return dm_ioctl(ioc, dm);
+}
+
+static void dm_init(void)
+{
+    control_fd = open(CONTROL_PATH, O_RDWR);
+    if (control_fd < 0) {
+        perror("Cannot open " CONTROL_PATH);
+        exit(1);
+    }
+    struct dm_ioctl dm = { 0 };
+    if (!dm_ioctl(DM_VERSION, &dm)) {
+        perror("ioctl");
+        exit(1);
+    }
+    if (dm.version[0] != DM_VERSION_MAJOR) {
+        fprintf(stderr, "Unsupported device mapper interface");
+        exit(1);
+    }
+}
+
+/* Variables required by libmultipath and libmpathpersist.  */
+QEMU_BUILD_BUG_ON(PR_HELPER_DATA_SIZE > MPATH_MAX_PARAM_LEN);
+unsigned mpath_mx_alloc_len = PR_HELPER_DATA_SIZE;
+int logsink;
+
+static void multipath_pr_init(void)
+{
+    static struct udev *udev;
+
+    udev = udev_new();
+    mpath_lib_init(udev);
+}
+
+static int is_mpath(int fd)
+{
+    struct dm_ioctl dm = { .flags = DM_NOFLUSH_FLAG };
+    struct dm_target_spec *tgt;
+
+    tgt = dm_dev_ioctl(fd, DM_TABLE_STATUS, &dm);
+    if (!tgt) {
+        if (errno == ENXIO) {
+            return 0;
+        }
+        perror("ioctl");
+        exit(EXIT_FAILURE);
+    }
+    return !strncmp(tgt->target_type, "multipath", DM_MAX_TYPE_NAME);
+}
+
+static int mpath_reconstruct_sense(int fd, int r, uint8_t *sense)
+{
+    switch (r) {
+    case MPATH_PR_SUCCESS:
+        return GOOD;
+    case MPATH_PR_SENSE_NOT_READY:
+    case MPATH_PR_SENSE_MEDIUM_ERROR:
+    case MPATH_PR_SENSE_HARDWARE_ERROR:
+    case MPATH_PR_SENSE_ABORTED_COMMAND:
+        {
+            /* libmpathpersist ate the exact sense.  Try to find it by
+             * issuing TEST UNIT READY.
+             */
+            uint8_t cdb[6] = { TEST_UNIT_READY };
+            int sz = 0;
+            return do_sgio(fd, cdb, sense, NULL, &sz, SG_DXFER_NONE);
+        }
+
+    case MPATH_PR_SENSE_UNIT_ATTENTION:
+        /* Congratulations libmpathpersist, you ruined the Unit Attention...
+         * Return a heavyweight one.
+         */
+        scsi_build_sense(sense, SENSE_CODE(SCSI_BUS_RESET));
+        return CHECK_CONDITION;
+    case MPATH_PR_SENSE_INVALID_OP:
+        /* Only one valid sense.  */
+        scsi_build_sense(sense, SENSE_CODE(INVALID_OPCODE));
+        return CHECK_CONDITION;
+    case MPATH_PR_ILLEGAL_REQ:
+        /* Guess.  */
+        scsi_build_sense(sense, SENSE_CODE(INVALID_PARAM));
+        return CHECK_CONDITION;
+    case MPATH_PR_NO_SENSE:
+        scsi_build_sense(sense, SENSE_CODE(NO_SENSE));
+        return CHECK_CONDITION;
+
+    case MPATH_PR_RESERV_CONFLICT:
+        return RESERVATION_CONFLICT;
+
+    case MPATH_PR_OTHER:
+    default:
+        scsi_build_sense(sense, SENSE_CODE(LUN_COMM_FAILURE));
+        return CHECK_CONDITION;
+    }
+}
+
+static int multipath_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
+                           uint8_t *data, int sz)
+{
+    int rq_servact = cdb[1];
+    struct prin_resp resp;
+    size_t written;
+    int r;
+
+    switch (rq_servact) {
+    case MPATH_PRIN_RKEY_SA:
+    case MPATH_PRIN_RRES_SA:
+    case MPATH_PRIN_RCAP_SA:
+        break;
+    case MPATH_PRIN_RFSTAT_SA:
+        /* Nobody implements it anyway, so bail out. */
+    default:
+        /* Cannot parse any other output.  */
+        scsi_build_sense(sense, SENSE_CODE(INVALID_FIELD));
+        return CHECK_CONDITION;
+    }
+
+    r = mpath_persistent_reserve_in(fd, rq_servact, &resp, noisy, verbose);
+    if (r == MPATH_PR_SUCCESS) {
+        switch (rq_servact) {
+        case MPATH_PRIN_RKEY_SA:
+        case MPATH_PRIN_RRES_SA: {
+            struct prin_readdescr *out = &resp.prin_descriptor.prin_readkeys;
+            assert(sz >= 8);
+            written = MIN(out->additional_length + 8, sz);
+            stl_be_p(&data[0], out->prgeneration);
+            stl_be_p(&data[4], out->additional_length);
+            memcpy(&data[8], out->key_list, written - 8);
+            break;
+        }
+        case MPATH_PRIN_RCAP_SA: {
+            struct prin_capdescr *out = &resp.prin_descriptor.prin_readcap;
+            assert(sz >= 6);
+            written = 6;
+            stw_be_p(&data[0], out->length);
+            data[2] = out->flags[0];
+            data[3] = out->flags[1];
+            stw_be_p(&data[4], out->pr_type_mask);
+            break;
+        }
+        default:
+            scsi_build_sense(sense, SENSE_CODE(INVALID_OPCODE));
+            return CHECK_CONDITION;
+        }
+        assert(written <= sz);
+        memset(data + written, 0, sz - written);
+    }
+
+    return mpath_reconstruct_sense(fd, r, sense);
+}
+
+static int multipath_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
+                            const uint8_t *param, int sz)
+{
+    int rq_servact = cdb[1];
+    int rq_scope = cdb[2] >> 4;
+    int rq_type = cdb[2] & 0xf;
+    struct prout_param_descriptor paramp;
+    char transportids[PR_HELPER_DATA_SIZE];
+    int r;
+
+    switch (rq_servact) {
+    case MPATH_PROUT_REG_SA:
+    case MPATH_PROUT_RES_SA:
+    case MPATH_PROUT_REL_SA:
+    case MPATH_PROUT_CLEAR_SA:
+    case MPATH_PROUT_PREE_SA:
+    case MPATH_PROUT_PREE_AB_SA:
+    case MPATH_PROUT_REG_IGN_SA:
+        break;
+    case MPATH_PROUT_REG_MOV_SA:
+        /* Not supported by struct prout_param_descriptor.  */
+    default:
+        /* Cannot parse any other input.  */
+        scsi_build_sense(sense, SENSE_CODE(INVALID_FIELD));
+        return CHECK_CONDITION;
+    }
+
+    /* Convert input data, especially transport IDs, to the structs
+     * used by libmpathpersist (which, of course, will immediately
+     * do the opposite).
+     */
+    memset(&paramp, 0, sizeof(paramp));
+    memcpy(&paramp.key, &param[0], 8);
+    memcpy(&paramp.sa_key, &param[8], 8);
+    paramp.sa_flags = param[10];
+    if (sz > PR_OUT_FIXED_PARAM_SIZE) {
+        size_t transportid_len;
+        int i, j;
+        if (sz < PR_OUT_FIXED_PARAM_SIZE + 4) {
+            scsi_build_sense(sense, SENSE_CODE(INVALID_PARAM_LEN));
+            return CHECK_CONDITION;
+        }
+        transportid_len = ldl_be_p(&param[24]) + PR_OUT_FIXED_PARAM_SIZE + 4;
+        if (transportid_len > sz) {
+            scsi_build_sense(sense, SENSE_CODE(INVALID_PARAM));
+            return CHECK_CONDITION;
+        }
+        for (i = PR_OUT_FIXED_PARAM_SIZE + 4, j = 0; i < transportid_len; ) {
+            struct transportid *id = (struct transportid *) &transportids[j];
+            int len;
+
+            id->format_code = param[i] & 0xc0;
+            id->protocol_id = param[i] & 0x0f;
+            switch (param[i] & 0xcf) {
+            case 0:
+                /* FC transport.  */
+                if (i + 24 > transportid_len) {
+                    goto illegal_req;
+                }
+                memcpy(id->n_port_name, &param[i + 8], 8);
+                j += offsetof(struct transportid, n_port_name[8]);
+                i += 24;
+                break;
+            case 3:
+            case 0x43:
+                /* iSCSI transport.  */
+                len = lduw_be_p(&param[i + 2]);
+                if (len > 252 || (len & 3) || i + len + 4 > transportid_len) {
+                    /* For format code 00, the standard says the maximum is 223
+                     * plus the NUL terminator.  For format code 01 there is no
+                     * maximum length, but libmpathpersist ignores the first
+                     * byte of id->iscsi_name so our maximum is 252.
+                     */
+                    goto illegal_req;
+                }
+                if (memchr(&param[i + 4], 0, len) == NULL) {
+                    goto illegal_req;
+                }
+                memcpy(id->iscsi_name, &param[i + 2], len + 2);
+                j += offsetof(struct transportid, iscsi_name[len + 2]);
+                i += len + 4;
+                break;
+            case 6:
+                /* SAS transport.  */
+                if (i + 24 > transportid_len) {
+                    goto illegal_req;
+                }
+                memcpy(id->sas_address, &param[i + 4], 8);
+                j += offsetof(struct transportid, sas_address[8]);
+                i += 24;
+                break;
+            default:
+            illegal_req:
+                scsi_build_sense(sense, SENSE_CODE(INVALID_PARAM));
+                return CHECK_CONDITION;
+            }
+
+            paramp.trnptid_list[paramp.num_transportid++] = id;
+        }
+    }
+
+    r = mpath_persistent_reserve_out(fd, rq_servact, rq_scope, rq_type,
+                                     &paramp, noisy, verbose);
+    return mpath_reconstruct_sense(fd, r, sense);
+}
+#endif
+
 static int do_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
                     uint8_t *data, int *resp_sz)
 {
+#ifdef CONFIG_MPATH
+    if (is_mpath(fd)) {
+        /* multipath_pr_in fills the whole input buffer.  */
+        return multipath_pr_in(fd, cdb, sense, data, *resp_sz);
+    }
+#endif
+
     return do_sgio(fd, cdb, sense, data, resp_sz,
                    SG_DXFER_FROM_DEV);
 }
@@ -214,7 +528,14 @@ static int do_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
 static int do_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
                      const uint8_t *param, int sz)
 {
-    int resp_sz = sz;
+    int resp_sz;
+#ifdef CONFIG_MPATH
+    if (is_mpath(fd)) {
+        return multipath_pr_out(fd, cdb, sense, param, sz);
+    }
+#endif
+
+    resp_sz = sz;
     return do_sgio(fd, cdb, sense, (uint8_t *)param, &resp_sz,
                    SG_DXFER_TO_DEV);
 }
@@ -525,6 +846,14 @@ static int drop_privileges(void)
         return -1;
     }
 
+#ifdef CONFIG_MPATH
+    /* For /dev/mapper/control ioctls */
+    if (capng_update(CAPNG_ADD, CAPNG_EFFECTIVE | CAPNG_PERMITTED,
+                     CAP_SYS_ADMIN) < 0) {
+        return -1;
+    }
+#endif
+
     /* Change user/group id, retaining the capabilities.  Because file descriptors
      * are passed via SCM_RIGHTS, we don't need supplementary groups (and in
      * fact the helper can run as "nobody").
@@ -541,7 +870,7 @@ static int drop_privileges(void)
 
 int main(int argc, char **argv)
 {
-    const char *sopt = "hVk:fdT:u:g:q";
+    const char *sopt = "hVk:fdT:u:g:vq";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -551,10 +880,12 @@ int main(int argc, char **argv)
         { "trace", required_argument, NULL, 'T' },
         { "user", required_argument, NULL, 'u' },
         { "group", required_argument, NULL, 'g' },
+        { "verbose", no_argument, NULL, 'v' },
         { "quiet", no_argument, NULL, 'q' },
         { NULL, 0, NULL, 0 }
     };
     int opt_ind = 0;
+    int loglevel = 1;
     int quiet = 0;
     int ch;
     Error *local_err = NULL;
@@ -631,6 +962,9 @@ int main(int argc, char **argv)
         case 'q':
             quiet = 1;
             break;
+        case 'v':
+            ++loglevel;
+            break;
         case 'T':
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
@@ -650,13 +984,19 @@ int main(int argc, char **argv)
     }
 
     /* set verbosity */
-    verbose = !quiet;
+    noisy = !quiet && (loglevel >= 3);
+    verbose = quiet ? 0 : MIN(loglevel, 3);
 
     if (!trace_init_backends()) {
         exit(EXIT_FAILURE);
     }
     trace_init_file(trace_file);
     qemu_set_log(LOG_TRACE);
+
+#ifdef CONFIG_MPATH
+    dm_init();
+    multipath_pr_init();
+#endif
 
     socket_activation = check_socket_activation();
     if (socket_activation == 0) {
