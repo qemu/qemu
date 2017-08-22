@@ -17,6 +17,11 @@
 
 #define MAX_NBD_REQUESTS    16
 
+typedef struct {
+    Coroutine *coroutine;
+    bool receiving;         /* waiting for read_reply_co? */
+} NBDClientRequest;
+
 typedef struct NBDClientSession {
     QIOChannelSocket *sioc; /* The master data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
@@ -27,7 +32,7 @@ typedef struct NBDClientSession {
     Coroutine *read_reply_co;
     int in_flight;
 
-    Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
+    NBDClientRequest requests[MAX_NBD_REQUESTS];
     NBDReply reply;
     bool quit;
 } NBDClientSession;
