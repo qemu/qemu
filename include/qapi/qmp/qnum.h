@@ -23,6 +23,27 @@ typedef enum {
     QNUM_DOUBLE
 } QNumKind;
 
+/*
+ * QNum encapsulates how our dialect of JSON fills in the blanks left
+ * by the JSON specification (RFC 7159) regarding numbers.
+ *
+ * Conceptually, we treat number as an abstract type with three
+ * concrete subtypes: floating-point, signed integer, unsigned
+ * integer.  QNum implements this as a discriminated union of double,
+ * int64_t, uint64_t.
+ *
+ * The JSON parser picks the subtype as follows.  If the number has a
+ * decimal point or an exponent, it is floating-point.  Else if it
+ * fits into int64_t, it's signed integer.  Else if it fits into
+ * uint64_t, it's unsigned integer.  Else it's floating-point.
+ *
+ * Any number can serve as double: qnum_get_double() converts under
+ * the hood.
+ *
+ * An integer can serve as signed / unsigned integer as long as it is
+ * in range: qnum_get_try_int() / qnum_get_try_uint() check range and
+ * convert under the hood.
+ */
 typedef struct QNum {
     QObject base;
     QNumKind kind;
