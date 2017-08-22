@@ -3,7 +3,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "hw/qdev.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"

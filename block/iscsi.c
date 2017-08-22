@@ -34,7 +34,7 @@
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
 #include "block/block_int.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "qemu/iov.h"
 #include "qemu/uuid.h"
 #include "qmp-commands.h"

@@ -22,7 +22,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/virtio/virtio-blk.h"
 #include "dataplane/virtio-blk.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #ifdef __linux__
 # include <scsi/sg.h>
 #endif

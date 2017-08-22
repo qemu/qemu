@@ -36,7 +36,7 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "srp.h"
 #include "hw/qdev.h"
 #include "hw/ppc/spapr.h"

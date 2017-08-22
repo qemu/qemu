@@ -34,7 +34,7 @@ do { printf("scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 
 #include <scsi/sg.h>
-#include "block/scsi.h"
+#include "scsi/constants.h"
 
 #ifndef MAX_UINT
 #define MAX_UINT ((unsigned int)-1)

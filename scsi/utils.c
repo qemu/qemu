@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "scsi/utils.h"
 #include "qemu/bswap.h"
 

@@ -19,7 +19,7 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 
 /* --------------------------------------------------------------------- */
 

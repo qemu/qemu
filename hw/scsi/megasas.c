@@ -27,7 +27,7 @@
 #include "hw/pci/msix.h"
 #include "qemu/iov.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "mfi.h"
