@@ -96,6 +96,17 @@ int scsi_cdb_length(uint8_t *buf)
     return cdb_len;
 }
 
+int scsi_build_sense(uint8_t *buf, SCSISense sense)
+{
+    memset(buf, 0, 18);
+    buf[0] = 0x70;
+    buf[2] = sense.key;
+    buf[7] = 10;
+    buf[12] = sense.asc;
+    buf[13] = sense.ascq;
+    return 18;
+}
+
 /*
  * Predefined sense codes
  */

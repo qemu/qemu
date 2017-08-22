@@ -30,6 +30,8 @@ typedef struct SCSISense {
     uint8_t ascq;
 } SCSISense;
 
+int scsi_build_sense(uint8_t *buf, SCSISense sense);
+
 /*
  * Predefined sense codes
  */
