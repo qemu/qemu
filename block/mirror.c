@@ -1134,6 +1134,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              const BlockJobDriver *driver,
                              bool is_none_mode, BlockDriverState *base,
                              bool auto_complete, const char *filter_node_name,
+                             bool is_mirror,
                              Error **errp)
 {
     MirrorBlockJob *s;
@@ -1222,6 +1223,15 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     if (ret < 0) {
         goto fail;
     }
+    if (is_mirror) {
+        /* XXX: Mirror target could be a NBD server of target QEMU in the case
+         * of non-shared block migration. To allow migration completion, we
+         * have to allow "inactivate" of the target BB.  When that happens, we
+         * know the job is drained, and the vcpus are stopped, so no write
+         * operation will be performed. Block layer already has assertions to
+         * ensure that. */
+        blk_set_force_allow_inactivate(s->target);
+    }
 
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
@@ -1306,7 +1316,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                      speed, granularity, buf_size, backing_mode,
                      on_source_error, on_target_error, unmap, NULL, NULL,
                      &mirror_job_driver, is_none_mode, base, false,
-                     filter_node_name, errp);
+                     filter_node_name, true, errp);
 }
 
 void commit_active_start(const char *job_id, BlockDriverState *bs,
@@ -1329,7 +1339,7 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, true, cb, opaque,
                      &commit_active_job_driver, false, base, auto_complete,
-                     filter_node_name, &local_err);
+                     filter_node_name, false, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;
