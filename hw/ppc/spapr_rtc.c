@@ -164,6 +164,8 @@ static void spapr_rtc_class_init(ObjectClass *oc, void *data)
 
     dc->realize = spapr_rtc_realize;
     dc->vmsd = &vmstate_spapr_rtc;
+    /* Reason: This is an internal device only for handling the hypercalls */
+    dc->user_creatable = false;
 
     spapr_rtas_register(RTAS_GET_TIME_OF_DAY, "get-time-of-day",
                         rtas_get_time_of_day);

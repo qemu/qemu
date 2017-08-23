@@ -90,6 +90,7 @@ static int cap_htm;             /* Hardware transactional memory support */
 static int cap_mmu_radix;
 static int cap_mmu_hash_v3;
 static int cap_resize_hpt;
+static int cap_ppc_pvr_compat;
 
 static uint32_t debug_inst_opcode;
 
@@ -147,6 +148,13 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_mmu_radix = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_RADIX);
     cap_mmu_hash_v3 = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_HASH_V3);
     cap_resize_hpt = kvm_vm_check_extension(s, KVM_CAP_SPAPR_RESIZE_HPT);
+    /*
+     * Note: setting it to false because there is not such capability
+     * in KVM at this moment.
+     *
+     * TODO: call kvm_vm_check_extension() with the right capability
+     * after the kernel starts implementing it.*/
+    cap_ppc_pvr_compat = false;
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -2784,4 +2792,34 @@ void kvmppc_update_sdr1(target_ulong sdr1)
     CPU_FOREACH(cs) {
         run_on_cpu(cs, kvmppc_pivot_hpt_cpu, RUN_ON_CPU_TARGET_PTR(sdr1));
     }
+}
+
+/*
+ * This is a helper function to detect a post migration scenario
+ * in which a guest, running as KVM-HV, freezes in cpu_post_load because
+ * the guest kernel can't handle a PVR value other than the actual host
+ * PVR in KVM_SET_SREGS, even if pvr_match() returns true.
+ *
+ * If we don't have cap_ppc_pvr_compat and we're not running in PR
+ * (so, we're HV), return true. The workaround itself is done in
+ * cpu_post_load.
+ *
+ * The order here is important: we'll only check for KVM PR as a
+ * fallback if the guest kernel can't handle the situation itself.
+ * We need to avoid as much as possible querying the running KVM type
+ * in QEMU level.
+ */
+bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+
+    if (!kvm_enabled()) {
+        return false;
+    }
+
+    if (cap_ppc_pvr_compat) {
+        return false;
+    }
+
+    return !kvmppc_is_pr(cs->kvm_state);
 }
