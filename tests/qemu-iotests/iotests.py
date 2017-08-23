@@ -133,6 +133,14 @@ chown_re = re.compile(r"chown [0-9]+:[0-9]+")
 def filter_chown(msg):
     return chown_re.sub("chown UID:GID", msg)
 
+def filter_qmp_event(event):
+    '''Filter a QMP event dict'''
+    event = dict(event)
+    if 'timestamp' in event:
+        event['timestamp']['seconds'] = 'SECS'
+        event['timestamp']['microseconds'] = 'USECS'
+    return event
+
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
@@ -198,6 +206,11 @@ class VM(qtest.QEMUQtestMachine):
             self._args.append(opts)
         else:
             self._args.append(','.join(opts))
+        return self
+
+    def add_incoming(self, addr):
+        self._args.append('-incoming')
+        self._args.append(addr)
         return self
 
     def pause_drive(self, drive, event=None):
