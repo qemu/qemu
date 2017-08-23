@@ -81,17 +81,17 @@ static void test_to_from_buf_1(void)
           * skip whole vector and process exactly 0 bytes */
 
          /* first set bytes [i..sz) to some "random" value */
-         n = iov_memset(iov, niov, 0, 0xff, -1);
+         n = iov_memset(iov, niov, 0, 0xff, sz);
          g_assert(n == sz);
 
          /* next copy bytes [i..sz) from ibuf to iovec */
-         n = iov_from_buf(iov, niov, i, ibuf + i, -1);
+         n = iov_from_buf(iov, niov, i, ibuf + i, sz - i);
          g_assert(n == sz - i);
 
          /* clear part of obuf */
          memset(obuf + i, 0, sz - i);
          /* and set this part of obuf to values from iovec */
-         n = iov_to_buf(iov, niov, i, obuf + i, -1);
+         n = iov_to_buf(iov, niov, i, obuf + i, sz - i);
          g_assert(n == sz - i);
 
          /* now compare resulting buffers */
@@ -109,7 +109,7 @@ static void test_to_from_buf_1(void)
               * with j in [i..sz]. */
 
              /* clear iovec */
-             n = iov_memset(iov, niov, 0, 0xff, -1);
+             n = iov_memset(iov, niov, 0, 0xff, sz);
              g_assert(n == sz);
 
              /* copy bytes [i..j) from ibuf to iovec */
@@ -225,7 +225,7 @@ static void test_io(void)
        for (i = 0; i <= sz; ++i) {
            for (j = i; j <= sz; ++j) {
                k = i;
-               iov_memset(iov, niov, 0, 0xff, -1);
+               iov_memset(iov, niov, 0, 0xff, sz);
                do {
                    s = g_test_rand_int_range(0, j - k + 1);
                    r = iov_recv(sv[0], iov, niov, k, s);
