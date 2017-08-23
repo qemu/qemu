@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Stefan Hajnoczi <stefanha@redhat.com>
+#
+# Non-shared storage migration test using NBD server and drive-mirror
+
+import os
+import atexit
+import iotests
+
+iotests.verify_platform(['linux'])
+
+img_size = '1G'
+source_img_path = os.path.join(iotests.test_dir, 'source.img')
+dest_img_path = os.path.join(iotests.test_dir, 'dest.img')
+iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, source_img_path, img_size)
+iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, dest_img_path, img_size)
+
+iotests.log('Launching VMs...')
+migration_sock_path = os.path.join(iotests.test_dir, 'migration.sock')
+nbd_sock_path = os.path.join(iotests.test_dir, 'nbd.sock')
+source_vm = iotests.VM('source').add_drive(source_img_path)
+dest_vm = (iotests.VM('dest').add_drive(dest_img_path)
+                             .add_incoming('unix:{0}'.format(migration_sock_path)))
+source_vm.launch()
+atexit.register(source_vm.shutdown)
+dest_vm.launch()
+atexit.register(dest_vm.shutdown)
+
+iotests.log('Launching NBD server on destination...')
+iotests.log(dest_vm.qmp('nbd-server-start', addr={'type': 'unix', 'data': {'path': nbd_sock_path}}))
+iotests.log(dest_vm.qmp('nbd-server-add', device='drive0', writable=True))
+
+iotests.log('Starting drive-mirror on source...')
+iotests.log(source_vm.qmp(
+              'drive-mirror',
+              device='drive0',
+              target='nbd+unix:///drive0?socket={0}'.format(nbd_sock_path),
+              sync='full',
+              format='raw', # always raw, the server handles the format
+              mode='existing'))
+
+iotests.log('Waiting for drive-mirror to complete...')
+iotests.log(source_vm.event_wait('BLOCK_JOB_READY'),
+            filters=[iotests.filter_qmp_event])
+
+iotests.log('Starting migration...')
+source_vm.qmp('migrate-set-capabilities',
+              capabilities=[{'capability': 'events', 'state': True}])
+dest_vm.qmp('migrate-set-capabilities',
+            capabilities=[{'capability': 'events', 'state': True}])
+iotests.log(source_vm.qmp('migrate', uri='unix:{0}'.format(migration_sock_path)))
+
+while True:
+    event = source_vm.event_wait('MIGRATION')
+    iotests.log(event, filters=[iotests.filter_qmp_event])
+    if event['data']['status'] in ('completed', 'failed'):
+        break
