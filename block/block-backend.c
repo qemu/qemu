@@ -70,6 +70,7 @@ struct BlockBackend {
 
     int quiesce_counter;
     VMChangeStateEntry *vmsh;
+    bool force_allow_inactivate;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -192,17 +193,28 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
     }
 }
 
+void blk_set_force_allow_inactivate(BlockBackend *blk)
+{
+    blk->force_allow_inactivate = true;
+}
+
 static bool blk_can_inactivate(BlockBackend *blk)
 {
-    /* Only inactivate BlockBackends for guest devices (which are inactive at
-     * this point because the VM is stopped) and unattached monitor-owned
-     * BlockBackends. If there is still any other user like a block job, then
-     * we simply can't inactivate the image. */
+    /* If it is a guest device, inactivate is ok. */
     if (blk->dev || blk_name(blk)[0]) {
         return true;
     }
 
-    return false;
+    /* Inactivating means no more writes to the image can be done,
+     * even if those writes would be changes invisible to the
+     * guest.  For block job BBs that satisfy this, we can just allow
+     * it.  This is the case for mirror job source, which is required
+     * by libvirt non-shared block migration. */
+    if (!(blk->perm & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED))) {
+        return true;
+    }
+
+    return blk->force_allow_inactivate;
 }
 
 static int blk_root_inactivate(BdrvChild *child)
