@@ -40,7 +40,7 @@ static uint32_t acpi_find_vgia(void)
     AcpiRsdpDescriptor rsdp_table;
     uint32_t rsdt;
     AcpiRsdtDescriptorRev1 rsdt_table;
-    int tables_nr;
+    size_t tables_nr;
     uint32_t *tables;
     AcpiTableHeader ssdt_table;
     VgidTable vgid_table;
@@ -62,9 +62,9 @@ static uint32_t acpi_find_vgia(void)
     ACPI_ASSERT_CMP(rsdt_table.signature, "RSDT");
 
     /* compute the table entries in rsdt */
+    g_assert_cmpint(rsdt_table.length, >, sizeof(AcpiRsdtDescriptorRev1));
     tables_nr = (rsdt_table.length - sizeof(AcpiRsdtDescriptorRev1)) /
                 sizeof(uint32_t);
-    g_assert_cmpint(tables_nr, >, 0);
 
     /* get the addresses of the tables pointed by rsdt */
     tables = g_new0(uint32_t, tables_nr);
