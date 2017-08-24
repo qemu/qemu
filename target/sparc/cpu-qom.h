@@ -35,6 +35,7 @@
 #define SPARC_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(SPARCCPUClass, (obj), TYPE_SPARC_CPU)
 
+typedef struct sparc_def_t sparc_def_t;
 /**
  * SPARCCPUClass:
  * @parent_realize: The parent class' realize handler.
@@ -49,6 +50,7 @@ typedef struct SPARCCPUClass {
 
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
+    sparc_def_t *cpu_def;
 } SPARCCPUClass;
 
 typedef struct SPARCCPU SPARCCPU;
