@@ -32,6 +32,7 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/util.h"
 #include "sysemu/qtest.h"
 
 typedef struct BDRVBlkdebugState {
@@ -149,20 +150,6 @@ static QemuOptsList *config_groups[] = {
     NULL
 };
 
-static int get_event_by_name(const char *name, BlkdebugEvent *event)
-{
-    int i;
-
-    for (i = 0; i < BLKDBG__MAX; i++) {
-        if (!strcmp(BlkdebugEvent_lookup[i], name)) {
-            *event = i;
-            return 0;
-        }
-    }
-
-    return -1;
-}
-
 struct add_rule_data {
     BDRVBlkdebugState *s;
     int action;
@@ -173,7 +160,7 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
     struct add_rule_data *d = opaque;
     BDRVBlkdebugState *s = d->s;
     const char* event_name;
-    BlkdebugEvent event;
+    int event;
     struct BlkdebugRule *rule;
     int64_t sector;
 
@@ -182,8 +169,9 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
     if (!event_name) {
         error_setg(errp, "Missing event name for rule");
         return -1;
-    } else if (get_event_by_name(event_name, &event) < 0) {
-        error_setg(errp, "Invalid event name \"%s\"", event_name);
+    }
+    event = qapi_enum_parse(BlkdebugEvent_lookup, event_name, -1, errp);
+    if (event < 0) {
         return -1;
     }
 
@@ -743,12 +731,12 @@ static int blkdebug_debug_breakpoint(BlockDriverState *bs, const char *event,
 {
     BDRVBlkdebugState *s = bs->opaque;
     struct BlkdebugRule *rule;
-    BlkdebugEvent blkdebug_event;
+    int blkdebug_event;
 
-    if (get_event_by_name(event, &blkdebug_event) < 0) {
+    blkdebug_event = qapi_enum_parse(BlkdebugEvent_lookup, event, -1, NULL);
+    if (blkdebug_event < 0) {
         return -ENOENT;
     }
-
 
     rule = g_malloc(sizeof(*rule));
     *rule = (struct BlkdebugRule) {
