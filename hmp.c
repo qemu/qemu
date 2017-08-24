@@ -1528,7 +1528,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     MigrationCapabilityStatusList *caps = g_malloc0(sizeof(*caps));
     int val;
 
-    val = qapi_enum_parse(MigrationCapability_lookup, cap, -1, &err);
+    val = qapi_enum_parse(&MigrationCapability_lookup, cap, -1, &err);
     if (val < 0) {
         goto end;
     }
@@ -1557,7 +1557,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
     int val, ret;
 
-    val = qapi_enum_parse(MigrationParameter_lookup, param, -1, &err);
+    val = qapi_enum_parse(&MigrationParameter_lookup, param, -1, &err);
     if (val < 0) {
         goto cleanup;
     }
@@ -1735,7 +1735,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     } else {
         if (read_only) {
             read_only_mode =
-                qapi_enum_parse(BlockdevChangeReadOnlyMode_lookup,
+                qapi_enum_parse(&BlockdevChangeReadOnlyMode_lookup,
                                 read_only,
                                 BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN, &err);
             if (err) {

@@ -181,7 +181,7 @@ static void test_query(const void *data)
         g_assert(qdict_haskey(resp, "return"));
     } else {
         g_assert(error);
-        g_assert_cmpint(qapi_enum_parse(QapiErrorClass_lookup, error_class,
+        g_assert_cmpint(qapi_enum_parse(&QapiErrorClass_lookup, error_class,
                                         -1, &error_abort),
                         ==, expected_error_class);
     }

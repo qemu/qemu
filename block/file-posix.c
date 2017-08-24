@@ -437,7 +437,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     aio_default = (bdrv_flags & BDRV_O_NATIVE_AIO)
                   ? BLOCKDEV_AIO_OPTIONS_NATIVE
                   : BLOCKDEV_AIO_OPTIONS_THREADS;
-    aio = qapi_enum_parse(BlockdevAioOptions_lookup, qemu_opt_get(opts, "aio"),
+    aio = qapi_enum_parse(&BlockdevAioOptions_lookup,
+                          qemu_opt_get(opts, "aio"),
                           aio_default, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -446,7 +447,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
     s->use_linux_aio = (aio == BLOCKDEV_AIO_OPTIONS_NATIVE);
 
-    locking = qapi_enum_parse(OnOffAuto_lookup, qemu_opt_get(opts, "locking"),
+    locking = qapi_enum_parse(&OnOffAuto_lookup,
+                              qemu_opt_get(opts, "locking"),
                               ON_OFF_AUTO_AUTO, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1973,7 +1975,7 @@ static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
                           BDRV_SECTOR_SIZE);
     nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
-    prealloc = qapi_enum_parse(PreallocMode_lookup, buf,
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
                                PREALLOC_MODE_OFF, &local_err);
     g_free(buf);
     if (local_err) {

@@ -14,14 +14,14 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 
-const char *qapi_enum_lookup(const char *const lookup[], int val)
+const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
 {
-    assert(val >= 0);
+    assert(val >= 0 && val < lookup->size);
 
-    return lookup[val];
+    return lookup->array[val];
 }
 
-int qapi_enum_parse(const char * const lookup[], const char *buf,
+int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
                     int def, Error **errp)
 {
     int i;
@@ -30,8 +30,8 @@ int qapi_enum_parse(const char * const lookup[], const char *buf,
         return def;
     }
 
-    for (i = 0; lookup[i]; i++) {
-        if (!strcmp(buf, lookup[i])) {
+    for (i = 0; i < lookup->size; i++) {
+        if (!strcmp(buf, lookup->array[i])) {
             return i;
         }
     }

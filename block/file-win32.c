@@ -302,7 +302,7 @@ static bool get_aio_option(QemuOpts *opts, int flags, Error **errp)
 
     aio_default = (flags & BDRV_O_NATIVE_AIO) ? BLOCKDEV_AIO_OPTIONS_NATIVE
                                               : BLOCKDEV_AIO_OPTIONS_THREADS;
-    aio = qapi_enum_parse(BlockdevAioOptions_lookup, qemu_opt_get(opts, "aio"),
+    aio = qapi_enum_parse(&BlockdevAioOptions_lookup, qemu_opt_get(opts, "aio"),
                           aio_default, errp);
 
     switch (aio) {

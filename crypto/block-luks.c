@@ -264,7 +264,7 @@ qcrypto_block_luks_cipher_alg_lookup(QCryptoCipherAlgorithm alg,
 /* XXX replace with qapi_enum_parse() in future, when we can
  * make that function emit a more friendly error message */
 static int qcrypto_block_luks_name_lookup(const char *name,
-                                          const char *const *map,
+                                          const QEnumLookup *map,
                                           const char *type,
                                           Error **errp)
 {
@@ -279,19 +279,19 @@ static int qcrypto_block_luks_name_lookup(const char *name,
 
 #define qcrypto_block_luks_cipher_mode_lookup(name, errp)               \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoCipherMode_lookup,            \
+                                   &QCryptoCipherMode_lookup,           \
                                    "Cipher mode",                       \
                                    errp)
 
 #define qcrypto_block_luks_hash_name_lookup(name, errp)                 \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoHashAlgorithm_lookup,         \
+                                   &QCryptoHashAlgorithm_lookup,        \
                                    "Hash algorithm",                    \
                                    errp)
 
 #define qcrypto_block_luks_ivgen_name_lookup(name, errp)                \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoIVGenAlgorithm_lookup,        \
+                                   &QCryptoIVGenAlgorithm_lookup,       \
                                    "IV generator",                      \
                                    errp)
 

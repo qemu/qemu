@@ -912,7 +912,7 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     if (!pattern_str) {
         ret = QUORUM_READ_PATTERN_QUORUM;
     } else {
-        ret = qapi_enum_parse(QuorumReadPattern_lookup, pattern_str,
+        ret = qapi_enum_parse(&QuorumReadPattern_lookup, pattern_str,
                               -EINVAL, NULL);
     }
     if (ret < 0) {

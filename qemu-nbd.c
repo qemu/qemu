@@ -638,7 +638,7 @@ int main(int argc, char **argv)
             break;
         case QEMU_NBD_OPT_DETECT_ZEROES:
             detect_zeroes =
-                qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
+                qapi_enum_parse(&BlockdevDetectZeroesOptions_lookup,
                                 optarg,
                                 BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
                                 &local_err);

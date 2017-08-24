@@ -179,7 +179,7 @@ static void netfilter_init(Object *obj)
                             netfilter_get_netdev_id, netfilter_set_netdev_id,
                             NULL);
     object_property_add_enum(obj, "queue", "NetFilterDirection",
-                             NetFilterDirection_lookup,
+                             &NetFilterDirection_lookup,
                              netfilter_get_direction, netfilter_set_direction,
                              NULL);
     object_property_add_str(obj, "status",
