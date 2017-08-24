@@ -32,6 +32,7 @@ struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;
 
     bool share;
+    bool discard_data;
     char *mem_path;
 };
 
@@ -103,15 +104,43 @@ static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
     fb->share = value;
 }
 
+static bool file_memory_backend_get_discard_data(Object *o, Error **errp)
+{
+    return MEMORY_BACKEND_FILE(o)->discard_data;
+}
+
+static void file_memory_backend_set_discard_data(Object *o, bool value,
+                                               Error **errp)
+{
+    MEMORY_BACKEND_FILE(o)->discard_data = value;
+}
+
+static void file_backend_unparent(Object *obj)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+
+    if (host_memory_backend_mr_inited(backend) && fb->discard_data) {
+        void *ptr = memory_region_get_ram_ptr(&backend->mr);
+        uint64_t sz = memory_region_size(&backend->mr);
+
+        qemu_madvise(ptr, sz, QEMU_MADV_REMOVE);
+    }
+}
+
 static void
 file_backend_class_init(ObjectClass *oc, void *data)
 {
     HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
 
     bc->alloc = file_backend_memory_alloc;
+    oc->unparent = file_backend_unparent;
 
     object_class_property_add_bool(oc, "share",
         file_memory_backend_get_share, file_memory_backend_set_share,
+        &error_abort);
+    object_class_property_add_bool(oc, "discard-data",
+        file_memory_backend_get_discard_data, file_memory_backend_set_discard_data,
         &error_abort);
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path,
