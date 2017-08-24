@@ -55,28 +55,26 @@ bool cpu_exists(int64_t id)
 
 CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
 {
-    char *str, *name, *featurestr;
     CPUState *cpu = NULL;
     ObjectClass *oc;
     CPUClass *cc;
     Error *err = NULL;
+    gchar **model_pieces;
 
-    str = g_strdup(cpu_model);
-    name = strtok(str, ",");
+    model_pieces = g_strsplit(cpu_model, ",", 2);
 
-    oc = cpu_class_by_name(typename, name);
+    oc = cpu_class_by_name(typename, model_pieces[0]);
     if (oc == NULL) {
-        g_free(str);
+        g_strfreev(model_pieces);
         return NULL;
     }
 
     cc = CPU_CLASS(oc);
-    featurestr = strtok(NULL, ",");
     /* TODO: all callers of cpu_generic_init() need to be converted to
      * call parse_features() only once, before calling cpu_generic_init().
      */
-    cc->parse_features(object_class_get_name(oc), featurestr, &err);
-    g_free(str);
+    cc->parse_features(object_class_get_name(oc), model_pieces[1], &err);
+    g_strfreev(model_pieces);
     if (err != NULL) {
         goto out;
     }
