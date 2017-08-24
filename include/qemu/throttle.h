@@ -77,8 +77,8 @@ typedef enum {
  */
 
 typedef struct LeakyBucket {
-    double  avg;              /* average goal in units per second */
-    double  max;              /* leaky bucket max burst in units */
+    uint64_t avg;             /* average goal in units per second */
+    uint64_t max;             /* leaky bucket max burst in units */
     double  level;            /* bucket level in units */
     double  burst_level;      /* bucket level in units (for computing bursts) */
     unsigned burst_length;    /* max length of the burst period, in seconds */

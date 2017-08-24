@@ -106,13 +106,13 @@ int64_t throttle_compute_wait(LeakyBucket *bkt)
         /* If bkt->max is 0 we still want to allow short bursts of I/O
          * from the guest, otherwise every other request will be throttled
          * and performance will suffer considerably. */
-        bucket_size = bkt->avg / 10;
+        bucket_size = (double) bkt->avg / 10;
         burst_bucket_size = 0;
     } else {
         /* If we have a burst limit then we have to wait until all I/O
          * at burst rate has finished before throttling to bkt->avg */
         bucket_size = bkt->max * bkt->burst_length;
-        burst_bucket_size = bkt->max / 10;
+        burst_bucket_size = (double) bkt->max / 10;
     }
 
     /* If the main bucket is full then we have to wait */
@@ -338,8 +338,7 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
         LeakyBucket *bkt = &cfg->buckets[i];
-        if (bkt->avg < 0 || bkt->max < 0 ||
-            bkt->avg > THROTTLE_VALUE_MAX || bkt->max > THROTTLE_VALUE_MAX) {
+        if (bkt->avg > THROTTLE_VALUE_MAX || bkt->max > THROTTLE_VALUE_MAX) {
             error_setg(errp, "bps/iops/max values must be within [0, %lld]",
                        THROTTLE_VALUE_MAX);
             return false;
