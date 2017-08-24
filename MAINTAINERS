@@ -1231,6 +1231,7 @@ S: Supported
 F: blockdev.c
 F: block/qapi.c
 F: qapi/block*.json
+F: qapi/transaction.json
 T: git git://repo.or.cz/qemu/armbru.git block-next
 
 Dirty Bitmaps

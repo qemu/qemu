@@ -1,0 +1,158 @@
+# -*- Mode: Python -*-
+#
+
+##
+# = Transactions
+##
+
+{ 'include': 'block.json' }
+
+##
+# @Abort:
+#
+# This action can be used to test transaction failure.
+#
+# Since: 1.6
+##
+{ 'struct': 'Abort',
+  'data': { } }
+
+##
+# @ActionCompletionMode:
+#
+# An enumeration of Transactional completion modes.
+#
+# @individual: Do not attempt to cancel any other Actions if any Actions fail
+#              after the Transaction request succeeds. All Actions that
+#              can complete successfully will do so without waiting on others.
+#              This is the default.
+#
+# @grouped: If any Action fails after the Transaction succeeds, cancel all
+#           Actions. Actions do not complete until all Actions are ready to
+#           complete. May be rejected by Actions that do not support this
+#           completion mode.
+#
+# Since: 2.5
+##
+{ 'enum': 'ActionCompletionMode',
+  'data': [ 'individual', 'grouped' ] }
+
+##
+# @TransactionAction:
+#
+# A discriminated record of operations that can be performed with
+# @transaction. Action @type can be:
+#
+# - @abort: since 1.6
+# - @block-dirty-bitmap-add: since 2.5
+# - @block-dirty-bitmap-clear: since 2.5
+# - @blockdev-backup: since 2.3
+# - @blockdev-snapshot: since 2.5
+# - @blockdev-snapshot-internal-sync: since 1.7
+# - @blockdev-snapshot-sync: since 1.1
+# - @drive-backup: since 1.6
+#
+# Since: 1.1
+##
+{ 'union': 'TransactionAction',
+  'data': {
+       'abort': 'Abort',
+       'block-dirty-bitmap-add': 'BlockDirtyBitmapAdd',
+       'block-dirty-bitmap-clear': 'BlockDirtyBitmap',
+       'blockdev-backup': 'BlockdevBackup',
+       'blockdev-snapshot': 'BlockdevSnapshot',
+       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
+       'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
+       'drive-backup': 'DriveBackup'
+   } }
+
+##
+# @TransactionProperties:
+#
+# Optional arguments to modify the behavior of a Transaction.
+#
+# @completion-mode: Controls how jobs launched asynchronously by
+#                   Actions will complete or fail as a group.
+#                   See @ActionCompletionMode for details.
+#
+# Since: 2.5
+##
+{ 'struct': 'TransactionProperties',
+  'data': {
+       '*completion-mode': 'ActionCompletionMode'
+  }
+}
+
+##
+# @transaction:
+#
+# Executes a number of transactionable QMP commands atomically. If any
+# operation fails, then the entire set of actions will be abandoned and the
+# appropriate error returned.
+#
+# For external snapshots, the dictionary contains the device, the file to use for
+# the new snapshot, and the format.  The default format, if not specified, is
+# qcow2.
+#
+# Each new snapshot defaults to being created by QEMU (wiping any
+# contents if the file already exists), but it is also possible to reuse
+# an externally-created file.  In the latter case, you should ensure that
+# the new image file has the same contents as the current one; QEMU cannot
+# perform any meaningful check.  Typically this is achieved by using the
+# current image file as the backing file for the new image.
+#
+# On failure, the original disks pre-snapshot attempt will be used.
+#
+# For internal snapshots, the dictionary contains the device and the snapshot's
+# name.  If an internal snapshot matching name already exists, the request will
+# be rejected.  Only some image formats support it, for example, qcow2, rbd,
+# and sheepdog.
+#
+# On failure, qemu will try delete the newly created internal snapshot in the
+# transaction.  When an I/O error occurs during deletion, the user needs to fix
+# it later with qemu-img or other command.
+#
+# @actions: List of @TransactionAction;
+#           information needed for the respective operations.
+#
+# @properties: structure of additional options to control the
+#              execution of the transaction. See @TransactionProperties
+#              for additional detail.
+#
+# Returns: nothing on success
+#
+#          Errors depend on the operations of the transaction
+#
+# Note: The transaction aborts on the first failure.  Therefore, there will be
+# information on only one failed operation returned in an error condition, and
+# subsequent actions will not have been attempted.
+#
+# Since: 1.1
+#
+# Example:
+#
+# -> { "execute": "transaction",
+#      "arguments": { "actions": [
+#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd0",
+#                                      "snapshot-file": "/some/place/my-image",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-sync", "data" : { "node-name": "myfile",
+#                                      "snapshot-file": "/some/place/my-image2",
+#                                      "snapshot-node-name": "node3432",
+#                                      "mode": "existing",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd1",
+#                                      "snapshot-file": "/some/place/my-image2",
+#                                      "mode": "existing",
+#                                      "format": "qcow2" } },
+#          { "type": "blockdev-snapshot-internal-sync", "data" : {
+#                                      "device": "ide-hd2",
+#                                      "name": "snapshot0" } } ] } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'transaction',
+  'data': { 'actions': [ 'TransactionAction' ],
+            '*properties': 'TransactionProperties'
+          }
+}
