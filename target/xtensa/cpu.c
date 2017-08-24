@@ -100,8 +100,11 @@ static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
 static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
+    XtensaCPU *cpu = XTENSA_CPU(dev);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
+
+    xtensa_irq_init(&cpu->env);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {

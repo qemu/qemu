@@ -475,9 +475,7 @@ void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 #define XTENSA_DEFAULT_CPU_MODEL "dc232b"
 #endif
 
-XtensaCPU *cpu_xtensa_init(const char *cpu_model);
-
-#define cpu_init(cpu_model) CPU(cpu_xtensa_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_XTENSA_CPU, cpu_model)
 
 void xtensa_translate_init(void);
 void xtensa_breakpoint_handler(CPUState *cs);

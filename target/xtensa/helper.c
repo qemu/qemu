@@ -113,28 +113,6 @@ void xtensa_breakpoint_handler(CPUState *cs)
     }
 }
 
-XtensaCPU *cpu_xtensa_init(const char *cpu_model)
-{
-    ObjectClass *oc;
-    XtensaCPU *cpu;
-    CPUXtensaState *env;
-
-    oc = cpu_class_by_name(TYPE_XTENSA_CPU, cpu_model);
-    if (oc == NULL) {
-        return NULL;
-    }
-
-    cpu = XTENSA_CPU(object_new(object_class_get_name(oc)));
-    env = &cpu->env;
-
-    xtensa_irq_init(env);
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
-}
-
-
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
     XtensaConfigList *core = xtensa_cores;
