@@ -24,39 +24,12 @@
 static QLIST_HEAD(, TPMBackend) tpm_backends =
     QLIST_HEAD_INITIALIZER(tpm_backends);
 
-
-#define TPM_MAX_MODELS      1
-
 static TPMDriverOps const *be_drivers[TPM_TYPE__MAX];
+static bool tpm_models[TPM_MODEL__MAX];
 
-static enum TpmModel tpm_models[TPM_MAX_MODELS] = {
-    TPM_MODEL__MAX,
-};
-
-int tpm_register_model(enum TpmModel model)
+void tpm_register_model(enum TpmModel model)
 {
-    int i;
-
-    for (i = 0; i < TPM_MAX_MODELS; i++) {
-        if (tpm_models[i] == TPM_MODEL__MAX) {
-            tpm_models[i] = model;
-            return 0;
-        }
-    }
-    error_report("Could not register TPM model");
-    return 1;
-}
-
-static bool tpm_model_is_registered(enum TpmModel model)
-{
-    int i;
-
-    for (i = 0; i < TPM_MAX_MODELS; i++) {
-        if (tpm_models[i] == model) {
-            return true;
-        }
-    }
-    return false;
+    tpm_models[model] = true;
 }
 
 const TPMDriverOps *tpm_get_backend_driver(const char *type)
@@ -270,7 +243,7 @@ TPMInfoList *qmp_query_tpm(Error **errp)
     TPMInfoList *info, *head = NULL, *cur_item = NULL;
 
     QLIST_FOREACH(drv, &tpm_backends, list) {
-        if (!tpm_model_is_registered(drv->fe_model)) {
+        if (!tpm_models[drv->fe_model]) {
             continue;
         }
         info = g_new0(TPMInfoList, 1);
@@ -317,7 +290,7 @@ TpmModelList *qmp_query_tpm_models(Error **errp)
     TpmModelList *head = NULL, *prev = NULL, *cur_item;
 
     for (i = 0; i < TPM_MODEL__MAX; i++) {
-        if (!tpm_model_is_registered(i)) {
+        if (!tpm_models[i]) {
             continue;
         }
         cur_item = g_new0(TpmModelList, 1);
