@@ -94,7 +94,7 @@
 { 'include': 'qapi/introspect.json' }
 
 ##
-# = QMP commands
+# = Miscellanea
 ##
 
 ##
