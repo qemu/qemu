@@ -165,9 +165,7 @@ static inline int cpu_mmu_index(CPUUniCore32State *env, bool ifetch)
 
 #include "exec/cpu-all.h"
 
-UniCore32CPU *uc32_cpu_init(const char *cpu_model);
-
-#define cpu_init(cpu_model) CPU(uc32_cpu_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_UNICORE32_CPU, cpu_model)
 
 static inline void cpu_get_tb_cpu_state(CPUUniCore32State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
