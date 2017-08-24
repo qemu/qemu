@@ -324,32 +324,31 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
     }
 
     for (i = 0; i < BUCKETS_COUNT; i++) {
-        if (cfg->buckets[i].avg < 0 ||
-            cfg->buckets[i].max < 0 ||
-            cfg->buckets[i].avg > THROTTLE_VALUE_MAX ||
-            cfg->buckets[i].max > THROTTLE_VALUE_MAX) {
+        LeakyBucket *bkt = &cfg->buckets[i];
+        if (bkt->avg < 0 || bkt->max < 0 ||
+            bkt->avg > THROTTLE_VALUE_MAX || bkt->max > THROTTLE_VALUE_MAX) {
             error_setg(errp, "bps/iops/max values must be within [0, %lld]",
                        THROTTLE_VALUE_MAX);
             return false;
         }
 
-        if (!cfg->buckets[i].burst_length) {
+        if (!bkt->burst_length) {
             error_setg(errp, "the burst length cannot be 0");
             return false;
         }
 
-        if (cfg->buckets[i].burst_length > 1 && !cfg->buckets[i].max) {
+        if (bkt->burst_length > 1 && !bkt->max) {
             error_setg(errp, "burst length set without burst rate");
             return false;
         }
 
-        if (cfg->buckets[i].max && !cfg->buckets[i].avg) {
+        if (bkt->max && !bkt->avg) {
             error_setg(errp, "bps_max/iops_max require corresponding"
                        " bps/iops values");
             return false;
         }
 
-        if (cfg->buckets[i].max && cfg->buckets[i].max < cfg->buckets[i].avg) {
+        if (bkt->max && bkt->max < bkt->avg) {
             error_setg(errp, "bps_max/iops_max cannot be lower than bps/iops");
             return false;
         }
