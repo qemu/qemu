@@ -31,7 +31,7 @@ struct target_pt_regs {
 
 static inline abi_ulong target_shmlba(CPUSPARCState *env)
 {
-    if (!(env->def->features & CPU_FEATURE_FLUSH)) {
+    if (!(env->def.features & CPU_FEATURE_FLUSH)) {
         return 64 * 1024;
     } else {
         return 256 * 1024;

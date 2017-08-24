@@ -108,7 +108,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
 #if !defined(CONFIG_USER_ONLY)
     if (env->psret == 0) {
         if (cs->exception_index == 0x80 &&
-            env->def->features & CPU_FEATURE_TA0_SHUTDOWN) {
+            env->def.features & CPU_FEATURE_TA0_SHUTDOWN) {
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         } else {
             cpu_abort(cs, "Trap 0x%02x while interrupts disabled, Error state",
