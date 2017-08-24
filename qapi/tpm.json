@@ -1,0 +1,137 @@
+# -*- Mode: Python -*-
+#
+
+##
+# = TPM (trusted platform module) devices
+##
+
+##
+# @TpmModel:
+#
+# An enumeration of TPM models
+#
+# @tpm-tis: TPM TIS model
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
+
+##
+# @query-tpm-models:
+#
+# Return a list of supported TPM models
+#
+# Returns: a list of TpmModel
+#
+# Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm-models" }
+# <- { "return": [ "tpm-tis" ] }
+#
+##
+{ 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
+
+##
+# @TpmType:
+#
+# An enumeration of TPM types
+#
+# @passthrough: TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'enum': 'TpmType', 'data': [ 'passthrough' ] }
+
+##
+# @query-tpm-types:
+#
+# Return a list of supported TPM types
+#
+# Returns: a list of TpmType
+#
+# Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm-types" }
+# <- { "return": [ "passthrough" ] }
+#
+##
+{ 'command': 'query-tpm-types', 'returns': ['TpmType'] }
+
+##
+# @TPMPassthroughOptions:
+#
+# Information about the TPM passthrough type
+#
+# @path: string describing the path used for accessing the TPM device
+#
+# @cancel-path: string showing the TPM's sysfs cancel file
+#               for cancellation of TPM commands while they are executing
+#
+# Since: 1.5
+##
+{ 'struct': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
+                                             '*cancel-path' : 'str'} }
+
+##
+# @TpmTypeOptions:
+#
+# A union referencing different TPM backend types' configuration options
+#
+# @type: 'passthrough' The configuration options for the TPM passthrough type
+#
+# Since: 1.5
+##
+{ 'union': 'TpmTypeOptions',
+   'data': { 'passthrough' : 'TPMPassthroughOptions' } }
+
+##
+# @TPMInfo:
+#
+# Information about the TPM
+#
+# @id: The Id of the TPM
+#
+# @model: The TPM frontend model
+#
+# @options: The TPM (backend) type configuration options
+#
+# Since: 1.5
+##
+{ 'struct': 'TPMInfo',
+  'data': {'id': 'str',
+           'model': 'TpmModel',
+           'options': 'TpmTypeOptions' } }
+
+##
+# @query-tpm:
+#
+# Return information about the TPM device
+#
+# Returns: @TPMInfo on success
+#
+# Since: 1.5
+#
+# Example:
+#
+# -> { "execute": "query-tpm" }
+# <- { "return":
+#      [
+#        { "model": "tpm-tis",
+#          "options":
+#            { "type": "passthrough",
+#              "data":
+#                { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
+#                  "path": "/dev/tpm0"
+#                }
+#            },
+#          "id": "tpm0"
+#        }
+#      ]
+#    }
+#
+##
+{ 'command': 'query-tpm', 'returns': ['TPMInfo'] }

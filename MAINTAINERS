@@ -1486,6 +1486,14 @@ F: scripts/tracetool/
 F: docs/tracing.txt
 T: git git://github.com/stefanha/qemu.git tracing
 
+TPM
+S: Orphan
+F: tpm.c
+F: hw/tpm/*
+F: include/hw/acpi/tpm.h
+F: include/sysemu/tpm*
+F: qapi/tpm.json
+
 Checkpatch
 S: Odd Fixes
 F: scripts/checkpatch.pl
