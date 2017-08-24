@@ -345,7 +345,7 @@ static void output_type_enum(Visitor *v, const char *name, int *obj,
         return;
     }
 
-    enum_str = (char *)strings[value];
+    enum_str = (char *)qapi_enum_lookup(strings, value);
     visit_type_str(v, name, &enum_str, errp);
 }
 
