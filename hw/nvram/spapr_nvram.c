@@ -264,6 +264,8 @@ static void spapr_nvram_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->props = spapr_nvram_properties;
     dc->vmsd = &vmstate_spapr_nvram;
+    /* Reason: Internal device only, uses spapr_rtas_register() in realize() */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo spapr_nvram_type_info = {
