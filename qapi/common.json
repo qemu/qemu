@@ -162,3 +162,14 @@
 ##
 { 'enum': 'OnOffSplit',
   'data': [ 'on', 'off', 'split' ] }
+
+##
+# @String:
+#
+# A fat type wrapping 'str', to be embedded in lists.
+#
+# Since: 1.2
+##
+{ 'struct': 'String',
+  'data': {
+    'str': 'str' } }

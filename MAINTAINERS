@@ -1535,6 +1535,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/sockets.h
 F: util/qemu-sockets.c
+F: qapi/sockets.json
 
 Throttling infrastructure
 M: Alberto Garcia <berto@igalia.com>

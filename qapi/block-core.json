@@ -4,8 +4,8 @@
 # == QAPI block core definitions (vm unrelated)
 ##
 
-# QAPI common definitions
 { 'include': 'common.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @SnapshotInfo:
