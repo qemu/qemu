@@ -4887,6 +4887,7 @@ int main(int argc, char **argv, char **envp)
     audio_cleanup();
     monitor_cleanup();
     qemu_chr_cleanup();
+    user_creatable_cleanup();
     /* TODO: unref root container, check all devices are ok */
 
     return 0;
