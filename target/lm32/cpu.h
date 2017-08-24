@@ -238,7 +238,6 @@ static inline lm32_wp_t lm32_wp_type(uint32_t dc, int idx)
     return (dc >> (idx+1)*2) & 0x3;
 }
 
-LM32CPU *cpu_lm32_init(const char *cpu_model);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -256,7 +255,7 @@ void lm32_watchpoint_insert(CPULM32State *env, int index, target_ulong address,
 void lm32_watchpoint_remove(CPULM32State *env, int index);
 bool lm32_cpu_do_semihosting(CPUState *cs);
 
-#define cpu_init(cpu_model) CPU(cpu_lm32_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_LM32_CPU, cpu_model)
 
 #define cpu_list lm32_cpu_list
 #define cpu_signal_handler cpu_lm32_signal_handler
