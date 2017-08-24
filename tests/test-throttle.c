@@ -378,6 +378,82 @@ static void test_is_valid(void)
     test_is_valid_for_value(1, true);
 }
 
+static void test_ranges(void)
+{
+    int i;
+
+    for (i = 0; i < BUCKETS_COUNT; i++) {
+        LeakyBucket *b = &cfg.buckets[i];
+        throttle_config_init(&cfg);
+
+        /* avg = 0 means throttling is disabled, but the config is valid */
+        b->avg = 0;
+        g_assert(throttle_is_valid(&cfg, NULL));
+        g_assert(!throttle_enabled(&cfg));
+
+        /* These are valid configurations (values <= THROTTLE_VALUE_MAX) */
+        b->avg = 1;
+        g_assert(throttle_is_valid(&cfg, NULL));
+
+        b->avg = THROTTLE_VALUE_MAX;
+        g_assert(throttle_is_valid(&cfg, NULL));
+
+        b->avg = THROTTLE_VALUE_MAX;
+        b->max = THROTTLE_VALUE_MAX;
+        g_assert(throttle_is_valid(&cfg, NULL));
+
+        /* Values over THROTTLE_VALUE_MAX are not allowed */
+        b->avg = THROTTLE_VALUE_MAX + 1;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+
+        b->avg = THROTTLE_VALUE_MAX;
+        b->max = THROTTLE_VALUE_MAX + 1;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+
+        /* burst_length must be between 1 and THROTTLE_VALUE_MAX */
+        b->avg = 1;
+        b->max = 1;
+        b->burst_length = 0;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+
+        b->avg = 1;
+        b->max = 1;
+        b->burst_length = 1;
+        g_assert(throttle_is_valid(&cfg, NULL));
+
+        b->avg = 1;
+        b->max = 1;
+        b->burst_length = THROTTLE_VALUE_MAX;
+        g_assert(throttle_is_valid(&cfg, NULL));
+
+        b->avg = 1;
+        b->max = 1;
+        b->burst_length = THROTTLE_VALUE_MAX + 1;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+
+        /* burst_length * max cannot exceed THROTTLE_VALUE_MAX */
+        b->avg = 1;
+        b->max = 2;
+        b->burst_length = THROTTLE_VALUE_MAX / 2;
+        g_assert(throttle_is_valid(&cfg, NULL));
+
+        b->avg = 1;
+        b->max = 3;
+        b->burst_length = THROTTLE_VALUE_MAX / 2;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+
+        b->avg = 1;
+        b->max = THROTTLE_VALUE_MAX;
+        b->burst_length = 1;
+        g_assert(throttle_is_valid(&cfg, NULL));
+
+        b->avg = 1;
+        b->max = THROTTLE_VALUE_MAX;
+        b->burst_length = 2;
+        g_assert(!throttle_is_valid(&cfg, NULL));
+    }
+}
+
 static void test_max_is_missing_limit(void)
 {
     int i;
@@ -669,6 +745,7 @@ int main(int argc, char **argv)
     g_test_add_func("/throttle/config/enabled",     test_enabled);
     g_test_add_func("/throttle/config/conflicting", test_conflicting_config);
     g_test_add_func("/throttle/config/is_valid",    test_is_valid);
+    g_test_add_func("/throttle/config/ranges",      test_ranges);
     g_test_add_func("/throttle/config/max",         test_max_is_missing_limit);
     g_test_add_func("/throttle/config/iops_size",
                     test_iops_size_is_missing_limit);
