@@ -1315,6 +1315,22 @@ static int xen_pt_msgdata_reg_write(XenPCIPassthroughState *s,
     return 0;
 }
 
+static int xen_pt_mask_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
+                                 uint32_t *val, uint32_t dev_value,
+                                 uint32_t valid_mask)
+{
+    int rc;
+
+    rc = xen_pt_long_reg_write(s, cfg_entry, val, dev_value, valid_mask);
+    if (rc) {
+        return rc;
+    }
+
+    s->msi->mask = *val;
+
+    return 0;
+}
+
 /* MSI Capability Structure reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_msi[] = {
     /* Next Pointer reg */
@@ -1393,7 +1409,7 @@ static XenPTRegInfo xen_pt_emu_reg_msi[] = {
         .emu_mask   = 0xFFFFFFFF,
         .init       = xen_pt_mask_reg_init,
         .u.dw.read  = xen_pt_long_reg_read,
-        .u.dw.write = xen_pt_long_reg_write,
+        .u.dw.write = xen_pt_mask_reg_write,
     },
     /* Mask reg (if PCI_MSI_FLAGS_MASKBIT set, for 64-bit devices) */
     {
@@ -1404,7 +1420,7 @@ static XenPTRegInfo xen_pt_emu_reg_msi[] = {
         .emu_mask   = 0xFFFFFFFF,
         .init       = xen_pt_mask_reg_init,
         .u.dw.read  = xen_pt_long_reg_read,
-        .u.dw.write = xen_pt_long_reg_write,
+        .u.dw.write = xen_pt_mask_reg_write,
     },
     /* Pending reg (if PCI_MSI_FLAGS_MASKBIT set, for 32-bit devices) */
     {
