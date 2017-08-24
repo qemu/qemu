@@ -126,7 +126,7 @@ static void leon3_generic_hw_init(MachineState *machine)
         cpu_model = "LEON3";
     }
 
-    cpu = cpu_sparc_init(cpu_model);
+    cpu = SPARC_CPU(cpu_generic_init(TYPE_SPARC_CPU, cpu_model));
     if (cpu == NULL) {
         fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
         exit(1);

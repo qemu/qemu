@@ -194,11 +194,6 @@ static void sparc_cpu_parse_features(const char *typename, char *features,
     g_list_free_full(minus_features, g_free);
 }
 
-SPARCCPU *cpu_sparc_init(const char *cpu_model)
-{
-    return SPARC_CPU(cpu_generic_init(TYPE_SPARC_CPU, cpu_model));
-}
-
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu)
 {
 #if !defined(TARGET_SPARC64)
