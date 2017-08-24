@@ -109,7 +109,6 @@ static void sparc_cpu_parse_features(CPUState *cs, char *features,
 
 static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
 {
-    CPUSPARCState *env = &cpu->env;
     char *s = g_strdup(cpu_model);
     char *featurestr = strtok(s, ",");
     Error *err = NULL;
@@ -122,19 +121,6 @@ static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
         return -1;
     }
 
-    env->version = env->def.iu_version;
-    env->fsr = env->def.fpu_version;
-    env->nwindows = env->def.nwindows;
-#if !defined(TARGET_SPARC64)
-    env->mmuregs[0] |= env->def.mmu_version;
-    cpu_sparc_set_id(env, 0);
-    env->mxccregs[7] |= env->def.mxcc_version;
-#else
-    env->mmu_version = env->def.mmu_version;
-    env->maxtl = env->def.maxtl;
-    env->version |= env->def.maxtl << 8;
-    env->version |= env->def.nwindows - 1;
-#endif
     return 0;
 }
 
@@ -816,13 +802,27 @@ static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUState *cs = CPU(dev);
     SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
-#if defined(CONFIG_USER_ONLY)
     SPARCCPU *cpu = SPARC_CPU(dev);
     CPUSPARCState *env = &cpu->env;
 
+#if defined(CONFIG_USER_ONLY)
     if ((env->def.features & CPU_FEATURE_FLOAT)) {
         env->def.features |= CPU_FEATURE_FLOAT128;
     }
+#endif
+
+    env->version = env->def.iu_version;
+    env->fsr = env->def.fpu_version;
+    env->nwindows = env->def.nwindows;
+#if !defined(TARGET_SPARC64)
+    env->mmuregs[0] |= env->def.mmu_version;
+    cpu_sparc_set_id(env, 0);
+    env->mxccregs[7] |= env->def.mxcc_version;
+#else
+    env->mmu_version = env->def.mmu_version;
+    env->maxtl = env->def.maxtl;
+    env->version |= env->def.maxtl << 8;
+    env->version |= env->def.nwindows - 1;
 #endif
 
     cpu_exec_realizefn(cs, &local_err);
