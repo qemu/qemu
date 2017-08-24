@@ -72,22 +72,17 @@
         'q_obj_CpuInfo-base'    # CPU, visible through query-cpu
     ] } }
 
-# QAPI common definitions
+# Documentation generated with qapi2texi.py is in source order, with
+# included sub-schemas inserted at the first include directive
+# (subsequent include directives have no effect).  To get a sane and
+# stable order, it's best to include each sub-schema just once, or
+# include it first in qapi-schema.json.
+
 { 'include': 'qapi/common.json' }
-
-# QAPI crypto definitions
 { 'include': 'qapi/crypto.json' }
-
-# QAPI block definitions
 { 'include': 'qapi/block.json' }
-
-# QAPI event definitions
 { 'include': 'qapi/event.json' }
-
-# Tracing commands
 { 'include': 'qapi/trace.json' }
-
-# QAPI introspection
 { 'include': 'qapi/introspect.json' }
 
 ##
