@@ -3249,7 +3249,7 @@ void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
     }
     len = strlen(str);
     readline_set_completion_index(rs, len);
-    for (i = 0; NetClientDriver_lookup[i]; i++) {
+    for (i = 0; i < NET_CLIENT_DRIVER__MAX; i++) {
         add_completion_option(rs, str, NetClientDriver_lookup[i]);
     }
 }
@@ -3537,7 +3537,7 @@ void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
         return;
     }
     readline_set_completion_index(rs, strlen(str));
-    for (i = 0; WatchdogExpirationAction_lookup[i]; i++) {
+    for (i = 0; i < WATCHDOG_EXPIRATION_ACTION__MAX; i++) {
         add_completion_option(rs, str, WatchdogExpirationAction_lookup[i]);
     }
 }
