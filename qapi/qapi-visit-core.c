@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qerror.h"
@@ -353,7 +354,7 @@ static void input_type_enum(Visitor *v, const char *name, int *obj,
                             const char *const strings[], Error **errp)
 {
     Error *local_err = NULL;
-    int64_t value = 0;
+    int64_t value;
     char *enum_str;
 
     visit_type_str(v, name, &enum_str, &local_err);
@@ -362,14 +363,8 @@ static void input_type_enum(Visitor *v, const char *name, int *obj,
         return;
     }
 
-    while (strings[value] != NULL) {
-        if (strcmp(strings[value], enum_str) == 0) {
-            break;
-        }
-        value++;
-    }
-
-    if (strings[value] == NULL) {
+    value = qapi_enum_parse(strings, enum_str, -1, NULL);
+    if (value < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER, enum_str);
         g_free(enum_str);
         return;
