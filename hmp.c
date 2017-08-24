@@ -1527,23 +1527,20 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     bool state = qdict_get_bool(qdict, "state");
     Error *err = NULL;
     MigrationCapabilityStatusList *caps = g_malloc0(sizeof(*caps));
-    int i;
+    int val;
 
-    for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-        if (strcmp(cap, MigrationCapability_lookup[i]) == 0) {
-            caps->value = g_malloc0(sizeof(*caps->value));
-            caps->value->capability = i;
-            caps->value->state = state;
-            caps->next = NULL;
-            qmp_migrate_set_capabilities(caps, &err);
-            break;
-        }
+    val = qapi_enum_parse(MigrationCapability_lookup, cap, -1, &err);
+    if (val < 0) {
+        goto end;
     }
 
-    if (i == MIGRATION_CAPABILITY__MAX) {
-        error_setg(&err, QERR_INVALID_PARAMETER, cap);
-    }
+    caps->value = g_malloc0(sizeof(*caps->value));
+    caps->value->capability = val;
+    caps->value->state = state;
+    caps->next = NULL;
+    qmp_migrate_set_capabilities(caps, &err);
 
+end:
     qapi_free_MigrationCapabilityStatusList(caps);
 
     if (err) {
