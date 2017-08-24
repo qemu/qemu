@@ -78,11 +78,6 @@ int cpu_tricore_handle_mmu_fault(CPUState *cs, target_ulong address,
     return ret;
 }
 
-TriCoreCPU *cpu_tricore_init(const char *cpu_model)
-{
-    return TRICORE_CPU(cpu_generic_init(TYPE_TRICORE_CPU, cpu_model));
-}
-
 static void tricore_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;

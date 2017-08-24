@@ -411,9 +411,7 @@ static inline void cpu_get_tb_cpu_state(CPUTriCoreState *env, target_ulong *pc,
     *flags = 0;
 }
 
-TriCoreCPU *cpu_tricore_init(const char *cpu_model);
-
-#define cpu_init(cpu_model) CPU(cpu_tricore_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_TRICORE_CPU, cpu_model)
 
 
 /* helpers.c */
