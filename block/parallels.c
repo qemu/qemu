@@ -72,7 +72,6 @@ static QEnumLookup prealloc_mode_lookup = {
     .array = (const char *const[]) {
         "falloc",
         "truncate",
-        NULL,
     },
     .size = PRL_PREALLOC_MODE__MAX
 };

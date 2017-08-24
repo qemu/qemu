@@ -51,7 +51,6 @@ const QEnumLookup dummy_animal_map = {
         [DUMMY_FROG] = "frog",
         [DUMMY_ALLIGATOR] = "alligator",
         [DUMMY_PLATYPUS] = "platypus",
-        [DUMMY_LAST] = NULL,
     },
     .size = DUMMY_LAST
 };
