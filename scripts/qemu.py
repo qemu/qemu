@@ -21,7 +21,14 @@ import qmp.qmp
 
 
 class QEMUMachine(object):
-    '''A QEMU VM'''
+    '''A QEMU VM
+
+    Use this object as a context manager to ensure the QEMU process terminates::
+
+        with VM(binary) as vm:
+            ...
+        # vm is guaranteed to be shut down here
+    '''
 
     def __init__(self, binary, args=[], wrapper=[], name=None, test_dir="/var/tmp",
                  monitor_address=None, socket_scm_helper=None, debug=False):
@@ -39,6 +46,13 @@ class QEMUMachine(object):
         self._iolog = None
         self._socket_scm_helper = socket_scm_helper
         self._debug = debug
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.shutdown()
+        return False
 
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
