@@ -1,0 +1,352 @@
+# -*- Mode: Python -*-
+#
+
+##
+# = VM run state
+##
+
+##
+# @RunState:
+#
+# An enumeration of VM run states.
+#
+# @debug: QEMU is running on a debugger
+#
+# @finish-migrate: guest is paused to finish the migration process
+#
+# @inmigrate: guest is paused waiting for an incoming migration.  Note
+# that this state does not tell whether the machine will start at the
+# end of the migration.  This depends on the command-line -S option and
+# any invocation of 'stop' or 'cont' that has happened since QEMU was
+# started.
+#
+# @internal-error: An internal error that prevents further guest execution
+# has occurred
+#
+# @io-error: the last IOP has failed and the device is configured to pause
+# on I/O errors
+#
+# @paused: guest has been paused via the 'stop' command
+#
+# @postmigrate: guest is paused following a successful 'migrate'
+#
+# @prelaunch: QEMU was started with -S and guest has not started
+#
+# @restore-vm: guest is paused to restore VM state
+#
+# @running: guest is actively running
+#
+# @save-vm: guest is paused to save the VM state
+#
+# @shutdown: guest is shut down (and -no-shutdown is in use)
+#
+# @suspended: guest is suspended (ACPI S3)
+#
+# @watchdog: the watchdog action is configured to pause and has been triggered
+#
+# @guest-panicked: guest has been panicked as a result of guest OS panic
+#
+# @colo: guest is paused to save/restore VM state under colo checkpoint,
+#        VM can not get into this state unless colo capability is enabled
+#        for migration. (since 2.8)
+##
+{ 'enum': 'RunState',
+  'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
+            'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
+            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
+            'guest-panicked', 'colo' ] }
+
+##
+# @StatusInfo:
+#
+# Information about VCPU run state
+#
+# @running: true if all VCPUs are runnable, false if not runnable
+#
+# @singlestep: true if VCPUs are in single-step mode
+#
+# @status: the virtual machine @RunState
+#
+# Since:  0.14.0
+#
+# Notes: @singlestep is enabled through the GDB stub
+##
+{ 'struct': 'StatusInfo',
+  'data': {'running': 'bool', 'singlestep': 'bool', 'status': 'RunState'} }
+
+##
+# @query-status:
+#
+# Query the run status of all VCPUs
+#
+# Returns: @StatusInfo reflecting all VCPUs
+#
+# Since:  0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-status" }
+# <- { "return": { "running": true,
+#                  "singlestep": false,
+#                  "status": "running" } }
+#
+##
+{ 'command': 'query-status', 'returns': 'StatusInfo' }
+
+##
+# @SHUTDOWN:
+#
+# Emitted when the virtual machine has shut down, indicating that qemu is
+# about to exit.
+#
+# @guest: If true, the shutdown was triggered by a guest request (such as
+# a guest-initiated ACPI shutdown request or other hardware-specific action)
+# rather than a host request (such as sending qemu a SIGINT). (since 2.10)
+#
+# Note: If the command-line option "-no-shutdown" has been specified, qemu will
+# not exit, and a STOP event will eventually follow the SHUTDOWN event
+#
+# Since: 0.12.0
+#
+# Example:
+#
+# <- { "event": "SHUTDOWN", "data": { "guest": true },
+#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#
+##
+{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool' } }
+
+##
+# @POWERDOWN:
+#
+# Emitted when the virtual machine is powered down through the power control
+# system, such as via ACPI.
+#
+# Since: 0.12.0
+#
+# Example:
+#
+# <- { "event": "POWERDOWN",
+#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
+#
+##
+{ 'event': 'POWERDOWN' }
+
+##
+# @RESET:
+#
+# Emitted when the virtual machine is reset
+#
+# @guest: If true, the reset was triggered by a guest request (such as
+# a guest-initiated ACPI reboot request or other hardware-specific action)
+# rather than a host request (such as the QMP command system_reset).
+# (since 2.10)
+#
+# Since: 0.12.0
+#
+# Example:
+#
+# <- { "event": "RESET", "data": { "guest": false },
+#      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
+#
+##
+{ 'event': 'RESET', 'data': { 'guest': 'bool' } }
+
+##
+# @STOP:
+#
+# Emitted when the virtual machine is stopped
+#
+# Since: 0.12.0
+#
+# Example:
+#
+# <- { "event": "STOP",
+#      "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
+#
+##
+{ 'event': 'STOP' }
+
+##
+# @RESUME:
+#
+# Emitted when the virtual machine resumes execution
+#
+# Since: 0.12.0
+#
+# Example:
+#
+# <- { "event": "RESUME",
+#      "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
+#
+##
+{ 'event': 'RESUME' }
+
+##
+# @SUSPEND:
+#
+# Emitted when guest enters a hardware suspension state, for example, S3 state,
+# which is sometimes called standby state
+#
+# Since: 1.1
+#
+# Example:
+#
+# <- { "event": "SUSPEND",
+#      "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#
+##
+{ 'event': 'SUSPEND' }
+
+##
+# @SUSPEND_DISK:
+#
+# Emitted when guest enters a hardware suspension state with data saved on
+# disk, for example, S4 state, which is sometimes called hibernate state
+#
+# Note: QEMU shuts down (similar to event @SHUTDOWN) when entering this state
+#
+# Since: 1.2
+#
+# Example:
+#
+# <-   { "event": "SUSPEND_DISK",
+#        "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
+#
+##
+{ 'event': 'SUSPEND_DISK' }
+
+##
+# @WAKEUP:
+#
+# Emitted when the guest has woken up from suspend state and is running
+#
+# Since: 1.1
+#
+# Example:
+#
+# <- { "event": "WAKEUP",
+#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#
+##
+{ 'event': 'WAKEUP' }
+
+##
+# @WATCHDOG:
+#
+# Emitted when the watchdog device's timer is expired
+#
+# @action: action that has been taken
+#
+# Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
+# followed respectively by the RESET, SHUTDOWN, or STOP events
+#
+# Note: This event is rate-limited.
+#
+# Since: 0.13.0
+#
+# Example:
+#
+# <- { "event": "WATCHDOG",
+#      "data": { "action": "reset" },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+#
+##
+{ 'event': 'WATCHDOG',
+  'data': { 'action': 'WatchdogExpirationAction' } }
+
+##
+# @WatchdogExpirationAction:
+#
+# An enumeration of the actions taken when the watchdog device's timer is
+# expired
+#
+# @reset: system resets
+#
+# @shutdown: system shutdown, note that it is similar to @powerdown, which
+#            tries to set to system status and notify guest
+#
+# @poweroff: system poweroff, the emulator program exits
+#
+# @pause: system pauses, similar to @stop
+#
+# @debug: system enters debug state
+#
+# @none: nothing is done
+#
+# @inject-nmi: a non-maskable interrupt is injected into the first VCPU (all
+#              VCPUS on x86) (since 2.4)
+#
+# Since: 2.1
+##
+{ 'enum': 'WatchdogExpirationAction',
+  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none',
+            'inject-nmi' ] }
+
+##
+# @GUEST_PANICKED:
+#
+# Emitted when guest OS panic is detected
+#
+# @action: action that has been taken, currently always "pause"
+#
+# @info: information about a panic (since 2.9)
+#
+# Since: 1.5
+#
+# Example:
+#
+# <- { "event": "GUEST_PANICKED",
+#      "data": { "action": "pause" } }
+#
+##
+{ 'event': 'GUEST_PANICKED',
+  'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
+
+##
+# @GuestPanicAction:
+#
+# An enumeration of the actions taken when guest OS panic is detected
+#
+# @pause: system pauses
+#
+# Since: 2.1 (poweroff since 2.8)
+##
+{ 'enum': 'GuestPanicAction',
+  'data': [ 'pause', 'poweroff' ] }
+
+##
+# @GuestPanicInformationType:
+#
+# An enumeration of the guest panic information types
+#
+# Since: 2.9
+##
+{ 'enum': 'GuestPanicInformationType',
+  'data': [ 'hyper-v'] }
+
+##
+# @GuestPanicInformation:
+#
+# Information about a guest panic
+#
+# Since: 2.9
+##
+{'union': 'GuestPanicInformation',
+ 'base': {'type': 'GuestPanicInformationType'},
+ 'discriminator': 'type',
+ 'data': { 'hyper-v': 'GuestPanicInformationHyperV' } }
+
+##
+# @GuestPanicInformationHyperV:
+#
+# Hyper-V specific guest panic information (HV crash MSRs)
+#
+# Since: 2.9
+##
+{'struct': 'GuestPanicInformationHyperV',
+ 'data': { 'arg1': 'uint64',
+           'arg2': 'uint64',
+           'arg3': 'uint64',
+           'arg4': 'uint64',
+           'arg5': 'uint64' } }

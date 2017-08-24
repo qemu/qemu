@@ -5,144 +5,6 @@
 ##
 
 ##
-# @SHUTDOWN:
-#
-# Emitted when the virtual machine has shut down, indicating that qemu is
-# about to exit.
-#
-# @guest: If true, the shutdown was triggered by a guest request (such as
-# a guest-initiated ACPI shutdown request or other hardware-specific action)
-# rather than a host request (such as sending qemu a SIGINT). (since 2.10)
-#
-# Note: If the command-line option "-no-shutdown" has been specified, qemu will
-# not exit, and a STOP event will eventually follow the SHUTDOWN event
-#
-# Since: 0.12.0
-#
-# Example:
-#
-# <- { "event": "SHUTDOWN", "data": { "guest": true },
-#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
-#
-##
-{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool' } }
-
-##
-# @POWERDOWN:
-#
-# Emitted when the virtual machine is powered down through the power control
-# system, such as via ACPI.
-#
-# Since: 0.12.0
-#
-# Example:
-#
-# <- { "event": "POWERDOWN",
-#      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
-#
-##
-{ 'event': 'POWERDOWN' }
-
-##
-# @RESET:
-#
-# Emitted when the virtual machine is reset
-#
-# @guest: If true, the reset was triggered by a guest request (such as
-# a guest-initiated ACPI reboot request or other hardware-specific action)
-# rather than a host request (such as the QMP command system_reset).
-# (since 2.10)
-#
-# Since: 0.12.0
-#
-# Example:
-#
-# <- { "event": "RESET", "data": { "guest": false },
-#      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
-#
-##
-{ 'event': 'RESET', 'data': { 'guest': 'bool' } }
-
-##
-# @STOP:
-#
-# Emitted when the virtual machine is stopped
-#
-# Since: 0.12.0
-#
-# Example:
-#
-# <- { "event": "STOP",
-#      "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
-#
-##
-{ 'event': 'STOP' }
-
-##
-# @RESUME:
-#
-# Emitted when the virtual machine resumes execution
-#
-# Since: 0.12.0
-#
-# Example:
-#
-# <- { "event": "RESUME",
-#      "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
-#
-##
-{ 'event': 'RESUME' }
-
-##
-# @SUSPEND:
-#
-# Emitted when guest enters a hardware suspension state, for example, S3 state,
-# which is sometimes called standby state
-#
-# Since: 1.1
-#
-# Example:
-#
-# <- { "event": "SUSPEND",
-#      "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
-#
-##
-{ 'event': 'SUSPEND' }
-
-##
-# @SUSPEND_DISK:
-#
-# Emitted when guest enters a hardware suspension state with data saved on
-# disk, for example, S4 state, which is sometimes called hibernate state
-#
-# Note: QEMU shuts down (similar to event @SHUTDOWN) when entering this state
-#
-# Since: 1.2
-#
-# Example:
-#
-# <-   { "event": "SUSPEND_DISK",
-#        "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
-#
-##
-{ 'event': 'SUSPEND_DISK' }
-
-##
-# @WAKEUP:
-#
-# Emitted when the guest has woken up from suspend state and is running
-#
-# Since: 1.1
-#
-# Example:
-#
-# <- { "event": "WAKEUP",
-#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
-#
-##
-{ 'event': 'WAKEUP' }
-
-##
 # @RTC_CHANGE:
 #
 # Emitted when the guest changes the RTC time.
@@ -163,30 +25,6 @@
 ##
 { 'event': 'RTC_CHANGE',
   'data': { 'offset': 'int' } }
-
-##
-# @WATCHDOG:
-#
-# Emitted when the watchdog device's timer is expired
-#
-# @action: action that has been taken
-#
-# Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
-# followed respectively by the RESET, SHUTDOWN, or STOP events
-#
-# Note: This event is rate-limited.
-#
-# Since: 0.13.0
-#
-# Example:
-#
-# <- { "event": "WATCHDOG",
-#      "data": { "action": "reset" },
-#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
-#
-##
-{ 'event': 'WATCHDOG',
-  'data': { 'action': 'WatchdogExpirationAction' } }
 
 ##
 # @DEVICE_DELETED:
@@ -489,26 +327,6 @@
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
-
-##
-# @GUEST_PANICKED:
-#
-# Emitted when guest OS panic is detected
-#
-# @action: action that has been taken, currently always "pause"
-#
-# @info: information about a panic (since 2.9)
-#
-# Since: 1.5
-#
-# Example:
-#
-# <- { "event": "GUEST_PANICKED",
-#      "data": { "action": "pause" } }
-#
-##
-{ 'event': 'GUEST_PANICKED',
-  'data': { 'action': 'GuestPanicAction', '*info': 'GuestPanicInformation' } }
 
 ##
 # @QUORUM_FAILURE:

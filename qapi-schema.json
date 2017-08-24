@@ -80,6 +80,7 @@
 
 { 'include': 'qapi/common.json' }
 { 'include': 'qapi/sockets.json' }
+{ 'include': 'qapi/run-state.json' }
 { 'include': 'qapi/crypto.json' }
 { 'include': 'qapi/block.json' }
 { 'include': 'qapi/rocker.json' }
@@ -241,94 +242,6 @@
 #
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
-
-##
-# @RunState:
-#
-# An enumeration of VM run states.
-#
-# @debug: QEMU is running on a debugger
-#
-# @finish-migrate: guest is paused to finish the migration process
-#
-# @inmigrate: guest is paused waiting for an incoming migration.  Note
-# that this state does not tell whether the machine will start at the
-# end of the migration.  This depends on the command-line -S option and
-# any invocation of 'stop' or 'cont' that has happened since QEMU was
-# started.
-#
-# @internal-error: An internal error that prevents further guest execution
-# has occurred
-#
-# @io-error: the last IOP has failed and the device is configured to pause
-# on I/O errors
-#
-# @paused: guest has been paused via the 'stop' command
-#
-# @postmigrate: guest is paused following a successful 'migrate'
-#
-# @prelaunch: QEMU was started with -S and guest has not started
-#
-# @restore-vm: guest is paused to restore VM state
-#
-# @running: guest is actively running
-#
-# @save-vm: guest is paused to save the VM state
-#
-# @shutdown: guest is shut down (and -no-shutdown is in use)
-#
-# @suspended: guest is suspended (ACPI S3)
-#
-# @watchdog: the watchdog action is configured to pause and has been triggered
-#
-# @guest-panicked: guest has been panicked as a result of guest OS panic
-#
-# @colo: guest is paused to save/restore VM state under colo checkpoint,
-#        VM can not get into this state unless colo capability is enabled
-#        for migration. (since 2.8)
-##
-{ 'enum': 'RunState',
-  'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
-            'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
-            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
-            'guest-panicked', 'colo' ] }
-
-##
-# @StatusInfo:
-#
-# Information about VCPU run state
-#
-# @running: true if all VCPUs are runnable, false if not runnable
-#
-# @singlestep: true if VCPUs are in single-step mode
-#
-# @status: the virtual machine @RunState
-#
-# Since:  0.14.0
-#
-# Notes: @singlestep is enabled through the GDB stub
-##
-{ 'struct': 'StatusInfo',
-  'data': {'running': 'bool', 'singlestep': 'bool', 'status': 'RunState'} }
-
-##
-# @query-status:
-#
-# Query the run status of all VCPUs
-#
-# Returns: @StatusInfo reflecting all VCPUs
-#
-# Since:  0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-status" }
-# <- { "return": { "running": true,
-#                  "singlestep": false,
-#                  "status": "running" } }
-#
-##
-{ 'command': 'query-status', 'returns': 'StatusInfo' }
 
 ##
 # @UuidInfo:
@@ -6017,34 +5930,6 @@
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
 
 ##
-# @WatchdogExpirationAction:
-#
-# An enumeration of the actions taken when the watchdog device's timer is
-# expired
-#
-# @reset: system resets
-#
-# @shutdown: system shutdown, note that it is similar to @powerdown, which
-#            tries to set to system status and notify guest
-#
-# @poweroff: system poweroff, the emulator program exits
-#
-# @pause: system pauses, similar to @stop
-#
-# @debug: system enters debug state
-#
-# @none: nothing is done
-#
-# @inject-nmi: a non-maskable interrupt is injected into the first VCPU (all
-#              VCPUS on x86) (since 2.4)
-#
-# Since: 2.1
-##
-{ 'enum': 'WatchdogExpirationAction',
-  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none',
-            'inject-nmi' ] }
-
-##
 # @IoOperationType:
 #
 # An enumeration of the I/O operation types
@@ -6057,54 +5942,6 @@
 ##
 { 'enum': 'IoOperationType',
   'data': [ 'read', 'write' ] }
-
-##
-# @GuestPanicAction:
-#
-# An enumeration of the actions taken when guest OS panic is detected
-#
-# @pause: system pauses
-#
-# Since: 2.1 (poweroff since 2.8)
-##
-{ 'enum': 'GuestPanicAction',
-  'data': [ 'pause', 'poweroff' ] }
-
-##
-# @GuestPanicInformationType:
-#
-# An enumeration of the guest panic information types
-#
-# Since: 2.9
-##
-{ 'enum': 'GuestPanicInformationType',
-  'data': [ 'hyper-v'] }
-
-##
-# @GuestPanicInformation:
-#
-# Information about a guest panic
-#
-# Since: 2.9
-##
-{'union': 'GuestPanicInformation',
- 'base': {'type': 'GuestPanicInformationType'},
- 'discriminator': 'type',
- 'data': { 'hyper-v': 'GuestPanicInformationHyperV' } }
-
-##
-# @GuestPanicInformationHyperV:
-#
-# Hyper-V specific guest panic information (HV crash MSRs)
-#
-# Since: 2.9
-##
-{'struct': 'GuestPanicInformationHyperV',
- 'data': { 'arg1': 'uint64',
-           'arg2': 'uint64',
-           'arg3': 'uint64',
-           'arg4': 'uint64',
-           'arg5': 'uint64' } }
 
 ##
 # @rtc-reset-reinjection:
