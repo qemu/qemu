@@ -89,11 +89,6 @@ static ObjectClass *cris_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-CRISCPU *cpu_cris_init(const char *cpu_model)
-{
-    return CRIS_CPU(cpu_generic_init(TYPE_CRIS_CPU, cpu_model));
-}
-
 /* Sort alphabetically by VR. */
 static gint cris_cpu_list_compare(gconstpointer a, gconstpointer b)
 {

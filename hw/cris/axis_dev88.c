@@ -271,7 +271,7 @@ void axisdev88_init(MachineState *machine)
     if (cpu_model == NULL) {
         cpu_model = "crisv32";
     }
-    cpu = cpu_cris_init(cpu_model);
+    cpu = CRIS_CPU(cpu_generic_init(TYPE_CRIS_CPU, cpu_model));
     env = &cpu->env;
 
     /* allocate RAM */
