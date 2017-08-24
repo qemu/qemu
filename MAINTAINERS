@@ -1253,6 +1253,7 @@ M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
 F: chardev/
 F: include/chardev/
+F: qapi/char.json
 
 Character Devices (Braille)
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
