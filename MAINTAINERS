@@ -1356,6 +1356,7 @@ S: Maintained
 F: net/
 F: include/net/
 T: git git://github.com/jasowang/qemu.git net
+F: qapi/net.json
 
 Netmap network backend
 M: Luigi Rizzo <rizzo@iet.unipi.it>
