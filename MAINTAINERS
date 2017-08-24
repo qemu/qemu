@@ -1320,12 +1320,14 @@ F: include/ui/spice-display.h
 F: ui/spice-*.c
 F: audio/spiceaudio.c
 F: hw/display/qxl*
+F: qapi/ui.json
 
 Graphics
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: ui/
 F: include/ui/
+F: qapi/ui.json
 
 Cocoa graphics
 M: Peter Maydell <peter.maydell@linaro.org>
