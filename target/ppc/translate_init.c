@@ -10271,11 +10271,6 @@ const char *ppc_cpu_lookup_alias(const char *alias)
     return NULL;
 }
 
-PowerPCCPU *cpu_ppc_init(const char *cpu_model)
-{
-    return POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
-}
-
 PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
 {
     ObjectClass *oc = OBJECT_CLASS(pcc);

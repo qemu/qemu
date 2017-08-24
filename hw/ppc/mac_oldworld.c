@@ -116,7 +116,8 @@ static void ppc_heathrow_init(MachineState *machine)
     if (machine->cpu_model == NULL)
         machine->cpu_model = "G3";
     for (i = 0; i < smp_cpus; i++) {
-        cpu = cpu_ppc_init(machine->cpu_model);
+        cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU,
+                                           machine->cpu_model));
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);

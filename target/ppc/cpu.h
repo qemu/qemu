@@ -1276,7 +1276,6 @@ extern const struct VMStateDescription vmstate_ppc_cpu;
 #endif
 
 /*****************************************************************************/
-PowerPCCPU *cpu_ppc_init(const char *cpu_model);
 void ppc_translate_init(void);
 const char *ppc_cpu_lookup_alias(const char *alias);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
@@ -1353,7 +1352,7 @@ static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp);
 int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 
-#define cpu_init(cpu_model) CPU(cpu_ppc_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_POWERPC_CPU, cpu_model)
 
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
