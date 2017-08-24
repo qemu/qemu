@@ -257,6 +257,11 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #else
 #define QEMU_MADV_NOHUGEPAGE QEMU_MADV_INVALID
 #endif
+#ifdef MADV_REMOVE
+#define QEMU_MADV_REMOVE MADV_REMOVE
+#else
+#define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+#endif
 
 #elif defined(CONFIG_POSIX_MADVISE)
 
@@ -269,6 +274,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
 #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
 #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+#define QEMU_MADV_REMOVE QEMU_MADV_INVALID
 
 #else /* no-op */
 
@@ -281,6 +287,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
 #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
 #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+#define QEMU_MADV_REMOVE QEMU_MADV_INVALID
 
 #endif
 
