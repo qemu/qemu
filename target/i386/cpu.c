@@ -2686,11 +2686,6 @@ static gchar *x86_gdb_arch_name(CPUState *cs)
 #endif
 }
 
-X86CPU *cpu_x86_init(const char *cpu_model)
-{
-    return X86_CPU(cpu_generic_init(TYPE_X86_CPU, cpu_model));
-}
-
 static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
     X86CPUDefinition *cpudef = data;

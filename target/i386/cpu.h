@@ -1327,7 +1327,6 @@ int x86_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void x86_cpu_exec_enter(CPUState *cpu);
 void x86_cpu_exec_exit(CPUState *cpu);
 
-X86CPU *cpu_x86_init(const char *cpu_model);
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
 
@@ -1507,7 +1506,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 
 #define PHYS_ADDR_MASK MAKE_64BIT_MASK(0, TCG_PHYS_ADDR_BITS)
 
-#define cpu_init(cpu_model) CPU(cpu_x86_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_X86_CPU, cpu_model)
 
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
