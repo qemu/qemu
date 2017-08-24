@@ -26,7 +26,6 @@
 
 #include "qemu-version.h"
 #include "qapi/error.h"
-#include "qapi/util.h"
 #include "qapi-visit.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qerror.h"

@@ -31,7 +31,6 @@
 #include "block/thread-pool.h"
 #include "qemu/iov.h"
 #include "block/raw-aio.h"
-#include "qapi/util.h"
 #include "qapi/qmp/qstring.h"
 
 #if defined(__APPLE__) && (__MACH__)

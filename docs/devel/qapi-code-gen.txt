@@ -1275,6 +1275,9 @@ Example:
         EXAMPLE_QAPI_EVENT__MAX = 1,
     } example_QAPIEvent;
 
+    #define example_QAPIEvent_str(val) \
+        qapi_enum_lookup(example_QAPIEvent_lookup, (val))
+
     extern const char *const example_QAPIEvent_lookup[];
 
     #endif

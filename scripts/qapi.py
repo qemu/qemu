@@ -1894,6 +1894,9 @@ typedef enum %(c_name)s {
 
     ret += mcgen('''
 
+#define %(c_name)s_str(val) \\
+    qapi_enum_lookup(%(c_name)s_lookup, (val))
+
 extern const char *const %(c_name)s_lookup[];
 ''',
                  c_name=c_name(name))

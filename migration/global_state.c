@@ -14,7 +14,6 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "qapi/util.h"
 #include "migration.h"
 #include "migration/global_state.h"
 #include "migration/vmstate.h"

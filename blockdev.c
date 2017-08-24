@@ -44,7 +44,6 @@
 #include "qapi-visit.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qobject-output-visitor.h"
-#include "qapi/util.h"
 #include "sysemu/sysemu.h"
 #include "block/block_int.h"
 #include "qmp-commands.h"

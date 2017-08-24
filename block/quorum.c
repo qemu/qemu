@@ -22,7 +22,6 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
-#include "qapi/util.h"
 #include "qapi-event.h"
 #include "crypto/hash.h"
 

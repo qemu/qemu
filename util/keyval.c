@@ -82,7 +82,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qstring.h"
-#include "qapi/util.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 

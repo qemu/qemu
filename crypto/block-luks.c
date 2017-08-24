@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qapi/util.h"
 #include "qemu/bswap.h"
 
 #include "crypto/block-luks.h"

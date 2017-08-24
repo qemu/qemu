@@ -13,7 +13,13 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "qapi/util.h"
+
+const char *qapi_enum_lookup(const char *const lookup[], int val)
+{
+    assert(val >= 0);
+
+    return lookup[val];
+}
 
 int qapi_enum_parse(const char * const lookup[], const char *buf,
                     int def, Error **errp)

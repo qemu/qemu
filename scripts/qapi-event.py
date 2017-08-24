@@ -217,6 +217,7 @@ fdef.write(mcgen('''
 
 fdecl.write(mcgen('''
 #include "qapi/error.h"
+#include "qapi/util.h"
 #include "qapi/qmp/qdict.h"
 #include "%(prefix)sqapi-types.h"
 

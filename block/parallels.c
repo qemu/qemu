@@ -35,7 +35,6 @@
 #include "qemu/module.h"
 #include "qemu/bswap.h"
 #include "qemu/bitmap.h"
-#include "qapi/util.h"
 
 /**************************************************************/
 

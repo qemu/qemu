@@ -14,7 +14,6 @@
 #include "qemu/osdep.h"
 
 #include "qapi/qmp/qerror.h"
-#include "qapi/util.h"
 #include "sysemu/tpm_backend.h"
 #include "sysemu/tpm.h"
 #include "qemu/config-file.h"
