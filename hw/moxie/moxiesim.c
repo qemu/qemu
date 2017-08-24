@@ -118,7 +118,7 @@ static void moxiesim_init(MachineState *machine)
     if (cpu_model == NULL) {
         cpu_model = "MoxieLite-moxie-cpu";
     }
-    cpu = cpu_moxie_init(cpu_model);
+    cpu = MOXIE_CPU(cpu_generic_init(TYPE_MOXIE_CPU, cpu_model));
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
