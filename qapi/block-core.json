@@ -5,6 +5,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'crypto.json' }
 { 'include': 'sockets.json' }
 
 ##

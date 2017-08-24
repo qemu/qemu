@@ -2816,20 +2816,6 @@
      'data': { 'info': 'ACPIOSTInfo' } }
 
 ##
-# @IoOperationType:
-#
-# An enumeration of the I/O operation types
-#
-# @read: read operation
-#
-# @write: write operation
-#
-# Since: 2.1
-##
-{ 'enum': 'IoOperationType',
-  'data': [ 'read', 'write' ] }
-
-##
 # @rtc-reset-reinjection:
 #
 # This command will reset the RTC interrupt reinjection backlog.

@@ -132,6 +132,20 @@
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
+# @IoOperationType:
+#
+# An enumeration of the I/O operation types
+#
+# @read: read operation
+#
+# @write: write operation
+#
+# Since: 2.1
+##
+{ 'enum': 'IoOperationType',
+  'data': [ 'read', 'write' ] }
+
+##
 # @OnOffAuto:
 #
 # An enumeration of three options: on, off, and auto
