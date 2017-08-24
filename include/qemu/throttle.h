@@ -63,7 +63,7 @@ typedef enum {
  * - The bkt.avg rate does not apply until the bucket is full,
  *   allowing the user to do bursts until then. The I/O limit during
  *   bursts is bkt.max. To enforce this limit we keep an additional
- *   bucket in bkt.burst_length that leaks at a rate of bkt.max units
+ *   bucket in bkt.burst_level that leaks at a rate of bkt.max units
  *   per second.
  *
  * - Because of all of the above, the user can perform I/O at a
