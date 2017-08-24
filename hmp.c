@@ -1556,83 +1556,81 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     MigrateSetParameters *p = g_new0(MigrateSetParameters, 1);
     uint64_t valuebw = 0;
     Error *err = NULL;
-    int i, ret;
+    int val, ret;
 
-    for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
-        if (strcmp(param, MigrationParameter_lookup[i]) == 0) {
-            switch (i) {
-            case MIGRATION_PARAMETER_COMPRESS_LEVEL:
-                p->has_compress_level = true;
-                visit_type_int(v, param, &p->compress_level, &err);
-                break;
-            case MIGRATION_PARAMETER_COMPRESS_THREADS:
-                p->has_compress_threads = true;
-                visit_type_int(v, param, &p->compress_threads, &err);
-                break;
-            case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
-                p->has_decompress_threads = true;
-                visit_type_int(v, param, &p->decompress_threads, &err);
-                break;
-            case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
-                p->has_cpu_throttle_initial = true;
-                visit_type_int(v, param, &p->cpu_throttle_initial, &err);
-                break;
-            case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
-                p->has_cpu_throttle_increment = true;
-                visit_type_int(v, param, &p->cpu_throttle_increment, &err);
-                break;
-            case MIGRATION_PARAMETER_TLS_CREDS:
-                p->has_tls_creds = true;
-                p->tls_creds = g_new0(StrOrNull, 1);
-                p->tls_creds->type = QTYPE_QSTRING;
-                visit_type_str(v, param, &p->tls_creds->u.s, &err);
-                break;
-            case MIGRATION_PARAMETER_TLS_HOSTNAME:
-                p->has_tls_hostname = true;
-                p->tls_hostname = g_new0(StrOrNull, 1);
-                p->tls_hostname->type = QTYPE_QSTRING;
-                visit_type_str(v, param, &p->tls_hostname->u.s, &err);
-                break;
-            case MIGRATION_PARAMETER_MAX_BANDWIDTH:
-                p->has_max_bandwidth = true;
-                /*
-                 * Can't use visit_type_size() here, because it
-                 * defaults to Bytes rather than Mebibytes.
-                 */
-                ret = qemu_strtosz_MiB(valuestr, NULL, &valuebw);
-                if (ret < 0 || valuebw > INT64_MAX
-                    || (size_t)valuebw != valuebw) {
-                    error_setg(&err, "Invalid size %s", valuestr);
-                    break;
-                }
-                p->max_bandwidth = valuebw;
-                break;
-            case MIGRATION_PARAMETER_DOWNTIME_LIMIT:
-                p->has_downtime_limit = true;
-                visit_type_int(v, param, &p->downtime_limit, &err);
-                break;
-            case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
-                p->has_x_checkpoint_delay = true;
-                visit_type_int(v, param, &p->x_checkpoint_delay, &err);
-                break;
-            case MIGRATION_PARAMETER_BLOCK_INCREMENTAL:
-                p->has_block_incremental = true;
-                visit_type_bool(v, param, &p->block_incremental, &err);
-                break;
-            }
+    val = qapi_enum_parse(MigrationParameter_lookup, param, -1, &err);
+    if (val < 0) {
+        goto cleanup;
+    }
 
-            if (err) {
-                goto cleanup;
-            }
-
-            qmp_migrate_set_parameters(p, &err);
+    switch (val) {
+    case MIGRATION_PARAMETER_COMPRESS_LEVEL:
+        p->has_compress_level = true;
+        visit_type_int(v, param, &p->compress_level, &err);
+        break;
+    case MIGRATION_PARAMETER_COMPRESS_THREADS:
+        p->has_compress_threads = true;
+        visit_type_int(v, param, &p->compress_threads, &err);
+        break;
+    case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
+        p->has_decompress_threads = true;
+        visit_type_int(v, param, &p->decompress_threads, &err);
+        break;
+    case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
+        p->has_cpu_throttle_initial = true;
+        visit_type_int(v, param, &p->cpu_throttle_initial, &err);
+        break;
+    case MIGRATION_PARAMETER_CPU_THROTTLE_INCREMENT:
+        p->has_cpu_throttle_increment = true;
+        visit_type_int(v, param, &p->cpu_throttle_increment, &err);
+        break;
+    case MIGRATION_PARAMETER_TLS_CREDS:
+        p->has_tls_creds = true;
+        p->tls_creds = g_new0(StrOrNull, 1);
+        p->tls_creds->type = QTYPE_QSTRING;
+        visit_type_str(v, param, &p->tls_creds->u.s, &err);
+        break;
+    case MIGRATION_PARAMETER_TLS_HOSTNAME:
+        p->has_tls_hostname = true;
+        p->tls_hostname = g_new0(StrOrNull, 1);
+        p->tls_hostname->type = QTYPE_QSTRING;
+        visit_type_str(v, param, &p->tls_hostname->u.s, &err);
+        break;
+    case MIGRATION_PARAMETER_MAX_BANDWIDTH:
+        p->has_max_bandwidth = true;
+        /*
+         * Can't use visit_type_size() here, because it
+         * defaults to Bytes rather than Mebibytes.
+         */
+        ret = qemu_strtosz_MiB(valuestr, NULL, &valuebw);
+        if (ret < 0 || valuebw > INT64_MAX
+            || (size_t)valuebw != valuebw) {
+            error_setg(&err, "Invalid size %s", valuestr);
             break;
         }
+        p->max_bandwidth = valuebw;
+        break;
+    case MIGRATION_PARAMETER_DOWNTIME_LIMIT:
+        p->has_downtime_limit = true;
+        visit_type_int(v, param, &p->downtime_limit, &err);
+        break;
+    case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
+        p->has_x_checkpoint_delay = true;
+        visit_type_int(v, param, &p->x_checkpoint_delay, &err);
+        break;
+    case MIGRATION_PARAMETER_BLOCK_INCREMENTAL:
+        p->has_block_incremental = true;
+        visit_type_bool(v, param, &p->block_incremental, &err);
+        break;
+    default:
+        assert(0);
     }
 
-    if (i == MIGRATION_PARAMETER__MAX) {
-        error_setg(&err, QERR_INVALID_PARAMETER, param);
+    if (err) {
+        goto cleanup;
     }
+
+    qmp_migrate_set_parameters(p, &err);
 
  cleanup:
     qapi_free_MigrateSetParameters(p);
