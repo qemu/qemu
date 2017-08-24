@@ -1498,6 +1498,7 @@ F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
 F: docs/migration.txt
+F: qapi/migration.json
 
 Seccomp
 M: Eduardo Otubo <otubo@redhat.com>

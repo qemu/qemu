@@ -51,44 +51,6 @@
   'data': { '*device': 'str', 'path': 'str' } }
 
 ##
-# @MIGRATION:
-#
-# Emitted when a migration event happens
-#
-# @status: @MigrationStatus describing the current migration status.
-#
-# Since: 2.4
-#
-# Example:
-#
-# <- {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
-#     "event": "MIGRATION",
-#     "data": {"status": "completed"} }
-#
-##
-{ 'event': 'MIGRATION',
-  'data': {'status': 'MigrationStatus'}}
-
-##
-# @MIGRATION_PASS:
-#
-# Emitted from the source side of a migration at the start of each pass
-# (when it syncs the dirty bitmap)
-#
-# @pass: An incrementing count (starting at 1 on the first pass)
-#
-# Since: 2.6
-#
-# Example:
-#
-# { "timestamp": {"seconds": 1449669631, "microseconds": 239225},
-#   "event": "MIGRATION_PASS", "data": {"pass": 2} }
-#
-##
-{ 'event': 'MIGRATION_PASS',
-  'data': { 'pass': 'int' } }
-
-##
 # @ACPI_DEVICE_OST:
 #
 # Emitted when guest executes ACPI _OST method.

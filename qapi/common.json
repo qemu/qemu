@@ -173,3 +173,19 @@
 { 'struct': 'String',
   'data': {
     'str': 'str' } }
+
+##
+# @StrOrNull:
+#
+# This is a string value or the explicit lack of a string (null
+# pointer in C).  Intended for cases when 'optional absent' already
+# has a different meaning.
+#
+# @s: the string value
+# @n: no string value
+#
+# Since: 2.10
+##
+{ 'alternate': 'StrOrNull',
+  'data': { 's': 'str',
+            'n': 'null' } }
