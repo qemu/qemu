@@ -160,6 +160,9 @@ ERROR_WHITELIST = [
     {'machine':'q35|pc.*', 'device':'kvm-ioapic', 'expected':True}, # Only 1 ioapics allowed
     {'machine':'q35|pc.*', 'device':'ioapic', 'expected':True},     # Only 1 ioapics allowed
 
+    # "spapr-cpu-core needs a pseries machine"
+    {'machine':'(?!pseries).*', 'device':'.*-spapr-cpu-core', 'expected':True},
+
     # KVM-specific devices shouldn't be tried without accel=kvm:
     {'accel':'(?!kvm).*', 'device':'kvmclock', 'expected':True},
     {'accel':'(?!kvm).*', 'device':'kvm-pci-assign', 'expected':True},
