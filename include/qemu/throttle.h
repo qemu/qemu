@@ -81,7 +81,7 @@ typedef struct LeakyBucket {
     uint64_t max;             /* leaky bucket max burst in units */
     double  level;            /* bucket level in units */
     double  burst_level;      /* bucket level in units (for computing bursts) */
-    unsigned burst_length;    /* max length of the burst period, in seconds */
+    uint64_t burst_length;    /* max length of the burst period, in seconds */
 } LeakyBucket;
 
 /* The following structure is used to configure a ThrottleState

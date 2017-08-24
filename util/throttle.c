@@ -354,6 +354,11 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
             return false;
         }
 
+        if (bkt->max && bkt->burst_length > THROTTLE_VALUE_MAX / bkt->max) {
+            error_setg(errp, "burst length too high for this burst rate");
+            return false;
+        }
+
         if (bkt->max && !bkt->avg) {
             error_setg(errp, "bps_max/iops_max require corresponding"
                        " bps/iops values");
