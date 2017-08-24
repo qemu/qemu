@@ -31,7 +31,7 @@ static void test_qapi_enum_parse(void)
     ret = qapi_enum_parse(QType_lookup, "none", -1, &error_abort);
     g_assert_cmpint(ret, ==, QTYPE_NONE);
 
-    ret = qapi_enum_parse(QType_lookup, QType_lookup[QTYPE__MAX - 1],
+    ret = qapi_enum_parse(QType_lookup, QType_str(QTYPE__MAX - 1),
                           QTYPE__MAX - 1, &error_abort);
     g_assert_cmpint(ret, ==, QTYPE__MAX - 1);
 }

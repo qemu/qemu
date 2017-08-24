@@ -61,7 +61,7 @@ static void secondary_vm_do_failover(void)
                         FAILOVER_STATUS_RELAUNCH);
         if (old_state != FAILOVER_STATUS_ACTIVE) {
             error_report("Unknown error while do failover for secondary VM,"
-                         "old_state: %s", FailoverStatus_lookup[old_state]);
+                         "old_state: %s", FailoverStatus_str(old_state));
         }
         return;
     }
@@ -91,7 +91,7 @@ static void secondary_vm_do_failover(void)
                                    FAILOVER_STATUS_COMPLETED);
     if (old_state != FAILOVER_STATUS_ACTIVE) {
         error_report("Incorrect state (%s) while doing failover for "
-                     "secondary VM", FailoverStatus_lookup[old_state]);
+                     "secondary VM", FailoverStatus_str(old_state));
         return;
     }
     /* Notify COLO incoming thread that failover work is finished */
@@ -126,7 +126,7 @@ static void primary_vm_do_failover(void)
                                    FAILOVER_STATUS_COMPLETED);
     if (old_state != FAILOVER_STATUS_ACTIVE) {
         error_report("Incorrect state (%s) while doing failover for Primary VM",
-                     FailoverStatus_lookup[old_state]);
+                     FailoverStatus_str(old_state));
         return;
     }
     /* Notify COLO thread that failover work is finished */
@@ -222,7 +222,7 @@ static void colo_send_message(QEMUFile *f, COLOMessage msg,
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Can't send COLO message");
     }
-    trace_colo_send_message(COLOMessage_lookup[msg]);
+    trace_colo_send_message(COLOMessage_str(msg));
 }
 
 static void colo_send_message_value(QEMUFile *f, COLOMessage msg,
@@ -242,7 +242,7 @@ static void colo_send_message_value(QEMUFile *f, COLOMessage msg,
     ret = qemu_file_get_error(f);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to send value for message:%s",
-                         COLOMessage_lookup[msg]);
+                         COLOMessage_str(msg));
     }
 }
 
@@ -261,7 +261,7 @@ static COLOMessage colo_receive_message(QEMUFile *f, Error **errp)
         error_setg(errp, "%s: Invalid message", __func__);
         return msg;
     }
-    trace_colo_receive_message(COLOMessage_lookup[msg]);
+    trace_colo_receive_message(COLOMessage_str(msg));
     return msg;
 }
 
@@ -299,7 +299,7 @@ static uint64_t colo_receive_message_value(QEMUFile *f, uint32_t expect_msg,
     ret = qemu_file_get_error(f);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to get value for COLO message: %s",
-                         COLOMessage_lookup[expect_msg]);
+                         COLOMessage_str(expect_msg));
     }
     return value;
 }

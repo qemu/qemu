@@ -385,7 +385,7 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
     for (i = 0; i < ENUM_ONE__MAX; i++) {
         EnumOne res = -1;
 
-        v = visitor_input_test_init(data, "%s", EnumOne_lookup[i]);
+        v = visitor_input_test_init(data, "%s", EnumOne_str(i));
 
         visit_type_EnumOne(v, NULL, &res, &error_abort);
         g_assert_cmpint(i, ==, res);
@@ -699,7 +699,7 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
         }
     }
     g_string_append_printf(gstr_union,  "{ 'type': '%s', 'data': [ %s ] }",
-                           UserDefNativeListUnionKind_lookup[kind],
+                           UserDefNativeListUnionKind_str(kind),
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 

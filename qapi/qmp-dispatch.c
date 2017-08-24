@@ -118,7 +118,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
 QObject *qmp_build_error_object(Error *err)
 {
     return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
-                              QapiErrorClass_lookup[error_get_class(err)],
+                              QapiErrorClass_str(error_get_class(err)),
                               error_get_pretty(err));
 }
 

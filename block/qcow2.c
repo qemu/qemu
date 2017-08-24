@@ -2715,7 +2715,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         int64_t prealloc_size =
             qcow2_calc_prealloc_size(total_size, cluster_size, refcount_order);
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE, prealloc_size, &error_abort);
-        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_lookup[prealloc],
+        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_str(prealloc),
                      &error_abort);
     }
 
@@ -3080,7 +3080,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         prealloc != PREALLOC_MODE_FALLOC && prealloc != PREALLOC_MODE_FULL)
     {
         error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
+                   PreallocMode_str(prealloc));
         return -ENOTSUP;
     }
 

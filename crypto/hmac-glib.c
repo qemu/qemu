@@ -58,7 +58,7 @@ void *qcrypto_hmac_ctx_new(QCryptoHashAlgorithm alg,
 
     if (!qcrypto_hmac_supports(alg)) {
         error_setg(errp, "Unsupported hmac algorithm %s",
-                   QCryptoHashAlgorithm_lookup[alg]);
+                   QCryptoHashAlgorithm_str(alg));
         return NULL;
     }
 

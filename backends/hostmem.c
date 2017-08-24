@@ -304,7 +304,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
             return;
         } else if (maxnode == 0 && backend->policy != MPOL_DEFAULT) {
             error_setg(errp, "host-nodes must be set for policy %s",
-                       HostMemPolicy_lookup[backend->policy]);
+                       HostMemPolicy_str(backend->policy));
             return;
         }
 

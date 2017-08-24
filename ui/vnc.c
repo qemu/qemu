@@ -131,7 +131,7 @@ static void vnc_init_basic_info(SocketAddress *addr,
     case SOCKET_ADDRESS_TYPE_VSOCK:
     case SOCKET_ADDRESS_TYPE_FD:
         error_setg(errp, "Unsupported socket address type %s",
-                   SocketAddressType_lookup[addr->type]);
+                   SocketAddressType_str(addr->type));
         break;
     default:
         abort();
@@ -416,7 +416,7 @@ VncInfo *qmp_query_vnc(Error **errp)
         case SOCKET_ADDRESS_TYPE_VSOCK:
         case SOCKET_ADDRESS_TYPE_FD:
             error_setg(errp, "Unsupported socket address type %s",
-                       SocketAddressType_lookup[addr->type]);
+                       SocketAddressType_str(addr->type));
             goto out_error;
         default:
             abort();
@@ -1839,7 +1839,7 @@ static void vnc_release_modifiers(VncState *vs)
 
 static const char *code2name(int keycode)
 {
-    return QKeyCode_lookup[qemu_input_key_number_to_qcode(keycode)];
+    return QKeyCode_str(qemu_input_key_number_to_qcode(keycode));
 }
 
 static void key_event(VncState *vs, int down, uint32_t sym)

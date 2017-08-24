@@ -282,7 +282,7 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
     for (i = 0; i < ENUM_ONE__MAX; i++) {
         EnumOne res = -1;
 
-        v = visitor_input_test_init(data, EnumOne_lookup[i]);
+        v = visitor_input_test_init(data, EnumOne_str(i));
 
         visit_type_EnumOne(v, NULL, &res, &err);
         g_assert(!err);

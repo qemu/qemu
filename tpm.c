@@ -62,7 +62,7 @@ static void tpm_display_backend_drivers(void)
             continue;
         }
         fprintf(stderr, "%12s   %s\n",
-                TpmType_lookup[i], be_drivers[i]->desc());
+                TpmType_str(i), be_drivers[i]->desc());
     }
     fprintf(stderr, "\n");
 }
