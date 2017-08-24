@@ -89,8 +89,7 @@ static int global_state_post_load(void *opaque, int version_id)
     s->received = true;
     trace_migrate_global_state_post_load(runstate);
 
-    r = qapi_enum_parse(RunState_lookup, runstate, RUN_STATE__MAX,
-                                -1, &local_err);
+    r = qapi_enum_parse(RunState_lookup, runstate, -1, &local_err);
 
     if (r == -1) {
         if (local_err) {

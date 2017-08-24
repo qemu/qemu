@@ -697,7 +697,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     s->prealloc_size = MAX(s->tracks, s->prealloc_size >> BDRV_SECTOR_BITS);
     buf = qemu_opt_get_del(opts, PARALLELS_OPT_PREALLOC_MODE);
     s->prealloc_mode = qapi_enum_parse(prealloc_mode_lookup, buf,
-            PRL_PREALLOC_MODE__MAX, PRL_PREALLOC_MODE_FALLOCATE, &local_err);
+                                       PRL_PREALLOC_MODE_FALLOCATE,
+                                       &local_err);
     g_free(buf);
     if (local_err != NULL) {
         goto fail_options;

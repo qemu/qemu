@@ -1742,7 +1742,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
         if (read_only) {
             read_only_mode =
                 qapi_enum_parse(BlockdevChangeReadOnlyMode_lookup,
-                                read_only, BLOCKDEV_CHANGE_READ_ONLY_MODE__MAX,
+                                read_only,
                                 BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN, &err);
             if (err) {
                 hmp_handle_error(mon, &err);

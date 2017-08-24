@@ -440,7 +440,6 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
         *detect_zeroes =
             qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
                             qemu_opt_get(opts, "detect-zeroes"),
-                            BLOCKDEV_DETECT_ZEROES_OPTIONS__MAX,
                             BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
                             &local_error);
         if (local_error) {

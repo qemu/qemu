@@ -182,8 +182,7 @@ static void test_query(const void *data)
     } else {
         g_assert(error);
         g_assert_cmpint(qapi_enum_parse(QapiErrorClass_lookup, error_class,
-                                        QAPI_ERROR_CLASS__MAX, -1,
-                                        &error_abort),
+                                        -1, &error_abort),
                         ==, expected_error_class);
     }
     QDECREF(resp);

@@ -16,7 +16,7 @@
 #include "qapi/util.h"
 
 int qapi_enum_parse(const char * const lookup[], const char *buf,
-                    int max, int def, Error **errp)
+                    int def, Error **errp)
 {
     int i;
 
@@ -24,7 +24,7 @@ int qapi_enum_parse(const char * const lookup[], const char *buf,
         return def;
     }
 
-    for (i = 0; i < max; i++) {
+    for (i = 0; lookup[i]; i++) {
         if (!strcmp(buf, lookup[i])) {
             return i;
         }

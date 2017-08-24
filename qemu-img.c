@@ -3491,8 +3491,7 @@ static int img_resize(int argc, char **argv)
             break;
         case OPTION_PREALLOCATION:
             prealloc = qapi_enum_parse(PreallocMode_lookup, optarg,
-                                       PREALLOC_MODE__MAX, PREALLOC_MODE__MAX,
-                                       NULL);
+                                       PREALLOC_MODE__MAX, NULL);
             if (prealloc == PREALLOC_MODE__MAX) {
                 error_report("Invalid preallocation mode '%s'", optarg);
                 return 1;
