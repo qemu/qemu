@@ -22,6 +22,8 @@
 #include "cpu.h"
 #include "qemu/error-report.h"
 #include "exec/exec-all.h"
+#include "hw/qdev-properties.h"
+#include "qapi/visitor.h"
 
 //#define DEBUG_FEATURES
 
@@ -852,6 +854,69 @@ static void sparc_cpu_initfn(Object *obj)
     }
 }
 
+static void sparc_get_nwindows(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    SPARCCPU *cpu = SPARC_CPU(obj);
+    int64_t value = cpu->env.def.nwindows;
+
+    visit_type_int(v, name, &value, errp);
+}
+
+static void sparc_set_nwindows(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    const int64_t min = MIN_NWINDOWS;
+    const int64_t max = MAX_NWINDOWS;
+    SPARCCPU *cpu = SPARC_CPU(obj);
+    Error *err = NULL;
+    int64_t value;
+
+    visit_type_int(v, name, &value, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    if (value < min || value > max) {
+        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
+                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
+                   object_get_typename(obj), name ? name : "null",
+                   value, min, max);
+        return;
+    }
+    cpu->env.def.nwindows = value;
+}
+
+static PropertyInfo qdev_prop_nwindows = {
+    .name  = "int",
+    .get   = sparc_get_nwindows,
+    .set   = sparc_set_nwindows,
+};
+
+static Property sparc_cpu_properties[] = {
+    DEFINE_PROP_BIT("float",    SPARCCPU, env.def.features, 0, false),
+    DEFINE_PROP_BIT("float128", SPARCCPU, env.def.features, 1, false),
+    DEFINE_PROP_BIT("swap",     SPARCCPU, env.def.features, 2, false),
+    DEFINE_PROP_BIT("mul",      SPARCCPU, env.def.features, 3, false),
+    DEFINE_PROP_BIT("div",      SPARCCPU, env.def.features, 4, false),
+    DEFINE_PROP_BIT("flush",    SPARCCPU, env.def.features, 5, false),
+    DEFINE_PROP_BIT("fsqrt",    SPARCCPU, env.def.features, 6, false),
+    DEFINE_PROP_BIT("fmul",     SPARCCPU, env.def.features, 7, false),
+    DEFINE_PROP_BIT("vis1",     SPARCCPU, env.def.features, 8, false),
+    DEFINE_PROP_BIT("vis2",     SPARCCPU, env.def.features, 9, false),
+    DEFINE_PROP_BIT("fsmuld",   SPARCCPU, env.def.features, 10, false),
+    DEFINE_PROP_BIT("hypv",     SPARCCPU, env.def.features, 11, false),
+    DEFINE_PROP_BIT("cmt",      SPARCCPU, env.def.features, 12, false),
+    DEFINE_PROP_BIT("gl",       SPARCCPU, env.def.features, 13, false),
+    DEFINE_PROP_UNSIGNED("iu-version", SPARCCPU, env.def.iu_version, 0,
+                         qdev_prop_uint64, target_ulong),
+    DEFINE_PROP_UINT32("fpu-version", SPARCCPU, env.def.fpu_version, 0),
+    DEFINE_PROP_UINT32("mmu-version", SPARCCPU, env.def.mmu_version, 0),
+    { .name  = "nwindows", .info  = &qdev_prop_nwindows },
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 {
     SPARCCPUClass *scc = SPARC_CPU_CLASS(oc);
@@ -860,6 +925,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
 
     scc->parent_realize = dc->realize;
     dc->realize = sparc_cpu_realizefn;
+    dc->props = sparc_cpu_properties;
 
     scc->parent_reset = cc->reset;
     cc->reset = sparc_cpu_reset;
