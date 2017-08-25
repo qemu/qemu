@@ -78,7 +78,7 @@ for extra_args in \
     # Give qemu some time to boot before saving the VM state
     { sleep 1; printf "savevm 0\nquit\n"; } | _qemu $extra_args
     # Now try to continue from that VM state (this should just work)
-    echo quit | _qemu $extra_args -loadvm 0
+    { sleep 1; printf "loadvm 0\nloadvm 0\nquit\n"; } | _qemu $extra_args -S
 done
 
 # success, all done
