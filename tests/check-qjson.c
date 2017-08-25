@@ -1094,13 +1094,13 @@ static void simple_dict(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         str = qobject_to_json(obj);
         qobject_decref(obj);
 
         obj = qobject_from_json(qstring_get_str(str), &error_abort);
-        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
         qobject_decref(obj);
         QDECREF(str);
     }
@@ -1203,13 +1203,13 @@ static void simple_list(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         str = qobject_to_json(obj);
         qobject_decref(obj);
 
         obj = qobject_from_json(qstring_get_str(str), &error_abort);
-        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
         qobject_decref(obj);
         QDECREF(str);
     }
@@ -1265,13 +1265,13 @@ static void simple_whitespace(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         str = qobject_to_json(obj);
         qobject_decref(obj);
 
         obj = qobject_from_json(qstring_get_str(str), &error_abort);
-        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         qobject_decref(obj);
         QDECREF(str);
@@ -1295,7 +1295,7 @@ static void simple_varargs(void)
     g_assert(embedded_obj != NULL);
 
     obj = qobject_from_jsonf("[%d, 2, %p]", 1, embedded_obj);
-    g_assert(qlit_equal_qobject(&decoded, obj) == 1);
+    g_assert(qlit_equal_qobject(&decoded, obj));
 
     qobject_decref(obj);
 }
