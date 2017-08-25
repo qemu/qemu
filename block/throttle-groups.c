@@ -391,9 +391,6 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
 
 static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write)
 {
-    BlockBackendPublic *blkp = container_of(tgm, BlockBackendPublic,
-            throttle_group_member);
-    BlockBackend *blk = blk_by_public(blkp);
     Coroutine *co;
     RestartData rd = {
         .tgm = tgm,
@@ -401,7 +398,7 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write
     };
 
     co = qemu_coroutine_create(throttle_group_restart_queue_entry, &rd);
-    aio_co_enter(blk_get_aio_context(blk), co);
+    aio_co_enter(tgm->aio_context, co);
 }
 
 void throttle_group_restart_tgm(ThrottleGroupMember *tgm)
@@ -449,13 +446,11 @@ void throttle_group_get_config(ThrottleGroupMember *tgm, ThrottleConfig *cfg)
 /* ThrottleTimers callback. This wakes up a request that was waiting
  * because it had been throttled.
  *
- * @blk:       the BlockBackend whose request had been throttled
+ * @tgm:       the ThrottleGroupMember whose request had been throttled
  * @is_write:  the type of operation (read/write)
  */
-static void timer_cb(BlockBackend *blk, bool is_write)
+static void timer_cb(ThrottleGroupMember *tgm, bool is_write)
 {
-    BlockBackendPublic *blkp = blk_get_public(blk);
-    ThrottleGroupMember *tgm = &blkp->throttle_group_member;
     ThrottleState *ts = tgm->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
 
@@ -484,18 +479,18 @@ static void write_timer_cb(void *opaque)
  *
  * @tgm:       the ThrottleGroupMember to insert
  * @groupname: the name of the group
+ * @ctx:       the AioContext to use
  */
 void throttle_group_register_tgm(ThrottleGroupMember *tgm,
-                                 const char *groupname)
+                                 const char *groupname,
+                                 AioContext *ctx)
 {
     int i;
-    BlockBackendPublic *blkp = container_of(tgm, BlockBackendPublic,
-            throttle_group_member);
-    BlockBackend *blk = blk_by_public(blkp);
     ThrottleState *ts = throttle_group_incref(groupname);
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
 
     tgm->throttle_state = ts;
+    tgm->aio_context = ctx;
 
     qemu_mutex_lock(&tg->lock);
     /* If the ThrottleGroup is new set this ThrottleGroupMember as the token */
@@ -508,11 +503,11 @@ void throttle_group_register_tgm(ThrottleGroupMember *tgm,
     QLIST_INSERT_HEAD(&tg->head, tgm, round_robin);
 
     throttle_timers_init(&tgm->throttle_timers,
-                         blk_get_aio_context(blk),
+                         tgm->aio_context,
                          tg->clock_type,
                          read_timer_cb,
                          write_timer_cb,
-                         blk);
+                         tgm);
 
     qemu_mutex_unlock(&tg->lock);
 }
@@ -557,6 +552,21 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
 
     throttle_group_unref(&tg->ts);
     tgm->throttle_state = NULL;
+}
+
+void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
+                                       AioContext *new_context)
+{
+    ThrottleTimers *tt = &tgm->throttle_timers;
+    throttle_timers_attach_aio_context(tt, new_context);
+    tgm->aio_context = new_context;
+}
+
+void throttle_group_detach_aio_context(ThrottleGroupMember *tgm)
+{
+    ThrottleTimers *tt = &tgm->throttle_timers;
+    throttle_timers_detach_aio_context(tt);
+    tgm->aio_context = NULL;
 }
 
 static void throttle_groups_init(void)

@@ -33,6 +33,7 @@
  */
 
 typedef struct ThrottleGroupMember {
+    AioContext   *aio_context;
     /* throttled_reqs_lock protects the CoQueues for throttled requests.  */
     CoMutex      throttled_reqs_lock;
     CoQueue      throttled_reqs[2];
@@ -61,12 +62,16 @@ void throttle_group_config(ThrottleGroupMember *tgm, ThrottleConfig *cfg);
 void throttle_group_get_config(ThrottleGroupMember *tgm, ThrottleConfig *cfg);
 
 void throttle_group_register_tgm(ThrottleGroupMember *tgm,
-                                const char *groupname);
+                                const char *groupname,
+                                AioContext *ctx);
 void throttle_group_unregister_tgm(ThrottleGroupMember *tgm);
 void throttle_group_restart_tgm(ThrottleGroupMember *tgm);
 
 void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm,
                                                         unsigned int bytes,
                                                         bool is_write);
+void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
+                                       AioContext *new_context);
+void throttle_group_detach_aio_context(ThrottleGroupMember *tgm);
 
 #endif
