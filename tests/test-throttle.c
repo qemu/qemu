@@ -739,6 +739,7 @@ int main(int argc, char **argv)
     qemu_init_main_loop(&error_fatal);
     ctx = qemu_get_aio_context();
     bdrv_init();
+    module_call_init(MODULE_INIT_QOM);
 
     do {} while (g_main_context_iteration(NULL, false));
 

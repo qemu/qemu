@@ -484,3 +484,154 @@ void throttle_account(ThrottleState *ts, bool is_write, uint64_t size)
     }
 }
 
+/* return a ThrottleConfig based on the options in a ThrottleLimits
+ *
+ * @arg:    the ThrottleLimits object to read from
+ * @cfg:    the ThrottleConfig to edit
+ * @errp:   error object
+ */
+void throttle_limits_to_config(ThrottleLimits *arg, ThrottleConfig *cfg,
+                               Error **errp)
+{
+    if (arg->has_bps_total) {
+        cfg->buckets[THROTTLE_BPS_TOTAL].avg = arg->bps_total;
+    }
+    if (arg->has_bps_read) {
+        cfg->buckets[THROTTLE_BPS_READ].avg  = arg->bps_read;
+    }
+    if (arg->has_bps_write) {
+        cfg->buckets[THROTTLE_BPS_WRITE].avg = arg->bps_write;
+    }
+
+    if (arg->has_iops_total) {
+        cfg->buckets[THROTTLE_OPS_TOTAL].avg = arg->iops_total;
+    }
+    if (arg->has_iops_read) {
+        cfg->buckets[THROTTLE_OPS_READ].avg  = arg->iops_read;
+    }
+    if (arg->has_iops_write) {
+        cfg->buckets[THROTTLE_OPS_WRITE].avg = arg->iops_write;
+    }
+
+    if (arg->has_bps_total_max) {
+        cfg->buckets[THROTTLE_BPS_TOTAL].max = arg->bps_total_max;
+    }
+    if (arg->has_bps_read_max) {
+        cfg->buckets[THROTTLE_BPS_READ].max = arg->bps_read_max;
+    }
+    if (arg->has_bps_write_max) {
+        cfg->buckets[THROTTLE_BPS_WRITE].max = arg->bps_write_max;
+    }
+    if (arg->has_iops_total_max) {
+        cfg->buckets[THROTTLE_OPS_TOTAL].max = arg->iops_total_max;
+    }
+    if (arg->has_iops_read_max) {
+        cfg->buckets[THROTTLE_OPS_READ].max = arg->iops_read_max;
+    }
+    if (arg->has_iops_write_max) {
+        cfg->buckets[THROTTLE_OPS_WRITE].max = arg->iops_write_max;
+    }
+
+    if (arg->has_bps_total_max_length) {
+        if (arg->bps_total_max_length > UINT_MAX) {
+            error_setg(errp, "bps-total-max-length value must be in"
+                             " the range [0, %u]", UINT_MAX);
+            return;
+        }
+        cfg->buckets[THROTTLE_BPS_TOTAL].burst_length = arg->bps_total_max_length;
+    }
+    if (arg->has_bps_read_max_length) {
+        if (arg->bps_read_max_length > UINT_MAX) {
+            error_setg(errp, "bps-read-max-length value must be in"
+                             " the range [0, %u]", UINT_MAX);
+            return;
+        }
+        cfg->buckets[THROTTLE_BPS_READ].burst_length = arg->bps_read_max_length;
+    }
+    if (arg->has_bps_write_max_length) {
+        if (arg->bps_write_max_length > UINT_MAX) {
+            error_setg(errp, "bps-write-max-length value must be in"
+                             " the range [0, %u]", UINT_MAX);
+            return;
+        }
+        cfg->buckets[THROTTLE_BPS_WRITE].burst_length = arg->bps_write_max_length;
+    }
+    if (arg->has_iops_total_max_length) {
+        if (arg->iops_total_max_length > UINT_MAX) {
+            error_setg(errp, "iops-total-max-length value must be in"
+                             " the range [0, %u]", UINT_MAX);
+            return;
+        }
+        cfg->buckets[THROTTLE_OPS_TOTAL].burst_length = arg->iops_total_max_length;
+    }
+    if (arg->has_iops_read_max_length) {
+        if (arg->iops_read_max_length > UINT_MAX) {
+            error_setg(errp, "iops-read-max-length value must be in"
+                             " the range [0, %u]", UINT_MAX);
+            return;
+        }
+        cfg->buckets[THROTTLE_OPS_READ].burst_length = arg->iops_read_max_length;
+    }
+    if (arg->has_iops_write_max_length) {
+        if (arg->iops_write_max_length > UINT_MAX) {
+            error_setg(errp, "iops-write-max-length value must be in"
+                             " the range [0, %u]", UINT_MAX);
+            return;
+        }
+        cfg->buckets[THROTTLE_OPS_WRITE].burst_length = arg->iops_write_max_length;
+    }
+
+    if (arg->has_iops_size) {
+        cfg->op_size = arg->iops_size;
+    }
+
+    throttle_is_valid(cfg, errp);
+}
+
+/* write the options of a ThrottleConfig to a ThrottleLimits
+ *
+ * @cfg:    the ThrottleConfig to read from
+ * @var:    the ThrottleLimits to write to
+ */
+void throttle_config_to_limits(ThrottleConfig *cfg, ThrottleLimits *var)
+{
+    var->bps_total               = cfg->buckets[THROTTLE_BPS_TOTAL].avg;
+    var->bps_read                = cfg->buckets[THROTTLE_BPS_READ].avg;
+    var->bps_write               = cfg->buckets[THROTTLE_BPS_WRITE].avg;
+    var->iops_total              = cfg->buckets[THROTTLE_OPS_TOTAL].avg;
+    var->iops_read               = cfg->buckets[THROTTLE_OPS_READ].avg;
+    var->iops_write              = cfg->buckets[THROTTLE_OPS_WRITE].avg;
+    var->bps_total_max           = cfg->buckets[THROTTLE_BPS_TOTAL].max;
+    var->bps_read_max            = cfg->buckets[THROTTLE_BPS_READ].max;
+    var->bps_write_max           = cfg->buckets[THROTTLE_BPS_WRITE].max;
+    var->iops_total_max          = cfg->buckets[THROTTLE_OPS_TOTAL].max;
+    var->iops_read_max           = cfg->buckets[THROTTLE_OPS_READ].max;
+    var->iops_write_max          = cfg->buckets[THROTTLE_OPS_WRITE].max;
+    var->bps_total_max_length    = cfg->buckets[THROTTLE_BPS_TOTAL].burst_length;
+    var->bps_read_max_length     = cfg->buckets[THROTTLE_BPS_READ].burst_length;
+    var->bps_write_max_length    = cfg->buckets[THROTTLE_BPS_WRITE].burst_length;
+    var->iops_total_max_length   = cfg->buckets[THROTTLE_OPS_TOTAL].burst_length;
+    var->iops_read_max_length    = cfg->buckets[THROTTLE_OPS_READ].burst_length;
+    var->iops_write_max_length   = cfg->buckets[THROTTLE_OPS_WRITE].burst_length;
+    var->iops_size               = cfg->op_size;
+
+    var->has_bps_total = true;
+    var->has_bps_read = true;
+    var->has_bps_write = true;
+    var->has_iops_total = true;
+    var->has_iops_read = true;
+    var->has_iops_write = true;
+    var->has_bps_total_max = true;
+    var->has_bps_read_max = true;
+    var->has_bps_write_max = true;
+    var->has_iops_total_max = true;
+    var->has_iops_read_max = true;
+    var->has_iops_write_max = true;
+    var->has_bps_read_max_length = true;
+    var->has_bps_total_max_length = true;
+    var->has_bps_write_max_length = true;
+    var->has_iops_total_max_length = true;
+    var->has_iops_read_max_length = true;
+    var->has_iops_write_max_length = true;
+    var->has_iops_size = true;
+}
