@@ -17,33 +17,33 @@
 #include "qapi-types.h"
 #include "qobject.h"
 
-typedef struct LiteralQDictEntry LiteralQDictEntry;
-typedef struct LiteralQObject LiteralQObject;
+typedef struct QLitDictEntry QLitDictEntry;
+typedef struct QLitObject QLitObject;
 
-struct LiteralQObject {
+struct QLitObject {
     int type;
     union {
         int64_t qnum;
         const char *qstr;
-        LiteralQDictEntry *qdict;
-        LiteralQObject *qlist;
+        QLitDictEntry *qdict;
+        QLitObject *qlist;
     } value;
 };
 
-struct LiteralQDictEntry {
+struct QLitDictEntry {
     const char *key;
-    LiteralQObject value;
+    QLitObject value;
 };
 
 #define QLIT_QNUM(val) \
-    (LiteralQObject){.type = QTYPE_QNUM, .value.qnum = (val)}
+    (QLitObject){.type = QTYPE_QNUM, .value.qnum = (val)}
 #define QLIT_QSTR(val) \
-    (LiteralQObject){.type = QTYPE_QSTRING, .value.qstr = (val)}
+    (QLitObject){.type = QTYPE_QSTRING, .value.qstr = (val)}
 #define QLIT_QDICT(val) \
-    (LiteralQObject){.type = QTYPE_QDICT, .value.qdict = (val)}
+    (QLitObject){.type = QTYPE_QDICT, .value.qdict = (val)}
 #define QLIT_QLIST(val) \
-    (LiteralQObject){.type = QTYPE_QLIST, .value.qlist = (val)}
+    (QLitObject){.type = QTYPE_QLIST, .value.qlist = (val)}
 
-int compare_litqobj_to_qobj(LiteralQObject *lhs, QObject *rhs);
+int compare_litqobj_to_qobj(QLitObject *lhs, QObject *rhs);
 
 #endif /* QLIT_H */
