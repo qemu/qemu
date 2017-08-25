@@ -41,7 +41,7 @@ static void compare_helper(QObject *obj, void *opaque)
         qlit_equal_qobject(&helper->objs[helper->index++], obj);
 }
 
-bool qlit_equal_qobject(QLitObject *lhs, QObject *rhs)
+bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
 {
     int64_t val;
 
