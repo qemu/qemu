@@ -36,13 +36,13 @@ struct QLitDictEntry {
 };
 
 #define QLIT_QNUM(val) \
-    (QLitObject){.type = QTYPE_QNUM, .value.qnum = (val)}
+    { .type = QTYPE_QNUM, .value.qnum = (val) }
 #define QLIT_QSTR(val) \
-    (QLitObject){.type = QTYPE_QSTRING, .value.qstr = (val)}
+    { .type = QTYPE_QSTRING, .value.qstr = (val) }
 #define QLIT_QDICT(val) \
-    (QLitObject){.type = QTYPE_QDICT, .value.qdict = (val)}
+    { .type = QTYPE_QDICT, .value.qdict = (val) }
 #define QLIT_QLIST(val) \
-    (QLitObject){.type = QTYPE_QLIST, .value.qlist = (val)}
+    { .type = QTYPE_QLIST, .value.qlist = (val) }
 
 int compare_litqobj_to_qobj(QLitObject *lhs, QObject *rhs);
 
