@@ -20,6 +20,9 @@ expression Obj, Key, E;
 |
 - qdict_put(Obj, Key, qstring_from_str(E));
 + qdict_put_str(Obj, Key, E);
+|
+- qdict_put(Obj, Key, qnull());
++ qdict_put_null(Obj, Key);
 )
 
 // Use QList macros where they make sense
