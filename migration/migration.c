@@ -166,7 +166,7 @@ void migration_incoming_state_destroy(void)
         mis->from_src_file = NULL;
     }
 
-    qemu_event_destroy(&mis->main_thread_load_event);
+    qemu_event_reset(&mis->main_thread_load_event);
 }
 
 static void migrate_generate_event(int new_state)
