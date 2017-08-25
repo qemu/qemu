@@ -23,6 +23,7 @@ typedef struct QLitObject QLitObject;
 struct QLitObject {
     int type;
     union {
+        bool qbool;
         int64_t qnum;
         const char *qstr;
         QLitDictEntry *qdict;
@@ -35,6 +36,10 @@ struct QLitDictEntry {
     QLitObject value;
 };
 
+#define QLIT_QNULL \
+    { .type = QTYPE_QNULL }
+#define QLIT_QBOOL(val) \
+    { .type = QTYPE_QBOOL, .value.qbool = (val) }
 #define QLIT_QNUM(val) \
     { .type = QTYPE_QNUM, .value.qnum = (val) }
 #define QLIT_QSTR(val) \
