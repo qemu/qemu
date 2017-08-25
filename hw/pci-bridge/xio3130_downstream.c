@@ -94,6 +94,7 @@ static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
     pcie_chassis_create(s->chassis);
     rc = pcie_chassis_add_slot(s);
     if (rc < 0) {
+        error_setg(errp, "Can't add chassis slot, error %d", rc);
         goto err_pcie_cap;
     }
 
