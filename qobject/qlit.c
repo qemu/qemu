@@ -41,6 +41,27 @@ static void compare_helper(QObject *obj, void *opaque)
         qlit_equal_qobject(&helper->objs[helper->index++], obj);
 }
 
+static bool qlit_equal_qdict(const QLitObject *lhs, const QDict *qdict)
+{
+    int i;
+
+    for (i = 0; lhs->value.qdict[i].key; i++) {
+        QObject *obj = qdict_get(qdict, lhs->value.qdict[i].key);
+
+        if (!qlit_equal_qobject(&lhs->value.qdict[i].value, obj)) {
+            return false;
+        }
+    }
+
+    /* Note: the literal qdict must not contain duplicates, this is
+     * considered a programming error and it isn't checked here. */
+    if (qdict_size(qdict) != i) {
+        return false;
+    }
+
+    return true;
+}
+
 bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
 {
     if (!rhs || lhs->type != qobject_type(rhs)) {
@@ -55,20 +76,8 @@ bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
     case QTYPE_QSTRING:
         return (strcmp(lhs->value.qstr,
                        qstring_get_str(qobject_to_qstring(rhs))) == 0);
-    case QTYPE_QDICT: {
-        int i;
-
-        for (i = 0; lhs->value.qdict[i].key; i++) {
-            QObject *obj = qdict_get(qobject_to_qdict(rhs),
-                                     lhs->value.qdict[i].key);
-
-            if (!qlit_equal_qobject(&lhs->value.qdict[i].value, obj)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    case QTYPE_QDICT:
+        return qlit_equal_qdict(lhs, qobject_to_qdict(rhs));
     case QTYPE_QLIST: {
         QListCompareHelper helper;
 

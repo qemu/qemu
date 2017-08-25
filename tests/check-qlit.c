@@ -28,6 +28,11 @@ static QLitObject qlit = QLIT_QDICT(((QLitDictEntry[]) {
     { },
 }));
 
+static QLitObject qlit_foo = QLIT_QDICT(((QLitDictEntry[]) {
+    { "foo", QLIT_QNUM(42) },
+    { },
+}));
+
 static QObject *make_qobject(void)
 {
     QDict *qdict = qdict_new();
@@ -50,6 +55,8 @@ static void qlit_equal_qobject_test(void)
     QObject *qobj = make_qobject();
 
     g_assert(qlit_equal_qobject(&qlit, qobj));
+
+    g_assert(!qlit_equal_qobject(&qlit_foo, qobj));
 
     qobject_decref(qobj);
 }
