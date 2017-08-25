@@ -76,5 +76,10 @@ void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm
 void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
                                        AioContext *new_context);
 void throttle_group_detach_aio_context(ThrottleGroupMember *tgm);
+/*
+ * throttle_group_exists() must be called under the global
+ * mutex.
+ */
+bool throttle_group_exists(const char *name);
 
 #endif

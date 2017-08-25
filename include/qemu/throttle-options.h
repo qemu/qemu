@@ -29,6 +29,7 @@
 #define QEMU_OPT_BPS_WRITE_MAX "bps-write-max"
 #define QEMU_OPT_BPS_WRITE_MAX_LENGTH "bps-write-max-length"
 #define QEMU_OPT_IOPS_SIZE "iops-size"
+#define QEMU_OPT_THROTTLE_GROUP_NAME "throttle-group"
 
 #define THROTTLE_OPT_PREFIX "throttling."
 #define THROTTLE_OPTS \

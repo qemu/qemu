@@ -101,6 +101,14 @@ static ThrottleGroup *throttle_group_by_name(const char *name)
     return NULL;
 }
 
+/* This function reads throttle_groups and must be called under the global
+ * mutex.
+ */
+bool throttle_group_exists(const char *name)
+{
+    return throttle_group_by_name(name) != NULL;
+}
+
 /* Increments the reference count of a ThrottleGroup given its name.
  *
  * If no ThrottleGroup is found with the given name a new one is
@@ -543,6 +551,11 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
     ThrottleGroupMember *token;
     int i;
 
+    if (!ts) {
+        /* Discard already unregistered tgm */
+        return;
+    }
+
     assert(tgm->pending_reqs[0] == 0 && tgm->pending_reqs[1] == 0);
     assert(qemu_co_queue_empty(&tgm->throttled_reqs[0]));
     assert(qemu_co_queue_empty(&tgm->throttled_reqs[1]));
@@ -709,7 +722,7 @@ static void throttle_group_obj_complete(UserCreatable *obj, Error **errp)
     assert(tg->name);
 
     /* error if name is duplicate */
-    if (throttle_group_by_name(tg->name) != NULL) {
+    if (throttle_group_exists(tg->name)) {
         error_setg(errp, "A group with this name already exists");
         return;
     }
