@@ -38,10 +38,10 @@ static void compare_helper(QObject *obj, void *opaque)
     }
 
     helper->result =
-        compare_litqobj_to_qobj(&helper->objs[helper->index++], obj);
+        qlit_equal_qobject(&helper->objs[helper->index++], obj);
 }
 
-int compare_litqobj_to_qobj(QLitObject *lhs, QObject *rhs)
+int qlit_equal_qobject(QLitObject *lhs, QObject *rhs)
 {
     int64_t val;
 
@@ -63,7 +63,7 @@ int compare_litqobj_to_qobj(QLitObject *lhs, QObject *rhs)
             QObject *obj = qdict_get(qobject_to_qdict(rhs),
                                      lhs->value.qdict[i].key);
 
-            if (!compare_litqobj_to_qobj(&lhs->value.qdict[i].value, obj)) {
+            if (!qlit_equal_qobject(&lhs->value.qdict[i].value, obj)) {
                 return 0;
             }
         }

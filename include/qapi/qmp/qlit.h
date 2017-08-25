@@ -44,6 +44,6 @@ struct QLitDictEntry {
 #define QLIT_QLIST(val) \
     { .type = QTYPE_QLIST, .value.qlist = (val) }
 
-int compare_litqobj_to_qobj(QLitObject *lhs, QObject *rhs);
+int qlit_equal_qobject(QLitObject *lhs, QObject *rhs);
 
 #endif /* QLIT_H */
