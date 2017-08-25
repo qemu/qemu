@@ -58,6 +58,9 @@ static void qlit_equal_qobject_test(void)
 
     g_assert(!qlit_equal_qobject(&qlit_foo, qobj));
 
+    qdict_put(qobject_to_qdict(qobj), "bee", qlist_new());
+    g_assert(!qlit_equal_qobject(&qlit, qobj));
+
     qobject_decref(qobj);
 }
 
