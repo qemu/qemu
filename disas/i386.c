@@ -464,6 +464,7 @@ fetch_data(struct disassemble_info *info, bfd_byte *addr)
 #define ALr { REP_Fixup, al_reg }
 #define eAXr { REP_Fixup, eAX_reg }
 
+#define call_jump_flag { NULL, call_jump_mode }
 #define cond_jump_flag { NULL, cond_jump_mode }
 #define loop_jcxz_flag { NULL, loop_jcxz_mode }
 
@@ -480,17 +481,18 @@ fetch_data(struct disassemble_info *info, bfd_byte *addr)
 #define t_mode 6  /* ten-byte operand */
 #define x_mode 7  /* 16-byte XMM operand */
 #define m_mode 8  /* d_mode in 32bit, q_mode in 64bit mode.  */
-#define cond_jump_mode 9
-#define loop_jcxz_mode 10
-#define dq_mode 11 /* operand size depends on REX prefixes.  */
-#define dqw_mode 12 /* registers like dq_mode, memory like w_mode.  */
-#define f_mode 13 /* 4- or 6-byte pointer operand */
-#define const_1_mode 14
-#define stack_v_mode 15 /* v_mode for stack-related opcodes.  */
-#define z_mode 16 /* non-quad operand size depends on prefixes */
-#define o_mode 17  /* 16-byte operand */
-#define dqb_mode 18 /* registers like dq_mode, memory like b_mode.  */
-#define dqd_mode 19 /* registers like dq_mode, memory like d_mode.  */
+#define call_jump_mode 9
+#define cond_jump_mode 10
+#define loop_jcxz_mode 11
+#define dq_mode 12 /* operand size depends on REX prefixes.  */
+#define dqw_mode 13 /* registers like dq_mode, memory like w_mode.  */
+#define f_mode 14 /* 4- or 6-byte pointer operand */
+#define const_1_mode 15
+#define stack_v_mode 16 /* v_mode for stack-related opcodes.  */
+#define z_mode 17 /* non-quad operand size depends on prefixes */
+#define o_mode 18  /* 16-byte operand */
+#define dqb_mode 19 /* registers like dq_mode, memory like b_mode.  */
+#define dqd_mode 20 /* registers like dq_mode, memory like d_mode.  */
 
 #define es_reg 100
 #define cs_reg 101
@@ -1007,8 +1009,8 @@ static const struct dis386 dis386[] = {
   { "outB",		{ Ib, AL } },
   { "outG",		{ Ib, zAX } },
   /* e8 */
-  { "callT",		{ Jv } },
-  { "jmpT",		{ Jv } },
+  { "callT",		{ Jv, XX, call_jump_flag } },
+  { "jmpT",		{ Jv, XX, call_jump_flag } },
   { "Jjmp{T|}",		{ Ap } },
   { "jmp",		{ Jb } },
   { "inB",		{ AL, indirDX } },
@@ -3968,7 +3970,8 @@ print_insn (bfd_vma pc, disassemble_info *info)
   if (!uses_DATA_prefix && (prefixes & PREFIX_DATA))
     {
       sizeflag ^= DFLAG;
-      if (dp->op[2].bytemode == cond_jump_mode
+      if ((dp->op[2].bytemode == call_jump_mode
+           || dp->op[2].bytemode == cond_jump_mode)
 	  && dp->op[0].bytemode == v_mode
 	  && !intel_syntax)
 	{
