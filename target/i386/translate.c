@@ -6480,17 +6480,26 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         break;
     case 0xe8: /* call im */
         {
-            if (dflag != MO_16) {
-                tval = (int32_t)insn_get(env, s, MO_32);
+            if (env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
+                if (dflag != MO_16) {
+                    tval = (int32_t)insn_get(env, s, MO_32);
+                } else {
+                    tval = (int16_t)insn_get(env, s, MO_16);
+                }
+                next_eip = s->pc - s->cs_base;
+                tval += next_eip;
+                if (dflag == MO_16) {
+                    tval &= 0xffff;
+                } else if (!CODE64(s)) {
+                    tval &= 0xffffffff;
+                }
             } else {
-                tval = (int16_t)insn_get(env, s, MO_16);
-            }
-            next_eip = s->pc - s->cs_base;
-            tval += next_eip;
-            if (dflag == MO_16) {
-                tval &= 0xffff;
-            } else if (!CODE64(s)) {
-                tval &= 0xffffffff;
+                tval = (int32_t)insn_get(env, s, MO_32);
+                next_eip = s->pc - s->cs_base;
+                tval += next_eip;
+                if (!CODE64(s)) {
+                    tval &= 0xffffffff;
+                }
             }
             tcg_gen_movi_tl(cpu_T0, next_eip);
             gen_push_v(s, cpu_T0);
@@ -6513,16 +6522,25 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
         goto do_lcall;
     case 0xe9: /* jmp im */
-        if (dflag != MO_16) {
-            tval = (int32_t)insn_get(env, s, MO_32);
+        if (env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
+            if (dflag != MO_16) {
+                tval = (int32_t)insn_get(env, s, MO_32);
+            } else {
+                tval = (int16_t)insn_get(env, s, MO_16);
+            }
+            next_eip = s->pc - s->cs_base;
+            tval += next_eip;
+            if (dflag == MO_16) {
+                tval &= 0xffff;
+            } else if (!CODE64(s)) {
+                tval &= 0xffffffff;
+            }
         } else {
-            tval = (int16_t)insn_get(env, s, MO_16);
-        }
-        tval += s->pc - s->cs_base;
-        if (dflag == MO_16) {
-            tval &= 0xffff;
-        } else if (!CODE64(s)) {
-            tval &= 0xffffffff;
+            tval = (int32_t)insn_get(env, s, MO_32);
+            tval += s->pc - s->cs_base;
+            if (!CODE64(s)) {
+                tval &= 0xffffffff;
+            }
         }
         gen_bnd_jmp(s);
         gen_jmp(s, tval);
