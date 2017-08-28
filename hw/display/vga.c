@@ -1005,7 +1005,7 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
 }
 
 typedef void vga_draw_line_func(VGACommonState *s1, uint8_t *d,
-                                const uint8_t *s, int width);
+                                uint32_t srcaddr, int width);
 
 #include "vga-helpers.h"
 
@@ -1666,7 +1666,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             if (y_start < 0)
                 y_start = y;
             if (!(is_buffer_shared(surface))) {
-                vga_draw_line(s, d, s->vram_ptr + addr, width);
+                vga_draw_line(s, d, addr, width);
                 if (s->cursor_draw_line)
                     s->cursor_draw_line(s, d, y);
             }
@@ -2170,6 +2170,7 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
     if (!s->vbe_size) {
         s->vbe_size = s->vram_size;
     }
+    s->vbe_size_mask = s->vbe_size - 1;
 
     s->is_vbe_vmstate = 1;
     memory_region_init_ram_nomigrate(&s->vram, obj, "vga.vram", s->vram_size,
