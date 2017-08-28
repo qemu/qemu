@@ -56,7 +56,7 @@ static void test_hmac_speed(const void *opaque)
     total /= 1024 * 1024; /* to MB */
 
     g_print("hmac(sha256): ");
-    g_print("Testing chunk_size %ld bytes ", chunk_size);
+    g_print("Testing chunk_size %zu bytes ", chunk_size);
     g_print("done: %.2f MB in %.2f secs: ", total, g_test_timer_last());
     g_print("%.2f MB/sec\n", total / g_test_timer_last());
 
@@ -74,7 +74,7 @@ int main(int argc, char **argv)
 
     for (i = 512; i <= (64 * 1204); i *= 2) {
         memset(name, 0 , sizeof(name));
-        snprintf(name, sizeof(name), "/crypto/hmac/speed-%lu", i);
+        snprintf(name, sizeof(name), "/crypto/hmac/speed-%zu", i);
         g_test_add_data_func(name, (void *)i, test_hmac_speed);
     }
 
