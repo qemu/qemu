@@ -150,6 +150,19 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     g_hook_prepend(&abrt_hooks, hook);
 }
 
+static const char *qtest_qemu_binary(void)
+{
+    const char *qemu_bin;
+
+    qemu_bin = getenv("QTEST_QEMU_BINARY");
+    if (!qemu_bin) {
+        fprintf(stderr, "Environment variable QTEST_QEMU_BINARY required\n");
+        exit(1);
+    }
+
+    return qemu_bin;
+}
+
 QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
 {
     QTestState *s;
@@ -157,13 +170,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     gchar *socket_path;
     gchar *qmp_socket_path;
     gchar *command;
-    const char *qemu_binary;
-
-    qemu_binary = getenv("QTEST_QEMU_BINARY");
-    if (!qemu_binary) {
-        fprintf(stderr, "Environment variable QTEST_QEMU_BINARY required\n");
-        exit(1);
-    }
+    const char *qemu_binary = qtest_qemu_binary();
 
     s = g_malloc(sizeof(*s));
 
@@ -624,8 +631,7 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...)
 
 const char *qtest_get_arch(void)
 {
-    const char *qemu = getenv("QTEST_QEMU_BINARY");
-    g_assert(qemu != NULL);
+    const char *qemu = qtest_qemu_binary();
     const char *end = strrchr(qemu, '/');
 
     return end + strlen("/qemu-system-");
