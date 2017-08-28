@@ -1628,9 +1628,15 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     y1 = 0;
 
     if (!full_update) {
+        ram_addr_t region_start = addr1;
+        ram_addr_t region_end = addr1 + line_offset * height;
         vga_sync_dirty_bitmap(s);
-        snap = memory_region_snapshot_and_clear_dirty(&s->vram, addr1,
-                                                      line_offset * height,
+        if (s->line_compare < height) {
+            /* split screen mode */
+            region_start = 0;
+        }
+        snap = memory_region_snapshot_and_clear_dirty(&s->vram, region_start,
+                                                      region_end - region_start,
                                                       DIRTY_MEMORY_VGA);
     }
 
