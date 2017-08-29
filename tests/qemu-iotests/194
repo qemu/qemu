@@ -46,16 +46,17 @@ iotests.log('Launching NBD server on destination...')
 iotests.log(dest_vm.qmp('nbd-server-start', addr={'type': 'unix', 'data': {'path': nbd_sock_path}}))
 iotests.log(dest_vm.qmp('nbd-server-add', device='drive0', writable=True))
 
-iotests.log('Starting drive-mirror on source...')
+iotests.log('Starting `drive-mirror` on source...')
 iotests.log(source_vm.qmp(
               'drive-mirror',
               device='drive0',
               target='nbd+unix:///drive0?socket={0}'.format(nbd_sock_path),
               sync='full',
               format='raw', # always raw, the server handles the format
-              mode='existing'))
+              mode='existing',
+              job_id='mirror-job0'))
 
-iotests.log('Waiting for drive-mirror to complete...')
+iotests.log('Waiting for `drive-mirror` to complete...')
 iotests.log(source_vm.event_wait('BLOCK_JOB_READY'),
             filters=[iotests.filter_qmp_event])
 
@@ -67,7 +68,17 @@ dest_vm.qmp('migrate-set-capabilities',
 iotests.log(source_vm.qmp('migrate', uri='unix:{0}'.format(migration_sock_path)))
 
 while True:
-    event = source_vm.event_wait('MIGRATION')
-    iotests.log(event, filters=[iotests.filter_qmp_event])
-    if event['data']['status'] in ('completed', 'failed'):
+    event1 = source_vm.event_wait('MIGRATION')
+    iotests.log(event1, filters=[iotests.filter_qmp_event])
+    if event1['data']['status'] in ('completed', 'failed'):
+        iotests.log('Gracefully ending the `drive-mirror` job on source...')
+        iotests.log(source_vm.qmp('block-job-cancel', device='mirror-job0'))
+        break
+
+while True:
+    event2 = source_vm.event_wait('BLOCK_JOB_COMPLETED')
+    iotests.log(event2, filters=[iotests.filter_qmp_event])
+    if event2['event'] == 'BLOCK_JOB_COMPLETED':
+        iotests.log('Stopping the NBD server on destination...')
+        iotests.log(dest_vm.qmp('nbd-server-stop'))
         break
