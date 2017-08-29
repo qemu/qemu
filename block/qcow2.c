@@ -1820,15 +1820,13 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                 assert(s->crypto);
                 assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
                 assert((cur_bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-                Error *err = NULL;
                 if (qcrypto_block_decrypt(s->crypto,
                                           (s->crypt_physical_offset ?
                                            cluster_offset + offset_in_cluster :
                                            offset) >> BDRV_SECTOR_BITS,
                                           cluster_data,
                                           cur_bytes,
-                                          &err) < 0) {
-                    error_free(err);
+                                          NULL) < 0) {
                     ret = -EIO;
                     goto fail;
                 }
@@ -1942,7 +1940,6 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done, cur_bytes);
 
         if (bs->encrypted) {
-            Error *err = NULL;
             assert(s->crypto);
             if (!cluster_data) {
                 cluster_data = qemu_try_blockalign(bs->file->bs,
@@ -1963,8 +1960,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                        cluster_offset + offset_in_cluster :
                                        offset) >> BDRV_SECTOR_BITS,
                                       cluster_data,
-                                      cur_bytes, &err) < 0) {
-                error_free(err);
+                                      cur_bytes, NULL) < 0) {
                 ret = -EIO;
                 goto fail;
             }
