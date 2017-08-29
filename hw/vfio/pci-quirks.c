@@ -1850,3 +1850,7 @@ void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev)
         break;
     }
 }
+int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp)
+{
+    return 0;
+}

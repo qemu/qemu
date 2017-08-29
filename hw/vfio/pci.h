@@ -160,6 +160,7 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr);
 void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev);
+int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp);
 
 int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp);
 

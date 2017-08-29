@@ -1833,7 +1833,15 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         pdev->config[PCI_CAPABILITY_LIST] = 0;
         vdev->emulated_config_bits[PCI_CAPABILITY_LIST] = 0xff;
         vdev->emulated_config_bits[PCI_STATUS] |= PCI_STATUS_CAP_LIST;
+
+        ret = vfio_add_virt_caps(vdev, errp);
+        if (ret) {
+            return ret;
+        }
     }
+
+    /* Scale down size, esp in case virt caps were added above */
+    size = MIN(size, vfio_std_cap_max_size(pdev, pos));
 
     /* Use emulated next pointer to allow dropping caps */
     pci_set_byte(vdev->emulated_config_bits + pos + PCI_CAP_LIST_NEXT, 0xff);
