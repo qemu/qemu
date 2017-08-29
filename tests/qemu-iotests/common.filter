@@ -170,9 +170,9 @@ _filter_nbd()
     #
     # Filter out the TCP port number since this changes between runs.
     sed -e '/nbd\/.*\.c:/d' \
-        -e 's#nbd:\(//\)\?127\.0\.0\.1:[0-9]*#nbd:\1127.0.0.1:PORT#g' \
+        -e 's#127\.0\.0\.1:[0-9]*#127.0.0.1:PORT#g' \
         -e "s#?socket=$TEST_DIR#?socket=TEST_DIR#g" \
-        -e 's#\(exportname=foo\|PORT\): Failed to .*$#\1#'
+        -e 's#\(foo\|PORT/\?\|.sock\): Failed to .*$#\1#'
 }
 
 # make sure this script returns success
