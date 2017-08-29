@@ -406,7 +406,8 @@ test_tls_generate_cert(QCryptoTLSTestCertReq *req,
      * If no 'ca' is set then we are self signing
      * the cert. This is done for the root CA certs
      */
-    err = gnutls_x509_crt_sign(crt, ca ? ca : crt, privkey);
+    err = gnutls_x509_crt_sign2(crt, ca ? ca : crt, privkey,
+                                GNUTLS_DIG_SHA256, 0);
     if (err < 0) {
         g_critical("Failed to sign certificate %s",
                    gnutls_strerror(err));
