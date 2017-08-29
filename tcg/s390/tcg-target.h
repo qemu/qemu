@@ -133,6 +133,8 @@ extern uint64_t s390_facilities;
 
 #define TCG_TARGET_EXTEND_ARGS 1
 
+#define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
+
 enum {
     TCG_AREG0 = TCG_REG_R10,
 };
