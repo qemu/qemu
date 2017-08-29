@@ -218,7 +218,7 @@ static void test_io_channel_tls(const void *opaque)
     mainloop = g_main_context_default();
     do {
         g_main_context_iteration(mainloop, TRUE);
-    } while (!clientHandshake.finished &&
+    } while (!clientHandshake.finished ||
              !serverHandshake.finished);
 
     g_assert(clientHandshake.failed == data->expectClientFail);
