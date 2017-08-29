@@ -120,6 +120,8 @@ void qpci_msix_enable(QPCIDevice *dev)
     bir_pba = table & PCI_MSIX_FLAGS_BIRMASK;
     if (bir_pba != bir_table) {
         dev->msix_pba_bar = qpci_iomap(dev, bir_pba, NULL);
+    } else {
+        dev->msix_pba_bar = dev->msix_table_bar;
     }
     dev->msix_pba_off = table & ~PCI_MSIX_FLAGS_BIRMASK;
 
@@ -138,8 +140,11 @@ void qpci_msix_disable(QPCIDevice *dev)
     qpci_config_writew(dev, addr + PCI_MSIX_FLAGS,
                                                 val & ~PCI_MSIX_FLAGS_ENABLE);
 
+    if (dev->msix_pba_bar.addr != dev->msix_table_bar.addr) {
+        qpci_iounmap(dev, dev->msix_pba_bar);
+    }
     qpci_iounmap(dev, dev->msix_table_bar);
-    qpci_iounmap(dev, dev->msix_pba_bar);
+
     dev->msix_enabled = 0;
     dev->msix_table_off = 0;
     dev->msix_pba_off = 0;
