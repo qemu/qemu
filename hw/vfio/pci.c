@@ -1826,7 +1826,7 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
     if (next) {
         ret = vfio_add_std_cap(vdev, next, errp);
         if (ret) {
-            goto out;
+            return ret;
         }
     } else {
         /* Begin the rebuild, use QEMU emulated list bits */
@@ -1862,7 +1862,7 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         ret = pci_add_capability(pdev, cap_id, pos, size, errp);
         break;
     }
-out:
+
     if (ret < 0) {
         error_prepend(errp,
                       "failed to add PCI capability 0x%x[0x%x]@0x%x: ",
