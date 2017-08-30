@@ -257,6 +257,7 @@ int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
 void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                       int fdt_start_offset, Error **errp);
 void spapr_drc_detach(sPAPRDRConnector *drc);
+bool spapr_drc_needed(void *opaque);
 
 static inline bool spapr_drc_unplug_requested(sPAPRDRConnector *drc)
 {

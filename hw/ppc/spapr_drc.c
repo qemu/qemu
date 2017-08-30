@@ -460,7 +460,7 @@ static void drc_reset(void *opaque)
     spapr_drc_reset(SPAPR_DR_CONNECTOR(opaque));
 }
 
-static bool spapr_drc_needed(void *opaque)
+bool spapr_drc_needed(void *opaque)
 {
     sPAPRDRConnector *drc = (sPAPRDRConnector *)opaque;
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
