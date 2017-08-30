@@ -2533,7 +2533,6 @@ static int kvm_ppc_register_host_cpu_type(void)
             if (suffix) {
                 *suffix = 0;
             }
-            ppc_cpu_aliases[i].oc = oc;
             break;
         }
     }

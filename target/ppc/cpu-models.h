@@ -31,7 +31,6 @@
 typedef struct PowerPCCPUAlias {
     const char *alias;
     const char *model;
-    ObjectClass *oc;
 } PowerPCCPUAlias;
 
 extern PowerPCCPUAlias ppc_cpu_aliases[];
