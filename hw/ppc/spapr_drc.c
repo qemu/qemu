@@ -464,10 +464,9 @@ static bool spapr_drc_needed(void *opaque)
 {
     sPAPRDRConnector *drc = (sPAPRDRConnector *)opaque;
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    sPAPRDREntitySense value = drck->dr_entity_sense(drc);
 
     /* If no dev is plugged in there is no need to migrate the DRC state */
-    if (value != SPAPR_DR_ENTITY_SENSE_PRESENT) {
+    if (!drc->dev) {
         return false;
     }
 
