@@ -10252,22 +10252,6 @@ PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr)
     return pcc;
 }
 
-static gint ppc_cpu_compare_class_name(gconstpointer a, gconstpointer b)
-{
-    ObjectClass *oc = (ObjectClass *)a;
-    const char *name = b;
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    if (strncasecmp(name, object_class_get_name(oc), strlen(name)) == 0 &&
-        ppc_cpu_is_valid(pcc) &&
-        strcmp(object_class_get_name(oc) + strlen(name),
-               POWERPC_CPU_TYPE_SUFFIX) == 0) {
-        return 0;
-    }
-    return -1;
-}
-
-
 static ObjectClass *ppc_cpu_class_by_name(const char *name);
 
 static ObjectClass *ppc_cpu_class_by_alias(PowerPCCPUAlias *alias)
@@ -10292,8 +10276,8 @@ static ObjectClass *ppc_cpu_class_by_alias(PowerPCCPUAlias *alias)
 
 static ObjectClass *ppc_cpu_class_by_name(const char *name)
 {
-    GSList *list, *item;
-    ObjectClass *ret = NULL;
+    char *cpu_model, *typename;
+    ObjectClass *oc;
     const char *p;
     int i, len;
 
@@ -10314,21 +10298,20 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
         }
     }
 
-    list = object_class_get_list(TYPE_POWERPC_CPU, false);
-    item = g_slist_find_custom(list, name, ppc_cpu_compare_class_name);
-    if (item != NULL) {
-        ret = OBJECT_CLASS(item->data);
-    }
-    g_slist_free(list);
-
-    if (ret) {
-        return ret;
+    cpu_model = g_ascii_strdown(name, -1);
+    p = ppc_cpu_lookup_alias(cpu_model);
+    if (p) {
+        g_free(cpu_model);
+        cpu_model = g_strdup(p);
     }
 
-    for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
-        if (strcasecmp(ppc_cpu_aliases[i].alias, name) == 0) {
-            return ppc_cpu_class_by_alias(&ppc_cpu_aliases[i]);
-        }
+    typename = g_strdup_printf("%s" POWERPC_CPU_TYPE_SUFFIX, cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
+    g_free(cpu_model);
+
+    if (oc && ppc_cpu_is_valid(POWERPC_CPU_CLASS(oc))) {
+        return oc;
     }
 
     return NULL;
