@@ -700,6 +700,17 @@ static void event_scan(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_NO_ERRORS_FOUND);
 }
 
+void spapr_clear_pending_events(sPAPRMachineState *spapr)
+{
+    sPAPREventLogEntry *entry = NULL;
+
+    QTAILQ_FOREACH(entry, &spapr->pending_events, next) {
+        QTAILQ_REMOVE(&spapr->pending_events, entry, next);
+        g_free(entry->extended_log);
+        g_free(entry);
+    }
+}
+
 void spapr_events_init(sPAPRMachineState *spapr)
 {
     QTAILQ_INIT(&spapr->pending_events);
