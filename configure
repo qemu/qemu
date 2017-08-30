@@ -3616,6 +3616,9 @@ glib_modules=gthread-2.0
 if test "$modules" = yes; then
     glib_modules="$glib_modules gmodule-export-2.0"
 fi
+if test "$plugins" = yes; then
+    glib_modules="$glib_modules gmodule-2.0"
+fi
 
 # This workaround is required due to a bug in pkg-config file for glib as it
 # doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
