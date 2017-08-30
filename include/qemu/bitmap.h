@@ -82,6 +82,7 @@ int slow_bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
                        const unsigned long *bitmap2, long bits);
 int slow_bitmap_intersects(const unsigned long *bitmap1,
                            const unsigned long *bitmap2, long bits);
+long slow_bitmap_count_one(const unsigned long *bitmap, long nbits);
 
 static inline unsigned long *bitmap_try_new(long nbits)
 {
@@ -213,6 +214,15 @@ static inline int bitmap_intersects(const unsigned long *src1,
         return ((*src1 & *src2) & BITMAP_LAST_WORD_MASK(nbits)) != 0;
     } else {
         return slow_bitmap_intersects(src1, src2, nbits);
+    }
+}
+
+static inline long bitmap_count_one(const unsigned long *bitmap, long nbits)
+{
+    if (small_nbits(nbits)) {
+        return ctpopl(*bitmap & BITMAP_LAST_WORD_MASK(nbits));
+    } else {
+        return slow_bitmap_count_one(bitmap, nbits);
     }
 }
 

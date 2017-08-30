@@ -355,3 +355,18 @@ int slow_bitmap_intersects(const unsigned long *bitmap1,
     }
     return 0;
 }
+
+long slow_bitmap_count_one(const unsigned long *bitmap, long nbits)
+{
+    long k, lim = nbits / BITS_PER_LONG, result = 0;
+
+    for (k = 0; k < lim; k++) {
+        result += ctpopl(bitmap[k]);
+    }
+
+    if (nbits % BITS_PER_LONG) {
+        result += ctpopl(bitmap[k] & BITMAP_LAST_WORD_MASK(nbits));
+    }
+
+    return result;
+}
