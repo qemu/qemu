@@ -10326,7 +10326,7 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     }
 
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
-        if (strcmp(ppc_cpu_aliases[i].alias, name) == 0) {
+        if (strcasecmp(ppc_cpu_aliases[i].alias, name) == 0) {
             return ppc_cpu_class_by_alias(&ppc_cpu_aliases[i]);
         }
     }

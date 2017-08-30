@@ -130,8 +130,10 @@ char *spapr_get_cpu_core_type(const char *model)
 {
     char *core_type;
     gchar **model_pieces = g_strsplit(model, ",", 2);
+    gchar *cpu_model = g_ascii_strdown(model_pieces[0], -1);
+    g_strfreev(model_pieces);
 
-    core_type = g_strdup_printf("%s-%s", model_pieces[0], TYPE_SPAPR_CPU_CORE);
+    core_type = g_strdup_printf("%s-" TYPE_SPAPR_CPU_CORE, cpu_model);
 
     /* Check whether it exists or whether we have to look up an alias name */
     if (!object_class_by_name(core_type)) {
@@ -139,13 +141,13 @@ char *spapr_get_cpu_core_type(const char *model)
 
         g_free(core_type);
         core_type = NULL;
-        realmodel = ppc_cpu_lookup_alias(model_pieces[0]);
+        realmodel = ppc_cpu_lookup_alias(cpu_model);
         if (realmodel) {
             core_type = spapr_get_cpu_core_type(realmodel);
         }
     }
+    g_free(cpu_model);
 
-    g_strfreev(model_pieces);
     return core_type;
 }
 
@@ -273,31 +275,29 @@ static const char *spapr_core_models[] = {
     "970_v2.2",
 
     /* 970MP variants */
-    "970MP_v1.0",
     "970mp_v1.0",
-    "970MP_v1.1",
     "970mp_v1.1",
 
     /* POWER5+ */
-    "POWER5+_v2.1",
+    "power5+_v2.1",
 
     /* POWER7 */
-    "POWER7_v2.3",
+    "power7_v2.3",
 
     /* POWER7+ */
-    "POWER7+_v2.1",
+    "power7+_v2.1",
 
     /* POWER8 */
-    "POWER8_v2.0",
+    "power8_v2.0",
 
     /* POWER8E */
-    "POWER8E_v2.1",
+    "power8e_v2.1",
 
     /* POWER8NVL */
-    "POWER8NVL_v1.0",
+    "power8nvl_v1.0",
 
     /* POWER9 */
-    "POWER9_v1.0",
+    "power9_v1.0",
 };
 
 static Property spapr_cpu_core_properties[] = {
