@@ -370,3 +370,35 @@ long slow_bitmap_count_one(const unsigned long *bitmap, long nbits)
 
     return result;
 }
+
+static void bitmap_to_from_le(unsigned long *dst,
+                              const unsigned long *src, long nbits)
+{
+    long len = BITS_TO_LONGS(nbits);
+
+#ifdef HOST_WORDS_BIGENDIAN
+    long index;
+
+    for (index = 0; index < len; index++) {
+# if HOST_LONG_BITS == 64
+        dst[index] = bswap64(src[index]);
+# else
+        dst[index] = bswap32(src[index]);
+# endif
+    }
+#else
+    memcpy(dst, src, len * sizeof(unsigned long));
+#endif
+}
+
+void bitmap_from_le(unsigned long *dst, const unsigned long *src,
+                    long nbits)
+{
+    bitmap_to_from_le(dst, src, nbits);
+}
+
+void bitmap_to_le(unsigned long *dst, const unsigned long *src,
+                  long nbits)
+{
+    bitmap_to_from_le(dst, src, nbits);
+}

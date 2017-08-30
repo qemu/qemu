@@ -39,6 +39,8 @@
  * bitmap_clear(dst, pos, nbits)		Clear specified bit area
  * bitmap_test_and_clear_atomic(dst, pos, nbits)    Test and clear area
  * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
+ * bitmap_to_le(dst, src, nbits)      Convert bitmap to little endian
+ * bitmap_from_le(dst, src, nbits)    Convert bitmap from little endian
  */
 
 /*
@@ -246,5 +248,10 @@ static inline unsigned long *bitmap_zero_extend(unsigned long *old,
     bitmap_clear(new, old_nbits, new_nbits - old_nbits);
     return new;
 }
+
+void bitmap_to_le(unsigned long *dst, const unsigned long *src,
+                  long nbits);
+void bitmap_from_le(unsigned long *dst, const unsigned long *src,
+                    long nbits);
 
 #endif /* BITMAP_H */
