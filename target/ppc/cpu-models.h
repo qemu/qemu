@@ -24,7 +24,7 @@
 /**
  * PowerPCCPUAlias:
  * @alias: The alias name.
- * @model: The CPU model @alias refers to.
+ * @model: The CPU model @alias refers to, that directly resolves into CPU type
  *
  * A mapping entry from CPU @alias to CPU @model.
  */
