@@ -10261,7 +10261,7 @@ static gint ppc_cpu_compare_class_name(gconstpointer a, gconstpointer b)
     if (strncasecmp(name, object_class_get_name(oc), strlen(name)) == 0 &&
         ppc_cpu_is_valid(pcc) &&
         strcmp(object_class_get_name(oc) + strlen(name),
-               "-" TYPE_POWERPC_CPU) == 0) {
+               POWERPC_CPU_TYPE_SUFFIX) == 0) {
         return 0;
     }
     return -1;
@@ -10403,7 +10403,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     }
 
     name = g_strndup(typename,
-                     strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
+                     strlen(typename) - strlen(POWERPC_CPU_TYPE_SUFFIX));
     (*s->cpu_fprintf)(s->file, "PowerPC %-16s PVR %08x\n",
                       name, pcc->pvr);
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
@@ -10464,7 +10464,7 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     typename = object_class_get_name(oc);
     info = g_malloc0(sizeof(*info));
     info->name = g_strndup(typename,
-                           strlen(typename) - strlen("-" TYPE_POWERPC_CPU));
+                           strlen(typename) - strlen(POWERPC_CPU_TYPE_SUFFIX));
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;

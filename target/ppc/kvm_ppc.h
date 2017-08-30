@@ -9,7 +9,7 @@
 #ifndef KVM_PPC_H
 #define KVM_PPC_H
 
-#define TYPE_HOST_POWERPC_CPU "host-" TYPE_POWERPC_CPU
+#define TYPE_HOST_POWERPC_CPU POWERPC_CPU_TYPE_NAME("host")
 
 #ifdef CONFIG_KVM
 

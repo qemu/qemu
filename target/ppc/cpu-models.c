@@ -51,7 +51,7 @@
                                                                             \
     static const TypeInfo                                                   \
     glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_type_info) = {         \
-        .name       = _name "-" TYPE_POWERPC_CPU,                           \
+        .name       = POWERPC_CPU_TYPE_NAME(_name),                           \
         .parent     = stringify(_type) "-family-" TYPE_POWERPC_CPU,         \
         .class_init =                                                       \
             glue(POWERPC_DEF_PREFIX(_pvr, _svr, _type), _cpu_class_init),   \
