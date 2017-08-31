@@ -27,6 +27,7 @@
 #include "hw/pci/msi.h"
 
 bool msi_nonbroken;
+bool pci_available;
 
 PciInfoList *qmp_query_pci(Error **errp)
 {
@@ -37,4 +38,17 @@ PciInfoList *qmp_query_pci(Error **errp)
 void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "PCI devices not supported\n");
+}
+
+/* kvm-all wants this */
+MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)
+{
+    g_assert(false);
+    return (MSIMessage){};
+}
+
+uint16_t pci_requester_id(PCIDevice *dev)
+{
+    g_assert(false);
+    return 0;
 }

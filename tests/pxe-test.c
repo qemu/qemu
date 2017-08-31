@@ -51,6 +51,11 @@ static void test_pxe_spapr_vlan(void)
     test_pxe_one("-device spapr-vlan,netdev=" NETNAME, true);
 }
 
+static void test_pxe_virtio_ccw(void)
+{
+    test_pxe_one("-device virtio-net-ccw,bootindex=1,netdev=" NETNAME, false);
+}
+
 int main(int argc, char *argv[])
 {
     int ret;
@@ -68,6 +73,8 @@ int main(int argc, char *argv[])
     } else if (strcmp(arch, "ppc64") == 0) {
         qtest_add_func("pxe/virtio", test_pxe_virtio_pci);
         qtest_add_func("pxe/spapr-vlan", test_pxe_spapr_vlan);
+    } else if (g_str_equal(arch, "s390x")) {
+        qtest_add_func("pxe/virtio-ccw", test_pxe_virtio_ccw);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);

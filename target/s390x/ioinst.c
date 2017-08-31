@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
+#include "internal.h"
 #include "hw/s390x/ioinst.h"
 #include "trace.h"
 #include "hw/s390x/s390-pci-bus.h"
@@ -596,6 +597,22 @@ static int chsc_sei_nt0_get_event(void *res)
 static int chsc_sei_nt0_have_event(void)
 {
     /* no events yet */
+    return 0;
+}
+
+static int chsc_sei_nt2_get_event(void *res)
+{
+    if (s390_has_feat(S390_FEAT_ZPCI)) {
+        return pci_chsc_sei_nt2_get_event(res);
+    }
+    return 1;
+}
+
+static int chsc_sei_nt2_have_event(void)
+{
+    if (s390_has_feat(S390_FEAT_ZPCI)) {
+        return pci_chsc_sei_nt2_have_event();
+    }
     return 0;
 }
 

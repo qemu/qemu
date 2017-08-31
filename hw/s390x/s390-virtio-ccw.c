@@ -118,12 +118,11 @@ static void ccw_init(MachineState *machine)
 {
     int ret;
     VirtualCssBus *css_bus;
-    DeviceState *dev;
 
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
 
-    /* init CPUs */
+    /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
 
     s390_flic_init();
@@ -134,17 +133,18 @@ static void ccw_init(MachineState *machine)
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
 
-    dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
-    object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
-                              OBJECT(dev), NULL);
-    qdev_init_nofail(dev);
+    if (s390_has_feat(S390_FEAT_ZPCI)) {
+        DeviceState *dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
+        object_property_add_child(qdev_get_machine(),
+                                  TYPE_S390_PCI_HOST_BRIDGE,
+                                  OBJECT(dev), NULL);
+        qdev_init_nofail(dev);
+    }
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
 
-    if (kvm_enabled()) {
-        kvm_s390_enable_css_support(s390_cpu_addr2state(0));
-    }
+    s390_enable_css_support(s390_cpu_addr2state(0));
     /*
      * Non mcss-e enabled guests only see the devices from the default
      * css, which is determined by the value of the squash_mcss property.
@@ -161,7 +161,7 @@ static void ccw_init(MachineState *machine)
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
 
     /* Register savevm handler for guest TOD clock */
-    register_savevm_live(NULL, "todclock", 0, 1, &savevm_gtod, kvm_state);
+    register_savevm_live(NULL, "todclock", 0, 1, &savevm_gtod, NULL);
 }
 
 static void s390_cpu_plug(HotplugHandler *hotplug_dev,
@@ -276,9 +276,6 @@ static S390CcwMachineClass *get_machine_class(void)
 
 bool ri_allowed(void)
 {
-    if (!kvm_enabled()) {
-        return false;
-    }
     /* for "none" machine this results in true */
     return get_machine_class()->ri_allowed;
 }
@@ -291,18 +288,8 @@ bool cpu_model_allowed(void)
 
 bool gs_allowed(void)
 {
-    if (kvm_enabled()) {
-        MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
-        if (object_class_dynamic_cast(OBJECT_CLASS(mc),
-                                      TYPE_S390_CCW_MACHINE)) {
-            S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
-
-            return s390mc->gs_allowed;
-        }
-        /* Make sure the "none" machine can have gs */
-        return true;
-    }
-    return false;
+    /* for "none" machine this results in true */
+    return get_machine_class()->gs_allowed;
 }
 
 static char *machine_get_loadparm(Object *obj, Error **errp)
@@ -432,6 +419,9 @@ bool css_migration_enabled(void)
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+#define CCW_COMPAT_2_10 \
+        HW_COMPAT_2_10
+
 #define CCW_COMPAT_2_9 \
         HW_COMPAT_2_9 \
         {\
@@ -506,8 +496,18 @@ bool css_migration_enabled(void)
             .value    = "0",\
         },
 
+static void ccw_machine_2_11_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_2_11_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(2_11, "2.11", true);
+
 static void ccw_machine_2_10_instance_options(MachineState *machine)
 {
+    ccw_machine_2_11_instance_options(machine);
     if (css_migration_enabled()) {
         css_register_vmstate();
     }
@@ -515,8 +515,10 @@ static void ccw_machine_2_10_instance_options(MachineState *machine)
 
 static void ccw_machine_2_10_class_options(MachineClass *mc)
 {
+    ccw_machine_2_11_class_options(mc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_10);
 }
-DEFINE_CCW_MACHINE(2_10, "2.10", true);
+DEFINE_CCW_MACHINE(2_10, "2.10", false);
 
 static void ccw_machine_2_9_instance_options(MachineState *machine)
 {

@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "exec/address-spaces.h"
 #include "exec/exec-all.h"
 #include "hw/watchdog/wdt_diag288.h"
@@ -37,6 +38,13 @@ static int modified_clear_reset(S390CPU *cpu)
     cpu_synchronize_all_post_reset();
     resume_all_vcpus();
     return 0;
+}
+
+static inline void s390_do_cpu_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->cpu_reset(cs);
 }
 
 static int load_normal_reset(S390CPU *cpu)

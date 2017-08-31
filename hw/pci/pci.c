@@ -49,6 +49,8 @@
 # define PCI_DPRINTF(format, ...)       do { } while (0)
 #endif
 
+bool pci_available = true;
+
 static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);

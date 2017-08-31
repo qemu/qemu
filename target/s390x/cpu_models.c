@@ -12,6 +12,9 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
+#include "kvm_s390x.h"
+#include "sysemu/kvm.h"
 #include "gen-features.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
@@ -1198,6 +1201,14 @@ ObjectClass *s390_cpu_class_by_name(const char *name)
     oc = object_class_by_name(typename);
     g_free(typename);
     return oc;
+}
+
+const char *s390_default_cpu_model_name(void)
+{
+     if (kvm_enabled()) {
+        return "host";
+     }
+     return "qemu";
 }
 
 static const TypeInfo qemu_s390_cpu_type_info = {

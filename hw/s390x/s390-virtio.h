@@ -30,4 +30,6 @@ void s390_create_virtio_net(BusState *bus, const char *name);
 void s390_nmi(NMIState *n, int cpu_index, Error **errp);
 void s390_machine_reset(void);
 void s390_memory_init(ram_addr_t mem_size);
+void gtod_save(QEMUFile *f, void *opaque);
+int gtod_load(QEMUFile *f, void *opaque, int version_id);
 #endif

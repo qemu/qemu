@@ -15,7 +15,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "sysemu/kvm.h"
 #include "exec/memory.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
@@ -57,7 +56,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     CPUState *cpu;
     int cpu_count = 0;
     int rnsize, rnmax;
-    int slots = MIN(machine->ram_slots, s390_get_memslot_count(kvm_state));
+    int slots = MIN(machine->ram_slots, s390_get_memslot_count());
     IplParameterBlock *ipib = s390_ipl_get_iplb();
 
     CPU_FOREACH(cpu) {
@@ -80,7 +79,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     prepare_cpu_entries(sclp, read_info->entries, cpu_count);
 
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
-                                        SCLP_HAS_PCI_RECONFIG);
+                                        SCLP_HAS_IOA_RECONFIG);
 
     /* Memory Hotplug is only supported for the ccw machine type */
     if (mhd) {
@@ -354,6 +353,35 @@ static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
 
+static void sclp_configure_io_adapter(SCLPDevice *sclp, SCCB *sccb,
+                                      bool configure)
+{
+    int rc;
+
+    if (be16_to_cpu(sccb->h.length) < 16) {
+        rc = SCLP_RC_INSUFFICIENT_SCCB_LENGTH;
+        goto out_err;
+    }
+
+    switch (((IoaCfgSccb *)sccb)->atype) {
+    case SCLP_RECONFIG_PCI_ATYPE:
+        if (s390_has_feat(S390_FEAT_ZPCI)) {
+            if (configure) {
+                s390_pci_sclp_configure(sccb);
+            } else {
+                s390_pci_sclp_deconfigure(sccb);
+            }
+            return;
+        }
+        /* fallthrough */
+    default:
+        rc = SCLP_RC_ADAPTER_TYPE_NOT_RECOGNIZED;
+    }
+
+ out_err:
+    sccb->h.response_code = cpu_to_be16(rc);
+}
+
 static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
 {
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
@@ -384,11 +412,11 @@ static void sclp_execute(SCLPDevice *sclp, SCCB *sccb, uint32_t code)
     case SCLP_UNASSIGN_STORAGE:
         sclp_c->unassign_storage(sclp, sccb);
         break;
-    case SCLP_CMDW_CONFIGURE_PCI:
-        s390_pci_sclp_configure(sccb);
+    case SCLP_CMDW_CONFIGURE_IOA:
+        sclp_configure_io_adapter(sclp, sccb, true);
         break;
-    case SCLP_CMDW_DECONFIGURE_PCI:
-        s390_pci_sclp_deconfigure(sccb);
+    case SCLP_CMDW_DECONFIGURE_IOA:
+        sclp_configure_io_adapter(sclp, sccb, false);
         break;
     default:
         efc->command_handler(ef, sccb, code);

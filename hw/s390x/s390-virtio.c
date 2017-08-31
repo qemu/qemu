@@ -33,7 +33,6 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/virtio/virtio.h"
-#include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 
@@ -93,11 +92,7 @@ void s390_init_cpus(MachineState *machine)
     gchar *name;
 
     if (machine->cpu_model == NULL) {
-        if (kvm_enabled()) {
-            machine->cpu_model = "host";
-        } else {
-            machine->cpu_model = "qemu";
-        }
+        machine->cpu_model = s390_default_cpu_model_name();
     }
 
     cpu_states = g_new0(S390CPU *, max_cpus);

@@ -201,8 +201,16 @@ typedef struct CRW {
 #define CRW_FLAGS_MASK_A 0x0080
 #define CRW_FLAGS_MASK_ERC 0x003f
 
-#define CRW_ERC_INIT 0x02
-#define CRW_ERC_IPI  0x04
+#define CRW_ERC_EVENT    0x00 /* event information pending */
+#define CRW_ERC_AVAIL    0x01 /* available */
+#define CRW_ERC_INIT     0x02 /* initialized */
+#define CRW_ERC_TERROR   0x03 /* temporary error */
+#define CRW_ERC_IPI      0x04 /* installed parm initialized */
+#define CRW_ERC_TERM     0x05 /* terminal */
+#define CRW_ERC_PERRN    0x06 /* perm. error, facility not init */
+#define CRW_ERC_PERRI    0x07 /* perm. error, facility init */
+#define CRW_ERC_PMOD     0x08 /* installed parameters modified */
+#define CRW_ERC_IPR      0x0A /* installed parameters restored */
 
 #define CRW_RSC_SUBCH 0x3
 #define CRW_RSC_CHP   0x4

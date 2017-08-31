@@ -21,13 +21,12 @@
 #define SIGNATURE 0xdead
 #define SIGNATURE_OFFSET 0x10
 #define BOOT_SECTOR_ADDRESS 0x7c00
+#define SIGNATURE_ADDR (BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET)
 
-/* Boot sector code: write SIGNATURE into memory,
+/* x86 boot sector code: write SIGNATURE into memory,
  * then halt.
- * Q35 machine requires a minimum 0x7e000 bytes disk.
- * (bug or feature?)
  */
-static uint8_t boot_sector[0x7e000] = {
+static uint8_t x86_boot_sector[512] = {
     /* The first sector will be placed at RAM address 00007C00, and
      * the BIOS transfers control to 00007C00
      */
@@ -50,8 +49,8 @@ static uint8_t boot_sector[0x7e000] = {
     [0x07] = HIGH(SIGNATURE),
     /* 7c08:  mov %ax,0x7c10 */
     [0x08] = 0xa3,
-    [0x09] = LOW(BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET),
-    [0x0a] = HIGH(BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET),
+    [0x09] = LOW(SIGNATURE_ADDR),
+    [0x0a] = HIGH(SIGNATURE_ADDR),
 
     /* 7c0b cli */
     [0x0b] = 0xfa,
@@ -68,11 +67,28 @@ static uint8_t boot_sector[0x7e000] = {
     [0x1FF] = 0xAA,
 };
 
+/* For s390x, use a mini "kernel" with the appropriate signature */
+static const uint8_t s390x_psw[] = {
+    0x00, 0x08, 0x00, 0x00, 0x80, 0x01, 0x00, 0x00
+};
+static const uint8_t s390x_code[] = {
+    0xa7, 0xf4, 0x00, 0x0a,                                /* j 0x10010 */
+    0x00, 0x00, 0x00, 0x00,
+    'S', '3', '9', '0',
+    'E', 'P', 0x00, 0x01,
+    0xa7, 0x38, HIGH(SIGNATURE_ADDR), LOW(SIGNATURE_ADDR), /* lhi r3,0x7c10 */
+    0xa7, 0x48, LOW(SIGNATURE), HIGH(SIGNATURE),           /* lhi r4,0xadde */
+    0x40, 0x40, 0x30, 0x00,                                /* sth r4,0(r3) */
+    0xa7, 0xf4, 0xff, 0xfa                                 /* j 0x10010 */
+};
+
 /* Create boot disk file.  */
 int boot_sector_init(char *fname)
 {
     int fd, ret;
-    size_t len = sizeof boot_sector;
+    size_t len;
+    char *boot_code;
+    const char *arch = qtest_get_arch();
 
     fd = mkstemp(fname);
     if (fd < 0) {
@@ -80,15 +96,30 @@ int boot_sector_init(char *fname)
         return 1;
     }
 
-    /* For Open Firmware based system, we can use a Forth script instead */
-    if (strcmp(qtest_get_arch(), "ppc64") == 0) {
-        len = sprintf((char *)boot_sector, "\\ Bootscript\n%x %x c! %x %x c!\n",
-                LOW(SIGNATURE), BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET,
-                HIGH(SIGNATURE), BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET + 1);
+    if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
+        /* Q35 requires a minimum 0x7e000 bytes disk (bug or feature?) */
+        len = MAX(0x7e000, sizeof(x86_boot_sector));
+        boot_code = g_malloc0(len);
+        memcpy(boot_code, x86_boot_sector, sizeof(x86_boot_sector));
+    } else if (g_str_equal(arch, "ppc64")) {
+        /* For Open Firmware based system, use a Forth script */
+        boot_code = g_strdup_printf("\\ Bootscript\n%x %x c! %x %x c!\n",
+                                    LOW(SIGNATURE), SIGNATURE_ADDR,
+                                    HIGH(SIGNATURE), SIGNATURE_ADDR + 1);
+        len = strlen(boot_code);
+    } else if (g_str_equal(arch, "s390x")) {
+        len = 0x10000 + sizeof(s390x_code);
+        boot_code = g_malloc0(len);
+        memcpy(boot_code, s390x_psw, sizeof(s390x_psw));
+        memcpy(&boot_code[0x10000], s390x_code, sizeof(s390x_code));
+    } else {
+        g_assert_not_reached();
     }
 
-    ret = write(fd, boot_sector, len);
+    ret = write(fd, boot_code, len);
     close(fd);
+
+    g_free(boot_code);
 
     if (ret != len) {
         fprintf(stderr, "Could not write \"%s\"", fname);
@@ -115,8 +146,8 @@ void boot_sector_test(void)
      * instruction.
      */
     for (i = 0; i < TEST_CYCLES; ++i) {
-        signature_low = readb(BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET);
-        signature_high = readb(BOOT_SECTOR_ADDRESS + SIGNATURE_OFFSET + 1);
+        signature_low = readb(SIGNATURE_ADDR);
+        signature_high = readb(SIGNATURE_ADDR + 1);
         signature = (signature_high << 8) | signature_low;
         if (signature == SIGNATURE) {
             break;

@@ -133,7 +133,7 @@ struct ccw1 {
     __u8 flags;
     __u16 count;
     __u32 cda;
-} __attribute__ ((packed));
+} __attribute__ ((packed, aligned(8)));
 
 #define CCW_FLAG_DC              0x80
 #define CCW_FLAG_CC              0x40

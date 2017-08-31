@@ -11,12 +11,12 @@
 
 #include "qemu/osdep.h"
 #include "hw/boards.h"
+#include "cpu.h"
 #include "qmp-commands.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"
 #include "hw/s390x/storage-attributes.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
 #include "exec/ram_addr.h"
 #include "qapi/error.h"
 
@@ -306,6 +306,7 @@ static int qemu_s390_get_active(S390StAttribState *sa)
 static void qemu_s390_stattrib_class_init(ObjectClass *oc, void *data)
 {
     S390StAttribClass *sa_cl = S390_STATTRIB_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
     sa_cl->synchronize = qemu_s390_synchronize_stub;
     sa_cl->get_stattr = qemu_s390_get_stattr_stub;
@@ -314,6 +315,9 @@ static void qemu_s390_stattrib_class_init(ObjectClass *oc, void *data)
     sa_cl->set_migrationmode = qemu_s390_set_migrationmode_stub;
     sa_cl->get_dirtycount = qemu_s390_get_dirtycount_stub;
     sa_cl->get_active = qemu_s390_get_active;
+
+    /* Reason: Can only be instantiated one time (internally) */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo qemu_s390_stattrib_info = {
