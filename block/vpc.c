@@ -783,7 +783,7 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     } else {
         *secs_per_cyl = 17;
         cyls_times_heads = total_sectors / *secs_per_cyl;
-        *heads = (cyls_times_heads + 1023) / 1024;
+        *heads = DIV_ROUND_UP(cyls_times_heads, 1024);
 
         if (*heads < 4) {
             *heads = 4;
@@ -836,7 +836,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     offset = 3 * 512;
 
     memset(buf, 0xFF, 512);
-    for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++) {
+    for (i = 0; i < DIV_ROUND_UP(num_bat_entries * 4, 512); i++) {
         ret = blk_pwrite(blk, offset, buf, 512, 0);
         if (ret < 0) {
             goto fail;

@@ -118,7 +118,7 @@ void cursor_put(QEMUCursor *c)
 
 int cursor_get_mono_bpl(QEMUCursor *c)
 {
-    return (c->width + 7) / 8;
+    return DIV_ROUND_UP(c->width, 8);
 }
 
 void cursor_set_mono(QEMUCursor *c,

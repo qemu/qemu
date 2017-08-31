@@ -4775,7 +4775,7 @@ static decNumber * decDivideOp(decNumber *res,
 	    half=*up & 0x01;
 	    *up/=2;		   /* [shift] */
 	    if (!half) continue;
-	    *(up-1)+=(DECDPUNMAX+1)/2;
+	    *(up-1)+=DIV_ROUND_UP(DECDPUNMAX, 2);
 	    }
 	  /* [accunits still describes the original remainder length] */
 

@@ -93,7 +93,7 @@ int64_t pit_get_next_transition_time(PITChannelState *s, int64_t current_time)
         }
         break;
     case 2:
-        base = (d / s->count) * s->count;
+        base = QEMU_ALIGN_DOWN(d, s->count);
         if ((d - base) == 0 && d != 0) {
             next_time = base + s->count;
         } else {
@@ -101,7 +101,7 @@ int64_t pit_get_next_transition_time(PITChannelState *s, int64_t current_time)
         }
         break;
     case 3:
-        base = (d / s->count) * s->count;
+        base = QEMU_ALIGN_DOWN(d, s->count);
         period2 = ((s->count + 1) >> 1);
         if ((d - base) < period2) {
             next_time = base + period2;

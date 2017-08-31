@@ -167,8 +167,7 @@ static void test_io(void)
     }
     iov_from_buf(iov, niov, 0, buf, sz);
 
-    siov = g_malloc(sizeof(*iov) * niov);
-    memcpy(siov, iov, sizeof(*iov) * niov);
+    siov = g_memdup(iov, sizeof(*iov) * niov);
 
     if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) < 0) {
        perror("socketpair");
