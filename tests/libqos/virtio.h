@@ -143,4 +143,7 @@ void qvirtqueue_kick(QVirtioDevice *d, QVirtQueue *vq, uint32_t free_head);
 bool qvirtqueue_get_buf(QVirtQueue *vq, uint32_t *desc_idx);
 
 void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx);
+
+const char *qvirtio_get_dev_type(void);
+
 #endif
