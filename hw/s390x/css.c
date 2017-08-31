@@ -1276,16 +1276,16 @@ int css_do_xsch(SubchDev *sch)
         goto out;
     }
 
+    if (s->ctrl & SCSW_CTRL_MASK_STCTL) {
+        ret = -EINPROGRESS;
+        goto out;
+    }
+
     if (!(s->ctrl & SCSW_CTRL_MASK_FCTL) ||
         ((s->ctrl & SCSW_CTRL_MASK_FCTL) != SCSW_FCTL_START_FUNC) ||
         (!(s->ctrl &
            (SCSW_ACTL_RESUME_PEND | SCSW_ACTL_START_PEND | SCSW_ACTL_SUSP))) ||
         (s->ctrl & SCSW_ACTL_SUBCH_ACTIVE)) {
-        ret = -EINPROGRESS;
-        goto out;
-    }
-
-    if (s->ctrl & SCSW_CTRL_MASK_STCTL) {
         ret = -EBUSY;
         goto out;
     }
