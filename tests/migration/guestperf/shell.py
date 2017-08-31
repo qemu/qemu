@@ -18,12 +18,14 @@
 #
 
 
-import argparse
-import fnmatch
 import os
 import os.path
-import platform
 import sys
+sys.path.append(os.path.join(os.path.dirname(__file__),
+                             '..', '..', '..', 'scripts'))
+import argparse
+import fnmatch
+import platform
 
 from guestperf.hardware import Hardware
 from guestperf.engine import Engine

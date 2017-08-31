@@ -530,6 +530,7 @@ void *qemu_alloc_stack(size_t *sz)
     ptr = mmap(NULL, *sz, PROT_READ | PROT_WRITE,
                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (ptr == MAP_FAILED) {
+        perror("failed to allocate memory for stack");
         abort();
     }
 
@@ -544,6 +545,7 @@ void *qemu_alloc_stack(size_t *sz)
     guardpage = ptr;
 #endif
     if (mprotect(guardpage, pagesz, PROT_NONE) != 0) {
+        perror("failed to set up stack guard page");
         abort();
     }
 

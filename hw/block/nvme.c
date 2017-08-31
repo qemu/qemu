@@ -615,7 +615,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         result = blk_enable_write_cache(n->conf.blk);
         break;
     case NVME_NUMBER_OF_QUEUES:
-        result = cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
+        result = cpu_to_le32((n->num_queues - 2) | ((n->num_queues - 2) << 16));
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -636,7 +636,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         break;
     case NVME_NUMBER_OF_QUEUES:
         req->cqe.result =
-            cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
+            cpu_to_le32((n->num_queues - 2) | ((n->num_queues - 2) << 16));
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;

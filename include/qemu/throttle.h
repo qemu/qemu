@@ -63,7 +63,7 @@ typedef enum {
  * - The bkt.avg rate does not apply until the bucket is full,
  *   allowing the user to do bursts until then. The I/O limit during
  *   bursts is bkt.max. To enforce this limit we keep an additional
- *   bucket in bkt.burst_length that leaks at a rate of bkt.max units
+ *   bucket in bkt.burst_level that leaks at a rate of bkt.max units
  *   per second.
  *
  * - Because of all of the above, the user can perform I/O at a
@@ -77,11 +77,11 @@ typedef enum {
  */
 
 typedef struct LeakyBucket {
-    double  avg;              /* average goal in units per second */
-    double  max;              /* leaky bucket max burst in units */
+    uint64_t avg;             /* average goal in units per second */
+    uint64_t max;             /* leaky bucket max burst in units */
     double  level;            /* bucket level in units */
     double  burst_level;      /* bucket level in units (for computing bursts) */
-    unsigned burst_length;    /* max length of the burst period, in seconds */
+    uint64_t burst_length;    /* max length of the burst period, in seconds */
 } LeakyBucket;
 
 /* The following structure is used to configure a ThrottleState

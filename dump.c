@@ -1695,10 +1695,8 @@ static void dump_process(DumpState *s, Error **errp)
 
 static void *dump_thread(void *data)
 {
-    Error *err = NULL;
     DumpState *s = (DumpState *)data;
-    dump_process(s, &err);
-    error_free(err);
+    dump_process(s, NULL);
     return NULL;
 }
 

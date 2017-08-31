@@ -1360,16 +1360,6 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    s->cluster_cache = g_malloc(s->cluster_size);
-    /* one more sector for decompressed data alignment */
-    s->cluster_data = qemu_try_blockalign(bs->file->bs, QCOW_MAX_CRYPT_CLUSTERS
-                                                    * s->cluster_size + 512);
-    if (s->cluster_data == NULL) {
-        error_setg(errp, "Could not allocate temporary cluster buffer");
-        ret = -ENOMEM;
-        goto fail;
-    }
-
     s->cluster_cache_offset = -1;
     s->flags = flags;
 
@@ -1507,8 +1497,6 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->refcount_block_cache) {
         qcow2_cache_destroy(bs, s->refcount_block_cache);
     }
-    g_free(s->cluster_cache);
-    qemu_vfree(s->cluster_data);
     qcrypto_block_free(s->crypto);
     qapi_free_QCryptoBlockOpenOptions(s->crypto_opts);
     return ret;
@@ -1820,15 +1808,13 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                 assert(s->crypto);
                 assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
                 assert((cur_bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-                Error *err = NULL;
                 if (qcrypto_block_decrypt(s->crypto,
                                           (s->crypt_physical_offset ?
                                            cluster_offset + offset_in_cluster :
                                            offset) >> BDRV_SECTOR_BITS,
                                           cluster_data,
                                           cur_bytes,
-                                          &err) < 0) {
-                    error_free(err);
+                                          NULL) < 0) {
                     ret = -EIO;
                     goto fail;
                 }
@@ -1942,7 +1928,6 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done, cur_bytes);
 
         if (bs->encrypted) {
-            Error *err = NULL;
             assert(s->crypto);
             if (!cluster_data) {
                 cluster_data = qemu_try_blockalign(bs->file->bs,
@@ -1963,8 +1948,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                        cluster_offset + offset_in_cluster :
                                        offset) >> BDRV_SECTOR_BITS,
                                       cluster_data,
-                                      cur_bytes, &err) < 0) {
-                error_free(err);
+                                      cur_bytes, NULL) < 0) {
                 ret = -EIO;
                 goto fail;
             }

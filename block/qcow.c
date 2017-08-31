@@ -454,13 +454,11 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                     start_sect = (offset & ~(s->cluster_size - 1)) >> 9;
                     for(i = 0; i < s->cluster_sectors; i++) {
                         if (i < n_start || i >= n_end) {
-                            Error *err = NULL;
                             memset(s->cluster_data, 0x00, 512);
                             if (qcrypto_block_encrypt(s->crypto, start_sect + i,
                                                       s->cluster_data,
                                                       BDRV_SECTOR_SIZE,
-                                                      &err) < 0) {
-                                error_free(err);
+                                                      NULL) < 0) {
                                 errno = EIO;
                                 return -1;
                             }
@@ -572,7 +570,6 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
     QEMUIOVector hd_qiov;
     uint8_t *buf;
     void *orig_buf;
-    Error *err = NULL;
 
     if (qiov->niov > 1) {
         buf = orig_buf = qemu_try_blockalign(bs, qiov->size);
@@ -637,7 +634,7 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
             if (bs->encrypted) {
                 assert(s->crypto);
                 if (qcrypto_block_decrypt(s->crypto, sector_num, buf,
-                                          n * BDRV_SECTOR_SIZE, &err) < 0) {
+                                          n * BDRV_SECTOR_SIZE, NULL) < 0) {
                     goto fail;
                 }
             }
@@ -660,7 +657,6 @@ done:
     return ret;
 
 fail:
-    error_free(err);
     ret = -EIO;
     goto done;
 }
@@ -709,11 +705,9 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
             break;
         }
         if (bs->encrypted) {
-            Error *err = NULL;
             assert(s->crypto);
             if (qcrypto_block_encrypt(s->crypto, sector_num, buf,
-                                      n * BDRV_SECTOR_SIZE, &err) < 0) {
-                error_free(err);
+                                      n * BDRV_SECTOR_SIZE, NULL) < 0) {
                 ret = -EIO;
                 break;
             }
