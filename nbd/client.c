@@ -399,12 +399,10 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
                phase, but make sure it sent flags */
             if (len) {
                 error_setg(errp, "server sent invalid NBD_REP_ACK");
-                nbd_send_opt_abort(ioc);
                 return -1;
             }
             if (!info->flags) {
                 error_setg(errp, "broken server omitted NBD_INFO_EXPORT");
-                nbd_send_opt_abort(ioc);
                 return -1;
             }
             trace_nbd_opt_go_success();
@@ -898,7 +896,7 @@ int nbd_disconnect(int fd)
 }
 #endif
 
-ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
+int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
 
@@ -916,20 +914,20 @@ ssize_t nbd_send_request(QIOChannel *ioc, NBDRequest *request)
     return nbd_write(ioc, buf, sizeof(buf), NULL);
 }
 
-ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
+/* nbd_receive_reply
+ * Returns 1 on success
+ *         0 on eof, when no data was read (errp is not set)
+ *         negative errno on failure (errp is set)
+ */
+int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     uint32_t magic;
-    ssize_t ret;
+    int ret;
 
     ret = nbd_read_eof(ioc, buf, sizeof(buf), errp);
     if (ret <= 0) {
         return ret;
-    }
-
-    if (ret != sizeof(buf)) {
-        error_setg(errp, "read failed");
-        return -EINVAL;
     }
 
     /* Reply
@@ -955,6 +953,7 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
         error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }
-    return sizeof(buf);
+
+    return 1;
 }
 

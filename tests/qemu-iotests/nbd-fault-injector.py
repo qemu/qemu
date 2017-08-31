@@ -235,11 +235,15 @@ def open_socket(path):
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((host, int(port)))
+
+        # If given port was 0 the final port number is now available
+        path = '%s:%d' % sock.getsockname()
     else:
         sock = socket.socket(socket.AF_UNIX)
         sock.bind(path)
     sock.listen(0)
     print 'Listening on %s' % path
+    sys.stdout.flush() # another process may be waiting, show message now
     return sock
 
 def usage(args):
