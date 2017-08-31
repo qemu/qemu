@@ -9904,28 +9904,15 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     Error *local_err = NULL;
-#if !defined(CONFIG_USER_ONLY)
-    int max_smt = kvmppc_smt_threads();
-#endif
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
     }
-
-#if !defined(CONFIG_USER_ONLY)
-    cpu->vcpu_id = (cs->cpu_index / smp_threads) * max_smt
-        + (cs->cpu_index % smp_threads);
-
-    if (kvm_enabled() && !kvm_vcpu_id_is_valid(cpu->vcpu_id)) {
-        error_setg(errp, "Can't create CPU with id %d in KVM", cpu->vcpu_id);
-        error_append_hint(errp, "Adjust the number of cpus to %d "
-                          "or try to raise the number of threads per core\n",
-                          cpu->vcpu_id * smp_threads / max_smt);
-        goto unrealize;
+    if (cpu->vcpu_id == UNASSIGNED_CPU_INDEX) {
+        cpu->vcpu_id = cs->cpu_index;
     }
-#endif
 
     if (tcg_enabled()) {
         if (ppc_fixup_cpu(cpu) != 0) {
@@ -10576,6 +10563,7 @@ static void ppc_cpu_initfn(Object *obj)
     CPUPPCState *env = &cpu->env;
 
     cs->env_ptr = env;
+    cpu->vcpu_id = UNASSIGNED_CPU_INDEX;
 
     env->msr_mask = pcc->msr_mask;
     env->mmu_model = pcc->mmu_model;

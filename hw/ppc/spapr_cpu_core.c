@@ -213,6 +213,7 @@ error:
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
@@ -239,6 +240,16 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         cs = CPU(obj);
         cpu = POWERPC_CPU(cs);
         cs->cpu_index = cc->core_id + i;
+        cpu->vcpu_id = (cc->core_id * spapr->vsmt / smp_threads) + i;
+        if (kvm_enabled() && !kvm_vcpu_id_is_valid(cpu->vcpu_id)) {
+            error_setg(&local_err, "Can't create CPU with id %d in KVM",
+                       cpu->vcpu_id);
+            error_append_hint(&local_err, "Adjust the number of cpus to %d "
+                              "or try to raise the number of threads per core\n",
+                              cpu->vcpu_id * smp_threads / spapr->vsmt);
+            goto err;
+        }
+
 
         /* Set NUMA node for the threads belonged to core  */
         cpu->node_id = sc->node_id;
