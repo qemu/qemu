@@ -124,7 +124,7 @@ class QEMUMachine(object):
         fd_param = ["%s" % self._socket_scm_helper,
                     "%d" % self._qmp.get_sock_fd(),
                     "%s" % fd_file_path]
-        devnull = open('/dev/null', 'rb')
+        devnull = open(os.path.devnull, 'rb')
         proc = subprocess.Popen(fd_param, stdin=devnull, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         output = proc.communicate()[0]
@@ -186,7 +186,7 @@ class QEMUMachine(object):
 
     def launch(self):
         '''Launch the VM and establish a QMP connection'''
-        devnull = open('/dev/null', 'rb')
+        devnull = open(os.path.devnull, 'rb')
         qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._pre_launch()
