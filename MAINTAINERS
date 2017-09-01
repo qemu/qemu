@@ -249,6 +249,7 @@ S: Maintained
 F: target/i386/
 F: hw/i386/
 F: disas/i386.c
+T: git git://github.com/ehabkost/qemu.git x86-next
 
 Xtensa
 M: Max Filippov <jcmvbkbc@gmail.com>
@@ -857,6 +858,7 @@ S: Supported
 F: hw/core/machine.c
 F: hw/core/null-machine.c
 F: include/hw/boards.h
+T: git git://github.com/ehabkost/qemu.git machine-next
 
 Xtensa Machines
 ---------------
@@ -1374,7 +1376,7 @@ M: Eduardo Habkost <ehabkost@redhat.com>
 S: Maintained
 F: numa.c
 F: include/sysemu/numa.h
-T: git git://github.com/ehabkost/qemu.git numa
+T: git git://github.com/ehabkost/qemu.git machine-next
 
 Host Memory Backends
 M: Eduardo Habkost <ehabkost@redhat.com>
@@ -1382,6 +1384,7 @@ M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c
 F: include/sysemu/hostmem.h
+T: git git://github.com/ehabkost/qemu.git machine-next
 
 Cryptodev Backends
 M: Gonglei <arei.gonglei@huawei.com>
