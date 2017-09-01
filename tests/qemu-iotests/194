@@ -21,6 +21,7 @@
 
 import iotests
 
+iotests.verify_image_format(unsupported_fmts=['luks'])
 iotests.verify_platform(['linux'])
 
 with iotests.FilePath('source.img') as source_img_path, \
