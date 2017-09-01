@@ -112,9 +112,7 @@ static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
 
 void hppa_translate_init(void);
 
-HPPACPU *cpu_hppa_init(const char *cpu_model);
-
-#define cpu_init(cpu_model) CPU(cpu_hppa_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_HPPA_CPU, cpu_model)
 
 void hppa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 

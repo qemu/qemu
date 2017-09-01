@@ -295,7 +295,7 @@ void helper_wrcwp(CPUSPARCState *env, target_ulong new_cwp)
 
 static inline uint64_t *get_gregset(CPUSPARCState *env, uint32_t pstate)
 {
-    if (env->def->features & CPU_FEATURE_GL) {
+    if (env->def.features & CPU_FEATURE_GL) {
         return env->glregs + (env->gl & 7) * 8;
     }
 
@@ -343,7 +343,7 @@ void cpu_change_pstate(CPUSPARCState *env, uint32_t new_pstate)
     uint32_t pstate_regs, new_pstate_regs;
     uint64_t *src, *dst;
 
-    if (env->def->features & CPU_FEATURE_GL) {
+    if (env->def.features & CPU_FEATURE_GL) {
         /* PS_AG, IG and MG are not implemented in this case */
         new_pstate &= ~(PS_AG | PS_IG | PS_MG);
         env->pstate = new_pstate;

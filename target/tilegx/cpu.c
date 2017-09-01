@@ -52,15 +52,9 @@ static void tilegx_cpu_dump_state(CPUState *cs, FILE *f,
                 env->pc, env->spregs[TILEGX_SPR_CMPEXCH]);
 }
 
-TileGXCPU *cpu_tilegx_init(const char *cpu_model)
+static ObjectClass *tilegx_cpu_class_by_name(const char *cpu_model)
 {
-    TileGXCPU *cpu;
-
-    cpu = TILEGX_CPU(object_new(TYPE_TILEGX_CPU));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    return object_class_by_name(TYPE_TILEGX_CPU);
 }
 
 static void tilegx_cpu_set_pc(CPUState *cs, vaddr value)
@@ -159,6 +153,7 @@ static void tilegx_cpu_class_init(ObjectClass *oc, void *data)
     tcc->parent_reset = cc->reset;
     cc->reset = tilegx_cpu_reset;
 
+    cc->class_by_name = tilegx_cpu_class_by_name;
     cc->has_work = tilegx_cpu_has_work;
     cc->do_interrupt = tilegx_cpu_do_interrupt;
     cc->cpu_exec_interrupt = tilegx_cpu_exec_interrupt;

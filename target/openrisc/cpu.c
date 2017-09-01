@@ -210,11 +210,6 @@ static void openrisc_cpu_register_types(void)
     }
 }
 
-OpenRISCCPU *cpu_openrisc_init(const char *cpu_model)
-{
-    return OPENRISC_CPU(cpu_generic_init(TYPE_OPENRISC_CPU, cpu_model));
-}
-
 /* Sort alphabetically by type name, except for "any". */
 static gint openrisc_cpu_list_compare(gconstpointer a, gconstpointer b)
 {

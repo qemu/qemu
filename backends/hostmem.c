@@ -342,7 +342,7 @@ out:
 }
 
 static bool
-host_memory_backend_can_be_deleted(UserCreatable *uc, Error **errp)
+host_memory_backend_can_be_deleted(UserCreatable *uc)
 {
     if (host_memory_backend_is_mapped(MEMORY_BACKEND(uc))) {
         return false;

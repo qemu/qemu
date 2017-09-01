@@ -797,7 +797,7 @@ static void cpu_devinit(const char *cpu_model, unsigned int id,
     SPARCCPU *cpu;
     CPUSPARCState *env;
 
-    cpu = cpu_sparc_init(cpu_model);
+    cpu = SPARC_CPU(cpu_generic_init(TYPE_SPARC_CPU, cpu_model));
     if (cpu == NULL) {
         fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
         exit(1);

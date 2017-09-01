@@ -1597,7 +1597,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
         exit(1);
     }
 
-    s->cpu = cpu_arm_init(rev);
+    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, rev));
 
     if (!s->cpu) {
         error_report("Unable to find CPU definition");

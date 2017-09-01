@@ -468,9 +468,7 @@ enum {
 
 void alpha_translate_init(void);
 
-AlphaCPU *cpu_alpha_init(const char *cpu_model);
-
-#define cpu_init(cpu_model) CPU(cpu_alpha_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_ALPHA_CPU, cpu_model)
 
 void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 /* you can call this signal handler from your SIGBUS and SIGSEGV

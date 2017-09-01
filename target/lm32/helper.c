@@ -219,11 +219,6 @@ bool lm32_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
-LM32CPU *cpu_lm32_init(const char *cpu_model)
-{
-    return LM32_CPU(cpu_generic_init(TYPE_LM32_CPU, cpu_model));
-}
-
 /* Some soc ignores the MSB on the address bus. Thus creating a shadow memory
  * area. As a general rule, 0x00000000-0x7fffffff is cached, whereas
  * 0x80000000-0xffffffff is not cached and used to access IO devices. */

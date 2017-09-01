@@ -112,7 +112,6 @@ static inline MoxieCPU *moxie_env_get_cpu(CPUMoxieState *env)
 
 #define ENV_OFFSET offsetof(MoxieCPU, env)
 
-MoxieCPU *cpu_moxie_init(const char *cpu_model);
 void moxie_cpu_do_interrupt(CPUState *cs);
 void moxie_cpu_dump_state(CPUState *cpu, FILE *f,
                           fprintf_function cpu_fprintf, int flags);
@@ -121,7 +120,7 @@ void moxie_translate_init(void);
 int cpu_moxie_signal_handler(int host_signum, void *pinfo,
                              void *puc);
 
-#define cpu_init(cpu_model) CPU(cpu_moxie_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_MOXIE_CPU, cpu_model)
 
 #define cpu_signal_handler cpu_moxie_signal_handler
 

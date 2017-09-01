@@ -51,7 +51,7 @@ typedef struct UserCreatableClass {
 
     /* <public> */
     void (*complete)(UserCreatable *uc, Error **errp);
-    bool (*can_be_deleted)(UserCreatable *uc, Error **errp);
+    bool (*can_be_deleted)(UserCreatable *uc);
 } UserCreatableClass;
 
 /**
@@ -68,12 +68,11 @@ void user_creatable_complete(Object *obj, Error **errp);
 /**
  * user_creatable_can_be_deleted:
  * @uc: the object whose can_be_deleted() method is called if implemented
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Wrapper to call can_be_deleted() method if one of types it's inherited
  * from implements USER_CREATABLE interface.
  */
-bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp);
+bool user_creatable_can_be_deleted(UserCreatable *uc);
 
 /**
  * user_creatable_add_type:

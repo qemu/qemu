@@ -1845,17 +1845,6 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n\n");
 }
 
-MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
-{
-    MicroBlazeCPU *cpu;
-
-    cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
-}
-
 void mb_tcg_init(void)
 {
     int i;

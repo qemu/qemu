@@ -95,7 +95,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
     if (mmu_idx == MMU_PHYS_IDX) {
         *page_size = TARGET_PAGE_SIZE;
         /* Boot mode: instruction fetches are taken from PROM */
-        if (rw == 2 && (env->mmuregs[0] & env->def->mmu_bm)) {
+        if (rw == 2 && (env->mmuregs[0] & env->def.mmu_bm)) {
             *physical = env->prom_addr | (address & 0x7ffffULL);
             *prot = PAGE_READ | PAGE_EXEC;
             return 0;

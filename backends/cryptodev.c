@@ -215,7 +215,7 @@ bool cryptodev_backend_is_ready(CryptoDevBackend *backend)
 }
 
 static bool
-cryptodev_backend_can_be_deleted(UserCreatable *uc, Error **errp)
+cryptodev_backend_can_be_deleted(UserCreatable *uc)
 {
     return !cryptodev_backend_is_used(CRYPTODEV_BACKEND(uc));
 }

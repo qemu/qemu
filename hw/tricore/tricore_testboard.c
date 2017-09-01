@@ -74,7 +74,7 @@ static void tricore_testboard_init(MachineState *machine, int board_id)
     if (!machine->cpu_model) {
         machine->cpu_model = "tc1796";
     }
-    cpu = cpu_tricore_init(machine->cpu_model);
+    cpu = TRICORE_CPU(cpu_generic_init(TYPE_TRICORE_CPU, machine->cpu_model));
     if (!cpu) {
         error_report("Unable to find CPU definition");
         exit(1);

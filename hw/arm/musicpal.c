@@ -1593,7 +1593,7 @@ static void musicpal_init(MachineState *machine)
     if (!cpu_model) {
         cpu_model = "arm926";
     }
-    cpu = cpu_arm_init(cpu_model);
+    cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, cpu_model));
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);

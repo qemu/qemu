@@ -147,7 +147,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
         }
     }
 
-    if (env->def->features & CPU_FEATURE_GL) {
+    if (env->def.features & CPU_FEATURE_GL) {
         tsptr->tstate |= (env->gl & 7ULL) << 40;
         cpu_gl_switch_gregs(env, env->gl + 1);
         env->gl++;

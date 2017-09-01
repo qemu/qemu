@@ -688,8 +688,7 @@ const char *s390_default_cpu_model_name(void);
 
 
 /* helper.c */
-S390CPU *cpu_s390x_init(const char *cpu_model);
-#define cpu_init(model) CPU(cpu_s390x_init(model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_S390_CPU, cpu_model)
 S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero

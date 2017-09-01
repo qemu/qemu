@@ -150,11 +150,6 @@ static const MoxieCPUInfo moxie_cpus[] = {
     { .name = "any",            .initfn = moxie_any_initfn },
 };
 
-MoxieCPU *cpu_moxie_init(const char *cpu_model)
-{
-    return MOXIE_CPU(cpu_generic_init(TYPE_MOXIE_CPU, cpu_model));
-}
-
 static void cpu_register(const MoxieCPUInfo *info)
 {
     TypeInfo type_info = {

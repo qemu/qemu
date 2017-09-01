@@ -164,9 +164,7 @@ static inline TileGXCPU *tilegx_env_get_cpu(CPUTLGState *env)
 void tilegx_tcg_init(void);
 int cpu_tilegx_signal_handler(int host_signum, void *pinfo, void *puc);
 
-TileGXCPU *cpu_tilegx_init(const char *cpu_model);
-
-#define cpu_init(cpu_model) CPU(cpu_tilegx_init(cpu_model))
+#define cpu_init(cpu_model) cpu_generic_init(TYPE_TILEGX_CPU, cpu_model)
 
 #define cpu_signal_handler cpu_tilegx_signal_handler
 

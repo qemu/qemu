@@ -3863,7 +3863,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
 
     /* Core */
     s->mpu_model = omap310;
-    s->cpu = cpu_arm_init(core);
+    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, core));
     if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);

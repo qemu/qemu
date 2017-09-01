@@ -23,13 +23,13 @@ void user_creatable_complete(Object *obj, Error **errp)
     }
 }
 
-bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp)
+bool user_creatable_can_be_deleted(UserCreatable *uc)
 {
 
     UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
 
     if (ucc->can_be_deleted) {
-        return ucc->can_be_deleted(uc, errp);
+        return ucc->can_be_deleted(uc);
     } else {
         return true;
     }
@@ -178,7 +178,7 @@ void user_creatable_del(const char *id, Error **errp)
         return;
     }
 
-    if (!user_creatable_can_be_deleted(USER_CREATABLE(obj), errp)) {
+    if (!user_creatable_can_be_deleted(USER_CREATABLE(obj))) {
         error_setg(errp, "object '%s' is in use, can not be deleted", id);
         return;
     }

@@ -2066,7 +2066,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     if (!revision)
         revision = "pxa270";
 
-    s->cpu = cpu_arm_init(revision);
+    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, revision));
     if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
@@ -2196,7 +2196,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 
     s = g_new0(PXA2xxState, 1);
 
-    s->cpu = cpu_arm_init("pxa255");
+    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, "pxa255"));
     if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
