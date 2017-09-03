@@ -2855,7 +2855,7 @@ static uint32_t (*e1000e_macreg_readops[])(E1000ECore *, int) = {
     e1000e_getreg(RDLEN0),
     e1000e_getreg(RDH1),
     e1000e_getreg(LATECOL),
-    e1000e_getreg(SEC),
+    e1000e_getreg(SEQEC),
     e1000e_getreg(XONTXC),
     e1000e_getreg(WUS),
     e1000e_getreg(GORCL),
