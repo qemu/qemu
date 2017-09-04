@@ -115,6 +115,51 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
     return syn;
 }
 
+static void deliver_fault(ARMCPU *cpu, vaddr addr, MMUAccessType access_type,
+                          uint32_t fsr, uint32_t fsc, ARMMMUFaultInfo *fi)
+{
+    CPUARMState *env = &cpu->env;
+    int target_el;
+    bool same_el;
+    uint32_t syn, exc;
+
+    target_el = exception_target_el(env);
+    if (fi->stage2) {
+        target_el = 2;
+        env->cp15.hpfar_el2 = extract64(fi->s2addr, 12, 47) << 4;
+    }
+    same_el = (arm_current_el(env) == target_el);
+
+    if (fsc == 0x3f) {
+        /* Caller doesn't have a long-format fault status code. This
+         * should only happen if this fault will never actually be reported
+         * to an EL that uses a syndrome register. Check that here.
+         * 0x3f is a (currently) reserved FSC code, in case the constructed
+         * syndrome does leak into the guest somehow.
+         */
+        assert(target_el != 2 && !arm_el_is_aa64(env, target_el));
+    }
+
+    if (access_type == MMU_INST_FETCH) {
+        syn = syn_insn_abort(same_el, 0, fi->s1ptw, fsc);
+        exc = EXCP_PREFETCH_ABORT;
+    } else {
+        syn = merge_syn_data_abort(env->exception.syndrome, target_el,
+                                   same_el, fi->s1ptw,
+                                   access_type == MMU_DATA_STORE,
+                                   fsc);
+        if (access_type == MMU_DATA_STORE
+            && arm_feature(env, ARM_FEATURE_V6)) {
+            fsr |= (1 << 11);
+        }
+        exc = EXCP_DATA_ABORT;
+    }
+
+    env->exception.vaddress = addr;
+    env->exception.fsr = fsr;
+    raise_exception(env, exc, syn, target_el);
+}
+
 /* try to fill the TLB and return an exception if error. If retaddr is
  * NULL, it means that the function was called in C code (i.e. not
  * from generated code or from helper.c)
@@ -129,22 +174,12 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
     ret = arm_tlb_fill(cs, addr, access_type, mmu_idx, &fsr, &fi);
     if (unlikely(ret)) {
         ARMCPU *cpu = ARM_CPU(cs);
-        CPUARMState *env = &cpu->env;
-        uint32_t syn, exc, fsc;
-        unsigned int target_el;
-        bool same_el;
+        uint32_t fsc;
 
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(cs, retaddr);
         }
-
-        target_el = exception_target_el(env);
-        if (fi.stage2) {
-            target_el = 2;
-            env->cp15.hpfar_el2 = extract64(fi.s2addr, 12, 47) << 4;
-        }
-        same_el = arm_current_el(env) == target_el;
 
         if (fsr & (1 << 9)) {
             /* LPAE format fault status register : bottom 6 bits are
@@ -153,34 +188,15 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
             fsc = extract32(fsr, 0, 6);
         } else {
             /* Short format FSR : this fault will never actually be reported
-             * to an EL that uses a syndrome register. Check that here,
-             * and use a (currently) reserved FSR code in case the constructed
-             * syndrome does leak into the guest somehow.
+             * to an EL that uses a syndrome register. Use a (currently)
+             * reserved FSR code in case the constructed syndrome does leak
+             * into the guest somehow. deliver_fault will assert that
+             * we don't target an EL using the syndrome.
              */
-            assert(target_el != 2 && !arm_el_is_aa64(env, target_el));
             fsc = 0x3f;
         }
 
-        /* For insn and data aborts we assume there is no instruction syndrome
-         * information; this is always true for exceptions reported to EL1.
-         */
-        if (access_type == MMU_INST_FETCH) {
-            syn = syn_insn_abort(same_el, 0, fi.s1ptw, fsc);
-            exc = EXCP_PREFETCH_ABORT;
-        } else {
-            syn = merge_syn_data_abort(env->exception.syndrome, target_el,
-                                       same_el, fi.s1ptw,
-                                       access_type == MMU_DATA_STORE, fsc);
-            if (access_type == MMU_DATA_STORE
-                && arm_feature(env, ARM_FEATURE_V6)) {
-                fsr |= (1 << 11);
-            }
-            exc = EXCP_DATA_ABORT;
-        }
-
-        env->exception.vaddress = addr;
-        env->exception.fsr = fsr;
-        raise_exception(env, exc, syn, target_el);
+        deliver_fault(cpu, addr, access_type, fsr, fsc, &fi);
     }
 }
 
@@ -191,9 +207,8 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    int target_el;
-    bool same_el;
-    uint32_t syn;
+    uint32_t fsr, fsc;
+    ARMMMUFaultInfo fi = {};
     ARMMMUIdx arm_mmu_idx = core_to_arm_mmu_idx(env, mmu_idx);
 
     if (retaddr) {
@@ -201,28 +216,17 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
         cpu_restore_state(cs, retaddr);
     }
 
-    target_el = exception_target_el(env);
-    same_el = (arm_current_el(env) == target_el);
-
-    env->exception.vaddress = vaddr;
-
     /* the DFSR for an alignment fault depends on whether we're using
      * the LPAE long descriptor format, or the short descriptor format
      */
     if (arm_s1_regime_using_lpae_format(env, arm_mmu_idx)) {
-        env->exception.fsr = (1 << 9) | 0x21;
+        fsr = (1 << 9) | 0x21;
     } else {
-        env->exception.fsr = 0x1;
+        fsr = 0x1;
     }
+    fsc = 0x21;
 
-    if (access_type == MMU_DATA_STORE && arm_feature(env, ARM_FEATURE_V6)) {
-        env->exception.fsr |= (1 << 11);
-    }
-
-    syn = merge_syn_data_abort(env->exception.syndrome, target_el,
-                               same_el, 0, access_type == MMU_DATA_STORE,
-                               0x21);
-    raise_exception(env, EXCP_DATA_ABORT, syn, target_el);
+    deliver_fault(cpu, vaddr, access_type, fsr, fsc, &fi);
 }
 
 #endif /* !defined(CONFIG_USER_ONLY) */
