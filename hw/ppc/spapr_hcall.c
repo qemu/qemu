@@ -1559,20 +1559,16 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         }
 
         if (spapr->htab_shift < maxshift) {
-            CPUState *cs;
-
             /* Guest doesn't know about HPT resizing, so we
              * pre-emptively resize for the maximum permitted RAM.  At
              * the point this is called, nothing should have been
              * entered into the existing HPT */
             spapr_reallocate_hpt(spapr, maxshift, &error_fatal);
-            CPU_FOREACH(cs) {
-                if (kvm_enabled()) {
-                    /* For KVM PR, update the HPT pointer */
-                    target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
-                        | (spapr->htab_shift - 18);
-                    kvmppc_update_sdr1(sdr1);
-                }
+            if (kvm_enabled()) {
+                /* For KVM PR, update the HPT pointer */
+                target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
+                    | (spapr->htab_shift - 18);
+                kvmppc_update_sdr1(sdr1);
             }
         }
     }
