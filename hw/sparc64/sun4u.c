@@ -224,13 +224,11 @@ static void isa_irq_handler(void *opaque, int n, int level)
 
 /* EBUS (Eight bit bus) bridge */
 static ISABus *
-pci_ebus_init(PCIBus *bus, int devfn, qemu_irq *irqs)
+pci_ebus_init(PCIDevice *pci_dev, qemu_irq *irqs)
 {
     qemu_irq *isa_irq;
-    PCIDevice *pci_dev;
     ISABus *isa_bus;
 
-    pci_dev = pci_create_simple(bus, devfn, "ebus");
     isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci_dev), "isa.0"));
     isa_irq = qemu_allocate_irqs(isa_irq_handler, irqs, 16);
     isa_bus_irqs(isa_bus, isa_irq);
@@ -429,6 +427,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
+    PCIDevice *ebus;
     ISABus *isa_bus;
     SysBusDevice *s;
     qemu_irq *ivec_irqs, *pbm_irqs;
@@ -452,7 +451,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_vga_init(pci_bus);
 
     // XXX Should be pci_bus3
-    isa_bus = pci_ebus_init(pci_bus, -1, pbm_irqs);
+    ebus = pci_create_simple(pci_bus, -1, "ebus");
+    isa_bus = pci_ebus_init(ebus, pbm_irqs);
 
     i = 0;
     if (hwdef->console_serial_base) {
