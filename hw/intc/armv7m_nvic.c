@@ -733,11 +733,8 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
     }
     case 0xf00: /* Software Triggered Interrupt Register */
     {
-        /* user mode can only write to STIR if CCR.USERSETMPEND permits it */
         int excnum = (value & 0x1ff) + NVIC_FIRST_IRQ;
-        if (excnum < s->num_irq &&
-            (arm_current_el(&cpu->env) ||
-             (cpu->env.v7m.ccr & R_V7M_CCR_USERSETMPEND_MASK))) {
+        if (excnum < s->num_irq) {
             armv7m_nvic_set_pending(s, excnum);
         }
         break;
@@ -748,13 +745,31 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
     }
 }
 
-static uint64_t nvic_sysreg_read(void *opaque, hwaddr addr,
-                                 unsigned size)
+static bool nvic_user_access_ok(NVICState *s, hwaddr offset)
+{
+    /* Return true if unprivileged access to this register is permitted. */
+    switch (offset) {
+    case 0xf00: /* STIR: accessible only if CCR.USERSETMPEND permits */
+        return s->cpu->env.v7m.ccr & R_V7M_CCR_USERSETMPEND_MASK;
+    default:
+        /* All other user accesses cause a BusFault unconditionally */
+        return false;
+    }
+}
+
+static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
+                                    uint64_t *data, unsigned size,
+                                    MemTxAttrs attrs)
 {
     NVICState *s = (NVICState *)opaque;
     uint32_t offset = addr;
     unsigned i, startvec, end;
     uint32_t val;
+
+    if (attrs.user && !nvic_user_access_ok(s, addr)) {
+        /* Generate BusFault for unprivileged accesses */
+        return MEMTX_ERROR;
+    }
 
     switch (offset) {
     /* reads of set and clear both return the status */
@@ -826,11 +841,13 @@ static uint64_t nvic_sysreg_read(void *opaque, hwaddr addr,
     }
 
     trace_nvic_sysreg_read(addr, val, size);
-    return val;
+    *data = val;
+    return MEMTX_OK;
 }
 
-static void nvic_sysreg_write(void *opaque, hwaddr addr,
-                              uint64_t value, unsigned size)
+static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
+                                     uint64_t value, unsigned size,
+                                     MemTxAttrs attrs)
 {
     NVICState *s = (NVICState *)opaque;
     uint32_t offset = addr;
@@ -838,6 +855,11 @@ static void nvic_sysreg_write(void *opaque, hwaddr addr,
     unsigned setval = 0;
 
     trace_nvic_sysreg_write(addr, value, size);
+
+    if (attrs.user && !nvic_user_access_ok(s, addr)) {
+        /* Generate BusFault for unprivileged accesses */
+        return MEMTX_ERROR;
+    }
 
     switch (offset) {
     case 0x100 ... 0x13f: /* NVIC Set enable */
@@ -853,7 +875,7 @@ static void nvic_sysreg_write(void *opaque, hwaddr addr,
             }
         }
         nvic_irq_update(s);
-        return;
+        return MEMTX_OK;
     case 0x200 ... 0x23f: /* NVIC Set pend */
         /* the special logic in armv7m_nvic_set_pending()
          * is not needed since IRQs are never escalated
@@ -870,9 +892,9 @@ static void nvic_sysreg_write(void *opaque, hwaddr addr,
             }
         }
         nvic_irq_update(s);
-        return;
+        return MEMTX_OK;
     case 0x300 ... 0x33f: /* NVIC Active */
-        return; /* R/O */
+        return MEMTX_OK; /* R/O */
     case 0x400 ... 0x5ef: /* NVIC Priority */
         startvec = 8 * (offset - 0x400) + NVIC_FIRST_IRQ; /* vector # */
 
@@ -880,26 +902,28 @@ static void nvic_sysreg_write(void *opaque, hwaddr addr,
             set_prio(s, startvec + i, (value >> (i * 8)) & 0xff);
         }
         nvic_irq_update(s);
-        return;
+        return MEMTX_OK;
     case 0xd18 ... 0xd23: /* System Handler Priority.  */
         for (i = 0; i < size; i++) {
             unsigned hdlidx = (offset - 0xd14) + i;
             set_prio(s, hdlidx, (value >> (i * 8)) & 0xff);
         }
         nvic_irq_update(s);
-        return;
+        return MEMTX_OK;
     }
     if (size == 4) {
         nvic_writel(s, offset, value);
-        return;
+        return MEMTX_OK;
     }
     qemu_log_mask(LOG_GUEST_ERROR,
                   "NVIC: Bad write of size %d at offset 0x%x\n", size, offset);
+    /* This is UNPREDICTABLE; treat as RAZ/WI */
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps nvic_sysreg_ops = {
-    .read = nvic_sysreg_read,
-    .write = nvic_sysreg_write,
+    .read_with_attrs = nvic_sysreg_read,
+    .write_with_attrs = nvic_sysreg_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
