@@ -457,7 +457,8 @@ struct ARMMMUFaultInfo {
 };
 
 /* Do a page table walk and add page to TLB if possible */
-bool arm_tlb_fill(CPUState *cpu, vaddr address, int rw, int mmu_idx,
+bool arm_tlb_fill(CPUState *cpu, vaddr address,
+                  MMUAccessType access_type, int mmu_idx,
                   uint32_t *fsr, ARMMMUFaultInfo *fi);
 
 /* Return true if the stage 1 translation regime is using LPAE format page
