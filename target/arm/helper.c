@@ -6142,7 +6142,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
      * that jumps to magic addresses don't have magic behaviour unless
      * we're in Handler mode (compare pseudocode BXWritePC()).
      */
-    assert(env->v7m.exception != 0);
+    assert(arm_v7m_is_handler_mode(env));
 
     /* In the spec pseudocode ExceptionReturn() is called directly
      * from BXWritePC() and gets the full target PC value including
@@ -6249,7 +6249,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
      * resuming in Thread mode. If that doesn't match what the
      * exception return type specified then this is a UsageFault.
      */
-    if (return_to_handler == (env->v7m.exception == 0)) {
+    if (return_to_handler != arm_v7m_is_handler_mode(env)) {
         /* Take an INVPC UsageFault by pushing the stack again. */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         env->v7m.cfsr |= R_V7M_CFSR_INVPC_MASK;
@@ -6400,7 +6400,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     if (env->v7m.control & R_V7M_CONTROL_SPSEL_MASK) {
         lr |= 4;
     }
-    if (env->v7m.exception == 0) {
+    if (!arm_v7m_is_handler_mode(env)) {
         lr |= 8;
     }
 
@@ -8793,7 +8793,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
          * switch_v7m_sp() deals with updating the SPSEL bit in
          * env->v7m.control, so we only need update the others.
          */
-        if (env->v7m.exception == 0) {
+        if (!arm_v7m_is_handler_mode(env)) {
             switch_v7m_sp(env, (val & R_V7M_CONTROL_SPSEL_MASK) != 0);
         }
         env->v7m.control &= ~R_V7M_CONTROL_NPRIV_MASK;

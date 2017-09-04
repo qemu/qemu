@@ -1629,13 +1629,19 @@ static inline int arm_highest_el(CPUARMState *env)
     return 1;
 }
 
+/* Return true if a v7M CPU is in Handler mode */
+static inline bool arm_v7m_is_handler_mode(CPUARMState *env)
+{
+    return env->v7m.exception != 0;
+}
+
 /* Return the current Exception Level (as per ARMv8; note that this differs
  * from the ARMv7 Privilege Level).
  */
 static inline int arm_current_el(CPUARMState *env)
 {
     if (arm_feature(env, ARM_FEATURE_M)) {
-        return !((env->v7m.exception == 0) && (env->v7m.control & 1));
+        return arm_v7m_is_handler_mode(env) || !(env->v7m.control & 1);
     }
 
     if (is_a64(env)) {
@@ -2635,7 +2641,7 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     }
     *flags |= fp_exception_el(env) << ARM_TBFLAG_FPEXC_EL_SHIFT;
 
-    if (env->v7m.exception != 0) {
+    if (arm_v7m_is_handler_mode(env)) {
         *flags |= ARM_TBFLAG_HANDLER_MASK;
     }
 
