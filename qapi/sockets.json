@@ -1,0 +1,147 @@
+# -*- Mode: Python -*-
+
+##
+# = Socket data types
+##
+
+{ 'include': 'common.json' }
+
+##
+# @NetworkAddressFamily:
+#
+# The network address family
+#
+# @ipv4: IPV4 family
+#
+# @ipv6: IPV6 family
+#
+# @unix: unix socket
+#
+# @vsock: vsock family (since 2.8)
+#
+# @unknown: otherwise
+#
+# Since: 2.1
+##
+{ 'enum': 'NetworkAddressFamily',
+  'data': [ 'ipv4', 'ipv6', 'unix', 'vsock', 'unknown' ] }
+
+##
+# @InetSocketAddressBase:
+#
+# @host: host part of the address
+# @port: port part of the address
+##
+{ 'struct': 'InetSocketAddressBase',
+  'data': {
+    'host': 'str',
+    'port': 'str' } }
+
+##
+# @InetSocketAddress:
+#
+# Captures a socket address or address range in the Internet namespace.
+#
+# @numeric: true if the host/port are guaranteed to be numeric,
+#           false if name resolution should be attempted. Defaults to false.
+#           (Since 2.9)
+#
+# @to: If present, this is range of possible addresses, with port
+#      between @port and @to.
+#
+# @ipv4: whether to accept IPv4 addresses, default try both IPv4 and IPv6
+#
+# @ipv6: whether to accept IPv6 addresses, default try both IPv4 and IPv6
+#
+# Since: 1.3
+##
+{ 'struct': 'InetSocketAddress',
+  'base': 'InetSocketAddressBase',
+  'data': {
+    '*numeric':  'bool',
+    '*to': 'uint16',
+    '*ipv4': 'bool',
+    '*ipv6': 'bool' } }
+
+##
+# @UnixSocketAddress:
+#
+# Captures a socket address in the local ("Unix socket") namespace.
+#
+# @path: filesystem path to use
+#
+# Since: 1.3
+##
+{ 'struct': 'UnixSocketAddress',
+  'data': {
+    'path': 'str' } }
+
+##
+# @VsockSocketAddress:
+#
+# Captures a socket address in the vsock namespace.
+#
+# @cid: unique host identifier
+# @port: port
+#
+# Note: string types are used to allow for possible future hostname or
+# service resolution support.
+#
+# Since: 2.8
+##
+{ 'struct': 'VsockSocketAddress',
+  'data': {
+    'cid': 'str',
+    'port': 'str' } }
+
+##
+# @SocketAddressLegacy:
+#
+# Captures the address of a socket, which could also be a named file descriptor
+#
+# Note: This type is deprecated in favor of SocketAddress.  The
+# difference between SocketAddressLegacy and SocketAddress is that the
+# latter is a flat union rather than a simple union. Flat is nicer
+# because it avoids nesting on the wire, i.e. that form has fewer {}.
+
+#
+# Since: 1.3
+##
+{ 'union': 'SocketAddressLegacy',
+  'data': {
+    'inet': 'InetSocketAddress',
+    'unix': 'UnixSocketAddress',
+    'vsock': 'VsockSocketAddress',
+    'fd': 'String' } }
+
+##
+# @SocketAddressType:
+#
+# Available SocketAddress types
+#
+# @inet:  Internet address
+#
+# @unix:  Unix domain socket
+#
+# Since: 2.9
+##
+{ 'enum': 'SocketAddressType',
+  'data': [ 'inet', 'unix', 'vsock', 'fd' ] }
+
+##
+# @SocketAddress:
+#
+# Captures the address of a socket, which could also be a named file
+# descriptor
+#
+# @type:       Transport type
+#
+# Since: 2.9
+##
+{ 'union': 'SocketAddress',
+  'base': { 'type': 'SocketAddressType' },
+  'discriminator': 'type',
+  'data': { 'inet': 'InetSocketAddress',
+            'unix': 'UnixSocketAddress',
+            'vsock': 'VsockSocketAddress',
+            'fd': 'String' } }

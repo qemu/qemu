@@ -35,7 +35,6 @@
 #include "qemu/module.h"
 #include "qemu/bswap.h"
 #include "qemu/bitmap.h"
-#include "qapi/util.h"
 
 /**************************************************************/
 
@@ -69,12 +68,13 @@ typedef enum ParallelsPreallocMode {
     PRL_PREALLOC_MODE__MAX = 2,
 } ParallelsPreallocMode;
 
-static const char *prealloc_mode_lookup[] = {
-    "falloc",
-    "truncate",
-    NULL,
+static QEnumLookup prealloc_mode_lookup = {
+    .array = (const char *const[]) {
+        "falloc",
+        "truncate",
+    },
+    .size = PRL_PREALLOC_MODE__MAX
 };
-
 
 typedef struct BDRVParallelsState {
     /** Locking is conservative, the lock protects
@@ -696,8 +696,9 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         qemu_opt_get_size_del(opts, PARALLELS_OPT_PREALLOC_SIZE, 0);
     s->prealloc_size = MAX(s->tracks, s->prealloc_size >> BDRV_SECTOR_BITS);
     buf = qemu_opt_get_del(opts, PARALLELS_OPT_PREALLOC_MODE);
-    s->prealloc_mode = qapi_enum_parse(prealloc_mode_lookup, buf,
-            PRL_PREALLOC_MODE__MAX, PRL_PREALLOC_MODE_FALLOCATE, &local_err);
+    s->prealloc_mode = qapi_enum_parse(&prealloc_mode_lookup, buf,
+                                       PRL_PREALLOC_MODE_FALLOCATE,
+                                       &local_err);
     g_free(buf);
     if (local_err != NULL) {
         goto fail_options;

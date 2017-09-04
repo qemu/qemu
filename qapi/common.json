@@ -1,7 +1,7 @@
 # -*- Mode: Python -*-
 
 ##
-# = QAPI common definitions
+# = Common data types
 ##
 
 ##
@@ -29,107 +29,18 @@
             'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
 
 ##
-# @VersionTriple:
+# @IoOperationType:
 #
-# A three-part version number.
+# An enumeration of the I/O operation types
 #
-# @major:  The major version number.
+# @read: read operation
 #
-# @minor:  The minor version number.
+# @write: write operation
 #
-# @micro:  The micro version number.
-#
-# Since: 2.4
+# Since: 2.1
 ##
-{ 'struct': 'VersionTriple',
-  'data': {'major': 'int', 'minor': 'int', 'micro': 'int'} }
-
-
-##
-# @VersionInfo:
-#
-# A description of QEMU's version.
-#
-# @qemu:        The version of QEMU.  By current convention, a micro
-#               version of 50 signifies a development branch.  A micro version
-#               greater than or equal to 90 signifies a release candidate for
-#               the next minor version.  A micro version of less than 50
-#               signifies a stable release.
-#
-# @package:     QEMU will always set this field to an empty string.  Downstream
-#               versions of QEMU should set this to a non-empty string.  The
-#               exact format depends on the downstream however it highly
-#               recommended that a unique name is used.
-#
-# Since: 0.14.0
-##
-{ 'struct': 'VersionInfo',
-  'data': {'qemu': 'VersionTriple', 'package': 'str'} }
-
-##
-# @query-version:
-#
-# Returns the current version of QEMU.
-#
-# Returns:  A @VersionInfo object describing the current version of QEMU.
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-version" }
-# <- {
-#       "return":{
-#          "qemu":{
-#             "major":0,
-#             "minor":11,
-#             "micro":5
-#          },
-#          "package":""
-#       }
-#    }
-#
-##
-{ 'command': 'query-version', 'returns': 'VersionInfo' }
-
-##
-# @CommandInfo:
-#
-# Information about a QMP command
-#
-# @name: The command name
-#
-# Since: 0.14.0
-##
-{ 'struct': 'CommandInfo', 'data': {'name': 'str'} }
-
-##
-# @query-commands:
-#
-# Return a list of supported QMP commands by this server
-#
-# Returns: A list of @CommandInfo for all supported commands
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-commands" }
-# <- {
-#      "return":[
-#         {
-#            "name":"query-balloon"
-#         },
-#         {
-#            "name":"system_powerdown"
-#         }
-#      ]
-#    }
-#
-# Note: This example has been shortened as the real response is too long.
-#
-##
-{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
+{ 'enum': 'IoOperationType',
+  'data': [ 'read', 'write' ] }
 
 ##
 # @OnOffAuto:
@@ -162,3 +73,30 @@
 ##
 { 'enum': 'OnOffSplit',
   'data': [ 'on', 'off', 'split' ] }
+
+##
+# @String:
+#
+# A fat type wrapping 'str', to be embedded in lists.
+#
+# Since: 1.2
+##
+{ 'struct': 'String',
+  'data': {
+    'str': 'str' } }
+
+##
+# @StrOrNull:
+#
+# This is a string value or the explicit lack of a string (null
+# pointer in C).  Intended for cases when 'optional absent' already
+# has a different meaning.
+#
+# @s: the string value
+# @n: no string value
+#
+# Since: 2.10
+##
+{ 'alternate': 'StrOrNull',
+  'data': { 's': 'str',
+            'n': 'null' } }

@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlit.h"
 #include "qemu-common.h"
 
 static void escaped_string(void)
@@ -1059,123 +1060,28 @@ static void keyword_literal(void)
     QDECREF(null);
 }
 
-typedef struct LiteralQDictEntry LiteralQDictEntry;
-typedef struct LiteralQObject LiteralQObject;
-
-struct LiteralQObject
-{
-    int type;
-    union {
-        int64_t qnum;
-        const char *qstr;
-        LiteralQDictEntry *qdict;
-        LiteralQObject *qlist;
-    } value;
-};
-
-struct LiteralQDictEntry
-{
-    const char *key;
-    LiteralQObject value;
-};
-
-#define QLIT_QNUM(val) (LiteralQObject){.type = QTYPE_QNUM, .value.qnum = (val)}
-#define QLIT_QSTR(val) (LiteralQObject){.type = QTYPE_QSTRING, .value.qstr = (val)}
-#define QLIT_QDICT(val) (LiteralQObject){.type = QTYPE_QDICT, .value.qdict = (val)}
-#define QLIT_QLIST(val) (LiteralQObject){.type = QTYPE_QLIST, .value.qlist = (val)}
-
-typedef struct QListCompareHelper
-{
-    int index;
-    LiteralQObject *objs;
-    int result;
-} QListCompareHelper;
-
-static int compare_litqobj_to_qobj(LiteralQObject *lhs, QObject *rhs);
-
-static void compare_helper(QObject *obj, void *opaque)
-{
-    QListCompareHelper *helper = opaque;
-
-    if (helper->result == 0) {
-        return;
-    }
-
-    if (helper->objs[helper->index].type == QTYPE_NONE) {
-        helper->result = 0;
-        return;
-    }
-
-    helper->result = compare_litqobj_to_qobj(&helper->objs[helper->index++], obj);
-}
-
-static int compare_litqobj_to_qobj(LiteralQObject *lhs, QObject *rhs)
-{
-    int64_t val;
-
-    if (!rhs || lhs->type != qobject_type(rhs)) {
-        return 0;
-    }
-
-    switch (lhs->type) {
-    case QTYPE_QNUM:
-        g_assert(qnum_get_try_int(qobject_to_qnum(rhs), &val));
-        return lhs->value.qnum == val;
-    case QTYPE_QSTRING:
-        return (strcmp(lhs->value.qstr, qstring_get_str(qobject_to_qstring(rhs))) == 0);
-    case QTYPE_QDICT: {
-        int i;
-
-        for (i = 0; lhs->value.qdict[i].key; i++) {
-            QObject *obj = qdict_get(qobject_to_qdict(rhs), lhs->value.qdict[i].key);
-
-            if (!compare_litqobj_to_qobj(&lhs->value.qdict[i].value, obj)) {
-                return 0;
-            }
-        }
-
-        return 1;
-    }
-    case QTYPE_QLIST: {
-        QListCompareHelper helper;
-
-        helper.index = 0;
-        helper.objs = lhs->value.qlist;
-        helper.result = 1;
-        
-        qlist_iter(qobject_to_qlist(rhs), compare_helper, &helper);
-
-        return helper.result;
-    }
-    default:
-        break;
-    }
-
-    return 0;
-}
-
 static void simple_dict(void)
 {
     int i;
     struct {
         const char *encoded;
-        LiteralQObject decoded;
+        QLitObject decoded;
     } test_cases[] = {
         {
             .encoded = "{\"foo\": 42, \"bar\": \"hello world\"}",
-            .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QDICT(((QLitDictEntry[]){
                         { "foo", QLIT_QNUM(42) },
                         { "bar", QLIT_QSTR("hello world") },
                         { }
                     })),
         }, {
             .encoded = "{}",
-            .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QDICT(((QLitDictEntry[]){
                         { }
                     })),
         }, {
             .encoded = "{\"foo\": 43}",
-            .decoded = QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QDICT(((QLitDictEntry[]){
                         { "foo", QLIT_QNUM(43) },
                         { }
                     })),
@@ -1188,13 +1094,13 @@ static void simple_dict(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        g_assert(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         str = qobject_to_json(obj);
         qobject_decref(obj);
 
         obj = qobject_from_json(qstring_get_str(str), &error_abort);
-        g_assert(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
         qobject_decref(obj);
         QDECREF(str);
     }
@@ -1257,11 +1163,11 @@ static void simple_list(void)
     int i;
     struct {
         const char *encoded;
-        LiteralQObject decoded;
+        QLitObject decoded;
     } test_cases[] = {
         {
             .encoded = "[43,42]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
                         QLIT_QNUM(42),
                         { }
@@ -1269,21 +1175,21 @@ static void simple_list(void)
         },
         {
             .encoded = "[43]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
                         { }
                     })),
         },
         {
             .encoded = "[]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         { }
                     })),
         },
         {
             .encoded = "[{}]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
-                        QLIT_QDICT(((LiteralQDictEntry[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
+                        QLIT_QDICT(((QLitDictEntry[]){
                                     {},
                                         })),
                         {},
@@ -1297,13 +1203,13 @@ static void simple_list(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        g_assert(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         str = qobject_to_json(obj);
         qobject_decref(obj);
 
         obj = qobject_from_json(qstring_get_str(str), &error_abort);
-        g_assert(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
         qobject_decref(obj);
         QDECREF(str);
     }
@@ -1314,11 +1220,11 @@ static void simple_whitespace(void)
     int i;
     struct {
         const char *encoded;
-        LiteralQObject decoded;
+        QLitObject decoded;
     } test_cases[] = {
         {
             .encoded = " [ 43 , 42 ]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
                         QLIT_QNUM(42),
                         { }
@@ -1326,12 +1232,12 @@ static void simple_whitespace(void)
         },
         {
             .encoded = " [ 43 , { 'h' : 'b' }, [ ], 42 ]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
-                        QLIT_QDICT(((LiteralQDictEntry[]){
+                        QLIT_QDICT(((QLitDictEntry[]){
                                     { "h", QLIT_QSTR("b") },
                                     { }})),
-                        QLIT_QLIST(((LiteralQObject[]){
+                        QLIT_QLIST(((QLitObject[]){
                                     { }})),
                         QLIT_QNUM(42),
                         { }
@@ -1339,13 +1245,13 @@ static void simple_whitespace(void)
         },
         {
             .encoded = " [ 43 , { 'h' : 'b' , 'a' : 32 }, [ ], 42 ]",
-            .decoded = QLIT_QLIST(((LiteralQObject[]){
+            .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
-                        QLIT_QDICT(((LiteralQDictEntry[]){
+                        QLIT_QDICT(((QLitDictEntry[]){
                                     { "h", QLIT_QSTR("b") },
                                     { "a", QLIT_QNUM(32) },
                                     { }})),
-                        QLIT_QLIST(((LiteralQObject[]){
+                        QLIT_QLIST(((QLitObject[]){
                                     { }})),
                         QLIT_QNUM(42),
                         { }
@@ -1359,13 +1265,13 @@ static void simple_whitespace(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        g_assert(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         str = qobject_to_json(obj);
         qobject_decref(obj);
 
         obj = qobject_from_json(qstring_get_str(str), &error_abort);
-        g_assert(compare_litqobj_to_qobj(&test_cases[i].decoded, obj) == 1);
+        g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         qobject_decref(obj);
         QDECREF(str);
@@ -1376,10 +1282,10 @@ static void simple_varargs(void)
 {
     QObject *embedded_obj;
     QObject *obj;
-    LiteralQObject decoded = QLIT_QLIST(((LiteralQObject[]){
+    QLitObject decoded = QLIT_QLIST(((QLitObject[]){
             QLIT_QNUM(1),
             QLIT_QNUM(2),
-            QLIT_QLIST(((LiteralQObject[]){
+            QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(32),
                         QLIT_QNUM(42),
                         {}})),
@@ -1389,7 +1295,7 @@ static void simple_varargs(void)
     g_assert(embedded_obj != NULL);
 
     obj = qobject_from_jsonf("[%d, 2, %p]", 1, embedded_obj);
-    g_assert(compare_litqobj_to_qobj(&decoded, obj) == 1);
+    g_assert(qlit_equal_qobject(&decoded, obj));
 
     qobject_decref(obj);
 }

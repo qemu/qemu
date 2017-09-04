@@ -72,26 +72,29 @@
         'q_obj_CpuInfo-base'    # CPU, visible through query-cpu
     ] } }
 
-# QAPI common definitions
+# Documentation generated with qapi2texi.py is in source order, with
+# included sub-schemas inserted at the first include directive
+# (subsequent include directives have no effect).  To get a sane and
+# stable order, it's best to include each sub-schema just once, or
+# include it first in qapi-schema.json.
+
 { 'include': 'qapi/common.json' }
-
-# QAPI crypto definitions
+{ 'include': 'qapi/sockets.json' }
+{ 'include': 'qapi/run-state.json' }
 { 'include': 'qapi/crypto.json' }
-
-# QAPI block definitions
 { 'include': 'qapi/block.json' }
-
-# QAPI event definitions
-{ 'include': 'qapi/event.json' }
-
-# Tracing commands
+{ 'include': 'qapi/char.json' }
+{ 'include': 'qapi/net.json' }
+{ 'include': 'qapi/rocker.json' }
+{ 'include': 'qapi/tpm.json' }
+{ 'include': 'qapi/ui.json' }
+{ 'include': 'qapi/migration.json' }
+{ 'include': 'qapi/transaction.json' }
 { 'include': 'qapi/trace.json' }
-
-# QAPI introspection
 { 'include': 'qapi/introspect.json' }
 
 ##
-# = QMP commands
+# = Miscellanea
 ##
 
 ##
@@ -116,20 +119,107 @@
 { 'command': 'qmp_capabilities' }
 
 ##
-# @StrOrNull:
+# @VersionTriple:
 #
-# This is a string value or the explicit lack of a string (null
-# pointer in C).  Intended for cases when 'optional absent' already
-# has a different meaning.
+# A three-part version number.
 #
-# @s: the string value
-# @n: no string value
+# @major:  The major version number.
 #
-# Since: 2.10
+# @minor:  The minor version number.
+#
+# @micro:  The micro version number.
+#
+# Since: 2.4
 ##
-{ 'alternate': 'StrOrNull',
-  'data': { 's': 'str',
-            'n': 'null' } }
+{ 'struct': 'VersionTriple',
+  'data': {'major': 'int', 'minor': 'int', 'micro': 'int'} }
+
+
+##
+# @VersionInfo:
+#
+# A description of QEMU's version.
+#
+# @qemu:        The version of QEMU.  By current convention, a micro
+#               version of 50 signifies a development branch.  A micro version
+#               greater than or equal to 90 signifies a release candidate for
+#               the next minor version.  A micro version of less than 50
+#               signifies a stable release.
+#
+# @package:     QEMU will always set this field to an empty string.  Downstream
+#               versions of QEMU should set this to a non-empty string.  The
+#               exact format depends on the downstream however it highly
+#               recommended that a unique name is used.
+#
+# Since: 0.14.0
+##
+{ 'struct': 'VersionInfo',
+  'data': {'qemu': 'VersionTriple', 'package': 'str'} }
+
+##
+# @query-version:
+#
+# Returns the current version of QEMU.
+#
+# Returns:  A @VersionInfo object describing the current version of QEMU.
+#
+# Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-version" }
+# <- {
+#       "return":{
+#          "qemu":{
+#             "major":0,
+#             "minor":11,
+#             "micro":5
+#          },
+#          "package":""
+#       }
+#    }
+#
+##
+{ 'command': 'query-version', 'returns': 'VersionInfo' }
+
+##
+# @CommandInfo:
+#
+# Information about a QMP command
+#
+# @name: The command name
+#
+# Since: 0.14.0
+##
+{ 'struct': 'CommandInfo', 'data': {'name': 'str'} }
+
+##
+# @query-commands:
+#
+# Return a list of supported QMP commands by this server
+#
+# Returns: A list of @CommandInfo for all supported commands
+#
+# Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-commands" }
+# <- {
+#      "return":[
+#         {
+#            "name":"query-balloon"
+#         },
+#         {
+#            "name":"system_powerdown"
+#         }
+#      ]
+#    }
+#
+# Note: This example has been shortened as the real response is too long.
+#
+##
+{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
 # @LostTickPolicy:
@@ -246,94 +336,6 @@
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
 ##
-# @RunState:
-#
-# An enumeration of VM run states.
-#
-# @debug: QEMU is running on a debugger
-#
-# @finish-migrate: guest is paused to finish the migration process
-#
-# @inmigrate: guest is paused waiting for an incoming migration.  Note
-# that this state does not tell whether the machine will start at the
-# end of the migration.  This depends on the command-line -S option and
-# any invocation of 'stop' or 'cont' that has happened since QEMU was
-# started.
-#
-# @internal-error: An internal error that prevents further guest execution
-# has occurred
-#
-# @io-error: the last IOP has failed and the device is configured to pause
-# on I/O errors
-#
-# @paused: guest has been paused via the 'stop' command
-#
-# @postmigrate: guest is paused following a successful 'migrate'
-#
-# @prelaunch: QEMU was started with -S and guest has not started
-#
-# @restore-vm: guest is paused to restore VM state
-#
-# @running: guest is actively running
-#
-# @save-vm: guest is paused to save the VM state
-#
-# @shutdown: guest is shut down (and -no-shutdown is in use)
-#
-# @suspended: guest is suspended (ACPI S3)
-#
-# @watchdog: the watchdog action is configured to pause and has been triggered
-#
-# @guest-panicked: guest has been panicked as a result of guest OS panic
-#
-# @colo: guest is paused to save/restore VM state under colo checkpoint,
-#        VM can not get into this state unless colo capability is enabled
-#        for migration. (since 2.8)
-##
-{ 'enum': 'RunState',
-  'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
-            'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
-            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
-            'guest-panicked', 'colo' ] }
-
-##
-# @StatusInfo:
-#
-# Information about VCPU run state
-#
-# @running: true if all VCPUs are runnable, false if not runnable
-#
-# @singlestep: true if VCPUs are in single-step mode
-#
-# @status: the virtual machine @RunState
-#
-# Since:  0.14.0
-#
-# Notes: @singlestep is enabled through the GDB stub
-##
-{ 'struct': 'StatusInfo',
-  'data': {'running': 'bool', 'singlestep': 'bool', 'status': 'RunState'} }
-
-##
-# @query-status:
-#
-# Query the run status of all VCPUs
-#
-# Returns: @StatusInfo reflecting all VCPUs
-#
-# Since:  0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-status" }
-# <- { "return": { "running": true,
-#                  "singlestep": false,
-#                  "status": "running" } }
-#
-##
-{ 'command': 'query-status', 'returns': 'StatusInfo' }
-
-##
 # @UuidInfo:
 #
 # Guest UUID information (Universally Unique Identifier).
@@ -362,189 +364,6 @@
 #
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo' }
-
-##
-# @ChardevInfo:
-#
-# Information about a character device.
-#
-# @label: the label of the character device
-#
-# @filename: the filename of the character device
-#
-# @frontend-open: shows whether the frontend device attached to this backend
-#                 (eg. with the chardev=... option) is in open or closed state
-#                 (since 2.1)
-#
-# Notes: @filename is encoded using the QEMU command line character device
-#        encoding.  See the QEMU man page for details.
-#
-# Since: 0.14.0
-##
-{ 'struct': 'ChardevInfo', 'data': {'label': 'str',
-                                  'filename': 'str',
-                                  'frontend-open': 'bool'} }
-
-##
-# @query-chardev:
-#
-# Returns information about current character devices.
-#
-# Returns: a list of @ChardevInfo
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-chardev" }
-# <- {
-#       "return": [
-#          {
-#             "label": "charchannel0",
-#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
-#             "frontend-open": false
-#          },
-#          {
-#             "label": "charmonitor",
-#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
-#             "frontend-open": true
-#          },
-#          {
-#             "label": "charserial0",
-#             "filename": "pty:/dev/pts/2",
-#             "frontend-open": true
-#          }
-#       ]
-#    }
-#
-##
-{ 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
-
-##
-# @ChardevBackendInfo:
-#
-# Information about a character device backend
-#
-# @name: The backend name
-#
-# Since: 2.0
-##
-{ 'struct': 'ChardevBackendInfo', 'data': {'name': 'str'} }
-
-##
-# @query-chardev-backends:
-#
-# Returns information about character device backends.
-#
-# Returns: a list of @ChardevBackendInfo
-#
-# Since: 2.0
-#
-# Example:
-#
-# -> { "execute": "query-chardev-backends" }
-# <- {
-#       "return":[
-#          {
-#             "name":"udp"
-#          },
-#          {
-#             "name":"tcp"
-#          },
-#          {
-#             "name":"unix"
-#          },
-#          {
-#             "name":"spiceport"
-#          }
-#       ]
-#    }
-#
-##
-{ 'command': 'query-chardev-backends', 'returns': ['ChardevBackendInfo'] }
-
-##
-# @DataFormat:
-#
-# An enumeration of data format.
-#
-# @utf8: Data is a UTF-8 string (RFC 3629)
-#
-# @base64: Data is Base64 encoded binary (RFC 3548)
-#
-# Since: 1.4
-##
-{ 'enum': 'DataFormat',
-  'data': [ 'utf8', 'base64' ] }
-
-##
-# @ringbuf-write:
-#
-# Write to a ring buffer character device.
-#
-# @device: the ring buffer character device name
-#
-# @data: data to write
-#
-# @format: data encoding (default 'utf8').
-#          - base64: data must be base64 encoded text.  Its binary
-#            decoding gets written.
-#          - utf8: data's UTF-8 encoding is written
-#          - data itself is always Unicode regardless of format, like
-#            any other string.
-#
-# Returns: Nothing on success
-#
-# Since: 1.4
-#
-# Example:
-#
-# -> { "execute": "ringbuf-write",
-#      "arguments": { "device": "foo",
-#                     "data": "abcdefgh",
-#                     "format": "utf8" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'ringbuf-write',
-  'data': {'device': 'str', 'data': 'str',
-           '*format': 'DataFormat'} }
-
-##
-# @ringbuf-read:
-#
-# Read from a ring buffer character device.
-#
-# @device: the ring buffer character device name
-#
-# @size: how many bytes to read at most
-#
-# @format: data encoding (default 'utf8').
-#          - base64: the data read is returned in base64 encoding.
-#          - utf8: the data read is interpreted as UTF-8.
-#            Bug: can screw up when the buffer contains invalid UTF-8
-#            sequences, NUL characters, after the ring buffer lost
-#            data, and when reading stops because the size limit is
-#            reached.
-#          - The return value is always Unicode regardless of format,
-#            like any other string.
-#
-# Returns: data read from the device
-#
-# Since: 1.4
-#
-# Example:
-#
-# -> { "execute": "ringbuf-read",
-#      "arguments": { "device": "foo",
-#                     "size": 1000,
-#                     "format": "utf8" } }
-# <- { "return": "abcdefgh" }
-#
-##
-{ 'command': 'ringbuf-read',
-  'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
-  'returns': 'str' }
 
 ##
 # @EventInfo:
@@ -584,828 +403,6 @@
 #
 ##
 { 'command': 'query-events', 'returns': ['EventInfo'] }
-
-##
-# @MigrationStats:
-#
-# Detailed migration status.
-#
-# @transferred: amount of bytes already transferred to the target VM
-#
-# @remaining: amount of bytes remaining to be transferred to the target VM
-#
-# @total: total amount of bytes involved in the migration process
-#
-# @duplicate: number of duplicate (zero) pages (since 1.2)
-#
-# @skipped: number of skipped zero pages (since 1.5)
-#
-# @normal: number of normal pages (since 1.2)
-#
-# @normal-bytes: number of normal bytes sent (since 1.2)
-#
-# @dirty-pages-rate: number of pages dirtied by second by the
-#        guest (since 1.3)
-#
-# @mbps: throughput in megabits/sec. (since 1.6)
-#
-# @dirty-sync-count: number of times that dirty ram was synchronized (since 2.1)
-#
-# @postcopy-requests: The number of page requests received from the destination
-#        (since 2.7)
-#
-# @page-size: The number of bytes per page for the various page-based
-#        statistics (since 2.10)
-#
-# Since: 0.14.0
-##
-{ 'struct': 'MigrationStats',
-  'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
-           'duplicate': 'int', 'skipped': 'int', 'normal': 'int',
-           'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
-           'mbps' : 'number', 'dirty-sync-count' : 'int',
-           'postcopy-requests' : 'int', 'page-size' : 'int' } }
-
-##
-# @XBZRLECacheStats:
-#
-# Detailed XBZRLE migration cache statistics
-#
-# @cache-size: XBZRLE cache size
-#
-# @bytes: amount of bytes already transferred to the target VM
-#
-# @pages: amount of pages transferred to the target VM
-#
-# @cache-miss: number of cache miss
-#
-# @cache-miss-rate: rate of cache miss (since 2.1)
-#
-# @overflow: number of overflows
-#
-# Since: 1.2
-##
-{ 'struct': 'XBZRLECacheStats',
-  'data': {'cache-size': 'int', 'bytes': 'int', 'pages': 'int',
-           'cache-miss': 'int', 'cache-miss-rate': 'number',
-           'overflow': 'int' } }
-
-##
-# @MigrationStatus:
-#
-# An enumeration of migration status.
-#
-# @none: no migration has ever happened.
-#
-# @setup: migration process has been initiated.
-#
-# @cancelling: in the process of cancelling migration.
-#
-# @cancelled: cancelling migration is finished.
-#
-# @active: in the process of doing migration.
-#
-# @postcopy-active: like active, but now in postcopy mode. (since 2.5)
-#
-# @completed: migration is finished.
-#
-# @failed: some error occurred during migration process.
-#
-# @colo: VM is in the process of fault tolerance, VM can not get into this
-#        state unless colo capability is enabled for migration. (since 2.8)
-#
-# Since: 2.3
-#
-##
-{ 'enum': 'MigrationStatus',
-  'data': [ 'none', 'setup', 'cancelling', 'cancelled',
-            'active', 'postcopy-active', 'completed', 'failed', 'colo' ] }
-
-##
-# @MigrationInfo:
-#
-# Information about current migration process.
-#
-# @status: @MigrationStatus describing the current migration status.
-#          If this field is not returned, no migration process
-#          has been initiated
-#
-# @ram: @MigrationStats containing detailed migration
-#       status, only returned if status is 'active' or
-#       'completed'(since 1.2)
-#
-# @disk: @MigrationStats containing detailed disk migration
-#        status, only returned if status is 'active' and it is a block
-#        migration
-#
-# @xbzrle-cache: @XBZRLECacheStats containing detailed XBZRLE
-#                migration statistics, only returned if XBZRLE feature is on and
-#                status is 'active' or 'completed' (since 1.2)
-#
-# @total-time: total amount of milliseconds since migration started.
-#        If migration has ended, it returns the total migration
-#        time. (since 1.2)
-#
-# @downtime: only present when migration finishes correctly
-#        total downtime in milliseconds for the guest.
-#        (since 1.3)
-#
-# @expected-downtime: only present while migration is active
-#        expected downtime in milliseconds for the guest in last walk
-#        of the dirty bitmap. (since 1.3)
-#
-# @setup-time: amount of setup time in milliseconds _before_ the
-#        iterations begin but _after_ the QMP command is issued. This is designed
-#        to provide an accounting of any activities (such as RDMA pinning) which
-#        may be expensive, but do not actually occur during the iterative
-#        migration rounds themselves. (since 1.6)
-#
-# @cpu-throttle-percentage: percentage of time guest cpus are being
-#        throttled during auto-converge. This is only present when auto-converge
-#        has started throttling guest cpus. (Since 2.7)
-#
-# @error-desc: the human readable error description string, when
-#              @status is 'failed'. Clients should not attempt to parse the
-#              error strings. (Since 2.7)
-#
-# Since: 0.14.0
-##
-{ 'struct': 'MigrationInfo',
-  'data': {'*status': 'MigrationStatus', '*ram': 'MigrationStats',
-           '*disk': 'MigrationStats',
-           '*xbzrle-cache': 'XBZRLECacheStats',
-           '*total-time': 'int',
-           '*expected-downtime': 'int',
-           '*downtime': 'int',
-           '*setup-time': 'int',
-           '*cpu-throttle-percentage': 'int',
-           '*error-desc': 'str'} }
-
-##
-# @query-migrate:
-#
-# Returns information about current migration process. If migration
-# is active there will be another json-object with RAM migration
-# status and if block migration is active another one with block
-# migration status.
-#
-# Returns: @MigrationInfo
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# 1. Before the first migration
-#
-# -> { "execute": "query-migrate" }
-# <- { "return": {} }
-#
-# 2. Migration is done and has succeeded
-#
-# -> { "execute": "query-migrate" }
-# <- { "return": {
-#         "status": "completed",
-#         "ram":{
-#           "transferred":123,
-#           "remaining":123,
-#           "total":246,
-#           "total-time":12345,
-#           "setup-time":12345,
-#           "downtime":12345,
-#           "duplicate":123,
-#           "normal":123,
-#           "normal-bytes":123456,
-#           "dirty-sync-count":15
-#         }
-#      }
-#    }
-#
-# 3. Migration is done and has failed
-#
-# -> { "execute": "query-migrate" }
-# <- { "return": { "status": "failed" } }
-#
-# 4. Migration is being performed and is not a block migration:
-#
-# -> { "execute": "query-migrate" }
-# <- {
-#       "return":{
-#          "status":"active",
-#          "ram":{
-#             "transferred":123,
-#             "remaining":123,
-#             "total":246,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
-#             "duplicate":123,
-#             "normal":123,
-#             "normal-bytes":123456,
-#             "dirty-sync-count":15
-#          }
-#       }
-#    }
-#
-# 5. Migration is being performed and is a block migration:
-#
-# -> { "execute": "query-migrate" }
-# <- {
-#       "return":{
-#          "status":"active",
-#          "ram":{
-#             "total":1057024,
-#             "remaining":1053304,
-#             "transferred":3720,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
-#             "duplicate":123,
-#             "normal":123,
-#             "normal-bytes":123456,
-#             "dirty-sync-count":15
-#          },
-#          "disk":{
-#             "total":20971520,
-#             "remaining":20880384,
-#             "transferred":91136
-#          }
-#       }
-#    }
-#
-# 6. Migration is being performed and XBZRLE is active:
-#
-# -> { "execute": "query-migrate" }
-# <- {
-#       "return":{
-#          "status":"active",
-#          "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
-#          "ram":{
-#             "total":1057024,
-#             "remaining":1053304,
-#             "transferred":3720,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
-#             "duplicate":10,
-#             "normal":3333,
-#             "normal-bytes":3412992,
-#             "dirty-sync-count":15
-#          },
-#          "xbzrle-cache":{
-#             "cache-size":67108864,
-#             "bytes":20971520,
-#             "pages":2444343,
-#             "cache-miss":2244,
-#             "cache-miss-rate":0.123,
-#             "overflow":34434
-#          }
-#       }
-#    }
-#
-##
-{ 'command': 'query-migrate', 'returns': 'MigrationInfo' }
-
-##
-# @MigrationCapability:
-#
-# Migration capabilities enumeration
-#
-# @xbzrle: Migration supports xbzrle (Xor Based Zero Run Length Encoding).
-#          This feature allows us to minimize migration traffic for certain work
-#          loads, by sending compressed difference of the pages
-#
-# @rdma-pin-all: Controls whether or not the entire VM memory footprint is
-#          mlock()'d on demand or all at once. Refer to docs/rdma.txt for usage.
-#          Disabled by default. (since 2.0)
-#
-# @zero-blocks: During storage migration encode blocks of zeroes efficiently. This
-#          essentially saves 1MB of zeroes per block on the wire. Enabling requires
-#          source and target VM to support this feature. To enable it is sufficient
-#          to enable the capability on the source VM. The feature is disabled by
-#          default. (since 1.6)
-#
-# @compress: Use multiple compression threads to accelerate live migration.
-#          This feature can help to reduce the migration traffic, by sending
-#          compressed pages. Please note that if compress and xbzrle are both
-#          on, compress only takes effect in the ram bulk stage, after that,
-#          it will be disabled and only xbzrle takes effect, this can help to
-#          minimize migration traffic. The feature is disabled by default.
-#          (since 2.4 )
-#
-# @events: generate events for each migration state change
-#          (since 2.4 )
-#
-# @auto-converge: If enabled, QEMU will automatically throttle down the guest
-#          to speed up convergence of RAM migration. (since 1.6)
-#
-# @postcopy-ram: Start executing on the migration target before all of RAM has
-#          been migrated, pulling the remaining pages along as needed. NOTE: If
-#          the migration fails during postcopy the VM will fail.  (since 2.6)
-#
-# @x-colo: If enabled, migration will never end, and the state of the VM on the
-#        primary side will be migrated continuously to the VM on secondary
-#        side, this process is called COarse-Grain LOck Stepping (COLO) for
-#        Non-stop Service. (since 2.8)
-#
-# @release-ram: if enabled, qemu will free the migrated ram pages on the source
-#        during postcopy-ram migration. (since 2.9)
-#
-# @block: If enabled, QEMU will also migrate the contents of all block
-#          devices.  Default is disabled.  A possible alternative uses
-#          mirror jobs to a builtin NBD server on the destination, which
-#          offers more flexibility.
-#          (Since 2.10)
-#
-# @return-path: If enabled, migration will use the return path even
-#               for precopy. (since 2.10)
-#
-# Since: 1.2
-##
-{ 'enum': 'MigrationCapability',
-  'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
-           'block', 'return-path' ] }
-
-##
-# @MigrationCapabilityStatus:
-#
-# Migration capability information
-#
-# @capability: capability enum
-#
-# @state: capability state bool
-#
-# Since: 1.2
-##
-{ 'struct': 'MigrationCapabilityStatus',
-  'data': { 'capability' : 'MigrationCapability', 'state' : 'bool' } }
-
-##
-# @migrate-set-capabilities:
-#
-# Enable/Disable the following migration capabilities (like xbzrle)
-#
-# @capabilities: json array of capability modifications to make
-#
-# Since: 1.2
-#
-# Example:
-#
-# -> { "execute": "migrate-set-capabilities" , "arguments":
-#      { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
-#
-##
-{ 'command': 'migrate-set-capabilities',
-  'data': { 'capabilities': ['MigrationCapabilityStatus'] } }
-
-##
-# @query-migrate-capabilities:
-#
-# Returns information about the current migration capabilities status
-#
-# Returns: @MigrationCapabilitiesStatus
-#
-# Since: 1.2
-#
-# Example:
-#
-# -> { "execute": "query-migrate-capabilities" }
-# <- { "return": [
-#       {"state": false, "capability": "xbzrle"},
-#       {"state": false, "capability": "rdma-pin-all"},
-#       {"state": false, "capability": "auto-converge"},
-#       {"state": false, "capability": "zero-blocks"},
-#       {"state": false, "capability": "compress"},
-#       {"state": true, "capability": "events"},
-#       {"state": false, "capability": "postcopy-ram"},
-#       {"state": false, "capability": "x-colo"}
-#    ]}
-#
-##
-{ 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
-
-##
-# @MigrationParameter:
-#
-# Migration parameters enumeration
-#
-# @compress-level: Set the compression level to be used in live migration,
-#          the compression level is an integer between 0 and 9, where 0 means
-#          no compression, 1 means the best compression speed, and 9 means best
-#          compression ratio which will consume more CPU.
-#
-# @compress-threads: Set compression thread count to be used in live migration,
-#          the compression thread count is an integer between 1 and 255.
-#
-# @decompress-threads: Set decompression thread count to be used in live
-#          migration, the decompression thread count is an integer between 1
-#          and 255. Usually, decompression is at least 4 times as fast as
-#          compression, so set the decompress-threads to the number about 1/4
-#          of compress-threads is adequate.
-#
-# @cpu-throttle-initial: Initial percentage of time guest cpus are throttled
-#                        when migration auto-converge is activated. The
-#                        default value is 20. (Since 2.7)
-#
-# @cpu-throttle-increment: throttle percentage increase each time
-#                          auto-converge detects that migration is not making
-#                          progress. The default value is 10. (Since 2.7)
-#
-# @tls-creds: ID of the 'tls-creds' object that provides credentials for
-#             establishing a TLS connection over the migration data channel.
-#             On the outgoing side of the migration, the credentials must
-#             be for a 'client' endpoint, while for the incoming side the
-#             credentials must be for a 'server' endpoint. Setting this
-#             will enable TLS for all migrations. The default is unset,
-#             resulting in unsecured migration at the QEMU level. (Since 2.7)
-#
-# @tls-hostname: hostname of the target host for the migration. This is
-#                required when using x509 based TLS credentials and the
-#                migration URI does not already include a hostname. For
-#                example if using fd: or exec: based migration, the
-#                hostname must be provided so that the server's x509
-#                certificate identity can be validated. (Since 2.7)
-#
-# @max-bandwidth: to set maximum speed for migration. maximum speed in
-#                 bytes per second. (Since 2.8)
-#
-# @downtime-limit: set maximum tolerated downtime for migration. maximum
-#                  downtime in milliseconds (Since 2.8)
-#
-# @x-checkpoint-delay: The delay time (in ms) between two COLO checkpoints in
-#          periodic mode. (Since 2.8)
-#
-# @block-incremental: Affects how much storage is migrated when the
-# 	block migration capability is enabled.  When false, the entire
-# 	storage backing chain is migrated into a flattened image at
-# 	the destination; when true, only the active qcow2 layer is
-# 	migrated and the destination must already have access to the
-# 	same backing chain as was used on the source.  (since 2.10)
-#
-# Since: 2.4
-##
-{ 'enum': 'MigrationParameter',
-  'data': ['compress-level', 'compress-threads', 'decompress-threads',
-           'cpu-throttle-initial', 'cpu-throttle-increment',
-           'tls-creds', 'tls-hostname', 'max-bandwidth',
-           'downtime-limit', 'x-checkpoint-delay', 'block-incremental' ] }
-
-##
-# @MigrateSetParameters:
-#
-# @compress-level: compression level
-#
-# @compress-threads: compression thread count
-#
-# @decompress-threads: decompression thread count
-#
-# @cpu-throttle-initial: Initial percentage of time guest cpus are
-#                        throttled when migration auto-converge is activated.
-#                        The default value is 20. (Since 2.7)
-#
-# @cpu-throttle-increment: throttle percentage increase each time
-#                          auto-converge detects that migration is not making
-#                          progress. The default value is 10. (Since 2.7)
-#
-# @tls-creds: ID of the 'tls-creds' object that provides credentials
-#             for establishing a TLS connection over the migration data
-#             channel. On the outgoing side of the migration, the credentials
-#             must be for a 'client' endpoint, while for the incoming side the
-#             credentials must be for a 'server' endpoint. Setting this
-#             to a non-empty string enables TLS for all migrations.
-#             An empty string means that QEMU will use plain text mode for
-#             migration, rather than TLS (Since 2.9)
-#             Previously (since 2.7), this was reported by omitting
-#             tls-creds instead.
-#
-# @tls-hostname: hostname of the target host for the migration. This
-#                is required when using x509 based TLS credentials and the
-#                migration URI does not already include a hostname. For
-#                example if using fd: or exec: based migration, the
-#                hostname must be provided so that the server's x509
-#                certificate identity can be validated. (Since 2.7)
-#                An empty string means that QEMU will use the hostname
-#                associated with the migration URI, if any. (Since 2.9)
-#                Previously (since 2.7), this was reported by omitting
-#                tls-hostname instead.
-#
-# @max-bandwidth: to set maximum speed for migration. maximum speed in
-#                 bytes per second. (Since 2.8)
-#
-# @downtime-limit: set maximum tolerated downtime for migration. maximum
-#                  downtime in milliseconds (Since 2.8)
-#
-# @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
-#
-# @block-incremental: Affects how much storage is migrated when the
-# 	block migration capability is enabled.  When false, the entire
-# 	storage backing chain is migrated into a flattened image at
-# 	the destination; when true, only the active qcow2 layer is
-# 	migrated and the destination must already have access to the
-# 	same backing chain as was used on the source.  (since 2.10)
-#
-# Since: 2.4
-##
-# TODO either fuse back into MigrationParameters, or make
-# MigrationParameters members mandatory
-{ 'struct': 'MigrateSetParameters',
-  'data': { '*compress-level': 'int',
-            '*compress-threads': 'int',
-            '*decompress-threads': 'int',
-            '*cpu-throttle-initial': 'int',
-            '*cpu-throttle-increment': 'int',
-            '*tls-creds': 'StrOrNull',
-            '*tls-hostname': 'StrOrNull',
-            '*max-bandwidth': 'int',
-            '*downtime-limit': 'int',
-            '*x-checkpoint-delay': 'int',
-            '*block-incremental': 'bool' } }
-
-##
-# @migrate-set-parameters:
-#
-# Set various migration parameters.
-#
-# Since: 2.4
-#
-# Example:
-#
-# -> { "execute": "migrate-set-parameters" ,
-#      "arguments": { "compress-level": 1 } }
-#
-##
-{ 'command': 'migrate-set-parameters', 'boxed': true,
-  'data': 'MigrateSetParameters' }
-
-##
-# @MigrationParameters:
-#
-# The optional members aren't actually optional.
-#
-# @compress-level: compression level
-#
-# @compress-threads: compression thread count
-#
-# @decompress-threads: decompression thread count
-#
-# @cpu-throttle-initial: Initial percentage of time guest cpus are
-#                        throttled when migration auto-converge is activated.
-#                        (Since 2.7)
-#
-# @cpu-throttle-increment: throttle percentage increase each time
-#                          auto-converge detects that migration is not making
-#                          progress. (Since 2.7)
-#
-# @tls-creds: ID of the 'tls-creds' object that provides credentials
-#             for establishing a TLS connection over the migration data
-#             channel. On the outgoing side of the migration, the credentials
-#             must be for a 'client' endpoint, while for the incoming side the
-#             credentials must be for a 'server' endpoint.
-#             An empty string means that QEMU will use plain text mode for
-#             migration, rather than TLS (Since 2.7)
-#             Note: 2.8 reports this by omitting tls-creds instead.
-#
-# @tls-hostname: hostname of the target host for the migration. This
-#                is required when using x509 based TLS credentials and the
-#                migration URI does not already include a hostname. For
-#                example if using fd: or exec: based migration, the
-#                hostname must be provided so that the server's x509
-#                certificate identity can be validated. (Since 2.7)
-#                An empty string means that QEMU will use the hostname
-#                associated with the migration URI, if any. (Since 2.9)
-#                Note: 2.8 reports this by omitting tls-hostname instead.
-#
-# @max-bandwidth: to set maximum speed for migration. maximum speed in
-#                 bytes per second. (Since 2.8)
-#
-# @downtime-limit: set maximum tolerated downtime for migration. maximum
-#                  downtime in milliseconds (Since 2.8)
-#
-# @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
-#
-# @block-incremental: Affects how much storage is migrated when the
-# 	block migration capability is enabled.  When false, the entire
-# 	storage backing chain is migrated into a flattened image at
-# 	the destination; when true, only the active qcow2 layer is
-# 	migrated and the destination must already have access to the
-# 	same backing chain as was used on the source.  (since 2.10)
-#
-# Since: 2.4
-##
-{ 'struct': 'MigrationParameters',
-  'data': { '*compress-level': 'int',
-            '*compress-threads': 'int',
-            '*decompress-threads': 'int',
-            '*cpu-throttle-initial': 'int',
-            '*cpu-throttle-increment': 'int',
-            '*tls-creds': 'str',
-            '*tls-hostname': 'str',
-            '*max-bandwidth': 'int',
-            '*downtime-limit': 'int',
-            '*x-checkpoint-delay': 'int',
-            '*block-incremental': 'bool' } }
-
-##
-# @query-migrate-parameters:
-#
-# Returns information about the current migration parameters
-#
-# Returns: @MigrationParameters
-#
-# Since: 2.4
-#
-# Example:
-#
-# -> { "execute": "query-migrate-parameters" }
-# <- { "return": {
-#          "decompress-threads": 2,
-#          "cpu-throttle-increment": 10,
-#          "compress-threads": 8,
-#          "compress-level": 1,
-#          "cpu-throttle-initial": 20,
-#          "max-bandwidth": 33554432,
-#          "downtime-limit": 300
-#       }
-#    }
-#
-##
-{ 'command': 'query-migrate-parameters',
-  'returns': 'MigrationParameters' }
-
-##
-# @client_migrate_info:
-#
-# Set migration information for remote display.  This makes the server
-# ask the client to automatically reconnect using the new parameters
-# once migration finished successfully.  Only implemented for SPICE.
-#
-# @protocol:     must be "spice"
-# @hostname:     migration target hostname
-# @port:         spice tcp port for plaintext channels
-# @tls-port:     spice tcp port for tls-secured channels
-# @cert-subject: server certificate subject
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "client_migrate_info",
-#      "arguments": { "protocol": "spice",
-#                     "hostname": "virt42.lab.kraxel.org",
-#                     "port": 1234 } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'client_migrate_info',
-  'data': { 'protocol': 'str', 'hostname': 'str', '*port': 'int',
-            '*tls-port': 'int', '*cert-subject': 'str' } }
-
-##
-# @migrate-start-postcopy:
-#
-# Followup to a migration command to switch the migration to postcopy mode.
-# The postcopy-ram capability must be set before the original migration
-# command.
-#
-# Since: 2.5
-#
-# Example:
-#
-# -> { "execute": "migrate-start-postcopy" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'migrate-start-postcopy' }
-
-##
-# @COLOMessage:
-#
-# The message transmission between Primary side and Secondary side.
-#
-# @checkpoint-ready: Secondary VM (SVM) is ready for checkpointing
-#
-# @checkpoint-request: Primary VM (PVM) tells SVM to prepare for checkpointing
-#
-# @checkpoint-reply: SVM gets PVM's checkpoint request
-#
-# @vmstate-send: VM's state will be sent by PVM.
-#
-# @vmstate-size: The total size of VMstate.
-#
-# @vmstate-received: VM's state has been received by SVM.
-#
-# @vmstate-loaded: VM's state has been loaded by SVM.
-#
-# Since: 2.8
-##
-{ 'enum': 'COLOMessage',
-  'data': [ 'checkpoint-ready', 'checkpoint-request', 'checkpoint-reply',
-            'vmstate-send', 'vmstate-size', 'vmstate-received',
-            'vmstate-loaded' ] }
-
-##
-# @COLOMode:
-#
-# The colo mode
-#
-# @unknown: unknown mode
-#
-# @primary: master side
-#
-# @secondary: slave side
-#
-# Since: 2.8
-##
-{ 'enum': 'COLOMode',
-  'data': [ 'unknown', 'primary', 'secondary'] }
-
-##
-# @FailoverStatus:
-#
-# An enumeration of COLO failover status
-#
-# @none: no failover has ever happened
-#
-# @require: got failover requirement but not handled
-#
-# @active: in the process of doing failover
-#
-# @completed: finish the process of failover
-#
-# @relaunch: restart the failover process, from 'none' -> 'completed' (Since 2.9)
-#
-# Since: 2.8
-##
-{ 'enum': 'FailoverStatus',
-  'data': [ 'none', 'require', 'active', 'completed', 'relaunch' ] }
-
-##
-# @x-colo-lost-heartbeat:
-#
-# Tell qemu that heartbeat is lost, request it to do takeover procedures.
-# If this command is sent to the PVM, the Primary side will exit COLO mode.
-# If sent to the Secondary, the Secondary side will run failover work,
-# then takes over server operation to become the service VM.
-#
-# Since: 2.8
-#
-# Example:
-#
-# -> { "execute": "x-colo-lost-heartbeat" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'x-colo-lost-heartbeat' }
-
-##
-# @MouseInfo:
-#
-# Information about a mouse device.
-#
-# @name: the name of the mouse device
-#
-# @index: the index of the mouse device
-#
-# @current: true if this device is currently receiving mouse events
-#
-# @absolute: true if this device supports absolute coordinates as input
-#
-# Since: 0.14.0
-##
-{ 'struct': 'MouseInfo',
-  'data': {'name': 'str', 'index': 'int', 'current': 'bool',
-           'absolute': 'bool'} }
-
-##
-# @query-mice:
-#
-# Returns information about each active mouse device
-#
-# Returns: a list of @MouseInfo for each device
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-mice" }
-# <- { "return": [
-#          {
-#             "name":"QEMU Microsoft Mouse",
-#             "index":0,
-#             "current":false,
-#             "absolute":false
-#          },
-#          {
-#             "name":"QEMU PS/2 Mouse",
-#             "index":1,
-#             "current":true,
-#             "absolute":true
-#          }
-#       ]
-#    }
-#
-##
-{ 'command': 'query-mice', 'returns': ['MouseInfo'] }
 
 ##
 # @CpuInfoArch:
@@ -1620,396 +617,6 @@
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
 
 ##
-# @NetworkAddressFamily:
-#
-# The network address family
-#
-# @ipv4: IPV4 family
-#
-# @ipv6: IPV6 family
-#
-# @unix: unix socket
-#
-# @vsock: vsock family (since 2.8)
-#
-# @unknown: otherwise
-#
-# Since: 2.1
-##
-{ 'enum': 'NetworkAddressFamily',
-  'data': [ 'ipv4', 'ipv6', 'unix', 'vsock', 'unknown' ] }
-
-##
-# @VncBasicInfo:
-#
-# The basic information for vnc network connection
-#
-# @host: IP address
-#
-# @service: The service name of the vnc port. This may depend on the host
-#           system's service database so symbolic names should not be relied
-#           on.
-#
-# @family: address family
-#
-# @websocket: true in case the socket is a websocket (since 2.3).
-#
-# Since: 2.1
-##
-{ 'struct': 'VncBasicInfo',
-  'data': { 'host': 'str',
-            'service': 'str',
-            'family': 'NetworkAddressFamily',
-            'websocket': 'bool' } }
-
-##
-# @VncServerInfo:
-#
-# The network connection information for server
-#
-# @auth: authentication method used for
-#        the plain (non-websocket) VNC server
-#
-# Since: 2.1
-##
-{ 'struct': 'VncServerInfo',
-  'base': 'VncBasicInfo',
-  'data': { '*auth': 'str' } }
-
-##
-# @VncClientInfo:
-#
-# Information about a connected VNC client.
-#
-# @x509_dname: If x509 authentication is in use, the Distinguished
-#              Name of the client.
-#
-# @sasl_username: If SASL authentication is in use, the SASL username
-#                 used for authentication.
-#
-# Since: 0.14.0
-##
-{ 'struct': 'VncClientInfo',
-  'base': 'VncBasicInfo',
-  'data': { '*x509_dname': 'str', '*sasl_username': 'str' } }
-
-##
-# @VncInfo:
-#
-# Information about the VNC session.
-#
-# @enabled: true if the VNC server is enabled, false otherwise
-#
-# @host: The hostname the VNC server is bound to.  This depends on
-#        the name resolution on the host and may be an IP address.
-#
-# @family: 'ipv6' if the host is listening for IPv6 connections
-#                    'ipv4' if the host is listening for IPv4 connections
-#                    'unix' if the host is listening on a unix domain socket
-#                    'unknown' otherwise
-#
-# @service: The service name of the server's port.  This may depends
-#           on the host system's service database so symbolic names should not
-#           be relied on.
-#
-# @auth: the current authentication type used by the server
-#        'none' if no authentication is being used
-#        'vnc' if VNC authentication is being used
-#        'vencrypt+plain' if VEncrypt is used with plain text authentication
-#        'vencrypt+tls+none' if VEncrypt is used with TLS and no authentication
-#        'vencrypt+tls+vnc' if VEncrypt is used with TLS and VNC authentication
-#        'vencrypt+tls+plain' if VEncrypt is used with TLS and plain text auth
-#        'vencrypt+x509+none' if VEncrypt is used with x509 and no auth
-#        'vencrypt+x509+vnc' if VEncrypt is used with x509 and VNC auth
-#        'vencrypt+x509+plain' if VEncrypt is used with x509 and plain text auth
-#        'vencrypt+tls+sasl' if VEncrypt is used with TLS and SASL auth
-#        'vencrypt+x509+sasl' if VEncrypt is used with x509 and SASL auth
-#
-# @clients: a list of @VncClientInfo of all currently connected clients
-#
-# Since: 0.14.0
-##
-{ 'struct': 'VncInfo',
-  'data': {'enabled': 'bool', '*host': 'str',
-           '*family': 'NetworkAddressFamily',
-           '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
-
-##
-# @VncPrimaryAuth:
-#
-# vnc primary authentication method.
-#
-# Since: 2.3
-##
-{ 'enum': 'VncPrimaryAuth',
-  'data': [ 'none', 'vnc', 'ra2', 'ra2ne', 'tight', 'ultra',
-            'tls', 'vencrypt', 'sasl' ] }
-
-##
-# @VncVencryptSubAuth:
-#
-# vnc sub authentication method with vencrypt.
-#
-# Since: 2.3
-##
-{ 'enum': 'VncVencryptSubAuth',
-  'data': [ 'plain',
-            'tls-none',  'x509-none',
-            'tls-vnc',   'x509-vnc',
-            'tls-plain', 'x509-plain',
-            'tls-sasl',  'x509-sasl' ] }
-
-
-##
-# @VncServerInfo2:
-#
-# The network connection information for server
-#
-# @auth: The current authentication type used by the servers
-#
-# @vencrypt: The vencrypt sub authentication type used by the
-#            servers, only specified in case auth == vencrypt.
-#
-# Since: 2.9
-##
-{ 'struct': 'VncServerInfo2',
-  'base': 'VncBasicInfo',
-  'data': { 'auth'      : 'VncPrimaryAuth',
-            '*vencrypt' : 'VncVencryptSubAuth' } }
-
-
-##
-# @VncInfo2:
-#
-# Information about a vnc server
-#
-# @id: vnc server name.
-#
-# @server: A list of @VncBasincInfo describing all listening sockets.
-#          The list can be empty (in case the vnc server is disabled).
-#          It also may have multiple entries: normal + websocket,
-#          possibly also ipv4 + ipv6 in the future.
-#
-# @clients: A list of @VncClientInfo of all currently connected clients.
-#           The list can be empty, for obvious reasons.
-#
-# @auth: The current authentication type used by the non-websockets servers
-#
-# @vencrypt: The vencrypt authentication type used by the servers,
-#            only specified in case auth == vencrypt.
-#
-# @display: The display device the vnc server is linked to.
-#
-# Since: 2.3
-##
-{ 'struct': 'VncInfo2',
-  'data': { 'id'        : 'str',
-            'server'    : ['VncServerInfo2'],
-            'clients'   : ['VncClientInfo'],
-            'auth'      : 'VncPrimaryAuth',
-            '*vencrypt' : 'VncVencryptSubAuth',
-            '*display'  : 'str' } }
-
-##
-# @query-vnc:
-#
-# Returns information about the current VNC server
-#
-# Returns: @VncInfo
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-vnc" }
-# <- { "return": {
-#          "enabled":true,
-#          "host":"0.0.0.0",
-#          "service":"50402",
-#          "auth":"vnc",
-#          "family":"ipv4",
-#          "clients":[
-#             {
-#                "host":"127.0.0.1",
-#                "service":"50401",
-#                "family":"ipv4"
-#             }
-#          ]
-#       }
-#    }
-#
-##
-{ 'command': 'query-vnc', 'returns': 'VncInfo' }
-
-##
-# @query-vnc-servers:
-#
-# Returns a list of vnc servers.  The list can be empty.
-#
-# Returns: a list of @VncInfo2
-#
-# Since: 2.3
-##
-{ 'command': 'query-vnc-servers', 'returns': ['VncInfo2'] }
-
-##
-# @SpiceBasicInfo:
-#
-# The basic information for SPICE network connection
-#
-# @host: IP address
-#
-# @port: port number
-#
-# @family: address family
-#
-# Since: 2.1
-##
-{ 'struct': 'SpiceBasicInfo',
-  'data': { 'host': 'str',
-            'port': 'str',
-            'family': 'NetworkAddressFamily' } }
-
-##
-# @SpiceServerInfo:
-#
-# Information about a SPICE server
-#
-# @auth: authentication method
-#
-# Since: 2.1
-##
-{ 'struct': 'SpiceServerInfo',
-  'base': 'SpiceBasicInfo',
-  'data': { '*auth': 'str' } }
-
-##
-# @SpiceChannel:
-#
-# Information about a SPICE client channel.
-#
-# @connection-id: SPICE connection id number.  All channels with the same id
-#                 belong to the same SPICE session.
-#
-# @channel-type: SPICE channel type number.  "1" is the main control
-#                channel, filter for this one if you want to track spice
-#                sessions only
-#
-# @channel-id: SPICE channel ID number.  Usually "0", might be different when
-#              multiple channels of the same type exist, such as multiple
-#              display channels in a multihead setup
-#
-# @tls: true if the channel is encrypted, false otherwise.
-#
-# Since: 0.14.0
-##
-{ 'struct': 'SpiceChannel',
-  'base': 'SpiceBasicInfo',
-  'data': {'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
-           'tls': 'bool'} }
-
-##
-# @SpiceQueryMouseMode:
-#
-# An enumeration of Spice mouse states.
-#
-# @client: Mouse cursor position is determined by the client.
-#
-# @server: Mouse cursor position is determined by the server.
-#
-# @unknown: No information is available about mouse mode used by
-#           the spice server.
-#
-# Note: spice/enums.h has a SpiceMouseMode already, hence the name.
-#
-# Since: 1.1
-##
-{ 'enum': 'SpiceQueryMouseMode',
-  'data': [ 'client', 'server', 'unknown' ] }
-
-##
-# @SpiceInfo:
-#
-# Information about the SPICE session.
-#
-# @enabled: true if the SPICE server is enabled, false otherwise
-#
-# @migrated: true if the last guest migration completed and spice
-#            migration had completed as well. false otherwise. (since 1.4)
-#
-# @host: The hostname the SPICE server is bound to.  This depends on
-#        the name resolution on the host and may be an IP address.
-#
-# @port: The SPICE server's port number.
-#
-# @compiled-version: SPICE server version.
-#
-# @tls-port: The SPICE server's TLS port number.
-#
-# @auth: the current authentication type used by the server
-#        'none'  if no authentication is being used
-#        'spice' uses SASL or direct TLS authentication, depending on command
-#                line options
-#
-# @mouse-mode: The mode in which the mouse cursor is displayed currently. Can
-#              be determined by the client or the server, or unknown if spice
-#              server doesn't provide this information. (since: 1.1)
-#
-# @channels: a list of @SpiceChannel for each active spice channel
-#
-# Since: 0.14.0
-##
-{ 'struct': 'SpiceInfo',
-  'data': {'enabled': 'bool', 'migrated': 'bool', '*host': 'str', '*port': 'int',
-           '*tls-port': 'int', '*auth': 'str', '*compiled-version': 'str',
-           'mouse-mode': 'SpiceQueryMouseMode', '*channels': ['SpiceChannel']} }
-
-##
-# @query-spice:
-#
-# Returns information about the current SPICE server
-#
-# Returns: @SpiceInfo
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-spice" }
-# <- { "return": {
-#          "enabled": true,
-#          "auth": "spice",
-#          "port": 5920,
-#          "tls-port": 5921,
-#          "host": "0.0.0.0",
-#          "channels": [
-#             {
-#                "port": "54924",
-#                "family": "ipv4",
-#                "channel-type": 1,
-#                "connection-id": 1804289383,
-#                "host": "127.0.0.1",
-#                "channel-id": 0,
-#                "tls": true
-#             },
-#             {
-#                "port": "36710",
-#                "family": "ipv4",
-#                "channel-type": 4,
-#                "connection-id": 1804289383,
-#                "host": "127.0.0.1",
-#                "channel-id": 0,
-#                "tls": false
-#             },
-#             [ ... more channels follow ... ]
-#          ]
-#       }
-#    }
-#
-##
-{ 'command': 'query-spice', 'returns': 'SpiceInfo' }
-
-##
 # @BalloonInfo:
 #
 # Information about the guest balloon device.
@@ -2045,6 +652,28 @@
 #
 ##
 { 'command': 'query-balloon', 'returns': 'BalloonInfo' }
+
+##
+# @BALLOON_CHANGE:
+#
+# Emitted when the guest changes the actual BALLOON level. This value is
+# equivalent to the @actual field return by the 'query-balloon' command
+#
+# @actual: actual level of the guest memory balloon in bytes
+#
+# Note: this event is rate-limited.
+#
+# Since: 1.2
+#
+# Example:
+#
+# <- { "event": "BALLOON_CHANGE",
+#      "data": { "actual": 944766976 },
+#      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#
+##
+{ 'event': 'BALLOON_CHANGE',
+  'data': { 'actual': 'int' } }
 
 ##
 # @PciMemoryRange:
@@ -2568,33 +1197,6 @@
 { 'command': 'inject-nmi' }
 
 ##
-# @set_link:
-#
-# Sets the link status of a virtual network adapter.
-#
-# @name: the device name of the virtual network adapter
-#
-# @up: true to set the link status to be up
-#
-# Returns: Nothing on success
-#          If @name is not a valid network device, DeviceNotFound
-#
-# Since: 0.14.0
-#
-# Notes: Not all network adapters support setting link status.  This command
-#        will succeed even if the network adapter does not support link status
-#        notification.
-#
-# Example:
-#
-# -> { "execute": "set_link",
-#      "arguments": { "name": "e1000.0", "up": false } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
-
-##
 # @balloon:
 #
 # Request the balloon driver to change its balloon size.
@@ -2619,156 +1221,6 @@
 #
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
-
-##
-# @Abort:
-#
-# This action can be used to test transaction failure.
-#
-# Since: 1.6
-##
-{ 'struct': 'Abort',
-  'data': { } }
-
-##
-# @ActionCompletionMode:
-#
-# An enumeration of Transactional completion modes.
-#
-# @individual: Do not attempt to cancel any other Actions if any Actions fail
-#              after the Transaction request succeeds. All Actions that
-#              can complete successfully will do so without waiting on others.
-#              This is the default.
-#
-# @grouped: If any Action fails after the Transaction succeeds, cancel all
-#           Actions. Actions do not complete until all Actions are ready to
-#           complete. May be rejected by Actions that do not support this
-#           completion mode.
-#
-# Since: 2.5
-##
-{ 'enum': 'ActionCompletionMode',
-  'data': [ 'individual', 'grouped' ] }
-
-##
-# @TransactionAction:
-#
-# A discriminated record of operations that can be performed with
-# @transaction. Action @type can be:
-#
-# - @abort: since 1.6
-# - @block-dirty-bitmap-add: since 2.5
-# - @block-dirty-bitmap-clear: since 2.5
-# - @blockdev-backup: since 2.3
-# - @blockdev-snapshot: since 2.5
-# - @blockdev-snapshot-internal-sync: since 1.7
-# - @blockdev-snapshot-sync: since 1.1
-# - @drive-backup: since 1.6
-#
-# Since: 1.1
-##
-{ 'union': 'TransactionAction',
-  'data': {
-       'abort': 'Abort',
-       'block-dirty-bitmap-add': 'BlockDirtyBitmapAdd',
-       'block-dirty-bitmap-clear': 'BlockDirtyBitmap',
-       'blockdev-backup': 'BlockdevBackup',
-       'blockdev-snapshot': 'BlockdevSnapshot',
-       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
-       'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
-       'drive-backup': 'DriveBackup'
-   } }
-
-##
-# @TransactionProperties:
-#
-# Optional arguments to modify the behavior of a Transaction.
-#
-# @completion-mode: Controls how jobs launched asynchronously by
-#                   Actions will complete or fail as a group.
-#                   See @ActionCompletionMode for details.
-#
-# Since: 2.5
-##
-{ 'struct': 'TransactionProperties',
-  'data': {
-       '*completion-mode': 'ActionCompletionMode'
-  }
-}
-
-##
-# @transaction:
-#
-# Executes a number of transactionable QMP commands atomically. If any
-# operation fails, then the entire set of actions will be abandoned and the
-# appropriate error returned.
-#
-# For external snapshots, the dictionary contains the device, the file to use for
-# the new snapshot, and the format.  The default format, if not specified, is
-# qcow2.
-#
-# Each new snapshot defaults to being created by QEMU (wiping any
-# contents if the file already exists), but it is also possible to reuse
-# an externally-created file.  In the latter case, you should ensure that
-# the new image file has the same contents as the current one; QEMU cannot
-# perform any meaningful check.  Typically this is achieved by using the
-# current image file as the backing file for the new image.
-#
-# On failure, the original disks pre-snapshot attempt will be used.
-#
-# For internal snapshots, the dictionary contains the device and the snapshot's
-# name.  If an internal snapshot matching name already exists, the request will
-# be rejected.  Only some image formats support it, for example, qcow2, rbd,
-# and sheepdog.
-#
-# On failure, qemu will try delete the newly created internal snapshot in the
-# transaction.  When an I/O error occurs during deletion, the user needs to fix
-# it later with qemu-img or other command.
-#
-# @actions: List of @TransactionAction;
-#           information needed for the respective operations.
-#
-# @properties: structure of additional options to control the
-#              execution of the transaction. See @TransactionProperties
-#              for additional detail.
-#
-# Returns: nothing on success
-#
-#          Errors depend on the operations of the transaction
-#
-# Note: The transaction aborts on the first failure.  Therefore, there will be
-# information on only one failed operation returned in an error condition, and
-# subsequent actions will not have been attempted.
-#
-# Since: 1.1
-#
-# Example:
-#
-# -> { "execute": "transaction",
-#      "arguments": { "actions": [
-#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd0",
-#                                      "snapshot-file": "/some/place/my-image",
-#                                      "format": "qcow2" } },
-#          { "type": "blockdev-snapshot-sync", "data" : { "node-name": "myfile",
-#                                      "snapshot-file": "/some/place/my-image2",
-#                                      "snapshot-node-name": "node3432",
-#                                      "mode": "existing",
-#                                      "format": "qcow2" } },
-#          { "type": "blockdev-snapshot-sync", "data" : { "device": "ide-hd1",
-#                                      "snapshot-file": "/some/place/my-image2",
-#                                      "mode": "existing",
-#                                      "format": "qcow2" } },
-#          { "type": "blockdev-snapshot-internal-sync", "data" : {
-#                                      "device": "ide-hd2",
-#                                      "name": "snapshot0" } } ] } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'transaction',
-  'data': { 'actions': [ 'TransactionAction' ],
-            '*properties': 'TransactionProperties'
-          }
-}
 
 ##
 # @human-monitor-command:
@@ -2807,107 +1259,6 @@
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
   'returns': 'str' }
-
-##
-# @migrate_cancel:
-#
-# Cancel the current executing migration process.
-#
-# Returns: nothing on success
-#
-# Notes: This command succeeds even if there is no migration process running.
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "migrate_cancel" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'migrate_cancel' }
-
-##
-# @migrate_set_downtime:
-#
-# Set maximum tolerated downtime for migration.
-#
-# @value: maximum downtime in seconds
-#
-# Returns: nothing on success
-#
-# Notes: This command is deprecated in favor of 'migrate-set-parameters'
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "migrate_set_downtime", "arguments": { "value": 0.1 } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
-
-##
-# @migrate_set_speed:
-#
-# Set maximum speed for migration.
-#
-# @value: maximum speed in bytes per second.
-#
-# Returns: nothing on success
-#
-# Notes: This command is deprecated in favor of 'migrate-set-parameters'
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "migrate_set_speed", "arguments": { "value": 1024 } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
-
-##
-# @migrate-set-cache-size:
-#
-# Set cache size to be used by XBZRLE migration
-#
-# @value: cache size in bytes
-#
-# The size will be rounded down to the nearest power of 2.
-# The cache size can be modified before and during ongoing migration
-#
-# Returns: nothing on success
-#
-# Since: 1.2
-#
-# Example:
-#
-# -> { "execute": "migrate-set-cache-size",
-#      "arguments": { "value": 536870912 } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'migrate-set-cache-size', 'data': {'value': 'int'} }
-
-##
-# @query-migrate-cache-size:
-#
-# Query migration XBZRLE cache size
-#
-# Returns: XBZRLE cache size in bytes
-#
-# Since: 1.2
-#
-# Example:
-#
-# -> { "execute": "query-migrate-cache-size" }
-# <- { "return": 67108864 }
-#
-##
-{ 'command': 'query-migrate-cache-size', 'returns': 'int' }
 
 ##
 # @ObjectPropertyInfo:
@@ -3001,83 +1352,6 @@
 ##
 { 'command': 'qom-set',
   'data': { 'path': 'str', 'property': 'str', 'value': 'any' } }
-
-##
-# @set_password:
-#
-# Sets the password of a remote display session.
-#
-# @protocol: `vnc' to modify the VNC server password
-#            `spice' to modify the Spice server password
-#
-# @password: the new password
-#
-# @connected: how to handle existing clients when changing the
-#                       password.  If nothing is specified, defaults to `keep'
-#                       `fail' to fail the command if clients are connected
-#                       `disconnect' to disconnect existing clients
-#                       `keep' to maintain existing clients
-#
-# Returns: Nothing on success
-#          If Spice is not enabled, DeviceNotFound
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "set_password", "arguments": { "protocol": "vnc",
-#                                                "password": "secret" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'set_password',
-  'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }
-
-##
-# @expire_password:
-#
-# Expire the password of a remote display server.
-#
-# @protocol: the name of the remote display protocol `vnc' or `spice'
-#
-# @time: when to expire the password.
-#        `now' to expire the password immediately
-#        `never' to cancel password expiration
-#        `+INT' where INT is the number of seconds from now (integer)
-#        `INT' where INT is the absolute time in seconds
-#
-# Returns: Nothing on success
-#          If @protocol is `spice' and Spice is not active, DeviceNotFound
-#
-# Since: 0.14.0
-#
-# Notes: Time is relative to the server and currently there is no way to
-#        coordinate server time with client time.  It is not recommended to
-#        use the absolute time version of the @time parameter unless you're
-#        sure you are on the same machine as the QEMU instance.
-#
-# Example:
-#
-# -> { "execute": "expire_password", "arguments": { "protocol": "vnc",
-#                                                   "time": "+60" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
-
-##
-# @change-vnc-password:
-#
-# Change the VNC server password.
-#
-# @password:  the new password to use with VNC authentication
-#
-# Since: 1.1
-#
-# Notes:  An empty password in this command will set the password to the empty
-#         string.  Existing clients are unaffected by executing this command.
-##
-{ 'command': 'change-vnc-password', 'data': {'password': 'str'} }
 
 ##
 # @change:
@@ -3192,99 +1466,6 @@
   'returns': [ 'DevicePropertyInfo' ] }
 
 ##
-# @migrate:
-#
-# Migrates the current running guest to another Virtual Machine.
-#
-# @uri: the Uniform Resource Identifier of the destination VM
-#
-# @blk: do block migration (full disk copy)
-#
-# @inc: incremental disk copy migration
-#
-# @detach: this argument exists only for compatibility reasons and
-#          is ignored by QEMU
-#
-# Returns: nothing on success
-#
-# Since: 0.14.0
-#
-# Notes:
-#
-# 1. The 'query-migrate' command should be used to check migration's progress
-#    and final result (this information is provided by the 'status' member)
-#
-# 2. All boolean arguments default to false
-#
-# 3. The user Monitor's "detach" argument is invalid in QMP and should not
-#    be used
-#
-# Example:
-#
-# -> { "execute": "migrate", "arguments": { "uri": "tcp:0:4446" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'migrate',
-  'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool', '*detach': 'bool' } }
-
-##
-# @migrate-incoming:
-#
-# Start an incoming migration, the qemu must have been started
-# with -incoming defer
-#
-# @uri: The Uniform Resource Identifier identifying the source or
-#       address to listen on
-#
-# Returns: nothing on success
-#
-# Since: 2.3
-#
-# Notes:
-#
-# 1. It's a bad idea to use a string for the uri, but it needs to stay
-#    compatible with -incoming and the format of the uri is already exposed
-#    above libvirt.
-#
-# 2. QEMU must be started with -incoming defer to allow migrate-incoming to
-#    be used.
-#
-# 3. The uri format is the same as for -incoming
-#
-# Example:
-#
-# -> { "execute": "migrate-incoming",
-#      "arguments": { "uri": "tcp::4446" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
-
-##
-# @xen-save-devices-state:
-#
-# Save the state of all devices to file. The RAM and the block devices
-# of the VM are not saved by this command.
-#
-# @filename: the file to save the state of the devices to as binary
-# data. See xen-save-devices-state.txt for a description of the binary
-# format.
-#
-# Returns: Nothing on success
-#
-# Since: 1.1
-#
-# Example:
-#
-# -> { "execute": "xen-save-devices-state",
-#      "arguments": { "filename": "/tmp/save" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
-
-##
 # @xen-set-global-dirty-log:
 #
 # Enable or disable the global dirty log mode.
@@ -3375,6 +1556,30 @@
 #
 ##
 { 'command': 'device_del', 'data': {'id': 'str'} }
+
+##
+# @DEVICE_DELETED:
+#
+# Emitted whenever the device removal completion is acknowledged by the guest.
+# At this point, it's safe to reuse the specified device ID. Device removal can
+# be initiated by the guest or by HMP/QMP commands.
+#
+# @device: device name
+#
+# @path: device path
+#
+# Since: 1.5
+#
+# Example:
+#
+# <- { "event": "DEVICE_DELETED",
+#      "data": { "device": "virtio-net-pci-0",
+#                "path": "/machine/peripheral/virtio-net-pci-0" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'DEVICE_DELETED',
+  'data': { '*device': 'str', 'path': 'str' } }
 
 ##
 # @DumpGuestMemoryFormat:
@@ -3512,6 +1717,29 @@
 { 'command': 'query-dump', 'returns': 'DumpQueryResult' }
 
 ##
+# @DUMP_COMPLETED:
+#
+# Emitted when background dump has completed
+#
+# @result: DumpQueryResult type described in qapi-schema.json.
+#
+# @error: human-readable error string that provides
+#         hint on why dump failed. Only presents on failure. The
+#         user should not try to interpret the error string.
+#
+# Since: 2.6
+#
+# Example:
+#
+# { "event": "DUMP_COMPLETED",
+#   "data": {"result": {"total": 1090650112, "status": "completed",
+#                       "completed": 1090650112} } }
+#
+##
+{ 'event': 'DUMP_COMPLETED' ,
+  'data': { 'result': 'DumpQueryResult', '*error': 'str' } }
+
+##
 # @DumpGuestMemoryCapability:
 #
 # A list of the available formats for dump-guest-memory
@@ -3564,60 +1792,6 @@
   'data': { 'filename': 'str' } }
 
 ##
-# @netdev_add:
-#
-# Add a network backend.
-#
-# @type: the type of network backend.  Current valid values are 'user', 'tap',
-#        'vde', 'socket', 'dump' and 'bridge'
-#
-# @id: the name of the new network backend
-#
-# Additional arguments depend on the type.
-#
-# TODO: This command effectively bypasses QAPI completely due to its
-# "additional arguments" business.  It shouldn't have been added to
-# the schema in this form.  It should be qapified properly, or
-# replaced by a properly qapified command.
-#
-# Since: 0.14.0
-#
-# Returns: Nothing on success
-#          If @type is not a valid network backend, DeviceNotFound
-#
-# Example:
-#
-# -> { "execute": "netdev_add",
-#      "arguments": { "type": "user", "id": "netdev1",
-#                     "dnssearch": "example.org" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'netdev_add',
-  'data': {'type': 'str', 'id': 'str'},
-  'gen': false }                # so we can get the additional arguments
-
-##
-# @netdev_del:
-#
-# Remove a network backend.
-#
-# @id: the name of the network backend to remove
-#
-# Returns: Nothing on success
-#          If @id is not a valid network backend, DeviceNotFound
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'netdev_del', 'data': {'id': 'str'} }
-
-##
 # @object-add:
 #
 # Create a QOM object.
@@ -3663,622 +1837,6 @@
 #
 ##
 { 'command': 'object-del', 'data': {'id': 'str'} }
-
-##
-# @NetdevNoneOptions:
-#
-# Use it alone to have zero network devices.
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevNoneOptions',
-  'data': { } }
-
-##
-# @NetLegacyNicOptions:
-#
-# Create a new Network Interface Card.
-#
-# @netdev: id of -netdev to connect to
-#
-# @macaddr: MAC address
-#
-# @model: device model (e1000, rtl8139, virtio etc.)
-#
-# @addr: PCI device address
-#
-# @vectors: number of MSI-x vectors, 0 to disable MSI-X
-#
-# Since: 1.2
-##
-{ 'struct': 'NetLegacyNicOptions',
-  'data': {
-    '*netdev':  'str',
-    '*macaddr': 'str',
-    '*model':   'str',
-    '*addr':    'str',
-    '*vectors': 'uint32' } }
-
-##
-# @String:
-#
-# A fat type wrapping 'str', to be embedded in lists.
-#
-# Since: 1.2
-##
-{ 'struct': 'String',
-  'data': {
-    'str': 'str' } }
-
-##
-# @NetdevUserOptions:
-#
-# Use the user mode network stack which requires no administrator privilege to
-# run.
-#
-# @hostname: client hostname reported by the builtin DHCP server
-#
-# @restrict: isolate the guest from the host
-#
-# @ipv4: whether to support IPv4, default true for enabled
-#        (since 2.6)
-#
-# @ipv6: whether to support IPv6, default true for enabled
-#        (since 2.6)
-#
-# @ip: legacy parameter, use net= instead
-#
-# @net: IP network address that the guest will see, in the
-#       form addr[/netmask] The netmask is optional, and can be
-#       either in the form a.b.c.d or as a number of valid top-most
-#       bits. Default is 10.0.2.0/24.
-#
-# @host: guest-visible address of the host
-#
-# @tftp: root directory of the built-in TFTP server
-#
-# @bootfile: BOOTP filename, for use with tftp=
-#
-# @dhcpstart: the first of the 16 IPs the built-in DHCP server can
-#             assign
-#
-# @dns: guest-visible address of the virtual nameserver
-#
-# @dnssearch: list of DNS suffixes to search, passed as DHCP option
-#             to the guest
-#
-# @ipv6-prefix: IPv6 network prefix (default is fec0::) (since
-#               2.6). The network prefix is given in the usual
-#               hexadecimal IPv6 address notation.
-#
-# @ipv6-prefixlen: IPv6 network prefix length (default is 64)
-#                  (since 2.6)
-#
-# @ipv6-host: guest-visible IPv6 address of the host (since 2.6)
-#
-# @ipv6-dns: guest-visible IPv6 address of the virtual
-#            nameserver (since 2.6)
-#
-# @smb: root directory of the built-in SMB server
-#
-# @smbserver: IP address of the built-in SMB server
-#
-# @hostfwd: redirect incoming TCP or UDP host connections to guest
-#           endpoints
-#
-# @guestfwd: forward guest TCP connections
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevUserOptions',
-  'data': {
-    '*hostname':  'str',
-    '*restrict':  'bool',
-    '*ipv4':      'bool',
-    '*ipv6':      'bool',
-    '*ip':        'str',
-    '*net':       'str',
-    '*host':      'str',
-    '*tftp':      'str',
-    '*bootfile':  'str',
-    '*dhcpstart': 'str',
-    '*dns':       'str',
-    '*dnssearch': ['String'],
-    '*ipv6-prefix':      'str',
-    '*ipv6-prefixlen':   'int',
-    '*ipv6-host':        'str',
-    '*ipv6-dns':         'str',
-    '*smb':       'str',
-    '*smbserver': 'str',
-    '*hostfwd':   ['String'],
-    '*guestfwd':  ['String'] } }
-
-##
-# @NetdevTapOptions:
-#
-# Connect the host TAP network interface name to the VLAN.
-#
-# @ifname: interface name
-#
-# @fd: file descriptor of an already opened tap
-#
-# @fds: multiple file descriptors of already opened multiqueue capable
-# tap
-#
-# @script: script to initialize the interface
-#
-# @downscript: script to shut down the interface
-#
-# @br: bridge name (since 2.8)
-#
-# @helper: command to execute to configure bridge
-#
-# @sndbuf: send buffer limit. Understands [TGMKkb] suffixes.
-#
-# @vnet_hdr: enable the IFF_VNET_HDR flag on the tap interface
-#
-# @vhost: enable vhost-net network accelerator
-#
-# @vhostfd: file descriptor of an already opened vhost net device
-#
-# @vhostfds: file descriptors of multiple already opened vhost net
-# devices
-#
-# @vhostforce: vhost on for non-MSIX virtio guests
-#
-# @queues: number of queues to be created for multiqueue capable tap
-#
-# @poll-us: maximum number of microseconds that could
-# be spent on busy polling for tap (since 2.7)
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevTapOptions',
-  'data': {
-    '*ifname':     'str',
-    '*fd':         'str',
-    '*fds':        'str',
-    '*script':     'str',
-    '*downscript': 'str',
-    '*br':         'str',
-    '*helper':     'str',
-    '*sndbuf':     'size',
-    '*vnet_hdr':   'bool',
-    '*vhost':      'bool',
-    '*vhostfd':    'str',
-    '*vhostfds':   'str',
-    '*vhostforce': 'bool',
-    '*queues':     'uint32',
-    '*poll-us':    'uint32'} }
-
-##
-# @NetdevSocketOptions:
-#
-# Connect the VLAN to a remote VLAN in another QEMU virtual machine using a TCP
-# socket connection.
-#
-# @fd: file descriptor of an already opened socket
-#
-# @listen: port number, and optional hostname, to listen on
-#
-# @connect: port number, and optional hostname, to connect to
-#
-# @mcast: UDP multicast address and port number
-#
-# @localaddr: source address and port for multicast and udp packets
-#
-# @udp: UDP unicast address and port number
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevSocketOptions',
-  'data': {
-    '*fd':        'str',
-    '*listen':    'str',
-    '*connect':   'str',
-    '*mcast':     'str',
-    '*localaddr': 'str',
-    '*udp':       'str' } }
-
-##
-# @NetdevL2TPv3Options:
-#
-# Connect the VLAN to Ethernet over L2TPv3 Static tunnel
-#
-# @src: source address
-#
-# @dst: destination address
-#
-# @srcport: source port - mandatory for udp, optional for ip
-#
-# @dstport: destination port - mandatory for udp, optional for ip
-#
-# @ipv6: force the use of ipv6
-#
-# @udp: use the udp version of l2tpv3 encapsulation
-#
-# @cookie64: use 64 bit coookies
-#
-# @counter: have sequence counter
-#
-# @pincounter: pin sequence counter to zero -
-#              workaround for buggy implementations or
-#              networks with packet reorder
-#
-# @txcookie: 32 or 64 bit transmit cookie
-#
-# @rxcookie: 32 or 64 bit receive cookie
-#
-# @txsession: 32 bit transmit session
-#
-# @rxsession: 32 bit receive session - if not specified
-#             set to the same value as transmit
-#
-# @offset: additional offset - allows the insertion of
-#          additional application-specific data before the packet payload
-#
-# Since: 2.1
-##
-{ 'struct': 'NetdevL2TPv3Options',
-  'data': {
-    'src':          'str',
-    'dst':          'str',
-    '*srcport':     'str',
-    '*dstport':     'str',
-    '*ipv6':        'bool',
-    '*udp':         'bool',
-    '*cookie64':    'bool',
-    '*counter':     'bool',
-    '*pincounter':  'bool',
-    '*txcookie':    'uint64',
-    '*rxcookie':    'uint64',
-    'txsession':    'uint32',
-    '*rxsession':   'uint32',
-    '*offset':      'uint32' } }
-
-##
-# @NetdevVdeOptions:
-#
-# Connect the VLAN to a vde switch running on the host.
-#
-# @sock: socket path
-#
-# @port: port number
-#
-# @group: group owner of socket
-#
-# @mode: permissions for socket
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevVdeOptions',
-  'data': {
-    '*sock':  'str',
-    '*port':  'uint16',
-    '*group': 'str',
-    '*mode':  'uint16' } }
-
-##
-# @NetdevDumpOptions:
-#
-# Dump VLAN network traffic to a file.
-#
-# @len: per-packet size limit (64k default). Understands [TGMKkb]
-# suffixes.
-#
-# @file: dump file path (default is qemu-vlan0.pcap)
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevDumpOptions',
-  'data': {
-    '*len':  'size',
-    '*file': 'str' } }
-
-##
-# @NetdevBridgeOptions:
-#
-# Connect a host TAP network interface to a host bridge device.
-#
-# @br: bridge name
-#
-# @helper: command to execute to configure bridge
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevBridgeOptions',
-  'data': {
-    '*br':     'str',
-    '*helper': 'str' } }
-
-##
-# @NetdevHubPortOptions:
-#
-# Connect two or more net clients through a software hub.
-#
-# @hubid: hub identifier number
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevHubPortOptions',
-  'data': {
-    'hubid':     'int32' } }
-
-##
-# @NetdevNetmapOptions:
-#
-# Connect a client to a netmap-enabled NIC or to a VALE switch port
-#
-# @ifname: Either the name of an existing network interface supported by
-#          netmap, or the name of a VALE port (created on the fly).
-#          A VALE port name is in the form 'valeXXX:YYY', where XXX and
-#          YYY are non-negative integers. XXX identifies a switch and
-#          YYY identifies a port of the switch. VALE ports having the
-#          same XXX are therefore connected to the same switch.
-#
-# @devname: path of the netmap device (default: '/dev/netmap').
-#
-# Since: 2.0
-##
-{ 'struct': 'NetdevNetmapOptions',
-  'data': {
-    'ifname':     'str',
-    '*devname':    'str' } }
-
-##
-# @NetdevVhostUserOptions:
-#
-# Vhost-user network backend
-#
-# @chardev: name of a unix socket chardev
-#
-# @vhostforce: vhost on for non-MSIX virtio guests (default: false).
-#
-# @queues: number of queues to be created for multiqueue vhost-user
-#          (default: 1) (Since 2.5)
-#
-# Since: 2.1
-##
-{ 'struct': 'NetdevVhostUserOptions',
-  'data': {
-    'chardev':        'str',
-    '*vhostforce':    'bool',
-    '*queues':        'int' } }
-
-##
-# @NetClientDriver:
-#
-# Available netdev drivers.
-#
-# Since: 2.7
-##
-{ 'enum': 'NetClientDriver',
-  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde', 'dump',
-            'bridge', 'hubport', 'netmap', 'vhost-user' ] }
-
-##
-# @Netdev:
-#
-# Captures the configuration of a network device.
-#
-# @id: identifier for monitor commands.
-#
-# @type: Specify the driver used for interpreting remaining arguments.
-#
-# Since: 1.2
-#
-# 'l2tpv3' - since 2.1
-##
-{ 'union': 'Netdev',
-  'base': { 'id': 'str', 'type': 'NetClientDriver' },
-  'discriminator': 'type',
-  'data': {
-    'none':     'NetdevNoneOptions',
-    'nic':      'NetLegacyNicOptions',
-    'user':     'NetdevUserOptions',
-    'tap':      'NetdevTapOptions',
-    'l2tpv3':   'NetdevL2TPv3Options',
-    'socket':   'NetdevSocketOptions',
-    'vde':      'NetdevVdeOptions',
-    'dump':     'NetdevDumpOptions',
-    'bridge':   'NetdevBridgeOptions',
-    'hubport':  'NetdevHubPortOptions',
-    'netmap':   'NetdevNetmapOptions',
-    'vhost-user': 'NetdevVhostUserOptions' } }
-
-##
-# @NetLegacy:
-#
-# Captures the configuration of a network device; legacy.
-#
-# @vlan: vlan number
-#
-# @id: identifier for monitor commands
-#
-# @name: identifier for monitor commands, ignored if @id is present
-#
-# @opts: device type specific properties (legacy)
-#
-# Since: 1.2
-##
-{ 'struct': 'NetLegacy',
-  'data': {
-    '*vlan': 'int32',
-    '*id':   'str',
-    '*name': 'str',
-    'opts':  'NetLegacyOptions' } }
-
-##
-# @NetLegacyOptionsType:
-#
-# Since: 1.2
-##
-{ 'enum': 'NetLegacyOptionsType',
-  'data': ['none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-           'dump', 'bridge', 'netmap', 'vhost-user'] }
-
-##
-# @NetLegacyOptions:
-#
-# Like Netdev, but for use only by the legacy command line options
-#
-# Since: 1.2
-##
-{ 'union': 'NetLegacyOptions',
-  'base': { 'type': 'NetLegacyOptionsType' },
-  'discriminator': 'type',
-  'data': {
-    'none':     'NetdevNoneOptions',
-    'nic':      'NetLegacyNicOptions',
-    'user':     'NetdevUserOptions',
-    'tap':      'NetdevTapOptions',
-    'l2tpv3':   'NetdevL2TPv3Options',
-    'socket':   'NetdevSocketOptions',
-    'vde':      'NetdevVdeOptions',
-    'dump':     'NetdevDumpOptions',
-    'bridge':   'NetdevBridgeOptions',
-    'netmap':   'NetdevNetmapOptions',
-    'vhost-user': 'NetdevVhostUserOptions' } }
-
-##
-# @NetFilterDirection:
-#
-# Indicates whether a netfilter is attached to a netdev's transmit queue or
-# receive queue or both.
-#
-# @all: the filter is attached both to the receive and the transmit
-#       queue of the netdev (default).
-#
-# @rx: the filter is attached to the receive queue of the netdev,
-#      where it will receive packets sent to the netdev.
-#
-# @tx: the filter is attached to the transmit queue of the netdev,
-#      where it will receive packets sent by the netdev.
-#
-# Since: 2.5
-##
-{ 'enum': 'NetFilterDirection',
-  'data': [ 'all', 'rx', 'tx' ] }
-
-##
-# @InetSocketAddressBase:
-#
-# @host: host part of the address
-# @port: port part of the address
-##
-{ 'struct': 'InetSocketAddressBase',
-  'data': {
-    'host': 'str',
-    'port': 'str' } }
-
-##
-# @InetSocketAddress:
-#
-# Captures a socket address or address range in the Internet namespace.
-#
-# @numeric: true if the host/port are guaranteed to be numeric,
-#           false if name resolution should be attempted. Defaults to false.
-#           (Since 2.9)
-#
-# @to: If present, this is range of possible addresses, with port
-#      between @port and @to.
-#
-# @ipv4: whether to accept IPv4 addresses, default try both IPv4 and IPv6
-#
-# @ipv6: whether to accept IPv6 addresses, default try both IPv4 and IPv6
-#
-# Since: 1.3
-##
-{ 'struct': 'InetSocketAddress',
-  'base': 'InetSocketAddressBase',
-  'data': {
-    '*numeric':  'bool',
-    '*to': 'uint16',
-    '*ipv4': 'bool',
-    '*ipv6': 'bool' } }
-
-##
-# @UnixSocketAddress:
-#
-# Captures a socket address in the local ("Unix socket") namespace.
-#
-# @path: filesystem path to use
-#
-# Since: 1.3
-##
-{ 'struct': 'UnixSocketAddress',
-  'data': {
-    'path': 'str' } }
-
-##
-# @VsockSocketAddress:
-#
-# Captures a socket address in the vsock namespace.
-#
-# @cid: unique host identifier
-# @port: port
-#
-# Note: string types are used to allow for possible future hostname or
-# service resolution support.
-#
-# Since: 2.8
-##
-{ 'struct': 'VsockSocketAddress',
-  'data': {
-    'cid': 'str',
-    'port': 'str' } }
-
-##
-# @SocketAddressLegacy:
-#
-# Captures the address of a socket, which could also be a named file descriptor
-#
-# Note: This type is deprecated in favor of SocketAddress.  The
-# difference between SocketAddressLegacy and SocketAddress is that the
-# latter is a flat union rather than a simple union. Flat is nicer
-# because it avoids nesting on the wire, i.e. that form has fewer {}.
-
-#
-# Since: 1.3
-##
-{ 'union': 'SocketAddressLegacy',
-  'data': {
-    'inet': 'InetSocketAddress',
-    'unix': 'UnixSocketAddress',
-    'vsock': 'VsockSocketAddress',
-    'fd': 'String' } }
-
-##
-# @SocketAddressType:
-#
-# Available SocketAddress types
-#
-# @inet:  Internet address
-#
-# @unix:  Unix domain socket
-#
-# Since: 2.9
-##
-{ 'enum': 'SocketAddressType',
-  'data': [ 'inet', 'unix', 'vsock', 'fd' ] }
-
-##
-# @SocketAddress:
-#
-# Captures the address of a socket, which could also be a named file
-# descriptor
-#
-# @type:       Transport type
-#
-# Since: 2.9
-##
-{ 'union': 'SocketAddress',
-  'base': { 'type': 'SocketAddressType' },
-  'discriminator': 'type',
-  'data': { 'inet': 'InetSocketAddress',
-            'unix': 'UnixSocketAddress',
-            'vsock': 'VsockSocketAddress',
-            'fd': 'String' } }
 
 ##
 # @getfd:
@@ -4827,591 +2385,6 @@
 { 'command': 'query-target', 'returns': 'TargetInfo' }
 
 ##
-# @QKeyCode:
-#
-# An enumeration of key name.
-#
-# This is used by the @send-key command.
-#
-# @unmapped: since 2.0
-# @pause: since 2.0
-# @ro: since 2.4
-# @kp_comma: since 2.4
-# @kp_equals: since 2.6
-# @power: since 2.6
-# @hiragana: since 2.9
-# @henkan: since 2.9
-# @yen: since 2.9
-#
-# @sleep: since 2.10
-# @wake: since 2.10
-# @audionext: since 2.10
-# @audioprev: since 2.10
-# @audiostop: since 2.10
-# @audioplay: since 2.10
-# @audiomute: since 2.10
-# @volumeup: since 2.10
-# @volumedown: since 2.10
-# @mediaselect: since 2.10
-# @mail: since 2.10
-# @calculator: since 2.10
-# @computer: since 2.10
-# @ac_home: since 2.10
-# @ac_back: since 2.10
-# @ac_forward: since 2.10
-# @ac_refresh: since 2.10
-# @ac_bookmarks: since 2.10
-# altgr, altgr_r: dropped in 2.10
-#
-# Since: 1.3.0
-#
-##
-{ 'enum': 'QKeyCode',
-  'data': [ 'unmapped',
-            'shift', 'shift_r', 'alt', 'alt_r', 'ctrl',
-            'ctrl_r', 'menu', 'esc', '1', '2', '3', '4', '5', '6', '7', '8',
-            '9', '0', 'minus', 'equal', 'backspace', 'tab', 'q', 'w', 'e',
-            'r', 't', 'y', 'u', 'i', 'o', 'p', 'bracket_left', 'bracket_right',
-            'ret', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'semicolon',
-            'apostrophe', 'grave_accent', 'backslash', 'z', 'x', 'c', 'v', 'b',
-            'n', 'm', 'comma', 'dot', 'slash', 'asterisk', 'spc', 'caps_lock',
-            'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10',
-            'num_lock', 'scroll_lock', 'kp_divide', 'kp_multiply',
-            'kp_subtract', 'kp_add', 'kp_enter', 'kp_decimal', 'sysrq', 'kp_0',
-            'kp_1', 'kp_2', 'kp_3', 'kp_4', 'kp_5', 'kp_6', 'kp_7', 'kp_8',
-            'kp_9', 'less', 'f11', 'f12', 'print', 'home', 'pgup', 'pgdn', 'end',
-            'left', 'up', 'down', 'right', 'insert', 'delete', 'stop', 'again',
-            'props', 'undo', 'front', 'copy', 'open', 'paste', 'find', 'cut',
-            'lf', 'help', 'meta_l', 'meta_r', 'compose', 'pause',
-            'ro', 'hiragana', 'henkan', 'yen',
-            'kp_comma', 'kp_equals', 'power', 'sleep', 'wake',
-            'audionext', 'audioprev', 'audiostop', 'audioplay', 'audiomute',
-            'volumeup', 'volumedown', 'mediaselect',
-            'mail', 'calculator', 'computer',
-            'ac_home', 'ac_back', 'ac_forward', 'ac_refresh', 'ac_bookmarks' ] }
-
-##
-# @KeyValue:
-#
-# Represents a keyboard key.
-#
-# Since: 1.3.0
-##
-{ 'union': 'KeyValue',
-  'data': {
-    'number': 'int',
-    'qcode': 'QKeyCode' } }
-
-##
-# @send-key:
-#
-# Send keys to guest.
-#
-# @keys: An array of @KeyValue elements. All @KeyValues in this array are
-#        simultaneously sent to the guest. A @KeyValue.number value is sent
-#        directly to the guest, while @KeyValue.qcode must be a valid
-#        @QKeyCode value
-#
-# @hold-time: time to delay key up events, milliseconds. Defaults
-#             to 100
-#
-# Returns: Nothing on success
-#          If key is unknown or redundant, InvalidParameter
-#
-# Since: 1.3.0
-#
-# Example:
-#
-# -> { "execute": "send-key",
-#      "arguments": { "keys": [ { "type": "qcode", "data": "ctrl" },
-#                               { "type": "qcode", "data": "alt" },
-#                               { "type": "qcode", "data": "delete" } ] } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'send-key',
-  'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
-
-##
-# @screendump:
-#
-# Write a PPM of the VGA screen to a file.
-#
-# @filename: the path of a new PPM file to store the image
-#
-# Returns: Nothing on success
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "screendump",
-#      "arguments": { "filename": "/tmp/image" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'screendump', 'data': {'filename': 'str'} }
-
-
-##
-# @ChardevCommon:
-#
-# Configuration shared across all chardev backends
-#
-# @logfile: The name of a logfile to save output
-# @logappend: true to append instead of truncate
-#             (default to false to truncate)
-#
-# Since: 2.6
-##
-{ 'struct': 'ChardevCommon', 'data': { '*logfile': 'str',
-                                       '*logappend': 'bool' } }
-
-##
-# @ChardevFile:
-#
-# Configuration info for file chardevs.
-#
-# @in:  The name of the input file
-# @out: The name of the output file
-# @append: Open the file in append mode (default false to
-#          truncate) (Since 2.6)
-#
-# Since: 1.4
-##
-{ 'struct': 'ChardevFile', 'data': { '*in' : 'str',
-                                   'out' : 'str',
-                                   '*append': 'bool' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevHostdev:
-#
-# Configuration info for device and pipe chardevs.
-#
-# @device: The name of the special file for the device,
-#          i.e. /dev/ttyS0 on Unix or COM1: on Windows
-#
-# Since: 1.4
-##
-{ 'struct': 'ChardevHostdev', 'data': { 'device' : 'str' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevSocket:
-#
-# Configuration info for (stream) socket chardevs.
-#
-# @addr: socket address to listen on (server=true)
-#        or connect to (server=false)
-# @tls-creds: the ID of the TLS credentials object (since 2.6)
-# @server: create server socket (default: true)
-# @wait: wait for incoming connection on server
-#        sockets (default: false).
-# @nodelay: set TCP_NODELAY socket option (default: false)
-# @telnet: enable telnet protocol on server
-#          sockets (default: false)
-# @tn3270: enable tn3270 protocol on server
-#          sockets (default: false) (Since: 2.10)
-# @reconnect: For a client socket, if a socket is disconnected,
-#          then attempt a reconnect after the given number of seconds.
-#          Setting this to zero disables this function. (default: 0)
-#          (Since: 2.2)
-#
-# Since: 1.4
-##
-{ 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddressLegacy',
-                                     '*tls-creds'  : 'str',
-                                     '*server'    : 'bool',
-                                     '*wait'      : 'bool',
-                                     '*nodelay'   : 'bool',
-                                     '*telnet'    : 'bool',
-                                     '*tn3270'    : 'bool',
-                                     '*reconnect' : 'int' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevUdp:
-#
-# Configuration info for datagram socket chardevs.
-#
-# @remote: remote address
-# @local: local address
-#
-# Since: 1.5
-##
-{ 'struct': 'ChardevUdp', 'data': { 'remote' : 'SocketAddressLegacy',
-                                  '*local' : 'SocketAddressLegacy' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevMux:
-#
-# Configuration info for mux chardevs.
-#
-# @chardev: name of the base chardev.
-#
-# Since: 1.5
-##
-{ 'struct': 'ChardevMux', 'data': { 'chardev' : 'str' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevStdio:
-#
-# Configuration info for stdio chardevs.
-#
-# @signal: Allow signals (such as SIGINT triggered by ^C)
-#          be delivered to qemu.  Default: true in -nographic mode,
-#          false otherwise.
-#
-# Since: 1.5
-##
-{ 'struct': 'ChardevStdio', 'data': { '*signal' : 'bool' },
-  'base': 'ChardevCommon' }
-
-
-##
-# @ChardevSpiceChannel:
-#
-# Configuration info for spice vm channel chardevs.
-#
-# @type: kind of channel (for example vdagent).
-#
-# Since: 1.5
-##
-{ 'struct': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevSpicePort:
-#
-# Configuration info for spice port chardevs.
-#
-# @fqdn: name of the channel (see docs/spice-port-fqdn.txt)
-#
-# Since: 1.5
-##
-{ 'struct': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevVC:
-#
-# Configuration info for virtual console chardevs.
-#
-# @width:  console width,  in pixels
-# @height: console height, in pixels
-# @cols:   console width,  in chars
-# @rows:   console height, in chars
-#
-# Since: 1.5
-##
-{ 'struct': 'ChardevVC', 'data': { '*width'  : 'int',
-                                 '*height' : 'int',
-                                 '*cols'   : 'int',
-                                 '*rows'   : 'int' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevRingbuf:
-#
-# Configuration info for ring buffer chardevs.
-#
-# @size: ring buffer size, must be power of two, default is 65536
-#
-# Since: 1.5
-##
-{ 'struct': 'ChardevRingbuf', 'data': { '*size'  : 'int' },
-  'base': 'ChardevCommon' }
-
-##
-# @ChardevBackend:
-#
-# Configuration info for the new chardev backend.
-#
-# Since: 1.4 (testdev since 2.2, wctablet since 2.9)
-##
-{ 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
-                                       'serial' : 'ChardevHostdev',
-                                       'parallel': 'ChardevHostdev',
-                                       'pipe'   : 'ChardevHostdev',
-                                       'socket' : 'ChardevSocket',
-                                       'udp'    : 'ChardevUdp',
-                                       'pty'    : 'ChardevCommon',
-                                       'null'   : 'ChardevCommon',
-                                       'mux'    : 'ChardevMux',
-                                       'msmouse': 'ChardevCommon',
-                                       'wctablet' : 'ChardevCommon',
-                                       'braille': 'ChardevCommon',
-                                       'testdev': 'ChardevCommon',
-                                       'stdio'  : 'ChardevStdio',
-                                       'console': 'ChardevCommon',
-                                       'spicevmc' : 'ChardevSpiceChannel',
-                                       'spiceport' : 'ChardevSpicePort',
-                                       'vc'     : 'ChardevVC',
-                                       'ringbuf': 'ChardevRingbuf',
-                                       # next one is just for compatibility
-                                       'memory' : 'ChardevRingbuf' } }
-
-##
-# @ChardevReturn:
-#
-# Return info about the chardev backend just created.
-#
-# @pty: name of the slave pseudoterminal device, present if
-#       and only if a chardev of type 'pty' was created
-#
-# Since: 1.4
-##
-{ 'struct' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
-
-##
-# @chardev-add:
-#
-# Add a character device backend
-#
-# @id: the chardev's ID, must be unique
-# @backend: backend type and parameters
-#
-# Returns: ChardevReturn.
-#
-# Since: 1.4
-#
-# Example:
-#
-# -> { "execute" : "chardev-add",
-#      "arguments" : { "id" : "foo",
-#                      "backend" : { "type" : "null", "data" : {} } } }
-# <- { "return": {} }
-#
-# -> { "execute" : "chardev-add",
-#      "arguments" : { "id" : "bar",
-#                      "backend" : { "type" : "file",
-#                                    "data" : { "out" : "/tmp/bar.log" } } } }
-# <- { "return": {} }
-#
-# -> { "execute" : "chardev-add",
-#      "arguments" : { "id" : "baz",
-#                      "backend" : { "type" : "pty", "data" : {} } } }
-# <- { "return": { "pty" : "/dev/pty/42" } }
-#
-##
-{ 'command': 'chardev-add', 'data': {'id'      : 'str',
-                                     'backend' : 'ChardevBackend' },
-  'returns': 'ChardevReturn' }
-
-##
-# @chardev-change:
-#
-# Change a character device backend
-#
-# @id: the chardev's ID, must exist
-# @backend: new backend type and parameters
-#
-# Returns: ChardevReturn.
-#
-# Since: 2.10
-#
-# Example:
-#
-# -> { "execute" : "chardev-change",
-#      "arguments" : { "id" : "baz",
-#                      "backend" : { "type" : "pty", "data" : {} } } }
-# <- { "return": { "pty" : "/dev/pty/42" } }
-#
-# -> {"execute" : "chardev-change",
-#     "arguments" : {
-#         "id" : "charchannel2",
-#         "backend" : {
-#             "type" : "socket",
-#             "data" : {
-#                 "addr" : {
-#                     "type" : "unix" ,
-#                     "data" : {
-#                         "path" : "/tmp/charchannel2.socket"
-#                     }
-#                  },
-#                  "server" : true,
-#                  "wait" : false }}}}
-# <- {"return": {}}
-#
-##
-{ 'command': 'chardev-change', 'data': {'id'      : 'str',
-                                        'backend' : 'ChardevBackend' },
-  'returns': 'ChardevReturn' }
-
-##
-# @chardev-remove:
-#
-# Remove a character device backend
-#
-# @id: the chardev's ID, must exist and not be in use
-#
-# Returns: Nothing on success
-#
-# Since: 1.4
-#
-# Example:
-#
-# -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'chardev-remove', 'data': {'id': 'str'} }
-
-##
-# @chardev-send-break:
-#
-# Send a break to a character device
-#
-# @id: the chardev's ID, must exist
-#
-# Returns: Nothing on success
-#
-# Since: 2.10
-#
-# Example:
-#
-# -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'chardev-send-break', 'data': {'id': 'str'} }
-
-
-##
-# @TpmModel:
-#
-# An enumeration of TPM models
-#
-# @tpm-tis: TPM TIS model
-#
-# Since: 1.5
-##
-{ 'enum': 'TpmModel', 'data': [ 'tpm-tis' ] }
-
-##
-# @query-tpm-models:
-#
-# Return a list of supported TPM models
-#
-# Returns: a list of TpmModel
-#
-# Since: 1.5
-#
-# Example:
-#
-# -> { "execute": "query-tpm-models" }
-# <- { "return": [ "tpm-tis" ] }
-#
-##
-{ 'command': 'query-tpm-models', 'returns': ['TpmModel'] }
-
-##
-# @TpmType:
-#
-# An enumeration of TPM types
-#
-# @passthrough: TPM passthrough type
-#
-# Since: 1.5
-##
-{ 'enum': 'TpmType', 'data': [ 'passthrough' ] }
-
-##
-# @query-tpm-types:
-#
-# Return a list of supported TPM types
-#
-# Returns: a list of TpmType
-#
-# Since: 1.5
-#
-# Example:
-#
-# -> { "execute": "query-tpm-types" }
-# <- { "return": [ "passthrough" ] }
-#
-##
-{ 'command': 'query-tpm-types', 'returns': ['TpmType'] }
-
-##
-# @TPMPassthroughOptions:
-#
-# Information about the TPM passthrough type
-#
-# @path: string describing the path used for accessing the TPM device
-#
-# @cancel-path: string showing the TPM's sysfs cancel file
-#               for cancellation of TPM commands while they are executing
-#
-# Since: 1.5
-##
-{ 'struct': 'TPMPassthroughOptions', 'data': { '*path' : 'str',
-                                             '*cancel-path' : 'str'} }
-
-##
-# @TpmTypeOptions:
-#
-# A union referencing different TPM backend types' configuration options
-#
-# @type: 'passthrough' The configuration options for the TPM passthrough type
-#
-# Since: 1.5
-##
-{ 'union': 'TpmTypeOptions',
-   'data': { 'passthrough' : 'TPMPassthroughOptions' } }
-
-##
-# @TPMInfo:
-#
-# Information about the TPM
-#
-# @id: The Id of the TPM
-#
-# @model: The TPM frontend model
-#
-# @options: The TPM (backend) type configuration options
-#
-# Since: 1.5
-##
-{ 'struct': 'TPMInfo',
-  'data': {'id': 'str',
-           'model': 'TpmModel',
-           'options': 'TpmTypeOptions' } }
-
-##
-# @query-tpm:
-#
-# Return information about the TPM device
-#
-# Returns: @TPMInfo on success
-#
-# Since: 1.5
-#
-# Example:
-#
-# -> { "execute": "query-tpm" }
-# <- { "return":
-#      [
-#        { "model": "tpm-tis",
-#          "options":
-#            { "type": "passthrough",
-#              "data":
-#                { "cancel-path": "/sys/class/misc/tpm0/device/cancel",
-#                  "path": "/dev/tpm0"
-#                }
-#            },
-#          "id": "tpm0"
-#        }
-#      ]
-#    }
-#
-##
-{ 'command': 'query-tpm', 'returns': ['TPMInfo'] }
-
-##
 # @AcpiTableOptions:
 #
 # Specify an ACPI table on the command line to load.
@@ -5602,273 +2575,6 @@
 { 'struct': 'DummyForceArrays',
   'data': { 'unused': ['X86CPUFeatureWordInfo'] } }
 
-
-##
-# @RxState:
-#
-# Packets receiving state
-#
-# @normal: filter assigned packets according to the mac-table
-#
-# @none: don't receive any assigned packet
-#
-# @all: receive all assigned packets
-#
-# Since: 1.6
-##
-{ 'enum': 'RxState', 'data': [ 'normal', 'none', 'all' ] }
-
-##
-# @RxFilterInfo:
-#
-# Rx-filter information for a NIC.
-#
-# @name: net client name
-#
-# @promiscuous: whether promiscuous mode is enabled
-#
-# @multicast: multicast receive state
-#
-# @unicast: unicast receive state
-#
-# @vlan: vlan receive state (Since 2.0)
-#
-# @broadcast-allowed: whether to receive broadcast
-#
-# @multicast-overflow: multicast table is overflowed or not
-#
-# @unicast-overflow: unicast table is overflowed or not
-#
-# @main-mac: the main macaddr string
-#
-# @vlan-table: a list of active vlan id
-#
-# @unicast-table: a list of unicast macaddr string
-#
-# @multicast-table: a list of multicast macaddr string
-#
-# Since: 1.6
-##
-{ 'struct': 'RxFilterInfo',
-  'data': {
-    'name':               'str',
-    'promiscuous':        'bool',
-    'multicast':          'RxState',
-    'unicast':            'RxState',
-    'vlan':               'RxState',
-    'broadcast-allowed':  'bool',
-    'multicast-overflow': 'bool',
-    'unicast-overflow':   'bool',
-    'main-mac':           'str',
-    'vlan-table':         ['int'],
-    'unicast-table':      ['str'],
-    'multicast-table':    ['str'] }}
-
-##
-# @query-rx-filter:
-#
-# Return rx-filter information for all NICs (or for the given NIC).
-#
-# @name: net client name
-#
-# Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
-#          Returns an error if the given @name doesn't exist, or given
-#          NIC doesn't support rx-filter querying, or given net client
-#          isn't a NIC.
-#
-# Since: 1.6
-#
-# Example:
-#
-# -> { "execute": "query-rx-filter", "arguments": { "name": "vnet0" } }
-# <- { "return": [
-#         {
-#             "promiscuous": true,
-#             "name": "vnet0",
-#             "main-mac": "52:54:00:12:34:56",
-#             "unicast": "normal",
-#             "vlan": "normal",
-#             "vlan-table": [
-#                 4,
-#                 0
-#             ],
-#             "unicast-table": [
-#             ],
-#             "multicast": "normal",
-#             "multicast-overflow": false,
-#             "unicast-overflow": false,
-#             "multicast-table": [
-#                 "01:00:5e:00:00:01",
-#                 "33:33:00:00:00:01",
-#                 "33:33:ff:12:34:56"
-#             ],
-#             "broadcast-allowed": false
-#         }
-#       ]
-#    }
-#
-##
-{ 'command': 'query-rx-filter', 'data': { '*name': 'str' },
-  'returns': ['RxFilterInfo'] }
-
-##
-# @InputButton:
-#
-# Button of a pointer input device (mouse, tablet).
-#
-# @side: front side button of a 5-button mouse (since 2.9)
-#
-# @extra: rear side button of a 5-button mouse (since 2.9)
-#
-# Since: 2.0
-##
-{ 'enum'  : 'InputButton',
-  'data'  : [ 'left', 'middle', 'right', 'wheel-up', 'wheel-down', 'side',
-  'extra' ] }
-
-##
-# @InputAxis:
-#
-# Position axis of a pointer input device (mouse, tablet).
-#
-# Since: 2.0
-##
-{ 'enum'  : 'InputAxis',
-  'data'  : [ 'x', 'y' ] }
-
-##
-# @InputKeyEvent:
-#
-# Keyboard input event.
-#
-# @key:    Which key this event is for.
-# @down:   True for key-down and false for key-up events.
-#
-# Since: 2.0
-##
-{ 'struct'  : 'InputKeyEvent',
-  'data'  : { 'key'     : 'KeyValue',
-              'down'    : 'bool' } }
-
-##
-# @InputBtnEvent:
-#
-# Pointer button input event.
-#
-# @button: Which button this event is for.
-# @down:   True for key-down and false for key-up events.
-#
-# Since: 2.0
-##
-{ 'struct'  : 'InputBtnEvent',
-  'data'  : { 'button'  : 'InputButton',
-              'down'    : 'bool' } }
-
-##
-# @InputMoveEvent:
-#
-# Pointer motion input event.
-#
-# @axis:   Which axis is referenced by @value.
-# @value:  Pointer position.  For absolute coordinates the
-#          valid range is 0 -> 0x7ffff
-#
-# Since: 2.0
-##
-{ 'struct'  : 'InputMoveEvent',
-  'data'  : { 'axis'    : 'InputAxis',
-              'value'   : 'int' } }
-
-##
-# @InputEvent:
-#
-# Input event union.
-#
-# @type: the input type, one of:
-#  - 'key': Input event of Keyboard
-#  - 'btn': Input event of pointer buttons
-#  - 'rel': Input event of relative pointer motion
-#  - 'abs': Input event of absolute pointer motion
-#
-# Since: 2.0
-##
-{ 'union' : 'InputEvent',
-  'data'  : { 'key'     : 'InputKeyEvent',
-              'btn'     : 'InputBtnEvent',
-              'rel'     : 'InputMoveEvent',
-              'abs'     : 'InputMoveEvent' } }
-
-##
-# @input-send-event:
-#
-# Send input event(s) to guest.
-#
-# @device: display device to send event(s) to.
-# @head: head to send event(s) to, in case the
-#        display device supports multiple scanouts.
-# @events: List of InputEvent union.
-#
-# Returns: Nothing on success.
-#
-# The @device and @head parameters can be used to send the input event
-# to specific input devices in case (a) multiple input devices of the
-# same kind are added to the virtual machine and (b) you have
-# configured input routing (see docs/multiseat.txt) for those input
-# devices.  The parameters work exactly like the device and head
-# properties of input devices.  If @device is missing, only devices
-# that have no input routing config are admissible.  If @device is
-# specified, both input devices with and without input routing config
-# are admissible, but devices with input routing config take
-# precedence.
-#
-# Since: 2.6
-#
-# Note: The consoles are visible in the qom tree, under
-# /backend/console[$index]. They have a device link and head property,
-# so it is possible to map which console belongs to which device and
-# display.
-#
-# Example:
-#
-# 1. Press left mouse button.
-#
-# -> { "execute": "input-send-event",
-#     "arguments": { "device": "video0",
-#                    "events": [ { "type": "btn",
-#                    "data" : { "down": true, "button": "left" } } ] } }
-# <- { "return": {} }
-#
-# -> { "execute": "input-send-event",
-#     "arguments": { "device": "video0",
-#                    "events": [ { "type": "btn",
-#                    "data" : { "down": false, "button": "left" } } ] } }
-# <- { "return": {} }
-#
-# 2. Press ctrl-alt-del.
-#
-# -> { "execute": "input-send-event",
-#      "arguments": { "events": [
-#         { "type": "key", "data" : { "down": true,
-#           "key": {"type": "qcode", "data": "ctrl" } } },
-#         { "type": "key", "data" : { "down": true,
-#           "key": {"type": "qcode", "data": "alt" } } },
-#         { "type": "key", "data" : { "down": true,
-#           "key": {"type": "qcode", "data": "delete" } } } ] } }
-# <- { "return": {} }
-#
-# 3. Move mouse pointer to absolute coordinates (20000, 400).
-#
-# -> { "execute": "input-send-event" ,
-#   "arguments": { "events": [
-#                { "type": "abs", "data" : { "axis": "x", "value" : 20000 } },
-#                { "type": "abs", "data" : { "axis": "y", "value" : 400 } } ] } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'input-send-event',
-  'data': { '*device': 'str',
-            '*head'  : 'int',
-            'events' : [ 'InputEvent' ] } }
 
 ##
 # @NumaOptionsType:
@@ -6117,6 +2823,29 @@
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
 
 ##
+# @MEM_UNPLUG_ERROR:
+#
+# Emitted when memory hot unplug error occurs.
+#
+# @device: device name
+#
+# @msg: Informative message
+#
+# Since: 2.4
+#
+# Example:
+#
+# <- { "event": "MEM_UNPLUG_ERROR"
+#      "data": { "device": "dimm1",
+#                "msg": "acpi: device unplug for unsupported device"
+#      },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'MEM_UNPLUG_ERROR',
+  'data': { 'device': 'str', 'msg': 'str' } }
+
+##
 # @ACPISlotType:
 #
 # @DIMM: memory slot
@@ -6171,94 +2900,23 @@
 { 'command': 'query-acpi-ospm-status', 'returns': ['ACPIOSTInfo'] }
 
 ##
-# @WatchdogExpirationAction:
+# @ACPI_DEVICE_OST:
 #
-# An enumeration of the actions taken when the watchdog device's timer is
-# expired
+# Emitted when guest executes ACPI _OST method.
 #
-# @reset: system resets
-#
-# @shutdown: system shutdown, note that it is similar to @powerdown, which
-#            tries to set to system status and notify guest
-#
-# @poweroff: system poweroff, the emulator program exits
-#
-# @pause: system pauses, similar to @stop
-#
-# @debug: system enters debug state
-#
-# @none: nothing is done
-#
-# @inject-nmi: a non-maskable interrupt is injected into the first VCPU (all
-#              VCPUS on x86) (since 2.4)
+# @info: ACPIOSTInfo type as described in qapi-schema.json
 #
 # Since: 2.1
+#
+# Example:
+#
+# <- { "event": "ACPI_DEVICE_OST",
+#      "data": { "device": "d1", "slot": "0",
+#                "slot-type": "DIMM", "source": 1, "status": 0 } }
+#
 ##
-{ 'enum': 'WatchdogExpirationAction',
-  'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none',
-            'inject-nmi' ] }
-
-##
-# @IoOperationType:
-#
-# An enumeration of the I/O operation types
-#
-# @read: read operation
-#
-# @write: write operation
-#
-# Since: 2.1
-##
-{ 'enum': 'IoOperationType',
-  'data': [ 'read', 'write' ] }
-
-##
-# @GuestPanicAction:
-#
-# An enumeration of the actions taken when guest OS panic is detected
-#
-# @pause: system pauses
-#
-# Since: 2.1 (poweroff since 2.8)
-##
-{ 'enum': 'GuestPanicAction',
-  'data': [ 'pause', 'poweroff' ] }
-
-##
-# @GuestPanicInformationType:
-#
-# An enumeration of the guest panic information types
-#
-# Since: 2.9
-##
-{ 'enum': 'GuestPanicInformationType',
-  'data': [ 'hyper-v'] }
-
-##
-# @GuestPanicInformation:
-#
-# Information about a guest panic
-#
-# Since: 2.9
-##
-{'union': 'GuestPanicInformation',
- 'base': {'type': 'GuestPanicInformationType'},
- 'discriminator': 'type',
- 'data': { 'hyper-v': 'GuestPanicInformationHyperV' } }
-
-##
-# @GuestPanicInformationHyperV:
-#
-# Hyper-V specific guest panic information (HV crash MSRs)
-#
-# Since: 2.9
-##
-{'struct': 'GuestPanicInformationHyperV',
- 'data': { 'arg1': 'uint64',
-           'arg2': 'uint64',
-           'arg3': 'uint64',
-           'arg4': 'uint64',
-           'arg5': 'uint64' } }
+{ 'event': 'ACPI_DEVICE_OST',
+     'data': { 'info': 'ACPIOSTInfo' } }
 
 ##
 # @rtc-reset-reinjection:
@@ -6278,8 +2936,27 @@
 ##
 { 'command': 'rtc-reset-reinjection' }
 
-# Rocker ethernet network switch
-{ 'include': 'qapi/rocker.json' }
+##
+# @RTC_CHANGE:
+#
+# Emitted when the guest changes the RTC time.
+#
+# @offset: offset between base RTC clock (as specified by -rtc base), and
+#          new RTC clock value
+#
+# Note: This event is rate-limited.
+#
+# Since: 0.13.0
+#
+# Example:
+#
+# <-   { "event": "RTC_CHANGE",
+#        "data": { "offset": 78 },
+#        "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#
+##
+{ 'event': 'RTC_CHANGE',
+  'data': { 'offset': 'int' } }
 
 ##
 # @ReplayMode:
@@ -6319,79 +2996,6 @@
 #
 ##
 { 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
-
-##
-# @xen-set-replication:
-#
-# Enable or disable replication.
-#
-# @enable: true to enable, false to disable.
-#
-# @primary: true for primary or false for secondary.
-#
-# @failover: true to do failover, false to stop. but cannot be
-#            specified if 'enable' is true. default value is false.
-#
-# Returns: nothing.
-#
-# Example:
-#
-# -> { "execute": "xen-set-replication",
-#      "arguments": {"enable": true, "primary": false} }
-# <- { "return": {} }
-#
-# Since: 2.9
-##
-{ 'command': 'xen-set-replication',
-  'data': { 'enable': 'bool', 'primary': 'bool', '*failover' : 'bool' } }
-
-##
-# @ReplicationStatus:
-#
-# The result format for 'query-xen-replication-status'.
-#
-# @error: true if an error happened, false if replication is normal.
-#
-# @desc: the human readable error description string, when
-#        @error is 'true'.
-#
-# Since: 2.9
-##
-{ 'struct': 'ReplicationStatus',
-  'data': { 'error': 'bool', '*desc': 'str' } }
-
-##
-# @query-xen-replication-status:
-#
-# Query replication status while the vm is running.
-#
-# Returns: A @ReplicationResult object showing the status.
-#
-# Example:
-#
-# -> { "execute": "query-xen-replication-status" }
-# <- { "return": { "error": false } }
-#
-# Since: 2.9
-##
-{ 'command': 'query-xen-replication-status',
-  'returns': 'ReplicationStatus' }
-
-##
-# @xen-colo-do-checkpoint:
-#
-# Xen uses this command to notify replication to trigger a checkpoint.
-#
-# Returns: nothing.
-#
-# Example:
-#
-# -> { "execute": "xen-colo-do-checkpoint" }
-# <- { "return": {} }
-#
-# Since: 2.9
-##
-{ 'command': 'xen-colo-do-checkpoint' }
 
 ##
 # @GICCapability:

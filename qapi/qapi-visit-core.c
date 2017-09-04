@@ -333,27 +333,29 @@ void visit_type_null(Visitor *v, const char *name, QNull **obj,
 }
 
 static void output_type_enum(Visitor *v, const char *name, int *obj,
-                             const char *const strings[], Error **errp)
+                             const QEnumLookup *lookup, Error **errp)
 {
-    int i = 0;
     int value = *obj;
     char *enum_str;
 
-    while (strings[i++] != NULL);
-    if (value < 0 || value >= i - 1) {
+    /*
+     * TODO why is this an error, not an assertion?  If assertion:
+     * delete, and rely on qapi_enum_lookup()
+     */
+    if (value < 0 || value >= lookup->size) {
         error_setg(errp, QERR_INVALID_PARAMETER, name ? name : "null");
         return;
     }
 
-    enum_str = (char *)strings[value];
+    enum_str = (char *)qapi_enum_lookup(lookup, value);
     visit_type_str(v, name, &enum_str, errp);
 }
 
 static void input_type_enum(Visitor *v, const char *name, int *obj,
-                            const char *const strings[], Error **errp)
+                            const QEnumLookup *lookup, Error **errp)
 {
     Error *local_err = NULL;
-    int64_t value = 0;
+    int64_t value;
     char *enum_str;
 
     visit_type_str(v, name, &enum_str, &local_err);
@@ -362,14 +364,8 @@ static void input_type_enum(Visitor *v, const char *name, int *obj,
         return;
     }
 
-    while (strings[value] != NULL) {
-        if (strcmp(strings[value], enum_str) == 0) {
-            break;
-        }
-        value++;
-    }
-
-    if (strings[value] == NULL) {
+    value = qapi_enum_parse(lookup, enum_str, -1, NULL);
+    if (value < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER, enum_str);
         g_free(enum_str);
         return;
@@ -380,16 +376,16 @@ static void input_type_enum(Visitor *v, const char *name, int *obj,
 }
 
 void visit_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], Error **errp)
+                     const QEnumLookup *lookup, Error **errp)
 {
-    assert(obj && strings);
+    assert(obj && lookup);
     trace_visit_type_enum(v, name, obj);
     switch (v->type) {
     case VISITOR_INPUT:
-        input_type_enum(v, name, obj, strings, errp);
+        input_type_enum(v, name, obj, lookup, errp);
         break;
     case VISITOR_OUTPUT:
-        output_type_enum(v, name, obj, strings, errp);
+        output_type_enum(v, name, obj, lookup, errp);
         break;
     case VISITOR_CLONE:
         /* nothing further to do, scalar value was already copied by

@@ -12,7 +12,6 @@
 #include "block/block_int.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/util.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
@@ -544,8 +543,7 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
         if (!strcmp(ptr, "tcp")) {
             ptr = "inet";       /* accept legacy "tcp" */
         }
-        type = qapi_enum_parse(SocketAddressType_lookup, ptr,
-                               SOCKET_ADDRESS_TYPE__MAX, -1, NULL);
+        type = qapi_enum_parse(&SocketAddressType_lookup, ptr, -1, NULL);
         if (type != SOCKET_ADDRESS_TYPE_INET
             && type != SOCKET_ADDRESS_TYPE_UNIX) {
             error_setg(&local_err,
@@ -1002,8 +1000,7 @@ static int qemu_gluster_create(const char *filename,
                           BDRV_SECTOR_SIZE);
 
     tmp = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
-    prealloc = qapi_enum_parse(PreallocMode_lookup, tmp,
-                               PREALLOC_MODE__MAX, PREALLOC_MODE_OFF,
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, tmp, PREALLOC_MODE_OFF,
                                &local_err);
     g_free(tmp);
     if (local_err) {
@@ -1050,7 +1047,7 @@ static int qemu_gluster_create(const char *filename,
     default:
         ret = -EINVAL;
         error_setg(errp, "Unsupported preallocation mode: %s",
-                   PreallocMode_lookup[prealloc]);
+                   PreallocMode_str(prealloc));
         break;
     }
 
@@ -1102,7 +1099,7 @@ static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset,
 
     if (prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_lookup[prealloc]);
+                   PreallocMode_str(prealloc));
         return -ENOTSUP;
     }
 

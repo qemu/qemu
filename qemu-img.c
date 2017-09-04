@@ -26,7 +26,6 @@
 
 #include "qemu-version.h"
 #include "qapi/error.h"
-#include "qapi/util.h"
 #include "qapi-visit.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qerror.h"
@@ -3490,9 +3489,8 @@ static int img_resize(int argc, char **argv)
             image_opts = true;
             break;
         case OPTION_PREALLOCATION:
-            prealloc = qapi_enum_parse(PreallocMode_lookup, optarg,
-                                       PREALLOC_MODE__MAX, PREALLOC_MODE__MAX,
-                                       NULL);
+            prealloc = qapi_enum_parse(&PreallocMode_lookup, optarg,
+                                       PREALLOC_MODE__MAX, NULL);
             if (prealloc == PREALLOC_MODE__MAX) {
                 error_report("Invalid preallocation mode '%s'", optarg);
                 return 1;

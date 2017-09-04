@@ -72,7 +72,9 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
 
 static void set_default_value_enum(Object *obj, const Property *prop)
 {
-    object_property_set_str(obj, prop->info->enum_table[prop->defval.i],
+    object_property_set_str(obj,
+                            qapi_enum_lookup(prop->info->enum_table,
+                                             prop->defval.i),
                             prop->name, &error_abort);
 }
 
@@ -585,7 +587,7 @@ const PropertyInfo qdev_prop_macaddr = {
 const PropertyInfo qdev_prop_on_off_auto = {
     .name = "OnOffAuto",
     .description = "on/off/auto",
-    .enum_table = OnOffAuto_lookup,
+    .enum_table = &OnOffAuto_lookup,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,
@@ -597,7 +599,7 @@ QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
 const PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
-    .enum_table  = LostTickPolicy_lookup,
+    .enum_table  = &LostTickPolicy_lookup,
     .get   = get_enum,
     .set   = set_enum,
     .set_default_value = set_default_value_enum,
@@ -611,7 +613,7 @@ const PropertyInfo qdev_prop_blockdev_on_error = {
     .name = "BlockdevOnError",
     .description = "Error handling policy, "
                    "report/ignore/enospc/stop/auto",
-    .enum_table = BlockdevOnError_lookup,
+    .enum_table = &BlockdevOnError_lookup,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,
@@ -625,7 +627,7 @@ const PropertyInfo qdev_prop_bios_chs_trans = {
     .name = "BiosAtaTranslation",
     .description = "Logical CHS translation algorithm, "
                    "auto/none/lba/large/rechs",
-    .enum_table = BiosAtaTranslation_lookup,
+    .enum_table = &BiosAtaTranslation_lookup,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,
@@ -637,7 +639,7 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
     .name = "FdcDriveType",
     .description = "FDC drive type, "
                    "144/288/120/none/auto",
-    .enum_table = FloppyDriveType_lookup,
+    .enum_table = &FloppyDriveType_lookup,
     .get = get_enum,
     .set = set_enum,
     .set_default_value = set_default_value_enum,
@@ -1095,7 +1097,8 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
     Property *prop;
 
     prop = qdev_prop_find(dev, name);
-    object_property_set_str(OBJECT(dev), prop->info->enum_table[value],
+    object_property_set_str(OBJECT(dev),
+                            qapi_enum_lookup(prop->info->enum_table, value),
                             name, &error_abort);
 }
 

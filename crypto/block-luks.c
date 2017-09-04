@@ -257,47 +257,41 @@ qcrypto_block_luks_cipher_alg_lookup(QCryptoCipherAlgorithm alg,
     }
 
     error_setg(errp, "Algorithm '%s' not supported",
-               QCryptoCipherAlgorithm_lookup[alg]);
+               QCryptoCipherAlgorithm_str(alg));
     return NULL;
 }
 
 /* XXX replace with qapi_enum_parse() in future, when we can
  * make that function emit a more friendly error message */
 static int qcrypto_block_luks_name_lookup(const char *name,
-                                          const char *const *map,
-                                          size_t maplen,
+                                          const QEnumLookup *map,
                                           const char *type,
                                           Error **errp)
 {
-    size_t i;
-    for (i = 0; i < maplen; i++) {
-        if (g_str_equal(map[i], name)) {
-            return i;
-        }
-    }
+    int ret = qapi_enum_parse(map, name, -1, NULL);
 
-    error_setg(errp, "%s %s not supported", type, name);
-    return 0;
+    if (ret < 0) {
+        error_setg(errp, "%s %s not supported", type, name);
+        return 0;
+    }
+    return ret;
 }
 
 #define qcrypto_block_luks_cipher_mode_lookup(name, errp)               \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoCipherMode_lookup,            \
-                                   QCRYPTO_CIPHER_MODE__MAX,            \
+                                   &QCryptoCipherMode_lookup,           \
                                    "Cipher mode",                       \
                                    errp)
 
 #define qcrypto_block_luks_hash_name_lookup(name, errp)                 \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoHashAlgorithm_lookup,         \
-                                   QCRYPTO_HASH_ALG__MAX,               \
+                                   &QCryptoHashAlgorithm_lookup,        \
                                    "Hash algorithm",                    \
                                    errp)
 
 #define qcrypto_block_luks_ivgen_name_lookup(name, errp)                \
     qcrypto_block_luks_name_lookup(name,                                \
-                                   QCryptoIVGenAlgorithm_lookup,        \
-                                   QCRYPTO_IVGEN_ALG__MAX,              \
+                                   &QCryptoIVGenAlgorithm_lookup,       \
                                    "IV generator",                      \
                                    errp)
 
@@ -398,7 +392,7 @@ qcrypto_block_luks_essiv_cipher(QCryptoCipherAlgorithm cipher,
         break;
     default:
         error_setg(errp, "Cipher %s not supported with essiv",
-                   QCryptoCipherAlgorithm_lookup[cipher]);
+                   QCryptoCipherAlgorithm_str(cipher));
         return 0;
     }
 }
@@ -968,16 +962,16 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
     }
 
-    cipher_mode = QCryptoCipherMode_lookup[luks_opts.cipher_mode];
-    ivgen_alg = QCryptoIVGenAlgorithm_lookup[luks_opts.ivgen_alg];
+    cipher_mode = QCryptoCipherMode_str(luks_opts.cipher_mode);
+    ivgen_alg = QCryptoIVGenAlgorithm_str(luks_opts.ivgen_alg);
     if (luks_opts.has_ivgen_hash_alg) {
-        ivgen_hash_alg = QCryptoHashAlgorithm_lookup[luks_opts.ivgen_hash_alg];
+        ivgen_hash_alg = QCryptoHashAlgorithm_str(luks_opts.ivgen_hash_alg);
         cipher_mode_spec = g_strdup_printf("%s-%s:%s", cipher_mode, ivgen_alg,
                                            ivgen_hash_alg);
     } else {
         cipher_mode_spec = g_strdup_printf("%s-%s", cipher_mode, ivgen_alg);
     }
-    hash_alg = QCryptoHashAlgorithm_lookup[luks_opts.hash_alg];
+    hash_alg = QCryptoHashAlgorithm_str(luks_opts.hash_alg);
 
 
     if (strlen(cipher_alg) >= QCRYPTO_BLOCK_LUKS_CIPHER_NAME_LEN) {

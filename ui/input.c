@@ -151,7 +151,7 @@ void qmp_input_send_event(bool has_device, const char *device,
         if (!qemu_input_find_handler(1 << event->type, con)) {
             error_setg(errp, "Input handler not found for "
                              "event type %s",
-                            InputEventKind_lookup[event->type]);
+                            InputEventKind_str(event->type));
             return;
         }
     }
@@ -213,12 +213,12 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         switch (key->key->type) {
         case KEY_VALUE_KIND_NUMBER:
             qcode = qemu_input_key_number_to_qcode(key->key->u.number.data);
-            name = QKeyCode_lookup[qcode];
+            name = QKeyCode_str(qcode);
             trace_input_event_key_number(idx, key->key->u.number.data,
                                          name, key->down);
             break;
         case KEY_VALUE_KIND_QCODE:
-            name = QKeyCode_lookup[key->key->u.qcode.data];
+            name = QKeyCode_str(key->key->u.qcode.data);
             trace_input_event_key_qcode(idx, name, key->down);
             break;
         case KEY_VALUE_KIND__MAX:
@@ -228,17 +228,17 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
-        name = InputButton_lookup[btn->button];
+        name = InputButton_str(btn->button);
         trace_input_event_btn(idx, name, btn->down);
         break;
     case INPUT_EVENT_KIND_REL:
         move = evt->u.rel.data;
-        name = InputAxis_lookup[move->axis];
+        name = InputAxis_str(move->axis);
         trace_input_event_rel(idx, name, move->value);
         break;
     case INPUT_EVENT_KIND_ABS:
         move = evt->u.abs.data;
-        name = InputAxis_lookup[move->axis];
+        name = InputAxis_str(move->axis);
         trace_input_event_abs(idx, name, move->value);
         break;
     case INPUT_EVENT_KIND__MAX:

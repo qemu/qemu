@@ -469,7 +469,7 @@ bool visit_optional(Visitor *v, const char *name, bool *present);
  * that visit_type_str() must have no unwelcome side effects.
  */
 void visit_type_enum(Visitor *v, const char *name, int *obj,
-                     const char *const strings[], Error **errp);
+                     const QEnumLookup *lookup, Error **errp);
 
 /*
  * Check if visitor is an input visitor.

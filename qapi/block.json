@@ -1,14 +1,13 @@
 # -*- Mode: Python -*-
 
 ##
-# = QAPI block definitions
+# = Block devices
 ##
 
-# QAPI block core definitions
 { 'include': 'block-core.json' }
 
 ##
-# == QAPI block definitions (vm unrelated)
+# == Additional block stuff (VM related)
 ##
 
 ##
@@ -277,3 +276,71 @@
 ##
 { 'enum': 'QuorumOpType',
   'data': [ 'read', 'write', 'flush' ] }
+
+##
+# @QUORUM_FAILURE:
+#
+# Emitted by the Quorum block driver if it fails to establish a quorum
+#
+# @reference: device name if defined else node name
+#
+# @sector-num: number of the first sector of the failed read operation
+#
+# @sectors-count: failed read operation sector count
+#
+# Note: This event is rate-limited.
+#
+# Since: 2.0
+#
+# Example:
+#
+# <- { "event": "QUORUM_FAILURE",
+#      "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
+#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#
+##
+{ 'event': 'QUORUM_FAILURE',
+  'data': { 'reference': 'str', 'sector-num': 'int', 'sectors-count': 'int' } }
+
+##
+# @QUORUM_REPORT_BAD:
+#
+# Emitted to report a corruption of a Quorum file
+#
+# @type: quorum operation type (Since 2.6)
+#
+# @error: error message. Only present on failure. This field
+#         contains a human-readable error message. There are no semantics other
+#         than that the block layer reported an error and clients should not
+#         try to interpret the error string.
+#
+# @node-name: the graph node name of the block driver state
+#
+# @sector-num: number of the first sector of the failed read operation
+#
+# @sectors-count: failed read operation sector count
+#
+# Note: This event is rate-limited.
+#
+# Since: 2.0
+#
+# Example:
+#
+# 1. Read operation
+#
+# { "event": "QUORUM_REPORT_BAD",
+#      "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
+#                "type": "read" },
+#      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+#
+# 2. Flush operation
+#
+# { "event": "QUORUM_REPORT_BAD",
+#      "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
+#                "type": "flush", "error": "Broken pipe" },
+#      "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
+#
+##
+{ 'event': 'QUORUM_REPORT_BAD',
+  'data': { 'type': 'QuorumOpType', '*error': 'str', 'node-name': 'str',
+            'sector-num': 'int', 'sectors-count': 'int' } }

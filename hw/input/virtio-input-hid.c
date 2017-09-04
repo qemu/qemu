@@ -209,7 +209,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         } else {
             if (key->down) {
                 fprintf(stderr, "%s: unmapped key: %d [%s]\n", __func__,
-                        qcode, QKeyCode_lookup[qcode]);
+                        qcode, QKeyCode_str(qcode));
             }
         }
         break;
@@ -224,7 +224,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
             if (btn->down) {
                 fprintf(stderr, "%s: unmapped button: %d [%s]\n", __func__,
                         btn->button,
-                        InputButton_lookup[btn->button]);
+                        InputButton_str(btn->button));
             }
         }
         break;

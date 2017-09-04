@@ -957,6 +957,8 @@ Example:
 
     typedef struct UserDefOneList UserDefOneList;
 
+    typedef struct q_obj_my_command_arg q_obj_my_command_arg;
+
     struct UserDefOne {
         int64_t integer;
         bool has_string;
@@ -971,6 +973,10 @@ Example:
     };
 
     void qapi_free_UserDefOneList(UserDefOneList *obj);
+
+    struct q_obj_my_command_arg {
+        UserDefOneList *arg1;
+    };
 
     #endif
     $ cat qapi-generated/example-qapi-types.c
@@ -1035,6 +1041,8 @@ Example:
     void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp);
     void visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp);
     void visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp);
+
+    void visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp);
 
     #endif
     $ cat qapi-generated/example-qapi-visit.c
@@ -1104,11 +1112,27 @@ Example:
             }
         }
 
+        if (!err) {
+            visit_check_list(v, &err);
+        }
         visit_end_list(v, (void **)obj);
         if (err && visit_is_input(v)) {
             qapi_free_UserDefOneList(*obj);
             *obj = NULL;
         }
+    out:
+        error_propagate(errp, err);
+    }
+
+    void visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp)
+    {
+        Error *err = NULL;
+
+        visit_type_UserDefOneList(v, "arg1", &obj->arg1, &err);
+        if (err) {
+            goto out;
+        }
+
     out:
         error_propagate(errp, err);
     }
@@ -1145,9 +1169,12 @@ Example:
 
     #include "example-qapi-types.h"
     #include "qapi/qmp/qdict.h"
+    #include "qapi/qmp/dispatch.h"
     #include "qapi/error.h"
 
+    void example_qmp_init_marshal(QmpCommandList *cmds);
     UserDefOne *qmp_my_command(UserDefOneList *arg1, Error **errp);
+    void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp);
 
     #endif
     $ cat qapi-generated/example-qmp-marshal.c
@@ -1170,19 +1197,19 @@ Example:
         visit_free(v);
     }
 
-    static void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
+    void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
     {
         Error *err = NULL;
         UserDefOne *retval;
         Visitor *v;
-        UserDefOneList *arg1 = NULL;
+        q_obj_my_command_arg arg = {0};
 
         v = qobject_input_visitor_new(QOBJECT(args));
         visit_start_struct(v, NULL, NULL, 0, &err);
         if (err) {
             goto out;
         }
-        visit_type_UserDefOneList(v, "arg1", &arg1, &err);
+        visit_type_q_obj_my_command_arg_members(v, &arg, &err);
         if (!err) {
             visit_check_struct(v, &err);
         }
@@ -1191,7 +1218,7 @@ Example:
             goto out;
         }
 
-        retval = qmp_my_command(arg1, &err);
+        retval = qmp_my_command(arg.arg1, &err);
         if (err) {
             goto out;
         }
@@ -1203,17 +1230,18 @@ Example:
         visit_free(v);
         v = qapi_dealloc_visitor_new();
         visit_start_struct(v, NULL, NULL, 0, NULL);
-        visit_type_UserDefOneList(v, "arg1", &arg1, NULL);
+        visit_type_q_obj_my_command_arg_members(v, &arg, NULL);
         visit_end_struct(v, NULL);
         visit_free(v);
     }
 
-    static void qmp_init_marshal(void)
+    void example_qmp_init_marshal(QmpCommandList *cmds)
     {
-        qmp_register_command("my-command", qmp_marshal_my_command, QCO_NO_OPTIONS);
-    }
+        QTAILQ_INIT(cmds);
 
-    qapi_init(qmp_init_marshal);
+        qmp_register_command(cmds, "my-command",
+                             qmp_marshal_my_command, QCO_NO_OPTIONS);
+    }
 
 === scripts/qapi-event.py ===
 
@@ -1247,6 +1275,9 @@ Example:
         EXAMPLE_QAPI_EVENT__MAX = 1,
     } example_QAPIEvent;
 
+    #define example_QAPIEvent_str(val) \
+        qapi_enum_lookup(example_QAPIEvent_lookup, (val))
+
     extern const char *const example_QAPIEvent_lookup[];
 
     #endif
@@ -1258,6 +1289,7 @@ Example:
         QDict *qmp;
         Error *err = NULL;
         QMPEventFuncEmit emit;
+
         emit = qmp_event_get_func_emit();
         if (!emit) {
             return;

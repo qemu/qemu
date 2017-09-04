@@ -596,7 +596,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         error_setg(errp,
                    "a sync_bitmap was provided to backup_run, "
                    "but received an incompatible sync_mode (%s)",
-                   MirrorSyncMode_lookup[sync_mode]);
+                   MirrorSyncMode_str(sync_mode));
         return NULL;
     }
 

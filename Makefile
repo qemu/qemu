@@ -410,9 +410,18 @@ $(SRC_PATH)/qga/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 
 qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
                $(SRC_PATH)/qapi/block.json $(SRC_PATH)/qapi/block-core.json \
-               $(SRC_PATH)/qapi/event.json $(SRC_PATH)/qapi/introspect.json \
-               $(SRC_PATH)/qapi/crypto.json $(SRC_PATH)/qapi/rocker.json \
-               $(SRC_PATH)/qapi/trace.json
+               $(SRC_PATH)/qapi/char.json \
+               $(SRC_PATH)/qapi/crypto.json \
+               $(SRC_PATH)/qapi/introspect.json \
+               $(SRC_PATH)/qapi/migration.json \
+               $(SRC_PATH)/qapi/net.json \
+               $(SRC_PATH)/qapi/rocker.json \
+               $(SRC_PATH)/qapi/run-state.json \
+               $(SRC_PATH)/qapi/sockets.json \
+               $(SRC_PATH)/qapi/tpm.json \
+               $(SRC_PATH)/qapi/trace.json \
+               $(SRC_PATH)/qapi/transaction.json \
+               $(SRC_PATH)/qapi/ui.json
 
 qapi-types.c qapi-types.h :\
 $(qapi-modules) $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)

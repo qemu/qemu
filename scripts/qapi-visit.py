@@ -153,7 +153,7 @@ def gen_visit_enum(name):
 void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s *obj, Error **errp)
 {
     int value = *obj;
-    visit_type_enum(v, name, &value, %(c_name)s_lookup, errp);
+    visit_type_enum(v, name, &value, &%(c_name)s_lookup, errp);
     *obj = value;
 }
 ''',

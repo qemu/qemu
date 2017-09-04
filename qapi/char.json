@@ -1,0 +1,538 @@
+# -*- Mode: Python -*-
+#
+
+##
+# = Character devices
+##
+
+{ 'include': 'sockets.json' }
+
+##
+# @ChardevInfo:
+#
+# Information about a character device.
+#
+# @label: the label of the character device
+#
+# @filename: the filename of the character device
+#
+# @frontend-open: shows whether the frontend device attached to this backend
+#                 (eg. with the chardev=... option) is in open or closed state
+#                 (since 2.1)
+#
+# Notes: @filename is encoded using the QEMU command line character device
+#        encoding.  See the QEMU man page for details.
+#
+# Since: 0.14.0
+##
+{ 'struct': 'ChardevInfo', 'data': {'label': 'str',
+                                  'filename': 'str',
+                                  'frontend-open': 'bool'} }
+
+##
+# @query-chardev:
+#
+# Returns information about current character devices.
+#
+# Returns: a list of @ChardevInfo
+#
+# Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-chardev" }
+# <- {
+#       "return": [
+#          {
+#             "label": "charchannel0",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
+#             "frontend-open": false
+#          },
+#          {
+#             "label": "charmonitor",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
+#             "frontend-open": true
+#          },
+#          {
+#             "label": "charserial0",
+#             "filename": "pty:/dev/pts/2",
+#             "frontend-open": true
+#          }
+#       ]
+#    }
+#
+##
+{ 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
+
+##
+# @ChardevBackendInfo:
+#
+# Information about a character device backend
+#
+# @name: The backend name
+#
+# Since: 2.0
+##
+{ 'struct': 'ChardevBackendInfo', 'data': {'name': 'str'} }
+
+##
+# @query-chardev-backends:
+#
+# Returns information about character device backends.
+#
+# Returns: a list of @ChardevBackendInfo
+#
+# Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-chardev-backends" }
+# <- {
+#       "return":[
+#          {
+#             "name":"udp"
+#          },
+#          {
+#             "name":"tcp"
+#          },
+#          {
+#             "name":"unix"
+#          },
+#          {
+#             "name":"spiceport"
+#          }
+#       ]
+#    }
+#
+##
+{ 'command': 'query-chardev-backends', 'returns': ['ChardevBackendInfo'] }
+
+##
+# @DataFormat:
+#
+# An enumeration of data format.
+#
+# @utf8: Data is a UTF-8 string (RFC 3629)
+#
+# @base64: Data is Base64 encoded binary (RFC 3548)
+#
+# Since: 1.4
+##
+{ 'enum': 'DataFormat',
+  'data': [ 'utf8', 'base64' ] }
+
+##
+# @ringbuf-write:
+#
+# Write to a ring buffer character device.
+#
+# @device: the ring buffer character device name
+#
+# @data: data to write
+#
+# @format: data encoding (default 'utf8').
+#          - base64: data must be base64 encoded text.  Its binary
+#            decoding gets written.
+#          - utf8: data's UTF-8 encoding is written
+#          - data itself is always Unicode regardless of format, like
+#            any other string.
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "ringbuf-write",
+#      "arguments": { "device": "foo",
+#                     "data": "abcdefgh",
+#                     "format": "utf8" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'ringbuf-write',
+  'data': {'device': 'str', 'data': 'str',
+           '*format': 'DataFormat'} }
+
+##
+# @ringbuf-read:
+#
+# Read from a ring buffer character device.
+#
+# @device: the ring buffer character device name
+#
+# @size: how many bytes to read at most
+#
+# @format: data encoding (default 'utf8').
+#          - base64: the data read is returned in base64 encoding.
+#          - utf8: the data read is interpreted as UTF-8.
+#            Bug: can screw up when the buffer contains invalid UTF-8
+#            sequences, NUL characters, after the ring buffer lost
+#            data, and when reading stops because the size limit is
+#            reached.
+#          - The return value is always Unicode regardless of format,
+#            like any other string.
+#
+# Returns: data read from the device
+#
+# Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "ringbuf-read",
+#      "arguments": { "device": "foo",
+#                     "size": 1000,
+#                     "format": "utf8" } }
+# <- { "return": "abcdefgh" }
+#
+##
+{ 'command': 'ringbuf-read',
+  'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
+  'returns': 'str' }
+
+##
+# @ChardevCommon:
+#
+# Configuration shared across all chardev backends
+#
+# @logfile: The name of a logfile to save output
+# @logappend: true to append instead of truncate
+#             (default to false to truncate)
+#
+# Since: 2.6
+##
+{ 'struct': 'ChardevCommon', 'data': { '*logfile': 'str',
+                                       '*logappend': 'bool' } }
+
+##
+# @ChardevFile:
+#
+# Configuration info for file chardevs.
+#
+# @in:  The name of the input file
+# @out: The name of the output file
+# @append: Open the file in append mode (default false to
+#          truncate) (Since 2.6)
+#
+# Since: 1.4
+##
+{ 'struct': 'ChardevFile', 'data': { '*in' : 'str',
+                                   'out' : 'str',
+                                   '*append': 'bool' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevHostdev:
+#
+# Configuration info for device and pipe chardevs.
+#
+# @device: The name of the special file for the device,
+#          i.e. /dev/ttyS0 on Unix or COM1: on Windows
+#
+# Since: 1.4
+##
+{ 'struct': 'ChardevHostdev', 'data': { 'device' : 'str' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevSocket:
+#
+# Configuration info for (stream) socket chardevs.
+#
+# @addr: socket address to listen on (server=true)
+#        or connect to (server=false)
+# @tls-creds: the ID of the TLS credentials object (since 2.6)
+# @server: create server socket (default: true)
+# @wait: wait for incoming connection on server
+#        sockets (default: false).
+# @nodelay: set TCP_NODELAY socket option (default: false)
+# @telnet: enable telnet protocol on server
+#          sockets (default: false)
+# @tn3270: enable tn3270 protocol on server
+#          sockets (default: false) (Since: 2.10)
+# @reconnect: For a client socket, if a socket is disconnected,
+#          then attempt a reconnect after the given number of seconds.
+#          Setting this to zero disables this function. (default: 0)
+#          (Since: 2.2)
+#
+# Since: 1.4
+##
+{ 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddressLegacy',
+                                     '*tls-creds'  : 'str',
+                                     '*server'    : 'bool',
+                                     '*wait'      : 'bool',
+                                     '*nodelay'   : 'bool',
+                                     '*telnet'    : 'bool',
+                                     '*tn3270'    : 'bool',
+                                     '*reconnect' : 'int' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevUdp:
+#
+# Configuration info for datagram socket chardevs.
+#
+# @remote: remote address
+# @local: local address
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevUdp', 'data': { 'remote' : 'SocketAddressLegacy',
+                                  '*local' : 'SocketAddressLegacy' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevMux:
+#
+# Configuration info for mux chardevs.
+#
+# @chardev: name of the base chardev.
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevMux', 'data': { 'chardev' : 'str' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevStdio:
+#
+# Configuration info for stdio chardevs.
+#
+# @signal: Allow signals (such as SIGINT triggered by ^C)
+#          be delivered to qemu.  Default: true in -nographic mode,
+#          false otherwise.
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevStdio', 'data': { '*signal' : 'bool' },
+  'base': 'ChardevCommon' }
+
+
+##
+# @ChardevSpiceChannel:
+#
+# Configuration info for spice vm channel chardevs.
+#
+# @type: kind of channel (for example vdagent).
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevSpicePort:
+#
+# Configuration info for spice port chardevs.
+#
+# @fqdn: name of the channel (see docs/spice-port-fqdn.txt)
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevVC:
+#
+# Configuration info for virtual console chardevs.
+#
+# @width:  console width,  in pixels
+# @height: console height, in pixels
+# @cols:   console width,  in chars
+# @rows:   console height, in chars
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevVC', 'data': { '*width'  : 'int',
+                                 '*height' : 'int',
+                                 '*cols'   : 'int',
+                                 '*rows'   : 'int' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevRingbuf:
+#
+# Configuration info for ring buffer chardevs.
+#
+# @size: ring buffer size, must be power of two, default is 65536
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevRingbuf', 'data': { '*size'  : 'int' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevBackend:
+#
+# Configuration info for the new chardev backend.
+#
+# Since: 1.4 (testdev since 2.2, wctablet since 2.9)
+##
+{ 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
+                                       'serial' : 'ChardevHostdev',
+                                       'parallel': 'ChardevHostdev',
+                                       'pipe'   : 'ChardevHostdev',
+                                       'socket' : 'ChardevSocket',
+                                       'udp'    : 'ChardevUdp',
+                                       'pty'    : 'ChardevCommon',
+                                       'null'   : 'ChardevCommon',
+                                       'mux'    : 'ChardevMux',
+                                       'msmouse': 'ChardevCommon',
+                                       'wctablet' : 'ChardevCommon',
+                                       'braille': 'ChardevCommon',
+                                       'testdev': 'ChardevCommon',
+                                       'stdio'  : 'ChardevStdio',
+                                       'console': 'ChardevCommon',
+                                       'spicevmc' : 'ChardevSpiceChannel',
+                                       'spiceport' : 'ChardevSpicePort',
+                                       'vc'     : 'ChardevVC',
+                                       'ringbuf': 'ChardevRingbuf',
+                                       # next one is just for compatibility
+                                       'memory' : 'ChardevRingbuf' } }
+
+##
+# @ChardevReturn:
+#
+# Return info about the chardev backend just created.
+#
+# @pty: name of the slave pseudoterminal device, present if
+#       and only if a chardev of type 'pty' was created
+#
+# Since: 1.4
+##
+{ 'struct' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
+
+##
+# @chardev-add:
+#
+# Add a character device backend
+#
+# @id: the chardev's ID, must be unique
+# @backend: backend type and parameters
+#
+# Returns: ChardevReturn.
+#
+# Since: 1.4
+#
+# Example:
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "foo",
+#                      "backend" : { "type" : "null", "data" : {} } } }
+# <- { "return": {} }
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "bar",
+#                      "backend" : { "type" : "file",
+#                                    "data" : { "out" : "/tmp/bar.log" } } } }
+# <- { "return": {} }
+#
+# -> { "execute" : "chardev-add",
+#      "arguments" : { "id" : "baz",
+#                      "backend" : { "type" : "pty", "data" : {} } } }
+# <- { "return": { "pty" : "/dev/pty/42" } }
+#
+##
+{ 'command': 'chardev-add', 'data': {'id'      : 'str',
+                                     'backend' : 'ChardevBackend' },
+  'returns': 'ChardevReturn' }
+
+##
+# @chardev-change:
+#
+# Change a character device backend
+#
+# @id: the chardev's ID, must exist
+# @backend: new backend type and parameters
+#
+# Returns: ChardevReturn.
+#
+# Since: 2.10
+#
+# Example:
+#
+# -> { "execute" : "chardev-change",
+#      "arguments" : { "id" : "baz",
+#                      "backend" : { "type" : "pty", "data" : {} } } }
+# <- { "return": { "pty" : "/dev/pty/42" } }
+#
+# -> {"execute" : "chardev-change",
+#     "arguments" : {
+#         "id" : "charchannel2",
+#         "backend" : {
+#             "type" : "socket",
+#             "data" : {
+#                 "addr" : {
+#                     "type" : "unix" ,
+#                     "data" : {
+#                         "path" : "/tmp/charchannel2.socket"
+#                     }
+#                  },
+#                  "server" : true,
+#                  "wait" : false }}}}
+# <- {"return": {}}
+#
+##
+{ 'command': 'chardev-change', 'data': {'id'      : 'str',
+                                        'backend' : 'ChardevBackend' },
+  'returns': 'ChardevReturn' }
+
+##
+# @chardev-remove:
+#
+# Remove a character device backend
+#
+# @id: the chardev's ID, must exist and not be in use
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+#
+# Example:
+#
+# -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'chardev-remove', 'data': {'id': 'str'} }
+
+##
+# @chardev-send-break:
+#
+# Send a break to a character device
+#
+# @id: the chardev's ID, must exist
+#
+# Returns: Nothing on success
+#
+# Since: 2.10
+#
+# Example:
+#
+# -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'chardev-send-break', 'data': {'id': 'str'} }
+
+##
+# @VSERPORT_CHANGE:
+#
+# Emitted when the guest opens or closes a virtio-serial port.
+#
+# @id: device identifier of the virtio-serial port
+#
+# @open: true if the guest has opened the virtio-serial port
+#
+# Since: 2.1
+#
+# Example:
+#
+# <- { "event": "VSERPORT_CHANGE",
+#      "data": { "id": "channel0", "open": true },
+#      "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
+##
+{ 'event': 'VSERPORT_CHANGE',
+  'data': { 'id': 'str', 'open': 'bool' } }

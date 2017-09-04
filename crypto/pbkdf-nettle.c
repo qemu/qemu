@@ -110,7 +110,7 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
     default:
         error_setg_errno(errp, ENOSYS,
                          "PBKDF does not support hash algorithm %s",
-                         QCryptoHashAlgorithm_lookup[hash]);
+                         QCryptoHashAlgorithm_str(hash));
         return -1;
     }
     return 0;

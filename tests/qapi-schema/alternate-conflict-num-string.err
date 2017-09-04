@@ -1,0 +1,1 @@
+tests/qapi-schema/alternate-conflict-num-string.json:2: Alternate 'Alt' member 'two' can't be distinguished from member 'one'

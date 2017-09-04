@@ -68,7 +68,7 @@ int qcrypto_pbkdf2(QCryptoHashAlgorithm hash,
         hash_map[hash] == GCRY_MD_NONE) {
         error_setg_errno(errp, ENOSYS,
                          "PBKDF does not support hash algorithm %s",
-                         QCryptoHashAlgorithm_lookup[hash]);
+                         QCryptoHashAlgorithm_str(hash));
         return -1;
     }
 

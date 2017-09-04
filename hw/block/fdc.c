@@ -392,9 +392,9 @@ static int pick_geometry(FDrive *drv)
             FLOPPY_DPRINTF("User requested floppy drive type '%s', "
                            "but inserted medium appears to be a "
                            "%"PRId64" sector '%s' type\n",
-                           FloppyDriveType_lookup[drv->drive],
+                           FloppyDriveType_str(drv->drive),
                            nb_sectors,
-                           FloppyDriveType_lookup[parse->drive]);
+                           FloppyDriveType_str(parse->drive));
         }
         match = type_match;
     }
@@ -403,7 +403,7 @@ static int pick_geometry(FDrive *drv)
     if (match == -1) {
         error_setg(&error_abort, "No candidate geometries present in table "
                    " for floppy drive type '%s'",
-                   FloppyDriveType_lookup[drv->drive]);
+                   FloppyDriveType_str(drv->drive));
     }
 
     parse = &(fd_formats[match]);

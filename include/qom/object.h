@@ -1415,14 +1415,14 @@ void object_class_property_add_bool(ObjectClass *klass, const char *name,
  */
 void object_property_add_enum(Object *obj, const char *name,
                               const char *typename,
-                              const char * const *strings,
+                              const QEnumLookup *lookup,
                               int (*get)(Object *, Error **),
                               void (*set)(Object *, int, Error **),
                               Error **errp);
 
 void object_class_property_add_enum(ObjectClass *klass, const char *name,
                                     const char *typename,
-                                    const char * const *strings,
+                                    const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
                                     void (*set)(Object *, int, Error **),
                                     Error **errp);

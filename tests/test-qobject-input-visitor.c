@@ -382,10 +382,10 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
     Visitor *v;
     EnumOne i;
 
-    for (i = 0; EnumOne_lookup[i]; i++) {
+    for (i = 0; i < ENUM_ONE__MAX; i++) {
         EnumOne res = -1;
 
-        v = visitor_input_test_init(data, "%s", EnumOne_lookup[i]);
+        v = visitor_input_test_init(data, "%s", EnumOne_str(i));
 
         visit_type_EnumOne(v, NULL, &res, &error_abort);
         g_assert_cmpint(i, ==, res);
@@ -699,7 +699,7 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
         }
     }
     g_string_append_printf(gstr_union,  "{ 'type': '%s', 'data': [ %s ] }",
-                           UserDefNativeListUnionKind_lookup[kind],
+                           UserDefNativeListUnionKind_str(kind),
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
@@ -1110,7 +1110,7 @@ static void test_visitor_in_fail_struct_missing(TestInputVisitorData *data,
     error_free_or_abort(&err);
     visit_optional(v, "optional", &present);
     g_assert(!present);
-    visit_type_enum(v, "enum", &en, EnumOne_lookup, &err);
+    visit_type_enum(v, "enum", &en, &EnumOne_lookup, &err);
     error_free_or_abort(&err);
     visit_type_int(v, "i64", &i64, &err);
     error_free_or_abort(&err);

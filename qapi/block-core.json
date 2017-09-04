@@ -1,11 +1,12 @@
 # -*- Mode: Python -*-
 
 ##
-# == QAPI block core definitions (vm unrelated)
+# == Block core (VM unrelated)
 ##
 
-# QAPI common definitions
 { 'include': 'common.json' }
+{ 'include': 'crypto.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @SnapshotInfo:
