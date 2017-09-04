@@ -512,7 +512,15 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            graphic_width, graphic_height, graphic_depth,
                            (uint8_t *)&nd_table[0].macaddr);
 
-    fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
+    dev = qdev_create(NULL, TYPE_FW_CFG_IO);
+    qdev_prop_set_bit(dev, "dma_enabled", false);
+    object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+    memory_region_add_subregion(get_system_io(), BIOS_CFG_IOPORT,
+                                &FW_CFG_IO(dev)->comb_iomem);
+
+    fw_cfg = FW_CFG(dev);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
