@@ -362,6 +362,54 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                     goto fail;
                 }
             }
+
+            /* The ELF spec is somewhat vague about the purpose of the
+             * physical address field. One common use in the embedded world
+             * is that physical address field specifies the load address
+             * and the virtual address field specifies the execution address.
+             * Segments are packed into ROM or flash, and the relocation
+             * and zero-initialization of data is done at runtime. This
+             * means that the memsz header represents the runtime size of the
+             * segment, but the filesz represents the loadtime size. If
+             * we try to honour the memsz value for an ELF file like this
+             * we will end up with overlapping segments (which the
+             * loader.c code will later reject).
+             * We support ELF files using this scheme by by checking whether
+             * paddr + memsz for this segment would overlap with any other
+             * segment. If so, then we assume it's using this scheme and
+             * truncate the loaded segment to the filesz size.
+             * If the segment considered as being memsz size doesn't overlap
+             * then we use memsz for the segment length, to handle ELF files
+             * which assume that the loader will do the zero-initialization.
+             */
+            if (mem_size > file_size) {
+                /* If this segment's zero-init portion overlaps another
+                 * segment's data or zero-init portion, then truncate this one.
+                 * Invalid ELF files where the segments overlap even when
+                 * only file_size bytes are loaded will be rejected by
+                 * the ROM overlap check in loader.c, so we don't try to
+                 * explicitly detect those here.
+                 */
+                int j;
+                elf_word zero_start = ph->p_paddr + file_size;
+                elf_word zero_end = ph->p_paddr + mem_size;
+
+                for (j = 0; j < ehdr.e_phnum; j++) {
+                    struct elf_phdr *jph = &phdr[j];
+
+                    if (i != j && jph->p_type == PT_LOAD) {
+                        elf_word other_start = jph->p_paddr;
+                        elf_word other_end = jph->p_paddr + jph->p_memsz;
+
+                        if (!(other_start >= zero_end ||
+                              zero_start >= other_end)) {
+                            mem_size = file_size;
+                            break;
+                        }
+                    }
+                }
+            }
+
             /* address_offset is hack for kernel images that are
                linked at the wrong physical address.  */
             if (translate_fn) {
@@ -403,14 +451,24 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 *pentry = ehdr.e_entry - ph->p_vaddr + ph->p_paddr;
             }
 
-            if (load_rom) {
-                snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
-
-                /* rom_add_elf_program() seize the ownership of 'data' */
-                rom_add_elf_program(label, data, file_size, mem_size, addr, as);
-            } else {
-                cpu_physical_memory_write(addr, data, file_size);
+            if (mem_size == 0) {
+                /* Some ELF files really do have segments of zero size;
+                 * just ignore them rather than trying to create empty
+                 * ROM blobs, because the zero-length blob can falsely
+                 * trigger the overlapping-ROM-blobs check.
+                 */
                 g_free(data);
+            } else {
+                if (load_rom) {
+                    snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
+
+                    /* rom_add_elf_program() seize the ownership of 'data' */
+                    rom_add_elf_program(label, data, file_size, mem_size,
+                                        addr, as);
+                } else {
+                    cpu_physical_memory_write(addr, data, file_size);
+                    g_free(data);
+                }
             }
 
             total_size += mem_size;

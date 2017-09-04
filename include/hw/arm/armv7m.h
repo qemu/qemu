@@ -11,7 +11,7 @@
 #define HW_ARM_ARMV7M_H
 
 #include "hw/sysbus.h"
-#include "hw/arm/armv7m_nvic.h"
+#include "hw/intc/armv7m_nvic.h"
 
 #define TYPE_BITBAND "ARM,bitband-memory"
 #define BITBAND(obj) OBJECT_CHECK(BitBandState, (obj), TYPE_BITBAND)

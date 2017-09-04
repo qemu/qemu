@@ -101,7 +101,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               uintptr_t retaddr)
 {
     CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
-    return io_readx(env, iotlbentry, addr, retaddr, DATA_SIZE);
+    return io_readx(env, iotlbentry, mmu_idx, addr, retaddr, DATA_SIZE);
 }
 #endif
 
@@ -262,7 +262,7 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
                                           uintptr_t retaddr)
 {
     CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
-    return io_writex(env, iotlbentry, val, addr, retaddr, DATA_SIZE);
+    return io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr, DATA_SIZE);
 }
 
 void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,

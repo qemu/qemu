@@ -20,13 +20,13 @@
 
 #ifndef CONFIG_USER_ONLY
 static bool get_phys_addr(CPUARMState *env, target_ulong address,
-                          int access_type, ARMMMUIdx mmu_idx,
+                          MMUAccessType access_type, ARMMMUIdx mmu_idx,
                           hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
                           target_ulong *page_size, uint32_t *fsr,
                           ARMMMUFaultInfo *fi);
 
 static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
-                               int access_type, ARMMMUIdx mmu_idx,
+                               MMUAccessType access_type, ARMMMUIdx mmu_idx,
                                hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
                                target_ulong *page_size_ptr, uint32_t *fsr,
                                ARMMMUFaultInfo *fi);
@@ -2135,7 +2135,7 @@ static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri,
 }
 
 static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
-                             int access_type, ARMMMUIdx mmu_idx)
+                             MMUAccessType access_type, ARMMMUIdx mmu_idx)
 {
     hwaddr phys_addr;
     target_ulong page_size;
@@ -2194,7 +2194,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
 
 static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    int access_type = ri->opc2 & 1;
+    MMUAccessType access_type = ri->opc2 & 1 ? MMU_DATA_STORE : MMU_DATA_LOAD;
     uint64_t par64;
     ARMMMUIdx mmu_idx;
     int el = arm_current_el(env);
@@ -2253,7 +2253,7 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static void ats1h_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    int access_type = ri->opc2 & 1;
+    MMUAccessType access_type = ri->opc2 & 1 ? MMU_DATA_STORE : MMU_DATA_LOAD;
     uint64_t par64;
 
     par64 = do_ats_write(env, value, access_type, ARMMMUIdx_S2NS);
@@ -2273,7 +2273,7 @@ static CPAccessResult at_s1e2_access(CPUARMState *env, const ARMCPRegInfo *ri,
 static void ats_write64(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    int access_type = ri->opc2 & 1;
+    MMUAccessType access_type = ri->opc2 & 1 ? MMU_DATA_STORE : MMU_DATA_LOAD;
     ARMMMUIdx mmu_idx;
     int secure = arm_is_secure_below_el3(env);
 
@@ -6114,7 +6114,7 @@ static void v7m_push_stack(ARMCPU *cpu)
     /* Align stack pointer if the guest wants that */
     if ((env->regs[13] & 4) && (env->v7m.ccr & R_V7M_CCR_STKALIGN_MASK)) {
         env->regs[13] -= 4;
-        xpsr |= 0x200;
+        xpsr |= XPSR_SPREALIGN;
     }
     /* Switch to the handler mode.  */
     v7m_push(env, xpsr);
@@ -6138,11 +6138,11 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     bool rettobase = false;
 
     /* We can only get here from an EXCP_EXCEPTION_EXIT, and
-     * arm_v7m_do_unassigned_access() enforces the architectural rule
+     * gen_bx_excret() enforces the architectural rule
      * that jumps to magic addresses don't have magic behaviour unless
      * we're in Handler mode (compare pseudocode BXWritePC()).
      */
-    assert(env->v7m.exception != 0);
+    assert(arm_v7m_is_handler_mode(env));
 
     /* In the spec pseudocode ExceptionReturn() is called directly
      * from BXWritePC() and gets the full target PC value including
@@ -6167,7 +6167,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
 
     if (env->v7m.exception != ARMV7M_EXCP_NMI) {
         /* Auto-clear FAULTMASK on return from other than NMI */
-        env->daif &= ~PSTATE_F;
+        env->v7m.faultmask = 0;
     }
 
     switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception)) {
@@ -6239,16 +6239,17 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         env->regs[15] &= ~1U;
     }
     xpsr = v7m_pop(env);
-    xpsr_write(env, xpsr, 0xfffffdff);
+    xpsr_write(env, xpsr, ~XPSR_SPREALIGN);
     /* Undo stack alignment.  */
-    if (xpsr & 0x200)
+    if (xpsr & XPSR_SPREALIGN) {
         env->regs[13] |= 4;
+    }
 
     /* The restored xPSR exception field will be zero if we're
      * resuming in Thread mode. If that doesn't match what the
      * exception return type specified then this is a UsageFault.
      */
-    if (return_to_handler == (env->v7m.exception == 0)) {
+    if (return_to_handler != arm_v7m_is_handler_mode(env)) {
         /* Take an INVPC UsageFault by pushing the stack again. */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         env->v7m.cfsr |= R_V7M_CFSR_INVPC_MASK;
@@ -6304,13 +6305,6 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t lr;
 
     arm_log_exception(cs->exception_index);
-
-    lr = 0xfffffff1;
-    if (env->v7m.control & R_V7M_CONTROL_SPSEL_MASK) {
-        lr |= 4;
-    }
-    if (env->v7m.exception == 0)
-        lr |= 8;
 
     /* For exceptions we just mark as pending on the NVIC, and let that
        handle it.  */
@@ -6400,6 +6394,14 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
+    }
+
+    lr = 0xfffffff1;
+    if (env->v7m.control & R_V7M_CONTROL_SPSEL_MASK) {
+        lr |= 4;
+    }
+    if (!arm_v7m_is_handler_mode(env)) {
+        lr |= 8;
     }
 
     v7m_push_stack(cpu);
@@ -7505,7 +7507,7 @@ static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
 }
 
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
-                             int access_type, ARMMMUIdx mmu_idx,
+                             MMUAccessType access_type, ARMMMUIdx mmu_idx,
                              hwaddr *phys_ptr, int *prot,
                              target_ulong *page_size, uint32_t *fsr,
                              ARMMMUFaultInfo *fi)
@@ -7621,7 +7623,7 @@ do_fault:
 }
 
 static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
-                             int access_type, ARMMMUIdx mmu_idx,
+                             MMUAccessType access_type, ARMMMUIdx mmu_idx,
                              hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
                              target_ulong *page_size, uint32_t *fsr,
                              ARMMMUFaultInfo *fi)
@@ -7728,7 +7730,7 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
         if (pxn && !regime_is_user(env, mmu_idx)) {
             xn = 1;
         }
-        if (xn && access_type == 2)
+        if (xn && access_type == MMU_INST_FETCH)
             goto do_fault;
 
         if (arm_feature(env, ARM_FEATURE_V6K) &&
@@ -7843,7 +7845,7 @@ static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
 }
 
 static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
-                               int access_type, ARMMMUIdx mmu_idx,
+                               MMUAccessType access_type, ARMMMUIdx mmu_idx,
                                hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
                                target_ulong *page_size_ptr, uint32_t *fsr,
                                ARMMMUFaultInfo *fi)
@@ -8251,7 +8253,7 @@ static inline bool m_is_system_region(CPUARMState *env, uint32_t address)
 }
 
 static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
-                                 int access_type, ARMMMUIdx mmu_idx,
+                                 MMUAccessType access_type, ARMMMUIdx mmu_idx,
                                  hwaddr *phys_ptr, int *prot, uint32_t *fsr)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -8410,13 +8412,20 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
 }
 
 static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
-                                 int access_type, ARMMMUIdx mmu_idx,
+                                 MMUAccessType access_type, ARMMMUIdx mmu_idx,
                                  hwaddr *phys_ptr, int *prot, uint32_t *fsr)
 {
     int n;
     uint32_t mask;
     uint32_t base;
     bool is_user = regime_is_user(env, mmu_idx);
+
+    if (regime_translation_disabled(env, mmu_idx)) {
+        /* MPU disabled.  */
+        *phys_ptr = address;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return false;
+    }
 
     *phys_ptr = address;
     for (n = 7; n >= 0; n--) {
@@ -8437,7 +8446,7 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
         return true;
     }
 
-    if (access_type == 2) {
+    if (access_type == MMU_INST_FETCH) {
         mask = env->cp15.pmsav5_insn_ap;
     } else {
         mask = env->cp15.pmsav5_data_ap;
@@ -8508,7 +8517,7 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
  * @fsr: set to the DFSR/IFSR value on failure
  */
 static bool get_phys_addr(CPUARMState *env, target_ulong address,
-                          int access_type, ARMMMUIdx mmu_idx,
+                          MMUAccessType access_type, ARMMMUIdx mmu_idx,
                           hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
                           target_ulong *page_size, uint32_t *fsr,
                           ARMMMUFaultInfo *fi)
@@ -8567,16 +8576,20 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
         }
     }
 
-    /* pmsav7 has special handling for when MPU is disabled so call it before
-     * the common MMU/MPU disabled check below.
-     */
-    if (arm_feature(env, ARM_FEATURE_PMSA) &&
-        arm_feature(env, ARM_FEATURE_V7)) {
+    if (arm_feature(env, ARM_FEATURE_PMSA)) {
         bool ret;
         *page_size = TARGET_PAGE_SIZE;
-        ret = get_phys_addr_pmsav7(env, address, access_type, mmu_idx,
-                                   phys_ptr, prot, fsr);
-        qemu_log_mask(CPU_LOG_MMU, "PMSAv7 MPU lookup for %s at 0x%08" PRIx32
+
+        if (arm_feature(env, ARM_FEATURE_V7)) {
+            /* PMSAv7 */
+            ret = get_phys_addr_pmsav7(env, address, access_type, mmu_idx,
+                                       phys_ptr, prot, fsr);
+        } else {
+            /* Pre-v7 MPU */
+            ret = get_phys_addr_pmsav5(env, address, access_type, mmu_idx,
+                                       phys_ptr, prot, fsr);
+        }
+        qemu_log_mask(CPU_LOG_MMU, "PMSA MPU lookup for %s at 0x%08" PRIx32
                       " mmu_idx %u -> %s (prot %c%c%c)\n",
                       access_type == MMU_DATA_LOAD ? "reading" :
                       (access_type == MMU_DATA_STORE ? "writing" : "execute"),
@@ -8589,19 +8602,14 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
         return ret;
     }
 
+    /* Definitely a real MMU, not an MPU */
+
     if (regime_translation_disabled(env, mmu_idx)) {
-        /* MMU/MPU disabled.  */
+        /* MMU disabled. */
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *page_size = TARGET_PAGE_SIZE;
         return 0;
-    }
-
-    if (arm_feature(env, ARM_FEATURE_PMSA)) {
-        /* Pre-v7 MPU */
-        *page_size = TARGET_PAGE_SIZE;
-        return get_phys_addr_pmsav5(env, address, access_type, mmu_idx,
-                                    phys_ptr, prot, fsr);
     }
 
     if (regime_using_lpae_format(env, mmu_idx)) {
@@ -8621,7 +8629,7 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
  * fsr with ARM DFSR/IFSR fault register format value on failure.
  */
 bool arm_tlb_fill(CPUState *cs, vaddr address,
-                  int access_type, int mmu_idx, uint32_t *fsr,
+                  MMUAccessType access_type, int mmu_idx, uint32_t *fsr,
                   ARMMMUFaultInfo *fi)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -8682,10 +8690,10 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
     case 0 ... 7: /* xPSR sub-fields */
         mask = 0;
         if ((reg & 1) && el) {
-            mask |= 0x000001ff; /* IPSR (unpriv. reads as zero) */
+            mask |= XPSR_EXCP; /* IPSR (unpriv. reads as zero) */
         }
         if (!(reg & 4)) {
-            mask |= 0xf8000000; /* APSR */
+            mask |= XPSR_NZCV | XPSR_Q; /* APSR */
         }
         /* EPSR reads as zero */
         return xpsr_read(env) & mask;
@@ -8706,12 +8714,12 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         return (env->v7m.control & R_V7M_CONTROL_SPSEL_MASK) ?
             env->regs[13] : env->v7m.other_sp;
     case 16: /* PRIMASK */
-        return (env->daif & PSTATE_I) != 0;
+        return env->v7m.primask;
     case 17: /* BASEPRI */
     case 18: /* BASEPRI_MAX */
         return env->v7m.basepri;
     case 19: /* FAULTMASK */
-        return (env->daif & PSTATE_F) != 0;
+        return env->v7m.faultmask;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "Attempt to read unknown special"
                                        " register %d\n", reg);
@@ -8743,10 +8751,10 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             uint32_t apsrmask = 0;
 
             if (mask & 8) {
-                apsrmask |= 0xf8000000; /* APSR NZCVQ */
+                apsrmask |= XPSR_NZCV | XPSR_Q;
             }
             if ((mask & 4) && arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
-                apsrmask |= 0x000f0000; /* APSR GE[3:0] */
+                apsrmask |= XPSR_GE;
             }
             xpsr_write(env, val, apsrmask);
         }
@@ -8766,11 +8774,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
         }
         break;
     case 16: /* PRIMASK */
-        if (val & 1) {
-            env->daif |= PSTATE_I;
-        } else {
-            env->daif &= ~PSTATE_I;
-        }
+        env->v7m.primask = val & 1;
         break;
     case 17: /* BASEPRI */
         env->v7m.basepri = val & 0xff;
@@ -8781,11 +8785,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             env->v7m.basepri = val;
         break;
     case 19: /* FAULTMASK */
-        if (val & 1) {
-            env->daif |= PSTATE_F;
-        } else {
-            env->daif &= ~PSTATE_F;
-        }
+        env->v7m.faultmask = val & 1;
         break;
     case 20: /* CONTROL */
         /* Writing to the SPSEL bit only has an effect if we are in
@@ -8793,7 +8793,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
          * switch_v7m_sp() deals with updating the SPSEL bit in
          * env->v7m.control, so we only need update the others.
          */
-        if (env->v7m.exception == 0) {
+        if (!arm_v7m_is_handler_mode(env)) {
             switch_v7m_sp(env, (val & R_V7M_CONTROL_SPSEL_MASK) != 0);
         }
         env->v7m.control &= ~R_V7M_CONTROL_NPRIV_MASK;

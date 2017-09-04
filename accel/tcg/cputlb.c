@@ -747,6 +747,7 @@ static inline ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
 }
 
 static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
+                         int mmu_idx,
                          target_ulong addr, uintptr_t retaddr, int size)
 {
     CPUState *cpu = ENV_GET_CPU(env);
@@ -754,6 +755,7 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
     uint64_t val;
     bool locked = false;
+    MemTxResult r;
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
@@ -767,7 +769,12 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
         qemu_mutex_lock_iothread();
         locked = true;
     }
-    memory_region_dispatch_read(mr, physaddr, &val, size, iotlbentry->attrs);
+    r = memory_region_dispatch_read(mr, physaddr,
+                                    &val, size, iotlbentry->attrs);
+    if (r != MEMTX_OK) {
+        cpu_transaction_failed(cpu, physaddr, addr, size, MMU_DATA_LOAD,
+                               mmu_idx, iotlbentry->attrs, r, retaddr);
+    }
     if (locked) {
         qemu_mutex_unlock_iothread();
     }
@@ -776,6 +783,7 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
 }
 
 static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
+                      int mmu_idx,
                       uint64_t val, target_ulong addr,
                       uintptr_t retaddr, int size)
 {
@@ -783,6 +791,7 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     hwaddr physaddr = iotlbentry->addr;
     MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
     bool locked = false;
+    MemTxResult r;
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
@@ -795,7 +804,12 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
         qemu_mutex_lock_iothread();
         locked = true;
     }
-    memory_region_dispatch_write(mr, physaddr, val, size, iotlbentry->attrs);
+    r = memory_region_dispatch_write(mr, physaddr,
+                                     val, size, iotlbentry->attrs);
+    if (r != MEMTX_OK) {
+        cpu_transaction_failed(cpu, physaddr, addr, size, MMU_DATA_STORE,
+                               mmu_idx, iotlbentry->attrs, r, retaddr);
+    }
     if (locked) {
         qemu_mutex_unlock_iothread();
     }
@@ -845,6 +859,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
     MemoryRegion *mr;
     CPUState *cpu = ENV_GET_CPU(env);
     CPUIOTLBEntry *iotlbentry;
+    hwaddr physaddr;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env, true);
@@ -867,6 +882,19 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
             return get_page_addr_code(env, addr);
         }
         qemu_mutex_unlock_iothread();
+
+        /* Give the new-style cpu_transaction_failed() hook first chance
+         * to handle this.
+         * This is not the ideal place to detect and generate CPU
+         * exceptions for instruction fetch failure (for instance
+         * we don't know the length of the access that the CPU would
+         * use, and it would be better to go ahead and try the access
+         * and use the MemTXResult it produced). However it is the
+         * simplest place we have currently available for the check.
+         */
+        physaddr = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
+        cpu_transaction_failed(cpu, physaddr, addr, 0, MMU_INST_FETCH, mmu_idx,
+                               iotlbentry->attrs, MEMTX_DECODE_ERROR, 0);
 
         cpu_unassigned_access(cpu, addr, false, true, 0, 4);
         /* The CPU's unassigned access hook might have longjumped out

@@ -40,6 +40,8 @@
 #include "qemu/error-report.h"
 #include <libfdt.h>
 #include "hw/char/pl011.h"
+#include "hw/cpu/a9mpcore.h"
+#include "hw/cpu/a15mpcore.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
@@ -293,7 +295,7 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
-    init_cpus(cpu_model, "a9mpcore_priv", 0x1e000000, pic, vms->secure);
+    init_cpus(cpu_model, TYPE_A9MPCORE_PRIV, 0x1e000000, pic, vms->secure);
 
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
@@ -378,7 +380,7 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x80000000, ram);
 
     /* 0x2c000000 A15MPCore private memory region (GIC) */
-    init_cpus(cpu_model, "a15mpcore_priv", 0x2c000000, pic, vms->secure);
+    init_cpus(cpu_model, TYPE_A15MPCORE_PRIV, 0x2c000000, pic, vms->secure);
 
     /* A15 daughterboard peripherals: */
 
