@@ -224,13 +224,11 @@ static void isa_irq_handler(void *opaque, int n, int level)
 
 /* EBUS (Eight bit bus) bridge */
 static ISABus *
-pci_ebus_init(PCIBus *bus, int devfn, qemu_irq *irqs)
+pci_ebus_init(PCIDevice *pci_dev, qemu_irq *irqs)
 {
     qemu_irq *isa_irq;
-    PCIDevice *pci_dev;
     ISABus *isa_bus;
 
-    pci_dev = pci_create_simple(bus, devfn, "ebus");
     isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci_dev), "isa.0"));
     isa_irq = qemu_allocate_irqs(isa_irq_handler, irqs, 16);
     isa_bus_irqs(isa_bus, isa_irq);
@@ -428,7 +426,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
-    PCIBus *pci_bus, *pci_bus2, *pci_bus3;
+    PCIBus *pci_bus, *pci_busA, *pci_busB;
+    PCIDevice *ebus;
     ISABus *isa_bus;
     SysBusDevice *s;
     qemu_irq *ivec_irqs, *pbm_irqs;
@@ -447,12 +446,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     prom_init(hwdef->prom_addr, bios_name);
 
     ivec_irqs = qemu_allocate_irqs(sparc64_cpu_set_ivec_irq, cpu, IVEC_MAX);
-    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_bus2,
-                           &pci_bus3, &pbm_irqs);
+    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_busA,
+                           &pci_busB, &pbm_irqs);
     pci_vga_init(pci_bus);
 
-    // XXX Should be pci_bus3
-    isa_bus = pci_ebus_init(pci_bus, -1, pbm_irqs);
+    /* XXX Should be pci_busA */
+    ebus = pci_create_simple(pci_bus, -1, "ebus");
+    isa_bus = pci_ebus_init(ebus, pbm_irqs);
 
     i = 0;
     if (hwdef->console_serial_base) {
@@ -492,7 +492,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     /* Map NVRAM into I/O (ebus) space */
     nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);
     s = SYS_BUS_DEVICE(nvram);
-    memory_region_add_subregion(get_system_io(), 0x2000,
+    memory_region_add_subregion(pci_address_space_io(ebus), 0x2000,
                                 sysbus_mmio_get_region(s, 0));
  
     initrd_size = 0;
@@ -512,7 +512,14 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            graphic_width, graphic_height, graphic_depth,
                            (uint8_t *)&nd_table[0].macaddr);
 
-    fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
+    dev = qdev_create(NULL, TYPE_FW_CFG_IO);
+    qdev_prop_set_bit(dev, "dma_enabled", false);
+    object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+    memory_region_add_subregion(pci_address_space_io(ebus), BIOS_CFG_IOPORT,
+                                &FW_CFG_IO(dev)->comb_iomem);
+
+    fw_cfg = FW_CFG(dev);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
