@@ -882,6 +882,22 @@ void pmccntr_sync(CPUARMState *env);
 /* Mask of bits which may be set by exception return copying them from SPSR */
 #define CPSR_ERET_MASK (~CPSR_RESERVED)
 
+/* Bit definitions for M profile XPSR. Most are the same as CPSR. */
+#define XPSR_EXCP 0x1ffU
+#define XPSR_SPREALIGN (1U << 9) /* Only set in exception stack frames */
+#define XPSR_IT_2_7 CPSR_IT_2_7
+#define XPSR_GE CPSR_GE
+#define XPSR_SFPA (1U << 20) /* Only set in exception stack frames */
+#define XPSR_T (1U << 24) /* Not the same as CPSR_T ! */
+#define XPSR_IT_0_1 CPSR_IT_0_1
+#define XPSR_Q CPSR_Q
+#define XPSR_V CPSR_V
+#define XPSR_C CPSR_C
+#define XPSR_Z CPSR_Z
+#define XPSR_N CPSR_N
+#define XPSR_NZCV CPSR_NZCV
+#define XPSR_IT CPSR_IT
+
 #define TTBCR_N      (7U << 0) /* TTBCR.EAE==0 */
 #define TTBCR_T0SZ   (7U << 0) /* TTBCR.EAE==1 */
 #define TTBCR_PD0    (1U << 4)
@@ -986,26 +1002,28 @@ static inline uint32_t xpsr_read(CPUARMState *env)
 /* Set the xPSR.  Note that some bits of mask must be all-set or all-clear.  */
 static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 {
-    if (mask & CPSR_NZCV) {
-        env->ZF = (~val) & CPSR_Z;
+    if (mask & XPSR_NZCV) {
+        env->ZF = (~val) & XPSR_Z;
         env->NF = val;
         env->CF = (val >> 29) & 1;
         env->VF = (val << 3) & 0x80000000;
     }
-    if (mask & CPSR_Q)
-        env->QF = ((val & CPSR_Q) != 0);
-    if (mask & (1 << 24))
-        env->thumb = ((val & (1 << 24)) != 0);
-    if (mask & CPSR_IT_0_1) {
+    if (mask & XPSR_Q) {
+        env->QF = ((val & XPSR_Q) != 0);
+    }
+    if (mask & XPSR_T) {
+        env->thumb = ((val & XPSR_T) != 0);
+    }
+    if (mask & XPSR_IT_0_1) {
         env->condexec_bits &= ~3;
         env->condexec_bits |= (val >> 25) & 3;
     }
-    if (mask & CPSR_IT_2_7) {
+    if (mask & XPSR_IT_2_7) {
         env->condexec_bits &= 3;
         env->condexec_bits |= (val >> 8) & 0xfc;
     }
-    if (mask & 0x1ff) {
-        env->v7m.exception = val & 0x1ff;
+    if (mask & XPSR_EXCP) {
+        env->v7m.exception = val & XPSR_EXCP;
     }
 }
 

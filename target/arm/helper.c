@@ -6114,7 +6114,7 @@ static void v7m_push_stack(ARMCPU *cpu)
     /* Align stack pointer if the guest wants that */
     if ((env->regs[13] & 4) && (env->v7m.ccr & R_V7M_CCR_STKALIGN_MASK)) {
         env->regs[13] -= 4;
-        xpsr |= 0x200;
+        xpsr |= XPSR_SPREALIGN;
     }
     /* Switch to the handler mode.  */
     v7m_push(env, xpsr);
@@ -6239,10 +6239,11 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         env->regs[15] &= ~1U;
     }
     xpsr = v7m_pop(env);
-    xpsr_write(env, xpsr, 0xfffffdff);
+    xpsr_write(env, xpsr, ~XPSR_SPREALIGN);
     /* Undo stack alignment.  */
-    if (xpsr & 0x200)
+    if (xpsr & XPSR_SPREALIGN) {
         env->regs[13] |= 4;
+    }
 
     /* The restored xPSR exception field will be zero if we're
      * resuming in Thread mode. If that doesn't match what the
@@ -8688,10 +8689,10 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
     case 0 ... 7: /* xPSR sub-fields */
         mask = 0;
         if ((reg & 1) && el) {
-            mask |= 0x000001ff; /* IPSR (unpriv. reads as zero) */
+            mask |= XPSR_EXCP; /* IPSR (unpriv. reads as zero) */
         }
         if (!(reg & 4)) {
-            mask |= 0xf8000000; /* APSR */
+            mask |= XPSR_NZCV | XPSR_Q; /* APSR */
         }
         /* EPSR reads as zero */
         return xpsr_read(env) & mask;
@@ -8749,10 +8750,10 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             uint32_t apsrmask = 0;
 
             if (mask & 8) {
-                apsrmask |= 0xf8000000; /* APSR NZCVQ */
+                apsrmask |= XPSR_NZCV | XPSR_Q;
             }
             if ((mask & 4) && arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
-                apsrmask |= 0x000f0000; /* APSR GE[3:0] */
+                apsrmask |= XPSR_GE;
             }
             xpsr_write(env, val, apsrmask);
         }
