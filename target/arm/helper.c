@@ -6138,7 +6138,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     bool rettobase = false;
 
     /* We can only get here from an EXCP_EXCEPTION_EXIT, and
-     * arm_v7m_do_unassigned_access() enforces the architectural rule
+     * gen_bx_excret() enforces the architectural rule
      * that jumps to magic addresses don't have magic behaviour unless
      * we're in Handler mode (compare pseudocode BXWritePC()).
      */
