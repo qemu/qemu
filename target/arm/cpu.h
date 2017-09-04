@@ -416,7 +416,7 @@ typedef struct CPUARMState {
         uint32_t dfsr; /* Debug Fault Status Register */
         uint32_t mmfar; /* MemManage Fault Address */
         uint32_t bfar; /* BusFault Address */
-        unsigned mpu_ctrl; /* MPU_CTRL (some bits kept in sctlr_el[1]) */
+        unsigned mpu_ctrl; /* MPU_CTRL */
         int exception;
     } v7m;
 
