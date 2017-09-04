@@ -1036,10 +1036,6 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
      *  0xd00..0xd3c - SCS registers
      *  0xd40..0xeff - Reserved or Not implemented
      *  0xf00 - STIR
-     *
-     * At the moment there is only one thing in the container region,
-     * but we leave it in place to allow us to pull systick out into
-     * its own device object later.
      */
     memory_region_init(&s->container, OBJECT(s), "nvic", 0x1000);
     /* The system register region goes at the bottom of the priority
