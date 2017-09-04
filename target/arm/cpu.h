@@ -418,6 +418,8 @@ typedef struct CPUARMState {
         uint32_t bfar; /* BusFault Address */
         unsigned mpu_ctrl; /* MPU_CTRL */
         int exception;
+        uint32_t primask;
+        uint32_t faultmask;
     } v7m;
 
     /* Information associated with an exception about to be taken:
@@ -2178,7 +2180,7 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
          * we're in a HardFault or NMI handler.
          */
         if ((env->v7m.exception > 0 && env->v7m.exception <= 3)
-            || env->daif & PSTATE_F) {
+            || env->v7m.faultmask) {
             return arm_to_core_mmu_idx(ARMMMUIdx_MNegPri);
         }
 

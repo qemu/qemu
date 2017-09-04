@@ -167,9 +167,9 @@ static inline int nvic_exec_prio(NVICState *s)
     CPUARMState *env = &s->cpu->env;
     int running;
 
-    if (env->daif & PSTATE_F) { /* FAULTMASK */
+    if (env->v7m.faultmask) {
         running = -1;
-    } else if (env->daif & PSTATE_I) { /* PRIMASK */
+    } else if (env->v7m.primask) {
         running = 0;
     } else if (env->v7m.basepri > 0) {
         running = env->v7m.basepri & nvic_gprio_mask(s);

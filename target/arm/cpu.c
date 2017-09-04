@@ -185,11 +185,6 @@ static void arm_cpu_reset(CPUState *s)
         uint32_t initial_pc; /* Loaded from 0x4 */
         uint8_t *rom;
 
-        /* For M profile we store FAULTMASK and PRIMASK in the
-         * PSTATE F and I bits; these are both clear at reset.
-         */
-        env->daif &= ~(PSTATE_I | PSTATE_F);
-
         /* The reset value of this bit is IMPDEF, but ARM recommends
          * that it resets to 1, so QEMU always does that rather than making
          * it dependent on CPU model.

@@ -97,6 +97,17 @@ static bool m_needed(void *opaque)
     return arm_feature(env, ARM_FEATURE_M);
 }
 
+static const VMStateDescription vmstate_m_faultmask_primask = {
+    .name = "cpu/m/faultmask-primask",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.faultmask, ARMCPU),
+        VMSTATE_UINT32(env.v7m.primask, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 4,
@@ -115,6 +126,10 @@ static const VMStateDescription vmstate_m = {
         VMSTATE_UINT32(env.v7m.mpu_ctrl, ARMCPU),
         VMSTATE_INT32(env.v7m.exception, ARMCPU),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_m_faultmask_primask,
+        NULL
     }
 };
 
@@ -200,6 +215,24 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
     uint32_t val = qemu_get_be32(f);
+
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        /* If the I or F bits are set then this is a migration from
+         * an old QEMU which still stored the M profile FAULTMASK
+         * and PRIMASK in env->daif. Set v7m.faultmask and v7m.primask
+         * accordingly, and then clear the bits so they don't confuse
+         * cpsr_write(). For a new QEMU, the bits here will always be
+         * clear, and the data is transferred using the
+         * vmstate_m_faultmask_primask subsection.
+         */
+        if (val & CPSR_F) {
+            env->v7m.faultmask = 1;
+        }
+        if (val & CPSR_I) {
+            env->v7m.primask = 1;
+        }
+        val &= ~(CPSR_F | CPSR_I);
+    }
 
     env->aarch64 = ((val & PSTATE_nRW) == 0);
 
