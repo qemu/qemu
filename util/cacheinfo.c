@@ -15,16 +15,7 @@ int qemu_dcache_linesize = 0;
  * Operating system specific detection mechanisms.
  */
 
-#if defined(_AIX)
-# include <sys/systemcfg.h>
-
-static void sys_cache_info(int *isize, int *dsize)
-{
-    *isize = _system_configuration.icache_line;
-    *dsize = _system_configuration.dcache_line;
-}
-
-#elif defined(_WIN32)
+#if defined(_WIN32)
 
 static void sys_cache_info(int *isize, int *dsize)
 {

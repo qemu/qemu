@@ -350,7 +350,6 @@ cocoa="no"
 softmmu="yes"
 linux_user="no"
 bsd_user="no"
-aix="no"
 blobs="yes"
 pkgversion=""
 pie=""
@@ -554,8 +553,6 @@ elif check_define __NetBSD__; then
   targetos='NetBSD'
 elif check_define __APPLE__; then
   targetos='Darwin'
-elif check_define _AIX; then
-  targetos='AIX'
 else
   # This is a fatal error, but don't report it yet, because we
   # might be going to just print the --help text, or it might
@@ -763,10 +760,6 @@ SunOS)
   solarisnetlibs="-lsocket -lnsl -lresolv"
   LIBS="$solarisnetlibs $LIBS"
   libs_qga="$solarisnetlibs $libs_qga"
-;;
-AIX)
-  aix="yes"
-  make="${MAKE-gmake}"
 ;;
 Haiku)
   haiku="yes"
@@ -4211,7 +4204,7 @@ elif compile_prog "" "$pthread_lib -lrt" ; then
 fi
 
 if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
-        "$aix" != "yes" -a "$haiku" != "yes" ; then
+        "$haiku" != "yes" ; then
     libs_softmmu="-lutil $libs_softmmu"
 fi
 
@@ -5518,10 +5511,6 @@ fi
 
 if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=y" >> $config_host_mak
-fi
-
-if test "$aix" = "yes" ; then
-  echo "CONFIG_AIX=y" >> $config_host_mak
 fi
 
 if test "$solaris" = "yes" ; then
