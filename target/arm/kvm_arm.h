@@ -195,7 +195,8 @@ int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
 
 int kvm_arm_vgic_probe(void);
 
-int kvm_arm_pmu_create(CPUState *cs, int irq);
+int kvm_arm_pmu_set_irq(CPUState *cs, int irq);
+int kvm_arm_pmu_init(CPUState *cs);
 
 #else
 
@@ -204,7 +205,12 @@ static inline int kvm_arm_vgic_probe(void)
     return 0;
 }
 
-static inline int kvm_arm_pmu_create(CPUState *cs, int irq)
+static inline int kvm_arm_pmu_set_irq(CPUState *cs, int irq)
+{
+    return 0;
+}
+
+static inline int kvm_arm_pmu_init(CPUState *cs)
 {
     return 0;
 }
