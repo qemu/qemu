@@ -31,8 +31,10 @@
 #include "hw/misc/zynq-xadc.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/error-report.h"
-#include "hw/sd/sd.h"
+#include "hw/sd/sdhci.h"
 #include "hw/char/cadence_uart.h"
+#include "hw/net/cadence_gem.h"
+#include "hw/cpu/a9mpcore.h"
 
 #define NUM_SPI_FLASHES 4
 #define NUM_QSPI_FLASHES 2
@@ -96,9 +98,9 @@ static void gem_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, "cadence_gem");
+    dev = qdev_create(NULL, TYPE_CADENCE_GEM);
     if (nd->used) {
-        qemu_check_nic_model(nd, "cadence_gem");
+        qemu_check_nic_model(nd, TYPE_CADENCE_GEM);
         qdev_set_nic_properties(dev, nd);
     }
     qdev_init_nofail(dev);
@@ -222,7 +224,7 @@ static void zynq_init(MachineState *machine)
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xF8000000);
 
-    dev = qdev_create(NULL, "a9mpcore_priv");
+    dev = qdev_create(NULL, TYPE_A9MPCORE_PRIV);
     qdev_prop_set_uint32(dev, "num-cpu", 1);
     qdev_init_nofail(dev);
     busdev = SYS_BUS_DEVICE(dev);
@@ -252,7 +254,7 @@ static void zynq_init(MachineState *machine)
     gem_init(&nd_table[0], 0xE000B000, pic[54-IRQ_OFFSET]);
     gem_init(&nd_table[1], 0xE000C000, pic[77-IRQ_OFFSET]);
 
-    dev = qdev_create(NULL, "generic-sdhci");
+    dev = qdev_create(NULL, TYPE_SYSBUS_SDHCI);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xE0100000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[56-IRQ_OFFSET]);
@@ -263,7 +265,7 @@ static void zynq_init(MachineState *machine)
     qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
     object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
 
-    dev = qdev_create(NULL, "generic-sdhci");
+    dev = qdev_create(NULL, TYPE_SYSBUS_SDHCI);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xE0101000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[79-IRQ_OFFSET]);

@@ -146,7 +146,7 @@ static void armv7m_instance_init(Object *obj)
                              &error_abort);
     memory_region_init(&s->container, obj, "armv7m-container", UINT64_MAX);
 
-    object_initialize(&s->nvic, sizeof(s->nvic), "armv7m_nvic");
+    object_initialize(&s->nvic, sizeof(s->nvic), TYPE_NVIC);
     qdev_set_parent_bus(DEVICE(&s->nvic), sysbus_get_default());
     object_property_add_alias(obj, "num-irq",
                               OBJECT(&s->nvic), "num-irq", &error_abort);
@@ -293,7 +293,7 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
         cpu_model = "cortex-m3";
     }
 
-    armv7m = qdev_create(NULL, "armv7m");
+    armv7m = qdev_create(NULL, TYPE_ARMV7M);
     qdev_prop_set_uint32(armv7m, "num-irq", num_irq);
     qdev_prop_set_string(armv7m, "cpu-model", cpu_model);
     object_property_set_link(OBJECT(armv7m), OBJECT(get_system_memory()),

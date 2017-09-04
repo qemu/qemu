@@ -33,7 +33,7 @@
 #include "hw/arm/arm.h"
 #include "hw/loader.h"
 #include "hw/arm/exynos4210.h"
-#include "hw/sd/sd.h"
+#include "hw/sd/sdhci.h"
 #include "hw/usb/hcd-ehci.h"
 
 #define EXYNOS4210_CHIPID_ADDR         0x10000000
@@ -381,7 +381,7 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem)
         BlockBackend *blk;
         DriveInfo *di;
 
-        dev = qdev_create(NULL, "generic-sdhci");
+        dev = qdev_create(NULL, TYPE_SYSBUS_SDHCI);
         qdev_prop_set_uint32(dev, "capareg", EXYNOS4210_SDHCI_CAPABILITIES);
         qdev_init_nofail(dev);
 

@@ -24,6 +24,8 @@
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
+#include "hw/cpu/a9mpcore.h"
+#include "hw/intc/realview_gic.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -172,7 +174,7 @@ static void realview_init(MachineState *machine,
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
     if (is_mpcore) {
-        dev = qdev_create(NULL, is_pb ? "a9mpcore_priv": "realview_mpcore");
+        dev = qdev_create(NULL, is_pb ? TYPE_A9MPCORE_PRIV : "realview_mpcore");
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         qdev_init_nofail(dev);
         busdev = SYS_BUS_DEVICE(dev);
@@ -186,7 +188,7 @@ static void realview_init(MachineState *machine,
     } else {
         uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
         /* For now just create the nIRQ GIC, and ignore the others.  */
-        dev = sysbus_create_simple("realview_gic", gic_addr, cpu_irq[0]);
+        dev = sysbus_create_simple(TYPE_REALVIEW_GIC, gic_addr, cpu_irq[0]);
     }
     for (n = 0; n < 64; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
