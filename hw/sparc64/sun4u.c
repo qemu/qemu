@@ -450,7 +450,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            &pci_bus3, &pbm_irqs);
     pci_vga_init(pci_bus);
 
-    // XXX Should be pci_bus3
+    /* XXX Should be pci_bus3 */
     ebus = pci_create_simple(pci_bus, -1, "ebus");
     isa_bus = pci_ebus_init(ebus, pbm_irqs);
 
@@ -492,7 +492,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     /* Map NVRAM into I/O (ebus) space */
     nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);
     s = SYS_BUS_DEVICE(nvram);
-    memory_region_add_subregion(get_system_io(), 0x2000,
+    memory_region_add_subregion(pci_address_space_io(ebus), 0x2000,
                                 sysbus_mmio_get_region(s, 0));
  
     initrd_size = 0;
@@ -514,10 +514,9 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     dev = qdev_create(NULL, TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(dev), NULL);
+    object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev), NULL);
     qdev_init_nofail(dev);
-    memory_region_add_subregion(get_system_io(), BIOS_CFG_IOPORT,
+    memory_region_add_subregion(pci_address_space_io(ebus), BIOS_CFG_IOPORT,
                                 &FW_CFG_IO(dev)->comb_iomem);
 
     fw_cfg = FW_CFG(dev);
