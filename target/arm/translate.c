@@ -9735,10 +9735,23 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         abort();
     case 4:
         if (insn & (1 << 22)) {
-            /* Other load/store, table branch.  */
+            /* 0b1110_100x_x1xx_xxxx_xxxx_xxxx_xxxx_xxxx
+             * - load/store doubleword, load/store exclusive, ldacq/strel,
+             *   table branch.
+             */
             if (insn & 0x01200000) {
-                /* Load/store doubleword.  */
+                /* 0b1110_1000_x11x_xxxx_xxxx_xxxx_xxxx_xxxx
+                 *  - load/store dual (post-indexed)
+                 * 0b1111_1001_x10x_xxxx_xxxx_xxxx_xxxx_xxxx
+                 *  - load/store dual (literal and immediate)
+                 * 0b1111_1001_x11x_xxxx_xxxx_xxxx_xxxx_xxxx
+                 *  - load/store dual (pre-indexed)
+                 */
                 if (rn == 15) {
+                    if (insn & (1 << 21)) {
+                        /* UNPREDICTABLE */
+                        goto illegal_op;
+                    }
                     addr = tcg_temp_new_i32();
                     tcg_gen_movi_i32(addr, s->pc & ~3);
                 } else {
@@ -9772,15 +9785,18 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                 }
                 if (insn & (1 << 21)) {
                     /* Base writeback.  */
-                    if (rn == 15)
-                        goto illegal_op;
                     tcg_gen_addi_i32(addr, addr, offset - 4);
                     store_reg(s, rn, addr);
                 } else {
                     tcg_temp_free_i32(addr);
                 }
             } else if ((insn & (1 << 23)) == 0) {
-                /* Load/store exclusive word.  */
+                /* 0b1110_1000_010x_xxxx_xxxx_xxxx_xxxx_xxxx
+                 * - load/store exclusive word
+                 */
+                if (rs == 15) {
+                    goto illegal_op;
+                }
                 addr = tcg_temp_local_new_i32();
                 load_reg_var(s, addr, rn);
                 tcg_gen_addi_i32(addr, addr, (insn & 0xff) << 2);
@@ -11137,7 +11153,9 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             break;
         }
         if (insn & (1 << 10)) {
-            /* data processing extended or blx */
+            /* 0b0100_01xx_xxxx_xxxx
+             * - data processing extended, branch and exchange
+             */
             rd = (insn & 7) | ((insn >> 4) & 8);
             rm = (insn >> 3) & 0xf;
             op = (insn >> 8) & 3;
@@ -11160,10 +11178,21 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                 tmp = load_reg(s, rm);
                 store_reg(s, rd, tmp);
                 break;
-            case 3:/* branch [and link] exchange thumb register */
-                tmp = load_reg(s, rm);
-                if (insn & (1 << 7)) {
+            case 3:
+            {
+                /* 0b0100_0111_xxxx_xxxx
+                 * - branch [and link] exchange thumb register
+                 */
+                bool link = insn & (1 << 7);
+
+                if (insn & 7) {
+                    goto undef;
+                }
+                if (link) {
                     ARCH(5);
+                }
+                tmp = load_reg(s, rm);
+                if (link) {
                     val = (uint32_t)s->pc | 1;
                     tmp2 = tcg_temp_new_i32();
                     tcg_gen_movi_i32(tmp2, val);
@@ -11174,6 +11203,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                     gen_bx_excret(s, tmp);
                 }
                 break;
+            }
             }
             break;
         }
