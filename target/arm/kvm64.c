@@ -387,30 +387,36 @@ static bool kvm_arm_pmu_set_attr(CPUState *cs, struct kvm_device_attr *attr)
 
     err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
     if (err != 0) {
+        error_report("PMU: KVM_HAS_DEVICE_ATTR: %s", strerror(-err));
         return false;
     }
 
     err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, attr);
-    if (err < 0) {
-        fprintf(stderr, "KVM_SET_DEVICE_ATTR failed: %s\n",
-                strerror(-err));
-        abort();
+    if (err != 0) {
+        error_report("PMU: KVM_SET_DEVICE_ATTR: %s", strerror(-err));
+        return false;
     }
 
     return true;
 }
 
-int kvm_arm_pmu_init(CPUState *cs)
+void kvm_arm_pmu_init(CPUState *cs)
 {
     struct kvm_device_attr attr = {
         .group = KVM_ARM_VCPU_PMU_V3_CTRL,
         .attr = KVM_ARM_VCPU_PMU_V3_INIT,
     };
 
-    return kvm_arm_pmu_set_attr(cs, &attr);
+    if (!ARM_CPU(cs)->has_pmu) {
+        return;
+    }
+    if (!kvm_arm_pmu_set_attr(cs, &attr)) {
+        error_report("failed to init PMU");
+        abort();
+    }
 }
 
-int kvm_arm_pmu_set_irq(CPUState *cs, int irq)
+void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
 {
     struct kvm_device_attr attr = {
         .group = KVM_ARM_VCPU_PMU_V3_CTRL,
@@ -418,7 +424,13 @@ int kvm_arm_pmu_set_irq(CPUState *cs, int irq)
         .attr = KVM_ARM_VCPU_PMU_V3_IRQ,
     };
 
-    return kvm_arm_pmu_set_attr(cs, &attr);
+    if (!ARM_CPU(cs)->has_pmu) {
+        return;
+    }
+    if (!kvm_arm_pmu_set_attr(cs, &attr)) {
+        error_report("failed to set irq for PMU");
+        abort();
+    }
 }
 
 static inline void set_feature(uint64_t *features, int feature)
