@@ -27,6 +27,8 @@ typedef struct AspeedWDTState {
     uint32_t regs[ASPEED_WDT_REGS_MAX];
 
     uint32_t pclk_freq;
+    uint32_t silicon_rev;
+    uint32_t ext_pulse_width_mask;
 } AspeedWDTState;
 
 #endif  /* ASPEED_WDT_H */
