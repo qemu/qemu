@@ -559,7 +559,7 @@ static uint64_t apb_config_readl (void *opaque,
 static const MemoryRegionOps apb_config_ops = {
     .read = apb_config_readl,
     .write = apb_config_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void apb_pci_config_write(void *opaque, hwaddr addr,
@@ -568,7 +568,6 @@ static void apb_pci_config_write(void *opaque, hwaddr addr,
     APBState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
-    val = qemu_bswap_len(val, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
     pci_data_write(phb->bus, addr, val, size);
 }
@@ -581,7 +580,6 @@ static uint64_t apb_pci_config_read(void *opaque, hwaddr addr,
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
     ret = pci_data_read(phb->bus, addr, size);
-    ret = qemu_bswap_len(ret, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, ret);
     return ret;
 }
@@ -743,7 +741,7 @@ static void pci_pbm_reset(DeviceState *d)
 static const MemoryRegionOps pci_config_ops = {
     .read = apb_pci_config_read,
     .write = apb_pci_config_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int pci_pbm_init_device(SysBusDevice *dev)
