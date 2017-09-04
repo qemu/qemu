@@ -496,7 +496,8 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
             return;
         }
         if (kvm_enabled()) {
-            if (!kvm_arm_pmu_set_irq(cpu, PPI(VIRTUAL_PMU_IRQ))) {
+            if (kvm_irqchip_in_kernel() &&
+                !kvm_arm_pmu_set_irq(cpu, PPI(VIRTUAL_PMU_IRQ))) {
                 return;
             }
             if (!kvm_arm_pmu_init(cpu)) {
