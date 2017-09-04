@@ -654,7 +654,7 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
 
 PCIBus *pci_apb_init(hwaddr special_base,
                      hwaddr mem_base,
-                     qemu_irq *ivec_irqs, PCIBus **bus2, PCIBus **bus3,
+                     qemu_irq *ivec_irqs, PCIBus **busA, PCIBus **busB,
                      qemu_irq **pbm_irqs)
 {
     DeviceState *dev;
@@ -705,18 +705,16 @@ PCIBus *pci_apb_init(hwaddr special_base,
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
                                    "pbm-bridge");
     br = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(br, "Advanced PCI Bus secondary bridge 1",
-                       pci_apb_map_irq);
+    pci_bridge_map_irq(br, "pciB", pci_apb_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
-    *bus2 = pci_bridge_get_sec_bus(br);
+    *busB = pci_bridge_get_sec_bus(br);
 
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
                                    "pbm-bridge");
     br = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(br, "Advanced PCI Bus secondary bridge 2",
-                       pci_apb_map_irq);
+    pci_bridge_map_irq(br, "pciA", pci_apb_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
-    *bus3 = pci_bridge_get_sec_bus(br);
+    *busA = pci_bridge_get_sec_bus(br);
 
     return phb->bus;
 }

@@ -426,7 +426,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
-    PCIBus *pci_bus, *pci_bus2, *pci_bus3;
+    PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus;
     ISABus *isa_bus;
     SysBusDevice *s;
@@ -446,11 +446,11 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     prom_init(hwdef->prom_addr, bios_name);
 
     ivec_irqs = qemu_allocate_irqs(sparc64_cpu_set_ivec_irq, cpu, IVEC_MAX);
-    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_bus2,
-                           &pci_bus3, &pbm_irqs);
+    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_busA,
+                           &pci_busB, &pbm_irqs);
     pci_vga_init(pci_bus);
 
-    /* XXX Should be pci_bus3 */
+    /* XXX Should be pci_busA */
     ebus = pci_create_simple(pci_bus, -1, "ebus");
     isa_bus = pci_ebus_init(ebus, pbm_irqs);
 
