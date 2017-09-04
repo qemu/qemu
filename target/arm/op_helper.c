@@ -80,7 +80,7 @@ uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
 
 static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
                                             unsigned int target_el,
-                                            bool same_el,
+                                            bool same_el, bool ea,
                                             bool s1ptw, bool is_write,
                                             int fsc)
 {
@@ -99,7 +99,7 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
      */
     if (!(template_syn & ARM_EL_ISV) || target_el != 2 || s1ptw) {
         syn = syn_data_abort_no_iss(same_el,
-                                    0, 0, s1ptw, is_write, fsc);
+                                    ea, 0, s1ptw, is_write, fsc);
     } else {
         /* Fields: IL, ISV, SAS, SSE, SRT, SF and AR come from the template
          * syndrome created at translation time.
@@ -107,7 +107,7 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
          */
         syn = syn_data_abort_with_iss(same_el,
                                       0, 0, 0, 0, 0,
-                                      0, 0, s1ptw, is_write, fsc,
+                                      ea, 0, s1ptw, is_write, fsc,
                                       false);
         /* Merge the runtime syndrome with the template syndrome.  */
         syn |= template_syn;
@@ -141,11 +141,11 @@ static void deliver_fault(ARMCPU *cpu, vaddr addr, MMUAccessType access_type,
     }
 
     if (access_type == MMU_INST_FETCH) {
-        syn = syn_insn_abort(same_el, 0, fi->s1ptw, fsc);
+        syn = syn_insn_abort(same_el, fi->ea, fi->s1ptw, fsc);
         exc = EXCP_PREFETCH_ABORT;
     } else {
         syn = merge_syn_data_abort(env->exception.syndrome, target_el,
-                                   same_el, fi->s1ptw,
+                                   same_el, fi->ea, fi->s1ptw,
                                    access_type == MMU_DATA_STORE,
                                    fsc);
         if (access_type == MMU_DATA_STORE

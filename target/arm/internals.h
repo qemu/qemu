@@ -448,12 +448,14 @@ void arm_handle_psci_call(ARMCPU *cpu);
  * @s2addr: Address that caused a fault at stage 2
  * @stage2: True if we faulted at stage 2
  * @s1ptw: True if we faulted at stage 2 while doing a stage 1 page-table walk
+ * @ea: True if we should set the EA (external abort type) bit in syndrome
  */
 typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
 struct ARMMMUFaultInfo {
     target_ulong s2addr;
     bool stage2;
     bool s1ptw;
+    bool ea;
 };
 
 /* Do a page table walk and add page to TLB if possible */
