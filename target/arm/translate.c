@@ -12215,8 +12215,6 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     int i;
-    uint32_t psr;
-    const char *ns_status;
 
     if (is_a64(env)) {
         aarch64_cpu_dump_state(cs, f, cpu_fprintf, flags);
@@ -12230,24 +12228,48 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         else
             cpu_fprintf(f, " ");
     }
-    psr = cpsr_read(env);
 
-    if (arm_feature(env, ARM_FEATURE_EL3) &&
-        (psr & CPSR_M) != ARM_CPU_MODE_MON) {
-        ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        uint32_t xpsr = xpsr_read(env);
+        const char *mode;
+
+        if (xpsr & XPSR_EXCP) {
+            mode = "handler";
+        } else {
+            if (env->v7m.control & R_V7M_CONTROL_NPRIV_MASK) {
+                mode = "unpriv-thread";
+            } else {
+                mode = "priv-thread";
+            }
+        }
+
+        cpu_fprintf(f, "XPSR=%08x %c%c%c%c %c %s\n",
+                    xpsr,
+                    xpsr & XPSR_N ? 'N' : '-',
+                    xpsr & XPSR_Z ? 'Z' : '-',
+                    xpsr & XPSR_C ? 'C' : '-',
+                    xpsr & XPSR_V ? 'V' : '-',
+                    xpsr & XPSR_T ? 'T' : 'A',
+                    mode);
     } else {
-        ns_status = "";
-    }
+        uint32_t psr = cpsr_read(env);
+        const char *ns_status = "";
 
-    cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%s%d\n",
-                psr,
-                psr & (1 << 31) ? 'N' : '-',
-                psr & (1 << 30) ? 'Z' : '-',
-                psr & (1 << 29) ? 'C' : '-',
-                psr & (1 << 28) ? 'V' : '-',
-                psr & CPSR_T ? 'T' : 'A',
-                ns_status,
-                cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
+        if (arm_feature(env, ARM_FEATURE_EL3) &&
+            (psr & CPSR_M) != ARM_CPU_MODE_MON) {
+            ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
+        }
+
+        cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%s%d\n",
+                    psr,
+                    psr & CPSR_N ? 'N' : '-',
+                    psr & CPSR_Z ? 'Z' : '-',
+                    psr & CPSR_C ? 'C' : '-',
+                    psr & CPSR_V ? 'V' : '-',
+                    psr & CPSR_T ? 'T' : 'A',
+                    ns_status,
+                    cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
+    }
 
     if (flags & CPU_DUMP_FPU) {
         int numvfpregs = 0;
