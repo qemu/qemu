@@ -1162,6 +1162,8 @@ int main(int argc, char **argv)
 
     process_requests(sock);
 error:
+    g_free(rpath);
+    g_free(sock_name);
     do_log(LOG_INFO, "Done\n");
     closelog();
     return 0;

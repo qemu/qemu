@@ -349,11 +349,11 @@ static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
         return -1;
     }
 
-    /* Access modes are ignored when O_PATH is supported. We try O_RDONLY and
-     * O_WRONLY for old-systems that don't support O_PATH.
-     */
-    fd = openat_file(dirfd, name, O_RDONLY | O_PATH_9P_UTIL, 0);
+    fd = openat_file(dirfd, name, O_RDONLY | O_PATH_9P_UTIL | O_NOFOLLOW, 0);
 #if O_PATH_9P_UTIL == 0
+    /* Fallback for systems that don't support O_PATH: we depend on the file
+     * being readable or writable.
+     */
     if (fd == -1) {
         /* In case the file is writable-only and isn't a directory. */
         if (errno == EACCES) {
@@ -368,6 +368,10 @@ static int fchmodat_nofollow(int dirfd, const char *name, mode_t mode)
     }
     ret = fchmod(fd, mode);
 #else
+    /* Access modes are ignored when O_PATH is supported. If name is a symbolic
+     * link, O_PATH | O_NOFOLLOW causes openat(2) to return a file descriptor
+     * referring to the symbolic link.
+     */
     if (fd == -1) {
         return -1;
     }
