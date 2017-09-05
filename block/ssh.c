@@ -678,7 +678,7 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
 
     /* Open the socket and connect. */
-    s->sock = inet_connect_saddr(s->inet, NULL, NULL, errp);
+    s->sock = inet_connect_saddr(s->inet, errp);
     if (s->sock < 0) {
         ret = -EIO;
         goto err;

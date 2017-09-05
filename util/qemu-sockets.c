@@ -300,78 +300,11 @@ listen:
     ((rc) == -EINPROGRESS)
 #endif
 
-/* Struct to store connect state for non blocking connect */
-typedef struct ConnectState {
-    int fd;
-    struct addrinfo *addr_list;
-    struct addrinfo *current_addr;
-    NonBlockingConnectHandler *callback;
-    void *opaque;
-} ConnectState;
+static int inet_connect_addr(struct addrinfo *addr, Error **errp);
 
-static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
-                             ConnectState *connect_state, Error **errp);
-
-static void wait_for_connect(void *opaque)
-{
-    ConnectState *s = opaque;
-    int val = 0, rc = 0;
-    socklen_t valsize = sizeof(val);
-    bool in_progress;
-    Error *err = NULL;
-
-    qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
-
-    do {
-        rc = qemu_getsockopt(s->fd, SOL_SOCKET, SO_ERROR, &val, &valsize);
-    } while (rc == -1 && errno == EINTR);
-
-    /* update rc to contain error */
-    if (!rc && val) {
-        rc = -1;
-        errno = val;
-    }
-
-    /* connect error */
-    if (rc < 0) {
-        error_setg_errno(&err, errno, "Error connecting to socket");
-        closesocket(s->fd);
-        s->fd = rc;
-    }
-
-    /* try to connect to the next address on the list */
-    if (s->current_addr) {
-        while (s->current_addr->ai_next != NULL && s->fd < 0) {
-            s->current_addr = s->current_addr->ai_next;
-            s->fd = inet_connect_addr(s->current_addr, &in_progress, s, NULL);
-            if (s->fd < 0) {
-                error_free(err);
-                err = NULL;
-                error_setg_errno(&err, errno, "Unable to start socket connect");
-            }
-            /* connect in progress */
-            if (in_progress) {
-                goto out;
-            }
-        }
-
-        freeaddrinfo(s->addr_list);
-    }
-
-    if (s->callback) {
-        s->callback(s->fd, err, s->opaque);
-    }
-    g_free(s);
-out:
-    error_free(err);
-}
-
-static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
-                             ConnectState *connect_state, Error **errp)
+static int inet_connect_addr(struct addrinfo *addr, Error **errp)
 {
     int sock, rc;
-
-    *in_progress = false;
 
     sock = qemu_socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sock < 0) {
@@ -379,9 +312,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
         return -1;
     }
     socket_set_fast_reuse(sock);
-    if (connect_state != NULL) {
-        qemu_set_nonblock(sock);
-    }
+
     /* connect to peer */
     do {
         rc = 0;
@@ -390,15 +321,12 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
         }
     } while (rc == -EINTR);
 
-    if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
-        connect_state->fd = sock;
-        qemu_set_fd_handler(sock, NULL, wait_for_connect, connect_state);
-        *in_progress = true;
-    } else if (rc < 0) {
+    if (rc < 0) {
         error_setg_errno(errp, errno, "Failed to connect socket");
         closesocket(sock);
         return -1;
     }
+
     return sock;
 }
 
@@ -456,44 +384,24 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
  *
  * @saddr: Inet socket address specification
  * @errp: set on error
- * @callback: callback function for non-blocking connect
- * @opaque: opaque for callback function
  *
  * Returns: -1 on error, file descriptor on success.
- *
- * If @callback is non-null, the connect is non-blocking.  If this
- * function succeeds, callback will be called when the connection
- * completes, with the file descriptor on success, or -1 on error.
  */
-int inet_connect_saddr(InetSocketAddress *saddr,
-                       NonBlockingConnectHandler *callback, void *opaque,
-                       Error **errp)
+int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
 {
     Error *local_err = NULL;
     struct addrinfo *res, *e;
     int sock = -1;
-    bool in_progress;
-    ConnectState *connect_state = NULL;
 
     res = inet_parse_connect_saddr(saddr, errp);
     if (!res) {
         return -1;
     }
 
-    if (callback != NULL) {
-        connect_state = g_malloc0(sizeof(*connect_state));
-        connect_state->addr_list = res;
-        connect_state->callback = callback;
-        connect_state->opaque = opaque;
-    }
-
     for (e = res; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
-        if (connect_state != NULL) {
-            connect_state->current_addr = e;
-        }
-        sock = inet_connect_addr(e, &in_progress, connect_state, &local_err);
+        sock = inet_connect_addr(e, &local_err);
         if (sock >= 0) {
             break;
         }
@@ -501,15 +409,8 @@ int inet_connect_saddr(InetSocketAddress *saddr,
 
     if (sock < 0) {
         error_propagate(errp, local_err);
-    } else if (in_progress) {
-        /* wait_for_connect() will do the rest */
-        return sock;
-    } else {
-        if (callback) {
-            callback(sock, NULL, opaque);
-        }
     }
-    g_free(connect_state);
+
     freeaddrinfo(res);
     return sock;
 }
@@ -688,7 +589,7 @@ int inet_connect(const char *str, Error **errp)
     InetSocketAddress *addr = g_new(InetSocketAddress, 1);
 
     if (!inet_parse(addr, str, errp)) {
-        sock = inet_connect_saddr(addr, NULL, NULL, errp);
+        sock = inet_connect_saddr(addr, errp);
     }
     qapi_free_InetSocketAddress(addr);
     return sock;
@@ -721,21 +622,16 @@ static bool vsock_parse_vaddr_to_sockaddr(const VsockSocketAddress *vaddr,
     return true;
 }
 
-static int vsock_connect_addr(const struct sockaddr_vm *svm, bool *in_progress,
-                              ConnectState *connect_state, Error **errp)
+static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
 {
     int sock, rc;
-
-    *in_progress = false;
 
     sock = qemu_socket(AF_VSOCK, SOCK_STREAM, 0);
     if (sock < 0) {
         error_setg_errno(errp, errno, "Failed to create socket");
         return -1;
     }
-    if (connect_state != NULL) {
-        qemu_set_nonblock(sock);
-    }
+
     /* connect to peer */
     do {
         rc = 0;
@@ -744,50 +640,26 @@ static int vsock_connect_addr(const struct sockaddr_vm *svm, bool *in_progress,
         }
     } while (rc == -EINTR);
 
-    if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
-        connect_state->fd = sock;
-        qemu_set_fd_handler(sock, NULL, wait_for_connect, connect_state);
-        *in_progress = true;
-    } else if (rc < 0) {
+    if (rc < 0) {
         error_setg_errno(errp, errno, "Failed to connect socket");
         closesocket(sock);
         return -1;
     }
+
     return sock;
 }
 
-static int vsock_connect_saddr(VsockSocketAddress *vaddr,
-                               NonBlockingConnectHandler *callback,
-                               void *opaque,
-                               Error **errp)
+static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
 {
     struct sockaddr_vm svm;
     int sock = -1;
-    bool in_progress;
-    ConnectState *connect_state = NULL;
 
     if (!vsock_parse_vaddr_to_sockaddr(vaddr, &svm, errp)) {
         return -1;
     }
 
-    if (callback != NULL) {
-        connect_state = g_malloc0(sizeof(*connect_state));
-        connect_state->callback = callback;
-        connect_state->opaque = opaque;
-    }
+    sock = vsock_connect_addr(&svm, errp);
 
-    sock = vsock_connect_addr(&svm, &in_progress, connect_state, errp);
-    if (sock < 0) {
-        /* do nothing */
-    } else if (in_progress) {
-        /* wait_for_connect() will do the rest */
-        return sock;
-    } else {
-        if (callback) {
-            callback(sock, NULL, opaque);
-        }
-    }
-    g_free(connect_state);
     return sock;
 }
 
@@ -847,9 +719,7 @@ static void vsock_unsupported(Error **errp)
     error_setg(errp, "socket family AF_VSOCK unsupported");
 }
 
-static int vsock_connect_saddr(VsockSocketAddress *vaddr,
-                               NonBlockingConnectHandler *callback,
-                               void *opaque, Error **errp)
+static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
 {
     vsock_unsupported(errp);
     return -1;
@@ -952,12 +822,9 @@ err:
     return -1;
 }
 
-static int unix_connect_saddr(UnixSocketAddress *saddr,
-                              NonBlockingConnectHandler *callback, void *opaque,
-                              Error **errp)
+static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 {
     struct sockaddr_un un;
-    ConnectState *connect_state = NULL;
     int sock, rc;
 
     if (saddr->path == NULL) {
@@ -969,12 +836,6 @@ static int unix_connect_saddr(UnixSocketAddress *saddr,
     if (sock < 0) {
         error_setg_errno(errp, errno, "Failed to create socket");
         return -1;
-    }
-    if (callback != NULL) {
-        connect_state = g_malloc0(sizeof(*connect_state));
-        connect_state->callback = callback;
-        connect_state->opaque = opaque;
-        qemu_set_nonblock(sock);
     }
 
     if (strlen(saddr->path) > sizeof(un.sun_path)) {
@@ -996,29 +857,16 @@ static int unix_connect_saddr(UnixSocketAddress *saddr,
         }
     } while (rc == -EINTR);
 
-    if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
-        connect_state->fd = sock;
-        qemu_set_fd_handler(sock, NULL, wait_for_connect, connect_state);
-        return sock;
-    } else if (rc >= 0) {
-        /* non blocking socket immediate success, call callback */
-        if (callback != NULL) {
-            callback(sock, NULL, opaque);
-        }
-    }
-
     if (rc < 0) {
         error_setg_errno(errp, -rc, "Failed to connect socket %s",
                          saddr->path);
         goto err;
     }
 
-    g_free(connect_state);
     return sock;
 
  err:
     close(sock);
-    g_free(connect_state);
     return -1;
 }
 
@@ -1033,9 +881,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     return -1;
 }
 
-static int unix_connect_saddr(UnixSocketAddress *saddr,
-                              NonBlockingConnectHandler *callback, void *opaque,
-                              Error **errp)
+static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 {
     error_setg(errp, "unix sockets are not available on windows");
     errno = ENOTSUP;
@@ -1081,7 +927,7 @@ int unix_connect(const char *path, Error **errp)
 
     saddr = g_new0(UnixSocketAddress, 1);
     saddr->path = g_strdup(path);
-    sock = unix_connect_saddr(saddr, NULL, NULL, errp);
+    sock = unix_connect_saddr(saddr, errp);
     qapi_free_UnixSocketAddress(saddr);
     return sock;
 }
@@ -1126,30 +972,25 @@ fail:
     return NULL;
 }
 
-int socket_connect(SocketAddress *addr, NonBlockingConnectHandler *callback,
-                   void *opaque, Error **errp)
+int socket_connect(SocketAddress *addr, Error **errp)
 {
     int fd;
 
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        fd = inet_connect_saddr(&addr->u.inet, callback, opaque, errp);
+        fd = inet_connect_saddr(&addr->u.inet, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_UNIX:
-        fd = unix_connect_saddr(&addr->u.q_unix, callback, opaque, errp);
+        fd = unix_connect_saddr(&addr->u.q_unix, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
         fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
-        if (fd >= 0 && callback) {
-            qemu_set_nonblock(fd);
-            callback(fd, NULL, opaque);
-        }
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
-        fd = vsock_connect_saddr(&addr->u.vsock, callback, opaque, errp);
+        fd = vsock_connect_saddr(&addr->u.vsock, errp);
         break;
 
     default:
