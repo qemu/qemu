@@ -19,66 +19,65 @@
 #
 # Non-shared storage migration test using NBD server and drive-mirror
 
-import os
-import atexit
 import iotests
 
 iotests.verify_platform(['linux'])
 
-img_size = '1G'
-source_img_path = os.path.join(iotests.test_dir, 'source.img')
-dest_img_path = os.path.join(iotests.test_dir, 'dest.img')
-iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, source_img_path, img_size)
-iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, dest_img_path, img_size)
+with iotests.FilePath('source.img') as source_img_path, \
+     iotests.FilePath('dest.img') as dest_img_path, \
+     iotests.FilePath('migration.sock') as migration_sock_path, \
+     iotests.FilePath('nbd.sock') as nbd_sock_path, \
+     iotests.VM('source') as source_vm, \
+     iotests.VM('dest') as dest_vm:
 
-iotests.log('Launching VMs...')
-migration_sock_path = os.path.join(iotests.test_dir, 'migration.sock')
-nbd_sock_path = os.path.join(iotests.test_dir, 'nbd.sock')
-source_vm = iotests.VM('source').add_drive(source_img_path)
-dest_vm = (iotests.VM('dest').add_drive(dest_img_path)
-                             .add_incoming('unix:{0}'.format(migration_sock_path)))
-source_vm.launch()
-atexit.register(source_vm.shutdown)
-dest_vm.launch()
-atexit.register(dest_vm.shutdown)
+    img_size = '1G'
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, source_img_path, img_size)
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, dest_img_path, img_size)
 
-iotests.log('Launching NBD server on destination...')
-iotests.log(dest_vm.qmp('nbd-server-start', addr={'type': 'unix', 'data': {'path': nbd_sock_path}}))
-iotests.log(dest_vm.qmp('nbd-server-add', device='drive0', writable=True))
+    iotests.log('Launching VMs...')
+    (source_vm.add_drive(source_img_path)
+              .launch())
+    (dest_vm.add_drive(dest_img_path)
+            .add_incoming('unix:{0}'.format(migration_sock_path))
+            .launch())
 
-iotests.log('Starting `drive-mirror` on source...')
-iotests.log(source_vm.qmp(
-              'drive-mirror',
-              device='drive0',
-              target='nbd+unix:///drive0?socket={0}'.format(nbd_sock_path),
-              sync='full',
-              format='raw', # always raw, the server handles the format
-              mode='existing',
-              job_id='mirror-job0'))
+    iotests.log('Launching NBD server on destination...')
+    iotests.log(dest_vm.qmp('nbd-server-start', addr={'type': 'unix', 'data': {'path': nbd_sock_path}}))
+    iotests.log(dest_vm.qmp('nbd-server-add', device='drive0', writable=True))
 
-iotests.log('Waiting for `drive-mirror` to complete...')
-iotests.log(source_vm.event_wait('BLOCK_JOB_READY'),
-            filters=[iotests.filter_qmp_event])
+    iotests.log('Starting `drive-mirror` on source...')
+    iotests.log(source_vm.qmp(
+                  'drive-mirror',
+                  device='drive0',
+                  target='nbd+unix:///drive0?socket={0}'.format(nbd_sock_path),
+                  sync='full',
+                  format='raw', # always raw, the server handles the format
+                  mode='existing',
+                  job_id='mirror-job0'))
 
-iotests.log('Starting migration...')
-source_vm.qmp('migrate-set-capabilities',
-              capabilities=[{'capability': 'events', 'state': True}])
-dest_vm.qmp('migrate-set-capabilities',
-            capabilities=[{'capability': 'events', 'state': True}])
-iotests.log(source_vm.qmp('migrate', uri='unix:{0}'.format(migration_sock_path)))
+    iotests.log('Waiting for `drive-mirror` to complete...')
+    iotests.log(source_vm.event_wait('BLOCK_JOB_READY'),
+                filters=[iotests.filter_qmp_event])
 
-while True:
-    event1 = source_vm.event_wait('MIGRATION')
-    iotests.log(event1, filters=[iotests.filter_qmp_event])
-    if event1['data']['status'] in ('completed', 'failed'):
-        iotests.log('Gracefully ending the `drive-mirror` job on source...')
-        iotests.log(source_vm.qmp('block-job-cancel', device='mirror-job0'))
-        break
+    iotests.log('Starting migration...')
+    source_vm.qmp('migrate-set-capabilities',
+                  capabilities=[{'capability': 'events', 'state': True}])
+    dest_vm.qmp('migrate-set-capabilities',
+                capabilities=[{'capability': 'events', 'state': True}])
+    iotests.log(source_vm.qmp('migrate', uri='unix:{0}'.format(migration_sock_path)))
 
-while True:
-    event2 = source_vm.event_wait('BLOCK_JOB_COMPLETED')
-    iotests.log(event2, filters=[iotests.filter_qmp_event])
-    if event2['event'] == 'BLOCK_JOB_COMPLETED':
-        iotests.log('Stopping the NBD server on destination...')
-        iotests.log(dest_vm.qmp('nbd-server-stop'))
-        break
+    while True:
+        event1 = source_vm.event_wait('MIGRATION')
+        iotests.log(event1, filters=[iotests.filter_qmp_event])
+        if event1['data']['status'] in ('completed', 'failed'):
+            iotests.log('Gracefully ending the `drive-mirror` job on source...')
+            iotests.log(source_vm.qmp('block-job-cancel', device='mirror-job0'))
+            break
+
+    while True:
+        event2 = source_vm.event_wait('BLOCK_JOB_COMPLETED')
+        iotests.log(event2, filters=[iotests.filter_qmp_event])
+        if event2['event'] == 'BLOCK_JOB_COMPLETED':
+            iotests.log('Stopping the NBD server on destination...')
+            iotests.log(dest_vm.qmp('nbd-server-stop'))
+            break
