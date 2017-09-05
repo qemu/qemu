@@ -925,8 +925,6 @@ for opt do
   ;;
   --with-system-pixman) pixman="system"
   ;;
-  --without-system-pixman) pixman="internal"
-  ;;
   --without-pixman) pixman="none"
   ;;
   --disable-sdl) sdl="no"
@@ -3300,8 +3298,6 @@ if test "$pixman" = ""; then
     pixman="none"
   elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
     pixman="system"
-  else
-    pixman="internal"
   fi
 fi
 if test "$pixman" = "none"; then
@@ -3318,16 +3314,8 @@ elif test "$pixman" = "system"; then
   pixman_cflags=$($pkg_config --cflags pixman-1)
   pixman_libs=$($pkg_config --libs pixman-1)
 else
-  if test ! -d ${source_path}/pixman/pixman; then
-    error_exit "pixman >= 0.21.8 not present. Your options:" \
-        "  (1) Preferred: Install the pixman devel package (any recent" \
-        "      distro should have packages as Xorg needs pixman too)." \
-        "  (2) Fetch the pixman submodule, using:" \
-        "      git submodule update --init pixman"
-  fi
-  mkdir -p pixman/pixman
-  pixman_cflags="-I\$(SRC_PATH)/pixman/pixman -I\$(BUILD_DIR)/pixman/pixman"
-  pixman_libs="-L\$(BUILD_DIR)/pixman/pixman/.libs -lpixman-1"
+  error_exit "pixman >= 0.21.8 not present." \
+      "Please install the pixman devel package."
 fi
 
 ##########################################
@@ -6528,10 +6516,6 @@ echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 
 done # for target in $targets
-
-if [ "$pixman" = "internal" ]; then
-  echo "config-host.h: subdir-pixman" >> $config_host_mak
-fi
 
 if [ "$dtc_internal" = "yes" ]; then
   echo "config-host.h: subdir-dtc" >> $config_host_mak
