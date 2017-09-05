@@ -85,28 +85,14 @@
 static inline int nbd_read_eof(QIOChannel *ioc, void *buffer, size_t size,
                                Error **errp)
 {
-    struct iovec iov = { .iov_base = buffer, .iov_len = size };
-    ssize_t ret;
-
-    /* Sockets are kept in blocking mode in the negotiation phase.  After
-     * that, a non-readable socket simply means that another thread stole
-     * our request/reply.  Synchronization is done with recv_coroutine, so
-     * that this is coroutine-safe.
-     */
+    int ret;
 
     assert(size);
-
-    ret = nbd_rwv(ioc, &iov, 1, size, true, errp);
-    if (ret <= 0) {
-        return ret;
+    ret = qio_channel_read_all_eof(ioc, buffer, size, errp);
+    if (ret < 0) {
+        ret = -EIO;
     }
-
-    if (ret != size) {
-        error_setg(errp, "End of file");
-        return -EINVAL;
-    }
-
-    return 1;
+    return ret;
 }
 
 /* nbd_read
@@ -115,14 +101,7 @@ static inline int nbd_read_eof(QIOChannel *ioc, void *buffer, size_t size,
 static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
                            Error **errp)
 {
-    int ret = nbd_read_eof(ioc, buffer, size, errp);
-
-    if (ret == 0) {
-        ret = -EINVAL;
-        error_setg(errp, "End of file");
-    }
-
-    return ret < 0 ? ret : 0;
+    return qio_channel_read_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
 }
 
 /* nbd_write
@@ -131,13 +110,7 @@ static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
 static inline int nbd_write(QIOChannel *ioc, const void *buffer, size_t size,
                             Error **errp)
 {
-    struct iovec iov = { .iov_base = (void *) buffer, .iov_len = size };
-
-    ssize_t ret = nbd_rwv(ioc, &iov, 1, size, false, errp);
-
-    assert(ret < 0 || ret == size);
-
-    return ret < 0 ? ret : 0;
+    return qio_channel_write_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
 }
 
 struct NBDTLSHandshakeData {

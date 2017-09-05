@@ -121,7 +121,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
                                QEMUIOVector *qiov)
 {
     NBDClientSession *s = nbd_get_client_session(bs);
-    int rc, ret, i;
+    int rc, i;
 
     qemu_co_mutex_lock(&s->send_mutex);
     while (s->in_flight == MAX_NBD_REQUESTS) {
@@ -156,9 +156,9 @@ static int nbd_co_send_request(BlockDriverState *bs,
         qio_channel_set_cork(s->ioc, true);
         rc = nbd_send_request(s->ioc, request);
         if (rc >= 0 && !s->quit) {
-            ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, false,
-                          NULL);
-            if (ret != request->len) {
+            assert(request->len == iov_size(qiov->iov, qiov->niov));
+            if (qio_channel_writev_all(s->ioc, qiov->iov, qiov->niov,
+                                       NULL) < 0) {
                 rc = -EIO;
             }
         }
@@ -184,7 +184,6 @@ static void nbd_co_receive_reply(NBDClientSession *s,
                                  QEMUIOVector *qiov)
 {
     int i = HANDLE_TO_INDEX(s, request->handle);
-    int ret;
 
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     s->requests[i].receiving = true;
@@ -195,9 +194,9 @@ static void nbd_co_receive_reply(NBDClientSession *s,
         reply->error = EIO;
     } else {
         if (qiov && reply->error == 0) {
-            ret = nbd_rwv(s->ioc, qiov->iov, qiov->niov, request->len, true,
-                          NULL);
-            if (ret != request->len) {
+            assert(request->len == iov_size(qiov->iov, qiov->niov));
+            if (qio_channel_readv_all(s->ioc, qiov->iov, qiov->niov,
+                                      NULL) < 0) {
                 reply->error = EIO;
                 s->quit = true;
             }
