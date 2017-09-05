@@ -30,6 +30,5 @@ build_qemu()
                  $@"
     echo "Configure options:"
     echo $config_opts
-    $QEMU_SRC/configure $config_opts
-    make $MAKEFLAGS
+    $QEMU_SRC/configure $config_opts && make $MAKEFLAGS
 }
