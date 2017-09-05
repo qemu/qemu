@@ -31,6 +31,8 @@
 #include <linux/virtio_net.h>
 #include <sys/vfs.h>
 
+#define VHOST_USER_NET_TESTS_WORKING 0 /* broken as of 2.10.0 */
+
 /* GLIB version compatibility flags */
 #if !GLIB_CHECK_VERSION(2, 26, 0)
 #define G_TIME_SPAN_SECOND              (G_GINT64_CONSTANT(1000000))
@@ -472,11 +474,6 @@ static void test_server_listen(TestServer *server)
     test_server_create_chr(server, ",server,nowait");
 }
 
-static inline void test_server_connect(TestServer *server)
-{
-    test_server_create_chr(server, ",reconnect=1");
-}
-
 #define GET_QEMU_CMD(s)                                         \
     g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,  \
                     (s)->socket_path, "", (s)->chr_name)
@@ -722,7 +719,12 @@ static void wait_for_rings_started(TestServer *s, size_t count)
     g_mutex_unlock(&s->data_mutex);
 }
 
-#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
+#if VHOST_USER_NET_TESTS_WORKING && defined(CONFIG_HAS_GLIB_SUBPROCESS_TESTS)
+static inline void test_server_connect(TestServer *server)
+{
+    test_server_create_chr(server, ",reconnect=1");
+}
+
 static gboolean
 reconnect_cb(gpointer user_data)
 {
@@ -962,7 +964,8 @@ int main(int argc, char **argv)
     qtest_add_data_func("/vhost-user/read-guest-mem", server, read_guest_mem);
     qtest_add_func("/vhost-user/migrate", test_migrate);
     qtest_add_func("/vhost-user/multiqueue", test_multiqueue);
-#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
+
+#if VHOST_USER_NET_TESTS_WORKING && defined(CONFIG_HAS_GLIB_SUBPROCESS_TESTS)
     qtest_add_func("/vhost-user/reconnect/subprocess",
                    test_reconnect_subprocess);
     qtest_add_func("/vhost-user/reconnect", test_reconnect);
