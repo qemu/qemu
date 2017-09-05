@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 #
 # Docker test runner
 #
@@ -11,8 +11,6 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
-set -e
-
 if test -n "$V"; then
     set -x
 fi
@@ -20,7 +18,7 @@ fi
 BASE="$(dirname $(readlink -e $0))"
 
 # Prepare the environment
-. /etc/profile || true
+. /etc/profile
 export PATH=/usr/lib/ccache:$PATH
 
 if test -n "$J"; then
@@ -32,7 +30,7 @@ export TEST_DIR=/tmp/qemu-test
 mkdir -p $TEST_DIR/{src,build,install}
 
 # Extract the source tarballs
-tar -C $TEST_DIR/src -xf $BASE/qemu.tar
+tar -C $TEST_DIR/src -xf $BASE/qemu.tar || prep_fail "Failed to untar source"
 
 if test -n "$SHOW_ENV"; then
     if test -f /packages.txt; then
