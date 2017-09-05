@@ -240,6 +240,7 @@ static void vmgenid_device_class_init(ObjectClass *klass, void *data)
     dc->realize = vmgenid_realize;
     dc->hotpluggable = false;
     dc->props = vmgenid_properties;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 
     object_class_property_add_str(klass, VMGENID_GUID, NULL,
                                   vmgenid_set_guid, NULL);
