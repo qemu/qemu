@@ -70,7 +70,8 @@ S390pciState *s390_get_phb(void)
     return NULL;
 }
 
-S390PCIBusDevice *s390_pci_find_dev_by_idx(S390pciState *s, uint32_t idx)
+S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
+                                              const char *target)
 {
     return NULL;
 }
