@@ -32,3 +32,15 @@ build_qemu()
     echo $config_opts
     $QEMU_SRC/configure $config_opts && make $MAKEFLAGS
 }
+
+test_fail()
+{
+    echo "$@"
+    exit 1
+}
+
+prep_fail()
+{
+    echo "$@"
+    exit 2
+}
