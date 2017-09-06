@@ -278,3 +278,47 @@ spapr_vlan_h_send_logical_lan(uint64_t reg, uint64_t continue_token) "H_SEND_LOG
 spapr_vlan_h_send_logical_lan_rxbufs(uint32_t rx_bufs) "rxbufs = %"PRIu32
 spapr_vlan_h_send_logical_lan_buf_desc(uint64_t buf) "   buf desc: 0x%"PRIx64
 spapr_vlan_h_send_logical_lan_total(int nbufs, unsigned total_len) "%d buffers, total length 0x%x"
+
+# hw/net/sungem.c
+sungem_tx_checksum(uint16_t start, uint16_t off) "TX checksumming from byte %d, inserting at %d"
+sungem_tx_checksum_oob(void) "TX checksum out of packet bounds"
+sungem_tx_unfinished(void) "TX packet started without finishing the previous one"
+sungem_tx_overflow(void) "TX packet queue overflow"
+sungem_tx_finished(uint32_t size) "TX completing %"PRIu32 " bytes packet"
+sungem_tx_kick(void) "TX Kick..."
+sungem_tx_disabled(void) "TX not enabled"
+sungem_tx_process(uint32_t comp, uint32_t kick, uint32_t size) "TX processing comp=%"PRIu32", kick=%"PRIu32" out of %"PRIu32
+sungem_tx_desc(uint32_t comp, uint64_t control, uint64_t buffer) "TX desc %"PRIu32 ": 0x%"PRIx64" 0x%"PRIx64
+sungem_tx_reset(void) "TX reset"
+sungem_rx_mac_disabled(void) "Check RX MAC disabled"
+sungem_rx_txdma_disabled(void) "Check RX TXDMA disabled"
+sungem_rx_check(bool full, uint32_t kick, uint32_t done) "Check RX %d (kick=%"PRIu32", done=%"PRIu32")"
+sungem_rx_mac_check(uint32_t mac0, uint32_t mac1, uint32_t mac2) "Word MAC: 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32
+sungem_rx_mac_multicast(void) "Multicast"
+sungem_rx_mac_compare(uint32_t mac0, uint32_t mac1, uint32_t mac2) "Compare MAC to 0x%"PRIx32" 0x%"PRIx32" 0x%"PRIx32".."
+sungem_rx_packet(size_t size) "RX got %zu bytes packet"
+sungem_rx_disabled(void) "RX not enabled"
+sungem_rx_bad_frame_size(size_t size) "RX bad frame size %zu, dropped"
+sungem_rx_unmatched(void) "No match, dropped"
+sungem_rx_process(uint32_t done, uint32_t kick, uint32_t size) "RX processing done=%"PRIu32", kick=%"PRIu32" out of %"PRIu32
+sungem_rx_ringfull(void) "RX ring full"
+sungem_rx_desc(uint64_t control, uint64_t buffer) "RX desc: 0x%"PRIx64" 0x%"PRIx64
+sungem_rx_reset(void) "RX reset"
+sungem_rx_kick(uint64_t val) "RXDMA_KICK written to %"PRIu64
+sungem_reset(bool pci_reset) "Full reset (PCI:%d)"
+sungem_mii_write(uint8_t phy_addr, uint8_t reg_addr, uint16_t val) "MII write addr 0x%x reg 0x%02x val 0x%04x"
+sungem_mii_read(uint8_t phy_addr, uint8_t reg_addr, uint16_t val) "MII read addr 0x%x reg 0x%02x val 0x%04x"
+sungem_mii_invalid_sof(uint32_t val) "MII op, invalid SOF field 0x%"PRIx32
+sungem_mii_invalid_op(uint8_t op) "MII op, invalid op field 0x%x"
+sungem_mmio_greg_write(uint64_t addr, uint64_t val) "MMIO greg write to 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_greg_read(uint64_t addr, uint64_t val) "MMIO greg read from 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_txdma_write(uint64_t addr, uint64_t val) "MMIO txdma write to 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_txdma_read(uint64_t addr, uint64_t val) "MMIO txdma read from 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_rxdma_write(uint64_t addr, uint64_t val) "MMIO rxdma write to 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_rxdma_read(uint64_t addr, uint64_t val) "MMIO rxdma read from 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_mac_write(uint64_t addr, uint64_t val) "MMIO mac write to 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_mac_read(uint64_t addr, uint64_t val) "MMIO mac read from 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_mif_write(uint64_t addr, uint64_t val) "MMIO mif write to 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_mif_read(uint64_t addr, uint64_t val) "MMIO mif read from 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_pcs_write(uint64_t addr, uint64_t val) "MMIO pcs write to 0x%"PRIx64" val=0x%"PRIx64
+sungem_mmio_pcs_read(uint64_t addr, uint64_t val) "MMIO pcs read from 0x%"PRIx64" val=0x%"PRIx64
