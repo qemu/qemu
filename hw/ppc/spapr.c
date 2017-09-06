@@ -391,10 +391,8 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
     return ret;
 }
 
-static hwaddr spapr_node0_size(void)
+static hwaddr spapr_node0_size(MachineState *machine)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
-
     if (nb_numa_nodes) {
         int i;
         for (i = 0; i < nb_numa_nodes; ++i) {
@@ -1052,7 +1050,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
                              hwaddr rtas_addr,
                              hwaddr rtas_size)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     int ret;
@@ -1372,7 +1370,7 @@ void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
     spapr_reallocate_hpt(spapr, hpt_shift, &error_fatal);
 
     if (spapr->vrma_adjust) {
-        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(),
+        spapr->rma_size = kvmppc_rma_size(spapr_node0_size(MACHINE(spapr)),
                                           spapr->htab_shift);
     }
     /* We're setting up a hash table, so that means we're not radix */
@@ -2033,7 +2031,7 @@ static SaveVMHandlers savevm_htab_handlers = {
 static void spapr_boot_set(void *opaque, const char *boot_device,
                            Error **errp)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineState *machine = MACHINE(opaque);
     machine->boot_order = g_strdup(boot_device);
 }
 
@@ -2235,7 +2233,7 @@ static void ppc_spapr_init(MachineState *machine)
     MemoryRegion *rma_region;
     void *rma = NULL;
     hwaddr rma_alloc_size;
-    hwaddr node0_size = spapr_node0_size();
+    hwaddr node0_size = spapr_node0_size(machine);
     long load_limit, fw_size;
     char *filename;
     Error *resize_hpt_err = NULL;
@@ -3298,7 +3296,8 @@ out:
 static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(qdev_get_machine());
+    MachineState *ms = MACHINE(hotplug_dev);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(ms);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         int node;
@@ -3347,8 +3346,8 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
 static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
                                                 DeviceState *dev, Error **errp)
 {
-    sPAPRMachineState *sms = SPAPR_MACHINE(qdev_get_machine());
-    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    sPAPRMachineState *sms = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    MachineClass *mc = MACHINE_GET_CLASS(sms);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         if (spapr_ovec_test(sms->ov5_cas, OV5_HP_EVT)) {
