@@ -302,10 +302,20 @@ static void pc_q35_machine_options(MachineClass *m)
     m->max_cpus = 288;
 }
 
-static void pc_q35_2_10_machine_options(MachineClass *m)
+static void pc_q35_2_11_machine_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
     m->alias = "q35";
+}
+
+DEFINE_Q35_MACHINE(v2_11, "pc-q35-2.11", NULL,
+                   pc_q35_2_11_machine_options);
+
+static void pc_q35_2_10_machine_options(MachineClass *m)
+{
+    pc_q35_2_11_machine_options(m);
+    m->alias = NULL;
+    SET_MACHINE_COMPAT(m, PC_COMPAT_2_10);
     m->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
 }
 
@@ -315,7 +325,6 @@ DEFINE_Q35_MACHINE(v2_10, "pc-q35-2.10", NULL,
 static void pc_q35_2_9_machine_options(MachineClass *m)
 {
     pc_q35_2_10_machine_options(m);
-    m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_9);
 }
 
