@@ -493,36 +493,6 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
                  table_data->len - madt_start, 1, NULL, NULL);
 }
 
-/* Assign BSEL property to all buses.  In the future, this can be changed
- * to only assign to buses that support hotplug.
- */
-static void *acpi_set_bsel(PCIBus *bus, void *opaque)
-{
-    unsigned *bsel_alloc = opaque;
-    unsigned *bus_bsel;
-
-    if (qbus_is_hotpluggable(BUS(bus))) {
-        bus_bsel = g_malloc(sizeof *bus_bsel);
-
-        *bus_bsel = (*bsel_alloc)++;
-        object_property_add_uint32_ptr(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
-                                       bus_bsel, &error_abort);
-    }
-
-    return bsel_alloc;
-}
-
-static void acpi_set_pci_info(void)
-{
-    PCIBus *bus = find_i440fx(); /* TODO: Q35 support */
-    unsigned bsel_alloc = ACPI_PCIHP_BSEL_DEFAULT;
-
-    if (bus) {
-        /* Scan all PCI buses. Set property to enable acpi based hotplug. */
-        pci_for_each_bus_depth_first(bus, acpi_set_bsel, NULL, &bsel_alloc);
-    }
-}
-
 static void build_append_pcihp_notify_entry(Aml *method, int slot)
 {
     Aml *if_ctx;
@@ -2887,8 +2857,6 @@ void acpi_setup(void)
     }
 
     build_state = g_malloc0(sizeof *build_state);
-
-    acpi_set_pci_info();
 
     acpi_build_tables_init(&tables);
     acpi_build(&tables, MACHINE(pcms));
