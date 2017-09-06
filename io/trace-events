@@ -46,7 +46,7 @@ qio_channel_websock_new_server(void *ioc, void *master) "Websock new client ioc=
 qio_channel_websock_handshake_start(void *ioc) "Websock handshake start ioc=%p"
 qio_channel_websock_handshake_pending(void *ioc, int status) "Websock handshake pending ioc=%p status=%d"
 qio_channel_websock_handshake_reply(void *ioc) "Websock handshake reply ioc=%p"
-qio_channel_websock_handshake_fail(void *ioc) "Websock handshake fail ioc=%p"
+qio_channel_websock_handshake_fail(void *ioc, const char *msg) "Websock handshake fail ioc=%p err=%s"
 qio_channel_websock_handshake_complete(void *ioc) "Websock handshake complete ioc=%p"
 
 # io/channel-command.c

@@ -507,7 +507,7 @@ static gboolean qio_channel_websock_handshake_send(QIOChannel *ioc,
                             &err);
 
     if (ret < 0) {
-        trace_qio_channel_websock_handshake_fail(ioc);
+        trace_qio_channel_websock_handshake_fail(ioc, error_get_pretty(err));
         qio_task_set_error(task, err);
         qio_task_complete(task);
         return FALSE;
@@ -516,7 +516,8 @@ static gboolean qio_channel_websock_handshake_send(QIOChannel *ioc,
     buffer_advance(&wioc->encoutput, ret);
     if (wioc->encoutput.offset == 0) {
         if (wioc->io_err) {
-            trace_qio_channel_websock_handshake_fail(ioc);
+            trace_qio_channel_websock_handshake_fail(
+                ioc, error_get_pretty(wioc->io_err));
             qio_task_set_error(task, wioc->io_err);
             wioc->io_err = NULL;
             qio_task_complete(task);
@@ -547,7 +548,7 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
          * client connection, as most of the time we have an
          * HTTP 4xx err response to send instead
          */
-        trace_qio_channel_websock_handshake_fail(ioc);
+        trace_qio_channel_websock_handshake_fail(ioc, error_get_pretty(err));
         qio_task_set_error(task, err);
         qio_task_complete(task);
         return FALSE;
