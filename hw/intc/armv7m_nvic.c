@@ -448,7 +448,12 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         /* TODO: Implement SLEEPONEXIT.  */
         return 0;
     case 0xd14: /* Configuration Control.  */
-        return cpu->env.v7m.ccr;
+        /* The BFHFNMIGN bit is the only non-banked bit; we
+         * keep it in the non-secure copy of the register.
+         */
+        val = cpu->env.v7m.ccr[attrs.secure];
+        val |= cpu->env.v7m.ccr[M_REG_NS] & R_V7M_CCR_BFHFNMIGN_MASK;
+        return val;
     case 0xd24: /* System Handler Status.  */
         val = 0;
         if (s->vectors[ARMV7M_EXCP_MEM].active) {
@@ -673,7 +678,20 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                   R_V7M_CCR_USERSETMPEND_MASK |
                   R_V7M_CCR_NONBASETHRDENA_MASK);
 
-        cpu->env.v7m.ccr = value;
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* v8M makes NONBASETHRDENA and STKALIGN be RES1 */
+            value |= R_V7M_CCR_NONBASETHRDENA_MASK
+                | R_V7M_CCR_STKALIGN_MASK;
+        }
+        if (attrs.secure) {
+            /* the BFHFNMIGN bit is not banked; keep that in the NS copy */
+            cpu->env.v7m.ccr[M_REG_NS] =
+                (cpu->env.v7m.ccr[M_REG_NS] & ~R_V7M_CCR_BFHFNMIGN_MASK)
+                | (value & R_V7M_CCR_BFHFNMIGN_MASK);
+            value &= ~R_V7M_CCR_BFHFNMIGN_MASK;
+        }
+
+        cpu->env.v7m.ccr[attrs.secure] = value;
         break;
     case 0xd24: /* System Handler Control.  */
         s->vectors[ARMV7M_EXCP_MEM].active = (value & (1 << 0)) != 0;
@@ -860,12 +878,15 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     }
 }
 
-static bool nvic_user_access_ok(NVICState *s, hwaddr offset)
+static bool nvic_user_access_ok(NVICState *s, hwaddr offset, MemTxAttrs attrs)
 {
     /* Return true if unprivileged access to this register is permitted. */
     switch (offset) {
     case 0xf00: /* STIR: accessible only if CCR.USERSETMPEND permits */
-        return s->cpu->env.v7m.ccr & R_V7M_CCR_USERSETMPEND_MASK;
+        /* For access via STIR_NS it is the NS CCR.USERSETMPEND that
+         * controls access even though the CPU is in Secure state (I_QDKX).
+         */
+        return s->cpu->env.v7m.ccr[attrs.secure] & R_V7M_CCR_USERSETMPEND_MASK;
     default:
         /* All other user accesses cause a BusFault unconditionally */
         return false;
@@ -881,7 +902,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
     unsigned i, startvec, end;
     uint32_t val;
 
-    if (attrs.user && !nvic_user_access_ok(s, addr)) {
+    if (attrs.user && !nvic_user_access_ok(s, addr, attrs)) {
         /* Generate BusFault for unprivileged accesses */
         return MEMTX_ERROR;
     }
@@ -971,7 +992,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
 
     trace_nvic_sysreg_write(addr, value, size);
 
-    if (attrs.user && !nvic_user_access_ok(s, addr)) {
+    if (attrs.user && !nvic_user_access_ok(s, addr, attrs)) {
         /* Generate BusFault for unprivileged accesses */
         return MEMTX_ERROR;
     }

@@ -6113,7 +6113,8 @@ static void v7m_push_stack(ARMCPU *cpu)
     uint32_t xpsr = xpsr_read(env);
 
     /* Align stack pointer if the guest wants that */
-    if ((env->regs[13] & 4) && (env->v7m.ccr & R_V7M_CCR_STKALIGN_MASK)) {
+    if ((env->regs[13] & 4) &&
+        (env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_STKALIGN_MASK)) {
         env->regs[13] -= 4;
         xpsr |= XPSR_SPREALIGN;
     }
@@ -6211,7 +6212,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         /* fall through */
     case 9: /* Return to Thread using Main stack */
         if (!rettobase &&
-            !(env->v7m.ccr & R_V7M_CCR_NONBASETHRDENA_MASK)) {
+            !(env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_NONBASETHRDENA_MASK)) {
             ufault = true;
         }
         break;

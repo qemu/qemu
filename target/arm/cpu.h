@@ -423,7 +423,7 @@ typedef struct CPUARMState {
         uint32_t vecbase[2];
         uint32_t basepri[2];
         uint32_t control[2];
-        uint32_t ccr; /* Configuration and Control */
+        uint32_t ccr[2]; /* Configuration and Control */
         uint32_t cfsr; /* Configurable Fault Status */
         uint32_t hfsr; /* HardFault Status */
         uint32_t dfsr; /* Debug Fault Status Register */
