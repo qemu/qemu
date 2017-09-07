@@ -506,7 +506,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     case 0xd30: /* Debug Fault Status.  */
         return cpu->env.v7m.dfsr;
     case 0xd34: /* MMFAR MemManage Fault Address */
-        return cpu->env.v7m.mmfar;
+        return cpu->env.v7m.mmfar[attrs.secure];
     case 0xd38: /* Bus Fault Address.  */
         return cpu->env.v7m.bfar;
     case 0xd3c: /* Aux Fault Status.  */
@@ -720,7 +720,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         cpu->env.v7m.dfsr &= ~value; /* W1C */
         break;
     case 0xd34: /* Mem Manage Address.  */
-        cpu->env.v7m.mmfar = value;
+        cpu->env.v7m.mmfar[attrs.secure] = value;
         return;
     case 0xd38: /* Bus Fault Address.  */
         cpu->env.v7m.bfar = value;

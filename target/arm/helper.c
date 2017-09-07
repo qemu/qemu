@@ -6375,10 +6375,10 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
             case EXCP_DATA_ABORT:
                 env->v7m.cfsr |=
                     (R_V7M_CFSR_DACCVIOL_MASK | R_V7M_CFSR_MMARVALID_MASK);
-                env->v7m.mmfar = env->exception.vaddress;
+                env->v7m.mmfar[env->v7m.secure] = env->exception.vaddress;
                 qemu_log_mask(CPU_LOG_INT,
                               "...with CFSR.DACCVIOL and MMFAR 0x%x\n",
-                              env->v7m.mmfar);
+                              env->v7m.mmfar[env->v7m.secure]);
                 break;
             }
             armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_MEM);

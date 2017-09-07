@@ -121,7 +121,7 @@ static const VMStateDescription vmstate_m = {
         VMSTATE_UINT32(env.v7m.cfsr, ARMCPU),
         VMSTATE_UINT32(env.v7m.hfsr, ARMCPU),
         VMSTATE_UINT32(env.v7m.dfsr, ARMCPU),
-        VMSTATE_UINT32(env.v7m.mmfar, ARMCPU),
+        VMSTATE_UINT32(env.v7m.mmfar[M_REG_NS], ARMCPU),
         VMSTATE_UINT32(env.v7m.bfar, ARMCPU),
         VMSTATE_UINT32(env.v7m.mpu_ctrl[M_REG_NS], ARMCPU),
         VMSTATE_INT32(env.v7m.exception, ARMCPU),
@@ -272,6 +272,7 @@ static const VMStateDescription vmstate_m_security = {
         VMSTATE_VALIDATE("secure MPU_RNR is valid", s_rnr_vmstate_validate),
         VMSTATE_UINT32(env.v7m.mpu_ctrl[M_REG_S], ARMCPU),
         VMSTATE_UINT32(env.v7m.ccr[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.mmfar[M_REG_S], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
