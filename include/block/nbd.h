@@ -155,8 +155,6 @@ struct NBDExportInfo {
 };
 typedef struct NBDExportInfo NBDExportInfo;
 
-ssize_t nbd_rwv(QIOChannel *ioc, struct iovec *iov, size_t niov, size_t length,
-                bool do_read, Error **errp);
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
                           QIOChannel **outioc, NBDExportInfo *info,

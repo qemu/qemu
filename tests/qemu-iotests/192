@@ -37,6 +37,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
+. ./common.qemu
 
 _supported_fmt generic
 _supported_proto file
@@ -49,13 +50,21 @@ fi
 size=64M
 _make_test_img $size
 
-{
-echo "nbd_server_start unix:$TEST_DIR/nbd"
-echo "nbd_server_add -w drive0"
-echo "q"
-} | $QEMU -nodefaults -display none -monitor stdio \
-    -drive format=$IMGFMT,file=$TEST_IMG,if=ide,id=drive0 \
-    -incoming defer 2>&1 | _filter_testdir | _filter_qemu | _filter_hmp
+if test "$IMGOPTSSYNTAX" = "true"
+then
+    DRIVE_ARG=if=ide,id=drive0,$TEST_IMG
+else
+    DRIVE_ARG=if=ide,id=drive0,format=$IMGFMT,file=$TEST_IMG
+fi
+
+qemu_comm_method="monitor"
+_launch_qemu -drive $DRIVE_ARG -incoming defer
+h=$QEMU_HANDLE
+QEMU_COMM_TIMEOUT=1
+
+_send_qemu_cmd $h "nbd_server_start unix:$TEST_DIR/nbd" "(qemu)"
+_send_qemu_cmd $h "nbd_server_add -w drive0" "(qemu)"
+_send_qemu_cmd $h "q" "(qemu)"
 
 # success, all done
 echo "*** done"

@@ -421,8 +421,10 @@ def notrun(reason):
     print '%s not run: %s' % (seq, reason)
     sys.exit(0)
 
-def verify_image_format(supported_fmts=[]):
+def verify_image_format(supported_fmts=[], unsupported_fmts=[]):
     if supported_fmts and (imgfmt not in supported_fmts):
+        notrun('not suitable for this image format: %s' % imgfmt)
+    if unsupported_fmts and (imgfmt in unsupported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
 
 def verify_platform(supported_oses=['linux']):

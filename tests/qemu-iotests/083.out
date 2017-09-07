@@ -69,12 +69,12 @@ read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
-End of file
+Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect 8 reply ===
 
-End of file
+Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect before data ===
@@ -180,12 +180,12 @@ read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
-End of file
+Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect 8 reply ===
 
-End of file
+Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect before data ===
