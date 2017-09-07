@@ -50,6 +50,7 @@ typedef struct NVICState {
     int exception_prio; /* group prio of the highest prio active exception */
 
     MemoryRegion sysregmem;
+    MemoryRegion sysreg_ns_mem;
     MemoryRegion container;
 
     uint32_t num_irq;

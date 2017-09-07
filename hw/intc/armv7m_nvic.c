@@ -1040,6 +1040,47 @@ static const MemoryRegionOps nvic_sysreg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static MemTxResult nvic_sysreg_ns_write(void *opaque, hwaddr addr,
+                                        uint64_t value, unsigned size,
+                                        MemTxAttrs attrs)
+{
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return nvic_sysreg_write(opaque, addr, value, size, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult nvic_sysreg_ns_read(void *opaque, hwaddr addr,
+                                       uint64_t *data, unsigned size,
+                                       MemTxAttrs attrs)
+{
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return nvic_sysreg_read(opaque, addr, data, size, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        *data = 0;
+        return MEMTX_OK;
+    }
+}
+
+static const MemoryRegionOps nvic_sysreg_ns_ops = {
+    .read_with_attrs = nvic_sysreg_ns_read,
+    .write_with_attrs = nvic_sysreg_ns_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static int nvic_post_load(void *opaque, int version_id)
 {
     NVICState *s = opaque;
@@ -1141,6 +1182,7 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     NVICState *s = NVIC(dev);
     SysBusDevice *systick_sbd;
     Error *err = NULL;
+    int regionlen;
 
     s->cpu = ARM_CPU(qemu_get_cpu(0));
     assert(s->cpu);
@@ -1173,8 +1215,23 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
      *  0xd00..0xd3c - SCS registers
      *  0xd40..0xeff - Reserved or Not implemented
      *  0xf00 - STIR
+     *
+     * Some registers within this space are banked between security states.
+     * In v8M there is a second range 0xe002e000..0xe002efff which is the
+     * NonSecure alias SCS; secure accesses to this behave like NS accesses
+     * to the main SCS range, and non-secure accesses (including when
+     * the security extension is not implemented) are RAZ/WI.
+     * Note that both the main SCS range and the alias range are defined
+     * to be exempt from memory attribution (R_BLJT) and so the memory
+     * transaction attribute always matches the current CPU security
+     * state (attrs.secure == env->v7m.secure). In the nvic_sysreg_ns_ops
+     * wrappers we change attrs.secure to indicate the NS access; so
+     * generally code determining which banked register to use should
+     * use attrs.secure; code determining actual behaviour of the system
+     * should use env->v7m.secure.
      */
-    memory_region_init(&s->container, OBJECT(s), "nvic", 0x1000);
+    regionlen = arm_feature(&s->cpu->env, ARM_FEATURE_V8) ? 0x21000 : 0x1000;
+    memory_region_init(&s->container, OBJECT(s), "nvic", regionlen);
     /* The system register region goes at the bottom of the priority
      * stack as it covers the whole page.
      */
@@ -1184,6 +1241,13 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion_overlap(&s->container, 0x10,
                                         sysbus_mmio_get_region(systick_sbd, 0),
                                         1);
+
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
+        memory_region_init_io(&s->sysreg_ns_mem, OBJECT(s),
+                              &nvic_sysreg_ns_ops, s,
+                              "nvic_sysregs_ns", 0x1000);
+        memory_region_add_subregion(&s->container, 0x20000, &s->sysreg_ns_mem);
+    }
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->container);
 }
