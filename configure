@@ -3032,13 +3032,13 @@ for drv in $audio_drv_list; do
     alsa)
     audio_drv_probe $drv alsa/asoundlib.h -lasound \
         "return snd_pcm_close((snd_pcm_t *)0);"
-    libs_softmmu="-lasound $libs_softmmu"
+    alsa_libs="-lasound"
     ;;
 
     pa)
     audio_drv_probe $drv pulse/pulseaudio.h "-lpulse" \
         "pa_context_set_source_output_volume(NULL, 0, NULL, NULL, NULL); return 0;"
-    libs_softmmu="-lpulse $libs_softmmu"
+    pulse_libs="-lpulse"
     audio_pt_int="yes"
     ;;
 
@@ -3049,16 +3049,16 @@ for drv in $audio_drv_list; do
     ;;
 
     coreaudio)
-      libs_softmmu="-framework CoreAudio $libs_softmmu"
+      coreaudio_libs="-framework CoreAudio"
     ;;
 
     dsound)
-      libs_softmmu="-lole32 -ldxguid $libs_softmmu"
+      dsound_libs="-lole32 -ldxguid"
       audio_win_int="yes"
     ;;
 
     oss)
-      libs_softmmu="$oss_lib $libs_softmmu"
+      oss_libs="$oss_lib"
     ;;
 
     wav)
@@ -5512,6 +5512,11 @@ for drv in $audio_drv_list; do
     def=CONFIG_$(echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]')
     echo "$def=y" >> $config_host_mak
 done
+echo "ALSA_LIBS=$alsa_libs" >> $config_host_mak
+echo "PULSE_LIBS=$pulse_libs" >> $config_host_mak
+echo "COREAUDIO_LIBS=$coreaudio_libs" >> $config_host_mak
+echo "DSOUND_LIBS=$dsound_libs" >> $config_host_mak
+echo "OSS_LIBS=$oss_libs" >> $config_host_mak
 if test "$audio_pt_int" = "yes" ; then
   echo "CONFIG_AUDIO_PT_INT=y" >> $config_host_mak
 fi

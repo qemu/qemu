@@ -12,3 +12,8 @@ common-obj-y += wavcapture.o
 
 sdlaudio.o-cflags := $(SDL_CFLAGS)
 sdlaudio.o-libs := $(SDL_LIBS)
+alsaaudio.o-libs := $(ALSA_LIBS)
+paaudio.o-libs := $(PULSE_LIBS)
+coreaudio.o-libs := $(COREAUDIO_LIBS)
+dsoundaudio.o-libs := $(DSOUND_LIBS)
+ossaudio.o-libs := $(OSS_LIBS)
