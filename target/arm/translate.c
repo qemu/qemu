@@ -994,6 +994,25 @@ static inline void gen_bx_excret_final_code(DisasContext *s)
     gen_exception_internal(EXCP_EXCEPTION_EXIT);
 }
 
+static inline void gen_bxns(DisasContext *s, int rm)
+{
+    TCGv_i32 var = load_reg(s, rm);
+
+    /* The bxns helper may raise an EXCEPTION_EXIT exception, so in theory
+     * we need to sync state before calling it, but:
+     *  - we don't need to do gen_set_pc_im() because the bxns helper will
+     *    always set the PC itself
+     *  - we don't need to do gen_set_condexec() because BXNS is UNPREDICTABLE
+     *    unless it's outside an IT block or the last insn in an IT block,
+     *    so we know that condexec == 0 (already set at the top of the TB)
+     *    is correct in the non-UNPREDICTABLE cases, and we can choose
+     *    "zeroes the IT bits" as our UNPREDICTABLE behaviour otherwise.
+     */
+    gen_helper_v7m_bxns(cpu_env, var);
+    tcg_temp_free_i32(var);
+    s->is_jmp = DISAS_EXIT;
+}
+
 /* Variant of store_reg which uses branch&exchange logic when storing
    to r15 in ARM architecture v7 and above. The source must be a temporary
    and will be marked as dead. */
@@ -11185,12 +11204,31 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                  */
                 bool link = insn & (1 << 7);
 
-                if (insn & 7) {
+                if (insn & 3) {
                     goto undef;
                 }
                 if (link) {
                     ARCH(5);
                 }
+                if ((insn & 4)) {
+                    /* BXNS/BLXNS: only exists for v8M with the
+                     * security extensions, and always UNDEF if NonSecure.
+                     * We don't implement these in the user-only mode
+                     * either (in theory you can use them from Secure User
+                     * mode but they are too tied in to system emulation.)
+                     */
+                    if (!s->v8m_secure || IS_USER_ONLY) {
+                        goto undef;
+                    }
+                    if (link) {
+                        /* BLXNS: not yet implemented */
+                        goto undef;
+                    } else {
+                        gen_bxns(s, rm);
+                    }
+                    break;
+                }
+                /* BLX/BX */
                 tmp = load_reg(s, rm);
                 if (link) {
                     val = (uint32_t)s->pc | 1;
@@ -11878,6 +11916,8 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(tb->flags);
     dc->v7m_handler_mode = ARM_TBFLAG_HANDLER(tb->flags);
+    dc->v8m_secure = arm_feature(env, ARM_FEATURE_M_SECURITY) &&
+        regime_is_secure(env, dc->mmu_idx);
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;
 

@@ -419,7 +419,20 @@ typedef struct CPUARMState {
     } cp15;
 
     struct {
+        /* M profile has up to 4 stack pointers:
+         * a Main Stack Pointer and a Process Stack Pointer for each
+         * of the Secure and Non-Secure states. (If the CPU doesn't support
+         * the security extension then it has only two SPs.)
+         * In QEMU we always store the currently active SP in regs[13],
+         * and the non-active SP for the current security state in
+         * v7m.other_sp. The stack pointers for the inactive security state
+         * are stored in other_ss_msp and other_ss_psp.
+         * switch_v7m_security_state() is responsible for rearranging them
+         * when we change security state.
+         */
         uint32_t other_sp;
+        uint32_t other_ss_msp;
+        uint32_t other_ss_psp;
         uint32_t vecbase[2];
         uint32_t basepri[2];
         uint32_t control[2];
