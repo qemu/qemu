@@ -221,15 +221,34 @@ int load_multiboot(FWCfgState *fw_cfg,
         uint32_t mh_header_addr = ldl_p(header+i+12);
         uint32_t mh_load_end_addr = ldl_p(header+i+20);
         uint32_t mh_bss_end_addr = ldl_p(header+i+24);
+
         mh_load_addr = ldl_p(header+i+16);
+        if (mh_header_addr < mh_load_addr) {
+            fprintf(stderr, "invalid mh_load_addr address\n");
+            exit(1);
+        }
+
         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
         uint32_t mb_load_size = 0;
         mh_entry_addr = ldl_p(header+i+28);
 
         if (mh_load_end_addr) {
+            if (mh_bss_end_addr < mh_load_addr) {
+                fprintf(stderr, "invalid mh_bss_end_addr address\n");
+                exit(1);
+            }
             mb_kernel_size = mh_bss_end_addr - mh_load_addr;
+
+            if (mh_load_end_addr < mh_load_addr) {
+                fprintf(stderr, "invalid mh_load_end_addr address\n");
+                exit(1);
+            }
             mb_load_size = mh_load_end_addr - mh_load_addr;
         } else {
+            if (kernel_file_size < mb_kernel_text_offset) {
+                fprintf(stderr, "invalid kernel_file_size\n");
+                exit(1);
+            }
             mb_kernel_size = kernel_file_size - mb_kernel_text_offset;
             mb_load_size = mb_kernel_size;
         }
