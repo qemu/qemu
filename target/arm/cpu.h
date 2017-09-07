@@ -432,7 +432,7 @@ typedef struct CPUARMState {
         unsigned mpu_ctrl; /* MPU_CTRL */
         int exception;
         uint32_t primask[2];
-        uint32_t faultmask;
+        uint32_t faultmask[2];
         uint32_t secure; /* Is CPU in Secure state? (not guest visible) */
     } v7m;
 
@@ -1442,6 +1442,16 @@ void armv7m_nvic_acknowledge_irq(void *opaque);
  * (Ignoring -1, this is the same as the RETTOBASE value before completion.)
  */
 int armv7m_nvic_complete_irq(void *opaque, int irq);
+/**
+ * armv7m_nvic_raw_execution_priority: return the raw execution priority
+ * @opaque: the NVIC
+ *
+ * Returns: the raw execution priority as defined by the v8M architecture.
+ * This is the execution priority minus the effects of AIRCR.PRIS,
+ * and minus any PRIMASK/FAULTMASK/BASEPRI priority boosting.
+ * (v8M ARM ARM I_PKLD.)
+ */
+int armv7m_nvic_raw_execution_priority(void *opaque);
 
 /* Interface for defining coprocessor registers.
  * Registers are defined in tables of arm_cp_reginfo structs
@@ -2227,7 +2237,7 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
          * we're in a HardFault or NMI handler.
          */
         if ((env->v7m.exception > 0 && env->v7m.exception <= 3)
-            || env->v7m.faultmask) {
+            || env->v7m.faultmask[env->v7m.secure]) {
             mmu_idx = ARMMMUIdx_MNegPri;
         }
 

@@ -167,7 +167,7 @@ static inline int nvic_exec_prio(NVICState *s)
     CPUARMState *env = &s->cpu->env;
     int running;
 
-    if (env->v7m.faultmask) {
+    if (env->v7m.faultmask[env->v7m.secure]) {
         running = -1;
     } else if (env->v7m.primask[env->v7m.secure]) {
         running = 0;
@@ -185,6 +185,13 @@ bool armv7m_nvic_can_take_pending_exception(void *opaque)
     NVICState *s = opaque;
 
     return nvic_exec_prio(s) > nvic_pending_prio(s);
+}
+
+int armv7m_nvic_raw_execution_priority(void *opaque)
+{
+    NVICState *s = opaque;
+
+    return s->exception_prio;
 }
 
 /* caller must call nvic_irq_update() after this */

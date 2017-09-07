@@ -102,7 +102,7 @@ static const VMStateDescription vmstate_m_faultmask_primask = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(env.v7m.faultmask, ARMCPU),
+        VMSTATE_UINT32(env.v7m.faultmask[M_REG_NS], ARMCPU),
         VMSTATE_UINT32(env.v7m.primask[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
@@ -252,6 +252,7 @@ static const VMStateDescription vmstate_m_security = {
         VMSTATE_UINT32(env.v7m.secure, ARMCPU),
         VMSTATE_UINT32(env.v7m.basepri[M_REG_S], ARMCPU),
         VMSTATE_UINT32(env.v7m.primask[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.faultmask[M_REG_S], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -289,7 +290,7 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
              * transferred using the vmstate_m_faultmask_primask subsection.
              */
             if (val & CPSR_F) {
-                env->v7m.faultmask = 1;
+                env->v7m.faultmask[M_REG_NS] = 1;
             }
             if (val & CPSR_I) {
                 env->v7m.primask[M_REG_NS] = 1;
