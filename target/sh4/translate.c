@@ -270,6 +270,7 @@ static void gen_jump(DisasContext * ctx)
         } else {
             tcg_gen_lookup_and_goto_ptr();
         }
+        ctx->bstate = DISAS_NORETURN;
     } else {
 	gen_goto_tb(ctx, 0, ctx->delayed_pc);
     }
@@ -2341,24 +2342,23 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         ctx.envflags &= ~GUSA_MASK;
     }
 
-    if (cs->singlestep_enabled) {
+    switch (ctx.bstate) {
+    case DISAS_STOP:
         gen_save_cpu_state(&ctx, true);
-        gen_helper_debug(cpu_env);
-    } else {
-	switch (ctx.bstate) {
-        case DISAS_STOP:
-            gen_save_cpu_state(&ctx, true);
+        if (cs->singlestep_enabled) {
+            gen_helper_debug(cpu_env);
+        } else {
             tcg_gen_exit_tb(0);
-            break;
-        case DISAS_NEXT:
-            gen_save_cpu_state(&ctx, false);
-            gen_goto_tb(&ctx, 0, ctx.pc);
-            break;
-        case DISAS_NORETURN:
-            break;
-        default:
-            g_assert_not_reached();
-	}
+        }
+        break;
+    case DISAS_NEXT:
+        gen_save_cpu_state(&ctx, false);
+        gen_goto_tb(&ctx, 0, ctx.pc);
+        break;
+    case DISAS_NORETURN:
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     gen_tb_end(tb, num_insns);
