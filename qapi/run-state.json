@@ -253,10 +253,10 @@
 #
 ##
 { 'event': 'WATCHDOG',
-  'data': { 'action': 'WatchdogExpirationAction' } }
+  'data': { 'action': 'WatchdogAction' } }
 
 ##
-# @WatchdogExpirationAction:
+# @WatchdogAction:
 #
 # An enumeration of the actions taken when the watchdog device's timer is
 # expired
@@ -279,7 +279,7 @@
 #
 # Since: 2.1
 ##
-{ 'enum': 'WatchdogExpirationAction',
+{ 'enum': 'WatchdogAction',
   'data': [ 'reset', 'shutdown', 'poweroff', 'pause', 'debug', 'none',
             'inject-nmi' ] }
 
