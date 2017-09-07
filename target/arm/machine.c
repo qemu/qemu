@@ -229,8 +229,8 @@ static const VMStateDescription vmstate_pmsav8 = {
                               vmstate_info_uint32, uint32_t),
         VMSTATE_VARRAY_UINT32(env.pmsav8.rlar, ARMCPU, pmsav7_dregion, 0,
                               vmstate_info_uint32, uint32_t),
-        VMSTATE_UINT32(env.pmsav8.mair0, ARMCPU),
-        VMSTATE_UINT32(env.pmsav8.mair1, ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair0[M_REG_NS], ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair1[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -255,6 +255,8 @@ static const VMStateDescription vmstate_m_security = {
         VMSTATE_UINT32(env.v7m.faultmask[M_REG_S], ARMCPU),
         VMSTATE_UINT32(env.v7m.control[M_REG_S], ARMCPU),
         VMSTATE_UINT32(env.v7m.vecbase[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair0[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair1[M_REG_S], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };

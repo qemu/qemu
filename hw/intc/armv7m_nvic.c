@@ -604,12 +604,12 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             goto bad_offset;
         }
-        return cpu->env.pmsav8.mair0;
+        return cpu->env.pmsav8.mair0[attrs.secure];
     case 0xdc4: /* MPU_MAIR1 */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             goto bad_offset;
         }
-        return cpu->env.pmsav8.mair1;
+        return cpu->env.pmsav8.mair1[attrs.secure];
     default:
     bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "NVIC: Bad read offset 0x%x\n", offset);
@@ -826,7 +826,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         }
         if (cpu->pmsav7_dregion) {
             /* Register is RES0 if no MPU regions are implemented */
-            cpu->env.pmsav8.mair0 = value;
+            cpu->env.pmsav8.mair0[attrs.secure] = value;
         }
         /* We don't need to do anything else because memory attributes
          * only affect cacheability, and we don't implement caching.
@@ -838,7 +838,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         }
         if (cpu->pmsav7_dregion) {
             /* Register is RES0 if no MPU regions are implemented */
-            cpu->env.pmsav8.mair1 = value;
+            cpu->env.pmsav8.mair1[attrs.secure] = value;
         }
         /* We don't need to do anything else because memory attributes
          * only affect cacheability, and we don't implement caching.

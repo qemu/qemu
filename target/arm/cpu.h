@@ -545,8 +545,8 @@ typedef struct CPUARMState {
          */
         uint32_t *rbar;
         uint32_t *rlar;
-        uint32_t mair0;
-        uint32_t mair1;
+        uint32_t mair0[2];
+        uint32_t mair1[2];
     } pmsav8;
 
     void *nvic;
