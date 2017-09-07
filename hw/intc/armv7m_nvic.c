@@ -541,7 +541,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         return cpu->pmsav7_dregion << 8;
         break;
     case 0xd94: /* MPU_CTRL */
-        return cpu->env.v7m.mpu_ctrl;
+        return cpu->env.v7m.mpu_ctrl[attrs.secure];
     case 0xd98: /* MPU_RNR */
         return cpu->env.pmsav7.rnr[attrs.secure];
     case 0xd9c: /* MPU_RBAR */
@@ -720,9 +720,10 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             qemu_log_mask(LOG_GUEST_ERROR, "MPU_CTRL: HFNMIENA and !ENABLE is "
                           "UNPREDICTABLE\n");
         }
-        cpu->env.v7m.mpu_ctrl = value & (R_V7M_MPU_CTRL_ENABLE_MASK |
-                                         R_V7M_MPU_CTRL_HFNMIENA_MASK |
-                                         R_V7M_MPU_CTRL_PRIVDEFENA_MASK);
+        cpu->env.v7m.mpu_ctrl[attrs.secure]
+            = value & (R_V7M_MPU_CTRL_ENABLE_MASK |
+                       R_V7M_MPU_CTRL_HFNMIENA_MASK |
+                       R_V7M_MPU_CTRL_PRIVDEFENA_MASK);
         tlb_flush(CPU(cpu));
         break;
     case 0xd98: /* MPU_RNR */
