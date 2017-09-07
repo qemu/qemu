@@ -1296,6 +1296,7 @@ enum arm_features {
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
+    ARM_FEATURE_JAZELLE, /* has (trivial) Jazelle implementation */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
