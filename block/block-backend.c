@@ -273,9 +273,6 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
     blk->shared_perm = shared_perm;
     blk_set_enable_write_cache(blk, true);
 
-    qemu_co_mutex_init(&blk->public.throttled_reqs_lock);
-    qemu_co_queue_init(&blk->public.throttled_reqs[0]);
-    qemu_co_queue_init(&blk->public.throttled_reqs[1]);
     block_acct_init(&blk->stats);
 
     notifier_list_init(&blk->remove_bs_notifiers);
@@ -343,7 +340,7 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->refcnt);
     assert(!blk->name);
     assert(!blk->dev);
-    if (blk->public.throttle_state) {
+    if (blk->public.throttle_group_member.throttle_state) {
         blk_io_limits_disable(blk);
     }
     if (blk->root) {
@@ -658,9 +655,12 @@ BlockBackend *blk_by_public(BlockBackendPublic *public)
  */
 void blk_remove_bs(BlockBackend *blk)
 {
+    ThrottleTimers *tt;
+
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
-    if (blk->public.throttle_state) {
-        throttle_timers_detach_aio_context(&blk->public.throttle_timers);
+    if (blk->public.throttle_group_member.throttle_state) {
+        tt = &blk->public.throttle_group_member.throttle_timers;
+        throttle_timers_detach_aio_context(tt);
     }
 
     blk_update_root_state(blk);
@@ -682,9 +682,10 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
     bdrv_ref(bs);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
-    if (blk->public.throttle_state) {
+    if (blk->public.throttle_group_member.throttle_state) {
         throttle_timers_attach_aio_context(
-            &blk->public.throttle_timers, bdrv_get_aio_context(bs));
+            &blk->public.throttle_group_member.throttle_timers,
+            bdrv_get_aio_context(bs));
     }
 
     return 0;
@@ -1046,8 +1047,9 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
     bdrv_inc_in_flight(bs);
 
     /* throttling disk I/O */
-    if (blk->public.throttle_state) {
-        throttle_group_co_io_limits_intercept(blk, bytes, false);
+    if (blk->public.throttle_group_member.throttle_state) {
+        throttle_group_co_io_limits_intercept(&blk->public.throttle_group_member,
+                bytes, false);
     }
 
     ret = bdrv_co_preadv(blk->root, offset, bytes, qiov, flags);
@@ -1070,10 +1072,10 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
     }
 
     bdrv_inc_in_flight(bs);
-
     /* throttling disk I/O */
-    if (blk->public.throttle_state) {
-        throttle_group_co_io_limits_intercept(blk, bytes, true);
+    if (blk->public.throttle_group_member.throttle_state) {
+        throttle_group_co_io_limits_intercept(&blk->public.throttle_group_member,
+                bytes, true);
     }
 
     if (!blk->enable_write_cache) {
@@ -1742,16 +1744,14 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
     BlockDriverState *bs = blk_bs(blk);
+    ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
 
     if (bs) {
-        if (blk->public.throttle_state) {
-            throttle_timers_detach_aio_context(&blk->public.throttle_timers);
+        if (tgm->throttle_state) {
+            throttle_group_detach_aio_context(tgm);
+            throttle_group_attach_aio_context(tgm, new_context);
         }
         bdrv_set_aio_context(bs, new_context);
-        if (blk->public.throttle_state) {
-            throttle_timers_attach_aio_context(&blk->public.throttle_timers,
-                                               new_context);
-        }
     }
 }
 
@@ -1969,33 +1969,35 @@ int blk_commit_all(void)
 /* throttling disk I/O limits */
 void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
 {
-    throttle_group_config(blk, cfg);
+    throttle_group_config(&blk->public.throttle_group_member, cfg);
 }
 
 void blk_io_limits_disable(BlockBackend *blk)
 {
-    assert(blk->public.throttle_state);
+    assert(blk->public.throttle_group_member.throttle_state);
     bdrv_drained_begin(blk_bs(blk));
-    throttle_group_unregister_blk(blk);
+    throttle_group_unregister_tgm(&blk->public.throttle_group_member);
     bdrv_drained_end(blk_bs(blk));
 }
 
 /* should be called before blk_set_io_limits if a limit is set */
 void blk_io_limits_enable(BlockBackend *blk, const char *group)
 {
-    assert(!blk->public.throttle_state);
-    throttle_group_register_blk(blk, group);
+    assert(!blk->public.throttle_group_member.throttle_state);
+    throttle_group_register_tgm(&blk->public.throttle_group_member,
+                                group, blk_get_aio_context(blk));
 }
 
 void blk_io_limits_update_group(BlockBackend *blk, const char *group)
 {
     /* this BB is not part of any group */
-    if (!blk->public.throttle_state) {
+    if (!blk->public.throttle_group_member.throttle_state) {
         return;
     }
 
     /* this BB is a part of the same group than the one we want */
-    if (!g_strcmp0(throttle_group_get_name(blk), group)) {
+    if (!g_strcmp0(throttle_group_get_name(&blk->public.throttle_group_member),
+                group)) {
         return;
     }
 
@@ -2017,8 +2019,8 @@ static void blk_root_drained_begin(BdrvChild *child)
     /* Note that blk->root may not be accessible here yet if we are just
      * attaching to a BlockDriverState that is drained. Use child instead. */
 
-    if (atomic_fetch_inc(&blk->public.io_limits_disabled) == 0) {
-        throttle_group_restart_blk(blk);
+    if (atomic_fetch_inc(&blk->public.throttle_group_member.io_limits_disabled) == 0) {
+        throttle_group_restart_tgm(&blk->public.throttle_group_member);
     }
 }
 
@@ -2027,8 +2029,8 @@ static void blk_root_drained_end(BdrvChild *child)
     BlockBackend *blk = child->opaque;
     assert(blk->quiesce_counter);
 
-    assert(blk->public.io_limits_disabled);
-    atomic_dec(&blk->public.io_limits_disabled);
+    assert(blk->public.throttle_group_member.io_limits_disabled);
+    atomic_dec(&blk->public.throttle_group_member.io_limits_disabled);
 
     if (--blk->quiesce_counter == 0) {
         if (blk->dev_ops && blk->dev_ops->drained_end) {
