@@ -169,7 +169,7 @@ static inline int nvic_exec_prio(NVICState *s)
 
     if (env->v7m.faultmask) {
         running = -1;
-    } else if (env->v7m.primask) {
+    } else if (env->v7m.primask[env->v7m.secure]) {
         running = 0;
     } else if (env->v7m.basepri[env->v7m.secure] > 0) {
         running = env->v7m.basepri[env->v7m.secure] & nvic_gprio_mask(s);

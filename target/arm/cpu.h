@@ -431,7 +431,7 @@ typedef struct CPUARMState {
         uint32_t bfar; /* BusFault Address */
         unsigned mpu_ctrl; /* MPU_CTRL */
         int exception;
-        uint32_t primask;
+        uint32_t primask[2];
         uint32_t faultmask;
         uint32_t secure; /* Is CPU in Secure state? (not guest visible) */
     } v7m;

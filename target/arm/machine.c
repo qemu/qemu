@@ -103,7 +103,7 @@ static const VMStateDescription vmstate_m_faultmask_primask = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.v7m.faultmask, ARMCPU),
-        VMSTATE_UINT32(env.v7m.primask, ARMCPU),
+        VMSTATE_UINT32(env.v7m.primask[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -251,6 +251,7 @@ static const VMStateDescription vmstate_m_security = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.v7m.secure, ARMCPU),
         VMSTATE_UINT32(env.v7m.basepri[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.primask[M_REG_S], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -271,8 +272,12 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
              * differences are that the T bit is not in the same place, the
              * primask/faultmask info may be in the CPSR I and F bits, and
              * we do not want the mode bits.
+             * We know that this cleanup happened before v8M, so there
+             * is no complication with banked primask/faultmask.
              */
             uint32_t newval = val;
+
+            assert(!arm_feature(env, ARM_FEATURE_M_SECURITY));
 
             newval &= (CPSR_NZCV | CPSR_Q | CPSR_IT | CPSR_GE);
             if (val & CPSR_T) {
@@ -287,7 +292,7 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
                 env->v7m.faultmask = 1;
             }
             if (val & CPSR_I) {
-                env->v7m.primask = 1;
+                env->v7m.primask[M_REG_NS] = 1;
             }
             val = newval;
         }
