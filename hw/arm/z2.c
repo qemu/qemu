@@ -370,6 +370,7 @@ static void z2_machine_init(MachineClass *mc)
 {
     mc->desc = "Zipit Z2 (PXA27x)";
     mc->init = z2_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("z2", z2_machine_init)

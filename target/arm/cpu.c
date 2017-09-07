@@ -185,11 +185,21 @@ static void arm_cpu_reset(CPUState *s)
         uint32_t initial_pc; /* Loaded from 0x4 */
         uint8_t *rom;
 
-        /* The reset value of this bit is IMPDEF, but ARM recommends
+        if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+            env->v7m.secure = true;
+        }
+
+        /* In v7M the reset value of this bit is IMPDEF, but ARM recommends
          * that it resets to 1, so QEMU always does that rather than making
-         * it dependent on CPU model.
+         * it dependent on CPU model. In v8M it is RES1.
          */
-        env->v7m.ccr = R_V7M_CCR_STKALIGN_MASK;
+        env->v7m.ccr[M_REG_NS] = R_V7M_CCR_STKALIGN_MASK;
+        env->v7m.ccr[M_REG_S] = R_V7M_CCR_STKALIGN_MASK;
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            /* in v8M the NONBASETHRDENA bit [0] is RES1 */
+            env->v7m.ccr[M_REG_NS] |= R_V7M_CCR_NONBASETHRDENA_MASK;
+            env->v7m.ccr[M_REG_S] |= R_V7M_CCR_NONBASETHRDENA_MASK;
+        }
 
         /* Unlike A/R profile, M profile defines the reset LR value */
         env->regs[14] = 0xffffffff;
@@ -228,17 +238,38 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
 #endif
 
-    if (arm_feature(env, ARM_FEATURE_PMSA) &&
-        arm_feature(env, ARM_FEATURE_V7)) {
+    if (arm_feature(env, ARM_FEATURE_PMSA)) {
         if (cpu->pmsav7_dregion > 0) {
-            memset(env->pmsav7.drbar, 0,
-                   sizeof(*env->pmsav7.drbar) * cpu->pmsav7_dregion);
-            memset(env->pmsav7.drsr, 0,
-                   sizeof(*env->pmsav7.drsr) * cpu->pmsav7_dregion);
-            memset(env->pmsav7.dracr, 0,
-                   sizeof(*env->pmsav7.dracr) * cpu->pmsav7_dregion);
+            if (arm_feature(env, ARM_FEATURE_V8)) {
+                memset(env->pmsav8.rbar[M_REG_NS], 0,
+                       sizeof(*env->pmsav8.rbar[M_REG_NS])
+                       * cpu->pmsav7_dregion);
+                memset(env->pmsav8.rlar[M_REG_NS], 0,
+                       sizeof(*env->pmsav8.rlar[M_REG_NS])
+                       * cpu->pmsav7_dregion);
+                if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+                    memset(env->pmsav8.rbar[M_REG_S], 0,
+                           sizeof(*env->pmsav8.rbar[M_REG_S])
+                           * cpu->pmsav7_dregion);
+                    memset(env->pmsav8.rlar[M_REG_S], 0,
+                           sizeof(*env->pmsav8.rlar[M_REG_S])
+                           * cpu->pmsav7_dregion);
+                }
+            } else if (arm_feature(env, ARM_FEATURE_V7)) {
+                memset(env->pmsav7.drbar, 0,
+                       sizeof(*env->pmsav7.drbar) * cpu->pmsav7_dregion);
+                memset(env->pmsav7.drsr, 0,
+                       sizeof(*env->pmsav7.drsr) * cpu->pmsav7_dregion);
+                memset(env->pmsav7.dracr, 0,
+                       sizeof(*env->pmsav7.dracr) * cpu->pmsav7_dregion);
+            }
         }
-        env->pmsav7.rnr = 0;
+        env->pmsav7.rnr[M_REG_NS] = 0;
+        env->pmsav7.rnr[M_REG_S] = 0;
+        env->pmsav8.mair0[M_REG_NS] = 0;
+        env->pmsav8.mair0[M_REG_S] = 0;
+        env->pmsav8.mair1[M_REG_NS] = 0;
+        env->pmsav8.mair1[M_REG_S] = 0;
     }
 
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
@@ -681,6 +712,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     }
     if (arm_feature(env, ARM_FEATURE_V6)) {
         set_feature(env, ARM_FEATURE_V5);
+        set_feature(env, ARM_FEATURE_JAZELLE);
         if (!arm_feature(env, ARM_FEATURE_M)) {
             set_feature(env, ARM_FEATURE_AUXCR);
         }
@@ -809,9 +841,19 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
 
         if (nr) {
-            env->pmsav7.drbar = g_new0(uint32_t, nr);
-            env->pmsav7.drsr = g_new0(uint32_t, nr);
-            env->pmsav7.dracr = g_new0(uint32_t, nr);
+            if (arm_feature(env, ARM_FEATURE_V8)) {
+                /* PMSAv8 */
+                env->pmsav8.rbar[M_REG_NS] = g_new0(uint32_t, nr);
+                env->pmsav8.rlar[M_REG_NS] = g_new0(uint32_t, nr);
+                if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+                    env->pmsav8.rbar[M_REG_S] = g_new0(uint32_t, nr);
+                    env->pmsav8.rlar[M_REG_S] = g_new0(uint32_t, nr);
+                }
+            } else {
+                env->pmsav7.drbar = g_new0(uint32_t, nr);
+                env->pmsav7.drsr = g_new0(uint32_t, nr);
+                env->pmsav7.dracr = g_new0(uint32_t, nr);
+            }
         }
     }
 
@@ -825,14 +867,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     init_cpreg_list(cpu);
 
 #ifndef CONFIG_USER_ONLY
-    if (cpu->has_el3) {
-        cs->num_ases = 2;
-    } else {
-        cs->num_ases = 1;
-    }
-
-    if (cpu->has_el3) {
+    if (cpu->has_el3 || arm_feature(env, ARM_FEATURE_M_SECURITY)) {
         AddressSpace *as;
+
+        cs->num_ases = 2;
 
         if (!cpu->secure_memory) {
             cpu->secure_memory = cs->memory;
@@ -840,7 +878,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         as = address_space_init_shareable(cpu->secure_memory,
                                           "cpu-secure-memory");
         cpu_address_space_init(cs, as, ARMASIdx_S);
+    } else {
+        cs->num_ases = 1;
     }
+
     cpu_address_space_init(cs,
                            address_space_init_shareable(cs->memory,
                                                         "cpu-memory"),
@@ -887,6 +928,7 @@ static void arm926_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
+    set_feature(&cpu->env, ARM_FEATURE_JAZELLE);
     cpu->midr = 0x41069265;
     cpu->reset_fpsid = 0x41011090;
     cpu->ctr = 0x1dd20d2;
@@ -916,6 +958,7 @@ static void arm1026_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_AUXCR);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
+    set_feature(&cpu->env, ARM_FEATURE_JAZELLE);
     cpu->midr = 0x4106a262;
     cpu->reset_fpsid = 0x410110a0;
     cpu->ctr = 0x1dd20d2;
@@ -1667,6 +1710,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->do_interrupt = arm_cpu_do_interrupt;
     cc->do_unaligned_access = arm_cpu_do_unaligned_access;
+    cc->do_transaction_failed = arm_cpu_do_transaction_failed;
     cc->get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug;
     cc->asidx_from_attrs = arm_asidx_from_attrs;
     cc->vmsd = &vmstate_arm_cpu;

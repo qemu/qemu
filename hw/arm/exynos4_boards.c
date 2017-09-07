@@ -189,6 +189,7 @@ static void nuri_class_init(ObjectClass *oc, void *data)
     mc->desc = "Samsung NURI board (Exynos4210)";
     mc->init = nuri_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo nuri_type = {
@@ -204,6 +205,7 @@ static void smdkc210_class_init(ObjectClass *oc, void *data)
     mc->desc = "Samsung SMDKC210 board (Exynos4210)";
     mc->init = smdkc210_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo smdkc210_type = {

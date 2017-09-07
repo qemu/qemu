@@ -983,6 +983,7 @@ static void akitapda_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sharp SL-C1000 (Akita) PDA (PXA270)";
     mc->init = akita_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo akitapda_type = {
@@ -998,6 +999,7 @@ static void spitzpda_class_init(ObjectClass *oc, void *data)
     mc->desc = "Sharp SL-C3000 (Spitz) PDA (PXA270)";
     mc->init = spitz_init;
     mc->block_default_type = IF_IDE;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo spitzpda_type = {
@@ -1013,6 +1015,7 @@ static void borzoipda_class_init(ObjectClass *oc, void *data)
     mc->desc = "Sharp SL-C3100 (Borzoi) PDA (PXA270)";
     mc->init = borzoi_init;
     mc->block_default_type = IF_IDE;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo borzoipda_type = {
@@ -1028,6 +1031,7 @@ static void terrierpda_class_init(ObjectClass *oc, void *data)
     mc->desc = "Sharp SL-C3200 (Terrier) PDA (PXA270)";
     mc->init = terrier_init;
     mc->block_default_type = IF_IDE;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo terrierpda_type = {

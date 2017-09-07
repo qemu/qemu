@@ -142,6 +142,7 @@ static void kzm_machine_init(MachineClass *mc)
 {
     mc->desc = "ARM KZM Emulation Baseboard (ARM1136)";
     mc->init = kzm_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("kzm", kzm_machine_init)

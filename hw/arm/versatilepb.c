@@ -403,6 +403,7 @@ static void versatilepb_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM Versatile/PB (ARM926EJ-S)";
     mc->init = vpb_init;
     mc->block_default_type = IF_SCSI;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo versatilepb_type = {
@@ -418,6 +419,7 @@ static void versatileab_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM Versatile/AB (ARM926EJ-S)";
     mc->init = vab_init;
     mc->block_default_type = IF_SCSI;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo versatileab_type = {

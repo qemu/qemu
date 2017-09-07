@@ -45,6 +45,7 @@ static void netduino2_machine_init(MachineClass *mc)
 {
     mc->desc = "Netduino 2 Machine";
     mc->init = netduino2_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("netduino2", netduino2_machine_init)

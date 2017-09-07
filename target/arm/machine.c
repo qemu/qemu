@@ -102,8 +102,8 @@ static const VMStateDescription vmstate_m_faultmask_primask = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(env.v7m.faultmask, ARMCPU),
-        VMSTATE_UINT32(env.v7m.primask, ARMCPU),
+        VMSTATE_UINT32(env.v7m.faultmask[M_REG_NS], ARMCPU),
+        VMSTATE_UINT32(env.v7m.primask[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -114,16 +114,16 @@ static const VMStateDescription vmstate_m = {
     .minimum_version_id = 4,
     .needed = m_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(env.v7m.vecbase, ARMCPU),
-        VMSTATE_UINT32(env.v7m.basepri, ARMCPU),
-        VMSTATE_UINT32(env.v7m.control, ARMCPU),
-        VMSTATE_UINT32(env.v7m.ccr, ARMCPU),
-        VMSTATE_UINT32(env.v7m.cfsr, ARMCPU),
+        VMSTATE_UINT32(env.v7m.vecbase[M_REG_NS], ARMCPU),
+        VMSTATE_UINT32(env.v7m.basepri[M_REG_NS], ARMCPU),
+        VMSTATE_UINT32(env.v7m.control[M_REG_NS], ARMCPU),
+        VMSTATE_UINT32(env.v7m.ccr[M_REG_NS], ARMCPU),
+        VMSTATE_UINT32(env.v7m.cfsr[M_REG_NS], ARMCPU),
         VMSTATE_UINT32(env.v7m.hfsr, ARMCPU),
         VMSTATE_UINT32(env.v7m.dfsr, ARMCPU),
-        VMSTATE_UINT32(env.v7m.mmfar, ARMCPU),
+        VMSTATE_UINT32(env.v7m.mmfar[M_REG_NS], ARMCPU),
         VMSTATE_UINT32(env.v7m.bfar, ARMCPU),
-        VMSTATE_UINT32(env.v7m.mpu_ctrl, ARMCPU),
+        VMSTATE_UINT32(env.v7m.mpu_ctrl[M_REG_NS], ARMCPU),
         VMSTATE_INT32(env.v7m.exception, ARMCPU),
         VMSTATE_END_OF_LIST()
     },
@@ -159,14 +159,15 @@ static bool pmsav7_needed(void *opaque)
     CPUARMState *env = &cpu->env;
 
     return arm_feature(env, ARM_FEATURE_PMSA) &&
-           arm_feature(env, ARM_FEATURE_V7);
+           arm_feature(env, ARM_FEATURE_V7) &&
+           !arm_feature(env, ARM_FEATURE_V8);
 }
 
 static bool pmsav7_rgnr_vmstate_validate(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
 
-    return cpu->env.pmsav7.rnr < cpu->pmsav7_dregion;
+    return cpu->env.pmsav7.rnr[M_REG_NS] < cpu->pmsav7_dregion;
 }
 
 static const VMStateDescription vmstate_pmsav7 = {
@@ -204,7 +205,77 @@ static const VMStateDescription vmstate_pmsav7_rnr = {
     .minimum_version_id = 1,
     .needed = pmsav7_rnr_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(env.pmsav7.rnr, ARMCPU),
+        VMSTATE_UINT32(env.pmsav7.rnr[M_REG_NS], ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool pmsav8_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_PMSA) &&
+        arm_feature(env, ARM_FEATURE_V8);
+}
+
+static const VMStateDescription vmstate_pmsav8 = {
+    .name = "cpu/pmsav8",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pmsav8_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(env.pmsav8.rbar[M_REG_NS], ARMCPU, pmsav7_dregion,
+                              0, vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(env.pmsav8.rlar[M_REG_NS], ARMCPU, pmsav7_dregion,
+                              0, vmstate_info_uint32, uint32_t),
+        VMSTATE_UINT32(env.pmsav8.mair0[M_REG_NS], ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair1[M_REG_NS], ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool s_rnr_vmstate_validate(void *opaque, int version_id)
+{
+    ARMCPU *cpu = opaque;
+
+    return cpu->env.pmsav7.rnr[M_REG_S] < cpu->pmsav7_dregion;
+}
+
+static bool m_security_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_M_SECURITY);
+}
+
+static const VMStateDescription vmstate_m_security = {
+    .name = "cpu/m-security",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = m_security_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.secure, ARMCPU),
+        VMSTATE_UINT32(env.v7m.other_ss_msp, ARMCPU),
+        VMSTATE_UINT32(env.v7m.other_ss_psp, ARMCPU),
+        VMSTATE_UINT32(env.v7m.basepri[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.primask[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.faultmask[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.control[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.vecbase[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair0[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair1[M_REG_S], ARMCPU),
+        VMSTATE_VARRAY_UINT32(env.pmsav8.rbar[M_REG_S], ARMCPU, pmsav7_dregion,
+                              0, vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(env.pmsav8.rlar[M_REG_S], ARMCPU, pmsav7_dregion,
+                              0, vmstate_info_uint32, uint32_t),
+        VMSTATE_UINT32(env.pmsav7.rnr[M_REG_S], ARMCPU),
+        VMSTATE_VALIDATE("secure MPU_RNR is valid", s_rnr_vmstate_validate),
+        VMSTATE_UINT32(env.v7m.mpu_ctrl[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.ccr[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.mmfar[M_REG_S], ARMCPU),
+        VMSTATE_UINT32(env.v7m.cfsr[M_REG_S], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -225,8 +296,12 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
              * differences are that the T bit is not in the same place, the
              * primask/faultmask info may be in the CPSR I and F bits, and
              * we do not want the mode bits.
+             * We know that this cleanup happened before v8M, so there
+             * is no complication with banked primask/faultmask.
              */
             uint32_t newval = val;
+
+            assert(!arm_feature(env, ARM_FEATURE_M_SECURITY));
 
             newval &= (CPSR_NZCV | CPSR_Q | CPSR_IT | CPSR_GE);
             if (val & CPSR_T) {
@@ -238,10 +313,10 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
              * transferred using the vmstate_m_faultmask_primask subsection.
              */
             if (val & CPSR_F) {
-                env->v7m.faultmask = 1;
+                env->v7m.faultmask[M_REG_NS] = 1;
             }
             if (val & CPSR_I) {
-                env->v7m.primask = 1;
+                env->v7m.primask[M_REG_NS] = 1;
             }
             val = newval;
         }
@@ -458,6 +533,8 @@ const VMStateDescription vmstate_arm_cpu = {
          */
         &vmstate_pmsav7_rnr,
         &vmstate_pmsav7,
+        &vmstate_pmsav8,
+        &vmstate_m_security,
         NULL
     }
 };

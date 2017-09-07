@@ -41,7 +41,7 @@
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
 #define ENABLE_ARCH_5TE   arm_dc_feature(s, ARM_FEATURE_V5)
-#define ENABLE_ARCH_5J    0
+#define ENABLE_ARCH_5J    arm_dc_feature(s, ARM_FEATURE_JAZELLE)
 #define ENABLE_ARCH_6     arm_dc_feature(s, ARM_FEATURE_V6)
 #define ENABLE_ARCH_6K    arm_dc_feature(s, ARM_FEATURE_V6K)
 #define ENABLE_ARCH_6T2   arm_dc_feature(s, ARM_FEATURE_THUMB2)
@@ -992,6 +992,25 @@ static inline void gen_bx_excret_final_code(DisasContext *s)
      */
     gen_ss_advance(s);
     gen_exception_internal(EXCP_EXCEPTION_EXIT);
+}
+
+static inline void gen_bxns(DisasContext *s, int rm)
+{
+    TCGv_i32 var = load_reg(s, rm);
+
+    /* The bxns helper may raise an EXCEPTION_EXIT exception, so in theory
+     * we need to sync state before calling it, but:
+     *  - we don't need to do gen_set_pc_im() because the bxns helper will
+     *    always set the PC itself
+     *  - we don't need to do gen_set_condexec() because BXNS is UNPREDICTABLE
+     *    unless it's outside an IT block or the last insn in an IT block,
+     *    so we know that condexec == 0 (already set at the top of the TB)
+     *    is correct in the non-UNPREDICTABLE cases, and we can choose
+     *    "zeroes the IT bits" as our UNPREDICTABLE behaviour otherwise.
+     */
+    gen_helper_v7m_bxns(cpu_env, var);
+    tcg_temp_free_i32(var);
+    s->base.is_jmp = DISAS_EXIT;
 }
 
 /* Variant of store_reg which uses branch&exchange logic when storing
@@ -11185,12 +11204,31 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                  */
                 bool link = insn & (1 << 7);
 
-                if (insn & 7) {
+                if (insn & 3) {
                     goto undef;
                 }
                 if (link) {
                     ARCH(5);
                 }
+                if ((insn & 4)) {
+                    /* BXNS/BLXNS: only exists for v8M with the
+                     * security extensions, and always UNDEF if NonSecure.
+                     * We don't implement these in the user-only mode
+                     * either (in theory you can use them from Secure User
+                     * mode but they are too tied in to system emulation.)
+                     */
+                    if (!s->v8m_secure || IS_USER_ONLY) {
+                        goto undef;
+                    }
+                    if (link) {
+                        /* BLXNS: not yet implemented */
+                        goto undef;
+                    } else {
+                        gen_bxns(s, rm);
+                    }
+                    break;
+                }
+                /* BLX/BX */
                 tmp = load_reg(s, rm);
                 if (link) {
                     val = (uint32_t)s->pc | 1;
@@ -11857,6 +11895,8 @@ static int arm_tr_init_disas_context(DisasContextBase *dcbase,
     dc->vec_stride = ARM_TBFLAG_VECSTRIDE(dc->base.tb->flags);
     dc->c15_cpar = ARM_TBFLAG_XSCALE_CPAR(dc->base.tb->flags);
     dc->v7m_handler_mode = ARM_TBFLAG_HANDLER(dc->base.tb->flags);
+    dc->v8m_secure = arm_feature(env, ARM_FEATURE_M_SECURITY) &&
+        regime_is_secure(env, dc->mmu_idx);
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;
 
@@ -12288,24 +12328,30 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     if (arm_feature(env, ARM_FEATURE_M)) {
         uint32_t xpsr = xpsr_read(env);
         const char *mode;
+        const char *ns_status = "";
+
+        if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+            ns_status = env->v7m.secure ? "S " : "NS ";
+        }
 
         if (xpsr & XPSR_EXCP) {
             mode = "handler";
         } else {
-            if (env->v7m.control & R_V7M_CONTROL_NPRIV_MASK) {
+            if (env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_NPRIV_MASK) {
                 mode = "unpriv-thread";
             } else {
                 mode = "priv-thread";
             }
         }
 
-        cpu_fprintf(f, "XPSR=%08x %c%c%c%c %c %s\n",
+        cpu_fprintf(f, "XPSR=%08x %c%c%c%c %c %s%s\n",
                     xpsr,
                     xpsr & XPSR_N ? 'N' : '-',
                     xpsr & XPSR_Z ? 'Z' : '-',
                     xpsr & XPSR_C ? 'C' : '-',
                     xpsr & XPSR_V ? 'V' : '-',
                     xpsr & XPSR_T ? 'T' : 'A',
+                    ns_status,
                     mode);
     } else {
         uint32_t psr = cpsr_read(env);

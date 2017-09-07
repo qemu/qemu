@@ -155,6 +155,7 @@ static void canon_a1100_machine_init(MachineClass *mc)
 {
     mc->desc = "Canon PowerShot A1100 IS";
     mc->init = &canon_a1100_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("canon-a1100", canon_a1100_machine_init)

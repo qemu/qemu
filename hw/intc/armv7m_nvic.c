@@ -167,12 +167,12 @@ static inline int nvic_exec_prio(NVICState *s)
     CPUARMState *env = &s->cpu->env;
     int running;
 
-    if (env->v7m.faultmask) {
+    if (env->v7m.faultmask[env->v7m.secure]) {
         running = -1;
-    } else if (env->v7m.primask) {
+    } else if (env->v7m.primask[env->v7m.secure]) {
         running = 0;
-    } else if (env->v7m.basepri > 0) {
-        running = env->v7m.basepri & nvic_gprio_mask(s);
+    } else if (env->v7m.basepri[env->v7m.secure] > 0) {
+        running = env->v7m.basepri[env->v7m.secure] & nvic_gprio_mask(s);
     } else {
         running = NVIC_NOEXC_PRIO; /* lower than any possible priority */
     }
@@ -185,6 +185,13 @@ bool armv7m_nvic_can_take_pending_exception(void *opaque)
     NVICState *s = opaque;
 
     return nvic_exec_prio(s) > nvic_pending_prio(s);
+}
+
+int armv7m_nvic_raw_execution_priority(void *opaque)
+{
+    NVICState *s = opaque;
+
+    return s->exception_prio;
 }
 
 /* caller must call nvic_irq_update() after this */
@@ -396,7 +403,7 @@ static void set_irq_level(void *opaque, int n, int level)
     }
 }
 
-static uint32_t nvic_readl(NVICState *s, uint32_t offset)
+static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
 {
     ARMCPU *cpu = s->cpu;
     uint32_t val;
@@ -434,14 +441,19 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
         /* ISRPREEMPT not implemented */
         return val;
     case 0xd08: /* Vector Table Offset.  */
-        return cpu->env.v7m.vecbase;
+        return cpu->env.v7m.vecbase[attrs.secure];
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         return 0xfa050000 | (s->prigroup << 8);
     case 0xd10: /* System Control.  */
         /* TODO: Implement SLEEPONEXIT.  */
         return 0;
     case 0xd14: /* Configuration Control.  */
-        return cpu->env.v7m.ccr;
+        /* The BFHFNMIGN bit is the only non-banked bit; we
+         * keep it in the non-secure copy of the register.
+         */
+        val = cpu->env.v7m.ccr[attrs.secure];
+        val |= cpu->env.v7m.ccr[M_REG_NS] & R_V7M_CCR_BFHFNMIGN_MASK;
+        return val;
     case 0xd24: /* System Handler Status.  */
         val = 0;
         if (s->vectors[ARMV7M_EXCP_MEM].active) {
@@ -488,13 +500,18 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
         }
         return val;
     case 0xd28: /* Configurable Fault Status.  */
-        return cpu->env.v7m.cfsr;
+        /* The BFSR bits [15:8] are shared between security states
+         * and we store them in the NS copy
+         */
+        val = cpu->env.v7m.cfsr[attrs.secure];
+        val |= cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
+        return val;
     case 0xd2c: /* Hard Fault Status.  */
         return cpu->env.v7m.hfsr;
     case 0xd30: /* Debug Fault Status.  */
         return cpu->env.v7m.dfsr;
     case 0xd34: /* MMFAR MemManage Fault Address */
-        return cpu->env.v7m.mmfar;
+        return cpu->env.v7m.mmfar[attrs.secure];
     case 0xd38: /* Bus Fault Address.  */
         return cpu->env.v7m.bfar;
     case 0xd3c: /* Aux Fault Status.  */
@@ -534,27 +551,58 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
         return cpu->pmsav7_dregion << 8;
         break;
     case 0xd94: /* MPU_CTRL */
-        return cpu->env.v7m.mpu_ctrl;
+        return cpu->env.v7m.mpu_ctrl[attrs.secure];
     case 0xd98: /* MPU_RNR */
-        return cpu->env.pmsav7.rnr;
+        return cpu->env.pmsav7.rnr[attrs.secure];
     case 0xd9c: /* MPU_RBAR */
     case 0xda4: /* MPU_RBAR_A1 */
     case 0xdac: /* MPU_RBAR_A2 */
     case 0xdb4: /* MPU_RBAR_A3 */
     {
-        int region = cpu->env.pmsav7.rnr;
+        int region = cpu->env.pmsav7.rnr[attrs.secure];
+
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR, and there is no 'region' field in the
+             * RBAR register.
+             */
+            int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return 0;
+            }
+            return cpu->env.pmsav8.rbar[attrs.secure][region];
+        }
 
         if (region >= cpu->pmsav7_dregion) {
             return 0;
         }
         return (cpu->env.pmsav7.drbar[region] & 0x1f) | (region & 0xf);
     }
-    case 0xda0: /* MPU_RASR */
-    case 0xda8: /* MPU_RASR_A1 */
-    case 0xdb0: /* MPU_RASR_A2 */
-    case 0xdb8: /* MPU_RASR_A3 */
+    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+    case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
+    case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
+    case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
     {
-        int region = cpu->env.pmsav7.rnr;
+        int region = cpu->env.pmsav7.rnr[attrs.secure];
+
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR.
+             */
+            int aliasno = (offset - 0xda0) / 8; /* 0..3 */
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return 0;
+            }
+            return cpu->env.pmsav8.rlar[attrs.secure][region];
+        }
 
         if (region >= cpu->pmsav7_dregion) {
             return 0;
@@ -562,13 +610,25 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
         return ((cpu->env.pmsav7.dracr[region] & 0xffff) << 16) |
             (cpu->env.pmsav7.drsr[region] & 0xffff);
     }
+    case 0xdc0: /* MPU_MAIR0 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        return cpu->env.pmsav8.mair0[attrs.secure];
+    case 0xdc4: /* MPU_MAIR1 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        return cpu->env.pmsav8.mair1[attrs.secure];
     default:
+    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "NVIC: Bad read offset 0x%x\n", offset);
         return 0;
     }
 }
 
-static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
+static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
+                        MemTxAttrs attrs)
 {
     ARMCPU *cpu = s->cpu;
 
@@ -589,7 +649,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         }
         break;
     case 0xd08: /* Vector Table Offset.  */
-        cpu->env.v7m.vecbase = value & 0xffffff80;
+        cpu->env.v7m.vecbase[attrs.secure] = value & 0xffffff80;
         break;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         if ((value >> 16) == 0x05fa) {
@@ -623,7 +683,20 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
                   R_V7M_CCR_USERSETMPEND_MASK |
                   R_V7M_CCR_NONBASETHRDENA_MASK);
 
-        cpu->env.v7m.ccr = value;
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* v8M makes NONBASETHRDENA and STKALIGN be RES1 */
+            value |= R_V7M_CCR_NONBASETHRDENA_MASK
+                | R_V7M_CCR_STKALIGN_MASK;
+        }
+        if (attrs.secure) {
+            /* the BFHFNMIGN bit is not banked; keep that in the NS copy */
+            cpu->env.v7m.ccr[M_REG_NS] =
+                (cpu->env.v7m.ccr[M_REG_NS] & ~R_V7M_CCR_BFHFNMIGN_MASK)
+                | (value & R_V7M_CCR_BFHFNMIGN_MASK);
+            value &= ~R_V7M_CCR_BFHFNMIGN_MASK;
+        }
+
+        cpu->env.v7m.ccr[attrs.secure] = value;
         break;
     case 0xd24: /* System Handler Control.  */
         s->vectors[ARMV7M_EXCP_MEM].active = (value & (1 << 0)) != 0;
@@ -643,7 +716,13 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         nvic_irq_update(s);
         break;
     case 0xd28: /* Configurable Fault Status.  */
-        cpu->env.v7m.cfsr &= ~value; /* W1C */
+        cpu->env.v7m.cfsr[attrs.secure] &= ~value; /* W1C */
+        if (attrs.secure) {
+            /* The BFSR bits [15:8] are shared between security states
+             * and we store them in the NS copy.
+             */
+            cpu->env.v7m.cfsr[M_REG_NS] &= ~(value & R_V7M_CFSR_BFSR_MASK);
+        }
         break;
     case 0xd2c: /* Hard Fault Status.  */
         cpu->env.v7m.hfsr &= ~value; /* W1C */
@@ -652,7 +731,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         cpu->env.v7m.dfsr &= ~value; /* W1C */
         break;
     case 0xd34: /* Mem Manage Address.  */
-        cpu->env.v7m.mmfar = value;
+        cpu->env.v7m.mmfar[attrs.secure] = value;
         return;
     case 0xd38: /* Bus Fault Address.  */
         cpu->env.v7m.bfar = value;
@@ -670,9 +749,10 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
             qemu_log_mask(LOG_GUEST_ERROR, "MPU_CTRL: HFNMIENA and !ENABLE is "
                           "UNPREDICTABLE\n");
         }
-        cpu->env.v7m.mpu_ctrl = value & (R_V7M_MPU_CTRL_ENABLE_MASK |
-                                         R_V7M_MPU_CTRL_HFNMIENA_MASK |
-                                         R_V7M_MPU_CTRL_PRIVDEFENA_MASK);
+        cpu->env.v7m.mpu_ctrl[attrs.secure]
+            = value & (R_V7M_MPU_CTRL_ENABLE_MASK |
+                       R_V7M_MPU_CTRL_HFNMIENA_MASK |
+                       R_V7M_MPU_CTRL_PRIVDEFENA_MASK);
         tlb_flush(CPU(cpu));
         break;
     case 0xd98: /* MPU_RNR */
@@ -681,7 +761,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
                           PRIu32 "/%" PRIu32 "\n",
                           value, cpu->pmsav7_dregion);
         } else {
-            cpu->env.pmsav7.rnr = value;
+            cpu->env.pmsav7.rnr[attrs.secure] = value;
         }
         break;
     case 0xd9c: /* MPU_RBAR */
@@ -690,6 +770,26 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
     case 0xdb4: /* MPU_RBAR_A3 */
     {
         int region;
+
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR, and there is no 'region' field in the
+             * RBAR register.
+             */
+            int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
+
+            region = cpu->env.pmsav7.rnr[attrs.secure];
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return;
+            }
+            cpu->env.pmsav8.rbar[attrs.secure][region] = value;
+            tlb_flush(CPU(cpu));
+            return;
+        }
 
         if (value & (1 << 4)) {
             /* VALID bit means use the region number specified in this
@@ -702,9 +802,9 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
                               region, cpu->pmsav7_dregion);
                 return;
             }
-            cpu->env.pmsav7.rnr = region;
+            cpu->env.pmsav7.rnr[attrs.secure] = region;
         } else {
-            region = cpu->env.pmsav7.rnr;
+            region = cpu->env.pmsav7.rnr[attrs.secure];
         }
 
         if (region >= cpu->pmsav7_dregion) {
@@ -715,12 +815,31 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         tlb_flush(CPU(cpu));
         break;
     }
-    case 0xda0: /* MPU_RASR */
-    case 0xda8: /* MPU_RASR_A1 */
-    case 0xdb0: /* MPU_RASR_A2 */
-    case 0xdb8: /* MPU_RASR_A3 */
+    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+    case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
+    case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
+    case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
     {
-        int region = cpu->env.pmsav7.rnr;
+        int region = cpu->env.pmsav7.rnr[attrs.secure];
+
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR.
+             */
+            int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
+
+            region = cpu->env.pmsav7.rnr[attrs.secure];
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return;
+            }
+            cpu->env.pmsav8.rlar[attrs.secure][region] = value;
+            tlb_flush(CPU(cpu));
+            return;
+        }
 
         if (region >= cpu->pmsav7_dregion) {
             return;
@@ -731,6 +850,30 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         tlb_flush(CPU(cpu));
         break;
     }
+    case 0xdc0: /* MPU_MAIR0 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (cpu->pmsav7_dregion) {
+            /* Register is RES0 if no MPU regions are implemented */
+            cpu->env.pmsav8.mair0[attrs.secure] = value;
+        }
+        /* We don't need to do anything else because memory attributes
+         * only affect cacheability, and we don't implement caching.
+         */
+        break;
+    case 0xdc4: /* MPU_MAIR1 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (cpu->pmsav7_dregion) {
+            /* Register is RES0 if no MPU regions are implemented */
+            cpu->env.pmsav8.mair1[attrs.secure] = value;
+        }
+        /* We don't need to do anything else because memory attributes
+         * only affect cacheability, and we don't implement caching.
+         */
+        break;
     case 0xf00: /* Software Triggered Interrupt Register */
     {
         int excnum = (value & 0x1ff) + NVIC_FIRST_IRQ;
@@ -740,17 +883,21 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         break;
     }
     default:
+    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "NVIC: Bad write offset 0x%x\n", offset);
     }
 }
 
-static bool nvic_user_access_ok(NVICState *s, hwaddr offset)
+static bool nvic_user_access_ok(NVICState *s, hwaddr offset, MemTxAttrs attrs)
 {
     /* Return true if unprivileged access to this register is permitted. */
     switch (offset) {
     case 0xf00: /* STIR: accessible only if CCR.USERSETMPEND permits */
-        return s->cpu->env.v7m.ccr & R_V7M_CCR_USERSETMPEND_MASK;
+        /* For access via STIR_NS it is the NS CCR.USERSETMPEND that
+         * controls access even though the CPU is in Secure state (I_QDKX).
+         */
+        return s->cpu->env.v7m.ccr[attrs.secure] & R_V7M_CCR_USERSETMPEND_MASK;
     default:
         /* All other user accesses cause a BusFault unconditionally */
         return false;
@@ -766,7 +913,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
     unsigned i, startvec, end;
     uint32_t val;
 
-    if (attrs.user && !nvic_user_access_ok(s, addr)) {
+    if (attrs.user && !nvic_user_access_ok(s, addr, attrs)) {
         /* Generate BusFault for unprivileged accesses */
         return MEMTX_ERROR;
     }
@@ -831,7 +978,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         break;
     default:
         if (size == 4) {
-            val = nvic_readl(s, offset);
+            val = nvic_readl(s, offset, attrs);
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "NVIC: Bad read of size %d at offset 0x%x\n",
@@ -856,7 +1003,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
 
     trace_nvic_sysreg_write(addr, value, size);
 
-    if (attrs.user && !nvic_user_access_ok(s, addr)) {
+    if (attrs.user && !nvic_user_access_ok(s, addr, attrs)) {
         /* Generate BusFault for unprivileged accesses */
         return MEMTX_ERROR;
     }
@@ -912,7 +1059,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         return MEMTX_OK;
     }
     if (size == 4) {
-        nvic_writel(s, offset, value);
+        nvic_writel(s, offset, value, attrs);
         return MEMTX_OK;
     }
     qemu_log_mask(LOG_GUEST_ERROR,
@@ -924,6 +1071,47 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps nvic_sysreg_ops = {
     .read_with_attrs = nvic_sysreg_read,
     .write_with_attrs = nvic_sysreg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static MemTxResult nvic_sysreg_ns_write(void *opaque, hwaddr addr,
+                                        uint64_t value, unsigned size,
+                                        MemTxAttrs attrs)
+{
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return nvic_sysreg_write(opaque, addr, value, size, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult nvic_sysreg_ns_read(void *opaque, hwaddr addr,
+                                       uint64_t *data, unsigned size,
+                                       MemTxAttrs attrs)
+{
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return nvic_sysreg_read(opaque, addr, data, size, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        *data = 0;
+        return MEMTX_OK;
+    }
+}
+
+static const MemoryRegionOps nvic_sysreg_ns_ops = {
+    .read_with_attrs = nvic_sysreg_ns_read,
+    .write_with_attrs = nvic_sysreg_ns_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -1028,6 +1216,7 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     NVICState *s = NVIC(dev);
     SysBusDevice *systick_sbd;
     Error *err = NULL;
+    int regionlen;
 
     s->cpu = ARM_CPU(qemu_get_cpu(0));
     assert(s->cpu);
@@ -1060,8 +1249,23 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
      *  0xd00..0xd3c - SCS registers
      *  0xd40..0xeff - Reserved or Not implemented
      *  0xf00 - STIR
+     *
+     * Some registers within this space are banked between security states.
+     * In v8M there is a second range 0xe002e000..0xe002efff which is the
+     * NonSecure alias SCS; secure accesses to this behave like NS accesses
+     * to the main SCS range, and non-secure accesses (including when
+     * the security extension is not implemented) are RAZ/WI.
+     * Note that both the main SCS range and the alias range are defined
+     * to be exempt from memory attribution (R_BLJT) and so the memory
+     * transaction attribute always matches the current CPU security
+     * state (attrs.secure == env->v7m.secure). In the nvic_sysreg_ns_ops
+     * wrappers we change attrs.secure to indicate the NS access; so
+     * generally code determining which banked register to use should
+     * use attrs.secure; code determining actual behaviour of the system
+     * should use env->v7m.secure.
      */
-    memory_region_init(&s->container, OBJECT(s), "nvic", 0x1000);
+    regionlen = arm_feature(&s->cpu->env, ARM_FEATURE_V8) ? 0x21000 : 0x1000;
+    memory_region_init(&s->container, OBJECT(s), "nvic", regionlen);
     /* The system register region goes at the bottom of the priority
      * stack as it covers the whole page.
      */
@@ -1071,6 +1275,13 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion_overlap(&s->container, 0x10,
                                         sysbus_mmio_get_region(systick_sbd, 0),
                                         1);
+
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
+        memory_region_init_io(&s->sysreg_ns_mem, OBJECT(s),
+                              &nvic_sysreg_ns_ops, s,
+                              "nvic_sysregs_ns", 0x1000);
+        memory_region_add_subregion(&s->container, 0x20000, &s->sysreg_ns_mem);
+    }
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->container);
 }

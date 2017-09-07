@@ -326,6 +326,7 @@ static void zynq_machine_init(MachineClass *mc)
     mc->init = zynq_init;
     mc->max_cpus = 1;
     mc->no_sdcard = 1;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("xilinx-zynq-a9", zynq_machine_init)

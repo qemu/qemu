@@ -1453,6 +1453,7 @@ static void lm3s811evb_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Stellaris LM3S811EVB";
     mc->init = lm3s811evb_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo lm3s811evb_type = {
@@ -1467,6 +1468,7 @@ static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Stellaris LM3S6965EVB";
     mc->init = lm3s6965evb_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo lm3s6965evb_type = {

@@ -1718,6 +1718,7 @@ static void musicpal_machine_init(MachineClass *mc)
 {
     mc->desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)";
     mc->init = musicpal_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("musicpal", musicpal_machine_init)

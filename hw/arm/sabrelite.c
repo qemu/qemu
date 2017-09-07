@@ -122,6 +122,7 @@ static void sabrelite_machine_init(MachineClass *mc)
     mc->desc = "Freescale i.MX6 Quad SABRE Lite Board (Cortex A9)";
     mc->init = sabrelite_init;
     mc->max_cpus = FSL_IMX6_NUM_CPUS;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("sabrelite", sabrelite_machine_init)

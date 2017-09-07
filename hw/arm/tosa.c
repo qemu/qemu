@@ -263,6 +263,7 @@ static void tosapda_machine_init(MachineClass *mc)
     mc->desc = "Sharp SL-6000 (Tosa) PDA (PXA255)";
     mc->init = tosa_init;
     mc->block_default_type = IF_IDE;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("tosa", tosapda_machine_init)
