@@ -403,7 +403,7 @@ static void set_irq_level(void *opaque, int n, int level)
     }
 }
 
-static uint32_t nvic_readl(NVICState *s, uint32_t offset)
+static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
 {
     ARMCPU *cpu = s->cpu;
     uint32_t val;
@@ -441,7 +441,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
         /* ISRPREEMPT not implemented */
         return val;
     case 0xd08: /* Vector Table Offset.  */
-        return cpu->env.v7m.vecbase;
+        return cpu->env.v7m.vecbase[attrs.secure];
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         return 0xfa050000 | (s->prigroup << 8);
     case 0xd10: /* System Control.  */
@@ -617,7 +617,8 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
     }
 }
 
-static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
+static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
+                        MemTxAttrs attrs)
 {
     ARMCPU *cpu = s->cpu;
 
@@ -638,7 +639,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         }
         break;
     case 0xd08: /* Vector Table Offset.  */
-        cpu->env.v7m.vecbase = value & 0xffffff80;
+        cpu->env.v7m.vecbase[attrs.secure] = value & 0xffffff80;
         break;
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         if ((value >> 16) == 0x05fa) {
@@ -944,7 +945,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         break;
     default:
         if (size == 4) {
-            val = nvic_readl(s, offset);
+            val = nvic_readl(s, offset, attrs);
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "NVIC: Bad read of size %d at offset 0x%x\n",
@@ -1025,7 +1026,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         return MEMTX_OK;
     }
     if (size == 4) {
-        nvic_writel(s, offset, value);
+        nvic_writel(s, offset, value, attrs);
         return MEMTX_OK;
     }
     qemu_log_mask(LOG_GUEST_ERROR,

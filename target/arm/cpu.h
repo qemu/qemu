@@ -420,7 +420,7 @@ typedef struct CPUARMState {
 
     struct {
         uint32_t other_sp;
-        uint32_t vecbase;
+        uint32_t vecbase[2];
         uint32_t basepri[2];
         uint32_t control[2];
         uint32_t ccr; /* Configuration and Control */
