@@ -11,3 +11,4 @@ common-obj-$(CONFIG_AUDIO_WIN_INT) += audio_win_int.o
 common-obj-y += wavcapture.o
 
 sdlaudio.o-cflags := $(SDL_CFLAGS)
+sdlaudio.o-libs := $(SDL_LIBS)
