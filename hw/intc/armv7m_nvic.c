@@ -544,17 +544,48 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
     {
         int region = cpu->env.pmsav7.rnr;
 
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR, and there is no 'region' field in the
+             * RBAR register.
+             */
+            int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return 0;
+            }
+            return cpu->env.pmsav8.rbar[region];
+        }
+
         if (region >= cpu->pmsav7_dregion) {
             return 0;
         }
         return (cpu->env.pmsav7.drbar[region] & 0x1f) | (region & 0xf);
     }
-    case 0xda0: /* MPU_RASR */
-    case 0xda8: /* MPU_RASR_A1 */
-    case 0xdb0: /* MPU_RASR_A2 */
-    case 0xdb8: /* MPU_RASR_A3 */
+    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+    case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
+    case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
+    case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
     {
         int region = cpu->env.pmsav7.rnr;
+
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR.
+             */
+            int aliasno = (offset - 0xda0) / 8; /* 0..3 */
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return 0;
+            }
+            return cpu->env.pmsav8.rlar[region];
+        }
 
         if (region >= cpu->pmsav7_dregion) {
             return 0;
@@ -562,7 +593,18 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset)
         return ((cpu->env.pmsav7.dracr[region] & 0xffff) << 16) |
             (cpu->env.pmsav7.drsr[region] & 0xffff);
     }
+    case 0xdc0: /* MPU_MAIR0 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        return cpu->env.pmsav8.mair0;
+    case 0xdc4: /* MPU_MAIR1 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        return cpu->env.pmsav8.mair1;
     default:
+    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "NVIC: Bad read offset 0x%x\n", offset);
         return 0;
     }
@@ -691,6 +733,26 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
     {
         int region;
 
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR, and there is no 'region' field in the
+             * RBAR register.
+             */
+            int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
+
+            region = cpu->env.pmsav7.rnr;
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return;
+            }
+            cpu->env.pmsav8.rbar[region] = value;
+            tlb_flush(CPU(cpu));
+            return;
+        }
+
         if (value & (1 << 4)) {
             /* VALID bit means use the region number specified in this
              * value and also update MPU_RNR.REGION with that value.
@@ -715,12 +777,31 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         tlb_flush(CPU(cpu));
         break;
     }
-    case 0xda0: /* MPU_RASR */
-    case 0xda8: /* MPU_RASR_A1 */
-    case 0xdb0: /* MPU_RASR_A2 */
-    case 0xdb8: /* MPU_RASR_A3 */
+    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+    case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
+    case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
+    case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
     {
         int region = cpu->env.pmsav7.rnr;
+
+        if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            /* PMSAv8M handling of the aliases is different from v7M:
+             * aliases A1, A2, A3 override the low two bits of the region
+             * number in MPU_RNR.
+             */
+            int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
+
+            region = cpu->env.pmsav7.rnr;
+            if (aliasno) {
+                region = deposit32(region, 0, 2, aliasno);
+            }
+            if (region >= cpu->pmsav7_dregion) {
+                return;
+            }
+            cpu->env.pmsav8.rlar[region] = value;
+            tlb_flush(CPU(cpu));
+            return;
+        }
 
         if (region >= cpu->pmsav7_dregion) {
             return;
@@ -731,6 +812,30 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         tlb_flush(CPU(cpu));
         break;
     }
+    case 0xdc0: /* MPU_MAIR0 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (cpu->pmsav7_dregion) {
+            /* Register is RES0 if no MPU regions are implemented */
+            cpu->env.pmsav8.mair0 = value;
+        }
+        /* We don't need to do anything else because memory attributes
+         * only affect cacheability, and we don't implement caching.
+         */
+        break;
+    case 0xdc4: /* MPU_MAIR1 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (cpu->pmsav7_dregion) {
+            /* Register is RES0 if no MPU regions are implemented */
+            cpu->env.pmsav8.mair1 = value;
+        }
+        /* We don't need to do anything else because memory attributes
+         * only affect cacheability, and we don't implement caching.
+         */
+        break;
     case 0xf00: /* Software Triggered Interrupt Register */
     {
         int excnum = (value & 0x1ff) + NVIC_FIRST_IRQ;
@@ -740,6 +845,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value)
         break;
     }
     default:
+    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "NVIC: Bad write offset 0x%x\n", offset);
     }

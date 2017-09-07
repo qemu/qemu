@@ -159,7 +159,8 @@ static bool pmsav7_needed(void *opaque)
     CPUARMState *env = &cpu->env;
 
     return arm_feature(env, ARM_FEATURE_PMSA) &&
-           arm_feature(env, ARM_FEATURE_V7);
+           arm_feature(env, ARM_FEATURE_V7) &&
+           !arm_feature(env, ARM_FEATURE_V8);
 }
 
 static bool pmsav7_rgnr_vmstate_validate(void *opaque, int version_id)
@@ -205,6 +206,31 @@ static const VMStateDescription vmstate_pmsav7_rnr = {
     .needed = pmsav7_rnr_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.pmsav7.rnr, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool pmsav8_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_PMSA) &&
+        arm_feature(env, ARM_FEATURE_V8);
+}
+
+static const VMStateDescription vmstate_pmsav8 = {
+    .name = "cpu/pmsav8",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pmsav8_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(env.pmsav8.rbar, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(env.pmsav8.rlar, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_UINT32(env.pmsav8.mair0, ARMCPU),
+        VMSTATE_UINT32(env.pmsav8.mair1, ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -458,6 +484,7 @@ const VMStateDescription vmstate_arm_cpu = {
          */
         &vmstate_pmsav7_rnr,
         &vmstate_pmsav7,
+        &vmstate_pmsav8,
         NULL
     }
 };

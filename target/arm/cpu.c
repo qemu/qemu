@@ -228,17 +228,25 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
 #endif
 
-    if (arm_feature(env, ARM_FEATURE_PMSA) &&
-        arm_feature(env, ARM_FEATURE_V7)) {
+    if (arm_feature(env, ARM_FEATURE_PMSA)) {
         if (cpu->pmsav7_dregion > 0) {
-            memset(env->pmsav7.drbar, 0,
-                   sizeof(*env->pmsav7.drbar) * cpu->pmsav7_dregion);
-            memset(env->pmsav7.drsr, 0,
-                   sizeof(*env->pmsav7.drsr) * cpu->pmsav7_dregion);
-            memset(env->pmsav7.dracr, 0,
-                   sizeof(*env->pmsav7.dracr) * cpu->pmsav7_dregion);
+            if (arm_feature(env, ARM_FEATURE_V8)) {
+                memset(env->pmsav8.rbar, 0,
+                       sizeof(*env->pmsav8.rbar) * cpu->pmsav7_dregion);
+                memset(env->pmsav8.rlar, 0,
+                       sizeof(*env->pmsav8.rlar) * cpu->pmsav7_dregion);
+            } else if (arm_feature(env, ARM_FEATURE_V7)) {
+                memset(env->pmsav7.drbar, 0,
+                       sizeof(*env->pmsav7.drbar) * cpu->pmsav7_dregion);
+                memset(env->pmsav7.drsr, 0,
+                       sizeof(*env->pmsav7.drsr) * cpu->pmsav7_dregion);
+                memset(env->pmsav7.dracr, 0,
+                       sizeof(*env->pmsav7.dracr) * cpu->pmsav7_dregion);
+            }
         }
         env->pmsav7.rnr = 0;
+        env->pmsav8.mair0 = 0;
+        env->pmsav8.mair1 = 0;
     }
 
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
@@ -809,9 +817,15 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
 
         if (nr) {
-            env->pmsav7.drbar = g_new0(uint32_t, nr);
-            env->pmsav7.drsr = g_new0(uint32_t, nr);
-            env->pmsav7.dracr = g_new0(uint32_t, nr);
+            if (arm_feature(env, ARM_FEATURE_V8)) {
+                /* PMSAv8 */
+                env->pmsav8.rbar = g_new0(uint32_t, nr);
+                env->pmsav8.rlar = g_new0(uint32_t, nr);
+            } else {
+                env->pmsav7.drbar = g_new0(uint32_t, nr);
+                env->pmsav7.drsr = g_new0(uint32_t, nr);
+                env->pmsav7.dracr = g_new0(uint32_t, nr);
+            }
         }
     }
 
