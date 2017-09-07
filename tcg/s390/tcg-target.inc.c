@@ -38,12 +38,13 @@
    a 32-bit displacement here Just In Case.  */
 #define USE_LONG_BRANCHES 0
 
-#define TCG_CT_CONST_MULI  0x100
-#define TCG_CT_CONST_ORI   0x200
-#define TCG_CT_CONST_XORI  0x400
-#define TCG_CT_CONST_CMPI  0x800
-#define TCG_CT_CONST_ADLI  0x1000
-#define TCG_CT_CONST_ZERO  0x2000
+#define TCG_CT_CONST_S16   0x100
+#define TCG_CT_CONST_S32   0x200
+#define TCG_CT_CONST_NN16  0x400
+#define TCG_CT_CONST_NN32  0x800
+#define TCG_CT_CONST_U31   0x1000
+#define TCG_CT_CONST_S33   0x2000
+#define TCG_CT_CONST_ZERO  0x4000
 
 /* Several places within the instruction set 0 means "no register"
    rather than TCG_REG_R0.  */
@@ -121,6 +122,7 @@ typedef enum S390Opcode {
     RIE_CLGIJ   = 0xec7d,
     RIE_CLRJ    = 0xec77,
     RIE_CRJ     = 0xec76,
+    RIE_LOCGHI  = 0xec46,
     RIE_RISBG   = 0xec55,
 
     RRE_AGR     = 0xb908,
@@ -158,6 +160,16 @@ typedef enum S390Opcode {
 
     RRF_LOCR    = 0xb9f2,
     RRF_LOCGR   = 0xb9e2,
+    RRF_NRK     = 0xb9f4,
+    RRF_NGRK    = 0xb9e4,
+    RRF_ORK     = 0xb9f6,
+    RRF_OGRK    = 0xb9e6,
+    RRF_SRK     = 0xb9f9,
+    RRF_SGRK    = 0xb9e9,
+    RRF_SLRK    = 0xb9fb,
+    RRF_SLGRK   = 0xb9eb,
+    RRF_XRK     = 0xb9f7,
+    RRF_XGRK    = 0xb9e7,
 
     RR_AR       = 0x1a,
     RR_ALR      = 0x1e,
@@ -178,8 +190,11 @@ typedef enum S390Opcode {
     RSY_RLL     = 0xeb1d,
     RSY_RLLG    = 0xeb1c,
     RSY_SLLG    = 0xeb0d,
+    RSY_SLLK    = 0xebdf,
     RSY_SRAG    = 0xeb0a,
+    RSY_SRAK    = 0xebdc,
     RSY_SRLG    = 0xeb0c,
+    RSY_SRLK    = 0xebde,
 
     RS_SLL      = 0x89,
     RS_SRA      = 0x8a,
@@ -386,19 +401,33 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         tcg_regset_set_reg(ct->u.regs, TCG_REG_R3);
         break;
     case 'A':
-        ct->ct |= TCG_CT_CONST_ADLI;
+        ct->ct |= TCG_CT_CONST_S33;
         break;
-    case 'K':
-        ct->ct |= TCG_CT_CONST_MULI;
+    case 'I':
+        ct->ct |= TCG_CT_CONST_S16;
         break;
-    case 'O':
-        ct->ct |= TCG_CT_CONST_ORI;
+    case 'J':
+        ct->ct |= TCG_CT_CONST_S32;
         break;
-    case 'X':
-        ct->ct |= TCG_CT_CONST_XORI;
+    case 'N':
+        ct->ct |= TCG_CT_CONST_NN16;
+        break;
+    case 'M':
+        ct->ct |= TCG_CT_CONST_NN32;
         break;
     case 'C':
-        ct->ct |= TCG_CT_CONST_CMPI;
+        /* ??? We have no insight here into whether the comparison is
+           signed or unsigned.  The COMPARE IMMEDIATE insn uses a 32-bit
+           signed immediate, and the COMPARE LOGICAL IMMEDIATE insn uses
+           a 32-bit unsigned immediate.  If we were to use the (semi)
+           obvious "val == (int32_t)val" we would be enabling unsigned
+           comparisons vs very large numbers.  The only solution is to
+           take the intersection of the ranges.  */
+        /* ??? Another possible solution is to simply lie and allow all
+           constants here and force the out-of-range values into a temp
+           register in tgen_cmp when we have knowledge of the actual
+           comparison code in use.  */
+        ct->ct |= TCG_CT_CONST_U31;
         break;
     case 'Z':
         ct->ct |= TCG_CT_CONST_ZERO;
@@ -407,103 +436,6 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         return NULL;
     }
     return ct_str;
-}
-
-/* Immediates to be used with logical OR.  This is an optimization only,
-   since a full 64-bit immediate OR can always be performed with 4 sequential
-   OI[LH][LH] instructions.  What we're looking for is immediates that we
-   can load efficiently, and the immediate load plus the reg-reg OR is
-   smaller than the sequential OI's.  */
-
-static int tcg_match_ori(TCGType type, tcg_target_long val)
-{
-    if (s390_facilities & FACILITY_EXT_IMM) {
-        if (type == TCG_TYPE_I32) {
-            /* All 32-bit ORs can be performed with 1 48-bit insn.  */
-            return 1;
-        }
-    }
-
-    /* Look for negative values.  These are best to load with LGHI.  */
-    if (val < 0) {
-        if (val == (int16_t)val) {
-            return 0;
-        }
-        if (s390_facilities & FACILITY_EXT_IMM) {
-            if (val == (int32_t)val) {
-                return 0;
-            }
-        }
-    }
-
-    return 1;
-}
-
-/* Immediates to be used with logical XOR.  This is almost, but not quite,
-   only an optimization.  XOR with immediate is only supported with the
-   extended-immediate facility.  That said, there are a few patterns for
-   which it is better to load the value into a register first.  */
-
-static int tcg_match_xori(TCGType type, tcg_target_long val)
-{
-    if ((s390_facilities & FACILITY_EXT_IMM) == 0) {
-        return 0;
-    }
-
-    if (type == TCG_TYPE_I32) {
-        /* All 32-bit XORs can be performed with 1 48-bit insn.  */
-        return 1;
-    }
-
-    /* Look for negative values.  These are best to load with LGHI.  */
-    if (val < 0 && val == (int32_t)val) {
-        return 0;
-    }
-
-    return 1;
-}
-
-/* Imediates to be used with comparisons.  */
-
-static int tcg_match_cmpi(TCGType type, tcg_target_long val)
-{
-    if (s390_facilities & FACILITY_EXT_IMM) {
-        /* The COMPARE IMMEDIATE instruction is available.  */
-        if (type == TCG_TYPE_I32) {
-            /* We have a 32-bit immediate and can compare against anything.  */
-            return 1;
-        } else {
-            /* ??? We have no insight here into whether the comparison is
-               signed or unsigned.  The COMPARE IMMEDIATE insn uses a 32-bit
-               signed immediate, and the COMPARE LOGICAL IMMEDIATE insn uses
-               a 32-bit unsigned immediate.  If we were to use the (semi)
-               obvious "val == (int32_t)val" we would be enabling unsigned
-               comparisons vs very large numbers.  The only solution is to
-               take the intersection of the ranges.  */
-            /* ??? Another possible solution is to simply lie and allow all
-               constants here and force the out-of-range values into a temp
-               register in tgen_cmp when we have knowledge of the actual
-               comparison code in use.  */
-            return val >= 0 && val <= 0x7fffffff;
-        }
-    } else {
-        /* Only the LOAD AND TEST instruction is available.  */
-        return val == 0;
-    }
-}
-
-/* Immediates to be used with add2/sub2.  */
-
-static int tcg_match_add2i(TCGType type, tcg_target_long val)
-{
-    if (s390_facilities & FACILITY_EXT_IMM) {
-        if (type == TCG_TYPE_I32) {
-            return 1;
-        } else if (val >= -0xffffffffll && val <= 0xffffffffll) {
-            return 1;
-        }
-    }
-    return 0;
 }
 
 /* Test if a constant matches the constraint. */
@@ -521,24 +453,18 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
     }
 
     /* The following are mutually exclusive.  */
-    if (ct & TCG_CT_CONST_MULI) {
-        /* Immediates that may be used with multiply.  If we have the
-           general-instruction-extensions, then we have MULTIPLY SINGLE
-           IMMEDIATE with a signed 32-bit, otherwise we have only
-           MULTIPLY HALFWORD IMMEDIATE, with a signed 16-bit.  */
-        if (s390_facilities & FACILITY_GEN_INST_EXT) {
-            return val == (int32_t)val;
-        } else {
-            return val == (int16_t)val;
-        }
-    } else if (ct & TCG_CT_CONST_ADLI) {
-        return tcg_match_add2i(type, val);
-    } else if (ct & TCG_CT_CONST_ORI) {
-        return tcg_match_ori(type, val);
-    } else if (ct & TCG_CT_CONST_XORI) {
-        return tcg_match_xori(type, val);
-    } else if (ct & TCG_CT_CONST_CMPI) {
-        return tcg_match_cmpi(type, val);
+    if (ct & TCG_CT_CONST_S16) {
+        return val == (int16_t)val;
+    } else if (ct & TCG_CT_CONST_S32) {
+        return val == (int32_t)val;
+    } else if (ct & TCG_CT_CONST_S33) {
+        return val >= -0xffffffffll && val <= 0xffffffffll;
+    } else if (ct & TCG_CT_CONST_NN16) {
+        return !(val < 0 && val == (int16_t)val);
+    } else if (ct & TCG_CT_CONST_NN32) {
+        return !(val < 0 && val == (int32_t)val);
+    } else if (ct & TCG_CT_CONST_U31) {
+        return val >= 0 && val <= 0x7fffffff;
     } else if (ct & TCG_CT_CONST_ZERO) {
         return val == 0;
     }
@@ -568,6 +494,13 @@ static void tcg_out_insn_RRF(TCGContext *s, S390Opcode op,
 static void tcg_out_insn_RI(TCGContext *s, S390Opcode op, TCGReg r1, int i2)
 {
     tcg_out32(s, (op << 16) | (r1 << 20) | (i2 & 0xffff));
+}
+
+static void tcg_out_insn_RIE(TCGContext *s, S390Opcode op, TCGReg r1,
+                             int i2, int m3)
+{
+    tcg_out16(s, (op & 0xff00) | (r1 << 4) | m3);
+    tcg_out32(s, (i2 << 16) | (op & 0xff));
 }
 
 static void tcg_out_insn_RIL(TCGContext *s, S390Opcode op, TCGReg r1, int i2)
@@ -1138,11 +1071,33 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
                          TCGReg dest, TCGReg c1, TCGArg c2, int c2const)
 {
     int cc;
+    bool have_loc;
 
+    /* With LOC2, we can always emit the minimum 3 insns.  */
+    if (s390_facilities & FACILITY_LOAD_ON_COND2) {
+        /* Emit: d = 0, d = (cc ? 1 : d).  */
+        cc = tgen_cmp(s, type, cond, c1, c2, c2const, false);
+        tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
+        tcg_out_insn(s, RIE, LOCGHI, dest, 1, cc);
+        return;
+    }
+
+    have_loc = (s390_facilities & FACILITY_LOAD_ON_COND) != 0;
+
+    /* For HAVE_LOC, only the paths through GTU/GT/LEU/LE are smaller.  */
+ restart:
     switch (cond) {
+    case TCG_COND_NE:
+        /* X != 0 is X > 0.  */
+        if (c2const && c2 == 0) {
+            cond = TCG_COND_GTU;
+        } else {
+            break;
+        }
+        /* fallthru */
+
     case TCG_COND_GTU:
     case TCG_COND_GT:
-    do_greater:
         /* The result of a compare has CC=2 for GT and CC=3 unused.
            ADD LOGICAL WITH CARRY considers (CC & 2) the carry bit.  */
         tgen_cmp(s, type, cond, c1, c2, c2const, true);
@@ -1150,34 +1105,34 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
         tcg_out_insn(s, RRE, ALCGR, dest, dest);
         return;
 
-    case TCG_COND_GEU:
-    do_geu:
-        /* We need "real" carry semantics, so use SUBTRACT LOGICAL
-           instead of COMPARE LOGICAL.  This needs an extra move.  */
-        tcg_out_mov(s, type, TCG_TMP0, c1);
-        if (c2const) {
-            tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
-            if (type == TCG_TYPE_I32) {
-                tcg_out_insn(s, RIL, SLFI, TCG_TMP0, c2);
-            } else {
-                tcg_out_insn(s, RIL, SLGFI, TCG_TMP0, c2);
-            }
+    case TCG_COND_EQ:
+        /* X == 0 is X <= 0.  */
+        if (c2const && c2 == 0) {
+            cond = TCG_COND_LEU;
         } else {
-            if (type == TCG_TYPE_I32) {
-                tcg_out_insn(s, RR, SLR, TCG_TMP0, c2);
-            } else {
-                tcg_out_insn(s, RRE, SLGR, TCG_TMP0, c2);
-            }
-            tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
+            break;
         }
-        tcg_out_insn(s, RRE, ALCGR, dest, dest);
-        return;
+        /* fallthru */
 
     case TCG_COND_LEU:
+    case TCG_COND_LE:
+        /* As above, but we're looking for borrow, or !carry.
+           The second insn computes d - d - borrow, or -1 for true
+           and 0 for false.  So we must mask to 1 bit afterward.  */
+        tgen_cmp(s, type, cond, c1, c2, c2const, true);
+        tcg_out_insn(s, RRE, SLBGR, dest, dest);
+        tgen_andi(s, type, dest, 1);
+        return;
+
+    case TCG_COND_GEU:
     case TCG_COND_LTU:
     case TCG_COND_LT:
-        /* Swap operands so that we can use GEU/GTU/GT.  */
+    case TCG_COND_GE:
+        /* Swap operands so that we can use LEU/GTU/GT/LE.  */
         if (c2const) {
+            if (have_loc) {
+                break;
+            }
             tcg_out_movi(s, type, TCG_TMP0, c2);
             c2 = c1;
             c2const = 0;
@@ -1187,37 +1142,15 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
             c1 = c2;
             c2 = t;
         }
-        if (cond == TCG_COND_LEU) {
-            goto do_geu;
-        }
         cond = tcg_swap_cond(cond);
-        goto do_greater;
-
-    case TCG_COND_NE:
-        /* X != 0 is X > 0.  */
-        if (c2const && c2 == 0) {
-            cond = TCG_COND_GTU;
-            goto do_greater;
-        }
-        break;
-
-    case TCG_COND_EQ:
-        /* X == 0 is X <= 0 is 0 >= X.  */
-        if (c2const && c2 == 0) {
-            tcg_out_movi(s, TCG_TYPE_I64, TCG_TMP0, 0);
-            c2 = c1;
-            c2const = 0;
-            c1 = TCG_TMP0;
-            goto do_geu;
-        }
-        break;
+        goto restart;
 
     default:
-        break;
+        g_assert_not_reached();
     }
 
     cc = tgen_cmp(s, type, cond, c1, c2, c2const, false);
-    if (s390_facilities & FACILITY_LOAD_ON_COND) {
+    if (have_loc) {
         /* Emit: d = 0, t = 1, d = (cc ? t : d).  */
         tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
         tcg_out_movi(s, TCG_TYPE_I64, TCG_TMP0, 1);
@@ -1231,19 +1164,24 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
 }
 
 static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
-                         TCGReg c1, TCGArg c2, int c2const, TCGReg r3)
+                         TCGReg c1, TCGArg c2, int c2const,
+                         TCGArg v3, int v3const)
 {
     int cc;
     if (s390_facilities & FACILITY_LOAD_ON_COND) {
         cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
-        tcg_out_insn(s, RRF, LOCGR, dest, r3, cc);
+        if (v3const) {
+            tcg_out_insn(s, RIE, LOCGHI, dest, v3, cc);
+        } else {
+            tcg_out_insn(s, RRF, LOCGR, dest, v3, cc);
+        }
     } else {
         c = tcg_invert_cond(c);
         cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
 
         /* Emit: if (cc) goto over; dest = r3; over:  */
         tcg_out_insn(s, RI, BRC, cc, (4 + 4) >> 1);
-        tcg_out_insn(s, RRE, LGR, dest, r3);
+        tcg_out_insn(s, RRE, LGR, dest, v3);
     }
 }
 
@@ -1736,7 +1674,7 @@ static void tcg_out_qemu_st(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 const TCGArg *args, const int *const_args)
 {
-    S390Opcode op;
+    S390Opcode op, op2;
     TCGArg a0, a1, a2;
 
     switch (opc) {
@@ -1841,29 +1779,44 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (const_args[2]) {
             a2 = -a2;
             goto do_addi_32;
+        } else if (a0 == a1) {
+            tcg_out_insn(s, RR, SR, a0, a2);
+        } else {
+            tcg_out_insn(s, RRF, SRK, a0, a1, a2);
         }
-        tcg_out_insn(s, RR, SR, args[0], args[2]);
         break;
 
     case INDEX_op_and_i32:
+        a0 = args[0], a1 = args[1], a2 = (uint32_t)args[2];
         if (const_args[2]) {
-            tgen_andi(s, TCG_TYPE_I32, args[0], args[2]);
+            tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
+            tgen_andi(s, TCG_TYPE_I32, a0, a2);
+        } else if (a0 == a1) {
+            tcg_out_insn(s, RR, NR, a0, a2);
         } else {
-            tcg_out_insn(s, RR, NR, args[0], args[2]);
+            tcg_out_insn(s, RRF, NRK, a0, a1, a2);
         }
         break;
     case INDEX_op_or_i32:
+        a0 = args[0], a1 = args[1], a2 = (uint32_t)args[2];
         if (const_args[2]) {
-            tgen64_ori(s, args[0], args[2] & 0xffffffff);
+            tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
+            tgen64_ori(s, a0, a2);
+        } else if (a0 == a1) {
+            tcg_out_insn(s, RR, OR, a0, a2);
         } else {
-            tcg_out_insn(s, RR, OR, args[0], args[2]);
+            tcg_out_insn(s, RRF, ORK, a0, a1, a2);
         }
         break;
     case INDEX_op_xor_i32:
+        a0 = args[0], a1 = args[1], a2 = (uint32_t)args[2];
         if (const_args[2]) {
-            tgen64_xori(s, args[0], args[2] & 0xffffffff);
-        } else {
+            tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
+            tgen64_xori(s, a0, a2);
+        } else if (a0 == a1) {
             tcg_out_insn(s, RR, XR, args[0], args[2]);
+        } else {
+            tcg_out_insn(s, RRF, XRK, a0, a1, a2);
         }
         break;
 
@@ -1892,18 +1845,31 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_shl_i32:
         op = RS_SLL;
+        op2 = RSY_SLLK;
     do_shift32:
-        if (const_args[2]) {
-            tcg_out_sh32(s, op, args[0], TCG_REG_NONE, args[2]);
+        a0 = args[0], a1 = args[1], a2 = (int32_t)args[2];
+        if (a0 == a1) {
+            if (const_args[2]) {
+                tcg_out_sh32(s, op, a0, TCG_REG_NONE, a2);
+            } else {
+                tcg_out_sh32(s, op, a0, a2, 0);
+            }
         } else {
-            tcg_out_sh32(s, op, args[0], args[2], 0);
+            /* Using tcg_out_sh64 here for the format; it is a 32-bit shift.  */
+            if (const_args[2]) {
+                tcg_out_sh64(s, op2, a0, a1, TCG_REG_NONE, a2);
+            } else {
+                tcg_out_sh64(s, op2, a0, a1, a2, 0);
+            }
         }
         break;
     case INDEX_op_shr_i32:
         op = RS_SRL;
+        op2 = RSY_SRLK;
         goto do_shift32;
     case INDEX_op_sar_i32:
         op = RS_SRA;
+        op2 = RSY_SRAK;
         goto do_shift32;
 
     case INDEX_op_rotl_i32:
@@ -1978,7 +1944,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_movcond_i32:
         tgen_movcond(s, TCG_TYPE_I32, args[5], args[0], args[1],
-                     args[2], const_args[2], args[3]);
+                     args[2], const_args[2], args[3], const_args[3]);
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -2045,30 +2011,44 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (const_args[2]) {
             a2 = -a2;
             goto do_addi_64;
+        } else if (a0 == a1) {
+            tcg_out_insn(s, RRE, SGR, a0, a2);
         } else {
-            tcg_out_insn(s, RRE, SGR, args[0], args[2]);
+            tcg_out_insn(s, RRF, SGRK, a0, a1, a2);
         }
         break;
 
     case INDEX_op_and_i64:
+        a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
+            tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
             tgen_andi(s, TCG_TYPE_I64, args[0], args[2]);
-        } else {
+        } else if (a0 == a1) {
             tcg_out_insn(s, RRE, NGR, args[0], args[2]);
+        } else {
+            tcg_out_insn(s, RRF, NGRK, a0, a1, a2);
         }
         break;
     case INDEX_op_or_i64:
+        a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
-            tgen64_ori(s, args[0], args[2]);
+            tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
+            tgen64_ori(s, a0, a2);
+        } else if (a0 == a1) {
+            tcg_out_insn(s, RRE, OGR, a0, a2);
         } else {
-            tcg_out_insn(s, RRE, OGR, args[0], args[2]);
+            tcg_out_insn(s, RRF, OGRK, a0, a1, a2);
         }
         break;
     case INDEX_op_xor_i64:
+        a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
-            tgen64_xori(s, args[0], args[2]);
+            tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
+            tgen64_xori(s, a0, a2);
+        } else if (a0 == a1) {
+            tcg_out_insn(s, RRE, XGR, a0, a2);
         } else {
-            tcg_out_insn(s, RRE, XGR, args[0], args[2]);
+            tcg_out_insn(s, RRF, XGRK, a0, a1, a2);
         }
         break;
 
@@ -2197,7 +2177,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_movcond_i64:
         tgen_movcond(s, TCG_TYPE_I64, args[5], args[0], args[1],
-                     args[2], const_args[2], args[3]);
+                     args[2], const_args[2], args[3], const_args[3]);
         break;
 
     OP_32_64(deposit):
@@ -2246,134 +2226,210 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     }
 }
 
-static const TCGTargetOpDef s390_op_defs[] = {
-    { INDEX_op_exit_tb, { } },
-    { INDEX_op_goto_tb, { } },
-    { INDEX_op_br, { } },
-    { INDEX_op_goto_ptr, { "r" } },
-
-    { INDEX_op_ld8u_i32, { "r", "r" } },
-    { INDEX_op_ld8s_i32, { "r", "r" } },
-    { INDEX_op_ld16u_i32, { "r", "r" } },
-    { INDEX_op_ld16s_i32, { "r", "r" } },
-    { INDEX_op_ld_i32, { "r", "r" } },
-    { INDEX_op_st8_i32, { "r", "r" } },
-    { INDEX_op_st16_i32, { "r", "r" } },
-    { INDEX_op_st_i32, { "r", "r" } },
-
-    { INDEX_op_add_i32, { "r", "r", "ri" } },
-    { INDEX_op_sub_i32, { "r", "0", "ri" } },
-    { INDEX_op_mul_i32, { "r", "0", "rK" } },
-
-    { INDEX_op_div2_i32, { "b", "a", "0", "1", "r" } },
-    { INDEX_op_divu2_i32, { "b", "a", "0", "1", "r" } },
-
-    { INDEX_op_and_i32, { "r", "0", "ri" } },
-    { INDEX_op_or_i32, { "r", "0", "rO" } },
-    { INDEX_op_xor_i32, { "r", "0", "rX" } },
-
-    { INDEX_op_neg_i32, { "r", "r" } },
-
-    { INDEX_op_shl_i32, { "r", "0", "ri" } },
-    { INDEX_op_shr_i32, { "r", "0", "ri" } },
-    { INDEX_op_sar_i32, { "r", "0", "ri" } },
-
-    { INDEX_op_rotl_i32, { "r", "r", "ri" } },
-    { INDEX_op_rotr_i32, { "r", "r", "ri" } },
-
-    { INDEX_op_ext8s_i32, { "r", "r" } },
-    { INDEX_op_ext8u_i32, { "r", "r" } },
-    { INDEX_op_ext16s_i32, { "r", "r" } },
-    { INDEX_op_ext16u_i32, { "r", "r" } },
-
-    { INDEX_op_bswap16_i32, { "r", "r" } },
-    { INDEX_op_bswap32_i32, { "r", "r" } },
-
-    { INDEX_op_add2_i32, { "r", "r", "0", "1", "rA", "r" } },
-    { INDEX_op_sub2_i32, { "r", "r", "0", "1", "rA", "r" } },
-
-    { INDEX_op_brcond_i32, { "r", "rC" } },
-    { INDEX_op_setcond_i32, { "r", "r", "rC" } },
-    { INDEX_op_movcond_i32, { "r", "r", "rC", "r", "0" } },
-    { INDEX_op_deposit_i32, { "r", "rZ", "r" } },
-    { INDEX_op_extract_i32, { "r", "r" } },
-
-    { INDEX_op_qemu_ld_i32, { "r", "L" } },
-    { INDEX_op_qemu_ld_i64, { "r", "L" } },
-    { INDEX_op_qemu_st_i32, { "L", "L" } },
-    { INDEX_op_qemu_st_i64, { "L", "L" } },
-
-    { INDEX_op_ld8u_i64, { "r", "r" } },
-    { INDEX_op_ld8s_i64, { "r", "r" } },
-    { INDEX_op_ld16u_i64, { "r", "r" } },
-    { INDEX_op_ld16s_i64, { "r", "r" } },
-    { INDEX_op_ld32u_i64, { "r", "r" } },
-    { INDEX_op_ld32s_i64, { "r", "r" } },
-    { INDEX_op_ld_i64, { "r", "r" } },
-
-    { INDEX_op_st8_i64, { "r", "r" } },
-    { INDEX_op_st16_i64, { "r", "r" } },
-    { INDEX_op_st32_i64, { "r", "r" } },
-    { INDEX_op_st_i64, { "r", "r" } },
-
-    { INDEX_op_add_i64, { "r", "r", "ri" } },
-    { INDEX_op_sub_i64, { "r", "0", "ri" } },
-    { INDEX_op_mul_i64, { "r", "0", "rK" } },
-
-    { INDEX_op_div2_i64, { "b", "a", "0", "1", "r" } },
-    { INDEX_op_divu2_i64, { "b", "a", "0", "1", "r" } },
-    { INDEX_op_mulu2_i64, { "b", "a", "0", "r" } },
-
-    { INDEX_op_and_i64, { "r", "0", "ri" } },
-    { INDEX_op_or_i64, { "r", "0", "rO" } },
-    { INDEX_op_xor_i64, { "r", "0", "rX" } },
-
-    { INDEX_op_neg_i64, { "r", "r" } },
-
-    { INDEX_op_shl_i64, { "r", "r", "ri" } },
-    { INDEX_op_shr_i64, { "r", "r", "ri" } },
-    { INDEX_op_sar_i64, { "r", "r", "ri" } },
-
-    { INDEX_op_rotl_i64, { "r", "r", "ri" } },
-    { INDEX_op_rotr_i64, { "r", "r", "ri" } },
-
-    { INDEX_op_ext8s_i64, { "r", "r" } },
-    { INDEX_op_ext8u_i64, { "r", "r" } },
-    { INDEX_op_ext16s_i64, { "r", "r" } },
-    { INDEX_op_ext16u_i64, { "r", "r" } },
-    { INDEX_op_ext32s_i64, { "r", "r" } },
-    { INDEX_op_ext32u_i64, { "r", "r" } },
-
-    { INDEX_op_ext_i32_i64, { "r", "r" } },
-    { INDEX_op_extu_i32_i64, { "r", "r" } },
-
-    { INDEX_op_bswap16_i64, { "r", "r" } },
-    { INDEX_op_bswap32_i64, { "r", "r" } },
-    { INDEX_op_bswap64_i64, { "r", "r" } },
-
-    { INDEX_op_clz_i64, { "r", "r", "ri" } },
-
-    { INDEX_op_add2_i64, { "r", "r", "0", "1", "rA", "r" } },
-    { INDEX_op_sub2_i64, { "r", "r", "0", "1", "rA", "r" } },
-
-    { INDEX_op_brcond_i64, { "r", "rC" } },
-    { INDEX_op_setcond_i64, { "r", "r", "rC" } },
-    { INDEX_op_movcond_i64, { "r", "r", "rC", "r", "0" } },
-    { INDEX_op_deposit_i64, { "r", "0", "r" } },
-    { INDEX_op_extract_i64, { "r", "r" } },
-
-    { INDEX_op_mb, { } },
-    { -1 },
-};
-
 static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
 {
-    int i, n = ARRAY_SIZE(s390_op_defs);
+    static const TCGTargetOpDef r = { .args_ct_str = { "r" } };
+    static const TCGTargetOpDef r_r = { .args_ct_str = { "r", "r" } };
+    static const TCGTargetOpDef r_L = { .args_ct_str = { "r", "L" } };
+    static const TCGTargetOpDef L_L = { .args_ct_str = { "L", "L" } };
+    static const TCGTargetOpDef r_ri = { .args_ct_str = { "r", "ri" } };
+    static const TCGTargetOpDef r_rC = { .args_ct_str = { "r", "rC" } };
+    static const TCGTargetOpDef r_rZ = { .args_ct_str = { "r", "rZ" } };
+    static const TCGTargetOpDef r_r_ri = { .args_ct_str = { "r", "r", "ri" } };
+    static const TCGTargetOpDef r_r_rM = { .args_ct_str = { "r", "r", "rM" } };
+    static const TCGTargetOpDef r_0_r = { .args_ct_str = { "r", "0", "r" } };
+    static const TCGTargetOpDef r_0_ri = { .args_ct_str = { "r", "0", "ri" } };
+    static const TCGTargetOpDef r_0_rI = { .args_ct_str = { "r", "0", "rI" } };
+    static const TCGTargetOpDef r_0_rJ = { .args_ct_str = { "r", "0", "rJ" } };
+    static const TCGTargetOpDef r_0_rN = { .args_ct_str = { "r", "0", "rN" } };
+    static const TCGTargetOpDef r_0_rM = { .args_ct_str = { "r", "0", "rM" } };
+    static const TCGTargetOpDef a2_r
+        = { .args_ct_str = { "r", "r", "0", "1", "r", "r" } };
+    static const TCGTargetOpDef a2_ri
+        = { .args_ct_str = { "r", "r", "0", "1", "ri", "r" } };
+    static const TCGTargetOpDef a2_rA
+        = { .args_ct_str = { "r", "r", "0", "1", "rA", "r" } };
 
-    for (i = 0; i < n; ++i) {
-        if (s390_op_defs[i].op == op) {
-            return &s390_op_defs[i];
+    switch (op) {
+    case INDEX_op_goto_ptr:
+        return &r;
+
+    case INDEX_op_ld8u_i32:
+    case INDEX_op_ld8u_i64:
+    case INDEX_op_ld8s_i32:
+    case INDEX_op_ld8s_i64:
+    case INDEX_op_ld16u_i32:
+    case INDEX_op_ld16u_i64:
+    case INDEX_op_ld16s_i32:
+    case INDEX_op_ld16s_i64:
+    case INDEX_op_ld_i32:
+    case INDEX_op_ld32u_i64:
+    case INDEX_op_ld32s_i64:
+    case INDEX_op_ld_i64:
+    case INDEX_op_st8_i32:
+    case INDEX_op_st8_i64:
+    case INDEX_op_st16_i32:
+    case INDEX_op_st16_i64:
+    case INDEX_op_st_i32:
+    case INDEX_op_st32_i64:
+    case INDEX_op_st_i64:
+        return &r_r;
+
+    case INDEX_op_add_i32:
+    case INDEX_op_add_i64:
+        return &r_r_ri;
+    case INDEX_op_sub_i32:
+    case INDEX_op_sub_i64:
+        return (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_ri : &r_0_ri);
+
+    case INDEX_op_mul_i32:
+        /* If we have the general-instruction-extensions, then we have
+           MULTIPLY SINGLE IMMEDIATE with a signed 32-bit, otherwise we
+           have only MULTIPLY HALFWORD IMMEDIATE, with a signed 16-bit.  */
+        return (s390_facilities & FACILITY_GEN_INST_EXT ? &r_0_ri : &r_0_rI);
+    case INDEX_op_mul_i64:
+        return (s390_facilities & FACILITY_GEN_INST_EXT ? &r_0_rJ : &r_0_rI);
+
+    case INDEX_op_or_i32:
+        /* The use of [iNM] constraints are optimization only, since a full
+           64-bit immediate OR can always be performed with 4 sequential
+           OI[LH][LH] instructions.  By rejecting certain negative ranges,
+           the immediate load plus the reg-reg OR is smaller.  */
+        return (s390_facilities & FACILITY_EXT_IMM
+                ? (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_ri : &r_0_ri)
+                : &r_0_rN);
+    case INDEX_op_or_i64:
+        return (s390_facilities & FACILITY_EXT_IMM
+                ? (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_rM : &r_0_rM)
+                : &r_0_rN);
+
+    case INDEX_op_xor_i32:
+        /* Without EXT_IMM, no immediates are supported.  Otherwise,
+           rejecting certain negative ranges leads to smaller code.  */
+        return (s390_facilities & FACILITY_EXT_IMM
+                ? (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_ri : &r_0_ri)
+                : &r_0_r);
+    case INDEX_op_xor_i64:
+        return (s390_facilities & FACILITY_EXT_IMM
+                ? (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_rM : &r_0_rM)
+                : &r_0_r);
+
+    case INDEX_op_and_i32:
+    case INDEX_op_and_i64:
+        return (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_ri : &r_0_ri);
+
+    case INDEX_op_shl_i32:
+    case INDEX_op_shr_i32:
+    case INDEX_op_sar_i32:
+        return (s390_facilities & FACILITY_DISTINCT_OPS ? &r_r_ri : &r_0_ri);
+
+    case INDEX_op_shl_i64:
+    case INDEX_op_shr_i64:
+    case INDEX_op_sar_i64:
+        return &r_r_ri;
+
+    case INDEX_op_rotl_i32:
+    case INDEX_op_rotl_i64:
+    case INDEX_op_rotr_i32:
+    case INDEX_op_rotr_i64:
+        return &r_r_ri;
+
+    case INDEX_op_brcond_i32:
+        /* Without EXT_IMM, only the LOAD AND TEST insn is available.  */
+        return (s390_facilities & FACILITY_EXT_IMM ? &r_ri : &r_rZ);
+    case INDEX_op_brcond_i64:
+        return (s390_facilities & FACILITY_EXT_IMM ? &r_rC : &r_rZ);
+
+    case INDEX_op_bswap16_i32:
+    case INDEX_op_bswap16_i64:
+    case INDEX_op_bswap32_i32:
+    case INDEX_op_bswap32_i64:
+    case INDEX_op_bswap64_i64:
+    case INDEX_op_neg_i32:
+    case INDEX_op_neg_i64:
+    case INDEX_op_ext8s_i32:
+    case INDEX_op_ext8s_i64:
+    case INDEX_op_ext8u_i32:
+    case INDEX_op_ext8u_i64:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext16s_i64:
+    case INDEX_op_ext16u_i32:
+    case INDEX_op_ext16u_i64:
+    case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
+    case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
+    case INDEX_op_extract_i32:
+    case INDEX_op_extract_i64:
+        return &r_r;
+
+    case INDEX_op_clz_i64:
+        return &r_r_ri;
+
+    case INDEX_op_qemu_ld_i32:
+    case INDEX_op_qemu_ld_i64:
+        return &r_L;
+    case INDEX_op_qemu_st_i64:
+    case INDEX_op_qemu_st_i32:
+        return &L_L;
+
+    case INDEX_op_deposit_i32:
+    case INDEX_op_deposit_i64:
+        {
+            static const TCGTargetOpDef dep
+                = { .args_ct_str = { "r", "rZ", "r" } };
+            return &dep;
         }
+    case INDEX_op_setcond_i32:
+    case INDEX_op_setcond_i64:
+        {
+            /* Without EXT_IMM, only the LOAD AND TEST insn is available.  */
+            static const TCGTargetOpDef setc_z
+                = { .args_ct_str = { "r", "r", "rZ" } };
+            static const TCGTargetOpDef setc_c
+                = { .args_ct_str = { "r", "r", "rC" } };
+            return (s390_facilities & FACILITY_EXT_IMM ? &setc_c : &setc_z);
+        }
+    case INDEX_op_movcond_i32:
+    case INDEX_op_movcond_i64:
+        {
+            /* Without EXT_IMM, only the LOAD AND TEST insn is available.  */
+            static const TCGTargetOpDef movc_z
+                = { .args_ct_str = { "r", "r", "rZ", "r", "0" } };
+            static const TCGTargetOpDef movc_c
+                = { .args_ct_str = { "r", "r", "rC", "r", "0" } };
+            static const TCGTargetOpDef movc_l
+                = { .args_ct_str = { "r", "r", "rC", "rI", "0" } };
+            return (s390_facilities & FACILITY_EXT_IMM
+                    ? (s390_facilities & FACILITY_LOAD_ON_COND2
+                       ? &movc_l : &movc_c)
+                    : &movc_z);
+        }
+    case INDEX_op_div2_i32:
+    case INDEX_op_div2_i64:
+    case INDEX_op_divu2_i32:
+    case INDEX_op_divu2_i64:
+        {
+            static const TCGTargetOpDef div2
+                = { .args_ct_str = { "b", "a", "0", "1", "r" } };
+            return &div2;
+        }
+    case INDEX_op_mulu2_i64:
+        {
+            static const TCGTargetOpDef mul2
+                = { .args_ct_str = { "b", "a", "0", "r" } };
+            return &mul2;
+        }
+
+    case INDEX_op_add2_i32:
+    case INDEX_op_sub2_i32:
+        return (s390_facilities & FACILITY_EXT_IMM ? &a2_ri : &a2_r);
+    case INDEX_op_add2_i64:
+    case INDEX_op_sub2_i64:
+        return (s390_facilities & FACILITY_EXT_IMM ? &a2_rA : &a2_r);
+
+    default:
+        break;
     }
     return NULL;
 }

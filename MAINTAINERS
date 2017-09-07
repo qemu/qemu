@@ -1647,12 +1647,6 @@ S: Maintained
 F: tcg/i386/
 F: disas/i386.c
 
-IA64 target
-M: Aurelien Jarno <aurelien@aurel32.net>
-S: Maintained
-F: tcg/ia64/
-F: disas/ia64.c
-
 MIPS target
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained

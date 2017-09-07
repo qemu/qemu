@@ -683,6 +683,8 @@ fetch_data(struct disassemble_info *info, bfd_byte *addr)
 #define PREGRP105 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 105 } }
 #define PREGRP106 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 106 } }
 #define PREGRP107 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 107 } }
+#define PREGRP108 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 108 } }
+#define PREGRP109 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 109 } }
 
 #define X86_64_0  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 0 } }
 #define X86_64_1  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 1 } }
@@ -1484,7 +1486,7 @@ static const unsigned char threebyte_0x38_uses_REPNZ_prefix[256] = {
   /* c0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* cf */
   /* d0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* df */
   /* e0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ef */
-  /* f0 */ 1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0, /* ff */
+  /* f0 */ 1,1,0,0,0,1,0,1,0,0,0,0,0,0,0,0, /* ff */
   /*       -------------------------------        */
   /*       0 1 2 3 4 5 6 7 8 9 a b c d e f        */
 };
@@ -1508,7 +1510,7 @@ static const unsigned char threebyte_0x38_uses_REPZ_prefix[256] = {
   /* c0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* cf */
   /* d0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* df */
   /* e0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ef */
-  /* f0 */ 0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0, /* ff */
+  /* f0 */ 0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0, /* ff */
   /*       -------------------------------        */
   /*       0 1 2 3 4 5 6 7 8 9 a b c d e f        */
 };
@@ -1556,7 +1558,7 @@ static const unsigned char threebyte_0x3a_uses_REPNZ_prefix[256] = {
   /* c0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* cf */
   /* d0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* df */
   /* e0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ef */
-  /* f0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ff */
+  /* f0 */ 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ff */
   /*       -------------------------------        */
   /*       0 1 2 3 4 5 6 7 8 9 a b c d e f        */
 };
@@ -2808,6 +2810,22 @@ static const struct dis386 prefix_user_table[][4] = {
     { "bsfS",	{ Gv, Ev } },
     { "(bad)",	{ XX } },
   },
+
+  /* PREGRP108 */
+  {
+    { "bzhi",   { Gv, Ev, Bv } },
+    { "pext",   { Gv, Bv, Ev } },
+    { "(bad)",  { XX } },
+    { "pdep",   { Gv, Bv, Ev } },
+  },
+
+  /* PREGRP109 */
+  {
+    { "(bad)",  { XX } },
+    { "(bad)",  { XX } },
+    { "(bad)",  { XX } },
+    { "rorx",   { Gv, Ev, Ib } },
+  },
 };
 
 static const struct dis386 x86_64_table[][2] = {
@@ -3108,7 +3126,7 @@ static const struct dis386 three_byte_table[][256] = {
     { PREGRP105 },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
-    { "(bad)", { XX } },
+    { PREGRP108 },
     { "(bad)", { XX } },
     { PREGRP106 },
     /* f8 */
@@ -3394,7 +3412,7 @@ static const struct dis386 three_byte_table[][256] = {
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     /* f0 */
-    { "(bad)", { XX } },
+    { PREGRP109 },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
@@ -3559,6 +3577,7 @@ ckvexprefix (void)
     } else {
         /* Two byte VEX prefix.  */
         newrex |= (vex2 & 0x80 ? 0 : REX_R);
+        newpfx |= PREFIX_VEX_0F;
         codep += 2;
     }
 

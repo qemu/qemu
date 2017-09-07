@@ -11,7 +11,6 @@ arm-a64.o-cflags := -I$(libvixldir) -Wno-sign-compare
 common-obj-$(CONFIG_CRIS_DIS) += cris.o
 common-obj-$(CONFIG_HPPA_DIS) += hppa.o
 common-obj-$(CONFIG_I386_DIS) += i386.o
-common-obj-$(CONFIG_IA64_DIS) += ia64.o
 common-obj-$(CONFIG_M68K_DIS) += m68k.o
 common-obj-$(CONFIG_MICROBLAZE_DIS) += microblaze.o
 common-obj-$(CONFIG_MIPS_DIS) += mips.o

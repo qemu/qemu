@@ -634,9 +634,6 @@ case "$cpu" in
     cpu="$cpu"
     supported_cpu="yes"
   ;;
-  ia64)
-    cpu="$cpu"
-  ;;
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
     supported_cpu="yes"
@@ -6458,9 +6455,6 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   ;;
   i386|x86_64|x32)
     disas_config "I386"
-  ;;
-  ia64*)
-    disas_config "IA64"
   ;;
   lm32)
     disas_config "LM32"

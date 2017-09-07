@@ -58,6 +58,8 @@ typedef enum TCGReg {
 #define FACILITY_GEN_INST_EXT         (1ULL << (63 - 34))
 #define FACILITY_LOAD_ON_COND         (1ULL << (63 - 45))
 #define FACILITY_FAST_BCR_SER         FACILITY_LOAD_ON_COND
+#define FACILITY_DISTINCT_OPS         FACILITY_LOAD_ON_COND
+#define FACILITY_LOAD_ON_COND2        (1ULL << (63 - 53))
 
 extern uint64_t s390_facilities;
 
@@ -132,6 +134,8 @@ extern uint64_t s390_facilities;
 #define TCG_TARGET_CALL_STACK_OFFSET	160
 
 #define TCG_TARGET_EXTEND_ARGS 1
+
+#define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
 
 enum {
     TCG_AREG0 = TCG_REG_R10,

@@ -313,8 +313,6 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_s390;
 #elif defined(__hppa__)
     print_insn = print_insn_hppa;
-#elif defined(__ia64__)
-    print_insn = print_insn_ia64;
 #endif
     if (print_insn == NULL) {
         print_insn = print_insn_od_host;
