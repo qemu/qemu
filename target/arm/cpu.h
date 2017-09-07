@@ -424,7 +424,7 @@ typedef struct CPUARMState {
         uint32_t basepri[2];
         uint32_t control[2];
         uint32_t ccr[2]; /* Configuration and Control */
-        uint32_t cfsr; /* Configurable Fault Status */
+        uint32_t cfsr[2]; /* Configurable Fault Status */
         uint32_t hfsr; /* HardFault Status */
         uint32_t dfsr; /* Debug Fault Status Register */
         uint32_t mmfar[2]; /* MemManage Fault Address */
@@ -1208,6 +1208,11 @@ FIELD(V7M_CFSR, INVPC, 16 + 2, 1)
 FIELD(V7M_CFSR, NOCP, 16 + 3, 1)
 FIELD(V7M_CFSR, UNALIGNED, 16 + 8, 1)
 FIELD(V7M_CFSR, DIVBYZERO, 16 + 9, 1)
+
+/* V7M CFSR bit masks covering all of the subregister bits */
+FIELD(V7M_CFSR, MMFSR, 0, 8)
+FIELD(V7M_CFSR, BFSR, 8, 8)
+FIELD(V7M_CFSR, UFSR, 16, 16)
 
 /* V7M HFSR bits */
 FIELD(V7M_HFSR, VECTTBL, 1, 1)
