@@ -1535,12 +1535,14 @@ F: docs/devel/tracing.txt
 T: git git://github.com/stefanha/qemu.git tracing
 
 TPM
-S: Orphan
+M: Stefan Berger <stefanb@linux.vnet.ibm.com>
+S: Maintained
 F: tpm.c
 F: hw/tpm/*
 F: include/hw/acpi/tpm.h
 F: include/sysemu/tpm*
 F: qapi/tpm.json
+F: backends/tpm.c
 
 Checkpatch
 S: Odd Fixes
