@@ -166,7 +166,7 @@ void migration_incoming_state_destroy(void)
         mis->from_src_file = NULL;
     }
 
-    qemu_event_destroy(&mis->main_thread_load_event);
+    qemu_event_reset(&mis->main_thread_load_event);
 }
 
 static void migrate_generate_event(int new_state)
@@ -913,8 +913,9 @@ void qmp_migrate_start_postcopy(Error **errp)
 
 void migrate_set_state(int *state, int old_state, int new_state)
 {
+    assert(new_state < MIGRATION_STATUS__MAX);
     if (atomic_cmpxchg(state, old_state, new_state) == old_state) {
-        trace_migrate_set_state(new_state);
+        trace_migrate_set_state(MigrationStatus_str(new_state));
         migrate_generate_event(new_state);
     }
 }

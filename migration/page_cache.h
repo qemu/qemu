@@ -72,15 +72,4 @@ uint8_t *get_cached_data(const PageCache *cache, uint64_t addr);
 int cache_insert(PageCache *cache, uint64_t addr, const uint8_t *pdata,
                  uint64_t current_age);
 
-/**
- * cache_resize: resize the page cache. In case of size reduction the extra
- * pages will be freed
- *
- * Returns -1 on error new cache size on success
- *
- * @cache pointer to the PageCache struct
- * @num_pages: new page cache size (in pages)
- */
-int64_t cache_resize(PageCache *cache, int64_t num_pages);
-
 #endif
