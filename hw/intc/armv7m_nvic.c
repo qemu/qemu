@@ -564,7 +564,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             if (region >= cpu->pmsav7_dregion) {
                 return 0;
             }
-            return cpu->env.pmsav8.rbar[region];
+            return cpu->env.pmsav8.rbar[attrs.secure][region];
         }
 
         if (region >= cpu->pmsav7_dregion) {
@@ -591,7 +591,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             if (region >= cpu->pmsav7_dregion) {
                 return 0;
             }
-            return cpu->env.pmsav8.rlar[region];
+            return cpu->env.pmsav8.rlar[attrs.secure][region];
         }
 
         if (region >= cpu->pmsav7_dregion) {
@@ -756,7 +756,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             if (region >= cpu->pmsav7_dregion) {
                 return;
             }
-            cpu->env.pmsav8.rbar[region] = value;
+            cpu->env.pmsav8.rbar[attrs.secure][region] = value;
             tlb_flush(CPU(cpu));
             return;
         }
@@ -806,7 +806,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             if (region >= cpu->pmsav7_dregion) {
                 return;
             }
-            cpu->env.pmsav8.rlar[region] = value;
+            cpu->env.pmsav8.rlar[attrs.secure][region] = value;
             tlb_flush(CPU(cpu));
             return;
         }

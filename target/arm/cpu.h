@@ -543,8 +543,8 @@ typedef struct CPUARMState {
          *  pmsav7.rnr (region number register)
          *  pmsav7_dregion (number of configured regions)
          */
-        uint32_t *rbar;
-        uint32_t *rlar;
+        uint32_t *rbar[2];
+        uint32_t *rlar[2];
         uint32_t mair0[2];
         uint32_t mair1[2];
     } pmsav8;

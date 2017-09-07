@@ -8437,6 +8437,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
     bool is_user = regime_is_user(env, mmu_idx);
+    uint32_t secure = regime_is_secure(env, mmu_idx);
     int n;
     int matchregion = -1;
     bool hit = false;
@@ -8463,10 +8464,10 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
              * with bits [4:0] all zeroes, but the limit address is bits
              * [31:5] from the register with bits [4:0] all ones.
              */
-            uint32_t base = env->pmsav8.rbar[n] & ~0x1f;
-            uint32_t limit = env->pmsav8.rlar[n] | 0x1f;
+            uint32_t base = env->pmsav8.rbar[secure][n] & ~0x1f;
+            uint32_t limit = env->pmsav8.rlar[secure][n] | 0x1f;
 
-            if (!(env->pmsav8.rlar[n] & 0x1)) {
+            if (!(env->pmsav8.rlar[secure][n] & 0x1)) {
                 /* Region disabled */
                 continue;
             }
@@ -8515,8 +8516,8 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
         /* hit using the background region */
         get_phys_addr_pmsav7_default(env, mmu_idx, address, prot);
     } else {
-        uint32_t ap = extract32(env->pmsav8.rbar[matchregion], 1, 2);
-        uint32_t xn = extract32(env->pmsav8.rbar[matchregion], 0, 1);
+        uint32_t ap = extract32(env->pmsav8.rbar[secure][matchregion], 1, 2);
+        uint32_t xn = extract32(env->pmsav8.rbar[secure][matchregion], 0, 1);
 
         if (m_is_system_region(env, address)) {
             /* System space is always execute never */

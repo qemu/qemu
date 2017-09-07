@@ -235,10 +235,20 @@ static void arm_cpu_reset(CPUState *s)
     if (arm_feature(env, ARM_FEATURE_PMSA)) {
         if (cpu->pmsav7_dregion > 0) {
             if (arm_feature(env, ARM_FEATURE_V8)) {
-                memset(env->pmsav8.rbar, 0,
-                       sizeof(*env->pmsav8.rbar) * cpu->pmsav7_dregion);
-                memset(env->pmsav8.rlar, 0,
-                       sizeof(*env->pmsav8.rlar) * cpu->pmsav7_dregion);
+                memset(env->pmsav8.rbar[M_REG_NS], 0,
+                       sizeof(*env->pmsav8.rbar[M_REG_NS])
+                       * cpu->pmsav7_dregion);
+                memset(env->pmsav8.rlar[M_REG_NS], 0,
+                       sizeof(*env->pmsav8.rlar[M_REG_NS])
+                       * cpu->pmsav7_dregion);
+                if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+                    memset(env->pmsav8.rbar[M_REG_S], 0,
+                           sizeof(*env->pmsav8.rbar[M_REG_S])
+                           * cpu->pmsav7_dregion);
+                    memset(env->pmsav8.rlar[M_REG_S], 0,
+                           sizeof(*env->pmsav8.rlar[M_REG_S])
+                           * cpu->pmsav7_dregion);
+                }
             } else if (arm_feature(env, ARM_FEATURE_V7)) {
                 memset(env->pmsav7.drbar, 0,
                        sizeof(*env->pmsav7.drbar) * cpu->pmsav7_dregion);
@@ -825,8 +835,12 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         if (nr) {
             if (arm_feature(env, ARM_FEATURE_V8)) {
                 /* PMSAv8 */
-                env->pmsav8.rbar = g_new0(uint32_t, nr);
-                env->pmsav8.rlar = g_new0(uint32_t, nr);
+                env->pmsav8.rbar[M_REG_NS] = g_new0(uint32_t, nr);
+                env->pmsav8.rlar[M_REG_NS] = g_new0(uint32_t, nr);
+                if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+                    env->pmsav8.rbar[M_REG_S] = g_new0(uint32_t, nr);
+                    env->pmsav8.rlar[M_REG_S] = g_new0(uint32_t, nr);
+                }
             } else {
                 env->pmsav7.drbar = g_new0(uint32_t, nr);
                 env->pmsav7.drsr = g_new0(uint32_t, nr);
