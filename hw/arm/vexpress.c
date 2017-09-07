@@ -752,6 +752,7 @@ static void vexpress_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM Versatile Express";
     mc->init = vexpress_common_init;
     mc->max_cpus = 4;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static void vexpress_a9_class_init(ObjectClass *oc, void *data)

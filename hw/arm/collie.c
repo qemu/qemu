@@ -64,6 +64,7 @@ static void collie_machine_init(MachineClass *mc)
 {
     mc->desc = "Sharp SL-5500 (Collie) PDA (SA-1110)";
     mc->init = collie_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("collie", collie_machine_init)

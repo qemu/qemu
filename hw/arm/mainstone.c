@@ -196,6 +196,7 @@ static void mainstone2_machine_init(MachineClass *mc)
 {
     mc->desc = "Mainstone II (PXA27x)";
     mc->init = mainstone_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("mainstone", mainstone2_machine_init)

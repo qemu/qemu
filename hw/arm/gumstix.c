@@ -128,6 +128,7 @@ static void connex_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Gumstix Connex (PXA255)";
     mc->init = connex_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo connex_type = {
@@ -142,6 +143,7 @@ static void verdex_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Gumstix Verdex (PXA270)";
     mc->init = verdex_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo verdex_type = {

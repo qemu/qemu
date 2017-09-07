@@ -223,6 +223,7 @@ static void sx1_machine_v2_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Siemens SX1 (OMAP310) V2";
     mc->init = sx1_init_v2;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo sx1_machine_v2_type = {
@@ -237,6 +238,7 @@ static void sx1_machine_v1_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Siemens SX1 (OMAP310) V1";
     mc->init = sx1_init_v1;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 static const TypeInfo sx1_machine_v1_type = {

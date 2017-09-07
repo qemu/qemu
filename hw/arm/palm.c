@@ -274,6 +274,7 @@ static void palmte_machine_init(MachineClass *mc)
 {
     mc->desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)";
     mc->init = palmte_init;
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("cheetah", palmte_machine_init)
