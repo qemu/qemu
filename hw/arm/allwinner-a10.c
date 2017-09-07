@@ -118,6 +118,8 @@ static void aw_a10_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = aw_a10_realize;
+    /* Reason: Uses serial_hds in realize and nd_table in instance_init */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo aw_a10_type_info = {
