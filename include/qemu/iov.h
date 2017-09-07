@@ -31,11 +31,6 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt);
  * Number of bytes actually copied will be returned, which is
  *  min(bytes, iov_size(iov)-offset)
  * `Offset' must point to the inside of iovec.
- * It is okay to use very large value for `bytes' since we're
- * limited by the size of the iovec anyway, provided that the
- * buffer pointed to by buf has enough space.  One possible
- * such "large" value is -1 (sinice size_t is unsigned),
- * so specifying `-1' as `bytes' means 'up to the end of iovec'.
  */
 size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
                          size_t offset, const void *buf, size_t bytes);
@@ -76,7 +71,6 @@ iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
  * up to the end of it, will be filled with the specified value.
  * Function return actual number of bytes processed, which is
  * min(size, iov_size(iov) - offset).
- * Again, it is okay to use large value for `bytes' to mean "up to the end".
  */
 size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
                   size_t offset, int fillc, size_t bytes);
