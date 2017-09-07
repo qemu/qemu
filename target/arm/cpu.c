@@ -258,7 +258,8 @@ static void arm_cpu_reset(CPUState *s)
                        sizeof(*env->pmsav7.dracr) * cpu->pmsav7_dregion);
             }
         }
-        env->pmsav7.rnr = 0;
+        env->pmsav7.rnr[M_REG_NS] = 0;
+        env->pmsav7.rnr[M_REG_S] = 0;
         env->pmsav8.mair0[M_REG_NS] = 0;
         env->pmsav8.mair0[M_REG_S] = 0;
         env->pmsav8.mair1[M_REG_NS] = 0;

@@ -543,13 +543,13 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     case 0xd94: /* MPU_CTRL */
         return cpu->env.v7m.mpu_ctrl;
     case 0xd98: /* MPU_RNR */
-        return cpu->env.pmsav7.rnr;
+        return cpu->env.pmsav7.rnr[attrs.secure];
     case 0xd9c: /* MPU_RBAR */
     case 0xda4: /* MPU_RBAR_A1 */
     case 0xdac: /* MPU_RBAR_A2 */
     case 0xdb4: /* MPU_RBAR_A3 */
     {
-        int region = cpu->env.pmsav7.rnr;
+        int region = cpu->env.pmsav7.rnr[attrs.secure];
 
         if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             /* PMSAv8M handling of the aliases is different from v7M:
@@ -577,7 +577,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
     case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
     {
-        int region = cpu->env.pmsav7.rnr;
+        int region = cpu->env.pmsav7.rnr[attrs.secure];
 
         if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             /* PMSAv8M handling of the aliases is different from v7M:
@@ -731,7 +731,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                           PRIu32 "/%" PRIu32 "\n",
                           value, cpu->pmsav7_dregion);
         } else {
-            cpu->env.pmsav7.rnr = value;
+            cpu->env.pmsav7.rnr[attrs.secure] = value;
         }
         break;
     case 0xd9c: /* MPU_RBAR */
@@ -749,7 +749,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
              */
             int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
 
-            region = cpu->env.pmsav7.rnr;
+            region = cpu->env.pmsav7.rnr[attrs.secure];
             if (aliasno) {
                 region = deposit32(region, 0, 2, aliasno);
             }
@@ -772,9 +772,9 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                               region, cpu->pmsav7_dregion);
                 return;
             }
-            cpu->env.pmsav7.rnr = region;
+            cpu->env.pmsav7.rnr[attrs.secure] = region;
         } else {
-            region = cpu->env.pmsav7.rnr;
+            region = cpu->env.pmsav7.rnr[attrs.secure];
         }
 
         if (region >= cpu->pmsav7_dregion) {
@@ -790,7 +790,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
     case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
     {
-        int region = cpu->env.pmsav7.rnr;
+        int region = cpu->env.pmsav7.rnr[attrs.secure];
 
         if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             /* PMSAv8M handling of the aliases is different from v7M:
@@ -799,7 +799,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
              */
             int aliasno = (offset - 0xd9c) / 8; /* 0..3 */
 
-            region = cpu->env.pmsav7.rnr;
+            region = cpu->env.pmsav7.rnr[attrs.secure];
             if (aliasno) {
                 region = deposit32(region, 0, 2, aliasno);
             }

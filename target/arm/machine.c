@@ -167,7 +167,7 @@ static bool pmsav7_rgnr_vmstate_validate(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
 
-    return cpu->env.pmsav7.rnr < cpu->pmsav7_dregion;
+    return cpu->env.pmsav7.rnr[M_REG_NS] < cpu->pmsav7_dregion;
 }
 
 static const VMStateDescription vmstate_pmsav7 = {
@@ -205,7 +205,7 @@ static const VMStateDescription vmstate_pmsav7_rnr = {
     .minimum_version_id = 1,
     .needed = pmsav7_rnr_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(env.pmsav7.rnr, ARMCPU),
+        VMSTATE_UINT32(env.pmsav7.rnr[M_REG_NS], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -235,6 +235,13 @@ static const VMStateDescription vmstate_pmsav8 = {
     }
 };
 
+static bool s_rnr_vmstate_validate(void *opaque, int version_id)
+{
+    ARMCPU *cpu = opaque;
+
+    return cpu->env.pmsav7.rnr[M_REG_S] < cpu->pmsav7_dregion;
+}
+
 static bool m_security_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -261,6 +268,8 @@ static const VMStateDescription vmstate_m_security = {
                               0, vmstate_info_uint32, uint32_t),
         VMSTATE_VARRAY_UINT32(env.pmsav8.rlar[M_REG_S], ARMCPU, pmsav7_dregion,
                               0, vmstate_info_uint32, uint32_t),
+        VMSTATE_UINT32(env.pmsav7.rnr[M_REG_S], ARMCPU),
+        VMSTATE_VALIDATE("secure MPU_RNR is valid", s_rnr_vmstate_validate),
         VMSTATE_END_OF_LIST()
     }
 };

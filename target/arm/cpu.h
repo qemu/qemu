@@ -533,7 +533,7 @@ typedef struct CPUARMState {
         uint32_t *drbar;
         uint32_t *drsr;
         uint32_t *dracr;
-        uint32_t rnr;
+        uint32_t rnr[2];
     } pmsav7;
 
     /* PMSAv8 MPU */
