@@ -1,3 +1,4 @@
 obj-$(CONFIG_SOFTMMU) += tcg-all.o
 obj-$(CONFIG_SOFTMMU) += cputlb.o
 obj-y += cpu-exec.o cpu-exec-common.o translate-all.o
+obj-y += translator.o

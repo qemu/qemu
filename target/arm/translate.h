@@ -1,11 +1,16 @@
 #ifndef TARGET_ARM_TRANSLATE_H
 #define TARGET_ARM_TRANSLATE_H
 
+#include "exec/translator.h"
+
+
 /* internal defines */
 typedef struct DisasContext {
+    DisasContextBase base;
+
     target_ulong pc;
+    target_ulong next_page_start;
     uint32_t insn;
-    int is_jmp;
     /* Nonzero if this instruction has been conditionally skipped.  */
     int condjmp;
     /* The label that will be jumped to when the instruction is skipped.  */
@@ -13,8 +18,6 @@ typedef struct DisasContext {
     /* Thumb-2 conditional execution bits.  */
     int condexec_mask;
     int condexec_cond;
-    struct TranslationBlock *tb;
-    int singlestep_enabled;
     int thumb;
     int sctlr_b;
     TCGMemOp be_data;
@@ -119,46 +122,40 @@ static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
     s->insn_start_idx = 0;
 }
 
-/* target-specific extra values for is_jmp */
+/* is_jmp field values */
+#define DISAS_JUMP      DISAS_TARGET_0 /* only pc was modified dynamically */
+#define DISAS_UPDATE    DISAS_TARGET_1 /* cpu state was modified dynamically */
 /* These instructions trap after executing, so the A32/T32 decoder must
  * defer them until after the conditional execution state has been updated.
  * WFI also needs special handling when single-stepping.
  */
-#define DISAS_WFI 4
-#define DISAS_SWI 5
-/* For instructions which unconditionally cause an exception we can skip
- * emitting unreachable code at the end of the TB in the A64 decoder
- */
-#define DISAS_EXC 6
+#define DISAS_WFI       DISAS_TARGET_2
+#define DISAS_SWI       DISAS_TARGET_3
 /* WFE */
-#define DISAS_WFE 7
-#define DISAS_HVC 8
-#define DISAS_SMC 9
-#define DISAS_YIELD 10
+#define DISAS_WFE       DISAS_TARGET_4
+#define DISAS_HVC       DISAS_TARGET_5
+#define DISAS_SMC       DISAS_TARGET_6
+#define DISAS_YIELD     DISAS_TARGET_7
 /* M profile branch which might be an exception return (and so needs
  * custom end-of-TB code)
  */
-#define DISAS_BX_EXCRET 11
+#define DISAS_BX_EXCRET DISAS_TARGET_8
 /* For instructions which want an immediate exit to the main loop,
  * as opposed to attempting to use lookup_and_goto_ptr. Unlike
  * DISAS_UPDATE this doesn't write the PC on exiting the translation
  * loop so you need to ensure something (gen_a64_set_pc_im or runtime
  * helper) has done so before we reach return from cpu_tb_exec.
  */
-#define DISAS_EXIT 12
+#define DISAS_EXIT      DISAS_TARGET_9
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);
-void gen_intermediate_code_a64(CPUState *cpu, TranslationBlock *tb);
 void gen_a64_set_pc_im(uint64_t val);
 void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
                             fprintf_function cpu_fprintf, int flags);
+extern const TranslatorOps aarch64_translator_ops;
 #else
 static inline void a64_translate_init(void)
-{
-}
-
-static inline void gen_intermediate_code_a64(CPUState *cpu, TranslationBlock *tb)
 {
 }
 
