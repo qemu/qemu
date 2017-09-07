@@ -235,6 +235,25 @@ static const VMStateDescription vmstate_pmsav8 = {
     }
 };
 
+static bool m_security_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_M_SECURITY);
+}
+
+static const VMStateDescription vmstate_m_security = {
+    .name = "cpu/m-security",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = m_security_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.secure, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
                     VMStateField *field)
 {
@@ -485,6 +504,7 @@ const VMStateDescription vmstate_arm_cpu = {
         &vmstate_pmsav7_rnr,
         &vmstate_pmsav7,
         &vmstate_pmsav8,
+        &vmstate_m_security,
         NULL
     }
 };

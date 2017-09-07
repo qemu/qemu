@@ -185,6 +185,10 @@ static void arm_cpu_reset(CPUState *s)
         uint32_t initial_pc; /* Loaded from 0x4 */
         uint8_t *rom;
 
+        if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+            env->v7m.secure = true;
+        }
+
         /* The reset value of this bit is IMPDEF, but ARM recommends
          * that it resets to 1, so QEMU always does that rather than making
          * it dependent on CPU model.
