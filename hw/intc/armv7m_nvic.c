@@ -171,8 +171,8 @@ static inline int nvic_exec_prio(NVICState *s)
         running = -1;
     } else if (env->v7m.primask) {
         running = 0;
-    } else if (env->v7m.basepri > 0) {
-        running = env->v7m.basepri & nvic_gprio_mask(s);
+    } else if (env->v7m.basepri[env->v7m.secure] > 0) {
+        running = env->v7m.basepri[env->v7m.secure] & nvic_gprio_mask(s);
     } else {
         running = NVIC_NOEXC_PRIO; /* lower than any possible priority */
     }
