@@ -38,6 +38,8 @@ endif
 
 # usb redirection
 common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
+redirect.o-cflags = $(USB_REDIR_CFLAGS)
+redirect.o-libs = $(USB_REDIR_LIBS)
 
 # usb pass-through
 ifeq ($(CONFIG_LIBUSB)$(CONFIG_USB),yy)
