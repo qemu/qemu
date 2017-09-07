@@ -12241,7 +12241,7 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         if (xpsr & XPSR_EXCP) {
             mode = "handler";
         } else {
-            if (env->v7m.control & R_V7M_CONTROL_NPRIV_MASK) {
+            if (env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_NPRIV_MASK) {
                 mode = "unpriv-thread";
             } else {
                 mode = "priv-thread";

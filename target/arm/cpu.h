@@ -422,7 +422,7 @@ typedef struct CPUARMState {
         uint32_t other_sp;
         uint32_t vecbase;
         uint32_t basepri[2];
-        uint32_t control;
+        uint32_t control[2];
         uint32_t ccr; /* Configuration and Control */
         uint32_t cfsr; /* Configurable Fault Status */
         uint32_t hfsr; /* HardFault Status */
@@ -1681,7 +1681,8 @@ static inline bool arm_v7m_is_handler_mode(CPUARMState *env)
 static inline int arm_current_el(CPUARMState *env)
 {
     if (arm_feature(env, ARM_FEATURE_M)) {
-        return arm_v7m_is_handler_mode(env) || !(env->v7m.control & 1);
+        return arm_v7m_is_handler_mode(env) ||
+            !(env->v7m.control[env->v7m.secure] & 1);
     }
 
     if (is_a64(env)) {
