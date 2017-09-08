@@ -104,6 +104,10 @@
 #define RTL8211E_PHYID1     0x001c
 #define RTL8211E_PHYID2     0xc915
 
+/* National Semiconductor DP83840 */
+#define DP83840_PHYID1      0x2000
+#define DP83840_PHYID2      0x5c01
+
 /* National Semiconductor DP83848 */
 #define DP83848_PHYID1      0x2000
 #define DP83848_PHYID2      0x5c90

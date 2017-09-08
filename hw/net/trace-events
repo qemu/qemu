@@ -322,3 +322,32 @@ sungem_mmio_mif_write(uint64_t addr, uint64_t val) "MMIO mif write to 0x%"PRIx64
 sungem_mmio_mif_read(uint64_t addr, uint64_t val) "MMIO mif read from 0x%"PRIx64" val=0x%"PRIx64
 sungem_mmio_pcs_write(uint64_t addr, uint64_t val) "MMIO pcs write to 0x%"PRIx64" val=0x%"PRIx64
 sungem_mmio_pcs_read(uint64_t addr, uint64_t val) "MMIO pcs read from 0x%"PRIx64" val=0x%"PRIx64
+
+# hw/net/sunhme.c
+sunhme_seb_write(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_seb_read(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_etx_write(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_etx_read(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_erx_write(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_erx_read(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_mac_write(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_mac_read(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_mii_write(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_mii_read(uint8_t addr, uint16_t value) "addr 0x%x value 0x%x"
+sunhme_mif_write(uint8_t addr, uint16_t value) "addr 0x%x value 0x%x"
+sunhme_mif_read(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
+sunhme_tx_desc(uint64_t buffer, uint32_t status, int cr, int nr) "addr 0x%"PRIx64" status 0x%"PRIx32 " (ring %d/%d)"
+sunhme_tx_xsum_add(int offset, int len) "adding xsum at offset %d, len %d"
+sunhme_tx_xsum_stuff(uint16_t xsum, int offset) "stuffing xsum 0x%x at offset %d"
+sunhme_tx_done(int len) "successfully transmitted frame with len %d"
+sunhme_rx_incoming(size_t len) "received incoming frame with len %zu"
+sunhme_rx_filter_destmac(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "received frame for MAC: %02x:%02x:%02x:%02x:%02x:%02x"
+sunhme_rx_filter_local_match(void) "incoming frame matches local MAC address"
+sunhme_rx_filter_bcast_match(void) "incoming frame matches broadcast MAC address"
+sunhme_rx_filter_hash_nomatch(void) "incoming MAC address not in hash table"
+sunhme_rx_filter_hash_match(void) "incoming MAC address found in hash table"
+sunhme_rx_filter_promisc_match(void) "incoming frame accepted due to promiscuous mode"
+sunhme_rx_filter_reject(void) "rejecting incoming frame"
+sunhme_rx_filter_accept(void) "accepting incoming frame"
+sunhme_rx_desc(uint32_t addr, int offset, uint32_t status, int len, int cr, int nr) "addr 0x%"PRIx32"(+0x%x) status 0x%"PRIx32 " len %d (ring %d/%d)"
+sunhme_rx_xsum_calc(uint16_t xsum) "calculated incoming xsum as 0x%x"
