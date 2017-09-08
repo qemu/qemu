@@ -990,10 +990,13 @@ F: hw/scsi/lsi53c895a.c
 
 SSI
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
+M: Alistair Francis <alistair.francis@xilinx.com>
 S: Maintained
 F: hw/ssi/*
 F: hw/block/m25p80.c
+F: include/hw/ssi/ssi.h
 X: hw/ssi/xilinx_*
+F: tests/m25p80-test.c
 
 Xilinx SPI
 M: Alistair Francis <alistair.francis@xilinx.com>
