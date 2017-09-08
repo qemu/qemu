@@ -1581,6 +1581,13 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
      * to worry about this for now.
      */
     ov5_cas_old = spapr_ovec_clone(spapr->ov5_cas);
+
+    /* also clear the radix/hash bit from the current ov5_cas bits to
+     * be in sync with the newly ov5 bits. Else the radix bit will be
+     * seen as being removed and this will generate a reset loop
+     */
+    spapr_ovec_clear(ov5_cas_old, OV5_MMU_RADIX_300);
+
     /* full range of negotiated ov5 capabilities */
     spapr_ovec_intersect(spapr->ov5_cas, spapr->ov5, ov5_guest);
     spapr_ovec_cleanup(ov5_guest);
