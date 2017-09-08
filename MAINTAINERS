@@ -1168,6 +1168,7 @@ M: Alistair Francis <alistair.francis@xilinx.com>
 S: Maintained
 F: hw/core/generic-loader.c
 F: include/hw/core/generic-loader.h
+F: docs/generic-loader.txt
 
 CHRP NVRAM
 M: Thomas Huth <thuth@redhat.com>
