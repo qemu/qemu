@@ -989,7 +989,7 @@ err:
 
 MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                    size_t max_len, hwaddr addr, const char *fw_file_name,
-                   FWCfgReadCallback fw_callback, void *callback_opaque,
+                   FWCfgCallback fw_callback, void *callback_opaque,
                    AddressSpace *as, bool read_only)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());

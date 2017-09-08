@@ -169,6 +169,16 @@ bios_linker_find_file(const BIOSLinker *linker, const char *name)
 }
 
 /*
+ * board code must realize fw_cfg first, as a fixed device, before
+ * another device realize function call bios_linker_loader_can_write_pointer()
+ */
+bool bios_linker_loader_can_write_pointer(void)
+{
+    FWCfgState *fw_cfg = fw_cfg_find();
+    return fw_cfg && fw_cfg_dma_enabled(fw_cfg);
+}
+
+/*
  * bios_linker_loader_alloc: ask guest to load file into guest memory.
  *
  * @linker: linker object instance

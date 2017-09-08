@@ -521,6 +521,19 @@ vu_set_vring_addr_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     vq->used_idx = vq->vring.used->idx;
 
+    if (vq->last_avail_idx != vq->used_idx) {
+        bool resume = dev->iface->queue_is_processed_in_order &&
+            dev->iface->queue_is_processed_in_order(dev, index);
+
+        DPRINT("Last avail index != used index: %u != %u%s\n",
+               vq->last_avail_idx, vq->used_idx,
+               resume ? ", resuming" : "");
+
+        if (resume) {
+            vq->shadow_avail_idx = vq->last_avail_idx = vq->used_idx;
+        }
+    }
+
     return false;
 }
 

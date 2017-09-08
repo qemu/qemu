@@ -192,7 +192,7 @@ int rom_add_file(const char *file, const char *fw_dir,
 MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                            size_t max_len, hwaddr addr,
                            const char *fw_file_name,
-                           FWCfgReadCallback fw_callback,
+                           FWCfgCallback fw_callback,
                            void *callback_opaque, AddressSpace *as,
                            bool read_only);
 int rom_add_elf_program(const char *name, void *data, size_t datasize,

@@ -957,6 +957,8 @@ static bool vtd_dev_pt_enabled(VTDAddressSpace *as)
 static bool vtd_switch_address_space(VTDAddressSpace *as)
 {
     bool use_iommu;
+    /* Whether we need to take the BQL on our own */
+    bool take_bql = !qemu_mutex_iothread_locked();
 
     assert(as);
 
@@ -967,6 +969,15 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
                                    VTD_PCI_FUNC(as->devfn),
                                    use_iommu);
 
+    /*
+     * It's possible that we reach here without BQL, e.g., when called
+     * from vtd_pt_enable_fast_path(). However the memory APIs need
+     * it. We'd better make sure we have had it already, or, take it.
+     */
+    if (take_bql) {
+        qemu_mutex_lock_iothread();
+    }
+
     /* Turn off first then on the other */
     if (use_iommu) {
         memory_region_set_enabled(&as->sys_alias, false);
@@ -974,6 +985,10 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
     } else {
         memory_region_set_enabled(MEMORY_REGION(&as->iommu), false);
         memory_region_set_enabled(&as->sys_alias, true);
+    }
+
+    if (take_bql) {
+        qemu_mutex_unlock_iothread();
     }
 
     return use_iommu;
