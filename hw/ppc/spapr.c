@@ -937,7 +937,7 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
     char val[2 * 4] = {
-        23, 0x00, /* Xive mode: 0 = legacy (as in ISA 2.7), 1 = Exploitation */
+        23, 0x00, /* Xive mode, filled in below. */
         24, 0x00, /* Hash/Radix, filled in below. */
         25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
         26, 0x40, /* Radix options: GTSE == yes. */
