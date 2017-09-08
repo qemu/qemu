@@ -980,15 +980,6 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             s->cpa = sch->channel_prog + 8;
             break;
-        case -EFAULT:
-            /* memory problem, generate channel data check */
-            s->ctrl &= ~SCSW_ACTL_START_PEND;
-            s->cstat = SCSW_CSTAT_DATA_CHECK;
-            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
-                    SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
-            s->cpa = sch->channel_prog + 8;
-            break;
         case -EBUSY:
             /* subchannel busy, generate deferred cc 1 */
             s->flags &= ~SCSW_FLAGS_MASK_CC;
