@@ -65,10 +65,6 @@ char *desc_get_buf(DescInfo *info, bool read_only)
         info->buf_size = size;
     }
 
-    if (!info->buf) {
-        return NULL;
-    }
-
     pci_dma_read(dev, le64_to_cpu(info->desc.buf_addr), info->buf, size);
 
     return info->buf;
@@ -142,9 +138,6 @@ bool desc_ring_set_size(DescRing *ring, uint32_t size)
     ring->head = ring->tail = 0;
 
     ring->info = g_renew(DescInfo, ring->info, size);
-    if (!ring->info) {
-        return false;
-    }
 
     memset(ring->info, 0, size * sizeof(DescInfo));
 
@@ -345,9 +338,6 @@ DescRing *desc_ring_alloc(Rocker *r, int index)
     DescRing *ring;
 
     ring = g_new0(DescRing, 1);
-    if (!ring) {
-        return NULL;
-    }
 
     ring->r = r;
     ring->index = index;
