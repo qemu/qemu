@@ -163,6 +163,14 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
 
     pt = env->ptbr;
 
+    /* TODO: rather than using ldq_phys() to read the page table we should
+     * use address_space_ldq() so that we can handle the case when
+     * the page table read gives a bus fault, rather than ignoring it.
+     * For the existing code the zero data that ldq_phys will return for
+     * an access to invalid memory will result in our treating the page
+     * table as invalid, which may even be the right behaviour.
+     */
+
     /* L1 page table read.  */
     index = (addr >> (TARGET_PAGE_BITS + 20)) & 0x3ff;
     L1pte = ldq_phys(cs->as, pt + index*8);
