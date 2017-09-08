@@ -496,9 +496,11 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str,
     char buf[256];
     int is_udp;
     char *end;
+    const char *fail_reason = "Unknown reason";
 
     p = redir_str;
     if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        fail_reason = "No : separators";
         goto fail_syntax;
     }
     if (!strcmp(buf, "tcp") || buf[0] == '\0') {
@@ -506,35 +508,43 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str,
     } else if (!strcmp(buf, "udp")) {
         is_udp = 1;
     } else {
+        fail_reason = "Bad protocol name";
         goto fail_syntax;
     }
 
     if (!legacy_format) {
         if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+            fail_reason = "Missing : separator";
             goto fail_syntax;
         }
         if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
+            fail_reason = "Bad host address";
             goto fail_syntax;
         }
     }
 
     if (get_str_sep(buf, sizeof(buf), &p, legacy_format ? ':' : '-') < 0) {
+        fail_reason = "Bad host port separator";
         goto fail_syntax;
     }
     host_port = strtol(buf, &end, 0);
     if (*end != '\0' || host_port < 0 || host_port > 65535) {
+        fail_reason = "Bad host port";
         goto fail_syntax;
     }
 
     if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        fail_reason = "Missing guest address";
         goto fail_syntax;
     }
     if (buf[0] != '\0' && !inet_aton(buf, &guest_addr)) {
+        fail_reason = "Bad guest address";
         goto fail_syntax;
     }
 
     guest_port = strtol(p, &end, 0);
     if (*end != '\0' || guest_port < 1 || guest_port > 65535) {
+        fail_reason = "Bad guest port";
         goto fail_syntax;
     }
 
@@ -547,7 +557,8 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str,
     return 0;
 
  fail_syntax:
-    error_setg(errp, "Invalid host forwarding rule '%s'", redir_str);
+    error_setg(errp, "Invalid host forwarding rule '%s' (%s)", redir_str,
+               fail_reason);
     return -1;
 }
 
