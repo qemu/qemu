@@ -38,7 +38,11 @@ endif
 common-obj-$(CONFIG_USB_REDIR) += redirect.o quirks.o
 
 # usb pass-through
-common-obj-y += $(patsubst %,host-%.o,$(HOST_USB))
+ifeq ($(CONFIG_LIBUSB),y)
+common-obj-y += host-libusb.o host-legacy.o
+else
+common-obj-y += host-stub.o
+endif
 
 ifeq ($(CONFIG_USB_LIBUSB),y)
 common-obj-$(CONFIG_XEN) += xen-usb.o
