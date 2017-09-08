@@ -22,8 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "tcg-be-null.h"
-
 /* TODO list:
  * - See TODO comments in code.
  */

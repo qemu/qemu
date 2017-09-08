@@ -942,8 +942,9 @@ typedef struct {
 #define R_390_TLS_DTPOFF	55	/* Offset in TLS block.  */
 #define R_390_TLS_TPOFF		56	/* Negate offset in static TLS
                                            block.  */
+#define R_390_20                57
 /* Keep this the last entry.  */
-#define R_390_NUM	57
+#define R_390_NUM               58
 
 /* x86-64 relocation types */
 #define R_X86_64_NONE		0	/* No reloc */

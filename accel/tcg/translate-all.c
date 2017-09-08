@@ -1289,13 +1289,13 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
     tb->jmp_reset_offset[1] = TB_JMP_RESET_OFFSET_INVALID;
     tcg_ctx.tb_jmp_reset_offset = tb->jmp_reset_offset;
-#ifdef USE_DIRECT_JUMP
-    tcg_ctx.tb_jmp_insn_offset = tb->jmp_insn_offset;
-    tcg_ctx.tb_jmp_target_addr = NULL;
-#else
-    tcg_ctx.tb_jmp_insn_offset = NULL;
-    tcg_ctx.tb_jmp_target_addr = tb->jmp_target_addr;
-#endif
+    if (TCG_TARGET_HAS_direct_jump) {
+        tcg_ctx.tb_jmp_insn_offset = tb->jmp_target_arg;
+        tcg_ctx.tb_jmp_target_addr = NULL;
+    } else {
+        tcg_ctx.tb_jmp_insn_offset = NULL;
+        tcg_ctx.tb_jmp_target_addr = tb->jmp_target_arg;
+    }
 
 #ifdef CONFIG_PROFILER
     tcg_ctx.tb_count++;
@@ -1329,7 +1329,27 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         qemu_log_in_addr_range(tb->pc)) {
         qemu_log_lock();
         qemu_log("OUT: [size=%d]\n", gen_code_size);
-        log_disas(tb->tc_ptr, gen_code_size);
+        if (tcg_ctx.data_gen_ptr) {
+            size_t code_size = tcg_ctx.data_gen_ptr - tb->tc_ptr;
+            size_t data_size = gen_code_size - code_size;
+            size_t i;
+
+            log_disas(tb->tc_ptr, code_size);
+
+            for (i = 0; i < data_size; i += sizeof(tcg_target_ulong)) {
+                if (sizeof(tcg_target_ulong) == 8) {
+                    qemu_log("0x%08" PRIxPTR ":  .quad  0x%016" PRIx64 "\n",
+                             (uintptr_t)tcg_ctx.data_gen_ptr + i,
+                             *(uint64_t *)(tcg_ctx.data_gen_ptr + i));
+                } else {
+                    qemu_log("0x%08" PRIxPTR ":  .long  0x%08x\n",
+                             (uintptr_t)tcg_ctx.data_gen_ptr + i,
+                             *(uint32_t *)(tcg_ctx.data_gen_ptr + i));
+                }
+            }
+        } else {
+            log_disas(tb->tc_ptr, gen_code_size);
+        }
         qemu_log("\n");
         qemu_log_flush();
         qemu_log_unlock();

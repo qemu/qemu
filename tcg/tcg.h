@@ -652,8 +652,8 @@ struct TCGContext {
     /* goto_tb support */
     tcg_insn_unit *code_buf;
     uint16_t *tb_jmp_reset_offset; /* tb->jmp_reset_offset */
-    uint16_t *tb_jmp_insn_offset; /* tb->jmp_insn_offset if USE_DIRECT_JUMP */
-    uintptr_t *tb_jmp_target_addr; /* tb->jmp_target_addr if !USE_DIRECT_JUMP */
+    uintptr_t *tb_jmp_insn_offset; /* tb->jmp_target_arg if direct_jump */
+    uintptr_t *tb_jmp_target_addr; /* tb->jmp_target_arg if !direct_jump */
 
     TCGRegSet reserved_regs;
     intptr_t current_frame_offset;
@@ -702,6 +702,7 @@ struct TCGContext {
     void *code_gen_buffer;
     size_t code_gen_buffer_size;
     void *code_gen_ptr;
+    void *data_gen_ptr;
 
     /* Threshold to flush the translated code buffer.  */
     void *code_gen_highwater;
@@ -712,8 +713,13 @@ struct TCGContext {
     CPUState *cpu;                      /* *_trans */
     TCGv_env tcg_env;                   /* *_exec  */
 
-    /* The TCGBackendData structure is private to tcg-target.inc.c.  */
-    struct TCGBackendData *be;
+    /* These structures are private to tcg-target.inc.c.  */
+#ifdef TCG_TARGET_NEED_LDST_LABELS
+    struct TCGLabelQemuLdst *ldst_labels;
+#endif
+#ifdef TCG_TARGET_NEED_POOL_LABELS
+    struct TCGLabelPoolData *pool_labels;
+#endif
 
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */

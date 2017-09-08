@@ -301,15 +301,6 @@ static inline void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 #define CODE_GEN_AVG_BLOCK_SIZE 150
 #endif
 
-#if defined(_ARCH_PPC) \
-    || defined(__x86_64__) || defined(__i386__) \
-    || defined(__sparc__) || defined(__aarch64__) \
-    || defined(__s390x__) || defined(__mips__) \
-    || defined(CONFIG_TCG_INTERPRETER)
-/* NOTE: Direct jump patching must be atomic to be thread-safe. */
-#define USE_DIRECT_JUMP
-#endif
-
 struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
@@ -347,11 +338,8 @@ struct TranslationBlock {
      */
     uint16_t jmp_reset_offset[2]; /* offset of original jump target */
 #define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
-#ifdef USE_DIRECT_JUMP
-    uint16_t jmp_insn_offset[2]; /* offset of native jump instruction */
-#else
-    uintptr_t jmp_target_addr[2]; /* target address for indirect jump */
-#endif
+    uintptr_t jmp_target_arg[2];  /* target address or offset */
+
     /* Each TB has an assosiated circular list of TBs jumping to this one.
      * jmp_list_first points to the first TB jumping to this one.
      * jmp_list_next is used to point to the next TB in a list.
@@ -373,84 +361,7 @@ void tb_flush(CPUState *cpu);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
                                    target_ulong cs_base, uint32_t flags);
-
-#if defined(USE_DIRECT_JUMP)
-
-#if defined(CONFIG_TCG_INTERPRETER)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
-{
-    /* patch the branch destination */
-    atomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
-    /* no need to flush icache explicitly */
-}
-#elif defined(_ARCH_PPC)
-void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
-#define tb_set_jmp_target1 ppc_tb_set_jmp_target
-#elif defined(__i386__) || defined(__x86_64__)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
-{
-    /* patch the branch destination */
-    atomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
-    /* no need to flush icache explicitly */
-}
-#elif defined(__s390x__)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
-{
-    /* patch the branch destination */
-    intptr_t disp = addr - (jmp_addr - 2);
-    atomic_set((int32_t *)jmp_addr, disp / 2);
-    /* no need to flush icache explicitly */
-}
-#elif defined(__aarch64__)
-void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
-#define tb_set_jmp_target1 aarch64_tb_set_jmp_target
-#elif defined(__sparc__) || defined(__mips__)
-void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
-#else
-#error tb_set_jmp_target1 is missing
-#endif
-
-static inline void tb_set_jmp_target(TranslationBlock *tb,
-                                     int n, uintptr_t addr)
-{
-    uint16_t offset = tb->jmp_insn_offset[n];
-    tb_set_jmp_target1((uintptr_t)(tb->tc_ptr + offset), addr);
-}
-
-#else
-
-/* set the jump target */
-static inline void tb_set_jmp_target(TranslationBlock *tb,
-                                     int n, uintptr_t addr)
-{
-    tb->jmp_target_addr[n] = addr;
-}
-
-#endif
-
-/* Called with tb_lock held.  */
-static inline void tb_add_jump(TranslationBlock *tb, int n,
-                               TranslationBlock *tb_next)
-{
-    assert(n < ARRAY_SIZE(tb->jmp_list_next));
-    if (tb->jmp_list_next[n]) {
-        /* Another thread has already done this while we were
-         * outside of the lock; nothing to do in this case */
-        return;
-    }
-    qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
-                           "Linking TBs %p [" TARGET_FMT_lx
-                           "] index %d -> %p [" TARGET_FMT_lx "]\n",
-                           tb->tc_ptr, tb->pc, n,
-                           tb_next->tc_ptr, tb_next->pc);
-
-    /* patch the native jump address */
-    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
-
-    /* add in TB jmp circular list */
-    tb->jmp_list_next[n] = tb_next->jmp_list_first;
-    tb_next->jmp_list_first = (uintptr_t)tb | n;
-}
+void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
 
 /* GETPC is the true target of the return instruction that we'll execute.  */
 #if defined(CONFIG_TCG_INTERPRETER)
