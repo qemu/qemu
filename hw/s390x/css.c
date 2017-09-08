@@ -980,13 +980,6 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             s->cpa = sch->channel_prog + 8;
             break;
-        case -EBUSY:
-            /* subchannel busy, generate deferred cc 1 */
-            s->flags &= ~SCSW_FLAGS_MASK_CC;
-            s->flags |= (1 << 8);
-            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-            s->ctrl |= SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
-            break;
         case -EINPROGRESS:
             /* channel program has been suspended */
             s->ctrl &= ~SCSW_ACTL_START_PEND;
