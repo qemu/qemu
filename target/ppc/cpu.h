@@ -1188,7 +1188,7 @@ typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
 /**
  * PowerPCCPU:
  * @env: #CPUPPCState
- * @cpu_dt_id: CPU index used in the device tree. KVM uses this index too
+ * @vcpu_id: vCPU identifier given to KVM
  * @compat_pvr: Current logical PVR, zero if in "raw" mode
  *
  * A PowerPC CPU.
@@ -1199,7 +1199,7 @@ struct PowerPCCPU {
     /*< public >*/
 
     CPUPPCState env;
-    int cpu_dt_id;
+    int vcpu_id;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
     Object *intc;
@@ -1353,6 +1353,9 @@ int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp);
 int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_POWERPC_CPU, cpu_model)
+
+#define POWERPC_CPU_TYPE_SUFFIX "-" TYPE_POWERPC_CPU
+#define POWERPC_CPU_TYPE_NAME(model) model POWERPC_CPU_TYPE_SUFFIX
 
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
@@ -2473,10 +2476,10 @@ static inline ppcmas_tlb_t *booke206_get_tlbm(CPUPPCState *env, const int tlbn,
 /* returns bitmap of supported page sizes for a given TLB */
 static inline uint32_t booke206_tlbnps(CPUPPCState *env, const int tlbn)
 {
-    bool mav2 = false;
     uint32_t ret = 0;
 
-    if (mav2) {
+    if ((env->spr[SPR_MMUCFG] & MMUCFG_MAVN) == MMUCFG_MAVN_V2) {
+        /* MAV2 */
         ret = env->spr[SPR_BOOKE_TLB0PS + tlbn];
     } else {
         uint32_t tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
@@ -2489,6 +2492,28 @@ static inline uint32_t booke206_tlbnps(CPUPPCState *env, const int tlbn)
     }
 
     return ret;
+}
+
+static inline void booke206_fixed_size_tlbn(CPUPPCState *env, const int tlbn,
+                                            ppcmas_tlb_t *tlb)
+{
+    uint8_t i;
+    int32_t tsize = -1;
+
+    for (i = 0; i < 32; i++) {
+        if ((env->spr[SPR_BOOKE_TLB0PS + tlbn]) & (1ULL << i)) {
+            if (tsize == -1) {
+                tsize = i;
+            } else {
+                return;
+            }
+        }
+    }
+
+    /* TLBnPS unimplemented? Odd.. */
+    assert(tsize != -1);
+    tlb->mas1 &= ~MAS1_TSIZE_MASK;
+    tlb->mas1 |= ((uint32_t)tsize) << MAS1_TSIZE_SHIFT;
 }
 
 #endif
@@ -2513,24 +2538,6 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 }
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
-
-/**
- * ppc_get_vcpu_dt_id:
- * @cs: a PowerPCCPU struct.
- *
- * Returns a device-tree ID for a CPU.
- */
-int ppc_get_vcpu_dt_id(PowerPCCPU *cpu);
-
-/**
- * ppc_get_vcpu_by_dt_id:
- * @cpu_dt_id: a device tree id
- *
- * Searches for a CPU by @cpu_dt_id.
- *
- * Returns: a PowerPCCPU struct
- */
-PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
 #endif /* PPC_CPU_H */

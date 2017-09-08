@@ -1358,27 +1358,6 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-/* CPU device-tree ID helpers */
-int ppc_get_vcpu_dt_id(PowerPCCPU *cpu)
-{
-    return cpu->cpu_dt_id;
-}
-
-PowerPCCPU *ppc_get_vcpu_by_dt_id(int cpu_dt_id)
-{
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        if (cpu->cpu_dt_id == cpu_dt_id) {
-            return cpu;
-        }
-    }
-
-    return NULL;
-}
-
 void ppc_cpu_parse_features(const char *cpu_model)
 {
     CPUClass *cc;

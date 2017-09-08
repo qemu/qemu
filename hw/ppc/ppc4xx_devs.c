@@ -734,3 +734,230 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
 
     return ram_size;
 }
+
+/*****************************************************************************/
+/* MAL */
+
+enum {
+    MAL0_CFG      = 0x180,
+    MAL0_ESR      = 0x181,
+    MAL0_IER      = 0x182,
+    MAL0_TXCASR   = 0x184,
+    MAL0_TXCARR   = 0x185,
+    MAL0_TXEOBISR = 0x186,
+    MAL0_TXDEIR   = 0x187,
+    MAL0_RXCASR   = 0x190,
+    MAL0_RXCARR   = 0x191,
+    MAL0_RXEOBISR = 0x192,
+    MAL0_RXDEIR   = 0x193,
+    MAL0_TXCTP0R  = 0x1A0,
+    MAL0_RXCTP0R  = 0x1C0,
+    MAL0_RCBS0    = 0x1E0,
+    MAL0_RCBS1    = 0x1E1,
+};
+
+typedef struct ppc4xx_mal_t ppc4xx_mal_t;
+struct ppc4xx_mal_t {
+    qemu_irq irqs[4];
+    uint32_t cfg;
+    uint32_t esr;
+    uint32_t ier;
+    uint32_t txcasr;
+    uint32_t txcarr;
+    uint32_t txeobisr;
+    uint32_t txdeir;
+    uint32_t rxcasr;
+    uint32_t rxcarr;
+    uint32_t rxeobisr;
+    uint32_t rxdeir;
+    uint32_t *txctpr;
+    uint32_t *rxctpr;
+    uint32_t *rcbs;
+    uint8_t  txcnum;
+    uint8_t  rxcnum;
+};
+
+static void ppc4xx_mal_reset(void *opaque)
+{
+    ppc4xx_mal_t *mal;
+
+    mal = opaque;
+    mal->cfg = 0x0007C000;
+    mal->esr = 0x00000000;
+    mal->ier = 0x00000000;
+    mal->rxcasr = 0x00000000;
+    mal->rxdeir = 0x00000000;
+    mal->rxeobisr = 0x00000000;
+    mal->txcasr = 0x00000000;
+    mal->txdeir = 0x00000000;
+    mal->txeobisr = 0x00000000;
+}
+
+static uint32_t dcr_read_mal(void *opaque, int dcrn)
+{
+    ppc4xx_mal_t *mal;
+    uint32_t ret;
+
+    mal = opaque;
+    switch (dcrn) {
+    case MAL0_CFG:
+        ret = mal->cfg;
+        break;
+    case MAL0_ESR:
+        ret = mal->esr;
+        break;
+    case MAL0_IER:
+        ret = mal->ier;
+        break;
+    case MAL0_TXCASR:
+        ret = mal->txcasr;
+        break;
+    case MAL0_TXCARR:
+        ret = mal->txcarr;
+        break;
+    case MAL0_TXEOBISR:
+        ret = mal->txeobisr;
+        break;
+    case MAL0_TXDEIR:
+        ret = mal->txdeir;
+        break;
+    case MAL0_RXCASR:
+        ret = mal->rxcasr;
+        break;
+    case MAL0_RXCARR:
+        ret = mal->rxcarr;
+        break;
+    case MAL0_RXEOBISR:
+        ret = mal->rxeobisr;
+        break;
+    case MAL0_RXDEIR:
+        ret = mal->rxdeir;
+        break;
+    default:
+        ret = 0;
+        break;
+    }
+    if (dcrn >= MAL0_TXCTP0R && dcrn < MAL0_TXCTP0R + mal->txcnum) {
+        ret = mal->txctpr[dcrn - MAL0_TXCTP0R];
+    }
+    if (dcrn >= MAL0_RXCTP0R && dcrn < MAL0_RXCTP0R + mal->rxcnum) {
+        ret = mal->rxctpr[dcrn - MAL0_RXCTP0R];
+    }
+    if (dcrn >= MAL0_RCBS0 && dcrn < MAL0_RCBS0 + mal->rxcnum) {
+        ret = mal->rcbs[dcrn - MAL0_RCBS0];
+    }
+
+    return ret;
+}
+
+static void dcr_write_mal(void *opaque, int dcrn, uint32_t val)
+{
+    ppc4xx_mal_t *mal;
+
+    mal = opaque;
+    switch (dcrn) {
+    case MAL0_CFG:
+        if (val & 0x80000000) {
+            ppc4xx_mal_reset(mal);
+        }
+        mal->cfg = val & 0x00FFC087;
+        break;
+    case MAL0_ESR:
+        /* Read/clear */
+        mal->esr &= ~val;
+        break;
+    case MAL0_IER:
+        mal->ier = val & 0x0000001F;
+        break;
+    case MAL0_TXCASR:
+        mal->txcasr = val & 0xF0000000;
+        break;
+    case MAL0_TXCARR:
+        mal->txcarr = val & 0xF0000000;
+        break;
+    case MAL0_TXEOBISR:
+        /* Read/clear */
+        mal->txeobisr &= ~val;
+        break;
+    case MAL0_TXDEIR:
+        /* Read/clear */
+        mal->txdeir &= ~val;
+        break;
+    case MAL0_RXCASR:
+        mal->rxcasr = val & 0xC0000000;
+        break;
+    case MAL0_RXCARR:
+        mal->rxcarr = val & 0xC0000000;
+        break;
+    case MAL0_RXEOBISR:
+        /* Read/clear */
+        mal->rxeobisr &= ~val;
+        break;
+    case MAL0_RXDEIR:
+        /* Read/clear */
+        mal->rxdeir &= ~val;
+        break;
+    }
+    if (dcrn >= MAL0_TXCTP0R && dcrn < MAL0_TXCTP0R + mal->txcnum) {
+        mal->txctpr[dcrn - MAL0_TXCTP0R] = val;
+    }
+    if (dcrn >= MAL0_RXCTP0R && dcrn < MAL0_RXCTP0R + mal->rxcnum) {
+        mal->rxctpr[dcrn - MAL0_RXCTP0R] = val;
+    }
+    if (dcrn >= MAL0_RCBS0 && dcrn < MAL0_RCBS0 + mal->rxcnum) {
+        mal->rcbs[dcrn - MAL0_RCBS0] = val & 0x000000FF;
+    }
+}
+
+void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
+                     qemu_irq irqs[4])
+{
+    ppc4xx_mal_t *mal;
+    int i;
+
+    assert(txcnum <= 32 && rxcnum <= 32);
+    mal = g_malloc0(sizeof(*mal));
+    mal->txcnum = txcnum;
+    mal->rxcnum = rxcnum;
+    mal->txctpr = g_new0(uint32_t, txcnum);
+    mal->rxctpr = g_new0(uint32_t, rxcnum);
+    mal->rcbs = g_new0(uint32_t, rxcnum);
+    for (i = 0; i < 4; i++) {
+        mal->irqs[i] = irqs[i];
+    }
+    qemu_register_reset(&ppc4xx_mal_reset, mal);
+    ppc_dcr_register(env, MAL0_CFG,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_ESR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_IER,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCASR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCARR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXEOBISR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXDEIR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXCASR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXCARR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXEOBISR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXDEIR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    for (i = 0; i < txcnum; i++) {
+        ppc_dcr_register(env, MAL0_TXCTP0R + i,
+                         mal, &dcr_read_mal, &dcr_write_mal);
+    }
+    for (i = 0; i < rxcnum; i++) {
+        ppc_dcr_register(env, MAL0_RXCTP0R + i,
+                         mal, &dcr_read_mal, &dcr_write_mal);
+    }
+    for (i = 0; i < rxcnum; i++) {
+        ppc_dcr_register(env, MAL0_RCBS0 + i,
+                         mal, &dcr_read_mal, &dcr_write_mal);
+    }
+}

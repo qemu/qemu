@@ -26,6 +26,7 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "hw/hw.h"
@@ -208,7 +209,7 @@ static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
     int i, ret = 0;
     uint32_t servers_prop[smt_threads];
     uint32_t gservers_prop[smt_threads * 2];
-    int index = ppc_get_vcpu_dt_id(cpu);
+    int index = spapr_vcpu_id(cpu);
 
     if (cpu->compat_pvr) {
         ret = fdt_setprop_cell(fdt, offset, "cpu-version", cpu->compat_pvr);
@@ -237,7 +238,7 @@ static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
 
 static int spapr_fixup_cpu_numa_dt(void *fdt, int offset, PowerPCCPU *cpu)
 {
-    int index = ppc_get_vcpu_dt_id(cpu);
+    int index = spapr_vcpu_id(cpu);
     uint32_t associativity[] = {cpu_to_be32(0x5),
                                 cpu_to_be32(0x0),
                                 cpu_to_be32(0x0),
@@ -341,7 +342,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         CPUPPCState *env = &cpu->env;
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
-        int index = ppc_get_vcpu_dt_id(cpu);
+        int index = spapr_vcpu_id(cpu);
         int compat_smt = MIN(smp_threads, ppc_compat_max_threads(cpu));
 
         if ((index % smt) != 0) {
@@ -493,7 +494,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
-    int index = ppc_get_vcpu_dt_id(cpu);
+    int index = spapr_vcpu_id(cpu);
     uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                        0xffffffff, 0xffffffff};
     uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq()
@@ -626,7 +627,7 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
      */
     CPU_FOREACH_REVERSE(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        int index = ppc_get_vcpu_dt_id(cpu);
+        int index = spapr_vcpu_id(cpu);
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         int offset;
 
@@ -790,6 +791,26 @@ out:
     return ret;
 }
 
+static bool spapr_hotplugged_dev_before_cas(void)
+{
+    Object *drc_container, *obj;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+
+    drc_container = container_get(object_get_root(), "/dr-connector");
+    object_property_iter_init(&iter, drc_container);
+    while ((prop = object_property_iter_next(&iter))) {
+        if (!strstart(prop->type, "link<", NULL)) {
+            continue;
+        }
+        obj = object_property_get_link(drc_container, prop->name, NULL);
+        if (spapr_drc_needed(obj)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
                                  target_ulong addr, target_ulong size,
                                  sPAPROptionVector *ov5_updates)
@@ -797,9 +818,13 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
     void *fdt, *fdt_skel;
     sPAPRDeviceTreeUpdateHeader hdr = { .version_id = 1 };
 
+    if (spapr_hotplugged_dev_before_cas()) {
+        return 1;
+    }
+
     size -= sizeof(hdr);
 
-    /* Create sceleton */
+    /* Create skeleton */
     fdt_skel = g_malloc0(size);
     _FDT((fdt_create(fdt_skel, size)));
     _FDT((fdt_begin_node(fdt_skel, "")));
@@ -1392,6 +1417,7 @@ static void ppc_spapr_reset(void)
     }
 
     qemu_devices_reset();
+    spapr_clear_pending_events(spapr);
 
     /*
      * We place the device tree and RTAS just below either the top of the RMA,
@@ -2140,6 +2166,61 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     g_free(type);
 }
 
+static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
+{
+    Error *local_err = NULL;
+    bool vsmt_user = !!spapr->vsmt;
+    int kvm_smt = kvmppc_smt_threads();
+    int ret;
+
+    if (!kvm_enabled() && (smp_threads > 1)) {
+        error_setg(&local_err, "TCG cannot support more than 1 thread/core "
+                     "on a pseries machine");
+        goto out;
+    }
+    if (!is_power_of_2(smp_threads)) {
+        error_setg(&local_err, "Cannot support %d threads/core on a pseries "
+                     "machine because it must be a power of 2", smp_threads);
+        goto out;
+    }
+
+    /* Detemine the VSMT mode to use: */
+    if (vsmt_user) {
+        if (spapr->vsmt < smp_threads) {
+            error_setg(&local_err, "Cannot support VSMT mode %d"
+                         " because it must be >= threads/core (%d)",
+                         spapr->vsmt, smp_threads);
+            goto out;
+        }
+        /* In this case, spapr->vsmt has been set by the command line */
+    } else {
+        /* Choose a VSMT mode that may be higher than necessary but is
+         * likely to be compatible with hosts that don't have VSMT. */
+        spapr->vsmt = MAX(kvm_smt, smp_threads);
+    }
+
+    /* KVM: If necessary, set the SMT mode: */
+    if (kvm_enabled() && (spapr->vsmt != kvm_smt)) {
+        ret = kvmppc_set_smt_threads(spapr->vsmt);
+        if (ret) {
+            error_setg(&local_err,
+                       "Failed to set KVM's VSMT mode to %d (errno %d)",
+                       spapr->vsmt, ret);
+            if (!vsmt_user) {
+                error_append_hint(&local_err, "On PPC, a VM with %d threads/"
+                             "core on a host with %d threads/core requires "
+                             " the use of VSMT mode %d.\n",
+                             smp_threads, kvm_smt, spapr->vsmt);
+            }
+            kvmppc_hint_smt_possible(&local_err);
+            goto out;
+        }
+    }
+    /* else TCG: nothing to do currently */
+out:
+    error_propagate(errp, local_err);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(MachineState *machine)
 {
@@ -2271,6 +2352,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     spapr_cpu_parse_features(spapr);
+
+    spapr_set_vsmt_mode(spapr, &error_fatal);
 
     spapr_init_cpus(spapr);
 
@@ -2656,6 +2739,18 @@ static void spapr_set_resize_hpt(Object *obj, const char *value, Error **errp)
     }
 }
 
+static void spapr_get_vsmt(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    visit_type_uint32(v, name, (uint32_t *)opaque, errp);
+}
+
+static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    visit_type_uint32(v, name, (uint32_t *)opaque, errp);
+}
+
 static void spapr_machine_initfn(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
@@ -2686,6 +2781,11 @@ static void spapr_machine_initfn(Object *obj)
     object_property_set_description(obj, "resize-hpt",
                                     "Resizing of the Hash Page Table (enabled, disabled, required)",
                                     NULL);
+    object_property_add(obj, "vsmt", "uint32", spapr_get_vsmt,
+                        spapr_set_vsmt, NULL, &spapr->vsmt, &error_abort);
+    object_property_set_description(obj, "vsmt",
+                                    "Virtual SMT: KVM behaves as if this were"
+                                    " the host's SMT mode", &error_abort);
 }
 
 static void spapr_machine_finalizefn(Object *obj)
@@ -3000,7 +3100,7 @@ static void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     DeviceClass *dc = DEVICE_GET_CLASS(cs);
-    int id = ppc_get_vcpu_dt_id(cpu);
+    int id = spapr_vcpu_id(cpu);
     void *fdt;
     int offset, fdt_size;
     char *nodename;
@@ -3408,9 +3508,9 @@ static void spapr_ics_resend(XICSFabric *dev)
     ics_resend(spapr->ics);
 }
 
-static ICPState *spapr_icp_get(XICSFabric *xi, int cpu_dt_id)
+static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
 {
-    PowerPCCPU *cpu = ppc_get_vcpu_by_dt_id(cpu_dt_id);
+    PowerPCCPU *cpu = spapr_find_cpu(vcpu_id);
 
     return cpu ? ICP(cpu->intc) : NULL;
 }
@@ -3428,6 +3528,32 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
     }
 
     ics_pic_print_info(spapr->ics, mon);
+}
+
+int spapr_vcpu_id(PowerPCCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+
+    if (kvm_enabled()) {
+        return kvm_arch_vcpu_id(cs);
+    } else {
+        return cs->cpu_index;
+    }
+}
+
+PowerPCCPU *spapr_find_cpu(int vcpu_id)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        if (spapr_vcpu_id(cpu) == vcpu_id) {
+            return cpu;
+        }
+    }
+
+    return NULL;
 }
 
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
@@ -3538,18 +3664,36 @@ static const TypeInfo spapr_machine_info = {
     type_init(spapr_machine_register_##suffix)
 
 /*
+ * pseries-2.11
+ */
+static void spapr_machine_2_11_instance_options(MachineState *machine)
+{
+}
+
+static void spapr_machine_2_11_class_options(MachineClass *mc)
+{
+    /* Defaults for the latest behaviour inherited from the base class */
+}
+
+DEFINE_SPAPR_MACHINE(2_11, "2.11", true);
+
+/*
  * pseries-2.10
  */
+#define SPAPR_COMPAT_2_10                                              \
+    HW_COMPAT_2_10                                                     \
+
 static void spapr_machine_2_10_instance_options(MachineState *machine)
 {
 }
 
 static void spapr_machine_2_10_class_options(MachineClass *mc)
 {
-    /* Defaults for the latest behaviour inherited from the base class */
+    spapr_machine_2_11_class_options(mc);
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_10);
 }
 
-DEFINE_SPAPR_MACHINE(2_10, "2.10", true);
+DEFINE_SPAPR_MACHINE(2_10, "2.10", false);
 
 /*
  * pseries-2.9

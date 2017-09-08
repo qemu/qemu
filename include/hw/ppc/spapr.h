@@ -99,6 +99,7 @@ struct sPAPRMachineState {
     uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;
     bool has_graphics;
+    uint32_t vsmt;       /* Virtual SMT mode (KVM's "core stride") */
 
     Notifier epow_notifier;
     QTAILQ_HEAD(, sPAPREventLogEntry) pending_events;
@@ -662,6 +663,7 @@ void spapr_cpu_parse_features(sPAPRMachineState *spapr);
 int spapr_hpt_shift_for_ramsize(uint64_t ramsize);
 void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
                           Error **errp);
+void spapr_clear_pending_events(sPAPRMachineState *spapr);
 
 /* CPU and LMB DRC release callbacks. */
 void spapr_core_release(DeviceState *dev);
@@ -703,5 +705,8 @@ int spapr_rng_populate_dt(void *fdt);
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 
 #define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
+
+int spapr_vcpu_id(PowerPCCPU *cpu);
+PowerPCCPU *spapr_find_cpu(int vcpu_id);
 
 #endif /* HW_SPAPR_H */

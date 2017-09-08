@@ -2632,12 +2632,16 @@ void helper_booke206_tlbwe(CPUPPCState *env)
         env->spr[SPR_BOOKE_MAS3];
     tlb->mas1 = env->spr[SPR_BOOKE_MAS1];
 
-    /* MAV 1.0 only */
-    if (!(tlbncfg & TLBnCFG_AVAIL)) {
-        /* force !AVAIL TLB entries to correct page size */
-        tlb->mas1 &= ~MAS1_TSIZE_MASK;
-        /* XXX can be configured in MMUCSR0 */
-        tlb->mas1 |= (tlbncfg & TLBnCFG_MINSIZE) >> 12;
+    if ((env->spr[SPR_MMUCFG] & MMUCFG_MAVN) == MMUCFG_MAVN_V2) {
+        /* For TLB which has a fixed size TSIZE is ignored with MAV2 */
+        booke206_fixed_size_tlbn(env, tlbn, tlb);
+    } else {
+        if (!(tlbncfg & TLBnCFG_AVAIL)) {
+            /* force !AVAIL TLB entries to correct page size */
+            tlb->mas1 &= ~MAS1_TSIZE_MASK;
+            /* XXX can be configured in MMUCSR0 */
+            tlb->mas1 |= (tlbncfg & TLBnCFG_MINSIZE) >> 12;
+        }
     }
 
     /* Make a mask from TLB size to discard invalid bits in EPN field */

@@ -24,14 +24,13 @@
 /**
  * PowerPCCPUAlias:
  * @alias: The alias name.
- * @model: The CPU model @alias refers to.
+ * @model: The CPU model @alias refers to, that directly resolves into CPU type
  *
  * A mapping entry from CPU @alias to CPU @model.
  */
 typedef struct PowerPCCPUAlias {
     const char *alias;
     const char *model;
-    ObjectClass *oc;
 } PowerPCCPUAlias;
 
 extern PowerPCCPUAlias ppc_cpu_aliases[];
@@ -346,6 +345,7 @@ enum {
     CPU_POWERPC_e500v2_v30         = 0x80210030,
     CPU_POWERPC_e500mc             = 0x80230020,
     CPU_POWERPC_e5500              = 0x80240020,
+    CPU_POWERPC_e6500              = 0x80400020,
     /* MPC85xx microcontrollers */
 #define CPU_POWERPC_MPC8533_v10      CPU_POWERPC_e500v2_v21
 #define CPU_POWERPC_MPC8533_v11      CPU_POWERPC_e500v2_v22

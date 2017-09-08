@@ -248,66 +248,59 @@ static const VMStateDescription vmstate_spapr_tce_table = {
     }
 };
 
-static int spapr_tce_table_realize(DeviceState *dev)
+static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
     Object *tcetobj = OBJECT(tcet);
-    char tmp[32];
+    gchar *tmp;
 
     tcet->fd = -1;
     tcet->need_vfio = false;
-    snprintf(tmp, sizeof(tmp), "tce-root-%x", tcet->liobn);
+    tmp = g_strdup_printf("tce-root-%x", tcet->liobn);
     memory_region_init(&tcet->root, tcetobj, tmp, UINT64_MAX);
+    g_free(tmp);
 
-    snprintf(tmp, sizeof(tmp), "tce-iommu-%x", tcet->liobn);
+    tmp = g_strdup_printf("tce-iommu-%x", tcet->liobn);
     memory_region_init_iommu(&tcet->iommu, sizeof(tcet->iommu),
                              TYPE_SPAPR_IOMMU_MEMORY_REGION,
                              tcetobj, tmp, 0);
+    g_free(tmp);
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
     vmstate_register(DEVICE(tcet), tcet->liobn, &vmstate_spapr_tce_table,
                      tcet);
-
-    return 0;
 }
 
 void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio)
 {
     size_t table_size = tcet->nb_table * sizeof(uint64_t);
-    void *newtable;
+    uint64_t *oldtable;
+    int newfd = -1;
 
-    if (need_vfio == tcet->need_vfio) {
-        /* Nothing to do */
-        return;
-    }
+    g_assert(need_vfio != tcet->need_vfio);
 
-    if (!need_vfio) {
-        /* FIXME: We don't support transition back to KVM accelerated
-         * TCEs yet */
-        return;
-    }
+    tcet->need_vfio = need_vfio;
 
-    tcet->need_vfio = true;
+    oldtable = tcet->table;
 
-    if (tcet->fd < 0) {
-        /* Table is already in userspace, nothing to be do */
-        return;
-    }
+    tcet->table = spapr_tce_alloc_table(tcet->liobn,
+                                        tcet->page_shift,
+                                        tcet->bus_offset,
+                                        tcet->nb_table,
+                                        &newfd,
+                                        need_vfio);
+    memcpy(tcet->table, oldtable, table_size);
 
-    newtable = g_malloc(table_size);
-    memcpy(newtable, tcet->table, table_size);
+    spapr_tce_free_table(oldtable, tcet->fd, tcet->nb_table);
 
-    kvmppc_remove_spapr_tce(tcet->table, tcet->fd, tcet->nb_table);
-
-    tcet->fd = -1;
-    tcet->table = newtable;
+    tcet->fd = newfd;
 }
 
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
 {
     sPAPRTCETable *tcet;
-    char tmp[32];
+    gchar *tmp;
 
     if (spapr_tce_find_by_liobn(liobn)) {
         error_report("Attempted to create TCE table with duplicate"
@@ -318,8 +311,10 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
     tcet = SPAPR_TCE_TABLE(object_new(TYPE_SPAPR_TCE_TABLE));
     tcet->liobn = liobn;
 
-    snprintf(tmp, sizeof(tmp), "tce-table-%x", liobn);
+    tmp = g_strdup_printf("tce-table-%x", liobn);
     object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet), NULL);
+    g_free(tmp);
+    object_unref(OBJECT(tcet));
 
     object_property_set_bool(OBJECT(tcet), true, "realized", NULL);
 
@@ -371,6 +366,8 @@ void spapr_tce_table_disable(sPAPRTCETable *tcet)
 static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
+
+    vmstate_unregister(DEVICE(tcet), &vmstate_spapr_tce_table, tcet);
 
     QLIST_REMOVE(tcet, list);
 
@@ -615,7 +612,7 @@ int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
 static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->init = spapr_tce_table_realize;
+    dc->realize = spapr_tce_table_realize;
     dc->reset = spapr_tce_reset;
     dc->unrealize = spapr_tce_table_unrealize;
     /* Reason: This is just an internal device for handling the hypercalls */
