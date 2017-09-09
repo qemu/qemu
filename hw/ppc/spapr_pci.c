@@ -61,8 +61,6 @@
 #define RTAS_TYPE_MSI           1
 #define RTAS_TYPE_MSIX          2
 
-#define FDT_NAME_MAX          128
-
 #define _FDT(exp) \
     do { \
         int ret = (exp);                                           \
@@ -1194,7 +1192,7 @@ static const char *pci_find_device_name(uint8_t class, uint8_t subclass,
     return name;
 }
 
-static void pci_get_node_name(char *nodename, int len, PCIDevice *dev)
+static gchar *pci_get_node_name(PCIDevice *dev)
 {
     int slot = PCI_SLOT(dev->devfn);
     int func = PCI_FUNC(dev->devfn);
@@ -1205,9 +1203,9 @@ static void pci_get_node_name(char *nodename, int len, PCIDevice *dev)
                                 ccode & 0xff);
 
     if (func != 0) {
-        snprintf(nodename, len, "%s@%x,%x", name, slot, func);
+        return g_strdup_printf("%s@%x,%x", name, slot, func);
     } else {
-        snprintf(nodename, len, "%s@%x", name, slot);
+        return g_strdup_printf("%s@%x", name, slot);
     }
 }
 
@@ -1325,10 +1323,12 @@ static int spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
                                      void *fdt, int node_offset)
 {
     int offset, ret;
-    char nodename[FDT_NAME_MAX];
+    gchar *nodename;
 
-    pci_get_node_name(nodename, FDT_NAME_MAX, dev);
+    nodename = pci_get_node_name(dev);
     offset = fdt_add_subnode(fdt, node_offset, nodename);
+    g_free(nodename);
+
     ret = spapr_populate_pci_child_dt(dev, fdt, offset, phb);
 
     g_assert(!ret);
@@ -2072,7 +2072,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           void *fdt)
 {
     int bus_off, i, j, ret;
-    char nodename[FDT_NAME_MAX];
+    gchar *nodename;
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
     struct {
         uint32_t hi;
@@ -2121,8 +2121,9 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     sPAPRFDT s_fdt;
 
     /* Start populating the FDT */
-    snprintf(nodename, FDT_NAME_MAX, "pci@%" PRIx64, phb->buid);
+    nodename = g_strdup_printf("pci@%" PRIx64, phb->buid);
     bus_off = fdt_add_subnode(fdt, 0, nodename);
+    g_free(nodename);
     if (bus_off < 0) {
         return bus_off;
     }
