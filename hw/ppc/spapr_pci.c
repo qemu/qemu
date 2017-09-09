@@ -1204,12 +1204,12 @@ static gchar *pci_get_node_name(PCIDevice *dev)
 static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
                                             PCIDevice *pdev);
 
-static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
+static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                                        sPAPRPHBState *sphb)
 {
     ResourceProps rp;
     bool is_bridge = false;
-    int pci_status, err;
+    int pci_status;
     char *buf = NULL;
     uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
     uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
@@ -1274,11 +1274,8 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                                                  ccode & 0xff)));
 
     buf = spapr_phb_get_loc_code(sphb, dev);
-    err = fdt_setprop_string(fdt, offset, "ibm,loc-code", buf);
+    _FDT(fdt_setprop_string(fdt, offset, "ibm,loc-code", buf));
     g_free(buf);
-    if (err < 0) {
-        return err;
-    }
 
     if (drc_index) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index));
@@ -1306,27 +1303,21 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     if (sphb->pcie_ecs && pci_is_express(dev)) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));
     }
-
-    return 0;
 }
 
 /* create OF node for pci device and required OF DT properties */
 static int spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
                                      void *fdt, int node_offset)
 {
-    int offset, ret;
+    int offset;
     gchar *nodename;
 
     nodename = pci_get_node_name(dev);
-    offset = fdt_add_subnode(fdt, node_offset, nodename);
+    _FDT(offset = fdt_add_subnode(fdt, node_offset, nodename));
     g_free(nodename);
 
-    ret = spapr_populate_pci_child_dt(dev, fdt, offset, phb);
+    spapr_populate_pci_child_dt(dev, fdt, offset, phb);
 
-    g_assert(!ret);
-    if (ret) {
-        return 0;
-    }
     return offset;
 }
 
@@ -1416,10 +1407,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 
     fdt = create_device_tree(&fdt_size);
     fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
-    if (!fdt_start_offset) {
-        error_setg(&local_err, "Failed to create pci child device tree node");
-        goto out;
-    }
 
     spapr_drc_attach(drc, DEVICE(pdev), fdt, fdt_start_offset, &local_err);
     if (local_err) {
@@ -2114,11 +2101,8 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
 
     /* Start populating the FDT */
     nodename = g_strdup_printf("pci@%" PRIx64, phb->buid);
-    bus_off = fdt_add_subnode(fdt, 0, nodename);
+    _FDT(bus_off = fdt_add_subnode(fdt, 0, nodename));
     g_free(nodename);
-    if (bus_off < 0) {
-        return bus_off;
-    }
 
     /* Write PHB properties */
     _FDT(fdt_setprop_string(fdt, bus_off, "device_type", "pci"));
