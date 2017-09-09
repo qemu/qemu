@@ -40,7 +40,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
-
+#include "hw/ppc/fdt.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_ids.h"
@@ -60,14 +60,6 @@
 /* Interrupt types to return on RTAS_CHANGE_* */
 #define RTAS_TYPE_MSI           1
 #define RTAS_TYPE_MSIX          2
-
-#define _FDT(exp) \
-    do { \
-        int ret = (exp);                                           \
-        if (ret < 0) {                                             \
-            return ret;                                            \
-        }                                                          \
-    } while (0)
 
 sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid)
 {
