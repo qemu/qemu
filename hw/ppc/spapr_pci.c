@@ -766,7 +766,7 @@ static char *spapr_phb_vfio_get_loc_code(sPAPRPHBState *sphb,  PCIDevice *pdev)
     /* Construct the path of the file that will give us the DT location */
     path = g_strdup_printf("/sys/bus/pci/devices/%s/devspec", host);
     g_free(host);
-    if (!path || !g_file_get_contents(path, &buf, NULL, NULL)) {
+    if (!g_file_get_contents(path, &buf, NULL, NULL)) {
         goto err_out;
     }
     g_free(path);
@@ -774,7 +774,7 @@ static char *spapr_phb_vfio_get_loc_code(sPAPRPHBState *sphb,  PCIDevice *pdev)
     /* Construct and read from host device tree the loc-code */
     path = g_strdup_printf("/proc/device-tree%s/ibm,loc-code", buf);
     g_free(buf);
-    if (!path || !g_file_get_contents(path, &buf, NULL, NULL)) {
+    if (!g_file_get_contents(path, &buf, NULL, NULL)) {
         goto err_out;
     }
     return buf;
