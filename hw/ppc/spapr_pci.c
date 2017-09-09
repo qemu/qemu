@@ -1282,12 +1282,8 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                             pci_find_device_name((ccode >> 16) & 0xff,
                                                  (ccode >> 8) & 0xff,
                                                  ccode & 0xff)));
-    buf = spapr_phb_get_loc_code(sphb, dev);
-    if (!buf) {
-        error_report("Failed setting the ibm,loc-code");
-        return -1;
-    }
 
+    buf = spapr_phb_get_loc_code(sphb, dev);
     err = fdt_setprop_string(fdt, offset, "ibm,loc-code", buf);
     g_free(buf);
     if (err < 0) {
