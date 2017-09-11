@@ -237,9 +237,8 @@ static void test_tco_max_timeout(void)
 
 static QDict *get_watchdog_action(void)
 {
-    QDict *ev = qmp("");
+    QDict *ev = qmp_eventwait_ref("WATCHDOG");
     QDict *data;
-    g_assert(!strcmp(qdict_get_str(ev, "event"), "WATCHDOG"));
 
     data = qdict_get_qdict(ev, "data");
     QINCREF(data);

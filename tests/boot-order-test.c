@@ -41,7 +41,7 @@ static void test_a_boot_order(const char *machine,
      * system_reset only requests reset.  We get a RESET event after
      * the actual reset completes.  Need to wait for that.
      */
-    qmp_discard_response("");   /* HACK: wait for event */
+    qmp_eventwait("RESET");
     actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_reboot);
     qtest_quit(global_qtest);

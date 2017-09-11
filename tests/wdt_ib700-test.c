@@ -19,26 +19,10 @@ static void qmp_check_no_event(void)
     QDECREF(resp);
 }
 
-static QDict *qmp_get_event(const char *name)
-{
-    QDict *event = qmp("");
-    QDict *data;
-    g_assert(qdict_haskey(event, "event"));
-    g_assert(!strcmp(qdict_get_str(event, "event"), name));
-
-    if (qdict_haskey(event, "data")) {
-        data = qdict_get_qdict(event, "data");
-        QINCREF(data);
-    } else {
-        data = NULL;
-    }
-
-    QDECREF(event);
-    return data;
-}
-
 static QDict *ib700_program_and_wait(QTestState *s)
 {
+    QDict *event, *data;
+
     clock_step(NANOSECONDS_PER_SECOND * 40);
     qmp_check_no_event();
 
@@ -62,7 +46,11 @@ static QDict *ib700_program_and_wait(QTestState *s)
     clock_step(3 * NANOSECONDS_PER_SECOND);
     qmp_check_no_event();
     clock_step(2 * NANOSECONDS_PER_SECOND);
-    return qmp_get_event("WATCHDOG");
+    event = qmp_eventwait_ref("WATCHDOG");
+    data = qdict_get_qdict(event, "data");
+    QINCREF(data);
+    QDECREF(event);
+    return data;
 }
 
 
@@ -74,8 +62,7 @@ static void ib700_pause(void)
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "pause"));
     QDECREF(d);
-    d = qmp_get_event("STOP");
-    QDECREF(d);
+    qmp_eventwait("STOP");
     qtest_end();
 }
 
@@ -87,8 +74,7 @@ static void ib700_reset(void)
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
     QDECREF(d);
-    d = qmp_get_event("RESET");
-    QDECREF(d);
+    qmp_eventwait("RESET");
     qtest_end();
 }
 
@@ -100,8 +86,7 @@ static void ib700_shutdown(void)
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
     QDECREF(d);
-    d = qmp_get_event("SHUTDOWN");
-    QDECREF(d);
+    qmp_eventwait("SHUTDOWN");
     qtest_end();
 }
 
