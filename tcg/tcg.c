@@ -1500,7 +1500,7 @@ static void process_op_defs(TCGContext *s)
             /* Incomplete TCGTargetOpDef entry. */
             tcg_debug_assert(ct_str != NULL);
 
-            tcg_regset_clear(def->args_ct[i].u.regs);
+            def->args_ct[i].u.regs = 0;
             def->args_ct[i].ct = 0;
             while (*ct_str != '\0') {
                 switch(*ct_str) {
@@ -2664,9 +2664,8 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
                     tcg_out_mov(s, ts->type, reg, ts->reg);
                 }
             } else {
-                TCGRegSet arg_set;
+                TCGRegSet arg_set = 0;
 
-                tcg_regset_clear(arg_set);
                 tcg_regset_set_reg(arg_set, reg);
                 temp_load(s, ts, arg_set, allocated_regs);
             }

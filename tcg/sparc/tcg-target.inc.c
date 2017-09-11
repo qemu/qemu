@@ -1771,7 +1771,7 @@ static void tcg_target_init(TCGContext *s)
                      (1 << TCG_REG_O5) |
                      (1 << TCG_REG_O7));
 
-    tcg_regset_clear(s->reserved_regs);
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_G0); /* zero */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_G6); /* reserved for os */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_G7); /* thread pointer */

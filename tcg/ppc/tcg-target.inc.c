@@ -2788,7 +2788,7 @@ static void tcg_target_init(TCGContext *s)
                      (1 << TCG_REG_R11) |
                      (1 << TCG_REG_R12));
 
-    tcg_regset_clear(s->reserved_regs);
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0); /* tcg temp */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1); /* stack pointer */
 #if defined(_CALL_SYSV)

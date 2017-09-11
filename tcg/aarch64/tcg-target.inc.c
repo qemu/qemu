@@ -1940,7 +1940,7 @@ static void tcg_target_init(TCGContext *s)
                      (1 << TCG_REG_X16) | (1 << TCG_REG_X17) |
                      (1 << TCG_REG_X18) | (1 << TCG_REG_X30));
 
-    tcg_regset_clear(s->reserved_regs);
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_FP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);

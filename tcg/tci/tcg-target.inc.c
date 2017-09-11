@@ -879,7 +879,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      BIT(TCG_TARGET_NB_REGS) - 1);
 
-    tcg_regset_clear(s->reserved_regs);
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
 
     /* We use negative offsets from "sp" so that we can distinguish

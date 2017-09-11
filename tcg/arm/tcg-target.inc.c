@@ -2173,7 +2173,7 @@ static void tcg_target_init(TCGContext *s)
                      (1 << TCG_REG_R12) |
                      (1 << TCG_REG_R14));
 
-    tcg_regset_clear(s->reserved_regs);
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
