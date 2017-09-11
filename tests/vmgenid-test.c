@@ -31,7 +31,7 @@ typedef struct {
     uint32_t vgia_val;
 } QEMU_PACKED VgidTable;
 
-static uint32_t acpi_find_vgia(void)
+static uint32_t acpi_find_vgia(QTestState *qts)
 {
     uint32_t rsdp_offset;
     uint32_t guid_offset = 0;
@@ -45,18 +45,18 @@ static uint32_t acpi_find_vgia(void)
     int i;
 
     /* Wait for guest firmware to finish and start the payload. */
-    boot_sector_test(global_qtest);
+    boot_sector_test(qts);
 
     /* Tables should be initialized now. */
-    rsdp_offset = acpi_find_rsdp_address();
+    rsdp_offset = acpi_find_rsdp_address(qts);
 
     g_assert_cmphex(rsdp_offset, <, RSDP_ADDR_INVALID);
 
-    acpi_parse_rsdp_table(rsdp_offset, &rsdp_table);
+    acpi_parse_rsdp_table(qts, rsdp_offset, &rsdp_table);
 
     rsdt = le32_to_cpu(rsdp_table.rsdt_physical_address);
     /* read the header */
-    ACPI_READ_TABLE_HEADER(&rsdt_table, rsdt);
+    ACPI_READ_TABLE_HEADER(qts, &rsdt_table, rsdt);
     ACPI_ASSERT_CMP(rsdt_table.signature, "RSDT");
     rsdt_table_length = le32_to_cpu(rsdt_table.length);
 
@@ -67,22 +67,22 @@ static uint32_t acpi_find_vgia(void)
 
     /* get the addresses of the tables pointed by rsdt */
     tables = g_new0(uint32_t, tables_nr);
-    ACPI_READ_ARRAY_PTR(tables, tables_nr, rsdt);
+    ACPI_READ_ARRAY_PTR(qts, tables, tables_nr, rsdt);
 
     for (i = 0; i < tables_nr; i++) {
         uint32_t addr = le32_to_cpu(tables[i]);
-        ACPI_READ_TABLE_HEADER(&ssdt_table, addr);
+        ACPI_READ_TABLE_HEADER(qts, &ssdt_table, addr);
         if (!strncmp((char *)ssdt_table.oem_table_id, "VMGENID", 7)) {
             /* the first entry in the table should be VGIA
              * That's all we need
              */
-            ACPI_READ_FIELD(vgid_table.name_op, addr);
+            ACPI_READ_FIELD(qts, vgid_table.name_op, addr);
             g_assert(vgid_table.name_op == 0x08);  /* name */
-            ACPI_READ_ARRAY(vgid_table.vgia, addr);
+            ACPI_READ_ARRAY(qts, vgid_table.vgia, addr);
             g_assert(memcmp(vgid_table.vgia, "VGIA", 4) == 0);
-            ACPI_READ_FIELD(vgid_table.val_op, addr);
+            ACPI_READ_FIELD(qts, vgid_table.val_op, addr);
             g_assert(vgid_table.val_op == 0x0C);  /* dword */
-            ACPI_READ_FIELD(vgid_table.vgia_val, addr);
+            ACPI_READ_FIELD(qts, vgid_table.vgia_val, addr);
             /* The GUID is written at a fixed offset into the fw_cfg file
              * in order to implement the "OVMF SDT Header probe suppressor"
              * see docs/specs/vmgenid.txt for more details
@@ -100,7 +100,7 @@ static void read_guid_from_memory(QemuUUID *guid)
     uint32_t vmgenid_addr;
     int i;
 
-    vmgenid_addr = acpi_find_vgia();
+    vmgenid_addr = acpi_find_vgia(global_qtest);
     g_assert(vmgenid_addr);
 
     /* Read the GUID directly from guest memory */

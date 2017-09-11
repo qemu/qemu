@@ -39,6 +39,7 @@ typedef struct {
     struct smbios_21_entry_point smbios_ep_table;
     uint8_t *required_struct_types;
     int required_struct_types_len;
+    QTestState *qts;
 } test_data;
 
 static char disk[] = "tests/acpi-test-disk-XXXXXX";
@@ -78,7 +79,7 @@ static void free_test_data(test_data *data)
 
 static void test_acpi_rsdp_address(test_data *data)
 {
-    uint32_t off = acpi_find_rsdp_address();
+    uint32_t off = acpi_find_rsdp_address(data->qts);
     g_assert_cmphex(off, <, 0x100000);
     data->rsdp_addr = off;
 }
@@ -88,7 +89,7 @@ static void test_acpi_rsdp_table(test_data *data)
     AcpiRsdpDescriptor *rsdp_table = &data->rsdp_table;
     uint32_t addr = data->rsdp_addr;
 
-    acpi_parse_rsdp_table(addr, rsdp_table);
+    acpi_parse_rsdp_table(data->qts, addr, rsdp_table);
 
     /* rsdp checksum is not for the whole table, but for the first 20 bytes */
     g_assert(!acpi_calc_checksum((uint8_t *)rsdp_table, 20));
@@ -104,7 +105,7 @@ static void test_acpi_rsdt_table(test_data *data)
     uint32_t rsdt_table_length;
 
     /* read the header */
-    ACPI_READ_TABLE_HEADER(rsdt_table, addr);
+    ACPI_READ_TABLE_HEADER(data->qts, rsdt_table, addr);
     ACPI_ASSERT_CMP(rsdt_table->signature, "RSDT");
 
     rsdt_table_length = le32_to_cpu(rsdt_table->length);
@@ -116,7 +117,7 @@ static void test_acpi_rsdt_table(test_data *data)
 
     /* get the addresses of the tables pointed by rsdt */
     tables = g_new0(uint32_t, tables_nr);
-    ACPI_READ_ARRAY_PTR(tables, tables_nr, addr);
+    ACPI_READ_ARRAY_PTR(data->qts, tables, tables_nr, addr);
 
     checksum = acpi_calc_checksum((uint8_t *)rsdt_table, rsdt_table_length) +
                acpi_calc_checksum((uint8_t *)tables,
@@ -135,11 +136,11 @@ static void fadt_fetch_facs_and_dsdt_ptrs(test_data *data)
 
     /* FADT table comes first */
     addr = le32_to_cpu(data->rsdt_tables_addr[0]);
-    ACPI_READ_TABLE_HEADER(&hdr, addr);
+    ACPI_READ_TABLE_HEADER(data->qts, &hdr, addr);
     ACPI_ASSERT_CMP(hdr.signature, "FACP");
 
-    ACPI_READ_FIELD(data->facs_addr, addr);
-    ACPI_READ_FIELD(data->dsdt_addr, addr);
+    ACPI_READ_FIELD(data->qts, data->facs_addr, addr);
+    ACPI_READ_FIELD(data->qts, data->dsdt_addr, addr);
 }
 
 static void sanitize_fadt_ptrs(test_data *data)
@@ -182,13 +183,13 @@ static void test_acpi_facs_table(test_data *data)
     AcpiFacsDescriptorRev1 *facs_table = &data->facs_table;
     uint32_t addr = le32_to_cpu(data->facs_addr);
 
-    ACPI_READ_FIELD(facs_table->signature, addr);
-    ACPI_READ_FIELD(facs_table->length, addr);
-    ACPI_READ_FIELD(facs_table->hardware_signature, addr);
-    ACPI_READ_FIELD(facs_table->firmware_waking_vector, addr);
-    ACPI_READ_FIELD(facs_table->global_lock, addr);
-    ACPI_READ_FIELD(facs_table->flags, addr);
-    ACPI_READ_ARRAY(facs_table->resverved3, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->signature, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->length, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->hardware_signature, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->firmware_waking_vector, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->global_lock, addr);
+    ACPI_READ_FIELD(data->qts, facs_table->flags, addr);
+    ACPI_READ_ARRAY(data->qts, facs_table->resverved3, addr);
 
     ACPI_ASSERT_CMP(facs_table->signature, "FACS");
 }
@@ -197,17 +198,17 @@ static void test_acpi_facs_table(test_data *data)
  *   load ACPI table at @addr into table descriptor @sdt_table
  *   and check that header checksum matches actual one.
  */
-static void fetch_table(AcpiSdtTable *sdt_table, uint32_t addr)
+static void fetch_table(QTestState *qts, AcpiSdtTable *sdt_table, uint32_t addr)
 {
     uint8_t checksum;
 
     memset(sdt_table, 0, sizeof(*sdt_table));
-    ACPI_READ_TABLE_HEADER(&sdt_table->header, addr);
+    ACPI_READ_TABLE_HEADER(qts, &sdt_table->header, addr);
 
     sdt_table->aml_len = le32_to_cpu(sdt_table->header.length)
                          - sizeof(AcpiTableHeader);
     sdt_table->aml = g_malloc0(sdt_table->aml_len);
-    ACPI_READ_ARRAY_PTR(sdt_table->aml, sdt_table->aml_len, addr);
+    ACPI_READ_ARRAY_PTR(qts, sdt_table->aml, sdt_table->aml_len, addr);
 
     checksum = acpi_calc_checksum((uint8_t *)sdt_table,
                                   sizeof(AcpiTableHeader)) +
@@ -221,7 +222,7 @@ static void test_acpi_dsdt_table(test_data *data)
     AcpiSdtTable dsdt_table;
     uint32_t addr = le32_to_cpu(data->dsdt_addr);
 
-    fetch_table(&dsdt_table, addr);
+    fetch_table(data->qts, &dsdt_table, addr);
     ACPI_ASSERT_CMP(dsdt_table.header.signature, "DSDT");
 
     /* Since DSDT isn't in RSDT, add DSDT to ASL test tables list manually */
@@ -239,7 +240,7 @@ static void fetch_rsdt_referenced_tables(test_data *data)
         uint32_t addr;
 
         addr = le32_to_cpu(data->rsdt_tables_addr[i]);
-        fetch_table(&ssdt_table, addr);
+        fetch_table(data->qts, &ssdt_table, addr);
 
         /* Add table to ASL test tables list */
         g_array_append_val(data->tables, ssdt_table);
@@ -482,32 +483,32 @@ static bool smbios_ep_table_ok(test_data *data)
     struct smbios_21_entry_point *ep_table = &data->smbios_ep_table;
     uint32_t addr = data->smbios_ep_addr;
 
-    ACPI_READ_ARRAY(ep_table->anchor_string, addr);
+    ACPI_READ_ARRAY(data->qts, ep_table->anchor_string, addr);
     if (memcmp(ep_table->anchor_string, "_SM_", 4)) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->checksum, addr);
-    ACPI_READ_FIELD(ep_table->length, addr);
-    ACPI_READ_FIELD(ep_table->smbios_major_version, addr);
-    ACPI_READ_FIELD(ep_table->smbios_minor_version, addr);
-    ACPI_READ_FIELD(ep_table->max_structure_size, addr);
-    ACPI_READ_FIELD(ep_table->entry_point_revision, addr);
-    ACPI_READ_ARRAY(ep_table->formatted_area, addr);
-    ACPI_READ_ARRAY(ep_table->intermediate_anchor_string, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->checksum, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->length, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->smbios_major_version, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->smbios_minor_version, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->max_structure_size, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->entry_point_revision, addr);
+    ACPI_READ_ARRAY(data->qts, ep_table->formatted_area, addr);
+    ACPI_READ_ARRAY(data->qts, ep_table->intermediate_anchor_string, addr);
     if (memcmp(ep_table->intermediate_anchor_string, "_DMI_", 5)) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->intermediate_checksum, addr);
-    ACPI_READ_FIELD(ep_table->structure_table_length, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->intermediate_checksum, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->structure_table_length, addr);
     if (ep_table->structure_table_length == 0) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->structure_table_address, addr);
-    ACPI_READ_FIELD(ep_table->number_of_structures, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->structure_table_address, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->number_of_structures, addr);
     if (ep_table->number_of_structures == 0) {
         return false;
     }
-    ACPI_READ_FIELD(ep_table->smbios_bcd_revision, addr);
+    ACPI_READ_FIELD(data->qts, ep_table->smbios_bcd_revision, addr);
     if (acpi_calc_checksum((uint8_t *)ep_table, sizeof *ep_table) ||
         acpi_calc_checksum((uint8_t *)ep_table + 0x10,
                            sizeof *ep_table - 0x10)) {
@@ -526,7 +527,7 @@ static void test_smbios_entry_point(test_data *data)
         int i;
 
         for (i = 0; i < sizeof sig - 1; ++i) {
-            sig[i] = readb(off + i);
+            sig[i] = qtest_readb(data->qts, off + i);
         }
 
         if (!memcmp(sig, "_SM_", sizeof sig)) {
@@ -569,9 +570,9 @@ static void test_smbios_structs(test_data *data)
     for (i = 0; i < le16_to_cpu(ep_table->number_of_structures); i++) {
 
         /* grab type and formatted area length from struct header */
-        type = readb(addr);
+        type = qtest_readb(data->qts, addr);
         g_assert_cmpuint(type, <=, SMBIOS_MAX_TYPE);
-        len = readb(addr + 1);
+        len = qtest_readb(data->qts, addr + 1);
 
         /* single-instance structs must not have been encountered before */
         if (smbios_single_instance(type)) {
@@ -583,7 +584,7 @@ static void test_smbios_structs(test_data *data)
         prv = crt = 1;
         while (prv || crt) {
             prv = crt;
-            crt = readb(addr + len);
+            crt = qtest_readb(data->qts, addr + len);
             len++;
         }
 
@@ -620,9 +621,9 @@ static void test_acpi_one(const char *params, test_data *data)
                            data->machine, "kvm:tcg",
                            params ? params : "", disk);
 
-    qtest_start(args);
+    data->qts = qtest_init(args);
 
-    boot_sector_test(global_qtest);
+    boot_sector_test(data->qts);
 
     data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
     test_acpi_rsdp_address(data);
@@ -646,7 +647,8 @@ static void test_acpi_one(const char *params, test_data *data)
     test_smbios_entry_point(data);
     test_smbios_structs(data);
 
-    qtest_quit(global_qtest);
+    assert(!global_qtest);
+    qtest_quit(data->qts);
     g_free(args);
 }
 
