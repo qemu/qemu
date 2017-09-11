@@ -811,8 +811,9 @@ static void xhci_er_reset(XHCIState *xhci, int v)
 {
     XHCIInterrupter *intr = &xhci->intr[v];
     XHCIEvRingSeg seg;
+    dma_addr_t erstba = xhci_addr64(intr->erstba_low, intr->erstba_high);
 
-    if (intr->erstsz == 0) {
+    if (intr->erstsz == 0 || erstba == 0) {
         /* disabled */
         intr->er_start = 0;
         intr->er_size = 0;
@@ -824,7 +825,6 @@ static void xhci_er_reset(XHCIState *xhci, int v)
         xhci_die(xhci);
         return;
     }
-    dma_addr_t erstba = xhci_addr64(intr->erstba_low, intr->erstba_high);
     pci_dma_read(PCI_DEVICE(xhci), erstba, &seg, sizeof(seg));
     le32_to_cpus(&seg.addr_low);
     le32_to_cpus(&seg.addr_high);
