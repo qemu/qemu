@@ -190,6 +190,36 @@ static KVMSlot *kvm_lookup_matching_slot(KVMMemoryListener *kml,
 }
 
 /*
+ * Calculate and align the start address and the size of the section.
+ * Return the size. If the size is 0, the aligned section is empty.
+ */
+static hwaddr kvm_align_section(MemoryRegionSection *section,
+                                hwaddr *start)
+{
+    hwaddr size = int128_get64(section->size);
+    hwaddr delta;
+
+    *start = section->offset_within_address_space;
+
+    /* kvm works in page size chunks, but the function may be called
+       with sub-page size and unaligned start address. Pad the start
+       address to next and truncate size to previous page boundary. */
+    delta = qemu_real_host_page_size - (*start & ~qemu_real_host_page_mask);
+    delta &= ~qemu_real_host_page_mask;
+    *start += delta;
+    if (delta > size) {
+        return 0;
+    }
+    size -= delta;
+    size &= qemu_real_host_page_mask;
+    if (*start & ~qemu_real_host_page_mask) {
+        return 0;
+    }
+
+    return size;
+}
+
+/*
  * Find overlapping slot with lowest start address
  */
 static KVMSlot *kvm_lookup_overlapping_slot(KVMMemoryListener *kml,
@@ -700,25 +730,8 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     int err;
     MemoryRegion *mr = section->mr;
     bool writeable = !mr->readonly && !mr->rom_device;
-    hwaddr start_addr = section->offset_within_address_space;
-    ram_addr_t size = int128_get64(section->size);
-    void *ram = NULL;
-    unsigned delta;
-
-    /* kvm works in page size chunks, but the function may be called
-       with sub-page size and unaligned start address. Pad the start
-       address to next and truncate size to previous page boundary. */
-    delta = qemu_real_host_page_size - (start_addr & ~qemu_real_host_page_mask);
-    delta &= ~qemu_real_host_page_mask;
-    if (delta > size) {
-        return;
-    }
-    start_addr += delta;
-    size -= delta;
-    size &= qemu_real_host_page_mask;
-    if (!size || (start_addr & ~qemu_real_host_page_mask)) {
-        return;
-    }
+    hwaddr start_addr, size;
+    void *ram;
 
     if (!memory_region_is_ram(mr)) {
         if (writeable || !kvm_readonly_mem_allowed) {
@@ -730,7 +743,13 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         }
     }
 
-    ram = memory_region_get_ram_ptr(mr) + section->offset_within_region + delta;
+    size = kvm_align_section(section, &start_addr);
+    if (!size) {
+        return;
+    }
+
+    ram = memory_region_get_ram_ptr(mr) + section->offset_within_region +
+          (section->offset_within_address_space - start_addr);
 
     while (1) {
         mem = kvm_lookup_overlapping_slot(kml, start_addr, start_addr + size);
