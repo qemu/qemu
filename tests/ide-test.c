@@ -132,7 +132,7 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     va_end(ap);
 
     qtest_start(cmdline);
-    guest_malloc = pc_alloc_init();
+    guest_malloc = pc_alloc_init(global_qtest);
 
     g_free(cmdline);
 }

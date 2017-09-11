@@ -14,6 +14,7 @@
 #define LIBQOS_MALLOC_H
 
 #include "qemu/queue.h"
+#include "libqtest.h"
 
 typedef enum {
     ALLOC_NO_FLAGS    = 0x00,

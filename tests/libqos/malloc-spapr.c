@@ -22,7 +22,7 @@ void spapr_alloc_uninit(QGuestAllocator *allocator)
     alloc_uninit(allocator);
 }
 
-QGuestAllocator *spapr_alloc_init_flags(QAllocOpts flags)
+QGuestAllocator *spapr_alloc_init_flags(QTestState *qts, QAllocOpts flags)
 {
     QGuestAllocator *s;
 
@@ -34,5 +34,5 @@ QGuestAllocator *spapr_alloc_init_flags(QAllocOpts flags)
 
 QGuestAllocator *spapr_alloc_init(void)
 {
-    return spapr_alloc_init_flags(ALLOC_NO_FLAGS);
+    return spapr_alloc_init_flags(NULL, ALLOC_NO_FLAGS);
 }
