@@ -668,7 +668,7 @@ static void test_acpi_one(const char *params, test_data *data)
 
     qtest_start(args);
 
-    boot_sector_test();
+    boot_sector_test(global_qtest);
 
     data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
     test_acpi_rsdp_address(data);

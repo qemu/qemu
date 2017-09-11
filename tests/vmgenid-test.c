@@ -45,7 +45,7 @@ static uint32_t acpi_find_vgia(void)
     int i;
 
     /* Wait for guest firmware to finish and start the payload. */
-    boot_sector_test();
+    boot_sector_test(global_qtest);
 
     /* Tables should be initialized now. */
     rsdp_offset = acpi_find_rsdp_address();
