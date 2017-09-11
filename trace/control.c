@@ -72,8 +72,8 @@ void trace_event_register_group(TraceEvent **events)
         if (likely(next_vcpu_id < CPU_TRACE_DSTATE_MAX_EVENTS)) {
             events[i]->vcpu_id = next_vcpu_id++;
         } else {
-            error_report("WARNING: too many vcpu trace events; dropping '%s'",
-                         events[i]->name);
+            warn_report("too many vcpu trace events; dropping '%s'",
+                        events[i]->name);
         }
     }
     event_groups = g_renew(TraceEventGroup, event_groups, nevent_groups + 1);
