@@ -832,7 +832,8 @@ endif
 qtest-obj-y = tests/libqtest.o $(test-util-obj-y)
 $(check-qtest-y): $(qtest-obj-y)
 
-tests/test-qga: tests/test-qga.o $(qtest-obj-y)
+tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
+tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
 
 SPEED = quick
 GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
