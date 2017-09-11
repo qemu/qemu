@@ -25,7 +25,7 @@ QOSState *qtest_pc_boot(const char *cmdline_fmt, ...)
     qs = qtest_vboot(&qos_ops, cmdline_fmt, ap);
     va_end(ap);
 
-    qtest_irq_intercept_in(global_qtest, "ioapic");
+    qtest_irq_intercept_in(qs->qts, "ioapic");
 
     return qs;
 }

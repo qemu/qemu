@@ -77,6 +77,7 @@ int main(int argc, char **argv)
                    "available on x86 or ppc64\n");
         exit(EXIT_FAILURE);
     }
+    global_qtest = qs->qts;
     ret = g_test_run();
     qtest_shutdown(qs);
 

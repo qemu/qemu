@@ -54,18 +54,21 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
 
 static QOSState *pci_test_start(int socket)
 {
+    QOSState *qs;
     const char *arch = qtest_get_arch();
     const char *cmd = "-netdev socket,fd=%d,id=hs0 -device "
                       "virtio-net-pci,netdev=hs0";
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        return qtest_pc_boot(cmd, socket);
+        qs = qtest_pc_boot(cmd, socket);
+    } else if (strcmp(arch, "ppc64") == 0) {
+        qs = qtest_spapr_boot(cmd, socket);
+    } else {
+        g_printerr("virtio-net tests are only available on x86 or ppc64\n");
+        exit(EXIT_FAILURE);
     }
-    if (strcmp(arch, "ppc64") == 0) {
-        return qtest_spapr_boot(cmd, socket);
-    }
-    g_printerr("virtio-net tests are only available on x86 or ppc64\n");
-    exit(EXIT_FAILURE);
+    global_qtest = qs->qts;
+    return qs;
 }
 
 static void driver_init(QVirtioDevice *dev)

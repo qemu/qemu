@@ -77,6 +77,7 @@ static QOSState *pci_test_start(void)
         g_printerr("virtio-blk tests are only available on x86 or ppc64\n");
         exit(EXIT_FAILURE);
     }
+    global_qtest = qs->qts;
     unlink(tmp_path);
     g_free(tmp_path);
     return qs;
