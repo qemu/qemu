@@ -141,7 +141,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
                 int keysym;
                 keysym = get_keysym(table, keyname);
                 if (keysym == 0) {
-                    /* fprintf(stderr, "Warning: unknown keysym %s\n", line);*/
+                    /* warn_report("unknown keysym %s", line);*/
                 } else {
                     const char *rest = line + offset + 1;
                     int keycode = strtol(rest, NULL, 0);

@@ -15,6 +15,7 @@
 #include "qemu/timer.h"
 #include "trace/control.h"
 #include "trace/simple.h"
+#include "qemu/error-report.h"
 
 /** Trace file header event ID, picked to avoid conflict with real event IDs */
 #define HEADER_EVENT_ID (~(uint64_t)0)
@@ -405,7 +406,7 @@ bool st_init(void)
 
     thread = trace_thread_create(writeout_thread);
     if (!thread) {
-        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
+        warn_report("unable to initialize simple trace backend");
         return false;
     }
 

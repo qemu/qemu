@@ -26,6 +26,7 @@
 #include "qapi/visitor.h"
 #include "qapi-event.h"
 #include "trace.h"
+#include "qemu/error-report.h"
 
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
@@ -292,7 +293,7 @@ static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
     s->stats_vq_offset = offset;
 
     if (qemu_gettimeofday(&tv) < 0) {
-        fprintf(stderr, "warning: %s: failed to get time of day\n", __func__);
+        warn_report("%s: failed to get time of day", __func__);
         goto out;
     }
 

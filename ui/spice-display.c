@@ -850,7 +850,7 @@ static void qemu_spice_gl_unblock_bh(void *opaque)
 
 static void qemu_spice_gl_block_timer(void *opaque)
 {
-    fprintf(stderr, "WARNING: spice: no gl-draw-done within one second\n");
+    warn_report("spice: no gl-draw-done within one second");
 }
 
 static void spice_gl_refresh(DisplayChangeListener *dcl)

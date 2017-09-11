@@ -28,6 +28,7 @@
 #include "qapi/opts-visitor.h"
 #include "qapi-visit.h"
 #include "qapi-event.h"
+#include "qemu/error-report.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */
@@ -221,7 +222,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
     }
 
     if (!has_header && changed_fields == 0) {
-        fprintf(stderr, "warning: ACPI table: no headers are specified\n");
+        warn_report("ACPI table: no headers are specified");
     }
 
     /* recalculate checksum */

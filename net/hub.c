@@ -18,6 +18,7 @@
 #include "clients.h"
 #include "hub.h"
 #include "qemu/iov.h"
+#include "qemu/error-report.h"
 
 /*
  * A hub broadcasts incoming packets to all its ports except the source port.
@@ -330,7 +331,7 @@ void net_hub_check_clients(void)
             }
         }
         if (has_host_dev && !has_nic) {
-            fprintf(stderr, "Warning: vlan %d with no nics\n", hub->id);
+            warn_report("vlan %d with no nics", hub->id);
         }
         if (has_nic && !has_host_dev) {
             fprintf(stderr,

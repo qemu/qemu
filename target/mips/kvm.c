@@ -95,11 +95,11 @@ void kvm_mips_reset_vcpu(MIPSCPU *cpu)
     CPUMIPSState *env = &cpu->env;
 
     if (!kvm_mips_fpu_cap && env->CP0_Config1 & (1 << CP0C1_FP)) {
-        fprintf(stderr, "Warning: KVM does not support FPU, disabling\n");
+        warn_report("KVM does not support FPU, disabling");
         env->CP0_Config1 &= ~(1 << CP0C1_FP);
     }
     if (!kvm_mips_msa_cap && env->CP0_Config3 & (1 << CP0C3_MSAP)) {
-        fprintf(stderr, "Warning: KVM does not support MSA, disabling\n");
+        warn_report("KVM does not support MSA, disabling");
         env->CP0_Config3 &= ~(1 << CP0C3_MSAP);
     }
 
