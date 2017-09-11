@@ -172,7 +172,7 @@ static KVMSlot *kvm_alloc_slot(KVMMemoryListener *kml)
 
 static KVMSlot *kvm_lookup_matching_slot(KVMMemoryListener *kml,
                                          hwaddr start_addr,
-                                         hwaddr end_addr)
+                                         hwaddr size)
 {
     KVMState *s = kvm_state;
     int i;
@@ -180,8 +180,7 @@ static KVMSlot *kvm_lookup_matching_slot(KVMMemoryListener *kml,
     for (i = 0; i < s->nr_slots; i++) {
         KVMSlot *mem = &kml->slots[i];
 
-        if (start_addr == mem->start_addr &&
-            end_addr == mem->start_addr + mem->memory_size) {
+        if (start_addr == mem->start_addr && size == mem->memory_size) {
             return mem;
         }
     }
@@ -414,7 +413,7 @@ static int kvm_section_update_flags(KVMMemoryListener *kml,
 {
     hwaddr phys_addr = section->offset_within_address_space;
     ram_addr_t size = int128_get64(section->size);
-    KVMSlot *mem = kvm_lookup_matching_slot(kml, phys_addr, phys_addr + size);
+    KVMSlot *mem = kvm_lookup_matching_slot(kml, phys_addr, size);
 
     if (mem == NULL)  {
         return 0;
