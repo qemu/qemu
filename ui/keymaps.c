@@ -26,6 +26,7 @@
 #include "keymaps.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "qemu/error-report.h"
 
 static int get_keysym(const name2keysym_t *table,
                       const char *name)
@@ -76,8 +77,8 @@ static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k) {
         k->keysym2keycode[keysym] = keycode;
     } else {
         if (k->extra_count >= MAX_EXTRA_COUNT) {
-            fprintf(stderr, "Warning: Could not assign keysym %s (0x%x)"
-                    " because of memory constraints.\n", line, keysym);
+            warn_report("Could not assign keysym %s (0x%x)"
+                        " because of memory constraints.", line, keysym);
         } else {
             trace_keymap_add("extra", keysym, keycode, line);
             k->keysym2keycode_extra[k->extra_count].
@@ -197,8 +198,8 @@ int keysym2scancode(void *kbd_layout, int keysym)
     if (keysym < MAX_NORMAL_KEYCODE) {
         if (k->keysym2keycode[keysym] == 0) {
             trace_keymap_unmapped(keysym);
-            fprintf(stderr, "Warning: no scancode found for keysym %d\n",
-                    keysym);
+            warn_report("no scancode found for keysym %d",
+                        keysym);
         }
         return k->keysym2keycode[keysym];
     } else {

@@ -9316,14 +9316,14 @@ static void init_ppc_proc(PowerPCCPU *cpu)
         env->tlb_per_way = env->nb_tlb / env->nb_ways;
     }
     if (env->irq_inputs == NULL) {
-        fprintf(stderr, "WARNING: no internal IRQ controller registered.\n"
-                " Attempt QEMU to crash very soon !\n");
+        warn_report("no internal IRQ controller registered."
+                    " Attempt QEMU to crash very soon !");
     }
 #endif
     if (env->check_pow == NULL) {
-        fprintf(stderr, "WARNING: no power management check handler "
-                "registered.\n"
-                " Attempt QEMU to crash very soon !\n");
+        warn_report("no power management check handler "
+                    "registered."
+                    " Attempt QEMU to crash very soon !");
     }
 }
 
@@ -9877,10 +9877,10 @@ static int ppc_fixup_cpu(PowerPCCPU *cpu)
      * tree. */
     if ((env->insns_flags & ~PPC_TCG_INSNS)
         || (env->insns_flags2 & ~PPC_TCG_INSNS2)) {
-        fprintf(stderr, "Warning: Disabling some instructions which are not "
-                "emulated by TCG (0x%" PRIx64 ", 0x%" PRIx64 ")\n",
-                env->insns_flags & ~PPC_TCG_INSNS,
-                env->insns_flags2 & ~PPC_TCG_INSNS2);
+        warn_report("Disabling some instructions which are not "
+                    "emulated by TCG (0x%" PRIx64 ", 0x%" PRIx64 ")",
+                    env->insns_flags & ~PPC_TCG_INSNS,
+                    env->insns_flags2 & ~PPC_TCG_INSNS2);
     }
     env->insns_flags &= PPC_TCG_INSNS;
     env->insns_flags2 &= PPC_TCG_INSNS2;

@@ -493,8 +493,8 @@ static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
         /* Not fatal, we just won't provide virtio. This will
          * happen with older device tree blobs.
          */
-        fprintf(stderr, "QEMU: warning: couldn't find interrupt controller in "
-                "dtb; will not include virtio-mmio devices in the dtb.\n");
+        warn_report("couldn't find interrupt controller in "
+                    "dtb; will not include virtio-mmio devices in the dtb.");
     } else {
         int i;
         const hwaddr *map = daughterboard->motherboard_map;
