@@ -123,13 +123,13 @@ bool is_atapi(AHCIQState *ahci, uint8_t port)
 /**
  * Locate, verify, and return a handle to the AHCI device.
  */
-QPCIDevice *get_ahci_device(uint32_t *fingerprint)
+QPCIDevice *get_ahci_device(QTestState *qts, uint32_t *fingerprint)
 {
     QPCIDevice *ahci;
     uint32_t ahci_fingerprint;
     QPCIBus *pcibus;
 
-    pcibus = qpci_init_pc(NULL);
+    pcibus = qpci_init_pc(qts, NULL);
 
     /* Find the AHCI PCI device and verify it's the right one. */
     ahci = qpci_device_find(pcibus, QPCI_DEVFN(0x1F, 0x02));

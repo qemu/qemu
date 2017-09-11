@@ -16,7 +16,7 @@
 #include "libqos/pci.h"
 #include "libqos/malloc.h"
 
-QPCIBus *qpci_init_pc(QGuestAllocator *alloc);
+QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc);
 void     qpci_free_pc(QPCIBus *bus);
 
 #endif

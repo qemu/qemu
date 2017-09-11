@@ -571,7 +571,7 @@ void ahci_free(AHCIQState *ahci, uint64_t addr);
 void ahci_clean_mem(AHCIQState *ahci);
 
 /* Device management */
-QPCIDevice *get_ahci_device(uint32_t *fingerprint);
+QPCIDevice *get_ahci_device(QTestState *qts, uint32_t *fingerprint);
 void free_ahci_device(QPCIDevice *dev);
 void ahci_pci_enable(AHCIQState *ahci);
 void start_ahci_device(AHCIQState *ahci);

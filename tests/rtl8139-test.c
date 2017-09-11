@@ -35,7 +35,7 @@ static QPCIDevice *get_device(void)
 {
     QPCIDevice *dev;
 
-    pcibus = qpci_init_pc(NULL);
+    pcibus = qpci_init_pc(global_qtest, NULL);
     qpci_device_foreach(pcibus, 0x10ec, 0x8139, save_fn, &dev);
     g_assert(dev != NULL);
 
@@ -197,11 +197,12 @@ int main(int argc, char **argv)
 {
     int ret;
 
+    qtest_start("-device rtl8139");
+
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/rtl8139/nop", nop);
     qtest_add_func("/rtl8139/timer", test_init);
 
-    qtest_start("-device rtl8139");
     ret = g_test_run();
 
     qtest_end();

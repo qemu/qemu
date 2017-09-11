@@ -392,11 +392,11 @@ static void data_test_init(e1000e_device *d)
     qtest_start(cmdline);
     g_free(cmdline);
 
-    test_bus = qpci_init_pc(NULL);
-    g_assert_nonnull(test_bus);
-
     test_alloc = pc_alloc_init();
     g_assert_nonnull(test_alloc);
+
+    test_bus = qpci_init_pc(global_qtest, test_alloc);
+    g_assert_nonnull(test_bus);
 
     e1000e_device_init(test_bus, d);
 }

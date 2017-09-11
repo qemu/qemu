@@ -48,6 +48,7 @@ struct QPCIBus {
     void (*config_writel)(QPCIBus *bus, int devfn,
                           uint8_t offset, uint32_t value);
 
+    QTestState *qts;
     uint16_t pio_alloc_ptr;
     uint64_t mmio_alloc_ptr, mmio_limit;
 };

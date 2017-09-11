@@ -115,11 +115,11 @@ static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint3
     outl(0xcfc, value);
 }
 
-QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
+QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc)
 {
-    QPCIBusPC *ret;
+    QPCIBusPC *ret = g_new0(QPCIBusPC, 1);
 
-    ret = g_malloc(sizeof(*ret));
+    assert(qts);
 
     ret->bus.pio_readb = qpci_pc_pio_readb;
     ret->bus.pio_readw = qpci_pc_pio_readw;
@@ -142,6 +142,7 @@ QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
     ret->bus.config_writew = qpci_pc_config_writew;
     ret->bus.config_writel = qpci_pc_config_writel;
 
+    ret->bus.qts = qts;
     ret->bus.pio_alloc_ptr = 0xc000;
     ret->bus.mmio_alloc_ptr = 0xE0000000;
     ret->bus.mmio_limit = 0x100000000ULL;

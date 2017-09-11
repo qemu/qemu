@@ -18,18 +18,14 @@ QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
 {
     char *cmdline;
 
-    struct QOSState *qs = g_new(QOSState, 1);
+    QOSState *qs = g_new0(QOSState, 1);
 
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
     qs->qts = qtest_start(cmdline);
     qs->ops = ops;
     if (ops) {
-        if (ops->init_allocator) {
-            qs->alloc = ops->init_allocator(ALLOC_NO_FLAGS);
-        }
-        if (ops->qpci_init && qs->alloc) {
-            qs->pcibus = ops->qpci_init(qs->alloc);
-        }
+        qs->alloc = ops->init_allocator(ALLOC_NO_FLAGS);
+        qs->pcibus = ops->qpci_init(qs->qts, qs->alloc);
     }
 
     g_free(cmdline);
