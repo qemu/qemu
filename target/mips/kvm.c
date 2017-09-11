@@ -526,7 +526,7 @@ static void kvm_mips_update_state(void *opaque, int running, RunState state)
         if (!cs->vcpu_dirty) {
             ret = kvm_mips_save_count(cs);
             if (ret < 0) {
-                fprintf(stderr, "Failed saving count\n");
+                warn_report("Failed saving count");
             }
         }
     } else {
@@ -535,14 +535,14 @@ static void kvm_mips_update_state(void *opaque, int running, RunState state)
         ret = kvm_mips_put_one_ureg64(cs, KVM_REG_MIPS_COUNT_RESUME,
                                       &count_resume);
         if (ret < 0) {
-            fprintf(stderr, "Failed setting COUNT_RESUME\n");
+            warn_report("Failed setting COUNT_RESUME");
             return;
         }
 
         if (!cs->vcpu_dirty) {
             ret = kvm_mips_restore_count(cs);
             if (ret < 0) {
-                fprintf(stderr, "Failed restoring count\n");
+                warn_report("Failed restoring count");
             }
         }
     }
