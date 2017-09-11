@@ -1609,34 +1609,37 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
 
     sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
 
-    namebuf = alloca(strlen(sphb->dtbusname) + 32);
-
     /* Initialize memory regions */
-    sprintf(namebuf, "%s.mmio", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.mmio", sphb->dtbusname);
     memory_region_init(&sphb->memspace, OBJECT(sphb), namebuf, UINT64_MAX);
+    g_free(namebuf);
 
-    sprintf(namebuf, "%s.mmio32-alias", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.mmio32-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->mem32window, OBJECT(sphb),
                              namebuf, &sphb->memspace,
                              SPAPR_PCI_MEM_WIN_BUS_OFFSET, sphb->mem_win_size);
+    g_free(namebuf);
     memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
                                 &sphb->mem32window);
 
-    sprintf(namebuf, "%s.mmio64-alias", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.mmio64-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->mem64window, OBJECT(sphb),
                              namebuf, &sphb->memspace,
                              sphb->mem64_win_pciaddr, sphb->mem64_win_size);
+    g_free(namebuf);
     memory_region_add_subregion(get_system_memory(), sphb->mem64_win_addr,
                                 &sphb->mem64window);
 
     /* Initialize IO regions */
-    sprintf(namebuf, "%s.io", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.io", sphb->dtbusname);
     memory_region_init(&sphb->iospace, OBJECT(sphb),
                        namebuf, SPAPR_PCI_IO_WIN_SIZE);
+    g_free(namebuf);
 
-    sprintf(namebuf, "%s.io-alias", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.io-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->iowindow, OBJECT(sphb), namebuf,
                              &sphb->iospace, 0, SPAPR_PCI_IO_WIN_SIZE);
+    g_free(namebuf);
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
 
@@ -1654,10 +1657,10 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
      * Later the guest might want to create another DMA window
      * which will become another memory subregion.
      */
-    sprintf(namebuf, "%s.iommu-root", sphb->dtbusname);
-
+    namebuf = g_strdup_printf("%s.iommu-root", sphb->dtbusname);
     memory_region_init(&sphb->iommu_root, OBJECT(sphb),
                        namebuf, UINT64_MAX);
+    g_free(namebuf);
     address_space_init(&sphb->iommu_as, &sphb->iommu_root,
                        sphb->dtbusname);
 
