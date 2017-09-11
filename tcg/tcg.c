@@ -2362,7 +2362,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
     TCGTemp *ts, *ots;
     TCGType otype, itype;
 
-    tcg_regset_set(allocated_regs, s->reserved_regs);
+    allocated_regs = s->reserved_regs;
     ots = &s->temps[args[0]];
     ts = &s->temps[args[1]];
 
@@ -2450,8 +2450,8 @@ static void tcg_reg_alloc_op(TCGContext *s,
            args + nb_oargs + nb_iargs, 
            sizeof(TCGArg) * def->nb_cargs);
 
-    tcg_regset_set(i_allocated_regs, s->reserved_regs);
-    tcg_regset_set(o_allocated_regs, s->reserved_regs);
+    i_allocated_regs = s->reserved_regs;
+    o_allocated_regs = s->reserved_regs;
 
     /* satisfy input constraints */ 
     for(k = 0; k < nb_iargs; k++) {
@@ -2651,7 +2651,7 @@ static void tcg_reg_alloc_call(TCGContext *s, int nb_oargs, int nb_iargs,
     }
     
     /* assign input registers */
-    tcg_regset_set(allocated_regs, s->reserved_regs);
+    allocated_regs = s->reserved_regs;
     for(i = 0; i < nb_regs; i++) {
         arg = args[nb_oargs + i];
         if (arg != TCG_CALL_DUMMY_ARG) {
