@@ -15,12 +15,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
 
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/un.h>
 
+#include "libqtest.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-streamer.h"
@@ -363,12 +364,14 @@ redo:
     g_string_free(line, TRUE);
 
     if (strcmp(words[0], "IRQ") == 0) {
-        int irq;
+        long irq;
+        int ret;
 
         g_assert(words[1] != NULL);
         g_assert(words[2] != NULL);
 
-        irq = strtoul(words[2], NULL, 0);
+        ret = qemu_strtol(words[2], NULL, 0, &irq);
+        g_assert(!ret);
         g_assert_cmpint(irq, >=, 0);
         g_assert_cmpint(irq, <, MAX_IRQ);
 
@@ -730,11 +733,13 @@ void qtest_outl(QTestState *s, uint16_t addr, uint32_t value)
 static uint32_t qtest_in(QTestState *s, const char *cmd, uint16_t addr)
 {
     gchar **args;
-    uint32_t value;
+    int ret;
+    unsigned long value;
 
     qtest_sendf(s, "%s 0x%x\n", cmd, addr);
     args = qtest_rsp(s, 2);
-    value = strtoul(args[1], NULL, 0);
+    ret = qemu_strtoul(args[1], NULL, 0, &value);
+    g_assert(!ret && value <= UINT32_MAX);
     g_strfreev(args);
 
     return value;
@@ -785,11 +790,13 @@ void qtest_writeq(QTestState *s, uint64_t addr, uint64_t value)
 static uint64_t qtest_read(QTestState *s, const char *cmd, uint64_t addr)
 {
     gchar **args;
+    int ret;
     uint64_t value;
 
     qtest_sendf(s, "%s 0x%" PRIx64 "\n", cmd, addr);
     args = qtest_rsp(s, 2);
-    value = strtoull(args[1], NULL, 0);
+    ret = qemu_strtou64(args[1], NULL, 0, &value);
+    g_assert(!ret);
     g_strfreev(args);
 
     return value;
