@@ -725,7 +725,7 @@ kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
 static void kvm_set_phys_mem(KVMMemoryListener *kml,
                              MemoryRegionSection *section, bool add)
 {
-    KVMSlot *mem, old;
+    KVMSlot *mem;
     int err;
     MemoryRegion *mr = section->mr;
     bool writeable = !mr->readonly && !mr->rom_device;
@@ -750,28 +750,17 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     ram = memory_region_get_ram_ptr(mr) + section->offset_within_region +
           (section->offset_within_address_space - start_addr);
 
-    while (1) {
-        mem = kvm_lookup_overlapping_slot(kml, start_addr, start_addr + size);
+    mem = kvm_lookup_matching_slot(kml, start_addr, size);
+    if (!add) {
         if (!mem) {
-            break;
-        }
-
-        if (add && start_addr >= mem->start_addr &&
-            (start_addr + size <= mem->start_addr + mem->memory_size) &&
-            (ram - start_addr == mem->ram - mem->start_addr)) {
-            /* The new slot fits into the existing one and comes with
-             * identical parameters - update flags and done. */
-            kvm_slot_update_flags(kml, mem, mr);
+            g_assert(!memory_region_is_ram(mr) && !writeable && !mr->romd_mode);
             return;
         }
-
-        old = *mem;
-
         if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
             kvm_physical_sync_dirty_bitmap(kml, section);
         }
 
-        /* unregister the overlapping slot */
+        /* unregister the slot */
         mem->memory_size = 0;
         err = kvm_set_user_memory_region(kml, mem);
         if (err) {
@@ -779,51 +768,16 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
                     __func__, strerror(-err));
             abort();
         }
-
-        /* register prefix slot */
-        if (old.start_addr < start_addr) {
-            mem = kvm_alloc_slot(kml);
-            mem->memory_size = start_addr - old.start_addr;
-            mem->start_addr = old.start_addr;
-            mem->ram = old.ram;
-            mem->flags =  kvm_mem_flags(mr);
-
-            err = kvm_set_user_memory_region(kml, mem);
-            if (err) {
-                fprintf(stderr, "%s: error registering prefix slot: %s\n",
-                        __func__, strerror(-err));
-#ifdef TARGET_PPC
-                fprintf(stderr, "%s: This is probably because your kernel's " \
-                                "PAGE_SIZE is too big. Please try to use 4k " \
-                                "PAGE_SIZE!\n", __func__);
-#endif
-                abort();
-            }
-        }
-
-        /* register suffix slot */
-        if (old.start_addr + old.memory_size > start_addr + size) {
-            ram_addr_t size_delta;
-
-            mem = kvm_alloc_slot(kml);
-            mem->start_addr = start_addr + size;
-            size_delta = mem->start_addr - old.start_addr;
-            mem->memory_size = old.memory_size - size_delta;
-            mem->ram = old.ram + size_delta;
-            mem->flags = kvm_mem_flags(mr);
-
-            err = kvm_set_user_memory_region(kml, mem);
-            if (err) {
-                fprintf(stderr, "%s: error registering suffix slot: %s\n",
-                        __func__, strerror(-err));
-                abort();
-            }
-        }
-    }
-
-    if (!add) {
         return;
     }
+
+    if (mem) {
+        /* update the slot */
+        kvm_slot_update_flags(kml, mem, mr);
+        return;
+    }
+
+    /* register the new slot */
     mem = kvm_alloc_slot(kml);
     mem->memory_size = size;
     mem->start_addr = start_addr;
