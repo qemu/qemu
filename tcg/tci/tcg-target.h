@@ -206,8 +206,4 @@ static inline void tb_target_set_jmp_target(uintptr_t tc_ptr,
     /* no need to flush icache explicitly */
 }
 
-#ifdef CONFIG_SOFTMMU
-#define TCG_TARGET_NEED_LDST_LABELS
-#endif
-
 #endif /* TCG_TARGET_H */
