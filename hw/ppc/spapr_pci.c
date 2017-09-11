@@ -1622,13 +1622,19 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
                                 &sphb->mem32window);
 
-    namebuf = g_strdup_printf("%s.mmio64-alias", sphb->dtbusname);
-    memory_region_init_alias(&sphb->mem64window, OBJECT(sphb),
-                             namebuf, &sphb->memspace,
-                             sphb->mem64_win_pciaddr, sphb->mem64_win_size);
-    g_free(namebuf);
-    memory_region_add_subregion(get_system_memory(), sphb->mem64_win_addr,
-                                &sphb->mem64window);
+    if (sphb->mem64_win_pciaddr != (hwaddr)-1) {
+        namebuf = g_strdup_printf("%s.mmio64-alias", sphb->dtbusname);
+        memory_region_init_alias(&sphb->mem64window, OBJECT(sphb),
+                                 namebuf, &sphb->memspace,
+                                 sphb->mem64_win_pciaddr, sphb->mem64_win_size);
+        g_free(namebuf);
+
+        if (sphb->mem64_win_addr != (hwaddr)-1) {
+            memory_region_add_subregion(get_system_memory(),
+                                        sphb->mem64_win_addr,
+                                        &sphb->mem64window);
+        }
+    }
 
     /* Initialize IO regions */
     namebuf = g_strdup_printf("%s.io", sphb->dtbusname);
