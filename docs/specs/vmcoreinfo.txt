@@ -39,3 +39,11 @@ qemu dumps.
 
 The note format/class must be of the target bitness and the size must
 be less than 1Mb.
+
+If the ELF note name is "VMCOREINFO", it is expected to be the Linux
+vmcoreinfo note (see Documentation/ABI/testing/sysfs-kernel-vmcoreinfo
+in Linux source). In this case, qemu dump code will read the content
+as a key=value text file, looking for "NUMBER(phys_base)" key
+value. The value is expected to be more accurate than architecture
+guess of the value. This is useful for KASLR-enabled guest with
+ancient tools not handling the VMCOREINFO note.

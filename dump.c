@@ -779,6 +779,23 @@ static void get_note_sizes(DumpState *s, const void *note,
     }
 }
 
+static bool note_name_equal(DumpState *s,
+                            const uint8_t *note, const char *name)
+{
+    int len = strlen(name) + 1;
+    uint64_t head_size, name_size;
+
+    get_note_sizes(s, note, &head_size, &name_size, NULL);
+    head_size = ROUND_UP(head_size, 4);
+
+    if (name_size != len ||
+        memcmp(note + head_size, "VMCOREINFO", len)) {
+        return false;
+    }
+
+    return true;
+}
+
 /* write common header, sub header and elf note to vmcore */
 static void create_header32(DumpState *s, Error **errp)
 {
@@ -1553,6 +1570,39 @@ static int64_t dump_calculate_size(DumpState *s)
     return total;
 }
 
+static void vmcoreinfo_update_phys_base(DumpState *s)
+{
+    uint64_t size, note_head_size, name_size, phys_base;
+    char **lines;
+    uint8_t *vmci;
+    size_t i;
+
+    if (!note_name_equal(s, s->guest_note, "VMCOREINFO")) {
+        return;
+    }
+
+    get_note_sizes(s, s->guest_note, &note_head_size, &name_size, &size);
+    note_head_size = ROUND_UP(note_head_size, 4);
+
+    vmci = s->guest_note + note_head_size + ROUND_UP(name_size, 4);
+    *(vmci + size) = '\0';
+
+    lines = g_strsplit((char *)vmci, "\n", -1);
+    for (i = 0; lines[i]; i++) {
+        if (g_str_has_prefix(lines[i], "NUMBER(phys_base)=")) {
+            if (qemu_strtou64(lines[i] + 18, NULL, 16,
+                              &phys_base) < 0) {
+                warn_report("Failed to read NUMBER(phys_base)=");
+            } else {
+                s->dump_info.phys_base = phys_base;
+            }
+            break;
+        }
+    }
+
+    g_strfreev(lines);
+}
+
 static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
                       int64_t begin, int64_t length, Error **errp)
@@ -1636,8 +1686,9 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     }
 
     /*
-     * The goal of this block is to copy the guest note out of
-     * the guest.  Failure to do so is not fatal for dumping.
+     * The goal of this block is to (a) update the previously guessed
+     * phys_base, (b) copy the guest note out of the guest.
+     * Failure to do so is not fatal for dumping.
      */
     if (vmci) {
         uint64_t addr, note_head_size, name_size, desc_size;
@@ -1670,6 +1721,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
                 g_free(s->guest_note);
                 s->guest_note = NULL;
             } else {
+                vmcoreinfo_update_phys_base(s);
                 s->note_size += s->guest_note_size;
             }
         }
