@@ -186,9 +186,9 @@ typedef enum TCGOpcode {
     NB_OPS,
 } TCGOpcode;
 
-#define tcg_regset_set_reg(d, r) (d) |= 1L << (r)
-#define tcg_regset_reset_reg(d, r) (d) &= ~(1L << (r))
-#define tcg_regset_test_reg(d, r) (((d) >> (r)) & 1)
+#define tcg_regset_set_reg(d, r)   ((d) |= (TCGRegSet)1 << (r))
+#define tcg_regset_reset_reg(d, r) ((d) &= ~((TCGRegSet)1 << (r)))
+#define tcg_regset_test_reg(d, r)  (((d) >> (r)) & 1)
 
 #ifndef TCG_TARGET_INSN_UNIT_SIZE
 # error "Missing TCG_TARGET_INSN_UNIT_SIZE"
