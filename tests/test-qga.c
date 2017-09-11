@@ -642,65 +642,6 @@ static void test_qga_get_time(gconstpointer fix)
     QDECREF(ret);
 }
 
-static void test_qga_set_time(gconstpointer fix)
-{
-    const TestFixture *fixture = fix;
-    QDict *ret;
-    int64_t current, time;
-    gchar *cmd;
-
-    /* get current time */
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-time'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    current = qdict_get_int(ret, "return");
-    g_assert_cmpint(current, >, 0);
-    QDECREF(ret);
-
-    /* set some old time */
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-set-time',"
-                 " 'arguments': { 'time': 1000 } }");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    QDECREF(ret);
-
-    /* check old time */
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-time'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    time = qdict_get_int(ret, "return");
-    g_assert_cmpint(time / 1000, <, G_USEC_PER_SEC * 10);
-    QDECREF(ret);
-
-    /* set back current time */
-    cmd = g_strdup_printf("{'execute': 'guest-set-time',"
-                          " 'arguments': { 'time': %" PRId64 " } }",
-                          current + time * 1000);
-    ret = qmp_fd(fixture->fd, cmd);
-    g_free(cmd);
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    QDECREF(ret);
-}
-
-static void test_qga_fstrim(gconstpointer fix)
-{
-    const TestFixture *fixture = fix;
-    QDict *ret;
-    QList *list;
-    const QListEntry *entry;
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fstrim',"
-                 " arguments: { minimum: 4194304 } }");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    list = qdict_get_qlist(ret, "return");
-    entry = qlist_first(list);
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "paths"));
-
-    QDECREF(ret);
-}
-
 static void test_qga_blacklist(gconstpointer data)
 {
     TestFixture fix;
@@ -828,30 +769,6 @@ static void test_qga_fsfreeze_status(gconstpointer fix)
     status = qdict_get_try_str(ret, "return");
     g_assert_cmpstr(status, ==, "thawed");
 
-    QDECREF(ret);
-}
-
-static void test_qga_fsfreeze_and_thaw(gconstpointer fix)
-{
-    const TestFixture *fixture = fix;
-    QDict *ret;
-    const gchar *status;
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fsfreeze-freeze'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    QDECREF(ret);
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fsfreeze-status'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    status = qdict_get_try_str(ret, "return");
-    g_assert_cmpstr(status, ==, "frozen");
-    QDECREF(ret);
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fsfreeze-thaw'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
     QDECREF(ret);
 }
 
@@ -1028,13 +945,6 @@ int main(int argc, char **argv)
                          test_qga_guest_exec_invalid);
     g_test_add_data_func("/qga/guest-get-osinfo", &fix,
                          test_qga_guest_get_osinfo);
-
-    if (g_getenv("QGA_TEST_SIDE_EFFECTING")) {
-        g_test_add_data_func("/qga/fsfreeze-and-thaw", &fix,
-                             test_qga_fsfreeze_and_thaw);
-        g_test_add_data_func("/qga/set-time", &fix, test_qga_set_time);
-        g_test_add_data_func("/qga/fstrim", &fix, test_qga_fstrim);
-    }
 
     ret = g_test_run();
 
