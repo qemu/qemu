@@ -193,23 +193,15 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 'q':
         ct->ct |= TCG_CT_REG;
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        } else {
-            tcg_regset_set32(ct->u.regs, 0, 0xf);
-        }
+        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xf;
         break;
     case 'Q':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xf);
+        ct->u.regs = 0xf;
         break;
     case 'r':
         ct->ct |= TCG_CT_REG;
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        } else {
-            tcg_regset_set32(ct->u.regs, 0, 0xff);
-        }
+        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
         break;
     case 'W':
         /* With TZCNT/LZCNT, we can have operand-size as an input.  */
@@ -219,11 +211,7 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         /* qemu_ld/st address constraint */
     case 'L':
         ct->ct |= TCG_CT_REG;
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        } else {
-            tcg_regset_set32(ct->u.regs, 0, 0xff);
-        }
+        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
         break;
@@ -2643,10 +2631,10 @@ static void tcg_target_init(TCGContext *s)
 #endif /* CONFIG_CPUID_H */
 
     if (TCG_TARGET_REG_BITS == 64) {
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffff);
+        tcg_target_available_regs[TCG_TYPE_I32] = 0xffff;
+        tcg_target_available_regs[TCG_TYPE_I64] = 0xffff;
     } else {
-        tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xff);
+        tcg_target_available_regs[TCG_TYPE_I32] = 0xff;
     }
 
     tcg_target_call_clobber_regs = 0;

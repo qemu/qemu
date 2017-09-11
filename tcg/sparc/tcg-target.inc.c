@@ -343,16 +343,15 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch (*ct_str++) {
     case 'r':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
+        ct->u.regs = 0xffffffff;
         break;
     case 'R':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, ALL_64);
+        ct->u.regs = ALL_64;
         break;
     case 'A': /* qemu_ld/st address constraint */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0,
-                         TARGET_LONG_BITS == 64 ? ALL_64 : 0xffffffff);
+        ct->u.regs = TARGET_LONG_BITS == 64 ? ALL_64 : 0xffffffff;
     reserve_helpers:
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O1);
@@ -360,11 +359,11 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 's': /* qemu_st data 32-bit constraint */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
+        ct->u.regs = 0xffffffff;
         goto reserve_helpers;
     case 'S': /* qemu_st data 64-bit constraint */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, ALL_64);
+        ct->u.regs = ALL_64;
         goto reserve_helpers;
     case 'I':
         ct->ct |= TCG_CT_CONST_S11;
@@ -1752,24 +1751,25 @@ static void tcg_target_init(TCGContext *s)
     }
 #endif
 
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, ALL_64);
+    tcg_target_available_regs[TCG_TYPE_I32] = 0xffffffff;
+    tcg_target_available_regs[TCG_TYPE_I64] = ALL_64;
 
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     (1 << TCG_REG_G1) |
-                     (1 << TCG_REG_G2) |
-                     (1 << TCG_REG_G3) |
-                     (1 << TCG_REG_G4) |
-                     (1 << TCG_REG_G5) |
-                     (1 << TCG_REG_G6) |
-                     (1 << TCG_REG_G7) |
-                     (1 << TCG_REG_O0) |
-                     (1 << TCG_REG_O1) |
-                     (1 << TCG_REG_O2) |
-                     (1 << TCG_REG_O3) |
-                     (1 << TCG_REG_O4) |
-                     (1 << TCG_REG_O5) |
-                     (1 << TCG_REG_O7));
+    tcg_target_call_clobber_regs = 0;
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G1);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G2);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G3);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G4);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G5);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G6);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G7);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O0);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O1);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O2);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O3);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O4);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O5);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O6);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_O7);
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_G0); /* zero */

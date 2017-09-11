@@ -121,11 +121,11 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch (*ct_str++) {
     case 'r':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1ULL << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffffffffu;
         break;
     case 'l': /* qemu_ld / qemu_st address, data_reg */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1ULL << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffffffffu;
 #ifdef CONFIG_SOFTMMU
         /* x0 and x1 will be overwritten when reading the tlb entry,
            and x2, and x3 for helper args, better to avoid using them. */
@@ -1925,20 +1925,21 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
 
 static void tcg_target_init(TCGContext *s)
 {
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffffffff);
+    tcg_target_available_regs[TCG_TYPE_I32] = 0xffffffffu;
+    tcg_target_available_regs[TCG_TYPE_I64] = 0xffffffffu;
 
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     (1 << TCG_REG_X0) | (1 << TCG_REG_X1) |
-                     (1 << TCG_REG_X2) | (1 << TCG_REG_X3) |
-                     (1 << TCG_REG_X4) | (1 << TCG_REG_X5) |
-                     (1 << TCG_REG_X6) | (1 << TCG_REG_X7) |
-                     (1 << TCG_REG_X8) | (1 << TCG_REG_X9) |
-                     (1 << TCG_REG_X10) | (1 << TCG_REG_X11) |
-                     (1 << TCG_REG_X12) | (1 << TCG_REG_X13) |
-                     (1 << TCG_REG_X14) | (1 << TCG_REG_X15) |
-                     (1 << TCG_REG_X16) | (1 << TCG_REG_X17) |
-                     (1 << TCG_REG_X18) | (1 << TCG_REG_X30));
+    tcg_target_call_clobber_regs = 0xfffffffu;
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X19);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X20);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X21);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X22);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X23);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X24);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X25);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X26);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X27);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X28);
+    tcg_regset_reset_reg(tcg_target_call_clobber_regs, TCG_REG_X29);
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);

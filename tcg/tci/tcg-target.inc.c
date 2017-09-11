@@ -390,7 +390,7 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     case 'L':                   /* qemu_ld constraint */
     case 'S':                   /* qemu_st constraint */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, BIT(TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = BIT(TCG_TARGET_NB_REGS) - 1;
         break;
     default:
         return NULL;
@@ -870,14 +870,11 @@ static void tcg_target_init(TCGContext *s)
     tcg_debug_assert(tcg_op_defs_max <= UINT8_MAX);
 
     /* Registers available for 32 bit operations. */
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0,
-                     BIT(TCG_TARGET_NB_REGS) - 1);
+    tcg_target_available_regs[TCG_TYPE_I32] = BIT(TCG_TARGET_NB_REGS) - 1;
     /* Registers available for 64 bit operations. */
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0,
-                     BIT(TCG_TARGET_NB_REGS) - 1);
+    tcg_target_available_regs[TCG_TYPE_I64] = BIT(TCG_TARGET_NB_REGS) - 1;
     /* TODO: Which registers should be set here? */
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     BIT(TCG_TARGET_NB_REGS) - 1);
+    tcg_target_call_clobber_regs = BIT(TCG_TARGET_NB_REGS) - 1;
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);

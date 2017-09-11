@@ -264,13 +264,13 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 
     case 'r':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffff;
         break;
 
     /* qemu_ld address */
     case 'l':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffff;
 #ifdef CONFIG_SOFTMMU
         /* r0-r2,lr will be overwritten when reading the tlb entry,
            so don't use these. */
@@ -284,7 +284,7 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     /* qemu_st address & data */
     case 's':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffff;
         /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
            and r0-r1 doing the byte swapping, so don't use these. */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
@@ -2164,14 +2164,15 @@ static void tcg_target_init(TCGContext *s)
         }
     }
 
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     (1 << TCG_REG_R0) |
-                     (1 << TCG_REG_R1) |
-                     (1 << TCG_REG_R2) |
-                     (1 << TCG_REG_R3) |
-                     (1 << TCG_REG_R12) |
-                     (1 << TCG_REG_R14));
+    tcg_target_available_regs[TCG_TYPE_I32] = 0xffff;
+
+    tcg_target_call_clobber_regs = 0;
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R0);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R1);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R2);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R3);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R12);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R14);
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
