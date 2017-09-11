@@ -1236,11 +1236,9 @@ static void *mptsas_load_request(QEMUFile *f, SCSIRequest *sreq)
     n = qemu_get_be32(f);
     /* TODO: add a way for SCSIBusInfo's load_request to fail,
      * and fail migration instead of asserting here.
-     * When we do, we might be able to re-enable NDEBUG below.
+     * This is just one thing (there are probably more) that must be
+     * fixed before we can allow NDEBUG compilation.
      */
-#ifdef NDEBUG
-#error building with NDEBUG is not supported
-#endif
     assert(n >= 0);
 
     pci_dma_sglist_init(&req->qsg, pci, n);
