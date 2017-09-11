@@ -42,7 +42,6 @@ struct QTestState
 };
 
 static GHookList abrt_hooks;
-static GList *qtest_instances;
 static struct sigaction sigact_old;
 
 #define g_assert_no_errno(ret) do { \
@@ -247,13 +246,10 @@ QTestState *qtest_init(const char *extra_args)
 
 void qtest_quit(QTestState *s)
 {
-    qtest_instances = g_list_remove(qtest_instances, s);
     g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
 
     /* Uninstall SIGABRT handler on last instance */
-    if (!qtest_instances) {
-        cleanup_sigabrt_handler();
-    }
+    cleanup_sigabrt_handler();
 
     kill_qemu(s);
     close(s->fd);
