@@ -79,7 +79,6 @@ struct KVMState
     int coalesced_mmio;
     struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
     bool coalesced_flush_in_progress;
-    int broken_set_mem_region;
     int vcpu_events;
     int robust_singlestep;
     int debugregs;
@@ -127,6 +126,7 @@ static bool kvm_immediate_exit;
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
     KVM_CAP_INFO(DESTROY_MEMORY_REGION_WORKS),
+    KVM_CAP_INFO(JOIN_MEMORY_REGIONS_WORKS),
     KVM_CAP_LAST_INFO
 };
 
@@ -696,7 +696,6 @@ kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
 static void kvm_set_phys_mem(KVMMemoryListener *kml,
                              MemoryRegionSection *section, bool add)
 {
-    KVMState *s = kvm_state;
     KVMSlot *mem, old;
     int err;
     MemoryRegion *mr = section->mr;
@@ -763,35 +762,6 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
             abort();
         }
 
-        /* Workaround for older KVM versions: we can't join slots, even not by
-         * unregistering the previous ones and then registering the larger
-         * slot. We have to maintain the existing fragmentation. Sigh.
-         *
-         * This workaround assumes that the new slot starts at the same
-         * address as the first existing one. If not or if some overlapping
-         * slot comes around later, we will fail (not seen in practice so far)
-         * - and actually require a recent KVM version. */
-        if (s->broken_set_mem_region &&
-            old.start_addr == start_addr && old.memory_size < size && add) {
-            mem = kvm_alloc_slot(kml);
-            mem->memory_size = old.memory_size;
-            mem->start_addr = old.start_addr;
-            mem->ram = old.ram;
-            mem->flags = kvm_mem_flags(mr);
-
-            err = kvm_set_user_memory_region(kml, mem);
-            if (err) {
-                fprintf(stderr, "%s: error updating slot: %s\n", __func__,
-                        strerror(-err));
-                abort();
-            }
-
-            start_addr += old.memory_size;
-            ram += old.memory_size;
-            size -= old.memory_size;
-            continue;
-        }
-
         /* register prefix slot */
         if (old.start_addr < start_addr) {
             mem = kvm_alloc_slot(kml);
@@ -833,10 +803,6 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         }
     }
 
-    /* in case the KVM bug workaround already "consumed" the new slot */
-    if (!size) {
-        return;
-    }
     if (!add) {
         return;
     }
@@ -1691,12 +1657,6 @@ static int kvm_init(MachineState *ms)
     }
 
     s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
-
-    s->broken_set_mem_region = 1;
-    ret = kvm_check_extension(s, KVM_CAP_JOIN_MEMORY_REGIONS_WORKS);
-    if (ret > 0) {
-        s->broken_set_mem_region = 0;
-    }
 
 #ifdef KVM_CAP_VCPU_EVENTS
     s->vcpu_events = kvm_check_extension(s, KVM_CAP_VCPU_EVENTS);
