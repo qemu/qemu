@@ -857,6 +857,18 @@ static void create_header32(DumpState *s, Error **errp)
     kh->dump_level = cpu_to_dump32(s, DUMP_LEVEL);
 
     offset_note = DISKDUMP_HEADER_BLOCKS * block_size + size;
+    if (s->guest_note &&
+        note_name_equal(s, s->guest_note, "VMCOREINFO")) {
+        uint64_t hsize, name_size, size_vmcoreinfo_desc, offset_vmcoreinfo;
+
+        get_note_sizes(s, s->guest_note,
+                       &hsize, &name_size, &size_vmcoreinfo_desc);
+        offset_vmcoreinfo = offset_note + s->note_size - s->guest_note_size +
+            (DIV_ROUND_UP(hsize, 4) + DIV_ROUND_UP(name_size, 4)) * 4;
+        kh->offset_vmcoreinfo = cpu_to_dump64(s, offset_vmcoreinfo);
+        kh->size_vmcoreinfo = cpu_to_dump32(s, size_vmcoreinfo_desc);
+    }
+
     kh->offset_note = cpu_to_dump64(s, offset_note);
     kh->note_size = cpu_to_dump32(s, s->note_size);
 
@@ -957,6 +969,18 @@ static void create_header64(DumpState *s, Error **errp)
     kh->dump_level = cpu_to_dump32(s, DUMP_LEVEL);
 
     offset_note = DISKDUMP_HEADER_BLOCKS * block_size + size;
+    if (s->guest_note &&
+        note_name_equal(s, s->guest_note, "VMCOREINFO")) {
+        uint64_t hsize, name_size, size_vmcoreinfo_desc, offset_vmcoreinfo;
+
+        get_note_sizes(s, s->guest_note,
+                       &hsize, &name_size, &size_vmcoreinfo_desc);
+        offset_vmcoreinfo = offset_note + s->note_size - s->guest_note_size +
+            (DIV_ROUND_UP(hsize, 4) + DIV_ROUND_UP(name_size, 4)) * 4;
+        kh->offset_vmcoreinfo = cpu_to_dump64(s, offset_vmcoreinfo);
+        kh->size_vmcoreinfo = cpu_to_dump64(s, size_vmcoreinfo_desc);
+    }
+
     kh->offset_note = cpu_to_dump64(s, offset_note);
     kh->note_size = cpu_to_dump64(s, s->note_size);
 
