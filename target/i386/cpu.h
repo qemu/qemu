@@ -1282,6 +1282,8 @@ struct X86CPU {
     int32_t socket_id;
     int32_t core_id;
     int32_t thread_id;
+
+    int32_t hv_max_vps;
 };
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
