@@ -1227,8 +1227,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     switch (s->fat_type) {
     case 32:
-        warn_report("FAT32 has not been tested. "
-                    "You are welcome to do so!");
+        warn_report("FAT32 has not been tested. You are welcome to do so!");
         break;
     case 16:
     case 12:

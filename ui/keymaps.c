@@ -198,8 +198,7 @@ int keysym2scancode(void *kbd_layout, int keysym)
     if (keysym < MAX_NORMAL_KEYCODE) {
         if (k->keysym2keycode[keysym] == 0) {
             trace_keymap_unmapped(keysym);
-            warn_report("no scancode found for keysym %d",
-                        keysym);
+            warn_report("no scancode found for keysym %d", keysym);
         }
         return k->keysym2keycode[keysym];
     } else {

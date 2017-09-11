@@ -254,8 +254,7 @@ void mips_r4k_init(MachineState *machine)
 	}
     } else if (!qtest_enabled()) {
         /* not fatal */
-        warn_report("could not load MIPS bios '%s'",
-                    bios_name);
+        warn_report("could not load MIPS bios '%s'", bios_name);
     }
     g_free(filename);
 

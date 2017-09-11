@@ -9321,8 +9321,7 @@ static void init_ppc_proc(PowerPCCPU *cpu)
     }
 #endif
     if (env->check_pow == NULL) {
-        warn_report("no power management check handler "
-                    "registered."
+        warn_report("no power management check handler registered."
                     " Attempt QEMU to crash very soon !");
     }
 }

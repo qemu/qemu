@@ -1494,8 +1494,9 @@ void net_check_clients(void)
     QTAILQ_FOREACH(nc, &net_clients, next) {
         if (!nc->peer) {
             warn_report("%s %s has no peer",
-                        nc->info->type == NET_CLIENT_DRIVER_NIC ?
-                        "nic" : "netdev", nc->name);
+                        nc->info->type == NET_CLIENT_DRIVER_NIC
+                        ? "nic" : "netdev",
+                        nc->name);
         }
     }
 

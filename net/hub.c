@@ -310,8 +310,7 @@ void net_hub_check_clients(void)
         QLIST_FOREACH(port, &hub->ports, next) {
             peer = port->nc.peer;
             if (!peer) {
-                warn_report("hub port %s has no peer",
-                            port->nc.name);
+                warn_report("hub port %s has no peer", port->nc.name);
                 continue;
             }
 
@@ -334,8 +333,7 @@ void net_hub_check_clients(void)
             warn_report("vlan %d with no nics", hub->id);
         }
         if (has_nic && !has_host_dev) {
-            warn_report("vlan %d is not connected to host network",
-                        hub->id);
+            warn_report("vlan %d is not connected to host network", hub->id);
         }
     }
 }

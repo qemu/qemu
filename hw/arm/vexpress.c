@@ -494,7 +494,7 @@ static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
          * happen with older device tree blobs.
          */
         warn_report("couldn't find interrupt controller in "
-                    "dtb; will not include virtio-mmio devices in the dtb.");
+                    "dtb; will not include virtio-mmio devices in the dtb");
     } else {
         int i;
         const hwaddr *map = daughterboard->motherboard_map;

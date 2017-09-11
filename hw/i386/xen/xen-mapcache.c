@@ -127,7 +127,7 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
 
         if (rlimit_as.rlim_max != RLIM_INFINITY) {
             warn_report("QEMU's maximum size of virtual"
-                        " memory is not infinity.");
+                        " memory is not infinity");
         }
         if (rlimit_as.rlim_max < MCACHE_MAX_SIZE + NON_MCACHE_MEMORY_SIZE) {
             mapcache->max_mcache_size = rlimit_as.rlim_max -
