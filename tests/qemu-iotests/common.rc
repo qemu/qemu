@@ -43,7 +43,7 @@ poke_file()
 
 if ! . ./common.config
     then
-    echo "$iam: failed to source common.config"
+    echo "$0: failed to source common.config"
     exit 1
 fi
 

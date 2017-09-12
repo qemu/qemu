@@ -30,12 +30,9 @@ interrupt=true
 # by default don't output timestamps
 timestamp=${TIMESTAMP:=false}
 
-# generic initialization
-iam=check
-
 _init_error()
 {
-    echo "$iam: $1" >&2
+    echo "check: $1" >&2
     exit 1
 }
 
