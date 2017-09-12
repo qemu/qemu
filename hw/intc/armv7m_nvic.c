@@ -423,6 +423,25 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     switch (offset) {
     case 4: /* Interrupt Control Type.  */
         return ((s->num_irq - NVIC_FIRST_IRQ) / 32) - 1;
+    case 0x380 ... 0x3bf: /* NVIC_ITNS<n> */
+    {
+        int startvec = 32 * (offset - 0x380) + NVIC_FIRST_IRQ;
+        int i;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        val = 0;
+        for (i = 0; i < 32 && startvec + i < s->num_irq; i++) {
+            if (s->itns[startvec + i]) {
+                val |= (1 << i);
+            }
+        }
+        return val;
+    }
     case 0xd00: /* CPUID Base.  */
         return cpu->midr;
     case 0xd04: /* Interrupt Control State.  */
@@ -658,6 +677,23 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     ARMCPU *cpu = s->cpu;
 
     switch (offset) {
+    case 0x380 ... 0x3bf: /* NVIC_ITNS<n> */
+    {
+        int startvec = 32 * (offset - 0x380) + NVIC_FIRST_IRQ;
+        int i;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            break;
+        }
+        for (i = 0; i < 32 && startvec + i < s->num_irq; i++) {
+            s->itns[startvec + i] = (value >> i) & 1;
+        }
+        nvic_irq_update(s);
+        break;
+    }
     case 0xd04: /* Interrupt Control State.  */
         if (value & (1 << 31)) {
             armv7m_nvic_set_pending(s, ARMV7M_EXCP_NMI);
@@ -966,7 +1002,8 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         startvec = offset - 0x180 + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
-            if (s->vectors[startvec + i].enabled) {
+            if (s->vectors[startvec + i].enabled &&
+                (attrs.secure || s->itns[startvec + i])) {
                 val |= (1 << i);
             }
         }
@@ -978,7 +1015,8 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         val = 0;
         startvec = offset - 0x280 + NVIC_FIRST_IRQ; /* vector # */
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
-            if (s->vectors[startvec + i].pending) {
+            if (s->vectors[startvec + i].pending &&
+                (attrs.secure || s->itns[startvec + i])) {
                 val |= (1 << i);
             }
         }
@@ -988,7 +1026,8 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         startvec = offset - 0x300 + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
-            if (s->vectors[startvec + i].active) {
+            if (s->vectors[startvec + i].active &&
+                (attrs.secure || s->itns[startvec + i])) {
                 val |= (1 << i);
             }
         }
@@ -998,7 +1037,9 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         startvec = offset - 0x400 + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0; i < size && startvec + i < s->num_irq; i++) {
-            val |= s->vectors[startvec + i].prio << (8 * i);
+            if (attrs.secure || s->itns[startvec + i]) {
+                val |= s->vectors[startvec + i].prio << (8 * i);
+            }
         }
         break;
     case 0xd18 ... 0xd23: /* System Handler Priority.  */
@@ -1055,7 +1096,8 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         startvec = 8 * (offset - 0x180) + NVIC_FIRST_IRQ;
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
-            if (value & (1 << i)) {
+            if (value & (1 << i) &&
+                (attrs.secure || s->itns[startvec + i])) {
                 s->vectors[startvec + i].enabled = setval;
             }
         }
@@ -1072,7 +1114,8 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         startvec = 8 * (offset - 0x280) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
-            if (value & (1 << i)) {
+            if (value & (1 << i) &&
+                (attrs.secure || s->itns[startvec + i])) {
                 s->vectors[startvec + i].pending = setval;
             }
         }
@@ -1084,7 +1127,9 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         startvec = 8 * (offset - 0x400) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0; i < size && startvec + i < s->num_irq; i++) {
-            set_prio(s, startvec + i, (value >> (i * 8)) & 0xff);
+            if (attrs.secure || s->itns[startvec + i]) {
+                set_prio(s, startvec + i, (value >> (i * 8)) & 0xff);
+            }
         }
         nvic_irq_update(s);
         return MEMTX_OK;
@@ -1223,6 +1268,7 @@ static const VMStateDescription vmstate_nvic_security = {
         VMSTATE_STRUCT_ARRAY(sec_vectors, NVICState, NVIC_INTERNAL_VECTORS, 1,
                              vmstate_VecInfo, VecInfo),
         VMSTATE_UINT32(prigroup[M_REG_S], NVICState),
+        VMSTATE_BOOL_ARRAY(itns, NVICState, NVIC_MAX_VECTORS),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1288,6 +1334,20 @@ static void armv7m_nvic_reset(DeviceState *dev)
     s->vectpending = 0;
     s->vectpending_is_s_banked = false;
     s->vectpending_prio = NVIC_NOEXC_PRIO;
+
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY)) {
+        memset(s->itns, 0, sizeof(s->itns));
+    } else {
+        /* This state is constant and not guest accessible in a non-security
+         * NVIC; we set the bits to true to avoid having to do a feature
+         * bit check in the NVIC enable/pend/etc register accessors.
+         */
+        int i;
+
+        for (i = NVIC_FIRST_IRQ; i < ARRAY_SIZE(s->itns); i++) {
+            s->itns[i] = true;
+        }
+    }
 }
 
 static void nvic_systick_trigger(void *opaque, int n, int level)

@@ -58,6 +58,9 @@ typedef struct NVICState {
     /* The PRIGROUP field in AIRCR is banked */
     uint32_t prigroup[M_REG_NUM_BANKS];
 
+    /* v8M NVIC_ITNS state (stored as a bool per bit) */
+    bool itns[NVIC_MAX_VECTORS];
+
     /* The following fields are all cached state that can be recalculated
      * from the vectors[] and sec_vectors[] arrays and the prigroup field:
      *  - vectpending
