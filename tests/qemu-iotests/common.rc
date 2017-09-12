@@ -40,14 +40,11 @@ poke_file()
     printf "$3" | dd "of=$1" bs=1 "seek=$2" conv=notrunc &>/dev/null
 }
 
-# we need common.config
-if [ "$iam" != "check" ]
-then
-    if ! . ./common.config
-        then
-        echo "$iam: failed to source common.config"
-        exit 1
-    fi
+
+if ! . ./common.config
+    then
+    echo "$iam: failed to source common.config"
+    exit 1
 fi
 
 _qemu_wrapper()

@@ -72,12 +72,6 @@ then
     _init_error "failed to source common.config"
 fi
 
-# we need common.rc
-if ! . "$source_iotests/common.rc"
-then
-    _init_error "failed to source common.rc"
-fi
-
 # we need common
 . "$source_iotests/common"
 
