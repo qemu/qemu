@@ -703,7 +703,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     }
     case 0xd00: /* CPUID Base.  */
         return cpu->midr;
-    case 0xd04: /* Interrupt Control State.  */
+    case 0xd04: /* Interrupt Control State (ICSR) */
         /* VECTACTIVE */
         val = cpu->env.v7m.exception;
         /* VECTPENDING */
@@ -716,19 +716,32 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         if (nvic_rettobase(s)) {
             val |= (1 << 11);
         }
-        /* PENDSTSET */
-        if (s->vectors[ARMV7M_EXCP_SYSTICK].pending) {
-            val |= (1 << 26);
-        }
-        /* PENDSVSET */
-        if (s->vectors[ARMV7M_EXCP_PENDSV].pending) {
-            val |= (1 << 28);
+        if (attrs.secure) {
+            /* PENDSTSET */
+            if (s->sec_vectors[ARMV7M_EXCP_SYSTICK].pending) {
+                val |= (1 << 26);
+            }
+            /* PENDSVSET */
+            if (s->sec_vectors[ARMV7M_EXCP_PENDSV].pending) {
+                val |= (1 << 28);
+            }
+        } else {
+            /* PENDSTSET */
+            if (s->vectors[ARMV7M_EXCP_SYSTICK].pending) {
+                val |= (1 << 26);
+            }
+            /* PENDSVSET */
+            if (s->vectors[ARMV7M_EXCP_PENDSV].pending) {
+                val |= (1 << 28);
+            }
         }
         /* NMIPENDSET */
-        if (s->vectors[ARMV7M_EXCP_NMI].pending) {
+        if ((cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) &&
+            s->vectors[ARMV7M_EXCP_NMI].pending) {
             val |= (1 << 31);
         }
-        /* ISRPREEMPT not implemented */
+        /* ISRPREEMPT: RES0 when halting debug not implemented */
+        /* STTNS: RES0 for the Main Extension */
         return val;
     case 0xd08: /* Vector Table Offset.  */
         return cpu->env.v7m.vecbase[attrs.secure];
@@ -953,9 +966,15 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         nvic_irq_update(s);
         break;
     }
-    case 0xd04: /* Interrupt Control State.  */
-        if (value & (1 << 31)) {
-            armv7m_nvic_set_pending(s, ARMV7M_EXCP_NMI, false);
+    case 0xd04: /* Interrupt Control State (ICSR) */
+        if (cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) {
+            if (value & (1 << 31)) {
+                armv7m_nvic_set_pending(s, ARMV7M_EXCP_NMI, false);
+            } else if (value & (1 << 30) &&
+                       arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+                /* PENDNMICLR didn't exist in v7M */
+                armv7m_nvic_clear_pending(s, ARMV7M_EXCP_NMI, false);
+            }
         }
         if (value & (1 << 28)) {
             armv7m_nvic_set_pending(s, ARMV7M_EXCP_PENDSV, attrs.secure);
