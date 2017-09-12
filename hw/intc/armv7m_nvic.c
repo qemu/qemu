@@ -384,31 +384,50 @@ static void nvic_irq_update(NVICState *s)
     qemu_set_irq(s->excpout, lvl);
 }
 
-static void armv7m_nvic_clear_pending(void *opaque, int irq)
+/**
+ * armv7m_nvic_clear_pending: mark the specified exception as not pending
+ * @opaque: the NVIC
+ * @irq: the exception number to mark as not pending
+ * @secure: false for non-banked exceptions or for the nonsecure
+ * version of a banked exception, true for the secure version of a banked
+ * exception.
+ *
+ * Marks the specified exception as not pending. Note that we will assert()
+ * if @secure is true and @irq does not specify one of the fixed set
+ * of architecturally banked exceptions.
+ */
+static void armv7m_nvic_clear_pending(void *opaque, int irq, bool secure)
 {
     NVICState *s = (NVICState *)opaque;
     VecInfo *vec;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
 
-    vec = &s->vectors[irq];
-    trace_nvic_clear_pending(irq, vec->enabled, vec->prio);
+    if (secure) {
+        assert(exc_is_banked(irq));
+        vec = &s->sec_vectors[irq];
+    } else {
+        vec = &s->vectors[irq];
+    }
+    trace_nvic_clear_pending(irq, secure, vec->enabled, vec->prio);
     if (vec->pending) {
         vec->pending = 0;
         nvic_irq_update(s);
     }
 }
 
-void armv7m_nvic_set_pending(void *opaque, int irq)
+void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
 {
     NVICState *s = (NVICState *)opaque;
+    bool banked = exc_is_banked(irq);
     VecInfo *vec;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
+    assert(!secure || banked);
 
-    vec = &s->vectors[irq];
-    trace_nvic_set_pending(irq, vec->enabled, vec->prio);
+    vec = (banked && secure) ? &s->sec_vectors[irq] : &s->vectors[irq];
 
+    trace_nvic_set_pending(irq, secure, vec->enabled, vec->prio);
 
     if (irq >= ARMV7M_EXCP_HARD && irq < ARMV7M_EXCP_PENDSV) {
         /* If a synchronous exception is pending then it may be
@@ -454,9 +473,20 @@ void armv7m_nvic_set_pending(void *opaque, int irq)
                           "(current priority %d)\n", irq, running);
             }
 
-            /* We can do the escalation, so we take HardFault instead */
+            /* We can do the escalation, so we take HardFault instead.
+             * If BFHFNMINS is set then we escalate to the banked HF for
+             * the target security state of the original exception; otherwise
+             * we take a Secure HardFault.
+             */
             irq = ARMV7M_EXCP_HARD;
-            vec = &s->vectors[irq];
+            if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY) &&
+                (secure ||
+                 !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK))) {
+                vec = &s->sec_vectors[irq];
+            } else {
+                vec = &s->vectors[irq];
+            }
+            /* HF may be banked but there is only one shared HFSR */
             s->cpu->env.v7m.hfsr |= R_V7M_HFSR_FORCED_MASK;
         }
     }
@@ -551,7 +581,7 @@ static void set_irq_level(void *opaque, int n, int level)
     if (level != vec->level) {
         vec->level = level;
         if (level) {
-            armv7m_nvic_set_pending(s, n);
+            armv7m_nvic_set_pending(s, n, false);
         }
     }
 }
@@ -837,17 +867,17 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     }
     case 0xd04: /* Interrupt Control State.  */
         if (value & (1 << 31)) {
-            armv7m_nvic_set_pending(s, ARMV7M_EXCP_NMI);
+            armv7m_nvic_set_pending(s, ARMV7M_EXCP_NMI, false);
         }
         if (value & (1 << 28)) {
-            armv7m_nvic_set_pending(s, ARMV7M_EXCP_PENDSV);
+            armv7m_nvic_set_pending(s, ARMV7M_EXCP_PENDSV, attrs.secure);
         } else if (value & (1 << 27)) {
-            armv7m_nvic_clear_pending(s, ARMV7M_EXCP_PENDSV);
+            armv7m_nvic_clear_pending(s, ARMV7M_EXCP_PENDSV, attrs.secure);
         }
         if (value & (1 << 26)) {
-            armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK);
+            armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK, attrs.secure);
         } else if (value & (1 << 25)) {
-            armv7m_nvic_clear_pending(s, ARMV7M_EXCP_SYSTICK);
+            armv7m_nvic_clear_pending(s, ARMV7M_EXCP_SYSTICK, attrs.secure);
         }
         break;
     case 0xd08: /* Vector Table Offset.  */
@@ -1093,7 +1123,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     {
         int excnum = (value & 0x1ff) + NVIC_FIRST_IRQ;
         if (excnum < s->num_irq) {
-            armv7m_nvic_set_pending(s, excnum);
+            armv7m_nvic_set_pending(s, excnum, false);
         }
         break;
     }
@@ -1499,8 +1529,10 @@ static void nvic_systick_trigger(void *opaque, int n, int level)
         /* SysTick just asked us to pend its exception.
          * (This is different from an external interrupt line's
          * behaviour.)
+         * TODO: when we implement the banked systicks we must make
+         * this pend the correct banked exception.
          */
-        armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK);
+        armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK, false);
     }
 }
 
