@@ -114,6 +114,10 @@ export QEMU_VXHS=_qemu_vxhs_wrapper
 
 if [ "$IMGOPTSSYNTAX" = "true" ]; then
     DRIVER="driver=$IMGFMT"
+    QEMU_IMG_EXTRA_ARGS="--image-opts $QEMU_IMG_EXTRA_ARGS"
+    if [ -n "$IMGKEYSECRET" ]; then
+        QEMU_IMG_EXTRA_ARGS="--object secret,id=keysec0,data=$IMGKEYSECRET $QEMU_IMG_EXTRA_ARGS"
+    fi
     if [ "$IMGFMT" = "luks" ]; then
         DRIVER="$DRIVER,key-secret=keysec0"
     fi
@@ -133,6 +137,7 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
         TEST_IMG="$DRIVER,file.driver=$IMGPROTO,file.filename=$TEST_DIR/t.$IMGFMT"
     fi
 else
+    QEMU_IMG_EXTRA_ARGS=
     if [ "$IMGPROTO" = "file" ]; then
         TEST_IMG=$TEST_DIR/t.$IMGFMT
     elif [ "$IMGPROTO" = "nbd" ]; then
@@ -152,6 +157,26 @@ else
     fi
 fi
 ORIG_TEST_IMG="$TEST_IMG"
+
+if [ -z "$TEST_DIR" ]; then
+        TEST_DIR=`pwd`/scratch
+fi
+
+QEMU_TEST_DIR="${TEST_DIR}"
+
+if [ ! -e "$TEST_DIR" ]; then
+        mkdir "$TEST_DIR"
+fi
+
+if [ ! -d "$TEST_DIR" ]; then
+    echo "common.config: Error: \$TEST_DIR ($TEST_DIR) is not a directory"
+    exit 1
+fi
+
+if [ ! -d "$SAMPLE_IMG_DIR" ]; then
+    echo "common.config: Error: \$SAMPLE_IMG_DIR ($SAMPLE_IMG_DIR) is not a directory"
+    exit 1
+fi
 
 _use_sample_img()
 {

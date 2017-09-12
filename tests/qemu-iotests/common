@@ -48,6 +48,14 @@ set_prog_path()
     fi
 }
 
+if [ -z "$TEST_DIR" ]; then
+        TEST_DIR=`pwd`/scratch
+fi
+
+if [ ! -e "$TEST_DIR" ]; then
+        mkdir "$TEST_DIR"
+fi
+
 diff="diff -u"
 verbose=false
 debug=false
@@ -440,6 +448,13 @@ if [ "$IMGFMT" == "luks" ] && ! (echo "$IMGOPTS" | grep "iter-time=" > /dev/null
     IMGOPTS=$(_optstr_add "$IMGOPTS" "iter-time=10")
 fi
 
+if [ -z "$SAMPLE_IMG_DIR" ]; then
+        SAMPLE_IMG_DIR="$source_iotests/sample_images"
+fi
+
+export TEST_DIR
+export SAMPLE_IMG_DIR
+
 if [ -s $tmp.list ]
 then
     # found some valid test numbers ... this is good
@@ -524,3 +539,12 @@ if [ -x "$build_iotests/socket_scm_helper" ]
 then
     export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
 fi
+
+default_machine=$($QEMU_PROG -machine help | sed -n '/(default)/ s/ .*//p')
+default_alias_machine=$($QEMU_PROG -machine help | \
+   sed -n "/(alias of $default_machine)/ { s/ .*//p; q; }")
+if [[ "$default_alias_machine" ]]; then
+    default_machine="$default_alias_machine"
+fi
+
+export QEMU_DEFAULT_MACHINE="$default_machine"

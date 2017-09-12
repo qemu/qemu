@@ -31,6 +31,7 @@ QEMU_FIFO_IN="${QEMU_TEST_DIR}/qmp-in-$$"
 QEMU_FIFO_OUT="${QEMU_TEST_DIR}/qmp-out-$$"
 
 QEMU_HANDLE=0
+export _QEMU_HANDLE=0
 
 # If bash version is >= 4.1, these will be overwritten and dynamic
 # file descriptor values assigned.
