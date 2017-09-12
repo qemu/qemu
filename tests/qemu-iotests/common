@@ -67,6 +67,8 @@ sortme=false
 expunge=true
 have_test_arg=false
 cachemode=false
+
+tmp="${TEST_DIR}"/$$
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
 export IMGFMT=raw

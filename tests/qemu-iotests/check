@@ -77,8 +77,6 @@ fi
 
 TIMESTAMP_FILE=check.time-$IMGPROTO-$IMGFMT
 
-tmp="${TEST_DIR}"/$$
-
 _wallclock()
 {
     date "+%H %M %S" | awk '{ print $1*3600 + $2*60 + $3 }'
