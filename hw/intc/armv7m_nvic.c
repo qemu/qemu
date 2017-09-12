@@ -937,11 +937,16 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                     (R_V7M_AIRCR_SYSRESETREQS_MASK |
                      R_V7M_AIRCR_BFHFNMINS_MASK |
                      R_V7M_AIRCR_PRIS_MASK);
-                /* BFHFNMINS changes the priority of Secure HardFault */
+                /* BFHFNMINS changes the priority of Secure HardFault, and
+                 * allows a pending Non-secure HardFault to preempt (which
+                 * we implement by marking it enabled).
+                 */
                 if (cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) {
                     s->sec_vectors[ARMV7M_EXCP_HARD].prio = -3;
+                    s->vectors[ARMV7M_EXCP_HARD].enabled = 1;
                 } else {
                     s->sec_vectors[ARMV7M_EXCP_HARD].prio = -1;
+                    s->vectors[ARMV7M_EXCP_HARD].enabled = 0;
                 }
             }
             nvic_irq_update(s);
@@ -1566,7 +1571,6 @@ static void armv7m_nvic_reset(DeviceState *dev)
     NVICState *s = NVIC(dev);
 
     s->vectors[ARMV7M_EXCP_NMI].enabled = 1;
-    s->vectors[ARMV7M_EXCP_HARD].enabled = 1;
     /* MEM, BUS, and USAGE are enabled through
      * the System Handler Control register
      */
@@ -1588,6 +1592,10 @@ static void armv7m_nvic_reset(DeviceState *dev)
 
         /* AIRCR.BFHFNMINS resets to 0 so Secure HF is priority -1 (R_CMTC) */
         s->sec_vectors[ARMV7M_EXCP_HARD].prio = -1;
+        /* If AIRCR.BFHFNMINS is 0 then NS HF is (effectively) disabled */
+        s->vectors[ARMV7M_EXCP_HARD].enabled = 0;
+    } else {
+        s->vectors[ARMV7M_EXCP_HARD].enabled = 1;
     }
 
     /* Strictly speaking the reset handler should be enabled.
