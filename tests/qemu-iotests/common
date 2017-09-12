@@ -366,7 +366,7 @@ testlist options
     if $xpand
     then
         have_test_arg=true
-        $AWK_PROG </dev/null '
+        awk </dev/null '
 BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
         | while read id
         do

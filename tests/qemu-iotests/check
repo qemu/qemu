@@ -128,7 +128,7 @@ tmp="${TEST_DIR}"/$$
 
 _wallclock()
 {
-    date "+%H %M %S" | $AWK_PROG '{ print $1*3600 + $2*60 + $3 }'
+    date "+%H %M %S" | awk '{ print $1*3600 + $2*60 + $3 }'
 }
 
 _timestamp()
@@ -147,7 +147,7 @@ _wrapup()
         if [ -f $TIMESTAMP_FILE -a -f $tmp.time ]
         then
             cat $TIMESTAMP_FILE $tmp.time \
-            | $AWK_PROG '
+            | awk '
         { t[$1] = $2 }
 END        { if (NR > 0) {
             for (i in t) print i " " t[i]
