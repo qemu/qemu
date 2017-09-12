@@ -937,6 +937,12 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                     (R_V7M_AIRCR_SYSRESETREQS_MASK |
                      R_V7M_AIRCR_BFHFNMINS_MASK |
                      R_V7M_AIRCR_PRIS_MASK);
+                /* BFHFNMINS changes the priority of Secure HardFault */
+                if (cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) {
+                    s->sec_vectors[ARMV7M_EXCP_HARD].prio = -3;
+                } else {
+                    s->sec_vectors[ARMV7M_EXCP_HARD].prio = -1;
+                }
             }
             nvic_irq_update(s);
         }
@@ -1452,9 +1458,12 @@ static int nvic_post_load(void *opaque, int version_id)
 {
     NVICState *s = opaque;
     unsigned i;
+    int resetprio;
 
     /* Check for out of range priority settings */
-    if (s->vectors[ARMV7M_EXCP_RESET].prio != -3 ||
+    resetprio = arm_feature(&s->cpu->env, ARM_FEATURE_V8) ? -4 : -3;
+
+    if (s->vectors[ARMV7M_EXCP_RESET].prio != resetprio ||
         s->vectors[ARMV7M_EXCP_NMI].prio != -2 ||
         s->vectors[ARMV7M_EXCP_HARD].prio != -1) {
         return 1;
@@ -1497,7 +1506,12 @@ static int nvic_security_post_load(void *opaque, int version_id)
     int i;
 
     /* Check for out of range priority settings */
-    if (s->sec_vectors[ARMV7M_EXCP_HARD].prio != -1) {
+    if (s->sec_vectors[ARMV7M_EXCP_HARD].prio != -1
+        && s->sec_vectors[ARMV7M_EXCP_HARD].prio != -3) {
+        /* We can't cross-check against AIRCR.BFHFNMINS as we don't know
+         * if the CPU state has been migrated yet; a mismatch won't
+         * cause the emulation to blow up, though.
+         */
         return 1;
     }
     for (i = ARMV7M_EXCP_MEM; i < ARRAY_SIZE(s->sec_vectors); i++) {
@@ -1548,6 +1562,7 @@ static Property props_nvic[] = {
 
 static void armv7m_nvic_reset(DeviceState *dev)
 {
+    int resetprio;
     NVICState *s = NVIC(dev);
 
     s->vectors[ARMV7M_EXCP_NMI].enabled = 1;
@@ -1560,7 +1575,8 @@ static void armv7m_nvic_reset(DeviceState *dev)
     s->vectors[ARMV7M_EXCP_PENDSV].enabled = 1;
     s->vectors[ARMV7M_EXCP_SYSTICK].enabled = 1;
 
-    s->vectors[ARMV7M_EXCP_RESET].prio = -3;
+    resetprio = arm_feature(&s->cpu->env, ARM_FEATURE_V8) ? -4 : -3;
+    s->vectors[ARMV7M_EXCP_RESET].prio = resetprio;
     s->vectors[ARMV7M_EXCP_NMI].prio = -2;
     s->vectors[ARMV7M_EXCP_HARD].prio = -1;
 
