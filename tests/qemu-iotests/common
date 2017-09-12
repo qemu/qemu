@@ -19,6 +19,24 @@
 # common procedures for QA scripts
 #
 
+_full_imgfmt_details()
+{
+    if [ -n "$IMGOPTS" ]; then
+        echo "$IMGFMT ($IMGOPTS)"
+    else
+        echo "$IMGFMT"
+    fi
+}
+
+_full_platform_details()
+{
+    os=`uname -s`
+    host=`hostname -s`
+    kernel=`uname -r`
+    platform=`uname -m`
+    echo "$os/$platform $host $kernel"
+}
+
 diff="diff -u"
 verbose=false
 debug=false
@@ -404,7 +422,12 @@ if [ "$IMGOPTSSYNTAX" != "true" ]; then
 fi
 
 # Set default options for qemu-img create -o if they were not specified
-_set_default_imgopts
+if [ "$IMGFMT" == "qcow2" ] && ! (echo "$IMGOPTS" | grep "compat=" > /dev/null); then
+    IMGOPTS=$(_optstr_add "$IMGOPTS" "compat=1.1")
+fi
+if [ "$IMGFMT" == "luks" ] && ! (echo "$IMGOPTS" | grep "iter-time=" > /dev/null); then
+    IMGOPTS=$(_optstr_add "$IMGOPTS" "iter-time=10")
+fi
 
 if [ -s $tmp.list ]
 then

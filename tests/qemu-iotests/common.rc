@@ -50,9 +50,6 @@ then
     fi
 fi
 
-# make sure we have a standard umask
-umask 022
-
 if [ "$IMGOPTSSYNTAX" = "true" ]; then
     DRIVER="driver=$IMGFMT"
     if [ "$IMGFMT" = "luks" ]; then
@@ -93,25 +90,6 @@ else
     fi
 fi
 ORIG_TEST_IMG="$TEST_IMG"
-
-_optstr_add()
-{
-    if [ -n "$1" ]; then
-        echo "$1,$2"
-    else
-        echo "$2"
-    fi
-}
-
-_set_default_imgopts()
-{
-    if [ "$IMGFMT" == "qcow2" ] && ! (echo "$IMGOPTS" | grep "compat=" > /dev/null); then
-        IMGOPTS=$(_optstr_add "$IMGOPTS" "compat=1.1")
-    fi
-    if [ "$IMGFMT" == "luks" ] && ! (echo "$IMGOPTS" | grep "iter-time=" > /dev/null); then
-        IMGOPTS=$(_optstr_add "$IMGOPTS" "iter-time=10")
-    fi
-}
 
 _use_sample_img()
 {
@@ -426,24 +404,6 @@ _require_command()
         eval c=\$$1
     fi
     [ -x "$c" ] || _notrun "$1 utility required, skipped this test"
-}
-
-_full_imgfmt_details()
-{
-    if [ -n "$IMGOPTS" ]; then
-        echo "$IMGFMT ($IMGOPTS)"
-    else
-        echo "$IMGFMT"
-    fi
-}
-
-_full_platform_details()
-{
-    os=`uname -s`
-    host=`hostname -s`
-    kernel=`uname -r`
-    platform=`uname -m`
-    echo "$os/$platform $host $kernel"
 }
 
 # make sure this script returns success
