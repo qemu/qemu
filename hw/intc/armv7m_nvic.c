@@ -84,9 +84,12 @@ static int nvic_pending_prio(NVICState *s)
 static bool nvic_rettobase(NVICState *s)
 {
     int irq, nhand = 0;
+    bool check_sec = arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY);
 
     for (irq = ARMV7M_EXCP_RESET; irq < s->num_irq; irq++) {
-        if (s->vectors[irq].active) {
+        if (s->vectors[irq].active ||
+            (check_sec && irq < NVIC_INTERNAL_VECTORS &&
+             s->sec_vectors[irq].active)) {
             nhand++;
             if (nhand == 2) {
                 return 0;
