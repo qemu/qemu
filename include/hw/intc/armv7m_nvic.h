@@ -57,10 +57,17 @@ typedef struct NVICState {
     VecInfo sec_vectors[NVIC_INTERNAL_VECTORS];
     uint32_t prigroup;
 
-    /* vectpending and exception_prio are both cached state that can
-     * be recalculated from the vectors[] array and the prigroup field.
+    /* The following fields are all cached state that can be recalculated
+     * from the vectors[] and sec_vectors[] arrays and the prigroup field:
+     *  - vectpending
+     *  - vectpending_is_secure
+     *  - exception_prio
      */
     unsigned int vectpending; /* highest prio pending enabled exception */
+    /* true if vectpending is a banked secure exception, ie it is in
+     * sec_vectors[] rather than vectors[]
+     */
+    bool vectpending_is_s_banked;
     int exception_prio; /* group prio of the highest prio active exception */
 
     MemoryRegion sysregmem;
