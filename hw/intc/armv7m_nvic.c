@@ -368,6 +368,35 @@ static inline int nvic_exec_prio(NVICState *s)
     return MIN(running, s->exception_prio);
 }
 
+bool armv7m_nvic_neg_prio_requested(void *opaque, bool secure)
+{
+    /* Return true if the requested execution priority is negative
+     * for the specified security state, ie that security state
+     * has an active NMI or HardFault or has set its FAULTMASK.
+     * Note that this is not the same as whether the execution
+     * priority is actually negative (for instance AIRCR.PRIS may
+     * mean we don't allow FAULTMASK_NS to actually make the execution
+     * priority negative). Compare pseudocode IsReqExcPriNeg().
+     */
+    NVICState *s = opaque;
+
+    if (s->cpu->env.v7m.faultmask[secure]) {
+        return true;
+    }
+
+    if (secure ? s->sec_vectors[ARMV7M_EXCP_HARD].active :
+        s->vectors[ARMV7M_EXCP_HARD].active) {
+        return true;
+    }
+
+    if (s->vectors[ARMV7M_EXCP_NMI].active &&
+        exc_targets_secure(s, ARMV7M_EXCP_NMI) == secure) {
+        return true;
+    }
+
+    return false;
+}
+
 bool armv7m_nvic_can_take_pending_exception(void *opaque)
 {
     NVICState *s = opaque;
