@@ -60,47 +60,6 @@ fi
 
 build_root="$build_iotests/../.."
 
-if [ -x "$build_iotests/socket_scm_helper" ]
-then
-    export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
-fi
-
-if [[ -z "$QEMU_PROG" && ! -x './qemu' ]]
-then
-    arch=$(uname -m 2> /dev/null)
-
-    if [[ -n $arch && -x "$build_root/$arch-softmmu/qemu-system-$arch" ]]
-    then
-        export QEMU_PROG="$build_root/$arch-softmmu/qemu-system-$arch"
-    else
-        pushd "$build_root" > /dev/null
-        for binary in *-softmmu/qemu-system-*
-        do
-            if [ -x "$binary" ]
-            then
-                export QEMU_PROG="$build_root/$binary"
-                break
-            fi
-        done
-        popd > /dev/null
-    fi
-fi
-
-if [[ -z $QEMU_IMG_PROG && -x "$build_root/qemu-img" && ! -x './qemu-img' ]]
-then
-    export QEMU_IMG_PROG="$build_root/qemu-img"
-fi
-
-if [[ -z $QEMU_IO_PROG && -x "$build_root/qemu-io" && ! -x './qemu-io' ]]
-then
-    export QEMU_IO_PROG="$build_root/qemu-io"
-fi
-
-if [[ -z $QEMU_NBD_PROG && -x "$build_root/qemu-nbd" && ! -x './qemu-nbd' ]]
-then
-    export QEMU_NBD_PROG="$build_root/qemu-nbd"
-fi
-
 # we need common.env
 if ! . "$build_iotests/common.env"
 then

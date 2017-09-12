@@ -37,6 +37,17 @@ _full_platform_details()
     echo "$os/$platform $host $kernel"
 }
 
+# $1 = prog to look for
+set_prog_path()
+{
+    p=`command -v $1 2> /dev/null`
+    if [ -n "$p" -a -x "$p" ]; then
+        realpath -- "$(type -p "$p")"
+    else
+        return 1
+    fi
+}
+
 diff="diff -u"
 verbose=false
 debug=false
@@ -450,10 +461,66 @@ fi
 list=`sort $tmp.list`
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
-[ "$QEMU" = "" ] && _fatal "qemu not found"
-[ "$QEMU_IMG" = "" ] && _fatal "qemu-img not found"
-[ "$QEMU_IO" = "" ] && _fatal "qemu-io not found"
+if [ -z "$QEMU_PROG" ]
+then
+    if [ -x "$build_iotests/qemu" ]; then
+        export QEMU_PROG="$build_iotests/qemu"
+    elif [ -x "$build_root/$arch-softmmu/qemu-system-$arch" ]; then
+        export QEMU_PROG="$build_root/$arch-softmmu/qemu-system-$arch"
+    else
+        pushd "$build_root" > /dev/null
+        for binary in *-softmmu/qemu-system-*
+        do
+            if [ -x "$binary" ]
+            then
+                export QEMU_PROG="$build_root/$binary"
+                break
+            fi
+        done
+        popd > /dev/null
+        [ "$QEMU_PROG" = "" ] && _init_error "qemu not found"
+    fi
+fi
+export QEMU_PROG=$(realpath -- "$(type -p "$QEMU_PROG")")
 
-if [ "$IMGPROTO" = "nbd" ] ; then
-    [ "$QEMU_NBD" = "" ] && _fatal "qemu-nbd not found"
+if [ -z "$QEMU_IMG_PROG" ]; then
+    if [ -x "$build_iotests/qemu-img" ]; then
+        export QEMU_IMG_PROG="$build_iotests/qemu-img"
+    elif [ -x "$build_root/qemu-img" ]; then
+        export QEMU_IMG_PROG="$build_root/qemu-img"
+    else
+        _init_error "qemu-img not found"
+    fi
+fi
+export QEMU_IMG_PROG=$(realpath -- "$(type -p "$QEMU_IMG_PROG")")
+
+if [ -z "$QEMU_IO_PROG" ]; then
+    if [ -x "$build_iotests/qemu-io" ]; then
+        export QEMU_IO_PROG="$build_iotests/qemu-io"
+    elif [ -x "$build_root/qemu-io" ]; then
+        export QEMU_IO_PROG="$build_root/qemu-io"
+    else
+        _init_error "qemu-io not found"
+    fi
+fi
+export QEMU_IO_PROG=$(realpath -- "$(type -p "$QEMU_IO_PROG")")
+
+if [ -z $QEMU_NBD_PROG ]; then
+    if [ -x "$build_iotests/qemu-nbd" ]; then
+        export QEMU_NBD_PROG="$build_iotests/qemu-nbd"
+    elif [ -x "$build_root/qemu-nbd" ]; then
+        export QEMU_NBD_PROG="$build_root/qemu-nbd"
+    else
+        _init_error "qemu-nbd not found"
+    fi
+fi
+export QEMU_NBD_PROG=$(realpath -- "$(type -p "$QEMU_NBD_PROG")")
+
+if [ -z "$QEMU_VXHS_PROG" ]; then
+  export QEMU_VXHS_PROG="`set_prog_path qnio_server`"
+fi
+
+if [ -x "$build_iotests/socket_scm_helper" ]
+then
+    export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
 fi
