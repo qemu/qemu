@@ -62,6 +62,7 @@ typedef struct NVICState {
      *  - vectpending
      *  - vectpending_is_secure
      *  - exception_prio
+     *  - vectpending_prio
      */
     unsigned int vectpending; /* highest prio pending enabled exception */
     /* true if vectpending is a banked secure exception, ie it is in
@@ -69,6 +70,7 @@ typedef struct NVICState {
      */
     bool vectpending_is_s_banked;
     int exception_prio; /* group prio of the highest prio active exception */
+    int vectpending_prio; /* group prio of the exeception in vectpending */
 
     MemoryRegion sysregmem;
     MemoryRegion sysreg_ns_mem;

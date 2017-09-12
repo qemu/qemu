@@ -61,10 +61,10 @@ static const uint8_t nvic_id[] = {
 
 static int nvic_pending_prio(NVICState *s)
 {
-    /* return the priority of the current pending interrupt,
+    /* return the group priority of the current pending interrupt,
      * or NVIC_NOEXC_PRIO if no interrupt is pending
      */
-    return s->vectpending ? s->vectors[s->vectpending].prio : NVIC_NOEXC_PRIO;
+    return s->vectpending_prio;
 }
 
 /* Return the value of the ISCR RETTOBASE bit:
@@ -156,10 +156,17 @@ static void nvic_recompute_state(NVICState *s)
         active_prio &= nvic_gprio_mask(s);
     }
 
+    if (pend_prio > 0) {
+        pend_prio &= nvic_gprio_mask(s);
+    }
+
     s->vectpending = pend_irq;
+    s->vectpending_prio = pend_prio;
     s->exception_prio = active_prio;
 
-    trace_nvic_recompute_state(s->vectpending, s->exception_prio);
+    trace_nvic_recompute_state(s->vectpending,
+                               s->vectpending_prio,
+                               s->exception_prio);
 }
 
 /* Return the current execution priority of the CPU
@@ -323,7 +330,6 @@ void armv7m_nvic_acknowledge_irq(void *opaque)
     CPUARMState *env = &s->cpu->env;
     const int pending = s->vectpending;
     const int running = nvic_exec_prio(s);
-    int pendgroupprio;
     VecInfo *vec;
 
     assert(pending > ARMV7M_EXCP_RESET && pending < s->num_irq);
@@ -333,13 +339,9 @@ void armv7m_nvic_acknowledge_irq(void *opaque)
     assert(vec->enabled);
     assert(vec->pending);
 
-    pendgroupprio = vec->prio;
-    if (pendgroupprio > 0) {
-        pendgroupprio &= nvic_gprio_mask(s);
-    }
-    assert(pendgroupprio < running);
+    assert(s->vectpending_prio < running);
 
-    trace_nvic_acknowledge_irq(pending, vec->prio);
+    trace_nvic_acknowledge_irq(pending, s->vectpending_prio);
 
     vec->active = 1;
     vec->pending = 0;
@@ -1255,6 +1257,7 @@ static void armv7m_nvic_reset(DeviceState *dev)
     s->exception_prio = NVIC_NOEXC_PRIO;
     s->vectpending = 0;
     s->vectpending_is_s_banked = false;
+    s->vectpending_prio = NVIC_NOEXC_PRIO;
 }
 
 static void nvic_systick_trigger(void *opaque, int n, int level)
