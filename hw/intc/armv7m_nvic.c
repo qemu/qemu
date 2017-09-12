@@ -349,15 +349,40 @@ int armv7m_nvic_raw_execution_priority(void *opaque)
     return s->exception_prio;
 }
 
-/* caller must call nvic_irq_update() after this */
-static void set_prio(NVICState *s, unsigned irq, uint8_t prio)
+/* caller must call nvic_irq_update() after this.
+ * secure indicates the bank to use for banked exceptions (we assert if
+ * we are passed secure=true for a non-banked exception).
+ */
+static void set_prio(NVICState *s, unsigned irq, bool secure, uint8_t prio)
 {
     assert(irq > ARMV7M_EXCP_NMI); /* only use for configurable prios */
     assert(irq < s->num_irq);
 
-    s->vectors[irq].prio = prio;
+    if (secure) {
+        assert(exc_is_banked(irq));
+        s->sec_vectors[irq].prio = prio;
+    } else {
+        s->vectors[irq].prio = prio;
+    }
 
-    trace_nvic_set_prio(irq, prio);
+    trace_nvic_set_prio(irq, secure, prio);
+}
+
+/* Return the current raw priority register value.
+ * secure indicates the bank to use for banked exceptions (we assert if
+ * we are passed secure=true for a non-banked exception).
+ */
+static int get_prio(NVICState *s, unsigned irq, bool secure)
+{
+    assert(irq > ARMV7M_EXCP_NMI); /* only use for configurable prios */
+    assert(irq < s->num_irq);
+
+    if (secure) {
+        assert(exc_is_banked(irq));
+        return s->sec_vectors[irq].prio;
+    } else {
+        return s->vectors[irq].prio;
+    }
 }
 
 /* Recompute state and assert irq line accordingly.
@@ -1149,6 +1174,47 @@ static bool nvic_user_access_ok(NVICState *s, hwaddr offset, MemTxAttrs attrs)
     }
 }
 
+static int shpr_bank(NVICState *s, int exc, MemTxAttrs attrs)
+{
+    /* Behaviour for the SHPR register field for this exception:
+     * return M_REG_NS to use the nonsecure vector (including for
+     * non-banked exceptions), M_REG_S for the secure version of
+     * a banked exception, and -1 if this field should RAZ/WI.
+     */
+    switch (exc) {
+    case ARMV7M_EXCP_MEM:
+    case ARMV7M_EXCP_USAGE:
+    case ARMV7M_EXCP_SVC:
+    case ARMV7M_EXCP_PENDSV:
+    case ARMV7M_EXCP_SYSTICK:
+        /* Banked exceptions */
+        return attrs.secure;
+    case ARMV7M_EXCP_BUS:
+        /* Not banked, RAZ/WI from nonsecure if BFHFNMINS is zero */
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            return -1;
+        }
+        return M_REG_NS;
+    case ARMV7M_EXCP_SECURE:
+        /* Not banked, RAZ/WI from nonsecure */
+        if (!attrs.secure) {
+            return -1;
+        }
+        return M_REG_NS;
+    case ARMV7M_EXCP_DEBUG:
+        /* Not banked. TODO should RAZ/WI if DEMCR.SDME is set */
+        return M_REG_NS;
+    case 8 ... 10:
+    case 13:
+        /* RES0 */
+        return -1;
+    default:
+        /* Not reachable due to decode of SHPR register addresses */
+        g_assert_not_reached();
+    }
+}
+
 static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
                                     uint64_t *data, unsigned size,
                                     MemTxAttrs attrs)
@@ -1213,10 +1279,16 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
             }
         }
         break;
-    case 0xd18 ... 0xd23: /* System Handler Priority.  */
+    case 0xd18 ... 0xd23: /* System Handler Priority (SHPR1, SHPR2, SHPR3) */
         val = 0;
         for (i = 0; i < size; i++) {
-            val |= s->vectors[(offset - 0xd14) + i].prio << (i * 8);
+            unsigned hdlidx = (offset - 0xd14) + i;
+            int sbank = shpr_bank(s, hdlidx, attrs);
+
+            if (sbank < 0) {
+                continue;
+            }
+            val = deposit32(val, i * 8, 8, get_prio(s, hdlidx, sbank));
         }
         break;
     case 0xfe0 ... 0xfff: /* ID.  */
@@ -1299,15 +1371,21 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
 
         for (i = 0; i < size && startvec + i < s->num_irq; i++) {
             if (attrs.secure || s->itns[startvec + i]) {
-                set_prio(s, startvec + i, (value >> (i * 8)) & 0xff);
+                set_prio(s, startvec + i, false, (value >> (i * 8)) & 0xff);
             }
         }
         nvic_irq_update(s);
         return MEMTX_OK;
-    case 0xd18 ... 0xd23: /* System Handler Priority.  */
+    case 0xd18 ... 0xd23: /* System Handler Priority (SHPR1, SHPR2, SHPR3) */
         for (i = 0; i < size; i++) {
             unsigned hdlidx = (offset - 0xd14) + i;
-            set_prio(s, hdlidx, (value >> (i * 8)) & 0xff);
+            int newprio = extract32(value, i * 8, 8);
+            int sbank = shpr_bank(s, hdlidx, attrs);
+
+            if (sbank < 0) {
+                continue;
+            }
+            set_prio(s, hdlidx, sbank, newprio);
         }
         nvic_irq_update(s);
         return MEMTX_OK;
