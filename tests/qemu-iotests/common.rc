@@ -50,6 +50,71 @@ then
     fi
 fi
 
+_qemu_wrapper()
+{
+    (
+        if [ -n "${QEMU_NEED_PID}" ]; then
+            echo $BASHPID > "${QEMU_TEST_DIR}/qemu-${_QEMU_HANDLE}.pid"
+        fi
+        exec "$QEMU_PROG" $QEMU_OPTIONS "$@"
+    )
+}
+
+_qemu_img_wrapper()
+{
+    (exec "$QEMU_IMG_PROG" $QEMU_IMG_OPTIONS "$@")
+}
+
+_qemu_io_wrapper()
+{
+    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
+    local QEMU_IO_ARGS="$QEMU_IO_OPTIONS"
+    if [ "$IMGOPTSSYNTAX" = "true" ]; then
+        QEMU_IO_ARGS="--image-opts $QEMU_IO_ARGS"
+        if [ -n "$IMGKEYSECRET" ]; then
+            QEMU_IO_ARGS="--object secret,id=keysec0,data=$IMGKEYSECRET $QEMU_IO_ARGS"
+        fi
+    fi
+    local RETVAL
+    (
+        if [ "${VALGRIND_QEMU}" == "y" ]; then
+            exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@"
+        else
+            exec "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@"
+        fi
+    )
+    RETVAL=$?
+    if [ "${VALGRIND_QEMU}" == "y" ]; then
+        if [ $RETVAL == 99 ]; then
+            cat "${VALGRIND_LOGFILE}"
+        fi
+        rm -f "${VALGRIND_LOGFILE}"
+    fi
+    (exit $RETVAL)
+}
+
+_qemu_nbd_wrapper()
+{
+    (
+        echo $BASHPID > "${QEMU_TEST_DIR}/qemu-nbd.pid"
+        exec "$QEMU_NBD_PROG" $QEMU_NBD_OPTIONS "$@"
+    )
+}
+
+_qemu_vxhs_wrapper()
+{
+    (
+        echo $BASHPID > "${TEST_DIR}/qemu-vxhs.pid"
+        exec "$QEMU_VXHS_PROG" $QEMU_VXHS_OPTIONS "$@"
+    )
+}
+
+export QEMU=_qemu_wrapper
+export QEMU_IMG=_qemu_img_wrapper
+export QEMU_IO=_qemu_io_wrapper
+export QEMU_NBD=_qemu_nbd_wrapper
+export QEMU_VXHS=_qemu_vxhs_wrapper
+
 if [ "$IMGOPTSSYNTAX" = "true" ]; then
     DRIVER="driver=$IMGFMT"
     if [ "$IMGFMT" = "luks" ]; then
