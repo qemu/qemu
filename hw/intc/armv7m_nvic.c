@@ -319,18 +319,51 @@ static void nvic_recompute_state(NVICState *s)
 static inline int nvic_exec_prio(NVICState *s)
 {
     CPUARMState *env = &s->cpu->env;
-    int running;
+    int running = NVIC_NOEXC_PRIO;
 
-    if (env->v7m.faultmask[env->v7m.secure]) {
-        running = -1;
-    } else if (env->v7m.primask[env->v7m.secure]) {
-        running = 0;
-    } else if (env->v7m.basepri[env->v7m.secure] > 0) {
-        running = env->v7m.basepri[env->v7m.secure] &
-            nvic_gprio_mask(s, env->v7m.secure);
-    } else {
-        running = NVIC_NOEXC_PRIO; /* lower than any possible priority */
+    if (env->v7m.basepri[M_REG_NS] > 0) {
+        running = exc_group_prio(s, env->v7m.basepri[M_REG_NS], M_REG_NS);
     }
+
+    if (env->v7m.basepri[M_REG_S] > 0) {
+        int basepri = exc_group_prio(s, env->v7m.basepri[M_REG_S], M_REG_S);
+        if (running > basepri) {
+            running = basepri;
+        }
+    }
+
+    if (env->v7m.primask[M_REG_NS]) {
+        if (env->v7m.aircr & R_V7M_AIRCR_PRIS_MASK) {
+            if (running > NVIC_NS_PRIO_LIMIT) {
+                running = NVIC_NS_PRIO_LIMIT;
+            }
+        } else {
+            running = 0;
+        }
+    }
+
+    if (env->v7m.primask[M_REG_S]) {
+        running = 0;
+    }
+
+    if (env->v7m.faultmask[M_REG_NS]) {
+        if (env->v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) {
+            running = -1;
+        } else {
+            if (env->v7m.aircr & R_V7M_AIRCR_PRIS_MASK) {
+                if (running > NVIC_NS_PRIO_LIMIT) {
+                    running = NVIC_NS_PRIO_LIMIT;
+                }
+            } else {
+                running = 0;
+            }
+        }
+    }
+
+    if (env->v7m.faultmask[M_REG_S]) {
+        running = (env->v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) ? -3 : -1;
+    }
+
     /* consider priority of active handler */
     return MIN(running, s->exception_prio);
 }
