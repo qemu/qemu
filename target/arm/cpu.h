@@ -449,6 +449,7 @@ typedef struct CPUARMState {
         int exception;
         uint32_t primask[M_REG_NUM_BANKS];
         uint32_t faultmask[M_REG_NUM_BANKS];
+        uint32_t aircr; /* only holds r/w state if security extn implemented */
         uint32_t secure; /* Is CPU in Secure state? (not guest visible) */
     } v7m;
 
@@ -1199,6 +1200,17 @@ FIELD(V7M_CCR, BFHFNMIGN, 8, 1)
 FIELD(V7M_CCR, STKALIGN, 9, 1)
 FIELD(V7M_CCR, DC, 16, 1)
 FIELD(V7M_CCR, IC, 17, 1)
+
+/* V7M AIRCR bits */
+FIELD(V7M_AIRCR, VECTRESET, 0, 1)
+FIELD(V7M_AIRCR, VECTCLRACTIVE, 1, 1)
+FIELD(V7M_AIRCR, SYSRESETREQ, 2, 1)
+FIELD(V7M_AIRCR, SYSRESETREQS, 3, 1)
+FIELD(V7M_AIRCR, PRIGROUP, 8, 3)
+FIELD(V7M_AIRCR, BFHFNMINS, 13, 1)
+FIELD(V7M_AIRCR, PRIS, 14, 1)
+FIELD(V7M_AIRCR, ENDIANNESS, 15, 1)
+FIELD(V7M_AIRCR, VECTKEY, 16, 16)
 
 /* V7M CFSR bits for MMFSR */
 FIELD(V7M_CFSR, IACCVIOL, 0, 1)

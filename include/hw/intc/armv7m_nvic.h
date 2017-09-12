@@ -55,7 +55,8 @@ typedef struct NVICState {
      * Entries in sec_vectors[] for non-banked exception numbers are unused.
      */
     VecInfo sec_vectors[NVIC_INTERNAL_VECTORS];
-    uint32_t prigroup;
+    /* The PRIGROUP field in AIRCR is banked */
+    uint32_t prigroup[M_REG_NUM_BANKS];
 
     /* The following fields are all cached state that can be recalculated
      * from the vectors[] and sec_vectors[] arrays and the prigroup field:

@@ -129,7 +129,7 @@ static bool nvic_isrpending(NVICState *s)
  */
 static inline uint32_t nvic_gprio_mask(NVICState *s)
 {
-    return ~0U << (s->prigroup + 1);
+    return ~0U << (s->prigroup[M_REG_NS] + 1);
 }
 
 /* Recompute vectpending and exception_prio */
@@ -451,8 +451,21 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         return val;
     case 0xd08: /* Vector Table Offset.  */
         return cpu->env.v7m.vecbase[attrs.secure];
-    case 0xd0c: /* Application Interrupt/Reset Control.  */
-        return 0xfa050000 | (s->prigroup << 8);
+    case 0xd0c: /* Application Interrupt/Reset Control (AIRCR) */
+        val = 0xfa050000 | (s->prigroup[attrs.secure] << 8);
+        if (attrs.secure) {
+            /* s->aircr stores PRIS, BFHFNMINS, SYSRESETREQS */
+            val |= cpu->env.v7m.aircr;
+        } else {
+            if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+                /* BFHFNMINS is R/O from NS; other bits are RAZ/WI. If
+                 * security isn't supported then BFHFNMINS is RAO (and
+                 * the bit in env.v7m.aircr is always set).
+                 */
+                val |= cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK;
+            }
+        }
+        return val;
     case 0xd10: /* System Control.  */
         /* TODO: Implement SLEEPONEXIT.  */
         return 0;
@@ -660,22 +673,35 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     case 0xd08: /* Vector Table Offset.  */
         cpu->env.v7m.vecbase[attrs.secure] = value & 0xffffff80;
         break;
-    case 0xd0c: /* Application Interrupt/Reset Control.  */
-        if ((value >> 16) == 0x05fa) {
-            if (value & 4) {
-                qemu_irq_pulse(s->sysresetreq);
+    case 0xd0c: /* Application Interrupt/Reset Control (AIRCR) */
+        if ((value >> R_V7M_AIRCR_VECTKEY_SHIFT) == 0x05fa) {
+            if (value & R_V7M_AIRCR_SYSRESETREQ_MASK) {
+                if (attrs.secure ||
+                    !(cpu->env.v7m.aircr & R_V7M_AIRCR_SYSRESETREQS_MASK)) {
+                    qemu_irq_pulse(s->sysresetreq);
+                }
             }
-            if (value & 2) {
+            if (value & R_V7M_AIRCR_VECTCLRACTIVE_MASK) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Setting VECTCLRACTIVE when not in DEBUG mode "
                               "is UNPREDICTABLE\n");
             }
-            if (value & 1) {
+            if (value & R_V7M_AIRCR_VECTRESET_MASK) {
+                /* NB: this bit is RES0 in v8M */
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Setting VECTRESET when not in DEBUG mode "
                               "is UNPREDICTABLE\n");
             }
-            s->prigroup = extract32(value, 8, 3);
+            s->prigroup[attrs.secure] = extract32(value,
+                                                  R_V7M_AIRCR_PRIGROUP_SHIFT,
+                                                  R_V7M_AIRCR_PRIGROUP_LENGTH);
+            if (attrs.secure) {
+                /* These bits are only writable by secure */
+                cpu->env.v7m.aircr = value &
+                    (R_V7M_AIRCR_SYSRESETREQS_MASK |
+                     R_V7M_AIRCR_BFHFNMINS_MASK |
+                     R_V7M_AIRCR_PRIS_MASK);
+            }
             nvic_irq_update(s);
         }
         break;
@@ -1193,6 +1219,7 @@ static const VMStateDescription vmstate_nvic_security = {
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(sec_vectors, NVICState, NVIC_INTERNAL_VECTORS, 1,
                              vmstate_VecInfo, VecInfo),
+        VMSTATE_UINT32(prigroup[M_REG_S], NVICState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1205,7 +1232,7 @@ static const VMStateDescription vmstate_nvic = {
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(vectors, NVICState, NVIC_MAX_VECTORS, 1,
                              vmstate_VecInfo, VecInfo),
-        VMSTATE_UINT32(prigroup, NVICState),
+        VMSTATE_UINT32(prigroup[M_REG_NS], NVICState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
