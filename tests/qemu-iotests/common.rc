@@ -293,51 +293,6 @@ _img_info()
         done
 }
 
-_get_pids_by_name()
-{
-    if [ $# -ne 1 ]
-    then
-        echo "Usage: _get_pids_by_name process-name" 1>&2
-        exit 1
-    fi
-
-    # Algorithm ... all ps(1) variants have a time of the form MM:SS or
-    # HH:MM:SS before the psargs field, use this as the search anchor.
-    #
-    # Matches with $1 (process-name) occur if the first psarg is $1
-    # or ends in /$1 ... the matching uses sed's regular expressions,
-    # so passing a regex into $1 will work.
-
-    ps $PS_ALL_FLAGS \
-    | sed -n \
-        -e 's/$/ /' \
-        -e 's/[         ][         ]*/ /g' \
-        -e 's/^ //' \
-        -e 's/^[^ ]* //' \
-        -e "/[0-9]:[0-9][0-9]  *[^ ]*\/$1 /s/ .*//p" \
-        -e "/[0-9]:[0-9][0-9]  *$1 /s/ .*//p"
-}
-
-# fqdn for localhost
-#
-_get_fqdn()
-{
-    host=`hostname`
-    $NSLOOKUP_PROG $host | $AWK_PROG '{ if ($1 == "Name:") print $2 }'
-}
-
-# check if run as root
-#
-_need_to_be_root()
-{
-    id=`id | $SED_PROG -e 's/(.*//' -e 's/.*=//'`
-    if [ "$id" -ne 0 ]
-    then
-        echo "Arrgh ... you need to be root (not uid=$id) to run this test"
-        exit 1
-    fi
-}
-
 # bail out, setting up .notrun file
 #
 _notrun()
@@ -489,29 +444,6 @@ _full_platform_details()
     kernel=`uname -r`
     platform=`uname -m`
     echo "$os/$platform $host $kernel"
-}
-
-_link_out_file()
-{
-   if [ -z "$1" ]; then
-      echo Error must pass \$seq.
-      exit
-   fi
-   rm -f $1
-   if [ "`uname`" == "IRIX64" ] || [ "`uname`" == "IRIX" ]; then
-      ln -s $1.irix $1
-   elif [ "`uname`" == "Linux" ]; then
-      ln -s $1.linux $1
-   else
-      echo Error test $seq does not run on the operating system: `uname`
-      exit
-   fi
-}
-
-_die()
-{
-        echo $@
-        exit 1
 }
 
 # make sure this script returns success

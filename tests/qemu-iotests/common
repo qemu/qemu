@@ -19,17 +19,6 @@
 # common procedures for QA scripts
 #
 
-_setenvironment()
-{
-    MSGVERB="text:action"
-    export MSGVERB
-}
-
-rm -f "$OUTPUT_DIR/$iam.out"
-_setenvironment
-
-check=${check-true}
-
 diff="diff -u"
 verbose=false
 debug=false
@@ -40,7 +29,6 @@ showme=false
 sortme=false
 expunge=true
 have_test_arg=false
-randomize=false
 cachemode=false
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
@@ -170,7 +158,6 @@ other options
     -n                  show me, do not run tests
     -o options          -o options to pass to qemu-img create/convert
     -T                  output timestamps
-    -r                  randomize test order
     -c mode             cache mode
 
 testlist options
@@ -327,11 +314,6 @@ testlist options
             cachemode=true
             xpand=false
             ;;
-        -r)        # randomize test order
-            randomize=true
-            xpand=false
-            ;;
-
         -T)        # turn on timestamp output
             timestamp=true
             xpand=false
@@ -444,11 +426,6 @@ fi
 #
 list=`sort $tmp.list`
 rm -f $tmp.list $tmp.tmp $tmp.sed
-
-if $randomize
-then
-    list=`echo $list | awk -f randomize.awk`
-fi
 
 [ "$QEMU" = "" ] && _fatal "qemu not found"
 [ "$QEMU_IMG" = "" ] && _fatal "qemu-img not found"
