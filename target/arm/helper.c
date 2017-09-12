@@ -6218,6 +6218,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     bool return_to_sp_process = false;
     bool return_to_handler = false;
     bool rettobase = false;
+    bool exc_secure = false;
 
     /* We can only get here from an EXCP_EXCEPTION_EXIT, and
      * gen_bx_excret() enforces the architectural rule
@@ -6256,16 +6257,17 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
          * which security state's faultmask to clear. (v8M ARM ARM R_KBNF.)
          */
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
-            int es = excret & R_V7M_EXCRET_ES_MASK;
+            exc_secure = excret & R_V7M_EXCRET_ES_MASK;
             if (armv7m_nvic_raw_execution_priority(env->nvic) >= 0) {
-                env->v7m.faultmask[es] = 0;
+                env->v7m.faultmask[exc_secure] = 0;
             }
         } else {
             env->v7m.faultmask[M_REG_NS] = 0;
         }
     }
 
-    switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception)) {
+    switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception,
+                                     exc_secure)) {
     case -1:
         /* attempt to exit an exception that isn't active */
         ufault = true;

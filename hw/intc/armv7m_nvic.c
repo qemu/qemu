@@ -586,24 +586,32 @@ void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
 }
 
 /* Make pending IRQ active.  */
-void armv7m_nvic_acknowledge_irq(void *opaque)
+bool armv7m_nvic_acknowledge_irq(void *opaque)
 {
     NVICState *s = (NVICState *)opaque;
     CPUARMState *env = &s->cpu->env;
     const int pending = s->vectpending;
     const int running = nvic_exec_prio(s);
     VecInfo *vec;
+    bool targets_secure;
 
     assert(pending > ARMV7M_EXCP_RESET && pending < s->num_irq);
 
-    vec = &s->vectors[pending];
+    if (s->vectpending_is_s_banked) {
+        vec = &s->sec_vectors[pending];
+        targets_secure = true;
+    } else {
+        vec = &s->vectors[pending];
+        targets_secure = !exc_is_banked(s->vectpending) &&
+            exc_targets_secure(s, s->vectpending);
+    }
 
     assert(vec->enabled);
     assert(vec->pending);
 
     assert(s->vectpending_prio < running);
 
-    trace_nvic_acknowledge_irq(pending, s->vectpending_prio);
+    trace_nvic_acknowledge_irq(pending, s->vectpending_prio, targets_secure);
 
     vec->active = 1;
     vec->pending = 0;
@@ -611,9 +619,11 @@ void armv7m_nvic_acknowledge_irq(void *opaque)
     env->v7m.exception = s->vectpending;
 
     nvic_irq_update(s);
+
+    return targets_secure;
 }
 
-int armv7m_nvic_complete_irq(void *opaque, int irq)
+int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure)
 {
     NVICState *s = (NVICState *)opaque;
     VecInfo *vec;
@@ -621,9 +631,13 @@ int armv7m_nvic_complete_irq(void *opaque, int irq)
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
 
-    vec = &s->vectors[irq];
+    if (secure && exc_is_banked(irq)) {
+        vec = &s->sec_vectors[irq];
+    } else {
+        vec = &s->vectors[irq];
+    }
 
-    trace_nvic_complete_irq(irq);
+    trace_nvic_complete_irq(irq, secure);
 
     if (!vec->active) {
         /* Tell the caller this was an illegal exception return */
