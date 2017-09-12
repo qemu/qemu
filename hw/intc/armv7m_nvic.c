@@ -487,18 +487,8 @@ void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
         }
 
         if (escalate) {
-            if (running < 0) {
-                /* We want to escalate to HardFault but we can't take a
-                 * synchronous HardFault at this point either. This is a
-                 * Lockup condition due to a guest bug. We don't model
-                 * Lockup, so report via cpu_abort() instead.
-                 */
-                cpu_abort(&s->cpu->parent_obj,
-                          "Lockup: can't escalate %d to HardFault "
-                          "(current priority %d)\n", irq, running);
-            }
 
-            /* We can do the escalation, so we take HardFault instead.
+            /* We need to escalate this exception to a synchronous HardFault.
              * If BFHFNMINS is set then we escalate to the banked HF for
              * the target security state of the original exception; otherwise
              * we take a Secure HardFault.
@@ -511,6 +501,17 @@ void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
             } else {
                 vec = &s->vectors[irq];
             }
+            if (running <= vec->prio) {
+                /* We want to escalate to HardFault but we can't take the
+                 * synchronous HardFault at this point either. This is a
+                 * Lockup condition due to a guest bug. We don't model
+                 * Lockup, so report via cpu_abort() instead.
+                 */
+                cpu_abort(&s->cpu->parent_obj,
+                          "Lockup: can't escalate %d to HardFault "
+                          "(current priority %d)\n", irq, running);
+            }
+
             /* HF may be banked but there is only one shared HFSR */
             s->cpu->env.v7m.hfsr |= R_V7M_HFSR_FORCED_MASK;
         }
