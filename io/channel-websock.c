@@ -573,7 +573,8 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
 }
 
 
-static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
+static void qio_channel_websock_encode_buffer(Buffer *output,
+                                              uint8_t opcode, Buffer *buffer)
 {
     size_t header_size;
     union {
@@ -581,33 +582,37 @@ static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
         QIOChannelWebsockHeader ws;
     } header;
 
-    if (!ioc->rawoutput.offset) {
-        return;
-    }
-
     header.ws.b0 = QIO_CHANNEL_WEBSOCK_HEADER_FIELD_FIN |
-        (QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME &
-         QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE);
-    if (ioc->rawoutput.offset <
-        QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
-        header.ws.b1 = (uint8_t)ioc->rawoutput.offset;
+        (opcode & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE);
+    if (buffer->offset < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
+        header.ws.b1 = (uint8_t)buffer->offset;
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_7_BIT;
-    } else if (ioc->rawoutput.offset <
+    } else if (buffer->offset <
                QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_16_BIT) {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_16_BIT;
-        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)ioc->rawoutput.offset);
+        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)buffer->offset);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_16_BIT;
     } else {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_64_BIT;
-        header.ws.u.s64.l64 = cpu_to_be64(ioc->rawoutput.offset);
+        header.ws.u.s64.l64 = cpu_to_be64(buffer->offset);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_64_BIT;
     }
     header_size -= QIO_CHANNEL_WEBSOCK_HEADER_LEN_MASK;
 
-    buffer_reserve(&ioc->encoutput, header_size + ioc->rawoutput.offset);
-    buffer_append(&ioc->encoutput, header.buf, header_size);
-    buffer_append(&ioc->encoutput, ioc->rawoutput.buffer,
-                  ioc->rawoutput.offset);
+    buffer_reserve(output, header_size + buffer->offset);
+    buffer_append(output, header.buf, header_size);
+    buffer_append(output, buffer->buffer, buffer->offset);
+}
+
+
+static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
+{
+    if (!ioc->rawoutput.offset) {
+        return;
+    }
+    qio_channel_websock_encode_buffer(
+        &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
+        &ioc->rawoutput);
     buffer_reset(&ioc->rawoutput);
 }
 
@@ -652,7 +657,7 @@ static int qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
     /* Websocket frame sanity check:
      * * Fragmentation is only supported for binary frames.
      * * All frames sent by a client MUST be masked.
-     * * Only binary encoding is supported.
+     * * Only binary and ping/pong encoding is supported.
      */
     if (!fin) {
         if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
@@ -713,6 +718,11 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
          * for purpose of unmasking, except at end of payload
          */
         if (ioc->encinput.offset < ioc->payload_remain) {
+            /* Wait for the entire payload before processing control frames
+             * because the payload will most likely be echoed back. */
+            if (ioc->opcode & QIO_CHANNEL_WEBSOCK_CONTROL_OPCODE_MASK) {
+                return QIO_CHANNEL_ERR_BLOCK;
+            }
             payload_len = ioc->encinput.offset - (ioc->encinput.offset % 4);
         } else {
             payload_len = ioc->payload_remain;
@@ -735,13 +745,18 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
         }
     }
 
-    /* Drop the payload of ping/pong packets */
     if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
         if (payload_len) {
+            /* binary frames are passed on */
             buffer_reserve(&ioc->rawinput, payload_len);
             buffer_append(&ioc->rawinput, ioc->encinput.buffer, payload_len);
         }
-    }
+    } else if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_PING) {
+        /* ping frames produce an immediate reply */
+        buffer_reset(&ioc->ping_reply);
+        qio_channel_websock_encode_buffer(
+            &ioc->ping_reply, QIO_CHANNEL_WEBSOCK_OPCODE_PONG, &ioc->encinput);
+    }   /* pong frames are ignored */
 
     if (payload_len) {
         buffer_advance(&ioc->encinput, payload_len);
@@ -799,6 +814,7 @@ static void qio_channel_websock_finalize(Object *obj)
     buffer_free(&ioc->encoutput);
     buffer_free(&ioc->rawinput);
     buffer_free(&ioc->rawoutput);
+    buffer_free(&ioc->ping_reply);
     object_unref(OBJECT(ioc->master));
     if (ioc->io_tag) {
         g_source_remove(ioc->io_tag);
@@ -855,7 +871,13 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
 {
     ssize_t ret;
     ssize_t done = 0;
-    qio_channel_websock_encode(ioc);
+
+    /* ping replies take priority over binary data */
+    if (!ioc->ping_reply.offset) {
+        qio_channel_websock_encode(ioc);
+    } else if (!ioc->encoutput.offset) {
+        buffer_move_empty(&ioc->encoutput, &ioc->ping_reply);
+    }
 
     while (ioc->encoutput.offset > 0) {
         ret = qio_channel_write(ioc->master,
@@ -930,7 +952,7 @@ static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
         return;
     }
 
-    if (ioc->encoutput.offset) {
+    if (ioc->encoutput.offset || ioc->ping_reply.offset) {
         cond |= G_IO_OUT;
     }
     if (ioc->encinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER &&
