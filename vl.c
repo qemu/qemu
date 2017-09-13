@@ -4716,6 +4716,16 @@ int main(int argc, char **argv, char **envp)
     current_machine->boot_order = boot_order;
     current_machine->cpu_model = cpu_model;
 
+
+    /* parse features once if machine provides default cpu_type */
+    if (machine_class->default_cpu_type) {
+        current_machine->cpu_type = machine_class->default_cpu_type;
+        if (cpu_model) {
+            current_machine->cpu_type =
+                cpu_parse_cpu_model(machine_class->default_cpu_type, cpu_model);
+        }
+    }
+
     machine_run_board_init(current_machine);
 
     realtime_init();
