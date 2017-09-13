@@ -34,16 +34,21 @@ static inline SCLPDevice *get_sclp_device(void)
     return sclp;
 }
 
-static void prepare_cpu_entries(SCLPDevice *sclp, CPUEntry *entry, int count)
+static void prepare_cpu_entries(SCLPDevice *sclp, CPUEntry *entry, int *count)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     uint8_t features[SCCB_CPU_FEATURE_LEN] = { 0 };
     int i;
 
     s390_get_feat_block(S390_FEAT_TYPE_SCLP_CPU, features);
-    for (i = 0; i < count; i++) {
-        entry[i].address = i;
-        entry[i].type = 0;
-        memcpy(entry[i].features, features, sizeof(entry[i].features));
+    for (i = 0, *count = 0; i < ms->possible_cpus->len; i++) {
+        if (!ms->possible_cpus->cpus[i].cpu) {
+            continue;
+        }
+        entry[*count].address = ms->possible_cpus->cpus[i].arch_id;
+        entry[*count].type = 0;
+        memcpy(entry[*count].features, features, sizeof(features));
+        (*count)++;
     }
 }
 
@@ -53,17 +58,13 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     ReadInfo *read_info = (ReadInfo *) sccb;
     MachineState *machine = MACHINE(qdev_get_machine());
     sclpMemoryHotplugDev *mhd = get_sclp_memory_hotplug_dev();
-    CPUState *cpu;
-    int cpu_count = 0;
+    int cpu_count;
     int rnsize, rnmax;
     int slots = MIN(machine->ram_slots, s390_get_memslot_count());
     IplParameterBlock *ipib = s390_ipl_get_iplb();
 
-    CPU_FOREACH(cpu) {
-        cpu_count++;
-    }
-
     /* CPU information */
+    prepare_cpu_entries(sclp, read_info->entries, &cpu_count);
     read_info->entries_cpu = cpu_to_be16(cpu_count);
     read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
     read_info->highest_cpu = cpu_to_be16(max_cpus);
@@ -75,8 +76,6 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
                          read_info->conf_char);
     s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT,
                          read_info->conf_char_ext);
-
-    prepare_cpu_entries(sclp, read_info->entries, cpu_count);
 
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
                                         SCLP_HAS_IOA_RECONFIG);
@@ -333,13 +332,9 @@ static void unassign_storage(SCLPDevice *sclp, SCCB *sccb)
 static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
 {
     ReadCpuInfo *cpu_info = (ReadCpuInfo *) sccb;
-    CPUState *cpu;
-    int cpu_count = 0;
+    int cpu_count;
 
-    CPU_FOREACH(cpu) {
-        cpu_count++;
-    }
-
+    prepare_cpu_entries(sclp, cpu_info->entries, &cpu_count);
     cpu_info->nr_configured = cpu_to_be16(cpu_count);
     cpu_info->offset_configured = cpu_to_be16(offsetof(ReadCpuInfo, entries));
     cpu_info->nr_standby = cpu_to_be16(0);
@@ -348,7 +343,6 @@ static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
     cpu_info->offset_standby = cpu_to_be16(cpu_info->offset_configured
         + cpu_info->nr_configured*sizeof(CPUEntry));
 
-    prepare_cpu_entries(sclp, cpu_info->entries, cpu_count);
 
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_READ_COMPLETION);
 }
