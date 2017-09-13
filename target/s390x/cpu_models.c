@@ -270,16 +270,11 @@ const S390CPUDef *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
     return last_compatible;
 }
 
-struct S390PrintCpuListInfo {
-    FILE *f;
-    fprintf_function print;
-};
-
-static void print_cpu_model_list(ObjectClass *klass, void *opaque)
+static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
 {
-    struct S390PrintCpuListInfo *info = opaque;
-    S390CPUClass *scc = S390_CPU_CLASS(klass);
-    char *name = g_strdup(object_class_get_name(klass));
+    CPUListState *s = user_data;
+    const S390CPUClass *scc = S390_CPU_CLASS((ObjectClass *)data);
+    char *name = g_strdup(object_class_get_name((ObjectClass *)data));
     const char *details = "";
 
     if (scc->is_static) {
@@ -290,21 +285,52 @@ static void print_cpu_model_list(ObjectClass *klass, void *opaque)
 
     /* strip off the -s390-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
-    (*info->print)(info->f, "s390 %-15s %-35s %s\n", name, scc->desc,
-                   details);
+    (*s->cpu_fprintf)(s->file, "s390 %-15s %-35s %s\n", name, scc->desc,
+                      details);
     g_free(name);
+}
+
+static gint s390_cpu_list_compare(gconstpointer a, gconstpointer b)
+{
+    const S390CPUClass *cc_a = S390_CPU_CLASS((ObjectClass *)a);
+    const S390CPUClass *cc_b = S390_CPU_CLASS((ObjectClass *)b);
+    const char *name_a = object_class_get_name((ObjectClass *)a);
+    const char *name_b = object_class_get_name((ObjectClass *)b);
+
+    /* move qemu and host to the top of the list, qemu first, host second */
+    if (name_a[0] == 'q') {
+        return -1;
+    } else if (name_b[0] == 'q') {
+        return 1;
+    } else if (name_a[0] == 'h') {
+        return -1;
+    } else if (name_b[0] == 'h') {
+        return 1;
+    }
+
+    /* keep the same order we have in our table (sorted by release date) */
+    if (cc_a->cpu_def != cc_b->cpu_def) {
+        return cc_a->cpu_def - cc_b->cpu_def;
+    }
+
+    /* exact same definition - list base model first */
+    return cc_a->is_static ? -1 : 1;
 }
 
 void s390_cpu_list(FILE *f, fprintf_function print)
 {
-    struct S390PrintCpuListInfo info = {
-        .f = f,
-        .print = print,
+    CPUListState s = {
+        .file = f,
+        .cpu_fprintf = print,
     };
     S390FeatGroup group;
     S390Feat feat;
+    GSList *list;
 
-    object_class_foreach(print_cpu_model_list, TYPE_S390_CPU, false, &info);
+    list = object_class_get_list(TYPE_S390_CPU, false);
+    list = g_slist_sort(list, s390_cpu_list_compare);
+    g_slist_foreach(list, s390_print_cpu_model_list_entry, &s);
+    g_slist_free(list);
 
     (*print)(f, "\nRecognized feature flags:\n");
     for (feat = 0; feat < S390_FEAT_MAX; feat++) {
