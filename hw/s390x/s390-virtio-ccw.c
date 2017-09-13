@@ -36,23 +36,26 @@
 #include "qapi/qmp/qerror.h"
 #include "hw/nmi.h"
 
-static S390CPU **cpu_states;
-
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
-    if (cpu_addr >= max_cpus) {
-        return NULL;
+    static MachineState *ms;
+
+    if (!ms) {
+        ms = MACHINE(qdev_get_machine());
+        g_assert(ms->possible_cpus);
     }
 
-    /* Fast lookup via CPU ID */
-    return cpu_states[cpu_addr];
+    /* CPU address corresponds to the core_id and the index */
+    if (cpu_addr >= ms->possible_cpus->len) {
+        return NULL;
+    }
+    return S390_CPU(ms->possible_cpus->cpus[cpu_addr].cpu);
 }
 
 static void s390_init_cpus(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     int i;
-    gchar *name;
 
     if (machine->cpu_model == NULL) {
         machine->cpu_model = s390_default_cpu_model_name();
@@ -61,18 +64,6 @@ static void s390_init_cpus(MachineState *machine)
         error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
                      "supported by TCG (1) on s390x", max_cpus);
         exit(1);
-    }
-
-    cpu_states = g_new0(S390CPU *, max_cpus);
-
-    for (i = 0; i < max_cpus; i++) {
-        name = g_strdup_printf("cpu[%i]", i);
-        object_property_add_link(OBJECT(machine), name, TYPE_S390_CPU,
-                                 (Object **) &cpu_states[i],
-                                 object_property_allow_set_link,
-                                 OBJ_PROP_LINK_UNREF_ON_RELEASE,
-                                 &error_abort);
-        g_free(name);
     }
 
     /* initialize possible_cpus */
@@ -312,15 +303,8 @@ static void ccw_init(MachineState *machine)
 static void s390_cpu_plug(HotplugHandler *hotplug_dev,
                         DeviceState *dev, Error **errp)
 {
-    gchar *name;
     MachineState *ms = MACHINE(hotplug_dev);
     S390CPU *cpu = S390_CPU(dev);
-    CPUState *cs = CPU(dev);
-
-    name = g_strdup_printf("cpu[%i]", cpu->env.core_id);
-    object_property_set_link(OBJECT(hotplug_dev), OBJECT(cs), name,
-                             errp);
-    g_free(name);
 
     g_assert(!ms->possible_cpus->cpus[cpu->env.core_id].cpu);
     ms->possible_cpus->cpus[cpu->env.core_id].cpu = OBJECT(dev);
