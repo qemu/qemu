@@ -419,7 +419,7 @@ Testing:
 
 === Empty drive with -device and device_del ===
 
-Testing: -device virtio-scsi-pci -device scsi-cd,id=cd0
+Testing: -device virtio-scsi -device scsi-cd,id=cd0
 {
     QMP_VERSION
 }
