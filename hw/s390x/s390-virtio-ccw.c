@@ -339,6 +339,15 @@ static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
     }
 }
 
+static void s390_machine_device_unplug_request(HotplugHandler *hotplug_dev,
+                                               DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        error_setg(errp, "CPU hot unplug not supported on this machine");
+        return;
+    }
+}
+
 static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
                                                 DeviceState *dev)
 {
@@ -388,6 +397,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 248;
     mc->get_hotplug_handler = s390_get_hotplug_handler;
     hc->plug = s390_machine_device_plug;
+    hc->unplug_request = s390_machine_device_unplug_request;
     nc->nmi_monitor_handler = s390_nmi;
 }
 
