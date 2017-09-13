@@ -199,17 +199,12 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 #else
     /* implicitly set for linux-user only */
     cpu->env.core_id = scc->next_core_id;
+    scc->next_core_id++;
 #endif
 
     if (cpu_exists(cpu->env.core_id)) {
         error_setg(&err, "Unable to add CPU with core-id: %" PRIu32
                    ", it already exists", cpu->env.core_id);
-        goto out;
-    }
-    if (cpu->env.core_id != scc->next_core_id) {
-        error_setg(&err, "Unable to add CPU with core-id: %" PRIu32
-                   ", the next available core-id is %" PRIu32, cpu->env.core_id,
-                   scc->next_core_id);
         goto out;
     }
 
@@ -219,7 +214,6 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     if (err != NULL) {
         goto out;
     }
-    scc->next_core_id++;
 
 #if !defined(CONFIG_USER_ONLY)
     qemu_register_reset(s390_cpu_machine_reset_cb, cpu);
