@@ -54,13 +54,26 @@ bool cpu_exists(int64_t id)
     return !!cpu_by_arch_id(id);
 }
 
-CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
+CPUState *cpu_create(const char *typename)
 {
-    CPUState *cpu = NULL;
+    Error *err = NULL;
+    CPUState *cpu = CPU(object_new(typename));
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+    if (err != NULL) {
+        error_report_err(err);
+        object_unref(OBJECT(cpu));
+        return NULL;
+    }
+    return cpu;
+}
+
+const char *cpu_parse_cpu_model(const char *typename, const char *cpu_model)
+{
     ObjectClass *oc;
     CPUClass *cc;
     Error *err = NULL;
     gchar **model_pieces;
+    const char *cpu_type;
 
     model_pieces = g_strsplit(cpu_model, ",", 2);
 
@@ -70,27 +83,28 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
         return NULL;
     }
 
+    cpu_type = object_class_get_name(oc);
     cc = CPU_CLASS(oc);
-    /* TODO: all callers of cpu_generic_init() need to be converted to
-     * call parse_features() only once, before calling cpu_generic_init().
-     */
-    cc->parse_features(object_class_get_name(oc), model_pieces[1], &err);
+    cc->parse_features(cpu_type, model_pieces[1], &err);
     g_strfreev(model_pieces);
     if (err != NULL) {
-        goto out;
-    }
-
-    cpu = CPU(object_new(object_class_get_name(oc)));
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
-
-out:
-    if (err != NULL) {
         error_report_err(err);
-        object_unref(OBJECT(cpu));
         return NULL;
     }
+    return cpu_type;
+}
 
-    return cpu;
+CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
+{
+    /* TODO: all callers of cpu_generic_init() need to be converted to
+     * call cpu_parse_features() only once, before calling cpu_generic_init().
+     */
+    const char *cpu_type = cpu_parse_cpu_model(typename, cpu_model);
+
+    if (cpu_type) {
+        return cpu_create(cpu_type);
+    }
+    return NULL;
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)
