@@ -49,7 +49,7 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2: Cannot specif
 
 === Device without drive ===
 
-Testing: -device virtio-scsi-pci -device scsi-hd
+Testing: -device VIRTIO_SCSI -device scsi-hd
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-hd: drive property not set
 
