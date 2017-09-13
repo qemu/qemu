@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "exec/cpu-all.h"
 #include "sysemu/memory_mapping.h"
 
 /* PAE Paging or IA-32e Paging */
