@@ -723,6 +723,5 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 extern void subsystem_reset(void);
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
-int s390_virtio_hypercall(CPUS390XState *env);
 
 #endif

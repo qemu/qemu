@@ -34,6 +34,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
 #include "hw/s390x/ebcdic.h"
+#include "hw/s390x/s390-virtio-hcall.h"
 #endif
 
 /* #define DEBUG_HELPER */
