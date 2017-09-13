@@ -194,7 +194,11 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
                    ", max allowed: %d", cpu->id, max_cpus - 1);
         goto out;
     }
+#else
+    /* implicitly set for linux-user only */
+    cpu->id = scc->next_cpu_id;
 #endif
+
     if (cpu_exists(cpu->id)) {
         error_setg(&err, "Unable to add CPU: %" PRIi64
                    ", it already exists", cpu->id);
@@ -306,13 +310,6 @@ static void s390_cpu_initfn(Object *obj)
         inited = true;
         s390x_translate_init();
     }
-
-#if defined(CONFIG_USER_ONLY)
-    {
-        S390CPUClass *scc = S390_CPU_GET_CLASS(obj);
-        cpu->id = scc->next_cpu_id;
-    }
-#endif
 }
 
 static void s390_cpu_finalize(Object *obj)
