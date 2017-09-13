@@ -50,6 +50,7 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 
 static void s390_init_cpus(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     int i;
     gchar *name;
 
@@ -73,6 +74,9 @@ static void s390_init_cpus(MachineState *machine)
                                  &error_abort);
         g_free(name);
     }
+
+    /* initialize possible_cpus */
+    mc->possible_cpu_arch_ids(machine);
 
     for (i = 0; i < smp_cpus; i++) {
         s390x_new_cpu(machine->cpu_model, i, &error_fatal);
@@ -309,6 +313,7 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
                         DeviceState *dev, Error **errp)
 {
     gchar *name;
+    MachineState *ms = MACHINE(hotplug_dev);
     S390CPU *cpu = S390_CPU(dev);
     CPUState *cs = CPU(dev);
 
@@ -316,6 +321,9 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
     object_property_set_link(OBJECT(hotplug_dev), OBJECT(cs), name,
                              errp);
     g_free(name);
+
+    g_assert(!ms->possible_cpus->cpus[cpu->env.core_id].cpu);
+    ms->possible_cpus->cpus[cpu->env.core_id].cpu = OBJECT(dev);
 }
 
 static void s390_machine_reset(void)
@@ -346,6 +354,36 @@ static void s390_machine_device_unplug_request(HotplugHandler *hotplug_dev,
         error_setg(errp, "CPU hot unplug not supported on this machine");
         return;
     }
+}
+
+static CpuInstanceProperties s390_cpu_index_to_props(MachineState *machine,
+                                                     unsigned cpu_index)
+{
+    g_assert(machine->possible_cpus && cpu_index < machine->possible_cpus->len);
+
+    return machine->possible_cpus->cpus[cpu_index].props;
+}
+
+static const CPUArchIdList *s390_possible_cpu_arch_ids(MachineState *ms)
+{
+    int i;
+
+    if (ms->possible_cpus) {
+        g_assert(ms->possible_cpus && ms->possible_cpus->len == max_cpus);
+        return ms->possible_cpus;
+    }
+
+    ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
+                                  sizeof(CPUArchId) * max_cpus);
+    ms->possible_cpus->len = max_cpus;
+    for (i = 0; i < ms->possible_cpus->len; i++) {
+        ms->possible_cpus->cpus[i].vcpus_count = 1;
+        ms->possible_cpus->cpus[i].arch_id = i;
+        ms->possible_cpus->cpus[i].props.has_core_id = true;
+        ms->possible_cpus->cpus[i].props.core_id = i;
+    }
+
+    return ms->possible_cpus;
 }
 
 static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
@@ -395,7 +433,10 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_sdcard = 1;
     mc->use_sclp = 1;
     mc->max_cpus = 248;
+    mc->has_hotpluggable_cpus = true;
     mc->get_hotplug_handler = s390_get_hotplug_handler;
+    mc->cpu_index_to_instance_props = s390_cpu_index_to_props;
+    mc->possible_cpu_arch_ids = s390_possible_cpu_arch_ids;
     hc->plug = s390_machine_device_plug;
     hc->unplug_request = s390_machine_device_unplug_request;
     nc->nmi_monitor_handler = s390_nmi;
