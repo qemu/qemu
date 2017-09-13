@@ -467,6 +467,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     scc->parent_realize = dc->realize;
     dc->realize = s390_cpu_realizefn;
     dc->props = s390x_cpu_properties;
+    dc->user_creatable = true;
 
     scc->parent_reset = cc->reset;
 #if !defined(CONFIG_USER_ONLY)
