@@ -502,8 +502,7 @@ int hvf_init_vcpu(CPUState *cpu)
     hvf_reset_vcpu(cpu);
 
     x86cpu = X86_CPU(cpu);
-    x86cpu->env.kvm_xsave_buf = qemu_memalign(4096,
-                                 sizeof(struct hvf_xsave_buf));
+    x86cpu->env.kvm_xsave_buf = qemu_memalign(4096, 4096);
 
     hv_vcpu_enable_native_msr(cpu->hvf_fd, MSR_STAR, 1);
     hv_vcpu_enable_native_msr(cpu->hvf_fd, MSR_LSTAR, 1);

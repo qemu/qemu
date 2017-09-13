@@ -76,36 +76,13 @@ void hvf_get_segment(SegmentCache *qseg, struct vmx_segment *vmx_seg)
 void hvf_put_xsave(CPUState *cpu_state)
 {
 
-    int x;
-    struct hvf_xsave_buf *xsave;
-    
+    struct X86XSaveArea *xsave;
+
     xsave = X86_CPU(cpu_state)->env.kvm_xsave_buf;
-    memset(xsave, 0, sizeof(*xsave)); 
-    
-    memcpy(&xsave->data[4], &X86_CPU(cpu_state)->env.fpdp, sizeof(X86_CPU(cpu_state)->env.fpdp));
-    memcpy(&xsave->data[2], &X86_CPU(cpu_state)->env.fpip, sizeof(X86_CPU(cpu_state)->env.fpip));
-    memcpy(&xsave->data[8], &X86_CPU(cpu_state)->env.fpregs, sizeof(X86_CPU(cpu_state)->env.fpregs));
-    memcpy(&xsave->data[144], &X86_CPU(cpu_state)->env.ymmh_regs, sizeof(X86_CPU(cpu_state)->env.ymmh_regs));
-    memcpy(&xsave->data[288], &X86_CPU(cpu_state)->env.zmmh_regs, sizeof(X86_CPU(cpu_state)->env.zmmh_regs));
-    memcpy(&xsave->data[272], &X86_CPU(cpu_state)->env.opmask_regs, sizeof(X86_CPU(cpu_state)->env.opmask_regs));
-    memcpy(&xsave->data[240], &X86_CPU(cpu_state)->env.bnd_regs, sizeof(X86_CPU(cpu_state)->env.bnd_regs));
-    memcpy(&xsave->data[256], &X86_CPU(cpu_state)->env.bndcs_regs, sizeof(X86_CPU(cpu_state)->env.bndcs_regs));
-    memcpy(&xsave->data[416], &X86_CPU(cpu_state)->env.hi16_zmm_regs, sizeof(X86_CPU(cpu_state)->env.hi16_zmm_regs));
-    
-    xsave->data[0] = (uint16_t)X86_CPU(cpu_state)->env.fpuc;
-    xsave->data[0] |= (X86_CPU(cpu_state)->env.fpus << 16);
-    xsave->data[0] |= (X86_CPU(cpu_state)->env.fpstt & 7) << 11;
-    
-    for (x = 0; x < 8; ++x)
-        xsave->data[1] |= ((!X86_CPU(cpu_state)->env.fptags[x]) << x);
-    xsave->data[1] |= (uint32_t)(X86_CPU(cpu_state)->env.fpop << 16);
-    
-    memcpy(&xsave->data[40], &X86_CPU(cpu_state)->env.xmm_regs, sizeof(X86_CPU(cpu_state)->env.xmm_regs));
-    
-    xsave->data[6] = X86_CPU(cpu_state)->env.mxcsr;
-    *(uint64_t *)&xsave->data[128] = X86_CPU(cpu_state)->env.xstate_bv;
-    
-    if (hv_vcpu_write_fpstate(cpu_state->hvf_fd, xsave->data, 4096)){
+
+    x86_cpu_xsave_all_areas(X86_CPU(cpu_state), xsave);
+
+    if (hv_vcpu_write_fpstate(cpu_state->hvf_fd, (void*)xsave, 4096)) {
         abort();
     }
 }
@@ -187,39 +164,15 @@ void hvf_put_msrs(CPUState *cpu_state)
 
 void hvf_get_xsave(CPUState *cpu_state)
 {
-    int x;
-    struct hvf_xsave_buf *xsave;
-    
+    struct X86XSaveArea *xsave;
+
     xsave = X86_CPU(cpu_state)->env.kvm_xsave_buf;
-    
-    if (hv_vcpu_read_fpstate(cpu_state->hvf_fd, xsave->data, 4096)) {
+
+    if (hv_vcpu_read_fpstate(cpu_state->hvf_fd, (void*)xsave, 4096)) {
         abort();
     }
 
-    memcpy(&X86_CPU(cpu_state)->env.fpdp, &xsave->data[4], sizeof(X86_CPU(cpu_state)->env.fpdp));
-    memcpy(&X86_CPU(cpu_state)->env.fpip, &xsave->data[2], sizeof(X86_CPU(cpu_state)->env.fpip));
-    memcpy(&X86_CPU(cpu_state)->env.fpregs, &xsave->data[8], sizeof(X86_CPU(cpu_state)->env.fpregs));
-    memcpy(&X86_CPU(cpu_state)->env.ymmh_regs, &xsave->data[144], sizeof(X86_CPU(cpu_state)->env.ymmh_regs));
-    memcpy(&X86_CPU(cpu_state)->env.zmmh_regs, &xsave->data[288], sizeof(X86_CPU(cpu_state)->env.zmmh_regs));
-    memcpy(&X86_CPU(cpu_state)->env.opmask_regs, &xsave->data[272], sizeof(X86_CPU(cpu_state)->env.opmask_regs));
-    memcpy(&X86_CPU(cpu_state)->env.bnd_regs, &xsave->data[240], sizeof(X86_CPU(cpu_state)->env.bnd_regs));
-    memcpy(&X86_CPU(cpu_state)->env.bndcs_regs, &xsave->data[256], sizeof(X86_CPU(cpu_state)->env.bndcs_regs));
-    memcpy(&X86_CPU(cpu_state)->env.hi16_zmm_regs, &xsave->data[416], sizeof(X86_CPU(cpu_state)->env.hi16_zmm_regs));
-    
-    
-    X86_CPU(cpu_state)->env.fpuc = (uint16_t)xsave->data[0];
-    X86_CPU(cpu_state)->env.fpus = (uint16_t)(xsave->data[0] >> 16);
-    X86_CPU(cpu_state)->env.fpstt = (X86_CPU(cpu_state)->env.fpus >> 11) & 7;
-    X86_CPU(cpu_state)->env.fpop = (uint16_t)(xsave->data[1] >> 16);
-    
-    for (x = 0; x < 8; ++x)
-       X86_CPU(cpu_state)->env.fptags[x] =
-        ((((uint16_t)xsave->data[1] >> x) & 1) == 0);
-    
-    memcpy(&X86_CPU(cpu_state)->env.xmm_regs, &xsave->data[40], sizeof(X86_CPU(cpu_state)->env.xmm_regs));
-
-    X86_CPU(cpu_state)->env.mxcsr = xsave->data[6];
-    X86_CPU(cpu_state)->env.xstate_bv = *(uint64_t *)&xsave->data[128];
+    x86_cpu_xrstor_all_areas(X86_CPU(cpu_state), xsave);
 }
 
 void hvf_get_segments(CPUState *cpu_state)

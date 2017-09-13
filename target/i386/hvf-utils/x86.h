@@ -373,13 +373,6 @@ struct HVFX86EmulatorState {
     uint8_t mmio_buf[4096];
 };
 
-/*
-* hvf xsave area
-*/
-struct hvf_xsave_buf {
-    uint32_t data[1024];
-};
-
 /* useful register access  macros */
 #define RIP(cpu)    (cpu->hvf_emul->rip)
 #define EIP(cpu)    ((uint32_t)cpu->hvf_emul->rip)
