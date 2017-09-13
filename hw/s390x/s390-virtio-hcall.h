@@ -1,5 +1,5 @@
 /*
- * Virtio interfaces for s390
+ * Support for virtio hypercalls on s390x
  *
  * Copyright 2012 IBM Corp.
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -9,12 +9,12 @@
  * directory.
  */
 
-#ifndef HW_S390_VIRTIO_H
-#define HW_S390_VIRTIO_H
+#ifndef HW_S390_VIRTIO_HCALL_H
+#define HW_S390_VIRTIO_HCALL_H
 
 #include "standard-headers/asm-s390/kvm_virtio.h"
 #include "standard-headers/asm-s390/virtio-ccw.h"
 
 typedef int (*s390_virtio_fn)(const uint64_t *args);
 void s390_register_virtio_hypercall(uint64_t code, s390_virtio_fn fn);
-#endif
+#endif /* HW_S390_VIRTIO_HCALL_H */
