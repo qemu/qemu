@@ -25,6 +25,7 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
+#include "cpu_models.h"
 
 #define TARGET_LONG_BITS 64
 
@@ -80,7 +81,7 @@ typedef struct MchkQueue {
     uint16_t type;
 } MchkQueue;
 
-typedef struct CPUS390XState {
+struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
     /*
      * The floating point registers are part of the vector registers.
@@ -174,7 +175,7 @@ typedef struct CPUS390XState {
     /* currently processed sigp order */
     uint8_t sigp_order;
 
-} CPUS390XState;
+};
 
 static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
 {
