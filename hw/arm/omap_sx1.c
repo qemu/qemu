@@ -36,6 +36,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
+#include "cpu.h"
 
 /*****************************************************************************/
 /* Siemens SX1 Cellphone V1 */
@@ -120,7 +121,7 @@ static void sx1_init(MachineState *machine, const int version)
     }
 
     mpu = omap310_mpu_init(address_space, sx1_binfo.ram_size,
-                           machine->cpu_model);
+                           machine->cpu_type);
 
     /* External Flash (EMIFS) */
     memory_region_init_ram(flash, NULL, "omap_sx1.flash0-0", flash_size,
@@ -224,6 +225,7 @@ static void sx1_machine_v2_class_init(ObjectClass *oc, void *data)
     mc->desc = "Siemens SX1 (OMAP310) V2";
     mc->init = sx1_init_v2;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
 }
 
 static const TypeInfo sx1_machine_v2_type = {
@@ -239,6 +241,7 @@ static void sx1_machine_v1_class_init(ObjectClass *oc, void *data)
     mc->desc = "Siemens SX1 (OMAP310) V1";
     mc->init = sx1_init_v1;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
 }
 
 static const TypeInfo sx1_machine_v1_type = {

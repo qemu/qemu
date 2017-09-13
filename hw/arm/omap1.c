@@ -3850,7 +3850,7 @@ static int omap_validate_tipb_mpui_addr(struct omap_mpu_state_s *s,
 
 struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                 unsigned long sdram_size,
-                const char *core)
+                const char *cpu_type)
 {
     int i;
     struct omap_mpu_state_s *s = g_new0(struct omap_mpu_state_s, 1);
@@ -3858,12 +3858,9 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     DriveInfo *dinfo;
     SysBusDevice *busdev;
 
-    if (!core)
-        core = "ti925t";
-
     /* Core */
     s->mpu_model = omap310;
-    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, core));
+    s->cpu = ARM_CPU(cpu_create(cpu_type));
     s->sdram_size = sdram_size;
     s->sram_size = OMAP15XX_SRAM_SIZE;
 

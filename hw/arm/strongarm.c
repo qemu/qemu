@@ -1581,23 +1581,19 @@ static const TypeInfo strongarm_ssp_info = {
 
 /* Main CPU functions */
 StrongARMState *sa1110_init(MemoryRegion *sysmem,
-                            unsigned int sdram_size, const char *rev)
+                            unsigned int sdram_size, const char *cpu_type)
 {
     StrongARMState *s;
     int i;
 
     s = g_new0(StrongARMState, 1);
 
-    if (!rev) {
-        rev = "sa1110-b5";
-    }
-
-    if (strncmp(rev, "sa1110", 6)) {
+    if (strncmp(cpu_type, "sa1110", 6)) {
         error_report("Machine requires a SA1110 processor.");
         exit(1);
     }
 
-    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, rev));
+    s->cpu = ARM_CPU(cpu_create(cpu_type));
 
     memory_region_allocate_system_memory(&s->sdram, NULL, "strongarm.sdram",
                                          sdram_size);

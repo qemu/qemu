@@ -49,7 +49,7 @@ typedef struct AspeedSoCState {
 
 typedef struct AspeedSoCInfo {
     const char *name;
-    const char *cpu_model;
+    const char *cpu_type;
     uint32_t silicon_rev;
     hwaddr sdram_base;
     uint64_t sram_size;

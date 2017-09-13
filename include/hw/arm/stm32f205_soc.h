@@ -52,7 +52,7 @@ typedef struct STM32F205State {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    char *cpu_model;
+    char *cpu_type;
 
     ARMv7MState armv7m;
 

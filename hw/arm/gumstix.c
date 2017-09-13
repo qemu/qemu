@@ -44,6 +44,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "cpu.h"
 
 static const int sector_len = 128 * 1024;
 
@@ -86,7 +87,6 @@ static void connex_init(MachineState *machine)
 
 static void verdex_init(MachineState *machine)
 {
-    const char *cpu_model = machine->cpu_model;
     PXA2xxState *cpu;
     DriveInfo *dinfo;
     int be;
@@ -95,7 +95,7 @@ static void verdex_init(MachineState *machine)
     uint32_t verdex_rom = 0x02000000;
     uint32_t verdex_ram = 0x10000000;
 
-    cpu = pxa270_init(address_space_mem, verdex_ram, cpu_model ?: "pxa270-c0");
+    cpu = pxa270_init(address_space_mem, verdex_ram, machine->cpu_type);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo && !qtest_enabled()) {
@@ -144,6 +144,7 @@ static void verdex_class_init(ObjectClass *oc, void *data)
     mc->desc = "Gumstix Verdex (PXA270)";
     mc->init = verdex_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
 }
 
 static const TypeInfo verdex_type = {

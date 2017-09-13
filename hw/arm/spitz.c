@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "cpu.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
@@ -909,13 +910,10 @@ static void spitz_common_init(MachineState *machine,
     DeviceState *scp0, *scp1 = NULL;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    const char *cpu_model = machine->cpu_model;
-
-    if (!cpu_model)
-        cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
 
     /* Setup CPU & memory */
-    mpu = pxa270_init(address_space_mem, spitz_binfo.ram_size, cpu_model);
+    mpu = pxa270_init(address_space_mem, spitz_binfo.ram_size,
+                      machine->cpu_type);
 
     sl_flash_register(mpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
@@ -984,6 +982,7 @@ static void akitapda_class_init(ObjectClass *oc, void *data)
     mc->desc = "Sharp SL-C1000 (Akita) PDA (PXA270)";
     mc->init = akita_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
 }
 
 static const TypeInfo akitapda_type = {
@@ -1000,6 +999,7 @@ static void spitzpda_class_init(ObjectClass *oc, void *data)
     mc->init = spitz_init;
     mc->block_default_type = IF_IDE;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
 }
 
 static const TypeInfo spitzpda_type = {
@@ -1016,6 +1016,7 @@ static void borzoipda_class_init(ObjectClass *oc, void *data)
     mc->init = borzoi_init;
     mc->block_default_type = IF_IDE;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
 }
 
 static const TypeInfo borzoipda_type = {
@@ -1032,6 +1033,7 @@ static void terrierpda_class_init(ObjectClass *oc, void *data)
     mc->init = terrier_init;
     mc->block_default_type = IF_IDE;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
 }
 
 static const TypeInfo terrierpda_type = {

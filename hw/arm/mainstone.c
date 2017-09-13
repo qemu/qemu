@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "cpu.h"
 
 /* Device addresses */
 #define MST_FPGA_PHYS	0x08000000
@@ -121,13 +122,10 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     int i;
     int be;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    const char *cpu_model = machine->cpu_model;
-
-    if (!cpu_model)
-        cpu_model = "pxa270-c5";
 
     /* Setup CPU & memory */
-    mpu = pxa270_init(address_space_mem, mainstone_binfo.ram_size, cpu_model);
+    mpu = pxa270_init(address_space_mem, mainstone_binfo.ram_size,
+                      machine->cpu_type);
     memory_region_init_ram(rom, NULL, "mainstone.rom", MAINSTONE_ROM,
                            &error_fatal);
     memory_region_set_readonly(rom, true);
@@ -197,6 +195,7 @@ static void mainstone2_machine_init(MachineClass *mc)
     mc->desc = "Mainstone II (PXA27x)";
     mc->init = mainstone_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
 }
 
 DEFINE_MACHINE("mainstone", mainstone2_machine_init)

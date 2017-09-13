@@ -163,13 +163,13 @@ static const int a15irqmap[] = {
 };
 
 static const char *valid_cpus[] = {
-    "cortex-a15",
-    "cortex-a53",
-    "cortex-a57",
-    "host",
+    ARM_CPU_TYPE_NAME("cortex-a15"),
+    ARM_CPU_TYPE_NAME("cortex-a53"),
+    ARM_CPU_TYPE_NAME("cortex-a57"),
+    ARM_CPU_TYPE_NAME("host"),
 };
 
-static bool cpuname_valid(const char *cpu)
+static bool cpu_type_valid(const char *cpu)
 {
     int i;
 
@@ -1259,17 +1259,7 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *secure_sysmem = NULL;
     int n, virt_max_cpus;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    const char *cpu_model = machine->cpu_model;
-    char **cpustr;
-    ObjectClass *oc;
-    const char *typename;
-    CPUClass *cc;
-    Error *err = NULL;
     bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
-
-    if (!cpu_model) {
-        cpu_model = "cortex-a15";
-    }
 
     /* We can probe only here because during property set
      * KVM is not available yet
@@ -1287,11 +1277,8 @@ static void machvirt_init(MachineState *machine)
         }
     }
 
-    /* Separate the actual CPU model name from any appended features */
-    cpustr = g_strsplit(cpu_model, ",", 2);
-
-    if (!cpuname_valid(cpustr[0])) {
-        error_report("mach-virt: CPU %s not supported", cpustr[0]);
+    if (!cpu_type_valid(machine->cpu_type)) {
+        error_report("mach-virt: CPU type %s not supported", machine->cpu_type);
         exit(1);
     }
 
@@ -1361,22 +1348,6 @@ static void machvirt_init(MachineState *machine)
 
     create_fdt(vms);
 
-    oc = cpu_class_by_name(TYPE_ARM_CPU, cpustr[0]);
-    if (!oc) {
-        error_report("Unable to find CPU definition");
-        exit(1);
-    }
-    typename = object_class_get_name(oc);
-
-    /* convert -smp CPU options specified by the user into global props */
-    cc = CPU_CLASS(oc);
-    cc->parse_features(typename, cpustr[1], &err);
-    g_strfreev(cpustr);
-    if (err) {
-        error_report_err(err);
-        exit(1);
-    }
-
     possible_cpus = mc->possible_cpu_arch_ids(machine);
     for (n = 0; n < possible_cpus->len; n++) {
         Object *cpuobj;
@@ -1386,7 +1357,7 @@ static void machvirt_init(MachineState *machine)
             break;
         }
 
-        cpuobj = object_new(typename);
+        cpuobj = object_new(machine->cpu_type);
         object_property_set_int(cpuobj, possible_cpus->cpus[n].arch_id,
                                 "mp-affinity", NULL);
 
@@ -1631,6 +1602,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->minimum_page_bits = 12;
     mc->possible_cpu_arch_ids = virt_possible_cpu_arch_ids;
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
 }
 
 static const TypeInfo virt_machine_info = {

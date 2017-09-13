@@ -158,11 +158,9 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
 static void zynq_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
-    ObjectClass *cpu_oc;
     ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ext_ram = g_new(MemoryRegion, 1);
@@ -174,12 +172,7 @@ static void zynq_init(MachineState *machine)
     qemu_irq pic[64];
     int n;
 
-    if (!cpu_model) {
-        cpu_model = "cortex-a9";
-    }
-    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
-
-    cpu = ARM_CPU(object_new(object_class_get_name(cpu_oc)));
+    cpu = ARM_CPU(object_new(machine->cpu_type));
 
     /* By default A9 CPUs have EL3 enabled.  This board does not
      * currently support EL3 so the CPU EL3 property is disabled before
@@ -327,6 +320,7 @@ static void zynq_machine_init(MachineClass *mc)
     mc->max_cpus = 1;
     mc->no_sdcard = 1;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
 }
 
 DEFINE_MACHINE("xilinx-zynq-a9", zynq_machine_init)

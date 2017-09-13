@@ -2052,21 +2052,19 @@ static void pxa2xx_reset(void *opaque, int line, int level)
 
 /* Initialise a PXA270 integrated chip (ARM based core).  */
 PXA2xxState *pxa270_init(MemoryRegion *address_space,
-                         unsigned int sdram_size, const char *revision)
+                         unsigned int sdram_size, const char *cpu_type)
 {
     PXA2xxState *s;
     int i;
     DriveInfo *dinfo;
     s = g_new0(PXA2xxState, 1);
 
-    if (revision && strncmp(revision, "pxa27", 5)) {
+    if (strncmp(cpu_type, "pxa27", 5)) {
         fprintf(stderr, "Machine requires a PXA27x processor.\n");
         exit(1);
     }
-    if (!revision)
-        revision = "pxa270";
 
-    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, revision));
+    s->cpu = ARM_CPU(cpu_create(cpu_type));
     s->reset = qemu_allocate_irq(pxa2xx_reset, s, 0);
 
     /* SDRAM & Internal Memory Storage */
@@ -2192,7 +2190,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 
     s = g_new0(PXA2xxState, 1);
 
-    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, "pxa255"));
+    s->cpu = ARM_CPU(cpu_create(ARM_CPU_TYPE_NAME("pxa255")));
     s->reset = qemu_allocate_irq(pxa2xx_reset, s, 0);
 
     /* SDRAM & Internal Memory Storage */

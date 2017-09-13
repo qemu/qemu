@@ -2250,7 +2250,7 @@ static const struct dma_irq_map omap2_dma_irq_map[] = {
 
 struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
                 unsigned long sdram_size,
-                const char *core)
+                const char *cpu_type)
 {
     struct omap_mpu_state_s *s = g_new0(struct omap_mpu_state_s, 1);
     qemu_irq dma_irqs[4];
@@ -2261,7 +2261,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
 
     /* Core */
     s->mpu_model = omap2420;
-    s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, core ?: "arm1136-r2"));
+    s->cpu = ARM_CPU(cpu_create(cpu_type));
     s->sdram_size = sdram_size;
     s->sram_size = OMAP242X_SRAM_SIZE;
 
