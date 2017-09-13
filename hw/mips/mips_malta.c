@@ -932,10 +932,6 @@ static void create_cpu_without_cps(const char *cpu_model,
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = cpu_mips_init(cpu_model);
-        if (cpu == NULL) {
-            fprintf(stderr, "Unable to find CPU definition\n");
-            exit(1);
-        }
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);

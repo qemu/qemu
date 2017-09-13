@@ -43,10 +43,6 @@ static void an5206_init(MachineState *machine)
         cpu_model = "m5206";
     }
     cpu = M68K_CPU(cpu_generic_init(TYPE_M68K_CPU, cpu_model));
-    if (!cpu) {
-        error_report("Unable to find m68k CPU definition");
-        exit(1);
-    }
     env = &cpu->env;
 
     /* Initialize CPU registers.  */

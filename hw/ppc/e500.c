@@ -817,10 +817,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
 
         cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU,
                                            machine->cpu_model));
-        if (cpu == NULL) {
-            fprintf(stderr, "Unable to initialize CPU!\n");
-            exit(1);
-        }
         env = &cpu->env;
         cs = CPU(cpu);
 

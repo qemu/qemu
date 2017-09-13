@@ -72,10 +72,6 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < s->num_vp; i++) {
         cpu = cpu_mips_init(s->cpu_model);
-        if (cpu == NULL) {
-            error_setg(errp, "%s: CPU initialization failed",  __func__);
-            return;
-        }
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);

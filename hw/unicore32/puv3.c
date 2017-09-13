@@ -128,10 +128,6 @@ static void puv3_init(MachineState *machine)
     }
 
     cpu = UNICORE32_CPU(cpu_generic_init(TYPE_UNICORE32_CPU, cpu_model));
-    if (!cpu) {
-        error_report("Unable to find CPU definition");
-        exit(1);
-    }
     env = &cpu->env;
 
     puv3_soc_init(env);

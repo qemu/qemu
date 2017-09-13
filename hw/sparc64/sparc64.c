@@ -354,10 +354,6 @@ SPARCCPU *sparc64_cpu_devinit(const char *cpu_model,
         cpu_model = default_cpu_model;
     }
     cpu = SPARC_CPU(cpu_generic_init(TYPE_SPARC_CPU, cpu_model));
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to find Sparc CPU definition\n");
-        exit(1);
-    }
     env = &cpu->env;
 
     env->tick = cpu_timer_create("tick", cpu, tick_irq,

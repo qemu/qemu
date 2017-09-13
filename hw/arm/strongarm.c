@@ -1599,11 +1599,6 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
 
     s->cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, rev));
 
-    if (!s->cpu) {
-        error_report("Unable to find CPU definition");
-        exit(1);
-    }
-
     memory_region_allocate_system_memory(&s->sdram, NULL, "strongarm.sdram",
                                          sdram_size);
     memory_region_add_subregion(sysmem, SA_SDCS0, &s->sdram);

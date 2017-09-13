@@ -233,10 +233,6 @@ static void mcf5208evb_init(MachineState *machine)
         cpu_model = "m5208";
     }
     cpu = M68K_CPU(cpu_generic_init(TYPE_M68K_CPU, cpu_model));
-    if (!cpu) {
-        fprintf(stderr, "Unable to find m68k CPU definition\n");
-        exit(1);
-    }
     env = &cpu->env;
 
     /* Initialize CPU registers.  */

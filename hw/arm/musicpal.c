@@ -1594,10 +1594,6 @@ static void musicpal_init(MachineState *machine)
         cpu_model = "arm926";
     }
     cpu = ARM_CPU(cpu_generic_init(TYPE_ARM_CPU, cpu_model));
-    if (!cpu) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
 
     /* For now we use a fixed - the original - RAM size */
     memory_region_allocate_system_memory(ram, NULL, "musicpal.ram",

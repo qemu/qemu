@@ -281,10 +281,6 @@ static void mips_fulong2e_init(MachineState *machine)
         cpu_model = "Loongson-2E";
     }
     cpu = cpu_mips_init(cpu_model);
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
     env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, cpu);

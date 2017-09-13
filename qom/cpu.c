@@ -62,7 +62,7 @@ CPUState *cpu_create(const char *typename)
     if (err != NULL) {
         error_report_err(err);
         object_unref(OBJECT(cpu));
-        return NULL;
+        exit(EXIT_FAILURE);
     }
     return cpu;
 }
@@ -71,7 +71,6 @@ const char *cpu_parse_cpu_model(const char *typename, const char *cpu_model)
 {
     ObjectClass *oc;
     CPUClass *cc;
-    Error *err = NULL;
     gchar **model_pieces;
     const char *cpu_type;
 
@@ -79,18 +78,15 @@ const char *cpu_parse_cpu_model(const char *typename, const char *cpu_model)
 
     oc = cpu_class_by_name(typename, model_pieces[0]);
     if (oc == NULL) {
+        error_report("unable to find CPU model '%s'", model_pieces[0]);
         g_strfreev(model_pieces);
-        return NULL;
+        exit(EXIT_FAILURE);
     }
 
     cpu_type = object_class_get_name(oc);
     cc = CPU_CLASS(oc);
-    cc->parse_features(cpu_type, model_pieces[1], &err);
+    cc->parse_features(cpu_type, model_pieces[1], &error_fatal);
     g_strfreev(model_pieces);
-    if (err != NULL) {
-        error_report_err(err);
-        return NULL;
-    }
     return cpu_type;
 }
 
@@ -99,12 +95,7 @@ CPUState *cpu_generic_init(const char *typename, const char *cpu_model)
     /* TODO: all callers of cpu_generic_init() need to be converted to
      * call cpu_parse_features() only once, before calling cpu_generic_init().
      */
-    const char *cpu_type = cpu_parse_cpu_model(typename, cpu_model);
-
-    if (cpu_type) {
-        return cpu_create(cpu_type);
-    }
-    return NULL;
+    return cpu_create(cpu_parse_cpu_model(typename, cpu_model));
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)
