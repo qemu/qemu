@@ -45,17 +45,26 @@ _supported_os Linux
 
 size=32M
 
+case "$QEMU_DEFAULT_MACHINE" in
+  s390-ccw-virtio)
+      virtioblk=virtio-blk-ccw
+      ;;
+  *)
+      virtioblk=virtio-blk-pci
+      ;;
+esac
+
 _make_test_img $size
 
 echo "Starting QEMU"
 _launch_qemu -drive file=$TEST_IMG,if=none,id=drive0,file.locking=on \
-    -device virtio-blk-pci,drive=drive0
+    -device $virtioblk,drive=drive0
 
 echo
 echo "Starting a second QEMU using the same image should fail"
 echo 'quit' | $QEMU -monitor stdio \
     -drive file=$TEST_IMG,if=none,id=drive0,file.locking=on \
-    -device virtio-blk-pci,drive=drive0 2>&1 | _filter_testdir 2>&1 |
+    -device $virtioblk,drive=drive0 2>&1 | _filter_testdir 2>&1 |
     _filter_qemu |
     sed -e '/falling back to POSIX file/d' \
         -e '/locks can be lost unexpectedly/d'
