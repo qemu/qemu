@@ -2,6 +2,7 @@
  * virtio ccw machine
  *
  * Copyright 2012 IBM Corp.
+ * Copyright (c) 2009 Alexander Graf <agraf@suse.de>
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
@@ -31,6 +32,46 @@
 #include "hw/s390x/css-bridge.h"
 #include "migration/register.h"
 #include "cpu_models.h"
+#include "qapi/qmp/qerror.h"
+#include "hw/nmi.h"
+
+static S390CPU **cpu_states;
+
+S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
+{
+    if (cpu_addr >= max_cpus) {
+        return NULL;
+    }
+
+    /* Fast lookup via CPU ID */
+    return cpu_states[cpu_addr];
+}
+
+static void s390_init_cpus(MachineState *machine)
+{
+    int i;
+    gchar *name;
+
+    if (machine->cpu_model == NULL) {
+        machine->cpu_model = s390_default_cpu_model_name();
+    }
+
+    cpu_states = g_new0(S390CPU *, max_cpus);
+
+    for (i = 0; i < max_cpus; i++) {
+        name = g_strdup_printf("cpu[%i]", i);
+        object_property_add_link(OBJECT(machine), name, TYPE_S390_CPU,
+                                 (Object **) &cpu_states[i],
+                                 object_property_allow_set_link,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                                 &error_abort);
+        g_free(name);
+    }
+
+    for (i = 0; i < smp_cpus; i++) {
+        s390x_new_cpu(machine->cpu_model, i, &error_fatal);
+    }
+}
 
 static const char *const reset_dev_types[] = {
     TYPE_VIRTUAL_CSS_BRIDGE,
@@ -94,7 +135,7 @@ static void virtio_ccw_register_hcalls(void)
                                    virtio_ccw_hcall_early_printk);
 }
 
-void s390_memory_init(ram_addr_t mem_size)
+static void s390_memory_init(ram_addr_t mem_size)
 {
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -109,10 +150,104 @@ void s390_memory_init(ram_addr_t mem_size)
     s390_stattrib_init();
 }
 
+#define S390_TOD_CLOCK_VALUE_MISSING    0x00
+#define S390_TOD_CLOCK_VALUE_PRESENT    0x01
+
+static void gtod_save(QEMUFile *f, void *opaque)
+{
+    uint64_t tod_low;
+    uint8_t tod_high;
+    int r;
+
+    r = s390_get_clock(&tod_high, &tod_low);
+    if (r) {
+        warn_report("Unable to get guest clock for migration: %s",
+                    strerror(-r));
+        error_printf("Guest clock will not be migrated "
+                     "which could cause the guest to hang.");
+        qemu_put_byte(f, S390_TOD_CLOCK_VALUE_MISSING);
+        return;
+    }
+
+    qemu_put_byte(f, S390_TOD_CLOCK_VALUE_PRESENT);
+    qemu_put_byte(f, tod_high);
+    qemu_put_be64(f, tod_low);
+}
+
+static int gtod_load(QEMUFile *f, void *opaque, int version_id)
+{
+    uint64_t tod_low;
+    uint8_t tod_high;
+    int r;
+
+    if (qemu_get_byte(f) == S390_TOD_CLOCK_VALUE_MISSING) {
+        warn_report("Guest clock was not migrated. This could "
+                    "cause the guest to hang.");
+        return 0;
+    }
+
+    tod_high = qemu_get_byte(f);
+    tod_low = qemu_get_be64(f);
+
+    r = s390_set_clock(&tod_high, &tod_low);
+    if (r) {
+        warn_report("Unable to set guest clock for migration: %s",
+                    strerror(-r));
+        error_printf("Guest clock will not be restored "
+                     "which could cause the guest to hang.");
+    }
+
+    return 0;
+}
+
 static SaveVMHandlers savevm_gtod = {
     .save_state = gtod_save,
     .load_state = gtod_load,
 };
+
+static void s390_init_ipl_dev(const char *kernel_filename,
+                              const char *kernel_cmdline,
+                              const char *initrd_filename, const char *firmware,
+                              const char *netboot_fw, bool enforce_bios)
+{
+    Object *new = object_new(TYPE_S390_IPL);
+    DeviceState *dev = DEVICE(new);
+
+    if (kernel_filename) {
+        qdev_prop_set_string(dev, "kernel", kernel_filename);
+    }
+    if (initrd_filename) {
+        qdev_prop_set_string(dev, "initrd", initrd_filename);
+    }
+    qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
+    qdev_prop_set_string(dev, "firmware", firmware);
+    qdev_prop_set_string(dev, "netboot_fw", netboot_fw);
+    qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
+    object_property_add_child(qdev_get_machine(), TYPE_S390_IPL,
+                              new, NULL);
+    object_unref(new);
+    qdev_init_nofail(dev);
+}
+
+static void s390_create_virtio_net(BusState *bus, const char *name)
+{
+    int i;
+
+    for (i = 0; i < nb_nics; i++) {
+        NICInfo *nd = &nd_table[i];
+        DeviceState *dev;
+
+        if (!nd->model) {
+            nd->model = g_strdup("virtio");
+        }
+
+        qemu_check_nic_model(nd, "virtio");
+
+        dev = qdev_create(bus, name);
+        qdev_set_nic_properties(dev, nd);
+        qdev_init_nofail(dev);
+    }
+}
 
 static void ccw_init(MachineState *machine)
 {
@@ -177,6 +312,19 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
     g_free(name);
 }
 
+static void s390_machine_reset(void)
+{
+    S390CPU *ipl_cpu = S390_CPU(qemu_get_cpu(0));
+
+    s390_cmma_reset();
+    qemu_devices_reset();
+    s390_crypto_reset();
+
+    /* all cpus are stopped - configure and start the ipl cpu only */
+    s390_ipl_prepare_cpu(ipl_cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, ipl_cpu);
+}
+
 static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
@@ -199,6 +347,15 @@ static void s390_hot_add_cpu(const int64_t id, Error **errp)
     MachineState *machine = MACHINE(qdev_get_machine());
 
     s390x_new_cpu(machine->cpu_model, id, errp);
+}
+
+static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    CPUState *cs = qemu_get_cpu(cpu_index);
+
+    if (s390_cpu_restart(S390_CPU(cs))) {
+        error_setg(errp, QERR_UNSUPPORTED);
+    }
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)

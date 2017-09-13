@@ -1,4 +1,3 @@
-obj-y += s390-virtio.o
 obj-y += s390-virtio-hcall.o
 obj-y += sclp.o
 obj-y += event-facility.o
