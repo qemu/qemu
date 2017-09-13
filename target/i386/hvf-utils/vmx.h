@@ -181,6 +181,10 @@ static inline void macvm_set_rip(CPUState *cpu, uint64_t rip)
 
 static inline void vmx_clear_nmi_blocking(CPUState *cpu)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    env->hflags2 &= ~HF2_NMI_MASK;
     uint32_t gi = (uint32_t) rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY);
     gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
     wvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY, gi);
@@ -188,6 +192,10 @@ static inline void vmx_clear_nmi_blocking(CPUState *cpu)
 
 static inline void vmx_set_nmi_blocking(CPUState *cpu)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    env->hflags2 |= HF2_NMI_MASK;
     uint32_t gi = (uint32_t)rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY);
     gi |= VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
     wvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY, gi);

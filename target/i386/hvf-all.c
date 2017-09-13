@@ -587,6 +587,55 @@ void hvf_disable(int shouldDisable)
     hvf_disabled = shouldDisable;
 }
 
+static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_info)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    env->exception_injected = -1;
+    env->interrupt_injected = -1;
+    env->nmi_injected = false;
+    if (idtvec_info & VMCS_IDT_VEC_VALID) {
+        switch (idtvec_info & VMCS_IDT_VEC_TYPE) {
+        case VMCS_IDT_VEC_HWINTR:
+        case VMCS_IDT_VEC_SWINTR:
+            env->interrupt_injected = idtvec_info & VMCS_IDT_VEC_VECNUM;
+            break;
+        case VMCS_IDT_VEC_NMI:
+            env->nmi_injected = true;
+            break;
+        case VMCS_IDT_VEC_HWEXCEPTION:
+        case VMCS_IDT_VEC_SWEXCEPTION:
+            env->exception_injected = idtvec_info & VMCS_IDT_VEC_VECNUM;
+            break;
+        case VMCS_IDT_VEC_PRIV_SWEXCEPTION:
+        default:
+            abort();
+        }
+        if ((idtvec_info & VMCS_IDT_VEC_TYPE) == VMCS_IDT_VEC_SWEXCEPTION ||
+            (idtvec_info & VMCS_IDT_VEC_TYPE) == VMCS_IDT_VEC_SWINTR) {
+            env->ins_len = ins_len;
+        }
+        if (idtvec_info & VMCS_INTR_DEL_ERRCODE) {
+            env->has_error_code = true;
+            env->error_code = rvmcs(cpu->hvf_fd, VMCS_IDT_VECTORING_ERROR);
+        }
+    }
+    if ((rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
+        VMCS_INTERRUPTIBILITY_NMI_BLOCKING)) {
+        env->hflags2 |= HF2_NMI_MASK;
+    } else {
+        env->hflags2 &= ~HF2_NMI_MASK;
+    }
+    if (rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
+         (VMCS_INTERRUPTIBILITY_STI_BLOCKING |
+         VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)) {
+        env->hflags |= HF_INHIBIT_IRQ_MASK;
+    } else {
+        env->hflags &= ~HF_INHIBIT_IRQ_MASK;
+    }
+}
+
 int hvf_vcpu_exec(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
@@ -606,12 +655,9 @@ int hvf_vcpu_exec(CPUState *cpu)
             cpu->vcpu_dirty = false;
         }
 
-        env->hvf_emul->interruptable =
-            !(rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
-             (VMCS_INTERRUPTIBILITY_STI_BLOCKING |
-             VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING));
-
-        hvf_inject_interrupts(cpu);
+        if (hvf_inject_interrupts(cpu)) {
+            return EXCP_INTERRUPT;
+        }
         vmx_update_tpr(cpu);
 
         qemu_mutex_unlock_iothread();
@@ -628,7 +674,10 @@ int hvf_vcpu_exec(CPUState *cpu)
         uint64_t exit_qual = rvmcs(cpu->hvf_fd, VMCS_EXIT_QUALIFICATION);
         uint32_t ins_len = (uint32_t)rvmcs(cpu->hvf_fd,
                                            VMCS_EXIT_INSTRUCTION_LENGTH);
+
         uint64_t idtvec_info = rvmcs(cpu->hvf_fd, VMCS_IDT_VECTORING_INFO);
+
+        hvf_store_events(cpu, ins_len, idtvec_info);
         rip = rreg(cpu->hvf_fd, HV_X86_RIP);
         RFLAGS(env) = rreg(cpu->hvf_fd, HV_X86_RFLAGS);
         env->eflags = RFLAGS(env);

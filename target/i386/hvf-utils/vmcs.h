@@ -299,6 +299,7 @@
 /*
  * VMCS IDT-Vectoring information fields
  */
+#define VMCS_IDT_VEC_VECNUM 0xFF
 #define VMCS_IDT_VEC_VALID (1U << 31)
 #define VMCS_IDT_VEC_TYPE 0x700
 #define VMCS_IDT_VEC_ERRCODE_VALID (1U << 11)
@@ -306,6 +307,8 @@
 #define VMCS_IDT_VEC_NMI (2 << 8)
 #define VMCS_IDT_VEC_HWEXCEPTION (3 << 8)
 #define VMCS_IDT_VEC_SWINTR (4 << 8)
+#define VMCS_IDT_VEC_PRIV_SWEXCEPTION (5 << 8)
+#define VMCS_IDT_VEC_SWEXCEPTION (6 << 8)
 
 /*
  * VMCS Guest interruptibility field

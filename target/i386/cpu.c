@@ -3285,6 +3285,9 @@ static void x86_cpu_reset(CPUState *s)
     memset(env->mtrr_var, 0, sizeof(env->mtrr_var));
     memset(env->mtrr_fixed, 0, sizeof(env->mtrr_fixed));
 
+    env->interrupt_injected = -1;
+    env->exception_injected = -1;
+    env->nmi_injected = false;
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
     apic_designate_bsp(cpu->apic_state, s->cpu_index == 0);

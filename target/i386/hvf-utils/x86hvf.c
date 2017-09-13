@@ -356,50 +356,47 @@ void vmx_clear_int_window_exiting(CPUState *cpu)
 
 bool hvf_inject_interrupts(CPUState *cpu_state)
 {
-    int allow_nmi = !(rvmcs(cpu_state->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
-                VMCS_INTERRUPTIBILITY_NMI_BLOCKING);
     X86CPU *x86cpu = X86_CPU(cpu_state);
     CPUX86State *env = &x86cpu->env;
 
-    uint64_t idt_info = rvmcs(cpu_state->hvf_fd, VMCS_IDT_VECTORING_INFO);
+    uint8_t vector;
+    uint64_t intr_type;
+    bool have_event = true;
+    if (env->interrupt_injected != -1) {
+        vector = env->interrupt_injected;
+        intr_type = VMCS_INTR_T_SWINTR;
+    } else if (env->exception_injected != -1) {
+        vector = env->exception_injected;
+        if (vector == EXCP03_INT3 || vector == EXCP04_INTO) {
+            intr_type = VMCS_INTR_T_SWEXCEPTION;
+        } else {
+            intr_type = VMCS_INTR_T_HWEXCEPTION;
+        }
+    } else if (env->nmi_injected) {
+        vector = NMI_VEC;
+        intr_type = VMCS_INTR_T_NMI;
+    } else {
+        have_event = false;
+    }
+
     uint64_t info = 0;
-    
-    if (idt_info & VMCS_IDT_VEC_VALID) {
-        uint8_t vector = idt_info & 0xff;
-        uint64_t intr_type = idt_info & VMCS_INTR_T_MASK;
-        info = idt_info;
-        
+    if (have_event) {
+        info = vector | intr_type | VMCS_INTR_VALID;
         uint64_t reason = rvmcs(cpu_state->hvf_fd, VMCS_EXIT_REASON);
-        if (intr_type == VMCS_INTR_T_NMI && reason != EXIT_REASON_TASK_SWITCH) {
-            allow_nmi = 1;
+        if (env->nmi_injected && reason != EXIT_REASON_TASK_SWITCH) {
             vmx_clear_nmi_blocking(cpu_state);
         }
-        
-        if ((allow_nmi || intr_type != VMCS_INTR_T_NMI)) {
+
+        if (!(env->hflags2 & HF2_NMI_MASK) || intr_type != VMCS_INTR_T_NMI) {
             info &= ~(1 << 12); /* clear undefined bit */
             if (intr_type == VMCS_INTR_T_SWINTR ||
-                intr_type == VMCS_INTR_T_PRIV_SWEXCEPTION ||
                 intr_type == VMCS_INTR_T_SWEXCEPTION) {
-                uint64_t ins_len = rvmcs(cpu_state->hvf_fd,
-                                         VMCS_EXIT_INSTRUCTION_LENGTH);
-                wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INST_LENGTH, ins_len);
-            }
-            if (vector == EXCEPTION_BP || vector == EXCEPTION_OF) {
-                /*
-                 * VT-x requires #BP and #OF to be injected as software
-                 * exceptions.
-                 */
-                info &= ~VMCS_INTR_T_MASK;
-                info |= VMCS_INTR_T_SWEXCEPTION;
-                uint64_t ins_len = rvmcs(cpu_state->hvf_fd,
-                                         VMCS_EXIT_INSTRUCTION_LENGTH);
-                wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INST_LENGTH, ins_len);
+                wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INST_LENGTH, env->ins_len);
             }
             
-            uint64_t err = 0;
-            if (idt_info & VMCS_INTR_DEL_ERRCODE) {
-                err = rvmcs(cpu_state->hvf_fd, VMCS_IDT_VECTORING_ERROR);
-                wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_EXCEPTION_ERROR, err);
+            if (env->has_error_code) {
+                wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_EXCEPTION_ERROR,
+                      env->error_code);
             }
             /*printf("reinject  %lx err %d\n", info, err);*/
             wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INTR_INFO, info);
@@ -407,7 +404,7 @@ bool hvf_inject_interrupts(CPUState *cpu_state)
     }
 
     if (cpu_state->interrupt_request & CPU_INTERRUPT_NMI) {
-        if (allow_nmi && !(info & VMCS_INTR_VALID)) {
+        if (!(env->hflags2 & HF2_NMI_MASK) && !(info & VMCS_INTR_VALID)) {
             cpu_state->interrupt_request &= ~CPU_INTERRUPT_NMI;
             info = VMCS_INTR_VALID | VMCS_INTR_T_NMI | NMI_VEC;
             wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INTR_INFO, info);
@@ -416,7 +413,7 @@ bool hvf_inject_interrupts(CPUState *cpu_state)
         }
     }
 
-    if (env->hvf_emul->interruptable &&
+    if (!(env->hflags & HF_INHIBIT_IRQ_MASK) &&
         (cpu_state->interrupt_request & CPU_INTERRUPT_HARD) &&
         (EFLAGS(env) & IF_MASK) && !(info & VMCS_INTR_VALID)) {
         int line = cpu_get_pic_interrupt(&x86cpu->env);
@@ -429,6 +426,8 @@ bool hvf_inject_interrupts(CPUState *cpu_state)
     if (cpu_state->interrupt_request & CPU_INTERRUPT_HARD) {
         vmx_set_int_window_exiting(cpu_state);
     }
+    return (cpu_state->interrupt_request
+            & (CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR));
 }
 
 int hvf_process_events(CPUState *cpu_state)
