@@ -55,6 +55,10 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 static void s390_init_cpus(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const char *typename;
+    gchar **model_pieces;
+    ObjectClass *oc;
+    CPUClass *cc;
     int i;
 
     if (machine->cpu_model == NULL) {
@@ -69,8 +73,25 @@ static void s390_init_cpus(MachineState *machine)
     /* initialize possible_cpus */
     mc->possible_cpu_arch_ids(machine);
 
+    model_pieces = g_strsplit(machine->cpu_model, ",", 2);
+    if (!model_pieces[0]) {
+        error_report("Invalid/empty CPU model name");
+        exit(1);
+    }
+
+    oc = cpu_class_by_name(TYPE_S390_CPU, model_pieces[0]);
+    if (!oc) {
+        error_report("Unable to find CPU definition: %s", model_pieces[0]);
+        exit(1);
+    }
+    typename = object_class_get_name(oc);
+    cc = CPU_CLASS(oc);
+    /* after parsing, properties will be applied to all *typename* instances */
+    cc->parse_features(typename, model_pieces[1], &error_fatal);
+    g_strfreev(model_pieces);
+
     for (i = 0; i < smp_cpus; i++) {
-        s390x_new_cpu(machine->cpu_model, i, &error_fatal);
+        s390x_new_cpu(typename, i, &error_fatal);
     }
 }
 
@@ -382,8 +403,12 @@ static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
 static void s390_hot_add_cpu(const int64_t id, Error **errp)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
+    ObjectClass *oc;
 
-    s390x_new_cpu(machine->cpu_model, id, errp);
+    g_assert(machine->possible_cpus->cpus[0].cpu);
+    oc = OBJECT_CLASS(CPU_GET_CLASS(machine->possible_cpus->cpus[0].cpu));
+
+    s390x_new_cpu(object_class_get_name(oc), id, errp);
 }
 
 static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
