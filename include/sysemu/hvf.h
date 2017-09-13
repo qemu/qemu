@@ -34,11 +34,16 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
 #define hvf_get_supported_cpuid(func, idx, reg) 0
 #endif
 
+/* hvf_slot flags */
+#define HVF_SLOT_LOG (1 << 0)
+
 typedef struct hvf_slot {
     uint64_t start;
     uint64_t size;
     uint8_t *mem;
     int slot_id;
+    uint32_t flags;
+    MemoryRegion *region;
 } hvf_slot;
 
 typedef struct hvf_vcpu_caps {
