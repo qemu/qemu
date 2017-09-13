@@ -20,6 +20,7 @@
 #include "hw/watchdog/wdt_diag288.h"
 #include "sysemu/cpus.h"
 #include "hw/s390x/ipl.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 static int modified_clear_reset(S390CPU *cpu)
 {
