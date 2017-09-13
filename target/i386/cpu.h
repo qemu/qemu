@@ -1508,6 +1508,15 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_X86_CPU, cpu_model)
 
+#define X86_CPU_TYPE_SUFFIX "-" TYPE_X86_CPU
+#define X86_CPU_TYPE_NAME(name) (name X86_CPU_TYPE_SUFFIX)
+
+#ifdef TARGET_X86_64
+#define TARGET_DEFAULT_CPU_TYPE X86_CPU_TYPE_NAME("qemu64")
+#else
+#define TARGET_DEFAULT_CPU_TYPE X86_CPU_TYPE_NAME("qemu32")
+#endif
+
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 

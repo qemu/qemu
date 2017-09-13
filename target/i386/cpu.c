@@ -705,9 +705,6 @@ void host_vendor_fms(char *vendor, int *family, int *model, int *stepping)
 
 /* CPU class name definitions: */
 
-#define X86_CPU_TYPE_SUFFIX "-" TYPE_X86_CPU
-#define X86_CPU_TYPE_NAME(name) (name X86_CPU_TYPE_SUFFIX)
-
 /* Return type name for a given CPU model name
  * Caller is responsible for freeing the returned string.
  */
