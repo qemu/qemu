@@ -250,7 +250,7 @@ static void do_ext_interrupt(CPUS390XState *env)
     lowcore->ext_params2 = cpu_to_be64(q->param64);
     lowcore->external_old_psw.mask = cpu_to_be64(get_psw_mask(env));
     lowcore->external_old_psw.addr = cpu_to_be64(env->psw.addr);
-    lowcore->cpu_addr = cpu_to_be16(env->cpu_num | VIRTIO_SUBCODE_64);
+    lowcore->cpu_addr = cpu_to_be16(env->core_id | VIRTIO_SUBCODE_64);
     mask = be64_to_cpu(lowcore->external_new_psw.mask);
     addr = be64_to_cpu(lowcore->external_new_psw.addr);
 

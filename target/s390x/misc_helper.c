@@ -232,7 +232,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             /* XXX make different for different CPUs? */
             ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
-            stw_p(&sysib.cpu_addr, env->cpu_num);
+            stw_p(&sysib.cpu_addr, env->core_id);
             cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 2)) {
             /* Basic Machine CPUs */
@@ -260,7 +260,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 /* XXX make different for different CPUs? */
                 ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
                 ebcdic_put(sysib.plant, "QEMU", 4);
-                stw_p(&sysib.cpu_addr, env->cpu_num);
+                stw_p(&sysib.cpu_addr, env->core_id);
                 stw_p(&sysib.cpu_id, 0);
                 cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else if ((sel1 == 2) && (sel2 == 2)) {

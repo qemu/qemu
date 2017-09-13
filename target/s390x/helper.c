@@ -104,7 +104,7 @@ S390CPU *cpu_s390x_create(const char *cpu_model, Error **errp)
     return S390_CPU(CPU(object_new(typename)));
 }
 
-S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp)
+S390CPU *s390x_new_cpu(const char *cpu_model, uint32_t core_id, Error **errp)
 {
     S390CPU *cpu;
     Error *err = NULL;
@@ -114,7 +114,7 @@ S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp)
         goto out;
     }
 
-    object_property_set_int(OBJECT(cpu), id, "id", &err);
+    object_property_set_int(OBJECT(cpu), core_id, "core-id", &err);
     if (err != NULL) {
         goto out;
     }

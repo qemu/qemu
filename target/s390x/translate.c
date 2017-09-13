@@ -3823,10 +3823,7 @@ static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 static ExitStatus op_stap(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    /* ??? Surely cpu address != cpu number.  In any case the previous
-       version of this stored more than the required half-word, so it
-       is unlikely this has ever been tested.  */
-    tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, cpu_num));
+    tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, core_id));
     return NO_EXIT;
 }
 
