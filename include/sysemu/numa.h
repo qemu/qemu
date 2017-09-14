@@ -24,9 +24,14 @@ struct node_info {
     uint8_t distance[MAX_NODES];
 };
 
+struct NumaNodeMem {
+    uint64_t node_mem;
+    uint64_t node_plugged_mem;
+};
+
 extern NodeInfo numa_info[MAX_NODES];
 void parse_numa_opts(MachineState *ms);
-void query_numa_node_mem(uint64_t node_mem[]);
+void query_numa_node_mem(NumaNodeMem node_mem[]);
 extern QemuOptsList qemu_numa_opts;
 void numa_set_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node);
 void numa_unset_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node);
