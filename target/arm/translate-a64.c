@@ -11348,6 +11348,7 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         default:
             gen_a64_set_pc_im(dc->pc);
             /* fall through */
+        case DISAS_EXIT:
         case DISAS_JUMP:
             if (dc->base.singlestep_enabled) {
                 gen_exception_internal(EXCP_DEBUG);
