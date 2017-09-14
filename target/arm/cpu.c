@@ -235,6 +235,12 @@ static void arm_cpu_reset(CPUState *s)
         env->regs[15] = 0xFFFF0000;
     }
 
+    /* M profile requires that reset clears the exclusive monitor;
+     * A profile does not, but clearing it makes more sense than having it
+     * set with an exclusive access on address zero.
+     */
+    arm_clear_exclusive(env);
+
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
 #endif
 

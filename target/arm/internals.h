@@ -444,6 +444,16 @@ void arm_handle_psci_call(ARMCPU *cpu);
 #endif
 
 /**
+ * arm_clear_exclusive: clear the exclusive monitor
+ * @env: CPU env
+ * Clear the CPU's exclusive monitor, like the guest CLREX instruction.
+ */
+static inline void arm_clear_exclusive(CPUARMState *env)
+{
+    env->exclusive_addr = -1;
+}
+
+/**
  * ARMMMUFaultInfo: Information describing an ARM MMU Fault
  * @s2addr: Address that caused a fault at stage 2
  * @stage2: True if we faulted at stage 2
