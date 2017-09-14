@@ -30,6 +30,8 @@ typedef struct XlnxZCU102 {
 
     XlnxZynqMPState soc;
     MemoryRegion ddr_ram;
+
+    bool secure;
 } XlnxZCU102;
 
 #define TYPE_ZCU102_MACHINE   MACHINE_TYPE_NAME("xlnx-zcu102")
@@ -41,6 +43,20 @@ typedef struct XlnxZCU102 {
     OBJECT_CHECK(XlnxZCU102, (obj), TYPE_EP108_MACHINE)
 
 static struct arm_boot_info xlnx_zcu102_binfo;
+
+static bool zcu102_get_secure(Object *obj, Error **errp)
+{
+    XlnxZCU102 *s = ZCU102_MACHINE(obj);
+
+    return s->secure;
+}
+
+static void zcu102_set_secure(Object *obj, bool value, Error **errp)
+{
+    XlnxZCU102 *s = ZCU102_MACHINE(obj);
+
+    s->secure = value;
+}
 
 static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
 {
@@ -69,6 +85,8 @@ static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
 
     object_property_set_link(OBJECT(&s->soc), OBJECT(&s->ddr_ram),
                          "ddr-ram", &error_abort);
+    object_property_set_bool(OBJECT(&s->soc), s->secure, "secure",
+                             &error_fatal);
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
@@ -134,6 +152,10 @@ static void xlnx_ep108_init(MachineState *machine)
 
 static void xlnx_ep108_machine_instance_init(Object *obj)
 {
+    XlnxZCU102 *s = EP108_MACHINE(obj);
+
+    /* EP108, we don't support setting secure */
+    s->secure = false;
 }
 
 static void xlnx_ep108_machine_class_init(ObjectClass *oc, void *data)
@@ -169,6 +191,16 @@ static void xlnx_zcu102_init(MachineState *machine)
 
 static void xlnx_zcu102_machine_instance_init(Object *obj)
 {
+    XlnxZCU102 *s = ZCU102_MACHINE(obj);
+
+    /* Default to secure mode being disabled */
+    s->secure = false;
+    object_property_add_bool(obj, "secure", zcu102_get_secure,
+                             zcu102_set_secure, NULL);
+    object_property_set_description(obj, "secure",
+                                    "Set on/off to enable/disable the ARM "
+                                    "Security Extensions (TrustZone)",
+                                    NULL);
 }
 
 static void xlnx_zcu102_machine_class_init(ObjectClass *oc, void *data)
