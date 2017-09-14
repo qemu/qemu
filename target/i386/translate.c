@@ -8557,15 +8557,9 @@ static void i386_tr_disas_log(const DisasContextBase *dcbase,
                               CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    int disas_flags = !dc->code32;
 
     qemu_log("IN: %s\n", lookup_symbol(dc->base.pc_first));
-#ifdef TARGET_X86_64
-    if (dc->code64) {
-        disas_flags = 2;
-    }
-#endif
-    log_target_disas(cpu, dc->base.pc_first, dc->base.tb->size, disas_flags);
+    log_target_disas(cpu, dc->base.pc_first, dc->base.tb->size, 0);
 }
 
 static const TranslatorOps i386_tr_ops = {
