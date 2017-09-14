@@ -6,6 +6,7 @@
 
 #include "cpu.h"
 #include "disas/disas.h"
+#include "disas/capstone.h"
 
 typedef struct CPUDebug {
     struct disassemble_info info;
@@ -171,6 +172,192 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
     return print_insn_objdump(pc, info, "OBJD-T");
 }
 
+#ifdef CONFIG_CAPSTONE
+/* Temporary storage for the capstone library.  This will be alloced via
+   malloc with a size private to the library; thus there's no reason not
+   to share this across calls and across host vs target disassembly.  */
+static __thread cs_insn *cap_insn;
+
+/* Initialize the Capstone library.  */
+/* ??? It would be nice to cache this.  We would need one handle for the
+   host and one for the target.  For most targets we can reset specific
+   parameters via cs_option(CS_OPT_MODE, new_mode), but we cannot change
+   CS_ARCH_* in this way.  Thus we would need to be able to close and
+   re-open the target handle with a different arch for the target in order
+   to handle AArch64 vs AArch32 mode switching.  */
+static cs_err cap_disas_start(disassemble_info *info, csh *handle)
+{
+    cs_mode cap_mode = info->cap_mode;
+    cs_err err;
+
+    cap_mode += (info->endian == BFD_ENDIAN_BIG ? CS_MODE_BIG_ENDIAN
+                 : CS_MODE_LITTLE_ENDIAN);
+
+    err = cs_open(info->cap_arch, cap_mode, handle);
+    if (err != CS_ERR_OK) {
+        return err;
+    }
+
+    /* ??? There probably ought to be a better place to put this.  */
+    if (info->cap_arch == CS_ARCH_X86) {
+        /* We don't care about errors (if for some reason the library
+           is compiled without AT&T syntax); the user will just have
+           to deal with the Intel syntax.  */
+        cs_option(*handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
+    }
+
+    /* "Disassemble" unknown insns as ".byte W,X,Y,Z".  */
+    cs_option(*handle, CS_OPT_SKIPDATA, CS_OPT_ON);
+
+    /* Allocate temp space for cs_disasm_iter.  */
+    if (cap_insn == NULL) {
+        cap_insn = cs_malloc(*handle);
+        if (cap_insn == NULL) {
+            cs_close(handle);
+            return CS_ERR_MEM;
+        }
+    }
+    return CS_ERR_OK;
+}
+
+/* Disassemble SIZE bytes at PC for the target.  */
+static bool cap_disas_target(disassemble_info *info, uint64_t pc, size_t size)
+{
+    uint8_t cap_buf[1024];
+    csh handle;
+    cs_insn *insn;
+    size_t csize = 0;
+
+    if (cap_disas_start(info, &handle) != CS_ERR_OK) {
+        return false;
+    }
+    insn = cap_insn;
+
+    while (1) {
+        size_t tsize = MIN(sizeof(cap_buf) - csize, size);
+        const uint8_t *cbuf = cap_buf;
+
+        target_read_memory(pc + csize, cap_buf + csize, tsize, info);
+        csize += tsize;
+        size -= tsize;
+
+        while (cs_disasm_iter(handle, &cbuf, &csize, &pc, insn)) {
+            (*info->fprintf_func)(info->stream,
+                                  "0x%08" PRIx64 ":  %-12s %s\n",
+                                  insn->address, insn->mnemonic,
+                                  insn->op_str);
+        }
+
+        /* If the target memory is not consumed, go back for more... */
+        if (size != 0) {
+            /* ... taking care to move any remaining fractional insn
+               to the beginning of the buffer.  */
+            if (csize != 0) {
+                memmove(cap_buf, cbuf, csize);
+            }
+            continue;
+        }
+
+        /* Since the target memory is consumed, we should not have
+           a remaining fractional insn.  */
+        if (csize != 0) {
+            (*info->fprintf_func)(info->stream,
+                "Disassembler disagrees with translator "
+                "over instruction decoding\n"
+                "Please report this to qemu-devel@nongnu.org\n");
+        }
+        break;
+    }
+
+    cs_close(&handle);
+    return true;
+}
+
+/* Disassemble SIZE bytes at CODE for the host.  */
+static bool cap_disas_host(disassemble_info *info, void *code, size_t size)
+{
+    csh handle;
+    const uint8_t *cbuf;
+    cs_insn *insn;
+    uint64_t pc;
+
+    if (cap_disas_start(info, &handle) != CS_ERR_OK) {
+        return false;
+    }
+    insn = cap_insn;
+
+    cbuf = code;
+    pc = (uintptr_t)code;
+
+    while (cs_disasm_iter(handle, &cbuf, &size, &pc, insn)) {
+        (*info->fprintf_func)(info->stream,
+                              "0x%08" PRIx64 ":  %-12s %s\n",
+                              insn->address, insn->mnemonic,
+                              insn->op_str);
+    }
+    if (size != 0) {
+        (*info->fprintf_func)(info->stream,
+            "Disassembler disagrees with TCG over instruction encoding\n"
+            "Please report this to qemu-devel@nongnu.org\n");
+    }
+
+    cs_close(&handle);
+    return true;
+}
+
+#if !defined(CONFIG_USER_ONLY)
+/* Disassemble COUNT insns at PC for the target.  */
+static bool cap_disas_monitor(disassemble_info *info, uint64_t pc, int count)
+{
+    uint8_t cap_buf[32];
+    csh handle;
+    cs_insn *insn;
+    size_t csize = 0;
+
+    if (cap_disas_start(info, &handle) != CS_ERR_OK) {
+        return false;
+    }
+    insn = cap_insn;
+
+    while (1) {
+        /* We want to read memory for one insn, but generically we do not
+           know how much memory that is.  We have a small buffer which is
+           known to be sufficient for all supported targets.  Try to not
+           read beyond the page, Just In Case.  For even more simplicity,
+           ignore the actual target page size and use a 1k boundary.  If
+           that turns out to be insufficient, we'll come back around the
+           loop and read more.  */
+        uint64_t epc = QEMU_ALIGN_UP(pc + csize + 1, 1024);
+        size_t tsize = MIN(sizeof(cap_buf) - csize, epc - pc);
+        const uint8_t *cbuf = cap_buf;
+
+        /* Make certain that we can make progress.  */
+        assert(tsize != 0);
+        info->read_memory_func(pc, cap_buf + csize, tsize, info);
+        csize += tsize;
+
+        if (cs_disasm_iter(handle, &cbuf, &csize, &pc, insn)) {
+            (*info->fprintf_func)(info->stream,
+                                  "0x%08" PRIx64 ":  %-12s %s\n",
+                                  insn->address, insn->mnemonic,
+                                  insn->op_str);
+            if (--count <= 0) {
+                break;
+            }
+        }
+        memmove(cap_buf, cbuf, csize);
+    }
+
+    cs_close(&handle);
+    return true;
+}
+#endif /* !CONFIG_USER_ONLY */
+#else
+# define cap_disas_target(i, p, s)  false
+# define cap_disas_host(i, p, s)  false
+# define cap_disas_monitor(i, p, c)  false
+#endif /* CONFIG_CAPSTONE */
+
 /* Disassemble this for me please... (debugging).  */
 void target_disas(FILE *out, CPUState *cpu, target_ulong code,
                   target_ulong size)
@@ -187,6 +374,8 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     s.info.buffer_vma = code;
     s.info.buffer_length = size;
     s.info.print_address_func = generic_print_address;
+    s.info.cap_arch = -1;
+    s.info.cap_mode = 0;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
@@ -198,6 +387,10 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
         cc->disas_set_info(cpu, &s.info);
     }
 
+    if (s.info.cap_arch >= 0 && cap_disas_target(&s.info, code, size)) {
+        return;
+    }
+
     if (s.info.print_insn == NULL) {
         s.info.print_insn = print_insn_od_target;
     }
@@ -205,18 +398,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     for (pc = code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
 	count = s.info.print_insn(pc, &s.info);
-#if 0
-        {
-            int i;
-            uint8_t b;
-            fprintf(out, " {");
-            for(i = 0; i < count; i++) {
-                target_read_memory(pc + i, &b, 1, &s.info);
-                fprintf(out, " %02x", b);
-            }
-            fprintf(out, " }");
-        }
-#endif
 	fprintf(out, "\n");
 	if (count < 0)
 	    break;
@@ -244,6 +425,8 @@ void disas(FILE *out, void *code, unsigned long size)
     s.info.buffer = code;
     s.info.buffer_vma = (uintptr_t)code;
     s.info.buffer_length = size;
+    s.info.cap_arch = -1;
+    s.info.cap_mode = 0;
 
 #ifdef HOST_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
@@ -281,6 +464,11 @@ void disas(FILE *out, void *code, unsigned long size)
 #elif defined(__hppa__)
     print_insn = print_insn_hppa;
 #endif
+
+    if (s.info.cap_arch >= 0 && cap_disas_host(&s.info, code, size)) {
+        return;
+    }
+
     if (print_insn == NULL) {
         print_insn = print_insn_od_host;
     }
@@ -343,8 +531,9 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
     monitor_disas_is_physical = is_physical;
     s.info.read_memory_func = monitor_read_memory;
     s.info.print_address_func = generic_print_address;
-
     s.info.buffer_vma = pc;
+    s.info.cap_arch = -1;
+    s.info.cap_mode = 0;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
@@ -354,6 +543,10 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 
     if (cc->disas_set_info) {
         cc->disas_set_info(cpu, &s.info);
+    }
+
+    if (s.info.cap_arch >= 0 && cap_disas_monitor(&s.info, pc, nb_insn)) {
+        return;
     }
 
     if (!s.info.print_insn) {

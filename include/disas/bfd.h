@@ -371,6 +371,10 @@ typedef struct disassemble_info {
   /* Command line options specific to the target disassembler.  */
   char * disassembler_options;
 
+  /* Options for Capstone disassembly.  */
+  int cap_arch;
+  int cap_mode;
+
 } disassemble_info;
 
 

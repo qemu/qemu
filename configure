@@ -375,6 +375,7 @@ opengl_dmabuf="no"
 cpuid_h="no"
 avx2_opt="no"
 zlib="yes"
+capstone=""
 lzo=""
 snappy=""
 bzip2=""
@@ -1294,6 +1295,10 @@ for opt do
           error_exit "vhost-user isn't available on win32"
       fi
   ;;
+  --disable-capstone) capstone="no"
+  ;;
+  --enable-capstone) capstone="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1541,6 +1546,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vxhs            Veritas HyperScale vDisk backend support
   crypto-afalg    Linux AF_ALG crypto backend driver
   vhost-user      vhost-user support
+  capstone        capstone disassembler support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -4411,6 +4417,22 @@ EOF
 fi
 
 ##########################################
+# capstone
+
+if test "$capstone" != no; then
+  if $pkg_config capstone; then
+    capstone=yes
+    QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags capstone)"
+    LIBS="$($pkg_config --libs capstone) $LIBS"
+  else
+    if test "$capstone" = yes; then
+      feature_not_found capstone
+    fi
+    capstone=no
+  fi
+fi
+
+##########################################
 # check if we have fdatasync
 
 fdatasync=no
@@ -5468,6 +5490,7 @@ echo "jemalloc support  $jemalloc"
 echo "avx2 optimization $avx2_opt"
 echo "replication support $replication"
 echo "VxHS block device $vxhs"
+echo "capstone          $capstone"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -6141,6 +6164,9 @@ fi
 
 if test "$ivshmem" = "yes" ; then
   echo "CONFIG_IVSHMEM=y" >> $config_host_mak
+fi
+if test "$capstone" = "yes" ; then
+  echo "CONFIG_CAPSTONE=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:
