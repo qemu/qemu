@@ -6430,15 +6430,15 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         case 0x8: /* External Abort */
             switch (cs->exception_index) {
             case EXCP_PREFETCH_ABORT:
-                env->v7m.cfsr[M_REG_NS] |= R_V7M_CFSR_PRECISERR_MASK;
-                qemu_log_mask(CPU_LOG_INT, "...with CFSR.PRECISERR\n");
+                env->v7m.cfsr[M_REG_NS] |= R_V7M_CFSR_IBUSERR_MASK;
+                qemu_log_mask(CPU_LOG_INT, "...with CFSR.IBUSERR\n");
                 break;
             case EXCP_DATA_ABORT:
                 env->v7m.cfsr[M_REG_NS] |=
-                    (R_V7M_CFSR_IBUSERR_MASK | R_V7M_CFSR_BFARVALID_MASK);
+                    (R_V7M_CFSR_PRECISERR_MASK | R_V7M_CFSR_BFARVALID_MASK);
                 env->v7m.bfar = env->exception.vaddress;
                 qemu_log_mask(CPU_LOG_INT,
-                              "...with CFSR.IBUSERR and BFAR 0x%x\n",
+                              "...with CFSR.PRECISERR and BFAR 0x%x\n",
                               env->v7m.bfar);
                 break;
             }
