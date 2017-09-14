@@ -487,7 +487,6 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             virtio_bus_get_vdev_config(&dev->bus, vdev->config);
-            /* XXX config space endianness */
             cpu_physical_memory_write(ccw.cda, vdev->config, len);
             sch->curr_status.scsw.count = ccw.count - len;
             ret = 0;
@@ -510,7 +509,6 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 ret = -EFAULT;
             } else {
                 len = hw_len;
-                /* XXX config space endianness */
                 memcpy(vdev->config, config, len);
                 cpu_physical_memory_unmap(config, hw_len, 0, hw_len);
                 virtio_bus_set_vdev_config(&dev->bus, vdev->config);
