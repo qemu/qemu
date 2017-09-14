@@ -3904,7 +3904,7 @@ static void hppa_tr_disas_log(const DisasContextBase *dcbase, CPUState *cs)
         break;
     default:
         qemu_log("IN: %s\n", lookup_symbol(tb->pc));
-        log_target_disas(cs, tb->pc, tb->size, 1);
+        log_target_disas(cs, tb->pc, tb->size);
         break;
     }
 }

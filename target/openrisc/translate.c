@@ -1653,7 +1653,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
-        log_target_disas(cs, pc_start, tb->size, 0);
+        log_target_disas(cs, pc_start, tb->size);
         qemu_log("\n");
         qemu_log_unlock();
     }

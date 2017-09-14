@@ -171,15 +171,9 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
     return print_insn_objdump(pc, info, "OBJD-T");
 }
 
-/* Disassemble this for me please... (debugging). 'flags' has the following
-   values:
-    i386 - 1 means 16 bit code, 2 means 64 bit code
-    ppc  - bits 0:15 specify (optionally) the machine instruction set;
-           bit 16 indicates little endian.
-    other targets - unused
- */
+/* Disassemble this for me please... (debugging).  */
 void target_disas(FILE *out, CPUState *cpu, target_ulong code,
-                  target_ulong size, int flags)
+                  target_ulong size)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     target_ulong pc;
@@ -335,10 +329,9 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
     return 0;
 }
 
-/* Disassembler for the monitor.
-   See target_disas for a description of flags. */
+/* Disassembler for the monitor.  */
 void monitor_disas(Monitor *mon, CPUState *cpu,
-                   target_ulong pc, int nb_insn, int is_physical, int flags)
+                   target_ulong pc, int nb_insn, int is_physical)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     int count, i;
