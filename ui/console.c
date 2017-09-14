@@ -880,8 +880,9 @@ static void console_putchar(QemuConsole *s, int ch)
         } else {
             if (s->nb_esc_params < MAX_ESC_PARAMS)
                 s->nb_esc_params++;
-            if (ch == ';')
+            if (ch == ';' || ch == '?') {
                 break;
+            }
             trace_console_putchar_csi(s->esc_params[0], s->esc_params[1],
                                       ch, s->nb_esc_params);
             s->state = TTY_STATE_NORM;
@@ -1540,7 +1541,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
     DisplaySurface *old_surface = con->surface;
     DisplayChangeListener *dcl;
 
-    assert(old_surface != surface);
+    assert(old_surface != surface || surface == NULL);
 
     con->surface = surface;
     QLIST_FOREACH(dcl, &s->listeners, next) {
