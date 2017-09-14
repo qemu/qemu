@@ -1,5 +1,5 @@
 /*
- * Xilinx ZynqMP EP108 board
+ * Xilinx ZynqMP ZCU102 board
  *
  * Copyright (C) 2015 Xilinx Inc
  * Written by Peter Crosthwaite <peter.crosthwaite@xilinx.com>
@@ -25,16 +25,16 @@
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
 
-typedef struct XlnxEP108 {
+typedef struct XlnxZCU102 {
     XlnxZynqMPState soc;
     MemoryRegion ddr_ram;
-} XlnxEP108;
+} XlnxZCU102;
 
-static struct arm_boot_info xlnx_ep108_binfo;
+static struct arm_boot_info xlnx_zcu102_binfo;
 
-static void xlnx_ep108_init(MachineState *machine)
+static void xlnx_zcu102_init(MachineState *machine)
 {
-    XlnxEP108 *s = g_new0(XlnxEP108, 1);
+    XlnxZCU102 *s = g_new0(XlnxZCU102, 1);
     int i;
     uint64_t ram_size = machine->ram_size;
 
@@ -47,7 +47,7 @@ static void xlnx_ep108_init(MachineState *machine)
     }
 
     if (ram_size < 0x08000000) {
-        qemu_log("WARNING: RAM size 0x%" PRIx64 " is small for EP108",
+        qemu_log("WARNING: RAM size 0x%" PRIx64 " is small for ZCU102",
                  ram_size);
     }
 
@@ -108,18 +108,18 @@ static void xlnx_ep108_init(MachineState *machine)
 
     /* TODO create and connect IDE devices for ide_drive_get() */
 
-    xlnx_ep108_binfo.ram_size = ram_size;
-    xlnx_ep108_binfo.kernel_filename = machine->kernel_filename;
-    xlnx_ep108_binfo.kernel_cmdline = machine->kernel_cmdline;
-    xlnx_ep108_binfo.initrd_filename = machine->initrd_filename;
-    xlnx_ep108_binfo.loader_start = 0;
-    arm_load_kernel(s->soc.boot_cpu_ptr, &xlnx_ep108_binfo);
+    xlnx_zcu102_binfo.ram_size = ram_size;
+    xlnx_zcu102_binfo.kernel_filename = machine->kernel_filename;
+    xlnx_zcu102_binfo.kernel_cmdline = machine->kernel_cmdline;
+    xlnx_zcu102_binfo.initrd_filename = machine->initrd_filename;
+    xlnx_zcu102_binfo.loader_start = 0;
+    arm_load_kernel(s->soc.boot_cpu_ptr, &xlnx_zcu102_binfo);
 }
 
 static void xlnx_ep108_machine_init(MachineClass *mc)
 {
     mc->desc = "Xilinx ZynqMP EP108 board";
-    mc->init = xlnx_ep108_init;
+    mc->init = xlnx_zcu102_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
@@ -130,7 +130,7 @@ DEFINE_MACHINE("xlnx-ep108", xlnx_ep108_machine_init)
 static void xlnx_zcu102_machine_init(MachineClass *mc)
 {
     mc->desc = "Xilinx ZynqMP ZCU102 board";
-    mc->init = xlnx_ep108_init;
+    mc->init = xlnx_zcu102_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
