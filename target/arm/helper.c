@@ -6242,7 +6242,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                   " previous exception %d\n",
                   type, env->v7m.exception);
 
-    if (extract32(type, 5, 23) != extract32(-1, 5, 23)) {
+    if ((type & R_V7M_EXCRET_RES1_MASK) != R_V7M_EXCRET_RES1_MASK) {
         qemu_log_mask(LOG_GUEST_ERROR, "M profile: zero high bits in exception "
                       "exit PC value 0x%" PRIx32 " are UNPREDICTABLE\n", type);
     }
@@ -6255,7 +6255,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
          * which security state's faultmask to clear. (v8M ARM ARM R_KBNF.)
          */
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
-            int es = type & 1;
+            int es = type & R_V7M_EXCRET_ES_MASK;
             if (armv7m_nvic_raw_execution_priority(env->nvic) >= 0) {
                 env->v7m.faultmask[es] = 0;
             }
@@ -6491,12 +6491,16 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         return; /* Never happens.  Keep compiler happy.  */
     }
 
-    lr = 0xfffffff1;
+    lr = R_V7M_EXCRET_RES1_MASK |
+        R_V7M_EXCRET_S_MASK |
+        R_V7M_EXCRET_DCRS_MASK |
+        R_V7M_EXCRET_FTYPE_MASK |
+        R_V7M_EXCRET_ES_MASK;
     if (env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK) {
-        lr |= 4;
+        lr |= R_V7M_EXCRET_SPSEL_MASK;
     }
     if (!arm_v7m_is_handler_mode(env)) {
-        lr |= 8;
+        lr |= R_V7M_EXCRET_MODE_MASK;
     }
 
     v7m_push_stack(cpu);
