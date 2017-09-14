@@ -287,8 +287,8 @@ static void mps2_common_init(MachineState *machine)
             cmsdk_apb_uart_create(uartbase[i],
                                   qdev_get_gpio_in(txrx_orgate_dev, 0),
                                   qdev_get_gpio_in(txrx_orgate_dev, 1),
-                                  qdev_get_gpio_in(orgate_dev, 0),
-                                  qdev_get_gpio_in(orgate_dev, 1),
+                                  qdev_get_gpio_in(orgate_dev, i * 2),
+                                  qdev_get_gpio_in(orgate_dev, i * 2 + 1),
                                   NULL,
                                   uartchr, SYSCLK_FRQ);
         }

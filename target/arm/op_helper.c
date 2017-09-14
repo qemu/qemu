@@ -1022,7 +1022,7 @@ void HELPER(exception_return)(CPUARMState *env)
 
     aarch64_save_sp(env, cur_el);
 
-    env->exclusive_addr = -1;
+    arm_clear_exclusive(env);
 
     /* We must squash the PSTATE.SS bit to zero unless both of the
      * following hold:

@@ -91,6 +91,8 @@ typedef struct XlnxZynqMPState {
 
     /* Has the ARM Security extensions?  */
     bool secure;
+    /* Has the ARM Virtualization extensions?  */
+    bool virt;
     /* Has the RPU subsystem?  */
     bool has_rpu;
 }  XlnxZynqMPState;

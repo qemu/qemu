@@ -81,8 +81,11 @@
  * accessed via env->registerfield[env->v7m.secure] (whether the security
  * extension is implemented or not).
  */
-#define M_REG_NS 0
-#define M_REG_S 1
+enum {
+    M_REG_NS = 0,
+    M_REG_S = 1,
+    M_REG_NUM_BANKS = 2,
+};
 
 /* ARM-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_FIQ   CPU_INTERRUPT_TGT_EXT_1
@@ -433,19 +436,19 @@ typedef struct CPUARMState {
         uint32_t other_sp;
         uint32_t other_ss_msp;
         uint32_t other_ss_psp;
-        uint32_t vecbase[2];
-        uint32_t basepri[2];
-        uint32_t control[2];
-        uint32_t ccr[2]; /* Configuration and Control */
-        uint32_t cfsr[2]; /* Configurable Fault Status */
+        uint32_t vecbase[M_REG_NUM_BANKS];
+        uint32_t basepri[M_REG_NUM_BANKS];
+        uint32_t control[M_REG_NUM_BANKS];
+        uint32_t ccr[M_REG_NUM_BANKS]; /* Configuration and Control */
+        uint32_t cfsr[M_REG_NUM_BANKS]; /* Configurable Fault Status */
         uint32_t hfsr; /* HardFault Status */
         uint32_t dfsr; /* Debug Fault Status Register */
-        uint32_t mmfar[2]; /* MemManage Fault Address */
+        uint32_t mmfar[M_REG_NUM_BANKS]; /* MemManage Fault Address */
         uint32_t bfar; /* BusFault Address */
-        unsigned mpu_ctrl[2]; /* MPU_CTRL */
+        unsigned mpu_ctrl[M_REG_NUM_BANKS]; /* MPU_CTRL */
         int exception;
-        uint32_t primask[2];
-        uint32_t faultmask[2];
+        uint32_t primask[M_REG_NUM_BANKS];
+        uint32_t faultmask[M_REG_NUM_BANKS];
         uint32_t secure; /* Is CPU in Secure state? (not guest visible) */
     } v7m;
 
@@ -546,7 +549,7 @@ typedef struct CPUARMState {
         uint32_t *drbar;
         uint32_t *drsr;
         uint32_t *dracr;
-        uint32_t rnr[2];
+        uint32_t rnr[M_REG_NUM_BANKS];
     } pmsav7;
 
     /* PMSAv8 MPU */
@@ -556,10 +559,10 @@ typedef struct CPUARMState {
          *  pmsav7.rnr (region number register)
          *  pmsav7_dregion (number of configured regions)
          */
-        uint32_t *rbar[2];
-        uint32_t *rlar[2];
-        uint32_t mair0[2];
-        uint32_t mair1[2];
+        uint32_t *rbar[M_REG_NUM_BANKS];
+        uint32_t *rlar[M_REG_NUM_BANKS];
+        uint32_t mair0[M_REG_NUM_BANKS];
+        uint32_t mair1[M_REG_NUM_BANKS];
     } pmsav8;
 
     void *nvic;
