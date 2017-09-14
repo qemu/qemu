@@ -204,8 +204,33 @@ DEF(qemu_ld_i64, DATA64_ARGS, TLADDR_ARGS, 1,
 DEF(qemu_st_i64, 0, TLADDR_ARGS + DATA64_ARGS, 1,
     TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
 
+/* Host vector support.  */
+
+#define IMPLVEC  TCG_OPF_VECTOR | IMPL(TCG_TARGET_MAYBE_vec)
+
+DEF(mov_vec, 1, 1, 0, TCG_OPF_VECTOR | TCG_OPF_NOT_PRESENT)
+DEF(dupi_vec, 1, 0, 1, TCG_OPF_VECTOR | TCG_OPF_NOT_PRESENT)
+
+DEF(dup_vec, 1, 1, 0, IMPLVEC)
+DEF(dup2_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_REG_BITS == 32))
+
+DEF(ld_vec, 1, 1, 1, IMPLVEC)
+DEF(st_vec, 0, 2, 1, IMPLVEC)
+
+DEF(add_vec, 1, 2, 0, IMPLVEC)
+DEF(sub_vec, 1, 2, 0, IMPLVEC)
+DEF(neg_vec, 1, 1, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_neg_vec))
+
+DEF(and_vec, 1, 2, 0, IMPLVEC)
+DEF(or_vec, 1, 2, 0, IMPLVEC)
+DEF(xor_vec, 1, 2, 0, IMPLVEC)
+DEF(andc_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_andc_vec))
+DEF(orc_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_orc_vec))
+DEF(not_vec, 1, 1, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_not_vec))
+
 #undef TLADDR_ARGS
 #undef DATA64_ARGS
 #undef IMPL
 #undef IMPL64
+#undef IMPLVEC
 #undef DEF

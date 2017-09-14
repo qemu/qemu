@@ -503,6 +503,55 @@ of the memory access.
 For a 32-bit host, qemu_ld/st_i64 is guaranteed to only be used with a
 64-bit memory access specified in flags.
 
+********* Host vector operations
+
+All of the vector ops have two parameters, TCGOP_VECL & TCGOP_VECE.
+The former specifies the length of the vector in log2 64-bit units; the
+later specifies the length of the element (if applicable) in log2 8-bit units.
+E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
+
+* mov_vec   v0, v1
+* ld_vec    v0, t1
+* st_vec    v0, t1
+
+  Move, load and store.
+
+* dup_vec  v0, r1
+
+  Duplicate the low N bits of R1 into VECL/VECE copies across V0.
+
+* dupi_vec v0, c
+
+  Similarly, for a constant.
+  Smaller values will be replicated to host register size by the expanders.
+
+* dup2_vec v0, r1, r2
+
+  Duplicate r2:r1 into VECL/64 copies across V0.  This opcode is
+  only present for 32-bit hosts.
+
+* add_vec   v0, v1, v2
+
+  v0 = v1 + v2, in elements across the vector.
+
+* sub_vec   v0, v1, v2
+
+  Similarly, v0 = v1 - v2.
+
+* neg_vec   v0, v1
+
+  Similarly, v0 = -v1.
+
+* and_vec   v0, v1, v2
+* or_vec    v0, v1, v2
+* xor_vec   v0, v1, v2
+* andc_vec  v0, v1, v2
+* orc_vec   v0, v1, v2
+* not_vec   v0, v1
+
+  Similarly, logical operations with and without compliment.
+  Note that VECE is unused.
+
 *********
 
 Note 1: Some shortcuts are defined when the last operand is known to be
