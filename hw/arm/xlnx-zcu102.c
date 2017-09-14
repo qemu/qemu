@@ -26,15 +26,24 @@
 #include "qemu/log.h"
 
 typedef struct XlnxZCU102 {
+    MachineState parent_obj;
+
     XlnxZynqMPState soc;
     MemoryRegion ddr_ram;
 } XlnxZCU102;
 
+#define TYPE_ZCU102_MACHINE   MACHINE_TYPE_NAME("xlnx-zcu102")
+#define ZCU102_MACHINE(obj) \
+    OBJECT_CHECK(XlnxZCU102, (obj), TYPE_ZCU102_MACHINE)
+
+#define TYPE_EP108_MACHINE   MACHINE_TYPE_NAME("xlnx-ep108")
+#define EP108_MACHINE(obj) \
+    OBJECT_CHECK(XlnxZCU102, (obj), TYPE_EP108_MACHINE)
+
 static struct arm_boot_info xlnx_zcu102_binfo;
 
-static void xlnx_zcu102_init(MachineState *machine)
+static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
 {
-    XlnxZCU102 *s = g_new0(XlnxZCU102, 1);
     int i;
     uint64_t ram_size = machine->ram_size;
 
@@ -116,19 +125,56 @@ static void xlnx_zcu102_init(MachineState *machine)
     arm_load_kernel(s->soc.boot_cpu_ptr, &xlnx_zcu102_binfo);
 }
 
-static void xlnx_ep108_machine_init(MachineClass *mc)
+static void xlnx_ep108_init(MachineState *machine)
 {
+    XlnxZCU102 *s = EP108_MACHINE(machine);
+
+    xlnx_zynqmp_init(s, machine);
+}
+
+static void xlnx_ep108_machine_instance_init(Object *obj)
+{
+}
+
+static void xlnx_ep108_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Xilinx ZynqMP EP108 board";
-    mc->init = xlnx_zcu102_init;
+    mc->init = xlnx_ep108_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
 }
 
-DEFINE_MACHINE("xlnx-ep108", xlnx_ep108_machine_init)
+static const TypeInfo xlnx_ep108_machine_init_typeinfo = {
+    .name       = MACHINE_TYPE_NAME("xlnx-ep108"),
+    .parent     = TYPE_MACHINE,
+    .class_init = xlnx_ep108_machine_class_init,
+    .instance_init = xlnx_ep108_machine_instance_init,
+    .instance_size = sizeof(XlnxZCU102),
+};
 
-static void xlnx_zcu102_machine_init(MachineClass *mc)
+static void xlnx_ep108_machine_init_register_types(void)
 {
+    type_register_static(&xlnx_ep108_machine_init_typeinfo);
+}
+
+static void xlnx_zcu102_init(MachineState *machine)
+{
+    XlnxZCU102 *s = ZCU102_MACHINE(machine);
+
+    xlnx_zynqmp_init(s, machine);
+}
+
+static void xlnx_zcu102_machine_instance_init(Object *obj)
+{
+}
+
+static void xlnx_zcu102_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Xilinx ZynqMP ZCU102 board";
     mc->init = xlnx_zcu102_init;
     mc->block_default_type = IF_IDE;
@@ -136,4 +182,18 @@ static void xlnx_zcu102_machine_init(MachineClass *mc)
     mc->ignore_memory_transaction_failures = true;
 }
 
-DEFINE_MACHINE("xlnx-zcu102", xlnx_zcu102_machine_init)
+static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {
+    .name       = MACHINE_TYPE_NAME("xlnx-zcu102"),
+    .parent     = TYPE_MACHINE,
+    .class_init = xlnx_zcu102_machine_class_init,
+    .instance_init = xlnx_zcu102_machine_instance_init,
+    .instance_size = sizeof(XlnxZCU102),
+};
+
+static void xlnx_zcu102_machine_init_register_types(void)
+{
+    type_register_static(&xlnx_zcu102_machine_init_typeinfo);
+}
+
+type_init(xlnx_zcu102_machine_init_register_types)
+type_init(xlnx_ep108_machine_init_register_types)
