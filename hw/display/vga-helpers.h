@@ -95,20 +95,46 @@ static void vga_draw_glyph9(uint8_t *d, int linesize,
     } while (--h);
 }
 
+static inline uint8_t vga_read_byte(VGACommonState *vga, uint32_t addr)
+{
+    return vga->vram_ptr[addr & vga->vbe_size_mask];
+}
+
+static inline uint16_t vga_read_word_le(VGACommonState *vga, uint32_t addr)
+{
+    uint32_t offset = addr & vga->vbe_size_mask & ~1;
+    uint16_t *ptr = (uint16_t *)(vga->vram_ptr + offset);
+    return lduw_le_p(ptr);
+}
+
+static inline uint16_t vga_read_word_be(VGACommonState *vga, uint32_t addr)
+{
+    uint32_t offset = addr & vga->vbe_size_mask & ~1;
+    uint16_t *ptr = (uint16_t *)(vga->vram_ptr + offset);
+    return lduw_be_p(ptr);
+}
+
+static inline uint32_t vga_read_dword_le(VGACommonState *vga, uint32_t addr)
+{
+    uint32_t offset = addr & vga->vbe_size_mask & ~3;
+    uint32_t *ptr = (uint32_t *)(vga->vram_ptr + offset);
+    return ldl_le_p(ptr);
+}
+
 /*
  * 4 color mode
  */
-static void vga_draw_line2(VGACommonState *s1, uint8_t *d,
-                           const uint8_t *s, int width)
+static void vga_draw_line2(VGACommonState *vga, uint8_t *d,
+                           uint32_t addr, int width)
 {
     uint32_t plane_mask, *palette, data, v;
     int x;
 
-    palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    palette = vga->last_palette;
+    plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = ((uint32_t *)s)[0];
+        data = vga_read_dword_le(vga, addr);
         data &= plane_mask;
         v = expand2[GET_PLANE(data, 0)];
         v |= expand2[GET_PLANE(data, 2)] << 2;
@@ -124,7 +150,7 @@ static void vga_draw_line2(VGACommonState *s1, uint8_t *d,
         ((uint32_t *)d)[6] = palette[(v >> 4) & 0xf];
         ((uint32_t *)d)[7] = palette[(v >> 0) & 0xf];
         d += 32;
-        s += 4;
+        addr += 4;
     }
 }
 
@@ -134,17 +160,17 @@ static void vga_draw_line2(VGACommonState *s1, uint8_t *d,
 /*
  * 4 color mode, dup2 horizontal
  */
-static void vga_draw_line2d2(VGACommonState *s1, uint8_t *d,
-                             const uint8_t *s, int width)
+static void vga_draw_line2d2(VGACommonState *vga, uint8_t *d,
+                             uint32_t addr, int width)
 {
     uint32_t plane_mask, *palette, data, v;
     int x;
 
-    palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    palette = vga->last_palette;
+    plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = ((uint32_t *)s)[0];
+        data = vga_read_dword_le(vga, addr);
         data &= plane_mask;
         v = expand2[GET_PLANE(data, 0)];
         v |= expand2[GET_PLANE(data, 2)] << 2;
@@ -160,24 +186,24 @@ static void vga_draw_line2d2(VGACommonState *s1, uint8_t *d,
         PUT_PIXEL2(d, 6, palette[(v >> 4) & 0xf]);
         PUT_PIXEL2(d, 7, palette[(v >> 0) & 0xf]);
         d += 64;
-        s += 4;
+        addr += 4;
     }
 }
 
 /*
  * 16 color mode
  */
-static void vga_draw_line4(VGACommonState *s1, uint8_t *d,
-                           const uint8_t *s, int width)
+static void vga_draw_line4(VGACommonState *vga, uint8_t *d,
+                           uint32_t addr, int width)
 {
     uint32_t plane_mask, data, v, *palette;
     int x;
 
-    palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    palette = vga->last_palette;
+    plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = ((uint32_t *)s)[0];
+        data = vga_read_dword_le(vga, addr);
         data &= plane_mask;
         v = expand4[GET_PLANE(data, 0)];
         v |= expand4[GET_PLANE(data, 1)] << 1;
@@ -192,24 +218,24 @@ static void vga_draw_line4(VGACommonState *s1, uint8_t *d,
         ((uint32_t *)d)[6] = palette[(v >> 4) & 0xf];
         ((uint32_t *)d)[7] = palette[(v >> 0) & 0xf];
         d += 32;
-        s += 4;
+        addr += 4;
     }
 }
 
 /*
  * 16 color mode, dup2 horizontal
  */
-static void vga_draw_line4d2(VGACommonState *s1, uint8_t *d,
-                             const uint8_t *s, int width)
+static void vga_draw_line4d2(VGACommonState *vga, uint8_t *d,
+                             uint32_t addr, int width)
 {
     uint32_t plane_mask, data, v, *palette;
     int x;
 
-    palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
+    palette = vga->last_palette;
+    plane_mask = mask16[vga->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
-        data = ((uint32_t *)s)[0];
+        data = vga_read_dword_le(vga, addr);
         data &= plane_mask;
         v = expand4[GET_PLANE(data, 0)];
         v |= expand4[GET_PLANE(data, 1)] << 1;
@@ -224,7 +250,7 @@ static void vga_draw_line4d2(VGACommonState *s1, uint8_t *d,
         PUT_PIXEL2(d, 6, palette[(v >> 4) & 0xf]);
         PUT_PIXEL2(d, 7, palette[(v >> 0) & 0xf]);
         d += 64;
-        s += 4;
+        addr += 4;
     }
 }
 
@@ -233,21 +259,21 @@ static void vga_draw_line4d2(VGACommonState *s1, uint8_t *d,
  *
  * XXX: add plane_mask support (never used in standard VGA modes)
  */
-static void vga_draw_line8d2(VGACommonState *s1, uint8_t *d,
-                             const uint8_t *s, int width)
+static void vga_draw_line8d2(VGACommonState *vga, uint8_t *d,
+                             uint32_t addr, int width)
 {
     uint32_t *palette;
     int x;
 
-    palette = s1->last_palette;
+    palette = vga->last_palette;
     width >>= 3;
     for(x = 0; x < width; x++) {
-        PUT_PIXEL2(d, 0, palette[s[0]]);
-        PUT_PIXEL2(d, 1, palette[s[1]]);
-        PUT_PIXEL2(d, 2, palette[s[2]]);
-        PUT_PIXEL2(d, 3, palette[s[3]]);
+        PUT_PIXEL2(d, 0, palette[vga_read_byte(vga, addr + 0)]);
+        PUT_PIXEL2(d, 1, palette[vga_read_byte(vga, addr + 1)]);
+        PUT_PIXEL2(d, 2, palette[vga_read_byte(vga, addr + 2)]);
+        PUT_PIXEL2(d, 3, palette[vga_read_byte(vga, addr + 3)]);
         d += 32;
-        s += 4;
+        addr += 4;
     }
 }
 
@@ -256,63 +282,63 @@ static void vga_draw_line8d2(VGACommonState *s1, uint8_t *d,
  *
  * XXX: add plane_mask support (never used in standard VGA modes)
  */
-static void vga_draw_line8(VGACommonState *s1, uint8_t *d,
-                           const uint8_t *s, int width)
+static void vga_draw_line8(VGACommonState *vga, uint8_t *d,
+                           uint32_t addr, int width)
 {
     uint32_t *palette;
     int x;
 
-    palette = s1->last_palette;
+    palette = vga->last_palette;
     width >>= 3;
     for(x = 0; x < width; x++) {
-        ((uint32_t *)d)[0] = palette[s[0]];
-        ((uint32_t *)d)[1] = palette[s[1]];
-        ((uint32_t *)d)[2] = palette[s[2]];
-        ((uint32_t *)d)[3] = palette[s[3]];
-        ((uint32_t *)d)[4] = palette[s[4]];
-        ((uint32_t *)d)[5] = palette[s[5]];
-        ((uint32_t *)d)[6] = palette[s[6]];
-        ((uint32_t *)d)[7] = palette[s[7]];
+        ((uint32_t *)d)[0] = palette[vga_read_byte(vga, addr + 0)];
+        ((uint32_t *)d)[1] = palette[vga_read_byte(vga, addr + 1)];
+        ((uint32_t *)d)[2] = palette[vga_read_byte(vga, addr + 2)];
+        ((uint32_t *)d)[3] = palette[vga_read_byte(vga, addr + 3)];
+        ((uint32_t *)d)[4] = palette[vga_read_byte(vga, addr + 4)];
+        ((uint32_t *)d)[5] = palette[vga_read_byte(vga, addr + 5)];
+        ((uint32_t *)d)[6] = palette[vga_read_byte(vga, addr + 6)];
+        ((uint32_t *)d)[7] = palette[vga_read_byte(vga, addr + 7)];
         d += 32;
-        s += 8;
+        addr += 8;
     }
 }
 
 /*
  * 15 bit color
  */
-static void vga_draw_line15_le(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line15_le(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
     int w;
     uint32_t v, r, g, b;
 
     w = width;
     do {
-        v = lduw_le_p((void *)s);
+        v = vga_read_word_le(vga, addr);
         r = (v >> 7) & 0xf8;
         g = (v >> 2) & 0xf8;
         b = (v << 3) & 0xf8;
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 2;
+        addr += 2;
         d += 4;
     } while (--w != 0);
 }
 
-static void vga_draw_line15_be(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line15_be(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
     int w;
     uint32_t v, r, g, b;
 
     w = width;
     do {
-        v = lduw_be_p((void *)s);
+        v = vga_read_word_be(vga, addr);
         r = (v >> 7) & 0xf8;
         g = (v >> 2) & 0xf8;
         b = (v << 3) & 0xf8;
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 2;
+        addr += 2;
         d += 4;
     } while (--w != 0);
 }
@@ -320,38 +346,38 @@ static void vga_draw_line15_be(VGACommonState *s1, uint8_t *d,
 /*
  * 16 bit color
  */
-static void vga_draw_line16_le(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line16_le(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
     int w;
     uint32_t v, r, g, b;
 
     w = width;
     do {
-        v = lduw_le_p((void *)s);
+        v = vga_read_word_le(vga, addr);
         r = (v >> 8) & 0xf8;
         g = (v >> 3) & 0xfc;
         b = (v << 3) & 0xf8;
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 2;
+        addr += 2;
         d += 4;
     } while (--w != 0);
 }
 
-static void vga_draw_line16_be(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line16_be(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
     int w;
     uint32_t v, r, g, b;
 
     w = width;
     do {
-        v = lduw_be_p((void *)s);
+        v = vga_read_word_be(vga, addr);
         r = (v >> 8) & 0xf8;
         g = (v >> 3) & 0xfc;
         b = (v << 3) & 0xf8;
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 2;
+        addr += 2;
         d += 4;
     } while (--w != 0);
 }
@@ -359,36 +385,36 @@ static void vga_draw_line16_be(VGACommonState *s1, uint8_t *d,
 /*
  * 24 bit color
  */
-static void vga_draw_line24_le(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line24_le(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
     int w;
     uint32_t r, g, b;
 
     w = width;
     do {
-        b = s[0];
-        g = s[1];
-        r = s[2];
+        b = vga_read_byte(vga, addr + 0);
+        g = vga_read_byte(vga, addr + 1);
+        r = vga_read_byte(vga, addr + 2);
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 3;
+        addr += 3;
         d += 4;
     } while (--w != 0);
 }
 
-static void vga_draw_line24_be(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line24_be(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
     int w;
     uint32_t r, g, b;
 
     w = width;
     do {
-        r = s[0];
-        g = s[1];
-        b = s[2];
+        r = vga_read_byte(vga, addr + 0);
+        g = vga_read_byte(vga, addr + 1);
+        b = vga_read_byte(vga, addr + 2);
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 3;
+        addr += 3;
         d += 4;
     } while (--w != 0);
 }
@@ -396,44 +422,36 @@ static void vga_draw_line24_be(VGACommonState *s1, uint8_t *d,
 /*
  * 32 bit color
  */
-static void vga_draw_line32_le(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line32_le(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
-#ifndef HOST_WORDS_BIGENDIAN
-    memcpy(d, s, width * 4);
-#else
     int w;
     uint32_t r, g, b;
 
     w = width;
     do {
-        b = s[0];
-        g = s[1];
-        r = s[2];
+        b = vga_read_byte(vga, addr + 0);
+        g = vga_read_byte(vga, addr + 1);
+        r = vga_read_byte(vga, addr + 2);
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 4;
+        addr += 4;
         d += 4;
     } while (--w != 0);
-#endif
 }
 
-static void vga_draw_line32_be(VGACommonState *s1, uint8_t *d,
-                               const uint8_t *s, int width)
+static void vga_draw_line32_be(VGACommonState *vga, uint8_t *d,
+                               uint32_t addr, int width)
 {
-#ifdef HOST_WORDS_BIGENDIAN
-    memcpy(d, s, width * 4);
-#else
     int w;
     uint32_t r, g, b;
 
     w = width;
     do {
-        r = s[1];
-        g = s[2];
-        b = s[3];
+        r = vga_read_byte(vga, addr + 1);
+        g = vga_read_byte(vga, addr + 2);
+        b = vga_read_byte(vga, addr + 3);
         ((uint32_t *)d)[0] = rgb_to_pixel32(r, g, b);
-        s += 4;
+        addr += 4;
         d += 4;
     } while (--w != 0);
-#endif
 }

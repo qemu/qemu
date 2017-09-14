@@ -204,10 +204,35 @@ void qxl_render_update_area_done(PCIQXLDevice *qxl, QXLCookie *cookie)
     g_free(cookie);
 }
 
-static QEMUCursor *qxl_cursor(PCIQXLDevice *qxl, QXLCursor *cursor)
+static void qxl_unpack_chunks(void *dest, size_t size, PCIQXLDevice *qxl,
+                              QXLDataChunk *chunk, uint32_t group_id)
+{
+    uint32_t max_chunks = 32;
+    size_t offset = 0;
+    size_t bytes;
+
+    for (;;) {
+        bytes = MIN(size - offset, chunk->data_size);
+        memcpy(dest + offset, chunk->data, bytes);
+        offset += bytes;
+        if (offset == size) {
+            return;
+        }
+        chunk = qxl_phys2virt(qxl, chunk->next_chunk, group_id);
+        if (!chunk) {
+            return;
+        }
+        max_chunks--;
+        if (max_chunks == 0) {
+            return;
+        }
+    }
+}
+
+static QEMUCursor *qxl_cursor(PCIQXLDevice *qxl, QXLCursor *cursor,
+                              uint32_t group_id)
 {
     QEMUCursor *c;
-    uint8_t *image, *mask;
     size_t size;
 
     c = cursor_alloc(cursor->header.width, cursor->header.height);
@@ -216,17 +241,9 @@ static QEMUCursor *qxl_cursor(PCIQXLDevice *qxl, QXLCursor *cursor)
     switch (cursor->header.type) {
     case SPICE_CURSOR_TYPE_ALPHA:
         size = sizeof(uint32_t) * cursor->header.width * cursor->header.height;
-        memcpy(c->data, cursor->chunk.data, size);
+        qxl_unpack_chunks(c->data, size, qxl, &cursor->chunk, group_id);
         if (qxl->debug > 2) {
             cursor_print_ascii_art(c, "qxl/alpha");
-        }
-        break;
-    case SPICE_CURSOR_TYPE_MONO:
-        mask  = cursor->chunk.data;
-        image = mask + cursor_get_mono_bpl(c) * c->width;
-        cursor_set_mono(c, 0xffffff, 0x000000, image, 1, mask);
-        if (qxl->debug > 2) {
-            cursor_print_ascii_art(c, "qxl/mono");
         }
         break;
     default:
@@ -268,11 +285,7 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         if (!cursor) {
             return 1;
         }
-        if (cursor->chunk.data_size != cursor->data_size) {
-            fprintf(stderr, "%s: multiple chunks\n", __FUNCTION__);
-            return 1;
-        }
-        c = qxl_cursor(qxl, cursor);
+        c = qxl_cursor(qxl, cursor, ext->group_id);
         if (c == NULL) {
             c = cursor_builtin_left_ptr();
         }
