@@ -152,8 +152,12 @@ static void nvic_recompute_state(NVICState *s)
         }
     }
 
+    if (active_prio > 0) {
+        active_prio &= nvic_gprio_mask(s);
+    }
+
     s->vectpending = pend_irq;
-    s->exception_prio = active_prio & nvic_gprio_mask(s);
+    s->exception_prio = active_prio;
 
     trace_nvic_recompute_state(s->vectpending, s->exception_prio);
 }
@@ -329,7 +333,10 @@ void armv7m_nvic_acknowledge_irq(void *opaque)
     assert(vec->enabled);
     assert(vec->pending);
 
-    pendgroupprio = vec->prio & nvic_gprio_mask(s);
+    pendgroupprio = vec->prio;
+    if (pendgroupprio > 0) {
+        pendgroupprio &= nvic_gprio_mask(s);
+    }
     assert(pendgroupprio < running);
 
     trace_nvic_acknowledge_irq(pending, vec->prio);
