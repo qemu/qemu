@@ -134,14 +134,14 @@ QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event);
 /**
  * qtest_hmp:
  * @s: #QTestState instance to operate on.
- * @fmt...: HMP command to send to QEMU
+ * @fmt...: HMP command to send to QEMU, formats arguments like sprintf().
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
  * QMP events are discarded.
  *
  * Returns: the command's output.  The caller should g_free() it.
  */
-char *qtest_hmp(QTestState *s, const char *fmt, ...);
+char *qtest_hmp(QTestState *s, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 
 /**
  * qtest_hmpv:
@@ -592,13 +592,13 @@ static inline QDict *qmp_eventwait_ref(const char *event)
 
 /**
  * hmp:
- * @fmt...: HMP command to send to QEMU
+ * @fmt...: HMP command to send to QEMU, formats arguments like sprintf().
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
  *
  * Returns: the command's output.  The caller should g_free() it.
  */
-char *hmp(const char *fmt, ...);
+char *hmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /**
  * get_irq:
@@ -926,5 +926,24 @@ QDict *qmp_fd(int fd, const char *fmt, ...);
  *  Call a callback function for every name of all available machines.
  */
 void qtest_cb_for_every_machine(void (*cb)(const char *machine));
+
+/**
+ * qtest_qmp_device_add:
+ * @driver: Name of the device that should be added
+ * @id: Identification string
+ * @fmt: printf-like format string for further options to device_add
+ *
+ * Generic hot-plugging test via the device_add QMP command.
+ */
+void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
+                          ...) GCC_FMT_ATTR(3, 4);
+
+/**
+ * qtest_qmp_device_del:
+ * @id: Identification string
+ *
+ * Generic hot-unplugging test via the device_del QMP command.
+ */
+void qtest_qmp_device_del(const char *id);
 
 #endif

@@ -42,7 +42,6 @@ struct QTestState
 };
 
 static GHookList abrt_hooks;
-static GList *qtest_instances;
 static struct sigaction sigact_old;
 
 #define g_assert_no_errno(ret) do { \
@@ -150,6 +149,19 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data)
     g_hook_prepend(&abrt_hooks, hook);
 }
 
+static const char *qtest_qemu_binary(void)
+{
+    const char *qemu_bin;
+
+    qemu_bin = getenv("QTEST_QEMU_BINARY");
+    if (!qemu_bin) {
+        fprintf(stderr, "Environment variable QTEST_QEMU_BINARY required\n");
+        exit(1);
+    }
+
+    return qemu_bin;
+}
+
 QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
 {
     QTestState *s;
@@ -157,13 +169,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     gchar *socket_path;
     gchar *qmp_socket_path;
     gchar *command;
-    const char *qemu_binary;
-
-    qemu_binary = getenv("QTEST_QEMU_BINARY");
-    if (!qemu_binary) {
-        fprintf(stderr, "Environment variable QTEST_QEMU_BINARY required\n");
-        exit(1);
-    }
+    const char *qemu_binary = qtest_qemu_binary();
 
     s = g_malloc(sizeof(*s));
 
@@ -240,13 +246,10 @@ QTestState *qtest_init(const char *extra_args)
 
 void qtest_quit(QTestState *s)
 {
-    qtest_instances = g_list_remove(qtest_instances, s);
     g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
 
     /* Uninstall SIGABRT handler on last instance */
-    if (!qtest_instances) {
-        cleanup_sigabrt_handler();
-    }
+    cleanup_sigabrt_handler();
 
     kill_qemu(s);
     close(s->fd);
@@ -624,8 +627,7 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...)
 
 const char *qtest_get_arch(void)
 {
-    const char *qemu = getenv("QTEST_QEMU_BINARY");
-    g_assert(qemu != NULL);
+    const char *qemu = qtest_qemu_binary();
     const char *end = strrchr(qemu, '/');
 
     return end + strlen("/qemu-system-");
@@ -986,4 +988,79 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
 
     qtest_end();
     QDECREF(response);
+}
+
+/*
+ * Generic hot-plugging test via the device_add QMP command.
+ */
+void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
+                          ...)
+{
+    QDict *response;
+    char *cmd, *opts = NULL;
+    va_list va;
+
+    if (fmt) {
+        va_start(va, fmt);
+        opts = g_strdup_vprintf(fmt, va);
+        va_end(va);
+    }
+
+    cmd = g_strdup_printf("{'execute': 'device_add',"
+                          " 'arguments': { 'driver': '%s', 'id': '%s'%s%s }}",
+                          driver, id, opts ? ", " : "", opts ? opts : "");
+    g_free(opts);
+
+    response = qmp(cmd);
+    g_free(cmd);
+    g_assert(response);
+    g_assert(!qdict_haskey(response, "event")); /* We don't expect any events */
+    g_assert(!qdict_haskey(response, "error"));
+    QDECREF(response);
+}
+
+/*
+ * Generic hot-unplugging test via the device_del QMP command.
+ * Device deletion will get one response and one event. For example:
+ *
+ * {'execute': 'device_del','arguments': { 'id': 'scsi-hd'}}
+ *
+ * will get this one:
+ *
+ * {"timestamp": {"seconds": 1505289667, "microseconds": 569862},
+ *  "event": "DEVICE_DELETED", "data": {"device": "scsi-hd",
+ *  "path": "/machine/peripheral/scsi-hd"}}
+ *
+ * and this one:
+ *
+ * {"return": {}}
+ *
+ * But the order of arrival may vary - so we've got to detect both.
+ */
+void qtest_qmp_device_del(const char *id)
+{
+    QDict *response1, *response2, *event = NULL;
+    char *cmd;
+
+    cmd = g_strdup_printf("{'execute': 'device_del',"
+                          " 'arguments': { 'id': '%s' }}", id);
+    response1 = qmp(cmd);
+    g_free(cmd);
+    g_assert(response1);
+    g_assert(!qdict_haskey(response1, "error"));
+
+    response2 = qmp("");
+    g_assert(response2);
+    g_assert(!qdict_haskey(response2, "error"));
+
+    if (qdict_haskey(response1, "event")) {
+        event = response1;
+    } else if (qdict_haskey(response2, "event")) {
+        event = response2;
+    }
+    g_assert(event);
+    g_assert_cmpstr(qdict_get_str(event, "event"), ==, "DEVICE_DELETED");
+
+    QDECREF(response1);
+    QDECREF(response2);
 }
