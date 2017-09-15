@@ -117,6 +117,19 @@ static void xen_change_state_handler(void *opaque, int running,
     }
 }
 
+static void xen_setup_post(MachineState *ms, AccelState *accel)
+{
+    int rc;
+
+    if (xen_domid_restrict) {
+        rc = xen_restrict(xen_domid);
+        if (rc < 0) {
+            perror("xen: failed to restrict");
+            exit(1);
+        }
+    }
+}
+
 static int xen_init(MachineState *ms)
 {
     xen_xc = xc_interface_open(0, 0, 0);
@@ -165,6 +178,7 @@ static void xen_accel_class_init(ObjectClass *oc, void *data)
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "Xen";
     ac->init_machine = xen_init;
+    ac->setup_post = xen_setup_post;
     ac->allowed = &xen_allowed;
     ac->global_props = xen_compat_props;
 }
