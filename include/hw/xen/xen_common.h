@@ -91,6 +91,16 @@ static inline void *xenforeignmemory_map2(xenforeignmemory_handle *h,
     return xenforeignmemory_map(h, dom, prot, pages, arr, err);
 }
 
+static inline int xentoolcore_restrict_all(domid_t domid)
+{
+    errno = ENOTTY;
+    return -1;
+}
+
+#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 41000 */
+
+#include <xentoolcore.h>
+
 #endif
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40900
@@ -218,20 +228,6 @@ static inline int xendevicemodel_set_mem_type(
     return xc_hvm_set_mem_type(dmod, domid, mem_type, first_pfn, nr);
 }
 
-static inline int xendevicemodel_restrict(
-    xendevicemodel_handle *dmod, domid_t domid)
-{
-    errno = ENOTTY;
-    return -1;
-}
-
-static inline int xenforeignmemory_restrict(
-    xenforeignmemory_handle *fmem, domid_t domid)
-{
-    errno = ENOTTY;
-    return -1;
-}
-
 #else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40900 */
 
 #undef XC_WANT_COMPAT_DEVICEMODEL_API
@@ -290,28 +286,8 @@ static inline int xen_modified_memory(domid_t domid, uint64_t first_pfn,
 static inline int xen_restrict(domid_t domid)
 {
     int rc;
-
-    /* Attempt to restrict devicemodel operations */
-    rc = xendevicemodel_restrict(xen_dmod, domid);
+    rc = xentoolcore_restrict_all(domid);
     trace_xen_domid_restrict(rc ? errno : 0);
-
-    if (rc < 0) {
-        /*
-         * If errno is ENOTTY then restriction is not implemented so
-         * there's no point in trying to restrict other types of
-         * operation, but it should not be treated as a failure.
-         */
-        if (errno == ENOTTY) {
-            return 0;
-        }
-
-        return rc;
-    }
-
-    /* Restrict foreignmemory operations */
-    rc = xenforeignmemory_restrict(xen_fmem, domid);
-    trace_xen_domid_restrict(rc ? errno : 0);
-
     return rc;
 }
 
