@@ -2550,21 +2550,25 @@ int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function)
     return kvm_vm_ioctl(kvm_state, KVM_PPC_RTAS_DEFINE_TOKEN, &args);
 }
 
-int kvmppc_get_htab_fd(bool write)
+int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp)
 {
     struct kvm_get_htab_fd s = {
         .flags = write ? KVM_GET_HTAB_WRITE : 0,
-        .start_index = 0,
+        .start_index = index,
     };
     int ret;
 
     if (!cap_htab_fd) {
-        fprintf(stderr, "KVM version doesn't support saving the hash table\n");
+        error_setg(errp, "KVM version doesn't support %s the HPT",
+                   write ? "writing" : "reading");
         return -ENOTSUP;
     }
 
     ret = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
     if (ret < 0) {
+        error_setg(errp, "Unable to open fd for %s HPT %s KVM: %s",
+                   write ? "writing" : "reading", write ? "to" : "from",
+                   strerror(errno));
         return -errno;
     }
 
@@ -2648,17 +2652,10 @@ void kvm_arch_init_irq_routing(KVMState *s)
 
 void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
 {
-    struct kvm_get_htab_fd ghf = {
-        .flags = 0,
-        .start_index = ptex,
-    };
     int fd, rc;
     int i;
 
-    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (fd < 0) {
-        hw_error("kvmppc_read_hptes: Unable to open HPT fd");
-    }
+    fd = kvmppc_get_htab_fd(false, ptex, &error_abort);
 
     i = 0;
     while (i < n) {
@@ -2700,19 +2697,13 @@ void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
 void kvmppc_write_hpte(hwaddr ptex, uint64_t pte0, uint64_t pte1)
 {
     int fd, rc;
-    struct kvm_get_htab_fd ghf;
     struct {
         struct kvm_get_htab_header hdr;
         uint64_t pte0;
         uint64_t pte1;
     } buf;
 
-    ghf.flags = 0;
-    ghf.start_index = 0;     /* Ignored */
-    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (fd < 0) {
-        hw_error("kvmppc_write_hpte: Unable to open HPT fd");
-    }
+    fd = kvmppc_get_htab_fd(true, 0 /* Ignored */, &error_abort);
 
     buf.hdr.n_valid = 1;
     buf.hdr.n_invalid = 0;

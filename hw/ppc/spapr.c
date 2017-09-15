@@ -1211,14 +1211,15 @@ static uint64_t spapr_get_patbe(PPCVirtualHypervisor *vhyp)
  */
 static int get_htab_fd(sPAPRMachineState *spapr)
 {
+    Error *local_err = NULL;
+
     if (spapr->htab_fd >= 0) {
         return spapr->htab_fd;
     }
 
-    spapr->htab_fd = kvmppc_get_htab_fd(false);
+    spapr->htab_fd = kvmppc_get_htab_fd(false, 0, &local_err);
     if (spapr->htab_fd < 0) {
-        error_report("Unable to open fd for reading hash table from KVM: %s",
-                     strerror(spapr->htab_fd));
+        error_report_err(local_err);
     }
 
     return spapr->htab_fd;
@@ -1927,6 +1928,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     sPAPRMachineState *spapr = opaque;
     uint32_t section_hdr;
     int fd = -1;
+    Error *local_err = NULL;
 
     if (version_id < 1 || version_id > 1) {
         error_report("htab_load() bad version");
@@ -1941,8 +1943,6 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     if (section_hdr) {
-        Error *local_err = NULL;
-
         /* First section gives the htab size */
         spapr_reallocate_hpt(spapr, section_hdr, &local_err);
         if (local_err) {
@@ -1955,10 +1955,9 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     if (!spapr->htab) {
         assert(kvm_enabled());
 
-        fd = kvmppc_get_htab_fd(true);
+        fd = kvmppc_get_htab_fd(true, 0, &local_err);
         if (fd < 0) {
-            error_report("Unable to open fd to restore KVM hash table: %s",
-                         strerror(fd));
+            error_report_err(local_err);
             return fd;
         }
     }
