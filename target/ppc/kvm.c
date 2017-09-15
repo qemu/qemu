@@ -2556,13 +2556,19 @@ int kvmppc_get_htab_fd(bool write)
         .flags = write ? KVM_GET_HTAB_WRITE : 0,
         .start_index = 0,
     };
+    int ret;
 
     if (!cap_htab_fd) {
         fprintf(stderr, "KVM version doesn't support saving the hash table\n");
-        return -1;
+        return -ENOTSUP;
     }
 
-    return kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
+    ret = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
+    if (ret < 0) {
+        return -errno;
+    }
+
+    return ret;
 }
 
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)

@@ -1218,7 +1218,7 @@ static int get_htab_fd(sPAPRMachineState *spapr)
     spapr->htab_fd = kvmppc_get_htab_fd(false);
     if (spapr->htab_fd < 0) {
         error_report("Unable to open fd for reading hash table from KVM: %s",
-                     strerror(errno));
+                     strerror(spapr->htab_fd));
     }
 
     return spapr->htab_fd;
@@ -1958,7 +1958,8 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
         fd = kvmppc_get_htab_fd(true);
         if (fd < 0) {
             error_report("Unable to open fd to restore KVM hash table: %s",
-                         strerror(errno));
+                         strerror(fd));
+            return fd;
         }
     }
 
