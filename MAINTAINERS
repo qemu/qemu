@@ -1403,6 +1403,14 @@ S: Maintained
 F: include/sysemu/cryptodev*.h
 F: backends/cryptodev*.c
 
+Python scripts
+M: Eduardo Habkost <ehabkost@redhat.com>
+M: Cleber Rosa <crosa@redhat.com>
+S: Odd fixes
+F: scripts/qmp/*
+F: scripts/*.py
+F: tests/*.py
+
 QAPI
 M: Markus Armbruster <armbru@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
