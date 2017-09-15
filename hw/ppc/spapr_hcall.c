@@ -1559,20 +1559,16 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         }
 
         if (spapr->htab_shift < maxshift) {
-            CPUState *cs;
-
             /* Guest doesn't know about HPT resizing, so we
              * pre-emptively resize for the maximum permitted RAM.  At
              * the point this is called, nothing should have been
              * entered into the existing HPT */
             spapr_reallocate_hpt(spapr, maxshift, &error_fatal);
-            CPU_FOREACH(cs) {
-                if (kvm_enabled()) {
-                    /* For KVM PR, update the HPT pointer */
-                    target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
-                        | (spapr->htab_shift - 18);
-                    kvmppc_update_sdr1(sdr1);
-                }
+            if (kvm_enabled()) {
+                /* For KVM PR, update the HPT pointer */
+                target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
+                    | (spapr->htab_shift - 18);
+                kvmppc_update_sdr1(sdr1);
             }
         }
     }
@@ -1585,6 +1581,13 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
      * to worry about this for now.
      */
     ov5_cas_old = spapr_ovec_clone(spapr->ov5_cas);
+
+    /* also clear the radix/hash bit from the current ov5_cas bits to
+     * be in sync with the newly ov5 bits. Else the radix bit will be
+     * seen as being removed and this will generate a reset loop
+     */
+    spapr_ovec_clear(ov5_cas_old, OV5_MMU_RADIX_300);
+
     /* full range of negotiated ov5 capabilities */
     spapr_ovec_intersect(spapr->ov5_cas, spapr->ov5, ov5_guest);
     spapr_ovec_cleanup(ov5_guest);

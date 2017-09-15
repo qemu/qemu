@@ -40,7 +40,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
-
+#include "hw/ppc/fdt.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_ids.h"
@@ -60,16 +60,6 @@
 /* Interrupt types to return on RTAS_CHANGE_* */
 #define RTAS_TYPE_MSI           1
 #define RTAS_TYPE_MSIX          2
-
-#define FDT_NAME_MAX          128
-
-#define _FDT(exp) \
-    do { \
-        int ret = (exp);                                           \
-        if (ret < 0) {                                             \
-            return ret;                                            \
-        }                                                          \
-    } while (0)
 
 sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid)
 {
@@ -766,7 +756,7 @@ static char *spapr_phb_vfio_get_loc_code(sPAPRPHBState *sphb,  PCIDevice *pdev)
     /* Construct the path of the file that will give us the DT location */
     path = g_strdup_printf("/sys/bus/pci/devices/%s/devspec", host);
     g_free(host);
-    if (!path || !g_file_get_contents(path, &buf, NULL, NULL)) {
+    if (!g_file_get_contents(path, &buf, NULL, NULL)) {
         goto err_out;
     }
     g_free(path);
@@ -774,7 +764,7 @@ static char *spapr_phb_vfio_get_loc_code(sPAPRPHBState *sphb,  PCIDevice *pdev)
     /* Construct and read from host device tree the loc-code */
     path = g_strdup_printf("/proc/device-tree%s/ibm,loc-code", buf);
     g_free(buf);
-    if (!path || !g_file_get_contents(path, &buf, NULL, NULL)) {
+    if (!g_file_get_contents(path, &buf, NULL, NULL)) {
         goto err_out;
     }
     return buf;
@@ -1194,7 +1184,7 @@ static const char *pci_find_device_name(uint8_t class, uint8_t subclass,
     return name;
 }
 
-static void pci_get_node_name(char *nodename, int len, PCIDevice *dev)
+static gchar *pci_get_node_name(PCIDevice *dev)
 {
     int slot = PCI_SLOT(dev->devfn);
     int func = PCI_FUNC(dev->devfn);
@@ -1205,21 +1195,21 @@ static void pci_get_node_name(char *nodename, int len, PCIDevice *dev)
                                 ccode & 0xff);
 
     if (func != 0) {
-        snprintf(nodename, len, "%s@%x,%x", name, slot, func);
+        return g_strdup_printf("%s@%x,%x", name, slot, func);
     } else {
-        snprintf(nodename, len, "%s@%x", name, slot);
+        return g_strdup_printf("%s@%x", name, slot);
     }
 }
 
 static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
                                             PCIDevice *pdev);
 
-static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
+static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                                        sPAPRPHBState *sphb)
 {
     ResourceProps rp;
     bool is_bridge = false;
-    int pci_status, err;
+    int pci_status;
     char *buf = NULL;
     uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
     uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
@@ -1282,17 +1272,10 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                             pci_find_device_name((ccode >> 16) & 0xff,
                                                  (ccode >> 8) & 0xff,
                                                  ccode & 0xff)));
-    buf = spapr_phb_get_loc_code(sphb, dev);
-    if (!buf) {
-        error_report("Failed setting the ibm,loc-code");
-        return -1;
-    }
 
-    err = fdt_setprop_string(fdt, offset, "ibm,loc-code", buf);
+    buf = spapr_phb_get_loc_code(sphb, dev);
+    _FDT(fdt_setprop_string(fdt, offset, "ibm,loc-code", buf));
     g_free(buf);
-    if (err < 0) {
-        return err;
-    }
 
     if (drc_index) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index));
@@ -1320,25 +1303,21 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     if (sphb->pcie_ecs && pci_is_express(dev)) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));
     }
-
-    return 0;
 }
 
 /* create OF node for pci device and required OF DT properties */
 static int spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
                                      void *fdt, int node_offset)
 {
-    int offset, ret;
-    char nodename[FDT_NAME_MAX];
+    int offset;
+    gchar *nodename;
 
-    pci_get_node_name(nodename, FDT_NAME_MAX, dev);
-    offset = fdt_add_subnode(fdt, node_offset, nodename);
-    ret = spapr_populate_pci_child_dt(dev, fdt, offset, phb);
+    nodename = pci_get_node_name(dev);
+    _FDT(offset = fdt_add_subnode(fdt, node_offset, nodename));
+    g_free(nodename);
 
-    g_assert(!ret);
-    if (ret) {
-        return 0;
-    }
+    spapr_populate_pci_child_dt(dev, fdt, offset, phb);
+
     return offset;
 }
 
@@ -1428,10 +1407,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 
     fdt = create_device_tree(&fdt_size);
     fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
-    if (!fdt_start_offset) {
-        error_setg(&local_err, "Failed to create pci child device tree node");
-        goto out;
-    }
 
     spapr_drc_attach(drc, DEVICE(pdev), fdt, fdt_start_offset, &local_err);
     if (local_err) {
@@ -1634,34 +1609,43 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
 
     sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
 
-    namebuf = alloca(strlen(sphb->dtbusname) + 32);
-
     /* Initialize memory regions */
-    sprintf(namebuf, "%s.mmio", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.mmio", sphb->dtbusname);
     memory_region_init(&sphb->memspace, OBJECT(sphb), namebuf, UINT64_MAX);
+    g_free(namebuf);
 
-    sprintf(namebuf, "%s.mmio32-alias", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.mmio32-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->mem32window, OBJECT(sphb),
                              namebuf, &sphb->memspace,
                              SPAPR_PCI_MEM_WIN_BUS_OFFSET, sphb->mem_win_size);
+    g_free(namebuf);
     memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
                                 &sphb->mem32window);
 
-    sprintf(namebuf, "%s.mmio64-alias", sphb->dtbusname);
-    memory_region_init_alias(&sphb->mem64window, OBJECT(sphb),
-                             namebuf, &sphb->memspace,
-                             sphb->mem64_win_pciaddr, sphb->mem64_win_size);
-    memory_region_add_subregion(get_system_memory(), sphb->mem64_win_addr,
-                                &sphb->mem64window);
+    if (sphb->mem64_win_pciaddr != (hwaddr)-1) {
+        namebuf = g_strdup_printf("%s.mmio64-alias", sphb->dtbusname);
+        memory_region_init_alias(&sphb->mem64window, OBJECT(sphb),
+                                 namebuf, &sphb->memspace,
+                                 sphb->mem64_win_pciaddr, sphb->mem64_win_size);
+        g_free(namebuf);
+
+        if (sphb->mem64_win_addr != (hwaddr)-1) {
+            memory_region_add_subregion(get_system_memory(),
+                                        sphb->mem64_win_addr,
+                                        &sphb->mem64window);
+        }
+    }
 
     /* Initialize IO regions */
-    sprintf(namebuf, "%s.io", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.io", sphb->dtbusname);
     memory_region_init(&sphb->iospace, OBJECT(sphb),
                        namebuf, SPAPR_PCI_IO_WIN_SIZE);
+    g_free(namebuf);
 
-    sprintf(namebuf, "%s.io-alias", sphb->dtbusname);
+    namebuf = g_strdup_printf("%s.io-alias", sphb->dtbusname);
     memory_region_init_alias(&sphb->iowindow, OBJECT(sphb), namebuf,
                              &sphb->iospace, 0, SPAPR_PCI_IO_WIN_SIZE);
+    g_free(namebuf);
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
 
@@ -1679,10 +1663,10 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
      * Later the guest might want to create another DMA window
      * which will become another memory subregion.
      */
-    sprintf(namebuf, "%s.iommu-root", sphb->dtbusname);
-
+    namebuf = g_strdup_printf("%s.iommu-root", sphb->dtbusname);
     memory_region_init(&sphb->iommu_root, OBJECT(sphb),
                        namebuf, UINT64_MAX);
+    g_free(namebuf);
     address_space_init(&sphb->iommu_as, &sphb->iommu_root,
                        sphb->dtbusname);
 
@@ -2076,7 +2060,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           void *fdt)
 {
     int bus_off, i, j, ret;
-    char nodename[FDT_NAME_MAX];
+    gchar *nodename;
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
     struct {
         uint32_t hi;
@@ -2125,11 +2109,9 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     sPAPRFDT s_fdt;
 
     /* Start populating the FDT */
-    snprintf(nodename, FDT_NAME_MAX, "pci@%" PRIx64, phb->buid);
-    bus_off = fdt_add_subnode(fdt, 0, nodename);
-    if (bus_off < 0) {
-        return bus_off;
-    }
+    nodename = g_strdup_printf("pci@%" PRIx64, phb->buid);
+    _FDT(bus_off = fdt_add_subnode(fdt, 0, nodename));
+    g_free(nodename);
 
     /* Write PHB properties */
     _FDT(fdt_setprop_string(fdt, bus_off, "device_type", "pci"));

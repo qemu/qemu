@@ -702,9 +702,9 @@ static void event_scan(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
 void spapr_clear_pending_events(sPAPRMachineState *spapr)
 {
-    sPAPREventLogEntry *entry = NULL;
+    sPAPREventLogEntry *entry = NULL, *next_entry;
 
-    QTAILQ_FOREACH(entry, &spapr->pending_events, next) {
+    QTAILQ_FOREACH_SAFE(entry, &spapr->pending_events, next, next_entry) {
         QTAILQ_REMOVE(&spapr->pending_events, entry, next);
         g_free(entry->extended_log);
         g_free(entry);

@@ -163,7 +163,7 @@ int vfio_spapr_create_window(VFIOContainer *container,
      */
     entries = create.window_size >> create.page_shift;
     pages = MAX((entries * sizeof(uint64_t)) / getpagesize(), 1);
-    pages = MAX(pow2ceil(pages) - 1, 1); /* Round up */
+    pages = MAX(pow2ceil(pages), 1); /* Round up */
     create.levels = ctz64(pages) / 6 + 1;
 
     ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
