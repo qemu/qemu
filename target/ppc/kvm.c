@@ -2448,11 +2448,6 @@ bool kvmppc_has_cap_epr(void)
     return cap_epr;
 }
 
-bool kvmppc_has_cap_htab_fd(void)
-{
-    return cap_htab_fd;
-}
-
 bool kvmppc_has_cap_fixup_hcalls(void)
 {
     return cap_fixup_hcalls;
