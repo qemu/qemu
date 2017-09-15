@@ -70,6 +70,8 @@ common-obj-y += backends/
 common-obj-y += chardev/
 
 common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
+qemu-seccomp.o-cflags := $(SECCOMP_CFLAGS)
+qemu-seccomp.o-libs := $(SECCOMP_LIBS)
 
 common-obj-$(CONFIG_FDT) += device_tree.o
 
