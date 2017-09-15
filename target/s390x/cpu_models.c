@@ -196,6 +196,9 @@ bool s390_has_feat(S390Feat feat)
             }
         }
 #endif
+        if (feat == S390_FEAT_ZPCI) {
+            return true;
+        }
         return 0;
     }
     return test_bit(feat, cpu->model->features);
