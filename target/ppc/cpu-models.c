@@ -167,6 +167,8 @@
                 "PowerPC 440 EPb")
     POWERPC_DEF("440epx",        CPU_POWERPC_440EPX,                 440EP,
                 "PowerPC 440 EPX")
+    POWERPC_DEF("460exb",        CPU_POWERPC_460EXb,                 460EX,
+                "PowerPC 460 EXb")
 #if defined(TODO_USER_ONLY)
     POWERPC_DEF("440gpb",        CPU_POWERPC_440GPb,                 440GP,
                 "PowerPC 440 GPb")
@@ -786,6 +788,7 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "x2vp50", "x2vp20" },
 
     { "440ep", "440epb" },
+    { "460ex", "460exb" },
 #if defined(TODO_USER_ONLY)
     { "440gp", "440gpc" },
     { "440gr", "440gra" },

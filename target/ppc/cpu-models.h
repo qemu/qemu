@@ -240,6 +240,7 @@ enum {
     CPU_POWERPC_440SP              = 0x53221850,
     CPU_POWERPC_440SP2             = 0x53221891,
     CPU_POWERPC_440SPE             = 0x53421890,
+    CPU_POWERPC_460EXb             = 0x130218A4, /* called 460 but 440 core */
     /* PowerPC 460 family */
 #if 0
     /* Generic PowerPC 464 */
