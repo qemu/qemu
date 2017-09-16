@@ -106,7 +106,7 @@ class FuzzyJSON(ast.NodeTransformer):
 #       _execute_cmd()). Let's design a better one.
 class QMPShell(qmp.QEMUMonitorProtocol):
     def __init__(self, address, pretty=False):
-        qmp.QEMUMonitorProtocol.__init__(self, self.__get_address(address))
+        super(QMPShell, self).__init__(self.__get_address(address))
         self._greeting = None
         self._completer = None
         self._pretty = pretty
@@ -281,7 +281,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         return True
 
     def connect(self, negotiate):
-        self._greeting = qmp.QEMUMonitorProtocol.connect(self, negotiate)
+        self._greeting = super(QMPShell, self).connect(negotiate)
         self.__completer_setup()
 
     def show_banner(self, msg='Welcome to the QMP low-level shell!'):

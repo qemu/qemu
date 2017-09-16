@@ -11,13 +11,10 @@
 # Based on qmp.py.
 #
 
-import errno
 import socket
-import string
 import os
-import subprocess
-import qmp.qmp
 import qemu
+
 
 class QEMUQtestProtocol(object):
     def __init__(self, address, server=False):
@@ -79,12 +76,14 @@ class QEMUQtestProtocol(object):
 class QEMUQtestMachine(qemu.QEMUMachine):
     '''A QEMU VM'''
 
-    def __init__(self, binary, args=[], name=None, test_dir="/var/tmp",
+    def __init__(self, binary, args=None, name=None, test_dir="/var/tmp",
                  socket_scm_helper=None):
         if name is None:
             name = "qemu-%d" % os.getpid()
-        super(QEMUQtestMachine, self).__init__(binary, args, name=name, test_dir=test_dir,
-                                               socket_scm_helper=socket_scm_helper)
+        super(QEMUQtestMachine,
+              self).__init__(binary, args, name=name, test_dir=test_dir,
+                             socket_scm_helper=socket_scm_helper)
+        self._qtest = None
         self._qtest_path = os.path.join(test_dir, name + "-qtest.sock")
 
     def _base_args(self):
