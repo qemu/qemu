@@ -31,26 +31,16 @@
 #include "exec/address-spaces.h"
 #include "cpu.h"
 
-static uint32_t static_readb(void *opaque, hwaddr offset)
+static uint64_t static_read(void *opaque, hwaddr offset, unsigned size)
 {
-    uint32_t *val = (uint32_t *) opaque;
-    return *val >> ((offset & 3) << 3);
+    uint32_t *val = (uint32_t *)opaque;
+    uint32_t sizemask = 7 >> size;
+
+    return *val >> ((offset & sizemask) << 3);
 }
 
-static uint32_t static_readh(void *opaque, hwaddr offset)
-{
-    uint32_t *val = (uint32_t *) opaque;
-    return *val >> ((offset & 1) << 3);
-}
-
-static uint32_t static_readw(void *opaque, hwaddr offset)
-{
-    uint32_t *val = (uint32_t *) opaque;
-    return *val >> ((offset & 0) << 3);
-}
-
-static void static_write(void *opaque, hwaddr offset,
-                uint32_t value)
+static void static_write(void *opaque, hwaddr offset, uint64_t value,
+                         unsigned size)
 {
 #ifdef SPY
     printf("%s: value %08lx written at " PA_FMT "\n",
@@ -59,10 +49,10 @@ static void static_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps static_ops = {
-    .old_mmio = {
-        .read = { static_readb, static_readh, static_readw, },
-        .write = { static_write, static_write, static_write, },
-    },
+    .read = static_read,
+    .write = static_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
