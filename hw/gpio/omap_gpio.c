@@ -525,16 +525,22 @@ static void omap2_gpio_module_write(void *opaque, hwaddr addr,
     }
 }
 
-static uint32_t omap2_gpio_module_readp(void *opaque, hwaddr addr)
+static uint64_t omap2_gpio_module_readp(void *opaque, hwaddr addr,
+                                        unsigned size)
 {
     return omap2_gpio_module_read(opaque, addr & ~3) >> ((addr & 3) << 3);
 }
 
 static void omap2_gpio_module_writep(void *opaque, hwaddr addr,
-                uint32_t value)
+                                     uint64_t value, unsigned size)
 {
     uint32_t cur = 0;
     uint32_t mask = 0xffff;
+
+    if (size == 4) {
+        omap2_gpio_module_write(opaque, addr, value);
+        return;
+    }
 
     switch (addr & ~3) {
     case 0x00:	/* GPIO_REVISION */
@@ -581,18 +587,10 @@ static void omap2_gpio_module_writep(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps omap2_gpio_module_ops = {
-    .old_mmio = {
-        .read = {
-            omap2_gpio_module_readp,
-            omap2_gpio_module_readp,
-            omap2_gpio_module_read,
-        },
-        .write = {
-            omap2_gpio_module_writep,
-            omap2_gpio_module_writep,
-            omap2_gpio_module_write,
-        },
-    },
+    .read = omap2_gpio_module_readp,
+    .write = omap2_gpio_module_writep,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
