@@ -77,7 +77,7 @@
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
 #define TBFREQ (100UL * 1000UL * 1000UL)
-#define CLOCKFREQ (266UL * 1000UL * 1000UL)
+#define CLOCKFREQ (900UL * 1000UL * 1000UL)
 #define BUSFREQ (100UL * 1000UL * 1000UL)
 
 #define NDRV_VGA_FILENAME "qemu_vga.ndrv"
