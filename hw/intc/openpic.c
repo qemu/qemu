@@ -92,6 +92,16 @@ static int get_current_cpu(void);
 #define RAVEN_MAX_TMR      OPENPIC_MAX_TMR
 #define RAVEN_MAX_IPI      OPENPIC_MAX_IPI
 
+/* KeyLargo */
+#define KEYLARGO_MAX_CPU  4
+#define KEYLARGO_MAX_EXT  64
+#define KEYLARGO_MAX_IPI  4
+#define KEYLARGO_MAX_IRQ  (64 + KEYLARGO_MAX_IPI)
+#define KEYLARGO_MAX_TMR  0
+#define KEYLARGO_IPI_IRQ  (KEYLARGO_MAX_EXT) /* First IPI IRQ */
+/* Timers don't exist but this makes the code happy... */
+#define KEYLARGO_TMR_IRQ  (KEYLARGO_IPI_IRQ + KEYLARGO_MAX_IPI)
+
 /* Interrupt definitions */
 #define RAVEN_FE_IRQ     (RAVEN_MAX_EXT)     /* Internal functional IRQ */
 #define RAVEN_ERR_IRQ    (RAVEN_MAX_EXT + 1) /* Error IRQ */
@@ -120,6 +130,7 @@ static FslMpicInfo fsl_mpic_42 = {
 #define VID_REVISION_1_3   3
 
 #define VIR_GENERIC      0x00000000 /* Generic Vendor ID */
+#define VIR_MPIC2A       0x00004614 /* IBM MPIC-2A */
 
 #define GCR_RESET        0x80000000
 #define GCR_MODE_PASS    0x00000000
@@ -329,6 +340,8 @@ typedef struct OpenPICState {
     uint32_t nb_cpus;
     /* Timer registers */
     OpenPICTimer timers[OPENPIC_MAX_TMR];
+    uint32_t max_tmr;
+
     /* Shared MSI registers */
     OpenPICMSI msi[MAX_MSI];
     uint32_t max_irq;
@@ -1707,6 +1720,28 @@ static void openpic_realize(DeviceState *dev, Error **errp)
         opp->max_irq = RAVEN_MAX_IRQ;
         opp->irq_ipi0 = RAVEN_IPI_IRQ;
         opp->irq_tim0 = RAVEN_TMR_IRQ;
+        opp->brr1 = -1;
+        opp->mpic_mode_mask = GCR_MODE_MIXED;
+
+        if (opp->nb_cpus != 1) {
+            error_setg(errp, "Only UP supported today");
+            return;
+        }
+
+        map_list(opp, list_le, &list_count);
+        break;
+
+    case OPENPIC_MODEL_KEYLARGO:
+        opp->nb_irqs = KEYLARGO_MAX_EXT;
+        opp->vid = VID_REVISION_1_2;
+        opp->vir = VIR_GENERIC;
+        opp->vector_mask = 0xFF;
+        opp->tfrr_reset = 4160000;
+        opp->ivpr_reset = IVPR_MASK_MASK | IVPR_MODE_MASK;
+        opp->idr_reset = 0;
+        opp->max_irq = KEYLARGO_MAX_IRQ;
+        opp->irq_ipi0 = KEYLARGO_IPI_IRQ;
+        opp->irq_tim0 = KEYLARGO_TMR_IRQ;
         opp->brr1 = -1;
         opp->mpic_mode_mask = GCR_MODE_MIXED;
 
