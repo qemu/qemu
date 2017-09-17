@@ -195,11 +195,11 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch(*ct_str++) {
     case 'r':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set(ct->u.regs, 0xffffffff);
+        ct->u.regs = 0xffffffff;
         break;
     case 'L': /* qemu_ld input arg constraint */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set(ct->u.regs, 0xffffffff);
+        ct->u.regs = 0xffffffff;
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_A0);
 #if defined(CONFIG_SOFTMMU)
         if (TCG_TARGET_REG_BITS < TARGET_LONG_BITS) {
@@ -209,7 +209,7 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 'S': /* qemu_st constraint */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set(ct->u.regs, 0xffffffff);
+        ct->u.regs = 0xffffffff;
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_A0);
 #if defined(CONFIG_SOFTMMU)
         if (TCG_TARGET_REG_BITS < TARGET_LONG_BITS) {
@@ -2163,166 +2163,182 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     }
 }
 
-static const TCGTargetOpDef mips_op_defs[] = {
-    { INDEX_op_exit_tb, { } },
-    { INDEX_op_goto_tb, { } },
-    { INDEX_op_br, { } },
-    { INDEX_op_goto_ptr, { "r" } },
-
-    { INDEX_op_ld8u_i32, { "r", "r" } },
-    { INDEX_op_ld8s_i32, { "r", "r" } },
-    { INDEX_op_ld16u_i32, { "r", "r" } },
-    { INDEX_op_ld16s_i32, { "r", "r" } },
-    { INDEX_op_ld_i32, { "r", "r" } },
-    { INDEX_op_st8_i32, { "rZ", "r" } },
-    { INDEX_op_st16_i32, { "rZ", "r" } },
-    { INDEX_op_st_i32, { "rZ", "r" } },
-
-    { INDEX_op_add_i32, { "r", "rZ", "rJ" } },
-    { INDEX_op_mul_i32, { "r", "rZ", "rZ" } },
-#if !use_mips32r6_instructions
-    { INDEX_op_muls2_i32, { "r", "r", "rZ", "rZ" } },
-    { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rZ" } },
-#endif
-    { INDEX_op_mulsh_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_muluh_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_div_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_divu_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_rem_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_remu_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_sub_i32, { "r", "rZ", "rN" } },
-
-    { INDEX_op_and_i32, { "r", "rZ", "rIK" } },
-    { INDEX_op_nor_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_not_i32, { "r", "rZ" } },
-    { INDEX_op_or_i32, { "r", "rZ", "rIZ" } },
-    { INDEX_op_xor_i32, { "r", "rZ", "rIZ" } },
-
-    { INDEX_op_shl_i32, { "r", "rZ", "ri" } },
-    { INDEX_op_shr_i32, { "r", "rZ", "ri" } },
-    { INDEX_op_sar_i32, { "r", "rZ", "ri" } },
-    { INDEX_op_rotr_i32, { "r", "rZ", "ri" } },
-    { INDEX_op_rotl_i32, { "r", "rZ", "ri" } },
-    { INDEX_op_clz_i32,  { "r", "r", "rWZ" } },
-
-    { INDEX_op_bswap16_i32, { "r", "r" } },
-    { INDEX_op_bswap32_i32, { "r", "r" } },
-
-    { INDEX_op_ext8s_i32, { "r", "rZ" } },
-    { INDEX_op_ext16s_i32, { "r", "rZ" } },
-
-    { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
-    { INDEX_op_extract_i32, { "r", "r" } },
-
-    { INDEX_op_brcond_i32, { "rZ", "rZ" } },
-#if use_mips32r6_instructions
-    { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
-#else
-    { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "0" } },
-#endif
-    { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
-
-#if TCG_TARGET_REG_BITS == 32
-    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rN", "rN" } },
-    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rN", "rN" } },
-    { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
-    { INDEX_op_brcond2_i32, { "rZ", "rZ", "rZ", "rZ" } },
-#endif
-
-#if TCG_TARGET_REG_BITS == 64
-    { INDEX_op_ld8u_i64, { "r", "r" } },
-    { INDEX_op_ld8s_i64, { "r", "r" } },
-    { INDEX_op_ld16u_i64, { "r", "r" } },
-    { INDEX_op_ld16s_i64, { "r", "r" } },
-    { INDEX_op_ld32s_i64, { "r", "r" } },
-    { INDEX_op_ld32u_i64, { "r", "r" } },
-    { INDEX_op_ld_i64, { "r", "r" } },
-    { INDEX_op_st8_i64, { "rZ", "r" } },
-    { INDEX_op_st16_i64, { "rZ", "r" } },
-    { INDEX_op_st32_i64, { "rZ", "r" } },
-    { INDEX_op_st_i64, { "rZ", "r" } },
-
-    { INDEX_op_add_i64, { "r", "rZ", "rJ" } },
-    { INDEX_op_mul_i64, { "r", "rZ", "rZ" } },
-#if !use_mips32r6_instructions
-    { INDEX_op_muls2_i64, { "r", "r", "rZ", "rZ" } },
-    { INDEX_op_mulu2_i64, { "r", "r", "rZ", "rZ" } },
-#endif
-    { INDEX_op_mulsh_i64, { "r", "rZ", "rZ" } },
-    { INDEX_op_muluh_i64, { "r", "rZ", "rZ" } },
-    { INDEX_op_div_i64, { "r", "rZ", "rZ" } },
-    { INDEX_op_divu_i64, { "r", "rZ", "rZ" } },
-    { INDEX_op_rem_i64, { "r", "rZ", "rZ" } },
-    { INDEX_op_remu_i64, { "r", "rZ", "rZ" } },
-    { INDEX_op_sub_i64, { "r", "rZ", "rN" } },
-
-    { INDEX_op_and_i64, { "r", "rZ", "rIK" } },
-    { INDEX_op_nor_i64, { "r", "rZ", "rZ" } },
-    { INDEX_op_not_i64, { "r", "rZ" } },
-    { INDEX_op_or_i64, { "r", "rZ", "rI" } },
-    { INDEX_op_xor_i64, { "r", "rZ", "rI" } },
-
-    { INDEX_op_shl_i64, { "r", "rZ", "ri" } },
-    { INDEX_op_shr_i64, { "r", "rZ", "ri" } },
-    { INDEX_op_sar_i64, { "r", "rZ", "ri" } },
-    { INDEX_op_rotr_i64, { "r", "rZ", "ri" } },
-    { INDEX_op_rotl_i64, { "r", "rZ", "ri" } },
-    { INDEX_op_clz_i64,  { "r", "r", "rWZ" } },
-
-    { INDEX_op_bswap16_i64, { "r", "r" } },
-    { INDEX_op_bswap32_i64, { "r", "r" } },
-    { INDEX_op_bswap64_i64, { "r", "r" } },
-
-    { INDEX_op_ext8s_i64, { "r", "rZ" } },
-    { INDEX_op_ext16s_i64, { "r", "rZ" } },
-    { INDEX_op_ext32s_i64, { "r", "rZ" } },
-    { INDEX_op_ext32u_i64, { "r", "rZ" } },
-    { INDEX_op_ext_i32_i64, { "r", "rZ" } },
-    { INDEX_op_extu_i32_i64, { "r", "rZ" } },
-    { INDEX_op_extrl_i64_i32, { "r", "rZ" } },
-    { INDEX_op_extrh_i64_i32, { "r", "rZ" } },
-
-    { INDEX_op_deposit_i64, { "r", "0", "rZ" } },
-    { INDEX_op_extract_i64, { "r", "r" } },
-
-    { INDEX_op_brcond_i64, { "rZ", "rZ" } },
-#if use_mips32r6_instructions
-    { INDEX_op_movcond_i64, { "r", "rZ", "rZ", "rZ", "rZ" } },
-#else
-    { INDEX_op_movcond_i64, { "r", "rZ", "rZ", "rZ", "0" } },
-#endif
-    { INDEX_op_setcond_i64, { "r", "rZ", "rZ" } },
-
-    { INDEX_op_qemu_ld_i32, { "r", "LZ" } },
-    { INDEX_op_qemu_st_i32, { "SZ", "SZ" } },
-    { INDEX_op_qemu_ld_i64, { "r", "LZ" } },
-    { INDEX_op_qemu_st_i64, { "SZ", "SZ" } },
-#elif TARGET_LONG_BITS == 32
-    { INDEX_op_qemu_ld_i32, { "r", "LZ" } },
-    { INDEX_op_qemu_st_i32, { "SZ", "SZ" } },
-    { INDEX_op_qemu_ld_i64, { "r", "r", "LZ" } },
-    { INDEX_op_qemu_st_i64, { "SZ", "SZ", "SZ" } },
-#else
-    { INDEX_op_qemu_ld_i32, { "r", "LZ", "LZ" } },
-    { INDEX_op_qemu_st_i32, { "SZ", "SZ", "SZ" } },
-    { INDEX_op_qemu_ld_i64, { "r", "r", "LZ", "LZ" } },
-    { INDEX_op_qemu_st_i64, { "SZ", "SZ", "SZ", "SZ" } },
-#endif
-
-    { INDEX_op_mb, { } },
-    { -1 },
-};
-
 static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
 {
-    int i, n = ARRAY_SIZE(mips_op_defs);
+    static const TCGTargetOpDef r = { .args_ct_str = { "r" } };
+    static const TCGTargetOpDef r_r = { .args_ct_str = { "r", "r" } };
+    static const TCGTargetOpDef r_L = { .args_ct_str = { "r", "L" } };
+    static const TCGTargetOpDef rZ_r = { .args_ct_str = { "rZ", "r" } };
+    static const TCGTargetOpDef SZ_S = { .args_ct_str = { "SZ", "S" } };
+    static const TCGTargetOpDef rZ_rZ = { .args_ct_str = { "rZ", "rZ" } };
+    static const TCGTargetOpDef r_r_L = { .args_ct_str = { "r", "r", "L" } };
+    static const TCGTargetOpDef r_L_L = { .args_ct_str = { "r", "L", "L" } };
+    static const TCGTargetOpDef r_r_ri = { .args_ct_str = { "r", "r", "ri" } };
+    static const TCGTargetOpDef r_r_rI = { .args_ct_str = { "r", "r", "rI" } };
+    static const TCGTargetOpDef r_r_rJ = { .args_ct_str = { "r", "r", "rJ" } };
+    static const TCGTargetOpDef SZ_S_S = { .args_ct_str = { "SZ", "S", "S" } };
+    static const TCGTargetOpDef SZ_SZ_S
+        = { .args_ct_str = { "SZ", "SZ", "S" } };
+    static const TCGTargetOpDef SZ_SZ_S_S
+        = { .args_ct_str = { "SZ", "SZ", "S", "S" } };
+    static const TCGTargetOpDef r_rZ_rN
+        = { .args_ct_str = { "r", "rZ", "rN" } };
+    static const TCGTargetOpDef r_rZ_rZ
+        = { .args_ct_str = { "r", "rZ", "rZ" } };
+    static const TCGTargetOpDef r_r_rIK
+        = { .args_ct_str = { "r", "r", "rIK" } };
+    static const TCGTargetOpDef r_r_rWZ
+        = { .args_ct_str = { "r", "r", "rWZ" } };
+    static const TCGTargetOpDef r_r_r_r
+        = { .args_ct_str = { "r", "r", "r", "r" } };
+    static const TCGTargetOpDef r_r_L_L
+        = { .args_ct_str = { "r", "r", "L", "L" } };
+    static const TCGTargetOpDef dep
+        = { .args_ct_str = { "r", "0", "rZ" } };
+    static const TCGTargetOpDef movc
+        = { .args_ct_str = { "r", "rZ", "rZ", "rZ", "0" } };
+    static const TCGTargetOpDef movc_r6
+        = { .args_ct_str = { "r", "rZ", "rZ", "rZ", "rZ" } };
+    static const TCGTargetOpDef add2
+        = { .args_ct_str = { "r", "r", "rZ", "rZ", "rN", "rN" } };
+    static const TCGTargetOpDef br2
+        = { .args_ct_str = { "rZ", "rZ", "rZ", "rZ" } };
+    static const TCGTargetOpDef setc2
+        = { .args_ct_str = { "r", "rZ", "rZ", "rZ", "rZ" } };
 
-    for (i = 0; i < n; ++i) {
-        if (mips_op_defs[i].op == op) {
-            return &mips_op_defs[i];
-        }
+    switch (op) {
+    case INDEX_op_goto_ptr:
+        return &r;
+
+    case INDEX_op_ld8u_i32:
+    case INDEX_op_ld8s_i32:
+    case INDEX_op_ld16u_i32:
+    case INDEX_op_ld16s_i32:
+    case INDEX_op_ld_i32:
+    case INDEX_op_not_i32:
+    case INDEX_op_bswap16_i32:
+    case INDEX_op_bswap32_i32:
+    case INDEX_op_ext8s_i32:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_extract_i32:
+    case INDEX_op_ld8u_i64:
+    case INDEX_op_ld8s_i64:
+    case INDEX_op_ld16u_i64:
+    case INDEX_op_ld16s_i64:
+    case INDEX_op_ld32s_i64:
+    case INDEX_op_ld32u_i64:
+    case INDEX_op_ld_i64:
+    case INDEX_op_not_i64:
+    case INDEX_op_bswap16_i64:
+    case INDEX_op_bswap32_i64:
+    case INDEX_op_bswap64_i64:
+    case INDEX_op_ext8s_i64:
+    case INDEX_op_ext16s_i64:
+    case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
+    case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
+    case INDEX_op_extrh_i64_i32:
+    case INDEX_op_extract_i64:
+        return &r_r;
+
+    case INDEX_op_st8_i32:
+    case INDEX_op_st16_i32:
+    case INDEX_op_st_i32:
+    case INDEX_op_st8_i64:
+    case INDEX_op_st16_i64:
+    case INDEX_op_st32_i64:
+    case INDEX_op_st_i64:
+        return &rZ_r;
+
+    case INDEX_op_add_i32:
+    case INDEX_op_add_i64:
+        return &r_r_rJ;
+    case INDEX_op_sub_i32:
+    case INDEX_op_sub_i64:
+        return &r_rZ_rN;
+    case INDEX_op_mul_i32:
+    case INDEX_op_mulsh_i32:
+    case INDEX_op_muluh_i32:
+    case INDEX_op_div_i32:
+    case INDEX_op_divu_i32:
+    case INDEX_op_rem_i32:
+    case INDEX_op_remu_i32:
+    case INDEX_op_nor_i32:
+    case INDEX_op_setcond_i32:
+    case INDEX_op_mul_i64:
+    case INDEX_op_mulsh_i64:
+    case INDEX_op_muluh_i64:
+    case INDEX_op_div_i64:
+    case INDEX_op_divu_i64:
+    case INDEX_op_rem_i64:
+    case INDEX_op_remu_i64:
+    case INDEX_op_nor_i64:
+    case INDEX_op_setcond_i64:
+        return &r_rZ_rZ;
+    case INDEX_op_muls2_i32:
+    case INDEX_op_mulu2_i32:
+    case INDEX_op_muls2_i64:
+    case INDEX_op_mulu2_i64:
+        return &r_r_r_r;
+    case INDEX_op_and_i32:
+    case INDEX_op_and_i64:
+        return &r_r_rIK;
+    case INDEX_op_or_i32:
+    case INDEX_op_xor_i32:
+    case INDEX_op_or_i64:
+    case INDEX_op_xor_i64:
+        return &r_r_rI;
+    case INDEX_op_shl_i32:
+    case INDEX_op_shr_i32:
+    case INDEX_op_sar_i32:
+    case INDEX_op_rotr_i32:
+    case INDEX_op_rotl_i32:
+    case INDEX_op_shl_i64:
+    case INDEX_op_shr_i64:
+    case INDEX_op_sar_i64:
+    case INDEX_op_rotr_i64:
+    case INDEX_op_rotl_i64:
+        return &r_r_ri;
+    case INDEX_op_clz_i32:
+    case INDEX_op_clz_i64:
+        return &r_r_rWZ;
+
+    case INDEX_op_deposit_i32:
+    case INDEX_op_deposit_i64:
+        return &dep;
+    case INDEX_op_brcond_i32:
+    case INDEX_op_brcond_i64:
+        return &rZ_rZ;
+    case INDEX_op_movcond_i32:
+    case INDEX_op_movcond_i64:
+        return use_mips32r6_instructions ? &movc_r6 : &movc;
+
+    case INDEX_op_add2_i32:
+    case INDEX_op_sub2_i32:
+        return &add2;
+    case INDEX_op_setcond2_i32:
+        return &setc2;
+    case INDEX_op_brcond2_i32:
+        return &br2;
+
+    case INDEX_op_qemu_ld_i32:
+        return (TCG_TARGET_REG_BITS == 64 || TARGET_LONG_BITS == 32
+                ? &r_L : &r_L_L);
+    case INDEX_op_qemu_st_i32:
+        return (TCG_TARGET_REG_BITS == 64 || TARGET_LONG_BITS == 32
+                ? &SZ_S : &SZ_S_S);
+    case INDEX_op_qemu_ld_i64:
+        return (TCG_TARGET_REG_BITS == 64 ? &r_L
+                : TARGET_LONG_BITS == 32 ? &r_r_L : &r_r_L_L);
+    case INDEX_op_qemu_st_i64:
+        return (TCG_TARGET_REG_BITS == 64 ? &SZ_S
+                : TARGET_LONG_BITS == 32 ? &SZ_SZ_S : &SZ_SZ_S_S);
+
+    default:
+        return NULL;
     }
-    return NULL;
 }
 
 static int tcg_target_callee_save_regs[] = {
@@ -2607,29 +2623,30 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 static void tcg_target_init(TCGContext *s)
 {
     tcg_target_detect_isa();
-    tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I32], 0xffffffff);
+    tcg_target_available_regs[TCG_TYPE_I32] = 0xffffffff;
     if (TCG_TARGET_REG_BITS == 64) {
-        tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I64], 0xffffffff);
+        tcg_target_available_regs[TCG_TYPE_I64] = 0xffffffff;
     }
-    tcg_regset_set(tcg_target_call_clobber_regs,
-                   (1 << TCG_REG_V0) |
-                   (1 << TCG_REG_V1) |
-                   (1 << TCG_REG_A0) |
-                   (1 << TCG_REG_A1) |
-                   (1 << TCG_REG_A2) |
-                   (1 << TCG_REG_A3) |
-                   (1 << TCG_REG_T0) |
-                   (1 << TCG_REG_T1) |
-                   (1 << TCG_REG_T2) |
-                   (1 << TCG_REG_T3) |
-                   (1 << TCG_REG_T4) |
-                   (1 << TCG_REG_T5) |
-                   (1 << TCG_REG_T6) |
-                   (1 << TCG_REG_T7) |
-                   (1 << TCG_REG_T8) |
-                   (1 << TCG_REG_T9));
 
-    tcg_regset_clear(s->reserved_regs);
+    tcg_target_call_clobber_regs = 0;
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_V0);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_V1);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_A0);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_A1);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_A2);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_A3);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T0);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T1);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T2);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T3);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T4);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T5);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T6);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T7);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T8);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_T9);
+
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_ZERO); /* zero register */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_K0);   /* kernel use only */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_K1);   /* kernel use only */

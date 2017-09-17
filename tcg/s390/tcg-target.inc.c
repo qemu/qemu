@@ -402,23 +402,23 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     switch (*ct_str++) {
     case 'r':                  /* all registers */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xffff);
+        ct->u.regs = 0xffff;
         break;
     case 'L':                  /* qemu_ld/st constraint */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xffff);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R2);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
+        ct->u.regs = 0xffff;
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R4);
         break;
     case 'a':                  /* force R2 for division */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_clear(ct->u.regs);
+        ct->u.regs = 0;
         tcg_regset_set_reg(ct->u.regs, TCG_REG_R2);
         break;
     case 'b':                  /* force R3 for division */
         ct->ct |= TCG_CT_REG;
-        tcg_regset_clear(ct->u.regs);
+        ct->u.regs = 0;
         tcg_regset_set_reg(ct->u.regs, TCG_REG_R3);
         break;
     case 'A':
@@ -2519,10 +2519,10 @@ static void tcg_target_init(TCGContext *s)
 {
     query_s390_facilities();
 
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffff);
+    tcg_target_available_regs[TCG_TYPE_I32] = 0xffff;
+    tcg_target_available_regs[TCG_TYPE_I64] = 0xffff;
 
-    tcg_regset_clear(tcg_target_call_clobber_regs);
+    tcg_target_call_clobber_regs = 0;
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R0);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R1);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R2);
@@ -2535,7 +2535,7 @@ static void tcg_target_init(TCGContext *s)
     /* The return register can be considered call-clobbered.  */
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R14);
 
-    tcg_regset_clear(s->reserved_regs);
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_TMP0);
     /* XXX many insns can't be used with R0, so we better avoid it for now */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);

@@ -86,7 +86,6 @@ M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: cpus.c
 F: exec.c
-F: softmmu_template.h
 F: accel/tcg/
 F: include/exec/cpu*.h
 F: include/exec/exec-all.h
@@ -1604,8 +1603,7 @@ Overall
 M: Riku Voipio <riku.voipio@iki.fi>
 S: Maintained
 F: thunk.c
-F: user-exec.c
-F: user-exec-stub.c
+F: accel/tcg/user-exec*.c
 
 BSD user
 S: Orphan

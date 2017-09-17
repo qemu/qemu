@@ -264,13 +264,13 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 
     case 'r':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffff;
         break;
 
     /* qemu_ld address */
     case 'l':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffff;
 #ifdef CONFIG_SOFTMMU
         /* r0-r2,lr will be overwritten when reading the tlb entry,
            so don't use these. */
@@ -284,7 +284,7 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
     /* qemu_st address & data */
     case 's':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
+        ct->u.regs = 0xffff;
         /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
            and r0-r1 doing the byte swapping, so don't use these. */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
@@ -2060,91 +2060,119 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     }
 }
 
-static const TCGTargetOpDef arm_op_defs[] = {
-    { INDEX_op_exit_tb, { } },
-    { INDEX_op_goto_tb, { } },
-    { INDEX_op_br, { } },
-    { INDEX_op_goto_ptr, { "r" } },
-
-    { INDEX_op_ld8u_i32, { "r", "r" } },
-    { INDEX_op_ld8s_i32, { "r", "r" } },
-    { INDEX_op_ld16u_i32, { "r", "r" } },
-    { INDEX_op_ld16s_i32, { "r", "r" } },
-    { INDEX_op_ld_i32, { "r", "r" } },
-    { INDEX_op_st8_i32, { "r", "r" } },
-    { INDEX_op_st16_i32, { "r", "r" } },
-    { INDEX_op_st_i32, { "r", "r" } },
-
-    /* TODO: "r", "r", "ri" */
-    { INDEX_op_add_i32, { "r", "r", "rIN" } },
-    { INDEX_op_sub_i32, { "r", "rI", "rIN" } },
-    { INDEX_op_mul_i32, { "r", "r", "r" } },
-    { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
-    { INDEX_op_muls2_i32, { "r", "r", "r", "r" } },
-    { INDEX_op_and_i32, { "r", "r", "rIK" } },
-    { INDEX_op_andc_i32, { "r", "r", "rIK" } },
-    { INDEX_op_or_i32, { "r", "r", "rI" } },
-    { INDEX_op_xor_i32, { "r", "r", "rI" } },
-    { INDEX_op_neg_i32, { "r", "r" } },
-    { INDEX_op_not_i32, { "r", "r" } },
-
-    { INDEX_op_shl_i32, { "r", "r", "ri" } },
-    { INDEX_op_shr_i32, { "r", "r", "ri" } },
-    { INDEX_op_sar_i32, { "r", "r", "ri" } },
-    { INDEX_op_rotl_i32, { "r", "r", "ri" } },
-    { INDEX_op_rotr_i32, { "r", "r", "ri" } },
-    { INDEX_op_clz_i32, { "r", "r", "rIK" } },
-    { INDEX_op_ctz_i32, { "r", "r", "rIK" } },
-
-    { INDEX_op_brcond_i32, { "r", "rIN" } },
-    { INDEX_op_setcond_i32, { "r", "r", "rIN" } },
-    { INDEX_op_movcond_i32, { "r", "r", "rIN", "rIK", "0" } },
-
-    { INDEX_op_add2_i32, { "r", "r", "r", "r", "rIN", "rIK" } },
-    { INDEX_op_sub2_i32, { "r", "r", "rI", "rI", "rIN", "rIK" } },
-    { INDEX_op_brcond2_i32, { "r", "r", "rIN", "rIN" } },
-    { INDEX_op_setcond2_i32, { "r", "r", "r", "rIN", "rIN" } },
-
-#if TARGET_LONG_BITS == 32
-    { INDEX_op_qemu_ld_i32, { "r", "l" } },
-    { INDEX_op_qemu_ld_i64, { "r", "r", "l" } },
-    { INDEX_op_qemu_st_i32, { "s", "s" } },
-    { INDEX_op_qemu_st_i64, { "s", "s", "s" } },
-#else
-    { INDEX_op_qemu_ld_i32, { "r", "l", "l" } },
-    { INDEX_op_qemu_ld_i64, { "r", "r", "l", "l" } },
-    { INDEX_op_qemu_st_i32, { "s", "s", "s" } },
-    { INDEX_op_qemu_st_i64, { "s", "s", "s", "s" } },
-#endif
-
-    { INDEX_op_bswap16_i32, { "r", "r" } },
-    { INDEX_op_bswap32_i32, { "r", "r" } },
-
-    { INDEX_op_ext8s_i32, { "r", "r" } },
-    { INDEX_op_ext16s_i32, { "r", "r" } },
-    { INDEX_op_ext16u_i32, { "r", "r" } },
-
-    { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
-    { INDEX_op_extract_i32, { "r", "r" } },
-    { INDEX_op_sextract_i32, { "r", "r" } },
-
-    { INDEX_op_div_i32, { "r", "r", "r" } },
-    { INDEX_op_divu_i32, { "r", "r", "r" } },
-
-    { INDEX_op_mb, { } },
-    { -1 },
-};
-
 static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
 {
-    int i, n = ARRAY_SIZE(arm_op_defs);
+    static const TCGTargetOpDef r = { .args_ct_str = { "r" } };
+    static const TCGTargetOpDef r_r = { .args_ct_str = { "r", "r" } };
+    static const TCGTargetOpDef s_s = { .args_ct_str = { "s", "s" } };
+    static const TCGTargetOpDef r_l = { .args_ct_str = { "r", "l" } };
+    static const TCGTargetOpDef r_r_r = { .args_ct_str = { "r", "r", "r" } };
+    static const TCGTargetOpDef r_r_l = { .args_ct_str = { "r", "r", "l" } };
+    static const TCGTargetOpDef r_l_l = { .args_ct_str = { "r", "l", "l" } };
+    static const TCGTargetOpDef s_s_s = { .args_ct_str = { "s", "s", "s" } };
+    static const TCGTargetOpDef r_r_ri = { .args_ct_str = { "r", "r", "ri" } };
+    static const TCGTargetOpDef r_r_rI = { .args_ct_str = { "r", "r", "rI" } };
+    static const TCGTargetOpDef r_r_rIN
+        = { .args_ct_str = { "r", "r", "rIN" } };
+    static const TCGTargetOpDef r_r_rIK
+        = { .args_ct_str = { "r", "r", "rIK" } };
+    static const TCGTargetOpDef r_r_r_r
+        = { .args_ct_str = { "r", "r", "r", "r" } };
+    static const TCGTargetOpDef r_r_l_l
+        = { .args_ct_str = { "r", "r", "l", "l" } };
+    static const TCGTargetOpDef s_s_s_s
+        = { .args_ct_str = { "s", "s", "s", "s" } };
+    static const TCGTargetOpDef br
+        = { .args_ct_str = { "r", "rIN" } };
+    static const TCGTargetOpDef dep
+        = { .args_ct_str = { "r", "0", "rZ" } };
+    static const TCGTargetOpDef movc
+        = { .args_ct_str = { "r", "r", "rIN", "rIK", "0" } };
+    static const TCGTargetOpDef add2
+        = { .args_ct_str = { "r", "r", "r", "r", "rIN", "rIK" } };
+    static const TCGTargetOpDef sub2
+        = { .args_ct_str = { "r", "r", "rI", "rI", "rIN", "rIK" } };
+    static const TCGTargetOpDef br2
+        = { .args_ct_str = { "r", "r", "rIN", "rIN" } };
+    static const TCGTargetOpDef setc2
+        = { .args_ct_str = { "r", "r", "r", "rIN", "rIN" } };
 
-    for (i = 0; i < n; ++i) {
-        if (arm_op_defs[i].op == op) {
-            return &arm_op_defs[i];
-        }
+    switch (op) {
+    case INDEX_op_goto_ptr:
+        return &r;
+
+    case INDEX_op_ld8u_i32:
+    case INDEX_op_ld8s_i32:
+    case INDEX_op_ld16u_i32:
+    case INDEX_op_ld16s_i32:
+    case INDEX_op_ld_i32:
+    case INDEX_op_st8_i32:
+    case INDEX_op_st16_i32:
+    case INDEX_op_st_i32:
+    case INDEX_op_neg_i32:
+    case INDEX_op_not_i32:
+    case INDEX_op_bswap16_i32:
+    case INDEX_op_bswap32_i32:
+    case INDEX_op_ext8s_i32:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext16u_i32:
+    case INDEX_op_extract_i32:
+    case INDEX_op_sextract_i32:
+        return &r_r;
+
+    case INDEX_op_add_i32:
+    case INDEX_op_sub_i32:
+    case INDEX_op_setcond_i32:
+        return &r_r_rIN;
+    case INDEX_op_and_i32:
+    case INDEX_op_andc_i32:
+    case INDEX_op_clz_i32:
+    case INDEX_op_ctz_i32:
+        return &r_r_rIK;
+    case INDEX_op_mul_i32:
+    case INDEX_op_div_i32:
+    case INDEX_op_divu_i32:
+        return &r_r_r;
+    case INDEX_op_mulu2_i32:
+    case INDEX_op_muls2_i32:
+        return &r_r_r_r;
+    case INDEX_op_or_i32:
+    case INDEX_op_xor_i32:
+        return &r_r_rI;
+    case INDEX_op_shl_i32:
+    case INDEX_op_shr_i32:
+    case INDEX_op_sar_i32:
+    case INDEX_op_rotl_i32:
+    case INDEX_op_rotr_i32:
+        return &r_r_ri;
+
+    case INDEX_op_brcond_i32:
+        return &br;
+    case INDEX_op_deposit_i32:
+        return &dep;
+    case INDEX_op_movcond_i32:
+        return &movc;
+    case INDEX_op_add2_i32:
+        return &add2;
+    case INDEX_op_sub2_i32:
+        return &sub2;
+    case INDEX_op_brcond2_i32:
+        return &br2;
+    case INDEX_op_setcond2_i32:
+        return &setc2;
+
+    case INDEX_op_qemu_ld_i32:
+        return TARGET_LONG_BITS == 32 ? &r_l : &r_l_l;
+    case INDEX_op_qemu_ld_i64:
+        return TARGET_LONG_BITS == 32 ? &r_r_l : &r_r_l_l;
+    case INDEX_op_qemu_st_i32:
+        return TARGET_LONG_BITS == 32 ? &s_s : &s_s_s;
+    case INDEX_op_qemu_st_i64:
+        return TARGET_LONG_BITS == 32 ? &s_s_s : &s_s_s_s;
+
+    default:
+        return NULL;
     }
-    return NULL;
 }
 
 static void tcg_target_init(TCGContext *s)
@@ -2164,16 +2192,17 @@ static void tcg_target_init(TCGContext *s)
         }
     }
 
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     (1 << TCG_REG_R0) |
-                     (1 << TCG_REG_R1) |
-                     (1 << TCG_REG_R2) |
-                     (1 << TCG_REG_R3) |
-                     (1 << TCG_REG_R12) |
-                     (1 << TCG_REG_R14));
+    tcg_target_available_regs[TCG_TYPE_I32] = 0xffff;
 
-    tcg_regset_clear(s->reserved_regs);
+    tcg_target_call_clobber_regs = 0;
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R0);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R1);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R2);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R3);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R12);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R14);
+
+    s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);

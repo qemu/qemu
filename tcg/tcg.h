@@ -186,16 +186,9 @@ typedef enum TCGOpcode {
     NB_OPS,
 } TCGOpcode;
 
-#define tcg_regset_clear(d) (d) = 0
-#define tcg_regset_set(d, s) (d) = (s)
-#define tcg_regset_set32(d, reg, val32) (d) |= (val32) << (reg)
-#define tcg_regset_set_reg(d, r) (d) |= 1L << (r)
-#define tcg_regset_reset_reg(d, r) (d) &= ~(1L << (r))
-#define tcg_regset_test_reg(d, r) (((d) >> (r)) & 1)
-#define tcg_regset_or(d, a, b) (d) = (a) | (b)
-#define tcg_regset_and(d, a, b) (d) = (a) & (b)
-#define tcg_regset_andnot(d, a, b) (d) = (a) & ~(b)
-#define tcg_regset_not(d, a) (d) = ~(a)
+#define tcg_regset_set_reg(d, r)   ((d) |= (TCGRegSet)1 << (r))
+#define tcg_regset_reset_reg(d, r) ((d) &= ~((TCGRegSet)1 << (r)))
+#define tcg_regset_test_reg(d, r)  (((d) >> (r)) & 1)
 
 #ifndef TCG_TARGET_INSN_UNIT_SIZE
 # error "Missing TCG_TARGET_INSN_UNIT_SIZE"
@@ -931,6 +924,8 @@ do {\
 #define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i64())
 #define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
+
+bool tcg_op_supported(TCGOpcode op);
 
 void tcg_gen_callN(TCGContext *s, void *func,
                    TCGArg ret, int nargs, TCGArg *args);
