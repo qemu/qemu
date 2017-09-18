@@ -403,17 +403,19 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
         schedule_next_request(tgm, is_write);
         qemu_mutex_unlock(&tg->lock);
     }
+
+    g_free(data);
 }
 
 static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write)
 {
     Coroutine *co;
-    RestartData rd = {
-        .tgm = tgm,
-        .is_write = is_write
-    };
+    RestartData *rd = g_new0(RestartData, 1);
 
-    co = qemu_coroutine_create(throttle_group_restart_queue_entry, &rd);
+    rd->tgm = tgm;
+    rd->is_write = is_write;
+
+    co = qemu_coroutine_create(throttle_group_restart_queue_entry, rd);
     aio_co_enter(tgm->aio_context, co);
 }
 
