@@ -22,6 +22,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "qemu/timer.h"
+#include "qemu/bitops.h"
 #include "hw/audio/soundhw.h"
 #include "intel-hda.h"
 #include "intel-hda-defs.h"
@@ -1043,66 +1044,29 @@ static void intel_hda_regs_reset(IntelHDAState *d)
 
 /* --------------------------------------------------------------------- */
 
-static void intel_hda_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
+static void intel_hda_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned size)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
 
-    intel_hda_reg_write(d, reg, val, 0xff);
+    intel_hda_reg_write(d, reg, val, MAKE_64BIT_MASK(0, size * 8));
 }
 
-static void intel_hda_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
+static uint64_t intel_hda_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
 
-    intel_hda_reg_write(d, reg, val, 0xffff);
-}
-
-static void intel_hda_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
-{
-    IntelHDAState *d = opaque;
-    const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
-
-    intel_hda_reg_write(d, reg, val, 0xffffffff);
-}
-
-static uint32_t intel_hda_mmio_readb(void *opaque, hwaddr addr)
-{
-    IntelHDAState *d = opaque;
-    const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
-
-    return intel_hda_reg_read(d, reg, 0xff);
-}
-
-static uint32_t intel_hda_mmio_readw(void *opaque, hwaddr addr)
-{
-    IntelHDAState *d = opaque;
-    const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
-
-    return intel_hda_reg_read(d, reg, 0xffff);
-}
-
-static uint32_t intel_hda_mmio_readl(void *opaque, hwaddr addr)
-{
-    IntelHDAState *d = opaque;
-    const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
-
-    return intel_hda_reg_read(d, reg, 0xffffffff);
+    return intel_hda_reg_read(d, reg, MAKE_64BIT_MASK(0, size * 8));
 }
 
 static const MemoryRegionOps intel_hda_mmio_ops = {
-    .old_mmio = {
-        .read = {
-            intel_hda_mmio_readb,
-            intel_hda_mmio_readw,
-            intel_hda_mmio_readl,
-        },
-        .write = {
-            intel_hda_mmio_writeb,
-            intel_hda_mmio_writew,
-            intel_hda_mmio_writel,
-        },
+    .read = intel_hda_mmio_read,
+    .write = intel_hda_mmio_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
     },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
