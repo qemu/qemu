@@ -80,7 +80,7 @@ static char *idebus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(path);
 }
 
-static int ide_qdev_init(DeviceState *qdev)
+static void ide_qdev_realize(DeviceState *qdev, Error **errp)
 {
     IDEDevice *dev = IDE_DEVICE(qdev);
     IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
@@ -91,34 +91,31 @@ static int ide_qdev_init(DeviceState *qdev)
     }
 
     if (dev->unit >= bus->max_units) {
-        error_report("Can't create IDE unit %d, bus supports only %d units",
+        error_setg(errp, "Can't create IDE unit %d, bus supports only %d units",
                      dev->unit, bus->max_units);
-        goto err;
+        return;
     }
 
     switch (dev->unit) {
     case 0:
         if (bus->master) {
-            error_report("IDE unit %d is in use", dev->unit);
-            goto err;
+            error_setg(errp, "IDE unit %d is in use", dev->unit);
+            return;
         }
         bus->master = dev;
         break;
     case 1:
         if (bus->slave) {
-            error_report("IDE unit %d is in use", dev->unit);
-            goto err;
+            error_setg(errp, "IDE unit %d is in use", dev->unit);
+            return;
         }
         bus->slave = dev;
         break;
     default:
-        error_report("Invalid IDE unit %d", dev->unit);
-        goto err;
+        error_setg(errp, "Invalid IDE unit %d", dev->unit);
+        return;
     }
-    return dc->init(dev);
-
-err:
-    return -1;
+    dc->realize(dev, errp);
 }
 
 IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
@@ -159,7 +156,7 @@ typedef struct IDEDrive {
     IDEDevice dev;
 } IDEDrive;
 
-static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
+static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
@@ -168,8 +165,8 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
 
     if (!dev->conf.blk) {
         if (kind != IDE_CD) {
-            error_report("No drive specified");
-            return -1;
+            error_setg(errp, "No drive specified");
+            return;
         } else {
             /* Anonymous BlockBackend for an empty drive */
             dev->conf.blk = blk_new(0, BLK_PERM_ALL);
@@ -182,36 +179,36 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         dev->conf.discard_granularity = 512;
     } else if (dev->conf.discard_granularity &&
                dev->conf.discard_granularity != 512) {
-        error_report("discard_granularity must be 512 for ide");
-        return -1;
+        error_setg(errp, "discard_granularity must be 512 for ide");
+        return;
     }
 
     blkconf_blocksizes(&dev->conf);
     if (dev->conf.logical_block_size != 512) {
-        error_report("logical_block_size must be 512 for IDE");
-        return -1;
+        error_setg(errp, "logical_block_size must be 512 for IDE");
+        return;
     }
 
     blkconf_serial(&dev->conf, &dev->serial);
     if (kind != IDE_CD) {
         blkconf_geometry(&dev->conf, &dev->chs_trans, 65535, 16, 255, &err);
         if (err) {
-            error_report_err(err);
-            return -1;
+            error_propagate(errp, err);
+            return;
         }
     }
     blkconf_apply_backend_options(&dev->conf, kind == IDE_CD, kind != IDE_CD,
                                   &err);
     if (err) {
-        error_report_err(err);
-        return -1;
+        error_propagate(errp, err);
+        return;
     }
 
     if (ide_init_drive(s, dev->conf.blk, kind,
                        dev->version, dev->serial, dev->model, dev->wwn,
                        dev->conf.cyls, dev->conf.heads, dev->conf.secs,
-                       dev->chs_trans) < 0) {
-        return -1;
+                       dev->chs_trans, errp) < 0) {
+        return;
     }
 
     if (!dev->version) {
@@ -223,8 +220,6 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
 
     add_boot_device_path(dev->conf.bootindex, &dev->qdev,
                          dev->unit ? "/disk@1" : "/disk@0");
-
-    return 0;
 }
 
 static void ide_dev_get_bootindex(Object *obj, Visitor *v, const char *name,
@@ -270,17 +265,17 @@ static void ide_dev_instance_init(Object *obj)
     object_property_set_int(obj, -1, "bootindex", NULL);
 }
 
-static int ide_hd_initfn(IDEDevice *dev)
+static void ide_hd_realize(IDEDevice *dev, Error **errp)
 {
-    return ide_dev_initfn(dev, IDE_HD);
+    ide_dev_initfn(dev, IDE_HD, errp);
 }
 
-static int ide_cd_initfn(IDEDevice *dev)
+static void ide_cd_realize(IDEDevice *dev, Error **errp)
 {
-    return ide_dev_initfn(dev, IDE_CD);
+    ide_dev_initfn(dev, IDE_CD, errp);
 }
 
-static int ide_drive_initfn(IDEDevice *dev)
+static void ide_drive_realize(IDEDevice *dev, Error **errp)
 {
     DriveInfo *dinfo = NULL;
 
@@ -288,7 +283,7 @@ static int ide_drive_initfn(IDEDevice *dev)
         dinfo = blk_legacy_dinfo(dev->conf.blk);
     }
 
-    return ide_dev_initfn(dev, dinfo && dinfo->media_cd ? IDE_CD : IDE_HD);
+    ide_dev_initfn(dev, dinfo && dinfo->media_cd ? IDE_CD : IDE_HD, errp);
 }
 
 #define DEFINE_IDE_DEV_PROPERTIES()                     \
@@ -311,10 +306,11 @@ static void ide_hd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
-    k->init = ide_hd_initfn;
+
+    k->realize  = ide_hd_realize;
     dc->fw_name = "drive";
-    dc->desc = "virtual IDE disk";
-    dc->props = ide_hd_properties;
+    dc->desc    = "virtual IDE disk";
+    dc->props   = ide_hd_properties;
 }
 
 static const TypeInfo ide_hd_info = {
@@ -333,10 +329,11 @@ static void ide_cd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
-    k->init = ide_cd_initfn;
+
+    k->realize  = ide_cd_realize;
     dc->fw_name = "drive";
-    dc->desc = "virtual IDE CD-ROM";
-    dc->props = ide_cd_properties;
+    dc->desc    = "virtual IDE CD-ROM";
+    dc->props   = ide_cd_properties;
 }
 
 static const TypeInfo ide_cd_info = {
@@ -355,10 +352,11 @@ static void ide_drive_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
-    k->init = ide_drive_initfn;
+
+    k->realize  = ide_drive_realize;
     dc->fw_name = "drive";
-    dc->desc = "virtual IDE disk or CD-ROM (legacy)";
-    dc->props = ide_drive_properties;
+    dc->desc    = "virtual IDE disk or CD-ROM (legacy)";
+    dc->props   = ide_drive_properties;
 }
 
 static const TypeInfo ide_drive_info = {
@@ -371,7 +369,7 @@ static const TypeInfo ide_drive_info = {
 static void ide_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = ide_qdev_init;
+    k->realize = ide_qdev_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type = TYPE_IDE_BUS;
     k->props = ide_props;

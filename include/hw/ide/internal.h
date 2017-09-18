@@ -12,6 +12,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/block/block.h"
 #include "block/scsi.h"
+#include "qapi/error.h"
 
 /* debug IDE devices */
 #define USE_DMA_CDROM
@@ -496,7 +497,7 @@ struct IDEBus {
 
 typedef struct IDEDeviceClass {
     DeviceClass parent_class;
-    int (*init)(IDEDevice *dev);
+    void (*realize)(IDEDevice *dev, Error **errp);
 } IDEDeviceClass;
 
 struct IDEDevice {
@@ -606,7 +607,7 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
                    uint64_t wwn,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
-                   int chs_trans);
+                   int chs_trans, Error **errp);
 void ide_init2(IDEBus *bus, qemu_irq irq);
 void ide_exit(IDEState *s);
 void ide_init_ioport(IDEBus *bus, ISADevice *isa, int iobase, int iobase2);

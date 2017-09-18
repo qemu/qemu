@@ -34,6 +34,7 @@
 #include "hw/block/block.h"
 #include "sysemu/block-backend.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 #include "hw/ide/internal.h"
 #include "trace.h"
@@ -2461,7 +2462,7 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
                    uint64_t wwn,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
-                   int chs_trans)
+                   int chs_trans, Error **errp)
 {
     uint64_t nb_sectors;
 
@@ -2486,11 +2487,11 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
         blk_set_guest_block_size(blk, 2048);
     } else {
         if (!blk_is_inserted(s->blk)) {
-            error_report("Device needs media, but drive is empty");
+            error_setg(errp, "Device needs media, but drive is empty");
             return -1;
         }
         if (blk_is_read_only(blk)) {
-            error_report("Can't use a read-only drive");
+            error_setg(errp, "Can't use a read-only drive");
             return -1;
         }
         blk_set_dev_ops(blk, &ide_hd_block_ops, s);
