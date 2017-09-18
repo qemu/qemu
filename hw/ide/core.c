@@ -36,6 +36,7 @@
 #include "qemu/cutils.h"
 
 #include "hw/ide/internal.h"
+#include "trace.h"
 
 /* These values were based on a Seagate ST3500418AS but have been modified
    to make more sense in QEMU */
@@ -656,10 +657,7 @@ void ide_cancel_dma_sync(IDEState *s)
      * write requests) pending and we can avoid to drain. */
     QLIST_FOREACH(req, &s->buffered_requests, list) {
         if (!req->orphaned) {
-#ifdef DEBUG_IDE
-            printf("%s: invoking cb %p of buffered request %p with"
-                   " -ECANCELED\n", __func__, req->original_cb, req);
-#endif
+            trace_ide_cancel_dma_sync_buffered(req->original_cb, req);
             req->original_cb(req->original_opaque, -ECANCELED);
         }
         req->orphaned = true;
@@ -678,9 +676,7 @@ void ide_cancel_dma_sync(IDEState *s)
      * aio operation with preadv/pwritev.
      */
     if (s->bus->dma->aiocb) {
-#ifdef DEBUG_IDE
-        printf("%s: draining all remaining requests", __func__);
-#endif
+        trace_ide_cancel_dma_sync_remaining();
         blk_drain(s->blk);
         assert(s->bus->dma->aiocb == NULL);
     }
@@ -741,9 +737,7 @@ static void ide_sector_read(IDEState *s)
         n = s->req_nb_sectors;
     }
 
-#if defined(DEBUG_IDE)
-    printf("sector=%" PRId64 "\n", sector_num);
-#endif
+    trace_ide_sector_read(sector_num, n);
 
     if (!ide_sect_range_ok(s, sector_num, n)) {
         ide_rw_error(s);
@@ -1005,13 +999,13 @@ static void ide_sector_write(IDEState *s)
 
     s->status = READY_STAT | SEEK_STAT | BUSY_STAT;
     sector_num = ide_get_sector(s);
-#if defined(DEBUG_IDE)
-    printf("sector=%" PRId64 "\n", sector_num);
-#endif
+
     n = s->nsector;
     if (n > s->req_nb_sectors) {
         n = s->req_nb_sectors;
     }
+
+    trace_ide_sector_write(sector_num, n);
 
     if (!ide_sect_range_ok(s, sector_num, n)) {
         ide_rw_error(s);
@@ -1194,18 +1188,17 @@ static void ide_clear_hob(IDEBus *bus)
 void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
+    int reg_num = addr & 7;
 
-#ifdef DEBUG_IDE
-    printf("IDE: write addr=0x%x val=0x%02x\n", addr, val);
-#endif
-
-    addr &= 7;
+    trace_ide_ioport_write(addr, val, bus, s);
 
     /* ignore writes to command block while busy with previous command */
-    if (addr != 7 && (idebus_active_if(bus)->status & (BUSY_STAT|DRQ_STAT)))
+    if (reg_num != 7 && (s->status & (BUSY_STAT|DRQ_STAT))) {
         return;
+    }
 
-    switch(addr) {
+    switch (reg_num) {
     case 0:
         break;
     case 1:
@@ -1261,9 +1254,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static void ide_reset(IDEState *s)
 {
-#ifdef DEBUG_IDE
-    printf("ide: reset\n");
-#endif
+    trace_ide_reset(s);
 
     if (s->pio_aiocb) {
         blk_aio_cancel(s->pio_aiocb);
@@ -2021,10 +2012,9 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     IDEState *s;
     bool complete;
 
-#if defined(DEBUG_IDE)
-    printf("ide: CMD=%02x\n", val);
-#endif
     s = idebus_active_if(bus);
+    trace_ide_exec_cmd(bus, s, val);
+
     /* ignore commands to non existent slave */
     if (s != bus->ifs && !s->blk) {
         return;
@@ -2062,18 +2052,18 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 }
 
-uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
+uint32_t ide_ioport_read(void *opaque, uint32_t addr)
 {
     IDEBus *bus = opaque;
     IDEState *s = idebus_active_if(bus);
-    uint32_t addr;
+    uint32_t reg_num;
     int ret, hob;
 
-    addr = addr1 & 7;
+    reg_num = addr & 7;
     /* FIXME: HOB readback uses bit 7, but it's always set right now */
     //hob = s->select & (1 << 7);
     hob = 0;
-    switch(addr) {
+    switch (reg_num) {
     case 0:
         ret = 0xff;
         break;
@@ -2141,9 +2131,8 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         qemu_irq_lower(bus->irq);
         break;
     }
-#ifdef DEBUG_IDE
-    printf("ide: read addr=0x%x val=%02x\n", addr1, ret);
-#endif
+
+    trace_ide_ioport_read(addr, ret, bus, s);
     return ret;
 }
 
@@ -2159,9 +2148,8 @@ uint32_t ide_status_read(void *opaque, uint32_t addr)
     } else {
         ret = s->status;
     }
-#ifdef DEBUG_IDE
-    printf("ide: read status addr=0x%x val=%02x\n", addr, ret);
-#endif
+
+    trace_ide_status_read(addr, ret, bus, s);
     return ret;
 }
 
@@ -2171,9 +2159,8 @@ void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s;
     int i;
 
-#ifdef DEBUG_IDE
-    printf("ide: write control addr=0x%x val=%02x\n", addr, val);
-#endif
+    trace_ide_cmd_write(addr, val, bus);
+
     /* common for both drives */
     if (!(bus->cmd & IDE_CMD_RESET) &&
         (val & IDE_CMD_RESET)) {

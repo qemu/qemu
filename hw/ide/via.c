@@ -33,6 +33,7 @@
 #include "sysemu/dma.h"
 
 #include "hw/ide/pci.h"
+#include "trace.h"
 
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
@@ -55,9 +56,8 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
         val = 0xff;
         break;
     }
-#ifdef DEBUG_IDE
-    printf("bmdma: readb 0x%02x : 0x%02x\n", addr, val);
-#endif
+
+    trace_bmdma_read_via(addr, val);
     return val;
 }
 
@@ -70,9 +70,7 @@ static void bmdma_write(void *opaque, hwaddr addr,
         return;
     }
 
-#ifdef DEBUG_IDE
-    printf("bmdma: writeb 0x%02x : 0x%02x\n", addr, val);
-#endif
+    trace_bmdma_write_via(addr, val);
     switch (addr & 3) {
     case 0:
         bmdma_cmd_writeb(bm, val);

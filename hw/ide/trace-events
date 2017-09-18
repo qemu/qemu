@@ -1,0 +1,35 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/ide/core.c
+# portio
+ide_ioport_read(uint32_t addr, uint32_t val, void *bus, void *s)  "IDE PIO rd @ 0x%"PRIx32"; val 0x%02"PRIx32"; bus %p IDEState %p"
+ide_ioport_write(uint32_t addr, uint32_t val, void *bus, void *s) "IDE PIO wr @ 0x%"PRIx32"; val 0x%02"PRIx32"; bus %p IDEState %p"
+ide_status_read(uint32_t addr, uint32_t val, void *bus, void *s)  "IDE PIO rd @ 0x%"PRIx32" (Alt Status); val 0x%02"PRIx32"; bus %p; IDEState %p"
+ide_cmd_write(uint32_t addr, uint32_t val, void *bus)             "IDE PIO wr @ 0x%"PRIx32" (Device Control); val 0x%02"PRIx32"; bus %p"
+# misc
+ide_exec_cmd(void *bus, void *state, uint32_t cmd) "IDE exec cmd: bus %p; state %p; cmd 0x%02x"
+ide_cancel_dma_sync_buffered(void *fn, void *req) "invoking cb %p of buffered request %p with -ECANCELED"
+ide_cancel_dma_sync_remaining(void) "draining all remaining requests"
+ide_sector_read(int64_t sector_num, int nsectors) "sector=%"PRId64" nsectors=%d"
+ide_sector_write(int64_t sector_num, int nsectors) "sector=%"PRId64" nsectors=%d"
+ide_reset(void *s) "IDEstate %p"
+
+# BMDMA HBAs:
+
+# hw/ide/cmd646.c
+bmdma_read_cmd646(uint64_t addr, uint32_t val) "bmdma: readb 0x%"PRIx64" : 0x%02x"
+bmdma_write_cmd646(uint64_t addr, uint64_t val) "bmdma: writeb 0x%"PRIx64" : 0x%02"PRIx64
+
+# hw/ide/pci.c
+bmdma_reset(void) ""
+bmdma_cmd_writeb(uint32_t val) "val: 0x%08x"
+bmdma_addr_read(uint64_t data) "data: 0x%016"PRIx64
+bmdma_addr_write(uint64_t data) "data: 0x%016"PRIx64
+
+# hw/ide/piix.c
+bmdma_read(uint64_t addr, uint8_t val) "bmdma: readb 0x%"PRIx64" : 0x%02x"
+bmdma_write(uint64_t addr, uint64_t val) "bmdma: writeb 0x%"PRIx64" : 0x%02"PRIx64
+
+# hw/ide/via.c
+bmdma_read_via(uint64_t addr, uint32_t val) "bmdma: readb 0x%"PRIx64" : 0x%02x"
+bmdma_write_via(uint64_t addr, uint64_t val) "bmdma: writeb 0x%"PRIx64" : 0x%02"PRIx64
