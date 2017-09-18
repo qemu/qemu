@@ -56,6 +56,27 @@ static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
 static void ahci_unmap_fis_address(AHCIDevice *ad);
 
+static const char *AHCIPortIRQ_lookup[AHCI_PORT_IRQ__COUNT] = {
+    [AHCI_PORT_IRQ_BIT_DHRS] = "DHRS",
+    [AHCI_PORT_IRQ_BIT_PSS]  = "PSS",
+    [AHCI_PORT_IRQ_BIT_DSS]  = "DSS",
+    [AHCI_PORT_IRQ_BIT_SDBS] = "SDBS",
+    [AHCI_PORT_IRQ_BIT_UFS]  = "UFS",
+    [AHCI_PORT_IRQ_BIT_DPS]  = "DPS",
+    [AHCI_PORT_IRQ_BIT_PCS]  = "PCS",
+    [AHCI_PORT_IRQ_BIT_DMPS] = "DMPS",
+    [8 ... 21]               = "RESERVED",
+    [AHCI_PORT_IRQ_BIT_PRCS] = "PRCS",
+    [AHCI_PORT_IRQ_BIT_IPMS] = "IPMS",
+    [AHCI_PORT_IRQ_BIT_OFS]  = "OFS",
+    [25]                     = "RESERVED",
+    [AHCI_PORT_IRQ_BIT_INFS] = "INFS",
+    [AHCI_PORT_IRQ_BIT_IFS]  = "IFS",
+    [AHCI_PORT_IRQ_BIT_HBDS] = "HBDS",
+    [AHCI_PORT_IRQ_BIT_HBFS] = "HBFS",
+    [AHCI_PORT_IRQ_BIT_TFES] = "TFES",
+    [AHCI_PORT_IRQ_BIT_CPDS] = "CPDS"
+};
 
 static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 {
@@ -170,12 +191,18 @@ static void ahci_check_irq(AHCIState *s)
 }
 
 static void ahci_trigger_irq(AHCIState *s, AHCIDevice *d,
-                             int irq_type)
+                             enum AHCIPortIRQ irqbit)
 {
-    DPRINTF(d->port_no, "trigger irq %#x -> %x\n",
-            irq_type, d->port_regs.irq_mask & irq_type);
+    g_assert(irqbit >= 0 && irqbit < 32);
+    uint32_t irq = 1U << irqbit;
+    uint32_t irqstat = d->port_regs.irq_stat | irq;
 
-    d->port_regs.irq_stat |= irq_type;
+    trace_ahci_trigger_irq(s, d->port_no,
+                           AHCIPortIRQ_lookup[irqbit], irq,
+                           d->port_regs.irq_stat, irqstat,
+                           irqstat & d->port_regs.irq_mask);
+
+    d->port_regs.irq_stat = irqstat;
     ahci_check_irq(s);
 }
 
@@ -718,7 +745,7 @@ static void ahci_write_fis_sdb(AHCIState *s, NCQTransferState *ncq_tfs)
 
     /* Trigger IRQ if interrupt bit is set (which currently, it always is) */
     if (sdb_fis->flags & 0x40) {
-        ahci_trigger_irq(s, ad, PORT_IRQ_SDB_FIS);
+        ahci_trigger_irq(s, ad, AHCI_PORT_IRQ_BIT_SDBS);
     }
 }
 
@@ -761,10 +788,10 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
         ad->port.ifs[0].status;
 
     if (pio_fis[2] & ERR_STAT) {
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_TF_ERR);
+        ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_TFES);
     }
 
-    ahci_trigger_irq(ad->hba, ad, PORT_IRQ_PIOS_FIS);
+    ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_PSS);
 }
 
 static bool ahci_write_fis_d2h(AHCIDevice *ad)
@@ -804,10 +831,10 @@ static bool ahci_write_fis_d2h(AHCIDevice *ad)
         ad->port.ifs[0].status;
 
     if (d2h_fis[2] & ERR_STAT) {
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_TF_ERR);
+        ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_TFES);
     }
 
-    ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
+    ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_DHRS);
     return true;
 }
 
@@ -1082,7 +1109,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                      "is smaller than the requested size (0x%zx)",
                      ncq_tfs->sglist.size, size);
         ncq_err(ncq_tfs);
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_OVERFLOW);
+        ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_OFS);
         return;
     } else if (ncq_tfs->sglist.size != size) {
         trace_process_ncq_command_large(s, port, tag,
@@ -1225,7 +1252,7 @@ static int handle_cmd(AHCIState *s, int port, uint8_t slot)
         trace_handle_cmd_badfis(s, port);
         return -1;
     } else if (cmd_len != 0x80) {
-        ahci_trigger_irq(s, &s->dev[port], PORT_IRQ_HBUS_ERR);
+        ahci_trigger_irq(s, &s->dev[port], AHCI_PORT_IRQ_BIT_HBFS);
         trace_handle_cmd_badmap(s, port, cmd_len);
         goto out;
     }
