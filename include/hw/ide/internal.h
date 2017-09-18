@@ -14,7 +14,6 @@
 #include "block/scsi.h"
 
 /* debug IDE devices */
-//#define DEBUG_AIO
 #define USE_DMA_CDROM
 
 typedef struct IDEBus IDEBus;
@@ -333,11 +332,15 @@ struct unreported_events {
 };
 
 enum ide_dma_cmd {
-    IDE_DMA_READ,
+    IDE_DMA__BEGIN = 0,
+    IDE_DMA_READ = IDE_DMA__BEGIN,
     IDE_DMA_WRITE,
     IDE_DMA_TRIM,
     IDE_DMA_ATAPI,
+    IDE_DMA__COUNT
 };
+
+extern const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT];
 
 #define ide_cmd_is_read(s) \
 	((s)->dma_cmd == IDE_DMA_READ)

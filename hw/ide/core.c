@@ -58,6 +58,21 @@ static const int smart_attributes[][12] = {
     { 190,  0x03, 0x00, 0x45, 0x45, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x00, 0x32},
 };
 
+const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT] = {
+    [IDE_DMA_READ] = "DMA READ",
+    [IDE_DMA_WRITE] = "DMA WRITE",
+    [IDE_DMA_TRIM] = "DMA TRIM",
+    [IDE_DMA_ATAPI] = "DMA ATAPI"
+};
+
+static const char *IDE_DMA_CMD_str(enum ide_dma_cmd enval)
+{
+    if (enval >= IDE_DMA__BEGIN && enval < IDE_DMA__COUNT) {
+        return IDE_DMA_CMD_lookup[enval];
+    }
+    return "DMA UNKNOWN CMD";
+}
+
 static void ide_dummy_transfer_stop(IDEState *s);
 
 static void padstr(char *str, const char *src, int len)
@@ -860,10 +875,7 @@ static void ide_dma_cb(void *opaque, int ret)
         goto eot;
     }
 
-#ifdef DEBUG_AIO
-    printf("ide_dma_cb: sector_num=%" PRId64 " n=%d, cmd_cmd=%d\n",
-           sector_num, n, s->dma_cmd);
-#endif
+    trace_ide_dma_cb(s, sector_num, n, IDE_DMA_CMD_str(s->dma_cmd));
 
     if ((s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) &&
         !ide_sect_range_ok(s, sector_num, n)) {
@@ -2391,9 +2403,7 @@ void ide_bus_reset(IDEBus *bus)
 
     /* pending async DMA */
     if (bus->dma->aiocb) {
-#ifdef DEBUG_AIO
-        printf("aio_cancel\n");
-#endif
+        trace_ide_bus_reset_aio();
         blk_aio_cancel(bus->dma->aiocb);
         bus->dma->aiocb = NULL;
     }
