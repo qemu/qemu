@@ -2259,6 +2259,8 @@ void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
+    trace_ide_data_writew(addr, val, bus, s);
+
     /* PIO data access allowed only when DRQ bit is set. The result of a write
      * during PIO out is indeterminate, just ignore it. */
     if (!(s->status & DRQ_STAT) || ide_is_pio_out(s)) {
@@ -2304,6 +2306,8 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr)
         s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
     }
+
+    trace_ide_data_readw(addr, ret, bus, s);
     return ret;
 }
 
@@ -2312,6 +2316,8 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     IDEBus *bus = opaque;
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
+
+    trace_ide_data_writel(addr, val, bus, s);
 
     /* PIO data access allowed only when DRQ bit is set. The result of a write
      * during PIO out is indeterminate, just ignore it. */
@@ -2343,7 +2349,8 @@ uint32_t ide_data_readl(void *opaque, uint32_t addr)
     /* PIO data access allowed only when DRQ bit is set. The result of a read
      * during PIO in is indeterminate, return 0 and don't move forward. */
     if (!(s->status & DRQ_STAT) || !ide_is_pio_out(s)) {
-        return 0;
+        ret = 0;
+        goto out;
     }
 
     p = s->data_ptr;
@@ -2358,6 +2365,9 @@ uint32_t ide_data_readl(void *opaque, uint32_t addr)
         s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
     }
+
+out:
+    trace_ide_data_readl(addr, ret, bus, s);
     return ret;
 }
 
