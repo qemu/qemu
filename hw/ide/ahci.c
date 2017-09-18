@@ -34,16 +34,7 @@
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci_internal.h"
 
-#define DEBUG_AHCI 0
 #include "trace.h"
-
-#define DPRINTF(port, fmt, ...) \
-do { \
-    if (DEBUG_AHCI) { \
-        fprintf(stderr, "ahci: %s: [%d] ", __func__, port); \
-        fprintf(stderr, fmt, ## __VA_ARGS__); \
-    } \
-} while (0)
 
 static void check_cmd(AHCIState *s, int port);
 static int handle_cmd(AHCIState *s, int port, uint8_t slot);
