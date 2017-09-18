@@ -411,3 +411,29 @@ void qcow2_cache_entry_mark_dirty(BlockDriverState *bs, Qcow2Cache *c,
     assert(c->entries[i].offset != 0);
     c->entries[i].dirty = true;
 }
+
+void *qcow2_cache_is_table_offset(BlockDriverState *bs, Qcow2Cache *c,
+                                  uint64_t offset)
+{
+    int i;
+
+    for (i = 0; i < c->size; i++) {
+        if (c->entries[i].offset == offset) {
+            return qcow2_cache_get_table_addr(bs, c, i);
+        }
+    }
+    return NULL;
+}
+
+void qcow2_cache_discard(BlockDriverState *bs, Qcow2Cache *c, void *table)
+{
+    int i = qcow2_cache_get_table_idx(bs, c, table);
+
+    assert(c->entries[i].ref == 0);
+
+    c->entries[i].offset = 0;
+    c->entries[i].lru_counter = 0;
+    c->entries[i].dirty = false;
+
+    qcow2_cache_table_release(bs, c, i, 1);
+}
