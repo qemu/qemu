@@ -644,20 +644,21 @@ static void ahci_reset_port(AHCIState *s, int port)
     ahci_init_d2h(d);
 }
 
-static void debug_print_fis(uint8_t *fis, int cmd_len)
+/* Buffer pretty output based on a raw FIS structure. */
+static char *ahci_pretty_buffer_fis(uint8_t *fis, int cmd_len)
 {
-#if DEBUG_AHCI
     int i;
+    GString *s = g_string_new("FIS:");
 
-    fprintf(stderr, "fis:");
     for (i = 0; i < cmd_len; i++) {
         if ((i & 0xf) == 0) {
-            fprintf(stderr, "\n%02x:",i);
+            g_string_append_printf(s, "\n0x%02x: ", i);
         }
-        fprintf(stderr, "%02x ",fis[i]);
+        g_string_append_printf(s, "%02x ", fis[i]);
     }
-    fprintf(stderr, "\n");
-#endif
+    g_string_append_c(s, '\n');
+
+    return g_string_free(s, FALSE);
 }
 
 static bool ahci_map_fis_address(AHCIDevice *ad)
@@ -1201,7 +1202,11 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
      * table to ide_state->io_buffer */
     if (opts & AHCI_CMD_ATAPI) {
         memcpy(ide_state->io_buffer, &cmd_fis[AHCI_COMMAND_TABLE_ACMD], 0x10);
-        debug_print_fis(ide_state->io_buffer, 0x10);
+        if (trace_event_get_state_backends(TRACE_HANDLE_REG_H2D_FIS_DUMP)) {
+            char *pretty_fis = ahci_pretty_buffer_fis(ide_state->io_buffer, 0x10);
+            trace_handle_reg_h2d_fis_dump(s, port, pretty_fis);
+            g_free(pretty_fis);
+        }
         s->dev[port].done_atapi_packet = false;
         /* XXX send PIO setup FIS */
     }
@@ -1256,8 +1261,11 @@ static int handle_cmd(AHCIState *s, int port, uint8_t slot)
         trace_handle_cmd_badmap(s, port, cmd_len);
         goto out;
     }
-    debug_print_fis(cmd_fis, 0x80);
-
+    if (trace_event_get_state_backends(TRACE_HANDLE_CMD_FIS_DUMP)) {
+        char *pretty_fis = ahci_pretty_buffer_fis(cmd_fis, 0x80);
+        trace_handle_cmd_fis_dump(s, port, pretty_fis);
+        g_free(pretty_fis);
+    }
     switch (cmd_fis[0]) {
         case SATA_FIS_TYPE_REGISTER_H2D:
             handle_reg_h2d_fis(s, port, slot, cmd_fis);
