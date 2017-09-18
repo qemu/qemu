@@ -1495,6 +1495,7 @@ void ahci_uninit(AHCIState *s)
 
             ide_exit(s);
         }
+        object_unparent(OBJECT(&ad->port));
     }
 
     g_free(s->dev);
