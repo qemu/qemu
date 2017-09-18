@@ -64,6 +64,7 @@ enum {
     OPTION_TARGET_IMAGE_OPTS = 263,
     OPTION_SIZE = 264,
     OPTION_PREALLOCATION = 265,
+    OPTION_SHRINK = 266,
 };
 
 typedef enum OutputFormat {
@@ -3436,6 +3437,7 @@ static int img_resize(int argc, char **argv)
         },
     };
     bool image_opts = false;
+    bool shrink = false;
 
     /* Remove size from argv manually so that negative numbers are not treated
      * as options by getopt. */
@@ -3454,6 +3456,7 @@ static int img_resize(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"preallocation", required_argument, 0, OPTION_PREALLOCATION},
+            {"shrink", no_argument, 0, OPTION_SHRINK},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":f:hq",
@@ -3495,6 +3498,9 @@ static int img_resize(int argc, char **argv)
                 error_report("Invalid preallocation mode '%s'", optarg);
                 return 1;
             }
+            break;
+        case OPTION_SHRINK:
+            shrink = true;
             break;
         }
     }
@@ -3567,6 +3573,23 @@ static int img_resize(int argc, char **argv)
         error_report("Preallocation can only be used for growing images");
         ret = -1;
         goto out;
+    }
+
+    if (total_size < current_size && !shrink) {
+        warn_report("Shrinking an image will delete all data beyond the "
+                    "shrunken image's end. Before performing such an "
+                    "operation, make sure there is no important data there.");
+
+        if (g_strcmp0(bdrv_get_format_name(blk_bs(blk)), "raw") != 0) {
+            error_report(
+              "Use the --shrink option to perform a shrink operation.");
+            ret = -1;
+            goto out;
+        } else {
+            warn_report("Using the --shrink option will suppress this message. "
+                        "Note that future versions of qemu-img may refuse to "
+                        "shrink images without this option.");
+        }
     }
 
     ret = blk_truncate(blk, total_size, prealloc, &err);
