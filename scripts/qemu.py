@@ -193,8 +193,8 @@ class QEMUMachine(object):
         qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._pre_launch()
-            self._qemu_full_args = self._wrapper + [self._binary] +
-                                    self._base_args() + self._args
+            self._qemu_full_args = (self._wrapper + [self._binary] +
+                                    self._base_args() + self._args)
             self._popen = subprocess.Popen(self._qemu_full_args,
                                            stdin=devnull,
                                            stdout=qemulog,
