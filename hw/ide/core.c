@@ -34,8 +34,10 @@
 #include "hw/block/block.h"
 #include "sysemu/block-backend.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 #include "hw/ide/internal.h"
+#include "trace.h"
 
 /* These values were based on a Seagate ST3500418AS but have been modified
    to make more sense in QEMU */
@@ -56,6 +58,21 @@ static const int smart_attributes[][12] = {
     /* airflow-temperature-celsius */
     { 190,  0x03, 0x00, 0x45, 0x45, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x00, 0x32},
 };
+
+const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT] = {
+    [IDE_DMA_READ] = "DMA READ",
+    [IDE_DMA_WRITE] = "DMA WRITE",
+    [IDE_DMA_TRIM] = "DMA TRIM",
+    [IDE_DMA_ATAPI] = "DMA ATAPI"
+};
+
+static const char *IDE_DMA_CMD_str(enum ide_dma_cmd enval)
+{
+    if (enval >= IDE_DMA__BEGIN && enval < IDE_DMA__COUNT) {
+        return IDE_DMA_CMD_lookup[enval];
+    }
+    return "DMA UNKNOWN CMD";
+}
 
 static void ide_dummy_transfer_stop(IDEState *s);
 
@@ -656,10 +673,7 @@ void ide_cancel_dma_sync(IDEState *s)
      * write requests) pending and we can avoid to drain. */
     QLIST_FOREACH(req, &s->buffered_requests, list) {
         if (!req->orphaned) {
-#ifdef DEBUG_IDE
-            printf("%s: invoking cb %p of buffered request %p with"
-                   " -ECANCELED\n", __func__, req->original_cb, req);
-#endif
+            trace_ide_cancel_dma_sync_buffered(req->original_cb, req);
             req->original_cb(req->original_opaque, -ECANCELED);
         }
         req->orphaned = true;
@@ -678,9 +692,7 @@ void ide_cancel_dma_sync(IDEState *s)
      * aio operation with preadv/pwritev.
      */
     if (s->bus->dma->aiocb) {
-#ifdef DEBUG_IDE
-        printf("%s: draining all remaining requests", __func__);
-#endif
+        trace_ide_cancel_dma_sync_remaining();
         blk_drain(s->blk);
         assert(s->bus->dma->aiocb == NULL);
     }
@@ -741,9 +753,7 @@ static void ide_sector_read(IDEState *s)
         n = s->req_nb_sectors;
     }
 
-#if defined(DEBUG_IDE)
-    printf("sector=%" PRId64 "\n", sector_num);
-#endif
+    trace_ide_sector_read(sector_num, n);
 
     if (!ide_sect_range_ok(s, sector_num, n)) {
         ide_rw_error(s);
@@ -866,10 +876,7 @@ static void ide_dma_cb(void *opaque, int ret)
         goto eot;
     }
 
-#ifdef DEBUG_AIO
-    printf("ide_dma_cb: sector_num=%" PRId64 " n=%d, cmd_cmd=%d\n",
-           sector_num, n, s->dma_cmd);
-#endif
+    trace_ide_dma_cb(s, sector_num, n, IDE_DMA_CMD_str(s->dma_cmd));
 
     if ((s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) &&
         !ide_sect_range_ok(s, sector_num, n)) {
@@ -1005,13 +1012,13 @@ static void ide_sector_write(IDEState *s)
 
     s->status = READY_STAT | SEEK_STAT | BUSY_STAT;
     sector_num = ide_get_sector(s);
-#if defined(DEBUG_IDE)
-    printf("sector=%" PRId64 "\n", sector_num);
-#endif
+
     n = s->nsector;
     if (n > s->req_nb_sectors) {
         n = s->req_nb_sectors;
     }
+
+    trace_ide_sector_write(sector_num, n);
 
     if (!ide_sect_range_ok(s, sector_num, n)) {
         ide_rw_error(s);
@@ -1191,60 +1198,83 @@ static void ide_clear_hob(IDEBus *bus)
     bus->ifs[1].select &= ~(1 << 7);
 }
 
+/* IOport [W]rite [R]egisters */
+enum ATA_IOPORT_WR {
+    ATA_IOPORT_WR_DATA = 0,
+    ATA_IOPORT_WR_FEATURES = 1,
+    ATA_IOPORT_WR_SECTOR_COUNT = 2,
+    ATA_IOPORT_WR_SECTOR_NUMBER = 3,
+    ATA_IOPORT_WR_CYLINDER_LOW = 4,
+    ATA_IOPORT_WR_CYLINDER_HIGH = 5,
+    ATA_IOPORT_WR_DEVICE_HEAD = 6,
+    ATA_IOPORT_WR_COMMAND = 7,
+    ATA_IOPORT_WR_NUM_REGISTERS,
+};
+
+const char *ATA_IOPORT_WR_lookup[ATA_IOPORT_WR_NUM_REGISTERS] = {
+    [ATA_IOPORT_WR_DATA] = "Data",
+    [ATA_IOPORT_WR_FEATURES] = "Features",
+    [ATA_IOPORT_WR_SECTOR_COUNT] = "Sector Count",
+    [ATA_IOPORT_WR_SECTOR_NUMBER] = "Sector Number",
+    [ATA_IOPORT_WR_CYLINDER_LOW] = "Cylinder Low",
+    [ATA_IOPORT_WR_CYLINDER_HIGH] = "Cylinder High",
+    [ATA_IOPORT_WR_DEVICE_HEAD] = "Device/Head",
+    [ATA_IOPORT_WR_COMMAND] = "Command"
+};
+
 void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEBus *bus = opaque;
+    IDEState *s = idebus_active_if(bus);
+    int reg_num = addr & 7;
 
-#ifdef DEBUG_IDE
-    printf("IDE: write addr=0x%x val=0x%02x\n", addr, val);
-#endif
-
-    addr &= 7;
+    trace_ide_ioport_write(addr, ATA_IOPORT_WR_lookup[reg_num], val, bus, s);
 
     /* ignore writes to command block while busy with previous command */
-    if (addr != 7 && (idebus_active_if(bus)->status & (BUSY_STAT|DRQ_STAT)))
+    if (reg_num != 7 && (s->status & (BUSY_STAT|DRQ_STAT))) {
         return;
+    }
 
-    switch(addr) {
+    switch (reg_num) {
     case 0:
         break;
-    case 1:
-	ide_clear_hob(bus);
+    case ATA_IOPORT_WR_FEATURES:
+        ide_clear_hob(bus);
         /* NOTE: data is written to the two drives */
-	bus->ifs[0].hob_feature = bus->ifs[0].feature;
-	bus->ifs[1].hob_feature = bus->ifs[1].feature;
+        bus->ifs[0].hob_feature = bus->ifs[0].feature;
+        bus->ifs[1].hob_feature = bus->ifs[1].feature;
         bus->ifs[0].feature = val;
         bus->ifs[1].feature = val;
         break;
-    case 2:
+    case ATA_IOPORT_WR_SECTOR_COUNT:
 	ide_clear_hob(bus);
 	bus->ifs[0].hob_nsector = bus->ifs[0].nsector;
 	bus->ifs[1].hob_nsector = bus->ifs[1].nsector;
         bus->ifs[0].nsector = val;
         bus->ifs[1].nsector = val;
         break;
-    case 3:
+    case ATA_IOPORT_WR_SECTOR_NUMBER:
 	ide_clear_hob(bus);
 	bus->ifs[0].hob_sector = bus->ifs[0].sector;
 	bus->ifs[1].hob_sector = bus->ifs[1].sector;
         bus->ifs[0].sector = val;
         bus->ifs[1].sector = val;
         break;
-    case 4:
+    case ATA_IOPORT_WR_CYLINDER_LOW:
 	ide_clear_hob(bus);
 	bus->ifs[0].hob_lcyl = bus->ifs[0].lcyl;
 	bus->ifs[1].hob_lcyl = bus->ifs[1].lcyl;
         bus->ifs[0].lcyl = val;
         bus->ifs[1].lcyl = val;
         break;
-    case 5:
+    case ATA_IOPORT_WR_CYLINDER_HIGH:
 	ide_clear_hob(bus);
 	bus->ifs[0].hob_hcyl = bus->ifs[0].hcyl;
 	bus->ifs[1].hob_hcyl = bus->ifs[1].hcyl;
         bus->ifs[0].hcyl = val;
         bus->ifs[1].hcyl = val;
         break;
-    case 6:
+    case ATA_IOPORT_WR_DEVICE_HEAD:
 	/* FIXME: HOB readback uses bit 7 */
         bus->ifs[0].select = (val & ~0x10) | 0xa0;
         bus->ifs[1].select = (val | 0x10) | 0xa0;
@@ -1252,7 +1282,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         bus->unit = (val >> 4) & 1;
         break;
     default:
-    case 7:
+    case ATA_IOPORT_WR_COMMAND:
         /* command */
         ide_exec_cmd(bus, val);
         break;
@@ -1261,9 +1291,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static void ide_reset(IDEState *s)
 {
-#ifdef DEBUG_IDE
-    printf("ide: reset\n");
-#endif
+    trace_ide_reset(s);
 
     if (s->pio_aiocb) {
         blk_aio_cancel(s->pio_aiocb);
@@ -2021,10 +2049,9 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     IDEState *s;
     bool complete;
 
-#if defined(DEBUG_IDE)
-    printf("ide: CMD=%02x\n", val);
-#endif
     s = idebus_active_if(bus);
+    trace_ide_exec_cmd(bus, s, val);
+
     /* ignore commands to non existent slave */
     if (s != bus->ifs && !s->blk) {
         return;
@@ -2062,22 +2089,46 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     }
 }
 
-uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
+/* IOport [R]ead [R]egisters */
+enum ATA_IOPORT_RR {
+    ATA_IOPORT_RR_DATA = 0,
+    ATA_IOPORT_RR_ERROR = 1,
+    ATA_IOPORT_RR_SECTOR_COUNT = 2,
+    ATA_IOPORT_RR_SECTOR_NUMBER = 3,
+    ATA_IOPORT_RR_CYLINDER_LOW = 4,
+    ATA_IOPORT_RR_CYLINDER_HIGH = 5,
+    ATA_IOPORT_RR_DEVICE_HEAD = 6,
+    ATA_IOPORT_RR_STATUS = 7,
+    ATA_IOPORT_RR_NUM_REGISTERS,
+};
+
+const char *ATA_IOPORT_RR_lookup[ATA_IOPORT_RR_NUM_REGISTERS] = {
+    [ATA_IOPORT_RR_DATA] = "Data",
+    [ATA_IOPORT_RR_ERROR] = "Error",
+    [ATA_IOPORT_RR_SECTOR_COUNT] = "Sector Count",
+    [ATA_IOPORT_RR_SECTOR_NUMBER] = "Sector Number",
+    [ATA_IOPORT_RR_CYLINDER_LOW] = "Cylinder Low",
+    [ATA_IOPORT_RR_CYLINDER_HIGH] = "Cylinder High",
+    [ATA_IOPORT_RR_DEVICE_HEAD] = "Device/Head",
+    [ATA_IOPORT_RR_STATUS] = "Status"
+};
+
+uint32_t ide_ioport_read(void *opaque, uint32_t addr)
 {
     IDEBus *bus = opaque;
     IDEState *s = idebus_active_if(bus);
-    uint32_t addr;
+    uint32_t reg_num;
     int ret, hob;
 
-    addr = addr1 & 7;
+    reg_num = addr & 7;
     /* FIXME: HOB readback uses bit 7, but it's always set right now */
     //hob = s->select & (1 << 7);
     hob = 0;
-    switch(addr) {
-    case 0:
+    switch (reg_num) {
+    case ATA_IOPORT_RR_DATA:
         ret = 0xff;
         break;
-    case 1:
+    case ATA_IOPORT_RR_ERROR:
         if ((!bus->ifs[0].blk && !bus->ifs[1].blk) ||
             (s != bus->ifs && !s->blk)) {
             ret = 0;
@@ -2087,7 +2138,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_feature;
         }
         break;
-    case 2:
+    case ATA_IOPORT_RR_SECTOR_COUNT:
         if (!bus->ifs[0].blk && !bus->ifs[1].blk) {
             ret = 0;
         } else if (!hob) {
@@ -2096,7 +2147,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_nsector;
         }
         break;
-    case 3:
+    case ATA_IOPORT_RR_SECTOR_NUMBER:
         if (!bus->ifs[0].blk && !bus->ifs[1].blk) {
             ret = 0;
         } else if (!hob) {
@@ -2105,7 +2156,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_sector;
         }
         break;
-    case 4:
+    case ATA_IOPORT_RR_CYLINDER_LOW:
         if (!bus->ifs[0].blk && !bus->ifs[1].blk) {
             ret = 0;
         } else if (!hob) {
@@ -2114,7 +2165,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_lcyl;
         }
         break;
-    case 5:
+    case ATA_IOPORT_RR_CYLINDER_HIGH:
         if (!bus->ifs[0].blk && !bus->ifs[1].blk) {
             ret = 0;
         } else if (!hob) {
@@ -2123,7 +2174,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
 	    ret = s->hob_hcyl;
         }
         break;
-    case 6:
+    case ATA_IOPORT_RR_DEVICE_HEAD:
         if (!bus->ifs[0].blk && !bus->ifs[1].blk) {
             ret = 0;
         } else {
@@ -2131,7 +2182,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         }
         break;
     default:
-    case 7:
+    case ATA_IOPORT_RR_STATUS:
         if ((!bus->ifs[0].blk && !bus->ifs[1].blk) ||
             (s != bus->ifs && !s->blk)) {
             ret = 0;
@@ -2141,9 +2192,8 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         qemu_irq_lower(bus->irq);
         break;
     }
-#ifdef DEBUG_IDE
-    printf("ide: read addr=0x%x val=%02x\n", addr1, ret);
-#endif
+
+    trace_ide_ioport_read(addr, ATA_IOPORT_RR_lookup[reg_num], ret, bus, s);
     return ret;
 }
 
@@ -2159,9 +2209,8 @@ uint32_t ide_status_read(void *opaque, uint32_t addr)
     } else {
         ret = s->status;
     }
-#ifdef DEBUG_IDE
-    printf("ide: read status addr=0x%x val=%02x\n", addr, ret);
-#endif
+
+    trace_ide_status_read(addr, ret, bus, s);
     return ret;
 }
 
@@ -2171,9 +2220,8 @@ void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s;
     int i;
 
-#ifdef DEBUG_IDE
-    printf("ide: write control addr=0x%x val=%02x\n", addr, val);
-#endif
+    trace_ide_cmd_write(addr, val, bus);
+
     /* common for both drives */
     if (!(bus->cmd & IDE_CMD_RESET) &&
         (val & IDE_CMD_RESET)) {
@@ -2224,6 +2272,8 @@ void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
+    trace_ide_data_writew(addr, val, bus, s);
+
     /* PIO data access allowed only when DRQ bit is set. The result of a write
      * during PIO out is indeterminate, just ignore it. */
     if (!(s->status & DRQ_STAT) || ide_is_pio_out(s)) {
@@ -2269,6 +2319,8 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr)
         s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
     }
+
+    trace_ide_data_readw(addr, ret, bus, s);
     return ret;
 }
 
@@ -2277,6 +2329,8 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     IDEBus *bus = opaque;
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
+
+    trace_ide_data_writel(addr, val, bus, s);
 
     /* PIO data access allowed only when DRQ bit is set. The result of a write
      * during PIO out is indeterminate, just ignore it. */
@@ -2308,7 +2362,8 @@ uint32_t ide_data_readl(void *opaque, uint32_t addr)
     /* PIO data access allowed only when DRQ bit is set. The result of a read
      * during PIO in is indeterminate, return 0 and don't move forward. */
     if (!(s->status & DRQ_STAT) || !ide_is_pio_out(s)) {
-        return 0;
+        ret = 0;
+        goto out;
     }
 
     p = s->data_ptr;
@@ -2323,6 +2378,9 @@ uint32_t ide_data_readl(void *opaque, uint32_t addr)
         s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
     }
+
+out:
+    trace_ide_data_readl(addr, ret, bus, s);
     return ret;
 }
 
@@ -2346,9 +2404,7 @@ void ide_bus_reset(IDEBus *bus)
 
     /* pending async DMA */
     if (bus->dma->aiocb) {
-#ifdef DEBUG_AIO
-        printf("aio_cancel\n");
-#endif
+        trace_ide_bus_reset_aio();
         blk_aio_cancel(bus->dma->aiocb);
         bus->dma->aiocb = NULL;
     }
@@ -2406,7 +2462,7 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
                    uint64_t wwn,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
-                   int chs_trans)
+                   int chs_trans, Error **errp)
 {
     uint64_t nb_sectors;
 
@@ -2431,11 +2487,11 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
         blk_set_guest_block_size(blk, 2048);
     } else {
         if (!blk_is_inserted(s->blk)) {
-            error_report("Device needs media, but drive is empty");
+            error_setg(errp, "Device needs media, but drive is empty");
             return -1;
         }
         if (blk_is_read_only(blk)) {
-            error_report("Can't use a read-only drive");
+            error_setg(errp, "Can't use a read-only drive");
             return -1;
         }
         blk_set_dev_ops(blk, &ide_hd_block_ops, s);

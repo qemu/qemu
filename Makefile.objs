@@ -155,6 +155,7 @@ trace-events-subdirs += hw/acpi
 trace-events-subdirs += hw/arm
 trace-events-subdirs += hw/alpha
 trace-events-subdirs += hw/xen
+trace-events-subdirs += hw/ide
 trace-events-subdirs += ui
 trace-events-subdirs += audio
 trace-events-subdirs += net

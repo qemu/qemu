@@ -123,8 +123,7 @@ quit
 
 Testing: -drive if=ide
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: Device needs media, but drive is empty
-QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
+(qemu) QEMU_PROG: Initialization of device ide-hd failed: Device needs media, but drive is empty
 
 Testing: -drive if=scsi
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -146,12 +145,10 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive if=none,id=disk -device ide-drive,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
-QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 
 Testing: -drive if=none,id=disk -device ide-hd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
-QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -179,8 +176,7 @@ quit
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: Block node is read-only
-QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
+(qemu) QEMU_PROG: Initialization of device ide-hd failed: Block node is read-only
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -202,12 +198,10 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-drive,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-drive,drive=disk: Block node is read-only
-QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-hd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-hd,drive=disk: Block node is read-only
-QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information

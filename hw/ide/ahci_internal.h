@@ -91,6 +91,31 @@
 #define PORT_CMD_ISSUE            0x38 /* command issue */
 #define PORT_RESERVED             0x3c /* reserved */
 
+/* Port interrupt bit descriptors */
+enum AHCIPortIRQ {
+    AHCI_PORT_IRQ_BIT_DHRS = 0,
+    AHCI_PORT_IRQ_BIT_PSS  = 1,
+    AHCI_PORT_IRQ_BIT_DSS  = 2,
+    AHCI_PORT_IRQ_BIT_SDBS = 3,
+    AHCI_PORT_IRQ_BIT_UFS  = 4,
+    AHCI_PORT_IRQ_BIT_DPS  = 5,
+    AHCI_PORT_IRQ_BIT_PCS  = 6,
+    AHCI_PORT_IRQ_BIT_DMPS = 7,
+    /* RESERVED */
+    AHCI_PORT_IRQ_BIT_PRCS = 22,
+    AHCI_PORT_IRQ_BIT_IPMS = 23,
+    AHCI_PORT_IRQ_BIT_OFS  = 24,
+    /* RESERVED */
+    AHCI_PORT_IRQ_BIT_INFS = 26,
+    AHCI_PORT_IRQ_BIT_IFS  = 27,
+    AHCI_PORT_IRQ_BIT_HBDS = 28,
+    AHCI_PORT_IRQ_BIT_HBFS = 29,
+    AHCI_PORT_IRQ_BIT_TFES = 30,
+    AHCI_PORT_IRQ_BIT_CPDS = 31,
+    AHCI_PORT_IRQ__COUNT   = 32
+};
+
+
 /* PORT_IRQ_{STAT,MASK} bits */
 #define PORT_IRQ_COLD_PRES        (1U << 31) /* cold presence detect */
 #define PORT_IRQ_TF_ERR           (1 << 30) /* task file error */
@@ -98,18 +123,19 @@
 #define PORT_IRQ_HBUS_DATA_ERR    (1 << 28) /* host bus data error */
 #define PORT_IRQ_IF_ERR           (1 << 27) /* interface fatal error */
 #define PORT_IRQ_IF_NONFATAL      (1 << 26) /* interface non-fatal error */
+                                            /* reserved */
 #define PORT_IRQ_OVERFLOW         (1 << 24) /* xfer exhausted available S/G */
 #define PORT_IRQ_BAD_PMP          (1 << 23) /* incorrect port multiplier */
-
 #define PORT_IRQ_PHYRDY           (1 << 22) /* PhyRdy changed */
-#define PORT_IRQ_DEV_ILCK         (1 << 7) /* device interlock */
-#define PORT_IRQ_CONNECT          (1 << 6) /* port connect change status */
-#define PORT_IRQ_SG_DONE          (1 << 5) /* descriptor processed */
-#define PORT_IRQ_UNK_FIS          (1 << 4) /* unknown FIS rx'd */
-#define PORT_IRQ_SDB_FIS          (1 << 3) /* Set Device Bits FIS rx'd */
-#define PORT_IRQ_DMAS_FIS         (1 << 2) /* DMA Setup FIS rx'd */
-#define PORT_IRQ_PIOS_FIS         (1 << 1) /* PIO Setup FIS rx'd */
-#define PORT_IRQ_D2H_REG_FIS      (1 << 0) /* D2H Register FIS rx'd */
+                                            /* reserved */
+#define PORT_IRQ_DEV_ILCK         (1 << 7)  /* device interlock */
+#define PORT_IRQ_CONNECT          (1 << 6)  /* port connect change status */
+#define PORT_IRQ_SG_DONE          (1 << 5)  /* descriptor processed */
+#define PORT_IRQ_UNK_FIS          (1 << 4)  /* unknown FIS rx'd */
+#define PORT_IRQ_SDB_FIS          (1 << 3)  /* Set Device Bits FIS rx'd */
+#define PORT_IRQ_DMAS_FIS         (1 << 2)  /* DMA Setup FIS rx'd */
+#define PORT_IRQ_PIOS_FIS         (1 << 1)  /* PIO Setup FIS rx'd */
+#define PORT_IRQ_D2H_REG_FIS      (1 << 0)  /* D2H Register FIS rx'd */
 
 #define PORT_IRQ_FREEZE           (PORT_IRQ_HBUS_ERR | PORT_IRQ_IF_ERR |   \
                                    PORT_IRQ_CONNECT | PORT_IRQ_PHYRDY |    \
