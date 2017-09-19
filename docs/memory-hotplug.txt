@@ -24,7 +24,7 @@ Where,
 
 For example, the following command-line:
 
- qemu [...] 1G,slots=3,maxmem=4G
+ qemu [...] -m 1G,slots=3,maxmem=4G
 
 Creates a guest with 1GB of memory and three hotpluggable memory slots.
 The hotpluggable memory slots are empty when the guest is booted, so all
