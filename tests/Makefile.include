@@ -561,7 +561,7 @@ QEMU_CFLAGS += -I$(SRC_PATH)/tests
 
 
 # Deps that are common to various different sets of tests below
-test-util-obj-y = libqemuutil.a libqemustub.a
+test-util-obj-y = libqemuutil.a
 test-qom-obj-y = $(qom-obj-y) $(test-util-obj-y)
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	tests/test-qapi-event.o tests/test-qmp-introspect.o \
@@ -616,8 +616,7 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
         migration/qemu-file-channel.o migration/qjson.o \
 	$(test-io-obj-y)
 tests/test-timed-average$(EXESUF): tests/test-timed-average.o $(test-util-obj-y)
-tests/test-base64$(EXESUF): tests/test-base64.o \
-	libqemuutil.a libqemustub.a
+tests/test-base64$(EXESUF): tests/test-base64.o $(test-util-obj-y)
 tests/ptimer-test$(EXESUF): tests/ptimer-test.o tests/ptimer-test-stubs.o hw/core/ptimer.o
 
 tests/test-logging$(EXESUF): tests/test-logging.o $(test-util-obj-y)

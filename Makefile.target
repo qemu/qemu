@@ -193,7 +193,7 @@ all-obj-$(CONFIG_SOFTMMU) += $(io-obj-y)
 
 $(QEMU_PROG_BUILD): config-devices.mak
 
-COMMON_LDADDS = ../libqemuutil.a ../libqemustub.a
+COMMON_LDADDS = ../libqemuutil.a
 
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) $(COMMON_LDADDS)
