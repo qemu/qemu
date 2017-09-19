@@ -27,6 +27,7 @@
 #ifdef CONFIG_VHOST_VSOCK
 #include "hw/virtio/vhost-vsock.h"
 #endif /* CONFIG_VHOST_VSOCK */
+#include "hw/virtio/virtio-gpu.h"
 
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/css.h"
@@ -222,5 +223,14 @@ typedef struct VHostVSockCCWState {
 } VHostVSockCCWState;
 
 #endif /* CONFIG_VHOST_VSOCK */
+
+#define TYPE_VIRTIO_GPU_CCW "virtio-gpu-ccw"
+#define VIRTIO_GPU_CCW(obj) \
+        OBJECT_CHECK(VirtIOGPUCcw, (obj), TYPE_VIRTIO_GPU_CCW)
+
+typedef struct VirtIOGPUCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOGPU vdev;
+} VirtIOGPUCcw;
 
 #endif

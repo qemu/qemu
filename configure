@@ -2025,7 +2025,7 @@ if test "$seccomp" != "no" ; then
     arm|aarch64)
         libseccomp_minver="2.2.3"
         ;;
-    ppc|ppc64)
+    ppc|ppc64|s390x)
         libseccomp_minver="2.3.0"
         ;;
     *)

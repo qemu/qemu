@@ -487,7 +487,6 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             virtio_bus_get_vdev_config(&dev->bus, vdev->config);
-            /* XXX config space endianness */
             cpu_physical_memory_write(ccw.cda, vdev->config, len);
             sch->curr_status.scsw.count = ccw.count - len;
             ret = 0;
@@ -510,7 +509,6 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 ret = -EFAULT;
             } else {
                 len = hw_len;
-                /* XXX config space endianness */
                 memcpy(vdev->config, config, len);
                 cpu_physical_memory_unmap(config, hw_len, 0, hw_len);
                 virtio_bus_set_vdev_config(&dev->bus, vdev->config);
@@ -1005,6 +1003,15 @@ static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     object_property_set_link(OBJECT(vdev),
                              OBJECT(dev->vdev.conf.cryptodev), "cryptodev",
                              NULL);
+}
+
+static void virtio_ccw_gpu_realize(VirtioCcwDevice *ccw_dev, Error **errp)
+{
+    VirtIOGPUCcw *dev = VIRTIO_GPU_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 }
 
 /* DeviceState to VirtioCcwDevice. Note: used on datapath,
@@ -1616,6 +1623,45 @@ static const TypeInfo virtio_ccw_crypto = {
     .class_init    = virtio_ccw_crypto_class_init,
 };
 
+static Property virtio_ccw_gpu_properties[] = {
+    DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
+                    VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_ccw_gpu_instance_init(Object *obj)
+{
+    VirtIOGPUCcw *dev = VIRTIO_GPU_CCW(obj);
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+
+    ccw_dev->force_revision_1 = true;
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_GPU);
+}
+
+static void virtio_ccw_gpu_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
+
+    k->realize = virtio_ccw_gpu_realize;
+    k->exit = virtio_ccw_exit;
+    dc->reset = virtio_ccw_reset;
+    dc->props = virtio_ccw_gpu_properties;
+    dc->hotpluggable = false;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+}
+
+static const TypeInfo virtio_ccw_gpu = {
+    .name          = TYPE_VIRTIO_GPU_CCW,
+    .parent        = TYPE_VIRTIO_CCW_DEVICE,
+    .instance_size = sizeof(VirtIOGPUCcw),
+    .instance_init = virtio_ccw_gpu_instance_init,
+    .class_init    = virtio_ccw_gpu_class_init,
+};
+
 static void virtio_ccw_busdev_realize(DeviceState *dev, Error **errp)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
@@ -1815,6 +1861,7 @@ static void virtio_ccw_register(void)
     type_register_static(&vhost_vsock_ccw_info);
 #endif
     type_register_static(&virtio_ccw_crypto);
+    type_register_static(&virtio_ccw_gpu);
 }
 
 type_init(virtio_ccw_register)

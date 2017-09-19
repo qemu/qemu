@@ -199,8 +199,8 @@ static S390PCIBusDevice *s390_pci_find_dev_by_uid(S390pciState *s, uint16_t uid)
     return NULL;
 }
 
-static S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
-                                                     const char *target)
+S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
+                                              const char *target)
 {
     S390PCIBusDevice *pbdev;
 
@@ -397,6 +397,17 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
     return ret;
 }
 
+static void s390_pci_iommu_replay(IOMMUMemoryRegion *iommu,
+                                  IOMMUNotifier *notifier)
+{
+    /* It's impossible to plug a pci device on s390x that already has iommu
+     * mappings which need to be replayed, that is due to the "one iommu per
+     * zpci device" construct. But when we support migration of vfio-pci
+     * devices in future, we need to revisit this.
+     */
+    return;
+}
+
 static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
                                         int devfn)
 {
@@ -465,19 +476,13 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
                                 unsigned int size)
 {
     S390PCIBusDevice *pbdev = opaque;
-    uint32_t idx = data >> ZPCI_MSI_VEC_BITS;
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
     uint64_t ind_bit;
     uint32_t sum_bit;
-    uint32_t e = 0;
 
-    DPRINTF("write_msix data 0x%" PRIx64 " idx %d vec 0x%x\n", data, idx, vec);
-
-    if (!pbdev) {
-        e |= (vec << ERR_EVENT_MVN_OFFSET);
-        s390_pci_generate_error_event(ERR_EVENT_NOMSI, idx, 0, addr, e);
-        return;
-    }
+    assert(pbdev);
+    DPRINTF("write_msix data 0x%" PRIx64 " idx %d vec 0x%x\n", data,
+            pbdev->idx, vec);
 
     if (pbdev->state != ZPCI_FS_ENABLED) {
         return;
@@ -1051,6 +1056,7 @@ static void s390_iommu_memory_region_class_init(ObjectClass *klass, void *data)
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
     imrc->translate = s390_translate_iommu;
+    imrc->replay = s390_pci_iommu_replay;
 }
 
 static const TypeInfo s390_iommu_memory_region_info = {

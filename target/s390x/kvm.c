@@ -48,6 +48,7 @@
 #include "hw/s390x/ebcdic.h"
 #include "exec/memattrs.h"
 #include "hw/s390x/s390-virtio-ccw.h"
+#include "hw/s390x/s390-virtio-hcall.h"
 
 #ifndef DEBUG_KVM
 #define DEBUG_KVM  0
@@ -2423,23 +2424,25 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev)
 {
     S390PCIBusDevice *pbdev;
-    uint32_t idx = data >> ZPCI_MSI_VEC_BITS;
     uint32_t vec = data & ZPCI_MSI_VEC_MASK;
 
-    pbdev = s390_pci_find_dev_by_idx(s390_get_phb(), idx);
-    if (!pbdev) {
-        DPRINTF("add_msi_route no dev\n");
+    if (!dev) {
+        DPRINTF("add_msi_route no pci device\n");
         return -ENODEV;
     }
 
-    pbdev->routes.adapter.ind_offset = vec;
+    pbdev = s390_pci_find_dev_by_target(s390_get_phb(), DEVICE(dev)->id);
+    if (!pbdev) {
+        DPRINTF("add_msi_route no zpci device\n");
+        return -ENODEV;
+    }
 
     route->type = KVM_IRQ_ROUTING_S390_ADAPTER;
     route->flags = 0;
     route->u.adapter.summary_addr = pbdev->routes.adapter.summary_addr;
     route->u.adapter.ind_addr = pbdev->routes.adapter.ind_addr;
     route->u.adapter.summary_offset = pbdev->routes.adapter.summary_offset;
-    route->u.adapter.ind_offset = pbdev->routes.adapter.ind_offset;
+    route->u.adapter.ind_offset = pbdev->routes.adapter.ind_offset + vec;
     route->u.adapter.adapter_id = pbdev->routes.adapter.adapter_id;
     return 0;
 }

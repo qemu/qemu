@@ -25,6 +25,7 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
+#include "cpu_models.h"
 
 #define TARGET_LONG_BITS 64
 
@@ -80,7 +81,7 @@ typedef struct MchkQueue {
     uint16_t type;
 } MchkQueue;
 
-typedef struct CPUS390XState {
+struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
     /*
      * The floating point registers are part of the vector registers.
@@ -149,7 +150,7 @@ typedef struct CPUS390XState {
 
     CPU_COMMON
 
-    uint32_t cpu_num;
+    uint32_t core_id; /* PoP "CPU address", same as cpu_index */
     uint64_t cpuid;
 
     uint64_t tod_offset;
@@ -174,7 +175,7 @@ typedef struct CPUS390XState {
     /* currently processed sigp order */
     uint8_t sigp_order;
 
-} CPUS390XState;
+};
 
 static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
 {
@@ -193,7 +194,6 @@ struct S390CPU {
     /*< public >*/
 
     CPUS390XState env;
-    int64_t id;
     S390CPUModel *model;
     /* needed for live migration */
     void *irqstate;
@@ -689,7 +689,7 @@ const char *s390_default_cpu_model_name(void);
 
 /* helper.c */
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_S390_CPU, cpu_model)
-S390CPU *s390x_new_cpu(const char *cpu_model, int64_t id, Error **errp);
+S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id, Error **errp);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -721,8 +721,5 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 
 /* outside of target/s390x/ */
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
-extern void subsystem_reset(void);
-int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
-int s390_virtio_hypercall(CPUS390XState *env);
 
 #endif

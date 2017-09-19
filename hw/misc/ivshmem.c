@@ -653,7 +653,7 @@ static int64_t ivshmem_recv_msg(IVShmemState *s, int *pfd, Error **errp)
     } while (n < sizeof(msg));
 
     *pfd = qemu_chr_fe_get_msgfd(&s->server_chr);
-    return msg;
+    return le64_to_cpu(msg);
 }
 
 static void ivshmem_recv_setup(IVShmemState *s, Error **errp)

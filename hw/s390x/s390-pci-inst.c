@@ -413,29 +413,6 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     return 0;
 }
 
-static void update_msix_table_msg_data(S390PCIBusDevice *pbdev, uint64_t offset,
-                                       uint64_t *data, uint8_t len)
-{
-    uint32_t val;
-    uint8_t *msg_data;
-
-    if (offset % PCI_MSIX_ENTRY_SIZE != 8) {
-        return;
-    }
-
-    if (len != 4) {
-        DPRINTF("access msix table msg data but len is %d\n", len);
-        return;
-    }
-
-    msg_data = (uint8_t *)data - offset % PCI_MSIX_ENTRY_SIZE +
-               PCI_MSIX_ENTRY_VECTOR_CTRL;
-    val = pci_get_long(msg_data) |
-        ((pbdev->fh & FH_MASK_INDEX) << ZPCI_MSI_VEC_BITS);
-    pci_set_long(msg_data, val);
-    DPRINTF("update msix msg_data to 0x%" PRIx64 "\n", *data);
-}
-
 static int trap_msix(S390PCIBusDevice *pbdev, uint64_t offset, uint8_t pcias)
 {
     if (pbdev->msix.available && pbdev->msix.table_bar == pcias &&
@@ -508,7 +485,6 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
         if (trap_msix(pbdev, offset, pcias)) {
             offset = offset - pbdev->msix.table_offset;
             mr = &pbdev->pdev->msix_table_mmio;
-            update_msix_table_msg_data(pbdev, offset, &data, len);
         } else {
             mr = pbdev->pdev->io_regions[pcias].memory;
         }

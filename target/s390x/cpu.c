@@ -36,6 +36,7 @@
 #include "trace.h"
 #include "qapi/visitor.h"
 #include "exec/exec-all.h"
+#include "hw/qdev-properties.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/hw.h"
 #include "sysemu/arch_init.h"
@@ -189,34 +190,34 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 #if !defined(CONFIG_USER_ONLY)
-    if (cpu->id >= max_cpus) {
-        error_setg(&err, "Unable to add CPU: %" PRIi64
-                   ", max allowed: %d", cpu->id, max_cpus - 1);
+    if (cpu->env.core_id >= max_cpus) {
+        error_setg(&err, "Unable to add CPU with core-id: %" PRIu32
+                   ", maximum core-id: %d", cpu->env.core_id,
+                   max_cpus - 1);
         goto out;
     }
+#else
+    /* implicitly set for linux-user only */
+    cpu->env.core_id = scc->next_core_id;
+    scc->next_core_id++;
 #endif
-    if (cpu_exists(cpu->id)) {
-        error_setg(&err, "Unable to add CPU: %" PRIi64
-                   ", it already exists", cpu->id);
-        goto out;
-    }
-    if (cpu->id != scc->next_cpu_id) {
-        error_setg(&err, "Unable to add CPU: %" PRIi64
-                   ", The next available id is %" PRIi64, cpu->id,
-                   scc->next_cpu_id);
+
+    if (cpu_exists(cpu->env.core_id)) {
+        error_setg(&err, "Unable to add CPU with core-id: %" PRIu32
+                   ", it already exists", cpu->env.core_id);
         goto out;
     }
 
+    /* sync cs->cpu_index and env->core_id. The latter is needed for TCG. */
+    cs->cpu_index = env->core_id;
     cpu_exec_realizefn(cs, &err);
     if (err != NULL) {
         goto out;
     }
-    scc->next_cpu_id++;
 
 #if !defined(CONFIG_USER_ONLY)
     qemu_register_reset(s390_cpu_machine_reset_cb, cpu);
 #endif
-    env->cpu_num = cpu->id;
     s390_cpu_gdb_init(cs);
     qemu_init_vcpu(cs);
 #if !defined(CONFIG_USER_ONLY)
@@ -237,45 +238,6 @@ out:
     error_propagate(errp, err);
 }
 
-static void s390x_cpu_get_id(Object *obj, Visitor *v, const char *name,
-                             void *opaque, Error **errp)
-{
-    S390CPU *cpu = S390_CPU(obj);
-    int64_t value = cpu->id;
-
-    visit_type_int(v, name, &value, errp);
-}
-
-static void s390x_cpu_set_id(Object *obj, Visitor *v, const char *name,
-                             void *opaque, Error **errp)
-{
-    S390CPU *cpu = S390_CPU(obj);
-    DeviceState *dev = DEVICE(obj);
-    const int64_t min = 0;
-    const int64_t max = UINT32_MAX;
-    Error *err = NULL;
-    int64_t value;
-
-    if (dev->realized) {
-        error_setg(errp, "Attempt to set property '%s' on '%s' after "
-                   "it was realized", name, object_get_typename(obj));
-        return;
-    }
-
-    visit_type_int(v, name, &value, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-    if (value < min || value > max) {
-        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
-                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")" ,
-                   object_get_typename(obj), name, value, min, max);
-        return;
-    }
-    cpu->id = value;
-}
-
 static void s390_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -289,8 +251,6 @@ static void s390_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
-    object_property_add(OBJECT(cpu), "id", "int64_t", s390x_cpu_get_id,
-                        s390x_cpu_set_id, NULL, NULL, NULL);
     s390_cpu_model_register_props(obj);
 #if !defined(CONFIG_USER_ONLY)
     qemu_get_timedate(&tm, 0);
@@ -306,13 +266,6 @@ static void s390_cpu_initfn(Object *obj)
         inited = true;
         s390x_translate_init();
     }
-
-#if defined(CONFIG_USER_ONLY)
-    {
-        S390CPUClass *scc = S390_CPU_GET_CLASS(obj);
-        cpu->id = scc->next_cpu_id;
-    }
-#endif
 }
 
 static void s390_cpu_finalize(Object *obj)
@@ -494,15 +447,21 @@ static gchar *s390_gdb_arch_name(CPUState *cs)
     return g_strdup("s390:64-bit");
 }
 
+static Property s390x_cpu_properties[] = {
+    DEFINE_PROP_UINT32("core-id", S390CPU, env.core_id, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(scc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    scc->next_cpu_id = 0;
     scc->parent_realize = dc->realize;
     dc->realize = s390_cpu_realizefn;
+    dc->props = s390x_cpu_properties;
+    dc->user_creatable = true;
 
     scc->parent_reset = cc->reset;
 #if !defined(CONFIG_USER_ONLY)

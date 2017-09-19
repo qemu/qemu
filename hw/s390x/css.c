@@ -793,7 +793,7 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
     CCW1 ccw;
 
     if (!ccw_addr) {
-        return -EIO;
+        return -EINVAL; /* channel-program check */
     }
     /* Check doubleword aligned and 31 or 24 (fmt 0) bit addressable. */
     if (ccw_addr & (sch->ccw_fmt_1 ? 0x80000007 : 0xff000007)) {
@@ -979,22 +979,6 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
             s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                     SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             s->cpa = sch->channel_prog + 8;
-            break;
-        case -EFAULT:
-            /* memory problem, generate channel data check */
-            s->ctrl &= ~SCSW_ACTL_START_PEND;
-            s->cstat = SCSW_CSTAT_DATA_CHECK;
-            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
-                    SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
-            s->cpa = sch->channel_prog + 8;
-            break;
-        case -EBUSY:
-            /* subchannel busy, generate deferred cc 1 */
-            s->flags &= ~SCSW_FLAGS_MASK_CC;
-            s->flags |= (1 << 8);
-            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-            s->ctrl |= SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             break;
         case -EINPROGRESS:
             /* channel program has been suspended */
@@ -1276,16 +1260,16 @@ int css_do_xsch(SubchDev *sch)
         goto out;
     }
 
+    if (s->ctrl & SCSW_CTRL_MASK_STCTL) {
+        ret = -EINPROGRESS;
+        goto out;
+    }
+
     if (!(s->ctrl & SCSW_CTRL_MASK_FCTL) ||
         ((s->ctrl & SCSW_CTRL_MASK_FCTL) != SCSW_FCTL_START_FUNC) ||
         (!(s->ctrl &
            (SCSW_ACTL_RESUME_PEND | SCSW_ACTL_START_PEND | SCSW_ACTL_SUSP))) ||
         (s->ctrl & SCSW_ACTL_SUBCH_ACTIVE)) {
-        ret = -EINPROGRESS;
-        goto out;
-    }
-
-    if (s->ctrl & SCSW_CTRL_MASK_STCTL) {
         ret = -EBUSY;
         goto out;
     }

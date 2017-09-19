@@ -34,6 +34,8 @@
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
 #include "hw/s390x/ebcdic.h"
+#include "hw/s390x/s390-virtio-hcall.h"
+#include "hw/s390x/sclp.h"
 #endif
 
 /* #define DEBUG_HELPER */
@@ -230,7 +232,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             /* XXX make different for different CPUs? */
             ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
-            stw_p(&sysib.cpu_addr, env->cpu_num);
+            stw_p(&sysib.cpu_addr, env->core_id);
             cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 2)) {
             /* Basic Machine CPUs */
@@ -258,7 +260,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 /* XXX make different for different CPUs? */
                 ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
                 ebcdic_put(sysib.plant, "QEMU", 4);
-                stw_p(&sysib.cpu_addr, env->cpu_num);
+                stw_p(&sysib.cpu_addr, env->core_id);
                 stw_p(&sysib.cpu_id, 0);
                 cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else if ((sel1 == 2) && (sel2 == 2)) {
@@ -445,14 +447,17 @@ void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
 #ifndef CONFIG_USER_ONLY
 void HELPER(per_check_exception)(CPUS390XState *env)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
+    uint32_t ilen;
 
     if (env->per_perc_atmid) {
-        env->int_pgm_code = PGM_PER;
-        env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, env->per_address));
-
-        cs->exception_index = EXCP_PGM;
-        cpu_loop_exit(cs);
+        /*
+         * FIXME: ILEN_AUTO is most probably the right thing to use. ilen
+         * always has to match the instruction referenced in the PSW. E.g.
+         * if a PER interrupt is triggered via EXECUTE, we have to use ilen
+         * of EXECUTE, while per_address contains the target of EXECUTE.
+         */
+        ilen = get_ilen(cpu_ldub_code(env, env->per_address));
+        program_interrupt(env, PGM_PER, ilen);
     }
 }
 

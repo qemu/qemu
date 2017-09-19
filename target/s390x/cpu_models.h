@@ -17,7 +17,7 @@
 #include "qom/cpu.h"
 
 /* static CPU definition */
-typedef struct S390CPUDef {
+struct S390CPUDef {
     const char *name;       /* name exposed to the user */
     const char *desc;       /* description exposed to the user */
     uint8_t gen;            /* hw generation identification */
@@ -37,10 +37,10 @@ typedef struct S390CPUDef {
     S390FeatBitmap full_feat;
     /* used to init full_feat from generated data */
     S390FeatInit full_init;
-} S390CPUDef;
+};
 
 /* CPU model based on a CPU definition */
-typedef struct S390CPUModel {
+struct S390CPUModel {
     const S390CPUDef *def;
     S390FeatBitmap features;
     /* values copied from the "host" model, can change during migration */
@@ -48,7 +48,7 @@ typedef struct S390CPUModel {
     uint32_t cpu_id;        /* CPU id */
     uint8_t cpu_id_format;  /* CPU id format bit */
     uint8_t cpu_ver;        /* CPU version, usually "ff" for kvm */
-} S390CPUModel;
+};
 
 /*
  * CPU ID
