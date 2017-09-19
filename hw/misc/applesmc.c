@@ -331,7 +331,7 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
                         s->iobase + APPLESMC_ERR_PORT);
 
     if (!s->osk || (strlen(s->osk) != 64)) {
-        fprintf(stderr, "WARNING: Using AppleSMC with invalid key\n");
+        warn_report("Using AppleSMC with invalid key");
         s->osk = default_osk;
     }
 

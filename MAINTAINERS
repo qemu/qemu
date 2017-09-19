@@ -968,7 +968,9 @@ SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
 F: include/hw/scsi/*
+F: include/scsi/*
 F: hw/scsi/*
+F: util/scsi*
 F: tests/virtio-scsi-test.c
 T: git git://github.com/bonzini/qemu.git scsi-next
 
@@ -1101,11 +1103,12 @@ F: hw/block/nvme*
 F: tests/nvme-test.c
 
 megasas
-M: Hannes Reinecke <hare@suse.de>
+M: Hannes Reinecke <hare@suse.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: hw/scsi/megasas.c
 F: hw/scsi/mfi.h
+F: tests/megasas-test.c
 
 Network packet abstractions
 M: Dmitry Fleytman <dmitry@daynix.com>
@@ -1129,7 +1132,7 @@ F: tests/rocker/
 F: docs/specs/rocker.txt
 
 NVDIMM
-M: Xiao Guangrong <guangrong.xiao@linux.intel.com>
+M: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
 S: Maintained
 F: hw/acpi/nvdimm.c
 F: hw/mem/nvdimm.c
@@ -1212,6 +1215,13 @@ F: block/io.c
 F: migration/block*
 F: include/block/aio.h
 T: git git://github.com/stefanha/qemu.git block
+
+Block SCSI subsystem
+M: Paolo Bonzini <pbonzini@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: include/scsi/*
+F: scsi/*
 
 Block Jobs
 M: Jeff Cody <jcody@redhat.com>

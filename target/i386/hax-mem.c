@@ -12,6 +12,7 @@
 #include "cpu.h"
 #include "exec/address-spaces.h"
 #include "exec/exec-all.h"
+#include "qemu/error-report.h"
 
 #include "target/i386/hax-i386.h"
 #include "qemu/queue.h"
@@ -178,9 +179,8 @@ static void hax_process_section(MemoryRegionSection *section, uint8_t flags)
     if (!memory_region_is_ram(mr)) {
         if (memory_region_is_romd(mr)) {
             /* HAXM kernel module does not support ROMD yet  */
-            fprintf(stderr, "%s: Warning: Ignoring ROMD region 0x%016" PRIx64
-                    "->0x%016" PRIx64 "\n", __func__, start_pa,
-                    start_pa + size);
+            warn_report("Ignoring ROMD region 0x%016" PRIx64 "->0x%016" PRIx64,
+                        start_pa, start_pa + size);
         }
         return;
     }

@@ -232,15 +232,15 @@ The utility code that is used by all binaries is built into a
 static archive called libqemuutil.a, which is then linked to all the
 binaries. In order to provide hooks that are only needed by some of the
 binaries, code in libqemuutil.a may depend on other functions that are
-not fully implemented by all QEMU binaries. To deal with this there is a
-second library called libqemustub.a which provides dummy stubs for all
-these functions. These will get lazy linked into the binary if the real
-implementation is not present. In this way, the libqemustub.a static
-library can be thought of as a portable implementation of the weak
-symbols concept. All binaries should link to both libqemuutil.a and
-libqemustub.a. e.g.
+not fully implemented by all QEMU binaries.  Dummy stubs for all these
+functions are also provided by this library, and will only be linked
+into the binary if the real implementation is not present.  In a way,
+the stubs can be thought of as a portable implementation of the weak
+symbols concept.
 
- qemu-img$(EXESUF): qemu-img.o ..snip.. libqemuutil.a libqemustub.a
+All binaries should link to libqemuutil.a, e.g.:
+
+ qemu-img$(EXESUF): qemu-img.o ..snip.. libqemuutil.a
 
 
 Windows platform portability

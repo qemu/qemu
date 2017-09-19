@@ -34,7 +34,6 @@ $(DOCKER_SRC_COPY):
 	@mkdir $@
 	$(call make-archive-maybe, $(SRC_PATH), $@/qemu.tgz)
 	$(call make-archive-maybe, $(SRC_PATH)/dtc, $@/dtc.tgz)
-	$(call make-archive-maybe, $(SRC_PATH)/pixman, $@/pixman.tgz)
 	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
 		"COPY","RUNNER")
 

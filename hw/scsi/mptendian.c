@@ -28,7 +28,7 @@
 #include "hw/pci/msi.h"
 #include "qemu/iov.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "trace.h"
 
 #include "mptsas.h"

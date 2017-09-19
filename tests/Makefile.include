@@ -561,7 +561,7 @@ QEMU_CFLAGS += -I$(SRC_PATH)/tests
 
 
 # Deps that are common to various different sets of tests below
-test-util-obj-y = libqemuutil.a libqemustub.a
+test-util-obj-y = libqemuutil.a
 test-qom-obj-y = $(qom-obj-y) $(test-util-obj-y)
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	tests/test-qapi-event.o tests/test-qmp-introspect.o \
@@ -593,7 +593,7 @@ tests/test-iov$(EXESUF): tests/test-iov.o $(test-util-obj-y)
 tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o $(test-util-obj-y) $(test-crypto-obj-y)
 tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
 tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o migration/xbzrle.o migration/page_cache.o $(test-util-obj-y)
-tests/test-cutils$(EXESUF): tests/test-cutils.o util/cutils.o
+tests/test-cutils$(EXESUF): tests/test-cutils.o util/cutils.o $(test-util-obj-y)
 tests/test-int128$(EXESUF): tests/test-int128.o
 tests/rcutorture$(EXESUF): tests/rcutorture.o $(test-util-obj-y)
 tests/test-rcu-list$(EXESUF): tests/test-rcu-list.o $(test-util-obj-y)
@@ -616,9 +616,8 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
         migration/qemu-file-channel.o migration/qjson.o \
 	$(test-io-obj-y)
 tests/test-timed-average$(EXESUF): tests/test-timed-average.o $(test-util-obj-y)
-tests/test-base64$(EXESUF): tests/test-base64.o \
-	libqemuutil.a libqemustub.a
-tests/ptimer-test$(EXESUF): tests/ptimer-test.o tests/ptimer-test-stubs.o hw/core/ptimer.o libqemustub.a
+tests/test-base64$(EXESUF): tests/test-base64.o $(test-util-obj-y)
+tests/ptimer-test$(EXESUF): tests/ptimer-test.o tests/ptimer-test-stubs.o hw/core/ptimer.o
 
 tests/test-logging$(EXESUF): tests/test-logging.o $(test-util-obj-y)
 
@@ -832,7 +831,8 @@ endif
 qtest-obj-y = tests/libqtest.o $(test-util-obj-y)
 $(check-qtest-y): $(qtest-obj-y)
 
-tests/test-qga: tests/test-qga.o $(qtest-obj-y)
+tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
+tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
 
 SPEED = quick
 GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)

@@ -224,8 +224,8 @@ static void kvm_s390_enable_cmma(void)
     };
 
     if (mem_path) {
-        error_report("Warning: CMM will not be enabled because it is not "
-                     "compatible to hugetlbfs.");
+        warn_report("CMM will not be enabled because it is not "
+                    "compatible with hugetlbfs.");
         return;
     }
     rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);

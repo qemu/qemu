@@ -32,6 +32,7 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 #ifndef S_IWGRP
 #define S_IWGRP 0
@@ -1226,8 +1227,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     switch (s->fat_type) {
     case 32:
-            fprintf(stderr, "Big fat greek warning: FAT32 has not been tested. "
-                "You are welcome to do so!\n");
+        warn_report("FAT32 has not been tested. You are welcome to do so!");
         break;
     case 16:
     case 12:
@@ -3028,7 +3028,8 @@ DLOG(checkpoint());
                         if (memcmp(direntries + k,
                                     array_get(&(s->directory), dir_index + k),
                                     sizeof(direntry_t))) {
-                            fprintf(stderr, "Warning: tried to write to write-protected file\n");
+                            warn_report("tried to write to write-protected "
+                                        "file");
                             return -1;
                         }
                     }

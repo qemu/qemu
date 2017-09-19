@@ -21,7 +21,7 @@
 #include "qemu/iov.h"
 #include "sysemu/block-backend.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
@@ -867,10 +867,10 @@ void virtio_scsi_common_realize(DeviceState *dev,
     s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
 
-    s->ctrl_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, ctrl);
-    s->event_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, evt);
+    s->ctrl_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, ctrl);
+    s->event_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, evt);
     for (i = 0; i < s->conf.num_queues; i++) {
-        s->cmd_vqs[i] = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, cmd);
+        s->cmd_vqs[i] = virtio_add_queue(vdev, s->conf.virtqueue_size, cmd);
     }
 }
 
@@ -917,6 +917,8 @@ static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 
 static Property virtio_scsi_properties[] = {
     DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSI,
+                                         parent_obj.conf.virtqueue_size, 128),
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSI, parent_obj.conf.max_sectors,
                                                   0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,

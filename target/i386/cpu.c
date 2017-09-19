@@ -1766,12 +1766,12 @@ static void report_unavailable_features(FeatureWord w, uint32_t mask)
         if ((1UL << i) & mask) {
             const char *reg = get_register_name_32(f->cpuid_reg);
             assert(reg);
-            fprintf(stderr, "warning: %s doesn't support requested feature: "
-                "CPUID.%02XH:%s%s%s [bit %d]\n",
-                kvm_enabled() ? "host" : "TCG",
-                f->cpuid_eax, reg,
-                f->feat_names[i] ? "." : "",
-                f->feat_names[i] ? f->feat_names[i] : "", i);
+            warn_report("%s doesn't support requested feature: "
+                        "CPUID.%02XH:%s%s%s [bit %d]",
+                        kvm_enabled() ? "host" : "TCG",
+                        f->cpuid_eax, reg,
+                        f->feat_names[i] ? "." : "",
+                        f->feat_names[i] ? f->feat_names[i] : "", i);
         }
     }
 }
@@ -3934,12 +3934,12 @@ static GuestPanicInformation *x86_cpu_get_crash_info(CPUState *cs)
     CPUX86State *env = &cpu->env;
     GuestPanicInformation *panic_info = NULL;
 
-    if (env->features[FEAT_HYPERV_EDX] & HV_X64_GUEST_CRASH_MSR_AVAILABLE) {
+    if (env->features[FEAT_HYPERV_EDX] & HV_GUEST_CRASH_MSR_AVAILABLE) {
         panic_info = g_malloc0(sizeof(GuestPanicInformation));
 
         panic_info->type = GUEST_PANIC_INFORMATION_TYPE_HYPER_V;
 
-        assert(HV_X64_MSR_CRASH_PARAMS >= 5);
+        assert(HV_CRASH_PARAMS >= 5);
         panic_info->u.hyper_v.arg1 = env->msr_hv_crash_params[0];
         panic_info->u.hyper_v.arg2 = env->msr_hv_crash_params[1];
         panic_info->u.hyper_v.arg3 = env->msr_hv_crash_params[2];
@@ -4145,6 +4145,20 @@ static Property x86_cpu_properties[] = {
                      false),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
     DEFINE_PROP_BOOL("tcg-cpuid", X86CPU, expose_tcg, true),
+
+    /*
+     * From "Requirements for Implementing the Microsoft
+     * Hypervisor Interface":
+     * https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/tlfs
+     *
+     * "Starting with Windows Server 2012 and Windows 8, if
+     * CPUID.40000005.EAX contains a value of -1, Windows assumes that
+     * the hypervisor imposes no specific limit to the number of VPs.
+     * In this case, Windows Server 2012 guest VMs may use more than
+     * 64 VPs, up to the maximum supported number of processors applicable
+     * to the specific Windows version being used."
+     */
+    DEFINE_PROP_INT32("x-hv-max-vps", X86CPU, hv_max_vps, -1),
     DEFINE_PROP_END_OF_LIST()
 };
 

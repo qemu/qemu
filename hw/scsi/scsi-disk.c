@@ -32,7 +32,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
@@ -106,7 +106,7 @@ typedef struct SCSIDiskState
     bool tray_locked;
 } SCSIDiskState;
 
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed);
+static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed);
 
 static void scsi_free_request(SCSIRequest *req)
 {
@@ -184,17 +184,8 @@ static bool scsi_disk_req_check_error(SCSIDiskReq *r, int ret, bool acct_failed)
         return true;
     }
 
-    if (ret < 0) {
+    if (ret < 0 || (r->status && *r->status)) {
         return scsi_handle_rw_error(r, -ret, acct_failed);
-    }
-
-    if (r->status && *r->status) {
-        if (acct_failed) {
-            SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-            block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
-        }
-        scsi_req_complete(&r->req, *r->status);
-        return true;
     }
 
     return false;
@@ -422,13 +413,13 @@ static void scsi_read_data(SCSIRequest *req)
 }
 
 /*
- * scsi_handle_rw_error has two return values.  0 means that the error
- * must be ignored, 1 means that the error has been processed and the
+ * scsi_handle_rw_error has two return values.  False means that the error
+ * must be ignored, true means that the error has been processed and the
  * caller should not do anything else for this request.  Note that
  * scsi_handle_rw_error always manages its reference counts, independent
  * of the return value.
  */
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
+static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
 {
     bool is_read = (r->req.cmd.mode == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
@@ -440,6 +431,11 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
             block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
         }
         switch (error) {
+        case 0:
+            /* The command has run, no need to fake sense.  */
+            assert(r->status && *r->status);
+            scsi_req_complete(&r->req, *r->status);
+            break;
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
             break;
@@ -457,6 +453,18 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
             break;
         }
     }
+    if (!error) {
+        assert(r->status && *r->status);
+        error = scsi_sense_buf_to_errno(r->req.sense, sizeof(r->req.sense));
+
+        if (error == ECANCELED || error == EAGAIN || error == ENOTCONN ||
+            error == 0)  {
+            /* These errors are handled by guest. */
+            scsi_req_complete(&r->req, *r->status);
+            return true;
+        }
+    }
+
     blk_error_action(s->qdev.conf.blk, action, is_read, error);
     if (action == BLOCK_ERROR_ACTION_STOP) {
         scsi_req_retry(&r->req);
@@ -1978,8 +1986,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         break;
     case REQUEST_SENSE:
         /* Just return "NO SENSE".  */
-        buflen = scsi_build_sense(NULL, 0, outbuf, r->buflen,
-                                  (req->cmd.buf[1] & 1) == 0);
+        buflen = scsi_convert_sense(NULL, 0, outbuf, r->buflen,
+                                    (req->cmd.buf[1] & 1) == 0);
         if (buflen < 0) {
             goto illegal_request;
         }
@@ -2972,6 +2980,7 @@ static const TypeInfo scsi_cd_info = {
 
 #ifdef __linux__
 static Property scsi_block_properties[] = {
+    DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),         \
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_PROP_END_OF_LIST(),
 };

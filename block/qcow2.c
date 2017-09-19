@@ -301,10 +301,11 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             }
 
             if (!(s->autoclear_features & QCOW2_AUTOCLEAR_BITMAPS)) {
-                error_report("WARNING: a program lacking bitmap support "
-                             "modified this file, so all bitmaps are now "
-                             "considered inconsistent. Some clusters may be "
-                             "leaked, run 'qemu-img check -r' on the image "
+                warn_report("a program lacking bitmap support "
+                            "modified this file, so all bitmaps are now "
+                            "considered inconsistent");
+                error_printf("Some clusters may be leaked, "
+                             "run 'qemu-img check -r' on the image "
                              "file to fix.");
                 if (need_update_header != NULL) {
                     /* Updating is needed to drop invalid bitmap extension. */

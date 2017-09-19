@@ -371,6 +371,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_10 \
     HW_COMPAT_2_10 \
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "x-hv-max-vps",\
+        .value    = "0x40",\
+    },
 
 #define PC_COMPAT_2_9 \
     HW_COMPAT_2_9 \

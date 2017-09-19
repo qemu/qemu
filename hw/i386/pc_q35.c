@@ -101,9 +101,11 @@ static void pc_q35_init(MachineState *machine)
         lowmem = pcms->max_ram_below_4g;
         if (machine->ram_size - lowmem > lowmem &&
             lowmem & ((1ULL << 30) - 1)) {
-            warn_report("Large machine and max_ram_below_4g(%"PRIu64
-                        ") not a multiple of 1G; possible bad performance.",
-                        pcms->max_ram_below_4g);
+            warn_report("There is possibly poor performance as the ram size "
+                        " (0x%" PRIx64 ") is more then twice the size of"
+                        " max-ram-below-4g (%"PRIu64") and"
+                        " max-ram-below-4g is not a multiple of 1G.",
+                        (uint64_t)machine->ram_size, pcms->max_ram_below_4g);
         }
     }
 

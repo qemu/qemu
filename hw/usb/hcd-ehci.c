@@ -32,6 +32,7 @@
 #include "hw/usb/ehci-regs.h"
 #include "hw/usb/hcd-ehci.h"
 #include "trace.h"
+#include "qemu/error-report.h"
 
 #define FRAME_TIMER_FREQ 1000
 #define FRAME_TIMER_NS   (NANOSECONDS_PER_SECOND / FRAME_TIMER_FREQ)
@@ -348,7 +349,7 @@ static void ehci_trace_sitd(EHCIState *s, hwaddr addr,
 static void ehci_trace_guest_bug(EHCIState *s, const char *message)
 {
     trace_usb_ehci_guest_bug(message);
-    fprintf(stderr, "ehci warning: %s\n", message);
+    warn_report("%s", message);
 }
 
 static inline bool ehci_enabled(EHCIState *s)
@@ -1728,7 +1729,7 @@ static int ehci_state_fetchsitd(EHCIState *ehci, int async)
         /* siTD is not active, nothing to do */;
     } else {
         /* TODO: split transfers are not implemented */
-        fprintf(stderr, "WARNING: Skipping active siTD\n");
+        warn_report("Skipping active siTD");
     }
 
     ehci_set_fetch_addr(ehci, async, sitd.next);

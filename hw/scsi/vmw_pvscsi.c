@@ -28,7 +28,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/scsi/scsi.h"
-#include "block/scsi.h"
+#include "scsi/constants.h"
 #include "hw/pci/msi.h"
 #include "vmw_pvscsi.h"
 #include "trace.h"

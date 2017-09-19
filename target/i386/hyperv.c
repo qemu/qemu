@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "hyperv.h"
-#include "standard-headers/asm-x86/hyperv.h"
+#include "hyperv-proto.h"
 
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 {
@@ -50,8 +50,8 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 
         code  = exit->u.hcall.input & 0xffff;
         switch (code) {
-        case HVCALL_POST_MESSAGE:
-        case HVCALL_SIGNAL_EVENT:
+        case HV_POST_MESSAGE:
+        case HV_SIGNAL_EVENT:
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
             return 0;

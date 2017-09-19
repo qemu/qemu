@@ -1617,18 +1617,18 @@ void glue(helper_ptest, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 #define SSE_HELPER_F(name, elem, num, F)        \
     void glue(name, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)     \
     {                                           \
-        d->elem(0) = F(0);                      \
-        d->elem(1) = F(1);                      \
         if (num > 2) {                          \
-            d->elem(2) = F(2);                  \
-            d->elem(3) = F(3);                  \
             if (num > 4) {                      \
-                d->elem(4) = F(4);              \
-                d->elem(5) = F(5);              \
-                d->elem(6) = F(6);              \
                 d->elem(7) = F(7);              \
+                d->elem(6) = F(6);              \
+                d->elem(5) = F(5);              \
+                d->elem(4) = F(4);              \
             }                                   \
+            d->elem(3) = F(3);                  \
+            d->elem(2) = F(2);                  \
         }                                       \
+        d->elem(1) = F(1);                      \
+        d->elem(0) = F(0);                      \
     }
 
 SSE_HELPER_F(helper_pmovsxbw, W, 8, (int8_t) s->B)
@@ -1655,14 +1655,17 @@ SSE_HELPER_Q(helper_pcmpeqq, FCMPEQQ)
 
 void glue(helper_packusdw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 {
-    d->W(0) = satuw((int32_t) d->L(0));
-    d->W(1) = satuw((int32_t) d->L(1));
-    d->W(2) = satuw((int32_t) d->L(2));
-    d->W(3) = satuw((int32_t) d->L(3));
-    d->W(4) = satuw((int32_t) s->L(0));
-    d->W(5) = satuw((int32_t) s->L(1));
-    d->W(6) = satuw((int32_t) s->L(2));
-    d->W(7) = satuw((int32_t) s->L(3));
+    Reg r;
+
+    r.W(0) = satuw((int32_t) d->L(0));
+    r.W(1) = satuw((int32_t) d->L(1));
+    r.W(2) = satuw((int32_t) d->L(2));
+    r.W(3) = satuw((int32_t) d->L(3));
+    r.W(4) = satuw((int32_t) s->L(0));
+    r.W(5) = satuw((int32_t) s->L(1));
+    r.W(6) = satuw((int32_t) s->L(2));
+    r.W(7) = satuw((int32_t) s->L(3));
+    *d = r;
 }
 
 #define FMINSB(d, s) MIN((int8_t)d, (int8_t)s)
@@ -1707,10 +1710,10 @@ void glue(helper_phminposuw, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
         idx = 7;
     }
 
-    d->Q(1) = 0;
-    d->L(1) = 0;
-    d->W(1) = idx;
     d->W(0) = s->W(idx);
+    d->W(1) = idx;
+    d->L(1) = 0;
+    d->Q(1) = 0;
 }
 
 void glue(helper_roundps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
@@ -2037,10 +2040,14 @@ static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
         }
         break;
     case 3:
-        for (j = valids; j >= 0; j--) {
+        if (validd == -1) {
+            res = (2 << upper) - 1;
+            break;
+        }
+        for (j = valids - validd; j >= 0; j--) {
             res <<= 1;
             v = 1;
-            for (i = MIN(valids - j, validd); i >= 0; i--) {
+            for (i = validd; i >= 0; i--) {
                 v &= (pcmp_val(s, ctrl, i + j) == pcmp_val(d, ctrl, i));
             }
             res |= v;

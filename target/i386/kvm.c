@@ -27,6 +27,7 @@
 #include "sysemu/kvm_int.h"
 #include "kvm_i386.h"
 #include "hyperv.h"
+#include "hyperv-proto.h"
 
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"
@@ -40,7 +41,6 @@
 #include "hw/i386/x86-iommu.h"
 
 #include "exec/ioport.h"
-#include "standard-headers/asm-x86/hyperv.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
@@ -89,6 +89,7 @@ static bool has_msr_hv_vpindex;
 static bool has_msr_hv_runtime;
 static bool has_msr_hv_synic;
 static bool has_msr_hv_stimer;
+static bool has_msr_hv_frequencies;
 static bool has_msr_xss;
 
 static bool has_msr_architectural_pmu;
@@ -611,6 +612,15 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
     return 0;
 }
 
+static bool tsc_is_stable_and_known(CPUX86State *env)
+{
+    if (!env->tsc_khz) {
+        return false;
+    }
+    return (env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC)
+        || env->user_tsc_khz;
+}
+
 static int hyperv_handle_properties(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -622,29 +632,34 @@ static int hyperv_handle_properties(CPUState *cs)
     }
 
     if (cpu->hyperv_relaxed_timing) {
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_HYPERCALL_AVAILABLE;
     }
     if (cpu->hyperv_vapic) {
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_HYPERCALL_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_APIC_ACCESS_AVAILABLE;
     }
     if (cpu->hyperv_time) {
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_HYPERCALL_AVAILABLE;
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_TIME_REF_COUNT_AVAILABLE;
-        env->features[FEAT_HYPERV_EAX] |= 0x200;
+        env->features[FEAT_HYPERV_EAX] |= HV_HYPERCALL_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_TIME_REF_COUNT_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_REFERENCE_TSC_AVAILABLE;
+
+        if (has_msr_hv_frequencies && tsc_is_stable_and_known(env)) {
+            env->features[FEAT_HYPERV_EAX] |= HV_ACCESS_FREQUENCY_MSRS;
+            env->features[FEAT_HYPERV_EDX] |= HV_FREQUENCY_MSRS_AVAILABLE;
+        }
     }
     if (cpu->hyperv_crash && has_msr_hv_crash) {
-        env->features[FEAT_HYPERV_EDX] |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
+        env->features[FEAT_HYPERV_EDX] |= HV_GUEST_CRASH_MSR_AVAILABLE;
     }
-    env->features[FEAT_HYPERV_EDX] |= HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
+    env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
     if (cpu->hyperv_reset && has_msr_hv_reset) {
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_RESET_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_RESET_AVAILABLE;
     }
     if (cpu->hyperv_vpindex && has_msr_hv_vpindex) {
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_VP_INDEX_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_VP_INDEX_AVAILABLE;
     }
     if (cpu->hyperv_runtime && has_msr_hv_runtime) {
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_VP_RUNTIME_AVAILABLE;
     }
     if (cpu->hyperv_synic) {
         int sint;
@@ -655,10 +670,10 @@ static int hyperv_handle_properties(CPUState *cs)
             return -ENOSYS;
         }
 
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_SYNIC_AVAILABLE;
-        env->msr_hv_synic_version = HV_SYNIC_VERSION_1;
+        env->features[FEAT_HYPERV_EAX] |= HV_SYNIC_AVAILABLE;
+        env->msr_hv_synic_version = HV_SYNIC_VERSION;
         for (sint = 0; sint < ARRAY_SIZE(env->msr_hv_synic_sint); sint++) {
-            env->msr_hv_synic_sint[sint] = HV_SYNIC_SINT_MASKED;
+            env->msr_hv_synic_sint[sint] = HV_SINT_MASKED;
         }
     }
     if (cpu->hyperv_stimer) {
@@ -666,7 +681,7 @@ static int hyperv_handle_properties(CPUState *cs)
             fprintf(stderr, "Hyper-V timers aren't supported by kernel\n");
             return -ENOSYS;
         }
-        env->features[FEAT_HYPERV_EAX] |= HV_X64_MSR_SYNTIMER_AVAILABLE;
+        env->features[FEAT_HYPERV_EAX] |= HV_SYNTIMERS_AVAILABLE;
     }
     return 0;
 }
@@ -695,10 +710,29 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     cpuid_i = 0;
 
+    r = kvm_arch_set_tsc_khz(cs);
+    if (r < 0) {
+        goto fail;
+    }
+
+    /* vcpu's TSC frequency is either specified by user, or following
+     * the value used by KVM if the former is not present. In the
+     * latter case, we query it from KVM and record in env->tsc_khz,
+     * so that vcpu's TSC frequency can be migrated later via this field.
+     */
+    if (!env->tsc_khz) {
+        r = kvm_check_extension(cs->kvm_state, KVM_CAP_GET_TSC_KHZ) ?
+            kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) :
+            -ENOTSUP;
+        if (r > 0) {
+            env->tsc_khz = r;
+        }
+    }
+
     /* Paravirtualization CPUIDs */
     if (hyperv_enabled(cpu)) {
         c = &cpuid_data.entries[cpuid_i++];
-        c->function = HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
+        c->function = HV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
         if (!cpu->hyperv_vendor_id) {
             memcpy(signature, "Microsoft Hv", 12);
         } else {
@@ -711,13 +745,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
             memset(signature, 0, 12);
             memcpy(signature, cpu->hyperv_vendor_id, len);
         }
-        c->eax = HYPERV_CPUID_MIN;
+        c->eax = HV_CPUID_MIN;
         c->ebx = signature[0];
         c->ecx = signature[1];
         c->edx = signature[2];
 
         c = &cpuid_data.entries[cpuid_i++];
-        c->function = HYPERV_CPUID_INTERFACE;
+        c->function = HV_CPUID_INTERFACE;
         memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
         c->eax = signature[0];
         c->ebx = 0;
@@ -725,12 +759,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->edx = 0;
 
         c = &cpuid_data.entries[cpuid_i++];
-        c->function = HYPERV_CPUID_VERSION;
+        c->function = HV_CPUID_VERSION;
         c->eax = 0x00001bbc;
         c->ebx = 0x00060001;
 
         c = &cpuid_data.entries[cpuid_i++];
-        c->function = HYPERV_CPUID_FEATURES;
+        c->function = HV_CPUID_FEATURES;
         r = hyperv_handle_properties(cs);
         if (r) {
             return r;
@@ -740,18 +774,19 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->edx = env->features[FEAT_HYPERV_EDX];
 
         c = &cpuid_data.entries[cpuid_i++];
-        c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
+        c->function = HV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
-            c->eax |= HV_X64_RELAXED_TIMING_RECOMMENDED;
+            c->eax |= HV_RELAXED_TIMING_RECOMMENDED;
         }
         if (cpu->hyperv_vapic) {
-            c->eax |= HV_X64_APIC_ACCESS_RECOMMENDED;
+            c->eax |= HV_APIC_ACCESS_RECOMMENDED;
         }
         c->ebx = cpu->hyperv_spinlock_attempts;
 
         c = &cpuid_data.entries[cpuid_i++];
-        c->function = HYPERV_CPUID_IMPLEMENT_LIMITS;
-        c->eax = 0x40;
+        c->function = HV_CPUID_IMPLEMENT_LIMITS;
+
+        c->eax = cpu->hv_max_vps;
         c->ebx = 0x40;
 
         kvm_base = KVM_CPUID_SIGNATURE_NEXT;
@@ -961,34 +996,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
-    r = kvm_arch_set_tsc_khz(cs);
-    if (r < 0) {
-        goto fail;
-    }
-
-    /* vcpu's TSC frequency is either specified by user, or following
-     * the value used by KVM if the former is not present. In the
-     * latter case, we query it from KVM and record in env->tsc_khz,
-     * so that vcpu's TSC frequency can be migrated later via this field.
-     */
-    if (!env->tsc_khz) {
-        r = kvm_check_extension(cs->kvm_state, KVM_CAP_GET_TSC_KHZ) ?
-            kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) :
-            -ENOTSUP;
-        if (r > 0) {
-            env->tsc_khz = r;
-        }
-    }
-
     if (cpu->vmware_cpuid_freq
         /* Guests depend on 0x40000000 to detect this feature, so only expose
          * it if KVM exposes leaf 0x40000000. (Conflicts with Hyper-V) */
         && cpu->expose_kvm
         && kvm_base == KVM_CPUID_SIGNATURE
         /* TSC clock must be stable and known for this feature. */
-        && ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC)
-            || env->user_tsc_khz != 0)
-        && env->tsc_khz != 0) {
+        && tsc_is_stable_and_known(env)) {
 
         c = &cpuid_data.entries[cpuid_i++];
         c->function = KVM_CPUID_SIGNATURE | 0x10;
@@ -1081,65 +1095,55 @@ static int kvm_get_supported_msrs(KVMState *s)
             int i;
 
             for (i = 0; i < kvm_msr_list->nmsrs; i++) {
-                if (kvm_msr_list->indices[i] == MSR_STAR) {
+                switch (kvm_msr_list->indices[i]) {
+                case MSR_STAR:
                     has_msr_star = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_VM_HSAVE_PA) {
+                    break;
+                case MSR_VM_HSAVE_PA:
                     has_msr_hsave_pa = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_TSC_AUX) {
+                    break;
+                case MSR_TSC_AUX:
                     has_msr_tsc_aux = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_TSC_ADJUST) {
+                    break;
+                case MSR_TSC_ADJUST:
                     has_msr_tsc_adjust = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_TSCDEADLINE) {
+                    break;
+                case MSR_IA32_TSCDEADLINE:
                     has_msr_tsc_deadline = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_SMBASE) {
+                    break;
+                case MSR_IA32_SMBASE:
                     has_msr_smbase = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_MISC_ENABLE) {
+                    break;
+                case MSR_IA32_MISC_ENABLE:
                     has_msr_misc_enable = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_BNDCFGS) {
+                    break;
+                case MSR_IA32_BNDCFGS:
                     has_msr_bndcfgs = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == MSR_IA32_XSS) {
+                    break;
+                case MSR_IA32_XSS:
                     has_msr_xss = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_CRASH_CTL) {
+                    break;;
+                case HV_X64_MSR_CRASH_CTL:
                     has_msr_hv_crash = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_RESET) {
+                    break;
+                case HV_X64_MSR_RESET:
                     has_msr_hv_reset = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_INDEX) {
+                    break;
+                case HV_X64_MSR_VP_INDEX:
                     has_msr_hv_vpindex = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_RUNTIME) {
+                    break;
+                case HV_X64_MSR_VP_RUNTIME:
                     has_msr_hv_runtime = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_SCONTROL) {
+                    break;
+                case HV_X64_MSR_SCONTROL:
                     has_msr_hv_synic = true;
-                    continue;
-                }
-                if (kvm_msr_list->indices[i] == HV_X64_MSR_STIMER0_CONFIG) {
+                    break;
+                case HV_X64_MSR_STIMER0_CONFIG:
                     has_msr_hv_stimer = true;
-                    continue;
+                    break;
+                case HV_X64_MSR_TSC_FREQUENCY:
+                    has_msr_hv_frequencies = true;
+                    break;
                 }
             }
         }
@@ -1690,12 +1694,11 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (has_msr_hv_crash) {
             int j;
 
-            for (j = 0; j < HV_X64_MSR_CRASH_PARAMS; j++)
+            for (j = 0; j < HV_CRASH_PARAMS; j++)
                 kvm_msr_entry_add(cpu, HV_X64_MSR_CRASH_P0 + j,
                                   env->msr_hv_crash_params[j]);
 
-            kvm_msr_entry_add(cpu, HV_X64_MSR_CRASH_CTL,
-                              HV_X64_MSR_CRASH_CTL_NOTIFY);
+            kvm_msr_entry_add(cpu, HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_NOTIFY);
         }
         if (has_msr_hv_runtime) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_VP_RUNTIME, env->msr_hv_runtime);
@@ -2059,7 +2062,7 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_hv_crash) {
         int j;
 
-        for (j = 0; j < HV_X64_MSR_CRASH_PARAMS; j++) {
+        for (j = 0; j < HV_CRASH_PARAMS; j++) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_CRASH_P0 + j, 0);
         }
     }

@@ -18,6 +18,7 @@
 #include "clients.h"
 #include "hub.h"
 #include "qemu/iov.h"
+#include "qemu/error-report.h"
 
 /*
  * A hub broadcasts incoming packets to all its ports except the source port.
@@ -309,8 +310,7 @@ void net_hub_check_clients(void)
         QLIST_FOREACH(port, &hub->ports, next) {
             peer = port->nc.peer;
             if (!peer) {
-                fprintf(stderr, "Warning: hub port %s has no peer\n",
-                        port->nc.name);
+                warn_report("hub port %s has no peer", port->nc.name);
                 continue;
             }
 
@@ -330,12 +330,10 @@ void net_hub_check_clients(void)
             }
         }
         if (has_host_dev && !has_nic) {
-            fprintf(stderr, "Warning: vlan %d with no nics\n", hub->id);
+            warn_report("vlan %d with no nics", hub->id);
         }
         if (has_nic && !has_host_dev) {
-            fprintf(stderr,
-                    "Warning: vlan %d is not connected to host network\n",
-                    hub->id);
+            warn_report("vlan %d is not connected to host network", hub->id);
         }
     }
 }

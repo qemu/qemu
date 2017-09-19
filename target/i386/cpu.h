@@ -22,7 +22,7 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
-#include "standard-headers/asm-x86/hyperv.h"
+#include "hyperv-proto.h"
 
 #ifdef TARGET_X86_64
 #define TARGET_LONG_BITS 64
@@ -1095,15 +1095,15 @@ typedef struct CPUX86State {
     uint64_t msr_hv_guest_os_id;
     uint64_t msr_hv_vapic;
     uint64_t msr_hv_tsc;
-    uint64_t msr_hv_crash_params[HV_X64_MSR_CRASH_PARAMS];
+    uint64_t msr_hv_crash_params[HV_CRASH_PARAMS];
     uint64_t msr_hv_runtime;
     uint64_t msr_hv_synic_control;
     uint64_t msr_hv_synic_version;
     uint64_t msr_hv_synic_evt_page;
     uint64_t msr_hv_synic_msg_page;
-    uint64_t msr_hv_synic_sint[HV_SYNIC_SINT_COUNT];
-    uint64_t msr_hv_stimer_config[HV_SYNIC_STIMER_COUNT];
-    uint64_t msr_hv_stimer_count[HV_SYNIC_STIMER_COUNT];
+    uint64_t msr_hv_synic_sint[HV_SINT_COUNT];
+    uint64_t msr_hv_stimer_config[HV_STIMER_COUNT];
+    uint64_t msr_hv_stimer_count[HV_STIMER_COUNT];
 
     /* exception/interrupt handling */
     int error_code;
@@ -1282,6 +1282,8 @@ struct X86CPU {
     int32_t socket_id;
     int32_t core_id;
     int32_t thread_id;
+
+    int32_t hv_max_vps;
 };
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
