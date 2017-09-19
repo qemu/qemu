@@ -1380,7 +1380,7 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis)
         return 0;
     }
 
-    if (!postcopy_ram_supported_by_host()) {
+    if (!postcopy_ram_supported_by_host(mis)) {
         postcopy_state_set(POSTCOPY_INCOMING_NONE);
         return -1;
     }

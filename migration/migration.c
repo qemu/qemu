@@ -659,6 +659,7 @@ static bool migrate_caps_check(bool *cap_list,
 {
     MigrationCapabilityStatusList *cap;
     bool old_postcopy_cap;
+    MigrationIncomingState *mis = migration_incoming_get_current();
 
     old_postcopy_cap = cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 
@@ -692,7 +693,7 @@ static bool migrate_caps_check(bool *cap_list,
          * special support.
          */
         if (!old_postcopy_cap && runstate_check(RUN_STATE_INMIGRATE) &&
-            !postcopy_ram_supported_by_host()) {
+            !postcopy_ram_supported_by_host(mis)) {
             /* postcopy_ram_supported_by_host will have emitted a more
              * detailed message
              */
