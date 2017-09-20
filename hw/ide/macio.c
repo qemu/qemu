@@ -331,6 +331,12 @@ static void pmac_ide_writel (void *opaque,
     val = bswap32(val);
     if (addr == 0) {
         ide_data_writel(&d->bus, 0, val);
+    } else if (addr == 0x20) {
+        d->timing_reg = val;
+    } else if (addr == 0x30) {
+        if (val & 0x80000000u) {
+            d->irq_reg &= 0x7fffffff;
+        }
     }
 }
 
@@ -342,6 +348,17 @@ static uint32_t pmac_ide_readl (void *opaque,hwaddr addr)
     addr = (addr & 0xFFF) >> 4;
     if (addr == 0) {
         retval = ide_data_readl(&d->bus, 0);
+    } else if (addr == 0x20) {
+        retval = d->timing_reg;
+    } else if (addr == 0x30) {
+        /* This is an interrupt state register that only exists
+         * in the KeyLargo and later variants. Bit 0x8000_0000
+         * latches the DMA interrupt and has to be written to
+         * clear. Bit 0x4000_0000 is an image of the disk
+         * interrupt. MacOS X relies on this and will hang if
+         * we don't provide at least the disk interrupt
+         */
+        retval = d->irq_reg;
     } else {
         retval = 0xFFFFFFFF;
     }
@@ -426,11 +443,30 @@ static void macio_ide_realizefn(DeviceState *dev, Error **errp)
 {
     MACIOIDEState *s = MACIO_IDE(dev);
 
-    ide_init2(&s->bus, s->irq);
+    ide_init2(&s->bus, s->ide_irq);
 
     /* Register DMA callbacks */
     s->dma.ops = &dbdma_ops;
     s->bus.dma = &s->dma;
+}
+
+static void pmac_ide_irq(void *opaque, int n, int level)
+{
+    MACIOIDEState *s = opaque;
+    uint32_t mask = 0x80000000u >> n;
+
+    /* We need to reflect the IRQ state in the irq register */
+    if (level) {
+        s->irq_reg |= mask;
+    } else {
+        s->irq_reg &= ~mask;
+    }
+
+    if (n) {
+        qemu_set_irq(s->real_ide_irq, level);
+    } else {
+        qemu_set_irq(s->real_dma_irq, level);
+    }
 }
 
 static void macio_ide_initfn(Object *obj)
@@ -441,8 +477,10 @@ static void macio_ide_initfn(Object *obj)
     ide_bus_new(&s->bus, sizeof(s->bus), DEVICE(obj), 0, 2);
     memory_region_init_io(&s->mem, obj, &pmac_ide_ops, s, "pmac-ide", 0x1000);
     sysbus_init_mmio(d, &s->mem);
-    sysbus_init_irq(d, &s->irq);
-    sysbus_init_irq(d, &s->dma_irq);
+    sysbus_init_irq(d, &s->real_ide_irq);
+    sysbus_init_irq(d, &s->real_dma_irq);
+    s->dma_irq = qemu_allocate_irq(pmac_ide_irq, s, 0);
+    s->ide_irq = qemu_allocate_irq(pmac_ide_irq, s, 1);
 }
 
 static void macio_ide_class_init(ObjectClass *oc, void *data)
