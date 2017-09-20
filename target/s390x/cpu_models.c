@@ -825,6 +825,7 @@ static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
         S390_FEAT_STFLE,
         S390_FEAT_EXTENDED_IMMEDIATE,
         S390_FEAT_EXTENDED_TRANSLATION_2,
+        S390_FEAT_MSA,
         S390_FEAT_EXTENDED_TRANSLATION_3,
         S390_FEAT_LONG_DISPLACEMENT,
         S390_FEAT_LONG_DISPLACEMENT_FAST,
@@ -841,6 +842,9 @@ static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
         S390_FEAT_STFLE_49,
         S390_FEAT_LOCAL_TLB_CLEARING,
         S390_FEAT_STFLE_53,
+        S390_FEAT_MSA_EXT_5,
+        S390_FEAT_MSA_EXT_3,
+        S390_FEAT_MSA_EXT_4,
     };
     int i;
 

@@ -115,6 +115,7 @@ DEF_HELPER_4(cu21, i32, env, i32, i32, i32)
 DEF_HELPER_4(cu24, i32, env, i32, i32, i32)
 DEF_HELPER_4(cu41, i32, env, i32, i32, i32)
 DEF_HELPER_4(cu42, i32, env, i32, i32, i32)
+DEF_HELPER_5(msa, i32, env, i32, i32, i32, i32)
 
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_3(servc, i32, env, i64, i64)
