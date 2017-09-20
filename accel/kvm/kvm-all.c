@@ -722,7 +722,6 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     mem = kvm_lookup_matching_slot(kml, start_addr, size);
     if (!add) {
         if (!mem) {
-            g_assert(!memory_region_is_ram(mr) && !writeable && !mr->romd_mode);
             return;
         }
         if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
