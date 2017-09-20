@@ -803,12 +803,12 @@ static uint32_t stat_to_v9mode(const struct stat *stbuf)
     return mode;
 }
 
-static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *name,
+static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *path,
+                                       const char *basename,
                                        const struct stat *stbuf,
                                        V9fsStat *v9stat)
 {
     int err;
-    const char *str;
 
     memset(v9stat, 0, sizeof(*v9stat));
 
@@ -829,7 +829,7 @@ static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *name,
     v9fs_string_free(&v9stat->extension);
 
     if (v9stat->mode & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_co_readlink(pdu, name, &v9stat->extension);
+        err = v9fs_co_readlink(pdu, path, &v9stat->extension);
         if (err < 0) {
             return err;
         }
@@ -842,14 +842,7 @@ static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *name,
                 "HARDLINKCOUNT", (unsigned long)stbuf->st_nlink);
     }
 
-    str = strrchr(name->data, '/');
-    if (str) {
-        str += 1;
-    } else {
-        str = name->data;
-    }
-
-    v9fs_string_sprintf(&v9stat->name, "%s", str);
+    v9fs_string_sprintf(&v9stat->name, "%s", basename);
 
     v9stat->size = 61 +
         v9fs_string_size(&v9stat->name) +
@@ -1056,6 +1049,7 @@ static void coroutine_fn v9fs_stat(void *opaque)
     struct stat stbuf;
     V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
+    char *basename;
 
     err = pdu_unmarshal(pdu, offset, "d", &fid);
     if (err < 0) {
@@ -1072,7 +1066,9 @@ static void coroutine_fn v9fs_stat(void *opaque)
     if (err < 0) {
         goto out;
     }
-    err = stat_to_v9stat(pdu, &fidp->path, &stbuf, &v9stat);
+    basename = g_path_get_basename(fidp->path.data);
+    err = stat_to_v9stat(pdu, &fidp->path, basename, &stbuf, &v9stat);
+    g_free(basename);
     if (err < 0) {
         goto out;
     }
@@ -1748,21 +1744,30 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         if (err < 0) {
             break;
         }
-        err = stat_to_v9stat(pdu, &path, &stbuf, &v9stat);
+        err = stat_to_v9stat(pdu, &path, dent->d_name, &stbuf, &v9stat);
         if (err < 0) {
             break;
         }
-        /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
-        len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
+        if ((count + v9stat.size + 2) > max_count) {
+            v9fs_readdir_unlock(&fidp->fs.dir);
 
-        v9fs_readdir_unlock(&fidp->fs.dir);
-
-        if ((len != (v9stat.size + 2)) || ((count + len) > max_count)) {
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_stat_free(&v9stat);
             v9fs_path_free(&path);
             return count;
+        }
+
+        /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
+        len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
+
+        v9fs_readdir_unlock(&fidp->fs.dir);
+
+        if (len < 0) {
+            v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
+            v9fs_stat_free(&v9stat);
+            v9fs_path_free(&path);
+            return len;
         }
         count += len;
         v9fs_stat_free(&v9stat);
@@ -2557,13 +2562,11 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
                                              int32_t newdirfid,
                                              V9fsString *name)
 {
-    char *end;
     int err = 0;
     V9fsPath new_path;
     V9fsFidState *tfidp;
     V9fsState *s = pdu->s;
     V9fsFidState *dirfidp = NULL;
-    char *old_name, *new_name;
 
     v9fs_path_init(&new_path);
     if (newdirfid != -1) {
@@ -2581,18 +2584,15 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
             goto out;
         }
     } else {
-        old_name = fidp->path.data;
-        end = strrchr(old_name, '/');
-        if (end) {
-            end++;
-        } else {
-            end = old_name;
-        }
-        new_name = g_malloc0(end - old_name + name->size + 1);
-        strncat(new_name, old_name, end - old_name);
-        strncat(new_name + (end - old_name), name->data, name->size);
-        err = v9fs_co_name_to_path(pdu, NULL, new_name, &new_path);
-        g_free(new_name);
+        char *dir_name = g_path_get_dirname(fidp->path.data);
+        V9fsPath dir_path;
+
+        v9fs_path_init(&dir_path);
+        v9fs_path_sprintf(&dir_path, "%s", dir_name);
+        g_free(dir_name);
+
+        err = v9fs_co_name_to_path(pdu, &dir_path, name->data, &new_path);
+        v9fs_path_free(&dir_path);
         if (err < 0) {
             goto out;
         }
