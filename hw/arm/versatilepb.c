@@ -181,7 +181,6 @@ static struct arm_boot_info versatile_binfo;
 
 static void versatile_init(MachineState *machine, int board_id)
 {
-    ObjectClass *cpu_oc;
     Object *cpuobj;
     ARMCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();
@@ -207,17 +206,7 @@ static void versatile_init(MachineState *machine, int board_id)
         exit(1);
     }
 
-    if (!machine->cpu_model) {
-        machine->cpu_model = "arm926";
-    }
-
-    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, machine->cpu_model);
-    if (!cpu_oc) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
-
-    cpuobj = object_new(object_class_get_name(cpu_oc));
+    cpuobj = object_new(machine->cpu_type);
 
     /* By default ARM1176 CPUs have EL3 enabled.  This board does not
      * currently support EL3 so the CPU EL3 property is disabled before
@@ -404,6 +393,7 @@ static void versatilepb_class_init(ObjectClass *oc, void *data)
     mc->init = vpb_init;
     mc->block_default_type = IF_SCSI;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
 }
 
 static const TypeInfo versatilepb_type = {
@@ -420,6 +410,7 @@ static void versatileab_class_init(ObjectClass *oc, void *data)
     mc->init = vab_init;
     mc->block_default_type = IF_SCSI;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
 }
 
 static const TypeInfo versatileab_type = {

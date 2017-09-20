@@ -29,6 +29,7 @@
 #include "hw/devices.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
+#include "cpu.h"
 
 static uint32_t static_readb(void *opaque, hwaddr offset)
 {
@@ -195,7 +196,6 @@ static struct arm_boot_info palmte_binfo = {
 
 static void palmte_init(MachineState *machine)
 {
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -211,7 +211,7 @@ static void palmte_init(MachineState *machine)
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
 
-    mpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
+    mpu = omap310_mpu_init(address_space_mem, sdram_size, machine->cpu_type);
 
     /* External Flash (EMIFS) */
     memory_region_init_ram(flash, NULL, "palmte.flash", flash_size,
@@ -275,6 +275,7 @@ static void palmte_machine_init(MachineClass *mc)
     mc->desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)";
     mc->init = palmte_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
 }
 
 DEFINE_MACHINE("cheetah", palmte_machine_init)

@@ -189,10 +189,6 @@ static void ppc_core99_init(MachineState *machine)
     for (i = 0; i < smp_cpus; i++) {
         cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU,
                                            machine->cpu_model));
-        if (cpu == NULL) {
-            fprintf(stderr, "Unable to find PowerPC CPU definition\n");
-            exit(1);
-        }
         env = &cpu->env;
 
         /* Set time-base frequency to 100 Mhz */

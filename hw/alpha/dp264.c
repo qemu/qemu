@@ -68,10 +68,6 @@ static void clipper_init(MachineState *machine)
     memset(cpus, 0, sizeof(cpus));
     for (i = 0; i < smp_cpus; ++i) {
         cpus[i] = ALPHA_CPU(cpu_generic_init(TYPE_ALPHA_CPU, cpu_model));
-        if (!cpus[i]) {
-            error_report("Unable to find CPU definition");
-            exit(1);
-        }
     }
 
     cpus[0]->env.trap_arg0 = ram_size;

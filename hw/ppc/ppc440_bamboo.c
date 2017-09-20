@@ -187,10 +187,6 @@ static void bamboo_init(MachineState *machine)
         machine->cpu_model = "440EP";
     }
     cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, machine->cpu_model));
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to initialize CPU!\n");
-        exit(1);
-    }
     env = &cpu->env;
 
     if (env->mmu_model != POWERPC_MMU_BOOKE) {

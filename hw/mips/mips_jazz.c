@@ -152,10 +152,6 @@ static void mips_jazz_init(MachineState *machine,
         cpu_model = "R4000";
     }
     cpu = cpu_mips_init(cpu_model);
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
 

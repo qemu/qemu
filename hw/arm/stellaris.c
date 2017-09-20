@@ -22,6 +22,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/char/pl011.h"
 #include "hw/misc/unimp.h"
+#include "cpu.h"
 
 #define GPIO_A 0
 #define GPIO_B 1
@@ -1225,8 +1226,7 @@ static stellaris_board_info stellaris_boards[] = {
   }
 };
 
-static void stellaris_init(const char *kernel_filename, const char *cpu_model,
-                           stellaris_board_info *board)
+static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 {
     static const int uart_irq[] = {5, 6, 33, 34};
     static const int timer_irq[] = {19, 21, 23, 35};
@@ -1298,7 +1298,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     memory_region_add_subregion(system_memory, 0x20000000, sram);
 
     nvic = armv7m_init(system_memory, flash_size, NUM_IRQ_LINES,
-                      kernel_filename, cpu_model);
+                       ms->kernel_filename, ms->cpu_type);
 
     qdev_connect_gpio_out_named(nvic, "SYSRESETREQ", 0,
                                 qemu_allocate_irq(&do_sys_reset, NULL, 0));
@@ -1435,16 +1435,12 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
 static void lm3s811evb_init(MachineState *machine)
 {
-    const char *cpu_model = machine->cpu_model;
-    const char *kernel_filename = machine->kernel_filename;
-    stellaris_init(kernel_filename, cpu_model, &stellaris_boards[0]);
+    stellaris_init(machine, &stellaris_boards[0]);
 }
 
 static void lm3s6965evb_init(MachineState *machine)
 {
-    const char *cpu_model = machine->cpu_model;
-    const char *kernel_filename = machine->kernel_filename;
-    stellaris_init(kernel_filename, cpu_model, &stellaris_boards[1]);
+    stellaris_init(machine, &stellaris_boards[1]);
 }
 
 static void lm3s811evb_class_init(ObjectClass *oc, void *data)
@@ -1454,6 +1450,7 @@ static void lm3s811evb_class_init(ObjectClass *oc, void *data)
     mc->desc = "Stellaris LM3S811EVB";
     mc->init = lm3s811evb_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
 }
 
 static const TypeInfo lm3s811evb_type = {
@@ -1469,6 +1466,7 @@ static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
     mc->desc = "Stellaris LM3S6965EVB";
     mc->init = lm3s6965evb_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
 }
 
 static const TypeInfo lm3s6965evb_type = {

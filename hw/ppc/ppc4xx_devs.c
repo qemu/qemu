@@ -57,11 +57,6 @@ PowerPCCPU *ppc4xx_init(const char *cpu_model,
 
     /* init CPUs */
     cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, cpu_model));
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to find PowerPC %s CPU definition\n",
-                cpu_model);
-        exit(1);
-    }
     env = &cpu->env;
 
     cpu_clk->cb = NULL; /* We don't care about CPU clock frequency changes */

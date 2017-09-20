@@ -164,10 +164,6 @@ mips_mipssim_init(MachineState *machine)
 #endif
     }
     cpu = cpu_mips_init(cpu_model);
-    if (cpu == NULL) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
-    }
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));

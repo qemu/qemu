@@ -193,6 +193,11 @@ void user_creatable_del(const char *id, Error **errp)
     object_unparent(obj);
 }
 
+void user_creatable_cleanup(void)
+{
+    object_unparent(object_get_objects_root());
+}
+
 static void register_types(void)
 {
     static const TypeInfo uc_interface_info = {

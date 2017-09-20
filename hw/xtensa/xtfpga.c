@@ -233,11 +233,6 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 
     for (n = 0; n < smp_cpus; n++) {
         cpu = XTENSA_CPU(cpu_generic_init(TYPE_XTENSA_CPU, cpu_model));
-        if (cpu == NULL) {
-            error_report("unable to find CPU definition '%s'",
-                         cpu_model);
-            exit(EXIT_FAILURE);
-        }
         env = &cpu->env;
 
         env->sregs[PRID] = n;

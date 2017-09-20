@@ -4323,10 +4323,6 @@ int main(int argc, char **argv, char **envp)
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
     cpu = cpu_init(cpu_model);
-    if (!cpu) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(EXIT_FAILURE);
-    }
     env = cpu->env_ptr;
     cpu_reset(cpu);
 

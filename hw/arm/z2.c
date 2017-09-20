@@ -26,6 +26,7 @@
 #include "audio/audio.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "cpu.h"
 
 #ifdef DEBUG_Z2
 #define DPRINTF(fmt, ...) \
@@ -296,7 +297,6 @@ static const TypeInfo aer915_info = {
 
 static void z2_init(MachineState *machine)
 {
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -309,12 +309,8 @@ static void z2_init(MachineState *machine)
     I2CBus *bus;
     DeviceState *wm;
 
-    if (!cpu_model) {
-        cpu_model = "pxa270-c5";
-    }
-
     /* Setup CPU & memory */
-    mpu = pxa270_init(address_space_mem, z2_binfo.ram_size, cpu_model);
+    mpu = pxa270_init(address_space_mem, z2_binfo.ram_size, machine->cpu_type);
 
 #ifdef TARGET_WORDS_BIGENDIAN
     be = 1;
@@ -371,6 +367,7 @@ static void z2_machine_init(MachineClass *mc)
     mc->desc = "Zipit Z2 (PXA27x)";
     mc->init = z2_init;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c5");
 }
 
 DEFINE_MACHINE("z2", z2_machine_init)

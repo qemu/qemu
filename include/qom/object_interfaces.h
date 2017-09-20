@@ -147,4 +147,12 @@ int user_creatable_add_opts_foreach(void *opaque,
  */
 void user_creatable_del(const char *id, Error **errp);
 
+/**
+ * user_creatable_cleanup:
+ *
+ * Delete all user-creatable objects and the user-creatable
+ * objects container.
+ */
+void user_creatable_cleanup(void);
+
 #endif

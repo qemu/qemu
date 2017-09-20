@@ -169,15 +169,11 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem)
     Exynos4210State *s = g_new(Exynos4210State, 1);
     qemu_irq gate_irq[EXYNOS4210_NCPUS][EXYNOS4210_IRQ_GATE_NINPUTS];
     SysBusDevice *busdev;
-    ObjectClass *cpu_oc;
     DeviceState *dev;
     int i, n;
 
-    cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, "cortex-a9");
-    assert(cpu_oc);
-
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        Object *cpuobj = object_new(object_class_get_name(cpu_oc));
+        Object *cpuobj = object_new(ARM_CPU_TYPE_NAME("cortex-a9"));
 
         /* By default A9 CPUs have EL3 enabled.  This board does not currently
          * support EL3 so the CPU EL3 property is disabled before realization.
