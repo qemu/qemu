@@ -161,6 +161,8 @@ static int nbd_co_send_request(BlockDriverState *bs,
                                        NULL) < 0) {
                 rc = -EIO;
             }
+        } else if (rc >= 0) {
+            rc = -EIO;
         }
         qio_channel_set_cork(s->ioc, false);
     } else {
