@@ -1748,17 +1748,26 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         if (err < 0) {
             break;
         }
-        /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
-        len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
+        if ((count + v9stat.size + 2) > max_count) {
+            v9fs_readdir_unlock(&fidp->fs.dir);
 
-        v9fs_readdir_unlock(&fidp->fs.dir);
-
-        if ((len != (v9stat.size + 2)) || ((count + len) > max_count)) {
             /* Ran out of buffer. Set dir back to old position and return */
             v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_stat_free(&v9stat);
             v9fs_path_free(&path);
             return count;
+        }
+
+        /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
+        len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
+
+        v9fs_readdir_unlock(&fidp->fs.dir);
+
+        if (len < 0) {
+            v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
+            v9fs_stat_free(&v9stat);
+            v9fs_path_free(&path);
+            return len;
         }
         count += len;
         v9fs_stat_free(&v9stat);
