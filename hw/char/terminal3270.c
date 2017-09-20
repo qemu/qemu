@@ -182,14 +182,18 @@ static void terminal_init(EmulatedCcw3270Device *dev, Error **errp)
                              terminal_read, chr_event, NULL, t, NULL, true);
 }
 
-static int read_payload_3270(EmulatedCcw3270Device *dev, uint32_t cda,
-                             uint16_t count)
+static inline CcwDataStream *get_cds(Terminal3270 *t)
+{
+    return &(CCW_DEVICE(&t->cdev)->sch->cds);
+}
+
+static int read_payload_3270(EmulatedCcw3270Device *dev)
 {
     Terminal3270 *t = TERMINAL_3270(dev);
     int len;
 
-    len = MIN(count, t->in_len);
-    cpu_physical_memory_write(cda, t->inv, len);
+    len = MIN(ccw_dstream_avail(get_cds(t)), t->in_len);
+    ccw_dstream_write_buf(get_cds(t), t->inv, len);
     t->in_len -= len;
 
     return len;
@@ -222,11 +226,11 @@ static int insert_IAC_escape_char(uint8_t *outv, int out_len)
  * Write 3270 outbound to socket.
  * Return the count of 3270 data field if succeeded, zero if failed.
  */
-static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd,
-                              uint32_t cda, uint16_t count)
+static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd)
 {
     Terminal3270 *t = TERMINAL_3270(dev);
     int retval = 0;
+    int count = ccw_dstream_avail(get_cds(t));
 
     assert(count <= (OUTPUT_BUFFER_SIZE - 3) / 2);
 
@@ -244,7 +248,7 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd,
         return count;
     }
     t->outv[0] = cmd;
-    cpu_physical_memory_read(cda, &t->outv[1], count);
+    ccw_dstream_read_buf(get_cds(t), &t->outv[1], count);
     t->out_len = count + 1;
 
     t->out_len = insert_IAC_escape_char(t->outv, t->out_len);

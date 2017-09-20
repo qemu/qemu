@@ -28,7 +28,7 @@ static int handle_payload_3270_read(EmulatedCcw3270Device *dev, CCW1 *ccw)
         return -EFAULT;
     }
 
-    len = ck->read_payload_3270(dev, ccw->cda, ccw->count);
+    len = ck->read_payload_3270(dev);
     ccw_dev->sch->curr_status.scsw.count = ccw->count - len;
 
     return 0;
@@ -45,7 +45,7 @@ static int handle_payload_3270_write(EmulatedCcw3270Device *dev, CCW1 *ccw)
         return -EFAULT;
     }
 
-    len = ck->write_payload_3270(dev, ccw->cmd_code, ccw->cda, ccw->count);
+    len = ck->write_payload_3270(dev, ccw->cmd_code);
 
     if (len <= 0) {
         return -EIO;

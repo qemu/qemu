@@ -45,9 +45,8 @@ typedef struct EmulatedCcw3270Class {
     CCWDeviceClass parent_class;
 
     void (*init)(EmulatedCcw3270Device *, Error **);
-    int (*read_payload_3270)(EmulatedCcw3270Device *, uint32_t, uint16_t);
-    int (*write_payload_3270)(EmulatedCcw3270Device *, uint8_t, uint32_t,
-                              uint16_t);
+    int (*read_payload_3270)(EmulatedCcw3270Device *);
+    int (*write_payload_3270)(EmulatedCcw3270Device *, uint8_t);
 } EmulatedCcw3270Class;
 
 #endif
