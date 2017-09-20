@@ -71,7 +71,7 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     bool itu_present = false;
 
     for (i = 0; i < s->num_vp; i++) {
-        cpu = cpu_mips_init(s->cpu_model);
+        cpu = MIPS_CPU(cpu_generic_init(TYPE_MIPS_CPU, s->cpu_model));
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
