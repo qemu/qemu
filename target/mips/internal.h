@@ -132,6 +132,7 @@ void mips_tcg_init(void);
 
 /* TODO QOM'ify CPU reset and remove */
 void cpu_state_reset(CPUMIPSState *s);
+void cpu_mips_realize_env(CPUMIPSState *env);
 
 /* cp0_timer.c */
 uint32_t cpu_mips_get_random(CPUMIPSState *env);
