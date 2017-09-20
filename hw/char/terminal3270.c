@@ -30,7 +30,6 @@ typedef struct Terminal3270 {
     uint8_t inv[INPUT_BUFFER_SIZE];
     uint8_t outv[OUTPUT_BUFFER_SIZE];
     int in_len;
-    int out_len;
     bool handshake_done;
     guint timer_tag;
 } Terminal3270;
@@ -145,7 +144,6 @@ static void chr_event(void *opaque, int event)
 
     /* Ensure the initial status correct, always reset them. */
     t->in_len = 0;
-    t->out_len = 0;
     t->handshake_done = false;
     if (t->timer_tag) {
         g_source_remove(t->timer_tag);
@@ -231,8 +229,9 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd)
     Terminal3270 *t = TERMINAL_3270(dev);
     int retval = 0;
     int count = ccw_dstream_avail(get_cds(t));
-
-    assert(count <= (OUTPUT_BUFFER_SIZE - 3) / 2);
+    int bound = (OUTPUT_BUFFER_SIZE - 3) / 2;
+    int len = MIN(count, bound);
+    int out_len = 0;
 
     if (!t->handshake_done) {
         if (!(t->outv[0] == IAC && t->outv[1] != IAC)) {
@@ -247,16 +246,23 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd)
         /* We just say we consumed all data if there's no backend. */
         return count;
     }
-    t->outv[0] = cmd;
-    ccw_dstream_read_buf(get_cds(t), &t->outv[1], count);
-    t->out_len = count + 1;
 
-    t->out_len = insert_IAC_escape_char(t->outv, t->out_len);
-    t->outv[t->out_len++] = IAC;
-    t->outv[t->out_len++] = IAC_EOR;
+    t->outv[out_len++] = cmd;
+    do {
+        ccw_dstream_read_buf(get_cds(t), &t->outv[out_len], len);
+        count = ccw_dstream_avail(get_cds(t));
+        out_len += len;
 
-    retval = qemu_chr_fe_write_all(&t->chr, t->outv, t->out_len);
-    return (retval <= 0) ? 0 : (retval - 3);
+        out_len = insert_IAC_escape_char(t->outv, out_len);
+        if (!count) {
+            t->outv[out_len++] = IAC;
+            t->outv[out_len++] = IAC_EOR;
+        }
+        retval = qemu_chr_fe_write_all(&t->chr, t->outv, out_len);
+        len = MIN(count, bound);
+        out_len = 0;
+    } while (len && retval >= 0);
+    return (retval <= 0) ? 0 : get_cds(t)->count;
 }
 
 static Property terminal_properties[] = {
