@@ -24,6 +24,7 @@
 #include "hw/mips/cpudevs.h"
 #include "qemu/timer.h"
 #include "sysemu/kvm.h"
+#include "internal.h"
 
 #define TIMER_PERIOD 10 /* 10 ns period for 100 Mhz frequency */
 
