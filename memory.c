@@ -2907,18 +2907,44 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     }
 }
 
-static void mtree_print_flatview(fprintf_function p, void *f,
-                                 AddressSpace *as)
+struct FlatViewInfo {
+    fprintf_function mon_printf;
+    void *f;
+    int counter;
+    bool dispatch_tree;
+};
+
+static void mtree_print_flatview(gpointer key, gpointer value,
+                                 gpointer user_data)
 {
-    FlatView *view = address_space_get_flatview(as);
+    FlatView *view = key;
+    GArray *fv_address_spaces = value;
+    struct FlatViewInfo *fvi = user_data;
+    fprintf_function p = fvi->mon_printf;
+    void *f = fvi->f;
     FlatRange *range = &view->ranges[0];
     MemoryRegion *mr;
     int n = view->nr;
+    int i;
+    AddressSpace *as;
+
+    p(f, "FlatView #%d\n", fvi->counter);
+    ++fvi->counter;
+
+    for (i = 0; i < fv_address_spaces->len; ++i) {
+        as = g_array_index(fv_address_spaces, AddressSpace*, i);
+        p(f, " AS \"%s\", root: %s", as->name, memory_region_name(as->root));
+        if (as->root->alias) {
+            p(f, ", alias %s", memory_region_name(as->root->alias));
+        }
+        p(f, "\n");
+    }
+
+    p(f, " Root memory region: %s\n",
+      view->root ? memory_region_name(view->root) : "(none)");
 
     if (n <= 0) {
-        p(f, MTREE_INDENT "No rendered FlatView for "
-          "address space '%s'\n", as->name);
-        flatview_unref(view);
+        p(f, MTREE_INDENT "No rendered FlatView\n\n");
         return;
     }
 
@@ -2945,21 +2971,65 @@ static void mtree_print_flatview(fprintf_function p, void *f,
         range++;
     }
 
-    flatview_unref(view);
+#if !defined(CONFIG_USER_ONLY)
+    if (fvi->dispatch_tree && view->root) {
+        mtree_print_dispatch(p, f, view->dispatch, view->root);
+    }
+#endif
+
+    p(f, "\n");
 }
 
-void mtree_info(fprintf_function mon_printf, void *f, bool flatview)
+static gboolean mtree_info_flatview_free(gpointer key, gpointer value,
+                                      gpointer user_data)
+{
+    FlatView *view = key;
+    GArray *fv_address_spaces = value;
+
+    g_array_unref(fv_address_spaces);
+    flatview_unref(view);
+
+    return true;
+}
+
+void mtree_info(fprintf_function mon_printf, void *f, bool flatview,
+                bool dispatch_tree)
 {
     MemoryRegionListHead ml_head;
     MemoryRegionList *ml, *ml2;
     AddressSpace *as;
 
     if (flatview) {
+        FlatView *view;
+        struct FlatViewInfo fvi = {
+            .mon_printf = mon_printf,
+            .f = f,
+            .counter = 0,
+            .dispatch_tree = dispatch_tree
+        };
+        GArray *fv_address_spaces;
+        GHashTable *views = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+        /* Gather all FVs in one table */
         QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-            mon_printf(f, "address-space (flat view): %s\n", as->name);
-            mtree_print_flatview(mon_printf, f, as);
-            mon_printf(f, "\n");
+            view = address_space_get_flatview(as);
+
+            fv_address_spaces = g_hash_table_lookup(views, view);
+            if (!fv_address_spaces) {
+                fv_address_spaces = g_array_new(false, false, sizeof(as));
+                g_hash_table_insert(views, view, fv_address_spaces);
+            }
+
+            g_array_append_val(fv_address_spaces, as);
         }
+
+        /* Print */
+        g_hash_table_foreach(views, mtree_print_flatview, &fvi);
+
+        /* Free */
+        g_hash_table_foreach_remove(views, mtree_info_flatview_free, 0);
+        g_hash_table_unref(views);
+
         return;
     }
 
