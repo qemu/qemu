@@ -48,6 +48,7 @@
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
+typedef struct FlatView FlatView;
 
 struct MemoryRegionMmio {
     CPUReadMemoryFunc *read[3];
@@ -320,6 +321,8 @@ struct AddressSpace {
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 };
 
+FlatView *address_space_to_flatview(AddressSpace *as);
+
 /**
  * MemoryRegionSection: describes a fragment of a #MemoryRegion
  *
@@ -333,7 +336,7 @@ struct AddressSpace {
  */
 struct MemoryRegionSection {
     MemoryRegion *mr;
-    AddressSpace *address_space;
+    FlatView *fv;
     hwaddr offset_within_region;
     Int128 size;
     hwaddr offset_within_address_space;
@@ -1842,9 +1845,17 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
  * @len: pointer to length
  * @is_write: indicates the transfer direction
  */
-MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
-                                      hwaddr *xlat, hwaddr *len,
-                                      bool is_write);
+MemoryRegion *flatview_translate(FlatView *fv,
+                                 hwaddr addr, hwaddr *xlat,
+                                 hwaddr *len, bool is_write);
+
+static inline MemoryRegion *address_space_translate(AddressSpace *as,
+                                                    hwaddr addr, hwaddr *xlat,
+                                                    hwaddr *len, bool is_write)
+{
+    return flatview_translate(address_space_to_flatview(as),
+                              addr, xlat, len, is_write);
+}
 
 /* address_space_access_valid: check for validity of accessing an address
  * space range
@@ -1895,12 +1906,13 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 
 
 /* Internal functions, part of the implementation of address_space_read.  */
-MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
-                                        MemTxAttrs attrs, uint8_t *buf,
-                                        int len, hwaddr addr1, hwaddr l,
-					MemoryRegion *mr);
-MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
-                                    MemTxAttrs attrs, uint8_t *buf, int len);
+MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
+                                   MemTxAttrs attrs, uint8_t *buf,
+                                   int len, hwaddr addr1, hwaddr l,
+                                   MemoryRegion *mr);
+
+MemTxResult flatview_read_full(FlatView *fv, hwaddr addr,
+                               MemTxAttrs attrs, uint8_t *buf, int len);
 void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
@@ -1927,8 +1939,8 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
  * @buf: buffer with the data transferred
  */
 static inline __attribute__((__always_inline__))
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len)
+MemTxResult flatview_read(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
+                          uint8_t *buf, int len)
 {
     MemTxResult result = MEMTX_OK;
     hwaddr l, addr1;
@@ -1939,20 +1951,27 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         if (len) {
             rcu_read_lock();
             l = len;
-            mr = address_space_translate(as, addr, &addr1, &l, false);
+            mr = flatview_translate(fv, addr, &addr1, &l, false);
             if (len == l && memory_access_is_direct(mr, false)) {
                 ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
                 memcpy(buf, ptr, len);
             } else {
-                result = address_space_read_continue(as, addr, attrs, buf, len,
-                                                     addr1, l, mr);
+                result = flatview_read_continue(fv, addr, attrs, buf, len,
+                                                addr1, l, mr);
             }
             rcu_read_unlock();
         }
     } else {
-        result = address_space_read_full(as, addr, attrs, buf, len);
+        result = flatview_read_full(fv, addr, attrs, buf, len);
     }
     return result;
+}
+
+static inline MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
+                                             MemTxAttrs attrs, uint8_t *buf,
+                                             int len)
+{
+    return flatview_read(address_space_to_flatview(as), addr, attrs, buf, len);
 }
 
 /**
