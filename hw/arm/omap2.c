@@ -2087,19 +2087,44 @@ static void omap_sysctl_write(void *opaque, hwaddr addr,
     }
 }
 
+static uint64_t omap_sysctl_readfn(void *opaque, hwaddr addr,
+                                   unsigned size)
+{
+    switch (size) {
+    case 1:
+        return omap_sysctl_read8(opaque, addr);
+    case 2:
+        return omap_badwidth_read32(opaque, addr); /* TODO */
+    case 4:
+        return omap_sysctl_read(opaque, addr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void omap_sysctl_writefn(void *opaque, hwaddr addr,
+                                uint64_t value, unsigned size)
+{
+    switch (size) {
+    case 1:
+        omap_sysctl_write8(opaque, addr, value);
+        break;
+    case 2:
+        omap_badwidth_write32(opaque, addr, value); /* TODO */
+        break;
+    case 4:
+        omap_sysctl_write(opaque, addr, value);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static const MemoryRegionOps omap_sysctl_ops = {
-    .old_mmio = {
-        .read = {
-            omap_sysctl_read8,
-            omap_badwidth_read32,	/* TODO */
-            omap_sysctl_read,
-        },
-        .write = {
-            omap_sysctl_write8,
-            omap_badwidth_write32,	/* TODO */
-            omap_sysctl_write,
-        },
-    },
+    .read = omap_sysctl_readfn,
+    .write = omap_sysctl_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

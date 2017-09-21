@@ -6218,6 +6218,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     bool return_to_sp_process = false;
     bool return_to_handler = false;
     bool rettobase = false;
+    bool exc_secure = false;
 
     /* We can only get here from an EXCP_EXCEPTION_EXIT, and
      * gen_bx_excret() enforces the architectural rule
@@ -6256,16 +6257,17 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
          * which security state's faultmask to clear. (v8M ARM ARM R_KBNF.)
          */
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
-            int es = excret & R_V7M_EXCRET_ES_MASK;
+            exc_secure = excret & R_V7M_EXCRET_ES_MASK;
             if (armv7m_nvic_raw_execution_priority(env->nvic) >= 0) {
-                env->v7m.faultmask[es] = 0;
+                env->v7m.faultmask[exc_secure] = 0;
             }
         } else {
             env->v7m.faultmask[M_REG_NS] = 0;
         }
     }
 
-    switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception)) {
+    switch (armv7m_nvic_complete_irq(env->nvic, env->v7m.exception,
+                                     exc_secure)) {
     case -1:
         /* attempt to exit an exception that isn't active */
         ufault = true;
@@ -6306,7 +6308,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
          * stack, directly take a usage fault on the current stack.
          */
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVPC_MASK;
-        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
         v7m_exception_taken(cpu, excret);
         qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
                       "stackframe: failed exception return integrity check\n");
@@ -6345,8 +6347,11 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
      * exception return excret specified then this is a UsageFault.
      */
     if (return_to_handler != arm_v7m_is_handler_mode(env)) {
-        /* Take an INVPC UsageFault by pushing the stack again. */
-        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        /* Take an INVPC UsageFault by pushing the stack again.
+         * TODO: the v8M version of this code should target the
+         * background state for this exception.
+         */
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, false);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVPC_MASK;
         v7m_push_stack(cpu);
         v7m_exception_taken(cpu, excret);
@@ -6406,20 +6411,20 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
        handle it.  */
     switch (cs->exception_index) {
     case EXCP_UDEF:
-        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_UNDEFINSTR_MASK;
         break;
     case EXCP_NOCP:
-        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_NOCP_MASK;
         break;
     case EXCP_INVSTATE:
-        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVSTATE_MASK;
         break;
     case EXCP_SWI:
         /* The PC already points to the next instruction.  */
-        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SVC);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SVC, env->v7m.secure);
         break;
     case EXCP_PREFETCH_ABORT:
     case EXCP_DATA_ABORT:
@@ -6443,7 +6448,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
                               env->v7m.bfar);
                 break;
             }
-            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_BUS);
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_BUS, false);
             break;
         default:
             /* All other FSR values are either MPU faults or "can't happen
@@ -6463,7 +6468,8 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
                               env->v7m.mmfar[env->v7m.secure]);
                 break;
             }
-            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_MEM);
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_MEM,
+                                    env->v7m.secure);
             break;
         }
         break;
@@ -6480,7 +6486,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
                 return;
             }
         }
-        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_DEBUG);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_DEBUG, false);
         break;
     case EXCP_IRQ:
         break;
@@ -8892,10 +8898,66 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         break;
     case 20: /* CONTROL */
         return env->v7m.control[env->v7m.secure];
+    case 0x94: /* CONTROL_NS */
+        /* We have to handle this here because unprivileged Secure code
+         * can read the NS CONTROL register.
+         */
+        if (!env->v7m.secure) {
+            return 0;
+        }
+        return env->v7m.control[M_REG_NS];
     }
 
     if (el == 0) {
         return 0; /* unprivileged reads others as zero */
+    }
+
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        switch (reg) {
+        case 0x88: /* MSP_NS */
+            if (!env->v7m.secure) {
+                return 0;
+            }
+            return env->v7m.other_ss_msp;
+        case 0x89: /* PSP_NS */
+            if (!env->v7m.secure) {
+                return 0;
+            }
+            return env->v7m.other_ss_psp;
+        case 0x90: /* PRIMASK_NS */
+            if (!env->v7m.secure) {
+                return 0;
+            }
+            return env->v7m.primask[M_REG_NS];
+        case 0x91: /* BASEPRI_NS */
+            if (!env->v7m.secure) {
+                return 0;
+            }
+            return env->v7m.basepri[M_REG_NS];
+        case 0x93: /* FAULTMASK_NS */
+            if (!env->v7m.secure) {
+                return 0;
+            }
+            return env->v7m.faultmask[M_REG_NS];
+        case 0x98: /* SP_NS */
+        {
+            /* This gives the non-secure SP selected based on whether we're
+             * currently in handler mode or not, using the NS CONTROL.SPSEL.
+             */
+            bool spsel = env->v7m.control[M_REG_NS] & R_V7M_CONTROL_SPSEL_MASK;
+
+            if (!env->v7m.secure) {
+                return 0;
+            }
+            if (!arm_v7m_is_handler_mode(env) && spsel) {
+                return env->v7m.other_ss_psp;
+            } else {
+                return env->v7m.other_ss_msp;
+            }
+        }
+        default:
+            break;
+        }
     }
 
     switch (reg) {
@@ -8934,6 +8996,60 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
     if (arm_current_el(env) == 0 && reg > 7) {
         /* only xPSR sub-fields may be written by unprivileged */
         return;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        switch (reg) {
+        case 0x88: /* MSP_NS */
+            if (!env->v7m.secure) {
+                return;
+            }
+            env->v7m.other_ss_msp = val;
+            return;
+        case 0x89: /* PSP_NS */
+            if (!env->v7m.secure) {
+                return;
+            }
+            env->v7m.other_ss_psp = val;
+            return;
+        case 0x90: /* PRIMASK_NS */
+            if (!env->v7m.secure) {
+                return;
+            }
+            env->v7m.primask[M_REG_NS] = val & 1;
+            return;
+        case 0x91: /* BASEPRI_NS */
+            if (!env->v7m.secure) {
+                return;
+            }
+            env->v7m.basepri[M_REG_NS] = val & 0xff;
+            return;
+        case 0x93: /* FAULTMASK_NS */
+            if (!env->v7m.secure) {
+                return;
+            }
+            env->v7m.faultmask[M_REG_NS] = val & 1;
+            return;
+        case 0x98: /* SP_NS */
+        {
+            /* This gives the non-secure SP selected based on whether we're
+             * currently in handler mode or not, using the NS CONTROL.SPSEL.
+             */
+            bool spsel = env->v7m.control[M_REG_NS] & R_V7M_CONTROL_SPSEL_MASK;
+
+            if (!env->v7m.secure) {
+                return;
+            }
+            if (!arm_v7m_is_handler_mode(env) && spsel) {
+                env->v7m.other_ss_psp = val;
+            } else {
+                env->v7m.other_ss_msp = val;
+            }
+            return;
+        }
+        default:
+            break;
+        }
     }
 
     switch (reg) {

@@ -449,6 +449,7 @@ typedef struct CPUARMState {
         int exception;
         uint32_t primask[M_REG_NUM_BANKS];
         uint32_t faultmask[M_REG_NUM_BANKS];
+        uint32_t aircr; /* only holds r/w state if security extn implemented */
         uint32_t secure; /* Is CPU in Secure state? (not guest visible) */
     } v7m;
 
@@ -1200,6 +1201,17 @@ FIELD(V7M_CCR, STKALIGN, 9, 1)
 FIELD(V7M_CCR, DC, 16, 1)
 FIELD(V7M_CCR, IC, 17, 1)
 
+/* V7M AIRCR bits */
+FIELD(V7M_AIRCR, VECTRESET, 0, 1)
+FIELD(V7M_AIRCR, VECTCLRACTIVE, 1, 1)
+FIELD(V7M_AIRCR, SYSRESETREQ, 2, 1)
+FIELD(V7M_AIRCR, SYSRESETREQS, 3, 1)
+FIELD(V7M_AIRCR, PRIGROUP, 8, 3)
+FIELD(V7M_AIRCR, BFHFNMINS, 13, 1)
+FIELD(V7M_AIRCR, PRIS, 14, 1)
+FIELD(V7M_AIRCR, ENDIANNESS, 15, 1)
+FIELD(V7M_AIRCR, VECTKEY, 16, 16)
+
 /* V7M CFSR bits for MMFSR */
 FIELD(V7M_CFSR, IACCVIOL, 0, 1)
 FIELD(V7M_CFSR, DACCVIOL, 1, 1)
@@ -1451,19 +1463,42 @@ static inline bool armv7m_nvic_can_take_pending_exception(void *opaque)
     return true;
 }
 #endif
-void armv7m_nvic_set_pending(void *opaque, int irq);
-void armv7m_nvic_acknowledge_irq(void *opaque);
+/**
+ * armv7m_nvic_set_pending: mark the specified exception as pending
+ * @opaque: the NVIC
+ * @irq: the exception number to mark pending
+ * @secure: false for non-banked exceptions or for the nonsecure
+ * version of a banked exception, true for the secure version of a banked
+ * exception.
+ *
+ * Marks the specified exception as pending. Note that we will assert()
+ * if @secure is true and @irq does not specify one of the fixed set
+ * of architecturally banked exceptions.
+ */
+void armv7m_nvic_set_pending(void *opaque, int irq, bool secure);
+/**
+ * armv7m_nvic_acknowledge_irq: make highest priority pending exception active
+ * @opaque: the NVIC
+ *
+ * Move the current highest priority pending exception from the pending
+ * state to the active state, and update v7m.exception to indicate that
+ * it is the exception currently being handled.
+ *
+ * Returns: true if exception should be taken to Secure state, false for NS
+ */
+bool armv7m_nvic_acknowledge_irq(void *opaque);
 /**
  * armv7m_nvic_complete_irq: complete specified interrupt or exception
  * @opaque: the NVIC
  * @irq: the exception number to complete
+ * @secure: true if this exception was secure
  *
  * Returns: -1 if the irq was not active
  *           1 if completing this irq brought us back to base (no active irqs)
  *           0 if there is still an irq active after this one was completed
  * (Ignoring -1, this is the same as the RETTOBASE value before completion.)
  */
-int armv7m_nvic_complete_irq(void *opaque, int irq);
+int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure);
 /**
  * armv7m_nvic_raw_execution_priority: return the raw execution priority
  * @opaque: the NVIC
@@ -1474,6 +1509,21 @@ int armv7m_nvic_complete_irq(void *opaque, int irq);
  * (v8M ARM ARM I_PKLD.)
  */
 int armv7m_nvic_raw_execution_priority(void *opaque);
+/**
+ * armv7m_nvic_neg_prio_requested: return true if the requested execution
+ * priority is negative for the specified security state.
+ * @opaque: the NVIC
+ * @secure: the security state to test
+ * This corresponds to the pseudocode IsReqExecPriNeg().
+ */
+#ifndef CONFIG_USER_ONLY
+bool armv7m_nvic_neg_prio_requested(void *opaque, bool secure);
+#else
+static inline bool armv7m_nvic_neg_prio_requested(void *opaque, bool secure)
+{
+    return false;
+}
+#endif
 
 /* Interface for defining coprocessor registers.
  * Registers are defined in tables of arm_cp_reginfo structs
@@ -2259,11 +2309,7 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
     if (arm_feature(env, ARM_FEATURE_M)) {
         ARMMMUIdx mmu_idx = el == 0 ? ARMMMUIdx_MUser : ARMMMUIdx_MPriv;
 
-        /* Execution priority is negative if FAULTMASK is set or
-         * we're in a HardFault or NMI handler.
-         */
-        if ((env->v7m.exception > 0 && env->v7m.exception <= 3)
-            || env->v7m.faultmask[env->v7m.secure]) {
+        if (armv7m_nvic_neg_prio_requested(env->nvic, env->v7m.secure)) {
             mmu_idx = ARMMMUIdx_MNegPri;
         }
 

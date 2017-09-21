@@ -68,25 +68,32 @@ static uint32_t omap_synctimer_readh(void *opaque, hwaddr addr)
     }
 }
 
-static void omap_synctimer_write(void *opaque, hwaddr addr,
-                uint32_t value)
+static uint64_t omap_synctimer_readfn(void *opaque, hwaddr addr,
+                                      unsigned size)
+{
+    switch (size) {
+    case 1:
+        return omap_badwidth_read32(opaque, addr);
+    case 2:
+        return omap_synctimer_readh(opaque, addr);
+    case 4:
+        return omap_synctimer_readw(opaque, addr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void omap_synctimer_writefn(void *opaque, hwaddr addr,
+                                   uint64_t value, unsigned size)
 {
     OMAP_BAD_REG(addr);
 }
 
 static const MemoryRegionOps omap_synctimer_ops = {
-    .old_mmio = {
-        .read = {
-            omap_badwidth_read32,
-            omap_synctimer_readh,
-            omap_synctimer_readw,
-        },
-        .write = {
-            omap_badwidth_write32,
-            omap_synctimer_write,
-            omap_synctimer_write,
-        },
-    },
+    .read = omap_synctimer_readfn,
+    .write = omap_synctimer_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

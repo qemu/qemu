@@ -187,6 +187,13 @@ static void arm_cpu_reset(CPUState *s)
 
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
             env->v7m.secure = true;
+        } else {
+            /* This bit resets to 0 if security is supported, but 1 if
+             * it is not. The bit is not present in v7M, but we set it
+             * here so we can avoid having to make checks on it conditional
+             * on ARM_FEATURE_V8 (we don't let the guest see the bit).
+             */
+            env->v7m.aircr = R_V7M_AIRCR_BFHFNMINS_MASK;
         }
 
         /* In v7M the reset value of this bit is IMPDEF, but ARM recommends

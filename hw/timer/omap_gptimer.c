@@ -450,19 +450,44 @@ static void omap_gp_timer_writeh(void *opaque, hwaddr addr,
         s->writeh = (uint16_t) value;
 }
 
+static uint64_t omap_gp_timer_readfn(void *opaque, hwaddr addr,
+                                     unsigned size)
+{
+    switch (size) {
+    case 1:
+        return omap_badwidth_read32(opaque, addr);
+    case 2:
+        return omap_gp_timer_readh(opaque, addr);
+    case 4:
+        return omap_gp_timer_readw(opaque, addr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void omap_gp_timer_writefn(void *opaque, hwaddr addr,
+                                  uint64_t value, unsigned size)
+{
+    switch (size) {
+    case 1:
+        omap_badwidth_write32(opaque, addr, value);
+        break;
+    case 2:
+        omap_gp_timer_writeh(opaque, addr, value);
+        break;
+    case 4:
+        omap_gp_timer_write(opaque, addr, value);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static const MemoryRegionOps omap_gp_timer_ops = {
-    .old_mmio = {
-        .read = {
-            omap_badwidth_read32,
-            omap_gp_timer_readh,
-            omap_gp_timer_readw,
-        },
-        .write = {
-            omap_badwidth_write32,
-            omap_gp_timer_writeh,
-            omap_gp_timer_write,
-        },
-    },
+    .read = omap_gp_timer_readfn,
+    .write = omap_gp_timer_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
