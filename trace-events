@@ -64,6 +64,9 @@ memory_region_tb_read(int cpu_index, uint64_t addr, uint64_t value, unsigned siz
 memory_region_tb_write(int cpu_index, uint64_t addr, uint64_t value, unsigned size) "cpu %d addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
 memory_region_ram_device_read(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
 memory_region_ram_device_write(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
+flatview_new(FlatView *view, MemoryRegion *root) "%p (root %p)"
+flatview_destroy(FlatView *view, MemoryRegion *root) "%p (root %p)"
+flatview_destroy_rcu(FlatView *view, MemoryRegion *root) "%p (root %p)"
 
 ### Guest events, keep at bottom
 

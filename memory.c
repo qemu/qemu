@@ -270,6 +270,7 @@ static FlatView *flatview_new(MemoryRegion *mr_root)
     view->ref = 1;
     view->root = mr_root;
     memory_region_ref(mr_root);
+    trace_flatview_new(view, mr_root);
 
     return view;
 }
@@ -295,6 +296,7 @@ static void flatview_destroy(FlatView *view)
 {
     int i;
 
+    trace_flatview_destroy(view, view->root);
     if (view->dispatch) {
         address_space_dispatch_free(view->dispatch);
     }
@@ -314,6 +316,7 @@ static bool flatview_ref(FlatView *view)
 static void flatview_unref(FlatView *view)
 {
     if (atomic_fetch_dec(&view->ref) == 1) {
+        trace_flatview_destroy_rcu(view, view->root);
         call_rcu(view, flatview_destroy, rcu);
     }
 }
