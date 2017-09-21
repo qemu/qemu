@@ -1211,9 +1211,6 @@ static void s390_qemu_cpu_model_class_init(ObjectClass *oc, void *data)
                                 qemu_hw_version());
 }
 
-#define S390_CPU_TYPE_SUFFIX "-" TYPE_S390_CPU
-#define S390_CPU_TYPE_NAME(name) (name S390_CPU_TYPE_SUFFIX)
-
 /* Generate type name for a cpu model. Caller has to free the string. */
 static char *s390_cpu_type_name(const char *model_name)
 {
@@ -1234,14 +1231,6 @@ ObjectClass *s390_cpu_class_by_name(const char *name)
     oc = object_class_by_name(typename);
     g_free(typename);
     return oc;
-}
-
-const char *s390_default_cpu_model_name(void)
-{
-     if (kvm_enabled()) {
-        return "host";
-     }
-     return "qemu";
 }
 
 static const TypeInfo qemu_s390_cpu_type_info = {
