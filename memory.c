@@ -910,13 +910,13 @@ static void address_space_update_topology(AddressSpace *as)
     FlatView *new_view = generate_memory_topology(as->root);
     int i;
 
-    new_view->dispatch = mem_begin(as);
+    new_view->dispatch = address_space_dispatch_new(new_view);
     for (i = 0; i < new_view->nr; i++) {
         MemoryRegionSection mrs =
             section_from_flat_range(&new_view->ranges[i], new_view);
-        mem_add(new_view, &mrs);
+        flatview_add_to_dispatch(new_view, &mrs);
     }
-    mem_commit(new_view->dispatch);
+    address_space_dispatch_compact(new_view->dispatch);
 
     if (!QTAILQ_EMPTY(&as->listeners)) {
         address_space_update_topology_pass(as, old_view, new_view, false);
