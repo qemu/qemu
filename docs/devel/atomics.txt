@@ -63,6 +63,7 @@ operations:
     typeof(*ptr) atomic_fetch_sub(ptr, val)
     typeof(*ptr) atomic_fetch_and(ptr, val)
     typeof(*ptr) atomic_fetch_or(ptr, val)
+    typeof(*ptr) atomic_fetch_inc_nonzero(ptr)
     typeof(*ptr) atomic_xchg(ptr, val)
     typeof(*ptr) atomic_cmpxchg(ptr, old, new)
 
