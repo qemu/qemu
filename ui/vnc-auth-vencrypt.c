@@ -28,6 +28,7 @@
 #include "vnc.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
+#include "trace.h"
 
 static void start_auth_vencrypt_subauth(VncState *vs)
 {
@@ -121,6 +122,7 @@ static int protocol_client_vencrypt_auth(VncState *vs, uint8_t *data, size_t len
         VNC_DEBUG("Start TLS VeNCrypt handshake process\n");
         object_unref(OBJECT(vs->ioc));
         vs->ioc = QIO_CHANNEL(tls);
+        trace_vnc_client_io_wrap(vs, vs->ioc, "tls");
         vs->tls = qio_channel_tls_get_session(tls);
 
         qio_channel_tls_handshake(tls,
