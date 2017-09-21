@@ -521,8 +521,7 @@ static void tcp_chr_connect(void *opaque)
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
-static void tcp_chr_update_read_handler(Chardev *chr,
-                                        GMainContext *context)
+static void tcp_chr_update_read_handler(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 

@@ -187,7 +187,7 @@ void qemu_chr_be_update_read_handlers(Chardev *s,
 
     s->gcontext = context;
     if (cc->chr_update_read_handler) {
-        cc->chr_update_read_handler(s, context);
+        cc->chr_update_read_handler(s);
     }
 }
 

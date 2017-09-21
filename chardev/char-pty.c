@@ -112,8 +112,7 @@ static void pty_chr_update_read_handler_locked(Chardev *chr)
     }
 }
 
-static void pty_chr_update_read_handler(Chardev *chr,
-                                        GMainContext *context)
+static void pty_chr_update_read_handler(Chardev *chr)
 {
     qemu_mutex_lock(&chr->chr_write_lock);
     pty_chr_update_read_handler_locked(chr);

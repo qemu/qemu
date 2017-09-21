@@ -238,7 +238,7 @@ typedef struct ChardevClass {
     int (*chr_write)(Chardev *s, const uint8_t *buf, int len);
     int (*chr_sync_read)(Chardev *s, const uint8_t *buf, int len);
     GSource *(*chr_add_watch)(Chardev *s, GIOCondition cond);
-    void (*chr_update_read_handler)(Chardev *s, GMainContext *context);
+    void (*chr_update_read_handler)(Chardev *s);
     int (*chr_ioctl)(Chardev *s, int cmd, void *arg);
     int (*get_msgfds)(Chardev *s, int* fds, int num);
     int (*set_msgfds)(Chardev *s, int *fds, int num);
