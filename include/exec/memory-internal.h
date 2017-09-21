@@ -22,16 +22,18 @@
 #ifndef CONFIG_USER_ONLY
 typedef struct AddressSpaceDispatch AddressSpaceDispatch;
 
-void address_space_destroy_dispatch(AddressSpace *as);
-
 extern const MemoryRegionOps unassigned_mem_ops;
 
 bool memory_region_access_valid(MemoryRegion *mr, hwaddr addr,
                                 unsigned size, bool is_write);
 
-void mem_add(AddressSpace *as, MemoryRegionSection *section);
-void mem_begin(AddressSpace *as);
-void mem_commit(AddressSpace *as);
+void mem_add(AddressSpace *as, FlatView *fv, MemoryRegionSection *section);
+AddressSpaceDispatch *mem_begin(AddressSpace *as);
+void mem_commit(AddressSpaceDispatch *d);
+
+AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as);
+AddressSpaceDispatch *flatview_to_dispatch(FlatView *fv);
+void address_space_dispatch_free(AddressSpaceDispatch *d);
 
 #endif
 #endif
