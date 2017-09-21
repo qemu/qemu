@@ -317,6 +317,7 @@ static void flatview_unref(FlatView *view)
 {
     if (atomic_fetch_dec(&view->ref) == 1) {
         trace_flatview_destroy_rcu(view, view->root);
+        assert(view->root);
         call_rcu(view, flatview_destroy, rcu);
     }
 }
@@ -761,16 +762,19 @@ static MemoryRegion *memory_region_get_flatview_root(MemoryRegion *mr)
                     }
                 }
             }
+            if (found == 0) {
+                return NULL;
+            }
             if (next) {
                 mr = next;
                 continue;
             }
         }
 
-        break;
+        return mr;
     }
 
-    return mr;
+    return NULL;
 }
 
 /* Render a memory topology into a list of disjoint absolute ranges. */
@@ -966,12 +970,22 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
 static void flatviews_init(void)
 {
+    static FlatView *empty_view;
+
     if (flat_views) {
         return;
     }
 
     flat_views = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
                                        (GDestroyNotify) flatview_unref);
+    if (!empty_view) {
+        empty_view = generate_memory_topology(NULL);
+        /* We keep it alive forever in the global variable.  */
+        flatview_ref(empty_view);
+    } else {
+        g_hash_table_replace(flat_views, NULL, empty_view);
+        flatview_ref(empty_view);
+    }
 }
 
 static void flatviews_reset(void)
