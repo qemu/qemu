@@ -427,7 +427,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
-    PCIDevice *ebus;
+    PCIDevice *ebus, *pci_dev;
     ISABus *isa_bus;
     SysBusDevice *s;
     qemu_irq *ivec_irqs, *pbm_irqs;
@@ -435,6 +435,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     DriveInfo *fd[MAX_FD];
     DeviceState *dev;
     FWCfgState *fw_cfg;
+    NICInfo *nd;
+    int onboard_nic_idx;
 
     /* init CPUs */
     cpu = sparc64_cpu_devinit(machine->cpu_model, hwdef->default_cpu_model,
@@ -464,8 +466,23 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     serial_hds_isa_init(isa_bus, i, MAX_SERIAL_PORTS);
     parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
-    for(i = 0; i < nb_nics; i++)
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
+    onboard_nic_idx = -1;
+    for (i = 0; i < nb_nics; i++) {
+        nd = &nd_table[i];
+
+        if (onboard_nic_idx == -1 &&
+                (!nd->model || strcmp(nd->model, "sunhme") == 0)) {
+            pci_dev = pci_create(pci_bus, -1, "sunhme");
+            dev = &pci_dev->qdev;
+            qdev_set_nic_properties(dev, nd);
+            qdev_init_nofail(dev);
+
+            onboard_nic_idx = i;
+        } else {
+            pci_nic_init_nofail(nd, pci_bus, "ne2k_pci", NULL);
+        }
+    }
+    onboard_nic_idx = MAX(onboard_nic_idx, 0);
 
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
@@ -510,7 +527,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            /* XXX: need an option to load a NVRAM image */
                            0,
                            graphic_width, graphic_height, graphic_depth,
-                           (uint8_t *)&nd_table[0].macaddr);
+                           (uint8_t *)&nd_table[onboard_nic_idx].macaddr);
 
     dev = qdev_create(NULL, TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
