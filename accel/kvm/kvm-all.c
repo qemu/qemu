@@ -1440,7 +1440,7 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
  */
 static int kvm_recommended_vcpus(KVMState *s)
 {
-    int ret = kvm_check_extension(s, KVM_CAP_NR_VCPUS);
+    int ret = kvm_vm_check_extension(s, KVM_CAP_NR_VCPUS);
     return (ret) ? ret : 4;
 }
 
@@ -1530,26 +1530,6 @@ static int kvm_init(MachineState *ms)
         s->nr_slots = 32;
     }
 
-    /* check the vcpu limits */
-    soft_vcpus_limit = kvm_recommended_vcpus(s);
-    hard_vcpus_limit = kvm_max_vcpus(s);
-
-    while (nc->name) {
-        if (nc->num > soft_vcpus_limit) {
-            warn_report("Number of %s cpus requested (%d) exceeds "
-                        "the recommended cpus supported by KVM (%d)",
-                        nc->name, nc->num, soft_vcpus_limit);
-
-            if (nc->num > hard_vcpus_limit) {
-                fprintf(stderr, "Number of %s cpus requested (%d) exceeds "
-                        "the maximum cpus supported by KVM (%d)\n",
-                        nc->name, nc->num, hard_vcpus_limit);
-                exit(1);
-            }
-        }
-        nc++;
-    }
-
     kvm_type = qemu_opt_get(qemu_get_machine_opts(), "kvm-type");
     if (mc->kvm_type) {
         type = mc->kvm_type(kvm_type);
@@ -1584,6 +1564,27 @@ static int kvm_init(MachineState *ms)
     }
 
     s->vmfd = ret;
+
+    /* check the vcpu limits */
+    soft_vcpus_limit = kvm_recommended_vcpus(s);
+    hard_vcpus_limit = kvm_max_vcpus(s);
+
+    while (nc->name) {
+        if (nc->num > soft_vcpus_limit) {
+            warn_report("Number of %s cpus requested (%d) exceeds "
+                        "the recommended cpus supported by KVM (%d)",
+                        nc->name, nc->num, soft_vcpus_limit);
+
+            if (nc->num > hard_vcpus_limit) {
+                fprintf(stderr, "Number of %s cpus requested (%d) exceeds "
+                        "the maximum cpus supported by KVM (%d)\n",
+                        nc->name, nc->num, hard_vcpus_limit);
+                exit(1);
+            }
+        }
+        nc++;
+    }
+
     missing_cap = kvm_check_extension_list(s, kvm_required_capabilites);
     if (!missing_cap) {
         missing_cap =
