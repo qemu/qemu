@@ -64,9 +64,9 @@ int kvm_cpu_exec(CPUState *cpu)
     abort();
 }
 
-int kvm_has_sync_mmu(void)
+bool kvm_has_sync_mmu(void)
 {
-    return 0;
+    return false;
 }
 
 int kvm_has_many_ioeventfds(void)
