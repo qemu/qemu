@@ -89,6 +89,9 @@ class QEMUMachine(object):
         self._qmp = None
         self._qemu_full_args = None
 
+        # just in case logging wasn't configured by the main script:
+        logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
+
     def __enter__(self):
         return self
 
