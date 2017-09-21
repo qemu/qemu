@@ -952,8 +952,6 @@ static void address_space_update_topology(AddressSpace *as)
      * counting is necessary.
      */
     flatview_unref(old_view);
-
-    address_space_update_ioeventfds(as);
 }
 
 void memory_region_transaction_begin(void)
@@ -976,6 +974,7 @@ void memory_region_transaction_commit(void)
 
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
                 address_space_update_topology(as);
+                address_space_update_ioeventfds(as);
             }
             memory_region_update_pending = false;
             MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
