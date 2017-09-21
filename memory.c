@@ -734,12 +734,40 @@ static void render_memory_region(FlatView *view,
 
 static MemoryRegion *memory_region_get_flatview_root(MemoryRegion *mr)
 {
-    while (mr->alias && !mr->alias_offset &&
-           int128_ge(mr->size, mr->alias->size)) {
-        /* The alias is included in its entirety.  Use it as
-         * the "real" root, so that we can share more FlatViews.
-         */
-        mr = mr->alias;
+    while (mr->enabled) {
+        if (mr->alias) {
+            if (!mr->alias_offset && int128_ge(mr->size, mr->alias->size)) {
+                /* The alias is included in its entirety.  Use it as
+                 * the "real" root, so that we can share more FlatViews.
+                 */
+                mr = mr->alias;
+                continue;
+            }
+        } else if (!mr->terminates) {
+            unsigned int found = 0;
+            MemoryRegion *child, *next = NULL;
+            QTAILQ_FOREACH(child, &mr->subregions, subregions_link) {
+                if (child->enabled) {
+                    if (++found > 1) {
+                        next = NULL;
+                        break;
+                    }
+                    if (!child->addr && int128_ge(mr->size, child->size)) {
+                        /* A child is included in its entirety.  If it's the only
+                         * enabled one, use it in the hope of finding an alias down the
+                         * way. This will also let us share FlatViews.
+                         */
+                        next = child;
+                    }
+                }
+            }
+            if (next) {
+                mr = next;
+                continue;
+            }
+        }
+
+        break;
     }
 
     return mr;
