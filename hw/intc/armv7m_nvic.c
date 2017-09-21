@@ -47,7 +47,7 @@
  * For historical reasons QEMU tends to use "interrupt" and
  * "exception" more or less interchangeably.
  */
-#define NVIC_FIRST_IRQ 16
+#define NVIC_FIRST_IRQ NVIC_INTERNAL_VECTORS
 #define NVIC_MAX_IRQ (NVIC_MAX_VECTORS - NVIC_FIRST_IRQ)
 
 /* Effective running priority of the CPU when no exception is active
@@ -1158,6 +1158,43 @@ static const VMStateDescription vmstate_VecInfo = {
     }
 };
 
+static bool nvic_security_needed(void *opaque)
+{
+    NVICState *s = opaque;
+
+    return arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY);
+}
+
+static int nvic_security_post_load(void *opaque, int version_id)
+{
+    NVICState *s = opaque;
+    int i;
+
+    /* Check for out of range priority settings */
+    if (s->sec_vectors[ARMV7M_EXCP_HARD].prio != -1) {
+        return 1;
+    }
+    for (i = ARMV7M_EXCP_MEM; i < ARRAY_SIZE(s->sec_vectors); i++) {
+        if (s->sec_vectors[i].prio & ~0xff) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_nvic_security = {
+    .name = "nvic/m-security",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = nvic_security_needed,
+    .post_load = &nvic_security_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_ARRAY(sec_vectors, NVICState, NVIC_INTERNAL_VECTORS, 1,
+                             vmstate_VecInfo, VecInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_nvic = {
     .name = "armv7m_nvic",
     .version_id = 4,
@@ -1168,6 +1205,10 @@ static const VMStateDescription vmstate_nvic = {
                              vmstate_VecInfo, VecInfo),
         VMSTATE_UINT32(prigroup, NVICState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_nvic_security,
+        NULL
     }
 };
 
@@ -1194,6 +1235,16 @@ static void armv7m_nvic_reset(DeviceState *dev)
     s->vectors[ARMV7M_EXCP_RESET].prio = -3;
     s->vectors[ARMV7M_EXCP_NMI].prio = -2;
     s->vectors[ARMV7M_EXCP_HARD].prio = -1;
+
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY)) {
+        s->sec_vectors[ARMV7M_EXCP_HARD].enabled = 1;
+        s->sec_vectors[ARMV7M_EXCP_SVC].enabled = 1;
+        s->sec_vectors[ARMV7M_EXCP_PENDSV].enabled = 1;
+        s->sec_vectors[ARMV7M_EXCP_SYSTICK].enabled = 1;
+
+        /* AIRCR.BFHFNMINS resets to 0 so Secure HF is priority -1 (R_CMTC) */
+        s->sec_vectors[ARMV7M_EXCP_HARD].prio = -1;
+    }
 
     /* Strictly speaking the reset handler should be enabled.
      * However, we don't simulate soft resets through the NVIC,

@@ -21,6 +21,8 @@
 
 /* Highest permitted number of exceptions (architectural limit) */
 #define NVIC_MAX_VECTORS 512
+/* Number of internal exceptions */
+#define NVIC_INTERNAL_VECTORS 16
 
 typedef struct VecInfo {
     /* Exception priorities can range from -3 to 255; only the unmodifiable
@@ -41,6 +43,18 @@ typedef struct NVICState {
     ARMCPU *cpu;
 
     VecInfo vectors[NVIC_MAX_VECTORS];
+    /* If the v8M security extension is implemented, some of the internal
+     * exceptions are banked between security states (ie there exists both
+     * a Secure and a NonSecure version of the exception and its state):
+     *  HardFault, MemManage, UsageFault, SVCall, PendSV, SysTick (R_PJHV)
+     * The rest (including all the external exceptions) are not banked, though
+     * they may be configurable to target either Secure or NonSecure state.
+     * We store the secure exception state in sec_vectors[] for the banked
+     * exceptions, and otherwise use only vectors[] (including for exceptions
+     * like SecureFault that unconditionally target Secure state).
+     * Entries in sec_vectors[] for non-banked exception numbers are unused.
+     */
+    VecInfo sec_vectors[NVIC_INTERNAL_VECTORS];
     uint32_t prigroup;
 
     /* vectpending and exception_prio are both cached state that can
