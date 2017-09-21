@@ -55,6 +55,7 @@ struct Chardev {
     int logfd;
     int be_open;
     GSource *gsource;
+    GMainContext *gcontext;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
 };
 
