@@ -787,6 +787,61 @@ static CCW1 copy_ccw_from_guest(hwaddr addr, bool fmt1)
     }
     return ret;
 }
+/**
+ * If out of bounds marks the stream broken. If broken returns -EINVAL,
+ * otherwise the requested length (may be zero)
+ */
+static inline int cds_check_len(CcwDataStream *cds, int len)
+{
+    if (cds->at_byte + len > cds->count) {
+        cds->flags |= CDS_F_STREAM_BROKEN;
+    }
+    return cds->flags & CDS_F_STREAM_BROKEN ? -EINVAL : len;
+}
+
+static int ccw_dstream_rw_noflags(CcwDataStream *cds, void *buff, int len,
+                                  CcwDataStreamOp op)
+{
+    int ret;
+
+    ret = cds_check_len(cds, len);
+    if (ret <= 0) {
+        return ret;
+    }
+    if (op == CDS_OP_A) {
+        goto incr;
+    }
+    ret = address_space_rw(&address_space_memory, cds->cda,
+                           MEMTXATTRS_UNSPECIFIED, buff, len, op);
+    if (ret != MEMTX_OK) {
+        cds->flags |= CDS_F_STREAM_BROKEN;
+        return -EINVAL;
+    }
+incr:
+    cds->at_byte += len;
+    cds->cda += len;
+    return 0;
+}
+
+void ccw_dstream_init(CcwDataStream *cds, CCW1 const *ccw, ORB const *orb)
+{
+    /*
+     * We don't support MIDA (an optional facility) yet and we
+     * catch this earlier. Just for expressing the precondition.
+     */
+    g_assert(!(orb->ctrl1 & ORB_CTRL1_MASK_MIDAW));
+    cds->flags = (orb->ctrl0 & ORB_CTRL0_MASK_I2K ? CDS_F_I2K : 0) |
+                 (orb->ctrl0 & ORB_CTRL0_MASK_C64 ? CDS_F_C64 : 0) |
+                 (ccw->flags & CCW_FLAG_IDA ? CDS_F_IDA : 0);
+    cds->count = ccw->count;
+    cds->cda_orig = ccw->cda;
+    ccw_dstream_rewind(cds);
+    if (!(cds->flags & CDS_F_IDA)) {
+        cds->op_handler = ccw_dstream_rw_noflags;
+    } else {
+        assert(false);
+    }
+}
 
 static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
                              bool suspend_allowed)

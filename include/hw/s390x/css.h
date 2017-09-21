@@ -75,6 +75,29 @@ typedef struct CMBE {
     uint32_t reserved[7];
 } QEMU_PACKED CMBE;
 
+typedef enum CcwDataStreamOp {
+    CDS_OP_R = 0, /* read, false when used as is_write */
+    CDS_OP_W = 1, /* write, true when used as is_write */
+    CDS_OP_A = 2  /* advance, should not be used as is_write */
+} CcwDataStreamOp;
+
+/* normal usage is via SuchchDev.cds instead of instantiating */
+typedef struct CcwDataStream {
+#define CDS_F_IDA   0x01
+#define CDS_F_MIDA  0x02
+#define CDS_F_I2K   0x04
+#define CDS_F_C64   0x08
+#define CDS_F_STREAM_BROKEN  0x80
+    uint8_t flags;
+    uint8_t at_idaw;
+    uint16_t at_byte;
+    uint16_t count;
+    uint32_t cda_orig;
+    int (*op_handler)(struct CcwDataStream *cds, void *buff, int len,
+                      CcwDataStreamOp op);
+    hwaddr cda;
+} CcwDataStream;
+
 typedef struct SubchDev SubchDev;
 struct SubchDev {
     /* channel-subsystem related things: */
@@ -92,6 +115,7 @@ struct SubchDev {
     uint8_t ccw_no_data_cnt;
     uint16_t migrated_schid; /* used for missmatch detection */
     ORB orb;
+    CcwDataStream cds;
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
@@ -239,5 +263,48 @@ SubchDev *css_create_sch(CssDevId bus_id, bool is_virtual, bool squash_mcss,
 
 /** Turn on css migration */
 void css_register_vmstate(void);
+
+
+void ccw_dstream_init(CcwDataStream *cds, CCW1 const *ccw, ORB const *orb);
+
+static inline void ccw_dstream_rewind(CcwDataStream *cds)
+{
+    cds->at_byte = 0;
+    cds->at_idaw = 0;
+    cds->cda = cds->cda_orig;
+}
+
+static inline bool ccw_dstream_good(CcwDataStream *cds)
+{
+    return !(cds->flags & CDS_F_STREAM_BROKEN);
+}
+
+static inline uint16_t ccw_dstream_residual_count(CcwDataStream *cds)
+{
+    return cds->count - cds->at_byte;
+}
+
+static inline uint16_t ccw_dstream_avail(CcwDataStream *cds)
+{
+    return ccw_dstream_good(cds) ? ccw_dstream_residual_count(cds) : 0;
+}
+
+static inline int ccw_dstream_advance(CcwDataStream *cds, int len)
+{
+    return cds->op_handler(cds, NULL, len, CDS_OP_A);
+}
+
+static inline int ccw_dstream_write_buf(CcwDataStream *cds, void *buff, int len)
+{
+    return cds->op_handler(cds, buff, len, CDS_OP_W);
+}
+
+static inline int ccw_dstream_read_buf(CcwDataStream *cds, void *buff, int len)
+{
+    return cds->op_handler(cds, buff, len, CDS_OP_R);
+}
+
+#define ccw_dstream_read(cds, v) ccw_dstream_read_buf((cds), &(v), sizeof(v))
+#define ccw_dstream_write(cds, v) ccw_dstream_write_buf((cds), &(v), sizeof(v))
 
 #endif
