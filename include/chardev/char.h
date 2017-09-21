@@ -169,6 +169,16 @@ void qemu_chr_be_write(Chardev *s, uint8_t *buf, int len);
 void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, int len);
 
 /**
+ * @qemu_chr_be_update_read_handlers:
+ *
+ * Invoked when frontend read handlers are setup
+ *
+ * @context the gcontext that will be used to attach the watch sources
+ */
+void qemu_chr_be_update_read_handlers(Chardev *s,
+                                      GMainContext *context);
+
+/**
  * @qemu_chr_be_event:
  *
  * Send an event from the back end to the front end.

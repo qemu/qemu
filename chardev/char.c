@@ -180,6 +180,16 @@ void qemu_chr_be_write(Chardev *s, uint8_t *buf, int len)
     }
 }
 
+void qemu_chr_be_update_read_handlers(Chardev *s,
+                                      GMainContext *context)
+{
+    ChardevClass *cc = CHARDEV_GET_CLASS(s);
+
+    if (cc->chr_update_read_handler) {
+        cc->chr_update_read_handler(s, context);
+    }
+}
+
 int qemu_chr_add_client(Chardev *s, int fd)
 {
     return CHARDEV_GET_CLASS(s)->chr_add_client ?
