@@ -124,7 +124,7 @@ static void kvm_openpic_region_add(MemoryListener *listener,
     uint64_t reg_base;
     int ret;
 
-    if (section->address_space != &address_space_memory) {
+    if (section->fv != address_space_to_flatview(&address_space_memory)) {
         abort();
     }
 
