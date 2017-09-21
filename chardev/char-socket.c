@@ -516,7 +516,7 @@ static void tcp_chr_connect(void *opaque)
         chr->gsource = io_add_watch_poll(chr, s->ioc,
                                            tcp_chr_read_poll,
                                            tcp_chr_read,
-                                           chr, NULL);
+                                           chr, chr->gcontext);
     }
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
@@ -535,7 +535,7 @@ static void tcp_chr_update_read_handler(Chardev *chr,
         chr->gsource = io_add_watch_poll(chr, s->ioc,
                                            tcp_chr_read_poll,
                                            tcp_chr_read, chr,
-                                           context);
+                                           chr->gcontext);
     }
 }
 

@@ -110,7 +110,7 @@ static void udp_chr_update_read_handler(Chardev *chr,
         chr->gsource = io_add_watch_poll(chr, s->ioc,
                                            udp_chr_read_poll,
                                            udp_chr_read, chr,
-                                           context);
+                                           chr->gcontext);
     }
 }
 

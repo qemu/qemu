@@ -219,7 +219,7 @@ static void pty_chr_state(Chardev *chr, int connected)
             chr->gsource = io_add_watch_poll(chr, s->ioc,
                                                pty_chr_read_poll,
                                                pty_chr_read,
-                                               chr, NULL);
+                                               chr, chr->gcontext);
         }
     }
 }
