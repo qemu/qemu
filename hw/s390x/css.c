@@ -799,6 +799,11 @@ static inline int cds_check_len(CcwDataStream *cds, int len)
     return cds->flags & CDS_F_STREAM_BROKEN ? -EINVAL : len;
 }
 
+static inline bool cds_ccw_addrs_ok(hwaddr addr, int len, bool ccw_fmt1)
+{
+    return (addr + len) < (ccw_fmt1 ? (1UL << 31) : (1UL << 24));
+}
+
 static int ccw_dstream_rw_noflags(CcwDataStream *cds, void *buff, int len,
                                   CcwDataStreamOp op)
 {
@@ -807,6 +812,9 @@ static int ccw_dstream_rw_noflags(CcwDataStream *cds, void *buff, int len,
     ret = cds_check_len(cds, len);
     if (ret <= 0) {
         return ret;
+    }
+    if (!cds_ccw_addrs_ok(cds->cda, len, cds->flags & CDS_F_FMT)) {
+        return -EINVAL; /* channel program check */
     }
     if (op == CDS_OP_A) {
         goto incr;
@@ -832,7 +840,9 @@ void ccw_dstream_init(CcwDataStream *cds, CCW1 const *ccw, ORB const *orb)
     g_assert(!(orb->ctrl1 & ORB_CTRL1_MASK_MIDAW));
     cds->flags = (orb->ctrl0 & ORB_CTRL0_MASK_I2K ? CDS_F_I2K : 0) |
                  (orb->ctrl0 & ORB_CTRL0_MASK_C64 ? CDS_F_C64 : 0) |
+                 (orb->ctrl0 & ORB_CTRL0_MASK_FMT ? CDS_F_FMT : 0) |
                  (ccw->flags & CCW_FLAG_IDA ? CDS_F_IDA : 0);
+
     cds->count = ccw->count;
     cds->cda_orig = ccw->cda;
     ccw_dstream_rewind(cds);

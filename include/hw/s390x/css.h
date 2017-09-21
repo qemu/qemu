@@ -87,6 +87,7 @@ typedef struct CcwDataStream {
 #define CDS_F_MIDA  0x02
 #define CDS_F_I2K   0x04
 #define CDS_F_C64   0x08
+#define CDS_F_FMT   0x10 /* CCW format-1 */
 #define CDS_F_STREAM_BROKEN  0x80
     uint8_t flags;
     uint8_t at_idaw;
