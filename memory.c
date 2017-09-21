@@ -294,9 +294,9 @@ static void flatview_destroy(FlatView *view)
     g_free(view);
 }
 
-static void flatview_ref(FlatView *view)
+static bool flatview_ref(FlatView *view)
 {
-    atomic_inc(&view->ref);
+    return atomic_fetch_inc_nonzero(&view->ref) > 0;
 }
 
 static void flatview_unref(FlatView *view)
@@ -773,8 +773,12 @@ static FlatView *address_space_get_flatview(AddressSpace *as)
     FlatView *view;
 
     rcu_read_lock();
-    view = atomic_rcu_read(&as->current_map);
-    flatview_ref(view);
+    do {
+        view = atomic_rcu_read(&as->current_map);
+        /* If somebody has replaced as->current_map concurrently,
+         * flatview_ref returns false.
+         */
+    } while (!flatview_ref(view));
     rcu_read_unlock();
     return view;
 }

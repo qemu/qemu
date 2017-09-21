@@ -442,4 +442,12 @@
 } while(0)
 #endif
 
+#define atomic_fetch_inc_nonzero(ptr) ({                                \
+    typeof_strip_qual(*ptr) _oldn = atomic_read(ptr);                   \
+    while (_oldn && atomic_cmpxchg(ptr, _oldn, _oldn + 1) != _oldn) {   \
+        _oldn = atomic_read(ptr);                                       \
+    }                                                                   \
+    _oldn;                                                              \
+})
+
 #endif /* QEMU_ATOMIC_H */
