@@ -333,8 +333,7 @@ struct unreported_events {
 };
 
 enum ide_dma_cmd {
-    IDE_DMA__BEGIN = 0,
-    IDE_DMA_READ = IDE_DMA__BEGIN,
+    IDE_DMA_READ = 0,
     IDE_DMA_WRITE,
     IDE_DMA_TRIM,
     IDE_DMA_ATAPI,

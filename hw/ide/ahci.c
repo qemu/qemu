@@ -184,7 +184,7 @@ static void ahci_check_irq(AHCIState *s)
 static void ahci_trigger_irq(AHCIState *s, AHCIDevice *d,
                              enum AHCIPortIRQ irqbit)
 {
-    g_assert(irqbit >= 0 && irqbit < 32);
+    g_assert((unsigned)irqbit < 32);
     uint32_t irq = 1U << irqbit;
     uint32_t irqstat = d->port_regs.irq_stat | irq;
 

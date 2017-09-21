@@ -68,7 +68,7 @@ const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT] = {
 
 static const char *IDE_DMA_CMD_str(enum ide_dma_cmd enval)
 {
-    if (enval >= IDE_DMA__BEGIN && enval < IDE_DMA__COUNT) {
+    if ((unsigned)enval < IDE_DMA__COUNT) {
         return IDE_DMA_CMD_lookup[enval];
     }
     return "DMA UNKNOWN CMD";
