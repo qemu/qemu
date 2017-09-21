@@ -51,64 +51,9 @@
 #define MIPS_CONFIG5                                              \
 ((0 << CP0C5_M))
 
-/* MMU types, the first four entries have the same layout as the
-   CP0C0_MT field.  */
-enum mips_mmu_types {
-    MMU_TYPE_NONE,
-    MMU_TYPE_R4000,
-    MMU_TYPE_RESERVED,
-    MMU_TYPE_FMT,
-    MMU_TYPE_R3000,
-    MMU_TYPE_R6000,
-    MMU_TYPE_R8000
-};
-
-struct mips_def_t {
-    const char *name;
-    int32_t CP0_PRid;
-    int32_t CP0_Config0;
-    int32_t CP0_Config1;
-    int32_t CP0_Config2;
-    int32_t CP0_Config3;
-    int32_t CP0_Config4;
-    int32_t CP0_Config4_rw_bitmask;
-    int32_t CP0_Config5;
-    int32_t CP0_Config5_rw_bitmask;
-    int32_t CP0_Config6;
-    int32_t CP0_Config7;
-    target_ulong CP0_LLAddr_rw_bitmask;
-    int CP0_LLAddr_shift;
-    int32_t SYNCI_Step;
-    int32_t CCRes;
-    int32_t CP0_Status_rw_bitmask;
-    int32_t CP0_TCStatus_rw_bitmask;
-    int32_t CP0_SRSCtl;
-    int32_t CP1_fcr0;
-    int32_t CP1_fcr31_rw_bitmask;
-    int32_t CP1_fcr31;
-    int32_t MSAIR;
-    int32_t SEGBITS;
-    int32_t PABITS;
-    int32_t CP0_SRSConf0_rw_bitmask;
-    int32_t CP0_SRSConf0;
-    int32_t CP0_SRSConf1_rw_bitmask;
-    int32_t CP0_SRSConf1;
-    int32_t CP0_SRSConf2_rw_bitmask;
-    int32_t CP0_SRSConf2;
-    int32_t CP0_SRSConf3_rw_bitmask;
-    int32_t CP0_SRSConf3;
-    int32_t CP0_SRSConf4_rw_bitmask;
-    int32_t CP0_SRSConf4;
-    int32_t CP0_PageGrain_rw_bitmask;
-    int32_t CP0_PageGrain;
-    target_ulong CP0_EBaseWG_rw_bitmask;
-    int insn_flags;
-    enum mips_mmu_types mmu_type;
-};
-
 /*****************************************************************************/
 /* MIPS CPU definitions */
-static const mips_def_t mips_defs[] =
+const mips_def_t mips_defs[] =
 {
     {
         .name = "4Kc",
@@ -808,6 +753,7 @@ static const mips_def_t mips_defs[] =
 
 #endif
 };
+const int mips_defs_number = ARRAY_SIZE(mips_defs);
 
 static const mips_def_t *cpu_mips_find_by_name (const char *name)
 {

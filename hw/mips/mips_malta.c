@@ -931,7 +931,7 @@ static void create_cpu_without_cps(const char *cpu_model,
     int i;
 
     for (i = 0; i < smp_cpus; i++) {
-        cpu = cpu_mips_init(cpu_model);
+        cpu = MIPS_CPU(cpu_generic_init(TYPE_MIPS_CPU, cpu_model));
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);

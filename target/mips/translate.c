@@ -23,6 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internal.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
@@ -20511,29 +20512,15 @@ void mips_tcg_init(void)
 
 #include "translate_init.c"
 
-MIPSCPU *cpu_mips_init(const char *cpu_model)
+void cpu_mips_realize_env(CPUMIPSState *env)
 {
-    MIPSCPU *cpu;
-    CPUMIPSState *env;
-    const mips_def_t *def;
-
-    def = cpu_mips_find_by_name(cpu_model);
-    if (!def)
-        return NULL;
-    cpu = MIPS_CPU(object_new(TYPE_MIPS_CPU));
-    env = &cpu->env;
-    env->cpu_model = def;
     env->exception_base = (int32_t)0xBFC00000;
 
 #ifndef CONFIG_USER_ONLY
-    mmu_init(env, def);
+    mmu_init(env, env->cpu_model);
 #endif
-    fpu_init(env, def);
-    mvp_init(env, def);
-
-    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
-
-    return cpu;
+    fpu_init(env, env->cpu_model);
+    mvp_init(env, env->cpu_model);
 }
 
 bool cpu_supports_cps_smp(const char *cpu_model)

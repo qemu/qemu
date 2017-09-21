@@ -45,9 +45,9 @@ typedef union {
 } DSP64Value;
 
 /*** MIPS DSP internal functions begin ***/
-#define MIPSDSP_ABS(x) (((x) >= 0) ? x : -x)
-#define MIPSDSP_OVERFLOW_ADD(a, b, c, d) (~(a ^ b) & (a ^ c) & d)
-#define MIPSDSP_OVERFLOW_SUB(a, b, c, d) ((a ^ b) & (a ^ c) & d)
+#define MIPSDSP_ABS(x) (((x) >= 0) ? (x) : -(x))
+#define MIPSDSP_OVERFLOW_ADD(a, b, c, d) (~((a) ^ (b)) & ((a) ^ (c)) & (d))
+#define MIPSDSP_OVERFLOW_SUB(a, b, c, d) (((a) ^ (b)) & ((a) ^ (c)) & (d))
 
 static inline void set_DSPControl_overflow_flag(uint32_t flag, int position,
                                                 CPUMIPSState *env)
@@ -1047,47 +1047,47 @@ static inline int32_t mipsdsp_cmpu_lt(uint32_t a, uint32_t b)
 
 #define MIPSDSP_SPLIT32_8(num, a, b, c, d)  \
     do {                                    \
-        a = (num >> 24) & MIPSDSP_Q0;       \
-        b = (num >> 16) & MIPSDSP_Q0;       \
-        c = (num >> 8) & MIPSDSP_Q0;        \
-        d = num & MIPSDSP_Q0;               \
+        a = ((num) >> 24) & MIPSDSP_Q0;     \
+        b = ((num) >> 16) & MIPSDSP_Q0;     \
+        c = ((num) >> 8) & MIPSDSP_Q0;      \
+        d = (num) & MIPSDSP_Q0;             \
     } while (0)
 
 #define MIPSDSP_SPLIT32_16(num, a, b)       \
     do {                                    \
-        a = (num >> 16) & MIPSDSP_LO;       \
-        b = num & MIPSDSP_LO;               \
+        a = ((num) >> 16) & MIPSDSP_LO;     \
+        b = (num) & MIPSDSP_LO;             \
     } while (0)
 
-#define MIPSDSP_RETURN32_8(a, b, c, d)  ((target_long)(int32_t) \
-                                         (((uint32_t)a << 24) | \
-                                         (((uint32_t)b << 16) | \
-                                         (((uint32_t)c << 8) |  \
-                                          ((uint32_t)d & 0xFF)))))
-#define MIPSDSP_RETURN32_16(a, b)       ((target_long)(int32_t) \
-                                         (((uint32_t)a << 16) | \
-                                          ((uint32_t)b & 0xFFFF)))
+#define MIPSDSP_RETURN32_8(a, b, c, d)  ((target_long)(int32_t)         \
+                                         (((uint32_t)(a) << 24) |       \
+                                          ((uint32_t)(b) << 16) |       \
+                                          ((uint32_t)(c) << 8) |        \
+                                          ((uint32_t)(d) & 0xFF)))
+#define MIPSDSP_RETURN32_16(a, b)       ((target_long)(int32_t)         \
+                                         (((uint32_t)(a) << 16) |       \
+                                          ((uint32_t)(b) & 0xFFFF)))
 
 #ifdef TARGET_MIPS64
 #define MIPSDSP_SPLIT64_16(num, a, b, c, d)  \
     do {                                     \
-        a = (num >> 48) & MIPSDSP_LO;        \
-        b = (num >> 32) & MIPSDSP_LO;        \
-        c = (num >> 16) & MIPSDSP_LO;        \
-        d = num & MIPSDSP_LO;                \
+        a = ((num) >> 48) & MIPSDSP_LO;      \
+        b = ((num) >> 32) & MIPSDSP_LO;      \
+        c = ((num) >> 16) & MIPSDSP_LO;      \
+        d = (num) & MIPSDSP_LO;              \
     } while (0)
 
 #define MIPSDSP_SPLIT64_32(num, a, b)       \
     do {                                    \
-        a = (num >> 32) & MIPSDSP_LLO;      \
-        b = num & MIPSDSP_LLO;              \
+        a = ((num) >> 32) & MIPSDSP_LLO;    \
+        b = (num) & MIPSDSP_LLO;            \
     } while (0)
 
-#define MIPSDSP_RETURN64_16(a, b, c, d) (((uint64_t)a << 48) | \
-                                         ((uint64_t)b << 32) | \
-                                         ((uint64_t)c << 16) | \
-                                         (uint64_t)d)
-#define MIPSDSP_RETURN64_32(a, b)       (((uint64_t)a << 32) | (uint64_t)b)
+#define MIPSDSP_RETURN64_16(a, b, c, d) (((uint64_t)(a) << 48) |        \
+                                         ((uint64_t)(b) << 32) |        \
+                                         ((uint64_t)(c) << 16) |        \
+                                         (uint64_t)(d))
+#define MIPSDSP_RETURN64_32(a, b)       (((uint64_t)(a) << 32) | (uint64_t)(b))
 #endif
 
 /** DSP Arithmetic Sub-class insns **/

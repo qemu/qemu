@@ -163,7 +163,7 @@ mips_mipssim_init(MachineState *machine)
         cpu_model = "24Kf";
 #endif
     }
-    cpu = cpu_mips_init(cpu_model);
+    cpu = MIPS_CPU(cpu_generic_init(TYPE_MIPS_CPU, cpu_model));
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));
