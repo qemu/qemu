@@ -1220,6 +1220,12 @@ static int blk_connect(struct XenDevice *xendev)
     /* Add on the number needed for the ring pages */
     max_grants += blkdev->nr_ring_ref;
 
+    blkdev->xendev.gnttabdev = xengnttab_open(NULL, 0);
+    if (blkdev->xendev.gnttabdev == NULL) {
+        xen_pv_printf(xendev, 0, "xengnttab_open failed: %s\n",
+                      strerror(errno));
+        return -1;
+    }
     if (xengnttab_set_max_grants(blkdev->xendev.gnttabdev, max_grants)) {
         xen_pv_printf(xendev, 0, "xengnttab_set_max_grants failed: %s\n",
                       strerror(errno));
@@ -1327,6 +1333,11 @@ static void blk_disconnect(struct XenDevice *xendev)
         }
         blkdev->feature_persistent = false;
     }
+
+    if (blkdev->xendev.gnttabdev) {
+        xengnttab_close(blkdev->xendev.gnttabdev);
+        blkdev->xendev.gnttabdev = NULL;
+    }
 }
 
 static int blk_free(struct XenDevice *xendev)
@@ -1334,9 +1345,7 @@ static int blk_free(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     struct ioreq *ioreq;
 
-    if (blkdev->blk || blkdev->sring) {
-        blk_disconnect(xendev);
-    }
+    blk_disconnect(xendev);
 
     while (!QLIST_EMPTY(&blkdev->freelist)) {
         ioreq = QLIST_FIRST(&blkdev->freelist);
@@ -1363,7 +1372,6 @@ static void blk_event(struct XenDevice *xendev)
 
 struct XenDevOps xen_blkdev_ops = {
     .size       = sizeof(struct XenBlkDev),
-    .flags      = DEVOPS_FLAG_NEED_GNTDEV,
     .alloc      = blk_alloc,
     .init       = blk_init,
     .initialise    = blk_connect,
