@@ -2010,6 +2010,18 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
         return 0;
     }
 
+    if (!(flags & BDRV_O_RDWR)) {
+        uint64_t orig_perm, orig_shared_perm;
+
+        bdrv_drain(bs);
+
+        blk_get_perm(blk, &orig_perm, &orig_shared_perm);
+        blk_set_perm(blk,
+                     orig_perm & ~(BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED),
+                     orig_shared_perm,
+                     &error_abort);
+    }
+
     qopts = qemu_opts_find(&reopen_opts, NULL);
     opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
     qemu_opts_reset(&reopen_opts);
