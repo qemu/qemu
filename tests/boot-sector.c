@@ -137,9 +137,9 @@ void boot_sector_test(void)
     uint16_t signature;
     int i;
 
-    /* Wait at most 90 seconds */
+    /* Wait at most 600 seconds (test is slow with TCI and --enable-debug) */
 #define TEST_DELAY (1 * G_USEC_PER_SEC / 10)
-#define TEST_CYCLES MAX((90 * G_USEC_PER_SEC / TEST_DELAY), 1)
+#define TEST_CYCLES MAX((600 * G_USEC_PER_SEC / TEST_DELAY), 1)
 
     /* Poll until code has run and modified memory.  Once it has we know BIOS
      * initialization is done.  TODO: check that IP reached the halt
