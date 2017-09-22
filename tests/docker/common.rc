@@ -44,3 +44,11 @@ prep_fail()
     echo "$@"
     exit 2
 }
+
+install_qemu()
+{
+    make install $MAKEFLAGS DESTDIR=$PWD/=destdir
+    ret=$?
+    rm -rf $PWD/=destdir
+    return $ret
+}

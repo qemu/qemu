@@ -27,6 +27,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         clang \
         debian-ports-archive-keyring \
         flex \
+        gettext \
         git \
         pkg-config \
         psmisc \
