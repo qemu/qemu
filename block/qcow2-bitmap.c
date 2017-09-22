@@ -602,7 +602,7 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
             goto fail;
         }
 
-        bm = g_new(Qcow2Bitmap, 1);
+        bm = g_new0(Qcow2Bitmap, 1);
         bm->table.offset = e->bitmap_table_offset;
         bm->table.size = e->bitmap_table_size;
         bm->flags = e->flags;
