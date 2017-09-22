@@ -11,9 +11,6 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
-BUILD_DIR=/var/tmp/qemu-build
-mkdir $BUILD_DIR
-
 requires()
 {
     for c in $@; do
@@ -28,11 +25,22 @@ build_qemu()
 {
     config_opts="--enable-werror \
                  ${TARGET_LIST:+--target-list=${TARGET_LIST}} \
-                 --prefix=$PWD/install \
+                 --prefix=$INSTALL_DIR \
                  $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS \
                  $@"
     echo "Configure options:"
     echo $config_opts
-    $QEMU_SRC/configure $config_opts
-    make $MAKEFLAGS
+    $QEMU_SRC/configure $config_opts && make $MAKEFLAGS
+}
+
+test_fail()
+{
+    echo "$@"
+    exit 1
+}
+
+prep_fail()
+{
+    echo "$@"
+    exit 2
 }

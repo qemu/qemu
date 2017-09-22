@@ -1,0 +1,6 @@
+This folder contains a well-known ssh key pair used in QEMU tests.
+
+Some guests require the key to exist prior to provisioning the guest; also,
+reusing a pre-built key avoids consuming entropy every time the testsuite is
+run.  Because the private key is well-known, care must be taken to use the key
+ONLY in situations that cannot be compromised by external network clients.

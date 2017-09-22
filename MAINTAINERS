@@ -1896,6 +1896,7 @@ F: docs/block-replication.txt
 
 Build and test automation
 -------------------------
+Build and test automation
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Fam Zheng <famz@redhat.com>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
@@ -1904,6 +1905,7 @@ S: Maintained
 F: .travis.yml
 F: .shippable.yml
 F: tests/docker/
+F: tests/vm/
 W: https://travis-ci.org/qemu/qemu
 W: https://app.shippable.com/github/qemu/qemu
 W: http://patchew.org/QEMU/

@@ -1,8 +1,8 @@
-#!/bin/bash -e
+#!/bin/bash
 #
-# Compile all the targets.
+# Compile all the targets with as many features enabled as possible
 #
-# Copyright (c) 2016 Red Hat Inc.
+# Copyright 2016, 2017 Red Hat Inc.
 #
 # Authors:
 #  Fam Zheng <famz@redhat.com>
@@ -13,7 +13,77 @@
 
 . common.rc
 
-cd "$BUILD_DIR"
+cd "$BUILD_DIR" || exit 1
 
-build_qemu
-make check $MAKEFLAGS
+build_qemu \
+    --enable-attr \
+    --enable-bluez \
+    --enable-brlapi \
+    --enable-bsd-user \
+    --enable-bzip2 \
+    --enable-cap-ng \
+    --enable-coroutine-pool \
+    --enable-crypto-afalg \
+    --enable-curl \
+    --enable-curses \
+    --enable-debug \
+    --enable-debug-info \
+    --enable-debug-tcg \
+    --enable-docs \
+    --enable-fdt \
+    --enable-gcrypt \
+    --enable-glusterfs \
+    --enable-gnutls \
+    --enable-gprof \
+    --enable-gtk \
+    --enable-guest-agent \
+    --enable-jemalloc \
+    --enable-kvm \
+    --enable-libiscsi \
+    --enable-libnfs \
+    --enable-libssh2 \
+    --enable-libusb \
+    --enable-linux-aio \
+    --enable-linux-user \
+    --enable-live-block-migration \
+    --enable-lzo \
+    --enable-modules \
+    --enable-numa \
+    --enable-opengl \
+    --enable-pie \
+    --enable-profiler \
+    --enable-qom-cast-debug \
+    --enable-rbd \
+    --enable-rdma \
+    --enable-replication \
+    --enable-sdl \
+    --enable-seccomp \
+    --enable-smartcard \
+    --enable-snappy \
+    --enable-spice \
+    --enable-stack-protector \
+    --enable-system \
+    --enable-tcg \
+    --enable-tcg-interpreter \
+    --enable-tools \
+    --enable-tpm \
+    --enable-trace-backend=ftrace \
+    --enable-usb-redir \
+    --enable-user \
+    --enable-vde \
+    --enable-vhost-net \
+    --enable-vhost-scsi \
+    --enable-vhost-user \
+    --enable-vhost-vsock \
+    --enable-virtfs \
+    --enable-vnc \
+    --enable-vnc-jpeg \
+    --enable-vnc-png \
+    --enable-vnc-sasl \
+    --enable-vte \
+    --enable-werror \
+    --enable-xen \
+    --enable-xen-pci-passthrough \
+    --enable-xen-pv-domain-build \
+    --enable-xfsctl \
+&& make check $MAKEFLAGS

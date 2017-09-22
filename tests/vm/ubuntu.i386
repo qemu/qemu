@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+#
+# Ubuntu i386 image
+#
+# Copyright 2017 Red Hat Inc.
+#
+# Authors:
+#  Fam Zheng <famz@redhat.com>
+#
+# This code is licensed under the GPL version 2 or later.  See
+# the COPYING file in the top-level directory.
+#
+
+import os
+import sys
+import subprocess
+import basevm
+import time
+
+class UbuntuX86VM(basevm.BaseVM):
+    name = "ubuntu.i386"
+    BUILD_SCRIPT = """
+        set -e;
+        cd $(mktemp -d);
+        sudo chmod a+r /dev/vdb;
+        tar -xf /dev/vdb;
+        ./configure {configure_opts};
+        make -j{jobs};
+        make check;
+    """
+
+    def _gen_cloud_init_iso(self):
+        cidir = self._tmpdir
+        mdata = open(os.path.join(cidir, "meta-data"), "w")
+        mdata.writelines(["instance-id: ubuntu-vm-0\n",
+                          "local-hostname: ubuntu-guest\n"])
+        mdata.close()
+        udata = open(os.path.join(cidir, "user-data"), "w")
+        udata.writelines(["#cloud-config\n",
+                          "chpasswd:\n",
+                          "  list: |\n",
+                          "    root:%s\n" % self.ROOT_PASS,
+                          "    %s:%s\n" % (self.GUEST_USER, self.GUEST_PASS),
+                          "  expire: False\n",
+                          "users:\n",
+                          "  - name: %s\n" % self.GUEST_USER,
+                          "    sudo: ALL=(ALL) NOPASSWD:ALL\n",
+                          "    ssh-authorized-keys:\n",
+                          "    - %s\n" % basevm.SSH_PUB_KEY,
+                          "  - name: root\n",
+                          "    ssh-authorized-keys:\n",
+                          "    - %s\n" % basevm.SSH_PUB_KEY,
+                          "locale: en_US.UTF-8\n"])
+        udata.close()
+        subprocess.check_call(["genisoimage", "-output", "cloud-init.iso",
+                               "-volid", "cidata", "-joliet", "-rock",
+                               "user-data", "meta-data"],
+                               cwd=cidir,
+                               stdin=self._devnull, stdout=self._stdout,
+                               stderr=self._stdout)
+        return os.path.join(cidir, "cloud-init.iso")
+
+    def build_image(self, img):
+        cimg = self._download_with_cache("https://cloud-images.ubuntu.com/releases/16.04/release/ubuntu-16.04-server-cloudimg-i386-disk1.img")
+        img_tmp = img + ".tmp"
+        subprocess.check_call(["cp", "-f", cimg, img_tmp])
+        subprocess.check_call(["qemu-img", "resize", img_tmp, "50G"])
+        self.boot(img_tmp, extra_args = ["-cdrom", self._gen_cloud_init_iso()])
+        self.wait_ssh()
+        self.ssh_root_check("touch /etc/cloud/cloud-init.disabled")
+        self.ssh_root_check("apt-get update")
+        self.ssh_root_check("apt-get install -y cloud-initramfs-growroot")
+        # Don't check the status in case the guest hang up too quickly
+        self.ssh_root("sync && reboot")
+        time.sleep(5)
+        self.wait_ssh()
+        # The previous update sometimes doesn't survive a reboot, so do it again
+        self.ssh_root_check("apt-get update")
+        self.ssh_root_check("apt-get build-dep -y qemu")
+        self.ssh_root_check("apt-get install -y libfdt-dev")
+        self.ssh_root("poweroff")
+        self.wait()
+        if os.path.exists(img):
+            os.remove(img)
+        os.rename(img_tmp, img)
+        return 0
+
+if __name__ == "__main__":
+    sys.exit(basevm.main(UbuntuX86VM))

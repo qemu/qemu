@@ -263,7 +263,8 @@ class BuildCommand(SubCommand):
         tag = args.tag
 
         dkr = Docker()
-        if dkr.image_matches_dockerfile(tag, dockerfile):
+        if "--no-cache" not in argv and \
+           dkr.image_matches_dockerfile(tag, dockerfile):
             if not args.quiet:
                 print "Image is up to date."
         else:
