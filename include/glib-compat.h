@@ -223,6 +223,8 @@ static inline gboolean g_hash_table_contains(GHashTable *hash_table,
 {
     return g_hash_table_lookup_extended(hash_table, key, NULL, NULL);
 }
+#define G_SOURCE_CONTINUE TRUE
+#define G_SOURCE_REMOVE FALSE
 #endif
 
 #ifndef g_assert_true

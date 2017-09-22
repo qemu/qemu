@@ -24,6 +24,7 @@ typedef struct SaveVMHandlers {
 
     /* This runs both outside and inside the iothread lock.  */
     bool (*is_active)(void *opaque);
+    bool (*has_postcopy)(void *opaque);
 
     /* This runs outside the iothread lock in the migration case, and
      * within the lock in the savevm case.  The callback had better only
