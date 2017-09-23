@@ -33,6 +33,9 @@
 #include "block/raw-aio.h"
 #include "qapi/qmp/qstring.h"
 
+#include "scsi/pr-manager.h"
+#include "scsi/constants.h"
+
 #if defined(__APPLE__) && (__MACH__)
 #include <paths.h>
 #include <sys/param.h>
@@ -155,6 +158,8 @@ typedef struct BDRVRawState {
     bool page_cache_inconsistent:1;
     bool has_fallocate;
     bool needs_alignment;
+
+    PRManager *pr_mgr;
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -402,6 +407,11 @@ static QemuOptsList raw_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "file locking mode (on/off/auto, default: auto)",
         },
+        {
+            .name = "pr-manager",
+            .type = QEMU_OPT_STRING,
+            .help = "id of persistent reservation manager object (default: none)",
+        },
         { /* end of list */ }
     },
 };
@@ -413,6 +423,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *filename = NULL;
+    const char *str;
     BlockdevAioOptions aio, aio_default;
     int fd, ret;
     struct stat st;
@@ -474,6 +485,16 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         break;
     default:
         abort();
+    }
+
+    str = qemu_opt_get(opts, "pr-manager");
+    if (str) {
+        s->pr_mgr = pr_manager_lookup(str, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            ret = -EINVAL;
+            goto fail;
+        }
     }
 
     s->open_flags = open_flags;
@@ -2596,6 +2617,15 @@ static BlockAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
 
     if (fd_open(bs) < 0)
         return NULL;
+
+    if (req == SG_IO && s->pr_mgr) {
+        struct sg_io_hdr *io_hdr = buf;
+        if (io_hdr->cmdp[0] == PERSISTENT_RESERVE_OUT ||
+            io_hdr->cmdp[0] == PERSISTENT_RESERVE_IN) {
+            return pr_manager_execute(s->pr_mgr, bdrv_get_aio_context(bs),
+                                      s->fd, io_hdr, cb, opaque);
+        }
+    }
 
     acb = g_new(RawPosixAIOData, 1);
     acb->bs = bs;

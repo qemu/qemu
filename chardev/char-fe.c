@@ -253,7 +253,6 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               bool set_open)
 {
     Chardev *s;
-    ChardevClass *cc;
     int fe_open;
 
     s = b->chr;
@@ -261,7 +260,6 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
         return;
     }
 
-    cc = CHARDEV_GET_CLASS(s);
     if (!opaque && !fd_can_read && !fd_read && !fd_event) {
         fe_open = 0;
         remove_fd_in_watch(s);
@@ -273,9 +271,8 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
     b->chr_event = fd_event;
     b->chr_be_change = be_change;
     b->opaque = opaque;
-    if (cc->chr_update_read_handler) {
-        cc->chr_update_read_handler(s, context);
-    }
+
+    qemu_chr_be_update_read_handlers(s, context);
 
     if (set_open) {
         qemu_chr_fe_set_open(b, fe_open);

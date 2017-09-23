@@ -100,8 +100,7 @@ static gboolean udp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
-static void udp_chr_update_read_handler(Chardev *chr,
-                                        GMainContext *context)
+static void udp_chr_update_read_handler(Chardev *chr)
 {
     UdpChardev *s = UDP_CHARDEV(chr);
 
@@ -110,7 +109,7 @@ static void udp_chr_update_read_handler(Chardev *chr,
         chr->gsource = io_add_watch_poll(chr, s->ioc,
                                            udp_chr_read_poll,
                                            udp_chr_read, chr,
-                                           context);
+                                           chr->gcontext);
     }
 }
 

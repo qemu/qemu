@@ -72,10 +72,14 @@ extern const struct SCSISense sense_code_IO_ERROR;
 extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
 /* Command aborted, Logical Unit failure */
 extern const struct SCSISense sense_code_LUN_FAILURE;
+/* Command aborted, LUN Communication failure */
+extern const struct SCSISense sense_code_LUN_COMM_FAILURE;
 /* Command aborted, Overlapped Commands Attempted */
 extern const struct SCSISense sense_code_OVERLAPPED_COMMANDS;
 /* LUN not ready, Capacity data has changed */
 extern const struct SCSISense sense_code_CAPACITY_CHANGED;
+/* Unit attention, SCSI bus reset */
+extern const struct SCSISense sense_code_SCSI_BUS_RESET;
 /* LUN not ready, Medium not present */
 extern const struct SCSISense sense_code_UNIT_ATTENTION_NO_MEDIUM;
 /* Unit attention, Power on, reset or bus device reset occurred */
