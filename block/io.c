@@ -165,7 +165,7 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
     BlockDriverState *bs = data->bs;
 
     if (data->begin) {
-        bs->drv->bdrv_co_drain(bs);
+        bs->drv->bdrv_co_drain_begin(bs);
     } else {
         bs->drv->bdrv_co_drain_end(bs);
     }
@@ -179,7 +179,7 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 {
     BdrvCoDrainData data = { .bs = bs, .done = false, .begin = begin};
 
-    if (!bs->drv || (begin && !bs->drv->bdrv_co_drain) ||
+    if (!bs->drv || (begin && !bs->drv->bdrv_co_drain_begin) ||
             (!begin && !bs->drv->bdrv_co_drain_end)) {
         return;
     }
