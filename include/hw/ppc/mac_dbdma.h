@@ -174,7 +174,6 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque);
 void DBDMA_kick(DBDMAState *dbdma);
-void* DBDMA_init (MemoryRegion **dbdma_mem);
 
 #define TYPE_MAC_DBDMA "mac-dbdma"
 #define MAC_DBDMA(obj) OBJECT_CHECK(DBDMAState, (obj), TYPE_MAC_DBDMA)

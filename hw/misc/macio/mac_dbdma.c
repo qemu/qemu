@@ -886,20 +886,6 @@ static void dbdma_unassigned_flush(DBDMA_io *io)
                   __func__, ch->channel);
 }
 
-void* DBDMA_init (MemoryRegion **dbdma_mem)
-{
-    DBDMAState *s;
-    SysBusDevice *sbd;
-
-    s = MAC_DBDMA(object_new(TYPE_MAC_DBDMA));
-    object_property_set_bool(OBJECT(s), true, "realized", NULL);
-
-    sbd = SYS_BUS_DEVICE(s);
-    *dbdma_mem = sysbus_mmio_get_region(sbd, 0);
-
-    return s;
-}
-
 static void mac_dbdma_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
