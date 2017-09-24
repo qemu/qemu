@@ -159,7 +159,9 @@ static void macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
     sysbus_dev = SYS_BUS_DEVICE(ide);
     sysbus_connect_irq(sysbus_dev, 0, irq0);
     sysbus_connect_irq(sysbus_dev, 1, irq1);
-    macio_ide_register_dma(ide, s->dbdma, dmaid);
+    qdev_prop_set_uint32(DEVICE(ide), "channel", dmaid);
+    macio_ide_register_dma(ide, s->dbdma);
+
     object_property_set_bool(OBJECT(ide), true, "realized", errp);
 }
 

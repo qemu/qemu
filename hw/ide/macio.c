@@ -452,12 +452,18 @@ static void macio_ide_initfn(Object *obj)
     s->ide_irq = qemu_allocate_irq(pmac_ide_irq, s, 1);
 }
 
+static Property macio_ide_properties[] = {
+    DEFINE_PROP_UINT32("channel", MACIOIDEState, channel, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void macio_ide_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = macio_ide_realizefn;
     dc->reset = macio_ide_reset;
+    dc->props = macio_ide_properties;
     dc->vmsd = &vmstate_pmac;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -487,10 +493,10 @@ void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
     }
 }
 
-void macio_ide_register_dma(MACIOIDEState *s, void *dbdma, int channel)
+void macio_ide_register_dma(MACIOIDEState *s, void *dbdma)
 {
     s->dbdma = dbdma;
-    DBDMA_register_channel(dbdma, channel, s->dma_irq,
+    DBDMA_register_channel(dbdma, s->channel, s->dma_irq,
                            pmac_ide_transfer, pmac_ide_flush, s);
 }
 
