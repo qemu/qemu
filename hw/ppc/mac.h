@@ -147,7 +147,7 @@ typedef struct MACIOIDEState {
 } MACIOIDEState;
 
 void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
-void macio_ide_register_dma(MACIOIDEState *ide, void *dbdma);
+void macio_ide_register_dma(MACIOIDEState *ide);
 
 void macio_init(PCIDevice *dev,
                 MemoryRegion *pic_mem,

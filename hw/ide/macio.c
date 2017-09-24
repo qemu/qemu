@@ -450,6 +450,10 @@ static void macio_ide_initfn(Object *obj)
     sysbus_init_irq(d, &s->real_dma_irq);
     s->dma_irq = qemu_allocate_irq(pmac_ide_irq, s, 0);
     s->ide_irq = qemu_allocate_irq(pmac_ide_irq, s, 1);
+
+    object_property_add_link(obj, "dbdma", TYPE_MAC_DBDMA,
+                             (Object **) &s->dbdma,
+                             qdev_prop_allow_set_link_before_realize, 0, NULL);
 }
 
 static Property macio_ide_properties[] = {
@@ -493,10 +497,9 @@ void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
     }
 }
 
-void macio_ide_register_dma(MACIOIDEState *s, void *dbdma)
+void macio_ide_register_dma(MACIOIDEState *s)
 {
-    s->dbdma = dbdma;
-    DBDMA_register_channel(dbdma, s->channel, s->dma_irq,
+    DBDMA_register_channel(s->dbdma, s->channel, s->dma_irq,
                            pmac_ide_transfer, pmac_ide_flush, s);
 }
 
