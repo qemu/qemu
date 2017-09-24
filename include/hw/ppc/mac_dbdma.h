@@ -42,10 +42,6 @@ struct DBDMA_io {
     DBDMA_end dma_end;
     /* DMA is in progress, don't start another one */
     bool processing;
-    /* unaligned last sector of a request */
-    uint8_t head_remainder[0x200];
-    uint8_t tail_remainder[0x200];
-    QEMUIOVector iov;
     /* DMA request */
     void *dma_mem;
     dma_addr_t dma_len;

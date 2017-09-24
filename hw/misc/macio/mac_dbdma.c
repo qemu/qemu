@@ -893,9 +893,7 @@ void* DBDMA_init (MemoryRegion **dbdma_mem)
     s = g_malloc0(sizeof(DBDMAState));
 
     for (i = 0; i < DBDMA_CHANNELS; i++) {
-        DBDMA_io *io = &s->channels[i].io;
         DBDMA_channel *ch = &s->channels[i];
-        qemu_iovec_init(&io->iov, 1);
 
         ch->rw = dbdma_unassigned_rw;
         ch->flush = dbdma_unassigned_flush;
