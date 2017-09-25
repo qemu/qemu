@@ -628,10 +628,10 @@ void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap)
     hbitmap_deserialize_finish(bitmap->bitmap);
 }
 
-void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
-                    int64_t nr_sectors)
+void bdrv_set_dirty(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     BdrvDirtyBitmap *bitmap;
+    int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
 
     if (QLIST_EMPTY(&bs->dirty_bitmaps)) {
         return;
@@ -643,7 +643,8 @@ void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
             continue;
         }
         assert(!bdrv_dirty_bitmap_readonly(bitmap));
-        hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
+        hbitmap_set(bitmap->bitmap, offset >> BDRV_SECTOR_BITS,
+                    end_sector - (offset >> BDRV_SECTOR_BITS));
     }
     bdrv_dirty_bitmaps_unlock(bs);
 }
