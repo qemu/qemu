@@ -295,10 +295,11 @@ static int load_bitmap_data(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     uint64_t sector, sbc;
     uint64_t bm_size = bdrv_dirty_bitmap_size(bitmap);
+    uint64_t bm_sectors = DIV_ROUND_UP(bm_size, BDRV_SECTOR_SIZE);
     uint8_t *buf = NULL;
     uint64_t i, tab_size =
             size_to_clusters(s,
-                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_size));
+                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_sectors));
 
     if (tab_size != bitmap_table_size || tab_size > BME_MAX_TABLE_SIZE) {
         return -EINVAL;
@@ -307,7 +308,7 @@ static int load_bitmap_data(BlockDriverState *bs,
     buf = g_malloc(s->cluster_size);
     sbc = sectors_covered_by_bitmap_cluster(s, bitmap);
     for (i = 0, sector = 0; i < tab_size; ++i, sector += sbc) {
-        uint64_t count = MIN(bm_size - sector, sbc);
+        uint64_t count = MIN(bm_sectors - sector, sbc);
         uint64_t entry = bitmap_table[i];
         uint64_t offset = entry & BME_TABLE_ENTRY_OFFSET_MASK;
 
@@ -1077,13 +1078,14 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
     int64_t sector;
     uint64_t sbc;
     uint64_t bm_size = bdrv_dirty_bitmap_size(bitmap);
+    uint64_t bm_sectors = DIV_ROUND_UP(bm_size, BDRV_SECTOR_SIZE);
     const char *bm_name = bdrv_dirty_bitmap_name(bitmap);
     uint8_t *buf = NULL;
     BdrvDirtyBitmapIter *dbi;
     uint64_t *tb;
     uint64_t tb_size =
             size_to_clusters(s,
-                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_size));
+                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_sectors));
 
     if (tb_size > BME_MAX_TABLE_SIZE ||
         tb_size * s->cluster_size > BME_MAX_PHYS_SIZE)
@@ -1101,7 +1103,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
     dbi = bdrv_dirty_iter_new(bitmap, 0);
     buf = g_malloc(s->cluster_size);
     sbc = sectors_covered_by_bitmap_cluster(s, bitmap);
-    assert(DIV_ROUND_UP(bm_size, sbc) == tb_size);
+    assert(DIV_ROUND_UP(bm_sectors, sbc) == tb_size);
 
     while ((sector = bdrv_dirty_iter_next(dbi)) != -1) {
         uint64_t cluster = sector / sbc;
@@ -1109,7 +1111,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
         int64_t off;
 
         sector = cluster * sbc;
-        end = MIN(bm_size, sector + sbc);
+        end = MIN(bm_sectors, sector + sbc);
         write_size =
             bdrv_dirty_bitmap_serialization_size(bitmap, sector, end - sector);
         assert(write_size <= s->cluster_size);
@@ -1141,7 +1143,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
             goto fail;
         }
 
-        if (end >= bm_size) {
+        if (end >= bm_sectors) {
             break;
         }
 

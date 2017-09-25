@@ -175,7 +175,7 @@ void bdrv_release_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap)
 
 int64_t bdrv_dirty_bitmap_size(const BdrvDirtyBitmap *bitmap)
 {
-    return bitmap->size;
+    return bitmap->size * BDRV_SECTOR_SIZE;
 }
 
 const char *bdrv_dirty_bitmap_name(const BdrvDirtyBitmap *bitmap)
