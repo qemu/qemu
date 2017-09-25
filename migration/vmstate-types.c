@@ -550,13 +550,14 @@ static int put_tmp(QEMUFile *f, void *pv, size_t size, VMStateField *field,
 {
     const VMStateDescription *vmsd = field->vmsd;
     void *tmp = g_malloc(size);
+    int ret;
 
     /* Writes the parent field which is at the start of the tmp */
     *(void **)tmp = pv;
-    vmstate_save_state(f, vmsd, tmp, vmdesc);
+    ret = vmstate_save_state(f, vmsd, tmp, vmdesc);
     g_free(tmp);
 
-    return 0;
+    return ret;
 }
 
 const VMStateInfo vmstate_info_tmp = {
@@ -657,12 +658,16 @@ static int put_qtailq(QEMUFile *f, void *pv, size_t unused_size,
     /* offset of the QTAILQ entry in a QTAILQ element*/
     size_t entry_offset = field->start;
     void *elm;
+    int ret;
 
     trace_put_qtailq(vmsd->name, vmsd->version_id);
 
     QTAILQ_RAW_FOREACH(elm, pv, entry_offset) {
         qemu_put_byte(f, true);
-        vmstate_save_state(f, vmsd, elm, vmdesc);
+        ret = vmstate_save_state(f, vmsd, elm, vmdesc);
+        if (ret) {
+            return ret;
+        }
     }
     qemu_put_byte(f, false);
 

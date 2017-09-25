@@ -1897,7 +1897,7 @@ static const VMStateDescription vmstate_virtio = {
     }
 };
 
-void virtio_save(VirtIODevice *vdev, QEMUFile *f)
+int virtio_save(VirtIODevice *vdev, QEMUFile *f)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
@@ -1947,20 +1947,21 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f)
     }
 
     if (vdc->vmsd) {
-        vmstate_save_state(f, vdc->vmsd, vdev, NULL);
+        int ret = vmstate_save_state(f, vdc->vmsd, vdev, NULL);
+        if (ret) {
+            return ret;
+        }
     }
 
     /* Subsections */
-    vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
+    return vmstate_save_state(f, &vmstate_virtio, vdev, NULL);
 }
 
 /* A wrapper for use as a VMState .put function */
 static int virtio_device_put(QEMUFile *f, void *opaque, size_t size,
                               VMStateField *field, QJSON *vmdesc)
 {
-    virtio_save(VIRTIO_DEVICE(opaque), f);
-
-    return 0;
+    return virtio_save(VIRTIO_DEVICE(opaque), f);
 }
 
 /* A wrapper for use as a VMState .get function */
