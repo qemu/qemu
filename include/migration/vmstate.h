@@ -994,8 +994,8 @@ extern const VMStateInfo vmstate_info_qtailq;
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
-void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                        void *opaque, QJSON *vmdesc);
+int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
+                       void *opaque, QJSON *vmdesc);
 
 bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque);
 
