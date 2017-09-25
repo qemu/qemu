@@ -4488,7 +4488,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     /* The size for the image must always be specified, unless we have a backing
      * file and we have not been forbidden from opening it. */
-    size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
+    size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, img_size);
     if (backing_file && !(flags & BDRV_O_NO_BACKING)) {
         BlockDriverState *bs;
         char *full_backing = g_new0(char, PATH_MAX);
