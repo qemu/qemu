@@ -1109,7 +1109,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
     sbc = limit >> BDRV_SECTOR_BITS;
     assert(DIV_ROUND_UP(bm_size, limit) == tb_size);
 
-    while ((sector = bdrv_dirty_iter_next(dbi)) != -1) {
+    while ((sector = bdrv_dirty_iter_next(dbi) >> BDRV_SECTOR_BITS) >= 0) {
         uint64_t cluster = sector / sbc;
         uint64_t end, write_size;
         int64_t off;
