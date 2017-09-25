@@ -413,14 +413,14 @@ bool hbitmap_is_serializable(const HBitmap *hb)
 {
     /* Every serialized chunk must be aligned to 64 bits so that endianness
      * requirements can be fulfilled on both 64 bit and 32 bit hosts.
-     * We have hbitmap_serialization_granularity() which converts this
+     * We have hbitmap_serialization_align() which converts this
      * alignment requirement from bitmap bits to items covered (e.g. sectors).
      * That value is:
      *    64 << hb->granularity
      * Since this value must not exceed UINT64_MAX, hb->granularity must be
      * less than 58 (== 64 - 6, where 6 is ld(64), i.e. 1 << 6 == 64).
      *
-     * In order for hbitmap_serialization_granularity() to always return a
+     * In order for hbitmap_serialization_align() to always return a
      * meaningful value, bitmaps that are to be serialized must have a
      * granularity of less than 58. */
 
@@ -437,7 +437,7 @@ bool hbitmap_get(const HBitmap *hb, uint64_t item)
     return (hb->levels[HBITMAP_LEVELS - 1][pos >> BITS_PER_LEVEL] & bit) != 0;
 }
 
-uint64_t hbitmap_serialization_granularity(const HBitmap *hb)
+uint64_t hbitmap_serialization_align(const HBitmap *hb)
 {
     assert(hbitmap_is_serializable(hb));
 
@@ -454,7 +454,7 @@ static void serialization_chunk(const HBitmap *hb,
                                 unsigned long **first_el, uint64_t *el_count)
 {
     uint64_t last = start + count - 1;
-    uint64_t gran = hbitmap_serialization_granularity(hb);
+    uint64_t gran = hbitmap_serialization_align(hb);
 
     assert((start & (gran - 1)) == 0);
     assert((last >> hb->granularity) < hb->size);

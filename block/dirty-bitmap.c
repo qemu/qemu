@@ -617,7 +617,7 @@ uint64_t bdrv_dirty_bitmap_serialization_size(const BdrvDirtyBitmap *bitmap,
 
 uint64_t bdrv_dirty_bitmap_serialization_align(const BdrvDirtyBitmap *bitmap)
 {
-    return hbitmap_serialization_granularity(bitmap->bitmap);
+    return hbitmap_serialization_align(bitmap->bitmap);
 }
 
 void bdrv_dirty_bitmap_serialize_part(const BdrvDirtyBitmap *bitmap,

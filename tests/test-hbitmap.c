@@ -738,15 +738,15 @@ static void test_hbitmap_meta_one(TestHBitmapData *data, const void *unused)
     }
 }
 
-static void test_hbitmap_serialize_granularity(TestHBitmapData *data,
-                                               const void *unused)
+static void test_hbitmap_serialize_align(TestHBitmapData *data,
+                                         const void *unused)
 {
     int r;
 
     hbitmap_test_init(data, L3 * 2, 3);
     g_assert(hbitmap_is_serializable(data->hb));
 
-    r = hbitmap_serialization_granularity(data->hb);
+    r = hbitmap_serialization_align(data->hb);
     g_assert_cmpint(r, ==, 64 << 3);
 }
 
@@ -974,8 +974,8 @@ int main(int argc, char **argv)
     hbitmap_test_add("/hbitmap/meta/word", test_hbitmap_meta_word);
     hbitmap_test_add("/hbitmap/meta/sector", test_hbitmap_meta_sector);
 
-    hbitmap_test_add("/hbitmap/serialize/granularity",
-                     test_hbitmap_serialize_granularity);
+    hbitmap_test_add("/hbitmap/serialize/align",
+                     test_hbitmap_serialize_align);
     hbitmap_test_add("/hbitmap/serialize/basic",
                      test_hbitmap_serialize_basic);
     hbitmap_test_add("/hbitmap/serialize/part",
