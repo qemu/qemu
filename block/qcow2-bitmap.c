@@ -269,18 +269,16 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
     return 0;
 }
 
-/* This function returns the number of disk sectors covered by a single qcow2
- * cluster of bitmap data. */
-static uint64_t sectors_covered_by_bitmap_cluster(const BDRVQcow2State *s,
-                                                  const BdrvDirtyBitmap *bitmap)
+/* Return the disk size covered by a single qcow2 cluster of bitmap data. */
+static uint64_t bytes_covered_by_bitmap_cluster(const BDRVQcow2State *s,
+                                                const BdrvDirtyBitmap *bitmap)
 {
-    uint64_t sector_granularity =
-            bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS;
-    uint64_t sbc = sector_granularity * (s->cluster_size << 3);
+    uint64_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
+    uint64_t limit = granularity * (s->cluster_size << 3);
 
-    assert(QEMU_IS_ALIGNED(sbc << BDRV_SECTOR_BITS,
+    assert(QEMU_IS_ALIGNED(limit,
                            bdrv_dirty_bitmap_serialization_align(bitmap)));
-    return sbc;
+    return limit;
 }
 
 /* load_bitmap_data
@@ -293,7 +291,7 @@ static int load_bitmap_data(BlockDriverState *bs,
 {
     int ret = 0;
     BDRVQcow2State *s = bs->opaque;
-    uint64_t sector, sbc;
+    uint64_t sector, limit, sbc;
     uint64_t bm_size = bdrv_dirty_bitmap_size(bitmap);
     uint64_t bm_sectors = DIV_ROUND_UP(bm_size, BDRV_SECTOR_SIZE);
     uint8_t *buf = NULL;
@@ -306,7 +304,8 @@ static int load_bitmap_data(BlockDriverState *bs,
     }
 
     buf = g_malloc(s->cluster_size);
-    sbc = sectors_covered_by_bitmap_cluster(s, bitmap);
+    limit = bytes_covered_by_bitmap_cluster(s, bitmap);
+    sbc = limit >> BDRV_SECTOR_BITS;
     for (i = 0, sector = 0; i < tab_size; ++i, sector += sbc) {
         uint64_t count = MIN(bm_sectors - sector, sbc);
         uint64_t entry = bitmap_table[i];
@@ -1080,7 +1079,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
     int ret;
     BDRVQcow2State *s = bs->opaque;
     int64_t sector;
-    uint64_t sbc;
+    uint64_t limit, sbc;
     uint64_t bm_size = bdrv_dirty_bitmap_size(bitmap);
     uint64_t bm_sectors = DIV_ROUND_UP(bm_size, BDRV_SECTOR_SIZE);
     const char *bm_name = bdrv_dirty_bitmap_name(bitmap);
@@ -1106,8 +1105,9 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
 
     dbi = bdrv_dirty_iter_new(bitmap, 0);
     buf = g_malloc(s->cluster_size);
-    sbc = sectors_covered_by_bitmap_cluster(s, bitmap);
-    assert(DIV_ROUND_UP(bm_sectors, sbc) == tb_size);
+    limit = bytes_covered_by_bitmap_cluster(s, bitmap);
+    sbc = limit >> BDRV_SECTOR_BITS;
+    assert(DIV_ROUND_UP(bm_size, limit) == tb_size);
 
     while ((sector = bdrv_dirty_iter_next(dbi)) != -1) {
         uint64_t cluster = sector / sbc;
