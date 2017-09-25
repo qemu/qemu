@@ -672,7 +672,7 @@ static int64_t get_remaining_dirty(void)
         aio_context_release(blk_get_aio_context(bmds->blk));
     }
 
-    return dirty << BDRV_SECTOR_BITS;
+    return dirty;
 }
 
 
