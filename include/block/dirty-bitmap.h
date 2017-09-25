@@ -40,9 +40,9 @@ const char *bdrv_dirty_bitmap_name(const BdrvDirtyBitmap *bitmap);
 int64_t bdrv_dirty_bitmap_size(const BdrvDirtyBitmap *bitmap);
 DirtyBitmapStatus bdrv_dirty_bitmap_status(BdrvDirtyBitmap *bitmap);
 void bdrv_set_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                           int64_t cur_sector, int64_t nr_sectors);
+                           int64_t offset, int64_t bytes);
 void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                             int64_t cur_sector, int64_t nr_sectors);
+                             int64_t offset, int64_t bytes);
 BdrvDirtyBitmapIter *bdrv_dirty_meta_iter_new(BdrvDirtyBitmap *bitmap);
 BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap);
 void bdrv_dirty_iter_free(BdrvDirtyBitmapIter *iter);
@@ -75,9 +75,9 @@ void bdrv_dirty_bitmap_unlock(BdrvDirtyBitmap *bitmap);
 bool bdrv_get_dirty_locked(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
                            int64_t offset);
 void bdrv_set_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap,
-                                  int64_t cur_sector, int64_t nr_sectors);
+                                  int64_t offset, int64_t bytes);
 void bdrv_reset_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap,
-                                    int64_t cur_sector, int64_t nr_sectors);
+                                    int64_t offset, int64_t bytes);
 int64_t bdrv_dirty_iter_next(BdrvDirtyBitmapIter *iter);
 void bdrv_set_dirty_iter(BdrvDirtyBitmapIter *hbi, int64_t offset);
 int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap);

@@ -141,8 +141,7 @@ static void mirror_write_complete(void *opaque, int ret)
     if (ret < 0) {
         BlockErrorAction action;
 
-        bdrv_set_dirty_bitmap(s->dirty_bitmap, op->offset >> BDRV_SECTOR_BITS,
-                              op->bytes >> BDRV_SECTOR_BITS);
+        bdrv_set_dirty_bitmap(s->dirty_bitmap, op->offset, op->bytes);
         action = mirror_error_action(s, false, -ret);
         if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
@@ -161,8 +160,7 @@ static void mirror_read_complete(void *opaque, int ret)
     if (ret < 0) {
         BlockErrorAction action;
 
-        bdrv_set_dirty_bitmap(s->dirty_bitmap, op->offset >> BDRV_SECTOR_BITS,
-                              op->bytes >> BDRV_SECTOR_BITS);
+        bdrv_set_dirty_bitmap(s->dirty_bitmap, op->offset, op->bytes);
         action = mirror_error_action(s, true, -ret);
         if (action == BLOCK_ERROR_ACTION_REPORT && s->ret >= 0) {
             s->ret = ret;
@@ -382,8 +380,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
      * calling bdrv_get_block_status_above could yield - if some blocks are
      * marked dirty in this window, we need to know.
      */
-    bdrv_reset_dirty_bitmap_locked(s->dirty_bitmap, offset >> BDRV_SECTOR_BITS,
-                                   nb_chunks * sectors_per_chunk);
+    bdrv_reset_dirty_bitmap_locked(s->dirty_bitmap, offset,
+                                   nb_chunks * s->granularity);
     bdrv_dirty_bitmap_unlock(s->dirty_bitmap);
 
     bitmap_set(s->in_flight_bitmap, offset / s->granularity, nb_chunks);
@@ -625,7 +623,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
 
     if (base == NULL && !bdrv_has_zero_init(target_bs)) {
         if (!bdrv_can_write_zeroes_with_unmap(target_bs)) {
-            bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, end);
+            bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, s->bdev_length);
             return 0;
         }
 
@@ -681,7 +679,9 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         n = count >> BDRV_SECTOR_BITS;
         assert(n > 0);
         if (ret == 1) {
-            bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
+            bdrv_set_dirty_bitmap(s->dirty_bitmap,
+                                  sector_num * BDRV_SECTOR_SIZE,
+                                  n * BDRV_SECTOR_SIZE);
         }
         sector_num += n;
     }

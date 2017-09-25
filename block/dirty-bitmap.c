@@ -509,35 +509,41 @@ int64_t bdrv_dirty_iter_next(BdrvDirtyBitmapIter *iter)
 
 /* Called within bdrv_dirty_bitmap_lock..unlock */
 void bdrv_set_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap,
-                                  int64_t cur_sector, int64_t nr_sectors)
+                                  int64_t offset, int64_t bytes)
 {
+    int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
+
     assert(bdrv_dirty_bitmap_enabled(bitmap));
     assert(!bdrv_dirty_bitmap_readonly(bitmap));
-    hbitmap_set(bitmap->bitmap, cur_sector, nr_sectors);
+    hbitmap_set(bitmap->bitmap, offset >> BDRV_SECTOR_BITS,
+                end_sector - (offset >> BDRV_SECTOR_BITS));
 }
 
 void bdrv_set_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                           int64_t cur_sector, int64_t nr_sectors)
+                           int64_t offset, int64_t bytes)
 {
     bdrv_dirty_bitmap_lock(bitmap);
-    bdrv_set_dirty_bitmap_locked(bitmap, cur_sector, nr_sectors);
+    bdrv_set_dirty_bitmap_locked(bitmap, offset, bytes);
     bdrv_dirty_bitmap_unlock(bitmap);
 }
 
 /* Called within bdrv_dirty_bitmap_lock..unlock */
 void bdrv_reset_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap,
-                                    int64_t cur_sector, int64_t nr_sectors)
+                                    int64_t offset, int64_t bytes)
 {
+    int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
+
     assert(bdrv_dirty_bitmap_enabled(bitmap));
     assert(!bdrv_dirty_bitmap_readonly(bitmap));
-    hbitmap_reset(bitmap->bitmap, cur_sector, nr_sectors);
+    hbitmap_reset(bitmap->bitmap, offset >> BDRV_SECTOR_BITS,
+                  end_sector - (offset >> BDRV_SECTOR_BITS));
 }
 
 void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                             int64_t cur_sector, int64_t nr_sectors)
+                             int64_t offset, int64_t bytes)
 {
     bdrv_dirty_bitmap_lock(bitmap);
-    bdrv_reset_dirty_bitmap_locked(bitmap, cur_sector, nr_sectors);
+    bdrv_reset_dirty_bitmap_locked(bitmap, offset, bytes);
     bdrv_dirty_bitmap_unlock(bitmap);
 }
 

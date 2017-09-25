@@ -334,7 +334,8 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     blk->aiocb = blk_aio_preadv(bb, cur_sector * BDRV_SECTOR_SIZE, &blk->qiov,
                                 0, blk_mig_read_cb, blk);
 
-    bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector, nr_sectors);
+    bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector * BDRV_SECTOR_SIZE,
+                            nr_sectors * BDRV_SECTOR_SIZE);
     aio_context_release(blk_get_aio_context(bmds->blk));
     qemu_mutex_unlock_iothread();
 
@@ -542,7 +543,9 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
             } else {
                 nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
             }
-            bdrv_reset_dirty_bitmap_locked(bmds->dirty_bitmap, sector, nr_sectors);
+            bdrv_reset_dirty_bitmap_locked(bmds->dirty_bitmap,
+                                           sector * BDRV_SECTOR_SIZE,
+                                           nr_sectors * BDRV_SECTOR_SIZE);
             bdrv_dirty_bitmap_unlock(bmds->dirty_bitmap);
 
             blk = g_new(BlkMigBlock, 1);
