@@ -1240,6 +1240,19 @@ static hwaddr spapr_hpt_mask(PPCVirtualHypervisor *vhyp)
     return HTAB_SIZE(spapr) / HASH_PTEG_SIZE_64 - 1;
 }
 
+static target_ulong spapr_encode_hpt_for_kvm_pr(PPCVirtualHypervisor *vhyp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    assert(kvm_enabled());
+
+    if (!spapr->htab) {
+        return 0;
+    }
+
+    return (target_ulong)(uintptr_t)spapr->htab | (spapr->htab_shift - 18);
+}
+
 static const ppc_hash_pte64_t *spapr_map_hptes(PPCVirtualHypervisor *vhyp,
                                                 hwaddr ptex, int n)
 {
@@ -3604,6 +3617,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->unmap_hptes = spapr_unmap_hptes;
     vhc->store_hpte = spapr_store_hpte;
     vhc->get_patbe = spapr_get_patbe;
+    vhc->encode_hpt_for_kvm_pr = spapr_encode_hpt_for_kvm_pr;
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;

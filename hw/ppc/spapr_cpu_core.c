@@ -18,6 +18,7 @@
 #include "hw/ppc/ppc.h"
 #include "target/ppc/mmu-hash64.h"
 #include "sysemu/numa.h"
+#include "sysemu/hw_accel.h"
 #include "qemu/error-report.h"
 
 void spapr_cpu_parse_features(sPAPRMachineState *spapr)
@@ -73,7 +74,6 @@ void spapr_cpu_parse_features(sPAPRMachineState *spapr)
 
 static void spapr_cpu_reset(void *opaque)
 {
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     PowerPCCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -86,20 +86,6 @@ static void spapr_cpu_reset(void *opaque)
     cs->halted = 1;
 
     env->spr[SPR_HIOR] = 0;
-
-    /*
-     * This is a hack for the benefit of KVM PR - it abuses the SDR1
-     * slot in kvm_sregs to communicate the userspace address of the
-     * HPT
-     */
-    if (kvm_enabled()) {
-        env->spr[SPR_SDR1] = (target_ulong)(uintptr_t)spapr->htab
-            | (spapr->htab_shift - 18);
-        if (kvmppc_put_books_sregs(cpu) < 0) {
-            error_report("Unable to update SDR1 in KVM");
-            exit(1);
-        }
-    }
 }
 
 static void spapr_cpu_destroy(PowerPCCPU *cpu)

@@ -686,6 +686,37 @@ static int rehash_hpt(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+static void do_push_sregs_to_kvm_pr(CPUState *cs, run_on_cpu_data data)
+{
+    int ret;
+
+    cpu_synchronize_state(cs);
+
+    ret = kvmppc_put_books_sregs(POWERPC_CPU(cs));
+    if (ret < 0) {
+        error_report("failed to push sregs to KVM: %s", strerror(-ret));
+        exit(1);
+    }
+}
+
+static void push_sregs_to_kvm_pr(sPAPRMachineState *spapr)
+{
+    CPUState *cs;
+
+    /*
+     * This is a hack for the benefit of KVM PR - it abuses the SDR1
+     * slot in kvm_sregs to communicate the userspace address of the
+     * HPT
+     */
+    if (!kvm_enabled() || !spapr->htab) {
+        return;
+    }
+
+    CPU_FOREACH(cs) {
+        run_on_cpu(cs, do_push_sregs_to_kvm_pr, RUN_ON_CPU_NULL);
+    }
+}
+
 static target_ulong h_resize_hpt_commit(PowerPCCPU *cpu,
                                         sPAPRMachineState *spapr,
                                         target_ulong opcode,
@@ -733,12 +764,7 @@ static target_ulong h_resize_hpt_commit(PowerPCCPU *cpu,
         spapr->htab = pending->hpt;
         spapr->htab_shift = pending->shift;
 
-        if (kvm_enabled()) {
-            /* For KVM PR, update the HPT pointer */
-            target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
-                | (spapr->htab_shift - 18);
-            kvmppc_update_sdr1(sdr1);
-        }
+        push_sregs_to_kvm_pr(spapr);
 
         pending->hpt = NULL; /* so it's not free()d */
     }
@@ -1564,12 +1590,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
              * the point this is called, nothing should have been
              * entered into the existing HPT */
             spapr_reallocate_hpt(spapr, maxshift, &error_fatal);
-            if (kvm_enabled()) {
-                /* For KVM PR, update the HPT pointer */
-                target_ulong sdr1 = (target_ulong)(uintptr_t)spapr->htab
-                    | (spapr->htab_shift - 18);
-                kvmppc_update_sdr1(sdr1);
-            }
+            push_sregs_to_kvm_pr(spapr);
         }
     }
 

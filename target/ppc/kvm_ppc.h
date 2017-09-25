@@ -67,7 +67,6 @@ PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
 void kvmppc_check_papr_resize_hpt(Error **errp);
 int kvmppc_resize_hpt_prepare(PowerPCCPU *cpu, target_ulong flags, int shift);
 int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift);
-void kvmppc_update_sdr1(target_ulong sdr1);
 bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu);
 
 bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path);
@@ -323,11 +322,6 @@ static inline int kvmppc_resize_hpt_commit(PowerPCCPU *cpu,
                                            target_ulong flags, int shift)
 {
     return -ENOSYS;
-}
-
-static inline void kvmppc_update_sdr1(target_ulong sdr1)
-{
-    abort();
 }
 
 #endif
