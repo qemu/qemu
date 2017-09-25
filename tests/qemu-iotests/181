@@ -93,7 +93,9 @@ echo
 
 # Slow down migration so much that it definitely won't finish before we can
 # switch to postcopy
+# Enable postcopy-ram capability both on source and destination
 silent=yes
+_send_qemu_cmd $dest 'migrate_set_capability postcopy-ram on' "(qemu)"
 _send_qemu_cmd $src 'migrate_set_speed 4k' "(qemu)"
 _send_qemu_cmd $src 'migrate_set_capability postcopy-ram on' "(qemu)"
 _send_qemu_cmd $src "migrate -d unix:${MIG_SOCKET}" "(qemu)"

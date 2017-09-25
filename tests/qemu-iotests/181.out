@@ -20,7 +20,6 @@ read 65536/65536 bytes at offset 0
 
 === Do some I/O on the destination ===
 
-QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) qemu-io disk "read -P 0x55 0 64k"
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
