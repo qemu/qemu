@@ -394,7 +394,7 @@ static const VMStateInfo vmstate_powered_off = {
     .put = put_power,
 };
 
-static void cpu_pre_save(void *opaque)
+static int cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
 
@@ -415,6 +415,8 @@ static void cpu_pre_save(void *opaque)
            cpu->cpreg_array_len * sizeof(uint64_t));
     memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
            cpu->cpreg_array_len * sizeof(uint64_t));
+
+    return 0;
 }
 
 static int cpu_post_load(void *opaque, int version_id)

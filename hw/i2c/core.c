@@ -41,7 +41,7 @@ static const TypeInfo i2c_bus_info = {
     .instance_size = sizeof(I2CBus),
 };
 
-static void i2c_bus_pre_save(void *opaque)
+static int i2c_bus_pre_save(void *opaque)
 {
     I2CBus *bus = opaque;
 
@@ -53,6 +53,8 @@ static void i2c_bus_pre_save(void *opaque)
             bus->saved_address = I2C_BROADCAST;
         }
     }
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_i2c_bus = {

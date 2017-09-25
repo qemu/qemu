@@ -420,7 +420,7 @@ typedef struct KVMS390FLICStateMigTmp {
     uint8_t nimm;
 } KVMS390FLICStateMigTmp;
 
-static void kvm_flic_ais_pre_save(void *opaque)
+static int kvm_flic_ais_pre_save(void *opaque)
 {
     KVMS390FLICStateMigTmp *tmp = opaque;
     KVMS390FLICState *flic = tmp->parent;
@@ -433,11 +433,13 @@ static void kvm_flic_ais_pre_save(void *opaque)
 
     if (ioctl(flic->fd, KVM_GET_DEVICE_ATTR, &attr)) {
         error_report("Failed to retrieve kvm flic ais states");
-        return;
+        return -EINVAL;
     }
 
     tmp->simm = ais.simm;
     tmp->nimm = ais.nimm;
+
+    return 0;
 }
 
 static int kvm_flic_ais_post_load(void *opaque, int version_id)

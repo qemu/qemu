@@ -765,11 +765,13 @@ typedef struct TmpTestStruct {
     int64_t diff;
 } TmpTestStruct;
 
-static void tmp_child_pre_save(void *opaque)
+static int tmp_child_pre_save(void *opaque)
 {
     struct TmpTestStruct *tts = opaque;
 
     tts->diff = tts->parent->b - tts->parent->a;
+
+    return 0;
 }
 
 static int tmp_child_post_load(void *opaque, int version_id)

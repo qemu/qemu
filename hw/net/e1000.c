@@ -1343,7 +1343,7 @@ static bool is_version_1(void *opaque, int version_id)
     return version_id == 1;
 }
 
-static void e1000_pre_save(void *opaque)
+static int e1000_pre_save(void *opaque)
 {
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
@@ -1361,6 +1361,8 @@ static void e1000_pre_save(void *opaque)
     if (nc->link_down && have_autoneg(s)) {
         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     }
+
+    return 0;
 }
 
 static int e1000_post_load(void *opaque, int version_id)

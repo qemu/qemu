@@ -196,7 +196,7 @@ static const VMStateDescription vmstate_schdev_orb = {
 };
 
 static int subch_dev_post_load(void *opaque, int version_id);
-static void subch_dev_pre_save(void *opaque);
+static int subch_dev_pre_save(void *opaque);
 
 const char err_hint_devno[] = "Devno mismatch, tried to load wrong section!"
     " Likely reason: some sequences of plug and unplug  can break"
@@ -249,7 +249,7 @@ static int post_load_ind_addr(void *opaque, int version_id)
     return 0;
 }
 
-static void pre_save_ind_addr(void *opaque)
+static int pre_save_ind_addr(void *opaque)
 {
     IndAddrPtrTmp *ptmp = opaque;
     IndAddr *ind_addr = *(ptmp->parent);
@@ -261,6 +261,8 @@ static void pre_save_ind_addr(void *opaque)
         ptmp->len = 0;
         ptmp->addr = 0L;
     }
+
+    return 0;
 }
 
 const VMStateDescription vmstate_ind_addr_tmp = {
@@ -358,12 +360,14 @@ static ChannelSubSys channel_subsys = {
         QTAILQ_HEAD_INITIALIZER(channel_subsys.indicator_addresses),
 };
 
-static void subch_dev_pre_save(void *opaque)
+static int subch_dev_pre_save(void *opaque)
 {
     SubchDev *s = opaque;
 
     /* Prepare remote_schid for save */
     s->migrated_schid = s->schid;
+
+    return 0;
 }
 
 static int subch_dev_post_load(void *opaque, int version_id)

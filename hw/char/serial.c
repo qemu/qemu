@@ -630,10 +630,12 @@ static void serial_event(void *opaque, int event)
         serial_receive_break(s);
 }
 
-static void serial_pre_save(void *opaque)
+static int serial_pre_save(void *opaque)
 {
     SerialState *s = opaque;
     s->fcr_vmstate = s->fcr;
+
+    return 0;
 }
 
 static int serial_pre_load(void *opaque)

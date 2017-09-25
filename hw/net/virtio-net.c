@@ -1712,7 +1712,7 @@ struct VirtIONetMigTmp {
  * pointer and count and also validate the count.
  */
 
-static void virtio_net_tx_waiting_pre_save(void *opaque)
+static int virtio_net_tx_waiting_pre_save(void *opaque)
 {
     struct VirtIONetMigTmp *tmp = opaque;
 
@@ -1721,6 +1721,8 @@ static void virtio_net_tx_waiting_pre_save(void *opaque)
     if (tmp->parent->curr_queues == 0) {
         tmp->curr_queues_1 = 0;
     }
+
+    return 0;
 }
 
 static int virtio_net_tx_waiting_pre_load(void *opaque)
@@ -1768,11 +1770,13 @@ static int virtio_net_ufo_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void virtio_net_ufo_pre_save(void *opaque)
+static int virtio_net_ufo_pre_save(void *opaque)
 {
     struct VirtIONetMigTmp *tmp = opaque;
 
     tmp->has_ufo = tmp->parent->has_ufo;
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_virtio_net_has_ufo = {
@@ -1800,11 +1804,13 @@ static int virtio_net_vnet_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void virtio_net_vnet_pre_save(void *opaque)
+static int virtio_net_vnet_pre_save(void *opaque)
 {
     struct VirtIONetMigTmp *tmp = opaque;
 
     tmp->has_vnet_hdr = tmp->parent->has_vnet_hdr;
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_virtio_net_has_vnet = {
@@ -2079,13 +2085,15 @@ static void virtio_net_instance_init(Object *obj)
                                   DEVICE(n), NULL);
 }
 
-static void virtio_net_pre_save(void *opaque)
+static int virtio_net_pre_save(void *opaque)
 {
     VirtIONet *n = opaque;
 
     /* At this point, backend must be stopped, otherwise
      * it might keep writing to memory. */
     assert(!n->vhost_started);
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_virtio_net = {

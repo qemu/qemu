@@ -296,7 +296,7 @@ static bool ide_bmdma_status_needed(void *opaque)
     return ((bm->status & abused_bits) != 0);
 }
 
-static void ide_bmdma_pre_save(void *opaque)
+static int ide_bmdma_pre_save(void *opaque)
 {
     BMDMAState *bm = opaque;
     uint8_t abused_bits = BM_MIGRATION_COMPAT_STATUS_BITS;
@@ -310,6 +310,8 @@ static void ide_bmdma_pre_save(void *opaque)
     bm->migration_retry_nsector = bm->bus->retry_nsector;
     bm->migration_compat_status =
         (bm->status & ~abused_bits) | (bm->bus->error_status & abused_bits);
+
+    return 0;
 }
 
 /* This function accesses bm->bus->error_status which is loaded only after

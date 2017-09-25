@@ -360,7 +360,7 @@ static int apic_pre_load(void *opaque)
     return 0;
 }
 
-static void apic_dispatch_pre_save(void *opaque)
+static int apic_dispatch_pre_save(void *opaque)
 {
     APICCommonState *s = APIC_COMMON(opaque);
     APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
@@ -368,6 +368,8 @@ static void apic_dispatch_pre_save(void *opaque)
     if (info->pre_save) {
         info->pre_save(s);
     }
+
+    return 0;
 }
 
 static int apic_dispatch_post_load(void *opaque, int version_id)

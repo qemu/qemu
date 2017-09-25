@@ -101,12 +101,14 @@ static int global_state_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void global_state_pre_save(void *opaque)
+static int global_state_pre_save(void *opaque)
 {
     GlobalState *s = opaque;
 
     trace_migrate_global_state_pre_save((char *)s->runstate);
     s->size = strlen((char *)s->runstate) + 1;
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_globalstate = {

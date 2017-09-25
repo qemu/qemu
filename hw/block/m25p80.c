@@ -1251,9 +1251,11 @@ static void m25p80_reset(DeviceState *d)
     reset_memory(s);
 }
 
-static void m25p80_pre_save(void *opaque)
+static int m25p80_pre_save(void *opaque)
 {
     flash_sync_dirty((Flash *)opaque, -1);
+
+    return 0;
 }
 
 static Property m25p80_properties[] = {

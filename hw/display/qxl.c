@@ -2204,7 +2204,7 @@ static void qxl_realize_secondary(PCIDevice *dev, Error **errp)
     qxl_realize_common(qxl, errp);
 }
 
-static void qxl_pre_save(void *opaque)
+static int qxl_pre_save(void *opaque)
 {
     PCIQXLDevice* d = opaque;
     uint8_t *ram_start = d->vga.vram_ptr;
@@ -2216,6 +2216,8 @@ static void qxl_pre_save(void *opaque)
         d->last_release_offset = (uint8_t *)d->last_release - ram_start;
     }
     assert(d->last_release_offset < d->vga.vram_size);
+
+    return 0;
 }
 
 static int qxl_pre_load(void *opaque)

@@ -202,7 +202,7 @@ The functions to do that are inside a vmstate definition, and are called:
 
   This function is called after we load the state of one device.
 
-- void (*pre_save)(void *opaque);
+- int (*pre_save)(void *opaque);
 
   This function is called before we save the state of one device.
 

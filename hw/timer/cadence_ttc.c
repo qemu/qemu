@@ -421,9 +421,11 @@ static void cadence_ttc_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 }
 
-static void cadence_timer_pre_save(void *opaque)
+static int cadence_timer_pre_save(void *opaque)
 {
     cadence_timer_sync((CadenceTimerState *)opaque);
+
+    return 0;
 }
 
 static int cadence_timer_post_load(void *opaque, int version_id)

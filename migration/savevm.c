@@ -312,7 +312,7 @@ static SaveState savevm_state = {
     .global_section_id = 0,
 };
 
-static void configuration_pre_save(void *opaque)
+static int configuration_pre_save(void *opaque)
 {
     SaveState *state = opaque;
     const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
@@ -320,6 +320,8 @@ static void configuration_pre_save(void *opaque)
     state->len = strlen(current_name);
     state->name = current_name;
     state->target_page_bits = qemu_target_page_bits();
+
+    return 0;
 }
 
 static int configuration_pre_load(void *opaque)

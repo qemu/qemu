@@ -1844,7 +1844,7 @@ static const VMStateDescription vmstate_spapr_pci_msi = {
     },
 };
 
-static void spapr_pci_pre_save(void *opaque)
+static int spapr_pci_pre_save(void *opaque)
 {
     sPAPRPHBState *sphb = opaque;
     GHashTableIter iter;
@@ -1869,7 +1869,7 @@ static void spapr_pci_pre_save(void *opaque)
     sphb->msi_devs = NULL;
     sphb->msi_devs_num = g_hash_table_size(sphb->msi);
     if (!sphb->msi_devs_num) {
-        return;
+        return 0;
     }
     sphb->msi_devs = g_malloc(sphb->msi_devs_num * sizeof(spapr_pci_msi_mig));
 
@@ -1878,6 +1878,8 @@ static void spapr_pci_pre_save(void *opaque)
         sphb->msi_devs[i].key = *(uint32_t *) key;
         sphb->msi_devs[i].value = *(spapr_pci_msi *) value;
     }
+
+    return 0;
 }
 
 static int spapr_pci_post_load(void *opaque, int version_id)

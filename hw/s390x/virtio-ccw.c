@@ -62,13 +62,15 @@ typedef struct VirtioCcwDeviceTmp {
     uint16_t config_vector;
 } VirtioCcwDeviceTmp;
 
-static void virtio_ccw_dev_tmp_pre_save(void *opaque)
+static int virtio_ccw_dev_tmp_pre_save(void *opaque)
 {
     VirtioCcwDeviceTmp *tmp = opaque;
     VirtioCcwDevice *dev = tmp->parent;
     VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
 
     tmp->config_vector = vdev->config_vector;
+
+    return 0;
 }
 
 static int virtio_ccw_dev_tmp_post_load(void *opaque, int version_id)

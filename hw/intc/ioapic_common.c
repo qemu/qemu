@@ -102,7 +102,7 @@ void ioapic_reset_common(DeviceState *dev)
     }
 }
 
-static void ioapic_dispatch_pre_save(void *opaque)
+static int ioapic_dispatch_pre_save(void *opaque)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(opaque);
     IOAPICCommonClass *info = IOAPIC_COMMON_GET_CLASS(s);
@@ -110,6 +110,8 @@ static void ioapic_dispatch_pre_save(void *opaque)
     if (info->pre_save) {
         info->pre_save(s);
     }
+
+    return 0;
 }
 
 static int ioapic_dispatch_post_load(void *opaque, int version_id)

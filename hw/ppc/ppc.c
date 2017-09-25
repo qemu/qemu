@@ -937,11 +937,13 @@ void cpu_ppc_clock_vm_state_change(void *opaque, int running,
  *  final pages of memory (which happens between vm_stop()
  *  and pre_save()) takes max_downtime.
  */
-static void timebase_pre_save(void *opaque)
+static int timebase_pre_save(void *opaque)
 {
     PPCTimebase *tb = opaque;
 
     timebase_save(tb);
+
+    return 0;
 }
 
 const VMStateDescription vmstate_ppc_timebase = {

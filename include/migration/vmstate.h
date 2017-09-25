@@ -179,7 +179,7 @@ struct VMStateDescription {
     LoadStateHandler *load_state_old;
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);
-    void (*pre_save)(void *opaque);
+    int (*pre_save)(void *opaque);
     bool (*needed)(void *opaque);
     VMStateField *fields;
     const VMStateDescription **subsections;

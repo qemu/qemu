@@ -160,13 +160,15 @@ static floatx80 cpu_set_fp80(uint64_t mant, uint16_t upper)
     return temp.d;
 }
 
-static void fpreg_pre_save(void *opaque)
+static int fpreg_pre_save(void *opaque)
 {
     x86_FPReg_tmp *tmp = opaque;
 
     /* we save the real CPU data (in case of MMX usage only 'mant'
        contains the MMX register */
     cpu_get_fp80(&tmp->tmp_mant, &tmp->tmp_exp, tmp->parent->d);
+
+    return 0;
 }
 
 static int fpreg_post_load(void *opaque, int version)
@@ -196,7 +198,7 @@ static const VMStateDescription vmstate_fpreg = {
     }
 };
 
-static void cpu_pre_save(void *opaque)
+static int cpu_pre_save(void *opaque)
 {
     X86CPU *cpu = opaque;
     CPUX86State *env = &cpu->env;
@@ -228,6 +230,7 @@ static void cpu_pre_save(void *opaque)
         env->segs[R_SS].flags &= ~(env->segs[R_SS].flags & DESC_DPL_MASK);
     }
 
+    return 0;
 }
 
 static int cpu_post_load(void *opaque, int version_id)
