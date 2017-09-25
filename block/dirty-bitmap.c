@@ -173,45 +173,6 @@ void bdrv_release_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap)
     qemu_mutex_unlock(bitmap->mutex);
 }
 
-int bdrv_dirty_bitmap_get_meta_locked(BlockDriverState *bs,
-                                      BdrvDirtyBitmap *bitmap, int64_t sector,
-                                      int nb_sectors)
-{
-    uint64_t i;
-    int sectors_per_bit = 1 << hbitmap_granularity(bitmap->meta);
-
-    /* To optimize: we can make hbitmap to internally check the range in a
-     * coarse level, or at least do it word by word. */
-    for (i = sector; i < sector + nb_sectors; i += sectors_per_bit) {
-        if (hbitmap_get(bitmap->meta, i)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-int bdrv_dirty_bitmap_get_meta(BlockDriverState *bs,
-                               BdrvDirtyBitmap *bitmap, int64_t sector,
-                               int nb_sectors)
-{
-    bool dirty;
-
-    qemu_mutex_lock(bitmap->mutex);
-    dirty = bdrv_dirty_bitmap_get_meta_locked(bs, bitmap, sector, nb_sectors);
-    qemu_mutex_unlock(bitmap->mutex);
-
-    return dirty;
-}
-
-void bdrv_dirty_bitmap_reset_meta(BlockDriverState *bs,
-                                  BdrvDirtyBitmap *bitmap, int64_t sector,
-                                  int nb_sectors)
-{
-    qemu_mutex_lock(bitmap->mutex);
-    hbitmap_reset(bitmap->meta, sector, nb_sectors);
-    qemu_mutex_unlock(bitmap->mutex);
-}
-
 int64_t bdrv_dirty_bitmap_size(const BdrvDirtyBitmap *bitmap)
 {
     return bitmap->size;
@@ -509,11 +470,6 @@ uint32_t bdrv_get_default_bitmap_granularity(BlockDriverState *bs)
 uint32_t bdrv_dirty_bitmap_granularity(const BdrvDirtyBitmap *bitmap)
 {
     return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->bitmap);
-}
-
-uint32_t bdrv_dirty_bitmap_meta_granularity(BdrvDirtyBitmap *bitmap)
-{
-    return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->meta);
 }
 
 BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap,
