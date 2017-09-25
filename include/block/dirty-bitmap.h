@@ -49,19 +49,19 @@ BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap,
 void bdrv_dirty_iter_free(BdrvDirtyBitmapIter *iter);
 
 uint64_t bdrv_dirty_bitmap_serialization_size(const BdrvDirtyBitmap *bitmap,
-                                              uint64_t start, uint64_t count);
+                                              uint64_t offset, uint64_t bytes);
 uint64_t bdrv_dirty_bitmap_serialization_align(const BdrvDirtyBitmap *bitmap);
 void bdrv_dirty_bitmap_serialize_part(const BdrvDirtyBitmap *bitmap,
-                                      uint8_t *buf, uint64_t start,
-                                      uint64_t count);
+                                      uint8_t *buf, uint64_t offset,
+                                      uint64_t bytes);
 void bdrv_dirty_bitmap_deserialize_part(BdrvDirtyBitmap *bitmap,
-                                        uint8_t *buf, uint64_t start,
-                                        uint64_t count, bool finish);
+                                        uint8_t *buf, uint64_t offset,
+                                        uint64_t bytes, bool finish);
 void bdrv_dirty_bitmap_deserialize_zeroes(BdrvDirtyBitmap *bitmap,
-                                          uint64_t start, uint64_t count,
+                                          uint64_t offset, uint64_t bytes,
                                           bool finish);
 void bdrv_dirty_bitmap_deserialize_ones(BdrvDirtyBitmap *bitmap,
-                                        uint64_t start, uint64_t count,
+                                        uint64_t offset, uint64_t bytes,
                                         bool finish);
 void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap);
 

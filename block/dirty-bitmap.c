@@ -568,42 +568,53 @@ void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in)
 }
 
 uint64_t bdrv_dirty_bitmap_serialization_size(const BdrvDirtyBitmap *bitmap,
-                                              uint64_t start, uint64_t count)
+                                              uint64_t offset, uint64_t bytes)
 {
-    return hbitmap_serialization_size(bitmap->bitmap, start, count);
+    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
+    return hbitmap_serialization_size(bitmap->bitmap,
+                                      offset >> BDRV_SECTOR_BITS,
+                                      bytes >> BDRV_SECTOR_BITS);
 }
 
 uint64_t bdrv_dirty_bitmap_serialization_align(const BdrvDirtyBitmap *bitmap)
 {
-    return hbitmap_serialization_align(bitmap->bitmap);
+    return hbitmap_serialization_align(bitmap->bitmap) * BDRV_SECTOR_SIZE;
 }
 
 void bdrv_dirty_bitmap_serialize_part(const BdrvDirtyBitmap *bitmap,
-                                      uint8_t *buf, uint64_t start,
-                                      uint64_t count)
+                                      uint8_t *buf, uint64_t offset,
+                                      uint64_t bytes)
 {
-    hbitmap_serialize_part(bitmap->bitmap, buf, start, count);
+    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
+    hbitmap_serialize_part(bitmap->bitmap, buf, offset >> BDRV_SECTOR_BITS,
+                           bytes >> BDRV_SECTOR_BITS);
 }
 
 void bdrv_dirty_bitmap_deserialize_part(BdrvDirtyBitmap *bitmap,
-                                        uint8_t *buf, uint64_t start,
-                                        uint64_t count, bool finish)
+                                        uint8_t *buf, uint64_t offset,
+                                        uint64_t bytes, bool finish)
 {
-    hbitmap_deserialize_part(bitmap->bitmap, buf, start, count, finish);
+    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
+    hbitmap_deserialize_part(bitmap->bitmap, buf, offset >> BDRV_SECTOR_BITS,
+                             bytes >> BDRV_SECTOR_BITS, finish);
 }
 
 void bdrv_dirty_bitmap_deserialize_zeroes(BdrvDirtyBitmap *bitmap,
-                                          uint64_t start, uint64_t count,
+                                          uint64_t offset, uint64_t bytes,
                                           bool finish)
 {
-    hbitmap_deserialize_zeroes(bitmap->bitmap, start, count, finish);
+    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
+    hbitmap_deserialize_zeroes(bitmap->bitmap, offset >> BDRV_SECTOR_BITS,
+                               bytes >> BDRV_SECTOR_BITS, finish);
 }
 
 void bdrv_dirty_bitmap_deserialize_ones(BdrvDirtyBitmap *bitmap,
-                                        uint64_t start, uint64_t count,
+                                        uint64_t offset, uint64_t bytes,
                                         bool finish)
 {
-    hbitmap_deserialize_ones(bitmap->bitmap, start, count, finish);
+    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
+    hbitmap_deserialize_ones(bitmap->bitmap, offset >> BDRV_SECTOR_BITS,
+                             bytes >> BDRV_SECTOR_BITS, finish);
 }
 
 void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap)

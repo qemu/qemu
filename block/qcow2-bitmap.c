@@ -278,7 +278,7 @@ static uint64_t sectors_covered_by_bitmap_cluster(const BDRVQcow2State *s,
             bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS;
     uint64_t sbc = sector_granularity * (s->cluster_size << 3);
 
-    assert(QEMU_IS_ALIGNED(sbc,
+    assert(QEMU_IS_ALIGNED(sbc << BDRV_SECTOR_BITS,
                            bdrv_dirty_bitmap_serialization_align(bitmap)));
     return sbc;
 }
@@ -299,7 +299,7 @@ static int load_bitmap_data(BlockDriverState *bs,
     uint8_t *buf = NULL;
     uint64_t i, tab_size =
             size_to_clusters(s,
-                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_sectors));
+                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_size));
 
     if (tab_size != bitmap_table_size || tab_size > BME_MAX_TABLE_SIZE) {
         return -EINVAL;
@@ -316,7 +316,9 @@ static int load_bitmap_data(BlockDriverState *bs,
 
         if (offset == 0) {
             if (entry & BME_TABLE_ENTRY_FLAG_ALL_ONES) {
-                bdrv_dirty_bitmap_deserialize_ones(bitmap, sector, count,
+                bdrv_dirty_bitmap_deserialize_ones(bitmap,
+                                                   sector * BDRV_SECTOR_SIZE,
+                                                   count * BDRV_SECTOR_SIZE,
                                                    false);
             } else {
                 /* No need to deserialize zeros because the dirty bitmap is
@@ -327,7 +329,9 @@ static int load_bitmap_data(BlockDriverState *bs,
             if (ret < 0) {
                 goto finish;
             }
-            bdrv_dirty_bitmap_deserialize_part(bitmap, buf, sector, count,
+            bdrv_dirty_bitmap_deserialize_part(bitmap, buf,
+                                               sector * BDRV_SECTOR_SIZE,
+                                               count * BDRV_SECTOR_SIZE,
                                                false);
         }
     }
@@ -1085,7 +1089,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
     uint64_t *tb;
     uint64_t tb_size =
             size_to_clusters(s,
-                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_sectors));
+                bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_size));
 
     if (tb_size > BME_MAX_TABLE_SIZE ||
         tb_size * s->cluster_size > BME_MAX_PHYS_SIZE)
@@ -1112,8 +1116,8 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
 
         sector = cluster * sbc;
         end = MIN(bm_sectors, sector + sbc);
-        write_size =
-            bdrv_dirty_bitmap_serialization_size(bitmap, sector, end - sector);
+        write_size = bdrv_dirty_bitmap_serialization_size(bitmap,
+            sector * BDRV_SECTOR_SIZE, (end - sector) * BDRV_SECTOR_SIZE);
         assert(write_size <= s->cluster_size);
 
         off = qcow2_alloc_clusters(bs, s->cluster_size);
@@ -1125,7 +1129,9 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
         }
         tb[cluster] = off;
 
-        bdrv_dirty_bitmap_serialize_part(bitmap, buf, sector, end - sector);
+        bdrv_dirty_bitmap_serialize_part(bitmap, buf,
+                                         sector * BDRV_SECTOR_SIZE,
+                                         (end - sector) * BDRV_SECTOR_SIZE);
         if (write_size < s->cluster_size) {
             memset(buf + write_size, 0, s->cluster_size - write_size);
         }
