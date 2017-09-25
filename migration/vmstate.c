@@ -347,6 +347,7 @@ int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
+                ret = 0;
 
                 vmsd_desc_field_start(vmsd, vmdesc_loop, field, i, n_elems);
                 old_offset = qemu_ftell_fast(f);
@@ -357,11 +358,19 @@ int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                 if (!curr_elem && size) {
                     /* if null pointer write placeholder and do not follow */
                     assert(field->flags & VMS_ARRAY_OF_POINTER);
-                    vmstate_info_nullptr.put(f, curr_elem, size, NULL, NULL);
+                    ret = vmstate_info_nullptr.put(f, curr_elem, size, NULL,
+                                                   NULL);
                 } else if (field->flags & VMS_STRUCT) {
-                    vmstate_save_state(f, field->vmsd, curr_elem, vmdesc_loop);
+                    ret = vmstate_save_state(f, field->vmsd, curr_elem,
+                                             vmdesc_loop);
                 } else {
-                    field->info->put(f, curr_elem, size, field, vmdesc_loop);
+                    ret = field->info->put(f, curr_elem, size, field,
+                                     vmdesc_loop);
+                }
+                if (ret) {
+                    error_report("Save of field %s/%s failed",
+                                 vmsd->name, field->name);
+                    return ret;
                 }
 
                 written_bytes = qemu_ftell_fast(f) - old_offset;
