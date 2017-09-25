@@ -274,10 +274,13 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
 static uint64_t sectors_covered_by_bitmap_cluster(const BDRVQcow2State *s,
                                                   const BdrvDirtyBitmap *bitmap)
 {
-    uint32_t sector_granularity =
+    uint64_t sector_granularity =
             bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS;
+    uint64_t sbc = sector_granularity * (s->cluster_size << 3);
 
-    return (uint64_t)sector_granularity * (s->cluster_size << 3);
+    assert(QEMU_IS_ALIGNED(sbc,
+                           bdrv_dirty_bitmap_serialization_align(bitmap)));
+    return sbc;
 }
 
 /* load_bitmap_data
