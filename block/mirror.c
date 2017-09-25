@@ -373,7 +373,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         next_dirty = bdrv_dirty_iter_next(s->dbi) * BDRV_SECTOR_SIZE;
         if (next_dirty > next_offset || next_dirty < 0) {
             /* The bitmap iterator's cache is stale, refresh it */
-            bdrv_set_dirty_iter(s->dbi, next_offset >> BDRV_SECTOR_BITS);
+            bdrv_set_dirty_iter(s->dbi, next_offset);
             next_dirty = bdrv_dirty_iter_next(s->dbi) * BDRV_SECTOR_SIZE;
         }
         assert(next_dirty == next_offset);
@@ -796,7 +796,7 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     assert(!s->dbi);
-    s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap, 0);
+    s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap);
     for (;;) {
         uint64_t delay_ns = 0;
         int64_t cnt, delta;

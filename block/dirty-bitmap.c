@@ -473,11 +473,10 @@ uint32_t bdrv_dirty_bitmap_granularity(const BdrvDirtyBitmap *bitmap)
     return BDRV_SECTOR_SIZE << hbitmap_granularity(bitmap->bitmap);
 }
 
-BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap,
-                                         uint64_t first_sector)
+BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap)
 {
     BdrvDirtyBitmapIter *iter = g_new(BdrvDirtyBitmapIter, 1);
-    hbitmap_iter_init(&iter->hbi, bitmap->bitmap, first_sector);
+    hbitmap_iter_init(&iter->hbi, bitmap->bitmap, 0);
     iter->bitmap = bitmap;
     bitmap->active_iterators++;
     return iter;
@@ -645,9 +644,9 @@ void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
 /**
  * Advance a BdrvDirtyBitmapIter to an arbitrary offset.
  */
-void bdrv_set_dirty_iter(BdrvDirtyBitmapIter *iter, int64_t sector_num)
+void bdrv_set_dirty_iter(BdrvDirtyBitmapIter *iter, int64_t offset)
 {
-    hbitmap_iter_init(&iter->hbi, iter->hbi.hb, sector_num);
+    hbitmap_iter_init(&iter->hbi, iter->hbi.hb, offset >> BDRV_SECTOR_BITS);
 }
 
 int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap)

@@ -1103,7 +1103,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
         return NULL;
     }
 
-    dbi = bdrv_dirty_iter_new(bitmap, 0);
+    dbi = bdrv_dirty_iter_new(bitmap);
     buf = g_malloc(s->cluster_size);
     limit = bytes_covered_by_bitmap_cluster(s, bitmap);
     sbc = limit >> BDRV_SECTOR_BITS;
@@ -1153,7 +1153,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
             break;
         }
 
-        bdrv_set_dirty_iter(dbi, end);
+        bdrv_set_dirty_iter(dbi, end * BDRV_SECTOR_SIZE);
     }
 
     *bitmap_table_size = tb_size;
