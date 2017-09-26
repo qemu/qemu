@@ -15,7 +15,7 @@ case $line in
     echo "#define QEMU_VERSION_MINOR $minor"
     echo "#define QEMU_VERSION_MICRO $micro"
     ;;
- qemu_*dir=*) # qemu-specific directory configuration
+ qemu_*dir=* | qemu_*path=*) # qemu-specific directory configuration
     name=${line%=*}
     value=${line#*=}
     define_name=$(echo $name | LC_ALL=C tr '[a-z]' '[A-Z]')

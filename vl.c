@@ -2348,6 +2348,24 @@ char *qemu_find_file(int type, const char *name)
     return NULL;
 }
 
+static void qemu_add_data_dir(const char *path)
+{
+    int i;
+
+    if (path == NULL) {
+        return;
+    }
+    if (data_dir_idx == ARRAY_SIZE(data_dir)) {
+        return;
+    }
+    for (i = 0; i < data_dir_idx; i++) {
+        if (strcmp(data_dir[i], path) == 0) {
+            return; /* duplicate */
+        }
+    }
+    data_dir[data_dir_idx++] = path;
+}
+
 static inline bool nonempty_str(const char *str)
 {
     return str && *str;
@@ -3107,6 +3125,7 @@ int main(int argc, char **argv, char **envp)
     Error *main_loop_err = NULL;
     Error *err = NULL;
     bool list_data_dirs = false;
+    char **dirs;
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -3527,8 +3546,8 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_L:
                 if (is_help_option(optarg)) {
                     list_data_dirs = true;
-                } else if (data_dir_idx < ARRAY_SIZE(data_dir)) {
-                    data_dir[data_dir_idx++] = optarg;
+                } else {
+                    qemu_add_data_dir(optarg);
                 }
                 break;
             case QEMU_OPTION_bios:
@@ -4291,18 +4310,17 @@ int main(int argc, char **argv, char **envp)
         qemu_set_log(0);
     }
 
-    /* If no data_dir is specified then try to find it relative to the
-       executable path.  */
-    if (data_dir_idx < ARRAY_SIZE(data_dir)) {
-        data_dir[data_dir_idx] = os_find_datadir();
-        if (data_dir[data_dir_idx] != NULL) {
-            data_dir_idx++;
-        }
+    /* add configured firmware directories */
+    dirs = g_strsplit(CONFIG_QEMU_FIRMWAREPATH, G_SEARCHPATH_SEPARATOR_S, 0);
+    for (i = 0; dirs[i] != NULL; i++) {
+        qemu_add_data_dir(dirs[i]);
     }
-    /* If all else fails use the install path specified when building. */
-    if (data_dir_idx < ARRAY_SIZE(data_dir)) {
-        data_dir[data_dir_idx++] = CONFIG_QEMU_DATADIR;
-    }
+
+    /* try to find datadir relative to the executable path */
+    qemu_add_data_dir(os_find_datadir());
+
+    /* add the datadir specified when building */
+    qemu_add_data_dir(CONFIG_QEMU_DATADIR);
 
     /* -L help lists the data directories and exits. */
     if (list_data_dirs) {
