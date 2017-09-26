@@ -1875,11 +1875,11 @@ void HELPER(idte)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint32_t m4)
         for (i = 0; i < entries; i++) {
             /* addresses are not wrapped in 24/31bit mode but table index is */
             raddr = table + ((index + i) & 0x7ff) * sizeof(entry);
-            entry = ldq_phys(cs->as, raddr);
+            entry = cpu_ldq_real_ra(env, raddr, ra);
             if (!(entry & _REGION_ENTRY_INV)) {
                 /* we are allowed to not store if already invalid */
                 entry |= _REGION_ENTRY_INV;
-                stq_phys(cs->as, raddr, entry);
+                cpu_stq_real_ra(env, raddr, entry, ra);
             }
         }
     }
@@ -1897,6 +1897,7 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
                   uint32_t m4)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
+    const uintptr_t ra = GETPC();
     uint64_t page = vaddr & TARGET_PAGE_MASK;
     uint64_t pte_addr, pte;
 
@@ -1905,9 +1906,9 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
     pte_addr += (vaddr & VADDR_PX) >> 9;
 
     /* Mark the page table entry as invalid */
-    pte = ldq_phys(cs->as, pte_addr);
+    pte = cpu_ldq_real_ra(env, pte_addr, ra);
     pte |= _PAGE_INVALID;
-    stq_phys(cs->as, pte_addr, pte);
+    cpu_stq_real_ra(env, pte_addr, pte, ra);
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
