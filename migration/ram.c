@@ -46,6 +46,7 @@
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
+#include "migration/block.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -623,7 +624,10 @@ static void migration_bitmap_sync(RAMState *rs)
             / (end_time - rs->time_last_bitmap_sync);
         bytes_xfer_now = ram_counters.transferred;
 
-        if (migrate_auto_converge()) {
+        /* During block migration the auto-converge logic incorrectly detects
+         * that ram migration makes no progress. Avoid this by disabling the
+         * throttling logic during the bulk phase of block migration. */
+        if (migrate_auto_converge() && !blk_mig_bulk_active()) {
             /* The following detection logic can be refined later. For now:
                Check to see if the dirtied bytes is 50% more than the approx.
                amount of bytes that just got transferred since the last time we
