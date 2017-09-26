@@ -746,7 +746,6 @@ SunOS)
   solaris="yes"
   make="${MAKE-gmake}"
   install="${INSTALL-ginstall}"
-  ld="gld"
   smbd="${SMBD-/usr/sfw/sbin/smbd}"
   if test -f /usr/include/sys/soundcard.h ; then
     audio_drv_list="oss"
@@ -4229,7 +4228,6 @@ EOF
 fi
 
 # check for smartcard support
-smartcard_cflags=""
 if test "$smartcard" != "no"; then
     if $pkg_config libcacard; then
         libcacard_cflags=$($pkg_config --cflags libcacard)
@@ -4423,6 +4421,18 @@ int main(void) { openlog("qemu", LOG_PID, LOG_DAEMON); syslog(LOG_INFO, "configu
 EOF
 if compile_prog "" "" ; then
     posix_syslog=yes
+fi
+
+##########################################
+# check if we have sem_timedwait
+
+sem_timedwait=no
+cat > $TMPC << EOF
+#include <semaphore.h>
+int main(void) { return sem_timedwait(0, 0); }
+EOF
+if compile_prog "" "" ; then
+    sem_timedwait=yes
 fi
 
 ##########################################
@@ -5678,6 +5688,9 @@ if test "$inotify" = "yes" ; then
 fi
 if test "$inotify1" = "yes" ; then
   echo "CONFIG_INOTIFY1=y" >> $config_host_mak
+fi
+if test "$sem_timedwait" = "yes" ; then
+  echo "CONFIG_SEM_TIMEDWAIT=y" >> $config_host_mak
 fi
 if test "$byteswap_h" = "yes" ; then
   echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak

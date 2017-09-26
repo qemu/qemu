@@ -643,6 +643,7 @@ static void baum_chr_open(Chardev *chr,
         error_setg(errp, "brlapi__openConnection: %s",
                    brlapi_strerror(brlapi_error_location()));
         g_free(handle);
+        baum->brlapi = NULL;
         return;
     }
     baum->deferred_init = 0;

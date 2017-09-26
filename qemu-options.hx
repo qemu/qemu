@@ -284,8 +284,8 @@ Set default value of @var{driver}'s property @var{prop} to @var{value}, e.g.:
 qemu-system-i386 -global ide-hd.physical_block_size=4096 disk-image.img
 @end example
 
-In particular, you can use this to set driver properties for devices which are 
-created automatically by the machine model. To create a device which is not 
+In particular, you can use this to set driver properties for devices which are
+created automatically by the machine model. To create a device which is not
 created automatically and set properties on it, use -@option{device}.
 
 -global @var{driver}.@var{prop}=@var{value} is shorthand for -global

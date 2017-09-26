@@ -1025,11 +1025,11 @@ void HELPER(ule_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
 uint32_t HELPER(rer)(CPUXtensaState *env, uint32_t addr)
 {
     return address_space_ldl(env->address_space_er, addr,
-                             (MemTxAttrs){0}, NULL);
+                             MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 void HELPER(wer)(CPUXtensaState *env, uint32_t data, uint32_t addr)
 {
     address_space_stl(env->address_space_er, addr, data,
-                      (MemTxAttrs){0}, NULL);
+                      MEMTXATTRS_UNSPECIFIED, NULL);
 }

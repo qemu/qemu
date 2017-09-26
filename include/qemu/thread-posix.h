@@ -21,7 +21,7 @@ struct QemuCond {
 };
 
 struct QemuSemaphore {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#ifndef CONFIG_SEM_TIMEDWAIT
     pthread_mutex_t lock;
     pthread_cond_t cond;
     unsigned int count;
