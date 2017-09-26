@@ -14,7 +14,7 @@
 
 cd "$BUILD_DIR"
 
-build_qemu --target-list=x86_64-softmmu
+build_qemu --target-list=x86_64-softmmu || test_fail "Build failed"
 cd tests/qemu-iotests
 for t in raw qcow2 nbd luks; do
     ./check -g quick -$t || test_fail "Test failed: iotests $t"
