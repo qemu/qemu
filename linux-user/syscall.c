@@ -3131,7 +3131,6 @@ set_timeout:
         case TARGET_SO_RCVLOWAT:
 		optname = SO_RCVLOWAT;
 		break;
-            break;
         default:
             goto unimplemented;
         }
