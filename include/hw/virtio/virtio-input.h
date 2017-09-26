@@ -89,6 +89,7 @@ struct VirtIOInputHID {
     QemuInputHandler                  *handler;
     QemuInputHandlerState             *hs;
     int                               ledstate;
+    bool                              wheel_axis;
 };
 
 struct VirtIOInputHost {
