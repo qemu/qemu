@@ -2533,6 +2533,11 @@
 #
 # Trigger events supported by blkdebug.
 #
+# @l1_shrink_write_table:      write zeros to the l1 table to shrink image.
+#                              (since 2.11)
+#
+# @l1_shrink_free_l2_clusters: discard the l2 tables. (since 2.11)
+#
 # Since: 2.9
 ##
 { 'enum': 'BlkdebugEvent', 'prefix': 'BLKDBG',
@@ -2549,7 +2554,8 @@
             'cluster_alloc_bytes', 'cluster_free', 'flush_to_os',
             'flush_to_disk', 'pwritev_rmw_head', 'pwritev_rmw_after_head',
             'pwritev_rmw_tail', 'pwritev_rmw_after_tail', 'pwritev',
-            'pwritev_zero', 'pwritev_done', 'empty_image_prepare' ] }
+            'pwritev_zero', 'pwritev_done', 'empty_image_prepare',
+            'l1_shrink_write_table', 'l1_shrink_free_l2_clusters' ] }
 
 ##
 # @BlkdebugInjectErrorOptions:
