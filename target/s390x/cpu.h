@@ -43,12 +43,13 @@
 
 #include "fpu/softfloat.h"
 
-#define NB_MMU_MODES 3
+#define NB_MMU_MODES 4
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 #define MMU_MODE0_SUFFIX _primary
 #define MMU_MODE1_SUFFIX _secondary
 #define MMU_MODE2_SUFFIX _home
+#define MMU_MODE3_SUFFIX _real
 
 #define MMU_USER_IDX 0
 
@@ -351,6 +352,7 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define MMU_PRIMARY_IDX         0
 #define MMU_SECONDARY_IDX       1
 #define MMU_HOME_IDX            2
+#define MMU_REAL_IDX            3
 
 static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 {

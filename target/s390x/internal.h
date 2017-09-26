@@ -389,6 +389,8 @@ target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr);
 /* mmu_helper.c */
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc);
+int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
+                       target_ulong *addr, int *flags);
 
 
 /* misc_helper.c */

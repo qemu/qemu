@@ -497,3 +497,22 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
     g_free(pages);
     return ret;
 }
+
+/**
+ * Translate a real address into a physical (absolute) address.
+ * @param raddr  the real address
+ * @param rw     0 = read, 1 = write, 2 = code fetch
+ * @param addr   the translated address is stored to this pointer
+ * @param flags  the PAGE_READ/WRITE/EXEC flags are stored to this pointer
+ * @return       0 if the translation was successful, < 0 if a fault occurred
+ */
+int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
+                       target_ulong *addr, int *flags)
+{
+    /* TODO: low address protection once we flush the tlb on cr changes */
+    *flags = PAGE_READ | PAGE_WRITE;
+    *addr = mmu_real2abs(env, raddr);
+
+    /* TODO: storage key handling */
+    return 0;
+}
