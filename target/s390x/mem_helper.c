@@ -1959,16 +1959,12 @@ void HELPER(purge)(CPUS390XState *env)
 /* load using real address */
 uint64_t HELPER(lura)(CPUS390XState *env, uint64_t addr)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    return (uint32_t)ldl_phys(cs->as, wrap_address(env, addr));
+    return cpu_ldl_real_ra(env, wrap_address(env, addr), GETPC());
 }
 
 uint64_t HELPER(lurag)(CPUS390XState *env, uint64_t addr)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    return ldq_phys(cs->as, wrap_address(env, addr));
+    return cpu_ldq_real_ra(env, wrap_address(env, addr), GETPC());
 }
 
 /* store using real address */
