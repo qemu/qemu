@@ -18,7 +18,6 @@ fi
 BASE="$(dirname $(readlink -e $0))"
 
 # Prepare the environment
-. /etc/profile
 export PATH=/usr/lib/ccache:$PATH
 
 if test -n "$J"; then
