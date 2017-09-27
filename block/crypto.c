@@ -379,7 +379,11 @@ static void block_crypto_close(BlockDriverState *bs)
 }
 
 
-#define BLOCK_CRYPTO_MAX_SECTORS 32
+/*
+ * 1 MB bounce buffer gives good performance / memory tradeoff
+ * when using cache=none|directsync.
+ */
+#define BLOCK_CRYPTO_MAX_IO_SIZE (1024 * 1024)
 
 static coroutine_fn int
 block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
@@ -396,12 +400,11 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
-    /* Bounce buffer so we have a linear mem region for
-     * entire sector. XXX optimize so we avoid bounce
-     * buffer in case that qiov->niov == 1
+    /* Bounce buffer because we don't wish to expose cipher text
+     * in qiov which points to guest memory.
      */
     cipher_data =
-        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * 512,
+        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_IO_SIZE,
                                               qiov->size));
     if (cipher_data == NULL) {
         ret = -ENOMEM;
@@ -411,8 +414,8 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
     while (remaining_sectors) {
         cur_nr_sectors = remaining_sectors;
 
-        if (cur_nr_sectors > BLOCK_CRYPTO_MAX_SECTORS) {
-            cur_nr_sectors = BLOCK_CRYPTO_MAX_SECTORS;
+        if (cur_nr_sectors > (BLOCK_CRYPTO_MAX_IO_SIZE / 512)) {
+            cur_nr_sectors = (BLOCK_CRYPTO_MAX_IO_SIZE / 512);
         }
 
         qemu_iovec_reset(&hd_qiov);
@@ -464,12 +467,11 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
-    /* Bounce buffer so we have a linear mem region for
-     * entire sector. XXX optimize so we avoid bounce
-     * buffer in case that qiov->niov == 1
+    /* Bounce buffer because we're not permitted to touch
+     * contents of qiov - it points to guest memory.
      */
     cipher_data =
-        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_SECTORS * 512,
+        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_IO_SIZE,
                                               qiov->size));
     if (cipher_data == NULL) {
         ret = -ENOMEM;
@@ -479,8 +481,8 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
     while (remaining_sectors) {
         cur_nr_sectors = remaining_sectors;
 
-        if (cur_nr_sectors > BLOCK_CRYPTO_MAX_SECTORS) {
-            cur_nr_sectors = BLOCK_CRYPTO_MAX_SECTORS;
+        if (cur_nr_sectors > (BLOCK_CRYPTO_MAX_IO_SIZE / 512)) {
+            cur_nr_sectors = (BLOCK_CRYPTO_MAX_IO_SIZE / 512);
         }
 
         qemu_iovec_to_buf(qiov, bytes_done,
