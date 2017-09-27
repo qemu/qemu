@@ -527,7 +527,6 @@ static uint16_t default_GEN13_GA1[] = {
 #define default_GEN13_GA2 EmptyFeat
 
 static uint16_t default_GEN14_GA1[] = {
-    S390_FEAT_ADAPTER_INT_SUPPRESSION,
     S390_FEAT_INSTRUCTION_EXEC_PROT,
     S390_FEAT_GUARDED_STORAGE,
     S390_FEAT_VECTOR_PACKED_DECIMAL,
