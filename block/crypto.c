@@ -279,6 +279,9 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
         return -EINVAL;
     }
 
+    bs->supported_write_flags = BDRV_REQ_FUA &
+        bs->file->bs->supported_write_flags;
+
     opts = qemu_opts_create(opts_spec, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (local_err) {
@@ -462,7 +465,7 @@ block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     uint64_t sector_size = qcrypto_block_get_sector_size(crypto->block);
     uint64_t payload_offset = qcrypto_block_get_payload_offset(crypto->block);
 
-    assert(!flags);
+    assert(!(flags & ~BDRV_REQ_FUA));
     assert(payload_offset < INT64_MAX);
     assert(QEMU_IS_ALIGNED(offset, sector_size));
     assert(QEMU_IS_ALIGNED(bytes, sector_size));
@@ -495,7 +498,7 @@ block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         qemu_iovec_add(&hd_qiov, cipher_data, cur_bytes);
 
         ret = bdrv_co_pwritev(bs->file, payload_offset + offset + bytes_done,
-                              cur_bytes, &hd_qiov, 0);
+                              cur_bytes, &hd_qiov, flags);
         if (ret < 0) {
             goto cleanup;
         }
