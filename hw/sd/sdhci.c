@@ -1315,6 +1315,10 @@ static const TypeInfo sdhci_pci_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(SDHCIState),
     .class_init = sdhci_pci_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static Property sdhci_sysbus_properties[] = {

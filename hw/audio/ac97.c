@@ -1431,6 +1431,10 @@ static const TypeInfo ac97_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof (AC97LinkState),
     .class_init    = ac97_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void ac97_register_types (void)

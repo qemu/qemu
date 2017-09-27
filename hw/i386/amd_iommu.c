@@ -1227,6 +1227,10 @@ static const TypeInfo amdviPCI = {
     .name = "AMDVI-PCI",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AMDVIPCIState),
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass, void *data)

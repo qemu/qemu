@@ -696,6 +696,10 @@ static const TypeInfo piix3_pci_type_info = {
     .instance_size = sizeof(PIIX3State),
     .abstract = true,
     .class_init = pci_piix3_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void piix3_class_init(ObjectClass *klass, void *data)
@@ -750,6 +754,10 @@ static const TypeInfo i440fx_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCII440FXState),
     .class_init    = i440fx_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 /* IGD Passthrough Host Bridge. */

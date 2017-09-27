@@ -2468,6 +2468,10 @@ static struct MegasasInfo megasas_devices[] = {
         .is_express = false,
         .vmsd = &vmstate_megasas_gen1,
         .props = megasas_properties_gen1,
+        .interfaces = (InterfaceInfo[]) {
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { },
+        },
     },{
         .name = TYPE_MEGASAS_GEN2,
         .desc = "LSI MegaRAID SAS 2108",

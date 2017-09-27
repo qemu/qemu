@@ -836,6 +836,10 @@ static const TypeInfo pbm_pci_host_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = pbm_pci_host_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pbm_host_class_init(ObjectClass *klass, void *data)
@@ -883,6 +887,10 @@ static const TypeInfo pbm_pci_bridge_info = {
     .parent        = TYPE_PCI_BRIDGE,
     .class_init    = pbm_pci_bridge_class_init,
     .instance_size = sizeof(PBMPCIBridge),
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pbm_iommu_memory_region_class_init(ObjectClass *klass, void *data)
