@@ -336,29 +336,10 @@ static inline pixman_format_code_t surface_format(DisplaySurface *s)
     return s->format;
 }
 
-#ifdef CONFIG_CURSES
-/* KEY_EVENT is defined in wincon.h and in curses.h. Avoid redefinition. */
-#undef KEY_EVENT
-#include <curses.h>
-#undef KEY_EVENT
-typedef chtype console_ch_t;
-extern chtype vga_to_curses[];
-#else
-typedef unsigned long console_ch_t;
-#endif
+typedef uint32_t console_ch_t;
+
 static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 {
-    uint8_t c = ch;
-#ifdef CONFIG_CURSES
-    if (vga_to_curses[c]) {
-        ch &= ~(console_ch_t)0xff;
-        ch |= vga_to_curses[c];
-    }
-#else
-    if (c == '\0') {
-        ch |= ' ';
-    }
-#endif
     *dest = ch;
 }
 
