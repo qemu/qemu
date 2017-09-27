@@ -28,6 +28,7 @@ import qtest
 import struct
 import json
 import signal
+import logging
 
 
 # This will not work if arguments contain spaces but is necessary if we
@@ -466,6 +467,8 @@ def main(supported_fmts=[], supported_oses=['linux']):
         sys.argv.remove('-d')
     else:
         output = StringIO.StringIO()
+
+    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
     class MyTestRunner(unittest.TextTestRunner):
         def __init__(self, stream=output, descriptions=True, verbosity=verbosity):
