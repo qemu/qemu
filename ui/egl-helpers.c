@@ -26,16 +26,23 @@ EGLConfig qemu_egl_config;
 
 /* ------------------------------------------------------------------ */
 
+static void egl_fb_delete_texture(egl_fb *fb)
+{
+    if (!fb->delete_texture) {
+        return;
+    }
+
+    glDeleteTextures(1, &fb->texture);
+    fb->delete_texture = false;
+}
+
 void egl_fb_destroy(egl_fb *fb)
 {
     if (!fb->framebuffer) {
         return;
     }
 
-    if (fb->delete_texture) {
-        glDeleteTextures(1, &fb->texture);
-        fb->delete_texture = false;
-    }
+    egl_fb_delete_texture(fb);
     glDeleteFramebuffers(1, &fb->framebuffer);
 
     fb->width = 0;
@@ -51,11 +58,15 @@ void egl_fb_setup_default(egl_fb *fb, int width, int height)
     fb->framebuffer = 0; /* default framebuffer */
 }
 
-void egl_fb_create_for_tex(egl_fb *fb, int width, int height, GLuint texture)
+void egl_fb_setup_for_tex(egl_fb *fb, int width, int height,
+                          GLuint texture, bool delete)
 {
+    egl_fb_delete_texture(fb);
+
     fb->width = width;
     fb->height = height;
     fb->texture = texture;
+    fb->delete_texture = delete;
     if (!fb->framebuffer) {
         glGenFramebuffers(1, &fb->framebuffer);
     }
@@ -65,7 +76,7 @@ void egl_fb_create_for_tex(egl_fb *fb, int width, int height, GLuint texture)
                               GL_TEXTURE_2D, fb->texture, 0);
 }
 
-void egl_fb_create_new_tex(egl_fb *fb, int width, int height)
+void egl_fb_setup_new_tex(egl_fb *fb, int width, int height)
 {
     GLuint texture;
 
@@ -74,8 +85,7 @@ void egl_fb_create_new_tex(egl_fb *fb, int width, int height)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height,
                  0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
 
-    egl_fb_create_for_tex(fb, width, height, texture);
-    fb->delete_texture = true;
+    egl_fb_setup_for_tex(fb, width, height, texture, true);
 }
 
 void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)

@@ -54,14 +54,14 @@ static void egl_scanout_texture(DisplayChangeListener *dcl,
     edpy->y_0_top = backing_y_0_top;
 
     /* source framebuffer */
-    egl_fb_create_for_tex(&edpy->guest_fb,
-                          backing_width, backing_height, backing_id);
+    egl_fb_setup_for_tex(&edpy->guest_fb,
+                         backing_width, backing_height, backing_id, false);
 
     /* dest framebuffer */
     if (edpy->blit_fb.width  != backing_width ||
         edpy->blit_fb.height != backing_height) {
         egl_fb_destroy(&edpy->blit_fb);
-        egl_fb_create_new_tex(&edpy->blit_fb, backing_width, backing_height);
+        egl_fb_setup_new_tex(&edpy->blit_fb, backing_width, backing_height);
     }
 }
 
