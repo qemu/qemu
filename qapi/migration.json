@@ -480,7 +480,7 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread
+# @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
 # Since: 2.4
@@ -551,7 +551,7 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread
+# @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
 # Since: 2.4
@@ -647,7 +647,7 @@
 #                     number of sockets used for migration.
 #                     The default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread
+# @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
 # Since: 2.4
