@@ -80,6 +80,7 @@ qcrypto_block_qcow_init(QCryptoBlock *block,
         goto fail;
     }
 
+    block->sector_size = QCRYPTO_BLOCK_QCOW_SECTOR_SIZE;
     block->payload_offset = 0;
 
     return 0;

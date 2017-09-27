@@ -36,6 +36,7 @@ struct QCryptoBlock {
     QCryptoHashAlgorithm kdfhash;
     size_t niv;
     uint64_t payload_offset; /* In bytes */
+    uint64_t sector_size; /* In bytes */
 };
 
 struct QCryptoBlockDriver {

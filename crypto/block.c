@@ -170,6 +170,12 @@ uint64_t qcrypto_block_get_payload_offset(QCryptoBlock *block)
 }
 
 
+uint64_t qcrypto_block_get_sector_size(QCryptoBlock *block)
+{
+    return block->sector_size;
+}
+
+
 void qcrypto_block_free(QCryptoBlock *block)
 {
     if (!block) {

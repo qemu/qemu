@@ -241,6 +241,21 @@ QCryptoHashAlgorithm qcrypto_block_get_kdf_hash(QCryptoBlock *block);
 uint64_t qcrypto_block_get_payload_offset(QCryptoBlock *block);
 
 /**
+ * qcrypto_block_get_sector_size:
+ * @block: the block encryption object
+ *
+ * Get the size of sectors used for payload encryption. A new
+ * IV is used at the start of each sector. The encryption
+ * sector size is not required to match the sector size of the
+ * underlying storage. For example LUKS will always use a 512
+ * byte sector size, even if the volume is on a disk with 4k
+ * sectors.
+ *
+ * Returns: the sector in bytes
+ */
+uint64_t qcrypto_block_get_sector_size(QCryptoBlock *block);
+
+/**
  * qcrypto_block_free:
  * @block: the block encryption object
  *

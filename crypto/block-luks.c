@@ -846,8 +846,9 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         }
     }
 
+    block->sector_size = QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
     block->payload_offset = luks->header.payload_offset *
-        QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
+        block->sector_size;
 
     luks->cipher_alg = cipheralg;
     luks->cipher_mode = ciphermode;
@@ -1240,8 +1241,9 @@ qcrypto_block_luks_create(QCryptoBlock *block,
                    QCRYPTO_BLOCK_LUKS_SECTOR_SIZE)) *
          QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS);
 
+    block->sector_size = QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
     block->payload_offset = luks->header.payload_offset *
-        QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
+        block->sector_size;
 
     /* Reserve header space to match payload offset */
     initfunc(block, block->payload_offset, opaque, &local_err);
