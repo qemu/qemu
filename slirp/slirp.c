@@ -1203,11 +1203,13 @@ struct sbuf_tmp {
     uint32_t roff, woff;
 };
 
-static void sbuf_tmp_pre_save(void *opaque)
+static int sbuf_tmp_pre_save(void *opaque)
 {
     struct sbuf_tmp *tmp = opaque;
     tmp->woff = tmp->parent->sb_wptr - tmp->parent->sb_data;
     tmp->roff = tmp->parent->sb_rptr - tmp->parent->sb_data;
+
+    return 0;
 }
 
 static int sbuf_tmp_post_load(void *opaque, int version)
@@ -1303,7 +1305,7 @@ typedef struct SS_FamilyTmpStruct {
 #define SS_FAMILY_MIG_IPV6  10  /* Linux */
 #define SS_FAMILY_MIG_OTHER 0xffff
 
-static void ss_family_pre_save(void *opaque)
+static int ss_family_pre_save(void *opaque)
 {
     SS_FamilyTmpStruct *tss = opaque;
 
@@ -1314,6 +1316,8 @@ static void ss_family_pre_save(void *opaque)
     } else if (tss->parent->ss.ss_family == AF_INET6) {
         tss->portable_family = SS_FAMILY_MIG_IPV6;
     }
+
+    return 0;
 }
 
 static int ss_family_post_load(void *opaque, int version_id)

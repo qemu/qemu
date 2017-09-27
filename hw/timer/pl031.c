@@ -211,7 +211,7 @@ static void pl031_init(Object *obj)
     s->timer = timer_new_ns(rtc_clock, pl031_interrupt, s);
 }
 
-static void pl031_pre_save(void *opaque)
+static int pl031_pre_save(void *opaque)
 {
     PL031State *s = opaque;
 
@@ -219,6 +219,8 @@ static void pl031_pre_save(void *opaque)
      * store the base time relative to the QEMU_CLOCK_VIRTUAL for backwards-compatibility.  */
     int64_t delta = qemu_clock_get_ns(rtc_clock) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->tick_offset_vmstate = s->tick_offset + delta / NANOSECONDS_PER_SECOND;
+
+    return 0;
 }
 
 static int pl031_post_load(void *opaque, int version_id)

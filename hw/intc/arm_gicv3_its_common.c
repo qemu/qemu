@@ -23,7 +23,7 @@
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "qemu/log.h"
 
-static void gicv3_its_pre_save(void *opaque)
+static int gicv3_its_pre_save(void *opaque)
 {
     GICv3ITSState *s = (GICv3ITSState *)opaque;
     GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
@@ -31,6 +31,8 @@ static void gicv3_its_pre_save(void *opaque)
     if (c->pre_save) {
         c->pre_save(s);
     }
+
+    return 0;
 }
 
 static int gicv3_its_post_load(void *opaque, int version_id)

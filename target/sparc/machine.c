@@ -88,7 +88,7 @@ static const VMStateInfo vmstate_psr = {
     .put = put_psr,
 };
 
-static void cpu_pre_save(void *opaque)
+static int cpu_pre_save(void *opaque)
 {
     SPARCCPU *cpu = opaque;
     CPUSPARCState *env = &cpu->env;
@@ -97,6 +97,8 @@ static void cpu_pre_save(void *opaque)
      * window as the outs of the first window
      */
     cpu_set_cwp(env, env->cwp);
+
+    return 0;
 }
 
 /* 32-bit SPARC retains migration compatibility with older versions

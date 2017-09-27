@@ -241,7 +241,7 @@ static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
     }
 }
 
-static void icp_dispatch_pre_save(void *opaque)
+static int icp_dispatch_pre_save(void *opaque)
 {
     ICPState *icp = opaque;
     ICPStateClass *info = ICP_GET_CLASS(icp);
@@ -249,6 +249,8 @@ static void icp_dispatch_pre_save(void *opaque)
     if (info->pre_save) {
         info->pre_save(icp);
     }
+
+    return 0;
 }
 
 static int icp_dispatch_post_load(void *opaque, int version_id)
@@ -533,7 +535,7 @@ static void ics_simple_reset(void *dev)
     }
 }
 
-static void ics_simple_dispatch_pre_save(void *opaque)
+static int ics_simple_dispatch_pre_save(void *opaque)
 {
     ICSState *ics = opaque;
     ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
@@ -541,6 +543,8 @@ static void ics_simple_dispatch_pre_save(void *opaque)
     if (info->pre_save) {
         info->pre_save(ics);
     }
+
+    return 0;
 }
 
 static int ics_simple_dispatch_post_load(void *opaque, int version_id)

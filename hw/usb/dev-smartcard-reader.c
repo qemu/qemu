@@ -1374,7 +1374,7 @@ static int ccid_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void ccid_pre_save(void *opaque)
+static int ccid_pre_save(void *opaque)
 {
     USBCCIDState *s = opaque;
 
@@ -1386,6 +1386,8 @@ static void ccid_pre_save(void *opaque)
          */
         s->migration_state = MIGRATION_MIGRATED;
     }
+
+    return 0;
 }
 
 static VMStateDescription bulk_in_vmstate = {

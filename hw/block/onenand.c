@@ -137,7 +137,7 @@ static void onenand_intr_update(OneNANDState *s)
     qemu_set_irq(s->intr, ((s->intstatus >> 15) ^ (~s->config[0] >> 6)) & 1);
 }
 
-static void onenand_pre_save(void *opaque)
+static int onenand_pre_save(void *opaque)
 {
     OneNANDState *s = opaque;
     if (s->current == s->otp) {
@@ -147,6 +147,8 @@ static void onenand_pre_save(void *opaque)
     } else {
         s->current_direction = 0;
     }
+
+    return 0;
 }
 
 static int onenand_post_load(void *opaque, int version_id)

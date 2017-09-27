@@ -795,11 +795,13 @@ static void rtc_set_date_from_host(ISADevice *dev)
     rtc_set_cmos(s, &tm);
 }
 
-static void rtc_pre_save(void *opaque)
+static int rtc_pre_save(void *opaque)
 {
     RTCState *s = opaque;
 
     rtc_update_time(s);
+
+    return 0;
 }
 
 static int rtc_post_load(void *opaque, int version_id)

@@ -976,10 +976,12 @@ static void tsc210x_i2s_set_rate(TSC210xState *s, int in, int out)
     s->i2s_rx_rate = in;
 }
 
-static void tsc210x_pre_save(void *opaque)
+static int tsc210x_pre_save(void *opaque)
 {
     TSC210xState *s = (TSC210xState *) opaque;
     s->now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    return 0;
 }
 
 static int tsc210x_post_load(void *opaque, int version_id)

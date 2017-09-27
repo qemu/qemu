@@ -254,11 +254,13 @@ static const VMStateDescription kvmclock_reliable_get_clock = {
  *  final pages of memory (which happens between vm_stop()
  *  and pre_save()) takes max_downtime.
  */
-static void kvmclock_pre_save(void *opaque)
+static int kvmclock_pre_save(void *opaque)
 {
     KVMClockState *s = opaque;
 
     kvm_update_clock(s);
+
+    return 0;
 }
 
 static const VMStateDescription kvmclock_vmsd = {

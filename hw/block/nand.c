@@ -325,11 +325,13 @@ static void nand_command(NANDFlashState *s)
     }
 }
 
-static void nand_pre_save(void *opaque)
+static int nand_pre_save(void *opaque)
 {
     NANDFlashState *s = NAND(opaque);
 
     s->ioaddr_vmstate = s->ioaddr - s->io;
+
+    return 0;
 }
 
 static int nand_post_load(void *opaque, int version_id)

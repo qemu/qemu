@@ -237,7 +237,7 @@ static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void pit_dispatch_pre_save(void *opaque)
+static int pit_dispatch_pre_save(void *opaque)
 {
     PITCommonState *s = opaque;
     PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
@@ -245,6 +245,8 @@ static void pit_dispatch_pre_save(void *opaque)
     if (c->pre_save) {
         c->pre_save(s);
     }
+
+    return 0;
 }
 
 static int pit_dispatch_post_load(void *opaque, int version_id)

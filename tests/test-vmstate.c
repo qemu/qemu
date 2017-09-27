@@ -70,7 +70,8 @@ static void save_vmstate(const VMStateDescription *desc, void *obj)
     QEMUFile *f = open_test_file(true);
 
     /* Save file with vmstate */
-    vmstate_save_state(f, desc, obj, NULL);
+    int ret = vmstate_save_state(f, desc, obj, NULL);
+    g_assert(!ret);
     qemu_put_byte(f, QEMU_VM_EOF);
     g_assert(!qemu_file_get_error(f));
     qemu_fclose(f);
@@ -381,7 +382,8 @@ static void test_save_noskip(void)
     QEMUFile *fsave = open_test_file(true);
     TestStruct obj = { .a = 1, .b = 2, .c = 3, .d = 4, .e = 5, .f = 6,
                        .skip_c_e = false };
-    vmstate_save_state(fsave, &vmstate_skipping, &obj, NULL);
+    int ret = vmstate_save_state(fsave, &vmstate_skipping, &obj, NULL);
+    g_assert(!ret);
     g_assert(!qemu_file_get_error(fsave));
 
     uint8_t expected[] = {
@@ -402,7 +404,8 @@ static void test_save_skip(void)
     QEMUFile *fsave = open_test_file(true);
     TestStruct obj = { .a = 1, .b = 2, .c = 3, .d = 4, .e = 5, .f = 6,
                        .skip_c_e = true };
-    vmstate_save_state(fsave, &vmstate_skipping, &obj, NULL);
+    int ret = vmstate_save_state(fsave, &vmstate_skipping, &obj, NULL);
+    g_assert(!ret);
     g_assert(!qemu_file_get_error(fsave));
 
     uint8_t expected[] = {
@@ -765,11 +768,13 @@ typedef struct TmpTestStruct {
     int64_t diff;
 } TmpTestStruct;
 
-static void tmp_child_pre_save(void *opaque)
+static int tmp_child_pre_save(void *opaque)
 {
     struct TmpTestStruct *tts = opaque;
 
     tts->diff = tts->parent->b - tts->parent->a;
+
+    return 0;
 }
 
 static int tmp_child_post_load(void *opaque, int version_id)

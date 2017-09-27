@@ -791,11 +791,13 @@ static const VMStateDescription vmstate_menelaus_tm = {
     }
 };
 
-static void menelaus_pre_save(void *opaque)
+static int menelaus_pre_save(void *opaque)
 {
     MenelausState *s = opaque;
     /* Should be <= 1000 */
     s->rtc_next_vmstate =  s->rtc.next - qemu_clock_get_ms(rtc_clock);
+
+    return 0;
 }
 
 static int menelaus_post_load(void *opaque, int version_id)

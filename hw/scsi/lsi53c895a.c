@@ -2083,7 +2083,7 @@ static void lsi_scsi_reset(DeviceState *dev)
     lsi_soft_reset(s);
 }
 
-static void lsi_pre_save(void *opaque)
+static int lsi_pre_save(void *opaque)
 {
     LSIState *s = opaque;
 
@@ -2092,6 +2092,8 @@ static void lsi_pre_save(void *opaque)
         assert(s->current->dma_len == 0);
     }
     assert(QTAILQ_EMPTY(&s->queue));
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_lsi_scsi = {

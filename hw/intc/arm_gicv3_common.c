@@ -28,7 +28,7 @@
 #include "gicv3_internal.h"
 #include "hw/arm/linux-boot-if.h"
 
-static void gicv3_pre_save(void *opaque)
+static int gicv3_pre_save(void *opaque)
 {
     GICv3State *s = (GICv3State *)opaque;
     ARMGICv3CommonClass *c = ARM_GICV3_COMMON_GET_CLASS(s);
@@ -36,6 +36,8 @@ static void gicv3_pre_save(void *opaque)
     if (c->pre_save) {
         c->pre_save(s);
     }
+
+    return 0;
 }
 
 static int gicv3_post_load(void *opaque, int version_id)

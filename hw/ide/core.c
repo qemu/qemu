@@ -2752,7 +2752,7 @@ static int ide_drive_pio_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void ide_drive_pio_pre_save(void *opaque)
+static int ide_drive_pio_pre_save(void *opaque)
 {
     IDEState *s = opaque;
     int idx;
@@ -2768,6 +2768,8 @@ static void ide_drive_pio_pre_save(void *opaque)
     } else {
         s->end_transfer_fn_idx = idx;
     }
+
+    return 0;
 }
 
 static bool ide_drive_pio_state_needed(void *opaque)

@@ -2381,7 +2381,7 @@ static USBBusOps ehci_bus_ops_standalone = {
     .wakeup_endpoint = ehci_wakeup_endpoint,
 };
 
-static void usb_ehci_pre_save(void *opaque)
+static int usb_ehci_pre_save(void *opaque)
 {
     EHCIState *ehci = opaque;
     uint32_t new_frindex;
@@ -2390,6 +2390,8 @@ static void usb_ehci_pre_save(void *opaque)
     new_frindex = ehci->frindex & ~7;
     ehci->last_run_ns -= (ehci->frindex - new_frindex) * UFRAME_TIMER_NS;
     ehci->frindex = new_frindex;
+
+    return 0;
 }
 
 static int usb_ehci_post_load(void *opaque, int version_id)

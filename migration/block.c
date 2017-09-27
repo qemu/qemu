@@ -161,6 +161,11 @@ int blk_mig_active(void)
     return !QSIMPLEQ_EMPTY(&block_mig_state.bmds_list);
 }
 
+int blk_mig_bulk_active(void)
+{
+    return blk_mig_active() && !block_mig_state.bulk_completed;
+}
+
 uint64_t blk_mig_bytes_transferred(void)
 {
     BlkMigDevState *bmds;

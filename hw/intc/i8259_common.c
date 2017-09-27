@@ -46,7 +46,7 @@ void pic_reset_common(PICCommonState *s)
     /* Note: ELCR is not reset */
 }
 
-static void pic_dispatch_pre_save(void *opaque)
+static int pic_dispatch_pre_save(void *opaque)
 {
     PICCommonState *s = opaque;
     PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
@@ -54,6 +54,8 @@ static void pic_dispatch_pre_save(void *opaque)
     if (info->pre_save) {
         info->pre_save(s);
     }
+
+    return 0;
 }
 
 static int pic_dispatch_post_load(void *opaque, int version_id)

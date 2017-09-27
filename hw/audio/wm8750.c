@@ -567,11 +567,13 @@ static int wm8750_rx(I2CSlave *i2c)
     return 0x00;
 }
 
-static void wm8750_pre_save(void *opaque)
+static int wm8750_pre_save(void *opaque)
 {
     WM8750State *s = opaque;
 
     s->rate_vmstate = s->rate - wm_rate_table;
+
+    return 0;
 }
 
 static int wm8750_post_load(void *opaque, int version_id)
