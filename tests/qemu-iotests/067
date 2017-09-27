@@ -141,7 +141,7 @@ echo
 echo === Empty drive with -device and device_del ===
 echo
 
-run_qemu -device virtio-scsi-pci -device scsi-cd,id=cd0 <<EOF
+run_qemu -device virtio-scsi -device scsi-cd,id=cd0 <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "query-block" }
 { "execute": "device_del", "arguments": { "id": "cd0" } }

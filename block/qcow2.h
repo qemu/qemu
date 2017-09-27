@@ -521,6 +521,18 @@ static inline uint64_t refcount_diff(uint64_t r1, uint64_t r2)
     return r1 > r2 ? r1 - r2 : r2 - r1;
 }
 
+static inline
+uint32_t offset_to_reftable_index(BDRVQcow2State *s, uint64_t offset)
+{
+    return offset >> (s->refcount_block_bits + s->cluster_bits);
+}
+
+static inline uint64_t get_refblock_offset(BDRVQcow2State *s, uint64_t offset)
+{
+    uint32_t index = offset_to_reftable_index(s, offset);
+    return s->refcount_table[index] & REFT_OFFSET_MASK;
+}
+
 /* qcow2.c functions */
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
@@ -584,10 +596,12 @@ int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
 int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
                                 BlockDriverAmendStatusCB *status_cb,
                                 void *cb_opaque, Error **errp);
+int qcow2_shrink_reftable(BlockDriverState *bs);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);
+int qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t max_size);
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index);
 int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
 int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
@@ -649,6 +663,9 @@ int qcow2_cache_get(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
 int qcow2_cache_get_empty(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
     void **table);
 void qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table);
+void *qcow2_cache_is_table_offset(BlockDriverState *bs, Qcow2Cache *c,
+                                  uint64_t offset);
+void qcow2_cache_discard(BlockDriverState *bs, Qcow2Cache *c, void *table);
 
 /* qcow2-bitmap.c functions */
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,

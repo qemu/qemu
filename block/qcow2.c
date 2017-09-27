@@ -3104,18 +3104,43 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     old_length = bs->total_sectors * 512;
-
-    /* shrinking is currently not supported */
-    if (offset < old_length) {
-        error_setg(errp, "qcow2 doesn't support shrinking images yet");
-        return -ENOTSUP;
-    }
-
     new_l1_size = size_to_l1(s, offset);
-    ret = qcow2_grow_l1_table(bs, new_l1_size, true);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "Failed to grow the L1 table");
-        return ret;
+
+    if (offset < old_length) {
+        if (prealloc != PREALLOC_MODE_OFF) {
+            error_setg(errp,
+                       "Preallocation can't be used for shrinking an image");
+            return -EINVAL;
+        }
+
+        ret = qcow2_cluster_discard(bs, ROUND_UP(offset, s->cluster_size),
+                                    old_length - ROUND_UP(offset,
+                                                          s->cluster_size),
+                                    QCOW2_DISCARD_ALWAYS, true);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to discard cropped clusters");
+            return ret;
+        }
+
+        ret = qcow2_shrink_l1_table(bs, new_l1_size);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "Failed to reduce the number of L2 tables");
+            return ret;
+        }
+
+        ret = qcow2_shrink_reftable(bs);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "Failed to discard unused refblocks");
+            return ret;
+        }
+    } else {
+        ret = qcow2_grow_l1_table(bs, new_l1_size, true);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to grow the L1 table");
+            return ret;
+        }
     }
 
     switch (prealloc) {

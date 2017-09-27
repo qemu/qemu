@@ -166,6 +166,7 @@ typedef QSIMPLEQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 typedef struct BDRVReopenState {
     BlockDriverState *bs;
     int flags;
+    uint64_t perm, shared_perm;
     QDict *options;
     QDict *explicit_options;
     void *opaque;
@@ -435,7 +436,6 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             int64_t offset, int64_t bytes, int64_t *pnum);
 
 bool bdrv_is_read_only(BlockDriverState *bs);
-bool bdrv_is_writable(BlockDriverState *bs);
 int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
                            bool ignore_allow_rdw, Error **errp);
 int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp);

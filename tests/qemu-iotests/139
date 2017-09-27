@@ -25,13 +25,21 @@ import time
 
 base_img = os.path.join(iotests.test_dir, 'base.img')
 new_img = os.path.join(iotests.test_dir, 'new.img')
+if iotests.qemu_default_machine == 's390-ccw-virtio':
+    default_virtio_blk = 'virtio-blk-ccw'
+else:
+    default_virtio_blk = 'virtio-blk-pci'
 
 class TestBlockdevDel(iotests.QMPTestCase):
 
     def setUp(self):
         iotests.qemu_img('create', '-f', iotests.imgfmt, base_img, '1M')
         self.vm = iotests.VM()
-        self.vm.add_device("virtio-scsi-pci,id=virtio-scsi")
+        if iotests.qemu_default_machine == 's390-ccw-virtio':
+            self.vm.add_device("virtio-scsi-ccw,id=virtio-scsi")
+        else:
+            self.vm.add_device("virtio-scsi-pci,id=virtio-scsi")
+
         self.vm.launch()
 
     def tearDown(self):
@@ -87,7 +95,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState(node, expect_error)
 
     # Add a device model
-    def addDeviceModel(self, device, backend, driver = 'virtio-blk-pci'):
+    def addDeviceModel(self, device, backend, driver = default_virtio_blk):
         result = self.vm.qmp('device_add', id = device,
                              driver = driver, drive = backend)
         self.assert_qmp(result, 'return', {})

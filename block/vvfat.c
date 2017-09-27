@@ -57,15 +57,6 @@
 
 static void checkpoint(void);
 
-#ifdef __MINGW32__
-void nonono(const char* file, int line, const char* msg) {
-    fprintf(stderr, "Nonono! %s:%d %s\n", file, line, msg);
-    exit(-5);
-}
-#undef assert
-#define assert(a) do {if (!(a)) nonono(__FILE__, __LINE__, #a);}while(0)
-#endif
-
 #else
 
 #define DLOG(a)
@@ -3211,6 +3202,7 @@ err:
 
 static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
                              const BdrvChildRole *role,
+                             BlockReopenQueue *reopen_queue,
                              uint64_t perm, uint64_t shared,
                              uint64_t *nperm, uint64_t *nshared)
 {
@@ -3270,24 +3262,11 @@ static void bdrv_vvfat_init(void)
 block_init(bdrv_vvfat_init);
 
 #ifdef DEBUG
-static void checkpoint(void) {
+static void checkpoint(void)
+{
     assert(((mapping_t*)array_get(&(vvv->mapping), 0))->end == 2);
     check1(vvv);
     check2(vvv);
     assert(!vvv->current_mapping || vvv->current_fd || (vvv->current_mapping->mode & MODE_DIRECTORY));
-#if 0
-    if (((direntry_t*)vvv->directory.pointer)[1].attributes != 0xf)
-        fprintf(stderr, "Nonono!\n");
-    mapping_t* mapping;
-    direntry_t* direntry;
-    assert(vvv->mapping.size >= vvv->mapping.item_size * vvv->mapping.next);
-    assert(vvv->directory.size >= vvv->directory.item_size * vvv->directory.next);
-    if (vvv->mapping.next<47)
-        return;
-    assert((mapping = array_get(&(vvv->mapping), 47)));
-    assert(mapping->dir_index < vvv->directory.next);
-    direntry = array_get(&(vvv->directory), mapping->dir_index);
-    assert(!memcmp(direntry->name, "USB     H  ", 11) || direntry->name[0]==0);
-#endif
 }
 #endif

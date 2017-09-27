@@ -353,7 +353,7 @@ do
                 else
                     echo " - output mismatch (see $seq.out.bad)"
                     mv $tmp.out $seq.out.bad
-                    $diff -w "$reference" $seq.out.bad
+                    $diff -w "$reference" $(realpath $seq.out.bad)
                     err=true
                 fi
             fi

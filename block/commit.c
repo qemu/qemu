@@ -257,6 +257,7 @@ static void bdrv_commit_top_close(BlockDriverState *bs)
 
 static void bdrv_commit_top_child_perm(BlockDriverState *bs, BdrvChild *c,
                                        const BdrvChildRole *role,
+                                       BlockReopenQueue *reopen_queue,
                                        uint64_t perm, uint64_t shared,
                                        uint64_t *nperm, uint64_t *nshared)
 {

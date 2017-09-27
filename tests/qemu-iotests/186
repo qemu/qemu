@@ -56,15 +56,15 @@ function do_run_qemu()
             done
         fi
         echo quit
-    ) | $QEMU -S -nodefaults -display none -device virtio-scsi-pci -monitor stdio "$@" 2>&1
+    ) | $QEMU -S -display none -device virtio-scsi-pci -monitor stdio "$@" 2>&1
     echo
 }
 
 function check_info_block()
 {
     echo "info block" |
-    QEMU_OPTIONS="" do_run_qemu "$@" | _filter_win32 | _filter_hmp |
-        _filter_qemu | _filter_generated_node_ids
+    do_run_qemu "$@" | _filter_win32 | _filter_hmp | _filter_qemu |
+        _filter_generated_node_ids
 }
 
 

@@ -124,6 +124,7 @@ int64_t throttle_compute_wait(LeakyBucket *bkt)
     /* If the main bucket is not full yet we still have to check the
      * burst bucket in order to enforce the burst limit */
     if (bkt->burst_length > 1) {
+        assert(bkt->max > 0); /* see throttle_is_valid() */
         extra = bkt->burst_level - burst_bucket_size;
         if (extra > 0) {
             return throttle_do_compute_wait(bkt->max, extra);

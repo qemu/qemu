@@ -103,7 +103,17 @@ echo
 echo === Device without drive ===
 echo
 
-run_qemu -device virtio-scsi-pci -device scsi-hd
+case "$QEMU_DEFAULT_MACHINE" in
+  s390-ccw-virtio)
+      virtio_scsi=virtio-scsi-ccw
+      ;;
+  *)
+      virtio_scsi=virtio-scsi-pci
+      ;;
+esac
+
+run_qemu -device $virtio_scsi -device scsi-hd |
+    sed -e "s/$virtio_scsi/VIRTIO_SCSI/"
 
 echo
 echo === Overriding backing file ===

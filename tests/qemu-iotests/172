@@ -56,7 +56,7 @@ function do_run_qemu()
             done
         fi
         echo quit
-    ) | $QEMU -nographic -monitor stdio -serial none "$@"
+    ) | $QEMU -machine accel=qtest -nographic -monitor stdio -serial none "$@"
     echo
 }
 
