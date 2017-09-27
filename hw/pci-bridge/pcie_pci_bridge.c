@@ -192,6 +192,7 @@ static const TypeInfo pcie_pci_bridge_info = {
         .class_init = pcie_pci_bridge_class_init,
         .interfaces = (InterfaceInfo[]) {
             { TYPE_HOTPLUG_HANDLER },
+            { INTERFACE_PCIE_DEVICE },
             { },
         }
 };
