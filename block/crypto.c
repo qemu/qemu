@@ -364,8 +364,9 @@ static int block_crypto_truncate(BlockDriverState *bs, int64_t offset,
                                  PreallocMode prealloc, Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
-    size_t payload_offset =
+    uint64_t payload_offset =
         qcrypto_block_get_payload_offset(crypto->block);
+    assert(payload_offset < (INT64_MAX - offset));
 
     offset += payload_offset;
 
@@ -395,8 +396,9 @@ block_crypto_co_readv(BlockDriverState *bs, int64_t sector_num,
     uint8_t *cipher_data = NULL;
     QEMUIOVector hd_qiov;
     int ret = 0;
-    size_t payload_offset =
+    uint64_t payload_offset =
         qcrypto_block_get_payload_offset(crypto->block) / 512;
+    assert(payload_offset < (INT64_MAX / 512));
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
@@ -462,8 +464,9 @@ block_crypto_co_writev(BlockDriverState *bs, int64_t sector_num,
     uint8_t *cipher_data = NULL;
     QEMUIOVector hd_qiov;
     int ret = 0;
-    size_t payload_offset =
+    uint64_t payload_offset =
         qcrypto_block_get_payload_offset(crypto->block) / 512;
+    assert(payload_offset < (INT64_MAX / 512));
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
@@ -524,7 +527,9 @@ static int64_t block_crypto_getlength(BlockDriverState *bs)
     BlockCrypto *crypto = bs->opaque;
     int64_t len = bdrv_getlength(bs->file->bs);
 
-    ssize_t offset = qcrypto_block_get_payload_offset(crypto->block);
+    uint64_t offset = qcrypto_block_get_payload_offset(crypto->block);
+    assert(offset < INT64_MAX);
+    assert(offset < len);
 
     len -= offset;
 
