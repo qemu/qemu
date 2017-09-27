@@ -541,13 +541,18 @@ static unsigned do_stfle(CPUS390XState *env, uint64_t words[MAX_STFL_WORDS])
     return max_bit / 64;
 }
 
+#ifndef CONFIG_USER_ONLY
 void HELPER(stfl)(CPUS390XState *env)
 {
     uint64_t words[MAX_STFL_WORDS];
+    LowCore *lowcore;
 
+    lowcore = cpu_map_lowcore(env);
     do_stfle(env, words);
-    cpu_stl_data(env, 200, words[0] >> 32);
+    lowcore->stfl_fac_list = cpu_to_be32(words[0] >> 32);
+    cpu_unmap_lowcore(lowcore);
 }
+#endif
 
 uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
 {
