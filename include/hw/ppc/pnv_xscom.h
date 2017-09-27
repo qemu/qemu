@@ -54,7 +54,7 @@ typedef struct PnvXScomInterfaceClass {
  *   PCB SLAVE   0x110Fxxxx
  */
 
-#define PNV_XSCOM_EX_CORE_BASE(base, i) (base | (((uint64_t)i) << 24))
+#define PNV_XSCOM_EX_CORE_BASE(base, i) ((base) | ((uint64_t)(i) << 24))
 #define PNV_XSCOM_EX_CORE_SIZE    0x100000
 
 #define PNV_XSCOM_LPC_BASE        0xb0020

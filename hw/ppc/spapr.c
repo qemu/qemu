@@ -1211,14 +1211,15 @@ static uint64_t spapr_get_patbe(PPCVirtualHypervisor *vhyp)
  */
 static int get_htab_fd(sPAPRMachineState *spapr)
 {
+    Error *local_err = NULL;
+
     if (spapr->htab_fd >= 0) {
         return spapr->htab_fd;
     }
 
-    spapr->htab_fd = kvmppc_get_htab_fd(false);
+    spapr->htab_fd = kvmppc_get_htab_fd(false, 0, &local_err);
     if (spapr->htab_fd < 0) {
-        error_report("Unable to open fd for reading hash table from KVM: %s",
-                     strerror(errno));
+        error_report_err(local_err);
     }
 
     return spapr->htab_fd;
@@ -1237,6 +1238,19 @@ static hwaddr spapr_hpt_mask(PPCVirtualHypervisor *vhyp)
     sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
 
     return HTAB_SIZE(spapr) / HASH_PTEG_SIZE_64 - 1;
+}
+
+static target_ulong spapr_encode_hpt_for_kvm_pr(PPCVirtualHypervisor *vhyp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    assert(kvm_enabled());
+
+    if (!spapr->htab) {
+        return 0;
+    }
+
+    return (target_ulong)(uintptr_t)spapr->htab | (spapr->htab_shift - 18);
 }
 
 static const ppc_hash_pte64_t *spapr_map_hptes(PPCVirtualHypervisor *vhyp,
@@ -1708,6 +1722,23 @@ static int htab_save_setup(QEMUFile *f, void *opaque)
     return 0;
 }
 
+static void htab_save_chunk(QEMUFile *f, sPAPRMachineState *spapr,
+                            int chunkstart, int n_valid, int n_invalid)
+{
+    qemu_put_be32(f, chunkstart);
+    qemu_put_be16(f, n_valid);
+    qemu_put_be16(f, n_invalid);
+    qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
+                    HASH_PTE_SIZE_64 * n_valid);
+}
+
+static void htab_save_end_marker(QEMUFile *f)
+{
+    qemu_put_be32(f, 0);
+    qemu_put_be16(f, 0);
+    qemu_put_be16(f, 0);
+}
+
 static void htab_save_first_pass(QEMUFile *f, sPAPRMachineState *spapr,
                                  int64_t max_ns)
 {
@@ -1739,11 +1770,7 @@ static void htab_save_first_pass(QEMUFile *f, sPAPRMachineState *spapr,
         if (index > chunkstart) {
             int n_valid = index - chunkstart;
 
-            qemu_put_be32(f, chunkstart);
-            qemu_put_be16(f, n_valid);
-            qemu_put_be16(f, 0);
-            qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
-                            HASH_PTE_SIZE_64 * n_valid);
+            htab_save_chunk(f, spapr, chunkstart, n_valid, 0);
 
             if (has_timeout &&
                 (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
@@ -1805,11 +1832,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPRMachineState *spapr,
             int n_valid = invalidstart - chunkstart;
             int n_invalid = index - invalidstart;
 
-            qemu_put_be32(f, chunkstart);
-            qemu_put_be16(f, n_valid);
-            qemu_put_be16(f, n_invalid);
-            qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
-                            HASH_PTE_SIZE_64 * n_valid);
+            htab_save_chunk(f, spapr, chunkstart, n_valid, n_invalid);
             sent += index - chunkstart;
 
             if (!final && (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
@@ -1872,10 +1895,7 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
         rc = htab_save_later_pass(f, spapr, MAX_ITERATION_NS);
     }
 
-    /* End marker */
-    qemu_put_be32(f, 0);
-    qemu_put_be16(f, 0);
-    qemu_put_be16(f, 0);
+    htab_save_end_marker(f);
 
     return rc;
 }
@@ -1915,9 +1935,7 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
     }
 
     /* End marker */
-    qemu_put_be32(f, 0);
-    qemu_put_be16(f, 0);
-    qemu_put_be16(f, 0);
+    htab_save_end_marker(f);
 
     return 0;
 }
@@ -1927,6 +1945,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     sPAPRMachineState *spapr = opaque;
     uint32_t section_hdr;
     int fd = -1;
+    Error *local_err = NULL;
 
     if (version_id < 1 || version_id > 1) {
         error_report("htab_load() bad version");
@@ -1941,8 +1960,6 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     if (section_hdr) {
-        Error *local_err = NULL;
-
         /* First section gives the htab size */
         spapr_reallocate_hpt(spapr, section_hdr, &local_err);
         if (local_err) {
@@ -1955,10 +1972,10 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     if (!spapr->htab) {
         assert(kvm_enabled());
 
-        fd = kvmppc_get_htab_fd(true);
+        fd = kvmppc_get_htab_fd(true, 0, &local_err);
         if (fd < 0) {
-            error_report("Unable to open fd to restore KVM hash table: %s",
-                         strerror(errno));
+            error_report_err(local_err);
+            return fd;
         }
     }
 
@@ -3600,6 +3617,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->unmap_hptes = spapr_unmap_hptes;
     vhc->store_hpte = spapr_store_hpte;
     vhc->get_patbe = spapr_get_patbe;
+    vhc->encode_hpt_for_kvm_pr = spapr_encode_hpt_for_kvm_pr;
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;

@@ -131,7 +131,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_interrupt_level = kvm_check_extension(s, KVM_CAP_PPC_IRQ_LEVEL);
     cap_segstate = kvm_check_extension(s, KVM_CAP_PPC_SEGSTATE);
     cap_booke_sregs = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_SREGS);
-    cap_ppc_smt_possible = kvm_check_extension(s, KVM_CAP_PPC_SMT_POSSIBLE);
+    cap_ppc_smt_possible = kvm_vm_check_extension(s, KVM_CAP_PPC_SMT_POSSIBLE);
     cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
     cap_spapr_tce_64 = kvm_check_extension(s, KVM_CAP_SPAPR_TCE_64);
@@ -143,7 +143,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_ppc_watchdog = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_WATCHDOG);
     /* Note: we don't set cap_papr here, because this capability is
      * only activated after this by kvmppc_set_papr() */
-    cap_htab_fd = kvm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
+    cap_htab_fd = kvm_vm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
     cap_fixup_hcalls = kvm_check_extension(s, KVM_CAP_PPC_FIXUP_HCALL);
     cap_ppc_smt = kvm_vm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_htm = kvm_vm_check_extension(s, KVM_CAP_PPC_HTM);
@@ -941,7 +941,13 @@ int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 
     sregs.pvr = env->spr[SPR_PVR];
 
-    sregs.u.s.sdr1 = env->spr[SPR_SDR1];
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        sregs.u.s.sdr1 = vhc->encode_hpt_for_kvm_pr(cpu->vhyp);
+    } else {
+        sregs.u.s.sdr1 = env->spr[SPR_SDR1];
+    }
 
     /* Sync SLB */
 #ifdef TARGET_PPC64
@@ -2353,7 +2359,7 @@ int kvmppc_reset_htab(int shift_hint)
         /* Full emulation, tell caller to allocate htab itself */
         return 0;
     }
-    if (kvm_check_extension(kvm_state, KVM_CAP_PPC_ALLOC_HTAB)) {
+    if (kvm_vm_check_extension(kvm_state, KVM_CAP_PPC_ALLOC_HTAB)) {
         int ret;
         ret = kvm_vm_ioctl(kvm_state, KVM_PPC_ALLOCATE_HTAB, &shift);
         if (ret == -ENOTTY) {
@@ -2446,11 +2452,6 @@ static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
 bool kvmppc_has_cap_epr(void)
 {
     return cap_epr;
-}
-
-bool kvmppc_has_cap_htab_fd(void)
-{
-    return cap_htab_fd;
 }
 
 bool kvmppc_has_cap_fixup_hcalls(void)
@@ -2555,19 +2556,29 @@ int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function)
     return kvm_vm_ioctl(kvm_state, KVM_PPC_RTAS_DEFINE_TOKEN, &args);
 }
 
-int kvmppc_get_htab_fd(bool write)
+int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp)
 {
     struct kvm_get_htab_fd s = {
         .flags = write ? KVM_GET_HTAB_WRITE : 0,
-        .start_index = 0,
+        .start_index = index,
     };
+    int ret;
 
     if (!cap_htab_fd) {
-        fprintf(stderr, "KVM version doesn't support saving the hash table\n");
-        return -1;
+        error_setg(errp, "KVM version doesn't support %s the HPT",
+                   write ? "writing" : "reading");
+        return -ENOTSUP;
     }
 
-    return kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
+    ret = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
+    if (ret < 0) {
+        error_setg(errp, "Unable to open fd for %s HPT %s KVM: %s",
+                   write ? "writing" : "reading", write ? "to" : "from",
+                   strerror(errno));
+        return -errno;
+    }
+
+    return ret;
 }
 
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
@@ -2647,17 +2658,10 @@ void kvm_arch_init_irq_routing(KVMState *s)
 
 void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
 {
-    struct kvm_get_htab_fd ghf = {
-        .flags = 0,
-        .start_index = ptex,
-    };
     int fd, rc;
     int i;
 
-    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (fd < 0) {
-        hw_error("kvmppc_read_hptes: Unable to open HPT fd");
-    }
+    fd = kvmppc_get_htab_fd(false, ptex, &error_abort);
 
     i = 0;
     while (i < n) {
@@ -2699,19 +2703,13 @@ void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
 void kvmppc_write_hpte(hwaddr ptex, uint64_t pte0, uint64_t pte1)
 {
     int fd, rc;
-    struct kvm_get_htab_fd ghf;
     struct {
         struct kvm_get_htab_header hdr;
         uint64_t pte0;
         uint64_t pte1;
     } buf;
 
-    ghf.flags = 0;
-    ghf.start_index = 0;     /* Ignored */
-    fd = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &ghf);
-    if (fd < 0) {
-        hw_error("kvmppc_write_hpte: Unable to open HPT fd");
-    }
+    fd = kvmppc_get_htab_fd(true, 0 /* Ignored */, &error_abort);
 
     buf.hdr.n_valid = 1;
     buf.hdr.n_invalid = 0;
@@ -2804,30 +2802,6 @@ int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift)
     }
 
     return kvm_vm_ioctl(cs->kvm_state, KVM_PPC_RESIZE_HPT_COMMIT, &rhpt);
-}
-
-static void kvmppc_pivot_hpt_cpu(CPUState *cs, run_on_cpu_data arg)
-{
-    target_ulong sdr1 = arg.target_ptr;
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
-
-    /* This is just for the benefit of PR KVM */
-    cpu_synchronize_state(cs);
-    env->spr[SPR_SDR1] = sdr1;
-    if (kvmppc_put_books_sregs(cpu) < 0) {
-        error_report("Unable to update SDR1 in KVM");
-        exit(1);
-    }
-}
-
-void kvmppc_update_sdr1(target_ulong sdr1)
-{
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        run_on_cpu(cs, kvmppc_pivot_hpt_cpu, RUN_ON_CPU_TARGET_PTR(sdr1));
-    }
 }
 
 /*

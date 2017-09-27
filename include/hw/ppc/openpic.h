@@ -20,6 +20,7 @@ enum {
 #define OPENPIC_MODEL_RAVEN       0
 #define OPENPIC_MODEL_FSL_MPIC_20 1
 #define OPENPIC_MODEL_FSL_MPIC_42 2
+#define OPENPIC_MODEL_KEYLARGO    3
 
 #define OPENPIC_MAX_SRC     256
 #define OPENPIC_MAX_TMR     4

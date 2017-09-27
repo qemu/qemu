@@ -51,8 +51,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
 bool kvmppc_has_cap_epr(void);
 int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function);
-bool kvmppc_has_cap_htab_fd(void);
-int kvmppc_get_htab_fd(bool write);
+int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp);
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns);
 int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
                            uint16_t n_valid, uint16_t n_invalid);
@@ -68,7 +67,6 @@ PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
 void kvmppc_check_papr_resize_hpt(Error **errp);
 int kvmppc_resize_hpt_prepare(PowerPCCPU *cpu, target_ulong flags, int shift);
 int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift);
-void kvmppc_update_sdr1(target_ulong sdr1);
 bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu);
 
 bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path);
@@ -246,12 +244,7 @@ static inline int kvmppc_define_rtas_kernel_token(uint32_t token,
     return -1;
 }
 
-static inline bool kvmppc_has_cap_htab_fd(void)
-{
-    return false;
-}
-
-static inline int kvmppc_get_htab_fd(bool write)
+static inline int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp)
 {
     return -1;
 }
@@ -329,11 +322,6 @@ static inline int kvmppc_resize_hpt_commit(PowerPCCPU *cpu,
                                            target_ulong flags, int shift)
 {
     return -ENOSYS;
-}
-
-static inline void kvmppc_update_sdr1(target_ulong sdr1)
-{
-    abort();
 }
 
 #endif
