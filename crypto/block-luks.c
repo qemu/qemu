@@ -1399,29 +1399,33 @@ static void qcrypto_block_luks_cleanup(QCryptoBlock *block)
 
 static int
 qcrypto_block_luks_decrypt(QCryptoBlock *block,
-                           uint64_t startsector,
+                           uint64_t offset,
                            uint8_t *buf,
                            size_t len,
                            Error **errp)
 {
+    assert(QEMU_IS_ALIGNED(offset, QCRYPTO_BLOCK_LUKS_SECTOR_SIZE));
+    assert(QEMU_IS_ALIGNED(len, QCRYPTO_BLOCK_LUKS_SECTOR_SIZE));
     return qcrypto_block_decrypt_helper(block->cipher,
                                         block->niv, block->ivgen,
                                         QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
-                                        startsector, buf, len, errp);
+                                        offset, buf, len, errp);
 }
 
 
 static int
 qcrypto_block_luks_encrypt(QCryptoBlock *block,
-                           uint64_t startsector,
+                           uint64_t offset,
                            uint8_t *buf,
                            size_t len,
                            Error **errp)
 {
+    assert(QEMU_IS_ALIGNED(offset, QCRYPTO_BLOCK_LUKS_SECTOR_SIZE));
+    assert(QEMU_IS_ALIGNED(len, QCRYPTO_BLOCK_LUKS_SECTOR_SIZE));
     return qcrypto_block_encrypt_helper(block->cipher,
                                         block->niv, block->ivgen,
                                         QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
-                                        startsector, buf, len, errp);
+                                        offset, buf, len, errp);
 }
 
 

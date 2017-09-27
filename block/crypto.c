@@ -398,7 +398,6 @@ block_crypto_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     int ret = 0;
     uint64_t sector_size = qcrypto_block_get_sector_size(crypto->block);
     uint64_t payload_offset = qcrypto_block_get_payload_offset(crypto->block);
-    uint64_t sector_num = offset / sector_size;
 
     assert(!flags);
     assert(payload_offset < INT64_MAX);
@@ -430,15 +429,14 @@ block_crypto_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
             goto cleanup;
         }
 
-        if (qcrypto_block_decrypt(crypto->block, sector_num, cipher_data,
-                                  cur_bytes, NULL) < 0) {
+        if (qcrypto_block_decrypt(crypto->block, offset + bytes_done,
+                                  cipher_data, cur_bytes, NULL) < 0) {
             ret = -EIO;
             goto cleanup;
         }
 
         qemu_iovec_from_buf(qiov, bytes_done, cipher_data, cur_bytes);
 
-        sector_num += cur_bytes / sector_size;
         bytes -= cur_bytes;
         bytes_done += cur_bytes;
     }
@@ -463,7 +461,6 @@ block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     int ret = 0;
     uint64_t sector_size = qcrypto_block_get_sector_size(crypto->block);
     uint64_t payload_offset = qcrypto_block_get_payload_offset(crypto->block);
-    uint64_t sector_num = offset / sector_size;
 
     assert(!flags);
     assert(payload_offset < INT64_MAX);
@@ -488,8 +485,8 @@ block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
 
         qemu_iovec_to_buf(qiov, bytes_done, cipher_data, cur_bytes);
 
-        if (qcrypto_block_encrypt(crypto->block, sector_num, cipher_data,
-                                  cur_bytes, NULL) < 0) {
+        if (qcrypto_block_encrypt(crypto->block, offset + bytes_done,
+                                  cipher_data, cur_bytes, NULL) < 0) {
             ret = -EIO;
             goto cleanup;
         }
@@ -503,7 +500,6 @@ block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
             goto cleanup;
         }
 
-        sector_num += cur_bytes / sector_size;
         bytes -= cur_bytes;
         bytes_done += cur_bytes;
     }
