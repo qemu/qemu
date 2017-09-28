@@ -209,7 +209,37 @@ bool s390_cpu_has_ext_int(S390CPU *cpu)
         return false;
     }
 
-    return env->pending_int & INTERRUPT_EXT;
+    if ((env->pending_int & INTERRUPT_EMERGENCY_SIGNAL) &&
+        (env->cregs[0] & CR0_EMERGENCY_SIGNAL_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXTERNAL_CALL) &&
+        (env->cregs[0] & CR0_EXTERNAL_CALL_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXTERNAL_CALL) &&
+        (env->cregs[0] & CR0_EXTERNAL_CALL_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXT_CLOCK_COMPARATOR) &&
+        (env->cregs[0] & CR0_CKC_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXT_CPU_TIMER) &&
+        (env->cregs[0] & CR0_CPU_TIMER_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXT_SERVICE) &&
+        (env->cregs[0] & CR0_SERVICE_SC)) {
+        return true;
+    }
+
+    return false;
 }
 
 bool s390_cpu_has_io_int(S390CPU *cpu)

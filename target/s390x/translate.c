@@ -2719,7 +2719,8 @@ static ExitStatus op_lctl(DisasContext *s, DisasOps *o)
     gen_helper_lctl(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
-    return NO_EXIT;
+    /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
+    return EXIT_PC_STALE_NOCHAIN;
 }
 
 static ExitStatus op_lctlg(DisasContext *s, DisasOps *o)
@@ -2730,7 +2731,8 @@ static ExitStatus op_lctlg(DisasContext *s, DisasOps *o)
     gen_helper_lctlg(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
-    return NO_EXIT;
+    /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
+    return EXIT_PC_STALE_NOCHAIN;
 }
 
 static ExitStatus op_lra(DisasContext *s, DisasOps *o)

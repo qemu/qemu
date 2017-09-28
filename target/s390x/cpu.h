@@ -345,6 +345,11 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_SECONDARY           0x0000000004000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
+#define CR0_EMERGENCY_SIGNAL_SC 0x0000000000004000ULL
+#define CR0_EXTERNAL_CALL_SC    0x0000000000002000ULL
+#define CR0_CKC_SC              0x0000000000000800ULL
+#define CR0_CPU_TIMER_SC        0x0000000000000400ULL
+#define CR0_SERVICE_SC          0x0000000000000200ULL
 
 /* MMU */
 #define MMU_PRIMARY_IDX         0
@@ -405,11 +410,6 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define INTERRUPT_EXT_CLOCK_COMPARATOR   (1 << 4)
 #define INTERRUPT_EXTERNAL_CALL          (1 << 5)
 #define INTERRUPT_EMERGENCY_SIGNAL       (1 << 6)
-#define INTERRUPT_EXT                    (INTERRUPT_EXT_SERVICE | \
-                                          INTERRUPT_EXT_CPU_TIMER | \
-                                          INTERRUPT_EXT_CLOCK_COMPARATOR | \
-                                          INTERRUPT_EXTERNAL_CALL | \
-                                          INTERRUPT_EMERGENCY_SIGNAL)
 
 /* Program Status Word.  */
 #define S390_PSWM_REGNUM 0

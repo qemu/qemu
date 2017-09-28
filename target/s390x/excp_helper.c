@@ -249,7 +249,8 @@ static void do_ext_interrupt(CPUS390XState *env)
 
     lowcore = cpu_map_lowcore(env);
 
-    if (env->pending_int & INTERRUPT_EMERGENCY_SIGNAL) {
+    if ((env->pending_int & INTERRUPT_EMERGENCY_SIGNAL) &&
+        (env->cregs[0] & CR0_EMERGENCY_SIGNAL_SC)) {
         lowcore->ext_int_code = cpu_to_be16(EXT_EMERGENCY);
         cpu_addr = find_first_bit(env->emergency_signals, S390_MAX_CPUS);
         g_assert(cpu_addr < S390_MAX_CPUS);
@@ -258,19 +259,23 @@ static void do_ext_interrupt(CPUS390XState *env)
         if (bitmap_empty(env->emergency_signals, max_cpus)) {
             env->pending_int &= ~INTERRUPT_EMERGENCY_SIGNAL;
         }
-    } else if (env->pending_int & INTERRUPT_EXTERNAL_CALL) {
+    } else if ((env->pending_int & INTERRUPT_EXTERNAL_CALL) &&
+               (env->cregs[0] & CR0_EXTERNAL_CALL_SC)) {
         lowcore->ext_int_code = cpu_to_be16(EXT_EXTERNAL_CALL);
         lowcore->cpu_addr = cpu_to_be16(env->external_call_addr);
         env->pending_int &= ~INTERRUPT_EXTERNAL_CALL;
-    } else if (env->pending_int & INTERRUPT_EXT_CLOCK_COMPARATOR) {
+    } else if ((env->pending_int & INTERRUPT_EXT_CLOCK_COMPARATOR) &&
+               (env->cregs[0] & CR0_CKC_SC)) {
         lowcore->ext_int_code = cpu_to_be16(EXT_CLOCK_COMP);
         lowcore->cpu_addr = 0;
         env->pending_int &= ~INTERRUPT_EXT_CLOCK_COMPARATOR;
-    } else if (env->pending_int & INTERRUPT_EXT_CPU_TIMER) {
+    } else if ((env->pending_int & INTERRUPT_EXT_CPU_TIMER) &&
+               (env->cregs[0] & CR0_CPU_TIMER_SC)) {
         lowcore->ext_int_code = cpu_to_be16(EXT_CPU_TIMER);
         lowcore->cpu_addr = 0;
         env->pending_int &= ~INTERRUPT_EXT_CPU_TIMER;
-    } else if (env->pending_int & INTERRUPT_EXT_SERVICE) {
+    } else if ((env->pending_int & INTERRUPT_EXT_SERVICE) &&
+               (env->cregs[0] & CR0_SERVICE_SC)) {
         /*
          * FIXME: floating IRQs should be considered by all CPUs and
          *        shuld not get cleared by CPU reset.
