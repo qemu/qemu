@@ -58,6 +58,24 @@ static void sigp_sense(S390CPU *dst_cpu, SigpInfo *si)
     }
 }
 
+static void sigp_external_call(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
+{
+    int ret;
+
+    if (!tcg_enabled()) {
+        /* handled in KVM */
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    ret = cpu_inject_external_call(dst_cpu, src_cpu->env.core_id);
+    if (!ret) {
+        si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    } else {
+        set_sigp_status(si, SIGP_STAT_EXT_CALL_PENDING);
+    }
+}
+
 static void sigp_start(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -282,7 +300,7 @@ static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
     }
 }
 
-static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
+static int handle_sigp_single_dst(S390CPU *cpu, S390CPU *dst_cpu, uint8_t order,
                                   uint64_t param, uint64_t *status_reg)
 {
     SigpInfo si = {
@@ -305,6 +323,9 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
     switch (order) {
     case SIGP_SENSE:
         sigp_sense(dst_cpu, &si);
+        break;
+    case SIGP_EXTERNAL_CALL:
+        sigp_external_call(cpu, dst_cpu, &si);
         break;
     case SIGP_START:
         run_on_cpu(CPU(dst_cpu), sigp_start, RUN_ON_CPU_HOST_PTR(&si));
@@ -389,7 +410,7 @@ int handle_sigp(CPUS390XState *env, uint8_t order, uint64_t r1, uint64_t r3)
     default:
         /* all other sigp orders target a single vcpu */
         dst_cpu = s390_cpu_addr2state(env->regs[r3]);
-        ret = handle_sigp_single_dst(dst_cpu, order, param, status_reg);
+        ret = handle_sigp_single_dst(cpu, dst_cpu, order, param, status_reg);
     }
     qemu_mutex_unlock(&qemu_sigp_mutex);
 
