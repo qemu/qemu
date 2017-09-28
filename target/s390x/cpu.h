@@ -60,6 +60,8 @@
 #define PSW_MCHK_MASK 0x0004000000000000
 #define PSW_IO_MASK 0x0200000000000000
 
+#define S390_MAX_CPUS 248
+
 typedef struct PSW {
     uint64_t mask;
     uint64_t addr;
