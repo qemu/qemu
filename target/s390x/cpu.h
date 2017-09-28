@@ -126,6 +126,8 @@ struct CPUS390XState {
 
     int pending_int;
     uint32_t service_param;
+    uint16_t external_call_addr;
+    DECLARE_BITMAP(emergency_signals, S390_MAX_CPUS);
     int io_index[8];
     int mchk_index;
 
@@ -401,9 +403,13 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define INTERRUPT_EXT_SERVICE            (1 << 2)
 #define INTERRUPT_EXT_CPU_TIMER          (1 << 3)
 #define INTERRUPT_EXT_CLOCK_COMPARATOR   (1 << 4)
+#define INTERRUPT_EXTERNAL_CALL          (1 << 5)
+#define INTERRUPT_EMERGENCY_SIGNAL       (1 << 6)
 #define INTERRUPT_EXT                    (INTERRUPT_EXT_SERVICE | \
                                           INTERRUPT_EXT_CPU_TIMER | \
-                                          INTERRUPT_EXT_CLOCK_COMPARATOR)
+                                          INTERRUPT_EXT_CLOCK_COMPARATOR | \
+                                          INTERRUPT_EXTERNAL_CALL | \
+                                          INTERRUPT_EMERGENCY_SIGNAL)
 
 /* Program Status Word.  */
 #define S390_PSWM_REGNUM 0

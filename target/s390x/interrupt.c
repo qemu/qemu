@@ -81,6 +81,32 @@ void cpu_inject_cpu_timer(S390CPU *cpu)
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
+void cpu_inject_emergency_signal(S390CPU *cpu, uint16_t src_cpu_addr)
+{
+    CPUS390XState *env = &cpu->env;
+
+    g_assert(src_cpu_addr < S390_MAX_CPUS);
+    set_bit(src_cpu_addr, env->emergency_signals);
+
+    env->pending_int |= INTERRUPT_EMERGENCY_SIGNAL;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+int cpu_inject_external_call(S390CPU *cpu, uint16_t src_cpu_addr)
+{
+    CPUS390XState *env = &cpu->env;
+
+    g_assert(src_cpu_addr < S390_MAX_CPUS);
+    if (env->pending_int & INTERRUPT_EXTERNAL_CALL) {
+        return -EBUSY;
+    }
+    env->external_call_addr = src_cpu_addr;
+
+    env->pending_int |= INTERRUPT_EXTERNAL_CALL;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    return 0;
+}
+
 static void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
                           uint16_t subchannel_number,
                           uint32_t io_int_parm, uint32_t io_int_word)

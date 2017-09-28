@@ -240,6 +240,7 @@ static void do_ext_interrupt(CPUS390XState *env)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     uint64_t mask, addr;
+    uint16_t cpu_addr;
     LowCore *lowcore;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {
@@ -248,7 +249,20 @@ static void do_ext_interrupt(CPUS390XState *env)
 
     lowcore = cpu_map_lowcore(env);
 
-    if (env->pending_int & INTERRUPT_EXT_CLOCK_COMPARATOR) {
+    if (env->pending_int & INTERRUPT_EMERGENCY_SIGNAL) {
+        lowcore->ext_int_code = cpu_to_be16(EXT_EMERGENCY);
+        cpu_addr = find_first_bit(env->emergency_signals, S390_MAX_CPUS);
+        g_assert(cpu_addr < S390_MAX_CPUS);
+        lowcore->cpu_addr = cpu_to_be16(cpu_addr);
+        clear_bit(cpu_addr, env->emergency_signals);
+        if (bitmap_empty(env->emergency_signals, max_cpus)) {
+            env->pending_int &= ~INTERRUPT_EMERGENCY_SIGNAL;
+        }
+    } else if (env->pending_int & INTERRUPT_EXTERNAL_CALL) {
+        lowcore->ext_int_code = cpu_to_be16(EXT_EXTERNAL_CALL);
+        lowcore->cpu_addr = cpu_to_be16(env->external_call_addr);
+        env->pending_int &= ~INTERRUPT_EXTERNAL_CALL;
+    } else if (env->pending_int & INTERRUPT_EXT_CLOCK_COMPARATOR) {
         lowcore->ext_int_code = cpu_to_be16(EXT_CLOCK_COMP);
         lowcore->cpu_addr = 0;
         env->pending_int &= ~INTERRUPT_EXT_CLOCK_COMPARATOR;
