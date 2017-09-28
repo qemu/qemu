@@ -435,24 +435,16 @@ void s390_cpu_do_interrupt(CPUState *cs)
 
     s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
     /* handle machine checks */
-    if ((env->psw.mask & PSW_MASK_MCHECK) &&
-        (cs->exception_index == -1)) {
-        if (env->pending_int & INTERRUPT_MCHK) {
-            cs->exception_index = EXCP_MCHK;
-        }
+    if (cs->exception_index == -1 && s390_cpu_has_mcck_int(cpu)) {
+        cs->exception_index = EXCP_MCHK;
     }
     /* handle external interrupts */
-    if ((env->psw.mask & PSW_MASK_EXT) &&
-        cs->exception_index == -1 &&
-        (env->pending_int & INTERRUPT_EXT)) {
+    if (cs->exception_index == -1 && s390_cpu_has_ext_int(cpu)) {
         cs->exception_index = EXCP_EXT;
     }
     /* handle I/O interrupts */
-    if ((env->psw.mask & PSW_MASK_IO) &&
-        (cs->exception_index == -1)) {
-        if (env->pending_int & INTERRUPT_IO) {
-            cs->exception_index = EXCP_IO;
-        }
+    if (cs->exception_index == -1 && s390_cpu_has_io_int(cpu)) {
+        cs->exception_index = EXCP_IO;
     }
 
     switch (cs->exception_index) {
@@ -474,6 +466,7 @@ void s390_cpu_do_interrupt(CPUState *cs)
     }
     cs->exception_index = -1;
 
+    /* we might still have pending interrupts, but not deliverable */
     if (!env->pending_int) {
         cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
     }
@@ -490,7 +483,7 @@ bool s390_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
                the parent EXECUTE insn.  */
             return false;
         }
-        if (env->psw.mask & PSW_MASK_EXT) {
+        if (s390_cpu_has_int(cpu)) {
             s390_cpu_do_interrupt(cs);
             return true;
         }

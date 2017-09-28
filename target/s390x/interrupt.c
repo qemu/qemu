@@ -190,4 +190,50 @@ void s390_crw_mchk(void)
     }
 }
 
+bool s390_cpu_has_mcck_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (!(env->psw.mask & PSW_MASK_MCHECK)) {
+        return false;
+    }
+
+    return env->pending_int & INTERRUPT_MCHK;
+}
+
+bool s390_cpu_has_ext_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (!(env->psw.mask & PSW_MASK_EXT)) {
+        return false;
+    }
+
+    return env->pending_int & INTERRUPT_EXT;
+}
+
+bool s390_cpu_has_io_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (!(env->psw.mask & PSW_MASK_IO)) {
+        return false;
+    }
+
+    return env->pending_int & INTERRUPT_IO;
+}
 #endif
+
+bool s390_cpu_has_int(S390CPU *cpu)
+{
+#ifndef CONFIG_USER_ONLY
+    if (!tcg_enabled()) {
+        return false;
+    }
+    return s390_cpu_has_mcck_int(cpu) ||
+           s390_cpu_has_ext_int(cpu) ||
+           s390_cpu_has_io_int(cpu);
+#else
+    return false;
+#endif
+}

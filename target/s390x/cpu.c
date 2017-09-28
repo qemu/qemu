@@ -56,10 +56,12 @@ static void s390_cpu_set_pc(CPUState *cs, vaddr value)
 static bool s390_cpu_has_work(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
-    CPUS390XState *env = &cpu->env;
 
-    return (cs->interrupt_request & CPU_INTERRUPT_HARD) &&
-           (env->psw.mask & PSW_MASK_EXT);
+    if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
+        return false;
+    }
+
+    return s390_cpu_has_int(cpu);
 }
 
 #if !defined(CONFIG_USER_ONLY)
