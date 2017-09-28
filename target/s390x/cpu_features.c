@@ -381,7 +381,7 @@ void s390_add_from_feat_block(S390FeatBitmap features, S390FeatType type,
 
     switch (type) {
     case S390_FEAT_TYPE_STFL:
-       nr_bits = 2048;
+       nr_bits = 16384;
        break;
     case S390_FEAT_TYPE_PLO:
        nr_bits = 256;
