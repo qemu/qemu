@@ -202,6 +202,7 @@ void do_restart_interrupt(CPUS390XState *env)
     addr = be64_to_cpu(lowcore->restart_new_psw.addr);
 
     cpu_unmap_lowcore(lowcore);
+    env->pending_int &= ~INTERRUPT_RESTART;
 
     load_psw(env, mask, addr);
 }

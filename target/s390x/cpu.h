@@ -400,6 +400,8 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */
 #define EXCP_PGM 3 /* program interruption */
+#define EXCP_RESTART 4 /* restart interrupt */
+#define EXCP_STOP 5 /* stop interrupt */
 #define EXCP_IO  7 /* I/O interrupt */
 #define EXCP_MCHK 8 /* machine check */
 
@@ -410,6 +412,8 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define INTERRUPT_EXT_CLOCK_COMPARATOR   (1 << 4)
 #define INTERRUPT_EXTERNAL_CALL          (1 << 5)
 #define INTERRUPT_EMERGENCY_SIGNAL       (1 << 6)
+#define INTERRUPT_RESTART                (1 << 7)
+#define INTERRUPT_STOP                   (1 << 8)
 
 /* Program Status Word.  */
 #define S390_PSWM_REGNUM 0

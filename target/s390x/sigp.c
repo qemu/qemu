@@ -14,6 +14,7 @@
 #include "internal.h"
 #include "sysemu/hw_accel.h"
 #include "exec/address-spaces.h"
+#include "exec/exec-all.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
@@ -498,6 +499,7 @@ void do_stop_interrupt(CPUS390XState *env)
         s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
     }
     env->sigp_order = 0;
+    env->pending_int &= ~INTERRUPT_STOP;
 }
 
 void s390_init_sigp(void)

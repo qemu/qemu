@@ -372,6 +372,8 @@ bool s390_cpu_has_io_int(S390CPU *cpu);
 bool s390_cpu_has_ext_int(S390CPU *cpu);
 bool s390_cpu_has_mcck_int(S390CPU *cpu);
 bool s390_cpu_has_int(S390CPU *cpu);
+bool s390_cpu_has_restart_int(S390CPU *cpu);
+bool s390_cpu_has_stop_int(S390CPU *cpu);
 void cpu_inject_restart(S390CPU *cpu);
 void cpu_inject_stop(S390CPU *cpu);
 

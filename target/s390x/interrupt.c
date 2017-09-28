@@ -109,22 +109,28 @@ int cpu_inject_external_call(S390CPU *cpu, uint16_t src_cpu_addr)
 
 void cpu_inject_restart(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (kvm_enabled()) {
         kvm_s390_restart_interrupt(cpu);
         return;
     }
-    /* FIXME TCG */
-    g_assert_not_reached();
+
+    env->pending_int |= INTERRUPT_RESTART;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 void cpu_inject_stop(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (kvm_enabled()) {
         kvm_s390_stop_interrupt(cpu);
         return;
     }
-    /* FIXME TCG */
-    g_assert_not_reached();
+
+    env->pending_int |= INTERRUPT_STOP;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 static void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
@@ -272,6 +278,20 @@ bool s390_cpu_has_io_int(S390CPU *cpu)
 
     return env->pending_int & INTERRUPT_IO;
 }
+
+bool s390_cpu_has_restart_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    return env->pending_int & INTERRUPT_RESTART;
+}
+
+bool s390_cpu_has_stop_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    return env->pending_int & INTERRUPT_STOP;
+}
 #endif
 
 bool s390_cpu_has_int(S390CPU *cpu)
@@ -282,7 +302,9 @@ bool s390_cpu_has_int(S390CPU *cpu)
     }
     return s390_cpu_has_mcck_int(cpu) ||
            s390_cpu_has_ext_int(cpu) ||
-           s390_cpu_has_io_int(cpu);
+           s390_cpu_has_io_int(cpu) ||
+           s390_cpu_has_restart_int(cpu) ||
+           s390_cpu_has_stop_int(cpu);
 #else
     return false;
 #endif

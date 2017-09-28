@@ -450,6 +450,14 @@ void s390_cpu_do_interrupt(CPUState *cs)
     if (cs->exception_index == -1 && s390_cpu_has_io_int(cpu)) {
         cs->exception_index = EXCP_IO;
     }
+    /* RESTART interrupt */
+    if (cs->exception_index == -1 && s390_cpu_has_restart_int(cpu)) {
+        cs->exception_index = EXCP_RESTART;
+    }
+    /* STOP interrupt has least priority */
+    if (cs->exception_index == -1 && s390_cpu_has_stop_int(cpu)) {
+        cs->exception_index = EXCP_STOP;
+    }
 
     switch (cs->exception_index) {
     case EXCP_PGM:
@@ -467,9 +475,15 @@ void s390_cpu_do_interrupt(CPUState *cs)
     case EXCP_MCHK:
         do_mchk_interrupt(env);
         break;
+    case EXCP_RESTART:
+        do_restart_interrupt(env);
+        break;
+    case EXCP_STOP:
+        do_stop_interrupt(env);
+        break;
     }
 
-    /* WAIT PSW during interrupt injection */
+    /* WAIT PSW during interrupt injection or STOP interrupt */
     if (cs->exception_index == EXCP_HLT) {
         /* don't trigger a cpu_loop_exit(), use an interrupt instead */
         cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HALT);
