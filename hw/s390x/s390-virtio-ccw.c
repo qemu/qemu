@@ -398,9 +398,7 @@ static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
 {
     CPUState *cs = qemu_get_cpu(cpu_index);
 
-    if (s390_cpu_restart(S390_CPU(cs))) {
-        error_setg(errp, QERR_UNSUPPORTED);
-    }
+    s390_cpu_restart(S390_CPU(cs));
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)

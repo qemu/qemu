@@ -480,11 +480,6 @@ int s390_cpu_restart(S390CPU *cpu)
 {
     SigpInfo si = {};
 
-    if (tcg_enabled()) {
-        /* FIXME TCG */
-        return -ENOSYS;
-    }
-
     run_on_cpu(CPU(cpu), sigp_restart, RUN_ON_CPU_HOST_PTR(&si));
     return 0;
 }
