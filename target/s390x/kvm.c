@@ -1539,9 +1539,6 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg.host_ptr;
-    struct kvm_s390_irq irq = {
-        .type = KVM_S390_SIGP_STOP,
-    };
 
     if (s390_cpu_get_state(cpu) != CPU_STATE_OPERATING) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -1554,7 +1551,7 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
     } else {
         /* execute the stop function */
         cpu->env.sigp_order = SIGP_STOP;
-        kvm_s390_vcpu_interrupt(cpu, &irq);
+        cpu_inject_stop(cpu);
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
@@ -1653,9 +1650,6 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg.host_ptr;
-    struct kvm_s390_irq irq = {
-        .type = KVM_S390_SIGP_STOP,
-    };
 
     /* disabled wait - sleeping in user space */
     if (s390_cpu_get_state(cpu) == CPU_STATE_OPERATING && cs->halted) {
@@ -1665,7 +1659,7 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
     switch (s390_cpu_get_state(cpu)) {
     case CPU_STATE_OPERATING:
         cpu->env.sigp_order = SIGP_STOP_STORE_STATUS;
-        kvm_s390_vcpu_interrupt(cpu, &irq);
+        cpu_inject_stop(cpu);
         /* store will be performed when handling the stop intercept */
         break;
     case CPU_STATE_STOPPED:
@@ -1755,9 +1749,6 @@ static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg.host_ptr;
-    struct kvm_s390_irq irq = {
-        .type = KVM_S390_RESTART,
-    };
 
     switch (s390_cpu_get_state(cpu)) {
     case CPU_STATE_STOPPED:
@@ -1767,7 +1758,7 @@ static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
         s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
         break;
     case CPU_STATE_OPERATING:
-        kvm_s390_vcpu_interrupt(cpu, &irq);
+        cpu_inject_restart(cpu);
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -2817,4 +2808,22 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
     if (test_bit(S390_FEAT_CMM, model->features)) {
         kvm_s390_enable_cmma();
     }
+}
+
+void kvm_s390_restart_interrupt(S390CPU *cpu)
+{
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_RESTART,
+    };
+
+    kvm_s390_vcpu_interrupt(cpu, &irq);
+}
+
+void kvm_s390_stop_interrupt(S390CPU *cpu)
+{
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_SIGP_STOP,
+    };
+
+    kvm_s390_vcpu_interrupt(cpu, &irq);
 }

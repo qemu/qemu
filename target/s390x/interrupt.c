@@ -107,6 +107,26 @@ int cpu_inject_external_call(S390CPU *cpu, uint16_t src_cpu_addr)
     return 0;
 }
 
+void cpu_inject_restart(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        kvm_s390_restart_interrupt(cpu);
+        return;
+    }
+    /* FIXME TCG */
+    g_assert_not_reached();
+}
+
+void cpu_inject_stop(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        kvm_s390_stop_interrupt(cpu);
+        return;
+    }
+    /* FIXME TCG */
+    g_assert_not_reached();
+}
+
 static void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
                           uint16_t subchannel_number,
                           uint32_t io_int_parm, uint32_t io_int_word)

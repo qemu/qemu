@@ -42,6 +42,8 @@ void kvm_s390_cmma_reset(void);
 void kvm_s390_reset_vcpu(S390CPU *cpu);
 int kvm_s390_set_mem_limit(uint64_t new_limit, uint64_t *hw_limit);
 void kvm_s390_crypto_reset(void);
+void kvm_s390_restart_interrupt(S390CPU *cpu);
+void kvm_s390_stop_interrupt(S390CPU *cpu);
 
 /* implemented outside of target/s390x/ */
 int kvm_s390_inject_flic(struct kvm_s390_irq *irq);
