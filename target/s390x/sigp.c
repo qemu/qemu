@@ -81,7 +81,7 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
     case CPU_STATE_OPERATING:
         cpu->env.sigp_order = SIGP_STOP_STORE_STATUS;
         cpu_inject_stop(cpu);
-        /* store will be performed when handling the stop intercept */
+        /* store will be performed in do_stop_interrup() */
         break;
     case CPU_STATE_STOPPED:
         /* already stopped, just store the status */
@@ -358,6 +358,19 @@ int s390_cpu_restart(S390CPU *cpu)
 
     run_on_cpu(CPU(cpu), sigp_restart, RUN_ON_CPU_HOST_PTR(&si));
     return 0;
+}
+
+void do_stop_interrupt(CPUS390XState *env)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    if (s390_cpu_set_state(CPU_STATE_STOPPED, cpu) == 0) {
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    }
+    if (cpu->env.sigp_order == SIGP_STOP_STORE_STATUS) {
+        s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
+    }
+    env->sigp_order = 0;
 }
 
 void s390_init_sigp(void)

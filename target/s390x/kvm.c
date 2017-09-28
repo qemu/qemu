@@ -1634,13 +1634,7 @@ static int handle_intercept(S390CPU *cpu)
             r = EXCP_HALTED;
             break;
         case ICPT_CPU_STOP:
-            if (s390_cpu_set_state(CPU_STATE_STOPPED, cpu) == 0) {
-                qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-            }
-            if (cpu->env.sigp_order == SIGP_STOP_STORE_STATUS) {
-                s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
-            }
-            cpu->env.sigp_order = 0;
+            do_stop_interrupt(&cpu->env);
             r = EXCP_HALTED;
             break;
         case ICPT_OPEREXC:

@@ -418,5 +418,6 @@ void s390x_translate_init(void);
 
 /* sigp.c */
 int handle_sigp(CPUS390XState *env, uint8_t order, uint64_t r1, uint64_t r3);
+void do_stop_interrupt(CPUS390XState *env);
 
 #endif /* S390X_INTERNAL_H */
