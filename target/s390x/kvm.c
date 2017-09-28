@@ -1679,7 +1679,6 @@ int kvm_s390_cpu_restart(S390CPU *cpu)
     SigpInfo si = {};
 
     run_on_cpu(CPU(cpu), sigp_restart, RUN_ON_CPU_HOST_PTR(&si));
-    DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
     return 0;
 }
 
@@ -1781,7 +1780,6 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
         run_on_cpu(CPU(dst_cpu), sigp_cpu_reset, RUN_ON_CPU_HOST_PTR(&si));
         break;
     default:
-        DPRINTF("KVM: unknown SIGP: 0x%x\n", order);
         set_sigp_status(&si, SIGP_STAT_INVALID_ORDER);
     }
 
