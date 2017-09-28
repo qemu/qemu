@@ -53,7 +53,6 @@
 
 #define MMU_USER_IDX 0
 
-#define MAX_EXT_QUEUE 16
 #define MAX_IO_QUEUE 16
 #define MAX_MCHK_QUEUE 16
 
@@ -66,12 +65,6 @@ typedef struct PSW {
     uint64_t mask;
     uint64_t addr;
 } PSW;
-
-typedef struct ExtQueue {
-    uint32_t code;
-    uint32_t param;
-    uint32_t param64;
-} ExtQueue;
 
 typedef struct IOIntQueue {
     uint16_t id;
@@ -128,12 +121,11 @@ struct CPUS390XState {
 
     uint64_t cregs[16]; /* control registers */
 
-    ExtQueue ext_queue[MAX_EXT_QUEUE];
     IOIntQueue io_queue[MAX_IO_QUEUE][8];
     MchkQueue mchk_queue[MAX_MCHK_QUEUE];
 
     int pending_int;
-    int ext_index;
+    uint32_t service_param;
     int io_index[8];
     int mchk_index;
 

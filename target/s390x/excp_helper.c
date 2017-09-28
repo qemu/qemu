@@ -241,7 +241,6 @@ static void do_ext_interrupt(CPUS390XState *env)
     S390CPU *cpu = s390_env_get_cpu(env);
     uint64_t mask, addr;
     LowCore *lowcore;
-    ExtQueue *q;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {
         cpu_abort(CPU(cpu), "Ext int w/o ext mask\n");
@@ -258,20 +257,15 @@ static void do_ext_interrupt(CPUS390XState *env)
         lowcore->cpu_addr = 0;
         env->pending_int &= ~INTERRUPT_EXT_CPU_TIMER;
     } else if (env->pending_int & INTERRUPT_EXT_SERVICE) {
-        g_assert(env->ext_index >= 0);
         /*
          * FIXME: floating IRQs should be considered by all CPUs and
          *        shuld not get cleared by CPU reset.
          */
-        q = &env->ext_queue[env->ext_index];
-        lowcore->ext_int_code = cpu_to_be16(q->code);
-        lowcore->ext_params = cpu_to_be32(q->param);
-        lowcore->ext_params2 = cpu_to_be64(q->param64);
-        lowcore->cpu_addr = cpu_to_be16(env->core_id | VIRTIO_SUBCODE_64);
-        env->ext_index--;
-        if (env->ext_index == -1) {
-            env->pending_int &= ~INTERRUPT_EXT_SERVICE;
-        }
+        lowcore->ext_int_code = cpu_to_be16(EXT_SERVICE);
+        lowcore->ext_params = cpu_to_be32(env->service_param);
+        lowcore->cpu_addr = 0;
+        env->service_param = 0;
+        env->pending_int &= ~INTERRUPT_EXT_SERVICE;
     } else {
         g_assert_not_reached();
     }

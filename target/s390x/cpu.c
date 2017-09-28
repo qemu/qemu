@@ -107,7 +107,6 @@ static void s390_cpu_initial_reset(CPUState *s)
     env->gbea = 1;
 
     env->pfault_token = -1UL;
-    env->ext_index = -1;
     for (i = 0; i < ARRAY_SIZE(env->io_index); i++) {
         env->io_index[i] = -1;
     }
@@ -145,7 +144,6 @@ static void s390_cpu_full_reset(CPUState *s)
     env->gbea = 1;
 
     env->pfault_token = -1UL;
-    env->ext_index = -1;
     for (i = 0; i < ARRAY_SIZE(env->io_index); i++) {
         env->io_index[i] = -1;
     }

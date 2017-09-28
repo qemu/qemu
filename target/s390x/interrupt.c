@@ -54,22 +54,12 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
-                    uint64_t param64)
+static void cpu_inject_service(S390CPU *cpu, uint32_t param)
 {
     CPUS390XState *env = &cpu->env;
 
-    if (env->ext_index == MAX_EXT_QUEUE - 1) {
-        /* ugh - can't queue anymore. Let's drop. */
-        return;
-    }
-
-    env->ext_index++;
-    assert(env->ext_index < MAX_EXT_QUEUE);
-
-    env->ext_queue[env->ext_index].code = code;
-    env->ext_queue[env->ext_index].param = param;
-    env->ext_queue[env->ext_index].param64 = param64;
+    /* multiplexing is good enough for sclp - kvm does it internally as well*/
+    env->service_param |= param;
 
     env->pending_int |= INTERRUPT_EXT_SERVICE;
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
@@ -145,7 +135,7 @@ void s390_sclp_extint(uint32_t parm)
     } else {
         S390CPU *dummy_cpu = s390_cpu_addr2state(0);
 
-        cpu_inject_ext(dummy_cpu, EXT_SERVICE, parm, 0);
+        cpu_inject_service(dummy_cpu, parm);
     }
 }
 
