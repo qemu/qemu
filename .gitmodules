@@ -37,3 +37,6 @@
 [submodule "ui/keycodemapdb"]
 	path = ui/keycodemapdb
 	url = git://git.qemu.org/keycodemapdb.git
+[submodule "capstone"]
+	path = capstone
+	url = git://git.qemu.org/capstone.git
