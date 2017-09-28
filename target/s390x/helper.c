@@ -147,7 +147,8 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
         s390_cpu_recompute_watchpoints(CPU(s390_env_get_cpu(env)));
     }
 
-    if (mask & PSW_MASK_WAIT) {
+    /* KVM will handle all WAITs and trigger a WAIT exit on disabled_wait */
+    if (tcg_enabled() && (mask & PSW_MASK_WAIT)) {
         s390_handle_wait(s390_env_get_cpu(env));
     }
 }
