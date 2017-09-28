@@ -1556,34 +1556,6 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
-#define ADTL_GS_OFFSET   1024 /* offset of GS data in adtl save area */
-#define ADTL_GS_MIN_SIZE 2048 /* minimal size of adtl save area for GS */
-static int do_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
-{
-    hwaddr save = len;
-    void *mem;
-
-    mem = cpu_physical_memory_map(addr, &save, 1);
-    if (!mem) {
-        return -EFAULT;
-    }
-    if (save != len) {
-        cpu_physical_memory_unmap(mem, len, 1, 0);
-        return -EFAULT;
-    }
-
-    if (s390_has_feat(S390_FEAT_VECTOR)) {
-        memcpy(mem, &cpu->env.vregs, 512);
-    }
-    if (s390_has_feat(S390_FEAT_GUARDED_STORAGE) && len >= ADTL_GS_MIN_SIZE) {
-        memcpy(mem + ADTL_GS_OFFSET, &cpu->env.gscb, 32);
-    }
-
-    cpu_physical_memory_unmap(mem, len, 1, len);
-
-    return 0;
-}
-
 static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -1676,7 +1648,7 @@ static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
 
     cpu_synchronize_state(cs);
 
-    if (do_store_adtl_status(cpu, addr, len)) {
+    if (s390_store_adtl_status(cpu, addr, len)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
         return;
     }
