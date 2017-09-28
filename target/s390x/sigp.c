@@ -76,6 +76,18 @@ static void sigp_external_call(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
     }
 }
 
+static void sigp_emergency(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
+{
+    if (!tcg_enabled()) {
+        /* handled in KVM */
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    cpu_inject_emergency_signal(dst_cpu, src_cpu->env.core_id);
+    si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+}
+
 static void sigp_start(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -326,6 +338,9 @@ static int handle_sigp_single_dst(S390CPU *cpu, S390CPU *dst_cpu, uint8_t order,
         break;
     case SIGP_EXTERNAL_CALL:
         sigp_external_call(cpu, dst_cpu, &si);
+        break;
+    case SIGP_EMERGENCY:
+        sigp_emergency(cpu, dst_cpu, &si);
         break;
     case SIGP_START:
         run_on_cpu(CPU(dst_cpu), sigp_start, RUN_ON_CPU_HOST_PTR(&si));
