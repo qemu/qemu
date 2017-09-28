@@ -303,6 +303,7 @@ F: target/s390x/kvm_s390x.h
 F: target/s390x/kvm-stub.c
 F: target/s390x/ioinst.[ch]
 F: target/s390x/machine.c
+F: target/s390x/sigp.c
 F: hw/intc/s390_flic.c
 F: hw/intc/s390_flic_kvm.c
 F: include/hw/s390x/s390_flic.h

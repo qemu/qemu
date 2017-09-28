@@ -400,14 +400,6 @@ void s390_cmma_reset(void)
     }
 }
 
-int s390_cpu_restart(S390CPU *cpu)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_cpu_restart(cpu);
-    }
-    return -ENOSYS;
-}
-
 int s390_get_memslot_count(void)
 {
     if (kvm_enabled()) {

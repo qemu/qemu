@@ -258,6 +258,9 @@ static void ccw_init(MachineState *machine)
 
     s390_flic_init();
 
+    /* init the SIGP facility */
+    s390_init_sigp();
+
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
