@@ -307,6 +307,10 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
 
     g_assert(!ms->possible_cpus->cpus[cpu->env.core_id].cpu);
     ms->possible_cpus->cpus[cpu->env.core_id].cpu = OBJECT(dev);
+
+    if (dev->hotplugged) {
+        raise_irq_cpu_hotplug();
+    }
 }
 
 static void s390_machine_reset(void)
