@@ -1010,7 +1010,7 @@
 /* SET SYSTEM MASK */
     C(0x8000, SSM,     S,     Z,   0, m2_8u, 0, 0, ssm, 0)
 /* SIGNAL PROCESSOR */
-    C(0xae00, SIGP,    RS_a,  Z,   r3_o, a2, 0, 0, sigp, 0)
+    C(0xae00, SIGP,    RS_a,  Z,   0, a2, 0, 0, sigp, 0)
 /* STORE CLOCK */
     C(0xb205, STCK,    S,     Z,   la2, 0, new, m1_64, stck, 0)
     C(0xb27c, STCKF,   S,     SCF, la2, 0, new, m1_64, stck, 0)
