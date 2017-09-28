@@ -404,11 +404,14 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define EXCP_IO  7 /* I/O interrupt */
 #define EXCP_MCHK 8 /* machine check */
 
-#define INTERRUPT_EXT        (1 << 0)
-#define INTERRUPT_TOD        (1 << 1)
-#define INTERRUPT_CPUTIMER   (1 << 2)
-#define INTERRUPT_IO         (1 << 3)
-#define INTERRUPT_MCHK       (1 << 4)
+#define INTERRUPT_IO                     (1 << 0)
+#define INTERRUPT_MCHK                   (1 << 1)
+#define INTERRUPT_EXT_SERVICE            (1 << 2)
+#define INTERRUPT_EXT_CPU_TIMER          (1 << 3)
+#define INTERRUPT_EXT_CLOCK_COMPARATOR   (1 << 4)
+#define INTERRUPT_EXT                    (INTERRUPT_EXT_SERVICE | \
+                                          INTERRUPT_EXT_CPU_TIMER | \
+                                          INTERRUPT_EXT_CLOCK_COMPARATOR)
 
 /* Program Status Word.  */
 #define S390_PSWM_REGNUM 0

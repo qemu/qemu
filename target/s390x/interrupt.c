@@ -71,7 +71,23 @@ void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
     env->ext_queue[env->ext_index].param = param;
     env->ext_queue[env->ext_index].param64 = param64;
 
-    env->pending_int |= INTERRUPT_EXT;
+    env->pending_int |= INTERRUPT_EXT_SERVICE;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+void cpu_inject_clock_comparator(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    env->pending_int |= INTERRUPT_EXT_CLOCK_COMPARATOR;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+void cpu_inject_cpu_timer(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    env->pending_int |= INTERRUPT_EXT_CPU_TIMER;
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 

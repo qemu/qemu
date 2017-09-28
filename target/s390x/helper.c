@@ -51,20 +51,12 @@
 #ifndef CONFIG_USER_ONLY
 void s390x_tod_timer(void *opaque)
 {
-    S390CPU *cpu = opaque;
-    CPUS390XState *env = &cpu->env;
-
-    env->pending_int |= INTERRUPT_TOD;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    cpu_inject_clock_comparator((S390CPU *) opaque);
 }
 
 void s390x_cpu_timer(void *opaque)
 {
-    S390CPU *cpu = opaque;
-    CPUS390XState *env = &cpu->env;
-
-    env->pending_int |= INTERRUPT_CPUTIMER;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    cpu_inject_cpu_timer((S390CPU *) opaque);
 }
 #endif
 

@@ -247,28 +247,41 @@ static void do_ext_interrupt(CPUS390XState *env)
         cpu_abort(CPU(cpu), "Ext int w/o ext mask\n");
     }
 
-    if (env->ext_index < 0 || env->ext_index >= MAX_EXT_QUEUE) {
-        cpu_abort(CPU(cpu), "Ext queue overrun: %d\n", env->ext_index);
-    }
-
-    q = &env->ext_queue[env->ext_index];
     lowcore = cpu_map_lowcore(env);
 
-    lowcore->ext_int_code = cpu_to_be16(q->code);
-    lowcore->ext_params = cpu_to_be32(q->param);
-    lowcore->ext_params2 = cpu_to_be64(q->param64);
-    lowcore->external_old_psw.mask = cpu_to_be64(get_psw_mask(env));
-    lowcore->external_old_psw.addr = cpu_to_be64(env->psw.addr);
-    lowcore->cpu_addr = cpu_to_be16(env->core_id | VIRTIO_SUBCODE_64);
+    if (env->pending_int & INTERRUPT_EXT_CLOCK_COMPARATOR) {
+        lowcore->ext_int_code = cpu_to_be16(EXT_CLOCK_COMP);
+        lowcore->cpu_addr = 0;
+        env->pending_int &= ~INTERRUPT_EXT_CLOCK_COMPARATOR;
+    } else if (env->pending_int & INTERRUPT_EXT_CPU_TIMER) {
+        lowcore->ext_int_code = cpu_to_be16(EXT_CPU_TIMER);
+        lowcore->cpu_addr = 0;
+        env->pending_int &= ~INTERRUPT_EXT_CPU_TIMER;
+    } else if (env->pending_int & INTERRUPT_EXT_SERVICE) {
+        g_assert(env->ext_index >= 0);
+        /*
+         * FIXME: floating IRQs should be considered by all CPUs and
+         *        shuld not get cleared by CPU reset.
+         */
+        q = &env->ext_queue[env->ext_index];
+        lowcore->ext_int_code = cpu_to_be16(q->code);
+        lowcore->ext_params = cpu_to_be32(q->param);
+        lowcore->ext_params2 = cpu_to_be64(q->param64);
+        lowcore->cpu_addr = cpu_to_be16(env->core_id | VIRTIO_SUBCODE_64);
+        env->ext_index--;
+        if (env->ext_index == -1) {
+            env->pending_int &= ~INTERRUPT_EXT_SERVICE;
+        }
+    } else {
+        g_assert_not_reached();
+    }
+
     mask = be64_to_cpu(lowcore->external_new_psw.mask);
     addr = be64_to_cpu(lowcore->external_new_psw.addr);
+    lowcore->external_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->external_old_psw.addr = cpu_to_be64(env->psw.addr);
 
     cpu_unmap_lowcore(lowcore);
-
-    env->ext_index--;
-    if (env->ext_index == -1) {
-        env->pending_int &= ~INTERRUPT_EXT;
-    }
 
     DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
             env->psw.mask, env->psw.addr);
@@ -422,21 +435,9 @@ void s390_cpu_do_interrupt(CPUState *cs)
     }
     /* handle external interrupts */
     if ((env->psw.mask & PSW_MASK_EXT) &&
-        cs->exception_index == -1) {
-        if (env->pending_int & INTERRUPT_EXT) {
-            /* code is already in env */
-            cs->exception_index = EXCP_EXT;
-        } else if (env->pending_int & INTERRUPT_TOD) {
-            cpu_inject_ext(cpu, 0x1004, 0, 0);
-            cs->exception_index = EXCP_EXT;
-            env->pending_int &= ~INTERRUPT_EXT;
-            env->pending_int &= ~INTERRUPT_TOD;
-        } else if (env->pending_int & INTERRUPT_CPUTIMER) {
-            cpu_inject_ext(cpu, 0x1005, 0, 0);
-            cs->exception_index = EXCP_EXT;
-            env->pending_int &= ~INTERRUPT_EXT;
-            env->pending_int &= ~INTERRUPT_TOD;
-        }
+        cs->exception_index == -1 &&
+        (env->pending_int & INTERRUPT_EXT)) {
+        cs->exception_index = EXCP_EXT;
     }
     /* handle I/O interrupts */
     if ((env->psw.mask & PSW_MASK_IO) &&
