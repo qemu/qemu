@@ -1913,7 +1913,7 @@ static int sigp_set_architecture(S390CPU *cpu, uint32_t param,
     return SIGP_CC_STATUS_STORED;
 }
 
-static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
+static int handle_sigp(S390CPU *cpu, uint8_t ipa1, uint32_t ipb)
 {
     CPUS390XState *env = &cpu->env;
     const uint8_t r1 = ipa1 >> 4;
@@ -1927,7 +1927,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     cpu_synchronize_state(CPU(cpu));
 
     /* get order code */
-    order = decode_basedisp_rs(env, run->s390_sieic.ipb, NULL)
+    order = decode_basedisp_rs(env, ipb, NULL)
         & SIGP_ORDER_MASK;
     status_reg = &env->regs[r1];
     param = (r1 % 2) ? env->regs[r1] : env->regs[r1 + 1];
@@ -1985,7 +1985,7 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
         r = handle_diag(cpu, run, run->s390_sieic.ipb);
         break;
     case IPA0_SIGP:
-        r = handle_sigp(cpu, run, ipa1);
+        r = handle_sigp(cpu, ipa1, run->s390_sieic.ipb);
         break;
     }
 
