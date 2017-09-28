@@ -468,6 +468,12 @@ void s390_cpu_do_interrupt(CPUState *cs)
         do_mchk_interrupt(env);
         break;
     }
+
+    /* WAIT PSW during interrupt injection */
+    if (cs->exception_index == EXCP_HLT) {
+        /* don't trigger a cpu_loop_exit(), use an interrupt instead */
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HALT);
+    }
     cs->exception_index = -1;
 
     /* we might still have pending interrupts, but not deliverable */
