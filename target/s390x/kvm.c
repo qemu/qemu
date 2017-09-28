@@ -1584,68 +1584,6 @@ static int do_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
     return 0;
 }
 
-struct sigp_save_area {
-    uint64_t    fprs[16];                       /* 0x0000 */
-    uint64_t    grs[16];                        /* 0x0080 */
-    PSW         psw;                            /* 0x0100 */
-    uint8_t     pad_0x0110[0x0118 - 0x0110];    /* 0x0110 */
-    uint32_t    prefix;                         /* 0x0118 */
-    uint32_t    fpc;                            /* 0x011c */
-    uint8_t     pad_0x0120[0x0124 - 0x0120];    /* 0x0120 */
-    uint32_t    todpr;                          /* 0x0124 */
-    uint64_t    cputm;                          /* 0x0128 */
-    uint64_t    ckc;                            /* 0x0130 */
-    uint8_t     pad_0x0138[0x0140 - 0x0138];    /* 0x0138 */
-    uint32_t    ars[16];                        /* 0x0140 */
-    uint64_t    crs[16];                        /* 0x0384 */
-};
-QEMU_BUILD_BUG_ON(sizeof(struct sigp_save_area) != 512);
-
-#define KVM_S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
-static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
-{
-    static const uint8_t ar_id = 1;
-    struct sigp_save_area *sa;
-    hwaddr len = sizeof(*sa);
-    int i;
-
-    sa = cpu_physical_memory_map(addr, &len, 1);
-    if (!sa) {
-        return -EFAULT;
-    }
-    if (len != sizeof(*sa)) {
-        cpu_physical_memory_unmap(sa, len, 1, 0);
-        return -EFAULT;
-    }
-
-    if (store_arch) {
-        cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
-    }
-    for (i = 0; i < 16; ++i) {
-        sa->fprs[i] = cpu_to_be64(get_freg(&cpu->env, i)->ll);
-    }
-    for (i = 0; i < 16; ++i) {
-        sa->grs[i] = cpu_to_be64(cpu->env.regs[i]);
-    }
-    sa->psw.addr = cpu_to_be64(cpu->env.psw.addr);
-    sa->psw.mask = cpu_to_be64(get_psw_mask(&cpu->env));
-    sa->prefix = cpu_to_be32(cpu->env.psa);
-    sa->fpc = cpu_to_be32(cpu->env.fpc);
-    sa->todpr = cpu_to_be32(cpu->env.todpr);
-    sa->cputm = cpu_to_be64(cpu->env.cputm);
-    sa->ckc = cpu_to_be64(cpu->env.ckc >> 8);
-    for (i = 0; i < 16; ++i) {
-        sa->ars[i] = cpu_to_be32(cpu->env.aregs[i]);
-    }
-    for (i = 0; i < 16; ++i) {
-        sa->ars[i] = cpu_to_be64(cpu->env.cregs[i]);
-    }
-
-    cpu_physical_memory_unmap(sa, len, 1, len);
-
-    return 0;
-}
-
 static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -1665,7 +1603,7 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
     case CPU_STATE_STOPPED:
         /* already stopped, just store the status */
         cpu_synchronize_state(cs);
-        kvm_s390_store_status(cpu, KVM_S390_STORE_STATUS_DEF_ADDR, true);
+        s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -1685,7 +1623,7 @@ static void sigp_store_status_at_address(CPUState *cs, run_on_cpu_data arg)
 
     cpu_synchronize_state(cs);
 
-    if (kvm_s390_store_status(cpu, address, false)) {
+    if (s390_store_status(cpu, address, false)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
         return;
     }
@@ -2067,8 +2005,7 @@ static int handle_intercept(S390CPU *cpu)
                 qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             }
             if (cpu->env.sigp_order == SIGP_STOP_STORE_STATUS) {
-                kvm_s390_store_status(cpu, KVM_S390_STORE_STATUS_DEF_ADDR,
-                                      true);
+                s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
             }
             cpu->env.sigp_order = 0;
             r = EXCP_HALTED;
