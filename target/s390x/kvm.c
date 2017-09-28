@@ -1997,12 +1997,6 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
     return r;
 }
 
-static bool is_special_wait_psw(CPUState *cs)
-{
-    /* signal quiesce */
-    return cs->kvm_run->psw_addr == 0xfffUL;
-}
-
 static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
 {
     CPUState *cs = CPU(cpu);
@@ -2074,13 +2068,7 @@ static int handle_intercept(S390CPU *cpu)
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
             cpu_synchronize_state(cs);
-            if (s390_cpu_halt(cpu) == 0) {
-                if (is_special_wait_psw(cs)) {
-                    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-                } else {
-                    qemu_system_guest_panicked(NULL);
-                }
-            }
+            s390_handle_wait(cpu);
             r = EXCP_HALTED;
             break;
         case ICPT_CPU_STOP:

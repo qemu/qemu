@@ -26,6 +26,7 @@
 #include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "hw/s390x/ioinst.h"
+#include "sysemu/hw_accel.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
 #endif
@@ -113,6 +114,25 @@ hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr vaddr)
     return phys_addr;
 }
 
+static inline bool is_special_wait_psw(uint64_t psw_addr)
+{
+    /* signal quiesce */
+    return psw_addr == 0xfffUL;
+}
+
+void s390_handle_wait(S390CPU *cpu)
+{
+    if (s390_cpu_halt(cpu) == 0) {
+#ifndef CONFIG_USER_ONLY
+        if (is_special_wait_psw(cpu->env.psw.addr)) {
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        } else {
+            qemu_system_guest_panicked(NULL);
+        }
+#endif
+    }
+}
+
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     uint64_t old_mask = env->psw.mask;
@@ -128,12 +148,7 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
     }
 
     if (mask & PSW_MASK_WAIT) {
-        S390CPU *cpu = s390_env_get_cpu(env);
-        if (s390_cpu_halt(cpu) == 0) {
-#ifndef CONFIG_USER_ONLY
-            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-#endif
-        }
+        s390_handle_wait(s390_env_get_cpu(env));
     }
 }
 
