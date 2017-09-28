@@ -32,6 +32,32 @@ static void set_sigp_status(SigpInfo *si, uint64_t status)
     si->cc = SIGP_CC_STATUS_STORED;
 }
 
+static void sigp_sense(S390CPU *dst_cpu, SigpInfo *si)
+{
+    uint8_t state = s390_cpu_get_state(dst_cpu);
+    bool ext_call = dst_cpu->env.pending_int & INTERRUPT_EXTERNAL_CALL;
+    uint64_t status = 0;
+
+    if (!tcg_enabled()) {
+        /* handled in KVM */
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    /* sensing without locks is racy, but it's the same for real hw */
+    if (state != CPU_STATE_STOPPED && !ext_call) {
+        si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    } else {
+        if (ext_call) {
+            status |= SIGP_STAT_EXT_CALL_PENDING;
+        }
+        if (state == CPU_STATE_STOPPED) {
+            status |= SIGP_STAT_STOPPED;
+        }
+        set_sigp_status(si, status);
+    }
+}
+
 static void sigp_start(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -277,6 +303,9 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
     }
 
     switch (order) {
+    case SIGP_SENSE:
+        sigp_sense(dst_cpu, &si);
+        break;
     case SIGP_START:
         run_on_cpu(CPU(dst_cpu), sigp_start, RUN_ON_CPU_HOST_PTR(&si));
         break;
