@@ -232,8 +232,12 @@ static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
     case CPU_STATE_STOPPED:
         /* the restart irq has to be delivered prior to any other pending irq */
         cpu_synchronize_state(cs);
-        do_restart_interrupt(&cpu->env);
+        /*
+         * Set OPERATING (and unhalting) before loading the restart PSW.
+         * load_psw() will then properly halt the CPU again if necessary (TCG).
+         */
         s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
+        do_restart_interrupt(&cpu->env);
         break;
     case CPU_STATE_OPERATING:
         cpu_inject_restart(cpu);

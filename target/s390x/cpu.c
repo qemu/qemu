@@ -337,8 +337,15 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
         break;
     case CPU_STATE_OPERATING:
     case CPU_STATE_LOAD:
-        /* unhalt the cpu for common infrastructure */
-        s390_cpu_unhalt(cpu);
+        /*
+         * Starting a CPU with a PSW WAIT bit set:
+         * KVM: handles this internally and triggers another WAIT exit.
+         * TCG: will actually try to continue to run. Don't unhalt, will
+         *      be done when the CPU actually has work (an interrupt).
+         */
+        if (!tcg_enabled() || !(cpu->env.psw.mask & PSW_MASK_WAIT)) {
+            s390_cpu_unhalt(cpu);
+        }
         break;
     default:
         error_report("Requested CPU state is not a valid S390 CPU state: %u",
