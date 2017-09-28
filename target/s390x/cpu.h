@@ -151,8 +151,10 @@ struct CPUS390XState {
 
     CPU_COMMON
 
+#if !defined(CONFIG_USER_ONLY)
     uint32_t core_id; /* PoP "CPU address", same as cpu_index */
     uint64_t cpuid;
+#endif
 
     uint64_t tod_offset;
     uint64_t tod_basetime;

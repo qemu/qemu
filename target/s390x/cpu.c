@@ -178,8 +178,9 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
+#if !defined(CONFIG_USER_ONLY)
     S390CPU *cpu = S390_CPU(dev);
-    CPUS390XState *env = &cpu->env;
+#endif
     Error *err = NULL;
 
     /* the model has to be realized before qemu_init_vcpu() due to kvm */
@@ -195,11 +196,6 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
                    max_cpus - 1);
         goto out;
     }
-#else
-    /* implicitly set for linux-user only */
-    cpu->env.core_id = scc->next_core_id;
-    scc->next_core_id++;
-#endif
 
     if (cpu_exists(cpu->env.core_id)) {
         error_setg(&err, "Unable to add CPU with core-id: %" PRIu32
@@ -208,7 +204,9 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     /* sync cs->cpu_index and env->core_id. The latter is needed for TCG. */
-    cs->cpu_index = env->core_id;
+    cs->cpu_index = cpu->env.core_id;
+#endif
+
     cpu_exec_realizefn(cs, &err);
     if (err != NULL) {
         goto out;
@@ -440,7 +438,9 @@ static gchar *s390_gdb_arch_name(CPUState *cs)
 }
 
 static Property s390x_cpu_properties[] = {
+#if !defined(CONFIG_USER_ONLY)
     DEFINE_PROP_UINT32("core-id", S390CPU, env.core_id, 0),
+#endif
     DEFINE_PROP_END_OF_LIST()
 };
 

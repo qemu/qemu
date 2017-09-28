@@ -945,11 +945,13 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
 
     apply_cpu_model(cpu->model, errp);
 
+#if !defined(CONFIG_USER_ONLY)
     cpu->env.cpuid = s390_cpuid_from_cpu_model(cpu->model);
     if (tcg_enabled()) {
         /* basic mode, write the cpu address into the first 4 bit of the ID */
         cpu->env.cpuid = deposit64(cpu->env.cpuid, 54, 4, cpu->env.core_id);
     }
+#endif
 }
 
 static void get_feature(Object *obj, Visitor *v, const char *name,
