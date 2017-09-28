@@ -290,6 +290,40 @@ static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
+static void sigp_cond_emergency(S390CPU *src_cpu, S390CPU *dst_cpu,
+                                SigpInfo *si)
+{
+    const uint64_t psw_int_mask = PSW_MASK_IO | PSW_MASK_EXT;
+    uint16_t p_asn, s_asn, asn;
+    uint64_t psw_addr, psw_mask;
+    bool idle;
+
+    if (!tcg_enabled()) {
+        /* handled in KVM */
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    /* this looks racy, but these values are only used when STOPPED */
+    idle = CPU(dst_cpu)->halted;
+    psw_addr = dst_cpu->env.psw.addr;
+    psw_mask = dst_cpu->env.psw.mask;
+    asn = si->param;
+    p_asn = dst_cpu->env.cregs[4] & 0xffff;  /* Primary ASN */
+    s_asn = dst_cpu->env.cregs[3] & 0xffff;  /* Secondary ASN */
+
+    if (s390_cpu_get_state(dst_cpu) != CPU_STATE_STOPPED ||
+        (psw_mask & psw_int_mask) != psw_int_mask ||
+        (idle && psw_addr != 0) ||
+        (!idle && (asn == p_asn || asn == s_asn))) {
+        cpu_inject_emergency_signal(dst_cpu, src_cpu->env.core_id);
+    } else {
+        set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
+    }
+
+    si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+}
+
 static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
 {
     if (!tcg_enabled()) {
@@ -368,6 +402,9 @@ static int handle_sigp_single_dst(S390CPU *cpu, S390CPU *dst_cpu, uint8_t order,
         break;
     case SIGP_CPU_RESET:
         run_on_cpu(CPU(dst_cpu), sigp_cpu_reset, RUN_ON_CPU_HOST_PTR(&si));
+        break;
+    case SIGP_COND_EMERGENCY:
+        sigp_cond_emergency(cpu, dst_cpu, &si);
         break;
     case SIGP_SENSE_RUNNING:
         sigp_sense_running(dst_cpu, &si);
