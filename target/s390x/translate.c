@@ -4143,7 +4143,6 @@ static ExitStatus op_sturg(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_stfle(DisasContext *s, DisasOps *o)
 {
-    potential_page_fault(s);
     gen_helper_stfle(cc_op, cpu_env, o->in2);
     set_cc_static(s);
     return NO_EXIT;
