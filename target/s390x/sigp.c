@@ -234,6 +234,28 @@ static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
+static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
+{
+    if (!tcg_enabled()) {
+        /* handled in KVM */
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    /* sensing without locks is racy, but it's the same for real hw */
+    if (!s390_has_feat(S390_FEAT_SENSE_RUNNING_STATUS)) {
+        set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        return;
+    }
+
+    /* If halted (which includes also STOPPED), it is not running */
+    if (CPU(dst_cpu)->halted) {
+        si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    } else {
+        set_sigp_status(si, SIGP_STAT_NOT_RUNNING);
+    }
+}
+
 static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
                                   uint64_t param, uint64_t *status_reg)
 {
@@ -281,6 +303,9 @@ static int handle_sigp_single_dst(S390CPU *dst_cpu, uint8_t order,
         break;
     case SIGP_CPU_RESET:
         run_on_cpu(CPU(dst_cpu), sigp_cpu_reset, RUN_ON_CPU_HOST_PTR(&si));
+        break;
+    case SIGP_SENSE_RUNNING:
+        sigp_sense_running(dst_cpu, &si);
         break;
     default:
         set_sigp_status(&si, SIGP_STAT_INVALID_ORDER);
