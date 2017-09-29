@@ -3107,6 +3107,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
     new_l1_size = size_to_l1(s, offset);
 
     if (offset < old_length) {
+        int64_t last_cluster, old_file_size;
         if (prealloc != PREALLOC_MODE_OFF) {
             error_setg(errp,
                        "Preallocation can't be used for shrinking an image");
@@ -3134,6 +3135,28 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
             error_setg_errno(errp, -ret,
                              "Failed to discard unused refblocks");
             return ret;
+        }
+
+        old_file_size = bdrv_getlength(bs->file->bs);
+        if (old_file_size < 0) {
+            error_setg_errno(errp, -old_file_size,
+                             "Failed to inquire current file length");
+            return old_file_size;
+        }
+        last_cluster = qcow2_get_last_cluster(bs, old_file_size);
+        if (last_cluster < 0) {
+            error_setg_errno(errp, -last_cluster,
+                             "Failed to find the last cluster");
+            return last_cluster;
+        }
+        if ((last_cluster + 1) * s->cluster_size < old_file_size) {
+            ret = bdrv_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
+                                PREALLOC_MODE_OFF, NULL);
+            if (ret < 0) {
+                warn_report("Failed to truncate the tail of the image: %s",
+                            strerror(-ret));
+                ret = 0;
+            }
         }
     } else {
         ret = qcow2_grow_l1_table(bs, new_l1_size, true);

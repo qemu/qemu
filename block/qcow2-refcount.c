@@ -3181,3 +3181,25 @@ out:
     g_free(reftable_tmp);
     return ret;
 }
+
+int64_t qcow2_get_last_cluster(BlockDriverState *bs, int64_t size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int64_t i;
+
+    for (i = size_to_clusters(s, size) - 1; i >= 0; i--) {
+        uint64_t refcount;
+        int ret = qcow2_get_refcount(bs, i, &refcount);
+        if (ret < 0) {
+            fprintf(stderr, "Can't get refcount for cluster %" PRId64 ": %s\n",
+                    i, strerror(-ret));
+            return ret;
+        }
+        if (refcount > 0) {
+            return i;
+        }
+    }
+    qcow2_signal_corruption(bs, true, -1, -1,
+                            "There are no references in the refcount table.");
+    return -EIO;
+}
