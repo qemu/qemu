@@ -111,6 +111,7 @@ static void s390_cpu_initial_reset(CPUState *s)
     for (i = 0; i < ARRAY_SIZE(env->io_index); i++) {
         env->io_index[i] = -1;
     }
+    env->mchk_index = -1;
 
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
@@ -148,6 +149,7 @@ static void s390_cpu_full_reset(CPUState *s)
     for (i = 0; i < ARRAY_SIZE(env->io_index); i++) {
         env->io_index[i] = -1;
     }
+    env->mchk_index = -1;
 
     /* tininess for underflow is detected before rounding */
     set_float_detect_tininess(float_tininess_before_rounding,
