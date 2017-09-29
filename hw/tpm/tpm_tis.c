@@ -963,6 +963,16 @@ static int tpm_tis_do_startup_tpm(TPMState *s)
     return tpm_backend_startup_tpm(s->be_driver);
 }
 
+static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb)
+{
+    size_t wanted_size = 4096; /* Linux tpm.c buffer size */
+
+    if (sb->size != wanted_size) {
+        sb->buffer = g_realloc(sb->buffer, wanted_size);
+        sb->size = wanted_size;
+    }
+}
+
 /*
  * Get the TPMVersion of the backend device being used
  */
@@ -1010,9 +1020,9 @@ static void tpm_tis_reset(DeviceState *dev)
         tis->loc[c].state = TPM_TIS_STATE_IDLE;
 
         tis->loc[c].w_offset = 0;
-        tpm_backend_realloc_buffer(s->be_driver, &tis->loc[c].w_buffer);
+        tpm_tis_realloc_buffer(&tis->loc[c].w_buffer);
         tis->loc[c].r_offset = 0;
-        tpm_backend_realloc_buffer(s->be_driver, &tis->loc[c].r_buffer);
+        tpm_tis_realloc_buffer(&tis->loc[c].r_buffer);
     }
 
     tpm_tis_do_startup_tpm(s);

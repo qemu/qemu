@@ -84,8 +84,6 @@ struct TPMDriverOps {
     /* start up the TPM on the backend */
     int (*startup_tpm)(TPMBackend *t);
 
-    size_t (*realloc_buffer)(TPMSizedBuffer *sb);
-
     void (*reset)(TPMBackend *t);
 
     void (*cancel_cmd)(TPMBackend *t);
@@ -138,16 +136,6 @@ int tpm_backend_startup_tpm(TPMBackend *s);
  * otherwise.
  */
 bool tpm_backend_had_startup_error(TPMBackend *s);
-
-/**
- * tpm_backend_realloc_buffer:
- * @s: the backend
- * @sb: the TPMSizedBuffer to re-allocated to the size suitable for the
- *      backend.
- *
- * This function returns the size of the allocated buffer
- */
-size_t tpm_backend_realloc_buffer(TPMBackend *s, TPMSizedBuffer *sb);
 
 /**
  * tpm_backend_deliver_request:
