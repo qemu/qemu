@@ -68,27 +68,6 @@ typedef struct TPMPassthruState TPMPassthruState;
 
 static void tpm_passthrough_cancel_cmd(TPMBackend *tb);
 
-static int tpm_passthrough_unix_write(int fd, const uint8_t *buf, uint32_t len)
-{
-    int ret, remain;
-
-    remain = len;
-    while (remain > 0) {
-        ret = write(fd, buf, remain);
-        if (ret < 0) {
-            if (errno != EINTR && errno != EAGAIN) {
-                return -1;
-            }
-        } else if (ret == 0) {
-            break;
-        } else {
-            buf += ret;
-            remain -= ret;
-        }
-    }
-    return len - remain;
-}
-
 static int tpm_passthrough_unix_read(int fd, uint8_t *buf, uint32_t len)
 {
     int ret;
@@ -102,45 +81,12 @@ static int tpm_passthrough_unix_read(int fd, uint8_t *buf, uint32_t len)
     }
     return ret;
 }
-
-static uint32_t tpm_passthrough_get_size_from_buffer(const uint8_t *buf)
-{
-    struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)buf;
-
-    return be32_to_cpu(resp->len);
-}
-
-/*
- * Write an error message in the given output buffer.
- */
-static void tpm_write_fatal_error_response(uint8_t *out, uint32_t out_len)
-{
-    if (out_len >= sizeof(struct tpm_resp_hdr)) {
-        struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)out;
-
-        resp->tag = cpu_to_be16(TPM_TAG_RSP_COMMAND);
-        resp->len = cpu_to_be32(sizeof(struct tpm_resp_hdr));
-        resp->errcode = cpu_to_be32(TPM_FAIL);
-    }
-}
-
-static bool tpm_passthrough_is_selftest(const uint8_t *in, uint32_t in_len)
-{
-    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
-
-    if (in_len >= sizeof(*hdr)) {
-        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
-    }
-
-    return false;
-}
-
 static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
                                         const uint8_t *in, uint32_t in_len,
                                         uint8_t *out, uint32_t out_len,
                                         bool *selftest_done)
 {
-    int ret;
+    ssize_t ret;
     bool is_selftest;
     const struct tpm_resp_hdr *hdr;
 
@@ -148,9 +94,9 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
     tpm_pt->tpm_executing = true;
     *selftest_done = false;
 
-    is_selftest = tpm_passthrough_is_selftest(in, in_len);
+    is_selftest = tpm_util_is_selftest(in, in_len);
 
-    ret = tpm_passthrough_unix_write(tpm_pt->tpm_fd, in, in_len);
+    ret = qemu_write_full(tpm_pt->tpm_fd, (const void *)in, (size_t)in_len);
     if (ret != in_len) {
         if (!tpm_pt->tpm_op_canceled || errno != ECANCELED) {
             error_report("tpm_passthrough: error while transmitting data "
@@ -170,7 +116,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
                          strerror(errno), errno);
         }
     } else if (ret < sizeof(struct tpm_resp_hdr) ||
-               tpm_passthrough_get_size_from_buffer(out) != ret) {
+               be32_to_cpu(((struct tpm_resp_hdr *)out)->len) != ret) {
         ret = -1;
         error_report("tpm_passthrough: received invalid response "
                      "packet from TPM");
@@ -183,7 +129,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
 
 err_exit:
     if (ret < 0) {
-        tpm_write_fatal_error_response(out, out_len);
+        tpm_util_write_fatal_error_response(out, out_len);
     }
 
     tpm_pt->tpm_executing = false;
