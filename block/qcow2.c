@@ -3167,7 +3167,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         if (old_file_size < 0) {
             error_setg_errno(errp, -old_file_size,
                              "Failed to inquire current file length");
-            return ret;
+            return old_file_size;
         }
 
         nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
@@ -3196,7 +3196,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         if (allocation_start < 0) {
             error_setg_errno(errp, -allocation_start,
                              "Failed to resize refcount structures");
-            return -allocation_start;
+            return allocation_start;
         }
 
         clusters_allocated = qcow2_alloc_clusters_at(bs, allocation_start,
