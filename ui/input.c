@@ -157,9 +157,16 @@ void qmp_input_send_event(bool has_device, const char *device,
     }
 
     for (e = events; e != NULL; e = e->next) {
-        InputEvent *event = e->value;
+        InputEvent *evt = e->value;
 
-        qemu_input_event_send(con, event);
+        if (evt->type == INPUT_EVENT_KIND_KEY &&
+            evt->u.key.data->key->type == KEY_VALUE_KIND_NUMBER) {
+            KeyValue *key = evt->u.key.data->key;
+            QKeyCode code = qemu_input_key_number_to_qcode(key->u.qcode.data);
+            qemu_input_event_send_key_qcode(con, code, evt->u.key.data->down);
+        } else {
+            qemu_input_event_send(con, evt);
+        }
     }
 
     qemu_input_event_sync();
@@ -341,6 +348,11 @@ void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt)
 
 void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
 {
+    /* Expect all parts of QEMU to send events with QCodes exclusively.
+     * Key numbers are only supported as end-user input via QMP */
+    assert(!(evt->type == INPUT_EVENT_KIND_KEY &&
+             evt->u.key.data->key->type == KEY_VALUE_KIND_NUMBER));
+
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
@@ -400,10 +412,8 @@ void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
 
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
 {
-    KeyValue *key = g_new0(KeyValue, 1);
-    key->type = KEY_VALUE_KIND_NUMBER;
-    key->u.number.data = num;
-    qemu_input_event_send_key(src, key, down);
+    QKeyCode code = qemu_input_key_number_to_qcode(num);
+    qemu_input_event_send_key_qcode(src, code, down);
 }
 
 void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
