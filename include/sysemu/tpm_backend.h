@@ -29,22 +29,24 @@
 
 typedef struct TPMBackendClass TPMBackendClass;
 typedef struct TPMBackend TPMBackend;
-
 typedef struct TPMDriverOps TPMDriverOps;
+typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
 
-struct TPMBackendClass {
-    ObjectClass parent_class;
-
-    const TPMDriverOps *ops;
-
-    void (*opened)(TPMBackend *s, Error **errp);
-};
+typedef enum TPMBackendCmd {
+    TPM_BACKEND_CMD_INIT = 1,
+    TPM_BACKEND_CMD_PROCESS_CMD,
+    TPM_BACKEND_CMD_END,
+    TPM_BACKEND_CMD_TPM_RESET,
+} TPMBackendCmd;
 
 struct TPMBackend {
     Object parent;
 
     /*< protected >*/
     bool opened;
+    TPMState *tpm_state;
+    GThreadPool *thread_pool;
+    TPMRecvDataCB *recv_data_callback;
 
     char *id;
     enum TpmModel fe_model;
@@ -54,7 +56,15 @@ struct TPMBackend {
     QLIST_ENTRY(TPMBackend) list;
 };
 
-typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
+struct TPMBackendClass {
+    ObjectClass parent_class;
+
+    const TPMDriverOps *ops;
+
+    void (*opened)(TPMBackend *s, Error **errp);
+
+    void (*handle_request)(TPMBackend *s, TPMBackendCmd cmd);
+};
 
 typedef struct TPMSizedBuffer {
     uint32_t size;
@@ -71,15 +81,13 @@ struct TPMDriverOps {
     void (*destroy)(TPMBackend *t);
 
     /* initialize the backend */
-    int (*init)(TPMBackend *t, TPMState *s, TPMRecvDataCB *datacb);
+    int (*init)(TPMBackend *t);
     /* start up the TPM on the backend */
     int (*startup_tpm)(TPMBackend *t);
     /* returns true if nothing will ever answer TPM requests */
     bool (*had_startup_error)(TPMBackend *t);
 
     size_t (*realloc_buffer)(TPMSizedBuffer *sb);
-
-    void (*deliver_request)(TPMBackend *t);
 
     void (*reset)(TPMBackend *t);
 
