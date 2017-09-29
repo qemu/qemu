@@ -172,7 +172,6 @@ int tpm_init(void)
         return -1;
     }
 
-    atexit(tpm_cleanup);
     return 0;
 }
 
