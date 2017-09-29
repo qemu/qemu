@@ -47,6 +47,7 @@ struct TPMBackend {
     TPMState *tpm_state;
     GThreadPool *thread_pool;
     TPMRecvDataCB *recv_data_callback;
+    bool had_startup_error;
 
     char *id;
     enum TpmModel fe_model;
@@ -75,7 +76,7 @@ struct TPMDriverOps {
     enum TpmType type;
     const QemuOptDesc *opts;
     /* get a descriptive text of the backend to display to the user */
-    const char *(*desc)(void);
+    const char *desc;
 
     TPMBackend *(*create)(QemuOpts *opts, const char *id);
 
@@ -83,8 +84,6 @@ struct TPMDriverOps {
     int (*init)(TPMBackend *t);
     /* start up the TPM on the backend */
     int (*startup_tpm)(TPMBackend *t);
-    /* returns true if nothing will ever answer TPM requests */
-    bool (*had_startup_error)(TPMBackend *t);
 
     size_t (*realloc_buffer)(TPMSizedBuffer *sb);
 
@@ -107,14 +106,6 @@ struct TPMDriverOps {
  * Returns the TpmType of the backend.
  */
 enum TpmType tpm_backend_get_type(TPMBackend *s);
-
-/**
- * tpm_backend_get_desc:
- * @s: the backend
- *
- * Returns a human readable description of the backend.
- */
-const char *tpm_backend_get_desc(TPMBackend *s);
 
 /**
  * tpm_backend_init:
