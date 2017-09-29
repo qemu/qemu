@@ -157,7 +157,7 @@ void tpm_cleanup(void)
 
     QLIST_FOREACH_SAFE(drv, &tpm_backends, list, next) {
         QLIST_REMOVE(drv, list);
-        tpm_backend_destroy(drv);
+        object_unref(OBJECT(drv));
     }
 }
 

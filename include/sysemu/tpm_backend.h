@@ -78,7 +78,6 @@ struct TPMDriverOps {
     const char *(*desc)(void);
 
     TPMBackend *(*create)(QemuOpts *opts, const char *id);
-    void (*destroy)(TPMBackend *t);
 
     /* initialize the backend */
     int (*init)(TPMBackend *t);
@@ -116,12 +115,6 @@ enum TpmType tpm_backend_get_type(TPMBackend *s);
  * Returns a human readable description of the backend.
  */
 const char *tpm_backend_get_desc(TPMBackend *s);
-
-/**
- * tpm_backend_destroy:
- * @s: the backend to destroy
- */
-void tpm_backend_destroy(TPMBackend *s);
 
 /**
  * tpm_backend_init:
