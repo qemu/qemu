@@ -211,7 +211,7 @@ static TPMInfo *qmp_query_tpm_inst(TPMBackend *drv)
     res->model = drv->fe_model;
     res->options = g_new0(TpmTypeOptions, 1);
 
-    switch (drv->ops->type) {
+    switch (tpm_backend_get_type(drv)) {
     case TPM_TYPE_PASSTHROUGH:
         res->options->type = TPM_TYPE_OPTIONS_KIND_PASSTHROUGH;
         tpo = g_new0(TPMPassthroughOptions, 1);
