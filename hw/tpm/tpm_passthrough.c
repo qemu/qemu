@@ -30,6 +30,7 @@
 #include "tpm_int.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
+#include "qapi/clone-visitor.h"
 #include "tpm_tis.h"
 #include "tpm_util.h"
 
@@ -49,7 +50,8 @@
 struct TPMPassthruState {
     TPMBackend parent;
 
-    char *tpm_dev;
+    TPMPassthroughOptions *options;
+    const char *tpm_dev;
     int tpm_fd;
     bool tpm_executing;
     bool tpm_op_canceled;
@@ -296,15 +298,14 @@ static TPMVersion tpm_passthrough_get_tpm_version(TPMBackend *tb)
  * in Documentation/ABI/stable/sysfs-class-tpm.
  * From /dev/tpm0 create /sys/class/misc/tpm0/device/cancel
  */
-static int tpm_passthrough_open_sysfs_cancel(TPMBackend *tb)
+static int tpm_passthrough_open_sysfs_cancel(TPMPassthruState *tpm_pt)
 {
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     int fd = -1;
     char *dev;
     char path[PATH_MAX];
 
-    if (tb->cancel_path) {
-        fd = qemu_open(tb->cancel_path, O_WRONLY);
+    if (tpm_pt->options->cancel_path) {
+        fd = qemu_open(tpm_pt->options->cancel_path, O_WRONLY);
         if (fd < 0) {
             error_report("Could not open TPM cancel path : %s",
                          strerror(errno));
@@ -319,7 +320,7 @@ static int tpm_passthrough_open_sysfs_cancel(TPMBackend *tb)
                      dev) < sizeof(path)) {
             fd = qemu_open(path, O_WRONLY);
             if (fd >= 0) {
-                tb->cancel_path = g_strdup(path);
+                tpm_pt->options->cancel_path = g_strdup(path);
             } else {
                 error_report("tpm_passthrough: Could not open TPM cancel "
                              "path %s : %s", path, strerror(errno));
@@ -339,17 +340,18 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
     const char *value;
 
     value = qemu_opt_get(opts, "cancel-path");
-    tb->cancel_path = g_strdup(value);
-
-    value = qemu_opt_get(opts, "path");
-    if (!value) {
-        value = TPM_PASSTHROUGH_DEFAULT_DEVICE;
+    if (value) {
+        tpm_pt->options->cancel_path = g_strdup(value);
+        tpm_pt->options->has_cancel_path = true;
     }
 
-    tpm_pt->tpm_dev = g_strdup(value);
+    value = qemu_opt_get(opts, "path");
+    if (value) {
+        tpm_pt->options->has_path = true;
+        tpm_pt->options->path = g_strdup(value);
+    }
 
-    tb->path = g_strdup(tpm_pt->tpm_dev);
-
+    tpm_pt->tpm_dev = value ? value : TPM_PASSTHROUGH_DEFAULT_DEVICE;
     tpm_pt->tpm_fd = qemu_open(tpm_pt->tpm_dev, O_RDWR);
     if (tpm_pt->tpm_fd < 0) {
         error_report("Cannot access TPM device using '%s': %s",
@@ -370,10 +372,8 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
     tpm_pt->tpm_fd = -1;
 
  err_free_parameters:
-    g_free(tb->path);
-    tb->path = NULL;
-
-    g_free(tpm_pt->tpm_dev);
+    qapi_free_TPMPassthroughOptions(tpm_pt->options);
+    tpm_pt->options = NULL;
     tpm_pt->tpm_dev = NULL;
 
     return 1;
@@ -391,7 +391,7 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
         goto err_exit;
     }
 
-    tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tb);
+    tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tpm_pt);
     if (tpm_pt->cancel_fd < 0) {
         goto err_exit;
     }
@@ -402,6 +402,17 @@ err_exit:
     object_unref(obj);
 
     return NULL;
+}
+
+static TpmTypeOptions *tpm_passthrough_get_tpm_options(TPMBackend *tb)
+{
+    TpmTypeOptions *options = g_new0(TpmTypeOptions, 1);
+
+    options->type = TPM_TYPE_OPTIONS_KIND_PASSTHROUGH;
+    options->u.passthrough.data = QAPI_CLONE(TPMPassthroughOptions,
+                                             TPM_PASSTHROUGH(tb)->options);
+
+    return options;
 }
 
 static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
@@ -430,12 +441,14 @@ static const TPMDriverOps tpm_passthrough_driver = {
     .get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag,
     .reset_tpm_established_flag = tpm_passthrough_reset_tpm_established_flag,
     .get_tpm_version          = tpm_passthrough_get_tpm_version,
+    .get_tpm_options          = tpm_passthrough_get_tpm_options,
 };
 
 static void tpm_passthrough_inst_init(Object *obj)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
 
+    tpm_pt->options = g_new0(TPMPassthroughOptions, 1);
     tpm_pt->tpm_fd = -1;
     tpm_pt->cancel_fd = -1;
 }
@@ -448,7 +461,7 @@ static void tpm_passthrough_inst_finalize(Object *obj)
 
     qemu_close(tpm_pt->tpm_fd);
     qemu_close(tpm_pt->cancel_fd);
-    g_free(tpm_pt->tpm_dev);
+    qapi_free_TPMPassthroughOptions(tpm_pt->options);
 }
 
 static void tpm_passthrough_class_init(ObjectClass *klass, void *data)

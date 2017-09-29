@@ -49,10 +49,9 @@ struct TPMBackend {
     TPMRecvDataCB *recv_data_callback;
     bool had_startup_error;
 
+    /* <public> */
     char *id;
     enum TpmModel fe_model;
-    char *path;
-    char *cancel_path;
 
     QLIST_ENTRY(TPMBackend) list;
 };
@@ -96,6 +95,8 @@ struct TPMDriverOps {
     int (*reset_tpm_established_flag)(TPMBackend *t, uint8_t locty);
 
     TPMVersion (*get_tpm_version)(TPMBackend *t);
+
+    TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
 };
 
 
@@ -213,6 +214,16 @@ void tpm_backend_open(TPMBackend *s, Error **errp);
  * Returns TPMVersion.
  */
 TPMVersion tpm_backend_get_tpm_version(TPMBackend *s);
+
+/**
+ * tpm_backend_query_tpm:
+ * @s: the backend
+ *
+ * Query backend tpm info
+ *
+ * Returns newly allocated TPMInfo
+ */
+TPMInfo *tpm_backend_query_tpm(TPMBackend *s);
 
 TPMBackend *qemu_find_tpm(const char *id);
 
