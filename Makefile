@@ -33,7 +33,7 @@ git-submodule-update:
 endif
 endif
 
-.git-submodule-status: git-submodule-update
+.git-submodule-status: git-submodule-update config-host.mak
 
 # Check that we're not trying to do an out-of-tree build from
 # a tree that's been used for an in-tree build.
@@ -212,6 +212,28 @@ trace-dtrace-root.h: trace-dtrace-root.dtrace
 	$(call quiet-command,dtrace -o $@ -h -s $<, "GEN","$@")
 
 trace-dtrace-root.o: trace-dtrace-root.dtrace
+
+KEYCODEMAP_GEN = $(SRC_PATH)/ui/keycodemapdb/tools/keymap-gen
+KEYCODEMAP_CSV = $(SRC_PATH)/ui/keycodemapdb/data/keymaps.csv
+
+KEYCODEMAP_FILES = \
+		 $(NULL)
+
+GENERATED_FILES += $(KEYCODEMAP_FILES)
+
+ui/input-keymap-%.c: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile.objs
+	$(call quiet-command,\
+	    src=$$(echo $@ | sed -E -e "s,^ui/input-keymap-(.+)-to-(.+)\.c$$,\1,") && \
+	    dst=$$(echo $@ | sed -E -e "s,^ui/input-keymap-(.+)-to-(.+)\.c$$,\2,") && \
+	    test -e $(KEYCODEMAP_GEN) && \
+	    $(PYTHON) $(KEYCODEMAP_GEN) \
+	          --lang glib2 \
+	          --varname qemu_input_map_$${src}_to_$${dst} \
+	          code-map $(KEYCODEMAP_CSV) $${src} $${dst} \
+	        > $@ || rm -f $@, "GEN", "$@")
+
+$(KEYCODEMAP_GEN): .git-submodule-status
+$(KEYCODEMAP_CSV): .git-submodule-status
 
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them

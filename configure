@@ -264,7 +264,13 @@ cc_i386=i386-pc-linux-gnu-gcc
 libs_qga=""
 debug_info="yes"
 stack_protector=""
-git_submodules=""
+
+if test -e "$source_path/.git"
+then
+    git_submodules="ui/keycodemapdb"
+else
+    git_submodules=""
+fi
 
 # Don't accept a target_list environment variable.
 unset target_list
