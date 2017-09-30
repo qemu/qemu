@@ -353,12 +353,14 @@ static const MemoryRegionOps pmac_ide_ops = {
 
 static const VMStateDescription vmstate_pmac = {
     .name = "ide",
-    .version_id = 4,
+    .version_id = 5,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
         VMSTATE_IDE_BUS(bus, MACIOIDEState),
         VMSTATE_IDE_DRIVES(bus.ifs, MACIOIDEState),
         VMSTATE_BOOL(dma_active, MACIOIDEState),
+        VMSTATE_UINT32(timing_reg, MACIOIDEState),
+        VMSTATE_UINT32(irq_reg, MACIOIDEState),
         VMSTATE_END_OF_LIST()
     }
 };
