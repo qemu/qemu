@@ -66,7 +66,7 @@ static void an5206_init(MachineState *machine)
         if (qtest_enabled()) {
             return;
         }
-        fprintf(stderr, "Kernel image must be specified\n");
+        error_report("Kernel image must be specified");
         exit(1);
     }
 
@@ -83,7 +83,7 @@ static void an5206_init(MachineState *machine)
         entry = KERNEL_LOAD_ADDR;
     }
     if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+        error_report("Could not load kernel '%s'", kernel_filename);
         exit(1);
     }
 
