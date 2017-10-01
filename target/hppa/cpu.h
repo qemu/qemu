@@ -134,6 +134,7 @@ void cpu_hppa_loaded_fr0(CPUHPPAState *env);
 int cpu_hppa_signal_handler(int host_signum, void *pinfo, void *puc);
 int hppa_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size,
                               int rw, int midx);
+hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr);
 int hppa_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int hppa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void hppa_cpu_do_interrupt(CPUState *cpu);

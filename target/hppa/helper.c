@@ -65,16 +65,6 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
     env->psw_cb = cb;
 }
 
-int hppa_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                              int rw, int mmu_idx)
-{
-    HPPACPU *cpu = HPPA_CPU(cs);
-
-    cs->exception_index = EXCP_SIGSEGV;
-    cpu->env.ior = address;
-    return 1;
-}
-
 void hppa_cpu_do_interrupt(CPUState *cs)
 {
     HPPACPU *cpu = HPPA_CPU(cs);

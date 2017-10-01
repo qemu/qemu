@@ -58,9 +58,9 @@ void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
 static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
                            uint32_t mask, uintptr_t ra)
 {
+#ifdef CONFIG_USER_ONLY
     uint32_t old, new, cmp;
 
-#ifdef CONFIG_USER_ONLY
     uint32_t *haddr = g2h(addr - 1);
     old = *haddr;
     while (1) {
@@ -72,7 +72,8 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
         old = cmp;
     }
 #else
-#error "Not implemented."
+    /* FIXME -- we can do better.  */
+    cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
 #endif
 }
 
@@ -158,12 +159,20 @@ void HELPER(stby_e_parallel)(CPUHPPAState *env, target_ulong addr,
 
 target_ulong HELPER(probe_r)(target_ulong addr)
 {
+#ifdef CONFIG_USER_ONLY
     return page_check_range(addr, 1, PAGE_READ);
+#else
+    return 1; /* FIXME */
+#endif
 }
 
 target_ulong HELPER(probe_w)(target_ulong addr)
 {
+#ifdef CONFIG_USER_ONLY
     return page_check_range(addr, 1, PAGE_WRITE);
+#else
+    return 1; /* FIXME */
+#endif
 }
 
 void HELPER(loaded_fr0)(CPUHPPAState *env)
