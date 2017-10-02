@@ -120,11 +120,11 @@ class QAPIDoc(object):
             self.member = member
 
     def __init__(self, parser, info):
-        # self.parser is used to report errors with QAPIParseError.  The
+        # self._parser is used to report errors with QAPIParseError.  The
         # resulting error position depends on the state of the parser.
         # It happens to be the beginning of the comment.  More or less
         # servicable, but action at a distance.
-        self.parser = parser
+        self._parser = parser
         self.info = info
         self.symbol = None
         self.body = QAPIDoc.Section()
@@ -133,7 +133,7 @@ class QAPIDoc(object):
         # a list of Section
         self.sections = []
         # the current section
-        self.section = self.body
+        self._section = self.body
 
     def has_section(self, name):
         """Return True if we have a section with this name."""
@@ -150,7 +150,7 @@ class QAPIDoc(object):
             return
 
         if line[0] != ' ':
-            raise QAPIParseError(self.parser, "Missing space after #")
+            raise QAPIParseError(self._parser, "Missing space after #")
         line = line[1:]
 
         # FIXME not nice: things like '#  @foo:' and '# @foo: ' aren't
@@ -159,11 +159,11 @@ class QAPIDoc(object):
             self._append_symbol_line(line)
         elif not self.body.text and line.startswith('@'):
             if not line.endswith(':'):
-                raise QAPIParseError(self.parser, "Line should end with :")
+                raise QAPIParseError(self._parser, "Line should end with :")
             self.symbol = line[1:-1]
             # FIXME invalid names other than the empty string aren't flagged
             if not self.symbol:
-                raise QAPIParseError(self.parser, "Invalid name")
+                raise QAPIParseError(self._parser, "Invalid name")
         else:
             self._append_freeform(line)
 
@@ -189,48 +189,48 @@ class QAPIDoc(object):
     def _start_args_section(self, name):
         # FIXME invalid names other than the empty string aren't flagged
         if not name:
-            raise QAPIParseError(self.parser, "Invalid parameter name")
+            raise QAPIParseError(self._parser, "Invalid parameter name")
         if name in self.args:
-            raise QAPIParseError(self.parser,
+            raise QAPIParseError(self._parser,
                                  "'%s' parameter name duplicated" % name)
         if self.sections:
-            raise QAPIParseError(self.parser,
+            raise QAPIParseError(self._parser,
                                  "'@%s:' can't follow '%s' section"
                                  % (name, self.sections[0].name))
         self._end_section()
-        self.section = QAPIDoc.ArgSection(name)
-        self.args[name] = self.section
+        self._section = QAPIDoc.ArgSection(name)
+        self.args[name] = self._section
 
     def _start_section(self, name=None):
         if name in ('Returns', 'Since') and self.has_section(name):
-            raise QAPIParseError(self.parser,
+            raise QAPIParseError(self._parser,
                                  "Duplicated '%s' section" % name)
         self._end_section()
-        self.section = QAPIDoc.Section(name)
-        self.sections.append(self.section)
+        self._section = QAPIDoc.Section(name)
+        self.sections.append(self._section)
 
     def _end_section(self):
-        if self.section:
-            text = self.section.text = self.section.text.strip()
-            if self.section.name and (not text or text.isspace()):
-                raise QAPIParseError(self.parser, "Empty doc section '%s'"
-                                     % self.section.name)
-            self.section = None
+        if self._section:
+            text = self._section.text = self._section.text.strip()
+            if self._section.name and (not text or text.isspace()):
+                raise QAPIParseError(self._parser, "Empty doc section '%s'"
+                                     % self._section.name)
+            self._section = None
 
     def _append_freeform(self, line):
-        in_arg = isinstance(self.section, QAPIDoc.ArgSection)
-        if (in_arg and self.section.text.endswith('\n\n')
+        in_arg = isinstance(self._section, QAPIDoc.ArgSection)
+        if (in_arg and self._section.text.endswith('\n\n')
                 and line and not line[0].isspace()):
             self._start_section()
-        if (in_arg or not self.section.name
-                or not self.section.name.startswith('Example')):
+        if (in_arg or not self._section.name
+                or not self._section.name.startswith('Example')):
             line = line.strip()
         match = re.match(r'(@\S+:)', line)
         if match:
-            raise QAPIParseError(self.parser,
+            raise QAPIParseError(self._parser,
                                  "'%s' not allowed in free-form documentation"
                                  % match.group(1))
-        self.section.append(line)
+        self._section.append(line)
 
     def connect_member(self, member):
         if member.name not in self.args:
