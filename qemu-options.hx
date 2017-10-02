@@ -2502,11 +2502,6 @@ ETEXI
 DEFHEADING()
 
 DEFHEADING(Character device options:)
-STEXI
-
-The general form of a character device option is:
-@table @option
-ETEXI
 
 DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev help\n"
@@ -2552,6 +2547,9 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
 )
 
 STEXI
+
+The general form of a character device option is:
+@table @option
 @item -chardev @var{backend} ,id=@var{id} [,mux=on|off] [,@var{options}]
 @findex -chardev
 Backend is one of:
@@ -2575,7 +2573,7 @@ Backend is one of:
 @option{spiceport}.
 The specific backend will determine the applicable options.
 
-Use "-chardev help" to print all available chardev backend types.
+Use @code{-chardev help} to print all available chardev backend types.
 
 All devices must have an id, which can be any string up to 127 characters long.
 It is used to uniquely identify this device in other command line directives.
@@ -2630,8 +2628,11 @@ to a file to record all data transmitted via the backend. The @option{logappend}
 option controls whether the log file will be truncated or appended to when
 opened.
 
-Further options to each backend are described below.
+@end table
 
+The available backends are:
+
+@table @option
 @item -chardev null ,id=@var{id}
 A void device. This device will not emit any data, and will drop any data it
 receives. The null backend does not take any options.
