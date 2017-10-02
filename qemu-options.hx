@@ -2377,6 +2377,7 @@ two systems. It is present in routers, firewalls and the Linux kernel
 
 This transport allows a VM to communicate to another VM, router or firewall directly.
 
+@table @option
 @item src=@var{srcaddr}
     source address (mandatory)
 @item dst=@var{dstaddr}
@@ -2404,6 +2405,7 @@ draft-mkonstan-l2tpext-keyed-ipv6-tunnel-00
 networks which have packet reorder.
 @item offset=@var{offset}
     Add an extra offset between header and data
+@end table
 
 For example, to attach a VM running on host 4.3.2.1 via L2TPv3 to the bridge br-lan
 on the remote Linux host 1.2.3.4:
