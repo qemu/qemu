@@ -837,12 +837,6 @@ STEXI
 Show information about hotpluggable CPUs
 ETEXI
 
-STEXI
-@item info vm-generation-id
-@findex vm-generation-id
-Show Virtual Machine Generation ID
-ETEXI
-
     {
         .name       = "vm-generation-id",
         .args_type  = "",
@@ -852,10 +846,9 @@ ETEXI
     },
 
 STEXI
-@item info memory_size_summary
-@findex memory_size_summary
-Display the amount of initially allocated and present hotpluggable (if
-enabled) memory in bytes.
+@item info vm-generation-id
+@findex vm-generation-id
+Show Virtual Machine Generation ID
 ETEXI
 
     {
@@ -866,6 +859,13 @@ ETEXI
                       "present hotpluggable (if enabled) memory in bytes.",
         .cmd        = hmp_info_memory_size_summary,
     },
+
+STEXI
+@item info memory_size_summary
+@findex memory_size_summary
+Display the amount of initially allocated and present hotpluggable (if
+enabled) memory in bytes.
+ETEXI
 
 STEXI
 @end table
