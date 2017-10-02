@@ -2927,19 +2927,18 @@ The general form of a TPM device option is:
 
 @item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
 @findex -tpmdev
-Backend type must be either one of the following:
-@option{passthrough}, @option{emulator}.
 
 The specific backend type will determine the applicable options.
 The @code{-tpmdev} option creates the TPM backend and requires a
 @code{-device} option that specifies the TPM frontend interface model.
 
-Options to each backend are described below.
+Use @code{-tpmdev help} to print all available TPM backend types.
 
-Use 'help' to print all available TPM backend types.
-@example
-qemu -tpmdev help
-@end example
+@end table
+
+The available backends are:
+
+@table @option
 
 @item -tpmdev passthrough, id=@var{id}, path=@var{path}, cancel-path=@var{cancel-path}
 
@@ -2992,10 +2991,11 @@ To create a TPM emulator backend device with chardev socket backend:
 
 @end example
 
-@end table
-
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
 #endif
