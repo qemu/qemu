@@ -180,16 +180,14 @@ def texi_sections(doc):
     """Format additional sections following arguments"""
     body = ''
     for section in doc.sections:
-        name, doc = (section.name, str(section))
-        func = texi_format
-        if name.startswith('Example'):
-            func = texi_example
-
-        if name:
+        if section.name:
             # prefer @b over @strong, so txt doesn't translate it to *Foo:*
-            body += '\n\n@b{%s:}\n' % name
-
-        body += func(doc)
+            body += '\n\n@b{%s:}\n' % section.name
+        text = str(section)
+        if section.name.startswith('Example'):
+            body += texi_example(text)
+        else:
+            body += texi_format(text)
     return body
 
 
