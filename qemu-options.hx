@@ -1182,6 +1182,13 @@ STEXI
 Create synthetic file system image
 ETEXI
 
+DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
+    "-iscsi [user=user][,password=password]\n"
+    "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
+    "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
+    "       [,timeout=timeout]\n"
+    "                iSCSI session parameters\n", QEMU_ARCH_ALL)
+
 STEXI
 @end table
 ETEXI
@@ -2820,14 +2827,6 @@ STEXI
 @end table
 ETEXI
 DEFHEADING()
-
-DEFHEADING(Device URL Syntax:)
-DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
-    "-iscsi [user=user][,password=password]\n"
-    "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
-    "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
-    "       [,timeout=timeout]\n"
-    "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 
 DEFHEADING(Bluetooth(R) options:)
 STEXI
