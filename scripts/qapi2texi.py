@@ -13,7 +13,6 @@ MSG_FMT = """
 @deftypefn {type} {{}} {name}
 
 {body}
-
 @end deftypefn
 
 """.format
@@ -22,7 +21,6 @@ TYPE_FMT = """
 @deftp {{{type}}} {name}
 
 {body}
-
 @end deftp
 
 """.format
@@ -74,7 +72,7 @@ def texi_format(doc):
     - 1. or 1): generates an @enumerate @item
     - */-: generates an @itemize list
     """
-    lines = []
+    ret = ''
     doc = subst_braces(doc)
     doc = subst_vars(doc)
     doc = subst_emph(doc)
@@ -100,32 +98,32 @@ def texi_format(doc):
             line = '@subsection ' + line[3:]
         elif re.match(r'^([0-9]*\.) ', line):
             if not inlist:
-                lines.append('@enumerate')
+                ret += '@enumerate\n'
                 inlist = 'enumerate'
+            ret += '@item\n'
             line = line[line.find(' ')+1:]
-            lines.append('@item')
         elif re.match(r'^[*-] ', line):
             if not inlist:
-                lines.append('@itemize %s' % {'*': '@bullet',
-                                              '-': '@minus'}[line[0]])
+                ret += '@itemize %s\n' % {'*': '@bullet',
+                                          '-': '@minus'}[line[0]]
                 inlist = 'itemize'
-            lines.append('@item')
+            ret += '@item\n'
             line = line[2:]
         elif lastempty and inlist:
-            lines.append('@end %s\n' % inlist)
+            ret += '@end %s\n\n' % inlist
             inlist = ''
 
         lastempty = empty
-        lines.append(line)
+        ret += line + '\n'
 
     if inlist:
-        lines.append('@end %s\n' % inlist)
-    return '\n'.join(lines)
+        ret += '@end %s\n\n' % inlist
+    return ret
 
 
 def texi_body(doc):
     """Format the main documentation body"""
-    return texi_format(doc.body.text) + '\n'
+    return texi_format(doc.body.text)
 
 
 def texi_enum_value(value):
@@ -154,10 +152,11 @@ def texi_members(doc, what, base, variants, member_func):
         elif (variants and variants.tag_member == section.member
               and not section.member.type.doc_type()):
             values = section.member.type.member_names()
-            desc = 'One of ' + ', '.join(['@t{"%s"}' % v for v in values])
+            members_text = ', '.join(['@t{"%s"}' % v for v in values])
+            desc = 'One of ' + members_text + '\n'
         else:
-            desc = 'Not documented'
-        items += member_func(section.member) + desc + '\n'
+            desc = 'Not documented\n'
+        items += member_func(section.member) + desc
     if base:
         items += '@item The members of @code{%s}\n' % base.doc_type()
     if variants:
@@ -182,7 +181,7 @@ def texi_sections(doc):
     for section in doc.sections:
         if section.name:
             # prefer @b over @strong, so txt doesn't translate it to *Foo:*
-            body += '\n\n@b{%s:}\n' % section.name
+            body += '\n@b{%s:}\n' % section.name
         if section.name and section.name.startswith('Example'):
             body += texi_example(section.text)
         else:
