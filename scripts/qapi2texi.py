@@ -184,7 +184,7 @@ def texi_sections(doc):
             # prefer @b over @strong, so txt doesn't translate it to *Foo:*
             body += '\n\n@b{%s:}\n' % section.name
         text = str(section)
-        if section.name.startswith('Example'):
+        if section.name and section.name.startswith('Example'):
             body += texi_example(text)
         else:
             body += texi_format(text)

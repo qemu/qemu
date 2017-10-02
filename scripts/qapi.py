@@ -204,7 +204,7 @@ class QAPIDoc(object):
         self.section = QAPIDoc.ArgSection(name)
         self.args[name] = self.section
 
-    def _start_section(self, name=''):
+    def _start_section(self, name=None):
         if name in ('Returns', 'Since') and self.has_section(name):
             raise QAPIParseError(self.parser,
                                  "Duplicated '%s' section" % name)

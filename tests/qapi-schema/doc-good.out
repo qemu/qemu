@@ -82,7 +82,7 @@ doc symbol=Enum
 The _one_ {and only}
     arg=two
 
-    section=
+    section=None
 @two is undocumented
 doc symbol=Base
     body=
