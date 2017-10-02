@@ -1190,6 +1190,12 @@ DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 
 STEXI
+@item -iscsi
+@findex -iscsi
+Configure iSCSI session parameters.
+ETEXI
+
+STEXI
 @end table
 ETEXI
 DEFHEADING()
