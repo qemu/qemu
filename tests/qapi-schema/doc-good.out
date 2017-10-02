@@ -77,7 +77,7 @@ Examples:
 - {braces}
 doc symbol=Enum
     body=
-== Produces *invalid* texinfo
+
     arg=one
 The _one_ {and only}
     arg=two

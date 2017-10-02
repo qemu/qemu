@@ -76,7 +76,7 @@ Examples:
 
 @deftp {Enum} Enum
 
-@subsection Produces @strong{invalid} texinfo
+
 
 @b{Values:}
 @table @asis
