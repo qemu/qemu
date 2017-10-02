@@ -106,13 +106,10 @@ class QAPIDoc(object):
             # optional section name (argument/member or section name)
             self.name = name
             # the list of lines for this section
-            self.content = []
+            self.text = ''
 
         def append(self, line):
-            self.content.append(line)
-
-        def __repr__(self):
-            return '\n'.join(self.content).strip()
+            self.text += line.rstrip() + '\n'
 
     class ArgSection(Section):
         def __init__(self, name):
@@ -160,7 +157,7 @@ class QAPIDoc(object):
         # recognized, and get silently treated as ordinary text
         if self.symbol:
             self._append_symbol_line(line)
-        elif not self.body.content and line.startswith('@'):
+        elif not self.body.text and line.startswith('@'):
             if not line.endswith(':'):
                 raise QAPIParseError(self.parser, "Line should end with :")
             self.symbol = line[1:-1]
@@ -214,16 +211,15 @@ class QAPIDoc(object):
 
     def _end_section(self):
         if self.section:
-            contents = str(self.section)
-            if self.section.name and (not contents or contents.isspace()):
+            text = self.section.text = self.section.text.strip()
+            if self.section.name and (not text or text.isspace()):
                 raise QAPIParseError(self.parser, "Empty doc section '%s'"
                                      % self.section.name)
             self.section = None
 
     def _append_freeform(self, line):
         in_arg = isinstance(self.section, QAPIDoc.ArgSection)
-        if (in_arg and self.section.content
-                and not self.section.content[-1]
+        if (in_arg and self.section.text.endswith('\n\n')
                 and line and not line[0].isspace()):
             self._start_section()
         if (in_arg or not self.section.name

@@ -230,6 +230,7 @@ If you're bored enough to read this, go see a video of boxed cats
 
 @b{Arguments:} the members of @code{Object}
 
+
 @b{Example:}
 @example
 -> in
