@@ -730,8 +730,8 @@ ETEXI
     },
 
 STEXI
-@item info rocker_ports @var{name}-ports
-@findex ocker-ports
+@item info rocker-ports @var{name}-ports
+@findex rocker-ports
 Show rocker ports.
 ETEXI
 
@@ -744,7 +744,7 @@ ETEXI
     },
 
 STEXI
-@item info rocker_of_dpa_flows @var{name} [@var{tbl_id}]
+@item info rocker-of-dpa-flows @var{name} [@var{tbl_id}]
 @findex rocker-of-dpa-flows
 Show rocker OF-DPA flow tables.
 ETEXI
