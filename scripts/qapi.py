@@ -234,10 +234,6 @@ class QAPIDoc(object):
             raise QAPIParseError(self.parser,
                                  "'%s' not allowed in free-form documentation"
                                  % match.group(1))
-        # TODO Drop this once the dust has settled
-        if (isinstance(self.section, QAPIDoc.ArgSection)
-                and '#optional' in line):
-            raise QAPISemError(self.info, "Please drop the #optional tag")
         self.section.append(line)
 
     def connect_member(self, member):
