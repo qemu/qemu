@@ -19,7 +19,8 @@ hxtoh()
 print_texi_heading()
 {
     if test "$*" != ""; then
-        printf "@subsection %s\n" "$*"
+        title="$*"
+        printf "@subsection %s\n" "${title%:}"
     fi
 }
 
