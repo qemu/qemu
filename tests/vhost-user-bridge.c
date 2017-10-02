@@ -277,6 +277,7 @@ vubr_backend_recv_cb(int sock, void *ctx)
     DPRINT("    hdrlen = %d\n", hdrlen);
 
     if (!vu_queue_enabled(dev, vq) ||
+        !vu_queue_started(dev, vq) ||
         !vu_queue_avail_bytes(dev, vq, hdrlen, 0)) {
         DPRINT("Got UDP packet, but no available descriptors on RX virtq.\n");
         return;
