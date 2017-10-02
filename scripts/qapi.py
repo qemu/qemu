@@ -261,8 +261,7 @@ class QAPISchemaParser(object):
 
     def __init__(self, fp, previously_included=[], incl_info=None):
         abs_fname = os.path.abspath(fp.name)
-        fname = fp.name
-        self.fname = fname
+        self.fname = fp.name
         previously_included.append(abs_fname)
         self.incl_info = incl_info
         self.src = fp.read()
@@ -277,7 +276,7 @@ class QAPISchemaParser(object):
         self.accept()
 
         while self.tok is not None:
-            info = {'file': fname, 'line': self.line,
+            info = {'file': self.fname, 'line': self.line,
                     'parent': self.incl_info}
             if self.tok == '#':
                 self.reject_expr_doc()
