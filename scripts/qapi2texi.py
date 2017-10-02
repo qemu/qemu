@@ -206,8 +206,6 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
 
     def visit_enum_type(self, name, info, values, prefix):
         doc = self.cur_doc
-        if self.out:
-            self.out += '\n'
         self.out += TYPE_FMT(type='Enum',
                              name=doc.symbol,
                              body=texi_entity(doc, 'Values',
@@ -217,16 +215,12 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
         doc = self.cur_doc
         if base and base.is_implicit():
             base = None
-        if self.out:
-            self.out += '\n'
         self.out += TYPE_FMT(type='Object',
                              name=doc.symbol,
                              body=texi_entity(doc, 'Members', base, variants))
 
     def visit_alternate_type(self, name, info, variants):
         doc = self.cur_doc
-        if self.out:
-            self.out += '\n'
         self.out += TYPE_FMT(type='Alternate',
                              name=doc.symbol,
                              body=texi_entity(doc, 'Members'))
@@ -234,8 +228,6 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
     def visit_command(self, name, info, arg_type, ret_type,
                       gen, success_response, boxed):
         doc = self.cur_doc
-        if self.out:
-            self.out += '\n'
         if boxed:
             body = texi_body(doc)
             body += ('\n@b{Arguments:} the members of @code{%s}\n'
@@ -249,13 +241,13 @@ class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
 
     def visit_event(self, name, info, arg_type, boxed):
         doc = self.cur_doc
-        if self.out:
-            self.out += '\n'
         self.out += MSG_FMT(type='Event',
                             name=doc.symbol,
                             body=texi_entity(doc, 'Arguments'))
 
     def symbol(self, doc, entity):
+        if self.out:
+            self.out += '\n'
         self.cur_doc = doc
         entity.visit(self)
         self.cur_doc = None
