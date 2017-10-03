@@ -766,7 +766,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             env->hvf_emul->fetch_rip = rip;
 
             decode_instruction(env, &decode);
-            VM_PANIC_ON(ins_len != decode.len);
+            assert(ins_len == decode.len);
             exec_instruction(env, &decode);
             store_regs(cpu);
 

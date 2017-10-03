@@ -146,7 +146,7 @@ addr_t read_reg(CPUX86State *env, int reg, int size)
     case 8:
         return env->hvf_emul->regs[reg].rrx;
     default:
-        VM_PANIC_ON("read_reg size");
+        abort();
     }
     return 0;
 }
@@ -167,7 +167,7 @@ void write_reg(CPUX86State *env, int reg, addr_t val, int size)
         env->hvf_emul->regs[reg].rrx = val;
         break;
     default:
-        VM_PANIC_ON("write_reg size");
+        abort();
     }
 }
 
@@ -189,8 +189,7 @@ addr_t read_val_from_reg(addr_t reg_ptr, int size)
         val = *(uint64_t *)reg_ptr;
         break;
     default:
-        VM_PANIC_ON_EX(1, "read_val: Unknown size %d\n", size);
-        break;
+        abort();
     }
     return val;
 }
@@ -211,8 +210,7 @@ void write_val_to_reg(addr_t reg_ptr, addr_t val, int size)
         *(uint64_t *)reg_ptr = val;
         break;
     default:
-        VM_PANIC("write_val: Unknown size\n");
-        break;
+        abort();
     }
 }
 
