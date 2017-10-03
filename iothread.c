@@ -85,7 +85,7 @@ static int iothread_stop(Object *object, void *opaque)
     IOThread *iothread;
 
     iothread = (IOThread *)object_dynamic_cast(object, TYPE_IOTHREAD);
-    if (!iothread || !iothread->ctx) {
+    if (!iothread || !iothread->ctx || iothread->stopping) {
         return 0;
     }
     iothread->stopping = true;

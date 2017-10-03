@@ -49,6 +49,7 @@
 /qemu-version.h
 /qemu-version.h.tmp
 /module_block.h
+/scsi/qemu-pr-helper
 /vscclient
 /vhost-user-scsi
 /fsdev/virtfs-proxy-helper
