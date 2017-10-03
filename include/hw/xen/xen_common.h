@@ -78,6 +78,17 @@ static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
 
 extern xenforeignmemory_handle *xen_fmem;
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40900
+
+typedef xc_interface xendevicemodel_handle;
+
+#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40900 */
+
+#undef XC_WANT_COMPAT_DEVICEMODEL_API
+#include <xendevicemodel.h>
+
+#endif
+
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41000
 
 #define XEN_COMPAT_PHYSMAP
@@ -104,8 +115,6 @@ static inline int xentoolcore_restrict_all(domid_t domid)
 #endif
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40900
-
-typedef xc_interface xendevicemodel_handle;
 
 static inline xendevicemodel_handle *xendevicemodel_open(
     struct xentoollog_logger *logger, unsigned int open_flags)
@@ -227,11 +236,6 @@ static inline int xendevicemodel_set_mem_type(
 {
     return xc_hvm_set_mem_type(dmod, domid, mem_type, first_pfn, nr);
 }
-
-#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40900 */
-
-#undef XC_WANT_COMPAT_DEVICEMODEL_API
-#include <xendevicemodel.h>
 
 #endif
 
