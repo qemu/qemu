@@ -18,7 +18,7 @@
 
 #include "sysemu/hvf.h"
 #include "cpu.h"
-#include "hvf-utils/x86.h"
+#include "x86.h"
 
 #define HVF_MAX_VCPU 0x10
 #define MAX_VM_ID 0x40

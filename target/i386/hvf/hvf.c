@@ -24,15 +24,15 @@
 
 #include "sysemu/hvf.h"
 #include "hvf-i386.h"
-#include "hvf-utils/vmcs.h"
-#include "hvf-utils/vmx.h"
-#include "hvf-utils/x86.h"
-#include "hvf-utils/x86_descr.h"
-#include "hvf-utils/x86_mmu.h"
-#include "hvf-utils/x86_decode.h"
-#include "hvf-utils/x86_emu.h"
-#include "hvf-utils/x86_task.h"
-#include "hvf-utils/x86hvf.h"
+#include "vmcs.h"
+#include "vmx.h"
+#include "x86.h"
+#include "x86_descr.h"
+#include "x86_mmu.h"
+#include "x86_decode.h"
+#include "x86_emu.h"
+#include "x86_task.h"
+#include "x86hvf.h"
 
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
@@ -44,7 +44,6 @@
 #include "hw/boards.h"
 #include "qemu/main-loop.h"
 #include "strings.h"
-#include "trace.h"
 #include "sysemu/accel.h"
 #include "sysemu/sysemu.h"
 #include "target/i386/cpu.h"
