@@ -92,8 +92,7 @@ static int get_cpus_node(void *fdt)
     int cpus_offset = fdt_path_offset(fdt, "/cpus");
 
     if (cpus_offset < 0) {
-        cpus_offset = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"),
-                                      "cpus");
+        cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
         if (cpus_offset) {
             _FDT((fdt_setprop_cell(fdt, cpus_offset, "#address-cells", 0x1)));
             _FDT((fdt_setprop_cell(fdt, cpus_offset, "#size-cells", 0x0)));

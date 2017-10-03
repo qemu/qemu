@@ -353,8 +353,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
 
         cpus_offset = fdt_path_offset(fdt, "/cpus");
         if (cpus_offset < 0) {
-            cpus_offset = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"),
-                                          "cpus");
+            cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
             if (cpus_offset < 0) {
                 return cpus_offset;
             }
