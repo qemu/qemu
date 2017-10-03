@@ -19,8 +19,6 @@
 #ifndef HVF_X86_H
 #define HVF_X86_H 1
 
-#include "x86_gen.h"
-
 typedef struct x86_register {
     union {
         struct {

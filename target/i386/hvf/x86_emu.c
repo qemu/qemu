@@ -36,7 +36,7 @@
 /////////////////////////////////////////////////////////////////////////
 
 #include "qemu/osdep.h"
-
+#include "panic.h"
 #include "qemu-common.h"
 #include "x86_decode.h"
 #include "x86.h"

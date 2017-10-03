@@ -18,8 +18,6 @@
 #ifndef __X86_MMU_H__
 #define __X86_MMU_H__
 
-#include "x86_gen.h"
-
 #define PT_PRESENT      (1 << 0)
 #define PT_WRITE        (1 << 1)
 #define PT_USER         (1 << 2)

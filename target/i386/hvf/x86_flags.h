@@ -23,7 +23,6 @@
 #ifndef __X86_FLAGS_H__
 #define __X86_FLAGS_H__
 
-#include "x86_gen.h"
 #include "cpu.h"
 void lflags_to_rflags(CPUX86State *env);
 void rflags_to_lflags(CPUX86State *env);

@@ -15,8 +15,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __X86_GEN_H__
-#define __X86_GEN_H__
+#ifndef HVF_PANIC_H
+#define HVF_PANIC_H
 
 #define VM_PANIC(x) {\
     printf("%s\n", x); \

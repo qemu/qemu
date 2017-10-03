@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
+#include "panic.h"
 #include "cpu.h"
 #include "x86_flags.h"
 #include "x86.h"
