@@ -16,13 +16,9 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef HVF_X86_H
+#define HVF_X86_H 1
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <stdarg.h>
-#include "qemu-common.h"
 #include "x86_gen.h"
 
 /* exceptions */
@@ -467,3 +463,4 @@ static inline uint64_t rdtscp(void)
     return tsc;
 }
 
+#endif

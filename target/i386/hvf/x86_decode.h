@@ -15,15 +15,11 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef HVF_X86_DECODE_H
+#define HVF_X86_DECODE_H 1
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <stdarg.h>
-#include "qemu-common.h"
-#include "x86.h"
 #include "cpu.h"
+#include "x86.h"
 
 typedef enum x86_prefix {
     /* group 1 */
@@ -323,3 +319,5 @@ void calc_modrm_operand64(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op);
 void set_addressing_size(CPUX86State *env, struct x86_decode *decode);
 void set_operand_size(CPUX86State *env, struct x86_decode *decode);
+
+#endif

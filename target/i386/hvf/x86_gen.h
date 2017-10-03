@@ -18,10 +18,6 @@
 #ifndef __X86_GEN_H__
 #define __X86_GEN_H__
 
-#include <stdlib.h>
-#include <stdio.h>
-#include "qemu-common.h"
-
 typedef uint64_t addr_t;
 
 #define VM_PANIC(x) {\

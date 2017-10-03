@@ -16,7 +16,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef HVF_X86_DESCR_H
+#define HVF_X86_DESCR_H 1
 
 #include "x86.h"
 
@@ -53,3 +54,5 @@ uint32_t vmx_read_segment_ar(CPUState *cpu, x86_reg_segment seg);
 void vmx_segment_to_x86_descriptor(struct CPUState *cpu,
                                    struct vmx_segment *vmx_desc,
                                    struct x86_segment_descriptor *desc);
+
+#endif

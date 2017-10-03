@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "x86.h"
 #include "vmx.h"
 #include "sysemu/hvf.h"
