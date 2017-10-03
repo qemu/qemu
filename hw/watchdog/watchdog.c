@@ -29,8 +29,9 @@
 #include "qapi-event.h"
 #include "hw/nmi.h"
 #include "qemu/help_option.h"
+#include "qmp-commands.h"
 
-static int watchdog_action = WDT_RESET;
+static WatchdogAction watchdog_action = WATCHDOG_ACTION_RESET;
 static QLIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
 
 void watchdog_add_model(WatchdogTimerModel *model)
@@ -77,27 +78,19 @@ int select_watchdog(const char *p)
 
 int select_watchdog_action(const char *p)
 {
-    if (strcasecmp(p, "reset") == 0)
-        watchdog_action = WDT_RESET;
-    else if (strcasecmp(p, "shutdown") == 0)
-        watchdog_action = WDT_SHUTDOWN;
-    else if (strcasecmp(p, "poweroff") == 0)
-        watchdog_action = WDT_POWEROFF;
-    else if (strcasecmp(p, "pause") == 0)
-        watchdog_action = WDT_PAUSE;
-    else if (strcasecmp(p, "debug") == 0)
-        watchdog_action = WDT_DEBUG;
-    else if (strcasecmp(p, "none") == 0)
-        watchdog_action = WDT_NONE;
-    else if (strcasecmp(p, "inject-nmi") == 0)
-        watchdog_action = WDT_NMI;
-    else
-        return -1;
+    int action;
+    char *qapi_value;
 
+    qapi_value = g_ascii_strdown(p, -1);
+    action = qapi_enum_parse(&WatchdogAction_lookup, qapi_value, -1, NULL);
+    g_free(qapi_value);
+    if (action < 0)
+        return -1;
+    qmp_watchdog_set_action(action, &error_abort);
     return 0;
 }
 
-int get_watchdog_action(void)
+WatchdogAction get_watchdog_action(void)
 {
     return watchdog_action;
 }
@@ -108,42 +101,50 @@ int get_watchdog_action(void)
 void watchdog_perform_action(void)
 {
     switch (watchdog_action) {
-    case WDT_RESET:             /* same as 'system_reset' in monitor */
-        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_RESET, &error_abort);
+    case WATCHDOG_ACTION_RESET:     /* same as 'system_reset' in monitor */
+        qapi_event_send_watchdog(WATCHDOG_ACTION_RESET, &error_abort);
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         break;
 
-    case WDT_SHUTDOWN:          /* same as 'system_powerdown' in monitor */
-        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_SHUTDOWN, &error_abort);
+    case WATCHDOG_ACTION_SHUTDOWN:  /* same as 'system_powerdown' in monitor */
+        qapi_event_send_watchdog(WATCHDOG_ACTION_SHUTDOWN, &error_abort);
         qemu_system_powerdown_request();
         break;
 
-    case WDT_POWEROFF:          /* same as 'quit' command in monitor */
-        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_POWEROFF, &error_abort);
+    case WATCHDOG_ACTION_POWEROFF:  /* same as 'quit' command in monitor */
+        qapi_event_send_watchdog(WATCHDOG_ACTION_POWEROFF, &error_abort);
         exit(0);
 
-    case WDT_PAUSE:             /* same as 'stop' command in monitor */
+    case WATCHDOG_ACTION_PAUSE:     /* same as 'stop' command in monitor */
         /* In a timer callback, when vm_stop calls qemu_clock_enable
          * you would get a deadlock.  Bypass the problem.
          */
         qemu_system_vmstop_request_prepare();
-        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_PAUSE, &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_PAUSE, &error_abort);
         qemu_system_vmstop_request(RUN_STATE_WATCHDOG);
         break;
 
-    case WDT_DEBUG:
-        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_DEBUG, &error_abort);
+    case WATCHDOG_ACTION_DEBUG:
+        qapi_event_send_watchdog(WATCHDOG_ACTION_DEBUG, &error_abort);
         fprintf(stderr, "watchdog: timer fired\n");
         break;
 
-    case WDT_NONE:
-        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_NONE, &error_abort);
+    case WATCHDOG_ACTION_NONE:
+        qapi_event_send_watchdog(WATCHDOG_ACTION_NONE, &error_abort);
         break;
 
-    case WDT_NMI:
-        qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_INJECT_NMI,
+    case WATCHDOG_ACTION_INJECT_NMI:
+        qapi_event_send_watchdog(WATCHDOG_ACTION_INJECT_NMI,
                                  &error_abort);
         nmi_monitor_handle(0, NULL);
         break;
+
+    default:
+        assert(0);
     }
+}
+
+void qmp_watchdog_set_action(WatchdogAction action, Error **errp)
+{
+    watchdog_action = action;
 }

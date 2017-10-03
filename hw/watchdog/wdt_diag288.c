@@ -57,9 +57,9 @@ static void diag288_timer_expired(void *dev)
      * the BQL; reset before triggering the action to avoid races with
      * diag288 instructions. */
     switch (get_watchdog_action()) {
-    case WDT_DEBUG:
-    case WDT_NONE:
-    case WDT_PAUSE:
+    case WATCHDOG_ACTION_DEBUG:
+    case WATCHDOG_ACTION_NONE:
+    case WATCHDOG_ACTION_PAUSE:
         break;
     default:
         wdt_diag288_reset(dev);

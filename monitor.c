@@ -3541,8 +3541,8 @@ void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
         return;
     }
     readline_set_completion_index(rs, strlen(str));
-    for (i = 0; i < WATCHDOG_EXPIRATION_ACTION__MAX; i++) {
-        add_completion_option(rs, str, WatchdogExpirationAction_str(i));
+    for (i = 0; i < WATCHDOG_ACTION__MAX; i++) {
+        add_completion_option(rs, str, WatchdogAction_str(i));
     }
 }
 
