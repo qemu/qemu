@@ -2091,8 +2091,7 @@ static void decode_opcodes(CPUX86State *env, struct x86_decode *decode)
 
 uint32_t decode_instruction(CPUX86State *env, struct x86_decode *decode)
 {
-    ZERO_INIT(*decode);
-
+    memset(decode, 0, sizeof(*decode));
     decode_prefix(env, decode);
     set_addressing_size(env, decode);
     set_operand_size(env, decode);

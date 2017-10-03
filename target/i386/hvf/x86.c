@@ -53,7 +53,8 @@ bool x86_read_segment_descriptor(struct CPUState *cpu,
     addr_t base;
     uint32_t limit;
 
-    ZERO_INIT(*desc);
+    memset(desc, 0, sizeof(*desc));
+
     /* valid gdt descriptors start from index 1 */
     if (!sel.index && GDT_SEL == sel.ti) {
         return false;
@@ -104,7 +105,7 @@ bool x86_read_call_gate(struct CPUState *cpu, struct x86_call_gate *idt_desc,
     addr_t base  = rvmcs(cpu->hvf_fd, VMCS_GUEST_IDTR_BASE);
     uint32_t limit = rvmcs(cpu->hvf_fd, VMCS_GUEST_IDTR_LIMIT);
 
-    ZERO_INIT(*idt_desc);
+    memset(idt_desc, 0, sizeof(*idt_desc));
     if (gate * 8 >= limit) {
         printf("%s: idt limit\n", __func__);
         return false;

@@ -44,6 +44,4 @@ typedef uint64_t addr_t;
     } \
 }
 
-#define ZERO_INIT(obj) memset((void *) &obj, 0, sizeof(obj))
-
 #endif
