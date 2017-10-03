@@ -49,7 +49,7 @@
 void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
                    int direction, int size, uint32_t count);
 
-#define EXEC_2OP_LOGIC_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
+#define EXEC_2OP_FLAGS_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \
     fetch_operands(env, decode, 2, true, true, false);  \
     switch (decode->operand_size) {                     \
@@ -61,7 +61,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         if (save_res) {                              \
             write_val_ext(env, decode->op[0].ptr, diff, 1);  \
         } \
-        FLAGS_FUNC##_8(diff);                       \
+        FLAGS_FUNC##8(env, v1, v2, diff);           \
         break;                                      \
     }                                               \
     case 2:                                        \
@@ -72,7 +72,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         if (save_res) {                              \
             write_val_ext(env, decode->op[0].ptr, diff, 2); \
         } \
-        FLAGS_FUNC##_16(diff);                      \
+        FLAGS_FUNC##16(env, v1, v2, diff);          \
         break;                                      \
     }                                               \
     case 4:                                        \
@@ -83,56 +83,13 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
         if (save_res) {                              \
             write_val_ext(env, decode->op[0].ptr, diff, 4); \
         } \
-        FLAGS_FUNC##_32(diff);                      \
+        FLAGS_FUNC##32(env, v1, v2, diff);          \
         break;                                      \
     }                                               \
     default:                                        \
         VM_PANIC("bad size\n");                    \
     }                                                   \
 }                                                       \
-
-
-#define EXEC_2OP_ARITH_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
-{                                                       \
-    fetch_operands(env, decode, 2, true, true, false);  \
-    switch (decode->operand_size) {                     \
-    case 1:                                         \
-    {                                               \
-        uint8_t v1 = (uint8_t)decode->op[0].val;    \
-        uint8_t v2 = (uint8_t)decode->op[1].val;    \
-        uint8_t diff = v1 cmd v2;                   \
-        if (save_res) {                              \
-            write_val_ext(env, decode->op[0].ptr, diff, 1);  \
-        } \
-        FLAGS_FUNC##_8(v1, v2, diff);               \
-        break;                                      \
-    }                                               \
-    case 2:                                        \
-    {                                               \
-        uint16_t v1 = (uint16_t)decode->op[0].val;  \
-        uint16_t v2 = (uint16_t)decode->op[1].val;  \
-        uint16_t diff = v1 cmd v2;                  \
-        if (save_res) {                              \
-            write_val_ext(env, decode->op[0].ptr, diff, 2); \
-        } \
-        FLAGS_FUNC##_16(v1, v2, diff);              \
-        break;                                      \
-    }                                               \
-    case 4:                                        \
-    {                                               \
-        uint32_t v1 = (uint32_t)decode->op[0].val;  \
-        uint32_t v2 = (uint32_t)decode->op[1].val;  \
-        uint32_t diff = v1 cmd v2;                  \
-        if (save_res) {                              \
-            write_val_ext(env, decode->op[0].ptr, diff, 4); \
-        } \
-        FLAGS_FUNC##_32(v1, v2, diff);              \
-        break;                                      \
-    }                                               \
-    default:                                        \
-        VM_PANIC("bad size\n");                    \
-    }                                                   \
-}
 
 addr_t read_reg(CPUX86State *env, int reg, int size)
 {
@@ -315,49 +272,49 @@ static void exec_mov(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_add(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
     RIP(env) += decode->len;
 }
 
 static void exec_or(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(env, decode, |, SET_FLAGS_OSZAPC_LOGIC, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, |, SET_FLAGS_OSZAPC_LOGIC, true);
     RIP(env) += decode->len;
 }
 
 static void exec_adc(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(env, decode, +get_CF(env)+, SET_FLAGS_OSZAPC_ADD, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, +get_CF(env)+, SET_FLAGS_OSZAPC_ADD, true);
     RIP(env) += decode->len;
 }
 
 static void exec_sbb(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(env, decode, -get_CF(env)-, SET_FLAGS_OSZAPC_SUB, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, -get_CF(env)-, SET_FLAGS_OSZAPC_SUB, true);
     RIP(env) += decode->len;
 }
 
 static void exec_and(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, true);
     RIP(env) += decode->len;
 }
 
 static void exec_sub(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, true);
     RIP(env) += decode->len;
 }
 
 static void exec_xor(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(env, decode, ^, SET_FLAGS_OSZAPC_LOGIC, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, ^, SET_FLAGS_OSZAPC_LOGIC, true);
     RIP(env) += decode->len;
 }
 
 static void exec_neg(struct CPUX86State *env, struct x86_decode *decode)
 {
-    /*EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);*/
+    /*EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);*/
     int32_t val;
     fetch_operands(env, decode, 2, true, true, false);
 
@@ -365,11 +322,11 @@ static void exec_neg(struct CPUX86State *env, struct x86_decode *decode)
     write_val_ext(env, decode->op[1].ptr, val, decode->operand_size);
 
     if (4 == decode->operand_size) {
-        SET_FLAGS_OSZAPC_SUB_32(0, 0 - val, val);
+        SET_FLAGS_OSZAPC_SUB32(env, 0, 0 - val, val);
     } else if (2 == decode->operand_size) {
-        SET_FLAGS_OSZAPC_SUB_16(0, 0 - val, val);
+        SET_FLAGS_OSZAPC_SUB16(env, 0, 0 - val, val);
     } else if (1 == decode->operand_size) {
-        SET_FLAGS_OSZAPC_SUB_8(0, 0 - val, val);
+        SET_FLAGS_OSZAPC_SUB8(env, 0, 0 - val, val);
     } else {
         VM_PANIC("bad op size\n");
     }
@@ -380,7 +337,7 @@ static void exec_neg(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_cmp(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
+    EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
     RIP(env) += decode->len;
 }
 
@@ -389,7 +346,7 @@ static void exec_inc(struct CPUX86State *env, struct x86_decode *decode)
     decode->op[1].type = X86_VAR_IMMEDIATE;
     decode->op[1].val = 0;
 
-    EXEC_2OP_ARITH_CMD(env, decode, +1+, SET_FLAGS_OSZAP_ADD, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, +1+, SET_FLAGS_OSZAP_ADD, true);
 
     RIP(env) += decode->len;
 }
@@ -399,13 +356,13 @@ static void exec_dec(struct CPUX86State *env, struct x86_decode *decode)
     decode->op[1].type = X86_VAR_IMMEDIATE;
     decode->op[1].val = 0;
 
-    EXEC_2OP_ARITH_CMD(env, decode, -1-, SET_FLAGS_OSZAP_SUB, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, -1-, SET_FLAGS_OSZAP_SUB, true);
     RIP(env) += decode->len;
 }
 
 static void exec_tst(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_LOGIC_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, false);
+    EXEC_2OP_FLAGS_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, false);
     RIP(env) += decode->len;
 }
 
@@ -612,7 +569,7 @@ static void exec_cmps_single(struct CPUX86State *env, struct x86_decode *decode)
     decode->op[1].type = X86_VAR_IMMEDIATE;
     decode->op[1].val = read_val_ext(env, dst_addr, decode->operand_size);
 
-    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
+    EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
 
     string_increment_reg(env, R_ESI, decode);
     string_increment_reg(env, R_EDI, decode);
@@ -661,7 +618,7 @@ static void exec_scas_single(struct CPUX86State *env, struct x86_decode *decode)
     decode->op[1].type = X86_VAR_IMMEDIATE;
     vmx_read_mem(ENV_GET_CPU(env), &decode->op[1].val, addr, decode->operand_size);
 
-    EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
+    EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
     string_increment_reg(env, R_EDI, decode);
 }
 
@@ -996,7 +953,7 @@ void exec_shl(struct CPUX86State *env, struct x86_decode *decode)
         }
 
         write_val_ext(env, decode->op[0].ptr, res, 1);
-        SET_FLAGS_OSZAPC_LOGIC_8(res);
+        SET_FLAGS_OSZAPC_LOGIC8(env, 0, 0, res);
         SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
@@ -1012,7 +969,7 @@ void exec_shl(struct CPUX86State *env, struct x86_decode *decode)
         }
 
         write_val_ext(env, decode->op[0].ptr, res, 2);
-        SET_FLAGS_OSZAPC_LOGIC_16(res);
+        SET_FLAGS_OSZAPC_LOGIC16(env, 0, 0, res);
         SET_FLAGS_OxxxxC(env, of, cf);
         break;
     }
@@ -1021,7 +978,7 @@ void exec_shl(struct CPUX86State *env, struct x86_decode *decode)
         uint32_t res = decode->op[0].val << count;
 
         write_val_ext(env, decode->op[0].ptr, res, 4);
-        SET_FLAGS_OSZAPC_LOGIC_32(res);
+        SET_FLAGS_OSZAPC_LOGIC32(env, 0, 0, res);
         cf = (decode->op[0].val >> (32 - count)) & 0x1;
         of = cf ^ (res >> 31); /* of = cf ^ result31 */
         SET_FLAGS_OxxxxC(env, of, cf);
@@ -1393,7 +1350,7 @@ static void exec_xchg(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_xadd(struct CPUX86State *env, struct x86_decode *decode)
 {
-    EXEC_2OP_ARITH_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
+    EXEC_2OP_FLAGS_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
     write_val_ext(env, decode->op[1].ptr, decode->op[0].val,
                   decode->operand_size);
 
