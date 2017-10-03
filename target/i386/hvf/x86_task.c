@@ -89,16 +89,6 @@ static void load_state_from_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
     vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ds}}, R_DS);
     vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->fs}}, R_FS);
     vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->gs}}, R_GS);
-
-#if 0
-    load_segment(cpu, R_LDTR, tss->ldt);
-    load_segment(cpu, R_ES, tss->es);
-    load_segment(cpu, R_CS, tss->cs);
-    load_segment(cpu, R_SS, tss->ss);
-    load_segment(cpu, R_DS, tss->ds);
-    load_segment(cpu, R_FS, tss->fs);
-    load_segment(cpu, R_GS, tss->gs);
-#endif
 }
 
 static int task_switch_32(CPUState *cpu, x68_segment_selector tss_sel, x68_segment_selector old_tss_sel,

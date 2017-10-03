@@ -837,7 +837,6 @@ void simulate_wrmsr(struct CPUState *cpu)
         abort();
         break;
     case MSR_EFER:
-        env->hvf_emul->efer.efer = data;
         /*printf("new efer %llx\n", EFER(cpu));*/
         wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, data);
         if (data & MSR_EFER_NXE) {
@@ -1511,23 +1510,15 @@ bool exec_instruction(struct CPUX86State *env, struct x86_decode *ins)
     printf("%d, %llx: exec_instruction %s\n", hvf_vcpu_id(cpu),  RIP(cpu),
           decode_cmd_to_string(ins->cmd));*/
 
-    if (0 && ins->is_fpu) {
-        VM_PANIC("emulate fpu\n");
-    } else {
-        if (!_cmd_handler[ins->cmd].handler) {
-            printf("Unimplemented handler (%llx) for %d (%x %x) \n", RIP(env),
-                    ins->cmd, ins->opcode[0],
-                    ins->opcode_len > 1 ? ins->opcode[1] : 0);
-            RIP(env) += ins->len;
-            return true;
-        }
-
-        VM_PANIC_ON_EX(!_cmd_handler[ins->cmd].handler,
-                "Unimplemented handler (%llx) for %d (%x %x) \n", RIP(env),
-                 ins->cmd, ins->opcode[0],
-                 ins->opcode_len > 1 ? ins->opcode[1] : 0);
-        _cmd_handler[ins->cmd].handler(env, ins);
+    if (!_cmd_handler[ins->cmd].handler) {
+        printf("Unimplemented handler (%llx) for %d (%x %x) \n", RIP(env),
+                ins->cmd, ins->opcode[0],
+                ins->opcode_len > 1 ? ins->opcode[1] : 0);
+        RIP(env) += ins->len;
+        return true;
     }
+
+    _cmd_handler[ins->cmd].handler(env, ins);
     return true;
 }
 

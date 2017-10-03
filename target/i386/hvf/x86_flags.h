@@ -190,7 +190,6 @@ bool get_SF(CPUX86State *env);
 void set_SF(CPUX86State *env, bool val);
 bool get_OF(CPUX86State *env);
 void set_OF(CPUX86State *env, bool val);
-void set_OSZAPC(CPUX86State *env, uint32_t flags32);
 
 void SET_FLAGS_OxxxxC(CPUX86State *env, uint32_t new_of, uint32_t new_cf);
 

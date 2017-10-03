@@ -631,7 +631,7 @@ static void decode_aegroup(CPUX86State *env, struct x86_decode *decode)
         }
         break;
     default:
-        VM_PANIC_ON_EX(1, "0xae: reg %d\n", decode->modrm.reg);
+        VM_PANIC_EX("0xae: reg %d\n", decode->modrm.reg);
         break;
     }
 }
@@ -655,14 +655,14 @@ static void decode_d9_4(CPUX86State *env, struct x86_decode *decode)
         decode->cmd = X86_DECODE_CMD_FABS;
         break;
     case 0xe4:
-        VM_PANIC_ON_EX(1, "FTST");
+        VM_PANIC("FTST");
         break;
     case 0xe5:
         /* FXAM */
         decode->cmd = X86_DECODE_CMD_FXAM;
         break;
     default:
-        VM_PANIC_ON_EX(1, "FLDENV");
+        VM_PANIC("FLDENV");
         break;
     }
 }
@@ -671,16 +671,16 @@ static void decode_db_4(CPUX86State *env, struct x86_decode *decode)
 {
     switch (decode->modrm.modrm) {
     case 0xe0:
-        VM_PANIC_ON_EX(1, "unhandled FNENI: %x %x\n", decode->opcode[0],
-                       decode->modrm.modrm);
+        VM_PANIC_EX("unhandled FNENI: %x %x\n", decode->opcode[0],
+                    decode->modrm.modrm);
         break;
     case 0xe1:
-        VM_PANIC_ON_EX(1, "unhandled FNDISI: %x %x\n", decode->opcode[0],
-                       decode->modrm.modrm);
+        VM_PANIC_EX("unhandled FNDISI: %x %x\n", decode->opcode[0],
+                    decode->modrm.modrm);
         break;
     case 0xe2:
-        VM_PANIC_ON_EX(1, "unhandled FCLEX: %x %x\n", decode->opcode[0],
-                       decode->modrm.modrm);
+        VM_PANIC_EX("unhandled FCLEX: %x %x\n", decode->opcode[0],
+                    decode->modrm.modrm);
         break;
     case 0xe3:
         decode->cmd = X86_DECODE_CMD_FNINIT;
@@ -689,8 +689,8 @@ static void decode_db_4(CPUX86State *env, struct x86_decode *decode)
         decode->cmd = X86_DECODE_CMD_FNSETPM;
         break;
     default:
-        VM_PANIC_ON_EX(1, "unhandled fpu opcode: %x %x\n", decode->opcode[0],
-                       decode->modrm.modrm);
+        VM_PANIC_EX("unhandled fpu opcode: %x %x\n", decode->opcode[0],
+                    decode->modrm.modrm);
         break;
     }
 }

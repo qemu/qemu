@@ -102,10 +102,6 @@ typedef struct x86_reg_flags {
     };
 } __attribute__ ((__packed__)) x86_reg_flags;
 
-typedef struct x86_efer {
-    uint64_t efer;
-} __attribute__ ((__packed__)) x86_efer;
-
 typedef enum x86_reg_cr0 {
     CR0_PE =            (1L << 0),
     CR0_MP =            (1L << 1),
@@ -305,7 +301,6 @@ struct HVFX86EmulatorState {
     struct x86_register regs[16];
     struct x86_reg_flags   rflags;
     struct lazy_flags   lflags;
-    struct x86_efer efer;
     uint8_t mmio_buf[4096];
 };
 

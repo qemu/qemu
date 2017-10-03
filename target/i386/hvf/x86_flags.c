@@ -301,16 +301,6 @@ void set_SF(CPUX86State *env, bool val)
     env->hvf_emul->lflags.auxbits ^= (temp_sf ^ val) << LF_BIT_SD;
 }
 
-void set_OSZAPC(CPUX86State *env, uint32_t flags32)
-{
-    set_OF(env, env->hvf_emul->rflags.of);
-    set_SF(env, env->hvf_emul->rflags.sf);
-    set_ZF(env, env->hvf_emul->rflags.zf);
-    set_AF(env, env->hvf_emul->rflags.af);
-    set_PF(env, env->hvf_emul->rflags.pf);
-    set_CF(env, env->hvf_emul->rflags.cf);
-}
-
 void lflags_to_rflags(CPUX86State *env)
 {
     env->hvf_emul->rflags.cf = get_CF(env);
