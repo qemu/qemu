@@ -107,28 +107,28 @@ void hvf_put_segments(CPUState *cpu_state)
     macvm_set_cr0(cpu_state->hvf_fd, env->cr[0]);
 
     hvf_set_segment(cpu_state, &seg, &env->segs[R_CS], false);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_CS);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_CS);
     
     hvf_set_segment(cpu_state, &seg, &env->segs[R_DS], false);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_DS);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_DS);
 
     hvf_set_segment(cpu_state, &seg, &env->segs[R_ES], false);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_ES);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_ES);
 
     hvf_set_segment(cpu_state, &seg, &env->segs[R_SS], false);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_SS);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_SS);
 
     hvf_set_segment(cpu_state, &seg, &env->segs[R_FS], false);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_FS);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_FS);
 
     hvf_set_segment(cpu_state, &seg, &env->segs[R_GS], false);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_GS);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_GS);
 
     hvf_set_segment(cpu_state, &seg, &env->tr, true);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_TR);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_TR);
 
     hvf_set_segment(cpu_state, &seg, &env->ldt, false);
-    vmx_write_segment_descriptor(cpu_state, &seg, REG_SEG_LDTR);
+    vmx_write_segment_descriptor(cpu_state, &seg, R_LDTR);
     
     hv_vcpu_flush(cpu_state->hvf_fd);
 }
@@ -183,28 +183,28 @@ void hvf_get_segments(CPUState *cpu_state)
 
     env->interrupt_injected = -1;
 
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_CS);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_CS);
     hvf_get_segment(&env->segs[R_CS], &seg);
     
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_DS);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_DS);
     hvf_get_segment(&env->segs[R_DS], &seg);
 
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_ES);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_ES);
     hvf_get_segment(&env->segs[R_ES], &seg);
 
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_FS);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_FS);
     hvf_get_segment(&env->segs[R_FS], &seg);
 
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_GS);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_GS);
     hvf_get_segment(&env->segs[R_GS], &seg);
 
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_SS);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_SS);
     hvf_get_segment(&env->segs[R_SS], &seg);
 
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_TR);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_TR);
     hvf_get_segment(&env->tr, &seg);
 
-    vmx_read_segment_descriptor(cpu_state, &seg, REG_SEG_LDTR);
+    vmx_read_segment_descriptor(cpu_state, &seg, R_LDTR);
     hvf_get_segment(&env->ldt, &seg);
 
     env->idt.limit = rvmcs(cpu_state->hvf_fd, VMCS_GUEST_IDTR_LIMIT);

@@ -21,57 +21,6 @@
 
 #include "x86_gen.h"
 
-/* exceptions */
-typedef enum x86_exception {
-    EXCEPTION_DE,           /* divide error */
-    EXCEPTION_DB,           /* debug fault */
-    EXCEPTION_NMI,          /* non-maskable interrupt */
-    EXCEPTION_BP,           /* breakpoint trap */
-    EXCEPTION_OF,           /* overflow trap */
-    EXCEPTION_BR,           /* boundary range exceeded fault */
-    EXCEPTION_UD,           /* undefined opcode */
-    EXCEPTION_NM,           /* device not available */
-    EXCEPTION_DF,           /* double fault */
-    EXCEPTION_RSVD,         /* not defined */
-    EXCEPTION_TS,           /* invalid TSS fault */
-    EXCEPTION_NP,           /* not present fault */
-    EXCEPTION_GP,           /* general protection fault */
-    EXCEPTION_PF,           /* page fault */
-    EXCEPTION_RSVD2,        /* not defined */
-} x86_exception;
-
-/* general purpose regs */
-typedef enum x86_reg_name {
-    REG_RAX = 0,
-    REG_RCX = 1,
-    REG_RDX = 2,
-    REG_RBX = 3,
-    REG_RSP = 4,
-    REG_RBP = 5,
-    REG_RSI = 6,
-    REG_RDI = 7,
-    REG_R8 = 8,
-    REG_R9 = 9,
-    REG_R10 = 10,
-    REG_R11 = 11,
-    REG_R12 = 12,
-    REG_R13 = 13,
-    REG_R14 = 14,
-    REG_R15 = 15,
-} x86_reg_name;
-
-/* segment regs */
-typedef enum x86_reg_segment {
-    REG_SEG_ES = 0,
-    REG_SEG_CS = 1,
-    REG_SEG_SS = 2,
-    REG_SEG_DS = 3,
-    REG_SEG_FS = 4,
-    REG_SEG_GS = 5,
-    REG_SEG_LDTR = 6,
-    REG_SEG_TR = 7,
-} x86_reg_segment;
-
 typedef struct x86_register {
     union {
         struct {
@@ -152,15 +101,6 @@ typedef struct x86_reg_flags {
         };
     };
 } __attribute__ ((__packed__)) x86_reg_flags;
-
-typedef enum x86_reg_efer {
-    EFER_SCE =          (1L << 0),
-    EFER_LME =          (1L << 8),
-    EFER_LMA =          (1L << 10),
-    EFER_NXE =          (1L << 11),
-    EFER_SVME =         (1L << 12),
-    EFER_FXSR =         (1L << 14),
-} x86_reg_efer;
 
 typedef struct x86_efer {
     uint64_t efer;
@@ -376,54 +316,54 @@ struct HVFX86EmulatorState {
 #define EFLAGS(cpu) (cpu->hvf_emul->rflags.eflags)
 
 #define RRX(cpu, reg) (cpu->hvf_emul->regs[reg].rrx)
-#define RAX(cpu)        RRX(cpu, REG_RAX)
-#define RCX(cpu)        RRX(cpu, REG_RCX)
-#define RDX(cpu)        RRX(cpu, REG_RDX)
-#define RBX(cpu)        RRX(cpu, REG_RBX)
-#define RSP(cpu)        RRX(cpu, REG_RSP)
-#define RBP(cpu)        RRX(cpu, REG_RBP)
-#define RSI(cpu)        RRX(cpu, REG_RSI)
-#define RDI(cpu)        RRX(cpu, REG_RDI)
-#define R8(cpu)         RRX(cpu, REG_R8)
-#define R9(cpu)         RRX(cpu, REG_R9)
-#define R10(cpu)        RRX(cpu, REG_R10)
-#define R11(cpu)        RRX(cpu, REG_R11)
-#define R12(cpu)        RRX(cpu, REG_R12)
-#define R13(cpu)        RRX(cpu, REG_R13)
-#define R14(cpu)        RRX(cpu, REG_R14)
-#define R15(cpu)        RRX(cpu, REG_R15)
+#define RAX(cpu)        RRX(cpu, R_EAX)
+#define RCX(cpu)        RRX(cpu, R_ECX)
+#define RDX(cpu)        RRX(cpu, R_EDX)
+#define RBX(cpu)        RRX(cpu, R_EBX)
+#define RSP(cpu)        RRX(cpu, R_ESP)
+#define RBP(cpu)        RRX(cpu, R_EBP)
+#define RSI(cpu)        RRX(cpu, R_ESI)
+#define RDI(cpu)        RRX(cpu, R_EDI)
+#define R8(cpu)         RRX(cpu, R_R8)
+#define R9(cpu)         RRX(cpu, R_R9)
+#define R10(cpu)        RRX(cpu, R_R10)
+#define R11(cpu)        RRX(cpu, R_R11)
+#define R12(cpu)        RRX(cpu, R_R12)
+#define R13(cpu)        RRX(cpu, R_R13)
+#define R14(cpu)        RRX(cpu, R_R14)
+#define R15(cpu)        RRX(cpu, R_R15)
 
 #define ERX(cpu, reg)   (cpu->hvf_emul->regs[reg].erx)
-#define EAX(cpu)        ERX(cpu, REG_RAX)
-#define ECX(cpu)        ERX(cpu, REG_RCX)
-#define EDX(cpu)        ERX(cpu, REG_RDX)
-#define EBX(cpu)        ERX(cpu, REG_RBX)
-#define ESP(cpu)        ERX(cpu, REG_RSP)
-#define EBP(cpu)        ERX(cpu, REG_RBP)
-#define ESI(cpu)        ERX(cpu, REG_RSI)
-#define EDI(cpu)        ERX(cpu, REG_RDI)
+#define EAX(cpu)        ERX(cpu, R_EAX)
+#define ECX(cpu)        ERX(cpu, R_ECX)
+#define EDX(cpu)        ERX(cpu, R_EDX)
+#define EBX(cpu)        ERX(cpu, R_EBX)
+#define ESP(cpu)        ERX(cpu, R_ESP)
+#define EBP(cpu)        ERX(cpu, R_EBP)
+#define ESI(cpu)        ERX(cpu, R_ESI)
+#define EDI(cpu)        ERX(cpu, R_EDI)
 
 #define RX(cpu, reg)   (cpu->hvf_emul->regs[reg].rx)
-#define AX(cpu)        RX(cpu, REG_RAX)
-#define CX(cpu)        RX(cpu, REG_RCX)
-#define DX(cpu)        RX(cpu, REG_RDX)
-#define BP(cpu)        RX(cpu, REG_RBP)
-#define SP(cpu)        RX(cpu, REG_RSP)
-#define BX(cpu)        RX(cpu, REG_RBX)
-#define SI(cpu)        RX(cpu, REG_RSI)
-#define DI(cpu)        RX(cpu, REG_RDI)
+#define AX(cpu)        RX(cpu, R_EAX)
+#define CX(cpu)        RX(cpu, R_ECX)
+#define DX(cpu)        RX(cpu, R_EDX)
+#define BP(cpu)        RX(cpu, R_EBP)
+#define SP(cpu)        RX(cpu, R_ESP)
+#define BX(cpu)        RX(cpu, R_EBX)
+#define SI(cpu)        RX(cpu, R_ESI)
+#define DI(cpu)        RX(cpu, R_EDI)
 
 #define RL(cpu, reg)   (cpu->hvf_emul->regs[reg].lx)
-#define AL(cpu)        RL(cpu, REG_RAX)
-#define CL(cpu)        RL(cpu, REG_RCX)
-#define DL(cpu)        RL(cpu, REG_RDX)
-#define BL(cpu)        RL(cpu, REG_RBX)
+#define AL(cpu)        RL(cpu, R_EAX)
+#define CL(cpu)        RL(cpu, R_ECX)
+#define DL(cpu)        RL(cpu, R_EDX)
+#define BL(cpu)        RL(cpu, R_EBX)
 
 #define RH(cpu, reg)   (cpu->hvf_emul->regs[reg].hx)
-#define AH(cpu)        RH(cpu, REG_RAX)
-#define CH(cpu)        RH(cpu, REG_RCX)
-#define DH(cpu)        RH(cpu, REG_RDX)
-#define BH(cpu)        RH(cpu, REG_RBX)
+#define AH(cpu)        RH(cpu, R_EAX)
+#define CH(cpu)        RH(cpu, R_ECX)
+#define DH(cpu)        RH(cpu, R_EDX)
+#define BH(cpu)        RH(cpu, R_EBX)
 
 /* deal with GDT/LDT descriptors in memory */
 bool x86_read_segment_descriptor(struct CPUState *cpu,
@@ -445,9 +385,10 @@ bool x86_is_long64_mode(struct CPUState *cpu);
 bool x86_is_paging_mode(struct CPUState *cpu);
 bool x86_is_pae_enabled(struct CPUState *cpu);
 
-addr_t linear_addr(struct CPUState *cpu, addr_t addr, x86_reg_segment seg);
+enum X86Seg;
+addr_t linear_addr(struct CPUState *cpu, addr_t addr, enum X86Seg seg);
 addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size,
-                        x86_reg_segment seg);
+                        enum X86Seg seg);
 addr_t linear_rip(struct CPUState *cpu, addr_t rip);
 
 static inline uint64_t rdtscp(void)

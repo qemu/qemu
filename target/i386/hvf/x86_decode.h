@@ -308,7 +308,7 @@ addr_t get_reg_val(CPUX86State *env, int reg, int is_extended, int size);
 void calc_modrm_operand(CPUX86State *env, struct x86_decode *decode,
                         struct x86_decode_op *op);
 addr_t decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
-                          addr_t addr, x86_reg_segment seg);
+                          addr_t addr, enum X86Seg seg);
 
 void init_decoder(void);
 void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,

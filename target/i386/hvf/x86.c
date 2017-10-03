@@ -134,13 +134,13 @@ bool x86_is_v8086(struct CPUState *cpu)
 
 bool x86_is_long_mode(struct CPUState *cpu)
 {
-    return rvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER) & EFER_LMA;
+    return rvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER) & MSR_EFER_LMA;
 }
 
 bool x86_is_long64_mode(struct CPUState *cpu)
 {
     struct vmx_segment desc;
-    vmx_read_segment_descriptor(cpu, &desc, REG_SEG_CS);
+    vmx_read_segment_descriptor(cpu, &desc, R_CS);
 
     return x86_is_long_mode(cpu) && ((desc.ar >> 13) & 1);
 }
@@ -157,13 +157,13 @@ bool x86_is_pae_enabled(struct CPUState *cpu)
     return cr4 & CR4_PAE;
 }
 
-addr_t linear_addr(struct CPUState *cpu, addr_t addr, x86_reg_segment seg)
+addr_t linear_addr(struct CPUState *cpu, addr_t addr, X86Seg seg)
 {
     return vmx_read_segment_base(cpu, seg) + addr;
 }
 
 addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size,
-                        x86_reg_segment seg)
+                        X86Seg seg)
 {
     switch (size) {
     case 2:
@@ -180,5 +180,5 @@ addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size,
 
 addr_t linear_rip(struct CPUState *cpu, addr_t rip)
 {
-    return linear_addr(cpu, rip, REG_SEG_CS);
+    return linear_addr(cpu, rip, R_CS);
 }

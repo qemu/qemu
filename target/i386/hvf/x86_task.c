@@ -54,12 +54,12 @@ static void save_state_to_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
     tss->esi = ESI(env);
     tss->edi = EDI(env);
 
-    tss->es = vmx_read_segment_selector(cpu, REG_SEG_ES).sel;
-    tss->cs = vmx_read_segment_selector(cpu, REG_SEG_CS).sel;
-    tss->ss = vmx_read_segment_selector(cpu, REG_SEG_SS).sel;
-    tss->ds = vmx_read_segment_selector(cpu, REG_SEG_DS).sel;
-    tss->fs = vmx_read_segment_selector(cpu, REG_SEG_FS).sel;
-    tss->gs = vmx_read_segment_selector(cpu, REG_SEG_GS).sel;
+    tss->es = vmx_read_segment_selector(cpu, R_ES).sel;
+    tss->cs = vmx_read_segment_selector(cpu, R_CS).sel;
+    tss->ss = vmx_read_segment_selector(cpu, R_SS).sel;
+    tss->ds = vmx_read_segment_selector(cpu, R_DS).sel;
+    tss->fs = vmx_read_segment_selector(cpu, R_FS).sel;
+    tss->gs = vmx_read_segment_selector(cpu, R_GS).sel;
 }
 
 static void load_state_from_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
@@ -82,22 +82,22 @@ static void load_state_from_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
     RSI(env) = tss->esi;
     RDI(env) = tss->edi;
 
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ldt}}, REG_SEG_LDTR);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->es}}, REG_SEG_ES);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->cs}}, REG_SEG_CS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ss}}, REG_SEG_SS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ds}}, REG_SEG_DS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->fs}}, REG_SEG_FS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->gs}}, REG_SEG_GS);
+    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ldt}}, R_LDTR);
+    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->es}}, R_ES);
+    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->cs}}, R_CS);
+    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ss}}, R_SS);
+    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ds}}, R_DS);
+    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->fs}}, R_FS);
+    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->gs}}, R_GS);
 
 #if 0
-    load_segment(cpu, REG_SEG_LDTR, tss->ldt);
-    load_segment(cpu, REG_SEG_ES, tss->es);
-    load_segment(cpu, REG_SEG_CS, tss->cs);
-    load_segment(cpu, REG_SEG_SS, tss->ss);
-    load_segment(cpu, REG_SEG_DS, tss->ds);
-    load_segment(cpu, REG_SEG_FS, tss->fs);
-    load_segment(cpu, REG_SEG_GS, tss->gs);
+    load_segment(cpu, R_LDTR, tss->ldt);
+    load_segment(cpu, R_ES, tss->es);
+    load_segment(cpu, R_CS, tss->cs);
+    load_segment(cpu, R_SS, tss->ss);
+    load_segment(cpu, R_DS, tss->ds);
+    load_segment(cpu, R_FS, tss->fs);
+    load_segment(cpu, R_GS, tss->gs);
 #endif
 }
 
@@ -139,8 +139,8 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
 
     struct x86_segment_descriptor curr_tss_desc, next_tss_desc;
     int ret;
-    x68_segment_selector old_tss_sel = vmx_read_segment_selector(cpu, REG_SEG_TR);
-    uint64_t old_tss_base = vmx_read_segment_base(cpu, REG_SEG_TR);
+    x68_segment_selector old_tss_sel = vmx_read_segment_selector(cpu, R_TR);
+    uint64_t old_tss_base = vmx_read_segment_base(cpu, R_TR);
     uint32_t desc_limit;
     struct x86_call_gate task_gate_desc;
     struct vmx_segment vmx_seg;
@@ -157,7 +157,7 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
         ret = x86_read_call_gate(cpu, &task_gate_desc, gate);
 
         dpl = task_gate_desc.dpl;
-        x68_segment_selector cs = vmx_read_segment_selector(cpu, REG_SEG_CS);
+        x68_segment_selector cs = vmx_read_segment_selector(cpu, R_CS);
         if (tss_sel.rpl > dpl || cs.rpl > dpl)
             ;//DPRINTF("emulate_gp");
     }
@@ -191,7 +191,7 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
 
     macvm_set_cr0(cpu->hvf_fd, rvmcs(cpu->hvf_fd, VMCS_GUEST_CR0) | CR0_TS);
     x86_segment_descriptor_to_vmx(cpu, tss_sel, &next_tss_desc, &vmx_seg);
-    vmx_write_segment_descriptor(cpu, &vmx_seg, REG_SEG_TR);
+    vmx_write_segment_descriptor(cpu, &vmx_seg, R_TR);
 
     store_regs(cpu);
 

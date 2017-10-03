@@ -121,7 +121,7 @@ static void decode_rax(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op)
 {
     op->type = X86_VAR_REG;
-    op->reg = REG_RAX;
+    op->reg = R_EAX;
     op->ptr = get_reg_ref(env, op->reg, 0, decode->operand_size);
 }
 
@@ -213,22 +213,22 @@ static void decode_pushseg(CPUX86State *env, struct x86_decode *decode)
     decode->op[0].type = X86_VAR_REG;
     switch (op) {
     case 0xe:
-        decode->op[0].reg = REG_SEG_CS;
+        decode->op[0].reg = R_CS;
         break;
     case 0x16:
-        decode->op[0].reg = REG_SEG_SS;
+        decode->op[0].reg = R_SS;
         break;
     case 0x1e:
-        decode->op[0].reg = REG_SEG_DS;
+        decode->op[0].reg = R_DS;
         break;
     case 0x06:
-        decode->op[0].reg = REG_SEG_ES;
+        decode->op[0].reg = R_ES;
         break;
     case 0xa0:
-        decode->op[0].reg = REG_SEG_FS;
+        decode->op[0].reg = R_FS;
         break;
     case 0xa8:
-        decode->op[0].reg = REG_SEG_GS;
+        decode->op[0].reg = R_GS;
         break;
     }
 }
@@ -240,22 +240,22 @@ static void decode_popseg(CPUX86State *env, struct x86_decode *decode)
     decode->op[0].type = X86_VAR_REG;
     switch (op) {
     case 0xf:
-        decode->op[0].reg = REG_SEG_CS;
+        decode->op[0].reg = R_CS;
         break;
     case 0x17:
-        decode->op[0].reg = REG_SEG_SS;
+        decode->op[0].reg = R_SS;
         break;
     case 0x1f:
-        decode->op[0].reg = REG_SEG_DS;
+        decode->op[0].reg = R_DS;
         break;
     case 0x07:
-        decode->op[0].reg = REG_SEG_ES;
+        decode->op[0].reg = R_ES;
         break;
     case 0xa1:
-        decode->op[0].reg = REG_SEG_FS;
+        decode->op[0].reg = R_FS;
         break;
     case 0xa9:
-        decode->op[0].reg = REG_SEG_GS;
+        decode->op[0].reg = R_GS;
         break;
     }
 }
@@ -412,7 +412,7 @@ static void decode_rcx(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op)
 {
     op->type = X86_VAR_REG;
-    op->reg = REG_RCX;
+    op->reg = R_ECX;
     op->ptr = get_reg_ref(env, op->reg, decode->rex.b, decode->operand_size);
 }
 
@@ -1639,7 +1639,7 @@ void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
     addr_t ptr = 0;
-    x86_reg_segment seg = REG_SEG_DS;
+    X86Seg seg = R_DS;
 
     if (!decode->modrm.mod && 6 == decode->modrm.rm) {
         op->ptr = (uint16_t)decode->displacement;
@@ -1659,11 +1659,11 @@ void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,
         break;
     case 2:
         ptr += BP(env) + SI(env);
-        seg = REG_SEG_SS;
+        seg = R_SS;
         break;
     case 3:
         ptr += BP(env) + DI(env);
-        seg = REG_SEG_SS;
+        seg = R_SS;
         break;
     case 4:
         ptr += SI(env);
@@ -1673,7 +1673,7 @@ void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,
         break;
     case 6:
         ptr += BP(env);
-        seg = REG_SEG_SS;
+        seg = R_SS;
         break;
     case 7:
         ptr += BX(env);
@@ -1693,7 +1693,7 @@ addr_t get_reg_ref(CPUX86State *env, int reg, int is_extended, int size)
     int which = 0;
 
     if (is_extended) {
-        reg |= REG_R8;
+        reg |= R_R8;
     }
 
 
@@ -1723,7 +1723,7 @@ addr_t get_reg_val(CPUX86State *env, int reg, int is_extended, int size)
 }
 
 static addr_t get_sib_val(CPUX86State *env, struct x86_decode *decode,
-                          x86_reg_segment *sel)
+                          X86Seg *sel)
 {
     addr_t base = 0;
     addr_t scaled_index = 0;
@@ -1731,23 +1731,23 @@ static addr_t get_sib_val(CPUX86State *env, struct x86_decode *decode,
     int base_reg = decode->sib.base;
     int index_reg = decode->sib.index;
 
-    *sel = REG_SEG_DS;
+    *sel = R_DS;
 
-    if (decode->modrm.mod || base_reg != REG_RBP) {
+    if (decode->modrm.mod || base_reg != R_EBP) {
         if (decode->rex.b) {
-            base_reg |= REG_R8;
+            base_reg |= R_R8;
         }
-        if (REG_RSP == base_reg || REG_RBP == base_reg) {
-            *sel = REG_SEG_SS;
+        if (base_reg == R_ESP || base_reg == R_EBP) {
+            *sel = R_SS;
         }
         base = get_reg_val(env, decode->sib.base, decode->rex.b, addr_size);
     }
 
     if (decode->rex.x) {
-        index_reg |= REG_R8;
+        index_reg |= R_R8;
     }
 
-    if (index_reg != REG_RSP) {
+    if (index_reg != R_ESP) {
         scaled_index = get_reg_val(env, index_reg, decode->rex.x, addr_size) <<
                                    decode->sib.scale;
     }
@@ -1757,7 +1757,7 @@ static addr_t get_sib_val(CPUX86State *env, struct x86_decode *decode,
 void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
-    x86_reg_segment seg = REG_SEG_DS;
+    X86Seg seg = R_DS;
     addr_t ptr = 0;
     int addr_size = decode->addressing_size;
 
@@ -1774,8 +1774,8 @@ void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
             ptr = decode->displacement;
         }
     } else {
-        if (REG_RBP == decode->modrm.rm || REG_RSP == decode->modrm.rm) {
-            seg = REG_SEG_SS;
+        if (decode->modrm.rm == R_EBP || decode->modrm.rm == R_ESP) {
+            seg = R_SS;
         }
         ptr += get_reg_val(env, decode->modrm.rm, decode->rex.b, addr_size);
     }
@@ -1790,7 +1790,7 @@ void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
 void calc_modrm_operand64(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
-    x86_reg_segment seg = REG_SEG_DS;
+    X86Seg seg = R_DS;
     int32_t offset = 0;
     int mod = decode->modrm.mod;
     int rm = decode->modrm.rm;
@@ -1895,7 +1895,7 @@ void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
     } else if (!x86_is_long_mode(ENV_GET_CPU(env))) {
         /* protected */
         struct vmx_segment cs;
-        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, REG_SEG_CS);
+        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, R_CS);
         /* check db */
         if ((cs.ar >> 14) & 1) {
             if (decode->addr_size_override) {
@@ -1932,7 +1932,7 @@ void set_operand_size(CPUX86State *env, struct x86_decode *decode)
     } else if (!x86_is_long_mode(ENV_GET_CPU(env))) {
         /* protected */
         struct vmx_segment cs;
-        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, REG_SEG_CS);
+        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, R_CS);
         /* check db */
         if ((cs.ar >> 14) & 1) {
             if (decode->op_size_override) {
@@ -2159,26 +2159,26 @@ const char *decode_cmd_to_string(enum x86_decode_cmd cmd)
 }
 
 addr_t decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
-                          addr_t addr, x86_reg_segment seg)
+                          addr_t addr, X86Seg seg)
 {
     switch (decode->segment_override) {
     case PREFIX_CS_SEG_OVEERIDE:
-        seg = REG_SEG_CS;
+        seg = R_CS;
         break;
     case PREFIX_SS_SEG_OVEERIDE:
-        seg = REG_SEG_SS;
+        seg = R_SS;
         break;
     case PREFIX_DS_SEG_OVEERIDE:
-        seg = REG_SEG_DS;
+        seg = R_DS;
         break;
     case PREFIX_ES_SEG_OVEERIDE:
-        seg = REG_SEG_ES;
+        seg = R_ES;
         break;
     case PREFIX_FS_SEG_OVEERIDE:
-        seg = REG_SEG_FS;
+        seg = R_FS;
         break;
     case PREFIX_GS_SEG_OVEERIDE:
-        seg = REG_SEG_GS;
+        seg = R_GS;
         break;
     default:
         break;

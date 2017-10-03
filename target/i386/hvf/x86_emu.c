@@ -294,7 +294,7 @@ static void fetch_operands(struct CPUX86State *env, struct x86_decode *decode,
         case X86_VAR_OFFSET:
             decode->op[i].ptr = decode_linear_addr(env, decode,
                                                    decode->op[i].ptr,
-                                                   REG_SEG_DS);
+                                                   R_DS);
             if (calc_val[i]) {
                 decode->op[i].val = read_val_ext(env, decode->op[i].ptr,
                                                  decode->operand_size);
@@ -514,10 +514,10 @@ static inline void string_rep(struct CPUX86State *env, struct x86_decode *decode
                               void (*func)(struct CPUX86State *env,
                                            struct x86_decode *ins), int rep)
 {
-    addr_t rcx = read_reg(env, REG_RCX, decode->addressing_size);
+    addr_t rcx = read_reg(env, R_ECX, decode->addressing_size);
     while (rcx--) {
         func(env, decode);
-        write_reg(env, REG_RCX, rcx, decode->addressing_size);
+        write_reg(env, R_ECX, rcx, decode->addressing_size);
         if ((PREFIX_REP == rep) && !get_ZF(env)) {
             break;
         }
@@ -530,13 +530,13 @@ static inline void string_rep(struct CPUX86State *env, struct x86_decode *decode
 static void exec_ins_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
-                                   REG_SEG_ES);
+                                   R_ES);
 
     hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 0,
                   decode->operand_size, 1);
     vmx_write_mem(ENV_GET_CPU(env), addr, env->hvf_emul->mmio_buf, decode->operand_size);
 
-    string_increment_reg(env, REG_RDI, decode);
+    string_increment_reg(env, R_EDI, decode);
 }
 
 static void exec_ins(struct CPUX86State *env, struct x86_decode *decode)
@@ -552,13 +552,13 @@ static void exec_ins(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_outs_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
+    addr_t addr = decode_linear_addr(env, decode, RSI(env), R_DS);
 
     vmx_read_mem(ENV_GET_CPU(env), env->hvf_emul->mmio_buf, addr, decode->operand_size);
     hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 1,
                   decode->operand_size, 1);
 
-    string_increment_reg(env, REG_RSI, decode);
+    string_increment_reg(env, R_ESI, decode);
 }
 
 static void exec_outs(struct CPUX86State *env, struct x86_decode *decode)
@@ -578,15 +578,15 @@ static void exec_movs_single(struct CPUX86State *env, struct x86_decode *decode)
     addr_t dst_addr;
     addr_t val;
 
-    src_addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
+    src_addr = decode_linear_addr(env, decode, RSI(env), R_DS);
     dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
-                                REG_SEG_ES);
+                                R_ES);
 
     val = read_val_ext(env, src_addr, decode->operand_size);
     write_val_ext(env, dst_addr, val, decode->operand_size);
 
-    string_increment_reg(env, REG_RSI, decode);
-    string_increment_reg(env, REG_RDI, decode);
+    string_increment_reg(env, R_ESI, decode);
+    string_increment_reg(env, R_EDI, decode);
 }
 
 static void exec_movs(struct CPUX86State *env, struct x86_decode *decode)
@@ -605,9 +605,9 @@ static void exec_cmps_single(struct CPUX86State *env, struct x86_decode *decode)
     addr_t src_addr;
     addr_t dst_addr;
 
-    src_addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
+    src_addr = decode_linear_addr(env, decode, RSI(env), R_DS);
     dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
-                                REG_SEG_ES);
+                                R_ES);
 
     decode->op[0].type = X86_VAR_IMMEDIATE;
     decode->op[0].val = read_val_ext(env, src_addr, decode->operand_size);
@@ -616,8 +616,8 @@ static void exec_cmps_single(struct CPUX86State *env, struct x86_decode *decode)
 
     EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
 
-    string_increment_reg(env, REG_RSI, decode);
-    string_increment_reg(env, REG_RDI, decode);
+    string_increment_reg(env, R_ESI, decode);
+    string_increment_reg(env, R_EDI, decode);
 }
 
 static void exec_cmps(struct CPUX86State *env, struct x86_decode *decode)
@@ -636,11 +636,11 @@ static void exec_stos_single(struct CPUX86State *env, struct x86_decode *decode)
     addr_t addr;
     addr_t val;
 
-    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, REG_SEG_ES);
-    val = read_reg(env, REG_RAX, decode->operand_size);
+    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, R_ES);
+    val = read_reg(env, R_EAX, decode->operand_size);
     vmx_write_mem(ENV_GET_CPU(env), addr, &val, decode->operand_size);
 
-    string_increment_reg(env, REG_RDI, decode);
+    string_increment_reg(env, R_EDI, decode);
 }
 
 
@@ -659,18 +659,18 @@ static void exec_scas_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     addr_t addr;
 
-    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, REG_SEG_ES);
+    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, R_ES);
     decode->op[1].type = X86_VAR_IMMEDIATE;
     vmx_read_mem(ENV_GET_CPU(env), &decode->op[1].val, addr, decode->operand_size);
 
     EXEC_2OP_ARITH_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
-    string_increment_reg(env, REG_RDI, decode);
+    string_increment_reg(env, R_EDI, decode);
 }
 
 static void exec_scas(struct CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
-    decode->op[0].reg = REG_RAX;
+    decode->op[0].reg = R_EAX;
     if (decode->rep) {
         string_rep(env, decode, exec_scas_single, decode->rep);
     } else {
@@ -685,11 +685,11 @@ static void exec_lods_single(struct CPUX86State *env, struct x86_decode *decode)
     addr_t addr;
     addr_t val = 0;
 
-    addr = decode_linear_addr(env, decode, RSI(env), REG_SEG_DS);
+    addr = decode_linear_addr(env, decode, RSI(env), R_DS);
     vmx_read_mem(ENV_GET_CPU(env), &val, addr,  decode->operand_size);
-    write_reg(env, REG_RAX, val, decode->operand_size);
+    write_reg(env, R_EAX, val, decode->operand_size);
 
-    string_increment_reg(env, REG_RSI, decode);
+    string_increment_reg(env, R_ESI, decode);
 }
 
 static void exec_lods(struct CPUX86State *env, struct x86_decode *decode)
@@ -840,7 +840,7 @@ void simulate_wrmsr(struct CPUState *cpu)
         env->hvf_emul->efer.efer = data;
         /*printf("new efer %llx\n", EFER(cpu));*/
         wvmcs(cpu->hvf_fd, VMCS_GUEST_IA32_EFER, data);
-        if (data & EFER_NXE) {
+        if (data & MSR_EFER_NXE) {
             hv_vcpu_invalidate_tlb(cpu->hvf_fd);
         }
         break;
@@ -1465,14 +1465,14 @@ void load_regs(struct CPUState *cpu)
     CPUX86State *env = &x86_cpu->env;
 
     int i = 0;
-    RRX(env, REG_RAX) = rreg(cpu->hvf_fd, HV_X86_RAX);
-    RRX(env, REG_RBX) = rreg(cpu->hvf_fd, HV_X86_RBX);
-    RRX(env, REG_RCX) = rreg(cpu->hvf_fd, HV_X86_RCX);
-    RRX(env, REG_RDX) = rreg(cpu->hvf_fd, HV_X86_RDX);
-    RRX(env, REG_RSI) = rreg(cpu->hvf_fd, HV_X86_RSI);
-    RRX(env, REG_RDI) = rreg(cpu->hvf_fd, HV_X86_RDI);
-    RRX(env, REG_RSP) = rreg(cpu->hvf_fd, HV_X86_RSP);
-    RRX(env, REG_RBP) = rreg(cpu->hvf_fd, HV_X86_RBP);
+    RRX(env, R_EAX) = rreg(cpu->hvf_fd, HV_X86_RAX);
+    RRX(env, R_EBX) = rreg(cpu->hvf_fd, HV_X86_RBX);
+    RRX(env, R_ECX) = rreg(cpu->hvf_fd, HV_X86_RCX);
+    RRX(env, R_EDX) = rreg(cpu->hvf_fd, HV_X86_RDX);
+    RRX(env, R_ESI) = rreg(cpu->hvf_fd, HV_X86_RSI);
+    RRX(env, R_EDI) = rreg(cpu->hvf_fd, HV_X86_RDI);
+    RRX(env, R_ESP) = rreg(cpu->hvf_fd, HV_X86_RSP);
+    RRX(env, R_EBP) = rreg(cpu->hvf_fd, HV_X86_RBP);
     for (i = 8; i < 16; i++) {
         RRX(env, i) = rreg(cpu->hvf_fd, HV_X86_RAX + i);
     }

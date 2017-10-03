@@ -22,12 +22,12 @@
 #include "vmx.h"
 #include "x86_descr.h"
 
-#define VMX_SEGMENT_FIELD(seg)                      \
-    [REG_SEG_##seg] = {                           \
-        .selector = VMCS_GUEST_##seg##_SELECTOR,             \
-        .base = VMCS_GUEST_##seg##_BASE,                     \
-        .limit = VMCS_GUEST_##seg##_LIMIT,                   \
-        .ar_bytes = VMCS_GUEST_##seg##_ACCESS_RIGHTS,             \
+#define VMX_SEGMENT_FIELD(seg)                        \
+    [R_##seg] = {                                     \
+        .selector = VMCS_GUEST_##seg##_SELECTOR,      \
+        .base = VMCS_GUEST_##seg##_BASE,              \
+        .limit = VMCS_GUEST_##seg##_LIMIT,            \
+        .ar_bytes = VMCS_GUEST_##seg##_ACCESS_RIGHTS, \
 }
 
 static const struct vmx_segment_field {
@@ -46,34 +46,34 @@ static const struct vmx_segment_field {
     VMX_SEGMENT_FIELD(TR),
 };
 
-uint32_t vmx_read_segment_limit(CPUState *cpu, x86_reg_segment seg)
+uint32_t vmx_read_segment_limit(CPUState *cpu, X86Seg seg)
 {
     return (uint32_t)rvmcs(cpu->hvf_fd, vmx_segment_fields[seg].limit);
 }
 
-uint32_t vmx_read_segment_ar(CPUState *cpu, x86_reg_segment seg)
+uint32_t vmx_read_segment_ar(CPUState *cpu, X86Seg seg)
 {
     return (uint32_t)rvmcs(cpu->hvf_fd, vmx_segment_fields[seg].ar_bytes);
 }
 
-uint64_t vmx_read_segment_base(CPUState *cpu, x86_reg_segment seg)
+uint64_t vmx_read_segment_base(CPUState *cpu, X86Seg seg)
 {
     return rvmcs(cpu->hvf_fd, vmx_segment_fields[seg].base);
 }
 
-x68_segment_selector vmx_read_segment_selector(CPUState *cpu, x86_reg_segment seg)
+x68_segment_selector vmx_read_segment_selector(CPUState *cpu, X86Seg seg)
 {
     x68_segment_selector sel;
     sel.sel = rvmcs(cpu->hvf_fd, vmx_segment_fields[seg].selector);
     return sel;
 }
 
-void vmx_write_segment_selector(struct CPUState *cpu, x68_segment_selector selector, x86_reg_segment seg)
+void vmx_write_segment_selector(struct CPUState *cpu, x68_segment_selector selector, X86Seg seg)
 {
     wvmcs(cpu->hvf_fd, vmx_segment_fields[seg].selector, selector.sel);
 }
 
-void vmx_read_segment_descriptor(struct CPUState *cpu, struct vmx_segment *desc, x86_reg_segment seg)
+void vmx_read_segment_descriptor(struct CPUState *cpu, struct vmx_segment *desc, X86Seg seg)
 {
     desc->sel = rvmcs(cpu->hvf_fd, vmx_segment_fields[seg].selector);
     desc->base = rvmcs(cpu->hvf_fd, vmx_segment_fields[seg].base);
@@ -81,7 +81,7 @@ void vmx_read_segment_descriptor(struct CPUState *cpu, struct vmx_segment *desc,
     desc->ar = rvmcs(cpu->hvf_fd, vmx_segment_fields[seg].ar_bytes);
 }
 
-void vmx_write_segment_descriptor(CPUState *cpu, struct vmx_segment *desc, x86_reg_segment seg)
+void vmx_write_segment_descriptor(CPUState *cpu, struct vmx_segment *desc, X86Seg seg)
 {
     const struct vmx_segment_field *sf = &vmx_segment_fields[seg];
 

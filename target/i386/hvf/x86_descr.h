@@ -30,18 +30,18 @@ typedef struct vmx_segment {
 
 /* deal with vmstate descriptors */
 void vmx_read_segment_descriptor(struct CPUState *cpu,
-                                 struct vmx_segment *desc, x86_reg_segment seg);
+                                 struct vmx_segment *desc, enum X86Seg seg);
 void vmx_write_segment_descriptor(CPUState *cpu, struct vmx_segment *desc,
-                                  x86_reg_segment seg);
+                                  enum X86Seg seg);
 
 x68_segment_selector vmx_read_segment_selector(struct CPUState *cpu,
-                                               x86_reg_segment seg);
+                                               enum X86Seg seg);
 void vmx_write_segment_selector(struct CPUState *cpu,
                                 x68_segment_selector selector,
-                                x86_reg_segment seg);
+                                enum X86Seg seg);
 
-uint64_t vmx_read_segment_base(struct CPUState *cpu, x86_reg_segment seg);
-void vmx_write_segment_base(struct CPUState *cpu, x86_reg_segment seg,
+uint64_t vmx_read_segment_base(struct CPUState *cpu, enum X86Seg seg);
+void vmx_write_segment_base(struct CPUState *cpu, enum X86Seg seg,
                             uint64_t base);
 
 void x86_segment_descriptor_to_vmx(struct CPUState *cpu,
@@ -49,8 +49,8 @@ void x86_segment_descriptor_to_vmx(struct CPUState *cpu,
                                    struct x86_segment_descriptor *desc,
                                    struct vmx_segment *vmx_desc);
 
-uint32_t vmx_read_segment_limit(CPUState *cpu, x86_reg_segment seg);
-uint32_t vmx_read_segment_ar(CPUState *cpu, x86_reg_segment seg);
+uint32_t vmx_read_segment_limit(CPUState *cpu, enum X86Seg seg);
+uint32_t vmx_read_segment_ar(CPUState *cpu, enum X86Seg seg);
 void vmx_segment_to_x86_descriptor(struct CPUState *cpu,
                                    struct vmx_segment *vmx_desc,
                                    struct x86_segment_descriptor *desc);

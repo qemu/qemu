@@ -56,30 +56,44 @@
 #include "fpu/softfloat.h"
 #endif
 
-#define R_EAX 0
-#define R_ECX 1
-#define R_EDX 2
-#define R_EBX 3
-#define R_ESP 4
-#define R_EBP 5
-#define R_ESI 6
-#define R_EDI 7
+enum {
+    R_EAX = 0,
+    R_ECX = 1,
+    R_EDX = 2,
+    R_EBX = 3,
+    R_ESP = 4,
+    R_EBP = 5,
+    R_ESI = 6,
+    R_EDI = 7,
+    R_R8 = 8,
+    R_R9 = 9,
+    R_R10 = 10,
+    R_R11 = 11,
+    R_R12 = 12,
+    R_R13 = 13,
+    R_R14 = 14,
+    R_R15 = 15,
 
-#define R_AL 0
-#define R_CL 1
-#define R_DL 2
-#define R_BL 3
-#define R_AH 4
-#define R_CH 5
-#define R_DH 6
-#define R_BH 7
+    R_AL = 0,
+    R_CL = 1,
+    R_DL = 2,
+    R_BL = 3,
+    R_AH = 4,
+    R_CH = 5,
+    R_DH = 6,
+    R_BH = 7,
+};
 
-#define R_ES 0
-#define R_CS 1
-#define R_SS 2
-#define R_DS 3
-#define R_FS 4
-#define R_GS 5
+typedef enum X86Seg {
+    R_ES = 0,
+    R_CS = 1,
+    R_SS = 2,
+    R_DS = 3,
+    R_FS = 4,
+    R_GS = 5,
+    R_LDTR = 6,
+    R_TR = 7,
+} X86Seg;
 
 /* segment descriptor fields */
 #define DESC_G_SHIFT    23
