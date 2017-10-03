@@ -2,7 +2,15 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_10 \
-    /* empty */
+    {\
+        .driver   = "virtio-mouse-device",\
+        .property = "wheel-axis",\
+        .value    = "false",\
+    },{\
+        .driver   = "virtio-tablet-device",\
+        .property = "wheel-axis",\
+        .value    = "false",\
+    },
 
 #define HW_COMPAT_2_9 \
     {\

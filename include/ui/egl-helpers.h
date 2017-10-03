@@ -18,8 +18,9 @@ typedef struct egl_fb {
 
 void egl_fb_destroy(egl_fb *fb);
 void egl_fb_setup_default(egl_fb *fb, int width, int height);
-void egl_fb_create_for_tex(egl_fb *fb, int width, int height, GLuint texture);
-void egl_fb_create_new_tex(egl_fb *fb, int width, int height);
+void egl_fb_setup_for_tex(egl_fb *fb, int width, int height,
+                          GLuint texture, bool delete);
+void egl_fb_setup_new_tex(egl_fb *fb, int width, int height);
 void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip);
 void egl_fb_read(void *dst, egl_fb *src);
 

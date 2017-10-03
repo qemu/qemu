@@ -190,6 +190,7 @@ static void virtio_input_key_config(VirtIOInput *vinput,
 static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
                                       InputEvent *evt)
 {
+    VirtIOInputHID *vhid = VIRTIO_INPUT_HID(dev);
     VirtIOInput *vinput = VIRTIO_INPUT(dev);
     virtio_input_event event;
     int qcode;
@@ -215,7 +216,14 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
-        if (keymap_button[btn->button]) {
+        if (vhid->wheel_axis && (btn->button == INPUT_BUTTON_WHEEL_UP ||
+                                 btn->button == INPUT_BUTTON_WHEEL_DOWN)) {
+            event.type  = cpu_to_le16(EV_REL);
+            event.code  = cpu_to_le16(REL_WHEEL);
+            event.value = cpu_to_le32(btn->button == INPUT_BUTTON_WHEEL_UP
+                                      ? 1 : -1);
+            virtio_input_send(vinput, &event);
+        } else if (keymap_button[btn->button]) {
             event.type  = cpu_to_le16(EV_KEY);
             event.code  = cpu_to_le16(keymap_button[btn->button]);
             event.value = cpu_to_le32(btn->down ? 1 : 0);
@@ -407,7 +415,7 @@ static QemuInputHandler virtio_mouse_handler = {
     .sync  = virtio_input_handle_sync,
 };
 
-static struct virtio_input_config virtio_mouse_config[] = {
+static struct virtio_input_config virtio_mouse_config_v1[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_MOUSE),
@@ -432,13 +440,53 @@ static struct virtio_input_config virtio_mouse_config[] = {
     { /* end of list */ },
 };
 
+static struct virtio_input_config virtio_mouse_config_v2[] = {
+    {
+        .select    = VIRTIO_INPUT_CFG_ID_NAME,
+        .size      = sizeof(VIRTIO_ID_NAME_MOUSE),
+        .u.string  = VIRTIO_ID_NAME_MOUSE,
+    },{
+        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
+        .size      = sizeof(struct virtio_input_devids),
+        .u.ids     = {
+            .bustype = const_le16(BUS_VIRTUAL),
+            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
+            .product = const_le16(0x0002),
+            .version = const_le16(0x0002),
+        },
+    },{
+        .select    = VIRTIO_INPUT_CFG_EV_BITS,
+        .subsel    = EV_REL,
+        .size      = 2,
+        .u.bitmap  = {
+            (1 << REL_X) | (1 << REL_Y),
+            (1 << (REL_WHEEL - 8))
+        },
+    },
+    { /* end of list */ },
+};
+
+static Property virtio_mouse_properties[] = {
+    DEFINE_PROP_BOOL("wheel-axis", VirtIOInputHID, wheel_axis, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_mouse_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->props  = virtio_mouse_properties;
+}
+
 static void virtio_mouse_init(Object *obj)
 {
     VirtIOInputHID *vhid = VIRTIO_INPUT_HID(obj);
     VirtIOInput *vinput = VIRTIO_INPUT(obj);
 
     vhid->handler = &virtio_mouse_handler;
-    virtio_input_init_config(vinput, virtio_mouse_config);
+    virtio_input_init_config(vinput, vhid->wheel_axis
+                             ? virtio_mouse_config_v2
+                             : virtio_mouse_config_v1);
     virtio_input_key_config(vinput, keymap_button,
                             ARRAY_SIZE(keymap_button));
 }
@@ -448,6 +496,7 @@ static const TypeInfo virtio_mouse_info = {
     .parent        = TYPE_VIRTIO_INPUT_HID,
     .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_mouse_init,
+    .class_init    = virtio_mouse_class_init,
 };
 
 /* ----------------------------------------------------------------- */
@@ -459,7 +508,7 @@ static QemuInputHandler virtio_tablet_handler = {
     .sync  = virtio_input_handle_sync,
 };
 
-static struct virtio_input_config virtio_tablet_config[] = {
+static struct virtio_input_config virtio_tablet_config_v1[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_TABLET),
@@ -496,13 +545,72 @@ static struct virtio_input_config virtio_tablet_config[] = {
     { /* end of list */ },
 };
 
+static struct virtio_input_config virtio_tablet_config_v2[] = {
+    {
+        .select    = VIRTIO_INPUT_CFG_ID_NAME,
+        .size      = sizeof(VIRTIO_ID_NAME_TABLET),
+        .u.string  = VIRTIO_ID_NAME_TABLET,
+    },{
+        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
+        .size      = sizeof(struct virtio_input_devids),
+        .u.ids     = {
+            .bustype = const_le16(BUS_VIRTUAL),
+            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
+            .product = const_le16(0x0003),
+            .version = const_le16(0x0002),
+        },
+    },{
+        .select    = VIRTIO_INPUT_CFG_EV_BITS,
+        .subsel    = EV_ABS,
+        .size      = 1,
+        .u.bitmap  = {
+            (1 << ABS_X) | (1 << ABS_Y),
+        },
+    },{
+        .select    = VIRTIO_INPUT_CFG_EV_BITS,
+        .subsel    = EV_REL,
+        .size      = 2,
+        .u.bitmap  = {
+            0,
+            (1 << (REL_WHEEL - 8))
+        },
+    },{
+        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
+        .subsel    = ABS_X,
+        .size      = sizeof(virtio_input_absinfo),
+        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
+    },{
+        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
+        .subsel    = ABS_Y,
+        .size      = sizeof(virtio_input_absinfo),
+        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
+    },
+    { /* end of list */ },
+};
+
+static Property virtio_tablet_properties[] = {
+    DEFINE_PROP_BOOL("wheel-axis", VirtIOInputHID, wheel_axis, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_tablet_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->props  = virtio_tablet_properties;
+}
+
 static void virtio_tablet_init(Object *obj)
 {
     VirtIOInputHID *vhid = VIRTIO_INPUT_HID(obj);
     VirtIOInput *vinput = VIRTIO_INPUT(obj);
 
     vhid->handler = &virtio_tablet_handler;
-    virtio_input_init_config(vinput, virtio_tablet_config);
+    virtio_input_init_config(vinput, vhid->wheel_axis
+                             ? virtio_tablet_config_v2
+                             : virtio_tablet_config_v1);
     virtio_input_key_config(vinput, keymap_button,
                             ARRAY_SIZE(keymap_button));
 }
@@ -512,6 +620,7 @@ static const TypeInfo virtio_tablet_info = {
     .parent        = TYPE_VIRTIO_INPUT_HID,
     .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_tablet_init,
+    .class_init    = virtio_tablet_class_init,
 };
 
 /* ----------------------------------------------------------------- */

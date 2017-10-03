@@ -33,6 +33,11 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 
+/* KEY_EVENT is defined in wincon.h and in curses.h. Avoid redefinition. */
+#undef KEY_EVENT
+#include <curses.h>
+#undef KEY_EVENT
+
 #define FONT_HEIGHT 16
 #define FONT_WIDTH 8
 
@@ -42,16 +47,26 @@ static WINDOW *screenpad = NULL;
 static int width, height, gwidth, gheight, invalidate;
 static int px, py, sminx, sminy, smaxx, smaxy;
 
-chtype vga_to_curses[256];
+static chtype vga_to_curses[256];
 
 static void curses_update(DisplayChangeListener *dcl,
                           int x, int y, int w, int h)
 {
-    chtype *line;
+    console_ch_t *line;
+    chtype curses_line[width];
 
-    line = ((chtype *) screen) + y * width;
-    for (h += y; y < h; y ++, line += width)
-        mvwaddchnstr(screenpad, y, 0, line, width);
+    line = screen + y * width;
+    for (h += y; y < h; y ++, line += width) {
+        for (x = 0; x < width; x++) {
+            chtype ch = line[x] & 0xff;
+            chtype at = line[x] & ~0xff;
+            if (vga_to_curses[ch]) {
+                ch = vga_to_curses[ch];
+            }
+            curses_line[x] = ch | at;
+        }
+        mvwaddchnstr(screenpad, y, 0, curses_line, width);
+    }
 
     pnoutrefresh(screenpad, py, px, sminy, sminx, smaxy - 1, smaxx - 1);
     refresh();
