@@ -91,7 +91,7 @@ void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
     }                                                   \
 }                                                       \
 
-addr_t read_reg(CPUX86State *env, int reg, int size)
+target_ulong read_reg(CPUX86State *env, int reg, int size)
 {
     switch (size) {
     case 1:
@@ -108,7 +108,7 @@ addr_t read_reg(CPUX86State *env, int reg, int size)
     return 0;
 }
 
-void write_reg(CPUX86State *env, int reg, addr_t val, int size)
+void write_reg(CPUX86State *env, int reg, target_ulong val, int size)
 {
     switch (size) {
     case 1:
@@ -128,9 +128,9 @@ void write_reg(CPUX86State *env, int reg, addr_t val, int size)
     }
 }
 
-addr_t read_val_from_reg(addr_t reg_ptr, int size)
+target_ulong read_val_from_reg(target_ulong reg_ptr, int size)
 {
-    addr_t val;
+    target_ulong val;
     
     switch (size) {
     case 1:
@@ -151,7 +151,7 @@ addr_t read_val_from_reg(addr_t reg_ptr, int size)
     return val;
 }
 
-void write_val_to_reg(addr_t reg_ptr, addr_t val, int size)
+void write_val_to_reg(target_ulong reg_ptr, target_ulong val, int size)
 {
     switch (size) {
     case 1:
@@ -171,12 +171,12 @@ void write_val_to_reg(addr_t reg_ptr, addr_t val, int size)
     }
 }
 
-static bool is_host_reg(struct CPUX86State *env, addr_t ptr)
+static bool is_host_reg(struct CPUX86State *env, target_ulong ptr)
 {
-    return (ptr - (addr_t)&env->hvf_emul->regs[0]) < sizeof(env->hvf_emul->regs);
+    return (ptr - (target_ulong)&env->hvf_emul->regs[0]) < sizeof(env->hvf_emul->regs);
 }
 
-void write_val_ext(struct CPUX86State *env, addr_t ptr, addr_t val, int size)
+void write_val_ext(struct CPUX86State *env, target_ulong ptr, target_ulong val, int size)
 {
     if (is_host_reg(env, ptr)) {
         write_val_to_reg(ptr, val, size);
@@ -185,16 +185,16 @@ void write_val_ext(struct CPUX86State *env, addr_t ptr, addr_t val, int size)
     vmx_write_mem(ENV_GET_CPU(env), ptr, &val, size);
 }
 
-uint8_t *read_mmio(struct CPUX86State *env, addr_t ptr, int bytes)
+uint8_t *read_mmio(struct CPUX86State *env, target_ulong ptr, int bytes)
 {
     vmx_read_mem(ENV_GET_CPU(env), env->hvf_emul->mmio_buf, ptr, bytes);
     return env->hvf_emul->mmio_buf;
 }
 
 
-addr_t read_val_ext(struct CPUX86State *env, addr_t ptr, int size)
+target_ulong read_val_ext(struct CPUX86State *env, target_ulong ptr, int size)
 {
-    addr_t val;
+    target_ulong val;
     uint8_t *mmio_ptr;
 
     if (is_host_reg(env, ptr)) {
@@ -420,7 +420,7 @@ static void exec_out(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_in(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t val = 0;
+    target_ulong val = 0;
     switch (decode->opcode[0]) {
     case 0xe4:
         hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &AL(env), 0, 1, 1);
@@ -456,7 +456,7 @@ static void exec_in(struct CPUX86State *env, struct x86_decode *decode)
 static inline void string_increment_reg(struct CPUX86State *env, int reg,
                                         struct x86_decode *decode)
 {
-    addr_t val = read_reg(env, reg, decode->addressing_size);
+    target_ulong val = read_reg(env, reg, decode->addressing_size);
     if (env->hvf_emul->rflags.df) {
         val -= decode->operand_size;
     } else {
@@ -469,7 +469,7 @@ static inline void string_rep(struct CPUX86State *env, struct x86_decode *decode
                               void (*func)(struct CPUX86State *env,
                                            struct x86_decode *ins), int rep)
 {
-    addr_t rcx = read_reg(env, R_ECX, decode->addressing_size);
+    target_ulong rcx = read_reg(env, R_ECX, decode->addressing_size);
     while (rcx--) {
         func(env, decode);
         write_reg(env, R_ECX, rcx, decode->addressing_size);
@@ -484,7 +484,7 @@ static inline void string_rep(struct CPUX86State *env, struct x86_decode *decode
 
 static void exec_ins_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
+    target_ulong addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
                                    R_ES);
 
     hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 0,
@@ -507,7 +507,7 @@ static void exec_ins(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_outs_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr = decode_linear_addr(env, decode, RSI(env), R_DS);
+    target_ulong addr = decode_linear_addr(env, decode, RSI(env), R_DS);
 
     vmx_read_mem(ENV_GET_CPU(env), env->hvf_emul->mmio_buf, addr, decode->operand_size);
     hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 1,
@@ -529,9 +529,9 @@ static void exec_outs(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_movs_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t src_addr;
-    addr_t dst_addr;
-    addr_t val;
+    target_ulong src_addr;
+    target_ulong dst_addr;
+    target_ulong val;
 
     src_addr = decode_linear_addr(env, decode, RSI(env), R_DS);
     dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
@@ -557,8 +557,8 @@ static void exec_movs(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_cmps_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t src_addr;
-    addr_t dst_addr;
+    target_ulong src_addr;
+    target_ulong dst_addr;
 
     src_addr = decode_linear_addr(env, decode, RSI(env), R_DS);
     dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
@@ -588,8 +588,8 @@ static void exec_cmps(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_stos_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr;
-    addr_t val;
+    target_ulong addr;
+    target_ulong val;
 
     addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, R_ES);
     val = read_reg(env, R_EAX, decode->operand_size);
@@ -612,7 +612,7 @@ static void exec_stos(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_scas_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr;
+    target_ulong addr;
 
     addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, R_ES);
     decode->op[1].type = X86_VAR_IMMEDIATE;
@@ -637,8 +637,8 @@ static void exec_scas(struct CPUX86State *env, struct x86_decode *decode)
 
 static void exec_lods_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    addr_t addr;
-    addr_t val = 0;
+    target_ulong addr;
+    target_ulong val = 0;
 
     addr = decode_linear_addr(env, decode, RSI(env), R_DS);
     vmx_read_mem(ENV_GET_CPU(env), &val, addr,  decode->operand_size);

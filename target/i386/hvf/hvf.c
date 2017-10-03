@@ -289,7 +289,7 @@ void hvf_cpu_synchronize_post_init(CPUState *cpu_state)
     run_on_cpu(cpu_state, _hvf_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
 }
 
-static bool ept_emulation_fault(hvf_slot *slot, addr_t gpa, uint64_t ept_qual)
+static bool ept_emulation_fault(hvf_slot *slot, uint64_t gpa, uint64_t ept_qual)
 {
     int read, write;
 
@@ -708,7 +708,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         case EXIT_REASON_EPT_FAULT:
         {
             hvf_slot *slot;
-            addr_t gpa = rvmcs(cpu->hvf_fd, VMCS_GUEST_PHYSICAL_ADDRESS);
+            uint64_t gpa = rvmcs(cpu->hvf_fd, VMCS_GUEST_PHYSICAL_ADDRESS);
 
             if (((idtvec_info & VMCS_IDT_VEC_VALID) == 0) &&
                 ((exit_qual & EXIT_QUAL_NMIUDTI) != 0)) {

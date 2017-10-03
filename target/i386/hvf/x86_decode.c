@@ -64,7 +64,7 @@ uint64_t sign(uint64_t val, int size)
 static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
                                     int size)
 {
-    addr_t val = 0;
+    target_ulong val = 0;
     
     switch (size) {
     case 1:
@@ -76,7 +76,7 @@ static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
         VM_PANIC_EX("%s invalid size %d\n", __func__, size);
         break;
     }
-    addr_t va  = linear_rip(ENV_GET_CPU(env), RIP(env)) + decode->len;
+    target_ulong va  = linear_rip(ENV_GET_CPU(env), RIP(env)) + decode->len;
     vmx_read_mem(ENV_GET_CPU(env), &val, va, size);
     decode->len += size;
     
@@ -430,7 +430,7 @@ struct decode_tbl {
     void (*decode_op4)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op4);
     void (*decode_postfix)(CPUX86State *env, struct x86_decode *decode);
-    addr_t flags_mask;
+    uint32_t flags_mask;
 };
 
 struct decode_x87_tbl {
@@ -446,7 +446,7 @@ struct decode_x87_tbl {
     void (*decode_op2)(CPUX86State *env, struct x86_decode *decode,
                        struct x86_decode_op *op2);
     void (*decode_postfix)(CPUX86State *env, struct x86_decode *decode);
-    addr_t flags_mask;
+    uint32_t flags_mask;
 };
 
 struct decode_tbl invl_inst = {0x0, 0, 0, false, NULL, NULL, NULL, NULL,
@@ -1638,7 +1638,7 @@ struct decode_x87_tbl _x87_inst[] = {
 void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
-    addr_t ptr = 0;
+    target_ulong ptr = 0;
     X86Seg seg = R_DS;
 
     if (!decode->modrm.mod && 6 == decode->modrm.rm) {
@@ -1687,9 +1687,9 @@ calc_addr:
     }
 }
 
-addr_t get_reg_ref(CPUX86State *env, int reg, int is_extended, int size)
+target_ulong get_reg_ref(CPUX86State *env, int reg, int is_extended, int size)
 {
-    addr_t ptr = 0;
+    target_ulong ptr = 0;
     int which = 0;
 
     if (is_extended) {
@@ -1701,32 +1701,32 @@ addr_t get_reg_ref(CPUX86State *env, int reg, int is_extended, int size)
     case 1:
         if (is_extended || reg < 4) {
             which = 1;
-            ptr = (addr_t)&RL(env, reg);
+            ptr = (target_ulong)&RL(env, reg);
         } else {
             which = 2;
-            ptr = (addr_t)&RH(env, reg - 4);
+            ptr = (target_ulong)&RH(env, reg - 4);
         }
         break;
     default:
         which = 3;
-        ptr = (addr_t)&RRX(env, reg);
+        ptr = (target_ulong)&RRX(env, reg);
         break;
     }
     return ptr;
 }
 
-addr_t get_reg_val(CPUX86State *env, int reg, int is_extended, int size)
+target_ulong get_reg_val(CPUX86State *env, int reg, int is_extended, int size)
 {
-    addr_t val = 0;
+    target_ulong val = 0;
     memcpy(&val, (void *)get_reg_ref(env, reg, is_extended, size), size);
     return val;
 }
 
-static addr_t get_sib_val(CPUX86State *env, struct x86_decode *decode,
+static target_ulong get_sib_val(CPUX86State *env, struct x86_decode *decode,
                           X86Seg *sel)
 {
-    addr_t base = 0;
-    addr_t scaled_index = 0;
+    target_ulong base = 0;
+    target_ulong scaled_index = 0;
     int addr_size = decode->addressing_size;
     int base_reg = decode->sib.base;
     int index_reg = decode->sib.index;
@@ -1758,7 +1758,7 @@ void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
                           struct x86_decode_op *op)
 {
     X86Seg seg = R_DS;
-    addr_t ptr = 0;
+    target_ulong ptr = 0;
     int addr_size = decode->addressing_size;
 
     if (decode->displacement_size) {
@@ -1794,7 +1794,7 @@ void calc_modrm_operand64(CPUX86State *env, struct x86_decode *decode,
     int32_t offset = 0;
     int mod = decode->modrm.mod;
     int rm = decode->modrm.rm;
-    addr_t ptr;
+    target_ulong ptr;
     int src = decode->modrm.rm;
 
     if (decode->displacement_size) {
@@ -2157,8 +2157,8 @@ const char *decode_cmd_to_string(enum x86_decode_cmd cmd)
     return cmds[cmd];
 }
 
-addr_t decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
-                          addr_t addr, X86Seg seg)
+target_ulong decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
+                               target_ulong addr, X86Seg seg)
 {
     switch (decode->segment_override) {
     case PREFIX_CS_SEG_OVEERIDE:

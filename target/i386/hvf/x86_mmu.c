@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
+#include "cpu.h"
 #include "x86.h"
 #include "x86_mmu.h"
 #include "string.h"
@@ -43,8 +44,8 @@
 #define PAE_PTE_LARGE_PAGE_MASK     ((-1llu << (21)) & ((1llu << 52) - 1))
 
 struct gpt_translation {
-    addr_t  gva;
-    addr_t gpa;
+    target_ulong  gva;
+    uint64_t gpa;
     int    err_code;
     uint64_t pte[5];
     bool write_access;
@@ -64,7 +65,7 @@ static int gpt_top_level(struct CPUState *cpu, bool pae)
     return 3;
 }
 
-static inline int gpt_entry(addr_t addr, int level, bool pae)
+static inline int gpt_entry(target_ulong addr, int level, bool pae)
 {
     int level_shift = pae ? 9 : 10;
     return (addr >> (level_shift * (level - 1) + 12)) & ((1 << level_shift) - 1);
@@ -81,8 +82,8 @@ static bool get_pt_entry(struct CPUState *cpu, struct gpt_translation *pt,
 {
     int index;
     uint64_t pte = 0;
-    addr_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
-    addr_t gpa = pt->pte[level] & page_mask;
+    uint64_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
+    uint64_t gpa = pt->pte[level] & page_mask;
 
     if (level == 3 && !x86_is_long_mode(cpu)) {
         gpa = pt->pte[level];
@@ -114,7 +115,6 @@ static bool test_pt_entry(struct CPUState *cpu, struct gpt_translation *pt,
     }
 
     if (!pte_present(pte)) {
-        /* addr_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK; */
         return false;
     }
 
@@ -130,7 +130,7 @@ static bool test_pt_entry(struct CPUState *cpu, struct gpt_translation *pt,
         pt->err_code |= MMU_PAGE_PT;
     }
 
-    addr_t cr0 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR0);
+    uint32_t cr0 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR0);
     /* check protection */
     if (cr0 & CR0_WP) {
         if (pt->write_access && !pte_write_access(pte)) {
@@ -170,13 +170,13 @@ static inline uint64_t large_page_gpa(struct gpt_translation *pt, bool pae)
 
 
 
-static bool walk_gpt(struct CPUState *cpu, addr_t addr, int err_code,
+static bool walk_gpt(struct CPUState *cpu, target_ulong addr, int err_code,
                      struct gpt_translation *pt, bool pae)
 {
     int top_level, level;
     bool is_large = false;
-    addr_t cr3 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR3);
-    addr_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
+    target_ulong cr3 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR3);
+    uint64_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
     
     memset(pt, 0, sizeof(*pt));
     top_level = gpt_top_level(cpu, pae);
@@ -209,7 +209,7 @@ static bool walk_gpt(struct CPUState *cpu, addr_t addr, int err_code,
 }
 
 
-bool mmu_gva_to_gpa(struct CPUState *cpu, addr_t gva, addr_t *gpa)
+bool mmu_gva_to_gpa(struct CPUState *cpu, target_ulong gva, uint64_t *gpa)
 {
     bool res;
     struct gpt_translation pt;
@@ -229,9 +229,9 @@ bool mmu_gva_to_gpa(struct CPUState *cpu, addr_t gva, addr_t *gpa)
     return false;
 }
 
-void vmx_write_mem(struct CPUState *cpu, addr_t gva, void *data, int bytes)
+void vmx_write_mem(struct CPUState *cpu, target_ulong gva, void *data, int bytes)
 {
-    addr_t gpa;
+    uint64_t gpa;
 
     while (bytes > 0) {
         /* copy page */
@@ -250,9 +250,9 @@ void vmx_write_mem(struct CPUState *cpu, addr_t gva, void *data, int bytes)
     }
 }
 
-void vmx_read_mem(struct CPUState *cpu, void *data, addr_t gva, int bytes)
+void vmx_read_mem(struct CPUState *cpu, void *data, target_ulong gva, int bytes)
 {
-    addr_t gpa;
+    uint64_t gpa;
 
     while (bytes > 0) {
         /* copy page */

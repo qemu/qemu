@@ -289,8 +289,8 @@ typedef struct x68_segment_selector {
 } __attribute__ ((__packed__)) x68_segment_selector;
 
 typedef struct lazy_flags {
-    addr_t result;
-    addr_t auxbits;
+    target_ulong result;
+    target_ulong auxbits;
 } lazy_flags;
 
 /* Definition of hvf_x86_state is here */
@@ -381,10 +381,10 @@ bool x86_is_paging_mode(struct CPUState *cpu);
 bool x86_is_pae_enabled(struct CPUState *cpu);
 
 enum X86Seg;
-addr_t linear_addr(struct CPUState *cpu, addr_t addr, enum X86Seg seg);
-addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size,
-                        enum X86Seg seg);
-addr_t linear_rip(struct CPUState *cpu, addr_t rip);
+target_ulong linear_addr(struct CPUState *cpu, target_ulong addr, enum X86Seg seg);
+target_ulong linear_addr_size(struct CPUState *cpu, target_ulong addr, int size,
+                              enum X86Seg seg);
+target_ulong linear_rip(struct CPUState *cpu, target_ulong rip);
 
 static inline uint64_t rdtscp(void)
 {

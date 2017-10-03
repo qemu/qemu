@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 
+#include "cpu.h"
 #include "qemu-common.h"
 #include "x86_decode.h"
 #include "x86_emu.h"
@@ -50,7 +51,7 @@ bool x86_read_segment_descriptor(struct CPUState *cpu,
                                  struct x86_segment_descriptor *desc,
                                  x68_segment_selector sel)
 {
-    addr_t base;
+    target_ulong base;
     uint32_t limit;
 
     memset(desc, 0, sizeof(*desc));
@@ -80,7 +81,7 @@ bool x86_write_segment_descriptor(struct CPUState *cpu,
                                   struct x86_segment_descriptor *desc,
                                   x68_segment_selector sel)
 {
-    addr_t base;
+    target_ulong base;
     uint32_t limit;
     
     if (GDT_SEL == sel.ti) {
@@ -102,7 +103,7 @@ bool x86_write_segment_descriptor(struct CPUState *cpu,
 bool x86_read_call_gate(struct CPUState *cpu, struct x86_call_gate *idt_desc,
                         int gate)
 {
-    addr_t base  = rvmcs(cpu->hvf_fd, VMCS_GUEST_IDTR_BASE);
+    target_ulong base  = rvmcs(cpu->hvf_fd, VMCS_GUEST_IDTR_BASE);
     uint32_t limit = rvmcs(cpu->hvf_fd, VMCS_GUEST_IDTR_LIMIT);
 
     memset(idt_desc, 0, sizeof(*idt_desc));
@@ -158,13 +159,13 @@ bool x86_is_pae_enabled(struct CPUState *cpu)
     return cr4 & CR4_PAE;
 }
 
-addr_t linear_addr(struct CPUState *cpu, addr_t addr, X86Seg seg)
+target_ulong linear_addr(struct CPUState *cpu, target_ulong addr, X86Seg seg)
 {
     return vmx_read_segment_base(cpu, seg) + addr;
 }
 
-addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size,
-                        X86Seg seg)
+target_ulong linear_addr_size(struct CPUState *cpu, target_ulong addr, int size,
+                              X86Seg seg)
 {
     switch (size) {
     case 2:
@@ -179,7 +180,7 @@ addr_t linear_addr_size(struct CPUState *cpu, addr_t addr, int size,
     return linear_addr(cpu, addr, seg);
 }
 
-addr_t linear_rip(struct CPUState *cpu, addr_t rip)
+target_ulong linear_rip(struct CPUState *cpu, target_ulong rip)
 {
     return linear_addr(cpu, rip, R_CS);
 }

@@ -264,9 +264,9 @@ typedef struct x86_decode_op {
     int size;
 
     int reg;
-    addr_t val;
+    target_ulong val;
 
-    addr_t ptr;
+    target_ulong ptr;
 } x86_decode_op;
 
 typedef struct x86_decode {
@@ -295,7 +295,7 @@ typedef struct x86_decode {
     struct x86_modrm modrm;
     struct x86_decode_op op[4];
     bool is_fpu;
-    addr_t flags_mask;
+    uint32_t flags_mask;
 
 } x86_decode;
 
@@ -303,12 +303,12 @@ uint64_t sign(uint64_t val, int size);
 
 uint32_t decode_instruction(CPUX86State *env, struct x86_decode *decode);
 
-addr_t get_reg_ref(CPUX86State *env, int reg, int is_extended, int size);
-addr_t get_reg_val(CPUX86State *env, int reg, int is_extended, int size);
+target_ulong get_reg_ref(CPUX86State *env, int reg, int is_extended, int size);
+target_ulong get_reg_val(CPUX86State *env, int reg, int is_extended, int size);
 void calc_modrm_operand(CPUX86State *env, struct x86_decode *decode,
                         struct x86_decode_op *op);
-addr_t decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
-                          addr_t addr, enum X86Seg seg);
+target_ulong decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
+                               target_ulong addr, enum X86Seg seg);
 
 void init_decoder(void);
 void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,

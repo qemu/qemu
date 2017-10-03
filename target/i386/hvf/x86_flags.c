@@ -60,9 +60,9 @@
 
 /* size, carries, result */
 #define SET_FLAGS_OSZAPC_SIZE(size, lf_carries, lf_result) { \
-    addr_t temp = ((lf_carries) & (LF_MASK_AF)) | \
+    target_ulong temp = ((lf_carries) & (LF_MASK_AF)) | \
     (((lf_carries) >> (size - 2)) << LF_BIT_PO); \
-    env->hvf_emul->lflags.result = (addr_t)(int##size##_t)(lf_result); \
+    env->hvf_emul->lflags.result = (target_ulong)(int##size##_t)(lf_result); \
     if ((size) == 32) { \
         temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
     } else if ((size) == 16) { \
@@ -72,7 +72,7 @@
     } else { \
         VM_PANIC("unimplemented");  \
     } \
-    env->hvf_emul->lflags.auxbits = (addr_t)(uint32_t)temp; \
+    env->hvf_emul->lflags.auxbits = (target_ulong)(uint32_t)temp; \
 }
 
 /* carries, result */
@@ -88,7 +88,7 @@
 /* ******************* */
 /* size, carries, result */
 #define SET_FLAGS_OSZAP_SIZE(size, lf_carries, lf_result) { \
-    addr_t temp = ((lf_carries) & (LF_MASK_AF)) | \
+    target_ulong temp = ((lf_carries) & (LF_MASK_AF)) | \
     (((lf_carries) >> (size - 2)) << LF_BIT_PO); \
     if ((size) == 32) { \
         temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
@@ -99,10 +99,10 @@
     } else { \
         VM_PANIC("unimplemented");      \
     } \
-    env->hvf_emul->lflags.result = (addr_t)(int##size##_t)(lf_result); \
-    addr_t delta_c = (env->hvf_emul->lflags.auxbits ^ temp) & LF_MASK_CF; \
+    env->hvf_emul->lflags.result = (target_ulong)(int##size##_t)(lf_result); \
+    target_ulong delta_c = (env->hvf_emul->lflags.auxbits ^ temp) & LF_MASK_CF; \
     delta_c ^= (delta_c >> 1); \
-    env->hvf_emul->lflags.auxbits = (addr_t)(uint32_t)(temp ^ delta_c); \
+    env->hvf_emul->lflags.auxbits = (target_ulong)(uint32_t)(temp ^ delta_c); \
 }
 
 /* carries, result */

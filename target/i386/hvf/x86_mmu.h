@@ -37,9 +37,9 @@
 #define MMU_PAGE_US             (1 << 2)
 #define MMU_PAGE_NX             (1 << 3)
 
-bool mmu_gva_to_gpa(struct CPUState *cpu, addr_t gva, addr_t *gpa);
+bool mmu_gva_to_gpa(struct CPUState *cpu, target_ulong gva, uint64_t *gpa);
 
-void vmx_write_mem(struct CPUState *cpu, addr_t gva, void *data, int bytes);
-void vmx_read_mem(struct CPUState *cpu, void *data, addr_t gva, int bytes);
+void vmx_write_mem(struct CPUState *cpu, target_ulong gva, void *data, int bytes);
+void vmx_read_mem(struct CPUState *cpu, void *data, target_ulong gva, int bytes);
 
 #endif /* __X86_MMU_H__ */
