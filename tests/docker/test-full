@@ -86,4 +86,4 @@ build_qemu \
     --enable-xen-pci-passthrough \
     --enable-xen-pv-domain-build \
     --enable-xfsctl \
-&& make check $MAKEFLAGS
+&& make check $MAKEFLAGS && install_qemu

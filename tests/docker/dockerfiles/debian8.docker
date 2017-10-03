@@ -26,6 +26,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         clang \
         curl \
         flex \
+        gettext \
         git \
         gnupg \
         pkg-config \

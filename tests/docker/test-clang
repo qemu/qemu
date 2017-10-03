@@ -24,3 +24,4 @@ OPTS="--enable-debug --cxx=clang++ --cc=clang --host-cc=clang"
     #--extra-cflags=-fno-sanitize=float-divide-by-zero"
 build_qemu $OPTS
 make $MAKEFLAGS check
+install_qemu

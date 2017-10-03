@@ -18,7 +18,6 @@ fi
 BASE="$(dirname $(readlink -e $0))"
 
 # Prepare the environment
-. /etc/profile
 export PATH=/usr/lib/ccache:$PATH
 
 if test -n "$J"; then
@@ -31,6 +30,9 @@ mkdir -p $TEST_DIR/{src,build,install}
 
 # Extract the source tarballs
 tar -C $TEST_DIR/src -xf $BASE/qemu.tar || prep_fail "Failed to untar source"
+if test -f $TEST_DIR/src/Makefile; then
+    export FEATURES="$FEATURES dtc"
+fi
 
 if test -n "$SHOW_ENV"; then
     if test -f /packages.txt; then

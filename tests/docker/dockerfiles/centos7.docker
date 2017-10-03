@@ -9,6 +9,7 @@ ENV PACKAGES \
     flex \
     g++ \
     gcc \
+    gettext \
     git \
     glib2-devel \
     libepoxy-devel \
