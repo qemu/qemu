@@ -749,7 +749,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 } else if (size == 4) {
                     RAX(env) = (uint32_t)val;
                 } else {
-                    VM_PANIC("size");
+                    RAX(env) = (uint64_t)val;
                 }
                 RIP(env) += ins_len;
                 store_regs(cpu);
