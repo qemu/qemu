@@ -819,6 +819,13 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
         return 1;
     }
 
+    if (size < sizeof(hdr) || size > FW_MAX_SIZE) {
+        error_report("SLOF provided an unexpected CAS buffer size "
+                     TARGET_FMT_lu " (min: %zu, max: %u)",
+                     size, sizeof(hdr), FW_MAX_SIZE);
+        exit(EXIT_FAILURE);
+    }
+
     size -= sizeof(hdr);
 
     /* Create skeleton */
