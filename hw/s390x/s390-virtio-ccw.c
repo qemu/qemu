@@ -291,6 +291,9 @@ static void ccw_init(MachineState *machine)
         ret = css_create_css_image(VIRTUAL_CSSID, true);
     }
     assert(ret == 0);
+    if (css_migration_enabled()) {
+        css_register_vmstate();
+    }
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
@@ -715,9 +718,6 @@ DEFINE_CCW_MACHINE(2_11, "2.11", true);
 static void ccw_machine_2_10_instance_options(MachineState *machine)
 {
     ccw_machine_2_11_instance_options(machine);
-    if (css_migration_enabled()) {
-        css_register_vmstate();
-    }
 }
 
 static void ccw_machine_2_10_class_options(MachineClass *mc)
