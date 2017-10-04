@@ -68,7 +68,17 @@ int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
     return -ENOSYS;
 }
 
+int kvm_s390_get_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
+{
+    return -ENOSYS;
+}
+
 int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+{
+    return -ENOSYS;
+}
+
+int kvm_s390_set_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
 {
     return -ENOSYS;
 }

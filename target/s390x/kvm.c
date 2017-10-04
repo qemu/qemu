@@ -646,10 +646,26 @@ int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
     return kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
 }
 
+int kvm_s390_get_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
+{
+    int r;
+    struct kvm_s390_vm_tod_clock gtod;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_EXT,
+        .addr = (uint64_t)&gtod,
+    };
+
+    r = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    *tod_high = gtod.epoch_idx;
+    *tod_low  = gtod.tod;
+
+    return r;
+}
+
 int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
 {
     int r;
-
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_TOD,
         .attr = KVM_S390_VM_TOD_LOW,
@@ -663,6 +679,21 @@ int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
 
     attr.attr = KVM_S390_VM_TOD_HIGH;
     attr.addr = (uint64_t)tod_high;
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_set_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
+{
+    struct kvm_s390_vm_tod_clock gtod = {
+        .epoch_idx = *tod_high,
+        .tod  = *tod_low,
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_EXT,
+        .addr = (uint64_t)&gtod,
+    };
+
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
 
