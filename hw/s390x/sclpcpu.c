@@ -82,6 +82,12 @@ static void cpu_class_init(ObjectClass *oc, void *data)
     k->get_receive_mask = receive_mask;
     k->read_event_data = read_event_data;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    /*
+     * Reason: raise_irq_cpu_hotplug() depends on an unique
+     * TYPE_SCLP_CPU_HOTPLUG device, which is already created
+     * by the sclp event facility
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo sclp_cpu_info = {
