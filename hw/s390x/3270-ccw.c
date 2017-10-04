@@ -160,6 +160,7 @@ static void emulated_ccw_3270_class_init(ObjectClass *klass, void *data)
     dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
     dc->realize = emulated_ccw_3270_realize;
     dc->hotpluggable = false;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
 static const TypeInfo emulated_ccw_3270_info = {
