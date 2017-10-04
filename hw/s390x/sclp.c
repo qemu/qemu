@@ -606,6 +606,11 @@ static void sclp_class_init(ObjectClass *oc, void *data)
     dc->realize = sclp_realize;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    /*
+     * Reason: Creates TYPE_SCLP_EVENT_FACILITY in sclp_init
+     * which is a non-pluggable sysbus device
+     */
+    dc->user_creatable = false;
 
     sc->read_SCP_info = read_SCP_info;
     sc->read_storage_element0_info = read_storage_element0_info;
