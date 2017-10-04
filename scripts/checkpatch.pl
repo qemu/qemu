@@ -1432,7 +1432,8 @@ sub process {
 					qr/%[-+ *.0-9]*([hljztL]|ll|hh)?(x|X|"\s*PRI[xX][^"]*"?)/;
 
 				# don't consider groups splitted by [.:/ ], like 2A.20:12ab
-				my $tmpline = $rawline =~ s/($hex[.:\/ ])+$hex//gr;
+				my $tmpline = $rawline;
+				$tmpline =~ s/($hex[.:\/ ])+$hex//g;
 
 				if ($tmpline =~ /(?<!0x)$hex/) {
 					ERROR("Hex numbers must be prefixed with '0x'\n" .
