@@ -2334,7 +2334,8 @@ static void ppc_spapr_init(MachineState *machine)
     /* Set up Interrupt Controller before we create the VCPUs */
     xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
 
-    /* Set up containers for ibm,client-set-architecture negotiated options */
+    /* Set up containers for ibm,client-architecture-support negotiated options
+     */
     spapr->ov5 = spapr_ovec_new();
     spapr->ov5_cas = spapr_ovec_new();
 
