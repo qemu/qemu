@@ -385,6 +385,7 @@ void qemu_config_write(FILE *fp)
     }
 }
 
+/* Returns number of config groups on success, -errno on error */
 int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
 {
     char line[1024], group[64], id[64], arg[64], value[1024];
@@ -392,7 +393,8 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
     QemuOptsList *list = NULL;
     Error *local_err = NULL;
     QemuOpts *opts = NULL;
-    int res = -1, lno = 0;
+    int res = -EINVAL, lno = 0;
+    int count = 0;
 
     loc_push_none(&loc);
     while (fgets(line, sizeof(line), fp) != NULL) {
@@ -413,6 +415,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
                 goto out;
             }
             opts = qemu_opts_create(list, id, 1, NULL);
+            count++;
             continue;
         }
         if (sscanf(line, "[%63[^]]]", group) == 1) {
@@ -423,6 +426,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
                 goto out;
             }
             opts = qemu_opts_create(list, NULL, 0, &error_abort);
+            count++;
             continue;
         }
         value[0] = '\0';
@@ -447,7 +451,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
         error_report("error reading file");
         goto out;
     }
-    res = 0;
+    res = count;
 out:
     loc_pop(&loc);
     return res;
@@ -464,12 +468,7 @@ int qemu_read_config_file(const char *filename)
 
     ret = qemu_config_parse(f, vm_config_groups, filename);
     fclose(f);
-
-    if (ret == 0) {
-        return 0;
-    } else {
-        return -EINVAL;
-    }
+    return ret;
 }
 
 static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,

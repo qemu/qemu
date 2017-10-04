@@ -244,7 +244,6 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
         ret = qemu_config_parse(f, config_groups, filename);
         if (ret < 0) {
             error_setg(errp, "Could not parse blkdebug config file");
-            ret = -EINVAL;
             goto fail;
         }
     }
