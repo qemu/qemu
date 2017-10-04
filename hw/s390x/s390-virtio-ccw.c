@@ -189,13 +189,10 @@ static int gtod_load(QEMUFile *f, void *opaque, int version_id)
 
     r = s390_set_clock(&tod_high, &tod_low);
     if (r) {
-        warn_report("Unable to set guest clock for migration: %s",
-                    strerror(-r));
-        error_printf("Guest clock will not be restored "
-                     "which could cause the guest to hang.");
+        error_report("Unable to set KVM guest TOD clock: %s", strerror(-r));
     }
 
-    return 0;
+    return r;
 }
 
 static SaveVMHandlers savevm_gtod = {
