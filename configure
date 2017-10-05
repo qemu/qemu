@@ -304,6 +304,7 @@ vde=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
+xkbcommon=""
 xen=""
 xen_ctrl_version=""
 xen_pv_domain_build="no"
@@ -2908,6 +2909,21 @@ EOF
 fi
 
 ##########################################
+# xkbcommon probe
+if test "$xkbcommon" != "no" ; then
+  if $pkg_config xkbcommon --exists; then
+    xkbcommon_cflags=$($pkg_config xkbcommon --cflags)
+    xkbcommon_libs=$($pkg_config xkbcommon --libs)
+    xkbcommon=yes
+  else
+    if test "$xkbcommon" = "yes" ; then
+      feature_not_found "xkbcommon" "Install libxkbcommon-devel"
+    fi
+    xkbcommon=no
+  fi
+fi
+
+##########################################
 # fnmatch() probe, used for ACL routines
 fnmatch="no"
 cat > $TMPC << EOF
@@ -5107,6 +5123,9 @@ if test "$softmmu" = yes ; then
     mpath=no
   fi
 fi
+if test "$xkbcommon" = "yes"; then
+  tools="qemu-keymap\$(EXESUF) $tools"
+fi
 
 # Probe for guest agent support/options
 
@@ -5605,6 +5624,10 @@ if test "$vnc_jpeg" = "yes" ; then
 fi
 if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
+fi
+if test "$xkbcommon" = "yes" ; then
+  echo "XKBCOMMON_CFLAGS=$xkbcommon_cflags" >> $config_host_mak
+  echo "XKBCOMMON_LIBS=$xkbcommon_libs" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
