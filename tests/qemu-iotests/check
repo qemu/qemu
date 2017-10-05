@@ -134,6 +134,13 @@ export VALGRIND_QEMU=
 export IMGKEYSECRET=
 export IMGOPTSSYNTAX=false
 
+# Save current tty settings, since an aborting qemu call may leave things
+# screwed up
+STTY_RESTORE=
+if test -t 0; then
+    STTY_RESTORE=$(stty -g)
+fi
+
 for r
 do
 
@@ -664,6 +671,9 @@ END        { if (NR > 0) {
         needwrap=false
     fi
 
+    if test -n "$STTY_RESTORE"; then
+        stty $STTY_RESTORE
+    fi
     rm -f "${TEST_DIR}"/*.out "${TEST_DIR}"/*.err "${TEST_DIR}"/*.time
     rm -f "${TEST_DIR}"/check.pid "${TEST_DIR}"/check.sts
     rm -f $tmp.*
