@@ -631,7 +631,7 @@ QemuCocoaView *cocoaView;
 
                     // enable graphic console
                     case Q_KEY_CODE_1 ... Q_KEY_CODE_9: // '1' to '9' keys
-                        console_select(keycode - 11);
+                        console_select(keycode - Q_KEY_CODE_1);
                         break;
                 }
 
