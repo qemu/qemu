@@ -60,23 +60,38 @@ do {                                                                    \
     }                                                                   \
 } while (0)
 
-#if (TARGET_LONG_BITS == 32) && (HOST_LONG_BITS == 64)
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
  * guest address space into a contiguous chunk of virtual host memory.
  *
  * This way we will never overlap with our own libraries or binaries or stack
  * or anything else that QEMU maps.
+ *
+ * Many cpus reserve the high bit (or more than one for some 64-bit cpus)
+ * of the address for the kernel.  Some cpus rely on this and user space
+ * uses the high bit(s) for pointer tagging and the like.  For them, we
+ * must preserve the expected address space.
  */
-# if defined(TARGET_MIPS) || defined(TARGET_NIOS2)
-/*
- * MIPS only supports 31 bits of virtual address space for user space.
- * Nios2 also only supports 31 bits.
- */
-unsigned long reserved_va = 0x77000000;
+#ifndef MAX_RESERVED_VA
+# if HOST_LONG_BITS > TARGET_VIRT_ADDR_SPACE_BITS
+#  if TARGET_VIRT_ADDR_SPACE_BITS == 32 && \
+      (TARGET_LONG_BITS == 32 || defined(TARGET_ABI32))
+/* There are a number of places where we assign reserved_va to a variable
+   of type abi_ulong and expect it to fit.  Avoid the last page.  */
+#   define MAX_RESERVED_VA  (0xfffffffful & TARGET_PAGE_MASK)
+#  else
+#   define MAX_RESERVED_VA  (1ul << TARGET_VIRT_ADDR_SPACE_BITS)
+#  endif
 # else
-unsigned long reserved_va = 0xf7000000;
+#  define MAX_RESERVED_VA  0
 # endif
+#endif
+
+/* That said, reserving *too* much vm space via mmap can run into problems
+   with rlimits, oom due to page table creation, etc.  We will still try it,
+   if directed by the command-line option, but not by default.  */
+#if HOST_LONG_BITS == 64 && TARGET_VIRT_ADDR_SPACE_BITS <= 32
+unsigned long reserved_va = MAX_RESERVED_VA;
 #else
 unsigned long reserved_va;
 #endif
@@ -3978,11 +3993,8 @@ static void handle_arg_reserved_va(const char *arg)
         unsigned long unshifted = reserved_va;
         p++;
         reserved_va <<= shift;
-        if (((reserved_va >> shift) != unshifted)
-#if HOST_LONG_BITS > TARGET_VIRT_ADDR_SPACE_BITS
-            || (reserved_va > (1ul << TARGET_VIRT_ADDR_SPACE_BITS))
-#endif
-            ) {
+        if (reserved_va >> shift != unshifted
+            || (MAX_RESERVED_VA && reserved_va > MAX_RESERVED_VA)) {
             fprintf(stderr, "Reserved virtual address too big\n");
             exit(EXIT_FAILURE);
         }
