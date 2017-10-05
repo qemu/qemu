@@ -641,6 +641,25 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     return 0;
 }
 
+static int qemu_ufd_copy_ioctl(int userfault_fd, void *host_addr,
+        void *from_addr, uint64_t pagesize)
+{
+    if (from_addr) {
+        struct uffdio_copy copy_struct;
+        copy_struct.dst = (uint64_t)(uintptr_t)host_addr;
+        copy_struct.src = (uint64_t)(uintptr_t)from_addr;
+        copy_struct.len = pagesize;
+        copy_struct.mode = 0;
+        return ioctl(userfault_fd, UFFDIO_COPY, &copy_struct);
+    } else {
+        struct uffdio_zeropage zero_struct;
+        zero_struct.range.start = (uint64_t)(uintptr_t)host_addr;
+        zero_struct.range.len = pagesize;
+        zero_struct.mode = 0;
+        return ioctl(userfault_fd, UFFDIO_ZEROPAGE, &zero_struct);
+    }
+}
+
 /*
  * Place a host page (from) at (host) atomically
  * returns 0 on success
@@ -648,20 +667,14 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
 int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
                         RAMBlock *rb)
 {
-    struct uffdio_copy copy_struct;
     size_t pagesize = qemu_ram_pagesize(rb);
-
-    copy_struct.dst = (uint64_t)(uintptr_t)host;
-    copy_struct.src = (uint64_t)(uintptr_t)from;
-    copy_struct.len = pagesize;
-    copy_struct.mode = 0;
 
     /* copy also acks to the kernel waking the stalled thread up
      * TODO: We can inhibit that ack and only do it if it was requested
      * which would be slightly cheaper, but we'd have to be careful
      * of the order of updating our page state.
      */
-    if (ioctl(mis->userfault_fd, UFFDIO_COPY, &copy_struct)) {
+    if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, from, pagesize)) {
         int e = errno;
         error_report("%s: %s copy host: %p from: %p (size: %zd)",
                      __func__, strerror(e), host, from, pagesize);
@@ -683,12 +696,7 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
     trace_postcopy_place_page_zero(host);
 
     if (qemu_ram_pagesize(rb) == getpagesize()) {
-        struct uffdio_zeropage zero_struct;
-        zero_struct.range.start = (uint64_t)(uintptr_t)host;
-        zero_struct.range.len = getpagesize();
-        zero_struct.mode = 0;
-
-        if (ioctl(mis->userfault_fd, UFFDIO_ZEROPAGE, &zero_struct)) {
+        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, getpagesize())) {
             int e = errno;
             error_report("%s: %s zero host: %p",
                          __func__, strerror(e), host);
