@@ -111,6 +111,7 @@ _filter_img_create()
     sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
         -e "s#$TEST_DIR#TEST_DIR#g" \
         -e "s#$IMGFMT#IMGFMT#g" \
+        -e 's#nbd:127.0.0.1:10810#TEST_DIR/t.IMGFMT#g' \
         -e "s# encryption=off##g" \
         -e "s# cluster_size=[0-9]\\+##g" \
         -e "s# table_size=[0-9]\\+##g" \
