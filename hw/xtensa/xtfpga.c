@@ -220,19 +220,14 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
     QemuOpts *machine_opts = qemu_get_machine_opts();
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
     const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
     const char *dtb_filename = qemu_opt_get(machine_opts, "dtb");
     const char *initrd_filename = qemu_opt_get(machine_opts, "initrd");
     int n;
 
-    if (!cpu_model) {
-        cpu_model = XTENSA_DEFAULT_CPU_MODEL;
-    }
-
     for (n = 0; n < smp_cpus; n++) {
-        cpu = XTENSA_CPU(cpu_generic_init(TYPE_XTENSA_CPU, cpu_model));
+        cpu = XTENSA_CPU(cpu_create(machine->cpu_type));
         env = &cpu->env;
 
         env->sregs[PRID] = n;
@@ -454,6 +449,7 @@ static void xtensa_lx60_class_init(ObjectClass *oc, void *data)
     mc->desc = "lx60 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_lx60_init;
     mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
 }
 
 static const TypeInfo xtensa_lx60_type = {
@@ -469,6 +465,7 @@ static void xtensa_lx200_class_init(ObjectClass *oc, void *data)
     mc->desc = "lx200 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_lx200_init;
     mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
 }
 
 static const TypeInfo xtensa_lx200_type = {
@@ -484,6 +481,7 @@ static void xtensa_ml605_class_init(ObjectClass *oc, void *data)
     mc->desc = "ml605 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_ml605_init;
     mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
 }
 
 static const TypeInfo xtensa_ml605_type = {
@@ -499,6 +497,7 @@ static void xtensa_kc705_class_init(ObjectClass *oc, void *data)
     mc->desc = "kc705 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_kc705_init;
     mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
 }
 
 static const TypeInfo xtensa_kc705_type = {
