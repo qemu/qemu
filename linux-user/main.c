@@ -4331,7 +4331,7 @@ int main(int argc, char **argv, char **envp)
         cpu_model = "750";
 # endif
 #elif defined TARGET_SH4
-        cpu_model = TYPE_SH7785_CPU;
+        cpu_model = "sh7785";
 #elif defined TARGET_S390X
         cpu_model = "qemu";
 #else

@@ -120,36 +120,26 @@ void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     g_slist_free(list);
 }
 
-static gint superh_cpu_name_compare(gconstpointer a, gconstpointer b)
-{
-    const SuperHCPUClass *scc = SUPERH_CPU_CLASS(a);
-    const char *name = b;
-
-    return strcasecmp(scc->name, name);
-}
-
 static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    GSList *list, *item;
+    char *s, *typename = NULL;
 
-    if (strcasecmp(cpu_model, "any") == 0) {
-        return object_class_by_name(TYPE_SH7750R_CPU);
+    s = g_ascii_strdown(cpu_model, -1);
+    if (strcmp(s, "any") == 0) {
+        oc = object_class_by_name(TYPE_SH7750R_CPU);
+        goto out;
     }
 
-    oc = object_class_by_name(cpu_model);
-    if (oc != NULL && object_class_dynamic_cast(oc, TYPE_SUPERH_CPU) != NULL
-        && !object_class_is_abstract(oc)) {
-        return oc;
+    typename = g_strdup_printf(SUPERH_CPU_TYPE_NAME("%s"), s);
+    oc = object_class_by_name(typename);
+    if (oc != NULL && object_class_is_abstract(oc)) {
+        oc = NULL;
     }
 
-    oc = NULL;
-    list = object_class_get_list(TYPE_SUPERH_CPU, false);
-    item = g_slist_find_custom(list, cpu_model, superh_cpu_name_compare);
-    if (item != NULL) {
-        oc = item->data;
-    }
-    g_slist_free(list);
+out:
+    g_free(s);
+    g_free(typename);
     return oc;
 }
 
