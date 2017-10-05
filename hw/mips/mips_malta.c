@@ -949,9 +949,8 @@ static void create_cps(MaltaState *s, const char *cpu_model,
                        qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
     Error *err = NULL;
-    s->cps = g_new0(MIPSCPSState, 1);
 
-    object_initialize(s->cps, sizeof(MIPSCPSState), TYPE_MIPS_CPS);
+    s->cps = MIPS_CPS(object_new(TYPE_MIPS_CPS));
     qdev_set_parent_bus(DEVICE(s->cps), sysbus_get_default());
 
     object_property_set_str(OBJECT(s->cps), cpu_model, "cpu-model", &err);

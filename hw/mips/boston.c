@@ -460,7 +460,6 @@ static void boston_mach_init(MachineState *machine)
 
     s = BOSTON(dev);
     s->mach = machine;
-    s->cps = g_new0(MIPSCPSState, 1);
 
     if (!cpu_supports_cps_smp(cpu_model)) {
         error_report("Boston requires CPUs which support CPS");
@@ -469,7 +468,7 @@ static void boston_mach_init(MachineState *machine)
 
     is_64b = cpu_supports_isa(cpu_model, ISA_MIPS64);
 
-    object_initialize(s->cps, sizeof(MIPSCPSState), TYPE_MIPS_CPS);
+    s->cps = MIPS_CPS(object_new(TYPE_MIPS_CPS));
     qdev_set_parent_bus(DEVICE(s->cps), sysbus_get_default());
 
     object_property_set_str(OBJECT(s->cps), cpu_model, "cpu-model", &err);
