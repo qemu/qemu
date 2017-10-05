@@ -642,22 +642,28 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
 }
 
 static int qemu_ufd_copy_ioctl(int userfault_fd, void *host_addr,
-        void *from_addr, uint64_t pagesize)
+                               void *from_addr, uint64_t pagesize, RAMBlock *rb)
 {
+    int ret;
     if (from_addr) {
         struct uffdio_copy copy_struct;
         copy_struct.dst = (uint64_t)(uintptr_t)host_addr;
         copy_struct.src = (uint64_t)(uintptr_t)from_addr;
         copy_struct.len = pagesize;
         copy_struct.mode = 0;
-        return ioctl(userfault_fd, UFFDIO_COPY, &copy_struct);
+        ret = ioctl(userfault_fd, UFFDIO_COPY, &copy_struct);
     } else {
         struct uffdio_zeropage zero_struct;
         zero_struct.range.start = (uint64_t)(uintptr_t)host_addr;
         zero_struct.range.len = pagesize;
         zero_struct.mode = 0;
-        return ioctl(userfault_fd, UFFDIO_ZEROPAGE, &zero_struct);
+        ret = ioctl(userfault_fd, UFFDIO_ZEROPAGE, &zero_struct);
     }
+    if (!ret) {
+        ramblock_recv_bitmap_set_range(rb, host_addr,
+                                       pagesize / qemu_target_page_size());
+    }
+    return ret;
 }
 
 /*
@@ -674,7 +680,7 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
      * which would be slightly cheaper, but we'd have to be careful
      * of the order of updating our page state.
      */
-    if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, from, pagesize)) {
+    if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, from, pagesize, rb)) {
         int e = errno;
         error_report("%s: %s copy host: %p from: %p (size: %zd)",
                      __func__, strerror(e), host, from, pagesize);
@@ -696,7 +702,8 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
     trace_postcopy_place_page_zero(host);
 
     if (qemu_ram_pagesize(rb) == getpagesize()) {
-        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, getpagesize())) {
+        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, getpagesize(),
+                                rb)) {
             int e = errno;
             error_report("%s: %s zero host: %p",
                          __func__, strerror(e), host);

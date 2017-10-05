@@ -47,6 +47,8 @@ struct RAMBlock {
      * of the postcopy phase
      */
     unsigned long *unsentmap;
+    /* bitmap of already received pages in postcopy */
+    unsigned long *receivedmap;
 };
 
 static inline bool offset_in_ramblock(RAMBlock *b, ram_addr_t offset)
@@ -58,6 +60,14 @@ static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
 {
     assert(offset_in_ramblock(block, offset));
     return (char *)block->host + offset;
+}
+
+static inline unsigned long int ramblock_recv_bitmap_offset(void *host_addr,
+                                                            RAMBlock *rb)
+{
+    uint64_t host_addr_offset =
+            (uint64_t)(uintptr_t)(host_addr - (void *)rb->host);
+    return host_addr_offset >> TARGET_PAGE_BITS;
 }
 
 long qemu_getrampagesize(void);

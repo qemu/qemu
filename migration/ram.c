@@ -45,6 +45,7 @@
 #include "qapi/qmp/qerror.h"
 #include "trace.h"
 #include "exec/ram_addr.h"
+#include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "migration/block.h"
@@ -156,6 +157,35 @@ out_new_size:
 out:
     XBZRLE_cache_unlock();
     return ret;
+}
+
+static void ramblock_recv_map_init(void)
+{
+    RAMBlock *rb;
+
+    RAMBLOCK_FOREACH(rb) {
+        assert(!rb->receivedmap);
+        rb->receivedmap = bitmap_new(rb->max_length >> qemu_target_page_bits());
+    }
+}
+
+int ramblock_recv_bitmap_test(RAMBlock *rb, void *host_addr)
+{
+    return test_bit(ramblock_recv_bitmap_offset(host_addr, rb),
+                    rb->receivedmap);
+}
+
+void ramblock_recv_bitmap_set(RAMBlock *rb, void *host_addr)
+{
+    set_bit_atomic(ramblock_recv_bitmap_offset(host_addr, rb), rb->receivedmap);
+}
+
+void ramblock_recv_bitmap_set_range(RAMBlock *rb, void *host_addr,
+                                    size_t nr)
+{
+    bitmap_set_atomic(rb->receivedmap,
+                      ramblock_recv_bitmap_offset(host_addr, rb),
+                      nr);
 }
 
 /*
@@ -2021,6 +2051,8 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
         goto err;
     }
 
+    bitmap_clear(rb->receivedmap, start >> qemu_target_page_bits(),
+                 length >> qemu_target_page_bits());
     ret = ram_block_discard_range(rb, start, length);
 
 err:
@@ -2607,13 +2639,20 @@ static int ram_load_setup(QEMUFile *f, void *opaque)
 {
     xbzrle_load_setup();
     compress_threads_load_setup();
+    ramblock_recv_map_init();
     return 0;
 }
 
 static int ram_load_cleanup(void *opaque)
 {
+    RAMBlock *rb;
     xbzrle_load_cleanup();
     compress_threads_load_cleanup();
+
+    RAMBLOCK_FOREACH(rb) {
+        g_free(rb->receivedmap);
+        rb->receivedmap = NULL;
+    }
     return 0;
 }
 
@@ -2828,6 +2867,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
+            ramblock_recv_bitmap_set(block, host);
             trace_ram_load_loop(block->idstr, (uint64_t)addr, flags, host);
         }
 
