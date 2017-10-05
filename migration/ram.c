@@ -129,13 +129,6 @@ int xbzrle_cache_resize(int64_t new_size, Error **errp)
         return -1;
     }
 
-    /* Cache should not be larger than guest ram size */
-    if (new_size > ram_bytes_total()) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "exceeds guest ram size");
-        return -1;
-    }
-
     if (new_size == migrate_xbzrle_cache_size()) {
         /* nothing to do */
         return 0;
