@@ -392,6 +392,9 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
 
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_OPENRISC_CPU, cpu_model)
 
+#define OPENRISC_CPU_TYPE_SUFFIX "-" TYPE_OPENRISC_CPU
+#define OPENRISC_CPU_TYPE_NAME(model) model OPENRISC_CPU_TYPE_SUFFIX
+
 #include "exec/cpu-all.h"
 
 #define TB_FLAGS_DFLAG 1
