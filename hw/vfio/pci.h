@@ -135,6 +135,7 @@ typedef struct VFIOPCIDevice {
     int32_t bootindex;
     uint32_t igd_gms;
     uint8_t pm_cap;
+    uint8_t nv_gpudirect_clique;
     bool pci_aer;
     bool req_enabled;
     bool has_flr;
@@ -160,6 +161,9 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr);
 void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev);
+int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp);
+
+extern const PropertyInfo qdev_prop_nv_gpudirect_clique;
 
 int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp);
 

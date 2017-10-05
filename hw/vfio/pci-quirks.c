@@ -14,6 +14,7 @@
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "hw/nvram/fw_cfg.h"
 #include "pci.h"
 #include "trace.h"
@@ -1849,4 +1850,117 @@ void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev)
         }
         break;
     }
+}
+
+/*
+ * The NVIDIA GPUDirect P2P Vendor capability allows the user to specify
+ * devices as a member of a clique.  Devices within the same clique ID
+ * are capable of direct P2P.  It's the user's responsibility that this
+ * is correct.  The spec says that this may reside at any unused config
+ * offset, but reserves and recommends hypervisors place this at C8h.
+ * The spec also states that the hypervisor should place this capability
+ * at the end of the capability list, thus next is defined as 0h.
+ *
+ * +----------------+----------------+----------------+----------------+
+ * | sig 7:0 ('P')  |  vndr len (8h) |    next (0h)   |   cap id (9h)  |
+ * +----------------+----------------+----------------+----------------+
+ * | rsvd 15:7(0h),id 6:3,ver 2:0(0h)|          sig 23:8 ('P2')        |
+ * +---------------------------------+---------------------------------+
+ *
+ * https://lists.gnu.org/archive/html/qemu-devel/2017-08/pdfUda5iEpgOS.pdf
+ */
+static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_uint8(v, name, ptr, errp);
+}
+
+static void set_nv_gpudirect_clique_id(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    uint8_t value, *ptr = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_uint8(v, name, &value, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (value & ~0xF) {
+        error_setg(errp, "Property %s: valid range 0-15", name);
+        return;
+    }
+
+    *ptr = value;
+}
+
+const PropertyInfo qdev_prop_nv_gpudirect_clique = {
+    .name = "uint4",
+    .description = "NVIDIA GPUDirect Clique ID (0 - 15)",
+    .get = get_nv_gpudirect_clique_id,
+    .set = set_nv_gpudirect_clique_id,
+};
+
+static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    int ret, pos = 0xC8;
+
+    if (vdev->nv_gpudirect_clique == 0xFF) {
+        return 0;
+    }
+
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID)) {
+        error_setg(errp, "NVIDIA GPUDirect Clique ID: invalid device vendor");
+        return -EINVAL;
+    }
+
+    if (pci_get_byte(pdev->config + PCI_CLASS_DEVICE + 1) !=
+        PCI_BASE_CLASS_DISPLAY) {
+        error_setg(errp, "NVIDIA GPUDirect Clique ID: unsupported PCI class");
+        return -EINVAL;
+    }
+
+    ret = pci_add_capability(pdev, PCI_CAP_ID_VNDR, pos, 8, errp);
+    if (ret < 0) {
+        error_prepend(errp, "Failed to add NVIDIA GPUDirect cap: ");
+        return ret;
+    }
+
+    memset(vdev->emulated_config_bits + pos, 0xFF, 8);
+    pos += PCI_CAP_FLAGS;
+    pci_set_byte(pdev->config + pos++, 8);
+    pci_set_byte(pdev->config + pos++, 'P');
+    pci_set_byte(pdev->config + pos++, '2');
+    pci_set_byte(pdev->config + pos++, 'P');
+    pci_set_byte(pdev->config + pos++, vdev->nv_gpudirect_clique << 3);
+    pci_set_byte(pdev->config + pos, 0);
+
+    return 0;
+}
+
+int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp)
+{
+    int ret;
+
+    ret = vfio_add_nv_gpudirect_cap(vdev, errp);
+    if (ret) {
+        return ret;
+    }
+
+    return 0;
 }
