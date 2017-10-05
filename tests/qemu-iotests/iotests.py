@@ -195,8 +195,6 @@ class VM(qtest.QEMUQtestMachine):
         super(VM, self).__init__(qemu_prog, qemu_opts, name=name,
                                  test_dir=test_dir,
                                  socket_scm_helper=socket_scm_helper)
-        if debug:
-            self._debug = True
         self._num_drives = 0
 
     def add_device(self, opts):
