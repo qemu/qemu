@@ -2697,6 +2697,7 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
  * the command is found in a sub-command table.
  */
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
+                                              const char *cmdp_start,
                                               const char **cmdp,
                                               mon_cmd_t *table)
 {
@@ -2712,7 +2713,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     cmd = search_dispatch_table(table, cmdname);
     if (!cmd) {
         monitor_printf(mon, "unknown command: '%.*s'\n",
-                       (int)(p - *cmdp), *cmdp);
+                       (int)(p - cmdp_start), cmdp_start);
         return NULL;
     }
 
@@ -2724,7 +2725,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     *cmdp = p;
     /* search sub command */
     if (cmd->sub_table != NULL && *p != '\0') {
-        return monitor_parse_command(mon, cmdp, cmd->sub_table);
+        return monitor_parse_command(mon, cmdp_start, cmdp, cmd->sub_table);
     }
 
     return cmd;
@@ -3108,7 +3109,7 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 
     trace_handle_hmp_command(mon, cmdline);
 
-    cmd = monitor_parse_command(mon, &cmdline, mon->cmd_table);
+    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->cmd_table);
     if (!cmd) {
         return;
     }
