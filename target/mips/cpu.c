@@ -154,7 +154,7 @@ static void mips_cpu_initfn(Object *obj)
 
 static char *mips_cpu_type_name(const char *cpu_model)
 {
-    return g_strdup_printf("%s-" TYPE_MIPS_CPU, cpu_model);
+    return g_strdup_printf(MIPS_CPU_TYPE_NAME("%s"), cpu_model);
 }
 
 static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
