@@ -223,7 +223,14 @@ void aio_set_fd_handler(AioContext *ctx,
             return;
         }
 
-        g_source_remove_poll(&ctx->source, &node->pfd);
+        /* If the GSource is in the process of being destroyed then
+         * g_source_remove_poll() causes an assertion failure.  Skip
+         * removal in that case, because glib cleans up its state during
+         * destruction anyway.
+         */
+        if (!g_source_is_destroyed(&ctx->source)) {
+            g_source_remove_poll(&ctx->source, &node->pfd);
+        }
 
         /* If the lock is held, just mark the node as deleted */
         if (qemu_lockcnt_count(&ctx->list_lock)) {

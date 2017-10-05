@@ -71,8 +71,6 @@ static void *iothread_run(void *opaque)
             g_main_loop_unref(loop);
 
             g_main_context_pop_thread_default(iothread->worker_context);
-            g_main_context_unref(iothread->worker_context);
-            iothread->worker_context = NULL;
         }
     }
 
@@ -80,13 +78,10 @@ static void *iothread_run(void *opaque)
     return NULL;
 }
 
-static int iothread_stop(Object *object, void *opaque)
+void iothread_stop(IOThread *iothread)
 {
-    IOThread *iothread;
-
-    iothread = (IOThread *)object_dynamic_cast(object, TYPE_IOTHREAD);
-    if (!iothread || !iothread->ctx || iothread->stopping) {
-        return 0;
+    if (!iothread->ctx || iothread->stopping) {
+        return;
     }
     iothread->stopping = true;
     aio_notify(iothread->ctx);
@@ -94,6 +89,17 @@ static int iothread_stop(Object *object, void *opaque)
         g_main_loop_quit(iothread->main_loop);
     }
     qemu_thread_join(&iothread->thread);
+}
+
+static int iothread_stop_iter(Object *object, void *opaque)
+{
+    IOThread *iothread;
+
+    iothread = (IOThread *)object_dynamic_cast(object, TYPE_IOTHREAD);
+    if (!iothread) {
+        return 0;
+    }
+    iothread_stop(iothread);
     return 0;
 }
 
@@ -108,7 +114,11 @@ static void iothread_instance_finalize(Object *obj)
 {
     IOThread *iothread = IOTHREAD(obj);
 
-    iothread_stop(obj, NULL);
+    iothread_stop(iothread);
+    if (iothread->worker_context) {
+        g_main_context_unref(iothread->worker_context);
+        iothread->worker_context = NULL;
+    }
     qemu_cond_destroy(&iothread->init_done_cond);
     qemu_mutex_destroy(&iothread->init_done_lock);
     if (!iothread->ctx) {
@@ -328,7 +338,7 @@ void iothread_stop_all(void)
         aio_context_release(ctx);
     }
 
-    object_child_foreach(container, iothread_stop, NULL);
+    object_child_foreach(container, iothread_stop_iter, NULL);
 }
 
 static gpointer iothread_g_main_context_init(gpointer opaque)
@@ -353,4 +363,20 @@ GMainContext *iothread_get_g_main_context(IOThread *iothread)
     g_once(&iothread->once, iothread_g_main_context_init, iothread);
 
     return iothread->worker_context;
+}
+
+IOThread *iothread_create(const char *id, Error **errp)
+{
+    Object *obj;
+
+    obj = object_new_with_props(TYPE_IOTHREAD,
+                                object_get_internal_root(),
+                                id, errp, NULL);
+
+    return IOTHREAD(obj);
+}
+
+void iothread_destroy(IOThread *iothread)
+{
+    object_unparent(OBJECT(iothread));
 }

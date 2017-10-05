@@ -1370,6 +1370,17 @@ Object *object_get_objects_root(void)
     return container_get(object_get_root(), "/objects");
 }
 
+Object *object_get_internal_root(void)
+{
+    static Object *internal_root;
+
+    if (!internal_root) {
+        internal_root = object_new("container");
+    }
+
+    return internal_root;
+}
+
 static void object_get_child_property(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
