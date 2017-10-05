@@ -116,7 +116,7 @@ static void moxiesim_init(MachineState *machine)
 
     /* Init CPUs. */
     if (cpu_model == NULL) {
-        cpu_model = "MoxieLite-moxie-cpu";
+        cpu_model = "MoxieLite";
     }
     cpu = MOXIE_CPU(cpu_generic_init(TYPE_MOXIE_CPU, cpu_model));
     env = &cpu->env;
