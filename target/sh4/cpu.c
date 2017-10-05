@@ -98,12 +98,11 @@ static gint superh_cpu_list_compare(gconstpointer a, gconstpointer b)
 
 static void superh_cpu_list_entry(gpointer data, gpointer user_data)
 {
-    ObjectClass *oc = data;
-    SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
     SuperHCPUListState *s = user_data;
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    int len = strlen(typename) - strlen(SUPERH_CPU_TYPE_SUFFIX);
 
-    (*s->cpu_fprintf)(s->file, "%s\n",
-                      scc->name);
+    (*s->cpu_fprintf)(s->file, "%.*s\n", len, typename);
 }
 
 void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf)
@@ -156,7 +155,6 @@ static void sh7750r_class_init(ObjectClass *oc, void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
-    scc->name = "SH7750R";
     scc->pvr = 0x00050000;
     scc->prr = 0x00000100;
     scc->cvr = 0x00110000;
@@ -175,7 +173,6 @@ static void sh7751r_class_init(ObjectClass *oc, void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
-    scc->name = "SH7751R";
     scc->pvr = 0x04050005;
     scc->prr = 0x00000113;
     scc->cvr = 0x00110000; /* Neutered caches, should be 0x20480000 */
@@ -194,7 +191,6 @@ static void sh7785_class_init(ObjectClass *oc, void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
-    scc->name = "SH7785";
     scc->pvr = 0x10300700;
     scc->prr = 0x00000200;
     scc->cvr = 0x71440211;
