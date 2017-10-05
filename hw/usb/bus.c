@@ -341,9 +341,7 @@ static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
-        error_prepend(errp, "Failed to initialize USB device '%s': ",
-                      name);
-        object_unparent(OBJECT(dev));
+        error_prepend(errp, "Failed to initialize USB device '%s': ", name);
         return NULL;
     }
     return dev;
