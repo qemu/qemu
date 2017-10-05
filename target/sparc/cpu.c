@@ -712,7 +712,7 @@ static bool sparc_cpu_has_work(CPUState *cs)
 
 static char *sparc_cpu_type_name(const char *cpu_model)
 {
-    char *name = g_strdup_printf("%s-" TYPE_SPARC_CPU, cpu_model);
+    char *name = g_strdup_printf(SPARC_CPU_TYPE_NAME("%s"), cpu_model);
     char *s = name;
 
     /* SPARC cpu model names happen to have whitespaces,
