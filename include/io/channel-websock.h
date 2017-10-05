@@ -60,11 +60,13 @@ struct QIOChannelWebsock {
     Buffer encoutput;
     Buffer rawinput;
     Buffer rawoutput;
+    Buffer ping_reply;
     size_t payload_remain;
     QIOChannelWebsockMask mask;
     guint io_tag;
     Error *io_err;
     gboolean io_eof;
+    uint8_t opcode;
 };
 
 /**

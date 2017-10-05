@@ -46,8 +46,13 @@ qio_channel_websock_new_server(void *ioc, void *master) "Websock new client ioc=
 qio_channel_websock_handshake_start(void *ioc) "Websock handshake start ioc=%p"
 qio_channel_websock_handshake_pending(void *ioc, int status) "Websock handshake pending ioc=%p status=%d"
 qio_channel_websock_handshake_reply(void *ioc) "Websock handshake reply ioc=%p"
-qio_channel_websock_handshake_fail(void *ioc) "Websock handshake fail ioc=%p"
+qio_channel_websock_handshake_fail(void *ioc, const char *msg) "Websock handshake fail ioc=%p err=%s"
 qio_channel_websock_handshake_complete(void *ioc) "Websock handshake complete ioc=%p"
+qio_channel_websock_header_partial_decode(void *ioc, size_t payloadlen, unsigned char fin, unsigned char opcode, unsigned char has_mask) "Websocket header decoded ioc=%p payload-len=%zu fin=0x%x opcode=0x%x has_mask=0x%x"
+qio_channel_websock_header_full_decode(void *ioc, size_t headerlen, size_t payloadlen, uint32_t mask) "Websocket header decoded ioc=%p header-len=%zu payload-len=%zu mask=0x%x"
+qio_channel_websock_payload_decode(void *ioc, uint8_t opcode, size_t payload_remain) "Websocket header decoded ioc=%p opcode=0x%x payload-remain=%zu"
+qio_channel_websock_encode(void *ioc, uint8_t opcode, size_t payloadlen, size_t headerlen) "Websocket encoded ioc=%p opcode=0x%x header-len=%zu payload-len=%zu"
+qio_channel_websock_close(void *ioc) "Websocket close ioc=%p"
 
 # io/channel-command.c
 qio_channel_command_new_pid(void *ioc, int writefd, int readfd, int pid) "Command new pid ioc=%p writefd=%d readfd=%d pid=%d"

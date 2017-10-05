@@ -1122,6 +1122,7 @@ static void vnc_disconnect_start(VncState *vs)
     vnc_set_share_mode(vs, VNC_SHARE_MODE_DISCONNECTED);
     if (vs->ioc_tag) {
         g_source_remove(vs->ioc_tag);
+        vs->ioc_tag = 0;
     }
     qio_channel_close(vs->ioc, NULL);
     vs->disconnecting = TRUE;
@@ -2934,6 +2935,9 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     VNC_DEBUG("New client on socket %p\n", vs->sioc);
     update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     qio_channel_set_blocking(vs->ioc, false, NULL);
+    if (vs->ioc_tag) {
+        g_source_remove(vs->ioc_tag);
+    }
     if (websocket) {
         vs->websocket = 1;
         if (vd->tlscreds) {

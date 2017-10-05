@@ -25,6 +25,8 @@
 #include "crypto/hash.h"
 #include "trace.h"
 
+#include <time.h>
+
 
 /* Max amount to allow in rawinput/rawoutput buffers */
 #define QIO_CHANNEL_WEBSOCK_MAX_BUFFER 8192
@@ -44,12 +46,39 @@
 #define QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE "Upgrade"
 #define QIO_CHANNEL_WEBSOCK_UPGRADE_WEBSOCKET "websocket"
 
-#define QIO_CHANNEL_WEBSOCK_HANDSHAKE_RESPONSE  \
+#define QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_COMMON \
+    "Server: QEMU VNC\r\n"                       \
+    "Date: %s\r\n"
+
+#define QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_OK    \
     "HTTP/1.1 101 Switching Protocols\r\n"      \
+    QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_COMMON    \
     "Upgrade: websocket\r\n"                    \
     "Connection: Upgrade\r\n"                   \
     "Sec-WebSocket-Accept: %s\r\n"              \
     "Sec-WebSocket-Protocol: binary\r\n"        \
+    "\r\n"
+#define QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_NOT_FOUND \
+    "HTTP/1.1 404 Not Found\r\n"                    \
+    QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_COMMON        \
+    "Connection: close\r\n"                         \
+    "\r\n"
+#define QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_BAD_REQUEST \
+    "HTTP/1.1 400 Bad Request\r\n"                    \
+    QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_COMMON          \
+    "Connection: close\r\n"                           \
+    "Sec-WebSocket-Version: "                         \
+    QIO_CHANNEL_WEBSOCK_SUPPORTED_VERSION             \
+    "\r\n"
+#define QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_SERVER_ERR \
+    "HTTP/1.1 500 Internal Server Error\r\n"         \
+    QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_COMMON         \
+    "Connection: close\r\n"                          \
+    "\r\n"
+#define QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_TOO_LARGE  \
+    "HTTP/1.1 403 Request Entity Too Large\r\n"      \
+    QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_COMMON         \
+    "Connection: close\r\n"                          \
     "\r\n"
 #define QIO_CHANNEL_WEBSOCK_HANDSHAKE_DELIM "\r\n"
 #define QIO_CHANNEL_WEBSOCK_HANDSHAKE_END "\r\n\r\n"
@@ -81,13 +110,12 @@
 /* Magic 7-bit length to indicate use of 64-bit payload length */
 #define QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_64_BIT 127
 
-/* Bitmasks & shifts for accessing header fields */
+/* Bitmasks for accessing header fields */
 #define QIO_CHANNEL_WEBSOCK_HEADER_FIELD_FIN 0x80
 #define QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE 0x0f
 #define QIO_CHANNEL_WEBSOCK_HEADER_FIELD_HAS_MASK 0x80
 #define QIO_CHANNEL_WEBSOCK_HEADER_FIELD_PAYLOAD_LEN 0x7f
-#define QIO_CHANNEL_WEBSOCK_HEADER_SHIFT_FIN 7
-#define QIO_CHANNEL_WEBSOCK_HEADER_SHIFT_HAS_MASK 7
+#define QIO_CHANNEL_WEBSOCK_CONTROL_OPCODE_MASK 0x8
 
 typedef struct QIOChannelWebsockHeader QIOChannelWebsockHeader;
 
@@ -123,8 +151,55 @@ enum {
     QIO_CHANNEL_WEBSOCK_OPCODE_PONG = 0xA
 };
 
+static void qio_channel_websock_handshake_send_res(QIOChannelWebsock *ioc,
+                                                   const char *resmsg,
+                                                   ...)
+{
+    va_list vargs;
+    char *response;
+    size_t responselen;
+
+    va_start(vargs, resmsg);
+    response = g_strdup_vprintf(resmsg, vargs);
+    responselen = strlen(response);
+    buffer_reserve(&ioc->encoutput, responselen);
+    buffer_append(&ioc->encoutput, response, responselen);
+    va_end(vargs);
+}
+
+static gchar *qio_channel_websock_date_str(void)
+{
+    struct tm tm;
+    time_t now = time(NULL);
+    char datebuf[128];
+
+    gmtime_r(&now, &tm);
+
+    strftime(datebuf, sizeof(datebuf), "%a, %d %b %Y %H:%M:%S GMT", &tm);
+
+    return g_strdup(datebuf);
+}
+
+static void qio_channel_websock_handshake_send_res_err(QIOChannelWebsock *ioc,
+                                                       const char *resdata)
+{
+    char *date = qio_channel_websock_date_str();
+    qio_channel_websock_handshake_send_res(ioc, resdata, date);
+    g_free(date);
+}
+
+enum {
+    QIO_CHANNEL_WEBSOCK_STATUS_NORMAL = 1000,
+    QIO_CHANNEL_WEBSOCK_STATUS_PROTOCOL_ERR = 1002,
+    QIO_CHANNEL_WEBSOCK_STATUS_INVALID_DATA = 1003,
+    QIO_CHANNEL_WEBSOCK_STATUS_POLICY = 1008,
+    QIO_CHANNEL_WEBSOCK_STATUS_TOO_LARGE = 1009,
+    QIO_CHANNEL_WEBSOCK_STATUS_SERVER_ERR = 1011,
+};
+
 static size_t
-qio_channel_websock_extract_headers(char *buffer,
+qio_channel_websock_extract_headers(QIOChannelWebsock *ioc,
+                                    char *buffer,
                                     QIOChannelWebsockHTTPHeader *hdrs,
                                     size_t nhdrsalloc,
                                     Error **errp)
@@ -145,7 +220,7 @@ qio_channel_websock_extract_headers(char *buffer,
     nl = strstr(buffer, QIO_CHANNEL_WEBSOCK_HANDSHAKE_DELIM);
     if (!nl) {
         error_setg(errp, "Missing HTTP header delimiter");
-        return 0;
+        goto bad_request;
     }
     *nl = '\0';
 
@@ -158,18 +233,20 @@ qio_channel_websock_extract_headers(char *buffer,
 
     if (!g_str_equal(buffer, QIO_CHANNEL_WEBSOCK_HTTP_METHOD)) {
         error_setg(errp, "Unsupported HTTP method %s", buffer);
-        return 0;
+        goto bad_request;
     }
 
     buffer = tmp + 1;
     tmp = strchr(buffer, ' ');
     if (!tmp) {
         error_setg(errp, "Missing HTTP version delimiter");
-        return 0;
+        goto bad_request;
     }
     *tmp = '\0';
 
     if (!g_str_equal(buffer, QIO_CHANNEL_WEBSOCK_HTTP_PATH)) {
+        qio_channel_websock_handshake_send_res_err(
+            ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_NOT_FOUND);
         error_setg(errp, "Unexpected HTTP path %s", buffer);
         return 0;
     }
@@ -178,7 +255,7 @@ qio_channel_websock_extract_headers(char *buffer,
 
     if (!g_str_equal(buffer, QIO_CHANNEL_WEBSOCK_HTTP_VERSION)) {
         error_setg(errp, "Unsupported HTTP version %s", buffer);
-        return 0;
+        goto bad_request;
     }
 
     buffer = nl + strlen(QIO_CHANNEL_WEBSOCK_HANDSHAKE_DELIM);
@@ -203,7 +280,7 @@ qio_channel_websock_extract_headers(char *buffer,
         sep = strchr(buffer, ':');
         if (!sep) {
             error_setg(errp, "Malformed HTTP header");
-            return 0;
+            goto bad_request;
         }
         *sep = '\0';
         sep++;
@@ -213,7 +290,7 @@ qio_channel_websock_extract_headers(char *buffer,
 
         if (nhdrs >= nhdrsalloc) {
             error_setg(errp, "Too many HTTP headers");
-            return 0;
+            goto bad_request;
         }
 
         hdr = &hdrs[nhdrs++];
@@ -231,6 +308,11 @@ qio_channel_websock_extract_headers(char *buffer,
     } while (nl != NULL);
 
     return nhdrs;
+
+ bad_request:
+    qio_channel_websock_handshake_send_res_err(
+        ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_BAD_REQUEST);
+    return 0;
 }
 
 static const char *
@@ -250,14 +332,14 @@ qio_channel_websock_find_header(QIOChannelWebsockHTTPHeader *hdrs,
 }
 
 
-static int qio_channel_websock_handshake_send_response(QIOChannelWebsock *ioc,
-                                                       const char *key,
-                                                       Error **errp)
+static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
+                                                      const char *key,
+                                                      Error **errp)
 {
     char combined_key[QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN +
                       QIO_CHANNEL_WEBSOCK_GUID_LEN + 1];
-    char *accept = NULL, *response = NULL;
-    size_t responselen;
+    char *accept = NULL;
+    char *date = qio_channel_websock_date_str();
 
     g_strlcpy(combined_key, key, QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN + 1);
     g_strlcat(combined_key, QIO_CHANNEL_WEBSOCK_GUID,
@@ -271,105 +353,108 @@ static int qio_channel_websock_handshake_send_response(QIOChannelWebsock *ioc,
                             QIO_CHANNEL_WEBSOCK_GUID_LEN,
                             &accept,
                             errp) < 0) {
-        return -1;
+        qio_channel_websock_handshake_send_res_err(
+            ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_SERVER_ERR);
+        return;
     }
 
-    response = g_strdup_printf(QIO_CHANNEL_WEBSOCK_HANDSHAKE_RESPONSE, accept);
-    responselen = strlen(response);
-    buffer_reserve(&ioc->encoutput, responselen);
-    buffer_append(&ioc->encoutput, response, responselen);
+    qio_channel_websock_handshake_send_res(
+        ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_OK, date, accept);
 
+    g_free(date);
     g_free(accept);
-    g_free(response);
-
-    return 0;
 }
 
-static int qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
-                                                 char *buffer,
-                                                 Error **errp)
+static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
+                                                  char *buffer,
+                                                  Error **errp)
 {
     QIOChannelWebsockHTTPHeader hdrs[32];
     size_t nhdrs = G_N_ELEMENTS(hdrs);
     const char *protocols = NULL, *version = NULL, *key = NULL,
         *host = NULL, *connection = NULL, *upgrade = NULL;
 
-    nhdrs = qio_channel_websock_extract_headers(buffer, hdrs, nhdrs, errp);
+    nhdrs = qio_channel_websock_extract_headers(ioc, buffer, hdrs, nhdrs, errp);
     if (!nhdrs) {
-        return -1;
+        return;
     }
 
     protocols = qio_channel_websock_find_header(
         hdrs, nhdrs, QIO_CHANNEL_WEBSOCK_HEADER_PROTOCOL);
     if (!protocols) {
         error_setg(errp, "Missing websocket protocol header data");
-        return -1;
+        goto bad_request;
     }
 
     version = qio_channel_websock_find_header(
         hdrs, nhdrs, QIO_CHANNEL_WEBSOCK_HEADER_VERSION);
     if (!version) {
         error_setg(errp, "Missing websocket version header data");
-        return -1;
+        goto bad_request;
     }
 
     key = qio_channel_websock_find_header(
         hdrs, nhdrs, QIO_CHANNEL_WEBSOCK_HEADER_KEY);
     if (!key) {
         error_setg(errp, "Missing websocket key header data");
-        return -1;
+        goto bad_request;
     }
 
     host = qio_channel_websock_find_header(
         hdrs, nhdrs, QIO_CHANNEL_WEBSOCK_HEADER_HOST);
     if (!host) {
         error_setg(errp, "Missing websocket host header data");
-        return -1;
+        goto bad_request;
     }
 
     connection = qio_channel_websock_find_header(
         hdrs, nhdrs, QIO_CHANNEL_WEBSOCK_HEADER_CONNECTION);
     if (!connection) {
         error_setg(errp, "Missing websocket connection header data");
-        return -1;
+        goto bad_request;
     }
 
     upgrade = qio_channel_websock_find_header(
         hdrs, nhdrs, QIO_CHANNEL_WEBSOCK_HEADER_UPGRADE);
     if (!upgrade) {
         error_setg(errp, "Missing websocket upgrade header data");
-        return -1;
+        goto bad_request;
     }
 
     if (!g_strrstr(protocols, QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY)) {
         error_setg(errp, "No '%s' protocol is supported by client '%s'",
                    QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY, protocols);
-        return -1;
+        goto bad_request;
     }
 
     if (!g_str_equal(version, QIO_CHANNEL_WEBSOCK_SUPPORTED_VERSION)) {
         error_setg(errp, "Version '%s' is not supported by client '%s'",
                    QIO_CHANNEL_WEBSOCK_SUPPORTED_VERSION, version);
-        return -1;
+        goto bad_request;
     }
 
     if (strlen(key) != QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN) {
         error_setg(errp, "Key length '%zu' was not as expected '%d'",
                    strlen(key), QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN);
-        return -1;
+        goto bad_request;
     }
 
-    if (!g_strrstr(connection, QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE)) {
+    if (strcasecmp(connection, QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE) != 0) {
         error_setg(errp, "No connection upgrade requested '%s'", connection);
-        return -1;
+        goto bad_request;
     }
 
-    if (!g_str_equal(upgrade, QIO_CHANNEL_WEBSOCK_UPGRADE_WEBSOCKET)) {
+    if (strcasecmp(upgrade, QIO_CHANNEL_WEBSOCK_UPGRADE_WEBSOCKET) != 0) {
         error_setg(errp, "Incorrect upgrade method '%s'", upgrade);
-        return -1;
+        goto bad_request;
     }
 
-    return qio_channel_websock_handshake_send_response(ioc, key, errp);
+    qio_channel_websock_handshake_send_res_ok(ioc, key, errp);
+    return;
+
+ bad_request:
+    qio_channel_websock_handshake_send_res_err(
+        ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_BAD_REQUEST);
 }
 
 static int qio_channel_websock_handshake_read(QIOChannelWebsock *ioc,
@@ -393,20 +478,20 @@ static int qio_channel_websock_handshake_read(QIOChannelWebsock *ioc,
                                  QIO_CHANNEL_WEBSOCK_HANDSHAKE_END);
     if (!handshake_end) {
         if (ioc->encinput.offset >= 4096) {
+            qio_channel_websock_handshake_send_res_err(
+                ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_TOO_LARGE);
             error_setg(errp,
                        "End of headers not found in first 4096 bytes");
-            return -1;
+            return 1;
         } else {
             return 0;
         }
     }
     *handshake_end = '\0';
 
-    if (qio_channel_websock_handshake_process(ioc,
-                                              (char *)ioc->encinput.buffer,
-                                              errp) < 0) {
-        return -1;
-    }
+    qio_channel_websock_handshake_process(ioc,
+                                          (char *)ioc->encinput.buffer,
+                                          errp);
 
     buffer_advance(&ioc->encinput,
                    handshake_end - (char *)ioc->encinput.buffer +
@@ -430,7 +515,7 @@ static gboolean qio_channel_websock_handshake_send(QIOChannel *ioc,
                             &err);
 
     if (ret < 0) {
-        trace_qio_channel_websock_handshake_fail(ioc);
+        trace_qio_channel_websock_handshake_fail(ioc, error_get_pretty(err));
         qio_task_set_error(task, err);
         qio_task_complete(task);
         return FALSE;
@@ -438,8 +523,16 @@ static gboolean qio_channel_websock_handshake_send(QIOChannel *ioc,
 
     buffer_advance(&wioc->encoutput, ret);
     if (wioc->encoutput.offset == 0) {
-        trace_qio_channel_websock_handshake_complete(ioc);
-        qio_task_complete(task);
+        if (wioc->io_err) {
+            trace_qio_channel_websock_handshake_fail(
+                ioc, error_get_pretty(wioc->io_err));
+            qio_task_set_error(task, wioc->io_err);
+            wioc->io_err = NULL;
+            qio_task_complete(task);
+        } else {
+            trace_qio_channel_websock_handshake_complete(ioc);
+            qio_task_complete(task);
+        }
         return FALSE;
     }
     trace_qio_channel_websock_handshake_pending(ioc, G_IO_OUT);
@@ -458,7 +551,12 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
 
     ret = qio_channel_websock_handshake_read(wioc, &err);
     if (ret < 0) {
-        trace_qio_channel_websock_handshake_fail(ioc);
+        /*
+         * We only take this path on a fatal I/O error reading from
+         * client connection, as most of the time we have an
+         * HTTP 4xx err response to send instead
+         */
+        trace_qio_channel_websock_handshake_fail(ioc, error_get_pretty(err));
         qio_task_set_error(task, err);
         qio_task_complete(task);
         return FALSE;
@@ -467,6 +565,10 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
         trace_qio_channel_websock_handshake_pending(ioc, G_IO_IN);
         /* need more data still */
         return TRUE;
+    }
+
+    if (err) {
+        error_propagate(&wioc->io_err, err);
     }
 
     trace_qio_channel_websock_handshake_reply(ioc);
@@ -480,7 +582,9 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
 }
 
 
-static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
+static void qio_channel_websock_encode_buffer(QIOChannelWebsock *ioc,
+                                              Buffer *output,
+                                              uint8_t opcode, Buffer *buffer)
 {
     size_t header_size;
     union {
@@ -488,39 +592,66 @@ static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
         QIOChannelWebsockHeader ws;
     } header;
 
-    if (!ioc->rawoutput.offset) {
-        return;
-    }
-
-    header.ws.b0 = (1 << QIO_CHANNEL_WEBSOCK_HEADER_SHIFT_FIN) |
-        (QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME &
-         QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE);
-    if (ioc->rawoutput.offset <
-        QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
-        header.ws.b1 = (uint8_t)ioc->rawoutput.offset;
+    header.ws.b0 = QIO_CHANNEL_WEBSOCK_HEADER_FIELD_FIN |
+        (opcode & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE);
+    if (buffer->offset < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
+        header.ws.b1 = (uint8_t)buffer->offset;
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_7_BIT;
-    } else if (ioc->rawoutput.offset <
+    } else if (buffer->offset <
                QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_16_BIT) {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_16_BIT;
-        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)ioc->rawoutput.offset);
+        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)buffer->offset);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_16_BIT;
     } else {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_64_BIT;
-        header.ws.u.s64.l64 = cpu_to_be64(ioc->rawoutput.offset);
+        header.ws.u.s64.l64 = cpu_to_be64(buffer->offset);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_64_BIT;
     }
     header_size -= QIO_CHANNEL_WEBSOCK_HEADER_LEN_MASK;
 
-    buffer_reserve(&ioc->encoutput, header_size + ioc->rawoutput.offset);
-    buffer_append(&ioc->encoutput, header.buf, header_size);
-    buffer_append(&ioc->encoutput, ioc->rawoutput.buffer,
-                  ioc->rawoutput.offset);
+    trace_qio_channel_websock_encode(ioc, opcode, header_size, buffer->offset);
+    buffer_reserve(output, header_size + buffer->offset);
+    buffer_append(output, header.buf, header_size);
+    buffer_append(output, buffer->buffer, buffer->offset);
+}
+
+
+static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
+{
+    if (!ioc->rawoutput.offset) {
+        return;
+    }
+    qio_channel_websock_encode_buffer(
+        ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
+        &ioc->rawoutput);
     buffer_reset(&ioc->rawoutput);
 }
 
 
-static ssize_t qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
-                                                 Error **errp)
+static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *, Error **);
+
+
+static void qio_channel_websock_write_close(QIOChannelWebsock *ioc,
+                                            uint16_t code, const char *reason)
+{
+    buffer_reserve(&ioc->rawoutput, 2 + (reason ? strlen(reason) : 0));
+    *(uint16_t *)(ioc->rawoutput.buffer + ioc->rawoutput.offset) =
+        cpu_to_be16(code);
+    ioc->rawoutput.offset += 2;
+    if (reason) {
+        buffer_append(&ioc->rawoutput, reason, strlen(reason));
+    }
+    qio_channel_websock_encode_buffer(
+        ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
+        &ioc->rawoutput);
+    buffer_reset(&ioc->rawoutput);
+    qio_channel_websock_write_wire(ioc, NULL);
+    qio_channel_shutdown(ioc->master, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+}
+
+
+static int qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
+                                             Error **errp)
 {
     unsigned char opcode, fin, has_mask;
     size_t header_size;
@@ -532,6 +663,9 @@ static ssize_t qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
         error_setg(errp,
                    "Decoding header but %zu bytes of payload remain",
                    ioc->payload_remain);
+        qio_channel_websock_write_close(
+            ioc, QIO_CHANNEL_WEBSOCK_STATUS_SERVER_ERR,
+            "internal server error");
         return -1;
     }
     if (ioc->encinput.offset < QIO_CHANNEL_WEBSOCK_HEADER_LEN_7_BIT) {
@@ -539,12 +673,20 @@ static ssize_t qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
         return QIO_CHANNEL_ERR_BLOCK;
     }
 
-    fin = (header->b0 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_FIN) >>
-        QIO_CHANNEL_WEBSOCK_HEADER_SHIFT_FIN;
+    fin = header->b0 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_FIN;
     opcode = header->b0 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE;
-    has_mask = (header->b1 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_HAS_MASK) >>
-        QIO_CHANNEL_WEBSOCK_HEADER_SHIFT_HAS_MASK;
+    has_mask = header->b1 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_HAS_MASK;
     payload_len = header->b1 & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_PAYLOAD_LEN;
+
+    /* Save or restore opcode. */
+    if (opcode) {
+        ioc->opcode = opcode;
+    } else {
+        opcode = ioc->opcode;
+    }
+
+    trace_qio_channel_websock_header_partial_decode(ioc, payload_len,
+                                                    fin, opcode, (int)has_mask);
 
     if (opcode == QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE) {
         /* disconnect */
@@ -552,20 +694,36 @@ static ssize_t qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
     }
 
     /* Websocket frame sanity check:
-     * * Websocket fragmentation is not supported.
-     * * All  websockets frames sent by a client have to be masked.
-     * * Only binary encoding is supported.
+     * * Fragmentation is only supported for binary frames.
+     * * All frames sent by a client MUST be masked.
+     * * Only binary and ping/pong encoding is supported.
      */
     if (!fin) {
-        error_setg(errp, "websocket fragmentation is not supported");
-        return -1;
+        if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
+            error_setg(errp, "only binary websocket frames may be fragmented");
+            qio_channel_websock_write_close(
+                ioc, QIO_CHANNEL_WEBSOCK_STATUS_POLICY ,
+                "only binary frames may be fragmented");
+            return -1;
+        }
+    } else {
+        if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME &&
+            opcode != QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE &&
+            opcode != QIO_CHANNEL_WEBSOCK_OPCODE_PING &&
+            opcode != QIO_CHANNEL_WEBSOCK_OPCODE_PONG) {
+            error_setg(errp, "unsupported opcode: %#04x; only binary, close, "
+                       "ping, and pong websocket frames are supported", opcode);
+            qio_channel_websock_write_close(
+                ioc, QIO_CHANNEL_WEBSOCK_STATUS_INVALID_DATA ,
+                "only binary, close, ping, and pong frames are supported");
+            return -1;
+        }
     }
     if (!has_mask) {
-        error_setg(errp, "websocket frames must be masked");
-        return -1;
-    }
-    if (opcode != QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
-        error_setg(errp, "only binary websocket frames are supported");
+        error_setg(errp, "client websocket frames must be masked");
+        qio_channel_websock_write_close(
+            ioc, QIO_CHANNEL_WEBSOCK_STATUS_PROTOCOL_ERR,
+            "client frames must be masked");
         return -1;
     }
 
@@ -573,6 +731,12 @@ static ssize_t qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
         ioc->payload_remain = payload_len;
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_7_BIT;
         ioc->mask = header->u.m;
+    } else if (opcode & QIO_CHANNEL_WEBSOCK_CONTROL_OPCODE_MASK) {
+        error_setg(errp, "websocket control frame is too large");
+        qio_channel_websock_write_close(
+            ioc, QIO_CHANNEL_WEBSOCK_STATUS_PROTOCOL_ERR,
+            "control frame is too large");
+        return -1;
     } else if (payload_len == QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_16_BIT &&
                ioc->encinput.offset >= QIO_CHANNEL_WEBSOCK_HEADER_LEN_16_BIT) {
         ioc->payload_remain = be16_to_cpu(header->u.s16.l16);
@@ -588,54 +752,90 @@ static ssize_t qio_channel_websock_decode_header(QIOChannelWebsock *ioc,
         return QIO_CHANNEL_ERR_BLOCK;
     }
 
+    trace_qio_channel_websock_header_full_decode(
+        ioc, header_size, ioc->payload_remain, ioc->mask.u);
     buffer_advance(&ioc->encinput, header_size);
-    return 1;
+    return 0;
 }
 
 
-static ssize_t qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
-                                                  Error **errp)
+static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
+                                              Error **errp)
 {
     size_t i;
-    size_t payload_len;
+    size_t payload_len = 0;
     uint32_t *payload32;
 
-    if (!ioc->payload_remain) {
-        error_setg(errp,
-                   "Decoding payload but no bytes of payload remain");
+    if (ioc->payload_remain) {
+        /* If we aren't at the end of the payload, then drop
+         * off the last bytes, so we're always multiple of 4
+         * for purpose of unmasking, except at end of payload
+         */
+        if (ioc->encinput.offset < ioc->payload_remain) {
+            /* Wait for the entire payload before processing control frames
+             * because the payload will most likely be echoed back. */
+            if (ioc->opcode & QIO_CHANNEL_WEBSOCK_CONTROL_OPCODE_MASK) {
+                return QIO_CHANNEL_ERR_BLOCK;
+            }
+            payload_len = ioc->encinput.offset - (ioc->encinput.offset % 4);
+        } else {
+            payload_len = ioc->payload_remain;
+        }
+        if (payload_len == 0) {
+            return QIO_CHANNEL_ERR_BLOCK;
+        }
+
+        ioc->payload_remain -= payload_len;
+
+        /* unmask frame */
+        /* process 1 frame (32 bit op) */
+        payload32 = (uint32_t *)ioc->encinput.buffer;
+        for (i = 0; i < payload_len / 4; i++) {
+            payload32[i] ^= ioc->mask.u;
+        }
+        /* process the remaining bytes (if any) */
+        for (i *= 4; i < payload_len; i++) {
+            ioc->encinput.buffer[i] ^= ioc->mask.c[i % 4];
+        }
+    }
+
+    trace_qio_channel_websock_payload_decode(
+        ioc, ioc->opcode, ioc->payload_remain);
+
+    if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME) {
+        if (payload_len) {
+            /* binary frames are passed on */
+            buffer_reserve(&ioc->rawinput, payload_len);
+            buffer_append(&ioc->rawinput, ioc->encinput.buffer, payload_len);
+        }
+    } else if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE) {
+        /* close frames are echoed back */
+        error_setg(errp, "websocket closed by peer");
+        if (payload_len) {
+            /* echo client status */
+            qio_channel_websock_encode_buffer(
+                ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
+                &ioc->encinput);
+            qio_channel_websock_write_wire(ioc, NULL);
+            qio_channel_shutdown(ioc->master, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+        } else {
+            /* send our own status */
+            qio_channel_websock_write_close(
+                ioc, QIO_CHANNEL_WEBSOCK_STATUS_NORMAL, "peer requested close");
+        }
         return -1;
-    }
+    } else if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_PING) {
+        /* ping frames produce an immediate reply */
+        buffer_reset(&ioc->ping_reply);
+        qio_channel_websock_encode_buffer(
+            ioc, &ioc->ping_reply, QIO_CHANNEL_WEBSOCK_OPCODE_PONG,
+            &ioc->encinput);
+    }   /* pong frames are ignored */
 
-    /* If we aren't at the end of the payload, then drop
-     * off the last bytes, so we're always multiple of 4
-     * for purpose of unmasking, except at end of payload
-     */
-    if (ioc->encinput.offset < ioc->payload_remain) {
-        payload_len = ioc->encinput.offset - (ioc->encinput.offset % 4);
-    } else {
-        payload_len = ioc->payload_remain;
+    if (payload_len) {
+        buffer_advance(&ioc->encinput, payload_len);
     }
-    if (payload_len == 0) {
-        return QIO_CHANNEL_ERR_BLOCK;
-    }
-
-    ioc->payload_remain -= payload_len;
-
-    /* unmask frame */
-    /* process 1 frame (32 bit op) */
-    payload32 = (uint32_t *)ioc->encinput.buffer;
-    for (i = 0; i < payload_len / 4; i++) {
-        payload32[i] ^= ioc->mask.u;
-    }
-    /* process the remaining bytes (if any) */
-    for (i *= 4; i < payload_len; i++) {
-        ioc->encinput.buffer[i] ^= ioc->mask.c[i % 4];
-    }
-
-    buffer_reserve(&ioc->rawinput, payload_len);
-    buffer_append(&ioc->rawinput, ioc->encinput.buffer, payload_len);
-    buffer_advance(&ioc->encinput, payload_len);
-    return payload_len;
+    return 0;
 }
 
 
@@ -688,6 +888,7 @@ static void qio_channel_websock_finalize(Object *obj)
     buffer_free(&ioc->encoutput);
     buffer_free(&ioc->rawinput);
     buffer_free(&ioc->rawoutput);
+    buffer_free(&ioc->ping_reply);
     object_unref(OBJECT(ioc->master));
     if (ioc->io_tag) {
         g_source_remove(ioc->io_tag);
@@ -715,8 +916,8 @@ static ssize_t qio_channel_websock_read_wire(QIOChannelWebsock *ioc,
         if (ret < 0) {
             return ret;
         }
-        if (ret == 0 &&
-            ioc->encinput.offset == 0) {
+        if (ret == 0 && ioc->encinput.offset == 0) {
+            ioc->io_eof = TRUE;
             return 0;
         }
         ioc->encinput.offset += ret;
@@ -727,10 +928,6 @@ static ssize_t qio_channel_websock_read_wire(QIOChannelWebsock *ioc,
             ret = qio_channel_websock_decode_header(ioc, errp);
             if (ret < 0) {
                 return ret;
-            }
-            if (ret == 0) {
-                ioc->io_eof = TRUE;
-                break;
             }
         }
 
@@ -748,7 +945,13 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
 {
     ssize_t ret;
     ssize_t done = 0;
-    qio_channel_websock_encode(ioc);
+
+    /* ping replies take priority over binary data */
+    if (!ioc->ping_reply.offset) {
+        qio_channel_websock_encode(ioc);
+    } else if (!ioc->encoutput.offset) {
+        buffer_move_empty(&ioc->encoutput, &ioc->ping_reply);
+    }
 
     while (ioc->encoutput.offset > 0) {
         ret = qio_channel_write(ioc->master,
@@ -823,7 +1026,7 @@ static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
         return;
     }
 
-    if (ioc->encoutput.offset) {
+    if (ioc->encoutput.offset || ioc->ping_reply.offset) {
         cond |= G_IO_OUT;
     }
     if (ioc->encinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER &&
@@ -985,6 +1188,7 @@ static int qio_channel_websock_close(QIOChannel *ioc,
 {
     QIOChannelWebsock *wioc = QIO_CHANNEL_WEBSOCK(ioc);
 
+    trace_qio_channel_websock_close(ioc);
     return qio_channel_close(wioc->master, errp);
 }
 
@@ -996,14 +1200,12 @@ struct QIOChannelWebsockSource {
 };
 
 static gboolean
-qio_channel_websock_source_prepare(GSource *source,
-                                   gint *timeout)
+qio_channel_websock_source_check(GSource *source)
 {
     QIOChannelWebsockSource *wsource = (QIOChannelWebsockSource *)source;
     GIOCondition cond = 0;
-    *timeout = -1;
 
-    if (wsource->wioc->rawinput.offset) {
+    if (wsource->wioc->rawinput.offset || wsource->wioc->io_eof) {
         cond |= G_IO_IN;
     }
     if (wsource->wioc->rawoutput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
@@ -1014,19 +1216,11 @@ qio_channel_websock_source_prepare(GSource *source,
 }
 
 static gboolean
-qio_channel_websock_source_check(GSource *source)
+qio_channel_websock_source_prepare(GSource *source,
+                                   gint *timeout)
 {
-    QIOChannelWebsockSource *wsource = (QIOChannelWebsockSource *)source;
-    GIOCondition cond = 0;
-
-    if (wsource->wioc->rawinput.offset) {
-        cond |= G_IO_IN;
-    }
-    if (wsource->wioc->rawoutput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
-        cond |= G_IO_OUT;
-    }
-
-    return cond & wsource->condition;
+    *timeout = -1;
+    return qio_channel_websock_source_check(source);
 }
 
 static gboolean
@@ -1036,17 +1230,9 @@ qio_channel_websock_source_dispatch(GSource *source,
 {
     QIOChannelFunc func = (QIOChannelFunc)callback;
     QIOChannelWebsockSource *wsource = (QIOChannelWebsockSource *)source;
-    GIOCondition cond = 0;
-
-    if (wsource->wioc->rawinput.offset) {
-        cond |= G_IO_IN;
-    }
-    if (wsource->wioc->rawoutput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
-        cond |= G_IO_OUT;
-    }
 
     return (*func)(QIO_CHANNEL(wsource->wioc),
-                   (cond & wsource->condition),
+                   qio_channel_websock_source_check(source),
                    user_data);
 }
 
