@@ -121,3 +121,82 @@ crw-------. 1 root root 10, 224 Jul 11 10:11 /dev/tpm0
 PCR-00: 35 4E 3B CE 23 9F 38 59 ...
 ...
 PCR-23: 00 00 00 00 00 00 00 00 ...
+
+
+== The QEMU TPM emulator device ==
+
+The TPM emulator device uses an external TPM emulator called 'swtpm' for
+sending TPM commands to and receiving responses from. The swtpm program
+must have been started before trying to access it through the TPM emulator
+with QEMU.
+
+The TPM emulator implements a command channel for transferring TPM commands
+and responses as well as a control channel over which control commands can
+be sent. The specification for the control channel can be found here:
+
+https://github.com/stefanberger/swtpm/blob/master/man/man3/swtpm_ioctls.pod
+
+
+The control channel serves the purpose of resetting, initializing, and
+migrating the TPM state, among other things.
+
+The swtpm program behaves like a hardware TPM and therefore needs to be
+initialized by the firmware running inside the QEMU virtual machine.
+One necessary step for initializing the device is to send the TPM_Startup
+command to it. SeaBIOS, for example, has been instrumented to initialize
+a TPM 1.2 or TPM 2 device using this command.
+
+
+QEMU files related to the TPM emulator device:
+ - hw/tpm/tpm_emulator.c
+ - hw/tpm/tpm_util.c
+ - hw/tpm/tpm_util.h
+
+
+The following commands start the swtpm with a UnixIO control channel over
+a socket interface. They do not need to be run as root.
+
+mkdir /tmp/mytpm1
+swtpm socket --tpmstate dir=/tmp/mytpm1 \
+  --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
+  --log level=20
+
+Command line to start QEMU with the TPM emulator device communicating with
+the swtpm:
+
+qemu-system-x86_64 -display sdl -enable-kvm \
+  -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
+  -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+  -tpmdev emulator,id=tpm0,chardev=chrtpm \
+  -device tpm-tis,tpmdev=tpm0 test.img
+
+
+In case SeaBIOS is used as firmware, it should show the TPM menu item
+after entering the menu with 'ESC'.
+
+Select boot device:
+1. DVD/CD [ata1-0: QEMU DVD-ROM ATAPI-4 DVD/CD]
+[...]
+5. Legacy option rom
+
+t. TPM Configuration
+
+
+The following commands should result in similar output inside the VM with a
+Linux kernel that either has the TPM TIS driver built-in or available as a
+module:
+
+#> dmesg | grep -i tpm
+[    0.711310] tpm_tis 00:06: 1.2 TPM (device=id 0x1, rev-id 1)
+
+#> dmesg | grep TCPA
+[    0.000000] ACPI: TCPA 0x0000000003FFD191C 000032 (v02 BOCHS  \
+    BXPCTCPA 0000001 BXPC 00000001)
+
+#> ls -l /dev/tpm*
+crw-------. 1 root root 10, 224 Jul 11 10:11 /dev/tpm0
+
+#> find /sys/devices/ | grep pcrs$ | xargs cat
+PCR-00: 35 4E 3B CE 23 9F 38 59 ...
+...
+PCR-23: 00 00 00 00 00 00 00 00 ...
