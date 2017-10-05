@@ -42,6 +42,7 @@
 #include "postcopy-ram.h"
 #include "migration/page_cache.h"
 #include "qemu/error-report.h"
+#include "qapi/qmp/qerror.h"
 #include "trace.h"
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
@@ -113,13 +114,30 @@ static void XBZRLE_cache_unlock(void)
  * Returns the new_size or negative in case of error.
  *
  * @new_size: new cache size
+ * @errp: set *errp if the check failed, with reason
  */
-int64_t xbzrle_cache_resize(int64_t new_size)
+int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
 {
     PageCache *new_cache;
     int64_t ret;
 
+    /* Check for truncation */
+    if (new_size != (size_t)new_size) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "exceeding address space");
+        return -1;
+    }
+
+    /* Cache should not be larger than guest ram size */
+    if (new_size > ram_bytes_total()) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "exceeds guest ram size");
+        return -1;
+    }
+
     if (new_size < TARGET_PAGE_SIZE) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "is smaller than one target page size");
         return -1;
     }
 
@@ -132,7 +150,7 @@ int64_t xbzrle_cache_resize(int64_t new_size)
         new_cache = cache_init(new_size / TARGET_PAGE_SIZE,
                                         TARGET_PAGE_SIZE);
         if (!new_cache) {
-            error_report("Error creating cache");
+            error_setg(errp, "Error creating cache");
             ret = -1;
             goto out;
         }
