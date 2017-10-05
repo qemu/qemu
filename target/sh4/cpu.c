@@ -172,13 +172,6 @@ static void sh7750r_class_init(ObjectClass *oc, void *data)
     scc->cvr = 0x00110000;
 }
 
-static const TypeInfo sh7750r_type_info = {
-    .name = TYPE_SH7750R_CPU,
-    .parent = TYPE_SUPERH_CPU,
-    .class_init = sh7750r_class_init,
-    .instance_init = sh7750r_cpu_initfn,
-};
-
 static void sh7751r_cpu_initfn(Object *obj)
 {
     SuperHCPU *cpu = SUPERH_CPU(obj);
@@ -198,13 +191,6 @@ static void sh7751r_class_init(ObjectClass *oc, void *data)
     scc->cvr = 0x00110000; /* Neutered caches, should be 0x20480000 */
 }
 
-static const TypeInfo sh7751r_type_info = {
-    .name = TYPE_SH7751R_CPU,
-    .parent = TYPE_SUPERH_CPU,
-    .class_init = sh7751r_class_init,
-    .instance_init = sh7751r_cpu_initfn,
-};
-
 static void sh7785_cpu_initfn(Object *obj)
 {
     SuperHCPU *cpu = SUPERH_CPU(obj);
@@ -223,13 +209,6 @@ static void sh7785_class_init(ObjectClass *oc, void *data)
     scc->prr = 0x00000200;
     scc->cvr = 0x71440211;
 }
-
-static const TypeInfo sh7785_type_info = {
-    .name = TYPE_SH7785_CPU,
-    .parent = TYPE_SUPERH_CPU,
-    .class_init = sh7785_class_init,
-    .instance_init = sh7785_cpu_initfn,
-};
 
 static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
 {
@@ -300,22 +279,30 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_sh_cpu;
 }
 
-static const TypeInfo superh_cpu_type_info = {
-    .name = TYPE_SUPERH_CPU,
-    .parent = TYPE_CPU,
-    .instance_size = sizeof(SuperHCPU),
-    .instance_init = superh_cpu_initfn,
-    .abstract = true,
-    .class_size = sizeof(SuperHCPUClass),
-    .class_init = superh_cpu_class_init,
+#define DEFINE_SUPERH_CPU_TYPE(type_name, cinit, initfn) \
+    {                                                    \
+        .name = type_name,                               \
+        .parent = TYPE_SUPERH_CPU,                       \
+        .class_init = cinit,                             \
+        .instance_init = initfn,                         \
+    }
+static const TypeInfo superh_cpu_type_infos[] = {
+    {
+        .name = TYPE_SUPERH_CPU,
+        .parent = TYPE_CPU,
+        .instance_size = sizeof(SuperHCPU),
+        .instance_init = superh_cpu_initfn,
+        .abstract = true,
+        .class_size = sizeof(SuperHCPUClass),
+        .class_init = superh_cpu_class_init,
+    },
+    DEFINE_SUPERH_CPU_TYPE(TYPE_SH7750R_CPU, sh7750r_class_init,
+                           sh7750r_cpu_initfn),
+    DEFINE_SUPERH_CPU_TYPE(TYPE_SH7751R_CPU, sh7751r_class_init,
+                           sh7751r_cpu_initfn),
+    DEFINE_SUPERH_CPU_TYPE(TYPE_SH7785_CPU, sh7785_class_init,
+                           sh7785_cpu_initfn),
+
 };
 
-static void superh_cpu_register_types(void)
-{
-    type_register_static(&superh_cpu_type_info);
-    type_register_static(&sh7750r_type_info);
-    type_register_static(&sh7751r_type_info);
-    type_register_static(&sh7785_type_info);
-}
-
-type_init(superh_cpu_register_types)
+DEFINE_TYPES(superh_cpu_type_infos)
