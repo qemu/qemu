@@ -983,6 +983,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
         goto err;
     }
 
+    bdrv_debug_event(bs, BLKDBG_COR_WRITE);
     if (drv->bdrv_co_pwrite_zeroes &&
         buffer_is_zero(bounce_buffer, iov.iov_len)) {
         /* FIXME: Should we (perhaps conditionally) be setting

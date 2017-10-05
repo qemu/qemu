@@ -2538,6 +2538,8 @@
 #
 # @l1_shrink_free_l2_clusters: discard the l2 tables. (since 2.11)
 #
+# @cor_write: a write due to copy-on-read (since 2.11)
+#
 # Since: 2.9
 ##
 { 'enum': 'BlkdebugEvent', 'prefix': 'BLKDBG',
@@ -2555,7 +2557,8 @@
             'flush_to_disk', 'pwritev_rmw_head', 'pwritev_rmw_after_head',
             'pwritev_rmw_tail', 'pwritev_rmw_after_tail', 'pwritev',
             'pwritev_zero', 'pwritev_done', 'empty_image_prepare',
-            'l1_shrink_write_table', 'l1_shrink_free_l2_clusters' ] }
+            'l1_shrink_write_table', 'l1_shrink_free_l2_clusters',
+            'cor_write'] }
 
 ##
 # @BlkdebugInjectErrorOptions:
