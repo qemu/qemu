@@ -966,6 +966,7 @@ static const TypeInfo xen_pci_passthrough_info = {
     .class_init = xen_pci_passthrough_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { INTERFACE_PCIE_DEVICE },
         { },
     },
 };
