@@ -159,16 +159,16 @@ bool hbitmap_get(const HBitmap *hb, uint64_t item);
 bool hbitmap_is_serializable(const HBitmap *hb);
 
 /**
- * hbitmap_serialization_granularity:
+ * hbitmap_serialization_align:
  * @hb: HBitmap to operate on.
  *
- * Granularity of serialization chunks, used by other serialization functions.
- * For every chunk:
+ * Required alignment of serialization chunks, used by other serialization
+ * functions. For every chunk:
  * 1. Chunk start should be aligned to this granularity.
  * 2. Chunk size should be aligned too, except for last chunk (for which
  *      start + count == hb->size)
  */
-uint64_t hbitmap_serialization_granularity(const HBitmap *hb);
+uint64_t hbitmap_serialization_align(const HBitmap *hb);
 
 /**
  * hbitmap_serialization_size:

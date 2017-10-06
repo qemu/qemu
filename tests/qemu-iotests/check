@@ -30,12 +30,9 @@ interrupt=true
 # by default don't output timestamps
 timestamp=${TIMESTAMP:=false}
 
-# generic initialization
-iam=check
-
 _init_error()
 {
-    echo "$iam: $1" >&2
+    echo "check: $1" >&2
     exit 1
 }
 
@@ -60,48 +57,6 @@ fi
 
 build_root="$build_iotests/../.."
 
-if [ -x "$build_iotests/socket_scm_helper" ]
-then
-    export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
-fi
-
-# if ./qemu exists, it should be prioritized and will be chosen by common.config
-if [[ -z "$QEMU_PROG" && ! -x './qemu' ]]
-then
-    arch=$(uname -m 2> /dev/null)
-
-    if [[ -n $arch && -x "$build_root/$arch-softmmu/qemu-system-$arch" ]]
-    then
-        export QEMU_PROG="$build_root/$arch-softmmu/qemu-system-$arch"
-    else
-        pushd "$build_root" > /dev/null
-        for binary in *-softmmu/qemu-system-*
-        do
-            if [ -x "$binary" ]
-            then
-                export QEMU_PROG="$build_root/$binary"
-                break
-            fi
-        done
-        popd > /dev/null
-    fi
-fi
-
-if [[ -z $QEMU_IMG_PROG && -x "$build_root/qemu-img" && ! -x './qemu-img' ]]
-then
-    export QEMU_IMG_PROG="$build_root/qemu-img"
-fi
-
-if [[ -z $QEMU_IO_PROG && -x "$build_root/qemu-io" && ! -x './qemu-io' ]]
-then
-    export QEMU_IO_PROG="$build_root/qemu-io"
-fi
-
-if [[ -z $QEMU_NBD_PROG && -x "$build_root/qemu-nbd" && ! -x './qemu-nbd' ]]
-then
-    export QEMU_NBD_PROG="$build_root/qemu-nbd"
-fi
-
 # we need common.env
 if ! . "$build_iotests/common.env"
 then
@@ -114,22 +69,550 @@ then
     _init_error "failed to source common.config"
 fi
 
-# we need common.rc
-if ! . "$source_iotests/common.rc"
-then
-    _init_error "failed to source common.rc"
+_full_imgfmt_details()
+{
+    if [ -n "$IMGOPTS" ]; then
+        echo "$IMGFMT ($IMGOPTS)"
+    else
+        echo "$IMGFMT"
+    fi
+}
+
+_full_platform_details()
+{
+    os=`uname -s`
+    host=`hostname -s`
+    kernel=`uname -r`
+    platform=`uname -m`
+    echo "$os/$platform $host $kernel"
+}
+
+# $1 = prog to look for
+set_prog_path()
+{
+    p=`command -v $1 2> /dev/null`
+    if [ -n "$p" -a -x "$p" ]; then
+        realpath -- "$(type -p "$p")"
+    else
+        return 1
+    fi
+}
+
+if [ -z "$TEST_DIR" ]; then
+        TEST_DIR=`pwd`/scratch
 fi
 
-# we need common
-. "$source_iotests/common"
+if [ ! -e "$TEST_DIR" ]; then
+        mkdir "$TEST_DIR"
+fi
+
+diff="diff -u"
+verbose=false
+debug=false
+group=false
+xgroup=false
+imgopts=false
+showme=false
+sortme=false
+expunge=true
+have_test_arg=false
+cachemode=false
+
+tmp="${TEST_DIR}"/$$
+rm -f $tmp.list $tmp.tmp $tmp.sed
+
+export IMGFMT=raw
+export IMGFMT_GENERIC=true
+export IMGPROTO=file
+export IMGOPTS=""
+export CACHEMODE="writeback"
+export QEMU_IO_OPTIONS=""
+export QEMU_IO_OPTIONS_NO_FMT=""
+export CACHEMODE_IS_DEFAULT=true
+export QEMU_OPTIONS="-nodefaults -machine accel=qtest"
+export VALGRIND_QEMU=
+export IMGKEYSECRET=
+export IMGOPTSSYNTAX=false
+
+# Save current tty settings, since an aborting qemu call may leave things
+# screwed up
+STTY_RESTORE=
+if test -t 0; then
+    STTY_RESTORE=$(stty -g)
+fi
+
+for r
+do
+
+    if $group
+    then
+        # arg after -g
+        group_list=`sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+s/ .*//p
+}'`
+        if [ -z "$group_list" ]
+        then
+            echo "Group \"$r\" is empty or not defined?"
+            exit 1
+        fi
+        [ ! -s $tmp.list ] && touch $tmp.list
+        for t in $group_list
+        do
+            if grep -s "^$t\$" $tmp.list >/dev/null
+            then
+                :
+            else
+                echo "$t" >>$tmp.list
+            fi
+        done
+        group=false
+        continue
+
+    elif $xgroup
+    then
+        # arg after -x
+        # Populate $tmp.list with all tests
+        awk '/^[0-9]{3,}/ {print $1}' "${source_iotests}/group" > $tmp.list 2>/dev/null
+        group_list=`sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+s/ .*//p
+}'`
+        if [ -z "$group_list" ]
+        then
+            echo "Group \"$r\" is empty or not defined?"
+            exit 1
+        fi
+        numsed=0
+        rm -f $tmp.sed
+        for t in $group_list
+        do
+            if [ $numsed -gt 100 ]
+            then
+                sed -f $tmp.sed <$tmp.list >$tmp.tmp
+                mv $tmp.tmp $tmp.list
+                numsed=0
+                rm -f $tmp.sed
+            fi
+            echo "/^$t\$/d" >>$tmp.sed
+            numsed=`expr $numsed + 1`
+        done
+        sed -f $tmp.sed <$tmp.list >$tmp.tmp
+        mv $tmp.tmp $tmp.list
+        xgroup=false
+        continue
+
+    elif $imgopts
+    then
+        IMGOPTS="$r"
+        imgopts=false
+        continue
+    elif $cachemode
+    then
+        CACHEMODE="$r"
+        CACHEMODE_IS_DEFAULT=false
+        cachemode=false
+        continue
+    fi
+
+    xpand=true
+    case "$r"
+    in
+
+        -\? | -h | --help)        # usage
+            echo "Usage: $0 [options] [testlist]"'
+
+common options
+    -v                  verbose
+    -d                  debug
+
+image format options
+    -raw                test raw (default)
+    -bochs              test bochs
+    -cloop              test cloop
+    -parallels          test parallels
+    -qcow               test qcow
+    -qcow2              test qcow2
+    -qed                test qed
+    -vdi                test vdi
+    -vpc                test vpc
+    -vhdx               test vhdx
+    -vmdk               test vmdk
+    -luks               test luks
+
+image protocol options
+    -file               test file (default)
+    -rbd                test rbd
+    -sheepdog           test sheepdog
+    -nbd                test nbd
+    -ssh                test ssh
+    -nfs                test nfs
+    -vxhs               test vxhs
+
+other options
+    -xdiff              graphical mode diff
+    -nocache            use O_DIRECT on backing file
+    -misalign           misalign memory allocations
+    -n                  show me, do not run tests
+    -o options          -o options to pass to qemu-img create/convert
+    -T                  output timestamps
+    -c mode             cache mode
+
+testlist options
+    -g group[,group...]        include tests from these groups
+    -x group[,group...]        exclude tests from these groups
+    NNN                        include test NNN
+    NNN-NNN                    include test range (eg. 012-021)
+'
+            exit 0
+            ;;
+
+        -raw)
+            IMGFMT=raw
+            xpand=false
+            ;;
+
+        -bochs)
+            IMGFMT=bochs
+            IMGFMT_GENERIC=false
+            xpand=false
+            ;;
+
+        -cloop)
+            IMGFMT=cloop
+            IMGFMT_GENERIC=false
+            xpand=false
+            ;;
+
+        -parallels)
+            IMGFMT=parallels
+            IMGFMT_GENERIC=false
+            xpand=false
+            ;;
+
+        -qcow)
+            IMGFMT=qcow
+            xpand=false
+            ;;
+
+        -qcow2)
+            IMGFMT=qcow2
+            xpand=false
+            ;;
+
+        -luks)
+            IMGOPTSSYNTAX=true
+            IMGFMT=luks
+            IMGKEYSECRET=123456
+            xpand=false
+            ;;
+
+        -qed)
+            IMGFMT=qed
+            xpand=false
+            ;;
+
+        -vdi)
+            IMGFMT=vdi
+            xpand=false
+            ;;
+
+        -vmdk)
+            IMGFMT=vmdk
+            xpand=false
+            ;;
+
+        -vpc)
+            IMGFMT=vpc
+            xpand=false
+            ;;
+
+        -vhdx)
+            IMGFMT=vhdx
+            xpand=false
+            ;;
+
+        -file)
+            IMGPROTO=file
+            xpand=false
+            ;;
+
+        -rbd)
+            IMGPROTO=rbd
+            xpand=false
+            ;;
+
+        -sheepdog)
+            IMGPROTO=sheepdog
+            xpand=false
+            ;;
+
+        -nbd)
+            IMGPROTO=nbd
+            xpand=false
+            ;;
+
+        -vxhs)
+            IMGPROTO=vxhs
+            xpand=false
+            ;;
+
+        -ssh)
+            IMGPROTO=ssh
+            xpand=false
+            ;;
+
+        -nfs)
+            IMGPROTO=nfs
+            xpand=false
+            ;;
+
+        -nocache)
+            CACHEMODE="none"
+            CACHEMODE_IS_DEFAULT=false
+            xpand=false
+            ;;
+
+        -misalign)
+            QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --misalign"
+            xpand=false
+            ;;
+
+        -valgrind)
+            VALGRIND_QEMU='y'
+            xpand=false
+            ;;
+
+        -g)        # -g group ... pick from group file
+            group=true
+            xpand=false
+            ;;
+
+        -xdiff)        # graphical diff mode
+            xpand=false
+
+            if [ ! -z "$DISPLAY" ]
+            then
+                command -v xdiff >/dev/null 2>&1 && diff=xdiff
+                command -v gdiff >/dev/null 2>&1 && diff=gdiff
+                command -v tkdiff >/dev/null 2>&1 && diff=tkdiff
+                command -v xxdiff >/dev/null 2>&1 && diff=xxdiff
+            fi
+            ;;
+
+        -n)        # show me, don't do it
+            showme=true
+            xpand=false
+            ;;
+        -o)
+            imgopts=true
+            xpand=false
+            ;;
+        -c)
+            cachemode=true
+            xpand=false
+            ;;
+        -T)        # turn on timestamp output
+            timestamp=true
+            xpand=false
+            ;;
+
+        -v)
+            verbose=true
+            xpand=false
+            ;;
+        -d)
+            debug=true
+            xpand=false
+            ;;
+        -x)        # -x group ... exclude from group file
+            xgroup=true
+            xpand=false
+            ;;
+        '[0-9][0-9][0-9] [0-9][0-9][0-9][0-9]')
+            echo "No tests?"
+            status=1
+            exit $status
+            ;;
+
+        [0-9]*-[0-9]*)
+            eval `echo $r | sed -e 's/^/start=/' -e 's/-/ end=/'`
+            ;;
+
+        [0-9]*-)
+            eval `echo $r | sed -e 's/^/start=/' -e 's/-//'`
+            end=`echo [0-9][0-9][0-9] [0-9][0-9][0-9][0-9] | sed -e 's/\[0-9]//g' -e 's/  *$//' -e 's/.* //'`
+            if [ -z "$end" ]
+            then
+                echo "No tests in range \"$r\"?"
+                status=1
+                exit $status
+            fi
+            ;;
+
+        *)
+            start=$r
+            end=$r
+            ;;
+
+    esac
+
+    # get rid of leading 0s as can be interpreted as octal
+    start=`echo $start | sed 's/^0*//'`
+    end=`echo $end | sed 's/^0*//'`
+
+    if $xpand
+    then
+        have_test_arg=true
+        awk </dev/null '
+BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
+        | while read id
+        do
+            if grep -s "^$id " "$source_iotests/group" >/dev/null
+            then
+                # in group file ... OK
+                echo $id >>$tmp.list
+            else
+                if [ -f expunged ] && $expunge && egrep "^$id([         ]|\$)" expunged >/dev/null
+                then
+                    # expunged ... will be reported, but not run, later
+                    echo $id >>$tmp.list
+                else
+                    # oops
+                    if [ "$start" == "$end" -a "$id" == "$end" ]
+                    then
+                        echo "$id - unknown test"
+                        exit 1
+                    else
+                        echo "$id - unknown test, ignored"
+                    fi
+                fi
+            fi
+        done || exit 1
+    fi
+
+done
+
+# Set qemu-io cache mode with $CACHEMODE we have
+QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --cache $CACHEMODE"
+
+QEMU_IO_OPTIONS_NO_FMT="$QEMU_IO_OPTIONS"
+if [ "$IMGOPTSSYNTAX" != "true" ]; then
+    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS -f $IMGFMT"
+fi
+
+# Set default options for qemu-img create -o if they were not specified
+if [ "$IMGFMT" == "qcow2" ] && ! (echo "$IMGOPTS" | grep "compat=" > /dev/null); then
+    IMGOPTS=$(_optstr_add "$IMGOPTS" "compat=1.1")
+fi
+if [ "$IMGFMT" == "luks" ] && ! (echo "$IMGOPTS" | grep "iter-time=" > /dev/null); then
+    IMGOPTS=$(_optstr_add "$IMGOPTS" "iter-time=10")
+fi
+
+if [ -z "$SAMPLE_IMG_DIR" ]; then
+        SAMPLE_IMG_DIR="$source_iotests/sample_images"
+fi
+
+export TEST_DIR
+export SAMPLE_IMG_DIR
+
+if [ -s $tmp.list ]
+then
+    # found some valid test numbers ... this is good
+    :
+else
+    if $have_test_arg
+    then
+        # had test numbers, but none in group file ... do nothing
+        touch $tmp.list
+    else
+        # no test numbers, do everything from group file
+        sed -n -e '/^[0-9][0-9][0-9]*/s/[         ].*//p' <"$source_iotests/group" >$tmp.list
+    fi
+fi
+
+# should be sort -n, but this did not work for Linux when this
+# was ported from IRIX
+#
+list=`sort $tmp.list`
+rm -f $tmp.list $tmp.tmp $tmp.sed
+
+if [ -z "$QEMU_PROG" ]
+then
+    if [ -x "$build_iotests/qemu" ]; then
+        export QEMU_PROG="$build_iotests/qemu"
+    elif [ -x "$build_root/$arch-softmmu/qemu-system-$arch" ]; then
+        export QEMU_PROG="$build_root/$arch-softmmu/qemu-system-$arch"
+    else
+        pushd "$build_root" > /dev/null
+        for binary in *-softmmu/qemu-system-*
+        do
+            if [ -x "$binary" ]
+            then
+                export QEMU_PROG="$build_root/$binary"
+                break
+            fi
+        done
+        popd > /dev/null
+        [ "$QEMU_PROG" = "" ] && _init_error "qemu not found"
+    fi
+fi
+export QEMU_PROG=$(realpath -- "$(type -p "$QEMU_PROG")")
+
+if [ -z "$QEMU_IMG_PROG" ]; then
+    if [ -x "$build_iotests/qemu-img" ]; then
+        export QEMU_IMG_PROG="$build_iotests/qemu-img"
+    elif [ -x "$build_root/qemu-img" ]; then
+        export QEMU_IMG_PROG="$build_root/qemu-img"
+    else
+        _init_error "qemu-img not found"
+    fi
+fi
+export QEMU_IMG_PROG=$(realpath -- "$(type -p "$QEMU_IMG_PROG")")
+
+if [ -z "$QEMU_IO_PROG" ]; then
+    if [ -x "$build_iotests/qemu-io" ]; then
+        export QEMU_IO_PROG="$build_iotests/qemu-io"
+    elif [ -x "$build_root/qemu-io" ]; then
+        export QEMU_IO_PROG="$build_root/qemu-io"
+    else
+        _init_error "qemu-io not found"
+    fi
+fi
+export QEMU_IO_PROG=$(realpath -- "$(type -p "$QEMU_IO_PROG")")
+
+if [ -z $QEMU_NBD_PROG ]; then
+    if [ -x "$build_iotests/qemu-nbd" ]; then
+        export QEMU_NBD_PROG="$build_iotests/qemu-nbd"
+    elif [ -x "$build_root/qemu-nbd" ]; then
+        export QEMU_NBD_PROG="$build_root/qemu-nbd"
+    else
+        _init_error "qemu-nbd not found"
+    fi
+fi
+export QEMU_NBD_PROG=$(realpath -- "$(type -p "$QEMU_NBD_PROG")")
+
+if [ -z "$QEMU_VXHS_PROG" ]; then
+  export QEMU_VXHS_PROG="`set_prog_path qnio_server`"
+fi
+
+if [ -x "$build_iotests/socket_scm_helper" ]
+then
+    export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
+fi
+
+default_machine=$($QEMU_PROG -machine help | sed -n '/(default)/ s/ .*//p')
+default_alias_machine=$($QEMU_PROG -machine help | \
+   sed -n "/(alias of $default_machine)/ { s/ .*//p; q; }")
+if [[ "$default_alias_machine" ]]; then
+    default_machine="$default_alias_machine"
+fi
+
+export QEMU_DEFAULT_MACHINE="$default_machine"
 
 TIMESTAMP_FILE=check.time-$IMGPROTO-$IMGFMT
 
-tmp="${TEST_DIR}"/$$
-
 _wallclock()
 {
-    date "+%H %M %S" | $AWK_PROG '{ print $1*3600 + $2*60 + $3 }'
+    date "+%H %M %S" | awk '{ print $1*3600 + $2*60 + $3 }'
 }
 
 _timestamp()
@@ -140,12 +623,6 @@ _timestamp()
 
 _wrapup()
 {
-    # for hangcheck ...
-    # remove files that were used by hangcheck
-    #
-    [ -f "${TEST_DIR}"/check.pid ] && rm -rf "${TEST_DIR}"/check.pid
-    [ -f "${TEST_DIR}"/check.sts ] && rm -rf "${TEST_DIR}"/check.sts
-
     if $showme
     then
         :
@@ -154,7 +631,7 @@ _wrapup()
         if [ -f $TIMESTAMP_FILE -a -f $tmp.time ]
         then
             cat $TIMESTAMP_FILE $tmp.time \
-            | $AWK_PROG '
+            | awk '
         { t[$1] = $2 }
 END        { if (NR > 0) {
             for (i in t) print i " " t[i]
@@ -194,30 +671,15 @@ END        { if (NR > 0) {
         needwrap=false
     fi
 
+    if test -n "$STTY_RESTORE"; then
+        stty $STTY_RESTORE
+    fi
     rm -f "${TEST_DIR}"/*.out "${TEST_DIR}"/*.err "${TEST_DIR}"/*.time
     rm -f "${TEST_DIR}"/check.pid "${TEST_DIR}"/check.sts
     rm -f $tmp.*
 }
 
 trap "_wrapup; exit \$status" 0 1 2 3 15
-
-# for hangcheck ...
-# Save pid of check in a well known place, so that hangcheck can be sure it
-# has the right pid (getting the pid from ps output is not reliable enough).
-#
-rm -rf "${TEST_DIR}"/check.pid
-echo $$ > "${TEST_DIR}"/check.pid
-
-# for hangcheck ...
-# Save the status of check in a well known place, so that hangcheck can be
-# sure to know where check is up to (getting test number from ps output is
-# not reliable enough since the trace stuff has been introduced).
-#
-rm -rf "${TEST_DIR}"/check.sts
-echo "preamble" > "${TEST_DIR}"/check.sts
-
-# don't leave old full output behind on a clean run
-rm -f check.full
 
 [ -f $TIMESTAMP_FILE ] || touch $TIMESTAMP_FILE
 
@@ -275,9 +737,6 @@ do
                 printf "        "        # prettier output with timestamps.
         fi
         rm -f core $seq.notrun
-
-        # for hangcheck ...
-        echo "$seq" > "${TEST_DIR}"/check.sts
 
         start=`_wallclock`
         $timestamp && printf %s "        [$(date "+%T")]"

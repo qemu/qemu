@@ -981,6 +981,33 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
     *child_flags = flags;
 }
 
+static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
+                                        const char *filename, Error **errp)
+{
+    BlockDriverState *parent = c->opaque;
+    int orig_flags = bdrv_get_flags(parent);
+    int ret;
+
+    if (!(orig_flags & BDRV_O_RDWR)) {
+        ret = bdrv_reopen(parent, orig_flags | BDRV_O_RDWR, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    ret = bdrv_change_backing_file(parent, filename,
+                                   base->drv ? base->drv->format_name : "");
+    if (ret < 0) {
+        error_setg_errno(errp, ret, "Could not update backing file link");
+    }
+
+    if (!(orig_flags & BDRV_O_RDWR)) {
+        bdrv_reopen(parent, orig_flags, NULL);
+    }
+
+    return ret;
+}
+
 const BdrvChildRole child_backing = {
     .get_parent_desc = bdrv_child_get_parent_desc,
     .attach          = bdrv_backing_attach,
@@ -989,6 +1016,7 @@ const BdrvChildRole child_backing = {
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,
     .inactivate      = bdrv_child_cb_inactivate,
+    .update_filename = bdrv_backing_update_filename,
 };
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
@@ -3463,28 +3491,16 @@ BlockDriverState *bdrv_find_base(BlockDriverState *bs)
  *  if active == top, that is considered an error
  *
  */
-int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
-                           BlockDriverState *base, const char *backing_file_str)
+int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
+                           const char *backing_file_str)
 {
-    BlockDriverState *new_top_bs = NULL;
+    BdrvChild *c, *next;
     Error *local_err = NULL;
     int ret = -EIO;
 
+    bdrv_ref(top);
+
     if (!top->drv || !base->drv) {
-        goto exit;
-    }
-
-    new_top_bs = bdrv_find_overlay(active, top);
-
-    if (new_top_bs == NULL) {
-        /* we could not find the image above 'top', this is an error */
-        goto exit;
-    }
-
-    /* special case of new_top_bs->backing->bs already pointing to base - nothing
-     * to do, no intermediate images */
-    if (backing_bs(new_top_bs) == base) {
-        ret = 0;
         goto exit;
     }
 
@@ -3494,22 +3510,43 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
     }
 
     /* success - we can delete the intermediate states, and link top->base */
+    /* TODO Check graph modification op blockers (BLK_PERM_GRAPH_MOD) once
+     * we've figured out how they should work. */
     backing_file_str = backing_file_str ? backing_file_str : base->filename;
-    ret = bdrv_change_backing_file(new_top_bs, backing_file_str,
-                                   base->drv ? base->drv->format_name : "");
-    if (ret) {
-        goto exit;
-    }
 
-    bdrv_set_backing_hd(new_top_bs, base, &local_err);
-    if (local_err) {
-        ret = -EPERM;
-        error_report_err(local_err);
-        goto exit;
+    QLIST_FOREACH_SAFE(c, &top->parents, next_parent, next) {
+        /* Check whether we are allowed to switch c from top to base */
+        GSList *ignore_children = g_slist_prepend(NULL, c);
+        bdrv_check_update_perm(base, NULL, c->perm, c->shared_perm,
+                               ignore_children, &local_err);
+        if (local_err) {
+            ret = -EPERM;
+            error_report_err(local_err);
+            goto exit;
+        }
+        g_slist_free(ignore_children);
+
+        /* If so, update the backing file path in the image file */
+        if (c->role->update_filename) {
+            ret = c->role->update_filename(c, base, backing_file_str,
+                                           &local_err);
+            if (ret < 0) {
+                bdrv_abort_perm_update(base);
+                error_report_err(local_err);
+                goto exit;
+            }
+        }
+
+        /* Do the actual switch in the in-memory graph.
+         * Completes bdrv_check_update_perm() transaction internally. */
+        bdrv_ref(base);
+        bdrv_replace_child(c, base);
+        bdrv_unref(top);
     }
 
     ret = 0;
 exit:
+    bdrv_unref(top);
     return ret;
 }
 
@@ -3545,12 +3582,18 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
     assert(!(bs->open_flags & BDRV_O_INACTIVE));
 
     ret = drv->bdrv_truncate(bs, offset, prealloc, errp);
-    if (ret == 0) {
-        ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
-        bdrv_dirty_bitmap_truncate(bs);
-        bdrv_parent_cb_resize(bs);
-        atomic_inc(&bs->write_gen);
+    if (ret < 0) {
+        return ret;
     }
+    ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not refresh total sector count");
+    } else {
+        offset = bs->total_sectors * BDRV_SECTOR_SIZE;
+    }
+    bdrv_dirty_bitmap_truncate(bs, offset);
+    bdrv_parent_cb_resize(bs);
+    atomic_inc(&bs->write_gen);
     return ret;
 }
 
@@ -4488,7 +4531,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     /* The size for the image must always be specified, unless we have a backing
      * file and we have not been forbidden from opening it. */
-    size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
+    size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, img_size);
     if (backing_file && !(flags & BDRV_O_NO_BACKING)) {
         BlockDriverState *bs;
         char *full_backing = g_new0(char, PATH_MAX);

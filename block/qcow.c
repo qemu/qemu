@@ -478,7 +478,9 @@ static int get_cluster_offset(BlockDriverState *bs,
                     for(i = 0; i < s->cluster_sectors; i++) {
                         if (i < n_start || i >= n_end) {
                             memset(s->cluster_data, 0x00, 512);
-                            if (qcrypto_block_encrypt(s->crypto, start_sect + i,
+                            if (qcrypto_block_encrypt(s->crypto,
+                                                      (start_sect + i) *
+                                                      BDRV_SECTOR_SIZE,
                                                       s->cluster_data,
                                                       BDRV_SECTOR_SIZE,
                                                       NULL) < 0) {
@@ -668,7 +670,8 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
             }
             if (bs->encrypted) {
                 assert(s->crypto);
-                if (qcrypto_block_decrypt(s->crypto, sector_num, buf,
+                if (qcrypto_block_decrypt(s->crypto,
+                                          sector_num * BDRV_SECTOR_SIZE, buf,
                                           n * BDRV_SECTOR_SIZE, NULL) < 0) {
                     ret = -EIO;
                     break;
@@ -740,8 +743,8 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
         }
         if (bs->encrypted) {
             assert(s->crypto);
-            if (qcrypto_block_encrypt(s->crypto, sector_num, buf,
-                                      n * BDRV_SECTOR_SIZE, NULL) < 0) {
+            if (qcrypto_block_encrypt(s->crypto, sector_num * BDRV_SECTOR_SIZE,
+                                      buf, n * BDRV_SECTOR_SIZE, NULL) < 0) {
                 ret = -EIO;
                 break;
             }

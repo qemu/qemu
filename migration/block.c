@@ -334,7 +334,8 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     blk->aiocb = blk_aio_preadv(bb, cur_sector * BDRV_SECTOR_SIZE, &blk->qiov,
                                 0, blk_mig_read_cb, blk);
 
-    bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector, nr_sectors);
+    bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector * BDRV_SECTOR_SIZE,
+                            nr_sectors * BDRV_SECTOR_SIZE);
     aio_context_release(blk_get_aio_context(bmds->blk));
     qemu_mutex_unlock_iothread();
 
@@ -535,13 +536,16 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
             blk_mig_unlock();
         }
         bdrv_dirty_bitmap_lock(bmds->dirty_bitmap);
-        if (bdrv_get_dirty_locked(bs, bmds->dirty_bitmap, sector)) {
+        if (bdrv_get_dirty_locked(bs, bmds->dirty_bitmap,
+                                  sector * BDRV_SECTOR_SIZE)) {
             if (total_sectors - sector < BDRV_SECTORS_PER_DIRTY_CHUNK) {
                 nr_sectors = total_sectors - sector;
             } else {
                 nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
             }
-            bdrv_reset_dirty_bitmap_locked(bmds->dirty_bitmap, sector, nr_sectors);
+            bdrv_reset_dirty_bitmap_locked(bmds->dirty_bitmap,
+                                           sector * BDRV_SECTOR_SIZE,
+                                           nr_sectors * BDRV_SECTOR_SIZE);
             bdrv_dirty_bitmap_unlock(bmds->dirty_bitmap);
 
             blk = g_new(BlkMigBlock, 1);
@@ -672,7 +676,7 @@ static int64_t get_remaining_dirty(void)
         aio_context_release(blk_get_aio_context(bmds->blk));
     }
 
-    return dirty << BDRV_SECTOR_BITS;
+    return dirty;
 }
 
 

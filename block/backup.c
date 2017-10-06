@@ -372,10 +372,10 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
 
     granularity = bdrv_dirty_bitmap_granularity(job->sync_bitmap);
     clusters_per_iter = MAX((granularity / job->cluster_size), 1);
-    dbi = bdrv_dirty_iter_new(job->sync_bitmap, 0);
+    dbi = bdrv_dirty_iter_new(job->sync_bitmap);
 
     /* Find the next dirty sector(s) */
-    while ((offset = bdrv_dirty_iter_next(dbi) * BDRV_SECTOR_SIZE) >= 0) {
+    while ((offset = bdrv_dirty_iter_next(dbi)) >= 0) {
         cluster = offset / job->cluster_size;
 
         /* Fake progress updates for any clusters we skipped */
@@ -403,8 +403,7 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
         /* If the bitmap granularity is smaller than the backup granularity,
          * we need to advance the iterator pointer to the next cluster. */
         if (granularity < job->cluster_size) {
-            bdrv_set_dirty_iter(dbi,
-                                cluster * job->cluster_size / BDRV_SECTOR_SIZE);
+            bdrv_set_dirty_iter(dbi, cluster * job->cluster_size);
         }
 
         last_cluster = cluster - 1;

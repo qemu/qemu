@@ -161,18 +161,19 @@ QCryptoBlockInfo *qcrypto_block_get_info(QCryptoBlock *block,
 /**
  * @qcrypto_block_decrypt:
  * @block: the block encryption object
- * @startsector: the sector from which @buf was read
+ * @offset: the position at which @iov was read
  * @buf: the buffer to decrypt
  * @len: the length of @buf in bytes
  * @errp: pointer to a NULL-initialized error object
  *
  * Decrypt @len bytes of cipher text in @buf, writing
- * plain text back into @buf
+ * plain text back into @buf. @len and @offset must be
+ * a multiple of the encryption format sector size.
  *
  * Returns 0 on success, -1 on failure
  */
 int qcrypto_block_decrypt(QCryptoBlock *block,
-                          uint64_t startsector,
+                          uint64_t offset,
                           uint8_t *buf,
                           size_t len,
                           Error **errp);
@@ -180,18 +181,19 @@ int qcrypto_block_decrypt(QCryptoBlock *block,
 /**
  * @qcrypto_block_encrypt:
  * @block: the block encryption object
- * @startsector: the sector to which @buf will be written
+ * @offset: the position at which @iov will be written
  * @buf: the buffer to decrypt
  * @len: the length of @buf in bytes
  * @errp: pointer to a NULL-initialized error object
  *
  * Encrypt @len bytes of plain text in @buf, writing
- * cipher text back into @buf
+ * cipher text back into @buf. @len and @offset must be
+ * a multiple of the encryption format sector size.
  *
  * Returns 0 on success, -1 on failure
  */
 int qcrypto_block_encrypt(QCryptoBlock *block,
-                          uint64_t startsector,
+                          uint64_t offset,
                           uint8_t *buf,
                           size_t len,
                           Error **errp);
@@ -239,6 +241,21 @@ QCryptoHashAlgorithm qcrypto_block_get_kdf_hash(QCryptoBlock *block);
  * Returns: the payload offset in bytes
  */
 uint64_t qcrypto_block_get_payload_offset(QCryptoBlock *block);
+
+/**
+ * qcrypto_block_get_sector_size:
+ * @block: the block encryption object
+ *
+ * Get the size of sectors used for payload encryption. A new
+ * IV is used at the start of each sector. The encryption
+ * sector size is not required to match the sector size of the
+ * underlying storage. For example LUKS will always use a 512
+ * byte sector size, even if the volume is on a disk with 4k
+ * sectors.
+ *
+ * Returns: the sector in bytes
+ */
+uint64_t qcrypto_block_get_sector_size(QCryptoBlock *block);
 
 /**
  * qcrypto_block_free:

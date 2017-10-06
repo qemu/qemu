@@ -27,7 +27,7 @@ disk = os.path.join(iotests.test_dir, 'disk')
 disk_size = 0x40000000 # 1G
 
 # regions for qemu_io: (start, count) in bytes
-regions1 = ((0,        0x100000),
+regions1 = ((0x0fff00, 0x10000),
             (0x200000, 0x100000))
 
 regions2 = ((0x10000000, 0x20000),
