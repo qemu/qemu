@@ -71,6 +71,21 @@ FIELD(V7M_EXCRET, DCRS, 5, 1)
 FIELD(V7M_EXCRET, S, 6, 1)
 FIELD(V7M_EXCRET, RES1, 7, 25) /* including the must-be-1 prefix */
 
+/* We use a few fake FSR values for internal purposes in M profile.
+ * M profile cores don't have A/R format FSRs, but currently our
+ * get_phys_addr() code assumes A/R profile and reports failures via
+ * an A/R format FSR value. We then translate that into the proper
+ * M profile exception and FSR status bit in arm_v7m_cpu_do_interrupt().
+ * Mostly the FSR values we use for this are those defined for v7PMSA,
+ * since we share some of that codepath. A few kinds of fault are
+ * only for M profile and have no A/R equivalent, though, so we have
+ * to pick a value from the reserved range (which we never otherwise
+ * generate) to use for these.
+ * These values will never be visible to the guest.
+ */
+#define M_FAKE_FSR_NSC_EXEC 0xf /* NS executing in S&NSC memory */
+#define M_FAKE_FSR_SFAULT 0xe /* SecureFault INVTRAN, INVEP or AUVIOL */
+
 /*
  * For AArch64, map a given EL to an index in the banked_spsr array.
  * Note that this mapping and the AArch32 mapping defined in bank_number()
