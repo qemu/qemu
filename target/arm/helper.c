@@ -6059,26 +6059,40 @@ static bool v7m_using_psp(CPUARMState *env)
         env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK;
 }
 
+/* Write to v7M CONTROL.SPSEL bit for the specified security bank.
+ * This may change the current stack pointer between Main and Process
+ * stack pointers if it is done for the CONTROL register for the current
+ * security state.
+ */
+static void write_v7m_control_spsel_for_secstate(CPUARMState *env,
+                                                 bool new_spsel,
+                                                 bool secstate)
+{
+    bool old_is_psp = v7m_using_psp(env);
+
+    env->v7m.control[secstate] =
+        deposit32(env->v7m.control[secstate],
+                  R_V7M_CONTROL_SPSEL_SHIFT,
+                  R_V7M_CONTROL_SPSEL_LENGTH, new_spsel);
+
+    if (secstate == env->v7m.secure) {
+        bool new_is_psp = v7m_using_psp(env);
+        uint32_t tmp;
+
+        if (old_is_psp != new_is_psp) {
+            tmp = env->v7m.other_sp;
+            env->v7m.other_sp = env->regs[13];
+            env->regs[13] = tmp;
+        }
+    }
+}
+
 /* Write to v7M CONTROL.SPSEL bit. This may change the current
  * stack pointer between Main and Process stack pointers.
  */
 static void write_v7m_control_spsel(CPUARMState *env, bool new_spsel)
 {
-    uint32_t tmp;
-    bool new_is_psp, old_is_psp = v7m_using_psp(env);
-
-    env->v7m.control[env->v7m.secure] =
-        deposit32(env->v7m.control[env->v7m.secure],
-                  R_V7M_CONTROL_SPSEL_SHIFT,
-                  R_V7M_CONTROL_SPSEL_LENGTH, new_spsel);
-
-    new_is_psp = v7m_using_psp(env);
-
-    if (old_is_psp != new_is_psp) {
-        tmp = env->v7m.other_sp;
-        env->v7m.other_sp = env->regs[13];
-        env->regs[13] = tmp;
-    }
+    write_v7m_control_spsel_for_secstate(env, new_spsel, env->v7m.secure);
 }
 
 void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
@@ -6379,7 +6393,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
      * Handler mode (and will be until we write the new XPSR.Interrupt
      * field) this does not switch around the current stack pointer.
      */
-    write_v7m_control_spsel(env, return_to_sp_process);
+    write_v7m_control_spsel_for_secstate(env, return_to_sp_process, exc_secure);
 
     switch_v7m_security_state(env, return_to_secure);
 
