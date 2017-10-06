@@ -41,7 +41,6 @@ struct PageCache {
     CacheItem *page_cache;
     unsigned int page_size;
     int64_t max_num_items;
-    uint64_t max_item_age;
     int64_t num_items;
 };
 
@@ -69,7 +68,6 @@ PageCache *cache_init(int64_t num_pages, unsigned int page_size)
     }
     cache->page_size = page_size;
     cache->num_items = 0;
-    cache->max_item_age = 0;
     cache->max_num_items = num_pages;
 
     DPRINTF("Setting cache buckets to %" PRId64 "\n", cache->max_num_items);
