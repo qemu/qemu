@@ -296,6 +296,7 @@ static const char *spapr_core_models[] = {
 
     /* POWER9 */
     "power9_v1.0",
+    "power9_v2.0",
 };
 
 static Property spapr_cpu_core_properties[] = {
