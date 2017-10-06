@@ -1017,6 +1017,22 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             goto bad_offset;
         }
         return cpu->env.pmsav8.mair1[attrs.secure];
+    case 0xde4: /* SFSR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.v7m.sfsr;
+    case 0xde8: /* SFAR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.v7m.sfar;
     default:
     bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "NVIC: Bad read offset 0x%x\n", offset);
@@ -1367,6 +1383,24 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         /* We don't need to do anything else because memory attributes
          * only affect cacheability, and we don't implement caching.
          */
+        break;
+    case 0xde4: /* SFSR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        cpu->env.v7m.sfsr &= ~value; /* W1C */
+        break;
+    case 0xde8: /* SFAR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        cpu->env.v7m.sfsr = value;
         break;
     case 0xf00: /* Software Triggered Interrupt Register */
     {
