@@ -58,17 +58,19 @@ PageCache *cache_init(int64_t new_size, size_t page_size, Error **errp)
         return NULL;
     }
 
+    /* round down to the nearest power of 2 */
+    if (!is_power_of_2(num_pages)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "is not a power of two number of pages");
+        return NULL;
+    }
+
     /* We prefer not to abort if there is no memory */
     cache = g_try_malloc(sizeof(*cache));
     if (!cache) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
                    "Failed to allocate cache");
         return NULL;
-    }
-    /* round down to the nearest power of 2 */
-    if (!is_power_of_2(num_pages)) {
-        num_pages = pow2floor(num_pages);
-        DPRINTF("rounding down to %" PRId64 "\n", num_pages);
     }
     cache->page_size = page_size;
     cache->num_items = 0;
