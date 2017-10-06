@@ -2422,6 +2422,58 @@ static ExitStatus op_iske(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static ExitStatus op_msa(DisasContext *s, DisasOps *o)
+{
+    int r1 = have_field(s->fields, r1) ? get_field(s->fields, r1) : 0;
+    int r2 = have_field(s->fields, r2) ? get_field(s->fields, r2) : 0;
+    int r3 = have_field(s->fields, r3) ? get_field(s->fields, r3) : 0;
+    TCGv_i32 t_r1, t_r2, t_r3, type;
+
+    switch (s->insn->data) {
+    case S390_FEAT_TYPE_KMCTR:
+        if (r3 & 1 || !r3) {
+            gen_program_exception(s, PGM_SPECIFICATION);
+            return EXIT_NORETURN;
+        }
+        /* FALL THROUGH */
+    case S390_FEAT_TYPE_PPNO:
+    case S390_FEAT_TYPE_KMF:
+    case S390_FEAT_TYPE_KMC:
+    case S390_FEAT_TYPE_KMO:
+    case S390_FEAT_TYPE_KM:
+        if (r1 & 1 || !r1) {
+            gen_program_exception(s, PGM_SPECIFICATION);
+            return EXIT_NORETURN;
+        }
+        /* FALL THROUGH */
+    case S390_FEAT_TYPE_KMAC:
+    case S390_FEAT_TYPE_KIMD:
+    case S390_FEAT_TYPE_KLMD:
+        if (r2 & 1 || !r2) {
+            gen_program_exception(s, PGM_SPECIFICATION);
+            return EXIT_NORETURN;
+        }
+        /* FALL THROUGH */
+    case S390_FEAT_TYPE_PCKMO:
+    case S390_FEAT_TYPE_PCC:
+        break;
+    default:
+        g_assert_not_reached();
+    };
+
+    t_r1 = tcg_const_i32(r1);
+    t_r2 = tcg_const_i32(r2);
+    t_r3 = tcg_const_i32(r3);
+    type = tcg_const_i32(s->insn->data);
+    gen_helper_msa(cc_op, cpu_env, t_r1, t_r2, t_r3, type);
+    set_cc_static(s);
+    tcg_temp_free_i32(t_r1);
+    tcg_temp_free_i32(t_r2);
+    tcg_temp_free_i32(t_r3);
+    tcg_temp_free_i32(type);
+    return NO_EXIT;
+}
+
 static ExitStatus op_keb(DisasContext *s, DisasOps *o)
 {
     gen_helper_keb(cc_op, cpu_env, o->in1, o->in2);
@@ -2915,7 +2967,6 @@ static ExitStatus op_lpq(DisasContext *s, DisasOps *o)
 static ExitStatus op_lura(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_lura(o->out, cpu_env, o->in2);
     return NO_EXIT;
 }
@@ -2923,7 +2974,6 @@ static ExitStatus op_lura(DisasContext *s, DisasOps *o)
 static ExitStatus op_lurag(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_lurag(o->out, cpu_env, o->in2);
     return NO_EXIT;
 }
@@ -3796,6 +3846,17 @@ static ExitStatus op_srnm(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_spm(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_extrl_i64_i32(cc_op, o->in1);
+    tcg_gen_extract_i32(cc_op, cc_op, 28, 2);
+    set_cc_static(s);
+
+    tcg_gen_shri_i64(o->in1, o->in1, 24);
+    tcg_gen_deposit_i64(psw_mask, psw_mask, o->in1, PSW_SHIFT_MASK_PM, 4);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_spka(DisasContext *s, DisasOps *o)
 {
@@ -4065,7 +4126,6 @@ static ExitStatus op_stnosm(DisasContext *s, DisasOps *o)
 static ExitStatus op_stura(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_stura(cpu_env, o->in2, o->in1);
     return NO_EXIT;
 }
@@ -4073,7 +4133,6 @@ static ExitStatus op_stura(DisasContext *s, DisasOps *o)
 static ExitStatus op_sturg(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_sturg(cpu_env, o->in2, o->in1);
     return NO_EXIT;
 }
@@ -5494,6 +5553,10 @@ enum DisasInsnEnum {
 #define FAC_PPA         S390_FEAT_STFLE_49 /* processor-assist */
 #define FAC_LZRB        S390_FEAT_STFLE_53 /* load-and-zero-rightmost-byte */
 #define FAC_ETF3        S390_FEAT_EXTENDED_TRANSLATION_3
+#define FAC_MSA         S390_FEAT_MSA /* message-security-assist facility */
+#define FAC_MSA3        S390_FEAT_MSA_EXT_3 /* msa-extension-3 facility */
+#define FAC_MSA4        S390_FEAT_MSA_EXT_4 /* msa-extension-4 facility */
+#define FAC_MSA5        S390_FEAT_MSA_EXT_5 /* msa-extension-5 facility */
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"

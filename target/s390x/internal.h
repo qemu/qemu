@@ -162,6 +162,20 @@ static inline uint8_t get_per_atmid(CPUS390XState *env)
            ((env->psw.mask & PSW_ASC_ACCREG) ?    (1 << 2) : 0);
 }
 
+static inline uint64_t wrap_address(CPUS390XState *env, uint64_t a)
+{
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        if (!(env->psw.mask & PSW_MASK_32)) {
+            /* 24-Bit mode */
+            a &= 0x00ffffff;
+        } else {
+            /* 31-Bit mode */
+            a &= 0x7fffffff;
+        }
+    }
+    return a;
+}
+
 /* CC optimization */
 
 /* Instead of computing the condition codes after each x86 instruction,
@@ -375,6 +389,8 @@ target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr);
 /* mmu_helper.c */
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc);
+int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
+                       target_ulong *addr, int *flags);
 
 
 /* misc_helper.c */

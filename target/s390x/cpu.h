@@ -43,12 +43,13 @@
 
 #include "fpu/softfloat.h"
 
-#define NB_MMU_MODES 3
+#define NB_MMU_MODES 4
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 #define MMU_MODE0_SUFFIX _primary
 #define MMU_MODE1_SUFFIX _secondary
 #define MMU_MODE2_SUFFIX _home
+#define MMU_MODE3_SUFFIX _real
 
 #define MMU_USER_IDX 0
 
@@ -58,6 +59,8 @@
 
 #define PSW_MCHK_MASK 0x0004000000000000
 #define PSW_IO_MASK 0x0200000000000000
+
+#define S390_MAX_CPUS 248
 
 typedef struct PSW {
     uint64_t mask;
@@ -150,8 +153,10 @@ struct CPUS390XState {
 
     CPU_COMMON
 
+#if !defined(CONFIG_USER_ONLY)
     uint32_t core_id; /* PoP "CPU address", same as cpu_index */
     uint64_t cpuid;
+#endif
 
     uint64_t tod_offset;
     uint64_t tod_basetime;
@@ -292,6 +297,7 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #undef PSW_SHIFT_ASC
 #undef PSW_MASK_CC
 #undef PSW_MASK_PM
+#undef PSW_SHIFT_MASK_PM
 #undef PSW_MASK_64
 #undef PSW_MASK_32
 #undef PSW_MASK_ESA_ADDR
@@ -309,6 +315,7 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define PSW_SHIFT_ASC           46
 #define PSW_MASK_CC             0x0000300000000000ULL
 #define PSW_MASK_PM             0x00000F0000000000ULL
+#define PSW_SHIFT_MASK_PM       40
 #define PSW_MASK_64             0x0000000100000000ULL
 #define PSW_MASK_32             0x0000000080000000ULL
 #define PSW_MASK_ESA_ADDR       0x000000007fffffffULL
@@ -349,6 +356,7 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define MMU_PRIMARY_IDX         0
 #define MMU_SECONDARY_IDX       1
 #define MMU_HOME_IDX            2
+#define MMU_REAL_IDX            3
 
 static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 {
@@ -684,12 +692,14 @@ static inline unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
 /* cpu_models.c */
 void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define cpu_list s390_cpu_list
-const char *s390_default_cpu_model_name(void);
-
 
 /* helper.c */
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_S390_CPU, cpu_model)
 S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id, Error **errp);
+
+#define S390_CPU_TYPE_SUFFIX "-" TYPE_S390_CPU
+#define S390_CPU_TYPE_NAME(name) (name S390_CPU_TYPE_SUFFIX)
+
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */

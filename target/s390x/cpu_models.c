@@ -825,6 +825,7 @@ static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
         S390_FEAT_STFLE,
         S390_FEAT_EXTENDED_IMMEDIATE,
         S390_FEAT_EXTENDED_TRANSLATION_2,
+        S390_FEAT_MSA,
         S390_FEAT_EXTENDED_TRANSLATION_3,
         S390_FEAT_LONG_DISPLACEMENT,
         S390_FEAT_LONG_DISPLACEMENT_FAST,
@@ -841,6 +842,9 @@ static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
         S390_FEAT_STFLE_49,
         S390_FEAT_LOCAL_TLB_CLEARING,
         S390_FEAT_STFLE_53,
+        S390_FEAT_MSA_EXT_5,
+        S390_FEAT_MSA_EXT_3,
+        S390_FEAT_MSA_EXT_4,
     };
     int i;
 
@@ -941,11 +945,13 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
 
     apply_cpu_model(cpu->model, errp);
 
+#if !defined(CONFIG_USER_ONLY)
     cpu->env.cpuid = s390_cpuid_from_cpu_model(cpu->model);
     if (tcg_enabled()) {
         /* basic mode, write the cpu address into the first 4 bit of the ID */
         cpu->env.cpuid = deposit64(cpu->env.cpuid, 54, 4, cpu->env.core_id);
     }
+#endif
 }
 
 static void get_feature(Object *obj, Visitor *v, const char *name,
@@ -1207,9 +1213,6 @@ static void s390_qemu_cpu_model_class_init(ObjectClass *oc, void *data)
                                 qemu_hw_version());
 }
 
-#define S390_CPU_TYPE_SUFFIX "-" TYPE_S390_CPU
-#define S390_CPU_TYPE_NAME(name) (name S390_CPU_TYPE_SUFFIX)
-
 /* Generate type name for a cpu model. Caller has to free the string. */
 static char *s390_cpu_type_name(const char *model_name)
 {
@@ -1230,14 +1233,6 @@ ObjectClass *s390_cpu_class_by_name(const char *name)
     oc = object_class_by_name(typename);
     g_free(typename);
     return oc;
-}
-
-const char *s390_default_cpu_model_name(void)
-{
-     if (kvm_enabled()) {
-        return "host";
-     }
-     return "qemu";
 }
 
 static const TypeInfo qemu_s390_cpu_type_info = {

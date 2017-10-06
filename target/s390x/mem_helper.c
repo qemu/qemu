@@ -122,20 +122,6 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
     }
 }
 
-static inline uint64_t wrap_address(CPUS390XState *env, uint64_t a)
-{
-    if (!(env->psw.mask & PSW_MASK_64)) {
-        if (!(env->psw.mask & PSW_MASK_32)) {
-            /* 24-Bit mode */
-            a &= 0x00ffffff;
-        } else {
-            /* 31-Bit mode */
-            a &= 0x7fffffff;
-        }
-    }
-    return a;
-}
-
 static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
                         uint32_t l, uintptr_t ra)
 {
@@ -1702,17 +1688,9 @@ uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
 {
     uintptr_t ra = GETPC();
     CPUState *cs = CPU(s390_env_get_cpu(env));
-    uint64_t abs_addr;
     int i;
 
-    real_addr = wrap_address(env, real_addr);
-    abs_addr = mmu_real2abs(env, real_addr) & TARGET_PAGE_MASK;
-    if (!address_space_access_valid(&address_space_memory, abs_addr,
-                                    TARGET_PAGE_SIZE, true)) {
-        cpu_restore_state(cs, ra);
-        program_interrupt(env, PGM_ADDRESSING, 4);
-        return 1;
-    }
+    real_addr = wrap_address(env, real_addr) & TARGET_PAGE_MASK;
 
     /* Check low-address protection */
     if ((env->cregs[0] & CR0_LOWPROT) && real_addr < 0x2000) {
@@ -1722,7 +1700,7 @@ uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
     }
 
     for (i = 0; i < TARGET_PAGE_SIZE; i += 8) {
-        stq_phys(cs->as, abs_addr + i, 0);
+        cpu_stq_real_ra(env, real_addr + i, 0, ra);
     }
 
     return 0;
@@ -1897,11 +1875,11 @@ void HELPER(idte)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint32_t m4)
         for (i = 0; i < entries; i++) {
             /* addresses are not wrapped in 24/31bit mode but table index is */
             raddr = table + ((index + i) & 0x7ff) * sizeof(entry);
-            entry = ldq_phys(cs->as, raddr);
+            entry = cpu_ldq_real_ra(env, raddr, ra);
             if (!(entry & _REGION_ENTRY_INV)) {
                 /* we are allowed to not store if already invalid */
                 entry |= _REGION_ENTRY_INV;
-                stq_phys(cs->as, raddr, entry);
+                cpu_stq_real_ra(env, raddr, entry, ra);
             }
         }
     }
@@ -1919,6 +1897,7 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
                   uint32_t m4)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
+    const uintptr_t ra = GETPC();
     uint64_t page = vaddr & TARGET_PAGE_MASK;
     uint64_t pte_addr, pte;
 
@@ -1927,9 +1906,9 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
     pte_addr += (vaddr & VADDR_PX) >> 9;
 
     /* Mark the page table entry as invalid */
-    pte = ldq_phys(cs->as, pte_addr);
+    pte = cpu_ldq_real_ra(env, pte_addr, ra);
     pte |= _PAGE_INVALID;
-    stq_phys(cs->as, pte_addr, pte);
+    cpu_stq_real_ra(env, pte_addr, pte, ra);
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
@@ -1973,24 +1952,18 @@ void HELPER(purge)(CPUS390XState *env)
 /* load using real address */
 uint64_t HELPER(lura)(CPUS390XState *env, uint64_t addr)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    return (uint32_t)ldl_phys(cs->as, wrap_address(env, addr));
+    return cpu_ldl_real_ra(env, wrap_address(env, addr), GETPC());
 }
 
 uint64_t HELPER(lurag)(CPUS390XState *env, uint64_t addr)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    return ldq_phys(cs->as, wrap_address(env, addr));
+    return cpu_ldq_real_ra(env, wrap_address(env, addr), GETPC());
 }
 
 /* store using real address */
 void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    stl_phys(cs->as, wrap_address(env, addr), (uint32_t)v1);
+    cpu_stl_real_ra(env, wrap_address(env, addr), (uint32_t)v1, GETPC());
 
     if ((env->psw.mask & PSW_MASK_PER) &&
         (env->cregs[9] & PER_CR9_EVENT_STORE) &&
@@ -2003,9 +1976,7 @@ void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 
 void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    stq_phys(cs->as, wrap_address(env, addr), v1);
+    cpu_stq_real_ra(env, wrap_address(env, addr), v1, GETPC());
 
     if ((env->psw.mask & PSW_MASK_PER) &&
         (env->cregs[9] & PER_CR9_EVENT_STORE) &&

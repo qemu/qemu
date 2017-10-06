@@ -413,6 +413,7 @@ static void vfio_ccw_class_init(ObjectClass *klass, void *data)
     dc->props = vfio_ccw_properties;
     dc->vmsd = &vfio_ccw_vmstate;
     dc->desc = "VFIO-based subchannel assignment";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = vfio_ccw_realize;
     dc->unrealize = vfio_ccw_unrealize;
     dc->reset = vfio_ccw_reset;

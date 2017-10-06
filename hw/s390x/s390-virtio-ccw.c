@@ -55,15 +55,8 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 static void s390_init_cpus(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    const char *typename;
-    gchar **model_pieces;
-    ObjectClass *oc;
-    CPUClass *cc;
     int i;
 
-    if (machine->cpu_model == NULL) {
-        machine->cpu_model = s390_default_cpu_model_name();
-    }
     if (tcg_enabled() && max_cpus > 1) {
         error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
                      "supported by TCG (1) on s390x", max_cpus);
@@ -73,25 +66,8 @@ static void s390_init_cpus(MachineState *machine)
     /* initialize possible_cpus */
     mc->possible_cpu_arch_ids(machine);
 
-    model_pieces = g_strsplit(machine->cpu_model, ",", 2);
-    if (!model_pieces[0]) {
-        error_report("Invalid/empty CPU model name");
-        exit(1);
-    }
-
-    oc = cpu_class_by_name(TYPE_S390_CPU, model_pieces[0]);
-    if (!oc) {
-        error_report("Unable to find CPU definition: %s", model_pieces[0]);
-        exit(1);
-    }
-    typename = object_class_get_name(oc);
-    cc = CPU_CLASS(oc);
-    /* after parsing, properties will be applied to all *typename* instances */
-    cc->parse_features(typename, model_pieces[1], &error_fatal);
-    g_strfreev(model_pieces);
-
     for (i = 0; i < smp_cpus; i++) {
-        s390x_new_cpu(typename, i, &error_fatal);
+        s390x_new_cpu(machine->cpu_type, i, &error_fatal);
     }
 }
 
@@ -213,13 +189,10 @@ static int gtod_load(QEMUFile *f, void *opaque, int version_id)
 
     r = s390_set_clock(&tod_high, &tod_low);
     if (r) {
-        warn_report("Unable to set guest clock for migration: %s",
-                    strerror(-r));
-        error_printf("Guest clock will not be restored "
-                     "which could cause the guest to hang.");
+        error_report("Unable to set KVM guest TOD clock: %s", strerror(-r));
     }
 
-    return 0;
+    return r;
 }
 
 static SaveVMHandlers savevm_gtod = {
@@ -275,6 +248,7 @@ static void ccw_init(MachineState *machine)
 {
     int ret;
     VirtualCssBus *css_bus;
+    DeviceState *dev;
 
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
@@ -290,13 +264,14 @@ static void ccw_init(MachineState *machine)
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
 
-    if (s390_has_feat(S390_FEAT_ZPCI)) {
-        DeviceState *dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
-        object_property_add_child(qdev_get_machine(),
-                                  TYPE_S390_PCI_HOST_BRIDGE,
-                                  OBJECT(dev), NULL);
-        qdev_init_nofail(dev);
-    }
+    /*
+     * We cannot easily make the pci host bridge conditional as older QEMUs
+     * always created it. Doing so would break migration across QEMU versions.
+     */
+    dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
+    object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
@@ -313,6 +288,9 @@ static void ccw_init(MachineState *machine)
         ret = css_create_css_image(VIRTUAL_CSSID, true);
     }
     assert(ret == 0);
+    if (css_migration_enabled()) {
+        css_register_vmstate();
+    }
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
@@ -329,6 +307,10 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
 
     g_assert(!ms->possible_cpus->cpus[cpu->env.core_id].cpu);
     ms->possible_cpus->cpus[cpu->env.core_id].cpu = OBJECT(dev);
+
+    if (dev->hotplugged) {
+        raise_irq_cpu_hotplug();
+    }
 }
 
 static void s390_machine_reset(void)
@@ -441,11 +423,13 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->no_sdcard = 1;
     mc->use_sclp = 1;
-    mc->max_cpus = 248;
+    mc->max_cpus = S390_MAX_CPUS;
     mc->has_hotpluggable_cpus = true;
     mc->get_hotplug_handler = s390_get_hotplug_handler;
     mc->cpu_index_to_instance_props = s390_cpu_index_to_props;
     mc->possible_cpu_arch_ids = s390_possible_cpu_arch_ids;
+    /* it is overridden with 'host' cpu *in kvm_arch_init* */
+    mc->default_cpu_type = S390_CPU_TYPE_NAME("qemu");
     hc->plug = s390_machine_device_plug;
     hc->unplug_request = s390_machine_device_unplug_request;
     nc->nmi_monitor_handler = s390_nmi;
@@ -731,9 +715,6 @@ DEFINE_CCW_MACHINE(2_11, "2.11", true);
 static void ccw_machine_2_10_instance_options(MachineState *machine)
 {
     ccw_machine_2_11_instance_options(machine);
-    if (css_migration_enabled()) {
-        css_register_vmstate();
-    }
 }
 
 static void ccw_machine_2_10_class_options(MachineClass *mc)

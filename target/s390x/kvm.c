@@ -287,6 +287,9 @@ void kvm_s390_crypto_reset(void)
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    mc->default_cpu_type = S390_CPU_TYPE_NAME("host");
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
@@ -643,10 +646,26 @@ int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
     return kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
 }
 
+int kvm_s390_get_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
+{
+    int r;
+    struct kvm_s390_vm_tod_clock gtod;
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_EXT,
+        .addr = (uint64_t)&gtod,
+    };
+
+    r = kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+    *tod_high = gtod.epoch_idx;
+    *tod_low  = gtod.tod;
+
+    return r;
+}
+
 int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
 {
     int r;
-
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_TOD,
         .attr = KVM_S390_VM_TOD_LOW,
@@ -660,6 +679,21 @@ int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
 
     attr.attr = KVM_S390_VM_TOD_HIGH;
     attr.addr = (uint64_t)tod_high;
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_set_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
+{
+    struct kvm_s390_vm_tod_clock gtod = {
+        .epoch_idx = *tod_high,
+        .tod  = *tod_low,
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_TOD,
+        .attr = KVM_S390_VM_TOD_EXT,
+        .addr = (uint64_t)&gtod,
+    };
+
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
 
@@ -1553,22 +1587,37 @@ static int do_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
     return 0;
 }
 
+struct sigp_save_area {
+    uint64_t    fprs[16];                       /* 0x0000 */
+    uint64_t    grs[16];                        /* 0x0080 */
+    PSW         psw;                            /* 0x0100 */
+    uint8_t     pad_0x0110[0x0118 - 0x0110];    /* 0x0110 */
+    uint32_t    prefix;                         /* 0x0118 */
+    uint32_t    fpc;                            /* 0x011c */
+    uint8_t     pad_0x0120[0x0124 - 0x0120];    /* 0x0120 */
+    uint32_t    todpr;                          /* 0x0124 */
+    uint64_t    cputm;                          /* 0x0128 */
+    uint64_t    ckc;                            /* 0x0130 */
+    uint8_t     pad_0x0138[0x0140 - 0x0138];    /* 0x0138 */
+    uint32_t    ars[16];                        /* 0x0140 */
+    uint64_t    crs[16];                        /* 0x0384 */
+};
+QEMU_BUILD_BUG_ON(sizeof(struct sigp_save_area) != 512);
+
 #define KVM_S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
-#define SAVE_AREA_SIZE 512
 static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
 {
     static const uint8_t ar_id = 1;
-    uint64_t ckc = cpu->env.ckc >> 8;
-    void *mem;
+    struct sigp_save_area *sa;
+    hwaddr len = sizeof(*sa);
     int i;
-    hwaddr len = SAVE_AREA_SIZE;
 
-    mem = cpu_physical_memory_map(addr, &len, 1);
-    if (!mem) {
+    sa = cpu_physical_memory_map(addr, &len, 1);
+    if (!sa) {
         return -EFAULT;
     }
-    if (len != SAVE_AREA_SIZE) {
-        cpu_physical_memory_unmap(mem, len, 1, 0);
+    if (len != sizeof(*sa)) {
+        cpu_physical_memory_unmap(sa, len, 1, 0);
         return -EFAULT;
     }
 
@@ -1576,19 +1625,26 @@ static int kvm_s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
         cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
     }
     for (i = 0; i < 16; ++i) {
-        *((uint64_t *)mem + i) = get_freg(&cpu->env, i)->ll;
+        sa->fprs[i] = cpu_to_be64(get_freg(&cpu->env, i)->ll);
     }
-    memcpy(mem + 128, &cpu->env.regs, 128);
-    memcpy(mem + 256, &cpu->env.psw, 16);
-    memcpy(mem + 280, &cpu->env.psa, 4);
-    memcpy(mem + 284, &cpu->env.fpc, 4);
-    memcpy(mem + 292, &cpu->env.todpr, 4);
-    memcpy(mem + 296, &cpu->env.cputm, 8);
-    memcpy(mem + 304, &ckc, 8);
-    memcpy(mem + 320, &cpu->env.aregs, 64);
-    memcpy(mem + 384, &cpu->env.cregs, 128);
+    for (i = 0; i < 16; ++i) {
+        sa->grs[i] = cpu_to_be64(cpu->env.regs[i]);
+    }
+    sa->psw.addr = cpu_to_be64(cpu->env.psw.addr);
+    sa->psw.mask = cpu_to_be64(get_psw_mask(&cpu->env));
+    sa->prefix = cpu_to_be32(cpu->env.psa);
+    sa->fpc = cpu_to_be32(cpu->env.fpc);
+    sa->todpr = cpu_to_be32(cpu->env.todpr);
+    sa->cputm = cpu_to_be64(cpu->env.cputm);
+    sa->ckc = cpu_to_be64(cpu->env.ckc >> 8);
+    for (i = 0; i < 16; ++i) {
+        sa->ars[i] = cpu_to_be32(cpu->env.aregs[i]);
+    }
+    for (i = 0; i < 16; ++i) {
+        sa->ars[i] = cpu_to_be64(cpu->env.cregs[i]);
+    }
 
-    cpu_physical_memory_unmap(mem, len, 1, len);
+    cpu_physical_memory_unmap(sa, len, 1, len);
 
     return 0;
 }
