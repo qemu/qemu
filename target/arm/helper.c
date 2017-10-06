@@ -6381,6 +6381,8 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
      */
     write_v7m_control_spsel(env, return_to_sp_process);
 
+    switch_v7m_security_state(env, return_to_secure);
+
     {
         /* The stack pointer we should be reading the exception frame from
          * depends on bits in the magic exception return type value (and
