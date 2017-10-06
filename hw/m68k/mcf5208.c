@@ -184,7 +184,7 @@ static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
     memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
     /* Timers.  */
     for (i = 0; i < 2; i++) {
-        s = (m5208_timer_state *)g_malloc0(sizeof(m5208_timer_state));
+        s = g_new0(m5208_timer_state, 1);
         bh = qemu_bh_new(m5208_timer_trigger, s);
         s->timer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
         memory_region_init_io(&s->iomem, NULL, &m5208_timer_ops, s,
