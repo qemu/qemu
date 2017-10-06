@@ -100,6 +100,28 @@ static void test_plug_with_device_add_x86(gconstpointer data)
     g_free(args);
 }
 
+static void test_plug_with_device_add_coreid(gconstpointer data)
+{
+    const PlugTestData *td = data;
+    char *args;
+    unsigned int c;
+
+    args = g_strdup_printf("-machine %s -cpu %s "
+                           "-smp 1,sockets=%u,cores=%u,threads=%u,maxcpus=%u",
+                           td->machine, td->cpu_model,
+                           td->sockets, td->cores, td->threads, td->maxcpus);
+    qtest_start(args);
+
+    for (c = td->cores; c < td->maxcpus / td->sockets / td->threads; c++) {
+        char *id = g_strdup_printf("id-%i", c);
+        qtest_qmp_device_add(td->device_model, id, "'core-id':'%i'", c);
+        g_free(id);
+    }
+
+    qtest_end();
+    g_free(args);
+}
+
 static void test_data_free(gpointer data)
 {
     PlugTestData *pc = data;
@@ -164,6 +186,32 @@ static void add_pc_test_case(const char *mname)
     }
 }
 
+static void add_pseries_test_case(const char *mname)
+{
+    char *path;
+    PlugTestData *data;
+
+    if (!g_str_has_prefix(mname, "pseries-") ||
+        (g_str_has_prefix(mname, "pseries-2.") && atoi(&mname[10]) < 7)) {
+        return;
+    }
+    data = g_new(PlugTestData, 1);
+    data->machine = g_strdup(mname);
+    data->cpu_model = "power8_v2.0";
+    data->device_model = g_strdup("power8_v2.0-spapr-cpu-core");
+    data->sockets = 2;
+    data->cores = 3;
+    data->threads = 1;
+    data->maxcpus = data->sockets * data->cores * data->threads * 2;
+
+    path = g_strdup_printf("cpu-plug/%s/device-add/%ux%ux%u&maxcpus=%u",
+                           mname, data->sockets, data->cores,
+                           data->threads, data->maxcpus);
+    qtest_add_data_func_full(path, data, test_plug_with_device_add_coreid,
+                             test_data_free);
+    g_free(path);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -172,6 +220,8 @@ int main(int argc, char **argv)
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qtest_cb_for_every_machine(add_pc_test_case);
+    } else if (g_str_equal(arch, "ppc64")) {
+        qtest_cb_for_every_machine(add_pseries_test_case);
     }
 
     return g_test_run();
