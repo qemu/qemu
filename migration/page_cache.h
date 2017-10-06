@@ -28,7 +28,7 @@ typedef struct PageCache PageCache;
  * @num_pages: cache maximal number of cached pages
  * @page_size: cache page size
  */
-PageCache *cache_init(int64_t num_pages, unsigned int page_size);
+PageCache *cache_init(size_t num_pages, size_t page_size);
 
 /**
  * cache_fini: free all cache resources

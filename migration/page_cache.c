@@ -39,12 +39,12 @@ struct CacheItem {
 
 struct PageCache {
     CacheItem *page_cache;
-    unsigned int page_size;
-    int64_t max_num_items;
-    int64_t num_items;
+    size_t page_size;
+    size_t max_num_items;
+    size_t num_items;
 };
 
-PageCache *cache_init(int64_t num_pages, unsigned int page_size)
+PageCache *cache_init(size_t num_pages, size_t page_size)
 {
     int64_t i;
 
