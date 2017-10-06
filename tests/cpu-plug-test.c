@@ -1,5 +1,5 @@
 /*
- * QTest testcase for PC CPUs
+ * QTest testcase for CPU plugging
  *
  * Copyright (c) 2015 SUSE Linux GmbH
  *
@@ -13,7 +13,7 @@
 #include "libqtest.h"
 #include "qapi/qmp/types.h"
 
-struct PCTestData {
+struct PlugTestData {
     char *machine;
     const char *cpu_model;
     unsigned sockets;
@@ -21,11 +21,11 @@ struct PCTestData {
     unsigned threads;
     unsigned maxcpus;
 };
-typedef struct PCTestData PCTestData;
+typedef struct PlugTestData PlugTestData;
 
-static void test_pc_with_cpu_add(gconstpointer data)
+static void test_plug_with_cpu_add(gconstpointer data)
 {
-    const PCTestData *s = data;
+    const PlugTestData *s = data;
     char *args;
     QDict *response;
     unsigned int i;
@@ -48,9 +48,9 @@ static void test_pc_with_cpu_add(gconstpointer data)
     g_free(args);
 }
 
-static void test_pc_without_cpu_add(gconstpointer data)
+static void test_plug_without_cpu_add(gconstpointer data)
 {
-    const PCTestData *s = data;
+    const PlugTestData *s = data;
     char *args;
     QDict *response;
 
@@ -73,7 +73,7 @@ static void test_pc_without_cpu_add(gconstpointer data)
 
 static void test_data_free(gpointer data)
 {
-    PCTestData *pc = data;
+    PlugTestData *pc = data;
 
     g_free(pc->machine);
     g_free(pc);
@@ -82,12 +82,12 @@ static void test_data_free(gpointer data)
 static void add_pc_test_case(const char *mname)
 {
     char *path;
-    PCTestData *data;
+    PlugTestData *data;
 
     if (!g_str_has_prefix(mname, "pc-")) {
         return;
     }
-    data = g_new(PCTestData, 1);
+    data = g_new(PlugTestData, 1);
     data->machine = g_strdup(mname);
     data->cpu_model = "Haswell"; /* 1.3+ theoretically */
     data->sockets = 1;
@@ -108,14 +108,14 @@ static void add_pc_test_case(const char *mname)
         path = g_strdup_printf("cpu/%s/init/%ux%ux%u&maxcpus=%u",
                                mname, data->sockets, data->cores,
                                data->threads, data->maxcpus);
-        qtest_add_data_func_full(path, data, test_pc_without_cpu_add,
+        qtest_add_data_func_full(path, data, test_plug_without_cpu_add,
                                  test_data_free);
         g_free(path);
     } else {
         path = g_strdup_printf("cpu/%s/add/%ux%ux%u&maxcpus=%u",
                                mname, data->sockets, data->cores,
                                data->threads, data->maxcpus);
-        qtest_add_data_func_full(path, data, test_pc_with_cpu_add,
+        qtest_add_data_func_full(path, data, test_plug_with_cpu_add,
                                  test_data_free);
         g_free(path);
     }
