@@ -392,7 +392,7 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
 
     /* strip off the -s390-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(CpuDefinitionInfo, 1);
     info->name = name;
     info->has_migration_safe = true;
     info->migration_safe = scc->is_migration_safe;
@@ -412,7 +412,7 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
         object_unref(obj);
     }
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_new0(CpuDefinitionInfoList, 1);
     entry->value = info;
     entry->next = *cpu_list;
     *cpu_list = entry;
@@ -574,7 +574,7 @@ CpuModelExpansionInfo *arch_query_cpu_model_expansion(CpuModelExpansionType type
     }
 
     /* convert it back to a static representation */
-    expansion_info = g_malloc0(sizeof(*expansion_info));
+    expansion_info = g_new0(CpuModelExpansionInfo, 1);
     expansion_info->model = g_malloc0(sizeof(*expansion_info->model));
     cpu_info_from_model(expansion_info->model, &s390_model, delta_changes);
     return expansion_info;
@@ -585,7 +585,7 @@ static void list_add_feat(const char *name, void *opaque)
     strList **last = (strList **) opaque;
     strList *entry;
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_new0(strList, 1);
     entry->value = g_strdup(name);
     entry->next = *last;
     *last = entry;
@@ -609,7 +609,7 @@ CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *infoa,
     if (*errp) {
         return NULL;
     }
-    compare_info = g_malloc0(sizeof(*compare_info));
+    compare_info = g_new0(CpuModelCompareInfo, 1);
 
     /* check the cpu generation and ga level */
     if (modela.def->gen == modelb.def->gen) {
@@ -713,7 +713,7 @@ CpuModelBaselineInfo *arch_query_cpu_model_baseline(CpuModelInfo *infoa,
     bitmap_and(model.features, model.features, model.def->full_feat,
                S390_FEAT_MAX);
 
-    baseline_info = g_malloc0(sizeof(*baseline_info));
+    baseline_info = g_new0(CpuModelBaselineInfo, 1);
     baseline_info->model = g_malloc0(sizeof(*baseline_info->model));
     cpu_info_from_model(baseline_info->model, &model, true);
     return baseline_info;

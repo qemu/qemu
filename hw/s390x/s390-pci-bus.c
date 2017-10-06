@@ -240,7 +240,7 @@ static void s390_pci_generate_event(uint8_t cc, uint16_t pec, uint32_t fh,
     SeiContainer *sei_cont;
     S390pciState *s = s390_get_phb();
 
-    sei_cont = g_malloc0(sizeof(SeiContainer));
+    sei_cont = g_new0(SeiContainer, 1);
     sei_cont->fh = fh;
     sei_cont->fid = fid;
     sei_cont->cc = cc;
@@ -416,7 +416,7 @@ static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
     S390PCIIOMMU *iommu;
 
     if (!table) {
-        table = g_malloc0(sizeof(S390PCIIOMMUTable));
+        table = g_new0(S390PCIIOMMUTable, 1);
         table->key = key;
         g_hash_table_insert(s->iommu_table, &table->key, table);
     }
