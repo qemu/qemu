@@ -1017,6 +1017,60 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             goto bad_offset;
         }
         return cpu->env.pmsav8.mair1[attrs.secure];
+    case 0xdd0: /* SAU_CTRL */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.sau.ctrl;
+    case 0xdd4: /* SAU_TYPE */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->sau_sregion;
+    case 0xdd8: /* SAU_RNR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.sau.rnr;
+    case 0xddc: /* SAU_RBAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        if (region >= cpu->sau_sregion) {
+            return 0;
+        }
+        return cpu->env.sau.rbar[region];
+    }
+    case 0xde0: /* SAU_RLAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        if (region >= cpu->sau_sregion) {
+            return 0;
+        }
+        return cpu->env.sau.rlar[region];
+    }
     case 0xde4: /* SFSR */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             goto bad_offset;
@@ -1384,6 +1438,68 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
          * only affect cacheability, and we don't implement caching.
          */
         break;
+    case 0xdd0: /* SAU_CTRL */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        cpu->env.sau.ctrl = value & 3;
+    case 0xdd4: /* SAU_TYPE */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        break;
+    case 0xdd8: /* SAU_RNR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        if (value >= cpu->sau_sregion) {
+            qemu_log_mask(LOG_GUEST_ERROR, "SAU region out of range %"
+                          PRIu32 "/%" PRIu32 "\n",
+                          value, cpu->sau_sregion);
+        } else {
+            cpu->env.sau.rnr = value;
+        }
+        break;
+    case 0xddc: /* SAU_RBAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        if (region >= cpu->sau_sregion) {
+            return;
+        }
+        cpu->env.sau.rbar[region] = value & ~0x1f;
+        tlb_flush(CPU(cpu));
+        break;
+    }
+    case 0xde0: /* SAU_RLAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        if (region >= cpu->sau_sregion) {
+            return;
+        }
+        cpu->env.sau.rlar[region] = value & ~0x1c;
+        tlb_flush(CPU(cpu));
+        break;
+    }
     case 0xde4: /* SFSR */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             goto bad_offset;

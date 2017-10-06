@@ -568,6 +568,14 @@ typedef struct CPUARMState {
         uint32_t mair1[M_REG_NUM_BANKS];
     } pmsav8;
 
+    /* v8M SAU */
+    struct {
+        uint32_t *rbar;
+        uint32_t *rlar;
+        uint32_t rnr;
+        uint32_t ctrl;
+    } sau;
+
     void *nvic;
     const struct arm_boot_info *boot_info;
     /* Store GICv3CPUState to access from this struct */
@@ -663,6 +671,8 @@ struct ARMCPU {
     bool has_mpu;
     /* PMSAv7 MPU number of supported regions */
     uint32_t pmsav7_dregion;
+    /* v8M SAU number of supported regions */
+    uint32_t sau_sregion;
 
     /* PSCI conduit used to invoke PSCI methods
      * 0 - disabled, 1 - smc, 2 - hvc

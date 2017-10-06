@@ -285,6 +285,18 @@ static void arm_cpu_reset(CPUState *s)
         env->pmsav8.mair1[M_REG_S] = 0;
     }
 
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        if (cpu->sau_sregion > 0) {
+            memset(env->sau.rbar, 0, sizeof(*env->sau.rbar) * cpu->sau_sregion);
+            memset(env->sau.rlar, 0, sizeof(*env->sau.rlar) * cpu->sau_sregion);
+        }
+        env->sau.rnr = 0;
+        /* SAU_CTRL reset value is IMPDEF; we choose 0, which is what
+         * the Cortex-M33 does.
+         */
+        env->sau.ctrl = 0;
+    }
+
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
     set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
     set_default_nan_mode(1, &env->vfp.standard_fp_status);
@@ -873,6 +885,20 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
     }
 
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        uint32_t nr = cpu->sau_sregion;
+
+        if (nr > 0xff) {
+            error_setg(errp, "v8M SAU #regions invalid %" PRIu32, nr);
+            return;
+        }
+
+        if (nr) {
+            env->sau.rbar = g_new0(uint32_t, nr);
+            env->sau.rlar = g_new0(uint32_t, nr);
+        }
+    }
+
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         set_feature(env, ARM_FEATURE_VBAR);
     }
@@ -1141,6 +1167,7 @@ static void cortex_m4_initfn(Object *obj)
     cpu->midr = 0x410fc240; /* r0p0 */
     cpu->pmsav7_dregion = 8;
 }
+
 static void arm_v7m_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
