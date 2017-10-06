@@ -91,40 +91,6 @@ const char *get_opt_value(char *buf, int buf_size, const char *p)
     return p;
 }
 
-int get_next_param_value(char *buf, int buf_size,
-                         const char *tag, const char **pstr)
-{
-    const char *p;
-    char option[128];
-
-    p = *pstr;
-    for(;;) {
-        p = get_opt_name(option, sizeof(option), p, '=');
-        if (*p != '=')
-            break;
-        p++;
-        if (!strcmp(tag, option)) {
-            *pstr = get_opt_value(buf, buf_size, p);
-            if (**pstr == ',') {
-                (*pstr)++;
-            }
-            return strlen(buf);
-        } else {
-            p = get_opt_value(NULL, 0, p);
-        }
-        if (*p != ',')
-            break;
-        p++;
-    }
-    return 0;
-}
-
-int get_param_value(char *buf, int buf_size,
-                    const char *tag, const char *str)
-{
-    return get_next_param_value(buf, buf_size, tag, &str);
-}
-
 static void parse_option_bool(const char *name, const char *value, bool *ret,
                               Error **errp)
 {
