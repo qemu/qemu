@@ -135,22 +135,14 @@ int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
         return -1;
     }
 
-    if (new_size < TARGET_PAGE_SIZE) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "is smaller than one target page size");
-        return -1;
-    }
-
     XBZRLE_cache_lock();
 
     if (XBZRLE.cache != NULL) {
         if (pow2floor(new_size) == migrate_xbzrle_cache_size()) {
             goto out_new_size;
         }
-        new_cache = cache_init(new_size / TARGET_PAGE_SIZE,
-                                        TARGET_PAGE_SIZE);
+        new_cache = cache_init(new_size, TARGET_PAGE_SIZE, errp);
         if (!new_cache) {
-            error_setg(errp, "Error creating cache");
             ret = -1;
             goto out;
         }
@@ -2028,6 +2020,7 @@ err:
 static int ram_state_init(RAMState **rsp)
 {
     *rsp = g_new0(RAMState, 1);
+    Error *local_err = NULL;
 
     qemu_mutex_init(&(*rsp)->bitmap_mutex);
     qemu_mutex_init(&(*rsp)->src_page_req_mutex);
@@ -2036,12 +2029,11 @@ static int ram_state_init(RAMState **rsp)
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();
         XBZRLE.zero_target_page = g_malloc0(TARGET_PAGE_SIZE);
-        XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
-                                  TARGET_PAGE_SIZE,
-                                  TARGET_PAGE_SIZE);
+        XBZRLE.cache = cache_init(migrate_xbzrle_cache_size(),
+                                  TARGET_PAGE_SIZE, &local_err);
         if (!XBZRLE.cache) {
             XBZRLE_cache_unlock();
-            error_report("Error creating cache");
+            error_report_err(local_err);
             g_free(*rsp);
             *rsp = NULL;
             return -1;
