@@ -31,6 +31,16 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
                                target_ulong *page_size_ptr, uint32_t *fsr,
                                ARMMMUFaultInfo *fi);
 
+/* Security attributes for an address, as returned by v8m_security_lookup. */
+typedef struct V8M_SAttributes {
+    bool ns;
+    bool nsc;
+    uint8_t sregion;
+    bool srvalid;
+    uint8_t iregion;
+    bool irvalid;
+} V8M_SAttributes;
+
 /* Definitions for the PMCCNTR and PMCR registers */
 #define PMCRD   0x8
 #define PMCRC   0x4
@@ -3717,7 +3727,14 @@ static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         valid_mask &= ~HCR_HCD;
-    } else {
+    } else if (cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
+        /* Architecturally HCR.TSC is RES0 if EL3 is not implemented.
+         * However, if we're using the SMC PSCI conduit then QEMU is
+         * effectively acting like EL3 firmware and so the guest at
+         * EL2 should retain the ability to prevent EL1 from being
+         * able to make SMC calls into the ersatz firmware, so in
+         * that case HCR.TSC should be read/write.
+         */
         valid_mask &= ~HCR_TSC;
     }
 
@@ -6040,16 +6057,6 @@ static void v7m_push(CPUARMState *env, uint32_t val)
     stl_phys(cs->as, env->regs[13], val);
 }
 
-static uint32_t v7m_pop(CPUARMState *env)
-{
-    CPUState *cs = CPU(arm_env_get_cpu(env));
-    uint32_t val;
-
-    val = ldl_phys(cs->as, env->regs[13]);
-    env->regs[13] += 4;
-    return val;
-}
-
 /* Return true if we're using the process stack pointer (not the MSP) */
 static bool v7m_using_psp(CPUARMState *env)
 {
@@ -6062,21 +6069,58 @@ static bool v7m_using_psp(CPUARMState *env)
         env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK;
 }
 
-/* Switch to V7M main or process stack pointer.  */
-static void switch_v7m_sp(CPUARMState *env, bool new_spsel)
+/* Write to v7M CONTROL.SPSEL bit for the specified security bank.
+ * This may change the current stack pointer between Main and Process
+ * stack pointers if it is done for the CONTROL register for the current
+ * security state.
+ */
+static void write_v7m_control_spsel_for_secstate(CPUARMState *env,
+                                                 bool new_spsel,
+                                                 bool secstate)
 {
-    uint32_t tmp;
-    uint32_t old_control = env->v7m.control[env->v7m.secure];
-    bool old_spsel = old_control & R_V7M_CONTROL_SPSEL_MASK;
+    bool old_is_psp = v7m_using_psp(env);
 
-    if (old_spsel != new_spsel) {
+    env->v7m.control[secstate] =
+        deposit32(env->v7m.control[secstate],
+                  R_V7M_CONTROL_SPSEL_SHIFT,
+                  R_V7M_CONTROL_SPSEL_LENGTH, new_spsel);
+
+    if (secstate == env->v7m.secure) {
+        bool new_is_psp = v7m_using_psp(env);
+        uint32_t tmp;
+
+        if (old_is_psp != new_is_psp) {
+            tmp = env->v7m.other_sp;
+            env->v7m.other_sp = env->regs[13];
+            env->regs[13] = tmp;
+        }
+    }
+}
+
+/* Write to v7M CONTROL.SPSEL bit. This may change the current
+ * stack pointer between Main and Process stack pointers.
+ */
+static void write_v7m_control_spsel(CPUARMState *env, bool new_spsel)
+{
+    write_v7m_control_spsel_for_secstate(env, new_spsel, env->v7m.secure);
+}
+
+void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
+{
+    /* Write a new value to v7m.exception, thus transitioning into or out
+     * of Handler mode; this may result in a change of active stack pointer.
+     */
+    bool new_is_psp, old_is_psp = v7m_using_psp(env);
+    uint32_t tmp;
+
+    env->v7m.exception = new_exc;
+
+    new_is_psp = v7m_using_psp(env);
+
+    if (old_is_psp != new_is_psp) {
         tmp = env->v7m.other_sp;
         env->v7m.other_sp = env->regs[13];
         env->regs[13] = tmp;
-
-        env->v7m.control[env->v7m.secure] = deposit32(old_control,
-                                     R_V7M_CONTROL_SPSEL_SHIFT,
-                                     R_V7M_CONTROL_SPSEL_LENGTH, new_spsel);
     }
 }
 
@@ -6141,12 +6185,47 @@ void HELPER(v7m_bxns)(CPUARMState *env, uint32_t dest)
     env->regs[15] = dest & ~1;
 }
 
-static uint32_t arm_v7m_load_vector(ARMCPU *cpu)
+static uint32_t *get_v7m_sp_ptr(CPUARMState *env, bool secure, bool threadmode,
+                                bool spsel)
+{
+    /* Return a pointer to the location where we currently store the
+     * stack pointer for the requested security state and thread mode.
+     * This pointer will become invalid if the CPU state is updated
+     * such that the stack pointers are switched around (eg changing
+     * the SPSEL control bit).
+     * Compare the v8M ARM ARM pseudocode LookUpSP_with_security_mode().
+     * Unlike that pseudocode, we require the caller to pass us in the
+     * SPSEL control bit value; this is because we also use this
+     * function in handling of pushing of the callee-saves registers
+     * part of the v8M stack frame (pseudocode PushCalleeStack()),
+     * and in the tailchain codepath the SPSEL bit comes from the exception
+     * return magic LR value from the previous exception. The pseudocode
+     * opencodes the stack-selection in PushCalleeStack(), but we prefer
+     * to make this utility function generic enough to do the job.
+     */
+    bool want_psp = threadmode && spsel;
+
+    if (secure == env->v7m.secure) {
+        if (want_psp == v7m_using_psp(env)) {
+            return &env->regs[13];
+        } else {
+            return &env->v7m.other_sp;
+        }
+    } else {
+        if (want_psp) {
+            return &env->v7m.other_ss_psp;
+        } else {
+            return &env->v7m.other_ss_msp;
+        }
+    }
+}
+
+static uint32_t arm_v7m_load_vector(ARMCPU *cpu, bool targets_secure)
 {
     CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
     MemTxResult result;
-    hwaddr vec = env->v7m.vecbase[env->v7m.secure] + env->v7m.exception * 4;
+    hwaddr vec = env->v7m.vecbase[targets_secure] + env->v7m.exception * 4;
     uint32_t addr;
 
     addr = address_space_ldl(cs->as, vec,
@@ -6158,13 +6237,48 @@ static uint32_t arm_v7m_load_vector(ARMCPU *cpu)
          * Since we don't model Lockup, we just report this guest error
          * via cpu_abort().
          */
-        cpu_abort(cs, "Failed to read from exception vector table "
-                  "entry %08x\n", (unsigned)vec);
+        cpu_abort(cs, "Failed to read from %s exception vector table "
+                  "entry %08x\n", targets_secure ? "secure" : "nonsecure",
+                  (unsigned)vec);
     }
     return addr;
 }
 
-static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr)
+static void v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain)
+{
+    /* For v8M, push the callee-saves register part of the stack frame.
+     * Compare the v8M pseudocode PushCalleeStack().
+     * In the tailchaining case this may not be the current stack.
+     */
+    CPUARMState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    uint32_t *frame_sp_p;
+    uint32_t frameptr;
+
+    if (dotailchain) {
+        frame_sp_p = get_v7m_sp_ptr(env, true,
+                                    lr & R_V7M_EXCRET_MODE_MASK,
+                                    lr & R_V7M_EXCRET_SPSEL_MASK);
+    } else {
+        frame_sp_p = &env->regs[13];
+    }
+
+    frameptr = *frame_sp_p - 0x28;
+
+    stl_phys(cs->as, frameptr, 0xfefa125b);
+    stl_phys(cs->as, frameptr + 0x8, env->regs[4]);
+    stl_phys(cs->as, frameptr + 0xc, env->regs[5]);
+    stl_phys(cs->as, frameptr + 0x10, env->regs[6]);
+    stl_phys(cs->as, frameptr + 0x14, env->regs[7]);
+    stl_phys(cs->as, frameptr + 0x18, env->regs[8]);
+    stl_phys(cs->as, frameptr + 0x1c, env->regs[9]);
+    stl_phys(cs->as, frameptr + 0x20, env->regs[10]);
+    stl_phys(cs->as, frameptr + 0x24, env->regs[11]);
+
+    *frame_sp_p = frameptr;
+}
+
+static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain)
 {
     /* Do the "take the exception" parts of exception entry,
      * but not the pushing of state to the stack. This is
@@ -6172,14 +6286,84 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr)
      */
     CPUARMState *env = &cpu->env;
     uint32_t addr;
+    bool targets_secure;
 
-    armv7m_nvic_acknowledge_irq(env->nvic);
-    switch_v7m_sp(env, 0);
+    targets_secure = armv7m_nvic_acknowledge_irq(env->nvic);
+
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        if (arm_feature(env, ARM_FEATURE_M_SECURITY) &&
+            (lr & R_V7M_EXCRET_S_MASK)) {
+            /* The background code (the owner of the registers in the
+             * exception frame) is Secure. This means it may either already
+             * have or now needs to push callee-saves registers.
+             */
+            if (targets_secure) {
+                if (dotailchain && !(lr & R_V7M_EXCRET_ES_MASK)) {
+                    /* We took an exception from Secure to NonSecure
+                     * (which means the callee-saved registers got stacked)
+                     * and are now tailchaining to a Secure exception.
+                     * Clear DCRS so eventual return from this Secure
+                     * exception unstacks the callee-saved registers.
+                     */
+                    lr &= ~R_V7M_EXCRET_DCRS_MASK;
+                }
+            } else {
+                /* We're going to a non-secure exception; push the
+                 * callee-saves registers to the stack now, if they're
+                 * not already saved.
+                 */
+                if (lr & R_V7M_EXCRET_DCRS_MASK &&
+                    !(dotailchain && (lr & R_V7M_EXCRET_ES_MASK))) {
+                    v7m_push_callee_stack(cpu, lr, dotailchain);
+                }
+                lr |= R_V7M_EXCRET_DCRS_MASK;
+            }
+        }
+
+        lr &= ~R_V7M_EXCRET_ES_MASK;
+        if (targets_secure || !arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+            lr |= R_V7M_EXCRET_ES_MASK;
+        }
+        lr &= ~R_V7M_EXCRET_SPSEL_MASK;
+        if (env->v7m.control[targets_secure] & R_V7M_CONTROL_SPSEL_MASK) {
+            lr |= R_V7M_EXCRET_SPSEL_MASK;
+        }
+
+        /* Clear registers if necessary to prevent non-secure exception
+         * code being able to see register values from secure code.
+         * Where register values become architecturally UNKNOWN we leave
+         * them with their previous values.
+         */
+        if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+            if (!targets_secure) {
+                /* Always clear the caller-saved registers (they have been
+                 * pushed to the stack earlier in v7m_push_stack()).
+                 * Clear callee-saved registers if the background code is
+                 * Secure (in which case these regs were saved in
+                 * v7m_push_callee_stack()).
+                 */
+                int i;
+
+                for (i = 0; i < 13; i++) {
+                    /* r4..r11 are callee-saves, zero only if EXCRET.S == 1 */
+                    if (i < 4 || i > 11 || (lr & R_V7M_EXCRET_S_MASK)) {
+                        env->regs[i] = 0;
+                    }
+                }
+                /* Clear EAPSR */
+                xpsr_write(env, 0, XPSR_NZCV | XPSR_Q | XPSR_GE | XPSR_IT);
+            }
+        }
+    }
+
+    /* Switch to target security state -- must do this before writing SPSEL */
+    switch_v7m_security_state(env, targets_secure);
+    write_v7m_control_spsel(env, 0);
     arm_clear_exclusive(env);
     /* Clear IT bits */
     env->condexec_bits = 0;
     env->regs[14] = lr;
-    addr = arm_v7m_load_vector(cpu);
+    addr = arm_v7m_load_vector(cpu, targets_secure);
     env->regs[15] = addr & 0xfffffffe;
     env->thumb = addr & 1;
 }
@@ -6212,13 +6396,16 @@ static void v7m_push_stack(ARMCPU *cpu)
 static void do_v7m_exception_exit(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     uint32_t excret;
     uint32_t xpsr;
     bool ufault = false;
-    bool return_to_sp_process = false;
-    bool return_to_handler = false;
+    bool sfault = false;
+    bool return_to_sp_process;
+    bool return_to_handler;
     bool rettobase = false;
     bool exc_secure = false;
+    bool return_to_secure;
 
     /* We can only get here from an EXCP_EXCEPTION_EXIT, and
      * gen_bx_excret() enforces the architectural rule
@@ -6247,6 +6434,19 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         qemu_log_mask(LOG_GUEST_ERROR, "M profile: zero high bits in exception "
                       "exit PC value 0x%" PRIx32 " are UNPREDICTABLE\n",
                       excret);
+    }
+
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        /* EXC_RETURN.ES validation check (R_SMFL). We must do this before
+         * we pick which FAULTMASK to clear.
+         */
+        if (!env->v7m.secure &&
+            ((excret & R_V7M_EXCRET_ES_MASK) ||
+             !(excret & R_V7M_EXCRET_DCRS_MASK))) {
+            sfault = 1;
+            /* For all other purposes, treat ES as 0 (R_HXSR) */
+            excret &= ~R_V7M_EXCRET_ES_MASK;
+        }
     }
 
     if (env->v7m.exception != ARMV7M_EXCP_NMI) {
@@ -6286,21 +6486,53 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         g_assert_not_reached();
     }
 
-    switch (excret & 0xf) {
-    case 1: /* Return to Handler */
-        return_to_handler = true;
-        break;
-    case 13: /* Return to Thread using Process stack */
-        return_to_sp_process = true;
-        /* fall through */
-    case 9: /* Return to Thread using Main stack */
-        if (!rettobase &&
-            !(env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_NONBASETHRDENA_MASK)) {
+    return_to_handler = !(excret & R_V7M_EXCRET_MODE_MASK);
+    return_to_sp_process = excret & R_V7M_EXCRET_SPSEL_MASK;
+    return_to_secure = arm_feature(env, ARM_FEATURE_M_SECURITY) &&
+        (excret & R_V7M_EXCRET_S_MASK);
+
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        if (!arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+            /* UNPREDICTABLE if S == 1 or DCRS == 0 or ES == 1 (R_XLCP);
+             * we choose to take the UsageFault.
+             */
+            if ((excret & R_V7M_EXCRET_S_MASK) ||
+                (excret & R_V7M_EXCRET_ES_MASK) ||
+                !(excret & R_V7M_EXCRET_DCRS_MASK)) {
+                ufault = true;
+            }
+        }
+        if (excret & R_V7M_EXCRET_RES0_MASK) {
             ufault = true;
         }
-        break;
-    default:
-        ufault = true;
+    } else {
+        /* For v7M we only recognize certain combinations of the low bits */
+        switch (excret & 0xf) {
+        case 1: /* Return to Handler */
+            break;
+        case 13: /* Return to Thread using Process stack */
+        case 9: /* Return to Thread using Main stack */
+            /* We only need to check NONBASETHRDENA for v7M, because in
+             * v8M this bit does not exist (it is RES1).
+             */
+            if (!rettobase &&
+                !(env->v7m.ccr[env->v7m.secure] &
+                  R_V7M_CCR_NONBASETHRDENA_MASK)) {
+                ufault = true;
+            }
+            break;
+        default:
+            ufault = true;
+        }
+    }
+
+    if (sfault) {
+        env->v7m.sfsr |= R_V7M_SFSR_INVER_MASK;
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SECURE, false);
+        v7m_exception_taken(cpu, excret, true);
+        qemu_log_mask(CPU_LOG_INT, "...taking SecureFault on existing "
+                      "stackframe: failed EXC_RETURN.ES validity check\n");
+        return;
     }
 
     if (ufault) {
@@ -6309,52 +6541,157 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
          */
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVPC_MASK;
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
-        v7m_exception_taken(cpu, excret);
+        v7m_exception_taken(cpu, excret, true);
         qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
                       "stackframe: failed exception return integrity check\n");
         return;
     }
 
-    /* Switch to the target stack.  */
-    switch_v7m_sp(env, return_to_sp_process);
-    /* Pop registers.  */
-    env->regs[0] = v7m_pop(env);
-    env->regs[1] = v7m_pop(env);
-    env->regs[2] = v7m_pop(env);
-    env->regs[3] = v7m_pop(env);
-    env->regs[12] = v7m_pop(env);
-    env->regs[14] = v7m_pop(env);
-    env->regs[15] = v7m_pop(env);
-    if (env->regs[15] & 1) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "M profile return from interrupt with misaligned "
-                      "PC is UNPREDICTABLE\n");
-        /* Actual hardware seems to ignore the lsbit, and there are several
-         * RTOSes out there which incorrectly assume the r15 in the stack
-         * frame should be a Thumb-style "lsbit indicates ARM/Thumb" value.
+    /* Set CONTROL.SPSEL from excret.SPSEL. Since we're still in
+     * Handler mode (and will be until we write the new XPSR.Interrupt
+     * field) this does not switch around the current stack pointer.
+     */
+    write_v7m_control_spsel_for_secstate(env, return_to_sp_process, exc_secure);
+
+    switch_v7m_security_state(env, return_to_secure);
+
+    {
+        /* The stack pointer we should be reading the exception frame from
+         * depends on bits in the magic exception return type value (and
+         * for v8M isn't necessarily the stack pointer we will eventually
+         * end up resuming execution with). Get a pointer to the location
+         * in the CPU state struct where the SP we need is currently being
+         * stored; we will use and modify it in place.
+         * We use this limited C variable scope so we don't accidentally
+         * use 'frame_sp_p' after we do something that makes it invalid.
          */
-        env->regs[15] &= ~1U;
+        uint32_t *frame_sp_p = get_v7m_sp_ptr(env,
+                                              return_to_secure,
+                                              !return_to_handler,
+                                              return_to_sp_process);
+        uint32_t frameptr = *frame_sp_p;
+
+        if (!QEMU_IS_ALIGNED(frameptr, 8) &&
+            arm_feature(env, ARM_FEATURE_V8)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "M profile exception return with non-8-aligned SP "
+                          "for destination state is UNPREDICTABLE\n");
+        }
+
+        /* Do we need to pop callee-saved registers? */
+        if (return_to_secure &&
+            ((excret & R_V7M_EXCRET_ES_MASK) == 0 ||
+             (excret & R_V7M_EXCRET_DCRS_MASK) == 0)) {
+            uint32_t expected_sig = 0xfefa125b;
+            uint32_t actual_sig = ldl_phys(cs->as, frameptr);
+
+            if (expected_sig != actual_sig) {
+                /* Take a SecureFault on the current stack */
+                env->v7m.sfsr |= R_V7M_SFSR_INVIS_MASK;
+                armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SECURE, false);
+                v7m_exception_taken(cpu, excret, true);
+                qemu_log_mask(CPU_LOG_INT, "...taking SecureFault on existing "
+                              "stackframe: failed exception return integrity "
+                              "signature check\n");
+                return;
+            }
+
+            env->regs[4] = ldl_phys(cs->as, frameptr + 0x8);
+            env->regs[5] = ldl_phys(cs->as, frameptr + 0xc);
+            env->regs[6] = ldl_phys(cs->as, frameptr + 0x10);
+            env->regs[7] = ldl_phys(cs->as, frameptr + 0x14);
+            env->regs[8] = ldl_phys(cs->as, frameptr + 0x18);
+            env->regs[9] = ldl_phys(cs->as, frameptr + 0x1c);
+            env->regs[10] = ldl_phys(cs->as, frameptr + 0x20);
+            env->regs[11] = ldl_phys(cs->as, frameptr + 0x24);
+
+            frameptr += 0x28;
+        }
+
+        /* Pop registers. TODO: make these accesses use the correct
+         * attributes and address space (S/NS, priv/unpriv) and handle
+         * memory transaction failures.
+         */
+        env->regs[0] = ldl_phys(cs->as, frameptr);
+        env->regs[1] = ldl_phys(cs->as, frameptr + 0x4);
+        env->regs[2] = ldl_phys(cs->as, frameptr + 0x8);
+        env->regs[3] = ldl_phys(cs->as, frameptr + 0xc);
+        env->regs[12] = ldl_phys(cs->as, frameptr + 0x10);
+        env->regs[14] = ldl_phys(cs->as, frameptr + 0x14);
+        env->regs[15] = ldl_phys(cs->as, frameptr + 0x18);
+
+        /* Returning from an exception with a PC with bit 0 set is defined
+         * behaviour on v8M (bit 0 is ignored), but for v7M it was specified
+         * to be UNPREDICTABLE. In practice actual v7M hardware seems to ignore
+         * the lsbit, and there are several RTOSes out there which incorrectly
+         * assume the r15 in the stack frame should be a Thumb-style "lsbit
+         * indicates ARM/Thumb" value, so ignore the bit on v7M as well, but
+         * complain about the badly behaved guest.
+         */
+        if (env->regs[15] & 1) {
+            env->regs[15] &= ~1U;
+            if (!arm_feature(env, ARM_FEATURE_V8)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "M profile return from interrupt with misaligned "
+                              "PC is UNPREDICTABLE on v7M\n");
+            }
+        }
+
+        xpsr = ldl_phys(cs->as, frameptr + 0x1c);
+
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            /* For v8M we have to check whether the xPSR exception field
+             * matches the EXCRET value for return to handler/thread
+             * before we commit to changing the SP and xPSR.
+             */
+            bool will_be_handler = (xpsr & XPSR_EXCP) != 0;
+            if (return_to_handler != will_be_handler) {
+                /* Take an INVPC UsageFault on the current stack.
+                 * By this point we will have switched to the security state
+                 * for the background state, so this UsageFault will target
+                 * that state.
+                 */
+                armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
+                                        env->v7m.secure);
+                env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVPC_MASK;
+                v7m_exception_taken(cpu, excret, true);
+                qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
+                              "stackframe: failed exception return integrity "
+                              "check\n");
+                return;
+            }
+        }
+
+        /* Commit to consuming the stack frame */
+        frameptr += 0x20;
+        /* Undo stack alignment (the SPREALIGN bit indicates that the original
+         * pre-exception SP was not 8-aligned and we added a padding word to
+         * align it, so we undo this by ORing in the bit that increases it
+         * from the current 8-aligned value to the 8-unaligned value. (Adding 4
+         * would work too but a logical OR is how the pseudocode specifies it.)
+         */
+        if (xpsr & XPSR_SPREALIGN) {
+            frameptr |= 4;
+        }
+        *frame_sp_p = frameptr;
     }
-    xpsr = v7m_pop(env);
+    /* This xpsr_write() will invalidate frame_sp_p as it may switch stack */
     xpsr_write(env, xpsr, ~XPSR_SPREALIGN);
-    /* Undo stack alignment.  */
-    if (xpsr & XPSR_SPREALIGN) {
-        env->regs[13] |= 4;
-    }
 
     /* The restored xPSR exception field will be zero if we're
      * resuming in Thread mode. If that doesn't match what the
      * exception return excret specified then this is a UsageFault.
+     * v7M requires we make this check here; v8M did it earlier.
      */
     if (return_to_handler != arm_v7m_is_handler_mode(env)) {
-        /* Take an INVPC UsageFault by pushing the stack again.
-         * TODO: the v8M version of this code should target the
-         * background state for this exception.
+        /* Take an INVPC UsageFault by pushing the stack again;
+         * we know we're v7M so this is never a Secure UsageFault.
          */
+        assert(!arm_feature(env, ARM_FEATURE_V8));
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, false);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVPC_MASK;
         v7m_push_stack(cpu);
-        v7m_exception_taken(cpu, excret);
+        v7m_exception_taken(cpu, excret, false);
         qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on new stackframe: "
                       "failed exception return integrity check\n");
         return;
@@ -6433,6 +6770,46 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
          * raises the fault, in the A profile short-descriptor format.
          */
         switch (env->exception.fsr & 0xf) {
+        case M_FAKE_FSR_NSC_EXEC:
+            /* Exception generated when we try to execute code at an address
+             * which is marked as Secure & Non-Secure Callable and the CPU
+             * is in the Non-Secure state. The only instruction which can
+             * be executed like this is SG (and that only if both halves of
+             * the SG instruction have the same security attributes.)
+             * Everything else must generate an INVEP SecureFault, so we
+             * emulate the SG instruction here.
+             * TODO: actually emulate SG.
+             */
+            env->v7m.sfsr |= R_V7M_SFSR_INVEP_MASK;
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SECURE, false);
+            qemu_log_mask(CPU_LOG_INT,
+                          "...really SecureFault with SFSR.INVEP\n");
+            break;
+        case M_FAKE_FSR_SFAULT:
+            /* Various flavours of SecureFault for attempts to execute or
+             * access data in the wrong security state.
+             */
+            switch (cs->exception_index) {
+            case EXCP_PREFETCH_ABORT:
+                if (env->v7m.secure) {
+                    env->v7m.sfsr |= R_V7M_SFSR_INVTRAN_MASK;
+                    qemu_log_mask(CPU_LOG_INT,
+                                  "...really SecureFault with SFSR.INVTRAN\n");
+                } else {
+                    env->v7m.sfsr |= R_V7M_SFSR_INVEP_MASK;
+                    qemu_log_mask(CPU_LOG_INT,
+                                  "...really SecureFault with SFSR.INVEP\n");
+                }
+                break;
+            case EXCP_DATA_ABORT:
+                /* This must be an NS access to S memory */
+                env->v7m.sfsr |= R_V7M_SFSR_AUVIOL_MASK;
+                qemu_log_mask(CPU_LOG_INT,
+                              "...really SecureFault with SFSR.AUVIOL\n");
+                break;
+            }
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SECURE, false);
+            break;
         case 0x8: /* External Abort */
             switch (cs->exception_index) {
             case EXCP_PREFETCH_ABORT:
@@ -6498,20 +6875,40 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         return; /* Never happens.  Keep compiler happy.  */
     }
 
-    lr = R_V7M_EXCRET_RES1_MASK |
-        R_V7M_EXCRET_S_MASK |
-        R_V7M_EXCRET_DCRS_MASK |
-        R_V7M_EXCRET_FTYPE_MASK |
-        R_V7M_EXCRET_ES_MASK;
-    if (env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK) {
-        lr |= R_V7M_EXCRET_SPSEL_MASK;
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        lr = R_V7M_EXCRET_RES1_MASK |
+            R_V7M_EXCRET_DCRS_MASK |
+            R_V7M_EXCRET_FTYPE_MASK;
+        /* The S bit indicates whether we should return to Secure
+         * or NonSecure (ie our current state).
+         * The ES bit indicates whether we're taking this exception
+         * to Secure or NonSecure (ie our target state). We set it
+         * later, in v7m_exception_taken().
+         * The SPSEL bit is also set in v7m_exception_taken() for v8M.
+         * This corresponds to the ARM ARM pseudocode for v8M setting
+         * some LR bits in PushStack() and some in ExceptionTaken();
+         * the distinction matters for the tailchain cases where we
+         * can take an exception without pushing the stack.
+         */
+        if (env->v7m.secure) {
+            lr |= R_V7M_EXCRET_S_MASK;
+        }
+    } else {
+        lr = R_V7M_EXCRET_RES1_MASK |
+            R_V7M_EXCRET_S_MASK |
+            R_V7M_EXCRET_DCRS_MASK |
+            R_V7M_EXCRET_FTYPE_MASK |
+            R_V7M_EXCRET_ES_MASK;
+        if (env->v7m.control[M_REG_NS] & R_V7M_CONTROL_SPSEL_MASK) {
+            lr |= R_V7M_EXCRET_SPSEL_MASK;
+        }
     }
     if (!arm_v7m_is_handler_mode(env)) {
         lr |= R_V7M_EXCRET_MODE_MASK;
     }
 
     v7m_push_stack(cpu);
-    v7m_exception_taken(cpu, lr);
+    v7m_exception_taken(cpu, lr, false);
     qemu_log_mask(CPU_LOG_INT, "... as %d\n", env->v7m.exception);
 }
 
@@ -8499,9 +8896,89 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
     return !(*prot & (1 << access_type));
 }
 
+static bool v8m_is_sau_exempt(CPUARMState *env,
+                              uint32_t address, MMUAccessType access_type)
+{
+    /* The architecture specifies that certain address ranges are
+     * exempt from v8M SAU/IDAU checks.
+     */
+    return
+        (access_type == MMU_INST_FETCH && m_is_system_region(env, address)) ||
+        (address >= 0xe0000000 && address <= 0xe0002fff) ||
+        (address >= 0xe000e000 && address <= 0xe000efff) ||
+        (address >= 0xe002e000 && address <= 0xe002efff) ||
+        (address >= 0xe0040000 && address <= 0xe0041fff) ||
+        (address >= 0xe00ff000 && address <= 0xe00fffff);
+}
+
+static void v8m_security_lookup(CPUARMState *env, uint32_t address,
+                                MMUAccessType access_type, ARMMMUIdx mmu_idx,
+                                V8M_SAttributes *sattrs)
+{
+    /* Look up the security attributes for this address. Compare the
+     * pseudocode SecurityCheck() function.
+     * We assume the caller has zero-initialized *sattrs.
+     */
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int r;
+
+    /* TODO: implement IDAU */
+
+    if (access_type == MMU_INST_FETCH && extract32(address, 28, 4) == 0xf) {
+        /* 0xf0000000..0xffffffff is always S for insn fetches */
+        return;
+    }
+
+    if (v8m_is_sau_exempt(env, address, access_type)) {
+        sattrs->ns = !regime_is_secure(env, mmu_idx);
+        return;
+    }
+
+    switch (env->sau.ctrl & 3) {
+    case 0: /* SAU.ENABLE == 0, SAU.ALLNS == 0 */
+        break;
+    case 2: /* SAU.ENABLE == 0, SAU.ALLNS == 1 */
+        sattrs->ns = true;
+        break;
+    default: /* SAU.ENABLE == 1 */
+        for (r = 0; r < cpu->sau_sregion; r++) {
+            if (env->sau.rlar[r] & 1) {
+                uint32_t base = env->sau.rbar[r] & ~0x1f;
+                uint32_t limit = env->sau.rlar[r] | 0x1f;
+
+                if (base <= address && limit >= address) {
+                    if (sattrs->srvalid) {
+                        /* If we hit in more than one region then we must report
+                         * as Secure, not NS-Callable, with no valid region
+                         * number info.
+                         */
+                        sattrs->ns = false;
+                        sattrs->nsc = false;
+                        sattrs->sregion = 0;
+                        sattrs->srvalid = false;
+                        break;
+                    } else {
+                        if (env->sau.rlar[r] & 2) {
+                            sattrs->nsc = true;
+                        } else {
+                            sattrs->ns = true;
+                        }
+                        sattrs->srvalid = true;
+                        sattrs->sregion = r;
+                    }
+                }
+            }
+        }
+
+        /* TODO when we support the IDAU then it may override the result here */
+        break;
+    }
+}
+
 static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
                                  MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                                 hwaddr *phys_ptr, int *prot, uint32_t *fsr)
+                                 hwaddr *phys_ptr, MemTxAttrs *txattrs,
+                                 int *prot, uint32_t *fsr)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
     bool is_user = regime_is_user(env, mmu_idx);
@@ -8509,9 +8986,57 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
     int n;
     int matchregion = -1;
     bool hit = false;
+    V8M_SAttributes sattrs = {};
 
     *phys_ptr = address;
     *prot = 0;
+
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        v8m_security_lookup(env, address, access_type, mmu_idx, &sattrs);
+        if (access_type == MMU_INST_FETCH) {
+            /* Instruction fetches always use the MMU bank and the
+             * transaction attribute determined by the fetch address,
+             * regardless of CPU state. This is painful for QEMU
+             * to handle, because it would mean we need to encode
+             * into the mmu_idx not just the (user, negpri) information
+             * for the current security state but also that for the
+             * other security state, which would balloon the number
+             * of mmu_idx values needed alarmingly.
+             * Fortunately we can avoid this because it's not actually
+             * possible to arbitrarily execute code from memory with
+             * the wrong security attribute: it will always generate
+             * an exception of some kind or another, apart from the
+             * special case of an NS CPU executing an SG instruction
+             * in S&NSC memory. So we always just fail the translation
+             * here and sort things out in the exception handler
+             * (including possibly emulating an SG instruction).
+             */
+            if (sattrs.ns != !secure) {
+                *fsr = sattrs.nsc ? M_FAKE_FSR_NSC_EXEC : M_FAKE_FSR_SFAULT;
+                return true;
+            }
+        } else {
+            /* For data accesses we always use the MMU bank indicated
+             * by the current CPU state, but the security attributes
+             * might downgrade a secure access to nonsecure.
+             */
+            if (sattrs.ns) {
+                txattrs->secure = false;
+            } else if (!secure) {
+                /* NS access to S memory must fault.
+                 * Architecturally we should first check whether the
+                 * MPU information for this address indicates that we
+                 * are doing an unaligned access to Device memory, which
+                 * should generate a UsageFault instead. QEMU does not
+                 * currently check for that kind of unaligned access though.
+                 * If we added it we would need to do so as a special case
+                 * for M_FAKE_FSR_SFAULT in arm_v7m_cpu_do_interrupt().
+                 */
+                *fsr = M_FAKE_FSR_SFAULT;
+                return true;
+            }
+        }
+    }
 
     /* Unlike the ARM ARM pseudocode, we don't need to check whether this
      * was an exception vector read from the vector table (which is always
@@ -8777,7 +9302,7 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
         if (arm_feature(env, ARM_FEATURE_V8)) {
             /* PMSAv8 */
             ret = get_phys_addr_pmsav8(env, address, access_type, mmu_idx,
-                                       phys_ptr, prot, fsr);
+                                       phys_ptr, attrs, prot, fsr);
         } else if (arm_feature(env, ARM_FEATURE_V7)) {
             /* PMSAv7 */
             ret = get_phys_addr_pmsav7(env, address, access_type, mmu_idx,
@@ -9100,11 +9625,11 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
     case 20: /* CONTROL */
         /* Writing to the SPSEL bit only has an effect if we are in
          * thread mode; other bits can be updated by any privileged code.
-         * switch_v7m_sp() deals with updating the SPSEL bit in
+         * write_v7m_control_spsel() deals with updating the SPSEL bit in
          * env->v7m.control, so we only need update the others.
          */
         if (!arm_v7m_is_handler_mode(env)) {
-            switch_v7m_sp(env, (val & R_V7M_CONTROL_SPSEL_MASK) != 0);
+            write_v7m_control_spsel(env, (val & R_V7M_CONTROL_SPSEL_MASK) != 0);
         }
         env->v7m.control[env->v7m.secure] &= ~R_V7M_CONTROL_NPRIV_MASK;
         env->v7m.control[env->v7m.secure] |= val & R_V7M_CONTROL_NPRIV_MASK;

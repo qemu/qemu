@@ -953,22 +953,29 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
      */
     bool undef = arm_feature(env, ARM_FEATURE_AARCH64) ? smd : smd && !secure;
 
-    if (arm_is_psci_call(cpu, EXCP_SMC)) {
-        /* If PSCI is enabled and this looks like a valid PSCI call then
-         * that overrides the architecturally mandated SMC behaviour.
+    if (!arm_feature(env, ARM_FEATURE_EL3) &&
+        cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
+        /* If we have no EL3 then SMC always UNDEFs and can't be
+         * trapped to EL2. PSCI-via-SMC is a sort of ersatz EL3
+         * firmware within QEMU, and we want an EL2 guest to be able
+         * to forbid its EL1 from making PSCI calls into QEMU's
+         * "firmware" via HCR.TSC, so for these purposes treat
+         * PSCI-via-SMC as implying an EL3.
          */
-        return;
-    }
-
-    if (!arm_feature(env, ARM_FEATURE_EL3)) {
-        /* If we have no EL3 then SMC always UNDEFs */
         undef = true;
     } else if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
-        /* In NS EL1, HCR controlled routing to EL2 has priority over SMD. */
+        /* In NS EL1, HCR controlled routing to EL2 has priority over SMD.
+         * We also want an EL2 guest to be able to forbid its EL1 from
+         * making PSCI calls into QEMU's "firmware" via HCR.TSC.
+         */
         raise_exception(env, EXCP_HYP_TRAP, syndrome, 2);
     }
 
-    if (undef) {
+    /* If PSCI is enabled and this looks like a valid PSCI call then
+     * suppress the UNDEF -- we'll catch the SMC exception and
+     * implement the PSCI call behaviour there.
+     */
+    if (undef && !arm_is_psci_call(cpu, EXCP_SMC)) {
         raise_exception(env, EXCP_UDEF, syn_uncategorized(),
                         exception_target_el(env));
     }

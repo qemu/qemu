@@ -616,7 +616,7 @@ bool armv7m_nvic_acknowledge_irq(void *opaque)
     vec->active = 1;
     vec->pending = 0;
 
-    env->v7m.exception = s->vectpending;
+    write_v7m_exception(env, s->vectpending);
 
     nvic_irq_update(s);
 
@@ -1017,6 +1017,76 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             goto bad_offset;
         }
         return cpu->env.pmsav8.mair1[attrs.secure];
+    case 0xdd0: /* SAU_CTRL */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.sau.ctrl;
+    case 0xdd4: /* SAU_TYPE */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->sau_sregion;
+    case 0xdd8: /* SAU_RNR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.sau.rnr;
+    case 0xddc: /* SAU_RBAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        if (region >= cpu->sau_sregion) {
+            return 0;
+        }
+        return cpu->env.sau.rbar[region];
+    }
+    case 0xde0: /* SAU_RLAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        if (region >= cpu->sau_sregion) {
+            return 0;
+        }
+        return cpu->env.sau.rlar[region];
+    }
+    case 0xde4: /* SFSR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.v7m.sfsr;
+    case 0xde8: /* SFAR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return 0;
+        }
+        return cpu->env.v7m.sfar;
     default:
     bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "NVIC: Bad read offset 0x%x\n", offset);
@@ -1160,6 +1230,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             s->sec_vectors[ARMV7M_EXCP_BUS].enabled = (value & (1 << 17)) != 0;
             s->sec_vectors[ARMV7M_EXCP_USAGE].enabled =
                 (value & (1 << 18)) != 0;
+            s->sec_vectors[ARMV7M_EXCP_HARD].pending = (value & (1 << 21)) != 0;
             /* SecureFault not banked, but RAZ/WI to NS */
             s->vectors[ARMV7M_EXCP_SECURE].active = (value & (1 << 4)) != 0;
             s->vectors[ARMV7M_EXCP_SECURE].enabled = (value & (1 << 19)) != 0;
@@ -1367,6 +1438,86 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         /* We don't need to do anything else because memory attributes
          * only affect cacheability, and we don't implement caching.
          */
+        break;
+    case 0xdd0: /* SAU_CTRL */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        cpu->env.sau.ctrl = value & 3;
+    case 0xdd4: /* SAU_TYPE */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        break;
+    case 0xdd8: /* SAU_RNR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        if (value >= cpu->sau_sregion) {
+            qemu_log_mask(LOG_GUEST_ERROR, "SAU region out of range %"
+                          PRIu32 "/%" PRIu32 "\n",
+                          value, cpu->sau_sregion);
+        } else {
+            cpu->env.sau.rnr = value;
+        }
+        break;
+    case 0xddc: /* SAU_RBAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        if (region >= cpu->sau_sregion) {
+            return;
+        }
+        cpu->env.sau.rbar[region] = value & ~0x1f;
+        tlb_flush(CPU(cpu));
+        break;
+    }
+    case 0xde0: /* SAU_RLAR */
+    {
+        int region = cpu->env.sau.rnr;
+
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        if (region >= cpu->sau_sregion) {
+            return;
+        }
+        cpu->env.sau.rlar[region] = value & ~0x1c;
+        tlb_flush(CPU(cpu));
+        break;
+    }
+    case 0xde4: /* SFSR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        cpu->env.v7m.sfsr &= ~value; /* W1C */
+        break;
+    case 0xde8: /* SFAR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+            goto bad_offset;
+        }
+        if (!attrs.secure) {
+            return;
+        }
+        cpu->env.v7m.sfsr = value;
         break;
     case 0xf00: /* Software Triggered Interrupt Register */
     {
@@ -1781,6 +1932,11 @@ static void armv7m_nvic_reset(DeviceState *dev)
 {
     int resetprio;
     NVICState *s = NVIC(dev);
+
+    memset(s->vectors, 0, sizeof(s->vectors));
+    memset(s->sec_vectors, 0, sizeof(s->sec_vectors));
+    s->prigroup[M_REG_NS] = 0;
+    s->prigroup[M_REG_S] = 0;
 
     s->vectors[ARMV7M_EXCP_NMI].enabled = 1;
     /* MEM, BUS, and USAGE are enabled through
