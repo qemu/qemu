@@ -136,12 +136,14 @@ int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
         return -1;
     }
 
+    if (new_size == migrate_xbzrle_cache_size()) {
+        /* nothing to do */
+        return new_size;
+    }
+
     XBZRLE_cache_lock();
 
     if (XBZRLE.cache != NULL) {
-        if (pow2floor(new_size) == migrate_xbzrle_cache_size()) {
-            goto out_new_size;
-        }
         new_cache = cache_init(new_size, TARGET_PAGE_SIZE, errp);
         if (!new_cache) {
             ret = -1;
@@ -152,8 +154,7 @@ int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
         XBZRLE.cache = new_cache;
     }
 
-out_new_size:
-    ret = pow2floor(new_size);
+    ret = new_size;
 out:
     XBZRLE_cache_unlock();
     return ret;
