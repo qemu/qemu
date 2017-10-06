@@ -6431,16 +6431,24 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         env->regs[12] = ldl_phys(cs->as, frameptr + 0x10);
         env->regs[14] = ldl_phys(cs->as, frameptr + 0x14);
         env->regs[15] = ldl_phys(cs->as, frameptr + 0x18);
+
+        /* Returning from an exception with a PC with bit 0 set is defined
+         * behaviour on v8M (bit 0 is ignored), but for v7M it was specified
+         * to be UNPREDICTABLE. In practice actual v7M hardware seems to ignore
+         * the lsbit, and there are several RTOSes out there which incorrectly
+         * assume the r15 in the stack frame should be a Thumb-style "lsbit
+         * indicates ARM/Thumb" value, so ignore the bit on v7M as well, but
+         * complain about the badly behaved guest.
+         */
         if (env->regs[15] & 1) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "M profile return from interrupt with misaligned "
-                          "PC is UNPREDICTABLE\n");
-            /* Actual hardware seems to ignore the lsbit, and there are several
-             * RTOSes out there which incorrectly assume the r15 in the stack
-             * frame should be a Thumb-style "lsbit indicates ARM/Thumb" value.
-             */
             env->regs[15] &= ~1U;
+            if (!arm_feature(env, ARM_FEATURE_V8)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "M profile return from interrupt with misaligned "
+                              "PC is UNPREDICTABLE on v7M\n");
+            }
         }
+
         xpsr = ldl_phys(cs->as, frameptr + 0x1c);
 
         if (arm_feature(env, ARM_FEATURE_V8)) {
