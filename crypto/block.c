@@ -127,22 +127,22 @@ QCryptoBlockInfo *qcrypto_block_get_info(QCryptoBlock *block,
 
 
 int qcrypto_block_decrypt(QCryptoBlock *block,
-                          uint64_t startsector,
+                          uint64_t offset,
                           uint8_t *buf,
                           size_t len,
                           Error **errp)
 {
-    return block->driver->decrypt(block, startsector, buf, len, errp);
+    return block->driver->decrypt(block, offset, buf, len, errp);
 }
 
 
 int qcrypto_block_encrypt(QCryptoBlock *block,
-                          uint64_t startsector,
+                          uint64_t offset,
                           uint8_t *buf,
                           size_t len,
                           Error **errp)
 {
-    return block->driver->encrypt(block, startsector, buf, len, errp);
+    return block->driver->encrypt(block, offset, buf, len, errp);
 }
 
 
@@ -170,6 +170,12 @@ uint64_t qcrypto_block_get_payload_offset(QCryptoBlock *block)
 }
 
 
+uint64_t qcrypto_block_get_sector_size(QCryptoBlock *block)
+{
+    return block->sector_size;
+}
+
+
 void qcrypto_block_free(QCryptoBlock *block)
 {
     if (!block) {
@@ -188,13 +194,17 @@ int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
                                  size_t niv,
                                  QCryptoIVGen *ivgen,
                                  int sectorsize,
-                                 uint64_t startsector,
+                                 uint64_t offset,
                                  uint8_t *buf,
                                  size_t len,
                                  Error **errp)
 {
     uint8_t *iv;
     int ret = -1;
+    uint64_t startsector = offset / sectorsize;
+
+    assert(QEMU_IS_ALIGNED(offset, sectorsize));
+    assert(QEMU_IS_ALIGNED(len, sectorsize));
 
     iv = niv ? g_new0(uint8_t, niv) : NULL;
 
@@ -237,13 +247,17 @@ int qcrypto_block_encrypt_helper(QCryptoCipher *cipher,
                                  size_t niv,
                                  QCryptoIVGen *ivgen,
                                  int sectorsize,
-                                 uint64_t startsector,
+                                 uint64_t offset,
                                  uint8_t *buf,
                                  size_t len,
                                  Error **errp)
 {
     uint8_t *iv;
     int ret = -1;
+    uint64_t startsector = offset / sectorsize;
+
+    assert(QEMU_IS_ALIGNED(offset, sectorsize));
+    assert(QEMU_IS_ALIGNED(len, sectorsize));
 
     iv = niv ? g_new0(uint8_t, niv) : NULL;
 

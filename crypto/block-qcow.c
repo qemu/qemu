@@ -80,6 +80,7 @@ qcrypto_block_qcow_init(QCryptoBlock *block,
         goto fail;
     }
 
+    block->sector_size = QCRYPTO_BLOCK_QCOW_SECTOR_SIZE;
     block->payload_offset = 0;
 
     return 0;
@@ -142,29 +143,33 @@ qcrypto_block_qcow_cleanup(QCryptoBlock *block)
 
 static int
 qcrypto_block_qcow_decrypt(QCryptoBlock *block,
-                           uint64_t startsector,
+                           uint64_t offset,
                            uint8_t *buf,
                            size_t len,
                            Error **errp)
 {
+    assert(QEMU_IS_ALIGNED(offset, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
+    assert(QEMU_IS_ALIGNED(len, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
     return qcrypto_block_decrypt_helper(block->cipher,
                                         block->niv, block->ivgen,
                                         QCRYPTO_BLOCK_QCOW_SECTOR_SIZE,
-                                        startsector, buf, len, errp);
+                                        offset, buf, len, errp);
 }
 
 
 static int
 qcrypto_block_qcow_encrypt(QCryptoBlock *block,
-                           uint64_t startsector,
+                           uint64_t offset,
                            uint8_t *buf,
                            size_t len,
                            Error **errp)
 {
+    assert(QEMU_IS_ALIGNED(offset, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
+    assert(QEMU_IS_ALIGNED(len, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
     return qcrypto_block_encrypt_helper(block->cipher,
                                         block->niv, block->ivgen,
                                         QCRYPTO_BLOCK_QCOW_SECTOR_SIZE,
-                                        startsector, buf, len, errp);
+                                        offset, buf, len, errp);
 }
 
 

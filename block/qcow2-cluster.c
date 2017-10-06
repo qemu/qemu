@@ -446,15 +446,13 @@ static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
 {
     if (bytes && bs->encrypted) {
         BDRVQcow2State *s = bs->opaque;
-        int64_t sector = (s->crypt_physical_offset ?
+        int64_t offset = (s->crypt_physical_offset ?
                           (cluster_offset + offset_in_cluster) :
-                          (src_cluster_offset + offset_in_cluster))
-                         >> BDRV_SECTOR_BITS;
+                          (src_cluster_offset + offset_in_cluster));
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
         assert(s->crypto);
-        if (qcrypto_block_encrypt(s->crypto, sector, buffer,
-                                  bytes, NULL) < 0) {
+        if (qcrypto_block_encrypt(s->crypto, offset, buffer, bytes, NULL) < 0) {
             return false;
         }
     }

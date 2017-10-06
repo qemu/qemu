@@ -36,6 +36,7 @@ struct QCryptoBlock {
     QCryptoHashAlgorithm kdfhash;
     size_t niv;
     uint64_t payload_offset; /* In bytes */
+    uint64_t sector_size; /* In bytes */
 };
 
 struct QCryptoBlockDriver {
@@ -81,7 +82,7 @@ int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
                                  size_t niv,
                                  QCryptoIVGen *ivgen,
                                  int sectorsize,
-                                 uint64_t startsector,
+                                 uint64_t offset,
                                  uint8_t *buf,
                                  size_t len,
                                  Error **errp);
@@ -90,7 +91,7 @@ int qcrypto_block_encrypt_helper(QCryptoCipher *cipher,
                                  size_t niv,
                                  QCryptoIVGen *ivgen,
                                  int sectorsize,
-                                 uint64_t startsector,
+                                 uint64_t offset,
                                  uint8_t *buf,
                                  size_t len,
                                  Error **errp);
