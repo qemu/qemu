@@ -1406,14 +1406,12 @@ void qmp_migrate_continue(MigrationStatus state, Error **errp)
 void qmp_migrate_set_cache_size(int64_t value, Error **errp)
 {
     MigrationState *s = migrate_get_current();
-    int64_t new_size;
 
-    new_size = xbzrle_cache_resize(value, errp);
-    if (new_size < 0) {
+    if (xbzrle_cache_resize(value, errp) < 0) {
         return;
     }
 
-    s->xbzrle_cache_size = new_size;
+    s->xbzrle_cache_size = value;
 }
 
 int64_t qmp_query_migrate_cache_size(Error **errp)
