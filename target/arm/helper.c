@@ -6059,21 +6059,44 @@ static bool v7m_using_psp(CPUARMState *env)
         env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK;
 }
 
-/* Switch to V7M main or process stack pointer.  */
-static void switch_v7m_sp(CPUARMState *env, bool new_spsel)
+/* Write to v7M CONTROL.SPSEL bit. This may change the current
+ * stack pointer between Main and Process stack pointers.
+ */
+static void write_v7m_control_spsel(CPUARMState *env, bool new_spsel)
 {
     uint32_t tmp;
-    uint32_t old_control = env->v7m.control[env->v7m.secure];
-    bool old_spsel = old_control & R_V7M_CONTROL_SPSEL_MASK;
+    bool new_is_psp, old_is_psp = v7m_using_psp(env);
 
-    if (old_spsel != new_spsel) {
+    env->v7m.control[env->v7m.secure] =
+        deposit32(env->v7m.control[env->v7m.secure],
+                  R_V7M_CONTROL_SPSEL_SHIFT,
+                  R_V7M_CONTROL_SPSEL_LENGTH, new_spsel);
+
+    new_is_psp = v7m_using_psp(env);
+
+    if (old_is_psp != new_is_psp) {
         tmp = env->v7m.other_sp;
         env->v7m.other_sp = env->regs[13];
         env->regs[13] = tmp;
+    }
+}
 
-        env->v7m.control[env->v7m.secure] = deposit32(old_control,
-                                     R_V7M_CONTROL_SPSEL_SHIFT,
-                                     R_V7M_CONTROL_SPSEL_LENGTH, new_spsel);
+void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
+{
+    /* Write a new value to v7m.exception, thus transitioning into or out
+     * of Handler mode; this may result in a change of active stack pointer.
+     */
+    bool new_is_psp, old_is_psp = v7m_using_psp(env);
+    uint32_t tmp;
+
+    env->v7m.exception = new_exc;
+
+    new_is_psp = v7m_using_psp(env);
+
+    if (old_is_psp != new_is_psp) {
+        tmp = env->v7m.other_sp;
+        env->v7m.other_sp = env->regs[13];
+        env->regs[13] = tmp;
     }
 }
 
@@ -6159,13 +6182,11 @@ static uint32_t *get_v7m_sp_ptr(CPUARMState *env, bool secure, bool threadmode,
     bool want_psp = threadmode && spsel;
 
     if (secure == env->v7m.secure) {
-        /* Currently switch_v7m_sp switches SP as it updates SPSEL,
-         * so the SP we want is always in regs[13].
-         * When we decouple SPSEL from the actually selected SP
-         * we need to check want_psp against v7m_using_psp()
-         * to see whether we need regs[13] or v7m.other_sp.
-         */
-        return &env->regs[13];
+        if (want_psp == v7m_using_psp(env)) {
+            return &env->regs[13];
+        } else {
+            return &env->v7m.other_sp;
+        }
     } else {
         if (want_psp) {
             return &env->v7m.other_ss_psp;
@@ -6208,7 +6229,7 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr)
     uint32_t addr;
 
     armv7m_nvic_acknowledge_irq(env->nvic);
-    switch_v7m_sp(env, 0);
+    write_v7m_control_spsel(env, 0);
     arm_clear_exclusive(env);
     /* Clear IT bits */
     env->condexec_bits = 0;
@@ -6354,11 +6375,11 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         return;
     }
 
-    /* Set CONTROL.SPSEL from excret.SPSEL. For QEMU this currently
-     * causes us to switch the active SP, but we will change this
-     * later to not do that so we can support v8M.
+    /* Set CONTROL.SPSEL from excret.SPSEL. Since we're still in
+     * Handler mode (and will be until we write the new XPSR.Interrupt
+     * field) this does not switch around the current stack pointer.
      */
-    switch_v7m_sp(env, return_to_sp_process);
+    write_v7m_control_spsel(env, return_to_sp_process);
 
     {
         /* The stack pointer we should be reading the exception frame from
@@ -9173,11 +9194,11 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
     case 20: /* CONTROL */
         /* Writing to the SPSEL bit only has an effect if we are in
          * thread mode; other bits can be updated by any privileged code.
-         * switch_v7m_sp() deals with updating the SPSEL bit in
+         * write_v7m_control_spsel() deals with updating the SPSEL bit in
          * env->v7m.control, so we only need update the others.
          */
         if (!arm_v7m_is_handler_mode(env)) {
-            switch_v7m_sp(env, (val & R_V7M_CONTROL_SPSEL_MASK) != 0);
+            write_v7m_control_spsel(env, (val & R_V7M_CONTROL_SPSEL_MASK) != 0);
         }
         env->v7m.control[env->v7m.secure] &= ~R_V7M_CONTROL_NPRIV_MASK;
         env->v7m.control[env->v7m.secure] |= val & R_V7M_CONTROL_NPRIV_MASK;

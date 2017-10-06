@@ -991,6 +991,11 @@ void pmccntr_sync(CPUARMState *env);
 #define PSTATE_MODE_EL1t 4
 #define PSTATE_MODE_EL0t 0
 
+/* Write a new value to v7m.exception, thus transitioning into or out
+ * of Handler mode; this may result in a change of active stack pointer.
+ */
+void write_v7m_exception(CPUARMState *env, uint32_t new_exc);
+
 /* Map EL and handler into a PSTATE_MODE.  */
 static inline unsigned int aarch64_pstate_mode(unsigned int el, bool handler)
 {
@@ -1071,7 +1076,8 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
         env->condexec_bits |= (val >> 8) & 0xfc;
     }
     if (mask & XPSR_EXCP) {
-        env->v7m.exception = val & XPSR_EXCP;
+        /* Note that this only happens on exception exit */
+        write_v7m_exception(env, val & XPSR_EXCP);
     }
 }
 

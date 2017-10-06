@@ -616,7 +616,7 @@ bool armv7m_nvic_acknowledge_irq(void *opaque)
     vec->active = 1;
     vec->pending = 0;
 
-    env->v7m.exception = s->vectpending;
+    write_v7m_exception(env, s->vectpending);
 
     nvic_irq_update(s);
 
