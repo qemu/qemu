@@ -1782,6 +1782,11 @@ static void armv7m_nvic_reset(DeviceState *dev)
     int resetprio;
     NVICState *s = NVIC(dev);
 
+    memset(s->vectors, 0, sizeof(s->vectors));
+    memset(s->sec_vectors, 0, sizeof(s->sec_vectors));
+    s->prigroup[M_REG_NS] = 0;
+    s->prigroup[M_REG_S] = 0;
+
     s->vectors[ARMV7M_EXCP_NMI].enabled = 1;
     /* MEM, BUS, and USAGE are enabled through
      * the System Handler Control register
