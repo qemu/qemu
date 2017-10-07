@@ -151,9 +151,10 @@ enum {
     QIO_CHANNEL_WEBSOCK_OPCODE_PONG = 0xA
 };
 
-static void qio_channel_websock_handshake_send_res(QIOChannelWebsock *ioc,
-                                                   const char *resmsg,
-                                                   ...)
+static void GCC_FMT_ATTR(2, 3)
+qio_channel_websock_handshake_send_res(QIOChannelWebsock *ioc,
+                                       const char *resmsg,
+                                       ...)
 {
     va_list vargs;
     char *response;
