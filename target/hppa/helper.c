@@ -39,10 +39,11 @@ target_ulong cpu_hppa_get_psw(CPUHPPAState *env)
     /* .........................bcdefgh */
     psw |= (psw >> 12) & 0xf;
     psw |= env->psw_cb_msb << 7;
-    psw <<= 8;
+    psw = (psw & 0xff) << 8;
 
-    psw |= env->psw_n << 21;
-    psw |= (env->psw_v < 0) << 17;
+    psw |= env->psw_n * PSW_N;
+    psw |= (env->psw_v < 0) * PSW_V;
+    psw |= env->psw;
 
     return psw;
 }
@@ -51,8 +52,9 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
 {
     target_ulong cb = 0;
 
-    env->psw_n = (psw >> 21) & 1;
-    env->psw_v = -((psw >> 17) & 1);
+    env->psw = psw & ~(PSW_N | PSW_V | PSW_CB);
+    env->psw_n = (psw / PSW_N) & 1;
+    env->psw_v = -((psw / PSW_V) & 1);
     env->psw_cb_msb = (psw >> 15) & 1;
 
     cb |= ((psw >> 14) & 1) << 28;
@@ -106,22 +108,45 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f,
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
+    target_ulong psw = cpu_hppa_get_psw(env);
+    target_ulong psw_cb;
+    char psw_c[20];
     int i;
 
-    cpu_fprintf(f, "IA_F " TARGET_FMT_lx
-                   " IA_B " TARGET_FMT_lx
-                   " PSW  " TARGET_FMT_lx
-                   " [N:" TARGET_FMT_ld " V:%d"
-                   " CB:" TARGET_FMT_lx "]\n              ",
-                env->iaoq_f, env->iaoq_b, cpu_hppa_get_psw(env),
-                env->psw_n, env->psw_v < 0,
-                ((env->psw_cb >> 4) & 0x01111111) | (env->psw_cb_msb << 28));
-    for (i = 1; i < 32; i++) {
+    cpu_fprintf(f, "IA_F " TARGET_FMT_lx " IA_B " TARGET_FMT_lx "\n",
+                env->iaoq_f, env->iaoq_b);
+
+    psw_c[0]  = (psw & PSW_W ? 'W' : '-');
+    psw_c[1]  = (psw & PSW_E ? 'E' : '-');
+    psw_c[2]  = (psw & PSW_S ? 'S' : '-');
+    psw_c[3]  = (psw & PSW_T ? 'T' : '-');
+    psw_c[4]  = (psw & PSW_H ? 'H' : '-');
+    psw_c[5]  = (psw & PSW_L ? 'L' : '-');
+    psw_c[6]  = (psw & PSW_N ? 'N' : '-');
+    psw_c[7]  = (psw & PSW_X ? 'X' : '-');
+    psw_c[8]  = (psw & PSW_B ? 'B' : '-');
+    psw_c[9]  = (psw & PSW_C ? 'C' : '-');
+    psw_c[10] = (psw & PSW_V ? 'V' : '-');
+    psw_c[11] = (psw & PSW_M ? 'M' : '-');
+    psw_c[12] = (psw & PSW_F ? 'F' : '-');
+    psw_c[13] = (psw & PSW_R ? 'R' : '-');
+    psw_c[14] = (psw & PSW_Q ? 'Q' : '-');
+    psw_c[15] = (psw & PSW_P ? 'P' : '-');
+    psw_c[16] = (psw & PSW_D ? 'D' : '-');
+    psw_c[17] = (psw & PSW_I ? 'I' : '-');
+    psw_c[18] = '\0';
+    psw_cb = ((env->psw_cb >> 4) & 0x01111111) | (env->psw_cb_msb << 28);
+
+    cpu_fprintf(f, "PSW  " TARGET_FMT_lx " CB   " TARGET_FMT_lx " %s\n",
+                psw, psw_cb, psw_c);
+
+    for (i = 0; i < 32; i++) {
         cpu_fprintf(f, "GR%02d " TARGET_FMT_lx " ", i, env->gr[i]);
         if ((i % 4) == 3) {
             cpu_fprintf(f, "\n");
         }
     }
+    cpu_fprintf(f, "\n");
 
     /* ??? FR */
 }

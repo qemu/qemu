@@ -46,6 +46,52 @@
 #define EXCP_SIGILL      4
 #define EXCP_SIGFPE      5
 
+/* Taken from Linux kernel: arch/parisc/include/asm/psw.h */
+#define PSW_I            0x00000001
+#define PSW_D            0x00000002
+#define PSW_P            0x00000004
+#define PSW_Q            0x00000008
+#define PSW_R            0x00000010
+#define PSW_F            0x00000020
+#define PSW_G            0x00000040 /* PA1.x only */
+#define PSW_O            0x00000080 /* PA2.0 only */
+#define PSW_CB           0x0000ff00
+#define PSW_M            0x00010000
+#define PSW_V            0x00020000
+#define PSW_C            0x00040000
+#define PSW_B            0x00080000
+#define PSW_X            0x00100000
+#define PSW_N            0x00200000
+#define PSW_L            0x00400000
+#define PSW_H            0x00800000
+#define PSW_T            0x01000000
+#define PSW_S            0x02000000
+#define PSW_E            0x04000000
+#ifdef TARGET_HPPA64
+#define PSW_W            0x08000000 /* PA2.0 only */
+#else
+#define PSW_W            0
+#endif
+#define PSW_Z            0x40000000 /* PA1.x only */
+#define PSW_Y            0x80000000 /* PA1.x only */
+
+#define PSW_SM (PSW_W | PSW_E | PSW_O | PSW_G | PSW_F \
+               | PSW_R | PSW_Q | PSW_P | PSW_D | PSW_I)
+
+/* ssm/rsm instructions number PSW_W and PSW_E differently */
+#define PSW_SM_I         PSW_I      /* Enable External Interrupts */
+#define PSW_SM_D         PSW_D
+#define PSW_SM_P         PSW_P
+#define PSW_SM_Q         PSW_Q      /* Enable Interrupt State Collection */
+#define PSW_SM_R         PSW_R      /* Enable Recover Counter Trap */
+#ifdef TARGET_HPPA64
+#define PSW_SM_E         0x100
+#define PSW_SM_W         0x200      /* PA2.0 only : Enable Wide Mode */
+#else
+#define PSW_SM_E         0
+#define PSW_SM_W         0
+#endif
+
 typedef struct CPUHPPAState CPUHPPAState;
 
 struct CPUHPPAState {
@@ -56,6 +102,7 @@ struct CPUHPPAState {
     target_ulong cr26;
     target_ulong cr27;
 
+    target_long  psw;        /* All psw bits except the following:  */
     target_ulong psw_n;      /* boolean */
     target_long  psw_v;      /* in most significant bit */
 
