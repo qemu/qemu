@@ -47,6 +47,24 @@ void tpm_register_driver(const TPMDriverOps *tdo)
     be_drivers[tdo->type] = tdo;
 }
 
+static const TPMDriverOps *
+tpm_driver_find_by_type(enum TpmType type)
+{
+    ObjectClass *oc;
+    TPMBackendClass *bc;
+    char *typename = g_strdup_printf("tpm-%s", TpmType_str(type));
+
+    oc = object_class_by_name(typename);
+    g_free(typename);
+
+    if (!object_class_dynamic_cast(oc, TYPE_TPM_BACKEND)) {
+        return NULL;
+    }
+
+    bc = TPM_BACKEND_CLASS(oc);
+    return bc->ops;
+}
+
 /*
  * Walk the list of available TPM backend drivers and display them on the
  * screen.
@@ -58,11 +76,11 @@ static void tpm_display_backend_drivers(void)
     fprintf(stderr, "Supported TPM types (choose only one):\n");
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
-        if (be_drivers[i] == NULL) {
+        const TPMDriverOps *ops = tpm_driver_find_by_type(i);
+        if (!ops) {
             continue;
         }
-        fprintf(stderr, "%12s   %s\n",
-                TpmType_str(i), be_drivers[i]->desc);
+        fprintf(stderr, "%12s   %s\n", TpmType_str(i), ops->desc);
     }
     fprintf(stderr, "\n");
 }
@@ -195,11 +213,6 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
 }
 
 #endif /* CONFIG_TPM */
-
-static const TPMDriverOps *tpm_driver_find_by_type(enum TpmType type)
-{
-    return be_drivers[type];
-}
 
 /*
  * Walk the list of active TPM backends and collect information about them
