@@ -3188,6 +3188,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
                              "Failed to inquire current file length");
             return old_file_size;
         }
+        old_file_size = ROUND_UP(old_file_size, s->cluster_size);
 
         nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
                                             s->cluster_size);
