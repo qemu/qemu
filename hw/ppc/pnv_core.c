@@ -27,6 +27,16 @@
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/xics.h"
 
+static const char *pnv_core_cpu_typename(PnvCore *pc)
+{
+    const char *core_type = object_class_get_name(object_get_class(OBJECT(pc)));
+    int len = strlen(core_type) - strlen(PNV_CORE_TYPE_SUFFIX);
+    char *s = g_strdup_printf(POWERPC_CPU_TYPE_NAME("%.*s"), len, core_type);
+    const char *cpu_type = object_class_get_name(object_class_by_name(s));
+    g_free(s);
+    return cpu_type;
+}
+
 static void powernv_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -148,8 +158,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
 {
     PnvCore *pc = PNV_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    PnvCoreClass *pcc = PNV_CORE_GET_CLASS(OBJECT(dev));
-    const char *typename = object_class_get_name(pcc->cpu_oc);
+    const char *typename = pnv_core_cpu_typename(pc);
     size_t size = object_type_get_instance_size(typename);
     Error *local_err = NULL;
     void *obj;
@@ -211,11 +220,9 @@ static Property pnv_core_properties[] = {
 static void pnv_core_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    PnvCoreClass *pcc = PNV_CORE_CLASS(oc);
 
     dc->realize = pnv_core_realize;
     dc->props = pnv_core_properties;
-    pcc->cpu_oc = cpu_class_by_name(TYPE_POWERPC_CPU, data);
 }
 
 static const TypeInfo pnv_core_info = {
@@ -223,6 +230,7 @@ static const TypeInfo pnv_core_info = {
     .parent         = TYPE_CPU_CORE,
     .instance_size  = sizeof(PnvCore),
     .class_size     = sizeof(PnvCoreClass),
+    .class_init = pnv_core_class_init,
     .abstract       = true,
 };
 
@@ -239,8 +247,6 @@ static void pnv_core_register_types(void)
         TypeInfo ti = {
             .parent = TYPE_PNV_CORE,
             .instance_size = sizeof(PnvCore),
-            .class_init = pnv_core_class_init,
-            .class_data = (void *) pnv_core_models[i],
         };
         ti.name = pnv_core_typename(pnv_core_models[i]);
         type_register(&ti);
