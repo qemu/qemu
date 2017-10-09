@@ -615,9 +615,8 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
  * Write a value to a register of the TIS interface
  * See specs pages 33-63 for description of the registers
  */
-static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
-                                      uint64_t val, unsigned size,
-                                      bool hw_access)
+static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size)
 {
     TPMState *s = opaque;
     TPMTISEmuState *tis = &s->s.tis;
@@ -631,7 +630,7 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
 
     DPRINTF("tpm_tis: write.%u(%08x) = %08x\n", size, (int)addr, (int)val);
 
-    if (locty == 4 && !hw_access) {
+    if (locty == 4) {
         DPRINTF("tpm_tis: Access to locality 4 only allowed from hardware\n");
         return;
     }
@@ -940,12 +939,6 @@ static void tpm_tis_mmio_write_intern(void *opaque, hwaddr addr,
         }
         break;
     }
-}
-
-static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
-{
-    tpm_tis_mmio_write_intern(opaque, addr, val, size, false);
 }
 
 static const MemoryRegionOps tpm_tis_memory_ops = {
