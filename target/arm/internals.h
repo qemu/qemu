@@ -72,6 +72,13 @@ FIELD(V7M_EXCRET, DCRS, 5, 1)
 FIELD(V7M_EXCRET, S, 6, 1)
 FIELD(V7M_EXCRET, RES1, 7, 25) /* including the must-be-1 prefix */
 
+/* Minimum value which is a magic number for exception return */
+#define EXC_RETURN_MIN_MAGIC 0xff000000
+/* Minimum number which is a magic number for function or exception return
+ * when using v8M security extension
+ */
+#define FNC_RETURN_MIN_MAGIC 0xfefffffe
+
 /* We use a few fake FSR values for internal purposes in M profile.
  * M profile cores don't have A/R format FSRs, but currently our
  * get_phys_addr() code assumes A/R profile and reports failures via

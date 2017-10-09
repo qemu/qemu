@@ -6174,7 +6174,17 @@ void HELPER(v7m_bxns)(CPUARMState *env, uint32_t dest)
      *  - if the return value is a magic value, do exception return (like BX)
      *  - otherwise bit 0 of the return value is the target security state
      */
-    if (dest >= 0xff000000) {
+    uint32_t min_magic;
+
+    if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
+        /* Covers FNC_RETURN and EXC_RETURN magic */
+        min_magic = FNC_RETURN_MIN_MAGIC;
+    } else {
+        /* EXC_RETURN magic only */
+        min_magic = EXC_RETURN_MIN_MAGIC;
+    }
+
+    if (dest >= min_magic) {
         /* This is an exception return magic value; put it where
          * do_v7m_exception_exit() expects and raise EXCEPTION_EXIT.
          * Note that if we ever add gen_ss_advance() singlestep support to
@@ -6470,12 +6480,19 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     bool exc_secure = false;
     bool return_to_secure;
 
-    /* We can only get here from an EXCP_EXCEPTION_EXIT, and
-     * gen_bx_excret() enforces the architectural rule
-     * that jumps to magic addresses don't have magic behaviour unless
-     * we're in Handler mode (compare pseudocode BXWritePC()).
+    /* If we're not in Handler mode then jumps to magic exception-exit
+     * addresses don't have magic behaviour. However for the v8M
+     * security extensions the magic secure-function-return has to
+     * work in thread mode too, so to avoid doing an extra check in
+     * the generated code we allow exception-exit magic to also cause the
+     * internal exception and bring us here in thread mode. Correct code
+     * will never try to do this (the following insn fetch will always
+     * fault) so we the overhead of having taken an unnecessary exception
+     * doesn't matter.
      */
-    assert(arm_v7m_is_handler_mode(env));
+    if (!arm_v7m_is_handler_mode(env)) {
+        return;
+    }
 
     /* In the spec pseudocode ExceptionReturn() is called directly
      * from BXWritePC() and gets the full target PC value including
@@ -6765,6 +6782,78 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     qemu_log_mask(CPU_LOG_INT, "...successful exception return\n");
 }
 
+static bool do_v7m_function_return(ARMCPU *cpu)
+{
+    /* v8M security extensions magic function return.
+     * We may either:
+     *  (1) throw an exception (longjump)
+     *  (2) return true if we successfully handled the function return
+     *  (3) return false if we failed a consistency check and have
+     *      pended a UsageFault that needs to be taken now
+     *
+     * At this point the magic return value is split between env->regs[15]
+     * and env->thumb. We don't bother to reconstitute it because we don't
+     * need it (all values are handled the same way).
+     */
+    CPUARMState *env = &cpu->env;
+    uint32_t newpc, newpsr, newpsr_exc;
+
+    qemu_log_mask(CPU_LOG_INT, "...really v7M secure function return\n");
+
+    {
+        bool threadmode, spsel;
+        TCGMemOpIdx oi;
+        ARMMMUIdx mmu_idx;
+        uint32_t *frame_sp_p;
+        uint32_t frameptr;
+
+        /* Pull the return address and IPSR from the Secure stack */
+        threadmode = !arm_v7m_is_handler_mode(env);
+        spsel = env->v7m.control[M_REG_S] & R_V7M_CONTROL_SPSEL_MASK;
+
+        frame_sp_p = get_v7m_sp_ptr(env, true, threadmode, spsel);
+        frameptr = *frame_sp_p;
+
+        /* These loads may throw an exception (for MPU faults). We want to
+         * do them as secure, so work out what MMU index that is.
+         */
+        mmu_idx = arm_v7m_mmu_idx_for_secstate(env, true);
+        oi = make_memop_idx(MO_LE, arm_to_core_mmu_idx(mmu_idx));
+        newpc = helper_le_ldul_mmu(env, frameptr, oi, 0);
+        newpsr = helper_le_ldul_mmu(env, frameptr + 4, oi, 0);
+
+        /* Consistency checks on new IPSR */
+        newpsr_exc = newpsr & XPSR_EXCP;
+        if (!((env->v7m.exception == 0 && newpsr_exc == 0) ||
+              (env->v7m.exception == 1 && newpsr_exc != 0))) {
+            /* Pend the fault and tell our caller to take it */
+            env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVPC_MASK;
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
+                                    env->v7m.secure);
+            qemu_log_mask(CPU_LOG_INT,
+                          "...taking INVPC UsageFault: "
+                          "IPSR consistency check failed\n");
+            return false;
+        }
+
+        *frame_sp_p = frameptr + 8;
+    }
+
+    /* This invalidates frame_sp_p */
+    switch_v7m_security_state(env, true);
+    env->v7m.exception = newpsr_exc;
+    env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_SFPA_MASK;
+    if (newpsr & XPSR_SFPA) {
+        env->v7m.control[M_REG_S] |= R_V7M_CONTROL_SFPA_MASK;
+    }
+    xpsr_write(env, 0, XPSR_IT);
+    env->thumb = newpc & 1;
+    env->regs[15] = newpc & ~1;
+
+    qemu_log_mask(CPU_LOG_INT, "...function return successful\n");
+    return true;
+}
+
 static void arm_log_exception(int idx)
 {
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
@@ -7049,8 +7138,18 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     case EXCP_IRQ:
         break;
     case EXCP_EXCEPTION_EXIT:
-        do_v7m_exception_exit(cpu);
-        return;
+        if (env->regs[15] < EXC_RETURN_MIN_MAGIC) {
+            /* Must be v8M security extension function return */
+            assert(env->regs[15] >= FNC_RETURN_MIN_MAGIC);
+            assert(arm_feature(env, ARM_FEATURE_M_SECURITY));
+            if (do_v7m_function_return(cpu)) {
+                return;
+            }
+        } else {
+            do_v7m_exception_exit(cpu);
+            return;
+        }
+        break;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
