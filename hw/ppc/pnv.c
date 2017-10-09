@@ -608,7 +608,7 @@ static void ppc_powernv_init(MachineState *machine)
 
     /* Create the processor chips */
     i = strlen(machine->cpu_type) - strlen(POWERPC_CPU_TYPE_SUFFIX);
-    chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%.*s",
+    chip_typename = g_strdup_printf(PNV_CHIP_TYPE_NAME("%.*s"),
                                     i, machine->cpu_type);
     if (!object_class_by_name(chip_typename)) {
         error_report("invalid CPU model '%.*s' for %s machine",

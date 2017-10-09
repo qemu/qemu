@@ -252,5 +252,5 @@ type_init(pnv_core_register_types)
 
 char *pnv_core_typename(const char *model)
 {
-    return g_strdup_printf(TYPE_PNV_CORE "-%s", model);
+    return g_strdup_printf(PNV_CORE_TYPE_NAME("%s"), model);
 }
