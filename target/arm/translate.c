@@ -1017,6 +1017,20 @@ static inline void gen_bxns(DisasContext *s, int rm)
     s->base.is_jmp = DISAS_EXIT;
 }
 
+static inline void gen_blxns(DisasContext *s, int rm)
+{
+    TCGv_i32 var = load_reg(s, rm);
+
+    /* We don't need to sync condexec state, for the same reason as bxns.
+     * We do however need to set the PC, because the blxns helper reads it.
+     * The blxns helper may throw an exception.
+     */
+    gen_set_pc_im(s, s->pc);
+    gen_helper_v7m_blxns(cpu_env, var);
+    tcg_temp_free_i32(var);
+    s->base.is_jmp = DISAS_EXIT;
+}
+
 /* Variant of store_reg which uses branch&exchange logic when storing
    to r15 in ARM architecture v7 and above. The source must be a temporary
    and will be marked as dead. */
@@ -11222,8 +11236,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
                         goto undef;
                     }
                     if (link) {
-                        /* BLXNS: not yet implemented */
-                        goto undef;
+                        gen_blxns(s, rm);
                     } else {
                         gen_bxns(s, rm);
                     }
