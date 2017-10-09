@@ -29,7 +29,7 @@
 
 typedef struct TPMBackendClass TPMBackendClass;
 typedef struct TPMBackend TPMBackend;
-typedef struct TPMDriverOps TPMDriverOps;
+
 typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
 
 typedef enum TPMBackendCmd {
@@ -59,14 +59,6 @@ struct TPMBackend {
 struct TPMBackendClass {
     ObjectClass parent_class;
 
-    const TPMDriverOps *ops;
-
-    void (*opened)(TPMBackend *s, Error **errp);
-
-    void (*handle_request)(TPMBackend *s, TPMBackendCmd cmd);
-};
-
-struct TPMDriverOps {
     enum TpmType type;
     const QemuOptDesc *opts;
     /* get a descriptive text of the backend to display to the user */
@@ -90,8 +82,11 @@ struct TPMDriverOps {
     TPMVersion (*get_tpm_version)(TPMBackend *t);
 
     TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
-};
 
+    void (*opened)(TPMBackend *s, Error **errp);
+
+    void (*handle_request)(TPMBackend *s, TPMBackendCmd cmd);
+};
 
 /**
  * tpm_backend_get_type:

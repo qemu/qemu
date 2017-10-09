@@ -2602,7 +2602,6 @@ sub process {
 				SCSIBusInfo|
 				SCSIReqOps|
 				Spice[A-Z][a-zA-Z0-9]*Interface|
-				TPMDriverOps|
 				USBDesc[A-Z][a-zA-Z0-9]*|
 				VhostOps|
 				VMStateDescription|

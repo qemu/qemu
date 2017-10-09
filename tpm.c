@@ -32,11 +32,10 @@ void tpm_register_model(enum TpmModel model)
 
 #ifdef CONFIG_TPM
 
-static const TPMDriverOps *
-tpm_driver_find_by_type(enum TpmType type)
+static const TPMBackendClass *
+tpm_be_find_by_type(enum TpmType type)
 {
     ObjectClass *oc;
-    TPMBackendClass *bc;
     char *typename = g_strdup_printf("tpm-%s", TpmType_str(type));
 
     oc = object_class_by_name(typename);
@@ -46,8 +45,7 @@ tpm_driver_find_by_type(enum TpmType type)
         return NULL;
     }
 
-    bc = TPM_BACKEND_CLASS(oc);
-    return bc->ops;
+    return TPM_BACKEND_CLASS(oc);
 }
 
 /*
@@ -61,11 +59,11 @@ static void tpm_display_backend_drivers(void)
     fprintf(stderr, "Supported TPM types (choose only one):\n");
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
-        const TPMDriverOps *ops = tpm_driver_find_by_type(i);
-        if (!ops) {
+        const TPMBackendClass *bc = tpm_be_find_by_type(i);
+        if (!bc) {
             continue;
         }
-        fprintf(stderr, "%12s   %s\n", TpmType_str(i), ops->desc);
+        fprintf(stderr, "%12s   %s\n", TpmType_str(i), bc->desc);
     }
     fprintf(stderr, "\n");
 }
@@ -92,7 +90,7 @@ static int configure_tpm(QemuOpts *opts)
 {
     const char *value;
     const char *id;
-    const TPMDriverOps *be;
+    const TPMBackendClass *be;
     TPMBackend *drv;
     Error *local_err = NULL;
     int i;
@@ -116,7 +114,7 @@ static int configure_tpm(QemuOpts *opts)
     }
 
     i = qapi_enum_parse(&TpmType_lookup, value, -1, NULL);
-    be = i >= 0 ? tpm_driver_find_by_type(i) : NULL;
+    be = i >= 0 ? tpm_be_find_by_type(i) : NULL;
     if (be == NULL) {
         error_report(QERR_INVALID_PARAMETER_VALUE,
                      "type", "a TPM backend type");
@@ -234,7 +232,7 @@ TpmTypeList *qmp_query_tpm_types(Error **errp)
     TpmTypeList *head = NULL, *prev = NULL, *cur_item;
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
-        if (!tpm_driver_find_by_type(i)) {
+        if (!tpm_be_find_by_type(i)) {
             continue;
         }
         cur_item = g_new0(TpmTypeList, 1);

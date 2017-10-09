@@ -365,19 +365,6 @@ static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
     { /* end of list */ },
 };
 
-static const TPMDriverOps tpm_passthrough_driver = {
-    .type                     = TPM_TYPE_PASSTHROUGH,
-    .opts                     = tpm_passthrough_cmdline_opts,
-    .desc                     = "Passthrough TPM backend driver",
-    .create                   = tpm_passthrough_create,
-    .reset                    = tpm_passthrough_reset,
-    .cancel_cmd               = tpm_passthrough_cancel_cmd,
-    .get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag,
-    .reset_tpm_established_flag = tpm_passthrough_reset_tpm_established_flag,
-    .get_tpm_version          = tpm_passthrough_get_tpm_version,
-    .get_tpm_options          = tpm_passthrough_get_tpm_options,
-};
-
 static void tpm_passthrough_inst_init(Object *obj)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
@@ -402,7 +389,17 @@ static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
 {
     TPMBackendClass *tbc = TPM_BACKEND_CLASS(klass);
 
-    tbc->ops = &tpm_passthrough_driver;
+    tbc->type = TPM_TYPE_PASSTHROUGH;
+    tbc->opts = tpm_passthrough_cmdline_opts;
+    tbc->desc = "Passthrough TPM backend driver";
+    tbc->create = tpm_passthrough_create;
+    tbc->reset = tpm_passthrough_reset;
+    tbc->cancel_cmd = tpm_passthrough_cancel_cmd;
+    tbc->get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag;
+    tbc->reset_tpm_established_flag =
+        tpm_passthrough_reset_tpm_established_flag;
+    tbc->get_tpm_version = tpm_passthrough_get_tpm_version;
+    tbc->get_tpm_options = tpm_passthrough_get_tpm_options;
     tbc->handle_request = tpm_passthrough_handle_request;
 }
 
