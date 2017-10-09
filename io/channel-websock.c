@@ -616,18 +616,6 @@ static void qio_channel_websock_encode_buffer(QIOChannelWebsock *ioc,
 }
 
 
-static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
-{
-    if (!ioc->rawoutput.offset) {
-        return;
-    }
-    qio_channel_websock_encode_buffer(
-        ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
-        &ioc->rawoutput);
-    buffer_reset(&ioc->rawoutput);
-}
-
-
 static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *, Error **);
 
 
@@ -948,8 +936,6 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
     ssize_t ret;
     ssize_t done = 0;
 
-    qio_channel_websock_encode(ioc);
-
     while (ioc->encoutput.offset > 0) {
         ret = qio_channel_write(ioc->master,
                                 (char *)ioc->encoutput.buffer,
@@ -1134,6 +1120,12 @@ static ssize_t qio_channel_websock_writev(QIOChannel *ioc,
     }
 
  done:
+    if (ioc->rawoutput.offset) {
+        qio_channel_websock_encode_buffer(
+            ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
+            &ioc->rawoutput);
+        buffer_reset(&ioc->rawoutput);
+    }
     ret = qio_channel_websock_write_wire(wioc, errp);
     if (ret < 0 &&
         ret != QIO_CHANNEL_ERR_BLOCK) {
