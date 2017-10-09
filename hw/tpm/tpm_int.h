@@ -13,6 +13,23 @@
 #define TPM_TPM_INT_H
 
 #include "qemu/osdep.h"
+#include "qom/object.h"
+
+#define TYPE_TPM_IF "tpm-if"
+#define TPM_IF_CLASS(klass) \
+    OBJECT_CLASS_CHECK(TPMIfClass, (klass), TYPE_TPM_IF)
+#define TPM_IF_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(TPMIfClass, (obj), TYPE_TPM_IF)
+#define TPM_IF(obj) \
+    INTERFACE_CHECK(TPMIf, (obj), TYPE_TPM_IF)
+
+typedef struct TPMIf {
+    Object parent_obj;
+} TPMIf;
+
+typedef struct TPMIfClass {
+    InterfaceClass parent_class;
+} TPMIfClass;
 
 #define TPM_STANDARD_CMDLINE_OPTS               \
     { \

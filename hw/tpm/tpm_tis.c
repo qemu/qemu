@@ -1123,6 +1123,10 @@ static const TypeInfo tpm_tis_info = {
     .instance_size = sizeof(TPMState),
     .instance_init = tpm_tis_initfn,
     .class_init  = tpm_tis_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TPM_IF },
+        { }
+    }
 };
 
 static void tpm_tis_register(void)

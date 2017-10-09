@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm.h"
+#include "hw/tpm/tpm_int.h"
 #include "qemu/thread.h"
 
 static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
@@ -209,9 +210,16 @@ static const TypeInfo tpm_backend_info = {
     .abstract = true,
 };
 
+static const TypeInfo tpm_if_info = {
+    .name = TYPE_TPM_IF,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(TPMIfClass),
+};
+
 static void register_types(void)
 {
     type_register_static(&tpm_backend_info);
+    type_register_static(&tpm_if_info);
 }
 
 type_init(register_types);
