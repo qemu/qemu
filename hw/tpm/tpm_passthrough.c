@@ -31,7 +31,6 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "qapi/clone-visitor.h"
-#include "tpm_tis.h"
 #include "tpm_util.h"
 
 #define DEBUG_TPM 0

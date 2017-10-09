@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/isa/isa.h"
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "sysemu/block-backend.h"
@@ -30,10 +31,79 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci_ids.h"
-#include "tpm_tis.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/main-loop.h"
+#include "hw/acpi/tpm.h"
+
+#define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
+#define TPM_TIS_LOCALITY_SHIFT      12
+#define TPM_TIS_NO_LOCALITY         0xff
+
+#define TPM_TIS_IS_VALID_LOCTY(x)   ((x) < TPM_TIS_NUM_LOCALITIES)
+
+#define TPM_TIS_BUFFER_MAX          4096
+
+typedef enum {
+    TPM_TIS_STATE_IDLE = 0,
+    TPM_TIS_STATE_READY,
+    TPM_TIS_STATE_COMPLETION,
+    TPM_TIS_STATE_EXECUTION,
+    TPM_TIS_STATE_RECEPTION,
+} TPMTISState;
+
+typedef struct TPMSizedBuffer {
+    uint32_t size;
+    uint8_t  *buffer;
+} TPMSizedBuffer;
+
+/* locality data  -- all fields are persisted */
+typedef struct TPMLocality {
+    TPMTISState state;
+    uint8_t access;
+    uint32_t sts;
+    uint32_t iface_id;
+    uint32_t inte;
+    uint32_t ints;
+
+    uint16_t w_offset;
+    uint16_t r_offset;
+    TPMSizedBuffer w_buffer;
+    TPMSizedBuffer r_buffer;
+} TPMLocality;
+
+typedef struct TPMTISEmuState {
+    QEMUBH *bh;
+    uint32_t offset;
+    uint8_t buf[TPM_TIS_BUFFER_MAX];
+
+    uint8_t active_locty;
+    uint8_t aborting_locty;
+    uint8_t next_locty;
+
+    TPMLocality loc[TPM_TIS_NUM_LOCALITIES];
+
+    qemu_irq irq;
+    uint32_t irq_num;
+} TPMTISEmuState;
+
+struct TPMState {
+    ISADevice busdev;
+    MemoryRegion mmio;
+
+    union {
+        TPMTISEmuState tis;
+    } s;
+
+    uint8_t     locty_number;
+    TPMBackendCmd cmd;
+
+    char *backend;
+    TPMBackend *be_driver;
+    TPMVersion be_tpm_version;
+};
+
+#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
 
 #define DEBUG_TIS 0
 
