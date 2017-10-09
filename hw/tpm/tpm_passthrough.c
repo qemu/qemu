@@ -137,30 +137,16 @@ err_exit:
     return ret;
 }
 
-static int tpm_passthrough_unix_transfer(TPMPassthruState *tpm_pt,
-                                         const TPMLocality *locty_data,
-                                         bool *selftest_done)
-{
-    return tpm_passthrough_unix_tx_bufs(tpm_pt,
-                                        locty_data->w_buffer.buffer,
-                                        locty_data->w_offset,
-                                        locty_data->r_buffer.buffer,
-                                        locty_data->r_buffer.size,
-                                        selftest_done);
-}
-
-static void tpm_passthrough_handle_request(TPMBackend *tb)
+static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
-    bool selftest_done = false;
 
-    DPRINTF("tpm_passthrough: processing command\n");
+    DPRINTF("tpm_passthrough: processing command %p\n", cmd);
 
-    tpm_passthrough_unix_transfer(tpm_pt,
-                                  tb->tpm_state->locty_data,
-                                  &selftest_done);
+    tpm_passthrough_unix_tx_bufs(tpm_pt, cmd->in, cmd->in_len,
+                                 cmd->out, cmd->out_len, &cmd->selftest_done);
 
-    tb->recv_data_callback(tb->tpm_state, selftest_done);
+    tb->recv_data_callback(tb->tpm_state);
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)

@@ -30,7 +30,16 @@
 typedef struct TPMBackendClass TPMBackendClass;
 typedef struct TPMBackend TPMBackend;
 
-typedef void (TPMRecvDataCB)(TPMState *, bool selftest_done);
+typedef void (TPMRecvDataCB)(TPMState *);
+
+typedef struct TPMBackendCmd {
+    uint8_t locty;
+    const uint8_t *in;
+    uint32_t in_len;
+    uint8_t *out;
+    uint32_t out_len;
+    bool selftest_done;
+} TPMBackendCmd;
 
 struct TPMBackend {
     Object parent;
@@ -76,7 +85,7 @@ struct TPMBackendClass {
 
     void (*opened)(TPMBackend *s, Error **errp);
 
-    void (*handle_request)(TPMBackend *s);
+    void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd);
 };
 
 /**
@@ -121,11 +130,12 @@ bool tpm_backend_had_startup_error(TPMBackend *s);
 /**
  * tpm_backend_deliver_request:
  * @s: the backend to send the request to
+ * @cmd: the command to deliver
  *
  * Send a request to the backend. The backend will then send the request
  * to the TPM implementation.
  */
-void tpm_backend_deliver_request(TPMBackend *s);
+void tpm_backend_deliver_request(TPMBackend *s, TPMBackendCmd *cmd);
 
 /**
  * tpm_backend_reset:

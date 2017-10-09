@@ -172,28 +172,29 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number)
     return 0;
 }
 
-static void tpm_emulator_handle_request(TPMBackend *tb)
+static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    TPMLocality *locty = NULL;
-    bool selftest_done = false;
     Error *err = NULL;
 
     DPRINTF("processing TPM command");
 
-    locty = tb->tpm_state->locty_data;
-    if (tpm_emulator_set_locality(tpm_emu,
-                                  tb->tpm_state->locty_number) < 0 ||
-        tpm_emulator_unix_tx_bufs(tpm_emu, locty->w_buffer.buffer,
-                                  locty->w_offset, locty->r_buffer.buffer,
-                                  locty->r_buffer.size, &selftest_done,
-                                  &err) < 0) {
-        tpm_util_write_fatal_error_response(locty->r_buffer.buffer,
-                                            locty->r_buffer.size);
-        error_report_err(err);
+    if (tpm_emulator_set_locality(tpm_emu, tb->tpm_state->locty_number) < 0) {
+        goto error;
     }
 
-    tb->recv_data_callback(tb->tpm_state, selftest_done);
+    if (tpm_emulator_unix_tx_bufs(tpm_emu, cmd->in, cmd->in_len,
+                                  cmd->out, cmd->out_len,
+                                  &cmd->selftest_done, &err) < 0) {
+        goto error;
+    }
+
+    tb->recv_data_callback(tb->tpm_state);
+    return;
+
+error:
+    tpm_util_write_fatal_error_response(cmd->out, cmd->out_len);
+    error_report_err(err);
 }
 
 static int tpm_emulator_probe_caps(TPMEmulator *tpm_emu)

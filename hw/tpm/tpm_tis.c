@@ -215,7 +215,15 @@ static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
      */
     tis->loc[locty].state = TPM_TIS_STATE_EXECUTION;
 
-    tpm_backend_deliver_request(s->be_driver);
+    s->cmd = (TPMBackendCmd) {
+        .locty = locty,
+        .in = s->locty_data->w_buffer.buffer,
+        .in_len = s->locty_data->w_offset,
+        .out = s->locty_data->r_buffer.buffer,
+        .out_len = s->locty_data->r_buffer.size
+    };
+
+    tpm_backend_deliver_request(s->be_driver, &s->cmd);
 }
 
 /* raise an interrupt if allowed */
@@ -352,7 +360,7 @@ static void tpm_tis_receive_bh(void *opaque)
 {
     TPMState *s = opaque;
     TPMTISEmuState *tis = &s->s.tis;
-    uint8_t locty = s->locty_number;
+    uint8_t locty = s->cmd.locty;
 
     tpm_tis_sts_set(&tis->loc[locty],
                     TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE);
@@ -371,11 +379,11 @@ static void tpm_tis_receive_bh(void *opaque)
 /*
  * Callback from the TPM to indicate that the response was received.
  */
-static void tpm_tis_receive_cb(TPMState *s,
-                               bool is_selftest_done)
+static void tpm_tis_receive_cb(TPMState *s)
 {
     TPMTISEmuState *tis = &s->s.tis;
-    uint8_t locty = s->locty_number;
+    bool is_selftest_done = s->cmd.selftest_done;
+    uint8_t locty = s->cmd.locty;
     uint8_t l;
 
     if (is_selftest_done) {

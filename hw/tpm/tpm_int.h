@@ -26,6 +26,7 @@ struct TPMState {
 
     uint8_t     locty_number;
     TPMLocality *locty_data;
+    TPMBackendCmd cmd;
 
     char *backend;
     TPMBackend *be_driver;
