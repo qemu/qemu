@@ -282,6 +282,8 @@ typedef struct DisasContext {
     DisasCond null_cond;
     TCGLabel *null_lab;
 
+    int mmu_idx;
+    int privilege;
     bool psw_n_nonzero;
 } DisasContext;
 
@@ -1299,10 +1301,10 @@ static void do_load_32(DisasContext *ctx, TCGv_i32 dest, unsigned rb,
     }
 
     if (modify == 0) {
-        tcg_gen_qemu_ld_i32(dest, addr, MMU_USER_IDX, mop);
+        tcg_gen_qemu_ld_i32(dest, addr, ctx->mmu_idx, mop);
     } else {
         tcg_gen_qemu_ld_i32(dest, (modify < 0 ? addr : base),
-                            MMU_USER_IDX, mop);
+                            ctx->mmu_idx, mop);
         save_gpr(ctx, rb, addr);
     }
     tcg_temp_free(addr);
@@ -1329,10 +1331,10 @@ static void do_load_64(DisasContext *ctx, TCGv_i64 dest, unsigned rb,
     }
 
     if (modify == 0) {
-        tcg_gen_qemu_ld_i64(dest, addr, MMU_USER_IDX, mop);
+        tcg_gen_qemu_ld_i64(dest, addr, ctx->mmu_idx, mop);
     } else {
         tcg_gen_qemu_ld_i64(dest, (modify < 0 ? addr : base),
-                            MMU_USER_IDX, mop);
+                            ctx->mmu_idx, mop);
         save_gpr(ctx, rb, addr);
     }
     tcg_temp_free(addr);
@@ -1358,7 +1360,7 @@ static void do_store_32(DisasContext *ctx, TCGv_i32 src, unsigned rb,
         tcg_gen_addi_reg(addr, base, disp);
     }
 
-    tcg_gen_qemu_st_i32(src, (modify <= 0 ? addr : base), MMU_USER_IDX, mop);
+    tcg_gen_qemu_st_i32(src, (modify <= 0 ? addr : base), ctx->mmu_idx, mop);
 
     if (modify != 0) {
         save_gpr(ctx, rb, addr);
@@ -1386,7 +1388,7 @@ static void do_store_64(DisasContext *ctx, TCGv_i64 src, unsigned rb,
         tcg_gen_addi_reg(addr, base, disp);
     }
 
-    tcg_gen_qemu_st_i64(src, (modify <= 0 ? addr : base), MMU_USER_IDX, mop);
+    tcg_gen_qemu_st_i64(src, (modify <= 0 ? addr : base), ctx->mmu_idx, mop);
 
     if (modify != 0) {
         save_gpr(ctx, rb, addr);
@@ -2497,7 +2499,7 @@ static DisasJumpType trans_ldcw(DisasContext *ctx, uint32_t insn,
 
     zero = tcg_const_reg(0);
     tcg_gen_atomic_xchg_reg(dest, (modify <= 0 ? addr : base),
-                            zero, MMU_USER_IDX, mop);
+                            zero, ctx->mmu_idx, mop);
     if (modify) {
         save_gpr(ctx, rb, addr);
     }
@@ -3971,30 +3973,43 @@ static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
                                       CPUState *cs, int max_insns)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    TranslationBlock *tb = ctx->base.tb;
     int bound;
 
     ctx->cs = cs;
-    ctx->iaoq_f = tb->pc;
-    ctx->iaoq_b = tb->cs_base;
+
+#ifdef CONFIG_USER_ONLY
+    ctx->privilege = MMU_USER_IDX;
+    ctx->mmu_idx = MMU_USER_IDX;
+#else
+    ctx->privilege = ctx->base.pc_first & 3;
+    ctx->mmu_idx = (ctx->base.tb->flags & PSW_D
+                    ? ctx->privilege : MMU_PHYS_IDX);
+#endif
+    ctx->iaoq_f = ctx->base.pc_first;
+    ctx->iaoq_b = ctx->base.tb->cs_base;
+    ctx->base.pc_first &= -4;
+
     ctx->iaoq_n = -1;
     ctx->iaoq_n_var = NULL;
+
+    /* Bound the number of instructions by those left on the page.  */
+    bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
+    bound = MIN(max_insns, bound);
 
     ctx->ntemps = 0;
     memset(ctx->temps, 0, sizeof(ctx->temps));
 
-    bound = -(tb->pc | TARGET_PAGE_MASK) / 4;
-    return MIN(max_insns, bound);
+    return bound;
 }
 
 static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    /* Seed the nullification status from PSW[N], as shown in TB->FLAGS.  */
+    /* Seed the nullification status from PSW[N], as saved in TB->FLAGS.  */
     ctx->null_cond = cond_make_f();
     ctx->psw_n_nonzero = false;
-    if (ctx->base.tb->flags & 1) {
+    if (ctx->base.tb->flags & PSW_N) {
         ctx->null_cond.c = TCG_COND_ALWAYS;
         ctx->psw_n_nonzero = true;
     }
@@ -4014,7 +4029,7 @@ static bool hppa_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     ctx->base.is_jmp = gen_excp(ctx, EXCP_DEBUG);
-    ctx->base.pc_next = ctx->iaoq_f + 4;
+    ctx->base.pc_next = (ctx->iaoq_f & -4) + 4;
     return true;
 }
 
@@ -4035,7 +4050,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     {
         /* Always fetch the insn, even if nullified, so that we check
            the page permissions for execute.  */
-        uint32_t insn = cpu_ldl_code(env, ctx->iaoq_f);
+        uint32_t insn = cpu_ldl_code(env, ctx->iaoq_f & -4);
 
         /* Set up the IA queue for the next insn.
            This will be overwritten by a branch.  */
@@ -4064,10 +4079,8 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     }
     ctx->ntemps = 0;
 
-    /* Advance the insn queue.  */
-    /* ??? The non-linear instruction restriction is purely due to
-       the debugging dump.  Otherwise we *could* follow unconditional
-       branches within the same page.  */
+    /* Advance the insn queue.  Note that this check also detects
+       a priority change within the instruction queue.  */
     if (ret == DISAS_NEXT && ctx->iaoq_b != ctx->iaoq_f + 4) {
         if (ctx->null_cond.c == TCG_COND_NEVER
             || ctx->null_cond.c == TCG_COND_ALWAYS) {
@@ -4121,7 +4134,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 
     /* We don't actually use this during normal translation,
        but we should interact with the generic main loop.  */
-    ctx->base.pc_next = ctx->base.tb->pc + 4 * ctx->base.num_insns;
+    ctx->base.pc_next = ctx->base.pc_first + 4 * ctx->base.num_insns;
 }
 
 static void hppa_tr_disas_log(const DisasContextBase *dcbase, CPUState *cs)

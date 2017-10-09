@@ -36,8 +36,10 @@
 #define TARGET_PAGE_BITS 12
 
 #define ALIGNED_ONLY
-#define NB_MMU_MODES     1
-#define MMU_USER_IDX     0
+#define NB_MMU_MODES     5
+#define MMU_KERNEL_IDX   0
+#define MMU_USER_IDX     3
+#define MMU_PHYS_IDX     4
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 /* Hardware exceptions, interupts, faults, and traps.  */
@@ -195,7 +197,14 @@ static inline HPPACPU *hppa_env_get_cpu(CPUHPPAState *env)
 
 static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)
 {
-    return 0;
+#ifdef CONFIG_USER_ONLY
+    return MMU_USER_IDX;
+#else
+    if (env->psw & (ifetch ? PSW_C : PSW_D)) {
+        return env->iaoq_f & 3;
+    }
+    return MMU_PHYS_IDX;  /* mmu disabled */
+#endif
 }
 
 void hppa_translate_init(void);
@@ -210,7 +219,9 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
 {
     *pc = env->iaoq_f;
     *cs_base = env->iaoq_b;
-    *pflags = env->psw_n;
+    /* ??? E, T, H, L, B, P bits need to be here, when implemented.  */
+    *pflags = (env->psw & (PSW_W | PSW_C | PSW_D))
+            | env->psw_n * PSW_N;
 }
 
 target_ureg cpu_hppa_get_psw(CPUHPPAState *env);

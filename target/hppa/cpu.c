@@ -39,7 +39,7 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
 
     cpu->env.iaoq_f = tb->pc;
     cpu->env.iaoq_b = tb->cs_base;
-    cpu->env.psw_n = tb->flags & 1;
+    cpu->env.psw_n = (tb->flags & PSW_N) != 0;
 }
 
 static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
