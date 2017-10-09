@@ -582,37 +582,48 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
 }
 
 
-static void qio_channel_websock_encode_buffer(QIOChannelWebsock *ioc,
-                                              Buffer *output,
-                                              uint8_t opcode, Buffer *buffer)
+static void qio_channel_websock_encode(QIOChannelWebsock *ioc,
+                                       uint8_t opcode,
+                                       const struct iovec *iov,
+                                       size_t niov,
+                                       size_t size)
 {
     size_t header_size;
+    size_t i;
     union {
         char buf[QIO_CHANNEL_WEBSOCK_HEADER_LEN_64_BIT];
         QIOChannelWebsockHeader ws;
     } header;
 
+    assert(size <= iov_size(iov, niov));
+
     header.ws.b0 = QIO_CHANNEL_WEBSOCK_HEADER_FIELD_FIN |
         (opcode & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE);
-    if (buffer->offset < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
-        header.ws.b1 = (uint8_t)buffer->offset;
+    if (size < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
+        header.ws.b1 = (uint8_t)size;
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_7_BIT;
-    } else if (buffer->offset <
-               QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_16_BIT) {
+    } else if (size < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_16_BIT) {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_16_BIT;
-        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)buffer->offset);
+        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)size);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_16_BIT;
     } else {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_64_BIT;
-        header.ws.u.s64.l64 = cpu_to_be64(buffer->offset);
+        header.ws.u.s64.l64 = cpu_to_be64(size);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_64_BIT;
     }
     header_size -= QIO_CHANNEL_WEBSOCK_HEADER_LEN_MASK;
 
-    trace_qio_channel_websock_encode(ioc, opcode, header_size, buffer->offset);
-    buffer_reserve(output, header_size + buffer->offset);
-    buffer_append(output, header.buf, header_size);
-    buffer_append(output, buffer->buffer, buffer->offset);
+    trace_qio_channel_websock_encode(ioc, opcode, header_size, size);
+    buffer_reserve(&ioc->encoutput, header_size + size);
+    buffer_append(&ioc->encoutput, header.buf, header_size);
+    for (i = 0; i < niov && size != 0; i++) {
+        size_t want = iov[i].iov_len;
+        if (want > size) {
+            want = size;
+        }
+        buffer_append(&ioc->encoutput, iov[i].iov_base, want);
+        size -= want;
+    }
 }
 
 
@@ -622,6 +633,7 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *, Error **);
 static void qio_channel_websock_write_close(QIOChannelWebsock *ioc,
                                             uint16_t code, const char *reason)
 {
+    struct iovec iov;
     buffer_reserve(&ioc->rawoutput, 2 + (reason ? strlen(reason) : 0));
     *(uint16_t *)(ioc->rawoutput.buffer + ioc->rawoutput.offset) =
         cpu_to_be16(code);
@@ -629,9 +641,10 @@ static void qio_channel_websock_write_close(QIOChannelWebsock *ioc,
     if (reason) {
         buffer_append(&ioc->rawoutput, reason, strlen(reason));
     }
-    qio_channel_websock_encode_buffer(
-        ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
-        &ioc->rawoutput);
+    iov.iov_base = ioc->rawoutput.buffer;
+    iov.iov_len = ioc->rawoutput.offset;
+    qio_channel_websock_encode(ioc, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
+                               &iov, 1, iov.iov_len);
     buffer_reset(&ioc->rawoutput);
     qio_channel_websock_write_wire(ioc, NULL);
     qio_channel_shutdown(ioc->master, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
@@ -801,9 +814,10 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
         error_setg(errp, "websocket closed by peer");
         if (payload_len) {
             /* echo client status */
-            qio_channel_websock_encode_buffer(
-                ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
-                &ioc->encinput);
+            struct iovec iov = { .iov_base = ioc->encinput.buffer,
+                                 .iov_len = ioc->encinput.offset };
+            qio_channel_websock_encode(ioc, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
+                                       &iov, 1, iov.iov_len);
             qio_channel_websock_write_wire(ioc, NULL);
             qio_channel_shutdown(ioc->master, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
         } else {
@@ -816,9 +830,10 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
         /* ping frames produce an immediate reply, as long as we've not still
          * got a previous pong queued, in which case we drop the new pong */
         if (ioc->pong_remain == 0) {
-            qio_channel_websock_encode_buffer(
-                ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_PONG,
-                &ioc->encinput);
+            struct iovec iov = { .iov_base = ioc->encinput.buffer,
+                                 .iov_len = ioc->encinput.offset };
+            qio_channel_websock_encode(ioc, QIO_CHANNEL_WEBSOCK_OPCODE_PONG,
+                                       &iov, 1, iov.iov_len);
             ioc->pong_remain = ioc->encoutput.offset;
         }
     }   /* pong frames are ignored */
@@ -1120,11 +1135,13 @@ static ssize_t qio_channel_websock_writev(QIOChannel *ioc,
     }
 
  done:
-    if (ioc->rawoutput.offset) {
-        qio_channel_websock_encode_buffer(
-            ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
-            &ioc->rawoutput);
-        buffer_reset(&ioc->rawoutput);
+    if (wioc->rawoutput.offset) {
+        struct iovec iov = { .iov_base = wioc->rawoutput.buffer,
+                             .iov_len = wioc->rawoutput.offset };
+        qio_channel_websock_encode(wioc,
+                                   QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
+                                   &iov, 1, iov.iov_len);
+        buffer_reset(&wioc->rawoutput);
     }
     ret = qio_channel_websock_write_wire(wioc, errp);
     if (ret < 0 &&
