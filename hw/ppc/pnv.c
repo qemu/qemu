@@ -729,13 +729,6 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip POWER8E";
 }
 
-static const TypeInfo pnv_chip_power8e_info = {
-    .name          = TYPE_PNV_CHIP_POWER8E,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8e_class_init,
-};
-
 static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -749,13 +742,6 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8";
 }
-
-static const TypeInfo pnv_chip_power8_info = {
-    .name          = TYPE_PNV_CHIP_POWER8,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8_class_init,
-};
 
 static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
 {
@@ -771,13 +757,6 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
-static const TypeInfo pnv_chip_power8nvl_info = {
-    .name          = TYPE_PNV_CHIP_POWER8NVL,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8nvl_class_init,
-};
-
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -791,13 +770,6 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->xscom_core_base = 0x0ull;
     dc->desc = "PowerNV Chip POWER9";
 }
-
-static const TypeInfo pnv_chip_power9_info = {
-    .name          = TYPE_PNV_CHIP_POWER9,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power9_class_init,
-};
 
 static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 {
@@ -1000,15 +972,6 @@ static void pnv_chip_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip";
 }
 
-static const TypeInfo pnv_chip_info = {
-    .name          = TYPE_PNV_CHIP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .class_init    = pnv_chip_class_init,
-    .instance_init = pnv_chip_init,
-    .class_size    = sizeof(PnvChipClass),
-    .abstract      = true,
-};
-
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = POWERNV_MACHINE(xi);
@@ -1144,27 +1107,40 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     powernv_machine_class_props_init(oc);
 }
 
-static const TypeInfo powernv_machine_info = {
-    .name          = TYPE_POWERNV_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(PnvMachineState),
-    .instance_init = powernv_machine_initfn,
-    .class_init    = powernv_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_XICS_FABRIC },
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { },
+#define DEFINE_PNV_CHIP_TYPE(type, class_initfn) \
+    {                                            \
+        .name          = type,                   \
+        .class_init    = class_initfn,           \
+        .parent        = TYPE_PNV_CHIP,          \
+    }
+
+static const TypeInfo types[] = {
+    {
+        .name          = TYPE_POWERNV_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .instance_size = sizeof(PnvMachineState),
+        .instance_init = powernv_machine_initfn,
+        .class_init    = powernv_machine_class_init,
+        .interfaces = (InterfaceInfo[]) {
+            { TYPE_XICS_FABRIC },
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { },
+        },
     },
+    {
+        .name          = TYPE_PNV_CHIP,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .class_init    = pnv_chip_class_init,
+        .instance_init = pnv_chip_init,
+        .instance_size = sizeof(PnvChip),
+        .class_size    = sizeof(PnvChipClass),
+        .abstract      = true,
+    },
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER9, pnv_chip_power9_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8, pnv_chip_power8_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8E, pnv_chip_power8e_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8NVL,
+                         pnv_chip_power8nvl_class_init),
 };
 
-static void powernv_machine_register_types(void)
-{
-    type_register_static(&powernv_machine_info);
-    type_register_static(&pnv_chip_info);
-    type_register_static(&pnv_chip_power8e_info);
-    type_register_static(&pnv_chip_power8_info);
-    type_register_static(&pnv_chip_power8nvl_info);
-    type_register_static(&pnv_chip_power9_info);
-}
-
-type_init(powernv_machine_register_types)
+DEFINE_TYPES(types)
