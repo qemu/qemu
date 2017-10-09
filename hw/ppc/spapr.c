@@ -3622,7 +3622,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug_request = spapr_machine_device_unplug_request;
 
     smc->dr_lmb_enabled = true;
-    smc->tcg_default_cpu = "POWER8";
+    smc->tcg_default_cpu = "power8_v2.0";
     mc->has_hotpluggable_cpus = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_ENABLED;
     fwc->get_dev_path = spapr_get_fw_dev_path;
@@ -3868,7 +3868,7 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     spapr_machine_2_8_class_options(mc);
-    smc->tcg_default_cpu = "POWER7";
+    smc->tcg_default_cpu = "power7_v2.3";
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_7);
     smc->phb_placement = phb_placement_2_7;
 }
