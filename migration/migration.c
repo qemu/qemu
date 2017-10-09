@@ -865,6 +865,12 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_block_incremental) {
         dest->block_incremental = params->block_incremental;
     }
+    if (params->has_x_multifd_channels) {
+        dest->x_multifd_channels = params->x_multifd_channels;
+    }
+    if (params->has_x_multifd_page_count) {
+        dest->x_multifd_page_count = params->x_multifd_page_count;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params)
