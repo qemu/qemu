@@ -96,7 +96,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
 
     is_selftest = tpm_util_is_selftest(in, in_len);
 
-    ret = qemu_write_full(tpm_pt->tpm_fd, (const void *)in, (size_t)in_len);
+    ret = qemu_write_full(tpm_pt->tpm_fd, in, in_len);
     if (ret != in_len) {
         if (!tpm_pt->tpm_op_canceled || errno != ECANCELED) {
             error_report("tpm_passthrough: error while transmitting data "
