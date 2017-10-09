@@ -86,7 +86,7 @@ TPMBackend *qemu_find_tpm(const char *id)
     return NULL;
 }
 
-static int configure_tpm(QemuOpts *opts)
+static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
 {
     const char *value;
     const char *id;
@@ -143,11 +143,6 @@ static int configure_tpm(QemuOpts *opts)
     QLIST_INSERT_HEAD(&tpm_backends, drv, list);
 
     return 0;
-}
-
-static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
-{
-    return configure_tpm(opts);
 }
 
 /*
