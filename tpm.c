@@ -31,7 +31,7 @@ void tpm_register_model(enum TpmModel model)
     tpm_models[model] = true;
 }
 
-const TPMDriverOps *tpm_get_backend_driver(const char *type)
+static const TPMDriverOps *tpm_get_backend_driver(const char *type)
 {
     int i = qapi_enum_parse(&TpmType_lookup, type, -1, NULL);
 
