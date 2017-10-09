@@ -31,13 +31,6 @@ void tpm_register_model(enum TpmModel model)
     tpm_models[model] = true;
 }
 
-static const TPMDriverOps *tpm_get_backend_driver(const char *type)
-{
-    int i = qapi_enum_parse(&TpmType_lookup, type, -1, NULL);
-
-    return i >= 0 ? be_drivers[i] : NULL;
-}
-
 #ifdef CONFIG_TPM
 
 void tpm_register_driver(const TPMDriverOps *tdo)
@@ -110,6 +103,7 @@ static int configure_tpm(QemuOpts *opts)
     const TPMDriverOps *be;
     TPMBackend *drv;
     Error *local_err = NULL;
+    int i;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
         error_report("Only one TPM is allowed.");
@@ -129,7 +123,8 @@ static int configure_tpm(QemuOpts *opts)
         return 1;
     }
 
-    be = tpm_get_backend_driver(value);
+    i = qapi_enum_parse(&TpmType_lookup, value, -1, NULL);
+    be = i >= 0 ? tpm_driver_find_by_type(i) : NULL;
     if (be == NULL) {
         error_report(QERR_INVALID_PARAMETER_VALUE,
                      "type", "a TPM backend type");
