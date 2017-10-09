@@ -108,11 +108,8 @@ static void ppc_heathrow_init(MachineState *machine)
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
-    if (machine->cpu_model == NULL)
-        machine->cpu_model = "G3";
     for (i = 0; i < smp_cpus; i++) {
-        cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU,
-                                           machine->cpu_model));
+        cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
         env = &cpu->env;
 
         /* Set time-base frequency to 16.6 Mhz */
@@ -385,6 +382,7 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
     /* TOFIX "cad" when Mac floppy is implemented */
     mc->default_boot_order = "cd";
     mc->kvm_type = heathrow_kvm_type;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750_v3.1");
 }
 
 static const TypeInfo ppc_heathrow_machine_info = {
