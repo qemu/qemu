@@ -34,6 +34,7 @@ void spapr_cpu_parse_features(sPAPRMachineState *spapr)
      *   before passing it on to the cpu level parser.
      */
     gchar **inpieces;
+    gchar *newprops;
     int i, j;
     gchar *compat_str = NULL;
 
@@ -58,17 +59,15 @@ void spapr_cpu_parse_features(sPAPRMachineState *spapr)
 
     if (compat_str) {
         char *val = compat_str + strlen("compat=");
-        gchar *newprops = g_strjoinv(",", inpieces);
 
         object_property_set_str(OBJECT(spapr), val, "max-cpu-compat",
                                 &error_fatal);
 
-        ppc_cpu_parse_features(newprops);
-        g_free(newprops);
-    } else {
-        ppc_cpu_parse_features(MACHINE(spapr)->cpu_model);
     }
 
+    newprops = g_strjoinv(",", inpieces);
+    cpu_parse_cpu_model(TYPE_POWERPC_CPU, newprops);
+    g_free(newprops);
     g_strfreev(inpieces);
 }
 
