@@ -825,11 +825,14 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
         }
         return -1;
     } else if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_PING) {
-        /* ping frames produce an immediate reply */
-        buffer_reset(&ioc->ping_reply);
-        qio_channel_websock_encode_buffer(
-            ioc, &ioc->ping_reply, QIO_CHANNEL_WEBSOCK_OPCODE_PONG,
-            &ioc->encinput);
+        /* ping frames produce an immediate reply, as long as we've not still
+         * got a previous pong queued, in which case we drop the new pong */
+        if (ioc->pong_remain == 0) {
+            qio_channel_websock_encode_buffer(
+                ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_PONG,
+                &ioc->encinput);
+            ioc->pong_remain = ioc->encoutput.offset;
+        }
     }   /* pong frames are ignored */
 
     if (payload_len) {
@@ -888,7 +891,6 @@ static void qio_channel_websock_finalize(Object *obj)
     buffer_free(&ioc->encoutput);
     buffer_free(&ioc->rawinput);
     buffer_free(&ioc->rawoutput);
-    buffer_free(&ioc->ping_reply);
     object_unref(OBJECT(ioc->master));
     if (ioc->io_tag) {
         g_source_remove(ioc->io_tag);
@@ -946,12 +948,7 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
     ssize_t ret;
     ssize_t done = 0;
 
-    /* ping replies take priority over binary data */
-    if (!ioc->ping_reply.offset) {
-        qio_channel_websock_encode(ioc);
-    } else if (!ioc->encoutput.offset) {
-        buffer_move_empty(&ioc->encoutput, &ioc->ping_reply);
-    }
+    qio_channel_websock_encode(ioc);
 
     while (ioc->encoutput.offset > 0) {
         ret = qio_channel_write(ioc->master,
@@ -968,6 +965,11 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
         }
         buffer_advance(&ioc->encoutput, ret);
         done += ret;
+        if (ioc->pong_remain < ret) {
+            ioc->pong_remain = 0;
+        } else {
+            ioc->pong_remain -= ret;
+        }
     }
     return done;
 }
@@ -1026,7 +1028,7 @@ static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
         return;
     }
 
-    if (ioc->encoutput.offset || ioc->ping_reply.offset) {
+    if (ioc->encoutput.offset) {
         cond |= G_IO_OUT;
     }
     if (ioc->encinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER &&
