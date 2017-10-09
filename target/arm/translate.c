@@ -12112,6 +12112,52 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
        in init_disas_context by adjusting max_insns.  */
 }
 
+static bool thumb_insn_is_unconditional(DisasContext *s, uint32_t insn)
+{
+    /* Return true if this Thumb insn is always unconditional,
+     * even inside an IT block. This is true of only a very few
+     * instructions: BKPT, HLT, and SG.
+     *
+     * A larger class of instructions are UNPREDICTABLE if used
+     * inside an IT block; we do not need to detect those here, because
+     * what we do by default (perform the cc check and update the IT
+     * bits state machine) is a permitted CONSTRAINED UNPREDICTABLE
+     * choice for those situations.
+     *
+     * insn is either a 16-bit or a 32-bit instruction; the two are
+     * distinguishable because for the 16-bit case the top 16 bits
+     * are zeroes, and that isn't a valid 32-bit encoding.
+     */
+    if ((insn & 0xffffff00) == 0xbe00) {
+        /* BKPT */
+        return true;
+    }
+
+    if ((insn & 0xffffffc0) == 0xba80 && arm_dc_feature(s, ARM_FEATURE_V8) &&
+        !arm_dc_feature(s, ARM_FEATURE_M)) {
+        /* HLT: v8A only. This is unconditional even when it is going to
+         * UNDEF; see the v8A ARM ARM DDI0487B.a H3.3.
+         * For v7 cores this was a plain old undefined encoding and so
+         * honours its cc check. (We might be using the encoding as
+         * a semihosting trap, but we don't change the cc check behaviour
+         * on that account, because a debugger connected to a real v7A
+         * core and emulating semihosting traps by catching the UNDEF
+         * exception would also only see cases where the cc check passed.
+         * No guest code should be trying to do a HLT semihosting trap
+         * in an IT block anyway.
+         */
+        return true;
+    }
+
+    if (insn == 0xe97fe97f && arm_dc_feature(s, ARM_FEATURE_V8) &&
+        arm_dc_feature(s, ARM_FEATURE_M)) {
+        /* SG: v8M only */
+        return true;
+    }
+
+    return false;
+}
+
 static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
@@ -12133,7 +12179,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         dc->pc += 2;
     }
 
-    if (dc->condexec_mask) {
+    if (dc->condexec_mask && !thumb_insn_is_unconditional(dc, insn)) {
         uint32_t cond = dc->condexec_cond;
 
         if (cond != 0x0e) {     /* Skip conditional when condition is AL. */
