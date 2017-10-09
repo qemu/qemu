@@ -9719,8 +9719,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
     int conds;
     int logic_cc;
 
-    if (!(arm_dc_feature(s, ARM_FEATURE_THUMB2)
-          || arm_dc_feature(s, ARM_FEATURE_M))) {
+    if (!arm_dc_feature(s, ARM_FEATURE_THUMB2)) {
         /* Thumb-1 cores may need to treat bl and blx as a pair of
            16-bit instructions to get correct prefetch abort behavior.  */
         insn = insn_hw1;
