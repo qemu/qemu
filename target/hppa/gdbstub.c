@@ -26,7 +26,7 @@ int hppa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    target_ulong val;
+    target_ureg val;
 
     switch (n) {
     case 0:
@@ -61,14 +61,25 @@ int hppa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         }
         break;
     }
-    return gdb_get_regl(mem_buf, val);
+
+    if (TARGET_REGISTER_BITS == 64) {
+        return gdb_get_reg64(mem_buf, val);
+    } else {
+        return gdb_get_reg32(mem_buf, val);
+    }
 }
 
 int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    target_ulong val = ldtul_p(mem_buf);
+    target_ureg val;
+
+    if (TARGET_REGISTER_BITS == 64) {
+        val = ldq_p(mem_buf);
+    } else {
+        val = ldl_p(mem_buf);
+    }
 
     switch (n) {
     case 0:
@@ -108,5 +119,5 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         }
         break;
     }
-    return sizeof(target_ulong);
+    return sizeof(target_ureg);
 }

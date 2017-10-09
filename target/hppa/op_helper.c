@@ -41,14 +41,14 @@ static void QEMU_NORETURN dynexcp(CPUHPPAState *env, int excp, uintptr_t ra)
     cpu_loop_exit_restore(cs, ra);
 }
 
-void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
+void HELPER(tsv)(CPUHPPAState *env, target_ureg cond)
 {
-    if (unlikely((target_long)cond < 0)) {
+    if (unlikely((target_sreg)cond < 0)) {
         dynexcp(env, EXCP_OVERFLOW, GETPC());
     }
 }
 
-void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
+void HELPER(tcond)(CPUHPPAState *env, target_ureg cond)
 {
     if (unlikely(cond)) {
         dynexcp(env, EXCP_COND, GETPC());
@@ -77,7 +77,7 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
 #endif
 }
 
-static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,
+static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ureg val,
                       bool parallel)
 {
     uintptr_t ra = GETPC();
@@ -104,18 +104,18 @@ static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,
     }
 }
 
-void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ureg val)
 {
     do_stby_b(env, addr, val, false);
 }
 
 void HELPER(stby_b_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ulong val)
+                             target_ureg val)
 {
     do_stby_b(env, addr, val, true);
 }
 
-static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
+static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ureg val,
                       bool parallel)
 {
     uintptr_t ra = GETPC();
@@ -146,18 +146,18 @@ static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
     }
 }
 
-void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ureg val)
 {
     do_stby_e(env, addr, val, false);
 }
 
 void HELPER(stby_e_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ulong val)
+                             target_ureg val)
 {
     do_stby_e(env, addr, val, true);
 }
 
-target_ulong HELPER(probe_r)(target_ulong addr)
+target_ureg HELPER(probe_r)(target_ulong addr)
 {
 #ifdef CONFIG_USER_ONLY
     return page_check_range(addr, 1, PAGE_READ);
@@ -166,7 +166,7 @@ target_ulong HELPER(probe_r)(target_ulong addr)
 #endif
 }
 
-target_ulong HELPER(probe_w)(target_ulong addr)
+target_ureg HELPER(probe_w)(target_ulong addr)
 {
 #ifdef CONFIG_USER_ONLY
     return page_check_range(addr, 1, PAGE_WRITE);

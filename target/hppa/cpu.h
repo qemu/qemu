@@ -23,10 +23,10 @@
 #include "qemu-common.h"
 #include "cpu-qom.h"
 
-/* We only support hppa-linux-user at present, so 32-bit only.  */
-#define TARGET_LONG_BITS 32
-#define TARGET_PHYS_ADDR_SPACE_BITS  32
-#define TARGET_VIRT_ADDR_SPACE_BITS  32
+#define TARGET_LONG_BITS            32
+#define TARGET_VIRT_ADDR_SPACE_BITS 32
+#define TARGET_REGISTER_BITS        32
+#define TARGET_PHYS_ADDR_SPACE_BITS 32
 
 #define CPUArchState struct CPUHPPAState
 
@@ -123,17 +123,29 @@
 
 typedef struct CPUHPPAState CPUHPPAState;
 
+#if TARGET_REGISTER_BITS == 32
+typedef uint32_t target_ureg;
+typedef int32_t  target_sreg;
+#define TREG_FMT_lx   "%08"PRIx32
+#define TREG_FMT_ld   "%"PRId32
+#else
+typedef uint64_t target_ureg;
+typedef int64_t  target_sreg;
+#define TREG_FMT_lx   "%016"PRIx64
+#define TREG_FMT_ld   "%"PRId64
+#endif
+
 struct CPUHPPAState {
-    target_ulong gr[32];
+    target_ureg gr[32];
     uint64_t fr[32];
 
-    target_ulong sar;
-    target_ulong cr26;
-    target_ulong cr27;
+    target_ureg sar;
+    target_ureg cr26;
+    target_ureg cr27;
 
-    target_long  psw;        /* All psw bits except the following:  */
-    target_ulong psw_n;      /* boolean */
-    target_long  psw_v;      /* in most significant bit */
+    target_ureg psw;         /* All psw bits except the following:  */
+    target_ureg psw_n;       /* boolean */
+    target_sreg psw_v;       /* in most significant bit */
 
     /* Splitting the carry-borrow field into the MSB and "the rest", allows
      * for "the rest" to be deleted when it is unused, but the MSB is in use.
@@ -142,13 +154,13 @@ struct CPUHPPAState {
      * host has the appropriate add-with-carry insn to compute the msb).
      * Therefore the carry bits are stored as: cb_msb : cb & 0x11111110.
      */
-    target_ulong psw_cb;     /* in least significant bit of next nibble */
-    target_ulong psw_cb_msb; /* boolean */
+    target_ureg psw_cb;      /* in least significant bit of next nibble */
+    target_ureg psw_cb_msb;  /* boolean */
 
-    target_ulong iaoq_f;     /* front */
-    target_ulong iaoq_b;     /* back, aka next instruction */
+    target_ureg iaoq_f;      /* front */
+    target_ureg iaoq_b;      /* back, aka next instruction */
 
-    target_ulong ior;        /* interrupt offset register */
+    target_ureg ior;         /* interrupt offset register */
 
     uint32_t fr0_shadow;     /* flags, c, ca/cq, rm, d, enables */
     float_status fp_status;
@@ -201,8 +213,8 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
     *pflags = env->psw_n;
 }
 
-target_ulong cpu_hppa_get_psw(CPUHPPAState *env);
-void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong);
+target_ureg cpu_hppa_get_psw(CPUHPPAState *env);
+void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg);
 void cpu_hppa_loaded_fr0(CPUHPPAState *env);
 
 #define cpu_signal_handler cpu_hppa_signal_handler

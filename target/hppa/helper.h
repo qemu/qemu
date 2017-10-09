@@ -1,14 +1,24 @@
+#if TARGET_REGISTER_BITS == 64
+# define dh_alias_tr     i64
+# define dh_is_64bit_tr  1
+#else
+# define dh_alias_tr     i32
+# define dh_is_64bit_tr  0
+#endif
+#define dh_ctype_tr      target_ureg
+#define dh_is_signed_tr  0
+
 DEF_HELPER_2(excp, noreturn, env, int)
-DEF_HELPER_FLAGS_2(tsv, TCG_CALL_NO_WG, void, env, tl)
-DEF_HELPER_FLAGS_2(tcond, TCG_CALL_NO_WG, void, env, tl)
+DEF_HELPER_FLAGS_2(tsv, TCG_CALL_NO_WG, void, env, tr)
+DEF_HELPER_FLAGS_2(tcond, TCG_CALL_NO_WG, void, env, tr)
 
-DEF_HELPER_FLAGS_3(stby_b, TCG_CALL_NO_WG, void, env, tl, tl)
-DEF_HELPER_FLAGS_3(stby_b_parallel, TCG_CALL_NO_WG, void, env, tl, tl)
-DEF_HELPER_FLAGS_3(stby_e, TCG_CALL_NO_WG, void, env, tl, tl)
-DEF_HELPER_FLAGS_3(stby_e_parallel, TCG_CALL_NO_WG, void, env, tl, tl)
+DEF_HELPER_FLAGS_3(stby_b, TCG_CALL_NO_WG, void, env, tl, tr)
+DEF_HELPER_FLAGS_3(stby_b_parallel, TCG_CALL_NO_WG, void, env, tl, tr)
+DEF_HELPER_FLAGS_3(stby_e, TCG_CALL_NO_WG, void, env, tl, tr)
+DEF_HELPER_FLAGS_3(stby_e_parallel, TCG_CALL_NO_WG, void, env, tl, tr)
 
-DEF_HELPER_FLAGS_1(probe_r, TCG_CALL_NO_RWG_SE, tl, tl)
-DEF_HELPER_FLAGS_1(probe_w, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_1(probe_r, TCG_CALL_NO_RWG_SE, tr, tl)
+DEF_HELPER_FLAGS_1(probe_w, TCG_CALL_NO_RWG_SE, tr, tl)
 
 DEF_HELPER_FLAGS_1(loaded_fr0, TCG_CALL_NO_RWG, void, env)
 

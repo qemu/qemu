@@ -24,9 +24,9 @@
 #include "fpu/softfloat.h"
 #include "exec/helper-proto.h"
 
-target_ulong cpu_hppa_get_psw(CPUHPPAState *env)
+target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
 {
-    target_ulong psw;
+    target_ureg psw;
 
     /* Fold carry bits down to 8 consecutive bits.  */
     /* ??? Needs tweaking for hppa64.  */
@@ -48,9 +48,9 @@ target_ulong cpu_hppa_get_psw(CPUHPPAState *env)
     return psw;
 }
 
-void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
+void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
 {
-    target_ulong cb = 0;
+    target_ureg cb = 0;
 
     env->psw = psw & ~(PSW_N | PSW_V | PSW_CB);
     env->psw_n = (psw / PSW_N) & 1;
@@ -135,13 +135,13 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f,
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
-    target_ulong psw = cpu_hppa_get_psw(env);
-    target_ulong psw_cb;
+    target_ureg psw = cpu_hppa_get_psw(env);
+    target_ureg psw_cb;
     char psw_c[20];
     int i;
 
     cpu_fprintf(f, "IA_F " TARGET_FMT_lx " IA_B " TARGET_FMT_lx "\n",
-                env->iaoq_f, env->iaoq_b);
+                (target_ulong)env->iaoq_f, (target_ulong)env->iaoq_b);
 
     psw_c[0]  = (psw & PSW_W ? 'W' : '-');
     psw_c[1]  = (psw & PSW_E ? 'E' : '-');
@@ -164,11 +164,11 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f,
     psw_c[18] = '\0';
     psw_cb = ((env->psw_cb >> 4) & 0x01111111) | (env->psw_cb_msb << 28);
 
-    cpu_fprintf(f, "PSW  " TARGET_FMT_lx " CB   " TARGET_FMT_lx " %s\n",
+    cpu_fprintf(f, "PSW  " TREG_FMT_lx " CB   " TREG_FMT_lx " %s\n",
                 psw, psw_cb, psw_c);
 
     for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, "GR%02d " TARGET_FMT_lx " ", i, env->gr[i]);
+        cpu_fprintf(f, "GR%02d " TREG_FMT_lx " ", i, env->gr[i]);
         if ((i % 4) == 3) {
             cpu_fprintf(f, "\n");
         }
