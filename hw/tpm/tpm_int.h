@@ -24,8 +24,6 @@ struct TPMState {
         TPMTISEmuState tis;
     } s;
 
-    uint8_t     locty_number;
-    TPMLocality *locty_data;
     TPMBackendCmd cmd;
 
     char *backend;

@@ -180,8 +180,7 @@ static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 
     DPRINTF("processing TPM command");
 
-    if (tpm_emulator_set_locality(tpm_emu,
-                                  tb->tpm_state->locty_number, &err) < 0) {
+    if (tpm_emulator_set_locality(tpm_emu, cmd->locty, &err) < 0) {
         goto error;
     }
 

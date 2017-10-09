@@ -203,11 +203,9 @@ static void tpm_tis_sts_set(TPMLocality *l, uint32_t flags)
 static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
 {
     TPMTISEmuState *tis = &s->s.tis;
+    TPMLocality *locty_data = &tis->loc[locty];
 
     tpm_tis_show_buffer(&tis->loc[locty].w_buffer, "tpm_tis: To TPM");
-
-    s->locty_number = locty;
-    s->locty_data = &tis->loc[locty];
 
     /*
      * w_offset serves as length indicator for length of data;
@@ -217,10 +215,10 @@ static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
 
     s->cmd = (TPMBackendCmd) {
         .locty = locty,
-        .in = s->locty_data->w_buffer.buffer,
-        .in_len = s->locty_data->w_offset,
-        .out = s->locty_data->r_buffer.buffer,
-        .out_len = s->locty_data->r_buffer.size
+        .in = locty_data->w_buffer.buffer,
+        .in_len = locty_data->w_offset,
+        .out = locty_data->r_buffer.buffer,
+        .out_len = locty_data->r_buffer.size
     };
 
     tpm_backend_deliver_request(s->be_driver, &s->cmd);
