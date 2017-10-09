@@ -374,6 +374,9 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
     size_t nhdrs = G_N_ELEMENTS(hdrs);
     const char *protocols = NULL, *version = NULL, *key = NULL,
         *host = NULL, *connection = NULL, *upgrade = NULL;
+    char **connectionv;
+    bool upgraded = false;
+    size_t i;
 
     nhdrs = qio_channel_websock_extract_headers(ioc, buffer, hdrs, nhdrs, errp);
     if (!nhdrs) {
@@ -440,7 +443,16 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
         goto bad_request;
     }
 
-    if (strcasecmp(connection, QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE) != 0) {
+    connectionv = g_strsplit(connection, ",", 0);
+    for (i = 0; connectionv != NULL && connectionv[i] != NULL; i++) {
+        g_strstrip(connectionv[i]);
+        if (strcasecmp(connectionv[i],
+                       QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE) == 0) {
+            upgraded = true;
+        }
+    }
+    g_strfreev(connectionv);
+    if (!upgraded) {
         error_setg(errp, "No connection upgrade requested '%s'", connection);
         goto bad_request;
     }
