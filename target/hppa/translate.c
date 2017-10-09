@@ -1862,6 +1862,40 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv_reg dest,
     return DISAS_NEXT;
 }
 
+/* Implement
+ *    if (IAOQ_Front{30..31} < GR[b]{30..31})
+ *      IAOQ_Next{30..31} ← GR[b]{30..31};
+ *    else
+ *      IAOQ_Next{30..31} ← IAOQ_Front{30..31};
+ * which keeps the privilege level from being increased.
+ */
+static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
+{
+#ifdef CONFIG_USER_ONLY
+    return offset;
+#else
+    TCGv_reg dest;
+    switch (ctx->privilege) {
+    case 0:
+        /* Privilege 0 is maximum and is allowed to decrease.  */
+        return offset;
+    case 3:
+        /* Privilege 3 is minimum and is never allowed increase.  */
+        dest = get_temp(ctx);
+        tcg_gen_ori_reg(dest, offset, 3);
+        break;
+    default:
+        dest = tcg_temp_new();
+        tcg_gen_andi_reg(dest, offset, -4);
+        tcg_gen_ori_reg(dest, dest, ctx->privilege);
+        tcg_gen_movcond_reg(TCG_COND_GTU, dest, dest, offset, dest, offset);
+        tcg_temp_free(dest);
+        break;
+    }
+    return dest;
+#endif
+}
+
 #ifdef CONFIG_USER_ONLY
 /* On Linux, page zero is normally marked execute only + gateway.
    Therefore normal read or write is supposed to fail, but specific
@@ -3441,6 +3475,7 @@ static DisasJumpType trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
     unsigned n = extract32(insn, 1, 1);
     unsigned b = extract32(insn, 21, 5);
     target_sreg disp = assemble_17(insn);
+    TCGv_reg tmp;
 
     /* unsigned s = low_uextract(insn, 13, 3); */
     /* ??? It seems like there should be a good way of using
@@ -3449,16 +3484,19 @@ static DisasJumpType trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
        manage along side branch delay slots.  Therefore we handle
        entry into the gateway page via absolute address.  */
 
+#ifdef CONFIG_USER_ONLY
     /* Since we don't implement spaces, just branch.  Do notice the special
        case of "be disp(*,r0)" using a direct branch to disp, so that we can
        goto_tb to the TB containing the syscall.  */
     if (b == 0) {
         return do_dbranch(ctx, disp, is_l ? 31 : 0, n);
-    } else {
-        TCGv_reg tmp = get_temp(ctx);
-        tcg_gen_addi_reg(tmp, load_gpr(ctx, b), disp);
-        return do_ibranch(ctx, tmp, is_l ? 31 : 0, n);
     }
+#endif
+
+    tmp = get_temp(ctx);
+    tcg_gen_addi_reg(tmp, load_gpr(ctx, b), disp);
+    tmp = do_ibranch_priv(ctx, tmp);
+    return do_ibranch(ctx, tmp, is_l ? 31 : 0, n);
 }
 
 static DisasJumpType trans_bl(DisasContext *ctx, uint32_t insn,
@@ -3490,6 +3528,7 @@ static DisasJumpType trans_blr(DisasContext *ctx, uint32_t insn,
 
     tcg_gen_shli_reg(tmp, load_gpr(ctx, rx), 3);
     tcg_gen_addi_reg(tmp, tmp, ctx->iaoq_f + 8);
+    /* The computation here never changes privilege level.  */
     return do_ibranch(ctx, tmp, link, n);
 }
 
@@ -3508,6 +3547,7 @@ static DisasJumpType trans_bv(DisasContext *ctx, uint32_t insn,
         tcg_gen_shli_reg(dest, load_gpr(ctx, rx), 3);
         tcg_gen_add_reg(dest, dest, load_gpr(ctx, rb));
     }
+    dest = do_ibranch_priv(ctx, dest);
     return do_ibranch(ctx, dest, 0, n);
 }
 
@@ -3517,8 +3557,10 @@ static DisasJumpType trans_bve(DisasContext *ctx, uint32_t insn,
     unsigned n = extract32(insn, 1, 1);
     unsigned rb = extract32(insn, 21, 5);
     unsigned link = extract32(insn, 13, 1) ? 2 : 0;
+    TCGv_reg dest;
 
-    return do_ibranch(ctx, load_gpr(ctx, rb), link, n);
+    dest = do_ibranch_priv(ctx, load_gpr(ctx, rb));
+    return do_ibranch(ctx, dest, link, n);
 }
 
 static const DisasInsn table_branch[] = {
