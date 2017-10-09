@@ -141,7 +141,8 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
     return 0;
 }
 
-static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number)
+static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number,
+                                     Error **errp)
 {
     ptm_loc loc;
 
@@ -155,15 +156,15 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number)
     loc.u.req.loc = locty_number;
     if (tpm_emulator_ctrlcmd(&tpm_emu->ctrl_chr, CMD_SET_LOCALITY, &loc,
                              sizeof(loc), sizeof(loc)) < 0) {
-        error_report("tpm-emulator: could not set locality : %s",
-                     strerror(errno));
+        error_setg(errp, "tpm-emulator: could not set locality : %s",
+                   strerror(errno));
         return -1;
     }
 
     loc.u.resp.tpm_result = be32_to_cpu(loc.u.resp.tpm_result);
     if (loc.u.resp.tpm_result != 0) {
-        error_report("tpm-emulator: TPM result for set locality : 0x%x",
-                     loc.u.resp.tpm_result);
+        error_setg(errp, "tpm-emulator: TPM result for set locality : 0x%x",
+                   loc.u.resp.tpm_result);
         return -1;
     }
 
@@ -179,7 +180,8 @@ static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 
     DPRINTF("processing TPM command");
 
-    if (tpm_emulator_set_locality(tpm_emu, tb->tpm_state->locty_number) < 0) {
+    if (tpm_emulator_set_locality(tpm_emu,
+                                  tb->tpm_state->locty_number, &err) < 0) {
         goto error;
     }
 
