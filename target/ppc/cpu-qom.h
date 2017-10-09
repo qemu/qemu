@@ -181,6 +181,7 @@ typedef struct PowerPCCPUClass {
     DeviceRealize parent_realize;
     DeviceUnrealize parent_unrealize;
     void (*parent_reset)(CPUState *cpu);
+    void (*parent_parse_features)(const char *type, char *str, Error **errp);
 
     uint32_t pvr;
     bool (*pvr_match)(struct PowerPCCPUClass *pcc, uint32_t pvr);

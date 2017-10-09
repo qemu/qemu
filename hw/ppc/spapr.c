@@ -2373,7 +2373,7 @@ static void ppc_spapr_init(MachineState *machine)
         machine->cpu_model = kvm_enabled() ? "host" : smc->tcg_default_cpu;
     }
 
-    spapr_cpu_parse_features(spapr);
+    cpu_parse_cpu_model(TYPE_POWERPC_CPU, machine->cpu_model);
 
     spapr_set_vsmt_mode(spapr, &error_fatal);
 
