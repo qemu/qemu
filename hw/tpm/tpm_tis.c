@@ -430,11 +430,10 @@ static void tpm_tis_receive_bh(void *opaque)
                       TPM_TIS_INT_DATA_AVAILABLE | TPM_TIS_INT_STS_VALID);
 }
 
-/*
- * Callback from the TPM to indicate that the response was received.
- */
-static void tpm_tis_receive_cb(TPMState *s)
+static void tpm_tis_request_completed(TPMIf *ti)
 {
+    TPMState *s = TPM(ti);
+
     bool is_selftest_done = s->cmd.selftest_done;
     uint8_t locty = s->cmd.locty;
     uint8_t l;
@@ -1078,7 +1077,7 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     s->be_driver->fe_model = TPM_MODEL_TPM_TIS;
 
-    if (tpm_backend_init(s->be_driver, s, tpm_tis_receive_cb)) {
+    if (tpm_backend_init(s->be_driver, s)) {
         error_setg(errp, "tpm_tis: backend driver with id %s could not be "
                    "initialized", s->backend);
         return;
@@ -1110,11 +1109,13 @@ static void tpm_tis_initfn(Object *obj)
 static void tpm_tis_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    TPMIfClass *tc = TPM_IF_CLASS(klass);
 
     dc->realize = tpm_tis_realizefn;
     dc->props = tpm_tis_properties;
     dc->reset = tpm_tis_reset;
     dc->vmsd  = &vmstate_tpm_tis;
+    tc->request_completed = tpm_tis_request_completed;
 }
 
 static const TypeInfo tpm_tis_info = {

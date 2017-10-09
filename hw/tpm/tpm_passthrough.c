@@ -139,13 +139,14 @@ err_exit:
 static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
+    TPMIfClass *tic = TPM_IF_GET_CLASS(tb->tpm_state);
 
     DPRINTF("tpm_passthrough: processing command %p\n", cmd);
 
     tpm_passthrough_unix_tx_bufs(tpm_pt, cmd->in, cmd->in_len,
                                  cmd->out, cmd->out_len, &cmd->selftest_done);
 
-    tb->recv_data_callback(tb->tpm_state);
+    tic->request_completed(TPM_IF(tb->tpm_state));
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)

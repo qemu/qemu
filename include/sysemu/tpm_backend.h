@@ -30,8 +30,6 @@
 typedef struct TPMBackendClass TPMBackendClass;
 typedef struct TPMBackend TPMBackend;
 
-typedef void (TPMRecvDataCB)(TPMState *);
-
 typedef struct TPMBackendCmd {
     uint8_t locty;
     const uint8_t *in;
@@ -48,7 +46,6 @@ struct TPMBackend {
     bool opened;
     TPMState *tpm_state;
     GThreadPool *thread_pool;
-    TPMRecvDataCB *recv_data_callback;
     bool had_startup_error;
 
     /* <public> */
@@ -106,8 +103,7 @@ enum TpmType tpm_backend_get_type(TPMBackend *s);
  *
  * Returns 0 on success.
  */
-int tpm_backend_init(TPMBackend *s, TPMState *state,
-                     TPMRecvDataCB *datacb);
+int tpm_backend_init(TPMBackend *s, TPMState *state);
 
 /**
  * tpm_backend_startup_tpm:

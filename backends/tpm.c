@@ -44,11 +44,9 @@ enum TpmType tpm_backend_get_type(TPMBackend *s)
     return k->type;
 }
 
-int tpm_backend_init(TPMBackend *s, TPMState *state,
-                     TPMRecvDataCB *datacb)
+int tpm_backend_init(TPMBackend *s, TPMState *state)
 {
     s->tpm_state = state;
-    s->recv_data_callback = datacb;
     s->had_startup_error = false;
 
     return 0;

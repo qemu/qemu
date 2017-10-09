@@ -29,6 +29,9 @@ typedef struct TPMIf {
 
 typedef struct TPMIfClass {
     InterfaceClass parent_class;
+
+    /* run in thread pool by backend */
+    void (*request_completed)(TPMIf *obj);
 } TPMIfClass;
 
 #define TPM_STANDARD_CMDLINE_OPTS               \
