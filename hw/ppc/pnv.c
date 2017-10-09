@@ -606,16 +606,13 @@ static void ppc_powernv_init(MachineState *machine)
         }
     }
 
-    /* We need some cpu model to instantiate the PnvChip class */
-    if (machine->cpu_model == NULL) {
-        machine->cpu_model = "POWER8";
-    }
-
     /* Create the processor chips */
-    chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%s", machine->cpu_model);
+    i = strlen(machine->cpu_type) - strlen(POWERPC_CPU_TYPE_SUFFIX);
+    chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%.*s",
+                                    i, machine->cpu_type);
     if (!object_class_by_name(chip_typename)) {
-        error_report("invalid CPU model '%s' for %s machine",
-                     machine->cpu_model, MACHINE_GET_CLASS(machine)->name);
+        error_report("invalid CPU model '%.*s' for %s machine",
+                     i, machine->cpu_type, MACHINE_GET_CLASS(machine)->name);
         exit(1);
     }
 
@@ -715,7 +712,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8E";
+    k->cpu_model = "power8e_v2.1";
     k->chip_type = PNV_CHIP_POWER8E;
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
@@ -737,7 +734,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8";
+    k->cpu_model = "power8_v2.0";
     k->chip_type = PNV_CHIP_POWER8;
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
@@ -759,7 +756,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8NVL";
+    k->cpu_model = "power8nvl_v1.0";
     k->chip_type = PNV_CHIP_POWER8NVL;
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
@@ -781,7 +778,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER9";
+    k->cpu_model = "power9_v2.0";
     k->chip_type = PNV_CHIP_POWER9;
     k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
     k->cores_mask = POWER9_CORE_MASK;
@@ -1132,6 +1129,7 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     mc->init = ppc_powernv_init;
     mc->reset = ppc_powernv_reset;
     mc->max_cpus = MAX_CPUS;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
     mc->block_default_type = IF_IDE; /* Pnv provides a AHCI device for
                                       * storage */
     mc->no_parallel = 1;

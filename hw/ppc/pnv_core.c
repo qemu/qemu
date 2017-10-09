@@ -227,7 +227,7 @@ static const TypeInfo pnv_core_info = {
 };
 
 static const char *pnv_core_models[] = {
-    "POWER8E", "POWER8", "POWER8NVL", "POWER9"
+    "power8e_v2.1", "power8_v2.0", "power8nvl_v1.0", "power9_v2.0"
 };
 
 static void pnv_core_register_types(void)
