@@ -46,6 +46,5 @@ typedef struct PnvCoreClass {
 
 #define PNV_CORE_TYPE_SUFFIX "-" TYPE_PNV_CORE
 #define PNV_CORE_TYPE_NAME(cpu_model) cpu_model PNV_CORE_TYPE_SUFFIX
-extern char *pnv_core_typename(const char *model);
 
 #endif /* _PPC_PNV_CORE_H */

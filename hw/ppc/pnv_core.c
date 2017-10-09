@@ -246,9 +246,4 @@ static const TypeInfo pnv_core_infos[] = {
     DEFINE_PNV_CORE_TYPE("power9_v2.0"),
 };
 
-char *pnv_core_typename(const char *model)
-{
-    return g_strdup_printf(PNV_CORE_TYPE_NAME("%s"), model);
-}
-
 DEFINE_TYPES(pnv_core_infos)
