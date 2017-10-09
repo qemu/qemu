@@ -43,9 +43,6 @@
     } \
 } while (0);
 
-/* whether the STS interrupt is supported */
-#define RAISE_STS_IRQ
-
 /* tis registers */
 #define TPM_TIS_REG_ACCESS                0x00
 #define TPM_TIS_REG_INT_ENABLE            0x08
@@ -98,20 +95,10 @@
 #define TPM_TIS_INT_POLARITY_MASK         (3 << 3)
 #define TPM_TIS_INT_POLARITY_LOW_LEVEL    (1 << 3)
 
-#ifndef RAISE_STS_IRQ
-
-#define TPM_TIS_INTERRUPTS_SUPPORTED (TPM_TIS_INT_LOCALITY_CHANGED | \
-                                      TPM_TIS_INT_DATA_AVAILABLE   | \
-                                      TPM_TIS_INT_COMMAND_READY)
-
-#else
-
 #define TPM_TIS_INTERRUPTS_SUPPORTED (TPM_TIS_INT_LOCALITY_CHANGED | \
                                       TPM_TIS_INT_DATA_AVAILABLE   | \
                                       TPM_TIS_INT_STS_VALID | \
                                       TPM_TIS_INT_COMMAND_READY)
-
-#endif
 
 #define TPM_TIS_CAP_INTERFACE_VERSION1_3 (2 << 28)
 #define TPM_TIS_CAP_INTERFACE_VERSION1_3_FOR_TPM2_0 (3 << 28)
@@ -377,12 +364,8 @@ static void tpm_tis_receive_bh(void *opaque)
         tpm_tis_abort(s, locty);
     }
 
-#ifndef RAISE_STS_IRQ
-    tpm_tis_raise_irq(s, locty, TPM_TIS_INT_DATA_AVAILABLE);
-#else
     tpm_tis_raise_irq(s, locty,
                       TPM_TIS_INT_DATA_AVAILABLE | TPM_TIS_INT_STS_VALID);
-#endif
 }
 
 /*
@@ -421,9 +404,7 @@ static uint32_t tpm_tis_data_read(TPMState *s, uint8_t locty)
         if (tis->loc[locty].r_offset >= len) {
             /* got last byte */
             tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
-#ifdef RAISE_STS_IRQ
             tpm_tis_raise_irq(s, locty, TPM_TIS_INT_STS_VALID);
-#endif
         }
         DPRINTF("tpm_tis: tpm_tis_data_read byte 0x%02x   [%d]\n",
                 ret, tis->loc[locty].r_offset-1);
@@ -912,9 +893,8 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
             if (tis->loc[locty].w_offset > 5 &&
                 (tis->loc[locty].sts & TPM_TIS_STS_EXPECT)) {
                 /* we have a packet length - see if we have all of it */
-#ifdef RAISE_STS_IRQ
                 bool need_irq = !(tis->loc[locty].sts & TPM_TIS_STS_VALID);
-#endif
+
                 len = tpm_tis_get_size_from_buffer(&tis->loc[locty].w_buffer);
                 if (len > tis->loc[locty].w_offset) {
                     tpm_tis_sts_set(&tis->loc[locty],
@@ -923,11 +903,9 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
                     /* packet complete */
                     tpm_tis_sts_set(&tis->loc[locty], TPM_TIS_STS_VALID);
                 }
-#ifdef RAISE_STS_IRQ
                 if (need_irq) {
                     tpm_tis_raise_irq(s, locty, TPM_TIS_INT_STS_VALID);
                 }
-#endif
             }
         }
         break;
