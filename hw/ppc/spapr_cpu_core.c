@@ -61,29 +61,19 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
  * Return the sPAPR CPU core type for @model which essentially is the CPU
  * model specified with -cpu cmdline option.
  */
-char *spapr_get_cpu_core_type(const char *model)
+const char *spapr_get_cpu_core_type(const char *cpu_type)
 {
-    char *core_type;
-    gchar **model_pieces = g_strsplit(model, ",", 2);
-    gchar *cpu_model = g_ascii_strdown(model_pieces[0], -1);
-    g_strfreev(model_pieces);
+    int len = strlen(cpu_type) - strlen(POWERPC_CPU_TYPE_SUFFIX);
+    char *core_type = g_strdup_printf(SPAPR_CPU_CORE_TYPE_NAME("%.*s"),
+                                      len, cpu_type);
+    ObjectClass *oc = object_class_by_name(core_type);
 
-    core_type = g_strdup_printf("%s-" TYPE_SPAPR_CPU_CORE, cpu_model);
-
-    /* Check whether it exists or whether we have to look up an alias name */
-    if (!object_class_by_name(core_type)) {
-        const char *realmodel;
-
-        g_free(core_type);
-        core_type = NULL;
-        realmodel = ppc_cpu_lookup_alias(cpu_model);
-        if (realmodel) {
-            core_type = spapr_get_cpu_core_type(realmodel);
-        }
+    g_free(core_type);
+    if (!oc) {
+        return NULL;
     }
-    g_free(cpu_model);
 
-    return core_type;
+    return object_class_get_name(oc);
 }
 
 static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)

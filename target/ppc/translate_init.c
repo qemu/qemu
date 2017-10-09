@@ -10060,7 +10060,7 @@ PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr)
     return pcc;
 }
 
-const char *ppc_cpu_lookup_alias(const char *alias)
+static const char *ppc_cpu_lookup_alias(const char *alias)
 {
     int ai;
 
