@@ -193,8 +193,7 @@ static void tpm_emulator_handle_request(TPMBackend *tb)
         error_report_err(err);
     }
 
-    tb->recv_data_callback(tb->tpm_state, tb->tpm_state->locty_number,
-                           selftest_done);
+    tb->recv_data_callback(tb->tpm_state, selftest_done);
 }
 
 static int tpm_emulator_probe_caps(TPMEmulator *tpm_emu)

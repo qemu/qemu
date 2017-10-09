@@ -371,13 +371,12 @@ static void tpm_tis_receive_bh(void *opaque)
 /*
  * Callback from the TPM to indicate that the response was received.
  */
-static void tpm_tis_receive_cb(TPMState *s, uint8_t locty,
+static void tpm_tis_receive_cb(TPMState *s,
                                bool is_selftest_done)
 {
     TPMTISEmuState *tis = &s->s.tis;
+    uint8_t locty = s->locty_number;
     uint8_t l;
-
-    assert(s->locty_number == locty);
 
     if (is_selftest_done) {
         for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {

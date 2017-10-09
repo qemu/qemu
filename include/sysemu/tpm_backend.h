@@ -30,7 +30,7 @@
 typedef struct TPMBackendClass TPMBackendClass;
 typedef struct TPMBackend TPMBackend;
 
-typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
+typedef void (TPMRecvDataCB)(TPMState *, bool selftest_done);
 
 struct TPMBackend {
     Object parent;

@@ -160,9 +160,7 @@ static void tpm_passthrough_handle_request(TPMBackend *tb)
                                   tb->tpm_state->locty_data,
                                   &selftest_done);
 
-    tb->recv_data_callback(tb->tpm_state,
-                           tb->tpm_state->locty_number,
-                           selftest_done);
+    tb->recv_data_callback(tb->tpm_state, selftest_done);
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)
