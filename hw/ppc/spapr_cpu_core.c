@@ -221,7 +221,7 @@ static Property spapr_cpu_core_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
+static void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_CLASS(oc);
@@ -259,6 +259,9 @@ static const TypeInfo spapr_cpu_core_type_infos[] = {
     DEFINE_SPAPR_CPU_CORE_TYPE("power8nvl_v1.0"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power9_v1.0"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power9_v2.0"),
+#ifdef CONFIG_KVM
+    DEFINE_SPAPR_CPU_CORE_TYPE("host"),
+#endif
 };
 
 DEFINE_TYPES(spapr_cpu_core_type_infos)
