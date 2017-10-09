@@ -3145,12 +3145,13 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
             return last_cluster;
         }
         if ((last_cluster + 1) * s->cluster_size < old_file_size) {
-            ret = bdrv_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
-                                PREALLOC_MODE_OFF, NULL);
-            if (ret < 0) {
-                warn_report("Failed to truncate the tail of the image: %s",
-                            strerror(-ret));
-                ret = 0;
+            Error *local_err = NULL;
+
+            bdrv_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
+                          PREALLOC_MODE_OFF, &local_err);
+            if (local_err) {
+                warn_reportf_err(local_err,
+                                 "Failed to truncate the tail of the image: ");
             }
         }
     } else {
