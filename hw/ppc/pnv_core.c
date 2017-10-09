@@ -225,38 +225,30 @@ static void pnv_core_class_init(ObjectClass *oc, void *data)
     dc->props = pnv_core_properties;
 }
 
-static const TypeInfo pnv_core_info = {
-    .name           = TYPE_PNV_CORE,
-    .parent         = TYPE_CPU_CORE,
-    .instance_size  = sizeof(PnvCore),
-    .class_size     = sizeof(PnvCoreClass),
-    .class_init = pnv_core_class_init,
-    .abstract       = true,
-};
-
-static const char *pnv_core_models[] = {
-    "power8e_v2.1", "power8_v2.0", "power8nvl_v1.0", "power9_v2.0"
-};
-
-static void pnv_core_register_types(void)
-{
-    int i ;
-
-    type_register_static(&pnv_core_info);
-    for (i = 0; i < ARRAY_SIZE(pnv_core_models); ++i) {
-        TypeInfo ti = {
-            .parent = TYPE_PNV_CORE,
-            .instance_size = sizeof(PnvCore),
-        };
-        ti.name = pnv_core_typename(pnv_core_models[i]);
-        type_register(&ti);
-        g_free((void *)ti.name);
+#define DEFINE_PNV_CORE_TYPE(cpu_model)         \
+    {                                           \
+        .parent = TYPE_PNV_CORE,                \
+        .name = PNV_CORE_TYPE_NAME(cpu_model),  \
     }
-}
 
-type_init(pnv_core_register_types)
+static const TypeInfo pnv_core_infos[] = {
+    {
+        .name           = TYPE_PNV_CORE,
+        .parent         = TYPE_CPU_CORE,
+        .instance_size  = sizeof(PnvCore),
+        .class_size     = sizeof(PnvCoreClass),
+        .class_init = pnv_core_class_init,
+        .abstract       = true,
+    },
+    DEFINE_PNV_CORE_TYPE("power8e_v2.1"),
+    DEFINE_PNV_CORE_TYPE("power8_v2.0"),
+    DEFINE_PNV_CORE_TYPE("power8nvl_v1.0"),
+    DEFINE_PNV_CORE_TYPE("power9_v2.0"),
+};
 
 char *pnv_core_typename(const char *model)
 {
     return g_strdup_printf(PNV_CORE_TYPE_NAME("%s"), model);
 }
+
+DEFINE_TYPES(pnv_core_infos)
