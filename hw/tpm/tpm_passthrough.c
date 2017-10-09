@@ -149,29 +149,20 @@ static int tpm_passthrough_unix_transfer(TPMPassthruState *tpm_pt,
                                         selftest_done);
 }
 
-static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd cmd)
+static void tpm_passthrough_handle_request(TPMBackend *tb)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     bool selftest_done = false;
 
-    DPRINTF("tpm_passthrough: processing command type %d\n", cmd);
+    DPRINTF("tpm_passthrough: processing command\n");
 
-    switch (cmd) {
-    case TPM_BACKEND_CMD_PROCESS_CMD:
-        tpm_passthrough_unix_transfer(tpm_pt,
-                                      tb->tpm_state->locty_data,
-                                      &selftest_done);
+    tpm_passthrough_unix_transfer(tpm_pt,
+                                  tb->tpm_state->locty_data,
+                                  &selftest_done);
 
-        tb->recv_data_callback(tb->tpm_state,
-                               tb->tpm_state->locty_number,
-                               selftest_done);
-        break;
-    case TPM_BACKEND_CMD_INIT:
-    case TPM_BACKEND_CMD_END:
-    case TPM_BACKEND_CMD_TPM_RESET:
-        /* nothing to do */
-        break;
-    }
+    tb->recv_data_callback(tb->tpm_state,
+                           tb->tpm_state->locty_number,
+                           selftest_done);
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)

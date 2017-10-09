@@ -172,39 +172,29 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number)
     return 0;
 }
 
-static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd cmd)
+static void tpm_emulator_handle_request(TPMBackend *tb)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     TPMLocality *locty = NULL;
     bool selftest_done = false;
     Error *err = NULL;
 
-    DPRINTF("processing command type %d", cmd);
+    DPRINTF("processing TPM command");
 
-    switch (cmd) {
-    case TPM_BACKEND_CMD_PROCESS_CMD:
-        locty = tb->tpm_state->locty_data;
-        if (tpm_emulator_set_locality(tpm_emu,
-                                      tb->tpm_state->locty_number) < 0 ||
-            tpm_emulator_unix_tx_bufs(tpm_emu, locty->w_buffer.buffer,
-                                      locty->w_offset, locty->r_buffer.buffer,
-                                      locty->r_buffer.size, &selftest_done,
-                                      &err) < 0) {
-            tpm_util_write_fatal_error_response(locty->r_buffer.buffer,
-                                                locty->r_buffer.size);
-            error_report_err(err);
-        }
-
-        tb->recv_data_callback(tb->tpm_state, tb->tpm_state->locty_number,
-                               selftest_done);
-
-        break;
-    case TPM_BACKEND_CMD_INIT:
-    case TPM_BACKEND_CMD_END:
-    case TPM_BACKEND_CMD_TPM_RESET:
-        /* nothing to do */
-        break;
+    locty = tb->tpm_state->locty_data;
+    if (tpm_emulator_set_locality(tpm_emu,
+                                  tb->tpm_state->locty_number) < 0 ||
+        tpm_emulator_unix_tx_bufs(tpm_emu, locty->w_buffer.buffer,
+                                  locty->w_offset, locty->r_buffer.buffer,
+                                  locty->r_buffer.size, &selftest_done,
+                                  &err) < 0) {
+        tpm_util_write_fatal_error_response(locty->r_buffer.buffer,
+                                            locty->r_buffer.size);
+        error_report_err(err);
     }
+
+    tb->recv_data_callback(tb->tpm_state, tb->tpm_state->locty_number,
+                           selftest_done);
 }
 
 static int tpm_emulator_probe_caps(TPMEmulator *tpm_emu)

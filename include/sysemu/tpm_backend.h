@@ -32,13 +32,6 @@ typedef struct TPMBackend TPMBackend;
 
 typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
 
-typedef enum TPMBackendCmd {
-    TPM_BACKEND_CMD_INIT = 1,
-    TPM_BACKEND_CMD_PROCESS_CMD,
-    TPM_BACKEND_CMD_END,
-    TPM_BACKEND_CMD_TPM_RESET,
-} TPMBackendCmd;
-
 struct TPMBackend {
     Object parent;
 
@@ -83,7 +76,7 @@ struct TPMBackendClass {
 
     void (*opened)(TPMBackend *s, Error **errp);
 
-    void (*handle_request)(TPMBackend *s, TPMBackendCmd cmd);
+    void (*handle_request)(TPMBackend *s);
 };
 
 /**

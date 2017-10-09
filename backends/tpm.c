@@ -25,13 +25,12 @@ static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
     TPMBackendClass *k  = TPM_BACKEND_GET_CLASS(s);
 
     assert(k->handle_request != NULL);
-    k->handle_request(s, (TPMBackendCmd)data);
+    k->handle_request(s);
 }
 
 static void tpm_backend_thread_end(TPMBackend *s)
 {
     if (s->thread_pool) {
-        g_thread_pool_push(s->thread_pool, (gpointer)TPM_BACKEND_CMD_END, NULL);
         g_thread_pool_free(s->thread_pool, FALSE, TRUE);
         s->thread_pool = NULL;
     }
@@ -64,7 +63,6 @@ int tpm_backend_startup_tpm(TPMBackend *s)
 
     s->thread_pool = g_thread_pool_new(tpm_backend_worker_thread, s, 1, TRUE,
                                        NULL);
-    g_thread_pool_push(s->thread_pool, (gpointer)TPM_BACKEND_CMD_INIT, NULL);
 
     res = k->startup_tpm ? k->startup_tpm(s) : 0;
 
@@ -80,8 +78,7 @@ bool tpm_backend_had_startup_error(TPMBackend *s)
 
 void tpm_backend_deliver_request(TPMBackend *s)
 {
-    g_thread_pool_push(s->thread_pool, (gpointer)TPM_BACKEND_CMD_PROCESS_CMD,
-                       NULL);
+    g_thread_pool_push(s->thread_pool, NULL, NULL);
 }
 
 void tpm_backend_reset(TPMBackend *s)
