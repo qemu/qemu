@@ -66,11 +66,6 @@ struct TPMBackendClass {
     void (*handle_request)(TPMBackend *s, TPMBackendCmd cmd);
 };
 
-typedef struct TPMSizedBuffer {
-    uint32_t size;
-    uint8_t  *buffer;
-} TPMSizedBuffer;
-
 struct TPMDriverOps {
     enum TpmType type;
     const QemuOptDesc *opts;

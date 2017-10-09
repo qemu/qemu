@@ -37,6 +37,11 @@ typedef enum {
     TPM_TIS_STATE_RECEPTION,
 } TPMTISState;
 
+typedef struct TPMSizedBuffer {
+    uint32_t size;
+    uint8_t  *buffer;
+} TPMSizedBuffer;
+
 /* locality data  -- all fields are persisted */
 typedef struct TPMLocality {
     TPMTISState state;
