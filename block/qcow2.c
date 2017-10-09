@@ -2460,6 +2460,14 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
 }
 
 
+typedef struct PreallocCo {
+    BlockDriverState *bs;
+    uint64_t offset;
+    uint64_t new_length;
+
+    int ret;
+} PreallocCo;
+
 /**
  * Preallocates metadata structures for data clusters between @offset (in the
  * guest disk) and @new_length (which is thus generally the new guest disk
@@ -2467,9 +2475,12 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
  *
  * Returns: 0 on success, -errno on failure.
  */
-static int preallocate(BlockDriverState *bs,
-                       uint64_t offset, uint64_t new_length)
+static void coroutine_fn preallocate_co(void *opaque)
 {
+    PreallocCo *params = opaque;
+    BlockDriverState *bs = params->bs;
+    uint64_t offset = params->offset;
+    uint64_t new_length = params->new_length;
     BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
     uint64_t host_offset = 0;
@@ -2477,9 +2488,7 @@ static int preallocate(BlockDriverState *bs,
     int ret;
     QCowL2Meta *meta;
 
-    if (qemu_in_coroutine()) {
-        qemu_co_mutex_lock(&s->lock);
-    }
+    qemu_co_mutex_lock(&s->lock);
 
     assert(offset <= new_length);
     bytes = new_length - offset;
@@ -2533,10 +2542,28 @@ static int preallocate(BlockDriverState *bs,
     ret = 0;
 
 done:
+    qemu_co_mutex_unlock(&s->lock);
+    params->ret = ret;
+}
+
+static int preallocate(BlockDriverState *bs,
+                       uint64_t offset, uint64_t new_length)
+{
+    PreallocCo params = {
+        .bs         = bs,
+        .offset     = offset,
+        .new_length = new_length,
+        .ret        = -EINPROGRESS,
+    };
+
     if (qemu_in_coroutine()) {
-        qemu_co_mutex_unlock(&s->lock);
+        preallocate_co(&params);
+    } else {
+        Coroutine *co = qemu_coroutine_create(preallocate_co, &params);
+        bdrv_coroutine_enter(bs, co);
+        BDRV_POLL_WHILE(bs, params.ret == -EINPROGRESS);
     }
-    return ret;
+    return params.ret;
 }
 
 /* qcow2_refcount_metadata_size:
