@@ -1543,6 +1543,7 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv dest,
     return DISAS_NEXT;
 }
 
+#ifdef CONFIG_USER_ONLY
 /* On Linux, page zero is normally marked execute only + gateway.
    Therefore normal read or write is supposed to fail, but specific
    offsets have kernel code mapped to raise permissions to implement
@@ -1600,6 +1601,7 @@ static DisasJumpType do_page_zero(DisasContext *ctx)
         return DISAS_NORETURN;
     }
 }
+#endif
 
 static DisasJumpType trans_nop(DisasContext *ctx, uint32_t insn,
                                const DisasInsn *di)
@@ -3787,10 +3789,13 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     int i, n;
 
     /* Execute one insn.  */
+#ifdef CONFIG_USER_ONLY
     if (ctx->iaoq_f < TARGET_PAGE_SIZE) {
         ret = do_page_zero(ctx);
         assert(ret != DISAS_NEXT);
-    } else {
+    } else
+#endif
+    {
         /* Always fetch the insn, even if nullified, so that we check
            the page permissions for execute.  */
         uint32_t insn = cpu_ldl_code(env, ctx->iaoq_f);
@@ -3885,25 +3890,27 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 static void hppa_tr_disas_log(const DisasContextBase *dcbase, CPUState *cs)
 {
     TranslationBlock *tb = dcbase->tb;
+    target_ulong pc = tb->pc;
 
-    switch (tb->pc) {
+#ifdef CONFIG_USER_ONLY
+    switch (pc) {
     case 0x00:
         qemu_log("IN:\n0x00000000:  (null)\n");
-        break;
+        return;
     case 0xb0:
         qemu_log("IN:\n0x000000b0:  light-weight-syscall\n");
-        break;
+        return;
     case 0xe0:
         qemu_log("IN:\n0x000000e0:  set-thread-pointer-syscall\n");
-        break;
+        return;
     case 0x100:
         qemu_log("IN:\n0x00000100:  syscall\n");
-        break;
-    default:
-        qemu_log("IN: %s\n", lookup_symbol(tb->pc));
-        log_target_disas(cs, tb->pc, tb->size);
-        break;
+        return;
     }
+#endif
+
+    qemu_log("IN: %s\n", lookup_symbol(pc));
+    log_target_disas(cs, pc, tb->size);
 }
 
 static const TranslatorOps hppa_tr_ops = {
