@@ -217,37 +217,6 @@ err:
     error_propagate(errp, local_err);
 }
 
-static const char *spapr_core_models[] = {
-    /* 970 */
-    "970_v2.2",
-
-    /* 970MP variants */
-    "970mp_v1.0",
-    "970mp_v1.1",
-
-    /* POWER5+ */
-    "power5+_v2.1",
-
-    /* POWER7 */
-    "power7_v2.3",
-
-    /* POWER7+ */
-    "power7+_v2.1",
-
-    /* POWER8 */
-    "power8_v2.0",
-
-    /* POWER8E */
-    "power8e_v2.1",
-
-    /* POWER8NVL */
-    "power8nvl_v1.0",
-
-    /* POWER9 */
-    "power9_v1.0",
-    "power9_v2.0",
-};
-
 static Property spapr_cpu_core_properties[] = {
     DEFINE_PROP_INT32("node-id", sPAPRCPUCore, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_END_OF_LIST()
@@ -265,33 +234,33 @@ void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
     g_assert(scc->cpu_class);
 }
 
-static const TypeInfo spapr_cpu_core_type_info = {
-    .name = TYPE_SPAPR_CPU_CORE,
-    .parent = TYPE_CPU_CORE,
-    .abstract = true,
-    .instance_size = sizeof(sPAPRCPUCore),
-    .class_size = sizeof(sPAPRCPUCoreClass),
+#define DEFINE_SPAPR_CPU_CORE_TYPE(cpu_model) \
+    {                                                   \
+        .parent = TYPE_SPAPR_CPU_CORE,                  \
+        .class_data = (void *) cpu_model,               \
+        .class_init = spapr_cpu_core_class_init,        \
+        .name = SPAPR_CPU_CORE_TYPE_NAME(cpu_model),    \
+    }
+
+static const TypeInfo spapr_cpu_core_type_infos[] = {
+    {
+        .name = TYPE_SPAPR_CPU_CORE,
+        .parent = TYPE_CPU_CORE,
+        .abstract = true,
+        .instance_size = sizeof(sPAPRCPUCore),
+        .class_size = sizeof(sPAPRCPUCoreClass),
+    },
+    DEFINE_SPAPR_CPU_CORE_TYPE("970_v2.2"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("970mp_v1.0"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("970mp_v1.1"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power5+_v2.1"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power7_v2.3"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power7+_v2.1"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power8_v2.0"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power8e_v2.1"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power8nvl_v1.0"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power9_v1.0"),
+    DEFINE_SPAPR_CPU_CORE_TYPE("power9_v2.0"),
 };
 
-static void spapr_cpu_core_register_types(void)
-{
-    int i;
-
-    type_register_static(&spapr_cpu_core_type_info);
-
-    for (i = 0; i < ARRAY_SIZE(spapr_core_models); i++) {
-        TypeInfo type_info = {
-            .parent = TYPE_SPAPR_CPU_CORE,
-            .instance_size = sizeof(sPAPRCPUCore),
-            .class_init = spapr_cpu_core_class_init,
-            .class_data = (void *) spapr_core_models[i],
-        };
-
-        type_info.name = g_strdup_printf("%s-" TYPE_SPAPR_CPU_CORE,
-                                         spapr_core_models[i]);
-        type_register(&type_info);
-        g_free((void *)type_info.name);
-    }
-}
-
-type_init(spapr_cpu_core_register_types)
+DEFINE_TYPES(spapr_cpu_core_type_infos)
