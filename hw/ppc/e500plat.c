@@ -64,6 +64,7 @@ static void e500plat_machine_init(MachineClass *mc)
     mc->init = e500plat_init;
     mc->max_cpus = 32;
     mc->has_dynamic_sysbus = true;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
 }
 
 DEFINE_MACHINE("ppce500", e500plat_machine_init)

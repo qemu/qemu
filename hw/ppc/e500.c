@@ -803,11 +803,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     SysBusDevice *s;
     PPCE500CCSRState *ccsr;
 
-    /* Setup CPUs */
-    if (machine->cpu_model == NULL) {
-        machine->cpu_model = "e500v2_v30";
-    }
-
     irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
@@ -815,8 +810,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         CPUState *cs;
         qemu_irq *input;
 
-        cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU,
-                                           machine->cpu_model));
+        cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
         env = &cpu->env;
         cs = CPU(cpu);
 
