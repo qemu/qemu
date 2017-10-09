@@ -66,8 +66,6 @@ struct TPMBackendClass {
 
     TPMBackend *(*create)(QemuOpts *opts, const char *id);
 
-    /* initialize the backend */
-    int (*init)(TPMBackend *t);
     /* start up the TPM on the backend */
     int (*startup_tpm)(TPMBackend *t);
 
