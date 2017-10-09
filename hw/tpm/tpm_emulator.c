@@ -581,7 +581,6 @@ static const TypeInfo tpm_emulator_info = {
 static void tpm_emulator_register(void)
 {
     type_register_static(&tpm_emulator_info);
-    tpm_register_driver(&tpm_emulator_driver);
 }
 
 type_init(tpm_emulator_register)

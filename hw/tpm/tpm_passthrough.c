@@ -418,7 +418,6 @@ static const TypeInfo tpm_passthrough_info = {
 static void tpm_passthrough_register(void)
 {
     type_register_static(&tpm_passthrough_info);
-    tpm_register_driver(&tpm_passthrough_driver);
 }
 
 type_init(tpm_passthrough_register)

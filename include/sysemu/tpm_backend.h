@@ -216,6 +216,5 @@ TPMInfo *tpm_backend_query_tpm(TPMBackend *s);
 TPMBackend *qemu_find_tpm(const char *id);
 
 void tpm_register_model(enum TpmModel model);
-void tpm_register_driver(const TPMDriverOps *tdo);
 
 #endif

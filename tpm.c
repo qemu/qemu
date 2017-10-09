@@ -23,7 +23,6 @@
 static QLIST_HEAD(, TPMBackend) tpm_backends =
     QLIST_HEAD_INITIALIZER(tpm_backends);
 
-static TPMDriverOps const *be_drivers[TPM_TYPE__MAX];
 static bool tpm_models[TPM_MODEL__MAX];
 
 void tpm_register_model(enum TpmModel model)
@@ -32,13 +31,6 @@ void tpm_register_model(enum TpmModel model)
 }
 
 #ifdef CONFIG_TPM
-
-void tpm_register_driver(const TPMDriverOps *tdo)
-{
-    assert(!be_drivers[tdo->type]);
-
-    be_drivers[tdo->type] = tdo;
-}
 
 static const TPMDriverOps *
 tpm_driver_find_by_type(enum TpmType type)
