@@ -34,7 +34,7 @@ typedef struct sPAPRCPUCore {
 
 typedef struct sPAPRCPUCoreClass {
     DeviceClass parent_class;
-    ObjectClass *cpu_class;
+    const char *cpu_type;
 } sPAPRCPUCoreClass;
 
 char *spapr_get_cpu_core_type(const char *model);

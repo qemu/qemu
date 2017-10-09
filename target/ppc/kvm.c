@@ -2514,7 +2514,7 @@ static int kvm_ppc_register_host_cpu_type(void)
     type_info.instance_size = sizeof(sPAPRCPUCore);
     type_info.instance_init = NULL;
     type_info.class_init = spapr_cpu_core_class_init;
-    type_info.class_data = (void *) "host";
+    type_info.class_data = (void *) POWERPC_CPU_TYPE_NAME("host");
     type_register(&type_info);
     g_free((void *)type_info.name);
 #endif
