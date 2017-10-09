@@ -3061,14 +3061,13 @@ void spapr_lmb_release(DeviceState *dev)
         return;
     }
 
-    spapr_pending_dimm_unplugs_remove(spapr, ds);
-
     /*
      * Now that all the LMBs have been removed by the guest, call the
      * pc-dimm unplug handler to cleanup up the pc-dimm device.
      */
     pc_dimm_memory_unplug(dev, &spapr->hotplug_memory, mr);
     object_unparent(OBJECT(dev));
+    spapr_pending_dimm_unplugs_remove(spapr, ds);
 }
 
 static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
@@ -3094,6 +3093,19 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
     addr_start = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
                                          &local_err);
     if (local_err) {
+        goto out;
+    }
+
+    /*
+     * An existing pending dimm state for this DIMM means that there is an
+     * unplug operation in progress, waiting for the spapr_lmb_release
+     * callback to complete the job (BQL can't cover that far). In this case,
+     * bail out to avoid detaching DRCs that were already released.
+     */
+    if (spapr_pending_dimm_unplugs_find(spapr, dimm)) {
+        error_setg(&local_err,
+                   "Memory unplug already in progress for device %s",
+                   dev->id);
         goto out;
     }
 
