@@ -601,3 +601,17 @@ float64 HELPER(fmpynfadd_d)(CPUHPPAState *env, float64 a, float64 b, float64 c)
     update_fr0_op(env, GETPC());
     return ret;
 }
+
+#ifndef CONFIG_USER_ONLY
+target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
+{
+    target_ulong psw = env->psw;
+    /* ??? On second reading this condition simply seems
+       to be undefined rather than a diagnosed trap.  */
+    if (nsm & ~psw & PSW_Q) {
+        dynexcp(env, EXCP_ILL, GETPC());
+    }
+    env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
+    return psw & PSW_SM;
+}
+#endif

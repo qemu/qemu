@@ -299,6 +299,10 @@ typedef struct DisasContext {
    updated the iaq for the next instruction to be executed.  */
 #define DISAS_IAQ_N_STALE    DISAS_TARGET_1
 
+/* Similarly, but we want to return to the main loop immediately
+   to recognize unmasked interrupts.  */
+#define DISAS_IAQ_N_STALE_EXIT      DISAS_TARGET_2
+
 typedef struct DisasInsn {
     uint32_t insn, mask;
     DisasJumpType (*trans)(DisasContext *ctx, uint32_t insn,
@@ -696,6 +700,14 @@ static DisasJumpType gen_illegal(DisasContext *ctx)
     nullify_over(ctx);
     return nullify_end(ctx, gen_excp(ctx, EXCP_ILL));
 }
+
+#define CHECK_MOST_PRIVILEGED(EXCP)                               \
+    do {                                                          \
+        if (ctx->privilege != 0) {                                \
+            nullify_over(ctx);                                    \
+            return nullify_end(ctx, gen_excp(ctx, EXCP));         \
+        }                                                         \
+    } while (0)
 
 static bool use_goto_tb(DisasContext *ctx, target_ureg dest)
 {
@@ -1982,6 +1994,79 @@ static DisasJumpType trans_ldsid(DisasContext *ctx, uint32_t insn,
     return DISAS_NEXT;
 }
 
+#ifndef CONFIG_USER_ONLY
+/* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
+static target_ureg extract_sm_imm(uint32_t insn)
+{
+    target_ureg val = extract32(insn, 16, 10);
+
+    if (val & PSW_SM_E) {
+        val = (val & ~PSW_SM_E) | PSW_E;
+    }
+    if (val & PSW_SM_W) {
+        val = (val & ~PSW_SM_W) | PSW_W;
+    }
+    return val;
+}
+
+static DisasJumpType trans_rsm(DisasContext *ctx, uint32_t insn,
+                               const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    target_ureg sm = extract_sm_imm(insn);
+    TCGv_reg tmp;
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+
+    tmp = get_temp(ctx);
+    tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, psw));
+    tcg_gen_andi_reg(tmp, tmp, ~sm);
+    gen_helper_swap_system_mask(tmp, cpu_env, tmp);
+    save_gpr(ctx, rt, tmp);
+
+    /* Exit the TB to recognize new interrupts, e.g. PSW_M.  */
+    return nullify_end(ctx, DISAS_IAQ_N_STALE_EXIT);
+}
+
+static DisasJumpType trans_ssm(DisasContext *ctx, uint32_t insn,
+                               const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    target_ureg sm = extract_sm_imm(insn);
+    TCGv_reg tmp;
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+
+    tmp = get_temp(ctx);
+    tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, psw));
+    tcg_gen_ori_reg(tmp, tmp, sm);
+    gen_helper_swap_system_mask(tmp, cpu_env, tmp);
+    save_gpr(ctx, rt, tmp);
+
+    /* Exit the TB to recognize new interrupts, e.g. PSW_I.  */
+    return nullify_end(ctx, DISAS_IAQ_N_STALE_EXIT);
+}
+
+static DisasJumpType trans_mtsm(DisasContext *ctx, uint32_t insn,
+                                const DisasInsn *di)
+{
+    unsigned rr = extract32(insn, 16, 5);
+    TCGv_reg tmp, reg;
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+
+    reg = load_gpr(ctx, rr);
+    tmp = get_temp(ctx);
+    gen_helper_swap_system_mask(tmp, cpu_env, reg);
+
+    /* Exit the TB to recognize new interrupts.  */
+    return nullify_end(ctx, DISAS_IAQ_N_STALE_EXIT);
+}
+#endif /* !CONFIG_USER_ONLY */
+
 static const DisasInsn table_system[] = {
     { 0x00000000u, 0xfc001fe0u, trans_break },
     /* We don't implement space register, so MTSP is a nop.  */
@@ -1993,6 +2078,11 @@ static const DisasInsn table_system[] = {
     { 0x000008a0u, 0xfc1fffe0u, trans_mfctl },
     { 0x00000400u, 0xffffffffu, trans_sync },
     { 0x000010a0u, 0xfc1f3fe0u, trans_ldsid },
+#ifndef CONFIG_USER_ONLY
+    { 0x00000e60u, 0xfc00ffe0u, trans_rsm },
+    { 0x00000d60u, 0xfc00ffe0u, trans_ssm },
+    { 0x00001860u, 0xffe0ffffu, trans_mtsm },
+#endif
 };
 
 static DisasJumpType trans_base_idx_mod(DisasContext *ctx, uint32_t insn,
@@ -4111,12 +4201,14 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    DisasJumpType is_jmp = ctx->base.is_jmp;
 
-    switch (ctx->base.is_jmp) {
+    switch (is_jmp) {
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
     case DISAS_IAQ_N_STALE:
+    case DISAS_IAQ_N_STALE_EXIT:
         copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
         copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
         nullify_save(ctx);
@@ -4124,6 +4216,8 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_IAQ_N_UPDATED:
         if (ctx->base.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
+        } else if (is_jmp == DISAS_IAQ_N_STALE_EXIT) {
+            tcg_gen_exit_tb(0);
         } else {
             tcg_gen_lookup_and_goto_ptr();
         }
