@@ -72,4 +72,23 @@ typedef struct TPMTISEmuState {
     uint32_t irq_num;
 } TPMTISEmuState;
 
+/* overall state of the TPM interface */
+struct TPMState {
+    ISADevice busdev;
+    MemoryRegion mmio;
+
+    union {
+        TPMTISEmuState tis;
+    } s;
+
+    uint8_t     locty_number;
+    TPMBackendCmd cmd;
+
+    char *backend;
+    TPMBackend *be_driver;
+    TPMVersion be_tpm_version;
+};
+
+#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
+
 #endif /* TPM_TPM_TIS_H */

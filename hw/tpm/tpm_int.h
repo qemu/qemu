@@ -12,28 +12,9 @@
 #ifndef TPM_TPM_INT_H
 #define TPM_TPM_INT_H
 
-#include "exec/memory.h"
-#include "tpm_tis.h"
+#include "qemu/osdep.h"
 
-/* overall state of the TPM interface */
-struct TPMState {
-    ISADevice busdev;
-    MemoryRegion mmio;
-
-    union {
-        TPMTISEmuState tis;
-    } s;
-
-    TPMBackendCmd cmd;
-
-    char *backend;
-    TPMBackend *be_driver;
-    TPMVersion be_tpm_version;
-};
-
-#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
-
-#define TPM_STANDARD_CMDLINE_OPTS \
+#define TPM_STANDARD_CMDLINE_OPTS               \
     { \
         .name = "type", \
         .type = QEMU_OPT_STRING, \

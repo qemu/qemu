@@ -22,6 +22,7 @@
 #include "qemu/osdep.h"
 #include "tpm_util.h"
 #include "tpm_int.h"
+#include "exec/memory.h"
 
 /*
  * Write an error message in the given output buffer.
