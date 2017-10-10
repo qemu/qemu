@@ -939,10 +939,6 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     char *typename;
     char **cpuname;
 
-    if (!cpu_model) {
-        return NULL;
-    }
-
     cpuname = g_strsplit(cpu_model, ",", 1);
     typename = g_strdup_printf(ARM_CPU_TYPE_NAME("%s"), cpuname[0]);
     oc = object_class_by_name(typename);

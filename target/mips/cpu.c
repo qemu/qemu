@@ -166,10 +166,6 @@ static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
     ObjectClass *oc;
     char *typename;
 
-    if (cpu_model == NULL) {
-        return NULL;
-    }
-
     typename = mips_cpu_type_name(cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);

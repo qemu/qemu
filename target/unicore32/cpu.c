@@ -44,10 +44,6 @@ static ObjectClass *uc32_cpu_class_by_name(const char *cpu_model)
     ObjectClass *oc;
     char *typename;
 
-    if (cpu_model == NULL) {
-        return NULL;
-    }
-
     typename = g_strdup_printf("%s-" TYPE_UNICORE32_CPU, cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);

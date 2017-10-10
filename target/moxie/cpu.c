@@ -89,13 +89,7 @@ static void moxie_cpu_initfn(Object *obj)
 
 static ObjectClass *moxie_cpu_class_by_name(const char *cpu_model)
 {
-    ObjectClass *oc;
-
-    if (cpu_model == NULL) {
-        return NULL;
-    }
-
-    oc = object_class_by_name(cpu_model);
+    ObjectClass *oc = object_class_by_name(cpu_model);
     if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_MOXIE_CPU) ||
                        object_class_is_abstract(oc))) {
         return NULL;

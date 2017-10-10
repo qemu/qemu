@@ -133,9 +133,6 @@ static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)
     ObjectClass *oc;
     GSList *list, *item;
 
-    if (cpu_model == NULL) {
-        return NULL;
-    }
     if (strcasecmp(cpu_model, "any") == 0) {
         return object_class_by_name(TYPE_SH7750R_CPU);
     }

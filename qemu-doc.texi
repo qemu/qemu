@@ -2496,6 +2496,10 @@ would automatically enable USB support on the machine type.
 If using the new syntax, USB support must be explicitly
 enabled via the ``-machine usb=on'' argument.
 
+@subsection -nodefconfig (since 2.11.0)
+
+The ``-nodefconfig`` argument is a synonym for ``-no-user-config``.
+
 @section qemu-img command line arguments
 
 @subsection convert -s (since 2.0.0)
