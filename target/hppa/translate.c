@@ -320,6 +320,7 @@ typedef struct DisasInsn {
 
 /* global register indexes */
 static TCGv_reg cpu_gr[32];
+static TCGv_i64 cpu_sr[4];
 static TCGv_reg cpu_iaoq_f;
 static TCGv_reg cpu_iaoq_b;
 static TCGv_reg cpu_sar;
@@ -358,6 +359,10 @@ void hppa_translate_init(void)
         "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
         "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31"
     };
+    /* SR[4-7] are not global registers so that we can index them.  */
+    static const char sr_names[4][4] = {
+        "sr0", "sr1", "sr2", "sr3"
+    };
 
     int i;
 
@@ -366,6 +371,11 @@ void hppa_translate_init(void)
         cpu_gr[i] = tcg_global_mem_new(cpu_env,
                                        offsetof(CPUHPPAState, gr[i]),
                                        gr_names[i]);
+    }
+    for (i = 0; i < 4; i++) {
+        cpu_sr[i] = tcg_global_mem_new_i64(cpu_env,
+                                           offsetof(CPUHPPAState, sr[i]),
+                                           sr_names[i]);
     }
 
     for (i = 0; i < ARRAY_SIZE(vars); ++i) {
@@ -569,6 +579,19 @@ static TCGv_i64 load_frd0(unsigned rt)
 static void save_frd(unsigned rt, TCGv_i64 val)
 {
     tcg_gen_st_i64(val, cpu_env, offsetof(CPUHPPAState, fr[rt]));
+}
+
+static void load_spr(DisasContext *ctx, TCGv_i64 dest, unsigned reg)
+{
+#ifdef CONFIG_USER_ONLY
+    tcg_gen_movi_i64(dest, 0);
+#else
+    if (reg < 4) {
+        tcg_gen_mov_i64(dest, cpu_sr[reg]);
+    } else {
+        tcg_gen_ld_i64(dest, cpu_env, offsetof(CPUHPPAState, sr[reg]));
+    }
+#endif
 }
 
 /* Skip over the implementation of an insn that has been nullified.
@@ -783,6 +806,13 @@ static unsigned assemble_rc64(uint32_t insn)
     unsigned r1 = extract32(insn, 13, 3);
     unsigned r0 = extract32(insn, 9, 2);
     return r2 * 32 + r1 * 4 + r0;
+}
+
+static unsigned assemble_sr3(uint32_t insn)
+{
+    unsigned s2 = extract32(insn, 13, 1);
+    unsigned s0 = extract32(insn, 14, 2);
+    return s2 * 4 + s0;
 }
 
 static target_sreg assemble_12(uint32_t insn)
@@ -1894,11 +1924,17 @@ static DisasJumpType trans_mfsp(DisasContext *ctx, uint32_t insn,
                                 const DisasInsn *di)
 {
     unsigned rt = extract32(insn, 0, 5);
-    TCGv_reg tmp = dest_gpr(ctx, rt);
+    unsigned rs = assemble_sr3(insn);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_reg t1 = tcg_temp_new();
 
-    /* ??? We don't implement space registers.  */
-    tcg_gen_movi_reg(tmp, 0);
-    save_gpr(ctx, rt, tmp);
+    load_spr(ctx, t0, rs);
+    tcg_gen_shri_i64(t0, t0, 32);
+    tcg_gen_trunc_i64_reg(t1, t0);
+
+    save_gpr(ctx, rt, t1);
+    tcg_temp_free(t1);
+    tcg_temp_free_i64(t0);
 
     cond_free(&ctx->null_cond);
     return DISAS_NEXT;
@@ -1942,6 +1978,32 @@ static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
 
     cond_free(&ctx->null_cond);
     return DISAS_NEXT;
+}
+
+static DisasJumpType trans_mtsp(DisasContext *ctx, uint32_t insn,
+                                const DisasInsn *di)
+{
+    unsigned rr = extract32(insn, 16, 5);
+    unsigned rs = assemble_sr3(insn);
+    TCGv_i64 t64;
+
+    if (rs >= 5) {
+        CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
+    }
+    nullify_over(ctx);
+
+    t64 = tcg_temp_new_i64();
+    tcg_gen_extu_reg_i64(t64, load_gpr(ctx, rr));
+    tcg_gen_shli_i64(t64, t64, 32);
+
+    if (rs >= 4) {
+        tcg_gen_st_i64(t64, cpu_env, offsetof(CPUHPPAState, sr[rs]));
+    } else {
+        tcg_gen_mov_i64(cpu_sr[rs], t64);
+    }
+    tcg_temp_free_i64(t64);
+
+    return nullify_end(ctx, DISAS_NEXT);
 }
 
 static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
@@ -2069,8 +2131,7 @@ static DisasJumpType trans_mtsm(DisasContext *ctx, uint32_t insn,
 
 static const DisasInsn table_system[] = {
     { 0x00000000u, 0xfc001fe0u, trans_break },
-    /* We don't implement space register, so MTSP is a nop.  */
-    { 0x00001820u, 0xffe01fffu, trans_nop },
+    { 0x00001820u, 0xffe01fffu, trans_mtsp },
     { 0x00001840u, 0xfc00ffffu, trans_mtctl },
     { 0x016018c0u, 0xffe0ffffu, trans_mtsarcm },
     { 0x000014a0u, 0xffffffe0u, trans_mfia },

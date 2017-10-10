@@ -140,6 +140,7 @@ typedef int64_t  target_sreg;
 struct CPUHPPAState {
     target_ureg gr[32];
     uint64_t fr[32];
+    uint64_t sr[8];          /* stored shifted into place for gva */
 
     target_ureg sar;
     target_ureg cr26;

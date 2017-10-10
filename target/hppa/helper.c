@@ -168,12 +168,16 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f,
                 psw, psw_cb, psw_c);
 
     for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, "GR%02d " TREG_FMT_lx " ", i, env->gr[i]);
-        if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
-        }
+        cpu_fprintf(f, "GR%02d " TREG_FMT_lx "%c", i, env->gr[i],
+                    (i & 3) == 3 ? '\n' : ' ');
     }
-    cpu_fprintf(f, "\n");
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < 8; i++) {
+        cpu_fprintf(f, "SR%02d %08x%c", i, (uint32_t)(env->sr[i] >> 32),
+                    (i & 3) == 3 ? '\n' : ' ');
+    }
+#endif
+     cpu_fprintf(f, "\n");
 
     /* ??? FR */
 }
