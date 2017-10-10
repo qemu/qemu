@@ -29,10 +29,12 @@
 #include "ui/shader.h"
 
 #include "shader/texture-blit-vert.h"
+#include "shader/texture-blit-flip-vert.h"
 #include "shader/texture-blit-frag.h"
 
 struct QemuGLShader {
     GLint texture_blit_prog;
+    GLint texture_blit_flip_prog;
     GLint texture_blit_vao;
 };
 
@@ -68,9 +70,11 @@ static GLuint qemu_gl_init_texture_blit(GLint texture_blit_prog)
     return vao;
 }
 
-void qemu_gl_run_texture_blit(QemuGLShader *gls)
+void qemu_gl_run_texture_blit(QemuGLShader *gls, bool flip)
 {
-    glUseProgram(gls->texture_blit_prog);
+    glUseProgram(flip
+                 ? gls->texture_blit_flip_prog
+                 : gls->texture_blit_prog);
     glBindVertexArray(gls->texture_blit_vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
@@ -150,7 +154,9 @@ QemuGLShader *qemu_gl_init_shader(void)
 
     gls->texture_blit_prog = qemu_gl_create_compile_link_program
         (texture_blit_vert_src, texture_blit_frag_src);
-    if (!gls->texture_blit_prog) {
+    gls->texture_blit_flip_prog = qemu_gl_create_compile_link_program
+        (texture_blit_flip_vert_src, texture_blit_frag_src);
+    if (!gls->texture_blit_prog || !gls->texture_blit_flip_prog) {
         exit(1);
     }
 

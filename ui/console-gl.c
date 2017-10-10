@@ -109,7 +109,7 @@ void surface_gl_render_texture(QemuGLShader *gls,
     glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    qemu_gl_run_texture_blit(gls);
+    qemu_gl_run_texture_blit(gls, false);
 }
 
 void surface_gl_destroy_texture(QemuGLShader *gls,

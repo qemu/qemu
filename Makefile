@@ -673,7 +673,9 @@ ui/shader/%-frag.h: $(SRC_PATH)/ui/shader/%.frag $(SRC_PATH)/scripts/shaderinclu
 		"FRAG","$@")
 
 ui/shader.o: $(SRC_PATH)/ui/shader.c \
-	ui/shader/texture-blit-vert.h ui/shader/texture-blit-frag.h
+	ui/shader/texture-blit-vert.h \
+	ui/shader/texture-blit-flip-vert.h \
+	ui/shader/texture-blit-frag.h
 
 # documentation
 MAKEINFO=makeinfo
