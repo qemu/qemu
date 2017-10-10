@@ -1465,13 +1465,13 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     DisplaySurface *surface = qemu_console_surface(s->con);
     int y1, y, update, linesize, y_start, double_scan, mask, depth;
     int width, height, shift_control, bwidth, bits;
-    ram_addr_t page0, page1;
+    ram_addr_t page0, page1, region_start, region_end;
     DirtyBitmapSnapshot *snap = NULL;
     int disp_width, multi_scan, multi_run;
     uint8_t *d;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line = NULL;
-    bool share_surface;
+    bool share_surface, force_shadow = false;
     pixman_format_code_t format;
 #ifdef HOST_WORDS_BIGENDIAN
     bool byteswap = !s->big_endian_fb;
@@ -1483,6 +1483,15 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
     s->get_resolution(s, &width, &height);
     disp_width = width;
+
+    region_start = (s->start_addr * 4);
+    region_end = region_start + s->line_offset * height;
+    if (region_end > s->vbe_size) {
+        /* wraps around (can happen with cirrus vbe modes) */
+        region_start = 0;
+        region_end = s->vbe_size;
+        force_shadow = true;
+    }
 
     shift_control = (s->gr[VGA_GFX_MODE] >> 5) & 3;
     double_scan = (s->cr[VGA_CRTC_MAX_SCAN] >> 7);
@@ -1523,7 +1532,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     format = qemu_default_pixman_format(depth, !byteswap);
     if (format) {
         share_surface = dpy_gfx_check_format(s->con, format)
-            && !s->force_shadow;
+            && !s->force_shadow && !force_shadow;
     } else {
         share_surface = false;
     }
@@ -1627,8 +1636,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     y1 = 0;
 
     if (!full_update) {
-        ram_addr_t region_start = addr1;
-        ram_addr_t region_end = addr1 + s->line_offset * height;
         vga_sync_dirty_bitmap(s);
         if (s->line_compare < height) {
             /* split screen mode */
@@ -1651,10 +1658,17 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             addr = (addr & ~0x8000) | ((y1 & 2) << 14);
         }
         update = full_update;
-        page0 = addr;
-        page1 = addr + bwidth - 1;
+        page0 = addr & s->vbe_size_mask;
+        page1 = (addr + bwidth - 1) & s->vbe_size_mask;
         if (full_update) {
             update = 1;
+        } else if (page1 < page0) {
+            /* scanline wraps from end of video memory to the start */
+            assert(force_shadow);
+            update = memory_region_snapshot_get_dirty(&s->vram, snap,
+                                                      page0, 0);
+            update |= memory_region_snapshot_get_dirty(&s->vram, snap,
+                                                       page1, 0);
         } else {
             update = memory_region_snapshot_get_dirty(&s->vram, snap,
                                                       page0, page1 - page0);
