@@ -5,6 +5,7 @@
 #include "qom/object.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
+#include "qemu/typedefs.h"
 #include "qapi-types.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -180,6 +181,15 @@ struct QEMUGLParams {
     int minor_ver;
 };
 
+struct QemuDmaBuf {
+    int       fd;
+    uint32_t  width;
+    uint32_t  height;
+    uint32_t  stride;
+    uint32_t  fourcc;
+    uint32_t  texture;
+};
+
 typedef struct DisplayChangeListenerOps {
     const char *dpy_name;
 
@@ -220,6 +230,13 @@ typedef struct DisplayChangeListenerOps {
                                    uint32_t backing_height,
                                    uint32_t x, uint32_t y,
                                    uint32_t w, uint32_t h);
+    void (*dpy_gl_scanout_dmabuf)(DisplayChangeListener *dcl,
+                                  QemuDmaBuf *dmabuf);
+    void (*dpy_gl_cursor_dmabuf)(DisplayChangeListener *dcl,
+                                 QemuDmaBuf *dmabuf,
+                                 uint32_t pos_x, uint32_t pos_y);
+    void (*dpy_gl_release_dmabuf)(DisplayChangeListener *dcl,
+                                  QemuDmaBuf *dmabuf);
     void (*dpy_gl_update)(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
@@ -288,6 +305,13 @@ void dpy_gl_scanout_texture(QemuConsole *con,
                             uint32_t backing_id, bool backing_y_0_top,
                             uint32_t backing_width, uint32_t backing_height,
                             uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+void dpy_gl_scanout_dmabuf(QemuConsole *con,
+                           QemuDmaBuf *dmabuf);
+void dpy_gl_cursor_dmabuf(QemuConsole *con,
+                          QemuDmaBuf *dmabuf,
+                          uint32_t pos_x, uint32_t pos_y);
+void dpy_gl_release_dmabuf(QemuConsole *con,
+                           QemuDmaBuf *dmabuf);
 void dpy_gl_update(QemuConsole *con,
                    uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
@@ -298,6 +322,7 @@ int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx);
 QEMUGLContext dpy_gl_ctx_get_current(QemuConsole *con);
 
 bool console_has_gl(QemuConsole *con);
+bool console_has_gl_dmabuf(QemuConsole *con);
 
 static inline int surface_stride(DisplaySurface *s)
 {
