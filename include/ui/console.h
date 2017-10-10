@@ -12,6 +12,7 @@
 
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>
+# include "ui/shader.h"
 #endif
 
 /* keyboard/mouse support */
@@ -415,22 +416,19 @@ void qemu_console_resize(QemuConsole *con, int width, int height);
 DisplaySurface *qemu_console_surface(QemuConsole *con);
 
 /* console-gl.c */
-typedef struct ConsoleGLState ConsoleGLState;
 #ifdef CONFIG_OPENGL
-ConsoleGLState *console_gl_init_context(void);
-void console_gl_fini_context(ConsoleGLState *gls);
 bool console_gl_check_format(DisplayChangeListener *dcl,
                              pixman_format_code_t format);
-void surface_gl_create_texture(ConsoleGLState *gls,
+void surface_gl_create_texture(QemuGLShader *gls,
                                DisplaySurface *surface);
-void surface_gl_update_texture(ConsoleGLState *gls,
+void surface_gl_update_texture(QemuGLShader *gls,
                                DisplaySurface *surface,
                                int x, int y, int w, int h);
-void surface_gl_render_texture(ConsoleGLState *gls,
+void surface_gl_render_texture(QemuGLShader *gls,
                                DisplaySurface *surface);
-void surface_gl_destroy_texture(ConsoleGLState *gls,
+void surface_gl_destroy_texture(QemuGLShader *gls,
                                DisplaySurface *surface);
-void surface_gl_setup_viewport(ConsoleGLState *gls,
+void surface_gl_setup_viewport(QemuGLShader *gls,
                                DisplaySurface *surface,
                                int ww, int wh);
 #endif

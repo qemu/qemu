@@ -96,7 +96,7 @@ void gd_gl_area_refresh(DisplayChangeListener *dcl)
             return;
         }
         gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
-        vc->gfx.gls = console_gl_init_context();
+        vc->gfx.gls = qemu_gl_init_shader();
         if (vc->gfx.ds) {
             surface_gl_create_texture(vc->gfx.gls, vc->gfx.ds);
         }

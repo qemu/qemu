@@ -90,7 +90,7 @@ void sdl2_gl_switch(DisplayChangeListener *dcl,
     scon->surface = new_surface;
 
     if (!new_surface) {
-        console_gl_fini_context(scon->gls);
+        qemu_gl_fini_shader(scon->gls);
         scon->gls = NULL;
         sdl2_window_destroy(scon);
         return;
@@ -98,7 +98,7 @@ void sdl2_gl_switch(DisplayChangeListener *dcl,
 
     if (!scon->real_window) {
         sdl2_window_create(scon);
-        scon->gls = console_gl_init_context();
+        scon->gls = qemu_gl_init_shader();
     } else if (old_surface &&
                ((surface_width(old_surface)  != surface_width(new_surface)) ||
                 (surface_height(old_surface) != surface_height(new_surface)))) {
