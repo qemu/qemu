@@ -111,6 +111,33 @@ void egl_fb_read(void *dst, egl_fb *src)
                  GL_BGRA, GL_UNSIGNED_BYTE, dst);
 }
 
+void egl_texture_blit(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER_EXT, dst->framebuffer);
+    glViewport(0, 0, dst->width, dst->height);
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, src->texture);
+    qemu_gl_run_texture_blit(gls, flip);
+}
+
+void egl_texture_blend(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip,
+                       int x, int y)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER_EXT, dst->framebuffer);
+    if (flip) {
+        glViewport(x, y, src->width, src->height);
+    } else {
+        glViewport(x, dst->height - src->height - y,
+                   src->width, src->height);
+    }
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, src->texture);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    qemu_gl_run_texture_blit(gls, flip);
+    glDisable(GL_BLEND);
+}
+
 /* ---------------------------------------------------------------------- */
 
 #ifdef CONFIG_OPENGL_DMABUF
