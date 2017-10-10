@@ -19,6 +19,7 @@
 #include <dirent.h>
 
 #include "qemu/error-report.h"
+#include "ui/console.h"
 #include "ui/egl-helpers.h"
 
 EGLDisplay *qemu_egl_display;
@@ -239,6 +240,51 @@ int egl_get_fd_for_texture(uint32_t tex_id, EGLint *stride, EGLint *fourcc)
     eglDestroyImageKHR(qemu_egl_display, image);
 
     return fd;
+}
+
+void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf)
+{
+    EGLImageKHR image = EGL_NO_IMAGE_KHR;
+    EGLint attrs[] = {
+        EGL_DMA_BUF_PLANE0_FD_EXT,      dmabuf->fd,
+        EGL_DMA_BUF_PLANE0_PITCH_EXT,   dmabuf->stride,
+        EGL_DMA_BUF_PLANE0_OFFSET_EXT,  0,
+        EGL_WIDTH,                      dmabuf->width,
+        EGL_HEIGHT,                     dmabuf->height,
+        EGL_LINUX_DRM_FOURCC_EXT,       dmabuf->fourcc,
+        EGL_NONE, /* end of list */
+    };
+
+    if (dmabuf->texture != 0) {
+        return;
+    }
+
+    image = eglCreateImageKHR(qemu_egl_display,
+                              EGL_NO_CONTEXT,
+                              EGL_LINUX_DMA_BUF_EXT,
+                              NULL, attrs);
+    if (image == EGL_NO_IMAGE_KHR) {
+        error_report("eglCreateImageKHR failed");
+        return;
+    }
+
+    glGenTextures(1, &dmabuf->texture);
+    glBindTexture(GL_TEXTURE_2D, dmabuf->texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image);
+    eglDestroyImageKHR(qemu_egl_display, image);
+}
+
+void egl_dmabuf_release_texture(QemuDmaBuf *dmabuf)
+{
+    if (dmabuf->texture == 0) {
+        return;
+    }
+
+    glDeleteTextures(1, &dmabuf->texture);
+    dmabuf->texture = 0;
 }
 
 #endif /* CONFIG_OPENGL_DMABUF */

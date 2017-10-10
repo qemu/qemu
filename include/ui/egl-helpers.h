@@ -33,6 +33,9 @@ extern EGLContext qemu_egl_rn_ctx;
 int egl_rendernode_init(const char *rendernode);
 int egl_get_fd_for_texture(uint32_t tex_id, EGLint *stride, EGLint *fourcc);
 
+void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf);
+void egl_dmabuf_release_texture(QemuDmaBuf *dmabuf);
+
 #endif
 
 EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, Window win);
