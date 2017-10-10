@@ -1485,7 +1485,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     disp_width = width;
 
     region_start = (s->start_addr * 4);
-    region_end = region_start + s->line_offset * height;
+    region_end = region_start + (ram_addr_t)s->line_offset * height;
     if (region_end > s->vbe_size) {
         /* wraps around (can happen with cirrus vbe modes) */
         region_start = 0;
