@@ -789,7 +789,6 @@ static const char * const regnames[] = {
     "rpc"
 };
 
-static TCGv_ptr cpu_env;
 static TCGv cpu_R[NUM_CORE_REGS];
 
 #include "exec/gen-icount.h"
@@ -946,9 +945,6 @@ void nios2_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 void nios2_tcg_init(void)
 {
     int i;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx->tcg_env = cpu_env;
 
     for (i = 0; i < NUM_CORE_REGS; i++) {
         cpu_R[i] = tcg_global_mem_new(cpu_env,

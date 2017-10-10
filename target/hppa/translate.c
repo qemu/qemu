@@ -83,7 +83,6 @@ typedef struct DisasInsn {
 } DisasInsn;
 
 /* global register indexes */
-static TCGv_env cpu_env;
 static TCGv cpu_gr[32];
 static TCGv cpu_iaoq_f;
 static TCGv cpu_iaoq_b;
@@ -125,9 +124,6 @@ void hppa_translate_init(void)
     };
 
     int i;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx->tcg_env = cpu_env;
 
     TCGV_UNUSED(cpu_gr[0]);
     for (i = 1; i < 32; i++) {

@@ -53,7 +53,6 @@
 #define DISAS_UPDATE  DISAS_TARGET_1 /* cpu state was modified dynamically */
 #define DISAS_TB_JUMP DISAS_TARGET_2 /* only pc was modified statically */
 
-static TCGv_env cpu_env;
 static TCGv cpu_R[32];
 static TCGv cpu_pc;
 static TCGv cpu_ie;
@@ -1207,9 +1206,6 @@ void restore_state_to_opc(CPULM32State *env, TranslationBlock *tb,
 void lm32_translate_init(void)
 {
     int i;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx->tcg_env = cpu_env;
 
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
         cpu_R[i] = tcg_global_mem_new(cpu_env,

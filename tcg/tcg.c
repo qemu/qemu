@@ -121,6 +121,7 @@ static bool tcg_out_ldst_finalize(TCGContext *s);
 
 static TCGContext **tcg_ctxs;
 static unsigned int n_tcg_ctxs;
+TCGv_env cpu_env = 0;
 
 /*
  * We divide code_gen_buffer into equally-sized "regions" that TCG threads
@@ -657,6 +658,8 @@ static GHashTable *helper_table;
 
 static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
 static void process_op_defs(TCGContext *s);
+static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
+                                            TCGReg reg, const char *name);
 
 void tcg_context_init(TCGContext *s)
 {
@@ -664,6 +667,7 @@ void tcg_context_init(TCGContext *s)
     TCGOpDef *def;
     TCGArgConstraint *args_ct;
     int *sorted_args;
+    TCGTemp *ts;
 
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
@@ -729,6 +733,10 @@ void tcg_context_init(TCGContext *s)
 #else
     tcg_ctxs = g_new(TCGContext *, max_cpus);
 #endif
+
+    tcg_debug_assert(!tcg_regset_test_reg(s->reserved_regs, TCG_AREG0));
+    ts = tcg_global_reg_new_internal(s, TCG_TYPE_PTR, TCG_AREG0, "env");
+    cpu_env = temp_tcgv_ptr(ts);
 }
 
 /*
@@ -869,30 +877,6 @@ void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size)
     s->frame_end = start + size;
     s->frame_temp
         = tcg_global_reg_new_internal(s, TCG_TYPE_PTR, reg, "_frame");
-}
-
-TCGv_i32 tcg_global_reg_new_i32(TCGReg reg, const char *name)
-{
-    TCGContext *s = tcg_ctx;
-    TCGTemp *t;
-
-    if (tcg_regset_test_reg(s->reserved_regs, reg)) {
-        tcg_abort();
-    }
-    t = tcg_global_reg_new_internal(s, TCG_TYPE_I32, reg, name);
-    return temp_tcgv_i32(t);
-}
-
-TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name)
-{
-    TCGContext *s = tcg_ctx;
-    TCGTemp *t;
-
-    if (tcg_regset_test_reg(s->reserved_regs, reg)) {
-        tcg_abort();
-    }
-    t = tcg_global_reg_new_internal(s, TCG_TYPE_I64, reg, name);
-    return temp_tcgv_i64(t);
 }
 
 TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,

@@ -41,7 +41,6 @@
                          according to jump_pc[T2] */
 
 /* global register indexes */
-static TCGv_env cpu_env;
 static TCGv_ptr cpu_regwptr;
 static TCGv cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
 static TCGv_i32 cpu_cc_op;
@@ -5910,9 +5909,6 @@ void sparc_tcg_init(void)
     };
 
     unsigned int i;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx->tcg_env = cpu_env;
 
     cpu_regwptr = tcg_global_mem_new_ptr(cpu_env,
                                          offsetof(CPUSPARCState, regwptr),

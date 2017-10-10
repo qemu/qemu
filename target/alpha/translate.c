@@ -78,7 +78,6 @@ struct DisasContext {
 #define DISAS_PC_STALE            DISAS_TARGET_2
 
 /* global register indexes */
-static TCGv_env cpu_env;
 static TCGv cpu_std_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
@@ -125,9 +124,6 @@ void alpha_translate_init(void)
 #endif
 
     int i;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx->tcg_env = cpu_env;
 
     for (i = 0; i < 31; i++) {
         cpu_std_ir[i] = tcg_global_mem_new_i64(cpu_env,
