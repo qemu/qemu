@@ -224,6 +224,7 @@ qio_channel_websock_extract_headers(QIOChannelWebsock *ioc,
         goto bad_request;
     }
     *nl = '\0';
+    trace_qio_channel_websock_http_greeting(ioc, buffer);
 
     tmp = strchr(buffer, ' ');
     if (!tmp) {
@@ -424,6 +425,9 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
         error_setg(errp, "Missing websocket upgrade header data");
         goto bad_request;
     }
+
+    trace_qio_channel_websock_http_request(ioc, protocols, version,
+                                           host, connection, upgrade, key);
 
     if (!g_strrstr(protocols, QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY)) {
         error_setg(errp, "No '%s' protocol is supported by client '%s'",
