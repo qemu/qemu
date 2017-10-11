@@ -655,6 +655,10 @@ static DisasJumpType nullify_end(DisasContext *ctx, DisasJumpType status)
 {
     TCGLabel *null_lab = ctx->null_lab;
 
+    /* For NEXT, NORETURN, STALE, we can easily continue (or exit).
+       For UPDATED, we cannot update on the nullified path.  */
+    assert(status != DISAS_IAQ_N_UPDATED);
+
     if (likely(null_lab == NULL)) {
         /* The current insn wasn't conditional or handled the condition
            applied to it without a branch, so the (new) setting of
@@ -676,8 +680,6 @@ static DisasJumpType nullify_end(DisasContext *ctx, DisasJumpType status)
         gen_set_label(null_lab);
         ctx->null_cond = cond_make_n();
     }
-
-    assert(status != DISAS_NORETURN && status != DISAS_IAQ_N_UPDATED);
     if (status == DISAS_NORETURN) {
         status = DISAS_NEXT;
     }
@@ -2153,6 +2155,29 @@ static DisasJumpType trans_mtsm(DisasContext *ctx, uint32_t insn,
     /* Exit the TB to recognize new interrupts.  */
     return nullify_end(ctx, DISAS_IAQ_N_STALE_EXIT);
 }
+
+static DisasJumpType trans_rfi(DisasContext *ctx, uint32_t insn,
+                               const DisasInsn *di)
+{
+    unsigned comp = extract32(insn, 5, 4);
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+
+    if (comp == 5) {
+        gen_helper_rfi_r(cpu_env);
+    } else {
+        gen_helper_rfi(cpu_env);
+    }
+    if (ctx->base.singlestep_enabled) {
+        gen_excp_1(EXCP_DEBUG);
+    } else {
+        tcg_gen_exit_tb(0);
+    }
+
+    /* Exit the TB to recognize new interrupts.  */
+    return nullify_end(ctx, DISAS_NORETURN);
+}
 #endif /* !CONFIG_USER_ONLY */
 
 static const DisasInsn table_system[] = {
@@ -2169,6 +2194,7 @@ static const DisasInsn table_system[] = {
     { 0x00000e60u, 0xfc00ffe0u, trans_rsm },
     { 0x00000d60u, 0xfc00ffe0u, trans_ssm },
     { 0x00001860u, 0xffe0ffffu, trans_mtsm },
+    { 0x00000c00u, 0xfffffe1fu, trans_rfi },
 #endif
 };
 

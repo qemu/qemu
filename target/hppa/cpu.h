@@ -178,6 +178,7 @@ struct CPUHPPAState {
 
     target_ureg cr[32];      /* control registers */
     target_ureg cr_back[2];  /* back of cr17/cr18 */
+    target_ureg shadow[7];   /* shadow registers */
 
     /* Those resources are used only in QEMU core */
     CPU_COMMON

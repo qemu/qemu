@@ -78,5 +78,7 @@ DEF_HELPER_FLAGS_4(fmpyfadd_d, TCG_CALL_NO_RWG, i64, env, i64, i64, i64)
 DEF_HELPER_FLAGS_4(fmpynfadd_d, TCG_CALL_NO_RWG, i64, env, i64, i64, i64)
 
 #ifndef CONFIG_USER_ONLY
+DEF_HELPER_1(rfi, void, env)
+DEF_HELPER_1(rfi_r, void, env)
 DEF_HELPER_FLAGS_2(swap_system_mask, TCG_CALL_NO_RWG, tr, env, tr)
 #endif

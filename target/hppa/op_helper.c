@@ -614,4 +614,28 @@ target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
     env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
     return psw & PSW_SM;
 }
+
+void HELPER(rfi)(CPUHPPAState *env)
+{
+    /* ??? On second reading this condition simply seems
+       to be undefined rather than a diagnosed trap.  */
+    if (env->psw & (PSW_I | PSW_R | PSW_Q)) {
+        helper_excp(env, EXCP_ILL);
+    }
+    env->iaoq_f = env->cr[CR_IIAOQ];
+    env->iaoq_b = env->cr_back[1];
+    cpu_hppa_put_psw(env, env->cr[CR_IPSW]);
+}
+
+void HELPER(rfi_r)(CPUHPPAState *env)
+{
+    env->gr[1] = env->shadow[0];
+    env->gr[8] = env->shadow[1];
+    env->gr[9] = env->shadow[2];
+    env->gr[16] = env->shadow[3];
+    env->gr[17] = env->shadow[4];
+    env->gr[24] = env->shadow[5];
+    env->gr[25] = env->shadow[6];
+    helper_rfi(env);
+}
 #endif
