@@ -1,5 +1,5 @@
 /*
- * QTest testcase for postcopy
+ * QTest testcase for migration
  *
  * Copyright (c) 2016 Red Hat, Inc. and/or its affiliates
  *   based on the vhost-user-test.c that is:
@@ -243,8 +243,6 @@ static QDict *return_or_event(QDict *response)
 /*
  * It's tricky to use qemu's migration event capability with qtest,
  * events suddenly appearing confuse the qmp()/hmp() responses.
- * so wait for a couple of passes to have happened before
- * going postcopy.
  */
 
 static uint64_t get_migration_pass(void)
@@ -504,7 +502,7 @@ static void test_migrate(void)
 
 int main(int argc, char **argv)
 {
-    char template[] = "/tmp/postcopy-test-XXXXXX";
+    char template[] = "/tmp/migration-test-XXXXXX";
     int ret;
 
     g_test_init(&argc, &argv, NULL);
@@ -521,7 +519,7 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
 
-    qtest_add_func("/postcopy", test_migrate);
+    qtest_add_func("/migration/postcopy/unix", test_migrate);
 
     ret = g_test_run();
 
