@@ -282,6 +282,7 @@ typedef struct DisasContext {
     DisasCond null_cond;
     TCGLabel *null_lab;
 
+    uint32_t insn;
     int mmu_idx;
     int privilege;
     bool psw_n_nonzero;
@@ -716,17 +717,25 @@ static DisasJumpType gen_excp(DisasContext *ctx, int exception)
     return DISAS_NORETURN;
 }
 
+static DisasJumpType gen_excp_iir(DisasContext *ctx, int exc)
+{
+    TCGv_reg tmp = tcg_const_reg(ctx->insn);
+    tcg_gen_st_reg(tmp, cpu_env, offsetof(CPUHPPAState, cr[CR_IIR]));
+    tcg_temp_free(tmp);
+    return gen_excp(ctx, exc);
+}
+
 static DisasJumpType gen_illegal(DisasContext *ctx)
 {
     nullify_over(ctx);
-    return nullify_end(ctx, gen_excp(ctx, EXCP_ILL));
+    return nullify_end(ctx, gen_excp_iir(ctx, EXCP_ILL));
 }
 
 #define CHECK_MOST_PRIVILEGED(EXCP)                               \
     do {                                                          \
         if (ctx->privilege != 0) {                                \
             nullify_over(ctx);                                    \
-            return nullify_end(ctx, gen_excp(ctx, EXCP));         \
+            return nullify_end(ctx, gen_excp_iir(ctx, EXCP));     \
         }                                                         \
     } while (0)
 
@@ -1893,7 +1902,7 @@ static DisasJumpType trans_break(DisasContext *ctx, uint32_t insn,
                                  const DisasInsn *di)
 {
     nullify_over(ctx);
-    return nullify_end(ctx, gen_excp(ctx, EXCP_BREAK));
+    return nullify_end(ctx, gen_excp_iir(ctx, EXCP_BREAK));
 }
 
 static DisasJumpType trans_sync(DisasContext *ctx, uint32_t insn,
@@ -4270,6 +4279,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             ctx->null_cond.c = TCG_COND_NEVER;
             ret = DISAS_NEXT;
         } else {
+            ctx->insn = insn;
             ret = translate_one(ctx, insn);
             assert(ctx->null_lab == NULL);
         }

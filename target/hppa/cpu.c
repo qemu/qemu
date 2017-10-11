@@ -106,8 +106,10 @@ static void hppa_cpu_initfn(Object *obj)
     CPUHPPAState *env = &cpu->env;
 
     cs->env_ptr = env;
+    cs->exception_index = -1;
     cpu_hppa_loaded_fr0(env);
     set_snan_bit_is_one(true, &env->fp_status);
+    cpu_hppa_put_psw(env, PSW_W);
 }
 
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
