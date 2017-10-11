@@ -356,5 +356,12 @@ g_test_add_data_func_full(const char *path,
 }
 #endif
 
+/* Small compat shim from glib 2.32 */
+#ifndef G_SOURCE_CONTINUE
+#define G_SOURCE_CONTINUE TRUE
+#endif
+#ifndef G_SOURCE_REMOVE
+#define G_SOURCE_REMOVE FALSE
+#endif
 
 #endif
