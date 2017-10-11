@@ -261,7 +261,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         } else if (use_exit_tb(ctx)) {
             tcg_gen_exit_tb(0);
         } else {
-            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            tcg_gen_lookup_and_goto_ptr();
         }
     }
 }
@@ -278,7 +278,7 @@ static void gen_jump(DisasContext * ctx)
         } else if (use_exit_tb(ctx)) {
             tcg_gen_exit_tb(0);
         } else {
-            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            tcg_gen_lookup_and_goto_ptr();
         }
     } else {
 	gen_goto_tb(ctx, 0, ctx->delayed_pc);

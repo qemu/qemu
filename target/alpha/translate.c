@@ -3029,7 +3029,7 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         /* FALLTHRU */
     case DISAS_PC_UPDATED:
         if (!use_exit_tb(ctx)) {
-            tcg_gen_lookup_and_goto_ptr(cpu_pc);
+            tcg_gen_lookup_and_goto_ptr();
             break;
         }
         /* FALLTHRU */

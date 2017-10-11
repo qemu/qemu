@@ -2511,7 +2511,7 @@ static void gen_bnd_jmp(DisasContext *s)
    If RECHECK_TF, emit a rechecking helper for #DB, ignoring the state of
    S->TF.  This is used by the syscall/sysret insns.  */
 static void
-do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, TCGv jr)
+do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
 {
     gen_update_cc_op(s);
 
@@ -2532,12 +2532,8 @@ do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, TCGv jr)
         tcg_gen_exit_tb(0);
     } else if (s->tf) {
         gen_helper_single_step(cpu_env);
-    } else if (!TCGV_IS_UNUSED(jr)) {
-        TCGv vaddr = tcg_temp_new();
-
-        tcg_gen_add_tl(vaddr, jr, cpu_seg_base[R_CS]);
-        tcg_gen_lookup_and_goto_ptr(vaddr);
-        tcg_temp_free(vaddr);
+    } else if (jr) {
+        tcg_gen_lookup_and_goto_ptr();
     } else {
         tcg_gen_exit_tb(0);
     }
@@ -2547,10 +2543,7 @@ do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, TCGv jr)
 static inline void
 gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf)
 {
-    TCGv unused;
-
-    TCGV_UNUSED(unused);
-    do_gen_eob_worker(s, inhibit, recheck_tf, unused);
+    do_gen_eob_worker(s, inhibit, recheck_tf, false);
 }
 
 /* End of block.
@@ -2569,7 +2562,7 @@ static void gen_eob(DisasContext *s)
 /* Jump to register */
 static void gen_jr(DisasContext *s, TCGv dest)
 {
-    do_gen_eob_worker(s, false, false, dest);
+    do_gen_eob_worker(s, false, false, true);
 }
 
 /* generate a jump to eip. No segment change must happen before as a

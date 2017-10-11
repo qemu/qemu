@@ -116,6 +116,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 static bool tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
+#define TCG_HIGHWATER 1024
+
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
 
@@ -318,6 +320,7 @@ typedef struct TCGHelperInfo {
 static const TCGHelperInfo all_helpers[] = {
 #include "exec/helper-tcg.h"
 };
+static GHashTable *helper_table;
 
 static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
 static void process_op_defs(TCGContext *s);
@@ -328,7 +331,6 @@ void tcg_context_init(TCGContext *s)
     TCGOpDef *def;
     TCGArgConstraint *args_ct;
     int *sorted_args;
-    GHashTable *helper_table;
 
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
@@ -356,7 +358,7 @@ void tcg_context_init(TCGContext *s)
 
     /* Register helpers.  */
     /* Use g_direct_hash/equal for direct pointer comparisons on func.  */
-    s->helpers = helper_table = g_hash_table_new(NULL, NULL);
+    helper_table = g_hash_table_new(NULL, NULL);
 
     for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
         g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
@@ -430,7 +432,7 @@ void tcg_prologue_init(TCGContext *s)
     /* Compute a high-water mark, at which we voluntarily flush the buffer
        and start over.  The size here is arbitrary, significantly larger
        than we expect the code generation for any one opcode to require.  */
-    s->code_gen_highwater = s->code_gen_buffer + (total_size - 1024);
+    s->code_gen_highwater = s->code_gen_buffer + (total_size - TCG_HIGHWATER);
 
     tcg_register_jit(s->code_gen_buffer, total_size);
 
@@ -982,7 +984,7 @@ void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
     unsigned sizemask, flags;
     TCGHelperInfo *info;
 
-    info = g_hash_table_lookup(s->helpers, (gpointer)func);
+    info = g_hash_table_lookup(helper_table, (gpointer)func);
     flags = info->flags;
     sizemask = info->sizemask;
 
@@ -1211,8 +1213,8 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf,
 static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val)
 {
     const char *ret = NULL;
-    if (s->helpers) {
-        TCGHelperInfo *info = g_hash_table_lookup(s->helpers, (gpointer)val);
+    if (helper_table) {
+        TCGHelperInfo *info = g_hash_table_lookup(helper_table, (gpointer)val);
         if (info) {
             ret = info->name;
         }
@@ -2836,8 +2838,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
     tcg_reg_alloc_start(s);
 
-    s->code_buf = tb->tc_ptr;
-    s->code_ptr = tb->tc_ptr;
+    s->code_buf = tb->tc.ptr;
+    s->code_ptr = tb->tc.ptr;
 
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     s->ldst_labels = NULL;

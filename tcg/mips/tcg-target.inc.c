@@ -36,7 +36,7 @@
 #else
 /* To assert at compile-time that these values are never used
    for TCG_TARGET_REG_BITS == 64.  */
-/* extern */ int link_error(void);
+int link_error(void);
 # define LO_OFF  link_error()
 # define HI_OFF  link_error()
 #endif
@@ -2341,7 +2341,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     }
 }
 
-static int tcg_target_callee_save_regs[] = {
+static const int tcg_target_callee_save_regs[] = {
     TCG_REG_S0,       /* used for the global env (TCG_AREG0) */
     TCG_REG_S1,
     TCG_REG_S2,

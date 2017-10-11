@@ -5949,7 +5949,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         } else if (use_exit_tb(&dc) || status == EXIT_PC_STALE_NOCHAIN) {
             tcg_gen_exit_tb(0);
         } else {
-            tcg_gen_lookup_and_goto_ptr(psw_addr);
+            tcg_gen_lookup_and_goto_ptr();
         }
         break;
     default:

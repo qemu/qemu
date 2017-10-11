@@ -28,6 +28,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/rcu.h"
 #include "exec/tb-hash.h"
+#include "exec/tb-lookup.h"
 #include "exec/log.h"
 #include "qemu/main-loop.h"
 #if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
@@ -142,11 +143,11 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     uintptr_t ret;
     TranslationBlock *last_tb;
     int tb_exit;
-    uint8_t *tb_ptr = itb->tc_ptr;
+    uint8_t *tb_ptr = itb->tc.ptr;
 
     qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
                            "Trace %p [%d: " TARGET_FMT_lx "] %s\n",
-                           itb->tc_ptr, cpu->cpu_index, itb->pc,
+                           itb->tc.ptr, cpu->cpu_index, itb->pc,
                            lookup_symbol(itb->pc));
 
 #if defined(DEBUG_DISAS)
@@ -178,7 +179,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
         qemu_log_mask_and_addr(CPU_LOG_EXEC, last_tb->pc,
                                "Stopped execution of TB chain before %p ["
                                TARGET_FMT_lx "] %s\n",
-                               last_tb->tc_ptr, last_tb->pc,
+                               last_tb->tc.ptr, last_tb->pc,
                                lookup_symbol(last_tb->pc));
         if (cc->synchronize_from_tb) {
             cc->synchronize_from_tb(cpu, last_tb);
@@ -293,7 +294,7 @@ static bool tb_cmp(const void *p, const void *d)
         tb->cs_base == desc->cs_base &&
         tb->flags == desc->flags &&
         tb->trace_vcpu_dstate == desc->trace_vcpu_dstate &&
-        !atomic_read(&tb->invalid)) {
+        !(atomic_read(&tb->cflags) & CF_INVALID)) {
         /* check next page if needed */
         if (tb->page_addr[1] == -1) {
             return true;
@@ -333,7 +334,7 @@ void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr)
 {
     if (TCG_TARGET_HAS_direct_jump) {
         uintptr_t offset = tb->jmp_target_arg[n];
-        uintptr_t tc_ptr = (uintptr_t)tb->tc_ptr;
+        uintptr_t tc_ptr = (uintptr_t)tb->tc.ptr;
         tb_target_set_jmp_target(tc_ptr, tc_ptr + offset, addr);
     } else {
         tb->jmp_target_arg[n] = addr;
@@ -353,11 +354,11 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     qemu_log_mask_and_addr(CPU_LOG_EXEC, tb->pc,
                            "Linking TBs %p [" TARGET_FMT_lx
                            "] index %d -> %p [" TARGET_FMT_lx "]\n",
-                           tb->tc_ptr, tb->pc, n,
-                           tb_next->tc_ptr, tb_next->pc);
+                           tb->tc.ptr, tb->pc, n,
+                           tb_next->tc.ptr, tb_next->pc);
 
     /* patch the native jump address */
-    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
+    tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc.ptr);
 
     /* add in TB jmp circular list */
     tb->jmp_list_next[n] = tb_next->jmp_list_first;
@@ -368,43 +369,31 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
                                         TranslationBlock *last_tb,
                                         int tb_exit)
 {
-    CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     uint32_t flags;
-    bool have_tb_lock = false;
+    bool acquired_tb_lock = false;
 
-    /* we record a subset of the CPU state. It will
-       always be the same before a given translated block
-       is executed. */
-    cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
-    tb = atomic_rcu_read(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)]);
-    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
-                 tb->flags != flags ||
-                 tb->trace_vcpu_dstate != *cpu->trace_dstate)) {
+    tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags);
+    if (tb == NULL) {
+        /* mmap_lock is needed by tb_gen_code, and mmap_lock must be
+         * taken outside tb_lock. As system emulation is currently
+         * single threaded the locks are NOPs.
+         */
+        mmap_lock();
+        tb_lock();
+        acquired_tb_lock = true;
+
+        /* There's a chance that our desired tb has been translated while
+         * taking the locks so we check again inside the lock.
+         */
         tb = tb_htable_lookup(cpu, pc, cs_base, flags);
-        if (!tb) {
-
-            /* mmap_lock is needed by tb_gen_code, and mmap_lock must be
-             * taken outside tb_lock. As system emulation is currently
-             * single threaded the locks are NOPs.
-             */
-            mmap_lock();
-            tb_lock();
-            have_tb_lock = true;
-
-            /* There's a chance that our desired tb has been translated while
-             * taking the locks so we check again inside the lock.
-             */
-            tb = tb_htable_lookup(cpu, pc, cs_base, flags);
-            if (!tb) {
-                /* if no translated code available, then translate it now */
-                tb = tb_gen_code(cpu, pc, cs_base, flags, 0);
-            }
-
-            mmap_unlock();
+        if (likely(tb == NULL)) {
+            /* if no translated code available, then translate it now */
+            tb = tb_gen_code(cpu, pc, cs_base, flags, 0);
         }
 
+        mmap_unlock();
         /* We add the TB in the virtual pc hash table for the fast lookup */
         atomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)], tb);
     }
@@ -419,15 +408,15 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
 #endif
     /* See if we can patch the calling TB. */
     if (last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
-        if (!have_tb_lock) {
+        if (!acquired_tb_lock) {
             tb_lock();
-            have_tb_lock = true;
+            acquired_tb_lock = true;
         }
-        if (!tb->invalid) {
+        if (!(tb->cflags & CF_INVALID)) {
             tb_add_jump(last_tb, tb_exit, tb);
         }
     }
-    if (have_tb_lock) {
+    if (acquired_tb_lock) {
         tb_unlock();
     }
     return tb;
