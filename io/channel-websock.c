@@ -341,7 +341,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
     char combined_key[QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN +
                       QIO_CHANNEL_WEBSOCK_GUID_LEN + 1];
     char *accept = NULL;
-    char *date = qio_channel_websock_date_str();
+    char *date = NULL;
 
     g_strlcpy(combined_key, key, QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN + 1);
     g_strlcat(combined_key, QIO_CHANNEL_WEBSOCK_GUID,
@@ -360,6 +360,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
         return;
     }
 
+    date = qio_channel_websock_date_str();
     qio_channel_websock_handshake_send_res(
         ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_OK, date, accept);
 
