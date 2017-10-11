@@ -223,20 +223,23 @@ static void wait_for_serial(const char *side)
 /*
  * Events can get in the way of responses we are actually waiting for.
  */
-static QDict *return_or_event(QDict *response)
+static QDict *wait_command(QTestState *who, const char *command)
 {
     const char *event_string;
-    if (!qdict_haskey(response, "event")) {
-        return response;
-    }
+    QDict *response;
 
-    /* OK, it was an event */
-    event_string = qdict_get_str(response, "event");
-    if (!strcmp(event_string, "STOP")) {
-        got_stop = true;
+    response = qtest_qmp(who, command);
+
+    while (qdict_haskey(response, "event")) {
+        /* OK, it was an event */
+        event_string = qdict_get_str(response, "event");
+        if (!strcmp(event_string, "STOP")) {
+            got_stop = true;
+        }
+        QDECREF(response);
+        response = qtest_qmp_receive(who);
     }
-    QDECREF(response);
-    return return_or_event(qtest_qmp_receive(global_qtest));
+    return response;
 }
 
 
@@ -245,12 +248,12 @@ static QDict *return_or_event(QDict *response)
  * events suddenly appearing confuse the qmp()/hmp() responses.
  */
 
-static uint64_t get_migration_pass(void)
+static uint64_t get_migration_pass(QTestState *who)
 {
     QDict *rsp, *rsp_return, *rsp_ram;
     uint64_t result;
 
-    rsp = return_or_event(qmp("{ 'execute': 'query-migrate' }"));
+    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
     rsp_return = qdict_get_qdict(rsp, "return");
     if (!qdict_haskey(rsp_return, "ram")) {
         /* Still in setup */
@@ -263,7 +266,7 @@ static uint64_t get_migration_pass(void)
     return result;
 }
 
-static void wait_for_migration_complete(void)
+static void wait_for_migration_complete(QTestState *who)
 {
     QDict *rsp, *rsp_return;
     bool completed;
@@ -271,7 +274,7 @@ static void wait_for_migration_complete(void)
     do {
         const char *status;
 
-        rsp = return_or_event(qmp("{ 'execute': 'query-migrate' }"));
+        rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
         rsp_return = qdict_get_qdict(rsp, "return");
         status = qdict_get_str(rsp_return, "status");
         completed = strcmp(status, "completed") == 0;
@@ -281,14 +284,14 @@ static void wait_for_migration_complete(void)
     } while (!completed);
 }
 
-static void wait_for_migration_pass(void)
+static void wait_for_migration_pass(QTestState *who)
 {
-    uint64_t initial_pass = get_migration_pass();
+    uint64_t initial_pass = get_migration_pass(who);
     uint64_t pass;
 
     /* Wait for the 1st sync */
     do {
-        initial_pass = get_migration_pass();
+        initial_pass = get_migration_pass(who);
         if (got_stop || initial_pass) {
             break;
         }
@@ -297,7 +300,7 @@ static void wait_for_migration_pass(void)
 
     do {
         usleep(1000 * 100);
-        pass = get_migration_pass();
+        pass = get_migration_pass(who);
     } while (pass == initial_pass && !got_stop);
 }
 
@@ -493,7 +496,7 @@ static void test_migrate_end(QTestState *from, QTestState *to)
 static void test_migrate(void)
 {
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    QTestState *global = global_qtest, *from, *to;
+    QTestState *from, *to;
     QDict *rsp;
 
     test_migrate_start(&from, &to, uri);
@@ -513,26 +516,22 @@ static void test_migrate(void)
 
     migrate(from, uri);
 
-    global_qtest = from;
-    wait_for_migration_pass();
+    wait_for_migration_pass(from);
 
-    rsp = return_or_event(qmp("{ 'execute': 'migrate-start-postcopy' }"));
+    rsp = wait_command(from, "{ 'execute': 'migrate-start-postcopy' }");
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
     if (!got_stop) {
-        qmp_eventwait("STOP");
+        qtest_qmp_eventwait(from, "STOP");
     }
 
-    global_qtest = to;
-    qmp_eventwait("RESUME");
+    qtest_qmp_eventwait(to, "RESUME");
 
     wait_for_serial("dest_serial");
-    global_qtest = from;
-    wait_for_migration_complete();
+    wait_for_migration_complete(from);
 
     g_free(uri);
-    global_qtest = global;
 
     test_migrate_end(from, to);
 }
