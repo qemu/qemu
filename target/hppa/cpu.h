@@ -40,11 +40,40 @@
 #define MMU_USER_IDX     0
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
-#define EXCP_SYSCALL     1
-#define EXCP_SYSCALL_LWS 2
-#define EXCP_SIGSEGV     3
-#define EXCP_SIGILL      4
-#define EXCP_SIGFPE      5
+/* Hardware exceptions, interupts, faults, and traps.  */
+#define EXCP_HPMC                1  /* high priority machine check */
+#define EXCP_POWER_FAIL          2
+#define EXCP_RC                  3  /* recovery counter */
+#define EXCP_EXT_INTERRUPT       4  /* external interrupt */
+#define EXCP_LPMC                5  /* low priority machine check */
+#define EXCP_ITLB_MISS           6  /* itlb miss / instruction page fault */
+#define EXCP_IMP                 7  /* instruction memory protection trap */
+#define EXCP_ILL                 8  /* illegal instruction trap */
+#define EXCP_BREAK               9  /* break instruction */
+#define EXCP_PRIV_OPR            10 /* privileged operation trap */
+#define EXCP_PRIV_REG            11 /* privileged register trap */
+#define EXCP_OVERFLOW            12 /* signed overflow trap */
+#define EXCP_COND                13 /* trap-on-condition */
+#define EXCP_ASSIST              14 /* assist exception trap */
+#define EXCP_DTLB_MISS           15 /* dtlb miss / data page fault */
+#define EXCP_NA_ITLB_MISS        16 /* non-access itlb miss */
+#define EXCP_NA_DTLB_MISS        17 /* non-access dtlb miss */
+#define EXCP_DMP                 18 /* data memory protection trap */
+#define EXCP_DMB                 19 /* data memory break trap */
+#define EXCP_TLB_DIRTY           20 /* tlb dirty bit trap */
+#define EXCP_PAGE_REF            21 /* page reference trap */
+#define EXCP_ASSIST_EMU          22 /* assist emulation trap */
+#define EXCP_HPT                 23 /* high-privilege transfer trap */
+#define EXCP_LPT                 24 /* low-privilege transfer trap */
+#define EXCP_TB                  25 /* taken branch trap */
+#define EXCP_DMAR                26 /* data memory access rights trap */
+#define EXCP_DMPI                27 /* data memory protection id trap */
+#define EXCP_UNALIGN             28 /* unaligned data reference trap */
+#define EXCP_PER_INTERRUPT       29 /* performance monitor interrupt */
+
+/* Exceptions for linux-user emulation.  */
+#define EXCP_SYSCALL             30
+#define EXCP_SYSCALL_LWS         31
 
 /* Taken from Linux kernel: arch/parisc/include/asm/psw.h */
 #define PSW_I            0x00000001

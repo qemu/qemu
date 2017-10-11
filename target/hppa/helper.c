@@ -74,25 +74,52 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     int i = cs->exception_index;
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        static const char * const names[] = {
+            [EXCP_HPMC]          = "high priority machine check",
+            [EXCP_POWER_FAIL]    = "power fail interrupt",
+            [EXCP_RC]            = "recovery counter trap",
+            [EXCP_EXT_INTERRUPT] = "external interrupt",
+            [EXCP_LPMC]          = "low priority machine check",
+            [EXCP_ITLB_MISS]     = "instruction tlb miss fault",
+            [EXCP_IMP]           = "instruction memory protection trap",
+            [EXCP_ILL]           = "illegal instruction trap",
+            [EXCP_BREAK]         = "break instruction trap",
+            [EXCP_PRIV_OPR]      = "privileged operation trap",
+            [EXCP_PRIV_REG]      = "privileged register trap",
+            [EXCP_OVERFLOW]      = "overflow trap",
+            [EXCP_COND]          = "conditional trap",
+            [EXCP_ASSIST]        = "assist exception trap",
+            [EXCP_DTLB_MISS]     = "data tlb miss fault",
+            [EXCP_NA_ITLB_MISS]  = "non-access instruction tlb miss",
+            [EXCP_NA_DTLB_MISS]  = "non-access data tlb miss",
+            [EXCP_DMP]           = "data memory protection trap",
+            [EXCP_DMB]           = "data memory break trap",
+            [EXCP_TLB_DIRTY]     = "tlb dirty bit trap",
+            [EXCP_PAGE_REF]      = "page reference trap",
+            [EXCP_ASSIST_EMU]    = "assist emulation trap",
+            [EXCP_HPT]           = "high-privilege transfer trap",
+            [EXCP_LPT]           = "low-privilege transfer trap",
+            [EXCP_TB]            = "taken branch trap",
+            [EXCP_DMAR]          = "data memory access rights trap",
+            [EXCP_DMPI]          = "data memory protection id trap",
+            [EXCP_UNALIGN]       = "unaligned data reference trap",
+            [EXCP_PER_INTERRUPT] = "performance monitor interrupt",
+            [EXCP_SYSCALL]       = "syscall",
+            [EXCP_SYSCALL_LWS]   = "syscall-lws",
+        };
         static int count;
-        const char *name = "<unknown>";
+        const char *name = NULL;
 
-        switch (i) {
-        case EXCP_SYSCALL:
-            name = "syscall";
-            break;
-        case EXCP_SIGSEGV:
-            name = "sigsegv";
-            break;
-        case EXCP_SIGILL:
-            name = "sigill";
-            break;
-        case EXCP_SIGFPE:
-            name = "sigfpe";
-            break;
+        if (i >= 0 && i < ARRAY_SIZE(names)) {
+            name = names[i];
         }
-        qemu_log("INT %6d: %s ia_f=" TARGET_FMT_lx "\n",
-                 ++count, name, env->iaoq_f);
+        if (name) {
+            qemu_log("INT %6d: %s ia_f=" TARGET_FMT_lx "\n",
+                     ++count, name, env->iaoq_f);
+        } else {
+            qemu_log("INT %6d: unknown %d ia_f=" TARGET_FMT_lx "\n",
+                     ++count, i, env->iaoq_f);
+        }
     }
     cs->exception_index = -1;
 }

@@ -44,14 +44,14 @@ static void QEMU_NORETURN dynexcp(CPUHPPAState *env, int excp, uintptr_t ra)
 void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
 {
     if (unlikely((target_long)cond < 0)) {
-        dynexcp(env, EXCP_SIGFPE, GETPC());
+        dynexcp(env, EXCP_OVERFLOW, GETPC());
     }
 }
 
 void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
 {
     if (unlikely(cond)) {
-        dynexcp(env, EXCP_SIGFPE, GETPC());
+        dynexcp(env, EXCP_COND, GETPC());
     }
 }
 
@@ -235,7 +235,7 @@ static void update_fr0_op(CPUHPPAState *env, uintptr_t ra)
     env->fr[0] = (uint64_t)shadow << 32;
 
     if (hard_exp & shadow) {
-        dynexcp(env, EXCP_SIGFPE, ra);
+        dynexcp(env, EXCP_ASSIST, ra);
     }
 }
 

@@ -3773,21 +3773,41 @@ void cpu_loop(CPUHPPAState *env)
             env->iaoq_f = env->gr[31];
             env->iaoq_b = env->gr[31] + 4;
             break;
-        case EXCP_SIGSEGV:
+        case EXCP_ITLB_MISS:
+        case EXCP_DTLB_MISS:
+        case EXCP_NA_ITLB_MISS:
+        case EXCP_NA_DTLB_MISS:
+        case EXCP_IMP:
+        case EXCP_DMP:
+        case EXCP_DMB:
+        case EXCP_PAGE_REF:
+        case EXCP_DMAR:
+        case EXCP_DMPI:
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
             info.si_code = TARGET_SEGV_ACCERR;
             info._sifields._sigfault._addr = env->ior;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
-        case EXCP_SIGILL:
+        case EXCP_UNALIGN:
+            info.si_signo = TARGET_SIGBUS;
+            info.si_errno = 0;
+            info.si_code = 0;
+            info._sifields._sigfault._addr = env->ior;
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+            break;
+        case EXCP_ILL:
+        case EXCP_PRIV_OPR:
+        case EXCP_PRIV_REG:
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_ILLOPN;
             info._sifields._sigfault._addr = env->iaoq_f;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
-        case EXCP_SIGFPE:
+        case EXCP_OVERFLOW:
+        case EXCP_COND:
+        case EXCP_ASSIST:
             info.si_signo = TARGET_SIGFPE;
             info.si_errno = 0;
             info.si_code = 0;

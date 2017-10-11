@@ -29,7 +29,9 @@ int hppa_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
 {
     HPPACPU *cpu = HPPA_CPU(cs);
 
-    cs->exception_index = EXCP_SIGSEGV;
+    /* ??? Test between data page fault and data memory protection trap,
+       which would affect si_code.  */
+    cs->exception_index = EXCP_DMP;
     cpu->env.ior = address;
     return 1;
 }

@@ -462,7 +462,7 @@ static DisasJumpType gen_excp(DisasContext *ctx, int exception)
 static DisasJumpType gen_illegal(DisasContext *ctx)
 {
     nullify_over(ctx);
-    return nullify_end(ctx, gen_excp(ctx, EXCP_SIGILL));
+    return nullify_end(ctx, gen_excp(ctx, EXCP_ILL));
 }
 
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
@@ -1578,7 +1578,7 @@ static DisasJumpType do_page_zero(DisasContext *ctx)
 
     switch (ctx->iaoq_f) {
     case 0x00: /* Null pointer call */
-        gen_excp_1(EXCP_SIGSEGV);
+        gen_excp_1(EXCP_IMP);
         return DISAS_NORETURN;
 
     case 0xb0: /* LWS */
@@ -1597,7 +1597,7 @@ static DisasJumpType do_page_zero(DisasContext *ctx)
 
     default:
     do_sigill:
-        gen_excp_1(EXCP_SIGILL);
+        gen_excp_1(EXCP_ILL);
         return DISAS_NORETURN;
     }
 }
@@ -1614,7 +1614,7 @@ static DisasJumpType trans_break(DisasContext *ctx, uint32_t insn,
                                  const DisasInsn *di)
 {
     nullify_over(ctx);
-    return nullify_end(ctx, gen_excp(ctx, EXCP_DEBUG));
+    return nullify_end(ctx, gen_excp(ctx, EXCP_BREAK));
 }
 
 static DisasJumpType trans_sync(DisasContext *ctx, uint32_t insn,
