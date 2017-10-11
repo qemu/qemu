@@ -355,3 +355,10 @@ int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
 
     return 0;
 }
+
+void tpm_sized_buffer_reset(TPMSizedBuffer *tsb)
+{
+    g_free(tsb->buffer);
+    tsb->buffer = NULL;
+    tsb->size = 0;
+}
