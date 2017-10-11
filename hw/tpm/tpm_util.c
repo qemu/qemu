@@ -43,10 +43,10 @@ static int tpm_util_test(int fd,
 
     n = write(fd, request, requestlen);
     if (n < 0) {
-        return errno;
+        return -errno;
     }
     if (n != requestlen) {
-        return EFAULT;
+        return -EFAULT;
     }
 
     FD_ZERO(&readfds);
@@ -55,18 +55,18 @@ static int tpm_util_test(int fd,
     /* wait for a second */
     n = select(fd + 1, &readfds, NULL, NULL, &tv);
     if (n != 1) {
-        return errno;
+        return -errno;
     }
 
     n = read(fd, &buf, sizeof(buf));
     if (n < sizeof(struct tpm_resp_hdr)) {
-        return EFAULT;
+        return -EFAULT;
     }
 
     resp = (struct tpm_resp_hdr *)buf;
     /* check the header */
     if (be32_to_cpu(resp->len) != n) {
-        return EBADMSG;
+        return -EMSGSIZE;
     }
 
     *return_tag = be16_to_cpu(resp->tag);
