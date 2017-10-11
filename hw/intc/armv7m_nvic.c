@@ -1447,6 +1447,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             return;
         }
         cpu->env.sau.ctrl = value & 3;
+        break;
     case 0xdd4: /* SAU_TYPE */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             goto bad_offset;
