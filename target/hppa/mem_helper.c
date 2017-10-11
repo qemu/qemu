@@ -32,7 +32,7 @@ int hppa_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
     /* ??? Test between data page fault and data memory protection trap,
        which would affect si_code.  */
     cs->exception_index = EXCP_DMP;
-    cpu->env.ior = address;
+    cpu->env.cr[CR_IOR] = address;
     return 1;
 }
 #else

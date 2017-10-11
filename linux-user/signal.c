@@ -6442,7 +6442,7 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPUArchState *env)
         __put_user(env->fr[i], &sc->sc_fr[i]);
     }
 
-    __put_user(env->sar, &sc->sc_sar);
+    __put_user(env->cr[CR_SAR], &sc->sc_sar);
 }
 
 static void restore_sigcontext(CPUArchState *env, struct target_sigcontext *sc)
@@ -6463,7 +6463,7 @@ static void restore_sigcontext(CPUArchState *env, struct target_sigcontext *sc)
 
     __get_user(env->iaoq_f, &sc->sc_iaoq[0]);
     __get_user(env->iaoq_b, &sc->sc_iaoq[1]);
-    __get_user(env->sar, &sc->sc_sar);
+    __get_user(env->cr[CR_SAR], &sc->sc_sar);
 }
 
 /* No, this doesn't look right, but it's copied straight from the kernel.  */

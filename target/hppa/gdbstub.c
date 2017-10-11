@@ -36,7 +36,7 @@ int hppa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         val = env->gr[n];
         break;
     case 32:
-        val = env->sar;
+        val = env->cr[CR_SAR];
         break;
     case 33:
         val = env->iaoq_f;
@@ -45,10 +45,10 @@ int hppa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         val = env->iaoq_b;
         break;
     case 59:
-        val = env->cr26;
+        val = env->cr[26];
         break;
     case 60:
-        val = env->cr27;
+        val = env->cr[27];
         break;
     case 64 ... 127:
         val = extract64(env->fr[(n - 64) / 2], (n & 1 ? 0 : 32), 32);
@@ -89,7 +89,7 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->gr[n] = val;
         break;
     case 32:
-        env->sar = val;
+        env->cr[CR_SAR] = val;
         break;
     case 33:
         env->iaoq_f = val;
@@ -98,10 +98,10 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->iaoq_b = val;
         break;
     case 59:
-        env->cr26 = val;
+        env->cr[26] = val;
         break;
     case 60:
-        env->cr27 = val;
+        env->cr[27] = val;
         break;
     case 64:
         env->fr[0] = deposit64(env->fr[0], 32, 32, val);

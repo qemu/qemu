@@ -123,6 +123,20 @@
 #define PSW_SM_W         0
 #endif
 
+#define CR_RC            0
+#define CR_SCRCCR        10
+#define CR_SAR           11
+#define CR_IVA           14
+#define CR_EIEM          15
+#define CR_IT            16
+#define CR_IIASQ         17
+#define CR_IIAOQ         18
+#define CR_IIR           19
+#define CR_ISR           20
+#define CR_IOR           21
+#define CR_IPSW          22
+#define CR_EIRR          23
+
 typedef struct CPUHPPAState CPUHPPAState;
 
 #if TARGET_REGISTER_BITS == 32
@@ -142,10 +156,6 @@ struct CPUHPPAState {
     uint64_t fr[32];
     uint64_t sr[8];          /* stored shifted into place for gva */
 
-    target_ureg sar;
-    target_ureg cr26;
-    target_ureg cr27;
-
     target_ureg psw;         /* All psw bits except the following:  */
     target_ureg psw_n;       /* boolean */
     target_sreg psw_v;       /* in most significant bit */
@@ -163,10 +173,11 @@ struct CPUHPPAState {
     target_ureg iaoq_f;      /* front */
     target_ureg iaoq_b;      /* back, aka next instruction */
 
-    target_ureg ior;         /* interrupt offset register */
-
     uint32_t fr0_shadow;     /* flags, c, ca/cq, rm, d, enables */
     float_status fp_status;
+
+    target_ureg cr[32];      /* control registers */
+    target_ureg cr_back[2];  /* back of cr17/cr18 */
 
     /* Those resources are used only in QEMU core */
     CPU_COMMON

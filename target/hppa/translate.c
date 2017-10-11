@@ -328,8 +328,6 @@ static TCGv_reg cpu_psw_n;
 static TCGv_reg cpu_psw_v;
 static TCGv_reg cpu_psw_cb;
 static TCGv_reg cpu_psw_cb_msb;
-static TCGv_reg cpu_cr26;
-static TCGv_reg cpu_cr27;
 
 #include "exec/gen-icount.h"
 
@@ -339,9 +337,7 @@ void hppa_translate_init(void)
 
     typedef struct { TCGv_reg *var; const char *name; int ofs; } GlobalVar;
     static const GlobalVar vars[] = {
-        DEF_VAR(sar),
-        DEF_VAR(cr26),
-        DEF_VAR(cr27),
+        { &cpu_sar, "sar", offsetof(CPUHPPAState, cr[CR_SAR]) },
         DEF_VAR(psw_n),
         DEF_VAR(psw_v),
         DEF_VAR(psw_cb),
@@ -1867,7 +1863,7 @@ static DisasJumpType do_page_zero(DisasContext *ctx)
         return DISAS_NORETURN;
 
     case 0xe0: /* SET_THREAD_POINTER */
-        tcg_gen_mov_reg(cpu_cr27, cpu_gr[26]);
+        tcg_gen_st_reg(cpu_gr[26], cpu_env, offsetof(CPUHPPAState, cr[27]));
         tcg_gen_mov_reg(cpu_iaoq_f, cpu_gr[31]);
         tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
         return DISAS_IAQ_N_UPDATED;
@@ -1948,34 +1944,39 @@ static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
     TCGv_reg tmp;
 
     switch (ctl) {
-    case 11: /* SAR */
+    case CR_SAR:
 #ifdef TARGET_HPPA64
         if (extract32(insn, 14, 1) == 0) {
             /* MFSAR without ,W masks low 5 bits.  */
             tmp = dest_gpr(ctx, rt);
             tcg_gen_andi_reg(tmp, cpu_sar, 31);
             save_gpr(ctx, rt, tmp);
-            break;
+            goto done;
         }
 #endif
         save_gpr(ctx, rt, cpu_sar);
-        break;
-    case 16: /* Interval Timer */
+        goto done;
+    case CR_IT: /* Interval Timer */
+        /* FIXME: Respect PSW_S bit.  */
+        nullify_over(ctx);
         tmp = dest_gpr(ctx, rt);
-        tcg_gen_movi_tl(tmp, 0); /* FIXME */
+        tcg_gen_movi_reg(tmp, 0); /* FIXME */
         save_gpr(ctx, rt, tmp);
         break;
     case 26:
-        save_gpr(ctx, rt, cpu_cr26);
-        break;
     case 27:
-        save_gpr(ctx, rt, cpu_cr27);
         break;
     default:
         /* All other control registers are privileged.  */
-        return gen_illegal(ctx);
+        CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
+        break;
     }
 
+    tmp = get_temp(ctx);
+    tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
+    save_gpr(ctx, rt, tmp);
+
+ done:
     cond_free(&ctx->null_cond);
     return DISAS_NEXT;
 }
@@ -2011,20 +2012,45 @@ static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
 {
     unsigned rin = extract32(insn, 16, 5);
     unsigned ctl = extract32(insn, 21, 5);
+    TCGv_reg reg = load_gpr(ctx, rin);
     TCGv_reg tmp;
 
-    if (ctl == 11) { /* SAR */
+    if (ctl == CR_SAR) {
         tmp = tcg_temp_new();
-        tcg_gen_andi_reg(tmp, load_gpr(ctx, rin), TARGET_REGISTER_BITS - 1);
+        tcg_gen_andi_reg(tmp, reg, TARGET_REGISTER_BITS - 1);
         save_or_nullify(ctx, cpu_sar, tmp);
         tcg_temp_free(tmp);
-    } else {
-        /* All other control registers are privileged or read-only.  */
-        return gen_illegal(ctx);
+
+        cond_free(&ctx->null_cond);
+        return DISAS_NEXT;
     }
 
-    cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    /* All other control registers are privileged or read-only.  */
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
+
+    nullify_over(ctx);
+    switch (ctl) {
+    case CR_IT:
+        /* ??? modify interval timer offset */
+        break;
+
+    case CR_IIASQ:
+    case CR_IIAOQ:
+        /* FIXME: Respect PSW_Q bit */
+        /* The write advances the queue and stores to the back element.  */
+        tmp = get_temp(ctx);
+        tcg_gen_ld_reg(tmp, cpu_env,
+                       offsetof(CPUHPPAState, cr_back[ctl - CR_IIASQ]));
+        tcg_gen_st_reg(tmp, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
+        tcg_gen_st_reg(reg, cpu_env,
+                       offsetof(CPUHPPAState, cr_back[ctl - CR_IIASQ]));
+        break;
+
+    default:
+        tcg_gen_st_reg(reg, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
+        break;
+    }
+    return nullify_end(ctx, DISAS_NEXT);
 }
 
 static DisasJumpType trans_mtsarcm(DisasContext *ctx, uint32_t insn,

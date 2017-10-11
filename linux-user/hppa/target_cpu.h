@@ -33,7 +33,7 @@ static inline void cpu_clone_regs(CPUHPPAState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUHPPAState *env, target_ulong newtls)
 {
-    env->cr27 = newtls;
+    env->cr[27] = newtls;
 }
 
 #endif
