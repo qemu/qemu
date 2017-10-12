@@ -902,26 +902,6 @@ static int nbd_receive_request(QIOChannel *ioc, NBDRequest *request,
     return 0;
 }
 
-static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
-{
-    uint8_t buf[NBD_REPLY_SIZE];
-
-    reply->error = system_errno_to_nbd_errno(reply->error);
-
-    trace_nbd_send_reply(reply->error, reply->handle);
-
-    /* Reply
-       [ 0 ..  3]    magic   (NBD_SIMPLE_REPLY_MAGIC)
-       [ 4 ..  7]    error   (0 == no error)
-       [ 7 .. 15]    handle
-     */
-    stl_be_p(buf, NBD_SIMPLE_REPLY_MAGIC);
-    stl_be_p(buf + 4, reply->error);
-    stq_be_p(buf + 8, reply->handle);
-
-    return nbd_write(ioc, buf, sizeof(buf), errp);
-}
-
 #define MAX_NBD_REQUESTS 16
 
 void nbd_client_get(NBDClient *client)
@@ -1208,24 +1188,35 @@ void nbd_export_close_all(void)
     }
 }
 
+static inline void set_be_simple_reply(NBDSimpleReply *reply, uint64_t error,
+                                       uint64_t handle)
+{
+    stl_be_p(&reply->magic, NBD_SIMPLE_REPLY_MAGIC);
+    stl_be_p(&reply->error, error);
+    stq_be_p(&reply->handle, handle);
+}
+
 static int nbd_co_send_simple_reply(NBDRequestData *req, NBDReply *reply,
                                     int len, Error **errp)
 {
     NBDClient *client = req->client;
+    NBDSimpleReply simple_reply;
+    int nbd_err = system_errno_to_nbd_errno(reply->error);
     int ret;
 
     g_assert(qemu_in_coroutine());
 
-    trace_nbd_co_send_simple_reply(reply->handle, reply->error, len);
+    trace_nbd_co_send_simple_reply(reply->handle, nbd_err, len);
+    set_be_simple_reply(&simple_reply, nbd_err, reply->handle);
 
     qemu_co_mutex_lock(&client->send_lock);
     client->send_coroutine = qemu_coroutine_self();
 
     if (!len) {
-        ret = nbd_send_reply(client->ioc, reply, errp);
+        ret = nbd_write(client->ioc, &simple_reply, sizeof(simple_reply), errp);
     } else {
         qio_channel_set_cork(client->ioc, true);
-        ret = nbd_send_reply(client->ioc, reply, errp);
+        ret = nbd_write(client->ioc, &simple_reply, sizeof(simple_reply), errp);
         if (ret == 0) {
             ret = nbd_write(client->ioc, req->data, len, errp);
             if (ret < 0) {
