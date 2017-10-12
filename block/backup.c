@@ -369,7 +369,6 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
     int64_t offset;
     int64_t cluster;
     int64_t end;
-    int64_t last_cluster = -1;
     BdrvDirtyBitmapIter *dbi;
 
     granularity = bdrv_dirty_bitmap_granularity(job->sync_bitmap);
@@ -379,12 +378,6 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
     /* Find the next dirty sector(s) */
     while ((offset = bdrv_dirty_iter_next(dbi)) >= 0) {
         cluster = offset / job->cluster_size;
-
-        /* Fake progress updates for any clusters we skipped */
-        if (cluster != last_cluster + 1) {
-            job->common.offset += ((cluster - last_cluster - 1) *
-                                   job->cluster_size);
-        }
 
         for (end = cluster + clusters_per_iter; cluster < end; cluster++) {
             do {
@@ -407,14 +400,6 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
         if (granularity < job->cluster_size) {
             bdrv_set_dirty_iter(dbi, cluster * job->cluster_size);
         }
-
-        last_cluster = cluster - 1;
-    }
-
-    /* Play some final catchup with the progress meter */
-    end = DIV_ROUND_UP(job->common.len, job->cluster_size);
-    if (last_cluster + 1 < end) {
-        job->common.offset += ((end - last_cluster - 1) * job->cluster_size);
     }
 
 out:
@@ -455,6 +440,9 @@ static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
 
         bdrv_set_dirty_iter(dbi, next_cluster * job->cluster_size);
     }
+
+    job->common.offset = job->common.len -
+                         hbitmap_count(job->copy_bitmap) * job->cluster_size;
 
     bdrv_dirty_iter_free(dbi);
 }
