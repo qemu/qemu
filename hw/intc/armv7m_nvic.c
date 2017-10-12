@@ -698,7 +698,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         return ((s->num_irq - NVIC_FIRST_IRQ) / 32) - 1;
     case 0x380 ... 0x3bf: /* NVIC_ITNS<n> */
     {
-        int startvec = 32 * (offset - 0x380) + NVIC_FIRST_IRQ;
+        int startvec = 8 * (offset - 0x380) + NVIC_FIRST_IRQ;
         int i;
 
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
@@ -1102,7 +1102,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     switch (offset) {
     case 0x380 ... 0x3bf: /* NVIC_ITNS<n> */
     {
-        int startvec = 32 * (offset - 0x380) + NVIC_FIRST_IRQ;
+        int startvec = 8 * (offset - 0x380) + NVIC_FIRST_IRQ;
         int i;
 
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
@@ -1447,6 +1447,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             return;
         }
         cpu->env.sau.ctrl = value & 3;
+        break;
     case 0xdd4: /* SAU_TYPE */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
             goto bad_offset;

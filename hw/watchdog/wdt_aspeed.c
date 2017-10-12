@@ -100,13 +100,13 @@ static uint64_t aspeed_wdt_read(void *opaque, hwaddr offset, unsigned size)
 
 static void aspeed_wdt_reload(AspeedWDTState *s, bool pclk)
 {
-    uint32_t reload;
+    uint64_t reload;
 
     if (pclk) {
         reload = muldiv64(s->regs[WDT_RELOAD_VALUE], NANOSECONDS_PER_SECOND,
                           s->pclk_freq);
     } else {
-        reload = s->regs[WDT_RELOAD_VALUE] * 1000;
+        reload = s->regs[WDT_RELOAD_VALUE] * 1000ULL;
     }
 
     if (aspeed_wdt_is_enabled(s)) {
