@@ -1188,6 +1188,23 @@ void nbd_export_close_all(void)
     }
 }
 
+static int coroutine_fn nbd_co_send_iov(NBDClient *client, struct iovec *iov,
+                                        unsigned niov, Error **errp)
+{
+    int ret;
+
+    g_assert(qemu_in_coroutine());
+    qemu_co_mutex_lock(&client->send_lock);
+    client->send_coroutine = qemu_coroutine_self();
+
+    ret = qio_channel_writev_all(client->ioc, iov, niov, errp) < 0 ? -EIO : 0;
+
+    client->send_coroutine = NULL;
+    qemu_co_mutex_unlock(&client->send_lock);
+
+    return ret;
+}
+
 static inline void set_be_simple_reply(NBDSimpleReply *reply, uint64_t error,
                                        uint64_t handle)
 {
@@ -1203,35 +1220,17 @@ static int nbd_co_send_simple_reply(NBDClient *client,
                                     size_t len,
                                     Error **errp)
 {
-    NBDSimpleReply simple_reply;
+    NBDSimpleReply reply;
     int nbd_err = system_errno_to_nbd_errno(error);
-    int ret;
-
-    g_assert(qemu_in_coroutine());
+    struct iovec iov[] = {
+        {.iov_base = &reply, .iov_len = sizeof(reply)},
+        {.iov_base = data, .iov_len = len}
+    };
 
     trace_nbd_co_send_simple_reply(handle, nbd_err, len);
-    set_be_simple_reply(&simple_reply, nbd_err, handle);
+    set_be_simple_reply(&reply, nbd_err, handle);
 
-    qemu_co_mutex_lock(&client->send_lock);
-    client->send_coroutine = qemu_coroutine_self();
-
-    if (!len) {
-        ret = nbd_write(client->ioc, &simple_reply, sizeof(simple_reply), errp);
-    } else {
-        qio_channel_set_cork(client->ioc, true);
-        ret = nbd_write(client->ioc, &simple_reply, sizeof(simple_reply), errp);
-        if (ret == 0) {
-            ret = nbd_write(client->ioc, data, len, errp);
-            if (ret < 0) {
-                ret = -EIO;
-            }
-        }
-        qio_channel_set_cork(client->ioc, false);
-    }
-
-    client->send_coroutine = NULL;
-    qemu_co_mutex_unlock(&client->send_lock);
-    return ret;
+    return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);
 }
 
 /* nbd_co_receive_request
