@@ -911,11 +911,11 @@ static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
     trace_nbd_send_reply(reply->error, reply->handle);
 
     /* Reply
-       [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
+       [ 0 ..  3]    magic   (NBD_SIMPLE_REPLY_MAGIC)
        [ 4 ..  7]    error   (0 == no error)
        [ 7 .. 15]    handle
      */
-    stl_be_p(buf, NBD_REPLY_MAGIC);
+    stl_be_p(buf, NBD_SIMPLE_REPLY_MAGIC);
     stl_be_p(buf + 4, reply->error);
     stq_be_p(buf + 8, reply->handle);
 
@@ -1208,15 +1208,15 @@ void nbd_export_close_all(void)
     }
 }
 
-static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len,
-                             Error **errp)
+static int nbd_co_send_simple_reply(NBDRequestData *req, NBDReply *reply,
+                                    int len, Error **errp)
 {
     NBDClient *client = req->client;
     int ret;
 
     g_assert(qemu_in_coroutine());
 
-    trace_nbd_co_send_reply(reply->handle, reply->error, len);
+    trace_nbd_co_send_simple_reply(reply->handle, reply->error, len);
 
     qemu_co_mutex_lock(&client->send_lock);
     client->send_coroutine = qemu_coroutine_self();
@@ -1465,7 +1465,7 @@ reply:
         local_err = NULL;
     }
 
-    if (nbd_co_send_reply(req, &reply, reply_data_len, &local_err) < 0) {
+    if (nbd_co_send_simple_reply(req, &reply, reply_data_len, &local_err) < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
     }
