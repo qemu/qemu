@@ -1196,12 +1196,13 @@ static inline void set_be_simple_reply(NBDSimpleReply *reply, uint64_t error,
     stq_be_p(&reply->handle, handle);
 }
 
-static int nbd_co_send_simple_reply(NBDRequestData *req,
+static int nbd_co_send_simple_reply(NBDClient *client,
                                     uint64_t handle,
                                     uint32_t error,
-                                    int len, Error **errp)
+                                    void *data,
+                                    size_t len,
+                                    Error **errp)
 {
-    NBDClient *client = req->client;
     NBDSimpleReply simple_reply;
     int nbd_err = system_errno_to_nbd_errno(error);
     int ret;
@@ -1220,7 +1221,7 @@ static int nbd_co_send_simple_reply(NBDRequestData *req,
         qio_channel_set_cork(client->ioc, true);
         ret = nbd_write(client->ioc, &simple_reply, sizeof(simple_reply), errp);
         if (ret == 0) {
-            ret = nbd_write(client->ioc, req->data, len, errp);
+            ret = nbd_write(client->ioc, data, len, errp);
             if (ret < 0) {
                 ret = -EIO;
             }
@@ -1447,9 +1448,9 @@ reply:
         local_err = NULL;
     }
 
-    if (nbd_co_send_simple_reply(req, request.handle,
+    if (nbd_co_send_simple_reply(req->client, request.handle,
                                  ret < 0 ? -ret : 0,
-                                 reply_data_len, &local_err) < 0)
+                                 req->data, reply_data_len, &local_err) < 0)
     {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
