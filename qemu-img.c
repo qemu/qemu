@@ -1065,6 +1065,28 @@ done:
 }
 
 /*
+ * Returns -1 if 'buf' contains only zeroes, otherwise the byte index
+ * of the first sector boundary within buf where the sector contains a
+ * non-zero byte.  This function is robust to a buffer that is not
+ * sector-aligned.
+ */
+static int64_t find_nonzero(const uint8_t *buf, int64_t n)
+{
+    int64_t i;
+    int64_t end = QEMU_ALIGN_DOWN(n, BDRV_SECTOR_SIZE);
+
+    for (i = 0; i < end; i += BDRV_SECTOR_SIZE) {
+        if (!buffer_is_zero(buf + i, BDRV_SECTOR_SIZE)) {
+            return i;
+        }
+    }
+    if (i < n && !buffer_is_zero(buf + i, n - end)) {
+        return i;
+    }
+    return -1;
+}
+
+/*
  * Returns true iff the first sector pointed to by 'buf' contains at least
  * a non-NUL byte.
  *
@@ -1189,7 +1211,9 @@ static int check_empty_sectors(BlockBackend *blk, int64_t sect_num,
                                int sect_count, const char *filename,
                                uint8_t *buffer, bool quiet)
 {
-    int pnum, ret = 0;
+    int ret = 0;
+    int64_t idx;
+
     ret = blk_pread(blk, sect_num << BDRV_SECTOR_BITS, buffer,
                     sect_count << BDRV_SECTOR_BITS);
     if (ret < 0) {
@@ -1197,10 +1221,10 @@ static int check_empty_sectors(BlockBackend *blk, int64_t sect_num,
                      sectors_to_bytes(sect_num), filename, strerror(-ret));
         return ret;
     }
-    ret = is_allocated_sectors(buffer, sect_count, &pnum);
-    if (ret || pnum != sect_count) {
+    idx = find_nonzero(buffer, sect_count * BDRV_SECTOR_SIZE);
+    if (idx >= 0) {
         qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
-                sectors_to_bytes(ret ? sect_num : sect_num + pnum));
+                sectors_to_bytes(sect_num) + idx);
         return 1;
     }
 
