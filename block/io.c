@@ -2052,24 +2052,22 @@ static void coroutine_fn bdrv_get_block_status_above_co_entry(void *opaque)
  *
  * See bdrv_co_get_block_status_above() for details.
  */
-static int64_t bdrv_common_block_status_above(BlockDriverState *bs,
-                                              BlockDriverState *base,
-                                              bool want_zero,
-                                              int64_t sector_num,
-                                              int nb_sectors, int *pnum,
-                                              BlockDriverState **file)
+static int bdrv_common_block_status_above(BlockDriverState *bs,
+                                          BlockDriverState *base,
+                                          bool want_zero, int64_t offset,
+                                          int64_t bytes, int64_t *pnum,
+                                          int64_t *map,
+                                          BlockDriverState **file)
 {
     Coroutine *co;
-    int64_t n;
-    int64_t map;
     BdrvCoBlockStatusData data = {
         .bs = bs,
         .base = base,
         .want_zero = want_zero,
-        .offset = sector_num * BDRV_SECTOR_SIZE,
-        .bytes = nb_sectors * BDRV_SECTOR_SIZE,
-        .pnum = &n,
-        .map = &map,
+        .offset = offset,
+        .bytes = bytes,
+        .pnum = pnum,
+        .map = map,
         .file = file,
         .done = false,
     };
@@ -2083,13 +2081,7 @@ static int64_t bdrv_common_block_status_above(BlockDriverState *bs,
         bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, !data.done);
     }
-    if (data.ret < 0) {
-        *pnum = 0;
-        return data.ret;
-    }
-    assert(QEMU_IS_ALIGNED(n | map, BDRV_SECTOR_SIZE));
-    *pnum = n >> BDRV_SECTOR_BITS;
-    return data.ret | map;
+    return data.ret;
 }
 
 int64_t bdrv_get_block_status_above(BlockDriverState *bs,
@@ -2098,8 +2090,21 @@ int64_t bdrv_get_block_status_above(BlockDriverState *bs,
                                     int nb_sectors, int *pnum,
                                     BlockDriverState **file)
 {
-    return bdrv_common_block_status_above(bs, base, true, sector_num,
-                                          nb_sectors, pnum, file);
+    int64_t ret;
+    int64_t n;
+    int64_t map;
+
+    ret = bdrv_common_block_status_above(bs, base, true,
+                                         sector_num * BDRV_SECTOR_SIZE,
+                                         nb_sectors * BDRV_SECTOR_SIZE,
+                                         &n, &map, file);
+    if (ret < 0) {
+        *pnum = 0;
+        return ret;
+    }
+    assert(QEMU_IS_ALIGNED(n | map, BDRV_SECTOR_SIZE));
+    *pnum = n >> BDRV_SECTOR_BITS;
+    return ret | map;
 }
 
 int bdrv_block_status(BlockDriverState *bs, int64_t offset, int64_t bytes,
@@ -2136,20 +2141,14 @@ int bdrv_block_status(BlockDriverState *bs, int64_t offset, int64_t bytes,
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
                                    int64_t bytes, int64_t *pnum)
 {
-    int64_t ret;
-    int psectors;
+    int ret;
+    int64_t dummy;
 
-    assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
-    assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE) && bytes < INT_MAX);
-    ret = bdrv_common_block_status_above(bs, backing_bs(bs), false,
-                                         offset >> BDRV_SECTOR_BITS,
-                                         bytes >> BDRV_SECTOR_BITS, &psectors,
+    ret = bdrv_common_block_status_above(bs, backing_bs(bs), false, offset,
+                                         bytes, pnum ? pnum : &dummy, NULL,
                                          NULL);
     if (ret < 0) {
         return ret;
-    }
-    if (pnum) {
-        *pnum = psectors * BDRV_SECTOR_SIZE;
     }
     return !!(ret & BDRV_BLOCK_ALLOCATED);
 }
