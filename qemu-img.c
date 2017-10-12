@@ -1480,11 +1480,11 @@ static int img_compare(int argc, char **argv)
         while (sector_num < progress_base) {
             int64_t count;
 
-            ret = bdrv_is_allocated_above(blk_bs(blk_over), NULL,
+            ret = bdrv_block_status_above(blk_bs(blk_over), NULL,
                                           sector_num * BDRV_SECTOR_SIZE,
                                           (progress_base - sector_num) *
                                           BDRV_SECTOR_SIZE,
-                                          &count);
+                                          &count, NULL, NULL);
             if (ret < 0) {
                 ret = 3;
                 error_report("Sector allocation test failed for %s",
@@ -1492,11 +1492,11 @@ static int img_compare(int argc, char **argv)
                 goto out;
 
             }
-            /* TODO relax this once bdrv_is_allocated_above does not enforce
+            /* TODO relax this once bdrv_block_status_above does not enforce
              * sector alignment */
             assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
             nb_sectors = count >> BDRV_SECTOR_BITS;
-            if (ret) {
+            if (ret & BDRV_BLOCK_ALLOCATED && !(ret & BDRV_BLOCK_ZERO)) {
                 nb_sectors = MIN(nb_sectors, IO_BUF_SIZE >> BDRV_SECTOR_BITS);
                 ret = check_empty_sectors(blk_over, sector_num, nb_sectors,
                                           filename_over, buf1, quiet);
