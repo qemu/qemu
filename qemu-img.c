@@ -1197,8 +1197,10 @@ static int64_t sectors_to_bytes(int64_t sectors)
 /*
  * Check if passed sectors are empty (not allocated or contain only 0 bytes)
  *
- * Returns 0 in case sectors are filled with 0, 1 if sectors contain non-zero
- * data and negative value on error.
+ * Intended for use by 'qemu-img compare': Returns 0 in case sectors are
+ * filled with 0, 1 if sectors contain non-zero data (this is a comparison
+ * failure), and 4 on error (the exit status for read errors), after emitting
+ * an error message.
  *
  * @param blk:  BlockBackend for the image
  * @param sect_num: Number of first sector to check
@@ -1219,7 +1221,7 @@ static int check_empty_sectors(BlockBackend *blk, int64_t sect_num,
     if (ret < 0) {
         error_report("Error while reading offset %" PRId64 " of %s: %s",
                      sectors_to_bytes(sect_num), filename, strerror(-ret));
-        return ret;
+        return 4;
     }
     idx = find_nonzero(buffer, sect_count * BDRV_SECTOR_SIZE);
     if (idx >= 0) {
@@ -1476,11 +1478,6 @@ static int img_compare(int argc, char **argv)
                                           filename2, buf1, quiet);
             }
             if (ret) {
-                if (ret < 0) {
-                    error_report("Error while reading offset %" PRId64 ": %s",
-                                 sectors_to_bytes(sector_num), strerror(-ret));
-                    ret = 4;
-                }
                 goto out;
             }
         }
@@ -1525,12 +1522,6 @@ static int img_compare(int argc, char **argv)
                 ret = check_empty_sectors(blk_over, sector_num, nb_sectors,
                                           filename_over, buf1, quiet);
                 if (ret) {
-                    if (ret < 0) {
-                        error_report("Error while reading offset %" PRId64
-                                     " of %s: %s", sectors_to_bytes(sector_num),
-                                     filename_over, strerror(-ret));
-                        ret = 4;
-                    }
                     goto out;
                 }
             }
