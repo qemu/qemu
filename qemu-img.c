@@ -2671,14 +2671,16 @@ static void dump_map_entry(OutputFormat output_format, MapEntry *e,
     }
 }
 
-static int get_block_status(BlockDriverState *bs, int64_t sector_num,
-                            int nb_sectors, MapEntry *e)
+static int get_block_status(BlockDriverState *bs, int64_t offset,
+                            int64_t bytes, MapEntry *e)
 {
     int64_t ret;
     int depth;
     BlockDriverState *file;
     bool has_offset;
+    int nb_sectors = bytes >> BDRV_SECTOR_BITS;
 
+    assert(bytes < INT_MAX);
     /* As an optimization, we could cache the current range of unallocated
      * clusters in each file of the chain, and avoid querying the same
      * range repeatedly.
@@ -2686,8 +2688,8 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
 
     depth = 0;
     for (;;) {
-        ret = bdrv_get_block_status(bs, sector_num, nb_sectors, &nb_sectors,
-                                    &file);
+        ret = bdrv_get_block_status(bs, offset >> BDRV_SECTOR_BITS, nb_sectors,
+                                    &nb_sectors, &file);
         if (ret < 0) {
             return ret;
         }
@@ -2707,7 +2709,7 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
     has_offset = !!(ret & BDRV_BLOCK_OFFSET_VALID);
 
     *e = (MapEntry) {
-        .start = sector_num * BDRV_SECTOR_SIZE,
+        .start = offset,
         .length = nb_sectors * BDRV_SECTOR_SIZE,
         .data = !!(ret & BDRV_BLOCK_DATA),
         .zero = !!(ret & BDRV_BLOCK_ZERO),
@@ -2837,16 +2839,12 @@ static int img_map(int argc, char **argv)
 
     length = blk_getlength(blk);
     while (curr.start + curr.length < length) {
-        int64_t nsectors_left;
-        int64_t sector_num;
-        int n;
-
-        sector_num = (curr.start + curr.length) >> BDRV_SECTOR_BITS;
+        int64_t offset = curr.start + curr.length;
+        int64_t n;
 
         /* Probe up to 1 GiB at a time.  */
-        nsectors_left = DIV_ROUND_UP(length, BDRV_SECTOR_SIZE) - sector_num;
-        n = MIN(1 << (30 - BDRV_SECTOR_BITS), nsectors_left);
-        ret = get_block_status(bs, sector_num, n, &next);
+        n = QEMU_ALIGN_DOWN(MIN(1 << 30, length - offset), BDRV_SECTOR_SIZE);
+        ret = get_block_status(bs, offset, n, &next);
 
         if (ret < 0) {
             error_report("Could not read file metadata: %s", strerror(-ret));
