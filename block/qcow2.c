@@ -2976,7 +2976,6 @@ static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
                             uint32_t count)
 {
     int nr;
-    BlockDriverState *file;
     int64_t res;
 
     if (start + count > bs->total_sectors) {
@@ -2986,8 +2985,7 @@ static bool is_zero_sectors(BlockDriverState *bs, int64_t start,
     if (!count) {
         return true;
     }
-    res = bdrv_get_block_status_above(bs, NULL, start, count,
-                                      &nr, &file);
+    res = bdrv_get_block_status_above(bs, NULL, start, count, &nr, NULL);
     return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == count;
 }
 
@@ -3703,13 +3701,11 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
                  offset += pnum * BDRV_SECTOR_SIZE) {
                 int nb_sectors = MIN(ssize - offset,
                                      BDRV_REQUEST_MAX_BYTES) / BDRV_SECTOR_SIZE;
-                BlockDriverState *file;
                 int64_t ret;
 
                 ret = bdrv_get_block_status_above(in_bs, NULL,
                                                   offset >> BDRV_SECTOR_BITS,
-                                                  nb_sectors,
-                                                  &pnum, &file);
+                                                  nb_sectors, &pnum, NULL);
                 if (ret < 0) {
                     error_setg_errno(&local_err, -ret,
                                      "Unable to get block status");

@@ -1375,7 +1375,6 @@ static int img_compare(int argc, char **argv)
 
     for (;;) {
         int64_t status1, status2;
-        BlockDriverState *file;
 
         nb_sectors = sectors_to_process(total_sectors, sector_num);
         if (nb_sectors <= 0) {
@@ -1383,7 +1382,7 @@ static int img_compare(int argc, char **argv)
         }
         status1 = bdrv_get_block_status_above(bs1, NULL, sector_num,
                                               total_sectors1 - sector_num,
-                                              &pnum1, &file);
+                                              &pnum1, NULL);
         if (status1 < 0) {
             ret = 3;
             error_report("Sector allocation test failed for %s", filename1);
@@ -1393,7 +1392,7 @@ static int img_compare(int argc, char **argv)
 
         status2 = bdrv_get_block_status_above(bs2, NULL, sector_num,
                                               total_sectors2 - sector_num,
-                                              &pnum2, &file);
+                                              &pnum2, NULL);
         if (status2 < 0) {
             ret = 3;
             error_report("Sector allocation test failed for %s", filename2);
@@ -1599,15 +1598,14 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
     n = MIN(s->total_sectors - sector_num, BDRV_REQUEST_MAX_SECTORS);
 
     if (s->sector_next_status <= sector_num) {
-        BlockDriverState *file;
         if (s->target_has_backing) {
             ret = bdrv_get_block_status(blk_bs(s->src[src_cur]),
                                         sector_num - src_cur_offset,
-                                        n, &n, &file);
+                                        n, &n, NULL);
         } else {
             ret = bdrv_get_block_status_above(blk_bs(s->src[src_cur]), NULL,
                                               sector_num - src_cur_offset,
-                                              n, &n, &file);
+                                              n, &n, NULL);
         }
         if (ret < 0) {
             return ret;

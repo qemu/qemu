@@ -390,7 +390,6 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         int io_sectors;
         unsigned int io_bytes;
         int64_t io_bytes_acct;
-        BlockDriverState *file;
         enum MirrorMethod {
             MIRROR_METHOD_COPY,
             MIRROR_METHOD_ZERO,
@@ -401,7 +400,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         ret = bdrv_get_block_status_above(source, NULL,
                                           offset >> BDRV_SECTOR_BITS,
                                           nb_chunks * sectors_per_chunk,
-                                          &io_sectors, &file);
+                                          &io_sectors, NULL);
         io_bytes = io_sectors * BDRV_SECTOR_SIZE;
         if (ret < 0) {
             io_bytes = MIN(nb_chunks * s->granularity, max_io_bytes);
