@@ -11,7 +11,7 @@
 import json
 import errno
 import socket
-import sys
+import logging
 
 
 class QMPError(Exception):
@@ -32,12 +32,14 @@ class QMPTimeoutError(QMPError):
 
 class QEMUMonitorProtocol(object):
 
+    #: Logger object for debugging messages
+    logger = logging.getLogger('QMP')
     #: Socket's error class
     error = socket.error
     #: Socket's timeout
     timeout = socket.timeout
 
-    def __init__(self, address, server=False, debug=False):
+    def __init__(self, address, server=False):
         """
         Create a QEMUMonitorProtocol class.
 
@@ -51,7 +53,6 @@ class QEMUMonitorProtocol(object):
         """
         self.__events = []
         self.__address = address
-        self._debug = debug
         self.__sock = self.__get_sock()
         self.__sockfile = None
         if server:
@@ -83,8 +84,7 @@ class QEMUMonitorProtocol(object):
                 return
             resp = json.loads(data)
             if 'event' in resp:
-                if self._debug:
-                    print >>sys.stderr, "QMP:<<< %s" % resp
+                self.logger.debug("<<< %s", resp)
                 self.__events.append(resp)
                 if not only_event:
                     continue
@@ -164,8 +164,7 @@ class QEMUMonitorProtocol(object):
         @return QMP response as a Python dict or None if the connection has
                 been closed
         """
-        if self._debug:
-            print >>sys.stderr, "QMP:>>> %s" % qmp_cmd
+        self.logger.debug(">>> %s", qmp_cmd)
         try:
             self.__sock.sendall(json.dumps(qmp_cmd))
         except socket.error as err:
@@ -173,8 +172,7 @@ class QEMUMonitorProtocol(object):
                 return
             raise socket.error(err)
         resp = self.__json_read()
-        if self._debug:
-            print >>sys.stderr, "QMP:<<< %s" % resp
+        self.logger.debug("<<< %s", resp)
         return resp
 
     def cmd(self, name, args=None, cmd_id=None):

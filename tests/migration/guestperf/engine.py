@@ -388,15 +388,13 @@ class Engine(object):
                                args=self._get_src_args(hardware),
                                wrapper=self._get_src_wrapper(hardware),
                                name="qemu-src-%d" % os.getpid(),
-                               monitor_address=srcmonaddr,
-                               debug=self._debug)
+                               monitor_address=srcmonaddr)
 
         dst = qemu.QEMUMachine(self._binary,
                                args=self._get_dst_args(hardware, uri),
                                wrapper=self._get_dst_wrapper(hardware),
                                name="qemu-dst-%d" % os.getpid(),
-                               monitor_address=dstmonaddr,
-                               debug=self._debug)
+                               monitor_address=dstmonaddr)
 
         try:
             src.launch()

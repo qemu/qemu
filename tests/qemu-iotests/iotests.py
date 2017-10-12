@@ -28,6 +28,7 @@ import qtest
 import struct
 import json
 import signal
+import logging
 
 
 # This will not work if arguments contain spaces but is necessary if we
@@ -194,8 +195,6 @@ class VM(qtest.QEMUQtestMachine):
         super(VM, self).__init__(qemu_prog, qemu_opts, name=name,
                                  test_dir=test_dir,
                                  socket_scm_helper=socket_scm_helper)
-        if debug:
-            self._debug = True
         self._num_drives = 0
 
     def add_device(self, opts):
@@ -466,6 +465,8 @@ def main(supported_fmts=[], supported_oses=['linux']):
         sys.argv.remove('-d')
     else:
         output = StringIO.StringIO()
+
+    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
     class MyTestRunner(unittest.TextTestRunner):
         def __init__(self, stream=output, descriptions=True, verbosity=verbosity):

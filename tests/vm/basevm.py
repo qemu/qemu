@@ -227,8 +227,8 @@ def main(vmcls):
         if not argv and not args.build_qemu and not args.build_image:
             print "Nothing to do?"
             return 1
-        if args.debug:
-            logging.getLogger().setLevel(logging.DEBUG)
+        logging.basicConfig(level=(logging.DEBUG if args.debug
+                                   else logging.WARN))
         vm = vmcls(debug=args.debug, vcpus=args.jobs)
         if args.build_image:
             if os.path.exists(args.image) and not args.force:
