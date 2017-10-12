@@ -1156,31 +1156,28 @@ static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
 }
 
 /*
- * Compares two buffers sector by sector. Returns 0 if the first sector of both
- * buffers matches, non-zero otherwise.
+ * Compares two buffers sector by sector. Returns 0 if the first
+ * sector of each buffer matches, non-zero otherwise.
  *
- * pnum is set to the number of sectors (including and immediately following
- * the first one) that are known to have the same comparison result
+ * pnum is set to the sector-aligned size of the buffer prefix that
+ * has the same matching status as the first sector.
  */
-static int compare_sectors(const uint8_t *buf1, const uint8_t *buf2, int n,
-    int *pnum)
+static int compare_buffers(const uint8_t *buf1, const uint8_t *buf2,
+                           int64_t bytes, int64_t *pnum)
 {
     bool res;
-    int i;
+    int64_t i = MIN(bytes, BDRV_SECTOR_SIZE);
 
-    if (n <= 0) {
-        *pnum = 0;
-        return 0;
-    }
+    assert(bytes > 0);
 
-    res = !!memcmp(buf1, buf2, 512);
-    for(i = 1; i < n; i++) {
-        buf1 += 512;
-        buf2 += 512;
+    res = !!memcmp(buf1, buf2, i);
+    while (i < bytes) {
+        int64_t len = MIN(bytes - i, BDRV_SECTOR_SIZE);
 
-        if (!!memcmp(buf1, buf2, 512) != res) {
+        if (!!memcmp(buf1 + i, buf2 + i, len) != res) {
             break;
         }
+        i += len;
     }
 
     *pnum = i;
@@ -1255,7 +1252,7 @@ static int img_compare(int argc, char **argv)
     int64_t total_sectors;
     int64_t sector_num = 0;
     int64_t nb_sectors;
-    int c, pnum;
+    int c;
     uint64_t progress_base;
     bool image_opts = false;
     bool force_share = false;
@@ -1439,6 +1436,8 @@ static int img_compare(int argc, char **argv)
             /* nothing to do */
         } else if (allocated1 == allocated2) {
             if (allocated1) {
+                int64_t pnum;
+
                 nb_sectors = MIN(nb_sectors, IO_BUF_SIZE >> BDRV_SECTOR_BITS);
                 ret = blk_pread(blk1, sector_num << BDRV_SECTOR_BITS, buf1,
                                 nb_sectors << BDRV_SECTOR_BITS);
@@ -1458,11 +1457,11 @@ static int img_compare(int argc, char **argv)
                     ret = 4;
                     goto out;
                 }
-                ret = compare_sectors(buf1, buf2, nb_sectors, &pnum);
-                if (ret || pnum != nb_sectors) {
+                ret = compare_buffers(buf1, buf2,
+                                      nb_sectors * BDRV_SECTOR_SIZE, &pnum);
+                if (ret || pnum != nb_sectors * BDRV_SECTOR_SIZE) {
                     qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
-                            sectors_to_bytes(
-                                ret ? sector_num : sector_num + pnum));
+                            sectors_to_bytes(sector_num) + (ret ? 0 : pnum));
                     ret = 1;
                     goto out;
                 }
@@ -3354,16 +3353,16 @@ static int img_rebase(int argc, char **argv)
             /* If they differ, we need to write to the COW file */
             uint64_t written = 0;
 
-            while (written < n) {
-                int pnum;
+            while (written < n * BDRV_SECTOR_SIZE) {
+                int64_t pnum;
 
-                if (compare_sectors(buf_old + written * 512,
-                    buf_new + written * 512, n - written, &pnum))
+                if (compare_buffers(buf_old + written,
+                                    buf_new + written,
+                                    n * BDRV_SECTOR_SIZE - written, &pnum))
                 {
                     ret = blk_pwrite(blk,
-                                     (sector + written) << BDRV_SECTOR_BITS,
-                                     buf_old + written * 512,
-                                     pnum << BDRV_SECTOR_BITS, 0);
+                                     (sector << BDRV_SECTOR_BITS) + written,
+                                     buf_old + written, pnum, 0);
                     if (ret < 0) {
                         error_report("Error while writing to COW image: %s",
                             strerror(-ret));
