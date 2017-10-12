@@ -180,11 +180,11 @@ err:
 }
 
 static int nbd_co_receive_reply(NBDClientSession *s,
-                                NBDRequest *request,
+                                uint64_t handle,
                                 QEMUIOVector *qiov)
 {
     int ret;
-    int i = HANDLE_TO_INDEX(s, request->handle);
+    int i = HANDLE_TO_INDEX(s, handle);
 
     /* Wait until we're woken up by nbd_read_reply_entry.  */
     s->requests[i].receiving = true;
@@ -193,7 +193,7 @@ static int nbd_co_receive_reply(NBDClientSession *s,
     if (!s->ioc || s->quit) {
         ret = -EIO;
     } else {
-        assert(s->reply.handle == request->handle);
+        assert(s->reply.handle == handle);
         ret = -s->reply.error;
         if (qiov && s->reply.error == 0) {
             if (qio_channel_readv_all(s->ioc, qiov->iov, qiov->niov,
@@ -241,7 +241,7 @@ static int nbd_co_request(BlockDriverState *bs,
         return ret;
     }
 
-    return nbd_co_receive_reply(client, request,
+    return nbd_co_receive_reply(client, request->handle,
                                 request->type == NBD_CMD_READ ? qiov : NULL);
 }
 
