@@ -2974,8 +2974,8 @@ finish:
 
 static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
-    int nr;
-    int64_t res;
+    int64_t nr;
+    int res;
     int64_t start;
 
     /* TODO: Widening to sector boundaries should only be needed as
@@ -2991,10 +2991,8 @@ static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
     if (!bytes) {
         return true;
     }
-    res = bdrv_get_block_status_above(bs, NULL, start >> BDRV_SECTOR_BITS,
-                                      bytes >> BDRV_SECTOR_BITS, &nr, NULL);
-    return res >= 0 && (res & BDRV_BLOCK_ZERO) &&
-        nr * BDRV_SECTOR_SIZE == bytes;
+    res = bdrv_block_status_above(bs, NULL, start, bytes, &nr, NULL, NULL);
+    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == bytes;
 }
 
 static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
@@ -3700,17 +3698,14 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
             required = virtual_size;
         } else {
             int64_t offset;
-            int pnum = 0;
+            int64_t pnum = 0;
 
-            for (offset = 0; offset < ssize;
-                 offset += pnum * BDRV_SECTOR_SIZE) {
-                int nb_sectors = MIN(ssize - offset,
-                                     BDRV_REQUEST_MAX_BYTES) / BDRV_SECTOR_SIZE;
-                int64_t ret;
+            for (offset = 0; offset < ssize; offset += pnum) {
+                int ret;
 
-                ret = bdrv_get_block_status_above(in_bs, NULL,
-                                                  offset >> BDRV_SECTOR_BITS,
-                                                  nb_sectors, &pnum, NULL);
+                ret = bdrv_block_status_above(in_bs, NULL, offset,
+                                              ssize - offset, &pnum, NULL,
+                                              NULL);
                 if (ret < 0) {
                     error_setg_errno(&local_err, -ret,
                                      "Unable to get block status");
@@ -3722,11 +3717,10 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
                 } else if ((ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) ==
                            (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) {
                     /* Extend pnum to end of cluster for next iteration */
-                    pnum = (ROUND_UP(offset + pnum * BDRV_SECTOR_SIZE,
-                                 cluster_size) - offset) >> BDRV_SECTOR_BITS;
+                    pnum = ROUND_UP(offset + pnum, cluster_size) - offset;
 
                     /* Count clusters we've seen */
-                    required += offset % cluster_size + pnum * BDRV_SECTOR_SIZE;
+                    required += offset % cluster_size + pnum;
                 }
             }
         }
