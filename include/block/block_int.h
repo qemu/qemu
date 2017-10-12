@@ -207,7 +207,8 @@ struct BlockDriver {
      * according to the current layer, and should not set
      * BDRV_BLOCK_ALLOCATED, but may set BDRV_BLOCK_RAW.  See block.h
      * for the meaning of _DATA, _ZERO, and _OFFSET_VALID.  The block
-     * layer guarantees non-NULL pnum and file.
+     * layer guarantees input aligned to request_alignment, as well as
+     * non-NULL pnum and file.
      */
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum,

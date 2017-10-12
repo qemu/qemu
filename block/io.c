@@ -1839,10 +1839,11 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
 {
     int64_t total_size;
     int64_t n; /* bytes */
-    int64_t ret;
+    int ret;
     int64_t local_map = 0;
     BlockDriverState *local_file = NULL;
-    int count; /* sectors */
+    int64_t aligned_offset, aligned_bytes;
+    uint32_t align;
 
     assert(pnum);
     *pnum = 0;
@@ -1881,35 +1882,58 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     }
 
     bdrv_inc_in_flight(bs);
+
+    /* Round out to request_alignment boundaries */
+    /* TODO: until we have a byte-based driver callback, we also have to
+     * round out to sectors, even if that is bigger than request_alignment */
+    align = MAX(bs->bl.request_alignment, BDRV_SECTOR_SIZE);
+    aligned_offset = QEMU_ALIGN_DOWN(offset, align);
+    aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
+
+    {
+        int count; /* sectors */
+        int64_t longret;
+
+        assert(QEMU_IS_ALIGNED(aligned_offset | aligned_bytes,
+                               BDRV_SECTOR_SIZE));
+        /*
+         * The contract allows us to return pnum smaller than bytes, even
+         * if the next query would see the same status; we truncate the
+         * request to avoid overflowing the driver's 32-bit interface.
+         */
+        longret = bs->drv->bdrv_co_get_block_status(
+            bs, aligned_offset >> BDRV_SECTOR_BITS,
+            MIN(INT_MAX, aligned_bytes) >> BDRV_SECTOR_BITS, &count,
+            &local_file);
+        if (longret < 0) {
+            assert(INT_MIN <= longret);
+            ret = longret;
+            goto out;
+        }
+        if (longret & BDRV_BLOCK_OFFSET_VALID) {
+            local_map = longret & BDRV_BLOCK_OFFSET_MASK;
+        }
+        ret = longret & ~BDRV_BLOCK_OFFSET_MASK;
+        *pnum = count * BDRV_SECTOR_SIZE;
+    }
+
     /*
-     * TODO: Rather than require aligned offsets, we could instead
-     * round to the driver's request_alignment here, then touch up
-     * count afterwards back to the caller's expectations.
+     * The driver's result must be a multiple of request_alignment.
+     * Clamp pnum and adjust map to original request.
      */
-    assert(QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE));
-    /*
-     * The contract allows us to return pnum smaller than bytes, even
-     * if the next query would see the same status; we truncate the
-     * request to avoid overflowing the driver's 32-bit interface.
-     */
-    bytes = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
-    ret = bs->drv->bdrv_co_get_block_status(bs, offset >> BDRV_SECTOR_BITS,
-                                            bytes >> BDRV_SECTOR_BITS, &count,
-                                            &local_file);
-    if (ret < 0) {
-        goto out;
+    assert(QEMU_IS_ALIGNED(*pnum, align) && align > offset - aligned_offset);
+    *pnum -= offset - aligned_offset;
+    if (*pnum > bytes) {
+        *pnum = bytes;
     }
     if (ret & BDRV_BLOCK_OFFSET_VALID) {
-        local_map = ret & BDRV_BLOCK_OFFSET_MASK;
+        local_map += offset - aligned_offset;
     }
-    *pnum = count * BDRV_SECTOR_SIZE;
 
     if (ret & BDRV_BLOCK_RAW) {
         assert(ret & BDRV_BLOCK_OFFSET_VALID && local_file);
         ret = bdrv_co_block_status(local_file, want_zero, local_map,
                                    *pnum, pnum, &local_map, &local_file);
-        assert(ret < 0 ||
-               QEMU_IS_ALIGNED(*pnum | local_map, BDRV_SECTOR_SIZE));
         goto out;
     }
 
@@ -1967,11 +1991,6 @@ early_out:
     }
     if (map) {
         *map = local_map;
-    }
-    if (ret >= 0) {
-        ret &= ~BDRV_BLOCK_OFFSET_MASK;
-    } else {
-        assert(INT_MIN <= ret);
     }
     return ret;
 }
