@@ -1765,17 +1765,18 @@ int bdrv_flush_all(void)
 }
 
 
-typedef struct BdrvCoGetBlockStatusData {
+typedef struct BdrvCoBlockStatusData {
     BlockDriverState *bs;
     BlockDriverState *base;
     bool want_zero;
-    int64_t sector_num;
-    int nb_sectors;
-    int *pnum;
+    int64_t offset;
+    int64_t bytes;
+    int64_t *pnum;
+    int64_t *map;
     BlockDriverState **file;
-    int64_t ret;
+    int ret;
     bool done;
-} BdrvCoGetBlockStatusData;
+} BdrvCoBlockStatusData;
 
 int64_t coroutine_fn bdrv_co_get_block_status_from_file(BlockDriverState *bs,
                                                         int64_t sector_num,
@@ -2025,14 +2026,24 @@ static int64_t coroutine_fn bdrv_co_get_block_status_above(BlockDriverState *bs,
 /* Coroutine wrapper for bdrv_get_block_status_above() */
 static void coroutine_fn bdrv_get_block_status_above_co_entry(void *opaque)
 {
-    BdrvCoGetBlockStatusData *data = opaque;
+    BdrvCoBlockStatusData *data = opaque;
+    int n = 0;
+    int64_t ret;
 
-    data->ret = bdrv_co_get_block_status_above(data->bs, data->base,
-                                               data->want_zero,
-                                               data->sector_num,
-                                               data->nb_sectors,
-                                               data->pnum,
-                                               data->file);
+    ret = bdrv_co_get_block_status_above(data->bs, data->base,
+                                         data->want_zero,
+                                         data->offset >> BDRV_SECTOR_BITS,
+                                         data->bytes >> BDRV_SECTOR_BITS,
+                                         &n,
+                                         data->file);
+    if (ret < 0) {
+        assert(INT_MIN <= ret);
+        data->ret = ret;
+    } else {
+        *data->pnum = n * BDRV_SECTOR_SIZE;
+        *data->map = ret & BDRV_BLOCK_OFFSET_MASK;
+        data->ret = ret & ~BDRV_BLOCK_OFFSET_MASK;
+    }
     data->done = true;
 }
 
@@ -2049,13 +2060,16 @@ static int64_t bdrv_common_block_status_above(BlockDriverState *bs,
                                               BlockDriverState **file)
 {
     Coroutine *co;
-    BdrvCoGetBlockStatusData data = {
+    int64_t n;
+    int64_t map;
+    BdrvCoBlockStatusData data = {
         .bs = bs,
         .base = base,
         .want_zero = want_zero,
-        .sector_num = sector_num,
-        .nb_sectors = nb_sectors,
-        .pnum = pnum,
+        .offset = sector_num * BDRV_SECTOR_SIZE,
+        .bytes = nb_sectors * BDRV_SECTOR_SIZE,
+        .pnum = &n,
+        .map = &map,
         .file = file,
         .done = false,
     };
@@ -2069,7 +2083,13 @@ static int64_t bdrv_common_block_status_above(BlockDriverState *bs,
         bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, !data.done);
     }
-    return data.ret;
+    if (data.ret < 0) {
+        *pnum = 0;
+        return data.ret;
+    }
+    assert(QEMU_IS_ALIGNED(n | map, BDRV_SECTOR_SIZE));
+    *pnum = n >> BDRV_SECTOR_BITS;
+    return data.ret | map;
 }
 
 int64_t bdrv_get_block_status_above(BlockDriverState *bs,
