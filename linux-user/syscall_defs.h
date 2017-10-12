@@ -1101,8 +1101,8 @@ struct target_pollfd {
 /* Note that the ioctl numbers claim type "long" but the actual type
  * used by the kernel is "int".
  */
-#define TARGET_FS_IOC_GETFLAGS TARGET_IOR('f', 1, long)
-#define TARGET_FS_IOC_SETFLAGS TARGET_IOW('f', 2, long)
+#define TARGET_FS_IOC_GETFLAGS TARGET_IOR('f', 1, abi_long)
+#define TARGET_FS_IOC_SETFLAGS TARGET_IOW('f', 2, abi_long)
 
 #define TARGET_FS_IOC_FIEMAP TARGET_IOWR('f',11,struct fiemap)
 
