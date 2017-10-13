@@ -480,7 +480,9 @@ static void colo_old_packet_check(void *opaque)
 
 /*
  * Called from the compare thread on the primary
- * for compare connection
+ * for compare packet with secondary list of the
+ * specified connection when a new packet was
+ * queued to it.
  */
 static void colo_compare_connection(void *opaque, void *user_data)
 {
@@ -738,7 +740,7 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
                          pri_rs->packet_len,
                          pri_rs->vnet_hdr_len);
     } else {
-        /* compare connection */
+        /* compare packet in the specified connection */
         colo_compare_connection(conn, s);
     }
 }
@@ -751,7 +753,7 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
     if (packet_enqueue(s, SECONDARY_IN, &conn)) {
         trace_colo_compare_main("secondary: unsupported packet in");
     } else {
-        /* compare connection */
+        /* compare packet in the specified connection */
         colo_compare_connection(conn, s);
     }
 }
