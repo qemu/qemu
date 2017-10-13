@@ -367,13 +367,12 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 
 static inline TranslationBlock *tb_find(CPUState *cpu,
                                         TranslationBlock *last_tb,
-                                        int tb_exit)
+                                        int tb_exit, uint32_t cf_mask)
 {
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     uint32_t flags;
     bool acquired_tb_lock = false;
-    uint32_t cf_mask = curr_cflags();
 
     tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, cf_mask);
     if (tb == NULL) {
@@ -501,7 +500,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     } else if (replay_has_exception()
                && cpu->icount_decr.u16.low + cpu->icount_extra == 0) {
         /* try to cause an exception pending in the log */
-        cpu_exec_nocache(cpu, 1, tb_find(cpu, NULL, 0), true);
+        cpu_exec_nocache(cpu, 1, tb_find(cpu, NULL, 0, curr_cflags()), true);
         *ret = -1;
         return true;
 #endif
@@ -697,7 +696,21 @@ int cpu_exec(CPUState *cpu)
         int tb_exit = 0;
 
         while (!cpu_handle_interrupt(cpu, &last_tb)) {
-            TranslationBlock *tb = tb_find(cpu, last_tb, tb_exit);
+            uint32_t cflags = cpu->cflags_next_tb;
+            TranslationBlock *tb;
+
+            /* When requested, use an exact setting for cflags for the next
+               execution.  This is used for icount, precise smc, and stop-
+               after-access watchpoints.  Since this request should never
+               have CF_INVALID set, -1 is a convenient invalid value that
+               does not require tcg headers for cpu_common_reset.  */
+            if (cflags == -1) {
+                cflags = curr_cflags();
+            } else {
+                cpu->cflags_next_tb = -1;
+            }
+
+            tb = tb_find(cpu, last_tb, tb_exit, cflags);
             cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit);
             /* Try to align the host and virtual clocks
                if the guest is in advance */
