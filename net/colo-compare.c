@@ -136,7 +136,7 @@ static int colo_insert_packet(GQueue *queue, Packet *pkt)
  * Return 0 on success, if return -1 means the pkt
  * is unsupported(arp and ipv6) and will be sent later
  */
-static int packet_enqueue(CompareState *s, int mode)
+static int packet_enqueue(CompareState *s, int mode, Connection **con)
 {
     ConnectionKey key;
     Packet *pkt = NULL;
@@ -179,6 +179,7 @@ static int packet_enqueue(CompareState *s, int mode)
                          "drop packet");
         }
     }
+    con = &conn;
 
     return 0;
 }
@@ -728,8 +729,9 @@ static void compare_set_vnet_hdr(Object *obj,
 static void compare_pri_rs_finalize(SocketReadState *pri_rs)
 {
     CompareState *s = container_of(pri_rs, CompareState, pri_rs);
+    Connection *conn = NULL;
 
-    if (packet_enqueue(s, PRIMARY_IN)) {
+    if (packet_enqueue(s, PRIMARY_IN, &conn)) {
         trace_colo_compare_main("primary: unsupported packet in");
         compare_chr_send(s,
                          pri_rs->buf,
@@ -737,19 +739,20 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
                          pri_rs->vnet_hdr_len);
     } else {
         /* compare connection */
-        g_queue_foreach(&s->conn_list, colo_compare_connection, s);
+        colo_compare_connection(conn, s);
     }
 }
 
 static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 {
     CompareState *s = container_of(sec_rs, CompareState, sec_rs);
+    Connection *conn = NULL;
 
-    if (packet_enqueue(s, SECONDARY_IN)) {
+    if (packet_enqueue(s, SECONDARY_IN, &conn)) {
         trace_colo_compare_main("secondary: unsupported packet in");
     } else {
         /* compare connection */
-        g_queue_foreach(&s->conn_list, colo_compare_connection, s);
+        colo_compare_connection(conn, s);
     }
 }
 
