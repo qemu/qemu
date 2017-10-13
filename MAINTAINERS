@@ -934,6 +934,7 @@ F: hw/pci/*
 F: hw/pci-bridge/*
 F: docs/pci*
 F: docs/specs/*pci*
+F: default-configs/pci.mak
 
 ACPI/SMBIOS
 M: Michael S. Tsirkin <mst@redhat.com>
