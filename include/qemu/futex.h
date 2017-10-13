@@ -11,6 +11,9 @@
  *
  */
 
+#ifndef QEMU_FUTEX_H
+#define QEMU_FUTEX_H
+
 #include <sys/syscall.h>
 #include <linux/futex.h>
 
@@ -34,3 +37,5 @@ static inline void qemu_futex_wait(void *f, unsigned val)
         }
     }
 }
+
+#endif /* QEMU_FUTEX_H */
