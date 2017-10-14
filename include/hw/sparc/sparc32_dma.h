@@ -21,7 +21,6 @@ struct DMADeviceState {
     qemu_irq irq;
     void *iommu;
     qemu_irq gpio[2];
-    uint32_t is_ledma;
 };
 
 #define TYPE_SPARC32_ESPDMA_DEVICE "sparc32-espdma"
@@ -52,6 +51,7 @@ typedef struct SPARC32DMAState {
     SysBusDevice parent_obj;
 
     MemoryRegion dmamem;
+    MemoryRegion ledma_alias;
     ESPDMADeviceState *espdma;
     LEDMADeviceState *ledma;
 } SPARC32DMAState;
