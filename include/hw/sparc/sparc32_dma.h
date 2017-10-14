@@ -44,6 +44,18 @@ typedef struct LEDMADeviceState {
     SysBusPCNetState *lance;
 } LEDMADeviceState;
 
+#define TYPE_SPARC32_DMA "sparc32-dma"
+#define SPARC32_DMA(obj) OBJECT_CHECK(SPARC32DMAState, (obj), \
+                                      TYPE_SPARC32_DMA)
+
+typedef struct SPARC32DMAState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion dmamem;
+    ESPDMADeviceState *espdma;
+    LEDMADeviceState *ledma;
+} SPARC32DMAState;
+
 /* sparc32_dma.c */
 void ledma_memory_read(void *opaque, hwaddr addr,
                        uint8_t *buf, int len, int do_bswap);

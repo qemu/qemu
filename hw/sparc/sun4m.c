@@ -306,18 +306,36 @@ static void *iommu_init(hwaddr addr, uint32_t version, qemu_irq irq)
     return s;
 }
 
-static void *sparc32_dma_init(hwaddr daddr, void *iommu, int is_ledma)
+static void *sparc32_dma_init(hwaddr dma_base,
+                              hwaddr esp_base, qemu_irq espdma_irq,
+                              hwaddr le_base, qemu_irq ledma_irq)
 {
-    DeviceState *dev;
-    SysBusDevice *s;
+    DeviceState *dma;
+    ESPDMADeviceState *espdma;
+    LEDMADeviceState *ledma;
+    SysBusESPState *esp;
+    SysBusPCNetState *lance;
 
-    dev = qdev_create(NULL, is_ledma ? "sparc32-ledma" : "sparc32-espdma");
-    object_property_set_link(OBJECT(dev), OBJECT(iommu), "iommu", &error_abort);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(s, 0, daddr);
+    dma = qdev_create(NULL, TYPE_SPARC32_DMA);
+    qdev_init_nofail(dma);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, dma_base);
 
-    return s;
+    espdma = SPARC32_ESPDMA_DEVICE(object_resolve_path_component(
+                                   OBJECT(dma), "espdma"));
+    sysbus_connect_irq(SYS_BUS_DEVICE(espdma), 0, espdma_irq);
+
+    esp = ESP_STATE(object_resolve_path_component(OBJECT(espdma), "esp"));
+    sysbus_mmio_map(SYS_BUS_DEVICE(esp), 0, esp_base);
+
+    ledma = SPARC32_LEDMA_DEVICE(object_resolve_path_component(
+                                 OBJECT(dma), "ledma"));
+    sysbus_connect_irq(SYS_BUS_DEVICE(ledma), 0, ledma_irq);
+
+    lance = SYSBUS_PCNET(object_resolve_path_component(
+                         OBJECT(ledma), "lance"));
+    sysbus_mmio_map(SYS_BUS_DEVICE(lance), 0, le_base);
+
+    return dma;
 }
 
 static DeviceState *slavio_intctl_init(hwaddr addr,
@@ -796,9 +814,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 {
     DeviceState *slavio_intctl;
     unsigned int i;
-    void *iommu, *nvram;
-    DeviceState *espdma, *esp, *ledma, *lance;
-    SysBusDevice *sbd;
+    void *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS];
     qemu_irq fdc_tc;
     unsigned long kernel_size;
@@ -843,8 +859,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         afx_init(hwdef->afx_base);
     }
 
-    iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
-                       slavio_irq[30]);
+    iommu_init(hwdef->iommu_base, hwdef->iommu_version, slavio_irq[30]);
 
     if (hwdef->iommu_pad_base) {
         /* On the real hardware (SS-5, LX) the MMU is not padded, but aliased.
@@ -854,26 +869,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         empty_slot_init(hwdef->iommu_pad_base,hwdef->iommu_pad_len);
     }
 
-    espdma = sparc32_dma_init(hwdef->dma_base, iommu, 0);
-    sbd = SYS_BUS_DEVICE(espdma);
-    sysbus_connect_irq(sbd, 0, slavio_irq[18]);
-
-    esp = DEVICE(object_resolve_path_component(OBJECT(espdma), "esp"));
-    sbd = SYS_BUS_DEVICE(esp);
-    sysbus_mmio_map(sbd, 0, hwdef->esp_base);
-    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(espdma, 0));
-    qdev_connect_gpio_out(espdma, 0, qdev_get_gpio_in(esp, 0));
-    qdev_connect_gpio_out(espdma, 1, qdev_get_gpio_in(esp, 1));
-
-    ledma = sparc32_dma_init(hwdef->dma_base + 16ULL, iommu, 1);
-    sbd = SYS_BUS_DEVICE(ledma);
-    sysbus_connect_irq(sbd, 0, slavio_irq[16]);
-
-    lance = DEVICE(object_resolve_path_component(OBJECT(ledma), "lance"));
-    sbd = SYS_BUS_DEVICE(lance);
-    sysbus_mmio_map(sbd, 0, hwdef->le_base);
-    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(ledma, 0));
-    qdev_connect_gpio_out(ledma, 0, qdev_get_gpio_in(lance, 0));
+    sparc32_dma_init(hwdef->dma_base,
+                     hwdef->esp_base, slavio_irq[18],
+                     hwdef->le_base, slavio_irq[16]);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         error_report("Unsupported depth: %d", graphic_depth);

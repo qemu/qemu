@@ -30,6 +30,7 @@
 #include "hw/sparc/sparc32_dma.h"
 #include "hw/sparc/sun4m.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 #include "trace.h"
 
 /*
@@ -369,11 +370,80 @@ static const TypeInfo sparc32_ledma_device_info = {
     .class_init    = sparc32_ledma_device_class_init,
 };
 
+static void sparc32_dma_realize(DeviceState *dev, Error **errp)
+{
+    SPARC32DMAState *s = SPARC32_DMA(dev);
+    DeviceState *espdma, *esp, *ledma, *lance;
+    SysBusDevice *sbd;
+    Object *iommu;
+
+    iommu = object_resolve_path_type("", TYPE_SUN4M_IOMMU, NULL);
+    if (!iommu) {
+        error_setg(errp, "unable to locate sun4m IOMMU device");
+        return;
+    }
+
+    espdma = qdev_create(NULL, TYPE_SPARC32_ESPDMA_DEVICE);
+    object_property_set_link(OBJECT(espdma), iommu, "iommu", errp);
+    object_property_add_child(OBJECT(s), "espdma", OBJECT(espdma), errp);
+    qdev_init_nofail(espdma);
+
+    esp = DEVICE(object_resolve_path_component(OBJECT(espdma), "esp"));
+    sbd = SYS_BUS_DEVICE(esp);
+    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(espdma, 0));
+    qdev_connect_gpio_out(espdma, 0, qdev_get_gpio_in(esp, 0));
+    qdev_connect_gpio_out(espdma, 1, qdev_get_gpio_in(esp, 1));
+
+    sbd = SYS_BUS_DEVICE(espdma);
+    memory_region_add_subregion(&s->dmamem, 0x0,
+                                sysbus_mmio_get_region(sbd, 0));
+
+    ledma = qdev_create(NULL, TYPE_SPARC32_LEDMA_DEVICE);
+    object_property_set_link(OBJECT(ledma), iommu, "iommu", errp);
+    object_property_add_child(OBJECT(s), "ledma", OBJECT(ledma), errp);
+    qdev_init_nofail(ledma);
+
+    lance = DEVICE(object_resolve_path_component(OBJECT(ledma), "lance"));
+    sbd = SYS_BUS_DEVICE(lance);
+    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(ledma, 0));
+    qdev_connect_gpio_out(ledma, 0, qdev_get_gpio_in(lance, 0));
+
+    sbd = SYS_BUS_DEVICE(ledma);
+    memory_region_add_subregion(&s->dmamem, 0x10,
+                                sysbus_mmio_get_region(sbd, 0));
+}
+
+static void sparc32_dma_init(Object *obj)
+{
+    SPARC32DMAState *s = SPARC32_DMA(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    memory_region_init(&s->dmamem, OBJECT(s), "dma", DMA_SIZE + DMA_ETH_SIZE);
+    sysbus_init_mmio(sbd, &s->dmamem);
+}
+
+static void sparc32_dma_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = sparc32_dma_realize;
+}
+
+static const TypeInfo sparc32_dma_info = {
+    .name          = TYPE_SPARC32_DMA,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SPARC32DMAState),
+    .instance_init = sparc32_dma_init,
+    .class_init    = sparc32_dma_class_init,
+};
+
+
 static void sparc32_dma_register_types(void)
 {
     type_register_static(&sparc32_dma_device_info);
     type_register_static(&sparc32_espdma_device_info);
     type_register_static(&sparc32_ledma_device_info);
+    type_register_static(&sparc32_dma_info);
 }
 
 type_init(sparc32_dma_register_types)
