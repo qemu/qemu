@@ -3,6 +3,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/scsi/esp.h"
+#include "hw/net/lance.h"
 
 #define DMA_REGS 4
 
@@ -39,6 +40,8 @@ typedef struct ESPDMADeviceState {
 
 typedef struct LEDMADeviceState {
     DMADeviceState parent_obj;
+
+    SysBusPCNetState *lance;
 } LEDMADeviceState;
 
 /* sparc32_dma.c */

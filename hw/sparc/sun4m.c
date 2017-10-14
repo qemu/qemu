@@ -320,26 +320,6 @@ static void *sparc32_dma_init(hwaddr daddr, void *iommu, int is_ledma)
     return s;
 }
 
-static void lance_init(NICInfo *nd, hwaddr leaddr,
-                       void *dma_opaque, qemu_irq irq)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    qemu_irq reset;
-
-    qemu_check_nic_model(&nd_table[0], "lance");
-
-    dev = qdev_create(NULL, "lance");
-    qdev_set_nic_properties(dev, nd);
-    qdev_prop_set_ptr(dev, "dma", dma_opaque);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(s, 0, leaddr);
-    sysbus_connect_irq(s, 0, irq);
-    reset = qdev_get_gpio_in(dev, 0);
-    qdev_connect_gpio_out(dma_opaque, 0, reset);
-}
-
 static DeviceState *slavio_intctl_init(hwaddr addr,
                                        hwaddr addrg,
                                        qemu_irq **parent_irq)
@@ -817,7 +797,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     DeviceState *slavio_intctl;
     unsigned int i;
     void *iommu, *nvram;
-    DeviceState *espdma, *esp, *ledma;
+    DeviceState *espdma, *esp, *ledma, *lance;
     SysBusDevice *sbd;
     qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS];
     qemu_irq fdc_tc;
@@ -889,6 +869,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     sbd = SYS_BUS_DEVICE(ledma);
     sysbus_connect_irq(sbd, 0, slavio_irq[16]);
 
+    lance = DEVICE(object_resolve_path_component(OBJECT(ledma), "lance"));
+    sbd = SYS_BUS_DEVICE(lance);
+    sysbus_mmio_map(sbd, 0, hwdef->le_base);
+    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(ledma, 0));
+    qdev_connect_gpio_out(ledma, 0, qdev_get_gpio_in(lance, 0));
+
     if (graphic_depth != 8 && graphic_depth != 24) {
         error_report("Unsupported depth: %d", graphic_depth);
         exit (1);
@@ -939,9 +925,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     if (hwdef->sx_base) {
         empty_slot_init(hwdef->sx_base, 0x2000);
     }
-
-    lance_init(&nd_table[0], hwdef->le_base, ledma,
-               qdev_get_gpio_in(ledma, 0));
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 1968, 8);
 

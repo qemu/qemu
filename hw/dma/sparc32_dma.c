@@ -340,11 +340,33 @@ static void sparc32_ledma_device_init(Object *obj)
     s->is_ledma = 1;
 }
 
+static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
+{
+    DeviceState *d;
+    NICInfo *nd = &nd_table[0];
+
+    qemu_check_nic_model(nd, TYPE_LANCE);
+
+    d = qdev_create(NULL, TYPE_LANCE);
+    object_property_add_child(OBJECT(dev), "lance", OBJECT(d), errp);
+    qdev_set_nic_properties(d, nd);
+    qdev_prop_set_ptr(d, "dma", dev);
+    qdev_init_nofail(d);
+}
+
+static void sparc32_ledma_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = sparc32_ledma_device_realize;
+}
+
 static const TypeInfo sparc32_ledma_device_info = {
     .name          = TYPE_SPARC32_LEDMA_DEVICE,
     .parent        = TYPE_SPARC32_DMA_DEVICE,
     .instance_size = sizeof(LEDMADeviceState),
     .instance_init = sparc32_ledma_device_init,
+    .class_init    = sparc32_ledma_device_class_init,
 };
 
 static void sparc32_dma_register_types(void)
