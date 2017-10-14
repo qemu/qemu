@@ -36,7 +36,6 @@
  * http://mediacast.sun.com/users/Barton808/media/Sun4M_SystemArchitecture_edited2.pdf
  */
 
-#define IOMMU_NREGS         (4*4096/4)
 #define IOMMU_CTRL          (0x0000 >> 2)
 #define IOMMU_CTRL_IMPL     0xf0000000 /* Implementation */
 #define IOMMU_CTRL_VERS     0x0f000000 /* Version */
@@ -127,19 +126,6 @@
 #define IOMMU_PAGE_SHIFT    12
 #define IOMMU_PAGE_SIZE     (1 << IOMMU_PAGE_SHIFT)
 #define IOMMU_PAGE_MASK     ~(IOMMU_PAGE_SIZE - 1)
-
-#define TYPE_SUN4M_IOMMU "iommu"
-#define SUN4M_IOMMU(obj) OBJECT_CHECK(IOMMUState, (obj), TYPE_SUN4M_IOMMU)
-
-typedef struct IOMMUState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint32_t regs[IOMMU_NREGS];
-    hwaddr iostart;
-    qemu_irq irq;
-    uint32_t version;
-} IOMMUState;
 
 static uint64_t iommu_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
