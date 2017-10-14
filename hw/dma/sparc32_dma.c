@@ -78,6 +78,22 @@ struct DMADeviceState {
     uint32_t is_ledma;
 };
 
+#define TYPE_SPARC32_ESPDMA_DEVICE "sparc32-espdma"
+#define SPARC32_ESPDMA_DEVICE(obj) OBJECT_CHECK(ESPDMADeviceState, (obj), \
+                                                TYPE_SPARC32_ESPDMA_DEVICE)
+
+typedef struct ESPDMADeviceState {
+    DMADeviceState parent_obj;
+} ESPDMADeviceState;
+
+#define TYPE_SPARC32_LEDMA_DEVICE "sparc32-ledma"
+#define SPARC32_LEDMA_DEVICE(obj) OBJECT_CHECK(LEDMADeviceState, (obj), \
+                                               TYPE_SPARC32_LEDMA_DEVICE)
+
+typedef struct LEDMADeviceState {
+    DMADeviceState parent_obj;
+} LEDMADeviceState;
+
 enum {
     GPIO_RESET = 0,
     GPIO_DMA,
@@ -285,19 +301,8 @@ static void sparc32_dma_device_init(Object *obj)
     qdev_init_gpio_out(dev, s->gpio, 2);
 }
 
-static void sparc32_dma_device_realize(DeviceState *dev, Error **errp)
-{
-    DMADeviceState *s = SPARC32_DMA_DEVICE(dev);
-    int reg_size;
-
-    reg_size = s->is_ledma ? DMA_ETH_SIZE : DMA_SIZE;
-    memory_region_init_io(&s->iomem, OBJECT(dev), &dma_mem_ops, s,
-                          "dma", reg_size);
-}
-
 static Property sparc32_dma_device_properties[] = {
     DEFINE_PROP_PTR("iommu_opaque", DMADeviceState, iommu),
-    DEFINE_PROP_UINT32("is_ledma", DMADeviceState, is_ledma, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -308,7 +313,6 @@ static void sparc32_dma_device_class_init(ObjectClass *klass, void *data)
     dc->reset = sparc32_dma_device_reset;
     dc->vmsd = &vmstate_sparc32_dma_device;
     dc->props = sparc32_dma_device_properties;
-    dc->realize = sparc32_dma_device_realize;
     /* Reason: pointer property "iommu_opaque" */
     dc->user_creatable = false;
 }
@@ -316,14 +320,49 @@ static void sparc32_dma_device_class_init(ObjectClass *klass, void *data)
 static const TypeInfo sparc32_dma_device_info = {
     .name          = TYPE_SPARC32_DMA_DEVICE,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .abstract      = true,
     .instance_size = sizeof(DMADeviceState),
     .instance_init = sparc32_dma_device_init,
     .class_init    = sparc32_dma_device_class_init,
 };
 
+static void sparc32_espdma_device_init(Object *obj)
+{
+    DMADeviceState *s = SPARC32_DMA_DEVICE(obj);
+
+    memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
+                          "espdma-mmio", DMA_SIZE);
+    s->is_ledma = 0;
+}
+
+static const TypeInfo sparc32_espdma_device_info = {
+    .name          = TYPE_SPARC32_ESPDMA_DEVICE,
+    .parent        = TYPE_SPARC32_DMA_DEVICE,
+    .instance_size = sizeof(ESPDMADeviceState),
+    .instance_init = sparc32_espdma_device_init,
+};
+
+static void sparc32_ledma_device_init(Object *obj)
+{
+    DMADeviceState *s = SPARC32_DMA_DEVICE(obj);
+
+    memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
+                          "ledma-mmio", DMA_ETH_SIZE);
+    s->is_ledma = 1;
+}
+
+static const TypeInfo sparc32_ledma_device_info = {
+    .name          = TYPE_SPARC32_LEDMA_DEVICE,
+    .parent        = TYPE_SPARC32_DMA_DEVICE,
+    .instance_size = sizeof(LEDMADeviceState),
+    .instance_init = sparc32_ledma_device_init,
+};
+
 static void sparc32_dma_register_types(void)
 {
     type_register_static(&sparc32_dma_device_info);
+    type_register_static(&sparc32_espdma_device_info);
+    type_register_static(&sparc32_ledma_device_info);
 }
 
 type_init(sparc32_dma_register_types)
