@@ -296,7 +296,7 @@ static void *iommu_init(hwaddr addr, uint32_t version, qemu_irq irq)
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, "iommu");
+    dev = qdev_create(NULL, TYPE_SUN4M_IOMMU);
     qdev_prop_set_uint32(dev, "version", version);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
@@ -312,7 +312,7 @@ static void *sparc32_dma_init(hwaddr daddr, void *iommu, int is_ledma)
     SysBusDevice *s;
 
     dev = qdev_create(NULL, is_ledma ? "sparc32-ledma" : "sparc32-espdma");
-    qdev_prop_set_ptr(dev, "iommu_opaque", iommu);
+    object_property_set_link(OBJECT(dev), OBJECT(iommu), "iommu", &error_abort);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, daddr);
