@@ -7,12 +7,12 @@ rc4030_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
 rc4030_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
 
 # hw/dma/sparc32_dma.c
-ledma_memory_read(uint64_t addr) "DMA read addr 0x%"PRIx64
-ledma_memory_write(uint64_t addr) "DMA write addr 0x%"PRIx64
+ledma_memory_read(uint64_t addr, int len) "DMA read addr 0x%"PRIx64 " len %d"
+ledma_memory_write(uint64_t addr, int len) "DMA write addr 0x%"PRIx64 " len %d"
 sparc32_dma_set_irq_raise(void) "Raise IRQ"
 sparc32_dma_set_irq_lower(void) "Lower IRQ"
-espdma_memory_read(uint32_t addr) "DMA read addr 0x%08x"
-espdma_memory_write(uint32_t addr) "DMA write addr 0x%08x"
+espdma_memory_read(uint32_t addr, int len) "DMA read addr 0x%08x len %d"
+espdma_memory_write(uint32_t addr, int len) "DMA write addr 0x%08x len %d"
 sparc32_dma_mem_readl(uint64_t addr, uint32_t ret) "read dmareg 0x%"PRIx64": 0x%08x"
 sparc32_dma_mem_writel(uint64_t addr, uint32_t old, uint32_t val) "write dmareg 0x%"PRIx64": 0x%08x -> 0x%08x"
 sparc32_dma_enable_raise(void) "Raise DMA enable"

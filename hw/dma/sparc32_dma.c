@@ -74,7 +74,7 @@ void ledma_memory_read(void *opaque, hwaddr addr,
     int i;
 
     addr |= s->dmaregs[3];
-    trace_ledma_memory_read(addr);
+    trace_ledma_memory_read(addr, len);
     if (do_bswap) {
         sparc_iommu_memory_read(s->iommu, addr, buf, len);
     } else {
@@ -95,7 +95,7 @@ void ledma_memory_write(void *opaque, hwaddr addr,
     uint16_t tmp_buf[32];
 
     addr |= s->dmaregs[3];
-    trace_ledma_memory_write(addr);
+    trace_ledma_memory_write(addr, len);
     if (do_bswap) {
         sparc_iommu_memory_write(s->iommu, addr, buf, len);
     } else {
@@ -140,7 +140,7 @@ void espdma_memory_read(void *opaque, uint8_t *buf, int len)
 {
     DMADeviceState *s = opaque;
 
-    trace_espdma_memory_read(s->dmaregs[1]);
+    trace_espdma_memory_read(s->dmaregs[1], len);
     sparc_iommu_memory_read(s->iommu, s->dmaregs[1], buf, len);
     s->dmaregs[1] += len;
 }
@@ -149,7 +149,7 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
 {
     DMADeviceState *s = opaque;
 
-    trace_espdma_memory_write(s->dmaregs[1]);
+    trace_espdma_memory_write(s->dmaregs[1], len);
     sparc_iommu_memory_write(s->iommu, s->dmaregs[1], buf, len);
     s->dmaregs[1] += len;
 }
