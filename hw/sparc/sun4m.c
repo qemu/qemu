@@ -312,7 +312,7 @@ static void *sparc32_dma_init(hwaddr daddr, qemu_irq parent_irq,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, "sparc32_dma");
+    dev = qdev_create(NULL, "sparc32-dma-device");
     qdev_prop_set_ptr(dev, "iommu_opaque", iommu);
     qdev_prop_set_uint32(dev, "is_ledma", is_ledma);
     qdev_init_nofail(dev);
