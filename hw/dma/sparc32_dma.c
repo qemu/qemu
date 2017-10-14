@@ -298,11 +298,37 @@ static void sparc32_espdma_device_init(Object *obj)
     s->is_ledma = 0;
 }
 
+static void sparc32_espdma_device_realize(DeviceState *dev, Error **errp)
+{
+    DeviceState *d;
+    SysBusESPState *sysbus;
+    ESPState *esp;
+
+    d = qdev_create(NULL, TYPE_ESP);
+    object_property_add_child(OBJECT(dev), "esp", OBJECT(d), errp);
+    sysbus = ESP_STATE(d);
+    esp = &sysbus->esp;
+    esp->dma_memory_read = espdma_memory_read;
+    esp->dma_memory_write = espdma_memory_write;
+    esp->dma_opaque = SPARC32_DMA_DEVICE(dev);
+    sysbus->it_shift = 2;
+    esp->dma_enabled = 1;
+    qdev_init_nofail(d);
+}
+
+static void sparc32_espdma_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = sparc32_espdma_device_realize;
+}
+
 static const TypeInfo sparc32_espdma_device_info = {
     .name          = TYPE_SPARC32_ESPDMA_DEVICE,
     .parent        = TYPE_SPARC32_DMA_DEVICE,
     .instance_size = sizeof(ESPDMADeviceState),
     .instance_init = sparc32_espdma_device_init,
+    .class_init    = sparc32_espdma_device_class_init,
 };
 
 static void sparc32_ledma_device_init(Object *obj)

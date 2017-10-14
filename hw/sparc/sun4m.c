@@ -817,10 +817,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     DeviceState *slavio_intctl;
     unsigned int i;
     void *iommu, *nvram;
-    DeviceState *espdma, *ledma;
+    DeviceState *espdma, *esp, *ledma;
     SysBusDevice *sbd;
     qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS];
-    qemu_irq esp_reset, dma_enable;
     qemu_irq fdc_tc;
     unsigned long kernel_size;
     DriveInfo *fd[MAX_FD];
@@ -878,6 +877,13 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     espdma = sparc32_dma_init(hwdef->dma_base, iommu, 0);
     sbd = SYS_BUS_DEVICE(espdma);
     sysbus_connect_irq(sbd, 0, slavio_irq[18]);
+
+    esp = DEVICE(object_resolve_path_component(OBJECT(espdma), "esp"));
+    sbd = SYS_BUS_DEVICE(esp);
+    sysbus_mmio_map(sbd, 0, hwdef->esp_base);
+    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(espdma, 0));
+    qdev_connect_gpio_out(espdma, 0, qdev_get_gpio_in(esp, 0));
+    qdev_connect_gpio_out(espdma, 1, qdev_get_gpio_in(esp, 1));
 
     ledma = sparc32_dma_init(hwdef->dma_base + 16ULL, iommu, 1);
     sbd = SYS_BUS_DEVICE(ledma);
@@ -964,15 +970,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     slavio_misc_init(hwdef->slavio_base, hwdef->aux1_base, hwdef->aux2_base,
                      slavio_irq[30], fdc_tc);
-
-    esp_init(hwdef->esp_base, 2,
-             espdma_memory_read, espdma_memory_write,
-             espdma,
-             qdev_get_gpio_in(espdma, 0),
-             &esp_reset, &dma_enable);
-
-    qdev_connect_gpio_out(espdma, 0, esp_reset);
-    qdev_connect_gpio_out(espdma, 1, dma_enable);
 
     if (hwdef->cs_base) {
         sysbus_create_simple("SUNW,CS4231", hwdef->cs_base,

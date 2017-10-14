@@ -2,6 +2,7 @@
 #define SPARC32_DMA_H
 
 #include "hw/sysbus.h"
+#include "hw/scsi/esp.h"
 
 #define DMA_REGS 4
 
@@ -28,6 +29,8 @@ struct DMADeviceState {
 
 typedef struct ESPDMADeviceState {
     DMADeviceState parent_obj;
+
+    SysBusESPState *esp;
 } ESPDMADeviceState;
 
 #define TYPE_SPARC32_LEDMA_DEVICE "sparc32-ledma"
