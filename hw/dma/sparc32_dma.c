@@ -40,7 +40,6 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/DMA2.txt
  */
 
-#define DMA_REGS 4
 #define DMA_SIZE (4 * sizeof(uint32_t))
 /* We need the mask, because one instance of the device is not page
    aligned (ledma, start address 0x0010) */
@@ -60,39 +59,6 @@
 
 /* XXX SCSI and ethernet should have different read-only bit masks */
 #define DMA_CSR_RO_MASK 0xfe000007
-
-#define TYPE_SPARC32_DMA_DEVICE "sparc32-dma-device"
-#define SPARC32_DMA_DEVICE(obj) OBJECT_CHECK(DMADeviceState, (obj), \
-                                             TYPE_SPARC32_DMA_DEVICE)
-
-typedef struct DMADeviceState DMADeviceState;
-
-struct DMADeviceState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint32_t dmaregs[DMA_REGS];
-    qemu_irq irq;
-    void *iommu;
-    qemu_irq gpio[2];
-    uint32_t is_ledma;
-};
-
-#define TYPE_SPARC32_ESPDMA_DEVICE "sparc32-espdma"
-#define SPARC32_ESPDMA_DEVICE(obj) OBJECT_CHECK(ESPDMADeviceState, (obj), \
-                                                TYPE_SPARC32_ESPDMA_DEVICE)
-
-typedef struct ESPDMADeviceState {
-    DMADeviceState parent_obj;
-} ESPDMADeviceState;
-
-#define TYPE_SPARC32_LEDMA_DEVICE "sparc32-ledma"
-#define SPARC32_LEDMA_DEVICE(obj) OBJECT_CHECK(LEDMADeviceState, (obj), \
-                                               TYPE_SPARC32_LEDMA_DEVICE)
-
-typedef struct LEDMADeviceState {
-    DMADeviceState parent_obj;
-} LEDMADeviceState;
 
 enum {
     GPIO_RESET = 0,
