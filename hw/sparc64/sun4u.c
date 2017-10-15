@@ -494,10 +494,10 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                 memcpy(&macaddr, &nd->macaddr.a, sizeof(MACAddr));
                 onboard_nic = true;
             } else {
-                pci_dev = pci_create_simple(pci_busB, -1, "sunhme");
+                pci_dev = pci_create(pci_busB, -1, "sunhme");
             }
         } else {
-            pci_dev = pci_create_simple(pci_busB, -1, nd->model);
+            pci_dev = pci_create(pci_busB, -1, nd->model);
         }
 
         dev = &pci_dev->qdev;
