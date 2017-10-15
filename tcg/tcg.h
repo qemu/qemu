@@ -951,8 +951,7 @@ do {\
 
 bool tcg_op_supported(TCGOpcode op);
 
-void tcg_gen_callN(TCGContext *s, void *func,
-                   TCGArg ret, int nargs, TCGArg *args);
+void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args);
 
 void tcg_op_remove(TCGContext *s, TCGOp *op);
 TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);

@@ -974,9 +974,9 @@ bool tcg_op_supported(TCGOpcode op)
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment
    and endian swap in tcg_reg_alloc_call(). */
-void tcg_gen_callN(TCGContext *s, void *func, TCGArg ret,
-                   int nargs, TCGArg *args)
+void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
 {
+    TCGContext *s = &tcg_ctx;
     int i, real_args, nb_rets, pi;
     unsigned sizemask, flags;
     TCGHelperInfo *info;
