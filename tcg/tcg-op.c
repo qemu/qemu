@@ -46,8 +46,9 @@ extern TCGv_i32 TCGV_HIGH_link_error(TCGv_i64);
    Up to and including filling in the forward link immediately.  We'll do
    proper termination of the end of the list after we finish translation.  */
 
-static inline TCGOp *tcg_emit_op(TCGContext *ctx, TCGOpcode opc)
+static inline TCGOp *tcg_emit_op(TCGOpcode opc)
 {
+    TCGContext *ctx = &tcg_ctx;
     int oi = ctx->gen_next_op_idx;
     int ni = oi + 1;
     int pi = oi - 1;
@@ -65,42 +66,40 @@ static inline TCGOp *tcg_emit_op(TCGContext *ctx, TCGOpcode opc)
     return op;
 }
 
-void tcg_gen_op1(TCGContext *ctx, TCGOpcode opc, TCGArg a1)
+void tcg_gen_op1(TCGOpcode opc, TCGArg a1)
 {
-    TCGOp *op = tcg_emit_op(ctx, opc);
+    TCGOp *op = tcg_emit_op(opc);
     op->args[0] = a1;
 }
 
-void tcg_gen_op2(TCGContext *ctx, TCGOpcode opc, TCGArg a1, TCGArg a2)
+void tcg_gen_op2(TCGOpcode opc, TCGArg a1, TCGArg a2)
 {
-    TCGOp *op = tcg_emit_op(ctx, opc);
+    TCGOp *op = tcg_emit_op(opc);
     op->args[0] = a1;
     op->args[1] = a2;
 }
 
-void tcg_gen_op3(TCGContext *ctx, TCGOpcode opc, TCGArg a1,
-                 TCGArg a2, TCGArg a3)
+void tcg_gen_op3(TCGOpcode opc, TCGArg a1, TCGArg a2, TCGArg a3)
 {
-    TCGOp *op = tcg_emit_op(ctx, opc);
+    TCGOp *op = tcg_emit_op(opc);
     op->args[0] = a1;
     op->args[1] = a2;
     op->args[2] = a3;
 }
 
-void tcg_gen_op4(TCGContext *ctx, TCGOpcode opc, TCGArg a1,
-                 TCGArg a2, TCGArg a3, TCGArg a4)
+void tcg_gen_op4(TCGOpcode opc, TCGArg a1, TCGArg a2, TCGArg a3, TCGArg a4)
 {
-    TCGOp *op = tcg_emit_op(ctx, opc);
+    TCGOp *op = tcg_emit_op(opc);
     op->args[0] = a1;
     op->args[1] = a2;
     op->args[2] = a3;
     op->args[3] = a4;
 }
 
-void tcg_gen_op5(TCGContext *ctx, TCGOpcode opc, TCGArg a1,
-                 TCGArg a2, TCGArg a3, TCGArg a4, TCGArg a5)
+void tcg_gen_op5(TCGOpcode opc, TCGArg a1, TCGArg a2, TCGArg a3,
+                 TCGArg a4, TCGArg a5)
 {
-    TCGOp *op = tcg_emit_op(ctx, opc);
+    TCGOp *op = tcg_emit_op(opc);
     op->args[0] = a1;
     op->args[1] = a2;
     op->args[2] = a3;
@@ -108,10 +107,10 @@ void tcg_gen_op5(TCGContext *ctx, TCGOpcode opc, TCGArg a1,
     op->args[4] = a5;
 }
 
-void tcg_gen_op6(TCGContext *ctx, TCGOpcode opc, TCGArg a1, TCGArg a2,
-                 TCGArg a3, TCGArg a4, TCGArg a5, TCGArg a6)
+void tcg_gen_op6(TCGOpcode opc, TCGArg a1, TCGArg a2, TCGArg a3,
+                 TCGArg a4, TCGArg a5, TCGArg a6)
 {
-    TCGOp *op = tcg_emit_op(ctx, opc);
+    TCGOp *op = tcg_emit_op(opc);
     op->args[0] = a1;
     op->args[1] = a2;
     op->args[2] = a3;
@@ -123,7 +122,7 @@ void tcg_gen_op6(TCGContext *ctx, TCGOpcode opc, TCGArg a1, TCGArg a2,
 void tcg_gen_mb(TCGBar mb_type)
 {
     if (parallel_cpus) {
-        tcg_gen_op1(&tcg_ctx, INDEX_op_mb, mb_type);
+        tcg_gen_op1(INDEX_op_mb, mb_type);
     }
 }
 
@@ -2458,7 +2457,7 @@ void tcg_gen_extrl_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_mov_i32(ret, TCGV_LOW(arg));
     } else if (TCG_TARGET_HAS_extrl_i64_i32) {
-        tcg_gen_op2(&tcg_ctx, INDEX_op_extrl_i64_i32,
+        tcg_gen_op2(INDEX_op_extrl_i64_i32,
                     GET_TCGV_I32(ret), GET_TCGV_I64(arg));
     } else {
         tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(arg)));
@@ -2470,7 +2469,7 @@ void tcg_gen_extrh_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_mov_i32(ret, TCGV_HIGH(arg));
     } else if (TCG_TARGET_HAS_extrh_i64_i32) {
-        tcg_gen_op2(&tcg_ctx, INDEX_op_extrh_i64_i32,
+        tcg_gen_op2(INDEX_op_extrh_i64_i32,
                     GET_TCGV_I32(ret), GET_TCGV_I64(arg));
     } else {
         TCGv_i64 t = tcg_temp_new_i64();
@@ -2486,7 +2485,7 @@ void tcg_gen_extu_i32_i64(TCGv_i64 ret, TCGv_i32 arg)
         tcg_gen_mov_i32(TCGV_LOW(ret), arg);
         tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
     } else {
-        tcg_gen_op2(&tcg_ctx, INDEX_op_extu_i32_i64,
+        tcg_gen_op2(INDEX_op_extu_i32_i64,
                     GET_TCGV_I64(ret), GET_TCGV_I32(arg));
     }
 }
@@ -2497,7 +2496,7 @@ void tcg_gen_ext_i32_i64(TCGv_i64 ret, TCGv_i32 arg)
         tcg_gen_mov_i32(TCGV_LOW(ret), arg);
         tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_LOW(ret), 31);
     } else {
-        tcg_gen_op2(&tcg_ctx, INDEX_op_ext_i32_i64,
+        tcg_gen_op2(INDEX_op_ext_i32_i64,
                     GET_TCGV_I64(ret), GET_TCGV_I32(arg));
     }
 }
@@ -2609,7 +2608,7 @@ static void gen_ldst_i32(TCGOpcode opc, TCGv_i32 val, TCGv addr,
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_op4i_i32(opc, val, TCGV_LOW(addr), TCGV_HIGH(addr), oi);
     } else {
-        tcg_gen_op3(&tcg_ctx, opc, GET_TCGV_I32(val), GET_TCGV_I64(addr), oi);
+        tcg_gen_op3(opc, GET_TCGV_I32(val), GET_TCGV_I64(addr), oi);
     }
 #endif
 }
@@ -2622,7 +2621,7 @@ static void gen_ldst_i64(TCGOpcode opc, TCGv_i64 val, TCGv addr,
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_op4i_i32(opc, TCGV_LOW(val), TCGV_HIGH(val), addr, oi);
     } else {
-        tcg_gen_op3(&tcg_ctx, opc, GET_TCGV_I64(val), GET_TCGV_I32(addr), oi);
+        tcg_gen_op3(opc, GET_TCGV_I64(val), GET_TCGV_I32(addr), oi);
     }
 #else
     if (TCG_TARGET_REG_BITS == 32) {
