@@ -974,7 +974,7 @@ bool tcg_op_supported(TCGOpcode op)
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment
    and endian swap in tcg_reg_alloc_call(). */
-void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
+void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
 {
     TCGContext *s = &tcg_ctx;
     int i, real_args, nb_rets, pi;
@@ -993,7 +993,7 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
     int orig_sizemask = sizemask;
     int orig_nargs = nargs;
     TCGv_i64 retl, reth;
-    TCGArg split_args[MAX_OPC_PARAM];
+    TCGTemp *split_args[MAX_OPC_PARAM];
 
     TCGV_UNUSED_I64(retl);
     TCGV_UNUSED_I64(reth);
@@ -1001,12 +1001,12 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
         for (i = real_args = 0; i < nargs; ++i) {
             int is_64bit = sizemask & (1 << (i+1)*2);
             if (is_64bit) {
-                TCGv_i64 orig = MAKE_TCGV_I64(args[i]);
+                TCGv_i64 orig = MAKE_TCGV_I64(temp_idx(args[i]));
                 TCGv_i32 h = tcg_temp_new_i32();
                 TCGv_i32 l = tcg_temp_new_i32();
                 tcg_gen_extr_i64_i32(l, h, orig);
-                split_args[real_args++] = GET_TCGV_I32(h);
-                split_args[real_args++] = GET_TCGV_I32(l);
+                split_args[real_args++] = tcgv_i32_temp(h);
+                split_args[real_args++] = tcgv_i32_temp(l);
             } else {
                 split_args[real_args++] = args[i];
             }
@@ -1021,13 +1021,13 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
         int is_signed = sizemask & (2 << (i+1)*2);
         if (!is_64bit) {
             TCGv_i64 temp = tcg_temp_new_i64();
-            TCGv_i64 orig = MAKE_TCGV_I64(args[i]);
+            TCGv_i64 orig = MAKE_TCGV_I64(temp_idx(args[i]));
             if (is_signed) {
                 tcg_gen_ext32s_i64(temp, orig);
             } else {
                 tcg_gen_ext32u_i64(temp, orig);
             }
-            args[i] = GET_TCGV_I64(temp);
+            args[i] = tcgv_i64_temp(temp);
         }
     }
 #endif /* TCG_TARGET_EXTEND_ARGS */
@@ -1045,7 +1045,7 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
     op->next = i + 1;
 
     pi = 0;
-    if (ret != TCG_CALL_DUMMY_ARG) {
+    if (ret != NULL) {
 #if defined(__sparc__) && !defined(__arch64__) \
     && !defined(CONFIG_TCG_INTERPRETER)
         if (orig_sizemask & 1) {
@@ -1054,25 +1054,25 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
                two return temporaries, and reassemble below.  */
             retl = tcg_temp_new_i64();
             reth = tcg_temp_new_i64();
-            op->args[pi++] = GET_TCGV_I64(reth);
-            op->args[pi++] = GET_TCGV_I64(retl);
+            op->args[pi++] = tcgv_i64_arg(reth);
+            op->args[pi++] = tcgv_i64_arg(retl);
             nb_rets = 2;
         } else {
-            op->args[pi++] = ret;
+            op->args[pi++] = temp_arg(ret);
             nb_rets = 1;
         }
 #else
         if (TCG_TARGET_REG_BITS < 64 && (sizemask & 1)) {
 #ifdef HOST_WORDS_BIGENDIAN
-            op->args[pi++] = ret + 1;
-            op->args[pi++] = ret;
+            op->args[pi++] = temp_arg(ret + 1);
+            op->args[pi++] = temp_arg(ret);
 #else
-            op->args[pi++] = ret;
-            op->args[pi++] = ret + 1;
+            op->args[pi++] = temp_arg(ret);
+            op->args[pi++] = temp_arg(ret + 1);
 #endif
             nb_rets = 2;
         } else {
-            op->args[pi++] = ret;
+            op->args[pi++] = temp_arg(ret);
             nb_rets = 1;
         }
 #endif
@@ -1103,17 +1103,17 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
               have to get more complicated to differentiate between
               stack arguments and register arguments.  */
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
-            op->args[pi++] = args[i] + 1;
-            op->args[pi++] = args[i];
+            op->args[pi++] = temp_arg(args[i] + 1);
+            op->args[pi++] = temp_arg(args[i]);
 #else
-            op->args[pi++] = args[i];
-            op->args[pi++] = args[i] + 1;
+            op->args[pi++] = temp_arg(args[i]);
+            op->args[pi++] = temp_arg(args[i] + 1);
 #endif
             real_args += 2;
             continue;
         }
 
-        op->args[pi++] = args[i];
+        op->args[pi++] = temp_arg(args[i]);
         real_args++;
     }
     op->args[pi++] = (uintptr_t)func;
@@ -1130,8 +1130,8 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
     for (i = real_args = 0; i < orig_nargs; ++i) {
         int is_64bit = orig_sizemask & (1 << (i+1)*2);
         if (is_64bit) {
-            TCGv_i32 h = MAKE_TCGV_I32(args[real_args++]);
-            TCGv_i32 l = MAKE_TCGV_I32(args[real_args++]);
+            TCGv_i32 h = MAKE_TCGV_I32(temp_idx(args[real_args++]));
+            TCGv_i32 l = MAKE_TCGV_I32(temp_idx(args[real_args++]));
             tcg_temp_free_i32(h);
             tcg_temp_free_i32(l);
         } else {
@@ -1142,7 +1142,7 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
         /* The 32-bit ABI returned two 32-bit pieces.  Re-assemble them.
            Note that describing these as TCGv_i64 eliminates an unnecessary
            zero-extension that tcg_gen_concat_i32_i64 would create.  */
-        tcg_gen_concat32_i64(MAKE_TCGV_I64(ret), retl, reth);
+        tcg_gen_concat32_i64(MAKE_TCGV_I64(temp_idx(ret)), retl, reth);
         tcg_temp_free_i64(retl);
         tcg_temp_free_i64(reth);
     }
@@ -1150,7 +1150,7 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
     for (i = 0; i < nargs; ++i) {
         int is_64bit = sizemask & (1 << (i+1)*2);
         if (!is_64bit) {
-            TCGv_i64 temp = MAKE_TCGV_I64(args[i]);
+            TCGv_i64 temp = MAKE_TCGV_I64(temp_idx(args[i]));
             tcg_temp_free_i64(temp);
         }
     }

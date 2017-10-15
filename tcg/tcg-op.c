@@ -2458,7 +2458,7 @@ void tcg_gen_extrl_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
         tcg_gen_mov_i32(ret, TCGV_LOW(arg));
     } else if (TCG_TARGET_HAS_extrl_i64_i32) {
         tcg_gen_op2(INDEX_op_extrl_i64_i32,
-                    GET_TCGV_I32(ret), GET_TCGV_I64(arg));
+                    tcgv_i32_arg(ret), tcgv_i64_arg(arg));
     } else {
         tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(arg)));
     }
@@ -2470,7 +2470,7 @@ void tcg_gen_extrh_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
         tcg_gen_mov_i32(ret, TCGV_HIGH(arg));
     } else if (TCG_TARGET_HAS_extrh_i64_i32) {
         tcg_gen_op2(INDEX_op_extrh_i64_i32,
-                    GET_TCGV_I32(ret), GET_TCGV_I64(arg));
+                    tcgv_i32_arg(ret), tcgv_i64_arg(arg));
     } else {
         TCGv_i64 t = tcg_temp_new_i64();
         tcg_gen_shri_i64(t, arg, 32);
@@ -2486,7 +2486,7 @@ void tcg_gen_extu_i32_i64(TCGv_i64 ret, TCGv_i32 arg)
         tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
     } else {
         tcg_gen_op2(INDEX_op_extu_i32_i64,
-                    GET_TCGV_I64(ret), GET_TCGV_I32(arg));
+                    tcgv_i64_arg(ret), tcgv_i32_arg(arg));
     }
 }
 
@@ -2497,7 +2497,7 @@ void tcg_gen_ext_i32_i64(TCGv_i64 ret, TCGv_i32 arg)
         tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_LOW(ret), 31);
     } else {
         tcg_gen_op2(INDEX_op_ext_i32_i64,
-                    GET_TCGV_I64(ret), GET_TCGV_I32(arg));
+                    tcgv_i64_arg(ret), tcgv_i32_arg(arg));
     }
 }
 
@@ -2563,7 +2563,7 @@ void tcg_gen_lookup_and_goto_ptr(void)
     if (TCG_TARGET_HAS_goto_ptr && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
         TCGv_ptr ptr = tcg_temp_new_ptr();
         gen_helper_lookup_tb_ptr(ptr, tcg_ctx.tcg_env);
-        tcg_gen_op1i(INDEX_op_goto_ptr, GET_TCGV_PTR(ptr));
+        tcg_gen_op1i(INDEX_op_goto_ptr, tcgv_ptr_arg(ptr));
         tcg_temp_free_ptr(ptr);
     } else {
         tcg_gen_exit_tb(0);
@@ -2608,7 +2608,7 @@ static void gen_ldst_i32(TCGOpcode opc, TCGv_i32 val, TCGv addr,
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_op4i_i32(opc, val, TCGV_LOW(addr), TCGV_HIGH(addr), oi);
     } else {
-        tcg_gen_op3(opc, GET_TCGV_I32(val), GET_TCGV_I64(addr), oi);
+        tcg_gen_op3(opc, tcgv_i32_arg(val), tcgv_i64_arg(addr), oi);
     }
 #endif
 }
@@ -2621,7 +2621,7 @@ static void gen_ldst_i64(TCGOpcode opc, TCGv_i64 val, TCGv addr,
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_op4i_i32(opc, TCGV_LOW(val), TCGV_HIGH(val), addr, oi);
     } else {
-        tcg_gen_op3(opc, GET_TCGV_I64(val), GET_TCGV_I32(addr), oi);
+        tcg_gen_op3(opc, tcgv_i64_arg(val), tcgv_i32_arg(addr), oi);
     }
 #else
     if (TCG_TARGET_REG_BITS == 32) {

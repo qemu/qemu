@@ -756,6 +756,36 @@ static inline size_t arg_index(TCGArg a)
     return a;
 }
 
+static inline TCGArg tcgv_i32_arg(TCGv_i32 t)
+{
+    return (intptr_t)t;
+}
+
+static inline TCGArg tcgv_i64_arg(TCGv_i64 t)
+{
+    return (intptr_t)t;
+}
+
+static inline TCGArg tcgv_ptr_arg(TCGv_ptr t)
+{
+    return (intptr_t)t;
+}
+
+static inline TCGTemp *tcgv_i32_temp(TCGv_i32 t)
+{
+    return arg_temp(tcgv_i32_arg(t));
+}
+
+static inline TCGTemp *tcgv_i64_temp(TCGv_i64 t)
+{
+    return arg_temp(tcgv_i64_arg(t));
+}
+
+static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr t)
+{
+    return arg_temp(tcgv_ptr_arg(t));
+}
+
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
     tcg_ctx.gen_op_buf[op_idx].args[arg] = v;
@@ -951,7 +981,7 @@ do {\
 
 bool tcg_op_supported(TCGOpcode op);
 
-void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args);
+void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args);
 
 void tcg_op_remove(TCGContext *s, TCGOp *op);
 TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
