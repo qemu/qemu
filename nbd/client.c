@@ -931,7 +931,7 @@ int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
     }
 
     /* Reply
-       [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
+       [ 0 ..  3]    magic   (NBD_SIMPLE_REPLY_MAGIC)
        [ 4 ..  7]    error   (0 == no error)
        [ 7 .. 15]    handle
      */
@@ -949,7 +949,7 @@ int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
     }
     trace_nbd_receive_reply(magic, reply->error, reply->handle);
 
-    if (magic != NBD_REPLY_MAGIC) {
+    if (magic != NBD_SIMPLE_REPLY_MAGIC) {
         error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
         return -EINVAL;
     }

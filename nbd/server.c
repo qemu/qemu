@@ -902,26 +902,6 @@ static int nbd_receive_request(QIOChannel *ioc, NBDRequest *request,
     return 0;
 }
 
-static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
-{
-    uint8_t buf[NBD_REPLY_SIZE];
-
-    reply->error = system_errno_to_nbd_errno(reply->error);
-
-    trace_nbd_send_reply(reply->error, reply->handle);
-
-    /* Reply
-       [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
-       [ 4 ..  7]    error   (0 == no error)
-       [ 7 .. 15]    handle
-     */
-    stl_be_p(buf, NBD_REPLY_MAGIC);
-    stl_be_p(buf + 4, reply->error);
-    stq_be_p(buf + 8, reply->handle);
-
-    return nbd_write(ioc, buf, sizeof(buf), errp);
-}
-
 #define MAX_NBD_REQUESTS 16
 
 void nbd_client_get(NBDClient *client)
@@ -1047,7 +1027,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
 {
     AioContext *ctx;
     BlockBackend *blk;
-    NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    NBDExport *exp = g_new0(NBDExport, 1);
     uint64_t perm;
     int ret;
 
@@ -1208,36 +1188,49 @@ void nbd_export_close_all(void)
     }
 }
 
-static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len,
-                             Error **errp)
+static int coroutine_fn nbd_co_send_iov(NBDClient *client, struct iovec *iov,
+                                        unsigned niov, Error **errp)
 {
-    NBDClient *client = req->client;
     int ret;
 
     g_assert(qemu_in_coroutine());
-
-    trace_nbd_co_send_reply(reply->handle, reply->error, len);
-
     qemu_co_mutex_lock(&client->send_lock);
     client->send_coroutine = qemu_coroutine_self();
 
-    if (!len) {
-        ret = nbd_send_reply(client->ioc, reply, errp);
-    } else {
-        qio_channel_set_cork(client->ioc, true);
-        ret = nbd_send_reply(client->ioc, reply, errp);
-        if (ret == 0) {
-            ret = nbd_write(client->ioc, req->data, len, errp);
-            if (ret < 0) {
-                ret = -EIO;
-            }
-        }
-        qio_channel_set_cork(client->ioc, false);
-    }
+    ret = qio_channel_writev_all(client->ioc, iov, niov, errp) < 0 ? -EIO : 0;
 
     client->send_coroutine = NULL;
     qemu_co_mutex_unlock(&client->send_lock);
+
     return ret;
+}
+
+static inline void set_be_simple_reply(NBDSimpleReply *reply, uint64_t error,
+                                       uint64_t handle)
+{
+    stl_be_p(&reply->magic, NBD_SIMPLE_REPLY_MAGIC);
+    stl_be_p(&reply->error, error);
+    stq_be_p(&reply->handle, handle);
+}
+
+static int nbd_co_send_simple_reply(NBDClient *client,
+                                    uint64_t handle,
+                                    uint32_t error,
+                                    void *data,
+                                    size_t len,
+                                    Error **errp)
+{
+    NBDSimpleReply reply;
+    int nbd_err = system_errno_to_nbd_errno(error);
+    struct iovec iov[] = {
+        {.iov_base = &reply, .iov_len = sizeof(reply)},
+        {.iov_base = data, .iov_len = len}
+    };
+
+    trace_nbd_co_send_simple_reply(handle, nbd_err, len);
+    set_be_simple_reply(&reply, nbd_err, handle);
+
+    return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);
 }
 
 /* nbd_co_receive_request
@@ -1331,7 +1324,6 @@ static coroutine_fn void nbd_trip(void *opaque)
     NBDExport *exp = client->exp;
     NBDRequestData *req;
     NBDRequest request = { 0 };    /* GCC thinks it can be used uninitialized */
-    NBDReply reply;
     int ret;
     int flags;
     int reply_data_len = 0;
@@ -1351,11 +1343,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         goto disconnect;
     }
 
-    reply.handle = request.handle;
-    reply.error = 0;
-
     if (ret < 0) {
-        reply.error = -ret;
         goto reply;
     }
 
@@ -1374,7 +1362,6 @@ static coroutine_fn void nbd_trip(void *opaque)
             ret = blk_co_flush(exp->blk);
             if (ret < 0) {
                 error_setg_errno(&local_err, -ret, "flush failed");
-                reply.error = -ret;
                 break;
             }
         }
@@ -1383,7 +1370,6 @@ static coroutine_fn void nbd_trip(void *opaque)
                         req->data, request.len);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "reading from file failed");
-            reply.error = -ret;
             break;
         }
 
@@ -1392,7 +1378,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         break;
     case NBD_CMD_WRITE:
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            reply.error = EROFS;
+            ret = -EROFS;
             break;
         }
 
@@ -1404,14 +1390,13 @@ static coroutine_fn void nbd_trip(void *opaque)
                          req->data, request.len, flags);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "writing to file failed");
-            reply.error = -ret;
         }
 
         break;
     case NBD_CMD_WRITE_ZEROES:
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
             error_setg(&local_err, "Server is read-only, return error");
-            reply.error = EROFS;
+            ret = -EROFS;
             break;
         }
 
@@ -1426,7 +1411,6 @@ static coroutine_fn void nbd_trip(void *opaque)
                                 request.len, flags);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "writing to file failed");
-            reply.error = -ret;
         }
 
         break;
@@ -1438,7 +1422,6 @@ static coroutine_fn void nbd_trip(void *opaque)
         ret = blk_co_flush(exp->blk);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "flush failed");
-            reply.error = -ret;
         }
 
         break;
@@ -1447,25 +1430,27 @@ static coroutine_fn void nbd_trip(void *opaque)
                               request.len);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "discard failed");
-            reply.error = -ret;
         }
 
         break;
     default:
         error_setg(&local_err, "invalid request type (%" PRIu32 ") received",
                    request.type);
-        reply.error = EINVAL;
+        ret = -EINVAL;
     }
 
 reply:
     if (local_err) {
-        /* If we are here local_err is not fatal error, already stored in
-         * reply.error */
+        /* If we get here, local_err was not a fatal error, and should be sent
+         * to the client. */
         error_report_err(local_err);
         local_err = NULL;
     }
 
-    if (nbd_co_send_reply(req, &reply, reply_data_len, &local_err) < 0) {
+    if (nbd_co_send_simple_reply(req->client, request.handle,
+                                 ret < 0 ? -ret : 0,
+                                 req->data, reply_data_len, &local_err) < 0)
+    {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
     }
@@ -1539,7 +1524,7 @@ void nbd_client_new(NBDExport *exp,
     NBDClient *client;
     Coroutine *co;
 
-    client = g_malloc0(sizeof(NBDClient));
+    client = g_new0(NBDClient, 1);
     client->refcount = 1;
     client->exp = exp;
     client->tlscreds = tlscreds;
