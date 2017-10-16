@@ -197,26 +197,20 @@ static hwaddr kvm_align_section(MemoryRegionSection *section,
                                 hwaddr *start)
 {
     hwaddr size = int128_get64(section->size);
-    hwaddr delta;
-
-    *start = section->offset_within_address_space;
+    hwaddr delta, aligned;
 
     /* kvm works in page size chunks, but the function may be called
        with sub-page size and unaligned start address. Pad the start
        address to next and truncate size to previous page boundary. */
-    delta = qemu_real_host_page_size - (*start & ~qemu_real_host_page_mask);
-    delta &= ~qemu_real_host_page_mask;
-    *start += delta;
+    aligned = ROUND_UP(section->offset_within_address_space,
+                       qemu_real_host_page_size);
+    delta = aligned - section->offset_within_address_space;
+    *start = aligned;
     if (delta > size) {
         return 0;
     }
-    size -= delta;
-    size &= qemu_real_host_page_mask;
-    if (*start & ~qemu_real_host_page_mask) {
-        return 0;
-    }
 
-    return size;
+    return (size - delta) & qemu_real_host_page_mask;
 }
 
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
