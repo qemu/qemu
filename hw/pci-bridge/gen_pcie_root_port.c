@@ -85,6 +85,13 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
         rpc->parent_class.exit(d);
         return;
     }
+
+    if (!grp->io_reserve) {
+        pci_word_test_and_clear_mask(d->wmask + PCI_COMMAND,
+                                     PCI_COMMAND_IO);
+        d->wmask[PCI_IO_BASE] = 0;
+        d->wmask[PCI_IO_LIMIT] = 0;
+    }
 }
 
 static const VMStateDescription vmstate_rp_dev = {

@@ -1317,6 +1317,17 @@ S: Maintained
 F: device_tree.c
 F: include/sysemu/device_tree.h
 
+Dump
+S: Supported
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
+F: dump.c
+F: hw/misc/vmcoreinfo.c
+F: include/hw/misc/vmcoreinfo.h
+F: include/sysemu/dump-arch.h
+F: include/sysemu/dump.h
+F: scripts/dump-guest-memory.py
+F: stubs/dump.c
+
 Error reporting
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported

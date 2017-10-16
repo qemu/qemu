@@ -155,15 +155,18 @@ typedef struct VirtIOPCIQueue {
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
-    VirtIOPCIRegion common;
-    VirtIOPCIRegion isr;
-    VirtIOPCIRegion device;
-    VirtIOPCIRegion notify;
-    VirtIOPCIRegion notify_pio;
+    union {
+        struct {
+            VirtIOPCIRegion common;
+            VirtIOPCIRegion isr;
+            VirtIOPCIRegion device;
+            VirtIOPCIRegion notify;
+            VirtIOPCIRegion notify_pio;
+        };
+        VirtIOPCIRegion regs[5];
+    };
     MemoryRegion modern_bar;
     MemoryRegion io_bar;
-    MemoryRegion modern_cfg;
-    AddressSpace modern_as;
     uint32_t legacy_io_bar_idx;
     uint32_t msix_bar_idx;
     uint32_t modern_io_bar_idx;

@@ -453,6 +453,10 @@ static const TypeInfo pci_ide_type_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIIDEState),
     .abstract = true,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pci_ide_register_types(void)

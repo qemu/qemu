@@ -426,6 +426,10 @@ static const TypeInfo macio_type_info = {
     .instance_init = macio_instance_init,
     .abstract      = true,
     .class_init    = macio_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void macio_register_types(void)

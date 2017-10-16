@@ -275,6 +275,10 @@ static const TypeInfo ebus_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(EbusState),
     .class_init    = ebus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 #define TYPE_OPENPROM "openprom"

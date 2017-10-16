@@ -1110,6 +1110,10 @@ static const TypeInfo nvme_info = {
     .instance_size = sizeof(NvmeCtrl),
     .class_init    = nvme_class_init,
     .instance_init = nvme_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_PCIE_DEVICE },
+        { }
+    },
 };
 
 static void nvme_register_types(void)

@@ -402,12 +402,12 @@ void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
          * just link them into fw_cfg here.
          */
         fw_cfg_add_file_callback(fw_cfg, "etc/smi/requested-features",
-                                 NULL, NULL,
+                                 NULL, NULL, NULL,
                                  lpc->smi_guest_features_le,
                                  sizeof lpc->smi_guest_features_le,
                                  false);
         fw_cfg_add_file_callback(fw_cfg, "etc/smi/features-ok",
-                                 smi_features_ok_callback, lpc,
+                                 smi_features_ok_callback, NULL, lpc,
                                  &lpc->smi_features_ok,
                                  sizeof lpc->smi_features_ok,
                                  true);
@@ -823,6 +823,7 @@ static const TypeInfo ich9_lpc_info = {
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_ACPI_DEVICE_IF },
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }
     }
 };

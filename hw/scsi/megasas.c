@@ -2451,6 +2451,7 @@ typedef struct MegasasInfo {
     int osts;
     const VMStateDescription *vmsd;
     Property *props;
+    InterfaceInfo *interfaces;
 } MegasasInfo;
 
 static struct MegasasInfo megasas_devices[] = {
@@ -2467,6 +2468,10 @@ static struct MegasasInfo megasas_devices[] = {
         .is_express = false,
         .vmsd = &vmstate_megasas_gen1,
         .props = megasas_properties_gen1,
+        .interfaces = (InterfaceInfo[]) {
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { },
+        },
     },{
         .name = TYPE_MEGASAS_GEN2,
         .desc = "LSI MegaRAID SAS 2108",
@@ -2480,6 +2485,10 @@ static struct MegasasInfo megasas_devices[] = {
         .is_express = true,
         .vmsd = &vmstate_megasas_gen2,
         .props = megasas_properties_gen2,
+        .interfaces = (InterfaceInfo[]) {
+            { INTERFACE_PCIE_DEVICE },
+            { }
+        },
     }
 };
 
@@ -2531,6 +2540,7 @@ static void megasas_register_types(void)
         type_info.parent = TYPE_MEGASAS_BASE;
         type_info.class_data = (void *)info;
         type_info.class_init = megasas_class_init;
+        type_info.interfaces = info->interfaces;
 
         type_register(&type_info);
     }

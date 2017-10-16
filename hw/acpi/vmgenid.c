@@ -124,7 +124,7 @@ void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *guid)
     fw_cfg_add_file(s, VMGENID_GUID_FW_CFG_FILE, guid->data,
                     VMGENID_FW_CFG_SIZE);
     /* Create a read-write fw_cfg file for Address */
-    fw_cfg_add_file_callback(s, VMGENID_ADDR_FW_CFG_FILE, NULL, NULL,
+    fw_cfg_add_file_callback(s, VMGENID_ADDR_FW_CFG_FILE, NULL, NULL, NULL,
                              vms->vmgenid_addr_le,
                              ARRAY_SIZE(vms->vmgenid_addr_le), false);
 }

@@ -1864,6 +1864,10 @@ static const TypeInfo assign_info = {
     .instance_size      = sizeof(AssignedDevice),
     .class_init         = assign_class_init,
     .instance_init      = assigned_dev_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void assign_register_types(void)

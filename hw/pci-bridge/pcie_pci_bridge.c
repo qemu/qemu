@@ -65,10 +65,18 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
         goto aer_error;
     }
 
+    Error *local_err = NULL;
     if (pcie_br->msi != ON_OFF_AUTO_OFF) {
-        rc = msi_init(d, 0, 1, true, true, errp);
+        rc = msi_init(d, 0, 1, true, true, &local_err);
         if (rc < 0) {
-            goto msi_error;
+            assert(rc == -ENOTSUP);
+            if (pcie_br->msi != ON_OFF_AUTO_ON) {
+                error_free(local_err);
+            } else {
+                /* failed to satisfy user's explicit request for MSI */
+                error_propagate(errp, local_err);
+                goto msi_error;
+            }
         }
     }
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
@@ -81,7 +89,7 @@ aer_error:
 pm_error:
     pcie_cap_exit(d);
 cap_error:
-    shpc_free(d);
+    shpc_cleanup(d, &pcie_br->shpc_bar);
 error:
     pci_bridge_exitfn(d);
 }
@@ -98,7 +106,9 @@ static void pcie_pci_bridge_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
     pci_bridge_reset(qdev);
-    msi_reset(d);
+    if (msi_present(d)) {
+        msi_reset(d);
+    }
     shpc_reset(d);
 }
 
@@ -106,12 +116,14 @@ static void pcie_pci_bridge_write_config(PCIDevice *d,
         uint32_t address, uint32_t val, int len)
 {
     pci_bridge_write_config(d, address, val, len);
-    msi_write_config(d, address, val, len);
+    if (msi_present(d)) {
+        msi_write_config(d, address, val, len);
+    }
     shpc_cap_write_config(d, address, val, len);
 }
 
 static Property pcie_pci_bridge_dev_properties[] = {
-        DEFINE_PROP_ON_OFF_AUTO("msi", PCIEPCIBridge, msi, ON_OFF_AUTO_ON),
+        DEFINE_PROP_ON_OFF_AUTO("msi", PCIEPCIBridge, msi, ON_OFF_AUTO_AUTO),
         DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -180,6 +192,7 @@ static const TypeInfo pcie_pci_bridge_info = {
         .class_init = pcie_pci_bridge_class_init,
         .interfaces = (InterfaceInfo[]) {
             { TYPE_HOTPLUG_HANDLER },
+            { INTERFACE_PCIE_DEVICE },
             { },
         }
 };

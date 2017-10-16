@@ -238,6 +238,7 @@ static const TypeInfo pci_bridge_dev_info = {
     .instance_finalize = pci_bridge_dev_instance_finalize,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }
     }
 };
