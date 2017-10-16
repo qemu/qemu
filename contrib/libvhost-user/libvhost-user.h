@@ -34,6 +34,10 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_MQ = 0,
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
     VHOST_USER_PROTOCOL_F_RARP = 2,
+    VHOST_USER_PROTOCOL_F_REPLY_ACK = 3,
+    VHOST_USER_PROTOCOL_F_NET_MTU = 4,
+    VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
+    VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -61,7 +65,10 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_QUEUE_NUM = 17,
     VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_SEND_RARP = 19,
-    VHOST_USER_INPUT_GET_CONFIG = 20,
+    VHOST_USER_NET_SET_MTU = 20,
+    VHOST_USER_SET_SLAVE_REQ_FD = 21,
+    VHOST_USER_IOTLB_MSG = 22,
+    VHOST_USER_SET_VRING_ENDIAN = 23,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -219,6 +226,7 @@ struct VuDev {
     VuDevRegion regions[VHOST_MEMORY_MAX_NREGIONS];
     VuVirtq vq[VHOST_MAX_NR_VIRTQUEUE];
     int log_call_fd;
+    int slave_fd;
     uint64_t log_size;
     uint8_t *log_table;
     uint64_t features;
@@ -333,6 +341,15 @@ void vu_queue_set_notification(VuDev *dev, VuVirtq *vq, int enable);
  * Returns: whether the queue is enabled.
  */
 bool vu_queue_enabled(VuDev *dev, VuVirtq *vq);
+
+/**
+ * vu_queue_started:
+ * @dev: a VuDev context
+ * @vq: a VuVirtq queue
+ *
+ * Returns: whether the queue is started.
+ */
+bool vu_queue_started(const VuDev *dev, const VuVirtq *vq);
 
 /**
  * vu_queue_empty:

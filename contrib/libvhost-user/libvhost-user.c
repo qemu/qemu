@@ -56,13 +56,10 @@
     } while (0)
 
 static const char *
-vu_request_to_string(int req)
+vu_request_to_string(unsigned int req)
 {
 #define REQ(req) [req] = #req
     static const char *vu_request_str[] = {
-        REQ(VHOST_USER_NONE),
-        REQ(VHOST_USER_GET_FEATURES),
-        REQ(VHOST_USER_SET_FEATURES),
         REQ(VHOST_USER_NONE),
         REQ(VHOST_USER_GET_FEATURES),
         REQ(VHOST_USER_SET_FEATURES),
@@ -83,7 +80,10 @@ vu_request_to_string(int req)
         REQ(VHOST_USER_GET_QUEUE_NUM),
         REQ(VHOST_USER_SET_VRING_ENABLE),
         REQ(VHOST_USER_SEND_RARP),
-        REQ(VHOST_USER_INPUT_GET_CONFIG),
+        REQ(VHOST_USER_NET_SET_MTU),
+        REQ(VHOST_USER_SET_SLAVE_REQ_FD),
+        REQ(VHOST_USER_IOTLB_MSG),
+        REQ(VHOST_USER_SET_VRING_ENDIAN),
         REQ(VHOST_USER_MAX),
     };
 #undef REQ
@@ -726,7 +726,8 @@ vu_set_vring_err_exec(VuDev *dev, VhostUserMsg *vmsg)
 static bool
 vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
-    uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD;
+    uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD |
+                        1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ;
 
     if (dev->iface->get_protocol_features) {
         features |= dev->iface->get_protocol_features(dev);
@@ -776,6 +777,23 @@ vu_set_vring_enable_exec(VuDev *dev, VhostUserMsg *vmsg)
     }
 
     dev->vq[index].enable = enable;
+    return false;
+}
+
+static bool
+vu_set_slave_req_fd(VuDev *dev, VhostUserMsg *vmsg)
+{
+    if (vmsg->fd_num != 1) {
+        vu_panic(dev, "Invalid slave_req_fd message (%d fd's)", vmsg->fd_num);
+        return false;
+    }
+
+    if (dev->slave_fd != -1) {
+        close(dev->slave_fd);
+    }
+    dev->slave_fd = vmsg->fds[0];
+    DPRINT("Got slave_fd: %d\n", vmsg->fds[0]);
+
     return false;
 }
 
@@ -842,6 +860,8 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
         return vu_get_queue_num_exec(dev, vmsg);
     case VHOST_USER_SET_VRING_ENABLE:
         return vu_set_vring_enable_exec(dev, vmsg);
+    case VHOST_USER_SET_SLAVE_REQ_FD:
+        return vu_set_slave_req_fd(dev, vmsg);
     case VHOST_USER_NONE:
         break;
     default:
@@ -915,6 +935,10 @@ vu_deinit(VuDev *dev)
 
 
     vu_close_log(dev);
+    if (dev->slave_fd != -1) {
+        close(dev->slave_fd);
+        dev->slave_fd = -1;
+    }
 
     if (dev->sock != -1) {
         close(dev->sock);
@@ -945,6 +969,7 @@ vu_init(VuDev *dev,
     dev->remove_watch = remove_watch;
     dev->iface = iface;
     dev->log_call_fd = -1;
+    dev->slave_fd = -1;
     for (i = 0; i < VHOST_MAX_NR_VIRTQUEUE; i++) {
         dev->vq[i] = (VuVirtq) {
             .call_fd = -1, .kick_fd = -1, .err_fd = -1,
@@ -964,6 +989,12 @@ bool
 vu_queue_enabled(VuDev *dev, VuVirtq *vq)
 {
     return vq->enable;
+}
+
+bool
+vu_queue_started(const VuDev *dev, const VuVirtq *vq)
+{
+    return vq->started;
 }
 
 static inline uint16_t
