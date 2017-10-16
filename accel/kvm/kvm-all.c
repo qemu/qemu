@@ -717,8 +717,9 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         return;
     }
 
+    /* use aligned delta to align the ram address */
     ram = memory_region_get_ram_ptr(mr) + section->offset_within_region +
-          (section->offset_within_address_space - start_addr);
+          (start_addr - section->offset_within_address_space);
 
     mem = kvm_lookup_matching_slot(kml, start_addr, size);
     if (!add) {
