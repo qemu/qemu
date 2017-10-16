@@ -734,7 +734,7 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         mem->memory_size = 0;
         err = kvm_set_user_memory_region(kml, mem);
         if (err) {
-            fprintf(stderr, "%s: error unregistering overlapping slot: %s\n",
+            fprintf(stderr, "%s: error unregistering slot: %s\n",
                     __func__, strerror(-err));
             abort();
         }
