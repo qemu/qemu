@@ -24,6 +24,31 @@
 #include "tpm_int.h"
 
 /*
+ * Write an error message in the given output buffer.
+ */
+void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len)
+{
+    if (out_len >= sizeof(struct tpm_resp_hdr)) {
+        struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)out;
+
+        resp->tag = cpu_to_be16(TPM_TAG_RSP_COMMAND);
+        resp->len = cpu_to_be32(sizeof(struct tpm_resp_hdr));
+        resp->errcode = cpu_to_be32(TPM_FAIL);
+    }
+}
+
+bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
+{
+    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
+
+    if (in_len >= sizeof(*hdr)) {
+        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
+    }
+
+    return false;
+}
+
+/*
  * A basic test of a TPM device. We expect a well formatted response header
  * (error response is fine) within one second.
  */
@@ -43,10 +68,10 @@ static int tpm_util_test(int fd,
 
     n = write(fd, request, requestlen);
     if (n < 0) {
-        return errno;
+        return -errno;
     }
     if (n != requestlen) {
-        return EFAULT;
+        return -EFAULT;
     }
 
     FD_ZERO(&readfds);
@@ -55,18 +80,18 @@ static int tpm_util_test(int fd,
     /* wait for a second */
     n = select(fd + 1, &readfds, NULL, NULL, &tv);
     if (n != 1) {
-        return errno;
+        return -errno;
     }
 
     n = read(fd, &buf, sizeof(buf));
     if (n < sizeof(struct tpm_resp_hdr)) {
-        return EFAULT;
+        return -EFAULT;
     }
 
     resp = (struct tpm_resp_hdr *)buf;
     /* check the header */
     if (be32_to_cpu(resp->len) != n) {
-        return EBADMSG;
+        return -EMSGSIZE;
     }
 
     *return_tag = be16_to_cpu(resp->tag);

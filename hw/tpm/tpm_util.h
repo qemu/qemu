@@ -24,6 +24,10 @@
 
 #include "sysemu/tpm_backend.h"
 
+void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len);
+
+bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
+
 int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version);
 
 #endif /* TPM_TPM_UTIL_H */
