@@ -394,8 +394,8 @@ static int kvm_section_update_flags(KVMMemoryListener *kml,
 
     mem = kvm_lookup_matching_slot(kml, start_addr, size);
     if (!mem) {
-        fprintf(stderr, "%s: error finding slot\n", __func__);
-        abort();
+        /* We don't have a slot if we want to trap every access. */
+        return 0;
     }
 
     return kvm_slot_update_flags(kml, mem, section->mr);
@@ -470,8 +470,8 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
     if (size) {
         mem = kvm_lookup_matching_slot(kml, start_addr, size);
         if (!mem) {
-            fprintf(stderr, "%s: error finding slot\n", __func__);
-            abort();
+            /* We don't have a slot if we want to trap every access. */
+            return 0;
         }
 
         /* XXX bad kernel interface alert
