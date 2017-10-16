@@ -6,6 +6,7 @@
  * This code is licensed under the GPL
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -183,7 +184,7 @@ static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
     memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
     /* Timers.  */
     for (i = 0; i < 2; i++) {
-        s = (m5208_timer_state *)g_malloc0(sizeof(m5208_timer_state));
+        s = g_new0(m5208_timer_state, 1);
         bh = qemu_bh_new(m5208_timer_trigger, s);
         s->timer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
         memory_region_init_io(&s->iomem, NULL, &m5208_timer_ops, s,
@@ -257,7 +258,7 @@ static void mcf5208evb_init(MachineState *machine)
     mcf5208_sys_init(address_space_mem, pic);
 
     if (nb_nics > 1) {
-        fprintf(stderr, "Too many NICs\n");
+        error_report("Too many NICs");
         exit(1);
     }
     if (nd_table[0].used) {
@@ -292,7 +293,7 @@ static void mcf5208evb_init(MachineState *machine)
         if (qtest_enabled()) {
             return;
         }
-        fprintf(stderr, "Kernel image must be specified\n");
+        error_report("Kernel image must be specified");
         exit(1);
     }
 
@@ -309,7 +310,7 @@ static void mcf5208evb_init(MachineState *machine)
         entry = 0x40000000;
     }
     if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+        error_report("Could not load kernel '%s'", kernel_filename);
         exit(1);
     }
 

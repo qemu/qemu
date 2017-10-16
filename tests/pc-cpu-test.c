@@ -87,7 +87,7 @@ static void add_pc_test_case(const char *mname)
     if (!g_str_has_prefix(mname, "pc-")) {
         return;
     }
-    data = g_malloc(sizeof(PCTestData));
+    data = g_new(PCTestData, 1);
     data->machine = g_strdup(mname);
     data->cpu_model = "Haswell"; /* 1.3+ theoretically */
     data->sockets = 1;

@@ -1,7 +1,7 @@
 /*
- * Test OpenBIOS-based machines.
+ * Test Open-Firmware-based machines.
  *
- * Copyright (c) 2016 Red Hat Inc.
+ * Copyright (c) 2016, 2017 Red Hat Inc.
  *
  * Author:
  *    Thomas Huth <thuth@redhat.com>
@@ -30,8 +30,8 @@ static void check_guest_memory(void)
     uint32_t signature;
     int i;
 
-    /* Poll until code has run and modified memory. Wait at most 120 seconds */
-    for (i = 0; i < 12000; ++i) {
+    /* Poll until code has run and modified memory. Wait at most 600 seconds */
+    for (i = 0; i < 60000; ++i) {
         signature = readl(ADDRESS);
         if (signature == MAGIC) {
             break;
@@ -78,7 +78,6 @@ int main(int argc, char *argv[])
     const char *sparc_machines[] = { "SPARCbook", "Voyager", "SS-20", NULL };
     const char *sparc64_machines[] = { "sun4u", NULL };
     const char *ppc_machines[] = { "mac99", "g3beige", NULL };
-    const char *ppc64_machines[] = { "mac99", "g3beige", "pseries", NULL };
     const char *arch = qtest_get_arch();
 
     g_test_init(&argc, &argv, NULL);
@@ -86,7 +85,10 @@ int main(int argc, char *argv[])
     if (!strcmp(arch, "ppc")) {
         add_tests(ppc_machines);
     } else if (!strcmp(arch, "ppc64")) {
-        add_tests(ppc64_machines);
+        add_tests(ppc_machines);
+        if (g_test_slow()) {
+            qtest_add_data_func("prom-env/pseries", "pseries", test_machine);
+        }
     } else if (!strcmp(arch, "sparc")) {
         add_tests(sparc_machines);
     } else if (!strcmp(arch, "sparc64")) {

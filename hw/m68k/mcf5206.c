@@ -6,6 +6,7 @@
  * This code is licensed under the GPL
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
@@ -137,7 +138,7 @@ static m5206_timer_state *m5206_timer_init(qemu_irq irq)
     m5206_timer_state *s;
     QEMUBH *bh;
 
-    s = (m5206_timer_state *)g_malloc0(sizeof(m5206_timer_state));
+    s = g_new0(m5206_timer_state, 1);
     bh = qemu_bh_new(m5206_timer_trigger, s);
     s->timer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
     s->irq = irq;
@@ -220,7 +221,7 @@ static void m5206_mbar_update(m5206_mbar_state *s)
                 break;
             default:
                 /* Unknown vector.  */
-                fprintf(stderr, "Unhandled vector for IRQ %d\n", irq);
+                error_report("Unhandled vector for IRQ %d", irq);
                 vector = 0xf;
                 break;
             }
@@ -533,7 +534,7 @@ qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, M68kCPU *cpu)
     m5206_mbar_state *s;
     qemu_irq *pic;
 
-    s = (m5206_mbar_state *)g_malloc0(sizeof(m5206_mbar_state));
+    s = g_new0(m5206_mbar_state, 1);
 
     memory_region_init_io(&s->iomem, NULL, &m5206_mbar_ops, s,
                           "mbar", 0x00001000);

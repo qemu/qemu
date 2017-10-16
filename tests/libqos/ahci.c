@@ -843,7 +843,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     AHCICommand *cmd;
 
     g_assert(props);
-    cmd = g_malloc0(sizeof(AHCICommand));
+    cmd = g_new0(AHCICommand, 1);
     g_assert(!(props->dma && props->pio));
     g_assert(!(props->lba28 && props->lba48));
     g_assert(!(props->read && props->write));

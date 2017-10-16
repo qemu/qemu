@@ -17,7 +17,7 @@ QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
 {
     char *cmdline;
 
-    struct QOSState *qs = g_malloc(sizeof(QOSState));
+    struct QOSState *qs = g_new(QOSState, 1);
 
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
     qs->qts = qtest_start(cmdline);

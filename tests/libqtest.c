@@ -171,7 +171,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     gchar *command;
     const char *qemu_binary = qtest_qemu_binary();
 
-    s = g_malloc(sizeof(*s));
+    s = g_new(QTestState, 1);
 
     socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
     qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
