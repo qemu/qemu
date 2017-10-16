@@ -721,8 +721,8 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     ram = memory_region_get_ram_ptr(mr) + section->offset_within_region +
           (start_addr - section->offset_within_address_space);
 
-    mem = kvm_lookup_matching_slot(kml, start_addr, size);
     if (!add) {
+        mem = kvm_lookup_matching_slot(kml, start_addr, size);
         if (!mem) {
             return;
         }
@@ -738,12 +738,6 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
                     __func__, strerror(-err));
             abort();
         }
-        return;
-    }
-
-    if (mem) {
-        /* update the slot */
-        kvm_slot_update_flags(kml, mem, mr);
         return;
     }
 
