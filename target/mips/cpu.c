@@ -150,10 +150,6 @@ static void mips_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     env->cpu_model = mcc->cpu_def;
-
-    if (tcg_enabled()) {
-        mips_tcg_init();
-    }
 }
 
 static char *mips_cpu_type_name(const char *cpu_model)
@@ -202,6 +198,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->vmsd = &vmstate_mips_cpu;
 #endif
     cc->disas_set_info = mips_cpu_disas_set_info;
+    cc->tcg_initialize = mips_tcg_init;
 
     cc->gdb_num_core_regs = 73;
     cc->gdb_stop_before_watchpoint = true;

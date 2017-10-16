@@ -84,10 +84,6 @@ void ppc_translate_init(void)
     int i;
     char* p;
     size_t cpu_reg_names_size;
-    static int done_init = 0;
-
-    if (done_init)
-        return;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
@@ -191,8 +187,6 @@ void ppc_translate_init(void)
 
     cpu_access_type = tcg_global_mem_new_i32(cpu_env,
                                              offsetof(CPUPPCState, access_type), "access_type");
-
-    done_init = 1;
 }
 
 /* internal defines */

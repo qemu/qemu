@@ -109,10 +109,6 @@ static void tricore_cpu_initfn(Object *obj)
     CPUTriCoreState *env = &cpu->env;
 
     cs->env_ptr = env;
-
-    if (tcg_enabled()) {
-        tricore_tcg_init();
-    }
 }
 
 static ObjectClass *tricore_cpu_class_by_name(const char *cpu_model)
@@ -182,6 +178,7 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
     cc->set_pc = tricore_cpu_set_pc;
     cc->synchronize_from_tb = tricore_cpu_synchronize_from_tb;
     cc->get_phys_page_attrs_debug = tricore_cpu_get_phys_page_attrs_debug;
+    cc->tcg_initialize = tricore_tcg_init;
 }
 
 static void cpu_register(const TriCoreCPUInfo *info)

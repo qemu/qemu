@@ -8366,12 +8366,6 @@ void tcg_x86_init(void)
         "bnd0_ub", "bnd1_ub", "bnd2_ub", "bnd3_ub"
     };
     int i;
-    static bool initialized;
-
-    if (initialized) {
-        return;
-    }
-    initialized = true;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;

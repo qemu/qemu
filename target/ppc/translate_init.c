@@ -10499,10 +10499,6 @@ static void ppc_cpu_initfn(Object *obj)
         env->sps = (env->mmu_model & POWERPC_MMU_64K) ? defsps_64k : defsps_4k;
     }
 #endif /* defined(TARGET_PPC64) */
-
-    if (tcg_enabled()) {
-        ppc_translate_init();
-    }
 }
 
 static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr)
@@ -10582,6 +10578,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #ifndef CONFIG_USER_ONLY
     cc->virtio_is_big_endian = ppc_cpu_is_big_endian;
 #endif
+    cc->tcg_initialize = ppc_translate_init;
 
     dc->fw_name = "PowerPC,UNKNOWN";
 }

@@ -124,13 +124,7 @@ void hppa_translate_init(void)
         "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31"
     };
 
-    static bool done_init = 0;
     int i;
-
-    if (done_init) {
-        return;
-    }
-    done_init = 1;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;

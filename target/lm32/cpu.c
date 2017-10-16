@@ -163,16 +163,10 @@ static void lm32_cpu_initfn(Object *obj)
     CPUState *cs = CPU(obj);
     LM32CPU *cpu = LM32_CPU(obj);
     CPULM32State *env = &cpu->env;
-    static bool tcg_initialized;
 
     cs->env_ptr = env;
 
     env->flags = 0;
-
-    if (tcg_enabled() && !tcg_initialized) {
-        tcg_initialized = true;
-        lm32_translate_init();
-    }
 }
 
 static void lm32_basic_cpu_initfn(Object *obj)
@@ -286,6 +280,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = lm32_debug_excp_handler;
     cc->disas_set_info = lm32_cpu_disas_set_info;
+    cc->tcg_initialize = lm32_translate_init;
 }
 
 static void lm32_register_cpu_type(const LM32CPUInfo *info)

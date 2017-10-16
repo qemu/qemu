@@ -81,7 +81,6 @@ static TCGv cpu_flags, cpu_delayed_pc, cpu_delayed_cond;
 void sh4_translate_init(void)
 {
     int i;
-    static int done_init = 0;
     static const char * const gregnames[24] = {
         "R0_BANK0", "R1_BANK0", "R2_BANK0", "R3_BANK0",
         "R4_BANK0", "R5_BANK0", "R6_BANK0", "R7_BANK0",
@@ -99,10 +98,6 @@ void sh4_translate_init(void)
          "FPR8_BANK1",  "FPR9_BANK1", "FPR10_BANK1", "FPR11_BANK1",
         "FPR12_BANK1", "FPR13_BANK1", "FPR14_BANK1", "FPR15_BANK1",
     };
-
-    if (done_init) {
-        return;
-    }
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
@@ -163,8 +158,6 @@ void sh4_translate_init(void)
         cpu_fregs[i] = tcg_global_mem_new_i32(cpu_env,
                                               offsetof(CPUSH4State, fregs[i]),
                                               fregnames[i]);
-
-    done_init = 1;
 }
 
 void superh_cpu_dump_state(CPUState *cs, FILE *f,

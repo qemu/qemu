@@ -86,18 +86,12 @@ static void openrisc_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     OpenRISCCPU *cpu = OPENRISC_CPU(obj);
-    static int inited;
 
     cs->env_ptr = &cpu->env;
 
 #ifndef CONFIG_USER_ONLY
     cpu_openrisc_mmu_init(cpu);
 #endif
-
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        openrisc_translate_init();
-    }
 }
 
 /* CPU models */
@@ -169,6 +163,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_openrisc_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 3;
+    cc->tcg_initialize = openrisc_translate_init;
 }
 
 static void cpu_register(const OpenRISCCPUInfo *info)

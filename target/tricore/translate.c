@@ -8880,10 +8880,7 @@ static void tricore_tcg_init_csfr(void)
 void tricore_tcg_init(void)
 {
     int i;
-    static int inited;
-    if (inited) {
-        return;
-    }
+
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
     /* reg init */

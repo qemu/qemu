@@ -117,7 +117,6 @@ static void uc32_cpu_initfn(Object *obj)
     CPUState *cs = CPU(obj);
     UniCore32CPU *cpu = UNICORE32_CPU(obj);
     CPUUniCore32State *env = &cpu->env;
-    static bool inited;
 
     cs->env_ptr = env;
 
@@ -130,11 +129,6 @@ static void uc32_cpu_initfn(Object *obj)
 #endif
 
     tlb_flush(cs);
-
-    if (tcg_enabled() && !inited) {
-        inited = true;
-        uc32_translate_init();
-    }
 }
 
 static const VMStateDescription vmstate_uc32_cpu = {
@@ -162,6 +156,7 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->get_phys_page_debug = uc32_cpu_get_phys_page_debug;
 #endif
+    cc->tcg_initialize = uc32_translate_init;
     dc->vmsd = &vmstate_uc32_cpu;
 }
 

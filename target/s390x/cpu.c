@@ -241,7 +241,6 @@ static void s390_cpu_initfn(Object *obj)
     CPUState *cs = CPU(obj);
     S390CPU *cpu = S390_CPU(obj);
     CPUS390XState *env = &cpu->env;
-    static bool inited;
 #if !defined(CONFIG_USER_ONLY)
     struct tm tm;
 #endif
@@ -259,11 +258,6 @@ static void s390_cpu_initfn(Object *obj)
     env->cpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
 #endif
-
-    if (tcg_enabled() && !inited) {
-        inited = true;
-        s390x_translate_init();
-    }
 }
 
 static void s390_cpu_finalize(Object *obj)
@@ -503,6 +497,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 #endif
     cc->disas_set_info = s390_cpu_disas_set_info;
+    cc->tcg_initialize = s390x_translate_init;
 
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
     cc->gdb_core_xml_file = "s390x-core64.xml";

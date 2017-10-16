@@ -94,7 +94,6 @@ void moxie_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 void moxie_translate_init(void)
 {
     int i;
-    static int done_init;
     static const char * const gregnames[16] = {
         "$fp", "$sp", "$r0", "$r1",
         "$r2", "$r3", "$r4", "$r5",
@@ -102,9 +101,6 @@ void moxie_translate_init(void)
         "$r10", "$r11", "$r12", "$r13"
     };
 
-    if (done_init) {
-        return;
-    }
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
     cpu_pc = tcg_global_mem_new_i32(cpu_env,
@@ -118,8 +114,6 @@ void moxie_translate_init(void)
                                   offsetof(CPUMoxieState, cc_a), "cc_a");
     cc_b = tcg_global_mem_new_i32(cpu_env,
                                   offsetof(CPUMoxieState, cc_b), "cc_b");
-
-    done_init = 1;
 }
 
 static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)

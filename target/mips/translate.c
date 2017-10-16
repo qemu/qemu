@@ -20453,11 +20453,6 @@ void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 void mips_tcg_init(void)
 {
     int i;
-    static int inited;
-
-    /* Initialize various static tables. */
-    if (inited)
-        return;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
@@ -20506,8 +20501,6 @@ void mips_tcg_init(void)
     fpu_fcr31 = tcg_global_mem_new_i32(cpu_env,
                                        offsetof(CPUMIPSState, active_fpu.fcr31),
                                        "fcr31");
-
-    inited = 1;
 }
 
 #include "translate_init.c"
