@@ -2599,14 +2599,8 @@ static void listener_add_address_space(MemoryListener *listener,
 
     view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
-        MemoryRegionSection section = {
-            .mr = fr->mr,
-            .fv = view,
-            .offset_within_region = fr->offset_in_region,
-            .size = fr->addr.size,
-            .offset_within_address_space = int128_get64(fr->addr.start),
-            .readonly = fr->readonly,
-        };
+        MemoryRegionSection section = section_from_flat_range(fr, view);
+
         if (listener->region_add) {
             listener->region_add(listener, &section);
         }
