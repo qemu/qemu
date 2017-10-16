@@ -2347,6 +2347,14 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
 
     blkconf_serial(&s->qdev.conf, &s->serial);
     blkconf_blocksizes(&s->qdev.conf);
+
+    if (s->qdev.conf.logical_block_size >
+        s->qdev.conf.physical_block_size) {
+        error_setg(errp,
+                   "logical_block_size > physical_block_size not supported");
+        return;
+    }
+
     if (dev->type == TYPE_DISK) {
         blkconf_geometry(&dev->conf, NULL, 65535, 255, 255, &err);
         if (err) {
