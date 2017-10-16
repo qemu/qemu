@@ -59,8 +59,8 @@
 
 struct MemsetThread {
     char *addr;
-    uint64_t numpages;
-    uint64_t hpagesize;
+    size_t numpages;
+    size_t hpagesize;
     QemuThread pgthread;
     sigjmp_buf env;
 };
@@ -301,11 +301,7 @@ static void sigbus_handler(int signal)
 static void *do_touch_pages(void *arg)
 {
     MemsetThread *memset_args = (MemsetThread *)arg;
-    char *addr = memset_args->addr;
-    uint64_t numpages = memset_args->numpages;
-    uint64_t hpagesize = memset_args->hpagesize;
     sigset_t set, oldset;
-    int i = 0;
 
     /* unblock SIGBUS */
     sigemptyset(&set);
@@ -315,6 +311,10 @@ static void *do_touch_pages(void *arg)
     if (sigsetjmp(memset_args->env, 1)) {
         memset_thread_failed = true;
     } else {
+        char *addr = memset_args->addr;
+        size_t numpages = memset_args->numpages;
+        size_t hpagesize = memset_args->hpagesize;
+        size_t i;
         for (i = 0; i < numpages; i++) {
             /*
              * Read & write back the same value, so we don't
@@ -351,7 +351,8 @@ static inline int get_memset_num_threads(int smp_cpus)
 static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                             int smp_cpus)
 {
-    uint64_t numpages_per_thread, size_per_thread;
+    size_t numpages_per_thread;
+    size_t size_per_thread;
     char *addr = area;
     int i = 0;
 
