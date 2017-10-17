@@ -99,6 +99,22 @@ typedef struct CcwDataStream {
     hwaddr cda;
 } CcwDataStream;
 
+/*
+ * IO instructions conclude according to this. Currently we have only
+ * cc codes. Valid values are 0, 1, 2, 3 and the generic semantic for
+ * IO instructions is described briefly. For more details consult the PoP.
+ */
+typedef enum IOInstEnding {
+    /* produced expected result */
+    IOINST_CC_EXPECTED = 0,
+    /* status conditions were present or produced alternate result */
+    IOINST_CC_STATUS_PRESENT = 1,
+    /* inst. ineffective because busy with previously initiated function */
+    IOINST_CC_BUSY = 2,
+    /* inst. ineffective because not operational */
+    IOINST_CC_NOT_OPERATIONAL = 3
+} IOInstEnding;
+
 typedef struct SubchDev SubchDev;
 struct SubchDev {
     /* channel-subsystem related things: */
