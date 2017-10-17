@@ -38,12 +38,11 @@ void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt);
 void qemu_input_event_sync(void);
 void qemu_input_event_sync_impl(void);
 
-InputEvent *qemu_input_event_new_key(KeyValue *key, bool down);
 void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down);
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down);
 void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down);
 void qemu_input_event_send_key_delay(uint32_t delay_ms);
-int qemu_input_key_number_to_qcode(uint8_t nr);
+int qemu_input_key_number_to_qcode(unsigned int nr);
 int qemu_input_key_value_to_number(const KeyValue *value);
 int qemu_input_key_value_to_qcode(const KeyValue *value);
 int qemu_input_key_value_to_scancode(const KeyValue *value, bool down,
@@ -68,5 +67,14 @@ void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value,
 void qemu_input_check_mode_change(void);
 void qemu_add_mouse_mode_change_notifier(Notifier *notify);
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
+
+extern const guint qemu_input_map_linux_to_qcode_len;
+extern const guint16 qemu_input_map_linux_to_qcode[];
+
+extern const guint qemu_input_map_qcode_to_qnum_len;
+extern const guint16 qemu_input_map_qcode_to_qnum[];
+
+extern const guint qemu_input_map_qnum_to_qcode_len;
+extern const guint16 qemu_input_map_qnum_to_qcode[];
 
 #endif /* INPUT_H */
