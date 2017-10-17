@@ -270,7 +270,7 @@ void mips_r4k_init(MachineState *machine)
     i8259 = i8259_init(isa_bus, env->irq[2]);
     isa_bus_irqs(isa_bus, i8259);
 
-    rtc_init(isa_bus, 2000, NULL);
+    mc146818_rtc_init(isa_bus, 2000, NULL);
 
     pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);
 
