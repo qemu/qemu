@@ -219,17 +219,17 @@ target_ulong helper_sraw(CPUPPCState *env, target_ulong value,
             shift &= 0x1f;
             ret = (int32_t)value >> shift;
             if (likely(ret >= 0 || (value & ((1 << shift) - 1)) == 0)) {
-                env->ca = 0;
+                env->ca32 = env->ca = 0;
             } else {
-                env->ca = 1;
+                env->ca32 = env->ca = 1;
             }
         } else {
             ret = (int32_t)value;
-            env->ca = 0;
+            env->ca32 = env->ca = 0;
         }
     } else {
         ret = (int32_t)value >> 31;
-        env->ca = (ret != 0);
+        env->ca32 = env->ca = (ret != 0);
     }
     return (target_long)ret;
 }
@@ -245,17 +245,17 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
             shift &= 0x3f;
             ret = (int64_t)value >> shift;
             if (likely(ret >= 0 || (value & ((1ULL << shift) - 1)) == 0)) {
-                env->ca = 0;
+                env->ca32 = env->ca = 0;
             } else {
-                env->ca = 1;
+                env->ca32 = env->ca = 1;
             }
         } else {
             ret = (int64_t)value;
-            env->ca = 0;
+            env->ca32 = env->ca = 0;
         }
     } else {
         ret = (int64_t)value >> 63;
-        env->ca = (ret != 0);
+        env->ca32 = env->ca = (ret != 0);
     }
     return ret;
 }

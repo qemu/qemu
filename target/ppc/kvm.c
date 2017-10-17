@@ -123,7 +123,7 @@ static bool kvmppc_is_pr(KVMState *ks)
     return kvm_vm_check_extension(ks, KVM_CAP_PPC_GET_PVINFO) != 0;
 }
 
-static int kvm_ppc_register_host_cpu_type(void);
+static int kvm_ppc_register_host_cpu_type(MachineState *ms);
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
@@ -163,7 +163,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
                         "VM to stall at times!\n");
     }
 
-    kvm_ppc_register_host_cpu_type();
+    kvm_ppc_register_host_cpu_type(ms);
 
     return 0;
 }
@@ -2487,12 +2487,13 @@ PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
     return pvr_pcc;
 }
 
-static int kvm_ppc_register_host_cpu_type(void)
+static int kvm_ppc_register_host_cpu_type(MachineState *ms)
 {
     TypeInfo type_info = {
         .name = TYPE_HOST_POWERPC_CPU,
         .class_init = kvmppc_host_cpu_class_init,
     };
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     PowerPCCPUClass *pvr_pcc;
     ObjectClass *oc;
     DeviceClass *dc;
@@ -2504,20 +2505,13 @@ static int kvm_ppc_register_host_cpu_type(void)
     }
     type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
     type_register(&type_info);
+    if (object_dynamic_cast(OBJECT(ms), TYPE_SPAPR_MACHINE)) {
+        /* override TCG default cpu type with 'host' cpu model */
+        mc->default_cpu_type = TYPE_HOST_POWERPC_CPU;
+    }
 
     oc = object_class_by_name(type_info.name);
     g_assert(oc);
-
-#if defined(TARGET_PPC64)
-    type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, "host");
-    type_info.parent = TYPE_SPAPR_CPU_CORE,
-    type_info.instance_size = sizeof(sPAPRCPUCore);
-    type_info.instance_init = NULL;
-    type_info.class_init = spapr_cpu_core_class_init;
-    type_info.class_data = (void *) "host";
-    type_register(&type_info);
-    g_free((void *)type_info.name);
-#endif
 
     /*
      * Update generic CPU family class alias (e.g. on a POWER8NVL host,

@@ -55,6 +55,16 @@
 #define KERNEL_LOAD_ADDR        0x20000000
 #define INITRD_LOAD_ADDR        0x40000000
 
+static const char *pnv_chip_core_typename(const PnvChip *o)
+{
+    const char *chip_type = object_class_get_name(object_get_class(OBJECT(o)));
+    int len = strlen(chip_type) - strlen(PNV_CHIP_TYPE_SUFFIX);
+    char *s = g_strdup_printf(PNV_CORE_TYPE_NAME("%.*s"), len, chip_type);
+    const char *core_type = object_class_get_name(object_class_by_name(s));
+    g_free(s);
+    return core_type;
+}
+
 /*
  * On Power Systems E880 (POWER8), the max cpus (threads) should be :
  *     4 * 4 sockets * 12 cores * 8 threads = 1536
@@ -92,8 +102,7 @@ static int get_cpus_node(void *fdt)
     int cpus_offset = fdt_path_offset(fdt, "/cpus");
 
     if (cpus_offset < 0) {
-        cpus_offset = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"),
-                                      "cpus");
+        cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
         if (cpus_offset) {
             _FDT((fdt_setprop_cell(fdt, cpus_offset, "#address-cells", 0x1)));
             _FDT((fdt_setprop_cell(fdt, cpus_offset, "#size-cells", 0x0)));
@@ -270,8 +279,7 @@ static int pnv_chip_lpc_offset(PnvChip *chip, void *fdt)
 
 static void powernv_populate_chip(PnvChip *chip, void *fdt)
 {
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i;
 
@@ -301,7 +309,6 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
         powernv_populate_memory_node(fdt, chip->chip_id, chip->ram_start,
                                      chip->ram_size);
     }
-    g_free(typename);
 }
 
 static void powernv_populate_rtc(ISADevice *d, void *fdt, int lpc_off)
@@ -607,16 +614,13 @@ static void ppc_powernv_init(MachineState *machine)
         }
     }
 
-    /* We need some cpu model to instantiate the PnvChip class */
-    if (machine->cpu_model == NULL) {
-        machine->cpu_model = "POWER8";
-    }
-
     /* Create the processor chips */
-    chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%s", machine->cpu_model);
+    i = strlen(machine->cpu_type) - strlen(POWERPC_CPU_TYPE_SUFFIX);
+    chip_typename = g_strdup_printf(PNV_CHIP_TYPE_NAME("%.*s"),
+                                    i, machine->cpu_type);
     if (!object_class_by_name(chip_typename)) {
-        error_report("invalid CPU model '%s' for %s machine",
-                     machine->cpu_model, MACHINE_GET_CLASS(machine)->name);
+        error_report("invalid CPU model '%.*s' for %s machine",
+                     i, machine->cpu_type, MACHINE_GET_CLASS(machine)->name);
         exit(1);
     }
 
@@ -716,7 +720,6 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8E";
     k->chip_type = PNV_CHIP_POWER8E;
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
@@ -726,19 +729,11 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip POWER8E";
 }
 
-static const TypeInfo pnv_chip_power8e_info = {
-    .name          = TYPE_PNV_CHIP_POWER8E,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8e_class_init,
-};
-
 static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8";
     k->chip_type = PNV_CHIP_POWER8;
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
@@ -748,19 +743,11 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip POWER8";
 }
 
-static const TypeInfo pnv_chip_power8_info = {
-    .name          = TYPE_PNV_CHIP_POWER8,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8_class_init,
-};
-
 static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8NVL";
     k->chip_type = PNV_CHIP_POWER8NVL;
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
@@ -770,19 +757,11 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
-static const TypeInfo pnv_chip_power8nvl_info = {
-    .name          = TYPE_PNV_CHIP_POWER8NVL,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8nvl_class_init,
-};
-
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER9";
     k->chip_type = PNV_CHIP_POWER9;
     k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
     k->cores_mask = POWER9_CORE_MASK;
@@ -791,13 +770,6 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->xscom_core_base = 0x0ull;
     dc->desc = "PowerNV Chip POWER9";
 }
-
-static const TypeInfo pnv_chip_power9_info = {
-    .name          = TYPE_PNV_CHIP_POWER9,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power9_class_init,
-};
 
 static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 {
@@ -857,7 +829,7 @@ static void pnv_chip_init(Object *obj)
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i, j;
     char *name;
@@ -882,8 +854,6 @@ static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
             memory_region_add_subregion(&chip->icp_mmio, pir << 12, &icp->mmio);
         }
     }
-
-    g_free(typename);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -891,7 +861,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i, core_hwid;
 
@@ -950,7 +920,6 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                                 &PNV_CORE(pnv_core)->xscom_regs);
         i++;
     }
-    g_free(typename);
 
     /* Create LPC controller */
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
@@ -1002,15 +971,6 @@ static void pnv_chip_class_init(ObjectClass *klass, void *data)
     dc->props = pnv_chip_properties;
     dc->desc = "PowerNV Chip";
 }
-
-static const TypeInfo pnv_chip_info = {
-    .name          = TYPE_PNV_CHIP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .class_init    = pnv_chip_class_init,
-    .instance_init = pnv_chip_init,
-    .class_size    = sizeof(PnvChipClass),
-    .abstract      = true,
-};
 
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
@@ -1133,6 +1093,7 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     mc->init = ppc_powernv_init;
     mc->reset = ppc_powernv_reset;
     mc->max_cpus = MAX_CPUS;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
     mc->block_default_type = IF_IDE; /* Pnv provides a AHCI device for
                                       * storage */
     mc->no_parallel = 1;
@@ -1146,27 +1107,40 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     powernv_machine_class_props_init(oc);
 }
 
-static const TypeInfo powernv_machine_info = {
-    .name          = TYPE_POWERNV_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(PnvMachineState),
-    .instance_init = powernv_machine_initfn,
-    .class_init    = powernv_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_XICS_FABRIC },
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { },
+#define DEFINE_PNV_CHIP_TYPE(type, class_initfn) \
+    {                                            \
+        .name          = type,                   \
+        .class_init    = class_initfn,           \
+        .parent        = TYPE_PNV_CHIP,          \
+    }
+
+static const TypeInfo types[] = {
+    {
+        .name          = TYPE_POWERNV_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .instance_size = sizeof(PnvMachineState),
+        .instance_init = powernv_machine_initfn,
+        .class_init    = powernv_machine_class_init,
+        .interfaces = (InterfaceInfo[]) {
+            { TYPE_XICS_FABRIC },
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { },
+        },
     },
+    {
+        .name          = TYPE_PNV_CHIP,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .class_init    = pnv_chip_class_init,
+        .instance_init = pnv_chip_init,
+        .instance_size = sizeof(PnvChip),
+        .class_size    = sizeof(PnvChipClass),
+        .abstract      = true,
+    },
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER9, pnv_chip_power9_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8, pnv_chip_power8_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8E, pnv_chip_power8e_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8NVL,
+                         pnv_chip_power8nvl_class_init),
 };
 
-static void powernv_machine_register_types(void)
-{
-    type_register_static(&powernv_machine_info);
-    type_register_static(&pnv_chip_info);
-    type_register_static(&pnv_chip_power8e_info);
-    type_register_static(&pnv_chip_power8_info);
-    type_register_static(&pnv_chip_power8nvl_info);
-    type_register_static(&pnv_chip_power9_info);
-}
-
-type_init(powernv_machine_register_types)
+DEFINE_TYPES(types)

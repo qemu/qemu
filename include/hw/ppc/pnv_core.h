@@ -42,9 +42,9 @@ typedef struct PnvCore {
 
 typedef struct PnvCoreClass {
     DeviceClass parent_class;
-    ObjectClass *cpu_oc;
 } PnvCoreClass;
 
-extern char *pnv_core_typename(const char *model);
+#define PNV_CORE_TYPE_SUFFIX "-" TYPE_PNV_CORE
+#define PNV_CORE_TYPE_NAME(cpu_model) cpu_model PNV_CORE_TYPE_SUFFIX
 
 #endif /* _PPC_PNV_CORE_H */

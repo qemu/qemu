@@ -16,6 +16,7 @@
 #include "sysemu/device_tree.h"
 #include "hw/ppc/openpic.h"
 #include "qemu/error-report.h"
+#include "cpu.h"
 
 static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
 {
@@ -55,6 +56,7 @@ static void ppce500_machine_init(MachineClass *mc)
     mc->desc = "mpc8544ds";
     mc->init = mpc8544ds_init;
     mc->max_cpus = 15;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
 }
 
 DEFINE_MACHINE("mpc8544ds", ppce500_machine_init)

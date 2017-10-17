@@ -182,11 +182,7 @@ static void bamboo_init(MachineState *machine)
     int success;
     int i;
 
-    /* Setup CPU. */
-    if (machine->cpu_model == NULL) {
-        machine->cpu_model = "440EP";
-    }
-    cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU, machine->cpu_model));
+    cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     if (env->mmu_model != POWERPC_MMU_BOOKE) {
@@ -297,6 +293,7 @@ static void bamboo_machine_init(MachineClass *mc)
 {
     mc->desc = "bamboo";
     mc->init = bamboo_init;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("440epb");
 }
 
 DEFINE_MACHINE("bamboo", bamboo_machine_init)
