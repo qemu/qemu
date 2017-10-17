@@ -1122,7 +1122,7 @@ static int kvm_get_supported_msrs(KVMState *s)
                     break;
                 case MSR_IA32_XSS:
                     has_msr_xss = true;
-                    break;;
+                    break;
                 case HV_X64_MSR_CRASH_CTL:
                     has_msr_hv_crash = true;
                     break;

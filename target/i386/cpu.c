@@ -2220,7 +2220,7 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
 
     if (xcc->kvm_required && !kvm_enabled()) {
         strList *new = g_new0(strList, 1);
-        new->value = g_strdup("kvm");;
+        new->value = g_strdup("kvm");
         *missing_feats = new;
         return;
     }

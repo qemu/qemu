@@ -335,7 +335,7 @@ static uint64_t imx6_ccm_get_ipg_clk(IMX6CCMState *dev)
     uint64_t freq = 0;
 
     freq = imx6_ccm_get_ahb_clk(dev)
-           / (1 + EXTRACT(dev->ccm[CCM_CBCDR], IPG_PODF));;
+           / (1 + EXTRACT(dev->ccm[CCM_CBCDR], IPG_PODF));
 
     DPRINTF("freq = %d\n", (uint32_t)freq);
 
