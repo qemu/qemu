@@ -151,6 +151,8 @@ docker-run: docker-qemu-src
 			$(IMAGE) 					\
 			/var/tmp/qemu/run 				\
 			$(TEST), "  RUN $(TEST) in ${IMAGE}")
+	$(call quiet-command, rm -r $(DOCKER_SRC_COPY), \
+		"  CLEANUP $(DOCKER_SRC_COPY)")
 
 # Run targets:
 #
