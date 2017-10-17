@@ -73,9 +73,9 @@ S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id, Error **errp)
     object_property_set_bool(OBJECT(cpu), true, "realized", &err);
 
 out:
+    object_unref(OBJECT(cpu));
     if (err) {
         error_propagate(errp, err);
-        object_unref(OBJECT(cpu));
         cpu = NULL;
     }
     return cpu;
