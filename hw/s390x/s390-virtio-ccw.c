@@ -52,6 +52,27 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
     return S390_CPU(ms->possible_cpus->cpus[cpu_addr].cpu);
 }
 
+static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
+                              Error **errp)
+{
+    S390CPU *cpu = S390_CPU(object_new(typename));
+    Error *err = NULL;
+
+    object_property_set_int(OBJECT(cpu), core_id, "core-id", &err);
+    if (err != NULL) {
+        goto out;
+    }
+    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+
+out:
+    object_unref(OBJECT(cpu));
+    if (err) {
+        error_propagate(errp, err);
+        cpu = NULL;
+    }
+    return cpu;
+}
+
 static void s390_init_cpus(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);

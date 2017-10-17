@@ -61,26 +61,6 @@ void s390x_cpu_timer(void *opaque)
 }
 #endif
 
-S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id, Error **errp)
-{
-    S390CPU *cpu = S390_CPU(object_new(typename));
-    Error *err = NULL;
-
-    object_property_set_int(OBJECT(cpu), core_id, "core-id", &err);
-    if (err != NULL) {
-        goto out;
-    }
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
-
-out:
-    object_unref(OBJECT(cpu));
-    if (err) {
-        error_propagate(errp, err);
-        cpu = NULL;
-    }
-    return cpu;
-}
-
 #ifndef CONFIG_USER_ONLY
 
 hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
