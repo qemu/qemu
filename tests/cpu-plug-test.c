@@ -212,6 +212,43 @@ static void add_pseries_test_case(const char *mname)
     g_free(path);
 }
 
+static void add_s390x_test_case(const char *mname)
+{
+    char *path;
+    PlugTestData *data, *data2;
+
+    if (!g_str_has_prefix(mname, "s390-ccw-virtio-")) {
+        return;
+    }
+
+    data = g_new(PlugTestData, 1);
+    data->machine = g_strdup(mname);
+    data->cpu_model = "qemu";
+    data->device_model = g_strdup("qemu-s390x-cpu");
+    data->sockets = 1;
+    data->cores = 3;
+    data->threads = 1;
+    data->maxcpus = data->sockets * data->cores * data->threads * 2;
+
+    data2 = g_memdup(data, sizeof(PlugTestData));
+    data2->machine = g_strdup(data->machine);
+    data2->device_model = g_strdup(data->device_model);
+
+    path = g_strdup_printf("cpu-plug/%s/cpu-add/%ux%ux%u&maxcpus=%u",
+                           mname, data->sockets, data->cores,
+                           data->threads, data->maxcpus);
+    qtest_add_data_func_full(path, data, test_plug_with_cpu_add,
+                             test_data_free);
+    g_free(path);
+
+    path = g_strdup_printf("cpu-plug/%s/device-add/%ux%ux%u&maxcpus=%u",
+                           mname, data2->sockets, data2->cores,
+                           data2->threads, data2->maxcpus);
+    qtest_add_data_func_full(path, data2, test_plug_with_device_add_coreid,
+                             test_data_free);
+    g_free(path);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -222,6 +259,8 @@ int main(int argc, char **argv)
         qtest_cb_for_every_machine(add_pc_test_case);
     } else if (g_str_equal(arch, "ppc64")) {
         qtest_cb_for_every_machine(add_pseries_test_case);
+    } else if (g_str_equal(arch, "s390x")) {
+        qtest_cb_for_every_machine(add_s390x_test_case);
     }
 
     return g_test_run();
