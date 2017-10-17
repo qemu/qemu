@@ -141,7 +141,7 @@ void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)
     cpu_synchronize_state(CPU(cpu));
 
     if (kvm_enabled() && cpu->compat_pvr != compat_pvr) {
-        int ret = kvmppc_set_compat(cpu, cpu->compat_pvr);
+        int ret = kvmppc_set_compat(cpu, compat_pvr);
         if (ret < 0) {
             error_setg_errno(errp, -ret,
                              "Unable to set CPU compatibility mode in KVM");
