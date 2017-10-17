@@ -11,13 +11,9 @@
  */
 
 /* HAX module interface - darwin version */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
-#include "qemu/osdep.h"
 #include "target/i386/hax-i386.h"
 
 hax_fd hax_mod_open(void)
