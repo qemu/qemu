@@ -18,11 +18,11 @@ TESTS ?= %
 IMAGES ?= %
 
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
-DOCKER_SRC_COPY := docker-src.$(CUR_TIME)
+DOCKER_SRC_COPY := $(BUILD_DIR)/docker-src.$(CUR_TIME)
 
 $(DOCKER_SRC_COPY):
 	@mkdir $@
-	$(call quiet-command, $(SRC_PATH)/scripts/archive-source.sh $@/qemu.tar, \
+	$(call quiet-command, cd $(SRC_PATH) && scripts/archive-source.sh $@/qemu.tar, \
 		"GEN", "$@/qemu.tar")
 	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
 		"COPY","RUNNER")
