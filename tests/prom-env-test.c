@@ -44,21 +44,18 @@ static void check_guest_memory(void)
 
 static void test_machine(const void *machine)
 {
-    char *args;
     const char *extra_args;
 
     /* The pseries firmware boots much faster without the default devices */
     extra_args = strcmp(machine, "pseries") == 0 ? "-nodefaults" : "";
 
-    args = g_strdup_printf("-M %s,accel=tcg %s -prom-env 'use-nvramrc?=true' "
-                           "-prom-env 'nvramrc=%x %x l!' ",
-                           (const char *)machine, extra_args, MAGIC, ADDRESS);
-
-    qtest_start(args);
+    global_qtest = qtest_startf("-M %s,accel=tcg %s "
+                                "-prom-env 'use-nvramrc?=true' "
+                                "-prom-env 'nvramrc=%x %x l!' ",
+                                (const char *)machine, extra_args,
+                                MAGIC, ADDRESS);
     check_guest_memory();
     qtest_quit(global_qtest);
-
-    g_free(args);
 }
 
 static void add_tests(const char *machines[])

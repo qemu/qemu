@@ -130,41 +130,32 @@ static void read_guid_from_monitor(QemuUUID *guid)
 
 static char disk[] = "tests/vmgenid-test-disk-XXXXXX";
 
-static char *guid_cmd_strdup(const char *guid)
-{
-    return g_strdup_printf("-machine accel=kvm:tcg "
-                           "-device vmgenid,id=testvgid,guid=%s "
-                           "-drive id=hd0,if=none,file=%s,format=raw "
-                           "-device ide-hd,drive=hd0 ",
-                           guid, disk);
-}
-
+#define GUID_CMD(guid)                          \
+    "-machine accel=kvm:tcg "                   \
+    "-device vmgenid,id=testvgid,guid=%s "      \
+    "-drive id=hd0,if=none,file=%s,format=raw " \
+    "-device ide-hd,drive=hd0 ", guid, disk
 
 static void vmgenid_set_guid_test(void)
 {
     QemuUUID expected, measured;
-    gchar *cmd;
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    cmd = guid_cmd_strdup(VGID_GUID);
-    qtest_start(cmd);
+    global_qtest = qtest_startf(GUID_CMD(VGID_GUID));
 
     /* Read the GUID from accessing guest memory */
     read_guid_from_memory(&measured);
     g_assert(memcmp(measured.data, expected.data, sizeof(measured.data)) == 0);
 
     qtest_quit(global_qtest);
-    g_free(cmd);
 }
 
 static void vmgenid_set_guid_auto_test(void)
 {
-    char *cmd;
     QemuUUID measured;
 
-    cmd = guid_cmd_strdup("auto");
-    qtest_start(cmd);
+    global_qtest = qtest_startf(GUID_CMD("auto"));
 
     read_guid_from_memory(&measured);
 
@@ -172,25 +163,21 @@ static void vmgenid_set_guid_auto_test(void)
     g_assert(!qemu_uuid_is_null(&measured));
 
     qtest_quit(global_qtest);
-    g_free(cmd);
 }
 
 static void vmgenid_query_monitor_test(void)
 {
     QemuUUID expected, measured;
-    gchar *cmd;
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    cmd = guid_cmd_strdup(VGID_GUID);
-    qtest_start(cmd);
+    global_qtest = qtest_startf(GUID_CMD(VGID_GUID));
 
     /* Read the GUID via the monitor */
     read_guid_from_monitor(&measured);
     g_assert(memcmp(measured.data, expected.data, sizeof(measured.data)) == 0);
 
     qtest_quit(global_qtest);
-    g_free(cmd);
 }
 
 int main(int argc, char **argv)

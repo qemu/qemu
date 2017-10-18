@@ -354,7 +354,6 @@ int main(int argc, char **argv)
 {
     int ret;
     int fd;
-    char *args;
 
     g_test_init(&argc, &argv, NULL);
 
@@ -364,10 +363,9 @@ int main(int argc, char **argv)
     g_assert(ret == 0);
     close(fd);
 
-    args = g_strdup_printf("-m 256 -machine palmetto-bmc "
-                           "-drive file=%s,format=raw,if=mtd",
-                           tmp_path);
-    qtest_start(args);
+    global_qtest = qtest_startf("-m 256 -machine palmetto-bmc "
+                                "-drive file=%s,format=raw,if=mtd",
+                                tmp_path);
 
     qtest_add_func("/m25p80/read_jedec", test_read_jedec);
     qtest_add_func("/m25p80/erase_sector", test_erase_sector);
@@ -380,6 +378,5 @@ int main(int argc, char **argv)
 
     qtest_quit(global_qtest);
     unlink(tmp_path);
-    g_free(args);
     return ret;
 }
