@@ -9,9 +9,10 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "libqos/virtio.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
-static void pci_nop(void)
+static void balloon_nop(void)
 {
 }
 
@@ -20,9 +21,10 @@ int main(int argc, char **argv)
     int ret;
 
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/virtio/balloon/pci/nop", pci_nop);
+    qtest_add_func("/virtio/balloon/nop", balloon_nop);
 
-    qtest_start("-device virtio-balloon-pci");
+    global_qtest = qtest_startf("-device virtio-balloon-%s",
+                                qvirtio_get_dev_type());
     ret = g_test_run();
 
     qtest_end();
