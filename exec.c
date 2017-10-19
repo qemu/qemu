@@ -465,11 +465,29 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
     return section;
 }
 
-/* Called from RCU critical section */
+/**
+ * flatview_do_translate - translate an address in FlatView
+ *
+ * @fv: the flat view that we want to translate on
+ * @addr: the address to be translated in above address space
+ * @xlat: the translated address offset within memory region. It
+ *        cannot be @NULL.
+ * @plen_out: valid read/write length of the translated address. It
+ *            can be @NULL when we don't care about it.
+ * @page_mask_out: page mask for the translated address. This
+ *            should only be meaningful for IOMMU translated
+ *            addresses, since there may be huge pages that this bit
+ *            would tell. It can be @NULL if we don't care about it.
+ * @is_write: whether the translation operation is for write
+ * @is_mmio: whether this can be MMIO, set true if it can
+ *
+ * This function is called from RCU critical section
+ */
 static MemoryRegionSection flatview_do_translate(FlatView *fv,
                                                  hwaddr addr,
                                                  hwaddr *xlat,
-                                                 hwaddr *plen,
+                                                 hwaddr *plen_out,
+                                                 hwaddr *page_mask_out,
                                                  bool is_write,
                                                  bool is_mmio,
                                                  AddressSpace **target_as)
@@ -478,11 +496,17 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
     MemoryRegionSection *section;
     IOMMUMemoryRegion *iommu_mr;
     IOMMUMemoryRegionClass *imrc;
+    hwaddr page_mask = (hwaddr)(-1);
+    hwaddr plen = (hwaddr)(-1);
+
+    if (plen_out) {
+        plen = *plen_out;
+    }
 
     for (;;) {
         section = address_space_translate_internal(
                 flatview_to_dispatch(fv), addr, &addr,
-                plen, is_mmio);
+                &plen, is_mmio);
 
         iommu_mr = memory_region_get_iommu(section->mr);
         if (!iommu_mr) {
@@ -494,7 +518,8 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
                                 IOMMU_WO : IOMMU_RO);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
-        *plen = MIN(*plen, (addr | iotlb.addr_mask) - addr + 1);
+        page_mask &= iotlb.addr_mask;
+        plen = MIN(plen, (addr | iotlb.addr_mask) - addr + 1);
         if (!(iotlb.perm & (1 << is_write))) {
             goto translate_fail;
         }
@@ -504,6 +529,19 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
     }
 
     *xlat = addr;
+
+    if (page_mask == (hwaddr)(-1)) {
+        /* Not behind an IOMMU, use default page size. */
+        page_mask = ~TARGET_PAGE_MASK;
+    }
+
+    if (page_mask_out) {
+        *page_mask_out = page_mask;
+    }
+
+    if (plen_out) {
+        *plen_out = plen;
+    }
 
     return *section;
 
@@ -516,14 +554,14 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                             bool is_write)
 {
     MemoryRegionSection section;
-    hwaddr xlat, plen;
+    hwaddr xlat, page_mask;
 
-    /* Try to get maximum page mask during translation. */
-    plen = (hwaddr)-1;
-
-    /* This can never be MMIO. */
-    section = flatview_do_translate(address_space_to_flatview(as), addr,
-                                    &xlat, &plen, is_write, false, &as);
+    /*
+     * This can never be MMIO, and we don't really care about plen,
+     * but page mask.
+     */
+    section = flatview_do_translate(address_space_to_flatview(as), addr, &xlat,
+                                    NULL, &page_mask, is_write, false, &as);
 
     /* Illegal translation */
     if (section.mr == &io_mem_unassigned) {
@@ -534,22 +572,11 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
     xlat += section.offset_within_address_space -
         section.offset_within_region;
 
-    if (plen == (hwaddr)-1) {
-        /*
-         * We use default page size here. Logically it only happens
-         * for identity mappings.
-         */
-        plen = TARGET_PAGE_SIZE;
-    }
-
-    /* Convert to address mask */
-    plen -= 1;
-
     return (IOMMUTLBEntry) {
         .target_as = as,
-        .iova = addr & ~plen,
-        .translated_addr = xlat & ~plen,
-        .addr_mask = plen,
+        .iova = addr & ~page_mask,
+        .translated_addr = xlat & ~page_mask,
+        .addr_mask = page_mask,
         /* IOTLBs are for DMAs, and DMA only allows on RAMs. */
         .perm = IOMMU_RW,
     };
@@ -567,7 +594,8 @@ MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
     AddressSpace *as = NULL;
 
     /* This can be MMIO, so setup MMIO bit. */
-    section = flatview_do_translate(fv, addr, xlat, plen, is_write, true, &as);
+    section = flatview_do_translate(fv, addr, xlat, plen, NULL,
+                                    is_write, true, &as);
     mr = section.mr;
 
     if (xen_enabled() && memory_access_is_direct(mr, is_write)) {
@@ -2348,6 +2376,9 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     case 4:
         stl_p(qemu_map_ram_ptr(NULL, ram_addr), val);
         break;
+    case 8:
+        stq_p(qemu_map_ram_ptr(NULL, ram_addr), val);
+        break;
     default:
         abort();
     }
@@ -2378,6 +2409,16 @@ static const MemoryRegionOps notdirty_mem_ops = {
     .write = notdirty_mem_write,
     .valid.accepts = notdirty_mem_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = false,
+    },
 };
 
 /* Generate a debug exception if a watchpoint has been hit.  */
@@ -2462,6 +2503,9 @@ static MemTxResult watch_mem_read(void *opaque, hwaddr addr, uint64_t *pdata,
     case 4:
         data = address_space_ldl(as, addr, attrs, &res);
         break;
+    case 8:
+        data = address_space_ldq(as, addr, attrs, &res);
+        break;
     default: abort();
     }
     *pdata = data;
@@ -2487,6 +2531,9 @@ static MemTxResult watch_mem_write(void *opaque, hwaddr addr,
     case 4:
         address_space_stl(as, addr, val, attrs, &res);
         break;
+    case 8:
+        address_space_stq(as, addr, val, attrs, &res);
+        break;
     default: abort();
     }
     return res;
@@ -2496,6 +2543,16 @@ static const MemoryRegionOps watch_mem_ops = {
     .read_with_attrs = watch_mem_read,
     .write_with_attrs = watch_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = false,
+    },
 };
 
 static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,

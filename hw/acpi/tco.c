@@ -12,6 +12,7 @@
 #include "hw/i386/ich9.h"
 
 #include "hw/acpi/tco.h"
+#include "trace.h"
 
 //#define DEBUG
 
@@ -41,8 +42,11 @@ enum {
 
 static inline void tco_timer_reload(TCOIORegs *tr)
 {
-    tr->expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-        ((int64_t)(tr->tco.tmr & TCO_TMR_MASK) * TCO_TICK_NSEC);
+    int ticks = tr->tco.tmr & TCO_TMR_MASK;
+    int64_t nsec = (int64_t)ticks * TCO_TICK_NSEC;
+
+    trace_tco_timer_reload(ticks, nsec / 1000000);
+    tr->expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + nsec;
     timer_mod(tr->tco_timer, tr->expire_time);
 }
 
@@ -59,6 +63,9 @@ static void tco_timer_expired(void *opaque)
     ICH9LPCState *lpc = container_of(pm, ICH9LPCState, pm);
     uint32_t gcs = pci_get_long(lpc->chip_config + ICH9_CC_GCS);
 
+    trace_tco_timer_expired(tr->timeouts_no,
+                            lpc->pin_strap.spkr_hi,
+                            !!(gcs & ICH9_CC_GCS_NO_REBOOT));
     tr->tco.rld = 0;
     tr->tco.sts1 |= TCO_TIMEOUT;
     if (++tr->timeouts_no == 2) {

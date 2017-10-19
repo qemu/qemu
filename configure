@@ -3335,9 +3335,17 @@ if test "$mpath" != "no" ; then
 #include <mpath_persist.h>
 unsigned mpath_mx_alloc_len = 1024;
 int logsink;
+static struct config *multipath_conf;
+extern struct udev *udev;
+extern struct config *get_multipath_config(void);
+extern void put_multipath_config(struct config *conf);
+struct udev *udev;
+struct config *get_multipath_config(void) { return multipath_conf; }
+void put_multipath_config(struct config *conf) { }
+
 int main(void) {
-    struct udev *udev = udev_new();
-    mpath_lib_init(udev);
+    udev = udev_new();
+    multipath_conf = mpath_lib_init();
     return 0;
 }
 EOF

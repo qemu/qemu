@@ -479,6 +479,7 @@ int generic_symbol_at_address(bfd_vma, struct disassemble_info *);
   (INFO).buffer_vma = 0, \
   (INFO).buffer_length = 0, \
   (INFO).read_memory_func = buffer_read_memory, \
+  (INFO).read_memory_inner_func = NULL, \
   (INFO).memory_error_func = perror_memory, \
   (INFO).print_address_func = generic_print_address, \
   (INFO).print_insn = NULL, \
