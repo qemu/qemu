@@ -1585,6 +1585,22 @@ static void ram_state_cleanup(RAMState **rsp)
     *rsp = NULL;
 }
 
+static void xbzrle_cleanup(void)
+{
+    XBZRLE_cache_lock();
+    if (XBZRLE.cache) {
+        cache_fini(XBZRLE.cache);
+        g_free(XBZRLE.encoded_buf);
+        g_free(XBZRLE.current_buf);
+        g_free(XBZRLE.zero_target_page);
+        XBZRLE.cache = NULL;
+        XBZRLE.encoded_buf = NULL;
+        XBZRLE.current_buf = NULL;
+        XBZRLE.zero_target_page = NULL;
+    }
+    XBZRLE_cache_unlock();
+}
+
 static void ram_save_cleanup(void *opaque)
 {
     RAMState **rsp = opaque;
@@ -1602,18 +1618,7 @@ static void ram_save_cleanup(void *opaque)
         block->unsentmap = NULL;
     }
 
-    XBZRLE_cache_lock();
-    if (XBZRLE.cache) {
-        cache_fini(XBZRLE.cache);
-        g_free(XBZRLE.encoded_buf);
-        g_free(XBZRLE.current_buf);
-        g_free(XBZRLE.zero_target_page);
-        XBZRLE.cache = NULL;
-        XBZRLE.encoded_buf = NULL;
-        XBZRLE.current_buf = NULL;
-        XBZRLE.zero_target_page = NULL;
-    }
-    XBZRLE_cache_unlock();
+    xbzrle_cleanup();
     compress_threads_save_cleanup();
     ram_state_cleanup(rsp);
 }
@@ -2024,6 +2029,63 @@ err:
     return ret;
 }
 
+/*
+ * For every allocation, we will try not to crash the VM if the
+ * allocation failed.
+ */
+static int xbzrle_init(void)
+{
+    Error *local_err = NULL;
+
+    if (!migrate_use_xbzrle()) {
+        return 0;
+    }
+
+    XBZRLE_cache_lock();
+
+    XBZRLE.zero_target_page = g_try_malloc0(TARGET_PAGE_SIZE);
+    if (!XBZRLE.zero_target_page) {
+        error_report("%s: Error allocating zero page", __func__);
+        goto err_out;
+    }
+
+    XBZRLE.cache = cache_init(migrate_xbzrle_cache_size(),
+                              TARGET_PAGE_SIZE, &local_err);
+    if (!XBZRLE.cache) {
+        error_report_err(local_err);
+        goto free_zero_page;
+    }
+
+    XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
+    if (!XBZRLE.encoded_buf) {
+        error_report("%s: Error allocating encoded_buf", __func__);
+        goto free_cache;
+    }
+
+    XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
+    if (!XBZRLE.current_buf) {
+        error_report("%s: Error allocating current_buf", __func__);
+        goto free_encoded_buf;
+    }
+
+    /* We are all good */
+    XBZRLE_cache_unlock();
+    return 0;
+
+free_encoded_buf:
+    g_free(XBZRLE.encoded_buf);
+    XBZRLE.encoded_buf = NULL;
+free_cache:
+    cache_fini(XBZRLE.cache);
+    XBZRLE.cache = NULL;
+free_zero_page:
+    g_free(XBZRLE.zero_target_page);
+    XBZRLE.zero_target_page = NULL;
+err_out:
+    XBZRLE_cache_unlock();
+    return -ENOMEM;
+}
+
 static int ram_state_init(RAMState **rsp)
 {
     *rsp = g_try_new0(RAMState, 1);
@@ -2050,44 +2112,13 @@ static int ram_state_init(RAMState **rsp)
 
 static int ram_init_all(RAMState **rsp)
 {
-    Error *local_err = NULL;
-
     if (ram_state_init(rsp)) {
         return -1;
     }
 
-    if (migrate_use_xbzrle()) {
-        XBZRLE_cache_lock();
-        XBZRLE.zero_target_page = g_malloc0(TARGET_PAGE_SIZE);
-        XBZRLE.cache = cache_init(migrate_xbzrle_cache_size(),
-                                  TARGET_PAGE_SIZE, &local_err);
-        if (!XBZRLE.cache) {
-            XBZRLE_cache_unlock();
-            error_report_err(local_err);
-            g_free(*rsp);
-            *rsp = NULL;
-            return -1;
-        }
-        XBZRLE_cache_unlock();
-
-        /* We prefer not to abort if there is no memory */
-        XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
-        if (!XBZRLE.encoded_buf) {
-            error_report("Error allocating encoded_buf");
-            g_free(*rsp);
-            *rsp = NULL;
-            return -1;
-        }
-
-        XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
-        if (!XBZRLE.current_buf) {
-            error_report("Error allocating current_buf");
-            g_free(XBZRLE.encoded_buf);
-            XBZRLE.encoded_buf = NULL;
-            g_free(*rsp);
-            *rsp = NULL;
-            return -1;
-        }
+    if (xbzrle_init()) {
+        ram_state_cleanup(rsp);
+        return -1;
     }
 
     /* For memory_global_dirty_log_start below.  */
