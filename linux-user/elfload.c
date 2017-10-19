@@ -377,7 +377,7 @@ static int validate_guest_space(unsigned long guest_base,
      * then there is no way we can allocate it.
      */
     if (test_page_addr >= guest_base
-        && test_page_addr <= (guest_base + guest_size)) {
+        && test_page_addr < (guest_base + guest_size)) {
         return -1;
     }
 
