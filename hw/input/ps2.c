@@ -645,7 +645,7 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                 ps2_put_keycode(s, 0xe1);
                 ps2_put_keycode(s, 0x1d);
                 ps2_put_keycode(s, 0x45);
-                ps2_put_keycode(s, 0x91);
+                ps2_put_keycode(s, 0xe1);
                 ps2_put_keycode(s, 0x9d);
                 ps2_put_keycode(s, 0xc5);
             }
