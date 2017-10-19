@@ -307,12 +307,6 @@ typedef struct disassemble_info {
     (bfd_vma memaddr, bfd_byte *myaddr, int length,
 	     struct disassemble_info *info);
 
-  /* A place to stash the real read_memory_func if read_memory_func wants to
-     do some funky address arithmetic or similar (e.g. for ARM BE32 mode).  */
-  int (*read_memory_inner_func)
-    (bfd_vma memaddr, bfd_byte *myaddr, int length,
-             struct disassemble_info *info);
-
   /* Function which should be called if we get an error that we can't
      recover from.  STATUS is the errno value from read_memory_func and
      MEMADDR is the address that we were trying to read.  INFO is a
@@ -479,7 +473,6 @@ int generic_symbol_at_address(bfd_vma, struct disassemble_info *);
   (INFO).buffer_vma = 0, \
   (INFO).buffer_length = 0, \
   (INFO).read_memory_func = buffer_read_memory, \
-  (INFO).read_memory_inner_func = NULL, \
   (INFO).memory_error_func = perror_memory, \
   (INFO).print_address_func = generic_print_address, \
   (INFO).print_insn = NULL, \
