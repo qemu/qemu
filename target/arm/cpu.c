@@ -477,6 +477,7 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     ARMCPU *ac = ARM_CPU(cpu);
     CPUARMState *env = &ac->env;
+    bool sctlr_b;
 
     if (is_a64(env)) {
         /* We might not be compiled with the A64 disassembler
@@ -491,7 +492,9 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
     } else {
         info->print_insn = print_insn_arm;
     }
-    if (bswap_code(arm_sctlr_b(env))) {
+
+    sctlr_b = arm_sctlr_b(env);
+    if (bswap_code(sctlr_b)) {
 #ifdef TARGET_WORDS_BIGENDIAN
         info->endian = BFD_ENDIAN_LITTLE;
 #else
@@ -499,9 +502,11 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 #endif
     }
     info->flags &= ~INSN_ARM_BE32;
-    if (arm_sctlr_b(env)) {
+#ifndef CONFIG_USER_ONLY
+    if (sctlr_b) {
         info->flags |= INSN_ARM_BE32;
     }
+#endif
 }
 
 uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz)
