@@ -2110,6 +2110,41 @@ static int ram_state_init(RAMState **rsp)
     return 0;
 }
 
+static void ram_list_init_bitmaps(void)
+{
+    RAMBlock *block;
+    unsigned long pages;
+
+    /* Skip setting bitmap if there is no RAM */
+    if (ram_bytes_total()) {
+        QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+            pages = block->max_length >> TARGET_PAGE_BITS;
+            block->bmap = bitmap_new(pages);
+            bitmap_set(block->bmap, 0, pages);
+            if (migrate_postcopy_ram()) {
+                block->unsentmap = bitmap_new(pages);
+                bitmap_set(block->unsentmap, 0, pages);
+            }
+        }
+    }
+}
+
+static void ram_init_bitmaps(RAMState *rs)
+{
+    /* For memory_global_dirty_log_start below.  */
+    qemu_mutex_lock_iothread();
+    qemu_mutex_lock_ramlist();
+    rcu_read_lock();
+
+    ram_list_init_bitmaps();
+    memory_global_dirty_log_start();
+    migration_bitmap_sync(rs);
+
+    rcu_read_unlock();
+    qemu_mutex_unlock_ramlist();
+    qemu_mutex_unlock_iothread();
+}
+
 static int ram_init_all(RAMState **rsp)
 {
     if (ram_state_init(rsp)) {
@@ -2121,33 +2156,7 @@ static int ram_init_all(RAMState **rsp)
         return -1;
     }
 
-    /* For memory_global_dirty_log_start below.  */
-    qemu_mutex_lock_iothread();
-
-    qemu_mutex_lock_ramlist();
-    rcu_read_lock();
-
-    /* Skip setting bitmap if there is no RAM */
-    if (ram_bytes_total()) {
-        RAMBlock *block;
-
-        QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-            unsigned long pages = block->max_length >> TARGET_PAGE_BITS;
-
-            block->bmap = bitmap_new(pages);
-            bitmap_set(block->bmap, 0, pages);
-            if (migrate_postcopy_ram()) {
-                block->unsentmap = bitmap_new(pages);
-                bitmap_set(block->unsentmap, 0, pages);
-            }
-        }
-    }
-
-    memory_global_dirty_log_start();
-    migration_bitmap_sync(*rsp);
-    qemu_mutex_unlock_ramlist();
-    qemu_mutex_unlock_iothread();
-    rcu_read_unlock();
+    ram_init_bitmaps(*rsp);
 
     return 0;
 }
