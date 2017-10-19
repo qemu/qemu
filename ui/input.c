@@ -162,7 +162,7 @@ void qmp_input_send_event(bool has_device, const char *device,
         if (evt->type == INPUT_EVENT_KIND_KEY &&
             evt->u.key.data->key->type == KEY_VALUE_KIND_NUMBER) {
             KeyValue *key = evt->u.key.data->key;
-            QKeyCode code = qemu_input_key_number_to_qcode(key->u.qcode.data);
+            QKeyCode code = qemu_input_key_number_to_qcode(key->u.number.data);
             qemu_input_event_send_key_qcode(con, code, evt->u.key.data->down);
         } else {
             qemu_input_event_send(con, evt);
