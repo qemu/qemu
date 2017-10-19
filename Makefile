@@ -724,8 +724,10 @@ ui/shader/%-frag.h: $(SRC_PATH)/ui/shader/%.frag $(SRC_PATH)/scripts/shaderinclu
 		perl $(SRC_PATH)/scripts/shaderinclude.pl $< > $@,\
 		"FRAG","$@")
 
-ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
-	ui/shader/texture-blit-vert.h ui/shader/texture-blit-frag.h
+ui/shader.o: $(SRC_PATH)/ui/shader.c \
+	ui/shader/texture-blit-vert.h \
+	ui/shader/texture-blit-flip-vert.h \
+	ui/shader/texture-blit-frag.h
 
 # documentation
 MAKEINFO=makeinfo
