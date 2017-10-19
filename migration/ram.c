@@ -2019,12 +2019,35 @@ err:
 
 static int ram_state_init(RAMState **rsp)
 {
-    *rsp = g_new0(RAMState, 1);
-    Error *local_err = NULL;
+    *rsp = g_try_new0(RAMState, 1);
+
+    if (!*rsp) {
+        error_report("%s: Init ramstate fail", __func__);
+        return -1;
+    }
 
     qemu_mutex_init(&(*rsp)->bitmap_mutex);
     qemu_mutex_init(&(*rsp)->src_page_req_mutex);
     QSIMPLEQ_INIT(&(*rsp)->src_page_requests);
+
+    /*
+     * Count the total number of pages used by ram blocks not including any
+     * gaps due to alignment or unplugs.
+     */
+    (*rsp)->migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
+
+    ram_state_reset(*rsp);
+
+    return 0;
+}
+
+static int ram_init_all(RAMState **rsp)
+{
+    Error *local_err = NULL;
+
+    if (ram_state_init(rsp)) {
+        return -1;
+    }
 
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();
@@ -2065,7 +2088,6 @@ static int ram_state_init(RAMState **rsp)
 
     qemu_mutex_lock_ramlist();
     rcu_read_lock();
-    ram_state_reset(*rsp);
 
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
@@ -2082,12 +2104,6 @@ static int ram_state_init(RAMState **rsp)
             }
         }
     }
-
-    /*
-     * Count the total number of pages used by ram blocks not including any
-     * gaps due to alignment or unplugs.
-     */
-    (*rsp)->migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
 
     memory_global_dirty_log_start();
     migration_bitmap_sync(*rsp);
@@ -2120,7 +2136,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        if (ram_state_init(rsp) != 0) {
+        if (ram_init_all(rsp) != 0) {
             return -1;
         }
     }
