@@ -674,6 +674,15 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                     ps2_put_keycode(s, 0xe0);
                     ps2_put_keycode(s, 0x38);
                 }
+            } else if (s->modifiers & (MOD_SHIFT_L | MOD_CTRL_L |
+                                       MOD_SHIFT_R | MOD_CTRL_R)) {
+                if (key->down) {
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0x37);
+                } else {
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0xb7);
+                }
             } else {
                 if (key->down) {
                     ps2_put_keycode(s, 0xe0);
@@ -744,6 +753,16 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                     ps2_put_keycode(s, 0x11);
                     ps2_put_keycode(s, 0xe0);
                     ps2_put_keycode(s, 0x11);
+                }
+            } else if (s->modifiers & (MOD_SHIFT_L | MOD_CTRL_L |
+                                       MOD_SHIFT_R | MOD_CTRL_R)) {
+                if (key->down) {
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0x7c);
+                } else {
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0xf0);
+                    ps2_put_keycode(s, 0x7c);
                 }
             } else {
                 if (key->down) {
