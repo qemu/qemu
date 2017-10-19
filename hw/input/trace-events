@@ -1,7 +1,7 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # hw/input/ps2.c
-ps2_put_keycode(void *opaque, int keycode) "%p keycode %d"
+ps2_put_keycode(void *opaque, int keycode) "%p keycode 0x%02x"
 ps2_read_data(void *opaque) "%p"
 ps2_set_ledstate(void *s, int ledstate) "%p ledstate %d"
 ps2_reset_keyboard(void *s) "%p"
