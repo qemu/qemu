@@ -641,13 +641,22 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
 
     if (s->scancode_set == 1) {
         if (qcode == Q_KEY_CODE_PAUSE) {
-            if (key->down) {
-                ps2_put_keycode(s, 0xe1);
-                ps2_put_keycode(s, 0x1d);
-                ps2_put_keycode(s, 0x45);
-                ps2_put_keycode(s, 0xe1);
-                ps2_put_keycode(s, 0x9d);
-                ps2_put_keycode(s, 0xc5);
+            if (s->modifiers & (MOD_CTRL_L | MOD_CTRL_R)) {
+                if (key->down) {
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0x46);
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0xc6);
+                }
+            } else {
+                if (key->down) {
+                    ps2_put_keycode(s, 0xe1);
+                    ps2_put_keycode(s, 0x1d);
+                    ps2_put_keycode(s, 0x45);
+                    ps2_put_keycode(s, 0xe1);
+                    ps2_put_keycode(s, 0x9d);
+                    ps2_put_keycode(s, 0xc5);
+                }
             }
         } else if (qcode == Q_KEY_CODE_PRINT) {
             if (s->modifiers & MOD_ALT_L) {
@@ -713,15 +722,25 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
         }
     } else if (s->scancode_set == 2) {
         if (qcode == Q_KEY_CODE_PAUSE) {
-            if (key->down) {
-                ps2_put_keycode(s, 0xe1);
-                ps2_put_keycode(s, 0x14);
-                ps2_put_keycode(s, 0x77);
-                ps2_put_keycode(s, 0xe1);
-                ps2_put_keycode(s, 0xf0);
-                ps2_put_keycode(s, 0x14);
-                ps2_put_keycode(s, 0xf0);
-                ps2_put_keycode(s, 0x77);
+            if (s->modifiers & (MOD_CTRL_L | MOD_CTRL_R)) {
+                if (key->down) {
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0x7e);
+                    ps2_put_keycode(s, 0xe0);
+                    ps2_put_keycode(s, 0xf0);
+                    ps2_put_keycode(s, 0x7e);
+                }
+            } else {
+                if (key->down) {
+                    ps2_put_keycode(s, 0xe1);
+                    ps2_put_keycode(s, 0x14);
+                    ps2_put_keycode(s, 0x77);
+                    ps2_put_keycode(s, 0xe1);
+                    ps2_put_keycode(s, 0xf0);
+                    ps2_put_keycode(s, 0x14);
+                    ps2_put_keycode(s, 0xf0);
+                    ps2_put_keycode(s, 0x77);
+                }
             }
         } else if (qcode == Q_KEY_CODE_PRINT) {
             if (s->modifiers & MOD_ALT_L) {
