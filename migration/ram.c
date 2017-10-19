@@ -1576,6 +1576,15 @@ static void xbzrle_load_cleanup(void)
     XBZRLE.decoded_buf = NULL;
 }
 
+static void ram_state_cleanup(RAMState **rsp)
+{
+    migration_page_queue_free(*rsp);
+    qemu_mutex_destroy(&(*rsp)->bitmap_mutex);
+    qemu_mutex_destroy(&(*rsp)->src_page_req_mutex);
+    g_free(*rsp);
+    *rsp = NULL;
+}
+
 static void ram_save_cleanup(void *opaque)
 {
     RAMState **rsp = opaque;
@@ -1605,10 +1614,8 @@ static void ram_save_cleanup(void *opaque)
         XBZRLE.zero_target_page = NULL;
     }
     XBZRLE_cache_unlock();
-    migration_page_queue_free(*rsp);
     compress_threads_save_cleanup();
-    g_free(*rsp);
-    *rsp = NULL;
+    ram_state_cleanup(rsp);
 }
 
 static void ram_state_reset(RAMState *rs)
