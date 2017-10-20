@@ -902,7 +902,7 @@ static inline void gen_op_arith_add(DisasContext *ctx, TCGv ret, TCGv arg1,
         gen_set_Rc0(ctx, t0);
     }
 
-    if (!TCGV_EQUAL(t0, ret)) {
+    if (t0 != ret) {
         tcg_gen_mov_tl(ret, t0);
         tcg_temp_free(t0);
     }
@@ -1438,7 +1438,7 @@ static inline void gen_op_arith_subf(DisasContext *ctx, TCGv ret, TCGv arg1,
         gen_set_Rc0(ctx, t0);
     }
 
-    if (!TCGV_EQUAL(t0, ret)) {
+    if (t0 != ret) {
         tcg_gen_mov_tl(ret, t0);
         tcg_temp_free(t0);
     }

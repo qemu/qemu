@@ -58,7 +58,7 @@ static TCGv_i64 cpu_macc[4];
 #define QREG_SP         get_areg(s, 7)
 
 static TCGv NULL_QREG;
-#define IS_NULL_QREG(t) (TCGV_EQUAL(t, NULL_QREG))
+#define IS_NULL_QREG(t) (t == NULL_QREG)
 /* Used to distinguish stores from bad addressing modes.  */
 static TCGv store_dummy;
 

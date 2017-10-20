@@ -428,10 +428,6 @@ typedef TCGv_ptr TCGv_env;
 #error Unhandled TARGET_LONG_BITS value
 #endif
 
-#define TCGV_EQUAL_I32(a, b) ((a) == (b))
-#define TCGV_EQUAL_I64(a, b) ((a) == (b))
-#define TCGV_EQUAL_PTR(a, b) ((a) == (b))
-
 /* Dummy definition to avoid compiler warnings.  */
 #define TCGV_UNUSED_I32(x) (x = (TCGv_i32)-1)
 #define TCGV_UNUSED_I64(x) (x = (TCGv_i64)-1)

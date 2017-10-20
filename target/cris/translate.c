@@ -839,7 +839,7 @@ static void cris_alu(DisasContext *dc, int op,
         }
         tcg_gen_or_tl(d, d, tmp);
     }
-    if (!TCGV_EQUAL(tmp, d)) {
+    if (tmp != d) {
         tcg_temp_free(tmp);
     }
 }
@@ -1162,7 +1162,7 @@ static inline void t_gen_sext(TCGv d, TCGv s, int size)
         tcg_gen_ext8s_i32(d, s);
     } else if (size == 2) {
         tcg_gen_ext16s_i32(d, s);
-    } else if (!TCGV_EQUAL(d, s)) {
+    } else {
         tcg_gen_mov_tl(d, s);
     }
 }
@@ -1173,7 +1173,7 @@ static inline void t_gen_zext(TCGv d, TCGv s, int size)
         tcg_gen_ext8u_i32(d, s);
     } else if (size == 2) {
         tcg_gen_ext16u_i32(d, s);
-    } else if (!TCGV_EQUAL(d, s)) {
+    } else {
         tcg_gen_mov_tl(d, s);
     }
 }
