@@ -29,14 +29,14 @@
 
 typedef struct TPMBackendClass TPMBackendClass;
 typedef struct TPMBackend TPMBackend;
-typedef struct TPMDriverOps TPMDriverOps;
-typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
 
-typedef enum TPMBackendCmd {
-    TPM_BACKEND_CMD_INIT = 1,
-    TPM_BACKEND_CMD_PROCESS_CMD,
-    TPM_BACKEND_CMD_END,
-    TPM_BACKEND_CMD_TPM_RESET,
+typedef struct TPMBackendCmd {
+    uint8_t locty;
+    const uint8_t *in;
+    uint32_t in_len;
+    uint8_t *out;
+    uint32_t out_len;
+    bool selftest_done;
 } TPMBackendCmd;
 
 struct TPMBackend {
@@ -46,7 +46,6 @@ struct TPMBackend {
     bool opened;
     TPMState *tpm_state;
     GThreadPool *thread_pool;
-    TPMRecvDataCB *recv_data_callback;
     bool had_startup_error;
 
     /* <public> */
@@ -59,19 +58,6 @@ struct TPMBackend {
 struct TPMBackendClass {
     ObjectClass parent_class;
 
-    const TPMDriverOps *ops;
-
-    void (*opened)(TPMBackend *s, Error **errp);
-
-    void (*handle_request)(TPMBackend *s, TPMBackendCmd cmd);
-};
-
-typedef struct TPMSizedBuffer {
-    uint32_t size;
-    uint8_t  *buffer;
-} TPMSizedBuffer;
-
-struct TPMDriverOps {
     enum TpmType type;
     const QemuOptDesc *opts;
     /* get a descriptive text of the backend to display to the user */
@@ -79,8 +65,6 @@ struct TPMDriverOps {
 
     TPMBackend *(*create)(QemuOpts *opts, const char *id);
 
-    /* initialize the backend */
-    int (*init)(TPMBackend *t);
     /* start up the TPM on the backend */
     int (*startup_tpm)(TPMBackend *t);
 
@@ -95,8 +79,11 @@ struct TPMDriverOps {
     TPMVersion (*get_tpm_version)(TPMBackend *t);
 
     TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
-};
 
+    void (*opened)(TPMBackend *s, Error **errp);
+
+    void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd);
+};
 
 /**
  * tpm_backend_get_type:
@@ -116,8 +103,7 @@ enum TpmType tpm_backend_get_type(TPMBackend *s);
  *
  * Returns 0 on success.
  */
-int tpm_backend_init(TPMBackend *s, TPMState *state,
-                     TPMRecvDataCB *datacb);
+int tpm_backend_init(TPMBackend *s, TPMState *state);
 
 /**
  * tpm_backend_startup_tpm:
@@ -140,11 +126,12 @@ bool tpm_backend_had_startup_error(TPMBackend *s);
 /**
  * tpm_backend_deliver_request:
  * @s: the backend to send the request to
+ * @cmd: the command to deliver
  *
  * Send a request to the backend. The backend will then send the request
  * to the TPM implementation.
  */
-void tpm_backend_deliver_request(TPMBackend *s);
+void tpm_backend_deliver_request(TPMBackend *s, TPMBackendCmd *cmd);
 
 /**
  * tpm_backend_reset:
@@ -215,8 +202,6 @@ TPMInfo *tpm_backend_query_tpm(TPMBackend *s);
 
 TPMBackend *qemu_find_tpm(const char *id);
 
-const TPMDriverOps *tpm_get_backend_driver(const char *type);
 void tpm_register_model(enum TpmModel model);
-void tpm_register_driver(const TPMDriverOps *tdo);
 
 #endif

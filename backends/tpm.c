@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm.h"
+#include "hw/tpm/tpm_int.h"
 #include "qemu/thread.h"
 
 static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
@@ -25,13 +26,12 @@ static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
     TPMBackendClass *k  = TPM_BACKEND_GET_CLASS(s);
 
     assert(k->handle_request != NULL);
-    k->handle_request(s, (TPMBackendCmd)data);
+    k->handle_request(s, (TPMBackendCmd *)data);
 }
 
 static void tpm_backend_thread_end(TPMBackend *s)
 {
     if (s->thread_pool) {
-        g_thread_pool_push(s->thread_pool, (gpointer)TPM_BACKEND_CMD_END, NULL);
         g_thread_pool_free(s->thread_pool, FALSE, TRUE);
         s->thread_pool = NULL;
     }
@@ -41,19 +41,15 @@ enum TpmType tpm_backend_get_type(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->type;
+    return k->type;
 }
 
-int tpm_backend_init(TPMBackend *s, TPMState *state,
-                     TPMRecvDataCB *datacb)
+int tpm_backend_init(TPMBackend *s, TPMState *state)
 {
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
-
     s->tpm_state = state;
-    s->recv_data_callback = datacb;
     s->had_startup_error = false;
 
-    return k->ops->init ? k->ops->init(s) : 0;
+    return 0;
 }
 
 int tpm_backend_startup_tpm(TPMBackend *s)
@@ -66,9 +62,8 @@ int tpm_backend_startup_tpm(TPMBackend *s)
 
     s->thread_pool = g_thread_pool_new(tpm_backend_worker_thread, s, 1, TRUE,
                                        NULL);
-    g_thread_pool_push(s->thread_pool, (gpointer)TPM_BACKEND_CMD_INIT, NULL);
 
-    res = k->ops->startup_tpm ? k->ops->startup_tpm(s) : 0;
+    res = k->startup_tpm ? k->startup_tpm(s) : 0;
 
     s->had_startup_error = (res != 0);
 
@@ -80,18 +75,17 @@ bool tpm_backend_had_startup_error(TPMBackend *s)
     return s->had_startup_error;
 }
 
-void tpm_backend_deliver_request(TPMBackend *s)
+void tpm_backend_deliver_request(TPMBackend *s, TPMBackendCmd *cmd)
 {
-    g_thread_pool_push(s->thread_pool, (gpointer)TPM_BACKEND_CMD_PROCESS_CMD,
-                       NULL);
+    g_thread_pool_push(s->thread_pool, cmd, NULL);
 }
 
 void tpm_backend_reset(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    if (k->ops->reset) {
-        k->ops->reset(s);
+    if (k->reset) {
+        k->reset(s);
     }
 
     tpm_backend_thread_end(s);
@@ -103,34 +97,34 @@ void tpm_backend_cancel_cmd(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->ops->cancel_cmd);
+    assert(k->cancel_cmd);
 
-    k->ops->cancel_cmd(s);
+    k->cancel_cmd(s);
 }
 
 bool tpm_backend_get_tpm_established_flag(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->get_tpm_established_flag ?
-           k->ops->get_tpm_established_flag(s) : false;
+    return k->get_tpm_established_flag ?
+           k->get_tpm_established_flag(s) : false;
 }
 
 int tpm_backend_reset_tpm_established_flag(TPMBackend *s, uint8_t locty)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    return k->ops->reset_tpm_established_flag ?
-           k->ops->reset_tpm_established_flag(s, locty) : 0;
+    return k->reset_tpm_established_flag ?
+           k->reset_tpm_established_flag(s, locty) : 0;
 }
 
 TPMVersion tpm_backend_get_tpm_version(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->ops->get_tpm_version);
+    assert(k->get_tpm_version);
 
-    return k->ops->get_tpm_version(s);
+    return k->get_tpm_version(s);
 }
 
 TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
@@ -140,8 +134,9 @@ TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
 
     info->id = g_strdup(s->id);
     info->model = s->fe_model;
-    info->options = k->ops->get_tpm_options ?
-                    k->ops->get_tpm_options(s) : NULL;
+    if (k->get_tpm_options) {
+        info->options = k->get_tpm_options(s);
+    }
 
     return info;
 }
@@ -213,9 +208,16 @@ static const TypeInfo tpm_backend_info = {
     .abstract = true,
 };
 
+static const TypeInfo tpm_if_info = {
+    .name = TYPE_TPM_IF,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(TPMIfClass),
+};
+
 static void register_types(void)
 {
     type_register_static(&tpm_backend_info);
+    type_register_static(&tpm_if_info);
 }
 
 type_init(register_types);

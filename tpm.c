@@ -23,7 +23,6 @@
 static QLIST_HEAD(, TPMBackend) tpm_backends =
     QLIST_HEAD_INITIALIZER(tpm_backends);
 
-static TPMDriverOps const *be_drivers[TPM_TYPE__MAX];
 static bool tpm_models[TPM_MODEL__MAX];
 
 void tpm_register_model(enum TpmModel model)
@@ -31,20 +30,22 @@ void tpm_register_model(enum TpmModel model)
     tpm_models[model] = true;
 }
 
-const TPMDriverOps *tpm_get_backend_driver(const char *type)
-{
-    int i = qapi_enum_parse(&TpmType_lookup, type, -1, NULL);
-
-    return i >= 0 ? be_drivers[i] : NULL;
-}
-
 #ifdef CONFIG_TPM
 
-void tpm_register_driver(const TPMDriverOps *tdo)
+static const TPMBackendClass *
+tpm_be_find_by_type(enum TpmType type)
 {
-    assert(!be_drivers[tdo->type]);
+    ObjectClass *oc;
+    char *typename = g_strdup_printf("tpm-%s", TpmType_str(type));
 
-    be_drivers[tdo->type] = tdo;
+    oc = object_class_by_name(typename);
+    g_free(typename);
+
+    if (!object_class_dynamic_cast(oc, TYPE_TPM_BACKEND)) {
+        return NULL;
+    }
+
+    return TPM_BACKEND_CLASS(oc);
 }
 
 /*
@@ -58,11 +59,11 @@ static void tpm_display_backend_drivers(void)
     fprintf(stderr, "Supported TPM types (choose only one):\n");
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
-        if (be_drivers[i] == NULL) {
+        const TPMBackendClass *bc = tpm_be_find_by_type(i);
+        if (!bc) {
             continue;
         }
-        fprintf(stderr, "%12s   %s\n",
-                TpmType_str(i), be_drivers[i]->desc);
+        fprintf(stderr, "%12s   %s\n", TpmType_str(i), bc->desc);
     }
     fprintf(stderr, "\n");
 }
@@ -85,13 +86,14 @@ TPMBackend *qemu_find_tpm(const char *id)
     return NULL;
 }
 
-static int configure_tpm(QemuOpts *opts)
+static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
 {
     const char *value;
     const char *id;
-    const TPMDriverOps *be;
+    const TPMBackendClass *be;
     TPMBackend *drv;
     Error *local_err = NULL;
+    int i;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
         error_report("Only one TPM is allowed.");
@@ -111,7 +113,8 @@ static int configure_tpm(QemuOpts *opts)
         return 1;
     }
 
-    be = tpm_get_backend_driver(value);
+    i = qapi_enum_parse(&TpmType_lookup, value, -1, NULL);
+    be = i >= 0 ? tpm_be_find_by_type(i) : NULL;
     if (be == NULL) {
         error_report(QERR_INVALID_PARAMETER_VALUE,
                      "type", "a TPM backend type");
@@ -140,11 +143,6 @@ static int configure_tpm(QemuOpts *opts)
     QLIST_INSERT_HEAD(&tpm_backends, drv, list);
 
     return 0;
-}
-
-static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
-{
-    return configure_tpm(opts);
 }
 
 /*
@@ -196,11 +194,6 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
 
 #endif /* CONFIG_TPM */
 
-static const TPMDriverOps *tpm_driver_find_by_type(enum TpmType type)
-{
-    return be_drivers[type];
-}
-
 /*
  * Walk the list of active TPM backends and collect information about them
  * following the schema description in qapi-schema.json.
@@ -234,7 +227,7 @@ TpmTypeList *qmp_query_tpm_types(Error **errp)
     TpmTypeList *head = NULL, *prev = NULL, *cur_item;
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
-        if (!tpm_driver_find_by_type(i)) {
+        if (!tpm_be_find_by_type(i)) {
             continue;
         }
         cur_item = g_new0(TpmTypeList, 1);
