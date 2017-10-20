@@ -877,6 +877,23 @@
 { 'command': 'migrate_cancel' }
 
 ##
+# @migrate-continue:
+#
+# Continue migration when it's in a paused state.
+#
+# @state: The state the migration is currently expected to be in
+#
+# Returns: nothing on success
+# Since: 2.11
+# Example:
+#
+# -> { "execute": "migrate-continue" , "arguments":
+#      { "state": "pre-switchover" } }
+# <- { "return": {} }
+##
+{ 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
+
+##
 # @migrate_set_downtime:
 #
 # Set maximum tolerated downtime for migration.

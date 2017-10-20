@@ -1374,6 +1374,17 @@ void qmp_migrate_cancel(Error **errp)
     migrate_fd_cancel(migrate_get_current());
 }
 
+void qmp_migrate_continue(MigrationStatus state, Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+    if (s->state != state) {
+        error_setg(errp,  "Migration not in expected state: %s",
+                   MigrationStatus_str(s->state));
+        return;
+    }
+    qemu_sem_post(&s->pause_sem);
+}
+
 void qmp_migrate_set_cache_size(int64_t value, Error **errp)
 {
     MigrationState *s = migrate_get_current();
