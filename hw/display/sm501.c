@@ -1758,7 +1758,7 @@ static void sm501_sysbus_class_init(ObjectClass *klass, void *data)
     dc->reset = sm501_reset_sysbus;
     dc->vmsd = &vmstate_sm501_sysbus;
     /* Note: pointer property "chr-state" may remain null, thus
-     * no need for dc->cannot_instantiate_with_device_add_yet = true;
+     * no need for dc->user_creatable = false;
      */
 }
 
