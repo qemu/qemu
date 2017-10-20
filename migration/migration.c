@@ -104,6 +104,9 @@ enum mig_rp_message_type {
 static MigrationState *current_migration;
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
+static int migration_maybe_pause(MigrationState *s,
+                                 int *current_active_state,
+                                 int new_state);
 
 void migration_object_init(void)
 {
@@ -1820,8 +1823,11 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     QEMUFile *fb;
     int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     bool restart_block = false;
-    migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
-                      MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    int cur_state = MIGRATION_STATUS_ACTIVE;
+    if (!migrate_pause_before_switchover()) {
+        migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    }
 
     trace_postcopy_start();
     qemu_mutex_lock_iothread();
@@ -1831,6 +1837,12 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     *old_vm_running = runstate_is_running();
     global_state_store();
     ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    ret = migration_maybe_pause(ms, &cur_state,
+                                MIGRATION_STATUS_POSTCOPY_ACTIVE);
     if (ret < 0) {
         goto fail;
     }
@@ -1977,7 +1989,9 @@ fail:
  * migrate_pause_before_switchover called with the iothread locked
  * Returns: 0 on success
  */
-static int migration_maybe_pause(MigrationState *s, int *current_active_state)
+static int migration_maybe_pause(MigrationState *s,
+                                 int *current_active_state,
+                                 int new_state)
 {
     if (!migrate_pause_before_switchover()) {
         return 0;
@@ -1998,11 +2012,11 @@ static int migration_maybe_pause(MigrationState *s, int *current_active_state)
                       MIGRATION_STATUS_PRE_SWITCHOVER);
     qemu_sem_wait(&s->pause_sem);
     migrate_set_state(&s->state, MIGRATION_STATUS_PRE_SWITCHOVER,
-                      MIGRATION_STATUS_DEVICE);
-    *current_active_state = MIGRATION_STATUS_DEVICE;
+                      new_state);
+    *current_active_state = new_state;
     qemu_mutex_lock_iothread();
 
-    return s->state == MIGRATION_STATUS_DEVICE ? 0 : -EINVAL;
+    return s->state == new_state ? 0 : -EINVAL;
 }
 
 /**
@@ -2031,7 +2045,8 @@ static void migration_completion(MigrationState *s, int current_active_state,
             bool inactivate = !migrate_colo_enabled();
             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
             if (ret >= 0) {
-                ret = migration_maybe_pause(s, &current_active_state);
+                ret = migration_maybe_pause(s, &current_active_state,
+                                            MIGRATION_STATUS_DEVICE);
             }
             if (ret >= 0) {
                 qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
