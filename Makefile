@@ -21,14 +21,14 @@ git-submodule-update:
 ifeq (0,$(MAKELEVEL))
   git_module_status := $(shell \
     cd '$(SRC_PATH)' && \
-    ./scripts/git-submodule.sh status $(GIT_SUBMODULES); \
+    GIT="$(GIT)" ./scripts/git-submodule.sh status $(GIT_SUBMODULES); \
     echo $$?; \
   )
 
 ifeq (1,$(git_module_status))
 git-submodule-update:
 	$(call quiet-command, \
-          (cd $(SRC_PATH) && ./scripts/git-submodule.sh update $(GIT_SUBMODULES)), \
+          (cd $(SRC_PATH) && GIT="$(GIT)" ./scripts/git-submodule.sh update $(GIT_SUBMODULES)), \
           "GIT","$(GIT_SUBMODULES)")
 endif
 endif
