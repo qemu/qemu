@@ -786,6 +786,21 @@ static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr t)
     return arg_temp(tcgv_ptr_arg(t));
 }
 
+static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
+{
+    return (TCGv_i32)temp_idx(t);
+}
+
+static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
+{
+    return (TCGv_i64)temp_idx(t);
+}
+
+static inline TCGv_ptr temp_tcgv_ptr(TCGTemp *t)
+{
+    return (TCGv_ptr)temp_idx(t);
+}
+
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
     tcg_ctx.gen_op_buf[op_idx].args[arg] = v;
@@ -837,7 +852,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb);
 
 void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size);
 
-int tcg_global_mem_new_internal(TCGType, TCGv_ptr, intptr_t, const char *);
+TCGTemp *tcg_global_mem_new_internal(TCGType, TCGv_ptr,
+                                     intptr_t, const char *);
 
 TCGv_i32 tcg_global_reg_new_i32(TCGReg reg, const char *name);
 TCGv_i64 tcg_global_reg_new_i64(TCGReg reg, const char *name);
@@ -851,8 +867,8 @@ void tcg_temp_free_i64(TCGv_i64 arg);
 static inline TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t offset,
                                               const char *name)
 {
-    int idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
-    return MAKE_TCGV_I32(idx);
+    TCGTemp *t = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
+    return temp_tcgv_i32(t);
 }
 
 static inline TCGv_i32 tcg_temp_new_i32(void)
@@ -868,8 +884,8 @@ static inline TCGv_i32 tcg_temp_local_new_i32(void)
 static inline TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t offset,
                                               const char *name)
 {
-    int idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
-    return MAKE_TCGV_I64(idx);
+    TCGTemp *t = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
+    return temp_tcgv_i64(t);
 }
 
 static inline TCGv_i64 tcg_temp_new_i64(void)
