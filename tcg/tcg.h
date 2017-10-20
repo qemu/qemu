@@ -428,14 +428,14 @@ typedef TCGv_ptr TCGv_env;
 #error Unhandled TARGET_LONG_BITS value
 #endif
 
-/* Dummy definition to avoid compiler warnings.  */
-#define TCGV_UNUSED_I32(x) (x = (TCGv_i32)-1)
-#define TCGV_UNUSED_I64(x) (x = (TCGv_i64)-1)
-#define TCGV_UNUSED_PTR(x) (x = (TCGv_ptr)-1)
+/* See the comment before tcgv_i32_temp.  */
+#define TCGV_UNUSED_I32(x) (x = (TCGv_i32)NULL)
+#define TCGV_UNUSED_I64(x) (x = (TCGv_i64)NULL)
+#define TCGV_UNUSED_PTR(x) (x = (TCGv_ptr)NULL)
 
-#define TCGV_IS_UNUSED_I32(x) ((x) == (TCGv_i32)-1)
-#define TCGV_IS_UNUSED_I64(x) ((x) == (TCGv_i64)-1)
-#define TCGV_IS_UNUSED_PTR(x) ((x) == (TCGv_ptr)-1)
+#define TCGV_IS_UNUSED_I32(x) ((x) == (TCGv_i32)NULL)
+#define TCGV_IS_UNUSED_I64(x) ((x) == (TCGv_i64)NULL)
+#define TCGV_IS_UNUSED_PTR(x) ((x) == (TCGv_ptr)NULL)
 
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
@@ -453,8 +453,8 @@ typedef TCGv_ptr TCGv_env;
 #define TCG_CALL_NO_RWG_SE      (TCG_CALL_NO_RWG | TCG_CALL_NO_SE)
 #define TCG_CALL_NO_WG_SE       (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
 
-/* used to align parameters */
-#define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
+/* Used to align parameters.  See the comment before tcgv_i32_temp.  */
+#define TCG_CALL_DUMMY_ARG      ((TCGArg)0)
 
 /* Conditions.  Note that these are laid out for easy manipulation by
    the functions below:
@@ -701,62 +701,64 @@ static inline size_t temp_idx(TCGTemp *ts)
 
 static inline TCGArg temp_arg(TCGTemp *ts)
 {
-    return temp_idx(ts);
+    return (uintptr_t)ts;
 }
 
 static inline TCGTemp *arg_temp(TCGArg a)
 {
-    return a == TCG_CALL_DUMMY_ARG ? NULL : &tcg_ctx.temps[a];
+    return (TCGTemp *)(uintptr_t)a;
 }
 
-static inline size_t arg_index(TCGArg a)
+/* Using the offset of a temporary, relative to TCGContext, rather than
+   its index means that we don't use 0.  That leaves offset 0 free for
+   a NULL representation without having to leave index 0 unused.  */
+static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
-    return a;
+    uintptr_t o = (uintptr_t)v;
+    TCGTemp *t = (void *)&tcg_ctx + o;
+    tcg_debug_assert(offsetof(TCGContext, temps[temp_idx(t)]) == o);
+    return t;
 }
 
-static inline TCGArg tcgv_i32_arg(TCGv_i32 t)
+static inline TCGTemp *tcgv_i64_temp(TCGv_i64 v)
 {
-    return (intptr_t)t;
+    return tcgv_i32_temp((TCGv_i32)v);
 }
 
-static inline TCGArg tcgv_i64_arg(TCGv_i64 t)
+static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr v)
 {
-    return (intptr_t)t;
+    return tcgv_i32_temp((TCGv_i32)v);
 }
 
-static inline TCGArg tcgv_ptr_arg(TCGv_ptr t)
+static inline TCGArg tcgv_i32_arg(TCGv_i32 v)
 {
-    return (intptr_t)t;
+    return temp_arg(tcgv_i32_temp(v));
 }
 
-static inline TCGTemp *tcgv_i32_temp(TCGv_i32 t)
+static inline TCGArg tcgv_i64_arg(TCGv_i64 v)
 {
-    return arg_temp(tcgv_i32_arg(t));
+    return temp_arg(tcgv_i64_temp(v));
 }
 
-static inline TCGTemp *tcgv_i64_temp(TCGv_i64 t)
+static inline TCGArg tcgv_ptr_arg(TCGv_ptr v)
 {
-    return arg_temp(tcgv_i64_arg(t));
-}
-
-static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr t)
-{
-    return arg_temp(tcgv_ptr_arg(t));
+    return temp_arg(tcgv_ptr_temp(v));
 }
 
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
-    return (TCGv_i32)temp_idx(t);
+    (void)temp_idx(t); /* trigger embedded assert */
+    return (TCGv_i32)((void *)t - (void *)&tcg_ctx);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
 {
-    return (TCGv_i64)temp_idx(t);
+    return (TCGv_i64)temp_tcgv_i32(t);
 }
 
 static inline TCGv_ptr temp_tcgv_ptr(TCGTemp *t)
 {
-    return (TCGv_ptr)temp_idx(t);
+    return (TCGv_ptr)temp_tcgv_i32(t);
 }
 
 #if TCG_TARGET_REG_BITS == 32
