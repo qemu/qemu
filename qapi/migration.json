@@ -96,12 +96,18 @@
 # @colo: VM is in the process of fault tolerance, VM can not get into this
 #        state unless colo capability is enabled for migration. (since 2.8)
 #
+# @pre-switchover: Paused before device serialisation. (since 2.11)
+#
+# @device: During device serialisation when pause-before-switchover is enabled
+#        (since 2.11)
+#
 # Since: 2.3
 #
 ##
 { 'enum': 'MigrationStatus',
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
-            'active', 'postcopy-active', 'completed', 'failed', 'colo' ] }
+            'active', 'postcopy-active', 'completed', 'failed', 'colo',
+            'pre-switchover', 'device' ] }
 
 ##
 # @MigrationInfo:
