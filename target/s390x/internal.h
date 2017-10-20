@@ -352,6 +352,10 @@ void s390_cpu_recompute_watchpoints(CPUState *cs);
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
 void do_restart_interrupt(CPUS390XState *env);
+void s390_handle_wait(S390CPU *cpu);
+#define S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
+int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch);
+int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len);
 #ifndef CONFIG_USER_ONLY
 LowCore *cpu_map_lowcore(CPUS390XState *env);
 void cpu_unmap_lowcore(LowCore *lowcore);
@@ -360,8 +364,18 @@ void cpu_unmap_lowcore(LowCore *lowcore);
 
 /* interrupt.c */
 void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
-void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
-                    uint64_t param64);
+void cpu_inject_clock_comparator(S390CPU *cpu);
+void cpu_inject_cpu_timer(S390CPU *cpu);
+void cpu_inject_emergency_signal(S390CPU *cpu, uint16_t src_cpu_addr);
+int cpu_inject_external_call(S390CPU *cpu, uint16_t src_cpu_addr);
+bool s390_cpu_has_io_int(S390CPU *cpu);
+bool s390_cpu_has_ext_int(S390CPU *cpu);
+bool s390_cpu_has_mcck_int(S390CPU *cpu);
+bool s390_cpu_has_int(S390CPU *cpu);
+bool s390_cpu_has_restart_int(S390CPU *cpu);
+bool s390_cpu_has_stop_int(S390CPU *cpu);
+void cpu_inject_restart(S390CPU *cpu);
+void cpu_inject_stop(S390CPU *cpu);
 
 
 /* ioinst.c */
@@ -402,5 +416,10 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
 
 /* translate.c */
 void s390x_translate_init(void);
+
+
+/* sigp.c */
+int handle_sigp(CPUS390XState *env, uint8_t order, uint64_t r1, uint64_t r3);
+void do_stop_interrupt(CPUS390XState *env);
 
 #endif /* S390X_INTERNAL_H */

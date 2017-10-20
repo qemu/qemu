@@ -26,6 +26,7 @@
 #include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "hw/s390x/ioinst.h"
+#include "sysemu/hw_accel.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
 #endif
@@ -51,42 +52,14 @@
 #ifndef CONFIG_USER_ONLY
 void s390x_tod_timer(void *opaque)
 {
-    S390CPU *cpu = opaque;
-    CPUS390XState *env = &cpu->env;
-
-    env->pending_int |= INTERRUPT_TOD;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    cpu_inject_clock_comparator((S390CPU *) opaque);
 }
 
 void s390x_cpu_timer(void *opaque)
 {
-    S390CPU *cpu = opaque;
-    CPUS390XState *env = &cpu->env;
-
-    env->pending_int |= INTERRUPT_CPUTIMER;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    cpu_inject_cpu_timer((S390CPU *) opaque);
 }
 #endif
-
-S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id, Error **errp)
-{
-    S390CPU *cpu = S390_CPU(object_new(typename));
-    Error *err = NULL;
-
-    object_property_set_int(OBJECT(cpu), core_id, "core-id", &err);
-    if (err != NULL) {
-        goto out;
-    }
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
-
-out:
-    if (err) {
-        error_propagate(errp, err);
-        object_unref(OBJECT(cpu));
-        cpu = NULL;
-    }
-    return cpu;
-}
 
 #ifndef CONFIG_USER_ONLY
 
@@ -121,6 +94,25 @@ hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr vaddr)
     return phys_addr;
 }
 
+static inline bool is_special_wait_psw(uint64_t psw_addr)
+{
+    /* signal quiesce */
+    return psw_addr == 0xfffUL;
+}
+
+void s390_handle_wait(S390CPU *cpu)
+{
+    if (s390_cpu_halt(cpu) == 0) {
+#ifndef CONFIG_USER_ONLY
+        if (is_special_wait_psw(cpu->env.psw.addr)) {
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        } else {
+            qemu_system_guest_panicked(NULL);
+        }
+#endif
+    }
+}
+
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     uint64_t old_mask = env->psw.mask;
@@ -135,13 +127,9 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
         s390_cpu_recompute_watchpoints(CPU(s390_env_get_cpu(env)));
     }
 
-    if (mask & PSW_MASK_WAIT) {
-        S390CPU *cpu = s390_env_get_cpu(env);
-        if (s390_cpu_halt(cpu) == 0) {
-#ifndef CONFIG_USER_ONLY
-            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-#endif
-        }
+    /* KVM will handle all WAITs and trigger a WAIT exit on disabled_wait */
+    if (tcg_enabled() && (mask & PSW_MASK_WAIT)) {
+        s390_handle_wait(s390_env_get_cpu(env));
     }
 }
 
@@ -194,6 +182,7 @@ void do_restart_interrupt(CPUS390XState *env)
     addr = be64_to_cpu(lowcore->restart_new_psw.addr);
 
     cpu_unmap_lowcore(lowcore);
+    env->pending_int &= ~INTERRUPT_RESTART;
 
     load_psw(env, mask, addr);
 }
@@ -237,6 +226,95 @@ void s390_cpu_recompute_watchpoints(CPUState *cs)
     }
 }
 
+struct sigp_save_area {
+    uint64_t    fprs[16];                       /* 0x0000 */
+    uint64_t    grs[16];                        /* 0x0080 */
+    PSW         psw;                            /* 0x0100 */
+    uint8_t     pad_0x0110[0x0118 - 0x0110];    /* 0x0110 */
+    uint32_t    prefix;                         /* 0x0118 */
+    uint32_t    fpc;                            /* 0x011c */
+    uint8_t     pad_0x0120[0x0124 - 0x0120];    /* 0x0120 */
+    uint32_t    todpr;                          /* 0x0124 */
+    uint64_t    cputm;                          /* 0x0128 */
+    uint64_t    ckc;                            /* 0x0130 */
+    uint8_t     pad_0x0138[0x0140 - 0x0138];    /* 0x0138 */
+    uint32_t    ars[16];                        /* 0x0140 */
+    uint64_t    crs[16];                        /* 0x0384 */
+};
+QEMU_BUILD_BUG_ON(sizeof(struct sigp_save_area) != 512);
+
+int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
+{
+    static const uint8_t ar_id = 1;
+    struct sigp_save_area *sa;
+    hwaddr len = sizeof(*sa);
+    int i;
+
+    sa = cpu_physical_memory_map(addr, &len, 1);
+    if (!sa) {
+        return -EFAULT;
+    }
+    if (len != sizeof(*sa)) {
+        cpu_physical_memory_unmap(sa, len, 1, 0);
+        return -EFAULT;
+    }
+
+    if (store_arch) {
+        cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
+    }
+    for (i = 0; i < 16; ++i) {
+        sa->fprs[i] = cpu_to_be64(get_freg(&cpu->env, i)->ll);
+    }
+    for (i = 0; i < 16; ++i) {
+        sa->grs[i] = cpu_to_be64(cpu->env.regs[i]);
+    }
+    sa->psw.addr = cpu_to_be64(cpu->env.psw.addr);
+    sa->psw.mask = cpu_to_be64(get_psw_mask(&cpu->env));
+    sa->prefix = cpu_to_be32(cpu->env.psa);
+    sa->fpc = cpu_to_be32(cpu->env.fpc);
+    sa->todpr = cpu_to_be32(cpu->env.todpr);
+    sa->cputm = cpu_to_be64(cpu->env.cputm);
+    sa->ckc = cpu_to_be64(cpu->env.ckc >> 8);
+    for (i = 0; i < 16; ++i) {
+        sa->ars[i] = cpu_to_be32(cpu->env.aregs[i]);
+    }
+    for (i = 0; i < 16; ++i) {
+        sa->ars[i] = cpu_to_be64(cpu->env.cregs[i]);
+    }
+
+    cpu_physical_memory_unmap(sa, len, 1, len);
+
+    return 0;
+}
+
+#define ADTL_GS_OFFSET   1024 /* offset of GS data in adtl save area */
+#define ADTL_GS_MIN_SIZE 2048 /* minimal size of adtl save area for GS */
+int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
+{
+    hwaddr save = len;
+    void *mem;
+
+    mem = cpu_physical_memory_map(addr, &save, 1);
+    if (!mem) {
+        return -EFAULT;
+    }
+    if (save != len) {
+        cpu_physical_memory_unmap(mem, len, 1, 0);
+        return -EFAULT;
+    }
+
+    /* FIXME: as soon as TCG supports these features, convert cpu->be */
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
+        memcpy(mem, &cpu->env.vregs, 512);
+    }
+    if (s390_has_feat(S390_FEAT_GUARDED_STORAGE) && len >= ADTL_GS_MIN_SIZE) {
+        memcpy(mem + ADTL_GS_OFFSET, &cpu->env.gscb, 32);
+    }
+
+    cpu_physical_memory_unmap(mem, len, 1, len);
+
+    return 0;
+}
 #endif /* CONFIG_USER_ONLY */
 
 void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,

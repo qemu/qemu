@@ -28,14 +28,12 @@ static void test_a_boot_order(const char *machine,
                               uint64_t expected_boot,
                               uint64_t expected_reboot)
 {
-    char *args;
     uint64_t actual;
 
-    args = g_strdup_printf("-nodefaults%s%s %s",
-                           machine ? " -M " : "",
-                           machine ?: "",
-                           test_args);
-    qtest_start(args);
+    global_qtest = qtest_startf("-nodefaults%s%s %s",
+                                machine ? " -M " : "",
+                                machine ?: "",
+                                test_args);
     actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_boot);
     qmp_discard_response("{ 'execute': 'system_reset' }");
@@ -47,7 +45,6 @@ static void test_a_boot_order(const char *machine,
     actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_reboot);
     qtest_quit(global_qtest);
-    g_free(args);
 }
 
 static void test_boot_orders(const char *machine,

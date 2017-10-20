@@ -144,7 +144,7 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
             program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO);
             return;
         }
-        iplb = g_malloc0(sizeof(IplParameterBlock));
+        iplb = g_new0(IplParameterBlock, 1);
         cpu_physical_memory_read(addr, iplb, sizeof(iplb->len));
         if (!iplb_valid_len(iplb)) {
             env->regs[r1 + 1] = DIAG_308_RC_INVALID;

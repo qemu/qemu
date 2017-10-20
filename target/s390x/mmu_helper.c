@@ -106,6 +106,37 @@ static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
     trigger_access_exception(env, type, ilen, tec);
 }
 
+/* check whether the address would be proteted by Low-Address Protection */
+static bool is_low_address(uint64_t addr)
+{
+    return addr <= 511 || (addr >= 4096 && addr <= 4607);
+}
+
+/* check whether Low-Address Protection is enabled for mmu_translate() */
+static bool lowprot_enabled(const CPUS390XState *env, uint64_t asc)
+{
+    if (!(env->cregs[0] & CR0_LOWPROT)) {
+        return false;
+    }
+    if (!(env->psw.mask & PSW_MASK_DAT)) {
+        return true;
+    }
+
+    /* Check the private-space control bit */
+    switch (asc) {
+    case PSW_ASC_PRIMARY:
+        return !(env->cregs[1] & _ASCE_PRIVATE_SPACE);
+    case PSW_ASC_SECONDARY:
+        return !(env->cregs[7] & _ASCE_PRIVATE_SPACE);
+    case PSW_ASC_HOME:
+        return !(env->cregs[13] & _ASCE_PRIVATE_SPACE);
+    default:
+        /* We don't support access register mode */
+        error_report("unsupported addressing mode");
+        exit(1);
+    }
+}
+
 /**
  * Translate real address to absolute (= physical)
  * address by taking care of the prefix mapping.
@@ -323,6 +354,24 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     }
 
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    if (is_low_address(vaddr & TARGET_PAGE_MASK) && lowprot_enabled(env, asc)) {
+        /*
+         * If any part of this page is currently protected, make sure the
+         * TLB entry will not be reused.
+         *
+         * As the protected range is always the first 512 bytes of the
+         * two first pages, we are able to catch all writes to these areas
+         * just by looking at the start address (triggering the tlb miss).
+         */
+        *flags |= PAGE_WRITE_INV;
+        if (is_low_address(vaddr) && rw == MMU_DATA_STORE) {
+            if (exc) {
+                trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, 0);
+            }
+            return -EACCES;
+        }
+    }
+
     vaddr &= TARGET_PAGE_MASK;
 
     if (!(env->psw.mask & PSW_MASK_DAT)) {
@@ -392,50 +441,17 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 }
 
 /**
- * lowprot_enabled: Check whether low-address protection is enabled
- */
-static bool lowprot_enabled(const CPUS390XState *env)
-{
-    if (!(env->cregs[0] & CR0_LOWPROT)) {
-        return false;
-    }
-    if (!(env->psw.mask & PSW_MASK_DAT)) {
-        return true;
-    }
-
-    /* Check the private-space control bit */
-    switch (env->psw.mask & PSW_MASK_ASC) {
-    case PSW_ASC_PRIMARY:
-        return !(env->cregs[1] & _ASCE_PRIVATE_SPACE);
-    case PSW_ASC_SECONDARY:
-        return !(env->cregs[7] & _ASCE_PRIVATE_SPACE);
-    case PSW_ASC_HOME:
-        return !(env->cregs[13] & _ASCE_PRIVATE_SPACE);
-    default:
-        /* We don't support access register mode */
-        error_report("unsupported addressing mode");
-        exit(1);
-    }
-}
-
-/**
  * translate_pages: Translate a set of consecutive logical page addresses
  * to absolute addresses
  */
 static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
                            target_ulong *pages, bool is_write)
 {
-    bool lowprot = is_write && lowprot_enabled(&cpu->env);
     uint64_t asc = cpu->env.psw.mask & PSW_MASK_ASC;
     CPUS390XState *env = &cpu->env;
     int ret, i, pflags;
 
     for (i = 0; i < nr_pages; i++) {
-        /* Low-address protection? */
-        if (lowprot && (addr < 512 || (addr >= 4096 && addr < 4096 + 512))) {
-            trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, 0);
-            return -EACCES;
-        }
         ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, true);
         if (ret) {
             return ret;
@@ -509,9 +525,19 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
                        target_ulong *addr, int *flags)
 {
-    /* TODO: low address protection once we flush the tlb on cr changes */
+    const bool lowprot_enabled = env->cregs[0] & CR0_LOWPROT;
+
     *flags = PAGE_READ | PAGE_WRITE;
-    *addr = mmu_real2abs(env, raddr);
+    if (is_low_address(raddr & TARGET_PAGE_MASK) && lowprot_enabled) {
+        /* see comment in mmu_translate() how this works */
+        *flags |= PAGE_WRITE_INV;
+        if (is_low_address(raddr) && rw == MMU_DATA_STORE) {
+            trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, 0);
+            return -EACCES;
+        }
+    }
+
+    *addr = mmu_real2abs(env, raddr & TARGET_PAGE_MASK);
 
     /* TODO: storage key handling */
     return 0;

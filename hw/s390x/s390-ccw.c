@@ -18,15 +18,14 @@
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/s390-ccw.h"
 
-int s390_ccw_cmd_request(ORB *orb, SCSW *scsw, void *data)
+IOInstEnding s390_ccw_cmd_request(SubchDev *sch)
 {
-    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(data);
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
 
-    if (cdc->handle_request) {
-        return cdc->handle_request(orb, scsw, data);
-    } else {
-        return -ENOSYS;
+    if (!cdc->handle_request) {
+        return IOINST_CC_STATUS_PRESENT;
     }
+    return cdc->handle_request(sch);
 }
 
 static void s390_ccw_get_dev_info(S390CCWDevice *cdev,

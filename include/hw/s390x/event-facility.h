@@ -49,15 +49,27 @@
 #define TYPE_SCLP_CPU_HOTPLUG "sclp-cpu-hotplug"
 #define TYPE_SCLP_QUIESCE "sclpquiesce"
 
+#define SCLP_EVENT_MASK_LEN_MAX 1021
+
 typedef struct WriteEventMask {
     SCCBHeader h;
     uint16_t _reserved;
     uint16_t mask_length;
-    uint32_t cp_receive_mask;
-    uint32_t cp_send_mask;
-    uint32_t receive_mask;
-    uint32_t send_mask;
+    uint8_t masks[];
+/*
+ * Layout of the masks is
+ *  uint8_t cp_receive_mask[mask_length];
+ *  uint8_t cp_send_mask[mask_length];
+ *  uint8_t receive_mask[mask_length];
+ *  uint8_t send_mask[mask_length];
+ * where 1 <= mask_length <= SCLP_EVENT_MASK_LEN_MAX
+ */
 } QEMU_PACKED WriteEventMask;
+
+#define WEM_CP_RECEIVE_MASK(wem, mask_len) ((wem)->masks)
+#define WEM_CP_SEND_MASK(wem, mask_len) ((wem)->masks + (mask_len))
+#define WEM_RECEIVE_MASK(wem, mask_len) ((wem)->masks + 2 * (mask_len))
+#define WEM_SEND_MASK(wem, mask_len) ((wem)->masks + 3 * (mask_len))
 
 typedef struct EventBufferHeader {
     uint16_t length;
