@@ -171,18 +171,13 @@ static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
         return TCGV_HIGH(cpu_fpr[src / 2]);
     }
 #else
+    TCGv_i32 ret = get_temp_i32(dc);
     if (src & 1) {
-        return MAKE_TCGV_I32(GET_TCGV_I64(cpu_fpr[src / 2]));
+        tcg_gen_extrl_i64_i32(ret, cpu_fpr[src / 2]);
     } else {
-        TCGv_i32 ret = get_temp_i32(dc);
-        TCGv_i64 t = tcg_temp_new_i64();
-
-        tcg_gen_shri_i64(t, cpu_fpr[src / 2], 32);
-        tcg_gen_extrl_i64_i32(ret, t);
-        tcg_temp_free_i64(t);
-
-        return ret;
+        tcg_gen_extrh_i64_i32(ret, cpu_fpr[src / 2]);
     }
+    return ret;
 #endif
 }
 
@@ -195,7 +190,7 @@ static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
         tcg_gen_mov_i32(TCGV_HIGH(cpu_fpr[dst / 2]), v);
     }
 #else
-    TCGv_i64 t = MAKE_TCGV_I64(GET_TCGV_I32(v));
+    TCGv_i64 t = (TCGv_i64)v;
     tcg_gen_deposit_i64(cpu_fpr[dst / 2], cpu_fpr[dst / 2], t,
                         (dst & 1 ? 0 : 32), 32);
 #endif

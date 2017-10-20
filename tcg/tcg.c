@@ -548,7 +548,7 @@ TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
                                      intptr_t offset, const char *name)
 {
     TCGContext *s = &tcg_ctx;
-    TCGTemp *base_ts = &s->temps[GET_TCGV_PTR(base)];
+    TCGTemp *base_ts = tcgv_ptr_temp(base);
     TCGTemp *ts = tcg_global_alloc(s);
     int indirect_reg = 0, bigendian = 0;
 #ifdef HOST_WORDS_BIGENDIAN

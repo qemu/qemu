@@ -414,10 +414,7 @@ typedef tcg_target_ulong TCGArg;
    integers, but keeping them in pointer types like this means that the
    compiler will complain if you accidentally pass a TCGv_i32 to a
    function which takes a TCGv_i64, and so on. Only the internals of
-   TCG need to care about the actual contents of the types, and they always
-   box and unbox via the MAKE_TCGV_* and GET_TCGV_* functions.
-   Converting to and from intptr_t rather than int reduces the number
-   of sign-extension instructions that get implied on 64-bit hosts.  */
+   TCG need to care about the actual contents of the types.  */
 
 typedef struct TCGv_i32_d *TCGv_i32;
 typedef struct TCGv_i64_d *TCGv_i64;
@@ -431,53 +428,18 @@ typedef TCGv_ptr TCGv_env;
 #error Unhandled TARGET_LONG_BITS value
 #endif
 
-static inline TCGv_i32 QEMU_ARTIFICIAL MAKE_TCGV_I32(intptr_t i)
-{
-    return (TCGv_i32)i;
-}
-
-static inline TCGv_i64 QEMU_ARTIFICIAL MAKE_TCGV_I64(intptr_t i)
-{
-    return (TCGv_i64)i;
-}
-
-static inline TCGv_ptr QEMU_ARTIFICIAL MAKE_TCGV_PTR(intptr_t i)
-{
-    return (TCGv_ptr)i;
-}
-
-static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_I32(TCGv_i32 t)
-{
-    return (intptr_t)t;
-}
-
-static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_I64(TCGv_i64 t)
-{
-    return (intptr_t)t;
-}
-
-static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_PTR(TCGv_ptr t)
-{
-    return (intptr_t)t;
-}
-
-#if TCG_TARGET_REG_BITS == 32
-#define TCGV_LOW(t) MAKE_TCGV_I32(GET_TCGV_I64(t))
-#define TCGV_HIGH(t) MAKE_TCGV_I32(GET_TCGV_I64(t) + 1)
-#endif
-
-#define TCGV_EQUAL_I32(a, b) (GET_TCGV_I32(a) == GET_TCGV_I32(b))
-#define TCGV_EQUAL_I64(a, b) (GET_TCGV_I64(a) == GET_TCGV_I64(b))
-#define TCGV_EQUAL_PTR(a, b) (GET_TCGV_PTR(a) == GET_TCGV_PTR(b))
+#define TCGV_EQUAL_I32(a, b) ((a) == (b))
+#define TCGV_EQUAL_I64(a, b) ((a) == (b))
+#define TCGV_EQUAL_PTR(a, b) ((a) == (b))
 
 /* Dummy definition to avoid compiler warnings.  */
-#define TCGV_UNUSED_I32(x) x = MAKE_TCGV_I32(-1)
-#define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
-#define TCGV_UNUSED_PTR(x) x = MAKE_TCGV_PTR(-1)
+#define TCGV_UNUSED_I32(x) (x = (TCGv_i32)-1)
+#define TCGV_UNUSED_I64(x) (x = (TCGv_i64)-1)
+#define TCGV_UNUSED_PTR(x) (x = (TCGv_ptr)-1)
 
-#define TCGV_IS_UNUSED_I32(x) (GET_TCGV_I32(x) == -1)
-#define TCGV_IS_UNUSED_I64(x) (GET_TCGV_I64(x) == -1)
-#define TCGV_IS_UNUSED_PTR(x) (GET_TCGV_PTR(x) == -1)
+#define TCGV_IS_UNUSED_I32(x) ((x) == (TCGv_i32)-1)
+#define TCGV_IS_UNUSED_I64(x) ((x) == (TCGv_i64)-1)
+#define TCGV_IS_UNUSED_PTR(x) ((x) == (TCGv_ptr)-1)
 
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
@@ -801,6 +763,18 @@ static inline TCGv_ptr temp_tcgv_ptr(TCGTemp *t)
     return (TCGv_ptr)temp_idx(t);
 }
 
+#if TCG_TARGET_REG_BITS == 32
+static inline TCGv_i32 TCGV_LOW(TCGv_i64 t)
+{
+    return temp_tcgv_i32(tcgv_i64_temp(t));
+}
+
+static inline TCGv_i32 TCGV_HIGH(TCGv_i64 t)
+{
+    return temp_tcgv_i32(tcgv_i64_temp(t) + 1);
+}
+#endif
+
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
     tcg_ctx.gen_op_buf[op_idx].args[arg] = v;
@@ -972,8 +946,8 @@ do {\
 } while (0)
 
 #if UINTPTR_MAX == UINT32_MAX
-#define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I32(n))
-#define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I32(GET_TCGV_PTR(n))
+static inline TCGv_ptr TCGV_NAT_TO_PTR(TCGv_i32 n) { return (TCGv_ptr)n; }
+static inline TCGv_i32 TCGV_PTR_TO_NAT(TCGv_ptr n) { return (TCGv_i32)n; }
 
 #define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i32((intptr_t)(V)))
 #define tcg_global_reg_new_ptr(R, N) \
@@ -983,8 +957,8 @@ do {\
 #define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i32())
 #define tcg_temp_free_ptr(T) tcg_temp_free_i32(TCGV_PTR_TO_NAT(T))
 #else
-#define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I64(n))
-#define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I64(GET_TCGV_PTR(n))
+static inline TCGv_ptr TCGV_NAT_TO_PTR(TCGv_i64 n) { return (TCGv_ptr)n; }
+static inline TCGv_i64 TCGV_PTR_TO_NAT(TCGv_ptr n) { return (TCGv_i64)n; }
 
 #define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i64((intptr_t)(V)))
 #define tcg_global_reg_new_ptr(R, N) \

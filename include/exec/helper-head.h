@@ -20,10 +20,6 @@
 
 #define HELPER(name) glue(helper_, name)
 
-#define GET_TCGV_i32 GET_TCGV_I32
-#define GET_TCGV_i64 GET_TCGV_I64
-#define GET_TCGV_ptr GET_TCGV_PTR
-
 /* Some types that make sense in C, but not for TCG.  */
 #define dh_alias_i32 i32
 #define dh_alias_s32 i32
