@@ -1495,6 +1495,19 @@ void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
     qmp_migrate_cancel(NULL);
 }
 
+void hmp_migrate_continue(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *state = qdict_get_str(qdict, "state");
+    int val = qapi_enum_parse(&MigrationStatus_lookup, state, -1, &err);
+
+    if (val >= 0) {
+        qmp_migrate_continue(val, &err);
+    }
+
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
