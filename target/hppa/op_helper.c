@@ -622,6 +622,8 @@ void HELPER(rfi)(CPUHPPAState *env)
     if (env->psw & (PSW_I | PSW_R | PSW_Q)) {
         helper_excp(env, EXCP_ILL);
     }
+    env->iasq_f = (uint64_t)env->cr[CR_IIASQ] << 32;
+    env->iasq_b = (uint64_t)env->cr_back[0] << 32;
     env->iaoq_f = env->cr[CR_IIAOQ];
     env->iaoq_b = env->cr_back[1];
     cpu_hppa_put_psw(env, env->cr[CR_IPSW]);

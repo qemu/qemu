@@ -37,8 +37,23 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
 
+#ifdef CONFIG_USER_ONLY
     cpu->env.iaoq_f = tb->pc;
     cpu->env.iaoq_b = tb->cs_base;
+#else
+    /* Recover the IAOQ values from the GVA + PRIV.  */
+    uint32_t priv = (tb->flags >> TB_FLAG_PRIV_SHIFT) & 3;
+    target_ulong cs_base = tb->cs_base;
+    target_ulong iasq_f = cs_base & ~0xffffffffull;
+    int32_t diff = cs_base;
+
+    cpu->env.iasq_f = iasq_f;
+    cpu->env.iaoq_f = (tb->pc & ~iasq_f) + priv;
+    if (diff) {
+        cpu->env.iaoq_b = cpu->env.iaoq_f + diff;
+    }
+#endif
+
     cpu->env.psw_n = (tb->flags & PSW_N) != 0;
 }
 

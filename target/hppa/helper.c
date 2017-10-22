@@ -78,7 +78,8 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f,
     int i;
 
     cpu_fprintf(f, "IA_F " TARGET_FMT_lx " IA_B " TARGET_FMT_lx "\n",
-                (target_ulong)env->iaoq_f, (target_ulong)env->iaoq_b);
+                hppa_form_gva_psw(psw, env->iasq_f, env->iaoq_f),
+                hppa_form_gva_psw(psw, env->iasq_b, env->iaoq_b));
 
     psw_c[0]  = (psw & PSW_W ? 'W' : '-');
     psw_c[1]  = (psw & PSW_E ? 'E' : '-');

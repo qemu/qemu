@@ -32,6 +32,8 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     int i = cs->exception_index;
     target_ureg iaoq_f = env->iaoq_f;
     target_ureg iaoq_b = env->iaoq_b;
+    uint64_t iasq_f = env->iasq_f;
+    uint64_t iasq_b = env->iasq_b;
 
 #ifndef CONFIG_USER_ONLY
     target_ureg old_psw;
@@ -44,6 +46,8 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     cpu_hppa_put_psw(env, PSW_W | (i == EXCP_HPMC ? PSW_M : 0));
 
     /* step 3 */
+    env->cr[CR_IIASQ] = iasq_f >> 32;
+    env->cr_back[0] = iasq_b >> 32;
     env->cr[CR_IIAOQ] = iaoq_f;
     env->cr_back[1] = iaoq_b;
 
@@ -79,6 +83,9 @@ void hppa_cpu_do_interrupt(CPUState *cs)
                 hwaddr paddr;
 
                 paddr = vaddr = iaoq_f & -4;
+                if (old_psw & PSW_C) {
+                    vaddr = hppa_form_gva_psw(old_psw, iasq_f, iaoq_f & -4);
+                }
                 env->cr[CR_IIR] = ldl_phys(cs->as, paddr);
             }
             break;
@@ -101,6 +108,8 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     /* step 7 */
     env->iaoq_f = env->cr[CR_IVA] + 32 * i;
     env->iaoq_b = env->iaoq_f + 4;
+    env->iasq_f = 0;
+    env->iasq_b = 0;
 #endif
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
@@ -151,10 +160,11 @@ void hppa_cpu_do_interrupt(CPUState *cs)
         qemu_log("INT %6d: %s @ " TARGET_FMT_lx "," TARGET_FMT_lx
                  " -> " TREG_FMT_lx " " TARGET_FMT_lx "\n",
                  ++count, name,
-                 (target_ulong)iaoq_f,
-                 (target_ulong)iaoq_b,
+                 hppa_form_gva(env, iasq_f, iaoq_f),
+                 hppa_form_gva(env, iasq_b, iaoq_b),
                  env->iaoq_f,
-                 (target_ulong)env->cr[CR_IOR]);
+                 hppa_form_gva(env, (uint64_t)env->cr[CR_ISR] << 32,
+                               env->cr[CR_IOR]));
     }
     cs->exception_index = -1;
 }

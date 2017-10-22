@@ -325,6 +325,8 @@ static TCGv_reg cpu_gr[32];
 static TCGv_i64 cpu_sr[4];
 static TCGv_reg cpu_iaoq_f;
 static TCGv_reg cpu_iaoq_b;
+static TCGv_i64 cpu_iasq_f;
+static TCGv_i64 cpu_iasq_b;
 static TCGv_reg cpu_sar;
 static TCGv_reg cpu_psw_n;
 static TCGv_reg cpu_psw_v;
@@ -380,6 +382,13 @@ void hppa_translate_init(void)
         const GlobalVar *v = &vars[i];
         *v->var = tcg_global_mem_new(cpu_env, v->ofs, v->name);
     }
+
+    cpu_iasq_f = tcg_global_mem_new_i64(cpu_env,
+                                        offsetof(CPUHPPAState, iasq_f),
+                                        "iasq_f");
+    cpu_iasq_b = tcg_global_mem_new_i64(cpu_env,
+                                        offsetof(CPUHPPAState, iasq_b),
+                                        "iasq_b");
 }
 
 static DisasCond cond_make_f(void)
@@ -1760,6 +1769,11 @@ static DisasJumpType do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
             ctx->null_lab = NULL;
         }
         nullify_set(ctx, n);
+        if (ctx->iaoq_n == -1) {
+            /* The temporary iaoq_n_var died at the branch above.
+               Regenerate it here instead of saving it.  */
+            tcg_gen_addi_reg(ctx->iaoq_n_var, cpu_iaoq_b, 4);
+        }
         gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
     }
 
@@ -1801,11 +1815,17 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv_reg dest,
         }
         next = get_temp(ctx);
         tcg_gen_mov_reg(next, dest);
-        ctx->iaoq_n = -1;
-        ctx->iaoq_n_var = next;
         if (is_n) {
+            if (use_nullify_skip(ctx)) {
+                tcg_gen_mov_reg(cpu_iaoq_f, next);
+                tcg_gen_addi_reg(cpu_iaoq_b, next, 4);
+                nullify_set(ctx, 0);
+                return DISAS_IAQ_N_UPDATED;
+            }
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
+        ctx->iaoq_n = -1;
+        ctx->iaoq_n_var = next;
     } else if (is_n && use_nullify_skip(ctx)) {
         /* The (conditional) branch, B, nullifies the next insn, N,
            and we're allowed to skip execution N (no single-step or
@@ -3477,26 +3497,55 @@ static DisasJumpType trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
     target_sreg disp = assemble_17(insn);
     TCGv_reg tmp;
 
-    /* unsigned s = low_uextract(insn, 13, 3); */
+#ifdef CONFIG_USER_ONLY
     /* ??? It seems like there should be a good way of using
        "be disp(sr2, r0)", the canonical gateway entry mechanism
        to our advantage.  But that appears to be inconvenient to
        manage along side branch delay slots.  Therefore we handle
        entry into the gateway page via absolute address.  */
-
-#ifdef CONFIG_USER_ONLY
     /* Since we don't implement spaces, just branch.  Do notice the special
        case of "be disp(*,r0)" using a direct branch to disp, so that we can
        goto_tb to the TB containing the syscall.  */
     if (b == 0) {
         return do_dbranch(ctx, disp, is_l ? 31 : 0, n);
     }
+#else
+    int sp = assemble_sr3(insn);
+    nullify_over(ctx);
 #endif
 
     tmp = get_temp(ctx);
     tcg_gen_addi_reg(tmp, load_gpr(ctx, b), disp);
     tmp = do_ibranch_priv(ctx, tmp);
+
+#ifdef CONFIG_USER_ONLY
     return do_ibranch(ctx, tmp, is_l ? 31 : 0, n);
+#else
+    TCGv_i64 new_spc = tcg_temp_new_i64();
+
+    load_spr(ctx, new_spc, sp);
+    if (is_l) {
+        copy_iaoq_entry(cpu_gr[31], ctx->iaoq_n, ctx->iaoq_n_var);
+        tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_f);
+    }
+    if (n && use_nullify_skip(ctx)) {
+        tcg_gen_mov_reg(cpu_iaoq_f, tmp);
+        tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
+        tcg_gen_mov_i64(cpu_iasq_f, new_spc);
+        tcg_gen_mov_i64(cpu_iasq_b, cpu_iasq_f);
+    } else {
+        copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+        if (ctx->iaoq_b == -1) {
+            tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
+        }
+        tcg_gen_mov_reg(cpu_iaoq_b, tmp);
+        tcg_gen_mov_i64(cpu_iasq_b, new_spc);
+        nullify_set(ctx, n);
+    }
+    tcg_temp_free_i64(new_spc);
+    tcg_gen_lookup_and_goto_ptr();
+    return nullify_end(ctx, DISAS_NORETURN);
+#endif
 }
 
 static DisasJumpType trans_bl(DisasContext *ctx, uint32_t insn,
@@ -3559,8 +3608,26 @@ static DisasJumpType trans_bve(DisasContext *ctx, uint32_t insn,
     unsigned link = extract32(insn, 13, 1) ? 2 : 0;
     TCGv_reg dest;
 
+#ifdef CONFIG_USER_ONLY
     dest = do_ibranch_priv(ctx, load_gpr(ctx, rb));
     return do_ibranch(ctx, dest, link, n);
+#else
+    nullify_over(ctx);
+    dest = do_ibranch_priv(ctx, load_gpr(ctx, rb));
+
+    copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+    if (ctx->iaoq_b == -1) {
+        tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
+    }
+    copy_iaoq_entry(cpu_iaoq_b, -1, dest);
+    tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
+    if (link) {
+        copy_iaoq_entry(cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
+    }
+    nullify_set(ctx, n);
+    tcg_gen_lookup_and_goto_ptr();
+    return nullify_end(ctx, DISAS_NORETURN);
+#endif
 }
 
 static const DisasInsn table_branch[] = {
@@ -4267,15 +4334,21 @@ static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = MMU_USER_IDX;
     ctx->mmu_idx = MMU_USER_IDX;
-#else
-    ctx->privilege = ctx->base.pc_first & 3;
-    ctx->mmu_idx = (ctx->base.tb->flags & PSW_D
-                    ? ctx->privilege : MMU_PHYS_IDX);
-#endif
     ctx->iaoq_f = ctx->base.pc_first;
     ctx->iaoq_b = ctx->base.tb->cs_base;
-    ctx->base.pc_first &= -4;
+#else
+    ctx->privilege = (ctx->base.tb->flags >> TB_FLAG_PRIV_SHIFT) & 3;
+    ctx->mmu_idx = (ctx->base.tb->flags & PSW_D
+                    ? ctx->privilege : MMU_PHYS_IDX);
 
+    /* Recover the IAOQ values from the GVA + PRIV.  */
+    uint64_t cs_base = ctx->base.tb->cs_base;
+    uint64_t iasq_f = cs_base & ~0xffffffffull;
+    int32_t diff = cs_base;
+
+    ctx->iaoq_f = (ctx->base.pc_first & ~iasq_f) + ctx->privilege;
+    ctx->iaoq_b = (diff ? ctx->iaoq_f + diff : -1);
+#endif
     ctx->iaoq_n = -1;
     ctx->iaoq_n_var = NULL;
 
@@ -4318,7 +4391,7 @@ static bool hppa_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     ctx->base.is_jmp = gen_excp(ctx, EXCP_DEBUG);
-    ctx->base.pc_next = (ctx->iaoq_f & -4) + 4;
+    ctx->base.pc_next += 4;
     return true;
 }
 
@@ -4331,7 +4404,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     /* Execute one insn.  */
 #ifdef CONFIG_USER_ONLY
-    if (ctx->iaoq_f < TARGET_PAGE_SIZE) {
+    if (ctx->base.pc_next < TARGET_PAGE_SIZE) {
         ret = do_page_zero(ctx);
         assert(ret != DISAS_NEXT);
     } else
@@ -4339,7 +4412,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     {
         /* Always fetch the insn, even if nullified, so that we check
            the page permissions for execute.  */
-        uint32_t insn = cpu_ldl_code(env, ctx->iaoq_f & -4);
+        uint32_t insn = cpu_ldl_code(env, ctx->base.pc_next);
 
         /* Set up the IA queue for the next insn.
            This will be overwritten by a branch.  */
@@ -4377,18 +4450,21 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     /* Advance the insn queue.  Note that this check also detects
        a priority change within the instruction queue.  */
     if (ret == DISAS_NEXT && ctx->iaoq_b != ctx->iaoq_f + 4) {
-        if (ctx->null_cond.c == TCG_COND_NEVER
-            || ctx->null_cond.c == TCG_COND_ALWAYS) {
+        if (ctx->iaoq_b != -1 && ctx->iaoq_n != -1
+            && use_goto_tb(ctx, ctx->iaoq_b)
+            && (ctx->null_cond.c == TCG_COND_NEVER
+                || ctx->null_cond.c == TCG_COND_ALWAYS)) {
             nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
             gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
             ret = DISAS_NORETURN;
         } else {
             ret = DISAS_IAQ_N_STALE;
-       }
+        }
     }
     ctx->iaoq_f = ctx->iaoq_b;
     ctx->iaoq_b = ctx->iaoq_n;
     ctx->base.is_jmp = ret;
+    ctx->base.pc_next += 4;
 
     if (ret == DISAS_NORETURN || ret == DISAS_IAQ_N_UPDATED) {
         return;
@@ -4396,6 +4472,9 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     if (ctx->iaoq_f == -1) {
         tcg_gen_mov_reg(cpu_iaoq_f, cpu_iaoq_b);
         copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
+#ifndef CONFIG_USER_ONLY
+        tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
+#endif
         nullify_save(ctx);
         ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
     } else if (ctx->iaoq_b == -1) {
@@ -4430,15 +4509,11 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     default:
         g_assert_not_reached();
     }
-
-    /* We don't actually use this during normal translation,
-       but we should interact with the generic main loop.  */
-    ctx->base.pc_next = ctx->base.pc_first + 4 * ctx->base.num_insns;
 }
 
 static void hppa_tr_disas_log(const DisasContextBase *dcbase, CPUState *cs)
 {
-    target_ureg pc = dcbase->pc_first;
+    target_ulong pc = dcbase->pc_first;
 
 #ifdef CONFIG_USER_ONLY
     switch (pc) {

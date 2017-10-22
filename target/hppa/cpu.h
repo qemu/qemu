@@ -186,6 +186,8 @@ struct CPUHPPAState {
 
     target_ureg iaoq_f;      /* front */
     target_ureg iaoq_b;      /* back, aka next instruction */
+    uint64_t iasq_f;
+    uint64_t iasq_b;
 
     uint32_t fr0_shadow;     /* flags, c, ca/cq, rm, d, enables */
     float_status fp_status;
@@ -240,15 +242,62 @@ void hppa_translate_init(void);
 
 void hppa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
+static inline target_ulong hppa_form_gva_psw(target_ureg psw, uint64_t spc,
+                                             target_ureg off)
+{
+#ifdef CONFIG_USER_ONLY
+    return off;
+#else
+    off &= (psw & PSW_W ? 0x3fffffffffffffffull : 0xffffffffull);
+    return spc | off;
+#endif
+}
+
+static inline target_ulong hppa_form_gva(CPUHPPAState *env, uint64_t spc,
+                                         target_ureg off)
+{
+    return hppa_form_gva_psw(env->psw, spc, off);
+}
+
+/* Since PSW_CB will never need to be in tb->flags, reuse them.  */
+#define TB_FLAG_PRIV_SHIFT  8
+
 static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
                                         target_ulong *cs_base,
                                         uint32_t *pflags)
 {
+    uint32_t flags = env->psw_n * PSW_N;
+
+    /* TB lookup assumes that PC contains the complete virtual address.
+       If we leave space+offset separate, we'll get ITLB misses to an
+       incomplete virtual address.  This also means that we must separate
+       out current cpu priviledge from the low bits of IAOQ_F.  */
+#ifdef CONFIG_USER_ONLY
     *pc = env->iaoq_f;
     *cs_base = env->iaoq_b;
+#else
     /* ??? E, T, H, L, B, P bits need to be here, when implemented.  */
-    *pflags = (env->psw & (PSW_W | PSW_C | PSW_D))
-            | env->psw_n * PSW_N;
+    flags |= env->psw & (PSW_W | PSW_C | PSW_D);
+    flags |= (env->iaoq_f & 3) << TB_FLAG_PRIV_SHIFT;
+
+    *pc = (env->psw & PSW_C
+           ? hppa_form_gva_psw(env->psw, env->iasq_f, env->iaoq_f & -4)
+           : env->iaoq_f & -4);
+    *cs_base = env->iasq_f;
+
+    /* Insert a difference between IAOQ_B and IAOQ_F within the otherwise zero
+       low 32-bits of CS_BASE.  This will succeed for all direct branches,
+       which is the primary case we care about -- using goto_tb within a page.
+       Failure is indicated by a zero difference.  */
+    if (env->iasq_f == env->iasq_b) {
+        target_sreg diff = env->iaoq_b - env->iaoq_f;
+        if (TARGET_REGISTER_BITS == 32 || diff == (int32_t)diff) {
+            *cs_base |= (uint32_t)diff;
+        }
+    }
+#endif
+
+    *pflags = flags;
 }
 
 target_ureg cpu_hppa_get_psw(CPUHPPAState *env);
