@@ -78,10 +78,13 @@ static void test_commands(void)
     int i;
 
     for (i = 0; hmp_cmds[i] != NULL; i++) {
-        if (verbose) {
-            fprintf(stderr, "\t%s\n", hmp_cmds[i]);
-        }
         response = hmp("%s", hmp_cmds[i]);
+        if (verbose) {
+            fprintf(stderr,
+                    "\texecute HMP command: %s\n"
+                    "\tresult             : %s\n",
+                    hmp_cmds[i], response);
+        }
         g_free(response);
     }
 
