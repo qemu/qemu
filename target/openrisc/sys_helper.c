@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exception.h"
+#include "sysemu/sysemu.h"
 
 #define TO_SPR(group, number) (((group) << 11) + (number))
 
@@ -188,7 +189,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         break;
 
     case TO_SPR(10, 1): /* TTCR */
-        env->ttcr = rb;
+        cpu_openrisc_count_set(cpu, rb);
         if (env->ttmr & TIMER_NONE) {
             return;
         }
@@ -249,10 +250,10 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
         return env->esr;
 
     case TO_SPR(0, 128): /* COREID */
-        return 0;
+        return cpu->parent_obj.cpu_index;
 
     case TO_SPR(0, 129): /* NUMCORES */
-        return 1;
+        return max_cpus;
 
     case TO_SPR(0, 1024) ... TO_SPR(0, 1024 + (16 * 32)): /* Shadow GPRs */
         idx = (spr - 1024);
@@ -311,7 +312,7 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
 
     case TO_SPR(10, 1): /* TTCR */
         cpu_openrisc_count_update(cpu);
-        return env->ttcr;
+        return cpu_openrisc_count_get(cpu);
 
     default:
         break;
