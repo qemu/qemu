@@ -151,3 +151,36 @@ int qrtas_check_exception(QGuestAllocator *alloc, uint32_t mask,
 
     return ret[0];
 }
+
+/*
+ * set_indicator as defined by PAPR 2.7+, 7.3.5.4
+ *
+ * nargs = 3
+ * nrets = 1
+ *
+ * arg[0] = the type of the indicator
+ * arg[1] = index of the specific indicator
+ * arg[2] = desired new state
+ *
+ * Depending on the input, set_indicator will call set_isolation_state,
+ * set_allocation_state or set_dr_indicator in hw/ppc/spapr_drc.c.
+ * These functions allows the guest to control the state of hotplugged
+ * and hot unplugged devices.
+ */
+int qrtas_set_indicator(QGuestAllocator *alloc, uint32_t type, uint32_t idx,
+                        uint32_t new_state)
+{
+    uint32_t args[3], ret[1];
+    int res;
+
+    args[0] = type;
+    args[1] = idx;
+    args[2] = new_state;
+
+    res = qrtas_call(alloc, "set-indicator", 3, args, 1, ret);
+    if (res != 0) {
+        return -1;
+    }
+
+    return ret[0];
+}

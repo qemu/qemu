@@ -14,4 +14,6 @@ int qrtas_ibm_write_pci_config(QGuestAllocator *alloc, uint64_t buid,
                                uint32_t addr, uint32_t size, uint32_t val);
 int qrtas_check_exception(QGuestAllocator *alloc, uint32_t mask,
                           uint32_t buf_addr, uint32_t buf_len);
+int qrtas_set_indicator(QGuestAllocator *alloc, uint32_t type, uint32_t idx,
+                        uint32_t new_state);
 #endif /* LIBQOS_RTAS_H */
