@@ -30,8 +30,6 @@ void tpm_register_model(enum TpmModel model)
     tpm_models[model] = true;
 }
 
-#ifdef CONFIG_TPM
-
 static const TPMBackendClass *
 tpm_be_find_by_type(enum TpmType type)
 {
@@ -191,8 +189,6 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
     }
     return 0;
 }
-
-#endif /* CONFIG_TPM */
 
 /*
  * Walk the list of active TPM backends and collect information about them
