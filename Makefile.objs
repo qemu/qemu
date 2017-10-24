@@ -62,7 +62,7 @@ bt-host.o-cflags := $(BLUEZ_CFLAGS)
 common-obj-y += dma-helpers.o
 common-obj-y += vl.o
 vl.o-cflags := $(GPROF_CFLAGS) $(SDL_CFLAGS)
-common-obj-y += tpm.o
+common-obj-$(CONFIG_TPM) += tpm.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
 
