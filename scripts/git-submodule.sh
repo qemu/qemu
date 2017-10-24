@@ -32,7 +32,7 @@ status)
     exit $?
     ;;
 update)
-    git submodule update --init $modules 1>/dev/null 2>&1
+    git submodule update --init $modules 1>/dev/null
     git submodule status $modules > "${substat}"
     ;;
 esac

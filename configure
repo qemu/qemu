@@ -5136,9 +5136,9 @@ if test "$softmmu" = yes ; then
     fi
     mpath=no
   fi
-fi
-if test "$xkbcommon" = "yes"; then
-  tools="qemu-keymap\$(EXESUF) $tools"
+  if test "$xkbcommon" = "yes"; then
+    tools="qemu-keymap\$(EXESUF) $tools"
+  fi
 fi
 
 # Probe for guest agent support/options
