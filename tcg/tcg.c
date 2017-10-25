@@ -771,12 +771,32 @@ void tcg_prologue_init(TCGContext *s)
 
     /* Put the prologue at the beginning of code_gen_buffer.  */
     buf0 = s->code_gen_buffer;
+    total_size = s->code_gen_buffer_size;
     s->code_ptr = buf0;
     s->code_buf = buf0;
+    s->data_gen_ptr = NULL;
     s->code_gen_prologue = buf0;
+
+    /* Compute a high-water mark, at which we voluntarily flush the buffer
+       and start over.  The size here is arbitrary, significantly larger
+       than we expect the code generation for any one opcode to require.  */
+    s->code_gen_highwater = s->code_gen_buffer + (total_size - TCG_HIGHWATER);
+
+#ifdef TCG_TARGET_NEED_POOL_LABELS
+    s->pool_labels = NULL;
+#endif
 
     /* Generate the prologue.  */
     tcg_target_qemu_prologue(s);
+
+#ifdef TCG_TARGET_NEED_POOL_LABELS
+    /* Allow the prologue to put e.g. guest_base into a pool entry.  */
+    {
+        bool ok = tcg_out_pool_finalize(s);
+        tcg_debug_assert(ok);
+    }
+#endif
+
     buf1 = s->code_ptr;
     flush_icache_range((uintptr_t)buf0, (uintptr_t)buf1);
 
@@ -785,13 +805,8 @@ void tcg_prologue_init(TCGContext *s)
     s->code_gen_ptr = buf1;
     s->code_gen_buffer = buf1;
     s->code_buf = buf1;
-    total_size = s->code_gen_buffer_size - prologue_size;
+    total_size -= prologue_size;
     s->code_gen_buffer_size = total_size;
-
-    /* Compute a high-water mark, at which we voluntarily flush the buffer
-       and start over.  The size here is arbitrary, significantly larger
-       than we expect the code generation for any one opcode to require.  */
-    s->code_gen_highwater = s->code_gen_buffer + (total_size - TCG_HIGHWATER);
 
     tcg_register_jit(s->code_gen_buffer, total_size);
 
@@ -799,7 +814,27 @@ void tcg_prologue_init(TCGContext *s)
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
         qemu_log_lock();
         qemu_log("PROLOGUE: [size=%zu]\n", prologue_size);
-        log_disas(buf0, prologue_size);
+        if (s->data_gen_ptr) {
+            size_t code_size = s->data_gen_ptr - buf0;
+            size_t data_size = prologue_size - code_size;
+            size_t i;
+
+            log_disas(buf0, code_size);
+
+            for (i = 0; i < data_size; i += sizeof(tcg_target_ulong)) {
+                if (sizeof(tcg_target_ulong) == 8) {
+                    qemu_log("0x%08" PRIxPTR ":  .quad  0x%016" PRIx64 "\n",
+                             (uintptr_t)s->data_gen_ptr + i,
+                             *(uint64_t *)(s->data_gen_ptr + i));
+                } else {
+                    qemu_log("0x%08" PRIxPTR ":  .long  0x%08x\n",
+                             (uintptr_t)s->data_gen_ptr + i,
+                             *(uint32_t *)(s->data_gen_ptr + i));
+                }
+            }
+        } else {
+            log_disas(buf0, prologue_size);
+        }
         qemu_log("\n");
         qemu_log_flush();
         qemu_log_unlock();
