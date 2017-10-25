@@ -354,17 +354,37 @@ static void cleanup(const char *filename)
     g_free(path);
 }
 
-static void migrate_set_downtime(QTestState *who, const char *value)
+static void migrate_check_parameter(QTestState *who, const char *parameter,
+                                    const char *value)
+{
+    QDict *rsp, *rsp_return;
+    const char *result;
+
+    rsp = wait_command(who, "{ 'execute': 'query-migrate-parameters' }");
+    rsp_return = qdict_get_qdict(rsp, "return");
+    result = g_strdup_printf("%" PRId64,
+                             qdict_get_try_int(rsp_return,  parameter, -1));
+    g_assert_cmpstr(result, ==, value);
+    QDECREF(rsp);
+}
+
+static void migrate_set_downtime(QTestState *who, const double value)
 {
     QDict *rsp;
     gchar *cmd;
+    char *expected;
+    int64_t result_int;
 
     cmd = g_strdup_printf("{ 'execute': 'migrate_set_downtime',"
-                          "'arguments': { 'value': %s } }", value);
+                          "'arguments': { 'value': %g } }", value);
     rsp = qtest_qmp(who, cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
+    result_int = value * 1000L;
+    expected = g_strdup_printf("%" PRId64, result_int);
+    migrate_check_parameter(who, "downtime-limit", expected);
+    g_free(expected);
 }
 
 static void migrate_set_speed(QTestState *who, const char *value)
@@ -378,6 +398,7 @@ static void migrate_set_speed(QTestState *who, const char *value)
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
+    migrate_check_parameter(who, "max-bandwidth", value);
 }
 
 static void migrate_set_capability(QTestState *who, const char *capability,
@@ -509,7 +530,7 @@ static void test_migrate(void)
      * machine, so also set the downtime.
      */
     migrate_set_speed(from, "100000000");
-    migrate_set_downtime(from, "0.001");
+    migrate_set_downtime(from, 0.001);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
