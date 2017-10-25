@@ -784,10 +784,6 @@ static void sparc_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
 
-    if (tcg_enabled()) {
-        gen_intermediate_code_init(env);
-    }
-
     if (scc->cpu_def) {
         env->def = *scc->cpu_def;
     }
@@ -891,6 +887,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_sparc_cpu;
 #endif
     cc->disas_set_info = cpu_sparc_disas_set_info;
+    cc->tcg_initialize = sparc_tcg_init;
 
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
     cc->gdb_num_core_regs = 86;

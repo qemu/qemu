@@ -534,7 +534,6 @@ static void arm_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     ARMCPU *cpu = ARM_CPU(obj);
-    static bool inited;
 
     cs->env_ptr = &cpu->env;
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
@@ -578,10 +577,6 @@ static void arm_cpu_initfn(Object *obj)
 
     if (tcg_enabled()) {
         cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
-        if (!inited) {
-            inited = true;
-            arm_translate_init();
-        }
     }
 }
 
@@ -1765,6 +1760,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->disas_set_info = arm_disas_set_info;
+    cc->tcg_initialize = arm_translate_init;
 }
 
 static void cpu_register(const ARMCPUInfo *info)

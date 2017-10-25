@@ -247,14 +247,8 @@ static void m68k_cpu_initfn(Object *obj)
     CPUState *cs = CPU(obj);
     M68kCPU *cpu = M68K_CPU(obj);
     CPUM68KState *env = &cpu->env;
-    static bool inited;
 
     cs->env_ptr = env;
-
-    if (tcg_enabled() && !inited) {
-        inited = true;
-        m68k_tcg_init();
-    }
 }
 
 static const VMStateDescription vmstate_m68k_cpu = {
@@ -288,6 +282,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
 #endif
     cc->disas_set_info = m68k_cpu_disas_set_info;
+    cc->tcg_initialize = m68k_tcg_init;
 
     cc->gdb_num_core_regs = 18;
     cc->gdb_core_xml_file = "cf-core.xml";

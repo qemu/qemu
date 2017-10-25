@@ -69,18 +69,12 @@ static void nios2_cpu_initfn(Object *obj)
     CPUState *cs = CPU(obj);
     Nios2CPU *cpu = NIOS2_CPU(obj);
     CPUNios2State *env = &cpu->env;
-    static bool tcg_initialized;
 
     cs->env_ptr = env;
 
 #if !defined(CONFIG_USER_ONLY)
     mmu_init(env);
 #endif
-
-    if (tcg_enabled() && !tcg_initialized) {
-        tcg_initialized = true;
-        nios2_tcg_init();
-    }
 }
 
 static ObjectClass *nios2_cpu_class_by_name(const char *cpu_model)
@@ -215,6 +209,7 @@ static void nios2_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_read_register = nios2_cpu_gdb_read_register;
     cc->gdb_write_register = nios2_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 49;
+    cc->tcg_initialize = nios2_tcg_init;
 }
 
 static const TypeInfo nios2_cpu_type_info = {

@@ -108,8 +108,6 @@ static void hppa_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     cpu_hppa_loaded_fr0(env);
     set_snan_bit_is_one(true, &env->fp_status);
-
-    hppa_translate_init();
 }
 
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
@@ -136,6 +134,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_write_register = hppa_cpu_gdb_write_register;
     cc->handle_mmu_fault = hppa_cpu_handle_mmu_fault;
     cc->disas_set_info = hppa_cpu_disas_set_info;
+    cc->tcg_initialize = hppa_translate_init;
 
     cc->gdb_num_core_regs = 128;
 }

@@ -260,8 +260,6 @@ static void alpha_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     tlb_flush(cs);
 
-    alpha_translate_init();
-
     env->lock_addr = -1;
 #if defined(CONFIG_USER_ONLY)
     env->flags = ENV_FLAG_PS_USER | ENV_FLAG_FEN;
@@ -299,6 +297,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_alpha_cpu;
 #endif
     cc->disas_set_info = alpha_cpu_disas_set_info;
+    cc->tcg_initialize = alpha_translate_init;
 
     cc->gdb_num_core_regs = 67;
 }

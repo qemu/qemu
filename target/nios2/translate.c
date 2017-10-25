@@ -789,7 +789,6 @@ static const char * const regnames[] = {
     "rpc"
 };
 
-static TCGv_ptr cpu_env;
 static TCGv cpu_R[NUM_CORE_REGS];
 
 #include "exec/gen-icount.h"
@@ -827,7 +826,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         max_insns = 1;
     } else {
         int page_insns = (TARGET_PAGE_SIZE - (tb->pc & TARGET_PAGE_MASK)) / 4;
-        max_insns = tb->cflags & CF_COUNT_MASK;
+        max_insns = tb_cflags(tb) & CF_COUNT_MASK;
         if (max_insns == 0) {
             max_insns = CF_COUNT_MASK;
         }
@@ -854,7 +853,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             break;
         }
 
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -871,7 +870,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
              !tcg_op_buf_full() &&
              num_insns < max_insns);
 
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 
@@ -946,9 +945,6 @@ void nios2_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 void nios2_tcg_init(void)
 {
     int i;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
 
     for (i = 0; i < NUM_CORE_REGS; i++) {
         cpu_R[i] = tcg_global_mem_new(cpu_env,

@@ -47,8 +47,6 @@ static TCGv cpu_PSW_V;
 static TCGv cpu_PSW_SV;
 static TCGv cpu_PSW_AV;
 static TCGv cpu_PSW_SAV;
-/* CPU env */
-static TCGv_env cpu_env;
 
 #include "exec/gen-icount.h"
 
@@ -8790,7 +8788,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     int num_insns, max_insns;
 
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -8880,12 +8878,7 @@ static void tricore_tcg_init_csfr(void)
 void tricore_tcg_init(void)
 {
     int i;
-    static int inited;
-    if (inited) {
-        return;
-    }
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
+
     /* reg init */
     for (i = 0 ; i < 16 ; i++) {
         cpu_gpr_a[i] = tcg_global_mem_new(cpu_env,

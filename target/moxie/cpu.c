@@ -77,14 +77,8 @@ static void moxie_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     MoxieCPU *cpu = MOXIE_CPU(obj);
-    static int inited;
 
     cs->env_ptr = &cpu->env;
-
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        moxie_translate_init();
-    }
 }
 
 static ObjectClass *moxie_cpu_class_by_name(const char *cpu_model)
@@ -122,6 +116,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_moxie_cpu;
 #endif
     cc->disas_set_info = moxie_cpu_disas_set_info;
+    cc->tcg_initialize = moxie_translate_init;
 }
 
 static void moxielite_initfn(Object *obj)
