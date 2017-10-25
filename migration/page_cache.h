@@ -24,12 +24,11 @@ typedef struct PageCache PageCache;
  *
  * Returns new allocated cache or NULL on error
  *
- * @cache pointer to the PageCache struct
- * @num_pages: cache maximal number of cached pages
+ * @cache_size: cache size in bytes
  * @page_size: cache page size
+ * @errp: set *errp if the check failed, with reason
  */
-PageCache *cache_init(int64_t num_pages, unsigned int page_size);
-
+PageCache *cache_init(int64_t cache_size, size_t page_size, Error **errp);
 /**
  * cache_fini: free all cache resources
  * @cache pointer to the PageCache struct

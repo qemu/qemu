@@ -959,7 +959,19 @@ STEXI
 @item migrate_cancel
 @findex migrate_cancel
 Cancel the current VM migration.
+ETEXI
 
+    {
+        .name       = "migrate_continue",
+        .args_type  = "state:s",
+        .params     = "state",
+        .help       = "Continue migration from the given paused state",
+        .cmd        = hmp_migrate_continue,
+    },
+STEXI
+@item migrate_continue @var{state}
+@findex migrate_continue
+Continue migration from the paused state @var{state}
 ETEXI
 
     {
