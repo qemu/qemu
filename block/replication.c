@@ -161,10 +161,13 @@ static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
                                    uint64_t perm, uint64_t shared,
                                    uint64_t *nperm, uint64_t *nshared)
 {
-    *nperm = *nshared = BLK_PERM_CONSISTENT_READ \
-                        | BLK_PERM_WRITE \
-                        | BLK_PERM_WRITE_UNCHANGED;
-
+    *nperm = BLK_PERM_CONSISTENT_READ;
+    if ((bs->open_flags & (BDRV_O_INACTIVE | BDRV_O_RDWR)) == BDRV_O_RDWR) {
+        *nperm |= BLK_PERM_WRITE;
+    }
+    *nshared = BLK_PERM_CONSISTENT_READ \
+               | BLK_PERM_WRITE \
+               | BLK_PERM_WRITE_UNCHANGED;
     return;
 }
 
