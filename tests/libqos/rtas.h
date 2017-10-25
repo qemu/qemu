@@ -16,4 +16,5 @@ int qrtas_check_exception(QGuestAllocator *alloc, uint32_t mask,
                           uint32_t buf_addr, uint32_t buf_len);
 int qrtas_set_indicator(QGuestAllocator *alloc, uint32_t type, uint32_t idx,
                         uint32_t new_state);
+int qrtas_ibm_configure_connector(QGuestAllocator *alloc, uintptr_t wa_addr);
 #endif /* LIBQOS_RTAS_H */
