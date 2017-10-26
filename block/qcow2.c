@@ -1139,7 +1139,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->cluster_bits = header.cluster_bits;
     s->cluster_size = 1 << s->cluster_bits;
-    s->cluster_sectors = 1 << (s->cluster_bits - 9);
+    s->cluster_sectors = 1 << (s->cluster_bits - BDRV_SECTOR_BITS);
 
     /* Initialise version 3 header fields */
     if (header.version == 2) {
@@ -1636,7 +1636,7 @@ static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
 
     bytes = MIN(INT_MAX, nb_sectors * BDRV_SECTOR_SIZE);
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_get_cluster_offset(bs, sector_num << 9, &bytes,
+    ret = qcow2_get_cluster_offset(bs, sector_num << BDRV_SECTOR_BITS, &bytes,
                                    &cluster_offset);
     qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
@@ -2460,6 +2460,14 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
 }
 
 
+typedef struct PreallocCo {
+    BlockDriverState *bs;
+    uint64_t offset;
+    uint64_t new_length;
+
+    int ret;
+} PreallocCo;
+
 /**
  * Preallocates metadata structures for data clusters between @offset (in the
  * guest disk) and @new_length (which is thus generally the new guest disk
@@ -2467,9 +2475,12 @@ static int qcow2_set_up_encryption(BlockDriverState *bs, const char *encryptfmt,
  *
  * Returns: 0 on success, -errno on failure.
  */
-static int preallocate(BlockDriverState *bs,
-                       uint64_t offset, uint64_t new_length)
+static void coroutine_fn preallocate_co(void *opaque)
 {
+    PreallocCo *params = opaque;
+    BlockDriverState *bs = params->bs;
+    uint64_t offset = params->offset;
+    uint64_t new_length = params->new_length;
     BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
     uint64_t host_offset = 0;
@@ -2477,9 +2488,7 @@ static int preallocate(BlockDriverState *bs,
     int ret;
     QCowL2Meta *meta;
 
-    if (qemu_in_coroutine()) {
-        qemu_co_mutex_lock(&s->lock);
-    }
+    qemu_co_mutex_lock(&s->lock);
 
     assert(offset <= new_length);
     bytes = new_length - offset;
@@ -2533,10 +2542,28 @@ static int preallocate(BlockDriverState *bs,
     ret = 0;
 
 done:
+    qemu_co_mutex_unlock(&s->lock);
+    params->ret = ret;
+}
+
+static int preallocate(BlockDriverState *bs,
+                       uint64_t offset, uint64_t new_length)
+{
+    PreallocCo params = {
+        .bs         = bs,
+        .offset     = offset,
+        .new_length = new_length,
+        .ret        = -EINPROGRESS,
+    };
+
     if (qemu_in_coroutine()) {
-        qemu_co_mutex_unlock(&s->lock);
+        preallocate_co(&params);
+    } else {
+        Coroutine *co = qemu_coroutine_create(preallocate_co, &params);
+        bdrv_coroutine_enter(bs, co);
+        BDRV_POLL_WHILE(bs, params.ret == -EINPROGRESS);
     }
-    return ret;
+    return params.ret;
 }
 
 /* qcow2_refcount_metadata_size:
@@ -3145,12 +3172,13 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
             return last_cluster;
         }
         if ((last_cluster + 1) * s->cluster_size < old_file_size) {
-            ret = bdrv_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
-                                PREALLOC_MODE_OFF, NULL);
-            if (ret < 0) {
-                warn_report("Failed to truncate the tail of the image: %s",
-                            strerror(-ret));
-                ret = 0;
+            Error *local_err = NULL;
+
+            bdrv_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
+                          PREALLOC_MODE_OFF, &local_err);
+            if (local_err) {
+                warn_reportf_err(local_err,
+                                 "Failed to truncate the tail of the image: ");
             }
         }
     } else {
@@ -3187,6 +3215,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
                              "Failed to inquire current file length");
             return old_file_size;
         }
+        old_file_size = ROUND_UP(old_file_size, s->cluster_size);
 
         nb_new_data_clusters = DIV_ROUND_UP(offset - old_length,
                                             s->cluster_size);

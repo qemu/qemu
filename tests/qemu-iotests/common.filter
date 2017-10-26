@@ -105,6 +105,12 @@ _filter_block_job_len()
     sed -e 's/, "len": [0-9]\+,/, "len": LEN,/g'
 }
 
+# replace actual image size (depends on the host filesystem)
+_filter_actual_image_size()
+{
+    sed -s 's/\("actual-size":\s*\)[0-9]\+/\1SIZE/g'
+}
+
 # replace driver-specific options in the "Formatting..." line
 _filter_img_create()
 {
