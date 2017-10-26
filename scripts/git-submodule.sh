@@ -39,10 +39,9 @@ fi
 case "$command" in
 status)
     test -f "$substat" || exit 1
-    trap "rm -f ${substat}.tmp" EXIT
-    $GIT submodule status $modules > "${substat}.tmp"
-    test $? -ne 0 && error "failed to query git submodule status"
-    diff "${substat}" "${substat}.tmp" >/dev/null
+    CURSTATUS=`$GIT submodule status $modules`
+    OLDSTATUS=`cat $substat`
+    test "$CURSTATUS" = "$OLDSTATUS"
     exit $?
     ;;
 update)
