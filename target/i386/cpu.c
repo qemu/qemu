@@ -4212,7 +4212,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 #endif
     cc->cpu_exec_enter = x86_cpu_exec_enter;
     cc->cpu_exec_exit = x86_cpu_exec_exit;
+#ifdef CONFIG_TCG
     cc->tcg_initialize = tcg_x86_init;
+#endif
 
     dc->user_creatable = true;
 }

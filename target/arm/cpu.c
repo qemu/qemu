@@ -1760,7 +1760,9 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->disas_set_info = arm_disas_set_info;
+#ifdef CONFIG_TCG
     cc->tcg_initialize = arm_translate_init;
+#endif
 }
 
 static void cpu_register(const ARMCPUInfo *info)

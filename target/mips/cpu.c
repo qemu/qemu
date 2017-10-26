@@ -198,7 +198,9 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->vmsd = &vmstate_mips_cpu;
 #endif
     cc->disas_set_info = mips_cpu_disas_set_info;
+#ifdef CONFIG_TCG
     cc->tcg_initialize = mips_tcg_init;
+#endif
 
     cc->gdb_num_core_regs = 73;
     cc->gdb_stop_before_watchpoint = true;
