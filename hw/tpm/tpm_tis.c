@@ -422,6 +422,8 @@ static void tpm_tis_receive_bh(void *opaque)
     s->loc[locty].r_offset = 0;
     s->loc[locty].w_offset = 0;
 
+    tpm_tis_show_buffer(&s->loc[locty].r_buffer, "tpm_tis: From TPM");
+
     if (TPM_TIS_IS_VALID_LOCTY(s->next_locty)) {
         tpm_tis_abort(s, locty);
     }
