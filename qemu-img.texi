@@ -274,11 +274,10 @@ If the backing chain of the given image file @var{filename} has more than one
 layer, the backing file into which the changes will be committed may be
 specified as @var{base} (which has to be part of @var{filename}'s backing
 chain). If @var{base} is not specified, the immediate backing file of the top
-image (which is @var{filename}) will be used. For reasons of consistency,
-explicitly specifying @var{base} will always imply @code{-d} (since emptying an
-image after committing to an indirect backing file would lead to different data
-being read from the image due to content in the intermediate backing chain
-overruling the commit target).
+image (which is @var{filename}) will be used. Note that after a commit operation
+all images between @var{base} and the top image will be invalid and may return
+garbage data when read. For this reason, @code{-b} implies @code{-d} (so that
+the top image stays valid).
 
 @item compare [-f @var{fmt}] [-F @var{fmt}] [-T @var{src_cache}] [-p] [-s] [-q] @var{filename1} @var{filename2}
 
