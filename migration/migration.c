@@ -2366,10 +2366,15 @@ void migration_global_dump(Monitor *mon)
 {
     MigrationState *ms = migrate_get_current();
 
-    monitor_printf(mon, "globals: store-global-state=%d, only_migratable=%d, "
-                   "send-configuration=%d, send-section-footer=%d\n",
-                   ms->store_global_state, ms->only_migratable,
-                   ms->send_configuration, ms->send_section_footer);
+    monitor_printf(mon, "globals:\n");
+    monitor_printf(mon, "store-global-state: %s\n",
+                   ms->store_global_state ? "on" : "off");
+    monitor_printf(mon, "only-migratable: %s\n",
+                   ms->only_migratable ? "on" : "off");
+    monitor_printf(mon, "send-configuration: %s\n",
+                   ms->send_configuration ? "on" : "off");
+    monitor_printf(mon, "send-section-footer: %s\n",
+                   ms->send_section_footer ? "on" : "off");
 }
 
 #define DEFINE_PROP_MIG_CAP(name, x)             \
