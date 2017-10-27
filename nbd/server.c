@@ -678,6 +678,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                 if (!tioc) {
                     return -EIO;
                 }
+                ret = 0;
                 object_unref(OBJECT(client->ioc));
                 client->ioc = QIO_CHANNEL(tioc);
                 break;
@@ -698,9 +699,6 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                                                  "Option 0x%" PRIx32
                                                  "not permitted before TLS",
                                                  option);
-                if (ret < 0) {
-                    return ret;
-                }
                 /* Let the client keep trying, unless they asked to
                  * quit. In this mode, we've already sent an error, so
                  * we can't ack the abort.  */
@@ -713,9 +711,6 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
             switch (option) {
             case NBD_OPT_LIST:
                 ret = nbd_negotiate_handle_list(client, length, errp);
-                if (ret < 0) {
-                    return ret;
-                }
                 break;
 
             case NBD_OPT_ABORT:
@@ -738,9 +733,6 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                     assert(option == NBD_OPT_GO);
                     return 0;
                 }
-                if (ret) {
-                    return ret;
-                }
                 break;
 
             case NBD_OPT_STARTTLS:
@@ -758,9 +750,6 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                                                      option, errp,
                                                      "TLS not configured");
                 }
-                if (ret < 0) {
-                    return ret;
-                }
                 break;
             default:
                 if (nbd_drop(client->ioc, length, errp) < 0) {
@@ -772,9 +761,6 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                                                  "Unsupported option 0x%"
                                                  PRIx32 " (%s)", option,
                                                  nbd_opt_lookup(option));
-                if (ret < 0) {
-                    return ret;
-                }
                 break;
             }
         } else {
@@ -793,6 +779,9 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                            option, nbd_opt_lookup(option));
                 return -EINVAL;
             }
+        }
+        if (ret < 0) {
+            return ret;
         }
     }
 }
