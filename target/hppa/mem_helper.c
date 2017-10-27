@@ -277,4 +277,41 @@ void HELPER(itlbp)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
     ent->t = extract32(reg, 29, 1);
     ent->entry_valid = 1;
 }
+
+/* Purge (Insn/Data) TLB.  This is explicitly page-based, and is
+   synchronous across all processors.  */
+static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
+{
+    CPUHPPAState *env = cpu->env_ptr;
+    target_ulong addr = (target_ulong) data.target_ptr;
+    hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
+
+    if (ent && ent->entry_valid) {
+        hppa_flush_tlb_ent(env, ent);
+    }
+}
+
+void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
+{
+    CPUState *src = CPU(hppa_env_get_cpu(env));
+    CPUState *cpu;
+    run_on_cpu_data data = RUN_ON_CPU_TARGET_PTR(addr);
+
+    CPU_FOREACH(cpu) {
+        if (cpu != src) {
+            async_run_on_cpu(cpu, ptlb_work, data);
+        }
+    }
+    async_safe_run_on_cpu(src, ptlb_work, data);
+}
+
+/* Purge (Insn/Data) TLB entry.  This affects an implementation-defined
+   number of pages/entries (we choose all), and is local to the cpu.  */
+void HELPER(ptlbe)(CPUHPPAState *env)
+{
+    CPUState *src = CPU(hppa_env_get_cpu(env));
+
+    memset(env->tlb, 0, sizeof(env->tlb));
+    tlb_flush_by_mmuidx(src, 0xf);
+}
 #endif /* CONFIG_USER_ONLY */

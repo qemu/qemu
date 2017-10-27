@@ -2397,6 +2397,42 @@ static DisasJumpType trans_ixtlbx(DisasContext *ctx, uint32_t insn,
     return nullify_end(ctx, !is_data && (ctx->base.tb->flags & PSW_C)
                        ? DISAS_IAQ_N_STALE : DISAS_NEXT);
 }
+
+static DisasJumpType trans_pxtlbx(DisasContext *ctx, uint32_t insn,
+                                  const DisasInsn *di)
+{
+    unsigned m = extract32(insn, 5, 1);
+    unsigned sp;
+    unsigned rx = extract32(insn, 16, 5);
+    unsigned rb = extract32(insn, 21, 5);
+    unsigned is_data = insn & 0x1000;
+    unsigned is_local = insn & 0x40;
+    TCGv_tl addr;
+    TCGv_reg ofs;
+
+    if (is_data) {
+        sp = extract32(insn, 14, 2);
+    } else {
+        sp = ~assemble_sr3(insn);
+    }
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+
+    form_gva(ctx, &addr, &ofs, rb, rx, 0, 0, sp, m, false);
+    if (m) {
+        save_gpr(ctx, rb, ofs);
+    }
+    if (is_local) {
+        gen_helper_ptlbe(cpu_env);
+    } else {
+        gen_helper_ptlb(cpu_env, addr);
+    }
+
+    /* Exit TB for TLB change if mmu is enabled.  */
+    return nullify_end(ctx, !is_data && (ctx->base.tb->flags & PSW_C)
+                       ? DISAS_IAQ_N_STALE : DISAS_NEXT);
+}
 #endif /* !CONFIG_USER_ONLY */
 
 static const DisasInsn table_mem_mgmt[] = {
@@ -2420,6 +2456,10 @@ static const DisasInsn table_mem_mgmt[] = {
     { 0x04000040u, 0xfc001fffu, trans_ixtlbx },       /* iitlba */
     { 0x04001000u, 0xfc001fffu, trans_ixtlbx },       /* idtlbp */
     { 0x04001040u, 0xfc001fffu, trans_ixtlbx },       /* idtlba */
+    { 0x04000200u, 0xfc001fdfu, trans_pxtlbx },       /* pitlb */
+    { 0x04000240u, 0xfc001fdfu, trans_pxtlbx },       /* pitlbe */
+    { 0x04001200u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlb */
+    { 0x04001240u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlbe */
 #endif
 };
 
