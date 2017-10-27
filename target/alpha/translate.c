@@ -3038,7 +3038,7 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 static void alpha_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu)
 {
     qemu_log("IN: %s\n", lookup_symbol(dcbase->pc_first));
-    log_target_disas(cpu, dcbase->pc_first, dcbase->tb->size, 1);
+    log_target_disas(cpu, dcbase->pc_first, dcbase->tb->size);
 }
 
 static const TranslatorOps alpha_tr_ops = {

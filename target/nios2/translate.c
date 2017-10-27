@@ -906,7 +906,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         && qemu_log_in_addr_range(tb->pc)) {
         qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(tb->pc));
-        log_target_disas(cs, tb->pc, dc->pc - tb->pc, 0);
+        log_target_disas(cs, tb->pc, dc->pc - tb->pc);
         qemu_log("\n");
         qemu_log_unlock();
     }

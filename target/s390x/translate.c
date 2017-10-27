@@ -5982,7 +5982,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
             qemu_log("IN: EXECUTE %016" PRIx64 "\n", dc.ex_value);
         } else {
             qemu_log("IN: %s\n", lookup_symbol(pc_start));
-            log_target_disas(cs, pc_start, dc.pc - pc_start, 1);
+            log_target_disas(cs, pc_start, dc.pc - pc_start);
             qemu_log("\n");
         }
         qemu_log_unlock();
