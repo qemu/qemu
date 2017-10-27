@@ -7,7 +7,7 @@ substat=".git-submodule-status"
 
 command=$1
 shift
-modules="$@"
+maybe_modules="$@"
 
 test -z "$GIT" && GIT=git
 
@@ -33,11 +33,23 @@ error() {
     exit 1
 }
 
-if test -z "$modules"
+if test -z "$maybe_modules"
 then
     test -e $substat || touch $substat
     exit 0
 fi
+
+modules=""
+for m in $maybe_modules
+do
+    $GIT submodule status $m 1> /dev/null 2>&1
+    if test $? = 0
+    then
+        modules="$modules $m"
+    else
+        echo "warn: ignoring non-existent submodule $m"
+    fi
+done
 
 if ! test -e ".git"
 then
