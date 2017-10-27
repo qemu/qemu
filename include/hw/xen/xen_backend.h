@@ -16,6 +16,7 @@
 /* variables */
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
+extern bool xen_feature_grant_copy;
 extern DeviceState *xen_sysdev;
 extern BusState *xen_sysbus;
 

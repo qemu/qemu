@@ -44,6 +44,7 @@ BusState *xen_sysbus;
 /* public */
 struct xs_handle *xenstore = NULL;
 const char *xen_protocol;
+bool xen_feature_grant_copy;
 
 /* private */
 static int debug;
@@ -519,6 +520,8 @@ void xenstore_update_fe(char *watch, struct XenDevice *xendev)
 
 int xen_be_init(void)
 {
+    xengnttab_handle *gnttabdev;
+
     xenstore = xs_daemon_open();
     if (!xenstore) {
         xen_pv_printf(NULL, 0, "can't connect to xenstored\n");
@@ -530,6 +533,14 @@ int xen_be_init(void)
     if (xen_xc == NULL || xen_fmem == NULL) {
         /* Check if xen_init() have been called */
         goto err;
+    }
+
+    gnttabdev = xengnttab_open(NULL, 0);
+    if (gnttabdev != NULL) {
+        if (xengnttab_grant_copy(gnttabdev, 0, NULL) == 0) {
+            xen_feature_grant_copy = true;
+        }
+        xengnttab_close(gnttabdev);
     }
 
     xen_sysdev = qdev_create(NULL, TYPE_XENSYSDEV);
