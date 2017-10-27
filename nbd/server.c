@@ -40,6 +40,8 @@ static int system_errno_to_nbd_errno(int err)
     case EFBIG:
     case ENOSPC:
         return NBD_ENOSPC;
+    case EOVERFLOW:
+        return NBD_EOVERFLOW;
     case ESHUTDOWN:
         return NBD_ESHUTDOWN;
     case EINVAL:

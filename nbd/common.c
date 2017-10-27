@@ -151,6 +151,28 @@ const char *nbd_cmd_lookup(uint16_t cmd)
 }
 
 
+const char *nbd_reply_type_lookup(uint16_t type)
+{
+    switch (type) {
+    case NBD_REPLY_TYPE_NONE:
+        return "none";
+    case NBD_REPLY_TYPE_OFFSET_DATA:
+        return "data";
+    case NBD_REPLY_TYPE_OFFSET_HOLE:
+        return "hole";
+    case NBD_REPLY_TYPE_ERROR:
+        return "generic error";
+    case NBD_REPLY_TYPE_ERROR_OFFSET:
+        return "error at offset";
+    default:
+        if (type & (1 << 15)) {
+            return "<unknown error>";
+        }
+        return "<unknown>";
+    }
+}
+
+
 const char *nbd_err_lookup(int err)
 {
     switch (err) {
@@ -166,6 +188,8 @@ const char *nbd_err_lookup(int err)
         return "EINVAL";
     case NBD_ENOSPC:
         return "ENOSPC";
+    case NBD_EOVERFLOW:
+        return "EOVERFLOW";
     case NBD_ESHUTDOWN:
         return "ESHUTDOWN";
     default:
@@ -192,6 +216,9 @@ int nbd_errno_to_system_errno(int err)
         break;
     case NBD_ENOSPC:
         ret = ENOSPC;
+        break;
+    case NBD_EOVERFLOW:
+        ret = EOVERFLOW;
         break;
     case NBD_ESHUTDOWN:
         ret = ESHUTDOWN;

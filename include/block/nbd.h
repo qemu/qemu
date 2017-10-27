@@ -69,6 +69,28 @@ typedef struct NBDSimpleReply {
     uint64_t handle;
 } QEMU_PACKED NBDSimpleReply;
 
+/* Header of all structured replies */
+typedef struct NBDStructuredReplyChunk {
+    uint32_t magic;  /* NBD_STRUCTURED_REPLY_MAGIC */
+    uint16_t flags;  /* combination of NBD_REPLY_FLAG_* */
+    uint16_t type;   /* NBD_REPLY_TYPE_* */
+    uint64_t handle; /* request handle */
+    uint32_t length; /* length of payload */
+} QEMU_PACKED NBDStructuredReplyChunk;
+
+/* Header of NBD_REPLY_TYPE_OFFSET_DATA, complete NBD_REPLY_TYPE_OFFSET_HOLE */
+typedef struct NBDStructuredRead {
+    NBDStructuredReplyChunk h;
+    uint64_t offset;
+} QEMU_PACKED NBDStructuredRead;
+
+/* Header of all NBD_REPLY_TYPE_ERROR* errors */
+typedef struct NBDStructuredError {
+    NBDStructuredReplyChunk h;
+    uint32_t error;
+    uint16_t message_length;
+} QEMU_PACKED NBDStructuredError;
+
 /* Transmission (export) flags: sent from server to client during handshake,
    but describe what will happen during transmission */
 #define NBD_FLAG_HAS_FLAGS         (1 << 0) /* Flags are there */
@@ -79,6 +101,7 @@ typedef struct NBDSimpleReply {
                                                rotational media */
 #define NBD_FLAG_SEND_TRIM         (1 << 5) /* Send TRIM (discard) */
 #define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6) /* Send WRITE_ZEROES */
+#define NBD_FLAG_SEND_DF           (1 << 7) /* Send DF (Do not Fragment) */
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
@@ -125,6 +148,7 @@ typedef struct NBDSimpleReply {
 /* Request flags, sent from client to server during transmission phase */
 #define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
 #define NBD_CMD_FLAG_NO_HOLE    (1 << 1) /* don't punch hole on zero run */
+#define NBD_CMD_FLAG_DF         (1 << 2) /* don't fragment structured read */
 
 /* Supported request types */
 enum {
@@ -149,6 +173,22 @@ enum {
  * aren't overflowing some other buffer. */
 #define NBD_MAX_NAME_SIZE 256
 
+/* Two types of reply structures */
+#define NBD_SIMPLE_REPLY_MAGIC      0x67446698
+#define NBD_STRUCTURED_REPLY_MAGIC  0x668e33ef
+
+/* Structured reply flags */
+#define NBD_REPLY_FLAG_DONE          (1 << 0) /* This reply-chunk is last */
+
+/* Structured reply types */
+#define NBD_REPLY_ERR(value)         ((1 << 15) | (value))
+
+#define NBD_REPLY_TYPE_NONE          0
+#define NBD_REPLY_TYPE_OFFSET_DATA   1
+#define NBD_REPLY_TYPE_OFFSET_HOLE   2
+#define NBD_REPLY_TYPE_ERROR         NBD_REPLY_ERR(1)
+#define NBD_REPLY_TYPE_ERROR_OFFSET  NBD_REPLY_ERR(2)
+
 /* NBD errors are based on errno numbers, so there is a 1:1 mapping,
  * but only a limited set of errno values is specified in the protocol.
  * Everything else is squashed to EINVAL.
@@ -159,6 +199,7 @@ enum {
 #define NBD_ENOMEM     12
 #define NBD_EINVAL     22
 #define NBD_ENOSPC     28
+#define NBD_EOVERFLOW  75
 #define NBD_ESHUTDOWN  108
 
 /* Details collected by NBD_OPT_EXPORT_NAME and NBD_OPT_GO */
