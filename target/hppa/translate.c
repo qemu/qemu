@@ -1344,7 +1344,10 @@ static DisasJumpType do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 }
 
 #ifndef CONFIG_USER_ONLY
-/* Top 2 bits of the base register select sp[4-7].  */
+/* The "normal" usage is SP >= 0, wherein SP == 0 selects the space
+   from the top 2 bits of the base register.  There are a few system
+   instructions that have a 3-bit space specifier, for which SR0 is
+   not special.  To handle this, pass ~SP.  */
 static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
 {
     TCGv_ptr ptr;
@@ -1352,7 +1355,12 @@ static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
     TCGv_i64 spc;
 
     if (sp != 0) {
-        return cpu_sr[sp];
+        if (sp < 0) {
+            sp = ~sp;
+        }
+        spc = get_temp_tl(ctx);
+        load_spr(ctx, spc, sp);
+        return spc;
     }
 
     ptr = tcg_temp_new_ptr();
@@ -2355,6 +2363,42 @@ static DisasJumpType trans_probe(DisasContext *ctx, uint32_t insn,
     return nullify_end(ctx, DISAS_NEXT);
 }
 
+#ifndef CONFIG_USER_ONLY
+static DisasJumpType trans_ixtlbx(DisasContext *ctx, uint32_t insn,
+                                  const DisasInsn *di)
+{
+    unsigned sp;
+    unsigned rr = extract32(insn, 16, 5);
+    unsigned rb = extract32(insn, 21, 5);
+    unsigned is_data = insn & 0x1000;
+    unsigned is_addr = insn & 0x40;
+    TCGv_tl addr;
+    TCGv_reg ofs, reg;
+
+    if (is_data) {
+        sp = extract32(insn, 14, 2);
+    } else {
+        sp = ~assemble_sr3(insn);
+    }
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+
+    form_gva(ctx, &addr, &ofs, rb, 0, 0, 0, sp, 0, false);
+    reg = load_gpr(ctx, rr);
+    if (is_addr) {
+        gen_helper_itlba(cpu_env, addr, reg);
+    } else {
+        gen_helper_itlbp(cpu_env, addr, reg);
+    }
+
+    /* Exit TB for ITLB change if mmu is enabled.  This *should* not be
+       the case, since the OS TLB fill handler runs with mmu disabled.  */
+    return nullify_end(ctx, !is_data && (ctx->base.tb->flags & PSW_C)
+                       ? DISAS_IAQ_N_STALE : DISAS_NEXT);
+}
+#endif /* !CONFIG_USER_ONLY */
+
 static const DisasInsn table_mem_mgmt[] = {
     { 0x04003280u, 0xfc003fffu, trans_nop },          /* fdc, disp */
     { 0x04001280u, 0xfc003fffu, trans_nop },          /* fdc, index */
@@ -2371,6 +2415,12 @@ static const DisasInsn table_mem_mgmt[] = {
     { 0x04002720u, 0xfc003fffu, trans_base_idx_mod }, /* pdc, base mod */
     { 0x04001180u, 0xfc003fa0u, trans_probe },        /* probe */
     { 0x04003180u, 0xfc003fa0u, trans_probe },        /* probei */
+#ifndef CONFIG_USER_ONLY
+    { 0x04000000u, 0xfc001fffu, trans_ixtlbx },       /* iitlbp */
+    { 0x04000040u, 0xfc001fffu, trans_ixtlbx },       /* iitlba */
+    { 0x04001000u, 0xfc001fffu, trans_ixtlbx },       /* idtlbp */
+    { 0x04001040u, 0xfc001fffu, trans_ixtlbx },       /* idtlba */
+#endif
 };
 
 static DisasJumpType trans_add(DisasContext *ctx, uint32_t insn,
