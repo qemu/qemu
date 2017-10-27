@@ -3419,7 +3419,7 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 }
 
 /***                                Branch                                 ***/
-static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     if (NARROW_MODE(ctx)) {
         dest = (uint32_t) dest;
@@ -3441,7 +3441,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
                 gen_debug_exception(ctx);
             }
         }
-        tcg_gen_exit_tb(0);
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 
@@ -3479,7 +3479,7 @@ static void gen_b(DisasContext *ctx)
 #define BCOND_CTR 2
 #define BCOND_TAR 3
 
-static inline void gen_bcond(DisasContext *ctx, int type)
+static void gen_bcond(DisasContext *ctx, int type)
 {
     uint32_t bo = BO(ctx->opcode);
     TCGLabel *l1;
@@ -3543,25 +3543,18 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         } else {
             gen_goto_tb(ctx, 0, li);
         }
-        if ((bo & 0x14) != 0x14) {
-            gen_set_label(l1);
-            gen_goto_tb(ctx, 1, ctx->nip);
-        }
     } else {
         if (NARROW_MODE(ctx)) {
             tcg_gen_andi_tl(cpu_nip, target, (uint32_t)~3);
         } else {
             tcg_gen_andi_tl(cpu_nip, target, ~3);
         }
-        tcg_gen_exit_tb(0);
-        if ((bo & 0x14) != 0x14) {
-            gen_set_label(l1);
-            gen_update_nip(ctx, ctx->nip);
-            tcg_gen_exit_tb(0);
-        }
-    }
-    if (type == BCOND_LR || type == BCOND_CTR || type == BCOND_TAR) {
+        tcg_gen_lookup_and_goto_ptr();
         tcg_temp_free(target);
+    }
+    if ((bo & 0x14) != 0x14) {
+        gen_set_label(l1);
+        gen_goto_tb(ctx, 1, ctx->nip);
     }
 }
 
