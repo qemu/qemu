@@ -278,6 +278,49 @@ static void iommu_bad_addr(IOMMUState *s, hwaddr addr,
     qemu_irq_raise(s->irq);
 }
 
+/* Called from RCU critical section */
+static IOMMUTLBEntry sun4m_translate_iommu(IOMMUMemoryRegion *iommu,
+                                           hwaddr addr,
+                                           IOMMUAccessFlags flags)
+{
+    IOMMUState *is = container_of(iommu, IOMMUState, iommu);
+    hwaddr page, pa;
+    int is_write = (flags & IOMMU_WO) ? 1 : 0;
+    uint32_t pte;
+    IOMMUTLBEntry ret = {
+        .target_as = &address_space_memory,
+        .iova = 0,
+        .translated_addr = 0,
+        .addr_mask = ~(hwaddr)0,
+        .perm = IOMMU_NONE,
+    };
+
+    page = addr & IOMMU_PAGE_MASK;
+    pte = iommu_page_get_flags(is, page);
+    if (!(pte & IOPTE_VALID)) {
+        iommu_bad_addr(is, page, is_write);
+        return ret;
+    }
+
+    pa = iommu_translate_pa(addr, pte);
+    if (is_write && !(pte & IOPTE_WRITE)) {
+        iommu_bad_addr(is, page, is_write);
+        return ret;
+    }
+
+    if (pte & IOPTE_WRITE) {
+        ret.perm = IOMMU_RW;
+    } else {
+        ret.perm = IOMMU_RO;
+    }
+
+    ret.iova = page;
+    ret.translated_addr = pa;
+    ret.addr_mask = ~IOMMU_PAGE_MASK;
+
+    return ret;
+}
+
 void sparc_iommu_memory_rw(void *opaque, hwaddr addr,
                            uint8_t *buf, int len, int is_write)
 {
@@ -340,6 +383,11 @@ static void iommu_init(Object *obj)
     IOMMUState *s = SUN4M_IOMMU(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
+    memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
+                             TYPE_SUN4M_IOMMU_MEMORY_REGION, OBJECT(dev),
+                             "iommu-sun4m", UINT64_MAX);
+    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
+
     sysbus_init_irq(dev, &s->irq);
 
     memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
@@ -369,9 +417,23 @@ static const TypeInfo iommu_info = {
     .class_init    = iommu_class_init,
 };
 
+static void sun4m_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = sun4m_translate_iommu;
+}
+
+static const TypeInfo sun4m_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_SUN4M_IOMMU_MEMORY_REGION,
+    .class_init = sun4m_iommu_memory_region_class_init,
+};
+
 static void iommu_register_types(void)
 {
     type_register_static(&iommu_info);
+    type_register_static(&sun4m_iommu_memory_region_info);
 }
 
 type_init(iommu_register_types)
