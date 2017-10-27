@@ -1296,24 +1296,25 @@ static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
 static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
                                                      uint64_t handle,
                                                      uint32_t error,
+                                                     const char *msg,
                                                      Error **errp)
 {
     NBDStructuredError chunk;
     int nbd_err = system_errno_to_nbd_errno(error);
     struct iovec iov[] = {
         {.iov_base = &chunk, .iov_len = sizeof(chunk)},
-        /* FIXME: Support human-readable error message */
+        {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
     };
 
     assert(nbd_err);
     trace_nbd_co_send_structured_error(handle, nbd_err,
-                                       nbd_err_lookup(nbd_err));
+                                       nbd_err_lookup(nbd_err), msg ? msg : "");
     set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
-                 sizeof(chunk) - sizeof(chunk.h));
+                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
     stl_be_p(&chunk.error, nbd_err);
-    stw_be_p(&chunk.message_length, 0);
+    stw_be_p(&chunk.message_length, iov[1].iov_len);
 
-    return nbd_co_send_iov(client, iov, 1, errp);
+    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
 }
 
 /* nbd_co_receive_request
@@ -1414,6 +1415,7 @@ static coroutine_fn void nbd_trip(void *opaque)
     int flags;
     int reply_data_len = 0;
     Error *local_err = NULL;
+    char *msg = NULL;
 
     trace_nbd_trip();
     if (client->closing) {
@@ -1530,14 +1532,17 @@ reply:
     if (local_err) {
         /* If we get here, local_err was not a fatal error, and should be sent
          * to the client. */
+        assert(ret < 0);
+        msg = g_strdup(error_get_pretty(local_err));
         error_report_err(local_err);
         local_err = NULL;
     }
 
-    if (client->structured_reply && request.type == NBD_CMD_READ) {
+    if (client->structured_reply &&
+        (ret < 0 || request.type == NBD_CMD_READ)) {
         if (ret < 0) {
             ret = nbd_co_send_structured_error(req->client, request.handle,
-                                               -ret, &local_err);
+                                               -ret, msg, &local_err);
         } else {
             ret = nbd_co_send_structured_read(req->client, request.handle,
                                               request.from, req->data,
@@ -1548,6 +1553,7 @@ reply:
                                        ret < 0 ? -ret : 0,
                                        req->data, reply_data_len, &local_err);
     }
+    g_free(msg);
     if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
