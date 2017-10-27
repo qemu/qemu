@@ -148,3 +148,26 @@ const char *nbd_cmd_lookup(uint16_t cmd)
         return "<unknown>";
     }
 }
+
+
+const char *nbd_err_lookup(int err)
+{
+    switch (err) {
+    case NBD_SUCCESS:
+        return "success";
+    case NBD_EPERM:
+        return "EPERM";
+    case NBD_EIO:
+        return "EIO";
+    case NBD_ENOMEM:
+        return "ENOMEM";
+    case NBD_EINVAL:
+        return "EINVAL";
+    case NBD_ENOSPC:
+        return "ENOSPC";
+    case NBD_ESHUTDOWN:
+        return "ESHUTDOWN";
+    default:
+        return "<unknown>";
+    }
+}

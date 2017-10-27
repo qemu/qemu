@@ -1227,7 +1227,8 @@ static int nbd_co_send_simple_reply(NBDClient *client,
         {.iov_base = data, .iov_len = len}
     };
 
-    trace_nbd_co_send_simple_reply(handle, nbd_err, len);
+    trace_nbd_co_send_simple_reply(handle, nbd_err, nbd_err_lookup(nbd_err),
+                                   len);
     set_be_simple_reply(&reply, nbd_err, handle);
 
     return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);

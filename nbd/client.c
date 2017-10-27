@@ -940,6 +940,8 @@ int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
     reply->error  = ldl_be_p(buf + 4);
     reply->handle = ldq_be_p(buf + 8);
 
+    trace_nbd_receive_reply(magic, reply->error, nbd_err_lookup(reply->error),
+                            reply->handle);
     reply->error = nbd_errno_to_system_errno(reply->error);
 
     if (reply->error == ESHUTDOWN) {
@@ -947,7 +949,6 @@ int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
         error_setg(errp, "server shutting down");
         return -EINVAL;
     }
-    trace_nbd_receive_reply(magic, reply->error, reply->handle);
 
     if (magic != NBD_SIMPLE_REPLY_MAGIC) {
         error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", magic);
