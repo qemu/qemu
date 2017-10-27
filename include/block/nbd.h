@@ -264,6 +264,16 @@ void nbd_client_put(NBDClient *client);
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       Error **errp);
 
+
+/* nbd_read
+ * Reads @size bytes from @ioc. Returns 0 on success.
+ */
+static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
+                           Error **errp)
+{
+    return qio_channel_read_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
+}
+
 static inline bool nbd_reply_is_simple(NBDReply *reply)
 {
     return reply->magic == NBD_SIMPLE_REPLY_MAGIC;

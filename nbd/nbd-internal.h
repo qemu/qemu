@@ -82,15 +82,6 @@ static inline int nbd_read_eof(QIOChannel *ioc, void *buffer, size_t size,
     return ret;
 }
 
-/* nbd_read
- * Reads @size bytes from @ioc. Returns 0 on success.
- */
-static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
-                           Error **errp)
-{
-    return qio_channel_read_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
-}
-
 /* nbd_write
  * Writes @size bytes to @ioc. Returns 0 on success.
  */
