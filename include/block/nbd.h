@@ -57,12 +57,6 @@ struct NBDRequest {
 };
 typedef struct NBDRequest NBDRequest;
 
-struct NBDReply {
-    uint64_t handle;
-    uint32_t error;
-};
-typedef struct NBDReply NBDReply;
-
 typedef struct NBDSimpleReply {
     uint32_t magic;  /* NBD_SIMPLE_REPLY_MAGIC */
     uint32_t error;
@@ -77,6 +71,20 @@ typedef struct NBDStructuredReplyChunk {
     uint64_t handle; /* request handle */
     uint32_t length; /* length of payload */
 } QEMU_PACKED NBDStructuredReplyChunk;
+
+typedef union NBDReply {
+    NBDSimpleReply simple;
+    NBDStructuredReplyChunk structured;
+    struct {
+        /* @magic and @handle fields have the same offset and size both in
+         * simple reply and structured reply chunk, so let them be accessible
+         * without ".simple." or ".structured." specification
+         */
+        uint32_t magic;
+        uint32_t _skip;
+        uint64_t handle;
+    } QEMU_PACKED;
+} NBDReply;
 
 /* Header of NBD_REPLY_TYPE_OFFSET_DATA, complete NBD_REPLY_TYPE_OFFSET_HOLE */
 typedef struct NBDStructuredRead {
@@ -255,5 +263,15 @@ void nbd_client_put(NBDClient *client);
 
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       Error **errp);
+
+static inline bool nbd_reply_is_simple(NBDReply *reply)
+{
+    return reply->magic == NBD_SIMPLE_REPLY_MAGIC;
+}
+
+static inline bool nbd_reply_is_structured(NBDReply *reply)
+{
+    return reply->magic == NBD_STRUCTURED_REPLY_MAGIC;
+}
 
 #endif

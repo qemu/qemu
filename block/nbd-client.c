@@ -92,7 +92,9 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         i = HANDLE_TO_INDEX(s, s->reply.handle);
         if (i >= MAX_NBD_REQUESTS ||
             !s->requests[i].coroutine ||
-            !s->requests[i].receiving) {
+            !s->requests[i].receiving ||
+            nbd_reply_is_structured(&s->reply))
+        {
             break;
         }
 
@@ -194,8 +196,8 @@ static int nbd_co_receive_reply(NBDClientSession *s,
         ret = -EIO;
     } else {
         assert(s->reply.handle == handle);
-        ret = -s->reply.error;
-        if (qiov && s->reply.error == 0) {
+        ret = -nbd_errno_to_system_errno(s->reply.simple.error);
+        if (qiov && ret == 0) {
             if (qio_channel_readv_all(s->ioc, qiov->iov, qiov->niov,
                                       NULL) < 0) {
                 ret = -EIO;
