@@ -4218,6 +4218,8 @@ static DisasJumpType translate_table_int(DisasContext *ctx, uint32_t insn,
             return table[i].trans(ctx, insn, &table[i]);
         }
     }
+    qemu_log_mask(LOG_UNIMP, "UNIMP insn %08x @ " TARGET_FMT_lx "\n",
+                  insn, ctx->base.pc_next);
     return gen_illegal(ctx);
 }
 
