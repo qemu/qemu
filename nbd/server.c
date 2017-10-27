@@ -1381,6 +1381,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         break;
     case NBD_CMD_WRITE:
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
+            error_setg(&local_err, "Export is read-only");
             ret = -EROFS;
             break;
         }
@@ -1398,7 +1399,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         break;
     case NBD_CMD_WRITE_ZEROES:
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            error_setg(&local_err, "Server is read-only, return error");
+            error_setg(&local_err, "Export is read-only");
             ret = -EROFS;
             break;
         }
