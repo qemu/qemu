@@ -56,7 +56,7 @@ _filter_qmp_events()
 function run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | _filter_qemu \
-                          | sed -e 's/\("actual-size":\s*\)[0-9]\+/\1SIZE/g' \
+                          | _filter_actual_image_size \
                           | _filter_generated_node_ids | _filter_qmp_events
 }
 

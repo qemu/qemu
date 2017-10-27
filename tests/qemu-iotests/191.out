@@ -3,7 +3,7 @@ QA output created by 191
 === Preparing and starting VM ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
-Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
 Formatting 'TEST_DIR/t.IMGFMT.ovl2', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.mid
 wrote 65536/65536 bytes at offset 1048576
@@ -47,7 +47,7 @@ wrote 65536/65536 bytes at offset 1048576
                     "filename": "TEST_DIR/t.qcow2.base",
                     "cluster-size": 65536,
                     "format": "qcow2",
-                    "actual-size": 397312,
+                    "actual-size": SIZE,
                     "format-specific": {
                         "type": "qcow2",
                         "data": {
@@ -64,7 +64,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2.ovl2",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -105,7 +105,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.qcow2.ovl2",
                 "format": "file",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -136,7 +136,7 @@ wrote 65536/65536 bytes at offset 1048576
                     "filename": "TEST_DIR/t.qcow2.base",
                     "cluster-size": 65536,
                     "format": "qcow2",
-                    "actual-size": 397312,
+                    "actual-size": SIZE,
                     "format-specific": {
                         "type": "qcow2",
                         "data": {
@@ -153,7 +153,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -194,7 +194,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.qcow2",
                 "format": "file",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -225,7 +225,7 @@ wrote 65536/65536 bytes at offset 1048576
                     "filename": "TEST_DIR/t.qcow2.base",
                     "cluster-size": 65536,
                     "format": "qcow2",
-                    "actual-size": 397312,
+                    "actual-size": SIZE,
                     "format-specific": {
                         "type": "qcow2",
                         "data": {
@@ -242,7 +242,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2.mid",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 397312,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -283,7 +283,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 393216,
                 "filename": "TEST_DIR/t.qcow2.mid",
                 "format": "file",
-                "actual-size": 397312,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -313,7 +313,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2.base",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 397312,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -351,7 +351,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 393216,
                 "filename": "TEST_DIR/t.qcow2.base",
                 "format": "file",
-                "actual-size": 397312,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -450,7 +450,7 @@ wrote 65536/65536 bytes at offset 1048576
                     "filename": "TEST_DIR/t.qcow2.base",
                     "cluster-size": 65536,
                     "format": "qcow2",
-                    "actual-size": 397312,
+                    "actual-size": SIZE,
                     "format-specific": {
                         "type": "qcow2",
                         "data": {
@@ -467,7 +467,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2.ovl2",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -508,7 +508,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.qcow2.ovl2",
                 "format": "file",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -540,7 +540,7 @@ wrote 65536/65536 bytes at offset 1048576
                         "filename": "TEST_DIR/t.qcow2.base",
                         "cluster-size": 65536,
                         "format": "qcow2",
-                        "actual-size": 397312,
+                        "actual-size": SIZE,
                         "format-specific": {
                             "type": "qcow2",
                             "data": {
@@ -557,7 +557,7 @@ wrote 65536/65536 bytes at offset 1048576
                     "filename": "TEST_DIR/t.qcow2.ovl2",
                     "cluster-size": 65536,
                     "format": "qcow2",
-                    "actual-size": 200704,
+                    "actual-size": SIZE,
                     "format-specific": {
                         "type": "qcow2",
                         "data": {
@@ -576,7 +576,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2.ovl3",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -617,7 +617,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.qcow2.ovl3",
                 "format": "file",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -647,7 +647,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2.base",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 397312,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -685,7 +685,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 393216,
                 "filename": "TEST_DIR/t.qcow2.base",
                 "format": "file",
-                "actual-size": 397312,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -716,7 +716,7 @@ wrote 65536/65536 bytes at offset 1048576
                     "filename": "TEST_DIR/t.qcow2.base",
                     "cluster-size": 65536,
                     "format": "qcow2",
-                    "actual-size": 397312,
+                    "actual-size": SIZE,
                     "format-specific": {
                         "type": "qcow2",
                         "data": {
@@ -733,7 +733,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "filename": "TEST_DIR/t.qcow2",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -774,7 +774,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.qcow2",
                 "format": "file",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,

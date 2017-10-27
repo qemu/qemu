@@ -1632,7 +1632,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
          * cluster is already marked as zero, or if it's unallocated and we
          * don't have a backing file.
          *
-         * TODO We might want to use bdrv_get_block_status(bs) here, but we're
+         * TODO We might want to use bdrv_block_status(bs) here, but we're
          * holding s->lock, so that doesn't work today.
          *
          * If full_discard is true, the sector should not read back as zeroes,
