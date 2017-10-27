@@ -197,6 +197,11 @@ enum {
 #define NBD_REPLY_TYPE_ERROR         NBD_REPLY_ERR(1)
 #define NBD_REPLY_TYPE_ERROR_OFFSET  NBD_REPLY_ERR(2)
 
+static inline bool nbd_reply_type_is_error(int type)
+{
+    return type & (1 << 15);
+}
+
 /* NBD errors are based on errno numbers, so there is a 1:1 mapping,
  * but only a limited set of errno values is specified in the protocol.
  * Everything else is squashed to EINVAL.
@@ -214,6 +219,11 @@ enum {
 struct NBDExportInfo {
     /* Set by client before nbd_receive_negotiate() */
     bool request_sizes;
+
+    /* In-out fields, set by client before nbd_receive_negotiate() and
+     * updated by server results during nbd_receive_negotiate() */
+    bool structured_reply;
+
     /* Set by server results during nbd_receive_negotiate() */
     uint64_t size;
     uint16_t flags;
@@ -283,5 +293,7 @@ static inline bool nbd_reply_is_structured(NBDReply *reply)
 {
     return reply->magic == NBD_STRUCTURED_REPLY_MAGIC;
 }
+
+const char *nbd_reply_type_lookup(uint16_t type);
 
 #endif

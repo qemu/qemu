@@ -602,9 +602,11 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
     uint64_t magic;
     int rc;
     bool zeroes = true;
+    bool structured_reply = info->structured_reply;
 
     trace_nbd_receive_negotiate(tlscreds, hostname ? hostname : "<null>");
 
+    info->structured_reply = false;
     rc = -EINVAL;
 
     if (outioc) {
@@ -684,6 +686,16 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
         }
         if (fixedNewStyle) {
             int result;
+
+            if (structured_reply) {
+                result = nbd_request_simple_option(ioc,
+                                                   NBD_OPT_STRUCTURED_REPLY,
+                                                   errp);
+                if (result < 0) {
+                    goto fail;
+                }
+                info->structured_reply = result == 1;
+            }
 
             /* Try NBD_OPT_GO first - if it works, we are done (it
              * also gives us a good message if the server requires
