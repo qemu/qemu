@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "trace.h"
 #include "nbd-internal.h"
 
 /* Discard length bytes from channel.  Return -errno on failure and 0 on
@@ -170,4 +171,37 @@ const char *nbd_err_lookup(int err)
     default:
         return "<unknown>";
     }
+}
+
+
+int nbd_errno_to_system_errno(int err)
+{
+    int ret;
+    switch (err) {
+    case NBD_SUCCESS:
+        ret = 0;
+        break;
+    case NBD_EPERM:
+        ret = EPERM;
+        break;
+    case NBD_EIO:
+        ret = EIO;
+        break;
+    case NBD_ENOMEM:
+        ret = ENOMEM;
+        break;
+    case NBD_ENOSPC:
+        ret = ENOSPC;
+        break;
+    case NBD_ESHUTDOWN:
+        ret = ESHUTDOWN;
+        break;
+    default:
+        trace_nbd_unknown_error(err);
+        /* fallthrough */
+    case NBD_EINVAL:
+        ret = EINVAL;
+        break;
+    }
+    return ret;
 }

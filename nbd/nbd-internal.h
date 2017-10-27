@@ -64,18 +64,6 @@
 #define NBD_SET_TIMEOUT             _IO(0xab, 9)
 #define NBD_SET_FLAGS               _IO(0xab, 10)
 
-/* NBD errors are based on errno numbers, so there is a 1:1 mapping,
- * but only a limited set of errno values is specified in the protocol.
- * Everything else is squashed to EINVAL.
- */
-#define NBD_SUCCESS    0
-#define NBD_EPERM      1
-#define NBD_EIO        5
-#define NBD_ENOMEM     12
-#define NBD_EINVAL     22
-#define NBD_ENOSPC     28
-#define NBD_ESHUTDOWN  108
-
 /* nbd_read_eof
  * Tries to read @size bytes from @ioc.
  * Returns 1 on success

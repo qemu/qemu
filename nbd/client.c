@@ -22,38 +22,6 @@
 #include "trace.h"
 #include "nbd-internal.h"
 
-static int nbd_errno_to_system_errno(int err)
-{
-    int ret;
-    switch (err) {
-    case NBD_SUCCESS:
-        ret = 0;
-        break;
-    case NBD_EPERM:
-        ret = EPERM;
-        break;
-    case NBD_EIO:
-        ret = EIO;
-        break;
-    case NBD_ENOMEM:
-        ret = ENOMEM;
-        break;
-    case NBD_ENOSPC:
-        ret = ENOSPC;
-        break;
-    case NBD_ESHUTDOWN:
-        ret = ESHUTDOWN;
-        break;
-    default:
-        trace_nbd_unknown_error(err);
-        /* fallthrough */
-    case NBD_EINVAL:
-        ret = EINVAL;
-        break;
-    }
-    return ret;
-}
-
 /* Definitions for opaque data types */
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
