@@ -9,7 +9,7 @@
 /* Devices used by sparc32 system.  */
 
 /* iommu.c */
-#define TYPE_SUN4M_IOMMU "iommu"
+#define TYPE_SUN4M_IOMMU "sun4m-iommu"
 #define SUN4M_IOMMU(obj) OBJECT_CHECK(IOMMUState, (obj), TYPE_SUN4M_IOMMU)
 
 #define TYPE_SUN4M_IOMMU_MEMORY_REGION "sun4m-iommu-memory-region"
