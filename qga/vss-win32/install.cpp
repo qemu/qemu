@@ -148,10 +148,15 @@ static HRESULT getNameByStringSID(
     DWORD domainNameLen = BUFFER_SIZE;
     wchar_t domainName[BUFFER_SIZE];
 
-    chk(ConvertStringSidToSidW(sid, &psid));
-    LookupAccountSidW(NULL, psid, buffer, bufferLen,
-                domainName, &domainNameLen, &groupType);
-    hr = HRESULT_FROM_WIN32(GetLastError());
+    if (!ConvertStringSidToSidW(sid, &psid)) {
+        hr = HRESULT_FROM_WIN32(GetLastError());
+        goto out;
+    }
+    if (!LookupAccountSidW(NULL, psid, buffer, bufferLen,
+                           domainName, &domainNameLen, &groupType)) {
+        hr = HRESULT_FROM_WIN32(GetLastError());
+        /* Fall through and free psid */
+    }
 
     LocalFree(psid);
 
