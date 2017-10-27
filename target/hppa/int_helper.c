@@ -79,12 +79,24 @@ void hppa_cpu_do_interrupt(CPUState *cs)
             {
                 /* Avoid reading directly from the virtual address, lest we
                    raise another exception from some sort of TLB issue.  */
+                /* ??? An alternate fool-proof method would be to store the
+                   instruction data into the unwind info.  That's probably
+                   a bit too much in the way of extra storage required.  */
                 vaddr vaddr;
                 hwaddr paddr;
 
                 paddr = vaddr = iaoq_f & -4;
                 if (old_psw & PSW_C) {
-                    vaddr = hppa_form_gva_psw(old_psw, iasq_f, iaoq_f & -4);
+                    int prot, t;
+
+                    vaddr = hppa_form_gva_psw(old_psw, iasq_f, vaddr);
+                    t = hppa_get_physical_address(env, vaddr, MMU_KERNEL_IDX,
+                                                  0, &paddr, &prot);
+                    if (t >= 0) {
+                        /* We can't re-load the instruction.  */
+                        env->cr[CR_IIR] = 0;
+                        break;
+                    }
                 }
                 env->cr[CR_IIR] = ldl_phys(cs->as, paddr);
             }

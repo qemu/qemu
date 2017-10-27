@@ -165,6 +165,22 @@ typedef int64_t  target_sreg;
 #define TREG_FMT_ld   "%"PRId64
 #endif
 
+typedef struct {
+    uint64_t va_b;
+    uint64_t va_e;
+    target_ureg pa;
+    unsigned u : 1;
+    unsigned t : 1;
+    unsigned d : 1;
+    unsigned b : 1;
+    unsigned page_size : 4;
+    unsigned ar_type : 3;
+    unsigned ar_pl1 : 2;
+    unsigned ar_pl2 : 2;
+    unsigned entry_valid : 1;
+    unsigned access_id : 16;
+} hppa_tlb_entry;
+
 struct CPUHPPAState {
     target_ureg gr[32];
     uint64_t fr[32];
@@ -198,6 +214,12 @@ struct CPUHPPAState {
 
     /* Those resources are used only in QEMU core */
     CPU_COMMON
+
+    /* ??? The number of entries isn't specified by the architecture.  */
+    /* ??? Implement a unified itlb/dtlb for the moment.  */
+    /* ??? We should use a more intelligent data structure.  */
+    hppa_tlb_entry tlb[256];
+    uint32_t tlb_last;
 };
 
 /**
@@ -307,13 +329,18 @@ void cpu_hppa_loaded_fr0(CPUHPPAState *env);
 #define cpu_signal_handler cpu_hppa_signal_handler
 
 int cpu_hppa_signal_handler(int host_signum, void *pinfo, void *puc);
-int hppa_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size,
-                              int rw, int midx);
 hwaddr hppa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr);
 int hppa_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int hppa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void hppa_cpu_do_interrupt(CPUState *cpu);
 bool hppa_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void hppa_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function, int);
+#ifdef CONFIG_USER_ONLY
+int hppa_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size,
+                              int rw, int midx);
+#else
+int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
+                              int type, hwaddr *pphys, int *pprot);
+#endif
 
 #endif /* HPPA_CPU_H */
