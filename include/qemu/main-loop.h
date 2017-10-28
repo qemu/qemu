@@ -276,7 +276,9 @@ bool qemu_mutex_iothread_locked(void);
  * NOTE: tools currently are single-threaded and qemu_mutex_lock_iothread
  * is a no-op there.
  */
-void qemu_mutex_lock_iothread(void);
+#define qemu_mutex_lock_iothread()                      \
+    qemu_mutex_lock_iothread_impl(__FILE__, __LINE__)
+void qemu_mutex_lock_iothread_impl(const char *file, int line);
 
 /**
  * qemu_mutex_unlock_iothread: Unlock the main loop mutex.

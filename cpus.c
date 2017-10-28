@@ -1762,10 +1762,16 @@ bool qemu_mutex_iothread_locked(void)
     return iothread_locked;
 }
 
-void qemu_mutex_lock_iothread(void)
+/*
+ * The BQL is taken from so many places that it is worth profiling the
+ * callers directly, instead of funneling them all through a single function.
+ */
+void qemu_mutex_lock_iothread_impl(const char *file, int line)
 {
+    QemuMutexLockFunc bql_lock = atomic_read(&qemu_bql_mutex_lock_func);
+
     g_assert(!qemu_mutex_iothread_locked());
-    qemu_mutex_lock(&qemu_global_mutex);
+    bql_lock(&qemu_global_mutex, file, line);
     iothread_locked = true;
 }
 
