@@ -195,6 +195,12 @@ struct smbios_type_4 {
     uint16_t processor_family2;
 } QEMU_PACKED;
 
+/* SMBIOS type 11 - OEM strings */
+struct smbios_type_11 {
+    struct smbios_structure_header header;
+    uint8_t count;
+} QEMU_PACKED;
+
 /* SMBIOS type 16 - Physical Memory Array (v2.7) */
 struct smbios_type_16 {
     struct smbios_structure_header header;
