@@ -2312,7 +2312,8 @@ static const DisasInsn table_system[] = {
     { 0x000014a0u, 0xffffffe0u, trans_mfia },
     { 0x000004a0u, 0xffff1fe0u, trans_mfsp },
     { 0x000008a0u, 0xfc1fbfe0u, trans_mfctl },
-    { 0x00000400u, 0xffffffffu, trans_sync },
+    { 0x00000400u, 0xffffffffu, trans_sync },  /* sync */
+    { 0x00100400u, 0xffffffffu, trans_sync },  /* syncdma */
     { 0x000010a0u, 0xfc1f3fe0u, trans_ldsid },
 #ifndef CONFIG_USER_ONLY
     { 0x00000e60u, 0xfc00ffe0u, trans_rsm },
