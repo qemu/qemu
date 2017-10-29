@@ -48,6 +48,23 @@ static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
     info->print_insn = print_insn_hppa;
 }
 
+static void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                         MMUAccessType access_type,
+                                         int mmu_idx, uintptr_t retaddr)
+{
+    HPPACPU *cpu = HPPA_CPU(cs);
+    CPUHPPAState *env = &cpu->env;
+
+    cs->exception_index = EXCP_UNALIGN;
+    if (env->psw & PSW_Q) {
+        /* ??? Needs tweaking for hppa64.  */
+        env->cr[CR_IOR] = addr;
+        env->cr[CR_ISR] = addr >> 32;
+    }
+
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
 static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -139,7 +156,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->get_phys_page_debug = hppa_cpu_get_phys_page_debug;
 #endif
-
+    cc->do_unaligned_access = hppa_cpu_do_unaligned_access;
     cc->disas_set_info = hppa_cpu_disas_set_info;
     cc->tcg_initialize = hppa_translate_init;
 
