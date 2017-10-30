@@ -306,7 +306,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             cap_ri = 1;
         }
     }
-    if (gs_allowed()) {
+    if (cpu_model_allowed()) {
         if (kvm_vm_enable_cap(s, KVM_CAP_S390_GS, 0) == 0) {
             cap_gs = 1;
         }

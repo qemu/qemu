@@ -286,7 +286,7 @@ static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
         details = "(migration-safe)";
     }
 
-    /* strip off the -s390-cpu */
+    /* strip off the -s390x-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
     (*s->cpu_fprintf)(s->file, "s390 %-15s %-35s %s\n", name, scc->desc,
                       details);
@@ -390,7 +390,7 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
     char *name = g_strdup(object_class_get_name(klass));
     S390CPUClass *scc = S390_CPU_CLASS(klass);
 
-    /* strip off the -s390-cpu */
+    /* strip off the -s390x-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
     info = g_new0(CpuDefinitionInfo, 1);
     info->name = name;

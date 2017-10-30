@@ -3159,12 +3159,12 @@
 # -> { "execute": "query-hotpluggable-cpus" }
 # <- {"return": [
 #      {
-#         "type": "qemu-s390-cpu", "vcpus-count": 1,
+#         "type": "qemu-s390x-cpu", "vcpus-count": 1,
 #         "props": { "core-id": 1 }
 #      },
 #      {
 #         "qom-path": "/machine/unattached/device[0]",
-#         "type": "qemu-s390-cpu", "vcpus-count": 1,
+#         "type": "qemu-s390x-cpu", "vcpus-count": 1,
 #         "props": { "core-id": 0 }
 #      }
 #    ]}
