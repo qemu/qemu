@@ -342,6 +342,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRId64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_X_MULTIFD_PAGE_COUNT),
             params->x_multifd_page_count);
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
+            params->xbzrle_cache_size);
     }
 
     qapi_free_MigrationParameters(params);
@@ -1578,6 +1581,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     Visitor *v = string_input_visitor_new(valuestr);
     MigrateSetParameters *p = g_new0(MigrateSetParameters, 1);
     uint64_t valuebw = 0;
+    uint64_t cache_size;
     Error *err = NULL;
     int val, ret;
 
@@ -1652,6 +1656,16 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_X_MULTIFD_PAGE_COUNT:
         p->has_x_multifd_page_count = true;
         visit_type_int(v, param, &p->x_multifd_page_count, &err);
+        break;
+    case MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE:
+        p->has_xbzrle_cache_size = true;
+        visit_type_size(v, param, &cache_size, &err);
+        if (err || cache_size > INT64_MAX
+            || (size_t)cache_size != cache_size) {
+            error_setg(&err, "Invalid size %s", valuestr);
+            break;
+        }
+        p->xbzrle_cache_size = cache_size;
         break;
     default:
         assert(0);

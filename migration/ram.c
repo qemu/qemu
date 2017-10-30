@@ -112,15 +112,15 @@ static void XBZRLE_cache_unlock(void)
  * migration may be using the cache and might finish during this call,
  * hence changes to the cache are protected by XBZRLE.lock().
  *
- * Returns the new_size or negative in case of error.
+ * Returns 0 for success or -1 for error
  *
  * @new_size: new cache size
  * @errp: set *errp if the check failed, with reason
  */
-int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
+int xbzrle_cache_resize(int64_t new_size, Error **errp)
 {
     PageCache *new_cache;
-    int64_t ret;
+    int64_t ret = 0;
 
     /* Check for truncation */
     if (new_size != (size_t)new_size) {
@@ -129,19 +129,14 @@ int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
         return -1;
     }
 
-    /* Cache should not be larger than guest ram size */
-    if (new_size > ram_bytes_total()) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "exceeds guest ram size");
-        return -1;
+    if (new_size == migrate_xbzrle_cache_size()) {
+        /* nothing to do */
+        return 0;
     }
 
     XBZRLE_cache_lock();
 
     if (XBZRLE.cache != NULL) {
-        if (pow2floor(new_size) == migrate_xbzrle_cache_size()) {
-            goto out_new_size;
-        }
         new_cache = cache_init(new_size, TARGET_PAGE_SIZE, errp);
         if (!new_cache) {
             ret = -1;
@@ -151,9 +146,6 @@ int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
         cache_fini(XBZRLE.cache);
         XBZRLE.cache = new_cache;
     }
-
-out_new_size:
-    ret = pow2floor(new_size);
 out:
     XBZRLE_cache_unlock();
     return ret;

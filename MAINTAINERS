@@ -1563,6 +1563,7 @@ F: include/migration/
 F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
+F: tests/migration-test.c
 F: docs/devel/migration.txt
 F: qapi/migration.json
 

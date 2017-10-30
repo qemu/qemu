@@ -483,6 +483,11 @@
 # @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
+# @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
+#                     needs to be a multiple of the target page size
+#                     and a power of 2
+#                     (Since 2.11)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -490,7 +495,8 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
-           'x-multifd-channels', 'x-multifd-page-count' ] }
+           'x-multifd-channels', 'x-multifd-page-count',
+           'xbzrle-cache-size' ] }
 
 ##
 # @MigrateSetParameters:
@@ -554,6 +560,10 @@
 # @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
+# @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
+#                     needs to be a multiple of the target page size
+#                     and a power of 2
+#                     (Since 2.11)
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -571,7 +581,8 @@
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool',
             '*x-multifd-channels': 'int',
-            '*x-multifd-page-count': 'int' } }
+            '*x-multifd-page-count': 'int',
+            '*xbzrle-cache-size': 'size' } }
 
 ##
 # @migrate-set-parameters:
@@ -650,6 +661,10 @@
 # @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
+# @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
+#                     needs to be a multiple of the target page size
+#                     and a power of 2
+#                     (Since 2.11)
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -665,7 +680,8 @@
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool' ,
             '*x-multifd-channels': 'int',
-            '*x-multifd-page-count': 'int' } }
+            '*x-multifd-page-count': 'int',
+            '*xbzrle-cache-size': 'size' } }
 
 ##
 # @query-migrate-parameters:
@@ -947,6 +963,8 @@
 #
 # Returns: nothing on success
 #
+# Notes: This command is deprecated in favor of 'migrate-set-parameters'
+#
 # Since: 1.2
 #
 # Example:
@@ -964,6 +982,8 @@
 # Query migration XBZRLE cache size
 #
 # Returns: XBZRLE cache size in bytes
+#
+# Notes: This command is deprecated in favor of 'query-migrate-parameters'
 #
 # Since: 1.2
 #

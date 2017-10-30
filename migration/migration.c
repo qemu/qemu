@@ -71,7 +71,7 @@
 #define DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT 10
 
 /* Migration XBZRLE default cache size */
-#define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
+#define DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE (64 * 1024 * 1024)
 
 /* The delay time (in ms) between two COLO checkpoints
  * Note: Please change this default value to 10000 when we support hybrid mode.
@@ -515,6 +515,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->x_multifd_channels = s->parameters.x_multifd_channels;
     params->has_x_multifd_page_count = true;
     params->x_multifd_page_count = s->parameters.x_multifd_page_count;
+    params->has_xbzrle_cache_size = true;
+    params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
 
     return params;
 }
@@ -817,6 +819,16 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_xbzrle_cache_size &&
+        (params->xbzrle_cache_size < qemu_target_page_size() ||
+         !is_power_of_2(params->xbzrle_cache_size))) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "xbzrle_cache_size",
+                   "is invalid, it should be bigger than target page size"
+                   " and a power of two");
+        return false;
+    }
+
     return true;
 }
 
@@ -878,9 +890,12 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_x_multifd_page_count) {
         dest->x_multifd_page_count = params->x_multifd_page_count;
     }
+    if (params->has_xbzrle_cache_size) {
+        dest->xbzrle_cache_size = params->xbzrle_cache_size;
+    }
 }
 
-static void migrate_params_apply(MigrateSetParameters *params)
+static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
@@ -946,6 +961,10 @@ static void migrate_params_apply(MigrateSetParameters *params)
     if (params->has_x_multifd_page_count) {
         s->parameters.x_multifd_page_count = params->x_multifd_page_count;
     }
+    if (params->has_xbzrle_cache_size) {
+        s->parameters.xbzrle_cache_size = params->xbzrle_cache_size;
+        xbzrle_cache_resize(params->xbzrle_cache_size, errp);
+    }
 }
 
 void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
@@ -974,7 +993,7 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
         return;
     }
 
-    migrate_params_apply(params);
+    migrate_params_apply(params, errp);
 }
 
 
@@ -1405,15 +1424,12 @@ void qmp_migrate_continue(MigrationStatus state, Error **errp)
 
 void qmp_migrate_set_cache_size(int64_t value, Error **errp)
 {
-    MigrationState *s = migrate_get_current();
-    int64_t new_size;
+    MigrateSetParameters p = {
+        .has_xbzrle_cache_size = true,
+        .xbzrle_cache_size = value,
+    };
 
-    new_size = xbzrle_cache_resize(value, errp);
-    if (new_size < 0) {
-        return;
-    }
-
-    s->xbzrle_cache_size = new_size;
+    qmp_migrate_set_parameters(&p, errp);
 }
 
 int64_t qmp_query_migrate_cache_size(Error **errp)
@@ -1589,7 +1605,7 @@ int64_t migrate_xbzrle_cache_size(void)
 
     s = migrate_get_current();
 
-    return s->xbzrle_cache_size;
+    return s->parameters.xbzrle_cache_size;
 }
 
 bool migrate_use_block(void)
@@ -2407,6 +2423,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_INT64("x-multifd-page-count", MigrationState,
                       parameters.x_multifd_page_count,
                       DEFAULT_MIGRATE_MULTIFD_PAGE_COUNT),
+    DEFINE_PROP_SIZE("xbzrle-cache-size", MigrationState,
+                      parameters.xbzrle_cache_size,
+                      DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -2450,7 +2469,6 @@ static void migration_instance_init(Object *obj)
     MigrationParameters *params = &ms->parameters;
 
     ms->state = MIGRATION_STATUS_NONE;
-    ms->xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE;
     ms->mbps = -1;
     qemu_sem_init(&ms->pause_sem, 0);
     qemu_mutex_init(&ms->error_mutex);
@@ -2470,6 +2488,7 @@ static void migration_instance_init(Object *obj)
     params->has_block_incremental = true;
     params->has_x_multifd_channels = true;
     params->has_x_multifd_page_count = true;
+    params->has_xbzrle_cache_size = true;
 }
 
 /*
