@@ -1228,7 +1228,7 @@ void pc_machine_done(Notifier *notifier, void *data)
         fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     }
 
-    if (pcms->apic_id_limit > 255) {
+    if (pcms->apic_id_limit > 255 && !xen_enabled()) {
         IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
 
         if (!iommu || !iommu->x86_iommu.intr_supported ||

@@ -125,7 +125,6 @@ static void openrisc_load_kernel(ram_addr_t ram_size,
 static void openrisc_sim_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     OpenRISCCPU *cpu = NULL;
     MemoryRegion *ram;
@@ -133,12 +132,8 @@ static void openrisc_sim_init(MachineState *machine)
     qemu_irq serial_irq;
     int n;
 
-    if (!cpu_model) {
-        cpu_model = "or1200";
-    }
-
     for (n = 0; n < smp_cpus; n++) {
-        cpu = OPENRISC_CPU(cpu_generic_init(TYPE_OPENRISC_CPU, cpu_model));
+        cpu = OPENRISC_CPU(cpu_create(machine->cpu_type));
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);
@@ -180,6 +175,7 @@ static void openrisc_sim_machine_init(MachineClass *mc)
     mc->init = openrisc_sim_init;
     mc->max_cpus = 2;
     mc->is_default = 1;
+    mc->default_cpu_type = OPENRISC_CPU_TYPE_NAME("or1200");
 }
 
 DEFINE_MACHINE("or1k-sim", openrisc_sim_machine_init)

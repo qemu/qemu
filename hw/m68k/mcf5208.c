@@ -218,7 +218,6 @@ static void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd, hwaddr base,
 static void mcf5208evb_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     M68kCPU *cpu;
     CPUM68KState *env;
@@ -230,10 +229,7 @@ static void mcf5208evb_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
-    if (!cpu_model) {
-        cpu_model = "m5208";
-    }
-    cpu = M68K_CPU(cpu_generic_init(TYPE_M68K_CPU, cpu_model));
+    cpu = M68K_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     /* Initialize CPU registers.  */
@@ -322,6 +318,7 @@ static void mcf5208evb_machine_init(MachineClass *mc)
     mc->desc = "MCF5206EVB";
     mc->init = mcf5208evb_init;
     mc->is_default = 1;
+    mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5208");
 }
 
 DEFINE_MACHINE("mcf5208evb", mcf5208evb_machine_init)

@@ -75,7 +75,6 @@
 #define IVEC_MAX             0x40
 
 struct hwdef {
-    const char * const default_cpu_model;
     uint16_t machine_id;
     uint64_t prom_addr;
     uint64_t console_serial_base;
@@ -446,8 +445,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     bool onboard_nic;
 
     /* init CPUs */
-    cpu = sparc64_cpu_devinit(machine->cpu_model, hwdef->default_cpu_model,
-                              hwdef->prom_addr);
+    cpu = sparc64_cpu_devinit(machine->cpu_type, hwdef->prom_addr);
 
     /* set up devices */
     ram_init(0, machine->ram_size);
@@ -599,14 +597,12 @@ enum {
 static const struct hwdef hwdefs[] = {
     /* Sun4u generic PC-like machine */
     {
-        .default_cpu_model = "TI UltraSparc IIi",
         .machine_id = sun4u_id,
         .prom_addr = 0x1fff0000000ULL,
         .console_serial_base = 0,
     },
     /* Sun4v generic PC-like machine */
     {
-        .default_cpu_model = "Sun UltraSparc T1",
         .machine_id = sun4v_id,
         .prom_addr = 0x1fff0000000ULL,
         .console_serial_base = 0,
@@ -635,6 +631,7 @@ static void sun4u_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 1; /* XXX for now */
     mc->is_default = 1;
     mc->default_boot_order = "c";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-UltraSparc-IIi");
 }
 
 static const TypeInfo sun4u_type = {
@@ -652,6 +649,7 @@ static void sun4v_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_IDE;
     mc->max_cpus = 1; /* XXX for now */
     mc->default_boot_order = "c";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
 }
 
 static const TypeInfo sun4v_type = {

@@ -34,7 +34,7 @@ typedef struct MIPSCPSState {
 
     uint32_t num_vp;
     uint32_t num_irq;
-    char *cpu_model;
+    char *cpu_type;
 
     MemoryRegion container;
     MIPSGCRState gcr;

@@ -20512,24 +20512,16 @@ void cpu_mips_realize_env(CPUMIPSState *env)
     mvp_init(env, env->cpu_model);
 }
 
-bool cpu_supports_cps_smp(const char *cpu_model)
+bool cpu_supports_cps_smp(const char *cpu_type)
 {
-    const mips_def_t *def = cpu_mips_find_by_name(cpu_model);
-    if (!def) {
-        return false;
-    }
-
-    return (def->CP0_Config3 & (1 << CP0C3_CMGCR)) != 0;
+    const MIPSCPUClass *mcc = MIPS_CPU_CLASS(object_class_by_name(cpu_type));
+    return (mcc->cpu_def->CP0_Config3 & (1 << CP0C3_CMGCR)) != 0;
 }
 
-bool cpu_supports_isa(const char *cpu_model, unsigned int isa)
+bool cpu_supports_isa(const char *cpu_type, unsigned int isa)
 {
-    const mips_def_t *def = cpu_mips_find_by_name(cpu_model);
-    if (!def) {
-        return false;
-    }
-
-    return (def->insn_flags & isa) != 0;
+    const MIPSCPUClass *mcc = MIPS_CPU_CLASS(object_class_by_name(cpu_type));
+    return (mcc->cpu_def->insn_flags & isa) != 0;
 }
 
 void cpu_set_exception_base(int vp_index, target_ulong address)

@@ -103,7 +103,6 @@ static void moxiesim_init(MachineState *machine)
 {
     MoxieCPU *cpu = NULL;
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -115,10 +114,7 @@ static void moxiesim_init(MachineState *machine)
     LoaderParams loader_params;
 
     /* Init CPUs. */
-    if (cpu_model == NULL) {
-        cpu_model = "MoxieLite-moxie-cpu";
-    }
-    cpu = MOXIE_CPU(cpu_generic_init(TYPE_MOXIE_CPU, cpu_model));
+    cpu = MOXIE_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, cpu);
@@ -150,6 +146,7 @@ static void moxiesim_machine_init(MachineClass *mc)
     mc->desc = "Moxie simulator platform";
     mc->init = moxiesim_init;
     mc->is_default = 1;
+    mc->default_cpu_type = MOXIE_CPU_TYPE_NAME("MoxieLite");
 }
 
 DEFINE_MACHINE("moxiesim", moxiesim_machine_init)
