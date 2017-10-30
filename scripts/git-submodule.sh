@@ -33,12 +33,6 @@ error() {
     exit 1
 }
 
-if test -z "$maybe_modules"
-then
-    test -e $substat || touch $substat
-    exit 0
-fi
-
 modules=""
 for m in $maybe_modules
 do
@@ -51,7 +45,7 @@ do
     fi
 done
 
-if ! test -e ".git"
+if test -n "$maybe_modules" && ! test -e ".git"
 then
     echo "$0: unexpectedly called with submodules but no git checkout exists"
     exit 1
@@ -59,6 +53,11 @@ fi
 
 case "$command" in
 status)
+    if test -z "$maybe_modules"
+    then
+         test -s ${substat} && exit 1 || exit 0
+    fi
+
     test -f "$substat" || exit 1
     CURSTATUS=`$GIT submodule status $modules`
     OLDSTATUS=`cat $substat`
@@ -66,6 +65,12 @@ status)
     exit $?
     ;;
 update)
+    if test -z "$maybe_modules"
+    then
+        test -e $substat || touch $substat
+        exit 0
+    fi
+
     $GIT submodule update --init $modules 1>/dev/null
     test $? -ne 0 && error "failed to update modules"
 
