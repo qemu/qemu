@@ -1336,7 +1336,11 @@ struct target_winsize {
 /* Common */
 #define TARGET_MAP_SHARED	0x01		/* Share changes */
 #define TARGET_MAP_PRIVATE	0x02		/* Changes are private */
-#define TARGET_MAP_TYPE		0x0f		/* Mask for type of mapping */
+#if defined(TARGET_HPPA)
+#define TARGET_MAP_TYPE         0x03		/* Mask for type of mapping */
+#else
+#define TARGET_MAP_TYPE         0x0f		/* Mask for type of mapping */
+#endif
 
 /* Target specific */
 #if defined(TARGET_MIPS)
