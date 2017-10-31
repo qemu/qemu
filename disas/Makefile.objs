@@ -21,6 +21,7 @@ common-obj-$(CONFIG_S390_DIS) += s390.o
 common-obj-$(CONFIG_SH4_DIS) += sh4.o
 common-obj-$(CONFIG_SPARC_DIS) += sparc.o
 common-obj-$(CONFIG_LM32_DIS) += lm32.o
+common-obj-$(CONFIG_XTENSA_DIS) += xtensa.o
 
 # TODO: As long as the TCG interpreter and its generated code depend
 # on the QEMU target, we cannot compile the disassembler here.

@@ -93,6 +93,14 @@ static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
+static void xtensa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+
+    info->private_data = cpu->env.config->isa;
+    info->print_insn = print_insn_xtensa;
+}
+
 static void xtensa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -164,6 +172,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_unassigned_access = xtensa_cpu_do_unassigned_access;
 #endif
     cc->debug_excp_handler = xtensa_breakpoint_handler;
+    cc->disas_set_info = xtensa_cpu_disas_set_info;
     cc->tcg_initialize = xtensa_translate_init;
     dc->vmsd = &vmstate_xtensa_cpu;
 }
