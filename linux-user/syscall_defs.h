@@ -473,6 +473,14 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_RESETHAND	0x00000010
 #define TARGET_SA_NOCLDWAIT	0x00000020 /* not supported yet */
 #define TARGET_SA_SIGINFO	0x00000040
+#elif defined(TARGET_HPPA)
+#define TARGET_SA_ONSTACK       0x00000001
+#define TARGET_SA_RESETHAND     0x00000004
+#define TARGET_SA_NOCLDSTOP     0x00000008
+#define TARGET_SA_SIGINFO       0x00000010
+#define TARGET_SA_NODEFER       0x00000020
+#define TARGET_SA_RESTART       0x00000040
+#define TARGET_SA_NOCLDWAIT     0x00000080
 #else
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00000002 /* not supported yet */
