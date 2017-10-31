@@ -36,7 +36,6 @@
  * http://mediacast.sun.com/users/Barton808/media/Sun4M_SystemArchitecture_edited2.pdf
  */
 
-#define IOMMU_NREGS         (4*4096/4)
 #define IOMMU_CTRL          (0x0000 >> 2)
 #define IOMMU_CTRL_IMPL     0xf0000000 /* Implementation */
 #define IOMMU_CTRL_VERS     0x0f000000 /* Version */
@@ -127,19 +126,6 @@
 #define IOMMU_PAGE_SHIFT    12
 #define IOMMU_PAGE_SIZE     (1 << IOMMU_PAGE_SHIFT)
 #define IOMMU_PAGE_MASK     ~(IOMMU_PAGE_SIZE - 1)
-
-#define TYPE_SUN4M_IOMMU "iommu"
-#define SUN4M_IOMMU(obj) OBJECT_CHECK(IOMMUState, (obj), TYPE_SUN4M_IOMMU)
-
-typedef struct IOMMUState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint32_t regs[IOMMU_NREGS];
-    hwaddr iostart;
-    qemu_irq irq;
-    uint32_t version;
-} IOMMUState;
 
 static uint64_t iommu_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
@@ -292,37 +278,47 @@ static void iommu_bad_addr(IOMMUState *s, hwaddr addr,
     qemu_irq_raise(s->irq);
 }
 
-void sparc_iommu_memory_rw(void *opaque, hwaddr addr,
-                           uint8_t *buf, int len, int is_write)
+/* Called from RCU critical section */
+static IOMMUTLBEntry sun4m_translate_iommu(IOMMUMemoryRegion *iommu,
+                                           hwaddr addr,
+                                           IOMMUAccessFlags flags)
 {
-    int l;
-    uint32_t flags;
-    hwaddr page, phys_addr;
+    IOMMUState *is = container_of(iommu, IOMMUState, iommu);
+    hwaddr page, pa;
+    int is_write = (flags & IOMMU_WO) ? 1 : 0;
+    uint32_t pte;
+    IOMMUTLBEntry ret = {
+        .target_as = &address_space_memory,
+        .iova = 0,
+        .translated_addr = 0,
+        .addr_mask = ~(hwaddr)0,
+        .perm = IOMMU_NONE,
+    };
 
-    while (len > 0) {
-        page = addr & IOMMU_PAGE_MASK;
-        l = (page + IOMMU_PAGE_SIZE) - addr;
-        if (l > len)
-            l = len;
-        flags = iommu_page_get_flags(opaque, page);
-        if (!(flags & IOPTE_VALID)) {
-            iommu_bad_addr(opaque, page, is_write);
-            return;
-        }
-        phys_addr = iommu_translate_pa(addr, flags);
-        if (is_write) {
-            if (!(flags & IOPTE_WRITE)) {
-                iommu_bad_addr(opaque, page, is_write);
-                return;
-            }
-            cpu_physical_memory_write(phys_addr, buf, l);
-        } else {
-            cpu_physical_memory_read(phys_addr, buf, l);
-        }
-        len -= l;
-        buf += l;
-        addr += l;
+    page = addr & IOMMU_PAGE_MASK;
+    pte = iommu_page_get_flags(is, page);
+    if (!(pte & IOPTE_VALID)) {
+        iommu_bad_addr(is, page, is_write);
+        return ret;
     }
+
+    pa = iommu_translate_pa(addr, pte);
+    if (is_write && !(pte & IOPTE_WRITE)) {
+        iommu_bad_addr(is, page, is_write);
+        return ret;
+    }
+
+    if (pte & IOPTE_WRITE) {
+        ret.perm = IOMMU_RW;
+    } else {
+        ret.perm = IOMMU_RO;
+    }
+
+    ret.iova = page;
+    ret.translated_addr = pa;
+    ret.addr_mask = ~IOMMU_PAGE_MASK;
+
+    return ret;
 }
 
 static const VMStateDescription vmstate_iommu = {
@@ -354,6 +350,11 @@ static void iommu_init(Object *obj)
     IOMMUState *s = SUN4M_IOMMU(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
+    memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
+                             TYPE_SUN4M_IOMMU_MEMORY_REGION, OBJECT(dev),
+                             "iommu-sun4m", UINT64_MAX);
+    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
+
     sysbus_init_irq(dev, &s->irq);
 
     memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
@@ -383,9 +384,23 @@ static const TypeInfo iommu_info = {
     .class_init    = iommu_class_init,
 };
 
+static void sun4m_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+
+    imrc->translate = sun4m_translate_iommu;
+}
+
+static const TypeInfo sun4m_iommu_memory_region_info = {
+    .parent = TYPE_IOMMU_MEMORY_REGION,
+    .name = TYPE_SUN4M_IOMMU_MEMORY_REGION,
+    .class_init = sun4m_iommu_memory_region_class_init,
+};
+
 static void iommu_register_types(void)
 {
     type_register_static(&iommu_info);
+    type_register_static(&sun4m_iommu_memory_region_info);
 }
 
 type_init(iommu_register_types)
