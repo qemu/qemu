@@ -445,6 +445,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_RESTART      2u
 #define TARGET_SA_NODEFER      0x20u
 #define TARGET_SA_RESETHAND    4u
+#define TARGET_ARCH_HAS_SA_RESTORER 1
 #elif defined(TARGET_MIPS)
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00010000
@@ -481,6 +482,10 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_NODEFER	0x40000000
 #define TARGET_SA_RESETHAND	0x80000000
 #define TARGET_SA_RESTORER	0x04000000
+#endif
+
+#ifdef TARGET_SA_RESTORER
+#define TARGET_ARCH_HAS_SA_RESTORER 1
 #endif
 
 #if defined(TARGET_ALPHA)
@@ -718,19 +723,27 @@ struct target_sigaction {
 	abi_ulong	_sa_handler;
 #endif
 	target_sigset_t	sa_mask;
+#ifdef TARGET_ARCH_HAS_SA_RESTORER
+        /* ??? This is always present, but ignored unless O32.  */
+        abi_ulong sa_restorer;
+#endif
 };
 #else
 struct target_old_sigaction {
         abi_ulong _sa_handler;
         abi_ulong sa_mask;
         abi_ulong sa_flags;
+#ifdef TARGET_ARCH_HAS_SA_RESTORER
         abi_ulong sa_restorer;
+#endif
 };
 
 struct target_sigaction {
         abi_ulong _sa_handler;
         abi_ulong sa_flags;
+#ifdef TARGET_ARCH_HAS_SA_RESTORER
         abi_ulong sa_restorer;
+#endif
         target_sigset_t sa_mask;
 };
 #endif
