@@ -670,7 +670,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 
     info2l = qmp_query_vnc_servers(&err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
     if (!info2l) {
@@ -785,7 +785,7 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_balloon(&err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
 
@@ -1128,7 +1128,7 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
 
     data = qmp_ringbuf_read(chardev, size, false, 0, &err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
 
@@ -1195,9 +1195,7 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_balloon(value, &err);
-    if (err) {
-        error_report_err(err);
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_block_resize(Monitor *mon, const QDict *qdict)
@@ -1534,10 +1532,7 @@ void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_migrate_set_cache_size(value, &err);
-    if (err) {
-        error_report_err(err);
-        return;
-    }
+    hmp_handle_error(mon, &err);
 }
 
 /* Kept for backwards compatibility */
@@ -1568,10 +1563,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
 
 end:
     qapi_free_MigrationCapabilityStatusList(caps);
-
-    if (err) {
-        error_report_err(err);
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
@@ -1680,9 +1672,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
  cleanup:
     qapi_free_MigrateSetParameters(p);
     visit_free(v);
-    if (err) {
-        error_report_err(err);
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_client_migrate_info(Monitor *mon, const QDict *qdict)
@@ -1936,7 +1926,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
     qmp_migrate(uri, !!blk, blk, !!inc, inc, false, false, &err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
 
