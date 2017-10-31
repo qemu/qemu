@@ -40,6 +40,8 @@ static int system_errno_to_nbd_errno(int err)
     case EFBIG:
     case ENOSPC:
         return NBD_ENOSPC;
+    case EOVERFLOW:
+        return NBD_EOVERFLOW;
     case ESHUTDOWN:
         return NBD_ESHUTDOWN;
     case EINVAL:
@@ -98,6 +100,8 @@ struct NBDClient {
     QTAILQ_ENTRY(NBDClient) next;
     int nb_requests;
     bool closing;
+
+    bool structured_reply;
 };
 
 /* That's all folks */
@@ -251,20 +255,9 @@ static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp,
 
 /* Process the NBD_OPT_LIST command, with a potential series of replies.
  * Return -errno on error, 0 on success. */
-static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length,
-                                     Error **errp)
+static int nbd_negotiate_handle_list(NBDClient *client, Error **errp)
 {
     NBDExport *exp;
-
-    if (length) {
-        if (nbd_drop(client->ioc, length, errp) < 0) {
-            return -EIO;
-        }
-        return nbd_negotiate_send_rep_err(client->ioc,
-                                          NBD_REP_ERR_INVALID, NBD_OPT_LIST,
-                                          errp,
-                                          "OPT_LIST should not have length");
-    }
 
     /* For each export, send a NBD_REP_SERVER reply. */
     QTAILQ_FOREACH(exp, &exports, next) {
@@ -529,7 +522,6 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
 /* Handle NBD_OPT_STARTTLS. Return NULL to drop connection, or else the
  * new channel for all further (now-encrypted) communication. */
 static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
-                                                 uint32_t length,
                                                  Error **errp)
 {
     QIOChannel *ioc;
@@ -538,15 +530,6 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
 
     trace_nbd_negotiate_handle_starttls();
     ioc = client->ioc;
-    if (length) {
-        if (nbd_drop(ioc, length, errp) < 0) {
-            return NULL;
-        }
-        nbd_negotiate_send_rep_err(ioc, NBD_REP_ERR_INVALID, NBD_OPT_STARTTLS,
-                                   errp,
-                                   "OPT_STARTTLS should not have length");
-        return NULL;
-    }
 
     if (nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
                                NBD_OPT_STARTTLS, errp) < 0) {
@@ -580,6 +563,34 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
     }
 
     return QIO_CHANNEL(tioc);
+}
+
+/* nbd_reject_length: Handle any unexpected payload.
+ * @fatal requests that we quit talking to the client, even if we are able
+ * to successfully send an error to the guest.
+ * Return:
+ * -errno  transmission error occurred or @fatal was requested, errp is set
+ * 0       error message successfully sent to client, errp is not set
+ */
+static int nbd_reject_length(NBDClient *client, uint32_t length,
+                             uint32_t option, bool fatal, Error **errp)
+{
+    int ret;
+
+    assert(length);
+    if (nbd_drop(client->ioc, length, errp) < 0) {
+        return -EIO;
+    }
+    ret = nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_INVALID,
+                                     option, errp,
+                                     "option '%s' should have zero length",
+                                     nbd_opt_lookup(option));
+    if (fatal && !ret) {
+        error_setg(errp, "option '%s' should have zero length",
+                   nbd_opt_lookup(option));
+        return -EINVAL;
+    }
+    return ret;
 }
 
 /* nbd_negotiate_options
@@ -672,10 +683,17 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
             }
             switch (option) {
             case NBD_OPT_STARTTLS:
-                tioc = nbd_negotiate_handle_starttls(client, length, errp);
+                if (length) {
+                    /* Unconditionally drop the connection if the client
+                     * can't start a TLS negotiation correctly */
+                    return nbd_reject_length(client, length, option, true,
+                                             errp);
+                }
+                tioc = nbd_negotiate_handle_starttls(client, errp);
                 if (!tioc) {
                     return -EIO;
                 }
+                ret = 0;
                 object_unref(OBJECT(client->ioc));
                 client->ioc = QIO_CHANNEL(tioc);
                 break;
@@ -696,9 +714,6 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                                                  "Option 0x%" PRIx32
                                                  "not permitted before TLS",
                                                  option);
-                if (ret < 0) {
-                    return ret;
-                }
                 /* Let the client keep trying, unless they asked to
                  * quit. In this mode, we've already sent an error, so
                  * we can't ack the abort.  */
@@ -710,9 +725,11 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         } else if (fixedNewstyle) {
             switch (option) {
             case NBD_OPT_LIST:
-                ret = nbd_negotiate_handle_list(client, length, errp);
-                if (ret < 0) {
-                    return ret;
+                if (length) {
+                    ret = nbd_reject_length(client, length, option, false,
+                                            errp);
+                } else {
+                    ret = nbd_negotiate_handle_list(client, errp);
                 }
                 break;
 
@@ -736,16 +753,13 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                     assert(option == NBD_OPT_GO);
                     return 0;
                 }
-                if (ret) {
-                    return ret;
-                }
                 break;
 
             case NBD_OPT_STARTTLS:
-                if (nbd_drop(client->ioc, length, errp) < 0) {
-                    return -EIO;
-                }
-                if (client->tlscreds) {
+                if (length) {
+                    ret = nbd_reject_length(client, length, option, false,
+                                            errp);
+                } else if (client->tlscreds) {
                     ret = nbd_negotiate_send_rep_err(client->ioc,
                                                      NBD_REP_ERR_INVALID,
                                                      option, errp,
@@ -756,10 +770,24 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                                                      option, errp,
                                                      "TLS not configured");
                 }
-                if (ret < 0) {
-                    return ret;
+                break;
+
+            case NBD_OPT_STRUCTURED_REPLY:
+                if (length) {
+                    ret = nbd_reject_length(client, length, option, false,
+                                            errp);
+                } else if (client->structured_reply) {
+                    ret = nbd_negotiate_send_rep_err(
+                        client->ioc, NBD_REP_ERR_INVALID, option, errp,
+                        "structured reply already negotiated");
+                } else {
+                    ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
+                                                 option, errp);
+                    client->structured_reply = true;
+                    myflags |= NBD_FLAG_SEND_DF;
                 }
                 break;
+
             default:
                 if (nbd_drop(client->ioc, length, errp) < 0) {
                     return -EIO;
@@ -770,9 +798,6 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                                                  "Unsupported option 0x%"
                                                  PRIx32 " (%s)", option,
                                                  nbd_opt_lookup(option));
-                if (ret < 0) {
-                    return ret;
-                }
                 break;
             }
         } else {
@@ -791,6 +816,9 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                            option, nbd_opt_lookup(option));
                 return -EINVAL;
             }
+        }
+        if (ret < 0) {
+            return ret;
         }
     }
 }
@@ -1227,10 +1255,66 @@ static int nbd_co_send_simple_reply(NBDClient *client,
         {.iov_base = data, .iov_len = len}
     };
 
-    trace_nbd_co_send_simple_reply(handle, nbd_err, len);
+    trace_nbd_co_send_simple_reply(handle, nbd_err, nbd_err_lookup(nbd_err),
+                                   len);
     set_be_simple_reply(&reply, nbd_err, handle);
 
     return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);
+}
+
+static inline void set_be_chunk(NBDStructuredReplyChunk *chunk, uint16_t flags,
+                                uint16_t type, uint64_t handle, uint32_t length)
+{
+    stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
+    stw_be_p(&chunk->flags, flags);
+    stw_be_p(&chunk->type, type);
+    stq_be_p(&chunk->handle, handle);
+    stl_be_p(&chunk->length, length);
+}
+
+static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
+                                                    uint64_t handle,
+                                                    uint64_t offset,
+                                                    void *data,
+                                                    size_t size,
+                                                    Error **errp)
+{
+    NBDStructuredRead chunk;
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = data, .iov_len = size}
+    };
+
+    trace_nbd_co_send_structured_read(handle, offset, data, size);
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_OFFSET_DATA,
+                 handle, sizeof(chunk) - sizeof(chunk.h) + size);
+    stq_be_p(&chunk.offset, offset);
+
+    return nbd_co_send_iov(client, iov, 2, errp);
+}
+
+static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
+                                                     uint64_t handle,
+                                                     uint32_t error,
+                                                     const char *msg,
+                                                     Error **errp)
+{
+    NBDStructuredError chunk;
+    int nbd_err = system_errno_to_nbd_errno(error);
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
+    };
+
+    assert(nbd_err);
+    trace_nbd_co_send_structured_error(handle, nbd_err,
+                                       nbd_err_lookup(nbd_err), msg ? msg : "");
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
+                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    stl_be_p(&chunk.error, nbd_err);
+    stw_be_p(&chunk.message_length, iov[1].iov_len);
+
+    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
 }
 
 /* nbd_co_receive_request
@@ -1243,6 +1327,7 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                                   Error **errp)
 {
     NBDClient *client = req->client;
+    int valid_flags;
 
     g_assert(qemu_in_coroutine());
     assert(client->recv_coroutine == qemu_coroutine_self());
@@ -1304,13 +1389,15 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                    (uint64_t)client->exp->size);
         return request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
     }
-    if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE)) {
-        error_setg(errp, "unsupported flags (got 0x%x)", request->flags);
-        return -EINVAL;
+    valid_flags = NBD_CMD_FLAG_FUA;
+    if (request->type == NBD_CMD_READ && client->structured_reply) {
+        valid_flags |= NBD_CMD_FLAG_DF;
+    } else if (request->type == NBD_CMD_WRITE_ZEROES) {
+        valid_flags |= NBD_CMD_FLAG_NO_HOLE;
     }
-    if (request->type != NBD_CMD_WRITE_ZEROES &&
-        (request->flags & NBD_CMD_FLAG_NO_HOLE)) {
-        error_setg(errp, "unexpected flags (got 0x%x)", request->flags);
+    if (request->flags & ~valid_flags) {
+        error_setg(errp, "unsupported flags for command %s (got 0x%x)",
+                   nbd_cmd_lookup(request->type), request->flags);
         return -EINVAL;
     }
 
@@ -1328,6 +1415,7 @@ static coroutine_fn void nbd_trip(void *opaque)
     int flags;
     int reply_data_len = 0;
     Error *local_err = NULL;
+    char *msg = NULL;
 
     trace_nbd_trip();
     if (client->closing) {
@@ -1378,6 +1466,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         break;
     case NBD_CMD_WRITE:
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
+            error_setg(&local_err, "Export is read-only");
             ret = -EROFS;
             break;
         }
@@ -1395,7 +1484,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         break;
     case NBD_CMD_WRITE_ZEROES:
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            error_setg(&local_err, "Server is read-only, return error");
+            error_setg(&local_err, "Export is read-only");
             ret = -EROFS;
             break;
         }
@@ -1443,14 +1532,29 @@ reply:
     if (local_err) {
         /* If we get here, local_err was not a fatal error, and should be sent
          * to the client. */
+        assert(ret < 0);
+        msg = g_strdup(error_get_pretty(local_err));
         error_report_err(local_err);
         local_err = NULL;
     }
 
-    if (nbd_co_send_simple_reply(req->client, request.handle,
-                                 ret < 0 ? -ret : 0,
-                                 req->data, reply_data_len, &local_err) < 0)
-    {
+    if (client->structured_reply &&
+        (ret < 0 || request.type == NBD_CMD_READ)) {
+        if (ret < 0) {
+            ret = nbd_co_send_structured_error(req->client, request.handle,
+                                               -ret, msg, &local_err);
+        } else {
+            ret = nbd_co_send_structured_read(req->client, request.handle,
+                                              request.from, req->data,
+                                              reply_data_len, &local_err);
+        }
+    } else {
+        ret = nbd_co_send_simple_reply(req->client, request.handle,
+                                       ret < 0 ? -ret : 0,
+                                       req->data, reply_data_len, &local_err);
+    }
+    g_free(msg);
+    if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
     }
