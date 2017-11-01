@@ -178,6 +178,7 @@ static int qio_channel_file_close(QIOChannel *ioc,
                          "Unable to close file");
         return -1;
     }
+    fioc->fd = -1;
     return 0;
 }
 
