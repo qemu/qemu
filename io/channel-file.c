@@ -50,7 +50,7 @@ qio_channel_file_new_path(const char *path,
 
     ioc = QIO_CHANNEL_FILE(object_new(TYPE_QIO_CHANNEL_FILE));
 
-    ioc->fd = open(path, flags, mode);
+    ioc->fd = qemu_open(path, flags, mode);
     if (ioc->fd < 0) {
         object_unref(OBJECT(ioc));
         error_setg_errno(errp, errno,
@@ -74,7 +74,7 @@ static void qio_channel_file_finalize(Object *obj)
 {
     QIOChannelFile *ioc = QIO_CHANNEL_FILE(obj);
     if (ioc->fd != -1) {
-        close(ioc->fd);
+        qemu_close(ioc->fd);
         ioc->fd = -1;
     }
 }
@@ -173,7 +173,7 @@ static int qio_channel_file_close(QIOChannel *ioc,
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
 
-    if (close(fioc->fd) < 0) {
+    if (qemu_close(fioc->fd) < 0) {
         error_setg_errno(errp, errno,
                          "Unable to close file");
         return -1;
