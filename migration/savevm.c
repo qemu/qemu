@@ -2266,6 +2266,7 @@ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
     }
     qio_channel_set_name(QIO_CHANNEL(ioc), "migration-xen-save-state");
     f = qemu_fopen_channel_output(QIO_CHANNEL(ioc));
+    object_unref(OBJECT(ioc));
     ret = qemu_save_device_state(f);
     qemu_fclose(f);
     if (ret < 0) {
@@ -2313,6 +2314,7 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     }
     qio_channel_set_name(QIO_CHANNEL(ioc), "migration-xen-load-state");
     f = qemu_fopen_channel_input(QIO_CHANNEL(ioc));
+    object_unref(OBJECT(ioc));
 
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
