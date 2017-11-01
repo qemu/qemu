@@ -114,3 +114,108 @@ int qrtas_ibm_write_pci_config(QGuestAllocator *alloc, uint64_t buid,
 
     return 0;
 }
+
+/*
+ * check_exception as defined by PAPR 2.7+, 7.3.3.2
+ *
+ * nargs = 7 (with Extended Information)
+ * nrets = 1
+ *
+ * arg[2] = mask of event classes to process
+ * arg[4] = real address of error log
+ * arg[5] = length of error log
+ *
+ * arg[0] (Vector Offset), arg[1] and arg[6] (Additional information)
+ * and arg[3] (Critical) aren't used in the logic of check_exception
+ * in hw/ppc/spapr_events.c and can be ignored.
+ *
+ * If there is an event that matches the given mask, check-exception writes
+ * it in buf_addr up to a max of buf_len bytes.
+ *
+ */
+int qrtas_check_exception(QGuestAllocator *alloc, uint32_t mask,
+                          uint32_t buf_addr, uint32_t buf_len)
+{
+    uint32_t args[7], ret[1];
+    int res;
+
+    args[0] = args[1] = args[3] = args[6] = 0;
+    args[2] = mask;
+    args[4] = buf_addr;
+    args[5] = buf_len;
+
+    res = qrtas_call(alloc, "check-exception", 7, args, 1, ret);
+    if (res != 0) {
+        return -1;
+    }
+
+    return ret[0];
+}
+
+/*
+ * set_indicator as defined by PAPR 2.7+, 7.3.5.4
+ *
+ * nargs = 3
+ * nrets = 1
+ *
+ * arg[0] = the type of the indicator
+ * arg[1] = index of the specific indicator
+ * arg[2] = desired new state
+ *
+ * Depending on the input, set_indicator will call set_isolation_state,
+ * set_allocation_state or set_dr_indicator in hw/ppc/spapr_drc.c.
+ * These functions allows the guest to control the state of hotplugged
+ * and hot unplugged devices.
+ */
+int qrtas_set_indicator(QGuestAllocator *alloc, uint32_t type, uint32_t idx,
+                        uint32_t new_state)
+{
+    uint32_t args[3], ret[1];
+    int res;
+
+    args[0] = type;
+    args[1] = idx;
+    args[2] = new_state;
+
+    res = qrtas_call(alloc, "set-indicator", 3, args, 1, ret);
+    if (res != 0) {
+        return -1;
+    }
+
+    return ret[0];
+}
+
+/*
+ * ibm,configure-connector as defined by PAPR 2.7+, 13.5.3.5
+ *
+ * nargs = 2
+ * nrets = 1
+ *
+ * args[0] and args[1] compose the 64 bit Work Area address.
+ *
+ * This call will configure not only the device reported in the first
+ * offset of the Work Area but all of its siblingis as well, returning
+ * the FDT of each configured sub-device as well as a return code
+ * 'Next child', 'Next property' or 'Previous parent'. When the whole
+ * configuration is done, 'Configuration completed' (0) is returned.
+ *
+ * configure-connector will always reply with status code 'Next child'(2)
+ * on the first successful call. The DRC configuration will be
+ * completed when configure-connector returns status 0. Any return
+ * status < 0 indicates an error.
+ */
+int qrtas_ibm_configure_connector(QGuestAllocator *alloc, uintptr_t wa_addr)
+{
+    uint32_t args[2], ret[1];
+    int res;
+
+    args[0] = (uint32_t)(wa_addr);
+    args[1] = (uint32_t)(wa_addr >> 32);
+
+    res = qrtas_call(alloc, "ibm,configure-connector", 2, args, 1, ret);
+    if (res != 0) {
+        return -1;
+    }
+
+    return ret[0];
+}
