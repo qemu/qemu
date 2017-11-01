@@ -277,7 +277,7 @@ typedef struct DisasContext {
     TCGv_reg iaoq_n_var;
 
     int ntempr, ntempl;
-    TCGv_reg tempr[4];
+    TCGv_reg tempr[8];
     TCGv_tl  templ[4];
 
     DisasCond null_cond;
