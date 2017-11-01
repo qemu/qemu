@@ -24,16 +24,21 @@
 #include "io-channel-helpers.h"
 #include "qapi/error.h"
 
-static void test_io_channel_file(void)
+#define TEST_FILE "tests/test-io-channel-file.txt"
+#define TEST_MASK 0600
+
+static void test_io_channel_file_helper(int flags)
 {
     QIOChannel *src, *dst;
     QIOChannelTest *test;
+    struct stat st;
+    mode_t mask;
+    int ret;
 
-#define TEST_FILE "tests/test-io-channel-file.txt"
     unlink(TEST_FILE);
     src = QIO_CHANNEL(qio_channel_file_new_path(
                           TEST_FILE,
-                          O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600,
+                          flags, TEST_MASK,
                           &error_abort));
     dst = QIO_CHANNEL(qio_channel_file_new_path(
                           TEST_FILE,
@@ -45,18 +50,33 @@ static void test_io_channel_file(void)
     qio_channel_test_run_reader(test, dst);
     qio_channel_test_validate(test);
 
+    /* Check that the requested mode took effect. */
+    mask = umask(0);
+    umask(mask);
+    ret = stat(TEST_FILE, &st);
+    g_assert_cmpint(ret, >, -1);
+    g_assert_cmpuint(TEST_MASK & ~mask, ==, st.st_mode & 0777);
+
     unlink(TEST_FILE);
     object_unref(OBJECT(src));
     object_unref(OBJECT(dst));
 }
 
+static void test_io_channel_file(void)
+{
+    test_io_channel_file_helper(O_WRONLY | O_CREAT | O_TRUNC | O_BINARY);
+}
+
+static void test_io_channel_file_rdwr(void)
+{
+    test_io_channel_file_helper(O_RDWR | O_CREAT | O_TRUNC | O_BINARY);
+}
 
 static void test_io_channel_fd(void)
 {
     QIOChannel *ioc;
     int fd = -1;
 
-#define TEST_FILE "tests/test-io-channel-file.txt"
     fd = open(TEST_FILE, O_CREAT | O_TRUNC | O_WRONLY, 0600);
     g_assert_cmpint(fd, >, -1);
 
@@ -114,6 +134,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/io/channel/file", test_io_channel_file);
+    g_test_add_func("/io/channel/file/rdwr", test_io_channel_file_rdwr);
     g_test_add_func("/io/channel/file/fd", test_io_channel_fd);
 #ifndef _WIN32
     g_test_add_func("/io/channel/pipe/sync", test_io_channel_pipe_sync);

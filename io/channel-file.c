@@ -50,11 +50,7 @@ qio_channel_file_new_path(const char *path,
 
     ioc = QIO_CHANNEL_FILE(object_new(TYPE_QIO_CHANNEL_FILE));
 
-    if (flags & O_WRONLY) {
-        ioc->fd = open(path, flags, mode);
-    } else {
-        ioc->fd = open(path, flags);
-    }
+    ioc->fd = open(path, flags, mode);
     if (ioc->fd < 0) {
         object_unref(OBJECT(ioc));
         error_setg_errno(errp, errno,
