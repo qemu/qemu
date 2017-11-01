@@ -423,6 +423,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
             break;
         }
     }
+    assert(length == 0);
 
     exp = nbd_export_find(name);
     if (!exp) {
@@ -433,7 +434,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
 
     /* Don't bother sending NBD_INFO_NAME unless client requested it */
     if (sendname) {
-        rc = nbd_negotiate_send_info(client, opt, NBD_INFO_NAME, length, name,
+        rc = nbd_negotiate_send_info(client, opt, NBD_INFO_NAME, namelen, name,
                                      errp);
         if (rc < 0) {
             return rc;
