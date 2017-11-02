@@ -2603,7 +2603,7 @@ static int dec_movem_mr(CPUCRISState *env, DisasContext *dc)
         tcg_gen_addi_tl(addr, cpu_R[dc->op1], i * 8);
         gen_load(dc, tmp32, addr, 4, 0);
     } else {
-        TCGV_UNUSED(tmp32);
+        tmp32 = NULL;
     }
     tcg_temp_free(addr);
 

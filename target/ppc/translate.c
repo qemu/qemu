@@ -3495,7 +3495,7 @@ static void gen_bcond(DisasContext *ctx, int type)
         else
             tcg_gen_mov_tl(target, cpu_lr);
     } else {
-        TCGV_UNUSED(target);
+        target = NULL;
     }
     if (LK(ctx->opcode))
         gen_setlr(ctx, ctx->nip);

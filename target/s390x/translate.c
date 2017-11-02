@@ -434,11 +434,9 @@ static void set_cc_static(DisasContext *s)
 /* calculates cc into cc_op */
 static void gen_op_calc_cc(DisasContext *s)
 {
-    TCGv_i32 local_cc_op;
-    TCGv_i64 dummy;
+    TCGv_i32 local_cc_op = NULL;
+    TCGv_i64 dummy = NULL;
 
-    TCGV_UNUSED_I32(local_cc_op);
-    TCGV_UNUSED_I64(dummy);
     switch (s->cc_op) {
     default:
         dummy = tcg_const_i64(0);
@@ -528,10 +526,10 @@ static void gen_op_calc_cc(DisasContext *s)
         tcg_abort();
     }
 
-    if (!TCGV_IS_UNUSED_I32(local_cc_op)) {
+    if (local_cc_op) {
         tcg_temp_free_i32(local_cc_op);
     }
-    if (!TCGV_IS_UNUSED_I64(dummy)) {
+    if (dummy) {
         tcg_temp_free_i64(dummy);
     }
 
@@ -1189,7 +1187,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
             goto egress;
         }
     } else {
-        if (TCGV_IS_UNUSED_I64(cdest)) {
+        if (!cdest) {
             /* E.g. bcr %r0 -> no branch.  */
             ret = NO_EXIT;
             goto egress;
@@ -1451,7 +1449,7 @@ static ExitStatus op_ni(DisasContext *s, DisasOps *o)
 static ExitStatus op_bas(DisasContext *s, DisasOps *o)
 {
     tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->next_pc));
-    if (!TCGV_IS_UNUSED_I64(o->in2)) {
+    if (o->in2) {
         tcg_gen_mov_i64(psw_addr, o->in2);
         per_branch(s, false);
         return EXIT_PC_UPDATED;
@@ -3031,7 +3029,7 @@ static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
 {
     o->out = o->in2;
     o->g_out = o->g_in2;
-    TCGV_UNUSED_I64(o->in2);
+    o->in2 = NULL;
     o->g_in2 = false;
     return NO_EXIT;
 }
@@ -3043,7 +3041,7 @@ static ExitStatus op_mov2e(DisasContext *s, DisasOps *o)
 
     o->out = o->in2;
     o->g_out = o->g_in2;
-    TCGV_UNUSED_I64(o->in2);
+    o->in2 = NULL;
     o->g_in2 = false;
 
     switch (s->tb->flags & FLAG_MASK_ASC) {
@@ -3077,8 +3075,8 @@ static ExitStatus op_movx(DisasContext *s, DisasOps *o)
     o->out2 = o->in2;
     o->g_out = o->g_in1;
     o->g_out2 = o->g_in2;
-    TCGV_UNUSED_I64(o->in1);
-    TCGV_UNUSED_I64(o->in2);
+    o->in1 = NULL;
+    o->in2 = NULL;
     o->g_in1 = o->g_in2 = false;
     return NO_EXIT;
 }
@@ -5945,11 +5943,11 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     s->insn = insn;
     s->fields = &f;
     o.g_out = o.g_out2 = o.g_in1 = o.g_in2 = false;
-    TCGV_UNUSED_I64(o.out);
-    TCGV_UNUSED_I64(o.out2);
-    TCGV_UNUSED_I64(o.in1);
-    TCGV_UNUSED_I64(o.in2);
-    TCGV_UNUSED_I64(o.addr1);
+    o.out = NULL;
+    o.out2 = NULL;
+    o.in1 = NULL;
+    o.in2 = NULL;
+    o.addr1 = NULL;
 
     /* Implement the instruction.  */
     if (insn->help_in1) {
@@ -5972,19 +5970,19 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     }
 
     /* Free any temporaries created by the helpers.  */
-    if (!TCGV_IS_UNUSED_I64(o.out) && !o.g_out) {
+    if (o.out && !o.g_out) {
         tcg_temp_free_i64(o.out);
     }
-    if (!TCGV_IS_UNUSED_I64(o.out2) && !o.g_out2) {
+    if (o.out2 && !o.g_out2) {
         tcg_temp_free_i64(o.out2);
     }
-    if (!TCGV_IS_UNUSED_I64(o.in1) && !o.g_in1) {
+    if (o.in1 && !o.g_in1) {
         tcg_temp_free_i64(o.in1);
     }
-    if (!TCGV_IS_UNUSED_I64(o.in2) && !o.g_in2) {
+    if (o.in2 && !o.g_in2) {
         tcg_temp_free_i64(o.in2);
     }
-    if (!TCGV_IS_UNUSED_I64(o.addr1)) {
+    if (o.addr1) {
         tcg_temp_free_i64(o.addr1);
     }
 

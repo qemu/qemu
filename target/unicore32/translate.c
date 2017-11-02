@@ -1230,7 +1230,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
     if (UCOP_OPCODES != 0x0f && UCOP_OPCODES != 0x0d) {
         tmp = load_reg(s, UCOP_REG_N);
     } else {
-        TCGV_UNUSED(tmp);
+        tmp = NULL;
     }
 
     switch (UCOP_OPCODES) {
@@ -1652,7 +1652,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 
     /* compute total size */
     loaded_base = 0;
-    TCGV_UNUSED(loaded_var);
+    loaded_var = NULL;
     n = 0;
     for (i = 0; i < 6; i++) {
         if (UCOP_SET(i)) {

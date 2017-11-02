@@ -428,15 +428,6 @@ typedef TCGv_ptr TCGv_env;
 #error Unhandled TARGET_LONG_BITS value
 #endif
 
-/* See the comment before tcgv_i32_temp.  */
-#define TCGV_UNUSED_I32(x) (x = (TCGv_i32)NULL)
-#define TCGV_UNUSED_I64(x) (x = (TCGv_i64)NULL)
-#define TCGV_UNUSED_PTR(x) (x = (TCGv_ptr)NULL)
-
-#define TCGV_IS_UNUSED_I32(x) ((x) == (TCGv_i32)NULL)
-#define TCGV_IS_UNUSED_I64(x) ((x) == (TCGv_i64)NULL)
-#define TCGV_IS_UNUSED_PTR(x) ((x) == (TCGv_ptr)NULL)
-
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
    implies TCG_CALL_NO_WRITE_GLOBALS. */

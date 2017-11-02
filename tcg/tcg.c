@@ -1358,8 +1358,8 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     TCGv_i64 retl, reth;
     TCGTemp *split_args[MAX_OPC_PARAM];
 
-    TCGV_UNUSED_I64(retl);
-    TCGV_UNUSED_I64(reth);
+    retl = NULL;
+    reth = NULL;
     if (sizemask != 0) {
         for (i = real_args = 0; i < nargs; ++i) {
             int is_64bit = sizemask & (1 << (i+1)*2);

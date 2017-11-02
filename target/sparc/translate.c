@@ -5922,7 +5922,7 @@ void sparc_tcg_init(void)
         *rtl[i].ptr = tcg_global_mem_new(cpu_env, rtl[i].off, rtl[i].name);
     }
 
-    TCGV_UNUSED(cpu_regs[0]);
+    cpu_regs[0] = NULL;
     for (i = 1; i < 8; ++i) {
         cpu_regs[i] = tcg_global_mem_new(cpu_env,
                                          offsetof(CPUSPARCState, gregs[i]),
