@@ -425,6 +425,11 @@ struct {                                                                \
                 (var);                                                  \
                 (var) = (*(((struct headname *)((var)->field.tqe_prev))->tqh_last)))
 
+#define QTAILQ_FOREACH_REVERSE_SAFE(var, head, headname, field, prev_var) \
+        for ((var) = (*(((struct headname *)((head)->tqh_last))->tqh_last)); \
+             (var) && ((prev_var) = (*(((struct headname *)((var)->field.tqe_prev))->tqh_last)), 1); \
+             (var) = (prev_var))
+
 /*
  * Tail queue access methods.
  */

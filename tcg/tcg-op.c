@@ -42,30 +42,6 @@ extern TCGv_i32 TCGV_HIGH_link_error(TCGv_i64);
 #define TCGV_HIGH TCGV_HIGH_link_error
 #endif
 
-/* Note that this is optimized for sequential allocation during translate.
-   Up to and including filling in the forward link immediately.  We'll do
-   proper termination of the end of the list after we finish translation.  */
-
-static inline TCGOp *tcg_emit_op(TCGOpcode opc)
-{
-    TCGContext *ctx = tcg_ctx;
-    int oi = ctx->gen_next_op_idx;
-    int ni = oi + 1;
-    int pi = oi - 1;
-    TCGOp *op = &ctx->gen_op_buf[oi];
-
-    tcg_debug_assert(oi < OPC_BUF_SIZE);
-    ctx->gen_op_buf[0].prev = oi;
-    ctx->gen_next_op_idx = ni;
-
-    memset(op, 0, offsetof(TCGOp, args));
-    op->opc = opc;
-    op->prev = pi;
-    op->next = ni;
-
-    return op;
-}
-
 void tcg_gen_op1(TCGOpcode opc, TCGArg a1)
 {
     TCGOp *op = tcg_emit_op(opc);

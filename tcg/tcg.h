@@ -29,6 +29,7 @@
 #include "cpu.h"
 #include "exec/tb-context.h"
 #include "qemu/bitops.h"
+#include "qemu/queue.h"
 #include "tcg-mo.h"
 #include "tcg-target.h"
 
@@ -48,8 +49,6 @@
  * and up to 4 + N parameters on 64-bit archs
  * (N = number of input arguments + output arguments).  */
 #define MAX_OPC_PARAM (4 + (MAX_OPC_PARAM_PER_ARG * MAX_OPC_PARAM_ARGS))
-#define OPC_BUF_SIZE 640
-#define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
 
 #define CPU_TEMP_BUF_NLONGS 128
 
@@ -572,23 +571,18 @@ typedef struct TCGOp {
     unsigned callo  : 2;        /* 14 */
     unsigned        : 2;        /* 16 */
 
-    /* Index of the prev/next op, or 0 for the end of the list.  */
-    unsigned prev   : 16;       /* 32 */
-    unsigned next   : 16;       /* 48 */
-
     /* Lifetime data of the operands.  */
-    unsigned life   : 16;       /* 64 */
+    unsigned life   : 16;       /* 32 */
+
+    /* Next and previous opcodes.  */
+    QTAILQ_ENTRY(TCGOp) link;
 
     /* Arguments for the opcode.  */
     TCGArg args[MAX_OPC_PARAM];
 } TCGOp;
 
-/* Make sure that we don't expand the structure without noticing.  */
-QEMU_BUILD_BUG_ON(sizeof(TCGOp) != 8 + sizeof(TCGArg) * MAX_OPC_PARAM);
-
 /* Make sure operands fit in the bitfields above.  */
 QEMU_BUILD_BUG_ON(NB_OPS > (1 << 8));
-QEMU_BUILD_BUG_ON(OPC_BUF_SIZE > (1 << 16));
 
 typedef struct TCGProfile {
     int64_t tb_count1;
@@ -642,8 +636,6 @@ struct TCGContext {
     int goto_tb_issue_mask;
 #endif
 
-    int gen_next_op_idx;
-
     /* Code generation.  Note that we specifically do not use tcg_insn_unit
        here, because there's too much arithmetic throughout that relies
        on addition and subtraction working on bytes.  Rely on the GCC
@@ -674,11 +666,11 @@ struct TCGContext {
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 
+    QTAILQ_HEAD(TCGOpHead, TCGOp) ops, free_ops;
+
     /* Tells which temporary holds a given register.
        It does not take into account fixed registers */
     TCGTemp *reg_to_temp[TCG_TARGET_NB_REGS];
-
-    TCGOp gen_op_buf[OPC_BUF_SIZE];
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
@@ -769,21 +761,21 @@ static inline TCGv_i32 TCGV_HIGH(TCGv_i64 t)
 }
 #endif
 
-static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
+static inline void tcg_set_insn_param(TCGOp *op, int arg, TCGArg v)
 {
-    tcg_ctx->gen_op_buf[op_idx].args[arg] = v;
+    op->args[arg] = v;
 }
 
-/* The number of opcodes emitted so far.  */
-static inline int tcg_op_buf_count(void)
+/* The last op that was emitted.  */
+static inline TCGOp *tcg_last_op(void)
 {
-    return tcg_ctx->gen_next_op_idx;
+    return QTAILQ_LAST(&tcg_ctx->ops, TCGOpHead);
 }
 
 /* Test for whether to terminate the TB for using too many opcodes.  */
 static inline bool tcg_op_buf_full(void)
 {
-    return tcg_op_buf_count() >= OPC_MAX_SIZE;
+    return false;
 }
 
 /* pool based memory allocation */
@@ -967,6 +959,7 @@ bool tcg_op_supported(TCGOpcode op);
 
 void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args);
 
+TCGOp *tcg_emit_op(TCGOpcode opc);
 void tcg_op_remove(TCGContext *s, TCGOp *op);
 TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
 TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
