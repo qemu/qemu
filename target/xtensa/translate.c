@@ -1521,6 +1521,17 @@ static void translate_clrb_expstate(DisasContext *dc, const uint32_t arg[],
     tcg_gen_andi_i32(cpu_UR[EXPSTATE], cpu_UR[EXPSTATE], ~(1u << arg[0]));
 }
 
+static void translate_const16(DisasContext *dc, const uint32_t arg[],
+                             const uint32_t par[])
+{
+    if (gen_window_check1(dc, arg[0])) {
+        TCGv_i32 c = tcg_const_i32(arg[1]);
+
+        tcg_gen_deposit_i32(cpu_R[arg[0]], c, cpu_R[arg[0]], 16, 16);
+        tcg_temp_free(c);
+    }
+}
+
 /* par[0]: privileged, par[1]: check memory access */
 static void translate_dcache(DisasContext *dc, const uint32_t arg[],
                              const uint32_t par[])
@@ -2736,6 +2747,9 @@ static const XtensaOpcodeOps core_ops[] = {
     }, {
         .name = "clrb_expstate",
         .translate = translate_clrb_expstate,
+    }, {
+        .name = "const16",
+        .translate = translate_const16,
     }, {
         .name = "depbits",
         .translate = translate_depbits,
