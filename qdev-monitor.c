@@ -613,6 +613,11 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 
     if (bus) {
         qdev_set_parent_bus(dev, bus);
+    } else if (qdev_hotplug && !qdev_get_machine_hotplug_handler(dev)) {
+        /* No bus, no machine hotplug handler --> device is not hotpluggable */
+        error_setg(&err, "Device '%s' can not be hotplugged on this machine",
+                   driver);
+        goto err_del_dev;
     }
 
     qdev_set_id(dev, qemu_opts_id(opts));
