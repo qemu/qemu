@@ -35,6 +35,9 @@
 #include "core-dc233c/core-isa.h"
 #include "overlay_tool.h"
 
+#define xtensa_modules xtensa_modules_dc233c
+#include "core-dc233c/xtensa-modules.c"
+
 static XtensaConfig dc233c __attribute__((unused)) = {
     .name = "dc233c",
     .gdb_regmap = {
@@ -44,6 +47,7 @@ static XtensaConfig dc233c __attribute__((unused)) = {
 #include "core-dc233c/gdb-config.c"
         }
     },
+    .isa_internal = &xtensa_modules,
     .clock_freq_khz = 10000,
     DEFAULT_SECTIONS
 };
