@@ -4069,6 +4069,9 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                 error_report("Changing the encryption format is not supported");
                 return -ENOTSUP;
             }
+        } else if (g_str_has_prefix(desc->name, "encrypt.")) {
+            error_report("Changing the encryption parameters is not supported");
+            return -ENOTSUP;
         } else if (!strcmp(desc->name, BLOCK_OPT_CLUSTER_SIZE)) {
             cluster_size = qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE,
                                              cluster_size);
