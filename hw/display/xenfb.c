@@ -387,6 +387,11 @@ static void input_connected(struct XenDevice *xendev)
     in->qkbd = qemu_input_handler_register((DeviceState *)in, &xenfb_keyboard);
     in->qmou = qemu_input_handler_register((DeviceState *)in,
                in->abs_pointer_wanted ? &xenfb_abs_mouse : &xenfb_rel_mouse);
+
+    if (in->raw_pointer_wanted) {
+        qemu_input_handler_activate(in->qkbd);
+        qemu_input_handler_activate(in->qmou);
+    }
 }
 
 static void input_disconnect(struct XenDevice *xendev)
