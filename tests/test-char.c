@@ -5,6 +5,7 @@
 #include "qemu/config-file.h"
 #include "qemu/sockets.h"
 #include "chardev/char-fe.h"
+#include "chardev/char-mux.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qom/qom-qobject.h"
@@ -164,6 +165,7 @@ static void char_mux_test(void)
     FeHandler h1 = { 0, }, h2 = { 0, };
     CharBackend chr_be1, chr_be2;
 
+    muxes_realized = true; /* done after machine init */
     opts = qemu_opts_create(qemu_find_opts("chardev"), "mux-label",
                             1, &error_abort);
     qemu_opt_set(opts, "backend", "ringbuf", &error_abort);
@@ -201,8 +203,23 @@ static void char_mux_test(void)
     g_assert_cmpstr(h2.read_buf, ==, "hello");
     h2.read_count = 0;
 
+    g_assert_cmpint(h1.last_event, !=, 42); /* should be MUX_OUT or OPENED */
+    g_assert_cmpint(h2.last_event, !=, 42); /* should be MUX_IN or OPENED */
+    /* sending event on the base broadcast to all fe, historical reasons? */
+    qemu_chr_be_event(base, 42);
+    g_assert_cmpint(h1.last_event, ==, 42);
+    g_assert_cmpint(h2.last_event, ==, 42);
+    qemu_chr_be_event(chr, -1);
+    g_assert_cmpint(h1.last_event, ==, 42);
+    g_assert_cmpint(h2.last_event, ==, -1);
+
     /* switch focus */
     qemu_chr_be_write(base, (void *)"\1c", 2);
+    g_assert_cmpint(h1.last_event, ==, CHR_EVENT_MUX_IN);
+    g_assert_cmpint(h2.last_event, ==, CHR_EVENT_MUX_OUT);
+    qemu_chr_be_event(chr, -1);
+    g_assert_cmpint(h1.last_event, ==, -1);
+    g_assert_cmpint(h2.last_event, ==, CHR_EVENT_MUX_OUT);
 
     qemu_chr_be_write(base, (void *)"hello", 6);
     g_assert_cmpint(h2.read_count, ==, 0);
