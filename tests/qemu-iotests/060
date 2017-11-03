@@ -260,6 +260,16 @@ _make_test_img 64M
 poke_file "$TEST_IMG" "$rb_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
 $QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
 
+echo
+echo "=== Testing empty refcount block with compressed write ==="
+echo
+_make_test_img 64M
+$QEMU_IO -c "write 64k 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$rb_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+# The previous write already allocated an L2 table, so now this new
+# write will try to allocate a compressed data cluster at offset 0.
+$QEMU_IO -c "write -c 0k 64k" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

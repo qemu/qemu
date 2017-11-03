@@ -1082,6 +1082,13 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
                 return new_cluster;
             }
 
+            if (new_cluster == 0) {
+                qcow2_signal_corruption(bs, true, -1, -1, "Preventing invalid "
+                                        "allocation of compressed cluster "
+                                        "at offset 0");
+                return -EIO;
+            }
+
             if (!offset || ROUND_UP(offset, s->cluster_size) != new_cluster) {
                 offset = new_cluster;
                 free_in_cluster = s->cluster_size;
