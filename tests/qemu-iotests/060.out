@@ -208,4 +208,10 @@ write failed: Input/output error
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 can't open device TEST_DIR/t.IMGFMT: Image does not contain a reference count table
+
+=== Testing incorrect refcount table offset ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qcow2: Marking image as corrupt: Preventing invalid allocation of L2 table at offset 0; further corruption events will be suppressed
+write failed: Input/output error
 *** done

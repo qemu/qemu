@@ -277,6 +277,13 @@ _make_test_img 64M
 poke_file "$TEST_IMG" "56"                "\x00\x00\x00\x00"
 $QEMU_IO -c "write 0 64k" "$TEST_IMG" 2>&1 | _filter_testdir | _filter_imgfmt
 
+echo
+echo "=== Testing incorrect refcount table offset ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "48"                "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
