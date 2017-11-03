@@ -367,6 +367,13 @@ static int alloc_refcount_block(BlockDriverState *bs,
         return new_block;
     }
 
+    /* If we're allocating the block at offset 0 then something is wrong */
+    if (new_block == 0) {
+        qcow2_signal_corruption(bs, true, -1, -1, "Preventing invalid "
+                                "allocation of refcount block at offset 0");
+        return -EIO;
+    }
+
 #ifdef DEBUG_ALLOC2
     fprintf(stderr, "qcow2: Allocate refcount block %d for %" PRIx64
         " at %" PRIx64 "\n",
