@@ -199,6 +199,11 @@ static TPMVersion tpm_passthrough_get_tpm_version(TPMBackend *tb)
     return tpm_pt->tpm_version;
 }
 
+static size_t tpm_passthrough_get_buffer_size(TPMBackend *tb)
+{
+    return 4096;
+}
+
 /*
  * Unless path or file descriptor set has been provided by user,
  * determine the sysfs cancel file following kernel documentation
@@ -354,6 +359,7 @@ static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
     tbc->reset_tpm_established_flag =
         tpm_passthrough_reset_tpm_established_flag;
     tbc->get_tpm_version = tpm_passthrough_get_tpm_version;
+    tbc->get_buffer_size = tpm_passthrough_get_buffer_size;
     tbc->get_tpm_options = tpm_passthrough_get_tpm_options;
     tbc->handle_request = tpm_passthrough_handle_request;
 }

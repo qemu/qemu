@@ -139,6 +139,13 @@ TPMVersion tpm_backend_get_tpm_version(TPMBackend *s)
     return k->get_tpm_version(s);
 }
 
+size_t tpm_backend_get_buffer_size(TPMBackend *s)
+{
+    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+
+    return k->get_buffer_size(s);
+}
+
 TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
 {
     TPMInfo *info = g_new0(TPMInfo, 1);

@@ -356,6 +356,11 @@ static TPMVersion tpm_emulator_get_tpm_version(TPMBackend *tb)
     return tpm_emu->tpm_version;
 }
 
+static size_t tpm_emulator_get_buffer_size(TPMBackend *tb)
+{
+    return 4096;
+}
+
 static int tpm_emulator_block_migration(TPMEmulator *tpm_emu)
 {
     Error *err = NULL;
@@ -556,6 +561,7 @@ static void tpm_emulator_class_init(ObjectClass *klass, void *data)
     tbc->get_tpm_established_flag = tpm_emulator_get_tpm_established_flag;
     tbc->reset_tpm_established_flag = tpm_emulator_reset_tpm_established_flag;
     tbc->get_tpm_version = tpm_emulator_get_tpm_version;
+    tbc->get_buffer_size = tpm_emulator_get_buffer_size;
     tbc->get_tpm_options = tpm_emulator_get_tpm_options;
 
     tbc->handle_request = tpm_emulator_handle_request;

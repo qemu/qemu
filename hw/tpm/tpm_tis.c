@@ -88,6 +88,8 @@ typedef struct TPMState {
 
     TPMBackend *be_driver;
     TPMVersion be_tpm_version;
+
+    size_t be_buffer_size;
 } TPMState;
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
@@ -977,10 +979,9 @@ static int tpm_tis_do_startup_tpm(TPMState *s)
     return tpm_backend_startup_tpm(s->be_driver);
 }
 
-static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb)
+static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb,
+                                   size_t wanted_size)
 {
-    size_t wanted_size = 4096; /* Linux tpm.c buffer size */
-
     if (sb->size != wanted_size) {
         sb->buffer = g_realloc(sb->buffer, wanted_size);
         sb->size = wanted_size;
@@ -1011,6 +1012,7 @@ static void tpm_tis_reset(DeviceState *dev)
     int c;
 
     s->be_tpm_version = tpm_backend_get_tpm_version(s->be_driver);
+    s->be_buffer_size = tpm_backend_get_buffer_size(s->be_driver);
 
     tpm_backend_reset(s->be_driver);
 
@@ -1037,9 +1039,9 @@ static void tpm_tis_reset(DeviceState *dev)
         s->loc[c].state = TPM_TIS_STATE_IDLE;
 
         s->loc[c].w_offset = 0;
-        tpm_tis_realloc_buffer(&s->loc[c].w_buffer);
+        tpm_tis_realloc_buffer(&s->loc[c].w_buffer, s->be_buffer_size);
         s->loc[c].r_offset = 0;
-        tpm_tis_realloc_buffer(&s->loc[c].r_buffer);
+        tpm_tis_realloc_buffer(&s->loc[c].r_buffer, s->be_buffer_size);
     }
 
     tpm_tis_do_startup_tpm(s);

@@ -81,6 +81,8 @@ struct TPMBackendClass {
 
     TPMVersion (*get_tpm_version)(TPMBackend *t);
 
+    size_t (*get_buffer_size)(TPMBackend *t);
+
     TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
 
     void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd);
@@ -181,6 +183,16 @@ int tpm_backend_reset_tpm_established_flag(TPMBackend *s, uint8_t locty);
  * Returns TPMVersion.
  */
 TPMVersion tpm_backend_get_tpm_version(TPMBackend *s);
+
+/**
+ * tpm_backend_get_buffer_size:
+ * @s: the backend to call into
+ *
+ * Get the TPM's buffer size.
+ *
+ * Returns buffer size.
+ */
+size_t tpm_backend_get_buffer_size(TPMBackend *s);
 
 /**
  * tpm_backend_query_tpm:
