@@ -126,6 +126,7 @@ static ssize_t qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen,
     /* Zero fill remaining space in cluster so it has predictable
      * content in case of future spec changes */
     clusterlen = size_to_clusters(s, headerlen) * s->cluster_size;
+    assert(qcow2_pre_write_overlap_check(bs, 0, ret, clusterlen) == 0);
     ret = bdrv_pwrite_zeroes(bs->file,
                              ret + headerlen,
                              clusterlen - headerlen, 0);
