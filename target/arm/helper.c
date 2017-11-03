@@ -2169,7 +2169,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
 
     ret = get_phys_addr(env, value, access_type, mmu_idx, &phys_addr, &attrs,
                         &prot, &page_size, &fsr, &fi, &cacheattrs);
-    if (extended_addresses_enabled(env)) {
+    if (arm_s1_regime_using_lpae_format(env, mmu_idx)) {
         /* fsr is a DFSR/IFSR value for the long descriptor
          * translation table format, but with WnR always clear.
          * Convert it to a 64-bit PAR.
