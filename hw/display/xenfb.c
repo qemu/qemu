@@ -52,6 +52,7 @@ struct common {
 struct XenInput {
     struct common c;
     int abs_pointer_wanted; /* Whether guest supports absolute pointer */
+    int raw_pointer_wanted; /* Whether guest supports raw (unscaled) pointer */
     QemuInputHandlerState *qkbd;
     QemuInputHandlerState *qmou;
     int axis[INPUT_AXIS__MAX];
@@ -264,24 +265,28 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
 
     case INPUT_EVENT_KIND_ABS:
         move = evt->u.abs.data;
-        con = qemu_console_lookup_by_index(0);
-        if (!con) {
-            xen_pv_printf(&xenfb->c.xendev, 0, "No QEMU console available");
-            return;
+        if (xenfb->raw_pointer_wanted) {
+            xenfb->axis[move->axis] = move->value;
+        } else {
+            con = qemu_console_lookup_by_index(0);
+            if (!con) {
+                xen_pv_printf(&xenfb->c.xendev, 0, "No QEMU console available");
+                return;
+            }
+            surface = qemu_console_surface(con);
+            switch (move->axis) {
+            case INPUT_AXIS_X:
+                scale = surface_width(surface) - 1;
+                break;
+            case INPUT_AXIS_Y:
+                scale = surface_height(surface) - 1;
+                break;
+            default:
+                scale = 0x8000;
+                break;
+            }
+            xenfb->axis[move->axis] = move->value * scale / 0x7fff;
         }
-        surface = qemu_console_surface(con);
-        switch (move->axis) {
-        case INPUT_AXIS_X:
-            scale = surface_width(surface) - 1;
-            break;
-        case INPUT_AXIS_Y:
-            scale = surface_height(surface) - 1;
-            break;
-        default:
-            scale = 0x8000;
-            break;
-        }
-        xenfb->axis[move->axis] = move->value * scale / 0x7fff;
         break;
 
     case INPUT_EVENT_KIND_REL:
@@ -339,6 +344,7 @@ static QemuInputHandler xenfb_rel_mouse = {
 static int input_init(struct XenDevice *xendev)
 {
     xenstore_write_be_int(xendev, "feature-abs-pointer", 1);
+    xenstore_write_be_int(xendev, "feature-raw-pointer", 1);
     return 0;
 }
 
@@ -361,6 +367,13 @@ static void input_connected(struct XenDevice *xendev)
     if (xenstore_read_fe_int(xendev, "request-abs-pointer",
                              &in->abs_pointer_wanted) == -1) {
         in->abs_pointer_wanted = 0;
+    }
+    if (xenstore_read_fe_int(xendev, "request-raw-pointer",
+                             &in->raw_pointer_wanted) == -1) {
+        in->raw_pointer_wanted = 0;
+    }
+    if (in->raw_pointer_wanted && in->abs_pointer_wanted == 0) {
+        xen_pv_printf(xendev, 0, "raw pointer set without abs pointer");
     }
 
     if (in->qkbd) {
