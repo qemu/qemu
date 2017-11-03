@@ -243,6 +243,13 @@ poke_file "$TEST_IMG" "$(($l2_offset+8))" "\x80\x00\x00\x00\x00\x06\x2a\x00"
 $QEMU_IO -c "discard 0 64k" -c "read 64k 64k" "$TEST_IMG" | _filter_qemu_io
 
 echo
+echo "=== Testing empty refcount table ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+
+echo
 echo "=== Testing empty refcount table with valid L1 and L2 tables ==="
 echo
 _make_test_img 64M
