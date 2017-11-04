@@ -50,13 +50,13 @@ bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
 }
 
 /*
- * A basic test of a TPM device. We expect a well formatted response header
- * (error response is fine) within one second.
+ * Send request to a TPM device. We expect a response within one second.
  */
-static int tpm_util_test(int fd,
-                         unsigned char *request,
-                         size_t requestlen,
-                         uint16_t *return_tag)
+static int tpm_util_request(int fd,
+                            unsigned char *request,
+                            size_t requestlen,
+                            unsigned char *response,
+                            size_t responselen)
 {
     struct tpm_resp_hdr *resp;
     fd_set readfds;
@@ -65,7 +65,6 @@ static int tpm_util_test(int fd,
         .tv_sec = 1,
         .tv_usec = 0,
     };
-    unsigned char buf[1024];
 
     n = write(fd, request, requestlen);
     if (n < 0) {
@@ -84,17 +83,40 @@ static int tpm_util_test(int fd,
         return -errno;
     }
 
-    n = read(fd, &buf, sizeof(buf));
+    n = read(fd, response, responselen);
     if (n < sizeof(struct tpm_resp_hdr)) {
         return -EFAULT;
     }
 
-    resp = (struct tpm_resp_hdr *)buf;
+    resp = (struct tpm_resp_hdr *)response;
     /* check the header */
     if (be32_to_cpu(resp->len) != n) {
         return -EMSGSIZE;
     }
 
+    return 0;
+}
+
+/*
+ * A basic test of a TPM device. We expect a well formatted response header
+ * (error response is fine).
+ */
+static int tpm_util_test(int fd,
+                         unsigned char *request,
+                         size_t requestlen,
+                         uint16_t *return_tag)
+{
+    struct tpm_resp_hdr *resp;
+    unsigned char buf[1024];
+    ssize_t ret;
+
+    ret = tpm_util_request(fd, request, requestlen,
+                           buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
+    }
+
+    resp = (struct tpm_resp_hdr *)buf;
     *return_tag = be16_to_cpu(resp->tag);
 
     return 0;
