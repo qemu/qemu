@@ -57,6 +57,7 @@ struct TPMPassthruState {
     int cancel_fd;
 
     TPMVersion tpm_version;
+    size_t tpm_buffersize;
 };
 
 typedef struct TPMPassthruState TPMPassthruState;
@@ -201,7 +202,15 @@ static TPMVersion tpm_passthrough_get_tpm_version(TPMBackend *tb)
 
 static size_t tpm_passthrough_get_buffer_size(TPMBackend *tb)
 {
-    return 4096;
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
+    int ret;
+
+    ret = tpm_util_get_buffer_size(tpm_pt->tpm_fd, tpm_pt->tpm_version,
+                                   &tpm_pt->tpm_buffersize);
+    if (ret < 0) {
+        tpm_pt->tpm_buffersize = 4096;
+    }
+    return tpm_pt->tpm_buffersize;
 }
 
 /*

@@ -36,4 +36,7 @@ static inline uint32_t tpm_cmd_get_size(const void *b)
     return be32_to_cpu(*(const uint32_t *)(b + 2));
 }
 
+int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
+                             size_t *buffersize);
+
 #endif /* TPM_TPM_UTIL_H */
