@@ -392,6 +392,9 @@ struct XtensaConfig {
     uint32_t configid[2];
 
     void *isa_internal;
+    xtensa_isa isa;
+    XtensaOpcodeOps **opcode_ops;
+    const XtensaOpcodeTranslators **opcode_translators;
 
     uint32_t clock_freq_khz;
 
