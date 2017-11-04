@@ -349,6 +349,7 @@ typedef struct XtensaOpcodeTranslators {
 } XtensaOpcodeTranslators;
 
 extern const XtensaOpcodeTranslators xtensa_core_opcodes;
+extern const XtensaOpcodeTranslators xtensa_fpu2000_opcodes;
 
 struct XtensaConfig {
     const char *name;
