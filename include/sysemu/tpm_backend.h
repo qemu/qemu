@@ -66,7 +66,7 @@ struct TPMBackendClass {
     TPMBackend *(*create)(QemuOpts *opts);
 
     /* start up the TPM on the backend - optional */
-    int (*startup_tpm)(TPMBackend *t);
+    int (*startup_tpm)(TPMBackend *t, size_t buffersize);
 
     /* optional */
     void (*reset)(TPMBackend *t);
@@ -112,10 +112,12 @@ int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp);
 /**
  * tpm_backend_startup_tpm:
  * @s: the backend whose TPM support is to be started
+ * @buffersize: the buffer size the TPM is supposed to use,
+ *              0 to leave it as-is
  *
  * Returns 0 on success.
  */
-int tpm_backend_startup_tpm(TPMBackend *s);
+int tpm_backend_startup_tpm(TPMBackend *s, size_t buffersize);
 
 /**
  * tpm_backend_had_startup_error:

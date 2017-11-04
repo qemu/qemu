@@ -974,9 +974,9 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
     },
 };
 
-static int tpm_tis_do_startup_tpm(TPMState *s)
+static int tpm_tis_do_startup_tpm(TPMState *s, uint32_t buffersize)
 {
-    return tpm_backend_startup_tpm(s->be_driver);
+    return tpm_backend_startup_tpm(s->be_driver, buffersize);
 }
 
 static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb,
@@ -1044,7 +1044,7 @@ static void tpm_tis_reset(DeviceState *dev)
         tpm_tis_realloc_buffer(&s->loc[c].r_buffer, s->be_buffer_size);
     }
 
-    tpm_tis_do_startup_tpm(s);
+    tpm_tis_do_startup_tpm(s, 0);
 }
 
 static const VMStateDescription vmstate_tpm_tis = {

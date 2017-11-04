@@ -232,13 +232,14 @@ static int tpm_emulator_check_caps(TPMEmulator *tpm_emu)
     switch (tpm_emu->tpm_version) {
     case TPM_VERSION_1_2:
         caps = PTM_CAP_INIT | PTM_CAP_SHUTDOWN | PTM_CAP_GET_TPMESTABLISHED |
-               PTM_CAP_SET_LOCALITY | PTM_CAP_SET_DATAFD;
+               PTM_CAP_SET_LOCALITY | PTM_CAP_SET_DATAFD | PTM_CAP_STOP |
+               PTM_CAP_SET_BUFFERSIZE;
         tpm = "1.2";
         break;
     case TPM_VERSION_2_0:
         caps = PTM_CAP_INIT | PTM_CAP_SHUTDOWN | PTM_CAP_GET_TPMESTABLISHED |
                PTM_CAP_SET_LOCALITY | PTM_CAP_RESET_TPMESTABLISHED |
-               PTM_CAP_SET_DATAFD;
+               PTM_CAP_SET_DATAFD | PTM_CAP_STOP | PTM_CAP_SET_BUFFERSIZE;
         tpm = "2";
         break;
     case TPM_VERSION_UNSPEC:
@@ -255,11 +256,75 @@ static int tpm_emulator_check_caps(TPMEmulator *tpm_emu)
     return 0;
 }
 
-static int tpm_emulator_startup_tpm(TPMBackend *tb)
+static int tpm_emulator_stop_tpm(TPMBackend *tb)
+{
+    TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
+    ptm_res res;
+
+    if (tpm_emulator_ctrlcmd(tpm_emu, CMD_STOP, &res, 0, sizeof(res)) < 0) {
+        error_report("tpm-emulator: Could not stop TPM: %s",
+                     strerror(errno));
+        return -1;
+    }
+
+    res = be32_to_cpu(res);
+    if (res) {
+        error_report("tpm-emulator: TPM result for CMD_STOP: 0x%x", res);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int tpm_emulator_set_buffer_size(TPMBackend *tb,
+                                        size_t wanted_size,
+                                        size_t *actual_size)
+{
+    TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
+    ptm_setbuffersize psbs;
+
+    if (tpm_emulator_stop_tpm(tb) < 0) {
+        return -1;
+    }
+
+    psbs.u.req.buffersize = cpu_to_be32(wanted_size);
+
+    if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SET_BUFFERSIZE, &psbs,
+                             sizeof(psbs.u.req), sizeof(psbs.u.resp)) < 0) {
+        error_report("tpm-emulator: Could not set buffer size: %s",
+                     strerror(errno));
+        return -1;
+    }
+
+    psbs.u.resp.tpm_result = be32_to_cpu(psbs.u.resp.tpm_result);
+    if (psbs.u.resp.tpm_result != 0) {
+        error_report("tpm-emulator: TPM result for set buffer size : 0x%x",
+                     psbs.u.resp.tpm_result);
+        return -1;
+    }
+
+    if (actual_size) {
+        *actual_size = be32_to_cpu(psbs.u.resp.buffersize);
+    }
+
+    DPRINTF("buffer size: %u, min: %u, max: %u\n",
+            be32_to_cpu(psbs.u.resp.buffersize),
+            be32_to_cpu(psbs.u.resp.minsize),
+            be32_to_cpu(psbs.u.resp.maxsize));
+
+    return 0;
+}
+
+static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     ptm_init init;
     ptm_res res;
+
+    if (buffersize != 0 &&
+        tpm_emulator_set_buffer_size(tb, buffersize, NULL) < 0) {
+        goto err_exit;
+    }
 
     DPRINTF("%s", __func__);
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_INIT, &init, sizeof(init),
@@ -358,7 +423,13 @@ static TPMVersion tpm_emulator_get_tpm_version(TPMBackend *tb)
 
 static size_t tpm_emulator_get_buffer_size(TPMBackend *tb)
 {
-    return 4096;
+    size_t actual_size;
+
+    if (tpm_emulator_set_buffer_size(tb, 0, &actual_size) < 0) {
+        return 4096;
+    }
+
+    return actual_size;
 }
 
 static int tpm_emulator_block_migration(TPMEmulator *tpm_emu)

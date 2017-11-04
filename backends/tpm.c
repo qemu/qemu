@@ -68,7 +68,7 @@ int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp)
     return 0;
 }
 
-int tpm_backend_startup_tpm(TPMBackend *s)
+int tpm_backend_startup_tpm(TPMBackend *s, size_t buffersize)
 {
     int res = 0;
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
@@ -79,7 +79,7 @@ int tpm_backend_startup_tpm(TPMBackend *s)
     s->thread_pool = g_thread_pool_new(tpm_backend_worker_thread, s, 1, TRUE,
                                        NULL);
 
-    res = k->startup_tpm ? k->startup_tpm(s) : 0;
+    res = k->startup_tpm ? k->startup_tpm(s, buffersize) : 0;
 
     s->had_startup_error = (res != 0);
 
