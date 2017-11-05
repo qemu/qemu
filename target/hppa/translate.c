@@ -2462,6 +2462,25 @@ static DisasJumpType trans_lpa(DisasContext *ctx, uint32_t insn,
 
     return nullify_end(ctx, DISAS_NEXT);
 }
+
+static DisasJumpType trans_lci(DisasContext *ctx, uint32_t insn,
+                               const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    TCGv_reg ci;
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+
+    /* The Coherence Index is an implementation-defined function of the
+       physical address.  Two addresses with the same CI have a coherent
+       view of the cache.  Our implementation is to return 0 for all,
+       since the entire address space is coherent.  */
+    ci = tcg_const_reg(0);
+    save_gpr(ctx, rt, ci);
+    tcg_temp_free(ci);
+
+    return DISAS_NEXT;
+}
 #endif /* !CONFIG_USER_ONLY */
 
 static const DisasInsn table_mem_mgmt[] = {
@@ -2490,6 +2509,7 @@ static const DisasInsn table_mem_mgmt[] = {
     { 0x04001200u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlb */
     { 0x04001240u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlbe */
     { 0x04001340u, 0xfc003fc0u, trans_lpa },
+    { 0x04001300u, 0xfc003fe0u, trans_lci },
 #endif
 };
 
