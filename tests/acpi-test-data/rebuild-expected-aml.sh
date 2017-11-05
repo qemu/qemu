@@ -18,7 +18,7 @@ if [ -e x86_64-softmmu/qemu-system-x86_64 ]; then
 elif [ -e i386-softmmu/qemu-system-i386 ]; then
     qemu="i386-softmmu/qemu-system-i386"
 else
-    echo "Run 'make' to build the qemu exectutable!"
+    echo "Run 'make' to build the qemu executable!"
     echo "Run this script from the build directory."
     exit 1;
 fi
