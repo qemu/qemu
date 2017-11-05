@@ -2433,6 +2433,35 @@ static DisasJumpType trans_pxtlbx(DisasContext *ctx, uint32_t insn,
     return nullify_end(ctx, !is_data && (ctx->base.tb->flags & PSW_C)
                        ? DISAS_IAQ_N_STALE : DISAS_NEXT);
 }
+
+static DisasJumpType trans_lpa(DisasContext *ctx, uint32_t insn,
+                               const DisasInsn *di)
+{
+    unsigned rt = extract32(insn, 0, 5);
+    unsigned m = extract32(insn, 5, 1);
+    unsigned sp = extract32(insn, 14, 2);
+    unsigned rx = extract32(insn, 16, 5);
+    unsigned rb = extract32(insn, 21, 5);
+    TCGv_tl vaddr;
+    TCGv_reg ofs, paddr;
+
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+
+    form_gva(ctx, &vaddr, &ofs, rb, rx, 0, 0, sp, m, false);
+
+    paddr = tcg_temp_new();
+    gen_helper_lpa(paddr, cpu_env, vaddr);
+
+    /* Note that physical address result overrides base modification.  */
+    if (m) {
+        save_gpr(ctx, rb, ofs);
+    }
+    save_gpr(ctx, rt, paddr);
+    tcg_temp_free(paddr);
+
+    return nullify_end(ctx, DISAS_NEXT);
+}
 #endif /* !CONFIG_USER_ONLY */
 
 static const DisasInsn table_mem_mgmt[] = {
@@ -2460,6 +2489,7 @@ static const DisasInsn table_mem_mgmt[] = {
     { 0x04000240u, 0xfc001fdfu, trans_pxtlbx },       /* pitlbe */
     { 0x04001200u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlb */
     { 0x04001240u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlbe */
+    { 0x04001340u, 0xfc003fc0u, trans_lpa },
 #endif
 };
 

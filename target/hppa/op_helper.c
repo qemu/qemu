@@ -34,7 +34,7 @@ void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
     cpu_loop_exit(cs);
 }
 
-static void QEMU_NORETURN dynexcp(CPUHPPAState *env, int excp, uintptr_t ra)
+void QEMU_NORETURN hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra)
 {
     HPPACPU *cpu = hppa_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
@@ -46,14 +46,14 @@ static void QEMU_NORETURN dynexcp(CPUHPPAState *env, int excp, uintptr_t ra)
 void HELPER(tsv)(CPUHPPAState *env, target_ureg cond)
 {
     if (unlikely((target_sreg)cond < 0)) {
-        dynexcp(env, EXCP_OVERFLOW, GETPC());
+        hppa_dynamic_excp(env, EXCP_OVERFLOW, GETPC());
     }
 }
 
 void HELPER(tcond)(CPUHPPAState *env, target_ureg cond)
 {
     if (unlikely(cond)) {
-        dynexcp(env, EXCP_COND, GETPC());
+        hppa_dynamic_excp(env, EXCP_COND, GETPC());
     }
 }
 
@@ -237,7 +237,7 @@ static void update_fr0_op(CPUHPPAState *env, uintptr_t ra)
     env->fr[0] = (uint64_t)shadow << 32;
 
     if (hard_exp & shadow) {
-        dynexcp(env, EXCP_ASSIST, ra);
+        hppa_dynamic_excp(env, EXCP_ASSIST, ra);
     }
 }
 
@@ -645,7 +645,7 @@ target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
     /* ??? On second reading this condition simply seems
        to be undefined rather than a diagnosed trap.  */
     if (nsm & ~psw & PSW_Q) {
-        dynexcp(env, EXCP_ILL, GETPC());
+        hppa_dynamic_excp(env, EXCP_ILL, GETPC());
     }
     env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
     return psw & PSW_SM;

@@ -314,4 +314,25 @@ void HELPER(ptlbe)(CPUHPPAState *env)
     memset(env->tlb, 0, sizeof(env->tlb));
     tlb_flush_by_mmuidx(src, 0xf);
 }
+
+target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
+{
+    hwaddr phys;
+    int prot, excp;
+
+    excp = hppa_get_physical_address(env, addr, MMU_KERNEL_IDX, 0,
+                                     &phys, &prot);
+    if (excp >= 0) {
+        if (env->psw & PSW_Q) {
+            /* ??? Needs tweaking for hppa64.  */
+            env->cr[CR_IOR] = addr;
+            env->cr[CR_ISR] = addr >> 32;
+        }
+        if (excp == EXCP_DTLB_MISS) {
+            excp = EXCP_NA_DTLB_MISS;
+        }
+        hppa_dynamic_excp(env, excp, GETPC());
+    }
+    return phys;
+}
 #endif /* CONFIG_USER_ONLY */
