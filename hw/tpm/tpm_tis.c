@@ -1063,8 +1063,8 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     s->be_driver = qemu_find_tpm_be(s->backend);
     if (!s->be_driver) {
-        error_setg(errp, "tpm_tis: backend driver with id %s could not be "
-                   "found", s->backend);
+        error_setg(errp, "backend driver with id %s could not be found",
+                   s->backend);
         return;
     }
 
@@ -1073,8 +1073,8 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
     }
 
     if (s->irq_num > 15) {
-        error_setg(errp, "tpm_tis: IRQ %d for TPM TIS is outside valid range "
-                   "of 0 to 15", s->irq_num);
+        error_setg(errp, "IRQ %d is outside valid range of 0 to 15",
+                   s->irq_num);
         return;
     }
 
