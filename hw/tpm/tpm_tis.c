@@ -89,7 +89,6 @@ struct TPMState {
     qemu_irq irq;
     uint32_t irq_num;
 
-    uint8_t     locty_number;
     TPMBackendCmd cmd;
 
     char *backend;
