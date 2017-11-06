@@ -229,9 +229,7 @@ static int tpm_passthrough_open_sysfs_cancel(TPMPassthruState *tpm_pt)
         if (snprintf(path, sizeof(path), "/sys/class/misc/%s/device/cancel",
                      dev) < sizeof(path)) {
             fd = qemu_open(path, O_WRONLY);
-            if (fd >= 0) {
-                tpm_pt->options->cancel_path = g_strdup(path);
-            } else {
+            if (fd < 0) {
                 error_report("tpm_passthrough: Could not open TPM cancel "
                              "path %s : %s", path, strerror(errno));
             }
