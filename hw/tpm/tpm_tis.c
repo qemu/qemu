@@ -990,9 +990,9 @@ static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb)
 /*
  * Get the TPMVersion of the backend device being used
  */
-TPMVersion tpm_tis_get_tpm_version(Object *obj)
+static enum TPMVersion tpm_tis_get_tpm_version(TPMIf *ti)
 {
-    TPMState *s = TPM(obj);
+    TPMState *s = TPM(ti);
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return TPM_VERSION_UNSPEC;
@@ -1102,6 +1102,7 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
     dc->reset = tpm_tis_reset;
     dc->vmsd  = &vmstate_tpm_tis;
     tc->model = TPM_MODEL_TPM_TIS;
+    tc->get_version = tpm_tis_get_tpm_version;
     tc->request_completed = tpm_tis_request_completed;
 }
 

@@ -42,6 +42,7 @@ typedef struct TPMIfClass {
 
     enum TpmModel model;
     void (*request_completed)(TPMIf *obj);
+    enum TPMVersion (*get_version)(TPMIf *obj);
 } TPMIfClass;
 
 #define TYPE_TPM_TIS                "tpm-tis"
@@ -54,15 +55,13 @@ static inline TPMIf *tpm_find(void)
     return TPM_IF(obj);
 }
 
-TPMVersion tpm_tis_get_tpm_version(Object *obj);
-
 static inline TPMVersion tpm_get_version(TPMIf *ti)
 {
     if (!ti) {
         return TPM_VERSION_UNSPEC;
     }
 
-    return tpm_tis_get_tpm_version(OBJECT(ti));
+    return TPM_IF_GET_CLASS(ti)->get_version(ti);
 }
 
 #endif /* QEMU_TPM_H */
