@@ -24,17 +24,12 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
+#include "qapi/error.h"
+
+#include "hw/acpi/tpm.h"
+#include "hw/pci/pci_ids.h"
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
-#include "sysemu/block-backend.h"
-#include "exec/address-spaces.h"
-#include "hw/hw.h"
-#include "hw/i386/pc.h"
-#include "hw/pci/pci_ids.h"
-#include "qapi/error.h"
-#include "qemu-common.h"
-#include "qemu/main-loop.h"
-#include "hw/acpi/tpm.h"
 
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
 #define TPM_TIS_LOCALITY_SHIFT      12
