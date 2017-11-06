@@ -998,7 +998,7 @@ static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
     ret = bdrv_change_backing_file(parent, filename,
                                    base->drv ? base->drv->format_name : "");
     if (ret < 0) {
-        error_setg_errno(errp, ret, "Could not update backing file link");
+        error_setg_errno(errp, -ret, "Could not update backing file link");
     }
 
     if (!(orig_flags & BDRV_O_RDWR)) {
