@@ -1420,7 +1420,7 @@ void cpu_loop(CPUPPCState *env)
                 info.si_code = TARGET_SEGV_MAPERR;
                 break;
             }
-            info._sifields._sigfault._addr = env->nip;
+            info._sifields._sigfault._addr = env->spr[SPR_DAR];
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
         case POWERPC_EXCP_ISI:      /* Instruction storage exception         */
