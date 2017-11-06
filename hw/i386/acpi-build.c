@@ -208,7 +208,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     }
 
     info->has_hpet = hpet_find();
-    info->tpm_version = tpm_get_version();
+    info->tpm_version = tpm_get_version(tpm_find());
     info->pvpanic_port = pvpanic_port();
     info->applesmc_io_base = applesmc_port();
 }
