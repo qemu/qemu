@@ -132,12 +132,6 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
         return 1;
     }
 
-    tpm_backend_open(drv, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        return 1;
-    }
-
     QLIST_INSERT_HEAD(&tpm_backends, drv, list);
 
     return 0;

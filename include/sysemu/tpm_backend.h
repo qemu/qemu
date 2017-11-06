@@ -80,8 +80,6 @@ struct TPMBackendClass {
 
     TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
 
-    void (*opened)(TPMBackend *s, Error **errp);
-
     void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd);
 };
 
@@ -170,16 +168,6 @@ bool tpm_backend_get_tpm_established_flag(TPMBackend *s);
  * Reset the TPM establishment flag.
  */
 int tpm_backend_reset_tpm_established_flag(TPMBackend *s, uint8_t locty);
-
-/**
- * tpm_backend_open:
- * @s: the backend to open
- * @errp: a pointer to return the #Error object if an error occurs.
- *
- * This function will open the backend if it is not already open.  Calling this
- * function on an already opened backend will not result in an error.
- */
-void tpm_backend_open(TPMBackend *s, Error **errp);
 
 /**
  * tpm_backend_get_tpm_version:

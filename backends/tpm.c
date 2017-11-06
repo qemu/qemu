@@ -159,52 +159,10 @@ TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
     return info;
 }
 
-static bool tpm_backend_prop_get_opened(Object *obj, Error **errp)
-{
-    TPMBackend *s = TPM_BACKEND(obj);
-
-    return s->opened;
-}
-
-void tpm_backend_open(TPMBackend *s, Error **errp)
-{
-    object_property_set_bool(OBJECT(s), true, "opened", errp);
-}
-
-static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
-{
-    TPMBackend *s = TPM_BACKEND(obj);
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
-    Error *local_err = NULL;
-
-    if (value == s->opened) {
-        return;
-    }
-
-    if (!value && s->opened) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
-        return;
-    }
-
-    if (k->opened) {
-        k->opened(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-
-    s->opened = true;
-}
-
 static void tpm_backend_instance_init(Object *obj)
 {
     TPMBackend *s = TPM_BACKEND(obj);
 
-    object_property_add_bool(obj, "opened",
-                             tpm_backend_prop_get_opened,
-                             tpm_backend_prop_set_opened,
-                             NULL);
     s->bh = qemu_bh_new(tpm_backend_request_completed_bh, s);
 }
 
