@@ -1074,9 +1074,7 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     s->be_driver->fe_model = TPM_MODEL_TPM_TIS;
 
-    if (tpm_backend_init(s->be_driver, TPM_IF(s))) {
-        error_setg(errp, "tpm_tis: backend driver with id %s could not be "
-                   "initialized", s->backend);
+    if (tpm_backend_init(s->be_driver, TPM_IF(s), errp)) {
         return;
     }
 

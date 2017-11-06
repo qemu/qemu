@@ -54,9 +54,10 @@ enum TpmType tpm_backend_get_type(TPMBackend *s)
     return k->type;
 }
 
-int tpm_backend_init(TPMBackend *s, TPMIf *tpmif)
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp)
 {
     if (s->tpmif) {
+        error_setg(errp, "TPM backend '%s' is already initialized", s->id);
         return -1;
     }
 

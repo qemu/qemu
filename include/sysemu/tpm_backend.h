@@ -99,12 +99,13 @@ enum TpmType tpm_backend_get_type(TPMBackend *s);
  * @s: the backend to initialized
  * @tpmif: TPM interface
  * @datacb: callback for sending data to frontend
+ * @errp: a pointer to return the #Error object if an error occurs.
  *
  * Initialize the backend with the given variables.
  *
  * Returns 0 on success.
  */
-int tpm_backend_init(TPMBackend *s, TPMIf *tpmif);
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp);
 
 /**
  * tpm_backend_startup_tpm:
