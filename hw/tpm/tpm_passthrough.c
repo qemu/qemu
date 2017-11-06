@@ -347,8 +347,12 @@ static void tpm_passthrough_inst_finalize(Object *obj)
 
     tpm_passthrough_cancel_cmd(TPM_BACKEND(obj));
 
-    qemu_close(tpm_pt->tpm_fd);
-    qemu_close(tpm_pt->cancel_fd);
+    if (tpm_pt->tpm_fd >= 0) {
+        qemu_close(tpm_pt->tpm_fd);
+    }
+    if (tpm_pt->cancel_fd >= 0) {
+        qemu_close(tpm_pt->cancel_fd);
+    }
     qapi_free_TPMPassthroughOptions(tpm_pt->options);
 }
 
