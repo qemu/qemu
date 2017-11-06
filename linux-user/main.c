@@ -3238,6 +3238,10 @@ void cpu_loop(CPUAlphaState *env)
 #endif /* TARGET_ALPHA */
 
 #ifdef TARGET_S390X
+
+/* s390x masks the fault address it reports in si_addr for SIGSEGV and SIGBUS */
+#define S390X_FAIL_ADDR_MASK -4096LL
+
 void cpu_loop(CPUS390XState *env)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
@@ -3294,7 +3298,7 @@ void cpu_loop(CPUS390XState *env)
                 sig = TARGET_SIGSEGV;
                 /* XXX: check env->error_code */
                 n = TARGET_SEGV_MAPERR;
-                addr = env->__excp_addr;
+                addr = env->__excp_addr & S390X_FAIL_ADDR_MASK;
                 goto do_signal;
             case PGM_EXECUTE:
             case PGM_SPECIFICATION:
