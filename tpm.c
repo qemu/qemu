@@ -127,11 +127,12 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
         return 1;
     }
 
-    drv = be->create(opts, id);
+    drv = be->create(opts);
     if (!drv) {
         return 1;
     }
 
+    drv->id = g_strdup(id);
     QLIST_INSERT_HEAD(&tpm_backends, drv, list);
 
     return 0;

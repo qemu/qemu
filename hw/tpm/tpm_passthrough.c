@@ -284,13 +284,10 @@ tpm_passthrough_handle_device_opts(TPMPassthruState *tpm_pt, QemuOpts *opts)
     return 1;
 }
 
-static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
+static TPMBackend *tpm_passthrough_create(QemuOpts *opts)
 {
     Object *obj = object_new(TYPE_TPM_PASSTHROUGH);
-    TPMBackend *tb = TPM_BACKEND(obj);
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
-
-    tb->id = g_strdup(id);
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
 
     if (tpm_passthrough_handle_device_opts(tpm_pt, opts)) {
         goto err_exit;
@@ -301,7 +298,7 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
         goto err_exit;
     }
 
-    return tb;
+    return TPM_BACKEND(obj);
 
 err_exit:
     object_unref(obj);

@@ -63,7 +63,7 @@ struct TPMBackendClass {
     /* get a descriptive text of the backend to display to the user */
     const char *desc;
 
-    TPMBackend *(*create)(QemuOpts *opts, const char *id);
+    TPMBackend *(*create)(QemuOpts *opts);
 
     /* start up the TPM on the backend - optional */
     int (*startup_tpm)(TPMBackend *t);
