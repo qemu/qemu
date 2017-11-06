@@ -69,7 +69,7 @@ static void tpm_display_backend_drivers(void)
 /*
  * Find the TPM with the given Id
  */
-TPMBackend *qemu_find_tpm(const char *id)
+TPMBackend *qemu_find_tpm_be(const char *id)
 {
     TPMBackend *drv;
 

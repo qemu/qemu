@@ -1060,7 +1060,7 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 {
     TPMState *s = TPM(dev);
 
-    s->be_driver = qemu_find_tpm(s->backend);
+    s->be_driver = qemu_find_tpm_be(s->backend);
     if (!s->be_driver) {
         error_setg(errp, "tpm_tis: backend driver with id %s could not be "
                    "found", s->backend);
