@@ -86,7 +86,6 @@ typedef struct TPMState {
 
     TPMBackendCmd cmd;
 
-    char *backend;
     TPMBackend *be_driver;
     TPMVersion be_tpm_version;
 } TPMState;
@@ -1053,7 +1052,7 @@ static const VMStateDescription vmstate_tpm_tis = {
 
 static Property tpm_tis_properties[] = {
     DEFINE_PROP_UINT32("irq", TPMState, irq_num, TPM_TIS_IRQ),
-    DEFINE_PROP_STRING("tpmdev", TPMState, backend),
+    DEFINE_PROP_TPMBE("tpmdev", TPMState, be_driver),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1066,17 +1065,10 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->be_driver = qemu_find_tpm_be(s->backend);
     if (!s->be_driver) {
-        error_setg(errp, "backend driver with id %s could not be found",
-                   s->backend);
+        error_setg(errp, "'tpmdev' property is required");
         return;
     }
-
-    if (tpm_backend_init(s->be_driver, TPM_IF(s), errp)) {
-        return;
-    }
-
     if (s->irq_num > 15) {
         error_setg(errp, "IRQ %d is outside valid range of 0 to 15",
                    s->irq_num);
