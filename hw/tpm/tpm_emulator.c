@@ -186,7 +186,7 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number,
 static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    TPMIfClass *tic = TPM_IF_GET_CLASS(tb->tpm_state);
+    TPMIfClass *tic = TPM_IF_GET_CLASS(tb->tpmif);
     Error *err = NULL;
 
     DPRINTF("processing TPM command");
@@ -201,7 +201,7 @@ static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
         goto error;
     }
 
-    tic->request_completed(TPM_IF(tb->tpm_state));
+    tic->request_completed(tb->tpmif);
     return;
 
 error:
