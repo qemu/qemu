@@ -47,6 +47,9 @@ typedef struct TPMIfClass {
 
 #define TYPE_TPM_TIS                "tpm-tis"
 
+#define TPM_IS_TIS(chr)                             \
+    object_dynamic_cast(OBJECT(chr), TYPE_TPM_TIS)
+
 /* returns NULL unless there is exactly one TPM device */
 static inline TPMIf *tpm_find(void)
 {
