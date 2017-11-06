@@ -30,6 +30,7 @@
 #include "hw/pci/pci_ids.h"
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
+#include "tpm_util.h"
 
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
 #define TPM_TIS_LOCALITY_SHIFT      12
@@ -215,7 +216,7 @@ static uint8_t tpm_tis_locality_from_addr(hwaddr addr)
 
 static uint32_t tpm_tis_get_size_from_buffer(const TPMSizedBuffer *sb)
 {
-    return be32_to_cpu(*(uint32_t *)&sb->buffer[2]);
+    return tpm_cmd_get_size(sb->buffer);
 }
 
 static void tpm_tis_show_buffer(const TPMSizedBuffer *sb, const char *string)
