@@ -239,9 +239,9 @@ static int tpm_passthrough_open_sysfs_cancel(TPMPassthruState *tpm_pt)
     return fd;
 }
 
-static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
+static int
+tpm_passthrough_handle_device_opts(TPMPassthruState *tpm_pt, QemuOpts *opts)
 {
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     const char *value;
 
     value = qemu_opt_get(opts, "cancel-path");
@@ -292,7 +292,7 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
 
     tb->id = g_strdup(id);
 
-    if (tpm_passthrough_handle_device_opts(opts, tb)) {
+    if (tpm_passthrough_handle_device_opts(tpm_pt, opts)) {
         goto err_exit;
     }
 
