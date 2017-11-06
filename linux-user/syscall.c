@@ -10505,6 +10505,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             break;
         }
 #endif
+        case PR_GET_SECCOMP:
+        case PR_SET_SECCOMP:
+            /* Disable seccomp to prevent the target disabling syscalls we
+             * need. */
+            ret = -TARGET_EINVAL;
+            break;
         default:
             /* Most prctl options have no pointer arguments */
             ret = get_errno(prctl(arg1, arg2, arg3, arg4, arg5));
