@@ -282,7 +282,11 @@ static inline target_ulong hppa_form_gva(CPUHPPAState *env, uint64_t spc,
     return hppa_form_gva_psw(env->psw, spc, off);
 }
 
-/* Since PSW_CB will never need to be in tb->flags, reuse them.  */
+/* Since PSW_{I,CB} will never need to be in tb->flags, reuse them.
+ * TB_FLAG_SR_SAME indicates that SR4 through SR7 all contain the
+ * same value.
+ */
+#define TB_FLAG_SR_SAME     PSW_I
 #define TB_FLAG_PRIV_SHIFT  8
 
 static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
@@ -317,6 +321,11 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
         if (TARGET_REGISTER_BITS == 32 || diff == (int32_t)diff) {
             *cs_base |= (uint32_t)diff;
         }
+    }
+    if ((env->sr[4] == env->sr[5])
+        & (env->sr[4] == env->sr[6])
+        & (env->sr[4] == env->sr[7])) {
+        flags |= TB_FLAG_SR_SAME;
     }
 #endif
 

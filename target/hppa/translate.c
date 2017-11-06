@@ -284,6 +284,7 @@ typedef struct DisasContext {
     TCGLabel *null_lab;
 
     uint32_t insn;
+    uint32_t tb_flags;
     int mmu_idx;
     int privilege;
     bool psw_n_nonzero;
@@ -323,6 +324,7 @@ typedef struct DisasInsn {
 /* global register indexes */
 static TCGv_reg cpu_gr[32];
 static TCGv_i64 cpu_sr[4];
+static TCGv_i64 cpu_srH;
 static TCGv_reg cpu_iaoq_f;
 static TCGv_reg cpu_iaoq_b;
 static TCGv_i64 cpu_iasq_f;
@@ -360,8 +362,8 @@ void hppa_translate_init(void)
         "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31"
     };
     /* SR[4-7] are not global registers so that we can index them.  */
-    static const char sr_names[4][4] = {
-        "sr0", "sr1", "sr2", "sr3"
+    static const char sr_names[5][4] = {
+        "sr0", "sr1", "sr2", "sr3", "srH"
     };
 
     int i;
@@ -377,6 +379,9 @@ void hppa_translate_init(void)
                                            offsetof(CPUHPPAState, sr[i]),
                                            sr_names[i]);
     }
+    cpu_srH = tcg_global_mem_new_i64(cpu_env,
+                                     offsetof(CPUHPPAState, sr[4]),
+                                     sr_names[4]);
 
     for (i = 0; i < ARRAY_SIZE(vars); ++i) {
         const GlobalVar *v = &vars[i];
@@ -604,6 +609,8 @@ static void load_spr(DisasContext *ctx, TCGv_i64 dest, unsigned reg)
 #else
     if (reg < 4) {
         tcg_gen_mov_i64(dest, cpu_sr[reg]);
+    } else if (ctx->tb_flags & TB_FLAG_SR_SAME) {
+        tcg_gen_mov_i64(dest, cpu_srH);
     } else {
         tcg_gen_ld_i64(dest, cpu_env, offsetof(CPUHPPAState, sr[reg]));
     }
@@ -1362,6 +1369,9 @@ static TCGv_i64 space_select(DisasContext *ctx, int sp, TCGv_reg base)
         load_spr(ctx, spc, sp);
         return spc;
     }
+    if (ctx->tb_flags & TB_FLAG_SR_SAME) {
+        return cpu_srH;
+    }
 
     ptr = tcg_temp_new_ptr();
     tmp = tcg_temp_new();
@@ -1405,7 +1415,7 @@ static void form_gva(DisasContext *ctx, TCGv_tl *pgva, TCGv_reg *pofs,
 #else
     TCGv_tl addr = get_temp_tl(ctx);
     tcg_gen_extu_reg_tl(addr, modify <= 0 ? ofs : base);
-    if (ctx->base.tb->flags & PSW_W) {
+    if (ctx->tb_flags & PSW_W) {
         tcg_gen_andi_tl(addr, addr, 0x3fffffffffffffffull);
     }
     if (!is_phys) {
@@ -2112,6 +2122,7 @@ static DisasJumpType trans_mtsp(DisasContext *ctx, uint32_t insn,
 
     if (rs >= 4) {
         tcg_gen_st_i64(t64, cpu_env, offsetof(CPUHPPAState, sr[rs]));
+        ctx->tb_flags &= ~TB_FLAG_SR_SAME;
     } else {
         tcg_gen_mov_i64(cpu_sr[rs], t64);
     }
@@ -2407,7 +2418,7 @@ static DisasJumpType trans_ixtlbx(DisasContext *ctx, uint32_t insn,
 
     /* Exit TB for ITLB change if mmu is enabled.  This *should* not be
        the case, since the OS TLB fill handler runs with mmu disabled.  */
-    return nullify_end(ctx, !is_data && (ctx->base.tb->flags & PSW_C)
+    return nullify_end(ctx, !is_data && (ctx->tb_flags & PSW_C)
                        ? DISAS_IAQ_N_STALE : DISAS_NEXT);
 }
 
@@ -2443,7 +2454,7 @@ static DisasJumpType trans_pxtlbx(DisasContext *ctx, uint32_t insn,
     }
 
     /* Exit TB for TLB change if mmu is enabled.  */
-    return nullify_end(ctx, !is_data && (ctx->base.tb->flags & PSW_C)
+    return nullify_end(ctx, !is_data && (ctx->tb_flags & PSW_C)
                        ? DISAS_IAQ_N_STALE : DISAS_NEXT);
 }
 
@@ -4556,6 +4567,7 @@ static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
     int bound;
 
     ctx->cs = cs;
+    ctx->tb_flags = ctx->base.tb->flags;
 
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = MMU_USER_IDX;
@@ -4563,9 +4575,8 @@ static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->iaoq_f = ctx->base.pc_first;
     ctx->iaoq_b = ctx->base.tb->cs_base;
 #else
-    ctx->privilege = (ctx->base.tb->flags >> TB_FLAG_PRIV_SHIFT) & 3;
-    ctx->mmu_idx = (ctx->base.tb->flags & PSW_D
-                    ? ctx->privilege : MMU_PHYS_IDX);
+    ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
+    ctx->mmu_idx = (ctx->tb_flags & PSW_D ? ctx->privilege : MMU_PHYS_IDX);
 
     /* Recover the IAOQ values from the GVA + PRIV.  */
     uint64_t cs_base = ctx->base.tb->cs_base;
@@ -4597,7 +4608,7 @@ static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
     /* Seed the nullification status from PSW[N], as saved in TB->FLAGS.  */
     ctx->null_cond = cond_make_f();
     ctx->psw_n_nonzero = false;
-    if (ctx->base.tb->flags & PSW_N) {
+    if (ctx->tb_flags & PSW_N) {
         ctx->null_cond.c = TCG_COND_ALWAYS;
         ctx->psw_n_nonzero = true;
     }
