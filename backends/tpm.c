@@ -17,7 +17,6 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm.h"
-#include "hw/tpm/tpm_int.h"
 #include "qemu/thread.h"
 
 static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
