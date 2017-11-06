@@ -1061,6 +1061,11 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 {
     TPMState *s = TPM(dev);
 
+    if (!tpm_find()) {
+        error_setg(errp, "at most one TPM device is permitted");
+        return;
+    }
+
     s->be_driver = qemu_find_tpm_be(s->backend);
     if (!s->be_driver) {
         error_setg(errp, "backend driver with id %s could not be found",
