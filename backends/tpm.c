@@ -148,9 +148,10 @@ TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
 {
     TPMInfo *info = g_new0(TPMInfo, 1);
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    TPMIfClass *tic = TPM_IF_GET_CLASS(s->tpmif);
 
     info->id = g_strdup(s->id);
-    info->model = s->fe_model;
+    info->model = tic->model;
     if (k->get_tpm_options) {
         info->options = k->get_tpm_options(s);
     }
@@ -204,7 +205,6 @@ static void tpm_backend_instance_init(Object *obj)
                              tpm_backend_prop_get_opened,
                              tpm_backend_prop_set_opened,
                              NULL);
-    s->fe_model = -1;
     s->bh = qemu_bh_new(tpm_backend_request_completed_bh, s);
 }
 

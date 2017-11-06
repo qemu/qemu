@@ -51,7 +51,6 @@ struct TPMBackend {
 
     /* <public> */
     char *id;
-    enum TpmModel fe_model;
 
     QLIST_ENTRY(TPMBackend) list;
 };

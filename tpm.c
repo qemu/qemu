@@ -200,9 +200,10 @@ TPMInfoList *qmp_query_tpm(Error **errp)
     TPMInfoList *info, *head = NULL, *cur_item = NULL;
 
     QLIST_FOREACH(drv, &tpm_backends, list) {
-        if (!tpm_models[drv->fe_model]) {
+        if (!drv->tpmif) {
             continue;
         }
+
         info = g_new0(TPMInfoList, 1);
         info->value = tpm_backend_query_tpm(drv);
 
