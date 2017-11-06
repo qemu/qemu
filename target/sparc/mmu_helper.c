@@ -30,10 +30,18 @@
 int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                                int mmu_idx)
 {
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
+
     if (rw & 2) {
         cs->exception_index = TT_TFAULT;
     } else {
         cs->exception_index = TT_DFAULT;
+#ifdef TARGET_SPARC64
+        env->dmmu.mmuregs[4] = address;
+#else
+        env->mmuregs[4] = address;
+#endif
     }
     return 1;
 }
