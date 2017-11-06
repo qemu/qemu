@@ -1119,7 +1119,6 @@ static const TypeInfo tpm_tis_info = {
 static void tpm_tis_register(void)
 {
     type_register_static(&tpm_tis_info);
-    tpm_register_model(TPM_MODEL_TPM_TIS);
 }
 
 type_init(tpm_tis_register)

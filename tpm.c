@@ -23,13 +23,6 @@
 static QLIST_HEAD(, TPMBackend) tpm_backends =
     QLIST_HEAD_INITIALIZER(tpm_backends);
 
-static bool tpm_models[TPM_MODEL__MAX];
-
-void tpm_register_model(enum TpmModel model)
-{
-    tpm_models[model] = true;
-}
-
 static const TPMBackendClass *
 tpm_be_find_by_type(enum TpmType type)
 {
@@ -236,18 +229,16 @@ TpmTypeList *qmp_query_tpm_types(Error **errp)
 
     return head;
 }
-
 TpmModelList *qmp_query_tpm_models(Error **errp)
 {
-    unsigned int i = 0;
     TpmModelList *head = NULL, *prev = NULL, *cur_item;
+    GSList *e, *l = object_class_get_list(TYPE_TPM_IF, false);
 
-    for (i = 0; i < TPM_MODEL__MAX; i++) {
-        if (!tpm_models[i]) {
-            continue;
-        }
+    for (e = l; e; e = e->next) {
+        TPMIfClass *c = TPM_IF_CLASS(e->data);
+
         cur_item = g_new0(TpmModelList, 1);
-        cur_item->value = i;
+        cur_item->value = c->model;
 
         if (prev) {
             prev->next = cur_item;
@@ -257,6 +248,7 @@ TpmModelList *qmp_query_tpm_models(Error **errp)
         }
         prev = cur_item;
     }
+    g_slist_free(l);
 
     return head;
 }
