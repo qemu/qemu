@@ -33,7 +33,6 @@ static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
     TPMBackend *s = TPM_BACKEND(user_data);
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->handle_request != NULL);
     k->handle_request(s, (TPMBackendCmd *)data);
 
     qemu_bh_schedule(s->bh);
@@ -114,8 +113,6 @@ void tpm_backend_cancel_cmd(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->cancel_cmd);
-
     k->cancel_cmd(s);
 }
 
@@ -139,8 +136,6 @@ TPMVersion tpm_backend_get_tpm_version(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->get_tpm_version);
-
     return k->get_tpm_version(s);
 }
 
@@ -152,9 +147,7 @@ TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
 
     info->id = g_strdup(s->id);
     info->model = tic->model;
-    if (k->get_tpm_options) {
-        info->options = k->get_tpm_options(s);
-    }
+    info->options = k->get_tpm_options(s);
 
     return info;
 }
