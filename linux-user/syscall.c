@@ -8579,8 +8579,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_rt_sigaction:
         {
 #if defined(TARGET_ALPHA)
-            struct target_sigaction act, oact, *pact = 0;
+            /* For Alpha and SPARC this is a 5 argument syscall, with
+             * a 'restorer' parameter which must be copied into the
+             * sa_restorer field of the sigaction struct.
+             * For Alpha that 'restorer' is arg5; for SPARC it is arg4,
+             * and arg5 is the sigsetsize.
+             * Alpha also has a separate rt_sigaction struct that it uses
+             * here; SPARC uses the usual sigaction struct.
+             */
             struct target_rt_sigaction *rt_act;
+            struct target_sigaction act, oact, *pact = 0;
 
             if (arg4 != sizeof(target_sigset_t)) {
                 ret = -TARGET_EINVAL;
@@ -8606,18 +8614,29 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 unlock_user_struct(rt_act, arg3, 1);
             }
 #else
+#ifdef TARGET_SPARC
+            target_ulong restorer = arg4;
+            target_ulong sigsetsize = arg5;
+#else
+            target_ulong sigsetsize = arg4;
+#endif
             struct target_sigaction *act;
             struct target_sigaction *oact;
 
-            if (arg4 != sizeof(target_sigset_t)) {
+            if (sigsetsize != sizeof(target_sigset_t)) {
                 ret = -TARGET_EINVAL;
                 break;
             }
             if (arg2) {
-                if (!lock_user_struct(VERIFY_READ, act, arg2, 1))
+                if (!lock_user_struct(VERIFY_READ, act, arg2, 1)) {
                     goto efault;
-            } else
+                }
+#ifdef TARGET_SPARC
+                act->sa_restorer = restorer;
+#endif
+            } else {
                 act = NULL;
+            }
             if (arg3) {
                 if (!lock_user_struct(VERIFY_WRITE, oact, arg3, 0)) {
                     ret = -TARGET_EFAULT;
