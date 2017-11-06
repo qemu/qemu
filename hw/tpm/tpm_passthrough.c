@@ -261,49 +261,33 @@ tpm_passthrough_handle_device_opts(TPMPassthruState *tpm_pt, QemuOpts *opts)
     if (tpm_pt->tpm_fd < 0) {
         error_report("Cannot access TPM device using '%s': %s",
                      tpm_pt->tpm_dev, strerror(errno));
-        goto err_free_parameters;
+        return -1;
     }
 
     if (tpm_util_test_tpmdev(tpm_pt->tpm_fd, &tpm_pt->tpm_version)) {
         error_report("'%s' is not a TPM device.",
                      tpm_pt->tpm_dev);
-        goto err_close_tpmdev;
+        return -1;
+    }
+
+    tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tpm_pt);
+    if (tpm_pt->cancel_fd < 0) {
+        return -1;
     }
 
     return 0;
-
- err_close_tpmdev:
-    qemu_close(tpm_pt->tpm_fd);
-    tpm_pt->tpm_fd = -1;
-
- err_free_parameters:
-    qapi_free_TPMPassthroughOptions(tpm_pt->options);
-    tpm_pt->options = NULL;
-    tpm_pt->tpm_dev = NULL;
-
-    return 1;
 }
 
 static TPMBackend *tpm_passthrough_create(QemuOpts *opts)
 {
     Object *obj = object_new(TYPE_TPM_PASSTHROUGH);
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
 
-    if (tpm_passthrough_handle_device_opts(tpm_pt, opts)) {
-        goto err_exit;
-    }
-
-    tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tpm_pt);
-    if (tpm_pt->cancel_fd < 0) {
-        goto err_exit;
+    if (tpm_passthrough_handle_device_opts(TPM_PASSTHROUGH(obj), opts)) {
+        object_unref(obj);
+        return NULL;
     }
 
     return TPM_BACKEND(obj);
-
-err_exit:
-    object_unref(obj);
-
-    return NULL;
 }
 
 static TpmTypeOptions *tpm_passthrough_get_tpm_options(TPMBackend *tb)
