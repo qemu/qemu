@@ -304,6 +304,20 @@ static TPMBackend *tpm_passthrough_create(QemuOpts *opts)
     return TPM_BACKEND(obj);
 }
 
+static int tpm_passthrough_startup_tpm(TPMBackend *tb, size_t buffersize)
+{
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
+
+    if (buffersize && buffersize < tpm_pt->tpm_buffersize) {
+        error_report("Requested buffer size of %zu is smaller than host TPM's "
+                     "fixed buffer size of %zu",
+                     buffersize, tpm_pt->tpm_buffersize);
+        return -1;
+    }
+
+    return 0;
+}
+
 static TpmTypeOptions *tpm_passthrough_get_tpm_options(TPMBackend *tb)
 {
     TpmTypeOptions *options = g_new0(TpmTypeOptions, 1);
@@ -362,6 +376,7 @@ static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
     tbc->opts = tpm_passthrough_cmdline_opts;
     tbc->desc = "Passthrough TPM backend driver";
     tbc->create = tpm_passthrough_create;
+    tbc->startup_tpm = tpm_passthrough_startup_tpm;
     tbc->reset = tpm_passthrough_reset;
     tbc->cancel_cmd = tpm_passthrough_cancel_cmd;
     tbc->get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag;
