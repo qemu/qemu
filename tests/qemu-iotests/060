@@ -426,6 +426,19 @@ echo '--- Repairing ---'
 _check_test_img -q -r all
 _check_test_img -r all
 
+echo
+echo "=== Testing the QEMU shutdown with a corrupted image ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+echo "{'execute': 'qmp_capabilities'}
+      {'execute': 'human-monitor-command',
+       'arguments': {'command-line': 'qemu-io drive \"write 0 512\"'}}
+      {'execute': 'quit'}" \
+    | $QEMU -qmp stdio -nographic -nodefaults \
+            -drive if=none,node-name=drive,file="$TEST_IMG",driver=qcow2 \
+    | _filter_qmp | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
