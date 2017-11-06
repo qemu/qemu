@@ -47,6 +47,7 @@ struct TPMBackend {
     bool opened;
     GThreadPool *thread_pool;
     bool had_startup_error;
+    QEMUBH *bh;
 
     /* <public> */
     char *id;

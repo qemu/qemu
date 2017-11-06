@@ -76,7 +76,6 @@ typedef struct TPMState {
     ISADevice busdev;
     MemoryRegion mmio;
 
-    QEMUBH *bh;
     uint32_t offset;
     uint8_t buf[TPM_TIS_BUFFER_MAX];
 
@@ -410,10 +409,20 @@ static void tpm_tis_prep_abort(TPMState *s, uint8_t locty, uint8_t newlocty)
     tpm_tis_abort(s, locty);
 }
 
-static void tpm_tis_receive_bh(void *opaque)
+/*
+ * Callback from the TPM to indicate that the response was received.
+ */
+static void tpm_tis_request_completed(TPMIf *ti)
 {
-    TPMState *s = opaque;
+    TPMState *s = TPM(ti);
     uint8_t locty = s->cmd.locty;
+    uint8_t l;
+
+    if (s->cmd.selftest_done) {
+        for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
+            s->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
+        }
+    }
 
     tpm_tis_sts_set(&s->loc[locty],
                     TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE);
@@ -429,23 +438,6 @@ static void tpm_tis_receive_bh(void *opaque)
 
     tpm_tis_raise_irq(s, locty,
                       TPM_TIS_INT_DATA_AVAILABLE | TPM_TIS_INT_STS_VALID);
-}
-
-static void tpm_tis_request_completed(TPMIf *ti)
-{
-    TPMState *s = TPM(ti);
-
-    bool is_selftest_done = s->cmd.selftest_done;
-    uint8_t locty = s->cmd.locty;
-    uint8_t l;
-
-    if (is_selftest_done) {
-        for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
-            s->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
-        }
-    }
-
-    qemu_bh_schedule(s->bh);
 }
 
 /*
@@ -1093,8 +1085,6 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
                    "of 0 to 15", s->irq_num);
         return;
     }
-
-    s->bh = qemu_bh_new(tpm_tis_receive_bh, s);
 
     isa_init_irq(&s->busdev, &s->irq, s->irq_num);
 

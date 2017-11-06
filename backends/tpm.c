@@ -18,14 +18,25 @@
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
+
+static void tpm_backend_request_completed_bh(void *opaque)
+{
+    TPMBackend *s = TPM_BACKEND(opaque);
+    TPMIfClass *tic = TPM_IF_GET_CLASS(s->tpmif);
+
+    tic->request_completed(s->tpmif);
+}
 
 static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
 {
     TPMBackend *s = TPM_BACKEND(user_data);
-    TPMBackendClass *k  = TPM_BACKEND_GET_CLASS(s);
+    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
     assert(k->handle_request != NULL);
     k->handle_request(s, (TPMBackendCmd *)data);
+
+    qemu_bh_schedule(s->bh);
 }
 
 static void tpm_backend_thread_end(TPMBackend *s)
@@ -193,6 +204,7 @@ static void tpm_backend_instance_init(Object *obj)
                              tpm_backend_prop_set_opened,
                              NULL);
     s->fe_model = -1;
+    s->bh = qemu_bh_new(tpm_backend_request_completed_bh, s);
 }
 
 static void tpm_backend_instance_finalize(Object *obj)
@@ -202,6 +214,7 @@ static void tpm_backend_instance_finalize(Object *obj)
     object_unref(OBJECT(s->tpmif));
     g_free(s->id);
     tpm_backend_thread_end(s);
+    qemu_bh_delete(s->bh);
 }
 
 static const TypeInfo tpm_backend_info = {
