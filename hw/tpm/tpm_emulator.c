@@ -338,6 +338,7 @@ static void tpm_emulator_cancel_cmd(TPMBackend *tb)
         return;
     }
 
+    /* FIXME: make the function non-blocking, or it may block a VCPU */
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_CANCEL_TPM_CMD, &res, 0,
                              sizeof(res)) < 0) {
         error_report("tpm-emulator: Could not cancel command: %s",
