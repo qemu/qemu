@@ -704,12 +704,10 @@ QemuCocoaView *cocoaView;
                             return;
                     }
                 }
+            }
 
-            // handle keys for graphic console
-            } else if (qemu_console_is_graphic(NULL)) {
+            if (qemu_console_is_graphic(NULL)) {
                 qemu_input_event_send_key_qcode(dcl->con, keycode, true);
-
-            // handlekeys for Monitor
             } else {
                 [self handleMonitorInput: event];
             }
