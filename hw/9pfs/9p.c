@@ -512,7 +512,7 @@ static int coroutine_fn v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
             /* reopen the file/dir if already closed */
             err = v9fs_reopen_fid(pdu, fidp);
             if (err < 0) {
-                return -1;
+                return err;
             }
             /*
              * Go back to head of fid list because

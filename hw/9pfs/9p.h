@@ -117,7 +117,7 @@ static inline char *rpath(FsContext *ctx, const char *path)
 #define P9_IOHDRSZ 24
 
 typedef struct V9fsPDU V9fsPDU;
-struct V9fsState;
+typedef struct V9fsState V9fsState;
 
 typedef struct {
     uint32_t size_le;
@@ -137,7 +137,7 @@ struct V9fsPDU
     uint8_t id;
     uint8_t cancelled;
     CoQueue complete;
-    struct V9fsState *s;
+    V9fsState *s;
     QLIST_ENTRY(V9fsPDU) next;
     uint32_t idx;
 };
@@ -230,7 +230,7 @@ struct V9fsFidState
     V9fsFidState *rclm_lst;
 };
 
-typedef struct V9fsState
+struct V9fsState
 {
     QLIST_HEAD(, V9fsPDU) free_list;
     QLIST_HEAD(, V9fsPDU) active_list;
@@ -251,7 +251,7 @@ typedef struct V9fsState
     Error *migration_blocker;
     V9fsConf fsconf;
     V9fsQID root_qid;
-} V9fsState;
+};
 
 /* 9p2000.L open flags */
 #define P9_DOTL_RDONLY        00000000
