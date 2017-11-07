@@ -42,12 +42,18 @@ bool ftrace_init(void)
 {
     char mount_point[PATH_MAX];
     char path[PATH_MAX];
-    int debugfs_found;
+    int tracefs_found;
     int trace_fd = -1;
+    const char *subdir = "";
 
-    debugfs_found = find_mount(mount_point, "debugfs");
-    if (debugfs_found) {
-        snprintf(path, PATH_MAX, "%s/tracing/tracing_on", mount_point);
+    tracefs_found = find_mount(mount_point, "tracefs");
+    if (!tracefs_found) {
+        tracefs_found = find_mount(mount_point, "debugfs");
+        subdir = "/tracing";
+    }
+
+    if (tracefs_found) {
+        snprintf(path, PATH_MAX, "%s%s/tracing_on", mount_point, subdir);
         trace_fd = open(path, O_WRONLY);
         if (trace_fd < 0) {
             if (errno == EACCES) {
@@ -66,14 +72,14 @@ bool ftrace_init(void)
             }
             close(trace_fd);
         }
-        snprintf(path, PATH_MAX, "%s/tracing/trace_marker", mount_point);
+        snprintf(path, PATH_MAX, "%s%s/trace_marker", mount_point, subdir);
         trace_marker_fd = open(path, O_WRONLY);
         if (trace_marker_fd < 0) {
             perror("Could not open ftrace 'trace_marker' file");
             return false;
         }
     } else {
-        fprintf(stderr, "debugfs is not mounted\n");
+        fprintf(stderr, "tracefs is not mounted\n");
         return false;
     }
 
