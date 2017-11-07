@@ -19,6 +19,7 @@ static int find_debugfs(char *debugfs)
 {
     char type[100];
     FILE *fp;
+    int ret = 0;
 
     fp = fopen("/proc/mounts", "r");
     if (fp == NULL) {
@@ -28,15 +29,13 @@ static int find_debugfs(char *debugfs)
     while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
                   debugfs, type) == 2) {
         if (strcmp(type, "debugfs") == 0) {
+            ret = 1;
             break;
         }
     }
     fclose(fp);
 
-    if (strcmp(type, "debugfs") != 0) {
-        return 0;
-    }
-    return 1;
+    return ret;
 }
 
 bool ftrace_init(void)
