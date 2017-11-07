@@ -111,13 +111,13 @@ static void kvm_arm_its_realize(DeviceState *dev, Error **errp)
             error_free(s->migration_blocker);
             return;
         }
+    } else {
+        qemu_add_vm_change_state_handler(vm_change_state_handler, s);
     }
 
     kvm_msi_use_devid = true;
     kvm_gsi_direct_mapping = false;
     kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
-
-    qemu_add_vm_change_state_handler(vm_change_state_handler, s);
 }
 
 /**
