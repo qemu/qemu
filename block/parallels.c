@@ -708,7 +708,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
     }
 
-    if (flags & BDRV_O_RDWR) {
+    if ((flags & BDRV_O_RDWR) && !(flags & BDRV_O_INACTIVE)) {
         s->header->inuse = cpu_to_le32(HEADER_INUSE_MAGIC);
         ret = parallels_update_header(bs);
         if (ret < 0) {
@@ -741,12 +741,9 @@ static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
 
-    if (bs->open_flags & BDRV_O_RDWR) {
+    if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
         s->header->inuse = 0;
         parallels_update_header(bs);
-    }
-
-    if (bs->open_flags & BDRV_O_RDWR) {
         bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS,
                       PREALLOC_MODE_OFF, NULL);
     }
