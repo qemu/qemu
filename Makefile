@@ -281,6 +281,10 @@ endif
 
 -include $(SUBDIR_DEVICES_MAK_DEP)
 
+# Support PowerPC targets with explicit CPU defined
+default-configs/ppc.%-linux-user.mak: default-configs/ppc-linux-user.mak
+	cp $< $@
+
 %/config-devices.mak: default-configs/%.mak $(SRC_PATH)/scripts/make_device_config.sh
 	$(call quiet-command, \
             $(SHELL) $(SRC_PATH)/scripts/make_device_config.sh $< $*-config-devices.mak.d $@ > $@.tmp,"GEN","$@.tmp")
