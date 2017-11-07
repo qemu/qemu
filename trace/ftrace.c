@@ -15,7 +15,7 @@
 
 int trace_marker_fd;
 
-static int find_debugfs(char *debugfs)
+static int find_mount(char *mount_point, const char *fstype)
 {
     char type[100];
     FILE *fp;
@@ -27,8 +27,8 @@ static int find_debugfs(char *debugfs)
     }
 
     while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
-                  debugfs, type) == 2) {
-        if (strcmp(type, "debugfs") == 0) {
+                  mount_point, type) == 2) {
+        if (strcmp(type, fstype) == 0) {
             ret = 1;
             break;
         }
@@ -40,14 +40,14 @@ static int find_debugfs(char *debugfs)
 
 bool ftrace_init(void)
 {
-    char debugfs[PATH_MAX];
+    char mount_point[PATH_MAX];
     char path[PATH_MAX];
     int debugfs_found;
     int trace_fd = -1;
 
-    debugfs_found = find_debugfs(debugfs);
+    debugfs_found = find_mount(mount_point, "debugfs");
     if (debugfs_found) {
-        snprintf(path, PATH_MAX, "%s/tracing/tracing_on", debugfs);
+        snprintf(path, PATH_MAX, "%s/tracing/tracing_on", mount_point);
         trace_fd = open(path, O_WRONLY);
         if (trace_fd < 0) {
             if (errno == EACCES) {
@@ -66,7 +66,7 @@ bool ftrace_init(void)
             }
             close(trace_fd);
         }
-        snprintf(path, PATH_MAX, "%s/tracing/trace_marker", debugfs);
+        snprintf(path, PATH_MAX, "%s/tracing/trace_marker", mount_point);
         trace_marker_fd = open(path, O_WRONLY);
         if (trace_marker_fd < 0) {
             perror("Could not open ftrace 'trace_marker' file");
