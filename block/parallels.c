@@ -35,6 +35,7 @@
 #include "qemu/module.h"
 #include "qemu/bswap.h"
 #include "qemu/bitmap.h"
+#include "migration/blocker.h"
 
 /**************************************************************/
 
@@ -100,6 +101,7 @@ typedef struct BDRVParallelsState {
     unsigned int tracks;
 
     unsigned int off_multiplier;
+    Error *migration_blocker;
 } BDRVParallelsState;
 
 
@@ -720,6 +722,16 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     s->bat_dirty_bmap =
         bitmap_new(DIV_ROUND_UP(s->header_size, s->bat_dirty_block));
 
+    /* Disable migration until bdrv_invalidate_cache method is added */
+    error_setg(&s->migration_blocker, "The Parallels format used by node '%s' "
+               "does not support live migration",
+               bdrv_get_device_or_node_name(bs));
+    ret = migrate_add_blocker(s->migration_blocker, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_free(s->migration_blocker);
+        goto fail;
+    }
     qemu_co_mutex_init(&s->lock);
     return 0;
 
@@ -750,6 +762,9 @@ static void parallels_close(BlockDriverState *bs)
 
     g_free(s->bat_dirty_bmap);
     qemu_vfree(s->header);
+
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
 }
 
 static QemuOptsList parallels_create_opts = {
