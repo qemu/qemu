@@ -10,3 +10,10 @@ virtio_blk_submit_multireq(void *vdev, void *mrb, int start, int num_reqs, uint6
 # hw/block/hd-geometry.c
 hd_geometry_lchs_guess(void *blk, int cyls, int heads, int secs) "blk %p LCHS %d %d %d"
 hd_geometry_guess(void *blk, uint32_t cyls, uint32_t heads, uint32_t secs, int trans) "blk %p CHS %u %u %u trans %d"
+
+# hw/block/xen_disk.c
+xen_disk_alloc(char *name) "%s"
+xen_disk_init(char *name) "%s"
+xen_disk_connect(char *name) "%s"
+xen_disk_disconnect(char *name) "%s"
+xen_disk_free(char *name) "%s"
