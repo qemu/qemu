@@ -4109,6 +4109,8 @@ static void x86_disas_set_info(CPUState *cs, disassemble_info *info)
     info->cap_mode = (env->hflags & HF_CS64_MASK ? CS_MODE_64
                       : env->hflags & HF_CS32_MASK ? CS_MODE_32
                       : CS_MODE_16);
+    info->cap_insn_unit = 1;
+    info->cap_insn_split = 8;
 }
 
 static Property x86_cpu_properties[] = {

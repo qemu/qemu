@@ -489,13 +489,19 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
         info->print_insn = print_insn_arm_a64;
 #endif
         info->cap_arch = CS_ARCH_ARM64;
+        info->cap_insn_unit = 4;
+        info->cap_insn_split = 4;
     } else {
         int cap_mode;
         if (env->thumb) {
             info->print_insn = print_insn_thumb1;
+            info->cap_insn_unit = 2;
+            info->cap_insn_split = 4;
             cap_mode = CS_MODE_THUMB;
         } else {
             info->print_insn = print_insn_arm;
+            info->cap_insn_unit = 4;
+            info->cap_insn_split = 4;
             cap_mode = CS_MODE_ARM;
         }
         if (arm_feature(env, ARM_FEATURE_V8)) {

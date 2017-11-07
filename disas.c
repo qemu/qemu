@@ -220,6 +220,77 @@ static cs_err cap_disas_start(disassemble_info *info, csh *handle)
     return CS_ERR_OK;
 }
 
+static void cap_dump_insn_units(disassemble_info *info, cs_insn *insn,
+                                int i, int n)
+{
+    fprintf_function print = info->fprintf_func;
+    FILE *stream = info->stream;
+
+    switch (info->cap_insn_unit) {
+    case 4:
+        if (info->endian == BFD_ENDIAN_BIG) {
+            for (; i < n; i += 4) {
+                print(stream, " %08x", ldl_be_p(insn->bytes + i));
+
+            }
+        } else {
+            for (; i < n; i += 4) {
+                print(stream, " %08x", ldl_le_p(insn->bytes + i));
+            }
+        }
+        break;
+
+    case 2:
+        if (info->endian == BFD_ENDIAN_BIG) {
+            for (; i < n; i += 2) {
+                print(stream, " %04x", lduw_be_p(insn->bytes + i));
+            }
+        } else {
+            for (; i < n; i += 2) {
+                print(stream, " %04x", lduw_le_p(insn->bytes + i));
+            }
+        }
+        break;
+
+    default:
+        for (; i < n; i++) {
+            print(stream, " %02x", insn->bytes[i]);
+        }
+        break;
+    }
+}
+
+static void cap_dump_insn(disassemble_info *info, cs_insn *insn)
+{
+    fprintf_function print = info->fprintf_func;
+    int i, n, split;
+
+    print(info->stream, "0x%08" PRIx64 ": ", insn->address);
+
+    n = insn->size;
+    split = info->cap_insn_split;
+
+    /* Dump the first SPLIT bytes of the instruction.  */
+    cap_dump_insn_units(info, insn, 0, MIN(n, split));
+
+    /* Add padding up to SPLIT so that mnemonics line up.  */
+    if (n < split) {
+        int width = (split - n) / info->cap_insn_unit;
+        width *= (2 * info->cap_insn_unit + 1);
+        print(info->stream, "%*s", width, "");
+    }
+
+    /* Print the actual instruction.  */
+    print(info->stream, "  %-8s %s\n", insn->mnemonic, insn->op_str);
+
+    /* Dump any remaining part of the insn on subsequent lines.  */
+    for (i = split; i < n; i += split) {
+        print(info->stream, "0x%08" PRIx64 ": ", insn->address + i);
+        cap_dump_insn_units(info, insn, i, MIN(n, i + split));
+        print(info->stream, "\n");
+    }
+}
+
 /* Disassemble SIZE bytes at PC for the target.  */
 static bool cap_disas_target(disassemble_info *info, uint64_t pc, size_t size)
 {
@@ -242,10 +313,7 @@ static bool cap_disas_target(disassemble_info *info, uint64_t pc, size_t size)
         size -= tsize;
 
         while (cs_disasm_iter(handle, &cbuf, &csize, &pc, insn)) {
-            (*info->fprintf_func)(info->stream,
-                                  "0x%08" PRIx64 ":  %-12s %s\n",
-                                  insn->address, insn->mnemonic,
-                                  insn->op_str);
+           cap_dump_insn(info, insn);
         }
 
         /* If the target memory is not consumed, go back for more... */
@@ -290,10 +358,7 @@ static bool cap_disas_host(disassemble_info *info, void *code, size_t size)
     pc = (uintptr_t)code;
 
     while (cs_disasm_iter(handle, &cbuf, &size, &pc, insn)) {
-        (*info->fprintf_func)(info->stream,
-                              "0x%08" PRIx64 ":  %-12s %s\n",
-                              insn->address, insn->mnemonic,
-                              insn->op_str);
+       cap_dump_insn(info, insn);
     }
     if (size != 0) {
         (*info->fprintf_func)(info->stream,
@@ -337,10 +402,7 @@ static bool cap_disas_monitor(disassemble_info *info, uint64_t pc, int count)
         csize += tsize;
 
         if (cs_disasm_iter(handle, &cbuf, &csize, &pc, insn)) {
-            (*info->fprintf_func)(info->stream,
-                                  "0x%08" PRIx64 ":  %-12s %s\n",
-                                  insn->address, insn->mnemonic,
-                                  insn->op_str);
+            cap_dump_insn(info, insn);
             if (--count <= 0) {
                 break;
             }
@@ -376,6 +438,8 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     s.info.print_address_func = generic_print_address;
     s.info.cap_arch = -1;
     s.info.cap_mode = 0;
+    s.info.cap_insn_unit = 4;
+    s.info.cap_insn_split = 4;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
@@ -427,6 +491,8 @@ void disas(FILE *out, void *code, unsigned long size)
     s.info.buffer_length = size;
     s.info.cap_arch = -1;
     s.info.cap_mode = 0;
+    s.info.cap_insn_unit = 4;
+    s.info.cap_insn_split = 4;
 
 #ifdef HOST_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
@@ -440,11 +506,15 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_i386;
     s.info.cap_arch = CS_ARCH_X86;
     s.info.cap_mode = CS_MODE_32;
+    s.info.cap_insn_unit = 1;
+    s.info.cap_insn_split = 8;
 #elif defined(__x86_64__)
     s.info.mach = bfd_mach_x86_64;
     print_insn = print_insn_i386;
     s.info.cap_arch = CS_ARCH_X86;
     s.info.cap_mode = CS_MODE_64;
+    s.info.cap_insn_unit = 1;
+    s.info.cap_insn_split = 8;
 #elif defined(_ARCH_PPC)
     s.info.disassembler_options = (char *)"any";
     print_insn = print_insn_ppc;
@@ -537,6 +607,8 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
     s.info.buffer_vma = pc;
     s.info.cap_arch = -1;
     s.info.cap_mode = 0;
+    s.info.cap_insn_unit = 4;
+    s.info.cap_insn_split = 4;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
