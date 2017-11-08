@@ -697,6 +697,7 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
         .len = bytes,
     };
 
+    assert(!(client->info.flags & NBD_FLAG_READ_ONLY));
     if (flags & BDRV_REQ_FUA) {
         assert(client->info.flags & NBD_FLAG_SEND_FUA);
         request.flags |= NBD_CMD_FLAG_FUA;
@@ -717,6 +718,7 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
         .len = bytes,
     };
 
+    assert(!(client->info.flags & NBD_FLAG_READ_ONLY));
     if (!(client->info.flags & NBD_FLAG_SEND_WRITE_ZEROES)) {
         return -ENOTSUP;
     }
@@ -756,6 +758,7 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
         .len = bytes,
     };
 
+    assert(!(client->info.flags & NBD_FLAG_READ_ONLY));
     if (!(client->info.flags & NBD_FLAG_SEND_TRIM)) {
         return 0;
     }
@@ -813,6 +816,12 @@ int nbd_client_init(BlockDriverState *bs,
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;
+    }
+    if (client->info.flags & NBD_FLAG_READ_ONLY &&
+        !bdrv_is_read_only(bs)) {
+        error_setg(errp,
+                   "request for write access conflicts with read-only export");
+        return -EACCES;
     }
     if (client->info.flags & NBD_FLAG_SEND_FUA) {
         bs->supported_write_flags = BDRV_REQ_FUA;

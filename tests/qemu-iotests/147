@@ -43,6 +43,7 @@ class NBDBlockdevAddBase(iotests.QMPTestCase):
                     'driver': 'raw',
                     'file': {
                         'driver': 'nbd',
+                        'read-only': True,
                         'server': address
                     } }
         if export is not None:
