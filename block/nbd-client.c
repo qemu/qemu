@@ -248,7 +248,7 @@ static int nbd_parse_error_payload(NBDStructuredReplyChunk *chunk,
 
     error = nbd_errno_to_system_errno(payload_advance32(&payload));
     if (error == 0) {
-        error_setg(errp, "Protocol error: server sent structured error chunk"
+        error_setg(errp, "Protocol error: server sent structured error chunk "
                          "with error = 0");
         return -EINVAL;
     }
@@ -257,7 +257,7 @@ static int nbd_parse_error_payload(NBDStructuredReplyChunk *chunk,
     message_size = payload_advance16(&payload);
 
     if (message_size > chunk->length - sizeof(error) - sizeof(message_size)) {
-        error_setg(errp, "Protocol error: server sent structured error chunk"
+        error_setg(errp, "Protocol error: server sent structured error chunk "
                          "with incorrect message size");
         return -EINVAL;
     }
@@ -408,7 +408,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     if (chunk->type == NBD_REPLY_TYPE_NONE) {
         if (!(chunk->flags & NBD_REPLY_FLAG_DONE)) {
             error_setg(errp, "Protocol error: NBD_REPLY_TYPE_NONE chunk without"
-                             "NBD_REPLY_FLAG_DONE flag set");
+                       " NBD_REPLY_FLAG_DONE flag set");
             return -EINVAL;
         }
         return 0;
