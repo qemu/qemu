@@ -44,7 +44,7 @@ static void static_write(void *opaque, hwaddr offset, uint64_t value,
 {
 #ifdef SPY
     printf("%s: value %08lx written at " PA_FMT "\n",
-                    __FUNCTION__, value, offset);
+                    __func__, value, offset);
 #endif
 }
 
@@ -127,11 +127,11 @@ static void palmte_onoff_gpios(void *opaque, int line, int level)
     switch (line) {
     case 0:
         printf("%s: current to MMC/SD card %sabled.\n",
-                        __FUNCTION__, level ? "dis" : "en");
+                        __func__, level ? "dis" : "en");
         break;
     case 1:
         printf("%s: internal speaker amplifier %s.\n",
-                        __FUNCTION__, level ? "down" : "on");
+                        __func__, level ? "down" : "on");
         break;
 
     /* These LCD & Audio output signals have not been identified yet.  */
@@ -139,12 +139,12 @@ static void palmte_onoff_gpios(void *opaque, int line, int level)
     case 3:
     case 4:
         printf("%s: LCD GPIO%i %s.\n",
-                        __FUNCTION__, line - 1, level ? "high" : "low");
+                        __func__, line - 1, level ? "high" : "low");
         break;
     case 5:
     case 6:
         printf("%s: Audio GPIO%i %s.\n",
-                        __FUNCTION__, line - 4, level ? "high" : "low");
+                        __func__, line - 4, level ? "high" : "low");
         break;
     }
 }
@@ -234,7 +234,7 @@ static void palmte_init(MachineState *machine)
         rom_size = get_image_size(option_rom[0].name);
         if (rom_size > flash_size) {
             fprintf(stderr, "%s: ROM image too big (%x > %x)\n",
-                            __FUNCTION__, rom_size, flash_size);
+                            __func__, rom_size, flash_size);
             rom_size = 0;
         }
         if (rom_size > 0) {
@@ -244,7 +244,7 @@ static void palmte_init(MachineState *machine)
         }
         if (rom_size < 0) {
             fprintf(stderr, "%s: error loading '%s'\n",
-                            __FUNCTION__, option_rom[0].name);
+                            __func__, option_rom[0].name);
         }
     }
 

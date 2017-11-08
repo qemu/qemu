@@ -296,7 +296,7 @@ static uint32_t tusb_async_readb(void *opaque, hwaddr addr)
     }
 
     printf("%s: unknown register at %03x\n",
-                    __FUNCTION__, (int) (addr & 0xfff));
+                    __func__, (int) (addr & 0xfff));
     return 0;
 }
 
@@ -313,7 +313,7 @@ static uint32_t tusb_async_readh(void *opaque, hwaddr addr)
     }
 
     printf("%s: unknown register at %03x\n",
-                    __FUNCTION__, (int) (addr & 0xfff));
+                    __func__, (int) (addr & 0xfff));
     return 0;
 }
 
@@ -436,7 +436,7 @@ static uint32_t tusb_async_readw(void *opaque, hwaddr addr)
         return 0x54059adf;
     }
 
-    printf("%s: unknown register at %03x\n", __FUNCTION__, offset);
+    printf("%s: unknown register at %03x\n", __func__, offset);
     return 0;
 }
 
@@ -456,7 +456,7 @@ static void tusb_async_writeb(void *opaque, hwaddr addr,
 
     default:
         printf("%s: unknown register at %03x\n",
-                        __FUNCTION__, (int) (addr & 0xfff));
+                        __func__, (int) (addr & 0xfff));
         return;
     }
 }
@@ -477,7 +477,7 @@ static void tusb_async_writeh(void *opaque, hwaddr addr,
 
     default:
         printf("%s: unknown register at %03x\n",
-                        __FUNCTION__, (int) (addr & 0xfff));
+                        __func__, (int) (addr & 0xfff));
         return;
     }
 }
@@ -505,7 +505,7 @@ static void tusb_async_writew(void *opaque, hwaddr addr,
         s->dev_config = value;
         s->host_mode = (value & TUSB_DEV_CONF_USB_HOST_MODE);
         if (value & TUSB_DEV_CONF_PROD_TEST_MODE)
-            hw_error("%s: Product Test mode not allowed\n", __FUNCTION__);
+            hw_error("%s: Product Test mode not allowed\n", __func__);
         break;
 
     case TUSB_PHY_OTG_CTRL_ENABLE:
@@ -636,7 +636,7 @@ static void tusb_async_writew(void *opaque, hwaddr addr,
         break;
 
     default:
-        printf("%s: unknown register at %03x\n", __FUNCTION__, offset);
+        printf("%s: unknown register at %03x\n", __func__, offset);
         return;
     }
 }

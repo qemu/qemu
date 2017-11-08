@@ -19,11 +19,11 @@ static QEMUCursor *cursor_parse_xpm(const char *xpm[])
     if (sscanf(xpm[line], "%u %u %u %u",
                &width, &height, &colors, &chars) != 4) {
         fprintf(stderr, "%s: header parse error: \"%s\"\n",
-                __FUNCTION__, xpm[line]);
+                __func__, xpm[line]);
         return NULL;
     }
     if (chars != 1) {
-        fprintf(stderr, "%s: chars != 1 not supported\n", __FUNCTION__);
+        fprintf(stderr, "%s: chars != 1 not supported\n", __func__);
         return NULL;
     }
     line++;
@@ -41,7 +41,7 @@ static QEMUCursor *cursor_parse_xpm(const char *xpm[])
             }
         }
         fprintf(stderr, "%s: color parse error: \"%s\"\n",
-                __FUNCTION__, xpm[line]);
+                __func__, xpm[line]);
         return NULL;
     }
 

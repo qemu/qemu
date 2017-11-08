@@ -631,7 +631,7 @@ static int flush_blks(QEMUFile *f)
     int ret = 0;
 
     DPRINTF("%s Enter submitted %d read_done %d transferred %d\n",
-            __FUNCTION__, block_mig_state.submitted, block_mig_state.read_done,
+            __func__, block_mig_state.submitted, block_mig_state.read_done,
             block_mig_state.transferred);
 
     blk_mig_lock();
@@ -658,7 +658,7 @@ static int flush_blks(QEMUFile *f)
     }
     blk_mig_unlock();
 
-    DPRINTF("%s Exit submitted %d read_done %d transferred %d\n", __FUNCTION__,
+    DPRINTF("%s Exit submitted %d read_done %d transferred %d\n", __func__,
             block_mig_state.submitted, block_mig_state.read_done,
             block_mig_state.transferred);
     return ret;

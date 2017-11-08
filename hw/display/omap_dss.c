@@ -526,7 +526,7 @@ static void omap_disc_write(void *opaque, hwaddr addr,
         s->dispc.l[0].attr = value & 0x7ff;
         if (value & (3 << 9))
             fprintf(stderr, "%s: Big-endian pixel format not supported\n",
-                            __FUNCTION__);
+                            __func__);
         s->dispc.l[0].enable = value & 1;
         s->dispc.l[0].bpp = (value >> 1) & 0xf;
         s->dispc.invalidate = 1;
@@ -617,7 +617,7 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
     if (s->rfbi.control & (1 << 1)) {				/* BYPASS */
         /* TODO: in non-Bypass mode we probably need to just assert the
          * DRQ and wait for DMA to write the pixels.  */
-        fprintf(stderr, "%s: Bypass mode unimplemented\n", __FUNCTION__);
+        fprintf(stderr, "%s: Bypass mode unimplemented\n", __func__);
         return;
     }
 
@@ -1086,6 +1086,6 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
 void omap_rfbi_attach(struct omap_dss_s *s, int cs, struct rfbi_chip_s *chip)
 {
     if (cs < 0 || cs > 1)
-        hw_error("%s: wrong CS %i\n", __FUNCTION__, cs);
+        hw_error("%s: wrong CS %i\n", __func__, cs);
     s->rfbi.chip[cs] = chip;
 }

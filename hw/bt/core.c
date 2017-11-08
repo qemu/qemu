@@ -32,23 +32,23 @@ static void bt_dummy_lmp_connection_complete(struct bt_link_s *link)
 {
     if (link->slave->reject_reason)
         fprintf(stderr, "%s: stray LMP_not_accepted received, fixme\n",
-                        __FUNCTION__);
+                        __func__);
     else
         fprintf(stderr, "%s: stray LMP_accepted received, fixme\n",
-                        __FUNCTION__);
+                        __func__);
     exit(-1);
 }
 
 static void bt_dummy_lmp_disconnect_master(struct bt_link_s *link)
 {
-    fprintf(stderr, "%s: stray LMP_detach received, fixme\n", __FUNCTION__);
+    fprintf(stderr, "%s: stray LMP_detach received, fixme\n", __func__);
     exit(-1);
 }
 
 static void bt_dummy_lmp_acl_resp(struct bt_link_s *link,
                 const uint8_t *data, int start, int len)
 {
-    fprintf(stderr, "%s: stray ACL response PDU, fixme\n", __FUNCTION__);
+    fprintf(stderr, "%s: stray ACL response PDU, fixme\n", __func__);
     exit(-1);
 }
 
@@ -113,7 +113,7 @@ void bt_device_done(struct bt_device_s *dev)
     while (*p && *p != dev)
         p = &(*p)->next;
     if (*p != dev) {
-        fprintf(stderr, "%s: bad bt device \"%s\"\n", __FUNCTION__,
+        fprintf(stderr, "%s: bad bt device \"%s\"\n", __func__,
                         dev->lmp_name ?: "(null)");
         exit(-1);
     }

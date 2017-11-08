@@ -474,7 +474,7 @@ static uint16_t blizzard_reg_read(void *opaque, uint8_t reg)
         return s->gpio_pdown;
 
     default:
-        fprintf(stderr, "%s: unknown register %02x\n", __FUNCTION__, reg);
+        fprintf(stderr, "%s: unknown register %02x\n", __func__, reg);
         return 0;
     }
 }
@@ -502,7 +502,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
         s->pll_mode = value & 0x77;
         if ((value & 3) == 0 || (value & 3) == 3)
             fprintf(stderr, "%s: wrong PLL Control bits (%i)\n",
-                    __FUNCTION__, value & 3);
+                    __func__, value & 3);
         break;
 
     case 0x0e:	/* Clock-Source Select */
@@ -541,7 +541,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
     case 0x28:	/* LCD Panel Configuration */
         s->lcd_config = value & 0xff;
         if (value & (1 << 7))
-            fprintf(stderr, "%s: data swap not supported!\n", __FUNCTION__);
+            fprintf(stderr, "%s: data swap not supported!\n", __func__);
         break;
 
     case 0x2a:	/* LCD Horizontal Display Width */
@@ -586,7 +586,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
         s->hssi_config[1] = value;
         if (((value >> 4) & 3) == 3)
             fprintf(stderr, "%s: Illegal active-data-links value\n",
-                            __FUNCTION__);
+                            __func__);
         break;
     case 0x42:	/* High-speed Serial Interface Tx Mode */
         s->hssi_config[2] = value & 0xbd;
@@ -641,7 +641,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
         s->enable = value & 1;
         s->blank = (value >> 1) & 1;
         if (value & (1 << 4))
-            fprintf(stderr, "%s: Macrovision enable attempt!\n", __FUNCTION__);
+            fprintf(stderr, "%s: Macrovision enable attempt!\n", __func__);
         break;
 
     case 0x6a:	/* Special Effects */
@@ -718,7 +718,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
         s->bpp = blizzard_iformat_bpp[s->iformat];
         if (!s->bpp)
             fprintf(stderr, "%s: Illegal or unsupported input format %x\n",
-                            __FUNCTION__, s->iformat);
+                            __func__, s->iformat);
         break;
     case 0x8e:	/* Data Source Select */
         s->source = value & 7;
@@ -730,7 +730,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
                         !((s->ix[1] - s->ix[0]) & (s->iy[1] - s->iy[0]) &
                           (s->ox[1] - s->ox[0]) & (s->oy[1] - s->oy[0]) & 1))
             fprintf(stderr, "%s: Illegal input/output window positions\n",
-                            __FUNCTION__);
+                            __func__);
 
         blizzard_transfer_setup(s);
         break;
@@ -784,7 +784,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
         s->pm = value & 0x83;
         if (value & s->mode & 1)
             fprintf(stderr, "%s: The display must be disabled before entering "
-                            "Standby Mode\n", __FUNCTION__);
+                            "Standby Mode\n", __func__);
         break;
     case 0xe8:	/* Non-display Period Control / Status */
         s->status = value & 0x1b;
@@ -815,7 +815,7 @@ static void blizzard_reg_write(void *opaque, uint8_t reg, uint16_t value)
         break;
 
     default:
-        fprintf(stderr, "%s: unknown register %02x\n", __FUNCTION__, reg);
+        fprintf(stderr, "%s: unknown register %02x\n", __func__, reg);
         break;
     }
 }

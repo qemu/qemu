@@ -399,7 +399,7 @@ static void omap2_gpio_module_write(void *opaque, hwaddr addr,
 
     case 0x10:	/* GPIO_SYSCONFIG */
         if (((value >> 3) & 3) == 3)
-            fprintf(stderr, "%s: bad IDLEMODE value\n", __FUNCTION__);
+            fprintf(stderr, "%s: bad IDLEMODE value\n", __func__);
         if (value & 2)
             omap2_gpio_module_reset(s);
         s->config[0] = value & 0x1d;

@@ -7,7 +7,7 @@
 #define QEMU_SHARPSL_H
 
 #define zaurus_printf(format, ...)	\
-    fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)
+    fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)
 
 /* zaurus.c */
 

@@ -662,7 +662,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
     }
     if (oops) /* should not happen */
         xen_pv_printf(&xenfb->c.xendev, 0, "%s: oops: convert %d -> %d bpp?\n",
-                      __FUNCTION__, xenfb->depth, bpp);
+                      __func__, xenfb->depth, bpp);
 
     dpy_gfx_update(xenfb->con, x, y, w, h);
 }

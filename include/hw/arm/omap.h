@@ -960,10 +960,10 @@ void omap_mpu_wakeup(void *opaque, int irq, int req);
 
 # define OMAP_BAD_REG(paddr)		\
         fprintf(stderr, "%s: Bad register " OMAP_FMT_plx "\n",	\
-                        __FUNCTION__, paddr)
+                        __func__, paddr)
 # define OMAP_RO_REG(paddr)		\
         fprintf(stderr, "%s: Read-only register " OMAP_FMT_plx "\n",	\
-                        __FUNCTION__, paddr)
+                        __func__, paddr)
 
 /* OMAP-specific Linux bootloader tags for the ATAG_BOARD area
    (Board-specifc tags are not here)  */
@@ -998,13 +998,13 @@ enum {
 # ifdef TCMI_VERBOSE
 #  define OMAP_8B_REG(paddr)		\
         fprintf(stderr, "%s: 8-bit register " OMAP_FMT_plx "\n",	\
-                        __FUNCTION__, paddr)
+                        __func__, paddr)
 #  define OMAP_16B_REG(paddr)		\
         fprintf(stderr, "%s: 16-bit register " OMAP_FMT_plx "\n",	\
-                        __FUNCTION__, paddr)
+                        __func__, paddr)
 #  define OMAP_32B_REG(paddr)		\
         fprintf(stderr, "%s: 32-bit register " OMAP_FMT_plx "\n",	\
-                        __FUNCTION__, paddr)
+                        __func__, paddr)
 # else
 #  define OMAP_8B_REG(paddr)
 #  define OMAP_16B_REG(paddr)

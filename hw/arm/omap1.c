@@ -999,7 +999,7 @@ static uint64_t omap_id_read(void *opaque, hwaddr addr,
         case omap1510:
             return 0x03310115;
         default:
-            hw_error("%s: bad mpu model\n", __FUNCTION__);
+            hw_error("%s: bad mpu model\n", __func__);
         }
         break;
 
@@ -1010,7 +1010,7 @@ static uint64_t omap_id_read(void *opaque, hwaddr addr,
         case omap1510:
             return 0xfb47002f;
         default:
-            hw_error("%s: bad mpu model\n", __FUNCTION__);
+            hw_error("%s: bad mpu model\n", __func__);
         }
         break;
     }
@@ -1716,7 +1716,7 @@ static void omap_clkm_write(void *opaque, hwaddr addr,
     case 0x18:	/* ARM_SYSST */
         if ((s->clkm.clocking_scheme ^ (value >> 11)) & 7) {
             s->clkm.clocking_scheme = (value >> 11) & 7;
-            printf("%s: clocking scheme set to %s\n", __FUNCTION__,
+            printf("%s: clocking scheme set to %s\n", __func__,
                             clkschemename[s->clkm.clocking_scheme]);
         }
         s->clkm.cold_start &= value & 0x3f;
@@ -2129,14 +2129,14 @@ qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s)
 void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler)
 {
     if (line >= 16 || line < 0)
-        hw_error("%s: No GPIO line %i\n", __FUNCTION__, line);
+        hw_error("%s: No GPIO line %i\n", __func__, line);
     s->handler[line] = handler;
 }
 
 void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down)
 {
     if (row >= 5 || row < 0)
-        hw_error("%s: No key %i-%i\n", __FUNCTION__, col, row);
+        hw_error("%s: No key %i-%i\n", __func__, col, row);
 
     if (down)
         s->buttons[row] |= 1 << col;
@@ -2313,7 +2313,7 @@ void omap_uwire_attach(struct omap_uwire_s *s,
                 uWireSlave *slave, int chipselect)
 {
     if (chipselect < 0 || chipselect > 3) {
-        fprintf(stderr, "%s: Bad chipselect %i\n", __FUNCTION__, chipselect);
+        fprintf(stderr, "%s: Bad chipselect %i\n", __func__, chipselect);
         exit(-1);
     }
 
@@ -2335,7 +2335,7 @@ static void omap_pwl_update(struct omap_pwl_s *s)
 
     if (output != s->output) {
         s->output = output;
-        printf("%s: Backlight now at %i/256\n", __FUNCTION__, output);
+        printf("%s: Backlight now at %i/256\n", __func__, output);
     }
 }
 
@@ -2473,7 +2473,7 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
     case 0x04:	/* VRC */
         if ((value ^ s->vrc) & 1) {
             if (value & 1)
-                printf("%s: %iHz buzz on\n", __FUNCTION__, (int)
+                printf("%s: %iHz buzz on\n", __func__, (int)
                                 /* 1.5 MHz from a 12-MHz or 13-MHz PWT_CLK */
                                 ((omap_clk_getrate(s->clk) >> 3) /
                                  /* Pre-multiplexer divider */
@@ -2490,7 +2490,7 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
                                  ((value & (1 << 5)) ?  80 : 127) /
                                  (107 * 55 * 63 * 127)));
             else
-                printf("%s: silence!\n", __FUNCTION__);
+                printf("%s: silence!\n", __func__);
         }
         s->vrc = value & 0x7f;
         break;
@@ -2562,7 +2562,7 @@ static void omap_rtc_alarm_update(struct omap_rtc_s *s)
 {
     s->alarm_ti = mktimegm(&s->alarm_tm);
     if (s->alarm_ti == -1)
-        printf("%s: conversion failed\n", __FUNCTION__);
+        printf("%s: conversion failed\n", __func__);
 }
 
 static uint64_t omap_rtc_read(void *opaque, hwaddr addr,
@@ -3028,7 +3028,7 @@ static void omap_mcbsp_source_tick(void *opaque)
     if (!s->rx_rate)
         return;
     if (s->rx_req)
-        printf("%s: Rx FIFO overrun\n", __FUNCTION__);
+        printf("%s: Rx FIFO overrun\n", __func__);
 
     s->rx_req = s->rx_rate << bps[(s->rcr[0] >> 5) & 7];
 
@@ -3074,7 +3074,7 @@ static void omap_mcbsp_sink_tick(void *opaque)
     if (!s->tx_rate)
         return;
     if (s->tx_req)
-        printf("%s: Tx FIFO underrun\n", __FUNCTION__);
+        printf("%s: Tx FIFO underrun\n", __func__);
 
     s->tx_req = s->tx_rate << bps[(s->xcr[0] >> 5) & 7];
 
@@ -3176,7 +3176,7 @@ static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
         /* Fall through.  */
     case 0x02:	/* DRR1 */
         if (s->rx_req < 2) {
-            printf("%s: Rx FIFO underrun\n", __FUNCTION__);
+            printf("%s: Rx FIFO underrun\n", __func__);
             omap_mcbsp_rx_done(s);
         } else {
             s->tx_req -= 2;
@@ -3282,7 +3282,7 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
             if (s->tx_req < 2)
                 omap_mcbsp_tx_done(s);
         } else
-            printf("%s: Tx FIFO overrun\n", __FUNCTION__);
+            printf("%s: Tx FIFO overrun\n", __func__);
         return;
 
     case 0x08:	/* SPCR2 */
@@ -3297,7 +3297,7 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
         s->spcr[0] &= 0x0006;
         s->spcr[0] |= 0xf8f9 & value;
         if (value & (1 << 15))				/* DLB */
-            printf("%s: Digital Loopback mode enable attempt\n", __FUNCTION__);
+            printf("%s: Digital Loopback mode enable attempt\n", __func__);
         if (~value & 1) {				/* RRST */
             s->spcr[0] &= ~6;
             s->rx_req = 0;
@@ -3330,13 +3330,13 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
         s->mcr[1] = value & 0x03e3;
         if (value & 3)					/* XMCM */
             printf("%s: Tx channel selection mode enable attempt\n",
-                            __FUNCTION__);
+                            __func__);
         return;
     case 0x1a:	/* MCR1 */
         s->mcr[0] = value & 0x03e1;
         if (value & 1)					/* RMCM */
             printf("%s: Rx channel selection mode enable attempt\n",
-                            __FUNCTION__);
+                            __func__);
         return;
     case 0x1c:	/* RCERA */
         s->rcer[0] = value & 0xffff;
@@ -3418,7 +3418,7 @@ static void omap_mcbsp_writew(void *opaque, hwaddr addr,
             if (s->tx_req < 4)
                 omap_mcbsp_tx_done(s);
         } else
-            printf("%s: Tx FIFO overrun\n", __FUNCTION__);
+            printf("%s: Tx FIFO overrun\n", __func__);
         return;
     }
 
@@ -3536,7 +3536,7 @@ static void omap_lpg_tick(void *opaque)
         timer_mod(s->tm, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->on);
 
     s->cycle = !s->cycle;
-    printf("%s: LED is %s\n", __FUNCTION__, s->cycle ? "on" : "off");
+    printf("%s: LED is %s\n", __func__, s->cycle ? "on" : "off");
 }
 
 static void omap_lpg_update(struct omap_lpg_s *s)
@@ -3557,9 +3557,9 @@ static void omap_lpg_update(struct omap_lpg_s *s)
 
     timer_del(s->tm);
     if (on == period && s->on < s->period)
-        printf("%s: LED is on\n", __FUNCTION__);
+        printf("%s: LED is on\n", __func__);
     else if (on == 0 && s->on)
-        printf("%s: LED is off\n", __FUNCTION__);
+        printf("%s: LED is off\n", __func__);
     else if (on && (on != s->on || period != s->period)) {
         s->cycle = 0;
         s->on = on;

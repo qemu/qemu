@@ -688,7 +688,7 @@ int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
         break;
 
     default:
-        fprintf(stderr, "%s: %d unknown type %d (len %zd)\n", __FUNCTION__,
+        fprintf(stderr, "%s: %d unknown type %d (len %zd)\n", __func__,
                 dev->addr, type, len);
         break;
     }

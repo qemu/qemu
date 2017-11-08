@@ -506,7 +506,7 @@ static void bt_l2cap_sdp_sdu_in(void *opaque, const uint8_t *data, int len)
     int rsp_len = 0;
 
     if (len < 5) {
-        fprintf(stderr, "%s: short SDP PDU (%iB).\n", __FUNCTION__, len);
+        fprintf(stderr, "%s: short SDP PDU (%iB).\n", __func__, len);
         return;
     }
 
@@ -518,7 +518,7 @@ static void bt_l2cap_sdp_sdu_in(void *opaque, const uint8_t *data, int len)
 
     if (len != plen) {
         fprintf(stderr, "%s: wrong SDP PDU length (%iB != %iB).\n",
-                        __FUNCTION__, plen, len);
+                        __func__, plen, len);
         err = SDP_INVALID_PDU_SIZE;
         goto respond;
     }
@@ -545,7 +545,7 @@ static void bt_l2cap_sdp_sdu_in(void *opaque, const uint8_t *data, int len)
     case SDP_SVC_SEARCH_ATTR_RSP:
     default:
         fprintf(stderr, "%s: unexpected SDP PDU ID %02x.\n",
-                        __FUNCTION__, pdu_id);
+                        __func__, pdu_id);
         err = SDP_INVALID_SYNTAX;
         break;
     }

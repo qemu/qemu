@@ -201,7 +201,7 @@ static void tsc2005_write(TSC2005State *s, int reg, uint16_t data)
         if (s->enabled != !(data & 0x4000)) {
             s->enabled = !(data & 0x4000);
             fprintf(stderr, "%s: touchscreen sense %sabled\n",
-                            __FUNCTION__, s->enabled ? "en" : "dis");
+                            __func__, s->enabled ? "en" : "dis");
             if (s->busy && !s->enabled)
                 timer_del(s->timer);
             s->busy = s->busy && s->enabled;
@@ -210,7 +210,7 @@ static void tsc2005_write(TSC2005State *s, int reg, uint16_t data)
         s->timing[0] = data & 0x1fff;
         if ((s->timing[0] >> 11) == 3)
             fprintf(stderr, "%s: illegal conversion clock setting\n",
-                            __FUNCTION__);
+                            __func__);
         break;
     case 0xd:	/* CFR1 */
         s->timing[1] = data & 0xf07;
@@ -222,7 +222,7 @@ static void tsc2005_write(TSC2005State *s, int reg, uint16_t data)
 
     default:
         fprintf(stderr, "%s: write into read-only register %x\n",
-                        __FUNCTION__, reg);
+                        __func__, reg);
     }
 }
 
@@ -338,7 +338,7 @@ static uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
                 if (s->enabled != !(value & 1)) {
                     s->enabled = !(value & 1);
                     fprintf(stderr, "%s: touchscreen sense %sabled\n",
-                                    __FUNCTION__, s->enabled ? "en" : "dis");
+                                    __func__, s->enabled ? "en" : "dis");
                     if (s->busy && !s->enabled)
                         timer_del(s->timer);
                     s->busy = s->busy && s->enabled;

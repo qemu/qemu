@@ -44,7 +44,7 @@ static uint64_t omap_tap_read(void *opaque, hwaddr addr,
         case omap3430:
             return 0x1b7ae02f;	/* ES 2 */
         default:
-            hw_error("%s: Bad mpu model\n", __FUNCTION__);
+            hw_error("%s: Bad mpu model\n", __func__);
         }
 
     case 0x208:	/* PRODUCTION_ID_reg for OMAP2 */
@@ -61,7 +61,7 @@ static uint64_t omap_tap_read(void *opaque, hwaddr addr,
         case omap3430:
             return 0x000000f0;
         default:
-            hw_error("%s: Bad mpu model\n", __FUNCTION__);
+            hw_error("%s: Bad mpu model\n", __func__);
         }
 
     case 0x20c:
@@ -75,7 +75,7 @@ static uint64_t omap_tap_read(void *opaque, hwaddr addr,
         case omap3430:
             return 0xcafeb7ae;	/* ES 2 */
         default:
-            hw_error("%s: Bad mpu model\n", __FUNCTION__);
+            hw_error("%s: Bad mpu model\n", __func__);
         }
 
     case 0x218:	/* DIE_ID_reg */

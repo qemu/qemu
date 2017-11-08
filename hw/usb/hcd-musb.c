@@ -253,8 +253,8 @@
 /* #define MUSB_DEBUG */
 
 #ifdef MUSB_DEBUG
-#define TRACE(fmt,...) fprintf(stderr, "%s@%d: " fmt "\n", __FUNCTION__, \
-                               __LINE__, ##__VA_ARGS__)
+#define TRACE(fmt, ...) fprintf(stderr, "%s@%d: " fmt "\n", __func__, \
+                                __LINE__, ##__VA_ARGS__)
 #else
 #define TRACE(...)
 #endif

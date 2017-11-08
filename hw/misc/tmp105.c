@@ -131,7 +131,7 @@ static void tmp105_write(TMP105State *s)
 
     case TMP105_REG_CONFIG:
         if (s->buf[0] & ~s->config & (1 << 0))			/* SD */
-            printf("%s: TMP105 shutdown\n", __FUNCTION__);
+            printf("%s: TMP105 shutdown\n", __func__);
         s->config = s->buf[0];
         s->faults = tmp105_faultq[(s->config >> 3) & 3];	/* F */
         tmp105_alarm_update(s);

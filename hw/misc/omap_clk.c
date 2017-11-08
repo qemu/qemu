@@ -1109,7 +1109,7 @@ struct clk *omap_findclk(struct omap_mpu_state_s *mpu, const char *name)
     for (i = mpu->clks; i->name; i ++)
         if (!strcmp(i->name, name) || (i->alias && !strcmp(i->alias, name)))
             return i;
-    hw_error("%s: %s not found\n", __FUNCTION__, name);
+    hw_error("%s: %s not found\n", __func__, name);
 }
 
 void omap_clk_get(struct clk *clk)
@@ -1120,7 +1120,7 @@ void omap_clk_get(struct clk *clk)
 void omap_clk_put(struct clk *clk)
 {
     if (!(clk->usecount --))
-        hw_error("%s: %s is not in use\n", __FUNCTION__, clk->name);
+        hw_error("%s: %s is not in use\n", __func__, clk->name);
 }
 
 static void omap_clk_update(struct clk *clk)

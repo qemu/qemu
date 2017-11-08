@@ -256,7 +256,7 @@ static void guest_phys_blocks_region_add(MemoryListener *listener,
 
 #ifdef DEBUG_GUEST_PHYS_REGION_ADD
     fprintf(stderr, "%s: target_start=" TARGET_FMT_plx " target_end="
-            TARGET_FMT_plx ": %s (count: %u)\n", __FUNCTION__, target_start,
+            TARGET_FMT_plx ": %s (count: %u)\n", __func__, target_start,
             target_end, predecessor ? "joined" : "added", g->list->num);
 #endif
 }

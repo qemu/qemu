@@ -341,12 +341,12 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         }
         if ((value & (1 << 15)) && !(value & (1 << 10))) {	/* MST */
             fprintf(stderr, "%s: I^2C slave mode not supported\n",
-                            __FUNCTION__);
+                            __func__);
             break;
         }
         if ((value & (1 << 15)) && value & (1 << 8)) {		/* XA */
             fprintf(stderr, "%s: 10-bit addressing mode not supported\n",
-                            __FUNCTION__);
+                            __func__);
             break;
         }
         if ((value & (1 << 15)) && value & (1 << 0)) {		/* STT */
@@ -393,7 +393,7 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
                 omap_i2c_interrupts_update(s);
             }
         if (value & (1 << 15))					/* ST_EN */
-            fprintf(stderr, "%s: System Test not supported\n", __FUNCTION__);
+            fprintf(stderr, "%s: System Test not supported\n", __func__);
         break;
 
     default:

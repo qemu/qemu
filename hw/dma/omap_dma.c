@@ -161,7 +161,7 @@ static void omap_dma_channel_load(struct omap_dma_channel_s *ch)
     a->pck_element = 0;
 
     if (unlikely(!ch->elements || !ch->frames)) {
-        printf("%s: bad DMA request\n", __FUNCTION__);
+        printf("%s: bad DMA request\n", __func__);
         return;
     }
 
@@ -519,7 +519,7 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
         continue;
 #endif
         printf("%s: Bus time-out in DMA%i operation\n",
-                        __FUNCTION__, dma->num);
+                        __func__, dma->num);
     }
 
     min_elems = INT_MAX;
@@ -879,14 +879,14 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         ch->pack[0] = (value & 0x0040) >> 6;
         ch->port[0] = (enum omap_dma_port) ((value & 0x003c) >> 2);
         if (ch->port[0] >= __omap_dma_port_last)
-            printf("%s: invalid DMA port %i\n", __FUNCTION__,
+            printf("%s: invalid DMA port %i\n", __func__,
                             ch->port[0]);
         if (ch->port[1] >= __omap_dma_port_last)
-            printf("%s: invalid DMA port %i\n", __FUNCTION__,
+            printf("%s: invalid DMA port %i\n", __func__,
                             ch->port[1]);
         ch->data_type = 1 << (value & 3);
         if ((value & 3) == 3) {
-            printf("%s: bad data_type for DMA channel\n", __FUNCTION__);
+            printf("%s: bad data_type for DMA channel\n", __func__);
             ch->data_type >>= 1;
         }
         break;
@@ -1440,7 +1440,7 @@ static int omap_dma_sys_read(struct omap_dma_s *s, int offset,
     case 0x482:	/* DMA_PCh1_SR */
     case 0x4c0:	/* DMA_PChD_SR_0 */
         printf("%s: Physical Channel Status Registers not implemented.\n",
-               __FUNCTION__);
+               __func__);
         *ret = 0xff;
         break;
 
@@ -1898,13 +1898,13 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
             omap_dma_reset(s->dma);
         s->ocp = value & 0x3321;
         if (((s->ocp >> 12) & 3) == 3)				/* MIDLEMODE */
-            fprintf(stderr, "%s: invalid DMA power mode\n", __FUNCTION__);
+            fprintf(stderr, "%s: invalid DMA power mode\n", __func__);
         return;
 
     case 0x78:	/* DMA4_GCR */
         s->gcr = value & 0x00ff00ff;
 	if ((value & 0xff) == 0x00)		/* MAX_CHANNEL_FIFO_DEPTH */
-            fprintf(stderr, "%s: wrong FIFO depth in GCR\n", __FUNCTION__);
+            fprintf(stderr, "%s: wrong FIFO depth in GCR\n", __func__);
         return;
 
     case 0x80 ... 0xfff:
@@ -1935,7 +1935,7 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
         ch->src_sync = (value >> 24) & 1;	/* XXX For CamDMA must be 1 */
         if (ch->buf_disable && !ch->src_sync)
             fprintf(stderr, "%s: Buffering disable is not allowed in "
-                            "destination synchronised mode\n", __FUNCTION__);
+                            "destination synchronised mode\n", __func__);
         ch->prefetch = (value >> 23) & 1;
         ch->bs = (value >> 18) & 1;
         ch->transparent_copy = (value >> 17) & 1;
@@ -1947,7 +1947,7 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
         ch->fs = (value & 0x0020) >> 5;
         if (ch->fs && ch->bs && ch->mode[0] && ch->mode[1])
             fprintf(stderr, "%s: For a packet transfer at least one port "
-                            "must be constant-addressed\n", __FUNCTION__);
+                            "must be constant-addressed\n", __func__);
         ch->sync = (value & 0x001f) | ((value >> 14) & 0x0060);
         /* XXX must be 0x01 for CamDMA */
 
@@ -1978,7 +1978,7 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
         ch->endian_lock[1] =(value >> 18) & 1;
         if (ch->endian[0] != ch->endian[1])
             fprintf(stderr, "%s: DMA endianness conversion enable attempt\n",
-                            __FUNCTION__);
+                            __func__);
         ch->write_mode = (value >> 16) & 3;
         ch->burst[1] = (value & 0xc000) >> 14;
         ch->pack[1] = (value & 0x2000) >> 13;
@@ -1988,10 +1988,10 @@ static void omap_dma4_write(void *opaque, hwaddr addr,
         ch->translate[0] = (value & 0x003c) >> 2;
         if (ch->translate[0] | ch->translate[1])
             fprintf(stderr, "%s: bad MReqAddressTranslate sideband signal\n",
-                            __FUNCTION__);
+                            __func__);
         ch->data_type = 1 << (value & 3);
         if ((value & 3) == 3) {
-            printf("%s: bad data_type for DMA channel\n", __FUNCTION__);
+            printf("%s: bad data_type for DMA channel\n", __func__);
             ch->data_type >>= 1;
         }
         break;
