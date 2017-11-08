@@ -216,7 +216,7 @@ static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
     offset = payload_advance64(&payload);
     hole_size = payload_advance32(&payload);
 
-    if (offset < orig_offset || hole_size > qiov->size ||
+    if (!hole_size || offset < orig_offset || hole_size > qiov->size ||
         offset > orig_offset + qiov->size - hole_size) {
         error_setg(errp, "Protocol error: server sent chunk exceeding requested"
                          " region");
@@ -281,7 +281,8 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
 
     assert(nbd_reply_is_structured(&s->reply));
 
-    if (chunk->length < sizeof(offset)) {
+    /* The NBD spec requires at least one byte of payload */
+    if (chunk->length <= sizeof(offset)) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_OFFSET_DATA");
         return -EINVAL;
@@ -293,6 +294,7 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
     be64_to_cpus(&offset);
 
     data_size = chunk->length - sizeof(offset);
+    assert(data_size);
     if (offset < orig_offset || data_size > qiov->size ||
         offset > orig_offset + qiov->size - data_size) {
         error_setg(errp, "Protocol error: server sent chunk exceeding requested"
@@ -409,6 +411,11 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
         if (!(chunk->flags & NBD_REPLY_FLAG_DONE)) {
             error_setg(errp, "Protocol error: NBD_REPLY_TYPE_NONE chunk without"
                        " NBD_REPLY_FLAG_DONE flag set");
+            return -EINVAL;
+        }
+        if (chunk->length) {
+            error_setg(errp, "Protocol error: NBD_REPLY_TYPE_NONE chunk with"
+                       " nonzero length");
             return -EINVAL;
         }
         return 0;
