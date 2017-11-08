@@ -1280,7 +1280,7 @@ static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
                                                     size_t size,
                                                     Error **errp)
 {
-    NBDStructuredRead chunk;
+    NBDStructuredReadData chunk;
     struct iovec iov[] = {
         {.iov_base = &chunk, .iov_len = sizeof(chunk)},
         {.iov_base = data, .iov_len = size}
