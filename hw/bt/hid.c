@@ -419,7 +419,7 @@ static void bt_hid_interrupt_sdu(void *opaque, const uint8_t *data, int len)
 
     return;
 bad:
-    fprintf(stderr, "%s: bad transaction on Interrupt channel.\n",
+    error_report("%s: bad transaction on Interrupt channel.",
                     __func__);
 }
 

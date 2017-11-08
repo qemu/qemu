@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
 #include "hw/bt.h"
@@ -506,7 +507,7 @@ static void bt_l2cap_sdp_sdu_in(void *opaque, const uint8_t *data, int len)
     int rsp_len = 0;
 
     if (len < 5) {
-        fprintf(stderr, "%s: short SDP PDU (%iB).\n", __func__, len);
+        error_report("%s: short SDP PDU (%iB).", __func__, len);
         return;
     }
 
@@ -517,7 +518,7 @@ static void bt_l2cap_sdp_sdu_in(void *opaque, const uint8_t *data, int len)
     len -= 5;
 
     if (len != plen) {
-        fprintf(stderr, "%s: wrong SDP PDU length (%iB != %iB).\n",
+        error_report("%s: wrong SDP PDU length (%iB != %iB).",
                         __func__, plen, len);
         err = SDP_INVALID_PDU_SIZE;
         goto respond;
@@ -544,7 +545,7 @@ static void bt_l2cap_sdp_sdu_in(void *opaque, const uint8_t *data, int len)
     case SDP_SVC_SEARCH_RSP:
     case SDP_SVC_SEARCH_ATTR_RSP:
     default:
-        fprintf(stderr, "%s: unexpected SDP PDU ID %02x.\n",
+        error_report("%s: unexpected SDP PDU ID %02x.",
                         __func__, pdu_id);
         err = SDP_INVALID_SYNTAX;
         break;
