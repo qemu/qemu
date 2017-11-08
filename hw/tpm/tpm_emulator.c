@@ -72,6 +72,9 @@ typedef struct TPMEmulator {
     Error *migration_blocker;
 
     QemuMutex mutex;
+
+    unsigned int established_flag:1;
+    unsigned int established_flag_cached:1;
 } TPMEmulator;
 
 
@@ -349,16 +352,22 @@ static bool tpm_emulator_get_tpm_established_flag(TPMBackend *tb)
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     ptm_est est;
 
-    DPRINTF("%s", __func__);
+    if (tpm_emu->established_flag_cached) {
+        return tpm_emu->established_flag;
+    }
+
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_GET_TPMESTABLISHED, &est,
                              0, sizeof(est)) < 0) {
         error_report("tpm-emulator: Could not get the TPM established flag: %s",
                      strerror(errno));
         return false;
     }
-    DPRINTF("established flag: %0x", est.u.resp.bit);
+    DPRINTF("got established flag: %0x", est.u.resp.bit);
 
-    return (est.u.resp.bit != 0);
+    tpm_emu->established_flag_cached = 1;
+    tpm_emu->established_flag = (est.u.resp.bit != 0);
+
+    return tpm_emu->established_flag;
 }
 
 static int tpm_emulator_reset_tpm_established_flag(TPMBackend *tb,
@@ -388,6 +397,8 @@ static int tpm_emulator_reset_tpm_established_flag(TPMBackend *tb,
                      res);
         return -1;
     }
+
+    tpm_emu->established_flag_cached = 0;
 
     return 0;
 }
