@@ -674,6 +674,9 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
     assert(!flags);
 
+    if (!bytes) {
+        return 0;
+    }
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         return ret;
@@ -705,6 +708,9 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
 
+    if (!bytes) {
+        return 0;
+    }
     return nbd_co_request(bs, &request, qiov);
 }
 
@@ -731,6 +737,9 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
         request.flags |= NBD_CMD_FLAG_NO_HOLE;
     }
 
+    if (!bytes) {
+        return 0;
+    }
     return nbd_co_request(bs, &request, NULL);
 }
 
@@ -759,7 +768,7 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
     };
 
     assert(!(client->info.flags & NBD_FLAG_READ_ONLY));
-    if (!(client->info.flags & NBD_FLAG_SEND_TRIM)) {
+    if (!(client->info.flags & NBD_FLAG_SEND_TRIM) || !bytes) {
         return 0;
     }
 
