@@ -1717,7 +1717,7 @@ static void omap_clkm_write(void *opaque, hwaddr addr,
         if ((s->clkm.clocking_scheme ^ (value >> 11)) & 7) {
             s->clkm.clocking_scheme = (value >> 11) & 7;
             printf("%s: clocking scheme set to %s\n", __func__,
-                            clkschemename[s->clkm.clocking_scheme]);
+                   clkschemename[s->clkm.clocking_scheme]);
         }
         s->clkm.cold_start &= value & 0x3f;
         return;
@@ -3329,14 +3329,12 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
     case 0x18:	/* MCR2 */
         s->mcr[1] = value & 0x03e3;
         if (value & 3)					/* XMCM */
-            printf("%s: Tx channel selection mode enable attempt\n",
-                            __func__);
+            printf("%s: Tx channel selection mode enable attempt\n", __func__);
         return;
     case 0x1a:	/* MCR1 */
         s->mcr[0] = value & 0x03e1;
         if (value & 1)					/* RMCM */
-            printf("%s: Rx channel selection mode enable attempt\n",
-                            __func__);
+            printf("%s: Rx channel selection mode enable attempt\n", __func__);
         return;
     case 0x1c:	/* RCERA */
         s->rcer[0] = value & 0xffff;

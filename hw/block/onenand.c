@@ -659,7 +659,7 @@ static uint64_t onenand_read(void *opaque, hwaddr addr,
     case 0xff02:	/* ECC Result of spare area data */
     case 0xff03:	/* ECC Result of main area data */
     case 0xff04:	/* ECC Result of spare area data */
-        hw_error("%s: imeplement ECC\n", __func__);
+        hw_error("%s: implement ECC\n", __func__);
         return 0x0000;
     }
 
