@@ -979,6 +979,7 @@ static int nbd_receive_structured_reply_chunk(QIOChannel *ioc,
 int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
 {
     int ret;
+    const char *type;
 
     ret = nbd_read_eof(ioc, &reply->magic, sizeof(reply->magic), errp);
     if (ret <= 0) {
@@ -1008,8 +1009,9 @@ int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
         if (ret < 0) {
             break;
         }
+        type = nbd_reply_type_lookup(reply->structured.type);
         trace_nbd_receive_structured_reply_chunk(reply->structured.flags,
-                                                 reply->structured.type,
+                                                 reply->structured.type, type,
                                                  reply->structured.handle,
                                                  reply->structured.length);
         break;
