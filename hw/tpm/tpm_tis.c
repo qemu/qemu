@@ -70,8 +70,7 @@ typedef struct TPMState {
     ISADevice busdev;
     MemoryRegion mmio;
 
-    unsigned char w_buffer[TPM_TIS_BUFFER_MAX];
-    unsigned char r_buffer[TPM_TIS_BUFFER_MAX];
+    unsigned char buffer[TPM_TIS_BUFFER_MAX];
 
     uint8_t active_locty;
     uint8_t aborting_locty;
@@ -257,7 +256,7 @@ static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
 {
     TPMLocality *locty_data = &s->loc[locty];
 
-    tpm_tis_show_buffer(s->w_buffer, s->be_buffer_size,
+    tpm_tis_show_buffer(s->buffer, s->be_buffer_size,
                         "tpm_tis: To TPM");
 
     /*
@@ -268,9 +267,9 @@ static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
 
     s->cmd = (TPMBackendCmd) {
         .locty = locty,
-        .in = s->w_buffer,
+        .in = s->buffer,
         .in_len = locty_data->w_offset,
-        .out = s->r_buffer,
+        .out = s->buffer,
         .out_len = s->be_buffer_size,
     };
 
@@ -422,7 +421,7 @@ static void tpm_tis_request_completed(TPMIf *ti)
     s->loc[locty].r_offset = 0;
     s->loc[locty].w_offset = 0;
 
-    tpm_tis_show_buffer(s->r_buffer, s->be_buffer_size,
+    tpm_tis_show_buffer(s->buffer, s->be_buffer_size,
                         "tpm_tis: From TPM");
 
     if (TPM_TIS_IS_VALID_LOCTY(s->next_locty)) {
@@ -442,10 +441,10 @@ static uint32_t tpm_tis_data_read(TPMState *s, uint8_t locty)
     uint16_t len;
 
     if ((s->loc[locty].sts & TPM_TIS_STS_DATA_AVAILABLE)) {
-        len = MIN(tpm_cmd_get_size(&s->r_buffer),
+        len = MIN(tpm_cmd_get_size(&s->buffer),
                   s->be_buffer_size);
 
-        ret = s->r_buffer[s->loc[locty].r_offset++];
+        ret = s->buffer[s->loc[locty].r_offset++];
         if (s->loc[locty].r_offset >= len) {
             /* got last byte */
             tpm_tis_sts_set(&s->loc[locty], TPM_TIS_STS_VALID);
@@ -491,11 +490,11 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
             "tpm_tis: result buffer : ",
             s->loc[locty].r_offset);
     for (idx = 0;
-         idx < MIN(tpm_cmd_get_size(&s->r_buffer), s->be_buffer_size);
+         idx < MIN(tpm_cmd_get_size(&s->buffer), s->be_buffer_size);
          idx++) {
         DPRINTF("%c%02x%s",
                 s->loc[locty].r_offset == idx ? '>' : ' ',
-                s->r_buffer[idx],
+                s->buffer[idx],
                 ((idx & 0xf) == 0xf) ? "\ntpm_tis:                 " : "");
     }
     DPRINTF("\n"
@@ -503,11 +502,11 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
             "tpm_tis: request buffer: ",
             s->loc[locty].w_offset);
     for (idx = 0;
-         idx < MIN(tpm_cmd_get_size(s->w_buffer), s->be_buffer_size);
+         idx < MIN(tpm_cmd_get_size(s->buffer), s->be_buffer_size);
          idx++) {
         DPRINTF("%c%02x%s",
                 s->loc[locty].w_offset == idx ? '>' : ' ',
-                s->w_buffer[idx],
+                s->buffer[idx],
                 ((idx & 0xf) == 0xf) ? "\ntpm_tis:                 " : "");
     }
     DPRINTF("\n");
@@ -569,7 +568,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         if (s->active_locty == locty) {
             if ((s->loc[locty].sts & TPM_TIS_STS_DATA_AVAILABLE)) {
                 val = TPM_TIS_BURST_COUNT(
-                       MIN(tpm_cmd_get_size(&s->r_buffer),
+                       MIN(tpm_cmd_get_size(&s->buffer),
                            s->be_buffer_size)
                        - s->loc[locty].r_offset) | s->loc[locty].sts;
             } else {
@@ -922,7 +921,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
 
             while ((s->loc[locty].sts & TPM_TIS_STS_EXPECT) && size > 0) {
                 if (s->loc[locty].w_offset < s->be_buffer_size) {
-                    s->w_buffer[s->loc[locty].w_offset++] =
+                    s->buffer[s->loc[locty].w_offset++] =
                         (uint8_t)val;
                     val >>= 8;
                     size--;
@@ -937,7 +936,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
                 /* we have a packet length - see if we have all of it */
                 bool need_irq = !(s->loc[locty].sts & TPM_TIS_STS_VALID);
 
-                len = tpm_cmd_get_size(&s->w_buffer);
+                len = tpm_cmd_get_size(&s->buffer);
                 if (len > s->loc[locty].w_offset) {
                     tpm_tis_sts_set(&s->loc[locty],
                                     TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID);
