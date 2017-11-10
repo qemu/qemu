@@ -729,15 +729,13 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
     return dev;
 }
 
-static qemu_irq *ppce500_init_mpic(MachineState *machine, PPCE500Params *params,
-                                   MemoryRegion *ccsr, qemu_irq **irqs)
+static DeviceState *ppce500_init_mpic(MachineState *machine,
+                                      PPCE500Params *params,
+                                      MemoryRegion *ccsr,
+                                      qemu_irq **irqs)
 {
-    qemu_irq *mpic;
     DeviceState *dev = NULL;
     SysBusDevice *s;
-    int i;
-
-    mpic = g_new0(qemu_irq, 256);
 
     if (kvm_enabled()) {
         Error *err = NULL;
@@ -756,15 +754,11 @@ static qemu_irq *ppce500_init_mpic(MachineState *machine, PPCE500Params *params,
         dev = ppce500_init_mpic_qemu(params, irqs);
     }
 
-    for (i = 0; i < 256; i++) {
-        mpic[i] = qdev_get_gpio_in(dev, i);
-    }
-
     s = SYS_BUS_DEVICE(dev);
     memory_region_add_subregion(ccsr, MPC8544_MPIC_REGS_OFFSET,
                                 s->mmio[0].memory);
 
-    return mpic;
+    return dev;
 }
 
 static void ppce500_power_off(void *opaque, int line, int on)
@@ -796,8 +790,8 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     /* irq num for pin INTA, INTB, INTC and INTD is 1, 2, 3 and
      * 4 respectively */
     unsigned int pci_irq_nrs[PCI_NUM_PINS] = {1, 2, 3, 4};
-    qemu_irq **irqs, *mpic;
-    DeviceState *dev;
+    qemu_irq **irqs;
+    DeviceState *dev, *mpicdev;
     CPUPPCState *firstenv = NULL;
     MemoryRegion *ccsr_addr_space;
     SysBusDevice *s;
@@ -866,18 +860,18 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     memory_region_add_subregion(address_space_mem, params->ccsrbar_base,
                                 ccsr_addr_space);
 
-    mpic = ppce500_init_mpic(machine, params, ccsr_addr_space, irqs);
+    mpicdev = ppce500_init_mpic(machine, params, ccsr_addr_space, irqs);
 
     /* Serial */
     if (serial_hds[0]) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL0_REGS_OFFSET,
-                       0, mpic[42], 399193,
+                       0, qdev_get_gpio_in(mpicdev, 42), 399193,
                        serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     if (serial_hds[1]) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL1_REGS_OFFSET,
-                       0, mpic[42], 399193,
+                       0, qdev_get_gpio_in(mpicdev, 42), 399193,
                        serial_hds[1], DEVICE_BIG_ENDIAN);
     }
 
@@ -895,7 +889,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        sysbus_connect_irq(s, i, mpic[pci_irq_nrs[i]]);
+        sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, pci_irq_nrs[i]));
     }
 
     memory_region_add_subregion(ccsr_addr_space, MPC8544_PCI_REGS_OFFSET,
@@ -926,7 +920,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         dev = qdev_create(NULL, "mpc8xxx_gpio");
         s = SYS_BUS_DEVICE(dev);
         qdev_init_nofail(dev);
-        sysbus_connect_irq(s, 0, mpic[MPC8XXX_GPIO_IRQ]);
+        sysbus_connect_irq(s, 0, qdev_get_gpio_in(mpicdev, MPC8XXX_GPIO_IRQ));
         memory_region_add_subregion(ccsr_addr_space, MPC8XXX_GPIO_OFFSET,
                                     sysbus_mmio_get_region(s, 0));
 
@@ -946,7 +940,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
 
         for (i = 0; i < params->platform_bus_num_irqs; i++) {
             int irqn = params->platform_bus_first_irq + i;
-            sysbus_connect_irq(s, i, mpic[irqn]);
+            sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, irqn));
         }
 
         memory_region_add_subregion(address_space_mem,
