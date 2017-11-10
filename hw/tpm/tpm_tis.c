@@ -64,8 +64,8 @@ typedef struct TPMLocality {
 
     uint16_t w_offset;
     uint16_t r_offset;
-    TPMSizedBuffer w_buffer;
-    TPMSizedBuffer r_buffer;
+    unsigned char w_buffer[TPM_TIS_BUFFER_MAX];
+    unsigned char r_buffer[TPM_TIS_BUFFER_MAX];
 } TPMLocality;
 
 typedef struct TPMState {
@@ -215,23 +215,19 @@ static uint8_t tpm_tis_locality_from_addr(hwaddr addr)
     return (uint8_t)((addr >> TPM_TIS_LOCALITY_SHIFT) & 0x7);
 }
 
-static uint32_t tpm_tis_get_size_from_buffer(const TPMSizedBuffer *sb)
-{
-    return tpm_cmd_get_size(sb->buffer);
-}
-
-static void tpm_tis_show_buffer(const TPMSizedBuffer *sb, const char *string)
+static void tpm_tis_show_buffer(const unsigned char *buffer,
+                                size_t buffer_size, const char *string)
 {
 #ifdef DEBUG_TIS
     uint32_t len, i;
 
-    len = tpm_tis_get_size_from_buffer(sb);
+    len = MIN(tpm_cmd_get_size(buffer), buffer_size);
     DPRINTF("tpm_tis: %s length = %d\n", string, len);
     for (i = 0; i < len; i++) {
         if (i && !(i % 16)) {
             DPRINTF("\n");
         }
-        DPRINTF("%.2X ", sb->buffer[i]);
+        DPRINTF("%.2X ", buffer[i]);
     }
     DPRINTF("\n");
 #endif
@@ -263,7 +259,8 @@ static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
 {
     TPMLocality *locty_data = &s->loc[locty];
 
-    tpm_tis_show_buffer(&s->loc[locty].w_buffer, "tpm_tis: To TPM");
+    tpm_tis_show_buffer(s->loc[locty].w_buffer, s->be_buffer_size,
+                        "tpm_tis: To TPM");
 
     /*
      * w_offset serves as length indicator for length of data;
@@ -273,10 +270,10 @@ static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
 
     s->cmd = (TPMBackendCmd) {
         .locty = locty,
-        .in = locty_data->w_buffer.buffer,
+        .in = locty_data->w_buffer,
         .in_len = locty_data->w_offset,
-        .out = locty_data->r_buffer.buffer,
-        .out_len = locty_data->r_buffer.size
+        .out = locty_data->r_buffer,
+        .out_len = s->be_buffer_size,
     };
 
     tpm_backend_deliver_request(s->be_driver, &s->cmd);
@@ -427,7 +424,8 @@ static void tpm_tis_request_completed(TPMIf *ti)
     s->loc[locty].r_offset = 0;
     s->loc[locty].w_offset = 0;
 
-    tpm_tis_show_buffer(&s->loc[locty].r_buffer, "tpm_tis: From TPM");
+    tpm_tis_show_buffer(s->loc[locty].r_buffer, s->be_buffer_size,
+                        "tpm_tis: From TPM");
 
     if (TPM_TIS_IS_VALID_LOCTY(s->next_locty)) {
         tpm_tis_abort(s, locty);
@@ -446,9 +444,10 @@ static uint32_t tpm_tis_data_read(TPMState *s, uint8_t locty)
     uint16_t len;
 
     if ((s->loc[locty].sts & TPM_TIS_STS_DATA_AVAILABLE)) {
-        len = tpm_tis_get_size_from_buffer(&s->loc[locty].r_buffer);
+        len = MIN(tpm_cmd_get_size(&s->loc[locty].r_buffer),
+                  s->be_buffer_size);
 
-        ret = s->loc[locty].r_buffer.buffer[s->loc[locty].r_offset++];
+        ret = s->loc[locty].r_buffer[s->loc[locty].r_offset++];
         if (s->loc[locty].r_offset >= len) {
             /* got last byte */
             tpm_tis_sts_set(&s->loc[locty], TPM_TIS_STS_VALID);
@@ -494,11 +493,12 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
             "tpm_tis: result buffer : ",
             s->loc[locty].r_offset);
     for (idx = 0;
-         idx < tpm_tis_get_size_from_buffer(&s->loc[locty].r_buffer);
+         idx < MIN(tpm_cmd_get_size(&s->loc[locty].r_buffer),
+                   s->be_buffer_size);
          idx++) {
         DPRINTF("%c%02x%s",
                 s->loc[locty].r_offset == idx ? '>' : ' ',
-                s->loc[locty].r_buffer.buffer[idx],
+                s->loc[locty].r_buffer[idx],
                 ((idx & 0xf) == 0xf) ? "\ntpm_tis:                 " : "");
     }
     DPRINTF("\n"
@@ -506,11 +506,12 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
             "tpm_tis: request buffer: ",
             s->loc[locty].w_offset);
     for (idx = 0;
-         idx < tpm_tis_get_size_from_buffer(&s->loc[locty].w_buffer);
+         idx < MIN(tpm_cmd_get_size(s->loc[locty].w_buffer),
+                   s->be_buffer_size);
          idx++) {
         DPRINTF("%c%02x%s",
                 s->loc[locty].w_offset == idx ? '>' : ' ',
-                s->loc[locty].w_buffer.buffer[idx],
+                s->loc[locty].w_buffer[idx],
                 ((idx & 0xf) == 0xf) ? "\ntpm_tis:                 " : "");
     }
     DPRINTF("\n");
@@ -572,11 +573,11 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         if (s->active_locty == locty) {
             if ((s->loc[locty].sts & TPM_TIS_STS_DATA_AVAILABLE)) {
                 val = TPM_TIS_BURST_COUNT(
-                       tpm_tis_get_size_from_buffer(&s->loc[locty].r_buffer)
+                       MIN(tpm_cmd_get_size(&s->loc[locty].r_buffer),
+                           s->be_buffer_size)
                        - s->loc[locty].r_offset) | s->loc[locty].sts;
             } else {
-                avail = s->loc[locty].w_buffer.size
-                        - s->loc[locty].w_offset;
+                avail = s->be_buffer_size - s->loc[locty].w_offset;
                 /*
                  * byte-sized reads should not return 0x00 for 0x100
                  * available bytes.
@@ -924,9 +925,9 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
             }
 
             while ((s->loc[locty].sts & TPM_TIS_STS_EXPECT) && size > 0) {
-                if (s->loc[locty].w_offset < s->loc[locty].w_buffer.size) {
-                    s->loc[locty].w_buffer.
-                        buffer[s->loc[locty].w_offset++] = (uint8_t)val;
+                if (s->loc[locty].w_offset < s->be_buffer_size) {
+                    s->loc[locty].w_buffer[s->loc[locty].w_offset++] =
+                        (uint8_t)val;
                     val >>= 8;
                     size--;
                 } else {
@@ -940,7 +941,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
                 /* we have a packet length - see if we have all of it */
                 bool need_irq = !(s->loc[locty].sts & TPM_TIS_STS_VALID);
 
-                len = tpm_tis_get_size_from_buffer(&s->loc[locty].w_buffer);
+                len = tpm_cmd_get_size(&s->loc[locty].w_buffer);
                 if (len > s->loc[locty].w_offset) {
                     tpm_tis_sts_set(&s->loc[locty],
                                     TPM_TIS_STS_EXPECT | TPM_TIS_STS_VALID);
@@ -977,15 +978,6 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
 static int tpm_tis_do_startup_tpm(TPMState *s, size_t buffersize)
 {
     return tpm_backend_startup_tpm(s->be_driver, buffersize);
-}
-
-static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb,
-                                   size_t wanted_size)
-{
-    if (sb->size != wanted_size) {
-        sb->buffer = g_realloc(sb->buffer, wanted_size);
-        sb->size = wanted_size;
-    }
 }
 
 /*
@@ -1040,9 +1032,7 @@ static void tpm_tis_reset(DeviceState *dev)
         s->loc[c].state = TPM_TIS_STATE_IDLE;
 
         s->loc[c].w_offset = 0;
-        tpm_tis_realloc_buffer(&s->loc[c].w_buffer, s->be_buffer_size);
         s->loc[c].r_offset = 0;
-        tpm_tis_realloc_buffer(&s->loc[c].r_buffer, s->be_buffer_size);
     }
 
     tpm_tis_do_startup_tpm(s, s->be_buffer_size);
