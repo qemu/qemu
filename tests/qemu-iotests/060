@@ -405,6 +405,27 @@ _check_test_img -r all
 $QEMU_IMG resize --shrink "$TEST_IMG" 32M
 _img_info | grep 'virtual size'
 
+echo
+echo "=== Discarding a refblock covered by an unaligned refblock ==="
+echo
+
+IMGOPTS='refcount_bits=1' _make_test_img 64M
+
+# Same as above
+poke_file "$TEST_IMG" "$(($rt_offset+8))" "\x00\x00\x00\x10\x00\x00\x00\x00"
+# But now we actually "create" an unaligned third refblock
+poke_file "$TEST_IMG" "$(($rt_offset+16))" "\x00\x00\x00\x00\x00\x00\x02\x00"
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+
+echo '--- Repairing ---'
+# Fails the first repair because the corruption prevents the check
+# function from double-checking
+# (Using -q for the first invocation, because otherwise the
+#  double-check error message appears above the summary for some
+#  reason -- so let's just hide the summary)
+_check_test_img -q -r all
+_check_test_img -r all
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

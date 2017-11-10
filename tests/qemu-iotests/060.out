@@ -370,4 +370,33 @@ virtual size: 64M (67108864 bytes)
 No errors were found on the image.
 Image resized.
 virtual size: 32M (33554432 bytes)
+
+=== Discarding a refblock covered by an unaligned refblock ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qcow2: Marking image as corrupt: Cannot get entry from refcount block cache: Offset 0x200 is unaligned; further corruption events will be suppressed
+qemu-img: Failed to discard unused refblocks: Input/output error
+--- Repairing ---
+Repairing refcount block 1 is outside image
+ERROR refcount block 2 is not cluster aligned; refcount table entry corrupted
+qcow2: Marking image as corrupt: Refblock offset 0x200 unaligned (reftable index: 0x2); further corruption events will be suppressed
+Can't get refcount for cluster 1048576: Input/output error
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
+Repairing cluster 1048576 refcount=1 reference=0
+qemu-img: Check failed: No medium found
+Leaked cluster 1 refcount=1 reference=0
+Leaked cluster 2 refcount=1 reference=0
+Leaked cluster 1048576 refcount=1 reference=0
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
+Repairing cluster 1048576 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    3 leaked clusters
+    0 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
 *** done
