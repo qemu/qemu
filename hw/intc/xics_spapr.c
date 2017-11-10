@@ -329,10 +329,8 @@ int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
         return -1;
     }
 
-    if (first >= 0) {
-        for (i = first; i < first + num; ++i) {
-            ics_set_irq_type(ics, i, lsi);
-        }
+    for (i = first; i < first + num; ++i) {
+        ics_set_irq_type(ics, i, lsi);
     }
     first += ics->offset;
 
