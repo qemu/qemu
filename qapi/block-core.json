@@ -3411,8 +3411,6 @@
 #
 # If the tray is open and there is no medium inserted, this will be a no-op.
 #
-# @device: Block device name (deprecated, use @id instead)
-#
 # @id:     The name or QOM path of the guest device (since: 2.8)
 #
 # Note: This command is still a work in progress and is considered experimental.
@@ -3447,8 +3445,7 @@
 #
 ##
 { 'command': 'x-blockdev-remove-medium',
-  'data': { '*device': 'str',
-            '*id': 'str' } }
+  'data': { 'id': 'str' } }
 
 ##
 # @x-blockdev-insert-medium:
@@ -3456,8 +3453,6 @@
 # Inserts a medium (a block driver state tree) into a block device. That block
 # device's tray must currently be open (unless there is no attached guest
 # device) and there must be no medium inserted already.
-#
-# @device:    Block device name (deprecated, use @id instead)
 #
 # @id:        The name or QOM path of the guest device (since: 2.8)
 #
@@ -3486,8 +3481,7 @@
 #
 ##
 { 'command': 'x-blockdev-insert-medium',
-  'data': { '*device': 'str',
-            '*id': 'str',
+  'data': { 'id': 'str',
             'node-name': 'str'} }
 
 
