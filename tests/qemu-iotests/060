@@ -359,6 +359,52 @@ echo '--- Repairing ---'
 _check_test_img -q -r all
 _check_test_img -r all
 
+echo
+echo "=== Discarding an out-of-bounds refblock ==="
+echo
+
+_make_test_img 64M
+
+# Pretend there's a refblock really up high
+poke_file "$TEST_IMG" "$(($rt_offset+8))" "\x00\xff\xff\xff\x00\x00\x00\x00"
+# Let's try to shrink the qcow2 image so that the block driver tries
+# to discard that refblock (and see what happens!)
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+
+echo '--- Checking and retrying ---'
+# Image should not be resized
+_img_info | grep 'virtual size'
+# But it should pass this check, because the "partial" resize has
+# already overwritten refblocks past the end
+_check_test_img -r all
+# So let's try again
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+_img_info | grep 'virtual size'
+
+echo
+echo "=== Discarding a non-covered in-bounds refblock ==="
+echo
+
+IMGOPTS='refcount_bits=1' _make_test_img 64M
+
+# Pretend there's a refblock somewhere where there is no refblock to
+# cover it (but the covering refblock has a valid index in the
+# reftable)
+# Every refblock covers 65536 * 8 * 65536 = 32 GB, so we have to point
+# to 0x10_0000_0000 (64G) to point to the third refblock
+poke_file "$TEST_IMG" "$(($rt_offset+8))" "\x00\x00\x00\x10\x00\x00\x00\x00"
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+
+echo '--- Checking and retrying ---'
+# Image should not be resized
+_img_info | grep 'virtual size'
+# But it should pass this check, because the "partial" resize has
+# already overwritten refblocks past the end
+_check_test_img -r all
+# So let's try again
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+_img_info | grep 'virtual size'
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

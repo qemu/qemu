@@ -348,4 +348,26 @@ The following inconsistencies were found and repaired:
 
 Double checking the fixed image now...
 No errors were found on the image.
+
+=== Discarding an out-of-bounds refblock ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qcow2: Marking image as corrupt: Refblock at 0xffffff00000000 is not covered by the refcount structures; further corruption events will be suppressed
+qemu-img: Failed to discard unused refblocks: Input/output error
+--- Checking and retrying ---
+virtual size: 64M (67108864 bytes)
+No errors were found on the image.
+Image resized.
+virtual size: 32M (33554432 bytes)
+
+=== Discarding a non-covered in-bounds refblock ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qcow2: Marking image as corrupt: Refblock at 0x1000000000 is not covered by the refcount structures; further corruption events will be suppressed
+qemu-img: Failed to discard unused refblocks: Input/output error
+--- Checking and retrying ---
+virtual size: 64M (67108864 bytes)
+No errors were found on the image.
+Image resized.
+virtual size: 32M (33554432 bytes)
 *** done

@@ -527,12 +527,6 @@ uint32_t offset_to_reftable_index(BDRVQcow2State *s, uint64_t offset)
     return offset >> (s->refcount_block_bits + s->cluster_bits);
 }
 
-static inline uint64_t get_refblock_offset(BDRVQcow2State *s, uint64_t offset)
-{
-    uint32_t index = offset_to_reftable_index(s, offset);
-    return s->refcount_table[index] & REFT_OFFSET_MASK;
-}
-
 /* qcow2.c functions */
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
