@@ -301,6 +301,26 @@ _make_test_img 64M
 poke_file "$TEST_IMG" "48"                "\x00\x00\x00\x00\x00\x00\x00\x00"
 $QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
 
+echo
+echo "=== Testing dirty corrupt image ==="
+echo
+
+_make_test_img 64M
+
+# Let the refblock appear unaligned
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\xff\xff\x2a\x00"
+# Mark the image dirty, thus forcing an automatic check when opening it
+poke_file "$TEST_IMG" 72 "\x00\x00\x00\x00\x00\x00\x00\x01"
+# Open the image (qemu should refuse to do so)
+$QEMU_IO -c close "$TEST_IMG" 2>&1 | _filter_testdir | _filter_imgfmt
+
+echo '--- Repairing ---'
+
+# The actual repair should have happened (because of the dirty bit),
+# but some cleanup may have failed (like freeing the old reftable)
+# because the image was already marked corrupt by that point
+_check_test_img -r all
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

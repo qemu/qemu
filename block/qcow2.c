@@ -1477,7 +1477,10 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         BdrvCheckResult result = {0};
 
         ret = qcow2_check(bs, &result, BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
-        if (ret < 0) {
+        if (ret < 0 || result.check_errors) {
+            if (ret >= 0) {
+                ret = -EIO;
+            }
             error_setg_errno(errp, -ret, "Could not repair dirty image");
             goto fail;
         }
