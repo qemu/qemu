@@ -51,36 +51,30 @@ class BaseClass(iotests.QMPTestCase):
     target_real_backing = None
 
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, back0_img, '1M')
+        qemu_img('create', '-f', iotests.imgfmt, back0_img, '1440K')
         qemu_img('create', '-f', iotests.imgfmt, '-b', back0_img, back1_img)
         qemu_img('create', '-f', iotests.imgfmt, '-b', back1_img, back2_img)
         qemu_img('create', '-f', iotests.imgfmt, '-b', back2_img, source_img)
 
         self.vm = iotests.VM()
-        self.vm.add_drive(None, '', 'none')
-        self.vm.launch()
-
         # Add the BDS via blockdev-add so it stays around after the mirror block
         # job has been completed
-        result = self.vm.qmp('blockdev-add',
-                             node_name='source',
-                             driver=iotests.imgfmt,
-                             file={'driver': 'file',
-                                   'filename': source_img})
-        self.assert_qmp(result, 'return', {})
-
-        result = self.vm.qmp('x-blockdev-insert-medium',
-                             device='drive0', node_name='source')
-        self.assert_qmp(result, 'return', {})
+        blockdev = {'node-name': 'source',
+                    'driver': iotests.imgfmt,
+                    'file': {'driver': 'file',
+                             'filename': source_img}}
+        self.vm.add_blockdev(self.qmp_to_opts(blockdev))
+        self.vm.add_device('floppy,id=qdev0,drive=source')
+        self.vm.launch()
 
         self.assertIntactSourceBackingChain()
 
         if self.existing:
             if self.target_backing:
                 qemu_img('create', '-f', iotests.imgfmt,
-                         '-b', self.target_backing, target_img, '1M')
+                         '-b', self.target_backing, target_img, '1440K')
             else:
-                qemu_img('create', '-f', iotests.imgfmt, target_img, '1M')
+                qemu_img('create', '-f', iotests.imgfmt, target_img, '1440K')
 
             if self.cmd == 'blockdev-mirror':
                 options = { 'node-name': 'target',
@@ -104,11 +98,11 @@ class BaseClass(iotests.QMPTestCase):
         except OSError:
             pass
 
-    def findBlockNode(self, node_name, id=None):
-        if id:
+    def findBlockNode(self, node_name, qdev=None):
+        if qdev:
             result = self.vm.qmp('query-block')
             for device in result['return']:
-                if device['device'] == id:
+                if device['qdev'] == qdev:
                     if node_name:
                         self.assert_qmp(device, 'inserted/node-name', node_name)
                     return device['inserted']
@@ -118,7 +112,7 @@ class BaseClass(iotests.QMPTestCase):
                 if node['node-name'] == node_name:
                     return node
 
-        self.fail('Cannot find node %s/%s' % (id, node_name))
+        self.fail('Cannot find node %s/%s' % (qdev, node_name))
 
     def assertIntactSourceBackingChain(self):
         node = self.findBlockNode('source')
@@ -155,22 +149,23 @@ class BaseClass(iotests.QMPTestCase):
 class MirrorBaseClass(BaseClass):
     def runMirror(self, sync):
         if self.cmd == 'blockdev-mirror':
-            result = self.vm.qmp(self.cmd, device='drive0', sync=sync,
-                                 target='target')
+            result = self.vm.qmp(self.cmd, job_id='mirror-job', device='source',
+                                 sync=sync, target='target')
         else:
             if self.existing:
                 mode = 'existing'
             else:
                 mode = 'absolute-paths'
-            result = self.vm.qmp(self.cmd, device='drive0', sync=sync,
-                                 target=target_img, format=iotests.imgfmt,
-                                 mode=mode, node_name='target')
+            result = self.vm.qmp(self.cmd, job_id='mirror-job', device='source',
+                                 sync=sync, target=target_img,
+                                 format=iotests.imgfmt, mode=mode,
+                                 node_name='target')
 
         self.assert_qmp(result, 'return', {})
 
         self.vm.event_wait('BLOCK_JOB_READY')
 
-        result = self.vm.qmp('block-job-complete', device='drive0')
+        result = self.vm.qmp('block-job-complete', device='mirror-job')
         self.assert_qmp(result, 'return', {})
 
         self.vm.event_wait('BLOCK_JOB_COMPLETED')
@@ -178,21 +173,21 @@ class MirrorBaseClass(BaseClass):
     def testFull(self):
         self.runMirror('full')
 
-        node = self.findBlockNode('target', 'drive0')
+        node = self.findBlockNode('target', 'qdev0')
         self.assertCorrectBackingImage(node, None)
         self.assertIntactSourceBackingChain()
 
     def testTop(self):
         self.runMirror('top')
 
-        node = self.findBlockNode('target', 'drive0')
+        node = self.findBlockNode('target', 'qdev0')
         self.assertCorrectBackingImage(node, back2_img)
         self.assertIntactSourceBackingChain()
 
     def testNone(self):
         self.runMirror('none')
 
-        node = self.findBlockNode('target', 'drive0')
+        node = self.findBlockNode('target', 'qdev0')
         self.assertCorrectBackingImage(node, source_img)
         self.assertIntactSourceBackingChain()
 
@@ -233,17 +228,18 @@ class TestCommit(BaseClass):
     existing = False
 
     def testCommit(self):
-        result = self.vm.qmp('block-commit', device='drive0', base=back1_img)
+        result = self.vm.qmp('block-commit', job_id='commit-job',
+                             device='source', base=back1_img)
         self.assert_qmp(result, 'return', {})
 
         self.vm.event_wait('BLOCK_JOB_READY')
 
-        result = self.vm.qmp('block-job-complete', device='drive0')
+        result = self.vm.qmp('block-job-complete', device='commit-job')
         self.assert_qmp(result, 'return', {})
 
         self.vm.event_wait('BLOCK_JOB_COMPLETED')
 
-        node = self.findBlockNode(None, 'drive0')
+        node = self.findBlockNode(None, 'qdev0')
         self.assert_qmp(node, 'image' + '/backing-image' * 0 + '/filename',
                         back1_img)
         self.assert_qmp(node, 'image' + '/backing-image' * 1 + '/filename',
