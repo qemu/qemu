@@ -4255,6 +4255,7 @@ void bdrv_invalidate_cache_all(Error **errp)
         aio_context_release(aio_context);
         if (local_err) {
             error_propagate(errp, local_err);
+            bdrv_next_cleanup(&it);
             return;
         }
     }
@@ -4330,6 +4331,7 @@ int bdrv_inactivate_all(void)
         for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
             ret = bdrv_inactivate_recurse(bs, pass);
             if (ret < 0) {
+                bdrv_next_cleanup(&it);
                 goto out;
             }
         }
@@ -4864,6 +4866,7 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate)
 
         /* candidate is the first non filter */
         if (perm) {
+            bdrv_next_cleanup(&it);
             return true;
         }
     }
