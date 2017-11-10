@@ -335,7 +335,8 @@ poke_file "$TEST_IMG" "$l2_offset" "\x80\x00\x00\x00\x00\x00\x2a\x01"
 # Let's write to it!
 $QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
 
-# Can't repair this yet (TODO: We can just deallocate the cluster)
+echo '--- Repairing ---'
+_check_test_img -r all
 
 echo
 echo '=== Discarding with an unaligned refblock ==='

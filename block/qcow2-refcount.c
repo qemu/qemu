@@ -1508,7 +1508,7 @@ enum {
 static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                               void **refcount_table,
                               int64_t *refcount_table_size, int64_t l2_offset,
-                              int flags)
+                              int flags, BdrvCheckMode fix)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l2_table, l2_entry;
@@ -1579,19 +1579,63 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                 next_contiguous_offset = offset + s->cluster_size;
             }
 
+            /* Correct offsets are cluster aligned */
+            if (offset_into_cluster(s, offset)) {
+                if (qcow2_get_cluster_type(l2_entry) ==
+                    QCOW2_CLUSTER_ZERO_ALLOC)
+                {
+                    fprintf(stderr, "%s offset=%" PRIx64 ": Preallocated zero "
+                            "cluster is not properly aligned; L2 entry "
+                            "corrupted.\n",
+                            fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR",
+                            offset);
+                    if (fix & BDRV_FIX_ERRORS) {
+                        uint64_t l2e_offset =
+                            l2_offset + (uint64_t)i * sizeof(uint64_t);
+
+                        l2_entry = QCOW_OFLAG_ZERO;
+                        l2_table[i] = cpu_to_be64(l2_entry);
+                        ret = qcow2_pre_write_overlap_check(bs,
+                                QCOW2_OL_ACTIVE_L2 | QCOW2_OL_INACTIVE_L2,
+                                l2e_offset, sizeof(uint64_t));
+                        if (ret < 0) {
+                            fprintf(stderr, "ERROR: Overlap check failed\n");
+                            res->check_errors++;
+                            /* Something is seriously wrong, so abort checking
+                             * this L2 table */
+                            goto fail;
+                        }
+
+                        ret = bdrv_pwrite_sync(bs->file, l2e_offset,
+                                               &l2_table[i], sizeof(uint64_t));
+                        if (ret < 0) {
+                            fprintf(stderr, "ERROR: Failed to overwrite L2 "
+                                    "table entry: %s\n", strerror(-ret));
+                            res->check_errors++;
+                            /* Do not abort, continue checking the rest of this
+                             * L2 table's entries */
+                        } else {
+                            res->corruptions_fixed++;
+                            /* Skip marking the cluster as used
+                             * (it is unused now) */
+                            continue;
+                        }
+                    } else {
+                        res->corruptions++;
+                    }
+                } else {
+                    fprintf(stderr, "ERROR offset=%" PRIx64 ": Data cluster is "
+                        "not properly aligned; L2 entry corrupted.\n", offset);
+                    res->corruptions++;
+                }
+            }
+
             /* Mark cluster as used */
             ret = qcow2_inc_refcounts_imrt(bs, res,
                                            refcount_table, refcount_table_size,
                                            offset, s->cluster_size);
             if (ret < 0) {
                 goto fail;
-            }
-
-            /* Correct offsets are cluster aligned */
-            if (offset_into_cluster(s, offset)) {
-                fprintf(stderr, "ERROR offset=%" PRIx64 ": Cluster is not "
-                    "properly aligned; L2 entry corrupted.\n", offset);
-                res->corruptions++;
             }
             break;
         }
@@ -1626,7 +1670,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
                               void **refcount_table,
                               int64_t *refcount_table_size,
                               int64_t l1_table_offset, int l1_size,
-                              int flags)
+                              int flags, BdrvCheckMode fix)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l1_table = NULL, l2_offset, l1_size2;
@@ -1681,7 +1725,8 @@ static int check_refcounts_l1(BlockDriverState *bs,
 
             /* Process and check L2 entries */
             ret = check_refcounts_l2(bs, res, refcount_table,
-                                     refcount_table_size, l2_offset, flags);
+                                     refcount_table_size, l2_offset, flags,
+                                     fix);
             if (ret < 0) {
                 goto fail;
             }
@@ -1957,7 +2002,8 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     /* current L1 table */
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
-                             s->l1_table_offset, s->l1_size, CHECK_FRAG_INFO);
+                             s->l1_table_offset, s->l1_size, CHECK_FRAG_INFO,
+                             fix);
     if (ret < 0) {
         return ret;
     }
@@ -1966,7 +2012,7 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     for (i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
         ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
-                                 sn->l1_table_offset, sn->l1_size, 0);
+                                 sn->l1_table_offset, sn->l1_size, 0, fix);
         if (ret < 0) {
             return ret;
         }
