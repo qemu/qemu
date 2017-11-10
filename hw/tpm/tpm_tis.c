@@ -974,7 +974,7 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
     },
 };
 
-static int tpm_tis_do_startup_tpm(TPMState *s, uint32_t buffersize)
+static int tpm_tis_do_startup_tpm(TPMState *s, size_t buffersize)
 {
     return tpm_backend_startup_tpm(s->be_driver, buffersize);
 }
