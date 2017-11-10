@@ -1752,8 +1752,10 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 
     if (bs) {
         if (tgm->throttle_state) {
+            bdrv_drained_begin(bs);
             throttle_group_detach_aio_context(tgm);
             throttle_group_attach_aio_context(tgm, new_context);
+            bdrv_drained_end(bs);
         }
         bdrv_set_aio_context(bs, new_context);
     }
