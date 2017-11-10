@@ -337,6 +337,28 @@ $QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
 
 # Can't repair this yet (TODO: We can just deallocate the cluster)
 
+echo
+echo '=== Discarding with an unaligned refblock ==='
+echo
+
+_make_test_img 64M
+
+$QEMU_IO -c "write 0 128k" "$TEST_IMG" | _filter_qemu_io
+# Make our refblock unaligned
+poke_file "$TEST_IMG" "$(($rt_offset))" "\x00\x00\x00\x00\x00\x00\x2a\x00"
+# Now try to discard something that will be submitted as two requests
+# (main part + tail)
+$QEMU_IO -c "discard 0 65537" "$TEST_IMG"
+
+echo '--- Repairing ---'
+# Fails the first repair because the corruption prevents the check
+# function from double-checking
+# (Using -q for the first invocation, because otherwise the
+#  double-check error message appears above the summary for some
+#  reason -- so let's just hide the summary)
+_check_test_img -q -r all
+_check_test_img -r all
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

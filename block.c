@@ -720,6 +720,10 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 {
     BlockDriver *drv = bs->drv;
 
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+
     /* Do not attempt drv->bdrv_getlength() on scsi-generic devices */
     if (bdrv_is_sg(bs))
         return 0;
@@ -3431,6 +3435,10 @@ int bdrv_change_backing_file(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
     int ret;
 
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+
     /* Backing file format doesn't make sense without a backing file */
     if (backing_fmt && !backing_file) {
         return -EINVAL;
@@ -3916,7 +3924,9 @@ int bdrv_has_zero_init_1(BlockDriverState *bs)
 
 int bdrv_has_zero_init(BlockDriverState *bs)
 {
-    assert(bs->drv);
+    if (!bs->drv) {
+        return 0;
+    }
 
     /* If BS is a copy on write image, it is initialized to
        the contents of the base image, which may not be zeroes.  */
@@ -4255,6 +4265,10 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
 {
     BdrvChild *child, *parent;
     int ret;
+
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    }
 
     if (!setting_flag && bs->drv->bdrv_inactivate) {
         ret = bs->drv->bdrv_inactivate(bs);
@@ -4790,6 +4804,9 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
 int bdrv_amend_options(BlockDriverState *bs, QemuOpts *opts,
                        BlockDriverAmendStatusCB *status_cb, void *cb_opaque)
 {
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    }
     if (!bs->drv->bdrv_amend_options) {
         return -ENOTSUP;
     }

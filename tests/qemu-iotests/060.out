@@ -317,4 +317,35 @@ discard 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qcow2: Marking image as corrupt: Preallocated zero cluster offset 0x2a00 unaligned (guest offset: 0); further corruption events will be suppressed
 write failed: Input/output error
+
+=== Discarding with an unaligned refblock ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qcow2: Marking image as corrupt: Refblock offset 0x2a00 unaligned (reftable index: 0); further corruption events will be suppressed
+qcow2_free_clusters failed: Input/output error
+discard failed: No medium found
+--- Repairing ---
+ERROR refcount block 0 is not cluster aligned; refcount table entry corrupted
+qcow2: Marking image as corrupt: Refblock offset 0x2a00 unaligned (reftable index: 0); further corruption events will be suppressed
+Can't get refcount for cluster 0: Input/output error
+Can't get refcount for cluster 1: Input/output error
+Can't get refcount for cluster 2: Input/output error
+Can't get refcount for cluster 3: Input/output error
+Can't get refcount for cluster 4: Input/output error
+Can't get refcount for cluster 5: Input/output error
+Can't get refcount for cluster 6: Input/output error
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+qemu-img: Check failed: No medium found
+Leaked cluster 1 refcount=1 reference=0
+Repairing cluster 1 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    1 leaked clusters
+    0 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
 *** done
