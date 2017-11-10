@@ -321,6 +321,22 @@ echo '--- Repairing ---'
 # because the image was already marked corrupt by that point
 _check_test_img -r all
 
+echo
+echo "=== Writing to an unaligned preallocated zero cluster ==="
+echo
+
+_make_test_img 64M
+
+# Allocate the L2 table
+$QEMU_IO -c "write 0 64k" -c "discard 0 64k" "$TEST_IMG" | _filter_qemu_io
+# Pretend there is a preallocated zero cluster somewhere inside the
+# image header
+poke_file "$TEST_IMG" "$l2_offset" "\x80\x00\x00\x00\x00\x00\x2a\x01"
+# Let's write to it!
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+
+# Can't repair this yet (TODO: We can just deallocate the cluster)
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
