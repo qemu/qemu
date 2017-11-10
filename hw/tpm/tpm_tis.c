@@ -1012,7 +1012,8 @@ static void tpm_tis_reset(DeviceState *dev)
     int c;
 
     s->be_tpm_version = tpm_backend_get_tpm_version(s->be_driver);
-    s->be_buffer_size = tpm_backend_get_buffer_size(s->be_driver);
+    s->be_buffer_size = MIN(tpm_backend_get_buffer_size(s->be_driver),
+                            TPM_TIS_BUFFER_MAX);
 
     tpm_backend_reset(s->be_driver);
 
@@ -1044,7 +1045,7 @@ static void tpm_tis_reset(DeviceState *dev)
         tpm_tis_realloc_buffer(&s->loc[c].r_buffer, s->be_buffer_size);
     }
 
-    tpm_tis_do_startup_tpm(s, 0);
+    tpm_tis_do_startup_tpm(s, s->be_buffer_size);
 }
 
 static const VMStateDescription vmstate_tpm_tis = {
