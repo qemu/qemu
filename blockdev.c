@@ -2508,7 +2508,7 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_x_blockdev_remove_medium(const char *id, Error **errp)
+void qmp_blockdev_remove_medium(const char *id, Error **errp)
 {
     blockdev_remove_medium(false, NULL, true, id, errp);
 }
@@ -2586,8 +2586,8 @@ static void blockdev_insert_medium(bool has_device, const char *device,
     qmp_blockdev_insert_anon_medium(blk, bs, errp);
 }
 
-void qmp_x_blockdev_insert_medium(const char *id, const char *node_name,
-                                  Error **errp)
+void qmp_blockdev_insert_medium(const char *id, const char *node_name,
+                                Error **errp)
 {
     blockdev_insert_medium(false, NULL, true, id, node_name, errp);
 }

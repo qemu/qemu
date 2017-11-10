@@ -348,9 +348,9 @@ class ThrottleTestRemovableMedia(iotests.QMPTestCase):
         # Now eject cd0 and insert cd1
         result = self.vm.qmp("blockdev-open-tray", id='dev0')
         self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp("x-blockdev-remove-medium", id='dev0')
+        result = self.vm.qmp("blockdev-remove-medium", id='dev0')
         self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp("x-blockdev-insert-medium", id='dev0', node_name='cd1')
+        result = self.vm.qmp("blockdev-insert-medium", id='dev0', node_name='cd1')
         self.assert_qmp(result, 'return', {})
 
         # Check that the I/O limits are still the same
@@ -359,7 +359,7 @@ class ThrottleTestRemovableMedia(iotests.QMPTestCase):
         self.assert_qmp(result, 'return[0]/inserted/bps',   50)
 
         # Eject cd1
-        result = self.vm.qmp("x-blockdev-remove-medium", id='dev0')
+        result = self.vm.qmp("blockdev-remove-medium", id='dev0')
         self.assert_qmp(result, 'return', {})
 
         # Check that we can't set limits if the device has no medium

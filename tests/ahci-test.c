@@ -1596,7 +1596,7 @@ static void test_atapi_tray(void)
     rsp = qmp_receive();
     QDECREF(rsp);
 
-    qmp_discard_response("{'execute': 'x-blockdev-remove-medium', "
+    qmp_discard_response("{'execute': 'blockdev-remove-medium', "
                          "'arguments': {'id': 'cd0'}}");
 
     /* Test the tray without a medium */
@@ -1612,7 +1612,7 @@ static void test_atapi_tray(void)
                                         "'driver': 'raw', "
                                         "'file': { 'driver': 'file', "
                                                   "'filename': %s }}}", iso);
-    qmp_discard_response("{'execute': 'x-blockdev-insert-medium',"
+    qmp_discard_response("{'execute': 'blockdev-insert-medium',"
                           "'arguments': { 'id': 'cd0', "
                                          "'node-name': 'node0' }}");
 

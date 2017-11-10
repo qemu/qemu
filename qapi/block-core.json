@@ -3403,7 +3403,7 @@
             '*id': 'str' } }
 
 ##
-# @x-blockdev-remove-medium:
+# @blockdev-remove-medium:
 #
 # Removes a medium (a block driver state tree) from a block device. That block
 # device's tray must currently be open (unless there is no attached guest
@@ -3411,16 +3411,13 @@
 #
 # If the tray is open and there is no medium inserted, this will be a no-op.
 #
-# @id:     The name or QOM path of the guest device (since: 2.8)
+# @id:     The name or QOM path of the guest device
 #
-# Note: This command is still a work in progress and is considered experimental.
-# Stay away from it unless you want to help with its development.
-#
-# Since: 2.5
+# Since: 2.12
 #
 # Example:
 #
-# -> { "execute": "x-blockdev-remove-medium",
+# -> { "execute": "blockdev-remove-medium",
 #      "arguments": { "id": "ide0-1-0" } }
 #
 # <- { "error": { "class": "GenericError",
@@ -3438,30 +3435,27 @@
 #
 # <- { "return": {} }
 #
-# -> { "execute": "x-blockdev-remove-medium",
+# -> { "execute": "blockdev-remove-medium",
 #      "arguments": { "id": "ide0-1-0" } }
 #
 # <- { "return": {} }
 #
 ##
-{ 'command': 'x-blockdev-remove-medium',
+{ 'command': 'blockdev-remove-medium',
   'data': { 'id': 'str' } }
 
 ##
-# @x-blockdev-insert-medium:
+# @blockdev-insert-medium:
 #
 # Inserts a medium (a block driver state tree) into a block device. That block
 # device's tray must currently be open (unless there is no attached guest
 # device) and there must be no medium inserted already.
 #
-# @id:        The name or QOM path of the guest device (since: 2.8)
+# @id:        The name or QOM path of the guest device
 #
 # @node-name: name of a node in the block driver state graph
 #
-# Note: This command is still a work in progress and is considered experimental.
-# Stay away from it unless you want to help with its development.
-#
-# Since: 2.5
+# Since: 2.12
 #
 # Example:
 #
@@ -3473,14 +3467,14 @@
 #                    "filename": "fedora.iso" } } }
 # <- { "return": {} }
 #
-# -> { "execute": "x-blockdev-insert-medium",
+# -> { "execute": "blockdev-insert-medium",
 #      "arguments": { "id": "ide0-1-0",
 #                     "node-name": "node0" } }
 #
 # <- { "return": {} }
 #
 ##
-{ 'command': 'x-blockdev-insert-medium',
+{ 'command': 'blockdev-insert-medium',
   'data': { 'id': 'str',
             'node-name': 'str'} }
 
@@ -3509,8 +3503,8 @@
 #
 # Changes the medium inserted into a block device by ejecting the current medium
 # and loading a new image file which is inserted as the new medium (this command
-# combines blockdev-open-tray, x-blockdev-remove-medium,
-# x-blockdev-insert-medium and blockdev-close-tray).
+# combines blockdev-open-tray, blockdev-remove-medium, blockdev-insert-medium
+# and blockdev-close-tray).
 #
 # @device:          Block device name (deprecated, use @id instead)
 #
