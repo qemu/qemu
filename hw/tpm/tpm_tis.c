@@ -545,7 +545,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     uint8_t v;
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
-        return val;
+        return 0;
     }
 
     switch (offset) {
