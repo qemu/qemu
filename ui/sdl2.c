@@ -581,14 +581,10 @@ static void handle_windowevent(SDL_Event *ev)
         }
         break;
     case SDL_WINDOWEVENT_SHOWN:
-        if (scon->hidden) {
-            SDL_HideWindow(scon->real_window);
-        }
+        scon->hidden = false;
         break;
     case SDL_WINDOWEVENT_HIDDEN:
-        if (!scon->hidden) {
-            SDL_ShowWindow(scon->real_window);
-        }
+        scon->hidden = true;
         break;
     }
 }
