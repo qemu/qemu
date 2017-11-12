@@ -566,9 +566,14 @@ static void handle_windowevent(SDL_Event *ev)
         update_displaychangelistener(&scon->dcl, 500);
         break;
     case SDL_WINDOWEVENT_CLOSE:
-        if (!no_quit) {
-            no_shutdown = 0;
-            qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
+        if (qemu_console_is_graphic(scon->dcl.con)) {
+            if (!no_quit) {
+                no_shutdown = 0;
+                qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
+            }
+        } else {
+            SDL_HideWindow(scon->real_window);
+            scon->hidden = true;
         }
         break;
     case SDL_WINDOWEVENT_SHOWN:
