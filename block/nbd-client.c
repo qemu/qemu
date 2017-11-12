@@ -78,7 +78,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     while (!s->quit) {
         assert(s->reply.handle == 0);
         ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
-        if (ret < 0) {
+        if (local_err) {
             error_report_err(local_err);
         }
         if (ret <= 0) {
@@ -691,7 +691,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
 
     ret = nbd_co_receive_cmdread_reply(client, request.handle, offset, qiov,
                                        &local_err);
-    if (ret < 0) {
+    if (local_err) {
         error_report_err(local_err);
     }
     return ret;
