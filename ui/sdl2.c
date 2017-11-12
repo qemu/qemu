@@ -442,6 +442,7 @@ static void handle_keyup(SDL_Event *ev)
             sdl2_reset_keys(scon);
             return;
         }
+        sdl2_reset_keys(scon);
         gui_keysym = 0;
     }
     if (!gui_keysym) {
