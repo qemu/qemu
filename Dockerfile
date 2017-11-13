@@ -2,10 +2,10 @@
 from fedora:latest
 RUN dnf install -y \
           arm-none-eabi-gcc\
-	  arm-none-eabi-newlib\
+          arm-none-eabi-newlib\
           findutils\
           gcc\
-	  git\
+          git\
           glib2-devel\
           libfdt-devel\
           pixman-devel\
