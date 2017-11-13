@@ -374,6 +374,8 @@ typedef struct disassemble_info {
   /* Options for Capstone disassembly.  */
   int cap_arch;
   int cap_mode;
+  int cap_insn_unit;
+  int cap_insn_split;
 
 } disassemble_info;
 
