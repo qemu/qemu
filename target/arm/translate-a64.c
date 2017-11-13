@@ -5890,10 +5890,7 @@ static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
                              int imm5)
 {
     int size = ctz32(imm5);
-    int esize = 8 << size;
-    int elements = (is_q ? 128 : 64) / esize;
-    int index, i;
-    TCGv_i64 tmp;
+    int index = imm5 >> (size + 1);
 
     if (size > 3 || (size == 3 && !is_q)) {
         unallocated_encoding(s);
@@ -5904,20 +5901,9 @@ static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
         return;
     }
 
-    index = imm5 >> (size + 1);
-
-    tmp = tcg_temp_new_i64();
-    read_vec_element(s, tmp, rn, index, size);
-
-    for (i = 0; i < elements; i++) {
-        write_vec_element(s, tmp, rd, i, size);
-    }
-
-    if (!is_q) {
-        clear_vec_high(s, rd);
-    }
-
-    tcg_temp_free_i64(tmp);
+    tcg_gen_gvec_dup_mem(size, vec_full_reg_offset(s, rd),
+                         vec_reg_offset(s, rn, index, size),
+                         is_q ? 16 : 8, vec_full_reg_size(s));
 }
 
 /* DUP (element, scalar)
@@ -5966,9 +5952,7 @@ static void handle_simd_dupg(DisasContext *s, int is_q, int rd, int rn,
                              int imm5)
 {
     int size = ctz32(imm5);
-    int esize = 8 << size;
-    int elements = (is_q ? 128 : 64)/esize;
-    int i = 0;
+    uint32_t dofs, oprsz, maxsz;
 
     if (size > 3 || ((size == 3) && !is_q)) {
         unallocated_encoding(s);
@@ -5979,12 +5963,11 @@ static void handle_simd_dupg(DisasContext *s, int is_q, int rd, int rn,
         return;
     }
 
-    for (i = 0; i < elements; i++) {
-        write_vec_element(s, cpu_reg(s, rn), rd, i, size);
-    }
-    if (!is_q) {
-        clear_vec_high(s, rd);
-    }
+    dofs = vec_full_reg_offset(s, rd);
+    oprsz = is_q ? 16 : 8;
+    maxsz = vec_full_reg_size(s);
+
+    tcg_gen_gvec_dup_i64(size, dofs, oprsz, maxsz, cpu_reg(s, rn));
 }
 
 /* INS (Element)
@@ -6175,7 +6158,6 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
     bool is_neg = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
     uint64_t imm = 0;
-    TCGv_i64 tcg_rd, tcg_imm;
     int i;
 
     if (o2 != 0 || ((cmode == 0xf) && is_neg && !is_q)) {
@@ -6257,32 +6239,35 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
         imm = ~imm;
     }
 
-    tcg_imm = tcg_const_i64(imm);
-    tcg_rd = new_tmp_a64(s);
+    if (!((cmode & 0x9) == 0x1 || (cmode & 0xd) == 0x9)) {
+        /* MOVI or MVNI, with MVNI negation handled above.  */
+        tcg_gen_gvec_dup64i(vec_full_reg_offset(s, rd), is_q ? 16 : 8,
+                            vec_full_reg_size(s), imm);
+    } else {
+        TCGv_i64 tcg_imm = tcg_const_i64(imm);
+        TCGv_i64 tcg_rd = new_tmp_a64(s);
 
-    for (i = 0; i < 2; i++) {
-        int foffs = i ? fp_reg_hi_offset(s, rd) : fp_reg_offset(s, rd, MO_64);
+        for (i = 0; i < 2; i++) {
+            int foffs = vec_reg_offset(s, rd, i, MO_64);
 
-        if (i == 1 && !is_q) {
-            /* non-quad ops clear high half of vector */
-            tcg_gen_movi_i64(tcg_rd, 0);
-        } else if ((cmode & 0x9) == 0x1 || (cmode & 0xd) == 0x9) {
-            tcg_gen_ld_i64(tcg_rd, cpu_env, foffs);
-            if (is_neg) {
-                /* AND (BIC) */
-                tcg_gen_and_i64(tcg_rd, tcg_rd, tcg_imm);
+            if (i == 1 && !is_q) {
+                /* non-quad ops clear high half of vector */
+                tcg_gen_movi_i64(tcg_rd, 0);
             } else {
-                /* ORR */
-                tcg_gen_or_i64(tcg_rd, tcg_rd, tcg_imm);
+                tcg_gen_ld_i64(tcg_rd, cpu_env, foffs);
+                if (is_neg) {
+                    /* AND (BIC) */
+                    tcg_gen_and_i64(tcg_rd, tcg_rd, tcg_imm);
+                } else {
+                    /* ORR */
+                    tcg_gen_or_i64(tcg_rd, tcg_rd, tcg_imm);
+                }
             }
-        } else {
-            /* MOVI */
-            tcg_gen_mov_i64(tcg_rd, tcg_imm);
+            tcg_gen_st_i64(tcg_rd, cpu_env, foffs);
         }
-        tcg_gen_st_i64(tcg_rd, cpu_env, foffs);
-    }
 
-    tcg_temp_free_i64(tcg_imm);
+        tcg_temp_free_i64(tcg_imm);
+    }
 }
 
 /* AdvSIMD scalar copy
