@@ -1666,9 +1666,9 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             /* scanline wraps from end of video memory to the start */
             assert(force_shadow);
             update = memory_region_snapshot_get_dirty(&s->vram, snap,
-                                                      page0, 0);
+                                                      page0, s->vbe_size - page0);
             update |= memory_region_snapshot_get_dirty(&s->vram, snap,
-                                                       page1, 0);
+                                                       0, page1);
         } else {
             update = memory_region_snapshot_get_dirty(&s->vram, snap,
                                                       page0, page1 - page0);
