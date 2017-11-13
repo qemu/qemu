@@ -423,6 +423,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
             break;
         }
     }
+    assert(length == 0);
 
     exp = nbd_export_find(name);
     if (!exp) {
@@ -433,7 +434,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
 
     /* Don't bother sending NBD_INFO_NAME unless client requested it */
     if (sendname) {
-        rc = nbd_negotiate_send_info(client, opt, NBD_INFO_NAME, length, name,
+        rc = nbd_negotiate_send_info(client, opt, NBD_INFO_NAME, namelen, name,
                                      errp);
         if (rc < 0) {
             return rc;
@@ -1272,6 +1273,21 @@ static inline void set_be_chunk(NBDStructuredReplyChunk *chunk, uint16_t flags,
     stl_be_p(&chunk->length, length);
 }
 
+static int coroutine_fn nbd_co_send_structured_done(NBDClient *client,
+                                                    uint64_t handle,
+                                                    Error **errp)
+{
+    NBDStructuredReplyChunk chunk;
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+    };
+
+    trace_nbd_co_send_structured_done(handle);
+    set_be_chunk(&chunk, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_NONE, handle, 0);
+
+    return nbd_co_send_iov(client, iov, 1, errp);
+}
+
 static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
                                                     uint64_t handle,
                                                     uint64_t offset,
@@ -1279,12 +1295,13 @@ static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
                                                     size_t size,
                                                     Error **errp)
 {
-    NBDStructuredRead chunk;
+    NBDStructuredReadData chunk;
     struct iovec iov[] = {
         {.iov_base = &chunk, .iov_len = sizeof(chunk)},
         {.iov_base = data, .iov_len = size}
     };
 
+    assert(size);
     trace_nbd_co_send_structured_read(handle, offset, data, size);
     set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_OFFSET_DATA,
                  handle, sizeof(chunk) - sizeof(chunk.h) + size);
@@ -1543,10 +1560,13 @@ reply:
         if (ret < 0) {
             ret = nbd_co_send_structured_error(req->client, request.handle,
                                                -ret, msg, &local_err);
-        } else {
+        } else if (reply_data_len) {
             ret = nbd_co_send_structured_read(req->client, request.handle,
                                               request.from, req->data,
                                               reply_data_len, &local_err);
+        } else {
+            ret = nbd_co_send_structured_done(req->client, request.handle,
+                                              &local_err);
         }
     } else {
         ret = nbd_co_send_simple_reply(req->client, request.handle,

@@ -216,7 +216,7 @@ static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
     offset = payload_advance64(&payload);
     hole_size = payload_advance32(&payload);
 
-    if (offset < orig_offset || hole_size > qiov->size ||
+    if (!hole_size || offset < orig_offset || hole_size > qiov->size ||
         offset > orig_offset + qiov->size - hole_size) {
         error_setg(errp, "Protocol error: server sent chunk exceeding requested"
                          " region");
@@ -248,7 +248,7 @@ static int nbd_parse_error_payload(NBDStructuredReplyChunk *chunk,
 
     error = nbd_errno_to_system_errno(payload_advance32(&payload));
     if (error == 0) {
-        error_setg(errp, "Protocol error: server sent structured error chunk"
+        error_setg(errp, "Protocol error: server sent structured error chunk "
                          "with error = 0");
         return -EINVAL;
     }
@@ -257,7 +257,7 @@ static int nbd_parse_error_payload(NBDStructuredReplyChunk *chunk,
     message_size = payload_advance16(&payload);
 
     if (message_size > chunk->length - sizeof(error) - sizeof(message_size)) {
-        error_setg(errp, "Protocol error: server sent structured error chunk"
+        error_setg(errp, "Protocol error: server sent structured error chunk "
                          "with incorrect message size");
         return -EINVAL;
     }
@@ -281,7 +281,8 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
 
     assert(nbd_reply_is_structured(&s->reply));
 
-    if (chunk->length < sizeof(offset)) {
+    /* The NBD spec requires at least one byte of payload */
+    if (chunk->length <= sizeof(offset)) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_OFFSET_DATA");
         return -EINVAL;
@@ -293,6 +294,7 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
     be64_to_cpus(&offset);
 
     data_size = chunk->length - sizeof(offset);
+    assert(data_size);
     if (offset < orig_offset || data_size > qiov->size ||
         offset > orig_offset + qiov->size - data_size) {
         error_setg(errp, "Protocol error: server sent chunk exceeding requested"
@@ -408,7 +410,12 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     if (chunk->type == NBD_REPLY_TYPE_NONE) {
         if (!(chunk->flags & NBD_REPLY_FLAG_DONE)) {
             error_setg(errp, "Protocol error: NBD_REPLY_TYPE_NONE chunk without"
-                             "NBD_REPLY_FLAG_DONE flag set");
+                       " NBD_REPLY_FLAG_DONE flag set");
+            return -EINVAL;
+        }
+        if (chunk->length) {
+            error_setg(errp, "Protocol error: NBD_REPLY_TYPE_NONE chunk with"
+                       " nonzero length");
             return -EINVAL;
         }
         return 0;
@@ -674,6 +681,9 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
     assert(!flags);
 
+    if (!bytes) {
+        return 0;
+    }
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         return ret;
@@ -697,6 +707,7 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
         .len = bytes,
     };
 
+    assert(!(client->info.flags & NBD_FLAG_READ_ONLY));
     if (flags & BDRV_REQ_FUA) {
         assert(client->info.flags & NBD_FLAG_SEND_FUA);
         request.flags |= NBD_CMD_FLAG_FUA;
@@ -704,6 +715,9 @@ int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
 
+    if (!bytes) {
+        return 0;
+    }
     return nbd_co_request(bs, &request, qiov);
 }
 
@@ -717,6 +731,7 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
         .len = bytes,
     };
 
+    assert(!(client->info.flags & NBD_FLAG_READ_ONLY));
     if (!(client->info.flags & NBD_FLAG_SEND_WRITE_ZEROES)) {
         return -ENOTSUP;
     }
@@ -729,6 +744,9 @@ int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
         request.flags |= NBD_CMD_FLAG_NO_HOLE;
     }
 
+    if (!bytes) {
+        return 0;
+    }
     return nbd_co_request(bs, &request, NULL);
 }
 
@@ -756,7 +774,8 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
         .len = bytes,
     };
 
-    if (!(client->info.flags & NBD_FLAG_SEND_TRIM)) {
+    assert(!(client->info.flags & NBD_FLAG_READ_ONLY));
+    if (!(client->info.flags & NBD_FLAG_SEND_TRIM) || !bytes) {
         return 0;
     }
 
@@ -813,6 +832,12 @@ int nbd_client_init(BlockDriverState *bs,
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;
+    }
+    if (client->info.flags & NBD_FLAG_READ_ONLY &&
+        !bdrv_is_read_only(bs)) {
+        error_setg(errp,
+                   "request for write access conflicts with read-only export");
+        return -EACCES;
     }
     if (client->info.flags & NBD_FLAG_SEND_FUA) {
         bs->supported_write_flags = BDRV_REQ_FUA;
