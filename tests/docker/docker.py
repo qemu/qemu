@@ -105,6 +105,28 @@ def _copy_binary_with_libs(src, dest_dir):
             so_path = os.path.dirname(l)
             _copy_with_mkdir(l , dest_dir, so_path)
 
+def _read_qemu_dockerfile(img_name):
+    df = os.path.join(os.path.dirname(__file__), "dockerfiles",
+                      img_name + ".docker")
+    return open(df, "r").read()
+
+def _dockerfile_preprocess(df):
+    out = ""
+    for l in df.splitlines():
+        if len(l.strip()) == 0 or l.startswith("#"):
+            continue
+        from_pref = "FROM qemu:"
+        if l.startswith(from_pref):
+            # TODO: Alternatively we could replace this line with "FROM $ID"
+            # where $ID is the image's hex id obtained with
+            #    $ docker images $IMAGE --format="{{.Id}}"
+            # but unfortunately that's not supported by RHEL 7.
+            inlining = _read_qemu_dockerfile(l[len(from_pref):])
+            out += _dockerfile_preprocess(inlining)
+            continue
+        out += l + "\n"
+    return out
+
 class Docker(object):
     """ Running Docker commands """
     def __init__(self):
@@ -196,7 +218,7 @@ class Docker(object):
             checksum = self.get_image_dockerfile_checksum(tag)
         except Exception:
             return False
-        return checksum == _text_checksum(dockerfile)
+        return checksum == _text_checksum(_dockerfile_preprocess(dockerfile))
 
     def run(self, cmd, keep, quiet):
         label = uuid.uuid1().hex
