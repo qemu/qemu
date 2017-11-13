@@ -2351,6 +2351,8 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn,
         post_index = false;
         writeback = true;
         break;
+    default:
+        g_assert_not_reached();
     }
 
     if (rn == 31) {
