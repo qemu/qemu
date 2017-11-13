@@ -3432,6 +3432,7 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
     /* Adjust the arguments for the specific insn.  */
     switch (s->fields->op2) {
     case 0x55: /* risbg */
+    case 0x59: /* risbgn */
         i3 &= 63;
         i4 &= 63;
         pmask = ~0;
@@ -3447,7 +3448,7 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
         pmask = 0x00000000ffffffffull;
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     /* MASK is the set of bits to be inserted from R2.
@@ -3464,11 +3465,7 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
        insns, we need to keep the other half of the register.  */
     imask = ~mask | ~pmask;
     if (do_zero) {
-        if (s->fields->op2 == 0x55) {
-            imask = 0;
-        } else {
-            imask = ~pmask;
-        }
+        imask = ~pmask;
     }
 
     len = i4 - i3 + 1;

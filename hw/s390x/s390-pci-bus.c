@@ -715,7 +715,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         pbdev->pdev = pdev;
         pbdev->iommu = s390_pci_get_iommu(s, pdev->bus, pdev->devfn);
         pbdev->iommu->pbdev = pbdev;
-        pbdev->state = ZPCI_FS_STANDBY;
+        pbdev->state = ZPCI_FS_DISABLED;
 
         if (s390_pci_msix_init(pbdev)) {
             error_setg(errp, "MSI-X support is mandatory "
