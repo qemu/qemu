@@ -945,12 +945,6 @@ ssize_t nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
     reply->handle = ldq_be_p(buf + 8);
 
     reply->error = nbd_errno_to_system_errno(reply->error);
-
-    if (reply->error == ESHUTDOWN) {
-        /* This works even on mingw which lacks a native ESHUTDOWN */
-        error_setg(errp, "server shutting down");
-        return -EINVAL;
-    }
     trace_nbd_receive_reply(magic, reply->error, reply->handle);
 
     if (magic != NBD_REPLY_MAGIC) {
