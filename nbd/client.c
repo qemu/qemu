@@ -996,15 +996,9 @@ int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
         if (ret < 0) {
             break;
         }
-
         trace_nbd_receive_simple_reply(reply->simple.error,
                                        nbd_err_lookup(reply->simple.error),
                                        reply->handle);
-        if (reply->simple.error == NBD_ESHUTDOWN) {
-            /* This works even on mingw which lacks a native ESHUTDOWN */
-            error_setg(errp, "server shutting down");
-            return -EINVAL;
-        }
         break;
     case NBD_STRUCTURED_REPLY_MAGIC:
         ret = nbd_receive_structured_reply_chunk(ioc, &reply->structured, errp);
