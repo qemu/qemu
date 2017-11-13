@@ -1,8 +1,8 @@
-# QEMU with STM32 Microcontroller Implementation
+QEMU with STM32 Microcontroller Implementation
 
 Official Homepage: http://beckus.github.io/qemu_stm32/
 
-## OVERVIEW
+OVERVIEW
 This is a copy of QEMU that has been modified to include an implementation
 of the STM32 microcontroller.  It also implements an Olimex STM32_P103
 developmentvboard.  This project runs the demos located in the
@@ -63,7 +63,7 @@ qemu-system-arm options which are useful for trobuleshooting:
         used for this to work.
         By default, you can find the output in /tmp/qemu.log:
 
-## UNIT TESTING
+UNIT TESTING
 Unit test scripts are included for the STM32 implementation.
 These test will be executed when running "make" with the standard
 check targets (see tests/Makefile for documentation of QEMU's unit
@@ -71,7 +71,7 @@ testing features):
     make check
     make check-qtest-arm
 
-## DOCKER CONTAINER
+DOCKER CONTAINER
 A Docker container containing qemu_stm32` can be built from `Dockerfile`:
 ```docker build . -t qemu_stm32```
 It can run the examples in `stm32_p103_demos`:
