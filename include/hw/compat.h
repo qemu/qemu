@@ -1,6 +1,8 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
+#define HW_COMPAT_2_11
+
 #define HW_COMPAT_2_10 \
     {\
         .driver   = "virtio-mouse-device",\
