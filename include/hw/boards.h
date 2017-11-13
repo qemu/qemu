@@ -102,6 +102,9 @@ typedef struct {
 
 /**
  * MachineClass:
+ * @max_cpus: maximum number of CPUs supported. Default: 1
+ * @min_cpus: minimum number of CPUs supported. Default: 1
+ * @default_cpus: number of CPUs instantiated if none are specified. Default: 1
  * @get_hotplug_handler: this function is called during bus-less
  *    device hotplug. If defined it returns pointer to an instance
  *    of HotplugHandler object, which handles hotplug operation
@@ -167,6 +170,8 @@ struct MachineClass {
     BlockInterfaceType block_default_type;
     int units_per_default_bus;
     int max_cpus;
+    int min_cpus;
+    int default_cpus;
     unsigned int no_serial:1,
         no_parallel:1,
         use_virtcon:1,
