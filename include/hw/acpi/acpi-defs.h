@@ -558,8 +558,8 @@ typedef struct Acpi20Tcpa Acpi20Tcpa;
 /*
  * TPM2
  *
- * Following Level 00, Rev 00.37 of specs:
- * http://www.trustedcomputinggroup.org/resources/tcg_acpi_specification
+ * Following Version 1.2, Revision 8 of specs:
+ * https://trustedcomputinggroup.org/tcg-acpi-specification/
  */
 struct Acpi20TPM2 {
     ACPI_TABLE_HEADER_DEF
@@ -567,6 +567,9 @@ struct Acpi20TPM2 {
     uint16_t reserved;
     uint64_t control_area_address;
     uint32_t start_method;
+    uint8_t start_method_params[12];
+    uint32_t log_area_minimum_length;
+    uint64_t log_area_start_address;
 } QEMU_PACKED;
 typedef struct Acpi20TPM2 Acpi20TPM2;
 
