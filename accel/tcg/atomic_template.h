@@ -62,7 +62,9 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
                               ABI_TYPE cmpv, ABI_TYPE newv EXTRA_ARGS)
 {
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
-    return atomic_cmpxchg__nocheck(haddr, cmpv, newv);
+    DATA_TYPE ret = atomic_cmpxchg__nocheck(haddr, cmpv, newv);
+    ATOMIC_MMU_CLEANUP;
+    return ret;
 }
 
 #if DATA_SIZE >= 16
@@ -70,6 +72,7 @@ ABI_TYPE ATOMIC_NAME(ld)(CPUArchState *env, target_ulong addr EXTRA_ARGS)
 {
     DATA_TYPE val, *haddr = ATOMIC_MMU_LOOKUP;
     __atomic_load(haddr, &val, __ATOMIC_RELAXED);
+    ATOMIC_MMU_CLEANUP;
     return val;
 }
 
@@ -78,13 +81,16 @@ void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr,
 {
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
     __atomic_store(haddr, &val, __ATOMIC_RELAXED);
+    ATOMIC_MMU_CLEANUP;
 }
 #else
 ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr,
                            ABI_TYPE val EXTRA_ARGS)
 {
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
-    return atomic_xchg__nocheck(haddr, val);
+    DATA_TYPE ret = atomic_xchg__nocheck(haddr, val);
+    ATOMIC_MMU_CLEANUP;
+    return ret;
 }
 
 #define GEN_ATOMIC_HELPER(X)                                        \
@@ -92,8 +98,10 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
                  ABI_TYPE val EXTRA_ARGS)                           \
 {                                                                   \
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;                           \
-    return atomic_##X(haddr, val);                                  \
-}                                                                   \
+    DATA_TYPE ret = atomic_##X(haddr, val);                         \
+    ATOMIC_MMU_CLEANUP;                                             \
+    return ret;                                                     \
+}
 
 GEN_ATOMIC_HELPER(fetch_add)
 GEN_ATOMIC_HELPER(fetch_and)
@@ -123,7 +131,9 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
                               ABI_TYPE cmpv, ABI_TYPE newv EXTRA_ARGS)
 {
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
-    return BSWAP(atomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv)));
+    DATA_TYPE ret = atomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv));
+    ATOMIC_MMU_CLEANUP;
+    return BSWAP(ret);
 }
 
 #if DATA_SIZE >= 16
@@ -131,6 +141,7 @@ ABI_TYPE ATOMIC_NAME(ld)(CPUArchState *env, target_ulong addr EXTRA_ARGS)
 {
     DATA_TYPE val, *haddr = ATOMIC_MMU_LOOKUP;
     __atomic_load(haddr, &val, __ATOMIC_RELAXED);
+    ATOMIC_MMU_CLEANUP;
     return BSWAP(val);
 }
 
@@ -140,13 +151,16 @@ void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr,
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
     val = BSWAP(val);
     __atomic_store(haddr, &val, __ATOMIC_RELAXED);
+    ATOMIC_MMU_CLEANUP;
 }
 #else
 ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr,
                            ABI_TYPE val EXTRA_ARGS)
 {
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
-    return BSWAP(atomic_xchg__nocheck(haddr, BSWAP(val)));
+    ABI_TYPE ret = atomic_xchg__nocheck(haddr, BSWAP(val));
+    ATOMIC_MMU_CLEANUP;
+    return BSWAP(ret);
 }
 
 #define GEN_ATOMIC_HELPER(X)                                        \
@@ -154,7 +168,9 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
                  ABI_TYPE val EXTRA_ARGS)                           \
 {                                                                   \
     DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;                           \
-    return BSWAP(atomic_##X(haddr, BSWAP(val)));                    \
+    DATA_TYPE ret = atomic_##X(haddr, BSWAP(val));                  \
+    ATOMIC_MMU_CLEANUP;                                             \
+    return BSWAP(ret);                                              \
 }
 
 GEN_ATOMIC_HELPER(fetch_and)
@@ -180,6 +196,7 @@ ABI_TYPE ATOMIC_NAME(fetch_add)(CPUArchState *env, target_ulong addr,
         sto = BSWAP(ret + val);
         ldn = atomic_cmpxchg__nocheck(haddr, ldo, sto);
         if (ldn == ldo) {
+            ATOMIC_MMU_CLEANUP;
             return ret;
         }
         ldo = ldn;
@@ -198,6 +215,7 @@ ABI_TYPE ATOMIC_NAME(add_fetch)(CPUArchState *env, target_ulong addr,
         sto = BSWAP(ret);
         ldn = atomic_cmpxchg__nocheck(haddr, ldo, sto);
         if (ldn == ldo) {
+            ATOMIC_MMU_CLEANUP;
             return ret;
         }
         ldo = ldn;
