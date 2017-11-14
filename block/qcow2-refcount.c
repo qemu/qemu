@@ -367,6 +367,13 @@ static int alloc_refcount_block(BlockDriverState *bs,
         return new_block;
     }
 
+    /* If we're allocating the block at offset 0 then something is wrong */
+    if (new_block == 0) {
+        qcow2_signal_corruption(bs, true, -1, -1, "Preventing invalid "
+                                "allocation of refcount block at offset 0");
+        return -EIO;
+    }
+
 #ifdef DEBUG_ALLOC2
     fprintf(stderr, "qcow2: Allocate refcount block %d for %" PRIx64
         " at %" PRIx64 "\n",
@@ -1073,6 +1080,13 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
             int64_t new_cluster = alloc_clusters_noref(bs, s->cluster_size);
             if (new_cluster < 0) {
                 return new_cluster;
+            }
+
+            if (new_cluster == 0) {
+                qcow2_signal_corruption(bs, true, -1, -1, "Preventing invalid "
+                                        "allocation of compressed cluster "
+                                        "at offset 0");
+                return -EIO;
             }
 
             if (!offset || ROUND_UP(offset, s->cluster_size) != new_cluster) {

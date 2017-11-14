@@ -86,6 +86,7 @@ EOF
 
 	rm -f "$TEST_DIR/nbd.sock"
 
+        echo > "$TEST_DIR/nbd-fault-injector.out"
 	$PYTHON nbd-fault-injector.py $extra_args "$nbd_addr" "$TEST_DIR/nbd-fault-injector.conf" >"$TEST_DIR/nbd-fault-injector.out" 2>&1 &
 
 	# Wait for server to be ready
@@ -94,7 +95,8 @@ EOF
 	done
 
 	# Extract the final address (port number has now been assigned in tcp case)
-	nbd_addr=$(sed 's/Listening on \(.*\)$/\1/' "$TEST_DIR/nbd-fault-injector.out")
+        nbd_addr=$(sed -n 's/^Listening on //p' \
+                       "$TEST_DIR/nbd-fault-injector.out")
 
 	if [ "$proto" = "tcp" ]; then
 		nbd_url="nbd+tcp://$nbd_addr/$export_name"

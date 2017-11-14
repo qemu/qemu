@@ -242,6 +242,65 @@ poke_file "$TEST_IMG" "$(($l2_offset+8))" "\x80\x00\x00\x00\x00\x06\x2a\x00"
 # Should emit two error messages
 $QEMU_IO -c "discard 0 64k" -c "read 64k 64k" "$TEST_IMG" | _filter_qemu_io
 
+echo
+echo "=== Testing empty refcount table ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing empty refcount table with valid L1 and L2 tables ==="
+echo
+_make_test_img 64M
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+# Since the first data cluster is already allocated this triggers an
+# allocation with an explicit offset (using qcow2_alloc_clusters_at())
+# causing a refcount block to be allocated at offset 0
+$QEMU_IO -c "write 0 128k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing empty refcount block ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "$rb_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing empty refcount block with compressed write ==="
+echo
+_make_test_img 64M
+$QEMU_IO -c "write 64k 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$rb_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+# The previous write already allocated an L2 table, so now this new
+# write will try to allocate a compressed data cluster at offset 0.
+$QEMU_IO -c "write -c 0k 64k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing zero refcount table size ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "56"                "\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" 2>&1 | _filter_testdir | _filter_imgfmt
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing incorrect refcount table offset ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "48"                "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

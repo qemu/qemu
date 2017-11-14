@@ -126,6 +126,7 @@ static ssize_t qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen,
     /* Zero fill remaining space in cluster so it has predictable
      * content in case of future spec changes */
     clusterlen = size_to_clusters(s, headerlen) * s->cluster_size;
+    assert(qcow2_pre_write_overlap_check(bs, 0, ret, clusterlen) == 0);
     ret = bdrv_pwrite_zeroes(bs->file,
                              ret + headerlen,
                              clusterlen - headerlen, 0);
@@ -1276,6 +1277,12 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (header.refcount_table_clusters > qcow2_max_refcount_clusters(s)) {
         error_setg(errp, "Reference count table too large");
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    if (header.refcount_table_clusters == 0 && !(flags & BDRV_O_CHECK)) {
+        error_setg(errp, "Image does not contain a reference count table");
         ret = -EINVAL;
         goto fail;
     }

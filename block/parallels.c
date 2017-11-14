@@ -35,6 +35,7 @@
 #include "qemu/module.h"
 #include "qemu/bswap.h"
 #include "qemu/bitmap.h"
+#include "migration/blocker.h"
 
 /**************************************************************/
 
@@ -100,6 +101,7 @@ typedef struct BDRVParallelsState {
     unsigned int tracks;
 
     unsigned int off_multiplier;
+    Error *migration_blocker;
 } BDRVParallelsState;
 
 
@@ -708,7 +710,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
     }
 
-    if (flags & BDRV_O_RDWR) {
+    if ((flags & BDRV_O_RDWR) && !(flags & BDRV_O_INACTIVE)) {
         s->header->inuse = cpu_to_le32(HEADER_INUSE_MAGIC);
         ret = parallels_update_header(bs);
         if (ret < 0) {
@@ -720,6 +722,16 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     s->bat_dirty_bmap =
         bitmap_new(DIV_ROUND_UP(s->header_size, s->bat_dirty_block));
 
+    /* Disable migration until bdrv_invalidate_cache method is added */
+    error_setg(&s->migration_blocker, "The Parallels format used by node '%s' "
+               "does not support live migration",
+               bdrv_get_device_or_node_name(bs));
+    ret = migrate_add_blocker(s->migration_blocker, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_free(s->migration_blocker);
+        goto fail;
+    }
     qemu_co_mutex_init(&s->lock);
     return 0;
 
@@ -741,18 +753,18 @@ static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
 
-    if (bs->open_flags & BDRV_O_RDWR) {
+    if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
         s->header->inuse = 0;
         parallels_update_header(bs);
-    }
-
-    if (bs->open_flags & BDRV_O_RDWR) {
         bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS,
                       PREALLOC_MODE_OFF, NULL);
     }
 
     g_free(s->bat_dirty_bmap);
     qemu_vfree(s->header);
+
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
 }
 
 static QemuOptsList parallels_create_opts = {

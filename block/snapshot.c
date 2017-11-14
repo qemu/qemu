@@ -181,10 +181,24 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
     int ret, open_ret;
+    int64_t len;
 
     if (!drv) {
         return -ENOMEDIUM;
     }
+
+    len = bdrv_getlength(bs);
+    if (len < 0) {
+        return len;
+    }
+    /* We should set all bits in all enabled dirty bitmaps, because dirty
+     * bitmaps reflect active state of disk and snapshot switch operation
+     * actually dirties active state.
+     * TODO: It may make sense not to set all bits but analyze block status of
+     * current state and destination snapshot and do not set bits corresponding
+     * to both-zero or both-unallocated areas. */
+    bdrv_set_dirty(bs, 0, len);
+
     if (drv->bdrv_snapshot_goto) {
         return drv->bdrv_snapshot_goto(bs, snapshot_id);
     }

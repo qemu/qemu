@@ -278,6 +278,14 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
         goto fail;
     }
 
+    /* If we're allocating the table at offset 0 then something is wrong */
+    if (l2_offset == 0) {
+        qcow2_signal_corruption(bs, true, -1, -1, "Preventing invalid "
+                                "allocation of L2 table at offset 0");
+        ret = -EIO;
+        goto fail;
+    }
+
     ret = qcow2_cache_flush(bs, s->refcount_block_cache);
     if (ret < 0) {
         goto fail;
