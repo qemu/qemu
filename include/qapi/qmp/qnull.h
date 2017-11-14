@@ -10,13 +10,21 @@
  * or later.  See the COPYING.LIB file in the top-level directory.
  */
 
-#include "qemu/osdep.h"
-#include "qemu-common.h"
-#include "qapi/qmp/qnull.h"
+#ifndef QNULL_H
+#define QNULL_H
 
-QNull qnull_ = {
-    .base = {
-        .type = QTYPE_QNULL,
-        .refcnt = 1,
-    },
+#include "qapi/qmp/qobject.h"
+
+struct QNull {
+    QObject base;
 };
+
+extern QNull qnull_;
+
+static inline QNull *qnull(void)
+{
+    QINCREF(&qnull_);
+    return &qnull_;
+}
+
+#endif /* QNULL_H */
