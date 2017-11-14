@@ -68,6 +68,15 @@ static inline void qobject_incref(QObject *obj)
 }
 
 /**
+ * qobject_is_equal(): Return whether the two objects are equal.
+ *
+ * Any of the pointers may be NULL; return true if both are.  Always
+ * return false if only one is (therefore a QNull object is not
+ * considered equal to a NULL pointer).
+ */
+bool qobject_is_equal(const QObject *x, const QObject *y);
+
+/**
  * qobject_destroy(): Free resources used by the object
  */
 void qobject_destroy(QObject *obj);

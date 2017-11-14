@@ -52,6 +52,14 @@ QBool *qobject_to_qbool(const QObject *obj)
 }
 
 /**
+ * qbool_is_equal(): Test whether the two QBools are equal
+ */
+bool qbool_is_equal(const QObject *x, const QObject *y)
+{
+    return qobject_to_qbool(x)->value == qobject_to_qbool(y)->value;
+}
+
+/**
  * qbool_destroy_obj(): Free all memory allocated by a
  * QBool object
  */

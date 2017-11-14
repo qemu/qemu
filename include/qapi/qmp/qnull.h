@@ -27,4 +27,6 @@ static inline QNull *qnull(void)
     return &qnull_;
 }
 
+bool qnull_is_equal(const QObject *x, const QObject *y);
+
 #endif /* QNULL_H */
