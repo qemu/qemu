@@ -792,11 +792,12 @@ void cpu_exec_initfn(CPUState *cpu)
 void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
+    static bool tcg_target_initialized;
 
     cpu_list_add(cpu);
 
-    if (tcg_enabled() && !cc->tcg_initialized) {
-        cc->tcg_initialized = true;
+    if (tcg_enabled() && !tcg_target_initialized) {
+        tcg_target_initialized = true;
         cc->tcg_initialize();
     }
 
