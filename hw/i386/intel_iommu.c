@@ -523,7 +523,7 @@ static inline dma_addr_t vtd_ce_get_slpt_base(VTDContextEntry *ce)
 
 static inline uint64_t vtd_get_slpte_addr(uint64_t slpte)
 {
-    return slpte & VTD_SL_PT_BASE_ADDR_MASK;
+    return slpte & VTD_SL_PT_BASE_ADDR_MASK(VTD_HOST_ADDRESS_WIDTH);
 }
 
 /* Whether the pte indicates the address of the page frame */
@@ -624,19 +624,12 @@ static inline bool vtd_iova_range_check(uint64_t iova, VTDContextEntry *ce)
     return !(iova & ~(vtd_iova_limit(ce) - 1));
 }
 
-static const uint64_t vtd_paging_entry_rsvd_field[] = {
-    [0] = ~0ULL,
-    /* For not large page */
-    [1] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [2] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [3] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [4] = 0x880ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    /* For large page */
-    [5] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [6] = 0x1ff800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [7] = 0x3ffff800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [8] = 0x880ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-};
+/*
+ * Rsvd field masks for spte:
+ *     Index [1] to [4] 4k pages
+ *     Index [5] to [8] large pages
+ */
+static uint64_t vtd_paging_entry_rsvd_field[9];
 
 static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
 {
@@ -874,7 +867,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         return -VTD_FR_ROOT_ENTRY_P;
     }
 
-    if (re.rsvd || (re.val & VTD_ROOT_ENTRY_RSVD)) {
+    if (re.rsvd || (re.val & VTD_ROOT_ENTRY_RSVD(VTD_HOST_ADDRESS_WIDTH))) {
         trace_vtd_re_invalid(re.rsvd, re.val);
         return -VTD_FR_ROOT_ENTRY_RSVD;
     }
@@ -891,7 +884,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     }
 
     if ((ce->hi & VTD_CONTEXT_ENTRY_RSVD_HI) ||
-        (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO)) {
+               (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO(VTD_HOST_ADDRESS_WIDTH))) {
         trace_vtd_ce_invalid(ce->hi, ce->lo);
         return -VTD_FR_CONTEXT_ENTRY_RSVD;
     }
@@ -1207,7 +1200,7 @@ static void vtd_root_table_setup(IntelIOMMUState *s)
 {
     s->root = vtd_get_quad_raw(s, DMAR_RTADDR_REG);
     s->root_extended = s->root & VTD_RTADDR_RTT;
-    s->root &= VTD_RTADDR_ADDR_MASK;
+    s->root &= VTD_RTADDR_ADDR_MASK(VTD_HOST_ADDRESS_WIDTH);
 
     trace_vtd_reg_dmar_root(s->root, s->root_extended);
 }
@@ -1223,7 +1216,7 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
     uint64_t value = 0;
     value = vtd_get_quad_raw(s, DMAR_IRTA_REG);
     s->intr_size = 1UL << ((value & VTD_IRTA_SIZE_MASK) + 1);
-    s->intr_root = value & VTD_IRTA_ADDR_MASK;
+    s->intr_root = value & VTD_IRTA_ADDR_MASK(VTD_HOST_ADDRESS_WIDTH);
     s->intr_eime = value & VTD_IRTA_EIME;
 
     /* Notify global invalidation */
@@ -1479,7 +1472,7 @@ static void vtd_handle_gcmd_qie(IntelIOMMUState *s, bool en)
     trace_vtd_inv_qi_enable(en);
 
     if (en) {
-        s->iq = iqa_val & VTD_IQA_IQA_MASK;
+        s->iq = iqa_val & VTD_IQA_IQA_MASK(VTD_HOST_ADDRESS_WIDTH);
         /* 2^(x+8) entries */
         s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8);
         s->qi_enabled = true;
@@ -2772,12 +2765,12 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
      * VT-d spec), otherwise we need to consider overflow of 64 bits.
      */
 
-    if (end > VTD_ADDRESS_SIZE) {
+    if (end > VTD_ADDRESS_SIZE(VTD_HOST_ADDRESS_WIDTH)) {
         /*
          * Don't need to unmap regions that is bigger than the whole
          * VT-d supported address space size
          */
-        end = VTD_ADDRESS_SIZE;
+        end = VTD_ADDRESS_SIZE(VTD_HOST_ADDRESS_WIDTH);
     }
 
     assert(start <= end);
@@ -2866,6 +2859,7 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
 static void vtd_init(IntelIOMMUState *s)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
+    uint8_t aw_bits = VTD_HOST_ADDRESS_WIDTH;
 
     memset(s->csr, 0, DMAR_REG_SIZE);
     memset(s->wmask, 0, DMAR_REG_SIZE);
@@ -2882,9 +2876,23 @@ static void vtd_init(IntelIOMMUState *s)
     s->qi_enabled = false;
     s->iq_last_desc_type = VTD_INV_DESC_NONE;
     s->next_frcd_reg = 0;
-    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_CAP_MGAW |
-             VTD_CAP_SAGAW | VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS;
+    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
+             VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS |
+             VTD_CAP_SAGAW_39bit | VTD_CAP_MGAW(VTD_HOST_ADDRESS_WIDTH);
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
+
+    /*
+     * Rsvd field masks for spte
+     */
+    vtd_paging_entry_rsvd_field[0] = ~0ULL;
+    vtd_paging_entry_rsvd_field[1] = VTD_SPTE_PAGE_L1_RSVD_MASK(aw_bits);
+    vtd_paging_entry_rsvd_field[2] = VTD_SPTE_PAGE_L2_RSVD_MASK(aw_bits);
+    vtd_paging_entry_rsvd_field[3] = VTD_SPTE_PAGE_L3_RSVD_MASK(aw_bits);
+    vtd_paging_entry_rsvd_field[4] = VTD_SPTE_PAGE_L4_RSVD_MASK(aw_bits);
+    vtd_paging_entry_rsvd_field[5] = VTD_SPTE_LPAGE_L1_RSVD_MASK(aw_bits);
+    vtd_paging_entry_rsvd_field[6] = VTD_SPTE_LPAGE_L2_RSVD_MASK(aw_bits);
+    vtd_paging_entry_rsvd_field[7] = VTD_SPTE_LPAGE_L3_RSVD_MASK(aw_bits);
+    vtd_paging_entry_rsvd_field[8] = VTD_SPTE_LPAGE_L4_RSVD_MASK(aw_bits);
 
     if (x86_iommu->intr_supported) {
         s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;

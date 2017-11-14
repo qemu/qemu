@@ -172,10 +172,10 @@
 
 /* RTADDR_REG */
 #define VTD_RTADDR_RTT              (1ULL << 11)
-#define VTD_RTADDR_ADDR_MASK        (VTD_HAW_MASK ^ 0xfffULL)
+#define VTD_RTADDR_ADDR_MASK(aw)    (VTD_HAW_MASK(aw) ^ 0xfffULL)
 
 /* IRTA_REG */
-#define VTD_IRTA_ADDR_MASK          (VTD_HAW_MASK ^ 0xfffULL)
+#define VTD_IRTA_ADDR_MASK(aw)      (VTD_HAW_MASK(aw) ^ 0xfffULL)
 #define VTD_IRTA_EIME               (1ULL << 11)
 #define VTD_IRTA_SIZE_MASK          (0xfULL)
 
@@ -198,8 +198,8 @@
 #define VTD_DOMAIN_ID_MASK          ((1UL << VTD_DOMAIN_ID_SHIFT) - 1)
 #define VTD_CAP_ND                  (((VTD_DOMAIN_ID_SHIFT - 4) / 2) & 7ULL)
 #define VTD_MGAW                    39  /* Maximum Guest Address Width */
-#define VTD_ADDRESS_SIZE            (1ULL << VTD_MGAW)
-#define VTD_CAP_MGAW                (((VTD_MGAW - 1) & 0x3fULL) << 16)
+#define VTD_ADDRESS_SIZE(aw)        (1ULL << (aw))
+#define VTD_CAP_MGAW(aw)            ((((aw) - 1) & 0x3fULL) << 16)
 #define VTD_MAMV                    18ULL
 #define VTD_CAP_MAMV                (VTD_MAMV << 48)
 #define VTD_CAP_PSI                 (1ULL << 39)
@@ -219,7 +219,7 @@
 #define VTD_IQT_QT(val)             (((val) >> 4) & 0x7fffULL)
 
 /* IQA_REG */
-#define VTD_IQA_IQA_MASK            (VTD_HAW_MASK ^ 0xfffULL)
+#define VTD_IQA_IQA_MASK(aw)        (VTD_HAW_MASK(aw) ^ 0xfffULL)
 #define VTD_IQA_QS                  0x7ULL
 
 /* IQH_REG */
@@ -373,6 +373,24 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI 0xffeULL
 #define VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO 0xffff0000ffe0fff8
 
+/* Rsvd field masks for spte */
+#define VTD_SPTE_PAGE_L1_RSVD_MASK(aw) \
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+#define VTD_SPTE_PAGE_L2_RSVD_MASK(aw) \
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+#define VTD_SPTE_PAGE_L3_RSVD_MASK(aw) \
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+#define VTD_SPTE_PAGE_L4_RSVD_MASK(aw) \
+        (0x880ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+#define VTD_SPTE_LPAGE_L1_RSVD_MASK(aw) \
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+#define VTD_SPTE_LPAGE_L2_RSVD_MASK(aw) \
+        (0x1ff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+#define VTD_SPTE_LPAGE_L3_RSVD_MASK(aw) \
+        (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+#define VTD_SPTE_LPAGE_L4_RSVD_MASK(aw) \
+        (0x880ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+
 /* Information about page-selective IOTLB invalidate */
 struct VTDIOTLBPageInvInfo {
     uint16_t domain_id;
@@ -403,7 +421,7 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_ROOT_ENTRY_CTP          (~0xfffULL)
 
 #define VTD_ROOT_ENTRY_NR           (VTD_PAGE_SIZE / sizeof(VTDRootEntry))
-#define VTD_ROOT_ENTRY_RSVD         (0xffeULL | ~VTD_HAW_MASK)
+#define VTD_ROOT_ENTRY_RSVD(aw)     (0xffeULL | ~VTD_HAW_MASK(aw))
 
 /* Masks for struct VTDContextEntry */
 /* lo */
@@ -415,7 +433,7 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_CONTEXT_TT_PASS_THROUGH (2ULL << 2)
 /* Second Level Page Translation Pointer*/
 #define VTD_CONTEXT_ENTRY_SLPTPTR   (~0xfffULL)
-#define VTD_CONTEXT_ENTRY_RSVD_LO   (0xff0ULL | ~VTD_HAW_MASK)
+#define VTD_CONTEXT_ENTRY_RSVD_LO(aw) (0xff0ULL | ~VTD_HAW_MASK(aw))
 /* hi */
 #define VTD_CONTEXT_ENTRY_AW        7ULL /* Adjusted guest-address-width */
 #define VTD_CONTEXT_ENTRY_DID(val)  (((val) >> 8) & VTD_DOMAIN_ID_MASK)
@@ -439,7 +457,7 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_SL_RW_MASK              3ULL
 #define VTD_SL_R                    1ULL
 #define VTD_SL_W                    (1ULL << 1)
-#define VTD_SL_PT_BASE_ADDR_MASK    (~(VTD_PAGE_SIZE - 1) & VTD_HAW_MASK)
+#define VTD_SL_PT_BASE_ADDR_MASK(aw) (~(VTD_PAGE_SIZE - 1) & VTD_HAW_MASK(aw))
 #define VTD_SL_IGN_COM              0xbff0000000000000ULL
 
 #endif
