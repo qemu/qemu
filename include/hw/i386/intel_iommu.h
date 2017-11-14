@@ -46,8 +46,10 @@
 #define VTD_SID_TO_DEVFN(sid)       ((sid) & 0xff)
 
 #define DMAR_REG_SIZE               0x230
-#define VTD_HOST_ADDRESS_WIDTH      39
-#define VTD_HAW_MASK                ((1ULL << VTD_HOST_ADDRESS_WIDTH) - 1)
+#define VTD_HOST_AW_39BIT           39
+#define VTD_HOST_AW_48BIT           48
+#define VTD_HOST_ADDRESS_WIDTH      VTD_HOST_AW_39BIT
+#define VTD_HAW_MASK(aw)            ((1ULL << (aw)) - 1)
 
 #define DMAR_REPORT_F_INTR          (1)
 
