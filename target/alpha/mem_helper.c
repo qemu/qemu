@@ -34,9 +34,7 @@ void alpha_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     uint64_t pc;
     uint32_t insn;
 
-    if (retaddr) {
-        cpu_restore_state(cs, retaddr);
-    }
+    cpu_restore_state(cs, retaddr);
 
     pc = env->pc;
     insn = cpu_ldl_code(env, pc);
@@ -58,9 +56,7 @@ void alpha_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     AlphaCPU *cpu = ALPHA_CPU(cs);
     CPUAlphaState *env = &cpu->env;
 
-    if (retaddr) {
-        cpu_restore_state(cs, retaddr);
-    }
+    cpu_restore_state(cs, retaddr);
 
     env->trap_arg0 = addr;
     env->trap_arg1 = access_type == MMU_DATA_STORE ? 1 : 0;
@@ -80,11 +76,8 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
 
     ret = alpha_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (unlikely(ret != 0)) {
-        if (retaddr) {
-            cpu_restore_state(cs, retaddr);
-        }
         /* Exception index and error code are already set */
-        cpu_loop_exit(cs);
+        cpu_loop_exit_restore(cs, retaddr);
     }
 }
 #endif /* CONFIG_USER_ONLY */

@@ -251,11 +251,8 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
 
     ret = uc32_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (unlikely(ret)) {
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            cpu_restore_state(cs, retaddr);
-        }
-        cpu_loop_exit(cs);
+        /* now we have a real cpu fault */
+        cpu_loop_exit_restore(cs, retaddr);
     }
 }
 #endif

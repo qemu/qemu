@@ -182,10 +182,8 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
     if (unlikely(ret)) {
         ARMCPU *cpu = ARM_CPU(cs);
 
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            cpu_restore_state(cs, retaddr);
-        }
+        /* now we have a real cpu fault */
+        cpu_restore_state(cs, retaddr);
 
         deliver_fault(cpu, addr, access_type, mmu_idx, &fi);
     }
@@ -199,10 +197,8 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     ARMCPU *cpu = ARM_CPU(cs);
     ARMMMUFaultInfo fi = {};
 
-    if (retaddr) {
-        /* now we have a real cpu fault */
-        cpu_restore_state(cs, retaddr);
-    }
+    /* now we have a real cpu fault */
+    cpu_restore_state(cs, retaddr);
 
     fi.type = ARMFault_Alignment;
     deliver_fault(cpu, vaddr, access_type, mmu_idx, &fi);
@@ -221,10 +217,8 @@ void arm_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     ARMCPU *cpu = ARM_CPU(cs);
     ARMMMUFaultInfo fi = {};
 
-    if (retaddr) {
-        /* now we have a real cpu fault */
-        cpu_restore_state(cs, retaddr);
-    }
+    /* now we have a real cpu fault */
+    cpu_restore_state(cs, retaddr);
 
     /* The EA bit in syndromes and fault status registers is an
      * IMPDEF classification of external aborts. ARM implementations
