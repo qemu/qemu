@@ -98,6 +98,8 @@ typedef struct E1000State_st {
         unsigned char data[0x10000];
         uint16_t size;
         unsigned char vlan_needed;
+        unsigned char sum_needed;
+        bool cptse;
         e1000x_txd_props props;
         uint16_t tso_frames;
     } tx;
@@ -540,7 +542,7 @@ xmit_seg(E1000State *s)
     unsigned int frames = s->tx.tso_frames, css, sofar;
     struct e1000_tx *tp = &s->tx;
 
-    if (tp->props.tse && tp->props.cptse) {
+    if (tp->props.tse && tp->cptse) {
         css = tp->props.ipcss;
         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
                frames, tp->size, css);
@@ -564,7 +566,7 @@ xmit_seg(E1000State *s)
             }
         } else    /* UDP */
             stw_be_p(tp->data+css+4, len);
-        if (tp->props.sum_needed & E1000_TXD_POPTS_TXSM) {
+        if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
             unsigned int phsum;
             // add pseudo-header length before checksum calculation
             void *sp = tp->data + tp->props.tucso;
@@ -576,11 +578,11 @@ xmit_seg(E1000State *s)
         tp->tso_frames++;
     }
 
-    if (tp->props.sum_needed & E1000_TXD_POPTS_TXSM) {
+    if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
         putsum(tp->data, tp->size, tp->props.tucso,
                tp->props.tucss, tp->props.tucse);
     }
-    if (tp->props.sum_needed & E1000_TXD_POPTS_IXSM) {
+    if (tp->sum_needed & E1000_TXD_POPTS_IXSM) {
         putsum(tp->data, tp->size, tp->props.ipcso,
                tp->props.ipcss, tp->props.ipcse);
     }
@@ -624,17 +626,17 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D)) {
         // data descriptor
         if (tp->size == 0) {
-            tp->props.sum_needed = le32_to_cpu(dp->upper.data) >> 8;
+            tp->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
         }
-        tp->props.cptse = (txd_lower & E1000_TXD_CMD_TSE) ? 1 : 0;
+        tp->cptse = (txd_lower & E1000_TXD_CMD_TSE) ? 1 : 0;
     } else {
         // legacy descriptor
-        tp->props.cptse = 0;
+        tp->cptse = 0;
     }
 
     if (e1000x_vlan_enabled(s->mac_reg) &&
         e1000x_is_vlan_txd(txd_lower) &&
-        (tp->props.cptse || txd_lower & E1000_TXD_CMD_EOP)) {
+        (tp->cptse || txd_lower & E1000_TXD_CMD_EOP)) {
         tp->vlan_needed = 1;
         stw_be_p(tp->vlan_header,
                       le16_to_cpu(s->mac_reg[VET]));
@@ -643,7 +645,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     }
 
     addr = le64_to_cpu(dp->buffer_addr);
-    if (tp->props.tse && tp->props.cptse) {
+    if (tp->props.tse && tp->cptse) {
         msh = tp->props.hdr_len + tp->props.mss;
         do {
             bytes = split_size;
@@ -665,7 +667,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
             }
             split_size -= bytes;
         } while (bytes && split_size);
-    } else if (!tp->props.tse && tp->props.cptse) {
+    } else if (!tp->props.tse && tp->cptse) {
         // context descriptor TSE is not set, while data descriptor TSE is set
         DBGOUT(TXERR, "TCP segmentation error\n");
     } else {
@@ -676,14 +678,14 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 
     if (!(txd_lower & E1000_TXD_CMD_EOP))
         return;
-    if (!(tp->props.tse && tp->props.cptse && tp->size < tp->props.hdr_len)) {
+    if (!(tp->props.tse && tp->cptse && tp->size < tp->props.hdr_len)) {
         xmit_seg(s);
     }
     tp->tso_frames = 0;
-    tp->props.sum_needed = 0;
+    tp->sum_needed = 0;
     tp->vlan_needed = 0;
     tp->size = 0;
-    tp->props.cptse = 0;
+    tp->cptse = 0;
 }
 
 static uint32_t
@@ -1461,7 +1463,7 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT16(tx.props.mss, E1000State),
         VMSTATE_UINT16(tx.size, E1000State),
         VMSTATE_UINT16(tx.tso_frames, E1000State),
-        VMSTATE_UINT8(tx.props.sum_needed, E1000State),
+        VMSTATE_UINT8(tx.sum_needed, E1000State),
         VMSTATE_INT8(tx.props.ip, E1000State),
         VMSTATE_INT8(tx.props.tcp, E1000State),
         VMSTATE_BUFFER(tx.header, E1000State),

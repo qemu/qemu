@@ -71,6 +71,8 @@ struct E1000Core {
         e1000x_txd_props props;
 
         bool skip_cp;
+        unsigned char sum_needed;
+        bool cptse;
         struct NetTxPkt *tx_pkt;
     } tx[E1000E_NUM_QUEUES];
 
