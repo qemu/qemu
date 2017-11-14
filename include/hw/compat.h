@@ -10,6 +10,10 @@
         .driver   = "virtio-tablet-device",\
         .property = "wheel-axis",\
         .value    = "false",\
+    },{\
+        .driver   = "i82559a",\
+        .property = "x-use-alt-device-id",\
+        .value    = "false",\
     },
 
 #define HW_COMPAT_2_9 \
