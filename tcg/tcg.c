@@ -1430,7 +1430,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     } else {
         nb_rets = 0;
     }
-    op->callo = nb_rets;
+    TCGOP_CALLO(op) = nb_rets;
 
     real_args = 0;
     for (i = 0; i < nargs; i++) {
@@ -1469,10 +1469,10 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     }
     op->args[pi++] = (uintptr_t)func;
     op->args[pi++] = flags;
-    op->calli = real_args;
+    TCGOP_CALLI(op) = real_args;
 
     /* Make sure the fields didn't overflow.  */
-    tcg_debug_assert(op->calli == real_args);
+    tcg_debug_assert(TCGOP_CALLI(op) == real_args);
     tcg_debug_assert(pi <= ARRAY_SIZE(op->args));
 
 #if defined(__sparc__) && !defined(__arch64__) \
@@ -1634,8 +1634,8 @@ void tcg_dump_ops(TCGContext *s)
             }
         } else if (c == INDEX_op_call) {
             /* variable number of arguments */
-            nb_oargs = op->callo;
-            nb_iargs = op->calli;
+            nb_oargs = TCGOP_CALLO(op);
+            nb_iargs = TCGOP_CALLI(op);
             nb_cargs = def->nb_cargs;
 
             /* function name, flags, out args */
@@ -1996,8 +1996,8 @@ static void liveness_pass_1(TCGContext *s)
             {
                 int call_flags;
 
-                nb_oargs = op->callo;
-                nb_iargs = op->calli;
+                nb_oargs = TCGOP_CALLO(op);
+                nb_iargs = TCGOP_CALLI(op);
                 call_flags = op->args[nb_oargs + nb_iargs + 1];
 
                 /* pure functions can be removed if their result is unused */
@@ -2233,8 +2233,8 @@ static bool liveness_pass_2(TCGContext *s)
         TCGTemp *arg_ts, *dir_ts;
 
         if (opc == INDEX_op_call) {
-            nb_oargs = op->callo;
-            nb_iargs = op->calli;
+            nb_oargs = TCGOP_CALLO(op);
+            nb_iargs = TCGOP_CALLI(op);
             call_flags = op->args[nb_oargs + nb_iargs + 1];
         } else {
             nb_iargs = def->nb_iargs;
@@ -2915,8 +2915,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
 
 static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
 {
-    const int nb_oargs = op->callo;
-    const int nb_iargs = op->calli;
+    const int nb_oargs = TCGOP_CALLO(op);
+    const int nb_iargs = TCGOP_CALLI(op);
     const TCGLifeData arg_life = op->life;
     int flags, nb_regs, i;
     TCGReg reg;

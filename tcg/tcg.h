@@ -566,10 +566,9 @@ typedef uint16_t TCGLifeData;
 typedef struct TCGOp {
     TCGOpcode opc   : 8;        /*  8 */
 
-    /* The number of out and in parameter for a call.  */
-    unsigned calli  : 4;        /* 12 */
-    unsigned callo  : 2;        /* 14 */
-    unsigned        : 2;        /* 16 */
+    /* Parameters for this opcode.  See below.  */
+    unsigned param1 : 4;        /* 12 */
+    unsigned param2 : 4;        /* 16 */
 
     /* Lifetime data of the operands.  */
     unsigned life   : 16;       /* 32 */
@@ -580,6 +579,9 @@ typedef struct TCGOp {
     /* Arguments for the opcode.  */
     TCGArg args[MAX_OPC_PARAM];
 } TCGOp;
+
+#define TCGOP_CALLI(X)    (X)->param1
+#define TCGOP_CALLO(X)    (X)->param2
 
 /* Make sure operands fit in the bitfields above.  */
 QEMU_BUILD_BUG_ON(NB_OPS > (1 << 8));

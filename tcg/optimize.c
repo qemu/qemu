@@ -627,8 +627,8 @@ void tcg_optimize(TCGContext *s)
         /* Count the arguments, and initialize the temps that are
            going to be used */
         if (opc == INDEX_op_call) {
-            nb_oargs = op->callo;
-            nb_iargs = op->calli;
+            nb_oargs = TCGOP_CALLO(op);
+            nb_iargs = TCGOP_CALLI(op);
             for (i = 0; i < nb_oargs + nb_iargs; i++) {
                 TCGTemp *ts = arg_temp(op->args[i]);
                 if (ts) {
