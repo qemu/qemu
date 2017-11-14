@@ -15,7 +15,6 @@
 import errno
 import logging
 import os
-import sys
 import subprocess
 import qmp.qmp
 
