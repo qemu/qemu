@@ -226,39 +226,49 @@ enum {
 struct Vmxnet3_TxDesc {
     __le64 addr;
 
+    union {
+        struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-    u32 msscof:14;  /* MSS, checksum offset, flags */
-    u32 ext1:1;
-    u32 dtype:1;    /* descriptor type */
-    u32 rsvd:1;
-    u32 gen:1;      /* generation bit */
-    u32 len:14;
+            u32 msscof:14;  /* MSS, checksum offset, flags */
+            u32 ext1:1;
+            u32 dtype:1;    /* descriptor type */
+            u32 rsvd:1;
+            u32 gen:1;      /* generation bit */
+            u32 len:14;
 #else
-    u32 len:14;
-    u32 gen:1;      /* generation bit */
-    u32 rsvd:1;
-    u32 dtype:1;    /* descriptor type */
-    u32 ext1:1;
-    u32 msscof:14;  /* MSS, checksum offset, flags */
+            u32 len:14;
+            u32 gen:1;      /* generation bit */
+            u32 rsvd:1;
+            u32 dtype:1;    /* descriptor type */
+            u32 ext1:1;
+            u32 msscof:14;  /* MSS, checksum offset, flags */
 #endif  /* __BIG_ENDIAN_BITFIELD */
-
+        };
+        u32 val1;
+    };
+    
+    union {
+        struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-    u32 tci:16;     /* Tag to Insert */
-    u32 ti:1;       /* VLAN Tag Insertion */
-    u32 ext2:1;
-    u32 cq:1;       /* completion request */
-    u32 eop:1;      /* End Of Packet */
-    u32 om:2;       /* offload mode */
-    u32 hlen:10;    /* header len */
+            u32 tci:16;     /* Tag to Insert */
+            u32 ti:1;       /* VLAN Tag Insertion */
+            u32 ext2:1;
+            u32 cq:1;       /* completion request */
+            u32 eop:1;      /* End Of Packet */
+            u32 om:2;       /* offload mode */
+            u32 hlen:10;    /* header len */
 #else
-    u32 hlen:10;    /* header len */
-    u32 om:2;       /* offload mode */
-    u32 eop:1;      /* End Of Packet */
-    u32 cq:1;       /* completion request */
-    u32 ext2:1;
-    u32 ti:1;       /* VLAN Tag Insertion */
-    u32 tci:16;     /* Tag to Insert */
+            u32 hlen:10;    /* header len */
+            u32 om:2;       /* offload mode */
+            u32 eop:1;      /* End Of Packet */
+            u32 cq:1;       /* completion request */
+            u32 ext2:1;
+            u32 ti:1;       /* VLAN Tag Insertion */
+            u32 tci:16;     /* Tag to Insert */
 #endif  /* __BIG_ENDIAN_BITFIELD */
+        };
+        u32 val2;
+    };
 };
 
 /* TxDesc.OM values */
@@ -291,33 +301,57 @@ struct Vmxnet3_TxDataDesc {
 #define VMXNET3_TCD_GEN_DWORD_SHIFT    3
 
 struct Vmxnet3_TxCompDesc {
-    u32        txdIdx:12;    /* Index of the EOP TxDesc */
-    u32        ext1:20;
-
+    union {
+        struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+            u32 ext1:20;
+            u32 txdIdx:12;    /* Index of the EOP TxDesc */
+#else
+            u32 txdIdx:12;    /* Index of the EOP TxDesc */
+            u32 ext1:20;
+#endif
+        };
+        u32 val1;
+    };
     __le32        ext2;
     __le32        ext3;
 
-    u32        rsvd:24;
-    u32        type:7;       /* completion type */
-    u32        gen:1;        /* generation bit */
+    union {
+        struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+            u32 gen:1;        /* generation bit */
+            u32 type:7;       /* completion type */
+            u32 rsvd:24;
+#else
+            u32 rsvd:24;
+            u32 type:7;       /* completion type */
+            u32 gen:1;        /* generation bit */
+#endif
+        };
+        u32 val2;
+    };
 };
 
 struct Vmxnet3_RxDesc {
     __le64        addr;
-
+    union {
+        struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-    u32        gen:1;        /* Generation bit */
-    u32        rsvd:15;
-    u32        dtype:1;      /* Descriptor type */
-    u32        btype:1;      /* Buffer Type */
-    u32        len:14;
+            u32 gen:1;        /* Generation bit */
+            u32 rsvd:15;
+            u32 dtype:1;      /* Descriptor type */
+            u32 btype:1;      /* Buffer Type */
+            u32 len:14;
 #else
-    u32        len:14;
-    u32        btype:1;      /* Buffer Type */
-    u32        dtype:1;      /* Descriptor type */
-    u32        rsvd:15;
-    u32        gen:1;        /* Generation bit */
+            u32 len:14;
+            u32 btype:1;      /* Buffer Type */
+            u32 dtype:1;      /* Descriptor type */
+            u32 rsvd:15;
+            u32 gen:1;        /* Generation bit */
 #endif
+        };
+        u32 val1;
+    };
     u32        ext1;
 };
 
@@ -330,66 +364,80 @@ struct Vmxnet3_RxDesc {
 #define VMXNET3_RXD_GEN_SHIFT    31
 
 struct Vmxnet3_RxCompDesc {
+    union {
+        struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-    u32        ext2:1;
-    u32        cnc:1;        /* Checksum Not Calculated */
-    u32        rssType:4;    /* RSS hash type used */
-    u32        rqID:10;      /* rx queue/ring ID */
-    u32        sop:1;        /* Start of Packet */
-    u32        eop:1;        /* End of Packet */
-    u32        ext1:2;
-    u32        rxdIdx:12;    /* Index of the RxDesc */
+            u32 ext2:1;
+            u32 cnc:1;        /* Checksum Not Calculated */
+            u32 rssType:4;    /* RSS hash type used */
+            u32 rqID:10;      /* rx queue/ring ID */
+            u32 sop:1;        /* Start of Packet */
+            u32 eop:1;        /* End of Packet */
+            u32 ext1:2;
+            u32 rxdIdx:12;    /* Index of the RxDesc */
 #else
-    u32        rxdIdx:12;    /* Index of the RxDesc */
-    u32        ext1:2;
-    u32        eop:1;        /* End of Packet */
-    u32        sop:1;        /* Start of Packet */
-    u32        rqID:10;      /* rx queue/ring ID */
-    u32        rssType:4;    /* RSS hash type used */
-    u32        cnc:1;        /* Checksum Not Calculated */
-    u32        ext2:1;
+            u32 rxdIdx:12;    /* Index of the RxDesc */
+            u32 ext1:2;
+            u32 eop:1;        /* End of Packet */
+            u32 sop:1;        /* Start of Packet */
+            u32 rqID:10;      /* rx queue/ring ID */
+            u32 rssType:4;    /* RSS hash type used */
+            u32 cnc:1;        /* Checksum Not Calculated */
+            u32 ext2:1;
 #endif  /* __BIG_ENDIAN_BITFIELD */
+        };
+        u32 val1;
+    };
 
     __le32        rssHash;      /* RSS hash value */
 
+    union {
+        struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-    u32        tci:16;       /* Tag stripped */
-    u32        ts:1;         /* Tag is stripped */
-    u32        err:1;        /* Error */
-    u32        len:14;       /* data length */
+            u32 tci:16;       /* Tag stripped */
+            u32 ts:1;         /* Tag is stripped */
+            u32 err:1;        /* Error */
+            u32 len:14;       /* data length */
 #else
-    u32        len:14;       /* data length */
-    u32        err:1;        /* Error */
-    u32        ts:1;         /* Tag is stripped */
-    u32        tci:16;       /* Tag stripped */
+            u32 len:14;       /* data length */
+            u32 err:1;        /* Error */
+            u32 ts:1;         /* Tag is stripped */
+            u32 tci:16;       /* Tag stripped */
 #endif  /* __BIG_ENDIAN_BITFIELD */
+        };
+        u32 val2;
+    };
 
-
+    union {
+        struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-    u32        gen:1;        /* generation bit */
-    u32        type:7;       /* completion type */
-    u32        fcs:1;        /* Frame CRC correct */
-    u32        frg:1;        /* IP Fragment */
-    u32        v4:1;         /* IPv4 */
-    u32        v6:1;         /* IPv6 */
-    u32        ipc:1;        /* IP Checksum Correct */
-    u32        tcp:1;        /* TCP packet */
-    u32        udp:1;        /* UDP packet */
-    u32        tuc:1;        /* TCP/UDP Checksum Correct */
-    u32        csum:16;
+            u32 gen:1;        /* generation bit */
+            u32 type:7;       /* completion type */
+            u32 fcs:1;        /* Frame CRC correct */
+            u32 frg:1;        /* IP Fragment */
+            u32 v4:1;         /* IPv4 */
+            u32 v6:1;         /* IPv6 */
+            u32 ipc:1;        /* IP Checksum Correct */
+            u32 tcp:1;        /* TCP packet */
+            u32 udp:1;        /* UDP packet */
+            u32 tuc:1;        /* TCP/UDP Checksum Correct */
+            u32 csum:16;
 #else
-    u32        csum:16;
-    u32        tuc:1;        /* TCP/UDP Checksum Correct */
-    u32        udp:1;        /* UDP packet */
-    u32        tcp:1;        /* TCP packet */
-    u32        ipc:1;        /* IP Checksum Correct */
-    u32        v6:1;         /* IPv6 */
-    u32        v4:1;         /* IPv4 */
-    u32        frg:1;        /* IP Fragment */
-    u32        fcs:1;        /* Frame CRC correct */
-    u32        type:7;       /* completion type */
-    u32        gen:1;        /* generation bit */
+            u32 csum:16;
+            u32 tuc:1;        /* TCP/UDP Checksum Correct */
+            u32 udp:1;        /* UDP packet */
+            u32 tcp:1;        /* TCP packet */
+            u32 ipc:1;        /* IP Checksum Correct */
+            u32 v6:1;         /* IPv6 */
+            u32 v4:1;         /* IPv4 */
+            u32 frg:1;        /* IP Fragment */
+            u32 fcs:1;        /* Frame CRC correct */
+            u32 type:7;       /* completion type */
+            u32 gen:1;        /* generation bit */
 #endif  /* __BIG_ENDIAN_BITFIELD */
+        };
+        u32 val3;
+    };
 };
 
 /* fields in RxCompDesc we access via Vmxnet3_GenericDesc.dword[3] */
