@@ -655,12 +655,16 @@ BlockBackend *blk_by_public(BlockBackendPublic *public)
  */
 void blk_remove_bs(BlockBackend *blk)
 {
-    ThrottleTimers *tt;
+    ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
+    BlockDriverState *bs;
 
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
-    if (blk->public.throttle_group_member.throttle_state) {
-        tt = &blk->public.throttle_group_member.throttle_timers;
-        throttle_timers_detach_aio_context(tt);
+    if (tgm->throttle_state) {
+        bs = blk_bs(blk);
+        bdrv_drained_begin(bs);
+        throttle_group_detach_aio_context(tgm);
+        throttle_group_attach_aio_context(tgm, qemu_get_aio_context());
+        bdrv_drained_end(bs);
     }
 
     blk_update_root_state(blk);
@@ -674,6 +678,7 @@ void blk_remove_bs(BlockBackend *blk)
  */
 int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
+    ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
                                        blk->perm, blk->shared_perm, blk, errp);
     if (blk->root == NULL) {
@@ -682,10 +687,9 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
     bdrv_ref(bs);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
-    if (blk->public.throttle_group_member.throttle_state) {
-        throttle_timers_attach_aio_context(
-            &blk->public.throttle_group_member.throttle_timers,
-            bdrv_get_aio_context(bs));
+    if (tgm->throttle_state) {
+        throttle_group_detach_aio_context(tgm);
+        throttle_group_attach_aio_context(tgm, bdrv_get_aio_context(bs));
     }
 
     return 0;
@@ -1748,8 +1752,10 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 
     if (bs) {
         if (tgm->throttle_state) {
+            bdrv_drained_begin(bs);
             throttle_group_detach_aio_context(tgm);
             throttle_group_attach_aio_context(tgm, new_context);
+            bdrv_drained_end(bs);
         }
         bdrv_set_aio_context(bs, new_context);
     }
@@ -1974,10 +1980,16 @@ void blk_set_io_limits(BlockBackend *blk, ThrottleConfig *cfg)
 
 void blk_io_limits_disable(BlockBackend *blk)
 {
-    assert(blk->public.throttle_group_member.throttle_state);
-    bdrv_drained_begin(blk_bs(blk));
-    throttle_group_unregister_tgm(&blk->public.throttle_group_member);
-    bdrv_drained_end(blk_bs(blk));
+    BlockDriverState *bs = blk_bs(blk);
+    ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
+    assert(tgm->throttle_state);
+    if (bs) {
+        bdrv_drained_begin(bs);
+    }
+    throttle_group_unregister_tgm(tgm);
+    if (bs) {
+        bdrv_drained_end(bs);
+    }
 }
 
 /* should be called before blk_set_io_limits if a limit is set */
