@@ -3358,6 +3358,10 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         return bdrv_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
     }
 
+    if (offset_into_cluster(s, offset)) {
+        return -EINVAL;
+    }
+
     buf = qemu_blockalign(bs, s->cluster_size);
     if (bytes != s->cluster_size) {
         if (bytes > s->cluster_size ||
