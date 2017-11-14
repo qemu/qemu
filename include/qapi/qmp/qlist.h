@@ -15,6 +15,7 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qnull.h"
 #include "qemu/queue.h"
 
 typedef struct QListEntry {
@@ -37,6 +38,8 @@ typedef struct QList {
         qlist_append(qlist, qbool_from_bool(value))
 #define qlist_append_str(qlist, value) \
         qlist_append(qlist, qstring_from_str(value))
+#define qlist_append_null(qlist) \
+        qlist_append(qlist, qnull())
 
 #define QLIST_FOREACH_ENTRY(qlist, var)             \
         for ((var) = ((qlist)->head.tqh_first);     \
