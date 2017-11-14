@@ -1,0 +1,62 @@
+architecture: !mux
+    # Set the architecture of the qemu binary to execute tests
+    # with. This setting has no effect if you're using custom
+    # qemu_bin configuration.
+    x86_64:
+        arch: x86_64
+    aarch64:
+        arch: aarch64
+    alpha:
+        arch: alpha
+    arm:
+        arch: arm
+    cris:
+        arch: cris
+    i386:
+        arch: i386
+    lm32:
+        arch: lm32
+    m68k:
+        arch: m68k
+    microblazeel:
+        arch: microblazeel
+    microblaze:
+        arch: microblaze
+    mips64el:
+        arch: mips64el
+    mips64:
+        arch: mips64
+    mipsel:
+        arch: mipsel
+    mips:
+        arch: mips
+    moxie:
+        arch: moxie
+    nios2:
+        arch: nios2
+    or1k:
+        arch: or1k
+    ppc64:
+        arch: ppc64
+    ppcemb:
+        arch: ppcemb
+    ppc:
+        arch: ppc
+    s390x:
+        arch: s390x
+    sh4eb:
+        arch: sh4eb
+    sh4:
+        arch: sh4
+    sparc64:
+        arch: sparc64
+    sparc:
+        arch: sparc
+    tricore:
+        arch: tricore
+    unicore32:
+        arch: unicore32
+    xtensaeb:
+        arch: xtensaeb
+    xtensa:
+        arch: xtensa

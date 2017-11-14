@@ -1,0 +1,28 @@
+# Probe the Qemu binary from a given architecture. It has no effect if
+# 'qemu_bin' is specified. If not provided, the binary probe will use
+# the local system architecture.
+arch: null
+
+# Use a given Qemu binary, skipping the automatic probe.
+qemu_bin: null
+# Use a given Qemu binary to create the destination VM when the
+# migration process is called. If it's not provided, the same binary
+# used in the source VM will be used for the destination VM.
+qemu_dst_bin: null
+
+# VMs are defined without image. If the 'image_path' is specified, it
+# will be used as the VM image. The '-snapshot' option will then be used
+# to avoid writing data to the image.
+image_path: null
+# Username used to get the console from the Guest OS.
+image_user: null
+# Password used to get the console from the Guest OS.
+image_pass: null
+
+# Use this option to define a machine type for the VM.
+machine_type: null
+# Use this option to define a machine acceleration for the VM.
+machine_accel: null
+# Use this option to select the KVM type when the 'machine_accel' is set
+# to 'kvm' and there are more than one KVM types available.
+machine_kvm_type: null

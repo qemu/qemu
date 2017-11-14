@@ -1,0 +1,2 @@
+OVMF_CODE: /usr/share/edk2/ovmf/OVMF_CODE.secboot.fd
+OVMF_VARS: /usr/share/edk2/ovmf/OVMF_VARS.fd
