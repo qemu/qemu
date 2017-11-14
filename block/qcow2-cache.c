@@ -85,7 +85,7 @@ static void qcow2_cache_table_release(BlockDriverState *bs, Qcow2Cache *c,
     size_t mem_size = (size_t) s->cluster_size * num_tables;
     size_t offset = QEMU_ALIGN_UP((uintptr_t) t, align) - (uintptr_t) t;
     size_t length = QEMU_ALIGN_DOWN(mem_size - offset, align);
-    if (length > 0) {
+    if (mem_size > offset && length > 0) {
         madvise((uint8_t *) t + offset, length, MADV_DONTNEED);
     }
 #endif
