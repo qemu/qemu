@@ -1366,15 +1366,6 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         return -EIO;
     }
 
-    /* Check for sanity in the parameters, part 1.  Defer as many
-     * checks as possible until after reading any NBD_CMD_WRITE
-     * payload, so we can try and keep the connection alive.  */
-    if ((request->from + request->len) < request->from) {
-        error_setg(errp,
-                   "integer overflow detected, you're probably being attacked");
-        return -EINVAL;
-    }
-
     if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE) {
         if (request->len > NBD_MAX_BUFFER_SIZE) {
             error_setg(errp, "len (%" PRIu32" ) is larger than max len (%u)",
@@ -1399,12 +1390,21 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                                                       request->len);
     }
 
-    /* Sanity checks, part 2. */
-    if (request->from + request->len > client->exp->size) {
+    /* Sanity checks. */
+    if (client->exp->nbdflags & NBD_FLAG_READ_ONLY &&
+        (request->type == NBD_CMD_WRITE ||
+         request->type == NBD_CMD_WRITE_ZEROES ||
+         request->type == NBD_CMD_TRIM)) {
+        error_setg(errp, "Export is read-only");
+        return -EROFS;
+    }
+    if (request->from > client->exp->size ||
+        request->from + request->len > client->exp->size) {
         error_setg(errp, "operation past EOF; From: %" PRIu64 ", Len: %" PRIu32
                    ", Size: %" PRIu64, request->from, request->len,
                    (uint64_t)client->exp->size);
-        return request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
+        return (request->type == NBD_CMD_WRITE ||
+                request->type == NBD_CMD_WRITE_ZEROES) ? -ENOSPC : -EINVAL;
     }
     valid_flags = NBD_CMD_FLAG_FUA;
     if (request->type == NBD_CMD_READ && client->structured_reply) {
@@ -1482,12 +1482,6 @@ static coroutine_fn void nbd_trip(void *opaque)
 
         break;
     case NBD_CMD_WRITE:
-        if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            error_setg(&local_err, "Export is read-only");
-            ret = -EROFS;
-            break;
-        }
-
         flags = 0;
         if (request.flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
@@ -1500,12 +1494,6 @@ static coroutine_fn void nbd_trip(void *opaque)
 
         break;
     case NBD_CMD_WRITE_ZEROES:
-        if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            error_setg(&local_err, "Export is read-only");
-            ret = -EROFS;
-            break;
-        }
-
         flags = 0;
         if (request.flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
