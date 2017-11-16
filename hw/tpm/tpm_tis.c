@@ -545,7 +545,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     uint8_t v;
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
-        return val;
+        return 0;
     }
 
     switch (offset) {
@@ -1007,6 +1007,10 @@ static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb)
 TPMVersion tpm_tis_get_tpm_version(Object *obj)
 {
     TPMState *s = TPM(obj);
+
+    if (tpm_backend_had_startup_error(s->be_driver)) {
+        return TPM_VERSION_UNSPEC;
+    }
 
     return tpm_backend_get_tpm_version(s->be_driver);
 }
