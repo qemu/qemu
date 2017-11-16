@@ -79,6 +79,7 @@ static void vmcoreinfo_device_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_vmcoreinfo;
     dc->realize = vmcoreinfo_realize;
     dc->hotpluggable = false;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo vmcoreinfo_device_info = {

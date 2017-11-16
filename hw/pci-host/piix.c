@@ -50,6 +50,7 @@ typedef struct I440FXState {
     PCIHostState parent_obj;
     Range pci_hole;
     uint64_t pci_hole64_size;
+    bool pci_hole64_fix;
     uint32_t short_root_bus;
 } I440FXState;
 
@@ -111,6 +112,9 @@ struct PCII440FXState {
 #define I440FX_PAM      0x59
 #define I440FX_PAM_SIZE 7
 #define I440FX_SMRAM    0x72
+
+/* Keep it 2G to comply with older win32 guests */
+#define I440FX_PCI_HOST_HOLE64_SIZE_DEFAULT (1ULL << 31)
 
 /* Older coreboot versions (4.0 and older) read a config register that doesn't
  * exist in real hardware, to get the RAM size from QEMU.
@@ -238,29 +242,52 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
     visit_type_uint32(v, name, &value, errp);
 }
 
+/*
+ * The 64bit PCI hole start is set by the Guest firmware
+ * as the address of the first 64bit PCI MEM resource.
+ * If no PCI device has resources on the 64bit area,
+ * the 64bit PCI hole will start after "over 4G RAM" and the
+ * reserved space for memory hotplug if any.
+ */
 static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
                                                 const char *name,
                                                 void *opaque, Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     Range w64;
     uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    if (!value && s->pci_hole64_fix) {
+        value = pc_pci_hole64_start();
+    }
     visit_type_uint64(v, name, &value, errp);
 }
 
+/*
+ * The 64bit PCI hole end is set by the Guest firmware
+ * as the address of the last 64bit PCI MEM resource.
+ * Then it is expanded to the PCI_HOST_PROP_PCI_HOLE64_SIZE
+ * that can be configured by the user.
+ */
 static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
                                               const char *name, void *opaque,
                                               Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
+    uint64_t hole64_start = pc_pci_hole64_start();
     Range w64;
-    uint64_t value;
+    uint64_t value, hole64_end;
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    hole64_end = ROUND_UP(hole64_start + s->pci_hole64_size, 1ULL << 30);
+    if (s->pci_hole64_fix && value < hole64_end) {
+        value = hole64_end;
+    }
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -863,8 +890,9 @@ static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
 
 static Property i440fx_props[] = {
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, I440FXState,
-                     pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
+                     pci_hole64_size, I440FX_PCI_HOST_HOLE64_SIZE_DEFAULT),
     DEFINE_PROP_UINT32("short_root_bus", I440FXState, short_root_bus, 0),
+    DEFINE_PROP_BOOL("x-pci-hole64-fix", I440FXState, pci_hole64_fix, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
