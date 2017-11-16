@@ -132,7 +132,6 @@ typedef struct {
     const char *name;
     const char *desc;
     uint16_t device_id;
-    uint16_t alt_device_id;
     uint8_t revision;
     uint16_t subsystem_vendor_id;
     uint16_t subsystem_id;
@@ -277,7 +276,6 @@ typedef struct {
     /* Quasi static device properties (no need to save them). */
     uint16_t stats_size;
     bool has_extended_tcb_support;
-    bool use_alt_device_id;
 } EEPRO100State;
 
 /* Word indices in EEPROM. */
@@ -1857,14 +1855,6 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 
     TRACE(OTHER, logout("\n"));
 
-    /* By default, the i82559a adapter uses the legacy PCI ID (for the
-     * i82557). This allows the PCI ID to be changed to the alternate
-     * i82559 ID if needed.
-     */
-    if (s->use_alt_device_id && strcmp(info->name, "i82559a") == 0) {
-        pci_config_set_device_id(s->dev.config, info->alt_device_id);
-    }
-
     s->device = info->device;
 
     e100_pci_reset(s, &local_err);
@@ -1984,7 +1974,6 @@ static E100PCIDeviceInfo e100_devices[] = {
         .desc = "Intel i82559A Ethernet",
         .device = i82559A,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .alt_device_id = PCI_DEVICE_ID_INTEL_82559,
         .revision = 0x06,
         .stats_size = 80,
         .has_extended_tcb_support = true,
@@ -2078,8 +2067,6 @@ static E100PCIDeviceInfo *eepro100_get_class(EEPRO100State *s)
 
 static Property e100_properties[] = {
     DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-    DEFINE_PROP_BOOL("x-use-alt-device-id", EEPRO100State, use_alt_device_id,
-                     true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
