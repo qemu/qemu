@@ -4785,6 +4785,106 @@ static ExitStatus op_zero2(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_clp(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+
+    check_privileged(s);
+    gen_helper_clp(cpu_env, r2);
+    tcg_temp_free_i32(r2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_pcilg(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+
+    check_privileged(s);
+    gen_helper_pcilg(cpu_env, r1, r2);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_pcistg(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+
+    check_privileged(s);
+    gen_helper_pcistg(cpu_env, r1, r2);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stpcifc(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 ar = tcg_const_i32(get_field(s->fields, b2));
+
+    check_privileged(s);
+    gen_helper_stpcifc(cpu_env, r1, o->addr1, ar);
+    tcg_temp_free_i32(ar);
+    tcg_temp_free_i32(r1);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sic(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_sic(cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_rpcit(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+
+    check_privileged(s);
+    gen_helper_rpcit(cpu_env, r1, r2);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_pcistb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    TCGv_i32 ar = tcg_const_i32(get_field(s->fields, b2));
+
+    check_privileged(s);
+    gen_helper_pcistb(cpu_env, r1, r3, o->addr1, ar);
+    tcg_temp_free_i32(ar);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r3);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mpcifc(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 ar = tcg_const_i32(get_field(s->fields, b2));
+
+    check_privileged(s);
+    gen_helper_mpcifc(cpu_env, r1, o->addr1, ar);
+    tcg_temp_free_i32(ar);
+    tcg_temp_free_i32(r1);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+#endif
+
 /* ====================================================================== */
 /* The "Cc OUTput" generators.  Given the generated output (and in some cases
    the original inputs), update the various cc data structures in order to
@@ -5716,6 +5816,8 @@ enum DisasInsnEnum {
 #define FAC_MSA4        S390_FEAT_MSA_EXT_4 /* msa-extension-4 facility */
 #define FAC_MSA5        S390_FEAT_MSA_EXT_5 /* msa-extension-5 facility */
 #define FAC_ECT         S390_FEAT_EXTRACT_CPU_TIME
+#define FAC_PCI         S390_FEAT_ZPCI /* z/PCI facility */
+#define FAC_AIS         S390_FEAT_ADAPTER_INT_SUPPRESSION
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"

@@ -1068,4 +1068,17 @@
     /* ??? Not listed in PoO ninth edition, but there's a linux driver that
        uses it: "A CHSC subchannel is usually present on LPAR only."  */
     C(0xb25f, CHSC,  RRE,     Z,   0, insn, 0, 0, chsc, 0)
+
+/* zPCI Instructions */
+    /* None of these instructions are documented in the PoP, so this is all
+       based upon target/s390x/kvm.c and Linux code and likely incomplete */
+    C(0xebd0, PCISTB, RSY_a, PCI, la2, 0, 0, 0, pcistb, 0)
+    C(0xebd1, SIC, RSY_a, AIS, r1, r3, 0, 0, sic, 0)
+    C(0xb9a0, CLP, RRF_c, PCI, 0, 0, 0, 0, clp, 0)
+    C(0xb9d0, PCISTG, RRE, PCI, 0, 0, 0, 0, pcistg, 0)
+    C(0xb9d2, PCILG, RRE, PCI, 0, 0, 0, 0, pcilg, 0)
+    C(0xb9d3, RPCIT, RRE, PCI, 0, 0, 0, 0, rpcit, 0)
+    C(0xe3d0, MPCIFC, RXY_a, PCI, la2, 0, 0, 0, mpcifc, 0)
+    C(0xe3d4, STPCIFC, RXY_a, PCI, la2, 0, 0, 0, stpcifc, 0)
+
 #endif /* CONFIG_USER_ONLY */

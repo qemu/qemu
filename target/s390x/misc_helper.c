@@ -38,6 +38,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/ioinst.h"
+#include "hw/s390x/s390-pci-inst.h"
 #include "hw/boards.h"
 #endif
 
@@ -632,3 +633,91 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
     env->regs[0] = deposit64(env->regs[0], 0, 8, (max_bytes / 8) - 1);
     return count_bytes >= max_bytes ? 0 : 3;
 }
+
+#ifndef CONFIG_USER_ONLY
+/*
+ * Note: we ignore any return code of the functions called for the pci
+ * instructions, as the only time they return !0 is when the stub is
+ * called, and in that case we didn't even offer the zpci facility.
+ * The only exception is SIC, where program checks need to be handled
+ * by the caller.
+ */
+void HELPER(clp)(CPUS390XState *env, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    clp_service_call(cpu, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(pcilg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    pcilg_service_call(cpu, r1, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(pcistg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    pcistg_service_call(cpu, r1, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(stpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
+                     uint32_t ar)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    stpcifc_service_call(cpu, r1, fiba, ar, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(sic)(CPUS390XState *env, uint64_t r1, uint64_t r3)
+{
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = css_do_sic(env, (r3 >> 27) & 0x7, r1 & 0xffff);
+    qemu_mutex_unlock_iothread();
+    /* css_do_sic() may actually return a PGM_xxx value to inject */
+    if (r) {
+        s390_program_interrupt(env, -r, 4, GETPC());
+    }
+}
+
+void HELPER(rpcit)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    rpcit_service_call(cpu, r1, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(pcistb)(CPUS390XState *env, uint32_t r1, uint32_t r3,
+                    uint64_t gaddr, uint32_t ar)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    pcistb_service_call(cpu, r1, r3, gaddr, ar, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(mpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
+                    uint32_t ar)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    mpcifc_service_call(cpu, r1, fiba, ar, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+#endif
