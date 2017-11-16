@@ -35,15 +35,6 @@
 #include "hw/i386/x86-iommu.h"
 #include "trace.h"
 
-//#define DEBUG_IOAPIC
-
-#ifdef DEBUG_IOAPIC
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("ioapic: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
-
 #define APIC_DELIVERY_MODE_SHIFT 8
 #define APIC_POLARITY_SHIFT 14
 #define APIC_TRIG_MODE_SHIFT 15
@@ -157,7 +148,7 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
      * to GSI 2.  GSI maps to ioapic 1-1.  This is not
      * the cleanest way of doing it but it should work. */
 
-    DPRINTF("%s: %s vec %x\n", __func__, level ? "raise" : "lower", vector);
+    trace_ioapic_set_irq(vector, level);
     if (vector == 0) {
         vector = 2;
     }
@@ -290,11 +281,10 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
                 }
             }
         }
-        DPRINTF("read: %08x = %08x\n", s->ioregsel, val);
         break;
     }
 
-    trace_ioapic_mem_read(addr, size, val);
+    trace_ioapic_mem_read(addr, s->ioregsel, size, val);
 
     return val;
 }
@@ -335,7 +325,7 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
     int index;
 
     addr &= 0xff;
-    trace_ioapic_mem_write(addr, size, val);
+    trace_ioapic_mem_write(addr, s->ioregsel, size, val);
 
     switch (addr) {
     case IOAPIC_IOREGSEL:
@@ -345,7 +335,6 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
         if (size != 4) {
             break;
         }
-        DPRINTF("write: %08x = %08" PRIx64 "\n", s->ioregsel, val);
         switch (s->ioregsel) {
         case IOAPIC_REG_ID:
             s->id = (val >> IOAPIC_ID_SHIFT) & IOAPIC_ID_MASK;
