@@ -593,12 +593,24 @@ void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
 
 void throttle_group_detach_aio_context(ThrottleGroupMember *tgm)
 {
+    ThrottleGroup *tg = container_of(tgm->throttle_state, ThrottleGroup, ts);
     ThrottleTimers *tt = &tgm->throttle_timers;
+    int i;
 
     /* Requests must have been drained */
     assert(tgm->pending_reqs[0] == 0 && tgm->pending_reqs[1] == 0);
     assert(qemu_co_queue_empty(&tgm->throttled_reqs[0]));
     assert(qemu_co_queue_empty(&tgm->throttled_reqs[1]));
+
+    /* Kick off next ThrottleGroupMember, if necessary */
+    qemu_mutex_lock(&tg->lock);
+    for (i = 0; i < 2; i++) {
+        if (timer_pending(tt->timers[i])) {
+            tg->any_timer_armed[i] = false;
+            schedule_next_request(tgm, i);
+        }
+    }
+    qemu_mutex_unlock(&tg->lock);
 
     throttle_timers_detach_aio_context(tt);
     tgm->aio_context = NULL;
