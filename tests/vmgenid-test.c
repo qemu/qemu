@@ -38,7 +38,7 @@ static uint32_t acpi_find_vgia(void)
     uint32_t rsdp_offset;
     uint32_t guid_offset = 0;
     AcpiRsdpDescriptor rsdp_table;
-    uint32_t rsdt;
+    uint32_t rsdt, rsdt_table_length;
     AcpiRsdtDescriptorRev1 rsdt_table;
     size_t tables_nr;
     uint32_t *tables;
@@ -56,14 +56,15 @@ static uint32_t acpi_find_vgia(void)
 
     acpi_parse_rsdp_table(rsdp_offset, &rsdp_table);
 
-    rsdt = rsdp_table.rsdt_physical_address;
+    rsdt = le32_to_cpu(rsdp_table.rsdt_physical_address);
     /* read the header */
     ACPI_READ_TABLE_HEADER(&rsdt_table, rsdt);
     ACPI_ASSERT_CMP(rsdt_table.signature, "RSDT");
+    rsdt_table_length = le32_to_cpu(rsdt_table.length);
 
     /* compute the table entries in rsdt */
-    g_assert_cmpint(rsdt_table.length, >, sizeof(AcpiRsdtDescriptorRev1));
-    tables_nr = (rsdt_table.length - sizeof(AcpiRsdtDescriptorRev1)) /
+    g_assert_cmpint(rsdt_table_length, >, sizeof(AcpiRsdtDescriptorRev1));
+    tables_nr = (rsdt_table_length - sizeof(AcpiRsdtDescriptorRev1)) /
                 sizeof(uint32_t);
 
     /* get the addresses of the tables pointed by rsdt */
@@ -71,23 +72,24 @@ static uint32_t acpi_find_vgia(void)
     ACPI_READ_ARRAY_PTR(tables, tables_nr, rsdt);
 
     for (i = 0; i < tables_nr; i++) {
-        ACPI_READ_TABLE_HEADER(&ssdt_table, tables[i]);
+        uint32_t addr = le32_to_cpu(tables[i]);
+        ACPI_READ_TABLE_HEADER(&ssdt_table, addr);
         if (!strncmp((char *)ssdt_table.oem_table_id, "VMGENID", 7)) {
             /* the first entry in the table should be VGIA
              * That's all we need
              */
-            ACPI_READ_FIELD(vgid_table.name_op, tables[i]);
+            ACPI_READ_FIELD(vgid_table.name_op, addr);
             g_assert(vgid_table.name_op == 0x08);  /* name */
-            ACPI_READ_ARRAY(vgid_table.vgia, tables[i]);
+            ACPI_READ_ARRAY(vgid_table.vgia, addr);
             g_assert(memcmp(vgid_table.vgia, "VGIA", 4) == 0);
-            ACPI_READ_FIELD(vgid_table.val_op, tables[i]);
+            ACPI_READ_FIELD(vgid_table.val_op, addr);
             g_assert(vgid_table.val_op == 0x0C);  /* dword */
-            ACPI_READ_FIELD(vgid_table.vgia_val, tables[i]);
+            ACPI_READ_FIELD(vgid_table.vgia_val, addr);
             /* The GUID is written at a fixed offset into the fw_cfg file
              * in order to implement the "OVMF SDT Header probe suppressor"
              * see docs/specs/vmgenid.txt for more details
              */
-            guid_offset = vgid_table.vgia_val + VMGENID_GUID_OFFSET;
+            guid_offset = le32_to_cpu(vgid_table.vgia_val) + VMGENID_GUID_OFFSET;
             break;
         }
     }
