@@ -1075,6 +1075,9 @@
 # data. See xen-save-devices-state.txt for a description of the binary
 # format.
 #
+# @live: Optional argument to ask QEMU to treat this command as part of a live
+# migration. Default to true. (since 2.11)
+#
 # Returns: Nothing on success
 #
 # Since: 1.1
@@ -1086,7 +1089,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
+{ 'command': 'xen-save-devices-state',
+  'data': {'filename': 'str', '*live':'bool' } }
 
 ##
 # @xen-set-replication:
