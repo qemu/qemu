@@ -279,7 +279,7 @@ int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
         sa->ars[i] = cpu_to_be32(cpu->env.aregs[i]);
     }
     for (i = 0; i < 16; ++i) {
-        sa->ars[i] = cpu_to_be64(cpu->env.cregs[i]);
+        sa->crs[i] = cpu_to_be64(cpu->env.cregs[i]);
     }
 
     cpu_physical_memory_unmap(sa, len, 1, len);
