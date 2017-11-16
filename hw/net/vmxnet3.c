@@ -972,7 +972,8 @@ static void vmxnet3_rx_need_csum_calculate(struct NetRxPkt *pkt,
     data = (uint8_t *)pkt_data + vhdr->csum_start;
     len = pkt_len - vhdr->csum_start;
     /* Put the checksum obtained into the packet */
-    stw_be_p(data + vhdr->csum_offset, net_raw_checksum(data, len));
+    stw_be_p(data + vhdr->csum_offset,
+             net_checksum_finish_nozero(net_checksum_add(len, data)));
 
     vhdr->flags &= ~VIRTIO_NET_HDR_F_NEEDS_CSUM;
     vhdr->flags |= VIRTIO_NET_HDR_F_DATA_VALID;
