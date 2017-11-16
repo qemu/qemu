@@ -432,9 +432,8 @@ uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
 /* Returns 0 on success; 1 otherwise.  */
 static uint64_t do_paired_cmpxchg64_le(CPUARMState *env, uint64_t addr,
                                        uint64_t new_lo, uint64_t new_hi,
-                                       bool parallel)
+                                       bool parallel, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     Int128 oldv, cmpv, newv;
     bool success;
 
@@ -456,6 +455,8 @@ static uint64_t do_paired_cmpxchg64_le(CPUARMState *env, uint64_t addr,
 #ifdef CONFIG_USER_ONLY
         /* ??? Enforce alignment.  */
         uint64_t *haddr = g2h(addr);
+
+        helper_retaddr = ra;
         o0 = ldq_le_p(haddr + 0);
         o1 = ldq_le_p(haddr + 1);
         oldv = int128_make128(o0, o1);
@@ -465,6 +466,7 @@ static uint64_t do_paired_cmpxchg64_le(CPUARMState *env, uint64_t addr,
             stq_le_p(haddr + 0, int128_getlo(newv));
             stq_le_p(haddr + 1, int128_gethi(newv));
         }
+        helper_retaddr = 0;
 #else
         int mem_idx = cpu_mmu_index(env, false);
         TCGMemOpIdx oi0 = make_memop_idx(MO_LEQ | MO_ALIGN_16, mem_idx);
@@ -488,20 +490,19 @@ static uint64_t do_paired_cmpxchg64_le(CPUARMState *env, uint64_t addr,
 uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
                                               uint64_t new_lo, uint64_t new_hi)
 {
-    return do_paired_cmpxchg64_le(env, addr, new_lo, new_hi, false);
+    return do_paired_cmpxchg64_le(env, addr, new_lo, new_hi, false, GETPC());
 }
 
 uint64_t HELPER(paired_cmpxchg64_le_parallel)(CPUARMState *env, uint64_t addr,
                                               uint64_t new_lo, uint64_t new_hi)
 {
-    return do_paired_cmpxchg64_le(env, addr, new_lo, new_hi, true);
+    return do_paired_cmpxchg64_le(env, addr, new_lo, new_hi, true, GETPC());
 }
 
 static uint64_t do_paired_cmpxchg64_be(CPUARMState *env, uint64_t addr,
                                        uint64_t new_lo, uint64_t new_hi,
-                                       bool parallel)
+                                       bool parallel, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     Int128 oldv, cmpv, newv;
     bool success;
 
@@ -523,6 +524,8 @@ static uint64_t do_paired_cmpxchg64_be(CPUARMState *env, uint64_t addr,
 #ifdef CONFIG_USER_ONLY
         /* ??? Enforce alignment.  */
         uint64_t *haddr = g2h(addr);
+
+        helper_retaddr = ra;
         o1 = ldq_be_p(haddr + 0);
         o0 = ldq_be_p(haddr + 1);
         oldv = int128_make128(o0, o1);
@@ -532,6 +535,7 @@ static uint64_t do_paired_cmpxchg64_be(CPUARMState *env, uint64_t addr,
             stq_be_p(haddr + 0, int128_gethi(newv));
             stq_be_p(haddr + 1, int128_getlo(newv));
         }
+        helper_retaddr = 0;
 #else
         int mem_idx = cpu_mmu_index(env, false);
         TCGMemOpIdx oi0 = make_memop_idx(MO_BEQ | MO_ALIGN_16, mem_idx);
@@ -555,11 +559,11 @@ static uint64_t do_paired_cmpxchg64_be(CPUARMState *env, uint64_t addr,
 uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
                                      uint64_t new_lo, uint64_t new_hi)
 {
-    return do_paired_cmpxchg64_be(env, addr, new_lo, new_hi, false);
+    return do_paired_cmpxchg64_be(env, addr, new_lo, new_hi, false, GETPC());
 }
 
 uint64_t HELPER(paired_cmpxchg64_be_parallel)(CPUARMState *env, uint64_t addr,
                                      uint64_t new_lo, uint64_t new_hi)
 {
-    return do_paired_cmpxchg64_be(env, addr, new_lo, new_hi, true);
+    return do_paired_cmpxchg64_be(env, addr, new_lo, new_hi, true, GETPC());
 }

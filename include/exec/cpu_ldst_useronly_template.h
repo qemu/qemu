@@ -73,7 +73,11 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   target_ulong ptr,
                                                   uintptr_t retaddr)
 {
-    return glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(env, ptr);
+    RES_TYPE ret;
+    helper_retaddr = retaddr;
+    ret = glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(env, ptr);
+    helper_retaddr = 0;
+    return ret;
 }
 
 #if DATA_SIZE <= 2
@@ -93,7 +97,11 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   target_ulong ptr,
                                                   uintptr_t retaddr)
 {
-    return glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(env, ptr);
+    int ret;
+    helper_retaddr = retaddr;
+    ret = glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(env, ptr);
+    helper_retaddr = 0;
+    return ret;
 }
 #endif
 
@@ -116,7 +124,9 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   RES_TYPE v,
                                                   uintptr_t retaddr)
 {
+    helper_retaddr = retaddr;
     glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(env, ptr, v);
+    helper_retaddr = 0;
 }
 #endif
 
