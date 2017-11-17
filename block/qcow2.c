@@ -376,6 +376,8 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 
         default:
             /* unknown magic - save it in case we need to rewrite the header */
+            /* If you add a new feature, make sure to also update the fast
+             * path of qcow2_make_empty() to deal with it. */
             {
                 Qcow2UnknownHeaderExtension *uext;
 
@@ -3600,15 +3602,16 @@ static int qcow2_make_empty(BlockDriverState *bs)
 
     l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
 
-    if (s->qcow_version >= 3 && !s->snapshots &&
+    if (s->qcow_version >= 3 && !s->snapshots && !s->nb_bitmaps &&
         3 + l1_clusters <= s->refcount_block_size &&
         s->crypt_method_header != QCOW_CRYPT_LUKS) {
-        /* The following function only works for qcow2 v3 images (it requires
-         * the dirty flag) and only as long as there are no snapshots (because
-         * it completely empties the image). Furthermore, the L1 table and three
-         * additional clusters (image header, refcount table, one refcount
-         * block) have to fit inside one refcount block. It cannot be used
-         * for LUKS (yet) as it throws away the LUKS header cluster(s) */
+        /* The following function only works for qcow2 v3 images (it
+         * requires the dirty flag) and only as long as there are no
+         * features that reserve extra clusters (such as snapshots,
+         * LUKS header, or persistent bitmaps), because it completely
+         * empties the image.  Furthermore, the L1 table and three
+         * additional clusters (image header, refcount table, one
+         * refcount block) have to fit inside one refcount block. */
         return make_completely_empty(bs);
     }
 
