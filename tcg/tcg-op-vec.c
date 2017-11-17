@@ -297,3 +297,48 @@ void tcg_gen_neg_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
         tcg_temp_free_vec(t);
     }
 }
+
+static void do_shifti(TCGOpcode opc, unsigned vece,
+                      TCGv_vec r, TCGv_vec a, int64_t i)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGArg ri = temp_arg(rt);
+    TCGArg ai = temp_arg(at);
+    TCGType type = rt->base_type;
+    int can;
+
+    tcg_debug_assert(at->base_type == type);
+    tcg_debug_assert(i >= 0 && i < (8 << vece));
+
+    if (i == 0) {
+        tcg_gen_mov_vec(r, a);
+        return;
+    }
+
+    can = tcg_can_emit_vec_op(opc, type, vece);
+    if (can > 0) {
+        vec_gen_3(opc, type, vece, ri, ai, i);
+    } else {
+        /* We leave the choice of expansion via scalar or vector shift
+           to the target.  Often, but not always, dupi can feed a vector
+           shift easier than a scalar.  */
+        tcg_debug_assert(can < 0);
+        tcg_expand_vec_op(opc, type, vece, ri, ai, i);
+    }
+}
+
+void tcg_gen_shli_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i)
+{
+    do_shifti(INDEX_op_shli_vec, vece, r, a, i);
+}
+
+void tcg_gen_shri_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i)
+{
+    do_shifti(INDEX_op_shri_vec, vece, r, a, i);
+}
+
+void tcg_gen_sari_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i)
+{
+    do_shifti(INDEX_op_sari_vec, vece, r, a, i);
+}

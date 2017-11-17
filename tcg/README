@@ -552,6 +552,35 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
   Similarly, logical operations with and without compliment.
   Note that VECE is unused.
 
+* shli_vec   v0, v1, i2
+* shls_vec   v0, v1, s2
+
+  Shift all elements from v1 by a scalar i2/s2.  I.e.
+
+    for (i = 0; i < VECL/VECE; ++i) {
+      v0[i] = v1[i] << s2;
+    }
+
+* shri_vec   v0, v1, i2
+* sari_vec   v0, v1, i2
+* shrs_vec   v0, v1, s2
+* sars_vec   v0, v1, s2
+
+  Similarly for logical and arithmetic right shift.
+
+* shlv_vec   v0, v1, v2
+
+  Shift elements from v1 by elements from v2.  I.e.
+
+    for (i = 0; i < VECL/VECE; ++i) {
+      v0[i] = v1[i] << v2[i];
+    }
+
+* shrv_vec   v0, v1, v2
+* sarv_vec   v0, v1, v2
+
+  Similarly for logical and arithmetic right shift.
+
 *********
 
 Note 1: Some shortcuts are defined when the last operand is known to be
