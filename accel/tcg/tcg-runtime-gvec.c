@@ -467,3 +467,39 @@ void HELPER(gvec_sar64i)(void *d, void *a, uint32_t desc)
     }
     clear_high(d, oprsz, desc);
 }
+
+/* If vectors are enabled, the compiler fills in -1 for true.
+   Otherwise, we must take care of this by hand.  */
+#ifdef CONFIG_VECTOR16
+# define DO_CMP0(X)  X
+#else
+# define DO_CMP0(X)  -(X)
+#endif
+
+#define DO_CMP1(NAME, TYPE, OP)                                            \
+void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                \
+{                                                                          \
+    intptr_t oprsz = simd_oprsz(desc);                                     \
+    intptr_t i;                                                            \
+    for (i = 0; i < oprsz; i += sizeof(vec64)) {                           \
+        *(TYPE *)(d + i) = DO_CMP0(*(TYPE *)(a + i) OP *(TYPE *)(b + i));  \
+    }                                                                      \
+    clear_high(d, oprsz, desc);                                            \
+}
+
+#define DO_CMP2(SZ) \
+    DO_CMP1(gvec_eq##SZ, vec##SZ, ==)    \
+    DO_CMP1(gvec_ne##SZ, vec##SZ, !=)    \
+    DO_CMP1(gvec_lt##SZ, svec##SZ, <)    \
+    DO_CMP1(gvec_le##SZ, svec##SZ, <=)   \
+    DO_CMP1(gvec_ltu##SZ, vec##SZ, <)    \
+    DO_CMP1(gvec_leu##SZ, vec##SZ, <=)
+
+DO_CMP2(8)
+DO_CMP2(16)
+DO_CMP2(32)
+DO_CMP2(64)
+
+#undef DO_CMP0
+#undef DO_CMP1
+#undef DO_CMP2

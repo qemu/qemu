@@ -581,6 +581,10 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
   Similarly for logical and arithmetic right shift.
 
+* cmp_vec  v0, v1, v2, cond
+
+  Compare vectors by element, storing -1 for true and 0 for false.
+
 *********
 
 Note 1: Some shortcuts are defined when the last operand is known to be
