@@ -2947,7 +2947,7 @@ static int do_commit(BDRVVVFATState* s)
         return ret;
     }
 
-    if (s->qcow->bs->drv->bdrv_make_empty) {
+    if (s->qcow->bs->drv && s->qcow->bs->drv->bdrv_make_empty) {
         s->qcow->bs->drv->bdrv_make_empty(s->qcow->bs);
     }
 

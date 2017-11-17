@@ -1308,10 +1308,21 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         (!*host_offset ||
          start_of_cluster(s, *host_offset) == (entry & L2E_OFFSET_MASK)))
     {
+        int preallocated_nb_clusters;
+
+        if (offset_into_cluster(s, entry & L2E_OFFSET_MASK)) {
+            qcow2_signal_corruption(bs, true, -1, -1, "Preallocated zero "
+                                    "cluster offset %#llx unaligned (guest "
+                                    "offset: %#" PRIx64 ")",
+                                    entry & L2E_OFFSET_MASK, guest_offset);
+            ret = -EIO;
+            goto fail;
+        }
+
         /* Try to reuse preallocated zero clusters; contiguous normal clusters
          * would be fine, too, but count_cow_clusters() above has limited
          * nb_clusters already to a range of COW clusters */
-        int preallocated_nb_clusters =
+        preallocated_nb_clusters =
             count_contiguous_clusters(nb_clusters, s->cluster_size,
                                       &l2_table[l2_index], QCOW_OFLAG_COPIED);
         assert(preallocated_nb_clusters > 0);

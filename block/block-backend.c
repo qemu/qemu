@@ -442,21 +442,37 @@ BlockBackend *blk_next(BlockBackend *blk)
  * the monitor or attached to a BlockBackend */
 BlockDriverState *bdrv_next(BdrvNextIterator *it)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs, *old_bs;
+
+    /* Must be called from the main loop */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
 
     /* First, return all root nodes of BlockBackends. In order to avoid
      * returning a BDS twice when multiple BBs refer to it, we only return it
      * if the BB is the first one in the parent list of the BDS. */
     if (it->phase == BDRV_NEXT_BACKEND_ROOTS) {
+        BlockBackend *old_blk = it->blk;
+
+        old_bs = old_blk ? blk_bs(old_blk) : NULL;
+
         do {
             it->blk = blk_all_next(it->blk);
             bs = it->blk ? blk_bs(it->blk) : NULL;
         } while (it->blk && (bs == NULL || bdrv_first_blk(bs) != it->blk));
 
+        if (it->blk) {
+            blk_ref(it->blk);
+        }
+        blk_unref(old_blk);
+
         if (bs) {
+            bdrv_ref(bs);
+            bdrv_unref(old_bs);
             return bs;
         }
         it->phase = BDRV_NEXT_MONITOR_OWNED;
+    } else {
+        old_bs = it->bs;
     }
 
     /* Then return the monitor-owned BDSes without a BB attached. Ignore all
@@ -467,16 +483,44 @@ BlockDriverState *bdrv_next(BdrvNextIterator *it)
         bs = it->bs;
     } while (bs && bdrv_has_blk(bs));
 
+    if (bs) {
+        bdrv_ref(bs);
+    }
+    bdrv_unref(old_bs);
+
     return bs;
 }
 
-BlockDriverState *bdrv_first(BdrvNextIterator *it)
+static void bdrv_next_reset(BdrvNextIterator *it)
 {
     *it = (BdrvNextIterator) {
         .phase = BDRV_NEXT_BACKEND_ROOTS,
     };
+}
 
+BlockDriverState *bdrv_first(BdrvNextIterator *it)
+{
+    bdrv_next_reset(it);
     return bdrv_next(it);
+}
+
+/* Must be called when aborting a bdrv_next() iteration before
+ * bdrv_next() returns NULL */
+void bdrv_next_cleanup(BdrvNextIterator *it)
+{
+    /* Must be called from the main loop */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+
+    if (it->phase == BDRV_NEXT_BACKEND_ROOTS) {
+        if (it->blk) {
+            bdrv_unref(blk_bs(it->blk));
+            blk_unref(it->blk);
+        }
+    } else {
+        bdrv_unref(it->bs);
+    }
+
+    bdrv_next_reset(it);
 }
 
 /*

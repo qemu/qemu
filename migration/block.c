@@ -415,6 +415,7 @@ static int init_blk_migration(QEMUFile *f)
         sectors = bdrv_nb_sectors(bs);
         if (sectors <= 0) {
             ret = sectors;
+            bdrv_next_cleanup(&it);
             goto out;
         }
 
