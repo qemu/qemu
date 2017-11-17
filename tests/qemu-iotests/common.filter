@@ -157,7 +157,9 @@ _filter_img_info()
         -e "/lazy_refcounts: \\(on\\|off\\)/d" \
         -e "/block_size: [0-9]\\+/d" \
         -e "/block_state_zero: \\(on\\|off\\)/d" \
-        -e "/log_size: [0-9]\\+/d"
+        -e "/log_size: [0-9]\\+/d" \
+        -e "s/iters: [0-9]\\+/iters: 1024/" \
+        -e "s/uuid: [-a-f0-9]\\+/uuid: 00000000-0000-0000-0000-000000000000/"
 }
 
 # filter out offsets and file names from qemu-img map; good for both

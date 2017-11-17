@@ -3077,15 +3077,39 @@ done:
     return ret;
 }
 
+static int64_t get_refblock_offset(BlockDriverState *bs, uint64_t offset)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint32_t index = offset_to_reftable_index(s, offset);
+    int64_t covering_refblock_offset = 0;
+
+    if (index < s->refcount_table_size) {
+        covering_refblock_offset = s->refcount_table[index] & REFT_OFFSET_MASK;
+    }
+    if (!covering_refblock_offset) {
+        qcow2_signal_corruption(bs, true, -1, -1, "Refblock at %#" PRIx64 " is "
+                                "not covered by the refcount structures",
+                                offset);
+        return -EIO;
+    }
+
+    return covering_refblock_offset;
+}
+
 static int qcow2_discard_refcount_block(BlockDriverState *bs,
                                         uint64_t discard_block_offs)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t refblock_offs = get_refblock_offset(s, discard_block_offs);
+    int64_t refblock_offs;
     uint64_t cluster_index = discard_block_offs >> s->cluster_bits;
     uint32_t block_index = cluster_index & (s->refcount_block_size - 1);
     void *refblock;
     int ret;
+
+    refblock_offs = get_refblock_offset(bs, discard_block_offs);
+    if (refblock_offs < 0) {
+        return refblock_offs;
+    }
 
     assert(discard_block_offs != 0);
 

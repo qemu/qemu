@@ -853,6 +853,10 @@ static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
 
     assert(!(flags & ~BDRV_REQ_MASK));
 
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+
     if (drv->bdrv_co_preadv) {
         return drv->bdrv_co_preadv(bs, offset, bytes, qiov, flags);
     }
@@ -893,6 +897,10 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     int ret;
 
     assert(!(flags & ~BDRV_REQ_MASK));
+
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
 
     if (drv->bdrv_co_pwritev) {
         ret = drv->bdrv_co_pwritev(bs, offset, bytes, qiov,
@@ -945,6 +953,10 @@ bdrv_driver_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 {
     BlockDriver *drv = bs->drv;
 
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+
     if (!drv->bdrv_co_pwritev_compressed) {
         return -ENOTSUP;
     }
@@ -974,6 +986,10 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
     int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
                                     BDRV_REQUEST_MAX_BYTES);
     unsigned int progress = 0;
+
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
 
     /* FIXME We cannot require callers to have write permissions when all they
      * are doing is a read request. If we did things right, write permissions
@@ -1291,6 +1307,10 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
                         bs->bl.request_alignment);
     int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer, MAX_BOUNCE_BUFFER);
 
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+
     assert(alignment % bs->bl.request_alignment == 0);
     head = offset % alignment;
     tail = (offset + bytes) % alignment;
@@ -1396,6 +1416,10 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
     uint64_t bytes_remaining = bytes;
     int max_transfer;
+
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
 
     if (bdrv_has_readonly_bitmaps(bs)) {
         return -EPERM;
@@ -1863,6 +1887,8 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
         bytes = n;
     }
 
+    /* Must be non-NULL or bdrv_getlength() would have failed */
+    assert(bs->drv);
     if (!bs->drv->bdrv_co_get_block_status) {
         *pnum = bytes;
         ret = BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED;
@@ -2373,6 +2399,12 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_DISK);
+    if (!bs->drv) {
+        /* bs->drv->bdrv_co_flush() might have ejected the BDS
+         * (even in case of apparent success) */
+        ret = -ENOMEDIUM;
+        goto out;
+    }
     if (bs->drv->bdrv_co_flush_to_disk) {
         ret = bs->drv->bdrv_co_flush_to_disk(bs);
     } else if (bs->drv->bdrv_aio_flush) {
@@ -2542,6 +2574,10 @@ int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
             num = max_pdiscard;
         }
 
+        if (!bs->drv) {
+            ret = -ENOMEDIUM;
+            goto out;
+        }
         if (bs->drv->bdrv_co_pdiscard) {
             ret = bs->drv->bdrv_co_pdiscard(bs, offset, num);
         } else {

@@ -161,10 +161,13 @@ static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
                                    uint64_t perm, uint64_t shared,
                                    uint64_t *nperm, uint64_t *nshared)
 {
-    *nperm = *nshared = BLK_PERM_CONSISTENT_READ \
-                        | BLK_PERM_WRITE \
-                        | BLK_PERM_WRITE_UNCHANGED;
-
+    *nperm = BLK_PERM_CONSISTENT_READ;
+    if ((bs->open_flags & (BDRV_O_INACTIVE | BDRV_O_RDWR)) == BDRV_O_RDWR) {
+        *nperm |= BLK_PERM_WRITE;
+    }
+    *nshared = BLK_PERM_CONSISTENT_READ \
+               | BLK_PERM_WRITE \
+               | BLK_PERM_WRITE_UNCHANGED;
     return;
 }
 
@@ -339,9 +342,21 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
         return;
     }
 
+    if (!s->active_disk->bs->drv) {
+        error_setg(errp, "Active disk %s is ejected",
+                   s->active_disk->bs->node_name);
+        return;
+    }
+
     ret = s->active_disk->bs->drv->bdrv_make_empty(s->active_disk->bs);
     if (ret < 0) {
         error_setg(errp, "Cannot make active disk empty");
+        return;
+    }
+
+    if (!s->hidden_disk->bs->drv) {
+        error_setg(errp, "Hidden disk %s is ejected",
+                   s->hidden_disk->bs->node_name);
         return;
     }
 
@@ -507,6 +522,9 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             aio_context_release(aio_context);
             return;
         }
+
+        /* Must be true, or the bdrv_getlength() calls would have failed */
+        assert(s->active_disk->bs->drv && s->hidden_disk->bs->drv);
 
         if (!s->active_disk->bs->drv->bdrv_make_empty ||
             !s->hidden_disk->bs->drv->bdrv_make_empty) {
