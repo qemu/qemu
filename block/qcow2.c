@@ -3601,12 +3601,14 @@ static int qcow2_make_empty(BlockDriverState *bs)
     l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
 
     if (s->qcow_version >= 3 && !s->snapshots &&
-        3 + l1_clusters <= s->refcount_block_size) {
+        3 + l1_clusters <= s->refcount_block_size &&
+        s->crypt_method_header != QCOW_CRYPT_LUKS) {
         /* The following function only works for qcow2 v3 images (it requires
          * the dirty flag) and only as long as there are no snapshots (because
          * it completely empties the image). Furthermore, the L1 table and three
          * additional clusters (image header, refcount table, one refcount
-         * block) have to fit inside one refcount block. */
+         * block) have to fit inside one refcount block. It cannot be used
+         * for LUKS (yet) as it throws away the LUKS header cluster(s) */
         return make_completely_empty(bs);
     }
 
