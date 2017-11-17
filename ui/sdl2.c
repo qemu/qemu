@@ -276,32 +276,10 @@ static void sdl_send_mouse_event(struct sdl2_console *scon, int dx, int dy,
     }
 
     if (qemu_input_is_absolute()) {
-        int scr_w, scr_h;
-        int max_w = 0, max_h = 0;
-        int off_x = 0, off_y = 0;
-        int cur_off_x = 0, cur_off_y = 0;
-        int i;
-
-        for (i = 0; i < sdl2_num_outputs; i++) {
-            struct sdl2_console *thiscon = &sdl2_console[i];
-            if (thiscon->real_window && thiscon->surface) {
-                SDL_GetWindowSize(thiscon->real_window, &scr_w, &scr_h);
-                cur_off_x = thiscon->x;
-                cur_off_y = thiscon->y;
-                if (scr_w + cur_off_x > max_w) {
-                    max_w = scr_w + cur_off_x;
-                }
-                if (scr_h + cur_off_y > max_h) {
-                    max_h = scr_h + cur_off_y;
-                }
-                if (i == scon->idx) {
-                    off_x = cur_off_x;
-                    off_y = cur_off_y;
-                }
-            }
-        }
-        qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_X, off_x + x, 0, max_w);
-        qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_Y, off_y + y, 0, max_h);
+        qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_X,
+                             x, 0, surface_width(scon->surface));
+        qemu_input_queue_abs(scon->dcl.con, INPUT_AXIS_Y,
+                             y, 0, surface_height(scon->surface));
     } else {
         if (guest_cursor) {
             x -= guest_x;
