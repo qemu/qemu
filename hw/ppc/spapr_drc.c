@@ -455,11 +455,6 @@ void spapr_drc_reset(sPAPRDRConnector *drc)
     }
 }
 
-static void drc_reset(void *opaque)
-{
-    spapr_drc_reset(SPAPR_DR_CONNECTOR(opaque));
-}
-
 bool spapr_drc_needed(void *opaque)
 {
     sPAPRDRConnector *drc = (sPAPRDRConnector *)opaque;
@@ -518,7 +513,6 @@ static void realize(DeviceState *d, Error **errp)
     }
     vmstate_register(DEVICE(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
-    qemu_register_reset(drc_reset, drc);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
 
@@ -529,7 +523,6 @@ static void unrealize(DeviceState *d, Error **errp)
     char name[256];
 
     trace_spapr_drc_unrealize(spapr_drc_index(drc));
-    qemu_unregister_reset(drc_reset, drc);
     vmstate_unregister(DEVICE(drc), &vmstate_spapr_drc, drc);
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
     snprintf(name, sizeof(name), "%x", spapr_drc_index(drc));
