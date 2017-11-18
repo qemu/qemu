@@ -797,11 +797,14 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
         return;
     }
 
-    job->busy = false;
+    /* We need to leave job->busy set here, because when we have
+     * put a coroutine to 'sleep', we have scheduled it to run in
+     * the future.  We cannot enter that same coroutine again before
+     * it wakes and runs, otherwise we risk double-entry or entry after
+     * completion. */
     if (!block_job_should_pause(job)) {
         co_aio_sleep_ns(blk_get_aio_context(job->blk), type, ns);
     }
-    job->busy = true;
 
     block_job_pause_point(job);
 }
