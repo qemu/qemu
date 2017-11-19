@@ -75,16 +75,11 @@ static void xtensa_sim_init(MachineState *machine)
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     int n;
 
-    if (!cpu_model) {
-        cpu_model = XTENSA_DEFAULT_CPU_MODEL;
-    }
-
     for (n = 0; n < smp_cpus; n++) {
-        cpu = XTENSA_CPU(cpu_generic_init(TYPE_XTENSA_CPU, cpu_model));
+        cpu = XTENSA_CPU(cpu_create(machine->cpu_type));
         env = &cpu->env;
 
         env->sregs[PRID] = n;
@@ -133,6 +128,7 @@ static void xtensa_sim_machine_init(MachineClass *mc)
     mc->init = xtensa_sim_init;
     mc->max_cpus = 4;
     mc->no_serial = 1;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
 }
 
 DEFINE_MACHINE("sim", xtensa_sim_machine_init)

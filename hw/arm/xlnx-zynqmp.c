@@ -98,8 +98,9 @@ static void xlnx_zynqmp_create_rpu(XlnxZynqMPState *s, const char *boot_cpu,
 {
     Error *err = NULL;
     int i;
+    int num_rpus = MIN(smp_cpus - XLNX_ZYNQMP_NUM_APU_CPUS, XLNX_ZYNQMP_NUM_RPU_CPUS);
 
-    for (i = 0; i < XLNX_ZYNQMP_NUM_RPU_CPUS; i++) {
+    for (i = 0; i < num_rpus; i++) {
         char *name;
 
         object_initialize(&s->rpu_cpu[i], sizeof(s->rpu_cpu[i]),
@@ -132,8 +133,9 @@ static void xlnx_zynqmp_init(Object *obj)
 {
     XlnxZynqMPState *s = XLNX_ZYNQMP(obj);
     int i;
+    int num_apus = MIN(smp_cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
 
-    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
+    for (i = 0; i < num_apus; i++) {
         object_initialize(&s->apu_cpu[i], sizeof(s->apu_cpu[i]),
                           "cortex-a53-" TYPE_ARM_CPU);
         object_property_add_child(obj, "apu-cpu[*]", OBJECT(&s->apu_cpu[i]),
@@ -182,6 +184,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     MemoryRegion *system_memory = get_system_memory();
     uint8_t i;
     uint64_t ram_size;
+    int num_apus = MIN(smp_cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
     const char *boot_cpu = s->boot_cpu ? s->boot_cpu : "apu-cpu[0]";
     ram_addr_t ddr_low_size, ddr_high_size;
     qemu_irq gic_spi[GIC_NUM_SPI_INTR];
@@ -233,10 +236,10 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", GIC_NUM_SPI_INTR + 32);
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
-    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_APU_CPUS);
+    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", num_apus);
 
     /* Realize APUs before realizing the GIC. KVM requires this.  */
-    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
+    for (i = 0; i < num_apus; i++) {
         char *name;
 
         object_property_set_int(OBJECT(&s->apu_cpu[i]), QEMU_PSCI_CONDUIT_SMC,
@@ -292,7 +295,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    for (i = 0; i < XLNX_ZYNQMP_NUM_APU_CPUS; i++) {
+    for (i = 0; i < num_apus; i++) {
         qemu_irq irq;
 
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i,
@@ -307,11 +310,14 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 
     if (s->has_rpu) {
-        xlnx_zynqmp_create_rpu(s, boot_cpu, &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+        info_report("The 'has_rpu' property is no longer required, to use the "
+                    "RPUs just use -smp 6.");
+    }
+
+    xlnx_zynqmp_create_rpu(s, boot_cpu, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
 
     if (!s->boot_cpu_ptr) {

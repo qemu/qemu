@@ -555,9 +555,6 @@ static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
 static const S390Opcode lli_insns[4] = {
     RI_LLILL, RI_LLILH, RI_LLIHL, RI_LLIHH
 };
-static const S390Opcode ii_insns[4] = {
-    RI_IILL, RI_IILH, RI_IIHL, RI_IIHH
-};
 
 static bool maybe_out_small_movi(TCGContext *s, TCGType type,
                                  TCGReg ret, tcg_target_long sval)
@@ -647,36 +644,19 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
         return;
     }
 
-    /* When allowed, stuff it in the constant pool.  */
-    if (!in_prologue) {
-        if (USE_REG_TB) {
-            tcg_out_insn(s, RXY, LG, ret, TCG_REG_TB, TCG_REG_NONE, 0);
-            new_pool_label(s, sval, R_390_20, s->code_ptr - 2,
-                           -(intptr_t)s->code_gen_ptr);
-        } else {
-            tcg_out_insn(s, RIL, LGRL, ret, 0);
-            new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
-        }
-        return;
-    }
-
-    /* What's left is for the prologue, loading GUEST_BASE, and because
-       it failed to match above, is known to be a full 64-bit quantity.
-       We could try more than this, but it probably wouldn't pay off.  */
-    if (s390_facilities & FACILITY_EXT_IMM) {
-        tcg_out_insn(s, RIL, LLILF, ret, uval);
-        tcg_out_insn(s, RIL, IIHF, ret, uval >> 32);
+    /* Otherwise, stuff it in the constant pool.  */
+    if (s390_facilities & FACILITY_GEN_INST_EXT) {
+        tcg_out_insn(s, RIL, LGRL, ret, 0);
+        new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
+    } else if (USE_REG_TB && !in_prologue) {
+        tcg_out_insn(s, RXY, LG, ret, TCG_REG_TB, TCG_REG_NONE, 0);
+        new_pool_label(s, sval, R_390_20, s->code_ptr - 2,
+                       -(intptr_t)s->code_gen_ptr);
     } else {
-        const S390Opcode *insns = lli_insns;
-        int i;
-
-        for (i = 0; i < 4; i++) {
-            uint16_t part = uval >> (16 * i);
-            if (part) {
-                tcg_out_insn_RI(s, insns[i], ret, part);
-                insns = ii_insns;
-            }
-        }
+        TCGReg base = ret ? ret : TCG_TMP0;
+        tcg_out_insn(s, RIL, LARL, base, 0);
+        new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
+        tcg_out_insn(s, RXY, LG, ret, base, TCG_REG_NONE, 0);
     }
 }
 

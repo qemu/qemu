@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/pci-host/apb.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
@@ -42,6 +43,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide.h"
+#include "hw/ide/pci.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "qemu/cutils.h"
@@ -73,7 +75,6 @@
 #define IVEC_MAX             0x40
 
 struct hwdef {
-    const char * const default_cpu_model;
     uint16_t machine_id;
     uint64_t prom_addr;
     uint64_t console_serial_base;
@@ -440,11 +441,11 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     DeviceState *dev;
     FWCfgState *fw_cfg;
     NICInfo *nd;
-    int onboard_nic_idx;
+    MACAddr macaddr;
+    bool onboard_nic;
 
     /* init CPUs */
-    cpu = sparc64_cpu_devinit(machine->cpu_model, hwdef->default_cpu_model,
-                              hwdef->prom_addr);
+    cpu = sparc64_cpu_devinit(machine->cpu_type, hwdef->prom_addr);
 
     /* set up devices */
     ram_init(0, machine->ram_size);
@@ -454,10 +455,17 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     ivec_irqs = qemu_allocate_irqs(sparc64_cpu_set_ivec_irq, cpu, IVEC_MAX);
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_busA,
                            &pci_busB, &pbm_irqs);
-    pci_vga_init(pci_bus);
 
-    /* XXX Should be pci_busA */
-    ebus = pci_create_simple(pci_bus, -1, "ebus");
+    /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is
+       reserved (leaving no slots free after on-board devices) however slots
+       0-3 are free on busB */
+    pci_bus->slot_reserved_mask = 0xfffffffc;
+    pci_busA->slot_reserved_mask = 0xfffffff1;
+    pci_busB->slot_reserved_mask = 0xfffffff0;
+
+    ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, "ebus");
+    qdev_init_nofail(DEVICE(ebus));
+
     isa_bus = pci_ebus_init(ebus, pbm_irqs);
 
     i = 0;
@@ -470,27 +478,43 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     serial_hds_isa_init(isa_bus, i, MAX_SERIAL_PORTS);
     parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
-    onboard_nic_idx = -1;
+    pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
+
+    memset(&macaddr, 0, sizeof(MACAddr));
+    onboard_nic = false;
     for (i = 0; i < nb_nics; i++) {
         nd = &nd_table[i];
 
-        if (onboard_nic_idx == -1 &&
-                (!nd->model || strcmp(nd->model, "sunhme") == 0)) {
-            pci_dev = pci_create(pci_bus, -1, "sunhme");
-            dev = &pci_dev->qdev;
-            qdev_set_nic_properties(dev, nd);
-            qdev_init_nofail(dev);
-
-            onboard_nic_idx = i;
+        if (!nd->model || strcmp(nd->model, "sunhme") == 0) {
+            if (!onboard_nic) {
+                pci_dev = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 1),
+                                                   true, "sunhme");
+                memcpy(&macaddr, &nd->macaddr.a, sizeof(MACAddr));
+                onboard_nic = true;
+            } else {
+                pci_dev = pci_create(pci_busB, -1, "sunhme");
+            }
         } else {
-            pci_nic_init_nofail(nd, pci_bus, "ne2k_pci", NULL);
+            pci_dev = pci_create(pci_busB, -1, nd->model);
         }
+
+        dev = &pci_dev->qdev;
+        qdev_set_nic_properties(dev, nd);
+        qdev_init_nofail(dev);
     }
-    onboard_nic_idx = MAX(onboard_nic_idx, 0);
+
+    /* If we don't have an onboard NIC, grab a default MAC address so that
+     * we have a valid machine id */
+    if (!onboard_nic) {
+        qemu_macaddr_default_if_unset(&macaddr);
+    }
 
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
-    pci_cmd646_ide_init(pci_bus, hd, 1);
+    pci_dev = pci_create(pci_busA, PCI_DEVFN(3, 0), "cmd646-ide");
+    qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
+    qdev_init_nofail(&pci_dev->qdev);
+    pci_ide_create_devs(pci_dev, hd);
 
     isa_create_simple(isa_bus, "i8042");
 
@@ -531,7 +555,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                            /* XXX: need an option to load a NVRAM image */
                            0,
                            graphic_width, graphic_height, graphic_depth,
-                           (uint8_t *)&nd_table[onboard_nic_idx].macaddr);
+                           (uint8_t *)&macaddr);
 
     dev = qdev_create(NULL, TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
@@ -573,14 +597,12 @@ enum {
 static const struct hwdef hwdefs[] = {
     /* Sun4u generic PC-like machine */
     {
-        .default_cpu_model = "TI UltraSparc IIi",
         .machine_id = sun4u_id,
         .prom_addr = 0x1fff0000000ULL,
         .console_serial_base = 0,
     },
     /* Sun4v generic PC-like machine */
     {
-        .default_cpu_model = "Sun UltraSparc T1",
         .machine_id = sun4v_id,
         .prom_addr = 0x1fff0000000ULL,
         .console_serial_base = 0,
@@ -609,6 +631,7 @@ static void sun4u_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 1; /* XXX for now */
     mc->is_default = 1;
     mc->default_boot_order = "c";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-UltraSparc-IIi");
 }
 
 static const TypeInfo sun4u_type = {
@@ -626,6 +649,7 @@ static void sun4v_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_IDE;
     mc->max_cpus = 1; /* XXX for now */
     mc->default_boot_order = "c";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
 }
 
 static const TypeInfo sun4v_type = {

@@ -46,7 +46,6 @@ typedef struct QDevAlias
 static const QDevAlias qdev_alias_table[] = {
     { "e1000", "e1000-82540em" },
     { "ich9-ahci", "ahci" },
-    { "kvm-pci-assign", "pci-assign" },
     { "lsi53c895a", "lsi" },
     { "virtio-9p-ccw", "virtio-9p", QEMU_ARCH_S390X },
     { "virtio-9p-pci", "virtio-9p", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },

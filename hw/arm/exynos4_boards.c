@@ -27,7 +27,6 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/arm/arm.h"
@@ -129,13 +128,6 @@ exynos4_boards_init_common(MachineState *machine,
                            Exynos4BoardType board_type)
 {
     Exynos4BoardState *s = g_new(Exynos4BoardState, 1);
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
-
-    if (smp_cpus != EXYNOS4210_NCPUS && !qtest_enabled()) {
-        error_report("%s board supports only %d CPU cores, ignoring smp_cpus"
-                     " value",
-                     mc->name, EXYNOS4210_NCPUS);
-    }
 
     exynos4_board_binfo.ram_size = exynos4_board_ram_size[board_type];
     exynos4_board_binfo.board_id = exynos4_board_id[board_type];
@@ -189,6 +181,8 @@ static void nuri_class_init(ObjectClass *oc, void *data)
     mc->desc = "Samsung NURI board (Exynos4210)";
     mc->init = nuri_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
+    mc->min_cpus = EXYNOS4210_NCPUS;
+    mc->default_cpus = EXYNOS4210_NCPUS;
     mc->ignore_memory_transaction_failures = true;
 }
 
@@ -205,6 +199,8 @@ static void smdkc210_class_init(ObjectClass *oc, void *data)
     mc->desc = "Samsung SMDKC210 board (Exynos4210)";
     mc->init = smdkc210_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
+    mc->min_cpus = EXYNOS4210_NCPUS;
+    mc->default_cpus = EXYNOS4210_NCPUS;
     mc->ignore_memory_transaction_failures = true;
 }
 

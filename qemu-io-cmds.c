@@ -1769,10 +1769,6 @@ static int alloc_f(BlockBackend *blk, int argc, char **argv)
     if (offset < 0) {
         print_cvtnum_err(offset, argv[1]);
         return 0;
-    } else if (!QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE)) {
-        printf("%" PRId64 " is not a sector-aligned value for 'offset'\n",
-               offset);
-        return 0;
     }
 
     if (argc == 3) {
@@ -1780,18 +1776,9 @@ static int alloc_f(BlockBackend *blk, int argc, char **argv)
         if (count < 0) {
             print_cvtnum_err(count, argv[2]);
             return 0;
-        } else if (count > INT_MAX * BDRV_SECTOR_SIZE) {
-            printf("length argument cannot exceed %llu, given %s\n",
-                   INT_MAX * BDRV_SECTOR_SIZE, argv[2]);
-            return 0;
         }
     } else {
         count = BDRV_SECTOR_SIZE;
-    }
-    if (!QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE)) {
-        printf("%" PRId64 " is not a sector-aligned value for 'count'\n",
-               count);
-        return 0;
     }
 
     remaining = count;

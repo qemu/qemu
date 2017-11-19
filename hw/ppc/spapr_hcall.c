@@ -1636,6 +1636,12 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     spapr->cas_legacy_guest_workaround = !spapr_ovec_test(ov1_guest,
                                                           OV1_PPC_3_00);
     if (!spapr->cas_reboot) {
+        /* If ppc_spapr_reset() did not set up a HPT but one is necessary
+         * (because the guest isn't going to use radix) then set it up here. */
+        if ((spapr->patb_entry & PATBE1_GR) && !guest_radix) {
+            /* legacy hash or new hash: */
+            spapr_setup_hpt_and_vrma(spapr);
+        }
         spapr->cas_reboot =
             (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
@@ -1644,13 +1650,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 
     if (spapr->cas_reboot) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-    } else {
-        /* If ppc_spapr_reset() did not set up a HPT but one is necessary
-         * (because the guest isn't going to use radix) then set it up here. */
-        if ((spapr->patb_entry & PATBE1_GR) && !guest_radix) {
-            /* legacy hash or new hash: */
-            spapr_setup_hpt_and_vrma(spapr);
-        }
     }
 
     return H_SUCCESS;

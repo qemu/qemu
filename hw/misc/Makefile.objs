@@ -9,7 +9,7 @@ common-obj-$(CONFIG_PCI_TESTDEV) += pci-testdev.o
 common-obj-$(CONFIG_EDU) += edu.o
 
 common-obj-y += unimp.o
-common-obj-y += vmcoreinfo.o
+common-obj-$(CONFIG_FW_CFG_DMA) += vmcoreinfo.o
 
 obj-$(CONFIG_VMPORT) += vmport.o
 

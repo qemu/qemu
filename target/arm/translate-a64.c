@@ -348,7 +348,8 @@ static inline bool use_goto_tb(DisasContext *s, int n, uint64_t dest)
     /* No direct tb linking with singlestep (either QEMU's or the ARM
      * debug architecture kind) or deterministic io
      */
-    if (s->base.singlestep_enabled || s->ss_active || (s->base.tb->cflags & CF_LAST_IO)) {
+    if (s->base.singlestep_enabled || s->ss_active ||
+        (tb_cflags(s->base.tb) & CF_LAST_IO)) {
         return false;
     }
 
@@ -1335,13 +1336,18 @@ static void handle_hint(DisasContext *s, uint32_t insn,
     case 3: /* WFI */
         s->base.is_jmp = DISAS_WFI;
         return;
+        /* When running in MTTCG we don't generate jumps to the yield and
+         * WFE helpers as it won't affect the scheduling of other vCPUs.
+         * If we wanted to more completely model WFE/SEV so we don't busy
+         * spin unnecessarily we would need to do something more involved.
+         */
     case 1: /* YIELD */
-        if (!parallel_cpus) {
+        if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
             s->base.is_jmp = DISAS_YIELD;
         }
         return;
     case 2: /* WFE */
-        if (!parallel_cpus) {
+        if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
             s->base.is_jmp = DISAS_WFE;
         }
         return;
@@ -1561,7 +1567,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         break;
     }
 
-    if ((s->base.tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
+    if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
         gen_io_start();
     }
 
@@ -1592,7 +1598,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         }
     }
 
-    if ((s->base.tb->cflags & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
+    if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
         /* I/O operations must end the TB here (whether read or write) */
         gen_io_end();
         s->base.is_jmp = DISAS_UPDATE;
@@ -1930,11 +1936,25 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
                                        MO_64 | MO_ALIGN | s->be_data);
             tcg_gen_setcond_i64(TCG_COND_NE, tmp, tmp, cpu_exclusive_val);
         } else if (s->be_data == MO_LE) {
-            gen_helper_paired_cmpxchg64_le(tmp, cpu_env, cpu_exclusive_addr,
-                                           cpu_reg(s, rt), cpu_reg(s, rt2));
+            if (tb_cflags(s->base.tb) & CF_PARALLEL) {
+                gen_helper_paired_cmpxchg64_le_parallel(tmp, cpu_env,
+                                                        cpu_exclusive_addr,
+                                                        cpu_reg(s, rt),
+                                                        cpu_reg(s, rt2));
+            } else {
+                gen_helper_paired_cmpxchg64_le(tmp, cpu_env, cpu_exclusive_addr,
+                                               cpu_reg(s, rt), cpu_reg(s, rt2));
+            }
         } else {
-            gen_helper_paired_cmpxchg64_be(tmp, cpu_env, cpu_exclusive_addr,
-                                           cpu_reg(s, rt), cpu_reg(s, rt2));
+            if (tb_cflags(s->base.tb) & CF_PARALLEL) {
+                gen_helper_paired_cmpxchg64_be_parallel(tmp, cpu_env,
+                                                        cpu_exclusive_addr,
+                                                        cpu_reg(s, rt),
+                                                        cpu_reg(s, rt2));
+            } else {
+                gen_helper_paired_cmpxchg64_be(tmp, cpu_env, cpu_exclusive_addr,
+                                               cpu_reg(s, rt), cpu_reg(s, rt2));
+            }
         }
     } else {
         tcg_gen_atomic_cmpxchg_i64(tmp, cpu_exclusive_addr, cpu_exclusive_val,
@@ -2331,6 +2351,8 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn,
         post_index = false;
         writeback = true;
         break;
+    default:
+        g_assert_not_reached();
     }
 
     if (rn == 31) {
@@ -11380,16 +11402,21 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             gen_helper_yield(cpu_env);
             break;
         case DISAS_WFI:
+        {
             /* This is a special case because we don't want to just halt the CPU
              * if trying to debug across a WFI.
              */
+            TCGv_i32 tmp = tcg_const_i32(4);
+
             gen_a64_set_pc_im(dc->pc);
-            gen_helper_wfi(cpu_env);
+            gen_helper_wfi(cpu_env, tmp);
+            tcg_temp_free_i32(tmp);
             /* The helper doesn't necessarily throw an exception, but we
              * must go back to the main loop to check for interrupts anyway.
              */
             tcg_gen_exit_tb(0);
             break;
+        }
         }
     }
 
@@ -11403,8 +11430,7 @@ static void aarch64_tr_disas_log(const DisasContextBase *dcbase,
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     qemu_log("IN: %s\n", lookup_symbol(dc->base.pc_first));
-    log_target_disas(cpu, dc->base.pc_first, dc->base.tb->size,
-                     4 | (bswap_code(dc->sctlr_b) ? 2 : 0));
+    log_target_disas(cpu, dc->base.pc_first, dc->base.tb->size);
 }
 
 const TranslatorOps aarch64_translator_ops = {

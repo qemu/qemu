@@ -51,7 +51,6 @@ static int clipper_pci_map_irq(PCIDevice *d, int irq_num)
 static void clipper_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model ? machine->cpu_model : "ev67";
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -67,7 +66,7 @@ static void clipper_init(MachineState *machine)
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i] = ALPHA_CPU(cpu_generic_init(TYPE_ALPHA_CPU, cpu_model));
+        cpus[i] = ALPHA_CPU(cpu_create(machine->cpu_type));
     }
 
     cpus[0]->env.trap_arg0 = ram_size;
@@ -179,6 +178,7 @@ static void clipper_machine_init(MachineClass *mc)
     mc->block_default_type = IF_IDE;
     mc->max_cpus = 4;
     mc->is_default = 1;
+    mc->default_cpu_type = ALPHA_CPU_TYPE_NAME("ev67");
 }
 
 DEFINE_MACHINE("clipper", clipper_machine_init)

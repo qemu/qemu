@@ -6,7 +6,7 @@ BUILD_DIR=$(CURDIR)
 # Before including a proper config-host.mak, assume we are in the source tree
 SRC_PATH=.
 
-UNCHECKED_GOALS := %clean TAGS cscope ctags docker docker-%
+UNCHECKED_GOALS := %clean TAGS cscope ctags docker docker-% help
 
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
@@ -18,17 +18,26 @@ git-submodule-update:
 
 .PHONY: git-submodule-update
 
-ifeq (0,$(MAKELEVEL))
-  git_module_status := $(shell \
-    cd '$(SRC_PATH)' && \
-    ./scripts/git-submodule.sh status $(GIT_SUBMODULES); \
-    echo $$?; \
-  )
+git_module_status := $(shell \
+  cd '$(SRC_PATH)' && \
+  GIT="$(GIT)" ./scripts/git-submodule.sh status $(GIT_SUBMODULES); \
+  echo $$?; \
+)
 
 ifeq (1,$(git_module_status))
+ifeq (no,$(GIT_UPDATE))
 git-submodule-update:
 	$(call quiet-command, \
-          (cd $(SRC_PATH) && ./scripts/git-submodule.sh update $(GIT_SUBMODULES)), \
+            echo && \
+            echo "GIT submodule checkout is out of date. Please run" && \
+            echo "  scripts/git-submodule.sh update $(GIT_SUBMODULES)" && \
+            echo "from the source directory checkout $(SRC_PATH)" && \
+            echo && \
+            exit 1)
+else
+git-submodule-update:
+	$(call quiet-command, \
+          (cd $(SRC_PATH) && GIT="$(GIT)" ./scripts/git-submodule.sh update $(GIT_SUBMODULES)), \
           "GIT","$(GIT_SUBMODULES)")
 endif
 endif
@@ -380,8 +389,23 @@ DTC_CPPFLAGS=-I$(BUILD_DIR)/dtc -I$(SRC_PATH)/dtc -I$(SRC_PATH)/dtc/libfdt
 subdir-dtc: .git-submodule-status dtc/libfdt dtc/tests
 	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS) CPPFLAGS="$(DTC_CPPFLAGS)" CFLAGS="$(DTC_CFLAGS)" LDFLAGS="$(LDFLAGS)" ARFLAGS="$(ARFLAGS)" CC="$(CC)" AR="$(AR)" LD="$(LD)" $(SUBDIR_MAKEFLAGS) libfdt/libfdt.a,)
 
-dtc/%:
+dtc/%: .git-submodule-status
 	mkdir -p $@
+
+# Overriding CFLAGS causes us to lose defines added in the sub-makefile.
+# Not overriding CFLAGS leads to mis-matches between compilation modes.
+# Therefore we replicate some of the logic in the sub-makefile.
+# Remove all the extra -Warning flags that QEMU uses that Capstone doesn't;
+# no need to annoy QEMU developers with such things.
+CAP_CFLAGS = $(patsubst -W%,,$(CFLAGS) $(QEMU_CFLAGS))
+CAP_CFLAGS += -DCAPSTONE_USE_SYS_DYN_MEM
+CAP_CFLAGS += -DCAPSTONE_HAS_ARM
+CAP_CFLAGS += -DCAPSTONE_HAS_ARM64
+CAP_CFLAGS += -DCAPSTONE_HAS_POWERPC
+CAP_CFLAGS += -DCAPSTONE_HAS_X86
+
+subdir-capstone: .git-submodule-status
+	$(call quiet-command,$(MAKE) -C $(SRC_PATH)/capstone CAPSTONE_SHARED=no BUILDDIR="$(BUILD_DIR)/capstone" CC="$(CC)" AR="$(AR)" LD="$(LD)" RANLIB="$(RANLIB)" CFLAGS="$(CAP_CFLAGS)" $(SUBDIR_MAKEFLAGS) $(BUILD_DIR)/capstone/$(LIBCAPSTONE))
 
 $(SUBDIR_RULES): libqemuutil.a $(common-obj-y) $(chardev-obj-y) \
 	$(qom-obj-y) $(crypto-aes-obj-$(CONFIG_USER_ONLY))
@@ -724,8 +748,10 @@ ui/shader/%-frag.h: $(SRC_PATH)/ui/shader/%.frag $(SRC_PATH)/scripts/shaderinclu
 		perl $(SRC_PATH)/scripts/shaderinclude.pl $< > $@,\
 		"FRAG","$@")
 
-ui/console-gl.o: $(SRC_PATH)/ui/console-gl.c \
-	ui/shader/texture-blit-vert.h ui/shader/texture-blit-frag.h
+ui/shader.o: $(SRC_PATH)/ui/shader.c \
+	ui/shader/texture-blit-vert.h \
+	ui/shader/texture-blit-flip-vert.h \
+	ui/shader/texture-blit-frag.h
 
 # documentation
 MAKEINFO=makeinfo

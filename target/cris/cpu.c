@@ -71,11 +71,11 @@ static ObjectClass *cris_cpu_class_by_name(const char *cpu_model)
 
 #if defined(CONFIG_USER_ONLY)
     if (strcasecmp(cpu_model, "any") == 0) {
-        return object_class_by_name("crisv32-" TYPE_CRIS_CPU);
+        return object_class_by_name(CRIS_CPU_TYPE_NAME("crisv32"));
     }
 #endif
 
-    typename = g_strdup_printf("%s-" TYPE_CRIS_CPU, cpu_model);
+    typename = g_strdup_printf(CRIS_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
     if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_CRIS_CPU) ||
@@ -108,7 +108,7 @@ static void cris_cpu_list_entry(gpointer data, gpointer user_data)
     const char *typename = object_class_get_name(oc);
     char *name;
 
-    name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_CRIS_CPU));
+    name = g_strndup(typename, strlen(typename) - strlen(CRIS_CPU_TYPE_SUFFIX));
     (*s->cpu_fprintf)(s->file, "  %s\n", name);
     g_free(name);
 }
@@ -181,7 +181,6 @@ static void cris_cpu_initfn(Object *obj)
     CRISCPU *cpu = CRIS_CPU(obj);
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(obj);
     CPUCRISState *env = &cpu->env;
-    static bool tcg_initialized;
 
     cs->env_ptr = env;
 
@@ -191,15 +190,6 @@ static void cris_cpu_initfn(Object *obj)
     /* IRQ and NMI lines.  */
     qdev_init_gpio_in(DEVICE(cpu), cris_cpu_set_irq, 2);
 #endif
-
-    if (tcg_enabled() && !tcg_initialized) {
-        tcg_initialized = true;
-        if (env->pregs[PR_VR] < 32) {
-            cris_initialize_crisv10_tcg();
-        } else {
-            cris_initialize_tcg();
-        }
-    }
 }
 
 static void crisv8_cpu_class_init(ObjectClass *oc, void *data)
@@ -210,6 +200,7 @@ static void crisv8_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 8;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
+    cc->tcg_initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv9_cpu_class_init(ObjectClass *oc, void *data)
@@ -220,6 +211,7 @@ static void crisv9_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 9;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
+    cc->tcg_initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv10_cpu_class_init(ObjectClass *oc, void *data)
@@ -230,6 +222,7 @@ static void crisv10_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 10;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
+    cc->tcg_initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
@@ -240,6 +233,7 @@ static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 11;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
+    cc->tcg_initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv17_cpu_class_init(ObjectClass *oc, void *data)
@@ -250,6 +244,7 @@ static void crisv17_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 17;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
+    cc->tcg_initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv32_cpu_class_init(ObjectClass *oc, void *data)
@@ -258,38 +253,6 @@ static void crisv32_cpu_class_init(ObjectClass *oc, void *data)
 
     ccc->vr = 32;
 }
-
-#define TYPE(model) model "-" TYPE_CRIS_CPU
-
-static const TypeInfo cris_cpu_model_type_infos[] = {
-    {
-        .name = TYPE("crisv8"),
-        .parent = TYPE_CRIS_CPU,
-        .class_init = crisv8_cpu_class_init,
-    }, {
-        .name = TYPE("crisv9"),
-        .parent = TYPE_CRIS_CPU,
-        .class_init = crisv9_cpu_class_init,
-    }, {
-        .name = TYPE("crisv10"),
-        .parent = TYPE_CRIS_CPU,
-        .class_init = crisv10_cpu_class_init,
-    }, {
-        .name = TYPE("crisv11"),
-        .parent = TYPE_CRIS_CPU,
-        .class_init = crisv11_cpu_class_init,
-    }, {
-        .name = TYPE("crisv17"),
-        .parent = TYPE_CRIS_CPU,
-        .class_init = crisv17_cpu_class_init,
-    }, {
-        .name = TYPE("crisv32"),
-        .parent = TYPE_CRIS_CPU,
-        .class_init = crisv32_cpu_class_init,
-    }
-};
-
-#undef TYPE
 
 static void cris_cpu_class_init(ObjectClass *oc, void *data)
 {
@@ -322,26 +285,32 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
 
     cc->disas_set_info = cris_disas_set_info;
+    cc->tcg_initialize = cris_initialize_tcg;
 }
 
-static const TypeInfo cris_cpu_type_info = {
-    .name = TYPE_CRIS_CPU,
-    .parent = TYPE_CPU,
-    .instance_size = sizeof(CRISCPU),
-    .instance_init = cris_cpu_initfn,
-    .abstract = true,
-    .class_size = sizeof(CRISCPUClass),
-    .class_init = cris_cpu_class_init,
+#define DEFINE_CRIS_CPU_TYPE(cpu_model, initfn) \
+     {                                          \
+         .parent = TYPE_CRIS_CPU,               \
+         .class_init = initfn,                  \
+         .name = CRIS_CPU_TYPE_NAME(cpu_model), \
+     }
+
+static const TypeInfo cris_cpu_model_type_infos[] = {
+    {
+        .name = TYPE_CRIS_CPU,
+        .parent = TYPE_CPU,
+        .instance_size = sizeof(CRISCPU),
+        .instance_init = cris_cpu_initfn,
+        .abstract = true,
+        .class_size = sizeof(CRISCPUClass),
+        .class_init = cris_cpu_class_init,
+    },
+    DEFINE_CRIS_CPU_TYPE("crisv8", crisv8_cpu_class_init),
+    DEFINE_CRIS_CPU_TYPE("crisv9", crisv9_cpu_class_init),
+    DEFINE_CRIS_CPU_TYPE("crisv10", crisv10_cpu_class_init),
+    DEFINE_CRIS_CPU_TYPE("crisv11", crisv11_cpu_class_init),
+    DEFINE_CRIS_CPU_TYPE("crisv17", crisv17_cpu_class_init),
+    DEFINE_CRIS_CPU_TYPE("crisv32", crisv32_cpu_class_init),
 };
 
-static void cris_cpu_register_types(void)
-{
-    int i;
-
-    type_register_static(&cris_cpu_type_info);
-    for (i = 0; i < ARRAY_SIZE(cris_cpu_model_type_infos); i++) {
-        type_register_static(&cris_cpu_model_type_infos[i]);
-    }
-}
-
-type_init(cris_cpu_register_types)
+DEFINE_TYPES(cris_cpu_model_type_infos)

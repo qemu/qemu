@@ -162,7 +162,7 @@ void qmp_input_send_event(bool has_device, const char *device,
         if (evt->type == INPUT_EVENT_KIND_KEY &&
             evt->u.key.data->key->type == KEY_VALUE_KIND_NUMBER) {
             KeyValue *key = evt->u.key.data->key;
-            QKeyCode code = qemu_input_key_number_to_qcode(key->u.qcode.data);
+            QKeyCode code = qemu_input_key_number_to_qcode(key->u.number.data);
             qemu_input_event_send_key_qcode(con, code, evt->u.key.data->down);
         } else {
             qemu_input_event_send(con, evt);
@@ -352,6 +352,20 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
      * Key numbers are only supported as end-user input via QMP */
     assert(!(evt->type == INPUT_EVENT_KIND_KEY &&
              evt->u.key.data->key->type == KEY_VALUE_KIND_NUMBER));
+
+
+    /*
+     * 'sysrq' was mistakenly added to hack around the fact that
+     * the ps2 driver was not generating correct scancodes sequences
+     * when 'alt+print' was pressed. This flaw is now fixed and the
+     * 'sysrq' key serves no further purpose. We normalize it to
+     * 'print', so that downstream receivers of the event don't
+     * neeed to deal with this mistake
+     */
+    if (evt->type == INPUT_EVENT_KIND_KEY &&
+        evt->u.key.data->key->u.qcode.data == Q_KEY_CODE_SYSRQ) {
+        evt->u.key.data->key->u.qcode.data = Q_KEY_CODE_PRINT;
+    }
 
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
         return;

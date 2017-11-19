@@ -28,6 +28,7 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "qemu/bswap.h"
+#include "qemu/error-report.h"
 
 /**************************************************************/
 
@@ -110,9 +111,15 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    ret = bdrv_set_read_only(bs, true, errp); /* no write support yet */
-    if (ret < 0) {
-        return ret;
+    if (!bdrv_is_read_only(bs)) {
+        error_report("Opening bochs images without an explicit read-only=on "
+                     "option is deprecated. Future versions will refuse to "
+                     "open the image instead of automatically marking the "
+                     "image read-only.");
+        ret = bdrv_set_read_only(bs, true, errp); /* no write support yet */
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     ret = bdrv_pread(bs->file, 0, &bochs, sizeof(bochs));

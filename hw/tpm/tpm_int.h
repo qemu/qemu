@@ -12,29 +12,29 @@
 #ifndef TPM_TPM_INT_H
 #define TPM_TPM_INT_H
 
-#include "exec/memory.h"
-#include "tpm_tis.h"
+#include "qemu/osdep.h"
+#include "qom/object.h"
 
-/* overall state of the TPM interface */
-struct TPMState {
-    ISADevice busdev;
-    MemoryRegion mmio;
+#define TYPE_TPM_IF "tpm-if"
+#define TPM_IF_CLASS(klass) \
+    OBJECT_CLASS_CHECK(TPMIfClass, (klass), TYPE_TPM_IF)
+#define TPM_IF_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(TPMIfClass, (obj), TYPE_TPM_IF)
+#define TPM_IF(obj) \
+    INTERFACE_CHECK(TPMIf, (obj), TYPE_TPM_IF)
 
-    union {
-        TPMTISEmuState tis;
-    } s;
+typedef struct TPMIf {
+    Object parent_obj;
+} TPMIf;
 
-    uint8_t     locty_number;
-    TPMLocality *locty_data;
+typedef struct TPMIfClass {
+    InterfaceClass parent_class;
 
-    char *backend;
-    TPMBackend *be_driver;
-    TPMVersion be_tpm_version;
-};
+    /* run in thread pool by backend */
+    void (*request_completed)(TPMIf *obj);
+} TPMIfClass;
 
-#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
-
-#define TPM_STANDARD_CMDLINE_OPTS \
+#define TPM_STANDARD_CMDLINE_OPTS               \
     { \
         .name = "type", \
         .type = QEMU_OPT_STRING, \

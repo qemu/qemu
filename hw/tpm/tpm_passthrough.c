@@ -31,7 +31,6 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "qapi/clone-visitor.h"
-#include "tpm_tis.h"
 #include "tpm_util.h"
 
 #define DEBUG_TPM 0
@@ -96,7 +95,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
 
     is_selftest = tpm_util_is_selftest(in, in_len);
 
-    ret = qemu_write_full(tpm_pt->tpm_fd, (const void *)in, (size_t)in_len);
+    ret = qemu_write_full(tpm_pt->tpm_fd, in, in_len);
     if (ret != in_len) {
         if (!tpm_pt->tpm_op_canceled || errno != ECANCELED) {
             error_report("tpm_passthrough: error while transmitting data "
@@ -137,41 +136,17 @@ err_exit:
     return ret;
 }
 
-static int tpm_passthrough_unix_transfer(TPMPassthruState *tpm_pt,
-                                         const TPMLocality *locty_data,
-                                         bool *selftest_done)
-{
-    return tpm_passthrough_unix_tx_bufs(tpm_pt,
-                                        locty_data->w_buffer.buffer,
-                                        locty_data->w_offset,
-                                        locty_data->r_buffer.buffer,
-                                        locty_data->r_buffer.size,
-                                        selftest_done);
-}
-
-static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd cmd)
+static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
-    bool selftest_done = false;
+    TPMIfClass *tic = TPM_IF_GET_CLASS(tb->tpm_state);
 
-    DPRINTF("tpm_passthrough: processing command type %d\n", cmd);
+    DPRINTF("tpm_passthrough: processing command %p\n", cmd);
 
-    switch (cmd) {
-    case TPM_BACKEND_CMD_PROCESS_CMD:
-        tpm_passthrough_unix_transfer(tpm_pt,
-                                      tb->tpm_state->locty_data,
-                                      &selftest_done);
+    tpm_passthrough_unix_tx_bufs(tpm_pt, cmd->in, cmd->in_len,
+                                 cmd->out, cmd->out_len, &cmd->selftest_done);
 
-        tb->recv_data_callback(tb->tpm_state,
-                               tb->tpm_state->locty_number,
-                               selftest_done);
-        break;
-    case TPM_BACKEND_CMD_INIT:
-    case TPM_BACKEND_CMD_END:
-    case TPM_BACKEND_CMD_TPM_RESET:
-        /* nothing to do */
-        break;
-    }
+    tic->request_completed(TPM_IF(tb->tpm_state));
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)
@@ -365,19 +340,6 @@ static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
     { /* end of list */ },
 };
 
-static const TPMDriverOps tpm_passthrough_driver = {
-    .type                     = TPM_TYPE_PASSTHROUGH,
-    .opts                     = tpm_passthrough_cmdline_opts,
-    .desc                     = "Passthrough TPM backend driver",
-    .create                   = tpm_passthrough_create,
-    .reset                    = tpm_passthrough_reset,
-    .cancel_cmd               = tpm_passthrough_cancel_cmd,
-    .get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag,
-    .reset_tpm_established_flag = tpm_passthrough_reset_tpm_established_flag,
-    .get_tpm_version          = tpm_passthrough_get_tpm_version,
-    .get_tpm_options          = tpm_passthrough_get_tpm_options,
-};
-
 static void tpm_passthrough_inst_init(Object *obj)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
@@ -402,7 +364,17 @@ static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
 {
     TPMBackendClass *tbc = TPM_BACKEND_CLASS(klass);
 
-    tbc->ops = &tpm_passthrough_driver;
+    tbc->type = TPM_TYPE_PASSTHROUGH;
+    tbc->opts = tpm_passthrough_cmdline_opts;
+    tbc->desc = "Passthrough TPM backend driver";
+    tbc->create = tpm_passthrough_create;
+    tbc->reset = tpm_passthrough_reset;
+    tbc->cancel_cmd = tpm_passthrough_cancel_cmd;
+    tbc->get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag;
+    tbc->reset_tpm_established_flag =
+        tpm_passthrough_reset_tpm_established_flag;
+    tbc->get_tpm_version = tpm_passthrough_get_tpm_version;
+    tbc->get_tpm_options = tpm_passthrough_get_tpm_options;
     tbc->handle_request = tpm_passthrough_handle_request;
 }
 
@@ -418,7 +390,6 @@ static const TypeInfo tpm_passthrough_info = {
 static void tpm_passthrough_register(void)
 {
     type_register_static(&tpm_passthrough_info);
-    tpm_register_driver(&tpm_passthrough_driver);
 }
 
 type_init(tpm_passthrough_register)

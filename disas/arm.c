@@ -70,6 +70,17 @@ static void floatformat_to_double (unsigned char *data, double *dest)
     *dest = u.f;
 }
 
+static int arm_read_memory(bfd_vma memaddr, bfd_byte *b, int length,
+                           struct disassemble_info *info)
+{
+    assert((info->flags & INSN_ARM_BE32) == 0 || length == 2 || length == 4);
+
+    if ((info->flags & INSN_ARM_BE32) != 0 && length == 2) {
+        memaddr ^= 2;
+    }
+    return info->read_memory_func(memaddr, b, length, info);
+}
+
 /* End of qemu specific additions.  */
 
 struct opcode32
@@ -3810,7 +3821,7 @@ find_ifthen_state (bfd_vma pc, struct disassemble_info *info,
 	  return;
 	}
       addr -= 2;
-      status = info->read_memory_func (addr, (bfd_byte *)b, 2, info);
+      status = arm_read_memory (addr, (bfd_byte *)b, 2, info);
       if (status)
 	return;
 
@@ -3882,7 +3893,7 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
       info->bytes_per_chunk = size;
       printer = print_insn_data;
 
-      status = info->read_memory_func (pc, (bfd_byte *)b, size, info);
+      status = arm_read_memory (pc, (bfd_byte *)b, size, info);
       given = 0;
       if (little)
 	for (i = size - 1; i >= 0; i--)
@@ -3899,7 +3910,7 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
       info->bytes_per_chunk = 4;
       size = 4;
 
-      status = info->read_memory_func (pc, (bfd_byte *)b, 4, info);
+      status = arm_read_memory (pc, (bfd_byte *)b, 4, info);
       if (little)
 	given = (b[0]) | (b[1] << 8) | (b[2] << 16) | ((unsigned)b[3] << 24);
       else
@@ -3915,7 +3926,7 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
       info->bytes_per_chunk = 2;
       size = 2;
 
-      status = info->read_memory_func (pc, (bfd_byte *)b, 2, info);
+      status = arm_read_memory (pc, (bfd_byte *)b, 2, info);
       if (little)
 	given = (b[0]) | (b[1] << 8);
       else
@@ -3929,7 +3940,7 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
 	      || (given & 0xF800) == 0xF000
 	      || (given & 0xF800) == 0xE800)
 	    {
-	      status = info->read_memory_func (pc + 2, (bfd_byte *)b, 2, info);
+	      status = arm_read_memory (pc + 2, (bfd_byte *)b, 2, info);
 	      if (little)
 		given = (b[0]) | (b[1] << 8) | (given << 16);
 	      else

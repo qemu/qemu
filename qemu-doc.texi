@@ -2537,6 +2537,13 @@ or ``ivshmem-doorbell`` device types.
 The ``spapr-pci-vfio-host-bridge'' device type is replaced by
 the ``spapr-pci-host-bridge'' device type.
 
+@section System emulator machines
+
+@subsection Xilinx EP108 (since 2.11.0)
+
+The ``xlnx-ep108'' machine has been replaced by the ``xlnx-zcu102'' machine.
+The ``xlnx-zcu102'' machine has the same features and capabilites in QEMU.
+
 @node License
 @appendix License
 

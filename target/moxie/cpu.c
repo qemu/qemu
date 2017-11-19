@@ -77,19 +77,18 @@ static void moxie_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     MoxieCPU *cpu = MOXIE_CPU(obj);
-    static int inited;
 
     cs->env_ptr = &cpu->env;
-
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        moxie_translate_init();
-    }
 }
 
 static ObjectClass *moxie_cpu_class_by_name(const char *cpu_model)
 {
-    ObjectClass *oc = object_class_by_name(cpu_model);
+    ObjectClass *oc;
+    char *typename;
+
+    typename = g_strdup_printf(MOXIE_CPU_TYPE_NAME("%s"), cpu_model);
+    oc = object_class_by_name(typename);
+    g_free(typename);
     if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_MOXIE_CPU) ||
                        object_class_is_abstract(oc))) {
         return NULL;
@@ -122,6 +121,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_moxie_cpu;
 #endif
     cc->disas_set_info = moxie_cpu_disas_set_info;
+    cc->tcg_initialize = moxie_translate_init;
 }
 
 static void moxielite_initfn(Object *obj)
@@ -134,46 +134,24 @@ static void moxie_any_initfn(Object *obj)
     /* Set cpu feature flags */
 }
 
-typedef struct MoxieCPUInfo {
-    const char *name;
-    void (*initfn)(Object *obj);
-} MoxieCPUInfo;
-
-static const MoxieCPUInfo moxie_cpus[] = {
-    { .name = "MoxieLite",      .initfn = moxielite_initfn },
-    { .name = "any",            .initfn = moxie_any_initfn },
-};
-
-static void cpu_register(const MoxieCPUInfo *info)
-{
-    TypeInfo type_info = {
-        .parent = TYPE_MOXIE_CPU,
-        .instance_size = sizeof(MoxieCPU),
-        .instance_init = info->initfn,
-        .class_size = sizeof(MoxieCPUClass),
-    };
-
-    type_info.name = g_strdup_printf("%s-" TYPE_MOXIE_CPU, info->name);
-    type_register(&type_info);
-    g_free((void *)type_info.name);
-}
-
-static const TypeInfo moxie_cpu_type_info = {
-    .name = TYPE_MOXIE_CPU,
-    .parent = TYPE_CPU,
-    .instance_size = sizeof(MoxieCPU),
-    .instance_init = moxie_cpu_initfn,
-    .class_size = sizeof(MoxieCPUClass),
-    .class_init = moxie_cpu_class_init,
-};
-
-static void moxie_cpu_register_types(void)
-{
-    int i;
-    type_register_static(&moxie_cpu_type_info);
-    for (i = 0; i < ARRAY_SIZE(moxie_cpus); i++) {
-        cpu_register(&moxie_cpus[i]);
+#define DEFINE_MOXIE_CPU_TYPE(cpu_model, initfn) \
+    {                                            \
+        .parent = TYPE_MOXIE_CPU,                \
+        .instance_init = initfn,                 \
+        .name = MOXIE_CPU_TYPE_NAME(cpu_model),  \
     }
-}
 
-type_init(moxie_cpu_register_types)
+static const TypeInfo moxie_cpus_type_infos[] = {
+    { /* base class should be registered first */
+        .name = TYPE_MOXIE_CPU,
+        .parent = TYPE_CPU,
+        .instance_size = sizeof(MoxieCPU),
+        .instance_init = moxie_cpu_initfn,
+        .class_size = sizeof(MoxieCPUClass),
+        .class_init = moxie_cpu_class_init,
+    },
+    DEFINE_MOXIE_CPU_TYPE("MoxieLite", moxielite_initfn),
+    DEFINE_MOXIE_CPU_TYPE("any", moxie_any_initfn),
+};
+
+DEFINE_TYPES(moxie_cpus_type_infos)

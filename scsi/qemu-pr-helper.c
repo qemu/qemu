@@ -276,15 +276,26 @@ static void dm_init(void)
 
 /* Variables required by libmultipath and libmpathpersist.  */
 QEMU_BUILD_BUG_ON(PR_HELPER_DATA_SIZE > MPATH_MAX_PARAM_LEN);
+static struct config *multipath_conf;
 unsigned mpath_mx_alloc_len = PR_HELPER_DATA_SIZE;
 int logsink;
+struct udev *udev;
+
+extern struct config *get_multipath_config(void);
+struct config *get_multipath_config(void)
+{
+    return multipath_conf;
+}
+
+extern void put_multipath_config(struct config *conf);
+void put_multipath_config(struct config *conf)
+{
+}
 
 static void multipath_pr_init(void)
 {
-    static struct udev *udev;
-
     udev = udev_new();
-    mpath_lib_init(udev);
+    multipath_conf = mpath_lib_init();
 }
 
 static int is_mpath(int fd)

@@ -40,11 +40,17 @@
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
+    ICPStateClass *icpc = ICP_GET_CLASS(icp);
     int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
 
     if (!icp->output) {
         return;
     }
+
+    if (icpc->synchronize_state) {
+        icpc->synchronize_state(icp);
+    }
+
     monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
                    cpu_index, icp->xirr, icp->xirr_owner,
                    icp->pending_priority, icp->mfrr);
@@ -52,6 +58,7 @@ void icp_pic_print_info(ICPState *icp, Monitor *mon)
 
 void ics_pic_print_info(ICSState *ics, Monitor *mon)
 {
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
     uint32_t i;
 
     monitor_printf(mon, "ICS %4x..%4x %p\n",
@@ -59,6 +66,10 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
 
     if (!ics->irqs) {
         return;
+    }
+
+    if (icsc->synchronize_state) {
+        icsc->synchronize_state(ics);
     }
 
     for (i = 0; i < ics->nr_irqs; i++) {

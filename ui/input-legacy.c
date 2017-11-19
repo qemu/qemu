@@ -76,6 +76,11 @@ static KeyValue *copy_key_value(KeyValue *src)
 {
     KeyValue *dst = g_new(KeyValue, 1);
     memcpy(dst, src, sizeof(*src));
+    if (dst->type == KEY_VALUE_KIND_NUMBER) {
+        QKeyCode code = qemu_input_key_number_to_qcode(dst->u.number.data);
+        dst->type = KEY_VALUE_KIND_QCODE;
+        dst->u.qcode.data = code;
+    }
     return dst;
 }
 

@@ -76,6 +76,7 @@ typedef struct Connection {
 uint32_t connection_key_hash(const void *opaque);
 int connection_key_equal(const void *opaque1, const void *opaque2);
 int parse_packet_early(Packet *pkt);
+void extract_ip_and_port(uint32_t tmp_ports, ConnectionKey *key, Packet *pkt);
 void fill_connection_key(Packet *pkt, ConnectionKey *key);
 void reverse_connection_key(ConnectionKey *key);
 Connection *connection_new(ConnectionKey *key);

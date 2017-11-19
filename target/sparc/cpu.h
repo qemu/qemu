@@ -594,7 +594,7 @@ int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 
 
 /* translate.c */
-void gen_intermediate_code_init(CPUSPARCState *env);
+void sparc_tcg_init(void);
 
 /* cpu-exec.c */
 
@@ -657,6 +657,9 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #ifndef NO_CPU_IO_DEFS
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_SPARC_CPU, cpu_model)
 #endif
+
+#define SPARC_CPU_TYPE_SUFFIX "-" TYPE_SPARC_CPU
+#define SPARC_CPU_TYPE_NAME(model) model SPARC_CPU_TYPE_SUFFIX
 
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_list sparc_cpu_list

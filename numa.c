@@ -38,6 +38,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+#include "qemu/cutils.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
@@ -142,7 +143,7 @@ uint32_t numa_get_node(ram_addr_t addr, Error **errp)
 }
 
 static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
-                            QemuOpts *opts, Error **errp)
+                            Error **errp)
 {
     uint16_t nodenr;
     uint16List *cpus = NULL;
@@ -199,13 +200,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     }
 
     if (node->has_mem) {
-        uint64_t mem_size = node->mem;
-        const char *mem_str = qemu_opt_get(opts, "mem");
-        /* Fix up legacy suffix-less format */
-        if (g_ascii_isdigit(mem_str[strlen(mem_str) - 1])) {
-            mem_size <<= 20;
-        }
-        numa_info[nodenr].node_mem = mem_size;
+        numa_info[nodenr].node_mem = node->mem;
     }
     if (node->has_memdev) {
         Object *o;
@@ -221,6 +216,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     }
     numa_info[nodenr].present = true;
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
+    nb_numa_nodes++;
 }
 
 static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
@@ -275,13 +271,18 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
         goto end;
     }
 
+    /* Fix up legacy suffix-less format */
+    if ((object->type == NUMA_OPTIONS_TYPE_NODE) && object->u.node.has_mem) {
+        const char *mem_str = qemu_opt_get(opts, "mem");
+        qemu_strtosz_MiB(mem_str, NULL, &object->u.node.mem);
+    }
+
     switch (object->type) {
     case NUMA_OPTIONS_TYPE_NODE:
-        parse_numa_node(ms, &object->u.node, opts, &err);
+        parse_numa_node(ms, &object->u.node, &err);
         if (err) {
             goto end;
         }
-        nb_numa_nodes++;
         break;
     case NUMA_OPTIONS_TYPE_DIST:
         parse_numa_distance(&object->u.dist, &err);
@@ -430,6 +431,25 @@ void parse_numa_opts(MachineState *ms)
 
     if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
         exit(1);
+    }
+
+    /*
+     * If memory hotplug is enabled (slots > 0) but without '-numa'
+     * options explicitly on CLI, guestes will break.
+     *
+     *   Windows: won't enable memory hotplug without SRAT table at all
+     *
+     *   Linux: if QEMU is started with initial memory all below 4Gb
+     *   and no SRAT table present, guest kernel will use nommu DMA ops,
+     *   which breaks 32bit hw drivers when memory is hotplugged and
+     *   guest tries to use it with that drivers.
+     *
+     * Enable NUMA implicitly by adding a new NUMA node automatically.
+     */
+    if (ms->ram_slots > 0 && nb_numa_nodes == 0 &&
+        mc->auto_enable_numa_with_memhp) {
+            NumaNodeOptions node = { };
+            parse_numa_node(ms, &node, NULL);
     }
 
     assert(max_numa_nodeid <= MAX_NODES);

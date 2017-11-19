@@ -29,6 +29,7 @@
 #endif
 #include <lm.h>
 #include <wtsapi32.h>
+#include <wininet.h>
 
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
@@ -1152,6 +1153,44 @@ out:
 }
 #endif
 
+#define INTERFACE_PATH_BUF_SZ 512
+
+static DWORD get_interface_index(const char *guid)
+{
+    ULONG index;
+    DWORD status;
+    wchar_t wbuf[INTERFACE_PATH_BUF_SZ];
+    snwprintf(wbuf, INTERFACE_PATH_BUF_SZ, L"\\device\\tcpip_%s", guid);
+    wbuf[INTERFACE_PATH_BUF_SZ - 1] = 0;
+    status = GetAdapterIndex (wbuf, &index);
+    if (status != NO_ERROR) {
+        return (DWORD)~0;
+    } else {
+        return index;
+    }
+}
+static int guest_get_network_stats(const char *name,
+                       GuestNetworkInterfaceStat *stats)
+{
+    DWORD if_index = 0;
+    MIB_IFROW a_mid_ifrow;
+    memset(&a_mid_ifrow, 0, sizeof(a_mid_ifrow));
+    if_index = get_interface_index(name);
+    a_mid_ifrow.dwIndex = if_index;
+    if (NO_ERROR == GetIfEntry(&a_mid_ifrow)) {
+        stats->rx_bytes = a_mid_ifrow.dwInOctets;
+        stats->rx_packets = a_mid_ifrow.dwInUcastPkts;
+        stats->rx_errs = a_mid_ifrow.dwInErrors;
+        stats->rx_dropped = a_mid_ifrow.dwInDiscards;
+        stats->tx_bytes = a_mid_ifrow.dwOutOctets;
+        stats->tx_packets = a_mid_ifrow.dwOutUcastPkts;
+        stats->tx_errs = a_mid_ifrow.dwOutErrors;
+        stats->tx_dropped = a_mid_ifrow.dwOutDiscards;
+        return 0;
+    }
+    return -1;
+}
+
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
     IP_ADAPTER_ADDRESSES *adptr_addrs, *addr;
@@ -1159,6 +1198,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
     GuestNetworkInterfaceList *head = NULL, *cur_item = NULL;
     GuestIpAddressList *head_addr, *cur_addr;
     GuestNetworkInterfaceList *info;
+    GuestNetworkInterfaceStat *interface_stat = NULL;
     GuestIpAddressList *address_item = NULL;
     unsigned char *mac_addr;
     char *addr_str;
@@ -1238,6 +1278,17 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             info->value->has_ip_addresses = true;
             info->value->ip_addresses = head_addr;
         }
+        if (!info->value->has_statistics) {
+            interface_stat = g_malloc0(sizeof(*interface_stat));
+            if (guest_get_network_stats(addr->AdapterName,
+                interface_stat) == -1) {
+                info->value->has_statistics = false;
+                g_free(interface_stat);
+            } else {
+                info->value->statistics = interface_stat;
+                info->value->has_statistics = true;
+            }
+        }
     }
     WSACleanup();
 out:
@@ -1277,8 +1328,41 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
          * RTC yet:
          *
          * https://msdn.microsoft.com/en-us/library/aa908981.aspx
+         *
+         * Instead, a workaround is to use the Windows win32tm command to
+         * resync the time using the Windows Time service.
          */
-        error_setg(errp, "Time argument is required on this platform");
+        LPVOID msg_buffer;
+        DWORD ret_flags;
+
+        HRESULT hr = system("w32tm /resync /nowait");
+
+        if (GetLastError() != 0) {
+            strerror_s((LPTSTR) & msg_buffer, 0, errno);
+            error_setg(errp, "system(...) failed: %s", (LPCTSTR)msg_buffer);
+        } else if (hr != 0) {
+            if (hr == HRESULT_FROM_WIN32(ERROR_SERVICE_NOT_ACTIVE)) {
+                error_setg(errp, "Windows Time service not running on the "
+                                 "guest");
+            } else {
+                if (!FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                   FORMAT_MESSAGE_FROM_SYSTEM |
+                                   FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                                   (DWORD)hr, MAKELANGID(LANG_NEUTRAL,
+                                   SUBLANG_DEFAULT), (LPTSTR) & msg_buffer, 0,
+                                   NULL)) {
+                    error_setg(errp, "w32tm failed with error (0x%lx), couldn'"
+                                     "t retrieve error message", hr);
+                } else {
+                    error_setg(errp, "w32tm failed with error (0x%lx): %s", hr,
+                               (LPCTSTR)msg_buffer);
+                    LocalFree(msg_buffer);
+                }
+            }
+        } else if (!InternetGetConnectedState(&ret_flags, 0)) {
+            error_setg(errp, "No internet connection on guest, sync not "
+                             "accurate");
+        }
         return;
     }
 

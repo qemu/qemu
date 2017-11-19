@@ -180,7 +180,7 @@ const VMStateDescription vmstate_exval = {
 
 static bool gscb_needed(void *opaque)
 {
-    return kvm_s390_get_gs();
+    return s390_has_feat(S390_FEAT_GUARDED_STORAGE);
 }
 
 const VMStateDescription vmstate_gscb = {

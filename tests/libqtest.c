@@ -244,6 +244,28 @@ QTestState *qtest_init(const char *extra_args)
     return s;
 }
 
+QTestState *qtest_vstartf(const char *fmt, va_list ap)
+{
+    char *args = g_strdup_vprintf(fmt, ap);
+    QTestState *s;
+
+    s = qtest_start(args);
+    g_free(args);
+    global_qtest = NULL;
+    return s;
+}
+
+QTestState *qtest_startf(const char *fmt, ...)
+{
+    va_list ap;
+    QTestState *s;
+
+    va_start(ap, fmt);
+    s = qtest_vstartf(fmt, ap);
+    va_end(ap);
+    return s;
+}
+
 void qtest_quit(QTestState *s)
 {
     g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));

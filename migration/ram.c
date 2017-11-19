@@ -42,8 +42,10 @@
 #include "postcopy-ram.h"
 #include "migration/page_cache.h"
 #include "qemu/error-report.h"
+#include "qapi/qmp/qerror.h"
 #include "trace.h"
 #include "exec/ram_addr.h"
+#include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "migration/block.h"
@@ -110,29 +112,33 @@ static void XBZRLE_cache_unlock(void)
  * migration may be using the cache and might finish during this call,
  * hence changes to the cache are protected by XBZRLE.lock().
  *
- * Returns the new_size or negative in case of error.
+ * Returns 0 for success or -1 for error
  *
  * @new_size: new cache size
+ * @errp: set *errp if the check failed, with reason
  */
-int64_t xbzrle_cache_resize(int64_t new_size)
+int xbzrle_cache_resize(int64_t new_size, Error **errp)
 {
     PageCache *new_cache;
-    int64_t ret;
+    int64_t ret = 0;
 
-    if (new_size < TARGET_PAGE_SIZE) {
+    /* Check for truncation */
+    if (new_size != (size_t)new_size) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                   "exceeding address space");
         return -1;
+    }
+
+    if (new_size == migrate_xbzrle_cache_size()) {
+        /* nothing to do */
+        return 0;
     }
 
     XBZRLE_cache_lock();
 
     if (XBZRLE.cache != NULL) {
-        if (pow2floor(new_size) == migrate_xbzrle_cache_size()) {
-            goto out_new_size;
-        }
-        new_cache = cache_init(new_size / TARGET_PAGE_SIZE,
-                                        TARGET_PAGE_SIZE);
+        new_cache = cache_init(new_size, TARGET_PAGE_SIZE, errp);
         if (!new_cache) {
-            error_report("Error creating cache");
             ret = -1;
             goto out;
         }
@@ -140,12 +146,38 @@ int64_t xbzrle_cache_resize(int64_t new_size)
         cache_fini(XBZRLE.cache);
         XBZRLE.cache = new_cache;
     }
-
-out_new_size:
-    ret = pow2floor(new_size);
 out:
     XBZRLE_cache_unlock();
     return ret;
+}
+
+static void ramblock_recv_map_init(void)
+{
+    RAMBlock *rb;
+
+    RAMBLOCK_FOREACH(rb) {
+        assert(!rb->receivedmap);
+        rb->receivedmap = bitmap_new(rb->max_length >> qemu_target_page_bits());
+    }
+}
+
+int ramblock_recv_bitmap_test(RAMBlock *rb, void *host_addr)
+{
+    return test_bit(ramblock_recv_bitmap_offset(host_addr, rb),
+                    rb->receivedmap);
+}
+
+void ramblock_recv_bitmap_set(RAMBlock *rb, void *host_addr)
+{
+    set_bit_atomic(ramblock_recv_bitmap_offset(host_addr, rb), rb->receivedmap);
+}
+
+void ramblock_recv_bitmap_set_range(RAMBlock *rb, void *host_addr,
+                                    size_t nr)
+{
+    bitmap_set_atomic(rb->receivedmap,
+                      ramblock_recv_bitmap_offset(host_addr, rb),
+                      nr);
 }
 
 /*
@@ -1566,6 +1598,31 @@ static void xbzrle_load_cleanup(void)
     XBZRLE.decoded_buf = NULL;
 }
 
+static void ram_state_cleanup(RAMState **rsp)
+{
+    migration_page_queue_free(*rsp);
+    qemu_mutex_destroy(&(*rsp)->bitmap_mutex);
+    qemu_mutex_destroy(&(*rsp)->src_page_req_mutex);
+    g_free(*rsp);
+    *rsp = NULL;
+}
+
+static void xbzrle_cleanup(void)
+{
+    XBZRLE_cache_lock();
+    if (XBZRLE.cache) {
+        cache_fini(XBZRLE.cache);
+        g_free(XBZRLE.encoded_buf);
+        g_free(XBZRLE.current_buf);
+        g_free(XBZRLE.zero_target_page);
+        XBZRLE.cache = NULL;
+        XBZRLE.encoded_buf = NULL;
+        XBZRLE.current_buf = NULL;
+        XBZRLE.zero_target_page = NULL;
+    }
+    XBZRLE_cache_unlock();
+}
+
 static void ram_save_cleanup(void *opaque)
 {
     RAMState **rsp = opaque;
@@ -1583,22 +1640,9 @@ static void ram_save_cleanup(void *opaque)
         block->unsentmap = NULL;
     }
 
-    XBZRLE_cache_lock();
-    if (XBZRLE.cache) {
-        cache_fini(XBZRLE.cache);
-        g_free(XBZRLE.encoded_buf);
-        g_free(XBZRLE.current_buf);
-        g_free(XBZRLE.zero_target_page);
-        XBZRLE.cache = NULL;
-        XBZRLE.encoded_buf = NULL;
-        XBZRLE.current_buf = NULL;
-        XBZRLE.zero_target_page = NULL;
-    }
-    XBZRLE_cache_unlock();
-    migration_page_queue_free(*rsp);
+    xbzrle_cleanup();
     compress_threads_save_cleanup();
-    g_free(*rsp);
-    *rsp = NULL;
+    ram_state_cleanup(rsp);
 }
 
 static void ram_state_reset(RAMState *rs)
@@ -1999,6 +2043,8 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
         goto err;
     }
 
+    bitmap_clear(rb->receivedmap, start >> qemu_target_page_bits(),
+                 length >> qemu_target_page_bits());
     ret = ram_block_discard_range(rb, start, length);
 
 err:
@@ -2007,63 +2053,96 @@ err:
     return ret;
 }
 
+/*
+ * For every allocation, we will try not to crash the VM if the
+ * allocation failed.
+ */
+static int xbzrle_init(void)
+{
+    Error *local_err = NULL;
+
+    if (!migrate_use_xbzrle()) {
+        return 0;
+    }
+
+    XBZRLE_cache_lock();
+
+    XBZRLE.zero_target_page = g_try_malloc0(TARGET_PAGE_SIZE);
+    if (!XBZRLE.zero_target_page) {
+        error_report("%s: Error allocating zero page", __func__);
+        goto err_out;
+    }
+
+    XBZRLE.cache = cache_init(migrate_xbzrle_cache_size(),
+                              TARGET_PAGE_SIZE, &local_err);
+    if (!XBZRLE.cache) {
+        error_report_err(local_err);
+        goto free_zero_page;
+    }
+
+    XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
+    if (!XBZRLE.encoded_buf) {
+        error_report("%s: Error allocating encoded_buf", __func__);
+        goto free_cache;
+    }
+
+    XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
+    if (!XBZRLE.current_buf) {
+        error_report("%s: Error allocating current_buf", __func__);
+        goto free_encoded_buf;
+    }
+
+    /* We are all good */
+    XBZRLE_cache_unlock();
+    return 0;
+
+free_encoded_buf:
+    g_free(XBZRLE.encoded_buf);
+    XBZRLE.encoded_buf = NULL;
+free_cache:
+    cache_fini(XBZRLE.cache);
+    XBZRLE.cache = NULL;
+free_zero_page:
+    g_free(XBZRLE.zero_target_page);
+    XBZRLE.zero_target_page = NULL;
+err_out:
+    XBZRLE_cache_unlock();
+    return -ENOMEM;
+}
+
 static int ram_state_init(RAMState **rsp)
 {
-    *rsp = g_new0(RAMState, 1);
+    *rsp = g_try_new0(RAMState, 1);
+
+    if (!*rsp) {
+        error_report("%s: Init ramstate fail", __func__);
+        return -1;
+    }
 
     qemu_mutex_init(&(*rsp)->bitmap_mutex);
     qemu_mutex_init(&(*rsp)->src_page_req_mutex);
     QSIMPLEQ_INIT(&(*rsp)->src_page_requests);
 
-    if (migrate_use_xbzrle()) {
-        XBZRLE_cache_lock();
-        XBZRLE.zero_target_page = g_malloc0(TARGET_PAGE_SIZE);
-        XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
-                                  TARGET_PAGE_SIZE,
-                                  TARGET_PAGE_SIZE);
-        if (!XBZRLE.cache) {
-            XBZRLE_cache_unlock();
-            error_report("Error creating cache");
-            g_free(*rsp);
-            *rsp = NULL;
-            return -1;
-        }
-        XBZRLE_cache_unlock();
+    /*
+     * Count the total number of pages used by ram blocks not including any
+     * gaps due to alignment or unplugs.
+     */
+    (*rsp)->migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
 
-        /* We prefer not to abort if there is no memory */
-        XBZRLE.encoded_buf = g_try_malloc0(TARGET_PAGE_SIZE);
-        if (!XBZRLE.encoded_buf) {
-            error_report("Error allocating encoded_buf");
-            g_free(*rsp);
-            *rsp = NULL;
-            return -1;
-        }
-
-        XBZRLE.current_buf = g_try_malloc(TARGET_PAGE_SIZE);
-        if (!XBZRLE.current_buf) {
-            error_report("Error allocating current_buf");
-            g_free(XBZRLE.encoded_buf);
-            XBZRLE.encoded_buf = NULL;
-            g_free(*rsp);
-            *rsp = NULL;
-            return -1;
-        }
-    }
-
-    /* For memory_global_dirty_log_start below.  */
-    qemu_mutex_lock_iothread();
-
-    qemu_mutex_lock_ramlist();
-    rcu_read_lock();
     ram_state_reset(*rsp);
+
+    return 0;
+}
+
+static void ram_list_init_bitmaps(void)
+{
+    RAMBlock *block;
+    unsigned long pages;
 
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
-        RAMBlock *block;
-
         QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-            unsigned long pages = block->max_length >> TARGET_PAGE_BITS;
-
+            pages = block->max_length >> TARGET_PAGE_BITS;
             block->bmap = bitmap_new(pages);
             bitmap_set(block->bmap, 0, pages);
             if (migrate_postcopy_ram()) {
@@ -2072,18 +2151,36 @@ static int ram_state_init(RAMState **rsp)
             }
         }
     }
+}
 
-    /*
-     * Count the total number of pages used by ram blocks not including any
-     * gaps due to alignment or unplugs.
-     */
-    (*rsp)->migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
+static void ram_init_bitmaps(RAMState *rs)
+{
+    /* For memory_global_dirty_log_start below.  */
+    qemu_mutex_lock_iothread();
+    qemu_mutex_lock_ramlist();
+    rcu_read_lock();
 
+    ram_list_init_bitmaps();
     memory_global_dirty_log_start();
-    migration_bitmap_sync(*rsp);
+    migration_bitmap_sync(rs);
+
+    rcu_read_unlock();
     qemu_mutex_unlock_ramlist();
     qemu_mutex_unlock_iothread();
-    rcu_read_unlock();
+}
+
+static int ram_init_all(RAMState **rsp)
+{
+    if (ram_state_init(rsp)) {
+        return -1;
+    }
+
+    if (xbzrle_init()) {
+        ram_state_cleanup(rsp);
+        return -1;
+    }
+
+    ram_init_bitmaps(*rsp);
 
     return 0;
 }
@@ -2110,7 +2207,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
-        if (ram_state_init(rsp) != 0) {
+        if (ram_init_all(rsp) != 0) {
             return -1;
         }
     }
@@ -2534,13 +2631,20 @@ static int ram_load_setup(QEMUFile *f, void *opaque)
 {
     xbzrle_load_setup();
     compress_threads_load_setup();
+    ramblock_recv_map_init();
     return 0;
 }
 
 static int ram_load_cleanup(void *opaque)
 {
+    RAMBlock *rb;
     xbzrle_load_cleanup();
     compress_threads_load_cleanup();
+
+    RAMBLOCK_FOREACH(rb) {
+        g_free(rb->receivedmap);
+        rb->receivedmap = NULL;
+    }
     return 0;
 }
 
@@ -2680,10 +2784,10 @@ static int ram_load_postcopy(QEMUFile *f)
 
             if (all_zero) {
                 ret = postcopy_place_page_zero(mis, place_dest,
-                                               block->page_size);
+                                               block);
             } else {
                 ret = postcopy_place_page(mis, place_dest,
-                                          place_source, block->page_size);
+                                          place_source, block);
             }
         }
         if (!ret) {
@@ -2755,6 +2859,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
+            ramblock_recv_bitmap_set(block, host);
             trace_ram_load_loop(block->idstr, (uint64_t)addr, flags, host);
         }
 

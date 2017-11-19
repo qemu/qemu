@@ -299,6 +299,7 @@ static Property ide_hd_properties[] = {
     DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
     DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
                 IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
+    DEFINE_PROP_UINT16("rotation_rate", IDEDrive, dev.rotation_rate, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -258,7 +258,6 @@ static void network_init (PCIBus *pci_bus)
 static void mips_fulong2e_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -277,10 +276,7 @@ static void mips_fulong2e_init(MachineState *machine)
     CPUMIPSState *env;
 
     /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "Loongson-2E";
-    }
-    cpu = MIPS_CPU(cpu_generic_init(TYPE_MIPS_CPU, cpu_model));
+    cpu = MIPS_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, cpu);
@@ -385,6 +381,7 @@ static void mips_fulong2e_machine_init(MachineClass *mc)
     mc->desc = "Fulong 2e mini pc";
     mc->init = mips_fulong2e_init;
     mc->block_default_type = IF_IDE;
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("Loongson-2E");
 }
 
 DEFINE_MACHINE("fulong2e", mips_fulong2e_machine_init)

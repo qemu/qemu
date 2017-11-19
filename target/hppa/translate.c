@@ -83,7 +83,6 @@ typedef struct DisasInsn {
 } DisasInsn;
 
 /* global register indexes */
-static TCGv_env cpu_env;
 static TCGv cpu_gr[32];
 static TCGv cpu_iaoq_f;
 static TCGv cpu_iaoq_b;
@@ -124,16 +123,7 @@ void hppa_translate_init(void)
         "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31"
     };
 
-    static bool done_init = 0;
     int i;
-
-    if (done_init) {
-        return;
-    }
-    done_init = 1;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
 
     TCGV_UNUSED(cpu_gr[0]);
     for (i = 1; i < 32; i++) {
@@ -475,7 +465,7 @@ static DisasJumpType gen_illegal(DisasContext *ctx)
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
     /* Suppress goto_tb in the case of single-steping and IO.  */
-    if ((ctx->base.tb->cflags & CF_LAST_IO) || ctx->base.singlestep_enabled) {
+    if ((tb_cflags(ctx->base.tb) & CF_LAST_IO) || ctx->base.singlestep_enabled) {
         return false;
     }
     return true;
@@ -2297,9 +2287,17 @@ static DisasJumpType trans_stby(DisasContext *ctx, uint32_t insn,
     val = load_gpr(ctx, rt);
 
     if (a) {
-        gen_helper_stby_e(cpu_env, addr, val);
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stby_e_parallel(cpu_env, addr, val);
+        } else {
+            gen_helper_stby_e(cpu_env, addr, val);
+        }
     } else {
-        gen_helper_stby_b(cpu_env, addr, val);
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            gen_helper_stby_b_parallel(cpu_env, addr, val);
+        } else {
+            gen_helper_stby_b(cpu_env, addr, val);
+        }
     }
 
     if (m) {
@@ -3904,7 +3902,7 @@ static void hppa_tr_disas_log(const DisasContextBase *dcbase, CPUState *cs)
         break;
     default:
         qemu_log("IN: %s\n", lookup_symbol(tb->pc));
-        log_target_disas(cs, tb->pc, tb->size, 1);
+        log_target_disas(cs, tb->pc, tb->size);
         break;
     }
 }

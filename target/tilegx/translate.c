@@ -33,7 +33,6 @@
 
 #define FMT64X                          "%016" PRIx64
 
-static TCGv_env cpu_env;
 static TCGv cpu_pc;
 static TCGv cpu_regs[TILEGX_R_COUNT];
 
@@ -2378,7 +2377,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     uint64_t pc_start = tb->pc;
     uint64_t next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     int num_insns = 0;
-    int max_insns = tb->cflags & CF_COUNT_MASK;
+    int max_insns = tb_cflags(tb) & CF_COUNT_MASK;
 
     dc->pc = pc_start;
     dc->mmuidx = 0;
@@ -2445,8 +2444,6 @@ void tilegx_tcg_init(void)
 {
     int i;
 
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
     cpu_pc = tcg_global_mem_new_i64(cpu_env, offsetof(CPUTLGState, pc), "pc");
     for (i = 0; i < TILEGX_R_COUNT; i++) {
         cpu_regs[i] = tcg_global_mem_new_i64(cpu_env,

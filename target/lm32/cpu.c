@@ -51,7 +51,7 @@ static void lm32_cpu_list_entry(gpointer data, gpointer user_data)
     const char *typename = object_class_get_name(oc);
     char *name;
 
-    name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_LM32_CPU));
+    name = g_strndup(typename, strlen(typename) - strlen(LM32_CPU_TYPE_SUFFIX));
     (*s->cpu_fprintf)(s->file, "  %s\n", name);
     g_free(name);
 }
@@ -163,16 +163,10 @@ static void lm32_cpu_initfn(Object *obj)
     CPUState *cs = CPU(obj);
     LM32CPU *cpu = LM32_CPU(obj);
     CPULM32State *env = &cpu->env;
-    static bool tcg_initialized;
 
     cs->env_ptr = env;
 
     env->flags = 0;
-
-    if (tcg_enabled() && !tcg_initialized) {
-        tcg_initialized = true;
-        lm32_translate_init();
-    }
 }
 
 static void lm32_basic_cpu_initfn(Object *obj)
@@ -221,32 +215,12 @@ static void lm32_full_cpu_initfn(Object *obj)
                   | LM32_FEATURE_CYCLE_COUNT;
 }
 
-typedef struct LM32CPUInfo {
-    const char *name;
-    void (*initfn)(Object *obj);
-} LM32CPUInfo;
-
-static const LM32CPUInfo lm32_cpus[] = {
-    {
-        .name = "lm32-basic",
-        .initfn = lm32_basic_cpu_initfn,
-    },
-    {
-        .name = "lm32-standard",
-        .initfn = lm32_standard_cpu_initfn,
-    },
-    {
-        .name = "lm32-full",
-        .initfn = lm32_full_cpu_initfn,
-    },
-};
-
 static ObjectClass *lm32_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
     char *typename;
 
-    typename = g_strdup_printf("%s-" TYPE_LM32_CPU, cpu_model);
+    typename = g_strdup_printf(LM32_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
     if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_LM32_CPU) ||
@@ -286,38 +260,29 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = lm32_debug_excp_handler;
     cc->disas_set_info = lm32_cpu_disas_set_info;
+    cc->tcg_initialize = lm32_translate_init;
 }
 
-static void lm32_register_cpu_type(const LM32CPUInfo *info)
-{
-    TypeInfo type_info = {
-        .parent = TYPE_LM32_CPU,
-        .instance_init = info->initfn,
-    };
+#define DEFINE_LM32_CPU_TYPE(cpu_model, initfn) \
+    { \
+        .parent = TYPE_LM32_CPU, \
+        .name = LM32_CPU_TYPE_NAME(cpu_model), \
+        .instance_init = initfn, \
+    }
 
-    type_info.name = g_strdup_printf("%s-" TYPE_LM32_CPU, info->name);
-    type_register(&type_info);
-    g_free((void *)type_info.name);
-}
-
-static const TypeInfo lm32_cpu_type_info = {
-    .name = TYPE_LM32_CPU,
-    .parent = TYPE_CPU,
-    .instance_size = sizeof(LM32CPU),
-    .instance_init = lm32_cpu_initfn,
-    .abstract = true,
-    .class_size = sizeof(LM32CPUClass),
-    .class_init = lm32_cpu_class_init,
+static const TypeInfo lm32_cpus_type_infos[] = {
+    { /* base class should be registered first */
+         .name = TYPE_LM32_CPU,
+         .parent = TYPE_CPU,
+         .instance_size = sizeof(LM32CPU),
+         .instance_init = lm32_cpu_initfn,
+         .abstract = true,
+         .class_size = sizeof(LM32CPUClass),
+         .class_init = lm32_cpu_class_init,
+    },
+    DEFINE_LM32_CPU_TYPE("lm32-basic", lm32_basic_cpu_initfn),
+    DEFINE_LM32_CPU_TYPE("lm32-standard", lm32_standard_cpu_initfn),
+    DEFINE_LM32_CPU_TYPE("lm32-full", lm32_full_cpu_initfn),
 };
 
-static void lm32_cpu_register_types(void)
-{
-    int i;
-
-    type_register_static(&lm32_cpu_type_info);
-    for (i = 0; i < ARRAY_SIZE(lm32_cpus); i++) {
-        lm32_register_cpu_type(&lm32_cpus[i]);
-    }
-}
-
-type_init(lm32_cpu_register_types)
+DEFINE_TYPES(lm32_cpus_type_infos)

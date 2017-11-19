@@ -29,39 +29,7 @@
 #include "ui/console.h"
 #include "ui/shader.h"
 
-#include "shader/texture-blit-vert.h"
-#include "shader/texture-blit-frag.h"
-
-struct ConsoleGLState {
-    GLint texture_blit_prog;
-    GLint texture_blit_vao;
-};
-
 /* ---------------------------------------------------------------------- */
-
-ConsoleGLState *console_gl_init_context(void)
-{
-    ConsoleGLState *gls = g_new0(ConsoleGLState, 1);
-
-    gls->texture_blit_prog = qemu_gl_create_compile_link_program
-        (texture_blit_vert_src, texture_blit_frag_src);
-    if (!gls->texture_blit_prog) {
-        exit(1);
-    }
-
-    gls->texture_blit_vao =
-        qemu_gl_init_texture_blit(gls->texture_blit_prog);
-
-    return gls;
-}
-
-void console_gl_fini_context(ConsoleGLState *gls)
-{
-    if (!gls) {
-        return;
-    }
-    g_free(gls);
-}
 
 bool console_gl_check_format(DisplayChangeListener *dcl,
                              pixman_format_code_t format)
@@ -76,11 +44,11 @@ bool console_gl_check_format(DisplayChangeListener *dcl,
     }
 }
 
-void surface_gl_create_texture(ConsoleGLState *gls,
+void surface_gl_create_texture(QemuGLShader *gls,
                                DisplaySurface *surface)
 {
     assert(gls);
-    assert(surface_stride(surface) % surface_bytes_per_pixel(surface) == 0);
+    assert(QEMU_IS_ALIGNED(surface_stride(surface), surface_bytes_per_pixel(surface)));
 
     switch (surface->format) {
     case PIXMAN_BE_b8g8r8x8:
@@ -116,7 +84,7 @@ void surface_gl_create_texture(ConsoleGLState *gls,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
-void surface_gl_update_texture(ConsoleGLState *gls,
+void surface_gl_update_texture(QemuGLShader *gls,
                                DisplaySurface *surface,
                                int x, int y, int w, int h)
 {
@@ -133,7 +101,7 @@ void surface_gl_update_texture(ConsoleGLState *gls,
                     + surface_bytes_per_pixel(surface) * x);
 }
 
-void surface_gl_render_texture(ConsoleGLState *gls,
+void surface_gl_render_texture(QemuGLShader *gls,
                                DisplaySurface *surface)
 {
     assert(gls);
@@ -141,11 +109,10 @@ void surface_gl_render_texture(ConsoleGLState *gls,
     glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    qemu_gl_run_texture_blit(gls->texture_blit_prog,
-                             gls->texture_blit_vao);
+    qemu_gl_run_texture_blit(gls, false);
 }
 
-void surface_gl_destroy_texture(ConsoleGLState *gls,
+void surface_gl_destroy_texture(QemuGLShader *gls,
                                 DisplaySurface *surface)
 {
     if (!surface || !surface->texture) {
@@ -155,7 +122,7 @@ void surface_gl_destroy_texture(ConsoleGLState *gls,
     surface->texture = 0;
 }
 
-void surface_gl_setup_viewport(ConsoleGLState *gls,
+void surface_gl_setup_viewport(QemuGLShader *gls,
                                DisplaySurface *surface,
                                int ww, int wh)
 {

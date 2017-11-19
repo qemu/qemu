@@ -288,8 +288,12 @@ static void fsl_imx25_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = fsl_imx25_realize;
-
     dc->desc = "i.MX25 SOC";
+    /*
+     * Reason: uses serial_hds in realize and the imx25 board does not
+     * support multiple CPUs
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo fsl_imx25_type_info = {

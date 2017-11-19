@@ -76,7 +76,8 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
 #endif
 }
 
-void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,
+                      bool parallel)
 {
     uintptr_t ra = GETPC();
 
@@ -89,7 +90,7 @@ void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
         break;
     case 1:
         /* The 3 byte store must appear atomic.  */
-        if (parallel_cpus) {
+        if (parallel) {
             atomic_store_3(env, addr, val, 0x00ffffffu, ra);
         } else {
             cpu_stb_data_ra(env, addr, val >> 16, ra);
@@ -102,14 +103,26 @@ void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
     }
 }
 
-void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+{
+    do_stby_b(env, addr, val, false);
+}
+
+void HELPER(stby_b_parallel)(CPUHPPAState *env, target_ulong addr,
+                             target_ulong val)
+{
+    do_stby_b(env, addr, val, true);
+}
+
+static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
+                      bool parallel)
 {
     uintptr_t ra = GETPC();
 
     switch (addr & 3) {
     case 3:
         /* The 3 byte store must appear atomic.  */
-        if (parallel_cpus) {
+        if (parallel) {
             atomic_store_3(env, addr - 3, val, 0xffffff00u, ra);
         } else {
             cpu_stw_data_ra(env, addr - 3, val >> 16, ra);
@@ -130,6 +143,17 @@ void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
 #endif
         break;
     }
+}
+
+void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+{
+    do_stby_e(env, addr, val, false);
+}
+
+void HELPER(stby_e_parallel)(CPUHPPAState *env, target_ulong addr,
+                             target_ulong val)
+{
+    do_stby_e(env, addr, val, true);
 }
 
 target_ulong HELPER(probe_r)(target_ulong addr)

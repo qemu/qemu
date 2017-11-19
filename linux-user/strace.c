@@ -838,6 +838,10 @@ UNUSED static struct flags open_flags[] = {
 #ifdef O_PATH
     FLAG_TARGET(O_PATH),
 #endif
+#ifdef O_TMPFILE
+    FLAG_TARGET(O_TMPFILE),
+    FLAG_TARGET(__O_TMPFILE),
+#endif
     FLAG_END,
 };
 

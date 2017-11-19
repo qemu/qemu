@@ -12,7 +12,7 @@
 #include "qemu/range.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
-#include "hw/pci/pci-assign.h"
+#include "xen_pt.h"
 
 /*
  * Scan the assigned devices for the devices that have an option ROM, and then
@@ -80,7 +80,7 @@ close_rom:
     fseek(fp, 0, SEEK_SET);
     val = 0;
     if (!fwrite(&val, 1, 1, fp)) {
-        DEBUG("%s\n", "Failed to disable pci-sysfs rom file");
+        XEN_PT_WARN(dev, "%s\n", "Failed to disable pci-sysfs rom file");
     }
     fclose(fp);
 

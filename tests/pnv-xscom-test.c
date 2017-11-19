@@ -81,16 +81,12 @@ static void test_xscom_cfam_id(const PnvChip *chip)
 
 static void test_cfam_id(const void *data)
 {
-    char *args;
     const PnvChip *chip = data;
 
-    args = g_strdup_printf("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
-
-    qtest_start(args);
+    global_qtest = qtest_startf("-M powernv,accel=tcg -cpu %s",
+                                chip->cpu_model);
     test_xscom_cfam_id(chip);
     qtest_quit(global_qtest);
-
-    g_free(args);
 }
 
 #define PNV_XSCOM_EX_CORE_BASE(chip, i)                 \
@@ -109,16 +105,12 @@ static void test_xscom_core(const PnvChip *chip)
 
 static void test_core(const void *data)
 {
-    char *args;
     const PnvChip *chip = data;
 
-    args = g_strdup_printf("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
-
-    qtest_start(args);
+    global_qtest = qtest_startf("-M powernv,accel=tcg -cpu %s",
+                                chip->cpu_model);
     test_xscom_core(chip);
     qtest_quit(global_qtest);
-
-    g_free(args);
 }
 
 static void add_test(const char *name, void (*test)(const void *data))

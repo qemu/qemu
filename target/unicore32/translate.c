@@ -54,7 +54,6 @@ typedef struct DisasContext {
    conditional executions state has been updated.  */
 #define DISAS_SYSCALL DISAS_TARGET_3
 
-static TCGv_env cpu_env;
 static TCGv_i32 cpu_R[32];
 
 /* FIXME:  These should be removed.  */
@@ -73,9 +72,6 @@ static const char *regnames[] = {
 void uc32_translate_init(void)
 {
     int i;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
 
     for (i = 0; i < 32; i++) {
         cpu_R[i] = tcg_global_mem_new_i32(cpu_env,
@@ -1900,7 +1896,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     cpu_F1d = tcg_temp_new_i64();
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -1933,7 +1929,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             goto done_generating;
         }
 
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -1958,7 +1954,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
              dc->pc < next_page_start &&
              num_insns < max_insns);
 
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         if (dc->condjmp) {
             /* FIXME:  This can theoretically happen with self-modifying
                code.  */
@@ -2031,7 +2027,7 @@ done_generating:
         qemu_log_lock();
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cs, pc_start, dc->pc - pc_start);
         qemu_log("\n");
         qemu_log_unlock();
     }

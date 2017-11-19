@@ -122,7 +122,6 @@ static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
     MemoryRegion *address_space = get_system_memory();
-    const char *cpu_model = machine->cpu_model;
     char *filename;
     int bios_size, n;
     MIPSCPU *cpu;
@@ -148,10 +147,7 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *bios2 = g_new(MemoryRegion, 1);
 
     /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "R4000";
-    }
-    cpu = MIPS_CPU(cpu_generic_init(TYPE_MIPS_CPU, cpu_model));
+    cpu = MIPS_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
 
@@ -349,6 +345,7 @@ static void mips_magnum_class_init(ObjectClass *oc, void *data)
     mc->desc = "MIPS Magnum";
     mc->init = mips_magnum_init;
     mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
 }
 
 static const TypeInfo mips_magnum_type = {
@@ -364,6 +361,7 @@ static void mips_pica61_class_init(ObjectClass *oc, void *data)
     mc->desc = "Acer Pica 61";
     mc->init = mips_pica61_init;
     mc->block_default_type = IF_SCSI;
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
 }
 
 static const TypeInfo mips_pica61_type = {

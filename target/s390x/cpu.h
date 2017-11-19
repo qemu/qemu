@@ -53,7 +53,6 @@
 
 #define MMU_USER_IDX 0
 
-#define MAX_EXT_QUEUE 16
 #define MAX_IO_QUEUE 16
 #define MAX_MCHK_QUEUE 16
 
@@ -66,12 +65,6 @@ typedef struct PSW {
     uint64_t mask;
     uint64_t addr;
 } PSW;
-
-typedef struct ExtQueue {
-    uint32_t code;
-    uint32_t param;
-    uint32_t param64;
-} ExtQueue;
 
 typedef struct IOIntQueue {
     uint16_t id;
@@ -128,12 +121,13 @@ struct CPUS390XState {
 
     uint64_t cregs[16]; /* control registers */
 
-    ExtQueue ext_queue[MAX_EXT_QUEUE];
     IOIntQueue io_queue[MAX_IO_QUEUE][8];
     MchkQueue mchk_queue[MAX_MCHK_QUEUE];
 
     int pending_int;
-    int ext_index;
+    uint32_t service_param;
+    uint16_t external_call_addr;
+    DECLARE_BITMAP(emergency_signals, S390_MAX_CPUS);
     int io_index[8];
     int mchk_index;
 
@@ -351,6 +345,11 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_SECONDARY           0x0000000004000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
+#define CR0_EMERGENCY_SIGNAL_SC 0x0000000000004000ULL
+#define CR0_EXTERNAL_CALL_SC    0x0000000000002000ULL
+#define CR0_CKC_SC              0x0000000000000800ULL
+#define CR0_CPU_TIMER_SC        0x0000000000000400ULL
+#define CR0_SERVICE_SC          0x0000000000000200ULL
 
 /* MMU */
 #define MMU_PRIMARY_IDX         0
@@ -401,14 +400,20 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */
 #define EXCP_PGM 3 /* program interruption */
+#define EXCP_RESTART 4 /* restart interrupt */
+#define EXCP_STOP 5 /* stop interrupt */
 #define EXCP_IO  7 /* I/O interrupt */
 #define EXCP_MCHK 8 /* machine check */
 
-#define INTERRUPT_EXT        (1 << 0)
-#define INTERRUPT_TOD        (1 << 1)
-#define INTERRUPT_CPUTIMER   (1 << 2)
-#define INTERRUPT_IO         (1 << 3)
-#define INTERRUPT_MCHK       (1 << 4)
+#define INTERRUPT_IO                     (1 << 0)
+#define INTERRUPT_MCHK                   (1 << 1)
+#define INTERRUPT_EXT_SERVICE            (1 << 2)
+#define INTERRUPT_EXT_CPU_TIMER          (1 << 3)
+#define INTERRUPT_EXT_CLOCK_COMPARATOR   (1 << 4)
+#define INTERRUPT_EXTERNAL_CALL          (1 << 5)
+#define INTERRUPT_EMERGENCY_SIGNAL       (1 << 6)
+#define INTERRUPT_RESTART                (1 << 7)
+#define INTERRUPT_STOP                   (1 << 8)
 
 /* Program Status Word.  */
 #define S390_PSWM_REGNUM 0
@@ -589,6 +594,8 @@ struct sysib_322 {
 #define SIGP_SET_PREFIX        0x0d
 #define SIGP_STORE_STATUS_ADDR 0x0e
 #define SIGP_SET_ARCH          0x12
+#define SIGP_COND_EMERGENCY    0x13
+#define SIGP_SENSE_RUNNING     0x15
 #define SIGP_STORE_ADTL_STATUS 0x17
 
 /* SIGP condition codes */
@@ -599,6 +606,7 @@ struct sysib_322 {
 
 /* SIGP status bits */
 #define SIGP_STAT_EQUIPMENT_CHECK   0x80000000UL
+#define SIGP_STAT_NOT_RUNNING       0x00000400UL
 #define SIGP_STAT_INCORRECT_STATE   0x00000200UL
 #define SIGP_STAT_INVALID_PARAMETER 0x00000100UL
 #define SIGP_STAT_EXT_CALL_PENDING  0x00000080UL
@@ -675,7 +683,6 @@ bool s390_get_squash_mcss(void);
 int s390_get_memslot_count(void);
 int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit);
 void s390_cmma_reset(void);
-int s390_cpu_restart(S390CPU *cpu);
 void s390_enable_css_support(S390CPU *cpu);
 int s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch_id,
                                 int vq, bool assign);
@@ -695,7 +702,6 @@ void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
 /* helper.c */
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_S390_CPU, cpu_model)
-S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id, Error **errp);
 
 #define S390_CPU_TYPE_SUFFIX "-" TYPE_S390_CPU
 #define S390_CPU_TYPE_NAME(name) (name S390_CPU_TYPE_SUFFIX)
@@ -727,6 +733,11 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
         s390_cpu_virt_mem_rw(cpu, laddr, ar, dest, len, true)
 #define s390_cpu_virt_mem_check_write(cpu, laddr, ar, len)   \
         s390_cpu_virt_mem_rw(cpu, laddr, ar, NULL, len, true)
+
+
+/* sigp.c */
+int s390_cpu_restart(S390CPU *cpu);
+void s390_init_sigp(void);
 
 
 /* outside of target/s390x/ */

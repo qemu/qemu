@@ -641,26 +641,46 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     return 0;
 }
 
+static int qemu_ufd_copy_ioctl(int userfault_fd, void *host_addr,
+                               void *from_addr, uint64_t pagesize, RAMBlock *rb)
+{
+    int ret;
+    if (from_addr) {
+        struct uffdio_copy copy_struct;
+        copy_struct.dst = (uint64_t)(uintptr_t)host_addr;
+        copy_struct.src = (uint64_t)(uintptr_t)from_addr;
+        copy_struct.len = pagesize;
+        copy_struct.mode = 0;
+        ret = ioctl(userfault_fd, UFFDIO_COPY, &copy_struct);
+    } else {
+        struct uffdio_zeropage zero_struct;
+        zero_struct.range.start = (uint64_t)(uintptr_t)host_addr;
+        zero_struct.range.len = pagesize;
+        zero_struct.mode = 0;
+        ret = ioctl(userfault_fd, UFFDIO_ZEROPAGE, &zero_struct);
+    }
+    if (!ret) {
+        ramblock_recv_bitmap_set_range(rb, host_addr,
+                                       pagesize / qemu_target_page_size());
+    }
+    return ret;
+}
+
 /*
  * Place a host page (from) at (host) atomically
  * returns 0 on success
  */
 int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
-                        size_t pagesize)
+                        RAMBlock *rb)
 {
-    struct uffdio_copy copy_struct;
-
-    copy_struct.dst = (uint64_t)(uintptr_t)host;
-    copy_struct.src = (uint64_t)(uintptr_t)from;
-    copy_struct.len = pagesize;
-    copy_struct.mode = 0;
+    size_t pagesize = qemu_ram_pagesize(rb);
 
     /* copy also acks to the kernel waking the stalled thread up
      * TODO: We can inhibit that ack and only do it if it was requested
      * which would be slightly cheaper, but we'd have to be careful
      * of the order of updating our page state.
      */
-    if (ioctl(mis->userfault_fd, UFFDIO_COPY, &copy_struct)) {
+    if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, from, pagesize, rb)) {
         int e = errno;
         error_report("%s: %s copy host: %p from: %p (size: %zd)",
                      __func__, strerror(e), host, from, pagesize);
@@ -677,17 +697,13 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
  * returns 0 on success
  */
 int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
-                             size_t pagesize)
+                             RAMBlock *rb)
 {
     trace_postcopy_place_page_zero(host);
 
-    if (pagesize == getpagesize()) {
-        struct uffdio_zeropage zero_struct;
-        zero_struct.range.start = (uint64_t)(uintptr_t)host;
-        zero_struct.range.len = getpagesize();
-        zero_struct.mode = 0;
-
-        if (ioctl(mis->userfault_fd, UFFDIO_ZEROPAGE, &zero_struct)) {
+    if (qemu_ram_pagesize(rb) == getpagesize()) {
+        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, getpagesize(),
+                                rb)) {
             int e = errno;
             error_report("%s: %s zero host: %p",
                          __func__, strerror(e), host);
@@ -711,7 +727,7 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
             memset(mis->postcopy_tmp_zero_page, '\0', mis->largest_page_size);
         }
         return postcopy_place_page(mis, host, mis->postcopy_tmp_zero_page,
-                                   pagesize);
+                                   rb);
     }
 
     return 0;
@@ -774,14 +790,14 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
 }
 
 int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
-                        size_t pagesize)
+                        RAMBlock *rb)
 {
     assert(0);
     return -1;
 }
 
 int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
-                        size_t pagesize)
+                        RAMBlock *rb)
 {
     assert(0);
     return -1;

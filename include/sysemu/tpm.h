@@ -13,6 +13,7 @@
 #define QEMU_TPM_H
 
 #include "qemu/option.h"
+#include "qom/object.h"
 
 typedef struct TPMState TPMState;
 

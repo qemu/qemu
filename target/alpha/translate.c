@@ -78,7 +78,6 @@ struct DisasContext {
 #define DISAS_PC_STALE            DISAS_TARGET_2
 
 /* global register indexes */
-static TCGv_env cpu_env;
 static TCGv cpu_std_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
@@ -124,16 +123,7 @@ void alpha_translate_init(void)
     };
 #endif
 
-    static bool done_init = 0;
     int i;
-
-    if (done_init) {
-        return;
-    }
-    done_init = 1;
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
 
     for (i = 0; i < 31; i++) {
         cpu_std_ir[i] = tcg_global_mem_new_i64(cpu_env,
@@ -461,7 +451,7 @@ static bool in_superpage(DisasContext *ctx, int64_t addr)
 
 static bool use_exit_tb(DisasContext *ctx)
 {
-    return ((ctx->base.tb->cflags & CF_LAST_IO)
+    return ((tb_cflags(ctx->base.tb) & CF_LAST_IO)
             || ctx->base.singlestep_enabled
             || singlestep);
 }
@@ -2405,7 +2395,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
         case 0xC000:
             /* RPCC */
             va = dest_gpr(ctx, ra);
-            if (ctx->base.tb->cflags & CF_USE_ICOUNT) {
+            if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
                 gen_io_start();
                 gen_helper_load_pcc(va, cpu_env);
                 gen_io_end();
@@ -3048,7 +3038,7 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 static void alpha_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu)
 {
     qemu_log("IN: %s\n", lookup_symbol(dcbase->pc_first));
-    log_target_disas(cpu, dcbase->pc_first, dcbase->tb->size, 1);
+    log_target_disas(cpu, dcbase->pc_first, dcbase->tb->size);
 }
 
 static const TranslatorOps alpha_tr_ops = {

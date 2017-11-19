@@ -694,6 +694,9 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
         } else {
             tn.addr_write = address;
         }
+        if (prot & PAGE_WRITE_INV) {
+            tn.addr_write |= TLB_INVALID_MASK;
+        }
     }
 
     /* Pairs with flag setting in tlb_reset_dirty_range */
@@ -978,7 +981,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
         }
-        tlb_addr = tlbe->addr_write;
+        tlb_addr = tlbe->addr_write & ~TLB_INVALID_MASK;
     }
 
     /* Check notdirty */
@@ -1038,6 +1041,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define ATOMIC_NAME(X) \
     HELPER(glue(glue(glue(atomic_ ## X, SUFFIX), END), _mmu))
 #define ATOMIC_MMU_LOOKUP  atomic_mmu_lookup(env, addr, oi, retaddr)
+#define ATOMIC_MMU_CLEANUP do { } while (0)
 
 #define DATA_SIZE 1
 #include "atomic_template.h"

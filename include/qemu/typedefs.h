@@ -83,6 +83,7 @@ typedef struct PropertyInfo PropertyInfo;
 typedef struct PS2State PS2State;
 typedef struct QEMUBH QEMUBH;
 typedef struct QemuConsole QemuConsole;
+typedef struct QemuDmaBuf QemuDmaBuf;
 typedef struct QEMUFile QEMUFile;
 typedef struct QemuOpt QemuOpt;
 typedef struct QemuOpts QemuOpts;

@@ -54,24 +54,82 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
-                    uint64_t param64)
+static void cpu_inject_service(S390CPU *cpu, uint32_t param)
 {
     CPUS390XState *env = &cpu->env;
 
-    if (env->ext_index == MAX_EXT_QUEUE - 1) {
-        /* ugh - can't queue anymore. Let's drop. */
+    /* multiplexing is good enough for sclp - kvm does it internally as well*/
+    env->service_param |= param;
+
+    env->pending_int |= INTERRUPT_EXT_SERVICE;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+void cpu_inject_clock_comparator(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    env->pending_int |= INTERRUPT_EXT_CLOCK_COMPARATOR;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+void cpu_inject_cpu_timer(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    env->pending_int |= INTERRUPT_EXT_CPU_TIMER;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+void cpu_inject_emergency_signal(S390CPU *cpu, uint16_t src_cpu_addr)
+{
+    CPUS390XState *env = &cpu->env;
+
+    g_assert(src_cpu_addr < S390_MAX_CPUS);
+    set_bit(src_cpu_addr, env->emergency_signals);
+
+    env->pending_int |= INTERRUPT_EMERGENCY_SIGNAL;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+int cpu_inject_external_call(S390CPU *cpu, uint16_t src_cpu_addr)
+{
+    CPUS390XState *env = &cpu->env;
+
+    g_assert(src_cpu_addr < S390_MAX_CPUS);
+    if (env->pending_int & INTERRUPT_EXTERNAL_CALL) {
+        return -EBUSY;
+    }
+    env->external_call_addr = src_cpu_addr;
+
+    env->pending_int |= INTERRUPT_EXTERNAL_CALL;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    return 0;
+}
+
+void cpu_inject_restart(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (kvm_enabled()) {
+        kvm_s390_restart_interrupt(cpu);
         return;
     }
 
-    env->ext_index++;
-    assert(env->ext_index < MAX_EXT_QUEUE);
+    env->pending_int |= INTERRUPT_RESTART;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
 
-    env->ext_queue[env->ext_index].code = code;
-    env->ext_queue[env->ext_index].param = param;
-    env->ext_queue[env->ext_index].param64 = param64;
+void cpu_inject_stop(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
 
-    env->pending_int |= INTERRUPT_EXT;
+    if (kvm_enabled()) {
+        kvm_s390_stop_interrupt(cpu);
+        return;
+    }
+
+    env->pending_int |= INTERRUPT_STOP;
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
@@ -129,7 +187,7 @@ void s390_sclp_extint(uint32_t parm)
     } else {
         S390CPU *dummy_cpu = s390_cpu_addr2state(0);
 
-        cpu_inject_ext(dummy_cpu, EXT_SERVICE, parm, 0);
+        cpu_inject_service(dummy_cpu, parm);
     }
 }
 
@@ -158,4 +216,96 @@ void s390_crw_mchk(void)
     }
 }
 
+bool s390_cpu_has_mcck_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (!(env->psw.mask & PSW_MASK_MCHECK)) {
+        return false;
+    }
+
+    return env->pending_int & INTERRUPT_MCHK;
+}
+
+bool s390_cpu_has_ext_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (!(env->psw.mask & PSW_MASK_EXT)) {
+        return false;
+    }
+
+    if ((env->pending_int & INTERRUPT_EMERGENCY_SIGNAL) &&
+        (env->cregs[0] & CR0_EMERGENCY_SIGNAL_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXTERNAL_CALL) &&
+        (env->cregs[0] & CR0_EXTERNAL_CALL_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXTERNAL_CALL) &&
+        (env->cregs[0] & CR0_EXTERNAL_CALL_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXT_CLOCK_COMPARATOR) &&
+        (env->cregs[0] & CR0_CKC_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXT_CPU_TIMER) &&
+        (env->cregs[0] & CR0_CPU_TIMER_SC)) {
+        return true;
+    }
+
+    if ((env->pending_int & INTERRUPT_EXT_SERVICE) &&
+        (env->cregs[0] & CR0_SERVICE_SC)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool s390_cpu_has_io_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (!(env->psw.mask & PSW_MASK_IO)) {
+        return false;
+    }
+
+    return env->pending_int & INTERRUPT_IO;
+}
+
+bool s390_cpu_has_restart_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    return env->pending_int & INTERRUPT_RESTART;
+}
+
+bool s390_cpu_has_stop_int(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    return env->pending_int & INTERRUPT_STOP;
+}
 #endif
+
+bool s390_cpu_has_int(S390CPU *cpu)
+{
+#ifndef CONFIG_USER_ONLY
+    if (!tcg_enabled()) {
+        return false;
+    }
+    return s390_cpu_has_mcck_int(cpu) ||
+           s390_cpu_has_ext_int(cpu) ||
+           s390_cpu_has_io_int(cpu) ||
+           s390_cpu_has_restart_int(cpu) ||
+           s390_cpu_has_stop_int(cpu);
+#else
+    return false;
+#endif
+}

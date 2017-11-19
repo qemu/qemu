@@ -181,10 +181,24 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
     int ret, open_ret;
+    int64_t len;
 
     if (!drv) {
         return -ENOMEDIUM;
     }
+
+    len = bdrv_getlength(bs);
+    if (len < 0) {
+        return len;
+    }
+    /* We should set all bits in all enabled dirty bitmaps, because dirty
+     * bitmaps reflect active state of disk and snapshot switch operation
+     * actually dirties active state.
+     * TODO: It may make sense not to set all bits but analyze block status of
+     * current state and destination snapshot and do not set bits corresponding
+     * to both-zero or both-unallocated areas. */
+    bdrv_set_dirty(bs, 0, len);
+
     if (drv->bdrv_snapshot_goto) {
         return drv->bdrv_snapshot_goto(bs, snapshot_id);
     }
@@ -403,6 +417,7 @@ bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
         }
         aio_context_release(ctx);
         if (!ok) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -430,6 +445,7 @@ int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bad_bs,
         }
         aio_context_release(ctx);
         if (ret < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -455,6 +471,7 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
         }
         aio_context_release(ctx);
         if (err < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -480,6 +497,7 @@ int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
         }
         aio_context_release(ctx);
         if (err < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -511,6 +529,7 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
         }
         aio_context_release(ctx);
         if (err < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -534,6 +553,7 @@ BlockDriverState *bdrv_all_find_vmstate_bs(void)
         aio_context_release(ctx);
 
         if (found) {
+            bdrv_next_cleanup(&it);
             break;
         }
     }

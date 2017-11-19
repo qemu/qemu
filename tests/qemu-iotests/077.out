@@ -4,17 +4,6 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 == Some concurrent requests involving RMW ==
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
@@ -31,51 +20,46 @@ wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'B'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'B'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'B'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'B'
-wrote XXX/XXX bytes at offset XXX
-XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
-blkdebug: Resuming request 'C'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'B'
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-blkdebug: Resuming request 'A'
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote XXX/XXX bytes at offset XXX
+XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX
 XXX bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote XXX/XXX bytes at offset XXX

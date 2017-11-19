@@ -5704,6 +5704,24 @@ give_sigsegv:
     force_sigsegv(sig);
 }
 
+static inline void target_rt_save_fpu_state(struct target_ucontext *uc,
+                                           CPUM68KState *env)
+{
+    int i;
+    target_fpregset_t *fpregs = &uc->tuc_mcontext.fpregs;
+
+    __put_user(env->fpcr, &fpregs->f_fpcntl[0]);
+    __put_user(env->fpsr, &fpregs->f_fpcntl[1]);
+    /* fpiar is not emulated */
+
+    for (i = 0; i < 8; i++) {
+        uint32_t high = env->fregs[i].d.high << 16;
+        __put_user(high, &fpregs->f_fpregs[i * 3]);
+        __put_user(env->fregs[i].d.low,
+                   (uint64_t *)&fpregs->f_fpregs[i * 3 + 1]);
+    }
+}
+
 static inline int target_rt_setup_ucontext(struct target_ucontext *uc,
                                            CPUM68KState *env)
 {
@@ -5730,7 +5748,30 @@ static inline int target_rt_setup_ucontext(struct target_ucontext *uc,
     __put_user(env->pc, &gregs[16]);
     __put_user(sr, &gregs[17]);
 
+    target_rt_save_fpu_state(uc, env);
+
     return 0;
+}
+
+static inline void target_rt_restore_fpu_state(CPUM68KState *env,
+                                               struct target_ucontext *uc)
+{
+    int i;
+    target_fpregset_t *fpregs = &uc->tuc_mcontext.fpregs;
+    uint32_t fpcr;
+
+    __get_user(fpcr, &fpregs->f_fpcntl[0]);
+    cpu_m68k_set_fpcr(env, fpcr);
+    __get_user(env->fpsr, &fpregs->f_fpcntl[1]);
+    /* fpiar is not emulated */
+
+    for (i = 0; i < 8; i++) {
+        uint32_t high;
+        __get_user(high, &fpregs->f_fpregs[i * 3]);
+        env->fregs[i].d.high = high >> 16;
+        __get_user(env->fregs[i].d.low,
+                   (uint64_t *)&fpregs->f_fpregs[i * 3 + 1]);
+    }
 }
 
 static inline int target_rt_restore_ucontext(CPUM68KState *env,
@@ -5763,6 +5804,8 @@ static inline int target_rt_restore_ucontext(CPUM68KState *env,
     __get_user(env->pc, &gregs[16]);
     __get_user(temp, &gregs[17]);
     cpu_m68k_set_ccr(env, temp);
+
+    target_rt_restore_fpu_state(env, uc);
 
     return 0;
 

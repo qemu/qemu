@@ -69,6 +69,7 @@ struct ICPStateClass {
     void (*pre_save)(ICPState *icp);
     int (*post_load)(ICPState *icp, int version_id);
     void (*reset)(ICPState *icp);
+    void (*synchronize_state)(ICPState *icp);
 };
 
 struct ICPState {
@@ -119,6 +120,7 @@ struct ICSStateClass {
     void (*reject)(ICSState *s, uint32_t irq);
     void (*resend)(ICSState *s);
     void (*eoi)(ICSState *s, uint32_t irq);
+    void (*synchronize_state)(ICSState *s);
 };
 
 struct ICSState {

@@ -77,7 +77,6 @@ typedef struct DisasContext {
     unsigned cpenable;
 } DisasContext;
 
-static TCGv_env cpu_env;
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_R[16];
 static TCGv_i32 cpu_FR[16];
@@ -221,8 +220,6 @@ void xtensa_translate_init(void)
     };
     int i;
 
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
     cpu_pc = tcg_global_mem_new_i32(cpu_env,
             offsetof(CPUXtensaState, pc), "pc");
 
@@ -517,12 +514,12 @@ static bool gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
 
 static bool gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
 {
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
     gen_helper_update_ccount(cpu_env);
     tcg_gen_mov_i32(d, cpu_SR[sr]);
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_end();
         return true;
     }
@@ -702,11 +699,11 @@ static bool gen_wsr_cpenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 
 static void gen_check_interrupts(DisasContext *dc)
 {
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
     gen_helper_check_interrupts(cpu_env);
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_end();
     }
 }
@@ -760,11 +757,11 @@ static bool gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 
 static bool gen_wsr_ccount(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
     gen_helper_wsr_ccount(cpu_env, v);
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_end();
         gen_jumpi_check_loop_end(dc, 0);
         return true;
@@ -801,11 +798,11 @@ static bool gen_wsr_ccompare(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 
         tcg_gen_mov_i32(cpu_SR[sr], v);
         tcg_gen_andi_i32(cpu_SR[INTSET], cpu_SR[INTSET], ~int_bit);
-        if (dc->tb->cflags & CF_USE_ICOUNT) {
+        if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
             gen_io_start();
         }
         gen_helper_update_ccompare(cpu_env, tmp);
-        if (dc->tb->cflags & CF_USE_ICOUNT) {
+        if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
             gen_io_end();
             gen_jumpi_check_loop_end(dc, 0);
             ret = true;
@@ -900,11 +897,11 @@ static void gen_waiti(DisasContext *dc, uint32_t imm4)
     TCGv_i32 pc = tcg_const_i32(dc->next_pc);
     TCGv_i32 intlevel = tcg_const_i32(imm4);
 
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
     gen_helper_waiti(cpu_env, pc, intlevel);
-    if (dc->tb->cflags & CF_USE_ICOUNT) {
+    if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
         gen_io_end();
     }
     tcg_temp_free(pc);
@@ -3126,7 +3123,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     CPUXtensaState *env = cs->env_ptr;
     DisasContext dc;
     int insn_count = 0;
-    int max_insns = tb->cflags & CF_COUNT_MASK;
+    int max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     uint32_t pc_start = tb->pc;
     uint32_t next_page_start =
         (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -3162,7 +3159,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
 
     gen_tb_start(tb);
 
-    if ((tb->cflags & CF_USE_ICOUNT) &&
+    if ((tb_cflags(tb) & CF_USE_ICOUNT) &&
         (tb->flags & XTENSA_TBFLAG_YIELD)) {
         tcg_gen_insn_start(dc.pc);
         ++insn_count;
@@ -3194,7 +3191,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             break;
         }
 
-        if (insn_count == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (insn_count == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -3235,7 +3232,7 @@ done:
         tcg_temp_free(dc.next_icount);
     }
 
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 
@@ -3250,7 +3247,7 @@ done:
         qemu_log_lock();
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc.pc - pc_start, 0);
+        log_target_disas(cs, pc_start, dc.pc - pc_start);
         qemu_log("\n");
         qemu_log_unlock();
     }

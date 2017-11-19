@@ -26,7 +26,7 @@ struct sdl2_console {
     int idle_counter;
     SDL_GLContext winctx;
 #ifdef CONFIG_OPENGL
-    ConsoleGLState *gls;
+    QemuGLShader *gls;
     egl_fb guest_fb;
     egl_fb win_fb;
     bool y0_top;

@@ -65,7 +65,6 @@ enum {
 };
 
 /* global register indexes */
-static TCGv_env cpu_env;
 static TCGv cpu_gregs[32];
 static TCGv cpu_sr, cpu_sr_m, cpu_sr_q, cpu_sr_t;
 static TCGv cpu_pc, cpu_ssr, cpu_spc, cpu_gbr;
@@ -81,7 +80,6 @@ static TCGv cpu_flags, cpu_delayed_pc, cpu_delayed_cond;
 void sh4_translate_init(void)
 {
     int i;
-    static int done_init = 0;
     static const char * const gregnames[24] = {
         "R0_BANK0", "R1_BANK0", "R2_BANK0", "R3_BANK0",
         "R4_BANK0", "R5_BANK0", "R6_BANK0", "R7_BANK0",
@@ -99,13 +97,6 @@ void sh4_translate_init(void)
          "FPR8_BANK1",  "FPR9_BANK1", "FPR10_BANK1", "FPR11_BANK1",
         "FPR12_BANK1", "FPR13_BANK1", "FPR14_BANK1", "FPR15_BANK1",
     };
-
-    if (done_init) {
-        return;
-    }
-
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
 
     for (i = 0; i < 24; i++) {
         cpu_gregs[i] = tcg_global_mem_new_i32(cpu_env,
@@ -163,8 +154,6 @@ void sh4_translate_init(void)
         cpu_fregs[i] = tcg_global_mem_new_i32(cpu_env,
                                               offsetof(CPUSH4State, fregs[i]),
                                               fregnames[i]);
-
-    done_init = 1;
 }
 
 void superh_cpu_dump_state(CPUState *cs, FILE *f,
@@ -528,7 +517,7 @@ static void _decode_opc(DisasContext * ctx)
         /* Detect the start of a gUSA region.  If so, update envflags
            and end the TB.  This will allow us to see the end of the
            region (stored in R0) in the next TB.  */
-        if (B11_8 == 15 && B7_0s < 0 && parallel_cpus) {
+        if (B11_8 == 15 && B7_0s < 0 && (tb_cflags(ctx->tb) & CF_PARALLEL)) {
             ctx->envflags = deposit32(ctx->envflags, GUSA_SHIFT, 8, B7_0s);
             ctx->bstate = BS_STOP;
         }
@@ -2255,7 +2244,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
                  (ctx.tbflags & (1 << SR_RB))) * 0x10;
     ctx.fbank = ctx.tbflags & FPSCR_FR ? 0x10 : 0;
 
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -2299,7 +2288,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
             break;
         }
 
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -2307,7 +2296,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 	decode_opc(&ctx);
 	ctx.pc += 2;
     }
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 
@@ -2347,7 +2336,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         && qemu_log_in_addr_range(pc_start)) {
         qemu_log_lock();
 	qemu_log("IN:\n");	/* , lookup_symbol(pc_start)); */
-        log_target_disas(cs, pc_start, ctx.pc - pc_start, 0);
+        log_target_disas(cs, pc_start, ctx.pc - pc_start);
 	qemu_log("\n");
         qemu_log_unlock();
     }

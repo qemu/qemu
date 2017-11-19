@@ -57,9 +57,14 @@ static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
 {
     PCIINTxRoute route;
     GPEXHost *s = opaque;
+    int gsi = s->irq_num[pin];
 
-    route.mode = PCI_INTX_ENABLED;
-    route.irq = s->irq_num[pin];
+    route.irq = gsi;
+    if (gsi < 0) {
+        route.mode = PCI_INTX_DISABLED;
+    } else {
+        route.mode = PCI_INTX_ENABLED;
+    }
 
     return route;
 }
@@ -81,6 +86,7 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->io_ioport);
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
+        s->irq_num[i] = -1;
     }
 
     pci->bus = pci_register_bus(dev, "pcie.0", gpex_set_irq,

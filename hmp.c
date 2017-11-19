@@ -342,6 +342,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRId64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_X_MULTIFD_PAGE_COUNT),
             params->x_multifd_page_count);
+        monitor_printf(mon, "%s: %" PRId64 "\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
+            params->xbzrle_cache_size);
     }
 
     qapi_free_MigrationParameters(params);
@@ -667,7 +670,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 
     info2l = qmp_query_vnc_servers(&err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
     if (!info2l) {
@@ -782,7 +785,7 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_balloon(&err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
 
@@ -1125,7 +1128,7 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
 
     data = qmp_ringbuf_read(chardev, size, false, 0, &err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
 
@@ -1192,9 +1195,7 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_balloon(value, &err);
-    if (err) {
-        error_report_err(err);
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_block_resize(Monitor *mon, const QDict *qdict)
@@ -1495,6 +1496,19 @@ void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
     qmp_migrate_cancel(NULL);
 }
 
+void hmp_migrate_continue(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *state = qdict_get_str(qdict, "state");
+    int val = qapi_enum_parse(&MigrationStatus_lookup, state, -1, &err);
+
+    if (val >= 0) {
+        qmp_migrate_continue(val, &err);
+    }
+
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
@@ -1518,10 +1532,7 @@ void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_migrate_set_cache_size(value, &err);
-    if (err) {
-        error_report_err(err);
-        return;
-    }
+    hmp_handle_error(mon, &err);
 }
 
 /* Kept for backwards compatibility */
@@ -1552,10 +1563,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
 
 end:
     qapi_free_MigrationCapabilityStatusList(caps);
-
-    if (err) {
-        error_report_err(err);
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
@@ -1565,6 +1573,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     Visitor *v = string_input_visitor_new(valuestr);
     MigrateSetParameters *p = g_new0(MigrateSetParameters, 1);
     uint64_t valuebw = 0;
+    uint64_t cache_size;
     Error *err = NULL;
     int val, ret;
 
@@ -1640,6 +1649,16 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         p->has_x_multifd_page_count = true;
         visit_type_int(v, param, &p->x_multifd_page_count, &err);
         break;
+    case MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE:
+        p->has_xbzrle_cache_size = true;
+        visit_type_size(v, param, &cache_size, &err);
+        if (err || cache_size > INT64_MAX
+            || (size_t)cache_size != cache_size) {
+            error_setg(&err, "Invalid size %s", valuestr);
+            break;
+        }
+        p->xbzrle_cache_size = cache_size;
+        break;
     default:
         assert(0);
     }
@@ -1653,9 +1672,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
  cleanup:
     qapi_free_MigrateSetParameters(p);
     visit_free(v);
-    if (err) {
-        error_report_err(err);
-    }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_client_migrate_info(Monitor *mon, const QDict *qdict)
@@ -1909,7 +1926,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
     qmp_migrate(uri, !!blk, blk, !!inc, inc, false, false, &err);
     if (err) {
-        error_report_err(err);
+        hmp_handle_error(mon, &err);
         return;
     }
 

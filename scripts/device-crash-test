@@ -102,7 +102,6 @@ ERROR_WHITELIST = [
     {'device':'ivshmem', 'expected':True},                 # You must specify either 'shm' or 'chardev'
     {'device':'ivshmem-doorbell', 'expected':True},        # You must specify a 'chardev'
     {'device':'ivshmem-plain', 'expected':True},           # You must specify a 'memdev'
-    {'device':'kvm-pci-assign', 'expected':True},          # no host device specified
     {'device':'loader', 'expected':True},                  # please include valid arguments
     {'device':'nand', 'expected':True},                    # Unsupported NAND block size 0x1
     {'device':'nvdimm', 'expected':True},                  # 'memdev' property is not set
@@ -165,7 +164,6 @@ ERROR_WHITELIST = [
 
     # KVM-specific devices shouldn't be tried without accel=kvm:
     {'accel':'(?!kvm).*', 'device':'kvmclock', 'expected':True},
-    {'accel':'(?!kvm).*', 'device':'kvm-pci-assign', 'expected':True},
 
     # xen-specific machines and devices:
     {'accel':'(?!xen).*', 'machine':'xen.*', 'expected':True},

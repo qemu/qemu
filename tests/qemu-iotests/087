@@ -46,7 +46,7 @@ function run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp \
                           | _filter_qemu | _filter_imgfmt \
-                          | sed -e 's/\("actual-size":\s*\)[0-9]\+/\1SIZE/g'
+                          | _filter_actual_image_size
 }
 
 size=128M
@@ -102,7 +102,14 @@ echo
 echo === aio=native without O_DIRECT ===
 echo
 
-run_qemu <<EOF
+# Skip this test if AIO is not enabled in this build
+function run_qemu_filter_aio()
+{
+    run_qemu "$@" | \
+        sed -e 's/is not supported in this build/it requires cache.direct=on, which was not specified/'
+}
+
+run_qemu_filter_aio <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "blockdev-add",
   "arguments": {

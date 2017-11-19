@@ -83,7 +83,7 @@ static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
     ObjectClass *oc;
     char *typename;
 
-    typename = g_strdup_printf("%s-" TYPE_XTENSA_CPU, cpu_model);
+    typename = g_strdup_printf(XTENSA_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
     if (oc == NULL || !object_class_dynamic_cast(oc, TYPE_XTENSA_CPU) ||
@@ -121,7 +121,6 @@ static void xtensa_cpu_initfn(Object *obj)
     XtensaCPU *cpu = XTENSA_CPU(obj);
     XtensaCPUClass *xcc = XTENSA_CPU_GET_CLASS(obj);
     CPUXtensaState *env = &cpu->env;
-    static bool tcg_inited;
 
     cs->env_ptr = env;
     env->config = xcc->config;
@@ -131,11 +130,6 @@ static void xtensa_cpu_initfn(Object *obj)
     memory_region_init_io(env->system_er, NULL, NULL, env, "er",
                           UINT64_C(0x100000000));
     address_space_init(env->address_space_er, env->system_er, "ER");
-
-    if (tcg_enabled() && !tcg_inited) {
-        tcg_inited = true;
-        xtensa_translate_init();
-    }
 }
 
 static const VMStateDescription vmstate_xtensa_cpu = {
@@ -170,6 +164,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_unassigned_access = xtensa_cpu_do_unassigned_access;
 #endif
     cc->debug_excp_handler = xtensa_breakpoint_handler;
+    cc->tcg_initialize = xtensa_translate_init;
     dc->vmsd = &vmstate_xtensa_cpu;
 }
 

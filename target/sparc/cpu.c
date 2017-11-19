@@ -712,7 +712,7 @@ static bool sparc_cpu_has_work(CPUState *cs)
 
 static char *sparc_cpu_type_name(const char *cpu_model)
 {
-    char *name = g_strdup_printf("%s-" TYPE_SPARC_CPU, cpu_model);
+    char *name = g_strdup_printf(SPARC_CPU_TYPE_NAME("%s"), cpu_model);
     char *s = name;
 
     /* SPARC cpu model names happen to have whitespaces,
@@ -783,10 +783,6 @@ static void sparc_cpu_initfn(Object *obj)
     CPUSPARCState *env = &cpu->env;
 
     cs->env_ptr = env;
-
-    if (tcg_enabled()) {
-        gen_intermediate_code_init(env);
-    }
 
     if (scc->cpu_def) {
         env->def = *scc->cpu_def;
@@ -891,6 +887,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_sparc_cpu;
 #endif
     cc->disas_set_info = cpu_sparc_disas_set_info;
+    cc->tcg_initialize = sparc_tcg_init;
 
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
     cc->gdb_num_core_regs = 86;

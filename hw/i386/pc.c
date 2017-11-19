@@ -1228,7 +1228,7 @@ void pc_machine_done(Notifier *notifier, void *data)
         fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     }
 
-    if (pcms->apic_id_limit > 255) {
+    if (pcms->apic_id_limit > 255 && !xen_enabled()) {
         IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
 
         if (!iommu || !iommu->x86_iommu.intr_supported ||
@@ -1446,6 +1446,28 @@ void pc_memory_init(PCMachineState *pcms,
 
     /* Init default IOAPIC address space */
     pcms->ioapic_as = &address_space_memory;
+}
+
+/*
+ * The 64bit pci hole starts after "above 4G RAM" and
+ * potentially the space reserved for memory hotplug.
+ */
+uint64_t pc_pci_hole64_start(void)
+{
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    uint64_t hole64_start = 0;
+
+    if (pcmc->has_reserved_memory && pcms->hotplug_memory.base) {
+        hole64_start = pcms->hotplug_memory.base;
+        if (!pcmc->broken_reserved_end) {
+            hole64_start += memory_region_size(&pcms->hotplug_memory.mr);
+        }
+    } else {
+        hole64_start = 0x100000000ULL + pcms->above_4g_mem_size;
+    }
+
+    return ROUND_UP(hole64_start, 1ULL << 30);
 }
 
 qemu_irq pc_allocate_cpu_irq(void)
@@ -1876,7 +1898,14 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
     CPUArchId *cpu_slot;
     X86CPUTopoInfo topo;
     X86CPU *cpu = X86_CPU(dev);
+    MachineState *ms = MACHINE(hotplug_dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+
+    if(!object_dynamic_cast(OBJECT(cpu), ms->cpu_type)) {
+        error_setg(errp, "Invalid CPU type, expected cpu type: '%s'",
+                   ms->cpu_type);
+        return;
+    }
 
     /* if APIC ID is not set, set it based on socket/core/thread properties */
     if (cpu->apic_id == UNASSIGNED_APIC_ID) {
@@ -2318,6 +2347,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_instance_props = pc_cpu_index_to_props;
     mc->get_default_cpu_node_id = pc_get_default_cpu_node_id;
     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
+    mc->auto_enable_numa_with_memhp = true;
     mc->has_hotpluggable_cpus = true;
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
