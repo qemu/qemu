@@ -1,0 +1,16 @@
+obj-y += boot.o
+obj-y += smarth.o
+obj-y += smartl.o
+obj-y += hobbit1-2.o
+obj-y += deimos.o
+obj-y += eragon.o
+obj-y += virt.o
+obj-y += trilobite.o
+obj-y += trilobite_v2.o
+ifeq ($(CONFIG_MODULES),y)
+common-obj-$(if $(CONFIG_SMART_CARD),m,n) += smart_card.o
+obj-y += dummyh.o
+else
+obj-y += smart_card.o
+endif
+obj-$(CONFIG_MODULES) += dynsoc.o

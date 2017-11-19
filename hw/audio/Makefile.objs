@@ -6,6 +6,7 @@ common-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
 common-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
 common-obj-$(CONFIG_CS4231A) += cs4231a.o
 common-obj-$(CONFIG_HDA) += intel-hda.o hda-codec.o
+common-obj-$(CONFIG_CSKY_IIS) += csky_iis.o
 
 common-obj-$(CONFIG_PCSPK) += pcspk.o
 common-obj-$(CONFIG_WM8750) += wm8750.o

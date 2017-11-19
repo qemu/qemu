@@ -63,6 +63,9 @@ const char *cpu_to_uname_machine(void *cpu_env)
         return "i586";
     }
     return "i686";
+#elif defined(TARGET_CSKY)
+    /* FIXME add by shangyh */
+    return "CSKY_CPU";
 #else
     /* default is #define-d in each arch/ subdir */
     return UNAME_MACHINE;

@@ -257,6 +257,85 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 
 #endif
 
+#ifdef TARGET_CSKY
+
+#define ELF_START_MMAP 0x80000000
+
+#define elf_check_arch(x) ((x) == EM_CSKY)
+
+#define ELF_CLASS   ELFCLASS32
+
+#define ELF_ARCH    EM_CSKY
+
+static inline void init_thread(struct target_pt_regs *regs,
+                               struct image_info *infop)
+{
+    regs->pc = infop->entry;
+    regs->r7 = 0;
+#ifdef TARGET_CSKYV1
+    regs->r0 = infop->start_stack;
+#else
+    regs->r14 = infop->start_stack;
+#endif
+
+}
+
+/* See linux kernel: arch/ckcore/include/asm/elf.h.  */
+#define ELF_NREG 35
+typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+
+/* See linux kernel: arch/ckcore/include/asm/elf.h  */
+static void elf_core_copy_regs(target_elf_gregset_t *regs,
+                               const CPUCSKYState *env)
+{
+    (*regs)[0] = tswapl(env->pc);
+    (*regs)[1] = tswapl(env->regs[1]);
+    //(*regs)[2] = tswapl(env->reg[]);
+    /*  FIXME */
+    (*regs)[3] = tswapl(env->cp0.psr | env->psr_c);
+    (*regs)[4] = tswapl(env->regs[2]);
+    (*regs)[5] = tswapl(env->regs[3]);
+    (*regs)[6] = tswapl(env->regs[4]);
+    (*regs)[7] = tswapl(env->regs[5]);
+    (*regs)[8] = tswapl(env->regs[6]);
+    (*regs)[9] = tswapl(env->regs[7]);
+    (*regs)[10] = tswapl(env->regs[8]);
+    (*regs)[11] = tswapl(env->regs[9]);
+    (*regs)[12] = tswapl(env->regs[10]);
+    (*regs)[13] = tswapl(env->regs[11]);
+    (*regs)[14] = tswapl(env->regs[12]);
+    (*regs)[15] = tswapl(env->regs[13]);
+    (*regs)[16] = tswapl(env->regs[14]);
+    (*regs)[17] = tswapl(env->regs[15]);
+    (*regs)[18] = tswapl(env->regs[0]);
+#if defined (TARGET_CSKYV2)
+    (*regs)[18] = tswapl(env->regs[16]);
+    (*regs)[19] = tswapl(env->regs[17]);
+    (*regs)[20] = tswapl(env->regs[18]);
+    (*regs)[21] = tswapl(env->regs[19]);
+    (*regs)[22] = tswapl(env->regs[20]);
+    (*regs)[23] = tswapl(env->regs[21]);
+    (*regs)[24] = tswapl(env->regs[22]);
+    (*regs)[25] = tswapl(env->regs[23]);
+    (*regs)[26] = tswapl(env->regs[24]);
+    (*regs)[27] = tswapl(env->regs[25]);
+    (*regs)[28] = tswapl(env->regs[26]);
+    (*regs)[29] = tswapl(env->regs[27]);
+    (*regs)[30] = tswapl(env->regs[28]);
+    (*regs)[31] = tswapl(env->regs[29]);
+    (*regs)[32] = tswapl(env->regs[30]);
+    (*regs)[33] = tswapl(env->regs[31]);
+    (*regs)[34] = tswapl(env->regs[0]);
+#endif
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE        4096
+
+#define ELF_HWCAP   (0)
+
+#endif /* TARGET_CSKY */
+
 #ifdef TARGET_ARM
 
 #ifndef TARGET_AARCH64
