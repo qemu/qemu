@@ -685,6 +685,8 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500Params *params,
     int i, j, k;
 
     dev = qdev_create(NULL, TYPE_OPENPIC);
+    object_property_add_child(qdev_get_machine(), "pic", OBJECT(dev),
+                              &error_fatal);
     qdev_prop_set_uint32(dev, "model", params->mpic_version);
     qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
 
@@ -884,6 +886,8 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
 
     /* PCI */
     dev = qdev_create(NULL, "e500-pcihost");
+    object_property_add_child(qdev_get_machine(), "pci-host", OBJECT(dev),
+                              &error_abort);
     qdev_prop_set_uint32(dev, "first_slot", params->pci_first_slot);
     qdev_prop_set_uint32(dev, "first_pin_irq", pci_irq_nrs[0]);
     qdev_init_nofail(dev);
