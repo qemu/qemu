@@ -2354,18 +2354,55 @@ ram_addr_t qemu_ram_addr_from_host(void *ptr)
     return block->offset + offset;
 }
 
+/* Called within RCU critical section. */
+void memory_notdirty_write_prepare(NotDirtyInfo *ndi,
+                          CPUState *cpu,
+                          vaddr mem_vaddr,
+                          ram_addr_t ram_addr,
+                          unsigned size)
+{
+    ndi->cpu = cpu;
+    ndi->ram_addr = ram_addr;
+    ndi->mem_vaddr = mem_vaddr;
+    ndi->size = size;
+    ndi->locked = false;
+
+    assert(tcg_enabled());
+    if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
+        ndi->locked = true;
+        tb_lock();
+        tb_invalidate_phys_page_fast(ram_addr, size);
+    }
+}
+
+/* Called within RCU critical section. */
+void memory_notdirty_write_complete(NotDirtyInfo *ndi)
+{
+    if (ndi->locked) {
+        tb_unlock();
+    }
+
+    /* Set both VGA and migration bits for simplicity and to remove
+     * the notdirty callback faster.
+     */
+    cpu_physical_memory_set_dirty_range(ndi->ram_addr, ndi->size,
+                                        DIRTY_CLIENTS_NOCODE);
+    /* we remove the notdirty callback only if the code has been
+       flushed */
+    if (!cpu_physical_memory_is_clean(ndi->ram_addr)) {
+        tlb_set_dirty(ndi->cpu, ndi->mem_vaddr);
+    }
+}
+
 /* Called within RCU critical section.  */
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {
-    bool locked = false;
+    NotDirtyInfo ndi;
 
-    assert(tcg_enabled());
-    if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
-        locked = true;
-        tb_lock();
-        tb_invalidate_phys_page_fast(ram_addr, size);
-    }
+    memory_notdirty_write_prepare(&ndi, current_cpu, current_cpu->mem_io_vaddr,
+                         ram_addr, size);
+
     switch (size) {
     case 1:
         stb_p(qemu_map_ram_ptr(NULL, ram_addr), val);
@@ -2382,21 +2419,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     default:
         abort();
     }
-
-    if (locked) {
-        tb_unlock();
-    }
-
-    /* Set both VGA and migration bits for simplicity and to remove
-     * the notdirty callback faster.
-     */
-    cpu_physical_memory_set_dirty_range(ram_addr, size,
-                                        DIRTY_CLIENTS_NOCODE);
-    /* we remove the notdirty callback only if the code has been
-       flushed */
-    if (!cpu_physical_memory_is_clean(ram_addr)) {
-        tlb_set_dirty(current_cpu, current_cpu->mem_io_vaddr);
-    }
+    memory_notdirty_write_complete(&ndi);
 }
 
 static bool notdirty_mem_accepts(void *opaque, hwaddr addr,
