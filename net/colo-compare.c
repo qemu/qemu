@@ -179,7 +179,7 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
                          "drop packet");
         }
     }
-    con = &conn;
+    *con = conn;
 
     return 0;
 }

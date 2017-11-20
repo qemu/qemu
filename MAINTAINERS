@@ -1183,6 +1183,11 @@ M: Dmitry Fleytman <dmitry@daynix.com>
 S: Maintained
 F: hw/net/e1000e*
 
+eepro100
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: hw/net/eepro100.c
+
 Generic Loader
 M: Alistair Francis <alistair.francis@xilinx.com>
 S: Maintained
