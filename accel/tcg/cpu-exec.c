@@ -610,9 +610,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
     if (unlikely(atomic_read(&cpu->exit_request)
         || (use_icount && cpu->icount_decr.u16.low + cpu->icount_extra == 0))) {
         atomic_set(&cpu->exit_request, 0);
-        if (cpu->exception_index == -1) {
-            cpu->exception_index = EXCP_INTERRUPT;
-        }
+        cpu->exception_index = EXCP_INTERRUPT;
         return true;
     }
 
