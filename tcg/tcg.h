@@ -488,6 +488,12 @@ static inline TCGCond tcg_unsigned_cond(TCGCond c)
     return c & 2 ? (TCGCond)(c ^ 6) : c;
 }
 
+/* Create a "signed" version of an "unsigned" comparison.  */
+static inline TCGCond tcg_signed_cond(TCGCond c)
+{
+    return c & 4 ? (TCGCond)(c ^ 6) : c;
+}
+
 /* Must a comparison be considered unsigned?  */
 static inline bool is_unsigned_cond(TCGCond c)
 {
