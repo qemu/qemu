@@ -2346,10 +2346,10 @@ int load_snapshot(const char *name, Error **errp)
     /* Flush all IO requests so they don't interfere with the new state.  */
     bdrv_drain_all_begin();
 
-    ret = bdrv_all_goto_snapshot(name, &bs);
+    ret = bdrv_all_goto_snapshot(name, &bs, errp);
     if (ret < 0) {
-        error_setg(errp, "Error %d while activating snapshot '%s' on '%s'",
-                     ret, name, bdrv_get_device_name(bs));
+        error_prepend(errp, "Could not load snapshot '%s' on '%s': ",
+                      name, bdrv_get_device_name(bs));
         goto err_drain;
     }
 

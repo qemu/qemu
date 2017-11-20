@@ -467,9 +467,10 @@ fail:
 }
 
 
-int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
+int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs,
+                           Error **errp)
 {
-    int err = 0;
+    int ret = 0;
     BlockDriverState *bs;
     BdrvNextIterator it;
 
@@ -478,10 +479,10 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
 
         aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs)) {
-            err = bdrv_snapshot_goto(bs, name, NULL);
+            ret = bdrv_snapshot_goto(bs, name, errp);
         }
         aio_context_release(ctx);
-        if (err < 0) {
+        if (ret < 0) {
             bdrv_next_cleanup(&it);
             goto fail;
         }
@@ -489,7 +490,7 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
 
 fail:
     *first_bad_bs = bs;
-    return err;
+    return ret;
 }
 
 int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
