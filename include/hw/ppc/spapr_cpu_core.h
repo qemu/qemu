@@ -28,7 +28,7 @@ typedef struct sPAPRCPUCore {
     CPUCore parent_obj;
 
     /*< public >*/
-    void *threads;
+    PowerPCCPU **threads;
     int node_id;
 } sPAPRCPUCore;
 

@@ -79,13 +79,11 @@ const char *spapr_get_cpu_core_type(const char *cpu_type)
 static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
 {
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
-    sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
-    size_t size = object_type_get_instance_size(scc->cpu_type);
     CPUCore *cc = CPU_CORE(dev);
     int i;
 
     for (i = 0; i < cc->nr_threads; i++) {
-        void *obj = sc->threads + i * size;
+        Object *obj = OBJECT(sc->threads[i]);
         DeviceState *dev = DEVICE(obj);
         CPUState *cs = CPU(dev);
         PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -146,9 +144,8 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    size_t size;
     Error *local_err = NULL;
-    void *obj;
+    Object *obj;
     int i, j;
 
     if (!spapr) {
@@ -156,18 +153,16 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    size = object_type_get_instance_size(scc->cpu_type);
-    sc->threads = g_malloc0(size * cc->nr_threads);
+    sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         char id[32];
         CPUState *cs;
         PowerPCCPU *cpu;
 
-        obj = sc->threads + i * size;
+        obj = object_new(scc->cpu_type);
 
-        object_initialize(obj, size, scc->cpu_type);
         cs = CPU(obj);
-        cpu = POWERPC_CPU(cs);
+        cpu = sc->threads[i] = POWERPC_CPU(obj);
         cs->cpu_index = cc->core_id + i;
         cpu->vcpu_id = (cc->core_id * spapr->vsmt / smp_threads) + i;
         if (kvm_enabled() && !kvm_vcpu_id_is_valid(cpu->vcpu_id)) {
@@ -192,7 +187,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        obj = sc->threads + j * size;
+        obj = OBJECT(sc->threads[j]);
 
         spapr_cpu_core_realize_child(obj, spapr, &local_err);
         if (local_err) {
@@ -203,7 +198,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 
 err:
     while (--i >= 0) {
-        obj = sc->threads + i * size;
+        obj = OBJECT(sc->threads[i]);
         object_unparent(obj);
     }
     g_free(sc->threads);
