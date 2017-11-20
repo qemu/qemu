@@ -299,7 +299,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    uint64_t perm;
+    uint64_t perm = 0;
 
     /* blk_new_open() is mainly used in .bdrv_create implementations and the
      * tools where sharing isn't a concern because the BDS stays private, so we
@@ -309,9 +309,11 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
      * caller of blk_new_open() doesn't make use of the permissions, but they
      * shouldn't hurt either. We can still share everything here because the
      * guest devices will add their own blockers if they can't share. */
-    perm = BLK_PERM_CONSISTENT_READ;
-    if (flags & BDRV_O_RDWR) {
-        perm |= BLK_PERM_WRITE;
+    if ((flags & BDRV_O_NO_IO) == 0) {
+        perm |= BLK_PERM_CONSISTENT_READ;
+        if (flags & BDRV_O_RDWR) {
+            perm |= BLK_PERM_WRITE;
+        }
     }
     if (flags & BDRV_O_RESIZE) {
         perm |= BLK_PERM_RESIZE;
