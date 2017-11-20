@@ -182,25 +182,16 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
     int ret, open_ret;
-    int64_t len;
 
     if (!drv) {
         error_setg(errp, "Block driver is closed");
         return -ENOMEDIUM;
     }
 
-    len = bdrv_getlength(bs);
-    if (len < 0) {
-        error_setg_errno(errp, -len, "Cannot get block device size");
-        return len;
+    if (!QLIST_EMPTY(&bs->dirty_bitmaps)) {
+        error_setg(errp, "Device has active dirty bitmaps");
+        return -EBUSY;
     }
-    /* We should set all bits in all enabled dirty bitmaps, because dirty
-     * bitmaps reflect active state of disk and snapshot switch operation
-     * actually dirties active state.
-     * TODO: It may make sense not to set all bits but analyze block status of
-     * current state and destination snapshot and do not set bits corresponding
-     * to both-zero or both-unallocated areas. */
-    bdrv_set_dirty(bs, 0, len);
 
     if (drv->bdrv_snapshot_goto) {
         ret = drv->bdrv_snapshot_goto(bs, snapshot_id);
