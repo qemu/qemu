@@ -223,7 +223,8 @@ static void virtio_scsi_locate_device(VDev *vdev)
 
     for (target = 0; target <= vdev->config.scsi.max_target; target++) {
         sdev->channel = channel;
-        sdev->target = target; /* sdev->lun will be 0 here */
+        sdev->target = target;
+        sdev->lun = 0;          /* LUN has to be 0 for REPORT LUNS */
         if (!scsi_report_luns(vdev, data, sizeof(data))) {
             if (resp.response == VIRTIO_SCSI_S_BAD_TARGET) {
                 continue;
