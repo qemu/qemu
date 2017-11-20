@@ -2989,10 +2989,10 @@ static int img_snapshot(int argc, char **argv)
         break;
 
     case SNAPSHOT_APPLY:
-        ret = bdrv_snapshot_goto(bs, snapshot_name);
+        ret = bdrv_snapshot_goto(bs, snapshot_name, &err);
         if (ret) {
-            error_report("Could not apply snapshot '%s': %d (%s)",
-                snapshot_name, ret, strerror(-ret));
+            error_reportf_err(err, "Could not apply snapshot '%s': ",
+                              snapshot_name);
         }
         break;
 
