@@ -624,6 +624,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 }
 
 /* Macro to call the above, with local variables from the use context.  */
+#define ATOMIC_MMU_DECLS do {} while (0)
 #define ATOMIC_MMU_LOOKUP  atomic_mmu_lookup(env, addr, DATA_SIZE, GETPC())
 #define ATOMIC_MMU_CLEANUP do { helper_retaddr = 0; } while (0)
 
