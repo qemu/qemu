@@ -184,6 +184,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     cc->handle_mmu_fault = hppa_cpu_handle_mmu_fault;
 #else
     cc->get_phys_page_debug = hppa_cpu_get_phys_page_debug;
+    dc->vmsd = &vmstate_hppa_cpu;
 #endif
     cc->do_unaligned_access = hppa_cpu_do_unaligned_access;
     cc->disas_set_info = hppa_cpu_disas_set_info;

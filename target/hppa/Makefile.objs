@@ -1,2 +1,3 @@
 obj-y += translate.o helper.o cpu.o op_helper.o gdbstub.o mem_helper.o
 obj-y += int_helper.o
+obj-$(CONFIG_SOFTMMU) += machine.o
