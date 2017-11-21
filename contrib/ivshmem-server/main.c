@@ -20,6 +20,17 @@
 #define IVSHMEM_SERVER_DEFAULT_SHM_SIZE       (4*1024*1024)
 #define IVSHMEM_SERVER_DEFAULT_N_VECTORS      1
 
+
+bool
+file_exists(const char * filename) {
+    if (FILE * file = fopen(filename, "r")) {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+
 /* used to quit on signal SIGTERM */
 static int ivshmem_server_quit;
 
