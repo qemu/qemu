@@ -18,7 +18,7 @@ For detailed information on QMP's usage, please, refer to the following files:
 o qmp-spec.txt      QEMU Machine Protocol current specification
 o qemu-qmp-ref.html QEMU QMP commands and events (auto-generated at build-time)
 
-[1] http://www.json.org
+[1] https://www.json.org
 
 Usage
 -----
@@ -83,4 +83,4 @@ Please, refer to the qapi-schema.json file for a complete command reference.
 QMP wiki page
 -------------
 
-http://wiki.qemu.org/QMP
+https://wiki.qemu.org/QMP

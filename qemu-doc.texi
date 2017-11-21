@@ -72,7 +72,7 @@ without rebooting the PC or to debug system code.
 @cindex user mode emulation
 @item User mode emulation. In this mode, QEMU can launch
 processes compiled for one CPU on another CPU. It can be used to
-launch the Wine Windows API emulator (@url{http://www.winehq.org}) or
+launch the Wine Windows API emulator (@url{https://www.winehq.org}) or
 to ease cross-compilation and cross-debugging.
 
 @end itemize
@@ -533,7 +533,7 @@ TAP network interfaces.
 There is a virtual ethernet driver for Windows 2000/XP systems, called
 TAP-Win32. But it is not included in standard QEMU for Windows,
 so you will need to get it separately. It is part of OpenVPN package,
-so download OpenVPN from : @url{http://openvpn.net/}.
+so download OpenVPN from : @url{https://openvpn.net/}.
 
 @subsection Using the user mode network stack
 
@@ -707,11 +707,11 @@ to grab the mouse.  Also overrides the PS/2 mouse emulation when activated.
 Mass storage device backed by @var{drive_id} (@pxref{disk_images})
 @item usb-uas
 USB attached SCSI device, see
-@url{http://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/usb-storage.txt,usb-storage.txt}
+@url{https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/usb-storage.txt,usb-storage.txt}
 for details
 @item usb-bot
 Bulk-only transport storage device, see
-@url{http://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/usb-storage.txt,usb-storage.txt}
+@url{https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/usb-storage.txt,usb-storage.txt}
 for details here, too
 @item usb-mtp,x-root=@var{dir}
 Media transfer protocol device, using @var{dir} as root of the file tree
@@ -1221,7 +1221,7 @@ resolution modes which the Cirrus Logic BIOS does not support (i.e. >=
 Windows 9x does not correctly use the CPU HLT
 instruction. The result is that it takes host CPU cycles even when
 idle. You can install the utility from
-@url{http://web.archive.org/web/20060212132151/http://www.user.cityline.ru/~maxamn/amnhltm.zip}
+@url{https://web.archive.org/web/20060212132151/http://www.user.cityline.ru/~maxamn/amnhltm.zip}
 to solve this problem. Note that no such tool is needed for NT, 2000 or XP.
 
 @subsubsection Windows 2000 disk full problem
@@ -1271,7 +1271,7 @@ vvfat block device ("-hdb fat:directory_which_holds_the_SP").
 
 DOS does not correctly use the CPU HLT instruction. The result is that
 it takes host CPU cycles even when idle. You can install the utility from
-@url{http://web.archive.org/web/20051222085335/http://www.vmware.com/software/dosidle210.zip}
+@url{https://web.archive.org/web/20051222085335/http://www.vmware.com/software/dosidle210.zip}
 to solve this problem.
 
 @node QEMU System emulator for non PC targets
@@ -1342,7 +1342,7 @@ PC compatible keyboard and mouse.
 QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
 @url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
 
-Since version 0.9.1, QEMU uses OpenBIOS @url{http://www.openbios.org/}
+Since version 0.9.1, QEMU uses OpenBIOS @url{https://www.openbios.org/}
 for the g3beige and mac99 PowerMac machines. OpenBIOS is a free (GPL
 v2) portable firmware implementation. The goal is to implement a 100%
 IEEE 1275-1994 (referred to as Open Firmware) compliant firmware.
@@ -1434,7 +1434,7 @@ memory size depends on the machine type, for SS-5 it is 256MB and for
 others 2047MB.
 
 Since version 0.8.2, QEMU uses OpenBIOS
-@url{http://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
+@url{https://www.openbios.org/}. OpenBIOS is a free (GPL v2) portable
 firmware implementation. The goal is to implement a 100% IEEE
 1275-1994 (referred to as Open Firmware) compliant firmware.
 
@@ -2552,7 +2552,7 @@ QEMU is a trademark of Fabrice Bellard.
 QEMU is released under the
 @url{https://www.gnu.org/licenses/gpl-2.0.txt,GNU General Public License},
 version 2. Parts of QEMU have specific licenses, see file
-@url{http://git.qemu.org/?p=qemu.git;a=blob_plain;f=LICENSE,LICENSE}.
+@url{https://git.qemu.org/?p=qemu.git;a=blob_plain;f=LICENSE,LICENSE}.
 
 @node Index
 @appendix Index

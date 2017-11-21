@@ -61,7 +61,7 @@ F: */
 
 Responsible Disclosure, Reporting Security Issues
 ------------------------------
-W: http://wiki.qemu.org/SecurityProcess
+W: https://wiki.qemu.org/SecurityProcess
 M: Michael S. Tsirkin <mst@redhat.com>
 L: secalert@redhat.com
 
@@ -1671,7 +1671,7 @@ F: net/filter-mirror.c
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>
 R: Paolo Bonzini <pbonzini@redhat.com>
-W: http://wiki.qemu.org/Features/record-replay
+W: https://wiki.qemu.org/Features/record-replay
 S: Supported
 F: replay/*
 F: block/blkreplay.c
