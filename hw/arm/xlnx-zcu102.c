@@ -24,6 +24,7 @@
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
+#include "sysemu/qtest.h"
 
 typedef struct XlnxZCU102 {
     MachineState parent_obj;
@@ -164,8 +165,10 @@ static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxZCU102 *s = EP108_MACHINE(machine);
 
-    info_report("The Xilinx EP108 machine is deprecated, please use the "
-                "ZCU102 machine instead. It has the same features supported.");
+    if (!qtest_enabled()) {
+        info_report("The Xilinx EP108 machine is deprecated, please use the "
+                    "ZCU102 machine (which has the same features) instead.");
+    }
 
     xlnx_zynqmp_init(s, machine);
 }
