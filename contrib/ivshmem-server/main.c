@@ -269,5 +269,15 @@ main(int argc, char *argv[])
 err_close:
     ivshmem_server_close(&server);
 err:
+    /* housekeeping */
+    if file_exists(args.pid_file)
+        remove(args.pid_file);
+
+    if file_exists(args.shm_path)
+        remove(args.shm_path);
+
+    if file_exists(args.unix_socket_path)
+        remove(args.unix_socket_path);
+
     return ret;
 }
