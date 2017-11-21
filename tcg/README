@@ -538,6 +538,10 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
   Similarly, v0 = v1 - v2.
 
+* mul_vec   v0, v1, v2
+
+  Similarly, v0 = v1 * v2.
+
 * neg_vec   v0, v1
 
   Similarly, v0 = -v1.
