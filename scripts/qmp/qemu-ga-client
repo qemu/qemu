@@ -33,7 +33,7 @@
 # $ qemu-ga-client fsfreeze freeze
 # 2 filesystems frozen
 #
-# See also: http://wiki.qemu-project.org/Features/QAPI/GuestAgent
+# See also: http://wiki.qemu.org/Features/QAPI/GuestAgent
 #
 
 import base64

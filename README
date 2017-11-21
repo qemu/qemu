@@ -44,9 +44,9 @@ of other UNIX targets. The simple steps to build QEMU are:
 
 Additional information can also be found online via the QEMU website:
 
-  http://qemu-project.org/Hosts/Linux
-  http://qemu-project.org/Hosts/Mac
-  http://qemu-project.org/Hosts/W32
+  http://qemu.org/Hosts/Linux
+  http://qemu.org/Hosts/Mac
+  http://qemu.org/Hosts/W32
 
 
 Submitting patches
@@ -54,7 +54,7 @@ Submitting patches
 
 The QEMU source code is maintained under the GIT version control system.
 
-   git clone git://git.qemu-project.org/qemu.git
+   git clone git://git.qemu.org/qemu.git
 
 When submitting patches, the preferred approach is to use 'git
 format-patch' and/or 'git send-email' to format & send the mail to the
@@ -65,8 +65,8 @@ guidelines set out in the HACKING and CODING_STYLE files.
 Additional information on submitting patches can be found online via
 the QEMU website
 
-  http://qemu-project.org/Contribute/SubmitAPatch
-  http://qemu-project.org/Contribute/TrivialPatches
+  http://qemu.org/Contribute/SubmitAPatch
+  http://qemu.org/Contribute/TrivialPatches
 
 
 Bug reporting
@@ -85,7 +85,7 @@ reported via launchpad.
 
 For additional information on bug reporting consult:
 
-  http://qemu-project.org/Contribute/ReportABug
+  http://qemu.org/Contribute/ReportABug
 
 
 Contact
@@ -101,6 +101,6 @@ main methods being email and IRC
 Information on additional methods of contacting the community can be
 found online via the QEMU website:
 
-  http://qemu-project.org/Contribute/StartHere
+  http://qemu.org/Contribute/StartHere
 
 -- End
