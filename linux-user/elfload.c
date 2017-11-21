@@ -1732,6 +1732,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #ifdef ELF_HWCAP2
     size += 2;
 #endif
+    info->auxv_len = size * n;
+
     size += envc + argc + 2;
     size += 1;  /* argc itself */
     size *= n;
@@ -1760,7 +1762,6 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         put_user_ual(val, u_auxv); u_auxv += n; \
     } while(0)
 
-    /* There must be exactly DLINFO_ITEMS entries here.  */
 #ifdef ARCH_DLINFO
     /*
      * ARCH_DLINFO must come first so platform specific code can enforce
@@ -1768,6 +1769,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
      */
     ARCH_DLINFO;
 #endif
+    /* There must be exactly DLINFO_ITEMS entries here, or the assert
+     * on info->auxv_len will trigger.
+     */
     NEW_AUX_ENT(AT_PHDR, (abi_ulong)(info->load_addr + exec->e_phoff));
     NEW_AUX_ENT(AT_PHENT, (abi_ulong)(sizeof (struct elf_phdr)));
     NEW_AUX_ENT(AT_PHNUM, (abi_ulong)(exec->e_phnum));
@@ -1793,7 +1797,10 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT (AT_NULL, 0);
 #undef NEW_AUX_ENT
 
-    info->auxv_len = u_argv - info->saved_auxv;
+    /* Check that our initial calculation of the auxv length matches how much
+     * we actually put into it.
+     */
+    assert(info->auxv_len == u_auxv - info->saved_auxv);
 
     put_user_ual(argc, u_argc);
 

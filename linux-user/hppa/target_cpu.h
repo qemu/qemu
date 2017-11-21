@@ -24,7 +24,11 @@ static inline void cpu_clone_regs(CPUHPPAState *env, target_ulong newsp)
     if (newsp) {
         env->gr[30] = newsp;
     }
+    /* Indicate child in return value.  */
     env->gr[28] = 0;
+    /* Return from the syscall.  */
+    env->iaoq_f = env->gr[31];
+    env->iaoq_b = env->gr[31] + 4;
 }
 
 static inline void cpu_set_tls(CPUHPPAState *env, target_ulong newtls)
