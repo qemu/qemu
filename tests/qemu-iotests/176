@@ -52,7 +52,8 @@ _supported_os Linux
 function run_qemu()
 {
     $QEMU -nographic -qmp stdio -serial none "$@" 2>&1 \
-	| _filter_testdir | _filter_qmp | _filter_qemu
+	| _filter_testdir | _filter_qmp | _filter_qemu \
+        | sed 's/"sha256": ".\{64\}"/"sha256": HASH/'
 }
 
 for reason in snapshot bitmap; do

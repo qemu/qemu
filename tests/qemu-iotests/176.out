@@ -205,7 +205,7 @@ Offset          Length          File
 QMP_VERSION
 {"return": {}}
 {"return": {}}
-{"return": {"sha256": "e12600978d86b5a453861ae5c17d275204673fef3874b7c3c5433c6153d84706"}}
+{"return": {"sha256": HASH}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
@@ -255,7 +255,7 @@ Offset          Length          File
 QMP_VERSION
 {"return": {}}
 {"return": {}}
-{"return": {"sha256": "e12600978d86b5a453861ae5c17d275204673fef3874b7c3c5433c6153d84706"}}
+{"return": {"sha256": HASH}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
@@ -305,7 +305,7 @@ Offset          Length          File
 QMP_VERSION
 {"return": {}}
 {"return": {}}
-{"return": {"sha256": "e12600978d86b5a453861ae5c17d275204673fef3874b7c3c5433c6153d84706"}}
+{"return": {"sha256": HASH}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
@@ -352,7 +352,7 @@ Offset          Length          File
 QMP_VERSION
 {"return": {}}
 {"return": {}}
-{"return": {"sha256": "e12600978d86b5a453861ae5c17d275204673fef3874b7c3c5433c6153d84706"}}
+{"return": {"sha256": HASH}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 *** done
