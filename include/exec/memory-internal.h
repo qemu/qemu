@@ -1,5 +1,5 @@
 /*
- * Declarations for obsolete exec.c functions
+ * Declarations for functions which are internal to the memory subsystem.
  *
  * Copyright 2011 Red Hat, Inc. and/or its affiliates
  *
@@ -12,8 +12,9 @@
  */
 
 /*
- * This header is for use by exec.c and memory.c ONLY.  Do not include it.
- * The functions declared here will be removed soon.
+ * This header is for use by exec.c, memory.c and accel/tcg/cputlb.c ONLY,
+ * for declarations which are shared between the memory subsystem's
+ * internals and the TCG TLB code. Do not include it from elsewhere.
  */
 
 #ifndef MEMORY_INTERNAL_H
