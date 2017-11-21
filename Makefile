@@ -6,7 +6,10 @@ BUILD_DIR=$(CURDIR)
 # Before including a proper config-host.mak, assume we are in the source tree
 SRC_PATH=.
 
-UNCHECKED_GOALS := %clean TAGS cscope ctags docker docker-% help
+UNCHECKED_GOALS := %clean TAGS cscope ctags dist \
+    html info pdf txt \
+    help check-help \
+    docker docker-% vm-test vm-build-%
 
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
