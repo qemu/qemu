@@ -20,6 +20,17 @@
 #define IVSHMEM_SERVER_DEFAULT_SHM_SIZE       (4*1024*1024)
 #define IVSHMEM_SERVER_DEFAULT_N_VECTORS      1
 
+
+bool
+file_exists(const char * filename) {
+    if (FILE * file = fopen(filename, "r")) {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+
 /* used to quit on signal SIGTERM */
 static int ivshmem_server_quit;
 
@@ -269,5 +280,15 @@ main(int argc, char *argv[])
 err_close:
     ivshmem_server_close(&server);
 err:
+    /* housekeeping */
+    if file_exists(args.pid_file)
+        remove(args.pid_file);
+
+    if file_exists(args.shm_path)
+        remove(args.shm_path);
+
+    if file_exists(args.unix_socket_path)
+        remove(args.unix_socket_path);
+
     return ret;
 }
