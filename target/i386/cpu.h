@@ -635,6 +635,12 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_ECX_UMIP     (1U << 2)
 #define CPUID_7_0_ECX_PKU      (1U << 3)
 #define CPUID_7_0_ECX_OSPKE    (1U << 4)
+#define CPUID_7_0_ECX_VBMI2    (1U << 6) /* Additional VBMI Instrs */
+#define CPUID_7_0_ECX_GFNI     (1U << 8)
+#define CPUID_7_0_ECX_VAES     (1U << 9)
+#define CPUID_7_0_ECX_VPCLMULQDQ (1U << 10)
+#define CPUID_7_0_ECX_AVX512VNNI (1U << 11)
+#define CPUID_7_0_ECX_AVX512BITALG (1U << 12)
 #define CPUID_7_0_ECX_AVX512_VPOPCNTDQ (1U << 14) /* POPCNT for vectors of DW/QW */
 #define CPUID_7_0_ECX_LA57     (1U << 16)
 #define CPUID_7_0_ECX_RDPID    (1U << 22)
