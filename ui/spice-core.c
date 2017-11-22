@@ -55,9 +55,7 @@ static QemuThread me;
 
 struct SpiceTimer {
     QEMUTimer *timer;
-    QTAILQ_ENTRY(SpiceTimer) next;
 };
-static QTAILQ_HEAD(, SpiceTimer) timers = QTAILQ_HEAD_INITIALIZER(timers);
 
 static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 {
@@ -65,7 +63,6 @@ static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 
     timer = g_malloc0(sizeof(*timer));
     timer->timer = timer_new_ms(QEMU_CLOCK_REALTIME, func, opaque);
-    QTAILQ_INSERT_TAIL(&timers, timer, next);
     return timer;
 }
 
@@ -83,7 +80,6 @@ static void timer_remove(SpiceTimer *timer)
 {
     timer_del(timer->timer);
     timer_free(timer->timer);
-    QTAILQ_REMOVE(&timers, timer, next);
     g_free(timer);
 }
 
