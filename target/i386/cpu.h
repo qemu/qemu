@@ -1107,7 +1107,6 @@ typedef struct CPUX86State {
     uint64_t msr_hv_crash_params[HV_CRASH_PARAMS];
     uint64_t msr_hv_runtime;
     uint64_t msr_hv_synic_control;
-    uint64_t msr_hv_synic_version;
     uint64_t msr_hv_synic_evt_page;
     uint64_t msr_hv_synic_msg_page;
     uint64_t msr_hv_synic_sint[HV_SINT_COUNT];

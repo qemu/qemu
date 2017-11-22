@@ -669,7 +669,6 @@ static int hyperv_handle_properties(CPUState *cs)
         }
 
         env->features[FEAT_HYPERV_EAX] |= HV_SYNIC_AVAILABLE;
-        env->msr_hv_synic_version = HV_SYNIC_VERSION;
     }
     if (cpu->hyperv_stimer) {
         if (!has_msr_hv_stimer) {
@@ -1715,10 +1714,10 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (cpu->hyperv_synic) {
             int j;
 
+            kvm_msr_entry_add(cpu, HV_X64_MSR_SVERSION, HV_SYNIC_VERSION);
+
             kvm_msr_entry_add(cpu, HV_X64_MSR_SCONTROL,
                               env->msr_hv_synic_control);
-            kvm_msr_entry_add(cpu, HV_X64_MSR_SVERSION,
-                              env->msr_hv_synic_version);
             kvm_msr_entry_add(cpu, HV_X64_MSR_SIEFP,
                               env->msr_hv_synic_evt_page);
             kvm_msr_entry_add(cpu, HV_X64_MSR_SIMP,
@@ -2082,7 +2081,6 @@ static int kvm_get_msrs(X86CPU *cpu)
         uint32_t msr;
 
         kvm_msr_entry_add(cpu, HV_X64_MSR_SCONTROL, 0);
-        kvm_msr_entry_add(cpu, HV_X64_MSR_SVERSION, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_SIEFP, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_SIMP, 0);
         for (msr = HV_X64_MSR_SINT0; msr <= HV_X64_MSR_SINT15; msr++) {
@@ -2285,9 +2283,6 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_SCONTROL:
             env->msr_hv_synic_control = msrs[i].data;
-            break;
-        case HV_X64_MSR_SVERSION:
-            env->msr_hv_synic_version = msrs[i].data;
             break;
         case HV_X64_MSR_SIEFP:
             env->msr_hv_synic_evt_page = msrs[i].data;
