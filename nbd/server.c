@@ -673,6 +673,12 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         }
         length = be32_to_cpu(length);
 
+        if (length > NBD_MAX_BUFFER_SIZE) {
+            error_setg(errp, "len (%" PRIu32" ) is larger than max len (%u)",
+                       length, NBD_MAX_BUFFER_SIZE);
+            return -EINVAL;
+        }
+
         trace_nbd_negotiate_options_check_option(option,
                                                  nbd_opt_lookup(option));
         if (client->tlscreds &&
