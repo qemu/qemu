@@ -10,10 +10,10 @@
 #ifndef TRACE__MEM_INTERNAL_H
 #define TRACE__MEM_INTERNAL_H
 
-#define TRACE_MEM_SZ_SHIFT_MASK 0x7 /* size shift mask */
-#define TRACE_MEM_SE (1ULL << 3)    /* sign extended (y/n) */
-#define TRACE_MEM_BE (1ULL << 4)    /* big endian (y/n) */
-#define TRACE_MEM_ST (1ULL << 5)    /* store (y/n) */
+#define TRACE_MEM_SZ_SHIFT_MASK 0xf /* size shift mask */
+#define TRACE_MEM_SE (1ULL << 4)    /* sign extended (y/n) */
+#define TRACE_MEM_BE (1ULL << 5)    /* big endian (y/n) */
+#define TRACE_MEM_ST (1ULL << 6)    /* store (y/n) */
 
 static inline uint8_t trace_mem_build_info(
     int size_shift, bool sign_extend, MemOp endianness, bool store)
