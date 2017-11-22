@@ -1979,16 +1979,16 @@ int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
 
 void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu)
 {
-    struct kvm_s390_irq_state irq_state;
+    struct kvm_s390_irq_state irq_state = {
+        .buf = (uint64_t) cpu->irqstate,
+        .len = VCPU_IRQ_BUF_SIZE,
+    };
     CPUState *cs = CPU(cpu);
     int32_t bytes;
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_S390_IRQ_STATE)) {
         return;
     }
-
-    irq_state.buf = (uint64_t) cpu->irqstate;
-    irq_state.len = VCPU_IRQ_BUF_SIZE;
 
     bytes = kvm_vcpu_ioctl(cs, KVM_S390_GET_IRQ_STATE, &irq_state);
     if (bytes < 0) {
@@ -2003,7 +2003,10 @@ void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu)
 int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    struct kvm_s390_irq_state irq_state;
+    struct kvm_s390_irq_state irq_state = {
+        .buf = (uint64_t) cpu->irqstate,
+        .len = cpu->irqstate_saved_size,
+    };
     int r;
 
     if (cpu->irqstate_saved_size == 0) {
@@ -2013,9 +2016,6 @@ int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
     if (!kvm_check_extension(kvm_state, KVM_CAP_S390_IRQ_STATE)) {
         return -ENOSYS;
     }
-
-    irq_state.buf = (uint64_t) cpu->irqstate;
-    irq_state.len = cpu->irqstate_saved_size;
 
     r = kvm_vcpu_ioctl(cs, KVM_S390_SET_IRQ_STATE, &irq_state);
     if (r) {
