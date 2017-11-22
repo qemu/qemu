@@ -596,7 +596,7 @@ static void usb_msd_unrealize_storage(USBDevice *dev, Error **errp)
     object_unref(OBJECT(&s->bus));
 }
 
-static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
+static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
 {
     MSDState *s = USB_STORAGE_DEV(dev);
     BlockBackend *blk = s->conf.blk;
@@ -643,14 +643,14 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     s->scsi_dev = scsi_dev;
 }
 
-static void usb_msd_unrealize_bot(USBDevice *dev, Error **errp)
+static void usb_msd_bot_unrealize(USBDevice *dev, Error **errp)
 {
     MSDState *s = USB_STORAGE_DEV(dev);
 
     object_unref(OBJECT(&s->bus));
 }
 
-static void usb_msd_realize_bot(USBDevice *dev, Error **errp)
+static void usb_msd_bot_realize(USBDevice *dev, Error **errp)
 {
     MSDState *s = USB_STORAGE_DEV(dev);
     DeviceState *d = DEVICE(dev);
@@ -764,12 +764,12 @@ static void usb_msd_class_initfn_common(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_msd;
 }
 
-static void usb_msd_class_initfn_storage(ObjectClass *klass, void *data)
+static void usb_msd_class_storage_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize = usb_msd_realize_storage;
+    uc->realize = usb_msd_storage_realize;
     uc->unrealize = usb_msd_unrealize_storage;
     dc->props = msd_properties;
 }
@@ -828,26 +828,26 @@ static void usb_msd_instance_init(Object *obj)
     object_property_set_int(obj, -1, "bootindex", NULL);
 }
 
-static void usb_msd_class_initfn_bot(ObjectClass *klass, void *data)
+static void usb_msd_class_bot_initfn(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize = usb_msd_realize_bot;
-    uc->unrealize = usb_msd_unrealize_bot;
+    uc->realize = usb_msd_bot_realize;
+    uc->unrealize = usb_msd_bot_unrealize;
     uc->attached_settable = true;
 }
 
 static const TypeInfo msd_info = {
     .name          = "usb-storage",
     .parent        = TYPE_USB_STORAGE,
-    .class_init    = usb_msd_class_initfn_storage,
+    .class_init    = usb_msd_class_storage_initfn,
     .instance_init = usb_msd_instance_init,
 };
 
 static const TypeInfo bot_info = {
     .name          = "usb-bot",
     .parent        = TYPE_USB_STORAGE,
-    .class_init    = usb_msd_class_initfn_bot,
+    .class_init    = usb_msd_class_bot_initfn,
 };
 
 static void usb_msd_register_types(void)
