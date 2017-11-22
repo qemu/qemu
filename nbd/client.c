@@ -66,7 +66,7 @@ static int nbd_send_option_request(QIOChannel *ioc, uint32_t opt,
                                    uint32_t len, const char *data,
                                    Error **errp)
 {
-    nbd_option req;
+    NBDOption req;
     QEMU_BUILD_BUG_ON(sizeof(req) != 16);
 
     if (len == -1) {
@@ -109,7 +109,7 @@ static void nbd_send_opt_abort(QIOChannel *ioc)
  * payload. Return 0 if successful, -1 with errp set if it is
  * impossible to continue. */
 static int nbd_receive_option_reply(QIOChannel *ioc, uint32_t opt,
-                                    nbd_opt_reply *reply, Error **errp)
+                                    NBDOptionReply *reply, Error **errp)
 {
     QEMU_BUILD_BUG_ON(sizeof(*reply) != 20);
     if (nbd_read(ioc, reply, sizeof(*reply), errp) < 0) {
@@ -146,7 +146,7 @@ static int nbd_receive_option_reply(QIOChannel *ioc, uint32_t opt,
  * can fall back to other approaches), or -1 with errp set for other
  * errors.
  */
-static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
+static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
                                 Error **errp)
 {
     char *msg = NULL;
@@ -239,7 +239,7 @@ static int nbd_handle_reply_err(QIOChannel *ioc, nbd_opt_reply *reply,
 static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
                             Error **errp)
 {
-    nbd_opt_reply reply;
+    NBDOptionReply reply;
     uint32_t len;
     uint32_t namelen;
     char name[NBD_MAX_NAME_SIZE + 1];
@@ -325,7 +325,7 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
 static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
                       NBDExportInfo *info, Error **errp)
 {
-    nbd_opt_reply reply;
+    NBDOptionReply reply;
     uint32_t len = strlen(wantname);
     uint16_t type;
     int error;
@@ -517,7 +517,7 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
  */
 static int nbd_request_simple_option(QIOChannel *ioc, int opt, Error **errp)
 {
-    nbd_opt_reply reply;
+    NBDOptionReply reply;
     int error;
 
     if (nbd_send_option_request(ioc, opt, 0, NULL, errp) < 0) {
