@@ -89,7 +89,6 @@ static void timer_remove(SpiceTimer *timer)
 
 struct SpiceWatch {
     int fd;
-    int event_mask;
     SpiceWatchFunc func;
     void *opaque;
 };
@@ -111,11 +110,10 @@ static void watch_update_mask(SpiceWatch *watch, int event_mask)
     IOHandler *on_read = NULL;
     IOHandler *on_write = NULL;
 
-    watch->event_mask = event_mask;
-    if (watch->event_mask & SPICE_WATCH_EVENT_READ) {
+    if (event_mask & SPICE_WATCH_EVENT_READ) {
         on_read = watch_read;
     }
-    if (watch->event_mask & SPICE_WATCH_EVENT_WRITE) {
+    if (event_mask & SPICE_WATCH_EVENT_WRITE) {
         on_write = watch_write;
     }
     qemu_set_fd_handler(watch->fd, on_read, on_write, watch);
