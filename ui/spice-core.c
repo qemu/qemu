@@ -92,9 +92,7 @@ struct SpiceWatch {
     int event_mask;
     SpiceWatchFunc func;
     void *opaque;
-    QTAILQ_ENTRY(SpiceWatch) next;
 };
-static QTAILQ_HEAD(, SpiceWatch) watches = QTAILQ_HEAD_INITIALIZER(watches);
 
 static void watch_read(void *opaque)
 {
@@ -131,7 +129,6 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
     watch->fd     = fd;
     watch->func   = func;
     watch->opaque = opaque;
-    QTAILQ_INSERT_TAIL(&watches, watch, next);
 
     watch_update_mask(watch, event_mask);
     return watch;
@@ -140,7 +137,6 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 static void watch_remove(SpiceWatch *watch)
 {
     qemu_set_fd_handler(watch->fd, NULL, NULL, NULL);
-    QTAILQ_REMOVE(&watches, watch, next);
     g_free(watch);
 }
 
