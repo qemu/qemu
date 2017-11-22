@@ -601,7 +601,6 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     MSDState *s = USB_STORAGE_DEV(dev);
     BlockBackend *blk = s->conf.blk;
     SCSIDevice *scsi_dev;
-    Error *err = NULL;
 
     if (!blk) {
         error_setg(errp, "drive property not set");
@@ -610,9 +609,8 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
 
     blkconf_serial(&s->conf, &dev->serial);
     blkconf_blocksizes(&s->conf);
-    blkconf_apply_backend_options(&s->conf, blk_is_read_only(blk), true, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!blkconf_apply_backend_options(&s->conf, blk_is_read_only(blk), true,
+                                       errp)) {
         return;
     }
 
@@ -636,10 +634,9 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
                  &usb_msd_scsi_info_storage, NULL);
     scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
                                          s->conf.bootindex, dev->serial,
-                                         &err);
+                                         errp);
     blk_unref(blk);
     if (!scsi_dev) {
-        error_propagate(errp, err);
         return;
     }
     usb_msd_handle_reset(dev);

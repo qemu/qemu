@@ -928,7 +928,6 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     int i;
     int64_t bs_size;
     uint8_t *pci_conf;
-    Error *local_err = NULL;
 
     if (!n->conf.blk) {
         error_setg(errp, "drive property not set");
@@ -947,10 +946,8 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         return;
     }
     blkconf_blocksizes(&n->conf);
-    blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
-                                  false, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
+                                       false, errp)) {
         return;
     }
 
