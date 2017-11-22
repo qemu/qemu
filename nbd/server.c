@@ -386,6 +386,10 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
         msg = "name length is incorrect";
         goto invalid;
     }
+    if (namelen >= sizeof(name)) {
+        msg = "name too long for qemu";
+        goto invalid;
+    }
     if (nbd_read(client->ioc, name, namelen, errp) < 0) {
         return -EIO;
     }
