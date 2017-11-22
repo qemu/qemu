@@ -86,7 +86,6 @@ struct SimpleSpiceDisplay {
     DisplayChangeListener dcl;
     void *buf;
     int bufsize;
-    QXLWorker *worker;
     QXLInstance qxl;
     uint32_t unique;
     pixman_image_t *surface;

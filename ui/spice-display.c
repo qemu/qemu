@@ -519,7 +519,6 @@ static void interface_attach_worker(QXLInstance *sin, QXLWorker *qxl_worker)
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
 
     dprint(1, "%s/%d:\n", __func__, ssd->qxl.id);
-    ssd->worker = qxl_worker;
 }
 
 static void interface_set_compression_level(QXLInstance *sin, int level)
@@ -1028,7 +1027,6 @@ static void qemu_spice_display_init_one(QemuConsole *con)
 
     ssd->qxl.base.sif = &dpy_interface.base;
     qemu_spice_add_display_interface(&ssd->qxl, con);
-    assert(ssd->worker);
     qemu_spice_create_host_memslot(ssd);
 
     register_displaychangelistener(&ssd->dcl);
