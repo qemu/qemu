@@ -111,10 +111,12 @@ echo
 echo 'Testing failing commit'
 echo
 
+TEST_IMG="$TEST_IMG.base" _make_test_img 1M
+
 # Create an image with a null backing file to which committing will fail (with
 # ENOSPC so we can distinguish the result from some generic EIO which may be
 # generated anywhere in the block layer)
-_make_test_img -b "json:{'driver': 'raw',
+_make_test_img -b "json:{'driver': '$IMGFMT',
                          'file': {
                              'driver': 'blkdebug',
                              'inject-error': [{
@@ -123,14 +125,15 @@ _make_test_img -b "json:{'driver': 'raw',
                                  'once': true
                              }],
                              'image': {
-                                 'driver': 'null-co'
+                                 'driver': 'file',
+                                 'filename': '$TEST_IMG.base'
                              }}}"
 
 # Just write anything so committing will not be a no-op
 $QEMU_IO -c 'writev 0 64k' "$TEST_IMG" | _filter_qemu_io
 
 $QEMU_IMG commit "$TEST_IMG"
-_cleanup_test_img
+_cleanup
 
 # success, all done
 echo "*** done"
