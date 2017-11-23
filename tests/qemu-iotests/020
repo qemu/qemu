@@ -42,17 +42,11 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Any format supporting backing files
 _supported_fmt qcow qcow2 vmdk qed
-_supported_proto generic
-_unsupported_proto vxhs
+_supported_proto file
 _supported_os Linux
 _unsupported_imgopts "subformat=monolithicFlat" \
                      "subformat=twoGbMaxExtentFlat" \
                      "subformat=twoGbMaxExtentSparse"
-
-# NFS does not support bdrv_reopen_prepare thus qemu-img commit fails.
-if [ "$IMGPROTO" = "nfs" ]; then
-    _notrun "image protocol $IMGPROTO does not support bdrv_commit"
-fi
 
 TEST_OFFSETS="0 4294967296"
 
