@@ -92,12 +92,14 @@ $QEMU_IO --object $SECRET0 --object $SECRET1 -c "read -P 0x9 0 $size" --image-op
 echo
 echo "== checking image base =="
 $QEMU_IMG info --image-opts $IMGSPECBASE | _filter_img_info --format-specific \
-    | sed -e "/^disk size:/ D"
+    | sed -e "/^disk size:/ D" -e '/refcount bits:/ D' -e '/compat:/ D' \
+          -e '/lazy refcounts:/ D' -e '/corrupt:/ D'
 
 echo
 echo "== checking image layer =="
 $QEMU_IMG info --image-opts $IMGSPECLAYER | _filter_img_info --format-specific \
-    | sed -e "/^disk size:/ D"
+    | sed -e "/^disk size:/ D" -e '/refcount bits:/ D' -e '/compat:/ D' \
+          -e '/lazy refcounts:/ D' -e '/corrupt:/ D'
 
 
 # success, all done

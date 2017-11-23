@@ -36,9 +36,6 @@ image: json:{"encrypt.key-secret": "sec0", "driver": "IMGFMT", "file": {"driver"
 file format: IMGFMT
 virtual size: 16M (16777216 bytes)
 Format specific information:
-    compat: 1.1
-    lazy refcounts: false
-    refcount bits: 16
     encrypt:
         ivgen alg: plain64
         hash alg: sha256
@@ -75,7 +72,6 @@ Format specific information:
                 key offset: 1810432
         payload offset: 2068480
         master key iters: 1024
-    corrupt: false
 
 == checking image layer ==
 image: json:{"encrypt.key-secret": "sec1", "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}}
@@ -83,9 +79,6 @@ file format: IMGFMT
 virtual size: 16M (16777216 bytes)
 backing file: TEST_DIR/t.IMGFMT.base
 Format specific information:
-    compat: 1.1
-    lazy refcounts: false
-    refcount bits: 16
     encrypt:
         ivgen alg: plain64
         hash alg: sha256
@@ -122,5 +115,4 @@ Format specific information:
                 key offset: 1810432
         payload offset: 2068480
         master key iters: 1024
-    corrupt: false
 *** done
