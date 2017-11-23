@@ -705,9 +705,14 @@ CPUState *qemu_get_cpu(int index)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_address_space_init(CPUState *cpu, AddressSpace *as, int asidx)
+void cpu_address_space_init(CPUState *cpu, int asidx,
+                            const char *prefix, MemoryRegion *mr)
 {
     CPUAddressSpace *newas;
+    AddressSpace *as = g_new0(AddressSpace, 1);
+
+    assert(mr);
+    address_space_init(as, mr, prefix);
 
     /* Target code should have set num_ases before calling us */
     assert(asidx < cpu->num_ases);
