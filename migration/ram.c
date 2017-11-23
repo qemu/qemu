@@ -2798,6 +2798,18 @@ static int ram_load_postcopy(QEMUFile *f)
     return ret;
 }
 
+static bool postcopy_is_advised(void)
+{
+    PostcopyState ps = postcopy_state_get();
+    return ps >= POSTCOPY_INCOMING_ADVISE && ps < POSTCOPY_INCOMING_END;
+}
+
+static bool postcopy_is_running(void)
+{
+    PostcopyState ps = postcopy_state_get();
+    return ps >= POSTCOPY_INCOMING_LISTENING && ps < POSTCOPY_INCOMING_END;
+}
+
 static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     int flags = 0, ret = 0, invalid_flags = 0;
@@ -2807,9 +2819,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
      * If system is running in postcopy mode, page inserts to host memory must
      * be atomic
      */
-    bool postcopy_running = postcopy_state_get() >= POSTCOPY_INCOMING_LISTENING;
+    bool postcopy_running = postcopy_is_running();
     /* ADVISE is earlier, it shows the source has the postcopy capability on */
-    bool postcopy_advised = postcopy_state_get() >= POSTCOPY_INCOMING_ADVISE;
+    bool postcopy_advised = postcopy_is_advised();
 
     seq_iter++;
 
