@@ -710,9 +710,12 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
 {
     CPUAddressSpace *newas;
     AddressSpace *as = g_new0(AddressSpace, 1);
+    char *as_name;
 
     assert(mr);
-    address_space_init(as, mr, prefix);
+    as_name = g_strdup_printf("%s-%d", prefix, cpu->cpu_index);
+    address_space_init(as, mr, as_name);
+    g_free(as_name);
 
     /* Target code should have set num_ases before calling us */
     assert(asidx < cpu->num_ases);
