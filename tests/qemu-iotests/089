@@ -119,11 +119,11 @@ echo
 
 # Both options given directly and those given in the filename should be used
 $QEMU_IO -c "open -o driver=qcow2 json:{\"file.filename\":\"$TEST_IMG\"}" \
-         -c "info" 2>&1 | _filter_testdir | _filter_imgfmt
+         -c "info" 2>&1 | _filter_img_info
 
 # Options given directly should be prioritized over those given in the filename
 $QEMU_IO -c "open -o driver=qcow2 json:{\"driver\":\"raw\",\"file.filename\":\"$TEST_IMG\"}" \
-         -c "info" 2>&1 | _filter_testdir | _filter_imgfmt
+         -c "info" 2>&1 | _filter_img_info
 
 
 # success, all done
