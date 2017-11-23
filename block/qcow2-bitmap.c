@@ -1449,6 +1449,16 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
     bool found;
     Qcow2BitmapList *bm_list;
 
+    if (s->qcow_version < 3) {
+        /* Without autoclear_features, we would always have to assume
+         * that a program without persistent dirty bitmap support has
+         * accessed this qcow2 file when opening it, and would thus
+         * have to drop all dirty bitmaps (defeating their purpose).
+         */
+        error_setg(errp, "Cannot store dirty bitmaps in qcow2 v2 files");
+        goto fail;
+    }
+
     if (check_constraints_on_bitmap(bs, name, granularity, errp) != 0) {
         goto fail;
     }
