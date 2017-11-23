@@ -1398,7 +1398,7 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
         qemu_iovec_concat(&local_qiov, qiov, qiov_offset, n_bytes);
     }
 
-    write_offset = cluster_offset + offset_in_cluster,
+    write_offset = cluster_offset + offset_in_cluster;
     ret = bdrv_co_pwritev(extent->file, write_offset, n_bytes,
                           &local_qiov, 0);
 
