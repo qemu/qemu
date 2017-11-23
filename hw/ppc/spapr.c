@@ -2663,6 +2663,10 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
              * swap 0100 or 10 << or 20 << ( target lun-id -- srplun )
              */
             unsigned id = 0x1000000 | (d->id << 16) | d->lun;
+            if (d->lun >= 256) {
+                /* Use the LUN "flat space addressing method" */
+                id |= 0x4000;
+            }
             return g_strdup_printf("%s@%"PRIX64, qdev_fw_name(dev),
                                    (uint64_t)id << 32);
         } else if (usb) {
