@@ -237,9 +237,11 @@ static int cpu_post_load(void *opaque, int version_id)
 
 #if defined(TARGET_PPC64)
     if (cpu->compat_pvr) {
+        uint32_t compat_pvr = cpu->compat_pvr;
         Error *local_err = NULL;
 
-        ppc_set_compat(cpu, cpu->compat_pvr, &local_err);
+        cpu->compat_pvr = 0;
+        ppc_set_compat(cpu, compat_pvr, &local_err);
         if (local_err) {
             error_report_err(local_err);
             return -1;
