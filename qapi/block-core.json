@@ -3359,6 +3359,68 @@
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
 
 ##
+# @BlockdevCreateNotSupported:
+#
+# This is used for all drivers that don't support creating images.
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateNotSupported', 'data': {}}
+
+##
+# @BlockdevCreateOptions:
+#
+# Options for creating an image format on a given node.
+#
+# @driver           block driver to create the image format
+#
+# Since: 2.12
+##
+{ 'union': 'BlockdevCreateOptions',
+  'base': {
+      'driver':         'BlockdevDriver' },
+  'discriminator': 'driver',
+  'data': {
+      'blkdebug':       'BlockdevCreateNotSupported',
+      'blkverify':      'BlockdevCreateNotSupported',
+      'bochs':          'BlockdevCreateNotSupported',
+      'cloop':          'BlockdevCreateNotSupported',
+      'dmg':            'BlockdevCreateNotSupported',
+      'file':           'BlockdevCreateNotSupported',
+      'ftp':            'BlockdevCreateNotSupported',
+      'ftps':           'BlockdevCreateNotSupported',
+      'gluster':        'BlockdevCreateNotSupported',
+      'host_cdrom':     'BlockdevCreateNotSupported',
+      'host_device':    'BlockdevCreateNotSupported',
+      'http':           'BlockdevCreateNotSupported',
+      'https':          'BlockdevCreateNotSupported',
+      'iscsi':          'BlockdevCreateNotSupported',
+      'luks':           'BlockdevCreateNotSupported',
+      'nbd':            'BlockdevCreateNotSupported',
+      'nfs':            'BlockdevCreateNotSupported',
+      'null-aio':       'BlockdevCreateNotSupported',
+      'null-co':        'BlockdevCreateNotSupported',
+      'nvme':           'BlockdevCreateNotSupported',
+      'parallels':      'BlockdevCreateNotSupported',
+      'qcow2':          'BlockdevCreateNotSupported',
+      'qcow':           'BlockdevCreateNotSupported',
+      'qed':            'BlockdevCreateNotSupported',
+      'quorum':         'BlockdevCreateNotSupported',
+      'raw':            'BlockdevCreateNotSupported',
+      'rbd':            'BlockdevCreateNotSupported',
+      'replication':    'BlockdevCreateNotSupported',
+      'sheepdog':       'BlockdevCreateNotSupported',
+      'ssh':            'BlockdevCreateNotSupported',
+      'throttle':       'BlockdevCreateNotSupported',
+      'vdi':            'BlockdevCreateNotSupported',
+      'vhdx':           'BlockdevCreateNotSupported',
+      'vmdk':           'BlockdevCreateNotSupported',
+      'vpc':            'BlockdevCreateNotSupported',
+      'vvfat':          'BlockdevCreateNotSupported',
+      'vxhs':           'BlockdevCreateNotSupported'
+  } }
+
+##
 # @blockdev-open-tray:
 #
 # Opens a block device's tray. If there is a block driver state tree inserted as
