@@ -8911,6 +8911,7 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
     CPUPPCState *env = &cpu->env;
     ppc_spr_t *lpcr = &env->spr_cb[SPR_LPCR];
     ppc_spr_t *amor = &env->spr_cb[SPR_AMOR];
+    CPUState *cs = CPU(cpu);
 
     cpu->vhyp = vhyp;
 
@@ -8953,10 +8954,12 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
         }
     }
 
-    /* Also set the power-saving mode bits which depend on the CPU
-     * family
+    /* Only enable Power-saving mode Exit Cause exceptions on the boot
+     * CPU. The RTAS command start-cpu will enable them on secondaries.
      */
-    lpcr->default_value |= pcc->lpcr_pm;
+    if (cs == first_cpu) {
+        lpcr->default_value |= pcc->lpcr_pm;
+    }
 
     /* We should be followed by a CPU reset but update the active value
      * just in case...
