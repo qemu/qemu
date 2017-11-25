@@ -334,29 +334,44 @@ static bool machine_get_enforce_config_section(Object *obj, Error **errp)
     return ms->enforce_config_section;
 }
 
-static void error_on_sysbus_device(SysBusDevice *sbdev, void *opaque)
+void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
-    error_report("Option '-device %s' cannot be handled by this machine",
-                 object_class_get_name(object_get_class(OBJECT(sbdev))));
-    exit(1);
+    strList *item = g_new0(strList, 1);
+
+    item->value = g_strdup(type);
+    item->next = mc->allowed_dynamic_sysbus_devices;
+    mc->allowed_dynamic_sysbus_devices = item;
+}
+
+static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)
+{
+    MachineState *machine = opaque;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    bool allowed = false;
+    strList *wl;
+
+    for (wl = mc->allowed_dynamic_sysbus_devices;
+         !allowed && wl;
+         wl = wl->next) {
+        allowed |= !!object_dynamic_cast(OBJECT(sbdev), wl->value);
+    }
+
+    if (!allowed) {
+        error_report("Option '-device %s' cannot be handled by this machine",
+                     object_class_get_name(object_get_class(OBJECT(sbdev))));
+        exit(1);
+    }
 }
 
 static void machine_init_notify(Notifier *notifier, void *data)
 {
-    Object *machine = qdev_get_machine();
-    ObjectClass *oc = object_get_class(machine);
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    if (mc->has_dynamic_sysbus) {
-        /* Our machine can handle dynamic sysbus devices, we're all good */
-        return;
-    }
+    MachineState *machine = MACHINE(qdev_get_machine());
 
     /*
-     * Loop through all dynamically created devices and check whether there
-     * are sysbus devices among them. If there are, error out.
+     * Loop through all dynamically created sysbus devices and check if they are
+     * all allowed.  If a device is not allowed, error out.
      */
-    foreach_dynamic_sysbus_device(error_on_sysbus_device, NULL);
+    foreach_dynamic_sysbus_device(validate_sysbus_device, machine);
 }
 
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)

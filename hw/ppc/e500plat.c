@@ -15,6 +15,7 @@
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/kvm.h"
+#include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/ppc/openpic.h"
 #include "kvm_ppc.h"
@@ -63,7 +64,8 @@ static void e500plat_machine_init(MachineClass *mc)
     mc->desc = "generic paravirt e500 platform";
     mc->init = e500plat_init;
     mc->max_cpus = 32;
-    mc->has_dynamic_sysbus = true;
+    /*TODO: allow only sysbus devices that really work with this machine */
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_SYS_BUS_DEVICE);
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
 }
 

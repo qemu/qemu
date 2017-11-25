@@ -299,7 +299,8 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->no_floppy = 1;
-    m->has_dynamic_sysbus = true;
+    /*TODO: allow only sysbus devices that really work with this machine */
+    machine_class_allow_dynamic_sysbus_dev(m, TYPE_SYS_BUS_DEVICE);
     m->max_cpus = 288;
 }
 
