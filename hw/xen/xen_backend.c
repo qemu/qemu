@@ -564,12 +564,7 @@ static void xen_set_dynamic_sysbus(void)
     ObjectClass *oc = object_get_class(machine);
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    /*
-     * Emulate old mc->has_dynamic_sysbus=true assignment
-     *
-     *TODO: add only Xen devices to the list
-     */
-    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_SYS_BUS_DEVICE);
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_XENSYSDEV);
 }
 
 int xen_be_register(const char *type, struct XenDevOps *ops)
