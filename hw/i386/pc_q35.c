@@ -42,6 +42,8 @@
 #include "exec/address-spaces.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/ich9.h"
+#include "hw/i386/amd_iommu.h"
+#include "hw/i386/intel_iommu.h"
 #include "hw/smbios/smbios.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
@@ -299,8 +301,8 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->no_floppy = 1;
-    /*TODO: allow only sysbus devices that really work with this machine */
-    machine_class_allow_dynamic_sysbus_dev(m, TYPE_SYS_BUS_DEVICE);
+    machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
+    machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);
     m->max_cpus = 288;
 }
 
