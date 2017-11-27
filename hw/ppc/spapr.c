@@ -1373,6 +1373,8 @@ void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
             DIRTY_HPTE(HPTE(spapr->htab, i));
         }
     }
+    /* We're setting up a hash table, so that means we're not radix */
+    spapr->patb_entry = 0;
 }
 
 void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
@@ -1392,8 +1394,6 @@ void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
         spapr->rma_size = kvmppc_rma_size(spapr_node0_size(MACHINE(spapr)),
                                           spapr->htab_shift);
     }
-    /* We're setting up a hash table, so that means we're not radix */
-    spapr->patb_entry = 0;
 }
 
 static void find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
