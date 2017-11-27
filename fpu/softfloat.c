@@ -816,6 +816,94 @@ float64 __attribute__((flatten)) float64_mul(float64 a, float64 b,
     return float64_round_pack_canonical(pr, status);
 }
 
+/*
+ * Returns the result of dividing the floating-point value `a' by the
+ * corresponding value `b'. The operation is performed according to
+ * the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ */
+
+static FloatParts div_floats(FloatParts a, FloatParts b, float_status *s)
+{
+    bool sign = a.sign ^ b.sign;
+
+    if (a.cls == float_class_normal && b.cls == float_class_normal) {
+        uint64_t temp_lo, temp_hi;
+        int exp = a.exp - b.exp;
+        if (a.frac < b.frac) {
+            exp -= 1;
+            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 1,
+                              &temp_hi, &temp_lo);
+        } else {
+            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT,
+                              &temp_hi, &temp_lo);
+        }
+        /* LSB of quot is set if inexact which roundandpack will use
+         * to set flags. Yet again we re-use a for the result */
+        a.frac = div128To64(temp_lo, temp_hi, b.frac);
+        a.sign = sign;
+        a.exp = exp;
+        return a;
+    }
+    /* handle all the NaN cases */
+    if (is_nan(a.cls) || is_nan(b.cls)) {
+        return pick_nan(a, b, s);
+    }
+    /* 0/0 or Inf/Inf */
+    if (a.cls == b.cls
+        &&
+        (a.cls == float_class_inf || a.cls == float_class_zero)) {
+        s->float_exception_flags |= float_flag_invalid;
+        a.cls = float_class_dnan;
+        return a;
+    }
+    /* Div 0 => Inf */
+    if (b.cls == float_class_zero) {
+        s->float_exception_flags |= float_flag_divbyzero;
+        a.cls = float_class_inf;
+        a.sign = sign;
+        return a;
+    }
+    /* Inf / x or 0 / x */
+    if (a.cls == float_class_inf || a.cls == float_class_zero) {
+        a.sign = sign;
+        return a;
+    }
+    /* Div by Inf */
+    if (b.cls == float_class_inf) {
+        a.cls = float_class_zero;
+        a.sign = sign;
+        return a;
+    }
+    g_assert_not_reached();
+}
+
+float16 float16_div(float16 a, float16 b, float_status *status)
+{
+    FloatParts pa = float16_unpack_canonical(a, status);
+    FloatParts pb = float16_unpack_canonical(b, status);
+    FloatParts pr = div_floats(pa, pb, status);
+
+    return float16_round_pack_canonical(pr, status);
+}
+
+float32 float32_div(float32 a, float32 b, float_status *status)
+{
+    FloatParts pa = float32_unpack_canonical(a, status);
+    FloatParts pb = float32_unpack_canonical(b, status);
+    FloatParts pr = div_floats(pa, pb, status);
+
+    return float32_round_pack_canonical(pr, status);
+}
+
+float64 float64_div(float64 a, float64 b, float_status *status)
+{
+    FloatParts pa = float64_unpack_canonical(a, status);
+    FloatParts pb = float64_unpack_canonical(b, status);
+    FloatParts pr = div_floats(pa, pb, status);
+
+    return float64_round_pack_canonical(pr, status);
+}
+
 /*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
@@ -2627,77 +2715,6 @@ float32 float32_round_to_int(float32 a, float_status *status)
 
 }
 
-
-/*----------------------------------------------------------------------------
-| Returns the result of dividing the single-precision floating-point value `a'
-| by the corresponding value `b'.  The operation is performed according to the
-| IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float32 float32_div(float32 a, float32 b, float_status *status)
-{
-    flag aSign, bSign, zSign;
-    int aExp, bExp, zExp;
-    uint32_t aSig, bSig, zSig;
-    a = float32_squash_input_denormal(a, status);
-    b = float32_squash_input_denormal(b, status);
-
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    bSig = extractFloat32Frac( b );
-    bExp = extractFloat32Exp( b );
-    bSign = extractFloat32Sign( b );
-    zSign = aSign ^ bSign;
-    if ( aExp == 0xFF ) {
-        if (aSig) {
-            return propagateFloat32NaN(a, b, status);
-        }
-        if ( bExp == 0xFF ) {
-            if (bSig) {
-                return propagateFloat32NaN(a, b, status);
-            }
-            float_raise(float_flag_invalid, status);
-            return float32_default_nan(status);
-        }
-        return packFloat32( zSign, 0xFF, 0 );
-    }
-    if ( bExp == 0xFF ) {
-        if (bSig) {
-            return propagateFloat32NaN(a, b, status);
-        }
-        return packFloat32( zSign, 0, 0 );
-    }
-    if ( bExp == 0 ) {
-        if ( bSig == 0 ) {
-            if ( ( aExp | aSig ) == 0 ) {
-                float_raise(float_flag_invalid, status);
-                return float32_default_nan(status);
-            }
-            float_raise(float_flag_divbyzero, status);
-            return packFloat32( zSign, 0xFF, 0 );
-        }
-        normalizeFloat32Subnormal( bSig, &bExp, &bSig );
-    }
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloat32( zSign, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
-    }
-    zExp = aExp - bExp + 0x7D;
-    aSig = ( aSig | 0x00800000 )<<7;
-    bSig = ( bSig | 0x00800000 )<<8;
-    if ( bSig <= ( aSig + aSig ) ) {
-        aSig >>= 1;
-        ++zExp;
-    }
-    zSig = ( ( (uint64_t) aSig )<<32 ) / bSig;
-    if ( ( zSig & 0x3F ) == 0 ) {
-        zSig |= ( (uint64_t) bSig * zSig != ( (uint64_t) aSig )<<32 );
-    }
-    return roundAndPackFloat32(zSign, zExp, zSig, status);
-
-}
-
 /*----------------------------------------------------------------------------
 | Returns the remainder of the single-precision floating-point value `a'
 | with respect to the corresponding value `b'.  The operation is performed
@@ -4159,83 +4176,6 @@ float64 float64_trunc_to_int(float64 a, float_status *status)
     return res;
 }
 
-/*----------------------------------------------------------------------------
-| Returns the result of dividing the double-precision floating-point value `a'
-| by the corresponding value `b'.  The operation is performed according to
-| the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float64 float64_div(float64 a, float64 b, float_status *status)
-{
-    flag aSign, bSign, zSign;
-    int aExp, bExp, zExp;
-    uint64_t aSig, bSig, zSig;
-    uint64_t rem0, rem1;
-    uint64_t term0, term1;
-    a = float64_squash_input_denormal(a, status);
-    b = float64_squash_input_denormal(b, status);
-
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    bSig = extractFloat64Frac( b );
-    bExp = extractFloat64Exp( b );
-    bSign = extractFloat64Sign( b );
-    zSign = aSign ^ bSign;
-    if ( aExp == 0x7FF ) {
-        if (aSig) {
-            return propagateFloat64NaN(a, b, status);
-        }
-        if ( bExp == 0x7FF ) {
-            if (bSig) {
-                return propagateFloat64NaN(a, b, status);
-            }
-            float_raise(float_flag_invalid, status);
-            return float64_default_nan(status);
-        }
-        return packFloat64( zSign, 0x7FF, 0 );
-    }
-    if ( bExp == 0x7FF ) {
-        if (bSig) {
-            return propagateFloat64NaN(a, b, status);
-        }
-        return packFloat64( zSign, 0, 0 );
-    }
-    if ( bExp == 0 ) {
-        if ( bSig == 0 ) {
-            if ( ( aExp | aSig ) == 0 ) {
-                float_raise(float_flag_invalid, status);
-                return float64_default_nan(status);
-            }
-            float_raise(float_flag_divbyzero, status);
-            return packFloat64( zSign, 0x7FF, 0 );
-        }
-        normalizeFloat64Subnormal( bSig, &bExp, &bSig );
-    }
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloat64( zSign, 0, 0 );
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
-    }
-    zExp = aExp - bExp + 0x3FD;
-    aSig = ( aSig | LIT64( 0x0010000000000000 ) )<<10;
-    bSig = ( bSig | LIT64( 0x0010000000000000 ) )<<11;
-    if ( bSig <= ( aSig + aSig ) ) {
-        aSig >>= 1;
-        ++zExp;
-    }
-    zSig = estimateDiv128To64( aSig, 0, bSig );
-    if ( ( zSig & 0x1FF ) <= 2 ) {
-        mul64To128( bSig, zSig, &term0, &term1 );
-        sub128( aSig, 0, term0, term1, &rem0, &rem1 );
-        while ( (int64_t) rem0 < 0 ) {
-            --zSig;
-            add128( rem0, rem1, 0, bSig, &rem0, &rem1 );
-        }
-        zSig |= ( rem1 != 0 );
-    }
-    return roundAndPackFloat64(zSign, zExp, zSig, status);
-
-}
 
 /*----------------------------------------------------------------------------
 | Returns the remainder of the double-precision floating-point value `a'
