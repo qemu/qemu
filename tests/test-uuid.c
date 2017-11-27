@@ -93,12 +93,18 @@ static inline bool uuid_is_valid(QemuUUID *uuid)
 
 static void test_uuid_generate(void)
 {
+    QemuUUID uuid_not_null = { { {
+        0x58, 0x6e, 0xce, 0x27, 0x7f, 0x09, 0x41, 0xe0,
+        0x9e, 0x74, 0xe9, 0x01, 0x31, 0x7e, 0x9d, 0x42
+    } } };
     QemuUUID uuid;
     int i;
 
     for (i = 0; i < 100; ++i) {
         qemu_uuid_generate(&uuid);
         g_assert(uuid_is_valid(&uuid));
+        g_assert_false(qemu_uuid_is_null(&uuid));
+        g_assert_false(qemu_uuid_is_equal(&uuid_not_null, &uuid));
     }
 }
 
@@ -168,8 +174,8 @@ static void test_uuid_unparse_strdup(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
-    g_test_add_func("/uuid/generate", test_uuid_generate);
     g_test_add_func("/uuid/is_null", test_uuid_is_null);
+    g_test_add_func("/uuid/generate", test_uuid_generate);
     g_test_add_func("/uuid/parse", test_uuid_parse);
     g_test_add_func("/uuid/unparse", test_uuid_unparse);
     g_test_add_func("/uuid/unparse_strdup", test_uuid_unparse_strdup);

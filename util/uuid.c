@@ -41,7 +41,12 @@ void qemu_uuid_generate(QemuUUID *uuid)
 int qemu_uuid_is_null(const QemuUUID *uu)
 {
     static QemuUUID null_uuid;
-    return memcmp(uu, &null_uuid, sizeof(QemuUUID)) == 0;
+    return qemu_uuid_is_equal(uu, &null_uuid);
+}
+
+int qemu_uuid_is_equal(const QemuUUID *lhv, const QemuUUID *rhv)
+{
+    return memcmp(lhv, rhv, sizeof(QemuUUID)) == 0;
 }
 
 void qemu_uuid_unparse(const QemuUUID *uuid, char *out)
