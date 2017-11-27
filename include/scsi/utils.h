@@ -31,6 +31,9 @@ typedef struct SCSISense {
 } SCSISense;
 
 int scsi_build_sense(uint8_t *buf, SCSISense sense);
+SCSISense scsi_parse_sense_buf(const uint8_t *in_buf, int in_len);
+int scsi_build_sense_buf(uint8_t *buf, size_t max_size, SCSISense sense,
+                         bool fixed_sense);
 
 /*
  * Predefined sense codes
