@@ -1,7 +1,7 @@
 /*
  * QEMU Block driver for native access to files on NFS shares
  *
- * Copyright (c) 2014-2016 Peter Lieven <pl@kamp.de>
+ * Copyright (c) 2014-2017 Peter Lieven <pl@kamp.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -496,7 +496,7 @@ out:
 static int64_t nfs_client_open(NFSClient *client, QDict *options,
                                int flags, int open_flags, Error **errp)
 {
-    int ret = -EINVAL;
+    int64_t ret = -EINVAL;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     struct stat st;
@@ -686,8 +686,7 @@ static QemuOptsList nfs_create_opts = {
 
 static int nfs_file_create(const char *url, QemuOpts *opts, Error **errp)
 {
-    int ret = 0;
-    int64_t total_size = 0;
+    int64_t ret, total_size;
     NFSClient *client = g_new0(NFSClient, 1);
     QDict *options = NULL;
 
