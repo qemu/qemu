@@ -339,16 +339,16 @@ int scsi_convert_sense(uint8_t *in_buf, int in_len,
 int scsi_sense_to_errno(int key, int asc, int ascq)
 {
     switch (key) {
-    case 0x00: /* NO SENSE */
-    case 0x01: /* RECOVERED ERROR */
-    case 0x06: /* UNIT ATTENTION */
+    case NO_SENSE:
+    case RECOVERED_ERROR:
+    case UNIT_ATTENTION:
         /* These sense keys are not errors */
         return 0;
-    case 0x0b: /* COMMAND ABORTED */
+    case ABORTED_COMMAND: /* COMMAND ABORTED */
         return ECANCELED;
-    case 0x02: /* NOT READY */
-    case 0x05: /* ILLEGAL REQUEST */
-    case 0x07: /* DATA PROTECTION */
+    case NOT_READY:
+    case ILLEGAL_REQUEST:
+    case DATA_PROTECT:
         /* Parse ASCQ */
         break;
     default:
