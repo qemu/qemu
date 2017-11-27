@@ -162,21 +162,6 @@ static void vmgenid_update_guest(VmGenIdState *vms)
     }
 }
 
-static void vmgenid_set_guid(Object *obj, const char *value, Error **errp)
-{
-    VmGenIdState *vms = VMGENID(obj);
-
-    if (!strcmp(value, "auto")) {
-        qemu_uuid_generate(&vms->guid);
-    } else if (qemu_uuid_parse(value, &vms->guid) < 0) {
-        error_setg(errp, "'%s. %s': Failed to parse GUID string: %s",
-                   object_get_typename(OBJECT(vms)), VMGENID_GUID, value);
-        return;
-    }
-
-    vmgenid_update_guest(vms);
-}
-
 /* After restoring an image, we need to update the guest memory and notify
  * it of a potential change to VM Generation ID
  */
@@ -224,7 +209,14 @@ static void vmgenid_realize(DeviceState *dev, Error **errp)
     }
 
     qemu_register_reset(vmgenid_handle_reset, vms);
+
+    vmgenid_update_guest(vms);
 }
+
+static Property vmgenid_device_properties[] = {
+    DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void vmgenid_device_class_init(ObjectClass *klass, void *data)
 {
@@ -232,15 +224,9 @@ static void vmgenid_device_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_vmgenid;
     dc->realize = vmgenid_realize;
+    dc->props = vmgenid_device_properties;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-
-    object_class_property_add_str(klass, VMGENID_GUID, NULL,
-                                  vmgenid_set_guid, NULL);
-    object_class_property_set_description(klass, VMGENID_GUID,
-                                    "Set Global Unique Identifier "
-                                    "(big-endian) or auto for random value",
-                                    NULL);
 }
 
 static const TypeInfo vmgenid_device_info = {
