@@ -83,7 +83,6 @@ this code that are retained.
  * target-dependent and needs the TARGET_* macros.
  */
 #include "qemu/osdep.h"
-
 #include "fpu/softfloat.h"
 
 /* We only need stdlib for abort() */
@@ -185,6 +184,91 @@ static inline flag extractFloat64Sign(float64 a)
 {
     return float64_val(a) >> 63;
 }
+
+/*
+ * Classify a floating point number. Everything above float_class_qnan
+ * is a NaN so cls >= float_class_qnan is any NaN.
+ */
+
+typedef enum __attribute__ ((__packed__)) {
+    float_class_unclassified,
+    float_class_zero,
+    float_class_normal,
+    float_class_inf,
+    float_class_qnan,  /* all NaNs from here */
+    float_class_snan,
+    float_class_dnan,
+    float_class_msnan, /* maybe silenced */
+} FloatClass;
+
+/*
+ * Structure holding all of the decomposed parts of a float. The
+ * exponent is unbiased and the fraction is normalized. All
+ * calculations are done with a 64 bit fraction and then rounded as
+ * appropriate for the final format.
+ *
+ * Thanks to the packed FloatClass a decent compiler should be able to
+ * fit the whole structure into registers and avoid using the stack
+ * for parameter passing.
+ */
+
+typedef struct {
+    uint64_t frac;
+    int32_t  exp;
+    FloatClass cls;
+    bool sign;
+} FloatParts;
+
+#define DECOMPOSED_BINARY_POINT    (64 - 2)
+#define DECOMPOSED_IMPLICIT_BIT    (1ull << DECOMPOSED_BINARY_POINT)
+#define DECOMPOSED_OVERFLOW_BIT    (DECOMPOSED_IMPLICIT_BIT << 1)
+
+/* Structure holding all of the relevant parameters for a format.
+ *   exp_size: the size of the exponent field
+ *   exp_bias: the offset applied to the exponent field
+ *   exp_max: the maximum normalised exponent
+ *   frac_size: the size of the fraction field
+ *   frac_shift: shift to normalise the fraction with DECOMPOSED_BINARY_POINT
+ * The following are computed based the size of fraction
+ *   frac_lsb: least significant bit of fraction
+ *   fram_lsbm1: the bit bellow the least significant bit (for rounding)
+ *   round_mask/roundeven_mask: masks used for rounding
+ */
+typedef struct {
+    int exp_size;
+    int exp_bias;
+    int exp_max;
+    int frac_size;
+    int frac_shift;
+    uint64_t frac_lsb;
+    uint64_t frac_lsbm1;
+    uint64_t round_mask;
+    uint64_t roundeven_mask;
+} FloatFmt;
+
+/* Expand fields based on the size of exponent and fraction */
+#define FLOAT_PARAMS(E, F)                                           \
+    .exp_size       = E,                                             \
+    .exp_bias       = ((1 << E) - 1) >> 1,                           \
+    .exp_max        = (1 << E) - 1,                                  \
+    .frac_size      = F,                                             \
+    .frac_shift     = DECOMPOSED_BINARY_POINT - F,                   \
+    .frac_lsb       = 1ull << (DECOMPOSED_BINARY_POINT - F),         \
+    .frac_lsbm1     = 1ull << ((DECOMPOSED_BINARY_POINT - F) - 1),   \
+    .round_mask     = (1ull << (DECOMPOSED_BINARY_POINT - F)) - 1,   \
+    .roundeven_mask = (2ull << (DECOMPOSED_BINARY_POINT - F)) - 1
+
+static const FloatFmt float16_params = {
+    FLOAT_PARAMS(5, 10)
+};
+
+static const FloatFmt float32_params = {
+    FLOAT_PARAMS(8, 23)
+};
+
+static const FloatFmt float64_params = {
+    FLOAT_PARAMS(11, 52)
+};
 
 /*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
