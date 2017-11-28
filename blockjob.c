@@ -152,6 +152,7 @@ void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
         BlockDriverState *bs = blk_bs(job->blk);
+        QLIST_REMOVE(job, job_list);
         bs->job = NULL;
         block_job_remove_all_bdrv(job);
         blk_remove_aio_context_notifier(job->blk,
@@ -160,7 +161,6 @@ void block_job_unref(BlockJob *job)
         blk_unref(job->blk);
         error_free(job->blocker);
         g_free(job->id);
-        QLIST_REMOVE(job, job_list);
         g_free(job);
     }
 }
