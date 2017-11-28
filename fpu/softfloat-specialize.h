@@ -729,58 +729,6 @@ static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
-| Takes three single-precision floating-point values `a', `b' and `c', one of
-| which is a NaN, and returns the appropriate NaN result.  If any of  `a',
-| `b' or `c' is a signaling NaN, the invalid exception is raised.
-| The input infzero indicates whether a*b was 0*inf or inf*0 (in which case
-| obviously c is a NaN, and whether to propagate c or some other NaN is
-| implementation defined).
-*----------------------------------------------------------------------------*/
-
-static float32 propagateFloat32MulAddNaN(float32 a, float32 b,
-                                         float32 c, flag infzero,
-                                         float_status *status)
-{
-    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
-        cIsQuietNaN, cIsSignalingNaN;
-    int which;
-
-    aIsQuietNaN = float32_is_quiet_nan(a, status);
-    aIsSignalingNaN = float32_is_signaling_nan(a, status);
-    bIsQuietNaN = float32_is_quiet_nan(b, status);
-    bIsSignalingNaN = float32_is_signaling_nan(b, status);
-    cIsQuietNaN = float32_is_quiet_nan(c, status);
-    cIsSignalingNaN = float32_is_signaling_nan(c, status);
-
-    if (aIsSignalingNaN | bIsSignalingNaN | cIsSignalingNaN) {
-        float_raise(float_flag_invalid, status);
-    }
-
-    which = pickNaNMulAdd(aIsQuietNaN, aIsSignalingNaN,
-                          bIsQuietNaN, bIsSignalingNaN,
-                          cIsQuietNaN, cIsSignalingNaN, infzero, status);
-
-    if (status->default_nan_mode) {
-        /* Note that this check is after pickNaNMulAdd so that function
-         * has an opportunity to set the Invalid flag.
-         */
-        return float32_default_nan(status);
-    }
-
-    switch (which) {
-    case 0:
-        return float32_maybe_silence_nan(a, status);
-    case 1:
-        return float32_maybe_silence_nan(b, status);
-    case 2:
-        return float32_maybe_silence_nan(c, status);
-    case 3:
-    default:
-        return float32_default_nan(status);
-    }
-}
-
 #ifdef NO_SIGNALING_NANS
 int float64_is_quiet_nan(float64 a_, float_status *status)
 {
@@ -933,58 +881,6 @@ static float64 propagateFloat64NaN(float64 a, float64 b, float_status *status)
         return float64_maybe_silence_nan(b, status);
     } else {
         return float64_maybe_silence_nan(a, status);
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Takes three double-precision floating-point values `a', `b' and `c', one of
-| which is a NaN, and returns the appropriate NaN result.  If any of  `a',
-| `b' or `c' is a signaling NaN, the invalid exception is raised.
-| The input infzero indicates whether a*b was 0*inf or inf*0 (in which case
-| obviously c is a NaN, and whether to propagate c or some other NaN is
-| implementation defined).
-*----------------------------------------------------------------------------*/
-
-static float64 propagateFloat64MulAddNaN(float64 a, float64 b,
-                                         float64 c, flag infzero,
-                                         float_status *status)
-{
-    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
-        cIsQuietNaN, cIsSignalingNaN;
-    int which;
-
-    aIsQuietNaN = float64_is_quiet_nan(a, status);
-    aIsSignalingNaN = float64_is_signaling_nan(a, status);
-    bIsQuietNaN = float64_is_quiet_nan(b, status);
-    bIsSignalingNaN = float64_is_signaling_nan(b, status);
-    cIsQuietNaN = float64_is_quiet_nan(c, status);
-    cIsSignalingNaN = float64_is_signaling_nan(c, status);
-
-    if (aIsSignalingNaN | bIsSignalingNaN | cIsSignalingNaN) {
-        float_raise(float_flag_invalid, status);
-    }
-
-    which = pickNaNMulAdd(aIsQuietNaN, aIsSignalingNaN,
-                          bIsQuietNaN, bIsSignalingNaN,
-                          cIsQuietNaN, cIsSignalingNaN, infzero, status);
-
-    if (status->default_nan_mode) {
-        /* Note that this check is after pickNaNMulAdd so that function
-         * has an opportunity to set the Invalid flag.
-         */
-        return float64_default_nan(status);
-    }
-
-    switch (which) {
-    case 0:
-        return float64_maybe_silence_nan(a, status);
-    case 1:
-        return float64_maybe_silence_nan(b, status);
-    case 2:
-        return float64_maybe_silence_nan(c, status);
-    case 3:
-    default:
-        return float64_default_nan(status);
     }
 }
 
