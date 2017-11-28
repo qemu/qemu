@@ -104,7 +104,18 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
            pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && h2g_valid(address)) {
+    /* Note that it is important that we don't call page_unprotect() unless
+     * this is really a "write to nonwriteable page" fault, because
+     * page_unprotect() assumes that if it is called for an access to
+     * a page that's writeable this means we had two threads racing and
+     * another thread got there first and already made the page writeable;
+     * so we will retry the access. If we were to call page_unprotect()
+     * for some other kind of fault that should really be passed to the
+     * guest, we'd end up in an infinite loop of retrying the faulting
+     * access.
+     */
+    if (is_write && info->si_signo == SIGSEGV && info->si_code == SEGV_ACCERR &&
+        h2g_valid(address)) {
         switch (page_unprotect(h2g(address), pc)) {
         case 0:
             /* Fault not caused by a page marked unwritable to protect
