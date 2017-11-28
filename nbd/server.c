@@ -386,6 +386,10 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
         msg = "name length is incorrect";
         goto invalid;
     }
+    if (namelen >= sizeof(name)) {
+        msg = "name too long for qemu";
+        goto invalid;
+    }
     if (nbd_read(client->ioc, name, namelen, errp) < 0) {
         return -EIO;
     }
@@ -672,6 +676,12 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
             return -EINVAL;
         }
         length = be32_to_cpu(length);
+
+        if (length > NBD_MAX_BUFFER_SIZE) {
+            error_setg(errp, "len (%" PRIu32" ) is larger than max len (%u)",
+                       length, NBD_MAX_BUFFER_SIZE);
+            return -EINVAL;
+        }
 
         trace_nbd_negotiate_options_check_option(option,
                                                  nbd_opt_lookup(option));
