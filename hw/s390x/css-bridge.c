@@ -99,6 +99,8 @@ VirtualCssBus *virtual_css_bus_init(void)
 
     /* Create bridge device */
     dev = qdev_create(NULL, TYPE_VIRTUAL_CSS_BRIDGE);
+    object_property_add_child(qdev_get_machine(), TYPE_VIRTUAL_CSS_BRIDGE,
+                              OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 
     /* Create bus on bridge device */
