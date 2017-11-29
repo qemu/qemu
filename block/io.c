@@ -134,24 +134,6 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
     assert(old >= 1);
 }
 
-/* Check if any requests are in-flight (including throttled requests) */
-bool bdrv_requests_pending(BlockDriverState *bs)
-{
-    BdrvChild *child;
-
-    if (atomic_read(&bs->in_flight)) {
-        return true;
-    }
-
-    QLIST_FOREACH(child, &bs->children, next) {
-        if (bdrv_requests_pending(child->bs)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 typedef struct {
     Coroutine *co;
     BlockDriverState *bs;
