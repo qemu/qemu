@@ -139,14 +139,13 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 /**
  * block_job_sleep_ns:
  * @job: The job that calls the function.
- * @clock: The clock to sleep on.
  * @ns: How many nanoseconds to stop for.
  *
  * Put the job to sleep (assuming that it wasn't canceled) for @ns
- * nanoseconds.  Canceling the job will not interrupt the wait, so the
- * cancel will not process until the coroutine wakes up.
+ * %QEMU_CLOCK_REALTIME nanoseconds.  Canceling the job will not interrupt
+ * the wait, so the cancel will not process until the coroutine wakes up.
  */
-void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
+void block_job_sleep_ns(BlockJob *job, int64_t ns);
 
 /**
  * block_job_yield:

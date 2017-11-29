@@ -788,7 +788,7 @@ bool block_job_is_cancelled(BlockJob *job)
     return job->cancelled;
 }
 
-void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
+void block_job_sleep_ns(BlockJob *job, int64_t ns)
 {
     assert(job->busy);
 
@@ -803,7 +803,8 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
      * it wakes and runs, otherwise we risk double-entry or entry after
      * completion. */
     if (!block_job_should_pause(job)) {
-        co_aio_sleep_ns(blk_get_aio_context(job->blk), type, ns);
+        co_aio_sleep_ns(blk_get_aio_context(job->blk),
+                        QEMU_CLOCK_REALTIME, ns);
     }
 
     block_job_pause_point(job);
