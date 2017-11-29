@@ -692,7 +692,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
             /* In the case the PCI device does not define an id */
             /* we generate one based on the PCI address         */
             dev->id = g_strdup_printf("auto_%02x:%02x.%01x",
-                                      pci_bus_num(pdev->bus),
+                                      pci_dev_bus_num(pdev),
                                       PCI_SLOT(pdev->devfn),
                                       PCI_FUNC(pdev->devfn));
         }

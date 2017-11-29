@@ -1025,7 +1025,7 @@ static int do_pcie_aer_inject_error(Monitor *mon,
     }
     details->id = id;
     details->root_bus = pci_root_bus_path(dev);
-    details->bus = pci_bus_num(dev->bus);
+    details->bus = pci_dev_bus_num(dev);
     details->devfn = dev->devfn;
 
     return 0;
