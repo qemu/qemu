@@ -560,6 +560,25 @@ static bool is_qnan(FloatClass c)
     return c == float_class_qnan;
 }
 
+static FloatParts return_nan(FloatParts a, float_status *s)
+{
+    switch (a.cls) {
+    case float_class_snan:
+        s->float_exception_flags |= float_flag_invalid;
+        a.cls = float_class_msnan;
+        /* fall through */
+    case float_class_qnan:
+        if (s->default_nan_mode) {
+            a.cls = float_class_dnan;
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+    return a;
+}
+
 static FloatParts pick_nan(FloatParts a, FloatParts b, float_status *s)
 {
     if (is_snan(a.cls) || is_snan(b.cls)) {
@@ -1173,6 +1192,132 @@ float64 float64_div(float64 a, float64 b, float_status *status)
     FloatParts pr = div_floats(pa, pb, status);
 
     return float64_round_pack_canonical(pr, status);
+}
+
+/*
+ * Rounds the floating-point value `a' to an integer, and returns the
+ * result as a floating-point value. The operation is performed
+ * according to the IEC/IEEE Standard for Binary Floating-Point
+ * Arithmetic.
+ */
+
+static FloatParts round_to_int(FloatParts a, int rounding_mode, float_status *s)
+{
+    if (is_nan(a.cls)) {
+        return return_nan(a, s);
+    }
+
+    switch (a.cls) {
+    case float_class_zero:
+    case float_class_inf:
+    case float_class_qnan:
+        /* already "integral" */
+        break;
+    case float_class_normal:
+        if (a.exp >= DECOMPOSED_BINARY_POINT) {
+            /* already integral */
+            break;
+        }
+        if (a.exp < 0) {
+            bool one;
+            /* all fractional */
+            s->float_exception_flags |= float_flag_inexact;
+            switch (rounding_mode) {
+            case float_round_nearest_even:
+                one = a.exp == -1 && a.frac > DECOMPOSED_IMPLICIT_BIT;
+                break;
+            case float_round_ties_away:
+                one = a.exp == -1 && a.frac >= DECOMPOSED_IMPLICIT_BIT;
+                break;
+            case float_round_to_zero:
+                one = false;
+                break;
+            case float_round_up:
+                one = !a.sign;
+                break;
+            case float_round_down:
+                one = a.sign;
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            if (one) {
+                a.frac = DECOMPOSED_IMPLICIT_BIT;
+                a.exp = 0;
+            } else {
+                a.cls = float_class_zero;
+            }
+        } else {
+            uint64_t frac_lsb = DECOMPOSED_IMPLICIT_BIT >> a.exp;
+            uint64_t frac_lsbm1 = frac_lsb >> 1;
+            uint64_t rnd_even_mask = (frac_lsb - 1) | frac_lsb;
+            uint64_t rnd_mask = rnd_even_mask >> 1;
+            uint64_t inc;
+
+            switch (rounding_mode) {
+            case float_round_nearest_even:
+                inc = ((a.frac & rnd_even_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
+                break;
+            case float_round_ties_away:
+                inc = frac_lsbm1;
+                break;
+            case float_round_to_zero:
+                inc = 0;
+                break;
+            case float_round_up:
+                inc = a.sign ? 0 : rnd_mask;
+                break;
+            case float_round_down:
+                inc = a.sign ? rnd_mask : 0;
+                break;
+            default:
+                g_assert_not_reached();
+            }
+
+            if (a.frac & rnd_mask) {
+                s->float_exception_flags |= float_flag_inexact;
+                a.frac += inc;
+                a.frac &= ~rnd_mask;
+                if (a.frac & DECOMPOSED_OVERFLOW_BIT) {
+                    a.frac >>= 1;
+                    a.exp++;
+                }
+            }
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return a;
+}
+
+float16 float16_round_to_int(float16 a, float_status *s)
+{
+    FloatParts pa = float16_unpack_canonical(a, s);
+    FloatParts pr = round_to_int(pa, s->float_rounding_mode, s);
+    return float16_round_pack_canonical(pr, s);
+}
+
+float32 float32_round_to_int(float32 a, float_status *s)
+{
+    FloatParts pa = float32_unpack_canonical(a, s);
+    FloatParts pr = round_to_int(pa, s->float_rounding_mode, s);
+    return float32_round_pack_canonical(pr, s);
+}
+
+float64 float64_round_to_int(float64 a, float_status *s)
+{
+    FloatParts pa = float64_unpack_canonical(a, s);
+    FloatParts pr = round_to_int(pa, s->float_rounding_mode, s);
+    return float64_round_pack_canonical(pr, s);
+}
+
+float64 float64_trunc_to_int(float64 a, float_status *s)
+{
+    FloatParts pa = float64_unpack_canonical(a, s);
+    FloatParts pr = round_to_int(pa, float_round_to_zero, s);
+    return float64_round_pack_canonical(pr, s);
 }
 
 /*----------------------------------------------------------------------------
@@ -2906,87 +3051,6 @@ float128 float32_to_float128(float32 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Rounds the single-precision floating-point value `a' to an integer, and
-| returns the result as a single-precision floating-point value.  The
-| operation is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float32 float32_round_to_int(float32 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    uint32_t lastBitMask, roundBitsMask;
-    uint32_t z;
-    a = float32_squash_input_denormal(a, status);
-
-    aExp = extractFloat32Exp( a );
-    if ( 0x96 <= aExp ) {
-        if ( ( aExp == 0xFF ) && extractFloat32Frac( a ) ) {
-            return propagateFloat32NaN(a, a, status);
-        }
-        return a;
-    }
-    if ( aExp <= 0x7E ) {
-        if ( (uint32_t) ( float32_val(a)<<1 ) == 0 ) return a;
-        status->float_exception_flags |= float_flag_inexact;
-        aSign = extractFloat32Sign( a );
-        switch (status->float_rounding_mode) {
-         case float_round_nearest_even:
-            if ( ( aExp == 0x7E ) && extractFloat32Frac( a ) ) {
-                return packFloat32( aSign, 0x7F, 0 );
-            }
-            break;
-        case float_round_ties_away:
-            if (aExp == 0x7E) {
-                return packFloat32(aSign, 0x7F, 0);
-            }
-            break;
-         case float_round_down:
-            return make_float32(aSign ? 0xBF800000 : 0);
-         case float_round_up:
-            return make_float32(aSign ? 0x80000000 : 0x3F800000);
-        }
-        return packFloat32( aSign, 0, 0 );
-    }
-    lastBitMask = 1;
-    lastBitMask <<= 0x96 - aExp;
-    roundBitsMask = lastBitMask - 1;
-    z = float32_val(a);
-    switch (status->float_rounding_mode) {
-    case float_round_nearest_even:
-        z += lastBitMask>>1;
-        if ((z & roundBitsMask) == 0) {
-            z &= ~lastBitMask;
-        }
-        break;
-    case float_round_ties_away:
-        z += lastBitMask >> 1;
-        break;
-    case float_round_to_zero:
-        break;
-    case float_round_up:
-        if (!extractFloat32Sign(make_float32(z))) {
-            z += roundBitsMask;
-        }
-        break;
-    case float_round_down:
-        if (extractFloat32Sign(make_float32(z))) {
-            z += roundBitsMask;
-        }
-        break;
-    default:
-        abort();
-    }
-    z &= ~ roundBitsMask;
-    if (z != float32_val(a)) {
-        status->float_exception_flags |= float_flag_inexact;
-    }
-    return make_float32(z);
-
-}
-
-/*----------------------------------------------------------------------------
 | Returns the remainder of the single-precision floating-point value `a'
 | with respect to the corresponding value `b'.  The operation is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
@@ -4127,99 +4191,6 @@ float128 float64_to_float128(float64 a, float_status *status)
     shift128Right( aSig, 0, 4, &zSig0, &zSig1 );
     return packFloat128( aSign, aExp + 0x3C00, zSig0, zSig1 );
 
-}
-
-/*----------------------------------------------------------------------------
-| Rounds the double-precision floating-point value `a' to an integer, and
-| returns the result as a double-precision floating-point value.  The
-| operation is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float64 float64_round_to_int(float64 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    uint64_t lastBitMask, roundBitsMask;
-    uint64_t z;
-    a = float64_squash_input_denormal(a, status);
-
-    aExp = extractFloat64Exp( a );
-    if ( 0x433 <= aExp ) {
-        if ( ( aExp == 0x7FF ) && extractFloat64Frac( a ) ) {
-            return propagateFloat64NaN(a, a, status);
-        }
-        return a;
-    }
-    if ( aExp < 0x3FF ) {
-        if ( (uint64_t) ( float64_val(a)<<1 ) == 0 ) return a;
-        status->float_exception_flags |= float_flag_inexact;
-        aSign = extractFloat64Sign( a );
-        switch (status->float_rounding_mode) {
-         case float_round_nearest_even:
-            if ( ( aExp == 0x3FE ) && extractFloat64Frac( a ) ) {
-                return packFloat64( aSign, 0x3FF, 0 );
-            }
-            break;
-        case float_round_ties_away:
-            if (aExp == 0x3FE) {
-                return packFloat64(aSign, 0x3ff, 0);
-            }
-            break;
-         case float_round_down:
-            return make_float64(aSign ? LIT64( 0xBFF0000000000000 ) : 0);
-         case float_round_up:
-            return make_float64(
-            aSign ? LIT64( 0x8000000000000000 ) : LIT64( 0x3FF0000000000000 ));
-        }
-        return packFloat64( aSign, 0, 0 );
-    }
-    lastBitMask = 1;
-    lastBitMask <<= 0x433 - aExp;
-    roundBitsMask = lastBitMask - 1;
-    z = float64_val(a);
-    switch (status->float_rounding_mode) {
-    case float_round_nearest_even:
-        z += lastBitMask >> 1;
-        if ((z & roundBitsMask) == 0) {
-            z &= ~lastBitMask;
-        }
-        break;
-    case float_round_ties_away:
-        z += lastBitMask >> 1;
-        break;
-    case float_round_to_zero:
-        break;
-    case float_round_up:
-        if (!extractFloat64Sign(make_float64(z))) {
-            z += roundBitsMask;
-        }
-        break;
-    case float_round_down:
-        if (extractFloat64Sign(make_float64(z))) {
-            z += roundBitsMask;
-        }
-        break;
-    default:
-        abort();
-    }
-    z &= ~ roundBitsMask;
-    if (z != float64_val(a)) {
-        status->float_exception_flags |= float_flag_inexact;
-    }
-    return make_float64(z);
-
-}
-
-float64 float64_trunc_to_int(float64 a, float_status *status)
-{
-    int oldmode;
-    float64 res;
-    oldmode = status->float_rounding_mode;
-    status->float_rounding_mode = float_round_to_zero;
-    res = float64_round_to_int(a, status);
-    status->float_rounding_mode = oldmode;
-    return res;
 }
 
 
