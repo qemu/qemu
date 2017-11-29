@@ -729,6 +729,15 @@ static bool block_job_should_pause(BlockJob *job)
     return job->pause_count > 0;
 }
 
+static void block_job_do_yield(BlockJob *job)
+{
+    job->busy = false;
+    qemu_coroutine_yield();
+
+    /* Set by block_job_enter before re-entering the coroutine.  */
+    assert(job->busy);
+}
+
 void coroutine_fn block_job_pause_point(BlockJob *job)
 {
     assert(job && block_job_started(job));
@@ -746,9 +755,7 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
 
     if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
         job->paused = true;
-        job->busy = false;
-        qemu_coroutine_yield(); /* wait for block_job_resume() */
-        job->busy = true;
+        block_job_do_yield(job);
         job->paused = false;
     }
 
@@ -778,9 +785,12 @@ void block_job_enter(BlockJob *job)
         return;
     }
 
-    if (!job->busy) {
-        bdrv_coroutine_enter(blk_bs(job->blk), job->co);
+    if (job->busy) {
+        return;
     }
+
+    job->busy = true;
+    aio_co_wake(job->co);
 }
 
 bool block_job_is_cancelled(BlockJob *job)
@@ -819,11 +829,9 @@ void block_job_yield(BlockJob *job)
         return;
     }
 
-    job->busy = false;
     if (!block_job_should_pause(job)) {
-        qemu_coroutine_yield();
+        block_job_do_yield(job);
     }
-    job->busy = true;
 
     block_job_pause_point(job);
 }
