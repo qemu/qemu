@@ -42,9 +42,9 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
 
 void bdrv_parent_drained_begin(BlockDriverState *bs)
 {
-    BdrvChild *c;
+    BdrvChild *c, *next;
 
-    QLIST_FOREACH(c, &bs->parents, next_parent) {
+    QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
         if (c->role->drained_begin) {
             c->role->drained_begin(c);
         }
@@ -53,9 +53,9 @@ void bdrv_parent_drained_begin(BlockDriverState *bs)
 
 void bdrv_parent_drained_end(BlockDriverState *bs)
 {
-    BdrvChild *c;
+    BdrvChild *c, *next;
 
-    QLIST_FOREACH(c, &bs->parents, next_parent) {
+    QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
         if (c->role->drained_end) {
             c->role->drained_end(c);
         }

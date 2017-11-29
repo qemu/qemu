@@ -48,41 +48,41 @@ disk_size_offset=$((0x58))
 echo
 echo "== Read from a valid image =="
 _use_sample_img empty.bochs.bz2
-{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -r -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Negative catalog size =="
 _use_sample_img empty.bochs.bz2
 poke_file "$TEST_IMG" "$catalog_size_offset" "\xff\xff\xff\xff"
-{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -r -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Overflow for catalog size * sizeof(uint32_t) =="
 _use_sample_img empty.bochs.bz2
 poke_file "$TEST_IMG" "$catalog_size_offset" "\x00\x00\x00\x40"
-{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -r -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Too small catalog bitmap for image size =="
 _use_sample_img empty.bochs.bz2
 poke_file "$TEST_IMG" "$disk_size_offset" "\x00\xc0\x0f\x00\x00\x00\x00\x7f"
-{ $QEMU_IO -c "read 2T 4k" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -r -c "read 2T 4k" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 _use_sample_img empty.bochs.bz2
 poke_file "$TEST_IMG" "$catalog_size_offset" "\x10\x00\x00\x00"
-{ $QEMU_IO -c "read 0xfbe00 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -r -c "read 0xfbe00 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Negative extent size =="
 _use_sample_img empty.bochs.bz2
 poke_file "$TEST_IMG" "$extent_size_offset" "\x00\x00\x00\x80"
-{ $QEMU_IO -c "read 768k 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -r -c "read 768k 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== Zero extent size =="
 _use_sample_img empty.bochs.bz2
 poke_file "$TEST_IMG" "$extent_size_offset" "\x00\x00\x00\x00"
-{ $QEMU_IO -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -r -c "read 0 512" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"

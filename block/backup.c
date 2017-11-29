@@ -346,9 +346,9 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
         uint64_t delay_ns = ratelimit_calculate_delay(&job->limit,
                                                       job->bytes_read);
         job->bytes_read = 0;
-        block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, delay_ns);
+        block_job_sleep_ns(&job->common, delay_ns);
     } else {
-        block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, 0);
+        block_job_sleep_ns(&job->common, 0);
     }
 
     if (block_job_is_cancelled(&job->common)) {

@@ -693,6 +693,10 @@ This is the protocol-level block driver for accessing regular files.
 The path to the image file in the local filesystem
 @item aio
 Specifies the AIO backend (threads/native, default: threads)
+@item locking
+Specifies whether the image file is protected with Linux OFD / POSIX locks. The
+default is to use the Linux Open File Descriptor API if available, otherwise no
+lock is applied.  (auto/on/off, default: auto)
 @end table
 Example:
 @example
