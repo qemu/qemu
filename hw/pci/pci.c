@@ -331,22 +331,6 @@ static void pci_host_bus_register(DeviceState *host)
     QLIST_INSERT_HEAD(&pci_host_bridges, host_bridge, next);
 }
 
-PCIBus *pci_find_primary_bus(void)
-{
-    PCIBus *primary_bus = NULL;
-    PCIHostState *host;
-
-    QLIST_FOREACH(host, &pci_host_bridges, next) {
-        if (primary_bus) {
-            /* We have multiple root buses, refuse to select a primary */
-            return NULL;
-        }
-        primary_bus = host->bus;
-    }
-
-    return primary_bus;
-}
-
 PCIBus *pci_device_root_bus(const PCIDevice *d)
 {
     PCIBus *bus = pci_get_bus(d);

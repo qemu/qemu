@@ -467,7 +467,6 @@ void pci_for_each_bus(PCIBus *bus,
     pci_for_each_bus_depth_first(bus, NULL, fn, opaque);
 }
 
-PCIBus *pci_find_primary_bus(void);
 PCIBus *pci_device_root_bus(const PCIDevice *d);
 const char *pci_root_bus_path(PCIDevice *dev);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
