@@ -554,10 +554,10 @@ static int s390_pcihost_init(SysBusDevice *dev)
 
     DPRINTF("host_init\n");
 
-    b = pci_register_bus(DEVICE(dev), NULL,
-                         s390_pci_set_irq, s390_pci_map_irq, NULL,
-                         get_system_memory(), get_system_io(), 0, 64,
-                         TYPE_PCI_BUS);
+    b = pci_register_root_bus(DEVICE(dev), NULL,
+                              s390_pci_set_irq, s390_pci_map_irq, NULL,
+                              get_system_memory(), get_system_io(), 0, 64,
+                              TYPE_PCI_BUS);
     pci_setup_iommu(b, s390_pci_dma_iommu, s);
 
     bus = BUS(b);

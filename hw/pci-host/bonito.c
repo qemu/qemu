@@ -714,10 +714,10 @@ static int bonito_pcihost_initfn(SysBusDevice *dev)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
 
-    phb->bus = pci_register_bus(DEVICE(dev), "pci",
-                                pci_bonito_set_irq, pci_bonito_map_irq, dev,
-                                get_system_memory(), get_system_io(),
-                                0x28, 32, TYPE_PCI_BUS);
+    phb->bus = pci_register_root_bus(DEVICE(dev), "pci",
+                                     pci_bonito_set_irq, pci_bonito_map_irq,
+                                     dev, get_system_memory(), get_system_io(),
+                                     0x28, 32, TYPE_PCI_BUS);
 
     return 0;
 }

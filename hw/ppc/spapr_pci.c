@@ -1621,10 +1621,10 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
 
-    bus = pci_register_bus(dev, NULL,
-                           pci_spapr_set_irq, pci_spapr_map_irq, sphb,
-                           &sphb->memspace, &sphb->iospace,
-                           PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
+    bus = pci_register_root_bus(dev, NULL,
+                                pci_spapr_set_irq, pci_spapr_map_irq, sphb,
+                                &sphb->memspace, &sphb->iospace,
+                                PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
     phb->bus = bus;
     qbus_set_hotplug_handler(BUS(phb->bus), DEVICE(sphb), NULL);
 
