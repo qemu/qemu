@@ -285,7 +285,6 @@ struct PCIDevice {
     uint8_t *used;
 
     /* the following fields are read only */
-    PCIBus *bus;
     int32_t devfn;
     /* Cached device to fetch requester ID from, to avoid the PCI
      * tree walking every time we invoke PCI request (e.g.,
@@ -435,10 +434,14 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
 
 PCIDevice *pci_vga_init(PCIBus *bus);
 
+static inline PCIBus *pci_get_bus(const PCIDevice *dev)
+{
+    return PCI_BUS(qdev_get_parent_bus(DEVICE(dev)));
+}
 int pci_bus_num(PCIBus *s);
 static inline int pci_dev_bus_num(const PCIDevice *dev)
 {
-    return pci_bus_num(dev->bus);
+    return pci_bus_num(pci_get_bus(dev));
 }
 
 int pci_bus_numa_node(PCIBus *bus);
@@ -745,7 +748,7 @@ static inline uint32_t pci_config_size(const PCIDevice *d)
 
 static inline uint16_t pci_get_bdf(PCIDevice *dev)
 {
-    return PCI_BUILD_BDF(pci_bus_num(dev->bus), dev->devfn);
+    return PCI_BUILD_BDF(pci_bus_num(pci_get_bus(dev)), dev->devfn);
 }
 
 uint16_t pci_requester_id(PCIDevice *dev);

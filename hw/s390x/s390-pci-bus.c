@@ -680,10 +680,10 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
             s->bus_no += 1;
             pci_default_write_config(pdev, PCI_SECONDARY_BUS, s->bus_no, 1);
             do {
-                pdev = pdev->bus->parent_dev;
+                pdev = pci_get_bus(pdev)->parent_dev;
                 pci_default_write_config(pdev, PCI_SUBORDINATE_BUS,
                                          s->bus_no, 1);
-            } while (pdev->bus && pci_bus_num(pdev->bus));
+            } while (pci_get_bus(pdev) && pci_dev_bus_num(pdev));
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pdev = PCI_DEVICE(dev);
@@ -713,7 +713,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         }
 
         pbdev->pdev = pdev;
-        pbdev->iommu = s390_pci_get_iommu(s, pdev->bus, pdev->devfn);
+        pbdev->iommu = s390_pci_get_iommu(s, pci_get_bus(pdev), pdev->devfn);
         pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_DISABLED;
 
@@ -807,7 +807,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
 
     s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
                                  pbdev->fh, pbdev->fid);
-    bus = pci_dev->bus;
+    bus = pci_get_bus(pci_dev);
     devfn = pci_dev->devfn;
     object_unparent(OBJECT(pci_dev));
     s390_pci_msix_free(pbdev);

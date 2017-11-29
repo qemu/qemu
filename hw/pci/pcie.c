@@ -155,7 +155,8 @@ pcie_endpoint_cap_common_init(PCIDevice *dev, uint8_t offset, uint8_t cap_size)
      * a regular Endpoint type is exposed on a root complex.  These
      * should instead be Root Complex Integrated Endpoints.
      */
-    if (pci_bus_is_express(dev->bus) && pci_bus_is_root(dev->bus)) {
+    if (pci_bus_is_express(pci_get_bus(dev))
+        && pci_bus_is_root(pci_get_bus(dev))) {
         type = PCI_EXP_TYPE_RC_END;
     }
 
@@ -369,7 +370,7 @@ void pcie_cap_slot_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
 {
     uint8_t *exp_cap;
     PCIDevice *pci_dev = PCI_DEVICE(dev);
-    PCIBus *bus = pci_dev->bus;
+    PCIBus *bus = pci_get_bus(pci_dev);
 
     pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
 

@@ -311,7 +311,7 @@ static const MemoryRegionOps pci_vpb_config_ops = {
 
 static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
 {
-    PCIVPBState *s = container_of(d->bus, PCIVPBState, pci_bus);
+    PCIVPBState *s = container_of(pci_get_bus(d), PCIVPBState, pci_bus);
 
     if (s->irq_mapping == PCI_VPB_IRQMAP_BROKEN) {
         /* Legacy broken IRQ mapping for compatibility with old and

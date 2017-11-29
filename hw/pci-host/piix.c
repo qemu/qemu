@@ -512,12 +512,12 @@ static PCIINTxRoute piix3_route_intx_pin_to_irq(void *opaque, int pin)
 /* irq routing is changed. so rebuild bitmap */
 static void piix3_update_irq_levels(PIIX3State *piix3)
 {
+    PCIBus *bus = pci_get_bus(&piix3->dev);
     int pirq;
 
     piix3->pic_levels = 0;
     for (pirq = 0; pirq < PIIX_NUM_PIRQS; pirq++) {
-        piix3_set_irq_level(piix3, pirq,
-                            pci_bus_get_irq_level(piix3->dev.bus, pirq));
+        piix3_set_irq_level(piix3, pirq, pci_bus_get_irq_level(bus, pirq));
     }
 }
 
@@ -529,7 +529,7 @@ static void piix3_write_config(PCIDevice *dev,
         PIIX3State *piix3 = PIIX3_PCI_DEVICE(dev);
         int pic_irq;
 
-        pci_bus_fire_intx_routing_notifier(piix3->dev.bus);
+        pci_bus_fire_intx_routing_notifier(pci_get_bus(&piix3->dev));
         piix3_update_irq_levels(piix3);
         for (pic_irq = 0; pic_irq < PIIX_NUM_PIC_IRQS; pic_irq++) {
             piix3_set_irq_pic(piix3, pic_irq);
@@ -601,7 +601,7 @@ static int piix3_post_load(void *opaque, int version_id)
     piix3->pic_levels = 0;
     for (pirq = 0; pirq < PIIX_NUM_PIRQS; pirq++) {
         piix3_set_irq_level_internal(piix3, pirq,
-                            pci_bus_get_irq_level(piix3->dev.bus, pirq));
+            pci_bus_get_irq_level(pci_get_bus(&piix3->dev), pirq));
     }
     return 0;
 }
@@ -613,7 +613,7 @@ static int piix3_pre_save(void *opaque)
 
     for (i = 0; i < ARRAY_SIZE(piix3->pci_irq_levels_vmstate); i++) {
         piix3->pci_irq_levels_vmstate[i] =
-            pci_bus_get_irq_level(piix3->dev.bus, i);
+            pci_bus_get_irq_level(pci_get_bus(&piix3->dev), i);
     }
 
     return 0;

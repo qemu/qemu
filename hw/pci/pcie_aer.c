@@ -409,7 +409,7 @@ static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
              */
             return;
         }
-        dev = pci_bridge_get_device(dev->bus);
+        dev = pci_bridge_get_device(pci_get_bus(dev));
     }
 }
 
