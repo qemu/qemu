@@ -1320,6 +1320,186 @@ float64 float64_trunc_to_int(float64 a, float_status *s)
     return float64_round_pack_canonical(pr, s);
 }
 
+/*
+ * Returns the result of converting the floating-point value `a' to
+ * the two's complement integer format. The conversion is performed
+ * according to the IEC/IEEE Standard for Binary Floating-Point
+ * Arithmetic---which means in particular that the conversion is
+ * rounded according to the current rounding mode. If `a' is a NaN,
+ * the largest positive integer is returned. Otherwise, if the
+ * conversion overflows, the largest integer with the same sign as `a'
+ * is returned.
+*/
+
+static int64_t round_to_int_and_pack(FloatParts in, int rmode,
+                                     int64_t min, int64_t max,
+                                     float_status *s)
+{
+    uint64_t r;
+    int orig_flags = get_float_exception_flags(s);
+    FloatParts p = round_to_int(in, rmode, s);
+
+    switch (p.cls) {
+    case float_class_snan:
+    case float_class_qnan:
+        return max;
+    case float_class_inf:
+        return p.sign ? min : max;
+    case float_class_zero:
+        return 0;
+    case float_class_normal:
+        if (p.exp < DECOMPOSED_BINARY_POINT) {
+            r = p.frac >> (DECOMPOSED_BINARY_POINT - p.exp);
+        } else if (p.exp - DECOMPOSED_BINARY_POINT < 2) {
+            r = p.frac << (p.exp - DECOMPOSED_BINARY_POINT);
+        } else {
+            r = UINT64_MAX;
+        }
+        if (p.sign) {
+            if (r < -(uint64_t) min) {
+                return -r;
+            } else {
+                s->float_exception_flags = orig_flags | float_flag_invalid;
+                return min;
+            }
+        } else {
+            if (r < max) {
+                return r;
+            } else {
+                s->float_exception_flags = orig_flags | float_flag_invalid;
+                return max;
+            }
+        }
+    default:
+        g_assert_not_reached();
+    }
+}
+
+#define FLOAT_TO_INT(fsz, isz)                                          \
+int ## isz ## _t float ## fsz ## _to_int ## isz(float ## fsz a,         \
+                                                float_status *s)        \
+{                                                                       \
+    FloatParts p = float ## fsz ## _unpack_canonical(a, s);             \
+    return round_to_int_and_pack(p, s->float_rounding_mode,             \
+                                 INT ## isz ## _MIN, INT ## isz ## _MAX,\
+                                 s);                                    \
+}                                                                       \
+                                                                        \
+int ## isz ## _t float ## fsz ## _to_int ## isz ## _round_to_zero       \
+ (float ## fsz a, float_status *s)                                      \
+{                                                                       \
+    FloatParts p = float ## fsz ## _unpack_canonical(a, s);             \
+    return round_to_int_and_pack(p, float_round_to_zero,                \
+                                 INT ## isz ## _MIN, INT ## isz ## _MAX,\
+                                 s);                                    \
+}
+
+FLOAT_TO_INT(16, 16)
+FLOAT_TO_INT(16, 32)
+FLOAT_TO_INT(16, 64)
+
+FLOAT_TO_INT(32, 16)
+FLOAT_TO_INT(32, 32)
+FLOAT_TO_INT(32, 64)
+
+FLOAT_TO_INT(64, 16)
+FLOAT_TO_INT(64, 32)
+FLOAT_TO_INT(64, 64)
+
+#undef FLOAT_TO_INT
+
+/*
+ *  Returns the result of converting the floating-point value `a' to
+ *  the unsigned integer format. The conversion is performed according
+ *  to the IEC/IEEE Standard for Binary Floating-Point
+ *  Arithmetic---which means in particular that the conversion is
+ *  rounded according to the current rounding mode. If `a' is a NaN,
+ *  the largest unsigned integer is returned. Otherwise, if the
+ *  conversion overflows, the largest unsigned integer is returned. If
+ *  the 'a' is negative, the result is rounded and zero is returned;
+ *  values that do not round to zero will raise the inexact exception
+ *  flag.
+ */
+
+static uint64_t round_to_uint_and_pack(FloatParts in, int rmode, uint64_t max,
+                                       float_status *s)
+{
+    int orig_flags = get_float_exception_flags(s);
+    FloatParts p = round_to_int(in, rmode, s);
+
+    switch (p.cls) {
+    case float_class_snan:
+    case float_class_qnan:
+        s->float_exception_flags = orig_flags | float_flag_invalid;
+        return max;
+    case float_class_inf:
+        return p.sign ? 0 : max;
+    case float_class_zero:
+        return 0;
+    case float_class_normal:
+    {
+        uint64_t r;
+        if (p.sign) {
+            s->float_exception_flags = orig_flags | float_flag_invalid;
+            return 0;
+        }
+
+        if (p.exp < DECOMPOSED_BINARY_POINT) {
+            r = p.frac >> (DECOMPOSED_BINARY_POINT - p.exp);
+        } else if (p.exp - DECOMPOSED_BINARY_POINT < 2) {
+            r = p.frac << (p.exp - DECOMPOSED_BINARY_POINT);
+        } else {
+            s->float_exception_flags = orig_flags | float_flag_invalid;
+            return max;
+        }
+
+        /* For uint64 this will never trip, but if p.exp is too large
+         * to shift a decomposed fraction we shall have exited via the
+         * 3rd leg above.
+         */
+        if (r > max) {
+            s->float_exception_flags = orig_flags | float_flag_invalid;
+            return max;
+        } else {
+            return r;
+        }
+    }
+    default:
+        g_assert_not_reached();
+    }
+}
+
+#define FLOAT_TO_UINT(fsz, isz) \
+uint ## isz ## _t float ## fsz ## _to_uint ## isz(float ## fsz a,       \
+                                                  float_status *s)      \
+{                                                                       \
+    FloatParts p = float ## fsz ## _unpack_canonical(a, s);             \
+    return round_to_uint_and_pack(p, s->float_rounding_mode,            \
+                                 UINT ## isz ## _MAX, s);               \
+}                                                                       \
+                                                                        \
+uint ## isz ## _t float ## fsz ## _to_uint ## isz ## _round_to_zero     \
+ (float ## fsz a, float_status *s)                                      \
+{                                                                       \
+    FloatParts p = float ## fsz ## _unpack_canonical(a, s);             \
+    return round_to_uint_and_pack(p, s->float_rounding_mode,            \
+                                 UINT ## isz ## _MAX, s);               \
+}
+
+FLOAT_TO_UINT(16, 16)
+FLOAT_TO_UINT(16, 32)
+FLOAT_TO_UINT(16, 64)
+
+FLOAT_TO_UINT(32, 16)
+FLOAT_TO_UINT(32, 32)
+FLOAT_TO_UINT(32, 64)
+
+FLOAT_TO_UINT(64, 16)
+FLOAT_TO_UINT(64, 32)
+FLOAT_TO_UINT(64, 64)
+
+#undef FLOAT_TO_UINT
+
 /*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
@@ -2671,288 +2851,8 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
     return normalizeRoundAndPackFloat128(0, 0x406E, a, 0, status);
 }
 
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the 32-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic---which means in particular that the conversion is rounded
-| according to the current rounding mode.  If `a' is a NaN, the largest
-| positive integer is returned.  Otherwise, if the conversion overflows, the
-| largest integer with the same sign as `a' is returned.
-*----------------------------------------------------------------------------*/
 
-int32_t float32_to_int32(float32 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint32_t aSig;
-    uint64_t aSig64;
 
-    a = float32_squash_input_denormal(a, status);
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    if ( ( aExp == 0xFF ) && aSig ) aSign = 0;
-    if ( aExp ) aSig |= 0x00800000;
-    shiftCount = 0xAF - aExp;
-    aSig64 = aSig;
-    aSig64 <<= 32;
-    if ( 0 < shiftCount ) shift64RightJamming( aSig64, shiftCount, &aSig64 );
-    return roundAndPackInt32(aSign, aSig64, status);
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the 32-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic, except that the conversion is always rounded toward zero.
-| If `a' is a NaN, the largest positive integer is returned.  Otherwise, if
-| the conversion overflows, the largest integer with the same sign as `a' is
-| returned.
-*----------------------------------------------------------------------------*/
-
-int32_t float32_to_int32_round_to_zero(float32 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint32_t aSig;
-    int32_t z;
-    a = float32_squash_input_denormal(a, status);
-
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    shiftCount = aExp - 0x9E;
-    if ( 0 <= shiftCount ) {
-        if ( float32_val(a) != 0xCF000000 ) {
-            float_raise(float_flag_invalid, status);
-            if ( ! aSign || ( ( aExp == 0xFF ) && aSig ) ) return 0x7FFFFFFF;
-        }
-        return (int32_t) 0x80000000;
-    }
-    else if ( aExp <= 0x7E ) {
-        if (aExp | aSig) {
-            status->float_exception_flags |= float_flag_inexact;
-        }
-        return 0;
-    }
-    aSig = ( aSig | 0x00800000 )<<8;
-    z = aSig>>( - shiftCount );
-    if ( (uint32_t) ( aSig<<( shiftCount & 31 ) ) ) {
-        status->float_exception_flags |= float_flag_inexact;
-    }
-    if ( aSign ) z = - z;
-    return z;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the 16-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic, except that the conversion is always rounded toward zero.
-| If `a' is a NaN, the largest positive integer is returned.  Otherwise, if
-| the conversion overflows, the largest integer with the same sign as `a' is
-| returned.
-*----------------------------------------------------------------------------*/
-
-int16_t float32_to_int16_round_to_zero(float32 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint32_t aSig;
-    int32_t z;
-
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    shiftCount = aExp - 0x8E;
-    if ( 0 <= shiftCount ) {
-        if ( float32_val(a) != 0xC7000000 ) {
-            float_raise(float_flag_invalid, status);
-            if ( ! aSign || ( ( aExp == 0xFF ) && aSig ) ) {
-                return 0x7FFF;
-            }
-        }
-        return (int32_t) 0xffff8000;
-    }
-    else if ( aExp <= 0x7E ) {
-        if ( aExp | aSig ) {
-            status->float_exception_flags |= float_flag_inexact;
-        }
-        return 0;
-    }
-    shiftCount -= 0x10;
-    aSig = ( aSig | 0x00800000 )<<8;
-    z = aSig>>( - shiftCount );
-    if ( (uint32_t) ( aSig<<( shiftCount & 31 ) ) ) {
-        status->float_exception_flags |= float_flag_inexact;
-    }
-    if ( aSign ) {
-        z = - z;
-    }
-    return z;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the 64-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic---which means in particular that the conversion is rounded
-| according to the current rounding mode.  If `a' is a NaN, the largest
-| positive integer is returned.  Otherwise, if the conversion overflows, the
-| largest integer with the same sign as `a' is returned.
-*----------------------------------------------------------------------------*/
-
-int64_t float32_to_int64(float32 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint32_t aSig;
-    uint64_t aSig64, aSigExtra;
-    a = float32_squash_input_denormal(a, status);
-
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    shiftCount = 0xBE - aExp;
-    if ( shiftCount < 0 ) {
-        float_raise(float_flag_invalid, status);
-        if ( ! aSign || ( ( aExp == 0xFF ) && aSig ) ) {
-            return LIT64( 0x7FFFFFFFFFFFFFFF );
-        }
-        return (int64_t) LIT64( 0x8000000000000000 );
-    }
-    if ( aExp ) aSig |= 0x00800000;
-    aSig64 = aSig;
-    aSig64 <<= 40;
-    shift64ExtraRightJamming( aSig64, 0, shiftCount, &aSig64, &aSigExtra );
-    return roundAndPackInt64(aSign, aSig64, aSigExtra, status);
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the 64-bit unsigned integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic---which means in particular that the conversion is rounded
-| according to the current rounding mode.  If `a' is a NaN, the largest
-| unsigned integer is returned.  Otherwise, if the conversion overflows, the
-| largest unsigned integer is returned.  If the 'a' is negative, the result
-| is rounded and zero is returned; values that do not round to zero will
-| raise the inexact exception flag.
-*----------------------------------------------------------------------------*/
-
-uint64_t float32_to_uint64(float32 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint32_t aSig;
-    uint64_t aSig64, aSigExtra;
-    a = float32_squash_input_denormal(a, status);
-
-    aSig = extractFloat32Frac(a);
-    aExp = extractFloat32Exp(a);
-    aSign = extractFloat32Sign(a);
-    if ((aSign) && (aExp > 126)) {
-        float_raise(float_flag_invalid, status);
-        if (float32_is_any_nan(a)) {
-            return LIT64(0xFFFFFFFFFFFFFFFF);
-        } else {
-            return 0;
-        }
-    }
-    shiftCount = 0xBE - aExp;
-    if (aExp) {
-        aSig |= 0x00800000;
-    }
-    if (shiftCount < 0) {
-        float_raise(float_flag_invalid, status);
-        return LIT64(0xFFFFFFFFFFFFFFFF);
-    }
-
-    aSig64 = aSig;
-    aSig64 <<= 40;
-    shift64ExtraRightJamming(aSig64, 0, shiftCount, &aSig64, &aSigExtra);
-    return roundAndPackUint64(aSign, aSig64, aSigExtra, status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the 64-bit unsigned integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic, except that the conversion is always rounded toward zero.  If
-| `a' is a NaN, the largest unsigned integer is returned.  Otherwise, if the
-| conversion overflows, the largest unsigned integer is returned.  If the
-| 'a' is negative, the result is rounded and zero is returned; values that do
-| not round to zero will raise the inexact flag.
-*----------------------------------------------------------------------------*/
-
-uint64_t float32_to_uint64_round_to_zero(float32 a, float_status *status)
-{
-    signed char current_rounding_mode = status->float_rounding_mode;
-    set_float_rounding_mode(float_round_to_zero, status);
-    int64_t v = float32_to_uint64(a, status);
-    set_float_rounding_mode(current_rounding_mode, status);
-    return v;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the 64-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic, except that the conversion is always rounded toward zero.  If
-| `a' is a NaN, the largest positive integer is returned.  Otherwise, if the
-| conversion overflows, the largest integer with the same sign as `a' is
-| returned.
-*----------------------------------------------------------------------------*/
-
-int64_t float32_to_int64_round_to_zero(float32 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint32_t aSig;
-    uint64_t aSig64;
-    int64_t z;
-    a = float32_squash_input_denormal(a, status);
-
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    shiftCount = aExp - 0xBE;
-    if ( 0 <= shiftCount ) {
-        if ( float32_val(a) != 0xDF000000 ) {
-            float_raise(float_flag_invalid, status);
-            if ( ! aSign || ( ( aExp == 0xFF ) && aSig ) ) {
-                return LIT64( 0x7FFFFFFFFFFFFFFF );
-            }
-        }
-        return (int64_t) LIT64( 0x8000000000000000 );
-    }
-    else if ( aExp <= 0x7E ) {
-        if (aExp | aSig) {
-            status->float_exception_flags |= float_flag_inexact;
-        }
-        return 0;
-    }
-    aSig64 = aSig | 0x00800000;
-    aSig64 <<= 40;
-    z = aSig64>>( - shiftCount );
-    if ( (uint64_t) ( aSig64<<( shiftCount & 63 ) ) ) {
-        status->float_exception_flags |= float_flag_inexact;
-    }
-    if ( aSign ) z = - z;
-    return z;
-
-}
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
@@ -3558,236 +3458,6 @@ int float32_unordered_quiet(float32 a, float32 b, float_status *status)
     return 0;
 }
 
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the 32-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic---which means in particular that the conversion is rounded
-| according to the current rounding mode.  If `a' is a NaN, the largest
-| positive integer is returned.  Otherwise, if the conversion overflows, the
-| largest integer with the same sign as `a' is returned.
-*----------------------------------------------------------------------------*/
-
-int32_t float64_to_int32(float64 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint64_t aSig;
-    a = float64_squash_input_denormal(a, status);
-
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    if ( ( aExp == 0x7FF ) && aSig ) aSign = 0;
-    if ( aExp ) aSig |= LIT64( 0x0010000000000000 );
-    shiftCount = 0x42C - aExp;
-    if ( 0 < shiftCount ) shift64RightJamming( aSig, shiftCount, &aSig );
-    return roundAndPackInt32(aSign, aSig, status);
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the 32-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic, except that the conversion is always rounded toward zero.
-| If `a' is a NaN, the largest positive integer is returned.  Otherwise, if
-| the conversion overflows, the largest integer with the same sign as `a' is
-| returned.
-*----------------------------------------------------------------------------*/
-
-int32_t float64_to_int32_round_to_zero(float64 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint64_t aSig, savedASig;
-    int32_t z;
-    a = float64_squash_input_denormal(a, status);
-
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    if ( 0x41E < aExp ) {
-        if ( ( aExp == 0x7FF ) && aSig ) aSign = 0;
-        goto invalid;
-    }
-    else if ( aExp < 0x3FF ) {
-        if (aExp || aSig) {
-            status->float_exception_flags |= float_flag_inexact;
-        }
-        return 0;
-    }
-    aSig |= LIT64( 0x0010000000000000 );
-    shiftCount = 0x433 - aExp;
-    savedASig = aSig;
-    aSig >>= shiftCount;
-    z = aSig;
-    if ( aSign ) z = - z;
-    if ( ( z < 0 ) ^ aSign ) {
- invalid:
-        float_raise(float_flag_invalid, status);
-        return aSign ? (int32_t) 0x80000000 : 0x7FFFFFFF;
-    }
-    if ( ( aSig<<shiftCount ) != savedASig ) {
-        status->float_exception_flags |= float_flag_inexact;
-    }
-    return z;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the 16-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic, except that the conversion is always rounded toward zero.
-| If `a' is a NaN, the largest positive integer is returned.  Otherwise, if
-| the conversion overflows, the largest integer with the same sign as `a' is
-| returned.
-*----------------------------------------------------------------------------*/
-
-int16_t float64_to_int16_round_to_zero(float64 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint64_t aSig, savedASig;
-    int32_t z;
-
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    if ( 0x40E < aExp ) {
-        if ( ( aExp == 0x7FF ) && aSig ) {
-            aSign = 0;
-        }
-        goto invalid;
-    }
-    else if ( aExp < 0x3FF ) {
-        if ( aExp || aSig ) {
-            status->float_exception_flags |= float_flag_inexact;
-        }
-        return 0;
-    }
-    aSig |= LIT64( 0x0010000000000000 );
-    shiftCount = 0x433 - aExp;
-    savedASig = aSig;
-    aSig >>= shiftCount;
-    z = aSig;
-    if ( aSign ) {
-        z = - z;
-    }
-    if ( ( (int16_t)z < 0 ) ^ aSign ) {
- invalid:
-        float_raise(float_flag_invalid, status);
-        return aSign ? (int32_t) 0xffff8000 : 0x7FFF;
-    }
-    if ( ( aSig<<shiftCount ) != savedASig ) {
-        status->float_exception_flags |= float_flag_inexact;
-    }
-    return z;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the 64-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic---which means in particular that the conversion is rounded
-| according to the current rounding mode.  If `a' is a NaN, the largest
-| positive integer is returned.  Otherwise, if the conversion overflows, the
-| largest integer with the same sign as `a' is returned.
-*----------------------------------------------------------------------------*/
-
-int64_t float64_to_int64(float64 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint64_t aSig, aSigExtra;
-    a = float64_squash_input_denormal(a, status);
-
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    if ( aExp ) aSig |= LIT64( 0x0010000000000000 );
-    shiftCount = 0x433 - aExp;
-    if ( shiftCount <= 0 ) {
-        if ( 0x43E < aExp ) {
-            float_raise(float_flag_invalid, status);
-            if (    ! aSign
-                 || (    ( aExp == 0x7FF )
-                      && ( aSig != LIT64( 0x0010000000000000 ) ) )
-               ) {
-                return LIT64( 0x7FFFFFFFFFFFFFFF );
-            }
-            return (int64_t) LIT64( 0x8000000000000000 );
-        }
-        aSigExtra = 0;
-        aSig <<= - shiftCount;
-    }
-    else {
-        shift64ExtraRightJamming( aSig, 0, shiftCount, &aSig, &aSigExtra );
-    }
-    return roundAndPackInt64(aSign, aSig, aSigExtra, status);
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the 64-bit two's complement integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic, except that the conversion is always rounded toward zero.
-| If `a' is a NaN, the largest positive integer is returned.  Otherwise, if
-| the conversion overflows, the largest integer with the same sign as `a' is
-| returned.
-*----------------------------------------------------------------------------*/
-
-int64_t float64_to_int64_round_to_zero(float64 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint64_t aSig;
-    int64_t z;
-    a = float64_squash_input_denormal(a, status);
-
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    if ( aExp ) aSig |= LIT64( 0x0010000000000000 );
-    shiftCount = aExp - 0x433;
-    if ( 0 <= shiftCount ) {
-        if ( 0x43E <= aExp ) {
-            if ( float64_val(a) != LIT64( 0xC3E0000000000000 ) ) {
-                float_raise(float_flag_invalid, status);
-                if (    ! aSign
-                     || (    ( aExp == 0x7FF )
-                          && ( aSig != LIT64( 0x0010000000000000 ) ) )
-                   ) {
-                    return LIT64( 0x7FFFFFFFFFFFFFFF );
-                }
-            }
-            return (int64_t) LIT64( 0x8000000000000000 );
-        }
-        z = aSig<<shiftCount;
-    }
-    else {
-        if ( aExp < 0x3FE ) {
-            if (aExp | aSig) {
-                status->float_exception_flags |= float_flag_inexact;
-            }
-            return 0;
-        }
-        z = aSig>>( - shiftCount );
-        if ( (uint64_t) ( aSig<<( shiftCount & 63 ) ) ) {
-            status->float_exception_flags |= float_flag_inexact;
-        }
-    }
-    if ( aSign ) z = - z;
-    return z;
-
-}
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the double-precision floating-point value
@@ -7055,252 +6725,7 @@ float64 uint32_to_float64(uint32_t a, float_status *status)
     return int64_to_float64(a, status);
 }
 
-uint32_t float32_to_uint32(float32 a, float_status *status)
-{
-    int64_t v;
-    uint32_t res;
-    int old_exc_flags = get_float_exception_flags(status);
 
-    v = float32_to_int64(a, status);
-    if (v < 0) {
-        res = 0;
-    } else if (v > 0xffffffff) {
-        res = 0xffffffff;
-    } else {
-        return v;
-    }
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-uint32_t float32_to_uint32_round_to_zero(float32 a, float_status *status)
-{
-    int64_t v;
-    uint32_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float32_to_int64_round_to_zero(a, status);
-    if (v < 0) {
-        res = 0;
-    } else if (v > 0xffffffff) {
-        res = 0xffffffff;
-    } else {
-        return v;
-    }
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-int16_t float32_to_int16(float32 a, float_status *status)
-{
-    int32_t v;
-    int16_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float32_to_int32(a, status);
-    if (v < -0x8000) {
-        res = -0x8000;
-    } else if (v > 0x7fff) {
-        res = 0x7fff;
-    } else {
-        return v;
-    }
-
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-uint16_t float32_to_uint16(float32 a, float_status *status)
-{
-    int32_t v;
-    uint16_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float32_to_int32(a, status);
-    if (v < 0) {
-        res = 0;
-    } else if (v > 0xffff) {
-        res = 0xffff;
-    } else {
-        return v;
-    }
-
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-uint16_t float32_to_uint16_round_to_zero(float32 a, float_status *status)
-{
-    int64_t v;
-    uint16_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float32_to_int64_round_to_zero(a, status);
-    if (v < 0) {
-        res = 0;
-    } else if (v > 0xffff) {
-        res = 0xffff;
-    } else {
-        return v;
-    }
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-uint32_t float64_to_uint32(float64 a, float_status *status)
-{
-    uint64_t v;
-    uint32_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float64_to_uint64(a, status);
-    if (v > 0xffffffff) {
-        res = 0xffffffff;
-    } else {
-        return v;
-    }
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-uint32_t float64_to_uint32_round_to_zero(float64 a, float_status *status)
-{
-    uint64_t v;
-    uint32_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float64_to_uint64_round_to_zero(a, status);
-    if (v > 0xffffffff) {
-        res = 0xffffffff;
-    } else {
-        return v;
-    }
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-int16_t float64_to_int16(float64 a, float_status *status)
-{
-    int64_t v;
-    int16_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float64_to_int32(a, status);
-    if (v < -0x8000) {
-        res = -0x8000;
-    } else if (v > 0x7fff) {
-        res = 0x7fff;
-    } else {
-        return v;
-    }
-
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-uint16_t float64_to_uint16(float64 a, float_status *status)
-{
-    int64_t v;
-    uint16_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float64_to_int32(a, status);
-    if (v < 0) {
-        res = 0;
-    } else if (v > 0xffff) {
-        res = 0xffff;
-    } else {
-        return v;
-    }
-
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-uint16_t float64_to_uint16_round_to_zero(float64 a, float_status *status)
-{
-    int64_t v;
-    uint16_t res;
-    int old_exc_flags = get_float_exception_flags(status);
-
-    v = float64_to_int64_round_to_zero(a, status);
-    if (v < 0) {
-        res = 0;
-    } else if (v > 0xffff) {
-        res = 0xffff;
-    } else {
-        return v;
-    }
-    set_float_exception_flags(old_exc_flags, status);
-    float_raise(float_flag_invalid, status);
-    return res;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the 64-bit unsigned integer format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic---which means in particular that the conversion is rounded
-| according to the current rounding mode.  If `a' is a NaN, the largest
-| positive integer is returned.  If the conversion overflows, the
-| largest unsigned integer is returned.  If 'a' is negative, the value is
-| rounded and zero is returned; negative values that do not round to zero
-| will raise the inexact exception.
-*----------------------------------------------------------------------------*/
-
-uint64_t float64_to_uint64(float64 a, float_status *status)
-{
-    flag aSign;
-    int aExp;
-    int shiftCount;
-    uint64_t aSig, aSigExtra;
-    a = float64_squash_input_denormal(a, status);
-
-    aSig = extractFloat64Frac(a);
-    aExp = extractFloat64Exp(a);
-    aSign = extractFloat64Sign(a);
-    if (aSign && (aExp > 1022)) {
-        float_raise(float_flag_invalid, status);
-        if (float64_is_any_nan(a)) {
-            return LIT64(0xFFFFFFFFFFFFFFFF);
-        } else {
-            return 0;
-        }
-    }
-    if (aExp) {
-        aSig |= LIT64(0x0010000000000000);
-    }
-    shiftCount = 0x433 - aExp;
-    if (shiftCount <= 0) {
-        if (0x43E < aExp) {
-            float_raise(float_flag_invalid, status);
-            return LIT64(0xFFFFFFFFFFFFFFFF);
-        }
-        aSigExtra = 0;
-        aSig <<= -shiftCount;
-    } else {
-        shift64ExtraRightJamming(aSig, 0, shiftCount, &aSig, &aSigExtra);
-    }
-    return roundAndPackUint64(aSign, aSig, aSigExtra, status);
-}
-
-uint64_t float64_to_uint64_round_to_zero(float64 a, float_status *status)
-{
-    signed char current_rounding_mode = status->float_rounding_mode;
-    set_float_rounding_mode(float_round_to_zero, status);
-    uint64_t v = float64_to_uint64(a, status);
-    set_float_rounding_mode(current_rounding_mode, status);
-    return v;
-}
 
 #define COMPARE(s, nan_exp)                                                  \
 static inline int float ## s ## _compare_internal(float ## s a, float ## s b,\
