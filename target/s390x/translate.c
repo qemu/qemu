@@ -240,12 +240,6 @@ static void update_cc_op(DisasContext *s)
     }
 }
 
-static void potential_page_fault(DisasContext *s)
-{
-    update_psw_addr(s);
-    update_cc_op(s);
-}
-
 static inline uint64_t ld_code2(CPUS390XState *env, uint64_t pc)
 {
     return (uint64_t)cpu_lduw_code(env, pc);
@@ -2939,7 +2933,8 @@ static ExitStatus op_lpd(DisasContext *s, DisasOps *o)
 
     /* In a parallel context, stop the world and single step.  */
     if (tb_cflags(s->tb) & CF_PARALLEL) {
-        potential_page_fault(s);
+        update_psw_addr(s);
+        update_cc_op(s);
         gen_exception(EXCP_ATOMIC);
         return EXIT_NORETURN;
     }
