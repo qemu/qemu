@@ -1663,6 +1663,39 @@ float64 uint16_to_float64(uint16_t a, float_status *status)
     return uint64_to_float64(a, status);
 }
 
+/* Multiply A by 2 raised to the power N.  */
+static FloatParts scalbn_decomposed(FloatParts a, int n, float_status *s)
+{
+    if (unlikely(is_nan(a.cls))) {
+        return return_nan(a, s);
+    }
+    if (a.cls == float_class_normal) {
+        a.exp += n;
+    }
+    return a;
+}
+
+float16 float16_scalbn(float16 a, int n, float_status *status)
+{
+    FloatParts pa = float16_unpack_canonical(a, status);
+    FloatParts pr = scalbn_decomposed(pa, n, status);
+    return float16_round_pack_canonical(pr, status);
+}
+
+float32 float32_scalbn(float32 a, int n, float_status *status)
+{
+    FloatParts pa = float32_unpack_canonical(a, status);
+    FloatParts pr = scalbn_decomposed(pa, n, status);
+    return float32_round_pack_canonical(pr, status);
+}
+
+float64 float64_scalbn(float64 a, int n, float_status *status)
+{
+    FloatParts pa = float64_unpack_canonical(a, status);
+    FloatParts pr = scalbn_decomposed(pa, n, status);
+    return float64_round_pack_canonical(pr, status);
+}
+
 /*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
@@ -6985,79 +7018,6 @@ float ## s float ## s ## _maxnummag(float ## s a, float ## s b,         \
 MINMAX(32)
 MINMAX(64)
 
-
-/* Multiply A by 2 raised to the power N.  */
-float32 float32_scalbn(float32 a, int n, float_status *status)
-{
-    flag aSign;
-    int16_t aExp;
-    uint32_t aSig;
-
-    a = float32_squash_input_denormal(a, status);
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-
-    if ( aExp == 0xFF ) {
-        if ( aSig ) {
-            return propagateFloat32NaN(a, a, status);
-        }
-        return a;
-    }
-    if (aExp != 0) {
-        aSig |= 0x00800000;
-    } else if (aSig == 0) {
-        return a;
-    } else {
-        aExp++;
-    }
-
-    if (n > 0x200) {
-        n = 0x200;
-    } else if (n < -0x200) {
-        n = -0x200;
-    }
-
-    aExp += n - 1;
-    aSig <<= 7;
-    return normalizeRoundAndPackFloat32(aSign, aExp, aSig, status);
-}
-
-float64 float64_scalbn(float64 a, int n, float_status *status)
-{
-    flag aSign;
-    int16_t aExp;
-    uint64_t aSig;
-
-    a = float64_squash_input_denormal(a, status);
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-
-    if ( aExp == 0x7FF ) {
-        if ( aSig ) {
-            return propagateFloat64NaN(a, a, status);
-        }
-        return a;
-    }
-    if (aExp != 0) {
-        aSig |= LIT64( 0x0010000000000000 );
-    } else if (aSig == 0) {
-        return a;
-    } else {
-        aExp++;
-    }
-
-    if (n > 0x1000) {
-        n = 0x1000;
-    } else if (n < -0x1000) {
-        n = -0x1000;
-    }
-
-    aExp += n - 1;
-    aSig <<= 10;
-    return normalizeRoundAndPackFloat64(aSign, aExp, aSig, status);
-}
 
 floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
 {
