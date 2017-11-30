@@ -308,6 +308,8 @@ check-qtest-mips64-y = tests/endianness-test$(EXESUF)
 
 check-qtest-mips64el-y = tests/endianness-test$(EXESUF)
 
+check-qtest-moxie-y = tests/boot-serial-test$(EXESUF)
+
 check-qtest-ppc-y = tests/endianness-test$(EXESUF)
 check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc-y += tests/prom-env-test$(EXESUF)
