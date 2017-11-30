@@ -1723,12 +1723,6 @@ void css_undo_stcrw(CRW *crw)
     QTAILQ_INSERT_HEAD(&channel_subsys.pending_crws, crw_cont, sibling);
 }
 
-int css_do_tpi(IOIntCode *int_code, int lowcore)
-{
-    /* No pending interrupts for !KVM. */
-    return 0;
- }
-
 int css_collect_chp_desc(int m, uint8_t cssid, uint8_t f_chpid, uint8_t l_chpid,
                          int rfmt, void *buf)
 {
