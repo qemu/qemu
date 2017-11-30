@@ -666,39 +666,6 @@ Compute the checksum of a memory region.
 ETEXI
 
     {
-        .name       = "usb_add",
-        .args_type  = "devname:s",
-        .params     = "device",
-        .help       = "add USB device (e.g. 'host:bus.addr' or 'host:vendor_id:product_id')",
-        .cmd        = hmp_usb_add,
-    },
-
-STEXI
-@item usb_add @var{devname}
-@findex usb_add
-Add the USB device @var{devname}. This command is deprecated, please
-use @code{device_add} instead. For details of available devices see
-@ref{usb_devices}
-ETEXI
-
-    {
-        .name       = "usb_del",
-        .args_type  = "devname:s",
-        .params     = "device",
-        .help       = "remove USB device 'bus.addr'",
-        .cmd        = hmp_usb_del,
-    },
-
-STEXI
-@item usb_del @var{devname}
-@findex usb_del
-Remove the USB device @var{devname} from the QEMU virtual USB
-hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
-command @code{info usb} to see the devices you can remove. This
-command is deprecated, please use @code{device_del} instead.
-ETEXI
-
-    {
         .name       = "device_add",
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
