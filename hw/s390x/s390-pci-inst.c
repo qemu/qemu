@@ -349,12 +349,31 @@ static int zpci_endian_swap(uint64_t *ptr, uint8_t len)
     return 0;
 }
 
+static MemoryRegion *s390_get_subregion(MemoryRegion *mr, uint64_t offset,
+                                        uint8_t len)
+{
+    MemoryRegion *subregion;
+    uint64_t subregion_size;
+
+    QTAILQ_FOREACH(subregion, &mr->subregions, subregions_link) {
+        subregion_size = int128_get64(subregion->size);
+        if ((offset >= subregion->addr) &&
+            (offset + len) <= (subregion->addr + subregion_size)) {
+            mr = subregion;
+            break;
+        }
+    }
+    return mr;
+}
+
 static MemTxResult zpci_read_bar(S390PCIBusDevice *pbdev, uint8_t pcias,
                                  uint64_t offset, uint64_t *data, uint8_t len)
 {
     MemoryRegion *mr;
 
     mr = pbdev->pdev->io_regions[pcias].memory;
+    mr = s390_get_subregion(mr, offset, len);
+    offset -= mr->addr;
     return memory_region_dispatch_read(mr, offset, data, len,
                                        MEMTXATTRS_UNSPECIFIED);
 }
@@ -446,30 +465,14 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
     return 0;
 }
 
-static int trap_msix(S390PCIBusDevice *pbdev, uint64_t offset, uint8_t pcias)
-{
-    if (pbdev->msix.available && pbdev->msix.table_bar == pcias &&
-        offset >= pbdev->msix.table_offset &&
-        offset < (pbdev->msix.table_offset +
-                  pbdev->msix.entries * PCI_MSIX_ENTRY_SIZE)) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 static MemTxResult zpci_write_bar(S390PCIBusDevice *pbdev, uint8_t pcias,
                                   uint64_t offset, uint64_t data, uint8_t len)
 {
     MemoryRegion *mr;
 
-    if (trap_msix(pbdev, offset, pcias)) {
-        offset = offset - pbdev->msix.table_offset;
-        mr = &pbdev->pdev->msix_table_mmio;
-    } else {
-        mr = pbdev->pdev->io_regions[pcias].memory;
-    }
-
+    mr = pbdev->pdev->io_regions[pcias].memory;
+    mr = s390_get_subregion(mr, offset, len);
+    offset -= mr->addr;
     return memory_region_dispatch_write(mr, offset, data, len,
                                         MEMTXATTRS_UNSPECIFIED);
 }
@@ -733,6 +736,9 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     }
 
     mr = pbdev->pdev->io_regions[pcias].memory;
+    mr = s390_get_subregion(mr, offset, len);
+    offset -= mr->addr;
+
     if (!memory_region_access_valid(mr, offset, len, true)) {
         s390_program_interrupt(env, PGM_OPERAND, 6, ra);
         return 0;
