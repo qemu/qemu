@@ -25,6 +25,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -40,6 +41,8 @@
 #include "elf.h"
 
 #define PHYS_MEM_BASE 0x80000000
+#define FIRMWARE_BASE 0x1000
+#define FIRMWARE_SIZE (128 * 0x1000)
 
 typedef struct {
     uint64_t ram_size;
@@ -122,8 +125,8 @@ static void moxiesim_init(MachineState *machine)
     memory_region_init_ram(ram, NULL, "moxiesim.ram", ram_size, &error_fatal);
     memory_region_add_subregion(address_space_mem, ram_base, ram);
 
-    memory_region_init_ram(rom, NULL, "moxie.rom", 128 * 0x1000, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), 0x1000, rom);
+    memory_region_init_ram(rom, NULL, "moxie.rom", FIRMWARE_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), FIRMWARE_BASE, rom);
 
     if (kernel_filename) {
         loader_params.ram_size = ram_size;
@@ -131,6 +134,11 @@ static void moxiesim_init(MachineState *machine)
         loader_params.kernel_cmdline = kernel_cmdline;
         loader_params.initrd_filename = initrd_filename;
         load_kernel(cpu, &loader_params);
+    }
+    if (bios_name) {
+        if (load_image_targphys(bios_name, FIRMWARE_BASE, FIRMWARE_SIZE) < 0) {
+            error_report("Failed to load firmware '%s'", bios_name);
+        }
     }
 
     /* A single 16450 sits at offset 0x3f8.  */
