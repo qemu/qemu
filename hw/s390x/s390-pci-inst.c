@@ -163,6 +163,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
     }
 
     if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer, sizeof(*reqh))) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
     }
     reqh = (ClpReqHdr *)buffer;
@@ -174,6 +175,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
 
     if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer,
                                req_len + sizeof(*resh))) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
     }
     resh = (ClpRspHdr *)(buffer + req_len);
@@ -189,6 +191,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
 
     if (s390_cpu_virt_mem_read(cpu, env->regs[r2], r2, buffer,
                                req_len + res_len)) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
     }
 
@@ -308,6 +311,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
 out:
     if (s390_cpu_virt_mem_write(cpu, env->regs[r2], r2, buffer,
                                 req_len + res_len)) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
     }
     setcc(cpu, cc);
@@ -692,6 +696,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     }
 
     if (s390_cpu_virt_mem_read(cpu, gaddr, ar, buffer, len)) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
     }
 
@@ -848,6 +853,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
     }
 
     if (s390_cpu_virt_mem_read(cpu, fiba, ar, (uint8_t *)&fib, sizeof(fib))) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
     }
 
@@ -1029,6 +1035,7 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
 
 out:
     if (s390_cpu_virt_mem_write(cpu, fiba, ar, (uint8_t *)&fib, sizeof(fib))) {
+        s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
     }
 

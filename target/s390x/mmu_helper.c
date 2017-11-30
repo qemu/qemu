@@ -22,6 +22,7 @@
 #include "internal.h"
 #include "kvm_s390x.h"
 #include "sysemu/kvm.h"
+#include "exec/exec-all.h"
 #include "trace.h"
 #include "hw/s390x/storage-keys.h"
 
@@ -478,6 +479,9 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
  *
  * Copy from/to guest memory using logical addresses. Note that we inject a
  * program interrupt in case there is an error while accessing the memory.
+ *
+ * This function will always return (also for TCG), make sure to call
+ * s390_cpu_virt_mem_handle_exc() to properly exit the CPU loop.
  */
 int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
                          int len, bool is_write)
@@ -512,6 +516,16 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 
     g_free(pages);
     return ret;
+}
+
+void s390_cpu_virt_mem_handle_exc(S390CPU *cpu, uintptr_t ra)
+{
+    /* KVM will handle the interrupt automatically, TCG has to exit the TB */
+#ifdef CONFIG_TCG
+    if (tcg_enabled()) {
+        cpu_loop_exit_restore(CPU(cpu), ra);
+    }
+#endif
 }
 
 /**
