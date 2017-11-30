@@ -162,7 +162,7 @@ typedef struct ClpRspQueryPciGrp {
 #define CLP_RSP_QPCIG_MASK_FRAME   0x2
 #define CLP_RSP_QPCIG_MASK_REFRESH 0x1
     uint8_t fr;
-    uint16_t reserved2;
+    uint16_t maxstbl;
     uint16_t mui;
     uint64_t reserved3;
     uint64_t dasm; /* dma address space mask */

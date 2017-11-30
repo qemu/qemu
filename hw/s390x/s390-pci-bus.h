@@ -284,6 +284,7 @@ struct S390PCIBusDevice {
     uint64_t fmb_addr;
     uint8_t isc;
     uint16_t noi;
+    uint16_t maxstbl;
     uint8_t sum;
     S390MsixInfo msix;
     AdapterRoutes routes;
