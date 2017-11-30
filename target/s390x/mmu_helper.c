@@ -64,7 +64,9 @@ static void trigger_access_exception(CPUS390XState *env, uint32_t type,
         kvm_s390_access_exception(cpu, type, tec);
     } else {
         CPUState *cs = CPU(cpu);
-        stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
+        if (type != PGM_ADDRESSING) {
+            stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
+        }
         trigger_pgm_exception(env, type, ilen);
     }
 }
@@ -443,7 +445,8 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 
 /**
  * translate_pages: Translate a set of consecutive logical page addresses
- * to absolute addresses
+ * to absolute addresses. This function is used for TCG and old KVM without
+ * the MEMOP interface.
  */
 static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
                            target_ulong *pages, bool is_write)
@@ -459,7 +462,7 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
         }
         if (!address_space_access_valid(&address_space_memory, pages[i],
                                         TARGET_PAGE_SIZE, is_write)) {
-            program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO);
+            trigger_access_exception(env, PGM_ADDRESSING, ILEN_AUTO, 0);
             return -EFAULT;
         }
         addr += TARGET_PAGE_SIZE;
