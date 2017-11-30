@@ -1230,7 +1230,7 @@ static int kvm_clp_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
-        return clp_service_call(cpu, r2);
+        return clp_service_call(cpu, r2, RA_IGNORED);
     } else {
         return -1;
     }
@@ -1242,7 +1242,7 @@ static int kvm_pcilg_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
-        return pcilg_service_call(cpu, r1, r2);
+        return pcilg_service_call(cpu, r1, r2, RA_IGNORED);
     } else {
         return -1;
     }
@@ -1254,7 +1254,7 @@ static int kvm_pcistg_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
-        return pcistg_service_call(cpu, r1, r2);
+        return pcistg_service_call(cpu, r1, r2, RA_IGNORED);
     } else {
         return -1;
     }
@@ -1270,7 +1270,7 @@ static int kvm_stpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
         cpu_synchronize_state(CPU(cpu));
         fiba = get_base_disp_rxy(cpu, run, &ar);
 
-        return stpcifc_service_call(cpu, r1, fiba, ar);
+        return stpcifc_service_call(cpu, r1, fiba, ar, RA_IGNORED);
     } else {
         return -1;
     }
@@ -1302,7 +1302,7 @@ static int kvm_rpcit_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
-        return rpcit_service_call(cpu, r1, r2);
+        return rpcit_service_call(cpu, r1, r2, RA_IGNORED);
     } else {
         return -1;
     }
@@ -1319,7 +1319,7 @@ static int kvm_pcistb_service_call(S390CPU *cpu, struct kvm_run *run)
         cpu_synchronize_state(CPU(cpu));
         gaddr = get_base_disp_rsy(cpu, run, &ar);
 
-        return pcistb_service_call(cpu, r1, r3, gaddr, ar);
+        return pcistb_service_call(cpu, r1, r3, gaddr, ar, RA_IGNORED);
     } else {
         return -1;
     }
@@ -1335,7 +1335,7 @@ static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
         cpu_synchronize_state(CPU(cpu));
         fiba = get_base_disp_rxy(cpu, run, &ar);
 
-        return mpcifc_service_call(cpu, r1, fiba, ar);
+        return mpcifc_service_call(cpu, r1, fiba, ar, RA_IGNORED);
     } else {
         return -1;
     }

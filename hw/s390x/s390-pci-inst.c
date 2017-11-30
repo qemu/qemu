@@ -142,7 +142,7 @@ out:
     return rc;
 }
 
-int clp_service_call(S390CPU *cpu, uint8_t r2)
+int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
 {
     ClpReqHdr *reqh;
     ClpRspHdr *resh;
@@ -158,7 +158,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
     cpu_synchronize_state(CPU(cpu));
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, 4);
+        s390_program_interrupt(env, PGM_PRIVILEGED, 4, ra);
         return 0;
     }
 
@@ -168,7 +168,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
     reqh = (ClpReqHdr *)buffer;
     req_len = lduw_p(&reqh->len);
     if (req_len < 16 || req_len > 8184 || (req_len % 8 != 0)) {
-        program_interrupt(env, PGM_OPERAND, 4);
+        s390_program_interrupt(env, PGM_OPERAND, 4, ra);
         return 0;
     }
 
@@ -179,11 +179,11 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
     resh = (ClpRspHdr *)(buffer + req_len);
     res_len = lduw_p(&resh->len);
     if (res_len < 8 || res_len > 8176 || (res_len % 8 != 0)) {
-        program_interrupt(env, PGM_OPERAND, 4);
+        s390_program_interrupt(env, PGM_OPERAND, 4, ra);
         return 0;
     }
     if ((req_len + res_len) > 8192) {
-        program_interrupt(env, PGM_OPERAND, 4);
+        s390_program_interrupt(env, PGM_OPERAND, 4, ra);
         return 0;
     }
 
@@ -314,7 +314,7 @@ out:
     return 0;
 }
 
-int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
+int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
@@ -329,12 +329,12 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     cpu_synchronize_state(CPU(cpu));
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, 4);
+        s390_program_interrupt(env, PGM_PRIVILEGED, 4, ra);
         return 0;
     }
 
     if (r2 & 0x1) {
-        program_interrupt(env, PGM_SPECIFICATION, 4);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
         return 0;
     }
 
@@ -367,19 +367,19 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
 
     if (pcias < 6) {
         if ((8 - (offset & 0x7)) < len) {
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
         mr = pbdev->pdev->io_regions[pcias].memory;
         result = memory_region_dispatch_read(mr, offset, &data, len,
                                              MEMTXATTRS_UNSPECIFIED);
         if (result != MEMTX_OK) {
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
         data =  pci_host_config_read_common(
@@ -398,7 +398,7 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             data = bswap64(data);
             break;
         default:
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
     } else {
@@ -425,7 +425,7 @@ static int trap_msix(S390PCIBusDevice *pbdev, uint64_t offset, uint8_t pcias)
     }
 }
 
-int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
+int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     uint64_t offset, data;
@@ -439,12 +439,12 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     cpu_synchronize_state(CPU(cpu));
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, 4);
+        s390_program_interrupt(env, PGM_PRIVILEGED, 4, ra);
         return 0;
     }
 
     if (r2 & 0x1) {
-        program_interrupt(env, PGM_SPECIFICATION, 4);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
         return 0;
     }
 
@@ -478,7 +478,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     data = env->regs[r1];
     if (pcias < 6) {
         if ((8 - (offset & 0x7)) < len) {
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
 
@@ -492,12 +492,12 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
         result = memory_region_dispatch_write(mr, offset, data, len,
                                      MEMTXATTRS_UNSPECIFIED);
         if (result != MEMTX_OK) {
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
     } else if (pcias == 15) {
         if ((4 - (offset & 0x3)) < len) {
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
         switch (len) {
@@ -513,7 +513,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             data = bswap64(data);
             break;
         default:
-            program_interrupt(env, PGM_OPERAND, 4);
+            s390_program_interrupt(env, PGM_OPERAND, 4, ra);
             return 0;
         }
 
@@ -531,7 +531,7 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     return 0;
 }
 
-int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
+int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     uint32_t fh;
@@ -545,12 +545,12 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
     cpu_synchronize_state(CPU(cpu));
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, 4);
+        s390_program_interrupt(env, PGM_PRIVILEGED, 4, ra);
         goto out;
     }
 
     if (r2 & 0x1) {
-        program_interrupt(env, PGM_SPECIFICATION, 4);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
         goto out;
     }
 
@@ -624,7 +624,7 @@ out:
 }
 
 int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
-                        uint8_t ar)
+                        uint8_t ar, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
@@ -637,7 +637,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     uint8_t buffer[128];
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, 6);
+        s390_program_interrupt(env, PGM_PRIVILEGED, 6, ra);
         return 0;
     }
 
@@ -659,7 +659,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     case 128:
         break;
     default:
-        program_interrupt(env, PGM_SPECIFICATION, 6);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 6, ra);
         return 0;
     }
 
@@ -687,7 +687,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
 
     mr = pbdev->pdev->io_regions[pcias].memory;
     if (!memory_region_access_valid(mr, env->regs[r3], len, true)) {
-        program_interrupt(env, PGM_OPERAND, 6);
+        s390_program_interrupt(env, PGM_OPERAND, 6, ra);
         return 0;
     }
 
@@ -700,7 +700,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
                                      ldq_p(buffer + i * 8), 8,
                                      MEMTXATTRS_UNSPECIFIED);
         if (result != MEMTX_OK) {
-            program_interrupt(env, PGM_OPERAND, 6);
+            s390_program_interrupt(env, PGM_OPERAND, 6, ra);
             return 0;
         }
     }
@@ -767,7 +767,8 @@ int pci_dereg_irqs(S390PCIBusDevice *pbdev)
     return 0;
 }
 
-static int reg_ioat(CPUS390XState *env, S390PCIIOMMU *iommu, ZpciFib fib)
+static int reg_ioat(CPUS390XState *env, S390PCIIOMMU *iommu, ZpciFib fib,
+                    uintptr_t ra)
 {
     uint64_t pba = ldq_p(&fib.pba);
     uint64_t pal = ldq_p(&fib.pal);
@@ -776,14 +777,14 @@ static int reg_ioat(CPUS390XState *env, S390PCIIOMMU *iommu, ZpciFib fib)
     uint8_t t = (g_iota >> 11) & 0x1;
 
     if (pba > pal || pba < ZPCI_SDMA_ADDR || pal > ZPCI_EDMA_ADDR) {
-        program_interrupt(env, PGM_OPERAND, 6);
+        s390_program_interrupt(env, PGM_OPERAND, 6, ra);
         return -EINVAL;
     }
 
     /* currently we only support designation type 1 with translation */
     if (!(dt == ZPCI_IOTA_RTTO && t)) {
         error_report("unsupported ioat dt %d t %d", dt, t);
-        program_interrupt(env, PGM_OPERAND, 6);
+        s390_program_interrupt(env, PGM_OPERAND, 6, ra);
         return -EINVAL;
     }
 
@@ -804,7 +805,8 @@ void pci_dereg_ioat(S390PCIIOMMU *iommu)
     iommu->g_iota = 0;
 }
 
-int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
+int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
+                        uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     uint8_t oc, dmaas;
@@ -814,7 +816,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     uint64_t cc = ZPCI_PCI_LS_OK;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, 6);
+        s390_program_interrupt(env, PGM_PRIVILEGED, 6, ra);
         return 0;
     }
 
@@ -823,7 +825,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     fh = env->regs[r1] >> 32;
 
     if (fiba & 0x7) {
-        program_interrupt(env, PGM_SPECIFICATION, 6);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 6, ra);
         return 0;
     }
 
@@ -850,7 +852,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     }
 
     if (fib.fmt != 0) {
-        program_interrupt(env, PGM_OPERAND, 6);
+        s390_program_interrupt(env, PGM_OPERAND, 6, ra);
         return 0;
     }
 
@@ -879,7 +881,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
         } else if (pbdev->iommu->enabled) {
             cc = ZPCI_PCI_LS_ERR;
             s390_set_status_code(env, r1, ZPCI_MOD_ST_SEQUENCE);
-        } else if (reg_ioat(env, pbdev->iommu, fib)) {
+        } else if (reg_ioat(env, pbdev->iommu, fib, ra)) {
             cc = ZPCI_PCI_LS_ERR;
             s390_set_status_code(env, r1, ZPCI_MOD_ST_INSUF_RES);
         }
@@ -904,7 +906,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
             s390_set_status_code(env, r1, ZPCI_MOD_ST_SEQUENCE);
         } else {
             pci_dereg_ioat(pbdev->iommu);
-            if (reg_ioat(env, pbdev->iommu, fib)) {
+            if (reg_ioat(env, pbdev->iommu, fib, ra)) {
                 cc = ZPCI_PCI_LS_ERR;
                 s390_set_status_code(env, r1, ZPCI_MOD_ST_INSUF_RES);
             }
@@ -935,7 +937,7 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
         pbdev->fmb_addr = ldq_p(&fib.fmb_addr);
         break;
     default:
-        program_interrupt(&cpu->env, PGM_OPERAND, 6);
+        s390_program_interrupt(&cpu->env, PGM_OPERAND, 6, ra);
         cc = ZPCI_PCI_LS_ERR;
     }
 
@@ -943,7 +945,8 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     return 0;
 }
 
-int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
+int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
+                         uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     uint8_t dmaas;
@@ -954,7 +957,7 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     uint64_t cc = ZPCI_PCI_LS_OK;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        program_interrupt(env, PGM_PRIVILEGED, 6);
+        s390_program_interrupt(env, PGM_PRIVILEGED, 6, ra);
         return 0;
     }
 
@@ -968,7 +971,7 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
     }
 
     if (fiba & 0x7) {
-        program_interrupt(env, PGM_SPECIFICATION, 6);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 6, ra);
         return 0;
     }
 
