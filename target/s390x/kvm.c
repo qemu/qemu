@@ -1124,32 +1124,32 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 
     switch (ipa1) {
     case PRIV_B2_XSCH:
-        ioinst_handle_xsch(cpu, env->regs[1]);
+        ioinst_handle_xsch(cpu, env->regs[1], RA_IGNORED);
         break;
     case PRIV_B2_CSCH:
-        ioinst_handle_csch(cpu, env->regs[1]);
+        ioinst_handle_csch(cpu, env->regs[1], RA_IGNORED);
         break;
     case PRIV_B2_HSCH:
-        ioinst_handle_hsch(cpu, env->regs[1]);
+        ioinst_handle_hsch(cpu, env->regs[1], RA_IGNORED);
         break;
     case PRIV_B2_MSCH:
-        ioinst_handle_msch(cpu, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_msch(cpu, env->regs[1], run->s390_sieic.ipb, RA_IGNORED);
         break;
     case PRIV_B2_SSCH:
-        ioinst_handle_ssch(cpu, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_ssch(cpu, env->regs[1], run->s390_sieic.ipb, RA_IGNORED);
         break;
     case PRIV_B2_STCRW:
-        ioinst_handle_stcrw(cpu, run->s390_sieic.ipb);
+        ioinst_handle_stcrw(cpu, run->s390_sieic.ipb, RA_IGNORED);
         break;
     case PRIV_B2_STSCH:
-        ioinst_handle_stsch(cpu, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_stsch(cpu, env->regs[1], run->s390_sieic.ipb, RA_IGNORED);
         break;
     case PRIV_B2_TSCH:
         /* We should only get tsch via KVM_EXIT_S390_TSCH. */
         fprintf(stderr, "Spurious tsch intercept\n");
         break;
     case PRIV_B2_CHSC:
-        ioinst_handle_chsc(cpu, run->s390_sieic.ipb);
+        ioinst_handle_chsc(cpu, run->s390_sieic.ipb, RA_IGNORED);
         break;
     case PRIV_B2_TPI:
         /* This should have been handled by kvm already. */
@@ -1157,19 +1157,19 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     case PRIV_B2_SCHM:
         ioinst_handle_schm(cpu, env->regs[1], env->regs[2],
-                           run->s390_sieic.ipb);
+                           run->s390_sieic.ipb, RA_IGNORED);
         break;
     case PRIV_B2_RSCH:
-        ioinst_handle_rsch(cpu, env->regs[1]);
+        ioinst_handle_rsch(cpu, env->regs[1], RA_IGNORED);
         break;
     case PRIV_B2_RCHP:
-        ioinst_handle_rchp(cpu, env->regs[1]);
+        ioinst_handle_rchp(cpu, env->regs[1], RA_IGNORED);
         break;
     case PRIV_B2_STCPS:
         /* We do not provide this instruction, it is suppressed. */
         break;
     case PRIV_B2_SAL:
-        ioinst_handle_sal(cpu, env->regs[1]);
+        ioinst_handle_sal(cpu, env->regs[1], RA_IGNORED);
         break;
     case PRIV_B2_SIGA:
         /* Not provided, set CC = 3 for subchannel not operational */
@@ -1673,7 +1673,8 @@ static int handle_tsch(S390CPU *cpu)
 
     cpu_synchronize_state(cs);
 
-    ret = ioinst_handle_tsch(cpu, cpu->env.regs[1], run->s390_tsch.ipb);
+    ret = ioinst_handle_tsch(cpu, cpu->env.regs[1], run->s390_tsch.ipb,
+                             RA_IGNORED);
     if (ret < 0) {
         /*
          * Failure.
