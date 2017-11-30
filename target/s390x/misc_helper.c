@@ -62,11 +62,10 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
     qemu_mutex_lock_iothread();
     int r = sclp_service_call(env, r1, r2);
-    if (r < 0) {
-        program_interrupt(env, -r, 4);
-        r = 0;
-    }
     qemu_mutex_unlock_iothread();
+    if (r < 0) {
+        s390_program_interrupt(env, -r, 4, GETPC());
+    }
     return r;
 }
 
