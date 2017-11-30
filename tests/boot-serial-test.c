@@ -24,6 +24,22 @@ static const uint8_t kernel_mcf5208[] = {
     0x60, 0xfa                              /* bra.s  loop */
 };
 
+static const uint8_t kernel_pls3adsp1800[] = {
+    0xb0, 0x00, 0x84, 0x00,                 /* imm   0x8400 */
+    0x30, 0x60, 0x00, 0x04,                 /* addik r3,r0,4 */
+    0x30, 0x80, 0x00, 0x54,                 /* addik r4,r0,'T' */
+    0xf0, 0x83, 0x00, 0x00,                 /* sbi   r4,r3,0 */
+    0xb8, 0x00, 0xff, 0xfc                  /* bri   -4  loop */
+};
+
+static const uint8_t kernel_plml605[] = {
+    0xe0, 0x83, 0x00, 0xb0,                 /* imm   0x83e0 */
+    0x00, 0x10, 0x60, 0x30,                 /* addik r3,r0,0x1000 */
+    0x54, 0x00, 0x80, 0x30,                 /* addik r4,r0,'T' */
+    0x00, 0x00, 0x83, 0xf0,                 /* sbi   r4,r3,0 */
+    0xfc, 0xff, 0x00, 0xb8                  /* bri   -4  loop */
+};
+
 typedef struct testdef {
     const char *arch;       /* Target architecture */
     const char *machine;    /* Name of the machine */
@@ -50,6 +66,10 @@ static testdef_t tests[] = {
     { "s390x", "s390-ccw-virtio",
       "-nodefaults -device sclpconsole,chardev=serial0", "virtio device" },
     { "m68k", "mcf5208evb", "", "TT", sizeof(kernel_mcf5208), kernel_mcf5208 },
+    { "microblaze", "petalogix-s3adsp1800", "", "TT",
+      sizeof(kernel_pls3adsp1800), kernel_pls3adsp1800 },
+    { "microblazeel", "petalogix-ml605", "", "TT",
+      sizeof(kernel_plml605), kernel_plml605 },
 
     { NULL }
 };
