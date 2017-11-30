@@ -5837,9 +5837,6 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
             tcg_gen_movi_i64(psw_addr, s->next_pc);
         }
 
-        /* Save off cc.  */
-        update_cc_op(s);
-
         /* Call the helper to check for a possible PER exception.  */
         gen_helper_per_check_exception(cpu_env);
     }
