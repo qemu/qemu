@@ -88,7 +88,7 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
     case 0x308:
         /* ipl */
         qemu_mutex_lock_iothread();
-        handle_diag_308(env, r1, r3);
+        handle_diag_308(env, r1, r3, GETPC());
         qemu_mutex_unlock_iothread();
         r = 0;
         break;
