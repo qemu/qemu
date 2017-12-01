@@ -668,19 +668,19 @@
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
-  'data': { '*compress-level': 'int',
-            '*compress-threads': 'int',
-            '*decompress-threads': 'int',
-            '*cpu-throttle-initial': 'int',
-            '*cpu-throttle-increment': 'int',
+  'data': { '*compress-level': 'uint8',
+            '*compress-threads': 'uint8',
+            '*decompress-threads': 'uint8',
+            '*cpu-throttle-initial': 'uint8',
+            '*cpu-throttle-increment': 'uint8',
             '*tls-creds': 'str',
             '*tls-hostname': 'str',
-            '*max-bandwidth': 'int',
-            '*downtime-limit': 'int',
-            '*x-checkpoint-delay': 'int',
+            '*max-bandwidth': 'size',
+            '*downtime-limit': 'uint64',
+            '*x-checkpoint-delay': 'uint32',
             '*block-incremental': 'bool' ,
-            '*x-multifd-channels': 'int',
-            '*x-multifd-page-count': 'int',
+            '*x-multifd-channels': 'uint8',
+            '*x-multifd-page-count': 'uint32',
             '*xbzrle-cache-size': 'size' } }
 
 ##
