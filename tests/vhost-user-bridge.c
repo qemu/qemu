@@ -283,7 +283,7 @@ vubr_backend_recv_cb(int sock, void *ctx)
         return;
     }
 
-    do {
+    while (1) {
         struct iovec *sg;
         ssize_t ret, total = 0;
         unsigned int num;
@@ -343,7 +343,9 @@ vubr_backend_recv_cb(int sock, void *ctx)
 
         free(elem);
         elem = NULL;
-    } while (false); /* could loop if DONTWAIT worked? */
+
+        break;        /* could loop if DONTWAIT worked? */
+    }
 
     if (mhdr_cnt) {
         mhdr.num_buffers = i;
