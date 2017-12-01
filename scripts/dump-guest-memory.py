@@ -546,13 +546,15 @@ shape and this command should mostly work."""
         return None
 
     def add_vmcoreinfo(self):
-        if not gdb.parse_and_eval("vmcoreinfo_find()") \
-           or not gdb.parse_and_eval("vmcoreinfo_find()->has_vmcoreinfo"):
+        vmci = '(VMCoreInfoState *)' + \
+               'object_resolve_path_type("", "vmcoreinfo", 0)'
+        if not gdb.parse_and_eval("%s" % vmci) \
+           or not gdb.parse_and_eval("(%s)->has_vmcoreinfo" % vmci):
             return
 
-        fmt = gdb.parse_and_eval("vmcoreinfo_find()->vmcoreinfo.guest_format")
-        addr = gdb.parse_and_eval("vmcoreinfo_find()->vmcoreinfo.paddr")
-        size = gdb.parse_and_eval("vmcoreinfo_find()->vmcoreinfo.size")
+        fmt = gdb.parse_and_eval("(%s)->vmcoreinfo.guest_format" % vmci)
+        addr = gdb.parse_and_eval("(%s)->vmcoreinfo.paddr" % vmci)
+        size = gdb.parse_and_eval("(%s)->vmcoreinfo.size" % vmci)
 
         fmt = le16_to_cpu(fmt)
         addr = le64_to_cpu(addr)
