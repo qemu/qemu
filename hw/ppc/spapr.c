@@ -3582,6 +3582,14 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
     return -1;
 }
 
+/*
+ * Allocate the IRQ number and set the IRQ type, LSI or MSI
+ */
+static void spapr_irq_set_lsi(sPAPRMachineState *spapr, int irq, bool lsi)
+{
+    ics_set_irq_type(spapr->ics, irq - spapr->ics->offset, lsi);
+}
+
 int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
                     Error **errp)
 {
@@ -3606,7 +3614,7 @@ int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
         irq += ics->offset;
     }
 
-    ics_set_irq_type(ics, irq - ics->offset, lsi);
+    spapr_irq_set_lsi(spapr, irq, lsi);
     trace_spapr_irq_alloc(irq);
 
     return irq;
@@ -3645,10 +3653,10 @@ int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
         return -1;
     }
 
-    for (i = first; i < first + num; ++i) {
-        ics_set_irq_type(ics, i, lsi);
-    }
     first += ics->offset;
+    for (i = first; i < first + num; ++i) {
+        spapr_irq_set_lsi(spapr, i, lsi);
+    }
 
     trace_spapr_irq_alloc_block(first, num, lsi, align);
 
