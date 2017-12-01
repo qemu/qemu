@@ -133,7 +133,7 @@ static void pnv_core_realize_child(Object *child, XICSFabric *xi, Error **errp)
         return;
     }
 
-    icp_create(child, TYPE_PNV_ICP, xi, &local_err);
+    cpu->intc = icp_create(child, TYPE_PNV_ICP, xi, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

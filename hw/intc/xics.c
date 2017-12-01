@@ -334,7 +334,6 @@ static void icp_realize(DeviceState *dev, Error **errp)
     }
 
     cpu = POWERPC_CPU(obj);
-    cpu->intc = OBJECT(icp);
     icp->cs = CPU(obj);
 
     env = &cpu->env;

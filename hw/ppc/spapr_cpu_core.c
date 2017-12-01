@@ -121,7 +121,8 @@ static void spapr_cpu_core_realize_child(Object *child,
         goto error;
     }
 
-    icp_create(child, spapr->icp_type, XICS_FABRIC(spapr), &local_err);
+    cpu->intc = icp_create(child, spapr->icp_type, XICS_FABRIC(spapr),
+                           &local_err);
     if (local_err) {
         goto error;
     }
