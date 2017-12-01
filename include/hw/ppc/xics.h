@@ -212,4 +212,7 @@ typedef struct sPAPRMachineState sPAPRMachineState;
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
 void xics_spapr_init(sPAPRMachineState *spapr);
 
+Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
+                   Error **errp);
+
 #endif /* XICS_H */
