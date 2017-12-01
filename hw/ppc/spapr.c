@@ -1386,7 +1386,10 @@ void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
             && !spapr_ovec_test(spapr->ov5_cas, OV5_HPT_RESIZE))) {
         hpt_shift = spapr_hpt_shift_for_ramsize(MACHINE(spapr)->maxram_size);
     } else {
-        hpt_shift = spapr_hpt_shift_for_ramsize(MACHINE(spapr)->ram_size);
+        uint64_t current_ram_size;
+
+        current_ram_size = MACHINE(spapr)->ram_size + get_plugged_memory_size();
+        hpt_shift = spapr_hpt_shift_for_ramsize(current_ram_size);
     }
     spapr_reallocate_hpt(spapr, hpt_shift, &error_fatal);
 
