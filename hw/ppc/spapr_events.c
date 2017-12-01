@@ -472,9 +472,8 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
 
     rtas_event_log_queue(spapr, entry);
 
-    qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
-                                 rtas_event_log_to_irq(spapr,
-                                                       RTAS_LOG_TYPE_EPOW)));
+    qemu_irq_pulse(spapr_qirq(spapr,
+                   rtas_event_log_to_irq(spapr, RTAS_LOG_TYPE_EPOW)));
 }
 
 static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
@@ -556,9 +555,8 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
 
     rtas_event_log_queue(spapr, entry);
 
-    qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
-                                 rtas_event_log_to_irq(spapr,
-                                                       RTAS_LOG_TYPE_HOTPLUG)));
+    qemu_irq_pulse(spapr_qirq(spapr,
+                   rtas_event_log_to_irq(spapr, RTAS_LOG_TYPE_HOTPLUG)));
 }
 
 void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc)
@@ -678,7 +676,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                 spapr_event_sources_get_source(spapr->event_sources, i);
 
             g_assert(source->enabled);
-            qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr), source->irq));
+            qemu_irq_pulse(spapr_qirq(spapr, source->irq));
         }
     }
 

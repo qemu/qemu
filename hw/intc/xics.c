@@ -713,18 +713,6 @@ static const TypeInfo xics_fabric_info = {
 /*
  * Exported functions
  */
-qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
-{
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
-    ICSState *ics = xic->ics_get(xi, irq);
-
-    if (ics) {
-        return ics->qirqs[irq - ics->offset];
-    }
-
-    return NULL;
-}
-
 ICPState *xics_icp_get(XICSFabric *xi, int server)
 {
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);

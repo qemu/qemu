@@ -712,5 +712,6 @@ int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
 int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
                           bool align, Error **errp);
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
+qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq);
 
 #endif /* HW_SPAPR_H */

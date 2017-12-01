@@ -3680,6 +3680,17 @@ void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num)
     }
 }
 
+qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq)
+{
+    ICSState *ics = spapr->ics;
+
+    if (ics_valid_irq(ics, irq)) {
+        return ics->qirqs[irq - ics->offset];
+    }
+
+    return NULL;
+}
+
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {

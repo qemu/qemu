@@ -183,7 +183,6 @@ typedef struct XICSFabricClass {
 
 void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle);
 
-qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
 ICPState *xics_icp_get(XICSFabric *xi, int server);
 
 /* Internal XICS interfaces */
