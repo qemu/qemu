@@ -64,9 +64,14 @@ static void tty_serial_init(int fd, int speed,
 #endif
     tcgetattr(fd, &tty);
 
-#define check_speed(val) if (speed <= val) { spd = B##val; break; }
+#define check_speed(val) \
+    if (speed <= val) {  \
+        spd = B##val;    \
+        goto done;       \
+    }
+
     speed = speed * 10 / 11;
-    do {
+    {
         check_speed(50);
         check_speed(75);
         check_speed(110);
@@ -125,8 +130,10 @@ static void tty_serial_init(int fd, int speed,
         check_speed(4000000);
 #endif
         spd = B115200;
-    } while (0);
+    }
 
+#undef check_speed
+ done:
     cfsetispeed(&tty, spd);
     cfsetospeed(&tty, spd);
 
