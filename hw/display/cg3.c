@@ -63,7 +63,7 @@
     if (DEBUG_CG3) { \
         printf("CG3: " fmt , ## __VA_ARGS__); \
     } \
-} while (0);
+} while (0)
 
 #define TYPE_CG3 "cgthree"
 #define CG3(obj) OBJECT_CHECK(CG3State, (obj), TYPE_CG3)

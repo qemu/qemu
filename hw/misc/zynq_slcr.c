@@ -30,7 +30,7 @@
             fprintf(stderr,  ": %s: ", __func__); \
             fprintf(stderr, ## __VA_ARGS__); \
         } \
-    } while (0);
+    } while (0)
 
 #define XILINX_LOCK_KEY 0x767b
 #define XILINX_UNLOCK_KEY 0xdf0d

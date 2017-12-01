@@ -37,7 +37,7 @@
         fprintf(stderr,  ": %s: ", __func__); \
         fprintf(stderr, ## __VA_ARGS__); \
     } \
-} while (0);
+} while (0)
 
 #define DB_PRINT(...) DB_PRINT_L(0, ## __VA_ARGS__)
 

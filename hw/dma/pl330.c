@@ -29,7 +29,7 @@
     if (PL330_ERR_DEBUG >= lvl) {\
         fprintf(stderr, "PL330: %s:" fmt, __func__, ## args);\
     } \
-} while (0);
+} while (0)
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 

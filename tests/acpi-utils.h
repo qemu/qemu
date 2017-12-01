@@ -32,7 +32,7 @@ typedef struct {
     do {                                        \
         memread(addr, &field, sizeof(field));   \
         addr += sizeof(field);                  \
-    } while (0);
+    } while (0)
 
 #define ACPI_READ_ARRAY_PTR(arr, length, addr)  \
     do {                                        \
@@ -40,7 +40,7 @@ typedef struct {
         for (idx = 0; idx < length; ++idx) {    \
             ACPI_READ_FIELD(arr[idx], addr);    \
         }                                       \
-    } while (0);
+    } while (0)
 
 #define ACPI_READ_ARRAY(arr, addr)                               \
     ACPI_READ_ARRAY_PTR(arr, sizeof(arr) / sizeof(arr[0]), addr)
@@ -56,7 +56,7 @@ typedef struct {
         ACPI_READ_FIELD((table)->oem_revision, addr);            \
         ACPI_READ_ARRAY((table)->asl_compiler_id, addr);         \
         ACPI_READ_FIELD((table)->asl_compiler_revision, addr);   \
-    } while (0);
+    } while (0)
 
 #define ACPI_ASSERT_CMP(actual, expected) do { \
     char ACPI_ASSERT_CMP_str[5] = {}; \
@@ -77,7 +77,7 @@ typedef struct {
         ACPI_READ_FIELD((field).bit_offset, addr);   \
         ACPI_READ_FIELD((field).access_width, addr); \
         ACPI_READ_FIELD((field).address, addr);      \
-    } while (0);
+    } while (0)
 
 
 uint8_t acpi_calc_checksum(const uint8_t *data, int len);

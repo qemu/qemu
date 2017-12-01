@@ -39,7 +39,7 @@ do                                                             \
     fprintf (stderr, "FAILED at %s:%d\n", __FILE__, __LINE__); \
     exit (EXIT_FAILURE);                                       \
   }                                                            \
-} while (0);
+} while (0)
 
 unsigned char *dummybuf;
 static unsigned int pagesize;

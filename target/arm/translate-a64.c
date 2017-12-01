@@ -400,7 +400,7 @@ static void unallocated_encoding(DisasContext *s)
                       "at pc=%016" PRIx64 "\n",                          \
                       __FILE__, __LINE__, insn, s->pc - 4);              \
         unallocated_encoding(s);                                         \
-    } while (0);
+    } while (0)
 
 static void init_tmp_a64_array(DisasContext *s)
 {

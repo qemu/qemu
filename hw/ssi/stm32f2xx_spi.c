@@ -35,7 +35,7 @@
     if (STM_SPI_ERR_DEBUG >= lvl) { \
         qemu_log("%s: " fmt, __func__, ## args); \
     } \
-} while (0);
+} while (0)
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
