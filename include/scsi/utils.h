@@ -76,7 +76,11 @@ extern const struct SCSISense sense_code_LUN_FAILURE;
 extern const struct SCSISense sense_code_LUN_COMM_FAILURE;
 /* Command aborted, Overlapped Commands Attempted */
 extern const struct SCSISense sense_code_OVERLAPPED_COMMANDS;
-/* LUN not ready, Capacity data has changed */
+/* Medium error, Unrecovered read error */
+extern const struct SCSISense sense_code_READ_ERROR;
+/* LUN not ready, Cause not reportable */
+extern const struct SCSISense sense_code_NOT_READY;
+/* Unit attention, Capacity data has changed */
 extern const struct SCSISense sense_code_CAPACITY_CHANGED;
 /* Unit attention, SCSI bus reset */
 extern const struct SCSISense sense_code_SCSI_BUS_RESET;
