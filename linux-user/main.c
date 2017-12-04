@@ -128,9 +128,9 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 /* Make sure everything is in a consistent state for calling fork().  */
 void fork_start(void)
 {
-    cpu_list_lock();
-    qemu_mutex_lock(&tb_ctx.tb_lock);
     mmap_fork_start();
+    qemu_mutex_lock(&tb_ctx.tb_lock);
+    cpu_list_lock();
 }
 
 void fork_end(int child)
