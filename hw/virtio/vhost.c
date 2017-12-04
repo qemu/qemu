@@ -493,21 +493,21 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
         j = 0;
         r = vhost_verify_ring_part_mapping(dev, vq->desc, vq->desc_phys,
                                            vq->desc_size, start_addr, size);
-        if (!r) {
+        if (r) {
             break;
         }
 
         j++;
         r = vhost_verify_ring_part_mapping(dev, vq->avail, vq->avail_phys,
                                            vq->avail_size, start_addr, size);
-        if (!r) {
+        if (r) {
             break;
         }
 
         j++;
         r = vhost_verify_ring_part_mapping(dev, vq->used, vq->used_phys,
                                            vq->used_size, start_addr, size);
-        if (!r) {
+        if (r) {
             break;
         }
     }
@@ -1138,6 +1138,10 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
     r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost VQ %d ring restore failed: %d", idx, r);
+        /* Connection to the backend is broken, so let's sync internal
+         * last avail idx to the device used idx.
+         */
+        virtio_queue_restore_last_avail_idx(vdev, idx);
     } else {
         virtio_queue_set_last_avail_idx(vdev, idx, state.num);
     }
