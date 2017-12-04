@@ -730,6 +730,7 @@ void block_job_pause_all(void)
         AioContext *aio_context = blk_get_aio_context(job->blk);
 
         aio_context_acquire(aio_context);
+        block_job_ref(job);
         block_job_pause(job);
         aio_context_release(aio_context);
     }
@@ -808,12 +809,14 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
 
 void block_job_resume_all(void)
 {
-    BlockJob *job = NULL;
-    while ((job = block_job_next(job))) {
+    BlockJob *job, *next;
+
+    QLIST_FOREACH_SAFE(job, &block_jobs, job_list, next) {
         AioContext *aio_context = blk_get_aio_context(job->blk);
 
         aio_context_acquire(aio_context);
         block_job_resume(job);
+        block_job_unref(job);
         aio_context_release(aio_context);
     }
 }
