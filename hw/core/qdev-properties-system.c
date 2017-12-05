@@ -22,7 +22,6 @@
 #include "qapi/visitor.h"
 #include "chardev/char-fe.h"
 #include "sysemu/tpm_backend.h"
-#include "sysemu/iothread.h"
 
 static void get_pointer(Object *obj, Visitor *v, Property *prop,
                         char *(*print)(void *ptr),
