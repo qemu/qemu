@@ -641,6 +641,26 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
 
 }
 
+static uint32_t spapr_pc_dimm_node(MemoryDeviceInfoList *list, ram_addr_t addr)
+{
+    MemoryDeviceInfoList *info;
+
+    for (info = list; info; info = info->next) {
+        MemoryDeviceInfo *value = info->value;
+
+        if (value && value->type == MEMORY_DEVICE_INFO_KIND_DIMM) {
+            PCDIMMDeviceInfo *pcdimm_info = value->u.dimm.data;
+
+            if (pcdimm_info->addr >= addr &&
+                addr < (pcdimm_info->addr + pcdimm_info->size)) {
+                return pcdimm_info->node;
+            }
+        }
+    }
+
+    return -1;
+}
+
 /*
  * Adds ibm,dynamic-reconfiguration-memory node.
  * Refer to docs/specs/ppc-spapr-hotplug.txt for the documentation
@@ -658,6 +678,7 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
                        lmb_size;
     uint32_t *int_buf, *cur_index, buf_len;
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
+    MemoryDeviceInfoList *dimms = NULL;
 
     /*
      * Don't create the node if there is no hotpluggable memory
@@ -692,6 +713,11 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
         goto out;
     }
 
+    if (hotplug_lmb_start) {
+        MemoryDeviceInfoList **prev = &dimms;
+        qmp_pc_dimm_device_list(qdev_get_machine(), &prev);
+    }
+
     /* ibm,dynamic-memory */
     int_buf[0] = cpu_to_be32(nr_lmbs);
     cur_index++;
@@ -709,7 +735,7 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
             dynamic_memory[1] = cpu_to_be32(addr & 0xffffffff);
             dynamic_memory[2] = cpu_to_be32(spapr_drc_index(drc));
             dynamic_memory[3] = cpu_to_be32(0); /* reserved */
-            dynamic_memory[4] = cpu_to_be32(numa_get_node(addr, NULL));
+            dynamic_memory[4] = cpu_to_be32(spapr_pc_dimm_node(dimms, addr));
             if (memory_region_present(get_system_memory(), addr)) {
                 dynamic_memory[5] = cpu_to_be32(SPAPR_LMB_FLAGS_ASSIGNED);
             } else {
@@ -732,6 +758,7 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
 
         cur_index += SPAPR_DR_LMB_LIST_ENTRY_SIZE;
     }
+    qapi_free_MemoryDeviceInfoList(dimms);
     ret = fdt_setprop(fdt, offset, "ibm,dynamic-memory", int_buf, buf_len);
     if (ret < 0) {
         goto out;
