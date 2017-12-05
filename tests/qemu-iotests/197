@@ -60,6 +60,10 @@ echo '=== Copy-on-read ==='
 echo
 
 # Prep the images
+# VPC rounds image sizes to a specific geometry, force a specific size.
+if [ "$IMGFMT" = "vpc" ]; then
+    IMGOPTS=$(_optstr_add "$IMGOPTS" "force_size")
+fi
 _make_test_img 4G
 $QEMU_IO -c "write -P 55 3G 1k" "$TEST_IMG" | _filter_qemu_io
 IMGPROTO=file IMGFMT=qcow2 IMGOPTS= TEST_IMG_FILE="$TEST_WRAP" \
