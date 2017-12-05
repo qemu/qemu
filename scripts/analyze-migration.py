@@ -234,6 +234,10 @@ class HTABSection(object):
 
         header = self.file.read32()
 
+        if (header == -1):
+            # "no HPT" encoding
+            return
+
         if (header > 0):
             # First section, just the hash shift
             return
