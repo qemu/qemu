@@ -195,7 +195,7 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
     }
 }
 
-static bool bdrv_drain_recurse(BlockDriverState *bs, bool begin)
+static bool bdrv_drain_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *tmp;
     bool waited;
@@ -218,7 +218,7 @@ static bool bdrv_drain_recurse(BlockDriverState *bs, bool begin)
              */
             bdrv_ref(bs);
         }
-        waited |= bdrv_drain_recurse(bs, begin);
+        waited |= bdrv_drain_recurse(bs);
         if (in_main_loop) {
             bdrv_unref(bs);
         }
@@ -283,7 +283,7 @@ void bdrv_drained_begin(BlockDriverState *bs)
     }
 
     bdrv_drain_invoke(bs, true);
-    bdrv_drain_recurse(bs, true);
+    bdrv_drain_recurse(bs);
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
@@ -299,7 +299,7 @@ void bdrv_drained_end(BlockDriverState *bs)
 
     bdrv_parent_drained_end(bs);
     bdrv_drain_invoke(bs, false);
-    bdrv_drain_recurse(bs, false);
+    bdrv_drain_recurse(bs);
     aio_enable_external(bdrv_get_aio_context(bs));
 }
 
@@ -378,7 +378,7 @@ void bdrv_drain_all_begin(void)
             aio_context_acquire(aio_context);
             for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
-                    waited |= bdrv_drain_recurse(bs, true);
+                    waited |= bdrv_drain_recurse(bs);
                 }
             }
             aio_context_release(aio_context);
@@ -400,7 +400,7 @@ void bdrv_drain_all_end(void)
         aio_enable_external(aio_context);
         bdrv_parent_drained_end(bs);
         bdrv_drain_invoke(bs, false);
-        bdrv_drain_recurse(bs, false);
+        bdrv_drain_recurse(bs);
         aio_context_release(aio_context);
     }
 
