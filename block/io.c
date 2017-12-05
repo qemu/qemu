@@ -175,8 +175,10 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
     bdrv_wakeup(bs);
 }
 
+/* Recursively call BlockDriver.bdrv_co_drain_begin/end callbacks */
 static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 {
+    BdrvChild *child, *tmp;
     BdrvCoDrainData data = { .bs = bs, .done = false, .begin = begin};
 
     if (!bs->drv || (begin && !bs->drv->bdrv_co_drain_begin) ||
@@ -187,15 +189,16 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
     data.co = qemu_coroutine_create(bdrv_drain_invoke_entry, &data);
     bdrv_coroutine_enter(bs, data.co);
     BDRV_POLL_WHILE(bs, !data.done);
+
+    QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
+        bdrv_drain_invoke(child->bs, begin);
+    }
 }
 
 static bool bdrv_drain_recurse(BlockDriverState *bs, bool begin)
 {
     BdrvChild *child, *tmp;
     bool waited;
-
-    /* Ensure any pending metadata writes are submitted to bs->file.  */
-    bdrv_drain_invoke(bs, begin);
 
     /* Wait for drained requests to finish */
     waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
@@ -279,6 +282,7 @@ void bdrv_drained_begin(BlockDriverState *bs)
         bdrv_parent_drained_begin(bs);
     }
 
+    bdrv_drain_invoke(bs, true);
     bdrv_drain_recurse(bs, true);
 }
 
@@ -294,6 +298,7 @@ void bdrv_drained_end(BlockDriverState *bs)
     }
 
     bdrv_parent_drained_end(bs);
+    bdrv_drain_invoke(bs, false);
     bdrv_drain_recurse(bs, false);
     aio_enable_external(bdrv_get_aio_context(bs));
 }
@@ -372,6 +377,8 @@ void bdrv_drain_all_begin(void)
             aio_context_acquire(aio_context);
             for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
+                    /* FIXME Calling this multiple times is wrong */
+                    bdrv_drain_invoke(bs, true);
                     waited |= bdrv_drain_recurse(bs, true);
                 }
             }
@@ -393,6 +400,7 @@ void bdrv_drain_all_end(void)
         aio_context_acquire(aio_context);
         aio_enable_external(aio_context);
         bdrv_parent_drained_end(bs);
+        bdrv_drain_invoke(bs, false);
         bdrv_drain_recurse(bs, false);
         aio_context_release(aio_context);
     }
