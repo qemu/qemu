@@ -355,6 +355,7 @@ void bdrv_drain_all_begin(void)
         aio_context_acquire(aio_context);
         bdrv_parent_drained_begin(bs);
         aio_disable_external(aio_context);
+        bdrv_drain_invoke(bs, true);
         aio_context_release(aio_context);
 
         if (!g_slist_find(aio_ctxs, aio_context)) {
@@ -377,8 +378,6 @@ void bdrv_drain_all_begin(void)
             aio_context_acquire(aio_context);
             for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
-                    /* FIXME Calling this multiple times is wrong */
-                    bdrv_drain_invoke(bs, true);
                     waited |= bdrv_drain_recurse(bs, true);
                 }
             }
