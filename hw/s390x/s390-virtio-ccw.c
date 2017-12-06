@@ -308,6 +308,11 @@ static void ccw_init(MachineState *machine)
     } else {
         ret = css_create_css_image(VIRTUAL_CSSID, true);
     }
+    if (qemu_opt_get(qemu_get_machine_opts(), "s390-squash-mcss")) {
+        warn_report("The machine property 's390-squash-mcss' is deprecated"
+                    " (obsoleted by lifting the cssid restrictions).");
+    }
+
     assert(ret == 0);
     if (css_migration_enabled()) {
         css_register_vmstate();
@@ -582,7 +587,7 @@ static inline void s390_machine_initfn(Object *obj)
     object_property_add_bool(obj, "s390-squash-mcss",
                              machine_get_squash_mcss,
                              machine_set_squash_mcss, NULL);
-    object_property_set_description(obj, "s390-squash-mcss",
+    object_property_set_description(obj, "s390-squash-mcss", "(deprecated) "
             "enable/disable squashing subchannels into the default css",
             NULL);
     object_property_set_bool(obj, false, "s390-squash-mcss", NULL);
