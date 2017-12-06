@@ -302,7 +302,6 @@ static void ccw_init(MachineState *machine)
     /*
      * Non mcss-e enabled guests only see the devices from the default
      * css, which is determined by the value of the squash_mcss property.
-     * Note: we must not squash non virtual devices to css 0xFE.
      */
     if (css_bus->squash_mcss) {
         ret = css_create_css_image(0, true);

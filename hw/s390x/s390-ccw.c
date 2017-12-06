@@ -77,7 +77,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
         goto out_err_propagate;
     }
 
-    sch = css_create_sch(ccw_dev->devno, false, cbus->squash_mcss, &err);
+    sch = css_create_sch(ccw_dev->devno, cbus->squash_mcss, &err);
     if (!sch) {
         goto out_mdevid_free;
     }

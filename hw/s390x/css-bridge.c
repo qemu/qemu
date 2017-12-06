@@ -123,6 +123,11 @@ static Property virtual_css_bridge_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static bool prop_get_true(Object *obj, Error **errp)
+{
+    return true;
+}
+
 static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
 {
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
@@ -131,6 +136,12 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
     hc->unplug = ccw_device_unplug;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->props = virtual_css_bridge_properties;
+    object_class_property_add_bool(klass, "cssid-unrestricted",
+                                   prop_get_true, NULL, NULL);
+    object_class_property_set_description(klass, "cssid-unrestricted",
+            "A css device can use any cssid, regardless whether virtual"
+            " or not (read only, always true)",
+            NULL);
 }
 
 static const TypeInfo virtual_css_bridge_info = {

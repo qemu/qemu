@@ -2364,20 +2364,10 @@ const PropertyInfo css_devid_ro_propinfo = {
     .get = get_css_devid,
 };
 
-SubchDev *css_create_sch(CssDevId bus_id, bool is_virtual, bool squash_mcss,
-                         Error **errp)
+SubchDev *css_create_sch(CssDevId bus_id, bool squash_mcss, Error **errp)
 {
     uint16_t schid = 0;
     SubchDev *sch;
-
-    if (bus_id.valid) {
-        if (is_virtual != (bus_id.cssid == VIRTUAL_CSSID)) {
-            error_setg(errp, "cssid %hhx not valid for %s devices",
-                       bus_id.cssid,
-                       (is_virtual ? "virtual" : "non-virtual"));
-            return NULL;
-        }
-    }
 
     if (bus_id.valid) {
         if (squash_mcss) {
@@ -2390,19 +2380,8 @@ SubchDev *css_create_sch(CssDevId bus_id, bool is_virtual, bool squash_mcss,
                                            bus_id.devid, &schid, errp)) {
             return NULL;
         }
-    } else if (squash_mcss || is_virtual) {
-        bus_id.cssid = channel_subsys.default_cssid;
-
-        if (!css_find_free_subch_and_devno(bus_id.cssid, &bus_id.ssid,
-                                           &bus_id.devid, &schid, errp)) {
-            return NULL;
-        }
     } else {
-        for (bus_id.cssid = 0; bus_id.cssid < MAX_CSSID; ++bus_id.cssid) {
-            if (bus_id.cssid == VIRTUAL_CSSID) {
-                continue;
-            }
-
+        for (bus_id.cssid = channel_subsys.default_cssid;;) {
             if (!channel_subsys.css[bus_id.cssid]) {
                 css_create_css_image(bus_id.cssid, false);
             }
@@ -2412,7 +2391,8 @@ SubchDev *css_create_sch(CssDevId bus_id, bool is_virtual, bool squash_mcss,
                                                 NULL)) {
                 break;
             }
-            if (bus_id.cssid == MAX_CSSID) {
+            bus_id.cssid = (bus_id.cssid + 1) % MAX_CSSID;
+            if (bus_id.cssid == channel_subsys.default_cssid) {
                 error_setg(errp, "Virtual channel subsystem is full!");
                 return NULL;
             }
