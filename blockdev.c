@@ -1812,8 +1812,8 @@ static void external_snapshot_clean(BlkActionState *common)
                              DO_UPCAST(ExternalSnapshotState, common, common);
     if (state->aio_context) {
         bdrv_drained_end(state->old_bs);
-        aio_context_release(state->aio_context);
         bdrv_unref(state->new_bs);
+        aio_context_release(state->aio_context);
     }
 }
 
