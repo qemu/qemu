@@ -145,6 +145,7 @@ typedef struct {
     BlockDriverState *bs;
     bool done;
     bool begin;
+    bool recursive;
     BdrvChild *parent;
 } BdrvCoDrainData;
 
@@ -218,8 +219,10 @@ static bool bdrv_drain_recurse(BlockDriverState *bs)
     return waited;
 }
 
-static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent);
-static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent);
+static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
+                                  BdrvChild *parent);
+static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
+                                BdrvChild *parent);
 
 static void bdrv_co_drain_bh_cb(void *opaque)
 {
@@ -229,9 +232,9 @@ static void bdrv_co_drain_bh_cb(void *opaque)
 
     bdrv_dec_in_flight(bs);
     if (data->begin) {
-        bdrv_do_drained_begin(bs, data->parent);
+        bdrv_do_drained_begin(bs, data->recursive, data->parent);
     } else {
-        bdrv_do_drained_end(bs, data->parent);
+        bdrv_do_drained_end(bs, data->recursive, data->parent);
     }
 
     data->done = true;
@@ -239,7 +242,8 @@ static void bdrv_co_drain_bh_cb(void *opaque)
 }
 
 static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
-                                                bool begin, BdrvChild *parent)
+                                                bool begin, bool recursive,
+                                                BdrvChild *parent)
 {
     BdrvCoDrainData data;
 
@@ -253,6 +257,7 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
         .bs = bs,
         .done = false,
         .begin = begin,
+        .recursive = recursive,
         .parent = parent,
     };
     bdrv_inc_in_flight(bs);
@@ -265,10 +270,13 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     assert(data.done);
 }
 
-static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent)
+static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
+                                  BdrvChild *parent)
 {
+    BdrvChild *child, *next;
+
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, true, parent);
+        bdrv_co_yield_to_drain(bs, true, recursive, parent);
         return;
     }
 
@@ -280,19 +288,32 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent)
     bdrv_parent_drained_begin(bs, parent);
     bdrv_drain_invoke(bs, true, false);
     bdrv_drain_recurse(bs);
+
+    if (recursive) {
+        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+            bdrv_do_drained_begin(child->bs, true, child);
+        }
+    }
 }
 
 void bdrv_drained_begin(BlockDriverState *bs)
 {
-    bdrv_do_drained_begin(bs, NULL);
+    bdrv_do_drained_begin(bs, false, NULL);
 }
 
-static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
+void bdrv_subtree_drained_begin(BlockDriverState *bs)
 {
+    bdrv_do_drained_begin(bs, true, NULL);
+}
+
+static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
+                                BdrvChild *parent)
+{
+    BdrvChild *child, *next;
     int old_quiesce_counter;
 
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, false, parent);
+        bdrv_co_yield_to_drain(bs, false, recursive, parent);
         return;
     }
     assert(bs->quiesce_counter > 0);
@@ -304,11 +325,22 @@ static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
     if (old_quiesce_counter == 1) {
         aio_enable_external(bdrv_get_aio_context(bs));
     }
+
+    if (recursive) {
+        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+            bdrv_do_drained_end(child->bs, true, child);
+        }
+    }
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
 {
-    bdrv_do_drained_end(bs, NULL);
+    bdrv_do_drained_end(bs, false, NULL);
+}
+
+void bdrv_subtree_drained_end(BlockDriverState *bs)
+{
+    bdrv_do_drained_end(bs, true, NULL);
 }
 
 /*
