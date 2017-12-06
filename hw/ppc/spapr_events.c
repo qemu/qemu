@@ -292,9 +292,6 @@ void spapr_dt_events(sPAPRMachineState *spapr, void *fdt)
         irq_ranges[count++] = cpu_to_be32(1);
     }
 
-    irq_ranges[count] = cpu_to_be32(count);
-    count++;
-
     _FDT((fdt_setprop(fdt, event_sources, "interrupt-controller", NULL, 0)));
     _FDT((fdt_setprop_cell(fdt, event_sources, "#interrupt-cells", 2)));
     _FDT((fdt_setprop(fdt, event_sources, "interrupt-ranges",
