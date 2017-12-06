@@ -71,6 +71,8 @@ static BlockDriver bdrv_test = {
 
     .bdrv_co_drain_begin    = bdrv_test_co_drain_begin,
     .bdrv_co_drain_end      = bdrv_test_co_drain_end,
+
+    .bdrv_child_perm        = bdrv_format_default_perms,
 };
 
 static void aio_ret_cb(void *opaque, int ret)
@@ -79,11 +81,34 @@ static void aio_ret_cb(void *opaque, int ret)
     *aio_ret = ret;
 }
 
-static void test_drv_cb_drain_all(void)
+enum drain_type {
+    BDRV_DRAIN_ALL,
+    BDRV_DRAIN,
+};
+
+static void do_drain_begin(enum drain_type drain_type, BlockDriverState *bs)
+{
+    switch (drain_type) {
+    case BDRV_DRAIN_ALL:        bdrv_drain_all_begin(); break;
+    case BDRV_DRAIN:            bdrv_drained_begin(bs); break;
+    default:                    g_assert_not_reached();
+    }
+}
+
+static void do_drain_end(enum drain_type drain_type, BlockDriverState *bs)
+{
+    switch (drain_type) {
+    case BDRV_DRAIN_ALL:        bdrv_drain_all_end(); break;
+    case BDRV_DRAIN:            bdrv_drained_end(bs); break;
+    default:                    g_assert_not_reached();
+    }
+}
+
+static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
 {
     BlockBackend *blk;
-    BlockDriverState *bs;
-    BDRVTestState *s;
+    BlockDriverState *bs, *backing;
+    BDRVTestState *s, *backing_s;
     BlockAIOCB *acb;
     int aio_ret;
 
@@ -100,12 +125,23 @@ static void test_drv_cb_drain_all(void)
     s = bs->opaque;
     blk_insert_bs(blk, bs, &error_abort);
 
+    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    backing_s = backing->opaque;
+    bdrv_set_backing_hd(bs, backing, &error_abort);
+
     /* Simple bdrv_drain_all_begin/end pair, check that CBs are called */
     g_assert_cmpint(s->drain_count, ==, 0);
-    bdrv_drain_all_begin();
+    g_assert_cmpint(backing_s->drain_count, ==, 0);
+
+    do_drain_begin(drain_type, bs);
+
     g_assert_cmpint(s->drain_count, ==, 1);
-    bdrv_drain_all_end();
+    g_assert_cmpint(backing_s->drain_count, ==, !!recursive);
+
+    do_drain_end(drain_type, bs);
+
     g_assert_cmpint(s->drain_count, ==, 0);
+    g_assert_cmpint(backing_s->drain_count, ==, 0);
 
     /* Now do the same while a request is pending */
     aio_ret = -EINPROGRESS;
@@ -114,14 +150,32 @@ static void test_drv_cb_drain_all(void)
     g_assert_cmpint(aio_ret, ==, -EINPROGRESS);
 
     g_assert_cmpint(s->drain_count, ==, 0);
-    bdrv_drain_all_begin();
+    g_assert_cmpint(backing_s->drain_count, ==, 0);
+
+    do_drain_begin(drain_type, bs);
+
     g_assert_cmpint(aio_ret, ==, 0);
     g_assert_cmpint(s->drain_count, ==, 1);
-    bdrv_drain_all_end();
-    g_assert_cmpint(s->drain_count, ==, 0);
+    g_assert_cmpint(backing_s->drain_count, ==, !!recursive);
 
+    do_drain_end(drain_type, bs);
+
+    g_assert_cmpint(s->drain_count, ==, 0);
+    g_assert_cmpint(backing_s->drain_count, ==, 0);
+
+    bdrv_unref(backing);
     bdrv_unref(bs);
     blk_unref(blk);
+}
+
+static void test_drv_cb_drain_all(void)
+{
+    test_drv_cb_common(BDRV_DRAIN_ALL, true);
+}
+
+static void test_drv_cb_drain(void)
+{
+    test_drv_cb_common(BDRV_DRAIN, false);
 }
 
 int main(int argc, char **argv)
@@ -132,6 +186,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/bdrv-drain/driver-cb/drain_all", test_drv_cb_drain_all);
+    g_test_add_func("/bdrv-drain/driver-cb/drain", test_drv_cb_drain);
 
     return g_test_run();
 }
