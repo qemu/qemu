@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Stefan Hajnoczi <stefanha@redhat.com>
+#
+# Check that QMP 'transaction' blockdev-snapshot-sync with multiple drives on a
+# single IOThread completes successfully.  This particular command triggered a
+# hang due to recursive AioContext locking and BDRV_POLL_WHILE().  Protect
+# against regressions.
+
+import iotests
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.verify_platform(['linux'])
+
+with iotests.FilePath('disk0.img') as disk0_img_path, \
+     iotests.FilePath('disk1.img') as disk1_img_path, \
+     iotests.FilePath('disk0-snap.img') as disk0_snap_img_path, \
+     iotests.FilePath('disk1-snap.img') as disk1_snap_img_path, \
+     iotests.VM() as vm:
+
+    img_size = '10M'
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, disk0_img_path, img_size)
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, disk1_img_path, img_size)
+
+    iotests.log('Launching VM...')
+    vm.launch()
+
+    iotests.log('Adding IOThread...')
+    iotests.log(vm.qmp('object-add',
+                       qom_type='iothread',
+                       id='iothread0'))
+
+    iotests.log('Adding blockdevs...')
+    iotests.log(vm.qmp('blockdev-add',
+                       driver=iotests.imgfmt,
+                       node_name='disk0',
+                       file={
+                           'driver': 'file',
+                           'filename': disk0_img_path,
+                       }))
+    iotests.log(vm.qmp('blockdev-add',
+                       driver=iotests.imgfmt,
+                       node_name='disk1',
+                       file={
+                           'driver': 'file',
+                           'filename': disk1_img_path,
+                       }))
+
+    iotests.log('Setting iothread...')
+    iotests.log(vm.qmp('x-blockdev-set-iothread',
+                       node_name='disk0',
+                       iothread='iothread0'))
+    iotests.log(vm.qmp('x-blockdev-set-iothread',
+                       node_name='disk1',
+                       iothread='iothread0'))
+
+    iotests.log('Creating external snapshots...')
+    iotests.log(vm.qmp(
+                  'transaction',
+                  actions=[
+                      {
+                          'data': {
+                              'node-name': 'disk0',
+                              'snapshot-file': disk0_snap_img_path,
+                              'snapshot-node-name': 'disk0-snap',
+                              'mode': 'absolute-paths',
+                              'format': iotests.imgfmt,
+                          },
+                          'type': 'blockdev-snapshot-sync'
+                      }, {
+                          'data': {
+                              'node-name': 'disk1',
+                              'snapshot-file': disk1_snap_img_path,
+                              'snapshot-node-name': 'disk1-snap',
+                              'mode': 'absolute-paths',
+                              'format': iotests.imgfmt
+                          },
+                          'type': 'blockdev-snapshot-sync'
+                      }
+                  ]))
