@@ -85,6 +85,7 @@ static void aio_ret_cb(void *opaque, int ret)
 enum drain_type {
     BDRV_DRAIN_ALL,
     BDRV_DRAIN,
+    BDRV_SUBTREE_DRAIN,
     DRAIN_TYPE_MAX,
 };
 
@@ -93,6 +94,7 @@ static void do_drain_begin(enum drain_type drain_type, BlockDriverState *bs)
     switch (drain_type) {
     case BDRV_DRAIN_ALL:        bdrv_drain_all_begin(); break;
     case BDRV_DRAIN:            bdrv_drained_begin(bs); break;
+    case BDRV_SUBTREE_DRAIN:    bdrv_subtree_drained_begin(bs); break;
     default:                    g_assert_not_reached();
     }
 }
@@ -102,6 +104,7 @@ static void do_drain_end(enum drain_type drain_type, BlockDriverState *bs)
     switch (drain_type) {
     case BDRV_DRAIN_ALL:        bdrv_drain_all_end(); break;
     case BDRV_DRAIN:            bdrv_drained_end(bs); break;
+    case BDRV_SUBTREE_DRAIN:    bdrv_subtree_drained_end(bs); break;
     default:                    g_assert_not_reached();
     }
 }
@@ -180,6 +183,11 @@ static void test_drv_cb_drain(void)
     test_drv_cb_common(BDRV_DRAIN, false);
 }
 
+static void test_drv_cb_drain_subtree(void)
+{
+    test_drv_cb_common(BDRV_SUBTREE_DRAIN, true);
+}
+
 static void test_quiesce_common(enum drain_type drain_type, bool recursive)
 {
     BlockBackend *blk;
@@ -222,6 +230,11 @@ static void test_quiesce_drain(void)
     test_quiesce_common(BDRV_DRAIN, false);
 }
 
+static void test_quiesce_drain_subtree(void)
+{
+    test_quiesce_common(BDRV_SUBTREE_DRAIN, true);
+}
+
 static void test_nested(void)
 {
     BlockBackend *blk;
@@ -244,7 +257,8 @@ static void test_nested(void)
             /* XXX bdrv_drain_all() doesn't increase the quiesce_counter */
             int bs_quiesce      = (outer != BDRV_DRAIN_ALL) +
                                   (inner != BDRV_DRAIN_ALL);
-            int backing_quiesce = 0;
+            int backing_quiesce = (outer == BDRV_SUBTREE_DRAIN) +
+                                  (inner == BDRV_SUBTREE_DRAIN);
             int backing_cb_cnt  = (outer != BDRV_DRAIN) +
                                   (inner != BDRV_DRAIN);
 
@@ -391,6 +405,11 @@ static void test_blockjob_drain(void)
     test_blockjob_common(BDRV_DRAIN);
 }
 
+static void test_blockjob_drain_subtree(void)
+{
+    test_blockjob_common(BDRV_SUBTREE_DRAIN);
+}
+
 int main(int argc, char **argv)
 {
     bdrv_init();
@@ -400,14 +419,20 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/driver-cb/drain_all", test_drv_cb_drain_all);
     g_test_add_func("/bdrv-drain/driver-cb/drain", test_drv_cb_drain);
+    g_test_add_func("/bdrv-drain/driver-cb/drain_subtree",
+                    test_drv_cb_drain_subtree);
 
     g_test_add_func("/bdrv-drain/quiesce/drain_all", test_quiesce_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/drain", test_quiesce_drain);
+    g_test_add_func("/bdrv-drain/quiesce/drain_subtree",
+                    test_quiesce_drain_subtree);
 
     g_test_add_func("/bdrv-drain/nested", test_nested);
 
     g_test_add_func("/bdrv-drain/blockjob/drain_all", test_blockjob_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/drain", test_blockjob_drain);
+    g_test_add_func("/bdrv-drain/blockjob/drain_subtree",
+                    test_blockjob_drain_subtree);
 
     return g_test_run();
 }
