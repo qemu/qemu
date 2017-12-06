@@ -1936,7 +1936,6 @@ typedef struct BlockdevBackupState {
     BlkActionState common;
     BlockDriverState *bs;
     BlockJob *job;
-    AioContext *aio_context;
 } BlockdevBackupState;
 
 static BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
@@ -1947,6 +1946,7 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
     BlockdevBackup *backup;
     BlockDriverState *bs, *target;
+    AioContext *aio_context;
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
@@ -1962,29 +1962,39 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
         return;
     }
 
-    /* AioContext is released in .clean() */
-    state->aio_context = bdrv_get_aio_context(bs);
-    if (state->aio_context != bdrv_get_aio_context(target)) {
-        state->aio_context = NULL;
+    aio_context = bdrv_get_aio_context(bs);
+    if (aio_context != bdrv_get_aio_context(target)) {
         error_setg(errp, "Backup between two IO threads is not implemented");
         return;
     }
-    aio_context_acquire(state->aio_context);
+    aio_context_acquire(aio_context);
     state->bs = bs;
+
+    /* Paired with .clean() */
     bdrv_drained_begin(state->bs);
 
     state->job = do_blockdev_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
 static void blockdev_backup_commit(BlkActionState *common)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
+    AioContext *aio_context;
+
+    aio_context = bdrv_get_aio_context(state->bs);
+    aio_context_acquire(aio_context);
+
     assert(state->job);
     block_job_start(state->job);
+
+    aio_context_release(aio_context);
 }
 
 static void blockdev_backup_abort(BlkActionState *common)
@@ -1992,18 +2002,32 @@ static void blockdev_backup_abort(BlkActionState *common)
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
 
     if (state->job) {
+        AioContext *aio_context;
+
+        aio_context = bdrv_get_aio_context(state->bs);
+        aio_context_acquire(aio_context);
+
         block_job_cancel_sync(state->job);
+
+        aio_context_release(aio_context);
     }
 }
 
 static void blockdev_backup_clean(BlkActionState *common)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
+    AioContext *aio_context;
 
-    if (state->aio_context) {
-        bdrv_drained_end(state->bs);
-        aio_context_release(state->aio_context);
+    if (!state->bs) {
+        return;
     }
+
+    aio_context = bdrv_get_aio_context(state->bs);
+    aio_context_acquire(aio_context);
+
+    bdrv_drained_end(state->bs);
+
+    aio_context_release(aio_context);
 }
 
 typedef struct BlockDirtyBitmapState {
