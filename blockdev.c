@@ -1845,7 +1845,6 @@ static void external_snapshot_clean(BlkActionState *common)
 typedef struct DriveBackupState {
     BlkActionState common;
     BlockDriverState *bs;
-    AioContext *aio_context;
     BlockJob *job;
 } DriveBackupState;
 
@@ -1857,6 +1856,7 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
     BlockDriverState *bs;
     DriveBackup *backup;
+    AioContext *aio_context;
     Error *local_err = NULL;
 
     assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
@@ -1867,24 +1867,36 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
         return;
     }
 
-    /* AioContext is released in .clean() */
-    state->aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(state->aio_context);
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    /* Paired with .clean() */
     bdrv_drained_begin(bs);
+
     state->bs = bs;
 
     state->job = do_drive_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out;
     }
+
+out:
+    aio_context_release(aio_context);
 }
 
 static void drive_backup_commit(BlkActionState *common)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    AioContext *aio_context;
+
+    aio_context = bdrv_get_aio_context(state->bs);
+    aio_context_acquire(aio_context);
+
     assert(state->job);
     block_job_start(state->job);
+
+    aio_context_release(aio_context);
 }
 
 static void drive_backup_abort(BlkActionState *common)
@@ -1892,18 +1904,32 @@ static void drive_backup_abort(BlkActionState *common)
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
 
     if (state->job) {
+        AioContext *aio_context;
+
+        aio_context = bdrv_get_aio_context(state->bs);
+        aio_context_acquire(aio_context);
+
         block_job_cancel_sync(state->job);
+
+        aio_context_release(aio_context);
     }
 }
 
 static void drive_backup_clean(BlkActionState *common)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    AioContext *aio_context;
 
-    if (state->aio_context) {
-        bdrv_drained_end(state->bs);
-        aio_context_release(state->aio_context);
+    if (!state->bs) {
+        return;
     }
+
+    aio_context = bdrv_get_aio_context(state->bs);
+    aio_context_acquire(aio_context);
+
+    bdrv_drained_end(state->bs);
+
+    aio_context_release(aio_context);
 }
 
 typedef struct BlockdevBackupState {
