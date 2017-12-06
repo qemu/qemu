@@ -277,6 +277,7 @@ void bdrv_drained_begin(BlockDriverState *bs)
         return;
     }
 
+    /* Stop things in parent-to-child order */
     if (atomic_fetch_inc(&bs->quiesce_counter) == 0) {
         aio_disable_external(bdrv_get_aio_context(bs));
         bdrv_parent_drained_begin(bs);
@@ -297,8 +298,9 @@ void bdrv_drained_end(BlockDriverState *bs)
         return;
     }
 
-    bdrv_parent_drained_end(bs);
+    /* Re-enable things in child-to-parent order */
     bdrv_drain_invoke(bs, false);
+    bdrv_parent_drained_end(bs);
     aio_enable_external(bdrv_get_aio_context(bs));
 }
 
@@ -351,9 +353,10 @@ void bdrv_drain_all_begin(void)
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
+        /* Stop things in parent-to-child order */
         aio_context_acquire(aio_context);
-        bdrv_parent_drained_begin(bs);
         aio_disable_external(aio_context);
+        bdrv_parent_drained_begin(bs);
         bdrv_drain_invoke(bs, true);
         aio_context_release(aio_context);
 
@@ -395,10 +398,11 @@ void bdrv_drain_all_end(void)
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
+        /* Re-enable things in child-to-parent order */
         aio_context_acquire(aio_context);
-        aio_enable_external(aio_context);
-        bdrv_parent_drained_end(bs);
         bdrv_drain_invoke(bs, false);
+        bdrv_parent_drained_end(bs);
+        aio_enable_external(aio_context);
         aio_context_release(aio_context);
     }
 
