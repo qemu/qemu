@@ -380,3 +380,10 @@ void iothread_destroy(IOThread *iothread)
 {
     object_unparent(OBJECT(iothread));
 }
+
+/* Lookup IOThread by its id.  Only finds user-created objects, not internal
+ * iothread_create() objects. */
+IOThread *iothread_by_id(const char *id)
+{
+    return IOTHREAD(object_resolve_path_type(id, TYPE_IOTHREAD, NULL));
+}
