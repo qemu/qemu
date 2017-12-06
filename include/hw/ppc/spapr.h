@@ -590,6 +590,16 @@ void spapr_load_rtas(sPAPRMachineState *spapr, void *fdt, hwaddr addr);
 
 #define RTAS_EVENT_SCAN_RATE    1
 
+/* This helper should be used to encode interrupt specifiers when the related
+ * "interrupt-controller" node has its "#interrupt-cells" property set to 2 (ie,
+ * VIO devices, RTAS event sources and PHBs).
+ */
+static inline void spapr_dt_xics_irq(uint32_t *intspec, int irq, bool is_lsi)
+{
+    intspec[0] = cpu_to_be32(irq);
+    intspec[1] = is_lsi ? cpu_to_be32(1) : 0;
+}
+
 typedef struct sPAPRTCETable sPAPRTCETable;
 
 #define TYPE_SPAPR_TCE_TABLE "spapr-tce-table"

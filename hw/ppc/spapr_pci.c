@@ -2121,8 +2121,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
             irqmap[2] = 0;
             irqmap[3] = cpu_to_be32(j+1);
             irqmap[4] = cpu_to_be32(xics_phandle);
-            irqmap[5] = cpu_to_be32(phb->lsi_table[lsi_num].irq);
-            irqmap[6] = cpu_to_be32(0x8);
+            spapr_dt_xics_irq(&irqmap[5], phb->lsi_table[lsi_num].irq, true);
         }
     }
     /* Write interrupt map */
