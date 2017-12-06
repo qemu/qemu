@@ -277,7 +277,6 @@ void commit_start(const char *job_id, BlockDriverState *bs,
                   const char *filter_node_name, Error **errp)
 {
     CommitBlockJob *s;
-    BlockReopenQueue *reopen_queue = NULL;
     int orig_base_flags;
     BlockDriverState *iter;
     BlockDriverState *commit_top_bs = NULL;
@@ -299,12 +298,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     /* convert base to r/w, if necessary */
     orig_base_flags = bdrv_get_flags(base);
     if (!(orig_base_flags & BDRV_O_RDWR)) {
-        reopen_queue = bdrv_reopen_queue(reopen_queue, base, NULL,
-                                         orig_base_flags | BDRV_O_RDWR);
-    }
-
-    if (reopen_queue) {
-        bdrv_reopen_multiple(bdrv_get_aio_context(bs), reopen_queue, &local_err);
+        bdrv_reopen(base, orig_base_flags | BDRV_O_RDWR, &local_err);
         if (local_err != NULL) {
             error_propagate(errp, local_err);
             goto fail;
