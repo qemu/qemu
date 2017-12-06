@@ -2189,7 +2189,7 @@ static int decode_gusa(DisasContext *ctx, CPUSH4State *env, int *pmax_insns)
     }
 
     /* If op_src is not a valid register, then op_arg was a constant.  */
-    if (op_src < 0) {
+    if (op_src < 0 && !TCGV_IS_UNUSED(op_arg)) {
         tcg_temp_free_i32(op_arg);
     }
 
