@@ -232,7 +232,7 @@ static uint64_t ipmi_kcs_ioport_read(void *opaque, hwaddr addr, unsigned size)
     IPMIKCS *ik = iic->get_backend_data(ii);
     uint32_t ret;
 
-    switch (addr & 1) {
+    switch (addr & ik->size_mask) {
     case 0:
         ret = ik->data_out_reg;
         IPMI_KCS_SET_OBF(ik->status_reg, 0);
@@ -243,6 +243,7 @@ static uint64_t ipmi_kcs_ioport_read(void *opaque, hwaddr addr, unsigned size)
             }
         }
         break;
+
     case 1:
         ret = ik->status_reg;
         if (ik->atn_irq_set) {
@@ -252,6 +253,9 @@ static uint64_t ipmi_kcs_ioport_read(void *opaque, hwaddr addr, unsigned size)
             }
         }
         break;
+
+    default:
+        ret = 0xff;
     }
     return ret;
 }
@@ -267,13 +271,17 @@ static void ipmi_kcs_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         return;
     }
 
-    switch (addr & 1) {
+    switch (addr & ik->size_mask) {
     case 0:
         ik->data_in_reg = val;
         break;
 
     case 1:
         ik->cmd_reg = val;
+        break;
+
+    default:
+        /* Ignore. */
         break;
     }
     IPMI_KCS_SET_IBF(ik->status_reg, 1);
@@ -321,13 +329,20 @@ static void ipmi_kcs_set_irq_enable(IPMIInterface *ii, int val)
     ik->irqs_enabled = val;
 }
 
-static void ipmi_kcs_init(IPMIInterface *ii, Error **errp)
+/* min_size must be a power of 2. */
+static void ipmi_kcs_init(IPMIInterface *ii, unsigned int min_size,
+                          Error **errp)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIKCS *ik = iic->get_backend_data(ii);
 
+    if (min_size == 0) {
+        min_size = 2;
+    }
+    ik->size_mask = min_size - 1;
     ik->io_length = 2;
-    memory_region_init_io(&ik->io, NULL, &ipmi_kcs_io_ops, ii, "ipmi-kcs", 2);
+    memory_region_init_io(&ik->io, NULL, &ipmi_kcs_io_ops, ii, "ipmi-kcs",
+                          min_size);
 }
 
 int ipmi_kcs_vmstate_post_load(void *opaque, int version)

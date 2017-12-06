@@ -56,6 +56,7 @@ typedef struct IPMIBT {
     uint32_t io_base;
     unsigned long io_length;
     MemoryRegion io;
+    unsigned long size_mask;
 
     void (*raise_irq)(struct IPMIBT *ib);
     void (*lower_irq)(struct IPMIBT *ib);

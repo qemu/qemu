@@ -189,7 +189,7 @@ static uint64_t ipmi_bt_ioport_read(void *opaque, hwaddr addr, unsigned size)
     IPMIBT *ib = iic->get_backend_data(ii);
     uint32_t ret = 0xff;
 
-    switch (addr & 3) {
+    switch (addr & ib->size_mask) {
     case 0:
         ret = ib->control_reg;
         break;
@@ -207,6 +207,9 @@ static uint64_t ipmi_bt_ioport_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case 2:
         ret = ib->mask_reg;
+        break;
+    default:
+        ret = 0xff;
         break;
     }
     return ret;
@@ -230,7 +233,7 @@ static void ipmi_bt_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
-    switch (addr & 3) {
+    switch (addr & ib->size_mask) {
     case 0:
         if (IPMI_BT_GET_CLR_WR(val)) {
             ib->inlen = 0;
@@ -284,6 +287,9 @@ static void ipmi_bt_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             IPMI_BT_SET_B2H_IRQ(ib->mask_reg, 0);
             ipmi_bt_lower_irq(ib);
         }
+        break;
+    default:
+        /* Ignore. */
         break;
     }
 }
@@ -346,14 +352,19 @@ static void ipmi_bt_set_irq_enable(IPMIInterface *ii, int val)
     ib->irqs_enabled = val;
 }
 
-static void ipmi_bt_init(IPMIInterface *ii, Error **errp)
+static void ipmi_bt_init(IPMIInterface *ii, unsigned int min_size, Error **errp)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
     IPMIBT *ib = iic->get_backend_data(ii);
 
+    if (min_size == 0) {
+        min_size = 4;
+    }
+    ib->size_mask = min_size - 1;
     ib->io_length = 3;
 
-    memory_region_init_io(&ib->io, NULL, &ipmi_bt_io_ops, ii, "ipmi-bt", 3);
+    memory_region_init_io(&ib->io, NULL, &ipmi_bt_io_ops, ii, "ipmi-bt",
+                          min_size);
 }
 
 int ipmi_bt_vmstate_post_load(void *opaque, int version)

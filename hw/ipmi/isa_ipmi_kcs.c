@@ -84,7 +84,7 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     iik->kcs.bmc->intf = ii;
     iik->kcs.opaque = iik;
 
-    iic->init(ii, errp);
+    iic->init(ii, 0, errp);
     if (*errp)
         return;
 

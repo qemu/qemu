@@ -59,6 +59,7 @@ typedef struct IPMIKCS {
     uint32_t io_base;
     unsigned long io_length;
     MemoryRegion io;
+    unsigned long size_mask;
 
     void (*raise_irq)(struct IPMIKCS *ik);
     void (*lower_irq)(struct IPMIKCS *ik);

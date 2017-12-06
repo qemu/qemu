@@ -85,7 +85,7 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     iib->bt.bmc->intf = ii;
     iib->bt.opaque = iib;
 
-    iic->init(ii, errp);
+    iic->init(ii, 0, errp);
     if (*errp)
         return;
 
