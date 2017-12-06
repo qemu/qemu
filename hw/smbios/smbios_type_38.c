@@ -94,6 +94,9 @@ static void smbios_add_ipmi_devices(BusState *bus)
             ii = IPMI_INTERFACE(obj);
             iic = IPMI_INTERFACE_GET_CLASS(obj);
             memset(&info, 0, sizeof(info));
+            if (!iic->get_fwinfo) {
+                continue;
+            }
             iic->get_fwinfo(ii, &info);
             smbios_build_one_type_38(&info);
             continue;
