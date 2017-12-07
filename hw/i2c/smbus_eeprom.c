@@ -26,6 +26,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
+#include "hw/boards.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/smbus_slave.h"
 #include "hw/i2c/smbus_eeprom.h"
@@ -41,8 +42,10 @@
 
 typedef struct SMBusEEPROMDevice {
     SMBusDevice smbusdev;
-    void *data;
+    uint8_t data[SMBUS_EEPROM_SIZE];
+    void *init_data;
     uint8_t offset;
+    bool accessed;
 } SMBusEEPROMDevice;
 
 static uint8_t eeprom_receive_byte(SMBusDevice *dev)
@@ -51,6 +54,7 @@ static uint8_t eeprom_receive_byte(SMBusDevice *dev)
     uint8_t *data = eeprom->data;
     uint8_t val = data[eeprom->offset++];
 
+    eeprom->accessed = true;
 #ifdef DEBUG
     printf("eeprom_receive_byte: addr=0x%02x val=0x%02x\n",
            dev->i2c.address, val);
@@ -63,6 +67,7 @@ static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
     SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
     uint8_t *data = eeprom->data;
 
+    eeprom->accessed = true;
 #ifdef DEBUG
     printf("eeprom_write_byte: addr=0x%02x cmd=0x%02x val=0x%02x\n",
            dev->i2c.address, buf[0], buf[1]);
@@ -80,15 +85,39 @@ static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
     return 0;
 }
 
+static bool smbus_eeprom_vmstate_needed(void *opaque)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    SMBusEEPROMDevice *eeprom = opaque;
+
+    return (eeprom->accessed || smbus_vmstate_needed(&eeprom->smbusdev)) &&
+        !mc->smbus_no_migration_support;
+}
+
+static const VMStateDescription vmstate_smbus_eeprom = {
+    .name = "smbus-eeprom",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = smbus_eeprom_vmstate_needed,
+    .fields      = (VMStateField[]) {
+        VMSTATE_SMBUS_DEVICE(smbusdev, SMBusEEPROMDevice),
+        VMSTATE_UINT8_ARRAY(data, SMBusEEPROMDevice, SMBUS_EEPROM_SIZE),
+        VMSTATE_UINT8(offset, SMBusEEPROMDevice),
+        VMSTATE_BOOL(accessed, SMBusEEPROMDevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
 {
     SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
 
+    memcpy(eeprom->data, eeprom->init_data, SMBUS_EEPROM_SIZE);
     eeprom->offset = 0;
 }
 
 static Property smbus_eeprom_properties[] = {
-    DEFINE_PROP_PTR("data", SMBusEEPROMDevice, data),
+    DEFINE_PROP_PTR("data", SMBusEEPROMDevice, init_data),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -101,6 +130,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
     dc->props = smbus_eeprom_properties;
+    dc->vmsd = &vmstate_smbus_eeprom;
     /* Reason: pointer property "data" */
     dc->user_creatable = false;
 }
