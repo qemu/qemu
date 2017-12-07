@@ -4131,7 +4131,7 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 }
 
 void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
-                                 Error **errp)
+                                 bool has_force, bool force, Error **errp)
 {
     AioContext *old_context;
     AioContext *new_context;
@@ -4143,10 +4143,11 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
         return;
     }
 
-    /* If we want to allow more extreme test scenarios this guard could be
-     * removed.  For now it protects against accidents. */
-    if (bdrv_has_blk(bs)) {
-        error_setg(errp, "Node %s is in use", node_name);
+    /* Protects against accidents. */
+    if (!(has_force && force) && bdrv_has_blk(bs)) {
+        error_setg(errp, "Node %s is associated with a BlockBackend and could "
+                         "be in use (use force=true to override this check)",
+                         node_name);
         return;
     }
 

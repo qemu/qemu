@@ -3962,6 +3962,9 @@
 #
 # @iothread: the name of the IOThread object or null for the main loop
 #
+# @force: true if the node and its children should be moved when a BlockBackend
+#         is already attached
+#
 # Note: this command is experimental and intended for test cases that need
 # control over IOThreads only.
 #
@@ -3984,4 +3987,5 @@
 ##
 { 'command': 'x-blockdev-set-iothread',
   'data' : { 'node-name': 'str',
-             'iothread': 'StrOrNull' } }
+             'iothread': 'StrOrNull',
+             '*force': 'bool' } }
