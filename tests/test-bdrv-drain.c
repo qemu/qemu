@@ -178,6 +178,48 @@ static void test_drv_cb_drain(void)
     test_drv_cb_common(BDRV_DRAIN, false);
 }
 
+static void test_quiesce_common(enum drain_type drain_type, bool recursive)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs, *backing;
+
+    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
+                              &error_abort);
+    blk_insert_bs(blk, bs, &error_abort);
+
+    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    bdrv_set_backing_hd(bs, backing, &error_abort);
+
+    g_assert_cmpint(bs->quiesce_counter, ==, 0);
+    g_assert_cmpint(backing->quiesce_counter, ==, 0);
+
+    do_drain_begin(drain_type, bs);
+
+    g_assert_cmpint(bs->quiesce_counter, ==, 1);
+    g_assert_cmpint(backing->quiesce_counter, ==, !!recursive);
+
+    do_drain_end(drain_type, bs);
+
+    g_assert_cmpint(bs->quiesce_counter, ==, 0);
+    g_assert_cmpint(backing->quiesce_counter, ==, 0);
+
+    bdrv_unref(backing);
+    bdrv_unref(bs);
+    blk_unref(blk);
+}
+
+static void test_quiesce_drain_all(void)
+{
+    // XXX drain_all doesn't quiesce
+    //test_quiesce_common(BDRV_DRAIN_ALL, true);
+}
+
+static void test_quiesce_drain(void)
+{
+    test_quiesce_common(BDRV_DRAIN, false);
+}
+
 int main(int argc, char **argv)
 {
     bdrv_init();
@@ -187,6 +229,9 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/driver-cb/drain_all", test_drv_cb_drain_all);
     g_test_add_func("/bdrv-drain/driver-cb/drain", test_drv_cb_drain);
+
+    g_test_add_func("/bdrv-drain/quiesce/drain_all", test_quiesce_drain_all);
+    g_test_add_func("/bdrv-drain/quiesce/drain", test_quiesce_drain);
 
     return g_test_run();
 }
