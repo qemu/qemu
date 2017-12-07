@@ -4320,9 +4320,15 @@ int bdrv_inactivate_all(void)
     BdrvNextIterator it;
     int ret = 0;
     int pass;
+    GSList *aio_ctxs = NULL, *ctx;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        aio_context_acquire(bdrv_get_aio_context(bs));
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        if (!g_slist_find(aio_ctxs, aio_context)) {
+            aio_ctxs = g_slist_prepend(aio_ctxs, aio_context);
+            aio_context_acquire(aio_context);
+        }
     }
 
     /* We do two passes of inactivation. The first pass calls to drivers'
@@ -4340,9 +4346,11 @@ int bdrv_inactivate_all(void)
     }
 
 out:
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        aio_context_release(bdrv_get_aio_context(bs));
+    for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
+        AioContext *aio_context = ctx->data;
+        aio_context_release(aio_context);
     }
+    g_slist_free(aio_ctxs);
 
     return ret;
 }
