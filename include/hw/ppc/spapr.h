@@ -51,6 +51,15 @@ typedef enum {
 } sPAPRResizeHPT;
 
 /**
+ * Capabilities
+ */
+
+typedef struct sPAPRCapabilities sPAPRCapabilities;
+struct sPAPRCapabilities {
+    uint64_t mask;
+};
+
+/**
  * sPAPRMachineClass:
  */
 struct sPAPRMachineClass {
@@ -66,6 +75,7 @@ struct sPAPRMachineClass {
                           hwaddr *mmio32, hwaddr *mmio64,
                           unsigned n_dma, uint32_t *liobns, Error **errp);
     sPAPRResizeHPT resize_hpt_default;
+    sPAPRCapabilities default_caps;
 };
 
 /**
@@ -127,6 +137,9 @@ struct sPAPRMachineState {
     MemoryHotplugState hotplug_memory;
 
     const char *icp_type;
+
+    sPAPRCapabilities forced_caps, forbidden_caps;
+    sPAPRCapabilities effective_caps;
 };
 
 #define H_SUCCESS         0
@@ -723,5 +736,23 @@ int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
                           bool align, Error **errp);
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
 qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq);
+
+/*
+ * Handling of optional capabilities
+ */
+static inline sPAPRCapabilities spapr_caps(uint64_t mask)
+{
+    sPAPRCapabilities caps = { mask };
+    return caps;
+}
+
+static inline bool spapr_has_cap(sPAPRMachineState *spapr, uint64_t cap)
+{
+    return !!(spapr->effective_caps.mask & cap);
+}
+
+void spapr_caps_reset(sPAPRMachineState *spapr);
+void spapr_caps_validate(sPAPRMachineState *spapr, Error **errp);
+void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp);
 
 #endif /* HW_SPAPR_H */
