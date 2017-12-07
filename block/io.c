@@ -158,7 +158,7 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
 }
 
 /* Recursively call BlockDriver.bdrv_co_drain_begin/end callbacks */
-static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
+static void bdrv_drain_invoke(BlockDriverState *bs, bool begin, bool recursive)
 {
     BdrvChild *child, *tmp;
     BdrvCoDrainData data = { .bs = bs, .done = false, .begin = begin};
@@ -172,8 +172,10 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
     bdrv_coroutine_enter(bs, data.co);
     BDRV_POLL_WHILE(bs, !data.done);
 
-    QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
-        bdrv_drain_invoke(child->bs, begin);
+    if (recursive) {
+        QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
+            bdrv_drain_invoke(child->bs, begin, true);
+        }
     }
 }
 
@@ -265,7 +267,7 @@ void bdrv_drained_begin(BlockDriverState *bs)
         bdrv_parent_drained_begin(bs);
     }
 
-    bdrv_drain_invoke(bs, true);
+    bdrv_drain_invoke(bs, true, false);
     bdrv_drain_recurse(bs);
 }
 
@@ -281,7 +283,7 @@ void bdrv_drained_end(BlockDriverState *bs)
     }
 
     /* Re-enable things in child-to-parent order */
-    bdrv_drain_invoke(bs, false);
+    bdrv_drain_invoke(bs, false, false);
     bdrv_parent_drained_end(bs);
     aio_enable_external(bdrv_get_aio_context(bs));
 }
@@ -345,7 +347,7 @@ void bdrv_drain_all_begin(void)
         aio_context_acquire(aio_context);
         aio_disable_external(aio_context);
         bdrv_parent_drained_begin(bs);
-        bdrv_drain_invoke(bs, true);
+        bdrv_drain_invoke(bs, true, true);
         aio_context_release(aio_context);
 
         if (!g_slist_find(aio_ctxs, aio_context)) {
@@ -388,7 +390,7 @@ void bdrv_drain_all_end(void)
 
         /* Re-enable things in child-to-parent order */
         aio_context_acquire(aio_context);
-        bdrv_drain_invoke(bs, false);
+        bdrv_drain_invoke(bs, false, true);
         bdrv_parent_drained_end(bs);
         aio_enable_external(aio_context);
         aio_context_release(aio_context);
