@@ -940,6 +940,15 @@ F: tests/ahci-test.c
 F: tests/libqos/ahci*
 T: git git://github.com/jnsnow/qemu.git ide
 
+IPMI
+M: Corey Minyard <minyard@acm.org>
+S: Maintained
+F: include/hw/ipmi/*
+F: hw/ipmi/*
+F: hw/smbios/smbios_type_38.c
+F: tests/ipmi*
+T: git git://github.com/cminyard/qemu.git master-ipmi-rebase
+
 Floppy
 M: John Snow <jsnow@redhat.com>
 L: qemu-block@nongnu.org
