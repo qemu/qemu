@@ -557,14 +557,16 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                           segs, sizeof(segs))));
     }
 
-    /* Advertise VMX/VSX (vector extensions) if available
-     *   0 / no property == no vector extensions
+    /* Advertise VSX (vector extensions) if available
      *   1               == VMX / Altivec available
-     *   2               == VSX available */
-    if (env->insns_flags & PPC_ALTIVEC) {
-        uint32_t vmx = (env->insns_flags2 & PPC2_VSX) ? 2 : 1;
-
-        _FDT((fdt_setprop_cell(fdt, offset, "ibm,vmx", vmx)));
+     *   2               == VSX available
+     *
+     * Only CPUs for which we create core types in spapr_cpu_core.c
+     * are possible, and all of those have VMX */
+    if (spapr_has_cap(spapr, SPAPR_CAP_VSX)) {
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,vmx", 2)));
+    } else {
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,vmx", 1)));
     }
 
     /* Advertise DFP (Decimal Floating Point) if available
@@ -3832,7 +3834,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      */
     mc->numa_mem_align_shift = 28;
 
-    smc->default_caps = spapr_caps(0);
+    smc->default_caps = spapr_caps(SPAPR_CAP_VSX);
     spapr_caps_add_properties(smc, &error_abort);
 }
 
@@ -3914,7 +3916,7 @@ static void spapr_machine_2_11_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     spapr_machine_2_12_class_options(mc);
-    smc->default_caps = spapr_caps(SPAPR_CAP_HTM);
+    smc->default_caps = spapr_caps(SPAPR_CAP_HTM | SPAPR_CAP_VSX);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_11);
 }
 

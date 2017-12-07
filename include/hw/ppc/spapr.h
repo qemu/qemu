@@ -59,6 +59,9 @@ typedef enum {
 /* Hardware Transactional Memory */
 #define SPAPR_CAP_HTM               0x0000000000000001ULL
 
+/* Vector Scalar Extensions */
+#define SPAPR_CAP_VSX               0x0000000000000002ULL
+
 typedef struct sPAPRCapabilities sPAPRCapabilities;
 struct sPAPRCapabilities {
     uint64_t mask;

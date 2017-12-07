@@ -57,6 +57,19 @@ static void cap_htm_allow(sPAPRMachineState *spapr, Error **errp)
     }
 }
 
+static void cap_vsx_allow(sPAPRMachineState *spapr, Error **errp)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+    CPUPPCState *env = &cpu->env;
+
+    /* Allowable CPUs in spapr_cpu_core.c should already have gotten
+     * rid of anything that doesn't do VMX */
+    g_assert(env->insns_flags & PPC_ALTIVEC);
+    if (!(env->insns_flags2 & PPC2_VSX)) {
+        error_setg(errp, "VSX support not available, try cap-vsx=off");
+    }
+}
+
 static sPAPRCapabilityInfo capability_table[] = {
     {
         .name = "htm",
@@ -64,6 +77,13 @@ static sPAPRCapabilityInfo capability_table[] = {
         .flag = SPAPR_CAP_HTM,
         .allow = cap_htm_allow,
         /* TODO: add cap_htm_disallow */
+    },
+    {
+        .name = "vsx",
+        .description = "Allow Vector Scalar Extensions (VSX)",
+        .flag = SPAPR_CAP_VSX,
+        .allow = cap_vsx_allow,
+        /* TODO: add cap_vsx_disallow */
     },
 };
 
@@ -79,6 +99,11 @@ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
     if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_07,
                           0, spapr->max_compat_pvr)) {
         caps.mask &= ~SPAPR_CAP_HTM;
+    }
+
+    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06,
+                          0, spapr->max_compat_pvr)) {
+        caps.mask &= ~SPAPR_CAP_VSX;
     }
 
     return caps;
