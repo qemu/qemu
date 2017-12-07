@@ -932,6 +932,13 @@ $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 check-tests/qapi-schema/doc-good.texi: tests/qapi-schema/doc-good.test.texi
 	@diff -q $(SRC_PATH)/tests/qapi-schema/doc-good.texi $<
 
+.PHONY: check-decodetree
+check-decodetree:
+	$(call quiet-command, \
+	  cd $(SRC_PATH)/tests/decode && \
+          ./check.sh "$(PYTHON)" "$(SRC_PATH)/scripts/decodetree.py", \
+          TEST, decodetree.py)
+
 # Consolidated targets
 
 .PHONY: check-qapi-schema check-qtest check-unit check check-clean
@@ -940,7 +947,7 @@ check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-speed: $(patsubst %,check-%, $(check-speed-y))
 check-block: $(patsubst %,check-%, $(check-block-y))
-check: check-qapi-schema check-unit check-qtest
+check: check-qapi-schema check-unit check-qtest check-decodetree
 check-clean:
 	$(MAKE) -C tests/tcg clean
 	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
