@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Stefan Hajnoczi <stefanha@redhat.com>
+#
+# Check that QMP 'migrate' with multiple drives on a single IOThread completes
+# successfully.  This particular command triggered a hang in the source QEMU
+# process due to recursive AioContext locking in bdrv_invalidate_all() and
+# BDRV_POLL_WHILE().
+
+import iotests
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.verify_platform(['linux'])
+
+with iotests.FilePath('disk0.img') as disk0_img_path, \
+     iotests.FilePath('disk1.img') as disk1_img_path, \
+     iotests.VM() as vm:
+
+    img_size = '10M'
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, disk0_img_path, img_size)
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, disk1_img_path, img_size)
+
+    iotests.log('Launching VM...')
+    (vm.add_object('iothread,id=iothread0')
+       .add_drive(disk0_img_path, 'node-name=drive0-node', interface='none')
+       .add_drive(disk1_img_path, 'node-name=drive1-node', interface='none')
+       .launch())
+
+    iotests.log('Setting IOThreads...')
+    iotests.log(vm.qmp('x-blockdev-set-iothread',
+                       node_name='drive0-node', iothread='iothread0',
+                       force=True))
+    iotests.log(vm.qmp('x-blockdev-set-iothread',
+                       node_name='drive1-node', iothread='iothread0',
+                       force=True))
+
+    iotests.log('Starting migration...')
+    iotests.log(vm.qmp('migrate', uri='exec:cat >/dev/null'))
+    while True:
+        vm.get_qmp_event(wait=60.0)
+        result = vm.qmp('query-migrate')
+        status = result.get('return', {}).get('status', None)
+        if status == 'completed':
+            break
