@@ -1190,6 +1190,12 @@ void nbd_export_put(NBDExport *exp)
         nbd_export_close(exp);
     }
 
+    /* nbd_export_close() may theoretically reduce refcount to 0. It may happen
+     * if someone calls nbd_export_put() on named export not through
+     * nbd_export_set_name() when refcount is 1. So, let's assert that
+     * it is > 0.
+     */
+    assert(exp->refcount > 0);
     if (--exp->refcount == 0) {
         assert(exp->name == NULL);
         assert(exp->description == NULL);
