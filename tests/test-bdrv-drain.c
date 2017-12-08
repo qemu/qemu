@@ -82,6 +82,34 @@ static void aio_ret_cb(void *opaque, int ret)
     *aio_ret = ret;
 }
 
+typedef struct CallInCoroutineData {
+    void (*entry)(void);
+    bool done;
+} CallInCoroutineData;
+
+static coroutine_fn void call_in_coroutine_entry(void *opaque)
+{
+    CallInCoroutineData *data = opaque;
+
+    data->entry();
+    data->done = true;
+}
+
+static void call_in_coroutine(void (*entry)(void))
+{
+    Coroutine *co;
+    CallInCoroutineData data = {
+        .entry  = entry,
+        .done   = false,
+    };
+
+    co = qemu_coroutine_create(call_in_coroutine_entry, &data);
+    qemu_coroutine_enter(co);
+    while (!data.done) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+}
+
 enum drain_type {
     BDRV_DRAIN_ALL,
     BDRV_DRAIN,
@@ -188,6 +216,16 @@ static void test_drv_cb_drain_subtree(void)
     test_drv_cb_common(BDRV_SUBTREE_DRAIN, true);
 }
 
+static void test_drv_cb_co_drain(void)
+{
+    call_in_coroutine(test_drv_cb_drain);
+}
+
+static void test_drv_cb_co_drain_subtree(void)
+{
+    call_in_coroutine(test_drv_cb_drain_subtree);
+}
+
 static void test_quiesce_common(enum drain_type drain_type, bool recursive)
 {
     BlockBackend *blk;
@@ -233,6 +271,16 @@ static void test_quiesce_drain(void)
 static void test_quiesce_drain_subtree(void)
 {
     test_quiesce_common(BDRV_SUBTREE_DRAIN, true);
+}
+
+static void test_quiesce_co_drain(void)
+{
+    call_in_coroutine(test_quiesce_drain);
+}
+
+static void test_quiesce_co_drain_subtree(void)
+{
+    call_in_coroutine(test_quiesce_drain_subtree);
 }
 
 static void test_nested(void)
@@ -422,10 +470,21 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/driver-cb/drain_subtree",
                     test_drv_cb_drain_subtree);
 
+    // XXX bdrv_drain_all() doesn't work in coroutine context
+    g_test_add_func("/bdrv-drain/driver-cb/co/drain", test_drv_cb_co_drain);
+    g_test_add_func("/bdrv-drain/driver-cb/co/drain_subtree",
+                    test_drv_cb_co_drain_subtree);
+
+
     g_test_add_func("/bdrv-drain/quiesce/drain_all", test_quiesce_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/drain", test_quiesce_drain);
     g_test_add_func("/bdrv-drain/quiesce/drain_subtree",
                     test_quiesce_drain_subtree);
+
+    // XXX bdrv_drain_all() doesn't work in coroutine context
+    g_test_add_func("/bdrv-drain/quiesce/co/drain", test_quiesce_co_drain);
+    g_test_add_func("/bdrv-drain/quiesce/co/drain_subtree",
+                    test_quiesce_co_drain_subtree);
 
     g_test_add_func("/bdrv-drain/nested", test_nested);
 
