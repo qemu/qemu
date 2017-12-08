@@ -943,9 +943,8 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-event-scan-rate",
                           RTAS_EVENT_SCAN_RATE));
 
-    if (msi_nonbroken) {
-        _FDT(fdt_setprop(fdt, rtas, "ibm,change-msix-capable", NULL, 0));
-    }
+    g_assert(msi_nonbroken);
+    _FDT(fdt_setprop(fdt, rtas, "ibm,change-msix-capable", NULL, 0));
 
     /*
      * According to PAPR, rtas ibm,os-term does not guarantee a return
