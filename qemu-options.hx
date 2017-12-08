@@ -4112,7 +4112,7 @@ expensive operation that consumes random pool entropy, so it is
 recommended that a persistent set of parameters be generated
 upfront and saved.
 
-@item -object tls-creds-x509,id=@var{id},endpoint=@var{endpoint},dir=@var{/path/to/cred/dir},verify-peer=@var{on|off},passwordid=@var{id}
+@item -object tls-creds-x509,id=@var{id},endpoint=@var{endpoint},dir=@var{/path/to/cred/dir},priority=@var{priority},verify-peer=@var{on|off},passwordid=@var{id}
 
 Creates a TLS anonymous credentials object, which can be used to provide
 TLS support on network backends. The @option{id} parameter is a unique
@@ -4144,6 +4144,15 @@ contain sensitive private keys, it is possible to use an encrypted
 version by providing the @var{passwordid} parameter. This provides
 the ID of a previously created @code{secret} object containing the
 password for decryption.
+
+The @var{priority} parameter allows to override the global default
+priority used by gnutls. This can be useful if the system administrator
+needs to use a weaker set of crypto priorities for QEMU without
+potentially forcing the weakness onto all applications. Or conversely
+if one wants wants a stronger default for QEMU than for all other
+applications, they can do this through this parameter. Its format is
+a gnutls priority string as described at
+@url{https://gnutls.org/manual/html_node/Priority-Strings.html}.
 
 @item -object filter-buffer,id=@var{id},netdev=@var{netdevid},interval=@var{t}[,queue=@var{all|rx|tx}][,status=@var{on|off}]
 
