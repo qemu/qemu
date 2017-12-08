@@ -386,6 +386,15 @@ void HELPER(sal)(CPUS390XState *env, uint64_t r1)
     qemu_mutex_unlock_iothread();
 }
 
+void HELPER(schm)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    ioinst_handle_schm(cpu, r1, r2, inst >> 16, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
 void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);

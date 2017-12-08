@@ -4125,6 +4125,13 @@ static ExitStatus op_sal(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_schm(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_schm(cpu_env, regs[1], regs[2], o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ssch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
