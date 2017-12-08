@@ -1364,6 +1364,27 @@ static ExitStatus op_addc(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_asi(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+
+    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+        tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
+    } else {
+        /* Perform the atomic addition in memory. */
+        tcg_gen_atomic_fetch_add_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+                                     s->insn->data);
+    }
+
+    /* Recompute also for atomic case: needed for setting CC. */
+    tcg_gen_add_i64(o->out, o->in1, o->in2);
+
+    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+        tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
+    }
+    return NO_EXIT;
+}
+
 static ExitStatus op_aeb(DisasContext *s, DisasOps *o)
 {
     gen_helper_aeb(o->out, cpu_env, o->in1, o->in2);
