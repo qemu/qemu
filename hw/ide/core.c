@@ -382,7 +382,7 @@ static void ide_set_signature(IDEState *s)
 
 typedef struct TrimAIOCB {
     BlockAIOCB common;
-    BlockBackend *blk;
+    IDEState *s;
     QEMUBH *bh;
     int ret;
     QEMUIOVector *qiov;
@@ -425,6 +425,8 @@ static void ide_trim_bh_cb(void *opaque)
 static void ide_issue_trim_cb(void *opaque, int ret)
 {
     TrimAIOCB *iocb = opaque;
+    IDEState *s = iocb->s;
+
     if (ret >= 0) {
         while (iocb->j < iocb->qiov->niov) {
             int j = iocb->j;
@@ -442,7 +444,7 @@ static void ide_issue_trim_cb(void *opaque, int ret)
                 }
 
                 /* Got an entry! Submit and exit.  */
-                iocb->aiocb = blk_aio_pdiscard(iocb->blk,
+                iocb->aiocb = blk_aio_pdiscard(s->blk,
                                                sector << BDRV_SECTOR_BITS,
                                                count << BDRV_SECTOR_BITS,
                                                ide_issue_trim_cb, opaque);
@@ -466,11 +468,11 @@ BlockAIOCB *ide_issue_trim(
         int64_t offset, QEMUIOVector *qiov,
         BlockCompletionFunc *cb, void *cb_opaque, void *opaque)
 {
-    BlockBackend *blk = opaque;
+    IDEState *s = opaque;
     TrimAIOCB *iocb;
 
-    iocb = blk_aio_get(&trim_aiocb_info, blk, cb, cb_opaque);
-    iocb->blk = blk;
+    iocb = blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque);
+    iocb->s = s;
     iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
     iocb->ret = 0;
     iocb->qiov = qiov;
@@ -900,7 +902,7 @@ static void ide_dma_cb(void *opaque, int ret)
     case IDE_DMA_TRIM:
         s->bus->dma->aiocb = dma_blk_io(blk_get_aio_context(s->blk),
                                         &s->sg, offset, BDRV_SECTOR_SIZE,
-                                        ide_issue_trim, s->blk, ide_dma_cb, s,
+                                        ide_issue_trim, s, ide_dma_cb, s,
                                         DMA_DIRECTION_TO_DEVICE);
         break;
     default:
