@@ -1454,7 +1454,7 @@ static int spapr_reset_drcs(Object *child, void *opaque)
     return 0;
 }
 
-static void ppc_spapr_reset(void)
+static void spapr_machine_reset(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
@@ -2292,7 +2292,7 @@ out:
 }
 
 /* pSeries LPAR / sPAPR hardware init */
-static void ppc_spapr_init(MachineState *machine)
+static void spapr_machine_init(MachineState *machine)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
@@ -2820,7 +2820,7 @@ static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, (uint32_t *)opaque, errp);
 }
 
-static void spapr_machine_initfn(Object *obj)
+static void spapr_instance_init(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
 
@@ -3777,8 +3777,8 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      * functions for the specific versioned machine types can override
      * these details for backwards compatibility
      */
-    mc->init = ppc_spapr_init;
-    mc->reset = ppc_spapr_reset;
+    mc->init = spapr_machine_init;
+    mc->reset = spapr_machine_reset;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 1024;
     mc->no_parallel = 1;
@@ -3825,7 +3825,7 @@ static const TypeInfo spapr_machine_info = {
     .parent        = TYPE_MACHINE,
     .abstract      = true,
     .instance_size = sizeof(sPAPRMachineState),
-    .instance_init = spapr_machine_initfn,
+    .instance_init = spapr_instance_init,
     .instance_finalize = spapr_machine_finalizefn,
     .class_size    = sizeof(sPAPRMachineClass),
     .class_init    = spapr_machine_class_init,
