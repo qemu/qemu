@@ -4132,6 +4132,14 @@ static ExitStatus op_schm(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_siga(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    /* From KVM code: Not provided, set CC = 3 for subchannel not operational */
+    gen_op_movi_cc(s, 3);
+    return NO_EXIT;
+}
+
 static ExitStatus op_stcps(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
