@@ -999,6 +999,8 @@
     C(0xb204, SCK,     S,     Z,   0, 0, 0, 0, 0, 0)
 /* SET CLOCK COMPARATOR */
     C(0xb206, SCKC,    S,     Z,   0, m2_64, 0, 0, sckc, 0)
+/* SET CLOCK PROGRAMMABLE FIELD */
+    C(0x0107, SCKPF,   E,     Z,   0, 0, 0, 0, sckpf, 0)
 /* SET CPU TIMER */
     C(0xb208, SPT,     S,     Z,   0, m2_64, 0, 0, spt, 0)
 /* SET PREFIX */

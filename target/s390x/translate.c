@@ -3922,6 +3922,13 @@ static ExitStatus op_sckc(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_sckpf(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_sckpf(cpu_env, regs[0]);
+    return NO_EXIT;
+}
+
 static ExitStatus op_stckc(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
