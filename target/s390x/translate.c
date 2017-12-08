@@ -4071,6 +4071,14 @@ static ExitStatus op_stsch(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_stcrw(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_stcrw(cpu_env, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_tsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
