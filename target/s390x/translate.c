@@ -3917,6 +3917,36 @@ static ExitStatus op_spm(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_ectg(DisasContext *s, DisasOps *o)
+{
+    int b1 = get_field(s->fields, b1);
+    int d1 = get_field(s->fields, d1);
+    int b2 = get_field(s->fields, b2);
+    int d2 = get_field(s->fields, d2);
+    int r3 = get_field(s->fields, r3);
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    /* fetch all operands first */
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_addi_i64(o->in1, regs[b1], d1);
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_addi_i64(o->in2, regs[b2], d2);
+    o->addr1 = get_address(s, 0, r3, 0);
+
+    /* load the third operand into r3 before modifying anything */
+    tcg_gen_qemu_ld64(regs[r3], o->addr1, get_mem_index(s));
+
+    /* subtract CPU timer from first operand and store in GR0 */
+    gen_helper_stpt(tmp, cpu_env);
+    tcg_gen_sub_i64(regs[0], o->in1, tmp);
+
+    /* store second operand in GR1 */
+    tcg_gen_mov_i64(regs[1], o->in2);
+
+    tcg_temp_free_i64(tmp);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_spka(DisasContext *s, DisasOps *o)
 {
@@ -5679,6 +5709,7 @@ enum DisasInsnEnum {
 #define FAC_MSA3        S390_FEAT_MSA_EXT_3 /* msa-extension-3 facility */
 #define FAC_MSA4        S390_FEAT_MSA_EXT_4 /* msa-extension-4 facility */
 #define FAC_MSA5        S390_FEAT_MSA_EXT_5 /* msa-extension-5 facility */
+#define FAC_ECT         S390_FEAT_EXTRACT_CPU_TIME
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"

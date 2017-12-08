@@ -55,6 +55,21 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
     cpu_loop_exit(cs);
 }
 
+/* Store CPU Timer (also used for EXTRACT CPU TIME) */
+uint64_t HELPER(stpt)(CPUS390XState *env)
+{
+#if defined(CONFIG_USER_ONLY)
+    /*
+     * Fake a descending CPU timer. We could get negative values here,
+     * but we don't care as it is up to the OS when to process that
+     * interrupt and reset to > 0.
+     */
+    return UINT64_MAX - (uint64_t)cpu_get_host_ticks();
+#else
+    return time2tod(env->cputm - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+#endif
+}
+
 #ifndef CONFIG_USER_ONLY
 
 /* SCLP service call */
@@ -176,12 +191,6 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
     env->cputm = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time;
 
     timer_mod(env->cpu_timer, env->cputm);
-}
-
-/* Store CPU Timer */
-uint64_t HELPER(stpt)(CPUS390XState *env)
-{
-    return time2tod(env->cputm - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 /* Store System Information */
