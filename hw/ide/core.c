@@ -380,6 +380,18 @@ static void ide_set_signature(IDEState *s)
     }
 }
 
+static bool ide_sect_range_ok(IDEState *s,
+                              uint64_t sector, uint64_t nb_sectors)
+{
+    uint64_t total_sectors;
+
+    blk_get_geometry(s->blk, &total_sectors);
+    if (sector > total_sectors || nb_sectors > total_sectors - sector) {
+        return false;
+    }
+    return true;
+}
+
 typedef struct TrimAIOCB {
     BlockAIOCB common;
     IDEState *s;
@@ -601,18 +613,6 @@ void ide_set_sector(IDEState *s, int64_t sector_num)
 static void ide_rw_error(IDEState *s) {
     ide_abort_command(s);
     ide_set_irq(s->bus);
-}
-
-static bool ide_sect_range_ok(IDEState *s,
-                              uint64_t sector, uint64_t nb_sectors)
-{
-    uint64_t total_sectors;
-
-    blk_get_geometry(s->blk, &total_sectors);
-    if (sector > total_sectors || nb_sectors > total_sectors - sector) {
-        return false;
-    }
-    return true;
 }
 
 static void ide_buffered_readv_cb(void *opaque, int ret)
