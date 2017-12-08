@@ -351,6 +351,9 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define CR0_CPU_TIMER_SC        0x0000000000000400ULL
 #define CR0_SERVICE_SC          0x0000000000000200ULL
 
+/* Control register 14 bits */
+#define CR14_CHANNEL_REPORT_SC  0x0000000010000000ULL
+
 /* MMU */
 #define MMU_PRIMARY_IDX         0
 #define MMU_SECONDARY_IDX       1
@@ -673,6 +676,26 @@ struct sysib_322 {
 #define MCIC_VB_FC 0x0000000000100000ULL
 #define MCIC_VB_CT 0x0000000000020000ULL
 #define MCIC_VB_CC 0x0000000000010000ULL
+
+static inline uint64_t s390_build_validity_mcic(void)
+{
+    uint64_t mcic;
+
+    /*
+     * Indicate all validity bits (no damage) only. Other bits have to be
+     * added by the caller. (storage errors, subclasses and subclass modifiers)
+     */
+    mcic = MCIC_VB_WP | MCIC_VB_MS | MCIC_VB_PM | MCIC_VB_IA | MCIC_VB_FP |
+           MCIC_VB_GR | MCIC_VB_CR | MCIC_VB_ST | MCIC_VB_AR | MCIC_VB_PR |
+           MCIC_VB_FC | MCIC_VB_CT | MCIC_VB_CC;
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
+        mcic |= MCIC_VB_VR;
+    }
+    if (s390_has_feat(S390_FEAT_GUARDED_STORAGE)) {
+        mcic |= MCIC_VB_GS;
+    }
+    return mcic;
+}
 
 
 /* cpu.c */
