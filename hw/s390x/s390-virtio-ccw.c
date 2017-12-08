@@ -734,7 +734,11 @@ DEFINE_CCW_MACHINE(2_12, "2.12", true);
 
 static void ccw_machine_2_11_instance_options(MachineState *machine)
 {
+    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V2_11 };
     ccw_machine_2_12_instance_options(machine);
+
+    /* before 2.12 we emulated the very first z900 */
+    s390_set_qemu_cpu_model(0x2064, 7, 1, qemu_cpu_feat);
 }
 
 static void ccw_machine_2_11_class_options(MachineClass *mc)
