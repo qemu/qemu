@@ -842,6 +842,7 @@ static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
         S390_FEAT_STFLE_45,
         S390_FEAT_STFLE_49,
         S390_FEAT_LOCAL_TLB_CLEARING,
+        S390_FEAT_INTERLOCKED_ACCESS_2,
         S390_FEAT_STFLE_53,
         S390_FEAT_MSA_EXT_5,
         S390_FEAT_MSA_EXT_3,
