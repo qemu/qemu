@@ -370,10 +370,6 @@ void bdrv_unapply_subtree_drain(BdrvChild *child, BlockDriverState *old_parent)
  *
  * Note that unlike bdrv_drain_all(), the caller must hold the BlockDriverState
  * AioContext.
- *
- * Only this BlockDriverState's AioContext is run, so in-flight requests must
- * not depend on events in other AioContexts.  In that case, use
- * bdrv_drain_all() instead.
  */
 void coroutine_fn bdrv_co_drain(BlockDriverState *bs)
 {
