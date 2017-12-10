@@ -36,7 +36,6 @@
 //#define DEBUG_PIC
 
 //#define DEBUG_IRQ_LATENCY
-//#define DEBUG_IRQ_COUNT
 
 #define TYPE_I8259 "isa-i8259"
 #define PIC_CLASS(class) OBJECT_CLASS_CHECK(PICClass, (class), TYPE_I8259)
@@ -52,12 +51,8 @@ typedef struct PICClass {
     DeviceRealize parent_realize;
 } PICClass;
 
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
 static int irq_level[16];
-#endif
-#ifdef DEBUG_IRQ_COUNT
 static uint64_t irq_count[16];
-#endif
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];
 #endif
@@ -128,24 +123,17 @@ static void pic_set_irq(void *opaque, int irq, int level)
 {
     PICCommonState *s = opaque;
     int mask = 1 << irq;
-
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT) || \
-    defined(DEBUG_IRQ_LATENCY)
     int irq_index = s->master ? irq : irq + 8;
-#endif
 
     trace_pic_set_irq(s->master, irq, level);
 
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
     if (level != irq_level[irq_index]) {
         irq_level[irq_index] = level;
-#ifdef DEBUG_IRQ_COUNT
         if (level == 1) {
             irq_count[irq_index]++;
         }
-#endif
     }
-#endif
+
 #ifdef DEBUG_IRQ_LATENCY
     if (level) {
         irq_time[irq_index] = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -253,12 +241,8 @@ static bool pic_get_statistics(InterruptStatsProvider *obj,
     PICCommonState *s = PIC_COMMON(obj);
 
     if (s->master) {
-#ifdef DEBUG_IRQ_COUNT
         *irq_counts = irq_count;
         *nb_irqs = ARRAY_SIZE(irq_count);
-#else
-        return false;
-#endif
     } else {
         *irq_counts = NULL;
         *nb_irqs = 0;
