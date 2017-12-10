@@ -132,6 +132,7 @@ void pic_print_info(InterruptStatsProvider *obj, Monitor *mon)
 {
     PICCommonState *s = PIC_COMMON(obj);
 
+    pic_dispatch_pre_save(s);
     monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
                    "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
                    s->master ? 0 : 1, s->irr, s->imr, s->isr, s->priority_add,

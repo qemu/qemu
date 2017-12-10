@@ -111,6 +111,7 @@ static void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
     int delivered;
 
+    pic_stat_update_irq(irq, level);
     delivered = kvm_set_irq(kvm_state, irq, level);
     apic_report_irq_delivered(delivered);
 }
@@ -139,12 +140,15 @@ static void kvm_i8259_class_init(ObjectClass *klass, void *data)
     KVMPICClass *kpc = KVM_PIC_CLASS(klass);
     PICCommonClass *k = PIC_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->reset     = kvm_pic_reset;
     kpc->parent_realize = dc->realize;
     dc->realize   = kvm_pic_realize;
     k->pre_save   = kvm_pic_get;
     k->post_load  = kvm_pic_put;
+    ic->get_statistics = pic_get_statistics;
+    ic->print_info = pic_print_info;
 }
 
 static const TypeInfo kvm_i8259_info = {
@@ -153,6 +157,10 @@ static const TypeInfo kvm_i8259_info = {
     .instance_size = sizeof(PICCommonState),
     .class_init = kvm_i8259_class_init,
     .class_size = sizeof(KVMPICClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 static void kvm_pic_register_types(void)
