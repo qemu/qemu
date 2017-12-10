@@ -30,16 +30,10 @@
 #include "qemu/log.h"
 #include "hw/isa/i8259_internal.h"
 #include "hw/intc/intc.h"
+#include "trace.h"
 
 /* debug PIC */
 //#define DEBUG_PIC
-
-#ifdef DEBUG_PIC
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("pic: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
 
 //#define DEBUG_IRQ_LATENCY
 //#define DEBUG_IRQ_COUNT
@@ -122,8 +116,7 @@ static void pic_update_irq(PICCommonState *s)
 
     irq = pic_get_irq(s);
     if (irq >= 0) {
-        DPRINTF("pic%d: imr=%x irr=%x padd=%d\n",
-                s->master ? 0 : 1, s->imr, s->irr, s->priority_add);
+        trace_pic_update_irq(s->master, s->imr, s->irr, s->priority_add);
         qemu_irq_raise(s->int_out[0]);
     } else {
         qemu_irq_lower(s->int_out[0]);
@@ -140,9 +133,11 @@ static void pic_set_irq(void *opaque, int irq, int level)
     defined(DEBUG_IRQ_LATENCY)
     int irq_index = s->master ? irq : irq + 8;
 #endif
+
+    trace_pic_set_irq(s->master, irq, level);
+
 #if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
     if (level != irq_level[irq_index]) {
-        DPRINTF("pic_set_irq: irq=%d level=%d\n", irq_index, level);
         irq_level[irq_index] = level;
 #ifdef DEBUG_IRQ_COUNT
         if (level == 1) {
@@ -223,18 +218,18 @@ int pic_read_irq(DeviceState *d)
         intno = s->irq_base + irq;
     }
 
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_LATENCY)
     if (irq == 2) {
         irq = irq2 + 8;
     }
-#endif
+
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%0.3fus\n",
            irq,
            (double)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
                     irq_time[irq]) * 1000000.0 / NANOSECONDS_PER_SECOND);
 #endif
-    DPRINTF("pic_interrupt: irq=%d\n", irq);
+
+    trace_pic_interrupt(irq, intno);
     return intno;
 }
 
@@ -289,7 +284,8 @@ static void pic_ioport_write(void *opaque, hwaddr addr64,
     uint32_t val = val64;
     int priority, cmd, irq;
 
-    DPRINTF("write: addr=0x%02x val=0x%02x\n", addr, val);
+    trace_pic_ioport_write(s->master, addr, val);
+
     if (addr == 0) {
         if (val & 0x10) {
             pic_init_reset(s);
@@ -402,7 +398,7 @@ static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
             ret = s->imr;
         }
     }
-    DPRINTF("read: addr=0x%02" HWADDR_PRIx " val=0x%02x\n", addr, ret);
+    trace_pic_ioport_read(s->master, addr, ret);
     return ret;
 }
 
