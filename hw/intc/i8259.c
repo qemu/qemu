@@ -442,13 +442,10 @@ static void i8259_class_init(ObjectClass *klass, void *data)
 {
     PICClass *k = PIC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
-    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     k->parent_realize = dc->realize;
     dc->realize = pic_realize;
     dc->reset = pic_reset;
-    ic->get_statistics = pic_get_statistics;
-    ic->print_info = pic_print_info;
 }
 
 static const TypeInfo i8259_info = {
@@ -457,10 +454,6 @@ static const TypeInfo i8259_info = {
     .parent     = TYPE_PIC_COMMON,
     .class_init = i8259_class_init,
     .class_size = sizeof(PICClass),
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
-    },
 };
 
 static void pic_register_types(void)

@@ -178,6 +178,7 @@ static Property pic_properties_common[] = {
 static void pic_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->vmsd = &vmstate_pic_common;
     dc->props = pic_properties_common;
@@ -189,6 +190,8 @@ static void pic_common_class_init(ObjectClass *klass, void *data)
      * code.
      */
     dc->user_creatable = false;
+    ic->get_statistics = pic_get_statistics;
+    ic->print_info = pic_print_info;
 }
 
 static const TypeInfo pic_common_type = {
@@ -198,6 +201,10 @@ static const TypeInfo pic_common_type = {
     .class_size = sizeof(PICCommonClass),
     .class_init = pic_common_class_init,
     .abstract = true,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 static void pic_common_register_types(void)
