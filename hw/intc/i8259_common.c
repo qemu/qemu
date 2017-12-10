@@ -25,6 +25,10 @@
 #include "qemu/osdep.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/i8259_internal.h"
+#include "monitor/monitor.h"
+
+static int irq_level[16];
+static uint64_t irq_count[16];
 
 void pic_reset_common(PICCommonState *s)
 {
@@ -96,6 +100,43 @@ ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master)
     qdev_init_nofail(dev);
 
     return isadev;
+}
+
+void pic_stat_update_irq(int irq, int level)
+{
+    if (level != irq_level[irq]) {
+        irq_level[irq] = level;
+        if (level == 1) {
+            irq_count[irq]++;
+        }
+    }
+}
+
+bool pic_get_statistics(InterruptStatsProvider *obj,
+                        uint64_t **irq_counts, unsigned int *nb_irqs)
+{
+    PICCommonState *s = PIC_COMMON(obj);
+
+    if (s->master) {
+        *irq_counts = irq_count;
+        *nb_irqs = ARRAY_SIZE(irq_count);
+    } else {
+        *irq_counts = NULL;
+        *nb_irqs = 0;
+    }
+
+    return true;
+}
+
+void pic_print_info(InterruptStatsProvider *obj, Monitor *mon)
+{
+    PICCommonState *s = PIC_COMMON(obj);
+
+    monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
+                   "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
+                   s->master ? 0 : 1, s->irr, s->imr, s->isr, s->priority_add,
+                   s->irq_base, s->read_reg_select, s->elcr,
+                   s->special_fully_nested_mode);
 }
 
 static const VMStateDescription vmstate_pic_common = {

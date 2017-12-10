@@ -25,11 +25,9 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
-#include "monitor/monitor.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "hw/isa/i8259_internal.h"
-#include "hw/intc/intc.h"
 #include "trace.h"
 
 /* debug PIC */
@@ -51,8 +49,6 @@ typedef struct PICClass {
     DeviceRealize parent_realize;
 } PICClass;
 
-static int irq_level[16];
-static uint64_t irq_count[16];
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];
 #endif
@@ -126,13 +122,7 @@ static void pic_set_irq(void *opaque, int irq, int level)
     int irq_index = s->master ? irq : irq + 8;
 
     trace_pic_set_irq(s->master, irq, level);
-
-    if (level != irq_level[irq_index]) {
-        irq_level[irq_index] = level;
-        if (level == 1) {
-            irq_count[irq_index]++;
-        }
-    }
+    pic_stat_update_irq(irq_index, level);
 
 #ifdef DEBUG_IRQ_LATENCY
     if (level) {
@@ -233,31 +223,6 @@ static void pic_reset(DeviceState *dev)
 
     s->elcr = 0;
     pic_init_reset(s);
-}
-
-static bool pic_get_statistics(InterruptStatsProvider *obj,
-                               uint64_t **irq_counts, unsigned int *nb_irqs)
-{
-    PICCommonState *s = PIC_COMMON(obj);
-
-    if (s->master) {
-        *irq_counts = irq_count;
-        *nb_irqs = ARRAY_SIZE(irq_count);
-    } else {
-        *irq_counts = NULL;
-        *nb_irqs = 0;
-    }
-    return true;
-}
-
-static void pic_print_info(InterruptStatsProvider *obj, Monitor *mon)
-{
-    PICCommonState *s = PIC_COMMON(obj);
-    monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
-                   "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
-                   s->master ? 0 : 1, s->irr, s->imr, s->isr, s->priority_add,
-                   s->irq_base, s->read_reg_select, s->elcr,
-                   s->special_fully_nested_mode);
 }
 
 static void pic_ioport_write(void *opaque, hwaddr addr64,
