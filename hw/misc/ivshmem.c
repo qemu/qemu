@@ -785,29 +785,6 @@ static int ivshmem_setup_interrupts(IVShmemState *s, Error **errp)
     return 0;
 }
 
-static void ivshmem_enable_irqfd(IVShmemState *s)
-{
-    PCIDevice *pdev = PCI_DEVICE(s);
-    int i;
-
-    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
-        Error *err = NULL;
-
-        ivshmem_add_kvm_msi_virq(s, i, &err);
-        if (err) {
-            error_report_err(err);
-            /* TODO do we need to handle the error? */
-        }
-    }
-
-    if (msix_set_vector_notifiers(pdev,
-                                  ivshmem_vector_unmask,
-                                  ivshmem_vector_mask,
-                                  ivshmem_vector_poll)) {
-        error_report("ivshmem: msix_set_vector_notifiers failed");
-    }
-}
-
 static void ivshmem_remove_kvm_msi_virq(IVShmemState *s, int vector)
 {
     IVSHMEM_DPRINTF("ivshmem_remove_kvm_msi_virq vector:%d\n", vector);
@@ -822,10 +799,44 @@ static void ivshmem_remove_kvm_msi_virq(IVShmemState *s, int vector)
     s->msi_vectors[vector].pdev = NULL;
 }
 
+static void ivshmem_enable_irqfd(IVShmemState *s)
+{
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int i;
+
+    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        Error *err = NULL;
+
+        ivshmem_add_kvm_msi_virq(s, i, &err);
+        if (err) {
+            error_report_err(err);
+            goto undo;
+        }
+    }
+
+    if (msix_set_vector_notifiers(pdev,
+                                  ivshmem_vector_unmask,
+                                  ivshmem_vector_mask,
+                                  ivshmem_vector_poll)) {
+        error_report("ivshmem: msix_set_vector_notifiers failed");
+        goto undo;
+    }
+    return;
+
+undo:
+    while (--i >= 0) {
+        ivshmem_remove_kvm_msi_virq(s, i);
+    }
+}
+
 static void ivshmem_disable_irqfd(IVShmemState *s)
 {
     PCIDevice *pdev = PCI_DEVICE(s);
     int i;
+
+    if (!pdev->msix_vector_use_notifier) {
+        return;
+    }
 
     msix_unset_vector_notifiers(pdev);
 
