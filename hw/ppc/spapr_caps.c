@@ -24,6 +24,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "sysemu/hw_accel.h"
+#include "target/ppc/cpu.h"
+#include "cpu-models.h"
+#include "kvm_ppc.h"
 
 #include "hw/ppc/spapr.h"
 
@@ -40,18 +44,41 @@ typedef struct sPAPRCapabilityInfo {
     void (*disallow)(sPAPRMachineState *spapr, Error **errp);
 } sPAPRCapabilityInfo;
 
+static void cap_htm_allow(sPAPRMachineState *spapr, Error **errp)
+{
+    if (tcg_enabled()) {
+        error_setg(errp,
+                   "No Transactional Memory support in TCG, try cap-htm=off");
+    } else if (kvm_enabled() && !kvmppc_has_cap_htm()) {
+        error_setg(errp,
+"KVM implementation does not support Transactional Memory, try cap-htm=off"
+            );
+    }
+}
+
 static sPAPRCapabilityInfo capability_table[] = {
+    {
+        .name = "htm",
+        .description = "Allow Hardware Transactional Memory (HTM)",
+        .flag = SPAPR_CAP_HTM,
+        .allow = cap_htm_allow,
+        /* TODO: add cap_htm_disallow */
+    },
 };
 
 static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
                                                CPUState *cs)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
     sPAPRCapabilities caps;
 
     caps = smc->default_caps;
 
-    /* TODO: clamp according to cpu model */
+    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_07,
+                          0, spapr->max_compat_pvr)) {
+        caps.mask &= ~SPAPR_CAP_HTM;
+    }
 
     return caps;
 }

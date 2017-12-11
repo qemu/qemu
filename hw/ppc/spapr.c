@@ -253,7 +253,9 @@ static int spapr_fixup_cpu_numa_dt(void *fdt, int offset, PowerPCCPU *cpu)
 }
 
 /* Populate the "ibm,pa-features" property */
-static void spapr_populate_pa_features(PowerPCCPU *cpu, void *fdt, int offset,
+static void spapr_populate_pa_features(sPAPRMachineState *spapr,
+                                       PowerPCCPU *cpu,
+                                       void *fdt, int offset,
                                        bool legacy_guest)
 {
     CPUPPCState *env = &cpu->env;
@@ -318,7 +320,7 @@ static void spapr_populate_pa_features(PowerPCCPU *cpu, void *fdt, int offset,
          */
         pa_features[3] |= 0x20;
     }
-    if (kvmppc_has_cap_htm() && pa_size > 24) {
+    if (spapr_has_cap(spapr, SPAPR_CAP_HTM) && pa_size > 24) {
         pa_features[24] |= 0x80;    /* Transactional memory support */
     }
     if (legacy_guest && pa_size > 40) {
@@ -384,8 +386,8 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
             return ret;
         }
 
-        spapr_populate_pa_features(cpu, fdt, offset,
-                                         spapr->cas_legacy_guest_workaround);
+        spapr_populate_pa_features(spapr, cpu, fdt, offset,
+                                   spapr->cas_legacy_guest_workaround);
     }
     return ret;
 }
@@ -579,7 +581,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                           page_sizes_prop, page_sizes_prop_size)));
     }
 
-    spapr_populate_pa_features(cpu, fdt, offset, false);
+    spapr_populate_pa_features(spapr, cpu, fdt, offset, false);
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
                            cs->cpu_index / vcpus_per_socket)));
@@ -3903,7 +3905,10 @@ static void spapr_machine_2_11_instance_options(MachineState *machine)
 
 static void spapr_machine_2_11_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_12_class_options(mc);
+    smc->default_caps = spapr_caps(SPAPR_CAP_HTM);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_11);
 }
 
