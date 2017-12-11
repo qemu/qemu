@@ -316,6 +316,10 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     int ret;
 
     IVSHMEM_DPRINTF("vector unmask %p %d\n", dev, vector);
+    if (!v->pdev) {
+        error_report("ivshmem: vector %d route does not exist", vector);
+        return -EINVAL;
+    }
 
     ret = kvm_irqchip_update_msi_route(kvm_state, v->virq, msg, dev);
     if (ret < 0) {
@@ -330,12 +334,16 @@ static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    MSIVector *v = &s->msi_vectors[vector];
     int ret;
 
     IVSHMEM_DPRINTF("vector mask %p %d\n", dev, vector);
+    if (!v->pdev) {
+        error_report("ivshmem: vector %d route does not exist", vector);
+        return;
+    }
 
-    ret = kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n,
-                                                s->msi_vectors[vector].virq);
+    ret = kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n, v->virq);
     if (ret != 0) {
         error_report("remove_irqfd_notifier_gsi failed");
     }
