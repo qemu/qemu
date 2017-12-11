@@ -12245,7 +12245,10 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     if (is_16bit) {
         disas_thumb_insn(dc, insn);
     } else {
-        disas_thumb2_insn(dc, insn);
+        if (disas_thumb2_insn(dc, insn)) {
+            gen_exception_insn(dc, 4, EXCP_UDEF, syn_uncategorized(),
+                               default_exception_el(dc));
+        }
     }
 
     /* Advance the Thumb condexec condition.  */
