@@ -62,6 +62,9 @@ typedef enum {
 /* Vector Scalar Extensions */
 #define SPAPR_CAP_VSX               0x0000000000000002ULL
 
+/* Decimal Floating Point */
+#define SPAPR_CAP_DFP               0x0000000000000004ULL
+
 typedef struct sPAPRCapabilities sPAPRCapabilities;
 struct sPAPRCapabilities {
     uint64_t mask;
