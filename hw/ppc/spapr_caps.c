@@ -70,6 +70,16 @@ static void cap_vsx_allow(sPAPRMachineState *spapr, Error **errp)
     }
 }
 
+static void cap_dfp_allow(sPAPRMachineState *spapr, Error **errp)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+    CPUPPCState *env = &cpu->env;
+
+    if (!(env->insns_flags2 & PPC2_DFP)) {
+        error_setg(errp, "DFP support not available, try cap-dfp=off");
+    }
+}
+
 static sPAPRCapabilityInfo capability_table[] = {
     {
         .name = "htm",
@@ -84,6 +94,13 @@ static sPAPRCapabilityInfo capability_table[] = {
         .flag = SPAPR_CAP_VSX,
         .allow = cap_vsx_allow,
         /* TODO: add cap_vsx_disallow */
+    },
+    {
+        .name = "dfp",
+        .description = "Allow Decimal Floating Point (DFP)",
+        .flag = SPAPR_CAP_DFP,
+        .allow = cap_dfp_allow,
+        /* TODO: add cap_dfp_disallow */
     },
 };
 
@@ -104,6 +121,7 @@ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
     if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06,
                           0, spapr->max_compat_pvr)) {
         caps.mask &= ~SPAPR_CAP_VSX;
+        caps.mask &= ~SPAPR_CAP_DFP;
     }
 
     return caps;

@@ -572,7 +572,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     /* Advertise DFP (Decimal Floating Point) if available
      *   0 / no property == no DFP
      *   1               == DFP available */
-    if (env->insns_flags2 & PPC2_DFP) {
+    if (spapr_has_cap(spapr, SPAPR_CAP_DFP)) {
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,dfp", 1)));
     }
 
@@ -3834,7 +3834,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      */
     mc->numa_mem_align_shift = 28;
 
-    smc->default_caps = spapr_caps(SPAPR_CAP_VSX);
+    smc->default_caps = spapr_caps(SPAPR_CAP_VSX | SPAPR_CAP_DFP);
     spapr_caps_add_properties(smc, &error_abort);
 }
 
@@ -3916,7 +3916,8 @@ static void spapr_machine_2_11_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     spapr_machine_2_12_class_options(mc);
-    smc->default_caps = spapr_caps(SPAPR_CAP_HTM | SPAPR_CAP_VSX);
+    smc->default_caps = spapr_caps(SPAPR_CAP_HTM | SPAPR_CAP_VSX
+                                   | SPAPR_CAP_DFP);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_11);
 }
 
