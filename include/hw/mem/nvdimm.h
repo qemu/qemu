@@ -49,6 +49,7 @@
                                                TYPE_NVDIMM)
 
 #define NVDIMM_LABLE_SIZE_PROP "label-size"
+#define NVDIMM_UNARMED_PROP    "unarmed"
 
 struct NVDIMMDevice {
     /* private */
@@ -74,6 +75,14 @@ struct NVDIMMDevice {
      * guest via ACPI NFIT and _FIT method if NVDIMM hotplug is supported.
      */
     MemoryRegion nvdimm_mr;
+
+    /*
+     * The 'on' value results in the unarmed flag set in ACPI NFIT,
+     * which can be used to notify guest implicitly that the host
+     * backend (e.g., files on HDD, /dev/pmemX, etc.) cannot guarantee
+     * the guest write persistence.
+     */
+    bool unarmed;
 };
 typedef struct NVDIMMDevice NVDIMMDevice;
 

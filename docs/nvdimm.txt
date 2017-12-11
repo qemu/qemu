@@ -138,3 +138,18 @@ backend of vNVDIMM:
 
  -object memory-backend-file,id=mem1,share=on,mem-path=/dev/dax0.0,size=4G,align=2M
  -device nvdimm,id=nvdimm1,memdev=mem1
+
+Guest Data Persistence
+----------------------
+
+Though QEMU supports multiple types of vNVDIMM backends on Linux,
+currently the only one that can guarantee the guest write persistence
+is the device DAX on the real NVDIMM device (e.g., /dev/dax0.0), to
+which all guest access do not involve any host-side kernel cache.
+
+When using other types of backends, it's suggested to set 'unarmed'
+option of '-device nvdimm' to 'on', which sets the unarmed flag of the
+guest NVDIMM region mapping structure.  This unarmed flag indicates
+guest software that this vNVDIMM device contains a region that cannot
+accept persistent writes. In result, for example, the guest Linux
+NVDIMM driver, marks such vNVDIMM device as read-only.

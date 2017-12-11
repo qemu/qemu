@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qapi-visit.h"
 #include "hw/mem/nvdimm.h"
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
@@ -64,11 +65,36 @@ out:
     error_propagate(errp, local_err);
 }
 
+static bool nvdimm_get_unarmed(Object *obj, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+
+    return nvdimm->unarmed;
+}
+
+static void nvdimm_set_unarmed(Object *obj, bool value, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+    Error *local_err = NULL;
+
+    if (memory_region_size(&nvdimm->nvdimm_mr)) {
+        error_setg(&local_err, "cannot change property value");
+        goto out;
+    }
+
+    nvdimm->unarmed = value;
+
+ out:
+    error_propagate(errp, local_err);
+}
+
 static void nvdimm_init(Object *obj)
 {
     object_property_add(obj, NVDIMM_LABLE_SIZE_PROP, "int",
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL, NULL);
+    object_property_add_bool(obj, NVDIMM_UNARMED_PROP,
+                             nvdimm_get_unarmed, nvdimm_set_unarmed, NULL);
 }
 
 static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
