@@ -47,6 +47,9 @@
 #define NVDIMM_CLASS(oc) OBJECT_CLASS_CHECK(NVDIMMClass, (oc), TYPE_NVDIMM)
 #define NVDIMM_GET_CLASS(obj) OBJECT_GET_CLASS(NVDIMMClass, (obj), \
                                                TYPE_NVDIMM)
+
+#define NVDIMM_LABLE_SIZE_PROP "label-size"
+
 struct NVDIMMDevice {
     /* private */
     PCDIMMDevice parent_obj;
