@@ -1612,7 +1612,13 @@ static void *file_ram_alloc(RAMBlock *block,
     void *area;
 
     block->page_size = qemu_fd_getpagesize(fd);
-    block->mr->align = block->page_size;
+    if (block->mr->align % block->page_size) {
+        error_setg(errp, "alignment 0x%" PRIx64
+                   " must be multiples of page size 0x%zx",
+                   block->mr->align, block->page_size);
+        return NULL;
+    }
+    block->mr->align = MAX(block->page_size, block->mr->align);
 #if defined(__s390x__)
     if (kvm_enabled()) {
         block->mr->align = MAX(block->mr->align, QEMU_VMALLOC_ALIGN);

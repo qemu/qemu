@@ -3974,7 +3974,7 @@ property must be set.  These objects are placed in the
 
 @table @option
 
-@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave}
+@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},align=@var{align}
 
 Creates a memory file backend object, which can be used to back
 the guest RAM with huge pages.
@@ -4026,6 +4026,13 @@ restrict memory allocation to the given host node list
 @item @var{interleave}
 interleave memory allocations across the given host node list
 @end table
+
+The @option{align} option specifies the base address alignment when
+QEMU mmap(2) @option{mem-path}, and accepts common suffixes, eg
+@option{2M}. Some backend store specified by @option{mem-path}
+requires an alignment different than the default one used by QEMU, eg
+the device DAX /dev/dax0.0 requires 2M alignment rather than 4K. In
+such cases, users can specify the required alignment via this option.
 
 @item -object memory-backend-ram,id=@var{id},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},size=@var{size},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave}
 

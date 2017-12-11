@@ -465,6 +465,8 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  * @name: Region name, becomes part of RAMBlock name used in migration stream
  *        must be unique within any device
  * @size: size of the region.
+ * @align: alignment of the region base address; if 0, the default alignment
+ *         (getpagesize()) will be used.
  * @share: %true if memory must be mmaped with the MAP_SHARED flag
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
@@ -476,6 +478,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       struct Object *owner,
                                       const char *name,
                                       uint64_t size,
+                                      uint64_t align,
                                       bool share,
                                       const char *path,
                                       Error **errp);

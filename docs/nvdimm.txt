@@ -122,3 +122,19 @@ Note:
      M >= size of RAM devices +
           size of statically plugged vNVDIMM devices +
           size of hotplugged vNVDIMM devices
+
+Alignment
+---------
+
+QEMU uses mmap(2) to maps vNVDIMM backends and aligns the mapping
+address to the page size (getpagesize(2)) by default. However, some
+types of backends may require an alignment different than the page
+size. In that case, QEMU v2.12.0 and later provide 'align' option to
+memory-backend-file to allow users to specify the proper alignment.
+
+For example, device dax require the 2 MB alignment, so we can use
+following QEMU command line options to use it (/dev/dax0.0) as the
+backend of vNVDIMM:
+
+ -object memory-backend-file,id=mem1,share=on,mem-path=/dev/dax0.0,size=4G,align=2M
+ -device nvdimm,id=nvdimm1,memdev=mem1
