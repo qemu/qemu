@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "sysemu/hw_accel.h"
@@ -83,6 +84,93 @@ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
     return caps;
 }
 
+static bool spapr_caps_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    return (spapr->forced_caps.mask != 0) || (spapr->forbidden_caps.mask != 0);
+}
+
+/* This has to be called from the top-level spapr post_load, not the
+ * caps specific one.  Otherwise it wouldn't be called when the source
+ * caps are all defaults, which could still conflict with overridden
+ * caps on the destination */
+int spapr_caps_post_migration(sPAPRMachineState *spapr)
+{
+    uint64_t allcaps = 0;
+    int i;
+    bool ok = true;
+    sPAPRCapabilities dstcaps = spapr->effective_caps;
+    sPAPRCapabilities srccaps;
+
+    srccaps = default_caps_with_cpu(spapr, first_cpu);
+    srccaps.mask |= spapr->mig_forced_caps.mask;
+    srccaps.mask &= ~spapr->mig_forbidden_caps.mask;
+
+    for (i = 0; i < ARRAY_SIZE(capability_table); i++) {
+        sPAPRCapabilityInfo *info = &capability_table[i];
+
+        allcaps |= info->flag;
+
+        if ((srccaps.mask & info->flag) && !(dstcaps.mask & info->flag)) {
+            error_report("cap-%s=on in incoming stream, but off in destination",
+                         info->name);
+            ok = false;
+        }
+
+        if (!(srccaps.mask & info->flag) && (dstcaps.mask & info->flag)) {
+            warn_report("cap-%s=off in incoming stream, but on in destination",
+                         info->name);
+        }
+    }
+
+    if (spapr->mig_forced_caps.mask & ~allcaps) {
+        error_report(
+            "Unknown capabilities 0x%"PRIx64" enabled in incoming stream",
+            spapr->mig_forced_caps.mask & ~allcaps);
+        ok = false;
+    }
+    if (spapr->mig_forbidden_caps.mask & ~allcaps) {
+        warn_report(
+            "Unknown capabilities 0x%"PRIx64" disabled in incoming stream",
+            spapr->mig_forbidden_caps.mask & ~allcaps);
+    }
+
+    return ok ? 0 : -EINVAL;
+}
+
+static int spapr_caps_pre_save(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    spapr->mig_forced_caps = spapr->forced_caps;
+    spapr->mig_forbidden_caps = spapr->forbidden_caps;
+    return 0;
+}
+
+static int spapr_caps_pre_load(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    spapr->mig_forced_caps = spapr_caps(0);
+    spapr->mig_forbidden_caps = spapr_caps(0);
+    return 0;
+}
+
+const VMStateDescription vmstate_spapr_caps = {
+    .name = "spapr/caps",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_caps_needed,
+    .pre_save = spapr_caps_pre_save,
+    .pre_load = spapr_caps_pre_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(mig_forced_caps.mask, sPAPRMachineState),
+        VMSTATE_UINT64(mig_forbidden_caps.mask, sPAPRMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 void spapr_caps_reset(sPAPRMachineState *spapr)
 {
     Error *local_err = NULL;
@@ -91,6 +179,11 @@ void spapr_caps_reset(sPAPRMachineState *spapr)
 
     /* First compute the actual set of caps we're running with.. */
     caps = default_caps_with_cpu(spapr, first_cpu);
+
+    /* Remove unnecessary forced/forbidden bits (this will help us
+     * with migration) */
+    spapr->forced_caps.mask &= ~caps.mask;
+    spapr->forbidden_caps.mask &= caps.mask;
 
     caps.mask |= spapr->forced_caps.mask;
     caps.mask &= ~spapr->forbidden_caps.mask;
@@ -175,9 +268,6 @@ void spapr_caps_validate(sPAPRMachineState *spapr, Error **errp)
         error_setg(errp, "Some sPAPR capabilities set both on and off");
         return;
     }
-
-    /* Check for any caps incompatible with other caps.  Nothing to do
-     * yet */
 }
 
 void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp)

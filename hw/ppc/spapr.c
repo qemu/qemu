@@ -1589,6 +1589,11 @@ static int spapr_post_load(void *opaque, int version_id)
     sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
     int err = 0;
 
+    err = spapr_caps_post_migration(spapr);
+    if (err) {
+        return err;
+    }
+
     if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
         CPUState *cs;
         CPU_FOREACH(cs) {
@@ -1755,6 +1760,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
         &vmstate_spapr_pending_events,
+        &vmstate_spapr_caps,
         NULL
     }
 };
