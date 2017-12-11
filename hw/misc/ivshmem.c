@@ -76,6 +76,7 @@ typedef struct Peer {
 typedef struct MSIVector {
     PCIDevice *pdev;
     int virq;
+    bool unmasked;
 } MSIVector;
 
 typedef struct IVShmemState {
@@ -320,6 +321,7 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
         error_report("ivshmem: vector %d route does not exist", vector);
         return -EINVAL;
     }
+    assert(!v->unmasked);
 
     ret = kvm_irqchip_update_msi_route(kvm_state, v->virq, msg, dev);
     if (ret < 0) {
@@ -327,7 +329,13 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     }
     kvm_irqchip_commit_routes(kvm_state);
 
-    return kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
+    ret = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
+    if (ret < 0) {
+        return ret;
+    }
+    v->unmasked = true;
+
+    return 0;
 }
 
 static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
@@ -342,11 +350,14 @@ static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
         error_report("ivshmem: vector %d route does not exist", vector);
         return;
     }
+    assert(v->unmasked);
 
     ret = kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n, v->virq);
-    if (ret != 0) {
+    if (ret < 0) {
         error_report("remove_irqfd_notifier_gsi failed");
+        return;
     }
+    v->unmasked = false;
 }
 
 static void ivshmem_vector_poll(PCIDevice *dev,
@@ -816,11 +827,20 @@ static void ivshmem_disable_irqfd(IVShmemState *s)
     PCIDevice *pdev = PCI_DEVICE(s);
     int i;
 
+    msix_unset_vector_notifiers(pdev);
+
     for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        /*
+         * MSI-X is already disabled here so msix_unset_vector_notifiers()
+         * didn't call our release notifier.  Do it now to keep our masks and
+         * unmasks balanced.
+         */
+        if (s->msi_vectors[i].unmasked) {
+            ivshmem_vector_mask(pdev, i);
+        }
         ivshmem_remove_kvm_msi_virq(s, i);
     }
 
-    msix_unset_vector_notifiers(pdev);
 }
 
 static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
