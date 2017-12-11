@@ -757,9 +757,13 @@ static void ivshmem_msix_vector_use(IVShmemState *s)
     }
 }
 
+static void ivshmem_disable_irqfd(IVShmemState *s);
+
 static void ivshmem_reset(DeviceState *d)
 {
     IVShmemState *s = IVSHMEM_COMMON(d);
+
+    ivshmem_disable_irqfd(s);
 
     s->intrstatus = 0;
     s->intrmask = 0;
