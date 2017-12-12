@@ -3193,7 +3193,7 @@ static DisasJumpType trans_store_w(DisasContext *ctx, uint32_t insn)
         /* FSTW without modification.  */
         return do_fstorew(ctx, ext2 * 32 + rt, rb, 0, 0, i, sp, 0);
     case 2:
-        /* LDW with modification.  */
+        /* STW with modification.  */
         return do_store(ctx, rt, rb, i, sp, (i < 0 ? 1 : -1), MO_TEUL);
     default:
         return gen_illegal(ctx);
