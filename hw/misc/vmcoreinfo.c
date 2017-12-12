@@ -35,6 +35,8 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
 {
     VMCoreInfoState *s = VMCOREINFO(dev);
     FWCfgState *fw_cfg = fw_cfg_find();
+    /* for gdb script dump-guest-memory.py */
+    static VMCoreInfoState * volatile vmcoreinfo_state G_GNUC_UNUSED;
 
     /* Given that this function is executing, there is at least one VMCOREINFO
      * device. Check if there are several.
@@ -56,6 +58,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
                              &s->vmcoreinfo, sizeof(s->vmcoreinfo), false);
 
     qemu_register_reset(vmcoreinfo_reset, dev);
+    vmcoreinfo_state = s;
 }
 
 static const VMStateDescription vmstate_vmcoreinfo = {
