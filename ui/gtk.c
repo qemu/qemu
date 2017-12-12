@@ -2248,6 +2248,11 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
         exit(1);
     }
 
+#if !GTK_CHECK_VERSION(3, 0, 0)
+    g_printerr("Running QEMU with GTK 2.x is deprecated, and will be removed\n"
+               "in a future release. Please switch to GTK 3.x instead\n");
+#endif
+
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if GTK_CHECK_VERSION(3, 2, 0)
     s->vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
