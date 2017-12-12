@@ -198,7 +198,6 @@ static int try_bind(int socket, InetSocketAddress *saddr, struct addrinfo *e)
 
 static int inet_listen_saddr(InetSocketAddress *saddr,
                              int port_offset,
-                             bool update_addr,
                              Error **errp)
 {
     struct addrinfo ai,*res,*e;
@@ -326,15 +325,6 @@ listen_failed:
     return -1;
 
 listen_ok:
-    if (update_addr) {
-        g_free(saddr->host);
-        saddr->host = g_strdup(uaddr);
-        g_free(saddr->port);
-        saddr->port = g_strdup_printf("%d",
-                                      inet_getport(e) - port_offset);
-        saddr->has_ipv6 = saddr->ipv6 = e->ai_family == PF_INET6;
-        saddr->has_ipv4 = saddr->ipv4 = e->ai_family != PF_INET6;
-    }
     freeaddrinfo(res);
     return slisten;
 }
@@ -790,7 +780,6 @@ static int vsock_parse(VsockSocketAddress *addr, const char *str,
 #ifndef _WIN32
 
 static int unix_listen_saddr(UnixSocketAddress *saddr,
-                             bool update_addr,
                              Error **errp)
 {
     struct sockaddr_un un;
@@ -855,12 +844,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         goto err;
     }
 
-    if (update_addr && pathbuf) {
-        g_free(saddr->path);
-        saddr->path = pathbuf;
-    } else {
-        g_free(pathbuf);
-    }
+    g_free(pathbuf);
     return sock;
 
 err:
@@ -920,7 +904,6 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 #else
 
 static int unix_listen_saddr(UnixSocketAddress *saddr,
-                             bool update_addr,
                              Error **errp)
 {
     error_setg(errp, "unix sockets are not available on windows");
@@ -937,7 +920,7 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 #endif
 
 /* compatibility wrapper */
-int unix_listen(const char *str, char *ostr, int olen, Error **errp)
+int unix_listen(const char *str, Error **errp)
 {
     char *path, *optstr;
     int sock, len;
@@ -957,11 +940,7 @@ int unix_listen(const char *str, char *ostr, int olen, Error **errp)
         saddr->path = g_strdup(str);
     }
 
-    sock = unix_listen_saddr(saddr, true, errp);
-
-    if (sock != -1 && ostr) {
-        snprintf(ostr, olen, "%s%s", saddr->path, optstr ? optstr : "");
-    }
+    sock = unix_listen_saddr(saddr, errp);
 
     qapi_free_UnixSocketAddress(saddr);
     return sock;
@@ -1052,11 +1031,11 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        fd = inet_listen_saddr(&addr->u.inet, 0, false, errp);
+        fd = inet_listen_saddr(&addr->u.inet, 0, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_UNIX:
-        fd = unix_listen_saddr(&addr->u.q_unix, false, errp);
+        fd = unix_listen_saddr(&addr->u.q_unix, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
