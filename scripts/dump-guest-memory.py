@@ -546,8 +546,7 @@ shape and this command should mostly work."""
         return None
 
     def add_vmcoreinfo(self):
-        vmci = '(VMCoreInfoState *)' + \
-               'object_resolve_path_type("", "vmcoreinfo", 0)'
+        vmci = 'vmcoreinfo_realize::vmcoreinfo_state'
         if not gdb.parse_and_eval("%s" % vmci) \
            or not gdb.parse_and_eval("(%s)->has_vmcoreinfo" % vmci):
             return
