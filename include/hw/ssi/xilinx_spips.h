@@ -76,6 +76,8 @@ struct XilinxSPIPS {
     uint32_t rx_discard;
 
     uint32_t regs[XLNX_SPIPS_R_MAX];
+
+    bool man_start_com;
 };
 
 typedef struct {

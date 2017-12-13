@@ -109,6 +109,7 @@
     FIELD(CMND, DUMMY_CYCLES, 2, 6)
 #define R_CMND_DMA_EN         (1 << 1)
 #define R_CMND_PUSH_WAIT      (1 << 0)
+#define R_TRANSFER_SIZE     (0xc4 / 4)
 #define R_LQSPI_STS         (0xA4 / 4)
 #define LQSPI_STS_WR_RECVD      (1 << 1)
 
@@ -227,6 +228,7 @@ static void xilinx_spips_reset(DeviceState *d)
     s->link_state_next_when = 0;
     s->snoop_state = SNOOP_CHECKING;
     s->cmd_dummies = 0;
+    s->man_start_com = false;
     xilinx_spips_update_ixr(s);
     xilinx_spips_update_cs_lines(s);
 }
@@ -464,6 +466,41 @@ static inline void tx_data_bytes(Fifo8 *fifo, uint32_t value, int num, bool be)
     }
 }
 
+static void xilinx_spips_check_zero_pump(XilinxSPIPS *s)
+{
+    if (!s->regs[R_TRANSFER_SIZE]) {
+        return;
+    }
+    if (!fifo8_is_empty(&s->tx_fifo) && s->regs[R_CMND] & R_CMND_PUSH_WAIT) {
+        return;
+    }
+    /*
+     * The zero pump must never fill tx fifo such that rx overflow is
+     * possible
+     */
+    while (s->regs[R_TRANSFER_SIZE] &&
+           s->rx_fifo.num + s->tx_fifo.num < RXFF_A_Q - 3) {
+        /* endianess just doesn't matter when zero pumping */
+        tx_data_bytes(&s->tx_fifo, 0, 4, false);
+        s->regs[R_TRANSFER_SIZE] &= ~0x03ull;
+        s->regs[R_TRANSFER_SIZE] -= 4;
+    }
+}
+
+static void xilinx_spips_check_flush(XilinxSPIPS *s)
+{
+    if (s->man_start_com ||
+        (!fifo8_is_empty(&s->tx_fifo) &&
+         !(s->regs[R_CONFIG] & MAN_START_EN))) {
+        xilinx_spips_check_zero_pump(s);
+        xilinx_spips_flush_txfifo(s);
+    }
+    if (fifo8_is_empty(&s->tx_fifo) && !s->regs[R_TRANSFER_SIZE]) {
+        s->man_start_com = false;
+    }
+    xilinx_spips_update_ixr(s);
+}
+
 static inline int rx_data_bytes(Fifo8 *fifo, uint8_t *value, int max)
 {
     int i;
@@ -533,7 +570,6 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
                                         uint64_t value, unsigned size)
 {
     int mask = ~0;
-    int man_start_com = 0;
     XilinxSPIPS *s = opaque;
 
     DB_PRINT_L(0, "addr=" TARGET_FMT_plx " = %x\n", addr, (unsigned)value);
@@ -541,8 +577,8 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
     switch (addr) {
     case R_CONFIG:
         mask = ~(R_CONFIG_RSVD | MAN_START_COM);
-        if (value & MAN_START_COM) {
-            man_start_com = 1;
+        if ((value & MAN_START_COM) && (s->regs[R_CONFIG] & MAN_START_EN)) {
+            s->man_start_com = true;
         }
         break;
     case R_INTR_STATUS:
@@ -588,10 +624,7 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
     s->regs[addr] = (s->regs[addr] & ~mask) | (value & mask);
 no_reg_update:
     xilinx_spips_update_cs_lines(s);
-    if ((man_start_com && s->regs[R_CONFIG] & MAN_START_EN) ||
-            (fifo8_is_empty(&s->tx_fifo) && s->regs[R_CONFIG] & MAN_START_EN)) {
-        xilinx_spips_flush_txfifo(s);
-    }
+    xilinx_spips_check_flush(s);
     xilinx_spips_update_cs_lines(s);
     xilinx_spips_update_ixr(s);
 }
