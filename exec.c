@@ -1285,7 +1285,7 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
 static subpage_t *subpage_init(FlatView *fv, hwaddr base);
 
-static void *(*phys_mem_alloc)(size_t size, uint64_t *align) =
+static void *(*phys_mem_alloc)(size_t size, uint64_t *align, bool shared) =
                                qemu_anon_ram_alloc;
 
 /*
@@ -1293,7 +1293,7 @@ static void *(*phys_mem_alloc)(size_t size, uint64_t *align) =
  * Accelerators with unusual needs may need this.  Hopefully, we can
  * get rid of it eventually.
  */
-void phys_mem_set_alloc(void *(*alloc)(size_t, uint64_t *align))
+void phys_mem_set_alloc(void *(*alloc)(size_t, uint64_t *align, bool shared))
 {
     phys_mem_alloc = alloc;
 }
@@ -1921,7 +1921,7 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
     }
 }
 
-static void ram_block_add(RAMBlock *new_block, Error **errp)
+static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
 {
     RAMBlock *block;
     RAMBlock *last_block = NULL;
@@ -1944,7 +1944,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
             }
         } else {
             new_block->host = phys_mem_alloc(new_block->max_length,
-                                             &new_block->mr->align);
+                                             &new_block->mr->align, shared);
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
                                  "cannot set up guest memory '%s'",
@@ -2049,7 +2049,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
-    ram_block_add(new_block, &local_err);
+    ram_block_add(new_block, &local_err, share);
     if (local_err) {
         g_free(new_block);
         error_propagate(errp, local_err);
@@ -2091,7 +2091,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
                                   void (*resized)(const char*,
                                                   uint64_t length,
                                                   void *host),
-                                  void *host, bool resizeable,
+                                  void *host, bool resizeable, bool share,
                                   MemoryRegion *mr, Error **errp)
 {
     RAMBlock *new_block;
@@ -2114,7 +2114,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     if (resizeable) {
         new_block->flags |= RAM_RESIZEABLE;
     }
-    ram_block_add(new_block, &local_err);
+    ram_block_add(new_block, &local_err, share);
     if (local_err) {
         g_free(new_block);
         error_propagate(errp, local_err);
@@ -2126,12 +2126,15 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
 RAMBlock *qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr, Error **errp)
 {
-    return qemu_ram_alloc_internal(size, size, NULL, host, false, mr, errp);
+    return qemu_ram_alloc_internal(size, size, NULL, host, false,
+                                   false, mr, errp);
 }
 
-RAMBlock *qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr, Error **errp)
+RAMBlock *qemu_ram_alloc(ram_addr_t size, bool share,
+                         MemoryRegion *mr, Error **errp)
 {
-    return qemu_ram_alloc_internal(size, size, NULL, NULL, false, mr, errp);
+    return qemu_ram_alloc_internal(size, size, NULL, NULL, false,
+                                   share, mr, errp);
 }
 
 RAMBlock *qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
@@ -2140,7 +2143,8 @@ RAMBlock *qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
                                                      void *host),
                                      MemoryRegion *mr, Error **errp)
 {
-    return qemu_ram_alloc_internal(size, maxsz, resized, NULL, true, mr, errp);
+    return qemu_ram_alloc_internal(size, maxsz, resized, NULL, true,
+                                   false, mr, errp);
 }
 
 static void reclaim_ramblock(RAMBlock *block)

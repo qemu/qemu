@@ -144,7 +144,7 @@ static int cap_gs;
 
 static int active_cmma;
 
-static void *legacy_s390_alloc(size_t size, uint64_t *align);
+static void *legacy_s390_alloc(size_t size, uint64_t *align, bool shared);
 
 static int kvm_s390_query_mem_limit(uint64_t *memory_limit)
 {
@@ -752,7 +752,7 @@ int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, uint8_t ar, void *hostbuf,
  * to grow. We also have to use MAP parameters that avoid
  * read-only mapping of guest pages.
  */
-static void *legacy_s390_alloc(size_t size, uint64_t *align)
+static void *legacy_s390_alloc(size_t size, uint64_t *align, bool shared)
 {
     void *mem;
 

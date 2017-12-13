@@ -436,6 +436,29 @@ void memory_region_init_ram_nomigrate(MemoryRegion *mr,
                                       Error **errp);
 
 /**
+ * memory_region_init_ram_shared_nomigrate:  Initialize RAM memory region.
+ *                                           Accesses into the region will
+ *                                           modify memory directly.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @share: allow remapping RAM to different addresses
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Note that this function is similar to memory_region_init_ram_nomigrate.
+ * The only difference is part of the RAM region can be remapped.
+ */
+void memory_region_init_ram_shared_nomigrate(MemoryRegion *mr,
+                                             struct Object *owner,
+                                             const char *name,
+                                             uint64_t size,
+                                             bool share,
+                                             Error **errp);
+
+/**
  * memory_region_init_resizeable_ram:  Initialize memory region with resizeable
  *                                     RAM.  Accesses into the region will
  *                                     modify memory directly.  Only an initial
