@@ -61,13 +61,19 @@ struct XilinxSPIPS {
     uint8_t num_busses;
 
     uint8_t snoop_state;
+    int cmd_dummies;
+    uint8_t link_state;
+    uint8_t link_state_next;
+    uint8_t link_state_next_when;
     qemu_irq *cs_lines;
+    bool *cs_lines_state;
     SSIBus **spi;
 
     Fifo8 rx_fifo;
     Fifo8 tx_fifo;
 
     uint8_t num_txrx_bytes;
+    uint32_t rx_discard;
 
     uint32_t regs[XLNX_SPIPS_R_MAX];
 };
