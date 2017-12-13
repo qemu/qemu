@@ -22,7 +22,7 @@
 
 /* Define SHIFT, LENGTH and MASK constants for a field within a register */
 
-/* This macro will define FOO_BAR_MASK, FOO_BAR_SHIFT and FOO_BAR_LENGTH 
+/* This macro will define R_FOO_BAR_MASK, R_FOO_BAR_SHIFT and R_FOO_BAR_LENGTH
  * constants for field BAR in register FOO.
  */
 #define FIELD(reg, field, shift, length)                                  \
