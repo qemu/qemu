@@ -355,6 +355,8 @@ typedef enum {
     DPP = 0xa2,
     QPP = 0x32,
     QPP_4 = 0x34,
+    RDID_90 = 0x90,
+    RDID_AB = 0xab,
 
     ERASE_4K = 0x20,
     ERASE4_4K = 0x21,
@@ -405,6 +407,7 @@ typedef enum {
     MAN_MACRONIX,
     MAN_NUMONYX,
     MAN_WINBOND,
+    MAN_SST,
     MAN_GENERIC,
 } Manufacturer;
 
@@ -476,6 +479,8 @@ static inline Manufacturer get_man(Flash *s)
         return MAN_SPANSION;
     case 0xC2:
         return MAN_MACRONIX;
+    case 0xBF:
+        return MAN_SST;
     default:
         return MAN_GENERIC;
     }
@@ -711,6 +716,31 @@ static void complete_collecting_data(Flash *s)
     case WEVCR:
         s->enh_volatile_cfg = s->data[0];
         break;
+    case RDID_90:
+    case RDID_AB:
+        if (get_man(s) == MAN_SST) {
+            if (s->cur_addr <= 1) {
+                if (s->cur_addr) {
+                    s->data[0] = s->pi->id[2];
+                    s->data[1] = s->pi->id[0];
+                } else {
+                    s->data[0] = s->pi->id[0];
+                    s->data[1] = s->pi->id[2];
+                }
+                s->pos = 0;
+                s->len = 2;
+                s->data_read_loop = true;
+                s->state = STATE_READING_DATA;
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "M25P80: Invalid read id address\n");
+            }
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "M25P80: Read id (command 0x90/0xAB) is not supported"
+                          " by device\n");
+        }
+        break;
     default:
         break;
     }
@@ -926,6 +956,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case PP4:
     case PP4_4:
     case DIE_ERASE:
+    case RDID_90:
+    case RDID_AB:
         s->needed_bytes = get_addr_length(s);
         s->pos = 0;
         s->len = 0;
