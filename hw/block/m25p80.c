@@ -423,6 +423,7 @@ typedef struct Flash {
     uint8_t data[M25P80_INTERNAL_DATA_BUFFER_SZ];
     uint32_t len;
     uint32_t pos;
+    bool data_read_loop;
     uint8_t needed_bytes;
     uint8_t cmd_in_progress;
     uint32_t cur_addr;
@@ -983,6 +984,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         s->pos = 0;
         s->len = 1;
+        s->data_read_loop = true;
         s->state = STATE_READING_DATA;
         break;
 
@@ -993,6 +995,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         s->pos = 0;
         s->len = 1;
+        s->data_read_loop = true;
         s->state = STATE_READING_DATA;
         break;
 
@@ -1133,6 +1136,7 @@ static int m25p80_cs(SSISlave *ss, bool select)
         s->pos = 0;
         s->state = STATE_IDLE;
         flash_sync_dirty(s, -1);
+        s->data_read_loop = false;
     }
 
     DB_PRINT_L(0, "%sselect\n", select ? "de" : "");
@@ -1198,7 +1202,9 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         s->pos++;
         if (s->pos == s->len) {
             s->pos = 0;
-            s->state = STATE_IDLE;
+            if (!s->data_read_loop) {
+                s->state = STATE_IDLE;
+            }
         }
         break;
 
@@ -1269,11 +1275,38 @@ static Property m25p80_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int m25p80_pre_load(void *opaque)
+{
+    Flash *s = (Flash *)opaque;
+
+    s->data_read_loop = false;
+    return 0;
+}
+
+static bool m25p80_data_read_loop_needed(void *opaque)
+{
+    Flash *s = (Flash *)opaque;
+
+    return s->data_read_loop;
+}
+
+static const VMStateDescription vmstate_m25p80_data_read_loop = {
+    .name = "m25p80/data_read_loop",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = m25p80_data_read_loop_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(data_read_loop, Flash),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_m25p80 = {
     .name = "m25p80",
     .version_id = 0,
     .minimum_version_id = 0,
     .pre_save = m25p80_pre_save,
+    .pre_load = m25p80_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(state, Flash),
         VMSTATE_UINT8_ARRAY(data, Flash, M25P80_INTERNAL_DATA_BUFFER_SZ),
@@ -1295,6 +1328,10 @@ static const VMStateDescription vmstate_m25p80 = {
         VMSTATE_UINT8(spansion_cr3nv, Flash),
         VMSTATE_UINT8(spansion_cr4nv, Flash),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_m25p80_data_read_loop,
+        NULL
     }
 };
 
