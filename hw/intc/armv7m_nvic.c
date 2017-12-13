@@ -1786,10 +1786,12 @@ static MemTxResult nvic_sysreg_ns_write(void *opaque, hwaddr addr,
                                         uint64_t value, unsigned size,
                                         MemTxAttrs attrs)
 {
+    MemoryRegion *mr = opaque;
+
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
-        return nvic_sysreg_write(opaque, addr, value, size, attrs);
+        return memory_region_dispatch_write(mr, addr, value, size, attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -1803,10 +1805,12 @@ static MemTxResult nvic_sysreg_ns_read(void *opaque, hwaddr addr,
                                        uint64_t *data, unsigned size,
                                        MemTxAttrs attrs)
 {
+    MemoryRegion *mr = opaque;
+
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
-        return nvic_sysreg_read(opaque, addr, data, size, attrs);
+        return memory_region_dispatch_read(mr, addr, data, size, attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -2075,7 +2079,7 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 
     if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
         memory_region_init_io(&s->sysreg_ns_mem, OBJECT(s),
-                              &nvic_sysreg_ns_ops, s,
+                              &nvic_sysreg_ns_ops, &s->sysregmem,
                               "nvic_sysregs_ns", 0x1000);
         memory_region_add_subregion(&s->container, 0x20000, &s->sysreg_ns_mem);
     }
