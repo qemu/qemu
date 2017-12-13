@@ -2160,7 +2160,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     hwaddr phys_addr;
     target_ulong page_size;
     int prot;
-    uint32_t fsr;
+    uint32_t fsr_unused;
     bool ret;
     uint64_t par64;
     MemTxAttrs attrs = {};
@@ -2168,12 +2168,12 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     ARMCacheAttrs cacheattrs = {};
 
     ret = get_phys_addr(env, value, access_type, mmu_idx, &phys_addr, &attrs,
-                        &prot, &page_size, &fsr, &fi, &cacheattrs);
+                        &prot, &page_size, &fsr_unused, &fi, &cacheattrs);
+    /* TODO: this is not the correct condition to use to decide whether
+     * to report a PAR in 64-bit or 32-bit format.
+     */
     if (arm_s1_regime_using_lpae_format(env, mmu_idx)) {
-        /* fsr is a DFSR/IFSR value for the long descriptor
-         * translation table format, but with WnR always clear.
-         * Convert it to a 64-bit PAR.
-         */
+        /* Create a 64-bit PAR */
         par64 = (1 << 11); /* LPAE bit always set */
         if (!ret) {
             par64 |= phys_addr & ~0xfffULL;
@@ -2183,6 +2183,8 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
             par64 |= (uint64_t)cacheattrs.attrs << 56; /* ATTR */
             par64 |= cacheattrs.shareability << 7; /* SH */
         } else {
+            uint32_t fsr = arm_fi_to_lfsc(&fi);
+
             par64 |= 1; /* F */
             par64 |= (fsr & 0x3f) << 1; /* FS */
             /* Note that S2WLK and FSTAGE are always zero, because we don't
@@ -2207,6 +2209,8 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
                 par64 |= (1 << 9); /* NS */
             }
         } else {
+            uint32_t fsr = arm_fi_to_sfsc(&fi);
+
             par64 = ((fsr & (1 << 10)) >> 5) | ((fsr & (1 << 12)) >> 6) |
                     ((fsr & 0xf) << 1) | 1;
         }
