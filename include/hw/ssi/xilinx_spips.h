@@ -26,11 +26,13 @@
 #define XILINX_SPIPS_H
 
 #include "hw/ssi/ssi.h"
-#include "qemu/fifo8.h"
+#include "qemu/fifo32.h"
+#include "hw/stream.h"
 
 typedef struct XilinxSPIPS XilinxSPIPS;
 
 #define XLNX_SPIPS_R_MAX        (0x100 / 4)
+#define XLNX_ZYNQMP_SPIPS_R_MAX (0x200 / 4)
 
 /* Bite off 4k chunks at a time */
 #define LQSPI_CACHE_SIZE 1024
@@ -89,6 +91,30 @@ typedef struct {
     bool mmio_execution_enabled;
 } XilinxQSPIPS;
 
+typedef struct {
+    XilinxQSPIPS parent_obj;
+
+    StreamSlave *dma;
+    uint8_t dma_buf[4];
+    int gqspi_irqline;
+
+    uint32_t regs[XLNX_ZYNQMP_SPIPS_R_MAX];
+
+    /* GQSPI has seperate tx/rx fifos */
+    Fifo8 rx_fifo_g;
+    Fifo8 tx_fifo_g;
+    Fifo32 fifo_g;
+    /*
+     * At the end of each generic command, misaligned extra bytes are discard
+     * or padded to tx and rx respectively to round it out (and avoid need for
+     * individual byte access. Since we use byte fifos, keep track of the
+     * alignment WRT to word access.
+     */
+    uint8_t rx_fifo_g_align;
+    uint8_t tx_fifo_g_align;
+    bool man_start_com_g;
+} XlnxZynqMPQSPIPS;
+
 typedef struct XilinxSPIPSClass {
     SysBusDeviceClass parent_class;
 
@@ -100,6 +126,7 @@ typedef struct XilinxSPIPSClass {
 
 #define TYPE_XILINX_SPIPS "xlnx.ps7-spi"
 #define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"
+#define TYPE_XLNX_ZYNQMP_QSPIPS "xlnx.usmp-gqspi"
 
 #define XILINX_SPIPS(obj) \
      OBJECT_CHECK(XilinxSPIPS, (obj), TYPE_XILINX_SPIPS)
@@ -110,5 +137,8 @@ typedef struct XilinxSPIPSClass {
 
 #define XILINX_QSPIPS(obj) \
      OBJECT_CHECK(XilinxQSPIPS, (obj), TYPE_XILINX_QSPIPS)
+
+#define XLNX_ZYNQMP_QSPIPS(obj) \
+     OBJECT_CHECK(XlnxZynqMPQSPIPS, (obj), TYPE_XLNX_ZYNQMP_QSPIPS)
 
 #endif /* XILINX_SPIPS_H */
