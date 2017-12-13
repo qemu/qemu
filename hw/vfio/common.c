@@ -1043,6 +1043,11 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
             v2 ? VFIO_SPAPR_TCE_v2_IOMMU : VFIO_SPAPR_TCE_IOMMU;
         ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
         if (ret) {
+            container->iommu_type = VFIO_SPAPR_TCE_IOMMU;
+            v2 = false;
+            ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
+        }
+        if (ret) {
             error_setg_errno(errp, errno, "failed to set iommu for container");
             ret = -errno;
             goto free_container_exit;
