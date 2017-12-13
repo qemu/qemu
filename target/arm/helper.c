@@ -8016,6 +8016,7 @@ static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
     case ARMMMUIdx_S1SE0:
     case ARMMMUIdx_S1NSE0:
     case ARMMMUIdx_MUser:
+    case ARMMMUIdx_MSUser:
         return true;
     default:
         return false;
