@@ -8341,11 +8341,11 @@ static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                              MMUAccessType access_type, ARMMMUIdx mmu_idx,
                              hwaddr *phys_ptr, int *prot,
-                             target_ulong *page_size, uint32_t *fsr,
+                             target_ulong *page_size,
                              ARMMMUFaultInfo *fi)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
-    int code;
+    int level = 1;
     uint32_t table;
     uint32_t desc;
     int type;
@@ -8359,7 +8359,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
     /* Lookup l1 descriptor.  */
     if (!get_level1_table_address(env, mmu_idx, &table, address)) {
         /* Section translation fault if page walk is disabled by PD0 or PD1 */
-        code = 5;
+        fi->type = ARMFault_Translation;
         goto do_fault;
     }
     desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx),
@@ -8374,21 +8374,20 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
     domain_prot = (dacr >> (domain * 2)) & 3;
     if (type == 0) {
         /* Section translation fault.  */
-        code = 5;
+        fi->type = ARMFault_Translation;
         goto do_fault;
     }
+    if (type != 2) {
+        level = 2;
+    }
     if (domain_prot == 0 || domain_prot == 2) {
-        if (type == 2)
-            code = 9; /* Section domain fault.  */
-        else
-            code = 11; /* Page domain fault.  */
+        fi->type = ARMFault_Domain;
         goto do_fault;
     }
     if (type == 2) {
         /* 1Mb section.  */
         phys_addr = (desc & 0xfff00000) | (address & 0x000fffff);
         ap = (desc >> 10) & 3;
-        code = 13;
         *page_size = 1024 * 1024;
     } else {
         /* Lookup l2 entry.  */
@@ -8403,7 +8402,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                            mmu_idx, fi);
         switch (desc & 3) {
         case 0: /* Page translation fault.  */
-            code = 7;
+            fi->type = ARMFault_Translation;
             goto do_fault;
         case 1: /* 64k page.  */
             phys_addr = (desc & 0xffff0000) | (address & 0xffff);
@@ -8426,7 +8425,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                     /* UNPREDICTABLE in ARMv5; we choose to take a
                      * page translation fault.
                      */
-                    code = 7;
+                    fi->type = ARMFault_Translation;
                     goto do_fault;
                 }
             } else {
@@ -8439,18 +8438,19 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
             /* Never happens, but compiler isn't smart enough to tell.  */
             abort();
         }
-        code = 15;
     }
     *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
     *prot |= *prot ? PAGE_EXEC : 0;
     if (!(*prot & (1 << access_type))) {
         /* Access permission fault.  */
+        fi->type = ARMFault_Permission;
         goto do_fault;
     }
     *phys_ptr = phys_addr;
     return false;
 do_fault:
-    *fsr = code | (domain << 4);
+    fi->domain = domain;
+    fi->level = level;
     return true;
 }
 
@@ -9860,8 +9860,11 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
         return get_phys_addr_v6(env, address, access_type, mmu_idx, phys_ptr,
                                 attrs, prot, page_size, fsr, fi);
     } else {
-        return get_phys_addr_v5(env, address, access_type, mmu_idx, phys_ptr,
-                                prot, page_size, fsr, fi);
+        bool ret = get_phys_addr_v5(env, address, access_type, mmu_idx,
+                                    phys_ptr, prot, page_size, fi);
+
+        *fsr = arm_fi_to_sfsc(fi);
+        return ret;
     }
 }
 
