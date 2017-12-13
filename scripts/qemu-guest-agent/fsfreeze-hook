@@ -13,7 +13,7 @@ FSFREEZE_D=$(dirname -- "$0")/fsfreeze-hook.d
 # Check whether file $1 is a backup or rpm-generated file and should be ignored
 is_ignored_file() {
     case "$1" in
-        *~ | *.bak | *.orig | *.rpmnew | *.rpmorig | *.rpmsave | *.sample)
+        *~ | *.bak | *.orig | *.rpmnew | *.rpmorig | *.rpmsave | *.sample | *.dpkg-old | *.dpkg-new | *.dpkg-tmp | *.dpkg-dist | *.dpkg-bak | *.dpkg-backup | *.dpkg-remove)
             return 0 ;;
     esac
     return 1
