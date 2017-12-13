@@ -2339,14 +2339,16 @@ static inline int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
     }
 }
 
-/* Return the MMU index for a v7M CPU in the specified security state */
-static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env,
-                                                     bool secstate)
+/* Return the MMU index for a v7M CPU in the specified security and
+ * privilege state
+ */
+static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(CPUARMState *env,
+                                                              bool secstate,
+                                                              bool priv)
 {
-    int el = arm_current_el(env);
     ARMMMUIdx mmu_idx = ARM_MMU_IDX_M;
 
-    if (el != 0) {
+    if (priv) {
         mmu_idx |= ARM_MMU_IDX_M_PRIV;
     }
 
@@ -2359,6 +2361,15 @@ static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env,
     }
 
     return mmu_idx;
+}
+
+/* Return the MMU index for a v7M CPU in the specified security state */
+static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env,
+                                                     bool secstate)
+{
+    bool priv = arm_current_el(env) != 0;
+
+    return arm_v7m_mmu_idx_for_secstate_and_priv(env, secstate, priv);
 }
 
 /* Determine the current mmu_idx to use for normal loads/stores */
