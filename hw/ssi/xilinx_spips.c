@@ -355,6 +355,7 @@ static void xlnx_zynqmp_qspips_reset(DeviceState *d)
     s->regs[R_GQSPI_RX_THRESH] = 1;
     s->regs[R_GQSPI_GFIFO_THRESH] = 1;
     s->regs[R_GQSPI_IMR] = GQSPI_IXR_MASK;
+    s->regs[R_MOD_ID] = 0x01090101;
     s->man_start_com_g = false;
     s->gqspi_irqline = 0;
     xlnx_zynqmp_qspips_update_ixr(s);
