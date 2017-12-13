@@ -690,7 +690,7 @@ static inline uint32_t arm_fi_to_lfsc(ARMMMUFaultInfo *fi)
 /* Do a page table walk and add page to TLB if possible */
 bool arm_tlb_fill(CPUState *cpu, vaddr address,
                   MMUAccessType access_type, int mmu_idx,
-                  uint32_t *fsr, ARMMMUFaultInfo *fi);
+                  ARMMMUFaultInfo *fi);
 
 /* Return true if the stage 1 translation regime is using LPAE format page
  * tables */
