@@ -85,6 +85,7 @@ static void aio_ret_cb(void *opaque, int ret)
 enum drain_type {
     BDRV_DRAIN_ALL,
     BDRV_DRAIN,
+    DRAIN_TYPE_MAX,
 };
 
 static void do_drain_begin(enum drain_type drain_type, BlockDriverState *bs)
@@ -221,6 +222,60 @@ static void test_quiesce_drain(void)
     test_quiesce_common(BDRV_DRAIN, false);
 }
 
+static void test_nested(void)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs, *backing;
+    BDRVTestState *s, *backing_s;
+    enum drain_type outer, inner;
+
+    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
+                              &error_abort);
+    s = bs->opaque;
+    blk_insert_bs(blk, bs, &error_abort);
+
+    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    backing_s = backing->opaque;
+    bdrv_set_backing_hd(bs, backing, &error_abort);
+
+    for (outer = 0; outer < DRAIN_TYPE_MAX; outer++) {
+        for (inner = 0; inner < DRAIN_TYPE_MAX; inner++) {
+            /* XXX bdrv_drain_all() doesn't increase the quiesce_counter */
+            int bs_quiesce      = (outer != BDRV_DRAIN_ALL) +
+                                  (inner != BDRV_DRAIN_ALL);
+            int backing_quiesce = 0;
+            int backing_cb_cnt  = (outer != BDRV_DRAIN) +
+                                  (inner != BDRV_DRAIN);
+
+            g_assert_cmpint(bs->quiesce_counter, ==, 0);
+            g_assert_cmpint(backing->quiesce_counter, ==, 0);
+            g_assert_cmpint(s->drain_count, ==, 0);
+            g_assert_cmpint(backing_s->drain_count, ==, 0);
+
+            do_drain_begin(outer, bs);
+            do_drain_begin(inner, bs);
+
+            g_assert_cmpint(bs->quiesce_counter, ==, bs_quiesce);
+            g_assert_cmpint(backing->quiesce_counter, ==, backing_quiesce);
+            g_assert_cmpint(s->drain_count, ==, 2);
+            g_assert_cmpint(backing_s->drain_count, ==, backing_cb_cnt);
+
+            do_drain_end(inner, bs);
+            do_drain_end(outer, bs);
+
+            g_assert_cmpint(bs->quiesce_counter, ==, 0);
+            g_assert_cmpint(backing->quiesce_counter, ==, 0);
+            g_assert_cmpint(s->drain_count, ==, 0);
+            g_assert_cmpint(backing_s->drain_count, ==, 0);
+        }
+    }
+
+    bdrv_unref(backing);
+    bdrv_unref(bs);
+    blk_unref(blk);
+}
+
 
 typedef struct TestBlockJob {
     BlockJob common;
@@ -348,6 +403,8 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/quiesce/drain_all", test_quiesce_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/drain", test_quiesce_drain);
+
+    g_test_add_func("/bdrv-drain/nested", test_nested);
 
     g_test_add_func("/bdrv-drain/blockjob/drain_all", test_blockjob_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/drain", test_blockjob_drain);
