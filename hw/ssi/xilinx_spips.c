@@ -27,8 +27,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/ptimer.h"
 #include "qemu/log.h"
-#include "qemu/fifo8.h"
-#include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 #include "hw/ssi/xilinx_spips.h"
 #include "qapi/error.h"
@@ -116,43 +114,10 @@
 
 /* 16MB per linear region */
 #define LQSPI_ADDRESS_BITS 24
-/* Bite off 4k chunks at a time */
-#define LQSPI_CACHE_SIZE 1024
 
 #define SNOOP_CHECKING 0xFF
 #define SNOOP_NONE 0xFE
 #define SNOOP_STRIPING 0
-
-typedef enum {
-    READ = 0x3,
-    FAST_READ = 0xb,
-    DOR = 0x3b,
-    QOR = 0x6b,
-    DIOR = 0xbb,
-    QIOR = 0xeb,
-
-    PP = 0x2,
-    DPP = 0xa2,
-    QPP = 0x32,
-} FlashCMD;
-
-typedef struct {
-    XilinxSPIPS parent_obj;
-
-    uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
-    hwaddr lqspi_cached_addr;
-    Error *migration_blocker;
-    bool mmio_execution_enabled;
-} XilinxQSPIPS;
-
-typedef struct XilinxSPIPSClass {
-    SysBusDeviceClass parent_class;
-
-    const MemoryRegionOps *reg_ops;
-
-    uint32_t rx_fifo_size;
-    uint32_t tx_fifo_size;
-} XilinxSPIPSClass;
 
 static inline int num_effective_busses(XilinxSPIPS *s)
 {
