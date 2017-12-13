@@ -1538,6 +1538,7 @@ M: Alistair Francis <alistair.francis@xilinx.com>
 S: Maintained
 F: hw/core/register.c
 F: include/hw/register.h
+F: include/hw/registerfields.h
 
 SLIRP
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
