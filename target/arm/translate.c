@@ -159,12 +159,16 @@ static inline int get_a32_user_mem_index(DisasContext *s)
         return arm_to_core_mmu_idx(ARMMMUIdx_S1SE0);
     case ARMMMUIdx_MUser:
     case ARMMMUIdx_MPriv:
-    case ARMMMUIdx_MNegPri:
         return arm_to_core_mmu_idx(ARMMMUIdx_MUser);
+    case ARMMMUIdx_MUserNegPri:
+    case ARMMMUIdx_MPrivNegPri:
+        return arm_to_core_mmu_idx(ARMMMUIdx_MUserNegPri);
     case ARMMMUIdx_MSUser:
     case ARMMMUIdx_MSPriv:
-    case ARMMMUIdx_MSNegPri:
         return arm_to_core_mmu_idx(ARMMMUIdx_MSUser);
+    case ARMMMUIdx_MSUserNegPri:
+    case ARMMMUIdx_MSPrivNegPri:
+        return arm_to_core_mmu_idx(ARMMMUIdx_MSUserNegPri);
     case ARMMMUIdx_S2NS:
     default:
         g_assert_not_reached();

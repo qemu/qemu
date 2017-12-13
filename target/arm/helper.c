@@ -7856,11 +7856,13 @@ static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
     case ARMMMUIdx_S1SE1:
     case ARMMMUIdx_S1NSE0:
     case ARMMMUIdx_S1NSE1:
+    case ARMMMUIdx_MPrivNegPri:
+    case ARMMMUIdx_MUserNegPri:
     case ARMMMUIdx_MPriv:
-    case ARMMMUIdx_MNegPri:
     case ARMMMUIdx_MUser:
+    case ARMMMUIdx_MSPrivNegPri:
+    case ARMMMUIdx_MSUserNegPri:
     case ARMMMUIdx_MSPriv:
-    case ARMMMUIdx_MSNegPri:
     case ARMMMUIdx_MSUser:
         return 1;
     default:
@@ -7883,8 +7885,7 @@ static inline bool regime_translation_disabled(CPUARMState *env,
                 (R_V7M_MPU_CTRL_ENABLE_MASK | R_V7M_MPU_CTRL_HFNMIENA_MASK)) {
         case R_V7M_MPU_CTRL_ENABLE_MASK:
             /* Enabled, but not for HardFault and NMI */
-            return mmu_idx == ARMMMUIdx_MNegPri ||
-                mmu_idx == ARMMMUIdx_MSNegPri;
+            return mmu_idx & ARM_MMU_IDX_M_NEGPRI;
         case R_V7M_MPU_CTRL_ENABLE_MASK | R_V7M_MPU_CTRL_HFNMIENA_MASK:
             /* Enabled for all cases */
             return false;
@@ -8017,6 +8018,8 @@ static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
     case ARMMMUIdx_S1NSE0:
     case ARMMMUIdx_MUser:
     case ARMMMUIdx_MSUser:
+    case ARMMMUIdx_MUserNegPri:
+    case ARMMMUIdx_MSUserNegPri:
         return true;
     default:
         return false;

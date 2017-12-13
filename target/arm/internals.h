@@ -544,15 +544,17 @@ static inline bool regime_is_secure(CPUARMState *env, ARMMMUIdx mmu_idx)
     case ARMMMUIdx_S1NSE1:
     case ARMMMUIdx_S1E2:
     case ARMMMUIdx_S2NS:
+    case ARMMMUIdx_MPrivNegPri:
+    case ARMMMUIdx_MUserNegPri:
     case ARMMMUIdx_MPriv:
-    case ARMMMUIdx_MNegPri:
     case ARMMMUIdx_MUser:
         return false;
     case ARMMMUIdx_S1E3:
     case ARMMMUIdx_S1SE0:
     case ARMMMUIdx_S1SE1:
+    case ARMMMUIdx_MSPrivNegPri:
+    case ARMMMUIdx_MSUserNegPri:
     case ARMMMUIdx_MSPriv:
-    case ARMMMUIdx_MSNegPri:
     case ARMMMUIdx_MSUser:
         return true;
     default:
