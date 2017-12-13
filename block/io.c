@@ -273,19 +273,21 @@ void bdrv_drained_begin(BlockDriverState *bs)
 
 void bdrv_drained_end(BlockDriverState *bs)
 {
+    int old_quiesce_counter;
+
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(bs, false);
         return;
     }
     assert(bs->quiesce_counter > 0);
-    if (atomic_fetch_dec(&bs->quiesce_counter) > 1) {
-        return;
-    }
+    old_quiesce_counter = atomic_fetch_dec(&bs->quiesce_counter);
 
     /* Re-enable things in child-to-parent order */
     bdrv_drain_invoke(bs, false, false);
-    bdrv_parent_drained_end(bs);
-    aio_enable_external(bdrv_get_aio_context(bs));
+    if (old_quiesce_counter == 1) {
+        bdrv_parent_drained_end(bs);
+        aio_enable_external(bdrv_get_aio_context(bs));
+    }
 }
 
 /*
