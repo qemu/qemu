@@ -329,10 +329,7 @@ static void xilinx_spips_reset(DeviceState *d)
 {
     XilinxSPIPS *s = XILINX_SPIPS(d);
 
-    int i;
-    for (i = 0; i < XLNX_SPIPS_R_MAX; i++) {
-        s->regs[i] = 0;
-    }
+    memset(s->regs, 0, sizeof(s->regs));
 
     fifo8_reset(&s->rx_fifo);
     fifo8_reset(&s->rx_fifo);
@@ -357,13 +354,11 @@ static void xilinx_spips_reset(DeviceState *d)
 static void xlnx_zynqmp_qspips_reset(DeviceState *d)
 {
     XlnxZynqMPQSPIPS *s = XLNX_ZYNQMP_QSPIPS(d);
-    int i;
 
     xilinx_spips_reset(d);
 
-    for (i = 0; i < XLNX_ZYNQMP_SPIPS_R_MAX; i++) {
-        s->regs[i] = 0;
-    }
+    memset(s->regs, 0, sizeof(s->regs));
+
     fifo8_reset(&s->rx_fifo_g);
     fifo8_reset(&s->rx_fifo_g);
     fifo32_reset(&s->fifo_g);
