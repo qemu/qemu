@@ -53,8 +53,8 @@ Depending on the request type, payload can be:
 
  * A vring state description
    ---------------
-  | index | num |
-  ---------------
+   | index | num |
+   ---------------
 
    Index: a 32-bit index
    Num: a 32-bit number
