@@ -338,8 +338,6 @@ void bdrv_drain_all_begin(void)
      * context. */
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
 
-    block_job_pause_all();
-
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
@@ -395,8 +393,6 @@ void bdrv_drain_all_end(void)
         aio_enable_external(aio_context);
         aio_context_release(aio_context);
     }
-
-    block_job_resume_all();
 }
 
 void bdrv_drain_all(void)

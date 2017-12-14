@@ -284,9 +284,8 @@ static void test_blockjob_common(enum drain_type drain_type)
     do_drain_begin(drain_type, src);
 
     if (drain_type == BDRV_DRAIN_ALL) {
-        /* bdrv_drain_all() drains both src and target, and involves an
-         * additional block_job_pause_all() */
-        g_assert_cmpint(job->pause_count, ==, 3);
+        /* bdrv_drain_all() drains both src and target */
+        g_assert_cmpint(job->pause_count, ==, 2);
     } else {
         g_assert_cmpint(job->pause_count, ==, 1);
     }
@@ -303,9 +302,8 @@ static void test_blockjob_common(enum drain_type drain_type)
     do_drain_begin(drain_type, target);
 
     if (drain_type == BDRV_DRAIN_ALL) {
-        /* bdrv_drain_all() drains both src and target, and involves an
-         * additional block_job_pause_all() */
-        g_assert_cmpint(job->pause_count, ==, 3);
+        /* bdrv_drain_all() drains both src and target */
+        g_assert_cmpint(job->pause_count, ==, 2);
     } else {
         g_assert_cmpint(job->pause_count, ==, 1);
     }
