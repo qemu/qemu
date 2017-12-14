@@ -159,12 +159,16 @@ static inline int get_a32_user_mem_index(DisasContext *s)
         return arm_to_core_mmu_idx(ARMMMUIdx_S1SE0);
     case ARMMMUIdx_MUser:
     case ARMMMUIdx_MPriv:
-    case ARMMMUIdx_MNegPri:
         return arm_to_core_mmu_idx(ARMMMUIdx_MUser);
+    case ARMMMUIdx_MUserNegPri:
+    case ARMMMUIdx_MPrivNegPri:
+        return arm_to_core_mmu_idx(ARMMMUIdx_MUserNegPri);
     case ARMMMUIdx_MSUser:
     case ARMMMUIdx_MSPriv:
-    case ARMMMUIdx_MSNegPri:
         return arm_to_core_mmu_idx(ARMMMUIdx_MSUser);
+    case ARMMMUIdx_MSUserNegPri:
+    case ARMMMUIdx_MSPrivNegPri:
+        return arm_to_core_mmu_idx(ARMMMUIdx_MSUserNegPri);
     case ARMMMUIdx_S2NS:
     default:
         g_assert_not_reached();
@@ -9806,7 +9810,7 @@ static int disas_thumb2_insn(DisasContext *s, uint32_t insn)
         if (insn & (1 << 22)) {
             /* 0b1110_100x_x1xx_xxxx_xxxx_xxxx_xxxx_xxxx
              * - load/store doubleword, load/store exclusive, ldacq/strel,
-             *   table branch.
+             *   table branch, TT.
              */
             if (insn == 0xe97fe97f && arm_dc_feature(s, ARM_FEATURE_M) &&
                 arm_dc_feature(s, ARM_FEATURE_V8)) {
@@ -9883,8 +9887,35 @@ static int disas_thumb2_insn(DisasContext *s, uint32_t insn)
             } else if ((insn & (1 << 23)) == 0) {
                 /* 0b1110_1000_010x_xxxx_xxxx_xxxx_xxxx_xxxx
                  * - load/store exclusive word
+                 * - TT (v8M only)
                  */
                 if (rs == 15) {
+                    if (!(insn & (1 << 20)) &&
+                        arm_dc_feature(s, ARM_FEATURE_M) &&
+                        arm_dc_feature(s, ARM_FEATURE_V8)) {
+                        /* 0b1110_1000_0100_xxxx_1111_xxxx_xxxx_xxxx
+                         *  - TT (v8M only)
+                         */
+                        bool alt = insn & (1 << 7);
+                        TCGv_i32 addr, op, ttresp;
+
+                        if ((insn & 0x3f) || rd == 13 || rd == 15 || rn == 15) {
+                            /* we UNDEF for these UNPREDICTABLE cases */
+                            goto illegal_op;
+                        }
+
+                        if (alt && !s->v8m_secure) {
+                            goto illegal_op;
+                        }
+
+                        addr = load_reg(s, rn);
+                        op = tcg_const_i32(extract32(insn, 6, 2));
+                        ttresp = tcg_temp_new_i32();
+                        gen_helper_v7m_tt(ttresp, cpu_env, addr, op);
+                        tcg_temp_free_i32(addr);
+                        tcg_temp_free_i32(op);
+                        store_reg(s, rd, ttresp);
+                    }
                     goto illegal_op;
                 }
                 addr = tcg_temp_local_new_i32();
