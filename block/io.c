@@ -413,11 +413,8 @@ void bdrv_drain_all_begin(void)
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
-        /* Stop things in parent-to-child order */
         aio_context_acquire(aio_context);
-        aio_disable_external(aio_context);
-        bdrv_parent_drained_begin(bs, NULL);
-        bdrv_drain_invoke(bs, true, true);
+        bdrv_do_drained_begin(bs, true, NULL);
         aio_context_release(aio_context);
 
         if (!g_slist_find(aio_ctxs, aio_context)) {
@@ -458,11 +455,8 @@ void bdrv_drain_all_end(void)
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
-        /* Re-enable things in child-to-parent order */
         aio_context_acquire(aio_context);
-        bdrv_drain_invoke(bs, false, true);
-        bdrv_parent_drained_end(bs, NULL);
-        aio_enable_external(aio_context);
+        bdrv_do_drained_end(bs, true, NULL);
         aio_context_release(aio_context);
     }
 }

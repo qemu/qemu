@@ -276,8 +276,7 @@ static void test_quiesce_common(enum drain_type drain_type, bool recursive)
 
 static void test_quiesce_drain_all(void)
 {
-    // XXX drain_all doesn't quiesce
-    //test_quiesce_common(BDRV_DRAIN_ALL, true);
+    test_quiesce_common(BDRV_DRAIN_ALL, true);
 }
 
 static void test_quiesce_drain(void)
@@ -319,12 +318,7 @@ static void test_nested(void)
 
     for (outer = 0; outer < DRAIN_TYPE_MAX; outer++) {
         for (inner = 0; inner < DRAIN_TYPE_MAX; inner++) {
-            /* XXX bdrv_drain_all() doesn't increase the quiesce_counter */
-            int bs_quiesce      = (outer != BDRV_DRAIN_ALL) +
-                                  (inner != BDRV_DRAIN_ALL);
-            int backing_quiesce = (outer == BDRV_SUBTREE_DRAIN) +
-                                  (inner == BDRV_SUBTREE_DRAIN);
-            int backing_cb_cnt  = (outer != BDRV_DRAIN) +
+            int backing_quiesce = (outer != BDRV_DRAIN) +
                                   (inner != BDRV_DRAIN);
 
             g_assert_cmpint(bs->quiesce_counter, ==, 0);
@@ -335,10 +329,10 @@ static void test_nested(void)
             do_drain_begin(outer, bs);
             do_drain_begin(inner, bs);
 
-            g_assert_cmpint(bs->quiesce_counter, ==, bs_quiesce);
+            g_assert_cmpint(bs->quiesce_counter, ==, 2);
             g_assert_cmpint(backing->quiesce_counter, ==, backing_quiesce);
             g_assert_cmpint(s->drain_count, ==, 2);
-            g_assert_cmpint(backing_s->drain_count, ==, backing_cb_cnt);
+            g_assert_cmpint(backing_s->drain_count, ==, backing_quiesce);
 
             do_drain_end(inner, bs);
             do_drain_end(outer, bs);
