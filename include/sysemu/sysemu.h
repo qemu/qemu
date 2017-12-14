@@ -166,8 +166,6 @@ extern Chardev *serial_hds[MAX_SERIAL_PORTS];
 
 extern Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 
-void hmp_usb_add(Monitor *mon, const QDict *qdict);
-void hmp_usb_del(Monitor *mon, const QDict *qdict);
 void hmp_info_usb(Monitor *mon, const QDict *qdict);
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
