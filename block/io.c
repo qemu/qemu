@@ -168,9 +168,8 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
 }
 
 /* Recursively call BlockDriver.bdrv_co_drain_begin/end callbacks */
-static void bdrv_drain_invoke(BlockDriverState *bs, bool begin, bool recursive)
+static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 {
-    BdrvChild *child, *tmp;
     BdrvCoDrainData data = { .bs = bs, .done = false, .begin = begin};
 
     if (!bs->drv || (begin && !bs->drv->bdrv_co_drain_begin) ||
@@ -181,12 +180,6 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin, bool recursive)
     data.co = qemu_coroutine_create(bdrv_drain_invoke_entry, &data);
     bdrv_coroutine_enter(bs, data.co);
     BDRV_POLL_WHILE(bs, !data.done);
-
-    if (recursive) {
-        QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
-            bdrv_drain_invoke(child->bs, begin, true);
-        }
-    }
 }
 
 static bool bdrv_drain_recurse(BlockDriverState *bs)
@@ -287,7 +280,7 @@ void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
     }
 
     bdrv_parent_drained_begin(bs, parent);
-    bdrv_drain_invoke(bs, true, false);
+    bdrv_drain_invoke(bs, true);
     bdrv_drain_recurse(bs);
 
     if (recursive) {
@@ -322,7 +315,7 @@ void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
     old_quiesce_counter = atomic_fetch_dec(&bs->quiesce_counter);
 
     /* Re-enable things in child-to-parent order */
-    bdrv_drain_invoke(bs, false, false);
+    bdrv_drain_invoke(bs, false);
     bdrv_parent_drained_end(bs, parent);
     if (old_quiesce_counter == 1) {
         aio_enable_external(bdrv_get_aio_context(bs));
