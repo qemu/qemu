@@ -810,6 +810,28 @@ static void test_acpi_piix4_tcg_memhp(void)
     free_test_data(&data);
 }
 
+static void test_acpi_q35_tcg_numamem(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".numamem";
+    test_acpi_one(" -numa node -numa node,mem=128", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_piix4_tcg_numamem(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_PC;
+    data.variant = ".numamem";
+    test_acpi_one(" -numa node -numa node,mem=128", &data);
+    free_test_data(&data);
+}
+
 int main(int argc, char *argv[])
 {
     const char *arch = qtest_get_arch();
@@ -832,6 +854,8 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/cpuhp", test_acpi_q35_tcg_cphp);
         qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_tcg_memhp);
         qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
+        qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_tcg_numamem);
+        qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
