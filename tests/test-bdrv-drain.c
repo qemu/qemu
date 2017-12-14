@@ -338,6 +338,79 @@ static void test_nested(void)
     blk_unref(blk);
 }
 
+static void test_multiparent(void)
+{
+    BlockBackend *blk_a, *blk_b;
+    BlockDriverState *bs_a, *bs_b, *backing;
+    BDRVTestState *a_s, *b_s, *backing_s;
+
+    blk_a = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
+                                &error_abort);
+    a_s = bs_a->opaque;
+    blk_insert_bs(blk_a, bs_a, &error_abort);
+
+    blk_b = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
+                                &error_abort);
+    b_s = bs_b->opaque;
+    blk_insert_bs(blk_b, bs_b, &error_abort);
+
+    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    backing_s = backing->opaque;
+    bdrv_set_backing_hd(bs_a, backing, &error_abort);
+    bdrv_set_backing_hd(bs_b, backing, &error_abort);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
+    g_assert_cmpint(backing->quiesce_counter, ==, 0);
+    g_assert_cmpint(a_s->drain_count, ==, 0);
+    g_assert_cmpint(b_s->drain_count, ==, 0);
+    g_assert_cmpint(backing_s->drain_count, ==, 0);
+
+    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
+    g_assert_cmpint(backing->quiesce_counter, ==, 1);
+    g_assert_cmpint(a_s->drain_count, ==, 1);
+    g_assert_cmpint(b_s->drain_count, ==, 1);
+    g_assert_cmpint(backing_s->drain_count, ==, 1);
+
+    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 2);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 2);
+    g_assert_cmpint(backing->quiesce_counter, ==, 2);
+    g_assert_cmpint(a_s->drain_count, ==, 2);
+    g_assert_cmpint(b_s->drain_count, ==, 2);
+    g_assert_cmpint(backing_s->drain_count, ==, 2);
+
+    do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
+    g_assert_cmpint(backing->quiesce_counter, ==, 1);
+    g_assert_cmpint(a_s->drain_count, ==, 1);
+    g_assert_cmpint(b_s->drain_count, ==, 1);
+    g_assert_cmpint(backing_s->drain_count, ==, 1);
+
+    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
+    g_assert_cmpint(backing->quiesce_counter, ==, 0);
+    g_assert_cmpint(a_s->drain_count, ==, 0);
+    g_assert_cmpint(b_s->drain_count, ==, 0);
+    g_assert_cmpint(backing_s->drain_count, ==, 0);
+
+    bdrv_unref(backing);
+    bdrv_unref(bs_a);
+    bdrv_unref(bs_b);
+    blk_unref(blk_a);
+    blk_unref(blk_b);
+}
+
 
 typedef struct TestBlockJob {
     BlockJob common;
@@ -487,6 +560,7 @@ int main(int argc, char **argv)
                     test_quiesce_co_drain_subtree);
 
     g_test_add_func("/bdrv-drain/nested", test_nested);
+    g_test_add_func("/bdrv-drain/multiparent", test_multiparent);
 
     g_test_add_func("/bdrv-drain/blockjob/drain_all", test_blockjob_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/drain", test_blockjob_drain);
