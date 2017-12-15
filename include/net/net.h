@@ -227,7 +227,8 @@ NetClientState *net_hub_port_find(int hub_id);
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
-#define POLYNOMIAL 0x04c11db6
+#define POLYNOMIAL_BE 0x04c11db6
+uint32_t net_crc32(const uint8_t *p, int len);
 unsigned compute_mcast_idx(const uint8_t *ep);
 
 #define vmstate_offset_macaddr(_state, _field)                       \
