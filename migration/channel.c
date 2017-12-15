@@ -55,29 +55,29 @@ void migration_channel_process_incoming(QIOChannel *ioc)
  * @s: Current migration state
  * @ioc: Channel to which we are connecting
  * @hostname: Where we want to connect
+ * @error: Error indicating failure to connect, free'd here
  */
 void migration_channel_connect(MigrationState *s,
                                QIOChannel *ioc,
-                               const char *hostname)
+                               const char *hostname,
+                               Error *error)
 {
     trace_migration_set_outgoing_channel(
-        ioc, object_get_typename(OBJECT(ioc)), hostname);
+        ioc, object_get_typename(OBJECT(ioc)), hostname, error);
 
-    if (s->parameters.tls_creds &&
-        *s->parameters.tls_creds &&
-        !object_dynamic_cast(OBJECT(ioc),
-                             TYPE_QIO_CHANNEL_TLS)) {
-        Error *local_err = NULL;
-        migration_tls_channel_connect(s, ioc, hostname, &local_err);
-        if (local_err) {
-            migrate_fd_error(s, local_err);
-            error_free(local_err);
+    if (!error) {
+        if (s->parameters.tls_creds &&
+            *s->parameters.tls_creds &&
+            !object_dynamic_cast(OBJECT(ioc),
+                                 TYPE_QIO_CHANNEL_TLS)) {
+            migration_tls_channel_connect(s, ioc, hostname, &error);
+        } else {
+            QEMUFile *f = qemu_fopen_channel_output(ioc);
+
+            s->to_dst_file = f;
+
         }
-    } else {
-        QEMUFile *f = qemu_fopen_channel_output(ioc);
-
-        s->to_dst_file = f;
-
-        migrate_fd_connect(s, NULL);
     }
+    migrate_fd_connect(s, error);
+    error_free(error);
 }
