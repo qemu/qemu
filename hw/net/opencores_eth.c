@@ -36,6 +36,7 @@
 #include "hw/net/mii.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
+#include "net/eth.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
@@ -373,7 +374,7 @@ static ssize_t open_eth_receive(NetClientState *nc,
         if (memcmp(buf, bcast_addr, sizeof(bcast_addr)) == 0) {
             miss = GET_REGBIT(s, MODER, BRO);
         } else if ((buf[0] & 0x1) || GET_REGBIT(s, MODER, IAM)) {
-            unsigned mcast_idx = compute_mcast_idx(buf);
+            unsigned mcast_idx = net_crc32(buf, ETH_ALEN) >> 26;
             miss = !(s->regs[HASH0 + mcast_idx / 32] &
                     (1 << (mcast_idx % 32)));
             trace_open_eth_receive_mcast(
