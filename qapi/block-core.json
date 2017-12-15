@@ -3918,6 +3918,10 @@
 # does not support all kinds of operations, all kinds of children, nor
 # all block drivers.
 #
+# FIXME Removing children from a quorum node means introducing gaps in the
+# child indices. This cannot be represented in the 'children' list of
+# BlockdevOptionsQuorum, as returned by .bdrv_refresh_filename().
+#
 # Warning: The data in a new quorum child MUST be consistent with that of
 # the rest of the array.
 #
