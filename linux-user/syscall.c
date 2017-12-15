@@ -1692,7 +1692,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         void *target_data = TARGET_CMSG_DATA(target_cmsg);
 
         int len = tswapal(target_cmsg->cmsg_len)
-                  - TARGET_CMSG_ALIGN(sizeof (struct target_cmsghdr));
+            - sizeof(struct target_cmsghdr);
 
         space += CMSG_SPACE(len);
         if (space > msgh->msg_controllen) {
@@ -1773,7 +1773,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         void *data = CMSG_DATA(cmsg);
         void *target_data = TARGET_CMSG_DATA(target_cmsg);
 
-        int len = cmsg->cmsg_len - CMSG_ALIGN(sizeof (struct cmsghdr));
+        int len = cmsg->cmsg_len - sizeof(struct cmsghdr);
         int tgt_len, tgt_space;
 
         /* We never copy a half-header but may copy half-data;
