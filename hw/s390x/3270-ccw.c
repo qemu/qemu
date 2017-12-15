@@ -104,7 +104,7 @@ static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
     SubchDev *sch;
     Error *err = NULL;
 
-    sch = css_create_sch(cdev->devno, true, cbus->squash_mcss, errp);
+    sch = css_create_sch(cdev->devno, cbus->squash_mcss, errp);
     if (!sch) {
         return;
     }

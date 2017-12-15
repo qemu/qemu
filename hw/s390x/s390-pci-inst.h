@@ -162,7 +162,7 @@ typedef struct ClpRspQueryPciGrp {
 #define CLP_RSP_QPCIG_MASK_FRAME   0x2
 #define CLP_RSP_QPCIG_MASK_REFRESH 0x1
     uint8_t fr;
-    uint16_t reserved2;
+    uint16_t maxstbl;
     uint16_t mui;
     uint64_t reserved3;
     uint64_t dasm; /* dma address space mask */
@@ -293,13 +293,19 @@ typedef struct ZpciFib {
 
 int pci_dereg_irqs(S390PCIBusDevice *pbdev);
 void pci_dereg_ioat(S390PCIIOMMU *iommu);
-int clp_service_call(S390CPU *cpu, uint8_t r2);
-int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2);
-int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2);
-int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2);
+int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra);
+int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra);
+int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra);
+int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra);
 int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
-                        uint8_t ar);
-int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar);
-int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar);
+                        uint8_t ar, uintptr_t ra);
+int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
+                        uintptr_t ra);
+int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
+                         uintptr_t ra);
+
+#define ZPCI_IO_BAR_MIN 0
+#define ZPCI_IO_BAR_MAX 5
+#define ZPCI_CONFIG_BAR 15
 
 #endif

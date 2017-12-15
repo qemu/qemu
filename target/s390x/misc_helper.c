@@ -45,22 +45,6 @@
 #define HELPER_LOG(x...)
 #endif
 
-/* Raise an exception dynamically from a helper function.  */
-void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
-                                     uintptr_t retaddr)
-{
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    cs->exception_index = EXCP_PGM;
-    env->int_pgm_code = excp;
-    env->int_pgm_ilen = ILEN_AUTO;
-
-    /* Use the (ultimate) callers address to find the insn that trapped.  */
-    cpu_restore_state(cs, retaddr);
-
-    cpu_loop_exit(cs);
-}
-
 /* Raise an exception statically from a TB.  */
 void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
@@ -71,6 +55,21 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
     cpu_loop_exit(cs);
 }
 
+/* Store CPU Timer (also used for EXTRACT CPU TIME) */
+uint64_t HELPER(stpt)(CPUS390XState *env)
+{
+#if defined(CONFIG_USER_ONLY)
+    /*
+     * Fake a descending CPU timer. We could get negative values here,
+     * but we don't care as it is up to the OS when to process that
+     * interrupt and reset to > 0.
+     */
+    return UINT64_MAX - (uint64_t)cpu_get_host_ticks();
+#else
+    return time2tod(env->cputm - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+#endif
+}
+
 #ifndef CONFIG_USER_ONLY
 
 /* SCLP service call */
@@ -78,11 +77,10 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
     qemu_mutex_lock_iothread();
     int r = sclp_service_call(env, r1, r2);
-    if (r < 0) {
-        program_interrupt(env, -r, 4);
-        r = 0;
-    }
     qemu_mutex_unlock_iothread();
+    if (r < 0) {
+        s390_program_interrupt(env, -r, 4, GETPC());
+    }
     return r;
 }
 
@@ -104,7 +102,7 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
     case 0x308:
         /* ipl */
         qemu_mutex_lock_iothread();
-        handle_diag_308(env, r1, r3);
+        handle_diag_308(env, r1, r3, GETPC());
         qemu_mutex_unlock_iothread();
         r = 0;
         break;
@@ -118,7 +116,7 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
     }
 
     if (r) {
-        program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO);
+        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, GETPC());
     }
 }
 
@@ -163,6 +161,17 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
     timer_mod(env->tod_timer, env->tod_basetime + time);
 }
 
+/* Set Tod Programmable Field */
+void HELPER(sckpf)(CPUS390XState *env, uint64_t r0)
+{
+    uint32_t val = r0;
+
+    if (val & 0xffff0000) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, 2, GETPC());
+    }
+    env->todpr = val;
+}
+
 /* Store Clock Comparator */
 uint64_t HELPER(stckc)(CPUS390XState *env)
 {
@@ -184,12 +193,6 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
     timer_mod(env->cpu_timer, env->cputm);
 }
 
-/* Store CPU Timer */
-uint64_t HELPER(stpt)(CPUS390XState *env)
-{
-    return time2tod(env->cputm - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-}
-
 /* Store System Information */
 uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                       uint64_t r0, uint64_t r1)
@@ -201,7 +204,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
     if ((r0 & STSI_LEVEL_MASK) <= STSI_LEVEL_3 &&
         ((r0 & STSI_R0_RESERVED_MASK) || (r1 & STSI_R1_RESERVED_MASK))) {
         /* valid function code, invalid reserved bits */
-        program_interrupt(env, PGM_SPECIFICATION, 4);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, GETPC());
     }
 
     sel1 = r0 & STSI_R0_SEL1_MASK;
@@ -339,7 +342,7 @@ void HELPER(xsch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_xsch(cpu, r1);
+    ioinst_handle_xsch(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -347,7 +350,7 @@ void HELPER(csch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_csch(cpu, r1);
+    ioinst_handle_csch(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -355,7 +358,7 @@ void HELPER(hsch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_hsch(cpu, r1);
+    ioinst_handle_hsch(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -363,7 +366,7 @@ void HELPER(msch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_msch(cpu, r1, inst >> 16);
+    ioinst_handle_msch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -371,7 +374,7 @@ void HELPER(rchp)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_rchp(cpu, r1);
+    ioinst_handle_rchp(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -379,7 +382,25 @@ void HELPER(rsch)(CPUS390XState *env, uint64_t r1)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_rsch(cpu, r1);
+    ioinst_handle_rsch(cpu, r1, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(sal)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    ioinst_handle_sal(cpu, r1, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(schm)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    ioinst_handle_schm(cpu, r1, r2, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -387,7 +408,16 @@ void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_ssch(cpu, r1, inst >> 16);
+    ioinst_handle_ssch(cpu, r1, inst >> 16, GETPC());
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(stcrw)(CPUS390XState *env, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+
+    qemu_mutex_lock_iothread();
+    ioinst_handle_stcrw(cpu, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -395,7 +425,7 @@ void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_stsch(cpu, r1, inst >> 16);
+    ioinst_handle_stsch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -403,7 +433,7 @@ void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_tsch(cpu, r1, inst >> 16);
+    ioinst_handle_tsch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
 }
 
@@ -411,7 +441,7 @@ void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
     qemu_mutex_lock_iothread();
-    ioinst_handle_chsc(cpu, inst >> 16);
+    ioinst_handle_chsc(cpu, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
 }
 #endif
@@ -429,7 +459,7 @@ void HELPER(per_check_exception)(CPUS390XState *env)
          * of EXECUTE, while per_address contains the target of EXECUTE.
          */
         ilen = get_ilen(cpu_ldub_code(env, env->per_address));
-        program_interrupt(env, PGM_PER, ilen);
+        s390_program_interrupt(env, PGM_PER, ilen, GETPC());
     }
 }
 
@@ -519,8 +549,7 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
     int i;
 
     if (addr & 0x7) {
-        cpu_restore_state(ENV_GET_CPU(env), ra);
-        program_interrupt(env, PGM_SPECIFICATION, 4);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
     }
 
     prepare_stfl();

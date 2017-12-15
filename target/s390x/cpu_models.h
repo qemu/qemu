@@ -14,6 +14,7 @@
 #define TARGET_S390X_CPU_MODELS_H
 
 #include "cpu_features.h"
+#include "gen-features.h"
 #include "qom/cpu.h"
 
 /* static CPU definition */

@@ -701,7 +701,7 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     SubchDev *sch;
     Error *err = NULL;
 
-    sch = css_create_sch(ccw_dev->devno, true, cbus->squash_mcss, errp);
+    sch = css_create_sch(ccw_dev->devno, cbus->squash_mcss, errp);
     if (!sch) {
         return;
     }

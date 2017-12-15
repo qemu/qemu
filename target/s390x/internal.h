@@ -43,7 +43,7 @@ typedef struct LowCore {
     uint8_t         pad3[0xc8 - 0xc4];        /* 0x0c4 */
     uint32_t        stfl_fac_list;            /* 0x0c8 */
     uint8_t         pad4[0xe8 - 0xcc];        /* 0x0cc */
-    uint32_t        mcck_interruption_code[2]; /* 0x0e8 */
+    uint64_t        mcic;                     /* 0x0e8 */
     uint8_t         pad5[0xf4 - 0xf0];        /* 0x0f0 */
     uint32_t        external_damage_code;     /* 0x0f4 */
     uint64_t        failing_storage_address;  /* 0x0f8 */
@@ -118,8 +118,8 @@ typedef struct LowCore {
     uint32_t        fpt_creg_save_area;        /* 0x131c */
     uint8_t         pad16[0x1324 - 0x1320];    /* 0x1320 */
     uint32_t        tod_progreg_save_area;     /* 0x1324 */
-    uint32_t        cpu_timer_save_area[2];    /* 0x1328 */
-    uint32_t        clock_comp_save_area[2];   /* 0x1330 */
+    uint64_t        cpu_timer_save_area;       /* 0x1328 */
+    uint64_t        clock_comp_save_area;      /* 0x1330 */
     uint8_t         pad17[0x1340 - 0x1338];    /* 0x1338 */
     uint32_t        access_regs_save_area[16]; /* 0x1340 */
     uint64_t        cregs_save_area[16];       /* 0x1380 */
@@ -379,21 +379,23 @@ void cpu_inject_stop(S390CPU *cpu);
 
 
 /* ioinst.c */
-void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_csch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_hsch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb);
-void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb);
-int ioinst_handle_tpi(S390CPU *cpu, uint32_t ipb);
+void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1, uintptr_t ra);
+void ioinst_handle_csch(S390CPU *cpu, uint64_t reg1, uintptr_t ra);
+void ioinst_handle_hsch(S390CPU *cpu, uint64_t reg1, uintptr_t ra);
+void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb,
+                        uintptr_t ra);
+void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb,
+                        uintptr_t ra);
+void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb, uintptr_t ra);
+void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb,
+                         uintptr_t ra);
+int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb, uintptr_t ra);
+void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb, uintptr_t ra);
 void ioinst_handle_schm(S390CPU *cpu, uint64_t reg1, uint64_t reg2,
-                        uint32_t ipb);
-void ioinst_handle_rsch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_rchp(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_sal(S390CPU *cpu, uint64_t reg1);
+                        uint32_t ipb, uintptr_t ra);
+void ioinst_handle_rsch(S390CPU *cpu, uint64_t reg1, uintptr_t ra);
+void ioinst_handle_rchp(S390CPU *cpu, uint64_t reg1, uintptr_t ra);
+void ioinst_handle_sal(S390CPU *cpu, uint64_t reg1, uintptr_t ra);
 
 
 /* mem_helper.c */
@@ -408,10 +410,9 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
 
 
 /* misc_helper.c */
-void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
-                                     uintptr_t retaddr);
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3);
-void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
+void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3,
+                     uintptr_t ra);
 
 
 /* translate.c */

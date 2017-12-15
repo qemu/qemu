@@ -3,7 +3,7 @@
  * into the pc-bios directory of qemu.
  *
  * Copyright (c) 2013 Alexander Graf <agraf@suse.de>
- * Copyright 2013 IBM Corp.
+ * Copyright IBM Corp. 2013, 2017
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
  * your option) any later version. See the COPYING file in the top-level
@@ -13,8 +13,32 @@
         .globl _start
 _start:
 
-larl	%r15, stack + 0x8000    /* Set up stack */
-j	main                    /* And call C */
+	larl   %r15, stack + 0x8000	/* Set up stack */
+
+	/* clear bss */
+	larl %r2, __bss_start
+	larl %r3, _end
+	slgr %r3, %r2		/* get sizeof bss */
+	ltgr	%r3,%r3 	/* bss emtpy? */
+	jz	done
+	aghi	%r3,-1
+	srlg	%r4,%r3,8	/* how many 256 byte chunks? */
+	ltgr	%r4,%r4
+	lgr	%r1,%r2
+	jz	remainder
+loop:
+	xc	0(256,%r1),0(%r1)
+	la	%r1,256(%r1)
+	brctg	%r4,loop
+remainder:
+	larl	%r2,memsetxc
+	ex	%r3,0(%r2)
+done:
+	j      main		/* And call C */
+
+memsetxc:
+	xc	0(1,%r1),0(%r1)
+
 
 /*
  * void disabled_wait(void)

@@ -240,12 +240,6 @@ static void update_cc_op(DisasContext *s)
     }
 }
 
-static void potential_page_fault(DisasContext *s)
-{
-    update_psw_addr(s);
-    update_cc_op(s);
-}
-
 static inline uint64_t ld_code2(CPUS390XState *env, uint64_t pc)
 {
     return (uint64_t)cpu_lduw_code(env, pc);
@@ -1370,6 +1364,27 @@ static ExitStatus op_addc(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_asi(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+
+    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+        tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
+    } else {
+        /* Perform the atomic addition in memory. */
+        tcg_gen_atomic_fetch_add_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+                                     s->insn->data);
+    }
+
+    /* Recompute also for atomic case: needed for setting CC. */
+    tcg_gen_add_i64(o->out, o->in1, o->in2);
+
+    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+        tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
+    }
+    return NO_EXIT;
+}
+
 static ExitStatus op_aeb(DisasContext *s, DisasOps *o)
 {
     gen_helper_aeb(o->out, cpu_env, o->in1, o->in2);
@@ -1409,6 +1424,27 @@ static ExitStatus op_andi(DisasContext *s, DisasOps *o)
     /* Produce the CC from only the bits manipulated.  */
     tcg_gen_andi_i64(cc_dst, o->out, mask);
     set_cc_nz_u64(s, cc_dst);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ni(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+
+    if (!s390_has_feat(S390_FEAT_INTERLOCKED_ACCESS_2)) {
+        tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
+    } else {
+        /* Perform the atomic operation in memory. */
+        tcg_gen_atomic_fetch_and_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+                                     s->insn->data);
+    }
+
+    /* Recompute also for atomic case: needed for setting CC. */
+    tcg_gen_and_i64(o->out, o->in1, o->in2);
+
+    if (!s390_has_feat(S390_FEAT_INTERLOCKED_ACCESS_2)) {
+        tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
+    }
     return NO_EXIT;
 }
 
@@ -2124,9 +2160,6 @@ static ExitStatus op_diag(DisasContext *s, DisasOps *o)
     TCGv_i32 func_code = tcg_const_i32(get_field(s->fields, i2));
 
     check_privileged(s);
-    update_psw_addr(s);
-    gen_op_calc_cc(s);
-
     gen_helper_diag(cpu_env, r1, r3, func_code);
 
     tcg_temp_free_i32(func_code);
@@ -2942,7 +2975,8 @@ static ExitStatus op_lpd(DisasContext *s, DisasOps *o)
 
     /* In a parallel context, stop the world and single step.  */
     if (tb_cflags(s->tb) & CF_PARALLEL) {
-        potential_page_fault(s);
+        update_psw_addr(s);
+        update_cc_op(s);
         gen_exception(EXCP_ATOMIC);
         return EXIT_NORETURN;
     }
@@ -3365,6 +3399,27 @@ static ExitStatus op_ori(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_oi(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+
+    if (!s390_has_feat(S390_FEAT_INTERLOCKED_ACCESS_2)) {
+        tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
+    } else {
+        /* Perform the atomic operation in memory. */
+        tcg_gen_atomic_fetch_or_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+                                    s->insn->data);
+    }
+
+    /* Recompute also for atomic case: needed for setting CC. */
+    tcg_gen_or_i64(o->out, o->in1, o->in2);
+
+    if (!s390_has_feat(S390_FEAT_INTERLOCKED_ACCESS_2)) {
+        tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
+    }
+    return NO_EXIT;
+}
+
 static ExitStatus op_pack(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
@@ -3704,7 +3759,6 @@ static ExitStatus op_sqxb(DisasContext *s, DisasOps *o)
 static ExitStatus op_servc(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_servc(cc_op, cpu_env, o->in2, o->in1);
     set_cc_static(s);
     return NO_EXIT;
@@ -3863,6 +3917,36 @@ static ExitStatus op_spm(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_ectg(DisasContext *s, DisasOps *o)
+{
+    int b1 = get_field(s->fields, b1);
+    int d1 = get_field(s->fields, d1);
+    int b2 = get_field(s->fields, b2);
+    int d2 = get_field(s->fields, d2);
+    int r3 = get_field(s->fields, r3);
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    /* fetch all operands first */
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_addi_i64(o->in1, regs[b1], d1);
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_addi_i64(o->in2, regs[b2], d2);
+    o->addr1 = get_address(s, 0, r3, 0);
+
+    /* load the third operand into r3 before modifying anything */
+    tcg_gen_qemu_ld64(regs[r3], o->addr1, get_mem_index(s));
+
+    /* subtract CPU timer from first operand and store in GR0 */
+    gen_helper_stpt(tmp, cpu_env);
+    tcg_gen_sub_i64(regs[0], o->in1, tmp);
+
+    /* store second operand in GR1 */
+    tcg_gen_mov_i64(regs[1], o->in2);
+
+    tcg_temp_free_i64(tmp);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_spka(DisasContext *s, DisasOps *o)
 {
@@ -3906,7 +3990,10 @@ static ExitStatus op_stcke(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 c1 = tcg_temp_new_i64();
     TCGv_i64 c2 = tcg_temp_new_i64();
+    TCGv_i64 todpr = tcg_temp_new_i64();
     gen_helper_stck(c1, cpu_env);
+    /* 16 bit value store in an uint32_t (only valid bits set) */
+    tcg_gen_ld32u_i64(todpr, cpu_env, offsetof(CPUS390XState, todpr));
     /* Shift the 64-bit value into its place as a zero-extended
        104-bit value.  Note that "bit positions 64-103 are always
        non-zero so that they compare differently to STCK"; we set
@@ -3914,11 +4001,13 @@ static ExitStatus op_stcke(DisasContext *s, DisasOps *o)
     tcg_gen_shli_i64(c2, c1, 56);
     tcg_gen_shri_i64(c1, c1, 8);
     tcg_gen_ori_i64(c2, c2, 0x10000);
+    tcg_gen_or_i64(c2, c2, todpr);
     tcg_gen_qemu_st64(c1, o->in2, get_mem_index(s));
     tcg_gen_addi_i64(o->in2, o->in2, 8);
     tcg_gen_qemu_st64(c2, o->in2, get_mem_index(s));
     tcg_temp_free_i64(c1);
     tcg_temp_free_i64(c2);
+    tcg_temp_free_i64(todpr);
     /* ??? We don't implement clock states.  */
     gen_op_movi_cc(s, 0);
     return NO_EXIT;
@@ -3928,6 +4017,13 @@ static ExitStatus op_sckc(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     gen_helper_sckc(cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sckpf(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_sckpf(cpu_env, regs[0]);
     return NO_EXIT;
 }
 
@@ -3992,7 +4088,6 @@ static ExitStatus op_stpt(DisasContext *s, DisasOps *o)
 static ExitStatus op_stsi(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_stsi(cc_op, cpu_env, o->in2, regs[0], regs[1]);
     set_cc_static(s);
     return NO_EXIT;
@@ -4008,7 +4103,6 @@ static ExitStatus op_spx(DisasContext *s, DisasOps *o)
 static ExitStatus op_xsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_xsch(cpu_env, regs[1]);
     set_cc_static(s);
     return NO_EXIT;
@@ -4017,7 +4111,6 @@ static ExitStatus op_xsch(DisasContext *s, DisasOps *o)
 static ExitStatus op_csch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_csch(cpu_env, regs[1]);
     set_cc_static(s);
     return NO_EXIT;
@@ -4026,7 +4119,6 @@ static ExitStatus op_csch(DisasContext *s, DisasOps *o)
 static ExitStatus op_hsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_hsch(cpu_env, regs[1]);
     set_cc_static(s);
     return NO_EXIT;
@@ -4035,7 +4127,6 @@ static ExitStatus op_hsch(DisasContext *s, DisasOps *o)
 static ExitStatus op_msch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_msch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
     return NO_EXIT;
@@ -4044,7 +4135,6 @@ static ExitStatus op_msch(DisasContext *s, DisasOps *o)
 static ExitStatus op_rchp(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_rchp(cpu_env, regs[1]);
     set_cc_static(s);
     return NO_EXIT;
@@ -4053,16 +4143,43 @@ static ExitStatus op_rchp(DisasContext *s, DisasOps *o)
 static ExitStatus op_rsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_rsch(cpu_env, regs[1]);
     set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sal(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_sal(cpu_env, regs[1]);
+    return NO_EXIT;
+}
+
+static ExitStatus op_schm(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_schm(cpu_env, regs[1], regs[2], o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_siga(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    /* From KVM code: Not provided, set CC = 3 for subchannel not operational */
+    gen_op_movi_cc(s, 3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stcps(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    /* The instruction is suppressed if not provided. */
     return NO_EXIT;
 }
 
 static ExitStatus op_ssch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_ssch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
     return NO_EXIT;
@@ -4071,8 +4188,15 @@ static ExitStatus op_ssch(DisasContext *s, DisasOps *o)
 static ExitStatus op_stsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_stsch(cpu_env, regs[1], o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stcrw(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_stcrw(cpu_env, o->in2);
     set_cc_static(s);
     return NO_EXIT;
 }
@@ -4080,7 +4204,6 @@ static ExitStatus op_stsch(DisasContext *s, DisasOps *o)
 static ExitStatus op_tsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_tsch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
     return NO_EXIT;
@@ -4089,7 +4212,6 @@ static ExitStatus op_tsch(DisasContext *s, DisasOps *o)
 static ExitStatus op_chsc(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
-    potential_page_fault(s);
     gen_helper_chsc(cpu_env, o->in2);
     set_cc_static(s);
     return NO_EXIT;
@@ -4619,6 +4741,27 @@ static ExitStatus op_xori(DisasContext *s, DisasOps *o)
     /* Produce the CC from only the bits manipulated.  */
     tcg_gen_andi_i64(cc_dst, o->out, mask);
     set_cc_nz_u64(s, cc_dst);
+    return NO_EXIT;
+}
+
+static ExitStatus op_xi(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+
+    if (!s390_has_feat(S390_FEAT_INTERLOCKED_ACCESS_2)) {
+        tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
+    } else {
+        /* Perform the atomic operation in memory. */
+        tcg_gen_atomic_fetch_xor_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+                                     s->insn->data);
+    }
+
+    /* Recompute also for atomic case: needed for setting CC. */
+    tcg_gen_xor_i64(o->out, o->in1, o->in2);
+
+    if (!s390_has_feat(S390_FEAT_INTERLOCKED_ACCESS_2)) {
+        tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
+    }
     return NO_EXIT;
 }
 
@@ -5566,6 +5709,7 @@ enum DisasInsnEnum {
 #define FAC_MSA3        S390_FEAT_MSA_EXT_3 /* msa-extension-3 facility */
 #define FAC_MSA4        S390_FEAT_MSA_EXT_4 /* msa-extension-4 facility */
 #define FAC_MSA5        S390_FEAT_MSA_EXT_5 /* msa-extension-5 facility */
+#define FAC_ECT         S390_FEAT_EXTRACT_CPU_TIME
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"
@@ -5850,9 +5994,6 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
         if (ret == NO_EXIT || ret == EXIT_PC_STALE) {
             tcg_gen_movi_i64(psw_addr, s->next_pc);
         }
-
-        /* Save off cc.  */
-        update_cc_op(s);
 
         /* Call the helper to check for a possible PER exception.  */
         gen_helper_per_check_exception(cpu_env);

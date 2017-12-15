@@ -27,17 +27,18 @@ void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen)
 }
 
 static void tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
-                                       int ilen)
+                                       int ilen, uintptr_t ra)
 {
 #ifdef CONFIG_TCG
     trigger_pgm_exception(env, code, ilen);
-    cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+    cpu_loop_exit_restore(CPU(s390_env_get_cpu(env)), ra);
 #else
     g_assert_not_reached();
 #endif
 }
 
-void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
+void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
+                            uintptr_t ra)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
 
@@ -47,7 +48,7 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
     if (kvm_enabled()) {
         kvm_s390_program_interrupt(cpu, code);
     } else if (tcg_enabled()) {
-        tcg_s390_program_interrupt(env, code, ilen);
+        tcg_s390_program_interrupt(env, code, ilen, ra);
     } else {
         g_assert_not_reached();
     }
