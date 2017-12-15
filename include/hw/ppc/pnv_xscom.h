@@ -36,7 +36,7 @@ typedef struct PnvXScomInterface {
 
 typedef struct PnvXScomInterfaceClass {
     InterfaceClass parent;
-    int (*populate)(PnvXScomInterface *dev, void *fdt, int offset);
+    int (*dt_xscom)(PnvXScomInterface *dev, void *fdt, int offset);
 } PnvXScomInterfaceClass;
 
 /*
@@ -67,7 +67,7 @@ typedef struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_OCC_SIZE        0x6000
 
 extern void pnv_xscom_realize(PnvChip *chip, Error **errp);
-extern int pnv_xscom_populate(PnvChip *chip, void *fdt, int offset);
+extern int pnv_dt_xscom(PnvChip *chip, void *fdt, int offset);
 
 extern void pnv_xscom_add_subregion(PnvChip *chip, hwaddr offset,
                                     MemoryRegion *mr);
