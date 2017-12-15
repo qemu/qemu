@@ -12,6 +12,10 @@ spapr_pci_msi_retry(unsigned config_addr, unsigned req_num, unsigned max_irqs) "
 # hw/ppc/spapr.c
 spapr_cas_failed(unsigned long n) "DT diff buffer is too small: %ld bytes"
 spapr_cas_continue(unsigned long n) "Copy changes to the guest: %ld bytes"
+spapr_irq_alloc(int irq) "irq %d"
+spapr_irq_alloc_block(int first, int num, bool lsi, int align) "first irq %d, %d irqs, lsi=%d, alignnum %d"
+spapr_irq_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
+spapr_irq_free_warn(int src, int irq) "Source#%d, irq %d is already free"
 
 # hw/ppc/spapr_hcall.c
 spapr_cas_pvr_try(uint32_t pvr) "0x%x"

@@ -64,10 +64,6 @@ xics_ics_simple_set_irq_lsi(int srcno, int nr) "set_irq_lsi: srcno %d [irq 0x%x]
 xics_ics_simple_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_xive: irq 0x%x [src %d] server 0x%x prio 0x%x"
 xics_ics_simple_reject(int nr, int srcno) "reject irq 0x%x [src %d]"
 xics_ics_simple_eoi(int nr) "ics_eoi: irq 0x%x"
-xics_alloc(int irq) "irq %d"
-xics_alloc_block(int first, int num, bool lsi, int align) "first irq %d, %d irqs, lsi=%d, alignnum %d"
-xics_ics_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
-xics_ics_free_warn(int src, int irq) "Source#%d, irq %d is already free"
 
 # hw/intc/s390_flic_kvm.c
 flic_create_device(int err) "flic: create device failed %d"

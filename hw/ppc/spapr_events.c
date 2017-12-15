@@ -282,8 +282,7 @@ void spapr_dt_events(sPAPRMachineState *spapr, void *fdt)
             continue;
         }
 
-        interrupts[0] = cpu_to_be32(source->irq);
-        interrupts[1] = 0;
+        spapr_dt_xics_irq(interrupts, source->irq, false);
 
         _FDT(node_offset = fdt_add_subnode(fdt, event_sources, source_name));
         _FDT(fdt_setprop(fdt, node_offset, "interrupts", interrupts,
@@ -292,9 +291,6 @@ void spapr_dt_events(sPAPRMachineState *spapr, void *fdt)
         irq_ranges[count++] = interrupts[0];
         irq_ranges[count++] = cpu_to_be32(1);
     }
-
-    irq_ranges[count] = cpu_to_be32(count);
-    count++;
 
     _FDT((fdt_setprop(fdt, event_sources, "interrupt-controller", NULL, 0)));
     _FDT((fdt_setprop_cell(fdt, event_sources, "#interrupt-cells", 2)));
@@ -472,9 +468,8 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
 
     rtas_event_log_queue(spapr, entry);
 
-    qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
-                                 rtas_event_log_to_irq(spapr,
-                                                       RTAS_LOG_TYPE_EPOW)));
+    qemu_irq_pulse(spapr_qirq(spapr,
+                   rtas_event_log_to_irq(spapr, RTAS_LOG_TYPE_EPOW)));
 }
 
 static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
@@ -556,9 +551,8 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
 
     rtas_event_log_queue(spapr, entry);
 
-    qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr),
-                                 rtas_event_log_to_irq(spapr,
-                                                       RTAS_LOG_TYPE_HOTPLUG)));
+    qemu_irq_pulse(spapr_qirq(spapr,
+                   rtas_event_log_to_irq(spapr, RTAS_LOG_TYPE_HOTPLUG)));
 }
 
 void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc)
@@ -678,7 +672,7 @@ static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                 spapr_event_sources_get_source(spapr->event_sources, i);
 
             g_assert(source->enabled);
-            qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr), source->irq));
+            qemu_irq_pulse(spapr_qirq(spapr, source->irq));
         }
     }
 
@@ -718,7 +712,7 @@ void spapr_events_init(sPAPRMachineState *spapr)
     spapr->event_sources = spapr_event_sources_new();
 
     spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_EPOW,
-                                 spapr_ics_alloc(spapr->ics, 0, false,
+                                 spapr_irq_alloc(spapr, 0, false,
                                                   &error_fatal));
 
     /* NOTE: if machine supports modern/dedicated hotplug event source,
@@ -731,7 +725,7 @@ void spapr_events_init(sPAPRMachineState *spapr)
      */
     if (spapr->use_hotplug_event_source) {
         spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_HOT_PLUG,
-                                     spapr_ics_alloc(spapr->ics, 0, false,
+                                     spapr_irq_alloc(spapr, 0, false,
                                                       &error_fatal));
     }
 
