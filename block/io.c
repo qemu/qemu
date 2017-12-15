@@ -330,6 +330,12 @@ void bdrv_drain_all_begin(void)
     BdrvNextIterator it;
     GSList *aio_ctxs = NULL, *ctx;
 
+    /* BDRV_POLL_WHILE() for a node can only be called from its own I/O thread
+     * or the main loop AioContext. We potentially use BDRV_POLL_WHILE() on
+     * nodes in several different AioContexts, so make sure we're in the main
+     * context. */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+
     block_job_pause_all();
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
