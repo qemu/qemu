@@ -762,7 +762,7 @@ static int ftgmac100_filter(FTGMAC100State *s, const uint8_t *buf, size_t len)
             }
 
             /* TODO: this does not seem to work for ftgmac100 */
-            mcast_idx = compute_mcast_idx(buf);
+            mcast_idx = net_crc32(buf, ETH_ALEN) >> 26;
             if (!(s->math[mcast_idx / 32] & (1 << (mcast_idx % 32)))) {
                 return 0;
             }
