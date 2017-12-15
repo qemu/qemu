@@ -2378,10 +2378,15 @@ static void *migration_thread(void *opaque)
     return NULL;
 }
 
-void migrate_fd_connect(MigrationState *s)
+void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     s->expected_downtime = s->parameters.downtime_limit;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
+    if (error_in) {
+        migrate_fd_error(s, error_in);
+        migrate_fd_cleanup(s);
+        return;
+    }
 
     qemu_file_set_blocking(s->to_dst_file, true);
     qemu_file_set_rate_limit(s->to_dst_file,

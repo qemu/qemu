@@ -78,6 +78,6 @@ void migration_channel_connect(MigrationState *s,
 
         s->to_dst_file = f;
 
-        migrate_fd_connect(s);
+        migrate_fd_connect(s, NULL);
     }
 }
