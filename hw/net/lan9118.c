@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
+#include "net/eth.h"
 #include "hw/devices.h"
 #include "sysemu/sysemu.h"
 #include "hw/ptimer.h"
@@ -504,7 +505,7 @@ static int lan9118_filter(lan9118_state *s, const uint8_t *addr)
         }
     } else {
         /* Hash matching  */
-        hash = compute_mcast_idx(addr);
+        hash = net_crc32(addr, ETH_ALEN) >> 26;
         if (hash & 0x20) {
             return (s->mac_hashh >> (hash & 0x1f)) & 1;
         } else {
