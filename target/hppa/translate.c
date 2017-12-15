@@ -3782,6 +3782,53 @@ static DisasJumpType trans_bl(DisasContext *ctx, uint32_t insn,
     return do_dbranch(ctx, iaoq_dest(ctx, disp), link, n);
 }
 
+static DisasJumpType trans_b_gate(DisasContext *ctx, uint32_t insn,
+                                  const DisasInsn *di)
+{
+    unsigned n = extract32(insn, 1, 1);
+    unsigned link = extract32(insn, 21, 5);
+    target_sreg disp = assemble_17(insn);
+    target_ureg dest = iaoq_dest(ctx, disp);
+
+    /* Make sure the caller hasn't done something weird with the queue.
+     * ??? This is not quite the same as the PSW[B] bit, which would be
+     * expensive to track.  Real hardware will trap for
+     *    b  gateway
+     *    b  gateway+4  (in delay slot of first branch)
+     * However, checking for a non-sequential instruction queue *will*
+     * diagnose the security hole
+     *    b  gateway
+     *    b  evil
+     * in which instructions at evil would run with increased privs.
+     */
+    if (ctx->iaoq_b == -1 || ctx->iaoq_b != ctx->iaoq_f + 4) {
+        return gen_illegal(ctx);
+    }
+
+#ifndef CONFIG_USER_ONLY
+    if (ctx->tb_flags & PSW_C) {
+        CPUHPPAState *env = ctx->cs->env_ptr;
+        int type = hppa_artype_for_page(env, ctx->base.pc_next);
+        /* If we could not find a TLB entry, then we need to generate an
+           ITLB miss exception so the kernel will provide it.
+           The resulting TLB fill operation will invalidate this TB and
+           we will re-translate, at which point we *will* be able to find
+           the TLB entry and determine if this is in fact a gateway page.  */
+        if (type < 0) {
+            return gen_excp(ctx, EXCP_ITLB_MISS);
+        }
+        /* No change for non-gateway pages or for priv decrease.  */
+        if (type >= 4 && type - 4 < ctx->privilege) {
+            dest = deposit32(dest, 0, 2, type - 4);
+        }
+    } else {
+        dest &= -4;  /* priv = 0 */
+    }
+#endif
+
+    return do_dbranch(ctx, dest, link, n);
+}
+
 static DisasJumpType trans_bl_long(DisasContext *ctx, uint32_t insn,
                                    const DisasInsn *di)
 {
@@ -3860,6 +3907,7 @@ static const DisasInsn table_branch[] = {
     { 0xe8004000u, 0xfc00fffdu, trans_blr },
     { 0xe800c000u, 0xfc00fffdu, trans_bv },
     { 0xe800d000u, 0xfc00dffcu, trans_bve },
+    { 0xe8002000u, 0xfc00e000u, trans_b_gate },
 };
 
 static DisasJumpType trans_fop_wew_0c(DisasContext *ctx, uint32_t insn,

@@ -354,6 +354,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
 extern const MemoryRegionOps hppa_io_eir_ops;
 extern const struct VMStateDescription vmstate_hppa_cpu;
 void hppa_cpu_alarm_timer(void *);
+int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr);
 #endif
 void QEMU_NORETURN hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra);
 

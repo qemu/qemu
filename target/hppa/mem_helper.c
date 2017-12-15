@@ -122,6 +122,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         break;
     default: /* execute: promote to privilege level type & 3 */
         prot = x_prot;
+        break;
     }
 
     /* ??? Check PSW_P and ent->access_prot.  This can remove PAGE_WRITE.  */
@@ -334,5 +335,12 @@ target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
         hppa_dynamic_excp(env, excp, GETPC());
     }
     return phys;
+}
+
+/* Return the ar_type of the TLB at VADDR, or -1.  */
+int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr)
+{
+    hppa_tlb_entry *ent = hppa_find_tlb(env, vaddr);
+    return ent ? ent->ar_type : -1;
 }
 #endif /* CONFIG_USER_ONLY */
