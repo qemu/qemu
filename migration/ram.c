@@ -237,7 +237,8 @@ static RAMState *ram_state;
 
 uint64_t ram_bytes_remaining(void)
 {
-    return ram_state->migration_dirty_pages * TARGET_PAGE_SIZE;
+    return ram_state ? (ram_state->migration_dirty_pages * TARGET_PAGE_SIZE) :
+                       0;
 }
 
 MigrationStats ram_counters;
