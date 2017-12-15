@@ -1625,11 +1625,6 @@ uint32_t net_crc32_le(const uint8_t *p, int len)
     return crc;
 }
 
-unsigned compute_mcast_idx(const uint8_t *ep)
-{
-    return net_crc32(ep, ETH_ALEN) >> 26;
-}
-
 QemuOptsList qemu_netdev_opts = {
     .name = "netdev",
     .implied_opt_name = "type",
