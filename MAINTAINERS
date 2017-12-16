@@ -765,6 +765,12 @@ L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/virtex_ml507.c
 
+sam460ex
+M: BALATON Zoltan <balaton@eik.bme.hu>
+L: qemu-ppc@nongnu.org
+S: Maintained
+F: hw/ide/sii3112.c
+
 SH4 Machines
 ------------
 R2D
