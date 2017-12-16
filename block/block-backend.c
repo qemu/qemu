@@ -1150,7 +1150,7 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
 typedef struct BlkRwCo {
     BlockBackend *blk;
     int64_t offset;
-    QEMUIOVector *qiov;
+    void *iobuf;
     int ret;
     BdrvRequestFlags flags;
 } BlkRwCo;
@@ -1158,17 +1158,19 @@ typedef struct BlkRwCo {
 static void blk_read_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
+    QEMUIOVector *qiov = rwco->iobuf;
 
-    rwco->ret = blk_co_preadv(rwco->blk, rwco->offset, rwco->qiov->size,
-                              rwco->qiov, rwco->flags);
+    rwco->ret = blk_co_preadv(rwco->blk, rwco->offset, qiov->size,
+                              qiov, rwco->flags);
 }
 
 static void blk_write_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
+    QEMUIOVector *qiov = rwco->iobuf;
 
-    rwco->ret = blk_co_pwritev(rwco->blk, rwco->offset, rwco->qiov->size,
-                               rwco->qiov, rwco->flags);
+    rwco->ret = blk_co_pwritev(rwco->blk, rwco->offset, qiov->size,
+                               qiov, rwco->flags);
 }
 
 static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
@@ -1188,7 +1190,7 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
     rwco = (BlkRwCo) {
         .blk    = blk,
         .offset = offset,
-        .qiov   = &qiov,
+        .iobuf  = &qiov,
         .flags  = flags,
         .ret    = NOT_DONE,
     };
@@ -1296,7 +1298,7 @@ static void blk_aio_complete_bh(void *opaque)
 }
 
 static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
-                                QEMUIOVector *qiov, CoroutineEntry co_entry,
+                                void *iobuf, CoroutineEntry co_entry,
                                 BdrvRequestFlags flags,
                                 BlockCompletionFunc *cb, void *opaque)
 {
@@ -1308,7 +1310,7 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     acb->rwco = (BlkRwCo) {
         .blk    = blk,
         .offset = offset,
-        .qiov   = qiov,
+        .iobuf  = iobuf,
         .flags  = flags,
         .ret    = NOT_DONE,
     };
@@ -1331,10 +1333,11 @@ static void blk_aio_read_entry(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
+    QEMUIOVector *qiov = rwco->iobuf;
 
-    assert(rwco->qiov->size == acb->bytes);
+    assert(qiov->size == acb->bytes);
     rwco->ret = blk_co_preadv(rwco->blk, rwco->offset, acb->bytes,
-                              rwco->qiov, rwco->flags);
+                              qiov, rwco->flags);
     blk_aio_complete(acb);
 }
 
@@ -1342,10 +1345,11 @@ static void blk_aio_write_entry(void *opaque)
 {
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
+    QEMUIOVector *qiov = rwco->iobuf;
 
-    assert(!rwco->qiov || rwco->qiov->size == acb->bytes);
+    assert(!qiov || qiov->size == acb->bytes);
     rwco->ret = blk_co_pwritev(rwco->blk, rwco->offset, acb->bytes,
-                               rwco->qiov, rwco->flags);
+                               qiov, rwco->flags);
     blk_aio_complete(acb);
 }
 
@@ -1474,8 +1478,10 @@ int blk_co_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
 static void blk_ioctl_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
+    QEMUIOVector *qiov = rwco->iobuf;
+
     rwco->ret = blk_co_ioctl(rwco->blk, rwco->offset,
-                             rwco->qiov->iov[0].iov_base);
+                             qiov->iov[0].iov_base);
 }
 
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
@@ -1488,24 +1494,15 @@ static void blk_aio_ioctl_entry(void *opaque)
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
 
-    rwco->ret = blk_co_ioctl(rwco->blk, rwco->offset,
-                             rwco->qiov->iov[0].iov_base);
+    rwco->ret = blk_co_ioctl(rwco->blk, rwco->offset, rwco->iobuf);
+
     blk_aio_complete(acb);
 }
 
 BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
                           BlockCompletionFunc *cb, void *opaque)
 {
-    QEMUIOVector qiov;
-    struct iovec iov;
-
-    iov = (struct iovec) {
-        .iov_base = buf,
-        .iov_len = 0,
-    };
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
-    return blk_aio_prwv(blk, req, 0, &qiov, blk_aio_ioctl_entry, 0, cb, opaque);
+    return blk_aio_prwv(blk, req, 0, buf, blk_aio_ioctl_entry, 0, cb, opaque);
 }
 
 int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
@@ -1949,7 +1946,9 @@ int blk_truncate(BlockBackend *blk, int64_t offset, PreallocMode prealloc,
 static void blk_pdiscard_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
-    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, rwco->qiov->size);
+    QEMUIOVector *qiov = rwco->iobuf;
+
+    rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, qiov->size);
 }
 
 int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
