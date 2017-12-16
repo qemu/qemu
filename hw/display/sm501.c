@@ -956,6 +956,19 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
         ret = s->dc_panel_v_sync;
         break;
 
+    case SM501_DC_PANEL_HWC_ADDR:
+        ret = s->dc_panel_hwc_addr;
+        break;
+    case SM501_DC_PANEL_HWC_LOC:
+        ret = s->dc_panel_hwc_location;
+        break;
+    case SM501_DC_PANEL_HWC_COLOR_1_2:
+        ret = s->dc_panel_hwc_color_1_2;
+        break;
+    case SM501_DC_PANEL_HWC_COLOR_3:
+        ret = s->dc_panel_hwc_color_3;
+        break;
+
     case SM501_DC_VIDEO_CONTROL:
         ret = s->dc_video_control;
         break;
