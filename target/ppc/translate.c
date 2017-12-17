@@ -605,27 +605,22 @@ static opc_handler_t invalid_handler = {
 static inline void gen_op_cmp(TCGv arg0, TCGv arg1, int s, int crf)
 {
     TCGv t0 = tcg_temp_new();
-    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv t1 = tcg_temp_new();
+    TCGv_i32 t = tcg_temp_new_i32();
 
+    tcg_gen_movi_tl(t0, CRF_EQ);
+    tcg_gen_movi_tl(t1, CRF_LT);
+    tcg_gen_movcond_tl((s ? TCG_COND_LT : TCG_COND_LTU), t0, arg0, arg1, t1, t0);
+    tcg_gen_movi_tl(t1, CRF_GT);
+    tcg_gen_movcond_tl((s ? TCG_COND_GT : TCG_COND_GTU), t0, arg0, arg1, t1, t0);
+
+    tcg_gen_trunc_tl_i32(t, t0);
     tcg_gen_trunc_tl_i32(cpu_crf[crf], cpu_so);
-
-    tcg_gen_setcond_tl((s ? TCG_COND_LT: TCG_COND_LTU), t0, arg0, arg1);
-    tcg_gen_trunc_tl_i32(t1, t0);
-    tcg_gen_shli_i32(t1, t1, CRF_LT_BIT);
-    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
-
-    tcg_gen_setcond_tl((s ? TCG_COND_GT: TCG_COND_GTU), t0, arg0, arg1);
-    tcg_gen_trunc_tl_i32(t1, t0);
-    tcg_gen_shli_i32(t1, t1, CRF_GT_BIT);
-    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
-
-    tcg_gen_setcond_tl(TCG_COND_EQ, t0, arg0, arg1);
-    tcg_gen_trunc_tl_i32(t1, t0);
-    tcg_gen_shli_i32(t1, t1, CRF_EQ_BIT);
-    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t1);
+    tcg_gen_or_i32(cpu_crf[crf], cpu_crf[crf], t);
 
     tcg_temp_free(t0);
-    tcg_temp_free_i32(t1);
+    tcg_temp_free(t1);
+    tcg_temp_free_i32(t);
 }
 
 static inline void gen_op_cmpi(TCGv arg0, target_ulong arg1, int s, int crf)
