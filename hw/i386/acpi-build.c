@@ -208,7 +208,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     }
 
     info->has_hpet = hpet_find();
-    info->tpm_version = tpm_get_version();
+    info->tpm_version = tpm_get_version(tpm_find());
     info->pvpanic_port = pvpanic_port();
     info->applesmc_io_base = applesmc_port();
 }
@@ -2038,7 +2038,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         }
     }
 
-    if (misc->tpm_version != TPM_VERSION_UNSPEC) {
+    if (TPM_IS_TIS(tpm_find())) {
         aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
                    TPM_TIS_ADDR_SIZE, AML_READ_WRITE));
     }
@@ -2204,7 +2204,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             /* Scan all PCI buses. Generate tables to support hotplug. */
             build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
 
-            if (misc->tpm_version != TPM_VERSION_UNSPEC) {
+            if (TPM_IS_TIS(tpm_find())) {
                 dev = aml_device("ISA.TPM");
                 aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
                 aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
@@ -2281,8 +2281,12 @@ build_tpm2(GArray *table_data, BIOSLinker *linker)
     tpm2_ptr = acpi_data_push(table_data, sizeof *tpm2_ptr);
 
     tpm2_ptr->platform_class = cpu_to_le16(TPM2_ACPI_CLASS_CLIENT);
-    tpm2_ptr->control_area_address = cpu_to_le64(0);
-    tpm2_ptr->start_method = cpu_to_le32(TPM2_START_METHOD_MMIO);
+    if (TPM_IS_TIS(tpm_find())) {
+        tpm2_ptr->control_area_address = cpu_to_le64(0);
+        tpm2_ptr->start_method = cpu_to_le32(TPM2_START_METHOD_MMIO);
+    } else {
+        g_warn_if_reached();
+    }
 
     build_header(linker, table_data,
                  (void *)tpm2_ptr, "TPM2", sizeof(*tpm2_ptr), 4, NULL, NULL);

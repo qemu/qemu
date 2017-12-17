@@ -21,6 +21,7 @@
 #include "net/hub.h"
 #include "qapi/visitor.h"
 #include "chardev/char-fe.h"
+#include "sysemu/tpm_backend.h"
 #include "sysemu/iothread.h"
 
 static void get_pointer(Object *obj, Visitor *v, Property *prop,
@@ -234,6 +235,69 @@ const PropertyInfo qdev_prop_chr = {
     .get   = get_chr,
     .set   = set_chr,
     .release = release_chr,
+};
+
+/* --- character device --- */
+
+static void get_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
+                    Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    TPMBackend **be = qdev_get_prop_ptr(dev, opaque);
+    char *p;
+
+    p = g_strdup(*be ? (*be)->id : "");
+    visit_type_str(v, name, &p, errp);
+    g_free(p);
+}
+
+static void set_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
+                    Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Error *local_err = NULL;
+    Property *prop = opaque;
+    TPMBackend *s, **be = qdev_get_prop_ptr(dev, prop);
+    char *str;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_str(v, name, &str, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    s = qemu_find_tpm_be(str);
+    if (s == NULL) {
+        error_setg(errp, "Property '%s.%s' can't find value '%s'",
+                   object_get_typename(obj), prop->name, str);
+    } else if (tpm_backend_init(s, TPM_IF(obj), errp) == 0) {
+        *be = s; /* weak reference, avoid cyclic ref */
+    }
+    g_free(str);
+}
+
+static void release_tpm(Object *obj, const char *name, void *opaque)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    TPMBackend **be = qdev_get_prop_ptr(dev, prop);
+
+    if (*be) {
+        tpm_backend_reset(*be);
+    }
+}
+
+const PropertyInfo qdev_prop_tpm = {
+    .name  = "str",
+    .description = "ID of a tpm to use as a backend",
+    .get   = get_tpm,
+    .set   = set_tpm,
+    .release = release_tpm,
 };
 
 /* --- netdev device --- */

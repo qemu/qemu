@@ -22,12 +22,21 @@
 #ifndef TPM_TPM_UTIL_H
 #define TPM_TPM_UTIL_H
 
-#include "sysemu/tpm_backend.h"
+#include "sysemu/tpm.h"
+#include "qemu/bswap.h"
 
 void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len);
 
 bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
 
 int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version);
+
+static inline uint32_t tpm_cmd_get_size(const void *b)
+{
+    return be32_to_cpu(*(const uint32_t *)(b + 2));
+}
+
+int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
+                             size_t *buffersize);
 
 #endif /* TPM_TPM_UTIL_H */

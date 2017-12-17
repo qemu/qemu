@@ -13,28 +13,8 @@
 #define TPM_TPM_INT_H
 
 #include "qemu/osdep.h"
-#include "qom/object.h"
 
-#define TYPE_TPM_IF "tpm-if"
-#define TPM_IF_CLASS(klass) \
-    OBJECT_CLASS_CHECK(TPMIfClass, (klass), TYPE_TPM_IF)
-#define TPM_IF_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(TPMIfClass, (obj), TYPE_TPM_IF)
-#define TPM_IF(obj) \
-    INTERFACE_CHECK(TPMIf, (obj), TYPE_TPM_IF)
-
-typedef struct TPMIf {
-    Object parent_obj;
-} TPMIf;
-
-typedef struct TPMIfClass {
-    InterfaceClass parent_class;
-
-    /* run in thread pool by backend */
-    void (*request_completed)(TPMIf *obj);
-} TPMIfClass;
-
-#define TPM_STANDARD_CMDLINE_OPTS               \
+#define TPM_STANDARD_CMDLINE_OPTS \
     { \
         .name = "type", \
         .type = QEMU_OPT_STRING, \
@@ -65,11 +45,20 @@ struct tpm_resp_hdr {
 
 #define TPM_ORD_ContinueSelfTest  0x53
 #define TPM_ORD_GetTicks          0xf1
+#define TPM_ORD_GetCapability     0x65
 
+#define TPM_CAP_PROPERTY          0x05
+
+#define TPM_CAP_PROP_INPUT_BUFFER 0x124
 
 /* TPM2 defines */
 #define TPM2_ST_NO_SESSIONS       0x8001
 
 #define TPM2_CC_ReadClock         0x00000181
+#define TPM2_CC_GetCapability     0x0000017a
+
+#define TPM2_CAP_TPM_PROPERTIES   0x6
+
+#define TPM2_PT_MAX_COMMAND_SIZE  0x11e
 
 #endif /* TPM_TPM_INT_H */

@@ -17,16 +17,25 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm.h"
-#include "hw/tpm/tpm_int.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
+
+static void tpm_backend_request_completed_bh(void *opaque)
+{
+    TPMBackend *s = TPM_BACKEND(opaque);
+    TPMIfClass *tic = TPM_IF_GET_CLASS(s->tpmif);
+
+    tic->request_completed(s->tpmif);
+}
 
 static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
 {
     TPMBackend *s = TPM_BACKEND(user_data);
-    TPMBackendClass *k  = TPM_BACKEND_GET_CLASS(s);
+    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->handle_request != NULL);
     k->handle_request(s, (TPMBackendCmd *)data);
+
+    qemu_bh_schedule(s->bh);
 }
 
 static void tpm_backend_thread_end(TPMBackend *s)
@@ -44,15 +53,22 @@ enum TpmType tpm_backend_get_type(TPMBackend *s)
     return k->type;
 }
 
-int tpm_backend_init(TPMBackend *s, TPMState *state)
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp)
 {
-    s->tpm_state = state;
+    if (s->tpmif) {
+        error_setg(errp, "TPM backend '%s' is already initialized", s->id);
+        return -1;
+    }
+
+    s->tpmif = tpmif;
+    object_ref(OBJECT(tpmif));
+
     s->had_startup_error = false;
 
     return 0;
 }
 
-int tpm_backend_startup_tpm(TPMBackend *s)
+int tpm_backend_startup_tpm(TPMBackend *s, size_t buffersize)
 {
     int res = 0;
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
@@ -63,7 +79,7 @@ int tpm_backend_startup_tpm(TPMBackend *s)
     s->thread_pool = g_thread_pool_new(tpm_backend_worker_thread, s, 1, TRUE,
                                        NULL);
 
-    res = k->startup_tpm ? k->startup_tpm(s) : 0;
+    res = k->startup_tpm ? k->startup_tpm(s, buffersize) : 0;
 
     s->had_startup_error = (res != 0);
 
@@ -97,8 +113,6 @@ void tpm_backend_cancel_cmd(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->cancel_cmd);
-
     k->cancel_cmd(s);
 }
 
@@ -122,80 +136,44 @@ TPMVersion tpm_backend_get_tpm_version(TPMBackend *s)
 {
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
 
-    assert(k->get_tpm_version);
-
     return k->get_tpm_version(s);
+}
+
+size_t tpm_backend_get_buffer_size(TPMBackend *s)
+{
+    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+
+    return k->get_buffer_size(s);
 }
 
 TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
 {
     TPMInfo *info = g_new0(TPMInfo, 1);
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    TPMIfClass *tic = TPM_IF_GET_CLASS(s->tpmif);
 
     info->id = g_strdup(s->id);
-    info->model = s->fe_model;
-    if (k->get_tpm_options) {
-        info->options = k->get_tpm_options(s);
-    }
+    info->model = tic->model;
+    info->options = k->get_tpm_options(s);
 
     return info;
-}
-
-static bool tpm_backend_prop_get_opened(Object *obj, Error **errp)
-{
-    TPMBackend *s = TPM_BACKEND(obj);
-
-    return s->opened;
-}
-
-void tpm_backend_open(TPMBackend *s, Error **errp)
-{
-    object_property_set_bool(OBJECT(s), true, "opened", errp);
-}
-
-static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
-{
-    TPMBackend *s = TPM_BACKEND(obj);
-    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
-    Error *local_err = NULL;
-
-    if (value == s->opened) {
-        return;
-    }
-
-    if (!value && s->opened) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
-        return;
-    }
-
-    if (k->opened) {
-        k->opened(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-
-    s->opened = true;
 }
 
 static void tpm_backend_instance_init(Object *obj)
 {
     TPMBackend *s = TPM_BACKEND(obj);
 
-    object_property_add_bool(obj, "opened",
-                             tpm_backend_prop_get_opened,
-                             tpm_backend_prop_set_opened,
-                             NULL);
-    s->fe_model = -1;
+    s->bh = qemu_bh_new(tpm_backend_request_completed_bh, s);
 }
 
 static void tpm_backend_instance_finalize(Object *obj)
 {
     TPMBackend *s = TPM_BACKEND(obj);
 
+    object_unref(OBJECT(s->tpmif));
     g_free(s->id);
     tpm_backend_thread_end(s);
+    qemu_bh_delete(s->bh);
 }
 
 static const TypeInfo tpm_backend_info = {

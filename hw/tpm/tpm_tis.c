@@ -24,17 +24,13 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
+#include "qapi/error.h"
+
+#include "hw/acpi/tpm.h"
+#include "hw/pci/pci_ids.h"
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
-#include "sysemu/block-backend.h"
-#include "exec/address-spaces.h"
-#include "hw/hw.h"
-#include "hw/i386/pc.h"
-#include "hw/pci/pci_ids.h"
-#include "qapi/error.h"
-#include "qemu-common.h"
-#include "qemu/main-loop.h"
-#include "hw/acpi/tpm.h"
+#include "tpm_util.h"
 
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
 #define TPM_TIS_LOCALITY_SHIFT      12
@@ -72,11 +68,10 @@ typedef struct TPMLocality {
     TPMSizedBuffer r_buffer;
 } TPMLocality;
 
-struct TPMState {
+typedef struct TPMState {
     ISADevice busdev;
     MemoryRegion mmio;
 
-    QEMUBH *bh;
     uint32_t offset;
     uint8_t buf[TPM_TIS_BUFFER_MAX];
 
@@ -89,13 +84,13 @@ struct TPMState {
     qemu_irq irq;
     uint32_t irq_num;
 
-    uint8_t     locty_number;
     TPMBackendCmd cmd;
 
-    char *backend;
     TPMBackend *be_driver;
     TPMVersion be_tpm_version;
-};
+
+    size_t be_buffer_size;
+} TPMState;
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
 
@@ -222,7 +217,7 @@ static uint8_t tpm_tis_locality_from_addr(hwaddr addr)
 
 static uint32_t tpm_tis_get_size_from_buffer(const TPMSizedBuffer *sb)
 {
-    return be32_to_cpu(*(uint32_t *)&sb->buffer[2]);
+    return tpm_cmd_get_size(sb->buffer);
 }
 
 static void tpm_tis_show_buffer(const TPMSizedBuffer *sb, const char *string)
@@ -411,10 +406,20 @@ static void tpm_tis_prep_abort(TPMState *s, uint8_t locty, uint8_t newlocty)
     tpm_tis_abort(s, locty);
 }
 
-static void tpm_tis_receive_bh(void *opaque)
+/*
+ * Callback from the TPM to indicate that the response was received.
+ */
+static void tpm_tis_request_completed(TPMIf *ti)
 {
-    TPMState *s = opaque;
+    TPMState *s = TPM(ti);
     uint8_t locty = s->cmd.locty;
+    uint8_t l;
+
+    if (s->cmd.selftest_done) {
+        for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
+            s->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
+        }
+    }
 
     tpm_tis_sts_set(&s->loc[locty],
                     TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE);
@@ -430,23 +435,6 @@ static void tpm_tis_receive_bh(void *opaque)
 
     tpm_tis_raise_irq(s, locty,
                       TPM_TIS_INT_DATA_AVAILABLE | TPM_TIS_INT_STS_VALID);
-}
-
-static void tpm_tis_request_completed(TPMIf *ti)
-{
-    TPMState *s = TPM(ti);
-
-    bool is_selftest_done = s->cmd.selftest_done;
-    uint8_t locty = s->cmd.locty;
-    uint8_t l;
-
-    if (is_selftest_done) {
-        for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
-            s->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
-        }
-    }
-
-    qemu_bh_schedule(s->bh);
 }
 
 /*
@@ -986,15 +974,14 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
     },
 };
 
-static int tpm_tis_do_startup_tpm(TPMState *s)
+static int tpm_tis_do_startup_tpm(TPMState *s, uint32_t buffersize)
 {
-    return tpm_backend_startup_tpm(s->be_driver);
+    return tpm_backend_startup_tpm(s->be_driver, buffersize);
 }
 
-static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb)
+static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb,
+                                   size_t wanted_size)
 {
-    size_t wanted_size = 4096; /* Linux tpm.c buffer size */
-
     if (sb->size != wanted_size) {
         sb->buffer = g_realloc(sb->buffer, wanted_size);
         sb->size = wanted_size;
@@ -1004,9 +991,9 @@ static void tpm_tis_realloc_buffer(TPMSizedBuffer *sb)
 /*
  * Get the TPMVersion of the backend device being used
  */
-TPMVersion tpm_tis_get_tpm_version(Object *obj)
+static enum TPMVersion tpm_tis_get_tpm_version(TPMIf *ti)
 {
-    TPMState *s = TPM(obj);
+    TPMState *s = TPM(ti);
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return TPM_VERSION_UNSPEC;
@@ -1025,6 +1012,7 @@ static void tpm_tis_reset(DeviceState *dev)
     int c;
 
     s->be_tpm_version = tpm_backend_get_tpm_version(s->be_driver);
+    s->be_buffer_size = tpm_backend_get_buffer_size(s->be_driver);
 
     tpm_backend_reset(s->be_driver);
 
@@ -1051,12 +1039,12 @@ static void tpm_tis_reset(DeviceState *dev)
         s->loc[c].state = TPM_TIS_STATE_IDLE;
 
         s->loc[c].w_offset = 0;
-        tpm_tis_realloc_buffer(&s->loc[c].w_buffer);
+        tpm_tis_realloc_buffer(&s->loc[c].w_buffer, s->be_buffer_size);
         s->loc[c].r_offset = 0;
-        tpm_tis_realloc_buffer(&s->loc[c].r_buffer);
+        tpm_tis_realloc_buffer(&s->loc[c].r_buffer, s->be_buffer_size);
     }
 
-    tpm_tis_do_startup_tpm(s);
+    tpm_tis_do_startup_tpm(s, 0);
 }
 
 static const VMStateDescription vmstate_tpm_tis = {
@@ -1066,7 +1054,7 @@ static const VMStateDescription vmstate_tpm_tis = {
 
 static Property tpm_tis_properties[] = {
     DEFINE_PROP_UINT32("irq", TPMState, irq_num, TPM_TIS_IRQ),
-    DEFINE_PROP_STRING("tpmdev", TPMState, backend),
+    DEFINE_PROP_TPMBE("tpmdev", TPMState, be_driver),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1074,28 +1062,20 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 {
     TPMState *s = TPM(dev);
 
-    s->be_driver = qemu_find_tpm(s->backend);
+    if (!tpm_find()) {
+        error_setg(errp, "at most one TPM device is permitted");
+        return;
+    }
+
     if (!s->be_driver) {
-        error_setg(errp, "tpm_tis: backend driver with id %s could not be "
-                   "found", s->backend);
+        error_setg(errp, "'tpmdev' property is required");
         return;
     }
-
-    s->be_driver->fe_model = TPM_MODEL_TPM_TIS;
-
-    if (tpm_backend_init(s->be_driver, s)) {
-        error_setg(errp, "tpm_tis: backend driver with id %s could not be "
-                   "initialized", s->backend);
-        return;
-    }
-
     if (s->irq_num > 15) {
-        error_setg(errp, "tpm_tis: IRQ %d for TPM TIS is outside valid range "
-                   "of 0 to 15", s->irq_num);
+        error_setg(errp, "IRQ %d is outside valid range of 0 to 15",
+                   s->irq_num);
         return;
     }
-
-    s->bh = qemu_bh_new(tpm_tis_receive_bh, s);
 
     isa_init_irq(&s->busdev, &s->irq, s->irq_num);
 
@@ -1121,6 +1101,8 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
     dc->props = tpm_tis_properties;
     dc->reset = tpm_tis_reset;
     dc->vmsd  = &vmstate_tpm_tis;
+    tc->model = TPM_MODEL_TPM_TIS;
+    tc->get_version = tpm_tis_get_tpm_version;
     tc->request_completed = tpm_tis_request_completed;
 }
 
@@ -1139,7 +1121,6 @@ static const TypeInfo tpm_tis_info = {
 static void tpm_tis_register(void)
 {
     type_register_static(&tpm_tis_info);
-    tpm_register_model(TPM_MODEL_TPM_TIS);
 }
 
 type_init(tpm_tis_register)
