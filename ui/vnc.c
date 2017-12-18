@@ -975,16 +975,17 @@ static int vnc_update_client(VncState *vs, int has_dirty)
     }
 
     vs->has_dirty += has_dirty;
-    if (!vs->need_update) {
+    if (vs->update == VNC_STATE_UPDATE_NONE) {
         return 0;
     }
 
-    if (vs->output.offset && !vs->audio_cap && !vs->force_update) {
+    if (vs->output.offset && !vs->audio_cap &&
+        vs->update != VNC_STATE_UPDATE_FORCE) {
         /* kernel send buffers are full -> drop frames to throttle */
         return 0;
     }
 
-    if (!vs->has_dirty && !vs->force_update) {
+    if (!vs->has_dirty && vs->update != VNC_STATE_UPDATE_FORCE) {
         return 0;
     }
 
@@ -1030,7 +1031,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
     }
 
     vnc_job_push(job);
-    vs->force_update = 0;
+    vs->update = VNC_STATE_UPDATE_INCREMENTAL;
     vs->has_dirty = 0;
     return n;
 }
@@ -1869,14 +1870,14 @@ static void ext_key_event(VncState *vs, int down,
 static void framebuffer_update_request(VncState *vs, int incremental,
                                        int x, int y, int w, int h)
 {
-    vs->need_update = 1;
-
     if (incremental) {
-        return;
+        if (vs->update != VNC_STATE_UPDATE_FORCE) {
+            vs->update = VNC_STATE_UPDATE_INCREMENTAL;
+        }
+    } else {
+        vs->update = VNC_STATE_UPDATE_FORCE;
+        vnc_set_area_dirty(vs->dirty, vs->vd, x, y, w, h);
     }
-
-    vs->force_update = 1;
-    vnc_set_area_dirty(vs->dirty, vs->vd, x, y, w, h);
 }
 
 static void send_ext_key_event_ack(VncState *vs)
