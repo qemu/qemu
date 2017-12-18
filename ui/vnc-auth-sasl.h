@@ -53,6 +53,7 @@ struct VncStateSASL {
      */
     const uint8_t *encoded;
     unsigned int encodedLength;
+    unsigned int encodedRawLength;
     unsigned int encodedOffset;
     char *username;
     char *mechlist;
