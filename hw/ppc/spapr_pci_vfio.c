@@ -50,7 +50,7 @@ static Property spapr_phb_vfio_properties[] = {
 static void spapr_phb_vfio_instance_init(Object *obj)
 {
     if (!qtest_enabled()) {
-        error_report("spapr-pci-vfio-host-bridge is deprecated");
+        warn_report("spapr-pci-vfio-host-bridge is deprecated");
     }
 }
 
