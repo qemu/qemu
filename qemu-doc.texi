@@ -2680,6 +2680,21 @@ longer be directly supported in QEMU.
 The ``-drive if=scsi'' argument is replaced by the the
 ``-device BUS-TYPE'' argument combined with ``-drive if=none''.
 
+@subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
+
+The drive geometry arguments are replaced by the the geometry arguments
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive serial=... (since 2.10.0)
+
+The drive serial argument is replaced by the the serial argument
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive addr=... (since 2.10.0)
+
+The drive addr argument is replaced by the the addr argument
+that can be specified with the ``-device'' parameter.
+
 @subsection -net dump (since 2.10.0)
 
 The ``--net dump'' argument is now replaced with the
