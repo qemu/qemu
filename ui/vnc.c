@@ -596,7 +596,7 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
    3) resolutions > 1024
 */
 
-static int vnc_update_client(VncState *vs, int has_dirty, bool sync);
+static int vnc_update_client(VncState *vs, int has_dirty);
 static void vnc_disconnect_start(VncState *vs);
 
 static void vnc_colordepth(VncState *vs);
@@ -961,7 +961,7 @@ static int find_and_clear_dirty_height(VncState *vs,
     return h;
 }
 
-static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
+static int vnc_update_client(VncState *vs, int has_dirty)
 {
     if (vs->disconnecting) {
         vnc_disconnect_finish(vs);
@@ -1025,9 +1025,6 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
         }
 
         vnc_job_push(job);
-        if (sync) {
-            vnc_jobs_join(vs);
-        }
         vs->force_update = 0;
         vs->has_dirty = 0;
         return n;
@@ -1035,8 +1032,6 @@ static int vnc_update_client(VncState *vs, int has_dirty, bool sync)
 
     if (vs->disconnecting) {
         vnc_disconnect_finish(vs);
-    } else if (sync) {
-        vnc_jobs_join(vs);
     }
 
     return 0;
@@ -2863,7 +2858,7 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     vnc_unlock_display(vd);
 
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
-        rects += vnc_update_client(vs, has_dirty, false);
+        rects += vnc_update_client(vs, has_dirty);
         /* vs might be free()ed here */
     }
 
