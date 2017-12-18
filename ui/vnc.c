@@ -1031,7 +1031,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
     }
 
     vnc_job_push(job);
-    vs->update = VNC_STATE_UPDATE_INCREMENTAL;
+    vs->update = VNC_STATE_UPDATE_NONE;
     vs->has_dirty = 0;
     return n;
 }
