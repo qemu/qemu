@@ -270,8 +270,8 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     assert(data.done);
 }
 
-static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
-                                  BdrvChild *parent)
+void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
+                           BdrvChild *parent)
 {
     BdrvChild *child, *next;
 
@@ -290,6 +290,7 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
     bdrv_drain_recurse(bs);
 
     if (recursive) {
+        bs->recursive_quiesce_counter++;
         QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
             bdrv_do_drained_begin(child->bs, true, child);
         }
@@ -306,8 +307,8 @@ void bdrv_subtree_drained_begin(BlockDriverState *bs)
     bdrv_do_drained_begin(bs, true, NULL);
 }
 
-static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
-                                BdrvChild *parent)
+void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
+                         BdrvChild *parent)
 {
     BdrvChild *child, *next;
     int old_quiesce_counter;
@@ -327,6 +328,7 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
     }
 
     if (recursive) {
+        bs->recursive_quiesce_counter--;
         QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
             bdrv_do_drained_end(child->bs, true, child);
         }
@@ -341,6 +343,24 @@ void bdrv_drained_end(BlockDriverState *bs)
 void bdrv_subtree_drained_end(BlockDriverState *bs)
 {
     bdrv_do_drained_end(bs, true, NULL);
+}
+
+void bdrv_apply_subtree_drain(BdrvChild *child, BlockDriverState *new_parent)
+{
+    int i;
+
+    for (i = 0; i < new_parent->recursive_quiesce_counter; i++) {
+        bdrv_do_drained_begin(child->bs, true, child);
+    }
+}
+
+void bdrv_unapply_subtree_drain(BdrvChild *child, BlockDriverState *old_parent)
+{
+    int i;
+
+    for (i = 0; i < old_parent->recursive_quiesce_counter; i++) {
+        bdrv_do_drained_end(child->bs, true, child);
+    }
 }
 
 /*

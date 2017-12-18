@@ -610,8 +610,6 @@ void bdrv_drained_begin(BlockDriverState *bs);
 /**
  * Like bdrv_drained_begin, but recursively begins a quiesced section for
  * exclusive access to all child nodes as well.
- *
- * Graph changes are not allowed during a subtree drain section.
  */
 void bdrv_subtree_drained_begin(BlockDriverState *bs);
 

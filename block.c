@@ -822,6 +822,18 @@ static void bdrv_child_cb_drained_end(BdrvChild *child)
     bdrv_drained_end(bs);
 }
 
+static void bdrv_child_cb_attach(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
+    bdrv_apply_subtree_drain(child, bs);
+}
+
+static void bdrv_child_cb_detach(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
+    bdrv_unapply_subtree_drain(child, bs);
+}
+
 static int bdrv_child_cb_inactivate(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
@@ -889,6 +901,8 @@ const BdrvChildRole child_file = {
     .inherit_options = bdrv_inherited_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,
+    .attach          = bdrv_child_cb_attach,
+    .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
 };
 
@@ -911,6 +925,8 @@ const BdrvChildRole child_format = {
     .inherit_options = bdrv_inherited_fmt_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,
+    .attach          = bdrv_child_cb_attach,
+    .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
 };
 
@@ -953,6 +969,8 @@ static void bdrv_backing_attach(BdrvChild *c)
                     parent->backing_blocker);
     bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_BACKUP_TARGET,
                     parent->backing_blocker);
+
+    bdrv_child_cb_attach(c);
 }
 
 static void bdrv_backing_detach(BdrvChild *c)
@@ -963,6 +981,8 @@ static void bdrv_backing_detach(BdrvChild *c)
     bdrv_op_unblock_all(c->bs, parent->backing_blocker);
     error_free(parent->backing_blocker);
     parent->backing_blocker = NULL;
+
+    bdrv_child_cb_detach(c);
 }
 
 /*
@@ -1978,13 +1998,16 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
     }
     if (old_bs) {
+        /* Detach first so that the recursive drain sections coming from @child
+         * are already gone and we only end the drain sections that came from
+         * elsewhere. */
+        if (child->role->detach) {
+            child->role->detach(child);
+        }
         if (old_bs->quiesce_counter && child->role->drained_end) {
             for (i = 0; i < old_bs->quiesce_counter; i++) {
                 child->role->drained_end(child);
             }
-        }
-        if (child->role->detach) {
-            child->role->detach(child);
         }
         QLIST_REMOVE(child, next_parent);
     }
@@ -1999,6 +2022,9 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
             }
         }
 
+        /* Attach only after starting new drained sections, so that recursive
+         * drain sections coming from @child don't get an extra .drained_begin
+         * callback. */
         if (child->role->attach) {
             child->role->attach(child);
         }
