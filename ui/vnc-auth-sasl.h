@@ -65,8 +65,8 @@ struct VncDisplaySASL {
 
 void vnc_sasl_client_cleanup(VncState *vs);
 
-long vnc_client_read_sasl(VncState *vs);
-long vnc_client_write_sasl(VncState *vs);
+size_t vnc_client_read_sasl(VncState *vs);
+size_t vnc_client_write_sasl(VncState *vs);
 
 void start_auth_sasl(VncState *vs);
 
