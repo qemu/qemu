@@ -4532,7 +4532,7 @@ static ExitStatus op_testblock(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_tprot(DisasContext *s, DisasOps *o)
 {
-    gen_helper_tprot(cc_op, o->addr1, o->in2);
+    gen_helper_tprot(cc_op, cpu_env, o->addr1, o->in2);
     set_cc_static(s);
     return NO_EXIT;
 }
