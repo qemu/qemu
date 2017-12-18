@@ -969,7 +969,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
     }
 
     vs->has_dirty += has_dirty;
-    if (vs->need_update && !vs->disconnecting) {
+    if (vs->need_update) {
         VncDisplay *vd = vs->vd;
         VncJob *job;
         int y;
@@ -1028,10 +1028,6 @@ static int vnc_update_client(VncState *vs, int has_dirty)
         vs->force_update = 0;
         vs->has_dirty = 0;
         return n;
-    }
-
-    if (vs->disconnecting) {
-        vnc_disconnect_finish(vs);
     }
 
     return 0;
