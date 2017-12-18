@@ -486,7 +486,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         } else {
             address_space_stb(&address_space_memory, ccw.cda, vdev->status,
                                         MEMTXATTRS_UNSPECIFIED, NULL);
-            sch->curr_status.scsw.count = ccw.count - sizeof(vdev->status);;
+            sch->curr_status.scsw.count = ccw.count - sizeof(vdev->status);
             ret = 0;
         }
         break;

@@ -5,6 +5,8 @@ obj-y += pc_sysfw.o
 obj-y += x86-iommu.o intel_iommu.o
 obj-y += amd_iommu.o
 obj-$(CONFIG_XEN) += ../xenpv/ xen/
+obj-$(CONFIG_VMPORT) += vmport.o
+obj-$(CONFIG_VMMOUSE) += vmmouse.o
 
 obj-y += kvmvapic.o
 obj-y += acpi-build.o

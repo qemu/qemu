@@ -11,6 +11,8 @@
 #ifndef REGISTERFIELDS_H
 #define REGISTERFIELDS_H
 
+#include <qemu/bitops.h>
+
 /* Define constants for a 32 bit register */
 
 /* This macro will define A_FOO, for the byte address of a register
@@ -22,7 +24,7 @@
 
 /* Define SHIFT, LENGTH and MASK constants for a field within a register */
 
-/* This macro will define FOO_BAR_MASK, FOO_BAR_SHIFT and FOO_BAR_LENGTH 
+/* This macro will define R_FOO_BAR_MASK, R_FOO_BAR_SHIFT and R_FOO_BAR_LENGTH
  * constants for field BAR in register FOO.
  */
 #define FIELD(reg, field, shift, length)                                  \
@@ -34,6 +36,9 @@
 /* Extract a field from a register */
 #define FIELD_EX32(storage, reg, field)                                   \
     extract32((storage), R_ ## reg ## _ ## field ## _SHIFT,               \
+              R_ ## reg ## _ ## field ## _LENGTH)
+#define FIELD_EX64(storage, reg, field)                                   \
+    extract64((storage), R_ ## reg ## _ ## field ## _SHIFT,               \
               R_ ## reg ## _ ## field ## _LENGTH)
 
 /* Extract a field from an array of registers */
@@ -50,6 +55,14 @@
     } v = { .v = val };                                                   \
     uint32_t d;                                                           \
     d = deposit32((storage), R_ ## reg ## _ ## field ## _SHIFT,           \
+                  R_ ## reg ## _ ## field ## _LENGTH, v.v);               \
+    d; })
+#define FIELD_DP64(storage, reg, field, val) ({                           \
+    struct {                                                              \
+        unsigned int v:R_ ## reg ## _ ## field ## _LENGTH;                \
+    } v = { .v = val };                                                   \
+    uint64_t d;                                                           \
+    d = deposit64((storage), R_ ## reg ## _ ## field ## _SHIFT,           \
                   R_ ## reg ## _ ## field ## _LENGTH, v.v);               \
     d; })
 
