@@ -233,7 +233,7 @@ static void assign_storage(SCLPDevice *sclp, SCCB *sccb)
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
         return;
     }
-    assign_addr = (assign_info->rn - 1) * mhd->rzm;
+    assign_addr = (be16_to_cpu(assign_info->rn) - 1) * mhd->rzm;
 
     if ((assign_addr % MEM_SECTION_SIZE == 0) &&
         (assign_addr >= mhd->padded_ram_size)) {
@@ -292,7 +292,7 @@ static void unassign_storage(SCLPDevice *sclp, SCCB *sccb)
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
         return;
     }
-    unassign_addr = (assign_info->rn - 1) * mhd->rzm;
+    unassign_addr = (be16_to_cpu(assign_info->rn) - 1) * mhd->rzm;
 
     /* if the addr is a multiple of 256 MB */
     if ((unassign_addr % MEM_SECTION_SIZE == 0) &&
