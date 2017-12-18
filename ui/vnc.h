@@ -524,8 +524,8 @@ gboolean vnc_client_io(QIOChannel *ioc,
                        GIOCondition condition,
                        void *opaque);
 
-ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
-ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
+size_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
+size_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
 
 /* Protocol I/O functions */
 void vnc_write(VncState *vs, const void *data, size_t len);
@@ -544,7 +544,7 @@ uint32_t read_u32(uint8_t *data, size_t offset);
 
 /* Protocol stage functions */
 void vnc_client_error(VncState *vs);
-ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, Error **errp);
+size_t vnc_client_io_error(VncState *vs, ssize_t ret, Error **errp);
 
 void start_client_init(VncState *vs);
 void start_auth_vnc(VncState *vs);

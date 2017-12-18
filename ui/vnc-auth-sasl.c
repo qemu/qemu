@@ -48,9 +48,9 @@ void vnc_sasl_client_cleanup(VncState *vs)
 }
 
 
-long vnc_client_write_sasl(VncState *vs)
+size_t vnc_client_write_sasl(VncState *vs)
 {
-    long ret;
+    size_t ret;
 
     VNC_DEBUG("Write SASL: Pending output %p size %zd offset %zd "
               "Encoded: %p size %d offset %d\n",
@@ -106,9 +106,9 @@ long vnc_client_write_sasl(VncState *vs)
 }
 
 
-long vnc_client_read_sasl(VncState *vs)
+size_t vnc_client_read_sasl(VncState *vs)
 {
-    long ret;
+    size_t ret;
     uint8_t encoded[4096];
     const char *decoded;
     unsigned int decodedLen;

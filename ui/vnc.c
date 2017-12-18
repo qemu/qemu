@@ -1272,7 +1272,7 @@ void vnc_disconnect_finish(VncState *vs)
     g_free(vs);
 }
 
-ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, Error **errp)
+size_t vnc_client_io_error(VncState *vs, ssize_t ret, Error **errp)
 {
     if (ret <= 0) {
         if (ret == 0) {
@@ -1315,9 +1315,9 @@ void vnc_client_error(VncState *vs)
  *
  * Returns the number of bytes written, which may be less than
  * the requested 'datalen' if the socket would block. Returns
- * -1 on error, and disconnects the client socket.
+ * 0 on I/O error, and disconnects the client socket.
  */
-ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
+size_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
 {
     Error *err = NULL;
     ssize_t ret;
@@ -1335,13 +1335,13 @@ ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
  * will switch the FD poll() handler back to read monitoring.
  *
  * Returns the number of bytes written, which may be less than
- * the buffered output data if the socket would block. Returns
- * -1 on error, and disconnects the client socket.
+ * the buffered output data if the socket would block.  Returns
+ * 0 on I/O error, and disconnects the client socket.
  */
-static ssize_t vnc_client_write_plain(VncState *vs)
+static size_t vnc_client_write_plain(VncState *vs)
 {
     size_t offset;
-    ssize_t ret;
+    size_t ret;
 
 #ifdef CONFIG_VNC_SASL
     VNC_DEBUG("Write Plain: Pending output %p size %zd offset %zd. Wait SSF %d\n",
@@ -1442,9 +1442,9 @@ void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
  *
  * Returns the number of bytes read, which may be less than
  * the requested 'datalen' if the socket would block. Returns
- * -1 on error, and disconnects the client socket.
+ * 0 on I/O error or EOF, and disconnects the client socket.
  */
-ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
+size_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
 {
     ssize_t ret;
     Error *err = NULL;
@@ -1460,12 +1460,13 @@ ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
  * when not using any SASL SSF encryption layers. Will read as much
  * data as possible without blocking.
  *
- * Returns the number of bytes read. Returns -1 on error, and
- * disconnects the client socket.
+ * Returns the number of bytes read, which may be less than
+ * the requested 'datalen' if the socket would block. Returns
+ * 0 on I/O error or EOF, and disconnects the client socket.
  */
-static ssize_t vnc_client_read_plain(VncState *vs)
+static size_t vnc_client_read_plain(VncState *vs)
 {
-    ssize_t ret;
+    size_t ret;
     VNC_DEBUG("Read plain %p size %zd offset %zd\n",
               vs->input.buffer, vs->input.capacity, vs->input.offset);
     buffer_reserve(&vs->input, 4096);
@@ -1491,7 +1492,7 @@ static void vnc_jobs_bh(void *opaque)
  */
 static int vnc_client_read(VncState *vs)
 {
-    ssize_t ret;
+    size_t ret;
 
 #ifdef CONFIG_VNC_SASL
     if (vs->sasl.conn && vs->sasl.runSSF)
