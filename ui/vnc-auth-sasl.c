@@ -79,6 +79,11 @@ long vnc_client_write_sasl(VncState *vs)
 
     vs->sasl.encodedOffset += ret;
     if (vs->sasl.encodedOffset == vs->sasl.encodedLength) {
+        if (vs->sasl.encodedRawLength >= vs->force_update_offset) {
+            vs->force_update_offset = 0;
+        } else {
+            vs->force_update_offset -= vs->sasl.encodedRawLength;
+        }
         vs->output.offset -= vs->sasl.encodedRawLength;
         vs->sasl.encoded = NULL;
         vs->sasl.encodedOffset = vs->sasl.encodedLength = 0;

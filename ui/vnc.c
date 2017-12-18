@@ -1021,14 +1021,28 @@ static bool vnc_should_update(VncState *vs)
         break;
     case VNC_STATE_UPDATE_INCREMENTAL:
         /* Only allow incremental updates if the pending send queue
-         * is less than the permitted threshold
+         * is less than the permitted threshold, and the job worker
+         * is completely idle.
          */
-        if (vs->output.offset < vs->throttle_output_offset) {
+        if (vs->output.offset < vs->throttle_output_offset &&
+            vs->job_update == VNC_STATE_UPDATE_NONE) {
             return true;
         }
         break;
     case VNC_STATE_UPDATE_FORCE:
-        return true;
+        /* Only allow forced updates if the pending send queue
+         * does not contain a previous forced update, and the
+         * job worker is completely idle.
+         *
+         * Note this means we'll queue a forced update, even if
+         * the output buffer size is otherwise over the throttle
+         * output limit.
+         */
+        if (vs->force_update_offset == 0 &&
+            vs->job_update == VNC_STATE_UPDATE_NONE) {
+            return true;
+        }
+        break;
     }
     return false;
 }
@@ -1096,8 +1110,9 @@ static int vnc_update_client(VncState *vs, int has_dirty)
         }
     }
 
-    vnc_job_push(job);
+    vs->job_update = vs->update;
     vs->update = VNC_STATE_UPDATE_NONE;
+    vnc_job_push(job);
     vs->has_dirty = 0;
     return n;
 }
@@ -1332,6 +1347,11 @@ static ssize_t vnc_client_write_plain(VncState *vs)
     if (!ret)
         return 0;
 
+    if (ret >= vs->force_update_offset) {
+        vs->force_update_offset = 0;
+    } else {
+        vs->force_update_offset -= ret;
+    }
     buffer_advance(&vs->output, ret);
 
     if (vs->output.offset == 0) {
