@@ -39,4 +39,7 @@ static inline uint32_t tpm_cmd_get_size(const void *b)
 int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
                              size_t *buffersize);
 
+#define DEFINE_PROP_TPMBE(_n, _s, _f)                     \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_tpm, TPMBackend *)
+
 #endif /* TPM_TPM_UTIL_H */
