@@ -2589,12 +2589,6 @@ deprecated.
 
 @section System emulator command line arguments
 
-@subsection -drive boot=on|off (since 1.3.0)
-
-The ``boot=on|off'' option to the ``-drive'' argument is
-ignored. Applications should use the ``bootindex=N'' parameter
-to set an absolute ordering between devices instead.
-
 @subsection -tdf (since 1.3.0)
 
 The ``-tdf'' argument is ignored. The behaviour implemented
