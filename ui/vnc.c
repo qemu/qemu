@@ -984,7 +984,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
         return 0;
     }
 
-    if (!vs->has_dirty && !vs->audio_cap && !vs->force_update) {
+    if (!vs->has_dirty && !vs->force_update) {
         return 0;
     }
 
