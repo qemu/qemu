@@ -1011,6 +1011,12 @@ static void vnc_update_throttle_offset(VncState *vs)
      */
     offset = MAX(offset, 1024 * 1024);
 
+    if (vs->throttle_output_offset != offset) {
+        trace_vnc_client_throttle_threshold(
+            vs, vs->ioc, vs->throttle_output_offset, offset, vs->client_width,
+            vs->client_height, vs->client_pf.bytes_per_pixel, vs->audio_cap);
+    }
+
     vs->throttle_output_offset = offset;
 }
 
@@ -1028,6 +1034,8 @@ static bool vnc_should_update(VncState *vs)
             vs->job_update == VNC_STATE_UPDATE_NONE) {
             return true;
         }
+        trace_vnc_client_throttle_incremental(
+            vs, vs->ioc, vs->job_update, vs->output.offset);
         break;
     case VNC_STATE_UPDATE_FORCE:
         /* Only allow forced updates if the pending send queue
@@ -1042,6 +1050,8 @@ static bool vnc_should_update(VncState *vs)
             vs->job_update == VNC_STATE_UPDATE_NONE) {
             return true;
         }
+        trace_vnc_client_throttle_forced(
+            vs, vs->ioc, vs->job_update, vs->force_update_offset);
         break;
     }
     return false;
@@ -1158,6 +1168,8 @@ static void audio_capture(void *opaque, void *buf, int size)
         vnc_write_u16(vs, VNC_MSG_SERVER_QEMU_AUDIO_DATA);
         vnc_write_u32(vs, size);
         vnc_write(vs, buf, size);
+    } else {
+        trace_vnc_client_throttle_audio(vs, vs->ioc, vs->output.offset);
     }
     vnc_unlock_output(vs);
     vnc_flush(vs);
@@ -1328,6 +1340,7 @@ ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
  */
 static ssize_t vnc_client_write_plain(VncState *vs)
 {
+    size_t offset;
     ssize_t ret;
 
 #ifdef CONFIG_VNC_SASL
@@ -1348,11 +1361,19 @@ static ssize_t vnc_client_write_plain(VncState *vs)
         return 0;
 
     if (ret >= vs->force_update_offset) {
+        if (vs->force_update_offset != 0) {
+            trace_vnc_client_unthrottle_forced(vs, vs->ioc);
+        }
         vs->force_update_offset = 0;
     } else {
         vs->force_update_offset -= ret;
     }
+    offset = vs->output.offset;
     buffer_advance(&vs->output, ret);
+    if (offset >= vs->throttle_output_offset &&
+        vs->output.offset < vs->throttle_output_offset) {
+        trace_vnc_client_unthrottle_incremental(vs, vs->ioc, vs->output.offset);
+    }
 
     if (vs->output.offset == 0) {
         if (vs->ioc_tag) {
@@ -1549,6 +1570,8 @@ void vnc_write(VncState *vs, const void *data, size_t len)
     if (vs->throttle_output_offset != 0 &&
         vs->output.offset > (vs->throttle_output_offset *
                              VNC_THROTTLE_OUTPUT_LIMIT_SCALE)) {
+        trace_vnc_client_output_limit(vs, vs->ioc, vs->output.offset,
+                                      vs->throttle_output_offset);
         vnc_disconnect_start(vs);
         return;
     }
