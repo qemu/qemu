@@ -60,6 +60,7 @@ static QTAILQ_HEAD(, VncDisplay) vnc_displays =
 
 static int vnc_cursor_define(VncState *vs);
 static void vnc_release_modifiers(VncState *vs);
+static void vnc_update_throttle_offset(VncState *vs);
 
 static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
 {
@@ -766,6 +767,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
         vnc_set_area_dirty(vs->dirty, vd, 0, 0,
                            vnc_width(vd),
                            vnc_height(vd));
+        vnc_update_throttle_offset(vs);
     }
 }
 
@@ -961,16 +963,67 @@ static int find_and_clear_dirty_height(VncState *vs,
     return h;
 }
 
+/*
+ * Figure out how much pending data we should allow in the output
+ * buffer before we throttle incremental display updates, and/or
+ * drop audio samples.
+ *
+ * We allow for equiv of 1 full display's worth of FB updates,
+ * and 1 second of audio samples. If audio backlog was larger
+ * than that the client would already suffering awful audio
+ * glitches, so dropping samples is no worse really).
+ */
+static void vnc_update_throttle_offset(VncState *vs)
+{
+    size_t offset =
+        vs->client_width * vs->client_height * vs->client_pf.bytes_per_pixel;
+
+    if (vs->audio_cap) {
+        int freq = vs->as.freq;
+        /* We don't limit freq when reading settings from client, so
+         * it could be upto MAX_INT in size. 48khz is a sensible
+         * upper bound for trustworthy clients */
+        int bps;
+        if (freq > 48000) {
+            freq = 48000;
+        }
+        switch (vs->as.fmt) {
+        default:
+        case  AUD_FMT_U8:
+        case  AUD_FMT_S8:
+            bps = 1;
+            break;
+        case  AUD_FMT_U16:
+        case  AUD_FMT_S16:
+            bps = 2;
+            break;
+        case  AUD_FMT_U32:
+        case  AUD_FMT_S32:
+            bps = 4;
+            break;
+        }
+        offset += freq * bps * vs->as.nchannels;
+    }
+
+    /* Put a floor of 1MB on offset, so that if we have a large pending
+     * buffer and the display is resized to a small size & back again
+     * we don't suddenly apply a tiny send limit
+     */
+    offset = MAX(offset, 1024 * 1024);
+
+    vs->throttle_output_offset = offset;
+}
+
 static bool vnc_should_update(VncState *vs)
 {
     switch (vs->update) {
     case VNC_STATE_UPDATE_NONE:
         break;
     case VNC_STATE_UPDATE_INCREMENTAL:
-        /* Only allow incremental updates if the output buffer
-         * is empty, or if audio capture is enabled.
+        /* Only allow incremental updates if the pending send queue
+         * is less than the permitted threshold
          */
-        if (!vs->output.offset || vs->audio_cap) {
+        if (vs->output.offset < vs->throttle_output_offset) {
             return true;
         }
         break;
@@ -1084,11 +1137,13 @@ static void audio_capture(void *opaque, void *buf, int size)
     VncState *vs = opaque;
 
     vnc_lock_output(vs);
-    vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
-    vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
-    vnc_write_u16(vs, VNC_MSG_SERVER_QEMU_AUDIO_DATA);
-    vnc_write_u32(vs, size);
-    vnc_write(vs, buf, size);
+    if (vs->output.offset < vs->throttle_output_offset) {
+        vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
+        vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
+        vnc_write_u16(vs, VNC_MSG_SERVER_QEMU_AUDIO_DATA);
+        vnc_write_u32(vs, size);
+        vnc_write(vs, buf, size);
+    }
     vnc_unlock_output(vs);
     vnc_flush(vs);
 }
@@ -2288,6 +2343,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         break;
     }
 
+    vnc_update_throttle_offset(vs);
     vnc_read_when(vs, protocol_client_msg, 1);
     return 0;
 }
