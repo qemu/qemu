@@ -804,60 +804,55 @@ static const IGDHostInfo igd_host_bridge_infos[] = {
     {0xa8, 4},  /* SNB: base of GTT stolen memory */
 };
 
-static int host_pci_config_read(int pos, int len, uint32_t *val)
+static void host_pci_config_read(int pos, int len, uint32_t *val, Error **errp)
 {
-    char path[PATH_MAX];
-    int config_fd;
-    ssize_t size = sizeof(path);
+    int rc, config_fd;
     /* Access real host bridge. */
-    int rc = snprintf(path, size, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/%s",
-                      0, 0, 0, 0, "config");
-    int ret = 0;
-
-    if (rc >= size || rc < 0) {
-        return -ENODEV;
-    }
+    char *path = g_strdup_printf("/sys/bus/pci/devices/%04x:%02x:%02x.%d/%s",
+                                 0, 0, 0, 0, "config");
 
     config_fd = open(path, O_RDWR);
     if (config_fd < 0) {
-        return -ENODEV;
+        error_setg_errno(errp, errno, "Failed to open: %s", path);
+        goto out;
     }
 
     if (lseek(config_fd, pos, SEEK_SET) != pos) {
-        ret = -errno;
-        goto out;
+        error_setg_errno(errp, errno, "Failed to seek: %s", path);
+        goto out_close_fd;
     }
 
     do {
         rc = read(config_fd, (uint8_t *)val, len);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
     if (rc != len) {
-        ret = -errno;
+        error_setg_errno(errp, errno, "Failed to read: %s", path);
     }
 
-out:
+out_close_fd:
     close(config_fd);
-    return ret;
+out:
+    g_free(path);
 }
 
-static int igd_pt_i440fx_initfn(struct PCIDevice *pci_dev)
+static void igd_pt_i440fx_realize(PCIDevice *pci_dev, Error **errp)
 {
     uint32_t val = 0;
-    int rc, i, num;
+    int i, num;
     int pos, len;
+    Error *local_err = NULL;
 
     num = ARRAY_SIZE(igd_host_bridge_infos);
     for (i = 0; i < num; i++) {
         pos = igd_host_bridge_infos[i].offset;
         len = igd_host_bridge_infos[i].len;
-        rc = host_pci_config_read(pos, len, &val);
-        if (rc) {
-            return -ENODEV;
+        host_pci_config_read(pos, len, &val, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
         }
         pci_default_write_config(pci_dev, pos, val, len);
     }
-
-    return 0;
 }
 
 static void igd_passthrough_i440fx_class_init(ObjectClass *klass, void *data)
@@ -865,7 +860,7 @@ static void igd_passthrough_i440fx_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = igd_pt_i440fx_initfn;
+    k->realize = igd_pt_i440fx_realize;
     dc->desc = "IGD Passthrough Host bridge";
 }
 
