@@ -271,6 +271,7 @@ struct VncState
 
     VncDisplay *vd;
     VncStateUpdate update; /* Most recent pending request from client */
+    VncStateUpdate job_update; /* Currently processed by job thread */
     int has_dirty;
     uint32_t features;
     int absolute;
@@ -298,6 +299,12 @@ struct VncState
 
     VncClientInfo *info;
 
+    /* Job thread bottom half has put data for a forced update
+     * into the output buffer. This offset points to the end of
+     * the update data in the output buffer. This lets us determine
+     * when a force update is fully sent to the client, allowing
+     * us to process further forced updates. */
+    size_t force_update_offset;
     /* We allow multiple incremental updates or audio capture
      * samples to be queued in output buffer, provided the
      * buffer size doesn't exceed this threshold. The value
