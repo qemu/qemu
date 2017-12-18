@@ -252,6 +252,12 @@ struct VncJob
     QTAILQ_ENTRY(VncJob) next;
 };
 
+typedef enum {
+    VNC_STATE_UPDATE_NONE,
+    VNC_STATE_UPDATE_INCREMENTAL,
+    VNC_STATE_UPDATE_FORCE,
+} VncStateUpdate;
+
 struct VncState
 {
     QIOChannelSocket *sioc; /* The underlying socket */
@@ -264,8 +270,7 @@ struct VncState
                            * vnc-jobs-async.c */
 
     VncDisplay *vd;
-    int need_update;
-    int force_update;
+    VncStateUpdate update; /* Most recent pending request from client */
     int has_dirty;
     uint32_t features;
     int absolute;
