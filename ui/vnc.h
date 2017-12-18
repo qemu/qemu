@@ -298,6 +298,12 @@ struct VncState
 
     VncClientInfo *info;
 
+    /* We allow multiple incremental updates or audio capture
+     * samples to be queued in output buffer, provided the
+     * buffer size doesn't exceed this threshold. The value
+     * is calculating dynamically based on framebuffer size
+     * and audio sample settings in vnc_update_throttle_offset() */
+    size_t throttle_output_offset;
     Buffer output;
     Buffer input;
     /* current output mode information */
