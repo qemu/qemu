@@ -81,7 +81,14 @@ static void test_pxe_ipv4(gconstpointer data)
     test_pxe_one(test, false);
 }
 
-static void test_batch(const testdef_t *tests)
+static void test_pxe_ipv6(gconstpointer data)
+{
+    const testdef_t *test = data;
+
+    test_pxe_one(test, true);
+}
+
+static void test_batch(const testdef_t *tests, bool ipv6)
 {
     int i;
 
@@ -93,6 +100,13 @@ static void test_batch(const testdef_t *tests)
                                    test->machine, test->model);
         qtest_add_data_func(testname, test, test_pxe_ipv4);
         g_free(testname);
+
+        if (ipv6) {
+            testname = g_strdup_printf("pxe/ipv6/%s/%s",
+                                       test->machine, test->model);
+            qtest_add_data_func(testname, test, test_pxe_ipv6);
+            g_free(testname);
+        }
     }
 }
 
@@ -108,17 +122,17 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        test_batch(x86_tests);
+        test_batch(x86_tests, false);
         if (g_test_slow()) {
-            test_batch(x86_tests_slow);
+            test_batch(x86_tests_slow, false);
         }
     } else if (strcmp(arch, "ppc64") == 0) {
-        test_batch(ppc64_tests);
+        test_batch(ppc64_tests, g_test_slow());
         if (g_test_slow()) {
-            test_batch(ppc64_tests_slow);
+            test_batch(ppc64_tests_slow, true);
         }
     } else if (g_str_equal(arch, "s390x")) {
-        test_batch(s390x_tests);
+        test_batch(s390x_tests, g_test_slow());
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
