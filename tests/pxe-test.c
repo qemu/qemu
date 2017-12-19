@@ -22,14 +22,51 @@
 
 static char disk[] = "tests/pxe-test-disk-XXXXXX";
 
-static void test_pxe_one(const char *params, bool ipv6)
+typedef struct testdef {
+    const char *machine;    /* Machine type */
+    const char *model;      /* NIC device model */
+} testdef_t;
+
+static testdef_t x86_tests[] = {
+    { "pc", "e1000" },
+    { "pc", "virtio-net-pci" },
+    { NULL },
+};
+
+static testdef_t x86_tests_slow[] = {
+    { "pc", "ne2k_pci", },
+    { "pc", "i82550", },
+    { "pc", "rtl8139" },
+    { "pc", "vmxnet3" },
+    { NULL },
+};
+
+static testdef_t ppc64_tests[] = {
+    { "pseries", "spapr-vlan" },
+    { NULL },
+};
+
+static testdef_t ppc64_tests_slow[] = {
+    { "pseries", "virtio-net-pci", },
+    { "pseries", "e1000" },
+    { NULL },
+};
+
+static testdef_t s390x_tests[] = {
+    { "s390-ccw-virtio", "virtio-net-ccw" },
+    { NULL },
+};
+
+static void test_pxe_one(const testdef_t *test, bool ipv6)
 {
     char *args;
 
-    args = g_strdup_printf("-machine accel=kvm:tcg -nodefaults -boot order=n "
-                           "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,"
-                           "ipv4=%s,ipv6=%s %s", disk, ipv6 ? "off" : "on",
-                           ipv6 ? "on" : "off", params);
+    args = g_strdup_printf(
+        "-machine %s,accel=kvm:tcg -nodefaults -boot order=n "
+        "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,ipv4=%s,ipv6=%s "
+        "-device %s,bootindex=1,netdev=" NETNAME,
+        test->machine, disk, ipv6 ? "off" : "on", ipv6 ? "on" : "off",
+        test->model);
 
     qtest_start(args);
     boot_sector_test();
@@ -39,12 +76,24 @@ static void test_pxe_one(const char *params, bool ipv6)
 
 static void test_pxe_ipv4(gconstpointer data)
 {
-    const char *model = data;
-    char *dev_arg;
+    const testdef_t *test = data;
 
-    dev_arg = g_strdup_printf("-device %s,netdev=" NETNAME, model);
-    test_pxe_one(dev_arg, false);
-    g_free(dev_arg);
+    test_pxe_one(test, false);
+}
+
+static void test_batch(const testdef_t *tests)
+{
+    int i;
+
+    for (i = 0; tests[i].machine; i++) {
+        const testdef_t *test = &tests[i];
+        char *testname;
+
+        testname = g_strdup_printf("pxe/ipv4/%s/%s",
+                                   test->machine, test->model);
+        qtest_add_data_func(testname, test, test_pxe_ipv4);
+        g_free(testname);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -59,24 +108,17 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qtest_add_data_func("pxe/e1000", "e1000", test_pxe_ipv4);
-        qtest_add_data_func("pxe/virtio", "virtio-net-pci", test_pxe_ipv4);
+        test_batch(x86_tests);
         if (g_test_slow()) {
-            qtest_add_data_func("pxe/ne2000", "ne2k_pci", test_pxe_ipv4);
-            qtest_add_data_func("pxe/eepro100", "i82550", test_pxe_ipv4);
-            qtest_add_data_func("pxe/pcnet", "pcnet", test_pxe_ipv4);
-            qtest_add_data_func("pxe/rtl8139", "rtl8139", test_pxe_ipv4);
-            qtest_add_data_func("pxe/vmxnet3", "vmxnet3", test_pxe_ipv4);
+            test_batch(x86_tests_slow);
         }
     } else if (strcmp(arch, "ppc64") == 0) {
-        qtest_add_data_func("pxe/spapr-vlan", "spapr-vlan", test_pxe_ipv4);
+        test_batch(ppc64_tests);
         if (g_test_slow()) {
-            qtest_add_data_func("pxe/virtio", "virtio-net-pci", test_pxe_ipv4);
-            qtest_add_data_func("pxe/e1000", "e1000", test_pxe_ipv4);
+            test_batch(ppc64_tests_slow);
         }
     } else if (g_str_equal(arch, "s390x")) {
-        qtest_add_data_func("pxe/virtio-ccw",
-                            "virtio-net-ccw,bootindex=1", test_pxe_ipv4);
+        test_batch(s390x_tests);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
