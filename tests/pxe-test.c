@@ -47,16 +47,6 @@ static void test_pxe_ipv4(gconstpointer data)
     g_free(dev_arg);
 }
 
-static void test_pxe_spapr_vlan(void)
-{
-    test_pxe_one("-device spapr-vlan,netdev=" NETNAME, true);
-}
-
-static void test_pxe_virtio_ccw(void)
-{
-    test_pxe_one("-device virtio-net-ccw,bootindex=1,netdev=" NETNAME, false);
-}
-
 int main(int argc, char *argv[])
 {
     int ret;
@@ -79,13 +69,14 @@ int main(int argc, char *argv[])
             qtest_add_data_func("pxe/vmxnet3", "vmxnet3", test_pxe_ipv4);
         }
     } else if (strcmp(arch, "ppc64") == 0) {
-        qtest_add_func("pxe/spapr-vlan", test_pxe_spapr_vlan);
+        qtest_add_data_func("pxe/spapr-vlan", "spapr-vlan", test_pxe_ipv4);
         if (g_test_slow()) {
             qtest_add_data_func("pxe/virtio", "virtio-net-pci", test_pxe_ipv4);
             qtest_add_data_func("pxe/e1000", "e1000", test_pxe_ipv4);
         }
     } else if (g_str_equal(arch, "s390x")) {
-        qtest_add_func("pxe/virtio-ccw", test_pxe_virtio_ccw);
+        qtest_add_data_func("pxe/virtio-ccw",
+                            "virtio-net-ccw,bootindex=1", test_pxe_ipv4);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
