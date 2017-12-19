@@ -4143,9 +4143,6 @@ QemuOptsList qemu_mon_opts = {
             .name = "chardev",
             .type = QEMU_OPT_STRING,
         },{
-            .name = "default",  /* deprecated */
-            .type = QEMU_OPT_BOOL,
-        },{
             .name = "pretty",
             .type = QEMU_OPT_BOOL,
         },

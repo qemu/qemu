@@ -2628,15 +2628,6 @@ setting ``-machine kernel_irqchip=off''.
 The ``-no-kvm'' argument is now a synonym for setting
 ``-machine accel=tcg''.
 
-@subsection -mon default=on (since 2.4.0)
-
-The ``default'' option to the ``-mon'' argument is
-now ignored. When multiple monitors were enabled, it
-indicated which monitor would receive log messages
-from the various subsystems. This feature is no longer
-required as messages are now only sent to the monitor
-in response to explicitly monitor commands.
-
 @subsection -vnc tls (since 2.5.0)
 
 The ``-vnc tls'' argument is now a synonym for setting
