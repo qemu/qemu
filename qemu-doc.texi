@@ -2670,11 +2670,6 @@ The ``-smb /some/dir'' argument is now a synonym for setting
 the ``-netdev user,smb=/some/dir'' argument instead. The new
 syntax allows different settings to be provided per NIC.
 
-@subsection -net channel (since 2.6.0)
-
-The ``--net channel,ARGS'' argument is now a synonym for setting
-the ``-netdev user,guestfwd=ARGS'' argument instead.
-
 @subsection -net vlan (since 2.9.0)
 
 The ``-net vlan=NN'' argument is partially replaced with the

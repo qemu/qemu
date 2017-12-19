@@ -1565,13 +1565,6 @@ int net_init_clients(void)
 
 int net_client_parse(QemuOptsList *opts_list, const char *optarg)
 {
-#if defined(CONFIG_SLIRP)
-    int ret;
-    if (net_slirp_parse_legacy(opts_list, optarg, &ret)) {
-        return ret;
-    }
-#endif
-
     if (!qemu_opts_parse_noisily(opts_list, optarg, true)) {
         return -1;
     }
