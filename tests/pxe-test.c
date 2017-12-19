@@ -30,6 +30,8 @@ typedef struct testdef {
 static testdef_t x86_tests[] = {
     { "pc", "e1000" },
     { "pc", "virtio-net-pci" },
+    { "q35", "e1000e" },
+    { "q35", "virtio-net-pci", },
     { NULL },
 };
 
@@ -43,11 +45,11 @@ static testdef_t x86_tests_slow[] = {
 
 static testdef_t ppc64_tests[] = {
     { "pseries", "spapr-vlan" },
+    { "pseries", "virtio-net-pci", },
     { NULL },
 };
 
 static testdef_t ppc64_tests_slow[] = {
-    { "pseries", "virtio-net-pci", },
     { "pseries", "e1000" },
     { NULL },
 };
