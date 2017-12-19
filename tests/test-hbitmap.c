@@ -925,6 +925,61 @@ static void test_hbitmap_iter_and_reset(TestHBitmapData *data,
     hbitmap_iter_next(&hbi);
 }
 
+static void test_hbitmap_next_zero_check(TestHBitmapData *data, int64_t start)
+{
+    int64_t ret1 = hbitmap_next_zero(data->hb, start);
+    int64_t ret2 = start;
+    for ( ; ret2 < data->size && hbitmap_get(data->hb, ret2); ret2++) {
+        ;
+    }
+    if (ret2 == data->size) {
+        ret2 = -1;
+    }
+
+    g_assert_cmpint(ret1, ==, ret2);
+}
+
+static void test_hbitmap_next_zero_do(TestHBitmapData *data, int granularity)
+{
+    hbitmap_test_init(data, L3, granularity);
+    test_hbitmap_next_zero_check(data, 0);
+    test_hbitmap_next_zero_check(data, L3 - 1);
+
+    hbitmap_set(data->hb, L2, 1);
+    test_hbitmap_next_zero_check(data, 0);
+    test_hbitmap_next_zero_check(data, L2 - 1);
+    test_hbitmap_next_zero_check(data, L2);
+    test_hbitmap_next_zero_check(data, L2 + 1);
+
+    hbitmap_set(data->hb, L2 + 5, L1);
+    test_hbitmap_next_zero_check(data, 0);
+    test_hbitmap_next_zero_check(data, L2 + 1);
+    test_hbitmap_next_zero_check(data, L2 + 2);
+    test_hbitmap_next_zero_check(data, L2 + 5);
+    test_hbitmap_next_zero_check(data, L2 + L1 - 1);
+    test_hbitmap_next_zero_check(data, L2 + L1);
+
+    hbitmap_set(data->hb, L2 * 2, L3 - L2 * 2);
+    test_hbitmap_next_zero_check(data, L2 * 2 - L1);
+    test_hbitmap_next_zero_check(data, L2 * 2 - 2);
+    test_hbitmap_next_zero_check(data, L2 * 2 - 1);
+    test_hbitmap_next_zero_check(data, L2 * 2);
+    test_hbitmap_next_zero_check(data, L3 - 1);
+
+    hbitmap_set(data->hb, 0, L3);
+    test_hbitmap_next_zero_check(data, 0);
+}
+
+static void test_hbitmap_next_zero_0(TestHBitmapData *data, const void *unused)
+{
+    test_hbitmap_next_zero_do(data, 0);
+}
+
+static void test_hbitmap_next_zero_4(TestHBitmapData *data, const void *unused)
+{
+    test_hbitmap_next_zero_do(data, 4);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -985,6 +1040,12 @@ int main(int argc, char **argv)
 
     hbitmap_test_add("/hbitmap/iter/iter_and_reset",
                      test_hbitmap_iter_and_reset);
+
+    hbitmap_test_add("/hbitmap/next_zero/next_zero_0",
+                     test_hbitmap_next_zero_0);
+    hbitmap_test_add("/hbitmap/next_zero/next_zero_4",
+                     test_hbitmap_next_zero_4);
+
     g_test_run();
 
     return 0;

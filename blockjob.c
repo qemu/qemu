@@ -59,6 +59,7 @@ static void __attribute__((__constructor__)) block_job_init(void)
 
 static void block_job_event_cancelled(BlockJob *job);
 static void block_job_event_completed(BlockJob *job, const char *msg);
+static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job));
 
 /* Transactional group of block jobs */
 struct BlockJobTxn {
@@ -480,9 +481,16 @@ static void block_job_completed_txn_success(BlockJob *job)
     }
 }
 
+/* Assumes the block_job_mutex is held */
+static bool block_job_timer_pending(BlockJob *job)
+{
+    return timer_pending(&job->sleep_timer);
+}
+
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     Error *local_err = NULL;
+    int64_t old_speed = job->speed;
 
     if (!job->driver->set_speed) {
         error_setg(errp, QERR_UNSUPPORTED);
@@ -495,6 +503,12 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     job->speed = speed;
+    if (speed <= old_speed) {
+        return;
+    }
+
+    /* kick only if a timer is pending */
+    block_job_enter_cond(job, block_job_timer_pending);
 }
 
 void block_job_complete(BlockJob *job, Error **errp)
@@ -821,7 +835,11 @@ void block_job_resume_all(void)
     }
 }
 
-void block_job_enter(BlockJob *job)
+/*
+ * Conditionally enter a block_job pending a call to fn() while
+ * under the block_job_lock critical section.
+ */
+static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job))
 {
     if (!block_job_started(job)) {
         return;
@@ -836,11 +854,21 @@ void block_job_enter(BlockJob *job)
         return;
     }
 
+    if (fn && !fn(job)) {
+        block_job_unlock();
+        return;
+    }
+
     assert(!job->deferred_to_main_loop);
     timer_del(&job->sleep_timer);
     job->busy = true;
     block_job_unlock();
     aio_co_wake(job->co);
+}
+
+void block_job_enter(BlockJob *job)
+{
+    block_job_enter_cond(job, NULL);
 }
 
 bool block_job_is_cancelled(BlockJob *job)

@@ -188,6 +188,45 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first)
     }
 }
 
+int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start)
+{
+    size_t pos = (start >> hb->granularity) >> BITS_PER_LEVEL;
+    unsigned long *last_lev = hb->levels[HBITMAP_LEVELS - 1];
+    uint64_t sz = hb->sizes[HBITMAP_LEVELS - 1];
+    unsigned long cur = last_lev[pos];
+    unsigned start_bit_offset =
+            (start >> hb->granularity) & (BITS_PER_LONG - 1);
+    int64_t res;
+
+    cur |= (1UL << start_bit_offset) - 1;
+    assert((start >> hb->granularity) < hb->size);
+
+    if (cur == (unsigned long)-1) {
+        do {
+            pos++;
+        } while (pos < sz && last_lev[pos] == (unsigned long)-1);
+
+        if (pos >= sz) {
+            return -1;
+        }
+
+        cur = last_lev[pos];
+    }
+
+    res = (pos << BITS_PER_LEVEL) + ctol(cur);
+    if (res >= hb->size) {
+        return -1;
+    }
+
+    res = res << hb->granularity;
+    if (res < start) {
+        assert(((start - res) >> hb->granularity) == 0);
+        return start;
+    }
+
+    return res;
+}
+
 bool hbitmap_empty(const HBitmap *hb)
 {
     return hb->count == 0;
