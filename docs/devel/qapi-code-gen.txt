@@ -63,7 +63,7 @@ Comment text starting with '=' is a section title:
 
 Double the '=' for a subsection title:
 
-    # == Subection title
+    # == Subsection title
 
 '|' denotes examples:
 

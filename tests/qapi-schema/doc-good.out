@@ -77,12 +77,12 @@ Examples:
 - {braces}
 doc symbol=Enum
     body=
-== Produces *invalid* texinfo
+
     arg=one
 The _one_ {and only}
     arg=two
 
-    section=
+    section=None
 @two is undocumented
 doc symbol=Base
     body=
