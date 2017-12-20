@@ -113,11 +113,6 @@ void qmp_system_powerdown(Error **erp)
     qemu_system_powerdown_request();
 }
 
-void qmp_cpu(int64_t index, Error **errp)
-{
-    /* Just do nothing */
-}
-
 void qmp_cpu_add(int64_t id, Error **errp)
 {
     MachineClass *mc;

@@ -1046,17 +1046,6 @@
 { 'command': 'system_powerdown' }
 
 ##
-# @cpu:
-#
-# This command is a nop that is only provided for the purposes of compatibility.
-#
-# Since: 0.14.0
-#
-# Notes: Do not use this command.
-##
-{ 'command': 'cpu', 'data': {'index': 'int'} }
-
-##
 # @cpu-add:
 #
 # Adds CPU with specified ID
