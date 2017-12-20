@@ -6,7 +6,7 @@ HXCOMM construct option structures, enums and help message for specified
 HXCOMM architectures.
 HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
-DEFHEADING(Standard options)
+DEFHEADING(Standard options:)
 STEXI
 @table @option
 ETEXI
@@ -584,7 +584,7 @@ STEXI
 ETEXI
 DEFHEADING()
 
-DEFHEADING(Block device options)
+DEFHEADING(Block device options:)
 STEXI
 @table @option
 ETEXI
@@ -1182,12 +1182,25 @@ STEXI
 Create synthetic file system image
 ETEXI
 
+DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
+    "-iscsi [user=user][,password=password]\n"
+    "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
+    "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
+    "       [,timeout=timeout]\n"
+    "                iSCSI session parameters\n", QEMU_ARCH_ALL)
+
+STEXI
+@item -iscsi
+@findex -iscsi
+Configure iSCSI session parameters.
+ETEXI
+
 STEXI
 @end table
 ETEXI
 DEFHEADING()
 
-DEFHEADING(USB options)
+DEFHEADING(USB options:)
 STEXI
 @table @option
 ETEXI
@@ -1252,7 +1265,7 @@ STEXI
 ETEXI
 DEFHEADING()
 
-DEFHEADING(Display options)
+DEFHEADING(Display options:)
 STEXI
 @table @option
 ETEXI
@@ -1789,7 +1802,7 @@ STEXI
 ETEXI
 ARCHHEADING(, QEMU_ARCH_I386)
 
-ARCHHEADING(i386 target only, QEMU_ARCH_I386)
+ARCHHEADING(i386 target only:, QEMU_ARCH_I386)
 STEXI
 @table @option
 ETEXI
@@ -1905,7 +1918,7 @@ STEXI
 ETEXI
 DEFHEADING()
 
-DEFHEADING(Network options)
+DEFHEADING(Network options:)
 STEXI
 @table @option
 ETEXI
@@ -2377,6 +2390,7 @@ two systems. It is present in routers, firewalls and the Linux kernel
 
 This transport allows a VM to communicate to another VM, router or firewall directly.
 
+@table @option
 @item src=@var{srcaddr}
     source address (mandatory)
 @item dst=@var{dstaddr}
@@ -2404,6 +2418,7 @@ draft-mkonstan-l2tpext-keyed-ipv6-tunnel-00
 networks which have packet reorder.
 @item offset=@var{offset}
     Add an extra offset between header and data
+@end table
 
 For example, to attach a VM running on host 4.3.2.1 via L2TPv3 to the bridge br-lan
 on the remote Linux host 1.2.3.4:
@@ -2486,12 +2501,7 @@ STEXI
 ETEXI
 DEFHEADING()
 
-DEFHEADING(Character device options)
-STEXI
-
-The general form of a character device option is:
-@table @option
-ETEXI
+DEFHEADING(Character device options:)
 
 DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev help\n"
@@ -2537,6 +2547,9 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
 )
 
 STEXI
+
+The general form of a character device option is:
+@table @option
 @item -chardev @var{backend} ,id=@var{id} [,mux=on|off] [,@var{options}]
 @findex -chardev
 Backend is one of:
@@ -2560,7 +2573,7 @@ Backend is one of:
 @option{spiceport}.
 The specific backend will determine the applicable options.
 
-Use "-chardev help" to print all available chardev backend types.
+Use @code{-chardev help} to print all available chardev backend types.
 
 All devices must have an id, which can be any string up to 127 characters long.
 It is used to uniquely identify this device in other command line directives.
@@ -2615,8 +2628,11 @@ to a file to record all data transmitted via the backend. The @option{logappend}
 option controls whether the log file will be truncated or appended to when
 opened.
 
-Further options to each backend are described below.
+@end table
 
+The available backends are:
+
+@table @option
 @item -chardev null ,id=@var{id}
 A void device. This device will not emit any data, and will drop any data it
 receives. The null backend does not take any options.
@@ -2819,237 +2835,7 @@ STEXI
 ETEXI
 DEFHEADING()
 
-DEFHEADING(Device URL Syntax)
-STEXI
-
-In addition to using normal file images for the emulated storage devices,
-QEMU can also use networked resources such as iSCSI devices. These are
-specified using a special URL syntax.
-
-@table @option
-@item iSCSI
-iSCSI support allows QEMU to access iSCSI resources directly and use as
-images for the guest storage. Both disk and cdrom images are supported.
-
-Syntax for specifying iSCSI LUNs is
-``iscsi://<target-ip>[:<port>]/<target-iqn>/<lun>''
-
-By default qemu will use the iSCSI initiator-name
-'iqn.2008-11.org.linux-kvm[:<name>]' but this can also be set from the command
-line or a configuration file.
-
-Since version Qemu 2.4 it is possible to specify a iSCSI request timeout to detect
-stalled requests and force a reestablishment of the session. The timeout
-is specified in seconds. The default is 0 which means no timeout. Libiscsi
-1.15.0 or greater is required for this feature.
-
-Example (without authentication):
-@example
-qemu-system-i386 -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
-                 -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
-                 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
-@end example
-
-Example (CHAP username/password via URL):
-@example
-qemu-system-i386 -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
-@end example
-
-Example (CHAP username/password via environment variables):
-@example
-LIBISCSI_CHAP_USERNAME="user" \
-LIBISCSI_CHAP_PASSWORD="password" \
-qemu-system-i386 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
-@end example
-
-iSCSI support is an optional feature of QEMU and only available when
-compiled and linked against libiscsi.
-ETEXI
-DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
-    "-iscsi [user=user][,password=password]\n"
-    "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
-    "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
-    "       [,timeout=timeout]\n"
-    "                iSCSI session parameters\n", QEMU_ARCH_ALL)
-STEXI
-
-iSCSI parameters such as username and password can also be specified via
-a configuration file. See qemu-doc for more information and examples.
-
-@item NBD
-QEMU supports NBD (Network Block Devices) both using TCP protocol as well
-as Unix Domain Sockets.
-
-Syntax for specifying a NBD device using TCP
-``nbd:<server-ip>:<port>[:exportname=<export>]''
-
-Syntax for specifying a NBD device using Unix Domain Sockets
-``nbd:unix:<domain-socket>[:exportname=<export>]''
-
-
-Example for TCP
-@example
-qemu-system-i386 --drive file=nbd:192.0.2.1:30000
-@end example
-
-Example for Unix Domain Sockets
-@example
-qemu-system-i386 --drive file=nbd:unix:/tmp/nbd-socket
-@end example
-
-@item SSH
-QEMU supports SSH (Secure Shell) access to remote disks.
-
-Examples:
-@example
-qemu-system-i386 -drive file=ssh://user@@host/path/to/disk.img
-qemu-system-i386 -drive file.driver=ssh,file.user=user,file.host=host,file.port=22,file.path=/path/to/disk.img
-@end example
-
-Currently authentication must be done using ssh-agent.  Other
-authentication methods may be supported in future.
-
-@item Sheepdog
-Sheepdog is a distributed storage system for QEMU.
-QEMU supports using either local sheepdog devices or remote networked
-devices.
-
-Syntax for specifying a sheepdog device
-@example
-sheepdog[+tcp|+unix]://[host:port]/vdiname[?socket=path][#snapid|#tag]
-@end example
-
-Example
-@example
-qemu-system-i386 --drive file=sheepdog://192.0.2.1:30000/MyVirtualMachine
-@end example
-
-See also @url{https://sheepdog.github.io/sheepdog/}.
-
-@item GlusterFS
-GlusterFS is a user space distributed file system.
-QEMU supports the use of GlusterFS volumes for hosting VM disk images using
-TCP, Unix Domain Sockets and RDMA transport protocols.
-
-Syntax for specifying a VM disk image on GlusterFS volume is
-@example
-
-URI:
-gluster[+type]://[host[:port]]/volume/path[?socket=...][,debug=N][,logfile=...]
-
-JSON:
-'json:@{"driver":"qcow2","file":@{"driver":"gluster","volume":"testvol","path":"a.img","debug":N,"logfile":"...",
-@                                 "server":[@{"type":"tcp","host":"...","port":"..."@},
-@                                           @{"type":"unix","socket":"..."@}]@}@}'
-@end example
-
-
-Example
-@example
-URI:
-qemu-system-x86_64 --drive file=gluster://192.0.2.1/testvol/a.img,
-@                               file.debug=9,file.logfile=/var/log/qemu-gluster.log
-
-JSON:
-qemu-system-x86_64 'json:@{"driver":"qcow2",
-@                          "file":@{"driver":"gluster",
-@                                   "volume":"testvol","path":"a.img",
-@                                   "debug":9,"logfile":"/var/log/qemu-gluster.log",
-@                                   "server":[@{"type":"tcp","host":"1.2.3.4","port":24007@},
-@                                             @{"type":"unix","socket":"/var/run/glusterd.socket"@}]@}@}'
-qemu-system-x86_64 -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
-@                                      file.debug=9,file.logfile=/var/log/qemu-gluster.log,
-@                                      file.server.0.type=tcp,file.server.0.host=1.2.3.4,file.server.0.port=24007,
-@                                      file.server.1.type=unix,file.server.1.socket=/var/run/glusterd.socket
-@end example
-
-See also @url{http://www.gluster.org}.
-
-@item HTTP/HTTPS/FTP/FTPS
-QEMU supports read-only access to files accessed over http(s) and ftp(s).
-
-Syntax using a single filename:
-@example
-<protocol>://[<username>[:<password>]@@]<host>/<path>
-@end example
-
-where:
-@table @option
-@item protocol
-'http', 'https', 'ftp', or 'ftps'.
-
-@item username
-Optional username for authentication to the remote server.
-
-@item password
-Optional password for authentication to the remote server.
-
-@item host
-Address of the remote server.
-
-@item path
-Path on the remote server, including any query string.
-@end table
-
-The following options are also supported:
-@table @option
-@item url
-The full URL when passing options to the driver explicitly.
-
-@item readahead
-The amount of data to read ahead with each range request to the remote server.
-This value may optionally have the suffix 'T', 'G', 'M', 'K', 'k' or 'b'. If it
-does not have a suffix, it will be assumed to be in bytes. The value must be a
-multiple of 512 bytes. It defaults to 256k.
-
-@item sslverify
-Whether to verify the remote server's certificate when connecting over SSL. It
-can have the value 'on' or 'off'. It defaults to 'on'.
-
-@item cookie
-Send this cookie (it can also be a list of cookies separated by ';') with
-each outgoing request.  Only supported when using protocols such as HTTP
-which support cookies, otherwise ignored.
-
-@item timeout
-Set the timeout in seconds of the CURL connection. This timeout is the time
-that CURL waits for a response from the remote server to get the size of the
-image to be downloaded. If not set, the default timeout of 5 seconds is used.
-@end table
-
-Note that when passing options to qemu explicitly, @option{driver} is the value
-of <protocol>.
-
-Example: boot from a remote Fedora 20 live ISO image
-@example
-qemu-system-x86_64 --drive media=cdrom,file=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
-
-qemu-system-x86_64 --drive media=cdrom,file.driver=http,file.url=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
-@end example
-
-Example: boot from a remote Fedora 20 cloud image using a local overlay for
-writes, copy-on-read, and a readahead of 64k
-@example
-qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"http",, "file.url":"https://dl.fedoraproject.org/pub/fedora/linux/releases/20/Images/x86_64/Fedora-x86_64-20-20131211.1-sda.qcow2",, "file.readahead":"64k"@}' /tmp/Fedora-x86_64-20-20131211.1-sda.qcow2
-
-qemu-system-x86_64 -drive file=/tmp/Fedora-x86_64-20-20131211.1-sda.qcow2,copy-on-read=on
-@end example
-
-Example: boot from an image stored on a VMware vSphere server with a self-signed
-certificate using a local overlay for writes, a readahead of 64k and a timeout
-of 10 seconds.
-@example
-qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"https",, "file.url":"https://user:password@@vsphere.example.com/folder/test/test-flat.vmdk?dcPath=Datacenter&dsName=datastore1",, "file.sslverify":"off",, "file.readahead":"64k",, "file.timeout":10@}' /tmp/test.qcow2
-
-qemu-system-x86_64 -drive file=/tmp/test.qcow2
-@end example
-ETEXI
-
-STEXI
-@end table
-ETEXI
-
-DEFHEADING(Bluetooth(R) options)
+DEFHEADING(Bluetooth(R) options:)
 STEXI
 @table @option
 ETEXI
@@ -3125,7 +2911,7 @@ ETEXI
 DEFHEADING()
 
 #ifdef CONFIG_TPM
-DEFHEADING(TPM device options)
+DEFHEADING(TPM device options:)
 
 DEF("tpmdev", HAS_ARG, QEMU_OPTION_tpmdev, \
     "-tpmdev passthrough,id=id[,path=path][,cancel-path=path]\n"
@@ -3142,19 +2928,18 @@ The general form of a TPM device option is:
 
 @item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
 @findex -tpmdev
-Backend type must be either one of the following:
-@option{passthrough}, @option{emulator}.
 
 The specific backend type will determine the applicable options.
 The @code{-tpmdev} option creates the TPM backend and requires a
 @code{-device} option that specifies the TPM frontend interface model.
 
-Options to each backend are described below.
+Use @code{-tpmdev help} to print all available TPM backend types.
 
-Use 'help' to print all available TPM backend types.
-@example
-qemu -tpmdev help
-@end example
+@end table
+
+The available backends are:
+
+@table @option
 
 @item -tpmdev passthrough, id=@var{id}, path=@var{path}, cancel-path=@var{cancel-path}
 
@@ -3207,15 +2992,16 @@ To create a TPM emulator backend device with chardev socket backend:
 
 @end example
 
-@end table
-
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
 #endif
 
-DEFHEADING(Linux/Multiboot boot specific)
+DEFHEADING(Linux/Multiboot boot specific:)
 STEXI
 
 When using these options, you can use a given Linux or Multiboot
@@ -3271,7 +3057,7 @@ STEXI
 ETEXI
 DEFHEADING()
 
-DEFHEADING(Debug/Expert options)
+DEFHEADING(Debug/Expert options:)
 STEXI
 @table @option
 ETEXI
@@ -3837,7 +3623,7 @@ A virtual watchdog for s390x backed by the diagnose 288 hypercall
 ETEXI
 
 DEF("watchdog-action", HAS_ARG, QEMU_OPTION_watchdog_action, \
-    "-watchdog-action reset|shutdown|poweroff|pause|debug|none\n" \
+    "-watchdog-action reset|shutdown|poweroff|inject-nmi|pause|debug|none\n" \
     "                action when watchdog fires [default=reset]\n",
     QEMU_ARCH_ALL)
 STEXI
@@ -3851,6 +3637,7 @@ The default is
 Other possible actions are:
 @code{shutdown} (attempt to gracefully shutdown the guest),
 @code{poweroff} (forcefully poweroff the guest),
+@code{inject-nmi} (inject a NMI into the guest),
 @code{pause} (pause the guest),
 @code{debug} (print a debug message and continue), or
 @code{none} (do nothing).
@@ -4178,7 +3965,8 @@ STEXI
 @end table
 ETEXI
 DEFHEADING()
-DEFHEADING(Generic object creation)
+
+DEFHEADING(Generic object creation:)
 STEXI
 @table @option
 ETEXI
