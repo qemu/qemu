@@ -181,11 +181,6 @@ static void do_writebacks(DisasContext *s)
 #define IS_USER(s) s->user
 #endif
 
-/* XXX: move that elsewhere */
-/* ??? Fix exceptions.  */
-static void *gen_throws_exception;
-#define gen_last_qop NULL
-
 typedef void (*disas_proc)(CPUM68KState *env, DisasContext *s, uint16_t insn);
 
 #ifdef DEBUG_DISPATCH
@@ -310,7 +305,6 @@ static inline TCGv gen_load(DisasContext * s, int opsize, TCGv addr, int sign)
     default:
         g_assert_not_reached();
     }
-    gen_throws_exception = gen_last_qop;
     return tmp;
 }
 
@@ -331,7 +325,6 @@ static inline void gen_store(DisasContext *s, int opsize, TCGv addr, TCGv val)
     default:
         g_assert_not_reached();
     }
-    gen_throws_exception = gen_last_qop;
 }
 
 typedef enum {
@@ -1001,7 +994,6 @@ static void gen_load_fp(DisasContext *s, int opsize, TCGv addr, TCGv_ptr fp)
     }
     tcg_temp_free(tmp);
     tcg_temp_free_i64(t64);
-    gen_throws_exception = gen_last_qop;
 }
 
 static void gen_store_fp(DisasContext *s, int opsize, TCGv addr, TCGv_ptr fp)
@@ -1056,7 +1048,6 @@ static void gen_store_fp(DisasContext *s, int opsize, TCGv addr, TCGv_ptr fp)
     }
     tcg_temp_free(tmp);
     tcg_temp_free_i64(t64);
-    gen_throws_exception = gen_last_qop;
 }
 
 static void gen_ldst_fp(DisasContext *s, int opsize, TCGv addr,
@@ -5561,7 +5552,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     gen_tb_start(tb);
     do {
         pc_offset = dc->pc - pc_start;
-        gen_throws_exception = NULL;
         tcg_gen_insn_start(dc->pc, dc->cc_op);
         num_insns++;
 
