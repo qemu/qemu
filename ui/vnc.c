@@ -2255,7 +2255,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                 }
                 vs->as.nchannels = read_u8(data, 5);
                 if (vs->as.nchannels != 1 && vs->as.nchannels != 2) {
-                    VNC_DEBUG("Invalid audio channel coount %d\n",
+                    VNC_DEBUG("Invalid audio channel count %d\n",
                               read_u8(data, 5));
                     vnc_client_error(vs);
                     break;
