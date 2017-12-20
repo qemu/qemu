@@ -1,4 +1,4 @@
-Copyright (c) 2014 Red Hat Inc.
+Copyright (c) 2014-2017 Red Hat Inc.
 
 This work is licensed under the terms of the GNU GPL, version 2 or later.  See
 the COPYING file in the top-level directory.
@@ -92,8 +92,9 @@ aio_context_acquire()/aio_context_release() for mutual exclusion.  Once the
 context is acquired no other thread can access it or run event loop iterations
 in this AioContext.
 
-aio_context_acquire()/aio_context_release() calls may be nested.  This
-means you can call them if you're not sure whether #2 applies.
+Legacy code sometimes nests aio_context_acquire()/aio_context_release() calls.
+Do not use nesting anymore, it is incompatible with the BDRV_POLL_WHILE() macro
+used in the block layer and can lead to hangs.
 
 There is currently no lock ordering rule if a thread needs to acquire multiple
 AioContexts simultaneously.  Therefore, it is only safe for code holding the

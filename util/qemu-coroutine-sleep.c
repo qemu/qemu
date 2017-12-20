@@ -31,9 +31,9 @@ static void co_sleep_cb(void *opaque)
     aio_co_wake(sleep_cb->co);
 }
 
-void coroutine_fn co_aio_sleep_ns(AioContext *ctx, QEMUClockType type,
-                                  int64_t ns)
+void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
 {
+    AioContext *ctx = qemu_get_current_aio_context();
     CoSleepCB sleep_cb = {
         .co = qemu_coroutine_self(),
     };

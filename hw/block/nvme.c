@@ -920,7 +920,7 @@ static const MemoryRegionOps nvme_cmb_ops = {
     },
 };
 
-static int nvme_init(PCIDevice *pci_dev)
+static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
     NvmeIdCtrl *id = &n->id_ctrl;
@@ -928,27 +928,27 @@ static int nvme_init(PCIDevice *pci_dev)
     int i;
     int64_t bs_size;
     uint8_t *pci_conf;
-    Error *local_err = NULL;
 
     if (!n->conf.blk) {
-        return -1;
+        error_setg(errp, "drive property not set");
+        return;
     }
 
     bs_size = blk_getlength(n->conf.blk);
     if (bs_size < 0) {
-        return -1;
+        error_setg(errp, "could not get backing file size");
+        return;
     }
 
     blkconf_serial(&n->conf, &n->serial);
     if (!n->serial) {
-        return -1;
+        error_setg(errp, "serial property not set");
+        return;
     }
     blkconf_blocksizes(&n->conf);
-    blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
-                                  false, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        return -1;
+    if (!blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
+                                       false, errp)) {
+        return;
     }
 
     pci_conf = pci_dev->config;
@@ -1046,7 +1046,6 @@ static int nvme_init(PCIDevice *pci_dev)
             cpu_to_le64(n->ns_size >>
                 id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)].ds);
     }
-    return 0;
 }
 
 static void nvme_exit(PCIDevice *pci_dev)
@@ -1081,7 +1080,7 @@ static void nvme_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->init = nvme_init;
+    pc->realize = nvme_realize;
     pc->exit = nvme_exit;
     pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
     pc->vendor_id = PCI_VENDOR_ID_INTEL;

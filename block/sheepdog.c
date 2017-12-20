@@ -776,8 +776,7 @@ static coroutine_fn void reconnect_to_sdog(void *opaque)
         if (s->fd < 0) {
             DPRINTF("Wait for connection to be established\n");
             error_report_err(local_err);
-            co_aio_sleep_ns(bdrv_get_aio_context(s->bs), QEMU_CLOCK_REALTIME,
-                            1000000000ULL);
+            qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000000ULL);
         }
     };
 
