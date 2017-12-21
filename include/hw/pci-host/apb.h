@@ -62,6 +62,8 @@ typedef struct IOMMUState {
 typedef struct APBState {
     PCIHostState parent_obj;
 
+    hwaddr special_base;
+    hwaddr mem_base;
     MemoryRegion apb_config;
     MemoryRegion pci_config;
     MemoryRegion pci_mmio;
@@ -93,6 +95,4 @@ typedef struct PBMPCIBridge {
 #define PBM_PCI_BRIDGE(obj) \
     OBJECT_CHECK(PBMPCIBridge, (obj), TYPE_PBM_PCI_BRIDGE)
 
-APBState *pci_apb_init(hwaddr special_base,
-                       hwaddr mem_base);
 #endif

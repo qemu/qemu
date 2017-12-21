@@ -611,66 +611,6 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
     pci_bridge_update_mappings(PCI_BRIDGE(br));
 }
 
-APBState *pci_apb_init(hwaddr special_base,
-                       hwaddr mem_base)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    PCIHostState *phb;
-    APBState *d;
-    IOMMUState *is;
-    PCIDevice *pci_dev;
-
-    /* Ultrasparc PBM main bus */
-    dev = qdev_create(NULL, TYPE_APB);
-    d = APB_DEVICE(dev);
-    phb = PCI_HOST_BRIDGE(dev);
-    phb->bus = pci_register_bus(DEVICE(phb), "pci",
-                                pci_apb_set_irq, pci_apb_map_irq, d,
-                                &d->pci_mmio,
-                                &d->pci_ioport,
-                                0, 32, TYPE_PCI_BUS);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    /* apb_config */
-    sysbus_mmio_map(s, 0, special_base);
-    /* PCI configuration space */
-    sysbus_mmio_map(s, 1, special_base + 0x1000000ULL);
-    /* pci_ioport */
-    sysbus_mmio_map(s, 2, special_base + 0x2000000ULL);
-
-    memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
-    memory_region_add_subregion(get_system_memory(), mem_base, &d->pci_mmio);
-
-    pci_create_simple(phb->bus, 0, "pbm-pci");
-
-    /* APB IOMMU */
-    is = &d->iommu;
-    memset(is, 0, sizeof(IOMMUState));
-
-    memory_region_init_iommu(&is->iommu, sizeof(is->iommu),
-                             TYPE_APB_IOMMU_MEMORY_REGION, OBJECT(dev),
-                             "iommu-apb", UINT64_MAX);
-    address_space_init(&is->iommu_as, MEMORY_REGION(&is->iommu), "pbm-as");
-    pci_setup_iommu(phb->bus, pbm_pci_dma_iommu, is);
-
-    /* APB secondary busses */
-    pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
-                                   TYPE_PBM_PCI_BRIDGE);
-    d->bridgeB = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(d->bridgeB, "pciB", pci_pbm_map_irq);
-    qdev_init_nofail(&pci_dev->qdev);
-
-    pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
-                                   TYPE_PBM_PCI_BRIDGE);
-    d->bridgeA = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(d->bridgeA, "pciA", pci_pbm_map_irq);
-    qdev_prop_set_bit(DEVICE(pci_dev), "busA", true);
-    qdev_init_nofail(&pci_dev->qdev);
-
-    return d;
-}
-
 static void pci_pbm_reset(DeviceState *d)
 {
     unsigned int i;
@@ -698,10 +638,62 @@ static const MemoryRegionOps pci_config_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int pci_pbm_init_device(DeviceState *dev)
+static void pci_pbm_realize(DeviceState *dev, Error **errp)
 {
     APBState *s = APB_DEVICE(dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
+    PCIDevice *pci_dev;
+    IOMMUState *is;
+
+    /* apb_config */
+    sysbus_mmio_map(sbd, 0, s->special_base);
+    /* PCI configuration space */
+    sysbus_mmio_map(sbd, 1, s->special_base + 0x1000000ULL);
+    /* pci_ioport */
+    sysbus_mmio_map(sbd, 2, s->special_base + 0x2000000ULL);
+
+    memory_region_init(&s->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
+    memory_region_add_subregion(get_system_memory(), s->mem_base,
+                                &s->pci_mmio);
+
+    phb->bus = pci_register_bus(dev, "pci",
+                                pci_apb_set_irq, pci_apb_map_irq, s,
+                                &s->pci_mmio,
+                                &s->pci_ioport,
+                                0, 32, TYPE_PCI_BUS);
+
+    pci_create_simple(phb->bus, 0, "pbm-pci");
+
+    /* APB IOMMU */
+    is = &s->iommu;
+    memset(is, 0, sizeof(IOMMUState));
+
+    memory_region_init_iommu(&is->iommu, sizeof(is->iommu),
+                             TYPE_APB_IOMMU_MEMORY_REGION, OBJECT(dev),
+                             "iommu-apb", UINT64_MAX);
+    address_space_init(&is->iommu_as, MEMORY_REGION(&is->iommu), "pbm-as");
+    pci_setup_iommu(phb->bus, pbm_pci_dma_iommu, is);
+
+    /* APB secondary busses */
+    pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
+                                   TYPE_PBM_PCI_BRIDGE);
+    s->bridgeB = PCI_BRIDGE(pci_dev);
+    pci_bridge_map_irq(s->bridgeB, "pciB", pci_pbm_map_irq);
+    qdev_init_nofail(&pci_dev->qdev);
+
+    pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
+                                   TYPE_PBM_PCI_BRIDGE);
+    s->bridgeA = PCI_BRIDGE(pci_dev);
+    pci_bridge_map_irq(s->bridgeA, "pciA", pci_pbm_map_irq);
+    qdev_prop_set_bit(DEVICE(pci_dev), "busA", true);
+    qdev_init_nofail(&pci_dev->qdev);
+}
+
+static void pci_pbm_init(Object *obj)
+{
+    APBState *s = APB_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     unsigned int i;
 
     for (i = 0; i < 8; i++) {
@@ -734,8 +726,6 @@ static int pci_pbm_init_device(DeviceState *dev)
 
     /* at region 2 */
     sysbus_init_mmio(sbd, &s->pci_ioport);
-
-    return 0;
 }
 
 static void pbm_pci_host_realize(PCIDevice *d, Error **errp)
@@ -774,12 +764,19 @@ static const TypeInfo pbm_pci_host_info = {
     },
 };
 
+static Property pbm_pci_host_properties[] = {
+    DEFINE_PROP_UINT64("special-base", APBState, special_base, 0),
+    DEFINE_PROP_UINT64("mem-base", APBState, mem_base, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pbm_host_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->init = pci_pbm_init_device;
+    dc->realize = pci_pbm_realize;
     dc->reset = pci_pbm_reset;
+    dc->props = pbm_pci_host_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
@@ -787,6 +784,7 @@ static const TypeInfo pbm_host_info = {
     .name          = TYPE_APB,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(APBState),
+    .instance_init = pci_pbm_init,
     .class_init    = pbm_host_class_init,
 };
 

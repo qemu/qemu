@@ -502,7 +502,11 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    apb = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE);
+    /* Init APB (PCI host bridge) */
+    apb = APB_DEVICE(qdev_create(NULL, TYPE_APB));
+    qdev_prop_set_uint64(DEVICE(apb), "special-base", APB_SPECIAL_BASE);
+    qdev_prop_set_uint64(DEVICE(apb), "mem-base", APB_MEM_BASE);
+    qdev_init_nofail(DEVICE(apb));
 
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
