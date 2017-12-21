@@ -523,10 +523,10 @@ static int pci_pbmA_map_irq(PCIDevice *pci_dev, int irq_num)
     switch (PCI_SLOT(pci_dev->devfn)) {
     case 1:
         /* Onboard NIC */
-        return 0x21;
+        return OBIO_NIC_IRQ;
     case 3:
         /* Onboard IDE */
-        return 0x20;
+        return OBIO_HDD_IRQ;
     default:
         /* Normal intno, fall through */
         break;

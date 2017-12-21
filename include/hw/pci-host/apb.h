@@ -53,6 +53,8 @@ typedef struct IOMMUState {
 #define MAX_IVEC 0x40
 
 /* OBIO IVEC IRQs */
+#define OBIO_HDD_IRQ         0x20
+#define OBIO_NIC_IRQ         0x21
 #define OBIO_LPT_IRQ         0x22
 #define OBIO_FDD_IRQ         0x27
 #define OBIO_KBD_IRQ         0x29
