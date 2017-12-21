@@ -230,21 +230,11 @@ static void isa_irq_handler(void *opaque, int n, int level)
 }
 
 /* EBUS (Eight bit bus) bridge */
-static ISABus *
-pci_ebus_init(PCIDevice *pci_dev, qemu_irq *irqs)
-{
-    qemu_irq *isa_irq;
-    ISABus *isa_bus;
-
-    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci_dev), "isa.0"));
-    isa_irq = qemu_allocate_irqs(isa_irq_handler, irqs, 16);
-    isa_bus_irqs(isa_bus, isa_irq);
-    return isa_bus;
-}
-
 static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = EBUS(pci_dev);
+    APBState *apb;
+    qemu_irq *isa_irq;
 
     s->isa_bus = isa_bus_new(DEVICE(pci_dev), get_system_memory(),
                              pci_address_space_io(pci_dev), errp);
@@ -252,6 +242,15 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
         error_setg(errp, "unable to instantiate EBUS ISA bus");
         return;
     }
+
+    apb = APB_DEVICE(object_resolve_path_type("", TYPE_APB, NULL));
+    if (!apb) {
+        error_setg(errp, "unable to locate APB PCI host bridge");
+        return;
+    }
+
+    isa_irq = qemu_allocate_irqs(isa_irq_handler, apb->pbm_irqs, 16);
+    isa_bus_irqs(s->isa_bus, isa_irq);
 
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;
@@ -443,7 +442,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     PCIDevice *ebus, *pci_dev;
     ISABus *isa_bus;
     SysBusDevice *s;
-    qemu_irq *ivec_irqs, *pbm_irqs;
+    qemu_irq *ivec_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
     DeviceState *dev;
@@ -462,7 +461,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     ivec_irqs = qemu_allocate_irqs(sparc64_cpu_set_ivec_irq, cpu, IVEC_MAX);
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_busA,
-                           &pci_busB, &pbm_irqs);
+                           &pci_busB);
 
     /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is
        reserved (leaving no slots free after on-board devices) however slots
@@ -474,7 +473,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, TYPE_EBUS);
     qdev_init_nofail(DEVICE(ebus));
 
-    isa_bus = pci_ebus_init(ebus, pbm_irqs);
+    isa_bus = EBUS(ebus)->isa_bus;
 
     i = 0;
     if (hwdef->console_serial_base) {

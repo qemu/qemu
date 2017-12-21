@@ -614,8 +614,7 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
 
 PCIBus *pci_apb_init(hwaddr special_base,
                      hwaddr mem_base,
-                     qemu_irq *ivec_irqs, PCIBus **busA, PCIBus **busB,
-                     qemu_irq **pbm_irqs)
+                     qemu_irq *ivec_irqs, PCIBus **busA, PCIBus **busB)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -646,7 +645,6 @@ PCIBus *pci_apb_init(hwaddr special_base,
     memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
     memory_region_add_subregion(get_system_memory(), mem_base, &d->pci_mmio);
 
-    *pbm_irqs = d->pbm_irqs;
     d->ivec_irqs = ivec_irqs;
 
     pci_create_simple(phb->bus, 0, "pbm-pci");
