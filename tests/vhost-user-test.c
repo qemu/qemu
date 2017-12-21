@@ -55,6 +55,7 @@
 /*********** FROM hw/virtio/vhost-user.c *************************************/
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
+#define VHOST_MAX_VIRTQUEUES    0x100
 
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 #define VHOST_USER_PROTOCOL_F_MQ 0
@@ -141,6 +142,8 @@ enum {
 
 typedef struct TestServer {
     QPCIBus *bus;
+    QVirtioPCIDevice *dev;
+    QVirtQueue *vq[VHOST_MAX_VIRTQUEUES];
     gchar *socket_path;
     gchar *mig_path;
     gchar *chr_name;
@@ -155,6 +158,7 @@ typedef struct TestServer {
     bool test_fail;
     int test_flags;
     int queues;
+    QGuestAllocator *alloc;
 } TestServer;
 
 static const char *tmpfs;
@@ -162,26 +166,43 @@ static const char *root;
 
 static void init_virtio_dev(TestServer *s)
 {
-    QVirtioPCIDevice *dev;
     uint32_t features;
+    int i;
 
     s->bus = qpci_init_pc(NULL);
     g_assert_nonnull(s->bus);
 
-    dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
-    g_assert_nonnull(dev);
+    s->dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
+    g_assert_nonnull(s->dev);
 
-    qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&dev->vdev);
-    qvirtio_set_acknowledge(&dev->vdev);
-    qvirtio_set_driver(&dev->vdev);
+    qvirtio_pci_device_enable(s->dev);
+    qvirtio_reset(&s->dev->vdev);
+    qvirtio_set_acknowledge(&s->dev->vdev);
+    qvirtio_set_driver(&s->dev->vdev);
 
-    features = qvirtio_get_features(&dev->vdev);
+    s->alloc = pc_alloc_init();
+
+    for (i = 0; i < s->queues * 2; i++) {
+        s->vq[i] = qvirtqueue_setup(&s->dev->vdev, s->alloc, i);
+    }
+
+    features = qvirtio_get_features(&s->dev->vdev);
     features = features & (1u << VIRTIO_NET_F_MAC);
-    qvirtio_set_features(&dev->vdev, features);
+    qvirtio_set_features(&s->dev->vdev, features);
 
-    qvirtio_set_driver_ok(&dev->vdev);
-    qvirtio_pci_device_free(dev);
+    qvirtio_set_driver_ok(&s->dev->vdev);
+}
+
+static void uninit_virtio_dev(TestServer *s)
+{
+    int i;
+
+    for (i = 0; i < s->queues * 2; i++) {
+        qvirtqueue_cleanup(s->dev->vdev.bus, s->vq[i], s->alloc);
+    }
+    pc_alloc_uninit(s->alloc);
+
+    qvirtio_pci_device_free(s->dev);
 }
 
 static void wait_for_fds(TestServer *s)
@@ -635,6 +656,8 @@ static void test_read_guest_mem(void)
 
     read_guest_mem(server);
 
+    uninit_virtio_dev(server);
+
     qtest_quit(s);
     test_server_free(server);
 }
@@ -710,6 +733,8 @@ static void test_migrate(void)
     qmp_eventwait("RESUME");
 
     read_guest_mem(dest);
+
+    uninit_virtio_dev(s);
 
     g_source_destroy(source);
     g_source_unref(source);
@@ -789,6 +814,8 @@ static void test_reconnect_subprocess(void)
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
+    uninit_virtio_dev(s);
+
     qtest_end();
     test_server_free(s);
     return;
@@ -818,6 +845,8 @@ static void test_connect_fail_subprocess(void)
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
+    uninit_virtio_dev(s);
+
     qtest_end();
     test_server_free(s);
 }
@@ -845,6 +874,8 @@ static void test_flags_mismatch_subprocess(void)
     init_virtio_dev(s);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
+
+    uninit_virtio_dev(s);
 
     qtest_end();
     test_server_free(s);
