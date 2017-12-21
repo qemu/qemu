@@ -50,6 +50,8 @@ typedef struct IOMMUState {
     uint64_t regs[IOMMU_NREGS];
 } IOMMUState;
 
+#define MAX_IVEC 0x40
+
 #define TYPE_APB "pbm"
 
 #define APB_DEVICE(obj) \
@@ -71,7 +73,7 @@ typedef struct APBState {
     uint32_t pci_err_irq_map[4];
     uint32_t obio_irq_map[32];
     qemu_irq *pbm_irqs;
-    qemu_irq *ivec_irqs;
+    qemu_irq ivec_irqs[MAX_IVEC];
     unsigned int irq_request;
     uint32_t reset_control;
     unsigned int nr_resets;
@@ -91,5 +93,5 @@ typedef struct PBMPCIBridge {
 
 APBState *pci_apb_init(hwaddr special_base,
                        hwaddr mem_base,
-                       qemu_irq *ivec_irqs, PCIBus **bus2, PCIBus **bus3);
+                       PCIBus **bus2, PCIBus **bus3);
 #endif

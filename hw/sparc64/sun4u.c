@@ -486,7 +486,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus, *pci_dev;
     SysBusDevice *s;
-    qemu_irq *ivec_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DeviceState *dev;
     FWCfgState *fw_cfg;
@@ -502,9 +501,14 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    ivec_irqs = qemu_allocate_irqs(sparc64_cpu_set_ivec_irq, cpu, IVEC_MAX);
-    apb = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_busA,
-                       &pci_busB);
+    apb = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, &pci_busA, &pci_busB);
+
+    /* Wire up PCI interrupts to CPU */
+    for (i = 0; i < IVEC_MAX; i++) {
+        qdev_connect_gpio_out_named(DEVICE(apb), "ivec-irq", i,
+            qdev_get_gpio_in_named(DEVICE(cpu), "ivec-irq", i));
+    }
+
     pci_bus = PCI_HOST_BRIDGE(apb)->bus;
 
     /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is

@@ -79,7 +79,6 @@ do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 #define RESET_WCMASK 0x98000000
 #define RESET_WMASK  0x60000000
 
-#define MAX_IVEC 0x40
 #define NO_IRQ_REQUEST (MAX_IVEC + 1)
 
 static inline void pbm_set_request(APBState *s, unsigned int irq_num)
@@ -614,7 +613,7 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
 
 APBState *pci_apb_init(hwaddr special_base,
                        hwaddr mem_base,
-                       qemu_irq *ivec_irqs, PCIBus **busA, PCIBus **busB)
+                       PCIBus **busA, PCIBus **busB)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -644,8 +643,6 @@ APBState *pci_apb_init(hwaddr special_base,
 
     memory_region_init(&d->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
     memory_region_add_subregion(get_system_memory(), mem_base, &d->pci_mmio);
-
-    d->ivec_irqs = ivec_irqs;
 
     pci_create_simple(phb->bus, 0, "pbm-pci");
 
@@ -721,6 +718,7 @@ static int pci_pbm_init_device(DeviceState *dev)
         s->obio_irq_map[i] = ((0x1f << 6) | 0x20) + i;
     }
     s->pbm_irqs = qemu_allocate_irqs(pci_apb_set_irq, s, MAX_IVEC);
+    qdev_init_gpio_out_named(DEVICE(s), s->ivec_irqs, "ivec-irq", MAX_IVEC);
     s->irq_request = NO_IRQ_REQUEST;
     s->pci_irq_in = 0ULL;
 
