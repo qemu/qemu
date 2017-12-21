@@ -81,10 +81,15 @@ struct hwdef {
 };
 
 typedef struct EbusState {
-    PCIDevice pci_dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+
     MemoryRegion bar0;
     MemoryRegion bar1;
 } EbusState;
+
+#define TYPE_EBUS "ebus"
+#define EBUS(obj) OBJECT_CHECK(EbusState, (obj), TYPE_EBUS)
 
 void DMA_init(ISABus *bus, int high_page_enable)
 {
@@ -236,9 +241,9 @@ pci_ebus_init(PCIDevice *pci_dev, qemu_irq *irqs)
     return isa_bus;
 }
 
-static void pci_ebus_realize(PCIDevice *pci_dev, Error **errp)
+static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
-    EbusState *s = DO_UPCAST(EbusState, pci_dev, pci_dev);
+    EbusState *s = EBUS(pci_dev);
 
     if (!isa_bus_new(DEVICE(pci_dev), get_system_memory(),
                      pci_address_space_io(pci_dev), errp)) {
@@ -264,7 +269,7 @@ static void ebus_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = pci_ebus_realize;
+    k->realize = ebus_realize;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_EBUS;
     k->revision = 0x01;
@@ -272,10 +277,10 @@ static void ebus_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ebus_info = {
-    .name          = "ebus",
+    .name          = TYPE_EBUS,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(EbusState),
     .class_init    = ebus_class_init,
+    .instance_size = sizeof(EbusState),
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -463,7 +468,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_busA->slot_reserved_mask = 0xfffffff1;
     pci_busB->slot_reserved_mask = 0xfffffff0;
 
-    ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, "ebus");
+    ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, TYPE_EBUS);
     qdev_init_nofail(DEVICE(ebus));
 
     isa_bus = pci_ebus_init(ebus, pbm_irqs);
