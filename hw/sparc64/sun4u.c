@@ -84,6 +84,7 @@ typedef struct EbusState {
     /*< private >*/
     PCIDevice parent_obj;
 
+    ISABus *isa_bus;
     MemoryRegion bar0;
     MemoryRegion bar1;
 } EbusState;
@@ -245,8 +246,10 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = EBUS(pci_dev);
 
-    if (!isa_bus_new(DEVICE(pci_dev), get_system_memory(),
-                     pci_address_space_io(pci_dev), errp)) {
+    s->isa_bus = isa_bus_new(DEVICE(pci_dev), get_system_memory(),
+                             pci_address_space_io(pci_dev), errp);
+    if (!s->isa_bus) {
+        error_setg(errp, "unable to instantiate EBUS ISA bus");
         return;
     }
 
