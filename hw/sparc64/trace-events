@@ -1,1 +1,4 @@
 # See docs/devel/tracing.txt for syntax documentation.
+
+# hw/sparc64/sun4u.c
+ebus_isa_irq_handler(int n, int level) "Set ISA IRQ %d level %d"

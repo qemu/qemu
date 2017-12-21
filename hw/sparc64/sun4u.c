@@ -47,16 +47,8 @@
 #include "hw/ide/pci.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "trace.h"
 #include "qemu/cutils.h"
-
-//#define DEBUG_EBUS
-
-#ifdef DEBUG_EBUS
-#define EBUS_DPRINTF(fmt, ...)                                  \
-    do { printf("EBUS: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define EBUS_DPRINTF(fmt, ...)
-#endif
 
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
@@ -218,7 +210,7 @@ static void ebus_isa_irq_handler(void *opaque, int n, int level)
     qemu_irq irq = s->isa_bus_irqs[n];
 
     /* Pass ISA bus IRQs onto their gpio equivalent */
-    EBUS_DPRINTF("Set ISA IRQ %d level %d\n", n, level);
+    trace_ebus_isa_irq_handler(n, level);
     if (irq) {
         qemu_set_irq(irq, level);
     }
