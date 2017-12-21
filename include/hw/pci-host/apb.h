@@ -52,6 +52,13 @@ typedef struct IOMMUState {
 
 #define MAX_IVEC 0x40
 
+/* OBIO IVEC IRQs */
+#define OBIO_LPT_IRQ         0x22
+#define OBIO_FDD_IRQ         0x27
+#define OBIO_KBD_IRQ         0x29
+#define OBIO_MSE_IRQ         0x2a
+#define OBIO_SER_IRQ         0x2b
+
 #define TYPE_APB "pbm"
 
 #define APB_DEVICE(obj) \
@@ -76,7 +83,6 @@ typedef struct APBState {
     uint32_t pci_irq_map[8];
     uint32_t pci_err_irq_map[4];
     uint32_t obio_irq_map[32];
-    qemu_irq *pbm_irqs;
     qemu_irq ivec_irqs[MAX_IVEC];
     unsigned int irq_request;
     uint32_t reset_control;
