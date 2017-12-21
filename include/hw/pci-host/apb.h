@@ -86,9 +86,6 @@ typedef struct APBState {
 typedef struct PBMPCIBridge {
     /*< private >*/
     PCIBridge parent_obj;
-
-    /* Is this busA with in-built devices (ebus)? */
-    bool busA;
 } PBMPCIBridge;
 
 #define TYPE_PBM_PCI_BRIDGE "pbm-bridge"
