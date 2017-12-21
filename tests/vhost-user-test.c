@@ -177,7 +177,7 @@ static void init_virtio_dev(TestServer *s)
     qvirtio_set_driver(&dev->vdev);
 
     features = qvirtio_get_features(&dev->vdev);
-    features = features & VIRTIO_NET_F_MAC;
+    features = features & (1u << VIRTIO_NET_F_MAC);
     qvirtio_set_features(&dev->vdev, features);
 
     qvirtio_set_driver_ok(&dev->vdev);
