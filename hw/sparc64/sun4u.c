@@ -85,6 +85,7 @@ typedef struct EbusState {
     PCIDevice parent_obj;
 
     ISABus *isa_bus;
+    uint64_t console_serial_base;
     MemoryRegion bar0;
     MemoryRegion bar1;
 } EbusState;
@@ -234,7 +235,10 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = EBUS(pci_dev);
     APBState *apb;
+    DeviceState *dev;
     qemu_irq *isa_irq;
+    DriveInfo *fd[MAX_FD];
+    int i;
 
     s->isa_bus = isa_bus_new(DEVICE(pci_dev), get_system_memory(),
                              pci_address_space_io(pci_dev), errp);
@@ -252,6 +256,38 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     isa_irq = qemu_allocate_irqs(isa_irq_handler, apb->pbm_irqs, 16);
     isa_bus_irqs(s->isa_bus, isa_irq);
 
+    /* Serial ports */
+    i = 0;
+    if (s->console_serial_base) {
+        serial_mm_init(pci_address_space(pci_dev), s->console_serial_base,
+                       0, NULL, 115200, serial_hds[i], DEVICE_BIG_ENDIAN);
+        i++;
+    }
+    serial_hds_isa_init(s->isa_bus, i, MAX_SERIAL_PORTS);
+
+    /* Parallel ports */
+    parallel_hds_isa_init(s->isa_bus, MAX_PARALLEL_PORTS);
+
+    /* Keyboard */
+    isa_create_simple(s->isa_bus, "i8042");
+
+    /* Floppy */
+    for (i = 0; i < MAX_FD; i++) {
+        fd[i] = drive_get(IF_FLOPPY, 0, i);
+    }
+    dev = DEVICE(isa_create(s->isa_bus, TYPE_ISA_FDC));
+    if (fd[0]) {
+        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fd[0]),
+                            &error_abort);
+    }
+    if (fd[1]) {
+        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fd[1]),
+                            &error_abort);
+    }
+    qdev_prop_set_uint32(dev, "dma", -1);
+    qdev_init_nofail(dev);
+
+    /* PCI */
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;
     pci_dev->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error
@@ -267,15 +303,23 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
 }
 
+static Property ebus_properties[] = {
+    DEFINE_PROP_UINT64("console-serial-base", EbusState,
+                       console_serial_base, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ebus_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = ebus_realize;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_EBUS;
     k->revision = 0x01;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
+    dc->props = ebus_properties;
 }
 
 static const TypeInfo ebus_info = {
@@ -440,11 +484,9 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus, *pci_dev;
-    ISABus *isa_bus;
     SysBusDevice *s;
     qemu_irq *ivec_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *fd[MAX_FD];
     DeviceState *dev;
     FWCfgState *fw_cfg;
     NICInfo *nd;
@@ -471,19 +513,9 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_busB->slot_reserved_mask = 0xfffffff0;
 
     ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, TYPE_EBUS);
+    qdev_prop_set_uint64(DEVICE(ebus), "console-serial-base",
+                         hwdef->console_serial_base);
     qdev_init_nofail(DEVICE(ebus));
-
-    isa_bus = EBUS(ebus)->isa_bus;
-
-    i = 0;
-    if (hwdef->console_serial_base) {
-        serial_mm_init(address_space_mem, hwdef->console_serial_base, 0,
-                       NULL, 115200, serial_hds[i], DEVICE_BIG_ENDIAN);
-        i++;
-    }
-
-    serial_hds_isa_init(isa_bus, i, MAX_SERIAL_PORTS);
-    parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
     pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
 
@@ -522,24 +554,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
     qdev_init_nofail(&pci_dev->qdev);
     pci_ide_create_devs(pci_dev, hd);
-
-    isa_create_simple(isa_bus, "i8042");
-
-    /* Floppy */
-    for(i = 0; i < MAX_FD; i++) {
-        fd[i] = drive_get(IF_FLOPPY, 0, i);
-    }
-    dev = DEVICE(isa_create(isa_bus, TYPE_ISA_FDC));
-    if (fd[0]) {
-        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fd[0]),
-                            &error_abort);
-    }
-    if (fd[1]) {
-        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fd[1]),
-                            &error_abort);
-    }
-    qdev_prop_set_uint32(dev, "dma", -1);
-    qdev_init_nofail(dev);
 
     /* Map NVRAM into I/O (ebus) space */
     nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);
