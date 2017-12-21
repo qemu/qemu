@@ -27,8 +27,7 @@
 #include "hw/i386/pc.h"
 #include "sysemu/hw_accel.h"
 #include "hw/qdev.h"
-
-/* #define VMPORT_DEBUG */
+#include "trace.h"
 
 #define VMPORT_CMD_GETVERSION 0x0a
 #define VMPORT_CMD_GETRAMSIZE 0x14
@@ -54,6 +53,7 @@ void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque)
         return;
     }
 
+    trace_vmport_register(command, func, opaque);
     port_state->func[command] = func;
     port_state->opaque[command] = opaque;
 }
@@ -76,13 +76,9 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
     }
 
     command = env->regs[R_ECX];
-    if (command >= VMPORT_ENTRIES) {
-        return eax;
-    }
-    if (!s->func[command]) {
-#ifdef VMPORT_DEBUG
-        fprintf(stderr, "vmport: unknown command %x\n", command);
-#endif
+    trace_vmport_command(command);
+    if (command >= VMPORT_ENTRIES || !s->func[command]) {
+        qemu_log_mask(LOG_UNIMP, "vmport: unknown command %x\n", command);
         return eax;
     }
 

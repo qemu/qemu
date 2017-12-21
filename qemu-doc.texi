@@ -2612,11 +2612,6 @@ synonym for setting ``-global kvm-pit.lost_tick_policy=discard''.
 The ``-no-kvm-irqchip'' argument is now a synonym for
 setting ``-machine kernel_irqchip=off''.
 
-@subsection -no-kvm-pit (since 1.3.0)
-
-The ``-no-kvm-pit'' argument is ignored. It is no longer
-possible to disable the KVM PIT directly.
-
 @subsection -no-kvm (since 1.3.0)
 
 The ``-no-kvm'' argument is now a synonym for setting

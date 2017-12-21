@@ -1,5 +1,12 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
+# hw/intc/i8259.c
+pic_update_irq(bool master, uint8_t imr, uint8_t irr, uint8_t padd) "master %d imr %"PRIu8" irr %"PRIu8" padd %"PRIu8
+pic_set_irq(bool master, int irq, int level) "master %d irq %d level %d"
+pic_interrupt(int irq, int intno) "irq %d intno %d"
+pic_ioport_write(bool master, uint64_t addr, uint64_t val) "master %d addr 0x%"PRIx64" val 0x%"PRIx64
+pic_ioport_read(bool master, uint64_t addr, int val) "master %d addr 0x%"PRIx64" val 0x%x"
+
 # hw/intc/apic_common.c
 cpu_set_apic_base(uint64_t val) "0x%016"PRIx64
 cpu_get_apic_base(uint64_t val) "0x%016"PRIx64

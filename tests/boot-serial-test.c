@@ -7,9 +7,10 @@
  * or later. See the COPYING file in the top-level directory.
  *
  * This test is used to check that the serial output of the firmware
- * (that we provide for some machines) contains an expected string.
- * Thus we check that the firmware still boots at least to a certain
- * point and so we know that the machine is not completely broken.
+ * (that we provide for some machines) or some small mini-kernels that
+ * we provide here contains an expected string. Thus we check that the
+ * firmware/kernel still boots at least to a certain point and so we
+ * know that the machine is not completely broken.
  */
 
 #include "qemu/osdep.h"
@@ -20,6 +21,9 @@ typedef struct testdef {
     const char *machine;    /* Name of the machine */
     const char *extra;      /* Additional parameters */
     const char *expect;     /* Expected string in the serial output */
+    size_t codesize;        /* Size of the kernel or bios data */
+    const uint8_t *kernel;  /* Set in case we use our own mini kernel */
+    const uint8_t *bios;    /* Set in case we use our own mini bios */
 } testdef_t;
 
 static testdef_t tests[] = {
@@ -43,12 +47,13 @@ static testdef_t tests[] = {
 static void check_guest_output(const testdef_t *test, int fd)
 {
     bool output_ok = false;
-    int i, nbr, pos = 0;
+    int i, nbr, pos = 0, ccnt;
     char ch;
 
     /* Poll serial output... Wait at most 60 seconds */
     for (i = 0; i < 6000; ++i) {
-        while ((nbr = read(fd, &ch, 1)) == 1) {
+        ccnt = 0;
+        while ((nbr = read(fd, &ch, 1)) == 1 && ccnt++ < 512) {
             if (ch == test->expect[pos]) {
                 pos += 1;
                 if (test->expect[pos] == '\0') {
@@ -71,26 +76,52 @@ done:
 static void test_machine(const void *data)
 {
     const testdef_t *test = data;
-    char tmpname[] = "/tmp/qtest-boot-serial-XXXXXX";
-    int fd;
+    char serialtmp[] = "/tmp/qtest-boot-serial-sXXXXXX";
+    char codetmp[] = "/tmp/qtest-boot-serial-cXXXXXX";
+    const char *codeparam = "";
+    const uint8_t *code = NULL;
+    int ser_fd;
 
-    fd = mkstemp(tmpname);
-    g_assert(fd != -1);
+    ser_fd = mkstemp(serialtmp);
+    g_assert(ser_fd != -1);
+
+    if (test->kernel) {
+        code = test->kernel;
+        codeparam = "-kernel";
+    } else if (test->bios) {
+        code = test->bios;
+        codeparam = "-bios";
+    }
+
+    if (code) {
+        ssize_t wlen;
+        int code_fd;
+
+        code_fd = mkstemp(codetmp);
+        g_assert(code_fd != -1);
+        wlen = write(code_fd, code, test->codesize);
+        g_assert(wlen == test->codesize);
+        close(code_fd);
+    }
 
     /*
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    global_qtest = qtest_startf("-M %s,accel=tcg:kvm "
+    global_qtest = qtest_startf("%s %s -M %s,accel=tcg:kvm "
                                 "-chardev file,id=serial0,path=%s "
                                 "-no-shutdown -serial chardev:serial0 %s",
-                                test->machine, tmpname, test->extra);
-    unlink(tmpname);
+                                codeparam, code ? codetmp : "",
+                                test->machine, serialtmp, test->extra);
+    unlink(serialtmp);
+    if (code) {
+        unlink(codetmp);
+    }
 
-    check_guest_output(test, fd);
+    check_guest_output(test, ser_fd);
     qtest_quit(global_qtest);
 
-    close(fd);
+    close(ser_fd);
 }
 
 int main(int argc, char *argv[])
