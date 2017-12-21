@@ -705,12 +705,12 @@ static const MemoryRegionOps pci_config_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int pci_pbm_init_device(SysBusDevice *dev)
+static int pci_pbm_init_device(DeviceState *dev)
 {
-    APBState *s;
+    APBState *s = APB_DEVICE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     unsigned int i;
 
-    s = APB_DEVICE(dev);
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] = (0x1f << 6) | (i << 2);
     }
@@ -728,18 +728,18 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     memory_region_init_io(&s->apb_config, OBJECT(s), &apb_config_ops, s,
                           "apb-config", 0x10000);
     /* at region 0 */
-    sysbus_init_mmio(dev, &s->apb_config);
+    sysbus_init_mmio(sbd, &s->apb_config);
 
     memory_region_init_io(&s->pci_config, OBJECT(s), &pci_config_ops, s,
                           "apb-pci-config", 0x1000000);
     /* at region 1 */
-    sysbus_init_mmio(dev, &s->pci_config);
+    sysbus_init_mmio(sbd, &s->pci_config);
 
     /* pci_ioport */
     memory_region_init(&s->pci_ioport, OBJECT(s), "apb-pci-ioport", 0x1000000);
 
     /* at region 2 */
-    sysbus_init_mmio(dev, &s->pci_ioport);
+    sysbus_init_mmio(sbd, &s->pci_ioport);
 
     return 0;
 }
@@ -783,11 +783,10 @@ static const TypeInfo pbm_pci_host_info = {
 static void pbm_host_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = pci_pbm_init_device;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->init = pci_pbm_init_device;
     dc->reset = pci_pbm_reset;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pbm_host_info = {
