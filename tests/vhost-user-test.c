@@ -617,6 +617,28 @@ GSourceFuncs test_migrate_source_funcs = {
     .check = test_migrate_source_check,
 };
 
+static void test_read_guest_mem(void)
+{
+    TestServer *server = NULL;
+    char *qemu_cmd = NULL;
+    QTestState *s = NULL;
+
+    server = test_server_new("test");
+    test_server_listen(server);
+
+    qemu_cmd = GET_QEMU_CMD(server);
+
+    s = qtest_start(qemu_cmd);
+    g_free(qemu_cmd);
+
+    init_virtio_dev(server);
+
+    read_guest_mem(server);
+
+    qtest_quit(s);
+    test_server_free(server);
+}
+
 static void test_migrate(void)
 {
     TestServer *s = test_server_new("src");
@@ -919,10 +941,7 @@ static void test_multiqueue(void)
 
 int main(int argc, char **argv)
 {
-    QTestState *s = NULL;
-    TestServer *server = NULL;
     const char *hugefs;
-    char *qemu_cmd = NULL;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
     GMainLoop *loop;
@@ -947,20 +966,11 @@ int main(int argc, char **argv)
         root = tmpfs;
     }
 
-    server = test_server_new("test");
-    test_server_listen(server);
-
     loop = g_main_loop_new(NULL, FALSE);
     /* run the main loop thread so the chardev may operate */
     thread = g_thread_new(NULL, thread_function, loop);
 
-    qemu_cmd = GET_QEMU_CMD(server);
-
-    s = qtest_start(qemu_cmd);
-    g_free(qemu_cmd);
-    init_virtio_dev(server);
-
-    qtest_add_data_func("/vhost-user/read-guest-mem", server, read_guest_mem);
+    qtest_add_func("/vhost-user/read-guest-mem", test_read_guest_mem);
     qtest_add_func("/vhost-user/migrate", test_migrate);
     qtest_add_func("/vhost-user/multiqueue", test_multiqueue);
 
@@ -978,12 +988,7 @@ int main(int argc, char **argv)
 
     ret = g_test_run();
 
-    if (s) {
-        qtest_quit(s);
-    }
-
     /* cleanup */
-    test_server_free(server);
 
     /* finish the helper thread and dispatch pending sources */
     g_main_loop_quit(loop);
