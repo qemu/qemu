@@ -182,7 +182,7 @@ void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val);
  */
 typedef enum {
     /* Translator only -- use env->cc_op.  */
-    CC_OP_DYNAMIC = -1,
+    CC_OP_DYNAMIC,
 
     /* Each flag bit computed into cc_[xcnvz].  */
     CC_OP_FLAGS,
