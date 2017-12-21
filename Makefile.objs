@@ -140,6 +140,7 @@ trace-events-subdirs += hw/input
 trace-events-subdirs += hw/timer
 trace-events-subdirs += hw/dma
 trace-events-subdirs += hw/sparc
+trace-events-subdirs += hw/sparc64
 trace-events-subdirs += hw/sd
 trace-events-subdirs += hw/isa
 trace-events-subdirs += hw/mem
