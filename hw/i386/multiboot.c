@@ -224,7 +224,7 @@ int load_multiboot(FWCfgState *fw_cfg,
 
         mh_load_addr = ldl_p(header+i+16);
         if (mh_header_addr < mh_load_addr) {
-            fprintf(stderr, "invalid mh_load_addr address\n");
+            fprintf(stderr, "invalid load_addr address\n");
             exit(1);
         }
 
@@ -234,7 +234,7 @@ int load_multiboot(FWCfgState *fw_cfg,
 
         if (mh_load_end_addr) {
             if (mh_load_end_addr < mh_load_addr) {
-                fprintf(stderr, "invalid mh_load_end_addr address\n");
+                fprintf(stderr, "invalid load_end_addr address\n");
                 exit(1);
             }
             mb_load_size = mh_load_end_addr - mh_load_addr;
@@ -247,7 +247,7 @@ int load_multiboot(FWCfgState *fw_cfg,
         }
         if (mh_bss_end_addr) {
             if (mh_bss_end_addr < (mh_load_addr + mb_load_size)) {
-                fprintf(stderr, "invalid mh_bss_end_addr address\n");
+                fprintf(stderr, "invalid bss_end_addr address\n");
                 exit(1);
             }
             mb_kernel_size = mh_bss_end_addr - mh_load_addr;
@@ -255,10 +255,10 @@ int load_multiboot(FWCfgState *fw_cfg,
             mb_kernel_size = mb_load_size;
         }
 
-        mb_debug("multiboot: mh_header_addr = %#x\n", mh_header_addr);
-        mb_debug("multiboot: mh_load_addr = %#x\n", mh_load_addr);
-        mb_debug("multiboot: mh_load_end_addr = %#x\n", mh_load_end_addr);
-        mb_debug("multiboot: mh_bss_end_addr = %#x\n", mh_bss_end_addr);
+        mb_debug("multiboot: header_addr = %#x\n", mh_header_addr);
+        mb_debug("multiboot: load_addr = %#x\n", mh_load_addr);
+        mb_debug("multiboot: load_end_addr = %#x\n", mh_load_end_addr);
+        mb_debug("multiboot: bss_end_addr = %#x\n", mh_bss_end_addr);
         mb_debug("qemu: loading multiboot kernel (%#x bytes) at %#x\n",
                  mb_load_size, mh_load_addr);
 
@@ -361,7 +361,7 @@ int load_multiboot(FWCfgState *fw_cfg,
     stl_p(bootinfo + MBI_BOOT_DEVICE, 0x8000ffff); /* XXX: use the -boot switch? */
     stl_p(bootinfo + MBI_MMAP_ADDR,   ADDR_E820_MAP);
 
-    mb_debug("multiboot: mh_entry_addr = %#x\n", mh_entry_addr);
+    mb_debug("multiboot: entry_addr = %#x\n", mh_entry_addr);
     mb_debug("           mb_buf_phys   = "TARGET_FMT_plx"\n", mbs.mb_buf_phys);
     mb_debug("           mod_start     = "TARGET_FMT_plx"\n", mbs.mb_buf_phys + mbs.offset_mods);
     mb_debug("           mb_mods_count = %d\n", mbs.mb_mods_count);
