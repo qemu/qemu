@@ -27,6 +27,7 @@
 #include "hw/i386/pc.h"
 #include "sysemu/hw_accel.h"
 #include "hw/qdev.h"
+#include "qemu/log.h"
 #include "trace.h"
 
 #define VMPORT_CMD_GETVERSION 0x0a
