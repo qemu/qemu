@@ -68,6 +68,8 @@ typedef struct APBState {
     MemoryRegion pci_ioport;
     uint64_t pci_irq_in;
     IOMMUState iommu;
+    PCIBridge *bridgeA;
+    PCIBridge *bridgeB;
     uint32_t pci_control[16];
     uint32_t pci_irq_map[8];
     uint32_t pci_err_irq_map[4];
@@ -92,6 +94,5 @@ typedef struct PBMPCIBridge {
     OBJECT_CHECK(PBMPCIBridge, (obj), TYPE_PBM_PCI_BRIDGE)
 
 APBState *pci_apb_init(hwaddr special_base,
-                       hwaddr mem_base,
-                       PCIBus **bus2, PCIBus **bus3);
+                       hwaddr mem_base);
 #endif

@@ -612,8 +612,7 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
 }
 
 APBState *pci_apb_init(hwaddr special_base,
-                       hwaddr mem_base,
-                       PCIBus **busA, PCIBus **busB)
+                       hwaddr mem_base)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -621,7 +620,6 @@ APBState *pci_apb_init(hwaddr special_base,
     APBState *d;
     IOMMUState *is;
     PCIDevice *pci_dev;
-    PCIBridge *br;
 
     /* Ultrasparc PBM main bus */
     dev = qdev_create(NULL, TYPE_APB);
@@ -659,18 +657,16 @@ APBState *pci_apb_init(hwaddr special_base,
     /* APB secondary busses */
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
                                    TYPE_PBM_PCI_BRIDGE);
-    br = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(br, "pciB", pci_pbm_map_irq);
+    d->bridgeB = PCI_BRIDGE(pci_dev);
+    pci_bridge_map_irq(d->bridgeB, "pciB", pci_pbm_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
-    *busB = pci_bridge_get_sec_bus(br);
 
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
                                    TYPE_PBM_PCI_BRIDGE);
-    br = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(br, "pciA", pci_pbm_map_irq);
+    d->bridgeA = PCI_BRIDGE(pci_dev);
+    pci_bridge_map_irq(d->bridgeA, "pciA", pci_pbm_map_irq);
     qdev_prop_set_bit(DEVICE(pci_dev), "busA", true);
     qdev_init_nofail(&pci_dev->qdev);
-    *busA = pci_bridge_get_sec_bus(br);
 
     return d;
 }

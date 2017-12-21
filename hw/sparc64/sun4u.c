@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/apb.h"
 #include "hw/i386/pc.h"
@@ -501,7 +502,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    apb = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, &pci_busA, &pci_busB);
+    apb = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE);
 
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
@@ -510,6 +511,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
 
     pci_bus = PCI_HOST_BRIDGE(apb)->bus;
+    pci_busA = pci_bridge_get_sec_bus(apb->bridgeA);
+    pci_busB = pci_bridge_get_sec_bus(apb->bridgeB);
 
     /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is
        reserved (leaving no slots free after on-board devices) however slots
