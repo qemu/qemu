@@ -612,9 +612,9 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
     pci_bridge_update_mappings(PCI_BRIDGE(br));
 }
 
-PCIBus *pci_apb_init(hwaddr special_base,
-                     hwaddr mem_base,
-                     qemu_irq *ivec_irqs, PCIBus **busA, PCIBus **busB)
+APBState *pci_apb_init(hwaddr special_base,
+                       hwaddr mem_base,
+                       qemu_irq *ivec_irqs, PCIBus **busA, PCIBus **busB)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -675,7 +675,7 @@ PCIBus *pci_apb_init(hwaddr special_base,
     qdev_init_nofail(&pci_dev->qdev);
     *busA = pci_bridge_get_sec_bus(br);
 
-    return phb->bus;
+    return d;
 }
 
 static void pci_pbm_reset(DeviceState *d)

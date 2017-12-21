@@ -89,7 +89,7 @@ typedef struct PBMPCIBridge {
 #define PBM_PCI_BRIDGE(obj) \
     OBJECT_CHECK(PBMPCIBridge, (obj), TYPE_PBM_PCI_BRIDGE)
 
-PCIBus *pci_apb_init(hwaddr special_base,
-                     hwaddr mem_base,
-                     qemu_irq *ivec_irqs, PCIBus **bus2, PCIBus **bus3);
+APBState *pci_apb_init(hwaddr special_base,
+                       hwaddr mem_base,
+                       qemu_irq *ivec_irqs, PCIBus **bus2, PCIBus **bus3);
 #endif
