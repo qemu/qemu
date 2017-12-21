@@ -892,79 +892,30 @@ static void test_flags_mismatch(void)
 
 #endif
 
-static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
-{
-    QVirtioPCIDevice *dev;
-
-    dev = qvirtio_pci_device_find(bus, VIRTIO_ID_NET);
-    g_assert(dev != NULL);
-    g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_NET);
-
-    qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&dev->vdev);
-    qvirtio_set_acknowledge(&dev->vdev);
-    qvirtio_set_driver(&dev->vdev);
-
-    return dev;
-}
-
-static void driver_init(QVirtioDevice *dev)
-{
-    uint32_t features;
-
-    features = qvirtio_get_features(dev);
-    features = features & ~(QVIRTIO_F_BAD_FEATURE |
-                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
-                            (1u << VIRTIO_RING_F_EVENT_IDX));
-    qvirtio_set_features(dev, features);
-
-    qvirtio_set_driver_ok(dev);
-}
-
-#define PCI_SLOT                0x04
-
 static void test_multiqueue(void)
 {
-    const int queues = 2;
     TestServer *s = test_server_new("mq");
-    QVirtioPCIDevice *dev;
-    QPCIBus *bus;
-    QVirtQueuePCI *vq[queues * 2];
-    QGuestAllocator *alloc;
     char *cmd;
-    int i;
-
-    s->queues = queues;
+    uint32_t features_mask = ~(QVIRTIO_F_BAD_FEATURE |
+                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+                            (1u << VIRTIO_RING_F_EVENT_IDX));
+    s->queues = 2;
     test_server_listen(s);
 
     cmd = g_strdup_printf(QEMU_CMD_MEM QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
                           "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
                           512, 512, root, s->chr_name,
                           s->socket_path, "", s->chr_name,
-                          queues, queues * 2 + 2);
+                          s->queues, s->queues * 2 + 2);
     qtest_start(cmd);
     g_free(cmd);
 
-    bus = qpci_init_pc(NULL);
-    dev = virtio_net_pci_init(bus, PCI_SLOT);
+    init_virtio_dev(s, features_mask);
 
-    alloc = pc_alloc_init();
-    for (i = 0; i < queues * 2; i++) {
-        vq[i] = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, i);
-    }
+    wait_for_rings_started(s, s->queues * 2);
 
-    driver_init(&dev->vdev);
-    wait_for_rings_started(s, queues * 2);
+    uninit_virtio_dev(s);
 
-    /* End test */
-    for (i = 0; i < queues * 2; i++) {
-        qvirtqueue_cleanup(dev->vdev.bus, &vq[i]->vq, alloc);
-    }
-    pc_alloc_uninit(alloc);
-    qvirtio_pci_device_disable(dev);
-    g_free(dev->pdev);
-    g_free(dev);
-    qpci_free_pc(bus);
     qtest_end();
 
     test_server_free(s);
