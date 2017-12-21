@@ -24,19 +24,6 @@
 #include "io/channel-socket.h"
 
 
-static bool fd_is_socket(int fd)
-{
-    int optval;
-    socklen_t optlen;
-    optlen = sizeof(optval);
-    return qemu_getsockopt(fd,
-                           SOL_SOCKET,
-                           SO_TYPE,
-                           (char *)&optval,
-                           &optlen) == 0;
-}
-
-
 QIOChannel *qio_channel_new_fd(int fd,
                                Error **errp)
 {

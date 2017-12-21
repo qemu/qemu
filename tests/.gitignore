@@ -86,6 +86,7 @@ test-thread-pool
 test-throttle
 test-timed-average
 test-uuid
+test-util-sockets
 test-visitor-serialization
 test-vmstate
 test-write-threshold
