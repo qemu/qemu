@@ -218,8 +218,10 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = evt->u.btn.data;
-        if (vhid->wheel_axis && (btn->button == INPUT_BUTTON_WHEEL_UP ||
-                                 btn->button == INPUT_BUTTON_WHEEL_DOWN)) {
+        if (vhid->wheel_axis &&
+            (btn->button == INPUT_BUTTON_WHEEL_UP ||
+             btn->button == INPUT_BUTTON_WHEEL_DOWN) &&
+            btn->down) {
             event.type  = cpu_to_le16(EV_REL);
             event.code  = cpu_to_le16(REL_WHEEL);
             event.value = cpu_to_le32(btn->button == INPUT_BUTTON_WHEEL_UP
