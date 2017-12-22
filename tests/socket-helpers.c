@@ -30,10 +30,15 @@
 # define EAI_ADDRFAMILY 0
 #endif
 
-int socket_can_bind(const char *hostname)
+int socket_can_bind_connect(const char *hostname)
 {
-    int fd = -1;
+    int lfd = -1, cfd = -1, afd = -1;
     struct addrinfo ai, *res = NULL;
+    struct sockaddr_storage ss;
+    socklen_t sslen = sizeof(ss);
+    int soerr;
+    socklen_t soerrlen = sizeof(soerr);
+    bool check_soerr = false;
     int rc;
     int ret = -1;
 
@@ -54,20 +59,64 @@ int socket_can_bind(const char *hostname)
         goto cleanup;
     }
 
-    fd = qemu_socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
+    lfd = qemu_socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (lfd < 0) {
         goto cleanup;
     }
 
-    if (bind(fd, res->ai_addr, res->ai_addrlen) < 0) {
+    cfd = qemu_socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (cfd < 0) {
         goto cleanup;
+    }
+
+    if (bind(lfd, res->ai_addr, res->ai_addrlen) < 0) {
+        goto cleanup;
+    }
+
+    if (listen(lfd, 1) < 0) {
+        goto cleanup;
+    }
+
+    if (getsockname(lfd, (struct sockaddr *)&ss, &sslen) < 0) {
+        goto cleanup;
+    }
+
+    qemu_set_nonblock(cfd);
+    if (connect(cfd, (struct sockaddr *)&ss, sslen) < 0) {
+        if (errno == EINPROGRESS) {
+            check_soerr = true;
+        } else {
+            goto cleanup;
+        }
+    }
+
+    sslen = sizeof(ss);
+    afd = accept(lfd,  (struct sockaddr *)&ss, &sslen);
+    if (afd < 0) {
+        goto cleanup;
+    }
+
+    if (check_soerr) {
+        if (qemu_getsockopt(cfd, SOL_SOCKET, SO_ERROR, &soerr, &soerrlen) < 0) {
+            goto cleanup;
+        }
+        if (soerr) {
+            errno = soerr;
+            goto cleanup;
+        }
     }
 
     ret = 0;
 
  cleanup:
-    if (fd != -1) {
-        close(fd);
+    if (afd != -1) {
+        close(afd);
+    }
+    if (cfd != -1) {
+        close(cfd);
+    }
+    if (lfd != -1) {
+        close(lfd);
     }
     if (res) {
         freeaddrinfo(res);
@@ -80,7 +129,7 @@ int socket_check_protocol_support(bool *has_ipv4, bool *has_ipv6)
 {
     *has_ipv4 = *has_ipv6 = false;
 
-    if (socket_can_bind("127.0.0.1") < 0) {
+    if (socket_can_bind_connect("127.0.0.1") < 0) {
         if (errno != EADDRNOTAVAIL) {
             return -1;
         }
@@ -88,7 +137,7 @@ int socket_check_protocol_support(bool *has_ipv4, bool *has_ipv6)
         *has_ipv4 = true;
     }
 
-    if (socket_can_bind("::1") < 0) {
+    if (socket_can_bind_connect("::1") < 0) {
         if (errno != EADDRNOTAVAIL) {
             return -1;
         }

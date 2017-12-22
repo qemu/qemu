@@ -21,13 +21,13 @@
 /*
  * @hostname: a DNS name or numeric IP address
  *
- * Check whether it is possible to bind to ports
+ * Check whether it is possible to bind & connect to ports
  * on the DNS name or IP address @hostname. If an IP address
  * is used, it must not be a wildcard address.
  *
  * Returns 0 on success, -1 on error with errno set
  */
-int socket_can_bind(const char *hostname);
+int socket_can_bind_connect(const char *hostname);
 
 /*
  * @has_ipv4: set to true on return if IPv4 is available
