@@ -1,4 +1,4 @@
-common-obj-$(CONFIG_ADB) += adb.o
+common-obj-$(CONFIG_ADB) += adb.o adb-mouse.o adb-kbd.o
 common-obj-y += hid.o
 common-obj-$(CONFIG_LM832X) += lm832x.o
 common-obj-$(CONFIG_PCKBD) += pckbd.o
