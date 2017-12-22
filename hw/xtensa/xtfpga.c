@@ -372,15 +372,33 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
             }
         }
         if (entry_point != env->pc) {
-            static const uint8_t jx_a0[] = {
+            uint8_t boot[] = {
 #ifdef TARGET_WORDS_BIGENDIAN
-                0x0a, 0, 0,
+                0x60, 0x00, 0x08,       /* j    1f */
+                0x00,                   /* .literal_position */
+                0x00, 0x00, 0x00, 0x00, /* .literal entry_pc */
+                0x00, 0x00, 0x00, 0x00, /* .literal entry_a2 */
+                                        /* 1: */
+                0x10, 0xff, 0xfe,       /* l32r a0, entry_pc */
+                0x12, 0xff, 0xfe,       /* l32r a2, entry_a2 */
+                0x0a, 0x00, 0x00,       /* jx   a0 */
 #else
-                0xa0, 0, 0,
+                0x06, 0x02, 0x00,       /* j    1f */
+                0x00,                   /* .literal_position */
+                0x00, 0x00, 0x00, 0x00, /* .literal entry_pc */
+                0x00, 0x00, 0x00, 0x00, /* .literal entry_a2 */
+                                        /* 1: */
+                0x01, 0xfe, 0xff,       /* l32r a0, entry_pc */
+                0x21, 0xfe, 0xff,       /* l32r a2, entry_a2 */
+                0xa0, 0x00, 0x00,       /* jx   a0 */
 #endif
             };
-            env->regs[0] = entry_point;
-            cpu_physical_memory_write(env->pc, jx_a0, sizeof(jx_a0));
+            uint32_t entry_pc = tswap32(entry_point);
+            uint32_t entry_a2 = tswap32(tagptr);
+
+            memcpy(boot + 4, &entry_pc, sizeof(entry_pc));
+            memcpy(boot + 8, &entry_a2, sizeof(entry_a2));
+            cpu_physical_memory_write(env->pc, boot, sizeof(boot));
         }
     } else {
         if (flash) {
