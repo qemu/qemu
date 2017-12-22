@@ -146,13 +146,13 @@ static bool opb_write(PnvLpcController *lpc, uint32_t addr, uint8_t *data,
     return success;
 }
 
-#define ECCB_CTL_READ           (1ull << (63 - 15))
+#define ECCB_CTL_READ           PPC_BIT(15)
 #define ECCB_CTL_SZ_LSH         (63 - 7)
-#define ECCB_CTL_SZ_MASK        (0xfull << ECCB_CTL_SZ_LSH)
-#define ECCB_CTL_ADDR_MASK      0xffffffffu;
+#define ECCB_CTL_SZ_MASK        PPC_BITMASK(4, 7)
+#define ECCB_CTL_ADDR_MASK      PPC_BITMASK(32, 63)
 
-#define ECCB_STAT_OP_DONE       (1ull << (63 - 52))
-#define ECCB_STAT_OP_ERR        (1ull << (63 - 52))
+#define ECCB_STAT_OP_DONE       PPC_BIT(52)
+#define ECCB_STAT_OP_ERR        PPC_BIT(52)
 #define ECCB_STAT_RD_DATA_LSH   (63 - 37)
 #define ECCB_STAT_RD_DATA_MASK  (0xffffffff << ECCB_STAT_RD_DATA_LSH)
 
