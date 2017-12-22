@@ -44,6 +44,7 @@
 #include "sysemu/device_tree.h"
 #include "qemu/error-report.h"
 #include "bootparam.h"
+#include "xtensa_memory.h"
 
 typedef struct XtfpgaBoardDesc {
     hwaddr flash_base;
@@ -216,7 +217,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
-    MemoryRegion *ram, *rom, *system_io;
+    MemoryRegion *system_io;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
     QemuOpts *machine_opts = qemu_get_machine_opts();
@@ -238,10 +239,21 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         cpu_reset(CPU(cpu));
     }
 
-    ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "xtfpga.dram", machine->ram_size,
-                           &error_fatal);
-    memory_region_add_subregion(system_memory, 0, ram);
+    if (env) {
+        XtensaMemory sysram = env->config->sysram;
+
+        sysram.location[0].size = machine->ram_size;
+        xtensa_create_memory_regions(&env->config->instrom, "xtensa.instrom",
+                                     system_memory);
+        xtensa_create_memory_regions(&env->config->instram, "xtensa.instram",
+                                     system_memory);
+        xtensa_create_memory_regions(&env->config->datarom, "xtensa.datarom",
+                                     system_memory);
+        xtensa_create_memory_regions(&env->config->dataram, "xtensa.dataram",
+                                     system_memory);
+        xtensa_create_memory_regions(&sysram, "xtensa.sysram",
+                                     system_memory);
+    }
 
     system_io = g_malloc(sizeof(*system_io));
     memory_region_init_io(system_io, NULL, &xtfpga_io_ops, NULL, "xtfpga.io",
@@ -269,21 +281,24 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     if (kernel_filename) {
         uint32_t entry_point = env->pc;
         size_t bp_size = 3 * get_tag_size(0); /* first/last and memory tags */
-        uint32_t tagptr = 0xfe000000 + board->sram_size;
+        uint32_t tagptr = env->config->sysrom.location[0].addr +
+            board->sram_size;
         uint32_t cur_tagptr;
         BpMemInfo memory_location = {
             .type = tswap32(MEMORY_TYPE_CONVENTIONAL),
-            .start = tswap32(0),
-            .end = tswap32(machine->ram_size),
+            .start = tswap32(env->config->sysram.location[0].addr),
+            .end = tswap32(env->config->sysram.location[0].addr +
+                           machine->ram_size),
         };
         uint32_t lowmem_end = machine->ram_size < 0x08000000 ?
             machine->ram_size : 0x08000000;
         uint32_t cur_lowmem = QEMU_ALIGN_UP(lowmem_end / 2, 4096);
 
-        rom = g_malloc(sizeof(*rom));
-        memory_region_init_ram(rom, NULL, "xtfpga.sram", board->sram_size,
-                               &error_fatal);
-        memory_region_add_subregion(system_memory, 0xfe000000, rom);
+        lowmem_end += env->config->sysram.location[0].addr;
+        cur_lowmem += env->config->sysram.location[0].addr;
+
+        xtensa_create_memory_regions(&env->config->sysrom, "xtensa.sysrom",
+                                     system_memory);
 
         if (kernel_cmdline) {
             bp_size += get_tag_size(strlen(kernel_cmdline) + 1);
@@ -404,13 +419,20 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         if (flash) {
             MemoryRegion *flash_mr = pflash_cfi01_get_memory(flash);
             MemoryRegion *flash_io = g_malloc(sizeof(*flash_io));
+            uint32_t size = env->config->sysrom.location[0].size;
+
+            if (board->flash_size - board->flash_boot_base < size) {
+                size = board->flash_size - board->flash_boot_base;
+            }
 
             memory_region_init_alias(flash_io, NULL, "xtfpga.flash",
-                    flash_mr, board->flash_boot_base,
-                    board->flash_size - board->flash_boot_base < 0x02000000 ?
-                    board->flash_size - board->flash_boot_base : 0x02000000);
-            memory_region_add_subregion(system_memory, 0xfe000000,
-                    flash_io);
+                                     flash_mr, board->flash_boot_base, size);
+            memory_region_add_subregion(system_memory,
+                                        env->config->sysrom.location[0].addr,
+                                        flash_io);
+        } else {
+            xtensa_create_memory_regions(&env->config->sysrom, "xtensa.sysrom",
+                                         system_memory);
         }
     }
 }

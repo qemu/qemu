@@ -1,3 +1,4 @@
 obj-y += pic_cpu.o
 obj-y += sim.o
+obj-y += xtensa_memory.o
 obj-y += xtfpga.o
