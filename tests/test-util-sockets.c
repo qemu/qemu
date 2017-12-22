@@ -23,6 +23,7 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "socket-helpers.h"
+#include "monitor/monitor.h"
 
 static void test_fd_is_socket_bad(void)
 {
@@ -49,6 +50,90 @@ static void test_fd_is_socket_good(void)
     close(fd);
 }
 
+static int mon_fd = -1;
+static const char *mon_fdname;
+
+int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
+{
+    g_assert(cur_mon);
+    g_assert(mon == cur_mon);
+    if (mon_fd == -1 || !g_str_equal(mon_fdname, fdname)) {
+        error_setg(errp, "No fd named %s", fdname);
+        return -1;
+    }
+    return dup(mon_fd);
+}
+
+/* Syms in libqemustub.a are discarded at .o file granularity.
+ * To replace monitor_get_fd() we must ensure everything in
+ * stubs/monitor.c is defined, to make sure monitor.o is discarded
+ * otherwise we get duplicate syms at link time.
+ */
+Monitor *cur_mon;
+void monitor_init(Chardev *chr, int flags) {}
+
+
+static void test_socket_fd_pass_good(void)
+{
+    SocketAddress addr;
+    int fd;
+
+    cur_mon = g_malloc(1); /* Fake a monitor */
+    mon_fdname = "myfd";
+    mon_fd = qemu_socket(AF_INET, SOCK_STREAM, 0);
+    g_assert_cmpint(mon_fd, >, STDERR_FILENO);
+
+    addr.type = SOCKET_ADDRESS_TYPE_FD;
+    addr.u.fd.str = g_strdup(mon_fdname);
+
+    fd = socket_connect(&addr, &error_abort);
+    g_assert_cmpint(fd, !=, -1);
+    g_assert_cmpint(fd, !=, mon_fd);
+    close(fd);
+
+    fd = socket_listen(&addr, &error_abort);
+    g_assert_cmpint(fd, !=, -1);
+    g_assert_cmpint(fd, !=, mon_fd);
+    close(fd);
+
+    g_free(addr.u.fd.str);
+    mon_fdname = NULL;
+    close(mon_fd);
+    mon_fd = -1;
+    g_free(cur_mon);
+    cur_mon = NULL;
+}
+
+static void test_socket_fd_pass_bad(void)
+{
+    SocketAddress addr;
+    Error *err = NULL;
+    int fd;
+
+    cur_mon = g_malloc(1); /* Fake a monitor */
+    mon_fdname = "myfd";
+    mon_fd = dup(STDOUT_FILENO);
+    g_assert_cmpint(mon_fd, >, STDERR_FILENO);
+
+    addr.type = SOCKET_ADDRESS_TYPE_FD;
+    addr.u.fd.str = g_strdup(mon_fdname);
+
+    fd = socket_connect(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    fd = socket_listen(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    g_free(addr.u.fd.str);
+    mon_fdname = NULL;
+    close(mon_fd);
+    mon_fd = -1;
+    g_free(cur_mon);
+    cur_mon = NULL;
+}
+
 int main(int argc, char **argv)
 {
     bool has_ipv4, has_ipv6;
@@ -71,6 +156,10 @@ int main(int argc, char **argv)
                         test_fd_is_socket_bad);
         g_test_add_func("/util/socket/is-socket/good",
                         test_fd_is_socket_good);
+        g_test_add_func("/socket/fd-pass/good",
+                        test_socket_fd_pass_good);
+        g_test_add_func("/socket/fd-pass/bad",
+                        test_socket_fd_pass_bad);
     }
 
     return g_test_run();
