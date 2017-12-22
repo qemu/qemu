@@ -22,76 +22,8 @@
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "io-channel-helpers.h"
+#include "socket-helpers.h"
 #include "qapi/error.h"
-
-#ifndef AI_ADDRCONFIG
-# define AI_ADDRCONFIG 0
-#endif
-#ifndef EAI_ADDRFAMILY
-# define EAI_ADDRFAMILY 0
-#endif
-
-static int check_bind(const char *hostname, bool *has_proto)
-{
-    int fd = -1;
-    struct addrinfo ai, *res = NULL;
-    int rc;
-    int ret = -1;
-
-    memset(&ai, 0, sizeof(ai));
-    ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
-    ai.ai_family = AF_UNSPEC;
-    ai.ai_socktype = SOCK_STREAM;
-
-    /* lookup */
-    rc = getaddrinfo(hostname, NULL, &ai, &res);
-    if (rc != 0) {
-        if (rc == EAI_ADDRFAMILY ||
-            rc == EAI_FAMILY) {
-            *has_proto = false;
-            goto done;
-        }
-        goto cleanup;
-    }
-
-    fd = qemu_socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
-        goto cleanup;
-    }
-
-    if (bind(fd, res->ai_addr, res->ai_addrlen) < 0) {
-        if (errno == EADDRNOTAVAIL) {
-            *has_proto = false;
-            goto done;
-        }
-        goto cleanup;
-    }
-
-    *has_proto = true;
- done:
-    ret = 0;
-
- cleanup:
-    if (fd != -1) {
-        close(fd);
-    }
-    if (res) {
-        freeaddrinfo(res);
-    }
-    return ret;
-}
-
-static int check_protocol_support(bool *has_ipv4, bool *has_ipv6)
-{
-    if (check_bind("127.0.0.1", has_ipv4) < 0) {
-        return -1;
-    }
-    if (check_bind("::1", has_ipv6) < 0) {
-        return -1;
-    }
-
-    return 0;
-}
 
 
 static void test_io_channel_set_socket_bufs(QIOChannel *src,
@@ -566,7 +498,7 @@ int main(int argc, char **argv)
      * each protocol to avoid breaking tests on machines
      * with either IPv4 or IPv6 disabled.
      */
-    if (check_protocol_support(&has_ipv4, &has_ipv6) < 0) {
+    if (socket_check_protocol_support(&has_ipv4, &has_ipv6) < 0) {
         return 1;
     }
 
