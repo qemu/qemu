@@ -73,7 +73,7 @@ Monitor *cur_mon;
 void monitor_init(Chardev *chr, int flags) {}
 
 
-static void test_socket_fd_pass_good(void)
+static void test_socket_fd_pass_name_good(void)
 {
     SocketAddress addr;
     int fd;
@@ -104,7 +104,7 @@ static void test_socket_fd_pass_good(void)
     cur_mon = NULL;
 }
 
-static void test_socket_fd_pass_bad(void)
+static void test_socket_fd_pass_name_bad(void)
 {
     SocketAddress addr;
     Error *err = NULL;
@@ -134,6 +134,98 @@ static void test_socket_fd_pass_bad(void)
     cur_mon = NULL;
 }
 
+static void test_socket_fd_pass_name_nomon(void)
+{
+    SocketAddress addr;
+    Error *err = NULL;
+    int fd;
+
+    g_assert(cur_mon == NULL);
+
+    addr.type = SOCKET_ADDRESS_TYPE_FD;
+    addr.u.fd.str = g_strdup("myfd");
+
+    fd = socket_connect(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    fd = socket_listen(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    g_free(addr.u.fd.str);
+}
+
+
+static void test_socket_fd_pass_num_good(void)
+{
+    SocketAddress addr;
+    int fd, sfd;
+
+    g_assert(cur_mon == NULL);
+    sfd = qemu_socket(AF_INET, SOCK_STREAM, 0);
+    g_assert_cmpint(sfd, >, STDERR_FILENO);
+
+    addr.type = SOCKET_ADDRESS_TYPE_FD;
+    addr.u.fd.str = g_strdup_printf("%d", sfd);
+
+    fd = socket_connect(&addr, &error_abort);
+    g_assert_cmpint(fd, ==, sfd);
+
+    fd = socket_listen(&addr, &error_abort);
+    g_assert_cmpint(fd, ==, sfd);
+
+    g_free(addr.u.fd.str);
+    close(sfd);
+}
+
+static void test_socket_fd_pass_num_bad(void)
+{
+    SocketAddress addr;
+    Error *err = NULL;
+    int fd, sfd;
+
+    g_assert(cur_mon == NULL);
+    sfd = dup(STDOUT_FILENO);
+
+    addr.type = SOCKET_ADDRESS_TYPE_FD;
+    addr.u.fd.str = g_strdup_printf("%d", sfd);
+
+    fd = socket_connect(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    fd = socket_listen(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    g_free(addr.u.fd.str);
+    close(sfd);
+}
+
+static void test_socket_fd_pass_num_nocli(void)
+{
+    SocketAddress addr;
+    Error *err = NULL;
+    int fd;
+
+    cur_mon = g_malloc(1); /* Fake a monitor */
+
+    addr.type = SOCKET_ADDRESS_TYPE_FD;
+    addr.u.fd.str = g_strdup_printf("%d", STDOUT_FILENO);
+
+    fd = socket_connect(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    fd = socket_listen(&addr, &err);
+    g_assert_cmpint(fd, ==, -1);
+    error_free_or_abort(&err);
+
+    g_free(addr.u.fd.str);
+}
+
+
 int main(int argc, char **argv)
 {
     bool has_ipv4, has_ipv6;
@@ -156,10 +248,18 @@ int main(int argc, char **argv)
                         test_fd_is_socket_bad);
         g_test_add_func("/util/socket/is-socket/good",
                         test_fd_is_socket_good);
-        g_test_add_func("/socket/fd-pass/good",
-                        test_socket_fd_pass_good);
-        g_test_add_func("/socket/fd-pass/bad",
-                        test_socket_fd_pass_bad);
+        g_test_add_func("/socket/fd-pass/name/good",
+                        test_socket_fd_pass_name_good);
+        g_test_add_func("/socket/fd-pass/name/bad",
+                        test_socket_fd_pass_name_bad);
+        g_test_add_func("/socket/fd-pass/name/nomon",
+                        test_socket_fd_pass_name_nomon);
+        g_test_add_func("/socket/fd-pass/num/good",
+                        test_socket_fd_pass_num_good);
+        g_test_add_func("/socket/fd-pass/num/bad",
+                        test_socket_fd_pass_num_bad);
+        g_test_add_func("/socket/fd-pass/num/nocli",
+                        test_socket_fd_pass_num_nocli);
     }
 
     return g_test_run();

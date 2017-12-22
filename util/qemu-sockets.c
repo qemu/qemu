@@ -1044,9 +1044,19 @@ fail:
 
 static int socket_get_fd(const char *fdstr, Error **errp)
 {
-    int fd = monitor_get_fd(cur_mon, fdstr, errp);
-    if (fd < 0) {
-        return -1;
+    int fd;
+    if (cur_mon) {
+        fd = monitor_get_fd(cur_mon, fdstr, errp);
+        if (fd < 0) {
+            return -1;
+        }
+    } else {
+        if (qemu_strtoi(fdstr, NULL, 10, &fd) < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to parse FD number %s",
+                             fdstr);
+            return -1;
+        }
     }
     if (!fd_is_socket(fd)) {
         error_setg(errp, "File descriptor '%s' is not a socket", fdstr);
