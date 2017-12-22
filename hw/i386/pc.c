@@ -1695,9 +1695,14 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         align = memory_region_get_alignment(mr);
     }
 
-    if (!pcms->acpi_dev) {
+    /*
+     * When -no-acpi is used with Q35 machine type, no ACPI is built,
+     * but pcms->acpi_dev is still created. Check !acpi_enabled in
+     * addition to cover this case.
+     */
+    if (!pcms->acpi_dev || !acpi_enabled) {
         error_setg(&local_err,
-                   "memory hotplug is not enabled: missing acpi device");
+                   "memory hotplug is not enabled: missing acpi device or acpi disabled");
         goto out;
     }
 
@@ -1729,9 +1734,14 @@ static void pc_dimm_unplug_request(HotplugHandler *hotplug_dev,
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
-    if (!pcms->acpi_dev) {
+    /*
+     * When -no-acpi is used with Q35 machine type, no ACPI is built,
+     * but pcms->acpi_dev is still created. Check !acpi_enabled in
+     * addition to cover this case.
+     */
+    if (!pcms->acpi_dev || !acpi_enabled) {
         error_setg(&local_err,
-                   "memory hotplug is not enabled: missing acpi device");
+                   "memory hotplug is not enabled: missing acpi device or acpi disabled");
         goto out;
     }
 
