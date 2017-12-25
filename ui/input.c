@@ -421,6 +421,8 @@ void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
     } else if (queue_count < queue_limit) {
         qemu_input_queue_event(&kbd_queue, src, evt);
         qemu_input_queue_sync(&kbd_queue);
+    } else {
+        qapi_free_InputEvent(evt);
     }
 }
 
