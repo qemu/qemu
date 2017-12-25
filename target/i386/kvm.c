@@ -3470,6 +3470,7 @@ int kvm_arch_release_virq_post(int virq)
         if (entry->virq == virq) {
             trace_kvm_x86_remove_msi_route(virq);
             QLIST_REMOVE(entry, list);
+            g_free(entry);
             break;
         }
     }
