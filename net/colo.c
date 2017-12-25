@@ -138,6 +138,8 @@ Connection *connection_new(ConnectionKey *key)
     conn->processing = false;
     conn->offset = 0;
     conn->syn_flag = 0;
+    conn->pack = 0;
+    conn->sack = 0;
     g_queue_init(&conn->primary_list);
     g_queue_init(&conn->secondary_list);
 
@@ -163,6 +165,13 @@ Packet *packet_new(const void *data, int size, int vnet_hdr_len)
     pkt->size = size;
     pkt->creation_ms = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     pkt->vnet_hdr_len = vnet_hdr_len;
+    pkt->tcp_seq = 0;
+    pkt->tcp_ack = 0;
+    pkt->seq_end = 0;
+    pkt->header_size = 0;
+    pkt->payload_size = 0;
+    pkt->offset = 0;
+    pkt->flags = 0;
 
     return pkt;
 }
