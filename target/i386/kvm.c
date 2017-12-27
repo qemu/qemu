@@ -92,8 +92,9 @@ static bool has_msr_hv_stimer;
 static bool has_msr_hv_frequencies;
 static bool has_msr_xss;
 
-static bool has_msr_architectural_pmu;
-static uint32_t num_architectural_pmu_counters;
+static uint32_t has_architectural_pmu_version;
+static uint32_t num_architectural_pmu_gp_counters;
+static uint32_t num_architectural_pmu_fixed_counters;
 
 static int has_xsave;
 static int has_xcrs;
@@ -872,19 +873,28 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     if (limit >= 0x0a) {
-        uint32_t ver;
+        uint32_t eax, edx;
 
-        cpu_x86_cpuid(env, 0x0a, 0, &ver, &unused, &unused, &unused);
-        if ((ver & 0xff) > 0) {
-            has_msr_architectural_pmu = true;
-            num_architectural_pmu_counters = (ver & 0xff00) >> 8;
+        cpu_x86_cpuid(env, 0x0a, 0, &eax, &unused, &unused, &edx);
+
+        has_architectural_pmu_version = eax & 0xff;
+        if (has_architectural_pmu_version > 0) {
+            num_architectural_pmu_gp_counters = (eax & 0xff00) >> 8;
 
             /* Shouldn't be more than 32, since that's the number of bits
              * available in EBX to tell us _which_ counters are available.
              * Play it safe.
              */
-            if (num_architectural_pmu_counters > MAX_GP_COUNTERS) {
-                num_architectural_pmu_counters = MAX_GP_COUNTERS;
+            if (num_architectural_pmu_gp_counters > MAX_GP_COUNTERS) {
+                num_architectural_pmu_gp_counters = MAX_GP_COUNTERS;
+            }
+
+            if (has_architectural_pmu_version > 1) {
+                num_architectural_pmu_fixed_counters = edx & 0x1f;
+
+                if (num_architectural_pmu_fixed_counters > MAX_FIXED_COUNTERS) {
+                    num_architectural_pmu_fixed_counters = MAX_FIXED_COUNTERS;
+                }
             }
         }
     }
@@ -1650,32 +1660,36 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_STEAL_TIME)) {
             kvm_msr_entry_add(cpu, MSR_KVM_STEAL_TIME, env->steal_time_msr);
         }
-        if (has_msr_architectural_pmu) {
-            /* Stop the counter.  */
-            kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
-            kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL, 0);
+        if (has_architectural_pmu_version > 0) {
+            if (has_architectural_pmu_version > 1) {
+                /* Stop the counter.  */
+                kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
+                kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL, 0);
+            }
 
             /* Set the counter values.  */
-            for (i = 0; i < MAX_FIXED_COUNTERS; i++) {
+            for (i = 0; i < num_architectural_pmu_fixed_counters; i++) {
                 kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR0 + i,
                                   env->msr_fixed_counters[i]);
             }
-            for (i = 0; i < num_architectural_pmu_counters; i++) {
+            for (i = 0; i < num_architectural_pmu_gp_counters; i++) {
                 kvm_msr_entry_add(cpu, MSR_P6_PERFCTR0 + i,
                                   env->msr_gp_counters[i]);
                 kvm_msr_entry_add(cpu, MSR_P6_EVNTSEL0 + i,
                                   env->msr_gp_evtsel[i]);
             }
-            kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_STATUS,
-                              env->msr_global_status);
-            kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_OVF_CTRL,
-                              env->msr_global_ovf_ctrl);
+            if (has_architectural_pmu_version > 1) {
+                kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_STATUS,
+                                  env->msr_global_status);
+                kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_OVF_CTRL,
+                                  env->msr_global_ovf_ctrl);
 
-            /* Now start the PMU.  */
-            kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL,
-                              env->msr_fixed_ctr_ctrl);
-            kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL,
-                              env->msr_global_ctrl);
+                /* Now start the PMU.  */
+                kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL,
+                                  env->msr_fixed_ctr_ctrl);
+                kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL,
+                                  env->msr_global_ctrl);
+            }
         }
         /*
          * Hyper-V partition-wide MSRs: to avoid clearing them on cpu hot-add,
@@ -2030,15 +2044,17 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_STEAL_TIME)) {
         kvm_msr_entry_add(cpu, MSR_KVM_STEAL_TIME, 0);
     }
-    if (has_msr_architectural_pmu) {
-        kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
-        kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL, 0);
-        kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_STATUS, 0);
-        kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_OVF_CTRL, 0);
-        for (i = 0; i < MAX_FIXED_COUNTERS; i++) {
+    if (has_architectural_pmu_version > 0) {
+        if (has_architectural_pmu_version > 1) {
+            kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
+            kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL, 0);
+            kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_STATUS, 0);
+            kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_OVF_CTRL, 0);
+        }
+        for (i = 0; i < num_architectural_pmu_fixed_counters; i++) {
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR0 + i, 0);
         }
-        for (i = 0; i < num_architectural_pmu_counters; i++) {
+        for (i = 0; i < num_architectural_pmu_gp_counters; i++) {
             kvm_msr_entry_add(cpu, MSR_P6_PERFCTR0 + i, 0);
             kvm_msr_entry_add(cpu, MSR_P6_EVNTSEL0 + i, 0);
         }
