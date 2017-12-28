@@ -1860,6 +1860,7 @@ unsigned long init_guest_space(unsigned long host_start,
             if (valid == 1) {
                 break;
             } else if (valid == -1) {
+                munmap((void *)real_start, host_size);
                 return (unsigned long)-1;
             }
             /* valid == 0, so try again. */
