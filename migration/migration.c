@@ -132,6 +132,11 @@ void migration_object_init(void)
     }
 }
 
+void migration_object_finalize(void)
+{
+    object_unref(OBJECT(current_migration));
+}
+
 /* For outgoing */
 MigrationState *migrate_get_current(void)
 {
