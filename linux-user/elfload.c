@@ -1845,6 +1845,11 @@ unsigned long init_guest_space(unsigned long host_start,
             return (unsigned long)-1;
         }
 
+        /* Check to see if the address is valid.  */
+        if (host_start && real_start != current_start) {
+            goto try_again;
+        }
+
         /* Ensure the address is properly aligned.  */
         if (real_start & ~qemu_host_page_mask) {
             /* Ideally, we adjust like
@@ -1877,11 +1882,6 @@ unsigned long init_guest_space(unsigned long host_start,
             aligned_start = HOST_PAGE_ALIGN(real_start);
         } else {
             aligned_start = real_start;
-        }
-
-        /* Check to see if the address is valid.  */
-        if (host_start && aligned_start != current_start) {
-            goto try_again;
         }
 
 #if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
