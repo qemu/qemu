@@ -1856,7 +1856,7 @@ unsigned long init_guest_space(unsigned long host_start,
 #if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
             /* On 32-bit ARM, we need to also be able to map the commpage.  */
             int valid = init_guest_commpage(real_start - guest_start,
-                                            real_size);
+                                            real_size + guest_start);
             if (valid == 1) {
                 break;
             } else if (valid == -1) {
