@@ -1910,6 +1910,10 @@ unsigned long init_guest_space(unsigned long host_start,
          * happen often.  Probably means we got unlucky and host
          * address space randomization put a shared library somewhere
          * inconvenient.
+         *
+         * This is probably a good strategy if host_start, but is
+         * probably a bad strategy if not, which means we got here
+         * because of trouble with ARM commpage setup.
          */
         munmap((void *)real_start, real_size);
         current_start += qemu_host_page_size;
