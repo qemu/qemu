@@ -1889,6 +1889,55 @@ unsigned long init_guest_space(unsigned long host_start,
 
     /* Otherwise, a non-zero size region of memory needs to be mapped
      * and validated.  */
+
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
+    /* On 32-bit ARM, we need to map not just the usable memory, but
+     * also the commpage.  Try to find a suitable place by allocating
+     * a big chunk for all of it.  If host_start, then the naive
+     * strategy probably does good enough.
+     */
+    if (!host_start) {
+        unsigned long guest_full_size, host_full_size, real_start;
+
+        guest_full_size =
+            (0xffff0f00 & qemu_host_page_mask) + qemu_host_page_size;
+        host_full_size = guest_full_size - guest_start;
+        real_start = (unsigned long)
+            mmap(NULL, host_full_size, PROT_NONE, flags, -1, 0);
+        if (real_start == (unsigned long)-1) {
+            if (host_size < host_full_size - qemu_host_page_size) {
+                /* We failed to map a continous segment, but we're
+                 * allowed to have a gap between the usable memory and
+                 * the commpage where other things can be mapped.
+                 * This sparseness gives us more flexibility to find
+                 * an address range.
+                 */
+                goto naive;
+            }
+            return (unsigned long)-1;
+        }
+        munmap((void *)real_start, host_full_size);
+        if (real_start & ~qemu_host_page_mask) {
+            /* The same thing again, but with an extra qemu_host_page_size
+             * so that we can shift around alignment.
+             */
+            unsigned long real_size = host_full_size + qemu_host_page_size;
+            real_start = (unsigned long)
+                mmap(NULL, real_size, PROT_NONE, flags, -1, 0);
+            if (real_start == (unsigned long)-1) {
+                if (host_size < host_full_size - qemu_host_page_size) {
+                    goto naive;
+                }
+                return (unsigned long)-1;
+            }
+            munmap((void *)real_start, real_size);
+            real_start = HOST_PAGE_ALIGN(real_start);
+        }
+        current_start = real_start;
+    }
+ naive:
+#endif
+
     while (1) {
         unsigned long real_start, real_size, aligned_size;
         aligned_size = real_size = host_size;
