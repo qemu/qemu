@@ -374,6 +374,11 @@ static int init_guest_commpage(unsigned long guest_base,
 
     /* If the commpage lies within the already allocated guest space,
      * then there is no way we can allocate it.
+     *
+     * You may be thinking that that this check is redundant because
+     * we already validated the guest size against MAX_RESERVED_VA;
+     * but if qemu_host_page_mask is unusually large, then
+     * test_page_addr may be lower.
      */
     if (test_page_addr >= guest_base
         && test_page_addr < (guest_base + guest_size)) {
