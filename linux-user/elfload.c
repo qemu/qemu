@@ -1801,7 +1801,7 @@ unsigned long init_guest_space(unsigned long host_start,
                                unsigned long guest_start,
                                bool fixed)
 {
-    unsigned long current_start, real_start;
+    unsigned long current_start, aligned_start;
     int flags;
 
     assert(host_start || host_size);
@@ -1827,7 +1827,8 @@ unsigned long init_guest_space(unsigned long host_start,
     /* Otherwise, a non-zero size region of memory needs to be mapped
      * and validated.  */
     while (1) {
-        unsigned long real_size = host_size;
+        unsigned long real_start, real_size, aligned_size;
+        aligned_size = real_size = host_size;
 
         /* Do not use mmap_find_vma here because that is limited to the
          * guest address space.  We are going to make the
@@ -1841,26 +1842,48 @@ unsigned long init_guest_space(unsigned long host_start,
 
         /* Ensure the address is properly aligned.  */
         if (real_start & ~qemu_host_page_mask) {
+            /* Ideally, we adjust like
+             *
+             *    pages: [  ][  ][  ][  ][  ]
+             *      old:   [   real   ]
+             *             [ aligned  ]
+             *      new:   [     real     ]
+             *               [ aligned  ]
+             *
+             * But if there is something else mapped right after it,
+             * then obviously it won't have room to grow, and the
+             * kernel will put the new larger real someplace else with
+             * unknown alignment (if we made it to here, then
+             * fixed=false).  Which is why we grow real by a full page
+             * size, instead of by part of one; so that even if we get
+             * moved, we can still guarantee alignment.  But this does
+             * mean that there is a padding of < 1 page both before
+             * and after the aligned range; the "after" could could
+             * cause problems for ARM emulation where it could butt in
+             * to where we need to put the commpage.
+             */
             munmap((void *)real_start, host_size);
-            real_size = host_size + qemu_host_page_size;
+            real_size = aligned_size + qemu_host_page_size;
             real_start = (unsigned long)
                 mmap((void *)real_start, real_size, PROT_NONE, flags, -1, 0);
             if (real_start == (unsigned long)-1) {
                 return (unsigned long)-1;
             }
-            real_start = HOST_PAGE_ALIGN(real_start);
+            aligned_start = HOST_PAGE_ALIGN(real_start);
+        } else {
+            aligned_start = real_start;
         }
 
         /* Check to see if the address is valid.  */
-        if (!host_start || real_start == current_start) {
+        if (!host_start || aligned_start == current_start) {
 #if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
             /* On 32-bit ARM, we need to also be able to map the commpage.  */
-            int valid = init_guest_commpage(real_start - guest_start,
-                                            real_size + guest_start);
+            int valid = init_guest_commpage(aligned_start - guest_start,
+                                            aligned_size + guest_start);
             if (valid == 1) {
                 break;
             } else if (valid == -1) {
-                munmap((void *)real_start, host_size);
+                munmap((void *)real_start, real_size);
                 return (unsigned long)-1;
             }
             /* valid == 0, so try again. */
@@ -1879,7 +1902,7 @@ unsigned long init_guest_space(unsigned long host_start,
          * address space randomization put a shared library somewhere
          * inconvenient.
          */
-        munmap((void *)real_start, host_size);
+        munmap((void *)real_start, real_size);
         current_start += qemu_host_page_size;
         if (host_start == current_start) {
             /* Theoretically possible if host doesn't have any suitably
@@ -1891,7 +1914,7 @@ unsigned long init_guest_space(unsigned long host_start,
 
     qemu_log_mask(CPU_LOG_PAGE, "Reserved 0x%lx bytes of guest address space\n", host_size);
 
-    return real_start;
+    return aligned_start;
 }
 
 static void probe_guest_base(const char *image_name,
