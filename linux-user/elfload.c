@@ -354,7 +354,6 @@ enum {
 
 /* The commpage only exists for 32 bit kernels */
 
-#define TARGET_HAS_VALIDATE_GUEST_SPACE
 /* Return 1 if the proposed guest space is suitable for the guest.
  * Return 0 if the proposed guest space isn't suitable, but another
  * address space should be tried.
@@ -1797,15 +1796,6 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
-#ifndef TARGET_HAS_VALIDATE_GUEST_SPACE
-/* If the guest doesn't have a validation function just agree */
-static int validate_guest_space(unsigned long guest_base,
-                                unsigned long guest_size)
-{
-    return 1;
-}
-#endif
-
 unsigned long init_guest_space(unsigned long host_start,
                                unsigned long host_size,
                                unsigned long guest_start,
@@ -1819,11 +1809,12 @@ unsigned long init_guest_space(unsigned long host_start,
     /* If just a starting address is given, then just verify that
      * address.  */
     if (host_start && !host_size) {
-        if (validate_guest_space(host_start, host_size) == 1) {
-            return host_start;
-        } else {
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
+        if (validate_guest_space(host_start, host_size) != 1) {
             return (unsigned long)-1;
         }
+#endif
+        return host_start;
     }
 
     /* Setup the initial flags and start address.  */
@@ -1862,6 +1853,8 @@ unsigned long init_guest_space(unsigned long host_start,
 
         /* Check to see if the address is valid.  */
         if (!host_start || real_start == current_start) {
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
+            /* On 32-bit ARM, we need to also be able to map the commpage.  */
             int valid = validate_guest_space(real_start - guest_start,
                                              real_size);
             if (valid == 1) {
@@ -1870,6 +1863,10 @@ unsigned long init_guest_space(unsigned long host_start,
                 return (unsigned long)-1;
             }
             /* valid == 0, so try again. */
+#else
+            /* On other architectures, whatever we have here is fine.  */
+            break;
+#endif
         }
 
         /* That address didn't work.  Unmap and try a different one.
