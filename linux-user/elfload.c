@@ -1880,24 +1880,28 @@ unsigned long init_guest_space(unsigned long host_start,
         }
 
         /* Check to see if the address is valid.  */
-        if (!host_start || aligned_start == current_start) {
-#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
-            /* On 32-bit ARM, we need to also be able to map the commpage.  */
-            int valid = init_guest_commpage(aligned_start - guest_start,
-                                            aligned_size + guest_start);
-            if (valid == 1) {
-                break;
-            } else if (valid == -1) {
-                munmap((void *)real_start, real_size);
-                return (unsigned long)-1;
-            }
-            /* valid == 0, so try again. */
-#else
-            /* On other architectures, whatever we have here is fine.  */
-            break;
-#endif
+        if (host_start && aligned_start != current_start) {
+            goto try_again;
         }
 
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
+        /* On 32-bit ARM, we need to also be able to map the commpage.  */
+        int valid = init_guest_commpage(aligned_start - guest_start,
+                                        aligned_size + guest_start);
+        if (valid == -1) {
+            munmap((void *)real_start, real_size);
+            return (unsigned long)-1;
+        } else if (valid == 0) {
+            goto try_again;
+        }
+#endif
+
+        /* If nothing has said `return -1` or `goto try_again` yet,
+         * then the address we have is good.
+         */
+        break;
+
+    try_again:
         /* That address didn't work.  Unmap and try a different one.
          * The address the host picked because is typically right at
          * the top of the host address space and leaves the guest with
