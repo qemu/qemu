@@ -362,8 +362,8 @@ enum {
  * The guest code may leave a page mapped and populate it if the
  * address is suitable.
  */
-static int validate_guest_space(unsigned long guest_base,
-                                unsigned long guest_size)
+static int init_guest_commpage(unsigned long guest_base,
+                               unsigned long guest_size)
 {
     unsigned long real_start, test_page_addr;
 
@@ -1810,7 +1810,7 @@ unsigned long init_guest_space(unsigned long host_start,
      * address.  */
     if (host_start && !host_size) {
 #if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
-        if (validate_guest_space(host_start, host_size) != 1) {
+        if (init_guest_commpage(host_start, host_size) != 1) {
             return (unsigned long)-1;
         }
 #endif
@@ -1855,8 +1855,8 @@ unsigned long init_guest_space(unsigned long host_start,
         if (!host_start || real_start == current_start) {
 #if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
             /* On 32-bit ARM, we need to also be able to map the commpage.  */
-            int valid = validate_guest_space(real_start - guest_start,
-                                             real_size);
+            int valid = init_guest_commpage(real_start - guest_start,
+                                            real_size);
             if (valid == 1) {
                 break;
             } else if (valid == -1) {
