@@ -201,7 +201,7 @@ ETEXI
 STEXI
 @item info pic
 @findex info pic
-Show i8259 (PIC) state.
+Show PIC state.
 ETEXI
 
     {
