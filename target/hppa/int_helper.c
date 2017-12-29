@@ -24,6 +24,65 @@
 #include "exec/helper-proto.h"
 #include "qom/cpu.h"
 
+#ifndef CONFIG_USER_ONLY
+static void eval_interrupt(HPPACPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    if (cpu->env.cr[CR_EIRR] & cpu->env.cr[CR_EIEM]) {
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+}
+
+/* Each CPU has a word mapped into the GSC bus.  Anything on the GSC bus
+ * can write to this word to raise an external interrupt on the target CPU.
+ * This includes the system controler (DINO) for regular devices, or
+ * another CPU for SMP interprocessor interrupts.
+ */
+static uint64_t io_eir_read(void *opaque, hwaddr addr, unsigned size)
+{
+    HPPACPU *cpu = opaque;
+
+    /* ??? What does a read of this register over the GSC bus do?  */
+    return cpu->env.cr[CR_EIRR];
+}
+
+static void io_eir_write(void *opaque, hwaddr addr,
+                         uint64_t data, unsigned size)
+{
+    HPPACPU *cpu = opaque;
+    int le_bit = ~data & (TARGET_REGISTER_BITS - 1);
+
+    cpu->env.cr[CR_EIRR] |= (target_ureg)1 << le_bit;
+    eval_interrupt(cpu);
+}
+
+const MemoryRegionOps hppa_io_eir_ops = {
+    .read = io_eir_read,
+    .write = io_eir_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+};
+
+void HELPER(write_eirr)(CPUHPPAState *env, target_ureg val)
+{
+    env->cr[CR_EIRR] &= ~val;
+    qemu_mutex_lock_iothread();
+    eval_interrupt(hppa_env_get_cpu(env));
+    qemu_mutex_unlock_iothread();
+}
+
+void HELPER(write_eiem)(CPUHPPAState *env, target_ureg val)
+{
+    env->cr[CR_EIEM] = val;
+    qemu_mutex_lock_iothread();
+    eval_interrupt(hppa_env_get_cpu(env));
+    qemu_mutex_unlock_iothread();
+}
+#endif /* !CONFIG_USER_ONLY */
 
 void hppa_cpu_do_interrupt(CPUState *cs)
 {

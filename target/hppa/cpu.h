@@ -341,6 +341,7 @@ int hppa_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size,
 #else
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot);
+extern const MemoryRegionOps hppa_io_eir_ops;
 #endif
 
 #endif /* HPPA_CPU_H */

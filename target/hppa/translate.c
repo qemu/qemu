@@ -2124,10 +2124,23 @@ static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
     /* All other control registers are privileged or read-only.  */
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
 
+#ifdef CONFIG_USER_ONLY
+    g_assert_not_reached();
+#else
+    DisasJumpType ret = DISAS_NEXT;
+
     nullify_over(ctx);
     switch (ctl) {
     case CR_IT:
         /* ??? modify interval timer offset */
+        break;
+
+    case CR_EIRR:
+        gen_helper_write_eirr(cpu_env, reg);
+        break;
+    case CR_EIEM:
+        gen_helper_write_eiem(cpu_env, reg);
+        ret = DISAS_IAQ_N_STALE_EXIT;
         break;
 
     case CR_IIASQ:
@@ -2146,7 +2159,8 @@ static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
         tcg_gen_st_reg(reg, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
         break;
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx, ret);
+#endif
 }
 
 static DisasJumpType trans_mtsarcm(DisasContext *ctx, uint32_t insn,

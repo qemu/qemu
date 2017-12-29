@@ -57,6 +57,11 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.psw_n = (tb->flags & PSW_N) != 0;
 }
 
+static bool hppa_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
 static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
 {
     info->mach = bfd_mach_hppa20;
@@ -159,6 +164,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = hppa_cpu_realizefn;
 
     cc->class_by_name = hppa_cpu_class_by_name;
+    cc->has_work = hppa_cpu_has_work;
     cc->do_interrupt = hppa_cpu_do_interrupt;
     cc->cpu_exec_interrupt = hppa_cpu_exec_interrupt;
     cc->dump_state = hppa_cpu_dump_state;
