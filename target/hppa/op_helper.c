@@ -22,6 +22,7 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 
 
@@ -637,6 +638,18 @@ void HELPER(write_interval_timer)(CPUHPPAState *env, target_ureg val)
 
     cpu->env.cr[CR_IT] = timeout;
     timer_mod(cpu->alarm_timer, timeout);
+}
+
+void HELPER(halt)(CPUHPPAState *env)
+{
+    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    helper_excp(env, EXCP_HLT);
+}
+
+void HELPER(reset)(CPUHPPAState *env)
+{
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    helper_excp(env, EXCP_HLT);
 }
 
 target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)

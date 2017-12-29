@@ -2302,6 +2302,18 @@ static DisasJumpType trans_rfi(DisasContext *ctx, uint32_t insn,
     /* Exit the TB to recognize new interrupts.  */
     return nullify_end(ctx, DISAS_NORETURN);
 }
+
+static DisasJumpType gen_hlt(DisasContext *ctx, int reset)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+    nullify_over(ctx);
+    if (reset) {
+        gen_helper_reset(cpu_env);
+    } else {
+        gen_helper_halt(cpu_env);
+    }
+    return nullify_end(ctx, DISAS_NORETURN);
+}
 #endif /* !CONFIG_USER_ONLY */
 
 static const DisasInsn table_system[] = {
@@ -4519,7 +4531,18 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
     case 0x15: /* unassigned */
     case 0x1D: /* unassigned */
     case 0x37: /* unassigned */
-    case 0x3F: /* unassigned */
+        break;
+    case 0x3F:
+#ifndef CONFIG_USER_ONLY
+        /* Unassigned, but use as system-halt.  */
+        if (insn == 0xfffdead0) {
+            return gen_hlt(ctx, 0); /* halt system */
+        }
+        if (insn == 0xfffdead1) {
+            return gen_hlt(ctx, 1); /* reset system */
+        }
+#endif
+        break;
     default:
         break;
     }
