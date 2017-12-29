@@ -148,6 +148,7 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
      * the cleanest way of doing it but it should work. */
 
     trace_ioapic_set_irq(vector, level);
+    ioapic_stat_update_irq(s, vector, level);
     if (vector == 0) {
         vector = 2;
     }

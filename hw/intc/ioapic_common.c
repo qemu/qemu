@@ -35,6 +35,28 @@
  */
 int ioapic_no;
 
+void ioapic_stat_update_irq(IOAPICCommonState *s, int irq, int level)
+{
+    if (level != s->irq_level[irq]) {
+        s->irq_level[irq] = level;
+        if (level == 1) {
+            s->irq_count[irq]++;
+        }
+    }
+}
+
+static bool ioapic_get_statistics(InterruptStatsProvider *obj,
+                                  uint64_t **irq_counts,
+                                  unsigned int *nb_irqs)
+{
+    IOAPICCommonState *s = IOAPIC_COMMON(obj);
+
+    *irq_counts = s->irq_count;
+    *nb_irqs = IOAPIC_NUM_PINS;
+
+    return true;
+}
+
 static void ioapic_irr_dump(Monitor *mon, const char *name, uint32_t bitmap)
 {
     int i;
@@ -176,6 +198,7 @@ static void ioapic_common_class_init(ObjectClass *klass, void *data)
     dc->realize = ioapic_common_realize;
     dc->vmsd = &vmstate_ioapic_common;
     ic->print_info = ioapic_print_info;
+    ic->get_statistics = ioapic_get_statistics;
 }
 
 static const TypeInfo ioapic_common_type = {
