@@ -22,6 +22,8 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "qemu/timer.h"
+
 
 void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
 {
@@ -602,7 +604,41 @@ float64 HELPER(fmpynfadd_d)(CPUHPPAState *env, float64 a, float64 b, float64 c)
     return ret;
 }
 
+target_ureg HELPER(read_interval_timer)(void)
+{
+#ifdef CONFIG_USER_ONLY
+    /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.
+       Just pass through the host cpu clock ticks.  */
+    return cpu_get_host_ticks();
+#else
+    /* In system mode we have access to a decent high-resolution clock.
+       In order to make OS-level time accounting work with the cr16,
+       present it with a well-timed clock fixed at 250MHz.  */
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 2;
+#endif
+}
+
 #ifndef CONFIG_USER_ONLY
+void HELPER(write_interval_timer)(CPUHPPAState *env, target_ureg val)
+{
+    HPPACPU *cpu = hppa_env_get_cpu(env);
+    uint64_t current = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t timeout;
+
+    /* Even in 64-bit mode, the comparator is always 32-bit.  But the
+       value we expose to the guest is 1/4 of the speed of the clock,
+       so moosh in 34 bits.  */
+    timeout = deposit64(current, 0, 34, (uint64_t)val << 2);
+
+    /* If the mooshing puts the clock in the past, advance to next round.  */
+    if (timeout < current + 1000) {
+        timeout += 1ULL << 34;
+    }
+
+    cpu->env.cr[CR_IT] = timeout;
+    timer_mod(cpu->alarm_timer, timeout);
+}
+
 target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
 {
     target_ulong psw = env->psw;

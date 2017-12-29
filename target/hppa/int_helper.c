@@ -67,6 +67,12 @@ const MemoryRegionOps hppa_io_eir_ops = {
     .impl.max_access_size = 4,
 };
 
+void hppa_cpu_alarm_timer(void *opaque)
+{
+    /* Raise interrupt 0.  */
+    io_eir_write(opaque, 0, 0, 4);
+}
+
 void HELPER(write_eirr)(CPUHPPAState *env, target_ureg val)
 {
     env->cr[CR_EIRR] &= ~val;

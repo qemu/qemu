@@ -234,6 +234,7 @@ struct HPPACPU {
     /*< public >*/
 
     CPUHPPAState env;
+    QEMUTimer *alarm_timer;
 };
 
 static inline HPPACPU *hppa_env_get_cpu(CPUHPPAState *env)
@@ -342,6 +343,7 @@ int hppa_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size,
 int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot);
 extern const MemoryRegionOps hppa_io_eir_ops;
+void hppa_cpu_alarm_timer(void *);
 #endif
 
 #endif /* HPPA_CPU_H */

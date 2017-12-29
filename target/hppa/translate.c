@@ -2038,6 +2038,7 @@ static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
     unsigned rt = extract32(insn, 0, 5);
     unsigned ctl = extract32(insn, 21, 5);
     TCGv_reg tmp;
+    DisasJumpType ret;
 
     switch (ctl) {
     case CR_SAR:
@@ -2056,9 +2057,17 @@ static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
         /* FIXME: Respect PSW_S bit.  */
         nullify_over(ctx);
         tmp = dest_gpr(ctx, rt);
-        tcg_gen_movi_reg(tmp, 0); /* FIXME */
+        if (ctx->base.tb->cflags & CF_USE_ICOUNT) {
+            gen_io_start();
+            gen_helper_read_interval_timer(tmp);
+            gen_io_end();
+            ret = DISAS_IAQ_N_STALE;
+        } else {
+            gen_helper_read_interval_timer(tmp);
+            ret = DISAS_NEXT;
+        }
         save_gpr(ctx, rt, tmp);
-        break;
+        return nullify_end(ctx, ret);
     case 26:
     case 27:
         break;
@@ -2132,9 +2141,8 @@ static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
     nullify_over(ctx);
     switch (ctl) {
     case CR_IT:
-        /* ??? modify interval timer offset */
+        gen_helper_write_interval_timer(cpu_env, reg);
         break;
-
     case CR_EIRR:
         gen_helper_write_eirr(cpu_env, reg);
         break;
