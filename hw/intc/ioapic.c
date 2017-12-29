@@ -234,17 +234,6 @@ void ioapic_eoi_broadcast(int vector)
     }
 }
 
-void ioapic_dump_state(Monitor *mon, const QDict *qdict)
-{
-    int i;
-
-    for (i = 0; i < MAX_IOAPICS; i++) {
-        if (ioapics[i] != 0) {
-            ioapic_print_redtbl(mon, ioapics[i]);
-        }
-    }
-}
-
 static uint64_t
 ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
 {
