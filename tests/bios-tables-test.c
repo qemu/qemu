@@ -234,12 +234,11 @@ static void test_acpi_dsdt_table(test_data *data)
     uint32_t addr = le32_to_cpu(data->fadt_table.dsdt);
 
     memset(&dsdt_table, 0, sizeof(dsdt_table));
-    data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
 
     test_dst_table(&dsdt_table, addr);
     ACPI_ASSERT_CMP(dsdt_table.header.signature, "DSDT");
 
-    /* Place DSDT first */
+    /* Since DSDT isn't in RSDT, add DSDT to ASL test tables list manually */
     g_array_append_val(data->tables, dsdt_table);
 }
 
@@ -636,6 +635,7 @@ static void test_acpi_one(const char *params, test_data *data)
 
     boot_sector_test();
 
+    data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
     test_acpi_rsdp_address(data);
     test_acpi_rsdp_table(data);
     test_acpi_rsdt_table(data);
