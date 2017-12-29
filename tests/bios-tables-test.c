@@ -257,6 +257,8 @@ static void fetch_rsdt_referenced_tables(test_data *data)
 
         addr = le32_to_cpu(data->rsdt_tables_addr[i + 1]); /* fadt is first */
         fetch_table(&ssdt_table, addr);
+
+        /* Add table to ASL test tables list */
         g_array_append_val(data->tables, ssdt_table);
     }
 }
@@ -427,6 +429,7 @@ try_again:
     return exp_tables;
 }
 
+/* test the list of tables in @data->tables against reference tables */
 static void test_acpi_asl(test_data *data)
 {
     int i;
