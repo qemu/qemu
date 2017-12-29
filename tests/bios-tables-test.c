@@ -214,6 +214,7 @@ static void test_dst_table(AcpiSdtTable *sdt_table, uint32_t addr)
 {
     uint8_t checksum;
 
+    memset(sdt_table, 0, sizeof(*sdt_table));
     ACPI_READ_TABLE_HEADER(&sdt_table->header, addr);
 
     sdt_table->aml_len = le32_to_cpu(sdt_table->header.length)
@@ -233,8 +234,6 @@ static void test_acpi_dsdt_table(test_data *data)
     AcpiSdtTable dsdt_table;
     uint32_t addr = le32_to_cpu(data->fadt_table.dsdt);
 
-    memset(&dsdt_table, 0, sizeof(dsdt_table));
-
     test_dst_table(&dsdt_table, addr);
     ACPI_ASSERT_CMP(dsdt_table.header.signature, "DSDT");
 
@@ -251,7 +250,6 @@ static void test_acpi_tables(test_data *data)
         AcpiSdtTable ssdt_table;
         uint32_t addr;
 
-        memset(&ssdt_table, 0, sizeof(ssdt_table));
         addr = le32_to_cpu(data->rsdt_tables_addr[i + 1]); /* fadt is first */
         test_dst_table(&ssdt_table, addr);
         g_array_append_val(data->tables, ssdt_table);
