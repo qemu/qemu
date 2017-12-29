@@ -24,6 +24,7 @@
 #include "monitor/monitor.h"
 #include "hw/i386/ioapic.h"
 #include "hw/i386/ioapic_internal.h"
+#include "hw/intc/intc.h"
 #include "hw/sysbus.h"
 
 /* ioapic_no count start from 0 to MAX_IOAPICS,
@@ -142,6 +143,15 @@ static void ioapic_common_realize(DeviceState *dev, Error **errp)
     ioapic_no++;
 }
 
+static void ioapic_print_info(InterruptStatsProvider *obj,
+                              Monitor *mon)
+{
+    IOAPICCommonState *s = IOAPIC_COMMON(obj);
+
+    ioapic_dispatch_pre_save(s);
+    ioapic_print_redtbl(mon, s);
+}
+
 static const VMStateDescription vmstate_ioapic_common = {
     .name = "ioapic",
     .version_id = 3,
@@ -161,9 +171,11 @@ static const VMStateDescription vmstate_ioapic_common = {
 static void ioapic_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->realize = ioapic_common_realize;
     dc->vmsd = &vmstate_ioapic_common;
+    ic->print_info = ioapic_print_info;
 }
 
 static const TypeInfo ioapic_common_type = {
@@ -173,6 +185,10 @@ static const TypeInfo ioapic_common_type = {
     .class_size = sizeof(IOAPICCommonClass),
     .class_init = ioapic_common_class_init,
     .abstract = true,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_INTERRUPT_STATS_PROVIDER },
+        { }
+    },
 };
 
 static void ioapic_common_register_types(void)
