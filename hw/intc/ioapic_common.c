@@ -59,7 +59,7 @@ void ioapic_print_redtbl(Monitor *mon, IOAPICCommonState *s)
     uint32_t remote_irr = 0;
     int i;
 
-    monitor_printf(mon, "ioapic ver=0x%x id=0x%02x sel=0x%02x",
+    monitor_printf(mon, "ioapic0: ver=0x%x id=0x%02x sel=0x%02x",
                    s->version, s->id, s->ioregsel);
     if (s->ioregsel) {
         monitor_printf(mon, " (redir[%u])\n",
@@ -71,7 +71,7 @@ void ioapic_print_redtbl(Monitor *mon, IOAPICCommonState *s)
         uint64_t entry = s->ioredtbl[i];
         uint32_t delm = (uint32_t)((entry & IOAPIC_LVT_DELIV_MODE) >>
                                    IOAPIC_LVT_DELIV_MODE_SHIFT);
-        monitor_printf(mon, "pin %-2u 0x%016"PRIx64" dest=%"PRIx64
+        monitor_printf(mon, "  pin %-2u 0x%016"PRIx64" dest=%"PRIx64
                        " vec=%-3"PRIu64" %s %-5s %-6s %-6s %s\n",
                        i, entry,
                        (entry >> IOAPIC_LVT_DEST_SHIFT) &
@@ -86,8 +86,8 @@ void ioapic_print_redtbl(Monitor *mon, IOAPICCommonState *s)
         remote_irr |= entry & IOAPIC_LVT_TRIGGER_MODE ?
                         (entry & IOAPIC_LVT_REMOTE_IRR ? (1 << i) : 0) : 0;
     }
-    ioapic_irr_dump(mon, "IRR", s->irr);
-    ioapic_irr_dump(mon, "Remote IRR", remote_irr);
+    ioapic_irr_dump(mon, "  IRR", s->irr);
+    ioapic_irr_dump(mon, "  Remote IRR", remote_irr);
 }
 
 void ioapic_reset_common(DeviceState *dev)
