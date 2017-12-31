@@ -144,9 +144,8 @@ static void stm32_rtc_tick(void *opaque)
     s->RTC_CNT[0]=new_CNT & 0xffff;
     s->RTC_CNT[1]=new_CNT >> 16;
 
-    /* set seconde flag eachche cycle of f_TR_CLK if
-       seconde interupt is enabled */
-    if(s->RTC_CR[1] & (1<<RTC_CRH_SECIE_BIT)){
+    /* set second flag each cycle of f_TR_CLK */
+    if(s->RTC_CR[1]){
     s->RTC_CR[0]|=(1 << RTC_CRL_SECF_BIT); 
     }
      
