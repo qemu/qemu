@@ -117,12 +117,16 @@ static void stm32_rtc_update_irq(Stm32Rtc *s) {
        ((s->RTC_CR[1] >> RTC_CRH_ALRIE_BIT) & (s->RTC_CR[0] >> RTC_CRL_ALRF_BIT)) |
        ((s->RTC_CR[1] >> RTC_CRH_OWIE_BIT) & (s->RTC_CR[0] >> RTC_CRL_OWF_BIT)); 
 
-    /* Only trigger an interrupt if the IRQ level changes.  We probably could
-     * set the level regardless, but we will just check for good measure.
-     */
-    if((new_irq_level & 0x01) ^ s->curr_irq_level) {
+    /* trigger an interrupt on IRQ level change */
+    if(new_irq_level & 0x07) {
+	    
+        /* Auto clear the processed IRQ */
+	s->RTC_CR[0] &= ~(RTC_CRL_SECF_BIT | RTC_CRL_ALRF_BIT | RTC_CRL_OWF_BIT);
+
         qemu_set_irq(s->irq, new_irq_level);
-        s->curr_irq_level = new_irq_level;
+
+	/* The MCU dispatches the IRQ immediately */
+        qemu_set_irq(s->irq, 0);
     }
 }
 
