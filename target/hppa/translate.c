@@ -2211,8 +2211,20 @@ static DisasJumpType trans_ldsid(DisasContext *ctx, uint32_t insn,
     unsigned rt = extract32(insn, 0, 5);
     TCGv_reg dest = dest_gpr(ctx, rt);
 
-    /* Since we don't implement space registers, this returns zero.  */
+#ifdef CONFIG_USER_ONLY
+    /* We don't implement space registers in user mode. */
     tcg_gen_movi_reg(dest, 0);
+#else
+    unsigned rb = extract32(insn, 21, 5);
+    unsigned sp = extract32(insn, 14, 2);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+
+    tcg_gen_mov_i64(t0, space_select(ctx, sp, load_gpr(ctx, rb)));
+    tcg_gen_shri_i64(t0, t0, 32);
+    tcg_gen_trunc_i64_reg(dest, t0);
+
+    tcg_temp_free_i64(t0);
+#endif
     save_gpr(ctx, rt, dest);
 
     cond_free(&ctx->null_cond);
