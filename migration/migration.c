@@ -2348,7 +2348,15 @@ static void *migration_thread(void *opaque)
         }
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
-        if (s->state == MIGRATION_STATUS_ACTIVE && enable_colo) {
+        if (s->state == MIGRATION_STATUS_ACTIVE) {
+            /*
+             * We should really assert here, but since it's during
+             * migration, let's try to reduce the usage of assertions.
+             */
+            if (!enable_colo) {
+                error_report("%s: critical error: calling COLO code without "
+                             "COLO enabled", __func__);
+            }
             migrate_start_colo_process(s);
             qemu_savevm_state_cleanup();
             /*
