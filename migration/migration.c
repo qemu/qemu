@@ -1159,7 +1159,6 @@ void migrate_fd_error(MigrationState *s, const Error *error)
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                       MIGRATION_STATUS_FAILED);
     migrate_set_error(s, error);
-    notifier_list_notify(&migration_state_notifiers, s);
 }
 
 static void migrate_fd_cancel(MigrationState *s)
