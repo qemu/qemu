@@ -119,7 +119,6 @@ ERROR_WHITELIST = [
     {'device':'scsi-generic', 'expected':True},            # drive property not set
     {'device':'scsi-hd', 'expected':True},                 # drive property not set
     {'device':'spapr-pci-host-bridge', 'expected':True},   # BUID not specified for PHB
-    {'device':'spapr-pci-vfio-host-bridge', 'expected':True}, # BUID not specified for PHB
     {'device':'spapr-rng', 'expected':True},               # spapr-rng needs an RNG backend!
     {'device':'spapr-vty', 'expected':True},               # chardev property not set
     {'device':'tpm-tis', 'expected':True},                 # tpm_tis: backend driver with id (null) could not be found

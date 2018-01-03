@@ -2757,11 +2757,6 @@ The ``host_net_remove'' command is replaced by the ``netdev_del'' command.
 The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
 or ``ivshmem-doorbell`` device types.
 
-@subsection spapr-pci-vfio-host-bridge (since 2.6.0)
-
-The ``spapr-pci-vfio-host-bridge'' device type is replaced by
-the ``spapr-pci-host-bridge'' device type.
-
 @section System emulator machines
 
 @subsection Xilinx EP108 (since 2.11.0)
