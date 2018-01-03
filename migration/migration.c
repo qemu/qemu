@@ -2094,16 +2094,14 @@ static int migration_maybe_pause(MigrationState *s,
  *
  * @s: Current migration state
  * @current_active_state: The migration state we expect to be in
- * @*start_time: Pointer to time to update
  */
-static void migration_completion(MigrationState *s, int current_active_state,
-                                 int64_t *start_time)
+static void migration_completion(MigrationState *s, int current_active_state)
 {
     int ret;
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
         qemu_mutex_lock_iothread();
-        *start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
         s->vm_was_running = runstate_is_running();
         ret = global_state_store();
@@ -2209,7 +2207,6 @@ static void *migration_thread(void *opaque)
      * measured bandwidth
      */
     int64_t threshold_size = 0;
-    int64_t start_time = initial_time;
     int64_t end_time;
     bool entered_postcopy = false;
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
@@ -2280,8 +2277,7 @@ static void *migration_thread(void *opaque)
                 qemu_savevm_state_iterate(s->to_dst_file, entered_postcopy);
             } else {
                 trace_migration_thread_low_pending(pending_size);
-                migration_completion(s, current_active_state,
-                                     &start_time);
+                migration_completion(s, current_active_state);
                 break;
             }
         }
@@ -2332,7 +2328,7 @@ static void *migration_thread(void *opaque)
         uint64_t transferred_bytes = qemu_ftell(s->to_dst_file);
         s->total_time = end_time - s->start_time;
         if (!entered_postcopy) {
-            s->downtime = end_time - start_time;
+            s->downtime = end_time - s->downtime_start;
         }
         if (s->total_time) {
             s->mbps = (((double) transferred_bytes * 8.0) /
