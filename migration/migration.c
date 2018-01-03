@@ -1160,7 +1160,6 @@ void migrate_fd_error(MigrationState *s, const Error *error)
                       MIGRATION_STATUS_FAILED);
     migrate_set_error(s, error);
     notifier_list_notify(&migration_state_notifiers, s);
-    block_cleanup_parameters(s);
 }
 
 static void migrate_fd_cancel(MigrationState *s)
@@ -1206,7 +1205,6 @@ static void migrate_fd_cancel(MigrationState *s)
             s->block_inactive = false;
         }
     }
-    block_cleanup_parameters(s);
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
