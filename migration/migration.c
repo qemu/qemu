@@ -2341,26 +2341,30 @@ static void *migration_thread(void *opaque)
     cpu_throttle_stop();
 
     qemu_mutex_lock_iothread();
-    if (s->state == MIGRATION_STATUS_COMPLETED) {
+    switch (s->state) {
+    case MIGRATION_STATUS_COMPLETED:
         migration_calculate_complete(s);
         runstate_set(RUN_STATE_POSTMIGRATE);
-    } else {
-        if (s->state == MIGRATION_STATUS_ACTIVE) {
-            /*
-             * We should really assert here, but since it's during
-             * migration, let's try to reduce the usage of assertions.
-             */
-            if (!migrate_colo_enabled()) {
-                error_report("%s: critical error: calling COLO code without "
-                             "COLO enabled", __func__);
-            }
-            migrate_start_colo_process(s);
-            /*
-            * Fixme: we will run VM in COLO no matter its old running state.
-            * After exited COLO, we will keep running.
-            */
-            s->vm_was_running = true;
+        break;
+
+    case MIGRATION_STATUS_ACTIVE:
+        /*
+         * We should really assert here, but since it's during
+         * migration, let's try to reduce the usage of assertions.
+         */
+        if (!migrate_colo_enabled()) {
+            error_report("%s: critical error: calling COLO code without "
+                         "COLO enabled", __func__);
         }
+        migrate_start_colo_process(s);
+        /*
+         * Fixme: we will run VM in COLO no matter its old running state.
+         * After exited COLO, we will keep running.
+         */
+        s->vm_was_running = true;
+        /* Fallthrough */
+    case MIGRATION_STATUS_FAILED:
+    case MIGRATION_STATUS_CANCELLED:
         if (s->vm_was_running) {
             vm_start();
         } else {
@@ -2368,6 +2372,12 @@ static void *migration_thread(void *opaque)
                 runstate_set(RUN_STATE_POSTMIGRATE);
             }
         }
+        break;
+
+    default:
+        /* Should not reach here, but if so, forgive the VM. */
+        error_report("%s: Unknown ending state %d", __func__, s->state);
+        break;
     }
     qemu_bh_schedule(s->cleanup_bh);
     qemu_mutex_unlock_iothread();
