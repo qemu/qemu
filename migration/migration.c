@@ -2216,7 +2216,6 @@ static void *migration_thread(void *opaque)
     bool entered_postcopy = false;
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
     enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
-    bool enable_colo = migrate_colo_enabled();
 
     rcu_register_thread();
 
@@ -2348,7 +2347,7 @@ static void *migration_thread(void *opaque)
              * We should really assert here, but since it's during
              * migration, let's try to reduce the usage of assertions.
              */
-            if (!enable_colo) {
+            if (!migrate_colo_enabled()) {
                 error_report("%s: critical error: calling COLO code without "
                              "COLO enabled", __func__);
             }
