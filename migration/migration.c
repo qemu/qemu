@@ -1107,6 +1107,8 @@ static void migrate_fd_cleanup(void *opaque)
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
+    qemu_savevm_state_cleanup();
+
     if (s->to_dst_file) {
         Error *local_err = NULL;
 
@@ -2329,13 +2331,6 @@ static void *migration_thread(void *opaque)
     end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     qemu_mutex_lock_iothread();
-    /*
-     * The resource has been allocated by migration will be reused in COLO
-     * process, so don't release them.
-     */
-    if (!enable_colo) {
-        qemu_savevm_state_cleanup();
-    }
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         uint64_t transferred_bytes = qemu_ftell(s->to_dst_file);
         s->total_time = end_time - s->total_time;
@@ -2358,7 +2353,6 @@ static void *migration_thread(void *opaque)
                              "COLO enabled", __func__);
             }
             migrate_start_colo_process(s);
-            qemu_savevm_state_cleanup();
             /*
             * Fixme: we will run VM in COLO no matter its old running state.
             * After exited COLO, we will keep running.
