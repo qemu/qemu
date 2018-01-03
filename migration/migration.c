@@ -2095,11 +2095,11 @@ static int migration_maybe_pause(MigrationState *s,
  *   The caller 'breaks' the loop when this returns.
  *
  * @s: Current migration state
- * @current_active_state: The migration state we expect to be in
  */
-static void migration_completion(MigrationState *s, int current_active_state)
+static void migration_completion(MigrationState *s)
 {
     int ret;
+    int current_active_state = s->state;
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
         qemu_mutex_lock_iothread();
@@ -2248,6 +2248,51 @@ static void migration_update_counters(MigrationState *s,
                               bandwidth, threshold_size);
 }
 
+/* Migration thread iteration status */
+typedef enum {
+    MIG_ITERATE_RESUME,         /* Resume current iteration */
+    MIG_ITERATE_SKIP,           /* Skip current iteration */
+    MIG_ITERATE_BREAK,          /* Break the loop */
+} MigIterateState;
+
+/*
+ * Return true if continue to the next iteration directly, false
+ * otherwise.
+ */
+static MigIterateState migration_iteration_run(MigrationState *s)
+{
+    uint64_t pending_size, pend_post, pend_nonpost;
+    bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
+
+    qemu_savevm_state_pending(s->to_dst_file, s->threshold_size,
+                              &pend_nonpost, &pend_post);
+    pending_size = pend_nonpost + pend_post;
+
+    trace_migrate_pending(pending_size, s->threshold_size,
+                          pend_post, pend_nonpost);
+
+    if (pending_size && pending_size >= s->threshold_size) {
+        /* Still a significant amount to transfer */
+        if (migrate_postcopy() && !in_postcopy &&
+            pend_nonpost <= s->threshold_size &&
+            atomic_read(&s->start_postcopy)) {
+            if (postcopy_start(s)) {
+                error_report("%s: postcopy failed to start", __func__);
+            }
+            return MIG_ITERATE_SKIP;
+        }
+        /* Just another iteration step */
+        qemu_savevm_state_iterate(s->to_dst_file,
+            s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    } else {
+        trace_migration_thread_low_pending(pending_size);
+        migration_completion(s);
+        return MIG_ITERATE_BREAK;
+    }
+
+    return MIG_ITERATE_RESUME;
+}
+
 /*
  * Master migration thread on the source VM.
  * It drives the migration and pumps the data down the outgoing channel.
@@ -2256,9 +2301,6 @@ static void *migration_thread(void *opaque)
 {
     MigrationState *s = opaque;
     int64_t setup_start = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-    bool entered_postcopy = false;
-    /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
-    enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
 
     rcu_register_thread();
 
@@ -2298,43 +2340,21 @@ static void *migration_thread(void *opaque)
     while (s->state == MIGRATION_STATUS_ACTIVE ||
            s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
         int64_t current_time;
-        uint64_t pending_size;
 
         if (!qemu_file_rate_limit(s->to_dst_file)) {
-            uint64_t pend_post, pend_nonpost;
-
-            qemu_savevm_state_pending(s->to_dst_file, s->threshold_size,
-                                      &pend_nonpost, &pend_post);
-            pending_size = pend_nonpost + pend_post;
-            trace_migrate_pending(pending_size, s->threshold_size,
-                                  pend_post, pend_nonpost);
-            if (pending_size && pending_size >= s->threshold_size) {
-                /* Still a significant amount to transfer */
-
-                if (migrate_postcopy() &&
-                    s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE &&
-                    pend_nonpost <= s->threshold_size &&
-                    atomic_read(&s->start_postcopy)) {
-
-                    if (!postcopy_start(s)) {
-                        current_active_state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
-                        entered_postcopy = true;
-                    }
-
-                    continue;
-                }
-                /* Just another iteration step */
-                qemu_savevm_state_iterate(s->to_dst_file, entered_postcopy);
-            } else {
-                trace_migration_thread_low_pending(pending_size);
-                migration_completion(s, current_active_state);
+            MigIterateState iter_state = migration_iteration_run(s);
+            if (iter_state == MIG_ITERATE_SKIP) {
+                continue;
+            } else if (iter_state == MIG_ITERATE_BREAK) {
                 break;
             }
         }
 
         if (qemu_file_get_error(s->to_dst_file)) {
-            migrate_set_state(&s->state, current_active_state,
-                              MIGRATION_STATUS_FAILED);
+            if (migration_is_setup_or_active(s->state)) {
+                migrate_set_state(&s->state, s->state,
+                                  MIGRATION_STATUS_FAILED);
+            }
             trace_migration_thread_file_err();
             break;
         }
