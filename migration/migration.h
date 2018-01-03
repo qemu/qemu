@@ -123,6 +123,12 @@ struct MigrationState
     int64_t expected_downtime;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t setup_time;
+    /*
+     * Whether guest was running when we enter the completion stage.
+     * If migration is interrupted by any reason, we need to continue
+     * running the guest on source.
+     */
+    bool vm_was_running;
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;

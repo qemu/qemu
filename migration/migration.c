@@ -1302,6 +1302,7 @@ MigrationState *migrate_init(void)
 
     s->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     s->total_time = 0;
+    s->vm_was_running = false;
     return s;
 }
 
@@ -1885,7 +1886,7 @@ static int await_return_path_close_on_source(MigrationState *ms)
  * Switch from normal iteration to postcopy
  * Returns non-0 on error
  */
-static int postcopy_start(MigrationState *ms, bool *old_vm_running)
+static int postcopy_start(MigrationState *ms)
 {
     int ret;
     QIOChannelBuffer *bioc;
@@ -1903,7 +1904,6 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     trace_postcopy_start_set_run();
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-    *old_vm_running = runstate_is_running();
     global_state_store();
     ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
     if (ret < 0) {
@@ -2094,11 +2094,9 @@ static int migration_maybe_pause(MigrationState *s,
  *
  * @s: Current migration state
  * @current_active_state: The migration state we expect to be in
- * @*old_vm_running: Pointer to old_vm_running flag
  * @*start_time: Pointer to time to update
  */
 static void migration_completion(MigrationState *s, int current_active_state,
-                                 bool *old_vm_running,
                                  int64_t *start_time)
 {
     int ret;
@@ -2107,7 +2105,7 @@ static void migration_completion(MigrationState *s, int current_active_state,
         qemu_mutex_lock_iothread();
         *start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-        *old_vm_running = runstate_is_running();
+        s->vm_was_running = runstate_is_running();
         ret = global_state_store();
 
         if (!ret) {
@@ -2213,7 +2211,6 @@ static void *migration_thread(void *opaque)
     int64_t threshold_size = 0;
     int64_t start_time = initial_time;
     int64_t end_time;
-    bool old_vm_running = false;
     bool entered_postcopy = false;
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
     enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
@@ -2272,7 +2269,7 @@ static void *migration_thread(void *opaque)
                     pend_nonpost <= threshold_size &&
                     atomic_read(&s->start_postcopy)) {
 
-                    if (!postcopy_start(s, &old_vm_running)) {
+                    if (!postcopy_start(s)) {
                         current_active_state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
                         entered_postcopy = true;
                     }
@@ -2284,7 +2281,7 @@ static void *migration_thread(void *opaque)
             } else {
                 trace_migration_thread_low_pending(pending_size);
                 migration_completion(s, current_active_state,
-                                     &old_vm_running, &start_time);
+                                     &start_time);
                 break;
             }
         }
@@ -2357,9 +2354,9 @@ static void *migration_thread(void *opaque)
             * Fixme: we will run VM in COLO no matter its old running state.
             * After exited COLO, we will keep running.
             */
-            old_vm_running = true;
+            s->vm_was_running = true;
         }
-        if (old_vm_running && !entered_postcopy) {
+        if (s->vm_was_running) {
             vm_start();
         } else {
             if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
