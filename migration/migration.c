@@ -619,7 +619,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         info->has_status = true;
         info->has_total_time = true;
         info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
-            - s->total_time;
+            - s->start_time;
         info->has_expected_downtime = true;
         info->expected_downtime = s->expected_downtime;
         info->has_setup_time = true;
@@ -1300,7 +1300,8 @@ MigrationState *migrate_init(void)
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
-    s->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    s->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    s->total_time = 0;
     return s;
 }
 
@@ -2332,7 +2333,7 @@ static void *migration_thread(void *opaque)
     qemu_mutex_lock_iothread();
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         uint64_t transferred_bytes = qemu_ftell(s->to_dst_file);
-        s->total_time = end_time - s->total_time;
+        s->total_time = end_time - s->start_time;
         if (!entered_postcopy) {
             s->downtime = end_time - start_time;
         }

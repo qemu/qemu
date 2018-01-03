@@ -115,6 +115,9 @@ struct MigrationState
     } rp_state;
 
     double mbps;
+    /* Timestamp when recent migration starts (ms) */
+    int64_t start_time;
+    /* Total time used by latest migration (ms) */
     int64_t total_time;
     int64_t downtime;
     int64_t expected_downtime;
