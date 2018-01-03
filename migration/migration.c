@@ -2190,6 +2190,25 @@ bool migrate_colo_enabled(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_X_COLO];
 }
 
+static void migration_calculate_complete(MigrationState *s)
+{
+    uint64_t bytes = qemu_ftell(s->to_dst_file);
+    int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    s->total_time = end_time - s->start_time;
+    if (!s->downtime) {
+        /*
+         * It's still not set, so we are precopy migration.  For
+         * postcopy, downtime is calculated during postcopy_start().
+         */
+        s->downtime = end_time - s->downtime_start;
+    }
+
+    if (s->total_time) {
+        s->mbps = ((double) bytes * 8.0) / s->total_time / 1000;
+    }
+}
+
 /*
  * Master migration thread on the source VM.
  * It drives the migration and pumps the data down the outgoing channel.
@@ -2207,7 +2226,6 @@ static void *migration_thread(void *opaque)
      * measured bandwidth
      */
     int64_t threshold_size = 0;
-    int64_t end_time;
     bool entered_postcopy = false;
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
     enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
@@ -2321,19 +2339,10 @@ static void *migration_thread(void *opaque)
     trace_migration_thread_after_loop();
     /* If we enabled cpu throttling for auto-converge, turn it off. */
     cpu_throttle_stop();
-    end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     qemu_mutex_lock_iothread();
     if (s->state == MIGRATION_STATUS_COMPLETED) {
-        uint64_t transferred_bytes = qemu_ftell(s->to_dst_file);
-        s->total_time = end_time - s->start_time;
-        if (!entered_postcopy) {
-            s->downtime = end_time - s->downtime_start;
-        }
-        if (s->total_time) {
-            s->mbps = (((double) transferred_bytes * 8.0) /
-                       ((double) s->total_time)) / 1000;
-        }
+        migration_calculate_complete(s);
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
         if (s->state == MIGRATION_STATUS_ACTIVE) {
