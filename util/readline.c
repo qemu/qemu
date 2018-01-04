@@ -500,12 +500,28 @@ const char *readline_get_history(ReadLineState *rs, unsigned int index)
     return rs->history[index];
 }
 
+void readline_free(ReadLineState *rs)
+{
+    int i;
+
+    if (!rs) {
+        return;
+    }
+    for (i = 0; i < READLINE_MAX_CMDS; i++) {
+        g_free(rs->history[i]);
+    }
+    for (i = 0; i < READLINE_MAX_COMPLETIONS; i++) {
+        g_free(rs->completions[i]);
+    }
+    g_free(rs);
+}
+
 ReadLineState *readline_init(ReadLinePrintfFunc *printf_func,
                              ReadLineFlushFunc *flush_func,
                              void *opaque,
                              ReadLineCompletionFunc *completion_finder)
 {
-    ReadLineState *rs = g_malloc0(sizeof(*rs));
+    ReadLineState *rs = g_new0(ReadLineState, 1);
 
     rs->hist_entry = -1;
     rs->opaque = opaque;

@@ -583,7 +583,7 @@ static void monitor_data_destroy(Monitor *mon)
     if (monitor_is_qmp(mon)) {
         json_message_parser_destroy(&mon->qmp.parser);
     }
-    g_free(mon->rs);
+    readline_free(mon->rs);
     QDECREF(mon->outbuf);
     qemu_mutex_destroy(&mon->out_lock);
 }
