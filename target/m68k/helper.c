@@ -711,3 +711,10 @@ void HELPER(set_mac_extu)(CPUM68KState *env, uint32_t val, uint32_t acc)
     res |= (uint64_t)(val & 0xffff0000) << 16;
     env->macc[acc + 1] = res;
 }
+
+#if defined(CONFIG_SOFTMMU)
+void HELPER(reset)(CPUM68KState *env)
+{
+    /* FIXME: reset all except CPU */
+}
+#endif

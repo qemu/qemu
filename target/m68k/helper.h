@@ -97,3 +97,7 @@ DEF_HELPER_FLAGS_4(bfffo_mem, TCG_CALL_NO_WG, i64, env, i32, s32, i32)
 
 DEF_HELPER_3(chk, void, env, s32, s32)
 DEF_HELPER_4(chk2, void, env, s32, s32, s32)
+
+#if defined(CONFIG_SOFTMMU)
+DEF_HELPER_FLAGS_1(reset, TCG_CALL_NO_RWG, void, env)
+#endif
