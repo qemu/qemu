@@ -137,7 +137,15 @@ static void m68020_cpu_initfn(Object *obj)
     m68k_set_feature(env, M68K_FEATURE_CHK2);
 }
 #define m68030_cpu_initfn m68020_cpu_initfn
-#define m68040_cpu_initfn m68020_cpu_initfn
+
+static void m68040_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68020_cpu_initfn(obj);
+    m68k_set_feature(env, M68K_FEATURE_M68040);
+}
 
 static void m68060_cpu_initfn(Object *obj)
 {
