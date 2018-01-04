@@ -8,8 +8,11 @@ SRC_PATH=.
 
 UNCHECKED_GOALS := %clean TAGS cscope ctags dist \
     html info pdf txt \
-    help check-help \
+    help check-help print-% \
     docker docker-% vm-test vm-build-%
+
+print-%:
+	@echo '$*=$($*)'
 
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
