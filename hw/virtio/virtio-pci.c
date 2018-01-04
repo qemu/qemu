@@ -1978,6 +1978,58 @@ static const TypeInfo virtio_blk_pci_info = {
     .class_init    = virtio_blk_pci_class_init,
 };
 
+#if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
+/* vhost-user-blk */
+
+static Property vhost_user_blk_pci_properties[] = {
+    DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void vhost_user_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
+{
+    VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI(vpci_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+
+    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
+}
+
+static void vhost_user_blk_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
+    PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    dc->props = vhost_user_blk_pci_properties;
+    k->realize = vhost_user_blk_pci_realize;
+    pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_BLOCK;
+    pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
+    pcidev_k->class_id = PCI_CLASS_STORAGE_SCSI;
+}
+
+static void vhost_user_blk_pci_instance_init(Object *obj)
+{
+    VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI(obj);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VHOST_USER_BLK);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex", &error_abort);
+}
+
+static const TypeInfo vhost_user_blk_pci_info = {
+    .name           = TYPE_VHOST_USER_BLK_PCI,
+    .parent         = TYPE_VIRTIO_PCI,
+    .instance_size  = sizeof(VHostUserBlkPCI),
+    .instance_init  = vhost_user_blk_pci_instance_init,
+    .class_init     = vhost_user_blk_pci_class_init,
+};
+#endif
+
 /* virtio-scsi-pci */
 
 static Property virtio_scsi_pci_properties[] = {
@@ -2624,6 +2676,9 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_9p_pci_info);
 #endif
     type_register_static(&virtio_blk_pci_info);
+#if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
+    type_register_static(&vhost_user_blk_pci_info);
+#endif
     type_register_static(&virtio_scsi_pci_info);
     type_register_static(&virtio_balloon_pci_info);
     type_register_static(&virtio_serial_pci_info);
