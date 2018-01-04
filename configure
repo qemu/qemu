@@ -3464,6 +3464,7 @@ else
       done
       if test "$found" = "no"; then
         LIBS="$pthread_lib $LIBS"
+        libs_qga="$pthread_lib $libs_qga"
       fi
       PTHREAD_LIB="$pthread_lib"
       break
