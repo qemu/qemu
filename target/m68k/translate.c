@@ -2478,7 +2478,6 @@ static TCGv gen_get_ccr(DisasContext *s)
 {
     TCGv dest;
 
-    gen_flush_flags(s);
     update_cc_op(s);
     dest = tcg_temp_new();
     gen_helper_get_ccr(dest, cpu_env);
