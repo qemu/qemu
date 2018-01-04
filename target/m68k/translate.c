@@ -5103,28 +5103,35 @@ DISAS_INSN(fscc)
 #if defined(CONFIG_SOFTMMU)
 DISAS_INSN(frestore)
 {
-    M68kCPU *cpu = m68k_env_get_cpu(env);
+    TCGv addr;
 
     if (IS_USER(s)) {
         gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
         return;
     }
-
-    /* TODO: Implement frestore.  */
-    cpu_abort(CPU(cpu), "FRESTORE not implemented");
+    if (m68k_feature(s->env, M68K_FEATURE_M68040)) {
+        SRC_EA(env, addr, OS_LONG, 0, NULL);
+        /* FIXME: check the state frame */
+    } else {
+        disas_undef(env, s, insn);
+    }
 }
 
 DISAS_INSN(fsave)
 {
-    M68kCPU *cpu = m68k_env_get_cpu(env);
-
     if (IS_USER(s)) {
         gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
         return;
     }
 
-    /* TODO: Implement fsave.  */
-    cpu_abort(CPU(cpu), "FSAVE not implemented");
+    if (m68k_feature(s->env, M68K_FEATURE_M68040)) {
+        /* always write IDLE */
+        TCGv idle = tcg_const_i32(0x41000000);
+        DEST_EA(env, insn, OS_LONG, idle, NULL);
+        tcg_temp_free(idle);
+    } else {
+        disas_undef(env, s, insn);
+    }
 }
 #endif
 
