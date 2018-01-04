@@ -947,3 +947,64 @@ uint64_t HELPER(bfffo_mem)(CPUM68KState *env, uint32_t addr,
        is already zero.  */
     return n | ffo;
 }
+
+void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
+{
+    /* From the specs:
+     *   X: Not affected, C,V,Z: Undefined,
+     *   N: Set if val < 0; cleared if val > ub, undefined otherwise
+     * We implement here values found from a real MC68040:
+     *   X,V,Z: Not affected
+     *   N: Set if val < 0; cleared if val >= 0
+     *   C: if 0 <= ub: set if val < 0 or val > ub, cleared otherwise
+     *      if 0 > ub: set if val > ub and val < 0, cleared otherwise
+     */
+    env->cc_n = val;
+    env->cc_c = 0 <= ub ? val < 0 || val > ub : val > ub && val < 0;
+
+    if (val < 0 || val > ub) {
+        CPUState *cs = CPU(m68k_env_get_cpu(env));
+
+        /* Recover PC and CC_OP for the beginning of the insn.  */
+        cpu_restore_state(cs, GETPC());
+
+        /* flags have been modified by gen_flush_flags() */
+        env->cc_op = CC_OP_FLAGS;
+        /* Adjust PC to end of the insn.  */
+        env->pc += 2;
+
+        cs->exception_index = EXCP_CHK;
+        cpu_loop_exit(cs);
+    }
+}
+
+void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
+{
+    /* From the specs:
+     *   X: Not affected, N,V: Undefined,
+     *   Z: Set if val is equal to lb or ub
+     *   C: Set if val < lb or val > ub, cleared otherwise
+     * We implement here values found from a real MC68040:
+     *   X,N,V: Not affected
+     *   Z: Set if val is equal to lb or ub
+     *   C: if lb <= ub: set if val < lb or val > ub, cleared otherwise
+     *      if lb > ub: set if val > ub and val < lb, cleared otherwise
+     */
+    env->cc_z = val != lb && val != ub;
+    env->cc_c = lb <= ub ? val < lb || val > ub : val > ub && val < lb;
+
+    if (env->cc_c) {
+        CPUState *cs = CPU(m68k_env_get_cpu(env));
+
+        /* Recover PC and CC_OP for the beginning of the insn.  */
+        cpu_restore_state(cs, GETPC());
+
+        /* flags have been modified by gen_flush_flags() */
+        env->cc_op = CC_OP_FLAGS;
+        /* Adjust PC to end of the insn.  */
+        env->pc += 4;
+
+        cs->exception_index = EXCP_CHK;
+        cpu_loop_exit(cs);
+    }
+}

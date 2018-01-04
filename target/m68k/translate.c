@@ -4203,6 +4203,80 @@ DISAS_INSN(ff1)
     gen_helper_ff1(reg, reg);
 }
 
+DISAS_INSN(chk)
+{
+    TCGv src, reg;
+    int opsize;
+
+    switch ((insn >> 7) & 3) {
+    case 3:
+        opsize = OS_WORD;
+        break;
+    case 2:
+        if (m68k_feature(env, M68K_FEATURE_CHK2)) {
+            opsize = OS_LONG;
+            break;
+        }
+        /* fallthru */
+    default:
+        gen_exception(s, s->insn_pc, EXCP_ILLEGAL);
+        return;
+    }
+    SRC_EA(env, src, opsize, 1, NULL);
+    reg = gen_extend(DREG(insn, 9), opsize, 1);
+
+    gen_flush_flags(s);
+    gen_helper_chk(cpu_env, reg, src);
+}
+
+DISAS_INSN(chk2)
+{
+    uint16_t ext;
+    TCGv addr1, addr2, bound1, bound2, reg;
+    int opsize;
+
+    switch ((insn >> 9) & 3) {
+    case 0:
+        opsize = OS_BYTE;
+        break;
+    case 1:
+        opsize = OS_WORD;
+        break;
+    case 2:
+        opsize = OS_LONG;
+        break;
+    default:
+        gen_exception(s, s->insn_pc, EXCP_ILLEGAL);
+        return;
+    }
+
+    ext = read_im16(env, s);
+    if ((ext & 0x0800) == 0) {
+        gen_exception(s, s->insn_pc, EXCP_ILLEGAL);
+        return;
+    }
+
+    addr1 = gen_lea(env, s, insn, OS_UNSIZED);
+    addr2 = tcg_temp_new();
+    tcg_gen_addi_i32(addr2, addr1, opsize_bytes(opsize));
+
+    bound1 = gen_load(s, opsize, addr1, 1);
+    tcg_temp_free(addr1);
+    bound2 = gen_load(s, opsize, addr2, 1);
+    tcg_temp_free(addr2);
+
+    reg = tcg_temp_new();
+    if (ext & 0x8000) {
+        tcg_gen_mov_i32(reg, AREG(ext, 12));
+    } else {
+        gen_ext(reg, DREG(ext, 12), opsize, 1);
+    }
+
+    gen_flush_flags(s);
+    gen_helper_chk2(cpu_env, reg, bound1, bound2);
+    tcg_temp_free(reg);
+}
+
 static TCGv gen_get_sr(DisasContext *s)
 {
     TCGv ccr;
@@ -5306,7 +5380,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(undef,     0000, 0000);
     INSN(arith_im,  0080, fff8, CF_ISA_A);
     INSN(arith_im,  0000, ff00, M68000);
-    INSN(undef,     00c0, ffc0, M68000);
+    INSN(chk2,      00c0, f9c0, CHK2);
     INSN(bitrev,    00c0, fff8, CF_ISA_APLUSC);
     BASE(bitop_reg, 0100, f1c0);
     BASE(bitop_reg, 0140, f1c0);
@@ -5339,6 +5413,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(move,      1000, f000);
     BASE(move,      2000, f000);
     BASE(move,      3000, f000);
+    INSN(chk,       4000, f040, M68000);
     INSN(strldsr,   40e7, ffff, CF_ISA_APLUSC);
     INSN(negx,      4080, fff8, CF_ISA_A);
     INSN(negx,      4000, ff00, M68000);
