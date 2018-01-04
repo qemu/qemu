@@ -256,6 +256,9 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
 
 extern int term_escape_char;
 
+GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
+                                 GSourceFunc func, void *private);
+
 /* console.c */
 void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
