@@ -59,6 +59,8 @@ static void do_test_equality(bool expected, int _, ...)
             g_assert(qobject_is_equal(args[i], args[j]) == expected);
         }
     }
+
+    g_free(args);
 }
 
 #define check_equal(...) \
