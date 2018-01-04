@@ -2162,27 +2162,34 @@ static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
         tcg_gen_movi_i32(QREG_CC_N, val & CCF_N ? -1 : 0);
         tcg_gen_movi_i32(QREG_CC_X, val & CCF_X ? 1 : 0);
     } else {
-        gen_helper_set_sr(cpu_env, tcg_const_i32(val));
+        TCGv sr = tcg_const_i32(val);
+        gen_helper_set_sr(cpu_env, sr);
+        tcg_temp_free(sr);
     }
     set_cc_op(s, CC_OP_FLAGS);
 }
 
-static void gen_set_sr(CPUM68KState *env, DisasContext *s, uint16_t insn,
-                       int ccr_only)
+static void gen_set_sr(DisasContext *s, TCGv val, int ccr_only)
 {
-    if ((insn & 0x38) == 0) {
-        if (ccr_only) {
-            gen_helper_set_ccr(cpu_env, DREG(insn, 0));
-        } else {
-            gen_helper_set_sr(cpu_env, DREG(insn, 0));
-        }
-        set_cc_op(s, CC_OP_FLAGS);
-    } else if ((insn & 0x3f) == 0x3c) {
+    if (ccr_only) {
+        gen_helper_set_ccr(cpu_env, val);
+    } else {
+        gen_helper_set_sr(cpu_env, val);
+    }
+    set_cc_op(s, CC_OP_FLAGS);
+}
+
+static void gen_move_to_sr(CPUM68KState *env, DisasContext *s, uint16_t insn,
+                           bool ccr_only)
+{
+    if ((insn & 0x3f) == 0x3c) {
         uint16_t val;
         val = read_im16(env, s);
         gen_set_sr_im(s, val, ccr_only);
     } else {
-        disas_undef(env, s, insn);
+        TCGv src;
+        SRC_EA(env, src, OS_WORD, 0, NULL);
+        gen_set_sr(s, src, ccr_only);
     }
 }
 
@@ -2557,7 +2564,7 @@ DISAS_INSN(neg)
 
 DISAS_INSN(move_to_ccr)
 {
-    gen_set_sr(env, s, insn, 1);
+    gen_move_to_sr(env, s, insn, true);
 }
 
 DISAS_INSN(not)
@@ -4409,7 +4416,7 @@ DISAS_INSN(move_to_sr)
         gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
         return;
     }
-    gen_set_sr(env, s, insn, 0);
+    gen_move_to_sr(env, s, insn, false);
     gen_lookup_tb(s);
 }
 
@@ -5556,9 +5563,8 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(move_to_ccr, 44c0, ffc0);
     INSN(not,       4680, fff8, CF_ISA_A);
     INSN(not,       4600, ff00, M68000);
-    INSN(undef,     46c0, ffc0, M68000);
 #if defined(CONFIG_SOFTMMU)
-    INSN(move_to_sr, 46c0, ffc0, CF_ISA_A);
+    BASE(move_to_sr, 46c0, ffc0);
 #endif
     INSN(nbcd,      4800, ffc0, M68000);
     INSN(linkl,     4808, fff8, M68000);
