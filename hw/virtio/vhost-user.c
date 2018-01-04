@@ -26,6 +26,11 @@
 #define VHOST_MEMORY_MAX_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 
+/*
+ * Maximum size of virtio device config space
+ */
+#define VHOST_USER_MAX_CONFIG_SIZE 256
+
 enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_MQ = 0,
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
@@ -65,12 +70,15 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_SLAVE_REQ_FD = 21,
     VHOST_USER_IOTLB_MSG = 22,
     VHOST_USER_SET_VRING_ENDIAN = 23,
+    VHOST_USER_GET_CONFIG = 24,
+    VHOST_USER_SET_CONFIG = 25,
     VHOST_USER_MAX
 } VhostUserRequest;
 
 typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_NONE = 0,
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
+    VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -92,6 +100,18 @@ typedef struct VhostUserLog {
     uint64_t mmap_offset;
 } VhostUserLog;
 
+typedef struct VhostUserConfig {
+    uint32_t offset;
+    uint32_t size;
+    uint32_t flags;
+    uint8_t region[VHOST_USER_MAX_CONFIG_SIZE];
+} VhostUserConfig;
+
+static VhostUserConfig c __attribute__ ((unused));
+#define VHOST_USER_CONFIG_HDR_SIZE (sizeof(c.offset) \
+                                   + sizeof(c.size) \
+                                   + sizeof(c.flags))
+
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
@@ -109,6 +129,7 @@ typedef struct VhostUserMsg {
         VhostUserMemory memory;
         VhostUserLog log;
         struct vhost_iotlb_msg iotlb;
+        VhostUserConfig config;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -608,6 +629,21 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
     return 0;
 }
 
+static int vhost_user_slave_handle_config_change(struct vhost_dev *dev)
+{
+    int ret = -1;
+
+    if (!dev->config_ops) {
+        return -1;
+    }
+
+    if (dev->config_ops->vhost_dev_config_notifier) {
+        ret = dev->config_ops->vhost_dev_config_notifier(dev);
+    }
+
+    return ret;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -639,6 +675,9 @@ static void slave_read(void *opaque)
     switch (msg.request) {
     case VHOST_USER_SLAVE_IOTLB_MSG:
         ret = vhost_backend_handle_iotlb_msg(dev, &msg.payload.iotlb);
+        break;
+    case VHOST_USER_SLAVE_CONFIG_CHANGE_MSG :
+        ret = vhost_user_slave_handle_config_change(dev);
         break;
     default:
         error_report("Received unexpected msg type.");
@@ -922,6 +961,83 @@ static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
     /* No-op as the receive channel is not dedicated to IOTLB messages. */
 }
 
+static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
+                                 uint32_t config_len)
+{
+    VhostUserMsg msg = {
+        msg.request = VHOST_USER_GET_CONFIG,
+        msg.flags = VHOST_USER_VERSION,
+        msg.size = VHOST_USER_CONFIG_HDR_SIZE + config_len,
+    };
+
+    if (config_len > VHOST_USER_MAX_CONFIG_SIZE) {
+        return -1;
+    }
+
+    msg.payload.config.offset = 0;
+    msg.payload.config.size = config_len;
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        return -1;
+    }
+
+    if (msg.request != VHOST_USER_GET_CONFIG) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     VHOST_USER_GET_CONFIG, msg.request);
+        return -1;
+    }
+
+    if (msg.size != VHOST_USER_CONFIG_HDR_SIZE + config_len) {
+        error_report("Received bad msg size.");
+        return -1;
+    }
+
+    memcpy(config, msg.payload.config.region, config_len);
+
+    return 0;
+}
+
+static int vhost_user_set_config(struct vhost_dev *dev, const uint8_t *data,
+                                 uint32_t offset, uint32_t size, uint32_t flags)
+{
+    uint8_t *p;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    VhostUserMsg msg = {
+        msg.request = VHOST_USER_SET_CONFIG,
+        msg.flags = VHOST_USER_VERSION,
+        msg.size = VHOST_USER_CONFIG_HDR_SIZE + size,
+    };
+
+    if (reply_supported) {
+        msg.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    if (size > VHOST_USER_MAX_CONFIG_SIZE) {
+        return -1;
+    }
+
+    msg.payload.config.offset = offset,
+    msg.payload.config.size = size,
+    msg.payload.config.flags = flags,
+    p = msg.payload.config.region;
+    memcpy(p, data, size);
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    if (reply_supported) {
+        return process_message_reply(dev, &msg);
+    }
+
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -948,4 +1064,6 @@ const VhostOps user_ops = {
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
         .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
+        .vhost_get_config = vhost_user_get_config,
+        .vhost_set_config = vhost_user_set_config,
 };
