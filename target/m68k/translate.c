@@ -4514,7 +4514,7 @@ DISAS_INSN(rte)
     gen_exception(s, s->insn_pc, EXCP_RTE);
 }
 
-DISAS_INSN(movec)
+DISAS_INSN(cf_movec)
 {
     uint16_t ext;
     TCGv reg;
@@ -4531,7 +4531,32 @@ DISAS_INSN(movec)
     } else {
         reg = DREG(ext, 12);
     }
-    gen_helper_movec(cpu_env, tcg_const_i32(ext & 0xfff), reg);
+    gen_helper_cf_movec_to(cpu_env, tcg_const_i32(ext & 0xfff), reg);
+    gen_lookup_tb(s);
+}
+
+DISAS_INSN(m68k_movec)
+{
+    uint16_t ext;
+    TCGv reg;
+
+    if (IS_USER(s)) {
+        gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
+        return;
+    }
+
+    ext = read_im16(env, s);
+
+    if (ext & 0x8000) {
+        reg = AREG(ext, 12);
+    } else {
+        reg = DREG(ext, 12);
+    }
+    if (insn & 1) {
+        gen_helper_m68k_movec_to(cpu_env, tcg_const_i32(ext & 0xfff), reg);
+    } else {
+        gen_helper_m68k_movec_from(reg, cpu_env, tcg_const_i32(ext & 0xfff));
+    }
     gen_lookup_tb(s);
 }
 
@@ -5638,7 +5663,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(reset,     4e70, ffff, M68000);
     BASE(stop,      4e72, ffff);
     BASE(rte,       4e73, ffff);
-    INSN(movec,     4e7b, ffff, CF_ISA_A);
+    INSN(cf_movec,  4e7b, ffff, CF_ISA_A);
+    INSN(m68k_movec, 4e7a, fffe, M68000);
 #endif
     BASE(nop,       4e71, ffff);
     INSN(rtd,       4e74, ffff, RTD);
@@ -5945,6 +5971,14 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         cpu_fprintf(f, "RP ");
         break;
     }
+    cpu_fprintf(f, "\n");
+#ifdef CONFIG_SOFTMMU
+    cpu_fprintf(f, "%sA7(MSP) = %08x %sA7(USP) = %08x %sA7(ISP) = %08x\n",
+               env->current_sp == M68K_SSP ? "->" : "  ", env->sp[M68K_SSP],
+               env->current_sp == M68K_USP ? "->" : "  ", env->sp[M68K_USP],
+               env->current_sp == M68K_ISP ? "->" : "  ", env->sp[M68K_ISP]);
+    cpu_fprintf(f, "VBR = 0x%08x\n", env->vbr);
+#endif
 }
 
 void restore_state_to_opc(CPUM68KState *env, TranslationBlock *tb,

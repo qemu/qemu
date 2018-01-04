@@ -55,17 +55,17 @@ static void m68k_cpu_reset(CPUState *s)
     mcc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUM68KState, end_reset_fields));
-#if !defined(CONFIG_USER_ONLY)
-    env->sr = 0x2700;
+#ifdef CONFIG_SOFTMMU
+    cpu_m68k_set_sr(env, SR_S | SR_I);
+#else
+    cpu_m68k_set_sr(env, 0);
 #endif
-    m68k_switch_sp(env);
     for (i = 0; i < 8; i++) {
         env->fregs[i].d = nan;
     }
     cpu_m68k_set_fpcr(env, 0);
     env->fpsr = 0;
 
-    cpu_m68k_set_ccr(env, 0);
     /* TODO: We should set PC from the interrupt vector.  */
     env->pc = 0;
 }
