@@ -316,13 +316,17 @@ uint32_t HELPER(sats)(uint32_t val, uint32_t v)
     return val;
 }
 
-void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
+void cpu_m68k_set_sr(CPUM68KState *env, uint32_t sr)
 {
-    env->sr = val & 0xffe0;
-    cpu_m68k_set_ccr(env, val);
+    env->sr = sr & 0xffe0;
+    cpu_m68k_set_ccr(env, sr);
     m68k_switch_sp(env);
 }
 
+void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
+{
+    cpu_m68k_set_sr(env, val);
+}
 
 /* MAC unit.  */
 /* FIXME: The MAC unit implementation is a bit of a mess.  Some helpers

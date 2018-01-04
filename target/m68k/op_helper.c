@@ -54,7 +54,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
     }
 }
 
-static void do_rte(CPUM68KState *env)
+static void cf_rte(CPUM68KState *env)
 {
     uint32_t sp;
     uint32_t fmt;
@@ -65,7 +65,46 @@ static void do_rte(CPUM68KState *env)
     sp |= (fmt >> 28) & 3;
     env->aregs[7] = sp + 8;
 
-    helper_set_sr(env, fmt);
+    cpu_m68k_set_sr(env, fmt);
+}
+
+static void m68k_rte(CPUM68KState *env)
+{
+    uint32_t sp;
+    uint16_t fmt;
+    uint16_t sr;
+
+    sp = env->aregs[7];
+throwaway:
+    sr = cpu_lduw_kernel(env, sp);
+    sp += 2;
+    env->pc = cpu_ldl_kernel(env, sp);
+    sp += 4;
+    if (m68k_feature(env, M68K_FEATURE_QUAD_MULDIV)) {
+        /*  all except 68000 */
+        fmt = cpu_lduw_kernel(env, sp);
+        sp += 2;
+        switch (fmt >> 12) {
+        case 0:
+            break;
+        case 1:
+            env->aregs[7] = sp;
+            cpu_m68k_set_sr(env, sr);
+            goto throwaway;
+        case 2:
+        case 3:
+            sp += 4;
+            break;
+        case 4:
+            sp += 8;
+            break;
+        case 7:
+            sp += 52;
+            break;
+        }
+    }
+    env->aregs[7] = sp;
+    cpu_m68k_set_sr(env, sr);
 }
 
 static const char *m68k_exception_name(int index)
@@ -173,7 +212,7 @@ static const char *m68k_exception_name(int index)
     return "Unassigned";
 }
 
-static void do_interrupt_all(CPUM68KState *env, int is_hw)
+static void cf_interrupt_all(CPUM68KState *env, int is_hw)
 {
     CPUState *cs = CPU(m68k_env_get_cpu(env));
     uint32_t sp;
@@ -189,7 +228,7 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
         switch (cs->exception_index) {
         case EXCP_RTE:
             /* Return from an exception.  */
-            do_rte(env);
+            cf_rte(env);
             return;
         case EXCP_HALT_INSN:
             if (semihosting_enabled()
@@ -245,6 +284,119 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
     env->aregs[7] = sp;
     /* Jump to vector.  */
     env->pc = cpu_ldl_kernel(env, env->vbr + vector);
+}
+
+static inline void do_stack_frame(CPUM68KState *env, uint32_t *sp,
+                                  uint16_t format, uint16_t sr,
+                                  uint32_t addr, uint32_t retaddr)
+{
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
+    switch (format) {
+    case 4:
+        *sp -= 4;
+        cpu_stl_kernel(env, *sp, env->pc);
+        *sp -= 4;
+        cpu_stl_kernel(env, *sp, addr);
+        break;
+    case 3:
+    case 2:
+        *sp -= 4;
+        cpu_stl_kernel(env, *sp, addr);
+        break;
+    }
+    *sp -= 2;
+    cpu_stw_kernel(env, *sp, (format << 12) + (cs->exception_index << 2));
+    *sp -= 4;
+    cpu_stl_kernel(env, *sp, retaddr);
+    *sp -= 2;
+    cpu_stw_kernel(env, *sp, sr);
+}
+
+static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
+{
+    CPUState *cs = CPU(m68k_env_get_cpu(env));
+    uint32_t sp;
+    uint32_t retaddr;
+    uint32_t vector;
+    uint16_t sr, oldsr;
+
+    retaddr = env->pc;
+
+    if (!is_hw) {
+        switch (cs->exception_index) {
+        case EXCP_RTE:
+            /* Return from an exception.  */
+            m68k_rte(env);
+            return;
+        case EXCP_TRAP0 ...  EXCP_TRAP15:
+            /* Move the PC after the trap instruction.  */
+            retaddr += 2;
+            break;
+        }
+    }
+
+    vector = cs->exception_index << 2;
+
+    sr = env->sr | cpu_m68k_get_ccr(env);
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        static int count;
+        qemu_log("INT %6d: %s(%#x) pc=%08x sp=%08x sr=%04x\n",
+                 ++count, m68k_exception_name(cs->exception_index),
+                 vector, env->pc, env->aregs[7], sr);
+    }
+
+    /*
+     * MC68040UM/AD,  chapter 9.3.10
+     */
+
+    /* "the processor first make an internal copy" */
+    oldsr = sr;
+    /* "set the mode to supervisor" */
+    sr |= SR_S;
+    /* "suppress tracing" */
+    sr &= ~SR_T;
+    /* "sets the processor interrupt mask" */
+    if (is_hw) {
+        sr |= (env->sr & ~SR_I) | (env->pending_level << SR_I_SHIFT);
+    }
+    cpu_m68k_set_sr(env, sr);
+    sp = env->aregs[7];
+
+    sp &= ~1;
+    if (cs->exception_index == EXCP_ADDRESS) {
+        do_stack_frame(env, &sp, 2, oldsr, 0, retaddr);
+    } else if (cs->exception_index == EXCP_ILLEGAL ||
+               cs->exception_index == EXCP_DIV0 ||
+               cs->exception_index == EXCP_CHK ||
+               cs->exception_index == EXCP_TRAPCC ||
+               cs->exception_index == EXCP_TRACE) {
+        /* FIXME: addr is not only env->pc */
+        do_stack_frame(env, &sp, 2, oldsr, env->pc, retaddr);
+    } else if (is_hw && oldsr & SR_M &&
+               cs->exception_index >= EXCP_SPURIOUS &&
+               cs->exception_index <= EXCP_INT_LEVEL_7) {
+        do_stack_frame(env, &sp, 0, oldsr, 0, retaddr);
+        oldsr = sr;
+        env->aregs[7] = sp;
+        cpu_m68k_set_sr(env, sr &= ~SR_M);
+        sp = env->aregs[7] & ~1;
+        do_stack_frame(env, &sp, 1, oldsr, 0, retaddr);
+    } else {
+        do_stack_frame(env, &sp, 0, oldsr, 0, retaddr);
+    }
+
+    env->aregs[7] = sp;
+    /* Jump to vector.  */
+    env->pc = cpu_ldl_kernel(env, env->vbr + vector);
+}
+
+static void do_interrupt_all(CPUM68KState *env, int is_hw)
+{
+    if (m68k_feature(env, M68K_FEATURE_M68000)) {
+        m68k_interrupt_all(env, is_hw);
+        return;
+    }
+    cf_interrupt_all(env, is_hw);
 }
 
 void m68k_cpu_do_interrupt(CPUState *cs)
