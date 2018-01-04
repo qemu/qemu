@@ -45,6 +45,8 @@
 #define EXCP_ADDRESS        3   /* Address error.  */
 #define EXCP_ILLEGAL        4   /* Illegal instruction.  */
 #define EXCP_DIV0           5   /* Divide by zero */
+#define EXCP_CHK            6   /* CHK, CHK2 Instructions */
+#define EXCP_TRAPCC         7   /* FTRAPcc, TRAPcc, TRAPV Instructions */
 #define EXCP_PRIVILEGE      8   /* Privilege violation.  */
 #define EXCP_TRACE          9
 #define EXCP_LINEA          10  /* Unimplemented line-A (MAC) opcode.  */
@@ -53,6 +55,9 @@
 #define EXCP_DEBEGBP        13  /* Breakpoint debug interrupt.  */
 #define EXCP_FORMAT         14  /* RTE format error.  */
 #define EXCP_UNINITIALIZED  15
+#define EXCP_SPURIOUS       24  /* Spurious interrupt */
+#define EXCP_INT_LEVEL_1    25  /* Level 1 Interrupt autovector */
+#define EXCP_INT_LEVEL_7    31  /* Level 7 Interrupt autovector */
 #define EXCP_TRAP0          32   /* User trap #0.  */
 #define EXCP_TRAP15         47   /* User trap #15.  */
 #define EXCP_FP_BSUN        48 /* Branch Set on Unordered */
@@ -63,6 +68,9 @@
 #define EXCP_FP_OVFL        53 /* Overflow */
 #define EXCP_FP_SNAN        54 /* Signaling Not-A-Number */
 #define EXCP_FP_UNIMP       55 /* Unimplemented Data type */
+#define EXCP_MMU_CONF       56  /* MMU Configuration Error */
+#define EXCP_MMU_ILLEGAL    57  /* MMU Illegal Operation Error */
+#define EXCP_MMU_ACCESS     58  /* MMU Access Level Violation Error */
 #define EXCP_UNSUPPORTED    61
 
 #define EXCP_RTE            0x100
