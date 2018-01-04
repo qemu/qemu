@@ -1755,6 +1755,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
                                        data->sector << BDRV_SECTOR_BITS,
                                        &data->qiov, 0,
                                        scsi_write_same_complete, data);
+        aio_context_release(blk_get_aio_context(s->qdev.conf.blk));
         return;
     }
 
