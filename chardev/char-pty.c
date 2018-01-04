@@ -43,7 +43,7 @@ typedef struct {
     /* Protected by the Chardev chr_write_lock.  */
     int connected;
     guint timer_tag;
-    guint open_tag;
+    GSource *open_source;
 } PtyChardev;
 
 #define PTY_CHARDEV(obj) OBJECT_CHECK(PtyChardev, (obj), TYPE_CHARDEV_PTY)
@@ -58,7 +58,7 @@ static gboolean pty_chr_timer(gpointer opaque)
 
     qemu_mutex_lock(&chr->chr_write_lock);
     s->timer_tag = 0;
-    s->open_tag = 0;
+    s->open_source = NULL;
     if (!s->connected) {
         /* Next poll ... */
         pty_chr_update_read_handler_locked(chr);
@@ -183,7 +183,7 @@ static gboolean qemu_chr_be_generic_open_func(gpointer opaque)
     Chardev *chr = CHARDEV(opaque);
     PtyChardev *s = PTY_CHARDEV(opaque);
 
-    s->open_tag = 0;
+    s->open_source = NULL;
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     return FALSE;
 }
@@ -194,9 +194,10 @@ static void pty_chr_state(Chardev *chr, int connected)
     PtyChardev *s = PTY_CHARDEV(chr);
 
     if (!connected) {
-        if (s->open_tag) {
-            g_source_remove(s->open_tag);
-            s->open_tag = 0;
+        if (s->open_source) {
+            g_source_destroy(s->open_source);
+            g_source_unref(s->open_source);
+            s->open_source = NULL;
         }
         remove_fd_in_watch(chr);
         s->connected = 0;
@@ -210,9 +211,13 @@ static void pty_chr_state(Chardev *chr, int connected)
             s->timer_tag = 0;
         }
         if (!s->connected) {
-            g_assert(s->open_tag == 0);
+            g_assert(s->open_source == NULL);
+            s->open_source = g_idle_source_new();
             s->connected = 1;
-            s->open_tag = g_idle_add(qemu_chr_be_generic_open_func, chr);
+            g_source_set_callback(s->open_source,
+                                  qemu_chr_be_generic_open_func,
+                                  chr, NULL);
+            g_source_attach(s->open_source, chr->gcontext);
         }
         if (!chr->gsource) {
             chr->gsource = io_add_watch_poll(chr, s->ioc,
