@@ -422,27 +422,29 @@ static void test_migrate_start(QTestState **from, QTestState **to,
     gchar *cmd_src, *cmd_dst;
     char *bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     const char *arch = qtest_get_arch();
+    const char *accel = "kvm:tcg";
 
     got_stop = false;
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         init_bootfile_x86(bootpath);
-        cmd_src = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
+        cmd_src = g_strdup_printf("-machine accel=%s -m 150M"
                                   " -name pcsource,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -drive file=%s,format=raw",
-                                  tmpfs, bootpath);
-        cmd_dst = g_strdup_printf("-machine accel=kvm:tcg -m 150M"
+                                  accel, tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine accel=%s -m 150M"
                                   " -name pcdest,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -drive file=%s,format=raw"
                                   " -incoming %s",
-                                  tmpfs, bootpath, uri);
+                                  accel, tmpfs, bootpath, uri);
     } else if (strcmp(arch, "ppc64") == 0) {
-        const char *accel;
 
         /* On ppc64, the test only works with kvm-hv, but not with kvm-pr */
-        accel = access("/sys/module/kvm_hv", F_OK) ? "tcg" : "kvm:tcg";
+        if (access("/sys/module/kvm_hv", F_OK)) {
+            accel = "tcg";
+        }
         init_bootfile_ppc(bootpath);
         cmd_src = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name pcsource,debug-threads=on"
