@@ -1660,7 +1660,10 @@ static void *file_ram_alloc(RAMBlock *block,
 }
 #endif
 
-/* Called with the ramlist lock held.  */
+/* Allocate space within the ram_addr_t space that governs the
+ * dirty bitmaps.
+ * Called with the ramlist lock held.
+ */
 static ram_addr_t find_ram_offset(ram_addr_t size)
 {
     RAMBlock *block, *next_block;
@@ -1673,19 +1676,29 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     }
 
     RAMBLOCK_FOREACH(block) {
-        ram_addr_t end, next = RAM_ADDR_MAX;
+        ram_addr_t candidate, next = RAM_ADDR_MAX;
 
-        end = block->offset + block->max_length;
+        candidate = block->offset + block->max_length;
 
+        /* Search for the closest following block
+         * and find the gap.
+         */
         RAMBLOCK_FOREACH(next_block) {
-            if (next_block->offset >= end) {
+            if (next_block->offset >= candidate) {
                 next = MIN(next, next_block->offset);
             }
         }
-        if (next - end >= size && next - end < mingap) {
-            offset = end;
-            mingap = next - end;
+
+        /* If it fits remember our place and remember the size
+         * of gap, but keep going so that we might find a smaller
+         * gap to fill so avoiding fragmentation.
+         */
+        if (next - candidate >= size && next - candidate < mingap) {
+            offset = candidate;
+            mingap = next - candidate;
         }
+
+        trace_find_ram_offset_loop(size, candidate, offset, next, mingap);
     }
 
     if (offset == RAM_ADDR_MAX) {
@@ -1693,6 +1706,8 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
                 (uint64_t)size);
         abort();
     }
+
+    trace_find_ram_offset(size, offset);
 
     return offset;
 }
