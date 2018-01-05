@@ -416,6 +416,15 @@ static void migrate(QTestState *who, const char *uri)
     QDECREF(rsp);
 }
 
+static void migrate_start_postcopy(QTestState *who)
+{
+    QDict *rsp;
+
+    rsp = wait_command(who, "{ 'execute': 'migrate-start-postcopy' }");
+    g_assert(qdict_haskey(rsp, "return"));
+    QDECREF(rsp);
+}
+
 static void test_migrate_start(QTestState **from, QTestState **to,
                                const char *uri)
 {
@@ -549,7 +558,6 @@ static void test_migrate(void)
 {
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
-    QDict *rsp;
 
     test_migrate_start(&from, &to, uri);
 
@@ -570,9 +578,7 @@ static void test_migrate(void)
 
     wait_for_migration_pass(from);
 
-    rsp = wait_command(from, "{ 'execute': 'migrate-start-postcopy' }");
-    g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    migrate_start_postcopy(from);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
