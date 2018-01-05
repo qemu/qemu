@@ -268,10 +268,9 @@ static uint64_t get_migration_pass(QTestState *who)
 
 static void wait_for_migration_complete(QTestState *who)
 {
-    QDict *rsp, *rsp_return;
-    bool completed;
-
-    do {
+    while (true) {
+        QDict *rsp, *rsp_return;
+        bool completed;
         const char *status;
 
         rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
@@ -280,8 +279,11 @@ static void wait_for_migration_complete(QTestState *who)
         completed = strcmp(status, "completed") == 0;
         g_assert_cmpstr(status, !=,  "failed");
         QDECREF(rsp);
-        usleep(1000 * 100);
-    } while (!completed);
+        if (completed) {
+            return;
+        }
+        usleep(1000);
+    }
 }
 
 static void wait_for_migration_pass(QTestState *who)
@@ -290,16 +292,13 @@ static void wait_for_migration_pass(QTestState *who)
     uint64_t pass;
 
     /* Wait for the 1st sync */
-    do {
+    while (!got_stop && !initial_pass) {
+        usleep(1000);
         initial_pass = get_migration_pass(who);
-        if (got_stop || initial_pass) {
-            break;
-        }
-        usleep(1000 * 100);
-    } while (true);
+    }
 
     do {
-        usleep(1000 * 100);
+        usleep(1000);
         pass = get_migration_pass(who);
     } while (pass == initial_pass && !got_stop);
 }
@@ -489,13 +488,13 @@ static void test_migrate_end(QTestState *from, QTestState *to)
     /* Destination still running, wait for a byte to change */
     do {
         qtest_memread(to, start_address, &dest_byte_b, 1);
-        usleep(10 * 1000);
+        usleep(1000 * 10);
     } while (dest_byte_a == dest_byte_b);
 
     qtest_qmp_discard_response(to, "{ 'execute' : 'stop'}");
     /* With it stopped, check nothing changes */
     qtest_memread(to, start_address, &dest_byte_c, 1);
-    sleep(1);
+    usleep(1000 * 200);
     qtest_memread(to, start_address, &dest_byte_d, 1);
     g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
 
