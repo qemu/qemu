@@ -556,6 +556,7 @@ static QemuOptsList ssh_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Defines how and what to check the host key against",
         },
+        { /* end of list */ }
     },
 };
 
