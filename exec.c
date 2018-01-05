@@ -1678,7 +1678,11 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     RAMBLOCK_FOREACH(block) {
         ram_addr_t candidate, next = RAM_ADDR_MAX;
 
+        /* Align blocks to start on a 'long' in the bitmap
+         * which makes the bitmap sync'ing take the fast path.
+         */
         candidate = block->offset + block->max_length;
+        candidate = ROUND_UP(candidate, BITS_PER_LONG << TARGET_PAGE_BITS);
 
         /* Search for the closest following block
          * and find the gap.
