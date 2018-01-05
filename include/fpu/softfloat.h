@@ -103,32 +103,6 @@ enum {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point types.
 *----------------------------------------------------------------------------*/
-/* Use structures for soft-float types.  This prevents accidentally mixing
-   them with native int/float types.  A sufficiently clever compiler and
-   sane ABI should be able to see though these structs.  However
-   x86/gcc 3.x seems to struggle a bit, so leave them disabled by default.  */
-//#define USE_SOFTFLOAT_STRUCT_TYPES
-#ifdef USE_SOFTFLOAT_STRUCT_TYPES
-typedef struct {
-    uint16_t v;
-} float16;
-#define float16_val(x) (((float16)(x)).v)
-#define make_float16(x) __extension__ ({ float16 f16_val = {x}; f16_val; })
-#define const_float16(x) { x }
-typedef struct {
-    uint32_t v;
-} float32;
-/* The cast ensures an error if the wrong type is passed.  */
-#define float32_val(x) (((float32)(x)).v)
-#define make_float32(x) __extension__ ({ float32 f32_val = {x}; f32_val; })
-#define const_float32(x) { x }
-typedef struct {
-    uint64_t v;
-} float64;
-#define float64_val(x) (((float64)(x)).v)
-#define make_float64(x) __extension__ ({ float64 f64_val = {x}; f64_val; })
-#define const_float64(x) { x }
-#else
 typedef uint16_t float16;
 typedef uint32_t float32;
 typedef uint64_t float64;
@@ -141,7 +115,6 @@ typedef uint64_t float64;
 #define const_float16(x) (x)
 #define const_float32(x) (x)
 #define const_float64(x) (x)
-#endif
 typedef struct {
     uint64_t low;
     uint16_t high;
