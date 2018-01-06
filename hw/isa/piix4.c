@@ -2,6 +2,7 @@
  * QEMU PIIX4 PCI Bridge Emulation
  *
  * Copyright (c) 2006 Fabrice Bellard
+ * Copyright (c) 2018 Hervé Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,11 +29,17 @@
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 
 PCIDevice *piix4_dev;
 
 typedef struct PIIX4State {
     PCIDevice dev;
+
+    /* Reset Control Register */
+    MemoryRegion rcr_mem;
+    uint8_t rcr;
 } PIIX4State;
 
 #define TYPE_PIIX4_PCI_DEVICE "PIIX4"
@@ -87,15 +94,51 @@ static const VMStateDescription vmstate_piix4 = {
     }
 };
 
+static void piix4_rcr_write(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned int len)
+{
+    PIIX4State *s = opaque;
+
+    if (val & 4) {
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+        return;
+    }
+
+    s->rcr = val & 2; /* keep System Reset type only */
+}
+
+static uint64_t piix4_rcr_read(void *opaque, hwaddr addr, unsigned int len)
+{
+    PIIX4State *s = opaque;
+
+    return s->rcr;
+}
+
+static const MemoryRegionOps piix4_rcr_ops = {
+    .read = piix4_rcr_read,
+    .write = piix4_rcr_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
 static void piix4_realize(PCIDevice *dev, Error **errp)
 {
-    PIIX4State *d = PIIX4_PCI_DEVICE(dev);
+    PIIX4State *s = PIIX4_PCI_DEVICE(dev);
 
-    if (!isa_bus_new(DEVICE(d), pci_address_space(dev),
+    if (!isa_bus_new(DEVICE(dev), pci_address_space(dev),
                      pci_address_space_io(dev), errp)) {
         return;
     }
-    piix4_dev = &d->dev;
+
+    memory_region_init_io(&s->rcr_mem, OBJECT(dev), &piix4_rcr_ops, s,
+                          "reset-control", 1);
+    memory_region_add_subregion_overlap(pci_address_space_io(dev),
+                                        RCR_IOPORT, &s->rcr_mem, 1);
+
+    piix4_dev = dev;
 }
 
 int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn)
