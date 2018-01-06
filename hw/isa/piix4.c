@@ -29,6 +29,7 @@
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "hw/dma/i8257.h"
 #include "migration/vmstate.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
@@ -166,6 +167,9 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
 
     /* initialize ISA irqs */
     isa_bus_irqs(isa_bus, s->isa);
+
+    /* DMA */
+    i8257_dma_init(isa_bus, 0);
 
     piix4_dev = dev;
 }
