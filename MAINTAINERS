@@ -1251,7 +1251,7 @@ F: hw/i2c/smbus_ich9.c
 F: hw/acpi/piix4.c
 F: hw/acpi/ich9.c
 F: include/hw/acpi/ich9.h
-F: include/hw/acpi/piix4.h
+F: include/hw/southbridge/piix.h
 F: hw/misc/sga.c
 F: hw/isa/apm.c
 F: include/hw/isa/apm.h
@@ -1757,6 +1757,7 @@ M: Hervé Poussineau <hpoussin@reactos.org>
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 S: Maintained
 F: hw/isa/piix4.c
+F: include/hw/southbridge/piix.h
 
 Firmware configuration (fw_cfg)
 M: Philippe Mathieu-Daudé <philmd@redhat.com>

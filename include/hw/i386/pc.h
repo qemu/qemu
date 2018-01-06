@@ -228,12 +228,6 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
 #define PORT92_A20_LINE "a20"
 
-/* acpi_piix.c */
-
-I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                      qemu_irq sci_irq, qemu_irq smi_irq,
-                      int smm_enabled, DeviceState **piix4_pm);
-
 /* hpet.c */
 extern int no_hpet;
 
