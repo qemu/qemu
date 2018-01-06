@@ -30,6 +30,7 @@
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "hw/dma/i8257.h"
+#include "hw/timer/i8254.h"
 #include "migration/vmstate.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
@@ -167,6 +168,9 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
 
     /* initialize ISA irqs */
     isa_bus_irqs(isa_bus, s->isa);
+
+    /* initialize pit */
+    i8254_pit_init(isa_bus, 0x40, 0, NULL);
 
     /* DMA */
     i8257_dma_init(isa_bus, 0);
