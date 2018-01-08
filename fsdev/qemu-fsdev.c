@@ -37,6 +37,7 @@ int qemu_fsdev_add(QemuOpts *opts)
     const char *fsdriver = qemu_opt_get(opts, "fsdriver");
     const char *writeout = qemu_opt_get(opts, "writeout");
     bool ro = qemu_opt_get_bool(opts, "readonly", 0);
+    Error *local_err = NULL;
 
     if (!fsdev_id) {
         error_report("fsdev: No id specified");
@@ -74,7 +75,8 @@ int qemu_fsdev_add(QemuOpts *opts)
     }
 
     if (fsle->fse.ops->parse_opts) {
-        if (fsle->fse.ops->parse_opts(opts, &fsle->fse)) {
+        if (fsle->fse.ops->parse_opts(opts, &fsle->fse, &local_err)) {
+            error_report_err(local_err);
             g_free(fsle->fse.fsdev_id);
             g_free(fsle);
             return -1;

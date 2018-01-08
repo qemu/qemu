@@ -1459,16 +1459,21 @@ static void local_cleanup(FsContext *ctx)
     g_free(data);
 }
 
-static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse)
+static void error_append_security_model_hint(Error **errp)
+{
+    error_append_hint(errp, "Valid options are: security_model="
+                      "[passthrough|mapped-xattr|mapped-file|none]\n");
+}
+
+static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
 {
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *path = qemu_opt_get(opts, "path");
-    Error *err = NULL;
+    Error *local_err = NULL;
 
     if (!sec_model) {
-        error_report("Security model not specified, local fs needs security model");
-        error_printf("valid options are:"
-                     "\tsecurity_model=[passthrough|mapped-xattr|mapped-file|none]\n");
+        error_setg(errp, "security_model property not set");
+        error_append_security_model_hint(errp);
         return -1;
     }
 
@@ -1482,20 +1487,20 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse)
     } else if (!strcmp(sec_model, "mapped-file")) {
         fse->export_flags |= V9FS_SM_MAPPED_FILE;
     } else {
-        error_report("Invalid security model %s specified", sec_model);
-        error_printf("valid options are:"
-                     "\t[passthrough|mapped-xattr|mapped-file|none]\n");
+        error_setg(errp, "invalid security_model property '%s'", sec_model);
+        error_append_security_model_hint(errp);
         return -1;
     }
 
     if (!path) {
-        error_report("fsdev: No path specified");
+        error_setg(errp, "path property not set");
         return -1;
     }
 
-    fsdev_throttle_parse_opts(opts, &fse->fst, &err);
-    if (err) {
-        error_reportf_err(err, "Throttle configuration is not valid: ");
+    fsdev_throttle_parse_opts(opts, &fse->fst, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "invalid throttle configuration: ");
         return -1;
     }
 
@@ -1507,11 +1512,11 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse)
             qemu_opt_get_number(opts, "dmode", SM_LOCAL_DIR_MODE_BITS) & 0777;
     } else {
         if (qemu_opt_find(opts, "fmode")) {
-            error_report("fmode is only valid for mapped 9p modes");
+            error_setg(errp, "fmode is only valid for mapped security modes");
             return -1;
         }
         if (qemu_opt_find(opts, "dmode")) {
-            error_report("dmode is only valid for mapped 9p modes");
+            error_setg(errp, "dmode is only valid for mapped security modes");
             return -1;
         }
     }

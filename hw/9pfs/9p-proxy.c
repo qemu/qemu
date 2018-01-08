@@ -1111,17 +1111,27 @@ static int connect_namedsocket(const char *path)
     return sockfd;
 }
 
-static int proxy_parse_opts(QemuOpts *opts, FsDriverEntry *fs)
+static void error_append_socket_sockfd_hint(Error **errp)
+{
+    error_append_hint(errp, "Either specify socket=/some/path where /some/path"
+                      " points to a listening AF_UNIX socket or sock_fd=fd"
+                      " where fd is a file descriptor to a connected AF_UNIX"
+                      " socket\n");
+}
+
+static int proxy_parse_opts(QemuOpts *opts, FsDriverEntry *fs, Error **errp)
 {
     const char *socket = qemu_opt_get(opts, "socket");
     const char *sock_fd = qemu_opt_get(opts, "sock_fd");
 
     if (!socket && !sock_fd) {
-        error_report("Must specify either socket or sock_fd");
+        error_setg(errp, "both socket and sock_fd properties are missing");
+        error_append_socket_sockfd_hint(errp);
         return -1;
     }
     if (socket && sock_fd) {
-        error_report("Both socket and sock_fd options specified");
+        error_setg(errp, "both socket and sock_fd properties are set");
+        error_append_socket_sockfd_hint(errp);
         return -1;
     }
     if (socket) {
