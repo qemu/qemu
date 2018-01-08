@@ -23,6 +23,8 @@
  */
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
+#include "net/net.h"
+#include "net/eth.h"
 #include "ne2000.h"
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
@@ -199,7 +201,7 @@ ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
             /* multicast */
             if (!(s->rxcr & 0x08))
                 return size;
-            mcast_idx = compute_mcast_idx(buf);
+            mcast_idx = net_crc32(buf, ETH_ALEN) >> 26;
             if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
                 return size;
         } else if (s->mem[0] == buf[0] &&

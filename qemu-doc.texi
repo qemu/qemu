@@ -2648,32 +2648,36 @@ combined with ``-vnc tls-creds=tls0'
 
 @subsection -tftp (since 2.6.0)
 
-The ``-tftp /some/dir'' argument is now a synonym for setting
-the ``-netdev user,tftp=/some/dir' argument. The new syntax
-allows different settings to be provided per NIC.
+The ``-tftp /some/dir'' argument is replaced by
+``-netdev user,id=x,tftp=/some/dir'', either accompanied with
+``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
 
 @subsection -bootp (since 2.6.0)
 
-The ``-bootp /some/file'' argument is now a synonym for setting
-the ``-netdev user,bootp=/some/file' argument. The new syntax
-allows different settings to be provided per NIC.
+The ``-bootp /some/file'' argument is replaced by
+``-netdev user,id=x,bootp=/some/file'', either accompanied with
+``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
 
 @subsection -redir (since 2.6.0)
 
-The ``-redir ARGS'' argument is now a synonym for setting
-the ``-netdev user,hostfwd=ARGS'' argument instead. The new
-syntax allows different settings to be provided per NIC.
+The ``-redir [tcp|udp]:hostport:[guestaddr]:guestport'' argument is
+replaced by ``-netdev
+user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport'',
+either accompanied with ``-device ...,netdev=x'' (for pluggable NICs) or
+``-net nic,netdev=x'' (for embedded NICs). The new syntax allows different
+settings to be provided per NIC.
 
 @subsection -smb (since 2.6.0)
 
-The ``-smb /some/dir'' argument is now a synonym for setting
-the ``-netdev user,smb=/some/dir'' argument instead. The new
-syntax allows different settings to be provided per NIC.
-
-@subsection -net channel (since 2.6.0)
-
-The ``--net channel,ARGS'' argument is now a synonym for setting
-the ``-netdev user,guestfwd=ARGS'' argument instead.
+The ``-smb /some/dir'' argument is replaced by
+``-netdev user,id=x,smb=/some/dir'', either accompanied with
+``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
 
 @subsection -net vlan (since 2.9.0)
 

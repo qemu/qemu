@@ -632,18 +632,18 @@ e1000e_rss_parse_packet(E1000ECore *core,
 static void
 e1000e_setup_tx_offloads(E1000ECore *core, struct e1000e_tx *tx)
 {
-    if (tx->props.tse && tx->props.cptse) {
+    if (tx->props.tse && tx->cptse) {
         net_tx_pkt_build_vheader(tx->tx_pkt, true, true, tx->props.mss);
         net_tx_pkt_update_ip_checksums(tx->tx_pkt);
         e1000x_inc_reg_if_not_full(core->mac, TSCTC);
         return;
     }
 
-    if (tx->props.sum_needed & E1000_TXD_POPTS_TXSM) {
+    if (tx->sum_needed & E1000_TXD_POPTS_TXSM) {
         net_tx_pkt_build_vheader(tx->tx_pkt, false, true, 0);
     }
 
-    if (tx->props.sum_needed & E1000_TXD_POPTS_IXSM) {
+    if (tx->sum_needed & E1000_TXD_POPTS_IXSM) {
         net_tx_pkt_update_ip_hdr_checksum(tx->tx_pkt);
     }
 }
@@ -715,13 +715,13 @@ e1000e_process_tx_desc(E1000ECore *core,
         return;
     } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D)) {
         /* data descriptor */
-        tx->props.sum_needed = le32_to_cpu(dp->upper.data) >> 8;
-        tx->props.cptse = (txd_lower & E1000_TXD_CMD_TSE) ? 1 : 0;
+        tx->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
+        tx->cptse = (txd_lower & E1000_TXD_CMD_TSE) ? 1 : 0;
         e1000e_process_ts_option(core, dp);
     } else {
         /* legacy descriptor */
         e1000e_process_ts_option(core, dp);
-        tx->props.cptse = 0;
+        tx->cptse = 0;
     }
 
     addr = le64_to_cpu(dp->buffer_addr);
@@ -747,8 +747,8 @@ e1000e_process_tx_desc(E1000ECore *core,
         tx->skip_cp = false;
         net_tx_pkt_reset(tx->tx_pkt);
 
-        tx->props.sum_needed = 0;
-        tx->props.cptse = 0;
+        tx->sum_needed = 0;
+        tx->cptse = 0;
     }
 }
 

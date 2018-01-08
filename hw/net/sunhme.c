@@ -698,29 +698,6 @@ static inline void sunhme_set_rx_ring_nr(SunHMEState *s, int i)
     s->erxregs[HME_ERXI_RING >> 2] = ring;
 }
 
-#define POLYNOMIAL_LE 0xedb88320
-static uint32_t sunhme_crc32_le(const uint8_t *p, int len)
-{
-    uint32_t crc;
-    int carry, i, j;
-    uint8_t b;
-
-    crc = 0xffffffff;
-    for (i = 0; i < len; i++) {
-        b = *p++;
-        for (j = 0; j < 8; j++) {
-            carry = (crc & 0x1) ^ (b & 0x01);
-            crc >>= 1;
-            b >>= 1;
-            if (carry) {
-                crc = crc ^ POLYNOMIAL_LE;
-            }
-        }
-    }
-
-    return crc;
-}
-
 #define MIN_BUF_SIZE 60
 
 static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
@@ -761,7 +738,7 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
             trace_sunhme_rx_filter_bcast_match();
         } else if (s->macregs[HME_MACI_RXCFG >> 2] & HME_MAC_RXCFG_HENABLE) {
             /* Didn't match local address, check hash filter */
-            int mcast_idx = sunhme_crc32_le(buf, 6) >> 26;
+            int mcast_idx = net_crc32_le(buf, ETH_ALEN) >> 26;
             if (!(s->macregs[(HME_MACI_HASHTAB0 >> 2) - (mcast_idx >> 4)] &
                     (1 << (mcast_idx & 0xf)))) {
                 /* Didn't match hash filter */
