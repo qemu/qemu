@@ -3542,9 +3542,9 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
 
-    if (s->ops->init(&s->ctx) < 0) {
-        error_setg(errp, "9pfs Failed to initialize fs-driver with id:%s"
-                   " and export path:%s", s->fsconf.fsdev_id, s->ctx.fs_root);
+    if (s->ops->init(&s->ctx, errp) < 0) {
+        error_prepend(errp, "cannot initialize fsdev '%s': ",
+                      s->fsconf.fsdev_id);
         goto out;
     }
 

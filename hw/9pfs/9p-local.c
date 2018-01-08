@@ -1400,13 +1400,14 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
 #endif
 }
 
-static int local_init(FsContext *ctx)
+static int local_init(FsContext *ctx, Error **errp)
 {
     struct statfs stbuf;
     LocalData *data = g_malloc(sizeof(*data));
 
     data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
     if (data->mountfd == -1) {
+        error_setg_errno(errp, errno, "failed to open '%s'", ctx->fs_root);
         goto err;
     }
 

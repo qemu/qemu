@@ -1083,25 +1083,25 @@ static int proxy_ioc_getversion(FsContext *fs_ctx, V9fsPath *path,
     return err;
 }
 
-static int connect_namedsocket(const char *path)
+static int connect_namedsocket(const char *path, Error **errp)
 {
     int sockfd, size;
     struct sockaddr_un helper;
 
     if (strlen(path) >= sizeof(helper.sun_path)) {
-        error_report("Socket name too long");
+        error_setg(errp, "socket name too long");
         return -1;
     }
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        error_report("Failed to create socket: %s", strerror(errno));
+        error_setg_errno(errp, errno, "failed to create client socket");
         return -1;
     }
     strcpy(helper.sun_path, path);
     helper.sun_family = AF_UNIX;
     size = strlen(helper.sun_path) + sizeof(helper.sun_family);
     if (connect(sockfd, (struct sockaddr *)&helper, size) < 0) {
-        error_report("Failed to connect to %s: %s", path, strerror(errno));
+        error_setg_errno(errp, errno, "failed to connect to '%s'", path);
         close(sockfd);
         return -1;
     }
@@ -1144,17 +1144,17 @@ static int proxy_parse_opts(QemuOpts *opts, FsDriverEntry *fs, Error **errp)
     return 0;
 }
 
-static int proxy_init(FsContext *ctx)
+static int proxy_init(FsContext *ctx, Error **errp)
 {
     V9fsProxy *proxy = g_malloc(sizeof(V9fsProxy));
     int sock_id;
 
     if (ctx->export_flags & V9FS_PROXY_SOCK_NAME) {
-        sock_id = connect_namedsocket(ctx->fs_root);
+        sock_id = connect_namedsocket(ctx->fs_root, errp);
     } else {
         sock_id = atoi(ctx->fs_root);
         if (sock_id < 0) {
-            error_report("Socket descriptor not initialized");
+            error_setg(errp, "socket descriptor not initialized");
         }
     }
     if (sock_id < 0) {

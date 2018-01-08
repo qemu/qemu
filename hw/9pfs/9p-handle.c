@@ -604,7 +604,7 @@ static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
 #endif
 }
 
-static int handle_init(FsContext *ctx)
+static int handle_init(FsContext *ctx, Error **errp)
 {
     int ret, mnt_id;
     struct statfs stbuf;

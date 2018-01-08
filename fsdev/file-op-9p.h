@@ -104,7 +104,7 @@ void cred_init(FsCred *);
 struct FileOperations
 {
     int (*parse_opts)(QemuOpts *, FsDriverEntry *, Error **errp);
-    int (*init)(FsContext *);
+    int (*init)(FsContext *, Error **errp);
     void (*cleanup)(FsContext *);
     int (*lstat)(FsContext *, V9fsPath *, struct stat *);
     ssize_t (*readlink)(FsContext *, V9fsPath *, char *, size_t);
