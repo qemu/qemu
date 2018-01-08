@@ -125,7 +125,7 @@ void hppa_translate_init(void)
 
     int i;
 
-    TCGV_UNUSED(cpu_gr[0]);
+    cpu_gr[0] = NULL;
     for (i = 1; i < 32; i++) {
         cpu_gr[i] = tcg_global_mem_new(cpu_env,
                                        offsetof(CPUHPPAState, gr[i]),
@@ -140,28 +140,31 @@ void hppa_translate_init(void)
 
 static DisasCond cond_make_f(void)
 {
-    DisasCond r = { .c = TCG_COND_NEVER };
-    TCGV_UNUSED(r.a0);
-    TCGV_UNUSED(r.a1);
-    return r;
+    return (DisasCond){
+        .c = TCG_COND_NEVER,
+        .a0 = NULL,
+        .a1 = NULL,
+    };
 }
 
 static DisasCond cond_make_n(void)
 {
-    DisasCond r = { .c = TCG_COND_NE, .a0_is_n = true, .a1_is_0 = true };
-    r.a0 = cpu_psw_n;
-    TCGV_UNUSED(r.a1);
-    return r;
+    return (DisasCond){
+        .c = TCG_COND_NE,
+        .a0 = cpu_psw_n,
+        .a0_is_n = true,
+        .a1 = NULL,
+        .a1_is_0 = true
+    };
 }
 
 static DisasCond cond_make_0(TCGCond c, TCGv a0)
 {
-    DisasCond r = { .c = c, .a1_is_0 = true };
+    DisasCond r = { .c = c, .a1 = NULL, .a1_is_0 = true };
 
     assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
     r.a0 = tcg_temp_new();
     tcg_gen_mov_tl(r.a0, a0);
-    TCGV_UNUSED(r.a1);
 
     return r;
 }
@@ -199,8 +202,8 @@ static void cond_free(DisasCond *cond)
         }
         cond->a0_is_n = false;
         cond->a1_is_0 = false;
-        TCGV_UNUSED(cond->a0);
-        TCGV_UNUSED(cond->a1);
+        cond->a0 = NULL;
+        cond->a1 = NULL;
         /* fallthru */
     case TCG_COND_ALWAYS:
         cond->c = TCG_COND_NEVER;
@@ -716,9 +719,8 @@ static DisasCond do_sed_cond(unsigned orig, TCGv res)
 static DisasCond do_unit_cond(unsigned cf, TCGv res, TCGv in1, TCGv in2)
 {
     DisasCond cond;
-    TCGv tmp, cb;
+    TCGv tmp, cb = NULL;
 
-    TCGV_UNUSED(cb);
     if (cf & 8) {
         /* Since we want to test lots of carry-out bits all at once, do not
          * do our normal thing and compute carry-in of bit B+1 since that
@@ -826,8 +828,8 @@ static DisasJumpType do_add(DisasContext *ctx, unsigned rt, TCGv in1, TCGv in2,
     DisasCond cond;
 
     dest = tcg_temp_new();
-    TCGV_UNUSED(cb);
-    TCGV_UNUSED(cb_msb);
+    cb = NULL;
+    cb_msb = NULL;
 
     if (shift) {
         tmp = get_temp(ctx);
@@ -856,7 +858,7 @@ static DisasJumpType do_add(DisasContext *ctx, unsigned rt, TCGv in1, TCGv in2,
     }
 
     /* Compute signed overflow if required.  */
-    TCGV_UNUSED(sv);
+    sv = NULL;
     if (is_tsv || c == 6) {
         sv = do_add_sv(ctx, dest, in1, in2);
         if (is_tsv) {
@@ -919,7 +921,7 @@ static DisasJumpType do_sub(DisasContext *ctx, unsigned rt, TCGv in1, TCGv in2,
     tcg_temp_free(zero);
 
     /* Compute signed overflow if required.  */
-    TCGV_UNUSED(sv);
+    sv = NULL;
     if (is_tsv || c == 6) {
         sv = do_sub_sv(ctx, dest, in1, in2);
         if (is_tsv) {
@@ -965,7 +967,7 @@ static DisasJumpType do_cmpclr(DisasContext *ctx, unsigned rt, TCGv in1,
     tcg_gen_sub_tl(dest, in1, in2);
 
     /* Compute signed overflow if required.  */
-    TCGV_UNUSED(sv);
+    sv = NULL;
     if ((cf >> 1) == 6) {
         sv = do_sub_sv(ctx, dest, in1, in2);
     }
@@ -2070,8 +2072,7 @@ static DisasJumpType trans_ds(DisasContext *ctx, uint32_t insn,
 
     /* Install the new nullification.  */
     if (cf) {
-        TCGv sv;
-        TCGV_UNUSED(sv);
+        TCGv sv = NULL;
         if (cf >> 1 == 6) {
             /* ??? The lshift is supposed to contribute to overflow.  */
             sv = do_add_sv(ctx, dest, add1, add2);
@@ -2542,7 +2543,7 @@ static DisasJumpType trans_cmpb(DisasContext *ctx, uint32_t insn,
 
     tcg_gen_sub_tl(dest, in1, in2);
 
-    TCGV_UNUSED(sv);
+    sv = NULL;
     if (c == 6) {
         sv = do_sub_sv(ctx, dest, in1, in2);
     }
@@ -2571,8 +2572,8 @@ static DisasJumpType trans_addb(DisasContext *ctx, uint32_t insn,
     }
     in2 = load_gpr(ctx, r);
     dest = dest_gpr(ctx, r);
-    TCGV_UNUSED(sv);
-    TCGV_UNUSED(cb_msb);
+    sv = NULL;
+    cb_msb = NULL;
 
     switch (c) {
     default:
@@ -3732,18 +3733,16 @@ static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     TranslationBlock *tb = ctx->base.tb;
-    int i, bound;
+    int bound;
 
     ctx->cs = cs;
     ctx->iaoq_f = tb->pc;
     ctx->iaoq_b = tb->cs_base;
     ctx->iaoq_n = -1;
-    TCGV_UNUSED(ctx->iaoq_n_var);
+    ctx->iaoq_n_var = NULL;
 
     ctx->ntemps = 0;
-    for (i = 0; i < ARRAY_SIZE(ctx->temps); ++i) {
-        TCGV_UNUSED(ctx->temps[i]);
-    }
+    memset(ctx->temps, 0, sizeof(ctx->temps));
 
     bound = -(tb->pc | TARGET_PAGE_MASK) / 4;
     return MIN(max_insns, bound);
@@ -3804,7 +3803,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             tcg_gen_addi_tl(ctx->iaoq_n_var, cpu_iaoq_b, 4);
         } else {
             ctx->iaoq_n = ctx->iaoq_b + 4;
-            TCGV_UNUSED(ctx->iaoq_n_var);
+            ctx->iaoq_n_var = NULL;
         }
 
         if (unlikely(ctx->null_cond.c == TCG_COND_ALWAYS)) {
@@ -3819,7 +3818,7 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     /* Free any temporaries allocated.  */
     for (i = 0, n = ctx->ntemps; i < n; ++i) {
         tcg_temp_free(ctx->temps[i]);
-        TCGV_UNUSED(ctx->temps[i]);
+        ctx->temps[i] = NULL;
     }
     ctx->ntemps = 0;
 

@@ -689,7 +689,7 @@ static void gen_compute_eflags(DisasContext *s)
         return;
     }
 
-    TCGV_UNUSED(zero);
+    zero = NULL;
     dst = cpu_cc_dst;
     src1 = cpu_cc_src;
     src2 = cpu_cc_src2;
@@ -2050,9 +2050,8 @@ static AddressParts gen_lea_modrm_0(CPUX86State *env, DisasContext *s,
 /* Compute the address, with a minimum number of TCG ops.  */
 static TCGv gen_lea_modrm_1(AddressParts a)
 {
-    TCGv ea;
+    TCGv ea = NULL;
 
-    TCGV_UNUSED(ea);
     if (a.index >= 0) {
         if (a.scale == 0) {
             ea = cpu_regs[a.index];
@@ -2067,7 +2066,7 @@ static TCGv gen_lea_modrm_1(AddressParts a)
     } else if (a.base >= 0) {
         ea = cpu_regs[a.base];
     }
-    if (TCGV_IS_UNUSED(ea)) {
+    if (!ea) {
         tcg_gen_movi_tl(cpu_A0, a.disp);
         ea = cpu_A0;
     } else if (a.disp != 0) {
@@ -3951,7 +3950,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
 
                     /* Re-use the carry-out from a previous round.  */
-                    TCGV_UNUSED(carry_in);
+                    carry_in = NULL;
                     carry_out = (b == 0x1f6 ? cpu_cc_dst : cpu_cc_src2);
                     switch (s->cc_op) {
                     case CC_OP_ADCX:
@@ -3979,7 +3978,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                         break;
                     }
                     /* If we can't reuse carry-out, get it out of EFLAGS.  */
-                    if (TCGV_IS_UNUSED(carry_in)) {
+                    if (!carry_in) {
                         if (s->cc_op != CC_OP_ADCX && s->cc_op != CC_OP_ADOX) {
                             gen_compute_eflags(s);
                         }
@@ -7673,7 +7672,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 tcg_gen_mov_tl(a0, cpu_A0);
             } else {
                 gen_op_mov_v_reg(ot, t0, rm);
-                TCGV_UNUSED(a0);
+                a0 = NULL;
             }
             gen_op_mov_v_reg(ot, t1, reg);
             tcg_gen_andi_tl(cpu_tmp0, t0, 3);

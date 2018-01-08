@@ -36,11 +36,8 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
 
     ret = moxie_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
     if (unlikely(ret)) {
-        if (retaddr) {
-            cpu_restore_state(cs, retaddr);
-        }
+        cpu_loop_exit_restore(cs, retaddr);
     }
-    cpu_loop_exit(cs);
 }
 
 void helper_raise_exception(CPUMoxieState *env, int ex)

@@ -20453,7 +20453,7 @@ void mips_tcg_init(void)
 {
     int i;
 
-    TCGV_UNUSED(cpu_gpr[0]);
+    cpu_gpr[0] = NULL;
     for (i = 1; i < 32; i++)
         cpu_gpr[i] = tcg_global_mem_new(cpu_env,
                                         offsetof(CPUMIPSState, active_tc.gpr[i]),

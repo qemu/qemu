@@ -39,6 +39,12 @@
     | dh_sizemask(t2, 2) | dh_sizemask(t3, 3) | dh_sizemask(t4, 4) \
     | dh_sizemask(t5, 5) },
 
+#define DEF_HELPER_FLAGS_6(NAME, FLAGS, ret, t1, t2, t3, t4, t5, t6) \
+  { .func = HELPER(NAME), .name = str(NAME), .flags = FLAGS, \
+    .sizemask = dh_sizemask(ret, 0) | dh_sizemask(t1, 1) \
+    | dh_sizemask(t2, 2) | dh_sizemask(t3, 3) | dh_sizemask(t4, 4) \
+    | dh_sizemask(t5, 5) | dh_sizemask(t6, 6) },
+
 #include "helper.h"
 #include "trace/generated-helpers.h"
 #include "tcg-runtime.h"
@@ -50,5 +56,6 @@
 #undef DEF_HELPER_FLAGS_3
 #undef DEF_HELPER_FLAGS_4
 #undef DEF_HELPER_FLAGS_5
+#undef DEF_HELPER_FLAGS_6
 
 #endif /* HELPER_TCG_H */

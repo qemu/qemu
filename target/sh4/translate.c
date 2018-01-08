@@ -1940,7 +1940,7 @@ static int decode_gusa(DisasContext *ctx, CPUSH4State *env, int *pmax_insns)
     op_dst = op_src = op_opc = -1;
     mt_dst = -1;
     st_src = st_mop = -1;
-    TCGV_UNUSED(op_arg);
+    op_arg = NULL;
     i = 0;
 
 #define NEXT_INSN \
@@ -2228,7 +2228,7 @@ static int decode_gusa(DisasContext *ctx, CPUSH4State *env, int *pmax_insns)
     }
 
     /* If op_src is not a valid register, then op_arg was a constant.  */
-    if (op_src < 0 && !TCGV_IS_UNUSED(op_arg)) {
+    if (op_src < 0 && op_arg) {
         tcg_temp_free_i32(op_arg);
     }
 

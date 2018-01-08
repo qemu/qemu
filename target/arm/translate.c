@@ -2169,8 +2169,8 @@ static int disas_iwmmxt_insn(DisasContext *s, uint32_t insn)
             tmp3 = tcg_const_i32((insn & 1) << 5);
             break;
         default:
-            TCGV_UNUSED_I32(tmp2);
-            TCGV_UNUSED_I32(tmp3);
+            tmp2 = NULL;
+            tmp3 = NULL;
         }
         gen_helper_iwmmxt_insr(cpu_M0, cpu_M0, tmp, tmp2, tmp3);
         tcg_temp_free_i32(tmp3);
@@ -4939,7 +4939,7 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
                         }
                     } else /* size == 0 */ {
                         if (load) {
-                            TCGV_UNUSED_I32(tmp2);
+                            tmp2 = NULL;
                             for (n = 0; n < 4; n++) {
                                 tmp = tcg_temp_new_i32();
                                 gen_aa32_ld8u(s, tmp, addr, get_mem_index(s));
@@ -6643,11 +6643,11 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     tmp = neon_load_reg(rn, 1);
                     neon_store_scratch(2, tmp);
                 }
-                TCGV_UNUSED_I32(tmp3);
+                tmp3 = NULL;
                 for (pass = 0; pass < 2; pass++) {
                     if (src1_wide) {
                         neon_load_reg64(cpu_V0, rn + pass);
-                        TCGV_UNUSED_I32(tmp);
+                        tmp = NULL;
                     } else {
                         if (pass == 1 && rd == rn) {
                             tmp = neon_load_scratch(2);
@@ -6660,7 +6660,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     }
                     if (src2_wide) {
                         neon_load_reg64(cpu_V1, rm + pass);
-                        TCGV_UNUSED_I32(tmp2);
+                        tmp2 = NULL;
                     } else {
                         if (pass == 1 && rd == rm) {
                             tmp2 = neon_load_scratch(2);
@@ -7078,7 +7078,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     if (rm & 1) {
                         return 1;
                     }
-                    TCGV_UNUSED_I32(tmp2);
+                    tmp2 = NULL;
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = tcg_temp_new_i32();
@@ -7217,7 +7217,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         if (neon_2rm_is_float_op(op)) {
                             tcg_gen_ld_f32(cpu_F0s, cpu_env,
                                            neon_reg_offset(rm, pass));
-                            TCGV_UNUSED_I32(tmp);
+                            tmp = NULL;
                         } else {
                             tmp = neon_load_reg(rm, pass);
                         }
@@ -8666,7 +8666,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             rn = (insn >> 16) & 0xf;
             tmp = load_reg(s, rn);
         } else {
-            TCGV_UNUSED_I32(tmp);
+            tmp = NULL;
         }
         rd = (insn >> 12) & 0xf;
         switch(op1) {
@@ -9505,7 +9505,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
 
                 /* compute total size */
                 loaded_base = 0;
-                TCGV_UNUSED_I32(loaded_var);
+                loaded_var = NULL;
                 n = 0;
                 for(i=0;i<16;i++) {
                     if (insn & (1 << i))
@@ -10074,7 +10074,7 @@ static int disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     tcg_gen_addi_i32(addr, addr, -offset);
                 }
 
-                TCGV_UNUSED_I32(loaded_var);
+                loaded_var = NULL;
                 for (i = 0; i < 16; i++) {
                     if ((insn & (1 << i)) == 0)
                         continue;
@@ -11355,7 +11355,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
         } else if (op != 0xf) { /* mvn doesn't read its first operand */
             tmp = load_reg(s, rd);
         } else {
-            TCGV_UNUSED_I32(tmp);
+            tmp = NULL;
         }
 
         tmp2 = load_reg(s, rm);
@@ -11686,7 +11686,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
                     tcg_gen_addi_i32(addr, addr, 4);
                 }
             }
-            TCGV_UNUSED_I32(tmp);
+            tmp = NULL;
             if (insn & (1 << 8)) {
                 if (insn & (1 << 11)) {
                     /* pop pc */
@@ -11831,8 +11831,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
     case 12:
     {
         /* load/store multiple */
-        TCGv_i32 loaded_var;
-        TCGV_UNUSED_I32(loaded_var);
+        TCGv_i32 loaded_var = NULL;
         rn = (insn >> 8) & 0x7;
         addr = load_reg(s, rn);
         for (i = 0; i < 8; i++) {
@@ -12097,10 +12096,10 @@ static void arm_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    dc->insn_start_idx = tcg_op_buf_count();
     tcg_gen_insn_start(dc->pc,
                        (dc->condexec_cond << 4) | (dc->condexec_mask >> 1),
                        0);
+    dc->insn_start = tcg_last_op();
 }
 
 static bool arm_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,

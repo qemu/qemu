@@ -405,10 +405,7 @@ static void unallocated_encoding(DisasContext *s)
 static void init_tmp_a64_array(DisasContext *s)
 {
 #ifdef CONFIG_DEBUG_TCG
-    int i;
-    for (i = 0; i < ARRAY_SIZE(s->tmp_a64); i++) {
-        TCGV_UNUSED_I64(s->tmp_a64[i]);
-    }
+    memset(s->tmp_a64, 0, sizeof(s->tmp_a64));
 #endif
     s->tmp_a64_count = 0;
 }
@@ -6276,7 +6273,7 @@ static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
             return;
         }
 
-        TCGV_UNUSED_PTR(fpst);
+        fpst = NULL;
         break;
     case 0xc: /* FMAXNMP */
     case 0xd: /* FADDP */
@@ -6371,7 +6368,7 @@ static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
         tcg_temp_free_i32(tcg_res);
     }
 
-    if (!TCGV_IS_UNUSED_PTR(fpst)) {
+    if (fpst) {
         tcg_temp_free_ptr(fpst);
     }
 }
@@ -6387,7 +6384,7 @@ static void handle_shri_with_rndacc(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
                                     bool is_u, int size, int shift)
 {
     bool extended_result = false;
-    bool round = !TCGV_IS_UNUSED_I64(tcg_rnd);
+    bool round = tcg_rnd != NULL;
     int ext_lshift = 0;
     TCGv_i64 tcg_src_hi;
 
@@ -6533,7 +6530,7 @@ static void handle_scalar_simd_shri(DisasContext *s,
         uint64_t round_const = 1ULL << (shift - 1);
         tcg_round = tcg_const_i64(round_const);
     } else {
-        TCGV_UNUSED_I64(tcg_round);
+        tcg_round = NULL;
     }
 
     tcg_rn = read_fp_dreg(s, rn);
@@ -6649,7 +6646,7 @@ static void handle_vec_simd_sqshrn(DisasContext *s, bool is_scalar, bool is_q,
         uint64_t round_const = 1ULL << (shift - 1);
         tcg_round = tcg_const_i64(round_const);
     } else {
-        TCGV_UNUSED_I64(tcg_round);
+        tcg_round = NULL;
     }
 
     for (i = 0; i < elements; i++) {
@@ -8239,8 +8236,8 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
         gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
         tcg_fpstatus = get_fpstatus_ptr();
     } else {
-        TCGV_UNUSED_I32(tcg_rmode);
-        TCGV_UNUSED_PTR(tcg_fpstatus);
+        tcg_rmode = NULL;
+        tcg_fpstatus = NULL;
     }
 
     if (size == 3) {
@@ -8360,7 +8357,7 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
         uint64_t round_const = 1ULL << (shift - 1);
         tcg_round = tcg_const_i64(round_const);
     } else {
-        TCGV_UNUSED_I64(tcg_round);
+        tcg_round = NULL;
     }
 
     for (i = 0; i < elements; i++) {
@@ -8502,7 +8499,7 @@ static void handle_vec_simd_shrn(DisasContext *s, bool is_q,
         uint64_t round_const = 1ULL << (shift - 1);
         tcg_round = tcg_const_i64(round_const);
     } else {
-        TCGV_UNUSED_I64(tcg_round);
+        tcg_round = NULL;
     }
 
     for (i = 0; i < elements; i++) {
@@ -9168,7 +9165,7 @@ static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
     if (opcode >= 0x58) {
         fpst = get_fpstatus_ptr();
     } else {
-        TCGV_UNUSED_PTR(fpst);
+        fpst = NULL;
     }
 
     if (!fp_access_check(s)) {
@@ -9305,7 +9302,7 @@ static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
         }
     }
 
-    if (!TCGV_IS_UNUSED_PTR(fpst)) {
+    if (fpst) {
         tcg_temp_free_ptr(fpst);
     }
 }
@@ -10226,13 +10223,13 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     if (need_fpstatus) {
         tcg_fpstatus = get_fpstatus_ptr();
     } else {
-        TCGV_UNUSED_PTR(tcg_fpstatus);
+        tcg_fpstatus = NULL;
     }
     if (need_rmode) {
         tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
         gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
     } else {
-        TCGV_UNUSED_I32(tcg_rmode);
+        tcg_rmode = NULL;
     }
 
     if (size == 3) {
@@ -10593,7 +10590,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     if (is_fp) {
         fpst = get_fpstatus_ptr();
     } else {
-        TCGV_UNUSED_PTR(fpst);
+        fpst = NULL;
     }
 
     if (size == 3) {
@@ -10917,7 +10914,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         }
     }
 
-    if (!TCGV_IS_UNUSED_PTR(fpst)) {
+    if (fpst) {
         tcg_temp_free_ptr(fpst);
     }
 }
@@ -11293,8 +11290,8 @@ static void aarch64_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    dc->insn_start_idx = tcg_op_buf_count();
     tcg_gen_insn_start(dc->pc, 0, 0);
+    dc->insn_start = tcg_last_op();
 }
 
 static bool aarch64_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
