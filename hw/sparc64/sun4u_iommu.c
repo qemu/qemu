@@ -81,8 +81,9 @@ do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
 
 
 /* Called from RCU critical section */
-static IOMMUTLBEntry pbm_translate_iommu(IOMMUMemoryRegion *iommu, hwaddr addr,
-                                         IOMMUAccessFlags flag)
+static IOMMUTLBEntry sun4u_translate_iommu(IOMMUMemoryRegion *iommu,
+                                           hwaddr addr,
+                                           IOMMUAccessFlags flag)
 {
     IOMMUState *is = container_of(iommu, IOMMUState, iommu);
     hwaddr baseaddr, offset;
@@ -233,7 +234,7 @@ static void iommu_mem_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_UNIMP,
-                  "apb iommu: Unimplemented register write "
+                  "sun4u-iommu: Unimplemented register write "
                   "reg 0x%" HWADDR_PRIx " size 0x%x value 0x%" PRIx64 "\n",
                   addr, size, val);
         break;
@@ -272,7 +273,7 @@ static uint64_t iommu_mem_read(void *opaque, hwaddr addr, unsigned size)
         break;
     default:
         qemu_log_mask(LOG_UNIMP,
-                      "apb iommu: Unimplemented register read "
+                      "sun4u-iommu: Unimplemented register read "
                       "reg 0x%" HWADDR_PRIx " size 0x%x\n",
                       addr, size);
         val = 0;
@@ -304,9 +305,9 @@ static void iommu_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
-                             TYPE_APB_IOMMU_MEMORY_REGION, OBJECT(s),
-                             "iommu-apb", UINT64_MAX);
-    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "pbm-as");
+                             TYPE_SUN4U_IOMMU_MEMORY_REGION, OBJECT(s),
+                             "iommu-sun4u", UINT64_MAX);
+    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
 
     memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
                           IOMMU_NREGS * sizeof(uint64_t));
@@ -320,7 +321,7 @@ static void iommu_class_init(ObjectClass *klass, void *data)
     dc->reset = iommu_reset;
 }
 
-static const TypeInfo pbm_iommu_info = {
+static const TypeInfo iommu_info = {
     .name          = TYPE_SUN4U_IOMMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IOMMUState),
@@ -328,23 +329,23 @@ static const TypeInfo pbm_iommu_info = {
     .class_init    = iommu_class_init,
 };
 
-static void pbm_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+static void sun4u_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
-    imrc->translate = pbm_translate_iommu;
+    imrc->translate = sun4u_translate_iommu;
 }
 
-static const TypeInfo pbm_iommu_memory_region_info = {
+static const TypeInfo sun4u_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
-    .name = TYPE_APB_IOMMU_MEMORY_REGION,
-    .class_init = pbm_iommu_memory_region_class_init,
+    .name = TYPE_SUN4U_IOMMU_MEMORY_REGION,
+    .class_init = sun4u_iommu_memory_region_class_init,
 };
 
-static void pbm_register_types(void)
+static void iommu_register_types(void)
 {
-    type_register_static(&pbm_iommu_info);
-    type_register_static(&pbm_iommu_memory_region_info);
+    type_register_static(&iommu_info);
+    type_register_static(&sun4u_iommu_memory_region_info);
 }
 
-type_init(pbm_register_types)
+type_init(iommu_register_types)
