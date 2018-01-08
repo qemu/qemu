@@ -786,11 +786,24 @@ QemuCocoaView *cocoaView;
             mouse_event = true;
             break;
         case NSEventTypeScrollWheel:
-            if (isMouseGrabbed) {
-                buttons |= ([event deltaY] < 0) ?
-                    MOUSE_EVENT_WHEELUP : MOUSE_EVENT_WHEELDN;
-            }
-            mouse_event = true;
+            /*
+             * Send wheel events to the guest regardless of window focus.
+             * This is in-line with standard Mac OS X UI behaviour.
+             */
+
+            /* Determine if this is a scroll up or scroll down event */
+            buttons = ([event scrollingDeltaY] > 0) ?
+                INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
+            qemu_input_queue_btn(dcl->con, buttons, true);
+            qemu_input_event_sync();
+            qemu_input_queue_btn(dcl->con, buttons, false);
+            qemu_input_event_sync();
+
+            /*
+             * Since deltaY also reports scroll wheel events we prevent mouse
+             * movement code from executing.
+             */
+            mouse_event = false;
             break;
         default:
             [NSApp sendEvent:event];
@@ -809,9 +822,7 @@ QemuCocoaView *cocoaView;
             static uint32_t bmap[INPUT_BUTTON__MAX] = {
                 [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
                 [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
-                [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
-                [INPUT_BUTTON_WHEEL_UP]   = MOUSE_EVENT_WHEELUP,
-                [INPUT_BUTTON_WHEEL_DOWN] = MOUSE_EVENT_WHEELDN,
+                [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON
             };
             qemu_input_update_buttons(dcl->con, bmap, last_buttons, buttons);
             last_buttons = buttons;
