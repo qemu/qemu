@@ -18,6 +18,7 @@ test-aio
 test-aio-multithread
 test-arm-mptimer
 test-base64
+test-bdrv-drain
 test-bitops
 test-bitcnt
 test-blockjob
