@@ -77,7 +77,7 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
     DEBUG_ARGS((dfd, " type = %d, code = %d\n", type, code));
 
     if (IN6_IS_ADDR_MULTICAST(&ip->ip_src) ||
-            IN6_IS_ADDR_UNSPECIFIED(&ip->ip_src)) {
+            in6_zero(&ip->ip_src)) {
         /* TODO icmp error? */
         return;
     }
@@ -272,7 +272,7 @@ static void ndp_send_na(Slirp *slirp, struct ip6 *ip, struct icmp6 *icmp)
     struct mbuf *t = m_get(slirp);
     struct ip6 *rip = mtod(t, struct ip6 *);
     rip->ip_src = icmp->icmp6_nns.target;
-    if (IN6_IS_ADDR_UNSPECIFIED(&ip->ip_src)) {
+    if (in6_zero(&ip->ip_src)) {
         rip->ip_dst = (struct in6_addr)ALLNODES_MULTICAST;
     } else {
         rip->ip_dst = ip->ip_src;
@@ -350,7 +350,7 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
                 && icmp->icmp6_code == 0
                 && !IN6_IS_ADDR_MULTICAST(&icmp->icmp6_nns.target)
                 && ntohs(ip->ip_pl) >= ICMP6_NDP_NS_MINLEN
-                && (!IN6_IS_ADDR_UNSPECIFIED(&ip->ip_src)
+                && (!in6_zero(&ip->ip_src)
                     || in6_solicitednode_multicast(&ip->ip_dst))) {
             if (in6_equal_host(&icmp->icmp6_nns.target)) {
                 /* Gratuitous NDP */
