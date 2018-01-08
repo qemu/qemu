@@ -18,15 +18,5 @@ sparc32_dma_mem_writel(uint64_t addr, uint32_t old, uint32_t val) "write dmareg 
 sparc32_dma_enable_raise(void) "Raise DMA enable"
 sparc32_dma_enable_lower(void) "Lower DMA enable"
 
-# hw/dma/sun4m_iommu.c
-sun4m_iommu_mem_readl(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
-sun4m_iommu_mem_writel(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
-sun4m_iommu_mem_writel_ctrl(uint64_t iostart) "iostart = 0x%"PRIx64
-sun4m_iommu_mem_writel_tlbflush(uint32_t val) "tlb flush 0x%x"
-sun4m_iommu_mem_writel_pgflush(uint32_t val) "page flush 0x%x"
-sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "get flags addr 0x%"PRIx64" => pte 0x%"PRIx64", *pte = 0x%x"
-sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva 0x%"PRIx64" => pa 0x%"PRIx64" iopte = 0x%x"
-sun4m_iommu_bad_addr(uint64_t addr) "bad addr 0x%"PRIx64
-
 # hw/dma/i8257.c
 i8257_unregistered_dma(int nchan, int dma_pos, int dma_len) "unregistered DMA channel used nchan=%d dma_pos=%d dma_len=%d"
