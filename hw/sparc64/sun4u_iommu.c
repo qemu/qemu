@@ -184,6 +184,8 @@ static IOMMUTLBEntry sun4u_translate_iommu(IOMMUMemoryRegion *iommu,
         ret.addr_mask = (IOMMU_PAGE_SIZE_8K - 1);
     }
 
+    trace_sun4u_iommu_translate(ret.iova, ret.translated_addr, tte);
+
     return ret;
 }
 
