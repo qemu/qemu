@@ -99,10 +99,10 @@ static int omode_to_uflags(int8_t mode)
     return ret;
 }
 
-struct dotl_openflag_map {
+typedef struct DotlOpenflagMap {
     int dotl_flag;
     int open_flag;
-};
+} DotlOpenflagMap;
 
 static int dotl_to_open_flags(int flags)
 {
@@ -113,7 +113,7 @@ static int dotl_to_open_flags(int flags)
      */
     int oflags = flags & O_ACCMODE;
 
-    struct dotl_openflag_map dotl_oflag_map[] = {
+    DotlOpenflagMap dotl_oflag_map[] = {
         { P9_DOTL_CREATE, O_CREAT },
         { P9_DOTL_EXCL, O_EXCL },
         { P9_DOTL_NOCTTY , O_NOCTTY },
