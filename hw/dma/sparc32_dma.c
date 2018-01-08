@@ -29,6 +29,7 @@
 #include "hw/hw.h"
 #include "hw/sparc/sparc32_dma.h"
 #include "hw/sparc/sun4m.h"
+#include "hw/sparc/sun4m_iommu.h"
 #include "hw/sysbus.h"
 #include "sysemu/dma.h"
 #include "qapi/error.h"

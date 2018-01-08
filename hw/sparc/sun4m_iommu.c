@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sparc/sun4m.h"
+#include "hw/sparc/sun4m_iommu.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
