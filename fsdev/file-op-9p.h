@@ -22,21 +22,19 @@
 #define SM_LOCAL_MODE_BITS    0600
 #define SM_LOCAL_DIR_MODE_BITS    0700
 
-typedef struct FsCred
-{
+typedef struct FsCred {
     uid_t   fc_uid;
     gid_t   fc_gid;
     mode_t  fc_mode;
     dev_t   fc_rdev;
 } FsCred;
 
-struct FsContext;
-struct V9fsPath;
+typedef struct FsContext FsContext;
+typedef struct V9fsPath V9fsPath;
 
-typedef struct extended_ops {
-    int (*get_st_gen)(struct FsContext *, struct V9fsPath *,
-                      mode_t, uint64_t *);
-} extended_ops;
+typedef struct ExtendedOps {
+    int (*get_st_gen)(FsContext *, V9fsPath *, mode_t, uint64_t *);
+} ExtendedOps;
 
 /* export flags */
 #define V9FS_IMMEDIATE_WRITEOUT     0x00000001
@@ -81,24 +79,23 @@ typedef struct FsDriverEntry {
     mode_t dmode;
 } FsDriverEntry;
 
-typedef struct FsContext
-{
+struct FsContext {
     uid_t uid;
     char *fs_root;
     int export_flags;
     XattrOperations **xops;
-    struct extended_ops exops;
+    ExtendedOps exops;
     FsThrottle *fst;
     /* fs driver specific data */
     void *private;
     mode_t fmode;
     mode_t dmode;
-} FsContext;
+};
 
-typedef struct V9fsPath {
+struct V9fsPath {
     uint16_t size;
     char *data;
-} V9fsPath;
+};
 
 typedef union V9fsFidOpenState V9fsFidOpenState;
 
@@ -106,9 +103,9 @@ void cred_init(FsCred *);
 
 struct FileOperations
 {
-    int (*parse_opts)(QemuOpts *, struct FsDriverEntry *);
-    int (*init)(struct FsContext *);
-    void (*cleanup)(struct FsContext *);
+    int (*parse_opts)(QemuOpts *, FsDriverEntry *);
+    int (*init)(FsContext *);
+    void (*cleanup)(FsContext *);
     int (*lstat)(FsContext *, V9fsPath *, struct stat *);
     ssize_t (*readlink)(FsContext *, V9fsPath *, char *, size_t);
     int (*chmod)(FsContext *, V9fsPath *, FsCred *);
