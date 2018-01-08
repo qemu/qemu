@@ -907,11 +907,10 @@ static void migration_bitmap_sync(RAMState *rs)
  * @rs: current RAM state
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
- * @p: pointer to the page
  */
-static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
-                          uint8_t *p)
+static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
 {
+    uint8_t *p = block->host + offset;
     int pages = -1;
 
     if (is_zero_range(p, TARGET_PAGE_SIZE)) {
@@ -984,7 +983,7 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
             }
         }
     } else {
-        pages = save_zero_page(rs, block, offset, p);
+        pages = save_zero_page(rs, block, offset);
         if (pages > 0) {
             /* Must let xbzrle know, otherwise a previous (now 0'd) cached
              * page would be stale
@@ -1160,7 +1159,7 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
          */
         if (block != rs->last_sent_block) {
             flush_compressed_data(rs);
-            pages = save_zero_page(rs, block, offset, p);
+            pages = save_zero_page(rs, block, offset);
             if (pages == -1) {
                 /* Make sure the first page is sent out before other pages */
                 bytes_xmit = save_page_header(rs, rs->f, block, offset |
@@ -1180,7 +1179,7 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
                 ram_release_pages(block->idstr, offset, pages);
             }
         } else {
-            pages = save_zero_page(rs, block, offset, p);
+            pages = save_zero_page(rs, block, offset);
             if (pages == -1) {
                 pages = compress_page_with_multi_thread(rs, block, offset);
             } else {
