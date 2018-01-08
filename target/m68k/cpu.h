@@ -45,6 +45,8 @@
 #define EXCP_ADDRESS        3   /* Address error.  */
 #define EXCP_ILLEGAL        4   /* Illegal instruction.  */
 #define EXCP_DIV0           5   /* Divide by zero */
+#define EXCP_CHK            6   /* CHK, CHK2 Instructions */
+#define EXCP_TRAPCC         7   /* FTRAPcc, TRAPcc, TRAPV Instructions */
 #define EXCP_PRIVILEGE      8   /* Privilege violation.  */
 #define EXCP_TRACE          9
 #define EXCP_LINEA          10  /* Unimplemented line-A (MAC) opcode.  */
@@ -53,6 +55,9 @@
 #define EXCP_DEBEGBP        13  /* Breakpoint debug interrupt.  */
 #define EXCP_FORMAT         14  /* RTE format error.  */
 #define EXCP_UNINITIALIZED  15
+#define EXCP_SPURIOUS       24  /* Spurious interrupt */
+#define EXCP_INT_LEVEL_1    25  /* Level 1 Interrupt autovector */
+#define EXCP_INT_LEVEL_7    31  /* Level 7 Interrupt autovector */
 #define EXCP_TRAP0          32   /* User trap #0.  */
 #define EXCP_TRAP15         47   /* User trap #15.  */
 #define EXCP_FP_BSUN        48 /* Branch Set on Unordered */
@@ -63,6 +68,9 @@
 #define EXCP_FP_OVFL        53 /* Overflow */
 #define EXCP_FP_SNAN        54 /* Signaling Not-A-Number */
 #define EXCP_FP_UNIMP       55 /* Unimplemented Data type */
+#define EXCP_MMU_CONF       56  /* MMU Configuration Error */
+#define EXCP_MMU_ILLEGAL    57  /* MMU Illegal Operation Error */
+#define EXCP_MMU_ACCESS     58  /* MMU Access Level Violation Error */
 #define EXCP_UNSUPPORTED    61
 
 #define EXCP_RTE            0x100
@@ -81,7 +89,7 @@ typedef struct CPUM68KState {
 
     /* SSP and USP.  The current_sp is stored in aregs[7], the other here.  */
     int current_sp;
-    uint32_t sp[2];
+    uint32_t sp[3];
 
     /* Condition flags.  */
     uint32_t cc_op;
@@ -170,6 +178,7 @@ int cpu_m68k_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 uint32_t cpu_m68k_get_ccr(CPUM68KState *env);
 void cpu_m68k_set_ccr(CPUM68KState *env, uint32_t);
+void cpu_m68k_set_sr(CPUM68KState *env, uint32_t);
 void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val);
 
 
@@ -210,10 +219,79 @@ typedef enum {
 #define SR_I  0x0700
 #define SR_M  0x1000
 #define SR_S  0x2000
-#define SR_T  0x8000
+#define SR_T_SHIFT 14
+#define SR_T  0xc000
 
 #define M68K_SSP    0
 #define M68K_USP    1
+#define M68K_ISP    2
+
+/* m68k Control Registers */
+
+/* ColdFire */
+/* Memory Management Control Registers */
+#define M68K_CR_ASID     0x003
+#define M68K_CR_ACR0     0x004
+#define M68K_CR_ACR1     0x005
+#define M68K_CR_ACR2     0x006
+#define M68K_CR_ACR3     0x007
+#define M68K_CR_MMUBAR   0x008
+
+/* Processor Miscellaneous Registers */
+#define M68K_CR_PC       0x80F
+
+/* Local Memory and Module Control Registers */
+#define M68K_CR_ROMBAR0  0xC00
+#define M68K_CR_ROMBAR1  0xC01
+#define M68K_CR_RAMBAR0  0xC04
+#define M68K_CR_RAMBAR1  0xC05
+#define M68K_CR_MPCR     0xC0C
+#define M68K_CR_EDRAMBAR 0xC0D
+#define M68K_CR_SECMBAR  0xC0E
+#define M68K_CR_MBAR     0xC0F
+
+/* Local Memory Address Permutation Control Registers */
+#define M68K_CR_PCR1U0   0xD02
+#define M68K_CR_PCR1L0   0xD03
+#define M68K_CR_PCR2U0   0xD04
+#define M68K_CR_PCR2L0   0xD05
+#define M68K_CR_PCR3U0   0xD06
+#define M68K_CR_PCR3L0   0xD07
+#define M68K_CR_PCR1U1   0xD0A
+#define M68K_CR_PCR1L1   0xD0B
+#define M68K_CR_PCR2U1   0xD0C
+#define M68K_CR_PCR2L1   0xD0D
+#define M68K_CR_PCR3U1   0xD0E
+#define M68K_CR_PCR3L1   0xD0F
+
+/* MC680x0 */
+/* MC680[1234]0/CPU32 */
+#define M68K_CR_SFC      0x000
+#define M68K_CR_DFC      0x001
+#define M68K_CR_USP      0x800
+#define M68K_CR_VBR      0x801 /* + Coldfire */
+
+/* MC680[234]0 */
+#define M68K_CR_CACR     0x002 /* + Coldfire */
+#define M68K_CR_CAAR     0x802 /* MC68020 and MC68030 only */
+#define M68K_CR_MSP      0x803
+#define M68K_CR_ISP      0x804
+
+/* MC68040/MC68LC040 */
+#define M68K_CR_TC       0x003
+#define M68K_CR_ITT0     0x004
+#define M68K_CR_ITT1     0x005
+#define M68K_CR_DTT0     0x006
+#define M68K_CR_DTT1     0x007
+#define M68K_CR_MMUSR    0x805
+#define M68K_CR_URP      0x806
+#define M68K_CR_SRP      0x807
+
+/* MC68EC040 */
+#define M68K_CR_IACR0    0x004
+#define M68K_CR_IACR1    0x005
+#define M68K_CR_DACR0    0x006
+#define M68K_CR_DACR1    0x007
 
 #define M68K_FPIAR_SHIFT  0
 #define M68K_FPIAR        (1 << M68K_FPIAR_SHIFT)
@@ -296,6 +374,8 @@ enum m68k_features {
     M68K_FEATURE_CAS,
     M68K_FEATURE_BKPT,
     M68K_FEATURE_RTD,
+    M68K_FEATURE_CHK2,
+    M68K_FEATURE_M68040, /* instructions specific to MC68040 */
 };
 
 static inline int m68k_feature(CPUM68KState *env, int feature)

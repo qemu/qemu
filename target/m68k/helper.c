@@ -171,26 +171,82 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
     /* TODO: Add [E]MAC registers.  */
 }
 
-void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
+void HELPER(cf_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
 {
     M68kCPU *cpu = m68k_env_get_cpu(env);
 
     switch (reg) {
-    case 0x02: /* CACR */
+    case M68K_CR_CACR:
         env->cacr = val;
         m68k_switch_sp(env);
         break;
-    case 0x04: case 0x05: case 0x06: case 0x07: /* ACR[0-3] */
+    case M68K_CR_ACR0:
+    case M68K_CR_ACR1:
+    case M68K_CR_ACR2:
+    case M68K_CR_ACR3:
         /* TODO: Implement Access Control Registers.  */
         break;
-    case 0x801: /* VBR */
+    case M68K_CR_VBR:
         env->vbr = val;
         break;
     /* TODO: Implement control registers.  */
     default:
-        cpu_abort(CPU(cpu), "Unimplemented control register write 0x%x = 0x%x\n",
+        cpu_abort(CPU(cpu),
+                  "Unimplemented control register write 0x%x = 0x%x\n",
                   reg, val);
     }
+}
+
+void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
+{
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
+    switch (reg) {
+    /* MC680[1234]0 */
+    case M68K_CR_VBR:
+        env->vbr = val;
+        return;
+    /* MC680[234]0 */
+    case M68K_CR_CACR:
+        env->cacr = val;
+        m68k_switch_sp(env);
+        return;
+    /* MC680[34]0 */
+    case M68K_CR_USP:
+        env->sp[M68K_USP] = val;
+        return;
+    case M68K_CR_MSP:
+        env->sp[M68K_SSP] = val;
+        return;
+    case M68K_CR_ISP:
+        env->sp[M68K_ISP] = val;
+        return;
+    }
+    cpu_abort(CPU(cpu), "Unimplemented control register write 0x%x = 0x%x\n",
+              reg, val);
+}
+
+uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
+{
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
+    switch (reg) {
+    /* MC680[1234]0 */
+    case M68K_CR_VBR:
+        return env->vbr;
+    /* MC680[234]0 */
+    case M68K_CR_CACR:
+        return env->cacr;
+    /* MC680[34]0 */
+    case M68K_CR_USP:
+        return env->sp[M68K_USP];
+    case M68K_CR_MSP:
+        return env->sp[M68K_SSP];
+    case M68K_CR_ISP:
+        return env->sp[M68K_ISP];
+    }
+    cpu_abort(CPU(cpu), "Unimplemented control register read 0x%x\n",
+              reg);
 }
 
 void HELPER(set_macsr)(CPUM68KState *env, uint32_t val)
@@ -232,8 +288,20 @@ void m68k_switch_sp(CPUM68KState *env)
     int new_sp;
 
     env->sp[env->current_sp] = env->aregs[7];
-    new_sp = (env->sr & SR_S && env->cacr & M68K_CACR_EUSP)
-             ? M68K_SSP : M68K_USP;
+    if (m68k_feature(env, M68K_FEATURE_M68000)) {
+        if (env->sr & SR_S) {
+            if (env->sr & SR_M) {
+                new_sp = M68K_SSP;
+            } else {
+                new_sp = M68K_ISP;
+            }
+        } else {
+            new_sp = M68K_USP;
+        }
+    } else {
+        new_sp = (env->sr & SR_S && env->cacr & M68K_CACR_EUSP)
+                 ? M68K_SSP : M68K_USP;
+    }
     env->aregs[7] = env->sp[new_sp];
     env->current_sp = new_sp;
 }
@@ -316,13 +384,17 @@ uint32_t HELPER(sats)(uint32_t val, uint32_t v)
     return val;
 }
 
-void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
+void cpu_m68k_set_sr(CPUM68KState *env, uint32_t sr)
 {
-    env->sr = val & 0xffe0;
-    cpu_m68k_set_ccr(env, val);
+    env->sr = sr & 0xffe0;
+    cpu_m68k_set_ccr(env, sr);
     m68k_switch_sp(env);
 }
 
+void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
+{
+    cpu_m68k_set_sr(env, val);
+}
 
 /* MAC unit.  */
 /* FIXME: The MAC unit implementation is a bit of a mess.  Some helpers
@@ -707,3 +779,10 @@ void HELPER(set_mac_extu)(CPUM68KState *env, uint32_t val, uint32_t acc)
     res |= (uint64_t)(val & 0xffff0000) << 16;
     env->macc[acc + 1] = res;
 }
+
+#if defined(CONFIG_SOFTMMU)
+void HELPER(reset)(CPUM68KState *env)
+{
+    /* FIXME: reset all except CPU */
+}
+#endif

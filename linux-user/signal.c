@@ -5612,13 +5612,14 @@ struct target_rt_sigframe
 static void setup_sigcontext(struct target_sigcontext *sc, CPUM68KState *env,
                              abi_ulong mask)
 {
+    uint32_t sr = (env->sr & 0xff00) | cpu_m68k_get_ccr(env);
     __put_user(mask, &sc->sc_mask);
     __put_user(env->aregs[7], &sc->sc_usp);
     __put_user(env->dregs[0], &sc->sc_d0);
     __put_user(env->dregs[1], &sc->sc_d1);
     __put_user(env->aregs[0], &sc->sc_a0);
     __put_user(env->aregs[1], &sc->sc_a1);
-    __put_user(env->sr, &sc->sc_sr);
+    __put_user(sr, &sc->sc_sr);
     __put_user(env->pc, &sc->sc_pc);
 }
 
@@ -5634,7 +5635,7 @@ restore_sigcontext(CPUM68KState *env, struct target_sigcontext *sc)
     __get_user(env->aregs[1], &sc->sc_a1);
     __get_user(env->pc, &sc->sc_pc);
     __get_user(temp, &sc->sc_sr);
-    env->sr = (env->sr & 0xff00) | (temp & 0xff);
+    cpu_m68k_set_ccr(env, temp);
 }
 
 /*
@@ -5726,7 +5727,7 @@ static inline int target_rt_setup_ucontext(struct target_ucontext *uc,
                                            CPUM68KState *env)
 {
     target_greg_t *gregs = uc->tuc_mcontext.gregs;
-    uint32_t sr = cpu_m68k_get_ccr(env);
+    uint32_t sr = (env->sr & 0xff00) | cpu_m68k_get_ccr(env);
 
     __put_user(TARGET_MCONTEXT_VERSION, &uc->tuc_mcontext.version);
     __put_user(env->dregs[0], &gregs[0]);

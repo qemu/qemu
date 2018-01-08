@@ -55,17 +55,17 @@ static void m68k_cpu_reset(CPUState *s)
     mcc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUM68KState, end_reset_fields));
-#if !defined(CONFIG_USER_ONLY)
-    env->sr = 0x2700;
+#ifdef CONFIG_SOFTMMU
+    cpu_m68k_set_sr(env, SR_S | SR_I);
+#else
+    cpu_m68k_set_sr(env, 0);
 #endif
-    m68k_switch_sp(env);
     for (i = 0; i < 8; i++) {
         env->fregs[i].d = nan;
     }
     cpu_m68k_set_fpcr(env, 0);
     env->fpsr = 0;
 
-    cpu_m68k_set_ccr(env, 0);
     /* TODO: We should set PC from the interrupt vector.  */
     env->pc = 0;
 }
@@ -134,9 +134,18 @@ static void m68020_cpu_initfn(Object *obj)
     m68k_set_feature(env, M68K_FEATURE_CAS);
     m68k_set_feature(env, M68K_FEATURE_BKPT);
     m68k_set_feature(env, M68K_FEATURE_RTD);
+    m68k_set_feature(env, M68K_FEATURE_CHK2);
 }
 #define m68030_cpu_initfn m68020_cpu_initfn
-#define m68040_cpu_initfn m68020_cpu_initfn
+
+static void m68040_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68020_cpu_initfn(obj);
+    m68k_set_feature(env, M68K_FEATURE_M68040);
+}
 
 static void m68060_cpu_initfn(Object *obj)
 {
@@ -156,6 +165,7 @@ static void m68060_cpu_initfn(Object *obj)
     m68k_set_feature(env, M68K_FEATURE_CAS);
     m68k_set_feature(env, M68K_FEATURE_BKPT);
     m68k_set_feature(env, M68K_FEATURE_RTD);
+    m68k_set_feature(env, M68K_FEATURE_CHK2);
 }
 
 static void m5208_cpu_initfn(Object *obj)
