@@ -469,7 +469,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     PCIDevice *ebus, *pci_dev;
     SysBusDevice *s;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DeviceState *dev;
+    DeviceState *iommu, *dev;
     FWCfgState *fw_cfg;
     NICInfo *nd;
     MACAddr macaddr;
@@ -477,6 +477,10 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     /* init CPUs */
     cpu = sparc64_cpu_devinit(machine->cpu_type, hwdef->prom_addr);
+
+    /* IOMMU */
+    iommu = qdev_create(NULL, TYPE_SUN4U_IOMMU);
+    qdev_init_nofail(iommu);
 
     /* set up devices */
     ram_init(0, machine->ram_size);
@@ -487,6 +491,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     apb = APB_DEVICE(qdev_create(NULL, TYPE_APB));
     qdev_prop_set_uint64(DEVICE(apb), "special-base", APB_SPECIAL_BASE);
     qdev_prop_set_uint64(DEVICE(apb), "mem-base", APB_MEM_BASE);
+    object_property_set_link(OBJECT(apb), OBJECT(iommu), "iommu", &error_abort);
     qdev_init_nofail(DEVICE(apb));
 
     /* Wire up PCI interrupts to CPU */

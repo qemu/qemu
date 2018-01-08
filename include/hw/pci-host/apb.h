@@ -44,11 +44,17 @@
 #define IOMMU_TSB_64K_OFFSET_MASK_2G   0x000000007fff0000ULL
 
 typedef struct IOMMUState {
+    SysBusDevice parent_obj;
+
     AddressSpace iommu_as;
     IOMMUMemoryRegion iommu;
 
+    MemoryRegion iomem;
     uint64_t regs[IOMMU_NREGS];
 } IOMMUState;
+
+#define TYPE_SUN4U_IOMMU "sun4u-iommu"
+#define SUN4U_IOMMU(obj) OBJECT_CHECK(IOMMUState, (obj), TYPE_SUN4U_IOMMU)
 
 #define MAX_IVEC 0x40
 
@@ -78,7 +84,7 @@ typedef struct APBState {
     MemoryRegion pci_mmio;
     MemoryRegion pci_ioport;
     uint64_t pci_irq_in;
-    IOMMUState iommu;
+    IOMMUState *iommu;
     PCIBridge *bridgeA;
     PCIBridge *bridgeB;
     uint32_t pci_control[16];

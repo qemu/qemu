@@ -36,6 +36,7 @@
 #include "hw/pci-host/apb.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 #include "qemu/log.h"
 
 /* debug APB */
@@ -250,8 +251,8 @@ static IOMMUTLBEntry pbm_translate_iommu(IOMMUMemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static void iommu_config_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
+static void iommu_mem_write(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
 {
     IOMMUState *is = opaque;
 
@@ -295,7 +296,7 @@ static void iommu_config_write(void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t iommu_config_read(void *opaque, hwaddr addr, unsigned size)
+static uint64_t iommu_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
     IOMMUState *is = opaque;
     uint64_t val;
@@ -344,16 +345,12 @@ static void apb_config_writel (void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     APBState *s = opaque;
-    IOMMUState *is = &s->iommu;
 
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
 
     switch (addr & 0xffff) {
     case 0x30 ... 0x4f: /* DMA error registers */
         /* XXX: not implemented yet */
-        break;
-    case 0x200 ... 0x217: /* IOMMU */
-        iommu_config_write(is, (addr & 0x1f), val, size);
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
@@ -426,16 +423,12 @@ static uint64_t apb_config_readl (void *opaque,
                                   hwaddr addr, unsigned size)
 {
     APBState *s = opaque;
-    IOMMUState *is = &s->iommu;
     uint32_t val;
 
     switch (addr & 0xffff) {
     case 0x30 ... 0x4f: /* DMA error registers */
         val = 0;
         /* XXX: not implemented yet */
-        break;
-    case 0x200 ... 0x217: /* IOMMU */
-        val = iommu_config_read(is, (addr & 0x1f), size);
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
@@ -643,7 +636,6 @@ static void pci_pbm_realize(DeviceState *dev, Error **errp)
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     PCIDevice *pci_dev;
-    IOMMUState *is;
 
     /* apb_config */
     sysbus_mmio_map(sbd, 0, s->special_base);
@@ -665,14 +657,9 @@ static void pci_pbm_realize(DeviceState *dev, Error **errp)
     pci_create_simple(phb->bus, 0, "pbm-pci");
 
     /* APB IOMMU */
-    is = &s->iommu;
-    memset(is, 0, sizeof(IOMMUState));
-
-    memory_region_init_iommu(&is->iommu, sizeof(is->iommu),
-                             TYPE_APB_IOMMU_MEMORY_REGION, OBJECT(dev),
-                             "iommu-apb", UINT64_MAX);
-    address_space_init(&is->iommu_as, MEMORY_REGION(&is->iommu), "pbm-as");
-    pci_setup_iommu(phb->bus, pbm_pci_dma_iommu, is);
+    memory_region_add_subregion_overlap(&s->apb_config, 0x200,
+                    sysbus_mmio_get_region(SYS_BUS_DEVICE(s->iommu), 0), 1);
+    pci_setup_iommu(phb->bus, pbm_pci_dma_iommu, s->iommu);
 
     /* APB secondary busses */
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
@@ -707,6 +694,12 @@ static void pci_pbm_init(Object *obj)
     qdev_init_gpio_out_named(DEVICE(s), s->ivec_irqs, "ivec-irq", MAX_IVEC);
     s->irq_request = NO_IRQ_REQUEST;
     s->pci_irq_in = 0ULL;
+
+    /* IOMMU */
+    object_property_add_link(obj, "iommu", TYPE_SUN4U_IOMMU,
+                             (Object **) &s->iommu,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, NULL);
 
     /* apb_config */
     memory_region_init_io(&s->apb_config, OBJECT(s), &apb_config_ops, s,
@@ -814,6 +807,49 @@ static const TypeInfo pbm_pci_bridge_info = {
     },
 };
 
+static const MemoryRegionOps iommu_mem_ops = {
+    .read = iommu_mem_read,
+    .write = iommu_mem_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void iommu_reset(DeviceState *d)
+{
+    IOMMUState *s = SUN4U_IOMMU(d);
+
+    memset(s->regs, 0, IOMMU_NREGS * sizeof(uint64_t));
+}
+
+static void iommu_init(Object *obj)
+{
+    IOMMUState *s = SUN4U_IOMMU(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
+                             TYPE_APB_IOMMU_MEMORY_REGION, OBJECT(s),
+                             "iommu-apb", UINT64_MAX);
+    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "pbm-as");
+
+    memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
+                          IOMMU_NREGS * sizeof(uint64_t));
+    sysbus_init_mmio(sbd, &s->iomem);
+}
+
+static void iommu_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->reset = iommu_reset;
+}
+
+static const TypeInfo pbm_iommu_info = {
+    .name          = TYPE_SUN4U_IOMMU,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(IOMMUState),
+    .instance_init = iommu_init,
+    .class_init    = iommu_class_init,
+};
+
 static void pbm_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
@@ -832,6 +868,7 @@ static void pbm_register_types(void)
     type_register_static(&pbm_host_info);
     type_register_static(&pbm_pci_host_info);
     type_register_static(&pbm_pci_bridge_info);
+    type_register_static(&pbm_iommu_info);
     type_register_static(&pbm_iommu_memory_region_info);
 }
 
