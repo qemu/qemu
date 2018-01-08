@@ -5076,7 +5076,7 @@ fi
 
 #################################################
 # Check to see if we have the Hypervisor framework
-if [ "$darwin" == "yes" ] ; then
+if [ "$darwin" = "yes" ] ; then
   cat > $TMPC << EOF
 #include <Hypervisor/hv.h>
 int main() { return 0;}
