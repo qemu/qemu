@@ -1111,7 +1111,7 @@ static int connect_namedsocket(const char *path)
     return sockfd;
 }
 
-static int proxy_parse_opts(QemuOpts *opts, struct FsDriverEntry *fs)
+static int proxy_parse_opts(QemuOpts *opts, FsDriverEntry *fs)
 {
     const char *socket = qemu_opt_get(opts, "socket");
     const char *sock_fd = qemu_opt_get(opts, "sock_fd");
