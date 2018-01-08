@@ -2013,8 +2013,11 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     opts = qopts ? qemu_opts_to_qdict(qopts, NULL) : NULL;
     qemu_opts_reset(&reopen_opts);
 
+    bdrv_subtree_drained_begin(bs);
     brq = bdrv_reopen_queue(NULL, bs, opts, flags);
     bdrv_reopen_multiple(bdrv_get_aio_context(bs), brq, &local_err);
+    bdrv_subtree_drained_end(bs);
+
     if (local_err) {
         error_report_err(local_err);
     } else {

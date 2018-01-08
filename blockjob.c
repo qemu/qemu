@@ -234,26 +234,23 @@ static char *child_job_get_parent_desc(BdrvChild *c)
                            job->id);
 }
 
-static const BdrvChildRole child_job = {
-    .get_parent_desc    = child_job_get_parent_desc,
-    .stay_at_node       = true,
-};
-
-static void block_job_drained_begin(void *opaque)
+static void child_job_drained_begin(BdrvChild *c)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = c->opaque;
     block_job_pause(job);
 }
 
-static void block_job_drained_end(void *opaque)
+static void child_job_drained_end(BdrvChild *c)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = c->opaque;
     block_job_resume(job);
 }
 
-static const BlockDevOps block_job_dev_ops = {
-    .drained_begin = block_job_drained_begin,
-    .drained_end = block_job_drained_end,
+static const BdrvChildRole child_job = {
+    .get_parent_desc    = child_job_get_parent_desc,
+    .drained_begin      = child_job_drained_begin,
+    .drained_end        = child_job_drained_end,
+    .stay_at_node       = true,
 };
 
 void block_job_remove_all_bdrv(BlockJob *job)
@@ -715,7 +712,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
     bs->job = job;
 
-    blk_set_dev_ops(blk, &block_job_dev_ops, job);
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     QLIST_INSERT_HEAD(&block_jobs, job, job_list);

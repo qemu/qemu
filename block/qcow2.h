@@ -528,9 +528,6 @@ uint32_t offset_to_reftable_index(BDRVQcow2State *s, uint64_t offset)
 }
 
 /* qcow2.c functions */
-int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
-                  int64_t sector_num, int nb_sectors);
-
 int64_t qcow2_refcount_metadata_size(int64_t clusters, size_t cluster_size,
                                      int refcount_order, bool generous_increase,
                                      uint64_t *refblock_count);

@@ -2589,12 +2589,6 @@ deprecated.
 
 @section System emulator command line arguments
 
-@subsection -drive boot=on|off (since 1.3.0)
-
-The ``boot=on|off'' option to the ``-drive'' argument is
-ignored. Applications should use the ``bootindex=N'' parameter
-to set an absolute ordering between devices instead.
-
 @subsection -tdf (since 1.3.0)
 
 The ``-tdf'' argument is ignored. The behaviour implemented
@@ -2690,19 +2684,26 @@ longer be directly supported in QEMU.
 The ``-drive if=scsi'' argument is replaced by the the
 ``-device BUS-TYPE'' argument combined with ``-drive if=none''.
 
+@subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
+
+The drive geometry arguments are replaced by the the geometry arguments
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive serial=... (since 2.10.0)
+
+The drive serial argument is replaced by the the serial argument
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive addr=... (since 2.10.0)
+
+The drive addr argument is replaced by the the addr argument
+that can be specified with the ``-device'' parameter.
+
 @subsection -net dump (since 2.10.0)
 
 The ``--net dump'' argument is now replaced with the
 ``-object filter-dump'' argument which works in combination
 with the modern ``-netdev`` backends instead.
-
-@subsection -hdachs (since 2.10.0)
-
-The ``-hdachs'' argument is now a synonym for setting
-the ``cyls'', ``heads'', ``secs'', and ``trans'' properties
-on the ``ide-hd'' device using the ``-device'' argument.
-The new syntax allows different settings to be provided
-per disk.
 
 @subsection -usbdevice (since 2.10.0)
 
