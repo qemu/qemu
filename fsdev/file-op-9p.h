@@ -30,7 +30,6 @@ typedef struct FsCred
     dev_t   fc_rdev;
 } FsCred;
 
-struct xattr_operations;
 struct FsContext;
 struct V9fsPath;
 
@@ -67,6 +66,8 @@ typedef struct extended_ops {
 
 
 typedef struct FileOperations FileOperations;
+typedef struct XattrOperations XattrOperations;
+
 /*
  * Structure to store the various fsdev's passed through command line.
  */
@@ -85,7 +86,7 @@ typedef struct FsContext
     uid_t uid;
     char *fs_root;
     int export_flags;
-    struct xattr_operations **xops;
+    XattrOperations **xops;
     struct extended_ops exops;
     FsThrottle *fst;
     /* fs driver specific data */
