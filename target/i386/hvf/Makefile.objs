@@ -1,0 +1,2 @@
+obj-y += hvf.o
+obj-y += x86.o x86_cpuid.o x86_decode.o x86_descr.o x86_emu.o x86_flags.o x86_mmu.o x86hvf.o x86_task.o
