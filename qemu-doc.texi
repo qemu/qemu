@@ -2724,6 +2724,14 @@ default channel subsystem image for guests that do not support multiple
 channel subsystems, all devices can be put into the default channel
 subsystem image.
 
+@subsection -fsdev handle (since 2.12.0)
+
+The ``handle'' fsdev backend does not support symlinks and causes the 9p
+filesystem in the guest to fail a fair amount of tests from the PJD POSIX
+filesystem test suite. Also it requires the CAP_DAC_READ_SEARCH capability,
+which is not the recommended way to run QEMU. This backend should not be
+used and it will be removed with no replacement.
+
 @section qemu-img command line arguments
 
 @subsection convert -s (since 2.0.0)
