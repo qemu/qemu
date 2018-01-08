@@ -1163,7 +1163,7 @@ F: hw/scsi/mfi.h
 F: tests/megasas-test.c
 
 Network packet abstractions
-M: Dmitry Fleytman <dmitry@daynix.com>
+M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
 S: Maintained
 F: include/net/eth.h
 F: net/eth.c
@@ -1171,7 +1171,7 @@ F: hw/net/net_rx_pkt*
 F: hw/net/net_tx_pkt*
 
 Vmware
-M: Dmitry Fleytman <dmitry@daynix.com>
+M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
 S: Maintained
 F: hw/net/vmxnet*
 F: hw/scsi/vmw_pvscsi*
@@ -1192,12 +1192,12 @@ F: hw/mem/nvdimm.c
 F: include/hw/mem/nvdimm.h
 
 e1000x
-M: Dmitry Fleytman <dmitry@daynix.com>
+M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
 S: Maintained
 F: hw/net/e1000x*
 
 e1000e
-M: Dmitry Fleytman <dmitry@daynix.com>
+M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
 S: Maintained
 F: hw/net/e1000e*
 
