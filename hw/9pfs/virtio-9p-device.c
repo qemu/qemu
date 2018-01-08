@@ -20,8 +20,6 @@
 #include "hw/virtio/virtio-access.h"
 #include "qemu/iov.h"
 
-static const struct V9fsTransport virtio_9p_transport;
-
 static void virtio_9p_push_and_notify(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
@@ -102,35 +100,6 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     memcpy(cfg->tag, s->tag, len);
     memcpy(config, cfg, v->config_size);
     g_free(cfg);
-}
-
-static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    V9fsVirtioState *v = VIRTIO_9P(dev);
-    V9fsState *s = &v->state;
-
-    if (v9fs_device_realize_common(s, errp)) {
-        goto out;
-    }
-
-    v->config_size = sizeof(struct virtio_9p_config) + strlen(s->fsconf.tag);
-    virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P, v->config_size);
-    v->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
-    v9fs_register_transport(s, &virtio_9p_transport);
-
-out:
-    return;
-}
-
-static void virtio_9p_device_unrealize(DeviceState *dev, Error **errp)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    V9fsVirtioState *v = VIRTIO_9P(dev);
-    V9fsState *s = &v->state;
-
-    virtio_cleanup(vdev);
-    v9fs_device_unrealize_common(s, errp);
 }
 
 static void virtio_9p_reset(VirtIODevice *vdev)
@@ -215,13 +184,42 @@ static void virtio_init_out_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
     *pniov = elem->out_num;
 }
 
-static const struct V9fsTransport virtio_9p_transport = {
+static const V9fsTransport virtio_9p_transport = {
     .pdu_vmarshal = virtio_pdu_vmarshal,
     .pdu_vunmarshal = virtio_pdu_vunmarshal,
     .init_in_iov_from_pdu = virtio_init_in_iov_from_pdu,
     .init_out_iov_from_pdu = virtio_init_out_iov_from_pdu,
     .push_and_notify = virtio_9p_push_and_notify,
 };
+
+static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    V9fsVirtioState *v = VIRTIO_9P(dev);
+    V9fsState *s = &v->state;
+
+    if (v9fs_device_realize_common(s, errp)) {
+        goto out;
+    }
+
+    v->config_size = sizeof(struct virtio_9p_config) + strlen(s->fsconf.tag);
+    virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P, v->config_size);
+    v->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
+    v9fs_register_transport(s, &virtio_9p_transport);
+
+out:
+    return;
+}
+
+static void virtio_9p_device_unrealize(DeviceState *dev, Error **errp)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    V9fsVirtioState *v = VIRTIO_9P(dev);
+    V9fsState *s = &v->state;
+
+    virtio_cleanup(vdev);
+    v9fs_device_unrealize_common(s, errp);
+}
 
 /* virtio-9p device */
 

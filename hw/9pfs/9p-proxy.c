@@ -1083,25 +1083,25 @@ static int proxy_ioc_getversion(FsContext *fs_ctx, V9fsPath *path,
     return err;
 }
 
-static int connect_namedsocket(const char *path)
+static int connect_namedsocket(const char *path, Error **errp)
 {
     int sockfd, size;
     struct sockaddr_un helper;
 
     if (strlen(path) >= sizeof(helper.sun_path)) {
-        error_report("Socket name too long");
+        error_setg(errp, "socket name too long");
         return -1;
     }
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        error_report("Failed to create socket: %s", strerror(errno));
+        error_setg_errno(errp, errno, "failed to create client socket");
         return -1;
     }
     strcpy(helper.sun_path, path);
     helper.sun_family = AF_UNIX;
     size = strlen(helper.sun_path) + sizeof(helper.sun_family);
     if (connect(sockfd, (struct sockaddr *)&helper, size) < 0) {
-        error_report("Failed to connect to %s: %s", path, strerror(errno));
+        error_setg_errno(errp, errno, "failed to connect to '%s'", path);
         close(sockfd);
         return -1;
     }
@@ -1111,17 +1111,27 @@ static int connect_namedsocket(const char *path)
     return sockfd;
 }
 
-static int proxy_parse_opts(QemuOpts *opts, struct FsDriverEntry *fs)
+static void error_append_socket_sockfd_hint(Error **errp)
+{
+    error_append_hint(errp, "Either specify socket=/some/path where /some/path"
+                      " points to a listening AF_UNIX socket or sock_fd=fd"
+                      " where fd is a file descriptor to a connected AF_UNIX"
+                      " socket\n");
+}
+
+static int proxy_parse_opts(QemuOpts *opts, FsDriverEntry *fs, Error **errp)
 {
     const char *socket = qemu_opt_get(opts, "socket");
     const char *sock_fd = qemu_opt_get(opts, "sock_fd");
 
     if (!socket && !sock_fd) {
-        error_report("Must specify either socket or sock_fd");
+        error_setg(errp, "both socket and sock_fd properties are missing");
+        error_append_socket_sockfd_hint(errp);
         return -1;
     }
     if (socket && sock_fd) {
-        error_report("Both socket and sock_fd options specified");
+        error_setg(errp, "both socket and sock_fd properties are set");
+        error_append_socket_sockfd_hint(errp);
         return -1;
     }
     if (socket) {
@@ -1134,17 +1144,17 @@ static int proxy_parse_opts(QemuOpts *opts, struct FsDriverEntry *fs)
     return 0;
 }
 
-static int proxy_init(FsContext *ctx)
+static int proxy_init(FsContext *ctx, Error **errp)
 {
     V9fsProxy *proxy = g_malloc(sizeof(V9fsProxy));
     int sock_id;
 
     if (ctx->export_flags & V9FS_PROXY_SOCK_NAME) {
-        sock_id = connect_namedsocket(ctx->fs_root);
+        sock_id = connect_namedsocket(ctx->fs_root, errp);
     } else {
         sock_id = atoi(ctx->fs_root);
         if (sock_id < 0) {
-            error_report("Socket descriptor not initialized");
+            error_setg(errp, "socket descriptor not initialized");
         }
     }
     if (sock_id < 0) {
