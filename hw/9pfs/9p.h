@@ -349,8 +349,6 @@ int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
 int v9fs_device_realize_common(V9fsState *s, Error **errp);
 void v9fs_device_unrealize_common(V9fsState *s, Error **errp);
 
-ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
-ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 V9fsPDU *pdu_alloc(V9fsState *s);
 void pdu_free(V9fsPDU *pdu);
 void pdu_submit(V9fsPDU *pdu, P9MsgHeader *hdr);
