@@ -30,16 +30,7 @@
 #include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
-
-/* debug IOMMU */
-//#define DEBUG_IOMMU
-
-#ifdef DEBUG_IOMMU
-#define IOMMU_DPRINTF(fmt, ...) \
-do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define IOMMU_DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 
 #define IOMMU_PAGE_SIZE_8K      (1ULL << 13)
@@ -201,8 +192,7 @@ static void iommu_mem_write(void *opaque, hwaddr addr,
 {
     IOMMUState *is = opaque;
 
-    IOMMU_DPRINTF("IOMMU config write: 0x%" HWADDR_PRIx " val: %" PRIx64
-                  " size: %d\n", addr, val, size);
+    trace_sun4u_iommu_mem_write(addr, val, size);
 
     switch (addr) {
     case IOMMU_CTRL:
@@ -280,8 +270,7 @@ static uint64_t iommu_mem_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
-    IOMMU_DPRINTF("IOMMU config read: 0x%" HWADDR_PRIx " val: %" PRIx64
-                  " size: %d\n", addr, val, size);
+    trace_sun4u_iommu_mem_read(addr, val, size);
 
     return val;
 }
