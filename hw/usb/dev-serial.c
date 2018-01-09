@@ -509,35 +509,6 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
     }
 }
 
-static USBDevice *usb_serial_init(USBBus *bus, const char *filename)
-{
-    USBDevice *dev;
-    Chardev *cdrv;
-    char label[32];
-    static int index;
-
-    if (*filename == ':') {
-        filename++;
-    } else if (*filename) {
-        error_report("unrecognized serial USB option %s", filename);
-        return NULL;
-    }
-    if (!*filename) {
-        error_report("character device specification needed");
-        return NULL;
-    }
-
-    snprintf(label, sizeof(label), "usbserial%d", index++);
-    cdrv = qemu_chr_new(label, filename);
-    if (!cdrv)
-        return NULL;
-
-    dev = usb_create(bus, "usb-serial");
-    qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
-
-    return dev;
-}
-
 static USBDevice *usb_braille_init(USBBus *bus, const char *unused)
 {
     USBDevice *dev;
@@ -624,7 +595,6 @@ static void usb_serial_register_types(void)
 {
     type_register_static(&usb_serial_dev_type_info);
     type_register_static(&serial_info);
-    usb_legacy_register("usb-serial", "serial", usb_serial_init);
     type_register_static(&braille_info);
     usb_legacy_register("usb-braille", "braille", usb_braille_init);
 }

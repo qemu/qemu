@@ -1221,28 +1221,9 @@ Pointer device that uses absolute coordinates (like a touchscreen). This
 means QEMU is able to report the mouse position without having to grab the
 mouse. Also overrides the PS/2 mouse emulation when activated.
 
-@item disk:[format=@var{format}]:@var{file}
-Mass storage device based on file. The optional @var{format} argument
-will be used rather than detecting the format. Can be used to specify
-@code{format=raw} to avoid interpreting an untrusted format header.
-
-@item host:@var{bus}.@var{addr}
-Pass through the host device identified by @var{bus}.@var{addr} (Linux only).
-
-@item host:@var{vendor_id}:@var{product_id}
-Pass through the host device identified by @var{vendor_id}:@var{product_id}
-(Linux only).
-
-@item serial:[vendorid=@var{vendor_id}][,productid=@var{product_id}]:@var{dev}
-Serial converter to host character device @var{dev}, see @code{-serial} for the
-available devices.
-
 @item braille
 Braille device.  This will use BrlAPI to display the braille output on a real
 or fake device.
-
-@item net:@var{options}
-Network adapter that supports CDC ethernet and RNDIS protocols.
 
 @end table
 ETEXI
