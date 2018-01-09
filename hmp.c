@@ -2221,10 +2221,11 @@ exit:
 void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
+    const char *name = qdict_get_try_str(qdict, "name");
     bool writable = qdict_get_try_bool(qdict, "writable", false);
     Error *local_err = NULL;
 
-    qmp_nbd_server_add(device, false, NULL, true, writable, &local_err);
+    qmp_nbd_server_add(device, !!name, name, true, writable, &local_err);
 
     if (local_err != NULL) {
         hmp_handle_error(mon, &local_err);
