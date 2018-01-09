@@ -249,7 +249,7 @@ void HELPER(entry)(CPUXtensaState *env, uint32_t pc, uint32_t s, uint32_t imm)
         if (windowstart & ((1 << callinc) - 1)) {
             HELPER(window_check)(env, pc, callinc);
         }
-        env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - (imm << 3);
+        env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - imm;
         rotate_window(env, callinc);
         env->sregs[WINDOW_START] |=
             windowstart_bit(env->sregs[WINDOW_BASE], env);

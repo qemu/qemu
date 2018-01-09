@@ -44,7 +44,6 @@ test_end
 
 test_sr acchi, 1
 test_sr acclo, 1
-test_sr /*memctl*/97, 0
 test_sr_mask /*atomctl*/99, 0, 0
 test_sr_mask /*br*/4, 0, 0
 test_sr_mask /*cacheattr*/98, 0, 0
@@ -76,6 +75,7 @@ test_sr lcount, 1
 test_sr lend, 1
 test_sr litbase, 1
 test_sr m0, 1
+test_sr_mask /*memctl*/97, 0, 0
 test_sr misc0, 1
 test_sr_mask /*prefctl*/40, 0, 0
 test_sr_mask /*prid*/235, 0, 1

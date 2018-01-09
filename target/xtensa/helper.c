@@ -52,10 +52,47 @@ static void xtensa_core_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
 }
 
+static void init_libisa(XtensaConfig *config)
+{
+    unsigned i, j;
+    unsigned opcodes;
+
+    config->isa = xtensa_isa_init(config->isa_internal, NULL, NULL);
+    assert(xtensa_isa_maxlength(config->isa) <= MAX_INSN_LENGTH);
+    opcodes = xtensa_isa_num_opcodes(config->isa);
+    config->opcode_ops = g_new(XtensaOpcodeOps *, opcodes);
+
+    for (i = 0; i < opcodes; ++i) {
+        const char *opc_name = xtensa_opcode_name(config->isa, i);
+        XtensaOpcodeOps *ops = NULL;
+
+        assert(xtensa_opcode_num_operands(config->isa, i) <= MAX_OPCODE_ARGS);
+        if (!config->opcode_translators) {
+            ops = xtensa_find_opcode_ops(&xtensa_core_opcodes, opc_name);
+        } else {
+            for (j = 0; !ops && config->opcode_translators[j]; ++j) {
+                ops = xtensa_find_opcode_ops(config->opcode_translators[j],
+                                             opc_name);
+            }
+        }
+#ifdef DEBUG
+        if (ops == NULL) {
+            fprintf(stderr,
+                    "opcode translator not found for %s's opcode '%s'\n",
+                    config->name, opc_name);
+        }
+#endif
+        config->opcode_ops[i] = ops;
+    }
+}
+
 void xtensa_finalize_config(XtensaConfig *config)
 {
     unsigned i, n = 0;
 
+    if (config->isa_internal) {
+        init_libisa(config);
+    }
     if (config->gdb_regmap.num_regs) {
         return;
     }

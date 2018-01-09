@@ -259,6 +259,7 @@ S: Maintained
 F: target/xtensa/
 F: hw/xtensa/
 F: tests/tcg/xtensa/
+F: disas/xtensa.c
 
 TriCore
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>

@@ -37,6 +37,7 @@
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
+#include "xtensa-isa.h"
 
 #define NB_MMU_MODES 4
 
@@ -107,6 +108,7 @@ enum {
 };
 
 enum {
+    EXPSTATE = 230,
     THREADPTR = 231,
     FCR = 232,
     FSR = 233,
@@ -126,6 +128,7 @@ enum {
     WINDOW_BASE = 72,
     WINDOW_START = 73,
     PTEVADDR = 83,
+    MMID = 89,
     RASID = 90,
     ITLBCFG = 91,
     DTLBCFG = 92,
@@ -133,6 +136,7 @@ enum {
     MEMCTL = 97,
     CACHEATTR = 98,
     ATOMCTL = 99,
+    DDR = 104,
     IBREAKA = 128,
     DBREAKA = 144,
     DBREAKC = 160,
@@ -205,6 +209,8 @@ enum {
 #define MEMCTL_DSNP 0x2
 #define MEMCTL_IL0EN 0x1
 
+#define MAX_INSN_LENGTH 64
+#define MAX_OPCODE_ARGS 16
 #define MAX_NAREG 64
 #define MAX_NINTERRUPT 32
 #define MAX_NLEVEL 6
@@ -330,6 +336,24 @@ typedef struct XtensaMemory {
     } location[MAX_NMEMORY];
 } XtensaMemory;
 
+typedef struct DisasContext DisasContext;
+typedef void (*XtensaOpcodeOp)(DisasContext *dc, const uint32_t arg[],
+                               const uint32_t par[]);
+
+typedef struct XtensaOpcodeOps {
+    const char *name;
+    XtensaOpcodeOp translate;
+    const uint32_t *par;
+} XtensaOpcodeOps;
+
+typedef struct XtensaOpcodeTranslators {
+    unsigned num_opcodes;
+    const XtensaOpcodeOps *opcode;
+} XtensaOpcodeTranslators;
+
+extern const XtensaOpcodeTranslators xtensa_core_opcodes;
+extern const XtensaOpcodeTranslators xtensa_fpu2000_opcodes;
+
 struct XtensaConfig {
     const char *name;
     uint64_t options;
@@ -369,6 +393,11 @@ struct XtensaConfig {
     XtensaMemory sysram;
 
     uint32_t configid[2];
+
+    void *isa_internal;
+    xtensa_isa isa;
+    XtensaOpcodeOps **opcode_ops;
+    const XtensaOpcodeTranslators **opcode_translators;
 
     uint32_t clock_freq_khz;
 
@@ -522,6 +551,8 @@ static inline void xtensa_select_static_vectors(CPUXtensaState *env,
     env->static_vectors = n;
 }
 void xtensa_runstall(CPUXtensaState *env, bool runstall);
+XtensaOpcodeOps *xtensa_find_opcode_ops(const XtensaOpcodeTranslators *t,
+                                        const char *opcode);
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
 #define XTENSA_OPTION_ALL (~(uint64_t)0)
