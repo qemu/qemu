@@ -2761,7 +2761,7 @@ static uint64_t qcow2_opt_get_refcount_bits_del(QemuOpts *opts, int version,
 }
 
 static int coroutine_fn
-qcow2_co_create(const char *filename, int64_t total_size,
+qcow2_co_create(BlockDriverState *bs, int64_t total_size,
                 const char *backing_file, const char *backing_format,
                 int flags, size_t cluster_size, PreallocMode prealloc,
                 QemuOpts *opts, int version, int refcount_order,
@@ -2787,28 +2787,11 @@ qcow2_co_create(const char *filename, int64_t total_size,
     Error *local_err = NULL;
     int ret;
 
-    if (prealloc == PREALLOC_MODE_FULL || prealloc == PREALLOC_MODE_FALLOC) {
-        int64_t prealloc_size =
-            qcow2_calc_prealloc_size(total_size, cluster_size, refcount_order);
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, prealloc_size, &error_abort);
-        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_str(prealloc),
-                     &error_abort);
-    }
-
-    ret = bdrv_create_file(filename, opts, &local_err);
+    blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
-        return ret;
+        goto out;
     }
-
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
-    if (blk == NULL) {
-        error_propagate(errp, local_err);
-        return -EIO;
-    }
-
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* Write the header */
@@ -2863,7 +2846,8 @@ qcow2_co_create(const char *filename, int64_t total_size,
      */
     options = qdict_new();
     qdict_put_str(options, "driver", "qcow2");
-    blk = blk_new_open(filename, NULL, options,
+    qdict_put_str(options, "file", bs->node_name);
+    blk = blk_new_open(NULL, NULL, options,
                        BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH,
                        &local_err);
     if (blk == NULL) {
@@ -2935,7 +2919,8 @@ qcow2_co_create(const char *filename, int64_t total_size,
      */
     options = qdict_new();
     qdict_put_str(options, "driver", "qcow2");
-    blk = blk_new_open(filename, NULL, options,
+    qdict_put_str(options, "file", bs->node_name);
+    blk = blk_new_open(NULL, NULL, options,
                        BDRV_O_RDWR | BDRV_O_NO_BACKING | BDRV_O_NO_IO,
                        &local_err);
     if (blk == NULL) {
@@ -2966,6 +2951,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
     uint64_t refcount_bits;
     int refcount_order;
     char *encryptfmt = NULL;
+    BlockDriverState *bs = NULL;
     Error *local_err = NULL;
     int ret;
 
@@ -3034,12 +3020,38 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
 
     refcount_order = ctz32(refcount_bits);
 
-    ret = qcow2_co_create(filename, size, backing_file, backing_fmt, flags,
+    /* Create and open the file (protocol layer) */
+    if (prealloc == PREALLOC_MODE_FULL || prealloc == PREALLOC_MODE_FALLOC) {
+        int64_t prealloc_size =
+            qcow2_calc_prealloc_size(size, cluster_size, refcount_order);
+        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, prealloc_size, &error_abort);
+        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_str(prealloc),
+                     &error_abort);
+    }
+
+    ret = bdrv_create_file(filename, opts, errp);
+    if (ret < 0) {
+        goto finish;
+    }
+
+    bs = bdrv_open(filename, NULL, NULL,
+                   BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (bs == NULL) {
+        ret = -EIO;
+        goto finish;
+    }
+
+    /* Create the qcow2 image (format layer) */
+    ret = qcow2_co_create(bs, size, backing_file, backing_fmt, flags,
                           cluster_size, prealloc, opts, version, refcount_order,
-                          encryptfmt, &local_err);
-    error_propagate(errp, local_err);
+                          encryptfmt, errp);
+    if (ret < 0) {
+        goto finish;
+    }
 
 finish:
+    bdrv_unref(bs);
+
     g_free(backing_file);
     g_free(backing_fmt);
     g_free(encryptfmt);
