@@ -388,6 +388,7 @@ static QemuOptsList nbd_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "ID of the TLS credentials to use",
         },
+        { /* end of list */ }
     },
 };
 
