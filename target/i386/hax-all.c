@@ -837,9 +837,6 @@ static int hax_sync_vcpu_register(CPUArchState *env, int set)
             return -1;
         }
     }
-    if (!set) {
-        x86_update_hflags(env);
-    }
     return 0;
 }
 
@@ -1020,6 +1017,7 @@ static int hax_arch_get_registers(CPUArchState *env)
         return ret;
     }
 
+    x86_update_hflags(env);
     return 0;
 }
 
