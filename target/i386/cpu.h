@@ -1778,4 +1778,6 @@ bool cpu_is_bsp(X86CPU *cpu);
 
 void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf);
 void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf);
+void x86_update_hflags(CPUX86State* env);
+
 #endif /* I386_CPU_H */
