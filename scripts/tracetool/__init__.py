@@ -300,13 +300,18 @@ def read_events(fobj):
     """
 
     events = []
-    for line in fobj:
+    for lineno, line in enumerate(fobj, 1):
         if not line.strip():
             continue
         if line.lstrip().startswith('#'):
             continue
 
-        event = Event.build(line)
+        try:
+            event = Event.build(line)
+        except ValueError as e:
+            arg0 = 'Error on line %d: %s' % (lineno, e.args[0])
+            e.args = (arg0,) + e.args[1:]
+            raise
 
         # transform TCG-enabled events
         if "tcg" not in event.properties:
