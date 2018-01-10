@@ -299,7 +299,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client,
     }
     if (nbd_read(client->ioc, name, client->optlen, errp) < 0) {
         error_prepend(errp, "read failed: ");
-        return -EINVAL;
+        return -EIO;
     }
     name[client->optlen] = '\0';
     client->optlen = 0;
