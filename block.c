@@ -34,6 +34,8 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qobject-output-visitor.h"
+#include "qapi/qapi-visit-block-core.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "qemu/notify.h"
@@ -2404,6 +2406,51 @@ BdrvChild *bdrv_open_child(const char *filename,
     }
 
     return c;
+}
+
+/* TODO Future callers may need to specify parent/child_role in order for
+ * option inheritance to work. Existing callers use it for the root node. */
+BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
+{
+    BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
+    QObject *obj = NULL;
+    QDict *qdict = NULL;
+    const char *reference = NULL;
+    Visitor *v = NULL;
+
+    if (ref->type == QTYPE_QSTRING) {
+        reference = ref->u.reference;
+    } else {
+        BlockdevOptions *options = &ref->u.definition;
+        assert(ref->type == QTYPE_QDICT);
+
+        v = qobject_output_visitor_new(&obj);
+        visit_type_BlockdevOptions(v, NULL, &options, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+        visit_complete(v, &obj);
+
+        qdict = qobject_to_qdict(obj);
+        qdict_flatten(qdict);
+
+        /* bdrv_open_inherit() defaults to the values in bdrv_flags (for
+         * compatibility with other callers) rather than what we want as the
+         * real defaults. Apply the defaults here instead. */
+        qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
+        qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
+        qdict_set_default_str(qdict, BDRV_OPT_READ_ONLY, "off");
+    }
+
+    bs = bdrv_open_inherit(NULL, reference, qdict, 0, NULL, NULL, errp);
+    obj = NULL;
+
+fail:
+    qobject_decref(obj);
+    visit_free(v);
+    return bs;
 }
 
 static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,

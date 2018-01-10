@@ -2768,8 +2768,8 @@ static uint64_t qcow2_opt_get_refcount_bits_del(QemuOpts *opts, int version,
 }
 
 static int coroutine_fn
-qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
-                QemuOpts *opts, const char *encryptfmt, Error **errp)
+qcow2_co_create(BlockdevCreateOptions *create_options, QemuOpts *opts,
+                const char *encryptfmt, Error **errp)
 {
     BlockdevCreateOptionsQcow2 *qcow2_opts;
     QDict *options;
@@ -2786,7 +2786,8 @@ qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
      * 2 GB for 64k clusters, and we don't want to have a 2 GB initial file
      * size for any qcow2 image.
      */
-    BlockBackend *blk;
+    BlockBackend *blk = NULL;
+    BlockDriverState *bs = NULL;
     QCowHeader *header;
     size_t cluster_size;
     int version;
@@ -2795,10 +2796,15 @@ qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
     Error *local_err = NULL;
     int ret;
 
-    /* Validate options and set default values */
     assert(create_options->driver == BLOCKDEV_DRIVER_QCOW2);
     qcow2_opts = &create_options->u.qcow2;
 
+    bs = bdrv_open_blockdev_ref(qcow2_opts->file, errp);
+    if (bs == NULL) {
+        return -EIO;
+    }
+
+    /* Validate options and set default values */
     if (!QEMU_IS_ALIGNED(qcow2_opts->size, BDRV_SECTOR_SIZE)) {
         error_setg(errp, "Image size must be a multiple of 512 bytes");
         ret = -EINVAL;
@@ -2827,7 +2833,8 @@ qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
     }
 
     if (!validate_cluster_size(cluster_size, errp)) {
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     if (!qcow2_opts->has_preallocation) {
@@ -2838,11 +2845,13 @@ qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
     {
         error_setg(errp, "Backing file and preallocation cannot be used at "
                    "the same time");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
     if (qcow2_opts->has_backing_fmt && !qcow2_opts->has_backing_file) {
         error_setg(errp, "Backing format cannot be used without backing file");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     if (!qcow2_opts->has_lazy_refcounts) {
@@ -2851,7 +2860,8 @@ qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
     if (version < 3 && qcow2_opts->lazy_refcounts) {
         error_setg(errp, "Lazy refcounts only supported with compatibility "
                    "level 1.1 and above (use compat=1.1 or greater)");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     if (!qcow2_opts->has_refcount_bits) {
@@ -2862,13 +2872,15 @@ qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
     {
         error_setg(errp, "Refcount width must be a power of two and may not "
                    "exceed 64 bits");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
     if (version < 3 && qcow2_opts->refcount_bits != 16) {
         error_setg(errp, "Different refcount widths than 16 bits require "
                    "compatibility level 1.1 or above (use compat=1.1 or "
                    "greater)");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
     refcount_order = ctz32(qcow2_opts->refcount_bits);
 
@@ -3026,9 +3038,8 @@ qcow2_co_create(BlockDriverState *bs, BlockdevCreateOptions *create_options,
 
     ret = 0;
 out:
-    if (blk) {
-        blk_unref(blk);
-    }
+    blk_unref(blk);
+    bdrv_unref(bs);
     return ret;
 }
 
@@ -3157,7 +3168,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
             .refcount_bits      = refcount_bits,
         },
     };
-    ret = qcow2_co_create(bs, &create_options, opts, encryptfmt, errp);
+    ret = qcow2_co_create(&create_options, opts, encryptfmt, errp);
     if (ret < 0) {
         goto finish;
     }
