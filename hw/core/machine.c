@@ -377,18 +377,18 @@ static void machine_init_notify(Notifier *notifier, void *data)
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)
 {
     int i;
-    Object *cpu;
     HotpluggableCPUList *head = NULL;
-    const char *cpu_type;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-    cpu = machine->possible_cpus->cpus[0].cpu;
-    assert(cpu); /* Boot cpu is always present */
-    cpu_type = object_get_typename(cpu);
+    /* force board to initialize possible_cpus if it hasn't been done yet */
+    mc->possible_cpu_arch_ids(machine);
+
     for (i = 0; i < machine->possible_cpus->len; i++) {
+        Object *cpu;
         HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
         HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
 
-        cpu_item->type = g_strdup(cpu_type);
+        cpu_item->type = g_strdup(machine->possible_cpus->cpus[i].type);
         cpu_item->vcpus_count = machine->possible_cpus->cpus[i].vcpus_count;
         cpu_item->props = g_memdup(&machine->possible_cpus->cpus[i].props,
                                    sizeof(*cpu_item->props));

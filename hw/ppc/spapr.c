@@ -2226,11 +2226,6 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     int boot_cores_nr = smp_cpus / smp_threads;
     int i;
 
-    if (!type) {
-        error_report("Unable to find sPAPR CPU Core definition");
-        exit(1);
-    }
-
     possible_cpus = mc->possible_cpu_arch_ids(machine);
     if (mc->has_hotpluggable_cpus) {
         if (smp_cpus % smp_threads) {
@@ -3545,6 +3540,7 @@ static int64_t spapr_get_default_cpu_node_id(const MachineState *ms, int idx)
 static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
 {
     int i;
+    const char *core_type;
     int spapr_max_cores = max_cpus / smp_threads;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
@@ -3556,12 +3552,19 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
         return machine->possible_cpus;
     }
 
+    core_type = spapr_get_cpu_core_type(machine->cpu_type);
+    if (!core_type) {
+        error_report("Unable to find sPAPR CPU Core definition");
+        exit(1);
+    }
+
     machine->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
                              sizeof(CPUArchId) * spapr_max_cores);
     machine->possible_cpus->len = spapr_max_cores;
     for (i = 0; i < machine->possible_cpus->len; i++) {
         int core_id = i * smp_threads;
 
+        machine->possible_cpus->cpus[i].type = core_type;
         machine->possible_cpus->cpus[i].vcpus_count = smp_threads;
         machine->possible_cpus->cpus[i].arch_id = core_id;
         machine->possible_cpus->cpus[i].props.has_core_id = true;
