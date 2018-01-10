@@ -186,18 +186,15 @@ static int nbd_negotiate_send_rep(NBDClient *client, uint32_t type,
 
 /* Send an error reply.
  * Return -errno on error, 0 on success. */
-static int GCC_FMT_ATTR(4, 5)
-nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
-                           Error **errp, const char *fmt, ...)
+static int GCC_FMT_ATTR(4, 0)
+nbd_negotiate_send_rep_verr(NBDClient *client, uint32_t type,
+                            Error **errp, const char *fmt, va_list va)
 {
-    va_list va;
     char *msg;
     int ret;
     size_t len;
 
-    va_start(va, fmt);
     msg = g_strdup_vprintf(fmt, va);
-    va_end(va);
     len = strlen(msg);
     assert(len < 4096);
     trace_nbd_negotiate_send_rep_err(msg);
@@ -214,6 +211,21 @@ nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
 
 out:
     g_free(msg);
+    return ret;
+}
+
+/* Send an error reply.
+ * Return -errno on error, 0 on success. */
+static int GCC_FMT_ATTR(4, 5)
+nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
+                           Error **errp, const char *fmt, ...)
+{
+    va_list va;
+    int ret;
+
+    va_start(va, fmt);
+    ret = nbd_negotiate_send_rep_verr(client, type, errp, fmt, va);
+    va_end(va);
     return ret;
 }
 
