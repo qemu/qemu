@@ -137,43 +137,29 @@ static void nbd_client_receive_next_request(NBDClient *client);
 
 */
 
+static inline void set_be_option_rep(NBDOptionReply *rep, uint32_t option,
+                                     uint32_t type, uint32_t length)
+{
+    stq_be_p(&rep->magic, NBD_REP_MAGIC);
+    stl_be_p(&rep->option, option);
+    stl_be_p(&rep->type, type);
+    stl_be_p(&rep->length, length);
+}
+
 /* Send a reply header, including length, but no payload.
  * Return -errno on error, 0 on success. */
 static int nbd_negotiate_send_rep_len(NBDClient *client, uint32_t type,
                                       uint32_t len, Error **errp)
 {
-    uint64_t magic;
-    QIOChannel *ioc = client->ioc;
-    uint32_t opt = client->opt;
+    NBDOptionReply rep;
 
-    trace_nbd_negotiate_send_rep_len(opt, nbd_opt_lookup(opt),
+    trace_nbd_negotiate_send_rep_len(client->opt, nbd_opt_lookup(client->opt),
                                      type, nbd_rep_lookup(type), len);
 
     assert(len < NBD_MAX_BUFFER_SIZE);
-    magic = cpu_to_be64(NBD_REP_MAGIC);
-    if (nbd_write(ioc, &magic, sizeof(magic), errp) < 0) {
-        error_prepend(errp, "write failed (rep magic): ");
-        return -EINVAL;
-    }
 
-    opt = cpu_to_be32(opt);
-    if (nbd_write(ioc, &opt, sizeof(opt), errp) < 0) {
-        error_prepend(errp, "write failed (rep opt): ");
-        return -EINVAL;
-    }
-
-    type = cpu_to_be32(type);
-    if (nbd_write(ioc, &type, sizeof(type), errp) < 0) {
-        error_prepend(errp, "write failed (rep type): ");
-        return -EINVAL;
-    }
-
-    len = cpu_to_be32(len);
-    if (nbd_write(ioc, &len, sizeof(len), errp) < 0) {
-        error_prepend(errp, "write failed (rep data length): ");
-        return -EINVAL;
-    }
-    return 0;
+    set_be_option_rep(&rep, client->opt, type, len);
+    return nbd_write(client->ioc, &rep, sizeof(rep), errp);
 }
 
 /* Send a reply header with default 0 length.
