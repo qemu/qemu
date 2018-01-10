@@ -75,6 +75,8 @@ class Arguments:
         res = []
         for arg in arg_str.split(","):
             arg = arg.strip()
+            if not arg:
+                raise ValueError("Empty argument (did you forget to use 'void'?)")
             if arg == 'void':
                 continue
 
