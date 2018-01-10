@@ -782,56 +782,6 @@ static int hax_set_segments(CPUArchState *env, struct vcpu_state_t *sregs)
     return 0;
 }
 
-/*
- * After get the state from the kernel module, some
- * qemu emulator state need be updated also
- */
-static int hax_setup_qemu_emulator(CPUArchState *env)
-{
-
-#define HFLAG_COPY_MASK (~( \
-  HF_CPL_MASK | HF_PE_MASK | HF_MP_MASK | HF_EM_MASK | \
-  HF_TS_MASK | HF_TF_MASK | HF_VM_MASK | HF_IOPL_MASK | \
-  HF_OSFXSR_MASK | HF_LMA_MASK | HF_CS32_MASK | \
-  HF_SS32_MASK | HF_CS64_MASK | HF_ADDSEG_MASK))
-
-    uint32_t hflags;
-
-    hflags = (env->segs[R_CS].flags >> DESC_DPL_SHIFT) & HF_CPL_MASK;
-    hflags |= (env->cr[0] & CR0_PE_MASK) << (HF_PE_SHIFT - CR0_PE_SHIFT);
-    hflags |= (env->cr[0] << (HF_MP_SHIFT - CR0_MP_SHIFT)) &
-        (HF_MP_MASK | HF_EM_MASK | HF_TS_MASK);
-    hflags |= (env->eflags & (HF_TF_MASK | HF_VM_MASK | HF_IOPL_MASK));
-    hflags |= (env->cr[4] & CR4_OSFXSR_MASK) <<
-              (HF_OSFXSR_SHIFT - CR4_OSFXSR_SHIFT);
-
-    if (env->efer & MSR_EFER_LMA) {
-        hflags |= HF_LMA_MASK;
-    }
-
-    if ((hflags & HF_LMA_MASK) && (env->segs[R_CS].flags & DESC_L_MASK)) {
-        hflags |= HF_CS32_MASK | HF_SS32_MASK | HF_CS64_MASK;
-    } else {
-        hflags |= (env->segs[R_CS].flags & DESC_B_MASK) >>
-            (DESC_B_SHIFT - HF_CS32_SHIFT);
-        hflags |= (env->segs[R_SS].flags & DESC_B_MASK) >>
-            (DESC_B_SHIFT - HF_SS32_SHIFT);
-        if (!(env->cr[0] & CR0_PE_MASK) ||
-            (env->eflags & VM_MASK) || !(hflags & HF_CS32_MASK)) {
-            hflags |= HF_ADDSEG_MASK;
-        } else {
-            hflags |= ((env->segs[R_DS].base |
-                        env->segs[R_ES].base |
-                        env->segs[R_SS].base) != 0) << HF_ADDSEG_SHIFT;
-        }
-    }
-
-    hflags &= ~HF_SMM_MASK;
-
-    env->hflags = (env->hflags & HFLAG_COPY_MASK) | hflags;
-    return 0;
-}
-
 static int hax_sync_vcpu_register(CPUArchState *env, int set)
 {
     struct vcpu_state_t regs;
@@ -888,7 +838,7 @@ static int hax_sync_vcpu_register(CPUArchState *env, int set)
         }
     }
     if (!set) {
-        hax_setup_qemu_emulator(env);
+        x86_update_hflags(env);
     }
     return 0;
 }
