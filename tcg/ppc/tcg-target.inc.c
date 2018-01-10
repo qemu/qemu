@@ -1524,16 +1524,15 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp opc,
 
     /* Compensate for very large offsets.  */
     if (add_off >= 0x8000) {
-        /* Most target env are smaller than 32k; none are larger than 64k.
-           Simplify the logic here merely to offset by 0x7ff0, giving us a
-           range just shy of 64k.  Check this assumption.  */
-        QEMU_BUILD_BUG_ON(offsetof(CPUArchState,
-                                   tlb_table[NB_MMU_MODES - 1][1])
-                          > 0x7ff0 + 0x7fff);
-        tcg_out32(s, ADDI | TAI(TCG_REG_TMP1, base, 0x7ff0));
+        int low = (int16_t)cmp_off;
+        int high = cmp_off - low;
+        assert((high & 0xffff) == 0);
+        assert(cmp_off - high == (int16_t)(cmp_off - high));
+        assert(add_off - high == (int16_t)(add_off - high));
+        tcg_out32(s, ADDIS | TAI(TCG_REG_TMP1, base, high >> 16));
         base = TCG_REG_TMP1;
-        cmp_off -= 0x7ff0;
-        add_off -= 0x7ff0;
+        cmp_off -= high;
+        add_off -= high;
     }
 
     /* Extraction and shifting, part 2.  */
