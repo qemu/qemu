@@ -499,9 +499,12 @@ static int qio_channel_websock_handshake_read(QIOChannelWebsock *ioc,
             error_setg(errp,
                        "End of headers not found in first 4096 bytes");
             return 1;
-        } else {
-            return 0;
+        } else if (ret == 0) {
+            error_setg(errp,
+                       "End of headers not found before connection closed");
+            return -1;
         }
+        return 0;
     }
     *handshake_end = '\0';
 
