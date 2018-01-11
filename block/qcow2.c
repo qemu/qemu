@@ -2908,6 +2908,25 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
     blk_set_allow_write_beyond_eof(blk, true);
 
+    /* Clear the protocol layer and preallocate it if necessary */
+    ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (qcow2_opts->preallocation == PREALLOC_MODE_FULL ||
+        qcow2_opts->preallocation == PREALLOC_MODE_FALLOC)
+    {
+        int64_t prealloc_size =
+            qcow2_calc_prealloc_size(qcow2_opts->size, cluster_size,
+                                     refcount_order);
+
+        ret = blk_truncate(blk, prealloc_size, qcow2_opts->preallocation, errp);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+
     /* Write the header */
     QEMU_BUILD_BUG_ON((1 << MIN_CLUSTER_BITS) < sizeof(*header));
     header = g_malloc0(cluster_size);
@@ -3145,15 +3164,6 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
 
 
     /* Create and open the file (protocol layer) */
-    if (prealloc == PREALLOC_MODE_FULL || prealloc == PREALLOC_MODE_FALLOC) {
-        int refcount_order = ctz32(refcount_bits);
-        int64_t prealloc_size =
-            qcow2_calc_prealloc_size(size, cluster_size, refcount_order);
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, prealloc_size, &error_abort);
-        qemu_opt_set(opts, BLOCK_OPT_PREALLOC, PreallocMode_str(prealloc),
-                     &error_abort);
-    }
-
     ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
         goto finish;
