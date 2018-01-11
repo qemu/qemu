@@ -28,20 +28,20 @@
 
 /* Handshake phase structs - this struct is passed on the wire */
 
-struct nbd_option {
+struct NBDOption {
     uint64_t magic; /* NBD_OPTS_MAGIC */
     uint32_t option; /* NBD_OPT_* */
     uint32_t length;
 } QEMU_PACKED;
-typedef struct nbd_option nbd_option;
+typedef struct NBDOption NBDOption;
 
-struct nbd_opt_reply {
+struct NBDOptionReply {
     uint64_t magic; /* NBD_REP_MAGIC */
     uint32_t option; /* NBD_OPT_* */
     uint32_t type; /* NBD_REP_* */
     uint32_t length;
 } QEMU_PACKED;
-typedef struct nbd_opt_reply nbd_opt_reply;
+typedef struct NBDOptionReply NBDOptionReply;
 
 /* Transmission phase structs
  *
