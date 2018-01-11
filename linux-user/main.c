@@ -4629,6 +4629,12 @@ int main(int argc, char **argv, char **envp)
         }
         env->pc = regs->pc;
         env->xregs[31] = regs->sp;
+#ifdef TARGET_WORDS_BIGENDIAN
+        env->cp15.sctlr_el[1] |= SCTLR_E0E;
+        for (i = 1; i < 4; ++i) {
+            env->cp15.sctlr_el[i] |= SCTLR_EE;
+        }
+#endif
     }
 #elif defined(TARGET_ARM)
     {

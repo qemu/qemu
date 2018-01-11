@@ -137,7 +137,16 @@ unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs)
   unsigned int nRc = 0;
 //  unsigned long flags;
   FPA11 *fpa11;
+  unsigned int cp;
 //  save_flags(flags); sti();
+
+  /* Check that this is really an FPA11 instruction: the coprocessor
+   * field in bits [11:8] must be 1 or 2.
+   */
+  cp = (opcode >> 8) & 0xf;
+  if (cp != 1 && cp != 2) {
+    return 0;
+  }
 
   qemufpa=qfpa;
   user_registers=qregs;
