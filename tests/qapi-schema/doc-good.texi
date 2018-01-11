@@ -76,7 +76,7 @@ Examples:
 
 @deftp {Enum} Enum
 
-@subsection Produces @strong{invalid} texinfo
+
 
 @b{Values:}
 @table @asis
@@ -101,7 +101,6 @@ Not documented
 the first member
 @end table
 
-
 @end deftp
 
 
@@ -118,13 +117,11 @@ Another paragraph (but no @code{var}: line)
 Not documented
 @end table
 
-
 @end deftp
 
 
 
 @deftp {Object} Variant2
-
 
 
 
@@ -143,7 +140,6 @@ Not documented
 @item The members of @code{Variant2} when @code{base1} is @t{"two"}
 @end table
 
-
 @end deftp
 
 
@@ -159,7 +155,6 @@ One of @t{"one"}, @t{"two"}
 @item @code{data: Variant1} when @code{type} is @t{"one"}
 @item @code{data: Variant2} when @code{type} is @t{"two"}
 @end table
-
 
 @end deftp
 
@@ -181,7 +176,6 @@ argument
 @item @code{arg3: boolean}
 Not documented
 @end table
-
 
 @b{Note:}
 @code{arg3} is undocumented
@@ -209,13 +203,11 @@ Duis aute irure dolor
 <- out
 @end example
 
-
 @b{Examples:}
 @example
 - *verbatim*
 - @{braces@}
 @end example
-
 
 @b{Since:}
 2.10
@@ -236,7 +228,6 @@ If you're bored enough to read this, go see a video of boxed cats
 
 <- out
 @end example
-
 
 @end deftypefn
 

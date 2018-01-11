@@ -96,15 +96,60 @@ int scsi_cdb_length(uint8_t *buf)
     return cdb_len;
 }
 
+SCSISense scsi_parse_sense_buf(const uint8_t *in_buf, int in_len)
+{
+    bool fixed_in;
+    SCSISense sense;
+
+    assert(in_len > 0);
+    fixed_in = (in_buf[0] & 2) == 0;
+    if (fixed_in) {
+        if (in_len < 14) {
+            return SENSE_CODE(IO_ERROR);
+        }
+        sense.key = in_buf[2];
+        sense.asc = in_buf[12];
+        sense.ascq = in_buf[13];
+    } else {
+        if (in_len < 4) {
+            return SENSE_CODE(IO_ERROR);
+        }
+        sense.key = in_buf[1];
+        sense.asc = in_buf[2];
+        sense.ascq = in_buf[3];
+    }
+
+    return sense;
+}
+
+int scsi_build_sense_buf(uint8_t *out_buf, size_t size, SCSISense sense,
+                         bool fixed_sense)
+{
+    int len;
+    uint8_t buf[SCSI_SENSE_LEN] = { 0 };
+
+    if (fixed_sense) {
+        buf[0] = 0x70;
+        buf[2] = sense.key;
+        buf[7] = 10;
+        buf[12] = sense.asc;
+        buf[13] = sense.ascq;
+        len = 18;
+    } else {
+        buf[0] = 0x72;
+        buf[1] = sense.key;
+        buf[2] = sense.asc;
+        buf[3] = sense.ascq;
+        len = 8;
+    }
+    len = MIN(len, size);
+    memcpy(out_buf, buf, len);
+    return len;
+}
+
 int scsi_build_sense(uint8_t *buf, SCSISense sense)
 {
-    memset(buf, 0, 18);
-    buf[0] = 0x70;
-    buf[2] = sense.key;
-    buf[7] = 10;
-    buf[12] = sense.asc;
-    buf[13] = sense.ascq;
-    return 18;
+    return scsi_build_sense_buf(buf, SCSI_SENSE_LEN, sense, true);
 }
 
 /*
@@ -211,6 +256,16 @@ const struct SCSISense sense_code_LUN_COMM_FAILURE = {
     .key = ABORTED_COMMAND, .asc = 0x08, .ascq = 0x00
 };
 
+/* Medium Error, Unrecovered read error */
+const struct SCSISense sense_code_READ_ERROR = {
+    .key = MEDIUM_ERROR, .asc = 0x11, .ascq = 0x00
+};
+
+/* Not ready, Cause not reportable */
+const struct SCSISense sense_code_NOT_READY = {
+    .key = NOT_READY, .asc = 0x04, .ascq = 0x00
+};
+
 /* Unit attention, Capacity data has changed */
 const struct SCSISense sense_code_CAPACITY_CHANGED = {
     .key = UNIT_ATTENTION, .asc = 0x2a, .ascq = 0x09
@@ -264,67 +319,36 @@ const struct SCSISense sense_code_SPACE_ALLOC_FAILED = {
 int scsi_convert_sense(uint8_t *in_buf, int in_len,
                        uint8_t *buf, int len, bool fixed)
 {
-    bool fixed_in;
     SCSISense sense;
-    if (!fixed && len < 8) {
-        return 0;
+    bool fixed_in;
+
+    fixed_in = (in_buf[0] & 2) == 0;
+    if (in_len && fixed == fixed_in) {
+        memcpy(buf, in_buf, MIN(len, in_len));
+        return MIN(len, in_len);
     }
 
     if (in_len == 0) {
-        sense.key = NO_SENSE;
-        sense.asc = 0;
-        sense.ascq = 0;
+        sense = SENSE_CODE(NO_SENSE);
     } else {
-        fixed_in = (in_buf[0] & 2) == 0;
-
-        if (fixed == fixed_in) {
-            memcpy(buf, in_buf, MIN(len, in_len));
-            return MIN(len, in_len);
-        }
-
-        if (fixed_in) {
-            sense.key = in_buf[2];
-            sense.asc = in_buf[12];
-            sense.ascq = in_buf[13];
-        } else {
-            sense.key = in_buf[1];
-            sense.asc = in_buf[2];
-            sense.ascq = in_buf[3];
-        }
+        sense = scsi_parse_sense_buf(in_buf, in_len);
     }
-
-    memset(buf, 0, len);
-    if (fixed) {
-        /* Return fixed format sense buffer */
-        buf[0] = 0x70;
-        buf[2] = sense.key;
-        buf[7] = 10;
-        buf[12] = sense.asc;
-        buf[13] = sense.ascq;
-        return MIN(len, SCSI_SENSE_LEN);
-    } else {
-        /* Return descriptor format sense buffer */
-        buf[0] = 0x72;
-        buf[1] = sense.key;
-        buf[2] = sense.asc;
-        buf[3] = sense.ascq;
-        return 8;
-    }
+    return scsi_build_sense_buf(buf, len, sense, fixed);
 }
 
 int scsi_sense_to_errno(int key, int asc, int ascq)
 {
     switch (key) {
-    case 0x00: /* NO SENSE */
-    case 0x01: /* RECOVERED ERROR */
-    case 0x06: /* UNIT ATTENTION */
+    case NO_SENSE:
+    case RECOVERED_ERROR:
+    case UNIT_ATTENTION:
         /* These sense keys are not errors */
         return 0;
-    case 0x0b: /* COMMAND ABORTED */
+    case ABORTED_COMMAND: /* COMMAND ABORTED */
         return ECANCELED;
-    case 0x02: /* NOT READY */
-    case 0x05: /* ILLEGAL REQUEST */
-    case 0x07: /* DATA PROTECTION */
+    case NOT_READY:
+    case ILLEGAL_REQUEST:
+    case DATA_PROTECT:
         /* Parse ASCQ */
         break;
     default:
@@ -356,34 +380,15 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
     }
 }
 
-int scsi_sense_buf_to_errno(const uint8_t *sense, size_t sense_size)
+int scsi_sense_buf_to_errno(const uint8_t *in_buf, size_t in_len)
 {
-    int key, asc, ascq;
-    if (sense_size < 1) {
+    SCSISense sense;
+    if (in_len < 1) {
         return EIO;
     }
-    switch (sense[0]) {
-    case 0x70: /* Fixed format sense data. */
-        if (sense_size < 14) {
-            return EIO;
-        }
-        key = sense[2] & 0xF;
-        asc = sense[12];
-        ascq = sense[13];
-        break;
-    case 0x72: /* Descriptor format sense data. */
-        if (sense_size < 4) {
-            return EIO;
-        }
-        key = sense[1] & 0xF;
-        asc = sense[2];
-        ascq = sense[3];
-        break;
-    default:
-        return EIO;
-        break;
-    }
-    return scsi_sense_to_errno(key, asc, ascq);
+
+    sense = scsi_parse_sense_buf(in_buf, in_len);
+    return scsi_sense_to_errno(sense.key, sense.asc, sense.ascq);
 }
 
 const char *scsi_command_name(uint8_t cmd)

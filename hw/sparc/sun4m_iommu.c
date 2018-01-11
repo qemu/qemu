@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sparc/sun4m.h"
+#include "hw/sparc/sun4m_iommu.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
@@ -125,7 +125,7 @@
 
 #define IOMMU_PAGE_SHIFT    12
 #define IOMMU_PAGE_SIZE     (1 << IOMMU_PAGE_SHIFT)
-#define IOMMU_PAGE_MASK     ~(IOMMU_PAGE_SIZE - 1)
+#define IOMMU_PAGE_MASK     (~(IOMMU_PAGE_SIZE - 1))
 
 static uint64_t iommu_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
@@ -218,8 +218,8 @@ static void iommu_mem_write(void *opaque, hwaddr addr,
         s->regs[saddr] = val & IOMMU_SBCFG_MASK;
         break;
     case IOMMU_ARBEN:
-        // XXX implement SBus probing: fault when reading unmapped
-        // addresses, fault cause and address stored to MMU/IOMMU
+        /* XXX implement SBus probing: fault when reading unmapped
+           addresses, fault cause and address stored to MMU/IOMMU */
         s->regs[saddr] = (val & IOMMU_ARBEN_MASK) | IOMMU_MID;
         break;
     case IOMMU_MASK_ID:
@@ -272,8 +272,9 @@ static void iommu_bad_addr(IOMMUState *s, hwaddr addr,
     trace_sun4m_iommu_bad_addr(addr);
     s->regs[IOMMU_AFSR] = IOMMU_AFSR_ERR | IOMMU_AFSR_LE | IOMMU_AFSR_RESV |
         IOMMU_AFSR_FAV;
-    if (!is_write)
+    if (!is_write) {
         s->regs[IOMMU_AFSR] |= IOMMU_AFSR_RD;
+    }
     s->regs[IOMMU_AFAR] = addr;
     qemu_irq_raise(s->irq);
 }
@@ -322,7 +323,7 @@ static IOMMUTLBEntry sun4m_translate_iommu(IOMMUMemoryRegion *iommu,
 }
 
 static const VMStateDescription vmstate_iommu = {
-    .name ="iommu",
+    .name = "iommu",
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {

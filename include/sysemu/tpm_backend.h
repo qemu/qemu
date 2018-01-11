@@ -43,14 +43,14 @@ struct TPMBackend {
     Object parent;
 
     /*< protected >*/
+    TPMIf *tpmif;
     bool opened;
-    TPMState *tpm_state;
     GThreadPool *thread_pool;
     bool had_startup_error;
+    QEMUBH *bh;
 
     /* <public> */
     char *id;
-    enum TpmModel fe_model;
 
     QLIST_ENTRY(TPMBackend) list;
 };
@@ -63,24 +63,27 @@ struct TPMBackendClass {
     /* get a descriptive text of the backend to display to the user */
     const char *desc;
 
-    TPMBackend *(*create)(QemuOpts *opts, const char *id);
+    TPMBackend *(*create)(QemuOpts *opts);
 
-    /* start up the TPM on the backend */
-    int (*startup_tpm)(TPMBackend *t);
+    /* start up the TPM on the backend - optional */
+    int (*startup_tpm)(TPMBackend *t, size_t buffersize);
 
+    /* optional */
     void (*reset)(TPMBackend *t);
 
     void (*cancel_cmd)(TPMBackend *t);
 
+    /* optional */
     bool (*get_tpm_established_flag)(TPMBackend *t);
 
+    /* optional */
     int (*reset_tpm_established_flag)(TPMBackend *t, uint8_t locty);
 
     TPMVersion (*get_tpm_version)(TPMBackend *t);
 
-    TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
+    size_t (*get_buffer_size)(TPMBackend *t);
 
-    void (*opened)(TPMBackend *s, Error **errp);
+    TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
 
     void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd);
 };
@@ -96,22 +99,25 @@ enum TpmType tpm_backend_get_type(TPMBackend *s);
 /**
  * tpm_backend_init:
  * @s: the backend to initialized
- * @state: TPMState
+ * @tpmif: TPM interface
  * @datacb: callback for sending data to frontend
+ * @errp: a pointer to return the #Error object if an error occurs.
  *
  * Initialize the backend with the given variables.
  *
  * Returns 0 on success.
  */
-int tpm_backend_init(TPMBackend *s, TPMState *state);
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp);
 
 /**
  * tpm_backend_startup_tpm:
  * @s: the backend whose TPM support is to be started
+ * @buffersize: the buffer size the TPM is supposed to use,
+ *              0 to leave it as-is
  *
  * Returns 0 on success.
  */
-int tpm_backend_startup_tpm(TPMBackend *s);
+int tpm_backend_startup_tpm(TPMBackend *s, size_t buffersize);
 
 /**
  * tpm_backend_had_startup_error:
@@ -171,16 +177,6 @@ bool tpm_backend_get_tpm_established_flag(TPMBackend *s);
 int tpm_backend_reset_tpm_established_flag(TPMBackend *s, uint8_t locty);
 
 /**
- * tpm_backend_open:
- * @s: the backend to open
- * @errp: a pointer to return the #Error object if an error occurs.
- *
- * This function will open the backend if it is not already open.  Calling this
- * function on an already opened backend will not result in an error.
- */
-void tpm_backend_open(TPMBackend *s, Error **errp);
-
-/**
  * tpm_backend_get_tpm_version:
  * @s: the backend to call into
  *
@@ -189,6 +185,16 @@ void tpm_backend_open(TPMBackend *s, Error **errp);
  * Returns TPMVersion.
  */
 TPMVersion tpm_backend_get_tpm_version(TPMBackend *s);
+
+/**
+ * tpm_backend_get_buffer_size:
+ * @s: the backend to call into
+ *
+ * Get the TPM's buffer size.
+ *
+ * Returns buffer size.
+ */
+size_t tpm_backend_get_buffer_size(TPMBackend *s);
 
 /**
  * tpm_backend_query_tpm:
@@ -200,8 +206,6 @@ TPMVersion tpm_backend_get_tpm_version(TPMBackend *s);
  */
 TPMInfo *tpm_backend_query_tpm(TPMBackend *s);
 
-TPMBackend *qemu_find_tpm(const char *id);
-
-void tpm_register_model(enum TpmModel model);
+TPMBackend *qemu_find_tpm_be(const char *id);
 
 #endif

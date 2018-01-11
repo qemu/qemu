@@ -365,6 +365,9 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #elif defined(__linux__) && defined(__s390x__)
    /* Use 1 MiB (segment size) alignment so gmap can be used by KVM. */
 #  define QEMU_VMALLOC_ALIGN (256 * 4096)
+#elif defined(__linux__) && defined(__sparc__)
+#include <sys/shm.h>
+#  define QEMU_VMALLOC_ALIGN MAX(getpagesize(), SHMLBA)
 #else
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif

@@ -18,8 +18,6 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#ifndef _WIN32
-#endif
 
 #include "qemu/cutils.h"
 #include "cpu.h"
@@ -51,7 +49,6 @@
 #include "trace-root.h"
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
-#include <fcntl.h>
 #include <linux/falloc.h>
 #endif
 
@@ -708,9 +705,17 @@ CPUState *qemu_get_cpu(int index)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_address_space_init(CPUState *cpu, AddressSpace *as, int asidx)
+void cpu_address_space_init(CPUState *cpu, int asidx,
+                            const char *prefix, MemoryRegion *mr)
 {
     CPUAddressSpace *newas;
+    AddressSpace *as = g_new0(AddressSpace, 1);
+    char *as_name;
+
+    assert(mr);
+    as_name = g_strdup_printf("%s-%d", prefix, cpu->cpu_index);
+    address_space_init(as, mr, as_name);
+    g_free(as_name);
 
     /* Target code should have set num_ases before calling us */
     assert(asidx < cpu->num_ases);
@@ -2720,6 +2725,37 @@ static uint16_t dummy_section(PhysPageMap *map, FlatView *fv, MemoryRegion *mr)
     return phys_section_add(map, &section);
 }
 
+static void readonly_mem_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size)
+{
+    /* Ignore any write to ROM. */
+}
+
+static bool readonly_mem_accepts(void *opaque, hwaddr addr,
+                                 unsigned size, bool is_write)
+{
+    return is_write;
+}
+
+/* This will only be used for writes, because reads are special cased
+ * to directly access the underlying host ram.
+ */
+static const MemoryRegionOps readonly_mem_ops = {
+    .write = readonly_mem_write,
+    .valid.accepts = readonly_mem_accepts,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .unaligned = false,
+    },
+};
+
 MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index, MemTxAttrs attrs)
 {
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
@@ -2732,7 +2768,8 @@ MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index, MemTxAttrs attrs)
 
 static void io_mem_init(void)
 {
-    memory_region_init_io(&io_mem_rom, NULL, &unassigned_mem_ops, NULL, NULL, UINT64_MAX);
+    memory_region_init_io(&io_mem_rom, NULL, &readonly_mem_ops,
+                          NULL, NULL, UINT64_MAX);
     memory_region_init_io(&io_mem_unassigned, NULL, &unassigned_mem_ops, NULL,
                           NULL, UINT64_MAX);
 

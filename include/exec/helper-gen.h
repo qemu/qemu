@@ -56,6 +56,16 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret)          \
   tcg_gen_callN(HELPER(name), dh_retvar(ret), 5, args);                 \
 }
 
+#define DEF_HELPER_FLAGS_6(name, flags, ret, t1, t2, t3, t4, t5, t6)    \
+static inline void glue(gen_helper_, name)(dh_retvar_decl(ret)          \
+    dh_arg_decl(t1, 1),  dh_arg_decl(t2, 2), dh_arg_decl(t3, 3),        \
+    dh_arg_decl(t4, 4), dh_arg_decl(t5, 5), dh_arg_decl(t6, 6))         \
+{                                                                       \
+  TCGTemp *args[6] = { dh_arg(t1, 1), dh_arg(t2, 2), dh_arg(t3, 3),     \
+                     dh_arg(t4, 4), dh_arg(t5, 5), dh_arg(t6, 6) };     \
+  tcg_gen_callN(HELPER(name), dh_retvar(ret), 6, args);                 \
+}
+
 #include "helper.h"
 #include "trace/generated-helpers.h"
 #include "trace/generated-helpers-wrappers.h"
@@ -67,6 +77,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret)          \
 #undef DEF_HELPER_FLAGS_3
 #undef DEF_HELPER_FLAGS_4
 #undef DEF_HELPER_FLAGS_5
+#undef DEF_HELPER_FLAGS_6
 #undef GEN_HELPER
 
 #endif /* HELPER_GEN_H */

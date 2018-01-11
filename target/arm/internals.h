@@ -488,7 +488,39 @@ static inline void arm_clear_exclusive(CPUARMState *env)
 }
 
 /**
+ * ARMFaultType: type of an ARM MMU fault
+ * This corresponds to the v8A pseudocode's Fault enumeration,
+ * with extensions for QEMU internal conditions.
+ */
+typedef enum ARMFaultType {
+    ARMFault_None,
+    ARMFault_AccessFlag,
+    ARMFault_Alignment,
+    ARMFault_Background,
+    ARMFault_Domain,
+    ARMFault_Permission,
+    ARMFault_Translation,
+    ARMFault_AddressSize,
+    ARMFault_SyncExternal,
+    ARMFault_SyncExternalOnWalk,
+    ARMFault_SyncParity,
+    ARMFault_SyncParityOnWalk,
+    ARMFault_AsyncParity,
+    ARMFault_AsyncExternal,
+    ARMFault_Debug,
+    ARMFault_TLBConflict,
+    ARMFault_Lockdown,
+    ARMFault_Exclusive,
+    ARMFault_ICacheMaint,
+    ARMFault_QEMU_NSCExec, /* v8M: NS executing in S&NSC memory */
+    ARMFault_QEMU_SFault, /* v8M: SecureFault INVTRAN, INVEP or AUVIOL */
+} ARMFaultType;
+
+/**
  * ARMMMUFaultInfo: Information describing an ARM MMU Fault
+ * @type: Type of fault
+ * @level: Table walk level (for translation, access flag and permission faults)
+ * @domain: Domain of the fault address (for non-LPAE CPUs only)
  * @s2addr: Address that caused a fault at stage 2
  * @stage2: True if we faulted at stage 2
  * @s1ptw: True if we faulted at stage 2 while doing a stage 1 page-table walk
@@ -496,16 +528,169 @@ static inline void arm_clear_exclusive(CPUARMState *env)
  */
 typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
 struct ARMMMUFaultInfo {
+    ARMFaultType type;
     target_ulong s2addr;
+    int level;
+    int domain;
     bool stage2;
     bool s1ptw;
     bool ea;
 };
 
+/**
+ * arm_fi_to_sfsc: Convert fault info struct to short-format FSC
+ * Compare pseudocode EncodeSDFSC(), though unlike that function
+ * we set up a whole FSR-format code including domain field and
+ * putting the high bit of the FSC into bit 10.
+ */
+static inline uint32_t arm_fi_to_sfsc(ARMMMUFaultInfo *fi)
+{
+    uint32_t fsc;
+
+    switch (fi->type) {
+    case ARMFault_None:
+        return 0;
+    case ARMFault_AccessFlag:
+        fsc = fi->level == 1 ? 0x3 : 0x6;
+        break;
+    case ARMFault_Alignment:
+        fsc = 0x1;
+        break;
+    case ARMFault_Permission:
+        fsc = fi->level == 1 ? 0xd : 0xf;
+        break;
+    case ARMFault_Domain:
+        fsc = fi->level == 1 ? 0x9 : 0xb;
+        break;
+    case ARMFault_Translation:
+        fsc = fi->level == 1 ? 0x5 : 0x7;
+        break;
+    case ARMFault_SyncExternal:
+        fsc = 0x8 | (fi->ea << 12);
+        break;
+    case ARMFault_SyncExternalOnWalk:
+        fsc = fi->level == 1 ? 0xc : 0xe;
+        fsc |= (fi->ea << 12);
+        break;
+    case ARMFault_SyncParity:
+        fsc = 0x409;
+        break;
+    case ARMFault_SyncParityOnWalk:
+        fsc = fi->level == 1 ? 0x40c : 0x40e;
+        break;
+    case ARMFault_AsyncParity:
+        fsc = 0x408;
+        break;
+    case ARMFault_AsyncExternal:
+        fsc = 0x406 | (fi->ea << 12);
+        break;
+    case ARMFault_Debug:
+        fsc = 0x2;
+        break;
+    case ARMFault_TLBConflict:
+        fsc = 0x400;
+        break;
+    case ARMFault_Lockdown:
+        fsc = 0x404;
+        break;
+    case ARMFault_Exclusive:
+        fsc = 0x405;
+        break;
+    case ARMFault_ICacheMaint:
+        fsc = 0x4;
+        break;
+    case ARMFault_Background:
+        fsc = 0x0;
+        break;
+    case ARMFault_QEMU_NSCExec:
+        fsc = M_FAKE_FSR_NSC_EXEC;
+        break;
+    case ARMFault_QEMU_SFault:
+        fsc = M_FAKE_FSR_SFAULT;
+        break;
+    default:
+        /* Other faults can't occur in a context that requires a
+         * short-format status code.
+         */
+        g_assert_not_reached();
+    }
+
+    fsc |= (fi->domain << 4);
+    return fsc;
+}
+
+/**
+ * arm_fi_to_lfsc: Convert fault info struct to long-format FSC
+ * Compare pseudocode EncodeLDFSC(), though unlike that function
+ * we fill in also the LPAE bit 9 of a DFSR format.
+ */
+static inline uint32_t arm_fi_to_lfsc(ARMMMUFaultInfo *fi)
+{
+    uint32_t fsc;
+
+    switch (fi->type) {
+    case ARMFault_None:
+        return 0;
+    case ARMFault_AddressSize:
+        fsc = fi->level & 3;
+        break;
+    case ARMFault_AccessFlag:
+        fsc = (fi->level & 3) | (0x2 << 2);
+        break;
+    case ARMFault_Permission:
+        fsc = (fi->level & 3) | (0x3 << 2);
+        break;
+    case ARMFault_Translation:
+        fsc = (fi->level & 3) | (0x1 << 2);
+        break;
+    case ARMFault_SyncExternal:
+        fsc = 0x10 | (fi->ea << 12);
+        break;
+    case ARMFault_SyncExternalOnWalk:
+        fsc = (fi->level & 3) | (0x5 << 2) | (fi->ea << 12);
+        break;
+    case ARMFault_SyncParity:
+        fsc = 0x18;
+        break;
+    case ARMFault_SyncParityOnWalk:
+        fsc = (fi->level & 3) | (0x7 << 2);
+        break;
+    case ARMFault_AsyncParity:
+        fsc = 0x19;
+        break;
+    case ARMFault_AsyncExternal:
+        fsc = 0x11 | (fi->ea << 12);
+        break;
+    case ARMFault_Alignment:
+        fsc = 0x21;
+        break;
+    case ARMFault_Debug:
+        fsc = 0x22;
+        break;
+    case ARMFault_TLBConflict:
+        fsc = 0x30;
+        break;
+    case ARMFault_Lockdown:
+        fsc = 0x34;
+        break;
+    case ARMFault_Exclusive:
+        fsc = 0x35;
+        break;
+    default:
+        /* Other faults can't occur in a context that requires a
+         * long-format status code.
+         */
+        g_assert_not_reached();
+    }
+
+    fsc |= 1 << 9;
+    return fsc;
+}
+
 /* Do a page table walk and add page to TLB if possible */
 bool arm_tlb_fill(CPUState *cpu, vaddr address,
                   MMUAccessType access_type, int mmu_idx,
-                  uint32_t *fsr, ARMMMUFaultInfo *fi);
+                  ARMMMUFaultInfo *fi);
 
 /* Return true if the stage 1 translation regime is using LPAE format page
  * tables */
@@ -544,15 +729,17 @@ static inline bool regime_is_secure(CPUARMState *env, ARMMMUIdx mmu_idx)
     case ARMMMUIdx_S1NSE1:
     case ARMMMUIdx_S1E2:
     case ARMMMUIdx_S2NS:
+    case ARMMMUIdx_MPrivNegPri:
+    case ARMMMUIdx_MUserNegPri:
     case ARMMMUIdx_MPriv:
-    case ARMMMUIdx_MNegPri:
     case ARMMMUIdx_MUser:
         return false;
     case ARMMMUIdx_S1E3:
     case ARMMMUIdx_S1SE0:
     case ARMMMUIdx_S1SE1:
+    case ARMMMUIdx_MSPrivNegPri:
+    case ARMMMUIdx_MSUserNegPri:
     case ARMMMUIdx_MSPriv:
-    case ARMMMUIdx_MSNegPri:
     case ARMMMUIdx_MSUser:
         return true;
     default:

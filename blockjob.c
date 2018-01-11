@@ -59,6 +59,7 @@ static void __attribute__((__constructor__)) block_job_init(void)
 
 static void block_job_event_cancelled(BlockJob *job);
 static void block_job_event_completed(BlockJob *job, const char *msg);
+static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job));
 
 /* Transactional group of block jobs */
 struct BlockJobTxn {
@@ -233,26 +234,23 @@ static char *child_job_get_parent_desc(BdrvChild *c)
                            job->id);
 }
 
-static const BdrvChildRole child_job = {
-    .get_parent_desc    = child_job_get_parent_desc,
-    .stay_at_node       = true,
-};
-
-static void block_job_drained_begin(void *opaque)
+static void child_job_drained_begin(BdrvChild *c)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = c->opaque;
     block_job_pause(job);
 }
 
-static void block_job_drained_end(void *opaque)
+static void child_job_drained_end(BdrvChild *c)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = c->opaque;
     block_job_resume(job);
 }
 
-static const BlockDevOps block_job_dev_ops = {
-    .drained_begin = block_job_drained_begin,
-    .drained_end = block_job_drained_end,
+static const BdrvChildRole child_job = {
+    .get_parent_desc    = child_job_get_parent_desc,
+    .drained_begin      = child_job_drained_begin,
+    .drained_end        = child_job_drained_end,
+    .stay_at_node       = true,
 };
 
 void block_job_remove_all_bdrv(BlockJob *job)
@@ -480,9 +478,16 @@ static void block_job_completed_txn_success(BlockJob *job)
     }
 }
 
+/* Assumes the block_job_mutex is held */
+static bool block_job_timer_pending(BlockJob *job)
+{
+    return timer_pending(&job->sleep_timer);
+}
+
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     Error *local_err = NULL;
+    int64_t old_speed = job->speed;
 
     if (!job->driver->set_speed) {
         error_setg(errp, QERR_UNSUPPORTED);
@@ -495,6 +500,12 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     job->speed = speed;
+    if (speed <= old_speed) {
+        return;
+    }
+
+    /* kick only if a timer is pending */
+    block_job_enter_cond(job, block_job_timer_pending);
 }
 
 void block_job_complete(BlockJob *job, Error **errp)
@@ -701,7 +712,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
     bs->job = job;
 
-    blk_set_dev_ops(blk, &block_job_dev_ops, job);
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     QLIST_INSERT_HEAD(&block_jobs, job, job_list);
@@ -821,7 +831,11 @@ void block_job_resume_all(void)
     }
 }
 
-void block_job_enter(BlockJob *job)
+/*
+ * Conditionally enter a block_job pending a call to fn() while
+ * under the block_job_lock critical section.
+ */
+static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job))
 {
     if (!block_job_started(job)) {
         return;
@@ -836,11 +850,21 @@ void block_job_enter(BlockJob *job)
         return;
     }
 
+    if (fn && !fn(job)) {
+        block_job_unlock();
+        return;
+    }
+
     assert(!job->deferred_to_main_loop);
     timer_del(&job->sleep_timer);
     job->busy = true;
     block_job_unlock();
     aio_co_wake(job->co);
+}
+
+void block_job_enter(BlockJob *job)
+{
+    block_job_enter_cond(job, NULL);
 }
 
 bool block_job_is_cancelled(BlockJob *job)

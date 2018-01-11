@@ -1672,34 +1672,12 @@ static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
     return status;
 }
 
-/* handle reading after the end of the backing file */
-int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
-                        int64_t offset, int bytes)
-{
-    uint64_t bs_size = bs->total_sectors * BDRV_SECTOR_SIZE;
-    int n1;
-
-    if ((offset + bytes) <= bs_size) {
-        return bytes;
-    }
-
-    if (offset >= bs_size) {
-        n1 = 0;
-    } else {
-        n1 = bs_size - offset;
-    }
-
-    qemu_iovec_memset(qiov, n1, 0, bytes - n1);
-
-    return n1;
-}
-
 static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                                         uint64_t bytes, QEMUIOVector *qiov,
                                         int flags)
 {
     BDRVQcow2State *s = bs->opaque;
-    int offset_in_cluster, n1;
+    int offset_in_cluster;
     int ret;
     unsigned int cur_bytes; /* number of bytes in current iteration */
     uint64_t cluster_offset = 0;
@@ -1734,26 +1712,13 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
         case QCOW2_CLUSTER_UNALLOCATED:
 
             if (bs->backing) {
-                /* read from the base image */
-                n1 = qcow2_backing_read1(bs->backing->bs, &hd_qiov,
-                                         offset, cur_bytes);
-                if (n1 > 0) {
-                    QEMUIOVector local_qiov;
-
-                    qemu_iovec_init(&local_qiov, hd_qiov.niov);
-                    qemu_iovec_concat(&local_qiov, &hd_qiov, 0, n1);
-
-                    BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
-                    qemu_co_mutex_unlock(&s->lock);
-                    ret = bdrv_co_preadv(bs->backing, offset, n1,
-                                         &local_qiov, 0);
-                    qemu_co_mutex_lock(&s->lock);
-
-                    qemu_iovec_destroy(&local_qiov);
-
-                    if (ret < 0) {
-                        goto fail;
-                    }
+                BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
+                qemu_co_mutex_unlock(&s->lock);
+                ret = bdrv_co_preadv(bs->backing, offset, cur_bytes,
+                                     &hd_qiov, 0);
+                qemu_co_mutex_lock(&s->lock);
+                if (ret < 0) {
+                    goto fail;
                 }
             } else {
                 /* Note: in this case, no need to wait */

@@ -395,6 +395,9 @@ static void do_mchk_interrupt(CPUS390XState *env)
 
     lowcore = cpu_map_lowcore(env);
 
+    /* we are always in z/Architecture mode */
+    lowcore->ar_access_id = 1;
+
     for (i = 0; i < 16; i++) {
         lowcore->floating_pt_save_area[i] = cpu_to_be64(get_freg(env, i)->ll);
         lowcore->gpregs_save_area[i] = cpu_to_be64(env->regs[i]);
@@ -404,13 +407,10 @@ static void do_mchk_interrupt(CPUS390XState *env)
     lowcore->prefixreg_save_area = cpu_to_be32(env->psa);
     lowcore->fpt_creg_save_area = cpu_to_be32(env->fpc);
     lowcore->tod_progreg_save_area = cpu_to_be32(env->todpr);
-    lowcore->cpu_timer_save_area[0] = cpu_to_be32(env->cputm >> 32);
-    lowcore->cpu_timer_save_area[1] = cpu_to_be32((uint32_t)env->cputm);
-    lowcore->clock_comp_save_area[0] = cpu_to_be32(env->ckc >> 32);
-    lowcore->clock_comp_save_area[1] = cpu_to_be32((uint32_t)env->ckc);
+    lowcore->cpu_timer_save_area = cpu_to_be64(env->cputm);
+    lowcore->clock_comp_save_area = cpu_to_be64(env->ckc >> 8);
 
-    lowcore->mcck_interruption_code[0] = cpu_to_be32(0x00400f1d);
-    lowcore->mcck_interruption_code[1] = cpu_to_be32(0x40330000);
+    lowcore->mcic = cpu_to_be64(s390_build_validity_mcic() | MCIC_SC_CP);
     lowcore->mcck_old_psw.mask = cpu_to_be64(get_psw_mask(env));
     lowcore->mcck_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->mcck_new_psw.mask);
@@ -554,10 +554,7 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
 
-    if (retaddr) {
-        cpu_restore_state(cs, retaddr);
-    }
-    program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO);
+    s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, retaddr);
 }
 
 #endif /* CONFIG_USER_ONLY */

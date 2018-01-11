@@ -1,0 +1,13 @@
+enum Enum ['one', 'two']
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    prefix QTYPE
+object q_empty
+doc symbol=Enum
+    body=
+== Produces *invalid* texinfo
+    arg=one
+The _one_ {and only}
+    arg=two
+
+    section=None
+@two is undocumented

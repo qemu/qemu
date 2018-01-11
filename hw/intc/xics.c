@@ -334,7 +334,6 @@ static void icp_realize(DeviceState *dev, Error **errp)
     }
 
     cpu = POWERPC_CPU(obj);
-    cpu->intc = OBJECT(icp);
     icp->cs = CPU(obj);
 
     env = &cpu->env;
@@ -383,6 +382,27 @@ static const TypeInfo icp_info = {
     .class_init = icp_class_init,
     .class_size = sizeof(ICPStateClass),
 };
+
+Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_new(type);
+    object_property_add_child(cpu, type, obj, &error_abort);
+    object_unref(obj);
+    object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
+                                   &error_abort);
+    object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        object_unparent(obj);
+        error_propagate(errp, local_err);
+        obj = NULL;
+    }
+
+    return obj;
+}
 
 /*
  * ICS: Source layer
@@ -693,18 +713,6 @@ static const TypeInfo xics_fabric_info = {
 /*
  * Exported functions
  */
-qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
-{
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
-    ICSState *ics = xic->ics_get(xi, irq);
-
-    if (ics) {
-        return ics->qirqs[irq - ics->offset];
-    }
-
-    return NULL;
-}
-
 ICPState *xics_icp_get(XICSFabric *xi, int server)
 {
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);

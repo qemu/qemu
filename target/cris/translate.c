@@ -2603,7 +2603,7 @@ static int dec_movem_mr(CPUCRISState *env, DisasContext *dc)
         tcg_gen_addi_tl(addr, cpu_R[dc->op1], i * 8);
         gen_load(dc, tmp32, addr, 4, 0);
     } else {
-        TCGV_UNUSED(tmp32);
+        tmp32 = NULL;
     }
     tcg_temp_free(addr);
 
@@ -3297,8 +3297,6 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         qemu_log("--------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(cs, pc_start, dc->pc - pc_start);
-        qemu_log("\nisize=%d osize=%d\n",
-                 dc->pc - pc_start, tcg_op_buf_count());
         qemu_log_unlock();
     }
 #endif

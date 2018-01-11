@@ -143,7 +143,7 @@ static bool check_gr(DisasContext *dc, uint8_t reg)
 
 static TCGv load_zero(DisasContext *dc)
 {
-    if (TCGV_IS_UNUSED_I64(dc->zero)) {
+    if (!dc->zero) {
         dc->zero = tcg_const_i64(0);
     }
     return dc->zero;
@@ -2324,7 +2324,7 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     for (i = 0; i < ARRAY_SIZE(dc->wb); i++) {
         DisasContextTemp *wb = &dc->wb[i];
         wb->reg = TILEGX_R_NOREG;
-        TCGV_UNUSED_I64(wb->val);
+        wb->val = NULL;
     }
     dc->num_wb = 0;
 
@@ -2384,9 +2384,9 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     dc->exit_tb = false;
     dc->atomic_excp = TILEGX_EXCP_NONE;
     dc->jmp.cond = TCG_COND_NEVER;
-    TCGV_UNUSED_I64(dc->jmp.dest);
-    TCGV_UNUSED_I64(dc->jmp.val1);
-    TCGV_UNUSED_I64(dc->zero);
+    dc->jmp.dest = NULL;
+    dc->jmp.val1 = NULL;
+    dc->zero = NULL;
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log_lock();

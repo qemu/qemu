@@ -26,8 +26,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
-#include "include/qemu/error-report.h"
-#include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 #include "hw/ssi/aspeed_smc.h"
 

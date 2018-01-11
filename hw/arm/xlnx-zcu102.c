@@ -151,6 +151,29 @@ static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi[i]), 1, cs_line);
     }
 
+    for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_FLASH; i++) {
+        SSIBus *spi_bus;
+        DeviceState *flash_dev;
+        qemu_irq cs_line;
+        DriveInfo *dinfo = drive_get_next(IF_MTD);
+        int bus = i / XLNX_ZYNQMP_NUM_QSPI_BUS_CS;
+        gchar *bus_name = g_strdup_printf("qspi%d", bus);
+
+        spi_bus = (SSIBus *)qdev_get_child_bus(DEVICE(&s->soc), bus_name);
+        g_free(bus_name);
+
+        flash_dev = ssi_create_slave_no_init(spi_bus, "n25q512a11");
+        if (dinfo) {
+            qdev_prop_set_drive(flash_dev, "drive", blk_by_legacy_dinfo(dinfo),
+                                &error_fatal);
+        }
+        qdev_init_nofail(flash_dev);
+
+        cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.qspi), i + 1, cs_line);
+    }
+
     /* TODO create and connect IDE devices for ide_drive_get() */
 
     xlnx_zcu102_binfo.ram_size = ram_size;

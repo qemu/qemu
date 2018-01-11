@@ -146,8 +146,10 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     uint8_t *tb_ptr = itb->tc.ptr;
 
     qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
-                           "Trace %p [%d: " TARGET_FMT_lx "] %s\n",
-                           itb->tc.ptr, cpu->cpu_index, itb->pc,
+                           "Trace %d: %p ["
+                           TARGET_FMT_lx "/" TARGET_FMT_lx "/%#x] %s\n",
+                           cpu->cpu_index, itb->tc.ptr,
+                           itb->cs_base, itb->pc, itb->flags,
                            lookup_symbol(itb->pc));
 
 #if defined(DEBUG_DISAS)
@@ -525,19 +527,13 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    int32_t insns_left;
 
     /* Clear the interrupt flag now since we're processing
      * cpu->interrupt_request and cpu->exit_request.
+     * Ensure zeroing happens before reading cpu->exit_request or
+     * cpu->interrupt_request (see also smp_wmb in cpu_exit())
      */
-    insns_left = atomic_read(&cpu->icount_decr.u32);
-    atomic_set(&cpu->icount_decr.u16.high, 0);
-    if (unlikely(insns_left < 0)) {
-        /* Ensure the zeroing of icount_decr comes before the next read
-         * of cpu->exit_request or cpu->interrupt_request.
-         */
-        smp_mb();
-    }
+    atomic_mb_set(&cpu->icount_decr.u16.high, 0);
 
     if (unlikely(atomic_read(&cpu->interrupt_request))) {
         int interrupt_request;

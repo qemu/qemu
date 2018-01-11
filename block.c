@@ -822,6 +822,18 @@ static void bdrv_child_cb_drained_end(BdrvChild *child)
     bdrv_drained_end(bs);
 }
 
+static void bdrv_child_cb_attach(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
+    bdrv_apply_subtree_drain(child, bs);
+}
+
+static void bdrv_child_cb_detach(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
+    bdrv_unapply_subtree_drain(child, bs);
+}
+
 static int bdrv_child_cb_inactivate(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
@@ -889,6 +901,8 @@ const BdrvChildRole child_file = {
     .inherit_options = bdrv_inherited_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,
+    .attach          = bdrv_child_cb_attach,
+    .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
 };
 
@@ -911,6 +925,8 @@ const BdrvChildRole child_format = {
     .inherit_options = bdrv_inherited_fmt_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_end     = bdrv_child_cb_drained_end,
+    .attach          = bdrv_child_cb_attach,
+    .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
 };
 
@@ -953,6 +969,8 @@ static void bdrv_backing_attach(BdrvChild *c)
                     parent->backing_blocker);
     bdrv_op_unblock(backing_hd, BLOCK_OP_TYPE_BACKUP_TARGET,
                     parent->backing_blocker);
+
+    bdrv_child_cb_attach(c);
 }
 
 static void bdrv_backing_detach(BdrvChild *c)
@@ -963,6 +981,8 @@ static void bdrv_backing_detach(BdrvChild *c)
     bdrv_op_unblock_all(c->bs, parent->backing_blocker);
     error_free(parent->backing_blocker);
     parent->backing_blocker = NULL;
+
+    bdrv_child_cb_detach(c);
 }
 
 /*
@@ -1924,6 +1944,8 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
     assert(role == &child_backing || role == &child_file);
 
     if (!backing) {
+        int flags = bdrv_reopen_get_flags(reopen_queue, bs);
+
         /* Apart from the modifications below, the same permissions are
          * forwarded and left alone as for filters */
         bdrv_filter_default_perms(bs, c, role, reopen_queue, perm, shared,
@@ -1936,7 +1958,9 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
 
         /* bs->file always needs to be consistent because of the metadata. We
          * can never allow other users to resize or write to it. */
-        perm |= BLK_PERM_CONSISTENT_READ;
+        if (!(flags & BDRV_O_NO_IO)) {
+            perm |= BLK_PERM_CONSISTENT_READ;
+        }
         shared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
     } else {
         /* We want consistent read from backing files if the parent needs it.
@@ -1968,16 +1992,22 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
+    int i;
 
     if (old_bs && new_bs) {
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
     }
     if (old_bs) {
-        if (old_bs->quiesce_counter && child->role->drained_end) {
-            child->role->drained_end(child);
-        }
+        /* Detach first so that the recursive drain sections coming from @child
+         * are already gone and we only end the drain sections that came from
+         * elsewhere. */
         if (child->role->detach) {
             child->role->detach(child);
+        }
+        if (old_bs->quiesce_counter && child->role->drained_end) {
+            for (i = 0; i < old_bs->quiesce_counter; i++) {
+                child->role->drained_end(child);
+            }
         }
         QLIST_REMOVE(child, next_parent);
     }
@@ -1987,9 +2017,14 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     if (new_bs) {
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
         if (new_bs->quiesce_counter && child->role->drained_begin) {
-            child->role->drained_begin(child);
+            for (i = 0; i < new_bs->quiesce_counter; i++) {
+                child->role->drained_begin(child);
+            }
         }
 
+        /* Attach only after starting new drained sections, so that recursive
+         * drain sections coming from @child don't get an extra .drained_begin
+         * callback. */
         if (child->role->attach) {
             child->role->attach(child);
         }
@@ -2731,6 +2766,7 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
  * returns a pointer to bs_queue, which is either the newly allocated
  * bs_queue, or the existing bs_queue being used.
  *
+ * bs must be drained between bdrv_reopen_queue() and bdrv_reopen_multiple().
  */
 static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                                  BlockDriverState *bs,
@@ -2745,6 +2781,11 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     BlockReopenQueueEntry *bs_entry;
     BdrvChild *child;
     QDict *old_options, *explicit_options;
+
+    /* Make sure that the caller remembered to use a drained section. This is
+     * important to avoid graph changes between the recursive queuing here and
+     * bdrv_reopen_multiple(). */
+    assert(bs->quiesce_counter > 0);
 
     if (bs_queue == NULL) {
         bs_queue = g_new0(BlockReopenQueue, 1);
@@ -2870,6 +2911,8 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
  * If all devices prepare successfully, then the changes are committed
  * to all devices.
  *
+ * All affected nodes must be drained between bdrv_reopen_queue() and
+ * bdrv_reopen_multiple().
  */
 int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **errp)
 {
@@ -2879,11 +2922,8 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
 
     assert(bs_queue != NULL);
 
-    aio_context_release(ctx);
-    bdrv_drain_all_begin();
-    aio_context_acquire(ctx);
-
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        assert(bs_entry->state.bs->quiesce_counter > 0);
         if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, &local_err)) {
             error_propagate(errp, local_err);
             goto cleanup;
@@ -2912,8 +2952,6 @@ cleanup:
     }
     g_free(bs_queue);
 
-    bdrv_drain_all_end();
-
     return ret;
 }
 
@@ -2923,12 +2961,18 @@ int bdrv_reopen(BlockDriverState *bs, int bdrv_flags, Error **errp)
 {
     int ret = -1;
     Error *local_err = NULL;
-    BlockReopenQueue *queue = bdrv_reopen_queue(NULL, bs, NULL, bdrv_flags);
+    BlockReopenQueue *queue;
 
+    bdrv_subtree_drained_begin(bs);
+
+    queue = bdrv_reopen_queue(NULL, bs, NULL, bdrv_flags);
     ret = bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }
+
+    bdrv_subtree_drained_end(bs);
+
     return ret;
 }
 
@@ -4320,9 +4364,15 @@ int bdrv_inactivate_all(void)
     BdrvNextIterator it;
     int ret = 0;
     int pass;
+    GSList *aio_ctxs = NULL, *ctx;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        aio_context_acquire(bdrv_get_aio_context(bs));
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        if (!g_slist_find(aio_ctxs, aio_context)) {
+            aio_ctxs = g_slist_prepend(aio_ctxs, aio_context);
+            aio_context_acquire(aio_context);
+        }
     }
 
     /* We do two passes of inactivation. The first pass calls to drivers'
@@ -4340,9 +4390,11 @@ int bdrv_inactivate_all(void)
     }
 
 out:
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        aio_context_release(bdrv_get_aio_context(bs));
+    for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
+        AioContext *aio_context = ctx->data;
+        aio_context_release(aio_context);
     }
+    g_slist_free(aio_ctxs);
 
     return ret;
 }
@@ -4593,10 +4645,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
         back_flags = flags;
         back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
+        backing_options = qdict_new();
         if (backing_fmt) {
-            backing_options = qdict_new();
             qdict_put_str(backing_options, "driver", backing_fmt);
         }
+        qdict_put_bool(backing_options, BDRV_OPT_FORCE_SHARE, true);
 
         bs = bdrv_open(full_backing, NULL, backing_options, back_flags,
                        &local_err);
@@ -4746,7 +4799,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
     AioContext *ctx = bdrv_get_aio_context(bs);
 
     aio_disable_external(ctx);
-    bdrv_parent_drained_begin(bs);
+    bdrv_parent_drained_begin(bs, NULL);
     bdrv_drain(bs); /* ensure there are no in-flight requests */
 
     while (aio_poll(ctx, false)) {
@@ -4760,7 +4813,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
      */
     aio_context_acquire(new_context);
     bdrv_attach_aio_context(bs, new_context);
-    bdrv_parent_drained_end(bs);
+    bdrv_parent_drained_end(bs, NULL);
     aio_enable_external(ctx);
     aio_context_release(new_context);
 }

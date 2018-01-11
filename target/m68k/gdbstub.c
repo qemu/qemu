@@ -63,7 +63,7 @@ int m68k_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     } else {
         switch (n) {
         case 16:
-            env->sr = tmp;
+            cpu_m68k_set_sr(env, tmp);
             break;
         case 17:
             env->pc = tmp;

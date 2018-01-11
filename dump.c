@@ -788,12 +788,7 @@ static bool note_name_equal(DumpState *s,
     get_note_sizes(s, note, &head_size, &name_size, NULL);
     head_size = ROUND_UP(head_size, 4);
 
-    if (name_size != len ||
-        memcmp(note + head_size, "VMCOREINFO", len)) {
-        return false;
-    }
-
-    return true;
+    return name_size == len && memcmp(note + head_size, name, len) == 0;
 }
 
 /* write common header, sub header and elf note to vmcore */

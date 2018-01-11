@@ -662,8 +662,6 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_VP_RUNTIME_AVAILABLE;
     }
     if (cpu->hyperv_synic) {
-        int sint;
-
         if (!has_msr_hv_synic ||
             kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
             fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
@@ -671,10 +669,6 @@ static int hyperv_handle_properties(CPUState *cs)
         }
 
         env->features[FEAT_HYPERV_EAX] |= HV_SYNIC_AVAILABLE;
-        env->msr_hv_synic_version = HV_SYNIC_VERSION;
-        for (sint = 0; sint < ARRAY_SIZE(env->msr_hv_synic_sint); sint++) {
-            env->msr_hv_synic_sint[sint] = HV_SINT_MASKED;
-        }
     }
     if (cpu->hyperv_stimer) {
         if (!has_msr_hv_stimer) {
@@ -1044,14 +1038,19 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
 
-    env->exception_injected = -1;
-    env->interrupt_injected = -1;
     env->xcr0 = 1;
     if (kvm_irqchip_in_kernel()) {
         env->mp_state = cpu_is_bsp(cpu) ? KVM_MP_STATE_RUNNABLE :
                                           KVM_MP_STATE_UNINITIALIZED;
     } else {
         env->mp_state = KVM_MP_STATE_RUNNABLE;
+    }
+
+    if (cpu->hyperv_synic) {
+        int i;
+        for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
+            env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
+        }
     }
 }
 
@@ -1122,7 +1121,7 @@ static int kvm_get_supported_msrs(KVMState *s)
                     break;
                 case MSR_IA32_XSS:
                     has_msr_xss = true;
-                    break;;
+                    break;
                 case HV_X64_MSR_CRASH_CTL:
                     has_msr_hv_crash = true;
                     break;
@@ -1678,18 +1677,25 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_GLOBAL_CTRL,
                               env->msr_global_ctrl);
         }
-        if (has_msr_hv_hypercall) {
-            kvm_msr_entry_add(cpu, HV_X64_MSR_GUEST_OS_ID,
-                              env->msr_hv_guest_os_id);
-            kvm_msr_entry_add(cpu, HV_X64_MSR_HYPERCALL,
-                              env->msr_hv_hypercall);
+        /*
+         * Hyper-V partition-wide MSRs: to avoid clearing them on cpu hot-add,
+         * only sync them to KVM on the first cpu
+         */
+        if (current_cpu == first_cpu) {
+            if (has_msr_hv_hypercall) {
+                kvm_msr_entry_add(cpu, HV_X64_MSR_GUEST_OS_ID,
+                                  env->msr_hv_guest_os_id);
+                kvm_msr_entry_add(cpu, HV_X64_MSR_HYPERCALL,
+                                  env->msr_hv_hypercall);
+            }
+            if (cpu->hyperv_time) {
+                kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC,
+                                  env->msr_hv_tsc);
+            }
         }
         if (cpu->hyperv_vapic) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_APIC_ASSIST_PAGE,
                               env->msr_hv_vapic);
-        }
-        if (cpu->hyperv_time) {
-            kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC, env->msr_hv_tsc);
         }
         if (has_msr_hv_crash) {
             int j;
@@ -1706,10 +1712,10 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (cpu->hyperv_synic) {
             int j;
 
+            kvm_msr_entry_add(cpu, HV_X64_MSR_SVERSION, HV_SYNIC_VERSION);
+
             kvm_msr_entry_add(cpu, HV_X64_MSR_SCONTROL,
                               env->msr_hv_synic_control);
-            kvm_msr_entry_add(cpu, HV_X64_MSR_SVERSION,
-                              env->msr_hv_synic_version);
             kvm_msr_entry_add(cpu, HV_X64_MSR_SIEFP,
                               env->msr_hv_synic_evt_page);
             kvm_msr_entry_add(cpu, HV_X64_MSR_SIMP,
@@ -2073,7 +2079,6 @@ static int kvm_get_msrs(X86CPU *cpu)
         uint32_t msr;
 
         kvm_msr_entry_add(cpu, HV_X64_MSR_SCONTROL, 0);
-        kvm_msr_entry_add(cpu, HV_X64_MSR_SVERSION, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_SIEFP, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_SIMP, 0);
         for (msr = HV_X64_MSR_SINT0; msr <= HV_X64_MSR_SINT15; msr++) {
@@ -2276,9 +2281,6 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_SCONTROL:
             env->msr_hv_synic_control = msrs[i].data;
-            break;
-        case HV_X64_MSR_SVERSION:
-            env->msr_hv_synic_version = msrs[i].data;
             break;
         case HV_X64_MSR_SIEFP:
             env->msr_hv_synic_evt_page = msrs[i].data;

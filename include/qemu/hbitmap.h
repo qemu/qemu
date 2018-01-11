@@ -292,6 +292,14 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first);
  */
 unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi);
 
+/* hbitmap_next_zero:
+ * @hb: The HBitmap to operate on
+ * @start: The bit to start from.
+ *
+ * Find next not dirty bit.
+ */
+int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start);
+
 /* hbitmap_create_meta:
  * Create a "meta" hbitmap to track dirtiness of the bits in this HBitmap.
  * The caller owns the created bitmap and must call hbitmap_free_meta(hb) to

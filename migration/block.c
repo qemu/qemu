@@ -897,7 +897,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     int len, flags;
     char device_name[256];
     int64_t addr;
-    BlockBackend *blk, *blk_prev = NULL;;
+    BlockBackend *blk, *blk_prev = NULL;
     Error *local_err = NULL;
     uint8_t *buf;
     int64_t total_sectors = 0;

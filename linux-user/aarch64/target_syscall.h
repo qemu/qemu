@@ -8,7 +8,11 @@ struct target_pt_regs {
     uint64_t        pstate;
 };
 
+#if defined(TARGET_WORDS_BIGENDIAN)
+#define UNAME_MACHINE "aarch64_be"
+#else
 #define UNAME_MACHINE "aarch64"
+#endif
 #define UNAME_MINIMUM_RELEASE "3.8.0"
 #define TARGET_CLONE_BACKWARDS
 #define TARGET_MINSIGSTKSZ       2048

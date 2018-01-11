@@ -245,6 +245,222 @@ targets do not need a disk image.
 
 @c man end
 
+@subsection Device URL Syntax
+@c TODO merge this with section Disk Images
+
+@c man begin NOTES
+
+In addition to using normal file images for the emulated storage devices,
+QEMU can also use networked resources such as iSCSI devices. These are
+specified using a special URL syntax.
+
+@table @option
+@item iSCSI
+iSCSI support allows QEMU to access iSCSI resources directly and use as
+images for the guest storage. Both disk and cdrom images are supported.
+
+Syntax for specifying iSCSI LUNs is
+``iscsi://<target-ip>[:<port>]/<target-iqn>/<lun>''
+
+By default qemu will use the iSCSI initiator-name
+'iqn.2008-11.org.linux-kvm[:<name>]' but this can also be set from the command
+line or a configuration file.
+
+Since version Qemu 2.4 it is possible to specify a iSCSI request timeout to detect
+stalled requests and force a reestablishment of the session. The timeout
+is specified in seconds. The default is 0 which means no timeout. Libiscsi
+1.15.0 or greater is required for this feature.
+
+Example (without authentication):
+@example
+qemu-system-i386 -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
+                 -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
+                 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+@end example
+
+Example (CHAP username/password via URL):
+@example
+qemu-system-i386 -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
+@end example
+
+Example (CHAP username/password via environment variables):
+@example
+LIBISCSI_CHAP_USERNAME="user" \
+LIBISCSI_CHAP_PASSWORD="password" \
+qemu-system-i386 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+@end example
+
+@item NBD
+QEMU supports NBD (Network Block Devices) both using TCP protocol as well
+as Unix Domain Sockets.
+
+Syntax for specifying a NBD device using TCP
+``nbd:<server-ip>:<port>[:exportname=<export>]''
+
+Syntax for specifying a NBD device using Unix Domain Sockets
+``nbd:unix:<domain-socket>[:exportname=<export>]''
+
+Example for TCP
+@example
+qemu-system-i386 --drive file=nbd:192.0.2.1:30000
+@end example
+
+Example for Unix Domain Sockets
+@example
+qemu-system-i386 --drive file=nbd:unix:/tmp/nbd-socket
+@end example
+
+@item SSH
+QEMU supports SSH (Secure Shell) access to remote disks.
+
+Examples:
+@example
+qemu-system-i386 -drive file=ssh://user@@host/path/to/disk.img
+qemu-system-i386 -drive file.driver=ssh,file.user=user,file.host=host,file.port=22,file.path=/path/to/disk.img
+@end example
+
+Currently authentication must be done using ssh-agent.  Other
+authentication methods may be supported in future.
+
+@item Sheepdog
+Sheepdog is a distributed storage system for QEMU.
+QEMU supports using either local sheepdog devices or remote networked
+devices.
+
+Syntax for specifying a sheepdog device
+@example
+sheepdog[+tcp|+unix]://[host:port]/vdiname[?socket=path][#snapid|#tag]
+@end example
+
+Example
+@example
+qemu-system-i386 --drive file=sheepdog://192.0.2.1:30000/MyVirtualMachine
+@end example
+
+See also @url{https://sheepdog.github.io/sheepdog/}.
+
+@item GlusterFS
+GlusterFS is a user space distributed file system.
+QEMU supports the use of GlusterFS volumes for hosting VM disk images using
+TCP, Unix Domain Sockets and RDMA transport protocols.
+
+Syntax for specifying a VM disk image on GlusterFS volume is
+@example
+
+URI:
+gluster[+type]://[host[:port]]/volume/path[?socket=...][,debug=N][,logfile=...]
+
+JSON:
+'json:@{"driver":"qcow2","file":@{"driver":"gluster","volume":"testvol","path":"a.img","debug":N,"logfile":"...",
+@                                 "server":[@{"type":"tcp","host":"...","port":"..."@},
+@                                           @{"type":"unix","socket":"..."@}]@}@}'
+@end example
+
+
+Example
+@example
+URI:
+qemu-system-x86_64 --drive file=gluster://192.0.2.1/testvol/a.img,
+@                               file.debug=9,file.logfile=/var/log/qemu-gluster.log
+
+JSON:
+qemu-system-x86_64 'json:@{"driver":"qcow2",
+@                          "file":@{"driver":"gluster",
+@                                   "volume":"testvol","path":"a.img",
+@                                   "debug":9,"logfile":"/var/log/qemu-gluster.log",
+@                                   "server":[@{"type":"tcp","host":"1.2.3.4","port":24007@},
+@                                             @{"type":"unix","socket":"/var/run/glusterd.socket"@}]@}@}'
+qemu-system-x86_64 -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
+@                                      file.debug=9,file.logfile=/var/log/qemu-gluster.log,
+@                                      file.server.0.type=tcp,file.server.0.host=1.2.3.4,file.server.0.port=24007,
+@                                      file.server.1.type=unix,file.server.1.socket=/var/run/glusterd.socket
+@end example
+
+See also @url{http://www.gluster.org}.
+
+@item HTTP/HTTPS/FTP/FTPS
+QEMU supports read-only access to files accessed over http(s) and ftp(s).
+
+Syntax using a single filename:
+@example
+<protocol>://[<username>[:<password>]@@]<host>/<path>
+@end example
+
+where:
+@table @option
+@item protocol
+'http', 'https', 'ftp', or 'ftps'.
+
+@item username
+Optional username for authentication to the remote server.
+
+@item password
+Optional password for authentication to the remote server.
+
+@item host
+Address of the remote server.
+
+@item path
+Path on the remote server, including any query string.
+@end table
+
+The following options are also supported:
+@table @option
+@item url
+The full URL when passing options to the driver explicitly.
+
+@item readahead
+The amount of data to read ahead with each range request to the remote server.
+This value may optionally have the suffix 'T', 'G', 'M', 'K', 'k' or 'b'. If it
+does not have a suffix, it will be assumed to be in bytes. The value must be a
+multiple of 512 bytes. It defaults to 256k.
+
+@item sslverify
+Whether to verify the remote server's certificate when connecting over SSL. It
+can have the value 'on' or 'off'. It defaults to 'on'.
+
+@item cookie
+Send this cookie (it can also be a list of cookies separated by ';') with
+each outgoing request.  Only supported when using protocols such as HTTP
+which support cookies, otherwise ignored.
+
+@item timeout
+Set the timeout in seconds of the CURL connection. This timeout is the time
+that CURL waits for a response from the remote server to get the size of the
+image to be downloaded. If not set, the default timeout of 5 seconds is used.
+@end table
+
+Note that when passing options to qemu explicitly, @option{driver} is the value
+of <protocol>.
+
+Example: boot from a remote Fedora 20 live ISO image
+@example
+qemu-system-x86_64 --drive media=cdrom,file=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
+
+qemu-system-x86_64 --drive media=cdrom,file.driver=http,file.url=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
+@end example
+
+Example: boot from a remote Fedora 20 cloud image using a local overlay for
+writes, copy-on-read, and a readahead of 64k
+@example
+qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"http",, "file.url":"https://dl.fedoraproject.org/pub/fedora/linux/releases/20/Images/x86_64/Fedora-x86_64-20-20131211.1-sda.qcow2",, "file.readahead":"64k"@}' /tmp/Fedora-x86_64-20-20131211.1-sda.qcow2
+
+qemu-system-x86_64 -drive file=/tmp/Fedora-x86_64-20-20131211.1-sda.qcow2,copy-on-read=on
+@end example
+
+Example: boot from an image stored on a VMware vSphere server with a self-signed
+certificate using a local overlay for writes, a readahead of 64k and a timeout
+of 10 seconds.
+@example
+qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"https",, "file.url":"https://user:password@@vsphere.example.com/folder/test/test-flat.vmdk?dcPath=Datacenter&dsName=datastore1",, "file.sslverify":"off",, "file.readahead":"64k",, "file.timeout":10@}' /tmp/test.qcow2
+
+qemu-system-x86_64 -drive file=/tmp/test.qcow2
+@end example
+
+@end table
+
+@c man end
+
 @node pcsys_keys
 @section Keys in the graphical frontends
 
@@ -2373,12 +2589,6 @@ deprecated.
 
 @section System emulator command line arguments
 
-@subsection -drive boot=on|off (since 1.3.0)
-
-The ``boot=on|off'' option to the ``-drive'' argument is
-ignored. Applications should use the ``bootindex=N'' parameter
-to set an absolute ordering between devices instead.
-
 @subsection -tdf (since 1.3.0)
 
 The ``-tdf'' argument is ignored. The behaviour implemented
@@ -2395,11 +2605,6 @@ synonym for setting ``-global kvm-pit.lost_tick_policy=discard''.
 
 The ``-no-kvm-irqchip'' argument is now a synonym for
 setting ``-machine kernel_irqchip=off''.
-
-@subsection -no-kvm-pit (since 1.3.0)
-
-The ``-no-kvm-pit'' argument is ignored. It is no longer
-possible to disable the KVM PIT directly.
 
 @subsection -no-kvm (since 1.3.0)
 
@@ -2437,32 +2642,36 @@ combined with ``-vnc tls-creds=tls0'
 
 @subsection -tftp (since 2.6.0)
 
-The ``-tftp /some/dir'' argument is now a synonym for setting
-the ``-netdev user,tftp=/some/dir' argument. The new syntax
-allows different settings to be provided per NIC.
+The ``-tftp /some/dir'' argument is replaced by
+``-netdev user,id=x,tftp=/some/dir'', either accompanied with
+``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
 
 @subsection -bootp (since 2.6.0)
 
-The ``-bootp /some/file'' argument is now a synonym for setting
-the ``-netdev user,bootp=/some/file' argument. The new syntax
-allows different settings to be provided per NIC.
+The ``-bootp /some/file'' argument is replaced by
+``-netdev user,id=x,bootp=/some/file'', either accompanied with
+``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
 
 @subsection -redir (since 2.6.0)
 
-The ``-redir ARGS'' argument is now a synonym for setting
-the ``-netdev user,hostfwd=ARGS'' argument instead. The new
-syntax allows different settings to be provided per NIC.
+The ``-redir [tcp|udp]:hostport:[guestaddr]:guestport'' argument is
+replaced by ``-netdev
+user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport'',
+either accompanied with ``-device ...,netdev=x'' (for pluggable NICs) or
+``-net nic,netdev=x'' (for embedded NICs). The new syntax allows different
+settings to be provided per NIC.
 
 @subsection -smb (since 2.6.0)
 
-The ``-smb /some/dir'' argument is now a synonym for setting
-the ``-netdev user,smb=/some/dir'' argument instead. The new
-syntax allows different settings to be provided per NIC.
-
-@subsection -net channel (since 2.6.0)
-
-The ``--net channel,ARGS'' argument is now a synonym for setting
-the ``-netdev user,guestfwd=ARGS'' argument instead.
+The ``-smb /some/dir'' argument is replaced by
+``-netdev user,id=x,smb=/some/dir'', either accompanied with
+``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
 
 @subsection -net vlan (since 2.9.0)
 
@@ -2475,19 +2684,26 @@ longer be directly supported in QEMU.
 The ``-drive if=scsi'' argument is replaced by the the
 ``-device BUS-TYPE'' argument combined with ``-drive if=none''.
 
+@subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
+
+The drive geometry arguments are replaced by the the geometry arguments
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive serial=... (since 2.10.0)
+
+The drive serial argument is replaced by the the serial argument
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive addr=... (since 2.10.0)
+
+The drive addr argument is replaced by the the addr argument
+that can be specified with the ``-device'' parameter.
+
 @subsection -net dump (since 2.10.0)
 
 The ``--net dump'' argument is now replaced with the
 ``-object filter-dump'' argument which works in combination
 with the modern ``-netdev`` backends instead.
-
-@subsection -hdachs (since 2.10.0)
-
-The ``-hdachs'' argument is now a synonym for setting
-the ``cyls'', ``heads'', ``secs'', and ``trans'' properties
-on the ``ide-hd'' device using the ``-device'' argument.
-The new syntax allows different settings to be provided
-per disk.
 
 @subsection -usbdevice (since 2.10.0)
 
@@ -2500,6 +2716,22 @@ enabled via the ``-machine usb=on'' argument.
 @subsection -nodefconfig (since 2.11.0)
 
 The ``-nodefconfig`` argument is a synonym for ``-no-user-config``.
+
+@subsection -machine s390-squash-mcss=on|off (since 2.12.0)
+
+The ``s390-squash-mcss=on`` property has been obsoleted by allowing the
+cssid to be chosen freely. Instead of squashing subchannels into the
+default channel subsystem image for guests that do not support multiple
+channel subsystems, all devices can be put into the default channel
+subsystem image.
+
+@subsection -fsdev handle (since 2.12.0)
+
+The ``handle'' fsdev backend does not support symlinks and causes the 9p
+filesystem in the guest to fail a fair amount of tests from the PJD POSIX
+filesystem test suite. Also it requires the CAP_DAC_READ_SEARCH capability,
+which is not the recommended way to run QEMU. This backend should not be
+used and it will be removed with no replacement.
 
 @section qemu-img command line arguments
 
@@ -2518,25 +2750,12 @@ The ``host_net_add'' command is replaced by the ``netdev_add'' command.
 
 The ``host_net_remove'' command is replaced by the ``netdev_del'' command.
 
-@subsection usb_add (since 2.10.0)
-
-The ``usb_add'' command is replaced by the ``device_add'' command.
-
-@subsection usb_del (since 2.10.0)
-
-The ``usb_del'' command is replaced by the ``device_del'' command.
-
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)
 
 The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
 or ``ivshmem-doorbell`` device types.
-
-@subsection spapr-pci-vfio-host-bridge (since 2.6.0)
-
-The ``spapr-pci-vfio-host-bridge'' device type is replaced by
-the ``spapr-pci-host-bridge'' device type.
 
 @section System emulator machines
 

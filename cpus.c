@@ -37,6 +37,7 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
 #include "sysemu/hax.h"
+#include "sysemu/hvf.h"
 #include "qmp-commands.h"
 #include "exec/exec-all.h"
 
@@ -900,6 +901,10 @@ void cpu_synchronize_all_states(void)
 
     CPU_FOREACH(cpu) {
         cpu_synchronize_state(cpu);
+        /* TODO: move to cpu_synchronize_state() */
+        if (hvf_enabled()) {
+            hvf_cpu_synchronize_state(cpu);
+        }
     }
 }
 
@@ -909,6 +914,10 @@ void cpu_synchronize_all_post_reset(void)
 
     CPU_FOREACH(cpu) {
         cpu_synchronize_post_reset(cpu);
+        /* TODO: move to cpu_synchronize_post_reset() */
+        if (hvf_enabled()) {
+            hvf_cpu_synchronize_post_reset(cpu);
+        }
     }
 }
 
@@ -918,6 +927,10 @@ void cpu_synchronize_all_post_init(void)
 
     CPU_FOREACH(cpu) {
         cpu_synchronize_post_init(cpu);
+        /* TODO: move to cpu_synchronize_post_init() */
+        if (hvf_enabled()) {
+            hvf_cpu_synchronize_post_init(cpu);
+        }
     }
 }
 
@@ -1057,13 +1070,22 @@ static void qemu_tcg_destroy_vcpu(CPUState *cpu)
 {
 }
 
+static void qemu_cpu_stop(CPUState *cpu, bool exit)
+{
+    g_assert(qemu_cpu_is_self(cpu));
+    cpu->stop = false;
+    cpu->stopped = true;
+    if (exit) {
+        cpu_exit(cpu);
+    }
+    qemu_cond_broadcast(&qemu_pause_cond);
+}
+
 static void qemu_wait_io_event_common(CPUState *cpu)
 {
     atomic_mb_set(&cpu->thread_kicked, false);
     if (cpu->stop) {
-        cpu->stop = false;
-        cpu->stopped = true;
-        qemu_cond_broadcast(&qemu_pause_cond);
+        qemu_cpu_stop(cpu, false);
     }
     process_queued_cpu_work(cpu);
 }
@@ -1095,6 +1117,14 @@ static void qemu_kvm_wait_io_event(CPUState *cpu)
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
 
+    qemu_wait_io_event_common(cpu);
+}
+
+static void qemu_hvf_wait_io_event(CPUState *cpu)
+{
+    while (cpu_thread_is_idle(cpu)) {
+        qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
+    }
     qemu_wait_io_event_common(cpu);
 }
 
@@ -1435,6 +1465,48 @@ static void *qemu_hax_cpu_thread_fn(void *arg)
     return NULL;
 }
 
+/* The HVF-specific vCPU thread function. This one should only run when the host
+ * CPU supports the VMX "unrestricted guest" feature. */
+static void *qemu_hvf_cpu_thread_fn(void *arg)
+{
+    CPUState *cpu = arg;
+
+    int r;
+
+    assert(hvf_enabled());
+
+    rcu_register_thread();
+
+    qemu_mutex_lock_iothread();
+    qemu_thread_get_self(cpu->thread);
+
+    cpu->thread_id = qemu_get_thread_id();
+    cpu->can_do_io = 1;
+    current_cpu = cpu;
+
+    hvf_init_vcpu(cpu);
+
+    /* signal CPU creation */
+    cpu->created = true;
+    qemu_cond_signal(&qemu_cpu_cond);
+
+    do {
+        if (cpu_can_run(cpu)) {
+            r = hvf_vcpu_exec(cpu);
+            if (r == EXCP_DEBUG) {
+                cpu_handle_guest_debug(cpu);
+            }
+        }
+        qemu_hvf_wait_io_event(cpu);
+    } while (!cpu->unplug || cpu_can_run(cpu));
+
+    hvf_vcpu_destroy(cpu);
+    cpu->created = false;
+    qemu_cond_signal(&qemu_cpu_cond);
+    qemu_mutex_unlock_iothread();
+    return NULL;
+}
+
 #ifdef _WIN32
 static void CALLBACK dummy_apc_func(ULONG_PTR unused)
 {
@@ -1610,12 +1682,12 @@ void pause_all_vcpus(void)
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
     CPU_FOREACH(cpu) {
-        cpu->stop = true;
-        qemu_cpu_kick(cpu);
-    }
-
-    if (qemu_in_vcpu_thread()) {
-        cpu_stop_current();
+        if (qemu_cpu_is_self(cpu)) {
+            qemu_cpu_stop(cpu, true);
+        } else {
+            cpu->stop = true;
+            qemu_cpu_kick(cpu);
+        }
     }
 
     while (!all_vcpus_paused()) {
@@ -1752,6 +1824,27 @@ static void qemu_kvm_start_vcpu(CPUState *cpu)
     }
 }
 
+static void qemu_hvf_start_vcpu(CPUState *cpu)
+{
+    char thread_name[VCPU_THREAD_NAME_SIZE];
+
+    /* HVF currently does not support TCG, and only runs in
+     * unrestricted-guest mode. */
+    assert(hvf_enabled());
+
+    cpu->thread = g_malloc0(sizeof(QemuThread));
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
+
+    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/HVF",
+             cpu->cpu_index);
+    qemu_thread_create(cpu->thread, thread_name, qemu_hvf_cpu_thread_fn,
+                       cpu, QEMU_THREAD_JOINABLE);
+    while (!cpu->created) {
+        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+    }
+}
+
 static void qemu_dummy_start_vcpu(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
@@ -1778,17 +1871,16 @@ void qemu_init_vcpu(CPUState *cpu)
         /* If the target cpu hasn't set up any address spaces itself,
          * give it the default one.
          */
-        AddressSpace *as = g_new0(AddressSpace, 1);
-
-        address_space_init(as, cpu->memory, "cpu-memory");
         cpu->num_ases = 1;
-        cpu_address_space_init(cpu, as, 0);
+        cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
     }
 
     if (kvm_enabled()) {
         qemu_kvm_start_vcpu(cpu);
     } else if (hax_enabled()) {
         qemu_hax_start_vcpu(cpu);
+    } else if (hvf_enabled()) {
+        qemu_hvf_start_vcpu(cpu);
     } else if (tcg_enabled()) {
         qemu_tcg_init_vcpu(cpu);
     } else {
@@ -1799,10 +1891,7 @@ void qemu_init_vcpu(CPUState *cpu)
 void cpu_stop_current(void)
 {
     if (current_cpu) {
-        current_cpu->stop = false;
-        current_cpu->stopped = true;
-        cpu_exit(current_cpu);
-        qemu_cond_broadcast(&qemu_pause_cond);
+        qemu_cpu_stop(current_cpu, true);
     }
 }
 

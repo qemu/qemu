@@ -351,6 +351,9 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define CR0_CPU_TIMER_SC        0x0000000000000400ULL
 #define CR0_SERVICE_SC          0x0000000000000200ULL
 
+/* Control register 14 bits */
+#define CR14_CHANNEL_REPORT_SC  0x0000000010000000ULL
+
 /* MMU */
 #define MMU_PRIMARY_IDX         0
 #define MMU_SECONDARY_IDX       1
@@ -674,6 +677,26 @@ struct sysib_322 {
 #define MCIC_VB_CT 0x0000000000020000ULL
 #define MCIC_VB_CC 0x0000000000010000ULL
 
+static inline uint64_t s390_build_validity_mcic(void)
+{
+    uint64_t mcic;
+
+    /*
+     * Indicate all validity bits (no damage) only. Other bits have to be
+     * added by the caller. (storage errors, subclasses and subclass modifiers)
+     */
+    mcic = MCIC_VB_WP | MCIC_VB_MS | MCIC_VB_PM | MCIC_VB_IA | MCIC_VB_FP |
+           MCIC_VB_GR | MCIC_VB_CR | MCIC_VB_ST | MCIC_VB_AR | MCIC_VB_PR |
+           MCIC_VB_FC | MCIC_VB_CT | MCIC_VB_CC;
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
+        mcic |= MCIC_VB_VR;
+    }
+    if (s390_has_feat(S390_FEAT_GUARDED_STORAGE)) {
+        mcic |= MCIC_VB_GS;
+    }
+    return mcic;
+}
+
 
 /* cpu.c */
 int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low);
@@ -699,6 +722,9 @@ static inline unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
 /* cpu_models.c */
 void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 #define cpu_list s390_cpu_list
+void s390_set_qemu_cpu_model(uint16_t type, uint8_t gen, uint8_t ec_ga,
+                             const S390FeatInit feat_init);
+
 
 /* helper.c */
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_S390_CPU, cpu_model)
@@ -719,7 +745,9 @@ void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
                        uint32_t io_int_parm, uint32_t io_int_word);
 /* automatically detect the instruction length */
 #define ILEN_AUTO                   0xff
-void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
+#define RA_IGNORED                  0
+void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
+                            uintptr_t ra);
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
 
@@ -733,6 +761,7 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
         s390_cpu_virt_mem_rw(cpu, laddr, ar, dest, len, true)
 #define s390_cpu_virt_mem_check_write(cpu, laddr, ar, len)   \
         s390_cpu_virt_mem_rw(cpu, laddr, ar, NULL, len, true)
+void s390_cpu_virt_mem_handle_exc(S390CPU *cpu, uintptr_t ra);
 
 
 /* sigp.c */

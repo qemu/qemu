@@ -199,7 +199,7 @@ static void xen_remap_bucket(MapCacheEntry *entry,
          */
         vaddr_base = mmap(vaddr, size, PROT_READ | PROT_WRITE,
                           MAP_ANON | MAP_SHARED, -1, 0);
-        if (vaddr_base == NULL) {
+        if (vaddr_base == MAP_FAILED) {
             perror("mmap");
             exit(-1);
         }

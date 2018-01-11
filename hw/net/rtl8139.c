@@ -882,7 +882,7 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
                 return size;
             }
 
-            int mcast_idx = compute_mcast_idx(buf);
+            int mcast_idx = net_crc32(buf, ETH_ALEN) >> 26;
 
             if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
             {

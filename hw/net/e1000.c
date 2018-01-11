@@ -98,7 +98,10 @@ typedef struct E1000State_st {
         unsigned char data[0x10000];
         uint16_t size;
         unsigned char vlan_needed;
+        unsigned char sum_needed;
+        bool cptse;
         e1000x_txd_props props;
+        e1000x_txd_props tso_props;
         uint16_t tso_frames;
     } tx;
 
@@ -539,35 +542,37 @@ xmit_seg(E1000State *s)
     uint16_t len;
     unsigned int frames = s->tx.tso_frames, css, sofar;
     struct e1000_tx *tp = &s->tx;
+    struct e1000x_txd_props *props = tp->cptse ? &tp->tso_props : &tp->props;
 
-    if (tp->props.tse && tp->props.cptse) {
-        css = tp->props.ipcss;
+    if (tp->cptse) {
+        css = props->ipcss;
         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
                frames, tp->size, css);
-        if (tp->props.ip) {    /* IPv4 */
+        if (props->ip) {    /* IPv4 */
             stw_be_p(tp->data+css+2, tp->size - css);
             stw_be_p(tp->data+css+4,
                      lduw_be_p(tp->data + css + 4) + frames);
         } else {         /* IPv6 */
             stw_be_p(tp->data+css+4, tp->size - css);
         }
-        css = tp->props.tucss;
+        css = props->tucss;
         len = tp->size - css;
-        DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", tp->props.tcp, css, len);
-        if (tp->props.tcp) {
-            sofar = frames * tp->props.mss;
+        DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", props->tcp, css, len);
+        if (props->tcp) {
+            sofar = frames * props->mss;
             stl_be_p(tp->data+css+4, ldl_be_p(tp->data+css+4)+sofar); /* seq */
-            if (tp->props.paylen - sofar > tp->props.mss) {
+            if (props->paylen - sofar > props->mss) {
                 tp->data[css + 13] &= ~9;    /* PSH, FIN */
             } else if (frames) {
                 e1000x_inc_reg_if_not_full(s->mac_reg, TSCTC);
             }
-        } else    /* UDP */
+        } else {    /* UDP */
             stw_be_p(tp->data+css+4, len);
-        if (tp->props.sum_needed & E1000_TXD_POPTS_TXSM) {
+        }
+        if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
             unsigned int phsum;
             // add pseudo-header length before checksum calculation
-            void *sp = tp->data + tp->props.tucso;
+            void *sp = tp->data + props->tucso;
 
             phsum = lduw_be_p(sp) + len;
             phsum = (phsum >> 16) + (phsum & 0xffff);
@@ -576,13 +581,11 @@ xmit_seg(E1000State *s)
         tp->tso_frames++;
     }
 
-    if (tp->props.sum_needed & E1000_TXD_POPTS_TXSM) {
-        putsum(tp->data, tp->size, tp->props.tucso,
-               tp->props.tucss, tp->props.tucse);
+    if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
+        putsum(tp->data, tp->size, props->tucso, props->tucss, props->tucse);
     }
-    if (tp->props.sum_needed & E1000_TXD_POPTS_IXSM) {
-        putsum(tp->data, tp->size, tp->props.ipcso,
-               tp->props.ipcss, tp->props.ipcse);
+    if (tp->sum_needed & E1000_TXD_POPTS_IXSM) {
+        putsum(tp->data, tp->size, props->ipcso, props->ipcss, props->ipcse);
     }
     if (tp->vlan_needed) {
         memmove(tp->vlan, tp->data, 4);
@@ -614,27 +617,27 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 
     s->mit_ide |= (txd_lower & E1000_TXD_CMD_IDE);
     if (dtype == E1000_TXD_CMD_DEXT) {    /* context descriptor */
-        e1000x_read_tx_ctx_descr(xp, &tp->props);
-        tp->tso_frames = 0;
-        if (tp->props.tucso == 0) {    /* this is probably wrong */
-            DBGOUT(TXSUM, "TCP/UDP: cso 0!\n");
-            tp->props.tucso = tp->props.tucss + (tp->props.tcp ? 16 : 6);
+        if (le32_to_cpu(xp->cmd_and_length) & E1000_TXD_CMD_TSE) {
+            e1000x_read_tx_ctx_descr(xp, &tp->tso_props);
+            tp->tso_frames = 0;
+        } else {
+            e1000x_read_tx_ctx_descr(xp, &tp->props);
         }
         return;
     } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D)) {
         // data descriptor
         if (tp->size == 0) {
-            tp->props.sum_needed = le32_to_cpu(dp->upper.data) >> 8;
+            tp->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
         }
-        tp->props.cptse = (txd_lower & E1000_TXD_CMD_TSE) ? 1 : 0;
+        tp->cptse = (txd_lower & E1000_TXD_CMD_TSE) ? 1 : 0;
     } else {
         // legacy descriptor
-        tp->props.cptse = 0;
+        tp->cptse = 0;
     }
 
     if (e1000x_vlan_enabled(s->mac_reg) &&
         e1000x_is_vlan_txd(txd_lower) &&
-        (tp->props.cptse || txd_lower & E1000_TXD_CMD_EOP)) {
+        (tp->cptse || txd_lower & E1000_TXD_CMD_EOP)) {
         tp->vlan_needed = 1;
         stw_be_p(tp->vlan_header,
                       le16_to_cpu(s->mac_reg[VET]));
@@ -643,8 +646,8 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     }
 
     addr = le64_to_cpu(dp->buffer_addr);
-    if (tp->props.tse && tp->props.cptse) {
-        msh = tp->props.hdr_len + tp->props.mss;
+    if (tp->cptse) {
+        msh = tp->tso_props.hdr_len + tp->tso_props.mss;
         do {
             bytes = split_size;
             if (tp->size + bytes > msh)
@@ -653,21 +656,19 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
             bytes = MIN(sizeof(tp->data) - tp->size, bytes);
             pci_dma_read(d, addr, tp->data + tp->size, bytes);
             sz = tp->size + bytes;
-            if (sz >= tp->props.hdr_len && tp->size < tp->props.hdr_len) {
-                memmove(tp->header, tp->data, tp->props.hdr_len);
+            if (sz >= tp->tso_props.hdr_len
+                && tp->size < tp->tso_props.hdr_len) {
+                memmove(tp->header, tp->data, tp->tso_props.hdr_len);
             }
             tp->size = sz;
             addr += bytes;
             if (sz == msh) {
                 xmit_seg(s);
-                memmove(tp->data, tp->header, tp->props.hdr_len);
-                tp->size = tp->props.hdr_len;
+                memmove(tp->data, tp->header, tp->tso_props.hdr_len);
+                tp->size = tp->tso_props.hdr_len;
             }
             split_size -= bytes;
         } while (bytes && split_size);
-    } else if (!tp->props.tse && tp->props.cptse) {
-        // context descriptor TSE is not set, while data descriptor TSE is set
-        DBGOUT(TXERR, "TCP segmentation error\n");
     } else {
         split_size = MIN(sizeof(tp->data) - tp->size, split_size);
         pci_dma_read(d, addr, tp->data + tp->size, split_size);
@@ -676,14 +677,14 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 
     if (!(txd_lower & E1000_TXD_CMD_EOP))
         return;
-    if (!(tp->props.tse && tp->props.cptse && tp->size < tp->props.hdr_len)) {
+    if (!(tp->cptse && tp->size < tp->tso_props.hdr_len)) {
         xmit_seg(s);
     }
     tp->tso_frames = 0;
-    tp->props.sum_needed = 0;
+    tp->sum_needed = 0;
     tp->vlan_needed = 0;
     tp->size = 0;
-    tp->props.cptse = 0;
+    tp->cptse = 0;
 }
 
 static uint32_t
@@ -1435,7 +1436,7 @@ static const VMStateDescription vmstate_e1000_full_mac_state = {
 
 static const VMStateDescription vmstate_e1000 = {
     .name = "e1000",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .pre_save = e1000_pre_save,
     .post_load = e1000_post_load,
@@ -1461,7 +1462,7 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT16(tx.props.mss, E1000State),
         VMSTATE_UINT16(tx.size, E1000State),
         VMSTATE_UINT16(tx.tso_frames, E1000State),
-        VMSTATE_UINT8(tx.props.sum_needed, E1000State),
+        VMSTATE_UINT8(tx.sum_needed, E1000State),
         VMSTATE_INT8(tx.props.ip, E1000State),
         VMSTATE_INT8(tx.props.tcp, E1000State),
         VMSTATE_BUFFER(tx.header, E1000State),
@@ -1508,6 +1509,17 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, RA, 32),
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
+        VMSTATE_UINT8_V(tx.tso_props.ipcss, E1000State, 3),
+        VMSTATE_UINT8_V(tx.tso_props.ipcso, E1000State, 3),
+        VMSTATE_UINT16_V(tx.tso_props.ipcse, E1000State, 3),
+        VMSTATE_UINT8_V(tx.tso_props.tucss, E1000State, 3),
+        VMSTATE_UINT8_V(tx.tso_props.tucso, E1000State, 3),
+        VMSTATE_UINT16_V(tx.tso_props.tucse, E1000State, 3),
+        VMSTATE_UINT32_V(tx.tso_props.paylen, E1000State, 3),
+        VMSTATE_UINT8_V(tx.tso_props.hdr_len, E1000State, 3),
+        VMSTATE_UINT16_V(tx.tso_props.mss, E1000State, 3),
+        VMSTATE_INT8_V(tx.tso_props.ip, E1000State, 3),
+        VMSTATE_INT8_V(tx.tso_props.tcp, E1000State, 3),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {

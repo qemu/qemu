@@ -38,6 +38,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "net/net.h"
+#include "net/eth.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
 #include "sysemu/sysemu.h"
@@ -522,25 +523,6 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
            be16_to_cpu(hdr->ether_type));       \
 } while (0)
 
-#define MULTICAST_FILTER_LEN 8
-
-static inline uint32_t lnc_mchash(const uint8_t *ether_addr)
-{
-#define LNC_POLYNOMIAL          0xEDB88320UL
-    uint32_t crc = 0xFFFFFFFF;
-    int idx, bit;
-    uint8_t data;
-
-    for (idx = 0; idx < 6; idx++) {
-        for (data = *ether_addr++, bit = 0; bit < MULTICAST_FILTER_LEN; bit++) {
-            crc = (crc >> 1) ^ (((crc ^ data) & 1) ? LNC_POLYNOMIAL : 0);
-            data >>= 1;
-        }
-    }
-    return crc;
-#undef LNC_POLYNOMIAL
-}
-
 #define CRC(crc, ch)	 (crc = (crc >> 8) ^ crctab[(crc ^ (ch)) & 0xff])
 
 /* generated using the AUTODIN II polynomial
@@ -656,7 +638,7 @@ static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
             s->csr[10] & 0xff, s->csr[10] >> 8,
             s->csr[11] & 0xff, s->csr[11] >> 8
         };
-        int index = lnc_mchash(hdr->ether_dhost) >> 26;
+        int index = net_crc32_le(hdr->ether_dhost, ETH_ALEN) >> 26;
         return !!(ladr[index >> 3] & (1 << (index & 7)));
     }
     return 0;

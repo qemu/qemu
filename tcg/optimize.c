@@ -602,8 +602,8 @@ static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
 /* Propagate constants and copies, fold constant expressions. */
 void tcg_optimize(TCGContext *s)
 {
-    int oi, oi_next, nb_temps, nb_globals;
-    TCGOp *prev_mb = NULL;
+    int nb_temps, nb_globals;
+    TCGOp *op, *op_next, *prev_mb = NULL;
     struct tcg_temp_info *infos;
     TCGTempSet temps_used;
 
@@ -617,22 +617,18 @@ void tcg_optimize(TCGContext *s)
     bitmap_zero(temps_used.l, nb_temps);
     infos = tcg_malloc(sizeof(struct tcg_temp_info) * nb_temps);
 
-    for (oi = s->gen_op_buf[0].next; oi != 0; oi = oi_next) {
+    QTAILQ_FOREACH_SAFE(op, &s->ops, link, op_next) {
         tcg_target_ulong mask, partmask, affected;
         int nb_oargs, nb_iargs, i;
         TCGArg tmp;
-
-        TCGOp * const op = &s->gen_op_buf[oi];
         TCGOpcode opc = op->opc;
         const TCGOpDef *def = &tcg_op_defs[opc];
-
-        oi_next = op->next;
 
         /* Count the arguments, and initialize the temps that are
            going to be used */
         if (opc == INDEX_op_call) {
-            nb_oargs = op->callo;
-            nb_iargs = op->calli;
+            nb_oargs = TCGOP_CALLO(op);
+            nb_iargs = TCGOP_CALLI(op);
             for (i = 0; i < nb_oargs + nb_iargs; i++) {
                 TCGTemp *ts = arg_temp(op->args[i]);
                 if (ts) {
@@ -1261,9 +1257,6 @@ void tcg_optimize(TCGContext *s)
                 rh = op->args[1];
                 tcg_opt_gen_movi(s, op, rl, (int32_t)a);
                 tcg_opt_gen_movi(s, op2, rh, (int32_t)(a >> 32));
-
-                /* We've done all we need to do with the movi.  Skip it.  */
-                oi_next = op2->next;
                 break;
             }
             goto do_default;
@@ -1280,9 +1273,6 @@ void tcg_optimize(TCGContext *s)
                 rh = op->args[1];
                 tcg_opt_gen_movi(s, op, rl, (int32_t)r);
                 tcg_opt_gen_movi(s, op2, rh, (int32_t)(r >> 32));
-
-                /* We've done all we need to do with the movi.  Skip it.  */
-                oi_next = op2->next;
                 break;
             }
             goto do_default;

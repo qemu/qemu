@@ -112,7 +112,7 @@ enum {
 #define ARM_CPU_VIRQ 2
 #define ARM_CPU_VFIQ 3
 
-#define NB_MMU_MODES 7
+#define NB_MMU_MODES 8
 /* ARM-specific extra insn start words:
  * 1: Conditional execution bits
  * 2: Partial exception syndrome for data aborts
@@ -2226,13 +2226,13 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
  * They have the following different MMU indexes:
  *  User
  *  Privileged
- *  Execution priority negative (this is like privileged, but the
- *  MPU HFNMIENA bit means that it may have different access permission
- *  check results to normal privileged code, so can't share a TLB).
+ *  User, execution priority negative (ie the MPU HFNMIENA bit may apply)
+ *  Privileged, execution priority negative (ditto)
  * If the CPU supports the v8M Security Extension then there are also:
  *  Secure User
  *  Secure Privileged
- *  Secure, execution priority negative
+ *  Secure User, execution priority negative
+ *  Secure Privileged, execution priority negative
  *
  * The ARMMMUIdx and the mmu index value used by the core QEMU TLB code
  * are not quite the same -- different CPU types (most notably M profile
@@ -2251,10 +2251,17 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
  * The constant names here are patterned after the general style of the names
  * of the AT/ATS operations.
  * The values used are carefully arranged to make mmu_idx => EL lookup easy.
+ * For M profile we arrange them to have a bit for priv, a bit for negpri
+ * and a bit for secure.
  */
 #define ARM_MMU_IDX_A 0x10 /* A profile */
 #define ARM_MMU_IDX_NOTLB 0x20 /* does not have a TLB */
 #define ARM_MMU_IDX_M 0x40 /* M profile */
+
+/* meanings of the bits for M profile mmu idx values */
+#define ARM_MMU_IDX_M_PRIV 0x1
+#define ARM_MMU_IDX_M_NEGPRI 0x2
+#define ARM_MMU_IDX_M_S 0x4
 
 #define ARM_MMU_IDX_TYPE_MASK (~0x7)
 #define ARM_MMU_IDX_COREIDX_MASK 0x7
@@ -2269,10 +2276,12 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_S2NS = 6 | ARM_MMU_IDX_A,
     ARMMMUIdx_MUser = 0 | ARM_MMU_IDX_M,
     ARMMMUIdx_MPriv = 1 | ARM_MMU_IDX_M,
-    ARMMMUIdx_MNegPri = 2 | ARM_MMU_IDX_M,
-    ARMMMUIdx_MSUser = 3 | ARM_MMU_IDX_M,
-    ARMMMUIdx_MSPriv = 4 | ARM_MMU_IDX_M,
-    ARMMMUIdx_MSNegPri = 5 | ARM_MMU_IDX_M,
+    ARMMMUIdx_MUserNegPri = 2 | ARM_MMU_IDX_M,
+    ARMMMUIdx_MPrivNegPri = 3 | ARM_MMU_IDX_M,
+    ARMMMUIdx_MSUser = 4 | ARM_MMU_IDX_M,
+    ARMMMUIdx_MSPriv = 5 | ARM_MMU_IDX_M,
+    ARMMMUIdx_MSUserNegPri = 6 | ARM_MMU_IDX_M,
+    ARMMMUIdx_MSPrivNegPri = 7 | ARM_MMU_IDX_M,
     /* Indexes below here don't have TLBs and are used only for AT system
      * instructions or for the first stage of an S12 page table walk.
      */
@@ -2293,10 +2302,12 @@ typedef enum ARMMMUIdxBit {
     ARMMMUIdxBit_S2NS = 1 << 6,
     ARMMMUIdxBit_MUser = 1 << 0,
     ARMMMUIdxBit_MPriv = 1 << 1,
-    ARMMMUIdxBit_MNegPri = 1 << 2,
-    ARMMMUIdxBit_MSUser = 1 << 3,
-    ARMMMUIdxBit_MSPriv = 1 << 4,
-    ARMMMUIdxBit_MSNegPri = 1 << 5,
+    ARMMMUIdxBit_MUserNegPri = 1 << 2,
+    ARMMMUIdxBit_MPrivNegPri = 1 << 3,
+    ARMMMUIdxBit_MSUser = 1 << 4,
+    ARMMMUIdxBit_MSPriv = 1 << 5,
+    ARMMMUIdxBit_MSUserNegPri = 1 << 6,
+    ARMMMUIdxBit_MSPrivNegPri = 1 << 7,
 } ARMMMUIdxBit;
 
 #define MMU_USER_IDX 0
@@ -2322,31 +2333,43 @@ static inline int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
     case ARM_MMU_IDX_A:
         return mmu_idx & 3;
     case ARM_MMU_IDX_M:
-        return (mmu_idx == ARMMMUIdx_MUser || mmu_idx == ARMMMUIdx_MSUser)
-            ? 0 : 1;
+        return mmu_idx & ARM_MMU_IDX_M_PRIV;
     default:
         g_assert_not_reached();
     }
+}
+
+/* Return the MMU index for a v7M CPU in the specified security and
+ * privilege state
+ */
+static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(CPUARMState *env,
+                                                              bool secstate,
+                                                              bool priv)
+{
+    ARMMMUIdx mmu_idx = ARM_MMU_IDX_M;
+
+    if (priv) {
+        mmu_idx |= ARM_MMU_IDX_M_PRIV;
+    }
+
+    if (armv7m_nvic_neg_prio_requested(env->nvic, secstate)) {
+        mmu_idx |= ARM_MMU_IDX_M_NEGPRI;
+    }
+
+    if (secstate) {
+        mmu_idx |= ARM_MMU_IDX_M_S;
+    }
+
+    return mmu_idx;
 }
 
 /* Return the MMU index for a v7M CPU in the specified security state */
 static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env,
                                                      bool secstate)
 {
-    int el = arm_current_el(env);
-    ARMMMUIdx mmu_idx;
+    bool priv = arm_current_el(env) != 0;
 
-    if (el == 0) {
-        mmu_idx = secstate ? ARMMMUIdx_MSUser : ARMMMUIdx_MUser;
-    } else {
-        mmu_idx = secstate ? ARMMMUIdx_MSPriv : ARMMMUIdx_MPriv;
-    }
-
-    if (armv7m_nvic_neg_prio_requested(env->nvic, secstate)) {
-        mmu_idx = secstate ? ARMMMUIdx_MSNegPri : ARMMMUIdx_MNegPri;
-    }
-
-    return mmu_idx;
+    return arm_v7m_mmu_idx_for_secstate_and_priv(env, secstate, priv);
 }
 
 /* Determine the current mmu_idx to use for normal loads/stores */

@@ -248,16 +248,6 @@ static const MemoryRegionOps boston_platreg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void boston_flash_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
-{
-}
-
-static const MemoryRegionOps boston_flash_ops = {
-    .write = boston_flash_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 static const TypeInfo boston_device = {
     .name          = TYPE_MIPS_BOSTON,
     .parent        = TYPE_SYS_BUS_DEVICE,
@@ -481,8 +471,8 @@ static void boston_mach_init(MachineState *machine)
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->cps), 0, 0, 1);
 
     flash =  g_new(MemoryRegion, 1);
-    memory_region_init_rom_device_nomigrate(flash, NULL, &boston_flash_ops, s,
-                                  "boston.flash", 128 * M_BYTE, &err);
+    memory_region_init_rom_nomigrate(flash, NULL,
+                                     "boston.flash", 128 * M_BYTE, &err);
     memory_region_add_subregion_overlap(sys_mem, 0x18000000, flash, 0);
 
     ddr = g_new(MemoryRegion, 1);

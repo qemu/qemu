@@ -23,7 +23,6 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
     const uintptr_t ra = GETPC();
     const uint8_t mod = env->regs[0] & 0x80ULL;
     const uint8_t fc = env->regs[0] & 0x7fULL;
-    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint8_t subfunc[16] = { 0 };
     uint64_t param_addr;
     int i;
@@ -35,8 +34,7 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
     case S390_FEAT_TYPE_PCKMO:
     case S390_FEAT_TYPE_PCC:
         if (mod) {
-            cpu_restore_state(cs, ra);
-            program_interrupt(env, PGM_SPECIFICATION, 4);
+            s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
             return 0;
         }
         break;
@@ -44,8 +42,7 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
 
     s390_get_feat_block(type, subfunc);
     if (!test_be_bit(fc, subfunc)) {
-        cpu_restore_state(cs, ra);
-        program_interrupt(env, PGM_SPECIFICATION, 4);
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
         return 0;
     }
 

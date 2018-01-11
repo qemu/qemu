@@ -156,7 +156,7 @@ void alpha_translate_init(void)
 
 static TCGv load_zero(DisasContext *ctx)
 {
-    if (TCGV_IS_UNUSED_I64(ctx->zero)) {
+    if (!ctx->zero) {
         ctx->zero = tcg_const_i64(0);
     }
     return ctx->zero;
@@ -164,7 +164,7 @@ static TCGv load_zero(DisasContext *ctx)
 
 static TCGv dest_sink(DisasContext *ctx)
 {
-    if (TCGV_IS_UNUSED_I64(ctx->sink)) {
+    if (!ctx->sink) {
         ctx->sink = tcg_temp_new();
     }
     return ctx->sink;
@@ -172,18 +172,18 @@ static TCGv dest_sink(DisasContext *ctx)
 
 static void free_context_temps(DisasContext *ctx)
 {
-    if (!TCGV_IS_UNUSED_I64(ctx->sink)) {
+    if (ctx->sink) {
         tcg_gen_discard_i64(ctx->sink);
         tcg_temp_free(ctx->sink);
-        TCGV_UNUSED_I64(ctx->sink);
+        ctx->sink = NULL;
     }
-    if (!TCGV_IS_UNUSED_I64(ctx->zero)) {
+    if (ctx->zero) {
         tcg_temp_free(ctx->zero);
-        TCGV_UNUSED_I64(ctx->zero);
+        ctx->zero = NULL;
     }
-    if (!TCGV_IS_UNUSED_I64(ctx->lit)) {
+    if (ctx->lit) {
         tcg_temp_free(ctx->lit);
-        TCGV_UNUSED_I64(ctx->lit);
+        ctx->lit = NULL;
     }
 }
 
@@ -2948,9 +2948,9 @@ static int alpha_tr_init_disas_context(DisasContextBase *dcbase,
     /* Similarly for flush-to-zero.  */
     ctx->tb_ftz = -1;
 
-    TCGV_UNUSED_I64(ctx->zero);
-    TCGV_UNUSED_I64(ctx->sink);
-    TCGV_UNUSED_I64(ctx->lit);
+    ctx->zero = NULL;
+    ctx->sink = NULL;
+    ctx->lit = NULL;
 
     /* Bound the number of insns to execute to those left on the page.  */
     if (in_superpage(ctx, ctx->base.pc_first)) {

@@ -39,10 +39,10 @@
     C(0xb9d8, AHHLR,   RRF_a, HW,  r2_sr32, r3, new, r1_32h, add, adds32)
 /* ADD IMMEDIATE */
     C(0xc209, AFI,     RIL_a, EI,  r1, i2, new, r1_32, add, adds32)
-    C(0xeb6a, ASI,     SIY,   GIE, m1_32s, i2, new, m1_32, add, adds32)
+    D(0xeb6a, ASI,     SIY,   GIE, la1, i2, new, 0, asi, adds32, MO_TESL)
     C(0xecd8, AHIK,    RIE_d, DO,  r3, i2, new, r1_32, add, adds32)
     C(0xc208, AGFI,    RIL_a, EI,  r1, i2, r1, 0, add, adds64)
-    C(0xeb7a, AGSI,    SIY,   GIE, m1_64, i2, new, m1_64, add, adds64)
+    D(0xeb7a, AGSI,    SIY,   GIE, la1, i2, new, 0, asi, adds64, MO_TEQ)
     C(0xecd9, AGHIK,   RIE_d, DO,  r3, i2, r1, 0, add, adds64)
 /* ADD IMMEDIATE HIGH */
     C(0xcc08, AIH,     RIL_a, HW,  r1_sr32, i2, new, r1_32h, add, adds32)
@@ -70,9 +70,9 @@
     C(0xc20b, ALFI,    RIL_a, EI,  r1, i2_32u, new, r1_32, add, addu32)
     C(0xc20a, ALGFI,   RIL_a, EI,  r1, i2_32u, r1, 0, add, addu64)
 /* ADD LOGICAL WITH SIGNED IMMEDIATE */
-    C(0xeb6e, ALSI,    SIY,   GIE, m1_32u, i2, new, m1_32, add, addu32)
+    D(0xeb6e, ALSI,    SIY,   GIE, la1, i2, new, 0, asi, addu32, MO_TEUL)
     C(0xecda, ALHSIK,  RIE_d, DO,  r3, i2, new, r1_32, add, addu32)
-    C(0xeb7e, ALGSI,   SIY,   GIE, m1_64, i2, new, m1_64, add, addu64)
+    D(0xeb7e, ALGSI,   SIY,   GIE, la1, i2, new, 0, asi, addu64, MO_TEQ)
     C(0xecdb, ALGHSIK, RIE_d, DO,  r3, i2, r1, 0, add, addu64)
 /* ADD LOGICAL WITH SIGNED IMMEDIATE HIGH */
     C(0xcc0a, ALSIH,   RIL_a, HW,  r1_sr32, i2, new, r1_32h, add, addu32)
@@ -99,8 +99,8 @@
     D(0xa505, NIHL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1020)
     D(0xa506, NILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1010)
     D(0xa507, NILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1000)
-    C(0x9400, NI,      SI,    Z,   m1_8u, i2_8u, new, m1_8, and, nz64)
-    C(0xeb54, NIY,     SIY,   LD,  m1_8u, i2_8u, new, m1_8, and, nz64)
+    D(0x9400, NI,      SI,    Z,   la1, i2_8u, new, 0, ni, nz64, MO_UB)
+    D(0xeb54, NIY,     SIY,   LD,  la1, i2_8u, new, 0, ni, nz64, MO_UB)
 
 /* BRANCH AND SAVE */
     C(0x0d00, BASR,    RR_a,  Z,   0, r2_nz, r1, 0, bas, 0)
@@ -357,8 +357,8 @@
 /* EXCLUSIVE OR IMMEDIATE */
     D(0xc006, XIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2020)
     D(0xc007, XILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2000)
-    C(0x9700, XI,      SI,    Z,   m1_8u, i2_8u, new, m1_8, xor, nz64)
-    C(0xeb57, XIY,     SIY,   LD,  m1_8u, i2_8u, new, m1_8, xor, nz64)
+    D(0x9700, XI,      SI,    Z,   la1, i2_8u, new, 0, xi, nz64, MO_UB)
+    D(0xeb57, XIY,     SIY,   LD,  la1, i2_8u, new, 0, xi, nz64, MO_UB)
 
 /* EXECUTE */
     C(0x4400, EX,      RX_a,  Z,   0, a2, 0, 0, ex, 0)
@@ -369,6 +369,8 @@
     C(0xb24f, EAR,     RRE,   Z,   0, 0, new, r1_32, ear, 0)
 /* EXTRACT CPU ATTRIBUTE */
     C(0xeb4c, ECAG,    RSY_a, GIE, 0, a2, r1, 0, ecag, 0)
+/* EXTRACT CPU TIME */
+    C(0xc801, ECTG,    SSF,   ECT, 0, 0, 0, 0, ectg, 0)
 /* EXTRACT FPC */
     C(0xb38c, EFPC,    RRE,   Z,   0, 0, new, r1_32, efpc, 0)
 /* EXTRACT PSW */
@@ -698,8 +700,8 @@
     D(0xa509, OIHL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1020)
     D(0xa50a, OILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1010)
     D(0xa50b, OILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1000)
-    C(0x9600, OI,      SI,    Z,   m1_8u, i2_8u, new, m1_8, or, nz64)
-    C(0xeb56, OIY,     SIY,   LD,  m1_8u, i2_8u, new, m1_8, or, nz64)
+    D(0x9600, OI,      SI,    Z,   la1, i2_8u, new, 0, oi, nz64, MO_UB)
+    D(0xeb56, OIY,     SIY,   LD,  la1, i2_8u, new, 0, oi, nz64, MO_UB)
 
 /* PACK */
     /* Really format SS_b, but we pack both lengths into one argument
@@ -999,6 +1001,8 @@
     C(0xb204, SCK,     S,     Z,   0, 0, 0, 0, 0, 0)
 /* SET CLOCK COMPARATOR */
     C(0xb206, SCKC,    S,     Z,   0, m2_64, 0, 0, sckc, 0)
+/* SET CLOCK PROGRAMMABLE FIELD */
+    C(0x0107, SCKPF,   E,     Z,   0, 0, 0, 0, sckpf, 0)
 /* SET CPU TIMER */
     C(0xb208, SPT,     S,     Z,   0, m2_64, 0, 0, spt, 0)
 /* SET PREFIX */
@@ -1052,7 +1056,12 @@
     C(0xb232, MSCH,    S,     Z,   0, insn, 0, 0, msch, 0)
     C(0xb23b, RCHP,    S,     Z,   0, 0, 0, 0, rchp, 0)
     C(0xb238, RSCH,    S,     Z,   0, 0, 0, 0, rsch, 0)
+    C(0xb237, SAL,     S,     Z,   0, 0, 0, 0, sal, 0)
+    C(0xb23c, SCHM,    S,     Z,   0, insn, 0, 0, schm, 0)
+    C(0xb274, SIGA,    S,     Z,   0, 0, 0, 0, siga, 0)
+    C(0xb23a, STCPS,   S,     Z,   0, 0, 0, 0, stcps, 0)
     C(0xb233, SSCH,    S,     Z,   0, insn, 0, 0, ssch, 0)
+    C(0xb239, STCRW,   S,     Z,   0, insn, 0, 0, stcrw, 0)
     C(0xb234, STSCH,   S,     Z,   0, insn, 0, 0, stsch, 0)
     C(0xb235, TSCH,    S,     Z,   0, insn, 0, 0, tsch, 0)
     /* ??? Not listed in PoO ninth edition, but there's a linux driver that

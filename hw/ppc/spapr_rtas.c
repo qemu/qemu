@@ -162,6 +162,8 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
     if (cpu != NULL) {
         CPUState *cs = CPU(cpu);
         CPUPPCState *env = &cpu->env;
+        PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+        Error *local_err = NULL;
 
         if (!cs->halted) {
             rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
@@ -173,7 +175,19 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
          * new cpu enters */
         kvm_cpu_synchronize_state(cs);
 
+        /* Set compatibility mode to match existing cpus */
+        ppc_set_compat(cpu, POWERPC_CPU(first_cpu)->compat_pvr, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+            return;
+        }
+
         env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
+
+        /* Enable Power-saving mode Exit Cause exceptions for the new CPU */
+        env->spr[SPR_LPCR] |= pcc->lpcr_pm;
+
         env->nip = start;
         env->gpr[3] = r3;
         cs->halted = 0;
@@ -197,19 +211,15 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     cs->halted = 1;
     qemu_cpu_kick(cs);
-    /*
-     * While stopping a CPU, the guest calls H_CPPR which
-     * effectively disables interrupts on XICS level.
-     * However decrementer interrupts in TCG can still
-     * wake the CPU up so here we disable interrupts in MSR
-     * as well.
-     * As rtas_start_cpu() resets the whole MSR anyway, there is
-     * no need to bother with specific bits, we just clear it.
-     */
-    env->msr = 0;
+
+    /* Disable Power-saving mode Exit Cause exceptions for the CPU.
+     * This could deliver an interrupt on a dying CPU and crash the
+     * guest */
+    env->spr[SPR_LPCR] &= ~pcc->lpcr_pm;
 }
 
 static inline int sysparm_st(target_ulong addr, target_ulong len,

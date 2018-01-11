@@ -55,7 +55,7 @@ static void *iothread_run(void *opaque)
     qemu_cond_signal(&iothread->init_done_cond);
     qemu_mutex_unlock(&iothread->init_done_lock);
 
-    while (!atomic_read(&iothread->stopping)) {
+    while (iothread->running) {
         aio_poll(iothread->ctx, true);
 
         if (atomic_read(&iothread->worker_context)) {
@@ -78,16 +78,25 @@ static void *iothread_run(void *opaque)
     return NULL;
 }
 
+/* Runs in iothread_run() thread */
+static void iothread_stop_bh(void *opaque)
+{
+    IOThread *iothread = opaque;
+
+    iothread->running = false; /* stop iothread_run() */
+
+    if (iothread->main_loop) {
+        g_main_loop_quit(iothread->main_loop);
+    }
+}
+
 void iothread_stop(IOThread *iothread)
 {
     if (!iothread->ctx || iothread->stopping) {
         return;
     }
     iothread->stopping = true;
-    aio_notify(iothread->ctx);
-    if (atomic_read(&iothread->main_loop)) {
-        g_main_loop_quit(iothread->main_loop);
-    }
+    aio_bh_schedule_oneshot(iothread->ctx, iothread_stop_bh, iothread);
     qemu_thread_join(&iothread->thread);
 }
 
@@ -134,6 +143,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
     char *name, *thread_name;
 
     iothread->stopping = false;
+    iothread->running = true;
     iothread->thread_id = -1;
     iothread->ctx = aio_context_new(&local_error);
     if (!iothread->ctx) {
@@ -379,4 +389,11 @@ IOThread *iothread_create(const char *id, Error **errp)
 void iothread_destroy(IOThread *iothread)
 {
     object_unparent(OBJECT(iothread));
+}
+
+/* Lookup IOThread by its id.  Only finds user-created objects, not internal
+ * iothread_create() objects. */
+IOThread *iothread_by_id(const char *id)
+{
+    return IOTHREAD(object_resolve_path_type(id, TYPE_IOTHREAD, NULL));
 }

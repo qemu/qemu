@@ -1,0 +1,15 @@
+[Unit]
+Description=Persistent Reservation Daemon for QEMU
+
+[Service]
+WorkingDirectory=/tmp
+Type=simple
+ExecStart=/usr/bin/qemu-pr-helper
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/var/run
+RestrictAddressFamilies=AF_UNIX
+Restart=always
+RestartSec=0
+
+[Install]

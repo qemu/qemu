@@ -40,6 +40,10 @@
 #define SATA_ADDR           0xFD0C0000
 #define SATA_NUM_PORTS      2
 
+#define QSPI_ADDR           0xff0f0000
+#define LQSPI_ADDR          0xc0000000
+#define QSPI_IRQ            15
+
 #define DP_ADDR             0xfd4a0000
 #define DP_IRQ              113
 
@@ -170,6 +174,9 @@ static void xlnx_zynqmp_init(Object *obj)
                           TYPE_XILINX_SPIPS);
         qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
+
+    object_initialize(&s->qspi, sizeof(s->qspi), TYPE_XLNX_ZYNQMP_QSPIPS);
+    qdev_set_parent_bus(DEVICE(&s->qspi), sysbus_get_default());
 
     object_initialize(&s->dp, sizeof(s->dp), TYPE_XLNX_DP);
     qdev_set_parent_bus(DEVICE(&s->dp), sysbus_get_default());
@@ -409,6 +416,25 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                   OBJECT(&s->spi[i]), "spi0",
                                   &error_abort);
         g_free(bus_name);
+    }
+
+    object_property_set_bool(OBJECT(&s->qspi), true, "realized", &err);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 0, QSPI_ADDR);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 1, LQSPI_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi), 0, gic_spi[QSPI_IRQ]);
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_BUS; i++) {
+        gchar *bus_name;
+        gchar *target_bus;
+
+        /* Alias controller SPI bus to the SoC itself */
+        bus_name = g_strdup_printf("qspi%d", i);
+        target_bus = g_strdup_printf("spi%d", i);
+        object_property_add_alias(OBJECT(s), bus_name,
+                                  OBJECT(&s->qspi), target_bus,
+                                  &error_abort);
+        g_free(bus_name);
+        g_free(target_bus);
     }
 
     object_property_set_bool(OBJECT(&s->dp), true, "realized", &err);

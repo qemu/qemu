@@ -47,7 +47,7 @@ typedef struct X86CPUDefinition X86CPUDefinition;
 /**
  * X86CPUClass:
  * @cpu_def: CPU model definition
- * @kvm_required: Whether CPU model requires KVM to be enabled.
+ * @host_cpuid_required: Whether CPU model requires cpuid from host.
  * @ordering: Ordering on the "-cpu help" CPU model list.
  * @migration_safe: See CpuDefinitionInfo::migration_safe
  * @static_model: See CpuDefinitionInfo::static
@@ -66,7 +66,7 @@ typedef struct X86CPUClass {
      */
     X86CPUDefinition *cpu_def;
 
-    bool kvm_required;
+    bool host_cpuid_required;
     int ordering;
     bool migration_safe;
     bool static_model;

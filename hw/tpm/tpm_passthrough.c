@@ -29,7 +29,6 @@
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "qapi/clone-visitor.h"
 #include "tpm_util.h"
 
@@ -57,6 +56,7 @@ struct TPMPassthruState {
     int cancel_fd;
 
     TPMVersion tpm_version;
+    size_t tpm_buffersize;
 };
 
 typedef struct TPMPassthruState TPMPassthruState;
@@ -89,6 +89,7 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
     bool is_selftest;
     const struct tpm_resp_hdr *hdr;
 
+    /* FIXME: protect shared variables or use other sync mechanism */
     tpm_pt->tpm_op_canceled = false;
     tpm_pt->tpm_executing = true;
     *selftest_done = false;
@@ -139,14 +140,11 @@ err_exit:
 static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
-    TPMIfClass *tic = TPM_IF_GET_CLASS(tb->tpm_state);
 
     DPRINTF("tpm_passthrough: processing command %p\n", cmd);
 
     tpm_passthrough_unix_tx_bufs(tpm_pt, cmd->in, cmd->in_len,
                                  cmd->out, cmd->out_len, &cmd->selftest_done);
-
-    tic->request_completed(TPM_IF(tb->tpm_state));
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)
@@ -181,12 +179,11 @@ static void tpm_passthrough_cancel_cmd(TPMBackend *tb)
      */
     if (tpm_pt->tpm_executing) {
         if (tpm_pt->cancel_fd >= 0) {
+            tpm_pt->tpm_op_canceled = true;
             n = write(tpm_pt->cancel_fd, "-", 1);
             if (n != 1) {
                 error_report("Canceling TPM command failed: %s",
                              strerror(errno));
-            } else {
-                tpm_pt->tpm_op_canceled = true;
             }
         } else {
             error_report("Cannot cancel TPM command due to missing "
@@ -200,6 +197,19 @@ static TPMVersion tpm_passthrough_get_tpm_version(TPMBackend *tb)
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     return tpm_pt->tpm_version;
+}
+
+static size_t tpm_passthrough_get_buffer_size(TPMBackend *tb)
+{
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
+    int ret;
+
+    ret = tpm_util_get_buffer_size(tpm_pt->tpm_fd, tpm_pt->tpm_version,
+                                   &tpm_pt->tpm_buffersize);
+    if (ret < 0) {
+        tpm_pt->tpm_buffersize = 4096;
+    }
+    return tpm_pt->tpm_buffersize;
 }
 
 /*
@@ -229,9 +239,7 @@ static int tpm_passthrough_open_sysfs_cancel(TPMPassthruState *tpm_pt)
         if (snprintf(path, sizeof(path), "/sys/class/misc/%s/device/cancel",
                      dev) < sizeof(path)) {
             fd = qemu_open(path, O_WRONLY);
-            if (fd >= 0) {
-                tpm_pt->options->cancel_path = g_strdup(path);
-            } else {
+            if (fd < 0) {
                 error_report("tpm_passthrough: Could not open TPM cancel "
                              "path %s : %s", path, strerror(errno));
             }
@@ -244,9 +252,9 @@ static int tpm_passthrough_open_sysfs_cancel(TPMPassthruState *tpm_pt)
     return fd;
 }
 
-static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
+static int
+tpm_passthrough_handle_device_opts(TPMPassthruState *tpm_pt, QemuOpts *opts)
 {
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
     const char *value;
 
     value = qemu_opt_get(opts, "cancel-path");
@@ -266,52 +274,47 @@ static int tpm_passthrough_handle_device_opts(QemuOpts *opts, TPMBackend *tb)
     if (tpm_pt->tpm_fd < 0) {
         error_report("Cannot access TPM device using '%s': %s",
                      tpm_pt->tpm_dev, strerror(errno));
-        goto err_free_parameters;
+        return -1;
     }
 
     if (tpm_util_test_tpmdev(tpm_pt->tpm_fd, &tpm_pt->tpm_version)) {
         error_report("'%s' is not a TPM device.",
                      tpm_pt->tpm_dev);
-        goto err_close_tpmdev;
-    }
-
-    return 0;
-
- err_close_tpmdev:
-    qemu_close(tpm_pt->tpm_fd);
-    tpm_pt->tpm_fd = -1;
-
- err_free_parameters:
-    qapi_free_TPMPassthroughOptions(tpm_pt->options);
-    tpm_pt->options = NULL;
-    tpm_pt->tpm_dev = NULL;
-
-    return 1;
-}
-
-static TPMBackend *tpm_passthrough_create(QemuOpts *opts, const char *id)
-{
-    Object *obj = object_new(TYPE_TPM_PASSTHROUGH);
-    TPMBackend *tb = TPM_BACKEND(obj);
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
-
-    tb->id = g_strdup(id);
-
-    if (tpm_passthrough_handle_device_opts(opts, tb)) {
-        goto err_exit;
+        return -1;
     }
 
     tpm_pt->cancel_fd = tpm_passthrough_open_sysfs_cancel(tpm_pt);
     if (tpm_pt->cancel_fd < 0) {
-        goto err_exit;
+        return -1;
     }
 
-    return tb;
+    return 0;
+}
 
-err_exit:
-    object_unref(obj);
+static TPMBackend *tpm_passthrough_create(QemuOpts *opts)
+{
+    Object *obj = object_new(TYPE_TPM_PASSTHROUGH);
 
-    return NULL;
+    if (tpm_passthrough_handle_device_opts(TPM_PASSTHROUGH(obj), opts)) {
+        object_unref(obj);
+        return NULL;
+    }
+
+    return TPM_BACKEND(obj);
+}
+
+static int tpm_passthrough_startup_tpm(TPMBackend *tb, size_t buffersize)
+{
+    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
+
+    if (buffersize && buffersize < tpm_pt->tpm_buffersize) {
+        error_report("Requested buffer size of %zu is smaller than host TPM's "
+                     "fixed buffer size of %zu",
+                     buffersize, tpm_pt->tpm_buffersize);
+        return -1;
+    }
+
+    return 0;
 }
 
 static TpmTypeOptions *tpm_passthrough_get_tpm_options(TPMBackend *tb)
@@ -355,8 +358,12 @@ static void tpm_passthrough_inst_finalize(Object *obj)
 
     tpm_passthrough_cancel_cmd(TPM_BACKEND(obj));
 
-    qemu_close(tpm_pt->tpm_fd);
-    qemu_close(tpm_pt->cancel_fd);
+    if (tpm_pt->tpm_fd >= 0) {
+        qemu_close(tpm_pt->tpm_fd);
+    }
+    if (tpm_pt->cancel_fd >= 0) {
+        qemu_close(tpm_pt->cancel_fd);
+    }
     qapi_free_TPMPassthroughOptions(tpm_pt->options);
 }
 
@@ -368,12 +375,14 @@ static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
     tbc->opts = tpm_passthrough_cmdline_opts;
     tbc->desc = "Passthrough TPM backend driver";
     tbc->create = tpm_passthrough_create;
+    tbc->startup_tpm = tpm_passthrough_startup_tpm;
     tbc->reset = tpm_passthrough_reset;
     tbc->cancel_cmd = tpm_passthrough_cancel_cmd;
     tbc->get_tpm_established_flag = tpm_passthrough_get_tpm_established_flag;
     tbc->reset_tpm_established_flag =
         tpm_passthrough_reset_tpm_established_flag;
     tbc->get_tpm_version = tpm_passthrough_get_tpm_version;
+    tbc->get_buffer_size = tpm_passthrough_get_buffer_size;
     tbc->get_tpm_options = tpm_passthrough_get_tpm_options;
     tbc->handle_request = tpm_passthrough_handle_request;
 }

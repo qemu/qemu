@@ -514,7 +514,7 @@ static int synth_unlinkat(FsContext *ctx, V9fsPath *dir,
     return -1;
 }
 
-static int synth_init(FsContext *ctx)
+static int synth_init(FsContext *ctx, Error **errp)
 {
     QLIST_INIT(&synth_root.child);
     qemu_mutex_init(&synth_mutex);

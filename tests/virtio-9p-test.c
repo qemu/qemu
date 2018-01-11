@@ -18,6 +18,8 @@
 #include "standard-headers/linux/virtio_pci.h"
 #include "hw/9pfs/9p.h"
 
+#define QVIRTIO_9P_TIMEOUT_US (10 * 1000 * 1000)
+
 static const char mount_tag[] = "qtest";
 
 typedef struct {
@@ -73,6 +75,9 @@ static QVirtIO9P *qvirtio_9p_pci_start(void)
     qvirtio_set_driver(v9p->dev);
 
     v9p->vq = qvirtqueue_setup(v9p->dev, v9p->qs->alloc, 0);
+
+    qvirtio_set_driver_ok(v9p->dev);
+
     return v9p;
 }
 
@@ -111,6 +116,7 @@ typedef struct {
     /* No r_size, it is hardcoded to P9_MAX_SIZE */
     size_t t_off;
     size_t r_off;
+    uint32_t free_head;
 } P9Req;
 
 static void v9fs_memwrite(P9Req *req, const void *addr, size_t len)
@@ -122,11 +128,6 @@ static void v9fs_memwrite(P9Req *req, const void *addr, size_t len)
 static void v9fs_memskip(P9Req *req, size_t len)
 {
     req->r_off += len;
-}
-
-static void v9fs_memrewind(P9Req *req, size_t len)
-{
-    req->r_off -= len;
 }
 
 static void v9fs_memread(P9Req *req, void *addr, size_t len)
@@ -227,12 +228,12 @@ static P9Req *v9fs_req_init(QVirtIO9P *v9p, uint32_t size, uint8_t id,
 static void v9fs_req_send(P9Req *req)
 {
     QVirtIO9P *v9p = req->v9p;
-    uint32_t free_head;
 
     req->r_msg = guest_alloc(v9p->qs->alloc, P9_MAX_SIZE);
-    free_head = qvirtqueue_add(v9p->vq, req->t_msg, req->t_size, false, true);
+    req->free_head = qvirtqueue_add(v9p->vq, req->t_msg, req->t_size, false,
+                                    true);
     qvirtqueue_add(v9p->vq, req->r_msg, P9_MAX_SIZE, true, false);
-    qvirtqueue_kick(v9p->dev, v9p->vq, free_head);
+    qvirtqueue_kick(v9p->dev, v9p->vq, req->free_head);
     req->t_off = 0;
 }
 
@@ -250,19 +251,13 @@ static void v9fs_req_recv(P9Req *req, uint8_t id)
 {
     QVirtIO9P *v9p = req->v9p;
     P9Hdr hdr;
-    int i;
 
-    for (i = 0; i < 10; i++) {
-        qvirtio_wait_queue_isr(v9p->dev, v9p->vq, 1000 * 1000);
+    qvirtio_wait_used_elem(v9p->dev, v9p->vq, req->free_head,
+                           QVIRTIO_9P_TIMEOUT_US);
 
-        v9fs_memread(req, &hdr, 7);
-        hdr.size = ldl_le_p(&hdr.size);
-        hdr.tag = lduw_le_p(&hdr.tag);
-        if (hdr.size >= 7) {
-            break;
-        }
-        v9fs_memrewind(req, 7);
-    }
+    v9fs_memread(req, &hdr, 7);
+    hdr.size = ldl_le_p(&hdr.size);
+    hdr.tag = lduw_le_p(&hdr.tag);
 
     g_assert_cmpint(hdr.size, >=, 7);
     g_assert_cmpint(hdr.size, <=, P9_MAX_SIZE);

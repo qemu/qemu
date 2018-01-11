@@ -61,8 +61,8 @@ for doc in schema.docs:
         print 'doc symbol=%s' % doc.symbol
     else:
         print 'doc freeform'
-    print '    body=\n%s' % doc.body
+    print '    body=\n%s' % doc.body.text
     for arg, section in doc.args.iteritems():
-        print '    arg=%s\n%s' % (arg, section)
+        print '    arg=%s\n%s' % (arg, section.text)
     for section in doc.sections:
-        print '    section=%s\n%s' % (section.name, section)
+        print '    section=%s\n%s' % (section.name, section.text)

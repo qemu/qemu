@@ -556,7 +556,7 @@ static const VMStateDescription e1000e_vmstate_tx = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT8(props.sum_needed, struct e1000e_tx),
+        VMSTATE_UINT8(sum_needed, struct e1000e_tx),
         VMSTATE_UINT8(props.ipcss, struct e1000e_tx),
         VMSTATE_UINT8(props.ipcso, struct e1000e_tx),
         VMSTATE_UINT16(props.ipcse, struct e1000e_tx),
@@ -569,7 +569,7 @@ static const VMStateDescription e1000e_vmstate_tx = {
         VMSTATE_INT8(props.ip, struct e1000e_tx),
         VMSTATE_INT8(props.tcp, struct e1000e_tx),
         VMSTATE_BOOL(props.tse, struct e1000e_tx),
-        VMSTATE_BOOL(props.cptse, struct e1000e_tx),
+        VMSTATE_BOOL(cptse, struct e1000e_tx),
         VMSTATE_BOOL(skip_cp, struct e1000e_tx),
         VMSTATE_END_OF_LIST()
     }

@@ -125,6 +125,8 @@
     DEF_HELPER_FLAGS_4(name, 0, ret, t1, t2, t3, t4)
 #define DEF_HELPER_5(name, ret, t1, t2, t3, t4, t5) \
     DEF_HELPER_FLAGS_5(name, 0, ret, t1, t2, t3, t4, t5)
+#define DEF_HELPER_6(name, ret, t1, t2, t3, t4, t5, t6) \
+    DEF_HELPER_FLAGS_6(name, 0, ret, t1, t2, t3, t4, t5, t6)
 
 /* MAX_OPC_PARAM_IARGS must be set to n if last entry is DEF_HELPER_FLAGS_n. */
 

@@ -169,6 +169,28 @@ struct ptm_getconfig {
 #define PTM_CONFIG_FLAG_FILE_KEY        0x1
 #define PTM_CONFIG_FLAG_MIGRATION_KEY   0x2
 
+/*
+ * PTM_SET_BUFFERSIZE: Set the buffer size to be used by the TPM.
+ * A 0 on input queries for the current buffer size. Any other
+ * number will try to set the buffer size. The returned number is
+ * the buffer size that will be used, which can be larger than the
+ * requested one, if it was below the minimum, or smaller than the
+ * requested one, if it was above the maximum.
+ */
+struct ptm_setbuffersize {
+    union {
+        struct {
+            uint32_t buffersize; /* 0 to query for current buffer size */
+        } req; /* request */
+        struct {
+            ptm_res tpm_result;
+            uint32_t buffersize; /* buffer size in use */
+            uint32_t minsize; /* min. supported buffer size */
+            uint32_t maxsize; /* max. supported buffer size */
+        } resp; /* response */
+    } u;
+};
+
 
 typedef uint64_t ptm_cap;
 typedef struct ptm_est ptm_est;
@@ -179,6 +201,7 @@ typedef struct ptm_init ptm_init;
 typedef struct ptm_getstate ptm_getstate;
 typedef struct ptm_setstate ptm_setstate;
 typedef struct ptm_getconfig ptm_getconfig;
+typedef struct ptm_setbuffersize ptm_setbuffersize;
 
 /* capability flags returned by PTM_GET_CAPABILITY */
 #define PTM_CAP_INIT               (1)
@@ -194,6 +217,7 @@ typedef struct ptm_getconfig ptm_getconfig;
 #define PTM_CAP_STOP               (1 << 10)
 #define PTM_CAP_GET_CONFIG         (1 << 11)
 #define PTM_CAP_SET_DATAFD         (1 << 12)
+#define PTM_CAP_SET_BUFFERSIZE     (1 << 13)
 
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
@@ -212,6 +236,7 @@ enum {
     PTM_STOP               = _IOR('P', 13, ptm_res),
     PTM_GET_CONFIG         = _IOR('P', 14, ptm_getconfig),
     PTM_SET_DATAFD         = _IOR('P', 15, ptm_res),
+    PTM_SET_BUFFERSIZE     = _IOWR('P', 16, ptm_setbuffersize),
 };
 
 /*
@@ -240,7 +265,8 @@ enum {
     CMD_SET_STATEBLOB,
     CMD_STOP,
     CMD_GET_CONFIG,
-    CMD_SET_DATAFD
+    CMD_SET_DATAFD,
+    CMD_SET_BUFFERSIZE,
 };
 
 #endif /* _TPM_IOCTL_H */

@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sparc/sun4m.h"
 #include "monitor/monitor.h"
 #include "hw/sysbus.h"
 #include "hw/intc/intc.h"

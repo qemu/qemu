@@ -259,6 +259,7 @@ S: Maintained
 F: target/xtensa/
 F: hw/xtensa/
 F: tests/tcg/xtensa/
+F: disas/xtensa.c
 
 TriCore
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
@@ -543,7 +544,7 @@ F: include/hw/*/xlnx*.h
 
 ARM ACPI Subsystem
 M: Shannon Zhao <zhaoshenglong@huawei.com>
-M: Shannon Zhao <shannon.zhao@linaro.org>
+M: Shannon Zhao <shannon.zhaosl@gmail.com>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/virt-acpi-build.c
@@ -732,7 +733,11 @@ F: hw/ppc/prep.c
 F: hw/ppc/prep_systemio.c
 F: hw/ppc/rs6000_mc.c
 F: hw/pci-host/prep.[hc]
+F: hw/isa/i82378.c
 F: hw/isa/pc87312.[hc]
+F: hw/dma/i82374.c
+F: hw/timer/m48t59-isa.c
+F: include/hw/timer/m48t59.h
 F: pc-bios/ppc_rom.bin
 
 sPAPR
@@ -760,6 +765,12 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/virtex_ml507.c
+
+sam460ex
+M: BALATON Zoltan <balaton@eik.bme.hu>
+L: qemu-ppc@nongnu.org
+S: Maintained
+F: hw/ide/sii3112.c
 
 SH4 Machines
 ------------
@@ -861,12 +872,13 @@ F: hw/misc/sga.c
 PC Chipset
 M: Michael S. Tsirkin <mst@redhat.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
-S: Support
+S: Supported
 F: hw/char/debugcon.c
 F: hw/char/parallel.c
 F: hw/char/serial*
 F: hw/dma/i8257*
 F: hw/i2c/pm_smbus.c
+F: hw/input/pckbd.c
 F: hw/intc/apic*
 F: hw/intc/ioapic*
 F: hw/intc/i8259*
@@ -875,7 +887,10 @@ F: hw/misc/pc-testdev.c
 F: hw/timer/hpet*
 F: hw/timer/i8254*
 F: hw/timer/mc146818rtc*
+F: hw/watchdog/wdt_ib700.c
+F: include/hw/display/vga.h
 F: include/hw/i2c/pm_smbus.h
+F: include/hw/isa/i8257.h
 F: include/hw/timer/hpet.h
 F: include/hw/timer/i8254*
 F: include/hw/timer/mc146818rtc*
@@ -976,7 +991,9 @@ M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/ppc4*.c
+F: hw/i2c/ppc4xx_i2c.c
 F: include/hw/ppc/ppc4xx.h
+F: include/hw/i2c/ppc4xx_i2c.h
 
 ppce500
 M: Alexander Graf <agraf@suse.de>
@@ -995,11 +1012,13 @@ Network devices
 M: Jason Wang <jasowang@redhat.com>
 S: Odd Fixes
 F: hw/net/
+F: include/hw/net/
 F: tests/virtio-net-test.c
 T: git git://github.com/jasowang/qemu.git net
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
+R: Fam Zheng <famz@redhat.com>
 S: Supported
 F: include/hw/scsi/*
 F: hw/scsi/*
@@ -1071,13 +1090,11 @@ F: include/hw/virtio/
 F: tests/virtio-balloon-test.c
 
 virtio-9p
-M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 M: Greg Kurz <groug@kaod.org>
 S: Supported
 F: hw/9pfs/
 F: fsdev/
 F: tests/virtio-9p-test.c
-T: git git://github.com/kvaneesh/QEMU.git
 T: git git://github.com/gkurz/qemu.git 9p-next
 
 virtio-blk
@@ -1260,6 +1277,7 @@ T: git git://github.com/stefanha/qemu.git block
 
 Block SCSI subsystem
 M: Paolo Bonzini <pbonzini@redhat.com>
+R: Fam Zheng <famz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: include/scsi/*
@@ -1538,6 +1556,7 @@ M: Alistair Francis <alistair.francis@xilinx.com>
 S: Maintained
 F: hw/core/register.c
 F: include/hw/register.h
+F: include/hw/registerfields.h
 
 SLIRP
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>

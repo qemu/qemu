@@ -35,7 +35,6 @@
 #include "elf.h"
 #include "exec/log.h"
 #include "trace/control.h"
-#include "glib-compat.h"
 
 char *exec_path;
 
@@ -2680,6 +2679,8 @@ void cpu_loop(CPUSH4State *env)
     target_siginfo_t info;
 
     while (1) {
+        bool arch_interrupt = true;
+
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
@@ -2711,13 +2712,14 @@ void cpu_loop(CPUSH4State *env)
                 int sig;
 
                 sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig)
-                  {
+                if (sig) {
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
                     queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-                  }
+                } else {
+                    arch_interrupt = false;
+                }
             }
             break;
 	case 0xa0:
@@ -2728,9 +2730,9 @@ void cpu_loop(CPUSH4State *env)
             info._sifields._sigfault._addr = env->tea;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
 	    break;
-
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
+            arch_interrupt = false;
             break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
@@ -2738,6 +2740,14 @@ void cpu_loop(CPUSH4State *env)
             exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
+
+        /* Most of the traps imply an exception or interrupt, which
+           implies an REI instruction has been executed.  Which means
+           that LDST (aka LOK_ADDR) should be cleared.  But there are
+           a few exceptions for traps internal to QEMU.  */
+        if (arch_interrupt) {
+            env->lock_addr = -1;
+        }
     }
 }
 #endif
@@ -2972,6 +2982,13 @@ void cpu_loop(CPUM68KState *env)
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+            break;
+        case EXCP_CHK:
+            info.si_signo = TARGET_SIGFPE;
+            info.si_errno = 0;
+            info.si_code = TARGET_FPE_INTOVF;
             info._sifields._sigfault._addr = env->pc;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
@@ -4612,6 +4629,12 @@ int main(int argc, char **argv, char **envp)
         }
         env->pc = regs->pc;
         env->xregs[31] = regs->sp;
+#ifdef TARGET_WORDS_BIGENDIAN
+        env->cp15.sctlr_el[1] |= SCTLR_E0E;
+        for (i = 1; i < 4; ++i) {
+            env->cp15.sctlr_el[i] |= SCTLR_EE;
+        }
+#endif
     }
 #elif defined(TARGET_ARM)
     {

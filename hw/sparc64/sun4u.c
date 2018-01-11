@@ -27,7 +27,9 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_host.h"
 #include "hw/pci-host/apb.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
@@ -46,16 +48,8 @@
 #include "hw/ide/pci.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "trace.h"
 #include "qemu/cutils.h"
-
-//#define DEBUG_EBUS
-
-#ifdef DEBUG_EBUS
-#define EBUS_DPRINTF(fmt, ...)                                  \
-    do { printf("EBUS: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define EBUS_DPRINTF(fmt, ...)
-#endif
 
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
@@ -81,10 +75,18 @@ struct hwdef {
 };
 
 typedef struct EbusState {
-    PCIDevice pci_dev;
+    /*< private >*/
+    PCIDevice parent_obj;
+
+    ISABus *isa_bus;
+    qemu_irq isa_bus_irqs[ISA_NUM_IRQS];
+    uint64_t console_serial_base;
     MemoryRegion bar0;
     MemoryRegion bar1;
 } EbusState;
+
+#define TYPE_EBUS "ebus"
+#define EBUS(obj) OBJECT_CHECK(EbusState, (obj), TYPE_EBUS)
 
 void DMA_init(ISABus *bus, int high_page_enable)
 {
@@ -203,48 +205,72 @@ typedef struct ResetData {
     uint64_t prom_addr;
 } ResetData;
 
-static void isa_irq_handler(void *opaque, int n, int level)
+static void ebus_isa_irq_handler(void *opaque, int n, int level)
 {
-    static const int isa_irq_to_ivec[16] = {
-        [1] = 0x29, /* keyboard */
-        [4] = 0x2b, /* serial */
-        [6] = 0x27, /* floppy */
-        [7] = 0x22, /* parallel */
-        [12] = 0x2a, /* mouse */
-    };
-    qemu_irq *irqs = opaque;
-    int ivec;
+    EbusState *s = EBUS(opaque);
+    qemu_irq irq = s->isa_bus_irqs[n];
 
-    assert(n < ARRAY_SIZE(isa_irq_to_ivec));
-    ivec = isa_irq_to_ivec[n];
-    EBUS_DPRINTF("Set ISA IRQ %d level %d -> ivec 0x%x\n", n, level, ivec);
-    if (ivec) {
-        qemu_set_irq(irqs[ivec], level);
+    /* Pass ISA bus IRQs onto their gpio equivalent */
+    trace_ebus_isa_irq_handler(n, level);
+    if (irq) {
+        qemu_set_irq(irq, level);
     }
 }
 
 /* EBUS (Eight bit bus) bridge */
-static ISABus *
-pci_ebus_init(PCIDevice *pci_dev, qemu_irq *irqs)
+static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
+    EbusState *s = EBUS(pci_dev);
+    DeviceState *dev;
     qemu_irq *isa_irq;
-    ISABus *isa_bus;
+    DriveInfo *fd[MAX_FD];
+    int i;
 
-    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci_dev), "isa.0"));
-    isa_irq = qemu_allocate_irqs(isa_irq_handler, irqs, 16);
-    isa_bus_irqs(isa_bus, isa_irq);
-    return isa_bus;
-}
-
-static void pci_ebus_realize(PCIDevice *pci_dev, Error **errp)
-{
-    EbusState *s = DO_UPCAST(EbusState, pci_dev, pci_dev);
-
-    if (!isa_bus_new(DEVICE(pci_dev), get_system_memory(),
-                     pci_address_space_io(pci_dev), errp)) {
+    s->isa_bus = isa_bus_new(DEVICE(pci_dev), get_system_memory(),
+                             pci_address_space_io(pci_dev), errp);
+    if (!s->isa_bus) {
+        error_setg(errp, "unable to instantiate EBUS ISA bus");
         return;
     }
 
+    /* ISA bus */
+    isa_irq = qemu_allocate_irqs(ebus_isa_irq_handler, s, ISA_NUM_IRQS);
+    isa_bus_irqs(s->isa_bus, isa_irq);
+    qdev_init_gpio_out_named(DEVICE(s), s->isa_bus_irqs, "isa-irq",
+                             ISA_NUM_IRQS);
+
+    /* Serial ports */
+    i = 0;
+    if (s->console_serial_base) {
+        serial_mm_init(pci_address_space(pci_dev), s->console_serial_base,
+                       0, NULL, 115200, serial_hds[i], DEVICE_BIG_ENDIAN);
+        i++;
+    }
+    serial_hds_isa_init(s->isa_bus, i, MAX_SERIAL_PORTS);
+
+    /* Parallel ports */
+    parallel_hds_isa_init(s->isa_bus, MAX_PARALLEL_PORTS);
+
+    /* Keyboard */
+    isa_create_simple(s->isa_bus, "i8042");
+
+    /* Floppy */
+    for (i = 0; i < MAX_FD; i++) {
+        fd[i] = drive_get(IF_FLOPPY, 0, i);
+    }
+    dev = DEVICE(isa_create(s->isa_bus, TYPE_ISA_FDC));
+    if (fd[0]) {
+        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fd[0]),
+                            &error_abort);
+    }
+    if (fd[1]) {
+        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fd[1]),
+                            &error_abort);
+    }
+    qdev_prop_set_uint32(dev, "dma", -1);
+    qdev_init_nofail(dev);
+
+    /* PCI */
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;
     pci_dev->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error
@@ -260,22 +286,30 @@ static void pci_ebus_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
 }
 
+static Property ebus_properties[] = {
+    DEFINE_PROP_UINT64("console-serial-base", EbusState,
+                       console_serial_base, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ebus_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->realize = pci_ebus_realize;
+    k->realize = ebus_realize;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_EBUS;
     k->revision = 0x01;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
+    dc->props = ebus_properties;
 }
 
 static const TypeInfo ebus_info = {
-    .name          = "ebus",
+    .name          = TYPE_EBUS,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(EbusState),
     .class_init    = ebus_class_init,
+    .instance_size = sizeof(EbusState),
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -431,14 +465,12 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
+    APBState *apb;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus, *pci_dev;
-    ISABus *isa_bus;
     SysBusDevice *s;
-    qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *fd[MAX_FD];
-    DeviceState *dev;
+    DeviceState *iommu, *dev;
     FWCfgState *fw_cfg;
     NICInfo *nd;
     MACAddr macaddr;
@@ -447,14 +479,31 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     /* init CPUs */
     cpu = sparc64_cpu_devinit(machine->cpu_type, hwdef->prom_addr);
 
+    /* IOMMU */
+    iommu = qdev_create(NULL, TYPE_SUN4U_IOMMU);
+    qdev_init_nofail(iommu);
+
     /* set up devices */
     ram_init(0, machine->ram_size);
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    ivec_irqs = qemu_allocate_irqs(sparc64_cpu_set_ivec_irq, cpu, IVEC_MAX);
-    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_busA,
-                           &pci_busB, &pbm_irqs);
+    /* Init APB (PCI host bridge) */
+    apb = APB_DEVICE(qdev_create(NULL, TYPE_APB));
+    qdev_prop_set_uint64(DEVICE(apb), "special-base", APB_SPECIAL_BASE);
+    qdev_prop_set_uint64(DEVICE(apb), "mem-base", APB_MEM_BASE);
+    object_property_set_link(OBJECT(apb), OBJECT(iommu), "iommu", &error_abort);
+    qdev_init_nofail(DEVICE(apb));
+
+    /* Wire up PCI interrupts to CPU */
+    for (i = 0; i < IVEC_MAX; i++) {
+        qdev_connect_gpio_out_named(DEVICE(apb), "ivec-irq", i,
+            qdev_get_gpio_in_named(DEVICE(cpu), "ivec-irq", i));
+    }
+
+    pci_bus = PCI_HOST_BRIDGE(apb)->bus;
+    pci_busA = pci_bridge_get_sec_bus(apb->bridgeA);
+    pci_busB = pci_bridge_get_sec_bus(apb->bridgeB);
 
     /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is
        reserved (leaving no slots free after on-board devices) however slots
@@ -463,20 +512,22 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_busA->slot_reserved_mask = 0xfffffff1;
     pci_busB->slot_reserved_mask = 0xfffffff0;
 
-    ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, "ebus");
+    ebus = pci_create_multifunction(pci_busA, PCI_DEVFN(1, 0), true, TYPE_EBUS);
+    qdev_prop_set_uint64(DEVICE(ebus), "console-serial-base",
+                         hwdef->console_serial_base);
     qdev_init_nofail(DEVICE(ebus));
 
-    isa_bus = pci_ebus_init(ebus, pbm_irqs);
-
-    i = 0;
-    if (hwdef->console_serial_base) {
-        serial_mm_init(address_space_mem, hwdef->console_serial_base, 0,
-                       NULL, 115200, serial_hds[i], DEVICE_BIG_ENDIAN);
-        i++;
-    }
-
-    serial_hds_isa_init(isa_bus, i, MAX_SERIAL_PORTS);
-    parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
+    /* Wire up "well-known" ISA IRQs to APB legacy obio IRQs */
+    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 7,
+        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_LPT_IRQ));
+    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 6,
+        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_FDD_IRQ));
+    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 1,
+        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_KBD_IRQ));
+    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 12,
+        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_MSE_IRQ));
+    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 4,
+        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_SER_IRQ));
 
     pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
 
@@ -515,24 +566,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
     qdev_init_nofail(&pci_dev->qdev);
     pci_ide_create_devs(pci_dev, hd);
-
-    isa_create_simple(isa_bus, "i8042");
-
-    /* Floppy */
-    for(i = 0; i < MAX_FD; i++) {
-        fd[i] = drive_get(IF_FLOPPY, 0, i);
-    }
-    dev = DEVICE(isa_create(isa_bus, TYPE_ISA_FDC));
-    if (fd[0]) {
-        qdev_prop_set_drive(dev, "driveA", blk_by_legacy_dinfo(fd[0]),
-                            &error_abort);
-    }
-    if (fd[1]) {
-        qdev_prop_set_drive(dev, "driveB", blk_by_legacy_dinfo(fd[1]),
-                            &error_abort);
-    }
-    qdev_prop_set_uint32(dev, "dma", -1);
-    qdev_init_nofail(dev);
 
     /* Map NVRAM into I/O (ebus) space */
     nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);

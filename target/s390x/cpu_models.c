@@ -15,7 +15,6 @@
 #include "internal.h"
 #include "kvm_s390x.h"
 #include "sysemu/kvm.h"
-#include "gen-features.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
@@ -80,6 +79,12 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
     CPUDEF_INIT(0x3906, 14, 1, 47, 0x08000000U, "z14", "IBM z14 GA1"),
 };
+
+#define QEMU_MAX_CPU_TYPE 0x2827
+#define QEMU_MAX_CPU_GEN 12
+#define QEMU_MAX_CPU_EC_GA 2
+static const S390FeatInit qemu_max_cpu_feat_init = { S390_FEAT_LIST_QEMU_MAX };
+static S390FeatBitmap qemu_max_cpu_feat;
 
 /* features part of a base model but not relevant for finding a base model */
 S390FeatBitmap ignored_base_feat;
@@ -812,48 +817,6 @@ static void check_compatibility(const S390CPUModel *max_model,
                   "available in the configuration: ");
 }
 
-/**
- * The base TCG CPU model "qemu" is based on the z900. However, we already
- * can also emulate some additional features of later CPU generations, so
- * we add these additional feature bits here.
- */
-static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
-{
-    static const int feats[] = {
-        S390_FEAT_DAT_ENH,
-        S390_FEAT_IDTE_SEGMENT,
-        S390_FEAT_STFLE,
-        S390_FEAT_SENSE_RUNNING_STATUS,
-        S390_FEAT_EXTENDED_IMMEDIATE,
-        S390_FEAT_EXTENDED_TRANSLATION_2,
-        S390_FEAT_MSA,
-        S390_FEAT_EXTENDED_TRANSLATION_3,
-        S390_FEAT_LONG_DISPLACEMENT,
-        S390_FEAT_LONG_DISPLACEMENT_FAST,
-        S390_FEAT_ETF2_ENH,
-        S390_FEAT_STORE_CLOCK_FAST,
-        S390_FEAT_MOVE_WITH_OPTIONAL_SPEC,
-        S390_FEAT_ETF3_ENH,
-        S390_FEAT_COMPARE_AND_SWAP_AND_STORE,
-        S390_FEAT_COMPARE_AND_SWAP_AND_STORE_2,
-        S390_FEAT_GENERAL_INSTRUCTIONS_EXT,
-        S390_FEAT_EXECUTE_EXT,
-        S390_FEAT_FLOATING_POINT_SUPPPORT_ENH,
-        S390_FEAT_STFLE_45,
-        S390_FEAT_STFLE_49,
-        S390_FEAT_LOCAL_TLB_CLEARING,
-        S390_FEAT_STFLE_53,
-        S390_FEAT_MSA_EXT_5,
-        S390_FEAT_MSA_EXT_3,
-        S390_FEAT_MSA_EXT_4,
-    };
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(feats); i++) {
-        set_bit(feats[i], fbm);
-    }
-}
-
 static S390CPUModel *get_max_cpu_model(Error **errp)
 {
     static S390CPUModel max_model;
@@ -866,12 +829,10 @@ static S390CPUModel *get_max_cpu_model(Error **errp)
     if (kvm_enabled()) {
         kvm_s390_get_host_cpu_model(&max_model, errp);
     } else {
-        /* TCG emulates a z900 (with some optional additional features) */
-        max_model.def = &s390_cpu_defs[0];
-        bitmap_copy(max_model.features, max_model.def->default_feat,
-                    S390_FEAT_MAX);
-        add_qemu_cpu_model_features(max_model.features);
-    }
+        max_model.def = s390_find_cpu_def(QEMU_MAX_CPU_TYPE, QEMU_MAX_CPU_GEN,
+                                          QEMU_MAX_CPU_EC_GA, NULL);
+        bitmap_copy(max_model.features, qemu_max_cpu_feat, S390_FEAT_MAX);
+   }
     if (!*errp) {
         cached = true;
         return &max_model;
@@ -1127,18 +1088,42 @@ static void s390_host_cpu_model_initfn(Object *obj)
 }
 #endif
 
+static S390CPUDef s390_qemu_cpu_def;
+static S390CPUModel s390_qemu_cpu_model;
+
+/* Set the qemu CPU model (on machine initialization). Must not be called
+ * once CPUs have been created.
+ */
+void s390_set_qemu_cpu_model(uint16_t type, uint8_t gen, uint8_t ec_ga,
+                             const S390FeatInit feat_init)
+{
+    const S390CPUDef *def = s390_find_cpu_def(type, gen, ec_ga, NULL);
+
+    g_assert(def);
+    g_assert(QTAILQ_EMPTY(&cpus));
+
+    /* TCG emulates some features that can usually not be enabled with
+     * the emulated machine generation. Make sure they can be enabled
+     * when using the QEMU model by adding them to full_feat. We have
+     * to copy the definition to do that.
+     */
+    memcpy(&s390_qemu_cpu_def, def, sizeof(s390_qemu_cpu_def));
+    bitmap_or(s390_qemu_cpu_def.full_feat, s390_qemu_cpu_def.full_feat,
+              qemu_max_cpu_feat, S390_FEAT_MAX);
+
+    /* build the CPU model */
+    s390_qemu_cpu_model.def = &s390_qemu_cpu_def;
+    bitmap_zero(s390_qemu_cpu_model.features, S390_FEAT_MAX);
+    s390_init_feat_bitmap(feat_init, s390_qemu_cpu_model.features);
+}
+
 static void s390_qemu_cpu_model_initfn(Object *obj)
 {
-    static S390CPUDef s390_qemu_cpu_defs;
     S390CPU *cpu = S390_CPU(obj);
 
     cpu->model = g_malloc0(sizeof(*cpu->model));
-    /* TCG emulates a z900 (with some optional additional features) */
-    memcpy(&s390_qemu_cpu_defs, &s390_cpu_defs[0], sizeof(s390_qemu_cpu_defs));
-    add_qemu_cpu_model_features(s390_qemu_cpu_defs.full_feat);
-    cpu->model->def = &s390_qemu_cpu_defs;
-    bitmap_copy(cpu->model->features, cpu->model->def->default_feat,
-                S390_FEAT_MAX);
+    /* copy the CPU model so we can modify it */
+    memcpy(cpu->model, &s390_qemu_cpu_model, sizeof(*cpu->model));
 }
 
 static void s390_cpu_model_finalize(Object *obj)
@@ -1279,11 +1264,13 @@ static void init_ignored_base_feat(void)
 
 static void register_types(void)
 {
+    static const S390FeatInit qemu_latest_init = { S390_FEAT_LIST_QEMU_LATEST };
     int i;
 
     init_ignored_base_feat();
 
     /* init all bitmaps from gnerated data initially */
+    s390_init_feat_bitmap(qemu_max_cpu_feat_init, qemu_max_cpu_feat);
     for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
         s390_init_feat_bitmap(s390_cpu_defs[i].base_init,
                               s390_cpu_defs[i].base_feat);
@@ -1292,6 +1279,10 @@ static void register_types(void)
         s390_init_feat_bitmap(s390_cpu_defs[i].full_init,
                               s390_cpu_defs[i].full_feat);
     }
+
+    /* initialize the qemu model with latest definition */
+    s390_set_qemu_cpu_model(QEMU_MAX_CPU_TYPE, QEMU_MAX_CPU_GEN,
+                            QEMU_MAX_CPU_EC_GA, qemu_latest_init);
 
     for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
         char *base_name = s390_base_cpu_type_name(s390_cpu_defs[i].name);

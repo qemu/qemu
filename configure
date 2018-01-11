@@ -211,6 +211,17 @@ supported_xen_target() {
     return 1
 }
 
+supported_hvf_target() {
+    test "$hvf" = "yes" || return 1
+    glob "$1" "*-softmmu" || return 1
+    case "${1%-softmmu}" in
+        x86_64)
+            return 0
+        ;;
+    esac
+    return 1
+}
+
 supported_target() {
     case "$1" in
         *-softmmu)
@@ -236,6 +247,7 @@ supported_target() {
     supported_kvm_target "$1" && return 0
     supported_xen_target "$1" && return 0
     supported_hax_target "$1" && return 0
+    supported_hvf_target "$1" && return 0
     print_error "TCG disabled, but hardware accelerator not available for '$target'"
     return 1
 }
@@ -325,6 +337,7 @@ vhost_vsock="no"
 vhost_user=""
 kvm="no"
 hax="no"
+hvf="no"
 rdma=""
 gprof="no"
 debug_tcg="no"
@@ -426,6 +439,7 @@ vxhs=""
 supported_cpu="no"
 supported_os="no"
 bogus_os="no"
+malloc_trim=""
 
 # parse CC options first
 for opt do
@@ -740,6 +754,7 @@ Darwin)
   bsd="yes"
   darwin="yes"
   hax="yes"
+  hvf="yes"
   LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
@@ -1035,6 +1050,10 @@ for opt do
   ;;
   --enable-hax) hax="yes"
   ;;
+  --disable-hvf) hvf="no"
+  ;;
+  --enable-hvf) hvf="yes"
+  ;;
   --disable-tcg-interpreter) tcg_interpreter="no"
   ;;
   --enable-tcg-interpreter) tcg_interpreter="yes"
@@ -1046,6 +1065,10 @@ for opt do
   --disable-tcg) tcg="no"
   ;;
   --enable-tcg) tcg="yes"
+  ;;
+  --disable-malloc-trim) malloc_trim="no"
+  ;;
+  --enable-malloc-trim) malloc_trim="yes"
   ;;
   --disable-spice) spice="no"
   ;;
@@ -1466,6 +1489,7 @@ Advanced options (experts only):
                            Default:trace-<pid>
   --disable-slirp          disable SLIRP userspace network connectivity
   --enable-tcg-interpreter enable TCG with bytecode interpreter (TCI)
+  --enable-malloc-trim     enable libc malloc_trim() for memory optimization
   --oss-lib                path to OSS library
   --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
@@ -1523,6 +1547,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   bluez           bluez stack connectivity
   kvm             KVM acceleration support
   hax             HAX acceleration support
+  hvf             Hypervisor.framework acceleration support
   rdma            RDMA-based migration support
   vde             support for vde network
   netmap          support for netmap network
@@ -1582,6 +1607,20 @@ fi
 # Suppress writing compiled files
 python="$python -B"
 
+# Check that the C compiler works. Doing this here before testing
+# the host CPU ensures that we had a valid CC to autodetect the
+# $cpu var (and we should bail right here if that's not the case).
+# It also allows the help message to be printed without a CC.
+write_c_skeleton;
+if compile_object ; then
+  : C compiler works ok
+else
+    error_exit "\"$cc\" either does not exist or does not work"
+fi
+if ! compile_prog ; then
+    error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
+fi
+
 # Now we have handled --enable-tcg-interpreter and know we're not just
 # printing the help message, bail out if the host CPU isn't supported.
 if test "$ARCH" = "unknown"; then
@@ -1601,17 +1640,6 @@ if test -z "$werror" ; then
     else
         werror="no"
     fi
-fi
-
-# check that the C compiler works.
-write_c_skeleton;
-if compile_object ; then
-  : C compiler works ok
-else
-    error_exit "\"$cc\" either does not exist or does not work"
-fi
-if ! compile_prog ; then
-    error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
 fi
 
 if test "$bogus_os" = "yes"; then
@@ -3857,6 +3885,30 @@ if test "$tcmalloc" = "yes" && test "$jemalloc" = "yes" ; then
     exit 1
 fi
 
+# Even if malloc_trim() is available, these non-libc memory allocators
+# do not support it.
+if test "$tcmalloc" = "yes" || test "$jemalloc" = "yes" ; then
+    if test "$malloc_trim" = "yes" ; then
+        echo "Disabling malloc_trim with non-libc memory allocator"
+    fi
+    malloc_trim="no"
+fi
+
+#######################################
+# malloc_trim
+
+if test "$malloc_trim" != "no" ; then
+    cat > $TMPC << EOF
+#include <malloc.h>
+int main(void) { malloc_trim(0); return 0; }
+EOF
+    if compile_prog "" "" ; then
+        malloc_trim="yes"
+    else
+        malloc_trim="no"
+    fi
+fi
+
 ##########################################
 # tcmalloc probe
 
@@ -3920,7 +3972,7 @@ fi
 # check if memfd is supported
 memfd=no
 cat > $TMPC << EOF
-#include <sys/memfd.h>
+#include <sys/mman.h>
 
 int main(void)
 {
@@ -5023,6 +5075,21 @@ fi
 
 
 #################################################
+# Check to see if we have the Hypervisor framework
+if [ "$darwin" = "yes" ] ; then
+  cat > $TMPC << EOF
+#include <Hypervisor/hv.h>
+int main() { return 0;}
+EOF
+  if ! compile_object ""; then
+    hvf='no'
+  else
+    hvf='yes'
+    LDFLAGS="-framework Hypervisor $LDFLAGS"
+  fi
+fi
+
+#################################################
 # Sparc implicitly links with --relax, which is
 # incompatible with -r, so --no-relax should be
 # given. It does no harm to give it on other
@@ -5497,11 +5564,13 @@ echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 echo "HAX support       $hax"
+echo "HVF support       $hvf"
 echo "TCG support       $tcg"
 if test "$tcg" = "yes" ; then
     echo "TCG debug enabled $debug_tcg"
     echo "TCG interpreter   $tcg_interpreter"
 fi
+echo "malloc trim support $malloc_trim"
 echo "RDMA support      $rdma"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
@@ -6012,6 +6081,10 @@ if test "$opengl" = "yes" ; then
   fi
 fi
 
+if test "$malloc_trim" = "yes" ; then
+  echo "CONFIG_MALLOC_TRIM=y" >> $config_host_mak
+fi
+
 if test "$avx2_opt" = "yes" ; then
   echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
 fi
@@ -6366,7 +6439,7 @@ target_name=$(echo $target | cut -d '-' -f 1)
 target_bigendian="no"
 
 case "$target_name" in
-  armeb|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
+  armeb|aarch64_be|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
   target_bigendian=yes
   ;;
 esac
@@ -6421,7 +6494,8 @@ case "$target_name" in
     mttcg="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
   ;;
-  aarch64)
+  aarch64|aarch64_be)
+    TARGET_ARCH=aarch64
     TARGET_BASE_ARCH=arm
     bflt="yes"
     mttcg="yes"
@@ -6563,6 +6637,9 @@ if supported_kvm_target $target; then
 fi
 if supported_hax_target $target; then
     echo "CONFIG_HAX=y" >> $config_target_mak
+fi
+if supported_hvf_target $target; then
+    echo "CONFIG_HVF=y" >> $config_target_mak
 fi
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak

@@ -1190,6 +1190,12 @@ void nbd_export_put(NBDExport *exp)
         nbd_export_close(exp);
     }
 
+    /* nbd_export_close() may theoretically reduce refcount to 0. It may happen
+     * if someone calls nbd_export_put() on named export not through
+     * nbd_export_set_name() when refcount is 1. So, let's assert that
+     * it is > 0.
+     */
+    assert(exp->refcount > 0);
     if (--exp->refcount == 0) {
         assert(exp->name == NULL);
         assert(exp->description == NULL);
@@ -1303,6 +1309,7 @@ static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
                                                     uint64_t offset,
                                                     void *data,
                                                     size_t size,
+                                                    bool final,
                                                     Error **errp)
 {
     NBDStructuredReadData chunk;
@@ -1313,11 +1320,71 @@ static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
 
     assert(size);
     trace_nbd_co_send_structured_read(handle, offset, data, size);
-    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_OFFSET_DATA,
-                 handle, sizeof(chunk) - sizeof(chunk.h) + size);
+    set_be_chunk(&chunk.h, final ? NBD_REPLY_FLAG_DONE : 0,
+                 NBD_REPLY_TYPE_OFFSET_DATA, handle,
+                 sizeof(chunk) - sizeof(chunk.h) + size);
     stq_be_p(&chunk.offset, offset);
 
     return nbd_co_send_iov(client, iov, 2, errp);
+}
+
+static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
+                                                uint64_t handle,
+                                                uint64_t offset,
+                                                uint8_t *data,
+                                                size_t size,
+                                                Error **errp)
+{
+    int ret = 0;
+    NBDExport *exp = client->exp;
+    size_t progress = 0;
+
+    while (progress < size) {
+        int64_t pnum;
+        int status = bdrv_block_status_above(blk_bs(exp->blk), NULL,
+                                             offset + progress,
+                                             size - progress, &pnum, NULL,
+                                             NULL);
+        bool final;
+
+        if (status < 0) {
+            error_setg_errno(errp, -status, "unable to check for holes");
+            return status;
+        }
+        assert(pnum && pnum <= size - progress);
+        final = progress + pnum == size;
+        if (status & BDRV_BLOCK_ZERO) {
+            NBDStructuredReadHole chunk;
+            struct iovec iov[] = {
+                {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+            };
+
+            trace_nbd_co_send_structured_read_hole(handle, offset + progress,
+                                                   pnum);
+            set_be_chunk(&chunk.h, final ? NBD_REPLY_FLAG_DONE : 0,
+                         NBD_REPLY_TYPE_OFFSET_HOLE,
+                         handle, sizeof(chunk) - sizeof(chunk.h));
+            stq_be_p(&chunk.offset, offset + progress);
+            stl_be_p(&chunk.length, pnum);
+            ret = nbd_co_send_iov(client, iov, 1, errp);
+        } else {
+            ret = blk_pread(exp->blk, offset + progress + exp->dev_offset,
+                            data + progress, pnum);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "reading from file failed");
+                break;
+            }
+            ret = nbd_co_send_structured_read(client, handle, offset + progress,
+                                              data + progress, pnum, final,
+                                              errp);
+        }
+
+        if (ret < 0) {
+            break;
+        }
+        progress += pnum;
+    }
+    return ret;
 }
 
 static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
@@ -1481,6 +1548,17 @@ static coroutine_fn void nbd_trip(void *opaque)
             }
         }
 
+        if (client->structured_reply && !(request.flags & NBD_CMD_FLAG_DF) &&
+            request.len) {
+            ret = nbd_co_send_sparse_read(req->client, request.handle,
+                                          request.from, req->data, request.len,
+                                          &local_err);
+            if (ret < 0) {
+                goto reply;
+            }
+            goto done;
+        }
+
         ret = blk_pread(exp->blk, request.from + exp->dev_offset,
                         req->data, request.len);
         if (ret < 0) {
@@ -1561,7 +1639,8 @@ reply:
         } else if (reply_data_len) {
             ret = nbd_co_send_structured_read(req->client, request.handle,
                                               request.from, req->data,
-                                              reply_data_len, &local_err);
+                                              reply_data_len, true,
+                                              &local_err);
         } else {
             ret = nbd_co_send_structured_done(req->client, request.handle,
                                               &local_err);
