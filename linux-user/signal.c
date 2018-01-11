@@ -1599,9 +1599,13 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
     if (ka->sa_flags & TARGET_SA_RESTORER) {
         return_addr = ka->sa_restorer;
     } else {
-        /* mov x8,#__NR_rt_sigreturn; svc #0 */
-        __put_user(0xd2801168, &frame->tramp[0]);
-        __put_user(0xd4000001, &frame->tramp[1]);
+        /*
+         * mov x8,#__NR_rt_sigreturn; svc #0
+         * Since these are instructions they need to be put as little-endian
+         * regardless of target default or current CPU endianness.
+         */
+        __put_user_e(0xd2801168, &frame->tramp[0], le);
+        __put_user_e(0xd4000001, &frame->tramp[1], le);
         return_addr = frame_addr + offsetof(struct target_rt_sigframe, tramp);
     }
     env->xregs[0] = usig;
