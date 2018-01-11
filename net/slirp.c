@@ -405,16 +405,23 @@ error:
     return -1;
 }
 
-static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
-                                const char *stack)
+static SlirpState *slirp_lookup(Monitor *mon, const char *hub_id,
+                                const char *name)
 {
-
-    if (vlan) {
+    if (name) {
         NetClientState *nc;
-        nc = net_hub_find_client_by_name(strtol(vlan, NULL, 0), stack);
-        if (!nc) {
-            monitor_printf(mon, "unrecognized (vlan-id, stackname) pair\n");
-            return NULL;
+        if (hub_id) {
+            nc = net_hub_find_client_by_name(strtol(hub_id, NULL, 0), name);
+            if (!nc) {
+                monitor_printf(mon, "unrecognized (vlan-id, stackname) pair\n");
+                return NULL;
+            }
+        } else {
+            nc = qemu_find_netdev(name);
+            if (!nc) {
+                monitor_printf(mon, "unrecognized netdev id '%s'\n", name);
+                return NULL;
+            }
         }
         if (strcmp(nc->model, "user")) {
             monitor_printf(mon, "invalid device specified\n");
@@ -443,9 +450,12 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
     const char *arg2 = qdict_get_try_str(qdict, "arg2");
     const char *arg3 = qdict_get_try_str(qdict, "arg3");
 
-    if (arg2) {
+    if (arg3) {
         s = slirp_lookup(mon, arg1, arg2);
         src_str = arg3;
+    } else if (arg2) {
+        s = slirp_lookup(mon, NULL, arg1);
+        src_str = arg2;
     } else {
         s = slirp_lookup(mon, NULL, NULL);
         src_str = arg1;
@@ -570,9 +580,12 @@ void hmp_hostfwd_add(Monitor *mon, const QDict *qdict)
     const char *arg2 = qdict_get_try_str(qdict, "arg2");
     const char *arg3 = qdict_get_try_str(qdict, "arg3");
 
-    if (arg2) {
+    if (arg3) {
         s = slirp_lookup(mon, arg1, arg2);
         redir_str = arg3;
+    } else if (arg2) {
+        s = slirp_lookup(mon, NULL, arg1);
+        redir_str = arg2;
     } else {
         s = slirp_lookup(mon, NULL, NULL);
         redir_str = arg1;
