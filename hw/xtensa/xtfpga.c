@@ -584,10 +584,10 @@ static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "lx60 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = "lx60 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_lx60_nommu_init;
     mc->max_cpus = 4;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
 }
 
 static const TypeInfo xtfpga_lx60_nommu_type = {
@@ -616,10 +616,10 @@ static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "lx200 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = "lx200 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_lx200_nommu_init;
     mc->max_cpus = 4;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
 }
 
 static const TypeInfo xtfpga_lx200_nommu_type = {
@@ -648,10 +648,10 @@ static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "ml605 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = "ml605 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_ml605_nommu_init;
     mc->max_cpus = 4;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
 }
 
 static const TypeInfo xtfpga_ml605_nommu_type = {
@@ -680,10 +680,10 @@ static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "kc705 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->desc = "kc705 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_kc705_nommu_init;
     mc->max_cpus = 4;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
 }
 
 static const TypeInfo xtfpga_kc705_nommu_type = {
