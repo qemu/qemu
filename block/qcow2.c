@@ -37,7 +37,8 @@
 #include "qemu/option_int.h"
 #include "qemu/cutils.h"
 #include "qemu/bswap.h"
-#include "qapi/opts-visitor.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qapi-visit-block-core.h"
 #include "block/crypto.h"
 
 /*
@@ -2449,37 +2450,6 @@ static int qcow2_crypt_method_from_format(const char *encryptfmt)
     }
 }
 
-static QCryptoBlockCreateOptions *
-qcow2_parse_encryption(const char *encryptfmt, QemuOpts *opts, Error **errp)
-{
-    QCryptoBlockCreateOptions *cryptoopts = NULL;
-    QDict *options, *encryptopts;
-    int fmt;
-
-    options = qemu_opts_to_qdict(opts, NULL);
-    qdict_extract_subqdict(options, &encryptopts, "encrypt.");
-    QDECREF(options);
-
-    fmt = qcow2_crypt_method_from_format(encryptfmt);
-
-    switch (fmt) {
-    case QCOW_CRYPT_LUKS:
-        cryptoopts = block_crypto_create_opts_init(
-            Q_CRYPTO_BLOCK_FORMAT_LUKS, encryptopts, errp);
-        break;
-    case QCOW_CRYPT_AES:
-        cryptoopts = block_crypto_create_opts_init(
-            Q_CRYPTO_BLOCK_FORMAT_QCOW, encryptopts, errp);
-        break;
-    default:
-        error_setg(errp, "Unknown encryption format '%s'", encryptfmt);
-        break;
-    }
-
-    QDECREF(encryptopts);
-    return cryptoopts;
-}
-
 static int qcow2_set_up_encryption(BlockDriverState *bs,
                                    QCryptoBlockCreateOptions *cryptoopts,
                                    Error **errp)
@@ -2874,7 +2844,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
     if (version < 3 && qcow2_opts->lazy_refcounts) {
         error_setg(errp, "Lazy refcounts only supported with compatibility "
-                   "level 1.1 and above (use compat=1.1 or greater)");
+                   "level 1.1 and above (use version=v3 or greater)");
         ret = -EINVAL;
         goto out;
     }
@@ -2892,7 +2862,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
     if (version < 3 && qcow2_opts->refcount_bits != 16) {
         error_setg(errp, "Different refcount widths than 16 bits require "
-                   "compatibility level 1.1 or above (use compat=1.1 or "
+                   "compatibility level 1.1 or above (use version=v3 or "
                    "greater)");
         ret = -EINVAL;
         goto out;
@@ -3080,88 +3050,60 @@ out:
 static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opts,
                                              Error **errp)
 {
-    BlockdevCreateOptions create_options;
-    char *backing_file = NULL;
-    char *backing_fmt = NULL;
-    BlockdevDriver backing_drv;
-    char *buf = NULL;
-    uint64_t size = 0;
-    int flags = 0;
-    size_t cluster_size = DEFAULT_CLUSTER_SIZE;
-    PreallocMode prealloc;
-    int version;
-    uint64_t refcount_bits;
-    char *encryptfmt = NULL;
-    QCryptoBlockCreateOptions *cryptoopts = NULL;
+    BlockdevCreateOptions *create_options = NULL;
+    QDict *qdict = NULL;
+    QObject *qobj;
+    Visitor *v;
     BlockDriverState *bs = NULL;
     Error *local_err = NULL;
+    const char *val;
     int ret;
 
-    /* Read out options */
-    size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                    BDRV_SECTOR_SIZE);
-    backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
-    backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
-    backing_drv = qapi_enum_parse(&BlockdevDriver_lookup, backing_fmt,
-                                  0, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    /* Only the keyval visitor supports the dotted syntax needed for
+     * encryption, so go through a QDict before getting a QAPI type. Ignore
+     * options meant for the protocol layer so that the visitor doesn't
+     * complain. */
+    qdict = qemu_opts_to_qdict_filtered(opts, NULL, bdrv_qcow2.create_opts,
+                                        true);
+
+    /* Handle encryption options */
+    val = qdict_get_try_str(qdict, BLOCK_OPT_ENCRYPT);
+    if (val && !strcmp(val, "on")) {
+        qdict_put_str(qdict, BLOCK_OPT_ENCRYPT, "qcow");
+    } else if (val && !strcmp(val, "off")) {
+        qdict_del(qdict, BLOCK_OPT_ENCRYPT);
+    }
+
+    val = qdict_get_try_str(qdict, BLOCK_OPT_ENCRYPT_FORMAT);
+    if (val && !strcmp(val, "aes")) {
+        qdict_put_str(qdict, BLOCK_OPT_ENCRYPT_FORMAT, "qcow");
+    }
+
+    /* Convert compat=0.10/1.1 into compat=v2/v3, to be renamed into
+     * version=v2/v3 below. */
+    val = qdict_get_try_str(qdict, BLOCK_OPT_COMPAT_LEVEL);
+    if (val && !strcmp(val, "0.10")) {
+        qdict_put_str(qdict, BLOCK_OPT_COMPAT_LEVEL, "v2");
+    } else if (val && !strcmp(val, "1.1")) {
+        qdict_put_str(qdict, BLOCK_OPT_COMPAT_LEVEL, "v3");
+    }
+
+    /* Change legacy command line options into QMP ones */
+    static const QDictRenames opt_renames[] = {
+        { BLOCK_OPT_BACKING_FILE,       "backing-file" },
+        { BLOCK_OPT_BACKING_FMT,        "backing-fmt" },
+        { BLOCK_OPT_CLUSTER_SIZE,       "cluster-size" },
+        { BLOCK_OPT_LAZY_REFCOUNTS,     "lazy-refcounts" },
+        { BLOCK_OPT_REFCOUNT_BITS,      "refcount-bits" },
+        { BLOCK_OPT_ENCRYPT,            BLOCK_OPT_ENCRYPT_FORMAT },
+        { BLOCK_OPT_COMPAT_LEVEL,       "version" },
+        { NULL, NULL },
+    };
+
+    if (!qdict_rename_keys(qdict, opt_renames, errp)) {
         ret = -EINVAL;
         goto finish;
     }
-
-    encryptfmt = qemu_opt_get_del(opts, BLOCK_OPT_ENCRYPT_FORMAT);
-    if (encryptfmt) {
-        if (qemu_opt_get(opts, BLOCK_OPT_ENCRYPT)) {
-            error_setg(errp, "Options " BLOCK_OPT_ENCRYPT " and "
-                       BLOCK_OPT_ENCRYPT_FORMAT " are mutually exclusive");
-            ret = -EINVAL;
-            goto finish;
-        }
-    } else if (qemu_opt_get_bool_del(opts, BLOCK_OPT_ENCRYPT, false)) {
-        encryptfmt = g_strdup("aes");
-    }
-    if (encryptfmt) {
-        cryptoopts = qcow2_parse_encryption(encryptfmt, opts, errp);
-        if (cryptoopts == NULL) {
-            ret = -EINVAL;
-            goto finish;
-        }
-    }
-
-    cluster_size = qcow2_opt_get_cluster_size_del(opts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto finish;
-    }
-    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
-    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
-                               PREALLOC_MODE_OFF, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto finish;
-    }
-
-    version = qcow2_opt_get_version_del(opts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto finish;
-    }
-
-    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_LAZY_REFCOUNTS, false)) {
-        flags |= BLOCK_FLAG_LAZY_REFCOUNTS;
-    }
-
-    refcount_bits = qcow2_opt_get_refcount_bits_del(opts, version, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto finish;
-    }
-
 
     /* Create and open the file (protocol layer) */
     ret = bdrv_create_file(filename, opts, errp);
@@ -3176,48 +3118,44 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
         goto finish;
     }
 
+    /* Set 'driver' and 'node' options */
+    qdict_put_str(qdict, "driver", "qcow2");
+    qdict_put_str(qdict, "file", bs->node_name);
+
+    /* Now get the QAPI type BlockdevCreateOptions */
+    qobj = qdict_crumple(qdict, errp);
+    QDECREF(qdict);
+    qdict = qobject_to_qdict(qobj);
+    if (qdict == NULL) {
+        ret = -EINVAL;
+        goto finish;
+    }
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_free(v);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto finish;
+    }
+
+    /* Silently round up size */
+    create_options->u.qcow2.size = ROUND_UP(create_options->u.qcow2.size,
+                                            BDRV_SECTOR_SIZE);
+
     /* Create the qcow2 image (format layer) */
-    create_options = (BlockdevCreateOptions) {
-        .driver         = BLOCKDEV_DRIVER_QCOW2,
-        .u.qcow2        = {
-            .file               = &(BlockdevRef) {
-                .type               = QTYPE_QSTRING,
-                .u.reference        = bs->node_name,
-            },
-            .size               = size,
-            .has_version        = true,
-            .version            = version == 2
-                                  ? BLOCKDEV_QCOW2_VERSION_V2
-                                  : BLOCKDEV_QCOW2_VERSION_V3,
-            .has_backing_file   = (backing_file != NULL),
-            .backing_file       = backing_file,
-            .has_backing_fmt    = (backing_fmt != NULL),
-            .backing_fmt        = backing_drv,
-            .has_encrypt        = (encryptfmt != NULL),
-            .encrypt            = cryptoopts,
-            .has_cluster_size   = true,
-            .cluster_size       = cluster_size,
-            .has_preallocation  = true,
-            .preallocation      = prealloc,
-            .has_lazy_refcounts = true,
-            .lazy_refcounts     = (flags & BLOCK_FLAG_LAZY_REFCOUNTS),
-            .has_refcount_bits  = true,
-            .refcount_bits      = refcount_bits,
-        },
-    };
-    ret = qcow2_co_create(&create_options, errp);
+    ret = qcow2_co_create(create_options, errp);
     if (ret < 0) {
         goto finish;
     }
 
+    ret = 0;
 finish:
+    QDECREF(qdict);
     bdrv_unref(bs);
-
-    qapi_free_QCryptoBlockCreateOptions(cryptoopts);
-    g_free(backing_file);
-    g_free(backing_fmt);
-    g_free(encryptfmt);
-    g_free(buf);
+    qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
 
