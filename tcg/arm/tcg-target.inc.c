@@ -1247,12 +1247,6 @@ static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
 /* We're expecting to use an 8-bit immediate and to mask.  */
 QEMU_BUILD_BUG_ON(CPU_TLB_BITS > 8);
 
-/* We're expecting to use an 8-bit immediate add + 8-bit ldrd offset.
-   Using the offset of the second entry in the last tlb table ensures
-   that we can index all of the elements of the first entry.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
-                  > 0xffff);
-
 /* Load and compare a TLB entry, leaving the flags set.  Returns the register
    containing the addend of the tlb entry.  Clobbers R0, R1, R2, TMP.  */
 
@@ -1265,6 +1259,7 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
          ? offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
          : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write));
     int add_off = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
+    int mask_off;
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
 
@@ -1296,16 +1291,25 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
                         0, addrlo, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
     }
 
-    /* We checked that the offset is contained within 16 bits above.  */
-    if (add_off > 0xfff
-        || (use_armv6_instructions && TARGET_LONG_BITS == 64
-            && cmp_off > 0xff)) {
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R2, base,
-                        (24 << 7) | (cmp_off >> 8));
-        base = TCG_REG_R2;
-        add_off -= cmp_off & 0xff00;
-        cmp_off &= 0xff;
+    /* Add portions of the offset until the memory access is in range.
+     * If we plan on using ldrd, reduce to an 8-bit offset; otherwise
+     * we can use a 12-bit offset.  */
+    if (use_armv6_instructions && TARGET_LONG_BITS == 64) {
+        mask_off = 0xff;
+    } else {
+        mask_off = 0xfff;
     }
+    while (cmp_off > mask_off) {
+        int shift = ctz32(cmp_off & ~mask_off) & ~1;
+        int rot = ((32 - shift) << 7) & 0xf00;
+        int addend = cmp_off & (0xff << shift);
+        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R2, base,
+                        rot | ((cmp_off >> shift) & 0xff));
+        base = TCG_REG_R2;
+        add_off -= addend;
+        cmp_off -= addend;
+    }
+
     if (!use_armv7_instructions) {
         tcg_out_dat_imm(s, COND_AL, ARITH_AND,
                         TCG_REG_R0, TCG_REG_TMP, CPU_TLB_SIZE - 1);
