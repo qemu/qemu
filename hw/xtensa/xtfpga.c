@@ -46,11 +46,15 @@
 #include "bootparam.h"
 #include "xtensa_memory.h"
 
+typedef struct XtfpgaFlashDesc {
+    hwaddr base;
+    size_t size;
+    size_t boot_base;
+    size_t sector_size;
+} XtfpgaFlashDesc;
+
 typedef struct XtfpgaBoardDesc {
-    hwaddr flash_base;
-    size_t flash_size;
-    size_t flash_boot_base;
-    size_t flash_sector_size;
+    const XtfpgaFlashDesc *flash;
     size_t sram_size;
 } XtfpgaBoardDesc;
 
@@ -164,14 +168,14 @@ static pflash_t *xtfpga_flash_init(MemoryRegion *address_space,
     qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
                         &error_abort);
     qdev_prop_set_uint32(dev, "num-blocks",
-                         board->flash_size / board->flash_sector_size);
-    qdev_prop_set_uint64(dev, "sector-length", board->flash_sector_size);
+                         board->flash->size / board->flash->sector_size);
+    qdev_prop_set_uint64(dev, "sector-length", board->flash->sector_size);
     qdev_prop_set_uint8(dev, "width", 2);
     qdev_prop_set_bit(dev, "big-endian", be);
     qdev_prop_set_string(dev, "name", "xtfpga.io.flash");
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
-    memory_region_add_subregion(address_space, board->flash_base,
+    memory_region_add_subregion(address_space, board->flash->base,
                                 sysbus_mmio_get_region(s, 0));
     return OBJECT_CHECK(pflash_t, (dev), "cfi.pflash01");
 }
@@ -421,12 +425,12 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
             MemoryRegion *flash_io = g_malloc(sizeof(*flash_io));
             uint32_t size = env->config->sysrom.location[0].size;
 
-            if (board->flash_size - board->flash_boot_base < size) {
-                size = board->flash_size - board->flash_boot_base;
+            if (board->flash->size - board->flash->boot_base < size) {
+                size = board->flash->size - board->flash->boot_base;
             }
 
             memory_region_init_alias(flash_io, NULL, "xtfpga.flash",
-                                     flash_mr, board->flash_boot_base, size);
+                                     flash_mr, board->flash->boot_base, size);
             memory_region_add_subregion(system_memory,
                                         env->config->sysrom.location[0].addr,
                                         flash_io);
@@ -437,46 +441,62 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     }
 }
 
+static const XtfpgaFlashDesc lx60_flash = {
+    .base = 0x08000000,
+    .size = 0x00400000,
+    .sector_size = 0x10000,
+};
+
 static void xtfpga_lx60_init(MachineState *machine)
 {
     static const XtfpgaBoardDesc lx60_board = {
-        .flash_base = 0x08000000,
-        .flash_size = 0x00400000,
-        .flash_sector_size = 0x10000,
+        .flash = &lx60_flash,
         .sram_size = 0x20000,
     };
     xtfpga_init(&lx60_board, machine);
 }
 
+static const XtfpgaFlashDesc lx200_flash = {
+    .base = 0x08000000,
+    .size = 0x01000000,
+    .sector_size = 0x20000,
+};
+
 static void xtfpga_lx200_init(MachineState *machine)
 {
     static const XtfpgaBoardDesc lx200_board = {
-        .flash_base = 0x08000000,
-        .flash_size = 0x01000000,
-        .flash_sector_size = 0x20000,
+        .flash = &lx200_flash,
         .sram_size = 0x2000000,
     };
     xtfpga_init(&lx200_board, machine);
 }
 
+static const XtfpgaFlashDesc ml605_flash = {
+    .base = 0x08000000,
+    .size = 0x01000000,
+    .sector_size = 0x20000,
+};
+
 static void xtfpga_ml605_init(MachineState *machine)
 {
     static const XtfpgaBoardDesc ml605_board = {
-        .flash_base = 0x08000000,
-        .flash_size = 0x01000000,
-        .flash_sector_size = 0x20000,
+        .flash = &ml605_flash,
         .sram_size = 0x2000000,
     };
     xtfpga_init(&ml605_board, machine);
 }
 
+static const XtfpgaFlashDesc kc705_flash = {
+    .base = 0x00000000,
+    .size = 0x08000000,
+    .boot_base = 0x06000000,
+    .sector_size = 0x20000,
+};
+
 static void xtfpga_kc705_init(MachineState *machine)
 {
     static const XtfpgaBoardDesc kc705_board = {
-        .flash_base = 0x00000000,
-        .flash_size = 0x08000000,
-        .flash_boot_base = 0x06000000,
-        .flash_sector_size = 0x20000,
+        .flash = &kc705_flash,
         .sram_size = 0x2000000,
     };
     xtfpga_init(&kc705_board, machine);
