@@ -2,7 +2,7 @@
 # enable automatic i386/ARM/M68K/MIPS/SPARC/PPC/s390/HPPA
 # program execution by the kernel
 
-qemu_target_list="i386 i486 alpha arm sparc32plus ppc ppc64 ppc64le m68k \
+qemu_target_list="i386 i486 alpha arm armeb sparc32plus ppc ppc64 ppc64le m68k \
 mips mipsel mipsn32 mipsn32el mips64 mips64el \
 sh4 sh4eb s390x aarch64 aarch64_be hppa"
 
