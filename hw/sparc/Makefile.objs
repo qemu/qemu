@@ -1,1 +1,1 @@
-obj-y += sun4m.o leon3.o
+obj-y += sun4m_iommu.o sun4m.o leon3.o
