@@ -2023,7 +2023,7 @@
 #
 # @static: Expand to a static CPU model, a combination of a static base
 #          model name and property delta changes. As the static base model will
-#          never change, the expanded CPU model will be the same, independant of
+#          never change, the expanded CPU model will be the same, independent of
 #          independent of QEMU version, machine type, machine options, and
 #          accelerator options. Therefore, the resulting model can be used by
 #          tooling without having to specify a compatibility machine - e.g. when
@@ -2102,7 +2102,7 @@
 ##
 # @CpuModelCompareResult:
 #
-# An enumeration of CPU model comparation results. The result is usually
+# An enumeration of CPU model comparison results. The result is usually
 # calculated using e.g. CPU features or CPU generations.
 #
 # @incompatible: If model A is incompatible to model B, model A is not
