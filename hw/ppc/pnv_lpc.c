@@ -92,7 +92,7 @@ enum {
 #define LPC_HC_REGS_OPB_SIZE    0x00001000
 
 
-static int pnv_lpc_populate(PnvXScomInterface *dev, void *fdt, int xscom_offset)
+static int pnv_lpc_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 {
     const char compat[] = "ibm,power8-lpc\0ibm,lpc";
     char *name;
@@ -146,13 +146,13 @@ static bool opb_write(PnvLpcController *lpc, uint32_t addr, uint8_t *data,
     return success;
 }
 
-#define ECCB_CTL_READ           (1ull << (63 - 15))
+#define ECCB_CTL_READ           PPC_BIT(15)
 #define ECCB_CTL_SZ_LSH         (63 - 7)
-#define ECCB_CTL_SZ_MASK        (0xfull << ECCB_CTL_SZ_LSH)
-#define ECCB_CTL_ADDR_MASK      0xffffffffu;
+#define ECCB_CTL_SZ_MASK        PPC_BITMASK(4, 7)
+#define ECCB_CTL_ADDR_MASK      PPC_BITMASK(32, 63)
 
-#define ECCB_STAT_OP_DONE       (1ull << (63 - 52))
-#define ECCB_STAT_OP_ERR        (1ull << (63 - 52))
+#define ECCB_STAT_OP_DONE       PPC_BIT(52)
+#define ECCB_STAT_OP_ERR        PPC_BIT(52)
 #define ECCB_STAT_RD_DATA_LSH   (63 - 37)
 #define ECCB_STAT_RD_DATA_MASK  (0xffffffff << ECCB_STAT_RD_DATA_LSH)
 
@@ -482,7 +482,7 @@ static void pnv_lpc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
 
-    xdc->populate = pnv_lpc_populate;
+    xdc->dt_xscom = pnv_lpc_dt_xscom;
 
     dc->realize = pnv_lpc_realize;
 }
@@ -515,7 +515,7 @@ type_init(pnv_lpc_register_types)
  */
 static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
     uint32_t old_state = pnv->cpld_irqstate;
     PnvLpcController *lpc = PNV_LPC(opaque);
 

@@ -207,15 +207,15 @@ typedef struct ForeachPopulateArgs {
     int xscom_offset;
 } ForeachPopulateArgs;
 
-static int xscom_populate_child(Object *child, void *opaque)
+static int xscom_dt_child(Object *child, void *opaque)
 {
     if (object_dynamic_cast(child, TYPE_PNV_XSCOM_INTERFACE)) {
         ForeachPopulateArgs *args = opaque;
         PnvXScomInterface *xd = PNV_XSCOM_INTERFACE(child);
         PnvXScomInterfaceClass *xc = PNV_XSCOM_INTERFACE_GET_CLASS(xd);
 
-        if (xc->populate) {
-            _FDT((xc->populate(xd, args->fdt, args->xscom_offset)));
+        if (xc->dt_xscom) {
+            _FDT((xc->dt_xscom(xd, args->fdt, args->xscom_offset)));
         }
     }
     return 0;
@@ -224,7 +224,7 @@ static int xscom_populate_child(Object *child, void *opaque)
 static const char compat_p8[] = "ibm,power8-xscom\0ibm,xscom";
 static const char compat_p9[] = "ibm,power9-xscom\0ibm,xscom";
 
-int pnv_xscom_populate(PnvChip *chip, void *fdt, int root_offset)
+int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
 {
     uint64_t reg[] = { cpu_to_be64(PNV_XSCOM_BASE(chip)),
                        cpu_to_be64(PNV_XSCOM_SIZE) };
@@ -255,7 +255,7 @@ int pnv_xscom_populate(PnvChip *chip, void *fdt, int root_offset)
     args.fdt = fdt;
     args.xscom_offset = xscom_offset;
 
-    object_child_foreach(OBJECT(chip), xscom_populate_child, &args);
+    object_child_foreach(OBJECT(chip), xscom_dt_child, &args);
     return 0;
 }
 

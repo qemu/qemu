@@ -26,7 +26,7 @@
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
 
-#define TYPE_PNV_CHIP "powernv-chip"
+#define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
 #define PNV_CHIP_CLASS(klass) \
      OBJECT_CLASS_CHECK(PnvChipClass, (klass), TYPE_PNV_CHIP)
@@ -117,9 +117,9 @@ typedef struct PnvChipClass {
 #define PNV_CHIP_INDEX(chip)                                    \
     (((chip)->chip_id >> 2) * 2 + ((chip)->chip_id & 0x3))
 
-#define TYPE_POWERNV_MACHINE       MACHINE_TYPE_NAME("powernv")
-#define POWERNV_MACHINE(obj) \
-    OBJECT_CHECK(PnvMachineState, (obj), TYPE_POWERNV_MACHINE)
+#define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
+#define PNV_MACHINE(obj) \
+    OBJECT_CHECK(PnvMachineState, (obj), TYPE_PNV_MACHINE)
 
 typedef struct PnvMachineState {
     /*< private >*/
@@ -144,7 +144,7 @@ typedef struct PnvMachineState {
 /*
  * BMC helpers
  */
-void pnv_bmc_populate_sensors(IPMIBmc *bmc, void *fdt);
+void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
 void pnv_bmc_powerdown(IPMIBmc *bmc);
 
 /*

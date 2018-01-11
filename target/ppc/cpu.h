@@ -93,6 +93,19 @@
 #define PPC_BITMASK(bs, be)     ((PPC_BIT(bs) - PPC_BIT(be)) | PPC_BIT(bs))
 #define PPC_BITMASK32(bs, be)   ((PPC_BIT32(bs) - PPC_BIT32(be)) | \
                                  PPC_BIT32(bs))
+#define PPC_BITMASK8(bs, be)    ((PPC_BIT8(bs) - PPC_BIT8(be)) | PPC_BIT8(bs))
+
+#if HOST_LONG_BITS == 32
+# define MASK_TO_LSH(m)          (__builtin_ffsll(m) - 1)
+#elif HOST_LONG_BITS == 64
+# define MASK_TO_LSH(m)          (__builtin_ffsl(m) - 1)
+#else
+# error Unknown sizeof long
+#endif
+
+#define GETFIELD(m, v)          (((v) & (m)) >> MASK_TO_LSH(m))
+#define SETFIELD(m, v, val)                             \
+        (((v) & ~(m)) | ((((typeof(v))(val)) << MASK_TO_LSH(m)) & (m)))
 
 /*****************************************************************************/
 /* Exception vectors definitions                                             */
@@ -2349,32 +2362,31 @@ enum {
 
 /* Processor Compatibility mask (PCR) */
 enum {
-    PCR_COMPAT_2_05     = 1ull << (63-62),
-    PCR_COMPAT_2_06     = 1ull << (63-61),
-    PCR_COMPAT_2_07     = 1ull << (63-60),
-    PCR_COMPAT_3_00     = 1ull << (63-59),
-    PCR_VEC_DIS         = 1ull << (63-0), /* Vec. disable (bit NA since POWER8) */
-    PCR_VSX_DIS         = 1ull << (63-1), /* VSX disable (bit NA since POWER8) */
-    PCR_TM_DIS          = 1ull << (63-2), /* Trans. memory disable (POWER8) */
+    PCR_COMPAT_2_05     = PPC_BIT(62),
+    PCR_COMPAT_2_06     = PPC_BIT(61),
+    PCR_COMPAT_2_07     = PPC_BIT(60),
+    PCR_COMPAT_3_00     = PPC_BIT(59),
+    PCR_VEC_DIS         = PPC_BIT(0), /* Vec. disable (bit NA since POWER8) */
+    PCR_VSX_DIS         = PPC_BIT(1), /* VSX disable (bit NA since POWER8) */
+    PCR_TM_DIS          = PPC_BIT(2), /* Trans. memory disable (POWER8) */
 };
 
 /* HMER/HMEER */
 enum {
-    HMER_MALFUNCTION_ALERT      = 1ull << (63 - 0),
-    HMER_PROC_RECV_DONE         = 1ull << (63 - 2),
-    HMER_PROC_RECV_ERROR_MASKED = 1ull << (63 - 3),
-    HMER_TFAC_ERROR             = 1ull << (63 - 4),
-    HMER_TFMR_PARITY_ERROR      = 1ull << (63 - 5),
-    HMER_XSCOM_FAIL             = 1ull << (63 - 8),
-    HMER_XSCOM_DONE             = 1ull << (63 - 9),
-    HMER_PROC_RECV_AGAIN        = 1ull << (63 - 11),
-    HMER_WARN_RISE              = 1ull << (63 - 14),
-    HMER_WARN_FALL              = 1ull << (63 - 15),
-    HMER_SCOM_FIR_HMI           = 1ull << (63 - 16),
-    HMER_TRIG_FIR_HMI           = 1ull << (63 - 17),
-    HMER_HYP_RESOURCE_ERR       = 1ull << (63 - 20),
-    HMER_XSCOM_STATUS_MASK      = 7ull << (63 - 23),
-    HMER_XSCOM_STATUS_LSH       = (63 - 23),
+    HMER_MALFUNCTION_ALERT      = PPC_BIT(0),
+    HMER_PROC_RECV_DONE         = PPC_BIT(2),
+    HMER_PROC_RECV_ERROR_MASKED = PPC_BIT(3),
+    HMER_TFAC_ERROR             = PPC_BIT(4),
+    HMER_TFMR_PARITY_ERROR      = PPC_BIT(5),
+    HMER_XSCOM_FAIL             = PPC_BIT(8),
+    HMER_XSCOM_DONE             = PPC_BIT(9),
+    HMER_PROC_RECV_AGAIN        = PPC_BIT(11),
+    HMER_WARN_RISE              = PPC_BIT(14),
+    HMER_WARN_FALL              = PPC_BIT(15),
+    HMER_SCOM_FIR_HMI           = PPC_BIT(16),
+    HMER_TRIG_FIR_HMI           = PPC_BIT(17),
+    HMER_HYP_RESOURCE_ERR       = PPC_BIT(20),
+    HMER_XSCOM_STATUS_MASK      = PPC_BITMASK(21, 23),
 };
 
 /* Alternate Interrupt Location (AIL) */

@@ -73,7 +73,7 @@ void pnv_bmc_powerdown(IPMIBmc *bmc)
     pnv_gen_oem_sel(bmc, SOFT_OFF);
 }
 
-void pnv_bmc_populate_sensors(IPMIBmc *bmc, void *fdt)
+void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt)
 {
     int offset;
     int i;

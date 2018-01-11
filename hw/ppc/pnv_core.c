@@ -37,7 +37,7 @@ static const char *pnv_core_cpu_typename(PnvCore *pc)
     return cpu_type;
 }
 
-static void powernv_cpu_reset(void *opaque)
+static void pnv_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
@@ -54,7 +54,7 @@ static void powernv_cpu_reset(void *opaque)
     env->msr |= MSR_HVB; /* Hypervisor mode */
 }
 
-static void powernv_cpu_init(PowerPCCPU *cpu, Error **errp)
+static void pnv_cpu_init(PowerPCCPU *cpu, Error **errp)
 {
     CPUPPCState *env = &cpu->env;
     int core_pir;
@@ -73,7 +73,7 @@ static void powernv_cpu_init(PowerPCCPU *cpu, Error **errp)
     /* Set time-base frequency to 512 MHz */
     cpu_ppc_tb_init(env, PNV_TIMEBASE_FREQ);
 
-    qemu_register_reset(powernv_cpu_reset, cpu);
+    qemu_register_reset(pnv_cpu_reset, cpu);
 }
 
 /*
@@ -139,7 +139,7 @@ static void pnv_core_realize_child(Object *child, XICSFabric *xi, Error **errp)
         return;
     }
 
-    powernv_cpu_init(cpu, &local_err);
+    pnv_cpu_init(cpu, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
