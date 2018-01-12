@@ -1,0 +1,4 @@
+machine_accel: kvm
+image_path: /var/lib/images/fedora-25.img
+image_user: root
+image_pass: p4ssw0rd
