@@ -50,7 +50,7 @@
 /* is_jmp field values */
 #define DISAS_UPDATE  DISAS_TARGET_0 /* cpu state was modified dynamically */
 
-typedef struct DisasContext {
+struct DisasContext {
     const XtensaConfig *config;
     TranslationBlock *tb;
     uint32_t pc;
@@ -78,7 +78,7 @@ typedef struct DisasContext {
     uint32_t *raw_arg;
     xtensa_insnbuf insnbuf;
     xtensa_insnbuf slotbuf;
-} DisasContext;
+};
 
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_R[16];
