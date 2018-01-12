@@ -759,6 +759,8 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
         s390_cpu_virt_mem_rw(cpu, laddr, ar, dest, len, false)
 #define s390_cpu_virt_mem_write(cpu, laddr, ar, dest, len)       \
         s390_cpu_virt_mem_rw(cpu, laddr, ar, dest, len, true)
+#define s390_cpu_virt_mem_check_read(cpu, laddr, ar, len)   \
+        s390_cpu_virt_mem_rw(cpu, laddr, ar, NULL, len, false)
 #define s390_cpu_virt_mem_check_write(cpu, laddr, ar, len)   \
         s390_cpu_virt_mem_rw(cpu, laddr, ar, NULL, len, true)
 void s390_cpu_virt_mem_handle_exc(S390CPU *cpu, uintptr_t ra);

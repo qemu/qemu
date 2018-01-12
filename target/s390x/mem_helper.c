@@ -1730,34 +1730,31 @@ uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
         /* Fetching permitted; storing permitted */
         return 0;
     }
+
+    if (env->int_pgm_code == PGM_PROTECTION) {
+        /* retry if reading is possible */
+        cs->exception_index = 0;
+        if (!s390_cpu_virt_mem_check_read(cpu, a1, 0, 1)) {
+            /* Fetching permitted; storing not permitted */
+            return 1;
+        }
+    }
+
     switch (env->int_pgm_code) {
     case PGM_PROTECTION:
-        /* Fetching permitted; storing not permitted */
-        cs->exception_index = 0;
-        return 1;
-    case PGM_ADDRESSING:
         /* Fetching not permitted; storing not permitted */
         cs->exception_index = 0;
         return 2;
-    case PGM_ASCE_TYPE:
-    case PGM_REG_FIRST_TRANS:
-    case PGM_REG_SEC_TRANS:
-    case PGM_REG_THIRD_TRANS:
-    case PGM_SEGMENT_TRANS:
-    case PGM_PAGE_TRANS:
-    case PGM_ALET_SPEC:
-    case PGM_ALEN_SPEC:
-    case PGM_ALE_SEQ:
-    case PGM_ASTE_VALID:
-    case PGM_ASTE_SEQ:
-    case PGM_EXT_AUTH:
-        /* Translation not available */
-        cs->exception_index = 0;
-        return 3;
+    case PGM_ADDRESSING:
+    case PGM_TRANS_SPEC:
+        /* exceptions forwarded to the guest */
+        s390_cpu_virt_mem_handle_exc(cpu, GETPC());
+        return 0;
     }
-    /* any other exception is forwarded to the guest */
-    s390_cpu_virt_mem_handle_exc(cpu, GETPC());
-    return 0;
+
+    /* Translation not available */
+    cs->exception_index = 0;
+    return 3;
 }
 
 /* insert storage key extended */
