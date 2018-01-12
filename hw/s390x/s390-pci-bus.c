@@ -554,10 +554,10 @@ static int s390_pcihost_init(SysBusDevice *dev)
 
     DPRINTF("host_init\n");
 
-    b = pci_register_bus(DEVICE(dev), NULL,
-                         s390_pci_set_irq, s390_pci_map_irq, NULL,
-                         get_system_memory(), get_system_io(), 0, 64,
-                         TYPE_PCI_BUS);
+    b = pci_register_root_bus(DEVICE(dev), NULL,
+                              s390_pci_set_irq, s390_pci_map_irq, NULL,
+                              get_system_memory(), get_system_io(), 0, 64,
+                              TYPE_PCI_BUS);
     pci_setup_iommu(b, s390_pci_dma_iommu, s);
 
     bus = BUS(b);
@@ -680,10 +680,10 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
             s->bus_no += 1;
             pci_default_write_config(pdev, PCI_SECONDARY_BUS, s->bus_no, 1);
             do {
-                pdev = pdev->bus->parent_dev;
+                pdev = pci_get_bus(pdev)->parent_dev;
                 pci_default_write_config(pdev, PCI_SUBORDINATE_BUS,
                                          s->bus_no, 1);
-            } while (pdev->bus && pci_bus_num(pdev->bus));
+            } while (pci_get_bus(pdev) && pci_dev_bus_num(pdev));
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pdev = PCI_DEVICE(dev);
@@ -692,7 +692,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
             /* In the case the PCI device does not define an id */
             /* we generate one based on the PCI address         */
             dev->id = g_strdup_printf("auto_%02x:%02x.%01x",
-                                      pci_bus_num(pdev->bus),
+                                      pci_dev_bus_num(pdev),
                                       PCI_SLOT(pdev->devfn),
                                       PCI_FUNC(pdev->devfn));
         }
@@ -713,7 +713,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         }
 
         pbdev->pdev = pdev;
-        pbdev->iommu = s390_pci_get_iommu(s, pdev->bus, pdev->devfn);
+        pbdev->iommu = s390_pci_get_iommu(s, pci_get_bus(pdev), pdev->devfn);
         pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_DISABLED;
 
@@ -807,7 +807,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
 
     s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
                                  pbdev->fh, pbdev->fid);
-    bus = pci_dev->bus;
+    bus = pci_get_bus(pci_dev);
     devfn = pci_dev->devfn;
     object_unparent(OBJECT(pci_dev));
     s390_pci_msix_free(pbdev);

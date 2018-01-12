@@ -2356,7 +2356,7 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
     vmxnet3_net_init(s);
 
     if (pci_is_express(pci_dev)) {
-        if (pci_bus_is_express(pci_dev->bus)) {
+        if (pci_bus_is_express(pci_get_bus(pci_dev))) {
             pcie_endpoint_cap_init(pci_dev, VMXNET3_EXP_EP_OFFSET);
         }
 

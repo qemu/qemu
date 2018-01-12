@@ -433,11 +433,11 @@ static void pci_pbm_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), s->mem_base,
                                 &s->pci_mmio);
 
-    phb->bus = pci_register_bus(dev, "pci",
-                                pci_apb_set_irq, pci_apb_map_irq, s,
-                                &s->pci_mmio,
-                                &s->pci_ioport,
-                                0, 32, TYPE_PCI_BUS);
+    phb->bus = pci_register_root_bus(dev, "pci",
+                                     pci_apb_set_irq, pci_apb_map_irq, s,
+                                     &s->pci_mmio,
+                                     &s->pci_ioport,
+                                     0, 32, TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, 0, "pbm-pci");
 

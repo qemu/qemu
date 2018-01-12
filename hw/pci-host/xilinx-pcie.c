@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci-host/xilinx-pcie.h"
 
@@ -129,9 +130,9 @@ static void xilinx_pcie_host_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &pex->mmio);
     sysbus_init_mmio(sbd, &s->mmio);
 
-    pci->bus = pci_register_bus(dev, s->name, xilinx_pcie_set_irq,
-                                pci_swizzle_map_irq_fn, s, &s->mmio,
-                                &s->io, 0, 4, TYPE_PCIE_BUS);
+    pci->bus = pci_register_root_bus(dev, s->name, xilinx_pcie_set_irq,
+                                     pci_swizzle_map_irq_fn, s, &s->mmio,
+                                     &s->io, 0, 4, TYPE_PCIE_BUS);
 
     qdev_set_parent_bus(DEVICE(&s->root), BUS(pci->bus));
     qdev_init_nofail(DEVICE(&s->root));
@@ -267,24 +268,22 @@ static void xilinx_pcie_root_config_write(PCIDevice *d, uint32_t address,
     }
 }
 
-static int xilinx_pcie_root_init(PCIDevice *dev)
+static void xilinx_pcie_root_realize(PCIDevice *pci_dev, Error **errp)
 {
-    BusState *bus = qdev_get_parent_bus(DEVICE(dev));
+    BusState *bus = qdev_get_parent_bus(DEVICE(pci_dev));
     XilinxPCIEHost *s = XILINX_PCIE_HOST(bus->parent);
 
-    pci_set_word(dev->config + PCI_COMMAND,
+    pci_set_word(pci_dev->config + PCI_COMMAND,
                  PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-    pci_set_word(dev->config + PCI_MEMORY_BASE, s->mmio_base >> 16);
-    pci_set_word(dev->config + PCI_MEMORY_LIMIT,
+    pci_set_word(pci_dev->config + PCI_MEMORY_BASE, s->mmio_base >> 16);
+    pci_set_word(pci_dev->config + PCI_MEMORY_LIMIT,
                  ((s->mmio_base + s->mmio_size - 1) >> 16) & 0xfff0);
 
-    pci_bridge_initfn(dev, TYPE_PCI_BUS);
+    pci_bridge_initfn(pci_dev, TYPE_PCI_BUS);
 
-    if (pcie_endpoint_cap_v1_init(dev, 0x80) < 0) {
-        hw_error("Failed to initialize PCIe capability");
+    if (pcie_endpoint_cap_v1_init(pci_dev, 0x80) < 0) {
+        error_setg(errp, "Failed to initialize PCIe capability");
     }
-
-    return 0;
 }
 
 static void xilinx_pcie_root_class_init(ObjectClass *klass, void *data)
@@ -300,7 +299,7 @@ static void xilinx_pcie_root_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_HOST;
     k->is_express = true;
     k->is_bridge = true;
-    k->init = xilinx_pcie_root_init;
+    k->realize = xilinx_pcie_root_realize;
     k->exit = pci_bridge_exitfn;
     dc->reset = pci_bridge_reset;
     k->config_read = xilinx_pcie_root_config_read;

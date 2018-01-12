@@ -1654,8 +1654,8 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
         return -EINVAL;
     }
 
-    if (!pci_bus_is_express(vdev->pdev.bus)) {
-        PCIBus *bus = vdev->pdev.bus;
+    if (!pci_bus_is_express(pci_get_bus(&vdev->pdev))) {
+        PCIBus *bus = pci_get_bus(&vdev->pdev);
         PCIDevice *bridge;
 
         /*
@@ -1680,14 +1680,14 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
          */
         while (!pci_bus_is_root(bus)) {
             bridge = pci_bridge_get_device(bus);
-            bus = bridge->bus;
+            bus = pci_get_bus(bridge);
         }
 
         if (pci_bus_is_express(bus)) {
             return 0;
         }
 
-    } else if (pci_bus_is_root(vdev->pdev.bus)) {
+    } else if (pci_bus_is_root(pci_get_bus(&vdev->pdev))) {
         /*
          * On a Root Complex bus Endpoints become Root Complex Integrated
          * Endpoints, which changes the type and clears the LNK & LNK2 fields.
@@ -1890,7 +1890,7 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
     uint8_t *config;
 
     /* Only add extended caps if we have them and the guest can see them */
-    if (!pci_is_express(pdev) || !pci_bus_is_express(pdev->bus) ||
+    if (!pci_is_express(pdev) || !pci_bus_is_express(pci_get_bus(pdev)) ||
         !pci_get_long(pdev->config + PCI_CONFIG_SPACE_SIZE)) {
         return;
     }

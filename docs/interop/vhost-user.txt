@@ -53,8 +53,8 @@ Depending on the request type, payload can be:
 
  * A vring state description
    ---------------
-  | index | num |
-  ---------------
+   | index | num |
+   ---------------
 
    Index: a 32-bit index
    Num: a 32-bit number
@@ -66,10 +66,13 @@ Depending on the request type, payload can be:
 
    Index: a 32-bit vring index
    Flags: a 32-bit vring flags
-   Descriptor: a 64-bit user address of the vring descriptor table
-   Used: a 64-bit user address of the vring used ring
-   Available: a 64-bit user address of the vring available ring
+   Descriptor: a 64-bit ring address of the vring descriptor table
+   Used: a 64-bit ring address of the vring used ring
+   Available: a 64-bit ring address of the vring available ring
    Log: a 64-bit guest address for logging
+
+   Note that a ring address is an IOVA if VIRTIO_F_IOMMU_PLATFORM has been
+   negotiated.  Otherwise it is a user address.
 
  * Memory regions description
    ---------------------------------------------------
@@ -272,6 +275,30 @@ been modified.
 Once the source has finished migration, rings will be stopped by
 the source. No further update must be done before rings are
 restarted.
+
+Memory access
+-------------
+
+The master sends a list of vhost memory regions to the slave using the
+VHOST_USER_SET_MEM_TABLE message.  Each region has two base addresses: a guest
+address and a user address.
+
+Messages contain guest addresses and/or user addresses to reference locations
+within the shared memory.  The mapping of these addresses works as follows.
+
+User addresses map to the vhost memory region containing that user address.
+
+When the VIRTIO_F_IOMMU_PLATFORM feature has not been negotiated:
+
+ * Guest addresses map to the vhost memory region containing that guest
+   address.
+
+When the VIRTIO_F_IOMMU_PLATFORM feature has been negotiated:
+
+ * Guest addresses are also called I/O virtual addresses (IOVAs).  They are
+   translated to user addresses via the IOTLB.
+
+ * The vhost memory region guest address is not used.
 
 IOMMU support
 -------------

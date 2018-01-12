@@ -1588,9 +1588,11 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                        "neither legacy nor transitional device.");
             return ;
         }
-        /* legacy and transitional */
-        pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
-                     pci_get_word(config + PCI_VENDOR_ID));
+        /*
+         * Legacy and transitional devices use specific subsystem IDs.
+         * Note that the subsystem vendor ID (config + PCI_SUBSYSTEM_VENDOR_ID)
+         * is set to PCI_SUBVENDOR_ID_REDHAT_QUMRANET by default.
+         */
         pci_set_word(config + PCI_SUBSYSTEM_ID, virtio_bus_get_vdev_id(bus));
     } else {
         /* pure virtio-1.0 */
@@ -1708,8 +1710,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
-    bool pcie_port = pci_bus_is_express(pci_dev->bus) &&
-                     !pci_bus_is_root(pci_dev->bus);
+    bool pcie_port = pci_bus_is_express(pci_get_bus(pci_dev)) &&
+                     !pci_bus_is_root(pci_get_bus(pci_dev));
 
     if (kvm_enabled() && !kvm_has_many_ioeventfds()) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;

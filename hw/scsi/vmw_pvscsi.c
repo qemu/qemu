@@ -1133,7 +1133,7 @@ pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
 
     pvscsi_init_msi(s);
 
-    if (pci_is_express(pci_dev) && pci_bus_is_express(pci_dev->bus)) {
+    if (pci_is_express(pci_dev) && pci_bus_is_express(pci_get_bus(pci_dev))) {
         pcie_endpoint_cap_init(pci_dev, PVSCSI_EXP_EP_OFFSET);
     }
 
