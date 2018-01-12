@@ -54,20 +54,25 @@ typedef enum {
  * Capabilities
  */
 
-/* These bits go in the migration stream, so they can't be reassigned */
-
 /* Hardware Transactional Memory */
-#define SPAPR_CAP_HTM               0x0000000000000001ULL
-
+#define SPAPR_CAP_HTM                   0x00
 /* Vector Scalar Extensions */
-#define SPAPR_CAP_VSX               0x0000000000000002ULL
-
+#define SPAPR_CAP_VSX                   0x01
 /* Decimal Floating Point */
-#define SPAPR_CAP_DFP               0x0000000000000004ULL
+#define SPAPR_CAP_DFP                   0x02
+/* Num Caps */
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_DFP + 1)
+
+/*
+ * Capability Values
+ */
+/* Bool Caps */
+#define SPAPR_CAP_OFF                   0x00
+#define SPAPR_CAP_ON                    0x01
 
 typedef struct sPAPRCapabilities sPAPRCapabilities;
 struct sPAPRCapabilities {
-    uint64_t mask;
+    uint8_t caps[SPAPR_CAP_NUM];
 };
 
 /**
@@ -149,9 +154,8 @@ struct sPAPRMachineState {
 
     const char *icp_type;
 
-    sPAPRCapabilities forced_caps, forbidden_caps;
-    sPAPRCapabilities mig_forced_caps, mig_forbidden_caps;
-    sPAPRCapabilities effective_caps;
+    bool cmd_line_caps[SPAPR_CAP_NUM];
+    sPAPRCapabilities def, eff, mig;
 };
 
 #define H_SUCCESS         0
@@ -732,24 +736,22 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 int spapr_vcpu_id(PowerPCCPU *cpu);
 PowerPCCPU *spapr_find_cpu(int vcpu_id);
 
+int spapr_caps_pre_load(void *opaque);
+int spapr_caps_pre_save(void *opaque);
+
 /*
  * Handling of optional capabilities
  */
-extern const VMStateDescription vmstate_spapr_caps;
+extern const VMStateDescription vmstate_spapr_cap_htm;
+extern const VMStateDescription vmstate_spapr_cap_vsx;
+extern const VMStateDescription vmstate_spapr_cap_dfp;
 
-static inline sPAPRCapabilities spapr_caps(uint64_t mask)
+static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
 {
-    sPAPRCapabilities caps = { mask };
-    return caps;
-}
-
-static inline bool spapr_has_cap(sPAPRMachineState *spapr, uint64_t cap)
-{
-    return !!(spapr->effective_caps.mask & cap);
+    return spapr->eff.caps[cap];
 }
 
 void spapr_caps_reset(sPAPRMachineState *spapr);
-void spapr_caps_validate(sPAPRMachineState *spapr, Error **errp);
 void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp);
 int spapr_caps_post_migration(sPAPRMachineState *spapr);
 
