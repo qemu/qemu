@@ -6180,7 +6180,6 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
     bool is_neg = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
     uint64_t imm = 0;
-    int i;
 
     if (o2 != 0 || ((cmode == 0xf) && is_neg && !is_q)) {
         unallocated_encoding(s);
@@ -6266,29 +6265,12 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
         tcg_gen_gvec_dup64i(vec_full_reg_offset(s, rd), is_q ? 16 : 8,
                             vec_full_reg_size(s), imm);
     } else {
-        TCGv_i64 tcg_imm = tcg_const_i64(imm);
-        TCGv_i64 tcg_rd = new_tmp_a64(s);
-
-        for (i = 0; i < 2; i++) {
-            int foffs = vec_reg_offset(s, rd, i, MO_64);
-
-            if (i == 1 && !is_q) {
-                /* non-quad ops clear high half of vector */
-                tcg_gen_movi_i64(tcg_rd, 0);
-            } else {
-                tcg_gen_ld_i64(tcg_rd, cpu_env, foffs);
-                if (is_neg) {
-                    /* AND (BIC) */
-                    tcg_gen_and_i64(tcg_rd, tcg_rd, tcg_imm);
-                } else {
-                    /* ORR */
-                    tcg_gen_or_i64(tcg_rd, tcg_rd, tcg_imm);
-                }
-            }
-            tcg_gen_st_i64(tcg_rd, cpu_env, foffs);
+        /* ORR or BIC, with BIC negation to AND handled above.  */
+        if (is_neg) {
+            gen_gvec_fn2i(s, is_q, rd, rd, imm, tcg_gen_gvec_andi, MO_64);
+        } else {
+            gen_gvec_fn2i(s, is_q, rd, rd, imm, tcg_gen_gvec_ori, MO_64);
         }
-
-        tcg_temp_free_i64(tcg_imm);
     }
 }
 
