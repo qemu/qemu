@@ -228,8 +228,8 @@ Multiple queue is treated as a protocol extension, hence the slave has to
 implement protocol features first. The multiple queues feature is supported
 only when the protocol feature VHOST_USER_PROTOCOL_F_MQ (bit 0) is set.
 
-The max number of queues the slave supports can be queried with message
-VHOST_USER_GET_PROTOCOL_FEATURES. Master should stop when the number of
+The max number of queue pairs the slave supports can be queried with message
+VHOST_USER_GET_QUEUE_NUM. Master should stop when the number of
 requested queues is bigger than that.
 
 As all queues share one connection, the master uses a unique index for each
