@@ -58,10 +58,9 @@ static int hax_open_device(hax_fd *fd)
     return fd;
 }
 
-int hax_populate_ram(uint64_t va, uint32_t size)
+int hax_populate_ram(uint64_t va, uint64_t size)
 {
     int ret;
-    struct hax_alloc_ram_info info;
     HANDLE hDeviceVM;
     DWORD dSize = 0;
 
@@ -70,18 +69,35 @@ int hax_populate_ram(uint64_t va, uint32_t size)
         return -EINVAL;
     }
 
-    info.size = size;
-    info.va = va;
-
     hDeviceVM = hax_global.vm->fd;
+    if (hax_global.supports_64bit_ramblock) {
+        struct hax_ramblock_info ramblock = {
+            .start_va = va,
+            .size = size,
+            .reserved = 0
+        };
 
-    ret = DeviceIoControl(hDeviceVM,
-                          HAX_VM_IOCTL_ALLOC_RAM,
-                          &info, sizeof(info), NULL, 0, &dSize,
-                          (LPOVERLAPPED) NULL);
+        ret = DeviceIoControl(hDeviceVM,
+                              HAX_VM_IOCTL_ADD_RAMBLOCK,
+                              &ramblock, sizeof(ramblock), NULL, 0, &dSize,
+                              (LPOVERLAPPED) NULL);
+    } else {
+        struct hax_alloc_ram_info info = {
+            .size = (uint32_t) size,
+            .pad = 0,
+            .va = va
+        };
+
+        ret = DeviceIoControl(hDeviceVM,
+                              HAX_VM_IOCTL_ALLOC_RAM,
+                              &info, sizeof(info), NULL, 0, &dSize,
+                              (LPOVERLAPPED) NULL);
+    }
 
     if (!ret) {
-        fprintf(stderr, "Failed to allocate %x memory\n", size);
+        fprintf(stderr, "Failed to register RAM block: va=0x%" PRIx64
+                ", size=0x%" PRIx64 ", method=%s\n", va, size,
+                hax_global.supports_64bit_ramblock ? "new" : "legacy");
         return ret;
     }
 
