@@ -435,6 +435,7 @@ tcmalloc="no"
 jemalloc="no"
 replication="yes"
 vxhs=""
+libxml2=""
 
 supported_cpu="no"
 supported_os="no"
@@ -1298,6 +1299,10 @@ for opt do
   ;;
   --enable-numa) numa="yes"
   ;;
+  --disable-libxml2) libxml2="no"
+  ;;
+  --enable-libxml2) libxml2="yes"
+  ;;
   --disable-tcmalloc) tcmalloc="no"
   ;;
   --enable-tcmalloc) tcmalloc="yes"
@@ -1573,6 +1578,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   tpm             TPM support
   libssh2         ssh block device support
   numa            libnuma support
+  libxml2         for Parallels image format
   tcmalloc        tcmalloc support
   jemalloc        jemalloc support
   replication     replication support
@@ -3748,6 +3754,20 @@ EOF
   fi
 fi
 
+##########################################
+# libxml2 probe
+if test "$libxml2" != "no" ; then
+    if $pkg_config --exists libxml-2.0; then
+        libxml2="yes"
+        libxml2_cflags=$($pkg_config --cflags libxml-2.0)
+        libxml2_libs=$($pkg_config --libs libxml-2.0)
+    else
+        if test "$libxml2" = "yes"; then
+            feature_not_found "libxml2" "Install libxml2 devel"
+        fi
+        libxml2="no"
+    fi
+fi
 
 ##########################################
 # glusterfs probe
@@ -5630,6 +5650,7 @@ echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
 echo "NUMA host support $numa"
+echo "libxml2           $libxml2"
 echo "tcmalloc support  $tcmalloc"
 echo "jemalloc support  $jemalloc"
 echo "avx2 optimization $avx2_opt"
@@ -6297,6 +6318,12 @@ fi
 
 if test "$have_rtnetlink" = "yes" ; then
   echo "CONFIG_RTNETLINK=y" >> $config_host_mak
+fi
+
+if test "$libxml2" = "yes" ; then
+  echo "CONFIG_LIBXML2=y" >> $config_host_mak
+  echo "LIBXML2_CFLAGS=$libxml2_cflags" >> $config_host_mak
+  echo "LIBXML2_LIBS=$libxml2_libs" >> $config_host_mak
 fi
 
 if test "$replication" = "yes" ; then

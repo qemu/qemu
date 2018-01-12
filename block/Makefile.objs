@@ -47,3 +47,5 @@ block-obj-$(if $(CONFIG_BZIP2),m,n) += dmg-bz2.o
 dmg-bz2.o-libs     := $(BZIP2_LIBS)
 qcow.o-libs        := -lz
 linux-aio.o-libs   := -laio
+parallels.o-cflags := $(LIBXML2_CFLAGS)
+parallels.o-libs   := $(LIBXML2_LIBS)
