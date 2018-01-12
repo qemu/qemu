@@ -36,6 +36,7 @@
 #include "qemu/bswap.h"
 #include "qemu/bitmap.h"
 #include "migration/blocker.h"
+#include "parallels.h"
 
 /**************************************************************/
 
@@ -45,30 +46,6 @@
 #define HEADER_INUSE_MAGIC  (0x746F6E59)
 #define MAX_PARALLELS_IMAGE_FACTOR (1ull << 32)
 
-#define DEFAULT_CLUSTER_SIZE 1048576        /* 1 MiB */
-
-
-// always little-endian
-typedef struct ParallelsHeader {
-    char magic[16]; // "WithoutFreeSpace"
-    uint32_t version;
-    uint32_t heads;
-    uint32_t cylinders;
-    uint32_t tracks;
-    uint32_t bat_entries;
-    uint64_t nb_sectors;
-    uint32_t inuse;
-    uint32_t data_off;
-    char padding[12];
-} QEMU_PACKED ParallelsHeader;
-
-
-typedef enum ParallelsPreallocMode {
-    PRL_PREALLOC_MODE_FALLOCATE = 0,
-    PRL_PREALLOC_MODE_TRUNCATE = 1,
-    PRL_PREALLOC_MODE__MAX = 2,
-} ParallelsPreallocMode;
-
 static QEnumLookup prealloc_mode_lookup = {
     .array = (const char *const[]) {
         "falloc",
@@ -76,34 +53,6 @@ static QEnumLookup prealloc_mode_lookup = {
     },
     .size = PRL_PREALLOC_MODE__MAX
 };
-
-typedef struct BDRVParallelsState {
-    /** Locking is conservative, the lock protects
-     *   - image file extending (truncate, fallocate)
-     *   - any access to block allocation table
-     */
-    CoMutex lock;
-
-    ParallelsHeader *header;
-    uint32_t header_size;
-    bool header_unclean;
-
-    unsigned long *bat_dirty_bmap;
-    unsigned int  bat_dirty_block;
-
-    uint32_t *bat_bitmap;
-    unsigned int bat_size;
-
-    int64_t  data_end;
-    uint64_t prealloc_size;
-    ParallelsPreallocMode prealloc_mode;
-
-    unsigned int tracks;
-
-    unsigned int off_multiplier;
-    Error *migration_blocker;
-} BDRVParallelsState;
-
 
 #define PARALLELS_OPT_PREALLOC_MODE     "prealloc-mode"
 #define PARALLELS_OPT_PREALLOC_SIZE     "prealloc-size"
