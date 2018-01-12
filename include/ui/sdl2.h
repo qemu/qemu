@@ -24,6 +24,7 @@ struct sdl2_console {
     int opengl;
     int updates;
     int idle_counter;
+    int ignore_hotkeys;
     SDL_GLContext winctx;
 #ifdef CONFIG_OPENGL
     QemuGLShader *gls;
