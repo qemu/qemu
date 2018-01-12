@@ -476,8 +476,9 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
     memcpy(header.magic, HEADER_MAGIC2, sizeof(header.magic));
     header.version = cpu_to_le32(HEADER_VERSION);
     /* don't care much about geometry, it is not used on image level */
-    header.heads = cpu_to_le32(16);
-    header.cylinders = cpu_to_le32(total_size / BDRV_SECTOR_SIZE / 16 / 32);
+    header.heads = cpu_to_le32(HEADS_NUMBER);
+    header.cylinders = cpu_to_le32(total_size / BDRV_SECTOR_SIZE
+                                   / HEADS_NUMBER / SEC_IN_CYL);
     header.tracks = cpu_to_le32(cl_size >> BDRV_SECTOR_BITS);
     header.bat_entries = cpu_to_le32(bat_entries);
     header.nb_sectors = cpu_to_le64(DIV_ROUND_UP(total_size, BDRV_SECTOR_SIZE));
