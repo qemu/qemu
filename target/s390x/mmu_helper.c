@@ -120,6 +120,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
 {
     const bool edat1 = (env->cregs[0] & CR0_EDAT) &&
                        s390_has_feat(S390_FEAT_EDAT);
+    const bool edat2 = edat1 && s390_has_feat(S390_FEAT_EDAT_2);
     const int asce_tl = asce & ASCE_TABLE_LENGTH;
     const int asce_p = asce & ASCE_PRIVATE_SPACE;
     hwaddr gaddr = asce & ASCE_ORIGIN;
@@ -217,12 +218,20 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
         if ((entry & REGION_ENTRY_TT) != REGION_ENTRY_TT_REGION3) {
             return PGM_TRANS_SPEC;
         }
-        if (VADDR_SEGMENT_TL(vaddr) < (entry & REGION_ENTRY_TF) >> 6 ||
-            VADDR_SEGMENT_TL(vaddr) > (entry & REGION_ENTRY_TL)) {
-            return PGM_SEGMENT_TRANS;
+        if (edat2 && (entry & REGION3_ENTRY_CR) && asce_p) {
+            return PGM_TRANS_SPEC;
         }
         if (edat1 && (entry & REGION_ENTRY_P)) {
             *flags &= ~PAGE_WRITE;
+        }
+        if (edat2 && (entry & REGION3_ENTRY_FC)) {
+            *raddr = (entry & REGION3_ENTRY_RFAA) |
+                     (vaddr & ~REGION3_ENTRY_RFAA);
+            return 0;
+        }
+        if (VADDR_SEGMENT_TL(vaddr) < (entry & REGION_ENTRY_TF) >> 6 ||
+            VADDR_SEGMENT_TL(vaddr) > (entry & REGION_ENTRY_TL)) {
+            return PGM_SEGMENT_TRANS;
         }
         gaddr = (entry & REGION_ENTRY_ORIGIN) + VADDR_SEGMENT_TX(vaddr) * 8;
         /* fall through */
