@@ -26,6 +26,7 @@ struct EventNotifier {
     int rfd;
     int wfd;
 #endif
+    void (*cleanup)(EventNotifier *);
 };
 
 typedef void EventNotifierHandler(EventNotifier *);
