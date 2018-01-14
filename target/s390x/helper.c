@@ -63,7 +63,11 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
         asc = PSW_ASC_PRIMARY;
     }
 
-    if (mmu_translate(env, vaddr, MMU_INST_FETCH, asc, &raddr, &prot, false)) {
+    /*
+     * We want to read code even if IEP is active. Use MMU_DATA_LOAD instead
+     * of MMU_INST_FETCH.
+     */
+    if (mmu_translate(env, vaddr, MMU_DATA_LOAD, asc, &raddr, &prot, false)) {
         return -1;
     }
     return raddr;

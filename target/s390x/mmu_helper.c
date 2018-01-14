@@ -121,6 +121,8 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     const bool edat1 = (env->cregs[0] & CR0_EDAT) &&
                        s390_has_feat(S390_FEAT_EDAT);
     const bool edat2 = edat1 && s390_has_feat(S390_FEAT_EDAT_2);
+    const bool iep = (env->cregs[0] & CR0_IEP) &&
+                     s390_has_feat(S390_FEAT_INSTRUCTION_EXEC_PROT);
     const int asce_tl = asce & ASCE_TABLE_LENGTH;
     const int asce_p = asce & ASCE_PRIVATE_SPACE;
     hwaddr gaddr = asce & ASCE_ORIGIN;
@@ -225,6 +227,9 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
             *flags &= ~PAGE_WRITE;
         }
         if (edat2 && (entry & REGION3_ENTRY_FC)) {
+            if (iep && (entry & REGION3_ENTRY_IEP)) {
+                *flags &= ~PAGE_EXEC;
+            }
             *raddr = (entry & REGION3_ENTRY_RFAA) |
                      (vaddr & ~REGION3_ENTRY_RFAA);
             return 0;
@@ -252,6 +257,9 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
             *flags &= ~PAGE_WRITE;
         }
         if (edat1 && (entry & SEGMENT_ENTRY_FC)) {
+            if (iep && (entry & SEGMENT_ENTRY_IEP)) {
+                *flags &= ~PAGE_EXEC;
+            }
             *raddr = (entry & SEGMENT_ENTRY_SFAA) |
                      (vaddr & ~SEGMENT_ENTRY_SFAA);
             return 0;
@@ -271,6 +279,9 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     }
     if (entry & PAGE_ENTRY_P) {
         *flags &= ~PAGE_WRITE;
+    }
+    if (iep && (entry & PAGE_ENTRY_IEP)) {
+        *flags &= ~PAGE_EXEC;
     }
 
     *raddr = entry & TARGET_PAGE_MASK;
@@ -425,6 +436,16 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
         if (exc) {
             /* DAT sets bit 61 only */
             tec |= 0x4;
+            trigger_access_exception(env, PGM_PROTECTION, ilen, tec);
+        }
+        return -1;
+    }
+
+    /* check for Instruction-Execution-Protection */
+    if (unlikely(rw == MMU_INST_FETCH && !(*flags & PAGE_EXEC))) {
+        if (exc) {
+            /* IEP sets bit 56 and 61 */
+            tec |= 0x84;
             trigger_access_exception(env, PGM_PROTECTION, ilen, tec);
         }
         return -1;
