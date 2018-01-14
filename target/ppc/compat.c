@@ -73,7 +73,14 @@ static const CompatInfo compat_table[] = {
         .pvr = CPU_POWERPC_LOGICAL_3_00,
         .pcr = PCR_COMPAT_3_00,
         .pcr_level = PCR_COMPAT_3_00,
-        .max_threads = 4,
+        /*
+         * POWER9 hardware only supports 4 threads / core, but this
+         * limit is for guests.  We need to support 8 vthreads/vcore
+         * on POWER9 for POWER8 compatibility guests, and it's very
+         * confusing if half of the threads disappear from the guest
+         * if it announces it's POWER9 aware at CAS time.
+         */
+        .max_threads = 8,
     },
 };
 
