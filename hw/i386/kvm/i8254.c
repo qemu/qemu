@@ -315,8 +315,8 @@ static void kvm_pit_class_init(ObjectClass *klass, void *data)
     PITCommonClass *k = PIT_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    kpc->parent_realize = dc->realize;
-    dc->realize = kvm_pit_realizefn;
+    device_class_set_parent_realize(dc, kvm_pit_realizefn,
+                                    &kpc->parent_realize);
     k->set_channel_gate = kvm_pit_set_gate;
     k->get_channel_info = kvm_pit_get_channel_info;
     dc->reset = kvm_pit_reset;

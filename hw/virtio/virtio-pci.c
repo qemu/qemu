@@ -1907,8 +1907,8 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;
-    vpciklass->parent_dc_realize = dc->realize;
-    dc->realize = virtio_pci_dc_realize;
+    device_class_set_parent_realize(dc, virtio_pci_dc_realize,
+                                    &vpciklass->parent_dc_realize);
     dc->reset = virtio_pci_reset;
 }
 

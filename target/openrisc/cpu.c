@@ -132,9 +132,8 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(occ);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    occ->parent_realize = dc->realize;
-    dc->realize = openrisc_cpu_realizefn;
-
+    device_class_set_parent_realize(dc, openrisc_cpu_realizefn,
+                                    &occ->parent_realize);
     occ->parent_reset = cc->reset;
     cc->reset = openrisc_cpu_reset;
 

@@ -151,8 +151,8 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     XtensaCPUClass *xcc = XTENSA_CPU_CLASS(cc);
 
-    xcc->parent_realize = dc->realize;
-    dc->realize = xtensa_cpu_realizefn;
+    device_class_set_parent_realize(dc, xtensa_cpu_realizefn,
+                                    &xcc->parent_realize);
 
     xcc->parent_reset = cc->reset;
     cc->reset = xtensa_cpu_reset;

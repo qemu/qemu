@@ -228,8 +228,8 @@ static void adb_mouse_class_init(ObjectClass *oc, void *data)
     ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);
     ADBMouseClass *amc = ADB_MOUSE_CLASS(oc);
 
-    amc->parent_realize = dc->realize;
-    dc->realize = adb_mouse_realizefn;
+    device_class_set_parent_realize(dc, adb_mouse_realizefn,
+                                    &amc->parent_realize);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_mouse_request;

@@ -137,8 +137,7 @@ static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_rp_dev;
     dc->props = gen_rp_props;
 
-    rpc->parent_realize = dc->realize;
-    dc->realize = gen_rp_realize;
+    device_class_set_parent_realize(dc, gen_rp_realize, &rpc->parent_realize);
 
     rpc->aer_vector = gen_rp_aer_vector;
     rpc->interrupts_init = gen_rp_interrupts_init;

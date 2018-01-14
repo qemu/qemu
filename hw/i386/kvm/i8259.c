@@ -142,8 +142,7 @@ static void kvm_i8259_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset     = kvm_pic_reset;
-    kpc->parent_realize = dc->realize;
-    dc->realize   = kvm_pic_realize;
+    device_class_set_parent_realize(dc, kvm_pic_realize, &kpc->parent_realize);
     k->pre_save   = kvm_pic_get;
     k->post_load  = kvm_pic_put;
 }

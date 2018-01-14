@@ -260,8 +260,8 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     CRISCPUClass *ccc = CRIS_CPU_CLASS(oc);
 
-    ccc->parent_realize = dc->realize;
-    dc->realize = cris_cpu_realizefn;
+    device_class_set_parent_realize(dc, cris_cpu_realizefn,
+                                    &ccc->parent_realize);
 
     ccc->parent_reset = cc->reset;
     cc->reset = cris_cpu_reset;

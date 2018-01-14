@@ -236,9 +236,8 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    lcc->parent_realize = dc->realize;
-    dc->realize = lm32_cpu_realizefn;
-
+    device_class_set_parent_realize(dc, lm32_cpu_realizefn,
+                                    &lcc->parent_realize);
     lcc->parent_reset = cc->reset;
     cc->reset = lm32_cpu_reset;
 

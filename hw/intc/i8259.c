@@ -443,8 +443,7 @@ static void i8259_class_init(ObjectClass *klass, void *data)
     PICClass *k = PIC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->parent_realize = dc->realize;
-    dc->realize = pic_realize;
+    device_class_set_parent_realize(dc, pic_realize, &k->parent_realize);
     dc->reset = pic_reset;
 }
 

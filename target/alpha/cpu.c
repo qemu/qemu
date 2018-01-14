@@ -233,8 +233,8 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     AlphaCPUClass *acc = ALPHA_CPU_CLASS(oc);
 
-    acc->parent_realize = dc->realize;
-    dc->realize = alpha_cpu_realizefn;
+    device_class_set_parent_realize(dc, alpha_cpu_realizefn,
+                                    &acc->parent_realize);
 
     cc->class_by_name = alpha_cpu_class_by_name;
     cc->has_work = alpha_cpu_has_work;
