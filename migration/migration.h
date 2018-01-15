@@ -22,6 +22,8 @@
 #include "hw/qdev.h"
 #include "io/channel.h"
 
+struct PostcopyBlocktimeContext;
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -59,10 +61,20 @@ struct MigrationIncomingState {
     /* The coroutine we should enter (back) after failover */
     Coroutine *migration_incoming_co;
     QemuSemaphore colo_incoming_sem;
+
+    /*
+     * PostcopyBlocktimeContext to keep information for postcopy
+     * live migration, to calculate vCPU block time
+     * */
+    struct PostcopyBlocktimeContext *blocktime_ctx;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
 void migration_incoming_state_destroy(void);
+/*
+ * Functions to work with blocktime context
+ */
+void fill_destination_postcopy_migration_info(MigrationInfo *info);
 
 #define TYPE_MIGRATION "migration"
 
@@ -90,6 +102,17 @@ struct MigrationState
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
 
+    /* bytes already send at the beggining of current interation */
+    uint64_t iteration_initial_bytes;
+    /* time at the start of current iteration */
+    int64_t iteration_start_time;
+    /*
+     * The final stage happens when the remaining data is smaller than
+     * this threshold; it's calculated from the requested downtime and
+     * measured bandwidth
+     */
+    int64_t threshold_size;
+
     /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
 
@@ -103,11 +126,22 @@ struct MigrationState
     } rp_state;
 
     double mbps;
+    /* Timestamp when recent migration starts (ms) */
+    int64_t start_time;
+    /* Total time used by latest migration (ms) */
     int64_t total_time;
+    /* Timestamp when VM is down (ms) to migrate the last stuff */
+    int64_t downtime_start;
     int64_t downtime;
     int64_t expected_downtime;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t setup_time;
+    /*
+     * Whether guest was running when we enter the completion stage.
+     * If migration is interrupted by any reason, we need to continue
+     * running the guest on source.
+     */
+    bool vm_was_running;
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
@@ -201,6 +235,7 @@ int migrate_compress_level(void);
 int migrate_compress_threads(void);
 int migrate_decompress_threads(void);
 bool migrate_use_events(void);
+bool migrate_postcopy_blocktime(void);
 
 /* Sending on the return path - generic and then for each message type */
 void migrate_send_rp_shut(MigrationIncomingState *mis,

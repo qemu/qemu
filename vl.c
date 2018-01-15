@@ -4792,6 +4792,7 @@ int main(int argc, char **argv, char **envp)
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
+    migration_object_finalize();
     /* TODO: unref root container, check all devices are ok */
 
     return 0;

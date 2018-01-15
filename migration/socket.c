@@ -172,7 +172,6 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
 
     if (qio_channel_socket_listen_sync(listen_ioc, saddr, errp) < 0) {
         object_unref(OBJECT(listen_ioc));
-        qapi_free_SocketAddress(saddr);
         return;
     }
 
@@ -181,7 +180,6 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
                           socket_accept_incoming_migration,
                           listen_ioc,
                           (GDestroyNotify)object_unref);
-    qapi_free_SocketAddress(saddr);
 }
 
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
@@ -191,6 +189,7 @@ void tcp_start_incoming_migration(const char *host_port, Error **errp)
     if (!err) {
         socket_start_incoming_migration(saddr, &err);
     }
+    qapi_free_SocketAddress(saddr);
     error_propagate(errp, err);
 }
 
@@ -198,4 +197,5 @@ void unix_start_incoming_migration(const char *path, Error **errp)
 {
     SocketAddress *saddr = unix_build_address(path);
     socket_start_incoming_migration(saddr, errp);
+    qapi_free_SocketAddress(saddr);
 }
