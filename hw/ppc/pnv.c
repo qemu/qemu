@@ -53,7 +53,7 @@
 #define FW_MAX_SIZE             0x00400000
 
 #define KERNEL_LOAD_ADDR        0x20000000
-#define INITRD_LOAD_ADDR        0x40000000
+#define INITRD_LOAD_ADDR        0x60000000
 
 static const char *pnv_chip_core_typename(const PnvChip *o)
 {
