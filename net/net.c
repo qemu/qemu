@@ -1063,7 +1063,7 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         /* Do not add to a vlan if it's a nic with a netdev= parameter. */
         if (netdev->type != NET_CLIENT_DRIVER_NIC ||
             !opts->u.nic.has_netdev) {
-            peer = net_hub_add_port(net->has_vlan ? net->vlan : 0, NULL);
+            peer = net_hub_add_port(net->has_vlan ? net->vlan : 0, NULL, NULL);
         }
 
         if (net->has_vlan && !vlan_warned) {

@@ -2000,7 +2000,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #endif
     "-netdev vhost-user,id=str,chardev=dev[,vhostforce=on|off]\n"
     "                configure a vhost-user network, backed by a chardev 'dev'\n"
-    "-netdev hubport,id=str,hubid=n\n"
+    "-netdev hubport,id=str,hubid=n[,netdev=nd]\n"
     "                configure a hub port on QEMU VLAN 'n'\n", QEMU_ARCH_ALL)
 DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,netdev=nd][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
@@ -2428,13 +2428,15 @@ vde_switch -F -sock /tmp/myswitch
 qemu-system-i386 linux.img -net nic -net vde,sock=/tmp/myswitch
 @end example
 
-@item -netdev hubport,id=@var{id},hubid=@var{hubid}
+@item -netdev hubport,id=@var{id},hubid=@var{hubid}[,netdev=@var{nd}]
 
 Create a hub port on QEMU "vlan" @var{hubid}.
 
 The hubport netdev lets you connect a NIC to a QEMU "vlan" instead of a single
 netdev.  @code{-net} and @code{-device} with parameter @option{vlan} create the
-required hub automatically.
+required hub automatically. Alternatively, you can also connect the hubport
+to another netdev with ID @var{nd} by using the @option{netdev=@var{nd}}
+option.
 
 @item -netdev vhost-user,chardev=@var{id}[,vhostforce=on|off][,queues=n]
 
