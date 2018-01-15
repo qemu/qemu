@@ -76,6 +76,29 @@ K: ^Subject:.*(?i)trivial
 T: git git://git.corpit.ru/qemu.git trivial-patches
 T: git git://github.com/vivier/qemu.git trivial-patches
 
+Architecture support
+--------------------
+S390
+M: Cornelia Huck <cohuck@redhat.com>
+S: Supported
+F: default-configs/s390x-softmmu.mak
+F: gdb-xml/s390*.xml
+F: hw/char/sclp*.[hc]
+F: hw/char/terminal3270.c
+F: hw/intc/s390_flic.c
+F: hw/intc/s390_flic_kvm.c
+F: hw/s390x/
+F: hw/vfio/ccw.c
+F: hw/watchdog/wdt_diag288.c
+F: include/hw/s390x/
+F: include/hw/watchdog/wdt_diag288.h
+F: pc-bios/s390-ccw/
+F: pc-bios/s390-ccw.img
+F: target/s390x/
+K: ^Subject:.*(?i)s390x?
+T: git git://github.com/cohuck/qemu.git s390-next
+L: qemu-s390x@nongnu.org
+
 Guest CPU cores (TCG):
 ----------------------
 Overall
