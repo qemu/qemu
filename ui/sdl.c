@@ -918,6 +918,9 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
             exit(1);
     }
 
+    g_printerr("Running QEMU with SDL 1.2 is deprecated, and will be removed\n"
+               "in a future release. Please switch to SDL 2.0 instead\n");
+
     if (no_frame)
         gui_noframe = 1;
 

@@ -5668,6 +5668,12 @@ if test "$gtkabi" = "2.0"; then
     echo "WARNING: future releases. Please switch to using GTK 3.0"
 fi
 
+if test "$sdlabi" = "1.2"; then
+    echo
+    echo "WARNING: Use of SDL 1.2 is deprecated and will be removed in"
+    echo "WARNING: future releases. Please switch to using SDL 2.0"
+fi
+
 if test "$supported_cpu" = "no"; then
     echo
     echo "WARNING: SUPPORT FOR THIS HOST CPU WILL GO AWAY IN FUTURE RELEASES!"
