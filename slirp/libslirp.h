@@ -3,7 +3,6 @@
 
 #include "qemu-common.h"
 
-struct Slirp;
 typedef struct Slirp Slirp;
 
 int get_dns_addr(struct in_addr *pdns_addr);
