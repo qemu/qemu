@@ -21,7 +21,6 @@ typedef struct PnvChip {
     PnvChipType chip_type;
     const char *cpu_model;
     uint64_t    xscom_base;
-    uint64_t    xscom_core_base;
     uint64_t    cfam_id;
     uint32_t    first_core;
 } PnvChip;
@@ -31,14 +30,12 @@ static const PnvChip pnv_chips[] = {
         .chip_type  = PNV_CHIP_POWER8,
         .cpu_model  = "POWER8",
         .xscom_base = 0x0003fc0000000000ull,
-        .xscom_core_base = 0x10000000ull,
         .cfam_id    = 0x220ea04980000000ull,
         .first_core = 0x1,
     }, {
         .chip_type  = PNV_CHIP_POWER8NVL,
         .cpu_model  = "POWER8NVL",
         .xscom_base = 0x0003fc0000000000ull,
-        .xscom_core_base = 0x10000000ull,
         .cfam_id    = 0x120d304980000000ull,
         .first_core = 0x1,
     },
@@ -47,7 +44,6 @@ static const PnvChip pnv_chips[] = {
         .chip_type  = PNV_CHIP_POWER9,
         .cpu_model  = "POWER9",
         .xscom_base = 0x000603fc00000000ull,
-        .xscom_core_base = 0x0ull,
         .cfam_id    = 0x220d104900008000ull,
         .first_core = 0x0,
     },
@@ -89,16 +85,27 @@ static void test_cfam_id(const void *data)
     qtest_quit(global_qtest);
 }
 
-#define PNV_XSCOM_EX_CORE_BASE(chip, i)                 \
-    ((chip)->xscom_core_base | (((uint64_t)i) << 24))
+
+#define PNV_XSCOM_EX_CORE_BASE    0x10000000ull
+#define PNV_XSCOM_EX_BASE(core) \
+    (PNV_XSCOM_EX_CORE_BASE | ((uint64_t)(core) << 24))
+#define PNV_XSCOM_P9_EC_BASE(core) \
+    ((uint64_t)(((core) & 0x1F) + 0x20) << 24)
+
 #define PNV_XSCOM_EX_DTS_RESULT0     0x50000
 
 static void test_xscom_core(const PnvChip *chip)
 {
-    uint32_t first_core_dts0 =
-        PNV_XSCOM_EX_CORE_BASE(chip, chip->first_core) |
-        PNV_XSCOM_EX_DTS_RESULT0;
-    uint64_t dts0 = pnv_xscom_read(chip, first_core_dts0);
+    uint32_t first_core_dts0 = PNV_XSCOM_EX_DTS_RESULT0;
+    uint64_t dts0;
+
+    if (chip->chip_type != PNV_CHIP_POWER9) {
+        first_core_dts0 |= PNV_XSCOM_EX_BASE(chip->first_core);
+    } else {
+        first_core_dts0 |= PNV_XSCOM_P9_EC_BASE(chip->first_core);
+    }
+
+    dts0 = pnv_xscom_read(chip, first_core_dts0);
 
     g_assert_cmphex(dts0, ==, 0x26f024f023f0000ull);
 }
