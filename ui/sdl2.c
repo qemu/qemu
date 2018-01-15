@@ -141,11 +141,11 @@ static void sdl_update_caption(struct sdl2_console *scon)
         status = " [Stopped]";
     } else if (gui_grab) {
         if (alt_grab) {
-            status = " - Press Ctrl-Alt-Shift to exit grab";
+            status = " - Press Ctrl-Alt-Shift-G to exit grab";
         } else if (ctrl_grab) {
-            status = " - Press Right-Ctrl to exit grab";
+            status = " - Press Right-Ctrl-G to exit grab";
         } else {
-            status = " - Press Ctrl-Alt to exit grab";
+            status = " - Press Ctrl-Alt-G to exit grab";
         }
     }
 
@@ -364,6 +364,14 @@ static void handle_keydown(SDL_Event *ev)
             toggle_full_screen(scon);
             gui_keysym = 1;
             break;
+        case SDL_SCANCODE_G:
+            gui_keysym = 1;
+            if (!gui_grab) {
+                sdl_grab_start(scon);
+            } else if (!gui_fullscreen) {
+                sdl_grab_end(scon);
+            }
+            break;
         case SDL_SCANCODE_U:
             sdl2_window_destroy(scon);
             sdl2_window_create(scon);
@@ -416,19 +424,6 @@ static void handle_keyup(SDL_Event *ev)
     }
     if (!mod_state && gui_key_modifier_pressed) {
         gui_key_modifier_pressed = 0;
-        if (gui_keysym == 0) {
-            /* exit/enter grab if pressing Ctrl-Alt */
-            if (!gui_grab) {
-                sdl_grab_start(scon);
-            } else if (!gui_fullscreen) {
-                sdl_grab_end(scon);
-            }
-            /* SDL does not send back all the modifiers key, so we must
-             * correct it. */
-            sdl2_reset_keys(scon);
-            return;
-        }
-        sdl2_reset_keys(scon);
         gui_keysym = 0;
     }
     if (!gui_keysym) {
