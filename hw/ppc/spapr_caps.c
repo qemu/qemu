@@ -35,7 +35,6 @@
 typedef struct sPAPRCapabilityInfo {
     const char *name;
     const char *description;
-    const char *options;                        /* valid capability values */
     int index;
 
     /* Getter and Setter Function Pointers */
@@ -126,7 +125,6 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
         .description = "Allow Hardware Transactional Memory (HTM)",
-        .options = "",
         .index = SPAPR_CAP_HTM,
         .get = spapr_cap_get_bool,
         .set = spapr_cap_set_bool,
@@ -136,7 +134,6 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_VSX] = {
         .name = "vsx",
         .description = "Allow Vector Scalar Extensions (VSX)",
-        .options = "",
         .index = SPAPR_CAP_VSX,
         .get = spapr_cap_get_bool,
         .set = spapr_cap_set_bool,
@@ -146,7 +143,6 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_DFP] = {
         .name = "dfp",
         .description = "Allow Decimal Floating Point (DFP)",
-        .options = "",
         .index = SPAPR_CAP_DFP,
         .get = spapr_cap_get_bool,
         .set = spapr_cap_set_bool,
@@ -338,7 +334,7 @@ void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp)
             return;
         }
 
-        desc = g_strdup_printf("%s%s", cap->description, cap->options);
+        desc = g_strdup_printf("%s", cap->description);
         object_class_property_set_description(klass, name, desc, &local_err);
         g_free(desc);
         if (local_err) {
