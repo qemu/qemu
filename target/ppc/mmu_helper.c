@@ -2570,6 +2570,17 @@ void helper_booke_setpid(CPUPPCState *env, uint32_t pidn, target_ulong pid)
     tlb_flush(CPU(cpu));
 }
 
+static inline void flush_page(CPUPPCState *env, ppcmas_tlb_t *tlb)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    if (booke206_tlb_to_page_size(env, tlb) == TARGET_PAGE_SIZE) {
+        tlb_flush_page(CPU(cpu), tlb->mas2 & MAS2_EPN_MASK);
+    } else {
+        tlb_flush(CPU(cpu));
+    }
+}
+
 void helper_booke206_tlbwe(CPUPPCState *env)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
@@ -2628,6 +2639,21 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     if (msr_gs) {
         cpu_abort(CPU(cpu), "missing HV implementation\n");
     }
+
+    if (tlb->mas1 & MAS1_VALID) {
+        /* Invalidate the page in QEMU TLB if it was a valid entry.
+         *
+         * In "PowerPC e500 Core Family Reference Manual, Rev. 1",
+         * Section "12.4.2 TLB Write Entry (tlbwe) Instruction":
+         * (https://www.nxp.com/docs/en/reference-manual/E500CORERM.pdf)
+         *
+         * "Note that when an L2 TLB entry is written, it may be displacing an
+         * already valid entry in the same L2 TLB location (a victim). If a
+         * valid L1 TLB entry corresponds to the L2 MMU victim entry, that L1
+         * TLB entry is automatically invalidated." */
+        flush_page(env, tlb);
+    }
+
     tlb->mas7_3 = ((uint64_t)env->spr[SPR_BOOKE_MAS7] << 32) |
         env->spr[SPR_BOOKE_MAS3];
     tlb->mas1 = env->spr[SPR_BOOKE_MAS1];
@@ -2663,11 +2689,7 @@ void helper_booke206_tlbwe(CPUPPCState *env)
         tlb->mas1 &= ~MAS1_IPROT;
     }
 
-    if (booke206_tlb_to_page_size(env, tlb) == TARGET_PAGE_SIZE) {
-        tlb_flush_page(CPU(cpu), tlb->mas2 & MAS2_EPN_MASK);
-    } else {
-        tlb_flush(CPU(cpu));
-    }
+    flush_page(env, tlb);
 }
 
 static inline void booke206_tlb_to_mas(CPUPPCState *env, ppcmas_tlb_t *tlb)
