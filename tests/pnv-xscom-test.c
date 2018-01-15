@@ -49,7 +49,7 @@ static const PnvChip pnv_chips[] = {
         .xscom_base = 0x000603fc00000000ull,
         .xscom_core_base = 0x0ull,
         .cfam_id    = 0x220d104900008000ull,
-        .first_core = 0x20,
+        .first_core = 0x0,
     },
 #endif
 };

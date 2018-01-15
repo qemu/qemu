@@ -707,9 +707,9 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
 #define POWER8_CORE_MASK   (0x7e7eull)
 
 /*
- * POWER9 has 24 cores, ids starting at 0x20
+ * POWER9 has 24 cores, ids starting at 0x0
  */
-#define POWER9_CORE_MASK   (0xffffff00000000ull)
+#define POWER9_CORE_MASK   (0xffffffffffffffull)
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
 {
