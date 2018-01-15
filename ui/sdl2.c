@@ -38,7 +38,6 @@ static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 
 static int gui_saved_grab;
 static int gui_fullscreen;
-static int gui_noframe;
 static int gui_key_modifier_pressed;
 static int gui_keysym;
 static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
@@ -767,17 +766,13 @@ void sdl_display_early_init(int opengl)
     }
 }
 
-void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
+void sdl_display_init(DisplayState *ds, int full_screen)
 {
     int flags;
     uint8_t data = 0;
     char *filename;
     int i;
     SDL_SysWMinfo info;
-
-    if (no_frame) {
-        gui_noframe = 1;
-    }
 
 #ifdef __linux__
     /* on Linux, SDL may use fbcon|directfb|svgalib when run without

@@ -436,7 +436,7 @@ void surface_gl_setup_viewport(QemuGLShader *gls,
 /* sdl.c */
 #ifdef CONFIG_SDL
 void sdl_display_early_init(int opengl);
-void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
+void sdl_display_init(DisplayState *ds, int full_screen);
 #else
 static inline void sdl_display_early_init(int opengl)
 {
@@ -444,8 +444,7 @@ static inline void sdl_display_early_init(int opengl)
     error_report("SDL support is disabled");
     abort();
 }
-static inline void sdl_display_init(DisplayState *ds, int full_screen,
-                                    int no_frame)
+static inline void sdl_display_init(DisplayState *ds, int full_screen)
 {
     /* This must never be called if CONFIG_SDL is disabled */
     error_report("SDL support is disabled");

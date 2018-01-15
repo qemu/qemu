@@ -150,7 +150,7 @@ static int rtc_date_offset = -1; /* -1 means no change */
 QEMUClockType rtc_clock;
 int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
-static int no_frame = 0;
+int no_frame;
 int no_quit = 0;
 static bool grab_on_hover;
 Chardev *serial_hds[MAX_SERIAL_PORTS];
@@ -4694,7 +4694,7 @@ int main(int argc, char **argv, char **envp)
         curses_display_init(ds, full_screen);
         break;
     case DT_SDL:
-        sdl_display_init(ds, full_screen, no_frame);
+        sdl_display_init(ds, full_screen);
         break;
     case DT_COCOA:
         cocoa_display_init(ds, full_screen);
