@@ -236,6 +236,7 @@ F: disas/ppc.c
 S390
 M: Richard Henderson <rth@twiddle.net>
 M: Alexander Graf <agraf@suse.de>
+M: David Hildenbrand <david@redhat.com>
 S: Maintained
 F: target/s390x/
 F: hw/s390x/
