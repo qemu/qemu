@@ -855,12 +855,19 @@ F: hw/char/sclp*.[hc]
 F: hw/char/terminal3270.c
 F: hw/s390x/
 F: include/hw/s390x/
-F: pc-bios/s390-ccw/
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/watchdog/wdt_diag288.h
-F: pc-bios/s390-ccw.img
 F: default-configs/s390x-softmmu.mak
 T: git git://github.com/cohuck/qemu.git s390-next
+T: git git://github.com/borntraeger/qemu.git s390-next
+L: qemu-s390x@nongnu.org
+
+S390-ccw Bios
+M: Christian Borntraeger <borntraeger@de.ibm.com>
+M: Thomas Huth <thuth@redhat.com>
+S: Supported
+F: pc-bios/s390-ccw/
+F: pc-bios/s390-ccw.img
 T: git git://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
