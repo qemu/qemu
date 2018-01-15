@@ -759,7 +759,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
     k->chip_type = PNV_CHIP_POWER9;
-    k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
+    k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
     k->xscom_base = 0x00603fc00000000ull;

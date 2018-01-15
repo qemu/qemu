@@ -48,7 +48,7 @@ static const PnvChip pnv_chips[] = {
         .cpu_model  = "POWER9",
         .xscom_base = 0x000603fc00000000ull,
         .xscom_core_base = 0x0ull,
-        .cfam_id    = 0x100d104980000000ull,
+        .cfam_id    = 0x220d104900008000ull,
         .first_core = 0x20,
     },
 #endif
