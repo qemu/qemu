@@ -2012,6 +2012,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define HID0_DOZE           (1 << 23)           /* pre-2.06 */
 #define HID0_NAP            (1 << 22)           /* pre-2.06 */
 #define HID0_HILE           PPC_BIT(19) /* POWER8 */
+#define HID0_POWER9_HILE    PPC_BIT(4)
 
 /*****************************************************************************/
 /* PowerPC Instructions types definitions                                    */

@@ -654,7 +654,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
     } else if (excp_model == POWERPC_EXCP_POWER8) {
         if (new_msr & MSR_HVB) {
-            if (env->spr[SPR_HID0] & HID0_HILE) {
+            if (env->spr[SPR_HID0] & (HID0_HILE | HID0_POWER9_HILE)) {
                 new_msr |= (target_ulong)1 << MSR_LE;
             }
         } else if (env->spr[SPR_LPCR] & LPCR_ILE) {
