@@ -380,7 +380,9 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
         *flags |= PAGE_WRITE_INV;
         if (is_low_address(vaddr) && rw == MMU_DATA_STORE) {
             if (exc) {
-                trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, 0);
+                /* LAP sets bit 56 */
+                tec |= 0x80;
+                trigger_access_exception(env, PGM_PROTECTION, ilen, tec);
             }
             return -EACCES;
         }
@@ -536,6 +538,9 @@ void s390_cpu_virt_mem_handle_exc(S390CPU *cpu, uintptr_t ra)
 int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
                        target_ulong *addr, int *flags)
 {
+    /* Code accesses have an undefined ilc, let's use 2 bytes. */
+    uint64_t tec = (raddr & TARGET_PAGE_MASK) |
+                   (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ);
     const bool lowprot_enabled = env->cregs[0] & CR0_LOWPROT;
 
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -543,7 +548,9 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
         /* see comment in mmu_translate() how this works */
         *flags |= PAGE_WRITE_INV;
         if (is_low_address(raddr) && rw == MMU_DATA_STORE) {
-            trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, 0);
+            /* LAP sets bit 56 */
+            tec |= 0x80;
+            trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, tec);
             return -EACCES;
         }
     }
