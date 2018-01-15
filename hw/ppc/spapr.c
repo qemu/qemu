@@ -2305,9 +2305,14 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
         }
         /* In this case, spapr->vsmt has been set by the command line */
     } else {
-        /* Choose a VSMT mode that may be higher than necessary but is
-         * likely to be compatible with hosts that don't have VSMT. */
-        spapr->vsmt = MAX(kvm_smt, smp_threads);
+        /*
+         * Default VSMT value is tricky, because we need it to be as
+         * consistent as possible (for migration), but this requires
+         * changing it for at least some existing cases.  We pick 8 as
+         * the value that we'd get with KVM on POWER8, the
+         * overwhelmingly common case in production systems.
+         */
+        spapr->vsmt = 8;
     }
 
     /* KVM: If necessary, set the SMT mode: */
