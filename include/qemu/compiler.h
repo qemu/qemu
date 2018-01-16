@@ -111,4 +111,8 @@
 #define GCC_FMT_ATTR(n, m)
 #endif
 
+#ifndef __has_feature
+#define __has_feature(x) 0 /* compatibility with non-clang compilers */
+#endif
+
 #endif /* COMPILER_H */

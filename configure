@@ -5213,6 +5213,8 @@ write_c_skeleton
 
 have_asan=no
 have_ubsan=no
+have_asan_iface_h=no
+have_asan_iface_fiber=no
 
 if test "$sanitizers" = "yes" ; then
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" ""; then
@@ -5221,11 +5223,28 @@ if test "$sanitizers" = "yes" ; then
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
       have_ubsan=yes
   fi
+
+  if check_include "sanitizer/asan_interface.h" ; then
+      have_asan_iface_h=yes
+  fi
+
+  cat > $TMPC << EOF
+#include <sanitizer/asan_interface.h>
+int main(void) {
+  __sanitizer_start_switch_fiber(0, 0, 0);
+  return 0;
+}
+EOF
+  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" "" ; then
+      have_asan_iface_fiber=yes
+  fi
 fi
 
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
+
+write_c_skeleton
 
 if test "$gcov" = "yes" ; then
   CFLAGS="-fprofile-arcs -ftest-coverage -g $CFLAGS"
@@ -5249,6 +5268,13 @@ fi
 
 if test "$have_asan" = "yes"; then
   CFLAGS="-fsanitize=address $CFLAGS"
+  if test "$have_asan_iface_h" = "no" ; then
+      echo "ASAN build enabled, but ASAN header missing." \
+           "Without code annotation, the report may be inferior."
+  elif test "$have_asan_iface_fiber" = "no" ; then
+      echo "ASAN build enabled, but ASAN header is too old." \
+           "Without code annotation, the report may be inferior."
+  fi
 fi
 if test "$have_ubsan" = "yes"; then
   CFLAGS="-fsanitize=undefined $CFLAGS"
@@ -6235,6 +6261,10 @@ fi
 
 if test "$valgrind_h" = "yes" ; then
   echo "CONFIG_VALGRIND_H=y" >> $config_host_mak
+fi
+
+if test "$have_asan_iface_fiber" = "yes" ; then
+    echo "CONFIG_ASAN_IFACE_FIBER=y" >> $config_host_mak
 fi
 
 if test "$has_environ" = "yes" ; then
