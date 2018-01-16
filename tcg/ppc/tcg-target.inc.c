@@ -222,33 +222,6 @@ static inline void tcg_out_bc_noaddr(TCGContext *s, int insn)
     tcg_out32(s, insn | retrans);
 }
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
-                        intptr_t value, intptr_t addend)
-{
-    tcg_insn_unit *target;
-    tcg_insn_unit old;
-
-    value += addend;
-    target = (tcg_insn_unit *)value;
-
-    switch (type) {
-    case R_PPC_REL14:
-        reloc_pc14(code_ptr, target);
-        break;
-    case R_PPC_REL24:
-        reloc_pc24(code_ptr, target);
-        break;
-    case R_PPC_ADDR16:
-        assert(value == (int16_t)value);
-        old = *code_ptr;
-        old = deposit32(old, 0, 16, value);
-        *code_ptr = old;
-        break;
-    default:
-        tcg_abort();
-    }
-}
-
 /* parse target specific constraints */
 static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type)
@@ -552,6 +525,43 @@ static const uint32_t tcg_to_isel[] = {
     [TCG_COND_GTU] = ISEL | BC_(7, CR_GT),
 };
 
+static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+                        intptr_t value, intptr_t addend)
+{
+    tcg_insn_unit *target;
+    tcg_insn_unit old;
+
+    value += addend;
+    target = (tcg_insn_unit *)value;
+
+    switch (type) {
+    case R_PPC_REL14:
+        reloc_pc14(code_ptr, target);
+        break;
+    case R_PPC_REL24:
+        reloc_pc24(code_ptr, target);
+        break;
+    case R_PPC_ADDR16:
+        /* We are abusing this relocation type.  This points to a pair
+           of insns, addis + load.  If the displacement is small, we
+           can nop out the addis.  */
+        if (value == (int16_t)value) {
+            code_ptr[0] = NOP;
+            old = deposit32(code_ptr[1], 0, 16, value);
+            code_ptr[1] = deposit32(old, 16, 5, TCG_REG_TB);
+        } else {
+            int16_t lo = value;
+            int hi = value - lo;
+            assert(hi + lo == value);
+            code_ptr[0] = deposit32(code_ptr[0], 0, 16, hi >> 16);
+            code_ptr[1] = deposit32(code_ptr[1], 0, 16, lo);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
                              TCGReg base, tcg_target_long offset);
 
@@ -690,7 +700,8 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     if (!in_prologue && USE_REG_TB) {
         new_pool_label(s, arg, R_PPC_ADDR16, s->code_ptr,
                        -(intptr_t)s->code_gen_ptr);
-        tcg_out32(s, LD | TAI(ret, TCG_REG_TB, 0));
+        tcg_out32(s, ADDIS | TAI(ret, TCG_REG_TB, 0));
+        tcg_out32(s, LD | TAI(ret, ret, 0));
         return;
     }
 
@@ -1524,16 +1535,15 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp opc,
 
     /* Compensate for very large offsets.  */
     if (add_off >= 0x8000) {
-        /* Most target env are smaller than 32k; none are larger than 64k.
-           Simplify the logic here merely to offset by 0x7ff0, giving us a
-           range just shy of 64k.  Check this assumption.  */
-        QEMU_BUILD_BUG_ON(offsetof(CPUArchState,
-                                   tlb_table[NB_MMU_MODES - 1][1])
-                          > 0x7ff0 + 0x7fff);
-        tcg_out32(s, ADDI | TAI(TCG_REG_TMP1, base, 0x7ff0));
+        int low = (int16_t)cmp_off;
+        int high = cmp_off - low;
+        assert((high & 0xffff) == 0);
+        assert(cmp_off - high == (int16_t)(cmp_off - high));
+        assert(add_off - high == (int16_t)(add_off - high));
+        tcg_out32(s, ADDIS | TAI(TCG_REG_TMP1, base, high >> 16));
         base = TCG_REG_TMP1;
-        cmp_off -= 0x7ff0;
-        add_off -= 0x7ff0;
+        cmp_off -= high;
+        add_off -= high;
     }
 
     /* Extraction and shifting, part 2.  */
