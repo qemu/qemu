@@ -194,6 +194,35 @@ static void test_acpi_fadt_table(test_data *data)
                                  le32_to_cpu(fadt_table->length)));
 }
 
+static void sanitize_fadt_ptrs(test_data *data)
+{
+    /* fixup pointers in FADT */
+    int i;
+
+    for (i = 0; i < data->tables->len; i++) {
+        AcpiSdtTable *sdt = &g_array_index(data->tables, AcpiSdtTable, i);
+
+        if (memcmp(&sdt->header.signature, "FACP", 4)) {
+            continue;
+        }
+
+        /* sdt->aml field offset := spec offset - header size */
+        memset(sdt->aml + 0, 0, 4); /* sanitize FIRMWARE_CTRL(36) ptr */
+        memset(sdt->aml + 4, 0, 4); /* sanitize DSDT(40) ptr */
+        if (sdt->header.revision >= 3) {
+            memset(sdt->aml + 96, 0, 8); /* sanitize X_FIRMWARE_CTRL(132) ptr */
+            memset(sdt->aml + 104, 0, 8); /* sanitize X_DSDT(140) ptr */
+        }
+
+        /* update checksum */
+        sdt->header.checksum = 0;
+        sdt->header.checksum -=
+            acpi_calc_checksum((uint8_t *)sdt, sizeof(AcpiTableHeader)) +
+            acpi_calc_checksum((uint8_t *)sdt->aml, sdt->aml_len);
+        break;
+    }
+}
+
 static void test_acpi_facs_table(test_data *data)
 {
     AcpiFacsDescriptorRev1 *facs_table = &data->facs_table;
@@ -248,14 +277,14 @@ static void test_acpi_dsdt_table(test_data *data)
 /* Load all tables and add to test list directly RSDT referenced tables */
 static void fetch_rsdt_referenced_tables(test_data *data)
 {
-    int tables_nr = data->rsdt_tables_nr - 1; /* fadt is first */
+    int tables_nr = data->rsdt_tables_nr;
     int i;
 
     for (i = 0; i < tables_nr; i++) {
         AcpiSdtTable ssdt_table;
         uint32_t addr;
 
-        addr = le32_to_cpu(data->rsdt_tables_addr[i + 1]); /* fadt is first */
+        addr = le32_to_cpu(data->rsdt_tables_addr[i]);
         fetch_table(&ssdt_table, addr);
 
         /* Add table to ASL test tables list */
@@ -649,6 +678,8 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_facs_table(data);
     test_acpi_dsdt_table(data);
     fetch_rsdt_referenced_tables(data);
+
+    sanitize_fadt_ptrs(data);
 
     if (iasl) {
         if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
