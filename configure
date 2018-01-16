@@ -342,6 +342,7 @@ rdma=""
 gprof="no"
 debug_tcg="no"
 debug="no"
+sanitizers="no"
 fortify_source=""
 strip_opt="yes"
 tcg_interpreter="no"
@@ -993,6 +994,10 @@ for opt do
       strip_opt="no"
       fortify_source="no"
   ;;
+  --enable-sanitizers) sanitizers="yes"
+  ;;
+  --disable-sanitizers) sanitizers="no"
+  ;;
   --enable-sparse) sparse="yes"
   ;;
   --disable-sparse) sparse="no"
@@ -1474,6 +1479,7 @@ Advanced options (experts only):
   --firmwarepath=PATH      search PATH for firmware files
   --with-confsuffix=SUFFIX suffix for QEMU data inside datadir/libdir/sysconfdir [$confsuffix]
   --enable-debug           enable common debug build options
+  --enable-sanitizers      enable default sanitizers
   --disable-strip          disable stripping binaries
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
@@ -5201,6 +5207,23 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# checks for sanitizers
+
+write_c_skeleton
+
+have_asan=no
+have_ubsan=no
+
+if test "$sanitizers" = "yes" ; then
+  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" ""; then
+      have_asan=yes
+  fi
+  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
+      have_ubsan=yes
+  fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5222,6 +5245,13 @@ elif test "$debug" = "yes"; then
   fi
 else
     CFLAGS="-O2 $CFLAGS"
+fi
+
+if test "$have_asan" = "yes"; then
+  CFLAGS="-fsanitize=address $CFLAGS"
+fi
+if test "$have_ubsan" = "yes"; then
+  CFLAGS="-fsanitize=undefined $CFLAGS"
 fi
 
 ##########################################
