@@ -18,7 +18,10 @@ import os
 import re
 import string
 import sys
-from ordereddict import OrderedDict
+try:
+    from collections import OrderedDict
+except:
+    from ordereddict import OrderedDict
 
 builtin_types = {
     'null':     'QTYPE_QNULL',
