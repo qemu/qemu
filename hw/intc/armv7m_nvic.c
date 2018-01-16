@@ -896,13 +896,6 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             val |= (1 << 8);
         }
         return val;
-    case 0xd28: /* Configurable Fault Status.  */
-        /* The BFSR bits [15:8] are shared between security states
-         * and we store them in the NS copy
-         */
-        val = cpu->env.v7m.cfsr[attrs.secure];
-        val |= cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
-        return val;
     case 0xd2c: /* Hard Fault Status.  */
         return cpu->env.v7m.hfsr;
     case 0xd30: /* Debug Fault Status.  */
@@ -1279,15 +1272,6 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         /* TODO: this is RAZ/WI from NS if DEMCR.SDME is set */
         s->vectors[ARMV7M_EXCP_DEBUG].active = (value & (1 << 8)) != 0;
         nvic_irq_update(s);
-        break;
-    case 0xd28: /* Configurable Fault Status.  */
-        cpu->env.v7m.cfsr[attrs.secure] &= ~value; /* W1C */
-        if (attrs.secure) {
-            /* The BFSR bits [15:8] are shared between security states
-             * and we store them in the NS copy.
-             */
-            cpu->env.v7m.cfsr[M_REG_NS] &= ~(value & R_V7M_CFSR_BFSR_MASK);
-        }
         break;
     case 0xd2c: /* Hard Fault Status.  */
         cpu->env.v7m.hfsr &= ~value; /* W1C */
@@ -1667,6 +1651,14 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
             val = deposit32(val, i * 8, 8, get_prio(s, hdlidx, sbank));
         }
         break;
+    case 0xd28 ... 0xd2b: /* Configurable Fault Status (CFSR) */
+        /* The BFSR bits [15:8] are shared between security states
+         * and we store them in the NS copy
+         */
+        val = s->cpu->env.v7m.cfsr[attrs.secure];
+        val |= s->cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
+        val = extract32(val, (offset - 0xd28) * 8, size * 8);
+        break;
     case 0xfe0 ... 0xfff: /* ID.  */
         if (offset & 3) {
             val = 0;
@@ -1764,6 +1756,20 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
             set_prio(s, hdlidx, sbank, newprio);
         }
         nvic_irq_update(s);
+        return MEMTX_OK;
+    case 0xd28 ... 0xd2b: /* Configurable Fault Status (CFSR) */
+        /* All bits are W1C, so construct 32 bit value with 0s in
+         * the parts not written by the access size
+         */
+        value <<= ((offset - 0xd28) * 8);
+
+        s->cpu->env.v7m.cfsr[attrs.secure] &= ~value;
+        if (attrs.secure) {
+            /* The BFSR bits [15:8] are shared between security states
+             * and we store them in the NS copy.
+             */
+            s->cpu->env.v7m.cfsr[M_REG_NS] &= ~(value & R_V7M_CFSR_BFSR_MASK);
+        }
         return MEMTX_OK;
     }
     if (size == 4) {
