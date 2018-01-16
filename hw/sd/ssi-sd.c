@@ -50,6 +50,9 @@ typedef struct {
     SDState *sd;
 } ssi_sd_state;
 
+#define TYPE_SSI_SD "ssi-sd"
+#define SSI_SD(obj) OBJECT_CHECK(ssi_sd_state, (obj), TYPE_SSI_SD)
+
 /* State word bits.  */
 #define SSI_SDR_LOCKED          0x0001
 #define SSI_SDR_WP_ERASE        0x0002
@@ -241,7 +244,6 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
     ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, d);
     DriveInfo *dinfo;
 
-    s->mode = SSI_SD_CMD;
     /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_SD);
     s->sd = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, true);
@@ -249,6 +251,24 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
         error_setg(errp, "Device initialization failed.");
         return;
     }
+}
+
+static void ssi_sd_reset(DeviceState *dev)
+{
+    ssi_sd_state *s = SSI_SD(dev);
+
+    s->mode = SSI_SD_CMD;
+    s->cmd = 0;
+    memset(s->cmdarg, 0, sizeof(s->cmdarg));
+    memset(s->response, 0, sizeof(s->response));
+    s->arglen = 0;
+    s->response_pos = 0;
+    s->stopping = 0;
+
+    /* Since we're still using the legacy SD API the card is not plugged
+     * into any bus, and we must reset it manually.
+     */
+    device_reset(DEVICE(s->sd));
 }
 
 static void ssi_sd_class_init(ObjectClass *klass, void *data)
@@ -260,10 +280,11 @@ static void ssi_sd_class_init(ObjectClass *klass, void *data)
     k->transfer = ssi_sd_transfer;
     k->cs_polarity = SSI_CS_LOW;
     dc->vmsd = &vmstate_ssi_sd;
+    dc->reset = ssi_sd_reset;
 }
 
 static const TypeInfo ssi_sd_info = {
-    .name          = "ssi-sd",
+    .name          = TYPE_SSI_SD,
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(ssi_sd_state),
     .class_init    = ssi_sd_class_init,
