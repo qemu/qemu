@@ -110,5 +110,5 @@ To enable device hot-plug into the bridge on Linux there're 3 ways:
 Implementation
 ==============
 The PCIE-PCI bridge is based on PCI-PCI bridge, but also accumulates PCI Express
-features as a PCI Express device (is_express=1).
+features as a PCI Express device.
 

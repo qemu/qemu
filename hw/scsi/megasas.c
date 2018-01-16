@@ -2447,7 +2447,6 @@ typedef struct MegasasInfo {
     uint16_t subsystem_id;
     int ioport_bar;
     int mmio_bar;
-    bool is_express;
     int osts;
     const VMStateDescription *vmsd;
     Property *props;
@@ -2465,7 +2464,6 @@ static struct MegasasInfo megasas_devices[] = {
         .ioport_bar = 2,
         .mmio_bar = 0,
         .osts = MFI_1078_RM | 1,
-        .is_express = false,
         .vmsd = &vmstate_megasas_gen1,
         .props = megasas_properties_gen1,
         .interfaces = (InterfaceInfo[]) {
@@ -2482,7 +2480,6 @@ static struct MegasasInfo megasas_devices[] = {
         .ioport_bar = 0,
         .mmio_bar = 1,
         .osts = MFI_GEN2_RM,
-        .is_express = true,
         .vmsd = &vmstate_megasas_gen2,
         .props = megasas_properties_gen2,
         .interfaces = (InterfaceInfo[]) {
@@ -2506,7 +2503,6 @@ static void megasas_class_init(ObjectClass *oc, void *data)
     pc->subsystem_vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     pc->subsystem_id = info->subsystem_id;
     pc->class_id = PCI_CLASS_STORAGE_RAID;
-    pc->is_express = info->is_express;
     e->mmio_bar = info->mmio_bar;
     e->ioport_bar = info->ioport_bar;
     e->osts = info->osts;
