@@ -5006,6 +5006,11 @@ static uint64_t vfp_expand_imm(int size, uint8_t imm8)
             (extract32(imm8, 0, 6) << 3);
         imm <<= 16;
         break;
+    case MO_16:
+        imm = (extract32(imm8, 7, 1) ? 0x8000 : 0) |
+            (extract32(imm8, 6, 1) ? 0x3000 : 0x4000) |
+            (extract32(imm8, 0, 6) << 6);
+        break;
     default:
         g_assert_not_reached();
     }
