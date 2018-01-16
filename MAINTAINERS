@@ -1888,6 +1888,12 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/null.c
 
+NVMe Block Driver
+M: Fam Zheng <famz@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/nvme*
+
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
 S: Maintained

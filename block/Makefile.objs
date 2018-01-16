@@ -11,6 +11,7 @@ block-obj-$(CONFIG_POSIX) += file-posix.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 block-obj-y += null.o mirror.o commit.o io.o
 block-obj-y += throttle-groups.o
+block-obj-$(CONFIG_LINUX) += nvme.o
 
 block-obj-y += nbd.o nbd-client.o sheepdog.o
 block-obj-$(CONFIG_LIBISCSI) += iscsi.o
