@@ -305,6 +305,12 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->cdet_enable = 0;
     qemu_set_irq(host->coverswitch, host->cdet_state);
     host->clkdiv = 0;
+
+    /* Since we're still using the legacy SD API the card is not plugged
+     * into any bus, and we must reset it manually. When omap_mmc is
+     * QOMified this must move into the QOM reset function.
+     */
+    device_reset(DEVICE(host->card));
 }
 
 static uint64_t omap_mmc_read(void *opaque, hwaddr offset,
@@ -587,8 +593,6 @@ struct omap_mmc_s *omap_mmc_init(hwaddr base,
     s->lines = 1;	/* TODO: needs to be settable per-board */
     s->rev = 1;
 
-    omap_mmc_reset(s);
-
     memory_region_init_io(&s->iomem, NULL, &omap_mmc_ops, s, "omap.mmc", 0x800);
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
@@ -597,6 +601,8 @@ struct omap_mmc_s *omap_mmc_init(hwaddr base,
     if (s->card == NULL) {
         exit(1);
     }
+
+    omap_mmc_reset(s);
 
     return s;
 }
@@ -613,8 +619,6 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
     s->lines = 4;
     s->rev = 2;
 
-    omap_mmc_reset(s);
-
     memory_region_init_io(&s->iomem, NULL, &omap_mmc_ops, s, "omap.mmc",
                           omap_l4_region_size(ta, 0));
     omap_l4_attach(ta, 0, &s->iomem);
@@ -627,6 +631,8 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
 
     s->cdet = qemu_allocate_irq(omap_mmc_cover_cb, s, 0);
     sd_set_cb(s->card, NULL, s->cdet);
+
+    omap_mmc_reset(s);
 
     return s;
 }
