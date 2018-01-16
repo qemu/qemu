@@ -24,8 +24,6 @@
 #ifndef SDHCI_INTERNAL_H
 #define SDHCI_INTERNAL_H
 
-#include "hw/sd/sdhci.h"
-
 /* R/W SDMA System Address register 0x0 */
 #define SDHC_SYSAD                     0x00
 
@@ -226,7 +224,5 @@ enum {
     sdhc_gap_read   = 1,  /* SDHC stopped at block gap during read operation */
     sdhc_gap_write  = 2   /* SDHC stopped at block gap during write operation */
 };
-
-extern const VMStateDescription sdhci_vmstate;
 
 #endif
