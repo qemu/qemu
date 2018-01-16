@@ -22,6 +22,10 @@ try:
     from collections import OrderedDict
 except:
     from ordereddict import OrderedDict
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 builtin_types = {
     'null':     'QTYPE_QNULL',
@@ -1995,8 +1999,7 @@ def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
         if really:
             return open(name, opt)
         else:
-            import StringIO
-            return StringIO.StringIO()
+            return StringIO()
 
     fdef = maybe_open(do_c, c_file, 'w')
     fdecl = maybe_open(do_h, h_file, 'w')
