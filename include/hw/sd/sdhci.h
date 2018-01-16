@@ -42,6 +42,7 @@ typedef struct SDHCIState {
     SDBus sdbus;
     MemoryRegion iomem;
     AddressSpace *dma_as;
+    MemoryRegion *dma_mr;
 
     QEMUTimer *insert_timer;       /* timer for 'changing' sd card. */
     QEMUTimer *transfer_timer;

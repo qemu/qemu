@@ -1354,6 +1354,8 @@ static Property sdhci_sysbus_properties[] = {
     DEFINE_SDHCI_COMMON_PROPERTIES(SDHCIState),
     DEFINE_PROP_BOOL("pending-insert-quirk", SDHCIState, pending_insert_quirk,
                      false),
+    DEFINE_PROP_LINK("dma", SDHCIState,
+                     dma_mr, TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1367,6 +1369,11 @@ static void sdhci_sysbus_init(Object *obj)
 static void sdhci_sysbus_finalize(Object *obj)
 {
     SDHCIState *s = SYSBUS_SDHCI(obj);
+
+    if (s->dma_mr) {
+        object_unparent(OBJECT(s->dma_mr));
+    }
+
     sdhci_uninitfn(s);
 }
 
@@ -1380,7 +1387,12 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error ** errp)
         return;
     }
 
-    s->dma_as = &address_space_memory;
+    if (s->dma_mr) {
+        address_space_init(s->dma_as, s->dma_mr, "sdhci-dma");
+    } else {
+        /* use system_memory() if property "dma" not set */
+        s->dma_as = &address_space_memory;
+    }
 
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -1391,6 +1403,10 @@ static void sdhci_sysbus_unrealize(DeviceState *dev, Error **errp)
     SDHCIState *s = SYSBUS_SDHCI(dev);
 
     sdhci_common_unrealize(s, &error_abort);
+
+     if (s->dma_mr) {
+        address_space_destroy(s->dma_as);
+    }
 }
 
 static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
