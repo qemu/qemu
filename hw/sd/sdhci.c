@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
@@ -1185,6 +1186,14 @@ static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
     }
 }
 
+/* --- qdev common --- */
+
+#define DEFINE_SDHCI_COMMON_PROPERTIES(_state) \
+    /* Capabilities registers provide information on supported features
+     * of this specific host controller implementation */ \
+    DEFINE_PROP_UINT32("capareg", _state, capareg, SDHC_CAPAB_REG_DEFAULT), \
+    DEFINE_PROP_UINT32("maxcurr", _state, maxcurr, 0)
+
 static void sdhci_initfn(SDHCIState *s)
 {
     qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
@@ -1264,12 +1273,10 @@ const VMStateDescription sdhci_vmstate = {
     },
 };
 
-/* Capabilities registers provide information on supported features of this
- * specific host controller implementation */
+/* --- qdev PCI --- */
+
 static Property sdhci_pci_properties[] = {
-    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
-            SDHC_CAPAB_REG_DEFAULT),
-    DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
+    DEFINE_SDHCI_COMMON_PROPERTIES(SDHCIState),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1320,10 +1327,10 @@ static const TypeInfo sdhci_pci_info = {
     },
 };
 
+/* --- qdev SysBus --- */
+
 static Property sdhci_sysbus_properties[] = {
-    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
-            SDHC_CAPAB_REG_DEFAULT),
-    DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
+    DEFINE_SDHCI_COMMON_PROPERTIES(SDHCIState),
     DEFINE_PROP_BOOL("pending-insert-quirk", SDHCIState, pending_insert_quirk,
                      false),
     DEFINE_PROP_END_OF_LIST(),
@@ -1373,6 +1380,8 @@ static const TypeInfo sdhci_sysbus_info = {
     .instance_finalize = sdhci_sysbus_finalize,
     .class_init = sdhci_sysbus_class_init,
 };
+
+/* --- qdev bus master --- */
 
 static void sdhci_bus_class_init(ObjectClass *klass, void *data)
 {
