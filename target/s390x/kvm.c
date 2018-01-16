@@ -58,7 +58,7 @@
     if (DEBUG_KVM) {                          \
         fprintf(stderr, fmt, ## __VA_ARGS__); \
     }                                         \
-} while (0);
+} while (0)
 
 #define kvm_vm_check_mem_attr(s, attr) \
     kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)

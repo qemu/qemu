@@ -57,26 +57,28 @@ void qemu_mutex_destroy(QemuMutex *mutex)
         error_exit(err, __func__);
 }
 
-void qemu_mutex_lock(QemuMutex *mutex)
+void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line)
 {
     int err;
 
     assert(mutex->initialized);
+    trace_qemu_mutex_lock(mutex, file, line);
+
     err = pthread_mutex_lock(&mutex->lock);
     if (err)
         error_exit(err, __func__);
 
-    trace_qemu_mutex_locked(mutex);
+    trace_qemu_mutex_locked(mutex, file, line);
 }
 
-int qemu_mutex_trylock(QemuMutex *mutex)
+int qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file, const int line)
 {
     int err;
 
     assert(mutex->initialized);
     err = pthread_mutex_trylock(&mutex->lock);
     if (err == 0) {
-        trace_qemu_mutex_locked(mutex);
+        trace_qemu_mutex_locked(mutex, file, line);
         return 0;
     }
     if (err != EBUSY) {
@@ -85,15 +87,16 @@ int qemu_mutex_trylock(QemuMutex *mutex)
     return -EBUSY;
 }
 
-void qemu_mutex_unlock(QemuMutex *mutex)
+void qemu_mutex_unlock_impl(QemuMutex *mutex, const char *file, const int line)
 {
     int err;
 
     assert(mutex->initialized);
-    trace_qemu_mutex_unlocked(mutex);
     err = pthread_mutex_unlock(&mutex->lock);
     if (err)
         error_exit(err, __func__);
+
+    trace_qemu_mutex_unlock(mutex, file, line);
 }
 
 void qemu_rec_mutex_init(QemuRecMutex *mutex)
@@ -152,14 +155,14 @@ void qemu_cond_broadcast(QemuCond *cond)
         error_exit(err, __func__);
 }
 
-void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
+void qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex, const char *file, const int line)
 {
     int err;
 
     assert(cond->initialized);
-    trace_qemu_mutex_unlocked(mutex);
+    trace_qemu_mutex_unlock(mutex, file, line);
     err = pthread_cond_wait(&cond->cond, &mutex->lock);
-    trace_qemu_mutex_locked(mutex);
+    trace_qemu_mutex_locked(mutex, file, line);
     if (err)
         error_exit(err, __func__);
 }

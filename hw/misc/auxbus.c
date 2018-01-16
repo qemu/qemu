@@ -40,7 +40,7 @@
     if (DEBUG_AUX) {                                                           \
         qemu_log("aux: " fmt , ## __VA_ARGS__);                                \
     }                                                                          \
-} while (0);
+} while (0)
 
 #define TYPE_AUXTOI2C "aux-to-i2c-bridge"
 #define AUXTOI2C(obj) OBJECT_CHECK(AUXTOI2CState, (obj), TYPE_AUXTOI2C)

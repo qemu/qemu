@@ -88,7 +88,7 @@ static uint32_t known_capabilities = RDMA_CAPABILITY_PIN_ALL;
             } \
             return rdma->error_state; \
         } \
-    } while (0);
+    } while (0)
 
 /*
  * A work request ID is 64-bits and we split up these bits

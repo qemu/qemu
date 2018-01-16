@@ -39,7 +39,7 @@ static uint64_t mmio_interface_counter;
     if (DEBUG_MMIO_INTERFACE) {                                                \
         qemu_log("mmio_interface: 0x%" PRIX64 ": " fmt, s->id, ## __VA_ARGS__);\
     }                                                                          \
-} while (0);
+} while (0)
 
 static void mmio_interface_init(Object *obj)
 {

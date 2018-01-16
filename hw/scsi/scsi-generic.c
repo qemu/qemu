@@ -482,6 +482,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     int rc;
     int sg_version;
     struct sg_scsi_id scsiid;
+    Error *local_err = NULL;
 
     if (!s->conf.blk) {
         error_setg(errp, "drive property not set");
@@ -513,6 +514,13 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     /* get LUN of the /dev/sg? */
     if (blk_ioctl(s->conf.blk, SG_GET_SCSI_ID, &scsiid)) {
         error_setg(errp, "SG_GET_SCSI_ID ioctl failed");
+        return;
+    }
+    blkconf_apply_backend_options(&s->conf,
+                                  blk_is_read_only(s->conf.blk),
+                                  true, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -565,6 +573,7 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
 
 static Property scsi_generic_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDevice, conf.blk),
+    DEFINE_PROP_BOOL("share-rw", SCSIDevice, conf.share_rw, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

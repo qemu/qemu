@@ -39,7 +39,7 @@
     if (DEBUG_DPCD) {                                                          \
         qemu_log("dpcd: " fmt, ## __VA_ARGS__);                                \
     }                                                                          \
-} while (0);
+} while (0)
 
 #define DPCD_READABLE_AREA                      0x600
 

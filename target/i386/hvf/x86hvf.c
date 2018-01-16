@@ -297,7 +297,6 @@ int hvf_get_registers(CPUState *cpu_state)
     X86CPU *x86cpu = X86_CPU(cpu_state);
     CPUX86State *env = &x86cpu->env;
 
-
     env->regs[R_EAX] = rreg(cpu_state->hvf_fd, HV_X86_RAX);
     env->regs[R_EBX] = rreg(cpu_state->hvf_fd, HV_X86_RBX);
     env->regs[R_ECX] = rreg(cpu_state->hvf_fd, HV_X86_RCX);
@@ -333,6 +332,7 @@ int hvf_get_registers(CPUState *cpu_state)
     env->dr[6] = rreg(cpu_state->hvf_fd, HV_X86_DR6);
     env->dr[7] = rreg(cpu_state->hvf_fd, HV_X86_DR7);
     
+    x86_update_hflags(env);
     return 0;
 }
 

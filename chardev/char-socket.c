@@ -57,7 +57,7 @@ typedef struct {
     bool is_telnet;
     bool is_tn3270;
 
-    guint reconnect_timer;
+    GSource *reconnect_timer;
     int64_t reconnect_time;
     bool connect_err_reported;
 } SocketChardev;
@@ -67,16 +67,27 @@ typedef struct {
 
 static gboolean socket_reconnect_timeout(gpointer opaque);
 
+static void tcp_chr_reconn_timer_cancel(SocketChardev *s)
+{
+    if (s->reconnect_timer) {
+        g_source_destroy(s->reconnect_timer);
+        g_source_unref(s->reconnect_timer);
+        s->reconnect_timer = NULL;
+    }
+}
+
 static void qemu_chr_socket_restart_timer(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     char *name;
 
     assert(s->connected == 0);
-    s->reconnect_timer = g_timeout_add_seconds(s->reconnect_time,
-                                               socket_reconnect_timeout, chr);
     name = g_strdup_printf("chardev-socket-reconnect-%s", chr->label);
-    g_source_set_name_by_id(s->reconnect_timer, name);
+    s->reconnect_timer = qemu_chr_timeout_add_ms(chr,
+                                                 s->reconnect_time * 1000,
+                                                 socket_reconnect_timeout,
+                                                 chr);
+    g_source_set_name(s->reconnect_timer, name);
     g_free(name);
 }
 
@@ -781,11 +792,7 @@ static void char_socket_finalize(Object *obj)
     SocketChardev *s = SOCKET_CHARDEV(obj);
 
     tcp_chr_free_connection(chr);
-
-    if (s->reconnect_timer) {
-        g_source_remove(s->reconnect_timer);
-        s->reconnect_timer = 0;
-    }
+    tcp_chr_reconn_timer_cancel(s);
     qapi_free_SocketAddress(s->addr);
     if (s->listener) {
         qio_net_listener_set_client_func(s->listener, NULL, NULL, NULL);
@@ -824,7 +831,8 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
     SocketChardev *s = SOCKET_CHARDEV(opaque);
     QIOChannelSocket *sioc;
 
-    s->reconnect_timer = 0;
+    g_source_unref(s->reconnect_timer);
+    s->reconnect_timer = NULL;
 
     if (chr->be_open) {
         return false;

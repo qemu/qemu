@@ -207,18 +207,14 @@ static int opc_index[256];
 static void
 init_disasm (struct disassemble_info *info)
 {
-  const struct s390_opcode *opcode;
-  const struct s390_opcode *opcode_end;
+  int i;
 
   memset (opc_index, 0, sizeof (opc_index));
-  opcode_end = s390_opcodes + s390_num_opcodes;
-  for (opcode = s390_opcodes; opcode < opcode_end; opcode++)
-    {
-      opc_index[(int) opcode->opcode[0]] = opcode - s390_opcodes;
-      while ((opcode < opcode_end) &&
-	     (opcode[1].opcode[0] == opcode->opcode[0]))
-	opcode++;
-    }
+
+  /* Reverse order, such that each opc_index ends up pointing to the
+     first matching entry instead of the last.  */
+  for (i = s390_num_opcodes; i--; )
+    opc_index[s390_opcodes[i].opcode[0]] = i;
 
 #ifdef QEMU_DISABLE
   switch (info->mach)

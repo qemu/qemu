@@ -22,9 +22,31 @@ typedef struct QemuThread QemuThread;
 
 void qemu_mutex_init(QemuMutex *mutex);
 void qemu_mutex_destroy(QemuMutex *mutex);
-void qemu_mutex_lock(QemuMutex *mutex);
-int qemu_mutex_trylock(QemuMutex *mutex);
-void qemu_mutex_unlock(QemuMutex *mutex);
+int qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file, const int line);
+void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line);
+void qemu_mutex_unlock_impl(QemuMutex *mutex, const char *file, const int line);
+
+#define qemu_mutex_lock(mutex) \
+        qemu_mutex_lock_impl(mutex, __FILE__, __LINE__)
+#define qemu_mutex_trylock(mutex) \
+        qemu_mutex_trylock_impl(mutex, __FILE__, __LINE__)
+#define qemu_mutex_unlock(mutex) \
+        qemu_mutex_unlock_impl(mutex, __FILE__, __LINE__)
+
+static inline void (qemu_mutex_lock)(QemuMutex *mutex)
+{
+    qemu_mutex_lock(mutex);
+}
+
+static inline int (qemu_mutex_trylock)(QemuMutex *mutex)
+{
+    return qemu_mutex_trylock(mutex);
+}
+
+static inline void (qemu_mutex_unlock)(QemuMutex *mutex)
+{
+    qemu_mutex_unlock(mutex);
+}
 
 /* Prototypes for other functions are in thread-posix.h/thread-win32.h.  */
 void qemu_rec_mutex_init(QemuRecMutex *mutex);
@@ -39,7 +61,16 @@ void qemu_cond_destroy(QemuCond *cond);
  */
 void qemu_cond_signal(QemuCond *cond);
 void qemu_cond_broadcast(QemuCond *cond);
-void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex);
+void qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex,
+                         const char *file, const int line);
+
+#define qemu_cond_wait(cond, mutex) \
+        qemu_cond_wait_impl(cond, mutex, __FILE__, __LINE__)
+
+static inline void (qemu_cond_wait)(QemuCond *cond, QemuMutex *mutex)
+{
+    qemu_cond_wait(cond, mutex);
+}
 
 void qemu_sem_init(QemuSemaphore *sem, int init);
 void qemu_sem_post(QemuSemaphore *sem);

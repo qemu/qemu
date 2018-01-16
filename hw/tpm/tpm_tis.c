@@ -90,7 +90,7 @@ typedef struct TPMState {
     if (DEBUG_TIS) { \
         printf(fmt, ## __VA_ARGS__); \
     } \
-} while (0);
+} while (0)
 
 /* tis registers */
 #define TPM_TIS_REG_ACCESS                0x00

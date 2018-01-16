@@ -38,7 +38,7 @@
     if (DEBUG_TPM) { \
         fprintf(stderr, fmt, ## __VA_ARGS__); \
     } \
-} while (0);
+} while (0)
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
 #define TPM_PASSTHROUGH(obj) \

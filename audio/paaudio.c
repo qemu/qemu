@@ -89,7 +89,7 @@ static inline int PA_STREAM_IS_GOOD(pa_stream_state_t x)
             }                                                   \
             goto label;                                         \
         }                                                       \
-    } while (0);
+    } while (0)
 
 #define CHECK_DEAD_GOTO(c, stream, rerror, label)                       \
     do {                                                                \
@@ -107,7 +107,7 @@ static inline int PA_STREAM_IS_GOOD(pa_stream_state_t x)
             }                                                           \
             goto label;                                                 \
         }                                                               \
-    } while (0);
+    } while (0)
 
 static int qpa_simple_read (PAVoiceIn *p, void *data, size_t length, int *rerror)
 {
