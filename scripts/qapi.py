@@ -11,6 +11,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from __future__ import print_function
 import errno
 import getopt
 import os
@@ -1467,7 +1468,7 @@ class QAPISchema(object):
             self._def_exprs()
             self.check()
         except QAPIError as err:
-            print >>sys.stderr, err
+            print(err, file=sys.stderr)
             exit(1)
 
     def _def_entity(self, ent):
@@ -1931,7 +1932,7 @@ def parse_command_line(extra_options='', extra_long_options=[]):
                                        ['source', 'header', 'prefix=',
                                         'output-dir='] + extra_long_options)
     except getopt.GetoptError as err:
-        print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
+        print("%s: %s" % (sys.argv[0], str(err)), file=sys.stderr)
         sys.exit(1)
 
     output_dir = ''
@@ -1945,9 +1946,8 @@ def parse_command_line(extra_options='', extra_long_options=[]):
         if o in ('-p', '--prefix'):
             match = re.match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
             if match.end() != len(a):
-                print >>sys.stderr, \
-                    "%s: 'funny character '%s' in argument of --prefix" \
-                    % (sys.argv[0], a[match.end()])
+                print("%s: 'funny character '%s' in argument of --prefix" \
+                      % (sys.argv[0], a[match.end()]), file=sys.stderr)
                 sys.exit(1)
             prefix = a
         elif o in ('-o', '--output-dir'):
@@ -1964,7 +1964,7 @@ def parse_command_line(extra_options='', extra_long_options=[]):
         do_h = True
 
     if len(args) != 1:
-        print >>sys.stderr, "%s: need exactly one argument" % sys.argv[0]
+        print("%s: need exactly one argument" % sys.argv[0], file=sys.stderr)
         sys.exit(1)
     fname = args[0]
 

@@ -4,6 +4,7 @@
 # This work is licensed under the terms of the GNU LGPL, version 2+.
 # See the COPYING file in the top-level directory.
 """This script produces the documentation of a qapi schema in texinfo format"""
+from __future__ import print_function
 import re
 import sys
 
@@ -274,15 +275,15 @@ def texi_schema(schema):
 def main(argv):
     """Takes schema argument, prints result to stdout"""
     if len(argv) != 2:
-        print >>sys.stderr, "%s: need exactly 1 argument: SCHEMA" % argv[0]
+        print("%s: need exactly 1 argument: SCHEMA" % argv[0], file=sys.stderr)
         sys.exit(1)
 
     schema = qapi.QAPISchema(argv[1])
     if not qapi.doc_required:
-        print >>sys.stderr, ("%s: need pragma 'doc-required' "
-                             "to generate documentation" % argv[0])
+        print("%s: need pragma 'doc-required' "
+               "to generate documentation" % argv[0], file=sys.stderr)
         sys.exit(1)
-    print texi_schema(schema)
+    print(texi_schema(schema))
 
 
 if __name__ == '__main__':
