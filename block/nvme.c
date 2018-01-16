@@ -22,12 +22,7 @@
 #include "block/block_int.h"
 #include "trace.h"
 
-/* TODO: Move nvme spec definitions from hw/block/nvme.h into a separate file
- * that doesn't depend on dma/pci headers. */
-#include "sysemu/dma.h"
-#include "hw/pci/pci.h"
-#include "hw/block/block.h"
-#include "hw/block/nvme.h"
+#include "block/nvme.h"
 
 #define NVME_SQ_ENTRY_BYTES 64
 #define NVME_CQ_ENTRY_BYTES 16
