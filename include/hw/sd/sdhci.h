@@ -72,8 +72,8 @@ typedef struct SDHCIState {
     uint64_t admasysaddr;  /* ADMA System Address Register */
 
     /* Read-only registers */
-    uint32_t capareg;      /* Capabilities Register */
-    uint32_t maxcurr;      /* Maximum Current Capabilities Register */
+    uint64_t capareg;      /* Capabilities Register */
+    uint64_t maxcurr;      /* Maximum Current Capabilities Register */
 
     uint8_t  *fifo_buffer; /* SD host i/o FIFO buffer */
     uint32_t buf_maxsz;
