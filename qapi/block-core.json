@@ -3359,6 +3359,24 @@
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
 
 ##
+# @BlockdevCreateOptionsFile:
+#
+# Driver specific image creation options for file.
+#
+# @filename         Filename for the new image file
+# @size             Size of the virtual disk in bytes
+# @preallocation    Preallocation mode for the new image (default: off)
+# @nocow            Turn off copy-on-write (valid only on btrfs; default: off)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsFile',
+  'data': { 'filename':         'str',
+            'size':             'size',
+            '*preallocation':   'PreallocMode',
+            '*nocow':           'bool' } }
+
+##
 # @BlockdevQcow2Version:
 #
 # @v2:  The original QCOW2 format as introduced in qemu 0.10 (version 2)
@@ -3429,7 +3447,7 @@
       'bochs':          'BlockdevCreateNotSupported',
       'cloop':          'BlockdevCreateNotSupported',
       'dmg':            'BlockdevCreateNotSupported',
-      'file':           'BlockdevCreateNotSupported',
+      'file':           'BlockdevCreateOptionsFile',
       'ftp':            'BlockdevCreateNotSupported',
       'ftps':           'BlockdevCreateNotSupported',
       'gluster':        'BlockdevCreateNotSupported',
