@@ -63,7 +63,7 @@ for doc in schema.docs:
     else:
         print('doc freeform')
     print('    body=\n%s' % doc.body.text)
-    for arg, section in doc.args.iteritems():
+    for arg, section in doc.args.items():
         print('    arg=%s\n%s' % (arg, section.text))
     for section in doc.sections:
         print('    section=%s\n%s' % (section.name, section.text))

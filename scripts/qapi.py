@@ -245,7 +245,7 @@ class QAPIDoc(object):
                                "'Returns:' is only valid for commands")
 
     def check(self):
-        bogus = [name for name, section in self.args.iteritems()
+        bogus = [name for name, section in self.args.items()
                  if not section.member]
         if bogus:
             raise QAPISemError(
@@ -300,7 +300,7 @@ class QAPISchemaParser(object):
                 if not isinstance(pragma, dict):
                     raise QAPISemError(
                         info, "Value of 'pragma' must be a dictionary")
-                for name, value in pragma.iteritems():
+                for name, value in pragma.items():
                     self._pragma(name, value, info)
             else:
                 expr_elem = {'expr': expr,
@@ -1566,7 +1566,7 @@ class QAPISchema(object):
 
     def _make_members(self, data, info):
         return [self._make_member(key, value, info)
-                for (key, value) in data.iteritems()]
+                for (key, value) in data.items()]
 
     def _def_struct_type(self, expr, info, doc):
         name = expr['struct']
@@ -1598,11 +1598,11 @@ class QAPISchema(object):
                 name, info, doc, 'base', self._make_members(base, info)))
         if tag_name:
             variants = [self._make_variant(key, value)
-                        for (key, value) in data.iteritems()]
+                        for (key, value) in data.items()]
             members = []
         else:
             variants = [self._make_simple_variant(key, value, info)
-                        for (key, value) in data.iteritems()]
+                        for (key, value) in data.items()]
             typ = self._make_implicit_enum_type(name, info,
                                                 [v.name for v in variants])
             tag_member = QAPISchemaObjectTypeMember('type', typ, False)
@@ -1617,7 +1617,7 @@ class QAPISchema(object):
         name = expr['alternate']
         data = expr['data']
         variants = [self._make_variant(key, value)
-                    for (key, value) in data.iteritems()]
+                    for (key, value) in data.items()]
         tag_member = QAPISchemaObjectTypeMember('type', 'QType', False)
         self._def_entity(
             QAPISchemaAlternateType(name, info, doc,
