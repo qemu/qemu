@@ -9272,6 +9272,13 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                 case 6:
                     *prot |= PAGE_READ | PAGE_EXEC;
                     break;
+                case 7:
+                    /* for v7M, same as 6; for R profile a reserved value */
+                    if (arm_feature(env, ARM_FEATURE_M)) {
+                        *prot |= PAGE_READ | PAGE_EXEC;
+                        break;
+                    }
+                    /* fall through */
                 default:
                     qemu_log_mask(LOG_GUEST_ERROR,
                                   "DRACR[%d]: Bad value for AP bits: 0x%"
@@ -9290,6 +9297,13 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                 case 6:
                     *prot |= PAGE_READ | PAGE_EXEC;
                     break;
+                case 7:
+                    /* for v7M, same as 6; for R profile a reserved value */
+                    if (arm_feature(env, ARM_FEATURE_M)) {
+                        *prot |= PAGE_READ | PAGE_EXEC;
+                        break;
+                    }
+                    /* fall through */
                 default:
                     qemu_log_mask(LOG_GUEST_ERROR,
                                   "DRACR[%d]: Bad value for AP bits: 0x%"
