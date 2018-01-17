@@ -237,10 +237,10 @@ KEYCODEMAP_FILES = \
 		 ui/input-keymap-qcode-to-atset1.c \
 		 ui/input-keymap-qcode-to-atset2.c \
 		 ui/input-keymap-qcode-to-atset3.c \
+		 ui/input-keymap-qcode-to-linux.c \
 		 ui/input-keymap-qcode-to-qnum.c \
 		 ui/input-keymap-qcode-to-sun.c \
 		 ui/input-keymap-qnum-to-qcode.c \
-		 ui/input-keymap-qcode-to-linux.c \
 		 ui/input-keymap-usb-to-qcode.c \
 		 ui/input-keymap-win32-to-qcode.c \
 		 ui/input-keymap-x11-to-qcode.c \
