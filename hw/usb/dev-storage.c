@@ -635,7 +635,8 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
     scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
                  &usb_msd_scsi_info_storage, NULL);
     scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
-                                         s->conf.bootindex, dev->serial,
+                                         s->conf.bootindex, s->conf.share_rw,
+                                         dev->serial,
                                          &err);
     blk_unref(blk);
     if (!scsi_dev) {
