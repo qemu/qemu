@@ -80,4 +80,7 @@ extern const guint16 qemu_input_map_qnum_to_qcode[];
 extern const guint qemu_input_map_qcode_to_linux_len;
 extern const guint16 qemu_input_map_qcode_to_linux[];
 
+extern const guint qemu_input_map_usb_to_qcode_len;
+extern const guint16 qemu_input_map_usb_to_qcode[];
+
 #endif /* INPUT_H */

@@ -9,6 +9,7 @@
 #include "ui/input-keymap-qcode-to-qnum.c"
 #include "ui/input-keymap-qnum-to-qcode.c"
 #include "ui/input-keymap-qcode-to-linux.c"
+#include "ui/input-keymap-usb-to-qcode.c"
 
 int qemu_input_linux_to_qcode(unsigned int lnx)
 {

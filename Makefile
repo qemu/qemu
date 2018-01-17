@@ -236,6 +236,7 @@ KEYCODEMAP_FILES = \
 		 ui/input-keymap-qcode-to-qnum.c \
 		 ui/input-keymap-qnum-to-qcode.c \
 		 ui/input-keymap-qcode-to-linux.c \
+		 ui/input-keymap-usb-to-qcode.c \
 		 $(NULL)
 
 GENERATED_FILES += $(KEYCODEMAP_FILES)
