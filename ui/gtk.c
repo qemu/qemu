@@ -1206,6 +1206,12 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
         return TRUE;
     }
 
+#ifdef WIN32
+    /* on windows, we ought to ignore the reserved key event? */
+    if (key->hardware_keycode == 0xff)
+        return false;
+#endif
+
     if (key->keyval == GDK_KEY_Pause
 #ifdef G_OS_WIN32
         /* for some reason GDK does not fill keyval for VK_PAUSE
