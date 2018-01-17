@@ -52,7 +52,6 @@
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
-#include "x_keymap.h"
 #include "keymaps.h"
 #include "chardev/char.h"
 #include "qom/object.h"
@@ -64,6 +63,48 @@
 #define VC_TERM_Y_MIN     25
 #define VC_SCALE_MIN    0.25
 #define VC_SCALE_STEP   0.25
+
+#ifdef GDK_WINDOWING_X11
+#include "ui/x_keymap.h"
+
+/* Gtk2 compat */
+#ifndef GDK_IS_X11_DISPLAY
+#define GDK_IS_X11_DISPLAY(dpy) (dpy != NULL)
+#endif
+#endif
+
+
+#ifdef GDK_WINDOWING_WAYLAND
+/* Gtk2 compat */
+#ifndef GDK_IS_WAYLAND_DISPLAY
+#define GDK_IS_WAYLAND_DISPLAY(dpy) (dpy != NULL)
+#endif
+#endif
+
+
+#ifdef GDK_WINDOWING_WIN32
+/* Gtk2 compat */
+#ifndef GDK_IS_WIN32_DISPLAY
+#define GDK_IS_WIN32_DISPLAY(dpy) (dpy != NULL)
+#endif
+#endif
+
+
+#ifdef GDK_WINDOWING_BROADWAY
+/* Gtk2 compat */
+#ifndef GDK_IS_BROADWAY_DISPLAY
+#define GDK_IS_BROADWAY_DISPLAY(dpy) (dpy != NULL)
+#endif
+#endif
+
+
+#ifdef GDK_WINDOWING_QUARTZ
+/* Gtk2 compat */
+#ifndef GDK_IS_QUARTZ_DISPLAY
+#define GDK_IS_QUARTZ_DISPLAY(dpy) (dpy != NULL)
+#endif
+#endif
+
 
 #if !defined(CONFIG_VTE)
 # define VTE_CHECK_VERSION(a, b, c) 0
@@ -123,9 +164,18 @@
 #define HOTKEY_MODIFIERS        (GDK_CONTROL_MASK | GDK_MOD1_MASK)
 
 static const int modifier_keycode[] = {
-    /* shift, control, alt keys, meta keys, both left & right */
-    0x2a, 0x36, 0x1d, 0x9d, 0x38, 0xb8, 0xdb, 0xdd,
+    Q_KEY_CODE_SHIFT,
+    Q_KEY_CODE_SHIFT_R,
+    Q_KEY_CODE_CTRL,
+    Q_KEY_CODE_CTRL_R,
+    Q_KEY_CODE_ALT,
+    Q_KEY_CODE_ALT_R,
+    Q_KEY_CODE_META_L,
+    Q_KEY_CODE_META_R,
 };
+
+static const guint16 *keycode_map;
+static size_t keycode_maplen;
 
 struct GtkDisplayState {
     GtkWidget *window;
@@ -178,7 +228,6 @@ struct GtkDisplayState {
     bool external_pause_update;
 
     bool modifier_pressed[ARRAY_SIZE(modifier_keycode)];
-    bool has_evdev;
     bool ignore_keys;
 };
 
@@ -412,18 +461,18 @@ static void gd_update_full_redraw(VirtualConsole *vc)
 static void gtk_release_modifiers(GtkDisplayState *s)
 {
     VirtualConsole *vc = gd_vc_find_current(s);
-    int i, keycode;
+    int i, qcode;
 
     if (vc->type != GD_VC_GFX ||
         !qemu_console_is_graphic(vc->gfx.dcl.con)) {
         return;
     }
     for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
-        keycode = modifier_keycode[i];
+        qcode = modifier_keycode[i];
         if (!s->modifier_pressed[i]) {
             continue;
         }
-        qemu_input_event_send_key_number(vc->gfx.dcl.con, keycode, false);
+        qemu_input_event_send_key_qcode(vc->gfx.dcl.con, qcode, false);
         s->modifier_pressed[i] = false;
     }
 }
@@ -1057,47 +1106,75 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
     return TRUE;
 }
 
-static int gd_map_keycode(GtkDisplayState *s, GdkDisplay *dpy, int gdk_keycode)
+
+static const guint16 *gd_get_keymap(size_t *maplen)
 {
-    int qemu_keycode;
+    GdkDisplay *dpy = gdk_display_get_default();
+
+#ifdef GDK_WINDOWING_X11
+    if (GDK_IS_X11_DISPLAY(dpy)) {
+        trace_gd_keymap_windowing("x11");
+        return qemu_xkeymap_mapping_table(
+            gdk_x11_display_get_xdisplay(dpy), maplen);
+    }
+#endif
+
+#ifdef GDK_WINDOWING_WAYLAND
+    if (GDK_IS_WAYLAND_DISPLAY(dpy)) {
+        trace_gd_keymap_windowing("wayland");
+        *maplen = qemu_input_map_xorgevdev_to_qcode_len;
+        return qemu_input_map_xorgevdev_to_qcode;
+    }
+#endif
 
 #ifdef GDK_WINDOWING_WIN32
     if (GDK_IS_WIN32_DISPLAY(dpy)) {
-        qemu_keycode = MapVirtualKey(gdk_keycode, MAPVK_VK_TO_VSC);
-        switch (qemu_keycode) {
-        case 103:   /* alt gr */
-            qemu_keycode = 56 | SCANCODE_GREY;
-            break;
-        }
-        return qemu_keycode;
+        trace_gd_keymap_windowing("win32");
+        *maplen = qemu_input_map_win32_to_qcode_len;
+        return qemu_input_map_win32_to_qcode;
     }
 #endif
 
-    if (gdk_keycode < 9) {
-        qemu_keycode = 0;
-    } else if (gdk_keycode < 97) {
-        qemu_keycode = gdk_keycode - 8;
-#ifdef GDK_WINDOWING_X11
-    } else if (GDK_IS_X11_DISPLAY(dpy) && gdk_keycode < 158) {
-        if (s->has_evdev) {
-            qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
-        } else {
-            qemu_keycode = translate_xfree86_keycode(gdk_keycode - 97);
-        }
+#ifdef GDK_WINDOWING_QUARTZ
+    if (GDK_IS_QUARTZ_DISPLAY(dpy)) {
+        trace_gd_keymap_windowing("quartz");
+        *maplen = qemu_input_map_osx_to_qcode_len;
+        return qemu_input_map_osx_to_qcode;
+    }
 #endif
-#ifdef GDK_WINDOWING_WAYLAND
-    } else if (GDK_IS_WAYLAND_DISPLAY(dpy) && gdk_keycode < 158) {
-        qemu_keycode = translate_evdev_keycode(gdk_keycode - 97);
+
+#ifdef GDK_WINDOWING_BROADWAY
+    if (GDK_IS_BROADWAY_DISPLAY(dpy)) {
+        trace_gd_keymap_windowing("broadway");
+        g_warning("experimental: using broadway, x11 virtual keysym\n"
+                  "mapping - with very limited support. See also\n"
+                  "https://bugzilla.gnome.org/show_bug.cgi?id=700105");
+        *maplen = qemu_input_map_x11_to_qcode_len;
+        return qemu_input_map_x11_to_qcode;
+    }
 #endif
-    } else if (gdk_keycode == 208) { /* Hiragana_Katakana */
-        qemu_keycode = 0x70;
-    } else if (gdk_keycode == 211) { /* backslash */
-        qemu_keycode = 0x73;
-    } else {
-        qemu_keycode = 0;
+
+    g_warning("Unsupported GDK Windowing platform.\n"
+              "Disabling extended keycode tables.\n"
+              "Please report to qemu-devel@nongnu.org\n"
+              "including the following information:\n"
+              "\n"
+              "  - Operating system\n"
+              "  - GDK Windowing system build\n");
+    return NULL;
+}
+
+
+static int gd_map_keycode(int scancode)
+{
+    if (!keycode_map) {
+        return 0;
+    }
+    if (scancode > keycode_maplen) {
+        return 0;
     }
 
-    return qemu_keycode;
+    return keycode_map[scancode];
 }
 
 static gboolean gd_text_key_down(GtkWidget *widget,
@@ -1111,9 +1188,7 @@ static gboolean gd_text_key_down(GtkWidget *widget,
     } else if (key->length) {
         kbd_put_string_console(con, key->string, key->length);
     } else {
-        int num = gd_map_keycode(vc->s, gtk_widget_get_display(widget),
-                                 key->hardware_keycode);
-        int qcode = qemu_input_key_number_to_qcode(num);
+        int qcode = gd_map_keycode(key->hardware_keycode);
         kbd_put_qcode_console(con, qcode);
     }
     return TRUE;
@@ -1123,8 +1198,7 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
 {
     VirtualConsole *vc = opaque;
     GtkDisplayState *s = vc->s;
-    int gdk_keycode = key->hardware_keycode;
-    int qemu_keycode;
+    int qcode;
     int i;
 
     if (s->ignore_keys) {
@@ -1138,20 +1212,19 @@ static gboolean gd_key_event(GtkWidget *widget, GdkEventKey *key, void *opaque)
         return TRUE;
     }
 
-    qemu_keycode = gd_map_keycode(s, gtk_widget_get_display(widget),
-                                  gdk_keycode);
+    qcode = gd_map_keycode(key->hardware_keycode);
 
-    trace_gd_key_event(vc->label, gdk_keycode, qemu_keycode,
+    trace_gd_key_event(vc->label, key->hardware_keycode, qcode,
                        (key->type == GDK_KEY_PRESS) ? "down" : "up");
 
     for (i = 0; i < ARRAY_SIZE(modifier_keycode); i++) {
-        if (qemu_keycode == modifier_keycode[i]) {
+        if (qcode == modifier_keycode[i]) {
             s->modifier_pressed[i] = (key->type == GDK_KEY_PRESS);
         }
     }
 
-    qemu_input_event_send_key_number(vc->gfx.dcl.con, qemu_keycode,
-                                     key->type == GDK_KEY_PRESS);
+    qemu_input_event_send_key_qcode(vc->gfx.dcl.con, qcode,
+                                    key->type == GDK_KEY_PRESS);
 
     return TRUE;
 }
@@ -2200,38 +2273,6 @@ static void gd_create_menus(GtkDisplayState *s)
     gtk_window_add_accel_group(GTK_WINDOW(s->window), s->accel_group);
 }
 
-static void gd_set_keycode_type(GtkDisplayState *s)
-{
-#ifdef GDK_WINDOWING_X11
-    GdkDisplay *display = gtk_widget_get_display(s->window);
-    if (GDK_IS_X11_DISPLAY(display)) {
-        Display *x11_display = gdk_x11_display_get_xdisplay(display);
-        XkbDescPtr desc = XkbGetMap(x11_display, XkbGBN_AllComponentsMask,
-                                    XkbUseCoreKbd);
-        char *keycodes = NULL;
-
-        if (desc &&
-            (XkbGetNames(x11_display, XkbKeycodesNameMask, desc) == Success)) {
-            keycodes = XGetAtomName(x11_display, desc->names->keycodes);
-        }
-        if (keycodes == NULL) {
-            fprintf(stderr, "could not lookup keycode name\n");
-        } else if (strstart(keycodes, "evdev", NULL)) {
-            s->has_evdev = true;
-        } else if (!strstart(keycodes, "xfree86", NULL)) {
-            fprintf(stderr, "unknown keycodes `%s', please report to "
-                    "qemu-devel@nongnu.org\n", keycodes);
-        }
-
-        if (desc) {
-            XkbFreeKeyboard(desc, XkbGBN_AllComponentsMask, True);
-        }
-        if (keycodes) {
-            XFree(keycodes);
-        }
-    }
-#endif
-}
 
 static gboolean gtkinit;
 
@@ -2339,8 +2380,6 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     if (grab_on_hover) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
-
-    gd_set_keycode_type(s);
 }
 
 void early_gtk_display_init(int opengl)
@@ -2386,6 +2425,8 @@ void early_gtk_display_init(int opengl)
         g_assert_not_reached();
         break;
     }
+
+    keycode_map = gd_get_keymap(&keycode_maplen);
 
 #if defined(CONFIG_VTE)
     type_register(&char_gd_vc_type_info);

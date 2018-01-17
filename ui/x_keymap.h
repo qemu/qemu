@@ -1,7 +1,7 @@
 /*
- * QEMU SDL display driver
+ * QEMU X11 keymaps
  *
- * Copyright (c) 2003 Fabrice Bellard
+ * Copyright (c) 2017 Red Hat, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,8 +25,8 @@
 #ifndef QEMU_X_KEYMAP_H
 #define QEMU_X_KEYMAP_H
 
-uint8_t translate_xfree86_keycode(const int key);
+#include <X11/Xlib.h>
 
-uint8_t translate_evdev_keycode(const int key);
+const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen);
 
 #endif

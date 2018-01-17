@@ -34,7 +34,9 @@
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
+#ifndef WIN32
 #include "x_keymap.h"
+#endif
 #include "sdl_zoom.h"
 
 static DisplayChangeListener *dcl;
@@ -63,6 +65,8 @@ static SDL_PixelFormat host_format;
 static int scaling_active = 0;
 static Notifier mouse_mode_notifier;
 static int idle_counter;
+static const guint16 *keycode_map;
+static size_t keycode_maplen;
 
 #define SDL_REFRESH_INTERVAL_BUSY 10
 #define SDL_MAX_IDLE_COUNT (2 * GUI_REFRESH_INTERVAL_DEFAULT \
@@ -208,94 +212,45 @@ static uint8_t sdl_keyevent_to_keycode_generic(const SDL_KeyboardEvent *ev)
     return keysym2scancode(kbd_layout, keysym) & SCANCODE_KEYMASK;
 }
 
-/* specific keyboard conversions from scan codes */
 
-#if defined(_WIN32)
-
-static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
+static const guint16 *sdl_get_keymap(size_t *maplen)
 {
-    return ev->keysym.scancode;
-}
-
+#if defined(WIN32)
+    *maplen = qemu_input_map_atset1_to_qcode_len;
+    return qemu_input_map_atset1_to_qcode;
 #else
-
 #if defined(SDL_VIDEO_DRIVER_X11)
-#include <X11/XKBlib.h>
-
-static int check_for_evdev(void)
-{
     SDL_SysWMinfo info;
-    XkbDescPtr desc = NULL;
-    int has_evdev = 0;
-    char *keycodes = NULL;
 
     SDL_VERSION(&info.version);
-    if (!SDL_GetWMInfo(&info)) {
-        return 0;
+    if (SDL_GetWMInfo(&info) > 0) {
+        return qemu_xkeymap_mapping_table(
+            info.info.x11.display, maplen);
     }
-    desc = XkbGetMap(info.info.x11.display,
-                     XkbGBN_AllComponentsMask,
-                     XkbUseCoreKbd);
-    if (desc &&
-        (XkbGetNames(info.info.x11.display,
-                     XkbKeycodesNameMask, desc) == Success)) {
-        keycodes = XGetAtomName(info.info.x11.display, desc->names->keycodes);
-        if (keycodes == NULL) {
-            fprintf(stderr, "could not lookup keycode name\n");
-        } else if (strstart(keycodes, "evdev", NULL)) {
-            has_evdev = 1;
-        } else if (!strstart(keycodes, "xfree86", NULL)) {
-            fprintf(stderr, "unknown keycodes `%s', please report to "
-                    "qemu-devel@nongnu.org\n", keycodes);
-        }
-    }
-
-    if (desc) {
-        XkbFreeKeyboard(desc, XkbGBN_AllComponentsMask, True);
-    }
-    if (keycodes) {
-        XFree(keycodes);
-    }
-    return has_evdev;
-}
-#else
-static int check_for_evdev(void)
-{
-	return 0;
-}
 #endif
+    g_warning("Unsupported SDL video driver / platform.\n"
+              "Assuming Linux KBD scancodes, but probably wrong.\n"
+              "Please report to qemu-devel@nongnu.org\n"
+              "including the following information:\n"
+              "\n"
+              "  - Operating system\n"
+              "  - SDL video driver\n");
+    *maplen = qemu_input_map_xorgkbd_to_qcode_len;
+    return qemu_input_map_xorgkbd_to_qcode;
+#endif
+}
 
 static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
 {
-    int keycode;
-    static int has_evdev = -1;
-
-    if (has_evdev == -1)
-        has_evdev = check_for_evdev();
-
-    keycode = ev->keysym.scancode;
-
-    if (keycode < 9) {
-        keycode = 0;
-    } else if (keycode < 97) {
-        keycode -= 8; /* just an offset */
-    } else if (keycode < 158) {
-        /* use conversion table */
-        if (has_evdev)
-            keycode = translate_evdev_keycode(keycode - 97);
-        else
-            keycode = translate_xfree86_keycode(keycode - 97);
-    } else if (keycode == 208) { /* Hiragana_Katakana */
-        keycode = 0x70;
-    } else if (keycode == 211) { /* backslash */
-        keycode = 0x73;
-    } else {
-        keycode = 0;
+    if (!keycode_map) {
+        return 0;
     }
-    return keycode;
-}
+    if (ev->keysym.scancode > keycode_maplen) {
+        return 0;
+    }
 
-#endif
+    return keycode_map[ev->keysym.scancode];
+}
 
 static void reset_keys(void)
 {
@@ -994,6 +949,8 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     }
     vi = SDL_GetVideoInfo();
     host_format = *(vi->vfmt);
+
+    keycode_map = sdl_get_keymap(&keycode_maplen);
 
     /* Load a 32x32x4 image. White pixels are transparent. */
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu-icon.bmp");

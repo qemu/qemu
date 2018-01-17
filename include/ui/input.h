@@ -68,6 +68,9 @@ void qemu_input_check_mode_change(void);
 void qemu_add_mouse_mode_change_notifier(Notifier *notify);
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
 
+extern const guint qemu_input_map_atset1_to_qcode_len;
+extern const guint16 qemu_input_map_atset1_to_qcode[];
+
 extern const guint qemu_input_map_linux_to_qcode_len;
 extern const guint16 qemu_input_map_linux_to_qcode[];
 
@@ -82,5 +85,23 @@ extern const guint16 qemu_input_map_qcode_to_linux[];
 
 extern const guint qemu_input_map_usb_to_qcode_len;
 extern const guint16 qemu_input_map_usb_to_qcode[];
+
+extern const guint qemu_input_map_win32_to_qcode_len;
+extern const guint16 qemu_input_map_win32_to_qcode[];
+
+extern const guint qemu_input_map_x11_to_qcode_len;
+extern const guint16 qemu_input_map_x11_to_qcode[];
+
+extern const guint qemu_input_map_xorgevdev_to_qcode_len;
+extern const guint16 qemu_input_map_xorgevdev_to_qcode[];
+
+extern const guint qemu_input_map_xorgkbd_to_qcode_len;
+extern const guint16 qemu_input_map_xorgkbd_to_qcode[];
+
+extern const guint qemu_input_map_xorgxquartz_to_qcode_len;
+extern const guint16 qemu_input_map_xorgxquartz_to_qcode[];
+
+extern const guint qemu_input_map_xorgxwin_to_qcode_len;
+extern const guint16 qemu_input_map_xorgxwin_to_qcode[];
 
 #endif /* INPUT_H */
