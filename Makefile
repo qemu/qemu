@@ -234,6 +234,9 @@ KEYCODEMAP_CSV = $(SRC_PATH)/ui/keycodemapdb/data/keymaps.csv
 KEYCODEMAP_FILES = \
 		 ui/input-keymap-atset1-to-qcode.c \
 		 ui/input-keymap-linux-to-qcode.c \
+		 ui/input-keymap-qcode-to-atset1.c \
+		 ui/input-keymap-qcode-to-atset2.c \
+		 ui/input-keymap-qcode-to-atset3.c \
 		 ui/input-keymap-qcode-to-qnum.c \
 		 ui/input-keymap-qnum-to-qcode.c \
 		 ui/input-keymap-qcode-to-linux.c \
