@@ -89,6 +89,7 @@ static void s390_cpu_reset(CPUState *s)
     CPUS390XState *env = &cpu->env;
 
     env->pfault_token = -1UL;
+    env->bpbc = false;
     scc->parent_reset(s);
     cpu->env.sigp_order = 0;
     s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
