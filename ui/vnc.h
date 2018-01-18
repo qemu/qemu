@@ -278,8 +278,8 @@ struct VncState
     int last_x;
     int last_y;
     uint32_t last_bmask;
-    int client_width;
-    int client_height;
+    size_t client_width; /* limited to u16 by RFB proto */
+    size_t client_height; /* limited to u16 by RFB proto */
     VncShareMode share_mode;
 
     uint32_t vnc_encoding;
