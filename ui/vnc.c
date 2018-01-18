@@ -672,6 +672,11 @@ static void vnc_desktop_resize(VncState *vs)
         vs->client_height == pixman_image_get_height(vs->vd->server)) {
         return;
     }
+
+    assert(pixman_image_get_width(vs->vd->server) < 65536 &&
+           pixman_image_get_width(vs->vd->server) >= 0);
+    assert(pixman_image_get_height(vs->vd->server) < 65536 &&
+           pixman_image_get_height(vs->vd->server) >= 0);
     vs->client_width = pixman_image_get_width(vs->vd->server);
     vs->client_height = pixman_image_get_height(vs->vd->server);
     vnc_lock_output(vs);
@@ -2490,6 +2495,10 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
         return 0;
     }
 
+    assert(pixman_image_get_width(vs->vd->server) < 65536 &&
+           pixman_image_get_width(vs->vd->server) >= 0);
+    assert(pixman_image_get_height(vs->vd->server) < 65536 &&
+           pixman_image_get_height(vs->vd->server) >= 0);
     vs->client_width = pixman_image_get_width(vs->vd->server);
     vs->client_height = pixman_image_get_height(vs->vd->server);
     vnc_write_u16(vs, vs->client_width);
