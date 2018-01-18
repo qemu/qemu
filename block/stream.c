@@ -188,6 +188,8 @@ static void coroutine_fn stream_run(void *opaque)
         s->common.offset += n;
         if (copy && s->common.speed) {
             delay_ns = ratelimit_calculate_delay(&s->limit, n);
+        } else {
+            delay_ns = 0;
         }
     }
 
