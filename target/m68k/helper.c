@@ -230,6 +230,19 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
     case M68K_CR_ISP:
         env->sp[M68K_ISP] = val;
         return;
+    /* MC68040/MC68LC040 */
+    case M68K_CR_ITT0:
+        env->mmu.ttr[M68K_ITTR0] = val;
+        return;
+    case M68K_CR_ITT1:
+         env->mmu.ttr[M68K_ITTR1] = val;
+        return;
+    case M68K_CR_DTT0:
+        env->mmu.ttr[M68K_DTTR0] = val;
+        return;
+    case M68K_CR_DTT1:
+        env->mmu.ttr[M68K_DTTR1] = val;
+        return;
     }
     cpu_abort(CPU(cpu), "Unimplemented control register write 0x%x = 0x%x\n",
               reg, val);
@@ -260,6 +273,14 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
     /* MC68040/MC68LC040 */
     case M68K_CR_URP:
         return env->mmu.urp;
+    case M68K_CR_ITT0:
+        return env->mmu.ttr[M68K_ITTR0];
+    case M68K_CR_ITT1:
+        return env->mmu.ttr[M68K_ITTR1];
+    case M68K_CR_DTT0:
+        return env->mmu.ttr[M68K_DTTR0];
+    case M68K_CR_DTT1:
+        return env->mmu.ttr[M68K_DTTR1];
     }
     cpu_abort(CPU(cpu), "Unimplemented control register read 0x%x\n",
               reg);
@@ -338,6 +359,53 @@ int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
 
 /* MMU: 68040 only */
 
+static int check_TTR(uint32_t ttr, int *prot, target_ulong addr,
+                     int access_type)
+{
+    uint32_t base, mask;
+
+    /* check if transparent translation is enabled */
+    if ((ttr & M68K_TTR_ENABLED) == 0) {
+        return 0;
+    }
+
+    /* check mode access */
+    switch (ttr & M68K_TTR_SFIELD) {
+    case M68K_TTR_SFIELD_USER:
+        /* match only if user */
+        if ((access_type & ACCESS_SUPER) != 0) {
+            return 0;
+        }
+        break;
+    case M68K_TTR_SFIELD_SUPER:
+        /* match only if supervisor */
+        if ((access_type & ACCESS_SUPER) == 0) {
+            return 0;
+        }
+        break;
+    default:
+        /* all other values disable mode matching (FC2) */
+        break;
+    }
+
+    /* check address matching */
+
+    base = ttr & M68K_TTR_ADDR_BASE;
+    mask = (ttr & M68K_TTR_ADDR_MASK) ^ M68K_TTR_ADDR_MASK;
+    mask <<= M68K_TTR_ADDR_MASK_SHIFT;
+
+    if ((addr & mask) != (base & mask)) {
+        return 0;
+    }
+
+    *prot = PAGE_READ | PAGE_EXEC;
+    if ((ttr & M68K_DESC_WRITEPROT) == 0) {
+        *prot |= PAGE_WRITE;
+    }
+
+    return 1;
+}
+
 static int get_physical_address(CPUM68KState *env, hwaddr *physical,
                                 int *prot, target_ulong address,
                                 int access_type, target_ulong *page_size)
@@ -349,6 +417,17 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     target_ulong page_mask;
     bool debug = access_type & ACCESS_DEBUG;
     int page_bits;
+    int i;
+
+    /* Transparent Translation (physical = logical) */
+    for (i = 0; i < M68K_MAX_TTR; i++) {
+        if (check_TTR(env->mmu.TTR(access_type, i),
+                      prot, address, access_type)) {
+            *physical = address & TARGET_PAGE_MASK;
+            *page_size = TARGET_PAGE_SIZE;
+            return 0;
+        }
+    }
 
     /* Page Table Root Pointer */
     *prot = PAGE_READ | PAGE_WRITE;

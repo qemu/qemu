@@ -76,6 +76,14 @@
 #define EXCP_RTE            0x100
 #define EXCP_HALT_INSN      0x101
 
+#define M68K_DTTR0   0
+#define M68K_DTTR1   1
+#define M68K_ITTR0   2
+#define M68K_ITTR1   3
+
+#define M68K_MAX_TTR 2
+#define TTR(type, index) ttr[((type & ACCESS_CODE) == ACCESS_CODE) * 2 + index]
+
 #define NB_MMU_MODES 2
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
@@ -122,6 +130,7 @@ typedef struct CPUM68KState {
         uint32_t urp;
         uint32_t srp;
         bool fault;
+        uint32_t ttr[4];
     } mmu;
 
     /* Control registers.  */
@@ -317,6 +326,15 @@ typedef enum {
 #define M68K_PDT_VALID(entry)       (entry & 3)
 #define M68K_PDT_INDIRECT(entry)    ((entry & 3) == 2)
 #define M68K_INDIRECT_POINTER(addr) (addr & ~3)
+
+/* bits for 68040 MMU Transparent Translation Registers */
+#define M68K_TTR_ADDR_BASE 0xff000000
+#define M68K_TTR_ADDR_MASK 0x00ff0000
+#define M68K_TTR_ADDR_MASK_SHIFT    8
+#define M68K_TTR_ENABLED   0x00008000
+#define M68K_TTR_SFIELD    0x00006000
+#define M68K_TTR_SFIELD_USER   0x0000
+#define M68K_TTR_SFIELD_SUPER  0x2000
 
 /* m68k Control Registers */
 

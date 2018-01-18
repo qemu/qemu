@@ -5982,6 +5982,9 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "VBR = 0x%08x\n", env->vbr);
     cpu_fprintf(f, "SSW %08x TCR %08x URP %08x SRP %08x\n",
                 env->mmu.ssw, env->mmu.tcr, env->mmu.urp, env->mmu.srp);
+    cpu_fprintf(f, "DTTR0/1: %08x/%08x ITTR0/1: %08x/%08x\n",
+                env->mmu.ttr[M68K_DTTR0], env->mmu.ttr[M68K_DTTR1],
+                env->mmu.ttr[M68K_ITTR0], env->mmu.ttr[M68K_ITTR1]);
 #endif
 }
 
