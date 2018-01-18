@@ -1959,8 +1959,8 @@ static int parse_block_size_shift(BDRVSheepdogState *s, QemuOpts *opt)
     return 0;
 }
 
-static int sd_create(const char *filename, QemuOpts *opts,
-                     Error **errp)
+static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
+                                          Error **errp)
 {
     Error *err = NULL;
     int ret = 0;
@@ -3103,7 +3103,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_reopen_commit           = sd_reopen_commit,
     .bdrv_reopen_abort            = sd_reopen_abort,
     .bdrv_close                   = sd_close,
-    .bdrv_create                  = sd_create,
+    .bdrv_co_create_opts          = sd_co_create_opts,
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
@@ -3139,7 +3139,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_reopen_commit           = sd_reopen_commit,
     .bdrv_reopen_abort            = sd_reopen_abort,
     .bdrv_close                   = sd_close,
-    .bdrv_create                  = sd_create,
+    .bdrv_co_create_opts          = sd_co_create_opts,
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
@@ -3175,7 +3175,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_reopen_commit           = sd_reopen_commit,
     .bdrv_reopen_abort            = sd_reopen_abort,
     .bdrv_close                   = sd_close,
-    .bdrv_create                  = sd_create,
+    .bdrv_co_create_opts          = sd_co_create_opts,
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,

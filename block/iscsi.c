@@ -2117,7 +2117,8 @@ static int iscsi_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int iscsi_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn iscsi_co_create_opts(const char *filename, QemuOpts *opts,
+                                             Error **errp)
 {
     int ret = 0;
     int64_t total_size = 0;
@@ -2204,7 +2205,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_parse_filename    = iscsi_parse_filename,
     .bdrv_file_open         = iscsi_open,
     .bdrv_close             = iscsi_close,
-    .bdrv_create            = iscsi_create,
+    .bdrv_co_create_opts    = iscsi_co_create_opts,
     .create_opts            = &iscsi_create_opts,
     .bdrv_reopen_prepare    = iscsi_reopen_prepare,
     .bdrv_reopen_commit     = iscsi_reopen_commit,
@@ -2239,7 +2240,7 @@ static BlockDriver bdrv_iser = {
     .bdrv_parse_filename    = iscsi_parse_filename,
     .bdrv_file_open         = iscsi_open,
     .bdrv_close             = iscsi_close,
-    .bdrv_create            = iscsi_create,
+    .bdrv_co_create_opts    = iscsi_co_create_opts,
     .create_opts            = &iscsi_create_opts,
     .bdrv_reopen_prepare    = iscsi_reopen_prepare,
     .bdrv_reopen_commit     = iscsi_reopen_commit,

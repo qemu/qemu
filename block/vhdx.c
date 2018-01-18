@@ -1792,7 +1792,8 @@ exit:
  *    .---- ~ ----------- ~ ------------ ~ ---------------- ~ -----------.
  *   1MB
  */
-static int vhdx_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn vhdx_co_create_opts(const char *filename, QemuOpts *opts,
+                                            Error **errp)
 {
     int ret = 0;
     uint64_t image_size = (uint64_t) 2 * GiB;
@@ -2003,7 +2004,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_child_perm        = bdrv_format_default_perms,
     .bdrv_co_readv          = vhdx_co_readv,
     .bdrv_co_writev         = vhdx_co_writev,
-    .bdrv_create            = vhdx_create,
+    .bdrv_co_create_opts    = vhdx_co_create_opts,
     .bdrv_get_info          = vhdx_get_info,
     .bdrv_check             = vhdx_check,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
