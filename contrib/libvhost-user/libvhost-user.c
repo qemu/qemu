@@ -407,6 +407,15 @@ vu_set_mem_table_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
     int i;
     VhostUserMemory *memory = &vmsg->payload.memory;
+
+    for (i = 0; i < dev->nregions; i++) {
+        VuDevRegion *r = &dev->regions[i];
+        void *m = (void *) (uintptr_t) r->mmap_addr;
+
+        if (m) {
+            munmap(m, r->size + r->mmap_offset);
+        }
+    }
     dev->nregions = memory->nregions;
 
     DPRINT("Nregions: %d\n", memory->nregions);
@@ -472,8 +481,13 @@ vu_set_log_base_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     rc = mmap(0, log_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
               log_mmap_offset);
+    close(fd);
     if (rc == MAP_FAILED) {
         perror("log mmap error");
+    }
+
+    if (dev->log_table) {
+        munmap(dev->log_table, dev->log_size);
     }
     dev->log_table = rc;
     dev->log_size = log_mmap_size;
