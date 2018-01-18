@@ -192,7 +192,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
 
     snprintf(name, sizeof(name), "xscom-core.%d", cc->core_id);
     pnv_xscom_region_init(&pc->xscom_regs, OBJECT(dev), &pnv_core_xscom_ops,
-                          pc, name, PNV_XSCOM_EX_CORE_SIZE);
+                          pc, name, PNV_XSCOM_EX_SIZE);
     return;
 
 err:

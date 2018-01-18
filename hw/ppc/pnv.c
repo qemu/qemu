@@ -53,7 +53,7 @@
 #define FW_MAX_SIZE             0x00400000
 
 #define KERNEL_LOAD_ADDR        0x20000000
-#define INITRD_LOAD_ADDR        0x40000000
+#define INITRD_LOAD_ADDR        0x60000000
 
 static const char *pnv_chip_core_typename(const PnvChip *o)
 {
@@ -707,9 +707,9 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
 #define POWER8_CORE_MASK   (0x7e7eull)
 
 /*
- * POWER9 has 24 cores, ids starting at 0x20
+ * POWER9 has 24 cores, ids starting at 0x0
  */
-#define POWER9_CORE_MASK   (0xffffff00000000ull)
+#define POWER9_CORE_MASK   (0xffffffffffffffull)
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
 {
@@ -721,7 +721,6 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
-    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 }
 
@@ -735,7 +734,6 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
-    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -749,7 +747,6 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
-    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
 
@@ -759,11 +756,10 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
     k->chip_type = PNV_CHIP_POWER9;
-    k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
+    k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
     k->xscom_base = 0x00603fc00000000ull;
-    k->xscom_core_base = 0x0ull;
     dc->desc = "PowerNV Chip POWER9";
 }
 
@@ -887,6 +883,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
              && (i < chip->nr_cores); core_hwid++) {
         char core_name[32];
         void *pnv_core = chip->cores + i * typesize;
+        uint64_t xscom_core_base;
 
         if (!(chip->cores_mask & (1ull << core_hwid))) {
             continue;
@@ -910,9 +907,13 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         object_unref(OBJECT(pnv_core));
 
         /* Each core has an XSCOM MMIO region */
-        pnv_xscom_add_subregion(chip,
-                                PNV_XSCOM_EX_CORE_BASE(pcc->xscom_core_base,
-                                                       core_hwid),
+        if (!pnv_chip_is_power9(chip)) {
+            xscom_core_base = PNV_XSCOM_EX_BASE(core_hwid);
+        } else {
+            xscom_core_base = PNV_XSCOM_P9_EC_BASE(core_hwid);
+        }
+
+        pnv_xscom_add_subregion(chip, xscom_core_base,
                                 &PNV_CORE(pnv_core)->xscom_regs);
         i++;
     }
