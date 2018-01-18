@@ -930,7 +930,7 @@ enum {
 #define BOOKE206_MAX_TLBN      4
 
 /*****************************************************************************/
-/* Embedded.Processor Control */
+/* Server and Embedded Processor Control */
 
 #define DBELL_TYPE_SHIFT               27
 #define DBELL_TYPE_MASK                (0x1f << DBELL_TYPE_SHIFT)
@@ -940,10 +940,14 @@ enum {
 #define DBELL_TYPE_G_DBELL_CRIT        (0x03 << DBELL_TYPE_SHIFT)
 #define DBELL_TYPE_G_DBELL_MC          (0x04 << DBELL_TYPE_SHIFT)
 
-#define DBELL_BRDCAST                  (1 << 26)
+#define DBELL_TYPE_DBELL_SERVER        (0x05 << DBELL_TYPE_SHIFT)
+
+#define DBELL_BRDCAST                  PPC_BIT(37)
 #define DBELL_LPIDTAG_SHIFT            14
 #define DBELL_LPIDTAG_MASK             (0xfff << DBELL_LPIDTAG_SHIFT)
 #define DBELL_PIRTAG_MASK              0x3fff
+
+#define DBELL_PROCIDTAG_MASK           PPC_BITMASK(44, 63)
 
 /*****************************************************************************/
 /* Segment page size information, used by recent hash MMUs
