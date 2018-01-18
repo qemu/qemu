@@ -384,6 +384,12 @@ static void block_crypto_close(BlockDriverState *bs)
     qcrypto_block_free(crypto->block);
 }
 
+static int block_crypto_reopen_prepare(BDRVReopenState *state,
+                                       BlockReopenQueue *queue, Error **errp)
+{
+    /* nothing needs checking */
+    return 0;
+}
 
 /*
  * 1 MB bounce buffer gives good performance / memory tradeoff
@@ -621,6 +627,7 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_truncate      = block_crypto_truncate,
     .create_opts        = &block_crypto_create_opts_luks,
 
+    .bdrv_reopen_prepare = block_crypto_reopen_prepare,
     .bdrv_refresh_limits = block_crypto_refresh_limits,
     .bdrv_co_preadv     = block_crypto_co_preadv,
     .bdrv_co_pwritev    = block_crypto_co_pwritev,
