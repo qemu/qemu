@@ -27,6 +27,7 @@
 #define BLOCKJOB_H
 
 #include "block/block.h"
+#include "qemu/ratelimit.h"
 
 typedef struct BlockJobDriver BlockJobDriver;
 typedef struct BlockJobTxn BlockJobTxn;
@@ -117,6 +118,9 @@ typedef struct BlockJob {
 
     /** Speed that was set with @block_job_set_speed.  */
     int64_t speed;
+
+    /** Rate limiting data structure for implementing @speed. */
+    RateLimit limit;
 
     /** The completion function that will be called when the job completes.  */
     BlockCompletionFunc *cb;

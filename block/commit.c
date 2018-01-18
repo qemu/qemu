@@ -35,7 +35,6 @@ enum {
 
 typedef struct CommitBlockJob {
     BlockJob common;
-    RateLimit limit;
     BlockDriverState *commit_top_bs;
     BlockBackend *top;
     BlockBackend *base;
@@ -201,7 +200,7 @@ static void coroutine_fn commit_run(void *opaque)
         block_job_progress_update(&s->common, n);
 
         if (copy && s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, n);
+            delay_ns = ratelimit_calculate_delay(&s->common.limit, n);
         } else {
             delay_ns = 0;
         }
@@ -225,7 +224,7 @@ static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
-    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
+    ratelimit_set_speed(&s->common.limit, speed, SLICE_TIME);
 }
 
 static const BlockJobDriver commit_job_driver = {

@@ -36,7 +36,6 @@ typedef struct MirrorBuffer {
 
 typedef struct MirrorBlockJob {
     BlockJob common;
-    RateLimit limit;
     BlockBackend *target;
     BlockDriverState *mirror_top_bs;
     BlockDriverState *source;
@@ -450,7 +449,8 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         offset += io_bytes;
         nb_chunks -= DIV_ROUND_UP(io_bytes, s->granularity);
         if (s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, io_bytes_acct);
+            delay_ns = ratelimit_calculate_delay(&s->common.limit,
+                                                 io_bytes_acct);
         }
     }
     return delay_ns;
@@ -916,7 +916,7 @@ static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
-    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
+    ratelimit_set_speed(&s->common.limit, speed, SLICE_TIME);
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)
