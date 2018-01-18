@@ -466,6 +466,7 @@ void m68k_cpu_unassigned_access(CPUState *cs, hwaddr addr, bool is_write,
     }
 
     if (m68k_feature(env, M68K_FEATURE_M68040)) {
+        env->mmu.mmusr = 0;
         env->mmu.ssw |= M68K_ATC_040;
         /* FIXME: manage MMU table access error */
         env->mmu.ssw &= ~M68K_TM_040;

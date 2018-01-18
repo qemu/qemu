@@ -4661,6 +4661,35 @@ DISAS_INSN(cinv)
     /* Invalidate cache line.  Implement as no-op.  */
 }
 
+#if defined(CONFIG_SOFTMMU)
+DISAS_INSN(pflush)
+{
+    TCGv opmode;
+
+    if (IS_USER(s)) {
+        gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
+        return;
+    }
+
+    opmode = tcg_const_i32((insn >> 3) & 3);
+    gen_helper_pflush(cpu_env, AREG(insn, 0), opmode);
+    tcg_temp_free(opmode);
+}
+
+DISAS_INSN(ptest)
+{
+    TCGv is_read;
+
+    if (IS_USER(s)) {
+        gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
+        return;
+    }
+    is_read = tcg_const_i32((insn >> 5) & 1);
+    gen_helper_ptest(cpu_env, AREG(insn, 0), is_read);
+    tcg_temp_free(is_read);
+}
+#endif
+
 DISAS_INSN(wddata)
 {
     gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
@@ -5854,6 +5883,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(cpushl,    f428, ff38, CF_ISA_A);
     INSN(cpush,     f420, ff20, M68040);
     INSN(cinv,      f400, ff20, M68040);
+    INSN(pflush,    f500, ffe0, M68040);
+    INSN(ptest,     f548, ffd8, M68040);
     INSN(wddata,    fb00, ff00, CF_ISA_A);
     INSN(wdebug,    fbc0, ffc0, CF_ISA_A);
 #endif
@@ -6056,6 +6087,8 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "DTTR0/1: %08x/%08x ITTR0/1: %08x/%08x\n",
                 env->mmu.ttr[M68K_DTTR0], env->mmu.ttr[M68K_DTTR1],
                 env->mmu.ttr[M68K_ITTR0], env->mmu.ttr[M68K_ITTR1]);
+    cpu_fprintf(f, "MMUSR %08x, fault at %08x\n",
+                env->mmu.mmusr, env->mmu.ar);
 #endif
 }
 

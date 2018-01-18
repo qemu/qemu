@@ -39,6 +39,7 @@ static const MonitorDef monitor_defs[] = {
     { "dttr1", offsetof(CPUM68KState, mmu.ttr[M68K_DTTR1]) },
     { "ittr0", offsetof(CPUM68KState, mmu.ttr[M68K_ITTR0]) },
     { "ittr1", offsetof(CPUM68KState, mmu.ttr[M68K_ITTR1]) },
+    { "mmusr", offsetof(CPUM68KState, mmu.mmusr) },
     { NULL },
 };
 

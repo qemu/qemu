@@ -131,6 +131,7 @@ typedef struct CPUM68KState {
         uint32_t srp;
         bool fault;
         uint32_t ttr[4];
+        uint32_t mmusr;
     } mmu;
 
     /* Control registers.  */
@@ -512,6 +513,8 @@ enum {
     ACCESS_STORE = 0x02,
     /* 1 bit to indicate debug access */
     ACCESS_DEBUG = 0x04,
+    /* PTEST instruction */
+    ACCESS_PTEST = 0x08,
     /* Type of instruction that generated the access */
     ACCESS_CODE  = 0x10, /* Code fetch access                */
     ACCESS_DATA  = 0x20, /* Data load/store access        */
