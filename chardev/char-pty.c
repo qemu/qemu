@@ -51,23 +51,6 @@ typedef struct {
 static void pty_chr_update_read_handler_locked(Chardev *chr);
 static void pty_chr_state(Chardev *chr, int connected);
 
-static gboolean pty_chr_timer(gpointer opaque)
-{
-    struct Chardev *chr = CHARDEV(opaque);
-    PtyChardev *s = PTY_CHARDEV(opaque);
-
-    qemu_mutex_lock(&chr->chr_write_lock);
-    s->timer_src = NULL;
-    g_source_unref(s->open_source);
-    s->open_source = NULL;
-    if (!s->connected) {
-        /* Next poll ... */
-        pty_chr_update_read_handler_locked(chr);
-    }
-    qemu_mutex_unlock(&chr->chr_write_lock);
-    return FALSE;
-}
-
 static void pty_chr_timer_cancel(PtyChardev *s)
 {
     if (s->timer_src) {
@@ -75,6 +58,31 @@ static void pty_chr_timer_cancel(PtyChardev *s)
         g_source_unref(s->timer_src);
         s->timer_src = NULL;
     }
+}
+
+static void pty_chr_open_src_cancel(PtyChardev *s)
+{
+    if (s->open_source) {
+        g_source_destroy(s->open_source);
+        g_source_unref(s->open_source);
+        s->open_source = NULL;
+    }
+}
+
+static gboolean pty_chr_timer(gpointer opaque)
+{
+    struct Chardev *chr = CHARDEV(opaque);
+    PtyChardev *s = PTY_CHARDEV(opaque);
+
+    qemu_mutex_lock(&chr->chr_write_lock);
+    pty_chr_timer_cancel(s);
+    pty_chr_open_src_cancel(s);
+    if (!s->connected) {
+        /* Next poll ... */
+        pty_chr_update_read_handler_locked(chr);
+    }
+    qemu_mutex_unlock(&chr->chr_write_lock);
+    return FALSE;
 }
 
 /* Called with chr_write_lock held.  */
@@ -195,11 +203,7 @@ static void pty_chr_state(Chardev *chr, int connected)
     PtyChardev *s = PTY_CHARDEV(chr);
 
     if (!connected) {
-        if (s->open_source) {
-            g_source_destroy(s->open_source);
-            g_source_unref(s->open_source);
-            s->open_source = NULL;
-        }
+        pty_chr_open_src_cancel(s);
         remove_fd_in_watch(chr);
         s->connected = 0;
         /* (re-)connect poll interval for idle guests: once per second.
