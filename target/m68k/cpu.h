@@ -116,6 +116,12 @@ typedef struct CPUM68KState {
     /* MMU status.  */
     struct {
         uint32_t ar;
+        uint32_t ssw;
+        /* 68040 */
+        uint16_t tcr;
+        uint32_t urp;
+        uint32_t srp;
+        bool fault;
     } mmu;
 
     /* Control registers.  */
@@ -225,6 +231,92 @@ typedef enum {
 #define M68K_SSP    0
 #define M68K_USP    1
 #define M68K_ISP    2
+
+/* bits for 68040 special status word */
+#define M68K_CP_040  0x8000
+#define M68K_CU_040  0x4000
+#define M68K_CT_040  0x2000
+#define M68K_CM_040  0x1000
+#define M68K_MA_040  0x0800
+#define M68K_ATC_040 0x0400
+#define M68K_LK_040  0x0200
+#define M68K_RW_040  0x0100
+#define M68K_SIZ_040 0x0060
+#define M68K_TT_040  0x0018
+#define M68K_TM_040  0x0007
+
+#define M68K_TM_040_DATA  0x0001
+#define M68K_TM_040_CODE  0x0002
+#define M68K_TM_040_SUPER 0x0004
+
+/* bits for 68040 write back status word */
+#define M68K_WBV_040   0x80
+#define M68K_WBSIZ_040 0x60
+#define M68K_WBBYT_040 0x20
+#define M68K_WBWRD_040 0x40
+#define M68K_WBLNG_040 0x00
+#define M68K_WBTT_040  0x18
+#define M68K_WBTM_040  0x07
+
+/* bus access size codes */
+#define M68K_BA_SIZE_MASK    0x60
+#define M68K_BA_SIZE_BYTE    0x20
+#define M68K_BA_SIZE_WORD    0x40
+#define M68K_BA_SIZE_LONG    0x00
+#define M68K_BA_SIZE_LINE    0x60
+
+/* bus access transfer type codes */
+#define M68K_BA_TT_MOVE16    0x08
+
+/* bits for 68040 MMU status register (mmusr) */
+#define M68K_MMU_B_040   0x0800
+#define M68K_MMU_G_040   0x0400
+#define M68K_MMU_U1_040  0x0200
+#define M68K_MMU_U0_040  0x0100
+#define M68K_MMU_S_040   0x0080
+#define M68K_MMU_CM_040  0x0060
+#define M68K_MMU_M_040   0x0010
+#define M68K_MMU_WP_040  0x0004
+#define M68K_MMU_T_040   0x0002
+#define M68K_MMU_R_040   0x0001
+
+#define M68K_MMU_SR_MASK_040 (M68K_MMU_G_040 | M68K_MMU_U1_040 | \
+                              M68K_MMU_U0_040 | M68K_MMU_S_040 | \
+                              M68K_MMU_CM_040 | M68K_MMU_M_040 | \
+                              M68K_MMU_WP_040)
+
+/* bits for 68040 MMU Translation Control Register */
+#define M68K_TCR_ENABLED 0x8000
+#define M68K_TCR_PAGE_8K 0x4000
+
+/* bits for 68040 MMU Table Descriptor / Page Descriptor / TTR */
+#define M68K_DESC_WRITEPROT 0x00000004
+#define M68K_DESC_USED      0x00000008
+#define M68K_DESC_MODIFIED  0x00000010
+#define M68K_DESC_CACHEMODE 0x00000060
+#define M68K_DESC_CM_WRTHRU 0x00000000
+#define M68K_DESC_CM_COPYBK 0x00000020
+#define M68K_DESC_CM_SERIAL 0x00000040
+#define M68K_DESC_CM_NCACHE 0x00000060
+#define M68K_DESC_SUPERONLY 0x00000080
+#define M68K_DESC_USERATTR  0x00000300
+#define M68K_DESC_USERATTR_SHIFT     8
+#define M68K_DESC_GLOBAL    0x00000400
+#define M68K_DESC_URESERVED 0x00000800
+
+#define M68K_4K_PAGE_MASK           (~0xff)
+#define M68K_POINTER_BASE(entry)    (entry & ~0x1ff)
+#define M68K_ROOT_INDEX(addr)       ((address >> 23) & 0x1fc)
+#define M68K_POINTER_INDEX(addr)    ((address >> 16) & 0x1fc)
+#define M68K_4K_PAGE_BASE(entry)    (next & M68K_4K_PAGE_MASK)
+#define M68K_4K_PAGE_INDEX(addr)    ((address >> 10) & 0xfc)
+#define M68K_8K_PAGE_MASK           (~0x7f)
+#define M68K_8K_PAGE_BASE(entry)    (next & M68K_8K_PAGE_MASK)
+#define M68K_8K_PAGE_INDEX(addr)    ((address >> 11) & 0x7c)
+#define M68K_UDT_VALID(entry)       (entry & 2)
+#define M68K_PDT_VALID(entry)       (entry & 3)
+#define M68K_PDT_INDIRECT(entry)    ((entry & 3) == 2)
+#define M68K_INDIRECT_POINTER(addr) (addr & ~3)
 
 /* m68k Control Registers */
 
@@ -387,16 +479,23 @@ void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
 void register_m68k_insns (CPUM68KState *env);
 
-#ifdef CONFIG_USER_ONLY
 /* Coldfire Linux uses 8k pages
  * and m68k linux uses 4k pages
- * use the smaller one
+ * use the smallest one
  */
 #define TARGET_PAGE_BITS 12
-#else
-/* Smallest TLB entry size is 1k.  */
-#define TARGET_PAGE_BITS 10
-#endif
+
+enum {
+    /* 1 bit to define user level / supervisor access */
+    ACCESS_SUPER = 0x01,
+    /* 1 bit to indicate direction */
+    ACCESS_STORE = 0x02,
+    /* 1 bit to indicate debug access */
+    ACCESS_DEBUG = 0x04,
+    /* Type of instruction that generated the access */
+    ACCESS_CODE  = 0x10, /* Code fetch access                */
+    ACCESS_DATA  = 0x20, /* Data load/store access        */
+};
 
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
@@ -412,6 +511,7 @@ void register_m68k_insns (CPUM68KState *env);
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
+#define MMU_KERNEL_IDX 0
 #define MMU_USER_IDX 1
 static inline int cpu_mmu_index (CPUM68KState *env, bool ifetch)
 {
@@ -420,6 +520,9 @@ static inline int cpu_mmu_index (CPUM68KState *env, bool ifetch)
 
 int m68k_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                               int mmu_idx);
+void m68k_cpu_unassigned_access(CPUState *cs, hwaddr addr,
+                                bool is_write, bool is_exec, int is_asi,
+                                unsigned size);
 
 #include "exec/cpu-all.h"
 

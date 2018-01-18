@@ -360,7 +360,49 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
     sp = env->aregs[7];
 
     sp &= ~1;
-    if (cs->exception_index == EXCP_ADDRESS) {
+    if (cs->exception_index == EXCP_ACCESS) {
+        if (env->mmu.fault) {
+            cpu_abort(cs, "DOUBLE MMU FAULT\n");
+        }
+        env->mmu.fault = true;
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* push data 3 */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* push data 2 */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* push data 1 */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* write back 1 / push data 0 */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* write back 1 address */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* write back 2 data */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* write back 2 address */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, 0); /* write back 3 data */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, env->mmu.ar); /* write back 3 address */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, env->mmu.ar); /* fault address */
+        sp -= 2;
+        cpu_stw_kernel(env, sp, 0); /* write back 1 status */
+        sp -= 2;
+        cpu_stw_kernel(env, sp, 0); /* write back 2 status */
+        sp -= 2;
+        cpu_stw_kernel(env, sp, 0); /* write back 3 status */
+        sp -= 2;
+        cpu_stw_kernel(env, sp, env->mmu.ssw); /* special status word */
+        sp -= 4;
+        cpu_stl_kernel(env, sp, env->mmu.ar); /* effective address */
+        do_stack_frame(env, &sp, 7, oldsr, 0, retaddr);
+        env->mmu.fault = false;
+        if (qemu_loglevel_mask(CPU_LOG_INT)) {
+            qemu_log("            "
+                     "ssw:  %08x ea:   %08x\n",
+                     env->mmu.ssw, env->mmu.ar);
+        }
+    } else if (cs->exception_index == EXCP_ADDRESS) {
         do_stack_frame(env, &sp, 2, oldsr, 0, retaddr);
     } else if (cs->exception_index == EXCP_ILLEGAL ||
                cs->exception_index == EXCP_DIV0 ||
@@ -407,6 +449,56 @@ void m68k_cpu_do_interrupt(CPUState *cs)
 static inline void do_interrupt_m68k_hardirq(CPUM68KState *env)
 {
     do_interrupt_all(env, 1);
+}
+
+void m68k_cpu_unassigned_access(CPUState *cs, hwaddr addr, bool is_write,
+                                bool is_exec, int is_asi, unsigned size)
+{
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+#ifdef DEBUG_UNASSIGNED
+    qemu_log_mask(CPU_LOG_INT, "Unassigned " TARGET_FMT_plx " wr=%d exe=%d\n",
+             addr, is_write, is_exec);
+#endif
+    if (env == NULL) {
+        /* when called from gdb, env is NULL */
+        return;
+    }
+
+    if (m68k_feature(env, M68K_FEATURE_M68040)) {
+        env->mmu.ssw |= M68K_ATC_040;
+        /* FIXME: manage MMU table access error */
+        env->mmu.ssw &= ~M68K_TM_040;
+        if (env->sr & SR_S) { /* SUPERVISOR */
+            env->mmu.ssw |= M68K_TM_040_SUPER;
+        }
+        if (is_exec) { /* instruction or data */
+            env->mmu.ssw |= M68K_TM_040_CODE;
+        } else {
+            env->mmu.ssw |= M68K_TM_040_DATA;
+        }
+        env->mmu.ssw &= ~M68K_BA_SIZE_MASK;
+        switch (size) {
+        case 1:
+            env->mmu.ssw |= M68K_BA_SIZE_BYTE;
+            break;
+        case 2:
+            env->mmu.ssw |= M68K_BA_SIZE_WORD;
+            break;
+        case 4:
+            env->mmu.ssw |= M68K_BA_SIZE_LONG;
+            break;
+        }
+
+        if (!is_write) {
+            env->mmu.ssw |= M68K_RW_040;
+        }
+
+        env->mmu.ar = addr;
+
+        cs->exception_index = EXCP_ACCESS;
+        cpu_loop_exit(cs);
+    }
 }
 #endif
 

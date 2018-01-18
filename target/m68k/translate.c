@@ -5980,6 +5980,8 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                env->current_sp == M68K_USP ? "->" : "  ", env->sp[M68K_USP],
                env->current_sp == M68K_ISP ? "->" : "  ", env->sp[M68K_ISP]);
     cpu_fprintf(f, "VBR = 0x%08x\n", env->vbr);
+    cpu_fprintf(f, "SSW %08x TCR %08x URP %08x SRP %08x\n",
+                env->mmu.ssw, env->mmu.tcr, env->mmu.urp, env->mmu.srp);
 #endif
 }
 

@@ -31,6 +31,8 @@ static const MonitorDef monitor_defs[] = {
     { "ssp", offsetof(CPUM68KState, sp[0]) },
     { "usp", offsetof(CPUM68KState, sp[1]) },
     { "isp", offsetof(CPUM68KState, sp[2]) },
+    { "urp", offsetof(CPUM68KState, mmu.urp) },
+    { "srp", offsetof(CPUM68KState, mmu.srp) },
     { NULL },
 };
 
