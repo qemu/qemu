@@ -19,9 +19,6 @@
 #include "qemu/sockets.h"
 #include "chardev/char.h"
 #include "sysemu/sysemu.h"
-#include "hw/nvram/chrp_nvram.h"
-
-#define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
 
 const unsigned start_address = 1024 * 1024;
 const unsigned end_address = 100 * 1024 * 1024;
@@ -89,36 +86,6 @@ static void init_bootfile_x86(const char *bootpath)
     FILE *bootfile = fopen(bootpath, "wb");
 
     g_assert_cmpint(fwrite(x86_bootsect, 512, 1, bootfile), ==, 1);
-    fclose(bootfile);
-}
-
-static void init_bootfile_ppc(const char *bootpath)
-{
-    FILE *bootfile;
-    char buf[MIN_NVRAM_SIZE];
-    ChrpNvramPartHdr *header = (ChrpNvramPartHdr *)buf;
-
-    memset(buf, 0, MIN_NVRAM_SIZE);
-
-    /* Create a "common" partition in nvram to store boot-command property */
-
-    header->signature = CHRP_NVPART_SYSTEM;
-    memcpy(header->name, "common", 6);
-    chrp_nvram_finish_partition(header, MIN_NVRAM_SIZE);
-
-    /* FW_MAX_SIZE is 4MB, but slof.bin is only 900KB,
-     * so let's modify memory between 1MB and 100MB
-     * to do like PC bootsector
-     */
-
-    sprintf(buf + 16,
-            "boot-command=hex .\" _\" begin %x %x do i c@ 1 + i c! 1000 +loop "
-            ".\" B\" 0 until", end_address, start_address);
-
-    /* Write partition to the NVRAM file */
-
-    bootfile = fopen(bootpath, "wb");
-    g_assert_cmpint(fwrite(buf, MIN_NVRAM_SIZE, 1, bootfile), ==, 1);
     fclose(bootfile);
 }
 
@@ -422,12 +389,14 @@ static void test_migrate_start(QTestState **from, QTestState **to,
         if (access("/sys/module/kvm_hv", F_OK)) {
             accel = "tcg";
         }
-        init_bootfile_ppc(bootpath);
         cmd_src = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
-                                  " -drive file=%s,if=pflash,format=raw",
-                                  accel, tmpfs, bootpath);
+                                  " -prom-env '"
+                                  "boot-command=hex .\" _\" begin %x %x "
+                                  "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
+                                  "until'",  accel, tmpfs, end_address,
+                                  start_address);
         cmd_dst = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
