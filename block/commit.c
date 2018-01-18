@@ -197,8 +197,8 @@ static void coroutine_fn commit_run(void *opaque)
         /* Publish progress */
         block_job_progress_update(&s->common, n);
 
-        if (copy && s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->common.limit, n);
+        if (copy) {
+            delay_ns = block_job_ratelimit_get_delay(&s->common, n);
         } else {
             delay_ns = 0;
         }

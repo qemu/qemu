@@ -680,6 +680,15 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     block_job_enter_cond(job, block_job_timer_pending);
 }
 
+int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
+{
+    if (!job->speed) {
+        return 0;
+    }
+
+    return ratelimit_calculate_delay(&job->limit, n);
+}
+
 void block_job_complete(BlockJob *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */

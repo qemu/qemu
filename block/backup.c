@@ -325,21 +325,17 @@ static void backup_complete(BlockJob *job, void *opaque)
 
 static bool coroutine_fn yield_and_check(BackupBlockJob *job)
 {
+    uint64_t delay_ns;
+
     if (block_job_is_cancelled(&job->common)) {
         return true;
     }
 
-    /* we need to yield so that bdrv_drain_all() returns.
-     * (without, VM does not reboot)
-     */
-    if (job->common.speed) {
-        uint64_t delay_ns = ratelimit_calculate_delay(&job->common.limit,
-                                                      job->bytes_read);
-        job->bytes_read = 0;
-        block_job_sleep_ns(&job->common, delay_ns);
-    } else {
-        block_job_sleep_ns(&job->common, 0);
-    }
+    /* We need to yield even for delay_ns = 0 so that bdrv_drain_all() can
+     * return. Without a yield, the VM would not reboot. */
+    delay_ns = block_job_ratelimit_get_delay(&job->common, job->bytes_read);
+    job->bytes_read = 0;
+    block_job_sleep_ns(&job->common, delay_ns);
 
     if (block_job_is_cancelled(&job->common)) {
         return true;
