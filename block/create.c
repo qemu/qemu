@@ -24,28 +24,51 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int.h"
+#include "qemu/job.h"
 #include "qapi/qapi-commands-block-core.h"
+#include "qapi/qapi-visit-block-core.h"
+#include "qapi/clone-visitor.h"
 #include "qapi/error.h"
 
-typedef struct BlockdevCreateCo {
+typedef struct BlockdevCreateJob {
+    Job common;
     BlockDriver *drv;
     BlockdevCreateOptions *opts;
     int ret;
-    Error **errp;
-} BlockdevCreateCo;
+    Error *err;
+} BlockdevCreateJob;
 
-static void coroutine_fn bdrv_co_create_co_entry(void *opaque)
+static void blockdev_create_complete(Job *job, void *opaque)
 {
-    BlockdevCreateCo *cco = opaque;
-    cco->ret = cco->drv->bdrv_co_create(cco->opts, cco->errp);
+    BlockdevCreateJob *s = container_of(job, BlockdevCreateJob, common);
+
+    job_completed(job, s->ret, s->err);
 }
 
-void qmp_x_blockdev_create(BlockdevCreateOptions *options, Error **errp)
+static void coroutine_fn blockdev_create_run(void *opaque)
 {
+    BlockdevCreateJob *s = opaque;
+
+    job_progress_set_remaining(&s->common, 1);
+    s->ret = s->drv->bdrv_co_create(s->opts, &s->err);
+    job_progress_update(&s->common, 1);
+
+    qapi_free_BlockdevCreateOptions(s->opts);
+    job_defer_to_main_loop(&s->common, blockdev_create_complete, NULL);
+}
+
+static const JobDriver blockdev_create_job_driver = {
+    .instance_size = sizeof(BlockdevCreateJob),
+    .job_type      = JOB_TYPE_CREATE,
+    .start         = blockdev_create_run,
+};
+
+void qmp_x_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
+                           Error **errp)
+{
+    BlockdevCreateJob *s;
     const char *fmt = BlockdevDriver_str(options->driver);
     BlockDriver *drv = bdrv_find_format(fmt);
-    Coroutine *co;
-    BlockdevCreateCo cco;
 
     /* If the driver is in the schema, we know that it exists. But it may not
      * be whitelisted. */
@@ -55,22 +78,24 @@ void qmp_x_blockdev_create(BlockdevCreateOptions *options, Error **errp)
         return;
     }
 
-    /* Call callback if it exists */
+    /* Error out if the driver doesn't support .bdrv_co_create */
     if (!drv->bdrv_co_create) {
         error_setg(errp, "Driver does not support blockdev-create");
         return;
     }
 
-    cco = (BlockdevCreateCo) {
-        .drv = drv,
-        .opts = options,
-        .ret = -EINPROGRESS,
-        .errp = errp,
-    };
-
-    co = qemu_coroutine_create(bdrv_co_create_co_entry, &cco);
-    qemu_coroutine_enter(co);
-    while (cco.ret == -EINPROGRESS) {
-        aio_poll(qemu_get_aio_context(), true);
+    /* Create the block job */
+    /* TODO Running in the main context. Block drivers need to error out or add
+     * locking when they use a BDS in a different AioContext. */
+    s = job_create(job_id, &blockdev_create_job_driver, NULL,
+                   qemu_get_aio_context(), JOB_DEFAULT | JOB_MANUAL_DISMISS,
+                   NULL, NULL, errp);
+    if (!s) {
+        return;
     }
+
+    s->drv = drv,
+    s->opts = QAPI_CLONE(BlockdevCreateOptions, options),
+
+    job_start(&s->common);
 }

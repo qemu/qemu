@@ -17,10 +17,12 @@
 #
 # @backup: drive backup job type, see "drive-backup"
 #
+# @create: image creation job type, see "x-blockdev-create" (since 3.0)
+#
 # Since: 1.7
 ##
 { 'enum': 'JobType',
-  'data': ['commit', 'stream', 'mirror', 'backup'] }
+  'data': ['commit', 'stream', 'mirror', 'backup', 'create'] }
 
 ##
 # @JobStatus:
