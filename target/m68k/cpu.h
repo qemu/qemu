@@ -316,6 +316,7 @@ typedef enum {
 #define M68K_DESC_GLOBAL    0x00000400
 #define M68K_DESC_URESERVED 0x00000800
 
+#define M68K_ROOT_POINTER_ENTRIES   128
 #define M68K_4K_PAGE_MASK           (~0xff)
 #define M68K_POINTER_BASE(entry)    (entry & ~0x1ff)
 #define M68K_ROOT_INDEX(addr)       ((address >> 23) & 0x1fc)
@@ -329,6 +330,8 @@ typedef enum {
 #define M68K_PDT_VALID(entry)       (entry & 3)
 #define M68K_PDT_INDIRECT(entry)    ((entry & 3) == 2)
 #define M68K_INDIRECT_POINTER(addr) (addr & ~3)
+#define M68K_TTS_POINTER_SHIFT      18
+#define M68K_TTS_ROOT_SHIFT         25
 
 /* bits for 68040 MMU Transparent Translation Registers */
 #define M68K_TTR_ADDR_BASE 0xff000000
@@ -571,4 +574,5 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
     }
 }
 
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUM68KState *env);
 #endif

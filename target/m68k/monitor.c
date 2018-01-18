@@ -8,6 +8,19 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "monitor/hmp-target.h"
+#include "monitor/monitor.h"
+
+void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+{
+    CPUArchState *env1 = mon_get_cpu_env();
+
+    if (!env1) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
+
+    dump_mmu((FILE *)mon, (fprintf_function)monitor_printf, env1);
+}
 
 static const MonitorDef monitor_defs[] = {
     { "d0", offsetof(CPUM68KState, dregs[0]) },
