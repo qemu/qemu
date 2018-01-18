@@ -490,6 +490,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GSCB;
     }
 
+    if (can_sync_regs(cs, KVM_SYNC_BPBC)) {
+        cs->kvm_run->s.regs.bpbc = env->bpbc;
+        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_BPBC;
+    }
+
     /* Finally the prefix */
     if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
         cs->kvm_run->s.regs.prefix = env->psa;
@@ -598,6 +603,10 @@ int kvm_arch_get_registers(CPUState *cs)
 
     if (can_sync_regs(cs, KVM_SYNC_GSCB)) {
         memcpy(env->gscb, cs->kvm_run->s.regs.gscb, 32);
+    }
+
+    if (can_sync_regs(cs, KVM_SYNC_BPBC)) {
+        env->bpbc = cs->kvm_run->s.regs.bpbc;
     }
 
     /* pfault parameters */
@@ -2296,6 +2305,11 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     } else {
         /* no cmm -> no cmm nt */
         clear_bit(S390_FEAT_CMM_NT, model->features);
+    }
+
+    /* bpb needs kernel support for migration, VSIE and reset */
+    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_BPB)) {
+        clear_bit(S390_FEAT_BPB, model->features);
     }
 
     /* We emulate a zPCI bus and AEN, therefore we don't need HW support */

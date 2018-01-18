@@ -93,6 +93,7 @@ struct CPUS390XState {
 
     uint32_t fpc;          /* floating-point control register */
     uint32_t cc_op;
+    bool bpbc;             /* branch prediction blocking */
 
     float_status fpu_status; /* passed to softfloat lib */
 
