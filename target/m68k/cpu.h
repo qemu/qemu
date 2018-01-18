@@ -138,6 +138,8 @@ typedef struct CPUM68KState {
     uint32_t mbar;
     uint32_t rambar0;
     uint32_t cacr;
+    uint32_t sfc;
+    uint32_t dfc;
 
     int pending_vector;
     int pending_level;
@@ -544,13 +546,26 @@ void m68k_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 
 #include "exec/cpu-all.h"
 
+/* TB flags */
+#define TB_FLAGS_MACSR          0x0f
+#define TB_FLAGS_MSR_S_BIT      13
+#define TB_FLAGS_MSR_S          (1 << TB_FLAGS_MSR_S_BIT)
+#define TB_FLAGS_SFC_S_BIT      14
+#define TB_FLAGS_SFC_S          (1 << TB_FLAGS_SFC_S_BIT)
+#define TB_FLAGS_DFC_S_BIT      15
+#define TB_FLAGS_DFC_S          (1 << TB_FLAGS_DFC_S_BIT)
+
 static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->sr & SR_S)                   /* Bit  13 */
-            | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
+    *flags = (env->macsr >> 4) & TB_FLAGS_MACSR;
+    if (env->sr & SR_S) {
+        *flags |= TB_FLAGS_MSR_S;
+        *flags |= (env->sfc << (TB_FLAGS_SFC_S_BIT - 2)) & TB_FLAGS_SFC_S;
+        *flags |= (env->dfc << (TB_FLAGS_DFC_S_BIT - 2)) & TB_FLAGS_DFC_S;
+    }
 }
 
 #endif

@@ -203,6 +203,12 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
 
     switch (reg) {
     /* MC680[1234]0 */
+    case M68K_CR_SFC:
+        env->sfc = val & 7;
+        return;
+    case M68K_CR_DFC:
+        env->dfc = val & 7;
+        return;
     case M68K_CR_VBR:
         env->vbr = val;
         return;
@@ -254,6 +260,10 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
 
     switch (reg) {
     /* MC680[1234]0 */
+    case M68K_CR_SFC:
+        return env->sfc;
+    case M68K_CR_DFC:
+        return env->dfc;
     case M68K_CR_VBR:
         return env->vbr;
     /* MC680[234]0 */

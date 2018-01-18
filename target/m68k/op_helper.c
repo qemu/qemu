@@ -399,8 +399,8 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
         env->mmu.fault = false;
         if (qemu_loglevel_mask(CPU_LOG_INT)) {
             qemu_log("            "
-                     "ssw:  %08x ea:   %08x\n",
-                     env->mmu.ssw, env->mmu.ar);
+                     "ssw:  %08x ea:   %08x sfc:  %d    dfc: %d\n",
+                     env->mmu.ssw, env->mmu.ar, env->sfc, env->dfc);
         }
     } else if (cs->exception_index == EXCP_ADDRESS) {
         do_stack_frame(env, &sp, 2, oldsr, 0, retaddr);
