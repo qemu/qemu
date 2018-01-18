@@ -29,8 +29,6 @@ enum {
     STREAM_BUFFER_SIZE = 512 * 1024, /* in bytes */
 };
 
-#define SLICE_TIME 100000000ULL /* ns */
-
 typedef struct StreamBlockJob {
     BlockJob common;
     BlockDriverState *base;
@@ -210,21 +208,9 @@ out:
     block_job_defer_to_main_loop(&s->common, stream_complete, data);
 }
 
-static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    StreamBlockJob *s = container_of(job, StreamBlockJob, common);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
-    ratelimit_set_speed(&s->common.limit, speed, SLICE_TIME);
-}
-
 static const BlockJobDriver stream_job_driver = {
     .instance_size = sizeof(StreamBlockJob),
     .job_type      = BLOCK_JOB_TYPE_STREAM,
-    .set_speed     = stream_set_speed,
     .start         = stream_run,
 };
 

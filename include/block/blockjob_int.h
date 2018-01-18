@@ -41,9 +41,6 @@ struct BlockJobDriver {
     /** String describing the operation, part of query-block-jobs QMP API */
     BlockJobType job_type;
 
-    /** Optional callback for job types that support setting a speed limit */
-    void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
-
     /** Mandatory: Entrypoint for the Coroutine. */
     CoroutineEntry *start;
 

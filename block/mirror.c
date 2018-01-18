@@ -22,7 +22,6 @@
 #include "qemu/ratelimit.h"
 #include "qemu/bitmap.h"
 
-#define SLICE_TIME    100000000ULL /* ns */
 #define MAX_IN_FLIGHT 16
 #define MAX_IO_BYTES (1 << 20) /* 1 Mb */
 #define DEFAULT_MIRROR_BUF_SIZE (MAX_IN_FLIGHT * MAX_IO_BYTES)
@@ -596,7 +595,7 @@ static void mirror_throttle(MirrorBlockJob *s)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
-    if (now - s->last_pause_ns > SLICE_TIME) {
+    if (now - s->last_pause_ns > BLOCK_JOB_SLICE_TIME) {
         s->last_pause_ns = now;
         block_job_sleep_ns(&s->common, 0);
     } else {
@@ -799,11 +798,10 @@ static void coroutine_fn mirror_run(void *opaque)
 
         /* Note that even when no rate limit is applied we need to yield
          * periodically with no pending I/O so that bdrv_drain_all() returns.
-         * We do so every SLICE_TIME nanoseconds, or when there is an error,
-         * or when the source is clean, whichever comes first.
-         */
+         * We do so every BLKOCK_JOB_SLICE_TIME nanoseconds, or when there is
+         * an error, or when the source is clean, whichever comes first. */
         delta = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->last_pause_ns;
-        if (delta < SLICE_TIME &&
+        if (delta < BLOCK_JOB_SLICE_TIME &&
             s->common.iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
@@ -869,7 +867,8 @@ static void coroutine_fn mirror_run(void *opaque)
         ret = 0;
 
         if (s->synced && !should_complete) {
-            delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
+            delay_ns = (s->in_flight == 0 &&
+                        cnt == 0 ? BLOCK_JOB_SLICE_TIME : 0);
         }
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         block_job_sleep_ns(&s->common, delay_ns);
@@ -906,17 +905,6 @@ immediate_exit:
         bdrv_drained_begin(bs);
     }
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
-}
-
-static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
-    ratelimit_set_speed(&s->common.limit, speed, SLICE_TIME);
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)
@@ -1003,7 +991,6 @@ static void mirror_drain(BlockJob *job)
 static const BlockJobDriver mirror_job_driver = {
     .instance_size          = sizeof(MirrorBlockJob),
     .job_type               = BLOCK_JOB_TYPE_MIRROR,
-    .set_speed              = mirror_set_speed,
     .start                  = mirror_run,
     .complete               = mirror_complete,
     .pause                  = mirror_pause,
@@ -1014,7 +1001,6 @@ static const BlockJobDriver mirror_job_driver = {
 static const BlockJobDriver commit_active_job_driver = {
     .instance_size          = sizeof(MirrorBlockJob),
     .job_type               = BLOCK_JOB_TYPE_COMMIT,
-    .set_speed              = mirror_set_speed,
     .start                  = mirror_run,
     .complete               = mirror_complete,
     .pause                  = mirror_pause,

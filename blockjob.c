@@ -659,21 +659,17 @@ static bool block_job_timer_pending(BlockJob *job)
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
-    Error *local_err = NULL;
     int64_t old_speed = job->speed;
 
-    if (!job->driver->set_speed) {
-        error_setg(errp, QERR_UNSUPPORTED);
-        return;
-    }
     if (block_job_apply_verb(job, BLOCK_JOB_VERB_SET_SPEED, errp)) {
         return;
     }
-    job->driver->set_speed(job, speed, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (speed < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
+
+    ratelimit_set_speed(&job->limit, speed, BLOCK_JOB_SLICE_TIME);
 
     job->speed = speed;
     if (speed && speed <= old_speed) {

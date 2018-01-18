@@ -31,8 +31,6 @@ enum {
     COMMIT_BUFFER_SIZE = 512 * 1024, /* in bytes */
 };
 
-#define SLICE_TIME 100000000ULL /* ns */
-
 typedef struct CommitBlockJob {
     BlockJob common;
     BlockDriverState *commit_top_bs;
@@ -216,21 +214,9 @@ out:
     block_job_defer_to_main_loop(&s->common, commit_complete, data);
 }
 
-static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    CommitBlockJob *s = container_of(job, CommitBlockJob, common);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
-    ratelimit_set_speed(&s->common.limit, speed, SLICE_TIME);
-}
-
 static const BlockJobDriver commit_job_driver = {
     .instance_size = sizeof(CommitBlockJob),
     .job_type      = BLOCK_JOB_TYPE_COMMIT,
-    .set_speed     = commit_set_speed,
     .start         = commit_run,
 };
 

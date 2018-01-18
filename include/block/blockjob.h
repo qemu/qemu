@@ -29,6 +29,8 @@
 #include "block/block.h"
 #include "qemu/ratelimit.h"
 
+#define BLOCK_JOB_SLICE_TIME 100000000ULL /* ns */
+
 typedef struct BlockJobDriver BlockJobDriver;
 typedef struct BlockJobTxn BlockJobTxn;
 

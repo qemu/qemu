@@ -27,7 +27,6 @@
 #include "qemu/error-report.h"
 
 #define BACKUP_CLUSTER_SIZE_DEFAULT (1 << 16)
-#define SLICE_TIME 100000000ULL /* ns */
 
 typedef struct BackupBlockJob {
     BlockJob common;
@@ -188,17 +187,6 @@ static int coroutine_fn backup_before_write_notify(
     assert(QEMU_IS_ALIGNED(req->bytes, BDRV_SECTOR_SIZE));
 
     return backup_do_cow(job, req->offset, req->bytes, NULL, true);
-}
-
-static void backup_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
-    ratelimit_set_speed(&s->common.limit, speed, SLICE_TIME);
 }
 
 static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
@@ -540,7 +528,6 @@ static const BlockJobDriver backup_job_driver = {
     .instance_size          = sizeof(BackupBlockJob),
     .job_type               = BLOCK_JOB_TYPE_BACKUP,
     .start                  = backup_run,
-    .set_speed              = backup_set_speed,
     .commit                 = backup_commit,
     .abort                  = backup_abort,
     .clean                  = backup_clean,
