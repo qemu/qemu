@@ -810,6 +810,16 @@ int block_job_complete_sync(BlockJob *job, Error **errp)
     return block_job_finish_sync(job, &block_job_complete, errp);
 }
 
+void block_job_progress_update(BlockJob *job, uint64_t done)
+{
+    job->offset += done;
+}
+
+void block_job_progress_set_remaining(BlockJob *job, uint64_t remaining)
+{
+    job->len = job->offset + remaining;
+}
+
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
 {
     BlockJobInfo *info;

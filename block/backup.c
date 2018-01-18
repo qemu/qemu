@@ -39,6 +39,7 @@ typedef struct BackupBlockJob {
     BlockdevOnError on_source_error;
     BlockdevOnError on_target_error;
     CoRwlock flush_rwlock;
+    uint64_t len;
     uint64_t bytes_read;
     int64_t cluster_size;
     bool compress;
@@ -118,7 +119,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
 
         trace_backup_do_cow_process(job, start);
 
-        n = MIN(job->cluster_size, job->common.len - start);
+        n = MIN(job->cluster_size, job->len - start);
 
         if (!bounce_buffer) {
             bounce_buffer = blk_blockalign(blk, job->cluster_size);
@@ -159,7 +160,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
          * offset field is an opaque progress value, it is not a disk offset.
          */
         job->bytes_read += n;
-        job->common.offset += n;
+        block_job_progress_update(&job->common, n);
     }
 
 out:
@@ -261,7 +262,7 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
         return;
     }
 
-    len = DIV_ROUND_UP(backup_job->common.len, backup_job->cluster_size);
+    len = DIV_ROUND_UP(backup_job->len, backup_job->cluster_size);
     hbitmap_set(backup_job->copy_bitmap, 0, len);
 }
 
@@ -420,8 +421,9 @@ static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
         bdrv_set_dirty_iter(dbi, next_cluster * job->cluster_size);
     }
 
-    job->common.offset = job->common.len -
-                         hbitmap_count(job->copy_bitmap) * job->cluster_size;
+    /* TODO block_job_progress_set_remaining() would make more sense */
+    block_job_progress_update(&job->common,
+        job->len - hbitmap_count(job->copy_bitmap) * job->cluster_size);
 
     bdrv_dirty_iter_free(dbi);
 }
@@ -437,7 +439,9 @@ static void coroutine_fn backup_run(void *opaque)
     QLIST_INIT(&job->inflight_reqs);
     qemu_co_rwlock_init(&job->flush_rwlock);
 
-    nb_clusters = DIV_ROUND_UP(job->common.len, job->cluster_size);
+    nb_clusters = DIV_ROUND_UP(job->len, job->cluster_size);
+    block_job_progress_set_remaining(&job->common, job->len);
+
     job->copy_bitmap = hbitmap_alloc(nb_clusters, 0);
     if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         backup_incremental_init_copy_bitmap(job);
@@ -461,7 +465,7 @@ static void coroutine_fn backup_run(void *opaque)
         ret = backup_run_incremental(job);
     } else {
         /* Both FULL and TOP SYNC_MODE's require copying.. */
-        for (offset = 0; offset < job->common.len;
+        for (offset = 0; offset < job->len;
              offset += job->cluster_size) {
             bool error_is_read;
             int alloced = 0;
@@ -620,7 +624,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    /* job->common.len is fixed, so we can't allow resize */
+    /* job->len is fixed, so we can't allow resize */
     job = block_job_create(job_id, &backup_job_driver, txn, bs,
                            BLK_PERM_CONSISTENT_READ,
                            BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
@@ -676,7 +680,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     /* Required permissions are already taken with target's blk_new() */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
                        &error_abort);
-    job->common.len = len;
+    job->len = len;
 
     return &job->common;
 
