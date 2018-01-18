@@ -118,15 +118,22 @@ vu_panic(VuDev *dev, const char *msg, ...)
 
 /* Translate guest physical address to our virtual address.  */
 void *
-vu_gpa_to_va(VuDev *dev, uint64_t guest_addr)
+vu_gpa_to_va(VuDev *dev, uint64_t *plen, uint64_t guest_addr)
 {
     int i;
+
+    if (*plen == 0) {
+        return NULL;
+    }
 
     /* Find matching memory region.  */
     for (i = 0; i < dev->nregions; i++) {
         VuDevRegion *r = &dev->regions[i];
 
         if ((guest_addr >= r->gpa) && (guest_addr < (r->gpa + r->size))) {
+            if ((guest_addr + *plen) > (r->gpa + r->size)) {
+                *plen = r->gpa + r->size - guest_addr;
+            }
             return (void *)(uintptr_t)
                 guest_addr - r->gpa + r->mmap_addr + r->mmap_offset;
         }
@@ -1116,6 +1123,37 @@ virtqueue_get_head(VuDev *dev, VuVirtq *vq,
     return true;
 }
 
+static int
+virtqueue_read_indirect_desc(VuDev *dev, struct vring_desc *desc,
+                             uint64_t addr, size_t len)
+{
+    struct vring_desc *ori_desc;
+    uint64_t read_len;
+
+    if (len > (VIRTQUEUE_MAX_SIZE * sizeof(struct vring_desc))) {
+        return -1;
+    }
+
+    if (len == 0) {
+        return -1;
+    }
+
+    while (len) {
+        read_len = len;
+        ori_desc = vu_gpa_to_va(dev, &read_len, addr);
+        if (!ori_desc) {
+            return -1;
+        }
+
+        memcpy(desc, ori_desc, read_len);
+        len -= read_len;
+        addr += read_len;
+        desc += read_len;
+    }
+
+    return 0;
+}
+
 enum {
     VIRTQUEUE_READ_DESC_ERROR = -1,
     VIRTQUEUE_READ_DESC_DONE = 0,   /* end of chain */
@@ -1162,8 +1200,10 @@ vu_queue_get_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int *in_bytes,
     }
 
     while ((rc = virtqueue_num_heads(dev, vq, idx)) > 0) {
-        unsigned int max, num_bufs, indirect = 0;
+        unsigned int max, desc_len, num_bufs, indirect = 0;
+        uint64_t desc_addr, read_len;
         struct vring_desc *desc;
+        struct vring_desc desc_buf[VIRTQUEUE_MAX_SIZE];
         unsigned int i;
 
         max = vq->vring.num;
@@ -1187,8 +1227,24 @@ vu_queue_get_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int *in_bytes,
 
             /* loop over the indirect descriptor table */
             indirect = 1;
-            max = desc[i].len / sizeof(struct vring_desc);
-            desc = vu_gpa_to_va(dev, desc[i].addr);
+            desc_addr = desc[i].addr;
+            desc_len = desc[i].len;
+            max = desc_len / sizeof(struct vring_desc);
+            read_len = desc_len;
+            desc = vu_gpa_to_va(dev, &read_len, desc_addr);
+            if (unlikely(desc && read_len != desc_len)) {
+                /* Failed to use zero copy */
+                desc = NULL;
+                if (!virtqueue_read_indirect_desc(dev, desc_buf,
+                                                  desc_addr,
+                                                  desc_len)) {
+                    desc = desc_buf;
+                }
+            }
+            if (!desc) {
+                vu_panic(dev, "Invalid indirect buffer table");
+                goto err;
+            }
             num_bufs = i = 0;
         }
 
@@ -1386,9 +1442,24 @@ virtqueue_map_desc(VuDev *dev,
         return;
     }
 
-    iov[num_sg].iov_base = vu_gpa_to_va(dev, pa);
-    iov[num_sg].iov_len = sz;
-    num_sg++;
+    while (sz) {
+        uint64_t len = sz;
+
+        if (num_sg == max_num_sg) {
+            vu_panic(dev, "virtio: too many descriptors in indirect table");
+            return;
+        }
+
+        iov[num_sg].iov_base = vu_gpa_to_va(dev, &len, pa);
+        if (iov[num_sg].iov_base == NULL) {
+            vu_panic(dev, "virtio: invalid address for buffers");
+            return;
+        }
+        iov[num_sg].iov_len = len;
+        num_sg++;
+        sz -= len;
+        pa += len;
+    }
 
     *p_num_sg = num_sg;
 }
@@ -1420,10 +1491,12 @@ virtqueue_alloc_element(size_t sz,
 void *
 vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
 {
-    unsigned int i, head, max;
+    unsigned int i, head, max, desc_len;
+    uint64_t desc_addr, read_len;
     VuVirtqElement *elem;
     unsigned out_num, in_num;
     struct iovec iov[VIRTQUEUE_MAX_SIZE];
+    struct vring_desc desc_buf[VIRTQUEUE_MAX_SIZE];
     struct vring_desc *desc;
     int rc;
 
@@ -1464,8 +1537,24 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
         }
 
         /* loop over the indirect descriptor table */
-        max = desc[i].len / sizeof(struct vring_desc);
-        desc = vu_gpa_to_va(dev, desc[i].addr);
+        desc_addr = desc[i].addr;
+        desc_len = desc[i].len;
+        max = desc_len / sizeof(struct vring_desc);
+        read_len = desc_len;
+        desc = vu_gpa_to_va(dev, &read_len, desc_addr);
+        if (unlikely(desc && read_len != desc_len)) {
+            /* Failed to use zero copy */
+            desc = NULL;
+            if (!virtqueue_read_indirect_desc(dev, desc_buf,
+                                              desc_addr,
+                                              desc_len)) {
+                desc = desc_buf;
+            }
+        }
+        if (!desc) {
+            vu_panic(dev, "Invalid indirect buffer table");
+            return NULL;
+        }
         i = 0;
     }
 
@@ -1541,7 +1630,9 @@ vu_log_queue_fill(VuDev *dev, VuVirtq *vq,
                   unsigned int len)
 {
     struct vring_desc *desc = vq->vring.desc;
-    unsigned int i, max, min;
+    unsigned int i, max, min, desc_len;
+    uint64_t desc_addr, read_len;
+    struct vring_desc desc_buf[VIRTQUEUE_MAX_SIZE];
     unsigned num_bufs = 0;
 
     max = vq->vring.num;
@@ -1553,8 +1644,24 @@ vu_log_queue_fill(VuDev *dev, VuVirtq *vq,
         }
 
         /* loop over the indirect descriptor table */
-        max = desc[i].len / sizeof(struct vring_desc);
-        desc = vu_gpa_to_va(dev, desc[i].addr);
+        desc_addr = desc[i].addr;
+        desc_len = desc[i].len;
+        max = desc_len / sizeof(struct vring_desc);
+        read_len = desc_len;
+        desc = vu_gpa_to_va(dev, &read_len, desc_addr);
+        if (unlikely(desc && read_len != desc_len)) {
+            /* Failed to use zero copy */
+            desc = NULL;
+            if (!virtqueue_read_indirect_desc(dev, desc_buf,
+                                              desc_addr,
+                                              desc_len)) {
+                desc = desc_buf;
+            }
+        }
+        if (!desc) {
+            vu_panic(dev, "Invalid indirect buffer table");
+            return;
+        }
         i = 0;
     }
 
