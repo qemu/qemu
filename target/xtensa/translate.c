@@ -942,7 +942,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     unsigned char b[MAX_INSN_LENGTH] = {cpu_ldub_code(env, dc->pc)};
     unsigned len = xtensa_op0_insn_len(dc, b[0]);
     xtensa_format fmt;
-    unsigned slot, slots;
+    int slot, slots;
     unsigned i;
 
     if (len == XTENSA_UNDEFINED) {
@@ -969,7 +969,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     slots = xtensa_format_num_slots(isa, fmt);
     for (slot = 0; slot < slots; ++slot) {
         xtensa_opcode opc;
-        unsigned opnd, vopnd, opnds;
+        int opnd, vopnd, opnds;
         uint32_t raw_arg[MAX_OPCODE_ARGS];
         uint32_t arg[MAX_OPCODE_ARGS];
         XtensaOpcodeOps *ops;

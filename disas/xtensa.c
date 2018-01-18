@@ -37,7 +37,7 @@ int print_insn_xtensa(bfd_vma memaddr, struct disassemble_info *info)
     bfd_byte *buffer = g_malloc(1);
     int status = info->read_memory_func(memaddr, buffer, 1, info);
     xtensa_format fmt;
-    unsigned slot, slots;
+    int slot, slots;
     unsigned len;
 
     if (status) {
@@ -79,7 +79,7 @@ int print_insn_xtensa(bfd_vma memaddr, struct disassemble_info *info)
 
     for (slot = 0; slot < slots; ++slot) {
         xtensa_opcode opc;
-        unsigned opnd, vopnd, opnds;
+        int opnd, vopnd, opnds;
 
         if (slot) {
             info->fprintf_func(info->stream, "; ");
