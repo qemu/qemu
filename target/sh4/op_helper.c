@@ -40,12 +40,12 @@ void superh_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = superh_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
+    ret = superh_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
         cpu_loop_exit_restore(cs, retaddr);

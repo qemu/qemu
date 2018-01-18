@@ -2451,12 +2451,12 @@ void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     do_raise_exception_err(env, excp, error_code, retaddr);
 }
 
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = mips_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
+    ret = mips_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
     if (ret) {
         MIPSCPU *cpu = MIPS_CPU(cs);
         CPUMIPSState *env = &cpu->env;
@@ -4190,10 +4190,10 @@ static inline void ensure_writable_pages(CPUMIPSState *env,
     target_ulong page_addr;
     if (unlikely(MSA_PAGESPAN(addr))) {
         /* first page */
-        probe_write(env, addr, mmu_idx, retaddr);
+        probe_write(env, addr, 0, mmu_idx, retaddr);
         /* second page */
         page_addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-        probe_write(env, page_addr, mmu_idx, retaddr);
+        probe_write(env, page_addr, 0, mmu_idx, retaddr);
     }
 #endif
 }

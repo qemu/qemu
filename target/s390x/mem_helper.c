@@ -39,10 +39,10 @@
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
-    int ret = s390_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
+    int ret = s390_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
     if (unlikely(ret != 0)) {
         cpu_loop_exit_restore(cs, retaddr);
     }
@@ -1440,7 +1440,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
 
     /* Sanity check writability of the store address.  */
 #ifndef CONFIG_USER_ONLY
-    probe_write(env, a2, mem_idx, ra);
+    probe_write(env, a2, 0, mem_idx, ra);
 #endif
 
     /* Note that the compare-and-swap is atomic, and the store is atomic, but

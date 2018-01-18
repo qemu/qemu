@@ -2806,8 +2806,8 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,
     cpu_loop_exit_restore(cs, pc);
 }
 
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
     int ret;
     ret = cpu_tricore_handle_mmu_fault(cs, addr, access_type, mmu_idx);

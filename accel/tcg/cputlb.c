@@ -880,7 +880,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
     if (unlikely(env->tlb_table[mmu_idx][index].addr_code !=
                  (addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK)))) {
         if (!VICTIM_TLB_HIT(addr_read, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, MMU_INST_FETCH, mmu_idx, 0);
+            tlb_fill(ENV_GET_CPU(env), addr, 0, MMU_INST_FETCH, mmu_idx, 0);
         }
     }
     iotlbentry = &env->iotlb[mmu_idx][index];
@@ -928,7 +928,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
  * Otherwise the function will return, and there will be a valid
  * entry in the TLB for this access.
  */
-void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
+void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
                  uintptr_t retaddr)
 {
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -938,7 +938,8 @@ void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         /* TLB entry is for a different page */
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
+            tlb_fill(ENV_GET_CPU(env), addr, size, MMU_DATA_STORE,
+                     mmu_idx, retaddr);
         }
     }
 }
@@ -981,7 +982,8 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     if ((addr & TARGET_PAGE_MASK)
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_STORE, mmu_idx, retaddr);
+            tlb_fill(ENV_GET_CPU(env), addr, 1 << s_bits, MMU_DATA_STORE,
+                     mmu_idx, retaddr);
         }
         tlb_addr = tlbe->addr_write & ~TLB_INVALID_MASK;
     }
@@ -995,7 +997,8 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 
     /* Let the guest notice RMW on a write-only page.  */
     if (unlikely(tlbe->addr_read != (tlb_addr & ~TLB_NOTDIRTY))) {
-        tlb_fill(ENV_GET_CPU(env), addr, MMU_DATA_LOAD, mmu_idx, retaddr);
+        tlb_fill(ENV_GET_CPU(env), addr, 1 << s_bits, MMU_DATA_LOAD,
+                 mmu_idx, retaddr);
         /* Since we don't support reads and writes to different addresses,
            and we do have the proper page loaded for write, this shouldn't
            ever return.  But just in case, handle via stop-the-world.  */

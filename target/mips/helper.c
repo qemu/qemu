@@ -535,7 +535,7 @@ hwaddr mips_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 }
 #endif
 
-int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                               int mmu_idx)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);

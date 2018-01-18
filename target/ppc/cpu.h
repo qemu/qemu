@@ -1308,7 +1308,7 @@ void ppc_translate_init(void);
 int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 #if defined(CONFIG_USER_ONLY)
-int ppc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+int ppc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                              int mmu_idx);
 #endif
 

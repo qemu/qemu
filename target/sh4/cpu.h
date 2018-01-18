@@ -246,7 +246,7 @@ void superh_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 void sh4_translate_init(void);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int superh_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
+int superh_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                                 int mmu_idx);
 
 void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf);

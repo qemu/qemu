@@ -253,7 +253,7 @@ void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
 void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr);
-void probe_write(CPUArchState *env, target_ulong addr, int mmu_idx,
+void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
                  uintptr_t retaddr);
 #else
 static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
@@ -436,8 +436,8 @@ void tb_lock_reset(void);
 struct MemoryRegion *iotlb_to_region(CPUState *cpu,
                                      hwaddr index, MemTxAttrs attrs);
 
-void tlb_fill(CPUState *cpu, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr);
+void tlb_fill(CPUState *cpu, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr);
 
 #endif
 

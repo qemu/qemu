@@ -33,12 +33,12 @@
  * NULL, it means that the function was called in C code (i.e. not
  * from generated code or from helper.c)
  */
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = mb_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
+    ret = mb_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
     if (unlikely(ret)) {
         /* now we have a real cpu fault */
         cpu_loop_exit_restore(cs, retaddr);

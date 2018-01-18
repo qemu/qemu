@@ -308,7 +308,7 @@ void m68k_switch_sp(CPUM68KState *env)
 
 #if defined(CONFIG_USER_ONLY)
 
-int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                               int mmu_idx)
 {
     M68kCPU *cpu = M68K_CPU(cs);
@@ -328,7 +328,7 @@ hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return addr;
 }
 
-int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                               int mmu_idx)
 {
     int prot;

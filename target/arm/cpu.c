@@ -1689,8 +1689,8 @@ static Property arm_cpu_properties[] = {
 };
 
 #ifdef CONFIG_USER_ONLY
-static int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
-                                    int mmu_idx)
+static int arm_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
+                                    int rw, int mmu_idx)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;

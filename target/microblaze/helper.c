@@ -38,7 +38,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
     env->regs[14] = env->sregs[SR_PC];
 }
 
-int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                             int mmu_idx)
 {
     cs->exception_index = 0xaa;
@@ -48,7 +48,7 @@ int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 
 #else /* !CONFIG_USER_ONLY */
 
-int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                             int mmu_idx)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);

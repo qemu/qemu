@@ -230,7 +230,7 @@ void uc32_cpu_do_interrupt(CPUState *cs)
     cpu_abort(cs, "NO interrupt in user mode\n");
 }
 
-int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
+int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
                               int access_type, int mmu_idx)
 {
     cpu_abort(cs, "NO mmu fault in user mode\n");

@@ -215,7 +215,7 @@ do_fault:
     return code;
 }
 
-int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
+int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
                               int access_type, int mmu_idx)
 {
     UniCore32CPU *cpu = UNICORE32_CPU(cs);

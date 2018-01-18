@@ -41,8 +41,8 @@
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
@@ -50,7 +50,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
 
     D_LOG("%s pc=%x tpc=%x ra=%p\n", __func__,
           env->pc, env->pregs[PR_EDA], (void *)retaddr);
-    ret = cris_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
+    ret = cris_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
