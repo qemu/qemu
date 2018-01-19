@@ -627,6 +627,8 @@ static void vhost_begin(MemoryListener *listener)
                                          memory_listener);
     dev->mem_changed_end_addr = 0;
     dev->mem_changed_start_addr = -1;
+    dev->tmp_sections = NULL;
+    dev->n_tmp_sections = 0;
 }
 
 static void vhost_commit(MemoryListener *listener)
@@ -635,17 +637,25 @@ static void vhost_commit(MemoryListener *listener)
                                          memory_listener);
     hwaddr start_addr = 0;
     ram_addr_t size = 0;
+    MemoryRegionSection *old_sections;
+    int n_old_sections;
+
     uint64_t log_size;
     int r;
 
+    old_sections = dev->mem_sections;
+    n_old_sections = dev->n_mem_sections;
+    dev->mem_sections = dev->tmp_sections;
+    dev->n_mem_sections = dev->n_tmp_sections;
+
     if (!dev->memory_changed) {
-        return;
+        goto out;
     }
     if (!dev->started) {
-        return;
+        goto out;
     }
     if (dev->mem_changed_start_addr > dev->mem_changed_end_addr) {
-        return;
+        goto out;
     }
 
     if (dev->started) {
@@ -662,7 +672,7 @@ static void vhost_commit(MemoryListener *listener)
             VHOST_OPS_DEBUG("vhost_set_mem_table failed");
         }
         dev->memory_changed = false;
-        return;
+        goto out;
     }
     log_size = vhost_get_log_size(dev);
     /* We allocate an extra 4K bytes to log,
@@ -681,6 +691,27 @@ static void vhost_commit(MemoryListener *listener)
         vhost_dev_log_resize(dev, log_size);
     }
     dev->memory_changed = false;
+
+out:
+    /* Deref the old list of sections, this must happen _after_ the
+     * vhost_set_mem_table to ensure the client isn't still using the
+     * section we're about to unref.
+     */
+    while (n_old_sections--) {
+        memory_region_unref(old_sections[n_old_sections].mr);
+    }
+    g_free(old_sections);
+    return;
+}
+
+static void vhost_add_section(struct vhost_dev *dev,
+                              MemoryRegionSection *section)
+{
+    ++dev->n_tmp_sections;
+    dev->tmp_sections = g_renew(MemoryRegionSection, dev->tmp_sections,
+                                dev->n_tmp_sections);
+    dev->tmp_sections[dev->n_tmp_sections - 1] = *section;
+    memory_region_ref(section->mr);
 }
 
 static void vhost_region_add(MemoryListener *listener,
@@ -693,36 +724,31 @@ static void vhost_region_add(MemoryListener *listener,
         return;
     }
 
-    ++dev->n_mem_sections;
-    dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
-                                dev->n_mem_sections);
-    dev->mem_sections[dev->n_mem_sections - 1] = *section;
-    memory_region_ref(section->mr);
+    vhost_add_section(dev, section);
     vhost_set_memory(listener, section, true);
 }
 
-static void vhost_region_del(MemoryListener *listener,
+static void vhost_region_nop(MemoryListener *listener,
                              MemoryRegionSection *section)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-    int i;
 
     if (!vhost_section(section)) {
         return;
     }
 
-    vhost_set_memory(listener, section, false);
-    memory_region_unref(section->mr);
-    for (i = 0; i < dev->n_mem_sections; ++i) {
-        if (dev->mem_sections[i].offset_within_address_space
-            == section->offset_within_address_space) {
-            --dev->n_mem_sections;
-            memmove(&dev->mem_sections[i], &dev->mem_sections[i+1],
-                    (dev->n_mem_sections - i) * sizeof(*dev->mem_sections));
-            break;
-        }
+    vhost_add_section(dev, section);
+}
+
+static void vhost_region_del(MemoryListener *listener,
+                             MemoryRegionSection *section)
+{
+    if (!vhost_section(section)) {
+        return;
     }
+
+    vhost_set_memory(listener, section, false);
 }
 
 static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
@@ -787,11 +813,6 @@ static void vhost_iommu_region_del(MemoryListener *listener,
             break;
         }
     }
-}
-
-static void vhost_region_nop(MemoryListener *listener,
-                             MemoryRegionSection *section)
-{
 }
 
 static int vhost_virtqueue_set_addr(struct vhost_dev *dev,

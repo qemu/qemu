@@ -60,6 +60,8 @@ struct vhost_dev {
     struct vhost_memory *mem;
     int n_mem_sections;
     MemoryRegionSection *mem_sections;
+    int n_tmp_sections;
+    MemoryRegionSection *tmp_sections;
     struct vhost_virtqueue *vqs;
     int nvqs;
     /* the first virtqueue which would be used by this vhost dev */
