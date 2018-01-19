@@ -253,19 +253,31 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
     dev->alias_required_for_version = required_for_version;
 }
 
+HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
+{
+    MachineState *machine;
+    MachineClass *mc;
+    Object *m_obj = qdev_get_machine();
+
+    if (object_dynamic_cast(m_obj, TYPE_MACHINE)) {
+        machine = MACHINE(m_obj);
+        mc = MACHINE_GET_CLASS(machine);
+        if (mc->get_hotplug_handler) {
+            return mc->get_hotplug_handler(machine, dev);
+        }
+    }
+
+    return NULL;
+}
+
 HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
 {
-    HotplugHandler *hotplug_ctrl = NULL;
+    HotplugHandler *hotplug_ctrl;
 
     if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
         hotplug_ctrl = dev->parent_bus->hotplug_handler;
-    } else if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
-        MachineState *machine = MACHINE(qdev_get_machine());
-        MachineClass *mc = MACHINE_GET_CLASS(machine);
-
-        if (mc->get_hotplug_handler) {
-            hotplug_ctrl = mc->get_hotplug_handler(machine, dev);
-        }
+    } else {
+        hotplug_ctrl = qdev_get_machine_hotplug_handler(dev);
     }
     return hotplug_ctrl;
 }

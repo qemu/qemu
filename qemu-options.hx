@@ -169,7 +169,9 @@ ETEXI
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
     "-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
     "-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
-    "-numa dist,src=source,dst=destination,val=distance\n", QEMU_ARCH_ALL)
+    "-numa dist,src=source,dst=destination,val=distance\n"
+    "-numa cpu,node-id=node[,socket-id=x][,core-id=y][,thread-id=z]\n",
+    QEMU_ARCH_ALL)
 STEXI
 @item -numa node[,mem=@var{size}][,cpus=@var{firstcpu}[-@var{lastcpu}]][,nodeid=@var{node}]
 @itemx -numa node[,memdev=@var{id}][,cpus=@var{firstcpu}[-@var{lastcpu}]][,nodeid=@var{node}]
@@ -3972,24 +3974,72 @@ property must be set.  These objects are placed in the
 
 @table @option
 
-@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off}
+@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},align=@var{align}
 
 Creates a memory file backend object, which can be used to back
-the guest RAM with huge pages. The @option{id} parameter is a
-unique ID that will be used to reference this memory region
-when configuring the @option{-numa} argument. The @option{size}
-option provides the size of the memory region, and accepts
-common suffixes, eg @option{500M}. The @option{mem-path} provides
-the path to either a shared memory or huge page filesystem mount.
+the guest RAM with huge pages.
+
+The @option{id} parameter is a unique ID that will be used to reference this
+memory region when configuring the @option{-numa} argument.
+
+The @option{size} option provides the size of the memory region, and accepts
+common suffixes, eg @option{500M}.
+
+The @option{mem-path} provides the path to either a shared memory or huge page
+filesystem mount.
+
 The @option{share} boolean option determines whether the memory
 region is marked as private to QEMU, or shared. The latter allows
 a co-operating external process to access the QEMU memory region.
+
 Setting the @option{discard-data} boolean option to @var{on}
 indicates that file contents can be destroyed when QEMU exits,
 to avoid unnecessarily flushing data to the backing file.  Note
 that @option{discard-data} is only an optimization, and QEMU
 might not discard file contents if it aborts unexpectedly or is
 terminated using SIGKILL.
+
+The @option{merge} boolean option enables memory merge, also known as
+MADV_MERGEABLE, so that Kernel Samepage Merging will consider the pages for
+memory deduplication.
+
+Setting the @option{dump} boolean option to @var{off} excludes the memory from
+core dumps. This feature is also known as MADV_DONTDUMP.
+
+The @option{prealloc} boolean option enables memory preallocation.
+
+The @option{host-nodes} option binds the memory range to a list of NUMA host
+nodes.
+
+The @option{policy} option sets the NUMA policy to one of the following values:
+
+@table @option
+@item @var{default}
+default host policy
+
+@item @var{preferred}
+prefer the given host node list for allocation
+
+@item @var{bind}
+restrict memory allocation to the given host node list
+
+@item @var{interleave}
+interleave memory allocations across the given host node list
+@end table
+
+The @option{align} option specifies the base address alignment when
+QEMU mmap(2) @option{mem-path}, and accepts common suffixes, eg
+@option{2M}. Some backend store specified by @option{mem-path}
+requires an alignment different than the default one used by QEMU, eg
+the device DAX /dev/dax0.0 requires 2M alignment rather than 4K. In
+such cases, users can specify the required alignment via this option.
+
+@item -object memory-backend-ram,id=@var{id},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},size=@var{size},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave}
+
+Creates a memory backend object, which can be used to back the guest RAM.
+Memory backend objects offer more control than the @option{-m} option that is
+traditionally used to define guest RAM. Please refer to
+@option{memory-backend-file} for a description of the options.
 
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 

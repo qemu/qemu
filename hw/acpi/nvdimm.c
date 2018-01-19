@@ -138,6 +138,8 @@ struct NvdimmNfitMemDev {
 } QEMU_PACKED;
 typedef struct NvdimmNfitMemDev NvdimmNfitMemDev;
 
+#define ACPI_NFIT_MEM_NOT_ARMED     (1 << 3)
+
 /*
  * NVDIMM Control Region Structure
  *
@@ -284,6 +286,7 @@ static void
 nvdimm_build_structure_memdev(GArray *structures, DeviceState *dev)
 {
     NvdimmNfitMemDev *nfit_memdev;
+    NVDIMMDevice *nvdimm = NVDIMM(OBJECT(dev));
     uint64_t size = object_property_get_uint(OBJECT(dev), PC_DIMM_SIZE_PROP,
                                              NULL);
     int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
@@ -312,6 +315,10 @@ nvdimm_build_structure_memdev(GArray *structures, DeviceState *dev)
 
     /* Only one interleave for PMEM. */
     nfit_memdev->interleave_ways = cpu_to_le16(1);
+
+    if (nvdimm->unarmed) {
+        nfit_memdev->flags |= cpu_to_le16(ACPI_NFIT_MEM_NOT_ARMED);
+    }
 }
 
 /*
