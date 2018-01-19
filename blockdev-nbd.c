@@ -189,6 +189,30 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
     nbd_export_put(exp);
 }
 
+void qmp_nbd_server_remove(const char *name,
+                           bool has_mode, NbdServerRemoveMode mode,
+                           Error **errp)
+{
+    NBDExport *exp;
+
+    if (!nbd_server) {
+        error_setg(errp, "NBD server not running");
+        return;
+    }
+
+    exp = nbd_export_find(name);
+    if (exp == NULL) {
+        error_setg(errp, "Export '%s' is not found", name);
+        return;
+    }
+
+    if (!has_mode) {
+        mode = NBD_SERVER_REMOVE_MODE_SAFE;
+    }
+
+    nbd_export_remove(exp, mode, errp);
+}
+
 void qmp_nbd_server_stop(Error **errp)
 {
     nbd_export_close_all();
