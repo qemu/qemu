@@ -191,6 +191,17 @@ static void cap_safe_cache_apply(sPAPRMachineState *spapr, uint8_t val,
     }
 }
 
+static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
+                                        Error **errp)
+{
+    if (tcg_enabled() && val) {
+        /* TODO - for now only allow broken for TCG */
+        error_setg(errp, "Requested safe bounds check capability level not supported by tcg, try a different value for cap-sbbc");
+    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_bounds_check())) {
+        error_setg(errp, "Requested safe bounds check capability level not supported by kvm, try a different value for cap-sbbc");
+    }
+}
+
 #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
 
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
@@ -229,6 +240,15 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_tristate,
         .type = "string",
         .apply = cap_safe_cache_apply,
+    },
+    [SPAPR_CAP_SBBC] = {
+        .name = "sbbc",
+        .description = "Speculation Barrier Bounds Checking" VALUE_DESC_TRISTATE,
+        .index = SPAPR_CAP_SBBC,
+        .get = spapr_cap_get_tristate,
+        .set = spapr_cap_set_tristate,
+        .type = "string",
+        .apply = cap_safe_bounds_check_apply,
     },
 };
 
@@ -336,6 +356,7 @@ SPAPR_CAP_MIG_STATE(htm, HTM);
 SPAPR_CAP_MIG_STATE(vsx, VSX);
 SPAPR_CAP_MIG_STATE(dfp, DFP);
 SPAPR_CAP_MIG_STATE(cfpc, CFPC);
+SPAPR_CAP_MIG_STATE(sbbc, SBBC);
 
 void spapr_caps_reset(sPAPRMachineState *spapr)
 {
