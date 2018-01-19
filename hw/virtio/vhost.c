@@ -560,8 +560,9 @@ static void vhost_region_add_section(struct vhost_dev *dev,
     }
 }
 
-static void vhost_region_add(MemoryListener *listener,
-                             MemoryRegionSection *section)
+/* Used for both add and nop callbacks */
+static void vhost_region_addnop(MemoryListener *listener,
+                                MemoryRegionSection *section)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
@@ -570,29 +571,6 @@ static void vhost_region_add(MemoryListener *listener,
         return;
     }
     vhost_region_add_section(dev, section);
-}
-
-/* Called on regions that have not changed */
-static void vhost_region_nop(MemoryListener *listener,
-                             MemoryRegionSection *section)
-{
-    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
-                                         memory_listener);
-
-    if (!vhost_section(section)) {
-        return;
-    }
-
-    vhost_region_add_section(dev, section);
-}
-
-static void vhost_region_del(MemoryListener *listener,
-                             MemoryRegionSection *section)
-{
-    if (!vhost_section(section)) {
-        return;
-    }
-
 }
 
 static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
@@ -1163,9 +1141,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->memory_listener = (MemoryListener) {
         .begin = vhost_begin,
         .commit = vhost_commit,
-        .region_add = vhost_region_add,
-        .region_del = vhost_region_del,
-        .region_nop = vhost_region_nop,
+        .region_add = vhost_region_addnop,
+        .region_nop = vhost_region_addnop,
         .log_start = vhost_log_start,
         .log_stop = vhost_log_stop,
         .log_sync = vhost_log_sync,
