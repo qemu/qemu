@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
+#include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -379,8 +380,19 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
 
 static bool vhost_section(MemoryRegionSection *section)
 {
-    return memory_region_is_ram(section->mr) &&
+    bool result;
+    bool log_dirty = memory_region_get_dirty_log_mask(section->mr) &
+                     ~(1 << DIRTY_MEMORY_MIGRATION);
+    result = memory_region_is_ram(section->mr) &&
         !memory_region_is_rom(section->mr);
+
+    /* Vhost doesn't handle any block which is doing dirty-tracking other
+     * than migration; this typically fires on VGA areas.
+     */
+    result &= !log_dirty;
+
+    trace_vhost_section(section->mr->name, result);
+    return result;
 }
 
 static void vhost_begin(MemoryListener *listener)
@@ -509,12 +521,6 @@ static void vhost_region_add_section(struct vhost_dev *dev,
 
     trace_vhost_region_add_section(section->mr->name, mrs_gpa, mrs_size,
                                    mrs_host);
-
-    bool log_dirty = memory_region_get_dirty_log_mask(section->mr) &
-                        ~(1 << DIRTY_MEMORY_MIGRATION);
-    if (log_dirty) {
-        return;
-    }
 
     if (dev->n_tmp_sections) {
         /* Since we already have at least one section, lets see if
