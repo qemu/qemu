@@ -709,14 +709,71 @@ out:
     return;
 }
 
-static void vhost_add_section(struct vhost_dev *dev,
-                              MemoryRegionSection *section)
+/* Adds the section data to the tmp_section structure.
+ * It relies on the listener calling us in memory address order
+ * and for each region (via the _add and _nop methods) to
+ * join neighbours.
+ */
+static void vhost_region_add_section(struct vhost_dev *dev,
+                                     MemoryRegionSection *section)
 {
-    ++dev->n_tmp_sections;
-    dev->tmp_sections = g_renew(MemoryRegionSection, dev->tmp_sections,
-                                dev->n_tmp_sections);
-    dev->tmp_sections[dev->n_tmp_sections - 1] = *section;
-    memory_region_ref(section->mr);
+    bool need_add = true;
+    uint64_t mrs_size = int128_get64(section->size);
+    uint64_t mrs_gpa = section->offset_within_address_space;
+    uintptr_t mrs_host = (uintptr_t)memory_region_get_ram_ptr(section->mr) +
+                         section->offset_within_region;
+
+    trace_vhost_region_add_section(section->mr->name, mrs_gpa, mrs_size,
+                                   mrs_host);
+
+    bool log_dirty = memory_region_get_dirty_log_mask(section->mr) &
+                        ~(1 << DIRTY_MEMORY_MIGRATION);
+    if (log_dirty) {
+        return;
+    }
+
+    if (dev->n_tmp_sections) {
+        /* Since we already have at least one section, lets see if
+         * this extends it; since we're scanning in order, we only
+         * have to look at the last one, and the FlatView that calls
+         * us shouldn't have overlaps.
+         */
+        MemoryRegionSection *prev_sec = dev->tmp_sections +
+                                               (dev->n_tmp_sections - 1);
+        uint64_t prev_gpa_start = prev_sec->offset_within_address_space;
+        uint64_t prev_size = int128_get64(prev_sec->size);
+        uint64_t prev_gpa_end   = range_get_last(prev_gpa_start, prev_size);
+        uint64_t prev_host_start =
+                        (uintptr_t)memory_region_get_ram_ptr(prev_sec->mr) +
+                        prev_sec->offset_within_region;
+        uint64_t prev_host_end   = range_get_last(prev_host_start, prev_size);
+
+        if (prev_gpa_end + 1 == mrs_gpa &&
+            prev_host_end + 1 == mrs_host &&
+            section->mr == prev_sec->mr &&
+            (!dev->vhost_ops->vhost_backend_can_merge ||
+                dev->vhost_ops->vhost_backend_can_merge(dev,
+                    mrs_host, mrs_size,
+                    prev_host_start, prev_size))) {
+            /* The two sections abut */
+            need_add = false;
+            prev_sec->size = int128_add(prev_sec->size, section->size);
+            trace_vhost_region_add_section_abut(section->mr->name,
+                                                mrs_size + prev_size);
+        }
+    }
+
+    if (need_add) {
+        ++dev->n_tmp_sections;
+        dev->tmp_sections = g_renew(MemoryRegionSection, dev->tmp_sections,
+                                    dev->n_tmp_sections);
+        dev->tmp_sections[dev->n_tmp_sections - 1] = *section;
+        /* The flatview isn't stable and we don't use it, making it NULL
+         * means we can memcmp the list.
+         */
+        dev->tmp_sections[dev->n_tmp_sections - 1].fv = NULL;
+        memory_region_ref(section->mr);
+    }
 }
 
 static void vhost_region_add(MemoryListener *listener,
@@ -728,11 +785,12 @@ static void vhost_region_add(MemoryListener *listener,
     if (!vhost_section(section)) {
         return;
     }
+    vhost_region_add_section(dev, section);
 
-    vhost_add_section(dev, section);
     vhost_set_memory(listener, section, true);
 }
 
+/* Called on regions that have not changed */
 static void vhost_region_nop(MemoryListener *listener,
                              MemoryRegionSection *section)
 {
@@ -743,7 +801,7 @@ static void vhost_region_nop(MemoryListener *listener,
         return;
     }
 
-    vhost_add_section(dev, section);
+    vhost_region_add_section(dev, section);
 }
 
 static void vhost_region_del(MemoryListener *listener,
