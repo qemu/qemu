@@ -100,36 +100,7 @@ enum {
     float_relation_unordered =  2
 };
 
-/*----------------------------------------------------------------------------
-| Software IEC/IEEE floating-point types.
-*----------------------------------------------------------------------------*/
-typedef uint16_t float16;
-typedef uint32_t float32;
-typedef uint64_t float64;
-#define float16_val(x) (x)
-#define float32_val(x) (x)
-#define float64_val(x) (x)
-#define make_float16(x) (x)
-#define make_float32(x) (x)
-#define make_float64(x) (x)
-#define const_float16(x) (x)
-#define const_float32(x) (x)
-#define const_float64(x) (x)
-typedef struct {
-    uint64_t low;
-    uint16_t high;
-} floatx80;
-#define make_floatx80(exp, mant) ((floatx80) { mant, exp })
-#define make_floatx80_init(exp, mant) { .low = mant, .high = exp }
-typedef struct {
-#ifdef HOST_WORDS_BIGENDIAN
-    uint64_t high, low;
-#else
-    uint64_t low, high;
-#endif
-} float128;
-#define make_float128(high_, low_) ((float128) { .high = high_, .low = low_ })
-#define make_float128_init(high_, low_) { .high = high_, .low = low_ }
+#include "fpu/softfloat-types.h"
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point underflow tininess-detection mode.
