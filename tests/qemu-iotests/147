@@ -38,8 +38,8 @@ def flatten_sock_addr(crumpled_address):
 
 
 class NBDBlockdevAddBase(iotests.QMPTestCase):
-    def blockdev_add_options(self, address, export=None):
-        options = { 'node-name': 'nbd-blockdev',
+    def blockdev_add_options(self, address, export, node_name):
+        options = { 'node-name': node_name,
                     'driver': 'raw',
                     'file': {
                         'driver': 'nbd',
@@ -50,23 +50,28 @@ class NBDBlockdevAddBase(iotests.QMPTestCase):
             options['file']['export'] = export
         return options
 
-    def client_test(self, filename, address, export=None):
-        bao = self.blockdev_add_options(address, export)
+    def client_test(self, filename, address, export=None,
+                    node_name='nbd-blockdev', delete=True):
+        bao = self.blockdev_add_options(address, export, node_name)
         result = self.vm.qmp('blockdev-add', **bao)
         self.assert_qmp(result, 'return', {})
 
+        found = False
         result = self.vm.qmp('query-named-block-nodes')
         for node in result['return']:
-            if node['node-name'] == 'nbd-blockdev':
+            if node['node-name'] == node_name:
+                found = True
                 if isinstance(filename, str):
                     self.assert_qmp(node, 'image/filename', filename)
                 else:
                     self.assert_json_filename_equal(node['image']['filename'],
                                                     filename)
                 break
+        self.assertTrue(found)
 
-        result = self.vm.qmp('blockdev-del', node_name='nbd-blockdev')
-        self.assert_qmp(result, 'return', {})
+        if delete:
+            result = self.vm.qmp('blockdev-del', node_name=node_name)
+            self.assert_qmp(result, 'return', {})
 
 
 class QemuNBD(NBDBlockdevAddBase):
@@ -125,26 +130,63 @@ class BuiltinNBD(NBDBlockdevAddBase):
         except OSError:
             pass
 
-    def _server_up(self, address):
+    def _server_up(self, address, export_name=None, export_name2=None):
         result = self.server.qmp('nbd-server-start', addr=address)
         self.assert_qmp(result, 'return', {})
 
-        result = self.server.qmp('nbd-server-add', device='nbd-export')
+        if export_name is None:
+            result = self.server.qmp('nbd-server-add', device='nbd-export')
+        else:
+            result = self.server.qmp('nbd-server-add', device='nbd-export',
+                                     name=export_name)
         self.assert_qmp(result, 'return', {})
+
+        if export_name2 is not None:
+            result = self.server.qmp('nbd-server-add', device='nbd-export',
+                                     name=export_name2)
+            self.assert_qmp(result, 'return', {})
+
 
     def _server_down(self):
         result = self.server.qmp('nbd-server-stop')
         self.assert_qmp(result, 'return', {})
 
-    def test_inet(self):
+    def do_test_inet(self, export_name=None):
         address = { 'type': 'inet',
                     'data': {
                         'host': 'localhost',
                         'port': str(NBD_PORT)
                     } }
-        self._server_up(address)
-        self.client_test('nbd://localhost:%i/nbd-export' % NBD_PORT,
-                         flatten_sock_addr(address), 'nbd-export')
+        self._server_up(address, export_name)
+        export_name = export_name or 'nbd-export'
+        self.client_test('nbd://localhost:%i/%s' % (NBD_PORT, export_name),
+                         flatten_sock_addr(address), export_name)
+        self._server_down()
+
+    def test_inet_default_export_name(self):
+        self.do_test_inet()
+
+    def test_inet_same_export_name(self):
+        self.do_test_inet('nbd-export')
+
+    def test_inet_different_export_name(self):
+        self.do_test_inet('shadow')
+
+    def test_inet_two_exports(self):
+        address = { 'type': 'inet',
+                    'data': {
+                        'host': 'localhost',
+                        'port': str(NBD_PORT)
+                    } }
+        self._server_up(address, 'exp1', 'exp2')
+        self.client_test('nbd://localhost:%i/%s' % (NBD_PORT, 'exp1'),
+                         flatten_sock_addr(address), 'exp1', 'node1', False)
+        self.client_test('nbd://localhost:%i/%s' % (NBD_PORT, 'exp2'),
+                         flatten_sock_addr(address), 'exp2', 'node2', False)
+        result = self.vm.qmp('blockdev-del', node_name='node1')
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp('blockdev-del', node_name='node2')
+        self.assert_qmp(result, 'return', {})
         self._server_down()
 
     def test_inet6(self):
