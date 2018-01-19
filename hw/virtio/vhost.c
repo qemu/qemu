@@ -643,21 +643,52 @@ static void vhost_commit(MemoryListener *listener)
     MemoryRegionSection *old_sections;
     int n_old_sections;
     uint64_t log_size;
+    size_t regions_size;
     int r;
     int i;
+    bool changed = false;
 
+    /* Note we can be called before the device is started, but then
+     * starting the device calls set_mem_table, so we need to have
+     * built the data structures.
+     */
     old_sections = dev->mem_sections;
     n_old_sections = dev->n_mem_sections;
     dev->mem_sections = dev->tmp_sections;
     dev->n_mem_sections = dev->n_tmp_sections;
 
-    if (!dev->memory_changed) {
+    if (dev->n_mem_sections != n_old_sections) {
+        changed = true;
+    } else {
+        /* Same size, lets check the contents */
+        changed = n_old_sections && memcmp(dev->mem_sections, old_sections,
+                         n_old_sections * sizeof(old_sections[0])) != 0;
+    }
+
+    trace_vhost_commit(dev->started, changed);
+    if (!changed) {
         goto out;
     }
+
+    /* Rebuild the regions list from the new sections list */
+    regions_size = offsetof(struct vhost_memory, regions) +
+                       dev->n_mem_sections * sizeof dev->mem->regions[0];
+    dev->mem = g_realloc(dev->mem, regions_size);
+    dev->mem->nregions = dev->n_mem_sections;
+    used_memslots = dev->mem->nregions;
+    for (i = 0; i < dev->n_mem_sections; i++) {
+        struct vhost_memory_region *cur_vmr = dev->mem->regions + i;
+        struct MemoryRegionSection *mrs = dev->mem_sections + i;
+
+        cur_vmr->guest_phys_addr = mrs->offset_within_address_space;
+        cur_vmr->memory_size     = int128_get64(mrs->size);
+        cur_vmr->userspace_addr  =
+            (uintptr_t)memory_region_get_ram_ptr(mrs->mr) +
+            mrs->offset_within_region;
+        cur_vmr->flags_padding   = 0;
+    }
+
     if (!dev->started) {
-        goto out;
-    }
-    if (dev->mem_changed_start_addr > dev->mem_changed_end_addr) {
         goto out;
     }
 
