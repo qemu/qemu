@@ -73,6 +73,72 @@ static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
     spapr->eff.caps[cap->index] = value ? SPAPR_CAP_ON : SPAPR_CAP_OFF;
 }
 
+static void __attribute__ ((unused)) spapr_cap_get_tristate(Object *obj,
+                                                            Visitor *v,
+                                                            const char *name,
+                                                            void *opaque,
+                                                            Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    char *val = NULL;
+    uint8_t value = spapr_get_cap(spapr, cap->index);
+
+    switch (value) {
+    case SPAPR_CAP_BROKEN:
+        val = g_strdup("broken");
+        break;
+    case SPAPR_CAP_WORKAROUND:
+        val = g_strdup("workaround");
+        break;
+    case SPAPR_CAP_FIXED:
+        val = g_strdup("fixed");
+        break;
+    default:
+        error_setg(errp, "Invalid value (%d) for cap-%s", value, cap->name);
+        return;
+    }
+
+    visit_type_str(v, name, &val, errp);
+    g_free(val);
+}
+
+static void __attribute__ ((unused)) spapr_cap_set_tristate(Object *obj,
+                                                            Visitor *v,
+                                                            const char *name,
+                                                            void *opaque,
+                                                            Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    char *val;
+    Error *local_err = NULL;
+    uint8_t value;
+
+    visit_type_str(v, name, &val, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (!strcasecmp(val, "broken")) {
+        value = SPAPR_CAP_BROKEN;
+    } else if (!strcasecmp(val, "workaround")) {
+        value = SPAPR_CAP_WORKAROUND;
+    } else if (!strcasecmp(val, "fixed")) {
+        value = SPAPR_CAP_FIXED;
+    } else {
+        error_setg(errp, "Invalid capability mode \"%s\" for cap-%s", val,
+                   cap->name);
+        goto out;
+    }
+
+    spapr->cmd_line_caps[cap->index] = true;
+    spapr->eff.caps[cap->index] = value;
+out:
+    g_free(val);
+}
+
 static void cap_htm_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
 {
     if (!val) {
