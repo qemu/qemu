@@ -455,35 +455,37 @@ static void vhost_memory_unmap(struct vhost_dev *dev, void *buffer,
     }
 }
 
-static int vhost_verify_ring_part_mapping(struct vhost_dev *dev,
-                                          void *part,
-                                          uint64_t part_addr,
-                                          uint64_t part_size,
-                                          uint64_t start_addr,
-                                          uint64_t size)
+static int vhost_verify_ring_part_mapping(void *ring_hva,
+                                          uint64_t ring_gpa,
+                                          uint64_t ring_size,
+                                          void *reg_hva,
+                                          uint64_t reg_gpa,
+                                          uint64_t reg_size)
 {
-    hwaddr l;
-    void *p;
-    int r = 0;
+    uint64_t hva_ring_offset;
+    uint64_t ring_last = range_get_last(ring_gpa, ring_size);
+    uint64_t reg_last = range_get_last(reg_gpa, reg_size);
 
-    if (!ranges_overlap(start_addr, size, part_addr, part_size)) {
+    if (ring_last < reg_gpa || ring_gpa > reg_last) {
         return 0;
     }
-    l = part_size;
-    p = vhost_memory_map(dev, part_addr, &l, 1);
-    if (!p || l != part_size) {
-        r = -ENOMEM;
+    /* check that whole ring's is mapped */
+    if (ring_last > reg_last) {
+        return -ENOMEM;
     }
-    if (p != part) {
-        r = -EBUSY;
+    /* check that ring's MemoryRegion wasn't replaced */
+    hva_ring_offset = ring_gpa - reg_gpa;
+    if (ring_hva != reg_hva + hva_ring_offset) {
+        return -EBUSY;
     }
-    vhost_memory_unmap(dev, p, l, 0, 0);
-    return r;
+
+    return 0;
 }
 
 static int vhost_verify_ring_mappings(struct vhost_dev *dev,
-                                      uint64_t start_addr,
-                                      uint64_t size)
+                                      void *reg_hva,
+                                      uint64_t reg_gpa,
+                                      uint64_t reg_size)
 {
     int i, j;
     int r = 0;
@@ -497,22 +499,25 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
         struct vhost_virtqueue *vq = dev->vqs + i;
 
         j = 0;
-        r = vhost_verify_ring_part_mapping(dev, vq->desc, vq->desc_phys,
-                                           vq->desc_size, start_addr, size);
+        r = vhost_verify_ring_part_mapping(
+                vq->desc, vq->desc_phys, vq->desc_size,
+                reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
         }
 
         j++;
-        r = vhost_verify_ring_part_mapping(dev, vq->avail, vq->avail_phys,
-                                           vq->avail_size, start_addr, size);
+        r = vhost_verify_ring_part_mapping(
+                vq->desc, vq->desc_phys, vq->desc_size,
+                reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
         }
 
         j++;
-        r = vhost_verify_ring_part_mapping(dev, vq->used, vq->used_phys,
-                                           vq->used_size, start_addr, size);
+        r = vhost_verify_ring_part_mapping(
+                vq->desc, vq->desc_phys, vq->desc_size,
+                reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
         }
@@ -635,13 +640,11 @@ static void vhost_commit(MemoryListener *listener)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-    hwaddr start_addr = 0;
-    ram_addr_t size = 0;
     MemoryRegionSection *old_sections;
     int n_old_sections;
-
     uint64_t log_size;
     int r;
+    int i;
 
     old_sections = dev->mem_sections;
     n_old_sections = dev->n_mem_sections;
@@ -658,12 +661,14 @@ static void vhost_commit(MemoryListener *listener)
         goto out;
     }
 
-    if (dev->started) {
-        start_addr = dev->mem_changed_start_addr;
-        size = dev->mem_changed_end_addr - dev->mem_changed_start_addr + 1;
-
-        r = vhost_verify_ring_mappings(dev, start_addr, size);
-        assert(r >= 0);
+    for (i = 0; i < dev->mem->nregions; i++) {
+        if (vhost_verify_ring_mappings(dev,
+                       (void *)(uintptr_t)dev->mem->regions[i].userspace_addr,
+                       dev->mem->regions[i].guest_phys_addr,
+                       dev->mem->regions[i].memory_size)) {
+            error_report("Verify ring failure on region %d", i);
+            abort();
+        }
     }
 
     if (!dev->log_enabled) {
