@@ -42,6 +42,7 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 #endif
+#include "fpu/softfloat.h"
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;

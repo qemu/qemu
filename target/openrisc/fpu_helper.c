@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exception.h"
+#include "fpu/softfloat.h"
 
 static inline uint32_t ieee_ex_to_openrisc(OpenRISCCPU *cpu, int fexcp)
 {

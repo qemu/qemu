@@ -24,6 +24,7 @@
 #include "exec/gdbstub.h"
 
 #include "exec/helper-proto.h"
+#include "fpu/softfloat.h"
 
 #define SIGNBIT (1u << 31)
 

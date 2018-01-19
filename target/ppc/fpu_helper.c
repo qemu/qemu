@@ -21,6 +21,7 @@
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "internal.h"
+#include "fpu/softfloat.h"
 
 static inline float128 float128_snan_to_qnan(float128 x)
 {
