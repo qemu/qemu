@@ -27,6 +27,9 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-crypto.h"
 #include "hw/virtio/vhost-user-scsi.h"
+#if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
+#include "hw/virtio/vhost-user-blk.h"
+#endif
 
 #ifdef CONFIG_VIRTFS
 #include "hw/9pfs/virtio-9p.h"
@@ -46,6 +49,7 @@ typedef struct VirtIOSerialPCI VirtIOSerialPCI;
 typedef struct VirtIONetPCI VirtIONetPCI;
 typedef struct VHostSCSIPCI VHostSCSIPCI;
 typedef struct VHostUserSCSIPCI VHostUserSCSIPCI;
+typedef struct VHostUserBlkPCI VHostUserBlkPCI;
 typedef struct VirtIORngPCI VirtIORngPCI;
 typedef struct VirtIOInputPCI VirtIOInputPCI;
 typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
@@ -243,6 +247,20 @@ struct VHostUserSCSIPCI {
     VirtIOPCIProxy parent_obj;
     VHostUserSCSI vdev;
 };
+
+#if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
+/*
+ * vhost-user-blk-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VHOST_USER_BLK_PCI "vhost-user-blk-pci"
+#define VHOST_USER_BLK_PCI(obj) \
+        OBJECT_CHECK(VHostUserBlkPCI, (obj), TYPE_VHOST_USER_BLK_PCI)
+
+struct VHostUserBlkPCI {
+    VirtIOPCIProxy parent_obj;
+    VHostUserBlk vdev;
+};
+#endif
 
 /*
  * virtio-blk-pci: This extends VirtioPCIProxy.

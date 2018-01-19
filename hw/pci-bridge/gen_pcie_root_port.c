@@ -74,8 +74,13 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
     PCIDevice *d = PCI_DEVICE(dev);
     GenPCIERootPort *grp = GEN_PCIE_ROOT_PORT(d);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
+    Error *local_err = NULL;
 
-    rpc->parent_realize(dev, errp);
+    rpc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     int rc = pci_bridge_qemu_reserve_cap_init(d, 0, grp->bus_reserve,
             grp->io_reserve, grp->mem_reserve, grp->pref32_reserve,
