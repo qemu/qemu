@@ -359,6 +359,11 @@ static bool block_job_started(BlockJob *job)
     return job->co;
 }
 
+const BlockJobDriver *block_job_driver(BlockJob *job)
+{
+    return job->driver;
+}
+
 /**
  * All jobs must allow a pause point before entering their job proper. This
  * ensures that jobs can be paused prior to being started, then resumed later.

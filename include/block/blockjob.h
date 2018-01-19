@@ -452,4 +452,11 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
  */
 bool block_job_is_internal(BlockJob *job);
 
+/**
+ * block_job_driver:
+ *
+ * Returns the driver associated with a block job.
+ */
+const BlockJobDriver *block_job_driver(BlockJob *job);
+
 #endif

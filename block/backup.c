@@ -47,6 +47,8 @@ typedef struct BackupBlockJob {
     HBitmap *copy_bitmap;
 } BackupBlockJob;
 
+static const BlockJobDriver backup_job_driver;
+
 /* See if in-flight requests overlap and wait for them to complete */
 static void coroutine_fn wait_for_overlapping_requests(BackupBlockJob *job,
                                                        int64_t start,
@@ -241,7 +243,7 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
     BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
     int64_t len;
 
-    assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
+    assert(block_job_driver(job) == &backup_job_driver);
 
     if (backup_job->sync_mode != MIRROR_SYNC_MODE_NONE) {
         error_setg(errp, "The backup job only supports block checkpoint in"
@@ -259,7 +261,7 @@ void backup_wait_for_overlapping_requests(BlockJob *job, int64_t offset,
     BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
     int64_t start, end;
 
-    assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
+    assert(block_job_driver(job) == &backup_job_driver);
 
     start = QEMU_ALIGN_DOWN(offset, backup_job->cluster_size);
     end = QEMU_ALIGN_UP(offset + bytes, backup_job->cluster_size);
@@ -272,7 +274,7 @@ void backup_cow_request_begin(CowRequest *req, BlockJob *job,
     BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
     int64_t start, end;
 
-    assert(job->driver->job_type == BLOCK_JOB_TYPE_BACKUP);
+    assert(block_job_driver(job) == &backup_job_driver);
 
     start = QEMU_ALIGN_DOWN(offset, backup_job->cluster_size);
     end = QEMU_ALIGN_UP(offset + bytes, backup_job->cluster_size);
