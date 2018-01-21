@@ -36,7 +36,7 @@
  * http://www.sun.com/processors/manuals/805-1251.pdf
  */
 
-static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
+static void simba_pci_bridge_realize(PCIDevice *dev, Error **errp)
 {
     /*
      * command register:
@@ -47,7 +47,7 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
      *   the reset value should be zero unless the boot pin is tied high
      *   (which is true) and thus it should be PCI_COMMAND_MEMORY.
      */
-    PBMPCIBridge *br = PBM_PCI_BRIDGE(dev);
+    SimbaPCIBridge *br = SIMBA_PCI_BRIDGE(dev);
 
     pci_bridge_initfn(dev, TYPE_PCI_BUS);
 
@@ -65,12 +65,12 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
     pci_bridge_update_mappings(PCI_BRIDGE(br));
 }
 
-static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
+static void simba_pci_bridge_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = apb_pci_bridge_realize;
+    k->realize = simba_pci_bridge_realize;
     k->exit = pci_bridge_exitfn;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_SIMBA;
@@ -82,20 +82,20 @@ static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pci_device;
 }
 
-static const TypeInfo pbm_pci_bridge_info = {
-    .name          = TYPE_PBM_PCI_BRIDGE,
+static const TypeInfo simba_pci_bridge_info = {
+    .name          = TYPE_SIMBA_PCI_BRIDGE,
     .parent        = TYPE_PCI_BRIDGE,
-    .class_init    = pbm_pci_bridge_class_init,
-    .instance_size = sizeof(PBMPCIBridge),
+    .class_init    = simba_pci_bridge_class_init,
+    .instance_size = sizeof(SimbaPCIBridge),
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
 };
 
-static void pbm_register_types(void)
+static void simba_register_types(void)
 {
-    type_register_static(&pbm_pci_bridge_info);
+    type_register_static(&simba_pci_bridge_info);
 }
 
-type_init(pbm_register_types)
+type_init(simba_register_types)

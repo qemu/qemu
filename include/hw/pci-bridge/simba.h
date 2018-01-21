@@ -28,11 +28,11 @@
 #include "hw/pci/pci_bridge.h"
 
 
-typedef struct PBMPCIBridge {
+typedef struct SimbaPCIBridge {
     /*< private >*/
     PCIBridge parent_obj;
-} PBMPCIBridge;
+} SimbaPCIBridge;
 
-#define TYPE_PBM_PCI_BRIDGE "pbm-bridge"
-#define PBM_PCI_BRIDGE(obj) \
-    OBJECT_CHECK(PBMPCIBridge, (obj), TYPE_PBM_PCI_BRIDGE)
+#define TYPE_SIMBA_PCI_BRIDGE "pbm-bridge"
+#define SIMBA_PCI_BRIDGE(obj) \
+    OBJECT_CHECK(SimbaPCIBridge, (obj), TYPE_SIMBA_PCI_BRIDGE)

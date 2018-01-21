@@ -293,7 +293,7 @@ static int pci_apb_map_irq(PCIDevice *pci_dev, int irq_num)
     return irq_num;
 }
 
-static int pci_pbmA_map_irq(PCIDevice *pci_dev, int irq_num)
+static int pci_simbaA_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     /* The on-board devices have fixed (legacy) OBIO intnos */
     switch (PCI_SLOT(pci_dev->devfn)) {
@@ -311,7 +311,7 @@ static int pci_pbmA_map_irq(PCIDevice *pci_dev, int irq_num)
     return ((PCI_SLOT(pci_dev->devfn) << 2) + irq_num) & 0x1f;
 }
 
-static int pci_pbmB_map_irq(PCIDevice *pci_dev, int irq_num)
+static int pci_simbaB_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     return (0x10 + (PCI_SLOT(pci_dev->devfn) << 2) + irq_num) & 0x1f;
 }
@@ -417,15 +417,15 @@ static void pci_pbm_realize(DeviceState *dev, Error **errp)
 
     /* APB secondary busses */
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
-                                   TYPE_PBM_PCI_BRIDGE);
+                                       TYPE_SIMBA_PCI_BRIDGE);
     s->bridgeB = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(s->bridgeB, "pciB", pci_pbmB_map_irq);
+    pci_bridge_map_irq(s->bridgeB, "pciB", pci_simbaB_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
 
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
-                                   TYPE_PBM_PCI_BRIDGE);
+                                       TYPE_SIMBA_PCI_BRIDGE);
     s->bridgeA = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(s->bridgeA, "pciA", pci_pbmA_map_irq);
+    pci_bridge_map_irq(s->bridgeA, "pciA", pci_simbaA_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
 }
 
