@@ -1,0 +1,11 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/pci-host/sabre.c
+sabre_set_request(int irq_num) "request irq %d"
+sabre_clear_request(int irq_num) "clear request irq %d"
+sabre_config_write(uint64_t addr, uint64_t val) "addr 0x%"PRIx64" val 0x%"PRIx64
+sabre_config_read(uint64_t addr, uint64_t val) "addr 0x%"PRIx64" val 0x%"PRIx64
+sabre_pci_config_write(uint64_t addr, uint64_t val) "addr 0x%"PRIx64" val 0x%"PRIx64
+sabre_pci_config_read(uint64_t addr, uint64_t val) "addr 0x%"PRIx64" val 0x%"PRIx64
+sabre_pci_set_irq(int irq_num, int level) "set irq_in %d level %d"
+sabre_pci_set_obio_irq(int irq_num, int level) "set irq %d level %d"
