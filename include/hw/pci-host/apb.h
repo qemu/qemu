@@ -42,13 +42,4 @@ typedef struct APBState {
     unsigned int nr_resets;
 } APBState;
 
-typedef struct PBMPCIBridge {
-    /*< private >*/
-    PCIBridge parent_obj;
-} PBMPCIBridge;
-
-#define TYPE_PBM_PCI_BRIDGE "pbm-bridge"
-#define PBM_PCI_BRIDGE(obj) \
-    OBJECT_CHECK(PBMPCIBridge, (obj), TYPE_PBM_PCI_BRIDGE)
-
 #endif
