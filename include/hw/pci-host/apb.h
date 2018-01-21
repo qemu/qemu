@@ -14,9 +14,13 @@
 #define OBIO_MSE_IRQ         0x2a
 #define OBIO_SER_IRQ         0x2b
 
-#define TYPE_APB "pbm"
-#define APB_DEVICE(obj) \
-    OBJECT_CHECK(APBState, (obj), TYPE_APB)
+typedef struct SabrePCIState {
+    PCIDevice parent_obj;
+} SabrePCIState;
+
+#define TYPE_SABRE_PCI_DEVICE "sabre-pci"
+#define SABRE_PCI_DEVICE(obj) \
+    OBJECT_CHECK(SabrePCIState, (obj), TYPE_SABRE_PCI_DEVICE)
 
 typedef struct APBState {
     PCIHostState parent_obj;
@@ -40,5 +44,9 @@ typedef struct APBState {
     uint32_t reset_control;
     unsigned int nr_resets;
 } APBState;
+
+#define TYPE_APB "apb"
+#define APB_DEVICE(obj) \
+    OBJECT_CHECK(APBState, (obj), TYPE_APB)
 
 #endif

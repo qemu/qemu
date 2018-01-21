@@ -407,7 +407,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
                                      &s->pci_ioport,
                                      0, 32, TYPE_PCI_BUS);
 
-    pci_create_simple(phb->bus, 0, "pbm-pci");
+    pci_create_simple(phb->bus, 0, TYPE_SABRE_PCI_DEVICE);
 
     /* IOMMU */
     memory_region_add_subregion_overlap(&s->apb_config, 0x200,
@@ -498,9 +498,9 @@ static void sabre_pci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sabre_pci_info = {
-    .name          = "pbm-pci",
+    .name          = TYPE_SABRE_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
+    .instance_size = sizeof(SabrePCIState),
     .class_init    = sabre_pci_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
