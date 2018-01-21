@@ -465,7 +465,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
-    APBState *apb;
+    SabreState *apb;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus, *pci_dev;
     SysBusDevice *s;
@@ -488,8 +488,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    /* Init APB (PCI host bridge) */
-    apb = APB_DEVICE(qdev_create(NULL, TYPE_APB));
+    /* Init sabre (PCI host bridge) */
+    apb = SABRE_DEVICE(qdev_create(NULL, TYPE_SABRE));
     qdev_prop_set_uint64(DEVICE(apb), "special-base", APB_SPECIAL_BASE);
     qdev_prop_set_uint64(DEVICE(apb), "mem-base", APB_MEM_BASE);
     object_property_set_link(OBJECT(apb), OBJECT(iommu), "iommu", &error_abort);

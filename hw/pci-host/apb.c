@@ -70,7 +70,7 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 
 #define NO_IRQ_REQUEST (MAX_IVEC + 1)
 
-static inline void sabre_set_request(APBState *s, unsigned int irq_num)
+static inline void sabre_set_request(SabreState *s, unsigned int irq_num)
 {
     APB_DPRINTF("%s: request irq %d\n", __func__, irq_num);
 
@@ -78,7 +78,7 @@ static inline void sabre_set_request(APBState *s, unsigned int irq_num)
     qemu_set_irq(s->ivec_irqs[irq_num], 1);
 }
 
-static inline void sabre_check_irqs(APBState *s)
+static inline void sabre_check_irqs(SabreState *s)
 {
     unsigned int i;
 
@@ -109,7 +109,7 @@ static inline void sabre_check_irqs(APBState *s)
     }
 }
 
-static inline void sabre_clear_request(APBState *s, unsigned int irq_num)
+static inline void sabre_clear_request(SabreState *s, unsigned int irq_num)
 {
     APB_DPRINTF("%s: clear request irq %d\n", __func__, irq_num);
     qemu_set_irq(s->ivec_irqs[irq_num], 0);
@@ -126,7 +126,7 @@ static AddressSpace *sabre_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 static void sabre_config_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    APBState *s = opaque;
+    SabreState *s = opaque;
 
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
 
@@ -204,7 +204,7 @@ static void sabre_config_write(void *opaque, hwaddr addr,
 static uint64_t sabre_config_read(void *opaque,
                                   hwaddr addr, unsigned size)
 {
-    APBState *s = opaque;
+    SabreState *s = opaque;
     uint32_t val;
 
     switch (addr & 0xffff) {
@@ -266,7 +266,7 @@ static const MemoryRegionOps sabre_config_ops = {
 static void sabre_pci_config_write(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
-    APBState *s = opaque;
+    SabreState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
     APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
@@ -277,7 +277,7 @@ static uint64_t sabre_pci_config_read(void *opaque, hwaddr addr,
                                       unsigned size)
 {
     uint32_t ret;
-    APBState *s = opaque;
+    SabreState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
     ret = pci_data_read(phb->bus, addr, size);
@@ -317,7 +317,7 @@ static int pci_simbaB_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pci_sabre_set_irq(void *opaque, int irq_num, int level)
 {
-    APBState *s = opaque;
+    SabreState *s = opaque;
 
     APB_DPRINTF("%s: set irq_in %d level %d\n", __func__, irq_num, level);
     /* PCI IRQ map onto the first 32 INO.  */
@@ -347,7 +347,7 @@ static void pci_sabre_set_irq(void *opaque, int irq_num, int level)
 
 static void sabre_reset(DeviceState *d)
 {
-    APBState *s = APB_DEVICE(d);
+    SabreState *s = SABRE_DEVICE(d);
     PCIDevice *pci_dev;
     unsigned int i;
     uint16_t cmd;
@@ -385,7 +385,7 @@ static const MemoryRegionOps pci_config_ops = {
 
 static void sabre_realize(DeviceState *dev, Error **errp)
 {
-    APBState *s = APB_DEVICE(dev);
+    SabreState *s = SABRE_DEVICE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     PCIDevice *pci_dev;
@@ -430,7 +430,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
 
 static void sabre_init(Object *obj)
 {
-    APBState *s = APB_DEVICE(obj);
+    SabreState *s = SABRE_DEVICE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     unsigned int i;
 
@@ -509,8 +509,8 @@ static const TypeInfo sabre_pci_info = {
 };
 
 static Property sabre_properties[] = {
-    DEFINE_PROP_UINT64("special-base", APBState, special_base, 0),
-    DEFINE_PROP_UINT64("mem-base", APBState, mem_base, 0),
+    DEFINE_PROP_UINT64("special-base", SabreState, special_base, 0),
+    DEFINE_PROP_UINT64("mem-base", SabreState, mem_base, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -525,9 +525,9 @@ static void sabre_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sabre_info = {
-    .name          = TYPE_APB,
+    .name          = TYPE_SABRE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(APBState),
+    .instance_size = sizeof(SabreState),
     .instance_init = sabre_init,
     .class_init    = sabre_class_init,
 };

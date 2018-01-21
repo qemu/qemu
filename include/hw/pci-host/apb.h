@@ -22,7 +22,7 @@ typedef struct SabrePCIState {
 #define SABRE_PCI_DEVICE(obj) \
     OBJECT_CHECK(SabrePCIState, (obj), TYPE_SABRE_PCI_DEVICE)
 
-typedef struct APBState {
+typedef struct SabreState {
     PCIHostState parent_obj;
 
     hwaddr special_base;
@@ -43,10 +43,10 @@ typedef struct APBState {
     unsigned int irq_request;
     uint32_t reset_control;
     unsigned int nr_resets;
-} APBState;
+} SabreState;
 
-#define TYPE_APB "apb"
-#define APB_DEVICE(obj) \
-    OBJECT_CHECK(APBState, (obj), TYPE_APB)
+#define TYPE_SABRE "sabre"
+#define SABRE_DEVICE(obj) \
+    OBJECT_CHECK(SabreState, (obj), TYPE_SABRE)
 
 #endif
