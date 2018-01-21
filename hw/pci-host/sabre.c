@@ -1,8 +1,9 @@
 /*
- * QEMU Ultrasparc APB PCI host
+ * QEMU Ultrasparc Sabre PCI host (PBM)
  *
  * Copyright (c) 2006 Fabrice Bellard
  * Copyright (c) 2012,2013 Artyom Tarasenko
+ * Copyright (c) 2018 Mark Cave-Ayland
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +24,6 @@
  * THE SOFTWARE.
  */
 
-/* XXX This file and most of its contents are somewhat misnamed.  The
-   Ultrasparc PCI host is called the PCI Bus Module (PBM).  The APB is
-   the secondary PCI bridge.  */
-
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
@@ -34,20 +31,20 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-bridge/simba.h"
-#include "hw/pci-host/apb.h"
+#include "hw/pci-host/sabre.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 
-/* debug APB */
-//#define DEBUG_APB
+/* debug sabre */
+//#define DEBUG_SABRE
 
-#ifdef DEBUG_APB
-#define APB_DPRINTF(fmt, ...) \
-do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
+#ifdef DEBUG_SABRE
+#define SABRE_DPRINTF(fmt, ...) \
+do { printf("sabre: " fmt , ## __VA_ARGS__); } while (0)
 #else
-#define APB_DPRINTF(fmt, ...)
+#define SABRE_DPRINTF(fmt, ...)
 #endif
 
 /*
@@ -72,7 +69,7 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 
 static inline void sabre_set_request(SabreState *s, unsigned int irq_num)
 {
-    APB_DPRINTF("%s: request irq %d\n", __func__, irq_num);
+    SABRE_DPRINTF("%s: request irq %d\n", __func__, irq_num);
 
     s->irq_request = irq_num;
     qemu_set_irq(s->ivec_irqs[irq_num], 1);
@@ -111,7 +108,7 @@ static inline void sabre_check_irqs(SabreState *s)
 
 static inline void sabre_clear_request(SabreState *s, unsigned int irq_num)
 {
-    APB_DPRINTF("%s: clear request irq %d\n", __func__, irq_num);
+    SABRE_DPRINTF("%s: clear request irq %d\n", __func__, irq_num);
     qemu_set_irq(s->ivec_irqs[irq_num], 0);
     s->irq_request = NO_IRQ_REQUEST;
 }
@@ -128,7 +125,8 @@ static void sabre_config_write(void *opaque, hwaddr addr,
 {
     SabreState *s = opaque;
 
-    APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
+    SABRE_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__,
+                  addr, val);
 
     switch (addr & 0xffff) {
     case 0x30 ... 0x4f: /* DMA error registers */
@@ -252,7 +250,7 @@ static uint64_t sabre_config_read(void *opaque,
         val = 0;
         break;
     }
-    APB_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, val);
+    SABRE_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, val);
 
     return val;
 }
@@ -269,7 +267,8 @@ static void sabre_pci_config_write(void *opaque, hwaddr addr,
     SabreState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
-    APB_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__, addr, val);
+    SABRE_DPRINTF("%s: addr " TARGET_FMT_plx " val %" PRIx64 "\n", __func__,
+                  addr, val);
     pci_data_write(phb->bus, addr, val, size);
 }
 
@@ -281,7 +280,7 @@ static uint64_t sabre_pci_config_read(void *opaque, hwaddr addr,
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
 
     ret = pci_data_read(phb->bus, addr, size);
-    APB_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, ret);
+    SABRE_DPRINTF("%s: addr " TARGET_FMT_plx " -> %x\n", __func__, addr, ret);
     return ret;
 }
 
@@ -319,7 +318,7 @@ static void pci_sabre_set_irq(void *opaque, int irq_num, int level)
 {
     SabreState *s = opaque;
 
-    APB_DPRINTF("%s: set irq_in %d level %d\n", __func__, irq_num, level);
+    SABRE_DPRINTF("%s: set irq_in %d level %d\n", __func__, irq_num, level);
     /* PCI IRQ map onto the first 32 INO.  */
     if (irq_num < 32) {
         if (level) {
@@ -333,7 +332,8 @@ static void pci_sabre_set_irq(void *opaque, int irq_num, int level)
     } else {
         /* OBIO IRQ map onto the next 32 INO.  */
         if (level) {
-            APB_DPRINTF("%s: set irq %d level %d\n", __func__, irq_num, level);
+            SABRE_DPRINTF("%s: set irq %d level %d\n", __func__, irq_num,
+                          level);
             s->pci_irq_in |= 1ULL << irq_num;
             if ((s->irq_request == NO_IRQ_REQUEST)
                 && (s->obio_irq_map[irq_num - 32] & PBM_PCI_IMR_ENABLED)) {
@@ -390,7 +390,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     PCIDevice *pci_dev;
 
-    /* apb_config */
+    /* sabre_config */
     sysbus_mmio_map(sbd, 0, s->special_base);
     /* PCI configuration space */
     sysbus_mmio_map(sbd, 1, s->special_base + 0x1000000ULL);
@@ -410,7 +410,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
     pci_create_simple(phb->bus, 0, TYPE_SABRE_PCI_DEVICE);
 
     /* IOMMU */
-    memory_region_add_subregion_overlap(&s->apb_config, 0x200,
+    memory_region_add_subregion_overlap(&s->sabre_config, 0x200,
                     sysbus_mmio_get_region(SYS_BUS_DEVICE(s->iommu), 0), 1);
     pci_setup_iommu(phb->bus, sabre_pci_dma_iommu, s->iommu);
 
@@ -454,19 +454,20 @@ static void sabre_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0, NULL);
 
-    /* apb_config */
-    memory_region_init_io(&s->apb_config, OBJECT(s), &sabre_config_ops, s,
-                          "apb-config", 0x10000);
+    /* sabre_config */
+    memory_region_init_io(&s->sabre_config, OBJECT(s), &sabre_config_ops, s,
+                          "sabre-config", 0x10000);
     /* at region 0 */
-    sysbus_init_mmio(sbd, &s->apb_config);
+    sysbus_init_mmio(sbd, &s->sabre_config);
 
     memory_region_init_io(&s->pci_config, OBJECT(s), &pci_config_ops, s,
-                          "apb-pci-config", 0x1000000);
+                          "sabre-pci-config", 0x1000000);
     /* at region 1 */
     sysbus_init_mmio(sbd, &s->pci_config);
 
     /* pci_ioport */
-    memory_region_init(&s->pci_ioport, OBJECT(s), "apb-pci-ioport", 0x1000000);
+    memory_region_init(&s->pci_ioport, OBJECT(s), "sabre-pci-ioport",
+                       0x1000000);
 
     /* at region 2 */
     sysbus_init_mmio(sbd, &s->pci_ioport);

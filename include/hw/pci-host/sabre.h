@@ -27,7 +27,7 @@ typedef struct SabreState {
 
     hwaddr special_base;
     hwaddr mem_base;
-    MemoryRegion apb_config;
+    MemoryRegion sabre_config;
     MemoryRegion pci_config;
     MemoryRegion pci_mmio;
     MemoryRegion pci_ioport;

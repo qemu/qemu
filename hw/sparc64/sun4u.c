@@ -30,7 +30,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
-#include "hw/pci-host/apb.h"
+#include "hw/pci-host/sabre.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
 #include "hw/timer/m48t59.h"
