@@ -133,6 +133,7 @@ HPPA (PA-RISC)
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: target/hppa/
+F: hw/hppa/
 F: disas/hppa.c
 
 LM32
