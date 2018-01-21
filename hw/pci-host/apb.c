@@ -472,7 +472,7 @@ static void sabre_init(Object *obj)
     sysbus_init_mmio(sbd, &s->pci_ioport);
 }
 
-static void sabre_pci_host_realize(PCIDevice *d, Error **errp)
+static void sabre_pci_realize(PCIDevice *d, Error **errp)
 {
     pci_set_word(d->config + PCI_COMMAND,
                  PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
@@ -481,12 +481,12 @@ static void sabre_pci_host_realize(PCIDevice *d, Error **errp)
                  PCI_STATUS_DEVSEL_MEDIUM);
 }
 
-static void sabre_pci_host_class_init(ObjectClass *klass, void *data)
+static void sabre_pci_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->realize = sabre_pci_host_realize;
+    k->realize = sabre_pci_realize;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_SABRE;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
@@ -497,11 +497,11 @@ static void sabre_pci_host_class_init(ObjectClass *klass, void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo pbm_pci_host_info = {
+static const TypeInfo sabre_pci_info = {
     .name          = "pbm-pci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
-    .class_init    = sabre_pci_host_class_init,
+    .class_init    = sabre_pci_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -535,7 +535,7 @@ static const TypeInfo sabre_info = {
 static void sabre_register_types(void)
 {
     type_register_static(&sabre_info);
-    type_register_static(&pbm_pci_host_info);
+    type_register_static(&sabre_pci_info);
 }
 
 type_init(sabre_register_types)
