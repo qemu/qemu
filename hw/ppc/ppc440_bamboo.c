@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "net/net.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
@@ -27,6 +28,7 @@
 #include "hw/ppc/ppc.h"
 #include "ppc405.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/sysbus.h"
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
@@ -190,6 +192,13 @@ static void bamboo_init(MachineState *machine)
             env->mmu_model);
         exit(1);
     }
+
+#ifdef TARGET_PPCEMB
+    if (!qtest_enabled()) {
+        warn_report("qemu-system-ppcemb is deprecated, "
+                    "please use qemu-system-ppc instead.");
+    }
+#endif
 
     qemu_register_reset(main_cpu_reset, cpu);
     ppc_booke_timers_init(cpu, 400000000, 0);

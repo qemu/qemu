@@ -29,6 +29,7 @@
 #include "hw/char/serial.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
@@ -209,6 +210,13 @@ static void virtex_init(MachineState *machine)
     qemu_irq irq[32], *cpu_irq;
     int kernel_size;
     int i;
+
+#ifdef TARGET_PPCEMB
+    if (!qtest_enabled()) {
+        warn_report("qemu-system-ppcemb is deprecated, "
+                    "please use qemu-system-ppc instead.");
+    }
+#endif
 
     /* init CPUs */
     cpu = ppc440_init_xilinx(&ram_size, 1, machine->cpu_type, 400000000);

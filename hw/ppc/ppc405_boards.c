@@ -202,6 +202,13 @@ static void ref405ep_init(MachineState *machine)
     DriveInfo *dinfo;
     MemoryRegion *sysmem = get_system_memory();
 
+#ifdef TARGET_PPCEMB
+    if (!qtest_enabled()) {
+        warn_report("qemu-system-ppcemb is deprecated, "
+                    "please use qemu-system-ppc instead.");
+    }
+#endif
+
     /* XXX: fix this */
     memory_region_allocate_system_memory(&ram_memories[0], NULL, "ef405ep.ram",
                                          0x08000000);
@@ -496,6 +503,13 @@ static void taihu_405ep_init(MachineState *machine)
     int linux_boot;
     int fl_idx, fl_sectors;
     DriveInfo *dinfo;
+
+#ifdef TARGET_PPCEMB
+    if (!qtest_enabled()) {
+        warn_report("qemu-system-ppcemb is deprecated, "
+                    "please use qemu-system-ppc instead.");
+    }
+#endif
 
     /* RAM is soldered to the board so the size cannot be changed */
     ram_size = 0x08000000;
