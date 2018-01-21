@@ -55,9 +55,9 @@
 #define CMDLINE_ADDR         0x003ff000
 #define PROM_SIZE_MAX        (4 * 1024 * 1024)
 #define PROM_VADDR           0x000ffd00000ULL
-#define APB_SPECIAL_BASE     0x1fe00000000ULL
-#define APB_MEM_BASE         0x1ff00000000ULL
-#define APB_PCI_IO_BASE      (APB_SPECIAL_BASE + 0x02000000ULL)
+#define PBM_SPECIAL_BASE     0x1fe00000000ULL
+#define PBM_MEM_BASE         0x1ff00000000ULL
+#define PBM_PCI_IO_BASE      (PBM_SPECIAL_BASE + 0x02000000ULL)
 #define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
@@ -465,7 +465,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
-    SabreState *apb;
+    SabreState *sabre;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus, *pci_dev;
     SysBusDevice *s;
@@ -489,23 +489,24 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     prom_init(hwdef->prom_addr, bios_name);
 
     /* Init sabre (PCI host bridge) */
-    apb = SABRE_DEVICE(qdev_create(NULL, TYPE_SABRE));
-    qdev_prop_set_uint64(DEVICE(apb), "special-base", APB_SPECIAL_BASE);
-    qdev_prop_set_uint64(DEVICE(apb), "mem-base", APB_MEM_BASE);
-    object_property_set_link(OBJECT(apb), OBJECT(iommu), "iommu", &error_abort);
-    qdev_init_nofail(DEVICE(apb));
+    sabre = SABRE_DEVICE(qdev_create(NULL, TYPE_SABRE));
+    qdev_prop_set_uint64(DEVICE(sabre), "special-base", PBM_SPECIAL_BASE);
+    qdev_prop_set_uint64(DEVICE(sabre), "mem-base", PBM_MEM_BASE);
+    object_property_set_link(OBJECT(sabre), OBJECT(iommu), "iommu",
+                             &error_abort);
+    qdev_init_nofail(DEVICE(sabre));
 
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
-        qdev_connect_gpio_out_named(DEVICE(apb), "ivec-irq", i,
+        qdev_connect_gpio_out_named(DEVICE(sabre), "ivec-irq", i,
             qdev_get_gpio_in_named(DEVICE(cpu), "ivec-irq", i));
     }
 
-    pci_bus = PCI_HOST_BRIDGE(apb)->bus;
-    pci_busA = pci_bridge_get_sec_bus(apb->bridgeA);
-    pci_busB = pci_bridge_get_sec_bus(apb->bridgeB);
+    pci_bus = PCI_HOST_BRIDGE(sabre)->bus;
+    pci_busA = pci_bridge_get_sec_bus(sabre->bridgeA);
+    pci_busB = pci_bridge_get_sec_bus(sabre->bridgeB);
 
-    /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is
+    /* Only in-built Simba APBs can exist on the root bus, slot 0 on busA is
        reserved (leaving no slots free after on-board devices) however slots
        0-3 are free on busB */
     pci_bus->slot_reserved_mask = 0xfffffffc;
@@ -517,17 +518,17 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                          hwdef->console_serial_base);
     qdev_init_nofail(DEVICE(ebus));
 
-    /* Wire up "well-known" ISA IRQs to APB legacy obio IRQs */
+    /* Wire up "well-known" ISA IRQs to PBM legacy obio IRQs */
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 7,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_LPT_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_LPT_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 6,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_FDD_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_FDD_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 1,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_KBD_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_KBD_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 12,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_MSE_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_MSE_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 4,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_SER_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_SER_IRQ));
 
     pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
 
