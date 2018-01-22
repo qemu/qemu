@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
+#include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -687,6 +688,7 @@ static void vhost_region_add(MemoryListener *listener,
         return;
     }
 
+    trace_vhost_region_add(dev, section->mr->name ?: NULL);
     ++dev->n_mem_sections;
     dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
                                 dev->n_mem_sections);
@@ -706,6 +708,7 @@ static void vhost_region_del(MemoryListener *listener,
         return;
     }
 
+    trace_vhost_region_del(dev, section->mr->name ?: NULL);
     vhost_set_memory(listener, section, false);
     memory_region_unref(section->mr);
     for (i = 0; i < dev->n_mem_sections; ++i) {
@@ -743,6 +746,8 @@ static void vhost_iommu_region_add(MemoryListener *listener,
         return;
     }
 
+    trace_vhost_iommu_region_add(dev, section->mr->name ?: NULL);
+
     iommu = g_malloc0(sizeof(*iommu));
     end = int128_add(int128_make64(section->offset_within_region),
                      section->size);
@@ -770,6 +775,8 @@ static void vhost_iommu_region_del(MemoryListener *listener,
     if (!memory_region_is_iommu(section->mr)) {
         return;
     }
+
+    trace_vhost_iommu_region_del(dev, section->mr->name ?: NULL);
 
     QLIST_FOREACH(iommu, &dev->iommu_list, iommu_next) {
         if (iommu->mr == section->mr &&
