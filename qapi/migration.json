@@ -156,13 +156,6 @@
 #              @status is 'failed'. Clients should not attempt to parse the
 #              error strings. (Since 2.7)
 #
-# @postcopy-blocktime: total time when all vCPU were blocked during postcopy
-#           live migration (Since 2.12)
-#
-# @postcopy-vcpu-blocktime: list of the postcopy blocktime per vCPU (Since 2.12)
-#
-
-#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -174,9 +167,7 @@
            '*downtime': 'int',
            '*setup-time': 'int',
            '*cpu-throttle-percentage': 'int',
-           '*error-desc': 'str',
-           '*postcopy-blocktime' : 'int64',
-           '*postcopy-vcpu-blocktime': ['int64']} }
+           '*error-desc': 'str'} }
 
 ##
 # @query-migrate:
@@ -361,16 +352,12 @@
 #
 # @x-multifd: Use more than one fd for migration (since 2.11)
 #
-# @postcopy-blocktime: Calculate downtime for postcopy live migration
-#                     (since 2.12)
-#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
-           'block', 'return-path', 'pause-before-switchover', 'x-multifd',
-           'postcopy-blocktime' ] }
+           'block', 'return-path', 'pause-before-switchover', 'x-multifd' ] }
 
 ##
 # @MigrationCapabilityStatus:
