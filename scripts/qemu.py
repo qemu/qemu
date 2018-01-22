@@ -17,6 +17,8 @@ import logging
 import os
 import subprocess
 import qmp.qmp
+import shutil
+import tempfile
 
 
 LOG = logging.getLogger(__name__)
@@ -72,10 +74,11 @@ class QEMUMachine(object):
             wrapper = []
         if name is None:
             name = "qemu-%d" % os.getpid()
-        if monitor_address is None:
-            monitor_address = os.path.join(test_dir, name + "-monitor.sock")
+        self._name = name
         self._monitor_address = monitor_address
-        self._qemu_log_path = os.path.join(test_dir, name + ".log")
+        self._vm_monitor = None
+        self._qemu_log_path = None
+        self._qemu_log_file = None
         self._popen = None
         self._binary = binary
         self._args = list(args)     # Force copy args in case we modify them
@@ -85,6 +88,8 @@ class QEMUMachine(object):
         self._socket_scm_helper = socket_scm_helper
         self._qmp = None
         self._qemu_full_args = None
+        self._test_dir = test_dir
+        self._temp_dir = None
 
         # just in case logging wasn't configured by the main script:
         logging.basicConfig()
@@ -167,36 +172,50 @@ class QEMUMachine(object):
                 self._monitor_address[0],
                 self._monitor_address[1])
         else:
-            moncdev = 'socket,id=mon,path=%s' % self._monitor_address
+            moncdev = 'socket,id=mon,path=%s' % self._vm_monitor
         return ['-chardev', moncdev,
                 '-mon', 'chardev=mon,mode=control',
                 '-display', 'none', '-vga', 'none']
 
     def _pre_launch(self):
-        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._monitor_address,
+        self._temp_dir = tempfile.mkdtemp(dir=self._test_dir)
+        if self._monitor_address is not None:
+            self._vm_monitor = self._monitor_address
+        else:
+            self._vm_monitor = os.path.join(self._temp_dir,
+                                            self._name + "-monitor.sock")
+        self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
+        self._qemu_log_file = open(self._qemu_log_path, 'wb')
+
+        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._vm_monitor,
                                                 server=True)
 
     def _post_launch(self):
         self._qmp.accept()
 
     def _post_shutdown(self):
-        if not isinstance(self._monitor_address, tuple):
-            self._remove_if_exists(self._monitor_address)
-        self._remove_if_exists(self._qemu_log_path)
+        if self._qemu_log_file is not None:
+            self._qemu_log_file.close()
+            self._qemu_log_file = None
+
+        self._qemu_log_path = None
+
+        if self._temp_dir is not None:
+            shutil.rmtree(self._temp_dir)
+            self._temp_dir = None
 
     def launch(self):
         '''Launch the VM and establish a QMP connection'''
         self._iolog = None
         self._qemu_full_args = None
         devnull = open(os.path.devnull, 'rb')
-        qemulog = open(self._qemu_log_path, 'wb')
         try:
             self._pre_launch()
             self._qemu_full_args = (self._wrapper + [self._binary] +
                                     self._base_args() + self._args)
             self._popen = subprocess.Popen(self._qemu_full_args,
                                            stdin=devnull,
-                                           stdout=qemulog,
+                                           stdout=self._qemu_log_file,
                                            stderr=subprocess.STDOUT,
                                            shell=False)
             self._post_launch()
