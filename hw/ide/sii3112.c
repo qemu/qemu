@@ -79,13 +79,13 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
         val |= (d->regs[0].confstat & (1UL << 11) ? (1 << 4) : 0); /*SATAINT0*/
         val |= (d->regs[1].confstat & (1UL << 11) ? (1 << 6) : 0); /*SATAINT1*/
         val |= (d->i.bmdma[1].status & BM_STATUS_INT ? (1 << 14) : 0);
-        val |= d->i.bmdma[0].status << 16;
-        val |= d->i.bmdma[1].status << 24;
+        val |= (uint32_t)d->i.bmdma[0].status << 16;
+        val |= (uint32_t)d->i.bmdma[1].status << 24;
         break;
     case 0x18:
         val = d->i.bmdma[1].cmd;
         val |= (d->regs[1].confstat & (1UL << 11) ? (1 << 4) : 0);
-        val |= d->i.bmdma[1].status << 16;
+        val |= (uint32_t)d->i.bmdma[1].status << 16;
         break;
     case 0x80 ... 0x87:
         if (size == 1) {
@@ -128,7 +128,7 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
         val = (d->i.bus[0].ifs[0].blk) ? 0x113 : 0;
         break;
     case 0x148:
-        val = d->regs[0].sien << 16;
+        val = (uint32_t)d->regs[0].sien << 16;
         break;
     case 0x180:
         val = d->regs[1].scontrol;
@@ -137,7 +137,7 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
         val = (d->i.bus[1].ifs[0].blk) ? 0x113 : 0;
         break;
     case 0x1c8:
-        val = d->regs[1].sien << 16;
+        val = (uint32_t)d->regs[1].sien << 16;
         break;
     default:
         val = 0;

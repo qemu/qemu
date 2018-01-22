@@ -140,9 +140,6 @@ enum {
     POWERPC_EXCP_HYPPRIV  = 41, /* Embedded hypervisor priv instruction      */
     /* Vectors 42 to 63 are reserved                                         */
     /* Exceptions defined in the PowerPC server specification                */
-    /* Server doorbell variants */
-#define POWERPC_EXCP_SDOOR      POWERPC_EXCP_GDOORI
-#define POWERPC_EXCP_SDOOR_HV   POWERPC_EXCP_DOORI
     POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
     POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
     POWERPC_EXCP_ISEG     = 66, /* Instruction segment exception             */
@@ -189,8 +186,11 @@ enum {
     POWERPC_EXCP_HV_EMU   = 96, /* HV emulation assistance                   */
     POWERPC_EXCP_HV_MAINT = 97, /* HMI                                       */
     POWERPC_EXCP_HV_FU    = 98, /* Hypervisor Facility unavailable           */
+    /* Server doorbell variants */
+    POWERPC_EXCP_SDOOR    = 99,
+    POWERPC_EXCP_SDOOR_HV = 100,
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 99,
+    POWERPC_EXCP_NB       = 101,
     /* QEMU exceptions: used internally during code translation              */
     POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
     POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
@@ -930,7 +930,7 @@ enum {
 #define BOOKE206_MAX_TLBN      4
 
 /*****************************************************************************/
-/* Embedded.Processor Control */
+/* Server and Embedded Processor Control */
 
 #define DBELL_TYPE_SHIFT               27
 #define DBELL_TYPE_MASK                (0x1f << DBELL_TYPE_SHIFT)
@@ -940,10 +940,14 @@ enum {
 #define DBELL_TYPE_G_DBELL_CRIT        (0x03 << DBELL_TYPE_SHIFT)
 #define DBELL_TYPE_G_DBELL_MC          (0x04 << DBELL_TYPE_SHIFT)
 
-#define DBELL_BRDCAST                  (1 << 26)
+#define DBELL_TYPE_DBELL_SERVER        (0x05 << DBELL_TYPE_SHIFT)
+
+#define DBELL_BRDCAST                  PPC_BIT(37)
 #define DBELL_LPIDTAG_SHIFT            14
 #define DBELL_LPIDTAG_MASK             (0xfff << DBELL_LPIDTAG_SHIFT)
 #define DBELL_PIRTAG_MASK              0x3fff
+
+#define DBELL_PROCIDTAG_MASK           PPC_BITMASK(44, 63)
 
 /*****************************************************************************/
 /* Segment page size information, used by recent hash MMUs

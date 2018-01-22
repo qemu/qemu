@@ -228,62 +228,32 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr)
     return ok ? 0 : -EINVAL;
 }
 
-static bool spapr_cap_htm_needed(void *opaque)
-{
-    sPAPRMachineState *spapr = opaque;
-
-    return spapr->cmd_line_caps[SPAPR_CAP_HTM] &&
-           (spapr->eff.caps[SPAPR_CAP_HTM] != spapr->def.caps[SPAPR_CAP_HTM]);
+/* Used to generate the migration field and needed function for a spapr cap */
+#define SPAPR_CAP_MIG_STATE(cap, ccap)                  \
+static bool spapr_cap_##cap##_needed(void *opaque)      \
+{                                                       \
+    sPAPRMachineState *spapr = opaque;                  \
+                                                        \
+    return spapr->cmd_line_caps[SPAPR_CAP_##ccap] &&    \
+           (spapr->eff.caps[SPAPR_CAP_##ccap] !=        \
+            spapr->def.caps[SPAPR_CAP_##ccap]);         \
+}                                                       \
+                                                        \
+const VMStateDescription vmstate_spapr_cap_##cap = {    \
+    .name = "spapr/cap/" #cap,                          \
+    .version_id = 1,                                    \
+    .minimum_version_id = 1,                            \
+    .needed = spapr_cap_##cap##_needed,                 \
+    .fields = (VMStateField[]) {                        \
+        VMSTATE_UINT8(mig.caps[SPAPR_CAP_##ccap],       \
+                      sPAPRMachineState),               \
+        VMSTATE_END_OF_LIST()                           \
+    },                                                  \
 }
 
-const VMStateDescription vmstate_spapr_cap_htm = {
-    .name = "spapr/cap/htm",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = spapr_cap_htm_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(mig.caps[SPAPR_CAP_HTM], sPAPRMachineState),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
-static bool spapr_cap_vsx_needed(void *opaque)
-{
-    sPAPRMachineState *spapr = opaque;
-
-    return spapr->cmd_line_caps[SPAPR_CAP_VSX] &&
-           (spapr->eff.caps[SPAPR_CAP_VSX] != spapr->def.caps[SPAPR_CAP_VSX]);
-}
-
-const VMStateDescription vmstate_spapr_cap_vsx = {
-    .name = "spapr/cap/vsx",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = spapr_cap_vsx_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(mig.caps[SPAPR_CAP_VSX], sPAPRMachineState),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
-static bool spapr_cap_dfp_needed(void *opaque)
-{
-    sPAPRMachineState *spapr = opaque;
-
-    return spapr->cmd_line_caps[SPAPR_CAP_DFP] &&
-           (spapr->eff.caps[SPAPR_CAP_DFP] != spapr->def.caps[SPAPR_CAP_DFP]);
-}
-
-const VMStateDescription vmstate_spapr_cap_dfp = {
-    .name = "spapr/cap/dfp",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = spapr_cap_dfp_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(mig.caps[SPAPR_CAP_DFP], sPAPRMachineState),
-        VMSTATE_END_OF_LIST()
-    },
-};
+SPAPR_CAP_MIG_STATE(htm, HTM);
+SPAPR_CAP_MIG_STATE(vsx, VSX);
+SPAPR_CAP_MIG_STATE(dfp, DFP);
 
 void spapr_caps_reset(sPAPRMachineState *spapr)
 {
