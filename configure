@@ -222,6 +222,17 @@ supported_hvf_target() {
     return 1
 }
 
+supported_whpx_target() {
+    test "$whpx" = "yes" || return 1
+    glob "$1" "*-softmmu" || return 1
+    case "${1%-softmmu}" in
+        i386|x86_64)
+            return 0
+        ;;
+    esac
+    return 1
+}
+
 supported_target() {
     case "$1" in
         *-softmmu)
@@ -248,6 +259,7 @@ supported_target() {
     supported_xen_target "$1" && return 0
     supported_hax_target "$1" && return 0
     supported_hvf_target "$1" && return 0
+    supported_whpx_target "$1" && return 0
     print_error "TCG disabled, but hardware accelerator not available for '$target'"
     return 1
 }
@@ -338,6 +350,7 @@ vhost_user=""
 kvm="no"
 hax="no"
 hvf="no"
+whpx="no"
 rdma=""
 gprof="no"
 debug_tcg="no"
@@ -1058,6 +1071,10 @@ for opt do
   ;;
   --enable-hvf) hvf="yes"
   ;;
+  --disable-whpx) whpx="no"
+  ;;
+  --enable-whpx) whpx="yes"
+  ;;
   --disable-tcg-interpreter) tcg_interpreter="no"
   ;;
   --enable-tcg-interpreter) tcg_interpreter="yes"
@@ -1557,6 +1574,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   kvm             KVM acceleration support
   hax             HAX acceleration support
   hvf             Hypervisor.framework acceleration support
+  whpx            Windows Hypervisor Platform acceleration support
   rdma            RDMA-based migration support
   vde             support for vde network
   netmap          support for netmap network
@@ -2453,6 +2471,30 @@ if test "$xen_pv_domain_build" = "yes" &&
    test "$xen" != "yes"; then
     error_exit "User requested Xen PV domain builder support" \
 	       "which requires Xen support."
+fi
+
+##########################################
+# Windows Hypervisor Platform accelerator (WHPX) check
+if test "$whpx" != "no" ; then
+    cat > $TMPC << EOF
+#include <windows.h>
+#include <winhvplatform.h>
+#include <winhvemulation.h>
+int main(void) {
+    WHV_CAPABILITY whpx_cap;
+    WHvGetCapability(WHvCapabilityCodeFeatures, &whpx_cap, sizeof(whpx_cap));
+    return 0;
+}
+EOF
+    if compile_prog "" "-lwinhvplatform -lwinhvemulation" ; then
+        libs_softmmu="$libs_softmmu -lwinhvplatform -lwinhvemulation"
+        whpx="yes"
+    else
+        if test "$whpx" = "yes"; then
+            feature_not_found "winhvplatform" "winhvemulation is not installed"
+        fi
+        whpx="no"
+    fi
 fi
 
 ##########################################
@@ -5648,6 +5690,7 @@ echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 echo "HAX support       $hax"
 echo "HVF support       $hvf"
+echo "WHPX support      $whpx"
 echo "TCG support       $tcg"
 if test "$tcg" = "yes" ; then
     echo "TCG debug enabled $debug_tcg"
@@ -5815,7 +5858,7 @@ if test "$mingw32" = "yes" ; then
     echo "CONFIG_QGA_NTDDDISK=y" >> $config_host_mak
   fi
   if test "$guest_agent_msi" = "yes"; then
-    echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak  
+    echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak
     echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
     echo "QEMU_GA_MSI_WITH_VSS=${QEMU_GA_MSI_WITH_VSS}" >> $config_host_mak
     echo "QEMU_GA_MSI_ARCH=${QEMU_GA_MSI_ARCH}" >> $config_host_mak
@@ -6747,6 +6790,9 @@ if supported_hax_target $target; then
 fi
 if supported_hvf_target $target; then
     echo "CONFIG_HVF=y" >> $config_target_mak
+fi
+if supported_whpx_target $target; then
+    echo "CONFIG_WHPX=y" >> $config_target_mak
 fi
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak
