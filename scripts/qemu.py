@@ -163,8 +163,9 @@ class QEMUMachine(object):
         return self._popen.pid
 
     def _load_io_log(self):
-        with open(self._qemu_log_path, "r") as iolog:
-            self._iolog = iolog.read()
+        if self._qemu_log_path is not None:
+            with open(self._qemu_log_path, "r") as iolog:
+                self._iolog = iolog.read()
 
     def _base_args(self):
         if isinstance(self._monitor_address, tuple):
@@ -257,8 +258,8 @@ class QEMUMachine(object):
                 self._popen.kill()
             self._popen.wait()
 
-            self._load_io_log()
-            self._post_shutdown()
+        self._load_io_log()
+        self._post_shutdown()
 
         exitcode = self.exitcode()
         if exitcode is not None and exitcode < 0:
