@@ -1,0 +1,107 @@
+QEMU CAN bus emulation support
+==============================
+
+The CAN bus emulation provides mechanism to connect multiple
+emulated CAN controller chips together by one or multiple CAN busses
+(the controller device "canbus"  parameter). The individual busses
+can be connected to host system CAN API (at this time only Linux
+SocketCAN is supported).
+
+The concept of busses is generic and different CAN controllers
+can be implemented for it but at this time only SJA1000 chip
+controller is implemented.
+
+The PCI addon card hardware has been selected as the first CAN
+interface to implement because such device can be easily connected
+to systems with different CPU architectures (x86, PowerPC, ARM, etc.).
+
+The project has been initially started in frame of RTEMS GSoC 2013
+slot by Jin Yang under our mentoring  The initial idea was to provide generic
+CAN subsystem for RTEMS. But lack of common environment for code and RTEMS
+testing lead to goal change to provide environment which provides complete
+emulated environment for testing and RTEMS GSoC slot has been donated
+to work on CAN hardware emulation on QEMU.
+
+Examples how to use CAN emulation
+=================================
+
+When QEMU with CAN PCI support is compiled then one of the next
+CAN boards can be selected
+
+ (1) CAN bus Kvaser PCI CAN-S (single SJA1000 channel) boad. QEMU startup options
+    -object can-bus,id=canbus0
+    -device kvaser_pci,canbus=canbus0
+    Add "can-host-socketcan" object to connect device to host system CAN bus
+    -object can-host-socketcan,id=canhost0,if=can0,canbus=canbus0
+
+ (2) CAN bus PCM-3680I PCI (dual SJA1000 channel) emulation
+    -object can-bus,id=canbus0
+    -device pcm3680_pci,canbus0=canbus0,canbus1=canbus0
+
+ another example:
+    -object can-bus,id=canbus0
+    -object can-bus,id=canbus1
+    -device pcm3680_pci,canbus0=canbus0,canbus1=canbus1
+
+ (3) CAN bus MIOe-3680 PCI (dual SJA1000 channel) emulation
+    -device mioe3680_pci,canbus0=canbus0
+
+
+The ''kvaser_pci'' board/device model is compatible with and has been tested with
+''kvaser_pci'' driver included in mainline Linux kernel.
+The tested setup was Linux 4.9 kernel on the host and guest side.
+Example for qemu-system-x86_64:
+
+    qemu-system-x86_64 -enable-kvm -kernel /boot/vmlinuz-4.9.0-4-amd64 \
+      -initrd ramdisk.cpio \
+      -virtfs local,path=shareddir,security_model=none,mount_tag=shareddir \
+      -object can-bus,id=canbus0 \
+      -object can-host-socketcan,id=canhost0,if=can0,canbus=canbus0 \
+      -device kvaser_pci,canbus=canbus0 \
+      -nographic -append "console=ttyS0"
+
+Example for qemu-system-arm:
+
+    qemu-system-arm -cpu arm1176 -m 256 -M versatilepb \
+      -kernel kernel-qemu-arm1176-versatilepb \
+      -hda rpi-wheezy-overlay \
+      -append "console=ttyAMA0 root=/dev/sda2 ro init=/sbin/init-overlay" \
+      -nographic \
+      -virtfs local,path=shareddir,security_model=none,mount_tag=shareddir \
+      -object can-bus,id=canbus0 \
+      -object can-host-socketcan,id=canhost0,if=can0,canbus=canbus0 \
+      -device kvaser_pci,canbus=canbus0,host=can0 \
+
+The CAN interface of the host system has to be configured for proper
+bitrate and set up. Configuration is not propagated from emulated
+devices through bus to the physical host device. Example configuration
+for 1 Mbit/s
+
+  ip link set can0 type can bitrate 1000000
+  ip link set can0 up
+
+Virtual (host local only) can interface can be used on the host
+side instead of physical interface
+
+  ip link add dev can0 type vcan
+
+The CAN interface on the host side can be used to analyze CAN
+traffic with "candump" command which is included in "can-utils".
+
+  candump can0
+
+Links to other resources
+========================
+
+ (1) Repository with development branch can-pci at Czech Technical University
+     https://gitlab.fel.cvut.cz/canbus/qemu-canbus
+ (2) GitHub repository with can-pci and our other changes included
+     https://gitlab.fel.cvut.cz/canbus/qemu-canbus
+ (3) RTEMS page describing project
+     https://devel.rtems.org/wiki/Developer/Simulators/QEMU/CANEmulation
+ (4) RTLWS 2015 article about the projevt and its use with CANopen emulation
+     http://rtime.felk.cvut.cz/publications/public/rtlws2015-qemu-can.pdf
+     Slides
+     http://rtime.felk.cvut.cz/publications/public/rtlws2015-qemu-can-slides.pdf
+ (5) Linux SocketCAN utilities
+     https://github.com/linux-can/can-utils/
