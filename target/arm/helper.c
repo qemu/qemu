@@ -12059,14 +12059,37 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
     ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
+    int fp_el = fp_exception_el(env);
     uint32_t flags;
 
     if (is_a64(env)) {
+        int sve_el = sve_exception_el(env);
+        uint32_t zcr_len;
+
         *pc = env->pc;
         flags = ARM_TBFLAG_AARCH64_STATE_MASK;
         /* Get control bits for tagged addresses */
         flags |= (arm_regime_tbi0(env, mmu_idx) << ARM_TBFLAG_TBI0_SHIFT);
         flags |= (arm_regime_tbi1(env, mmu_idx) << ARM_TBFLAG_TBI1_SHIFT);
+        flags |= sve_el << ARM_TBFLAG_SVEEXC_EL_SHIFT;
+
+        /* If SVE is disabled, but FP is enabled,
+           then the effective len is 0.  */
+        if (sve_el != 0 && fp_el == 0) {
+            zcr_len = 0;
+        } else {
+            int current_el = arm_current_el(env);
+
+            zcr_len = env->vfp.zcr_el[current_el <= 1 ? 1 : current_el];
+            zcr_len &= 0xf;
+            if (current_el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
+                zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[2]);
+            }
+            if (current_el < 3 && arm_feature(env, ARM_FEATURE_EL3)) {
+                zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[3]);
+            }
+        }
+        flags |= zcr_len << ARM_TBFLAG_ZCR_LEN_SHIFT;
     } else {
         *pc = env->regs[15];
         flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
@@ -12109,7 +12132,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     if (arm_cpu_data_is_big_endian(env)) {
         flags |= ARM_TBFLAG_BE_DATA_MASK;
     }
-    flags |= fp_exception_el(env) << ARM_TBFLAG_FPEXC_EL_SHIFT;
+    flags |= fp_el << ARM_TBFLAG_FPEXC_EL_SHIFT;
 
     if (arm_v7m_is_handler_mode(env)) {
         flags |= ARM_TBFLAG_HANDLER_MASK;
