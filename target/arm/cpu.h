@@ -549,6 +549,9 @@ typedef struct CPUARMState {
          */
         float_status fp_status;
         float_status standard_fp_status;
+
+        /* ZCR_EL[1-3] */
+        uint64_t zcr_el[4];
     } vfp;
     uint64_t exclusive_addr;
     uint64_t exclusive_val;
@@ -923,6 +926,8 @@ void pmccntr_sync(CPUARMState *env);
 #define CPTR_TCPAC    (1U << 31)
 #define CPTR_TTA      (1U << 20)
 #define CPTR_TFP      (1U << 10)
+#define CPTR_TZ       (1U << 8)   /* CPTR_EL2 */
+#define CPTR_EZ       (1U << 8)   /* CPTR_EL3 */
 
 #define MDCR_EPMAD    (1U << 21)
 #define MDCR_EDAD     (1U << 20)
