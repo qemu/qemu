@@ -1078,7 +1078,8 @@ No errors were found on the image.
 
 Testing failing commit
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 backing_file=json:{'driver': 'raw',,
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=json:{'driver': 'IMGFMT',,
                          'file': {
                              'driver': 'blkdebug',,
                              'inject-error': [{
@@ -1087,7 +1088,8 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 backing_file=json:{'d
                                  'once': true
                              }],,
                              'image': {
-                                 'driver': 'null-co'
+                                 'driver': 'file',,
+                                 'filename': 'TEST_DIR/t.IMGFMT.base'
                              }}}
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

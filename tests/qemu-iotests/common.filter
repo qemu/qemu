@@ -140,6 +140,15 @@ _filter_img_create()
 
 _filter_img_info()
 {
+    if [[ "$1" == "--format-specific" ]]; then
+        local format_specific=1
+        shift
+    else
+        local format_specific=0
+    fi
+
+    discard=0
+    regex_json_spec_start='^ *"format-specific": \{'
     sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
         -e "s#$TEST_DIR#TEST_DIR#g" \
         -e "s#$IMGFMT#IMGFMT#g" \
@@ -160,7 +169,25 @@ _filter_img_info()
         -e "/block_state_zero: \\(on\\|off\\)/d" \
         -e "/log_size: [0-9]\\+/d" \
         -e "s/iters: [0-9]\\+/iters: 1024/" \
-        -e "s/uuid: [-a-f0-9]\\+/uuid: 00000000-0000-0000-0000-000000000000/"
+        -e "s/uuid: [-a-f0-9]\\+/uuid: 00000000-0000-0000-0000-000000000000/" | \
+    while IFS='' read -r line; do
+        if [[ $format_specific == 1 ]]; then
+            discard=0
+        elif [[ $line == "Format specific information:" ]]; then
+            discard=1
+        elif [[ $line =~ $regex_json_spec_start ]]; then
+            discard=2
+            regex_json_spec_end="^${line%%[^ ]*}\\},? *$"
+        fi
+        if [[ $discard == 0 ]]; then
+            echo "$line"
+        elif [[ $discard == 1 && ! $line ]]; then
+            echo
+            discard=0
+        elif [[ $discard == 2 && $line =~ $regex_json_spec_end ]]; then
+            discard=0
+        fi
+    done
 }
 
 # filter out offsets and file names from qemu-img map; good for both

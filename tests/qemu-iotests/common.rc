@@ -338,7 +338,7 @@ _img_info()
             -e "s#$IMGFMT#IMGFMT#g" \
             -e "/^disk size:/ D" \
             -e "/actual-size/ D" | \
-        while IFS='' read line; do
+        while IFS='' read -r line; do
             if [[ $format_specific == 1 ]]; then
                 discard=0
             elif [[ $line == "Format specific information:" ]]; then

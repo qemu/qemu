@@ -77,6 +77,7 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.backing.driver=qcow2,file.backing.f
 
 === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,lazy-refcounts=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) quit
