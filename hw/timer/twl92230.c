@@ -403,7 +403,7 @@ static uint8_t menelaus_read(void *opaque, uint8_t addr)
 
     default:
 #ifdef VERBOSE
-        printf("%s: unknown register %02x\n", __FUNCTION__, addr);
+        printf("%s: unknown register %02x\n", __func__, addr);
 #endif
         break;
     }
@@ -615,7 +615,7 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
         rtc_badness:
         default:
             fprintf(stderr, "%s: bad RTC_UPDATE value %02x\n",
-                            __FUNCTION__, value);
+                            __func__, value);
             s->status |= 1 << 10;				/* RTCERR */
             menelaus_update(s);
         }
@@ -708,7 +708,7 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
 
     default:
 #ifdef VERBOSE
-        printf("%s: unknown register %02x\n", __FUNCTION__, addr);
+        printf("%s: unknown register %02x\n", __func__, addr);
 #endif
     }
 }

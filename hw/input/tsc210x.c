@@ -287,7 +287,7 @@ static void tsc2102_audio_rate_update(TSC210xState *s)
                         rate->fsref == ((s->audio_ctrl3 >> 13) & 1))/* REFFS */
             break;
     if (!rate->rate) {
-        printf("%s: unknown sampling rate configured\n", __FUNCTION__);
+        printf("%s: unknown sampling rate configured\n", __func__);
         return;
     }
 
@@ -913,7 +913,7 @@ uint32_t tsc210x_txrx(void *opaque, uint32_t value, int len)
     uint32_t ret = 0;
 
     if (len != 16)
-        hw_error("%s: FIXME: bad SPI word width %i\n", __FUNCTION__, len);
+        hw_error("%s: FIXME: bad SPI word width %i\n", __func__, len);
 
     /* TODO: sequential reads etc - how do we make sure the host doesn't
      * unintentionally read out a conversion result from a register while

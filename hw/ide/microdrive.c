@@ -155,7 +155,7 @@ static uint8_t md_attr_read(PCMCIACardState *card, uint32_t at)
         return 0x00;
 #ifdef VERBOSE
     default:
-        printf("%s: Bad attribute space register %02x\n", __FUNCTION__, at);
+        printf("%s: Bad attribute space register %02x\n", __func__, at);
 #endif
     }
 
@@ -192,7 +192,7 @@ static void md_attr_write(PCMCIACardState *card, uint32_t at, uint8_t value)
     case 0x06:	/* Socket and Copy Register */
         break;
     default:
-        printf("%s: Bad attribute space register %02x\n", __FUNCTION__, at);
+        printf("%s: Bad attribute space register %02x\n", __func__, at);
     }
 }
 

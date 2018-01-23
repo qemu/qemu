@@ -239,7 +239,7 @@ static uint8_t lm_kbd_read(LM823KbdState *s, int reg, int byte)
 
     default:
         lm_kbd_error(s, ERR_CMDUNK);
-        fprintf(stderr, "%s: unknown command %02x\n", __FUNCTION__, reg);
+        fprintf(stderr, "%s: unknown command %02x\n", __func__, reg);
         return 0x00;
     }
 
@@ -331,7 +331,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         if ((value & 3) && (value & 3) != 3) {
             lm_kbd_error(s, ERR_BADPAR);
             fprintf(stderr, "%s: invalid clock setting in RCPWM\n",
-                            __FUNCTION__);
+                            __func__);
         }
         /* TODO: Validate that the command is only issued once */
         break;
@@ -378,7 +378,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
         break;
     default:
         lm_kbd_error(s, ERR_CMDUNK);
-        fprintf(stderr, "%s: unknown command %02x\n", __FUNCTION__, reg);
+        fprintf(stderr, "%s: unknown command %02x\n", __func__, reg);
         break;
     }
 }

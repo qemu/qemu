@@ -643,7 +643,7 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
     case 0x010:	/* GPMC_SYSCONFIG */
         if ((value >> 3) == 0x3)
             fprintf(stderr, "%s: bad SDRAM idle mode %"PRIi64"\n",
-                            __FUNCTION__, value >> 3);
+                            __func__, value >> 3);
         if (value & 2)
             omap_gpmc_reset(s);
         s->sysconfig = value & 0x19;
@@ -806,7 +806,7 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
         break;
     case 0x230:	/* GPMC_TESTMODE_CTRL */
         if (value & 7)
-            fprintf(stderr, "%s: test mode enable attempt\n", __FUNCTION__);
+            fprintf(stderr, "%s: test mode enable attempt\n", __func__);
         break;
 
     default:
@@ -864,7 +864,7 @@ void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem)
     assert(iomem);
 
     if (cs < 0 || cs >= 8) {
-        fprintf(stderr, "%s: bad chip-select %i\n", __FUNCTION__, cs);
+        fprintf(stderr, "%s: bad chip-select %i\n", __func__, cs);
         exit(-1);
     }
     f = &s->cs_file[cs];

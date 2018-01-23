@@ -321,7 +321,7 @@ static void nand_command(NANDFlashState *s)
         break;
 
     default:
-        printf("%s: Unknown NAND command 0x%02x\n", __FUNCTION__, s->cmd);
+        printf("%s: Unknown NAND command 0x%02x\n", __func__, s->cmd);
     }
 }
 
@@ -640,7 +640,7 @@ DeviceState *nand_init(BlockBackend *blk, int manf_id, int chip_id)
     DeviceState *dev;
 
     if (nand_flash_ids[chip_id].size == 0) {
-        hw_error("%s: Unsupported NAND chip ID.\n", __FUNCTION__);
+        hw_error("%s: Unsupported NAND chip ID.\n", __func__);
     }
     dev = DEVICE(object_new(TYPE_NAND));
     qdev_prop_set_uint8(dev, "manufacturer_id", manf_id);

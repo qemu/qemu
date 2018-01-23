@@ -165,7 +165,7 @@ static uint64_t pxa2xx_pic_mem_read(void *opaque, hwaddr offset,
     case ICHP:	/* Highest Priority register */
         return pxa2xx_pic_highest(s);
     default:
-        printf("%s: Bad register offset " REG_FMT "\n", __FUNCTION__, offset);
+        printf("%s: Bad register offset " REG_FMT "\n", __func__, offset);
         return 0;
     }
 }
@@ -198,7 +198,7 @@ static void pxa2xx_pic_mem_write(void *opaque, hwaddr offset,
         s->priority[32 + ((offset - IPR32) >> 2)] = value & 0x8000003f;
         break;
     default:
-        printf("%s: Bad register offset " REG_FMT "\n", __FUNCTION__, offset);
+        printf("%s: Bad register offset " REG_FMT "\n", __func__, offset);
         return;
     }
     pxa2xx_pic_update(opaque);

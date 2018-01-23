@@ -25,22 +25,22 @@ static int xenstore_domain_mkdir(char *path)
     int i;
 
     if (!xs_mkdir(xenstore, 0, path)) {
-        fprintf(stderr, "%s: xs_mkdir %s: failed\n", __FUNCTION__, path);
+        fprintf(stderr, "%s: xs_mkdir %s: failed\n", __func__, path);
 	return -1;
     }
     if (!xs_set_permissions(xenstore, 0, path, perms_ro, 2)) {
-        fprintf(stderr, "%s: xs_set_permissions failed\n", __FUNCTION__);
+        fprintf(stderr, "%s: xs_set_permissions failed\n", __func__);
 	return -1;
     }
 
     for (i = 0; writable[i]; i++) {
         snprintf(subpath, sizeof(subpath), "%s/%s", path, writable[i]);
         if (!xs_mkdir(xenstore, 0, subpath)) {
-            fprintf(stderr, "%s: xs_mkdir %s: failed\n", __FUNCTION__, subpath);
+            fprintf(stderr, "%s: xs_mkdir %s: failed\n", __func__, subpath);
             return -1;
         }
         if (!xs_set_permissions(xenstore, 0, subpath, perms_rw, 2)) {
-            fprintf(stderr, "%s: xs_set_permissions failed\n", __FUNCTION__);
+            fprintf(stderr, "%s: xs_set_permissions failed\n", __func__);
             return -1;
         }
     }
@@ -158,7 +158,7 @@ static int xen_domain_watcher(void)
     char byte;
 
     if (pipe(fd) != 0) {
-        qemu_log("%s: Huh? pipe error: %s\n", __FUNCTION__, strerror(errno));
+        qemu_log("%s: Huh? pipe error: %s\n", __func__, strerror(errno));
         return -1;
     }
     if (fork() != 0)
@@ -190,7 +190,7 @@ static int xen_domain_watcher(void)
         case -1:
             if (errno == EINTR)
                 continue;
-            qemu_log("%s: Huh? read error: %s\n", __FUNCTION__, strerror(errno));
+            qemu_log("%s: Huh? read error: %s\n", __func__, strerror(errno));
             qemu_running = 0;
             break;
         case 0:
@@ -198,13 +198,13 @@ static int xen_domain_watcher(void)
             qemu_running = 0;
             break;
         default:
-            qemu_log("%s: Huh? data on the watch pipe?\n", __FUNCTION__);
+            qemu_log("%s: Huh? data on the watch pipe?\n", __func__);
             break;
         }
     }
 
     /* cleanup */
-    qemu_log("%s: destroy domain %d\n", __FUNCTION__, xen_domid);
+    qemu_log("%s: destroy domain %d\n", __func__, xen_domid);
     xc_domain_destroy(xen_xc, xen_domid);
     _exit(0);
 }

@@ -540,7 +540,7 @@ static void omap2_inth_write(void *opaque, hwaddr addr,
          * for every register, see Chapter 3 and 4 for privileged mode.  */
         if (value & 1)
             fprintf(stderr, "%s: protection mode enable attempt\n",
-                            __FUNCTION__);
+                            __func__);
         return;
 
     case 0x50:	/* INTC_IDLE */

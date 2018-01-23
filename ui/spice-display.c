@@ -629,13 +629,13 @@ static int interface_req_cursor_notification(QXLInstance *sin)
 
 static void interface_notify_update(QXLInstance *sin, uint32_t update_id)
 {
-    fprintf(stderr, "%s: abort()\n", __FUNCTION__);
+    fprintf(stderr, "%s: abort()\n", __func__);
     abort();
 }
 
 static int interface_flush_resources(QXLInstance *sin)
 {
-    fprintf(stderr, "%s: abort()\n", __FUNCTION__);
+    fprintf(stderr, "%s: abort()\n", __func__);
     abort();
     return 0;
 }

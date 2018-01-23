@@ -316,7 +316,7 @@ static void hda_audio_command(HDACodecDevice *hda, uint32_t nid, uint32_t data)
         goto fail;
     }
     dprint(a, 2, "%s: nid %d (%s), verb 0x%x, payload 0x%x\n",
-           __FUNCTION__, nid, node->name, verb, payload);
+           __func__, nid, node->name, verb, payload);
 
     switch (verb) {
     /* all nodes */
@@ -449,7 +449,7 @@ static void hda_audio_command(HDACodecDevice *hda, uint32_t nid, uint32_t data)
 
 fail:
     dprint(a, 1, "%s: not handled: nid %d (%s), verb 0x%x, payload 0x%x\n",
-           __FUNCTION__, nid, node ? node->name : "?", verb, payload);
+           __func__, nid, node ? node->name : "?", verb, payload);
     hda_codec_response(hda, true, 0);
 }
 
@@ -484,7 +484,7 @@ static int hda_audio_init(HDACodecDevice *hda, const struct desc_codec *desc)
 
     a->desc = desc;
     a->name = object_get_typename(OBJECT(a));
-    dprint(a, 1, "%s: cad %d\n", __FUNCTION__, a->hda.cad);
+    dprint(a, 1, "%s: cad %d\n", __func__, a->hda.cad);
 
     AUD_register_card("hda", &a->card);
     for (i = 0; i < a->desc->nnodes; i++) {
@@ -526,7 +526,7 @@ static void hda_audio_exit(HDACodecDevice *hda)
     HDAAudioStream *st;
     int i;
 
-    dprint(a, 1, "%s\n", __FUNCTION__);
+    dprint(a, 1, "%s\n", __func__);
     for (i = 0; i < ARRAY_SIZE(a->st); i++) {
         st = a->st + i;
         if (st->node == NULL) {
@@ -547,7 +547,7 @@ static int hda_audio_post_load(void *opaque, int version)
     HDAAudioStream *st;
     int i;
 
-    dprint(a, 1, "%s\n", __FUNCTION__);
+    dprint(a, 1, "%s\n", __func__);
     if (version == 1) {
         /* assume running_compat[] is for output streams */
         for (i = 0; i < ARRAY_SIZE(a->running_compat); i++)

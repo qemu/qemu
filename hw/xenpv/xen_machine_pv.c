@@ -36,7 +36,7 @@ static void xen_init_pv(MachineState *machine)
 
     /* Initialize backend core & drivers */
     if (xen_be_init() != 0) {
-        fprintf(stderr, "%s: xen backend core setup failed\n", __FUNCTION__);
+        fprintf(stderr, "%s: xen backend core setup failed\n", __func__);
         exit(1);
     }
 

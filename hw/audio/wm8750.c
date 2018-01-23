@@ -315,7 +315,7 @@ static int wm8750_event(I2CSlave *i2c, enum i2c_event event)
 #ifdef VERBOSE
         if (s->i2c_len < 2)
             printf("%s: message too short (%i bytes)\n",
-                            __FUNCTION__, s->i2c_len);
+                            __func__, s->i2c_len);
 #endif
         break;
     default:
@@ -555,7 +555,7 @@ static int wm8750_tx(I2CSlave *i2c, uint8_t data)
 
 #ifdef VERBOSE
     default:
-        printf("%s: unknown register %02x\n", __FUNCTION__, cmd);
+        printf("%s: unknown register %02x\n", __func__, cmd);
 #endif
     }
 
