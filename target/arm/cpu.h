@@ -188,6 +188,13 @@ typedef struct ARMVectorReg {
     uint64_t d[2 * ARM_MAX_VQ] QEMU_ALIGNED(16);
 } ARMVectorReg;
 
+/* In AArch32 mode, predicate registers do not exist at all.  */
+#ifdef TARGET_AARCH64
+typedef struct ARMPredicateReg {
+    uint64_t p[2 * ARM_MAX_VQ / 8] QEMU_ALIGNED(16);
+} ARMPredicateReg;
+#endif
+
 
 typedef struct CPUARMState {
     /* Regs for current mode.  */
@@ -514,6 +521,11 @@ typedef struct CPUARMState {
     /* VFP coprocessor state.  */
     struct {
         ARMVectorReg zregs[32];
+
+#ifdef TARGET_AARCH64
+        /* Store FFR as pregs[16] to make it easier to treat as any other.  */
+        ARMPredicateReg pregs[17];
+#endif
 
         uint32_t xregs[16];
         /* We store these fpcsr fields separately for convenience.  */
