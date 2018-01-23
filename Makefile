@@ -958,4 +958,5 @@ ifdef QEMU_GA_MSI_ENABLED
 endif
 	@echo  ''
 endif
-	@echo  '  $(MAKE) V=0|1 [targets] 0 => quiet build (default), 1 => verbose build'
+	@echo  '  $(MAKE) [targets]      (quiet build, default)'
+	@echo  '  $(MAKE) V=1 [targets]  (verbose build)'
