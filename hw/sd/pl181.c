@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "hw/qdev-properties.h"
 
 //#define DEBUG_PL181 1
 
@@ -32,11 +33,13 @@ do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
 #define TYPE_PL181 "pl181"
 #define PL181(obj) OBJECT_CHECK(PL181State, (obj), TYPE_PL181)
 
+#define TYPE_PL181_BUS "pl181-bus"
+
 typedef struct PL181State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    SDState *card;
+    SDBus sdbus;
     uint32_t clock;
     uint32_t power;
     uint32_t cmdarg;
@@ -183,7 +186,7 @@ static void pl181_do_command(PL181State *s)
     request.cmd = s->cmd & PL181_CMD_INDEX;
     request.arg = s->cmdarg;
     DPRINTF("Command %d %08x\n", request.cmd, request.arg);
-    rlen = sd_do_command(s->card, &request, response);
+    rlen = sdbus_do_command(&s->sdbus, &request, response);
     if (rlen < 0)
         goto error;
     if (s->cmd & PL181_CMD_RESPONSE) {
@@ -224,12 +227,12 @@ static void pl181_fifo_run(PL181State *s)
     int is_read;
 
     is_read = (s->datactrl & PL181_DATA_DIRECTION) != 0;
-    if (s->datacnt != 0 && (!is_read || sd_data_ready(s->card))
+    if (s->datacnt != 0 && (!is_read || sdbus_data_ready(&s->sdbus))
             && !s->linux_hack) {
         if (is_read) {
             n = 0;
             while (s->datacnt && s->fifo_len < PL181_FIFO_LEN) {
-                value |= (uint32_t)sd_read_data(s->card) << (n * 8);
+                value |= (uint32_t)sdbus_read_data(&s->sdbus) << (n * 8);
                 s->datacnt--;
                 n++;
                 if (n == 4) {
@@ -250,7 +253,7 @@ static void pl181_fifo_run(PL181State *s)
                 }
                 n--;
                 s->datacnt--;
-                sd_write_data(s->card, value & 0xff);
+                sdbus_write_data(&s->sdbus, value & 0xff);
                 value >>= 8;
             }
         }
@@ -456,6 +459,20 @@ static const MemoryRegionOps pl181_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void pl181_set_readonly(DeviceState *dev, bool level)
+{
+    PL181State *s = (PL181State *)dev;
+
+    qemu_set_irq(s->card_readonly, level);
+}
+
+static void pl181_set_inserted(DeviceState *dev, bool level)
+{
+    PL181State *s = (PL181State *)dev;
+
+    qemu_set_irq(s->card_inserted, level);
+}
+
 static void pl181_reset(DeviceState *d)
 {
     PL181State *s = PL181(d);
@@ -479,12 +496,9 @@ static void pl181_reset(DeviceState *d)
     s->mask[0] = 0;
     s->mask[1] = 0;
 
-    /* We can assume our GPIO outputs have been wired up now */
-    sd_set_cb(s->card, s->card_readonly, s->card_inserted);
-    /* Since we're still using the legacy SD API the card is not plugged
-     * into any bus, and we must reset it manually.
-     */
-    device_legacy_reset(DEVICE(s->card));
+    /* Reset other state based on current card insertion/readonly status */
+    pl181_set_inserted(DEVICE(s), sdbus_get_inserted(&s->sdbus));
+    pl181_set_readonly(DEVICE(s), sdbus_get_readonly(&s->sdbus));
 }
 
 static void pl181_init(Object *obj)
@@ -499,19 +513,24 @@ static void pl181_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq[1]);
     qdev_init_gpio_out_named(dev, &s->card_readonly, "card-read-only", 1);
     qdev_init_gpio_out_named(dev, &s->card_inserted, "card-inserted", 1);
+
+    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
+                        TYPE_PL181_BUS, dev, "sd-bus");
 }
 
 static void pl181_realize(DeviceState *dev, Error **errp)
 {
-    PL181State *s = PL181(dev);
+    DeviceState *card;
     DriveInfo *dinfo;
 
     /* FIXME use a qdev drive property instead of drive_get_next() */
+    card = qdev_new(TYPE_SD_CARD);
     dinfo = drive_get_next(IF_SD);
-    s->card = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, false);
-    if (s->card == NULL) {
-        error_setg(errp, "sd_init failed");
-    }
+    qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
+                            &error_fatal);
+    qdev_realize_and_unref(card,
+                           qdev_get_child_bus(dev, "sd-bus"),
+                           &error_fatal);
 }
 
 static void pl181_class_init(ObjectClass *klass, void *data)
@@ -533,9 +552,25 @@ static const TypeInfo pl181_info = {
     .class_init    = pl181_class_init,
 };
 
+static void pl181_bus_class_init(ObjectClass *klass, void *data)
+{
+    SDBusClass *sbc = SD_BUS_CLASS(klass);
+
+    sbc->set_inserted = pl181_set_inserted;
+    sbc->set_readonly = pl181_set_readonly;
+}
+
+static const TypeInfo pl181_bus_info = {
+    .name = TYPE_PL181_BUS,
+    .parent = TYPE_SD_BUS,
+    .instance_size = sizeof(SDBus),
+    .class_init = pl181_bus_class_init,
+};
+
 static void pl181_register_types(void)
 {
     type_register_static(&pl181_info);
+    type_register_static(&pl181_bus_info);
 }
 
 type_init(pl181_register_types)
