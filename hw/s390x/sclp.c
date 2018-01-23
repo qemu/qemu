@@ -67,7 +67,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     prepare_cpu_entries(sclp, read_info->entries, &cpu_count);
     read_info->entries_cpu = cpu_to_be16(cpu_count);
     read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
-    read_info->highest_cpu = cpu_to_be16(max_cpus);
+    read_info->highest_cpu = cpu_to_be16(max_cpus - 1);
 
     read_info->ibc_val = cpu_to_be32(s390_get_ibc_val());
 
@@ -233,7 +233,7 @@ static void assign_storage(SCLPDevice *sclp, SCCB *sccb)
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
         return;
     }
-    assign_addr = (assign_info->rn - 1) * mhd->rzm;
+    assign_addr = (be16_to_cpu(assign_info->rn) - 1) * mhd->rzm;
 
     if ((assign_addr % MEM_SECTION_SIZE == 0) &&
         (assign_addr >= mhd->padded_ram_size)) {
@@ -292,7 +292,7 @@ static void unassign_storage(SCLPDevice *sclp, SCCB *sccb)
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
         return;
     }
-    unassign_addr = (assign_info->rn - 1) * mhd->rzm;
+    unassign_addr = (be16_to_cpu(assign_info->rn) - 1) * mhd->rzm;
 
     /* if the addr is a multiple of 256 MB */
     if ((unassign_addr % MEM_SECTION_SIZE == 0) &&

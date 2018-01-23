@@ -1717,10 +1717,44 @@ uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
     return 0;
 }
 
-uint32_t HELPER(tprot)(uint64_t a1, uint64_t a2)
+uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
 {
-    /* XXX implement */
-    return 0;
+    S390CPU *cpu = s390_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    /*
+     * TODO: we currently don't handle all access protection types
+     * (including access-list and key-controlled) as well as AR mode.
+     */
+    if (!s390_cpu_virt_mem_check_write(cpu, a1, 0, 1)) {
+        /* Fetching permitted; storing permitted */
+        return 0;
+    }
+
+    if (env->int_pgm_code == PGM_PROTECTION) {
+        /* retry if reading is possible */
+        cs->exception_index = 0;
+        if (!s390_cpu_virt_mem_check_read(cpu, a1, 0, 1)) {
+            /* Fetching permitted; storing not permitted */
+            return 1;
+        }
+    }
+
+    switch (env->int_pgm_code) {
+    case PGM_PROTECTION:
+        /* Fetching not permitted; storing not permitted */
+        cs->exception_index = 0;
+        return 2;
+    case PGM_ADDRESSING:
+    case PGM_TRANS_SPEC:
+        /* exceptions forwarded to the guest */
+        s390_cpu_virt_mem_handle_exc(cpu, GETPC());
+        return 0;
+    }
+
+    /* Translation not available */
+    cs->exception_index = 0;
+    return 3;
 }
 
 /* insert storage key extended */

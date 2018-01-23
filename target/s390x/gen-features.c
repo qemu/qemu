@@ -352,6 +352,8 @@ static uint16_t base_GEN14_GA1[] = {
  * support these features yet.
  */
 static uint16_t full_GEN7_GA1[] = {
+    S390_FEAT_PPA15,
+    S390_FEAT_BPB,
     S390_FEAT_SIE_F2,
     S390_FEAT_SIE_SKEY,
     S390_FEAT_SIE_GPERE,
