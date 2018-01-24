@@ -205,6 +205,59 @@ typedef struct ResetData {
     uint64_t prom_addr;
 } ResetData;
 
+#define TYPE_SUN4U_POWER "power"
+#define SUN4U_POWER(obj) OBJECT_CHECK(PowerDevice, (obj), TYPE_SUN4U_POWER)
+
+typedef struct PowerDevice {
+    SysBusDevice parent_obj;
+
+    MemoryRegion power_mmio;
+} PowerDevice;
+
+/* Power */
+static void power_mem_write(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
+{
+    /* According to a real Ultra 5, bit 24 controls the power */
+    if (val & 0x1000000) {
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    }
+}
+
+static const MemoryRegionOps power_mem_ops = {
+    .write = power_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static void power_realize(DeviceState *dev, Error **errp)
+{
+    PowerDevice *d = SUN4U_POWER(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    memory_region_init_io(&d->power_mmio, OBJECT(dev), &power_mem_ops, d,
+                          "power", sizeof(uint32_t));
+
+    sysbus_init_mmio(sbd, &d->power_mmio);
+}
+
+static void power_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = power_realize;
+}
+
+static const TypeInfo power_info = {
+    .name          = TYPE_SUN4U_POWER,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PowerDevice),
+    .class_init    = power_class_init,
+};
+
 static void ebus_isa_irq_handler(void *opaque, int n, int level)
 {
     EbusState *s = EBUS(opaque);
@@ -221,6 +274,7 @@ static void ebus_isa_irq_handler(void *opaque, int n, int level)
 static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = EBUS(pci_dev);
+    SysBusDevice *sbd;
     DeviceState *dev;
     qemu_irq *isa_irq;
     DriveInfo *fd[MAX_FD];
@@ -270,6 +324,13 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     qdev_prop_set_uint32(dev, "dma", -1);
     qdev_init_nofail(dev);
 
+    /* Power */
+    dev = qdev_create(NULL, TYPE_SUN4U_POWER);
+    qdev_init_nofail(dev);
+    sbd = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(pci_address_space_io(pci_dev), 0x7240,
+                                sysbus_mmio_get_region(sbd, 0));
+
     /* PCI */
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;
@@ -282,7 +343,7 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
                              0, 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
     memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
-                             0, 0x4000);
+                             0, 0x8000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
 }
 
@@ -694,6 +755,7 @@ static const TypeInfo sun4v_type = {
 
 static void sun4u_register_types(void)
 {
+    type_register_static(&power_info);
     type_register_static(&ebus_info);
     type_register_static(&prom_info);
     type_register_static(&ram_info);
