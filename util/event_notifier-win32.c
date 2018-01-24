@@ -19,7 +19,6 @@ int event_notifier_init(EventNotifier *e, int active)
 {
     e->event = CreateEvent(NULL, TRUE, FALSE, NULL);
     assert(e->event);
-    e->cleanup = NULL;
     return 0;
 }
 
@@ -27,7 +26,6 @@ void event_notifier_cleanup(EventNotifier *e)
 {
     CloseHandle(e->event);
     e->event = NULL;
-    e->cleanup = NULL;
 }
 
 HANDLE event_notifier_get_handle(EventNotifier *e)

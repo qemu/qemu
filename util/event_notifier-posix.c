@@ -29,7 +29,6 @@ void event_notifier_init_fd(EventNotifier *e, int fd)
 {
     e->rfd = fd;
     e->wfd = fd;
-    e->cleanup = NULL;
 }
 #endif
 
@@ -66,7 +65,6 @@ int event_notifier_init(EventNotifier *e, int active)
         e->rfd = fds[0];
         e->wfd = fds[1];
     }
-    e->cleanup = NULL;
     if (active) {
         event_notifier_set(e);
     }
@@ -82,11 +80,10 @@ void event_notifier_cleanup(EventNotifier *e)
 {
     if (e->rfd != e->wfd) {
         close(e->rfd);
+        e->rfd = -1;
     }
     close(e->wfd);
-    e->rfd = -1;
     e->wfd = -1;
-    e->cleanup = NULL;
 }
 
 int event_notifier_get_fd(const EventNotifier *e)
