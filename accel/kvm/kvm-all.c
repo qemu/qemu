@@ -812,10 +812,6 @@ static void kvm_mem_ioeventfd_del(MemoryListener *listener,
     if (r < 0) {
         abort();
     }
-
-    if (e->cleanup) {
-        e->cleanup(e);
-    }
 }
 
 static void kvm_io_ioeventfd_add(MemoryListener *listener,
