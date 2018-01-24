@@ -131,6 +131,8 @@ echo
 echo === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 echo
 
+_make_test_img -o compat=1.1 "$size"
+
 run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=on
 run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=off
 run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=

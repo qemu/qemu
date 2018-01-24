@@ -91,7 +91,19 @@ static uint8_t nvme_sq_empty(NvmeSQueue *sq)
     return sq->head == sq->tail;
 }
 
-static void nvme_isr_notify(NvmeCtrl *n, NvmeCQueue *cq)
+static void nvme_irq_check(NvmeCtrl *n)
+{
+    if (msix_enabled(&(n->parent_obj))) {
+        return;
+    }
+    if (~n->bar.intms & n->irq_status) {
+        pci_irq_assert(&n->parent_obj);
+    } else {
+        pci_irq_deassert(&n->parent_obj);
+    }
+}
+
+static void nvme_irq_assert(NvmeCtrl *n, NvmeCQueue *cq)
 {
     if (cq->irq_enabled) {
         if (msix_enabled(&(n->parent_obj))) {
@@ -99,10 +111,25 @@ static void nvme_isr_notify(NvmeCtrl *n, NvmeCQueue *cq)
             msix_notify(&(n->parent_obj), cq->vector);
         } else {
             trace_nvme_irq_pin();
-            pci_irq_pulse(&n->parent_obj);
+            assert(cq->cqid < 64);
+            n->irq_status |= 1 << cq->cqid;
+            nvme_irq_check(n);
         }
     } else {
         trace_nvme_irq_masked();
+    }
+}
+
+static void nvme_irq_deassert(NvmeCtrl *n, NvmeCQueue *cq)
+{
+    if (cq->irq_enabled) {
+        if (msix_enabled(&(n->parent_obj))) {
+            return;
+        } else {
+            assert(cq->cqid < 64);
+            n->irq_status &= ~(1 << cq->cqid);
+            nvme_irq_check(n);
+        }
     }
 }
 
@@ -242,7 +269,7 @@ static void nvme_post_cqes(void *opaque)
             sizeof(req->cqe));
         QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
     }
-    nvme_isr_notify(n, cq);
+    nvme_irq_assert(n, cq);
 }
 
 static void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req)
@@ -905,6 +932,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         n->bar.intmc = n->bar.intms;
         trace_nvme_mmio_intm_set(data & 0xffffffff,
                                  n->bar.intmc);
+        nvme_irq_check(n);
         break;
     case 0x10:  /* INTMC */
         if (unlikely(msix_enabled(&(n->parent_obj)))) {
@@ -917,6 +945,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         n->bar.intmc = n->bar.intms;
         trace_nvme_mmio_intm_clr(data & 0xffffffff,
                                  n->bar.intmc);
+        nvme_irq_check(n);
         break;
     case 0x14:  /* CC */
         trace_nvme_mmio_cfg(data & 0xffffffff);
@@ -1085,8 +1114,8 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
             timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
         }
 
-        if (cq->tail != cq->head) {
-            nvme_isr_notify(n, cq);
+        if (cq->tail == cq->head) {
+            nvme_irq_deassert(n, cq);
         }
     } else {
         /* Submission queue doorbell write */

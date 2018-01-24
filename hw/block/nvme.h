@@ -775,6 +775,7 @@ typedef struct NvmeCtrl {
     uint32_t    cmbsz;
     uint32_t    cmbloc;
     uint8_t     *cmbuf;
+    uint64_t    irq_status;
 
     char            *serial;
     NvmeNamespace   *namespaces;

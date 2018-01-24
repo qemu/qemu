@@ -57,7 +57,8 @@ function run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | _filter_qemu \
                           | _filter_actual_image_size \
-                          | _filter_generated_node_ids | _filter_qmp_events
+                          | _filter_generated_node_ids | _filter_qmp_events \
+                          | _filter_img_info
 }
 
 size=128M

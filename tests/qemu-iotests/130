@@ -45,6 +45,8 @@ _supported_fmt qcow2
 _supported_proto generic
 _unsupported_proto vxhs
 _supported_os Linux
+# We are going to use lazy-refcounts
+_unsupported_imgopts 'compat=0.10'
 
 qemu_comm_method="monitor"
 
