@@ -4381,34 +4381,34 @@ static const DisasInsn table_float_0e[] = {
     /* floating point class one */
     /* float/float */
     { 0x38000a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_s },
-    { 0x38002200, 0xfc1fffc0, FOP_DEW = gen_helper_fcnv_s_d },
+    { 0x38002200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_d },
     /* int/float */
-    { 0x38008200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_w_s },
+    { 0x38008200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_w_s },
     { 0x38008a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_dw_s },
     { 0x3800a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_w_d },
     { 0x3800aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_dw_d },
     /* float/int */
-    { 0x38010200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_s_w },
+    { 0x38010200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_s_w },
     { 0x38010a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_w },
     { 0x38012200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_dw },
     { 0x38012a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_dw },
     /* float/int truncate */
-    { 0x38018200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_t_s_w },
+    { 0x38018200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_t_s_w },
     { 0x38018a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_t_d_w },
     { 0x3801a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_t_s_dw },
     { 0x3801aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_dw },
     /* uint/float */
-    { 0x38028200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_uw_s },
+    { 0x38028200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_uw_s },
     { 0x38028a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_udw_s },
     { 0x3802a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_uw_d },
     { 0x3802aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_udw_d },
     /* float/uint */
-    { 0x38030200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_s_uw },
+    { 0x38030200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_s_uw },
     { 0x38030a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_uw },
     { 0x38032200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_udw },
     { 0x38032a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_udw },
     /* float/uint truncate */
-    { 0x38038200, 0xfc1ffe60, FOP_WEW = gen_helper_fcnv_t_s_uw },
+    { 0x38038200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_t_s_uw },
     { 0x38038a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_t_d_uw },
     { 0x3803a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_t_s_udw },
     { 0x3803aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_udw },
