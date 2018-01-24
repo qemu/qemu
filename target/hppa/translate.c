@@ -2380,21 +2380,33 @@ static DisasJumpType trans_probe(DisasContext *ctx, uint32_t insn,
 {
     unsigned rt = extract32(insn, 0, 5);
     unsigned sp = extract32(insn, 14, 2);
+    unsigned rr = extract32(insn, 16, 5);
     unsigned rb = extract32(insn, 21, 5);
     unsigned is_write = extract32(insn, 6, 1);
+    unsigned is_imm = extract32(insn, 13, 1);
     TCGv_reg dest, ofs;
+    TCGv_i32 level, want;
     TCGv_tl addr;
 
     nullify_over(ctx);
 
-    /* ??? Do something with priv level operand.  */
     dest = dest_gpr(ctx, rt);
     form_gva(ctx, &addr, &ofs, rb, 0, 0, 0, sp, 0, false);
-    if (is_write) {
-        gen_helper_probe_w(dest, addr);
+
+    if (is_imm) {
+        level = tcg_const_i32(extract32(insn, 16, 2));
     } else {
-        gen_helper_probe_r(dest, addr);
+        level = tcg_temp_new_i32();
+        tcg_gen_trunc_reg_i32(level, load_gpr(ctx, rr));
+        tcg_gen_andi_i32(level, level, 3);
     }
+    want = tcg_const_i32(is_write ? PAGE_WRITE : PAGE_READ);
+
+    gen_helper_probe(dest, cpu_env, addr, level, want);
+
+    tcg_temp_free_i32(want);
+    tcg_temp_free_i32(level);
+
     save_gpr(ctx, rt, dest);
     return nullify_end(ctx, DISAS_NEXT);
 }

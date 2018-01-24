@@ -160,21 +160,33 @@ void HELPER(stby_e_parallel)(CPUHPPAState *env, target_ulong addr,
     do_stby_e(env, addr, val, true);
 }
 
-target_ureg HELPER(probe_r)(target_ulong addr)
+target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
+                          uint32_t level, uint32_t want)
 {
 #ifdef CONFIG_USER_ONLY
-    return page_check_range(addr, 1, PAGE_READ);
+    return page_check_range(addr, 1, want);
 #else
-    return 1; /* FIXME */
-#endif
-}
+    int prot, excp;
+    hwaddr phys;
 
-target_ureg HELPER(probe_w)(target_ulong addr)
-{
-#ifdef CONFIG_USER_ONLY
-    return page_check_range(addr, 1, PAGE_WRITE);
-#else
-    return 1; /* FIXME */
+    /* Fail if the requested privilege level is higher than current.  */
+    if (level < (env->iaoq_f & 3)) {
+        return 0;
+    }
+
+    excp = hppa_get_physical_address(env, addr, level, 0, &phys, &prot);
+    if (excp >= 0) {
+        if (env->psw & PSW_Q) {
+            /* ??? Needs tweaking for hppa64.  */
+            env->cr[CR_IOR] = addr;
+            env->cr[CR_ISR] = addr >> 32;
+        }
+        if (excp == EXCP_DTLB_MISS) {
+            excp = EXCP_NA_DTLB_MISS;
+        }
+        hppa_dynamic_excp(env, excp, GETPC());
+    }
+    return (want & prot) != 0;
 #endif
 }
 
