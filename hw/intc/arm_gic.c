@@ -1212,8 +1212,13 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         break;
     case 0x08: /* Binary Point */
         if (s->security_extn && !attrs.secure) {
-            /* BPR is banked. Non-secure copy stored in ABPR. */
-            *data = s->abpr[cpu];
+            if (s->cpu_ctlr[cpu] & GICC_CTLR_CBPR) {
+                /* NS view of BPR when CBPR is 1 */
+                *data = MIN(s->bpr[cpu] + 1, 7);
+            } else {
+                /* BPR is banked. Non-secure copy stored in ABPR. */
+                *data = s->abpr[cpu];
+            }
         } else {
             *data = s->bpr[cpu];
         }
@@ -1286,7 +1291,12 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         break;
     case 0x08: /* Binary Point */
         if (s->security_extn && !attrs.secure) {
-            s->abpr[cpu] = MAX(value & 0x7, GIC_MIN_ABPR);
+            if (s->cpu_ctlr[cpu] & GICC_CTLR_CBPR) {
+                /* WI when CBPR is 1 */
+                return MEMTX_OK;
+            } else {
+                s->abpr[cpu] = MAX(value & 0x7, GIC_MIN_ABPR);
+            }
         } else {
             s->bpr[cpu] = MAX(value & 0x7, GIC_MIN_BPR);
         }
