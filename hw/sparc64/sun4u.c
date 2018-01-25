@@ -30,7 +30,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
-#include "hw/pci-host/apb.h"
+#include "hw/pci-host/sabre.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
 #include "hw/timer/m48t59.h"
@@ -55,9 +55,9 @@
 #define CMDLINE_ADDR         0x003ff000
 #define PROM_SIZE_MAX        (4 * 1024 * 1024)
 #define PROM_VADDR           0x000ffd00000ULL
-#define APB_SPECIAL_BASE     0x1fe00000000ULL
-#define APB_MEM_BASE         0x1ff00000000ULL
-#define APB_PCI_IO_BASE      (APB_SPECIAL_BASE + 0x02000000ULL)
+#define PBM_SPECIAL_BASE     0x1fe00000000ULL
+#define PBM_MEM_BASE         0x1ff00000000ULL
+#define PBM_PCI_IO_BASE      (PBM_SPECIAL_BASE + 0x02000000ULL)
 #define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
@@ -205,6 +205,59 @@ typedef struct ResetData {
     uint64_t prom_addr;
 } ResetData;
 
+#define TYPE_SUN4U_POWER "power"
+#define SUN4U_POWER(obj) OBJECT_CHECK(PowerDevice, (obj), TYPE_SUN4U_POWER)
+
+typedef struct PowerDevice {
+    SysBusDevice parent_obj;
+
+    MemoryRegion power_mmio;
+} PowerDevice;
+
+/* Power */
+static void power_mem_write(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
+{
+    /* According to a real Ultra 5, bit 24 controls the power */
+    if (val & 0x1000000) {
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    }
+}
+
+static const MemoryRegionOps power_mem_ops = {
+    .write = power_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static void power_realize(DeviceState *dev, Error **errp)
+{
+    PowerDevice *d = SUN4U_POWER(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    memory_region_init_io(&d->power_mmio, OBJECT(dev), &power_mem_ops, d,
+                          "power", sizeof(uint32_t));
+
+    sysbus_init_mmio(sbd, &d->power_mmio);
+}
+
+static void power_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = power_realize;
+}
+
+static const TypeInfo power_info = {
+    .name          = TYPE_SUN4U_POWER,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PowerDevice),
+    .class_init    = power_class_init,
+};
+
 static void ebus_isa_irq_handler(void *opaque, int n, int level)
 {
     EbusState *s = EBUS(opaque);
@@ -221,6 +274,7 @@ static void ebus_isa_irq_handler(void *opaque, int n, int level)
 static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = EBUS(pci_dev);
+    SysBusDevice *sbd;
     DeviceState *dev;
     qemu_irq *isa_irq;
     DriveInfo *fd[MAX_FD];
@@ -270,6 +324,13 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     qdev_prop_set_uint32(dev, "dma", -1);
     qdev_init_nofail(dev);
 
+    /* Power */
+    dev = qdev_create(NULL, TYPE_SUN4U_POWER);
+    qdev_init_nofail(dev);
+    sbd = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(pci_address_space_io(pci_dev), 0x7240,
+                                sysbus_mmio_get_region(sbd, 0));
+
     /* PCI */
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;
@@ -282,7 +343,7 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
                              0, 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
     memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
-                             0, 0x4000);
+                             0, 0x8000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
 }
 
@@ -465,7 +526,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     Nvram *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
-    APBState *apb;
+    SabreState *sabre;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus, *pci_dev;
     SysBusDevice *s;
@@ -488,24 +549,25 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    /* Init APB (PCI host bridge) */
-    apb = APB_DEVICE(qdev_create(NULL, TYPE_APB));
-    qdev_prop_set_uint64(DEVICE(apb), "special-base", APB_SPECIAL_BASE);
-    qdev_prop_set_uint64(DEVICE(apb), "mem-base", APB_MEM_BASE);
-    object_property_set_link(OBJECT(apb), OBJECT(iommu), "iommu", &error_abort);
-    qdev_init_nofail(DEVICE(apb));
+    /* Init sabre (PCI host bridge) */
+    sabre = SABRE_DEVICE(qdev_create(NULL, TYPE_SABRE));
+    qdev_prop_set_uint64(DEVICE(sabre), "special-base", PBM_SPECIAL_BASE);
+    qdev_prop_set_uint64(DEVICE(sabre), "mem-base", PBM_MEM_BASE);
+    object_property_set_link(OBJECT(sabre), OBJECT(iommu), "iommu",
+                             &error_abort);
+    qdev_init_nofail(DEVICE(sabre));
 
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
-        qdev_connect_gpio_out_named(DEVICE(apb), "ivec-irq", i,
+        qdev_connect_gpio_out_named(DEVICE(sabre), "ivec-irq", i,
             qdev_get_gpio_in_named(DEVICE(cpu), "ivec-irq", i));
     }
 
-    pci_bus = PCI_HOST_BRIDGE(apb)->bus;
-    pci_busA = pci_bridge_get_sec_bus(apb->bridgeA);
-    pci_busB = pci_bridge_get_sec_bus(apb->bridgeB);
+    pci_bus = PCI_HOST_BRIDGE(sabre)->bus;
+    pci_busA = pci_bridge_get_sec_bus(sabre->bridgeA);
+    pci_busB = pci_bridge_get_sec_bus(sabre->bridgeB);
 
-    /* Only in-built Simba PBMs can exist on the root bus, slot 0 on busA is
+    /* Only in-built Simba APBs can exist on the root bus, slot 0 on busA is
        reserved (leaving no slots free after on-board devices) however slots
        0-3 are free on busB */
     pci_bus->slot_reserved_mask = 0xfffffffc;
@@ -517,17 +579,17 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                          hwdef->console_serial_base);
     qdev_init_nofail(DEVICE(ebus));
 
-    /* Wire up "well-known" ISA IRQs to APB legacy obio IRQs */
+    /* Wire up "well-known" ISA IRQs to PBM legacy obio IRQs */
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 7,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_LPT_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_LPT_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 6,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_FDD_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_FDD_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 1,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_KBD_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_KBD_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 12,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_MSE_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_MSE_IRQ));
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 4,
-        qdev_get_gpio_in_named(DEVICE(apb), "pbm-irq", OBIO_SER_IRQ));
+        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_SER_IRQ));
 
     pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
 
@@ -693,6 +755,7 @@ static const TypeInfo sun4v_type = {
 
 static void sun4u_register_types(void)
 {
+    type_register_static(&power_info);
     type_register_static(&ebus_info);
     type_register_static(&prom_info);
     type_register_static(&ram_info);

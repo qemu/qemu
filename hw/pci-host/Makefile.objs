@@ -11,7 +11,7 @@ common-obj-$(CONFIG_PPCE500_PCI) += ppce500.o
 # ARM devices
 common-obj-$(CONFIG_VERSATILE_PCI) += versatile.o
 
-common-obj-$(CONFIG_PCI_APB) += apb.o
+common-obj-$(CONFIG_PCI_SABRE) += sabre.o
 common-obj-$(CONFIG_FULONG) += bonito.o
 common-obj-$(CONFIG_PCI_PIIX) += piix.o
 common-obj-$(CONFIG_PCI_Q35) += q35.o

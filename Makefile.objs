@@ -150,6 +150,7 @@ trace-events-subdirs += hw/i386/xen
 trace-events-subdirs += hw/9pfs
 trace-events-subdirs += hw/ppc
 trace-events-subdirs += hw/pci
+trace-events-subdirs += hw/pci-host
 trace-events-subdirs += hw/s390x
 trace-events-subdirs += hw/vfio
 trace-events-subdirs += hw/acpi

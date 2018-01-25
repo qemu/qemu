@@ -14,17 +14,20 @@
 #define OBIO_MSE_IRQ         0x2a
 #define OBIO_SER_IRQ         0x2b
 
-#define TYPE_APB "pbm"
+typedef struct SabrePCIState {
+    PCIDevice parent_obj;
+} SabrePCIState;
 
-#define APB_DEVICE(obj) \
-    OBJECT_CHECK(APBState, (obj), TYPE_APB)
+#define TYPE_SABRE_PCI_DEVICE "sabre-pci"
+#define SABRE_PCI_DEVICE(obj) \
+    OBJECT_CHECK(SabrePCIState, (obj), TYPE_SABRE_PCI_DEVICE)
 
-typedef struct APBState {
+typedef struct SabreState {
     PCIHostState parent_obj;
 
     hwaddr special_base;
     hwaddr mem_base;
-    MemoryRegion apb_config;
+    MemoryRegion sabre_config;
     MemoryRegion pci_config;
     MemoryRegion pci_mmio;
     MemoryRegion pci_ioport;
@@ -40,15 +43,10 @@ typedef struct APBState {
     unsigned int irq_request;
     uint32_t reset_control;
     unsigned int nr_resets;
-} APBState;
+} SabreState;
 
-typedef struct PBMPCIBridge {
-    /*< private >*/
-    PCIBridge parent_obj;
-} PBMPCIBridge;
-
-#define TYPE_PBM_PCI_BRIDGE "pbm-bridge"
-#define PBM_PCI_BRIDGE(obj) \
-    OBJECT_CHECK(PBMPCIBridge, (obj), TYPE_PBM_PCI_BRIDGE)
+#define TYPE_SABRE "sabre"
+#define SABRE_DEVICE(obj) \
+    OBJECT_CHECK(SabreState, (obj), TYPE_SABRE)
 
 #endif
