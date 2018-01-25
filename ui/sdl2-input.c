@@ -30,8 +30,6 @@
 #include "ui/sdl2.h"
 #include "sysemu/sysemu.h"
 
-#include "sdl2-keymap.h"
-
 static uint8_t modifiers_state[SDL_NUM_SCANCODES];
 
 void sdl2_reset_keys(struct sdl2_console *scon)
@@ -39,9 +37,11 @@ void sdl2_reset_keys(struct sdl2_console *scon)
     QemuConsole *con = scon ? scon->dcl.con : NULL;
     int i;
 
-    for (i = 0; i < SDL_NUM_SCANCODES; i++) {
+    for (i = 0 ;
+         i < SDL_NUM_SCANCODES && i < qemu_input_map_usb_to_qcode_len ;
+         i++) {
         if (modifiers_state[i]) {
-            int qcode = sdl2_scancode_to_qcode[i];
+            int qcode = qemu_input_map_usb_to_qcode[i];
             qemu_input_event_send_key_qcode(con, qcode, false);
             modifiers_state[i] = 0;
         }
@@ -51,8 +51,14 @@ void sdl2_reset_keys(struct sdl2_console *scon)
 void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev)
 {
-    int qcode = sdl2_scancode_to_qcode[ev->keysym.scancode];
+    int qcode;
     QemuConsole *con = scon ? scon->dcl.con : NULL;
+
+    if (ev->keysym.scancode >= qemu_input_map_usb_to_qcode_len) {
+        return;
+    }
+
+    qcode = qemu_input_map_usb_to_qcode[ev->keysym.scancode];
 
     if (!qemu_console_is_graphic(con)) {
         if (ev->type == SDL_KEYDOWN) {
