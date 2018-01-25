@@ -12,9 +12,6 @@
 #if defined(__i386__) || defined(__x86_64__)
 # define cpu_relax() asm volatile("rep; nop" ::: "memory")
 
-#elif defined(__ia64__)
-# define cpu_relax() asm volatile("hint @pause" ::: "memory")
-
 #elif defined(__aarch64__)
 # define cpu_relax() asm volatile("yield" ::: "memory")
 

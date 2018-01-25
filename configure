@@ -636,8 +636,6 @@ elif check_define _ARCH_PPC ; then
   fi
 elif check_define __mips__ ; then
   cpu="mips"
-elif check_define __ia64__ ; then
-  cpu="ia64"
 elif check_define __s390__ ; then
   if check_define __s390x__ ; then
     cpu="s390x"
@@ -4744,9 +4742,6 @@ if test "$coroutine_pool" = ""; then
 fi
 
 if test "$debug_stack_usage" = "yes"; then
-  if test "$cpu" = "ia64" -o "$cpu" = "hppa"; then
-    error_exit "stack usage debugging is not supported for $cpu"
-  fi
   if test "$coroutine_pool" = "yes"; then
     echo "WARN: disabling coroutine pool for stack usage debugging"
     coroutine_pool=no
