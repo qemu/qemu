@@ -11688,34 +11688,36 @@ static inline int fp_exception_el(CPUARMState *env)
 }
 
 void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
-                          target_ulong *cs_base, uint32_t *flags)
+                          target_ulong *cs_base, uint32_t *pflags)
 {
     ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
+    uint32_t flags;
+
     if (is_a64(env)) {
         *pc = env->pc;
-        *flags = ARM_TBFLAG_AARCH64_STATE_MASK;
+        flags = ARM_TBFLAG_AARCH64_STATE_MASK;
         /* Get control bits for tagged addresses */
-        *flags |= (arm_regime_tbi0(env, mmu_idx) << ARM_TBFLAG_TBI0_SHIFT);
-        *flags |= (arm_regime_tbi1(env, mmu_idx) << ARM_TBFLAG_TBI1_SHIFT);
+        flags |= (arm_regime_tbi0(env, mmu_idx) << ARM_TBFLAG_TBI0_SHIFT);
+        flags |= (arm_regime_tbi1(env, mmu_idx) << ARM_TBFLAG_TBI1_SHIFT);
     } else {
         *pc = env->regs[15];
-        *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
+        flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
             | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
             | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
             | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT)
             | (arm_sctlr_b(env) << ARM_TBFLAG_SCTLR_B_SHIFT);
         if (!(access_secure_reg(env))) {
-            *flags |= ARM_TBFLAG_NS_MASK;
+            flags |= ARM_TBFLAG_NS_MASK;
         }
         if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)
             || arm_el_is_aa64(env, 1)) {
-            *flags |= ARM_TBFLAG_VFPEN_MASK;
+            flags |= ARM_TBFLAG_VFPEN_MASK;
         }
-        *flags |= (extract32(env->cp15.c15_cpar, 0, 2)
-                   << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
+        flags |= (extract32(env->cp15.c15_cpar, 0, 2)
+                  << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
     }
 
-    *flags |= (arm_to_core_mmu_idx(mmu_idx) << ARM_TBFLAG_MMUIDX_SHIFT);
+    flags |= (arm_to_core_mmu_idx(mmu_idx) << ARM_TBFLAG_MMUIDX_SHIFT);
 
     /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
      * states defined in the ARM ARM for software singlestep:
@@ -11725,25 +11727,26 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
      *     1            1       Active-not-pending
      */
     if (arm_singlestep_active(env)) {
-        *flags |= ARM_TBFLAG_SS_ACTIVE_MASK;
+        flags |= ARM_TBFLAG_SS_ACTIVE_MASK;
         if (is_a64(env)) {
             if (env->pstate & PSTATE_SS) {
-                *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+                flags |= ARM_TBFLAG_PSTATE_SS_MASK;
             }
         } else {
             if (env->uncached_cpsr & PSTATE_SS) {
-                *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+                flags |= ARM_TBFLAG_PSTATE_SS_MASK;
             }
         }
     }
     if (arm_cpu_data_is_big_endian(env)) {
-        *flags |= ARM_TBFLAG_BE_DATA_MASK;
+        flags |= ARM_TBFLAG_BE_DATA_MASK;
     }
-    *flags |= fp_exception_el(env) << ARM_TBFLAG_FPEXC_EL_SHIFT;
+    flags |= fp_exception_el(env) << ARM_TBFLAG_FPEXC_EL_SHIFT;
 
     if (arm_v7m_is_handler_mode(env)) {
-        *flags |= ARM_TBFLAG_HANDLER_MASK;
+        flags |= ARM_TBFLAG_HANDLER_MASK;
     }
 
+    *pflags = flags;
     *cs_base = 0;
 }
