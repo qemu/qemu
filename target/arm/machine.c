@@ -50,7 +50,7 @@ static const VMStateDescription vmstate_vfp = {
     .minimum_version_id = 3,
     .needed = vfp_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 64),
+        VMSTATE_UINT64_ARRAY(env.vfp.regs, ARMCPU, 64),
         /* The xregs array is a little awkward because element 1 (FPSCR)
          * requires a specific accessor, so we have to split it up in
          * the vmstate:

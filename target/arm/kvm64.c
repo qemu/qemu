@@ -696,21 +696,16 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    /* Advanced SIMD and FP registers
-     * We map Qn = regs[2n+1]:regs[2n]
-     */
+    /* Advanced SIMD and FP registers. */
     for (i = 0; i < 32; i++) {
-        int rd = i << 1;
-        uint64_t fp_val[2];
+        uint64_t *q = aa64_vfp_qreg(env, i);
 #ifdef HOST_WORDS_BIGENDIAN
-        fp_val[0] = env->vfp.regs[rd + 1];
-        fp_val[1] = env->vfp.regs[rd];
+        uint64_t fp_val[2] = { q[1], q[0] };
+        reg.addr = (uintptr_t)fp_val;
 #else
-        fp_val[1] = env->vfp.regs[rd + 1];
-        fp_val[0] = env->vfp.regs[rd];
+        reg.addr = (uintptr_t)q;
 #endif
         reg.id = AARCH64_SIMD_CORE_REG(fp_regs.vregs[i]);
-        reg.addr = (uintptr_t)(&fp_val);
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret) {
             return ret;
@@ -837,24 +832,18 @@ int kvm_arch_get_registers(CPUState *cs)
         env->spsr = env->banked_spsr[i];
     }
 
-    /* Advanced SIMD and FP registers
-     * We map Qn = regs[2n+1]:regs[2n]
-     */
+    /* Advanced SIMD and FP registers */
     for (i = 0; i < 32; i++) {
-        uint64_t fp_val[2];
+        uint64_t *q = aa64_vfp_qreg(env, i);
         reg.id = AARCH64_SIMD_CORE_REG(fp_regs.vregs[i]);
-        reg.addr = (uintptr_t)(&fp_val);
+        reg.addr = (uintptr_t)q;
         ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
         if (ret) {
             return ret;
         } else {
-            int rd = i << 1;
 #ifdef HOST_WORDS_BIGENDIAN
-            env->vfp.regs[rd + 1] = fp_val[0];
-            env->vfp.regs[rd] = fp_val[1];
-#else
-            env->vfp.regs[rd + 1] = fp_val[1];
-            env->vfp.regs[rd] = fp_val[0];
+            uint64_t t;
+            t = q[0], q[0] = q[1], q[1] = t;
 #endif
         }
     }

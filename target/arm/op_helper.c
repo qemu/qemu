@@ -54,20 +54,17 @@ static int exception_target_el(CPUARMState *env)
     return target_el;
 }
 
-uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
-                          uint32_t rn, uint32_t maxindex)
+uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def, void *vn,
+                          uint32_t maxindex)
 {
-    uint32_t val;
-    uint32_t tmp;
-    int index;
-    int shift;
-    uint64_t *table;
-    table = (uint64_t *)&env->vfp.regs[rn];
+    uint32_t val, shift;
+    uint64_t *table = vn;
+
     val = 0;
     for (shift = 0; shift < 32; shift += 8) {
-        index = (ireg >> shift) & 0xff;
+        uint32_t index = (ireg >> shift) & 0xff;
         if (index < maxindex) {
-            tmp = (table[index >> 3] >> ((index & 7) << 3)) & 0xff;
+            uint32_t tmp = (table[index >> 3] >> ((index & 7) << 3)) & 0xff;
             val |= tmp << shift;
         } else {
             val |= def & (0xff << shift);
