@@ -1515,14 +1515,16 @@ static inline void gen_vfp_st(DisasContext *s, int dp, TCGv_i32 addr)
 static inline long
 vfp_reg_offset (int dp, int reg)
 {
-    if (dp)
+    if (dp) {
         return offsetof(CPUARMState, vfp.regs[reg]);
-    else if (reg & 1) {
-        return offsetof(CPUARMState, vfp.regs[reg >> 1])
-          + offsetof(CPU_DoubleU, l.upper);
     } else {
-        return offsetof(CPUARMState, vfp.regs[reg >> 1])
-          + offsetof(CPU_DoubleU, l.lower);
+        long ofs = offsetof(CPUARMState, vfp.regs[reg >> 1]);
+        if (reg & 1) {
+            ofs += offsetof(CPU_DoubleU, l.upper);
+        } else {
+            ofs += offsetof(CPU_DoubleU, l.lower);
+        }
+        return ofs;
     }
 }
 
@@ -12572,7 +12574,7 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
             numvfpregs += 16;
         }
         for (i = 0; i < numvfpregs; i++) {
-            uint64_t v = env->vfp.regs[i];
+            uint64_t v = *aa32_vfp_dreg(env, i);
             cpu_fprintf(f, "s%02d=%08x s%02d=%08x d%02d=%016" PRIx64 "\n",
                         i * 2, (uint32_t)v,
                         i * 2 + 1, (uint32_t)(v >> 32),

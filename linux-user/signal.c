@@ -1487,12 +1487,13 @@ static int target_setup_sigframe(struct target_rt_sigframe *sf,
     }
 
     for (i = 0; i < 32; i++) {
+        uint64_t *q = aa64_vfp_qreg(env, i);
 #ifdef TARGET_WORDS_BIGENDIAN
-        __put_user(env->vfp.regs[i * 2], &aux->fpsimd.vregs[i * 2 + 1]);
-        __put_user(env->vfp.regs[i * 2 + 1], &aux->fpsimd.vregs[i * 2]);
+        __put_user(q[0], &aux->fpsimd.vregs[i * 2 + 1]);
+        __put_user(q[1], &aux->fpsimd.vregs[i * 2]);
 #else
-        __put_user(env->vfp.regs[i * 2], &aux->fpsimd.vregs[i * 2]);
-        __put_user(env->vfp.regs[i * 2 + 1], &aux->fpsimd.vregs[i * 2 + 1]);
+        __put_user(q[0], &aux->fpsimd.vregs[i * 2]);
+        __put_user(q[1], &aux->fpsimd.vregs[i * 2 + 1]);
 #endif
     }
     __put_user(vfp_get_fpsr(env), &aux->fpsimd.fpsr);
@@ -1539,12 +1540,13 @@ static int target_restore_sigframe(CPUARMState *env,
     }
 
     for (i = 0; i < 32; i++) {
+        uint64_t *q = aa64_vfp_qreg(env, i);
 #ifdef TARGET_WORDS_BIGENDIAN
-        __get_user(env->vfp.regs[i * 2], &aux->fpsimd.vregs[i * 2 + 1]);
-        __get_user(env->vfp.regs[i * 2 + 1], &aux->fpsimd.vregs[i * 2]);
+        __get_user(q[0], &aux->fpsimd.vregs[i * 2 + 1]);
+        __get_user(q[1], &aux->fpsimd.vregs[i * 2]);
 #else
-        __get_user(env->vfp.regs[i * 2], &aux->fpsimd.vregs[i * 2]);
-        __get_user(env->vfp.regs[i * 2 + 1], &aux->fpsimd.vregs[i * 2 + 1]);
+        __get_user(q[0], &aux->fpsimd.vregs[i * 2]);
+        __get_user(q[1], &aux->fpsimd.vregs[i * 2 + 1]);
 #endif
     }
     __get_user(fpsr, &aux->fpsimd.fpsr);
@@ -1903,7 +1905,7 @@ static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUARMState *env)
     __put_user(TARGET_VFP_MAGIC, &vfpframe->magic);
     __put_user(sizeof(*vfpframe), &vfpframe->size);
     for (i = 0; i < 32; i++) {
-        __put_user(float64_val(env->vfp.regs[i]), &vfpframe->ufp.fpregs[i]);
+        __put_user(*aa32_vfp_dreg(env, i), &vfpframe->ufp.fpregs[i]);
     }
     __put_user(vfp_get_fpscr(env), &vfpframe->ufp.fpscr);
     __put_user(env->vfp.xregs[ARM_VFP_FPEXC], &vfpframe->ufp_exc.fpexc);
@@ -2210,7 +2212,7 @@ static abi_ulong *restore_sigframe_v2_vfp(CPUARMState *env, abi_ulong *regspace)
         return 0;
     }
     for (i = 0; i < 32; i++) {
-        __get_user(float64_val(env->vfp.regs[i]), &vfpframe->ufp.fpregs[i]);
+        __get_user(*aa32_vfp_dreg(env, i), &vfpframe->ufp.fpregs[i]);
     }
     __get_user(fpscr, &vfpframe->ufp.fpscr);
     vfp_set_fpscr(env, fpscr);

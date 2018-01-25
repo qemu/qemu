@@ -164,15 +164,12 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
 
     if (flags & CPU_DUMP_FPU) {
         int numvfpregs = 32;
-        for (i = 0; i < numvfpregs; i += 2) {
-            uint64_t vlo = env->vfp.regs[i * 2];
-            uint64_t vhi = env->vfp.regs[(i * 2) + 1];
-            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 " ",
-                        i, vhi, vlo);
-            vlo = env->vfp.regs[(i + 1) * 2];
-            vhi = env->vfp.regs[((i + 1) * 2) + 1];
-            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 "\n",
-                        i + 1, vhi, vlo);
+        for (i = 0; i < numvfpregs; i++) {
+            uint64_t *q = aa64_vfp_qreg(env, i);
+            uint64_t vlo = q[0];
+            uint64_t vhi = q[1];
+            cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 "%c",
+                        i, vhi, vlo, (i & 1 ? '\n' : ' '));
         }
         cpu_fprintf(f, "FPCR: %08x  FPSR: %08x\n",
                     vfp_get_fpcr(env), vfp_get_fpsr(env));
@@ -558,19 +555,13 @@ static TCGv_ptr vec_full_reg_ptr(DisasContext *s, int regno)
  */
 static inline int fp_reg_offset(DisasContext *s, int regno, TCGMemOp size)
 {
-    int offs = offsetof(CPUARMState, vfp.regs[regno * 2]);
-#ifdef HOST_WORDS_BIGENDIAN
-    offs += (8 - (1 << size));
-#endif
-    assert_fp_access_checked(s);
-    return offs;
+    return vec_reg_offset(s, regno, 0, size);
 }
 
 /* Offset of the high half of the 128 bit vector Qn */
 static inline int fp_reg_hi_offset(DisasContext *s, int regno)
 {
-    assert_fp_access_checked(s);
-    return offsetof(CPUARMState, vfp.regs[regno * 2 + 1]);
+    return vec_reg_offset(s, regno, 1, MO_64);
 }
 
 /* Convenience accessors for reading and writing single and double
