@@ -1388,6 +1388,7 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error ** errp)
     }
 
     if (s->dma_mr) {
+        s->dma_as = &s->sysbus_dma_as;
         address_space_init(s->dma_as, s->dma_mr, "sdhci-dma");
     } else {
         /* use system_memory() if property "dma" not set */
