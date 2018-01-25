@@ -504,6 +504,11 @@ static void gic_set_cpu_control(GICState *s, int cpu, uint32_t value,
 
 static uint8_t gic_get_running_priority(GICState *s, int cpu, MemTxAttrs attrs)
 {
+    if ((s->revision != REV_11MPCORE) && (s->running_priority[cpu] > 0xff)) {
+        /* Idle priority */
+        return 0xff;
+    }
+
     if (s->security_extn && !attrs.secure) {
         if (s->running_priority[cpu] & 0x80) {
             /* Running priority in upper half of range: return the Non-secure
