@@ -210,6 +210,9 @@
 #define SNOOP_NONE 0xEE
 #define SNOOP_STRIPING 0
 
+#define MIN_NUM_BUSSES 1
+#define MAX_NUM_BUSSES 2
+
 static inline int num_effective_busses(XilinxSPIPS *s)
 {
     return (s->regs[R_LQSPI_CFG] & LQSPI_CFG_SEP_BUS &&
@@ -573,7 +576,7 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
     for (;;) {
         int i;
         uint8_t tx = 0;
-        uint8_t tx_rx[num_effective_busses(s)];
+        uint8_t tx_rx[MAX_NUM_BUSSES] = { 0 };
         uint8_t dummy_cycles = 0;
         uint8_t addr_length;
 
@@ -1220,6 +1223,19 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     int i;
 
     DB_PRINT_L(0, "realized spips\n");
+
+    if (s->num_busses > MAX_NUM_BUSSES) {
+        error_setg(errp,
+                   "requested number of SPI busses %u exceeds maximum %d",
+                   s->num_busses, MAX_NUM_BUSSES);
+        return;
+    }
+    if (s->num_busses < MIN_NUM_BUSSES) {
+        error_setg(errp,
+                   "requested number of SPI busses %u is below minimum %d",
+                   s->num_busses, MIN_NUM_BUSSES);
+        return;
+    }
 
     s->spi = g_new(SSIBus *, s->num_busses);
     for (i = 0; i < s->num_busses; ++i) {
