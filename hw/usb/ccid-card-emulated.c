@@ -547,7 +547,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
                        card, QEMU_THREAD_JOINABLE);
 }
 
-static void emulated_exitfn(CCIDCardState *base)
+static void emulated_unrealize(CCIDCardState *base, Error **errp)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VEvent *vevent = vevent_new(VEVENT_LAST, NULL, NULL);
@@ -582,7 +582,7 @@ static void emulated_class_initfn(ObjectClass *klass, void *data)
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
     cc->realize = emulated_realize;
-    cc->exitfn = emulated_exitfn;
+    cc->unrealize = emulated_unrealize;
     cc->get_atr = emulated_get_atr;
     cc->apdu_from_guest = emulated_apdu_from_guest;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
