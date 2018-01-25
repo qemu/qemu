@@ -256,7 +256,8 @@ static int gic_get_group_priority(GICState *s, int cpu, int irq)
     if (gic_has_groups(s) &&
         !(s->cpu_ctlr[cpu] & GICC_CTLR_CBPR) &&
         GIC_TEST_GROUP(irq, (1 << cpu))) {
-        bpr = s->abpr[cpu];
+        bpr = s->abpr[cpu] - 1;
+        assert(bpr >= 0);
     } else {
         bpr = s->bpr[cpu];
     }
