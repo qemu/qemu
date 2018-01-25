@@ -303,9 +303,9 @@ struct target_cmsghdr {
                                __target_cmsg_nxthdr(mhdr, cmsg, cmsg_start)
 #define TARGET_CMSG_ALIGN(len) (((len) + sizeof (abi_long) - 1) \
                                & (size_t) ~(sizeof (abi_long) - 1))
-#define TARGET_CMSG_SPACE(len) (TARGET_CMSG_ALIGN (len) \
-                               + TARGET_CMSG_ALIGN (sizeof (struct target_cmsghdr)))
-#define TARGET_CMSG_LEN(len)   (TARGET_CMSG_ALIGN (sizeof (struct target_cmsghdr)) + (len))
+#define TARGET_CMSG_SPACE(len) (sizeof(struct target_cmsghdr) + \
+                                TARGET_CMSG_ALIGN(len))
+#define TARGET_CMSG_LEN(len) (sizeof(struct target_cmsghdr) + (len))
 
 static __inline__ struct target_cmsghdr *
 __target_cmsg_nxthdr(struct target_msghdr *__mhdr,

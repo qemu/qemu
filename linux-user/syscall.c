@@ -296,6 +296,8 @@ _syscall3(int, sys_sched_getaffinity, pid_t, pid, unsigned int, len,
 #define __NR_sys_sched_setaffinity __NR_sched_setaffinity
 _syscall3(int, sys_sched_setaffinity, pid_t, pid, unsigned int, len,
           unsigned long *, user_mask_ptr);
+#define __NR_sys_getcpu __NR_getcpu
+_syscall3(int, sys_getcpu, unsigned *, cpu, unsigned *, node, void *, tcache);
 _syscall4(int, reboot, int, magic1, int, magic2, unsigned int, cmd,
           void *, arg);
 _syscall2(int, capget, struct __user_cap_header_struct *, header,
@@ -597,6 +599,24 @@ static int sys_utimensat(int dirfd, const char *pathname,
 }
 #endif
 #endif /* TARGET_NR_utimensat */
+
+#ifdef TARGET_NR_renameat2
+#if defined(__NR_renameat2)
+#define __NR_sys_renameat2 __NR_renameat2
+_syscall5(int, sys_renameat2, int, oldfd, const char *, old, int, newfd,
+          const char *, new, unsigned int, flags)
+#else
+static int sys_renameat2(int oldfd, const char *old,
+                         int newfd, const char *new, int flags)
+{
+    if (flags == 0) {
+        return renameat(oldfd, old, newfd, new);
+    }
+    errno = ENOSYS;
+    return -1;
+}
+#endif
+#endif /* TARGET_NR_renameat2 */
 
 #ifdef CONFIG_INOTIFY
 #include <sys/inotify.h>
@@ -1692,7 +1712,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         void *target_data = TARGET_CMSG_DATA(target_cmsg);
 
         int len = tswapal(target_cmsg->cmsg_len)
-                  - TARGET_CMSG_ALIGN(sizeof (struct target_cmsghdr));
+            - sizeof(struct target_cmsghdr);
 
         space += CMSG_SPACE(len);
         if (space > msgh->msg_controllen) {
@@ -1773,7 +1793,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         void *data = CMSG_DATA(cmsg);
         void *target_data = TARGET_CMSG_DATA(target_cmsg);
 
-        int len = cmsg->cmsg_len - CMSG_ALIGN(sizeof (struct cmsghdr));
+        int len = cmsg->cmsg_len - sizeof(struct cmsghdr);
         int tgt_len, tgt_space;
 
         /* We never copy a half-header but may copy half-data;
@@ -1782,7 +1802,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
          * to the guest via the CTRUNC bit), unlike truncation
          * in target_to_host_cmsg, which is a QEMU bug.
          */
-        if (msg_controllen < sizeof(struct cmsghdr)) {
+        if (msg_controllen < sizeof(struct target_cmsghdr)) {
             target_msgh->msg_flags |= tswap32(MSG_CTRUNC);
             break;
         }
@@ -1793,8 +1813,6 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             target_cmsg->cmsg_level = tswap32(cmsg->cmsg_level);
         }
         target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
-
-        tgt_len = TARGET_CMSG_LEN(len);
 
         /* Payload types which need a different size of payload on
          * the target must adjust tgt_len here.
@@ -1809,12 +1827,13 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 break;
             }
         default:
+            tgt_len = len;
             break;
         }
 
-        if (msg_controllen < tgt_len) {
+        if (msg_controllen < TARGET_CMSG_LEN(tgt_len)) {
             target_msgh->msg_flags |= tswap32(MSG_CTRUNC);
-            tgt_len = msg_controllen;
+            tgt_len = msg_controllen - sizeof(struct target_cmsghdr);
         }
 
         /* We must now copy-and-convert len bytes of payload
@@ -1875,6 +1894,10 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 uint32_t *v = (uint32_t *)data;
                 uint32_t *t_int = (uint32_t *)target_data;
 
+                if (len != sizeof(uint32_t) ||
+                    tgt_len != sizeof(uint32_t)) {
+                    goto unimplemented;
+                }
                 __put_user(*v, t_int);
                 break;
             }
@@ -1888,6 +1911,10 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 struct errhdr_t *target_errh =
                     (struct errhdr_t *)target_data;
 
+                if (len != sizeof(struct errhdr_t) ||
+                    tgt_len != sizeof(struct errhdr_t)) {
+                    goto unimplemented;
+                }
                 __put_user(errh->ee.ee_errno, &target_errh->ee.ee_errno);
                 __put_user(errh->ee.ee_origin, &target_errh->ee.ee_origin);
                 __put_user(errh->ee.ee_type,  &target_errh->ee.ee_type);
@@ -1911,6 +1938,10 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 uint32_t *v = (uint32_t *)data;
                 uint32_t *t_int = (uint32_t *)target_data;
 
+                if (len != sizeof(uint32_t) ||
+                    tgt_len != sizeof(uint32_t)) {
+                    goto unimplemented;
+                }
                 __put_user(*v, t_int);
                 break;
             }
@@ -1924,6 +1955,10 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 struct errhdr6_t *target_errh =
                     (struct errhdr6_t *)target_data;
 
+                if (len != sizeof(struct errhdr6_t) ||
+                    tgt_len != sizeof(struct errhdr6_t)) {
+                    goto unimplemented;
+                }
                 __put_user(errh->ee.ee_errno, &target_errh->ee.ee_errno);
                 __put_user(errh->ee.ee_origin, &target_errh->ee.ee_origin);
                 __put_user(errh->ee.ee_type,  &target_errh->ee.ee_type);
@@ -1950,8 +1985,8 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             }
         }
 
-        target_cmsg->cmsg_len = tswapal(tgt_len);
-        tgt_space = TARGET_CMSG_SPACE(len);
+        target_cmsg->cmsg_len = tswapal(TARGET_CMSG_LEN(tgt_len));
+        tgt_space = TARGET_CMSG_SPACE(tgt_len);
         if (msg_controllen < tgt_space) {
             tgt_space = msg_controllen;
         }
@@ -7716,6 +7751,73 @@ static TargetFdTrans target_inotify_trans = {
 };
 #endif
 
+static int target_to_host_cpu_mask(unsigned long *host_mask,
+                                   size_t host_size,
+                                   abi_ulong target_addr,
+                                   size_t target_size)
+{
+    unsigned target_bits = sizeof(abi_ulong) * 8;
+    unsigned host_bits = sizeof(*host_mask) * 8;
+    abi_ulong *target_mask;
+    unsigned i, j;
+
+    assert(host_size >= target_size);
+
+    target_mask = lock_user(VERIFY_READ, target_addr, target_size, 1);
+    if (!target_mask) {
+        return -TARGET_EFAULT;
+    }
+    memset(host_mask, 0, host_size);
+
+    for (i = 0 ; i < target_size / sizeof(abi_ulong); i++) {
+        unsigned bit = i * target_bits;
+        abi_ulong val;
+
+        __get_user(val, &target_mask[i]);
+        for (j = 0; j < target_bits; j++, bit++) {
+            if (val & (1UL << j)) {
+                host_mask[bit / host_bits] |= 1UL << (bit % host_bits);
+            }
+        }
+    }
+
+    unlock_user(target_mask, target_addr, 0);
+    return 0;
+}
+
+static int host_to_target_cpu_mask(const unsigned long *host_mask,
+                                   size_t host_size,
+                                   abi_ulong target_addr,
+                                   size_t target_size)
+{
+    unsigned target_bits = sizeof(abi_ulong) * 8;
+    unsigned host_bits = sizeof(*host_mask) * 8;
+    abi_ulong *target_mask;
+    unsigned i, j;
+
+    assert(host_size >= target_size);
+
+    target_mask = lock_user(VERIFY_WRITE, target_addr, target_size, 0);
+    if (!target_mask) {
+        return -TARGET_EFAULT;
+    }
+
+    for (i = 0 ; i < target_size / sizeof(abi_ulong); i++) {
+        unsigned bit = i * target_bits;
+        abi_ulong val = 0;
+
+        for (j = 0; j < target_bits; j++, bit++) {
+            if (host_mask[bit / host_bits] & (1UL << (bit % host_bits))) {
+                val |= 1UL << j;
+            }
+        }
+        __put_user(val, &target_mask[i]);
+    }
+
+    unlock_user(target_mask, target_addr, target_size);
+    return 0;
+}
+
 /* do_syscall() should always have a single exit point at the end so
    that actions, such as logging of syscall results, can be performed.
    All errnos that do_syscall() returns must be -TARGET_<errcode>. */
@@ -8342,6 +8444,22 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
 #endif
+#if defined(TARGET_NR_renameat2)
+    case TARGET_NR_renameat2:
+        {
+            void *p2;
+            p  = lock_user_string(arg2);
+            p2 = lock_user_string(arg4);
+            if (!p || !p2) {
+                ret = -TARGET_EFAULT;
+            } else {
+                ret = get_errno(sys_renameat2(arg1, p, arg3, p2, arg5));
+            }
+            unlock_user(p2, arg4, 0);
+            unlock_user(p, arg2, 0);
+        }
+        break;
+#endif
 #ifdef TARGET_NR_mkdir
     case TARGET_NR_mkdir:
         if (!(p = lock_user_string(arg1)))
@@ -8475,11 +8593,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #if defined(CONFIG_DUP3) && defined(TARGET_NR_dup3)
     case TARGET_NR_dup3:
-        ret = get_errno(dup3(arg1, arg2, arg3));
+    {
+        int host_flags;
+
+        if ((arg3 & ~TARGET_O_CLOEXEC) != 0) {
+            return -EINVAL;
+        }
+        host_flags = target_to_host_bitmask(arg3, fcntl_flags_tbl);
+        ret = get_errno(dup3(arg1, arg2, host_flags));
         if (ret >= 0) {
             fd_trans_dup(arg1, arg2);
         }
         break;
+    }
 #endif
 #ifdef TARGET_NR_getppid /* not on alpha */
     case TARGET_NR_getppid:
@@ -10353,6 +10479,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
 
             mask = alloca(mask_size);
+            memset(mask, 0, mask_size);
             ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
 
             if (!is_error(ret)) {
@@ -10372,9 +10499,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     ret = arg2;
                 }
 
-                if (copy_to_user(arg3, mask, ret)) {
-                    goto efault;
-                }
+                ret = host_to_target_cpu_mask(mask, mask_size, arg3, arg2);
             }
         }
         break;
@@ -10392,15 +10517,31 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 break;
             }
             mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
-
             mask = alloca(mask_size);
-            if (!lock_user_struct(VERIFY_READ, p, arg3, 1)) {
-                goto efault;
+
+            ret = target_to_host_cpu_mask(mask, mask_size, arg3, arg2);
+            if (ret) {
+                break;
             }
-            memcpy(mask, p, arg2);
-            unlock_user_struct(p, arg2, 0);
 
             ret = get_errno(sys_sched_setaffinity(arg1, mask_size, mask));
+        }
+        break;
+    case TARGET_NR_getcpu:
+        {
+            unsigned cpu, node;
+            ret = get_errno(sys_getcpu(arg1 ? &cpu : NULL,
+                                       arg2 ? &node : NULL,
+                                       NULL));
+            if (is_error(ret)) {
+                goto fail;
+            }
+            if (arg1 && put_user_u32(cpu, arg1)) {
+                goto efault;
+            }
+            if (arg2 && put_user_u32(node, arg2)) {
+                goto efault;
+            }
         }
         break;
     case TARGET_NR_sched_setparam:
