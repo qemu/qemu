@@ -510,20 +510,6 @@ static void ccid_card_exitfn(CCIDCardState *card)
 
 }
 
-static void ccid_card_initfn(CCIDCardState *card, Error **errp)
-{
-    CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
-    Error *local_err = NULL;
-
-    if (cc->realize) {
-        cc->realize(card, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-}
-
 static bool ccid_has_pending_answers(USBCCIDState *s)
 {
     return s->pending_answers_num > 0;
@@ -1302,6 +1288,7 @@ static int ccid_card_exit(DeviceState *qdev)
 static void ccid_card_realize(DeviceState *qdev, Error **errp)
 {
     CCIDCardState *card = CCID_CARD(qdev);
+    CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
     USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
     Error *local_err = NULL;
@@ -1315,10 +1302,12 @@ static void ccid_card_realize(DeviceState *qdev, Error **errp)
         error_setg(errp, "usb-ccid card already full, not adding");
         return;
     }
-    ccid_card_initfn(card, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return;
+    if (cc->realize) {
+        cc->realize(card, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
     s->card = card;
 }
