@@ -108,7 +108,7 @@ static inline int default_exception_el(DisasContext *s)
             ? 3 : MAX(1, s->current_el);
 }
 
-static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
+static inline void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
 {
     /* We don't need to save all of the syndrome so we mask and shift
      * out unneeded bits to help the sleb128 encoder do a better job.
