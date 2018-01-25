@@ -165,12 +165,12 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
     if (flags & CPU_DUMP_FPU) {
         int numvfpregs = 32;
         for (i = 0; i < numvfpregs; i += 2) {
-            uint64_t vlo = float64_val(env->vfp.regs[i * 2]);
-            uint64_t vhi = float64_val(env->vfp.regs[(i * 2) + 1]);
+            uint64_t vlo = env->vfp.regs[i * 2];
+            uint64_t vhi = env->vfp.regs[(i * 2) + 1];
             cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 " ",
                         i, vhi, vlo);
-            vlo = float64_val(env->vfp.regs[(i + 1) * 2]);
-            vhi = float64_val(env->vfp.regs[((i + 1) * 2) + 1]);
+            vlo = env->vfp.regs[(i + 1) * 2];
+            vhi = env->vfp.regs[((i + 1) * 2) + 1];
             cpu_fprintf(f, "q%02d=%016" PRIx64 ":%016" PRIx64 "\n",
                         i + 1, vhi, vlo);
         }

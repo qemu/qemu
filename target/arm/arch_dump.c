@@ -100,7 +100,7 @@ static int aarch64_write_elf64_prfpreg(WriteCoreDumpFunction f,
     aarch64_note_init(&note, s, "CORE", 5, NT_PRFPREG, sizeof(note.vfp));
 
     for (i = 0; i < 64; ++i) {
-        note.vfp.vregs[i] = cpu_to_dump64(s, float64_val(env->vfp.regs[i]));
+        note.vfp.vregs[i] = cpu_to_dump64(s, env->vfp.regs[i]);
     }
 
     if (s->dump_info.d_endian == ELFDATA2MSB) {
@@ -229,7 +229,7 @@ static int arm_write_elf32_vfp(WriteCoreDumpFunction f, CPUARMState *env,
     arm_note_init(&note, s, "LINUX", 6, NT_ARM_VFP, sizeof(note.vfp));
 
     for (i = 0; i < 32; ++i) {
-        note.vfp.vregs[i] = cpu_to_dump64(s, float64_val(env->vfp.regs[i]));
+        note.vfp.vregs[i] = cpu_to_dump64(s, env->vfp.regs[i]);
     }
 
     note.vfp.fpscr = cpu_to_dump32(s, vfp_get_fpscr(env));

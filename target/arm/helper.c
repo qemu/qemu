@@ -64,15 +64,15 @@ static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
     /* VFP data registers are always little-endian.  */
     nregs = arm_feature(env, ARM_FEATURE_VFP3) ? 32 : 16;
     if (reg < nregs) {
-        stfq_le_p(buf, env->vfp.regs[reg]);
+        stq_le_p(buf, env->vfp.regs[reg]);
         return 8;
     }
     if (arm_feature(env, ARM_FEATURE_NEON)) {
         /* Aliases for Q regs.  */
         nregs += 16;
         if (reg < nregs) {
-            stfq_le_p(buf, env->vfp.regs[(reg - 32) * 2]);
-            stfq_le_p(buf + 8, env->vfp.regs[(reg - 32) * 2 + 1]);
+            stq_le_p(buf, env->vfp.regs[(reg - 32) * 2]);
+            stq_le_p(buf + 8, env->vfp.regs[(reg - 32) * 2 + 1]);
             return 16;
         }
     }
@@ -90,14 +90,14 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
 
     nregs = arm_feature(env, ARM_FEATURE_VFP3) ? 32 : 16;
     if (reg < nregs) {
-        env->vfp.regs[reg] = ldfq_le_p(buf);
+        env->vfp.regs[reg] = ldq_le_p(buf);
         return 8;
     }
     if (arm_feature(env, ARM_FEATURE_NEON)) {
         nregs += 16;
         if (reg < nregs) {
-            env->vfp.regs[(reg - 32) * 2] = ldfq_le_p(buf);
-            env->vfp.regs[(reg - 32) * 2 + 1] = ldfq_le_p(buf + 8);
+            env->vfp.regs[(reg - 32) * 2] = ldq_le_p(buf);
+            env->vfp.regs[(reg - 32) * 2 + 1] = ldq_le_p(buf + 8);
             return 16;
         }
     }
@@ -114,8 +114,8 @@ static int aarch64_fpu_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
     switch (reg) {
     case 0 ... 31:
         /* 128 bit FP register */
-        stfq_le_p(buf, env->vfp.regs[reg * 2]);
-        stfq_le_p(buf + 8, env->vfp.regs[reg * 2 + 1]);
+        stq_le_p(buf, env->vfp.regs[reg * 2]);
+        stq_le_p(buf + 8, env->vfp.regs[reg * 2 + 1]);
         return 16;
     case 32:
         /* FPSR */
@@ -135,8 +135,8 @@ static int aarch64_fpu_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     switch (reg) {
     case 0 ... 31:
         /* 128 bit FP register */
-        env->vfp.regs[reg * 2] = ldfq_le_p(buf);
-        env->vfp.regs[reg * 2 + 1] = ldfq_le_p(buf + 8);
+        env->vfp.regs[reg * 2] = ldq_le_p(buf);
+        env->vfp.regs[reg * 2 + 1] = ldq_le_p(buf + 8);
         return 16;
     case 32:
         /* FPSR */
