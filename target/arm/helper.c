@@ -11627,6 +11627,7 @@ uint32_t HELPER(crc32c)(uint32_t acc, uint32_t val, uint32_t bytes)
  */
 static inline int fp_exception_el(CPUARMState *env)
 {
+#ifndef CONFIG_USER_ONLY
     int fpen;
     int cur_el = arm_current_el(env);
 
@@ -11683,7 +11684,7 @@ static inline int fp_exception_el(CPUARMState *env)
         /* Trap all FP ops to EL3 */
         return 3;
     }
-
+#endif
     return 0;
 }
 
