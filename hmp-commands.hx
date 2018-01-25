@@ -1568,6 +1568,23 @@ defaulting to @var{device}.
 ETEXI
 
     {
+        .name       = "nbd_server_remove",
+        .args_type  = "force:-f,name:s",
+        .params     = "nbd_server_remove [-f] name",
+        .help       = "remove an export previously exposed via NBD",
+        .cmd        = hmp_nbd_server_remove,
+    },
+STEXI
+@item nbd_server_remove [-f] @var{name}
+@findex nbd_server_remove
+Stop exporting a block device through QEMU's NBD server, which was
+previously started with @command{nbd_server_add}.  The @option{-f}
+option forces the server to drop the export immediately even if
+clients are connected; otherwise the command fails unless there are no
+clients.
+ETEXI
+
+    {
         .name       = "nbd_server_stop",
         .args_type  = "",
         .params     = "nbd_server_stop",
