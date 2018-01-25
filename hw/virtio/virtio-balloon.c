@@ -234,6 +234,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
                 memory_region_is_rom(section.mr) ||
                 memory_region_is_romd(section.mr)) {
                 trace_virtio_balloon_bad_addr(pa);
+                memory_region_unref(section.mr);
                 continue;
             }
 
