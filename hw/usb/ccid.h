@@ -34,7 +34,7 @@ typedef struct CCIDCardClass {
                             const uint8_t *apdu,
                             uint32_t len);
     void (*exitfn)(CCIDCardState *card);
-    int (*initfn)(CCIDCardState *card);
+    void (*realize)(CCIDCardState *card, Error **errp);
 } CCIDCardClass;
 
 /*

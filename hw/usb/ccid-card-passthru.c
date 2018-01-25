@@ -14,6 +14,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "ccid.h"
+#include "qapi/error.h"
 
 #define DPRINTF(card, lvl, fmt, ...)                    \
 do {                                                    \
@@ -337,29 +338,28 @@ static const uint8_t *passthru_get_atr(CCIDCardState *base, uint32_t *len)
     return card->atr;
 }
 
-static int passthru_initfn(CCIDCardState *base)
+static void passthru_realize(CCIDCardState *base, Error **errp)
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
     card->vscard_in_pos = 0;
     card->vscard_in_hdr = 0;
     if (qemu_chr_fe_backend_connected(&card->cs)) {
-        DPRINTF(card, D_INFO, "initing chardev\n");
+        error_setg(errp, "ccid-card-passthru: initing chardev");
         qemu_chr_fe_set_handlers(&card->cs,
             ccid_card_vscard_can_read,
             ccid_card_vscard_read,
             ccid_card_vscard_event, NULL, card, NULL, true);
         ccid_card_vscard_send_init(card);
     } else {
-        error_report("missing chardev");
-        return -1;
+        error_setg(errp, "missing chardev");
+        return;
     }
     card->debug = parse_debug_env("QEMU_CCID_PASSTHRU_DEBUG", D_VERBOSE,
                                   card->debug);
     assert(sizeof(DEFAULT_ATR) <= MAX_ATR_SIZE);
     memcpy(card->atr, DEFAULT_ATR, sizeof(DEFAULT_ATR));
     card->atr_length = sizeof(DEFAULT_ATR);
-    return 0;
 }
 
 static VMStateDescription passthru_vmstate = {
@@ -387,7 +387,7 @@ static void passthru_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
-    cc->initfn = passthru_initfn;
+    cc->realize = passthru_realize;
     cc->get_atr = passthru_get_atr;
     cc->apdu_from_guest = passthru_apdu_from_guest;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

@@ -510,14 +510,18 @@ static void ccid_card_exitfn(CCIDCardState *card)
 
 }
 
-static int ccid_card_initfn(CCIDCardState *card)
+static void ccid_card_initfn(CCIDCardState *card, Error **errp)
 {
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+    Error *local_err = NULL;
 
-    if (cc->initfn) {
-        return cc->initfn(card);
+    if (cc->realize) {
+        cc->realize(card, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
-    return 0;
 }
 
 static bool ccid_has_pending_answers(USBCCIDState *s)
@@ -1295,27 +1299,28 @@ static int ccid_card_exit(DeviceState *qdev)
     return 0;
 }
 
-static int ccid_card_init(DeviceState *qdev)
+static void ccid_card_realize(DeviceState *qdev, Error **errp)
 {
     CCIDCardState *card = CCID_CARD(qdev);
     USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
-    int ret = 0;
+    Error *local_err = NULL;
 
     if (card->slot != 0) {
-        warn_report("usb-ccid supports one slot, can't add %d",
-                    card->slot);
-        return -1;
+        error_setg(errp, "usb-ccid supports one slot, can't add %d",
+                   card->slot);
+        return;
     }
     if (s->card != NULL) {
-        warn_report("usb-ccid card already full, not adding");
-        return -1;
+        error_setg(errp, "usb-ccid card already full, not adding");
+        return;
     }
-    ret = ccid_card_initfn(card);
-    if (ret == 0) {
-        s->card = card;
+    ccid_card_initfn(card, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
     }
-    return ret;
+    s->card = card;
 }
 
 static void ccid_realize(USBDevice *dev, Error **errp)
@@ -1477,7 +1482,7 @@ static void ccid_card_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_CCID_BUS;
-    k->init = ccid_card_init;
+    k->realize = ccid_card_realize;
     k->exit = ccid_card_exit;
     k->props = ccid_props;
 }
