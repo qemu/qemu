@@ -1,5 +1,8 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
+# hw/pci-host/grackle.c
+grackle_set_irq(int irq_num, int level) "set_irq num %d level %d"
+
 # hw/pci-host/sabre.c
 sabre_set_request(int irq_num) "request irq %d"
 sabre_clear_request(int irq_num) "clear request irq %d"
