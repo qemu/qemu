@@ -43,7 +43,7 @@ redirect.o-libs = $(USB_REDIR_LIBS)
 
 # usb pass-through
 ifeq ($(CONFIG_USB_LIBUSB)$(CONFIG_USB),yy)
-common-obj-y += host-libusb.o host-legacy.o
+common-obj-y += host-libusb.o
 else
 common-obj-y += host-stub.o
 endif

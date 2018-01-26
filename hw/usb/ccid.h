@@ -28,13 +28,15 @@ typedef struct CCIDCardInfo CCIDCardInfo;
  * into the smartcard device (hw/ccid-card-*.c)
  */
 typedef struct CCIDCardClass {
+    /*< private >*/
     DeviceClass parent_class;
+    /*< public >*/
     const uint8_t *(*get_atr)(CCIDCardState *card, uint32_t *len);
     void (*apdu_from_guest)(CCIDCardState *card,
                             const uint8_t *apdu,
                             uint32_t len);
-    void (*exitfn)(CCIDCardState *card);
-    int (*initfn)(CCIDCardState *card);
+    void (*realize)(CCIDCardState *card, Error **errp);
+    void (*unrealize)(CCIDCardState *card, Error **errp);
 } CCIDCardClass;
 
 /*
