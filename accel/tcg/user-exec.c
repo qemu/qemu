@@ -149,7 +149,7 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     cc = CPU_GET_CLASS(cpu);
     /* see if it is an MMU fault */
     g_assert(cc->handle_mmu_fault);
-    ret = cc->handle_mmu_fault(cpu, address, is_write, MMU_USER_IDX);
+    ret = cc->handle_mmu_fault(cpu, address, 0, is_write, MMU_USER_IDX);
 
     if (ret == 0) {
         /* The MMU fault was handled without causing real CPU fault.

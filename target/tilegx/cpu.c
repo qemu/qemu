@@ -112,8 +112,8 @@ static void tilegx_cpu_do_interrupt(CPUState *cs)
     cs->exception_index = -1;
 }
 
-static int tilegx_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
-                                       int mmu_idx)
+static int tilegx_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
+                                       int rw, int mmu_idx)
 {
     TileGXCPU *cpu = TILEGX_CPU(cs);
 

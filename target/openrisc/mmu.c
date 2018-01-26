@@ -178,8 +178,8 @@ static void cpu_openrisc_raise_mmu_exception(OpenRISCCPU *cpu,
 }
 
 #ifndef CONFIG_USER_ONLY
-int openrisc_cpu_handle_mmu_fault(CPUState *cs,
-                                  vaddr address, int rw, int mmu_idx)
+int openrisc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
+                                  int rw, int mmu_idx)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     int ret = 0;
@@ -202,8 +202,8 @@ int openrisc_cpu_handle_mmu_fault(CPUState *cs,
     return ret;
 }
 #else
-int openrisc_cpu_handle_mmu_fault(CPUState *cs,
-                                  vaddr address, int rw, int mmu_idx)
+int openrisc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
+                                  int rw, int mmu_idx)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     int ret = 0;

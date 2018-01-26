@@ -252,7 +252,7 @@ static inline int cpu_mmu_index(CPUNios2State *env, bool ifetch)
                                                   MMU_SUPERVISOR_IDX;
 }
 
-int nios2_cpu_handle_mmu_fault(CPUState *env, vaddr address,
+int nios2_cpu_handle_mmu_fault(CPUState *env, vaddr address, int size,
                                int rw, int mmu_idx);
 
 static inline int cpu_interrupts_enabled(CPUNios2State *env)

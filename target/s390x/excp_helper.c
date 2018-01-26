@@ -55,7 +55,7 @@ void s390_cpu_do_interrupt(CPUState *cs)
     cs->exception_index = -1;
 }
 
-int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr address,
+int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
                               int rw, int mmu_idx)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -83,7 +83,7 @@ static inline uint64_t cpu_mmu_idx_to_asc(int mmu_idx)
     }
 }
 
-int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
+int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr, int size,
                               int rw, int mmu_idx)
 {
     S390CPU *cpu = S390_CPU(cs);

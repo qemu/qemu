@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 
-int ppc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+int ppc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                              int mmu_idx)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);

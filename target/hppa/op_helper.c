@@ -139,7 +139,7 @@ static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
         /* Nothing is stored, but protection is checked and the
            cacheline is marked dirty.  */
 #ifndef CONFIG_USER_ONLY
-        probe_write(env, addr, cpu_mmu_index(env, 0), ra);
+        probe_write(env, addr, 0, cpu_mmu_index(env, 0), ra);
 #endif
         break;
     }

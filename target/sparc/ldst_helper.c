@@ -1929,12 +1929,12 @@ void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
-              int mmu_idx, uintptr_t retaddr)
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 
-    ret = sparc_cpu_handle_mmu_fault(cs, addr, access_type, mmu_idx);
+    ret = sparc_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
     if (ret) {
         cpu_loop_exit_restore(cs, retaddr);
     }

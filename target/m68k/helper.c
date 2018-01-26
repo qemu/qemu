@@ -203,6 +203,12 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
 
     switch (reg) {
     /* MC680[1234]0 */
+    case M68K_CR_SFC:
+        env->sfc = val & 7;
+        return;
+    case M68K_CR_DFC:
+        env->dfc = val & 7;
+        return;
     case M68K_CR_VBR:
         env->vbr = val;
         return;
@@ -212,6 +218,18 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
         m68k_switch_sp(env);
         return;
     /* MC680[34]0 */
+    case M68K_CR_TC:
+        env->mmu.tcr = val;
+        return;
+    case M68K_CR_MMUSR:
+        env->mmu.mmusr = val;
+        return;
+    case M68K_CR_SRP:
+        env->mmu.srp = val;
+        return;
+    case M68K_CR_URP:
+        env->mmu.urp = val;
+        return;
     case M68K_CR_USP:
         env->sp[M68K_USP] = val;
         return;
@@ -220,6 +238,19 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
         return;
     case M68K_CR_ISP:
         env->sp[M68K_ISP] = val;
+        return;
+    /* MC68040/MC68LC040 */
+    case M68K_CR_ITT0:
+        env->mmu.ttr[M68K_ITTR0] = val;
+        return;
+    case M68K_CR_ITT1:
+         env->mmu.ttr[M68K_ITTR1] = val;
+        return;
+    case M68K_CR_DTT0:
+        env->mmu.ttr[M68K_DTTR0] = val;
+        return;
+    case M68K_CR_DTT1:
+        env->mmu.ttr[M68K_DTTR1] = val;
         return;
     }
     cpu_abort(CPU(cpu), "Unimplemented control register write 0x%x = 0x%x\n",
@@ -232,18 +263,39 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
 
     switch (reg) {
     /* MC680[1234]0 */
+    case M68K_CR_SFC:
+        return env->sfc;
+    case M68K_CR_DFC:
+        return env->dfc;
     case M68K_CR_VBR:
         return env->vbr;
     /* MC680[234]0 */
     case M68K_CR_CACR:
         return env->cacr;
     /* MC680[34]0 */
+    case M68K_CR_TC:
+        return env->mmu.tcr;
+    case M68K_CR_MMUSR:
+        return env->mmu.mmusr;
+    case M68K_CR_SRP:
+        return env->mmu.srp;
     case M68K_CR_USP:
         return env->sp[M68K_USP];
     case M68K_CR_MSP:
         return env->sp[M68K_SSP];
     case M68K_CR_ISP:
         return env->sp[M68K_ISP];
+    /* MC68040/MC68LC040 */
+    case M68K_CR_URP:
+        return env->mmu.urp;
+    case M68K_CR_ITT0:
+        return env->mmu.ttr[M68K_ITTR0];
+    case M68K_CR_ITT1:
+        return env->mmu.ttr[M68K_ITTR1];
+    case M68K_CR_DTT0:
+        return env->mmu.ttr[M68K_DTTR0];
+    case M68K_CR_DTT1:
+        return env->mmu.ttr[M68K_DTTR1];
     }
     cpu_abort(CPU(cpu), "Unimplemented control register read 0x%x\n",
               reg);
@@ -308,7 +360,7 @@ void m68k_switch_sp(CPUM68KState *env)
 
 #if defined(CONFIG_USER_ONLY)
 
-int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                               int mmu_idx)
 {
     M68kCPU *cpu = M68K_CPU(cs);
@@ -320,23 +372,507 @@ int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 
 #else
 
-/* MMU */
+/* MMU: 68040 only */
 
-/* TODO: This will need fixing once the MMU is implemented.  */
-hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+static void print_address_zone(FILE *f, fprintf_function cpu_fprintf,
+                               uint32_t logical, uint32_t physical,
+                               uint32_t size, int attr)
 {
-    return addr;
+    cpu_fprintf(f, "%08x - %08x -> %08x - %08x %c ",
+                logical, logical + size - 1,
+                physical, physical + size - 1,
+                attr & 4 ? 'W' : '-');
+    size >>= 10;
+    if (size < 1024) {
+        cpu_fprintf(f, "(%d KiB)\n", size);
+    } else {
+        size >>= 10;
+        if (size < 1024) {
+            cpu_fprintf(f, "(%d MiB)\n", size);
+        } else {
+            size >>= 10;
+            cpu_fprintf(f, "(%d GiB)\n", size);
+        }
+    }
 }
 
-int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
+static void dump_address_map(FILE *f, fprintf_function cpu_fprintf,
+                             CPUM68KState *env, uint32_t root_pointer)
+{
+    int i, j, k;
+    int tic_size, tic_shift;
+    uint32_t tib_mask;
+    uint32_t tia, tib, tic;
+    uint32_t logical = 0xffffffff, physical = 0xffffffff;
+    uint32_t first_logical = 0xffffffff, first_physical = 0xffffffff;
+    uint32_t last_logical, last_physical;
+    int32_t size;
+    int last_attr = -1, attr = -1;
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    if (env->mmu.tcr & M68K_TCR_PAGE_8K) {
+        /* 8k page */
+        tic_size = 32;
+        tic_shift = 13;
+        tib_mask = M68K_8K_PAGE_MASK;
+    } else {
+        /* 4k page */
+        tic_size = 64;
+        tic_shift = 12;
+        tib_mask = M68K_4K_PAGE_MASK;
+    }
+    for (i = 0; i < M68K_ROOT_POINTER_ENTRIES; i++) {
+        tia = ldl_phys(cs->as, M68K_POINTER_BASE(root_pointer) + i * 4);
+        if (!M68K_UDT_VALID(tia)) {
+            continue;
+        }
+        for (j = 0; j < M68K_ROOT_POINTER_ENTRIES; j++) {
+            tib = ldl_phys(cs->as, M68K_POINTER_BASE(tia) + j * 4);
+            if (!M68K_UDT_VALID(tib)) {
+                continue;
+            }
+            for (k = 0; k < tic_size; k++) {
+                tic = ldl_phys(cs->as, (tib & tib_mask) + k * 4);
+                if (!M68K_PDT_VALID(tic)) {
+                    continue;
+                }
+                if (M68K_PDT_INDIRECT(tic)) {
+                    tic = ldl_phys(cs->as, M68K_INDIRECT_POINTER(tic));
+                }
+
+                last_logical = logical;
+                logical = (i << M68K_TTS_ROOT_SHIFT) |
+                          (j << M68K_TTS_POINTER_SHIFT) |
+                          (k << tic_shift);
+
+                last_physical = physical;
+                physical = tic & ~((1 << tic_shift) - 1);
+
+                last_attr = attr;
+                attr = tic & ((1 << tic_shift) - 1);
+
+                if ((logical != (last_logical + (1 << tic_shift))) ||
+                    (physical != (last_physical + (1 << tic_shift))) ||
+                    (attr & 4) != (last_attr & 4)) {
+
+                    if (first_logical != 0xffffffff) {
+                        size = last_logical + (1 << tic_shift) -
+                               first_logical;
+                        print_address_zone(f, cpu_fprintf, first_logical,
+                                           first_physical, size, last_attr);
+                    }
+                    first_logical = logical;
+                    first_physical = physical;
+                }
+            }
+        }
+    }
+    if (first_logical != logical || (attr & 4) != (last_attr & 4)) {
+        size = logical + (1 << tic_shift) - first_logical;
+        print_address_zone(f, cpu_fprintf, first_logical, first_physical, size,
+                           last_attr);
+    }
+}
+
+#define DUMP_CACHEFLAGS(a) \
+    switch (a & M68K_DESC_CACHEMODE) { \
+    case M68K_DESC_CM_WRTHRU: /* cachable, write-through */ \
+        cpu_fprintf(f, "T"); \
+        break; \
+    case M68K_DESC_CM_COPYBK: /* cachable, copyback */ \
+        cpu_fprintf(f, "C"); \
+        break; \
+    case M68K_DESC_CM_SERIAL: /* noncachable, serialized */ \
+        cpu_fprintf(f, "S"); \
+        break; \
+    case M68K_DESC_CM_NCACHE: /* noncachable */ \
+        cpu_fprintf(f, "N"); \
+        break; \
+    }
+
+static void dump_ttr(FILE *f, fprintf_function cpu_fprintf, uint32_t ttr)
+{
+    if ((ttr & M68K_TTR_ENABLED) == 0) {
+        cpu_fprintf(f, "disabled\n");
+        return;
+    }
+    cpu_fprintf(f, "Base: 0x%08x Mask: 0x%08x Control: ",
+                ttr & M68K_TTR_ADDR_BASE,
+                (ttr & M68K_TTR_ADDR_MASK) << M68K_TTR_ADDR_MASK_SHIFT);
+    switch (ttr & M68K_TTR_SFIELD) {
+    case M68K_TTR_SFIELD_USER:
+        cpu_fprintf(f, "U");
+        break;
+    case M68K_TTR_SFIELD_SUPER:
+        cpu_fprintf(f, "S");
+        break;
+    default:
+        cpu_fprintf(f, "*");
+        break;
+    }
+    DUMP_CACHEFLAGS(ttr);
+    if (ttr & M68K_DESC_WRITEPROT) {
+        cpu_fprintf(f, "R");
+    } else {
+        cpu_fprintf(f, "W");
+    }
+    cpu_fprintf(f, " U: %d\n", (ttr & M68K_DESC_USERATTR) >>
+                               M68K_DESC_USERATTR_SHIFT);
+}
+
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUM68KState *env)
+{
+    if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
+        cpu_fprintf(f, "Translation disabled\n");
+        return;
+    }
+    cpu_fprintf(f, "Page Size: ");
+    if (env->mmu.tcr & M68K_TCR_PAGE_8K) {
+        cpu_fprintf(f, "8kB\n");
+    } else {
+        cpu_fprintf(f, "4kB\n");
+    }
+
+    cpu_fprintf(f, "MMUSR: ");
+    if (env->mmu.mmusr & M68K_MMU_B_040) {
+        cpu_fprintf(f, "BUS ERROR\n");
+    } else {
+        cpu_fprintf(f, "Phy=%08x Flags: ", env->mmu.mmusr & 0xfffff000);
+        /* flags found on the page descriptor */
+        if (env->mmu.mmusr & M68K_MMU_G_040) {
+            cpu_fprintf(f, "G"); /* Global */
+        } else {
+            cpu_fprintf(f, ".");
+        }
+        if (env->mmu.mmusr & M68K_MMU_S_040) {
+            cpu_fprintf(f, "S"); /* Supervisor */
+        } else {
+            cpu_fprintf(f, ".");
+        }
+        if (env->mmu.mmusr & M68K_MMU_M_040) {
+            cpu_fprintf(f, "M"); /* Modified */
+        } else {
+            cpu_fprintf(f, ".");
+        }
+        if (env->mmu.mmusr & M68K_MMU_WP_040) {
+            cpu_fprintf(f, "W"); /* Write protect */
+        } else {
+            cpu_fprintf(f, ".");
+        }
+        if (env->mmu.mmusr & M68K_MMU_T_040) {
+            cpu_fprintf(f, "T"); /* Transparent */
+        } else {
+            cpu_fprintf(f, ".");
+        }
+        if (env->mmu.mmusr & M68K_MMU_R_040) {
+            cpu_fprintf(f, "R"); /* Resident */
+        } else {
+            cpu_fprintf(f, ".");
+        }
+        cpu_fprintf(f, " Cache: ");
+        DUMP_CACHEFLAGS(env->mmu.mmusr);
+        cpu_fprintf(f, " U: %d\n", (env->mmu.mmusr >> 8) & 3);
+        cpu_fprintf(f, "\n");
+    }
+
+    cpu_fprintf(f, "ITTR0: ");
+    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_ITTR0]);
+    cpu_fprintf(f, "ITTR1: ");
+    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_ITTR1]);
+    cpu_fprintf(f, "DTTR0: ");
+    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_DTTR0]);
+    cpu_fprintf(f, "DTTR1: ");
+    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_DTTR1]);
+
+    cpu_fprintf(f, "SRP: 0x%08x\n", env->mmu.srp);
+    dump_address_map(f, cpu_fprintf, env, env->mmu.srp);
+
+    cpu_fprintf(f, "URP: 0x%08x\n", env->mmu.urp);
+    dump_address_map(f, cpu_fprintf, env, env->mmu.urp);
+}
+
+static int check_TTR(uint32_t ttr, int *prot, target_ulong addr,
+                     int access_type)
+{
+    uint32_t base, mask;
+
+    /* check if transparent translation is enabled */
+    if ((ttr & M68K_TTR_ENABLED) == 0) {
+        return 0;
+    }
+
+    /* check mode access */
+    switch (ttr & M68K_TTR_SFIELD) {
+    case M68K_TTR_SFIELD_USER:
+        /* match only if user */
+        if ((access_type & ACCESS_SUPER) != 0) {
+            return 0;
+        }
+        break;
+    case M68K_TTR_SFIELD_SUPER:
+        /* match only if supervisor */
+        if ((access_type & ACCESS_SUPER) == 0) {
+            return 0;
+        }
+        break;
+    default:
+        /* all other values disable mode matching (FC2) */
+        break;
+    }
+
+    /* check address matching */
+
+    base = ttr & M68K_TTR_ADDR_BASE;
+    mask = (ttr & M68K_TTR_ADDR_MASK) ^ M68K_TTR_ADDR_MASK;
+    mask <<= M68K_TTR_ADDR_MASK_SHIFT;
+
+    if ((addr & mask) != (base & mask)) {
+        return 0;
+    }
+
+    *prot = PAGE_READ | PAGE_EXEC;
+    if ((ttr & M68K_DESC_WRITEPROT) == 0) {
+        *prot |= PAGE_WRITE;
+    }
+
+    return 1;
+}
+
+static int get_physical_address(CPUM68KState *env, hwaddr *physical,
+                                int *prot, target_ulong address,
+                                int access_type, target_ulong *page_size)
+{
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+    uint32_t entry;
+    uint32_t next;
+    target_ulong page_mask;
+    bool debug = access_type & ACCESS_DEBUG;
+    int page_bits;
+    int i;
+
+    /* Transparent Translation (physical = logical) */
+    for (i = 0; i < M68K_MAX_TTR; i++) {
+        if (check_TTR(env->mmu.TTR(access_type, i),
+                      prot, address, access_type)) {
+            if (access_type & ACCESS_PTEST) {
+                /* Transparent Translation Register bit */
+                env->mmu.mmusr = M68K_MMU_T_040 | M68K_MMU_R_040;
+            }
+            *physical = address & TARGET_PAGE_MASK;
+            *page_size = TARGET_PAGE_SIZE;
+            return 0;
+        }
+    }
+
+    /* Page Table Root Pointer */
+    *prot = PAGE_READ | PAGE_WRITE;
+    if (access_type & ACCESS_CODE) {
+        *prot |= PAGE_EXEC;
+    }
+    if (access_type & ACCESS_SUPER) {
+        next = env->mmu.srp;
+    } else {
+        next = env->mmu.urp;
+    }
+
+    /* Root Index */
+    entry = M68K_POINTER_BASE(next) | M68K_ROOT_INDEX(address);
+
+    next = ldl_phys(cs->as, entry);
+    if (!M68K_UDT_VALID(next)) {
+        return -1;
+    }
+    if (!(next & M68K_DESC_USED) && !debug) {
+        stl_phys(cs->as, entry, next | M68K_DESC_USED);
+    }
+    if (next & M68K_DESC_WRITEPROT) {
+        if (access_type & ACCESS_PTEST) {
+            env->mmu.mmusr |= M68K_MMU_WP_040;
+        }
+        *prot &= ~PAGE_WRITE;
+        if (access_type & ACCESS_STORE) {
+            return -1;
+        }
+    }
+
+    /* Pointer Index */
+    entry = M68K_POINTER_BASE(next) | M68K_POINTER_INDEX(address);
+
+    next = ldl_phys(cs->as, entry);
+    if (!M68K_UDT_VALID(next)) {
+        return -1;
+    }
+    if (!(next & M68K_DESC_USED) && !debug) {
+        stl_phys(cs->as, entry, next | M68K_DESC_USED);
+    }
+    if (next & M68K_DESC_WRITEPROT) {
+        if (access_type & ACCESS_PTEST) {
+            env->mmu.mmusr |= M68K_MMU_WP_040;
+        }
+        *prot &= ~PAGE_WRITE;
+        if (access_type & ACCESS_STORE) {
+            return -1;
+        }
+    }
+
+    /* Page Index */
+    if (env->mmu.tcr & M68K_TCR_PAGE_8K) {
+        entry = M68K_8K_PAGE_BASE(next) | M68K_8K_PAGE_INDEX(address);
+    } else {
+        entry = M68K_4K_PAGE_BASE(next) | M68K_4K_PAGE_INDEX(address);
+    }
+
+    next = ldl_phys(cs->as, entry);
+
+    if (!M68K_PDT_VALID(next)) {
+        return -1;
+    }
+    if (M68K_PDT_INDIRECT(next)) {
+        next = ldl_phys(cs->as, M68K_INDIRECT_POINTER(next));
+    }
+    if (access_type & ACCESS_STORE) {
+        if (next & M68K_DESC_WRITEPROT) {
+            if (!(next & M68K_DESC_USED) && !debug) {
+                stl_phys(cs->as, entry, next | M68K_DESC_USED);
+            }
+        } else if ((next & (M68K_DESC_MODIFIED | M68K_DESC_USED)) !=
+                           (M68K_DESC_MODIFIED | M68K_DESC_USED) && !debug) {
+                stl_phys(cs->as, entry,
+                         next | (M68K_DESC_MODIFIED | M68K_DESC_USED));
+        }
+    } else {
+        if (!(next & M68K_DESC_USED) && !debug) {
+            stl_phys(cs->as, entry, next | M68K_DESC_USED);
+        }
+    }
+
+    if (env->mmu.tcr & M68K_TCR_PAGE_8K) {
+        page_bits = 13;
+    } else {
+        page_bits = 12;
+    }
+    *page_size = 1 << page_bits;
+    page_mask = ~(*page_size - 1);
+    *physical = next & page_mask;
+
+    if (access_type & ACCESS_PTEST) {
+        env->mmu.mmusr |= next & M68K_MMU_SR_MASK_040;
+        env->mmu.mmusr |= *physical & 0xfffff000;
+        env->mmu.mmusr |= M68K_MMU_R_040;
+    }
+
+    if (next & M68K_DESC_WRITEPROT) {
+        *prot &= ~PAGE_WRITE;
+        if (access_type & ACCESS_STORE) {
+            return -1;
+        }
+    }
+    if (next & M68K_DESC_SUPERONLY) {
+        if ((access_type & ACCESS_SUPER) == 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+{
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+    hwaddr phys_addr;
+    int prot;
+    int access_type;
+    target_ulong page_size;
+
+    if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
+        /* MMU disabled */
+        return addr;
+    }
+
+    access_type = ACCESS_DATA | ACCESS_DEBUG;
+    if (env->sr & SR_S) {
+        access_type |= ACCESS_SUPER;
+    }
+    if (get_physical_address(env, &phys_addr, &prot,
+                             addr, access_type, &page_size) != 0) {
+        return -1;
+    }
+    return phys_addr;
+}
+
+int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                               int mmu_idx)
 {
+    M68kCPU *cpu = M68K_CPU(cs);
+    CPUM68KState *env = &cpu->env;
+    hwaddr physical;
     int prot;
+    int access_type;
+    int ret;
+    target_ulong page_size;
 
-    address &= TARGET_PAGE_MASK;
-    prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    tlb_set_page(cs, address, address, prot, mmu_idx, TARGET_PAGE_SIZE);
-    return 0;
+    if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
+        /* MMU disabled */
+        tlb_set_page(cs, address & TARGET_PAGE_MASK,
+                     address & TARGET_PAGE_MASK,
+                     PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+                     mmu_idx, TARGET_PAGE_SIZE);
+        return 0;
+    }
+
+    if (rw == 2) {
+        access_type = ACCESS_CODE;
+        rw = 0;
+    } else {
+        access_type = ACCESS_DATA;
+        if (rw) {
+            access_type |= ACCESS_STORE;
+        }
+    }
+
+    if (mmu_idx != MMU_USER_IDX) {
+        access_type |= ACCESS_SUPER;
+    }
+
+    ret = get_physical_address(&cpu->env, &physical, &prot,
+                               address, access_type, &page_size);
+    if (ret == 0) {
+        address &= TARGET_PAGE_MASK;
+        physical += address & (page_size - 1);
+        tlb_set_page(cs, address, physical,
+                     prot, mmu_idx, TARGET_PAGE_SIZE);
+        return 0;
+    }
+    /* page fault */
+    env->mmu.ssw = M68K_ATC_040;
+    switch (size) {
+    case 1:
+        env->mmu.ssw |= M68K_BA_SIZE_BYTE;
+        break;
+    case 2:
+        env->mmu.ssw |= M68K_BA_SIZE_WORD;
+        break;
+    case 4:
+        env->mmu.ssw |= M68K_BA_SIZE_LONG;
+        break;
+    }
+    if (access_type & ACCESS_SUPER) {
+        env->mmu.ssw |= M68K_TM_040_SUPER;
+    }
+    if (access_type & ACCESS_CODE) {
+        env->mmu.ssw |= M68K_TM_040_CODE;
+    } else {
+        env->mmu.ssw |= M68K_TM_040_DATA;
+    }
+    if (!(access_type & ACCESS_STORE)) {
+        env->mmu.ssw |= M68K_RW_040;
+    }
+    env->mmu.ar = address;
+    cs->exception_index = EXCP_ACCESS;
+    return 1;
 }
 
 /* Notify CPU of a pending interrupt.  Prioritization and vectoring should
@@ -781,6 +1317,58 @@ void HELPER(set_mac_extu)(CPUM68KState *env, uint32_t val, uint32_t acc)
 }
 
 #if defined(CONFIG_SOFTMMU)
+void HELPER(ptest)(CPUM68KState *env, uint32_t addr, uint32_t is_read)
+{
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+    hwaddr physical;
+    int access_type;
+    int prot;
+    int ret;
+    target_ulong page_size;
+
+    access_type = ACCESS_PTEST;
+    if (env->dfc & 4) {
+        access_type |= ACCESS_SUPER;
+    }
+    if ((env->dfc & 3) == 2) {
+        access_type |= ACCESS_CODE;
+    }
+    if (!is_read) {
+        access_type |= ACCESS_STORE;
+    }
+
+    env->mmu.mmusr = 0;
+    env->mmu.ssw = 0;
+    ret = get_physical_address(env, &physical, &prot, addr,
+                               access_type, &page_size);
+    if (ret == 0) {
+        addr &= TARGET_PAGE_MASK;
+        physical += addr & (page_size - 1);
+        tlb_set_page(cs, addr, physical,
+                     prot, access_type & ACCESS_SUPER ?
+                     MMU_KERNEL_IDX : MMU_USER_IDX, page_size);
+    }
+}
+
+void HELPER(pflush)(CPUM68KState *env, uint32_t addr, uint32_t opmode)
+{
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
+    switch (opmode) {
+    case 0: /* Flush page entry if not global */
+    case 1: /* Flush page entry */
+        tlb_flush_page(CPU(cpu), addr);
+        break;
+    case 2: /* Flush all except global entries */
+        tlb_flush(CPU(cpu));
+        break;
+    case 3: /* Flush all entries */
+        tlb_flush(CPU(cpu));
+        break;
+    }
+}
+
 void HELPER(reset)(CPUM68KState *env)
 {
     /* FIXME: reset all except CPU */
