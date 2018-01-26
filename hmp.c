@@ -2203,7 +2203,8 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
             continue;
         }
 
-        qmp_nbd_server_add(info->value->device, true, writable, &local_err);
+        qmp_nbd_server_add(info->value->device, false, NULL,
+                           true, writable, &local_err);
 
         if (local_err != NULL) {
             qmp_nbd_server_stop(NULL);
@@ -2220,14 +2221,23 @@ exit:
 void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
+    const char *name = qdict_get_try_str(qdict, "name");
     bool writable = qdict_get_try_bool(qdict, "writable", false);
     Error *local_err = NULL;
 
-    qmp_nbd_server_add(device, true, writable, &local_err);
+    qmp_nbd_server_add(device, !!name, name, true, writable, &local_err);
+    hmp_handle_error(mon, &local_err);
+}
 
-    if (local_err != NULL) {
-        hmp_handle_error(mon, &local_err);
-    }
+void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
+{
+    const char *name = qdict_get_str(qdict, "name");
+    bool force = qdict_get_try_bool(qdict, "force", false);
+    Error *err = NULL;
+
+    /* Rely on NBD_SERVER_REMOVE_MODE_SAFE being the default */
+    qmp_nbd_server_remove(name, force, NBD_SERVER_REMOVE_MODE_HARD, &err);
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)

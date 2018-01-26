@@ -1177,6 +1177,19 @@ void nbd_export_close(NBDExport *exp)
     nbd_export_put(exp);
 }
 
+void nbd_export_remove(NBDExport *exp, NbdServerRemoveMode mode, Error **errp)
+{
+    if (mode == NBD_SERVER_REMOVE_MODE_HARD || QTAILQ_EMPTY(&exp->clients)) {
+        nbd_export_close(exp);
+        return;
+    }
+
+    assert(mode == NBD_SERVER_REMOVE_MODE_SAFE);
+
+    error_setg(errp, "export '%s' still in use", exp->name);
+    error_append_hint(errp, "Use mode='hard' to force client disconnect\n");
+}
+
 void nbd_export_get(NBDExport *exp)
 {
     assert(exp->refcount > 0);

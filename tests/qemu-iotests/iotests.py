@@ -93,6 +93,44 @@ def qemu_io(*args):
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
     return subp.communicate()[0]
 
+
+class QemuIoInteractive:
+    def __init__(self, *args):
+        self.args = qemu_io_args + list(args)
+        self._p = subprocess.Popen(self.args, stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        assert self._p.stdout.read(9) == 'qemu-io> '
+
+    def close(self):
+        self._p.communicate('q\n')
+
+    def _read_output(self):
+        pattern = 'qemu-io> '
+        n = len(pattern)
+        pos = 0
+        s = []
+        while pos != n:
+            c = self._p.stdout.read(1)
+            # check unexpected EOF
+            assert c != ''
+            s.append(c)
+            if c == pattern[pos]:
+                pos += 1
+            else:
+                pos = 0
+
+        return ''.join(s[:-n])
+
+    def cmd(self, cmd):
+        # quit command is in close(), '\n' is added automatically
+        assert '\n' not in cmd
+        cmd = cmd.strip()
+        assert cmd != 'q' and cmd != 'quit'
+        self._p.stdin.write(cmd + '\n')
+        return self._read_output()
+
+
 def qemu_nbd(*args):
     '''Run qemu-nbd in daemon mode and return the parent's exit code'''
     return subprocess.call(qemu_nbd_args + ['--fork'] + list(args))

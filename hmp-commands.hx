@@ -1553,17 +1553,35 @@ ETEXI
 
     {
         .name       = "nbd_server_add",
-        .args_type  = "writable:-w,device:B",
-        .params     = "nbd_server_add [-w] device",
+        .args_type  = "writable:-w,device:B,name:s?",
+        .params     = "nbd_server_add [-w] device [name]",
         .help       = "export a block device via NBD",
         .cmd        = hmp_nbd_server_add,
     },
 STEXI
-@item nbd_server_add @var{device}
+@item nbd_server_add @var{device} [ @var{name} ]
 @findex nbd_server_add
 Export a block device through QEMU's NBD server, which must be started
 beforehand with @command{nbd_server_start}.  The @option{-w} option makes the
-exported device writable too.
+exported device writable too.  The export name is controlled by @var{name},
+defaulting to @var{device}.
+ETEXI
+
+    {
+        .name       = "nbd_server_remove",
+        .args_type  = "force:-f,name:s",
+        .params     = "nbd_server_remove [-f] name",
+        .help       = "remove an export previously exposed via NBD",
+        .cmd        = hmp_nbd_server_remove,
+    },
+STEXI
+@item nbd_server_remove [-f] @var{name}
+@findex nbd_server_remove
+Stop exporting a block device through QEMU's NBD server, which was
+previously started with @command{nbd_server_add}.  The @option{-f}
+option forces the server to drop the export immediately even if
+clients are connected; otherwise the command fails unless there are no
+clients.
 ETEXI
 
     {
