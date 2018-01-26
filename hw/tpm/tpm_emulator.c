@@ -260,7 +260,9 @@ static int tpm_emulator_check_caps(TPMEmulator *tpm_emu)
 static int tpm_emulator_startup_tpm(TPMBackend *tb)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    ptm_init init;
+    ptm_init init = {
+        .u.req.init_flags = 0,
+    };
     ptm_res res;
 
     DPRINTF("%s", __func__);
