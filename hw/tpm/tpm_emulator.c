@@ -320,7 +320,9 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
 static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    ptm_init init;
+    ptm_init init = {
+        .u.req.init_flags = 0,
+    };
     ptm_res res;
 
     if (buffersize != 0 &&
