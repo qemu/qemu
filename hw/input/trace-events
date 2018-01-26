@@ -4,6 +4,7 @@
 adb_kbd_no_key(void) "Ignoring NO_KEY"
 adb_kbd_writereg(int reg, uint8_t val) "reg %d val 0x%2.2x"
 adb_kbd_readreg(int reg, uint8_t val0, uint8_t val1) "reg %d obuf[0] 0x%2.2x obuf[1] 0x%2.2x"
+
 # hw/input/adb-mouse.c
 adb_mouse_writereg(int reg, uint8_t val) "reg %d val 0x%2.2x"
 adb_mouse_readreg(int reg, uint8_t val0, uint8_t val1) "reg %d obuf[0] 0x%2.2x obuf[1] 0x%2.2x"
