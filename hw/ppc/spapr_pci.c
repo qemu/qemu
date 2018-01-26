@@ -280,26 +280,45 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     int *config_addr_key;
     Error *err = NULL;
 
-    switch (func) {
-    case RTAS_CHANGE_MSI_FN:
-    case RTAS_CHANGE_FN:
-        ret_intr_type = RTAS_TYPE_MSI;
-        break;
-    case RTAS_CHANGE_MSIX_FN:
-        ret_intr_type = RTAS_TYPE_MSIX;
-        break;
-    default:
-        error_report("rtas_ibm_change_msi(%u) is not implemented", func);
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
-        return;
-    }
-
     /* Fins sPAPRPHBState */
     phb = spapr_pci_find_phb(spapr, buid);
     if (phb) {
         pdev = spapr_pci_find_dev(spapr, buid, config_addr);
     }
     if (!phb || !pdev) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    switch (func) {
+    case RTAS_CHANGE_FN:
+        if (msi_present(pdev)) {
+            ret_intr_type = RTAS_TYPE_MSI;
+        } else if (msix_present(pdev)) {
+            ret_intr_type = RTAS_TYPE_MSIX;
+        } else {
+            rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+            return;
+        }
+        break;
+    case RTAS_CHANGE_MSI_FN:
+        if (msi_present(pdev)) {
+            ret_intr_type = RTAS_TYPE_MSI;
+        } else {
+            rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+            return;
+        }
+        break;
+    case RTAS_CHANGE_MSIX_FN:
+        if (msix_present(pdev)) {
+            ret_intr_type = RTAS_TYPE_MSIX;
+        } else {
+            rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+            return;
+        }
+        break;
+    default:
+        error_report("rtas_ibm_change_msi(%u) is not implemented", func);
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
@@ -1286,13 +1305,17 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     _FDT(fdt_setprop_cell(fdt, offset, "#size-cells",
                           RESOURCE_CELLS_SIZE));
 
-    max_msi = msi_nr_vectors_allocated(dev);
-    if (max_msi) {
-        _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi", max_msi));
+    if (msi_present(dev)) {
+        max_msi = msi_nr_vectors_allocated(dev);
+        if (max_msi) {
+            _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi", max_msi));
+        }
     }
-    max_msix = dev->msix_entries_nr;
-    if (max_msix) {
-        _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi-x", max_msix));
+    if (msix_present(dev)) {
+        max_msix = dev->msix_entries_nr;
+        if (max_msix) {
+            _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi-x", max_msix));
+        }
     }
 
     populate_resource_props(dev, &rp);
