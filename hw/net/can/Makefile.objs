@@ -1,0 +1,1 @@
+common-obj-$(CONFIG_CAN_SJA1000) += can_sja1000.o
