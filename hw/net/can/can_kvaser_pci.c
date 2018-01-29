@@ -264,10 +264,10 @@ static const VMStateDescription vmstate_kvaser_pci = {
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, KvaserPCIState),
+        /* Load this before sja_state.  */
+        VMSTATE_UINT32(s5920_intcsr, KvaserPCIState),
         VMSTATE_STRUCT(sja_state, KvaserPCIState, 0, vmstate_can_sja,
                        CanSJA1000State),
-        VMSTATE_UINT32(s5920_intcsr, KvaserPCIState),
-        VMSTATE_UINT32(s5920_irqstate, KvaserPCIState),
         VMSTATE_END_OF_LIST()
     }
 };
