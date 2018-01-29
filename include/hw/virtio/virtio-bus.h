@@ -148,5 +148,7 @@ int virtio_bus_grab_ioeventfd(VirtioBusState *bus);
 void virtio_bus_release_ioeventfd(VirtioBusState *bus);
 /* Switch from/to the generic ioeventfd handler */
 int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
+/* Tell the bus that the ioeventfd handler is no longer required. */
+void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n);
 
 #endif /* VIRTIO_BUS_H */

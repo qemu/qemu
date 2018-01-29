@@ -2608,6 +2608,7 @@ assign_error:
         event_notifier_set_handler(&vq->host_notifier, NULL);
         r = virtio_bus_set_host_notifier(qbus, n, false);
         assert(r >= 0);
+        virtio_bus_cleanup_host_notifier(qbus, n);
     }
     return err;
 }
@@ -2634,6 +2635,7 @@ static void virtio_device_stop_ioeventfd_impl(VirtIODevice *vdev)
         event_notifier_set_handler(&vq->host_notifier, NULL);
         r = virtio_bus_set_host_notifier(qbus, n, false);
         assert(r >= 0);
+        virtio_bus_cleanup_host_notifier(qbus, n);
     }
 }
 
