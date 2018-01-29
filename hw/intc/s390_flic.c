@@ -22,6 +22,17 @@
 #include "qapi/error.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
+S390FLICStateClass *s390_get_flic_class(S390FLICState *fs)
+{
+    static S390FLICStateClass *class;
+
+    if (!class) {
+        /* we only have one flic device, so this is fine to cache */
+        class = S390_FLIC_COMMON_GET_CLASS(fs);
+    }
+    return class;
+}
+
 QEMUS390FLICState *s390_get_qemu_flic(S390FLICState *fs)
 {
     static QEMUS390FLICState *flic;
@@ -146,7 +157,7 @@ static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
                                  uint8_t isc, uint8_t flags)
 {
     QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
+    S390FLICStateClass *fsc = s390_get_flic_class(fs);
     bool flag = flags & S390_ADAPTER_SUPPRESSIBLE;
     uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
 

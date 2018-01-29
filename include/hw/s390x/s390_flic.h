@@ -136,6 +136,7 @@ void s390_flic_init(void);
 
 S390FLICState *s390_get_flic(void);
 QEMUS390FLICState *s390_get_qemu_flic(S390FLICState *fs);
+S390FLICStateClass *s390_get_flic_class(S390FLICState *fs);
 bool ais_needed(void *opaque);
 
 #endif /* HW_S390_FLIC_H */
