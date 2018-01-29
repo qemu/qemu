@@ -1,4 +1,5 @@
 common-obj-y += tpm_util.o
 common-obj-$(CONFIG_TPM_TIS) += tpm_tis.o
+common-obj-$(CONFIG_TPM_CRB) += tpm_crb.o
 common-obj-$(CONFIG_TPM_PASSTHROUGH) += tpm_passthrough.o
 common-obj-$(CONFIG_TPM_EMULATOR) += tpm_emulator.o
