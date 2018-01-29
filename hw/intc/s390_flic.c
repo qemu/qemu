@@ -128,40 +128,153 @@ static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
     return 0;
 }
 
+static void qemu_s390_flic_notify(uint32_t type)
+{
+    CPUState *cs;
+
+    /*
+     * We have to make all CPUs see CPU_INTERRUPT_HARD, so they might
+     * consider it. TODO: don't kick/wakeup all VCPUs but try to be
+     * smarter (using the interrupt type).
+     */
+    CPU_FOREACH(cs) {
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+}
+
+uint32_t qemu_s390_flic_dequeue_service(QEMUS390FLICState *flic)
+{
+    uint32_t tmp;
+
+    g_assert(qemu_mutex_iothread_locked());
+    g_assert(flic->pending & FLIC_PENDING_SERVICE);
+    tmp = flic->service_param;
+    flic->service_param = 0;
+    flic->pending &= ~FLIC_PENDING_SERVICE;
+
+    return tmp;
+}
+
+/* caller has to free the returned object */
+QEMUS390FlicIO *qemu_s390_flic_dequeue_io(QEMUS390FLICState *flic, uint64_t cr6)
+{
+    QEMUS390FlicIO *io;
+    uint8_t isc;
+
+    g_assert(qemu_mutex_iothread_locked());
+    if (!(flic->pending & CR6_TO_PENDING_IO(cr6))) {
+        return NULL;
+    }
+
+    for (isc = 0; isc < 8; isc++) {
+        if (QLIST_EMPTY(&flic->io[isc]) || !(cr6 & ISC_TO_ISC_BITS(isc))) {
+            continue;
+        }
+        io = QLIST_FIRST(&flic->io[isc]);
+        QLIST_REMOVE(io, next);
+
+        /* update our indicator bit */
+        if (QLIST_EMPTY(&flic->io[isc])) {
+            flic->pending &= ~ISC_TO_PENDING_IO(isc);
+        }
+        return io;
+    }
+
+    return NULL;
+}
+
+void qemu_s390_flic_dequeue_crw_mchk(QEMUS390FLICState *flic)
+{
+    g_assert(qemu_mutex_iothread_locked());
+    g_assert(flic->pending & FLIC_PENDING_MCHK_CR);
+    flic->pending &= ~FLIC_PENDING_MCHK_CR;
+}
+
 static void qemu_s390_inject_service(S390FLICState *fs, uint32_t parm)
 {
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
 
-    S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+    g_assert(qemu_mutex_iothread_locked());
+    /* multiplexing is good enough for sclp - kvm does it internally as well */
+    flic->service_param |= parm;
+    flic->pending |= FLIC_PENDING_SERVICE;
 
-    /* FIXME: don't inject into dummy CPU */
-    cpu_inject_service(dummy_cpu, parm);
+    qemu_s390_flic_notify(FLIC_PENDING_SERVICE);
 }
 
 static void qemu_s390_inject_io(S390FLICState *fs, uint16_t subchannel_id,
                                 uint16_t subchannel_nr, uint32_t io_int_parm,
                                 uint32_t io_int_word)
 {
-    S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+    const uint8_t isc = IO_INT_WORD_ISC(io_int_word);
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    QEMUS390FlicIO *io;
 
-    /* FIXME: don't inject into dummy CPU */
-    cpu_inject_io(dummy_cpu, subchannel_id, subchannel_nr, io_int_parm,
-                  io_int_word);
+    g_assert(qemu_mutex_iothread_locked());
+    io = g_new0(QEMUS390FlicIO, 1);
+    io->id = subchannel_id;
+    io->nr = subchannel_nr;
+    io->parm = io_int_parm;
+    io->word = io_int_word;
+
+    QLIST_INSERT_HEAD(&flic->io[isc], io, next);
+    flic->pending |= ISC_TO_PENDING_IO(isc);
+
+    qemu_s390_flic_notify(ISC_TO_PENDING_IO(isc));
 }
 
 static void qemu_s390_inject_crw_mchk(S390FLICState *fs)
 {
-    S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
 
-    /* FIXME: don't inject into dummy CPU */
-    cpu_inject_crw_mchk(dummy_cpu);
+    g_assert(qemu_mutex_iothread_locked());
+    flic->pending |= FLIC_PENDING_MCHK_CR;
+
+    qemu_s390_flic_notify(FLIC_PENDING_MCHK_CR);
+}
+
+bool qemu_s390_flic_has_service(QEMUS390FLICState *flic)
+{
+    /* called without lock via cc->has_work, will be validated under lock */
+    return !!(flic->pending & FLIC_PENDING_SERVICE);
+}
+
+bool qemu_s390_flic_has_io(QEMUS390FLICState *flic, uint64_t cr6)
+{
+    /* called without lock via cc->has_work, will be validated under lock */
+    return !!(flic->pending & CR6_TO_PENDING_IO(cr6));
+}
+
+bool qemu_s390_flic_has_crw_mchk(QEMUS390FLICState *flic)
+{
+    /* called without lock via cc->has_work, will be validated under lock */
+    return !!(flic->pending & FLIC_PENDING_MCHK_CR);
+}
+
+bool qemu_s390_flic_has_any(QEMUS390FLICState *flic)
+{
+    g_assert(qemu_mutex_iothread_locked());
+    return !!flic->pending;
 }
 
 static void qemu_s390_flic_reset(DeviceState *dev)
 {
     QEMUS390FLICState *flic = QEMU_S390_FLIC(dev);
+    QEMUS390FlicIO *cur, *next;
+    int isc;
 
+    g_assert(qemu_mutex_iothread_locked());
     flic->simm = 0;
     flic->nimm = 0;
+    flic->pending = 0;
+
+    /* remove all pending io interrupts */
+    for (isc = 0; isc < 8; isc++) {
+        QLIST_FOREACH_SAFE(cur, &flic->io[isc], next, next) {
+            QLIST_REMOVE(cur, next);
+            g_free(cur);
+        }
+    }
 }
 
 bool ais_needed(void *opaque)
@@ -182,6 +295,16 @@ static const VMStateDescription qemu_s390_flic_vmstate = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static void qemu_s390_flic_instance_init(Object *obj)
+{
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(obj);
+    int isc;
+
+    for (isc = 0; isc < 8; isc++) {
+        QLIST_INIT(&flic->io[isc]);
+    }
+}
 
 static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
 {
@@ -234,6 +357,7 @@ static const TypeInfo qemu_s390_flic_info = {
     .name          = TYPE_QEMU_S390_FLIC,
     .parent        = TYPE_S390_FLIC_COMMON,
     .instance_size = sizeof(QEMUS390FLICState),
+    .instance_init = qemu_s390_flic_instance_init,
     .class_init    = qemu_s390_flic_class_init,
 };
 

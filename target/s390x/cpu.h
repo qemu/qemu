@@ -53,21 +53,12 @@
 
 #define MMU_USER_IDX 0
 
-#define MAX_IO_QUEUE 16
-
 #define S390_MAX_CPUS 248
 
 typedef struct PSW {
     uint64_t mask;
     uint64_t addr;
 } PSW;
-
-typedef struct IOIntQueue {
-    uint16_t id;
-    uint16_t nr;
-    uint32_t parm;
-    uint32_t word;
-} IOIntQueue;
 
 struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
@@ -114,13 +105,9 @@ struct CPUS390XState {
 
     uint64_t cregs[16]; /* control registers */
 
-    IOIntQueue io_queue[MAX_IO_QUEUE][8];
-
     int pending_int;
-    uint32_t service_param;
     uint16_t external_call_addr;
     DECLARE_BITMAP(emergency_signals, S390_MAX_CPUS);
-    int io_index[8];
 
     uint64_t ckc;
     uint64_t cputm;
@@ -399,9 +386,6 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define EXCP_IO  7 /* I/O interrupt */
 #define EXCP_MCHK 8 /* machine check */
 
-#define INTERRUPT_IO                     (1 << 0)
-#define INTERRUPT_MCHK                   (1 << 1)
-#define INTERRUPT_EXT_SERVICE            (1 << 2)
 #define INTERRUPT_EXT_CPU_TIMER          (1 << 3)
 #define INTERRUPT_EXT_CLOCK_COMPARATOR   (1 << 4)
 #define INTERRUPT_EXTERNAL_CALL          (1 << 5)
@@ -741,12 +725,6 @@ void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
                             uintptr_t ra);
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
-/* FIXME: remove once we have proper floating interrupts in TCG */
-void cpu_inject_service(S390CPU *cpu, uint32_t param);
-void cpu_inject_crw_mchk(S390CPU *cpu);
-void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
-                   uint16_t subchannel_number, uint32_t io_int_parm,
-                   uint32_t io_int_word);
 
 /* mmu_helper.c */
 int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,

@@ -29,6 +29,7 @@
 #include "exec/address-spaces.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
+#include "hw/s390x/s390_flic.h"
 #endif
 
 /* #define DEBUG_S390 */
@@ -237,6 +238,7 @@ static void do_svc_interrupt(CPUS390XState *env)
 
 static void do_ext_interrupt(CPUS390XState *env)
 {
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
     S390CPU *cpu = s390_env_get_cpu(env);
     uint64_t mask, addr;
     uint16_t cpu_addr;
@@ -273,17 +275,14 @@ static void do_ext_interrupt(CPUS390XState *env)
         lowcore->ext_int_code = cpu_to_be16(EXT_CPU_TIMER);
         lowcore->cpu_addr = 0;
         env->pending_int &= ~INTERRUPT_EXT_CPU_TIMER;
-    } else if ((env->pending_int & INTERRUPT_EXT_SERVICE) &&
+    } else if (qemu_s390_flic_has_service(flic) &&
                (env->cregs[0] & CR0_SERVICE_SC)) {
-        /*
-         * FIXME: floating IRQs should be considered by all CPUs and
-         *        shuld not get cleared by CPU reset.
-         */
+        uint32_t param;
+
+        param = qemu_s390_flic_dequeue_service(flic);
         lowcore->ext_int_code = cpu_to_be16(EXT_SERVICE);
-        lowcore->ext_params = cpu_to_be32(env->service_param);
+        lowcore->ext_params = cpu_to_be32(param);
         lowcore->cpu_addr = 0;
-        env->service_param = 0;
-        env->pending_int &= ~INTERRUPT_EXT_SERVICE;
     } else {
         g_assert_not_reached();
     }
@@ -303,71 +302,37 @@ static void do_ext_interrupt(CPUS390XState *env)
 
 static void do_io_interrupt(CPUS390XState *env)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
+    uint64_t mask, addr;
+    QEMUS390FlicIO *io;
     LowCore *lowcore;
-    IOIntQueue *q;
-    uint8_t isc;
-    int disable = 1;
-    int found = 0;
 
-    if (!(env->psw.mask & PSW_MASK_IO)) {
-        cpu_abort(CPU(cpu), "I/O int w/o I/O mask\n");
-    }
+    g_assert(env->psw.mask & PSW_MASK_IO);
+    io = qemu_s390_flic_dequeue_io(flic, env->cregs[6]);
+    g_assert(io);
 
-    for (isc = 0; isc < ARRAY_SIZE(env->io_index); isc++) {
-        uint64_t isc_bits;
+    lowcore = cpu_map_lowcore(env);
 
-        if (env->io_index[isc] < 0) {
-            continue;
-        }
-        if (env->io_index[isc] >= MAX_IO_QUEUE) {
-            cpu_abort(CPU(cpu), "I/O queue overrun for isc %d: %d\n",
-                      isc, env->io_index[isc]);
-        }
+    lowcore->subchannel_id = cpu_to_be16(io->id);
+    lowcore->subchannel_nr = cpu_to_be16(io->nr);
+    lowcore->io_int_parm = cpu_to_be32(io->parm);
+    lowcore->io_int_word = cpu_to_be32(io->word);
+    lowcore->io_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->io_old_psw.addr = cpu_to_be64(env->psw.addr);
+    mask = be64_to_cpu(lowcore->io_new_psw.mask);
+    addr = be64_to_cpu(lowcore->io_new_psw.addr);
 
-        q = &env->io_queue[env->io_index[isc]][isc];
-        isc_bits = ISC_TO_ISC_BITS(IO_INT_WORD_ISC(q->word));
-        if (!(env->cregs[6] & isc_bits)) {
-            disable = 0;
-            continue;
-        }
-        if (!found) {
-            uint64_t mask, addr;
+    cpu_unmap_lowcore(lowcore);
+    g_free(io);
 
-            found = 1;
-            lowcore = cpu_map_lowcore(env);
-
-            lowcore->subchannel_id = cpu_to_be16(q->id);
-            lowcore->subchannel_nr = cpu_to_be16(q->nr);
-            lowcore->io_int_parm = cpu_to_be32(q->parm);
-            lowcore->io_int_word = cpu_to_be32(q->word);
-            lowcore->io_old_psw.mask = cpu_to_be64(get_psw_mask(env));
-            lowcore->io_old_psw.addr = cpu_to_be64(env->psw.addr);
-            mask = be64_to_cpu(lowcore->io_new_psw.mask);
-            addr = be64_to_cpu(lowcore->io_new_psw.addr);
-
-            cpu_unmap_lowcore(lowcore);
-
-            env->io_index[isc]--;
-
-            DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
-                    env->psw.mask, env->psw.addr);
-            load_psw(env, mask, addr);
-        }
-        if (env->io_index[isc] >= 0) {
-            disable = 0;
-        }
-        continue;
-    }
-
-    if (disable) {
-        env->pending_int &= ~INTERRUPT_IO;
-    }
-
+    DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__, env->psw.mask,
+            env->psw.addr);
+    load_psw(env, mask, addr);
 }
 
 static void do_mchk_interrupt(CPUS390XState *env)
 {
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
     uint64_t mask, addr;
     LowCore *lowcore;
     int i;
@@ -376,8 +341,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
     g_assert(env->psw.mask & PSW_MASK_MCHECK);
     g_assert(env->cregs[14] & CR14_CHANNEL_REPORT_SC);
 
-    g_assert(env->pending_int & INTERRUPT_MCHK);
-    env->pending_int &= ~INTERRUPT_MCHK;
+    qemu_s390_flic_dequeue_crw_mchk(flic);
 
     lowcore = cpu_map_lowcore(env);
 
@@ -412,6 +376,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
 
 void s390_cpu_do_interrupt(CPUState *cs)
 {
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
     bool stopped = false;
@@ -474,7 +439,7 @@ try_deliver:
     cs->exception_index = -1;
 
     /* we might still have pending interrupts, but not deliverable */
-    if (!env->pending_int) {
+    if (!env->pending_int && !qemu_s390_flic_has_any(flic)) {
         cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
     }
 

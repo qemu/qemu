@@ -58,17 +58,6 @@ void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_inject_service(S390CPU *cpu, uint32_t param)
-{
-    CPUS390XState *env = &cpu->env;
-
-    /* multiplexing is good enough for sclp - kvm does it internally as well*/
-    env->service_param |= param;
-
-    env->pending_int |= INTERRUPT_EXT_SERVICE;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
 void cpu_inject_clock_comparator(S390CPU *cpu)
 {
     CPUS390XState *env = &cpu->env;
@@ -137,38 +126,6 @@ void cpu_inject_stop(S390CPU *cpu)
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
-void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
-                   uint16_t subchannel_number, uint32_t io_int_parm,
-                   uint32_t io_int_word)
-{
-    CPUS390XState *env = &cpu->env;
-    int isc = IO_INT_WORD_ISC(io_int_word);
-
-    if (env->io_index[isc] == MAX_IO_QUEUE - 1) {
-        /* ugh - can't queue anymore. Let's drop. */
-        return;
-    }
-
-    env->io_index[isc]++;
-    assert(env->io_index[isc] < MAX_IO_QUEUE);
-
-    env->io_queue[env->io_index[isc]][isc].id = subchannel_id;
-    env->io_queue[env->io_index[isc]][isc].nr = subchannel_number;
-    env->io_queue[env->io_index[isc]][isc].parm = io_int_parm;
-    env->io_queue[env->io_index[isc]][isc].word = io_int_word;
-
-    env->pending_int |= INTERRUPT_IO;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
-void cpu_inject_crw_mchk(S390CPU *cpu)
-{
-    CPUS390XState *env = &cpu->env;
-
-    env->pending_int |= INTERRUPT_MCHK;
-    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-}
-
 /*
  * All of the following interrupts are floating, i.e. not per-vcpu.
  * We just need a dummy cpustate in order to be able to inject in the
@@ -201,6 +158,7 @@ void s390_crw_mchk(void)
 
 bool s390_cpu_has_mcck_int(S390CPU *cpu)
 {
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
     CPUS390XState *env = &cpu->env;
 
     if (!(env->psw.mask & PSW_MASK_MCHECK)) {
@@ -208,7 +166,7 @@ bool s390_cpu_has_mcck_int(S390CPU *cpu)
     }
 
     /* for now we only support channel report machine checks (floating) */
-    if ((env->pending_int & INTERRUPT_MCHK) &&
+    if (qemu_s390_flic_has_crw_mchk(flic) &&
         (env->cregs[14] & CR14_CHANNEL_REPORT_SC)) {
         return true;
     }
@@ -218,6 +176,7 @@ bool s390_cpu_has_mcck_int(S390CPU *cpu)
 
 bool s390_cpu_has_ext_int(S390CPU *cpu)
 {
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
     CPUS390XState *env = &cpu->env;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {
@@ -249,7 +208,7 @@ bool s390_cpu_has_ext_int(S390CPU *cpu)
         return true;
     }
 
-    if ((env->pending_int & INTERRUPT_EXT_SERVICE) &&
+    if (qemu_s390_flic_has_service(flic) &&
         (env->cregs[0] & CR0_SERVICE_SC)) {
         return true;
     }
@@ -259,13 +218,14 @@ bool s390_cpu_has_ext_int(S390CPU *cpu)
 
 bool s390_cpu_has_io_int(S390CPU *cpu)
 {
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
     CPUS390XState *env = &cpu->env;
 
     if (!(env->psw.mask & PSW_MASK_IO)) {
         return false;
     }
 
-    return env->pending_int & INTERRUPT_IO;
+    return qemu_s390_flic_has_io(flic, env->cregs[6]);
 }
 
 bool s390_cpu_has_restart_int(S390CPU *cpu)
