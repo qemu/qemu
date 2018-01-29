@@ -27,11 +27,9 @@ S390FLICState *s390_get_flic(void)
     static S390FLICState *fs;
 
     if (!fs) {
-        fs = S390_FLIC_COMMON(object_resolve_path(TYPE_KVM_S390_FLIC, NULL));
-        if (!fs) {
-            fs = S390_FLIC_COMMON(object_resolve_path(TYPE_QEMU_S390_FLIC,
-                                                      NULL));
-        }
+        fs = S390_FLIC_COMMON(object_resolve_path_type("",
+                                                       TYPE_S390_FLIC_COMMON,
+                                                       NULL));
     }
     return fs;
 }
