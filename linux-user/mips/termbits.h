@@ -233,6 +233,7 @@ struct target_termios {
 #define TARGET_TIOCGPKT         TARGET_IOR('T', 0x38, int)
 #define TARGET_TIOCGPTLCK       TARGET_IOR('T', 0x39, int)
 #define TARGET_TIOCGEXCL        TARGET_IOR('T', 0x40, int)
+#define TARGET_TIOCGPTPEER      TARGET_IO('T', 0x41)
 
 /* I hope the range from 0x5480 on is free ... */
 #define TARGET_TIOCSCTTY	0x5480		/* become controlling tty */

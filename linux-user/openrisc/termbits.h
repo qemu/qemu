@@ -245,6 +245,8 @@ struct target_termios3 {
 #define TARGET_TIOCGPTN        TARGET_IOR('T', 0x30, unsigned int)
 /* Lock/unlock Pty */
 #define TARGET_TIOCSPTLCK      TARGET_IOW('T', 0x31, int)
+/* Safely open the slave */
+#define TARGET_TIOCGPTPEER     TARGET_IO('T', 0x41)
 /* Get primary device node of /dev/console */
 #define TARGET_TIOCGDEV        TARGET_IOR('T', 0x32, unsigned int)
 #define TARGET_TCGETX          0x5432 /* SYS5 TCGETX compatibility */

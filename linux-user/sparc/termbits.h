@@ -245,6 +245,7 @@ struct target_termios {
 /* Get minor device of a pty master's FD -- Solaris equiv is ISPTM */
 #define TARGET_TIOCGPTN	TARGET_IOR('t', 134, unsigned int) /* Get Pty Number */
 #define TARGET_TIOCSPTLCK	TARGET_IOW('t', 135, int) /* Lock/unlock PTY */
+#define TARGET_TIOCGPTPEER      TARGET_IO('t', 137) /* Safely open the slave */
 
 /* Little f */
 #define TARGET_FIOCLEX		TARGET_IO('f', 1)
