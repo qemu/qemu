@@ -741,7 +741,12 @@ void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
                             uintptr_t ra);
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
-
+/* FIXME: remove once we have proper floating interrupts in TCG */
+void cpu_inject_service(S390CPU *cpu, uint32_t param);
+void cpu_inject_crw_mchk(S390CPU *cpu);
+void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
+                   uint16_t subchannel_number, uint32_t io_int_parm,
+                   uint32_t io_int_word);
 
 /* mmu_helper.c */
 int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,

@@ -15,6 +15,9 @@
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
 #include "hw/s390x/ioinst.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/s390x/s390_flic.h"
+#endif
 
 /* Ensure to exit the TB after this call! */
 void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen)
@@ -55,7 +58,7 @@ void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static void cpu_inject_service(S390CPU *cpu, uint32_t param)
+void cpu_inject_service(S390CPU *cpu, uint32_t param)
 {
     CPUS390XState *env = &cpu->env;
 
@@ -134,9 +137,9 @@ void cpu_inject_stop(S390CPU *cpu)
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
-static void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
-                          uint16_t subchannel_number,
-                          uint32_t io_int_parm, uint32_t io_int_word)
+void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
+                   uint16_t subchannel_number, uint32_t io_int_parm,
+                   uint32_t io_int_word)
 {
     CPUS390XState *env = &cpu->env;
     int isc = IO_INT_WORD_ISC(io_int_word);
@@ -158,7 +161,7 @@ static void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
-static void cpu_inject_crw_mchk(S390CPU *cpu)
+void cpu_inject_crw_mchk(S390CPU *cpu)
 {
     CPUS390XState *env = &cpu->env;
 
@@ -173,38 +176,27 @@ static void cpu_inject_crw_mchk(S390CPU *cpu)
  */
 void s390_sclp_extint(uint32_t parm)
 {
-    if (kvm_enabled()) {
-        kvm_s390_service_interrupt(parm);
-    } else {
-        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
-        cpu_inject_service(dummy_cpu, parm);
-    }
+    fsc->inject_service(fs, parm);
 }
 
 void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
                        uint32_t io_int_parm, uint32_t io_int_word)
 {
-    if (kvm_enabled()) {
-        kvm_s390_io_interrupt(subchannel_id, subchannel_nr, io_int_parm,
-                              io_int_word);
-    } else {
-        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
-        cpu_inject_io(dummy_cpu, subchannel_id, subchannel_nr, io_int_parm,
-                      io_int_word);
-    }
+    fsc->inject_io(fs, subchannel_id, subchannel_nr, io_int_parm, io_int_word);
 }
 
 void s390_crw_mchk(void)
 {
-    if (kvm_enabled()) {
-        kvm_s390_crw_mchk();
-    } else {
-        S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+    S390FLICState *fs = s390_get_flic();
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
 
-        cpu_inject_crw_mchk(dummy_cpu);
-    }
+    fsc->inject_crw_mchk(fs);
 }
 
 bool s390_cpu_has_mcck_int(S390CPU *cpu)

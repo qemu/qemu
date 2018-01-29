@@ -127,6 +127,34 @@ static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
     return 0;
 }
 
+static void qemu_s390_inject_service(S390FLICState *fs, uint32_t parm)
+{
+
+    S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+
+    /* FIXME: don't inject into dummy CPU */
+    cpu_inject_service(dummy_cpu, parm);
+}
+
+static void qemu_s390_inject_io(S390FLICState *fs, uint16_t subchannel_id,
+                                uint16_t subchannel_nr, uint32_t io_int_parm,
+                                uint32_t io_int_word)
+{
+    S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+
+    /* FIXME: don't inject into dummy CPU */
+    cpu_inject_io(dummy_cpu, subchannel_id, subchannel_nr, io_int_parm,
+                  io_int_word);
+}
+
+static void qemu_s390_inject_crw_mchk(S390FLICState *fs)
+{
+    S390CPU *dummy_cpu = s390_cpu_addr2state(0);
+
+    /* FIXME: don't inject into dummy CPU */
+    cpu_inject_crw_mchk(dummy_cpu);
+}
+
 static void qemu_s390_flic_reset(DeviceState *dev)
 {
     QEMUS390FLICState *flic = QEMU_S390_FLIC(dev);
@@ -168,6 +196,9 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->clear_io_irq = qemu_s390_clear_io_flic;
     fsc->modify_ais_mode = qemu_s390_modify_ais_mode;
     fsc->inject_airq = qemu_s390_inject_airq;
+    fsc->inject_service = qemu_s390_inject_service;
+    fsc->inject_io = qemu_s390_inject_io;
+    fsc->inject_crw_mchk = qemu_s390_inject_crw_mchk;
 }
 
 static Property s390_flic_common_properties[] = {

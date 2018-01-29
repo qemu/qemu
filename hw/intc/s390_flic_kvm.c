@@ -111,14 +111,64 @@ static int flic_enqueue_irqs(void *buf, uint64_t len,
     return rc ? -errno : 0;
 }
 
-int kvm_s390_inject_flic(struct kvm_s390_irq *irq)
+static void kvm_s390_inject_flic(S390FLICState *fs, struct kvm_s390_irq *irq)
 {
-    static KVMS390FLICState *flic;
+    static bool use_flic = true;
+    int r;
 
-    if (unlikely(!flic)) {
-        flic = KVM_S390_FLIC(s390_get_flic());
+    if (use_flic) {
+        r = flic_enqueue_irqs(irq, sizeof(*irq), KVM_S390_FLIC(fs));
+        if (r == -ENOSYS) {
+            use_flic = false;
+        }
+        if (!r) {
+            return;
+        }
     }
-    return flic_enqueue_irqs(irq, sizeof(*irq), flic);
+    /* fallback to legacy KVM IOCTL in case FLIC fails */
+    kvm_s390_floating_interrupt_legacy(irq);
+}
+
+static void kvm_s390_inject_service(S390FLICState *fs, uint32_t parm)
+{
+        struct kvm_s390_irq irq = {
+        .type = KVM_S390_INT_SERVICE,
+        .u.ext.ext_params = parm,
+    };
+
+    kvm_s390_inject_flic(fs, &irq);
+}
+
+static void kvm_s390_inject_io(S390FLICState *fs, uint16_t subchannel_id,
+                               uint16_t subchannel_nr, uint32_t io_int_parm,
+                               uint32_t io_int_word)
+{
+    struct kvm_s390_irq irq = {
+        .u.io.subchannel_id = subchannel_id,
+        .u.io.subchannel_nr = subchannel_nr,
+        .u.io.io_int_parm = io_int_parm,
+        .u.io.io_int_word = io_int_word,
+    };
+
+    if (io_int_word & IO_INT_WORD_AI) {
+        irq.type = KVM_S390_INT_IO(1, 0, 0, 0);
+    } else {
+        irq.type = KVM_S390_INT_IO(0, (subchannel_id & 0xff00) >> 8,
+                                      (subchannel_id & 0x0006),
+                                      subchannel_nr);
+    }
+    kvm_s390_inject_flic(fs, &irq);
+}
+
+static void kvm_s390_inject_crw_mchk(S390FLICState *fs)
+{
+    struct kvm_s390_irq irq = {
+        .type = KVM_S390_MCHK,
+        .u.mchk.cr14 = CR14_CHANNEL_REPORT_SC,
+        .u.mchk.mcic = s390_build_validity_mcic() | MCIC_SC_CP,
+    };
+
+    kvm_s390_inject_flic(fs, &irq);
 }
 
 static int kvm_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
@@ -602,6 +652,9 @@ static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->clear_io_irq = kvm_s390_clear_io_flic;
     fsc->modify_ais_mode = kvm_s390_modify_ais_mode;
     fsc->inject_airq = kvm_s390_inject_airq;
+    fsc->inject_service = kvm_s390_inject_service;
+    fsc->inject_io = kvm_s390_inject_io;
+    fsc->inject_crw_mchk = kvm_s390_inject_crw_mchk;
 }
 
 static const TypeInfo kvm_s390_flic_info = {
