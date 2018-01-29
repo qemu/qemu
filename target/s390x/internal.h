@@ -278,11 +278,6 @@ static inline void s390_do_cpu_full_reset(CPUState *cs, run_on_cpu_data arg)
     cpu_reset(cs);
 }
 
-static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
-{
-    return cpu->env.cpu_state;
-}
-
 
 /* arch_dump.c */
 int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,

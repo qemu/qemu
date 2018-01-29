@@ -161,10 +161,37 @@ static void qemu_s390_flic_notify(uint32_t type)
 
     /*
      * We have to make all CPUs see CPU_INTERRUPT_HARD, so they might
-     * consider it. TODO: don't kick/wakeup all VCPUs but try to be
-     * smarter (using the interrupt type).
+     * consider it. We will kick all running CPUs and only relevant
+     * sleeping ones.
      */
     CPU_FOREACH(cs) {
+        S390CPU *cpu = S390_CPU(cs);
+
+        cs->interrupt_request |= CPU_INTERRUPT_HARD;
+
+        /* ignore CPUs that are not sleeping */
+        if (s390_cpu_get_state(cpu) != CPU_STATE_OPERATING &&
+            s390_cpu_get_state(cpu) != CPU_STATE_LOAD) {
+            continue;
+        }
+
+        /* we always kick running CPUs for now, this is tricky */
+        if (cs->halted) {
+            /* don't check for subclasses, CPUs double check when waking up */
+            if (type & FLIC_PENDING_SERVICE) {
+                if (!(cpu->env.psw.mask & PSW_MASK_EXT)) {
+                    continue;
+                }
+            } else if (type & FLIC_PENDING_IO) {
+                if (!(cpu->env.psw.mask & PSW_MASK_IO)) {
+                    continue;
+                }
+            } else if (type & FLIC_PENDING_MCHK_CR) {
+                if (!(cpu->env.psw.mask & PSW_MASK_MCHECK)) {
+                    continue;
+                }
+            }
+        }
         cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
