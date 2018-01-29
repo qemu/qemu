@@ -410,12 +410,14 @@
 # Connect two or more net clients through a software hub.
 #
 # @hubid: hub identifier number
+# @netdev: used to connect hub to a netdev instead of a device (since 2.12)
 #
 # Since: 1.2
 ##
 { 'struct': 'NetdevHubPortOptions',
   'data': {
-    'hubid':     'int32' } }
+    'hubid':     'int32',
+    '*netdev':    'str' } }
 
 ##
 # @NetdevNetmapOptions:
