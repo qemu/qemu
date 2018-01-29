@@ -37,6 +37,8 @@
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
+#include "hw/s390x/ioinst.h"
+#include "hw/boards.h"
 #endif
 
 /* #define DEBUG_HELPER */
@@ -195,130 +197,146 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
 }
 
 /* Store System Information */
-uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
-                      uint64_t r0, uint64_t r1)
+uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint64_t r0, uint64_t r1)
 {
+    const uintptr_t ra = GETPC();
+    const uint32_t sel1 = r0 & STSI_R0_SEL1_MASK;
+    const uint32_t sel2 = r1 & STSI_R1_SEL2_MASK;
+    const MachineState *ms = MACHINE(qdev_get_machine());
+    uint16_t total_cpus = 0, conf_cpus = 0, reserved_cpus = 0;
     S390CPU *cpu = s390_env_get_cpu(env);
-    int cc = 0;
-    int sel1, sel2;
+    SysIB sysib = { 0 };
+    int i, cc = 0;
 
-    if ((r0 & STSI_LEVEL_MASK) <= STSI_LEVEL_3 &&
-        ((r0 & STSI_R0_RESERVED_MASK) || (r1 & STSI_R1_RESERVED_MASK))) {
-        /* valid function code, invalid reserved bits */
-        s390_program_interrupt(env, PGM_SPECIFICATION, 4, GETPC());
+    if ((r0 & STSI_R0_FC_MASK) > STSI_R0_FC_LEVEL_3) {
+        /* invalid function code: no other checks are performed */
+        return 3;
     }
 
-    sel1 = r0 & STSI_R0_SEL1_MASK;
-    sel2 = r1 & STSI_R1_SEL2_MASK;
+    if ((r0 & STSI_R0_RESERVED_MASK) || (r1 & STSI_R1_RESERVED_MASK)) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
+    }
 
-    /* XXX: spec exception if sysib is not 4k-aligned */
+    if ((r0 & STSI_R0_FC_MASK) == STSI_R0_FC_CURRENT) {
+        /* query the current level: no further checks are performed */
+        env->regs[0] = STSI_R0_FC_LEVEL_3;
+        return 0;
+    }
 
-    switch (r0 & STSI_LEVEL_MASK) {
-    case STSI_LEVEL_1:
+    if (a0 & ~TARGET_PAGE_MASK) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
+    }
+
+    /* count the cpus and split them into configured and reserved ones */
+    for (i = 0; i < ms->possible_cpus->len; i++) {
+        total_cpus++;
+        if (ms->possible_cpus->cpus[i].cpu) {
+            conf_cpus++;
+        } else {
+            reserved_cpus++;
+        }
+    }
+
+    /*
+     * In theory, we could report Level 1 / Level 2 as current. However,
+     * the Linux kernel will detect this as running under LPAR and assume
+     * that we have a sclp linemode console (which is always present on
+     * LPAR, but not the default for QEMU), therefore not displaying boot
+     * messages and making booting a Linux kernel under TCG harder.
+     *
+     * For now we fake the same SMP configuration on all levels.
+     *
+     * TODO: We could later make the level configurable via the machine
+     *       and change defaults (linemode console) based on machine type
+     *       and accelerator.
+     */
+    switch (r0 & STSI_R0_FC_MASK) {
+    case STSI_R0_FC_LEVEL_1:
         if ((sel1 == 1) && (sel2 == 1)) {
             /* Basic Machine Configuration */
-            SysIB_111 sysib;
             char type[5] = {};
 
-            memset(&sysib, 0, sizeof(sysib));
-            ebcdic_put(sysib.manuf, "QEMU            ", 16);
+            ebcdic_put(sysib.sysib_111.manuf, "QEMU            ", 16);
             /* same as machine type number in STORE CPU ID, but in EBCDIC */
             snprintf(type, ARRAY_SIZE(type), "%X", cpu->model->def->type);
-            ebcdic_put(sysib.type, type, 4);
+            ebcdic_put(sysib.sysib_111.type, type, 4);
             /* model number (not stored in STORE CPU ID for z/Architecure) */
-            ebcdic_put(sysib.model, "QEMU            ", 16);
-            ebcdic_put(sysib.sequence, "QEMU            ", 16);
-            ebcdic_put(sysib.plant, "QEMU", 4);
-            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
+            ebcdic_put(sysib.sysib_111.model, "QEMU            ", 16);
+            ebcdic_put(sysib.sysib_111.sequence, "QEMU            ", 16);
+            ebcdic_put(sysib.sysib_111.plant, "QEMU", 4);
         } else if ((sel1 == 2) && (sel2 == 1)) {
             /* Basic Machine CPU */
-            SysIB_121 sysib;
-
-            memset(&sysib, 0, sizeof(sysib));
-            /* XXX make different for different CPUs? */
-            ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
-            ebcdic_put(sysib.plant, "QEMU", 4);
-            stw_p(&sysib.cpu_addr, env->core_id);
-            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
+            ebcdic_put(sysib.sysib_121.sequence, "QEMUQEMUQEMUQEMU", 16);
+            ebcdic_put(sysib.sysib_121.plant, "QEMU", 4);
+            sysib.sysib_121.cpu_addr = cpu_to_be16(env->core_id);
         } else if ((sel1 == 2) && (sel2 == 2)) {
             /* Basic Machine CPUs */
-            SysIB_122 sysib;
-
-            memset(&sysib, 0, sizeof(sysib));
-            stl_p(&sysib.capability, 0x443afc29);
-            /* XXX change when SMP comes */
-            stw_p(&sysib.total_cpus, 1);
-            stw_p(&sysib.active_cpus, 1);
-            stw_p(&sysib.standby_cpus, 0);
-            stw_p(&sysib.reserved_cpus, 0);
-            cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
+            sysib.sysib_122.capability = cpu_to_be32(0x443afc29);
+            sysib.sysib_122.total_cpus = cpu_to_be16(total_cpus);
+            sysib.sysib_122.conf_cpus = cpu_to_be16(conf_cpus);
+            sysib.sysib_122.reserved_cpus = cpu_to_be16(reserved_cpus);
         } else {
             cc = 3;
         }
         break;
-    case STSI_LEVEL_2:
-        {
-            if ((sel1 == 2) && (sel2 == 1)) {
-                /* LPAR CPU */
-                SysIB_221 sysib;
-
-                memset(&sysib, 0, sizeof(sysib));
-                /* XXX make different for different CPUs? */
-                ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
-                ebcdic_put(sysib.plant, "QEMU", 4);
-                stw_p(&sysib.cpu_addr, env->core_id);
-                stw_p(&sysib.cpu_id, 0);
-                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
-            } else if ((sel1 == 2) && (sel2 == 2)) {
-                /* LPAR CPUs */
-                SysIB_222 sysib;
-
-                memset(&sysib, 0, sizeof(sysib));
-                stw_p(&sysib.lpar_num, 0);
-                sysib.lcpuc = 0;
-                /* XXX change when SMP comes */
-                stw_p(&sysib.total_cpus, 1);
-                stw_p(&sysib.conf_cpus, 1);
-                stw_p(&sysib.standby_cpus, 0);
-                stw_p(&sysib.reserved_cpus, 0);
-                ebcdic_put(sysib.name, "QEMU    ", 8);
-                stl_p(&sysib.caf, 1000);
-                stw_p(&sysib.dedicated_cpus, 0);
-                stw_p(&sysib.shared_cpus, 0);
-                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
-            } else {
-                cc = 3;
-            }
-            break;
+    case STSI_R0_FC_LEVEL_2:
+        if ((sel1 == 2) && (sel2 == 1)) {
+            /* LPAR CPU */
+            ebcdic_put(sysib.sysib_221.sequence, "QEMUQEMUQEMUQEMU", 16);
+            ebcdic_put(sysib.sysib_221.plant, "QEMU", 4);
+            sysib.sysib_221.cpu_addr = cpu_to_be16(env->core_id);
+        } else if ((sel1 == 2) && (sel2 == 2)) {
+            /* LPAR CPUs */
+            sysib.sysib_222.lcpuc = 0x80; /* dedicated */
+            sysib.sysib_222.total_cpus = cpu_to_be16(total_cpus);
+            sysib.sysib_222.conf_cpus = cpu_to_be16(conf_cpus);
+            sysib.sysib_222.reserved_cpus = cpu_to_be16(reserved_cpus);
+            ebcdic_put(sysib.sysib_222.name, "QEMU    ", 8);
+            sysib.sysib_222.caf = cpu_to_be32(1000);
+            sysib.sysib_222.dedicated_cpus = cpu_to_be16(conf_cpus);
+        } else {
+            cc = 3;
         }
-    case STSI_LEVEL_3:
-        {
-            if ((sel1 == 2) && (sel2 == 2)) {
-                /* VM CPUs */
-                SysIB_322 sysib;
+        break;
+    case STSI_R0_FC_LEVEL_3:
+        if ((sel1 == 2) && (sel2 == 2)) {
+            /* VM CPUs */
+            sysib.sysib_322.count = 1;
+            sysib.sysib_322.vm[0].total_cpus = cpu_to_be16(total_cpus);
+            sysib.sysib_322.vm[0].conf_cpus = cpu_to_be16(conf_cpus);
+            sysib.sysib_322.vm[0].reserved_cpus = cpu_to_be16(reserved_cpus);
+            sysib.sysib_322.vm[0].caf = cpu_to_be32(1000);
+            /* Linux kernel uses this to distinguish us from z/VM */
+            ebcdic_put(sysib.sysib_322.vm[0].cpi, "KVM/Linux       ", 16);
+            sysib.sysib_322.vm[0].ext_name_encoding = 2; /* UTF-8 */
 
-                memset(&sysib, 0, sizeof(sysib));
-                sysib.count = 1;
-                /* XXX change when SMP comes */
-                stw_p(&sysib.vm[0].total_cpus, 1);
-                stw_p(&sysib.vm[0].conf_cpus, 1);
-                stw_p(&sysib.vm[0].standby_cpus, 0);
-                stw_p(&sysib.vm[0].reserved_cpus, 0);
-                ebcdic_put(sysib.vm[0].name, "KVMguest", 8);
-                stl_p(&sysib.vm[0].caf, 1000);
-                ebcdic_put(sysib.vm[0].cpi, "KVM/Linux       ", 16);
-                cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
+            /* If our VM has a name, use the real name */
+            if (qemu_name) {
+                memset(sysib.sysib_322.vm[0].name, 0x40,
+                       sizeof(sysib.sysib_322.vm[0].name));
+                ebcdic_put(sysib.sysib_322.vm[0].name, qemu_name,
+                           MIN(sizeof(sysib.sysib_322.vm[0].name),
+                               strlen(qemu_name)));
+                strncpy((char *)sysib.sysib_322.ext_names[0], qemu_name,
+                        sizeof(sysib.sysib_322.ext_names[0]));
             } else {
-                cc = 3;
+                ebcdic_put(sysib.sysib_322.vm[0].name, "TCGguest", 8);
+                strcpy((char *)sysib.sysib_322.ext_names[0], "TCGguest");
             }
-            break;
+
+            /* add the uuid */
+            memcpy(sysib.sysib_322.vm[0].uuid, &qemu_uuid,
+                   sizeof(sysib.sysib_322.vm[0].uuid));
+        } else {
+            cc = 3;
         }
-    case STSI_LEVEL_CURRENT:
-        env->regs[0] = STSI_LEVEL_3;
         break;
-    default:
-        cc = 3;
-        break;
+    }
+
+    if (cc == 0) {
+        if (s390_cpu_virt_mem_write(cpu, a0, 0, &sysib, sizeof(sysib))) {
+            s390_cpu_virt_mem_handle_exc(cpu, ra);
+        }
     }
 
     return cc;

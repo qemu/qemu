@@ -426,11 +426,11 @@ static inline void setcc(S390CPU *cpu, uint64_t cc)
 }
 
 /* STSI */
-#define STSI_LEVEL_MASK         0x00000000f0000000ULL
-#define STSI_LEVEL_CURRENT      0x0000000000000000ULL
-#define STSI_LEVEL_1            0x0000000010000000ULL
-#define STSI_LEVEL_2            0x0000000020000000ULL
-#define STSI_LEVEL_3            0x0000000030000000ULL
+#define STSI_R0_FC_MASK         0x00000000f0000000ULL
+#define STSI_R0_FC_CURRENT      0x0000000000000000ULL
+#define STSI_R0_FC_LEVEL_1      0x0000000010000000ULL
+#define STSI_R0_FC_LEVEL_2      0x0000000020000000ULL
+#define STSI_R0_FC_LEVEL_3      0x0000000030000000ULL
 #define STSI_R0_RESERVED_MASK   0x000000000fffff00ULL
 #define STSI_R0_SEL1_MASK       0x00000000000000ffULL
 #define STSI_R1_RESERVED_MASK   0x00000000ffff0000ULL
@@ -465,7 +465,7 @@ typedef struct SysIB_122 {
     uint8_t res1[32];
     uint32_t capability;
     uint16_t total_cpus;
-    uint16_t active_cpus;
+    uint16_t conf_cpus;
     uint16_t standby_cpus;
     uint16_t reserved_cpus;
     uint16_t adjustments[2026];
@@ -524,6 +524,16 @@ typedef struct SysIB_322 {
     uint8_t ext_names[8][256];
 } SysIB_322;
 QEMU_BUILD_BUG_ON(sizeof(SysIB_322) != 4096);
+
+typedef union SysIB {
+    SysIB_111 sysib_111;
+    SysIB_121 sysib_121;
+    SysIB_122 sysib_122;
+    SysIB_221 sysib_221;
+    SysIB_222 sysib_222;
+    SysIB_322 sysib_322;
+} SysIB;
+QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 
 /* MMU defines */
 #define _ASCE_ORIGIN            ~0xfffULL /* segment table origin             */
