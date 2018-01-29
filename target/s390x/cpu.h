@@ -54,10 +54,6 @@
 #define MMU_USER_IDX 0
 
 #define MAX_IO_QUEUE 16
-#define MAX_MCHK_QUEUE 16
-
-#define PSW_MCHK_MASK 0x0004000000000000
-#define PSW_IO_MASK 0x0200000000000000
 
 #define S390_MAX_CPUS 248
 
@@ -72,10 +68,6 @@ typedef struct IOIntQueue {
     uint32_t parm;
     uint32_t word;
 } IOIntQueue;
-
-typedef struct MchkQueue {
-    uint16_t type;
-} MchkQueue;
 
 struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
@@ -123,14 +115,12 @@ struct CPUS390XState {
     uint64_t cregs[16]; /* control registers */
 
     IOIntQueue io_queue[MAX_IO_QUEUE][8];
-    MchkQueue mchk_queue[MAX_MCHK_QUEUE];
 
     int pending_int;
     uint32_t service_param;
     uint16_t external_call_addr;
     DECLARE_BITMAP(emergency_signals, S390_MAX_CPUS);
     int io_index[8];
-    int mchk_index;
 
     uint64_t ckc;
     uint64_t cputm;

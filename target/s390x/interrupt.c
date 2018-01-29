@@ -162,16 +162,6 @@ static void cpu_inject_crw_mchk(S390CPU *cpu)
 {
     CPUS390XState *env = &cpu->env;
 
-    if (env->mchk_index == MAX_MCHK_QUEUE - 1) {
-        /* ugh - can't queue anymore. Let's drop. */
-        return;
-    }
-
-    env->mchk_index++;
-    assert(env->mchk_index < MAX_MCHK_QUEUE);
-
-    env->mchk_queue[env->mchk_index].type = 1;
-
     env->pending_int |= INTERRUPT_MCHK;
     cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
@@ -225,7 +215,13 @@ bool s390_cpu_has_mcck_int(S390CPU *cpu)
         return false;
     }
 
-    return env->pending_int & INTERRUPT_MCHK;
+    /* for now we only support channel report machine checks (floating) */
+    if ((env->pending_int & INTERRUPT_MCHK) &&
+        (env->cregs[14] & CR14_CHANNEL_REPORT_SC)) {
+        return true;
+    }
+
+    return false;
 }
 
 bool s390_cpu_has_ext_int(S390CPU *cpu)

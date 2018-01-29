@@ -368,30 +368,16 @@ static void do_io_interrupt(CPUS390XState *env)
 
 static void do_mchk_interrupt(CPUS390XState *env)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
     uint64_t mask, addr;
     LowCore *lowcore;
-    MchkQueue *q;
     int i;
 
-    if (!(env->psw.mask & PSW_MASK_MCHECK)) {
-        cpu_abort(CPU(cpu), "Machine check w/o mchk mask\n");
-    }
+    /* for now we only support channel report machine checks (floating) */
+    g_assert(env->psw.mask & PSW_MASK_MCHECK);
+    g_assert(env->cregs[14] & CR14_CHANNEL_REPORT_SC);
 
-    if (env->mchk_index < 0 || env->mchk_index >= MAX_MCHK_QUEUE) {
-        cpu_abort(CPU(cpu), "Mchk queue overrun: %d\n", env->mchk_index);
-    }
-
-    q = &env->mchk_queue[env->mchk_index];
-
-    if (q->type != 1) {
-        /* Don't know how to handle this... */
-        cpu_abort(CPU(cpu), "Unknown machine check type %d\n", q->type);
-    }
-    if (!(env->cregs[14] & (1 << 28))) {
-        /* CRW machine checks disabled */
-        return;
-    }
+    g_assert(env->pending_int & INTERRUPT_MCHK);
+    env->pending_int &= ~INTERRUPT_MCHK;
 
     lowcore = cpu_map_lowcore(env);
 
@@ -417,11 +403,6 @@ static void do_mchk_interrupt(CPUS390XState *env)
     addr = be64_to_cpu(lowcore->mcck_new_psw.addr);
 
     cpu_unmap_lowcore(lowcore);
-
-    env->mchk_index--;
-    if (env->mchk_index == -1) {
-        env->pending_int &= ~INTERRUPT_MCHK;
-    }
 
     DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
             env->psw.mask, env->psw.addr);
