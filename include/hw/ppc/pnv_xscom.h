@@ -21,8 +21,6 @@
 
 #include "qom/object.h"
 
-typedef struct PnvChip PnvChip;
-
 typedef struct PnvXScomInterface {
     Object parent;
 } PnvXScomInterface;

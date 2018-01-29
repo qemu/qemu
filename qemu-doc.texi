@@ -2773,6 +2773,12 @@ The ``host_net_remove'' command is replaced by the ``netdev_del'' command.
 The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
 or ``ivshmem-doorbell`` device types.
 
+@subsection Page size support < 4k for embedded PowerPC CPUs (since 2.12.0)
+
+qemu-system-ppcemb will be removed. qemu-system-ppc (or qemu-system-ppc64)
+should be used instead. That means that embedded 4xx PowerPC CPUs will not
+support page sizes < 4096 any longer.
+
 @section System emulator machines
 
 @subsection Xilinx EP108 (since 2.11.0)
