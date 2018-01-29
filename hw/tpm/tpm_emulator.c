@@ -120,7 +120,6 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
 {
     ssize_t ret;
     bool is_selftest = false;
-    const struct tpm_resp_hdr *hdr = NULL;
 
     if (selftest_done) {
         *selftest_done = false;
@@ -132,22 +131,21 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
         return -1;
     }
 
-    ret = qio_channel_read_all(tpm_emu->data_ioc, (char *)out, sizeof(*hdr),
-                               err);
+    ret = qio_channel_read_all(tpm_emu->data_ioc, (char *)out,
+              sizeof(struct tpm_resp_hdr), err);
     if (ret != 0) {
         return -1;
     }
 
-    hdr = (struct tpm_resp_hdr *)out;
-    out += sizeof(*hdr);
-    ret = qio_channel_read_all(tpm_emu->data_ioc, (char *)out,
-                               be32_to_cpu(hdr->len) - sizeof(*hdr) , err);
+    ret = qio_channel_read_all(tpm_emu->data_ioc,
+              (char *)out + sizeof(struct tpm_resp_hdr),
+              tpm_cmd_get_size(out) - sizeof(struct tpm_resp_hdr), err);
     if (ret != 0) {
         return -1;
     }
 
     if (is_selftest) {
-        *selftest_done = (be32_to_cpu(hdr->errcode) == 0);
+        *selftest_done = tpm_cmd_get_errcode(out) == 0;
     }
 
     return 0;

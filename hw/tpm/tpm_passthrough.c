@@ -87,7 +87,6 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
 {
     ssize_t ret;
     bool is_selftest;
-    const struct tpm_resp_hdr *hdr;
 
     /* FIXME: protect shared variables or use other sync mechanism */
     tpm_pt->tpm_op_canceled = false;
@@ -116,15 +115,14 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
                          strerror(errno), errno);
         }
     } else if (ret < sizeof(struct tpm_resp_hdr) ||
-               be32_to_cpu(((struct tpm_resp_hdr *)out)->len) != ret) {
+               tpm_cmd_get_size(out) != ret) {
         ret = -1;
         error_report("tpm_passthrough: received invalid response "
                      "packet from TPM");
     }
 
     if (is_selftest && (ret >= sizeof(struct tpm_resp_hdr))) {
-        hdr = (struct tpm_resp_hdr *)out;
-        *selftest_done = (be32_to_cpu(hdr->errcode) == 0);
+        *selftest_done = tpm_cmd_get_errcode(out) == 0;
     }
 
 err_exit:
