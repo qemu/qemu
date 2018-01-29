@@ -35,18 +35,6 @@ typedef struct KVMS390FLICState {
     bool clear_io_supported;
 } KVMS390FLICState;
 
-DeviceState *s390_flic_kvm_create(void)
-{
-    DeviceState *dev = NULL;
-
-    if (kvm_enabled()) {
-        dev = qdev_create(NULL, TYPE_KVM_S390_FLIC);
-        object_property_add_child(qdev_get_machine(), TYPE_KVM_S390_FLIC,
-                                  OBJECT(dev), NULL);
-    }
-    return dev;
-}
-
 /**
  * flic_get_all_irqs - store all pending irqs in buffer
  * @buf: pointer to buffer which is passed to kernel

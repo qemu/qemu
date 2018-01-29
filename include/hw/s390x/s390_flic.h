@@ -91,13 +91,4 @@ void s390_flic_init(void);
 S390FLICState *s390_get_flic(void);
 bool ais_needed(void *opaque);
 
-#ifdef CONFIG_KVM
-DeviceState *s390_flic_kvm_create(void);
-#else
-static inline DeviceState *s390_flic_kvm_create(void)
-{
-    return NULL;
-}
-#endif
-
 #endif /* HW_S390_FLIC_H */

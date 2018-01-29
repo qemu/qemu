@@ -40,8 +40,11 @@ void s390_flic_init(void)
 {
     DeviceState *dev;
 
-    dev = s390_flic_kvm_create();
-    if (!dev) {
+    if (kvm_enabled()) {
+        dev = qdev_create(NULL, TYPE_KVM_S390_FLIC);
+        object_property_add_child(qdev_get_machine(), TYPE_KVM_S390_FLIC,
+                                  OBJECT(dev), NULL);
+    } else {
         dev = qdev_create(NULL, TYPE_QEMU_S390_FLIC);
         object_property_add_child(qdev_get_machine(), TYPE_QEMU_S390_FLIC,
                                   OBJECT(dev), NULL);
