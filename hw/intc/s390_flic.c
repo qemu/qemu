@@ -79,8 +79,35 @@ static void qemu_s390_release_adapter_routes(S390FLICState *fs,
 static int qemu_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
                            uint16_t subchannel_nr)
 {
-    /* Fixme TCG */
-    return -ENOSYS;
+    QEMUS390FLICState *flic  = QEMU_S390_FLIC(fs);
+    QEMUS390FlicIO *cur, *next;
+    uint8_t isc;
+
+    g_assert(qemu_mutex_iothread_locked());
+    if (!(flic->pending & FLIC_PENDING_IO)) {
+        return 0;
+    }
+
+    /* check all iscs */
+    for (isc = 0; isc < 8; isc++) {
+        if (QLIST_EMPTY(&flic->io[isc])) {
+            continue;
+        }
+
+        /* search and delete any matching one */
+        QLIST_FOREACH_SAFE(cur, &flic->io[isc], next, next) {
+            if (cur->id == subchannel_id && cur->nr == subchannel_nr) {
+                QLIST_REMOVE(cur, next);
+                g_free(cur);
+            }
+        }
+
+        /* update our indicator bit */
+        if (QLIST_EMPTY(&flic->io[isc])) {
+            flic->pending &= ~ISC_TO_PENDING_IO(isc);
+        }
+    }
+    return 0;
 }
 
 static int qemu_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
