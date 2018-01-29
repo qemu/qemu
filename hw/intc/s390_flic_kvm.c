@@ -35,6 +35,17 @@ typedef struct KVMS390FLICState {
     bool clear_io_supported;
 } KVMS390FLICState;
 
+static KVMS390FLICState *s390_get_kvm_flic(S390FLICState *fs)
+{
+    static KVMS390FLICState *flic;
+
+    if (!flic) {
+        /* we only have one flic device, so this is fine to cache */
+        flic = KVM_S390_FLIC(fs);
+    }
+    return flic;
+}
+
 /**
  * flic_get_all_irqs - store all pending irqs in buffer
  * @buf: pointer to buffer which is passed to kernel
@@ -117,7 +128,7 @@ static void kvm_s390_inject_flic(S390FLICState *fs, struct kvm_s390_irq *irq)
     int r;
 
     if (use_flic) {
-        r = flic_enqueue_irqs(irq, sizeof(*irq), KVM_S390_FLIC(fs));
+        r = flic_enqueue_irqs(irq, sizeof(*irq), s390_get_kvm_flic(fs));
         if (r == -ENOSYS) {
             use_flic = false;
         }
@@ -174,7 +185,7 @@ static void kvm_s390_inject_crw_mchk(S390FLICState *fs)
 static int kvm_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
                            uint16_t subchannel_nr)
 {
-    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    KVMS390FLICState *flic = s390_get_kvm_flic(fs);
     int rc;
     uint32_t sid = subchannel_id << 16 | subchannel_nr;
     struct kvm_device_attr attr = {
@@ -192,7 +203,7 @@ static int kvm_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
 static int kvm_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
                                     uint16_t mode)
 {
-    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    KVMS390FLICState *flic = s390_get_kvm_flic(fs);
     struct kvm_s390_ais_req req = {
         .isc = isc,
         .mode = mode,
@@ -212,7 +223,7 @@ static int kvm_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
 static int kvm_s390_inject_airq(S390FLICState *fs, uint8_t type,
                                 uint8_t isc, uint8_t flags)
 {
-    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    KVMS390FLICState *flic = s390_get_kvm_flic(fs);
     uint32_t id = css_get_adapter_id(type, isc);
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_AIRQ_INJECT,
@@ -301,7 +312,7 @@ static int kvm_s390_io_adapter_map(S390FLICState *fs, uint32_t id,
         .group = KVM_DEV_FLIC_ADAPTER_MODIFY,
         .addr = (uint64_t)&req,
     };
-    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    KVMS390FLICState *flic = s390_get_kvm_flic(fs);
     int r;
 
     if (!kvm_gsi_routing_enabled()) {
