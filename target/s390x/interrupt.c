@@ -158,7 +158,7 @@ void s390_crw_mchk(void)
 
 bool s390_cpu_has_mcck_int(S390CPU *cpu)
 {
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
+    QEMUS390FLICState *flic = s390_get_qemu_flic(s390_get_flic());
     CPUS390XState *env = &cpu->env;
 
     if (!(env->psw.mask & PSW_MASK_MCHECK)) {
@@ -176,7 +176,7 @@ bool s390_cpu_has_mcck_int(S390CPU *cpu)
 
 bool s390_cpu_has_ext_int(S390CPU *cpu)
 {
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
+    QEMUS390FLICState *flic = s390_get_qemu_flic(s390_get_flic());
     CPUS390XState *env = &cpu->env;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {
@@ -218,7 +218,7 @@ bool s390_cpu_has_ext_int(S390CPU *cpu)
 
 bool s390_cpu_has_io_int(S390CPU *cpu)
 {
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
+    QEMUS390FLICState *flic = s390_get_qemu_flic(s390_get_flic());
     CPUS390XState *env = &cpu->env;
 
     if (!(env->psw.mask & PSW_MASK_IO)) {

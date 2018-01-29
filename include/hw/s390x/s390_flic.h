@@ -135,6 +135,7 @@ bool qemu_s390_flic_has_any(QEMUS390FLICState *flic);
 void s390_flic_init(void);
 
 S390FLICState *s390_get_flic(void);
+QEMUS390FLICState *s390_get_qemu_flic(S390FLICState *fs);
 bool ais_needed(void *opaque);
 
 #endif /* HW_S390_FLIC_H */

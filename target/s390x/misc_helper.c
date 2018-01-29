@@ -452,7 +452,7 @@ uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
 {
     const uintptr_t ra = GETPC();
     S390CPU *cpu = s390_env_get_cpu(env);
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
+    QEMUS390FLICState *flic = s390_get_qemu_flic(s390_get_flic());
     QEMUS390FlicIO *io = NULL;
     LowCore *lowcore;
 

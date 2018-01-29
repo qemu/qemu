@@ -22,6 +22,17 @@
 #include "qapi/error.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
+QEMUS390FLICState *s390_get_qemu_flic(S390FLICState *fs)
+{
+    static QEMUS390FLICState *flic;
+
+    if (!flic) {
+        /* we only have one flic device, so this is fine to cache */
+        flic = QEMU_S390_FLIC(fs);
+    }
+    return flic;
+}
+
 S390FLICState *s390_get_flic(void)
 {
     static S390FLICState *fs;
@@ -79,7 +90,7 @@ static void qemu_s390_release_adapter_routes(S390FLICState *fs,
 static int qemu_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
                            uint16_t subchannel_nr)
 {
-    QEMUS390FLICState *flic  = QEMU_S390_FLIC(fs);
+    QEMUS390FLICState *flic  = s390_get_qemu_flic(fs);
     QEMUS390FlicIO *cur, *next;
     uint8_t isc;
 
@@ -113,7 +124,7 @@ static int qemu_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
 static int qemu_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
                                      uint16_t mode)
 {
-    QEMUS390FLICState *flic  = QEMU_S390_FLIC(fs);
+    QEMUS390FLICState *flic  = s390_get_qemu_flic(fs);
 
     switch (mode) {
     case SIC_IRQ_MODE_ALL:
@@ -134,7 +145,7 @@ static int qemu_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
 static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
                                  uint8_t isc, uint8_t flags)
 {
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
     bool flag = flags & S390_ADAPTER_SUPPRESSIBLE;
     uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
@@ -246,7 +257,7 @@ void qemu_s390_flic_dequeue_crw_mchk(QEMUS390FLICState *flic)
 
 static void qemu_s390_inject_service(S390FLICState *fs, uint32_t parm)
 {
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
 
     g_assert(qemu_mutex_iothread_locked());
     /* multiplexing is good enough for sclp - kvm does it internally as well */
@@ -261,7 +272,7 @@ static void qemu_s390_inject_io(S390FLICState *fs, uint16_t subchannel_id,
                                 uint32_t io_int_word)
 {
     const uint8_t isc = IO_INT_WORD_ISC(io_int_word);
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
     QEMUS390FlicIO *io;
 
     g_assert(qemu_mutex_iothread_locked());
@@ -279,7 +290,7 @@ static void qemu_s390_inject_io(S390FLICState *fs, uint16_t subchannel_id,
 
 static void qemu_s390_inject_crw_mchk(S390FLICState *fs)
 {
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    QEMUS390FLICState *flic = s390_get_qemu_flic(fs);
 
     g_assert(qemu_mutex_iothread_locked());
     flic->pending |= FLIC_PENDING_MCHK_CR;
