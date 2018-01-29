@@ -217,7 +217,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
     case STSI_LEVEL_1:
         if ((sel1 == 1) && (sel2 == 1)) {
             /* Basic Machine Configuration */
-            struct sysib_111 sysib;
+            SysIB_111 sysib;
             char type[5] = {};
 
             memset(&sysib, 0, sizeof(sysib));
@@ -232,7 +232,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 1)) {
             /* Basic Machine CPU */
-            struct sysib_121 sysib;
+            SysIB_121 sysib;
 
             memset(&sysib, 0, sizeof(sysib));
             /* XXX make different for different CPUs? */
@@ -242,7 +242,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
             cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
         } else if ((sel1 == 2) && (sel2 == 2)) {
             /* Basic Machine CPUs */
-            struct sysib_122 sysib;
+            SysIB_122 sysib;
 
             memset(&sysib, 0, sizeof(sysib));
             stl_p(&sysib.capability, 0x443afc29);
@@ -260,7 +260,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
         {
             if ((sel1 == 2) && (sel2 == 1)) {
                 /* LPAR CPU */
-                struct sysib_221 sysib;
+                SysIB_221 sysib;
 
                 memset(&sysib, 0, sizeof(sysib));
                 /* XXX make different for different CPUs? */
@@ -271,7 +271,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
                 cpu_physical_memory_write(a0, &sysib, sizeof(sysib));
             } else if ((sel1 == 2) && (sel2 == 2)) {
                 /* LPAR CPUs */
-                struct sysib_222 sysib;
+                SysIB_222 sysib;
 
                 memset(&sysib, 0, sizeof(sysib));
                 stw_p(&sysib.lpar_num, 0);
@@ -295,7 +295,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
         {
             if ((sel1 == 2) && (sel2 == 2)) {
                 /* VM CPUs */
-                struct sysib_322 sysib;
+                SysIB_322 sysib;
 
                 memset(&sysib, 0, sizeof(sysib));
                 sysib.count = 1;
