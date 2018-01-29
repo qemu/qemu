@@ -36,6 +36,7 @@
 #include "hw/s390x/ebcdic.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
+#include "hw/s390x/s390_flic.h"
 #endif
 
 /* #define DEBUG_HELPER */
@@ -427,6 +428,59 @@ void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
     qemu_mutex_lock_iothread();
     ioinst_handle_stsch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
+}
+
+uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
+{
+    const uintptr_t ra = GETPC();
+    S390CPU *cpu = s390_env_get_cpu(env);
+    QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
+    QEMUS390FlicIO *io = NULL;
+    LowCore *lowcore;
+
+    if (addr & 0x3) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
+    }
+
+    qemu_mutex_lock_iothread();
+    io = qemu_s390_flic_dequeue_io(flic, env->cregs[6]);
+    if (!io) {
+        qemu_mutex_unlock_iothread();
+        return 0;
+    }
+
+    if (addr) {
+        struct {
+            uint16_t id;
+            uint16_t nr;
+            uint32_t parm;
+        } intc = {
+            .id = cpu_to_be16(io->id),
+            .nr = cpu_to_be16(io->nr),
+            .parm = cpu_to_be32(io->parm),
+        };
+
+        if (s390_cpu_virt_mem_write(cpu, addr, 0, &intc, sizeof(intc))) {
+            /* writing failed, reinject and properly clean up */
+            s390_io_interrupt(io->id, io->nr, io->parm, io->word);
+            qemu_mutex_unlock_iothread();
+            g_free(io);
+            s390_cpu_virt_mem_handle_exc(cpu, ra);
+            return 0;
+        }
+    } else {
+        /* no protection applies */
+        lowcore = cpu_map_lowcore(env);
+        lowcore->subchannel_id = cpu_to_be16(io->id);
+        lowcore->subchannel_nr = cpu_to_be16(io->nr);
+        lowcore->io_int_parm = cpu_to_be32(io->parm);
+        lowcore->io_int_word = cpu_to_be32(io->word);
+        cpu_unmap_lowcore(lowcore);
+    }
+
+    g_free(io);
+    qemu_mutex_unlock_iothread();
+    return 1;
 }
 
 void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)

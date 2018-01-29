@@ -170,6 +170,7 @@ DEF_HELPER_4(schm, void, env, i64, i64, i64)
 DEF_HELPER_3(ssch, void, env, i64, i64)
 DEF_HELPER_2(stcrw, void, env, i64)
 DEF_HELPER_3(stsch, void, env, i64, i64)
+DEF_HELPER_2(tpi, i32, env, i64)
 DEF_HELPER_3(tsch, void, env, i64, i64)
 DEF_HELPER_2(chsc, void, env, i64)
 #endif

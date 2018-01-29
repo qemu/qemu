@@ -4199,6 +4199,14 @@ static ExitStatus op_stcrw(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_tpi(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_tpi(cc_op, cpu_env, o->addr1);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_tsch(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);

@@ -1063,6 +1063,7 @@
     C(0xb233, SSCH,    S,     Z,   0, insn, 0, 0, ssch, 0)
     C(0xb239, STCRW,   S,     Z,   0, insn, 0, 0, stcrw, 0)
     C(0xb234, STSCH,   S,     Z,   0, insn, 0, 0, stsch, 0)
+    C(0xb236, TPI ,    S,     Z,   la2, 0, 0, 0, tpi, 0)
     C(0xb235, TSCH,    S,     Z,   0, insn, 0, 0, tsch, 0)
     /* ??? Not listed in PoO ninth edition, but there's a linux driver that
        uses it: "A CHSC subchannel is usually present on LPAR only."  */
