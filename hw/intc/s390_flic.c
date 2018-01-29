@@ -108,6 +108,7 @@ static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
                                  uint8_t isc, uint8_t flags)
 {
     QEMUS390FLICState *flic = QEMU_S390_FLIC(fs);
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_GET_CLASS(fs);
     bool flag = flags & S390_ADAPTER_SUPPRESSIBLE;
     uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
 
@@ -116,7 +117,7 @@ static int qemu_s390_inject_airq(S390FLICState *fs, uint8_t type,
         return 0;
     }
 
-    s390_io_interrupt(0, 0, 0, io_int_word);
+    fsc->inject_io(fs, 0, 0, 0, io_int_word);
 
     if (flag && (flic->simm & AIS_MODE_MASK(isc))) {
         flic->nimm |= AIS_MODE_MASK(isc);
