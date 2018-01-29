@@ -18,6 +18,7 @@
 #include "qapi-types.h"
 #include "qemu/option.h"
 #include "sysemu/tpm.h"
+#include "qapi/error.h"
 
 #define TYPE_TPM_BACKEND "tpm-backend"
 #define TPM_BACKEND(obj) \
@@ -84,7 +85,7 @@ struct TPMBackendClass {
 
     TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
 
-    void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd);
+    void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd, Error **errp);
 };
 
 /**

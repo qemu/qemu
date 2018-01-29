@@ -41,7 +41,7 @@ typedef struct TPMIfClass {
     InterfaceClass parent_class;
 
     enum TpmModel model;
-    void (*request_completed)(TPMIf *obj);
+    void (*request_completed)(TPMIf *obj, int ret);
     enum TPMVersion (*get_version)(TPMIf *obj);
 } TPMIfClass;
 

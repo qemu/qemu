@@ -80,10 +80,11 @@ static int tpm_passthrough_unix_read(int fd, uint8_t *buf, uint32_t len)
     }
     return ret;
 }
-static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
-                                        const uint8_t *in, uint32_t in_len,
-                                        uint8_t *out, uint32_t out_len,
-                                        bool *selftest_done)
+
+static void tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
+                                         const uint8_t *in, uint32_t in_len,
+                                         uint8_t *out, uint32_t out_len,
+                                         bool *selftest_done, Error **errp)
 {
     ssize_t ret;
     bool is_selftest;
@@ -98,9 +99,8 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
     ret = qemu_write_full(tpm_pt->tpm_fd, in, in_len);
     if (ret != in_len) {
         if (!tpm_pt->tpm_op_canceled || errno != ECANCELED) {
-            error_report("tpm_passthrough: error while transmitting data "
-                         "to TPM: %s (%i)",
-                         strerror(errno), errno);
+            error_setg_errno(errp, errno, "tpm_passthrough: error while "
+                             "transmitting data to TPM");
         }
         goto err_exit;
     }
@@ -110,15 +110,14 @@ static int tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
     ret = tpm_passthrough_unix_read(tpm_pt->tpm_fd, out, out_len);
     if (ret < 0) {
         if (!tpm_pt->tpm_op_canceled || errno != ECANCELED) {
-            error_report("tpm_passthrough: error while reading data from "
-                         "TPM: %s (%i)",
-                         strerror(errno), errno);
+            error_setg_errno(errp, errno, "tpm_passthrough: error while "
+                             "reading data from TPM");
         }
     } else if (ret < sizeof(struct tpm_resp_hdr) ||
                tpm_cmd_get_size(out) != ret) {
         ret = -1;
-        error_report("tpm_passthrough: received invalid response "
-                     "packet from TPM");
+        error_setg_errno(errp, errno, "tpm_passthrough: received invalid "
+                     "response packet from TPM");
     }
 
     if (is_selftest && (ret >= sizeof(struct tpm_resp_hdr))) {
@@ -131,18 +130,18 @@ err_exit:
     }
 
     tpm_pt->tpm_executing = false;
-
-    return ret;
 }
 
-static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
+static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
+                                           Error **errp)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
     DPRINTF("tpm_passthrough: processing command %p\n", cmd);
 
     tpm_passthrough_unix_tx_bufs(tpm_pt, cmd->in, cmd->in_len,
-                                 cmd->out, cmd->out_len, &cmd->selftest_done);
+                                 cmd->out, cmd->out_len, &cmd->selftest_done,
+                                 errp);
 }
 
 static void tpm_passthrough_reset(TPMBackend *tb)

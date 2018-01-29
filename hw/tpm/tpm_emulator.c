@@ -183,28 +183,19 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number,
     return 0;
 }
 
-static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
+static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
+                                        Error **errp)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    Error *err = NULL;
 
     DPRINTF("processing TPM command");
 
-    if (tpm_emulator_set_locality(tpm_emu, cmd->locty, &err) < 0) {
-        goto error;
-    }
-
-    if (tpm_emulator_unix_tx_bufs(tpm_emu, cmd->in, cmd->in_len,
+    if (tpm_emulator_set_locality(tpm_emu, cmd->locty, errp) < 0 ||
+        tpm_emulator_unix_tx_bufs(tpm_emu, cmd->in, cmd->in_len,
                                   cmd->out, cmd->out_len,
-                                  &cmd->selftest_done, &err) < 0) {
-        goto error;
+                                  &cmd->selftest_done, errp) < 0) {
+        tpm_util_write_fatal_error_response(cmd->out, cmd->out_len);
     }
-
-    return;
-
-error:
-    tpm_util_write_fatal_error_response(cmd->out, cmd->out_len);
-    error_report_err(err);
 }
 
 static int tpm_emulator_probe_caps(TPMEmulator *tpm_emu)

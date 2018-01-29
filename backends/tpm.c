@@ -27,7 +27,7 @@ static void tpm_backend_request_completed(void *opaque, int ret)
     TPMBackend *s = TPM_BACKEND(opaque);
     TPMIfClass *tic = TPM_IF_GET_CLASS(s->tpmif);
 
-    tic->request_completed(s->tpmif);
+    tic->request_completed(s->tpmif, ret);
 
     /* no need for atomic, as long the BQL is taken */
     s->cmd = NULL;
@@ -38,8 +38,13 @@ static int tpm_backend_worker_thread(gpointer data)
 {
     TPMBackend *s = TPM_BACKEND(data);
     TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+    Error *err = NULL;
 
-    k->handle_request(s, s->cmd);
+    k->handle_request(s, s->cmd, &err);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
 
     return 0;
 }
