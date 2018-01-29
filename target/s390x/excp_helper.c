@@ -433,10 +433,12 @@ void s390_cpu_do_interrupt(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
+    bool stopped = false;
 
     qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
                   __func__, cs->exception_index, env->psw.addr);
 
+try_deliver:
     /* handle machine checks */
     if (cs->exception_index == -1 && s390_cpu_has_mcck_int(cpu)) {
         cs->exception_index = EXCP_MCHK;
@@ -479,19 +481,29 @@ void s390_cpu_do_interrupt(CPUState *cs)
         break;
     case EXCP_STOP:
         do_stop_interrupt(env);
+        stopped = true;
         break;
     }
 
-    /* WAIT PSW during interrupt injection or STOP interrupt */
-    if (cs->exception_index == EXCP_HLT) {
-        /* don't trigger a cpu_loop_exit(), use an interrupt instead */
-        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HALT);
+    if (cs->exception_index != -1 && !stopped) {
+        /* check if there are more pending interrupts to deliver */
+        cs->exception_index = -1;
+        goto try_deliver;
     }
     cs->exception_index = -1;
 
     /* we might still have pending interrupts, but not deliverable */
     if (!env->pending_int) {
         cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+    }
+
+    /* WAIT PSW during interrupt injection or STOP interrupt */
+    if ((env->psw.mask & PSW_MASK_WAIT) || stopped) {
+        /* don't trigger a cpu_loop_exit(), use an interrupt instead */
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HALT);
+    } else if (cs->halted) {
+        /* unhalt if we had a WAIT PSW somehwere in our injection chain */
+        s390_cpu_unhalt(cpu);
     }
 }
 
