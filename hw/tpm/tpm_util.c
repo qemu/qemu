@@ -106,20 +106,16 @@ const PropertyInfo qdev_prop_tpm = {
 void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len)
 {
     if (out_len >= sizeof(struct tpm_resp_hdr)) {
-        struct tpm_resp_hdr *resp = (struct tpm_resp_hdr *)out;
-
-        resp->tag = cpu_to_be16(TPM_TAG_RSP_COMMAND);
-        resp->len = cpu_to_be32(sizeof(struct tpm_resp_hdr));
-        resp->errcode = cpu_to_be32(TPM_FAIL);
+        stw_be_p(out, TPM_TAG_RSP_COMMAND);
+        stl_be_p(out + 2, sizeof(struct tpm_resp_hdr));
+        stl_be_p(out + 6, TPM_FAIL);
     }
 }
 
 bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
 {
-    struct tpm_req_hdr *hdr = (struct tpm_req_hdr *)in;
-
-    if (in_len >= sizeof(*hdr)) {
-        return (be32_to_cpu(hdr->ordinal) == TPM_ORD_ContinueSelfTest);
+    if (in_len >= sizeof(struct tpm_req_hdr)) {
+        return tpm_cmd_get_ordinal(in) == TPM_ORD_ContinueSelfTest;
     }
 
     return false;
@@ -129,12 +125,11 @@ bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
  * Send request to a TPM device. We expect a response within one second.
  */
 static int tpm_util_request(int fd,
-                            unsigned char *request,
+                            const void *request,
                             size_t requestlen,
-                            unsigned char *response,
+                            void *response,
                             size_t responselen)
 {
-    struct tpm_resp_hdr *resp;
     fd_set readfds;
     int n;
     struct timeval tv = {
@@ -164,9 +159,8 @@ static int tpm_util_request(int fd,
         return -EFAULT;
     }
 
-    resp = (struct tpm_resp_hdr *)response;
     /* check the header */
-    if (be32_to_cpu(resp->len) != n) {
+    if (tpm_cmd_get_size(response) != n) {
         return -EMSGSIZE;
     }
 
@@ -178,12 +172,11 @@ static int tpm_util_request(int fd,
  * (error response is fine).
  */
 static int tpm_util_test(int fd,
-                         unsigned char *request,
+                         const void *request,
                          size_t requestlen,
                          uint16_t *return_tag)
 {
-    struct tpm_resp_hdr *resp;
-    unsigned char buf[1024];
+    char buf[1024];
     ssize_t ret;
 
     ret = tpm_util_request(fd, request, requestlen,
@@ -192,8 +185,7 @@ static int tpm_util_test(int fd,
         return ret;
     }
 
-    resp = (struct tpm_resp_hdr *)buf;
-    *return_tag = be16_to_cpu(resp->tag);
+    *return_tag = tpm_cmd_get_tag(buf);
 
     return 0;
 }
@@ -228,7 +220,7 @@ int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version)
     int ret;
 
     /* Send TPM 2 command */
-    ret = tpm_util_test(tpm_fd, (unsigned char *)&test_req_tpm2,
+    ret = tpm_util_test(tpm_fd, &test_req_tpm2,
                         sizeof(test_req_tpm2), &return_tag);
     /* TPM 2 would respond with a tag of TPM2_ST_NO_SESSIONS */
     if (!ret && return_tag == TPM2_ST_NO_SESSIONS) {
@@ -237,7 +229,7 @@ int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version)
     }
 
     /* Send TPM 1.2 command */
-    ret = tpm_util_test(tpm_fd, (unsigned char *)&test_req,
+    ret = tpm_util_test(tpm_fd, &test_req,
                         sizeof(test_req), &return_tag);
     if (!ret && return_tag == TPM_TAG_RSP_COMMAND) {
         *tpm_version = TPM_VERSION_1_2;
@@ -253,7 +245,6 @@ int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version)
 int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
                              size_t *buffersize)
 {
-    unsigned char buf[1024];
     int ret;
 
     switch (tpm_version) {
@@ -277,26 +268,27 @@ int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
             struct tpm_resp_hdr hdr;
             uint32_t len;
             uint32_t buffersize;
-        } QEMU_PACKED *tpm_resp = (struct tpm_resp_get_buffer_size *)buf;
+        } QEMU_PACKED tpm_resp;
 
-        ret = tpm_util_request(tpm_fd, (unsigned char *)&tpm_get_buffer_size,
-                               sizeof(tpm_get_buffer_size), buf, sizeof(buf));
+        ret = tpm_util_request(tpm_fd, &tpm_get_buffer_size,
+                               sizeof(tpm_get_buffer_size),
+                               &tpm_resp, sizeof(tpm_resp));
         if (ret < 0) {
             return ret;
         }
 
-        if (be32_to_cpu(tpm_resp->hdr.len) != sizeof(*tpm_resp) ||
-            be32_to_cpu(tpm_resp->len) != sizeof(uint32_t)) {
+        if (be32_to_cpu(tpm_resp.hdr.len) != sizeof(tpm_resp) ||
+            be32_to_cpu(tpm_resp.len) != sizeof(uint32_t)) {
             DPRINTF("tpm_resp->hdr.len = %u, expected = %zu\n",
-                    be32_to_cpu(tpm_resp->hdr.len), sizeof(*tpm_resp));
+                    be32_to_cpu(tpm_resp.hdr.len), sizeof(tpm_resp));
             DPRINTF("tpm_resp->len = %u, expected = %zu\n",
-                    be32_to_cpu(tpm_resp->len), sizeof(uint32_t));
+                    be32_to_cpu(tpm_resp.len), sizeof(uint32_t));
             error_report("tpm_util: Got unexpected response to "
                          "TPM_GetCapability; errcode: 0x%x",
-                         be32_to_cpu(tpm_resp->hdr.errcode));
+                         be32_to_cpu(tpm_resp.hdr.errcode));
             return -EFAULT;
         }
-        *buffersize = be32_to_cpu(tpm_resp->buffersize);
+        *buffersize = be32_to_cpu(tpm_resp.buffersize);
         break;
     }
     case TPM_VERSION_2_0: {
@@ -324,27 +316,28 @@ int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
             uint32_t value1;
             uint32_t property2;
             uint32_t value2;
-        } QEMU_PACKED *tpm2_resp = (struct tpm2_resp_get_buffer_size *)buf;
+        } QEMU_PACKED tpm2_resp;
 
-        ret = tpm_util_request(tpm_fd, (unsigned char *)&tpm2_get_buffer_size,
-                               sizeof(tpm2_get_buffer_size), buf, sizeof(buf));
+        ret = tpm_util_request(tpm_fd, &tpm2_get_buffer_size,
+                               sizeof(tpm2_get_buffer_size),
+                               &tpm2_resp, sizeof(tpm2_resp));
         if (ret < 0) {
             return ret;
         }
 
-        if (be32_to_cpu(tpm2_resp->hdr.len) != sizeof(*tpm2_resp) ||
-            be32_to_cpu(tpm2_resp->count) != 2) {
+        if (be32_to_cpu(tpm2_resp.hdr.len) != sizeof(tpm2_resp) ||
+            be32_to_cpu(tpm2_resp.count) != 2) {
             DPRINTF("tpm2_resp->hdr.len = %u, expected = %zu\n",
-                    be32_to_cpu(tpm2_resp->hdr.len), sizeof(*tpm2_resp));
+                    be32_to_cpu(tpm2_resp.hdr.len), sizeof(tpm2_resp));
             DPRINTF("tpm2_resp->len = %u, expected = %u\n",
-                    be32_to_cpu(tpm2_resp->count), 2);
+                    be32_to_cpu(tpm2_resp.count), 2);
             error_report("tpm_util: Got unexpected response to "
                          "TPM2_GetCapability; errcode: 0x%x",
-                         be32_to_cpu(tpm2_resp->hdr.errcode));
+                         be32_to_cpu(tpm2_resp.hdr.errcode));
             return -EFAULT;
         }
-        *buffersize = MAX(be32_to_cpu(tpm2_resp->value1),
-                          be32_to_cpu(tpm2_resp->value2));
+        *buffersize = MAX(be32_to_cpu(tpm2_resp.value1),
+                          be32_to_cpu(tpm2_resp.value2));
         break;
     }
     case TPM_VERSION_UNSPEC:

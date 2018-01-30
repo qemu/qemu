@@ -393,7 +393,7 @@ static void tpm_tis_prep_abort(TPMState *s, uint8_t locty, uint8_t newlocty)
 /*
  * Callback from the TPM to indicate that the response was received.
  */
-static void tpm_tis_request_completed(TPMIf *ti)
+static void tpm_tis_request_completed(TPMIf *ti, int ret)
 {
     TPMState *s = TPM(ti);
     uint8_t locty = s->cmd.locty;
@@ -405,6 +405,7 @@ static void tpm_tis_request_completed(TPMIf *ti)
         }
     }
 
+    /* FIXME: report error if ret != 0 */
     tpm_tis_sts_set(&s->loc[locty],
                     TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE);
     s->loc[locty].state = TPM_TIS_STATE_COMPLETION;

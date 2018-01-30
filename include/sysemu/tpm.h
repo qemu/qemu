@@ -41,14 +41,17 @@ typedef struct TPMIfClass {
     InterfaceClass parent_class;
 
     enum TpmModel model;
-    void (*request_completed)(TPMIf *obj);
+    void (*request_completed)(TPMIf *obj, int ret);
     enum TPMVersion (*get_version)(TPMIf *obj);
 } TPMIfClass;
 
 #define TYPE_TPM_TIS                "tpm-tis"
+#define TYPE_TPM_CRB                "tpm-crb"
 
 #define TPM_IS_TIS(chr)                             \
     object_dynamic_cast(OBJECT(chr), TYPE_TPM_TIS)
+#define TPM_IS_CRB(chr)                             \
+    object_dynamic_cast(OBJECT(chr), TYPE_TPM_CRB)
 
 /* returns NULL unless there is exactly one TPM device */
 static inline TPMIf *tpm_find(void)

@@ -31,9 +31,24 @@ bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
 
 int tpm_util_test_tpmdev(int tpm_fd, TPMVersion *tpm_version);
 
+static inline uint16_t tpm_cmd_get_tag(const void *b)
+{
+    return lduw_be_p(b);
+}
+
 static inline uint32_t tpm_cmd_get_size(const void *b)
 {
-    return be32_to_cpu(*(const uint32_t *)(b + 2));
+    return ldl_be_p(b + 2);
+}
+
+static inline uint32_t tpm_cmd_get_ordinal(const void *b)
+{
+    return ldl_be_p(b + 6);
+}
+
+static inline uint32_t tpm_cmd_get_errcode(const void *b)
+{
+    return ldl_be_p(b + 6);
 }
 
 int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,

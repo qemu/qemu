@@ -120,7 +120,6 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
 {
     ssize_t ret;
     bool is_selftest = false;
-    const struct tpm_resp_hdr *hdr = NULL;
 
     if (selftest_done) {
         *selftest_done = false;
@@ -132,22 +131,21 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
         return -1;
     }
 
-    ret = qio_channel_read_all(tpm_emu->data_ioc, (char *)out, sizeof(*hdr),
-                               err);
+    ret = qio_channel_read_all(tpm_emu->data_ioc, (char *)out,
+              sizeof(struct tpm_resp_hdr), err);
     if (ret != 0) {
         return -1;
     }
 
-    hdr = (struct tpm_resp_hdr *)out;
-    out += sizeof(*hdr);
-    ret = qio_channel_read_all(tpm_emu->data_ioc, (char *)out,
-                               be32_to_cpu(hdr->len) - sizeof(*hdr) , err);
+    ret = qio_channel_read_all(tpm_emu->data_ioc,
+              (char *)out + sizeof(struct tpm_resp_hdr),
+              tpm_cmd_get_size(out) - sizeof(struct tpm_resp_hdr), err);
     if (ret != 0) {
         return -1;
     }
 
     if (is_selftest) {
-        *selftest_done = (be32_to_cpu(hdr->errcode) == 0);
+        *selftest_done = tpm_cmd_get_errcode(out) == 0;
     }
 
     return 0;
@@ -185,28 +183,19 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number,
     return 0;
 }
 
-static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd)
+static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
+                                        Error **errp)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    Error *err = NULL;
 
     DPRINTF("processing TPM command");
 
-    if (tpm_emulator_set_locality(tpm_emu, cmd->locty, &err) < 0) {
-        goto error;
-    }
-
-    if (tpm_emulator_unix_tx_bufs(tpm_emu, cmd->in, cmd->in_len,
+    if (tpm_emulator_set_locality(tpm_emu, cmd->locty, errp) < 0 ||
+        tpm_emulator_unix_tx_bufs(tpm_emu, cmd->in, cmd->in_len,
                                   cmd->out, cmd->out_len,
-                                  &cmd->selftest_done, &err) < 0) {
-        goto error;
+                                  &cmd->selftest_done, errp) < 0) {
+        tpm_util_write_fatal_error_response(cmd->out, cmd->out_len);
     }
-
-    return;
-
-error:
-    tpm_util_write_fatal_error_response(cmd->out, cmd->out_len);
-    error_report_err(err);
 }
 
 static int tpm_emulator_probe_caps(TPMEmulator *tpm_emu)
@@ -320,7 +309,9 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
 static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    ptm_init init;
+    ptm_init init = {
+        .u.req.init_flags = 0,
+    };
     ptm_res res;
 
     if (buffersize != 0 &&
