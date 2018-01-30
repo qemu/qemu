@@ -75,6 +75,8 @@ class Arguments:
         res = []
         for arg in arg_str.split(","):
             arg = arg.strip()
+            if not arg:
+                raise ValueError("Empty argument (did you forget to use 'void'?)")
             if arg == 'void':
                 continue
 
@@ -173,7 +175,7 @@ class Event(object):
         props : list of str
             Property names.
         fmt : str, list of str
-            Event printing format (or formats).
+            Event printing format string(s).
         args : Arguments
             Event arguments.
         orig : Event or None
@@ -237,9 +239,9 @@ class Event(object):
         if "tcg-exec" in props:
             raise ValueError("Invalid property 'tcg-exec'")
         if "tcg" not in props and not isinstance(fmt, str):
-            raise ValueError("Only events with 'tcg' property can have two formats")
+            raise ValueError("Only events with 'tcg' property can have two format strings")
         if "tcg" in props and isinstance(fmt, str):
-            raise ValueError("Events with 'tcg' property must have two formats")
+            raise ValueError("Events with 'tcg' property must have two format strings")
 
         event = Event(name, props, fmt, args)
 
@@ -263,7 +265,7 @@ class Event(object):
     _FMT = re.compile("(%[\d\.]*\w+|%.*PRI\S+)")
 
     def formats(self):
-        """List of argument print formats."""
+        """List conversion specifiers in the argument print format string."""
         assert not isinstance(self.fmt, list)
         return self._FMT.findall(self.fmt)
 
@@ -300,13 +302,18 @@ def read_events(fobj):
     """
 
     events = []
-    for line in fobj:
+    for lineno, line in enumerate(fobj, 1):
         if not line.strip():
             continue
         if line.lstrip().startswith('#'):
             continue
 
-        event = Event.build(line)
+        try:
+            event = Event.build(line)
+        except ValueError as e:
+            arg0 = 'Error on line %d: %s' % (lineno, e.args[0])
+            e.args = (arg0,) + e.args[1:]
+            raise
 
         # transform TCG-enabled events
         if "tcg" not in event.properties:
