@@ -1234,7 +1234,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
     cpu->created = true;
     qemu_cond_signal(&qemu_cpu_cond);
 
-    while (1) {
+    do {
         qemu_mutex_unlock_iothread();
         do {
             int sig;
@@ -1246,8 +1246,9 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
         }
         qemu_mutex_lock_iothread();
         qemu_wait_io_event(cpu);
-    }
+    } while (!cpu->unplug);
 
+    rcu_unregister_thread();
     return NULL;
 #endif
 }
