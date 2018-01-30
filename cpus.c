@@ -1473,6 +1473,7 @@ static void *qemu_hax_cpu_thread_fn(void *arg)
     CPUState *cpu = arg;
     int r;
 
+    rcu_register_thread();
     qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
 
@@ -1484,7 +1485,7 @@ static void *qemu_hax_cpu_thread_fn(void *arg)
     hax_init_vcpu(cpu);
     qemu_cond_signal(&qemu_cpu_cond);
 
-    while (1) {
+    do {
         if (cpu_can_run(cpu)) {
             r = hax_smp_cpu_exec(cpu);
             if (r == EXCP_DEBUG) {
@@ -1493,7 +1494,8 @@ static void *qemu_hax_cpu_thread_fn(void *arg)
         }
 
         qemu_wait_io_event(cpu);
-    }
+    } while (!cpu->unplug || cpu_can_run(cpu));
+    rcu_unregister_thread();
     return NULL;
 }
 
