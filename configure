@@ -1933,9 +1933,9 @@ int main(int argc, char *argv[]) {
 EOF
 
 if compile_object ; then
-    if grep -q BiGeNdIaN $TMPO ; then
+    if strings -a $TMPO | grep -q BiGeNdIaN ; then
         bigendian="yes"
-    elif grep -q LiTtLeEnDiAn $TMPO ; then
+    elif strings -a $TMPO | grep -q LiTtLeEnDiAn ; then
         bigendian="no"
     else
         echo big/little test failed
