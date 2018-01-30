@@ -1752,19 +1752,14 @@ void resume_all_vcpus(void)
     }
 }
 
-void cpu_remove(CPUState *cpu)
+void cpu_remove_sync(CPUState *cpu)
 {
     cpu->stop = true;
     cpu->unplug = true;
     qemu_cpu_kick(cpu);
-}
-
-void cpu_remove_sync(CPUState *cpu)
-{
-    cpu_remove(cpu);
-    while (cpu->created) {
-        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
-    }
+    qemu_mutex_unlock_iothread();
+    qemu_thread_join(cpu->thread);
+    qemu_mutex_lock_iothread();
 }
 
 /* For temporary buffers for forming a name */
