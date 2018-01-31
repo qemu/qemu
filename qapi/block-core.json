@@ -3393,6 +3393,20 @@
             '*preallocation':   'PreallocMode' } }
 
 ##
+# @BlockdevCreateOptionsNfs:
+#
+# Driver specific image creation options for NFS.
+#
+# @location         Where to store the new image file
+# @size             Size of the virtual disk in bytes
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsNfs',
+  'data': { 'location':         'BlockdevOptionsNfs',
+            'size':             'size' } }
+
+##
 # @BlockdevQcow2Version:
 #
 # @v2:  The original QCOW2 format as introduced in qemu 0.10 (version 2)
@@ -3491,7 +3505,7 @@
       'iscsi':          'BlockdevCreateNotSupported',
       'luks':           'BlockdevCreateNotSupported',
       'nbd':            'BlockdevCreateNotSupported',
-      'nfs':            'BlockdevCreateNotSupported',
+      'nfs':            'BlockdevCreateOptionsNfs',
       'null-aio':       'BlockdevCreateNotSupported',
       'null-co':        'BlockdevCreateNotSupported',
       'nvme':           'BlockdevCreateNotSupported',

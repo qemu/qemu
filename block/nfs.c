@@ -551,33 +551,45 @@ out:
     return ret;
 }
 
-static int64_t nfs_client_open_qdict(NFSClient *client, QDict *options,
-                                     int flags, int open_flags, Error **errp)
+static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
+                                                     Error **errp)
 {
     BlockdevOptionsNfs *opts = NULL;
     QObject *crumpled = NULL;
     Visitor *v;
     Error *local_err = NULL;
-    int ret;
 
     crumpled = qdict_crumple(options, errp);
     if (crumpled == NULL) {
-        return -EINVAL;
+        return NULL;
     }
 
     v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevOptionsNfs(v, NULL, &opts, &local_err);
     visit_free(v);
+    qobject_decref(crumpled);
 
     if (local_err) {
-        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    return opts;
+}
+
+static int64_t nfs_client_open_qdict(NFSClient *client, QDict *options,
+                                     int flags, int open_flags, Error **errp)
+{
+    BlockdevOptionsNfs *opts;
+    int ret;
+
+    opts = nfs_options_qdict_to_qapi(options, errp);
+    if (opts == NULL) {
         ret = -EINVAL;
         goto fail;
     }
 
     ret = nfs_client_open(client, opts, flags, open_flags, errp);
 fail:
-    qobject_decref(crumpled);
     qapi_free_BlockdevOptionsNfs(opts);
     return ret;
 }
@@ -614,18 +626,43 @@ static QemuOptsList nfs_create_opts = {
     }
 };
 
-static int coroutine_fn nfs_file_co_create_opts(const char *url, QemuOpts *opts,
-                                                Error **errp)
+static int nfs_file_co_create(BlockdevCreateOptions *options, Error **errp)
 {
-    int64_t ret, total_size;
+    BlockdevCreateOptionsNfs *opts = &options->u.nfs;
     NFSClient *client = g_new0(NFSClient, 1);
-    QDict *options = NULL;
+    int ret;
+
+    assert(options->driver == BLOCKDEV_DRIVER_NFS);
 
     client->aio_context = qemu_get_aio_context();
 
+    ret = nfs_client_open(client, opts->location, O_CREAT, 0, errp);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = nfs_ftruncate(client->context, client->fh, opts->size);
+    nfs_client_close(client);
+
+out:
+    g_free(client);
+    return ret;
+}
+
+static int coroutine_fn nfs_file_co_create_opts(const char *url, QemuOpts *opts,
+                                                Error **errp)
+{
+    BlockdevCreateOptions *create_options;
+    BlockdevCreateOptionsNfs *nfs_opts;
+    QDict *options;
+    int ret;
+
+    create_options = g_new0(BlockdevCreateOptions, 1);
+    create_options->driver = BLOCKDEV_DRIVER_NFS;
+    nfs_opts = &create_options->u.nfs;
+
     /* Read out options */
-    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                          BDRV_SECTOR_SIZE);
+    nfs_opts->size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                              BDRV_SECTOR_SIZE);
 
     options = qdict_new();
     ret = nfs_parse_uri(url, options, errp);
@@ -633,15 +670,21 @@ static int coroutine_fn nfs_file_co_create_opts(const char *url, QemuOpts *opts,
         goto out;
     }
 
-    ret = nfs_client_open_qdict(client, options, O_CREAT, 0, errp);
+    nfs_opts->location = nfs_options_qdict_to_qapi(options, errp);
+    if (nfs_opts->location == NULL) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = nfs_file_co_create(create_options, errp);
     if (ret < 0) {
         goto out;
     }
-    ret = nfs_ftruncate(client->context, client->fh, total_size);
-    nfs_client_close(client);
+
+    ret = 0;
 out:
     QDECREF(options);
-    g_free(client);
+    qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
 
@@ -828,6 +871,7 @@ static BlockDriver bdrv_nfs = {
 
     .bdrv_file_open                 = nfs_file_open,
     .bdrv_close                     = nfs_file_close,
+    .bdrv_co_create                 = nfs_file_co_create,
     .bdrv_co_create_opts            = nfs_file_co_create_opts,
     .bdrv_reopen_prepare            = nfs_reopen_prepare,
 
