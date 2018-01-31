@@ -3377,6 +3377,22 @@
             '*nocow':           'bool' } }
 
 ##
+# @BlockdevCreateOptionsGluster:
+#
+# Driver specific image creation options for gluster.
+#
+# @location         Where to store the new image file
+# @size             Size of the virtual disk in bytes
+# @preallocation    Preallocation mode for the new image (default: off)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsGluster',
+  'data': { 'location':         'BlockdevOptionsGluster',
+            'size':             'size',
+            '*preallocation':   'PreallocMode' } }
+
+##
 # @BlockdevQcow2Version:
 #
 # @v2:  The original QCOW2 format as introduced in qemu 0.10 (version 2)
@@ -3450,7 +3466,7 @@
       'file':           'BlockdevCreateOptionsFile',
       'ftp':            'BlockdevCreateNotSupported',
       'ftps':           'BlockdevCreateNotSupported',
-      'gluster':        'BlockdevCreateNotSupported',
+      'gluster':        'BlockdevCreateOptionsGluster',
       'host_cdrom':     'BlockdevCreateNotSupported',
       'host_device':    'BlockdevCreateNotSupported',
       'http':           'BlockdevCreateNotSupported',
