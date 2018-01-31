@@ -28,10 +28,16 @@ static void virtio_gpu_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOGPU *g = &vgpu->vdev;
     DeviceState *vdev = DEVICE(&vgpu->vdev);
     int i;
+    Error *local_error = NULL;
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
     virtio_pci_force_virtio_1(vpci_dev);
-    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
+    object_property_set_bool(OBJECT(vdev), true, "realized", &local_error);
+
+    if (local_error) {
+        error_propagate(errp, local_error);
+        return;
+    }
 
     for (i = 0; i < g->conf.max_outputs; i++) {
         object_property_set_link(OBJECT(g->scanout[i].con),
