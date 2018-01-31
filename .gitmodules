@@ -40,3 +40,6 @@
 [submodule "capstone"]
 	path = capstone
 	url = git://git.qemu.org/capstone.git
+[submodule "roms/seabios-hppa"]
+	path = roms/seabios-hppa
+	url = git://github.com/hdeller/seabios-hppa.git

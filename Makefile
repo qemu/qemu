@@ -661,7 +661,8 @@ s390-ccw.img s390-netboot.img \
 spapr-rtas.bin slof.bin skiboot.lid \
 palcode-clipper \
 u-boot.e500 \
-qemu_vga.ndrv
+qemu_vga.ndrv \
+hppa-firmware.img
 else
 BLOBS=
 endif

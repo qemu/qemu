@@ -37,15 +37,52 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
 
+#ifdef CONFIG_USER_ONLY
     cpu->env.iaoq_f = tb->pc;
     cpu->env.iaoq_b = tb->cs_base;
-    cpu->env.psw_n = tb->flags & 1;
+#else
+    /* Recover the IAOQ values from the GVA + PRIV.  */
+    uint32_t priv = (tb->flags >> TB_FLAG_PRIV_SHIFT) & 3;
+    target_ulong cs_base = tb->cs_base;
+    target_ulong iasq_f = cs_base & ~0xffffffffull;
+    int32_t diff = cs_base;
+
+    cpu->env.iasq_f = iasq_f;
+    cpu->env.iaoq_f = (tb->pc & ~iasq_f) + priv;
+    if (diff) {
+        cpu->env.iaoq_b = cpu->env.iaoq_f + diff;
+    }
+#endif
+
+    cpu->env.psw_n = (tb->flags & PSW_N) != 0;
+}
+
+static bool hppa_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
 {
     info->mach = bfd_mach_hppa20;
     info->print_insn = print_insn_hppa;
+}
+
+static void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                         MMUAccessType access_type,
+                                         int mmu_idx, uintptr_t retaddr)
+{
+    HPPACPU *cpu = HPPA_CPU(cs);
+    CPUHPPAState *env = &cpu->env;
+
+    cs->exception_index = EXCP_UNALIGN;
+    if (env->psw & PSW_Q) {
+        /* ??? Needs tweaking for hppa64.  */
+        env->cr[CR_IOR] = addr;
+        env->cr[CR_ISR] = addr >> 32;
+    }
+
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
@@ -62,6 +99,14 @@ static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
     acc->parent_realize(dev, errp);
+
+#ifndef CONFIG_USER_ONLY
+    {
+        HPPACPU *cpu = HPPA_CPU(cs);
+        cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                        hppa_cpu_alarm_timer, cpu);
+    }
+#endif
 }
 
 /* Sort hppabetically by type name. */
@@ -106,8 +151,10 @@ static void hppa_cpu_initfn(Object *obj)
     CPUHPPAState *env = &cpu->env;
 
     cs->env_ptr = env;
+    cs->exception_index = -1;
     cpu_hppa_loaded_fr0(env);
     set_snan_bit_is_one(true, &env->fp_status);
+    cpu_hppa_put_psw(env, PSW_W);
 }
 
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
@@ -125,6 +172,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     dc->realize = hppa_cpu_realizefn;
 
     cc->class_by_name = hppa_cpu_class_by_name;
+    cc->has_work = hppa_cpu_has_work;
     cc->do_interrupt = hppa_cpu_do_interrupt;
     cc->cpu_exec_interrupt = hppa_cpu_exec_interrupt;
     cc->dump_state = hppa_cpu_dump_state;
@@ -132,7 +180,13 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     cc->synchronize_from_tb = hppa_cpu_synchronize_from_tb;
     cc->gdb_read_register = hppa_cpu_gdb_read_register;
     cc->gdb_write_register = hppa_cpu_gdb_write_register;
+#ifdef CONFIG_USER_ONLY
     cc->handle_mmu_fault = hppa_cpu_handle_mmu_fault;
+#else
+    cc->get_phys_page_debug = hppa_cpu_get_phys_page_debug;
+    dc->vmsd = &vmstate_hppa_cpu;
+#endif
+    cc->do_unaligned_access = hppa_cpu_do_unaligned_access;
     cc->disas_set_info = hppa_cpu_disas_set_info;
     cc->tcg_initialize = hppa_translate_init;
 

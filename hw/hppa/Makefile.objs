@@ -1,0 +1,1 @@
+obj-y += machine.o pci.o dino.o

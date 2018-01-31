@@ -22,6 +22,9 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
+
 
 void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
 {
@@ -32,7 +35,7 @@ void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
     cpu_loop_exit(cs);
 }
 
-static void QEMU_NORETURN dynexcp(CPUHPPAState *env, int excp, uintptr_t ra)
+void QEMU_NORETURN hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra)
 {
     HPPACPU *cpu = hppa_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
@@ -41,26 +44,26 @@ static void QEMU_NORETURN dynexcp(CPUHPPAState *env, int excp, uintptr_t ra)
     cpu_loop_exit_restore(cs, ra);
 }
 
-void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
+void HELPER(tsv)(CPUHPPAState *env, target_ureg cond)
 {
-    if (unlikely((target_long)cond < 0)) {
-        dynexcp(env, EXCP_SIGFPE, GETPC());
+    if (unlikely((target_sreg)cond < 0)) {
+        hppa_dynamic_excp(env, EXCP_OVERFLOW, GETPC());
     }
 }
 
-void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
+void HELPER(tcond)(CPUHPPAState *env, target_ureg cond)
 {
     if (unlikely(cond)) {
-        dynexcp(env, EXCP_SIGFPE, GETPC());
+        hppa_dynamic_excp(env, EXCP_COND, GETPC());
     }
 }
 
 static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
                            uint32_t mask, uintptr_t ra)
 {
+#ifdef CONFIG_USER_ONLY
     uint32_t old, new, cmp;
 
-#ifdef CONFIG_USER_ONLY
     uint32_t *haddr = g2h(addr - 1);
     old = *haddr;
     while (1) {
@@ -72,11 +75,12 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
         old = cmp;
     }
 #else
-#error "Not implemented."
+    /* FIXME -- we can do better.  */
+    cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
 #endif
 }
 
-static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,
+static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ureg val,
                       bool parallel)
 {
     uintptr_t ra = GETPC();
@@ -103,18 +107,18 @@ static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,
     }
 }
 
-void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+void HELPER(stby_b)(CPUHPPAState *env, target_ulong addr, target_ureg val)
 {
     do_stby_b(env, addr, val, false);
 }
 
 void HELPER(stby_b_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ulong val)
+                             target_ureg val)
 {
     do_stby_b(env, addr, val, true);
 }
 
-static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
+static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ureg val,
                       bool parallel)
 {
     uintptr_t ra = GETPC();
@@ -145,25 +149,45 @@ static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
     }
 }
 
-void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ulong val)
+void HELPER(stby_e)(CPUHPPAState *env, target_ulong addr, target_ureg val)
 {
     do_stby_e(env, addr, val, false);
 }
 
 void HELPER(stby_e_parallel)(CPUHPPAState *env, target_ulong addr,
-                             target_ulong val)
+                             target_ureg val)
 {
     do_stby_e(env, addr, val, true);
 }
 
-target_ulong HELPER(probe_r)(target_ulong addr)
+target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
+                          uint32_t level, uint32_t want)
 {
-    return page_check_range(addr, 1, PAGE_READ);
-}
+#ifdef CONFIG_USER_ONLY
+    return page_check_range(addr, 1, want);
+#else
+    int prot, excp;
+    hwaddr phys;
 
-target_ulong HELPER(probe_w)(target_ulong addr)
-{
-    return page_check_range(addr, 1, PAGE_WRITE);
+    /* Fail if the requested privilege level is higher than current.  */
+    if (level < (env->iaoq_f & 3)) {
+        return 0;
+    }
+
+    excp = hppa_get_physical_address(env, addr, level, 0, &phys, &prot);
+    if (excp >= 0) {
+        if (env->psw & PSW_Q) {
+            /* ??? Needs tweaking for hppa64.  */
+            env->cr[CR_IOR] = addr;
+            env->cr[CR_ISR] = addr >> 32;
+        }
+        if (excp == EXCP_DTLB_MISS) {
+            excp = EXCP_NA_DTLB_MISS;
+        }
+        hppa_dynamic_excp(env, excp, GETPC());
+    }
+    return (want & prot) != 0;
+#endif
 }
 
 void HELPER(loaded_fr0)(CPUHPPAState *env)
@@ -226,7 +250,7 @@ static void update_fr0_op(CPUHPPAState *env, uintptr_t ra)
     env->fr[0] = (uint64_t)shadow << 32;
 
     if (hard_exp & shadow) {
-        dynexcp(env, EXCP_SIGFPE, ra);
+        hppa_dynamic_excp(env, EXCP_ASSIST, ra);
     }
 }
 
@@ -592,3 +616,89 @@ float64 HELPER(fmpynfadd_d)(CPUHPPAState *env, float64 a, float64 b, float64 c)
     update_fr0_op(env, GETPC());
     return ret;
 }
+
+target_ureg HELPER(read_interval_timer)(void)
+{
+#ifdef CONFIG_USER_ONLY
+    /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.
+       Just pass through the host cpu clock ticks.  */
+    return cpu_get_host_ticks();
+#else
+    /* In system mode we have access to a decent high-resolution clock.
+       In order to make OS-level time accounting work with the cr16,
+       present it with a well-timed clock fixed at 250MHz.  */
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 2;
+#endif
+}
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(write_interval_timer)(CPUHPPAState *env, target_ureg val)
+{
+    HPPACPU *cpu = hppa_env_get_cpu(env);
+    uint64_t current = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t timeout;
+
+    /* Even in 64-bit mode, the comparator is always 32-bit.  But the
+       value we expose to the guest is 1/4 of the speed of the clock,
+       so moosh in 34 bits.  */
+    timeout = deposit64(current, 0, 34, (uint64_t)val << 2);
+
+    /* If the mooshing puts the clock in the past, advance to next round.  */
+    if (timeout < current + 1000) {
+        timeout += 1ULL << 34;
+    }
+
+    cpu->env.cr[CR_IT] = timeout;
+    timer_mod(cpu->alarm_timer, timeout);
+}
+
+void HELPER(halt)(CPUHPPAState *env)
+{
+    qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    helper_excp(env, EXCP_HLT);
+}
+
+void HELPER(reset)(CPUHPPAState *env)
+{
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    helper_excp(env, EXCP_HLT);
+}
+
+target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
+{
+    target_ulong psw = env->psw;
+    /* ??? On second reading this condition simply seems
+       to be undefined rather than a diagnosed trap.  */
+    if (nsm & ~psw & PSW_Q) {
+        hppa_dynamic_excp(env, EXCP_ILL, GETPC());
+    }
+    env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
+    return psw & PSW_SM;
+}
+
+void HELPER(rfi)(CPUHPPAState *env)
+{
+    /* ??? On second reading this condition simply seems
+       to be undefined rather than a diagnosed trap.  */
+    if (env->psw & (PSW_I | PSW_R | PSW_Q)) {
+        helper_excp(env, EXCP_ILL);
+    }
+    env->iasq_f = (uint64_t)env->cr[CR_IIASQ] << 32;
+    env->iasq_b = (uint64_t)env->cr_back[0] << 32;
+    env->iaoq_f = env->cr[CR_IIAOQ];
+    env->iaoq_b = env->cr_back[1];
+    cpu_hppa_put_psw(env, env->cr[CR_IPSW]);
+}
+
+void HELPER(rfi_r)(CPUHPPAState *env)
+{
+    env->gr[1] = env->shadow[0];
+    env->gr[8] = env->shadow[1];
+    env->gr[9] = env->shadow[2];
+    env->gr[16] = env->shadow[3];
+    env->gr[17] = env->shadow[4];
+    env->gr[24] = env->shadow[5];
+    env->gr[25] = env->shadow[6];
+    helper_rfi(env);
+}
+#endif
