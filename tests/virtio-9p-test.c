@@ -150,6 +150,13 @@ static void v9fs_uint32_write(P9Req *req, uint32_t val)
     v9fs_memwrite(req, &le_val, 4);
 }
 
+static void v9fs_uint64_write(P9Req *req, uint64_t val)
+{
+    uint64_t le_val = cpu_to_le64(val);
+
+    v9fs_memwrite(req, &le_val, 8);
+}
+
 static void v9fs_uint32_read(P9Req *req, uint32_t *val)
 {
     v9fs_memread(req, val, 4);
@@ -239,6 +246,7 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RATTACH ? "RATTACH" :
         id == P9_RWALK ? "RWALK" :
         id == P9_RLOPEN ? "RLOPEN" :
+        id == P9_RWRITE ? "RWRITE" :
         "<unknown>";
 }
 
@@ -418,6 +426,34 @@ static void v9fs_rlopen(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
     v9fs_req_free(req);
 }
 
+/* size[4] Twrite tag[2] fid[4] offset[8] count[4] data[count] */
+static P9Req *v9fs_twrite(QVirtIO9P *v9p, uint32_t fid, uint64_t offset,
+                          uint32_t count, const void *data, uint16_t tag)
+{
+    P9Req *req;
+    uint32_t body_size = 4 + 8 + 4;
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - count);
+    body_size += count;
+    req = v9fs_req_init(v9p,  body_size, P9_TWRITE, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint64_write(req, offset);
+    v9fs_uint32_write(req, count);
+    v9fs_memwrite(req, data, count);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rwrite tag[2] count[4] */
+static void v9fs_rwrite(P9Req *req, uint32_t *count)
+{
+    v9fs_req_recv(req, P9_RWRITE);
+    if (count) {
+        v9fs_uint32_read(req, count);
+    }
+    v9fs_req_free(req);
+}
+
 static void fs_version(QVirtIO9P *v9p)
 {
     const char *version = "9P2000.L";
@@ -524,6 +560,32 @@ static void fs_lopen(QVirtIO9P *v9p)
     g_free(wnames[0]);
 }
 
+static void fs_write(QVirtIO9P *v9p)
+{
+    static const uint32_t write_count = P9_MAX_SIZE / 2;
+    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_WRITE_FILE) };
+    char *buf = g_malloc0(write_count);
+    uint32_t count;
+    P9Req *req;
+
+    fs_attach(v9p);
+    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    v9fs_req_wait_for_reply(req);
+    v9fs_rwalk(req, NULL, NULL);
+
+    req = v9fs_tlopen(v9p, 1, O_WRONLY, 0);
+    v9fs_req_wait_for_reply(req);
+    v9fs_rlopen(req, NULL, NULL);
+
+    req = v9fs_twrite(v9p, 1, 0, write_count, buf, 0);
+    v9fs_req_wait_for_reply(req);
+    v9fs_rwrite(req, &count);
+    g_assert_cmpint(count, ==, write_count);
+
+    g_free(buf);
+    g_free(wnames[0]);
+}
+
 typedef void (*v9fs_test_fn)(QVirtIO9P *v9p);
 
 static void v9fs_run_pci_test(gconstpointer data)
@@ -554,6 +616,7 @@ int main(int argc, char **argv)
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/walk/dotdot_from_root",
                        fs_walk_dotdot);
     v9fs_qtest_pci_add("/virtio/9p/pci/fs/lopen/basic", fs_lopen);
+    v9fs_qtest_pci_add("/virtio/9p/pci/fs/write/basic", fs_write);
 
     return g_test_run();
 }

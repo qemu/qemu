@@ -515,6 +515,12 @@ static int synth_unlinkat(FsContext *ctx, V9fsPath *dir,
     return -1;
 }
 
+static ssize_t v9fs_synth_qtest_write(void *buf, int len, off_t offset,
+                                      void *arg)
+{
+    return 1;
+}
+
 static int synth_init(FsContext *ctx, Error **errp)
 {
     QLIST_INIT(&synth_root.child);
@@ -545,6 +551,11 @@ static int synth_init(FsContext *ctx, Error **errp)
         /* File for LOPEN test */
         ret = qemu_v9fs_synth_add_file(NULL, 0, QTEST_V9FS_SYNTH_LOPEN_FILE,
                                        NULL, NULL, ctx);
+        assert(!ret);
+
+        /* File for WRITE test */
+        ret = qemu_v9fs_synth_add_file(NULL, 0, QTEST_V9FS_SYNTH_WRITE_FILE,
+                                       NULL, v9fs_synth_qtest_write, ctx);
         assert(!ret);
     }
 
