@@ -48,6 +48,14 @@
 #define QEMU_CMD        QEMU_CMD_MEM QEMU_CMD_CHR \
                         QEMU_CMD_NETDEV QEMU_CMD_NET
 
+#define GET_QEMU_CMD(s)                                         \
+    g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,  \
+                    (s)->socket_path, "", (s)->chr_name)
+
+#define GET_QEMU_CMDE(s, mem, chr_opts, extra, ...)                     \
+    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name, \
+                    (s)->socket_path, (chr_opts), (s)->chr_name, ##__VA_ARGS__)
+
 #define HUGETLBFS_MAGIC       0x958458f6
 
 /*********** FROM hw/virtio/vhost-user.c *************************************/
@@ -159,6 +167,10 @@ typedef struct TestServer {
     QGuestAllocator *alloc;
 } TestServer;
 
+static TestServer *test_server_new(const gchar *name);
+static void test_server_free(TestServer *server);
+static void test_server_listen(TestServer *server);
+
 static const char *tmpfs;
 static const char *root;
 
@@ -225,9 +237,8 @@ static void wait_for_fds(TestServer *s)
     g_mutex_unlock(&s->data_mutex);
 }
 
-static void read_guest_mem(const void *data)
+static void read_guest_mem_server(TestServer *s)
 {
-    TestServer *s = (void *)data;
     uint32_t *guest_mem;
     int i, j;
     size_t size;
@@ -492,14 +503,6 @@ static void test_server_listen(TestServer *server)
     test_server_create_chr(server, ",server,nowait");
 }
 
-#define GET_QEMU_CMD(s)                                         \
-    g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,  \
-                    (s)->socket_path, "", (s)->chr_name)
-
-#define GET_QEMU_CMDE(s, mem, chr_opts, extra, ...)                     \
-    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name, \
-                    (s)->socket_path, (chr_opts), (s)->chr_name, ##__VA_ARGS__)
-
 static gboolean _test_server_free(TestServer *server)
 {
     int i;
@@ -652,7 +655,7 @@ static void test_read_guest_mem(void)
 
     init_virtio_dev(server, 1u << VIRTIO_NET_F_MAC);
 
-    read_guest_mem(server);
+    read_guest_mem_server(server);
 
     uninit_virtio_dev(server);
 
@@ -730,7 +733,7 @@ static void test_migrate(void)
     global_qtest = to;
     qmp_eventwait("RESUME");
 
-    read_guest_mem(dest);
+    read_guest_mem_server(dest);
 
     uninit_virtio_dev(s);
 
