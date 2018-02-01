@@ -5,7 +5,6 @@
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
-#include "qapi-types.h"
 #include "qemu/notify.h"
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"

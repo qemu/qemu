@@ -14,7 +14,6 @@
 #ifndef QLIT_H
 #define QLIT_H
 
-#include "qapi-types.h"
 #include "qobject.h"
 
 typedef struct QLitDictEntry QLitDictEntry;

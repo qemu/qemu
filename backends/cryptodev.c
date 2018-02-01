@@ -26,7 +26,6 @@
 #include "hw/boards.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "qapi-types.h"
 #include "qapi-visit.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"

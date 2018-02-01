@@ -31,7 +31,6 @@
 #include "qemu/coroutine.h"
 #include "qemu/stats64.h"
 #include "qemu/timer.h"
-#include "qapi-types.h"
 #include "qemu/hbitmap.h"
 #include "block/snapshot.h"
 #include "qemu/main-loop.h"

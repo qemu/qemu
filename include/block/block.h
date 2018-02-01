@@ -9,7 +9,6 @@
 #include "block/dirty-bitmap.h"
 #include "block/blockjob.h"
 #include "qapi/qmp/qobject.h"
-#include "qapi-types.h"
 #include "qemu/hbitmap.h"
 
 /* block.c */

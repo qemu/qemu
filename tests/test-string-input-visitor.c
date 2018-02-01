@@ -15,7 +15,6 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qapi/string-input-visitor.h"
-#include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
 

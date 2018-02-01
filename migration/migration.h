@@ -16,7 +16,6 @@
 
 #include "qemu-common.h"
 #include "qemu/thread.h"
-#include "qapi-types.h"
 #include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
 #include "hw/qdev.h"

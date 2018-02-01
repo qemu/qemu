@@ -32,7 +32,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
 
-#include "qapi-types.h"
 #include "qapi-visit.h"
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"

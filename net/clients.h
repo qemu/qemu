@@ -25,7 +25,6 @@
 #define QEMU_NET_CLIENTS_H
 
 #include "net/net.h"
-#include "qapi-types.h"
 
 int net_init_dump(const Netdev *netdev, const char *name,
                   NetClientState *peer, Error **errp);

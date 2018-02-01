@@ -12,7 +12,6 @@
  *
  */
 
-#include "qapi-types.h"
 #include "sysemu.h"
 
 /* replay clock kinds */

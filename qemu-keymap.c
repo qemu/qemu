@@ -11,7 +11,6 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qapi-types.h"
 #include "qemu/notify.h"
 #include "ui/input.h"
 
