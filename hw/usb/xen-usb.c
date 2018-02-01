@@ -29,7 +29,6 @@
 #include "hw/usb.h"
 #include "hw/xen/xen_backend.h"
 #include "monitor/qdev.h"
-#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 
