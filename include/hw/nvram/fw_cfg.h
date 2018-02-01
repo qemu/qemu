@@ -1,7 +1,6 @@
 #ifndef FW_CFG_H
 #define FW_CFG_H
 
-#include "qemu/typedefs.h"
 #include "exec/hwaddr.h"
 #include "hw/nvram/fw_cfg_keys.h"
 #include "hw/sysbus.h"

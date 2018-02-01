@@ -26,9 +26,6 @@
 #include "trace.h"
 #include "qemu/iov.h"
 
-#include <time.h>
-
-
 /* Max amount to allow in rawinput/encoutput buffers */
 #define QIO_CHANNEL_WEBSOCK_MAX_BUFFER 8192
 

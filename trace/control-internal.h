@@ -10,8 +10,6 @@
 #ifndef TRACE__CONTROL_INTERNAL_H
 #define TRACE__CONTROL_INTERNAL_H
 
-#include <stddef.h>                     /* size_t */
-
 #include "qom/cpu.h"
 
 

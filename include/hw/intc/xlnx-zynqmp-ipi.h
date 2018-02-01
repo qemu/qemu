@@ -25,7 +25,6 @@
 #ifndef XLNX_ZYNQMP_IPI_H
 #define XLNX_ZYNQMP_IPI_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
 

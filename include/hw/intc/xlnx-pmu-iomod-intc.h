@@ -25,7 +25,6 @@
 #ifndef XLNX_PMU_IO_INTC_H
 #define XLNX_PMU_IO_INTC_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
 

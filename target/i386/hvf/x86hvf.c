@@ -29,11 +29,8 @@
 
 #include "hw/i386/apic_internal.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
-#include <stdint.h>
 
 void hvf_set_segment(struct CPUState *cpu, struct vmx_segment *vmx_seg,
                      SegmentCache *qseg, bool is_tr)

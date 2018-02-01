@@ -12,8 +12,6 @@
 #ifndef TPM_TPM_INT_H
 #define TPM_TPM_INT_H
 
-#include "qemu/osdep.h"
-
 #define TPM_STANDARD_CMDLINE_OPTS \
     { \
         .name = "type", \
