@@ -49,4 +49,8 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
                              const char *name, v9fs_synth_read read,
                              v9fs_synth_write write, void *arg);
 
+/* qtest stuff */
+
+#define QTEST_V9FS_SYNTH_WALK_FILE "WALK%d"
+
 #endif

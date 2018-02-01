@@ -17,6 +17,7 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_pci.h"
 #include "hw/9pfs/9p.h"
+#include "hw/9pfs/9p-synth.h"
 
 #define QVIRTIO_9P_TIMEOUT_US (10 * 1000 * 1000)
 
@@ -26,23 +27,19 @@ typedef struct {
     QVirtioDevice *dev;
     QOSState *qs;
     QVirtQueue *vq;
-    char *test_share;
 } QVirtIO9P;
 
 static QVirtIO9P *qvirtio_9p_start(const char *driver)
 {
     const char *arch = qtest_get_arch();
-    const char *cmd = "-fsdev local,id=fsdev0,security_model=none,path=%s "
+    const char *cmd = "-fsdev synth,id=fsdev0 "
                       "-device %s,fsdev=fsdev0,mount_tag=%s";
     QVirtIO9P *v9p = g_new0(QVirtIO9P, 1);
 
-    v9p->test_share = g_strdup("/tmp/qtest.XXXXXX");
-    g_assert_nonnull(mkdtemp(v9p->test_share));
-
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        v9p->qs = qtest_pc_boot(cmd, v9p->test_share, driver, mount_tag);
+        v9p->qs = qtest_pc_boot(cmd, driver, mount_tag);
     } else if (strcmp(arch, "ppc64") == 0) {
-        v9p->qs = qtest_spapr_boot(cmd, v9p->test_share, driver, mount_tag);
+        v9p->qs = qtest_spapr_boot(cmd, driver, mount_tag);
     } else {
         g_printerr("virtio-9p tests are only available on x86 or ppc64\n");
         exit(EXIT_FAILURE);
@@ -54,8 +51,6 @@ static QVirtIO9P *qvirtio_9p_start(const char *driver)
 static void qvirtio_9p_stop(QVirtIO9P *v9p)
 {
     qtest_shutdown(v9p->qs);
-    rmdir(v9p->test_share);
-    g_free(v9p->test_share);
     g_free(v9p);
 }
 
@@ -422,17 +417,14 @@ static void fs_attach(QVirtIO9P *v9p)
 
 static void fs_walk(QVirtIO9P *v9p)
 {
-    char *wnames[P9_MAXWELEM], *paths[P9_MAXWELEM];
-    char *last_path = v9p->test_share;
+    char *wnames[P9_MAXWELEM];
     uint16_t nwqid;
     v9fs_qid *wqid;
     int i;
     P9Req *req;
 
     for (i = 0; i < P9_MAXWELEM; i++) {
-        wnames[i] = g_strdup_printf("%s%d", __func__, i);
-        last_path = paths[i] = g_strdup_printf("%s/%s", last_path, wnames[i]);
-        g_assert(!mkdir(paths[i], 0700));
+        wnames[i] = g_strdup_printf(QTEST_V9FS_SYNTH_WALK_FILE, i);
     }
 
     fs_attach(v9p);
@@ -443,8 +435,6 @@ static void fs_walk(QVirtIO9P *v9p)
     g_assert_cmpint(nwqid, ==, P9_MAXWELEM);
 
     for (i = 0; i < P9_MAXWELEM; i++) {
-        rmdir(paths[P9_MAXWELEM - i - 1]);
-        g_free(paths[P9_MAXWELEM - i - 1]);
         g_free(wnames[i]);
     }
 

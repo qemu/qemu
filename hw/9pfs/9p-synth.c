@@ -19,6 +19,7 @@
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/cutils.h"
+#include "sysemu/qtest.h"
 
 /* Root node for synth file system */
 static V9fsSynthNode synth_root = {
@@ -527,6 +528,21 @@ static int synth_init(FsContext *ctx, Error **errp)
 
     /* Mark the subsystem is ready for use */
     synth_fs = 1;
+
+    if (qtest_enabled()) {
+        V9fsSynthNode *node = NULL;
+        int i, ret;
+
+        /* Directory hierarchy for WALK test */
+        for (i = 0; i < P9_MAXWELEM; i++) {
+            char *name = g_strdup_printf(QTEST_V9FS_SYNTH_WALK_FILE, i);
+
+            ret = qemu_v9fs_synth_mkdir(node, 0700, name, &node);
+            assert(!ret);
+            g_free(name);
+        }
+    }
+
     return 0;
 }
 
