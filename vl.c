@@ -28,8 +28,8 @@
 #include "qemu/uuid.h"
 
 #ifdef CONFIG_SECCOMP
+#include <sys/prctl.h>
 #include "sysemu/seccomp.h"
-#include "sys/prctl.h"
 #endif
 
 #ifdef CONFIG_SDL

@@ -15,18 +15,16 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "qemu/osdep.h"
-#include "panic.h"
 
+#include "qemu/osdep.h"
+#include <memory.h>
+#include "panic.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "x86.h"
 #include "x86_mmu.h"
-#include "string.h"
 #include "vmcs.h"
 #include "vmx.h"
-
-#include "memory.h"
 #include "exec/address-spaces.h"
 
 #define pte_present(pte) (pte & PT_PRESENT)

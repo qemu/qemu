@@ -30,7 +30,6 @@
 #include "exec/ioport.h"
 
 #include "qemu-common.h"
-#include "strings.h"
 #include "hax-i386.h"
 #include "sysemu/accel.h"
 #include "sysemu/sysemu.h"

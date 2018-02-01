@@ -20,7 +20,7 @@
 #ifndef HW_LOADER_FIT_H
 #define HW_LOADER_FIT_H
 
-#include <exec/hwaddr.h>
+#include "exec/hwaddr.h"
 
 struct fit_loader_match {
     const char *compatible;
