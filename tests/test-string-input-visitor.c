@@ -16,7 +16,6 @@
 #include "qapi/error.h"
 #include "qapi/string-input-visitor.h"
 #include "test-qapi-visit.h"
-#include "qapi/qmp/types.h"
 
 typedef struct TestInputVisitorData {
     Visitor *v;

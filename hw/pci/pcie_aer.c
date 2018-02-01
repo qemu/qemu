@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
-#include "qapi/qmp/types.h"
 #include "qapi/qmp/qjson.h"
 #include "monitor/monitor.h"
 #include "hw/pci/pci_bridge.h"

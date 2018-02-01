@@ -16,7 +16,7 @@
 #include "qapi/error.h"
 #include "qapi/qobject-output-visitor.h"
 #include "test-qapi-visit.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qjson.h"
 
 typedef struct TestOutputVisitorData {

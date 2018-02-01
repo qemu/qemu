@@ -293,7 +293,6 @@ fdef.write(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/module.h"
-#include "qapi/qmp/types.h"
 #include "qapi/visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"

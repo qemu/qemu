@@ -17,7 +17,8 @@
 #include "qapi/visitor-impl.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
 
 typedef struct QStackEntry {
     QObject *value;

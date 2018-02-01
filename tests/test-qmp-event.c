@@ -17,8 +17,9 @@
 #include "test-qapi-visit.h"
 #include "test-qapi-event.h"
 #include "qapi/error.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi/qmp-event.h"
 
 typedef struct TestEventData {

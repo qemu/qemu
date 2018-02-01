@@ -31,7 +31,8 @@
 #include "qapi-visit.h"
 #include "qapi/error.h"
 #include "qapi/qobject-output-visitor.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
 #include "sysemu/block-backend.h"
 #include "qemu/cutils.h"
 

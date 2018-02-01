@@ -16,7 +16,9 @@
 #include "qemu/osdep.h"
 
 #include "qapi/qmp/qlit.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qstring.h"
 
 static bool qlit_equal_qdict(const QLitObject *lhs, const QDict *qdict)
 {

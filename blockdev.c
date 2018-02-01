@@ -40,7 +40,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"

@@ -20,7 +20,7 @@
 #include "qemu/queue.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"

@@ -35,7 +35,6 @@
 #include "qemu/acl.h"
 #include "qemu/config-file.h"
 #include "qapi/error.h"
-#include "qapi/qmp/types.h"
 #include "qmp-commands.h"
 #include "ui/input.h"
 #include "qapi-event.h"
