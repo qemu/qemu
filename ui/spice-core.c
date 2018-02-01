@@ -32,7 +32,6 @@
 #include "qmp-commands.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
-#include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/notify.h"
 #include "migration/misc.h"

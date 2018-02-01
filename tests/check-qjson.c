@@ -19,6 +19,7 @@
 #include "qapi/qmp/qlit.h"
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu-common.h"
 
 static void escaped_string(void)

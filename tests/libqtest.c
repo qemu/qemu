@@ -27,6 +27,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qstring.h"
 
 #define MAX_IRQ 256
 #define SOCKET_TIMEOUT 50
