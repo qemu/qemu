@@ -254,7 +254,7 @@ static void v9fs_req_wait_for_reply(P9Req *req)
 {
     QVirtIO9P *v9p = req->v9p;
 
-    qvirtio_wait_used_elem(v9p->dev, v9p->vq, req->free_head,
+    qvirtio_wait_used_elem(v9p->dev, v9p->vq, req->free_head, NULL,
                            QVIRTIO_9P_TIMEOUT_US);
 }
 

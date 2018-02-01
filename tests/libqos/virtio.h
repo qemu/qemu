@@ -124,6 +124,7 @@ uint8_t qvirtio_wait_status_byte_no_isr(QVirtioDevice *d,
 void qvirtio_wait_used_elem(QVirtioDevice *d,
                             QVirtQueue *vq,
                             uint32_t desc_idx,
+                            uint32_t *len,
                             gint64 timeout_us);
 void qvirtio_wait_config_isr(QVirtioDevice *d, gint64 timeout_us);
 QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
@@ -140,7 +141,7 @@ uint32_t qvirtqueue_add(QVirtQueue *vq, uint64_t data, uint32_t len, bool write,
                                                                     bool next);
 uint32_t qvirtqueue_add_indirect(QVirtQueue *vq, QVRingIndirectDesc *indirect);
 void qvirtqueue_kick(QVirtioDevice *d, QVirtQueue *vq, uint32_t free_head);
-bool qvirtqueue_get_buf(QVirtQueue *vq, uint32_t *desc_idx);
+bool qvirtqueue_get_buf(QVirtQueue *vq, uint32_t *desc_idx, uint32_t *len);
 
 void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx);
 
