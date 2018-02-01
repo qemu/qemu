@@ -330,6 +330,7 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
 
 static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
 {
+    Error *err = NULL;
     struct vhost_log *log;
     uint64_t logsize = size * sizeof(*(log->log));
     int fd = -1;
@@ -338,7 +339,12 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
     if (share) {
         log->log = qemu_memfd_alloc("vhost-log", logsize,
                                     F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
-                                    &fd);
+                                    &fd, &err);
+        if (err) {
+            error_report_err(err);
+            g_free(log);
+            return NULL;
+        }
         memset(log->log, 0, logsize);
     } else {
         log->log = g_malloc0(logsize);
