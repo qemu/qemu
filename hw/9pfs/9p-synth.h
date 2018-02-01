@@ -55,4 +55,11 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
 #define QTEST_V9FS_SYNTH_LOPEN_FILE "LOPEN"
 #define QTEST_V9FS_SYNTH_WRITE_FILE "WRITE"
 
+/* Any write to the "FLUSH" file is handled one byte at a time by the
+ * backend. If the byte is zero, the backend returns success (ie, 1),
+ * otherwise it forces the server to try again forever. Thus allowing
+ * the client to cancel the request.
+ */
+#define QTEST_V9FS_SYNTH_FLUSH_FILE "FLUSH"
+
 #endif

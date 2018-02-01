@@ -24,6 +24,7 @@
 #include "coth.h"
 #include "trace.h"
 #include "migration/blocker.h"
+#include "sysemu/qtest.h"
 
 int open_fd_hw;
 int total_open_fd;
