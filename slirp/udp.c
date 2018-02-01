@@ -241,8 +241,8 @@ int udp_output(struct socket *so, struct mbuf *m,
 	DEBUG_CALL("udp_output");
 	DEBUG_ARG("so = %p", so);
 	DEBUG_ARG("m = %p", m);
-	DEBUG_ARG("saddr = %lx", (long)saddr->sin_addr.s_addr);
-	DEBUG_ARG("daddr = %lx", (long)daddr->sin_addr.s_addr);
+	DEBUG_ARG("saddr = %s", inet_ntoa(saddr->sin_addr));
+	DEBUG_ARG("daddr = %s", inet_ntoa(daddr->sin_addr));
 
 	/*
 	 * Adjust for header
