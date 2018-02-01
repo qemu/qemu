@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "libqos/virtio.h"
+#include "qapi/qmp/qdict.h"
 
 static void drive_add(void)
 {

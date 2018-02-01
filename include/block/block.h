@@ -2,6 +2,7 @@
 #define BLOCK_H
 
 #include "block/aio.h"
+#include "qapi-types.h"
 #include "qemu/iov.h"
 #include "qemu/option.h"
 #include "qemu/coroutine.h"

@@ -8,6 +8,7 @@
 #include "chardev/char-mux.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qom/qom-qobject.h"
 #include "qmp-commands.h"
 

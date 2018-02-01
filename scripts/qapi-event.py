@@ -210,6 +210,7 @@ fdef.write(mcgen('''
 #include "%(prefix)sqapi-event.h"
 #include "%(prefix)sqapi-visit.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp-event.h"
 
@@ -218,7 +219,6 @@ fdef.write(mcgen('''
 
 fdecl.write(mcgen('''
 #include "qapi/util.h"
-#include "qapi/qmp/qdict.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',

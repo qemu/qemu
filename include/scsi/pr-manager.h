@@ -2,7 +2,6 @@
 #define PR_MANAGER_H
 
 #include "qom/object.h"
-#include "qapi/qmp/qdict.h"
 #include "qapi/visitor.h"
 #include "qom/object_interfaces.h"
 #include "block/aio.h"

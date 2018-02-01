@@ -31,6 +31,7 @@
 #include "libqos/pci-pc.h"
 
 #include "qemu-common.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/host-utils.h"
 
 #include "hw/pci/pci_ids.h"

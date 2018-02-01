@@ -14,6 +14,7 @@
 #include "qmp-commands.h"
 #include "hw/s390x/storage-keys.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "migration/register.h"

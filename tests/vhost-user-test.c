@@ -12,6 +12,7 @@
 
 #include "libqtest.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/range.h"

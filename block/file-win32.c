@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/iov.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include <windows.h>
 #include <winioctl.h>

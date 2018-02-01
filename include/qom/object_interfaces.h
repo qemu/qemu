@@ -2,7 +2,6 @@
 #define OBJECT_INTERFACES_H
 
 #include "qom/object.h"
-#include "qapi/qmp/qdict.h"
 #include "qapi/visitor.h"
 
 #define TYPE_USER_CREATABLE "user-creatable"

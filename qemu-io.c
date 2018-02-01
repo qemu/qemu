@@ -7,6 +7,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include <getopt.h>
 #include <libgen.h>
@@ -21,6 +22,7 @@
 #include "qemu/log.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qdict.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"

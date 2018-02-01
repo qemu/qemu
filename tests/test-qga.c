@@ -5,6 +5,7 @@
 #include <sys/un.h>
 
 #include "libqtest.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 
 typedef struct {

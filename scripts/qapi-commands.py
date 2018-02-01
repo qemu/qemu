@@ -294,6 +294,7 @@ fdef.write(mcgen('''
 #include "qemu-common.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
@@ -307,7 +308,6 @@ fdef.write(mcgen('''
 
 fdecl.write(mcgen('''
 #include "%(prefix)sqapi-types.h"
-#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/dispatch.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);

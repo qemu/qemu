@@ -2,7 +2,6 @@
 #define QEMU_CONFIG_FILE_H
 
 #include "qemu/option.h"
-#include "qapi/qmp/qdict.h"
 
 QemuOptsList *qemu_find_opts(const char *group);
 QemuOptsList *qemu_find_opts_err(const char *group, Error **errp);

@@ -11,6 +11,7 @@
 
 #include "qemu-common.h"
 #include "libqtest.h"
+#include "qapi/qmp/qdict.h"
 
 struct PlugTestData {
     char *machine;

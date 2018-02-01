@@ -39,6 +39,7 @@
 #include "qemu/uuid.h"
 #include "qmp-commands.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "crypto/secret.h"
 #include "scsi/utils.h"

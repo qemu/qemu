@@ -26,6 +26,7 @@
 #include "block/snapshot.h"
 #include "block/block_int.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qstring.h"
 

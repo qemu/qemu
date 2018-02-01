@@ -25,6 +25,7 @@
 #include "qmp-commands.h"
 #include "sysemu/arch_init.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"

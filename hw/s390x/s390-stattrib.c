@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "exec/ram_addr.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 
 #define CMMA_BLOCK_SIZE  (1 << 10)
 

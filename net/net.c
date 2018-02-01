@@ -34,6 +34,7 @@
 #include "monitor/monitor.h"
 #include "qemu-common.h"
 #include "qemu/help_option.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"

@@ -11,6 +11,7 @@
 
 #include "libqtest.h"
 #include "libqos/i2c.h"
+#include "qapi/qmp/qdict.h"
 #include "hw/misc/tmp105_regs.h"
 
 #define OMAP2_I2C_1_BASE 0x48070000
