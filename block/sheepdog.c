@@ -1882,6 +1882,48 @@ out_with_err_set:
     return ret;
 }
 
+static int parse_redundancy(BDRVSheepdogState *s, SheepdogRedundancy *opt)
+{
+    struct SheepdogInode *inode = &s->inode;
+
+    switch (opt->type) {
+    case SHEEPDOG_REDUNDANCY_TYPE_FULL:
+        if (opt->u.full.copies > SD_MAX_COPIES || opt->u.full.copies < 1) {
+            return -EINVAL;
+        }
+        inode->copy_policy = 0;
+        inode->nr_copies = opt->u.full.copies;
+        return 0;
+
+    case SHEEPDOG_REDUNDANCY_TYPE_ERASURE_CODED:
+    {
+        int64_t copy = opt->u.erasure_coded.data_strips;
+        int64_t parity = opt->u.erasure_coded.parity_strips;
+
+        if (copy != 2 && copy != 4 && copy != 8 && copy != 16) {
+            return -EINVAL;
+        }
+
+        if (parity >= SD_EC_MAX_STRIP || parity < 1) {
+            return -EINVAL;
+        }
+
+        /*
+         * 4 bits for parity and 4 bits for data.
+         * We have to compress upper data bits because it can't represent 16
+         */
+        inode->copy_policy = ((copy / 2) << 4) + parity;
+        inode->nr_copies = copy + parity;
+        return 0;
+    }
+
+    default:
+        g_assert_not_reached();
+    }
+
+    return -EINVAL;
+}
+
 /*
  * Sheepdog support two kinds of redundancy, full replication and erasure
  * coding.
@@ -1892,12 +1934,13 @@ out_with_err_set:
  * # create a erasure coded vdi with x data strips and y parity strips
  * -o redundancy=x:y (x must be one of {2,4,8,16} and 1 <= y < SD_EC_MAX_STRIP)
  */
-static int parse_redundancy(BDRVSheepdogState *s, const char *opt)
+static int parse_redundancy_str(BDRVSheepdogState *s, const char *opt)
 {
-    struct SheepdogInode *inode = &s->inode;
+    struct SheepdogRedundancy redundancy;
     const char *n1, *n2;
     long copy, parity;
     char p[10];
+    int ret;
 
     pstrcpy(p, sizeof(p), opt);
     n1 = strtok(p, ":");
@@ -1907,35 +1950,32 @@ static int parse_redundancy(BDRVSheepdogState *s, const char *opt)
         return -EINVAL;
     }
 
-    copy = strtol(n1, NULL, 10);
-    /* FIXME fix error checking by switching to qemu_strtol() */
-    if (copy > SD_MAX_COPIES || copy < 1) {
-        return -EINVAL;
+    ret = qemu_strtol(n1, NULL, 10, &copy);
+    if (ret < 0) {
+        return ret;
     }
+
     if (!n2) {
-        inode->copy_policy = 0;
-        inode->nr_copies = copy;
-        return 0;
+        redundancy = (SheepdogRedundancy) {
+            .type               = SHEEPDOG_REDUNDANCY_TYPE_FULL,
+            .u.full.copies      = copy,
+        };
+    } else {
+        ret = qemu_strtol(n2, NULL, 10, &parity);
+        if (ret < 0) {
+            return ret;
+        }
+
+        redundancy = (SheepdogRedundancy) {
+            .type               = SHEEPDOG_REDUNDANCY_TYPE_ERASURE_CODED,
+            .u.erasure_coded    = {
+                .data_strips    = copy,
+                .parity_strips  = parity,
+            },
+        };
     }
 
-    if (copy != 2 && copy != 4 && copy != 8 && copy != 16) {
-        return -EINVAL;
-    }
-
-    parity = strtol(n2, NULL, 10);
-    /* FIXME fix error checking by switching to qemu_strtol() */
-    if (parity >= SD_EC_MAX_STRIP || parity < 1) {
-        return -EINVAL;
-    }
-
-    /*
-     * 4 bits for parity and 4 bits for data.
-     * We have to compress upper data bits because it can't represent 16
-     */
-    inode->copy_policy = ((copy / 2) << 4) + parity;
-    inode->nr_copies = copy + parity;
-
-    return 0;
+    return parse_redundancy(s, &redundancy);
 }
 
 static int parse_block_size_shift(BDRVSheepdogState *s, QemuOpts *opt)
@@ -2007,7 +2047,7 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     g_free(buf);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_REDUNDANCY);
     if (buf) {
-        ret = parse_redundancy(s, buf);
+        ret = parse_redundancy_str(s, buf);
         if (ret < 0) {
             error_setg(errp, "Invalid redundancy mode: '%s'", buf);
             goto out;

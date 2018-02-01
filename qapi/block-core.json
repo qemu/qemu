@@ -3467,6 +3467,51 @@
             '*cluster-size' :   'size' } }
 
 ##
+# @SheepdogRedundancyType:
+#
+# @full             Create a fully replicated vdi with x copies
+# @erasure-coded    Create an erasure coded vdi with x data strips and
+#                   y parity strips
+#
+# Since: 2.12
+##
+{ 'enum': 'SheepdogRedundancyType',
+  'data': [ 'full', 'erasure-coded' ] }
+
+##
+# @SheepdogRedundancyFull:
+#
+# @copies           Number of copies to use (between 1 and 31)
+#
+# Since: 2.12
+##
+{ 'struct': 'SheepdogRedundancyFull',
+  'data': { 'copies': 'int' }}
+
+##
+# @SheepdogRedundancyErasureCoded:
+#
+# @data-strips      Number of data strips to use (one of {2,4,8,16})
+# @parity-strips    Number of parity strips to use (between 1 and 15)
+#
+# Since: 2.12
+##
+{ 'struct': 'SheepdogRedundancyErasureCoded',
+  'data': { 'data-strips': 'int',
+            'parity-strips': 'int' }}
+
+##
+# @SheepdogRedundancy:
+#
+# Since: 2.12
+##
+{ 'union': 'SheepdogRedundancy',
+  'base': { 'type': 'SheepdogRedundancyType' },
+  'discriminator': 'type',
+  'data': { 'full': 'SheepdogRedundancyFull',
+            'erasure-coded': 'SheepdogRedundancyErasureCoded' } }
+
+##
 # @BlockdevCreateNotSupported:
 #
 # This is used for all drivers that don't support creating images.
