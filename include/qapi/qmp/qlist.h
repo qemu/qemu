@@ -23,10 +23,10 @@ typedef struct QListEntry {
     QTAILQ_ENTRY(QListEntry) next;
 } QListEntry;
 
-typedef struct QList {
+struct QList {
     QObject base;
     QTAILQ_HEAD(,QListEntry) head;
-} QList;
+};
 
 #define qlist_append(qlist, obj) \
         qlist_append_obj(qlist, QOBJECT(obj))
