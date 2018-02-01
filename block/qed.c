@@ -18,7 +18,6 @@
 #include "qemu/bswap.h"
 #include "trace.h"
 #include "qed.h"
-#include "qapi/qmp/qerror.h"
 #include "sysemu/block-backend.h"
 
 static int bdrv_qed_probe(const uint8_t *buf, int buf_size,

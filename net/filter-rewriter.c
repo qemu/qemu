@@ -15,7 +15,6 @@
 #include "net/filter.h"
 #include "net/net.h"
 #include "qemu-common.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qapi-visit.h"
 #include "qom/object.h"

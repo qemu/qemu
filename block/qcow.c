@@ -30,7 +30,6 @@
 #include "qemu/module.h"
 #include "qemu/bswap.h"
 #include <zlib.h>
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qstring.h"
 #include "crypto/block.h"
 #include "migration/blocker.h"
