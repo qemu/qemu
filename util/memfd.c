@@ -29,6 +29,7 @@
 
 #include "qapi/error.h"
 #include "qemu/memfd.h"
+#include "qemu/host-utils.h"
 
 #if defined CONFIG_LINUX && !defined CONFIG_MEMFD
 #include <sys/syscall.h>
@@ -56,9 +57,22 @@ static int memfd_create(const char *name, unsigned int flags)
 #define MFD_HUGETLB 0x0004U
 #endif
 
+#ifndef MFD_HUGE_SHIFT
+#define MFD_HUGE_SHIFT 26
+#endif
+
 int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
-                      unsigned int seals, Error **errp)
+                      uint64_t hugetlbsize, unsigned int seals, Error **errp)
 {
+    int htsize = hugetlbsize ? ctz64(hugetlbsize) : 0;
+
+    if (htsize && 1 << htsize != hugetlbsize) {
+        error_setg(errp, "Hugepage size must be a power of 2");
+        return -1;
+    }
+
+    htsize = htsize << MFD_HUGE_SHIFT;
+
 #ifdef CONFIG_LINUX
     int mfd = -1;
     unsigned int flags = MFD_CLOEXEC;
@@ -68,8 +82,8 @@ int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
     }
     if (hugetlb) {
         flags |= MFD_HUGETLB;
+        flags |= htsize;
     }
-
     mfd = memfd_create(name, flags);
     if (mfd < 0) {
         goto err;
@@ -104,11 +118,11 @@ void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
                        int *fd, Error **errp)
 {
     void *ptr;
-    int mfd = qemu_memfd_create(name, size, false, seals, NULL);
+    int mfd = qemu_memfd_create(name, size, false, 0, seals, NULL);
 
     /* some systems have memfd without sealing */
     if (mfd == -1) {
-        mfd = qemu_memfd_create(name, size, false, 0, NULL);
+        mfd = qemu_memfd_create(name, size, false, 0, 0, NULL);
     }
 
     if (mfd == -1) {

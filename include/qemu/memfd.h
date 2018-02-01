@@ -17,7 +17,7 @@
 #endif
 
 int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
-                      unsigned int seals, Error **errp);
+                      uint64_t hugetlbsize, unsigned int seals, Error **errp);
 void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
                        int *fd, Error **errp);
 void qemu_memfd_free(void *ptr, size_t size, int fd);
