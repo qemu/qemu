@@ -665,6 +665,133 @@ static void qdict_crumple_test_empty(void)
     QDECREF(dst);
 }
 
+static int qdict_count_entries(QDict *dict)
+{
+    const QDictEntry *e;
+    int count = 0;
+
+    for (e = qdict_first(dict); e; e = qdict_next(dict, e)) {
+        count++;
+    }
+
+    return count;
+}
+
+static void qdict_rename_keys_test(void)
+{
+    QDict *dict = qdict_new();
+    QDict *copy;
+    QDictRenames *renames;
+    Error *local_err = NULL;
+
+    qdict_put_str(dict, "abc", "foo");
+    qdict_put_str(dict, "abcdef", "bar");
+    qdict_put_int(dict, "number", 42);
+    qdict_put_bool(dict, "flag", true);
+    qdict_put_null(dict, "nothing");
+
+    /* Empty rename list */
+    renames = (QDictRenames[]) {
+        { NULL, "this can be anything" }
+    };
+    copy = qdict_clone_shallow(dict);
+    qdict_rename_keys(copy, renames, &error_abort);
+
+    g_assert_cmpstr(qdict_get_str(copy, "abc"), ==, "foo");
+    g_assert_cmpstr(qdict_get_str(copy, "abcdef"), ==, "bar");
+    g_assert_cmpint(qdict_get_int(copy, "number"), ==, 42);
+    g_assert_cmpint(qdict_get_bool(copy, "flag"), ==, true);
+    g_assert(qobject_type(qdict_get(copy, "nothing")) == QTYPE_QNULL);
+    g_assert_cmpint(qdict_count_entries(copy), ==, 5);
+
+    QDECREF(copy);
+
+    /* Simple rename of all entries */
+    renames = (QDictRenames[]) {
+        { "abc",        "str1" },
+        { "abcdef",     "str2" },
+        { "number",     "int" },
+        { "flag",       "bool" },
+        { "nothing",    "null" },
+        { NULL , NULL }
+    };
+    copy = qdict_clone_shallow(dict);
+    qdict_rename_keys(copy, renames, &error_abort);
+
+    g_assert(!qdict_haskey(copy, "abc"));
+    g_assert(!qdict_haskey(copy, "abcdef"));
+    g_assert(!qdict_haskey(copy, "number"));
+    g_assert(!qdict_haskey(copy, "flag"));
+    g_assert(!qdict_haskey(copy, "nothing"));
+
+    g_assert_cmpstr(qdict_get_str(copy, "str1"), ==, "foo");
+    g_assert_cmpstr(qdict_get_str(copy, "str2"), ==, "bar");
+    g_assert_cmpint(qdict_get_int(copy, "int"), ==, 42);
+    g_assert_cmpint(qdict_get_bool(copy, "bool"), ==, true);
+    g_assert(qobject_type(qdict_get(copy, "null")) == QTYPE_QNULL);
+    g_assert_cmpint(qdict_count_entries(copy), ==, 5);
+
+    QDECREF(copy);
+
+    /* Renames are processed top to bottom */
+    renames = (QDictRenames[]) {
+        { "abc",        "tmp" },
+        { "abcdef",     "abc" },
+        { "number",     "abcdef" },
+        { "flag",       "number" },
+        { "nothing",    "flag" },
+        { "tmp",        "nothing" },
+        { NULL , NULL }
+    };
+    copy = qdict_clone_shallow(dict);
+    qdict_rename_keys(copy, renames, &error_abort);
+
+    g_assert_cmpstr(qdict_get_str(copy, "nothing"), ==, "foo");
+    g_assert_cmpstr(qdict_get_str(copy, "abc"), ==, "bar");
+    g_assert_cmpint(qdict_get_int(copy, "abcdef"), ==, 42);
+    g_assert_cmpint(qdict_get_bool(copy, "number"), ==, true);
+    g_assert(qobject_type(qdict_get(copy, "flag")) == QTYPE_QNULL);
+    g_assert(!qdict_haskey(copy, "tmp"));
+    g_assert_cmpint(qdict_count_entries(copy), ==, 5);
+
+    QDECREF(copy);
+
+    /* Conflicting rename */
+    renames = (QDictRenames[]) {
+        { "abcdef",     "abc" },
+        { NULL , NULL }
+    };
+    copy = qdict_clone_shallow(dict);
+    qdict_rename_keys(copy, renames, &local_err);
+
+    g_assert(local_err != NULL);
+    error_free(local_err);
+    local_err = NULL;
+
+    g_assert_cmpstr(qdict_get_str(copy, "abc"), ==, "foo");
+    g_assert_cmpstr(qdict_get_str(copy, "abcdef"), ==, "bar");
+    g_assert_cmpint(qdict_get_int(copy, "number"), ==, 42);
+    g_assert_cmpint(qdict_get_bool(copy, "flag"), ==, true);
+    g_assert(qobject_type(qdict_get(copy, "nothing")) == QTYPE_QNULL);
+    g_assert_cmpint(qdict_count_entries(copy), ==, 5);
+
+    QDECREF(copy);
+
+    /* Renames in an empty dict */
+    renames = (QDictRenames[]) {
+        { "abcdef",     "abc" },
+        { NULL , NULL }
+    };
+
+    QDECREF(dict);
+    dict = qdict_new();
+
+    qdict_rename_keys(dict, renames, &error_abort);
+    g_assert(qdict_first(dict) == NULL);
+
+    QDECREF(dict);
+}
+
 static void qdict_crumple_test_bad_inputs(void)
 {
     QDict *src;
@@ -879,6 +1006,8 @@ int main(int argc, char **argv)
                     qdict_crumple_test_empty);
     g_test_add_func("/public/crumple/bad_inputs",
                     qdict_crumple_test_bad_inputs);
+
+    g_test_add_func("/public/rename_keys", qdict_rename_keys_test);
 
     /* The Big one */
     if (g_test_slow()) {
