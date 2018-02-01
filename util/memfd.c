@@ -52,7 +52,11 @@ static int memfd_create(const char *name, unsigned int flags)
 #define MFD_ALLOW_SEALING 0x0002U
 #endif
 
-int qemu_memfd_create(const char *name, size_t size,
+#ifndef MFD_HUGETLB
+#define MFD_HUGETLB 0x0004U
+#endif
+
+int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
                       unsigned int seals, Error **errp)
 {
 #ifdef CONFIG_LINUX
@@ -61,6 +65,9 @@ int qemu_memfd_create(const char *name, size_t size,
 
     if (seals) {
         flags |= MFD_ALLOW_SEALING;
+    }
+    if (hugetlb) {
+        flags |= MFD_HUGETLB;
     }
 
     mfd = memfd_create(name, flags);
@@ -97,11 +104,11 @@ void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
                        int *fd, Error **errp)
 {
     void *ptr;
-    int mfd = qemu_memfd_create(name, size, seals, NULL);
+    int mfd = qemu_memfd_create(name, size, false, seals, NULL);
 
     /* some systems have memfd without sealing */
     if (mfd == -1) {
-        mfd = qemu_memfd_create(name, size, 0, NULL);
+        mfd = qemu_memfd_create(name, size, false, 0, NULL);
     }
 
     if (mfd == -1) {
