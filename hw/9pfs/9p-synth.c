@@ -541,6 +541,11 @@ static int synth_init(FsContext *ctx, Error **errp)
             assert(!ret);
             g_free(name);
         }
+
+        /* File for LOPEN test */
+        ret = qemu_v9fs_synth_add_file(NULL, 0, QTEST_V9FS_SYNTH_LOPEN_FILE,
+                                       NULL, NULL, ctx);
+        assert(!ret);
     }
 
     return 0;
