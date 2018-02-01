@@ -16,9 +16,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "ui/qemu-spice.h"
 #include "qemu/timer.h"
+#include "qemu/option.h"
 #include "qemu/queue.h"
 #include "ui/console.h"
 #include "sysemu/sysemu.h"

@@ -21,8 +21,6 @@
 #define NBD_H
 
 
-#include "qemu-common.h"
-#include "qemu/option.h"
 #include "io/channel-socket.h"
 #include "crypto/tlscreds.h"
 

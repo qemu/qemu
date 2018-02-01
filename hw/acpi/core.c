@@ -30,6 +30,7 @@
 #include "qapi-visit.h"
 #include "qapi-event.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */

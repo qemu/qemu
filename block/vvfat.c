@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
 #include "qemu/bswap.h"
 #include "migration/blocker.h"
 #include "qapi/qmp/qdict.h"

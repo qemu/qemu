@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "trace/control.h"
 #include "qemu/help_option.h"
+#include "qemu/option.h"
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif

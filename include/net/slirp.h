@@ -24,8 +24,6 @@
 #ifndef QEMU_NET_SLIRP_H
 #define QEMU_NET_SLIRP_H
 
-#include "qemu-common.h"
-#include "qemu/option.h"
 
 #ifdef CONFIG_SLIRP
 

@@ -1,8 +1,6 @@
 #ifndef QEMU_CHAR_H
 #define QEMU_CHAR_H
 
-#include "qemu-common.h"
-#include "qemu/option.h"
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
 #include "qom/object.h"

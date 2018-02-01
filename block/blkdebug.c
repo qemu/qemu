@@ -29,6 +29,7 @@
 #include "qemu/config-file.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "sysemu/qtest.h"

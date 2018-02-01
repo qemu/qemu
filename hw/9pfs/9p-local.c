@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include <libgen.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H

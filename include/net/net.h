@@ -2,9 +2,7 @@
 #define QEMU_NET_H
 
 #include "qemu/queue.h"
-#include "qemu-common.h"
 #include "qapi-types.h"
-#include "qemu/option.h"
 #include "net/queue.h"
 #include "migration/vmstate.h"
 

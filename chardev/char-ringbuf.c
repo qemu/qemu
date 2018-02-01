@@ -27,6 +27,7 @@
 #include "qmp-commands.h"
 #include "qapi/error.h"
 #include "qemu/base64.h"
+#include "qemu/option.h"
 
 /* Ring buffer chardev */
 

@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/bswap.h"
+#include "qemu/option.h"
 #include "trace.h"
 #include "qed.h"
 #include "sysemu/block-backend.h"

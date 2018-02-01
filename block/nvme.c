@@ -18,6 +18,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
+#include "qemu/option.h"
 #include "qemu/vfio-helpers.h"
 #include "block/block_int.h"
 #include "trace.h"

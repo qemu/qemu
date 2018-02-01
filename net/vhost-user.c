@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qmp-commands.h"
 #include "trace.h"
 

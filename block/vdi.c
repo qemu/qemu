@@ -54,6 +54,7 @@
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
 #include "qemu/bswap.h"
 #include "migration/blocker.h"
 #include "qemu/coroutine.h"

@@ -29,6 +29,7 @@
 #include "sysemu/blockdev.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/config-file.h"
+#include "qemu/option.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "block/block_int.h"

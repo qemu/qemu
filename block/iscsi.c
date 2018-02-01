@@ -28,7 +28,6 @@
 #include <poll.h>
 #include <math.h>
 #include <arpa/inet.h>
-#include "qemu-common.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/bitops.h"
@@ -36,6 +35,7 @@
 #include "block/block_int.h"
 #include "scsi/constants.h"
 #include "qemu/iov.h"
+#include "qemu/option.h"
 #include "qemu/uuid.h"
 #include "qmp-commands.h"
 #include "qapi/error.h"

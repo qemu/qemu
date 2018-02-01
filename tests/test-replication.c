@@ -12,6 +12,7 @@
 
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qemu/option.h"
 #include "replication.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"

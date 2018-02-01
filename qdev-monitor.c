@@ -30,6 +30,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
+#include "qemu/option.h"
 #include "sysemu/block-backend.h"
 #include "migration/misc.h"
 

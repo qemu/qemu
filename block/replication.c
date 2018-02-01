@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/option.h"
 #include "block/nbd.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"

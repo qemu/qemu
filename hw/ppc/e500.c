@@ -16,7 +16,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "e500.h"
 #include "e500-ccsr.h"
 #include "net/net.h"
@@ -36,6 +35,7 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
+#include "qemu/option.h"
 #include "hw/pci-host/ppce500.h"
 #include "qemu/error-report.h"
 #include "hw/platform-bus.h"

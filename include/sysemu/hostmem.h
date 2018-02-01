@@ -16,7 +16,6 @@
 #include "sysemu/sysemu.h" /* for MAX_NODES */
 #include "qom/object.h"
 #include "exec/memory.h"
-#include "qemu/option.h"
 #include "qemu/bitmap.h"
 
 #define TYPE_MEMORY_BACKEND "memory-backend"

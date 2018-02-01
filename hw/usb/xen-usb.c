@@ -23,8 +23,8 @@
 #include <libusb.h>
 #include <sys/user.h>
 
-#include "qemu-common.h"
 #include "qemu/config-file.h"
+#include "qemu/option.h"
 #include "hw/sysbus.h"
 #include "hw/usb.h"
 #include "hw/xen/xen_backend.h"

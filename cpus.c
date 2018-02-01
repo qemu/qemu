@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/config-file.h"
 #include "cpu.h"
 #include "monitor/monitor.h"
@@ -46,6 +45,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/qtest.h"
 #include "qemu/main-loop.h"
+#include "qemu/option.h"
 #include "qemu/bitmap.h"
 #include "qemu/seqlock.h"
 #include "tcg.h"

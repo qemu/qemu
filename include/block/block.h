@@ -4,7 +4,6 @@
 #include "block/aio.h"
 #include "qapi-types.h"
 #include "qemu/iov.h"
-#include "qemu/option.h"
 #include "qemu/coroutine.h"
 #include "block/accounting.h"
 #include "block/dirty-bitmap.h"

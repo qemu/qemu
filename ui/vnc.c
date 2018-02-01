@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
 #include "qemu/acl.h"

@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu-version.h"
 #include "qemu/cutils.h"
+#include "qemu/option.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"

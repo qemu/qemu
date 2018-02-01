@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "fsdev/qemu-fsdev.h"
 #include "9p-proxy.h"
 

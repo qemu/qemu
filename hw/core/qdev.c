@@ -32,6 +32,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "hw/hotplug.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"

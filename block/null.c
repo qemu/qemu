@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/option.h"
 #include "block/block_int.h"
 
 #define NULL_OPT_LATENCY "latency-ns"

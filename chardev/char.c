@@ -34,6 +34,7 @@
 #include "qapi/error.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
+#include "qemu/option.h"
 
 #include "chardev/char-mux.h"
 

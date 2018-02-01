@@ -16,6 +16,7 @@
 #include "qemu/error-report.h"
 #include "qemu-fsdev-throttle.h"
 #include "qemu/iov.h"
+#include "qemu/option.h"
 
 static void fsdev_throttle_read_timer_cb(void *opaque)
 {

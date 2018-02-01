@@ -21,12 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "chardev/char.h"
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
 #include "io/net-listener.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 

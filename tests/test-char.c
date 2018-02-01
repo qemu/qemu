@@ -1,8 +1,8 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
-#include "qemu-common.h"
 #include "qemu/config-file.h"
+#include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-mux.h"

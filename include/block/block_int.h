@@ -26,7 +26,6 @@
 
 #include "block/accounting.h"
 #include "block/block.h"
-#include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
 #include "qemu/stats64.h"

@@ -28,6 +28,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
+#include "qemu/option.h"
 #include "block/crypto.h"
 
 typedef struct BlockCrypto BlockCrypto;
