@@ -34,7 +34,6 @@
 #include "qapi/qmp/qjson.h"
 #include "qemu/coroutine.h"
 #include "qemu/id.h"
-#include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
 

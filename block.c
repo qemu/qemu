@@ -39,7 +39,6 @@
 #include "qemu/notify.h"
 #include "qemu/coroutine.h"
 #include "block/qapi.h"
-#include "qmp-commands.h"
 #include "qemu/timer.h"
 #include "qapi-event.h"
 #include "qemu/cutils.h"
