@@ -22,6 +22,8 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qnum.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 

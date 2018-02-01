@@ -11,8 +11,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"
 
@@ -62,6 +66,26 @@ void qlist_append_obj(QList *qlist, QObject *value)
     entry->value = value;
 
     QTAILQ_INSERT_TAIL(&qlist->head, entry, next);
+}
+
+void qlist_append_int(QList *qlist, int64_t value)
+{
+    qlist_append(qlist, qnum_from_int(value));
+}
+
+void qlist_append_bool(QList *qlist, bool value)
+{
+    qlist_append(qlist, qbool_from_bool(value));
+}
+
+void qlist_append_str(QList *qlist, const char *value)
+{
+    qlist_append(qlist, qstring_from_str(value));
+}
+
+void qlist_append_null(QList *qlist)
+{
+    qlist_append(qlist, qnull());
 }
 
 /**

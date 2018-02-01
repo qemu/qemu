@@ -14,6 +14,7 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/error.h"
@@ -141,6 +142,26 @@ void qdict_put_obj(QDict *qdict, const char *key, QObject *value)
         QLIST_INSERT_HEAD(&qdict->table[bucket], entry, next);
         qdict->size++;
     }
+}
+
+void qdict_put_int(QDict *qdict, const char *key, int64_t value)
+{
+    qdict_put(qdict, key, qnum_from_int(value));
+}
+
+void qdict_put_bool(QDict *qdict, const char *key, bool value)
+{
+    qdict_put(qdict, key, qbool_from_bool(value));
+}
+
+void qdict_put_str(QDict *qdict, const char *key, const char *value)
+{
+    qdict_put(qdict, key, qstring_from_str(value));
+}
+
+void qdict_put_null(QDict *qdict, const char *key)
+{
+    qdict_put(qdict, key, qnull());
 }
 
 /**

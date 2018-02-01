@@ -9,6 +9,8 @@
 #include "qemu/osdep.h"
 
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu-common.h"
 

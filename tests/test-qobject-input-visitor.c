@@ -18,6 +18,8 @@
 #include "qapi/qobject-input-visitor.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qjson.h"
 #include "test-qmp-introspect.h"
 #include "qmp-introspect.h"

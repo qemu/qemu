@@ -18,6 +18,8 @@
 #include "qemu/queue.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 
 typedef struct QStackEntry {

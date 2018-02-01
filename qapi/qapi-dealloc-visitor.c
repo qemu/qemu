@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
+#include "qapi/qmp/qnull.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"
 #include "qapi/visitor-impl.h"

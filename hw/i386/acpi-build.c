@@ -22,6 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qnum.h"
 #include "acpi-build.h"
 #include "qemu-common.h"
 #include "qemu/bitmap.h"
