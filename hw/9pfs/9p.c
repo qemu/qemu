@@ -3485,13 +3485,17 @@ void pdu_submit(V9fsPDU *pdu, P9MsgHeader *hdr)
 }
 
 /* Returns 0 on success, 1 on failure. */
-int v9fs_device_realize_common(V9fsState *s, Error **errp)
+int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
+                               Error **errp)
 {
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
     V9fsPath path;
     int rc = 1;
+
+    assert(!s->transport);
+    s->transport = t;
 
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
