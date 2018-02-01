@@ -18,6 +18,7 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "qapi-event.h"
+#include "qapi/error.h"
 #include "qemu/id.h"
 #include "trace.h"
 #include "migration/misc.h"

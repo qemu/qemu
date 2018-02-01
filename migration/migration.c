@@ -30,6 +30,7 @@
 #include "qemu-file.h"
 #include "migration/vmstate.h"
 #include "block/block.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/rcu.h"
 #include "block.h"

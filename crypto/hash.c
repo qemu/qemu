@@ -19,7 +19,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "crypto/hash.h"
 #include "hashpriv.h"
 

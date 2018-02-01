@@ -16,6 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "net/eth.h"
+#include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/timer.h"
 #include "qmp-commands.h"

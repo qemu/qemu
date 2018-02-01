@@ -18,7 +18,6 @@
 #include "block/aio.h"
 #include "qemu/main-loop.h"
 #include "qemu/coroutine.h"
-#include "qapi/error.h"
 #include "qemu/throttle.h"
 
 typedef struct FsThrottle {

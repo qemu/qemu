@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
 #include "trace.h"

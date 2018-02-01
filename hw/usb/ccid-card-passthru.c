@@ -9,7 +9,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include <cacard/vscard_common.h>
 #include "chardev/char-fe.h"
 #include "qemu/error-report.h"

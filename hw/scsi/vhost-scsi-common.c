@@ -16,7 +16,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "migration/migration.h"
 #include "hw/virtio/vhost.h"

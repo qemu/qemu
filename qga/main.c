@@ -10,6 +10,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include <getopt.h>
 #include <glib/gstdio.h>
@@ -23,6 +24,7 @@
 #include "qga/guest-agent-core.h"
 #include "qemu/module.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/error.h"
 #include "qapi/qmp/dispatch.h"
 #include "qga/channel.h"
 #include "qemu/bswap.h"

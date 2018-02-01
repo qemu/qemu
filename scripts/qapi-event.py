@@ -209,6 +209,7 @@ fdef.write(mcgen('''
 #include "qemu-common.h"
 #include "%(prefix)sqapi-event.h"
 #include "%(prefix)sqapi-visit.h"
+#include "qapi/error.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp-event.h"
 
@@ -216,7 +217,6 @@ fdef.write(mcgen('''
                  prefix=prefix))
 
 fdecl.write(mcgen('''
-#include "qapi/error.h"
 #include "qapi/util.h"
 #include "qapi/qmp/qdict.h"
 #include "%(prefix)sqapi-types.h"

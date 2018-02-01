@@ -6,6 +6,7 @@
 #include "hw/qdev-core.h"
 #include "trace.h"
 #include "qapi-event.h"
+#include "qapi/error.h"
 
 #define MEMORY_SLOTS_NUMBER          "MDNR"
 #define MEMORY_HOTPLUG_IO_REGION     "HPMR"

@@ -44,8 +44,6 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/ich9.h"
-#include "qapi/error.h"
-
 
 /*****************************************************************************/
 /* ICH9 DMI-to-PCI bridge */

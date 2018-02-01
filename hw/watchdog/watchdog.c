@@ -23,6 +23,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/queue.h"
+#include "qapi/error.h"
 #include "qapi/qmp/types.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/watchdog.h"

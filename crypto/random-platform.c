@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 
 #include "crypto/random.h"
+#include "qapi/error.h"
 
 #ifdef _WIN32
 #include <wincrypt.h>

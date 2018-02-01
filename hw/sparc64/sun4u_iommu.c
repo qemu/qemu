@@ -28,7 +28,6 @@
 #include "hw/sysbus.h"
 #include "hw/sparc/sun4u_iommu.h"
 #include "exec/address-spaces.h"
-#include "qapi/error.h"
 #include "qemu/log.h"
 #include "trace.h"
 

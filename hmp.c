@@ -27,6 +27,7 @@
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
+#include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/string-input-visitor.h"

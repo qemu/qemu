@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qapi/error.h"
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"

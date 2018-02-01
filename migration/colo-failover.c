@@ -16,6 +16,7 @@
 #include "qemu/main-loop.h"
 #include "migration.h"
 #include "qmp-commands.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "trace.h"

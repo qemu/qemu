@@ -29,6 +29,7 @@
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/coroutine.h"

@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "block/aio.h"
-#include "qapi/error.h"
 #include "qemu/coroutine.h"
 #include "qemu/thread.h"
 #include "qemu/error-report.h"

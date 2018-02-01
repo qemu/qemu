@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include "io-channel-helpers.h"
-#include "qapi/error.h"
 #include "qemu/iov.h"
 
 struct QIOChannelTest {

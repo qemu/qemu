@@ -42,6 +42,7 @@
 #include "qemu/config-file.h"
 #include "qapi/qmp/types.h"
 #include "qapi-visit.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qobject-output-visitor.h"
 #include "sysemu/sysemu.h"

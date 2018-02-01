@@ -22,7 +22,6 @@
 
 #include "cpu.h"
 #include "qemu/host-utils.h"
-#include "qapi/error.h"
 #include "exec/exec-all.h"
 #include "exec/log.h"
 #include "exec/helper-proto.h"

@@ -31,6 +31,7 @@
 #include "sysemu/balloon.h"
 #include "trace-root.h"
 #include "qmp-commands.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 

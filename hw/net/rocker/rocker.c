@@ -21,6 +21,7 @@
 #include "hw/pci/msix.h"
 #include "net/net.h"
 #include "net/eth.h"
+#include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/bitops.h"
 #include "qmp-commands.h"

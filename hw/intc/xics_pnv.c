@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
-#include "qapi/error.h"
 #include "qemu/log.h"
 #include "hw/ppc/xics.h"
 

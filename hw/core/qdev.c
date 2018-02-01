@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qjson.h"

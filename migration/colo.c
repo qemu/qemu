@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
+#include "qapi/error.h"
 #include "qemu-file-channel.h"
 #include "migration.h"
 #include "qemu-file.h"

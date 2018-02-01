@@ -19,6 +19,7 @@
 #include "block/block.h"
 #include "sysemu/iothread.h"
 #include "qmp-commands.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"

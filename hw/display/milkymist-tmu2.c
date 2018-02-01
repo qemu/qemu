@@ -28,6 +28,7 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "trace.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 

@@ -289,6 +289,7 @@ h_comment = '''
                             c_comment, h_comment)
 
 fdef.write(mcgen('''
+
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/module.h"
@@ -297,6 +298,7 @@ fdef.write(mcgen('''
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
+#include "qapi/error.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
 #include "%(prefix)sqmp-commands.h"
@@ -308,7 +310,6 @@ fdecl.write(mcgen('''
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/dispatch.h"
-#include "qapi/error.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',

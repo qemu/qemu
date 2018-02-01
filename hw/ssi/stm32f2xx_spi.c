@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "qemu/log.h"
 #include "hw/ssi/stm32f2xx_spi.h"
 

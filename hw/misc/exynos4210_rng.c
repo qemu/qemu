@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "crypto/random.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 #include "qemu/log.h"
 
 #define DEBUG_EXYNOS_RNG 0

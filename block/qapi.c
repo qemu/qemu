@@ -29,6 +29,7 @@
 #include "block/write-threshold.h"
 #include "qmp-commands.h"
 #include "qapi-visit.h"
+#include "qapi/error.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/types.h"
 #include "sysemu/block-backend.h"

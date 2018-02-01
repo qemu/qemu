@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "block/block_int.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
