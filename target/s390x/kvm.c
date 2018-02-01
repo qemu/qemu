@@ -38,7 +38,6 @@
 #include "sysemu/hw_accel.h"
 #include "hw/hw.h"
 #include "sysemu/device_tree.h"
-#include "qapi/qmp/qjson.h"
 #include "exec/gdbstub.h"
 #include "exec/address-spaces.h"
 #include "trace.h"

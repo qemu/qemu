@@ -22,7 +22,6 @@
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
-#include "qapi/qmp/qjson.h"
 
 typedef struct TestOutputVisitorData {
     Visitor *ov;

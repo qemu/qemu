@@ -31,7 +31,6 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp/qjson.h"
 #include "qemu/error-report.h"
 #include "hw/hotplug.h"
 #include "hw/boards.h"

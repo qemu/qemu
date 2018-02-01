@@ -31,7 +31,6 @@
 #include "qemu/sockets.h"
 #include "qmp-commands.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qjson.h"
 #include "qemu/notify.h"
 #include "migration/misc.h"
 #include "hw/hw.h"
