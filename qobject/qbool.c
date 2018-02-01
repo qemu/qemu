@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qmp/qbool.h"
-#include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
 
 /**

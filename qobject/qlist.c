@@ -15,7 +15,6 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qnum.h"
-#include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"

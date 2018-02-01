@@ -16,7 +16,6 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qstring.h"
-#include "qapi/qmp/qobject.h"
 #include "qapi/error.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"

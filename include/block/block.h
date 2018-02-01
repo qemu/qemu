@@ -8,7 +8,6 @@
 #include "block/accounting.h"
 #include "block/dirty-bitmap.h"
 #include "block/blockjob.h"
-#include "qapi/qmp/qobject.h"
 #include "qemu/hbitmap.h"
 
 /* block.c */

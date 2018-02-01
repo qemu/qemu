@@ -14,7 +14,6 @@
 #ifndef QAPI_QMP_DISPATCH_H
 #define QAPI_QMP_DISPATCH_H
 
-#include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);

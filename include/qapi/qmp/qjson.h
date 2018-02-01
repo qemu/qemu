@@ -14,7 +14,6 @@
 #ifndef QJSON_H
 #define QJSON_H
 
-#include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qstring.h"
 
 QObject *qobject_from_json(const char *string, Error **errp);

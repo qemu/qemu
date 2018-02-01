@@ -15,7 +15,6 @@
 #define QOBJECT_OUTPUT_VISITOR_H
 
 #include "qapi/visitor.h"
-#include "qapi/qmp/qobject.h"
 
 typedef struct QObjectOutputVisitor QObjectOutputVisitor;
 
