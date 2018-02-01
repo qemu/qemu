@@ -246,13 +246,17 @@ static const char *rmessage_name(uint8_t id)
         "<unknown>";
 }
 
-static void v9fs_req_recv(P9Req *req, uint8_t id)
+static void v9fs_req_wait_for_reply(P9Req *req)
 {
     QVirtIO9P *v9p = req->v9p;
-    P9Hdr hdr;
 
     qvirtio_wait_used_elem(v9p->dev, v9p->vq, req->free_head,
                            QVIRTIO_9P_TIMEOUT_US);
+}
+
+static void v9fs_req_recv(P9Req *req, uint8_t id)
+{
+    P9Hdr hdr;
 
     v9fs_memread(req, &hdr, 7);
     hdr.size = ldl_le_p(&hdr.size);
@@ -398,6 +402,7 @@ static void fs_version(QVirtIO9P *v9p)
     P9Req *req;
 
     req = v9fs_tversion(v9p, P9_MAX_SIZE, version, P9_NOTAG);
+    v9fs_req_wait_for_reply(req);
     v9fs_rversion(req, &server_len, &server_version);
 
     g_assert_cmpmem(server_version, server_len, version, strlen(version));
@@ -411,6 +416,7 @@ static void fs_attach(QVirtIO9P *v9p)
 
     fs_version(v9p);
     req = v9fs_tattach(v9p, 0, getuid(), 0);
+    v9fs_req_wait_for_reply(req);
     v9fs_rattach(req, NULL);
 }
 
@@ -431,6 +437,7 @@ static void fs_walk(QVirtIO9P *v9p)
 
     fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, P9_MAXWELEM, wnames, 0);
+    v9fs_req_wait_for_reply(req);
     v9fs_rwalk(req, &nwqid, &wqid);
 
     g_assert_cmpint(nwqid, ==, P9_MAXWELEM);
@@ -452,6 +459,7 @@ static void fs_walk_no_slash(QVirtIO9P *v9p)
 
     fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    v9fs_req_wait_for_reply(req);
     v9fs_rlerror(req, &err);
 
     g_assert_cmpint(err, ==, ENOENT);
@@ -467,9 +475,11 @@ static void fs_walk_dotdot(QVirtIO9P *v9p)
 
     fs_version(v9p);
     req = v9fs_tattach(v9p, 0, getuid(), 0);
+    v9fs_req_wait_for_reply(req);
     v9fs_rattach(req, &root_qid);
 
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    v9fs_req_wait_for_reply(req);
     v9fs_rwalk(req, NULL, &wqid); /* We now we'll get one qid */
 
     g_assert_cmpmem(&root_qid, 13, wqid[0], 13);
