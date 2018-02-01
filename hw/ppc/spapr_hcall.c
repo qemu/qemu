@@ -1697,6 +1697,7 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
     switch (safe_indirect_branch) {
     case SPAPR_CAP_FIXED:
         characteristics |= H_CPU_CHAR_BCCTRL_SERIALISED;
+        break;
     default: /* broken */
         assert(safe_indirect_branch == SPAPR_CAP_BROKEN);
         break;
