@@ -14,6 +14,7 @@
 #include "libqtest.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qlist.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/util.h"
 #include "qapi/visitor.h"

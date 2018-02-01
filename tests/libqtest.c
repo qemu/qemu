@@ -12,8 +12,8 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
- *
  */
+
 #include "qemu/osdep.h"
 #include "libqtest.h"
 
@@ -25,6 +25,7 @@
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlist.h"
 
 #define MAX_IRQ 256
 #define SOCKET_TIMEOUT 50
