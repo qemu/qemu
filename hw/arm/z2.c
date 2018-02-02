@@ -23,6 +23,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/block-backend.h"
 #include "ui/console.h"
+#include "hw/audio/wm8750.h"
 #include "audio/audio.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
@@ -346,7 +347,7 @@ static void z2_init(MachineState *machine)
     z2_lcd = ssi_create_slave(mpu->ssp[1], "zipit-lcd");
     bus = pxa2xx_i2c_bus(mpu->i2c[0]);
     i2c_create_slave(bus, TYPE_AER915, 0x55);
-    wm = i2c_create_slave(bus, "wm8750", 0x1b);
+    wm = i2c_create_slave(bus, TYPE_WM8750, 0x1b);
     mpu->i2s->opaque = wm;
     mpu->i2s->codec_out = wm8750_dac_dat;
     mpu->i2s->codec_in = wm8750_adc_dat;
