@@ -19,6 +19,7 @@
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/cutils.h"
+#include "sysemu/qtest.h"
 
 /* Root node for synth file system */
 static V9fsSynthNode synth_root = {
@@ -514,6 +515,26 @@ static int synth_unlinkat(FsContext *ctx, V9fsPath *dir,
     return -1;
 }
 
+static ssize_t v9fs_synth_qtest_write(void *buf, int len, off_t offset,
+                                      void *arg)
+{
+    return 1;
+}
+
+static ssize_t v9fs_synth_qtest_flush_write(void *buf, int len, off_t offset,
+                                            void *arg)
+{
+    bool should_block = !!*(uint8_t *)buf;
+
+    if (should_block) {
+        /* This will cause the server to call us again until we're cancelled */
+        errno = EINTR;
+        return -1;
+    }
+
+    return 1;
+}
+
 static int synth_init(FsContext *ctx, Error **errp)
 {
     QLIST_INIT(&synth_root.child);
@@ -527,6 +548,37 @@ static int synth_init(FsContext *ctx, Error **errp)
 
     /* Mark the subsystem is ready for use */
     synth_fs = 1;
+
+    if (qtest_enabled()) {
+        V9fsSynthNode *node = NULL;
+        int i, ret;
+
+        /* Directory hierarchy for WALK test */
+        for (i = 0; i < P9_MAXWELEM; i++) {
+            char *name = g_strdup_printf(QTEST_V9FS_SYNTH_WALK_FILE, i);
+
+            ret = qemu_v9fs_synth_mkdir(node, 0700, name, &node);
+            assert(!ret);
+            g_free(name);
+        }
+
+        /* File for LOPEN test */
+        ret = qemu_v9fs_synth_add_file(NULL, 0, QTEST_V9FS_SYNTH_LOPEN_FILE,
+                                       NULL, NULL, ctx);
+        assert(!ret);
+
+        /* File for WRITE test */
+        ret = qemu_v9fs_synth_add_file(NULL, 0, QTEST_V9FS_SYNTH_WRITE_FILE,
+                                       NULL, v9fs_synth_qtest_write, ctx);
+        assert(!ret);
+
+        /* File for FLUSH test */
+        ret = qemu_v9fs_synth_add_file(NULL, 0, QTEST_V9FS_SYNTH_FLUSH_FILE,
+                                       NULL, v9fs_synth_qtest_flush_write,
+                                       ctx);
+        assert(!ret);
+    }
+
     return 0;
 }
 

@@ -121,7 +121,8 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
     }
 
     qvirtqueue_kick(vs->dev, vq, free_head);
-    qvirtio_wait_used_elem(vs->dev, vq, free_head, QVIRTIO_SCSI_TIMEOUT_US);
+    qvirtio_wait_used_elem(vs->dev, vq, free_head, NULL,
+                           QVIRTIO_SCSI_TIMEOUT_US);
 
     response = readb(resp_addr +
                      offsetof(struct virtio_scsi_cmd_resp, response));

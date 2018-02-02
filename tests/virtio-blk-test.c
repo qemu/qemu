@@ -193,7 +193,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
 
     qvirtqueue_kick(dev, vq, free_head);
 
-    qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
+    qvirtio_wait_used_elem(dev, vq, free_head, NULL, QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -215,7 +215,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
 
     qvirtqueue_kick(dev, vq, free_head);
 
-    qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
+    qvirtio_wait_used_elem(dev, vq, free_head, NULL, QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
@@ -243,7 +243,8 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
         qvirtqueue_add(vq, req_addr + 528, 1, true, false);
         qvirtqueue_kick(dev, vq, free_head);
 
-        qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
+        qvirtio_wait_used_elem(dev, vq, free_head, NULL,
+                               QVIRTIO_BLK_TIMEOUT_US);
         status = readb(req_addr + 528);
         g_assert_cmpint(status, ==, 0);
 
@@ -264,7 +265,8 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
 
         qvirtqueue_kick(dev, vq, free_head);
 
-        qvirtio_wait_used_elem(dev, vq, free_head, QVIRTIO_BLK_TIMEOUT_US);
+        qvirtio_wait_used_elem(dev, vq, free_head, NULL,
+                               QVIRTIO_BLK_TIMEOUT_US);
         status = readb(req_addr + 528);
         g_assert_cmpint(status, ==, 0);
 
@@ -345,7 +347,7 @@ static void pci_indirect(void)
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
-    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
+    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head, NULL,
                            QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
@@ -370,7 +372,7 @@ static void pci_indirect(void)
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
-    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
+    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head, NULL,
                            QVIRTIO_BLK_TIMEOUT_US);
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
@@ -481,7 +483,7 @@ static void pci_msix(void)
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
-    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
+    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head, NULL,
                            QVIRTIO_BLK_TIMEOUT_US);
 
     status = readb(req_addr + 528);
@@ -506,7 +508,7 @@ static void pci_msix(void)
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
 
-    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
+    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head, NULL,
                            QVIRTIO_BLK_TIMEOUT_US);
 
     status = readb(req_addr + 528);
@@ -580,7 +582,7 @@ static void pci_idx(void)
     qvirtqueue_add(&vqpci->vq, req_addr + 528, 1, true, false);
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
-    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head,
+    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, free_head, NULL,
                            QVIRTIO_BLK_TIMEOUT_US);
 
     /* Write request */
@@ -627,9 +629,9 @@ static void pci_idx(void)
     qvirtqueue_kick(&dev->vdev, &vqpci->vq, free_head);
 
     /* We get just one notification for both requests */
-    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, write_head,
+    qvirtio_wait_used_elem(&dev->vdev, &vqpci->vq, write_head, NULL,
                            QVIRTIO_BLK_TIMEOUT_US);
-    g_assert(qvirtqueue_get_buf(&vqpci->vq, &desc_idx));
+    g_assert(qvirtqueue_get_buf(&vqpci->vq, &desc_idx, NULL));
     g_assert_cmpint(desc_idx, ==, free_head);
 
     status = readb(req_addr + 528);

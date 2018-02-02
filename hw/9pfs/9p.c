@@ -24,6 +24,7 @@
 #include "coth.h"
 #include "trace.h"
 #include "migration/blocker.h"
+#include "sysemu/qtest.h"
 
 int open_fd_hw;
 int total_open_fd;
@@ -629,6 +630,24 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
     int8_t id = pdu->id + 1; /* Response */
     V9fsState *s = pdu->s;
     int ret;
+
+    /*
+     * The 9p spec requires that successfully cancelled pdus receive no reply.
+     * Sending a reply would confuse clients because they would
+     * assume that any EINTR is the actual result of the operation,
+     * rather than a consequence of the cancellation. However, if
+     * the operation completed (succesfully or with an error other
+     * than caused be cancellation), we do send out that reply, both
+     * for efficiency and to avoid confusing the rest of the state machine
+     * that assumes passing a non-error here will mean a successful
+     * transmission of the reply.
+     */
+    bool discard = pdu->cancelled && len == -EINTR;
+    if (discard) {
+        trace_v9fs_rcancel(pdu->tag, pdu->id);
+        pdu->size = 0;
+        goto out_notify;
+    }
 
     if (len < 0) {
         int err = -len;
@@ -3485,13 +3504,17 @@ void pdu_submit(V9fsPDU *pdu, P9MsgHeader *hdr)
 }
 
 /* Returns 0 on success, 1 on failure. */
-int v9fs_device_realize_common(V9fsState *s, Error **errp)
+int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
+                               Error **errp)
 {
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
     V9fsPath path;
     int rc = 1;
+
+    assert(!s->transport);
+    s->transport = t;
 
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);

@@ -346,7 +346,8 @@ void v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...);
 void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
 int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
                       const char *name, V9fsPath *path);
-int v9fs_device_realize_common(V9fsState *s, Error **errp);
+int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
+                               Error **errp);
 void v9fs_device_unrealize_common(V9fsState *s, Error **errp);
 
 V9fsPDU *pdu_alloc(V9fsState *s);
@@ -365,12 +366,5 @@ struct V9fsTransport {
                                          unsigned int *pniov, size_t size);
     void        (*push_and_notify)(V9fsPDU *pdu);
 };
-
-static inline int v9fs_register_transport(V9fsState *s, const V9fsTransport *t)
-{
-    assert(!s->transport);
-    s->transport = t;
-    return 0;
-}
 
 #endif
