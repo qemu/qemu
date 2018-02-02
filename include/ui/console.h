@@ -486,18 +486,17 @@ int index_from_key(const char *key, size_t key_length);
 
 /* gtk.c */
 #ifdef CONFIG_GTK
-void early_gtk_display_init(int opengl);
-void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
+void early_gtk_display_init(DisplayOptions *opts);
+void gtk_display_init(DisplayState *ds, DisplayOptions *opts);
 #else
-static inline void gtk_display_init(DisplayState *ds, bool full_screen,
-                                    bool grab_on_hover)
+static inline void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_GTK is disabled */
     error_report("GTK support is disabled");
     abort();
 }
 
-static inline void early_gtk_display_init(int opengl)
+static inline void early_gtk_display_init(DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_GTK is disabled */
     error_report("GTK support is disabled");
