@@ -505,6 +505,6 @@ static inline void early_gtk_display_init(DisplayOptions *opts)
 #endif
 
 /* egl-headless.c */
-void egl_headless_init(void);
+void egl_headless_init(DisplayOptions *opts);
 
 #endif

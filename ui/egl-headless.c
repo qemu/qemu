@@ -154,7 +154,7 @@ static const DisplayChangeListenerOps egl_ops = {
     .dpy_gl_update           = egl_scanout_flush,
 };
 
-void egl_headless_init(void)
+void egl_headless_init(DisplayOptions *opts)
 {
     QemuConsole *con;
     egl_dpy *edpy;
