@@ -4344,6 +4344,7 @@ int main(int argc, char **argv, char **envp)
         dpy.type = DISPLAY_TYPE_SDL;
 #elif defined(CONFIG_COCOA)
         display_type = DT_COCOA;
+        dpy.type = DISPLAY_TYPE_COCOA;
 #elif defined(CONFIG_VNC)
         vnc_parse("localhost:0,to=99,id=default", &error_abort);
 #else
@@ -4705,7 +4706,7 @@ int main(int argc, char **argv, char **envp)
         sdl_display_init(ds, &dpy);
         break;
     case DT_COCOA:
-        cocoa_display_init(ds, full_screen);
+        cocoa_display_init(ds, &dpy);
         break;
     case DT_GTK:
         gtk_display_init(ds, &dpy);
