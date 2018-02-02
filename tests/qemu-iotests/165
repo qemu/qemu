@@ -64,7 +64,7 @@ class TestPersistentDirtyBitmap(iotests.QMPTestCase):
 
     def qmpAddBitmap(self):
         self.vm.qmp('block-dirty-bitmap-add', node='drive0',
-                    name='bitmap0', persistent=True, autoload=True)
+                    name='bitmap0', persistent=True)
 
     def test_persistent(self):
         self.vm = self.mkVm()

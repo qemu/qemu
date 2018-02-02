@@ -933,14 +933,14 @@ static void set_readonly_helper(gpointer bitmap, gpointer value)
     bdrv_dirty_bitmap_set_readonly(bitmap, (bool)value);
 }
 
-/* qcow2_load_autoloading_dirty_bitmaps()
+/* qcow2_load_dirty_bitmaps()
  * Return value is a hint for caller: true means that the Qcow2 header was
  * updated. (false doesn't mean that the header should be updated by the
  * caller, it just means that updating was not needed or the image cannot be
  * written to).
  * On failure the function returns false.
  */
-bool qcow2_load_autoloading_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
@@ -960,14 +960,16 @@ bool qcow2_load_autoloading_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        if ((bm->flags & BME_FLAG_AUTO) && !(bm->flags & BME_FLAG_IN_USE)) {
+        if (!(bm->flags & BME_FLAG_IN_USE)) {
             BdrvDirtyBitmap *bitmap = load_bitmap(bs, bm, errp);
             if (bitmap == NULL) {
                 goto fail;
             }
 
+            if (!(bm->flags & BME_FLAG_AUTO)) {
+                bdrv_disable_dirty_bitmap(bitmap);
+            }
             bdrv_dirty_bitmap_set_persistance(bitmap, true);
-            bdrv_dirty_bitmap_set_autoload(bitmap, true);
             bm->flags |= BME_FLAG_IN_USE;
             created_dirty_bitmaps =
                     g_slist_append(created_dirty_bitmaps, bitmap);
@@ -1369,7 +1371,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
             bm->table.size = 0;
             QSIMPLEQ_INSERT_TAIL(&drop_tables, tb, entry);
         }
-        bm->flags = bdrv_dirty_bitmap_get_autoload(bitmap) ? BME_FLAG_AUTO : 0;
+        bm->flags = bdrv_dirty_bitmap_enabled(bitmap) ? BME_FLAG_AUTO : 0;
         bm->granularity_bits = ctz32(bdrv_dirty_bitmap_granularity(bitmap));
         bm->dirty_bitmap = bitmap;
     }

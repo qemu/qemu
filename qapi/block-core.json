@@ -1593,9 +1593,9 @@
 #              Qcow2 disks support persistent bitmaps. Default is false for
 #              block-dirty-bitmap-add. (Since: 2.10)
 #
-# @autoload: the bitmap will be automatically loaded when the image it is stored
-#            in is opened. This flag may only be specified for persistent
-#            bitmaps. Default is false for block-dirty-bitmap-add. (Since: 2.10)
+# @autoload: ignored and deprecated since 2.12.
+#            Currently, all dirty tracking bitmaps are loaded from Qcow2 on
+#            open.
 #
 # Since: 2.4
 ##

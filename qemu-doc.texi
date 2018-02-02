@@ -2757,6 +2757,13 @@ used and it will be removed with no replacement.
 The ``convert -s snapshot_id_or_name'' argument is obsoleted
 by the ``convert -l snapshot_param'' argument instead.
 
+@section QEMU Machine Protocol (QMP) commands
+
+@subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
+
+"autoload" parameter is now ignored. All bitmaps are automatically loaded
+from qcow2 images.
+
 @section System emulator human monitor commands
 
 @subsection host_net_add (since 2.10.0)

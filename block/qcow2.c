@@ -1460,7 +1460,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         s->autoclear_features &= QCOW2_AUTOCLEAR_MASK;
     }
 
-    if (qcow2_load_autoloading_dirty_bitmaps(bs, &local_err)) {
+    if (qcow2_load_dirty_bitmaps(bs, &local_err)) {
         update_header = false;
     }
     if (local_err != NULL) {
