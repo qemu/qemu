@@ -1593,6 +1593,7 @@ F: include/hw/acpi/tpm.h
 F: include/sysemu/tpm*
 F: qapi/tpm.json
 F: backends/tpm.c
+T: git git://github.com/stefanberger/qemu-tpm.git tpm-next
 
 Checkpatch
 S: Odd Fixes
