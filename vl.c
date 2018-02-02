@@ -2083,7 +2083,7 @@ static void select_vgahw(const char *p)
     }
 }
 
-typedef enum DisplayType {
+typedef enum LegacyDisplayType {
     DT_DEFAULT,
     DT_CURSES,
     DT_SDL,
@@ -2091,12 +2091,12 @@ typedef enum DisplayType {
     DT_GTK,
     DT_EGL,
     DT_NONE,
-} DisplayType;
+} LegacyDisplayType;
 
-static DisplayType select_display(const char *p)
+static LegacyDisplayType select_display(const char *p)
 {
     const char *opts;
-    DisplayType display = DT_DEFAULT;
+    LegacyDisplayType display = DT_DEFAULT;
 
     if (strstart(p, "sdl", &opts)) {
 #ifdef CONFIG_SDL
@@ -3051,7 +3051,7 @@ int main(int argc, char **argv, char **envp)
     const char *incoming = NULL;
     bool userconfig = true;
     bool nographic = false;
-    DisplayType display_type = DT_DEFAULT;
+    LegacyDisplayType display_type = DT_DEFAULT;
     int display_remote = 0;
     const char *log_mask = NULL;
     const char *log_file = NULL;
