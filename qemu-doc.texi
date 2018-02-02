@@ -2741,6 +2741,13 @@ filesystem test suite. Also it requires the CAP_DAC_READ_SEARCH capability,
 which is not the recommended way to run QEMU. This backend should not be
 used and it will be removed with no replacement.
 
+@subsection -no-frame (since 2.12.0)
+
+The ``-no-frame'' argument works with SDL 1.2 only.  SDL 2.0 lacks
+support for frameless windows, and the other user interfaces never
+implemented this in the first place.  So this will be removed together
+with SDL 1.2 support.
+
 @section qemu-img command line arguments
 
 @subsection convert -s (since 2.0.0)
