@@ -2101,6 +2101,7 @@ static LegacyDisplayType select_display(const char *p)
     if (strstart(p, "sdl", &opts)) {
 #ifdef CONFIG_SDL
         display = DT_SDL;
+        dpy.type = DISPLAY_TYPE_SDL;
         while (*opts) {
             const char *nextopt;
 
@@ -2135,19 +2136,25 @@ static LegacyDisplayType select_display(const char *p)
                 }
             } else if (strstart(opts, ",window_close=", &nextopt)) {
                 opts = nextopt;
+                dpy.has_window_close = true;
                 if (strstart(opts, "on", &nextopt)) {
                     no_quit = 0;
+                    dpy.window_close = true;
                 } else if (strstart(opts, "off", &nextopt)) {
                     no_quit = 1;
+                    dpy.window_close = false;
                 } else {
                     goto invalid_sdl_args;
                 }
             } else if (strstart(opts, ",gl=", &nextopt)) {
                 opts = nextopt;
+                dpy.has_gl = true;
                 if (strstart(opts, "on", &nextopt)) {
                     request_opengl = 1;
+                    dpy.gl = true;
                 } else if (strstart(opts, "off", &nextopt)) {
                     request_opengl = 0;
+                    dpy.gl = false;
                 } else {
                     goto invalid_sdl_args;
                 }
@@ -3668,6 +3675,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_sdl:
 #ifdef CONFIG_SDL
                 display_type = DT_SDL;
+                dpy.type = DISPLAY_TYPE_SDL;
                 break;
 #else
                 error_report("SDL support is disabled");
@@ -4334,6 +4342,7 @@ int main(int argc, char **argv, char **envp)
         dpy.type = DISPLAY_TYPE_GTK;
 #elif defined(CONFIG_SDL)
         display_type = DT_SDL;
+        dpy.type = DISPLAY_TYPE_SDL;
 #elif defined(CONFIG_COCOA)
         display_type = DT_COCOA;
 #elif defined(CONFIG_VNC)
@@ -4358,7 +4367,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (display_type == DT_SDL) {
-        sdl_display_early_init(request_opengl);
+        sdl_display_early_init(&dpy);
     }
 
     qemu_console_early_init();
@@ -4693,7 +4702,7 @@ int main(int argc, char **argv, char **envp)
         curses_display_init(ds, full_screen);
         break;
     case DT_SDL:
-        sdl_display_init(ds, full_screen);
+        sdl_display_init(ds, &dpy);
         break;
     case DT_COCOA:
         cocoa_display_init(ds, full_screen);

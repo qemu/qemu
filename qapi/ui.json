@@ -1020,7 +1020,7 @@
 #
 ##
 { 'enum'    : 'DisplayType',
-  'data'    : [ 'none', 'gtk' ] }
+  'data'    : [ 'none', 'gtk', 'sdl' ] }
 
 ##
 # @DisplayOptions:
@@ -1042,4 +1042,5 @@
                 '*gl'            : 'bool' },
   'discriminator' : 'type',
   'data'    : { 'none'           : 'DisplayNoOpts',
-                'gtk'            : 'DisplayGTK' } }
+                'gtk'            : 'DisplayGTK',
+                'sdl'            : 'DisplayNoOpts' } }
