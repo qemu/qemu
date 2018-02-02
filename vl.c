@@ -2186,6 +2186,7 @@ static LegacyDisplayType select_display(const char *p)
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
+        dpy.type = DISPLAY_TYPE_CURSES;
 #else
         error_report("curses support is disabled");
         exit(1);
@@ -3268,6 +3269,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_curses:
 #ifdef CONFIG_CURSES
                 display_type = DT_CURSES;
+                dpy.type = DISPLAY_TYPE_CURSES;
 #else
                 error_report("curses support is disabled");
                 exit(1);
@@ -4697,7 +4699,7 @@ int main(int argc, char **argv, char **envp)
     /* init local displays */
     switch (display_type) {
     case DT_CURSES:
-        curses_display_init(ds, full_screen);
+        curses_display_init(ds, &dpy);
         break;
     case DT_SDL:
         sdl_display_init(ds, &dpy);

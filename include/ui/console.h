@@ -471,9 +471,9 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 
 /* curses.c */
 #ifdef CONFIG_CURSES
-void curses_display_init(DisplayState *ds, int full_screen);
+void curses_display_init(DisplayState *ds, DisplayOptions *opts);
 #else
-static inline void curses_display_init(DisplayState *ds, int full_screen)
+static inline void curses_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_CURSES is disabled */
     error_report("curses support is disabled");
