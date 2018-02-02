@@ -425,6 +425,11 @@ static void chr_event(void *opaque, int event)
             return;
         }
         ibe->connected = false;
+        /*
+         * Don't hang the OS trying to handle the ATN bit, other end will
+         * resend on a reconnect.
+         */
+        k->set_atn(s, 0, 0);
         if (ibe->waiting_rsp) {
             ibe->waiting_rsp = false;
             ibe->inbuf[1] = ibe->outbuf[1] | 0x04;
