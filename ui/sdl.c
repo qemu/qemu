@@ -242,6 +242,7 @@ static const guint16 *sdl_get_keymap(size_t *maplen)
 
 static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
 {
+    int qcode;
     if (!keycode_map) {
         return 0;
     }
@@ -249,7 +250,13 @@ static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
         return 0;
     }
 
-    return keycode_map[ev->keysym.scancode];
+    qcode = keycode_map[ev->keysym.scancode];
+
+    if (qcode > qemu_input_map_qcode_to_qnum_len) {
+        return 0;
+    }
+
+    return qemu_input_map_qcode_to_qnum[qcode];
 }
 
 static void reset_keys(void)

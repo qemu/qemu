@@ -37,6 +37,7 @@
 #include "qemu/buffer.h"
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
+#include "io/net-listener.h"
 #include <zlib.h>
 
 #include "keymaps.h"
@@ -146,12 +147,8 @@ struct VncDisplay
     int num_exclusive;
     int connections_limit;
     VncSharePolicy share_policy;
-    size_t nlsock;
-    QIOChannelSocket **lsock;
-    guint *lsock_tag;
-    size_t nlwebsock;
-    QIOChannelSocket **lwebsock;
-    guint *lwebsock_tag;
+    QIONetListener *listener;
+    QIONetListener *wslistener;
     DisplaySurface *ds;
     DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
