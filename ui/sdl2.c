@@ -249,6 +249,7 @@ static void sdl_mouse_mode_change(Notifier *notify, void *data)
     if (qemu_input_is_absolute()) {
         if (!absolute_enabled) {
             absolute_enabled = 1;
+            SDL_SetRelativeMouseMode(SDL_FALSE);
             absolute_mouse_grab(&sdl2_console[0]);
         }
     } else if (absolute_enabled) {
