@@ -1627,7 +1627,7 @@ static void musicpal_init(MachineState *machine)
         flash_size = blk_getlength(blk);
         if (flash_size != 8*1024*1024 && flash_size != 16*1024*1024 &&
             flash_size != 32*1024*1024) {
-            fprintf(stderr, "Invalid flash image size\n");
+            error_report("Invalid flash image size");
             exit(1);
         }
 
