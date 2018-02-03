@@ -4,7 +4,6 @@
 #include "qemu/processor.h"
 #include "qemu/atomic.h"
 
-typedef struct QemuMutex QemuMutex;
 typedef struct QemuCond QemuCond;
 typedef struct QemuSemaphore QemuSemaphore;
 typedef struct QemuEvent QemuEvent;
@@ -97,9 +96,9 @@ struct Notifier;
 void qemu_thread_atexit_add(struct Notifier *notifier);
 void qemu_thread_atexit_remove(struct Notifier *notifier);
 
-typedef struct QemuSpin {
+struct QemuSpin {
     int value;
-} QemuSpin;
+};
 
 static inline void qemu_spin_init(QemuSpin *spin)
 {

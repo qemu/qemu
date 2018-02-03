@@ -121,7 +121,7 @@ bool qemu_coroutine_entered(Coroutine *co);
  * Provides a mutex that can be used to synchronise coroutines
  */
 struct CoWaitRecord;
-typedef struct CoMutex {
+struct CoMutex {
     /* Count of pending lockers; 0 for a free mutex, 1 for an
      * uncontended mutex.
      */
@@ -142,7 +142,7 @@ typedef struct CoMutex {
     unsigned handoff, sequence;
 
     Coroutine *holder;
-} CoMutex;
+};
 
 /**
  * Initialises a CoMutex. This must be called before any other operation is used

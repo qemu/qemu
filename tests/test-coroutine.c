@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
+#include "qemu/lockable.h"
 
 /*
  * Check that qemu_in_coroutine() works
@@ -210,6 +211,18 @@ static void coroutine_fn mutex_fn(void *opaque)
     done++;
 }
 
+static void coroutine_fn lockable_fn(void *opaque)
+{
+    QemuLockable *x = opaque;
+    qemu_lockable_lock(x);
+    assert(!locked);
+    locked = true;
+    qemu_coroutine_yield();
+    locked = false;
+    qemu_lockable_unlock(x);
+    done++;
+}
+
 static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
 {
     Coroutine *c1 = qemu_coroutine_create(entry, opaque);
@@ -238,6 +251,17 @@ static void test_co_mutex(void)
 
     qemu_co_mutex_init(&m);
     do_test_co_mutex(mutex_fn, &m);
+}
+
+static void test_co_mutex_lockable(void)
+{
+    CoMutex m;
+    CoMutex *null_pointer = NULL;
+
+    qemu_co_mutex_init(&m);
+    do_test_co_mutex(lockable_fn, QEMU_MAKE_LOCKABLE(&m));
+
+    g_assert(QEMU_MAKE_LOCKABLE(null_pointer) == NULL);
 }
 
 /*
@@ -478,6 +502,7 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
     g_test_add_func("/basic/order", test_order);
     g_test_add_func("/locking/co-mutex", test_co_mutex);
+    g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/nesting", perf_nesting);
