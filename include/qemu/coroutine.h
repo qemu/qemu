@@ -183,7 +183,9 @@ void qemu_co_queue_init(CoQueue *queue);
  * caller of the coroutine.  The mutex is unlocked during the wait and
  * locked again afterwards.
  */
-void coroutine_fn qemu_co_queue_wait(CoQueue *queue, CoMutex *mutex);
+#define qemu_co_queue_wait(queue, lock) \
+    qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock))
+void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock);
 
 /**
  * Restarts the next coroutine in the CoQueue and removes it from the queue.
@@ -270,5 +272,7 @@ void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns);
  * Note that this function clobbers the handlers for the file descriptor.
  */
 void coroutine_fn yield_until_fd_readable(int fd);
+
+#include "qemu/lockable.h"
 
 #endif /* QEMU_COROUTINE_H */
