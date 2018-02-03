@@ -218,7 +218,7 @@ static void ppc_heathrow_init(MachineState *machine)
 #endif
         }
         if (ppc_boot_device == '\0') {
-            fprintf(stderr, "No valid boot device for G3 Beige machine\n");
+            error_report("No valid boot device for G3 Beige machine");
             exit(1);
         }
     }
