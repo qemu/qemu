@@ -175,7 +175,7 @@ static void coroutine_fn c1_fn(void *opaque)
     qemu_coroutine_enter(c2);
 }
 
-static void test_co_queue(void)
+static void test_no_dangling_access(void)
 {
     Coroutine *c1;
     Coroutine *c2;
@@ -193,6 +193,51 @@ static void test_co_queue(void)
 
     /* Must restore the coroutine now to avoid corrupted pool */
     *c1 = tmp;
+}
+
+static bool locked;
+static int done;
+
+static void coroutine_fn mutex_fn(void *opaque)
+{
+    CoMutex *m = opaque;
+    qemu_co_mutex_lock(m);
+    assert(!locked);
+    locked = true;
+    qemu_coroutine_yield();
+    locked = false;
+    qemu_co_mutex_unlock(m);
+    done++;
+}
+
+static void do_test_co_mutex(CoroutineEntry *entry, void *opaque)
+{
+    Coroutine *c1 = qemu_coroutine_create(entry, opaque);
+    Coroutine *c2 = qemu_coroutine_create(entry, opaque);
+
+    done = 0;
+    qemu_coroutine_enter(c1);
+    g_assert(locked);
+    qemu_coroutine_enter(c2);
+
+    /* Unlock queues c2.  It is then started automatically when c1 yields or
+     * terminates.
+     */
+    qemu_coroutine_enter(c1);
+    g_assert_cmpint(done, ==, 1);
+    g_assert(locked);
+
+    qemu_coroutine_enter(c2);
+    g_assert_cmpint(done, ==, 2);
+    g_assert(!locked);
+}
+
+static void test_co_mutex(void)
+{
+    CoMutex m;
+
+    qemu_co_mutex_init(&m);
+    do_test_co_mutex(mutex_fn, &m);
 }
 
 /*
@@ -422,7 +467,7 @@ int main(int argc, char **argv)
      * crash, so skip it.
      */
     if (CONFIG_COROUTINE_POOL) {
-        g_test_add_func("/basic/co_queue", test_co_queue);
+        g_test_add_func("/basic/no-dangling-access", test_no_dangling_access);
     }
 
     g_test_add_func("/basic/lifecycle", test_lifecycle);
@@ -432,6 +477,7 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/entered", test_entered);
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
     g_test_add_func("/basic/order", test_order);
+    g_test_add_func("/locking/co-mutex", test_co_mutex);
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/nesting", perf_nesting);
