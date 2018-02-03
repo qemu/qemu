@@ -424,12 +424,12 @@ static void audio_process_options (const char *prefix,
     const char qemu_prefix[] = "QEMU_";
     size_t preflen, optlen;
 
-    if (audio_bug (AUDIO_FUNC, !prefix)) {
+    if (audio_bug(__func__, !prefix)) {
         dolog ("prefix = NULL\n");
         return;
     }
 
-    if (audio_bug (AUDIO_FUNC, !opt)) {
+    if (audio_bug(__func__, !opt)) {
         dolog ("opt = NULL\n");
         return;
     }
@@ -792,7 +792,7 @@ static int audio_attach_capture (HWVoiceOut *hw)
         SWVoiceOut *sw;
         HWVoiceOut *hw_cap = &cap->hw;
 
-        sc = audio_calloc (AUDIO_FUNC, 1, sizeof (*sc));
+        sc = audio_calloc(__func__, 1, sizeof(*sc));
         if (!sc) {
             dolog ("Could not allocate soft capture voice (%zu bytes)\n",
                    sizeof (*sc));
@@ -848,7 +848,7 @@ static int audio_pcm_hw_find_min_in (HWVoiceIn *hw)
 int audio_pcm_hw_get_live_in (HWVoiceIn *hw)
 {
     int live = hw->total_samples_captured - audio_pcm_hw_find_min_in (hw);
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
+    if (audio_bug(__func__, live < 0 || live > hw->samples)) {
         dolog ("live=%d hw->samples=%d\n", live, hw->samples);
         return 0;
     }
@@ -886,7 +886,7 @@ static int audio_pcm_sw_get_rpos_in (SWVoiceIn *sw)
     int live = hw->total_samples_captured - sw->total_hw_samples_acquired;
     int rpos;
 
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
+    if (audio_bug(__func__, live < 0 || live > hw->samples)) {
         dolog ("live=%d hw->samples=%d\n", live, hw->samples);
         return 0;
     }
@@ -909,7 +909,7 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
     rpos = audio_pcm_sw_get_rpos_in (sw) % hw->samples;
 
     live = hw->total_samples_captured - sw->total_hw_samples_acquired;
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
+    if (audio_bug(__func__, live < 0 || live > hw->samples)) {
         dolog ("live_in=%d hw->samples=%d\n", live, hw->samples);
         return 0;
     }
@@ -935,7 +935,7 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
         }
         osamp = swlim;
 
-        if (audio_bug (AUDIO_FUNC, osamp < 0)) {
+        if (audio_bug(__func__, osamp < 0)) {
             dolog ("osamp=%d\n", osamp);
             return 0;
         }
@@ -990,7 +990,7 @@ static int audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
     if (nb_live1) {
         int live = smin;
 
-        if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
+        if (audio_bug(__func__, live < 0 || live > hw->samples)) {
             dolog ("live=%d hw->samples=%d\n", live, hw->samples);
             return 0;
         }
@@ -1014,7 +1014,7 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
     hwsamples = sw->hw->samples;
 
     live = sw->total_hw_samples_mixed;
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > hwsamples)){
+    if (audio_bug(__func__, live < 0 || live > hwsamples)) {
         dolog ("live=%d hw->samples=%d\n", live, hwsamples);
         return 0;
     }
@@ -1263,7 +1263,7 @@ static int audio_get_avail (SWVoiceIn *sw)
     }
 
     live = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > sw->hw->samples)) {
+    if (audio_bug(__func__, live < 0 || live > sw->hw->samples)) {
         dolog ("live=%d sw->hw->samples=%d\n", live, sw->hw->samples);
         return 0;
     }
@@ -1287,7 +1287,7 @@ static int audio_get_free (SWVoiceOut *sw)
 
     live = sw->total_hw_samples_mixed;
 
-    if (audio_bug (AUDIO_FUNC, live < 0 || live > sw->hw->samples)) {
+    if (audio_bug(__func__, live < 0 || live > sw->hw->samples)) {
         dolog ("live=%d sw->hw->samples=%d\n", live, sw->hw->samples);
         return 0;
     }
@@ -1354,7 +1354,7 @@ static void audio_run_out (AudioState *s)
             live = 0;
         }
 
-        if (audio_bug (AUDIO_FUNC, live < 0 || live > hw->samples)) {
+        if (audio_bug(__func__, live < 0 || live > hw->samples)) {
             dolog ("live=%d hw->samples=%d\n", live, hw->samples);
             continue;
         }
@@ -1389,7 +1389,7 @@ static void audio_run_out (AudioState *s)
         prev_rpos = hw->rpos;
         played = hw->pcm_ops->run_out (hw, live);
         replay_audio_out(&played);
-        if (audio_bug (AUDIO_FUNC, hw->rpos >= hw->samples)) {
+        if (audio_bug(__func__, hw->rpos >= hw->samples)) {
             dolog ("hw->rpos=%d hw->samples=%d played=%d\n",
                    hw->rpos, hw->samples, played);
             hw->rpos = 0;
@@ -1410,7 +1410,7 @@ static void audio_run_out (AudioState *s)
                 continue;
             }
 
-            if (audio_bug (AUDIO_FUNC, played > sw->total_hw_samples_mixed)) {
+            if (audio_bug(__func__, played > sw->total_hw_samples_mixed)) {
                 dolog ("played=%d sw->total_hw_samples_mixed=%d\n",
                        played, sw->total_hw_samples_mixed);
                 played = sw->total_hw_samples_mixed;
@@ -1513,7 +1513,7 @@ static void audio_run_capture (AudioState *s)
                 continue;
             }
 
-            if (audio_bug (AUDIO_FUNC, captured > sw->total_hw_samples_mixed)) {
+            if (audio_bug(__func__, captured > sw->total_hw_samples_mixed)) {
                 dolog ("captured=%d sw->total_hw_samples_mixed=%d\n",
                        captured, sw->total_hw_samples_mixed);
                 captured = sw->total_hw_samples_mixed;
@@ -1924,7 +1924,7 @@ CaptureVoiceOut *AUD_add_capture (
         goto err0;
     }
 
-    cb = audio_calloc (AUDIO_FUNC, 1, sizeof (*cb));
+    cb = audio_calloc(__func__, 1, sizeof(*cb));
     if (!cb) {
         dolog ("Could not allocate capture callback information, size %zu\n",
                sizeof (*cb));
@@ -1942,7 +1942,7 @@ CaptureVoiceOut *AUD_add_capture (
         HWVoiceOut *hw;
         CaptureVoiceOut *cap;
 
-        cap = audio_calloc (AUDIO_FUNC, 1, sizeof (*cap));
+        cap = audio_calloc(__func__, 1, sizeof(*cap));
         if (!cap) {
             dolog ("Could not allocate capture voice, size %zu\n",
                    sizeof (*cap));
@@ -1955,8 +1955,8 @@ CaptureVoiceOut *AUD_add_capture (
 
         /* XXX find a more elegant way */
         hw->samples = 4096 * 4;
-        hw->mix_buf = audio_calloc (AUDIO_FUNC, hw->samples,
-                                    sizeof (struct st_sample));
+        hw->mix_buf = audio_calloc(__func__, hw->samples,
+                                   sizeof(struct st_sample));
         if (!hw->mix_buf) {
             dolog ("Could not allocate capture mix buffer (%d samples)\n",
                    hw->samples);
@@ -1965,7 +1965,7 @@ CaptureVoiceOut *AUD_add_capture (
 
         audio_pcm_init_info (&hw->info, as);
 
-        cap->buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
+        cap->buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
         if (!cap->buf) {
             dolog ("Could not allocate capture buffer "
                    "(%d samples, each %d bytes)\n",

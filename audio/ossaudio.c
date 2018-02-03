@@ -582,11 +582,9 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
     }
 
     if (!oss->mmapped) {
-        oss->pcm_buf = audio_calloc (
-            AUDIO_FUNC,
-            hw->samples,
-            1 << hw->info.shift
-            );
+        oss->pcm_buf = audio_calloc(__func__,
+                                    hw->samples,
+                                    1 << hw->info.shift);
         if (!oss->pcm_buf) {
             dolog (
                 "Could not allocate DAC buffer (%d samples, each %d bytes)\n",
@@ -705,7 +703,7 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     }
 
     hw->samples = (obt.nfrags * obt.fragsize) >> hw->info.shift;
-    oss->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
+    oss->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     if (!oss->pcm_buf) {
         dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
                hw->samples, 1 << hw->info.shift);

@@ -543,7 +543,7 @@ static int dsound_run_out (HWVoiceOut *hw, int live)
         }
     }
 
-    if (audio_bug (AUDIO_FUNC, len < 0 || len > bufsize)) {
+    if (audio_bug(__func__, len < 0 || len > bufsize)) {
         dolog ("len=%d bufsize=%d old_pos=%ld ppos=%ld\n",
                len, bufsize, old_pos, ppos);
         return 0;
