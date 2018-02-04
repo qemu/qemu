@@ -310,6 +310,7 @@ typedef struct xtensa_tlb {
 
 typedef struct XtensaGdbReg {
     int targno;
+    unsigned flags;
     int type;
     int group;
     unsigned size;

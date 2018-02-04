@@ -88,19 +88,31 @@ static void init_libisa(XtensaConfig *config)
 
 void xtensa_finalize_config(XtensaConfig *config)
 {
-    unsigned i, n = 0;
-
     if (config->isa_internal) {
         init_libisa(config);
     }
-    if (config->gdb_regmap.num_regs) {
-        return;
-    }
 
-    for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
-        n += (config->gdb_regmap.reg[i].type != 6);
+    if (config->gdb_regmap.num_regs == 0 ||
+        config->gdb_regmap.num_core_regs == 0) {
+        unsigned i;
+        unsigned n_regs = 0;
+        unsigned n_core_regs = 0;
+
+        for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
+            if (config->gdb_regmap.reg[i].type != 6) {
+                ++n_regs;
+                if ((config->gdb_regmap.reg[i].flags & 0x1) == 0) {
+                    ++n_core_regs;
+                }
+            }
+        }
+        if (config->gdb_regmap.num_regs == 0) {
+            config->gdb_regmap.num_regs = n_regs;
+        }
+        if (config->gdb_regmap.num_core_regs == 0) {
+            config->gdb_regmap.num_core_regs = n_core_regs;
+        }
     }
-    config->gdb_regmap.num_regs = n;
 }
 
 void xtensa_register_core(XtensaConfigList *node)

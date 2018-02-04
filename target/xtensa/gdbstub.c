@@ -28,9 +28,14 @@ int xtensa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
     const XtensaGdbReg *reg = env->config->gdb_regmap.reg + n;
+#ifdef CONFIG_USER_ONLY
+    int num_regs = env->config->gdb_regmap.num_core_regs;
+#else
+    int num_regs = env->config->gdb_regmap.num_regs;
+#endif
     unsigned i;
 
-    if (n < 0 || n >= env->config->gdb_regmap.num_regs) {
+    if (n < 0 || n >= num_regs) {
         return 0;
     }
 
@@ -81,8 +86,13 @@ int xtensa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     CPUXtensaState *env = &cpu->env;
     uint32_t tmp;
     const XtensaGdbReg *reg = env->config->gdb_regmap.reg + n;
+#ifdef CONFIG_USER_ONLY
+    int num_regs = env->config->gdb_regmap.num_core_regs;
+#else
+    int num_regs = env->config->gdb_regmap.num_regs;
+#endif
 
-    if (n < 0 || n >= env->config->gdb_regmap.num_regs) {
+    if (n < 0 || n >= num_regs) {
         return 0;
     }
 
