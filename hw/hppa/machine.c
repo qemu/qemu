@@ -19,6 +19,7 @@
 #include "hw/hppa/hppa_sys.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 
 #define MAX_IDE_BUS 2
 
@@ -111,7 +112,6 @@ static void machine_hppa_init(MachineState *machine)
         uint32_t addr = DINO_UART_HPA + 0x800;
         serial_mm_init(addr_space, addr, 0, serial_irq,
                        115200, serial_hds[0], DEVICE_BIG_ENDIAN);
-        fprintf(stderr, "Serial port created at 0x%x\n", addr);
     }
 
     /* SCSI disk setup. */
@@ -146,9 +146,9 @@ static void machine_hppa_init(MachineState *machine)
         error_report("could not load firmware '%s'", firmware_filename);
         exit(1);
     }
-    fprintf(stderr, "Firmware loaded at 0x%08" PRIx64 "-0x%08" PRIx64
-            ", entry at 0x%08" PRIx64 ".\n",
-            firmware_low, firmware_high, firmware_entry);
+    qemu_log_mask(CPU_LOG_PAGE, "Firmware loaded at 0x%08" PRIx64
+                  "-0x%08" PRIx64 ", entry at 0x%08" PRIx64 ".\n",
+                  firmware_low, firmware_high, firmware_entry);
     if (firmware_low < ram_size || firmware_high >= FIRMWARE_END) {
         error_report("Firmware overlaps with memory or IO space");
         exit(1);
@@ -163,7 +163,6 @@ static void machine_hppa_init(MachineState *machine)
 
     /* Load kernel */
     if (kernel_filename) {
-        fprintf(stderr, "LOADING kernel '%s'\n", kernel_filename);
         size = load_elf(kernel_filename, &cpu_hppa_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high,
                         true, EM_PARISC, 0, 0);
@@ -177,10 +176,10 @@ static void machine_hppa_init(MachineState *machine)
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
         }
-
-        fprintf(stderr, "Kernel loaded at 0x%08" PRIx64 "-0x%08" PRIx64
-                ", entry at 0x%08" PRIx64 ", size %ld kB.\n",
-                kernel_low, kernel_high, kernel_entry, size / 1024);
+        qemu_log_mask(CPU_LOG_PAGE, "Kernel loaded at 0x%08" PRIx64
+                      "-0x%08" PRIx64 ", entry at 0x%08" PRIx64
+                      ", size %ld kB.\n",
+                      kernel_low, kernel_high, kernel_entry, size / 1024);
 
         if (kernel_cmdline) {
             cpu[0]->env.gr[24] = 0x4000;
