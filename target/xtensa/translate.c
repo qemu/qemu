@@ -1219,8 +1219,13 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
     cpu_fprintf(f, "\n");
 
     for (i = 0; i < env->config->nareg; ++i) {
-        cpu_fprintf(f, "AR%02d=%08x%c", i, env->phys_regs[i],
-                (i % 4) == 3 ? '\n' : ' ');
+        cpu_fprintf(f, "AR%02d=%08x ", i, env->phys_regs[i]);
+        if (i % 4 == 3) {
+            bool ws = (env->sregs[WINDOW_START] & (1 << (i / 4))) != 0;
+            bool cw = env->sregs[WINDOW_BASE] == i / 4;
+
+            cpu_fprintf(f, "%c%c\n", ws ? '<' : ' ', cw ? '=' : ' ');
+        }
     }
 
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_FP_COPROCESSOR)) {
