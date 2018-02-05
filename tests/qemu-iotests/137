@@ -83,6 +83,9 @@ $QEMU_IO \
     -c "reopen -o overlap-check.inactive-l2=off" \
     -c "reopen -o cache-size=1M" \
     -c "reopen -o l2-cache-size=512k" \
+    -c "reopen -o l2-cache-entry-size=512" \
+    -c "reopen -o l2-cache-entry-size=4k" \
+    -c "reopen -o l2-cache-entry-size=64k" \
     -c "reopen -o refcount-cache-size=128k" \
     -c "reopen -o cache-clean-interval=5" \
     -c "reopen -o cache-clean-interval=0" \
@@ -107,6 +110,8 @@ $QEMU_IO \
     -c "reopen -o cache-size=1M,l2-cache-size=2M" \
     -c "reopen -o cache-size=1M,refcount-cache-size=2M" \
     -c "reopen -o l2-cache-size=256T" \
+    -c "reopen -o l2-cache-entry-size=33k" \
+    -c "reopen -o l2-cache-entry-size=128k" \
     -c "reopen -o refcount-cache-size=256T" \
     -c "reopen -o overlap-check=constant,overlap-check.template=all" \
     -c "reopen -o overlap-check=blubb" \
