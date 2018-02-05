@@ -105,7 +105,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "data can not be specified when setting a "
                        "program counter");
             return;
-        } else if (!s->cpu_num) {
+        } else if (s->cpu_num == CPU_NONE) {
             error_setg(errp, "cpu_num must be specified when setting a "
                        "program counter");
             return;
