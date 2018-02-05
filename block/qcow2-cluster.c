@@ -195,20 +195,26 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
 /*
  * l2_load
  *
- * Loads a L2 table into memory. If the table is in the cache, the cache
- * is used; otherwise the L2 table is loaded from the image file.
+ * @bs: The BlockDriverState
+ * @offset: A guest offset, used to calculate what slice of the L2
+ *          table to load.
+ * @l2_offset: Offset to the L2 table in the image file.
+ * @l2_slice: Location to store the pointer to the L2 slice.
  *
- * Returns a pointer to the L2 table on success, or NULL if the read from
- * the image file failed.
+ * Loads a L2 slice into memory (L2 slices are the parts of L2 tables
+ * that are loaded by the qcow2 cache). If the slice is in the cache,
+ * the cache is used; otherwise the L2 slice is loaded from the image
+ * file.
  */
-
-static int l2_load(BlockDriverState *bs, uint64_t l2_offset,
-    uint64_t **l2_table)
+static int l2_load(BlockDriverState *bs, uint64_t offset,
+                   uint64_t l2_offset, uint64_t **l2_slice)
 {
     BDRVQcow2State *s = bs->opaque;
+    int start_of_slice = sizeof(uint64_t) *
+        (offset_to_l2_index(s, offset) - offset_to_l2_slice_index(s, offset));
 
-    return qcow2_cache_get(bs, s->l2_table_cache, l2_offset,
-                           (void **)l2_table);
+    return qcow2_cache_get(bs, s->l2_table_cache, l2_offset + start_of_slice,
+                           (void **)l2_slice);
 }
 
 /*
@@ -561,7 +567,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     /* load the l2 table in memory */
 
-    ret = l2_load(bs, l2_offset, &l2_table);
+    ret = l2_load(bs, offset, l2_offset, &l2_table);
     if (ret < 0) {
         return ret;
     }
@@ -684,7 +690,7 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
 
     if (s->l1_table[l1_index] & QCOW_OFLAG_COPIED) {
         /* load the l2 table in memory */
-        ret = l2_load(bs, l2_offset, &l2_table);
+        ret = l2_load(bs, offset, l2_offset, &l2_table);
         if (ret < 0) {
             return ret;
         }
