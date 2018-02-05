@@ -1183,17 +1183,20 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t *l1_table, *l2_table, l2_offset, entry, l1_size2, refcount;
+    uint64_t *l1_table, *l2_slice, l2_offset, entry, l1_size2, refcount;
     bool l1_allocated = false;
     int64_t old_entry, old_l2_offset;
+    unsigned slice, slice_size2, n_slices;
     int i, j, l1_modified = 0, nb_csectors;
     int ret;
 
     assert(addend >= -1 && addend <= 1);
 
-    l2_table = NULL;
+    l2_slice = NULL;
     l1_table = NULL;
     l1_size2 = l1_size * sizeof(uint64_t);
+    slice_size2 = s->l2_slice_size * sizeof(uint64_t);
+    n_slices = s->cluster_size / slice_size2;
 
     s->cache_discards = true;
 
@@ -1236,19 +1239,19 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 goto fail;
             }
 
-            {
+            for (slice = 0; slice < n_slices; slice++) {
                 ret = qcow2_cache_get(bs, s->l2_table_cache,
-                                      l2_offset,
-                                      (void **) &l2_table);
+                                      l2_offset + slice * slice_size2,
+                                      (void **) &l2_slice);
                 if (ret < 0) {
                     goto fail;
                 }
 
-                for (j = 0; j < s->l2_size; j++) {
+                for (j = 0; j < s->l2_slice_size; j++) {
                     uint64_t cluster_index;
                     uint64_t offset;
 
-                    entry = be64_to_cpu(l2_table[j]);
+                    entry = be64_to_cpu(l2_slice[j]);
                     old_entry = entry;
                     entry &= ~QCOW_OFLAG_COPIED;
                     offset = entry & L2E_OFFSET_MASK;
@@ -1273,12 +1276,14 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     case QCOW2_CLUSTER_NORMAL:
                     case QCOW2_CLUSTER_ZERO_ALLOC:
                         if (offset_into_cluster(s, offset)) {
+                            /* Here l2_index means table (not slice) index */
+                            int l2_index = slice * s->l2_slice_size + j;
                             qcow2_signal_corruption(
                                 bs, true, -1, -1, "Cluster "
                                 "allocation offset %#" PRIx64
                                 " unaligned (L2 offset: %#"
                                 PRIx64 ", L2 index: %#x)",
-                                offset, l2_offset, j);
+                                offset, l2_offset, l2_index);
                             ret = -EIO;
                             goto fail;
                         }
@@ -1317,14 +1322,13 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                             qcow2_cache_set_dependency(bs, s->l2_table_cache,
                                                        s->refcount_block_cache);
                         }
-                        l2_table[j] = cpu_to_be64(entry);
+                        l2_slice[j] = cpu_to_be64(entry);
                         qcow2_cache_entry_mark_dirty(s->l2_table_cache,
-                                                     l2_table);
+                                                     l2_slice);
                     }
                 }
 
-                qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
-
+                qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
             }
 
             if (addend != 0) {
@@ -1352,8 +1356,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
 
     ret = bdrv_flush(bs);
 fail:
-    if (l2_table) {
-        qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
+    if (l2_slice) {
+        qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
     }
 
     s->cache_discards = false;
