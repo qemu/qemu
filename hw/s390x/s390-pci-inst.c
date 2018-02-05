@@ -571,6 +571,45 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
     return 0;
 }
 
+static void s390_pci_update_iotlb(S390PCIIOMMU *iommu, S390IOTLBEntry *entry)
+{
+    S390IOTLBEntry *cache = g_hash_table_lookup(iommu->iotlb, &entry->iova);
+    IOMMUTLBEntry notify = {
+        .target_as = &address_space_memory,
+        .iova = entry->iova,
+        .translated_addr = entry->translated_addr,
+        .perm = entry->perm,
+        .addr_mask = ~PAGE_MASK,
+    };
+
+    if (entry->perm == IOMMU_NONE) {
+        if (!cache) {
+            return;
+        }
+        g_hash_table_remove(iommu->iotlb, &entry->iova);
+    } else {
+        if (cache) {
+            if (cache->perm == entry->perm &&
+                cache->translated_addr == entry->translated_addr) {
+                return;
+            }
+
+            notify.perm = IOMMU_NONE;
+            memory_region_notify_iommu(&iommu->iommu_mr, notify);
+            notify.perm = entry->perm;
+        }
+
+        cache = g_new(S390IOTLBEntry, 1);
+        cache->iova = entry->iova;
+        cache->translated_addr = entry->translated_addr;
+        cache->len = PAGE_SIZE;
+        cache->perm = entry->perm;
+        g_hash_table_replace(iommu->iotlb, &cache->iova, cache);
+    }
+
+    memory_region_notify_iommu(&iommu->iommu_mr, notify);
+}
+
 int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
@@ -580,7 +619,6 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
     S390PCIIOMMU *iommu;
     S390IOTLBEntry entry;
     hwaddr start, end;
-    IOMMUTLBEntry notify;
 
     cpu_synchronize_state(CPU(cpu));
 
@@ -636,15 +674,14 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         if (error) {
             break;
         }
-        notify.target_as = &address_space_memory;
-        notify.iova = entry.iova;
-        notify.translated_addr = entry.translated_addr;
-        notify.addr_mask = entry.len - 1;
-        notify.perm = entry.perm;
-        memory_region_notify_iommu(&iommu->iommu_mr, notify);
-        start += entry.len;
-    }
 
+        start += entry.len;
+        while (entry.iova < start && entry.iova < end) {
+            s390_pci_update_iotlb(iommu, &entry);
+            entry.iova += PAGE_SIZE;
+            entry.translated_addr += PAGE_SIZE;
+        }
+    }
 err:
     if (error) {
         pbdev->state = ZPCI_FS_ERROR;

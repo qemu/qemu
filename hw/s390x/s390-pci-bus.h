@@ -278,6 +278,7 @@ typedef struct S390PCIIOMMU {
     uint64_t g_iota;
     uint64_t pba;
     uint64_t pal;
+    GHashTable *iotlb;
 } S390PCIIOMMU;
 
 typedef struct S390PCIIOMMUTable {

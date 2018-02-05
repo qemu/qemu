@@ -487,7 +487,8 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
                                           IOMMUAccessFlags flag)
 {
     S390PCIIOMMU *iommu = container_of(mr, S390PCIIOMMU, iommu_mr);
-    S390IOTLBEntry entry;
+    S390IOTLBEntry *entry;
+    uint64_t iova = addr & PAGE_MASK;
     uint16_t error = 0;
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
@@ -515,12 +516,17 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
         goto err;
     }
 
-    error = s390_guest_io_table_walk(iommu->g_iota, addr, &entry);
-
-    ret.iova = entry.iova;
-    ret.translated_addr = entry.translated_addr;
-    ret.addr_mask = entry.len - 1;
-    ret.perm = entry.perm;
+    entry = g_hash_table_lookup(iommu->iotlb, &iova);
+    if (entry) {
+        ret.iova = entry->iova;
+        ret.translated_addr = entry->translated_addr;
+        ret.addr_mask = entry->len - 1;
+        ret.perm = entry->perm;
+    } else {
+        ret.iova = iova;
+        ret.addr_mask = ~PAGE_MASK;
+        ret.perm = IOMMU_NONE;
+    }
 
     if (flag != IOMMU_NONE && !(flag & ret.perm)) {
         error = ERR_EVENT_TPROTE;
@@ -572,6 +578,8 @@ static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
                                         PCI_FUNC(devfn));
         memory_region_init(&iommu->mr, OBJECT(iommu), mr_name, UINT64_MAX);
         address_space_init(&iommu->as, &iommu->mr, as_name);
+        iommu->iotlb = g_hash_table_new_full(g_int64_hash, g_int64_equal,
+                                             NULL, g_free);
         table->iommu[PCI_SLOT(devfn)] = iommu;
 
         g_free(mr_name);
@@ -661,6 +669,7 @@ void s390_pci_iommu_enable(S390PCIIOMMU *iommu)
 void s390_pci_iommu_disable(S390PCIIOMMU *iommu)
 {
     iommu->enabled = false;
+    g_hash_table_remove_all(iommu->iotlb);
     memory_region_del_subregion(&iommu->mr, MEMORY_REGION(&iommu->iommu_mr));
     object_unparent(OBJECT(&iommu->iommu_mr));
 }
@@ -676,6 +685,7 @@ static void s390_pci_iommu_free(S390pciState *s, PCIBus *bus, int32_t devfn)
     }
 
     table->iommu[PCI_SLOT(devfn)] = NULL;
+    g_hash_table_destroy(iommu->iotlb);
     address_space_destroy(&iommu->as);
     object_unparent(OBJECT(&iommu->mr));
     object_unparent(OBJECT(iommu));
