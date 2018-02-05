@@ -2221,6 +2221,14 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         return;
     }
 
+    /* PTFF subfunctions might be indicated although kernel support missing */
+    if (!test_bit(S390_FEAT_MULTIPLE_EPOCH, model->features)) {
+        clear_bit(S390_FEAT_PTFF_QSIE, model->features);
+        clear_bit(S390_FEAT_PTFF_QTOUE, model->features);
+        clear_bit(S390_FEAT_PTFF_STOE, model->features);
+        clear_bit(S390_FEAT_PTFF_STOUE, model->features);
+    }
+
     /* with cpu model support, CMM is only indicated if really available */
     if (kvm_s390_cmma_available()) {
         set_bit(S390_FEAT_CMM, model->features);
