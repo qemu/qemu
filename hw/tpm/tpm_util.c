@@ -106,9 +106,9 @@ const PropertyInfo qdev_prop_tpm = {
 void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len)
 {
     if (out_len >= sizeof(struct tpm_resp_hdr)) {
-        stw_be_p(out, TPM_TAG_RSP_COMMAND);
-        stl_be_p(out + 2, sizeof(struct tpm_resp_hdr));
-        stl_be_p(out + 6, TPM_FAIL);
+        tpm_cmd_set_tag(out, TPM_TAG_RSP_COMMAND);
+        tpm_cmd_set_size(out, sizeof(struct tpm_resp_hdr));
+        tpm_cmd_set_error(out, TPM_FAIL);
     }
 }
 

@@ -946,11 +946,6 @@ static const MemoryRegionOps tpm_tis_memory_ops = {
     },
 };
 
-static int tpm_tis_do_startup_tpm(TPMState *s, size_t buffersize)
-{
-    return tpm_backend_startup_tpm(s->be_driver, buffersize);
-}
-
 /*
  * Get the TPMVersion of the backend device being used
  */
@@ -1005,7 +1000,7 @@ static void tpm_tis_reset(DeviceState *dev)
         s->rw_offset = 0;
     }
 
-    tpm_tis_do_startup_tpm(s, s->be_buffer_size);
+    tpm_backend_startup_tpm(s->be_driver, s->be_buffer_size);
 }
 
 static const VMStateDescription vmstate_tpm_tis = {

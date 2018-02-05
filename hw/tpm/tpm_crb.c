@@ -26,6 +26,7 @@
 #include "hw/acpi/tpm.h"
 #include "migration/vmstate.h"
 #include "sysemu/tpm_backend.h"
+#include "sysemu/reset.h"
 #include "tpm_int.h"
 #include "tpm_util.h"
 
@@ -210,28 +211,9 @@ static Property tpm_crb_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void tpm_crb_realize(DeviceState *dev, Error **errp)
+static void tpm_crb_reset(void *dev)
 {
     CRBState *s = CRB(dev);
-
-    if (!tpm_find()) {
-        error_setg(errp, "at most one TPM device is permitted");
-        return;
-    }
-    if (!s->tpmbe) {
-        error_setg(errp, "'tpmdev' property is required");
-        return;
-    }
-
-    memory_region_init_io(&s->mmio, OBJECT(s), &tpm_crb_memory_ops, s,
-        "tpm-crb-mmio", sizeof(s->regs));
-    memory_region_init_ram(&s->cmdmem, OBJECT(s),
-        "tpm-crb-cmd", CRB_CTRL_CMD_SIZE, errp);
-
-    memory_region_add_subregion(get_system_memory(),
-        TPM_CRB_ADDR_BASE, &s->mmio);
-    memory_region_add_subregion(get_system_memory(),
-        TPM_CRB_ADDR_BASE + sizeof(s->regs), &s->cmdmem);
 
     tpm_backend_reset(s->tpmbe);
 
@@ -265,6 +247,32 @@ static void tpm_crb_realize(DeviceState *dev, Error **errp)
                             CRB_CTRL_CMD_SIZE);
 
     tpm_backend_startup_tpm(s->tpmbe, s->be_buffer_size);
+}
+
+static void tpm_crb_realize(DeviceState *dev, Error **errp)
+{
+    CRBState *s = CRB(dev);
+
+    if (!tpm_find()) {
+        error_setg(errp, "at most one TPM device is permitted");
+        return;
+    }
+    if (!s->tpmbe) {
+        error_setg(errp, "'tpmdev' property is required");
+        return;
+    }
+
+    memory_region_init_io(&s->mmio, OBJECT(s), &tpm_crb_memory_ops, s,
+        "tpm-crb-mmio", sizeof(s->regs));
+    memory_region_init_ram(&s->cmdmem, OBJECT(s),
+        "tpm-crb-cmd", CRB_CTRL_CMD_SIZE, errp);
+
+    memory_region_add_subregion(get_system_memory(),
+        TPM_CRB_ADDR_BASE, &s->mmio);
+    memory_region_add_subregion(get_system_memory(),
+        TPM_CRB_ADDR_BASE + sizeof(s->regs), &s->cmdmem);
+
+    qemu_register_reset(tpm_crb_reset, dev);
 }
 
 static void tpm_crb_class_init(ObjectClass *klass, void *data)
