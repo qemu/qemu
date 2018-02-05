@@ -647,8 +647,7 @@ fail:
  * for a given disk offset, load (and allocate if needed)
  * the l2 table.
  *
- * the l2 table offset in the qcow2 file and the cluster index
- * in the l2 table are given to the caller.
+ * the cluster index in the l2 table is given to the caller.
  *
  * Returns 0 on success, -errno in failure case
  */
