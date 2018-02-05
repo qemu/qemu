@@ -428,8 +428,7 @@ void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table)
     c->entries[i].dirty = true;
 }
 
-void *qcow2_cache_is_table_offset(BlockDriverState *bs, Qcow2Cache *c,
-                                  uint64_t offset)
+void *qcow2_cache_is_table_offset(Qcow2Cache *c, uint64_t offset)
 {
     int i;
 
