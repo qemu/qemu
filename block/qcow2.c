@@ -1044,10 +1044,10 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     int i;
 
     if (s->l2_table_cache) {
-        qcow2_cache_destroy(bs, s->l2_table_cache);
+        qcow2_cache_destroy(s->l2_table_cache);
     }
     if (s->refcount_block_cache) {
-        qcow2_cache_destroy(bs, s->refcount_block_cache);
+        qcow2_cache_destroy(s->refcount_block_cache);
     }
     s->l2_table_cache = r->l2_table_cache;
     s->refcount_block_cache = r->refcount_block_cache;
@@ -1073,10 +1073,10 @@ static void qcow2_update_options_abort(BlockDriverState *bs,
                                        Qcow2ReopenState *r)
 {
     if (r->l2_table_cache) {
-        qcow2_cache_destroy(bs, r->l2_table_cache);
+        qcow2_cache_destroy(r->l2_table_cache);
     }
     if (r->refcount_block_cache) {
-        qcow2_cache_destroy(bs, r->refcount_block_cache);
+        qcow2_cache_destroy(r->refcount_block_cache);
     }
     qapi_free_QCryptoBlockOpenOptions(r->crypto_opts);
 }
@@ -1514,10 +1514,10 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     s->l1_table = NULL;
     cache_clean_timer_del(bs);
     if (s->l2_table_cache) {
-        qcow2_cache_destroy(bs, s->l2_table_cache);
+        qcow2_cache_destroy(s->l2_table_cache);
     }
     if (s->refcount_block_cache) {
-        qcow2_cache_destroy(bs, s->refcount_block_cache);
+        qcow2_cache_destroy(s->refcount_block_cache);
     }
     qcrypto_block_free(s->crypto);
     qapi_free_QCryptoBlockOpenOptions(s->crypto_opts);
@@ -2065,8 +2065,8 @@ static void qcow2_close(BlockDriverState *bs)
     }
 
     cache_clean_timer_del(bs);
-    qcow2_cache_destroy(bs, s->l2_table_cache);
-    qcow2_cache_destroy(bs, s->refcount_block_cache);
+    qcow2_cache_destroy(s->l2_table_cache);
+    qcow2_cache_destroy(s->refcount_block_cache);
 
     qcrypto_block_free(s->crypto);
     s->crypto = NULL;

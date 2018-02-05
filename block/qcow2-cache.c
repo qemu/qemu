@@ -142,7 +142,7 @@ Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
     return c;
 }
 
-int qcow2_cache_destroy(BlockDriverState *bs, Qcow2Cache *c)
+int qcow2_cache_destroy(Qcow2Cache *c)
 {
     int i;
 
