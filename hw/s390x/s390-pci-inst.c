@@ -575,23 +575,23 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     uint32_t fh;
+    uint16_t error = 0;
     S390PCIBusDevice *pbdev;
     S390PCIIOMMU *iommu;
+    S390IOTLBEntry entry;
     hwaddr start, end;
-    IOMMUTLBEntry entry;
-    IOMMUMemoryRegion *iommu_mr;
-    IOMMUMemoryRegionClass *imrc;
+    IOMMUTLBEntry notify;
 
     cpu_synchronize_state(CPU(cpu));
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         s390_program_interrupt(env, PGM_PRIVILEGED, 4, ra);
-        goto out;
+        return 0;
     }
 
     if (r2 & 0x1) {
         s390_program_interrupt(env, PGM_SPECIFICATION, 4, ra);
-        goto out;
+        return 0;
     }
 
     fh = env->regs[r1] >> 32;
@@ -602,7 +602,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
     if (!pbdev) {
         DPRINTF("rpcit no pci dev\n");
         setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
-        goto out;
+        return 0;
     }
 
     switch (pbdev->state) {
@@ -622,44 +622,38 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 
     iommu = pbdev->iommu;
     if (!iommu->g_iota) {
-        pbdev->state = ZPCI_FS_ERROR;
-        setcc(cpu, ZPCI_PCI_LS_ERR);
-        s390_set_status_code(env, r1, ZPCI_PCI_ST_INSUF_RES);
-        s390_pci_generate_error_event(ERR_EVENT_INVALAS, pbdev->fh, pbdev->fid,
-                                      start, 0);
-        goto out;
+        error = ERR_EVENT_INVALAS;
+        goto err;
     }
 
     if (end < iommu->pba || start > iommu->pal) {
-        pbdev->state = ZPCI_FS_ERROR;
-        setcc(cpu, ZPCI_PCI_LS_ERR);
-        s390_set_status_code(env, r1, ZPCI_PCI_ST_INSUF_RES);
-        s390_pci_generate_error_event(ERR_EVENT_OORANGE, pbdev->fh, pbdev->fid,
-                                      start, 0);
-        goto out;
+        error = ERR_EVENT_OORANGE;
+        goto err;
     }
-
-    iommu_mr = &iommu->iommu_mr;
-    imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
 
     while (start < end) {
-        entry = imrc->translate(iommu_mr, start, IOMMU_NONE);
-
-        if (!entry.translated_addr) {
-            pbdev->state = ZPCI_FS_ERROR;
-            setcc(cpu, ZPCI_PCI_LS_ERR);
-            s390_set_status_code(env, r1, ZPCI_PCI_ST_INSUF_RES);
-            s390_pci_generate_error_event(ERR_EVENT_SERR, pbdev->fh, pbdev->fid,
-                                          start, ERR_EVENT_Q_BIT);
-            goto out;
+        error = s390_guest_io_table_walk(iommu->g_iota, start, &entry);
+        if (error) {
+            break;
         }
-
-        memory_region_notify_iommu(iommu_mr, entry);
-        start += entry.addr_mask + 1;
+        notify.target_as = &address_space_memory;
+        notify.iova = entry.iova;
+        notify.translated_addr = entry.translated_addr;
+        notify.addr_mask = entry.len - 1;
+        notify.perm = entry.perm;
+        memory_region_notify_iommu(&iommu->iommu_mr, notify);
+        start += entry.len;
     }
 
-    setcc(cpu, ZPCI_PCI_LS_OK);
-out:
+err:
+    if (error) {
+        pbdev->state = ZPCI_FS_ERROR;
+        setcc(cpu, ZPCI_PCI_LS_ERR);
+        s390_set_status_code(env, r1, ZPCI_PCI_ST_FUNC_IN_ERR);
+        s390_pci_generate_error_event(error, pbdev->fh, pbdev->fid, start, 0);
+    } else {
+        setcc(cpu, ZPCI_PCI_LS_OK);
+    }
     return 0;
 }
 
