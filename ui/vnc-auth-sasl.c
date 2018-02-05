@@ -556,7 +556,6 @@ void start_auth_sasl(VncState *vs)
     /* Inform SASL that we've got an external SSF layer from TLS/x509 */
     if (vs->auth == VNC_AUTH_VENCRYPT &&
         vs->subauth == VNC_AUTH_VENCRYPT_X509SASL) {
-        Error *local_err = NULL;
         int keysize;
         sasl_ssf_t ssf;
 
@@ -565,7 +564,6 @@ void start_auth_sasl(VncState *vs)
         if (keysize < 0) {
             trace_vnc_auth_fail(vs, vs->auth, "cannot TLS get cipher size",
                                 error_get_pretty(local_err));
-            error_free(local_err);
             sasl_dispose(&vs->sasl.conn);
             vs->sasl.conn = NULL;
             goto authabort;
