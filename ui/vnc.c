@@ -982,14 +982,7 @@ static void vnc_update_throttle_offset(VncState *vs)
         vs->client_width * vs->client_height * vs->client_pf.bytes_per_pixel;
 
     if (vs->audio_cap) {
-        int freq = vs->as.freq;
-        /* We don't limit freq when reading settings from client, so
-         * it could be upto MAX_INT in size. 48khz is a sensible
-         * upper bound for trustworthy clients */
         int bps;
-        if (freq > 48000) {
-            freq = 48000;
-        }
         switch (vs->as.fmt) {
         default:
         case  AUD_FMT_U8:
@@ -1005,7 +998,7 @@ static void vnc_update_throttle_offset(VncState *vs)
             bps = 4;
             break;
         }
-        offset += freq * bps * vs->as.nchannels;
+        offset += vs->as.freq * bps * vs->as.nchannels;
     }
 
     /* Put a floor of 1MB on offset, so that if we have a large pending
@@ -2292,6 +2285,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 {
     int i;
     uint16_t limit;
+    uint32_t freq;
     VncDisplay *vd = vs->vd;
 
     if (data[0] > 3) {
@@ -2411,7 +2405,17 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                     vnc_client_error(vs);
                     break;
                 }
-                vs->as.freq = read_u32(data, 6);
+                freq = read_u32(data, 6);
+                /* No official limit for protocol, but 48khz is a sensible
+                 * upper bound for trustworthy clients, and this limit
+                 * protects calculations involving 'vs->as.freq' later.
+                 */
+                if (freq > 48000) {
+                    VNC_DEBUG("Invalid audio frequency %u > 48000", freq);
+                    vnc_client_error(vs);
+                    break;
+                }
+                vs->as.freq = freq;
                 break;
             default:
                 VNC_DEBUG("Invalid audio message %d\n", read_u8(data, 4));
