@@ -1631,32 +1631,32 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
 
 /*
  * This discards as many clusters of nb_clusters as possible at once (i.e.
- * all clusters in the same L2 table) and returns the number of discarded
+ * all clusters in the same L2 slice) and returns the number of discarded
  * clusters.
  */
-static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
-                             uint64_t nb_clusters, enum qcow2_discard_type type,
-                             bool full_discard)
+static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
+                               uint64_t nb_clusters,
+                               enum qcow2_discard_type type, bool full_discard)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t *l2_table;
+    uint64_t *l2_slice;
     int l2_index;
     int ret;
     int i;
 
-    ret = get_cluster_table(bs, offset, &l2_table, &l2_index);
+    ret = get_cluster_table(bs, offset, &l2_slice, &l2_index);
     if (ret < 0) {
         return ret;
     }
 
-    /* Limit nb_clusters to one L2 table */
-    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
+    /* Limit nb_clusters to one L2 slice */
+    nb_clusters = MIN(nb_clusters, s->l2_slice_size - l2_index);
     assert(nb_clusters <= INT_MAX);
 
     for (i = 0; i < nb_clusters; i++) {
         uint64_t old_l2_entry;
 
-        old_l2_entry = be64_to_cpu(l2_table[l2_index + i]);
+        old_l2_entry = be64_to_cpu(l2_slice[l2_index + i]);
 
         /*
          * If full_discard is false, make sure that a discarded area reads back
@@ -1694,18 +1694,18 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         }
 
         /* First remove L2 entries */
-        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
         if (!full_discard && s->qcow_version >= 3) {
-            l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
+            l2_slice[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
         } else {
-            l2_table[l2_index + i] = cpu_to_be64(0);
+            l2_slice[l2_index + i] = cpu_to_be64(0);
         }
 
         /* Then decrease the refcount */
         qcow2_free_any_clusters(bs, old_l2_entry, 1, type);
     }
 
-    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
 
     return nb_clusters;
 }
@@ -1729,10 +1729,10 @@ int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
 
     s->cache_discards = true;
 
-    /* Each L2 table is handled by its own loop iteration */
+    /* Each L2 slice is handled by its own loop iteration */
     while (nb_clusters > 0) {
-        cleared = discard_single_l2(bs, offset, nb_clusters, type,
-                                    full_discard);
+        cleared = discard_in_l2_slice(bs, offset, nb_clusters, type,
+                                      full_discard);
         if (cleared < 0) {
             ret = cleared;
             goto fail;
