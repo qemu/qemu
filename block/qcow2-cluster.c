@@ -263,11 +263,12 @@ int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
  *
  */
 
-static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
+static int l2_allocate(BlockDriverState *bs, int l1_index)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_l2_offset;
-    uint64_t *l2_table = NULL;
+    uint64_t *l2_slice = NULL;
+    unsigned slice, slice_size2, n_slices;
     int64_t l2_offset;
     int ret;
 
@@ -298,42 +299,45 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
     /* allocate a new entry in the l2 cache */
 
+    slice_size2 = s->l2_slice_size * sizeof(uint64_t);
+    n_slices = s->cluster_size / slice_size2;
+
     trace_qcow2_l2_allocate_get_empty(bs, l1_index);
-    {
+    for (slice = 0; slice < n_slices; slice++) {
         ret = qcow2_cache_get_empty(bs, s->l2_table_cache,
-                                    l2_offset,
-                                    (void **) table);
+                                    l2_offset + slice * slice_size2,
+                                    (void **) &l2_slice);
         if (ret < 0) {
             goto fail;
         }
 
-        l2_table = *table;
-
         if ((old_l2_offset & L1E_OFFSET_MASK) == 0) {
-            /* if there was no old l2 table, clear the new table */
-            memset(l2_table, 0, s->l2_size * sizeof(uint64_t));
+            /* if there was no old l2 table, clear the new slice */
+            memset(l2_slice, 0, slice_size2);
         } else {
-            uint64_t *old_table;
+            uint64_t *old_slice;
+            uint64_t old_l2_slice_offset =
+                (old_l2_offset & L1E_OFFSET_MASK) + slice * slice_size2;
 
-            /* if there was an old l2 table, read it from the disk */
+            /* if there was an old l2 table, read a slice from the disk */
             BLKDBG_EVENT(bs->file, BLKDBG_L2_ALLOC_COW_READ);
-            ret = qcow2_cache_get(bs, s->l2_table_cache,
-                                  old_l2_offset & L1E_OFFSET_MASK,
-                                  (void **) &old_table);
+            ret = qcow2_cache_get(bs, s->l2_table_cache, old_l2_slice_offset,
+                                  (void **) &old_slice);
             if (ret < 0) {
                 goto fail;
             }
 
-            memcpy(l2_table, old_table, s->cluster_size);
+            memcpy(l2_slice, old_slice, slice_size2);
 
-            qcow2_cache_put(s->l2_table_cache, (void **) &old_table);
+            qcow2_cache_put(s->l2_table_cache, (void **) &old_slice);
         }
 
-        /* write the l2 table to the file */
+        /* write the l2 slice to the file */
         BLKDBG_EVENT(bs->file, BLKDBG_L2_ALLOC_WRITE);
 
         trace_qcow2_l2_allocate_write_l2(bs, l1_index);
-        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
+        qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
     }
 
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
@@ -349,14 +353,13 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
         goto fail;
     }
 
-    *table = l2_table;
     trace_qcow2_l2_allocate_done(bs, l1_index, 0);
     return 0;
 
 fail:
     trace_qcow2_l2_allocate_done(bs, l1_index, ret);
-    if (l2_table != NULL) {
-        qcow2_cache_put(s->l2_table_cache, (void **) table);
+    if (l2_slice != NULL) {
+        qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
     }
     s->l1_table[l1_index] = old_l2_offset;
     if (l2_offset > 0) {
@@ -701,7 +704,7 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         }
     } else {
         /* First allocate a new L2 table (and do COW if needed) */
-        ret = l2_allocate(bs, l1_index, &l2_table);
+        ret = l2_allocate(bs, l1_index);
         if (ret < 0) {
             return ret;
         }
@@ -710,6 +713,15 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         if (l2_offset) {
             qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t),
                                 QCOW2_DISCARD_OTHER);
+        }
+
+        /* Get the offset of the newly-allocated l2 table */
+        l2_offset = s->l1_table[l1_index] & L1E_OFFSET_MASK;
+        assert(offset_into_cluster(s, l2_offset) == 0);
+        /* Load the l2 table in memory */
+        ret = l2_load(bs, offset, l2_offset, &l2_table);
+        if (ret < 0) {
+            return ret;
         }
     }
 
