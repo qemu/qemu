@@ -676,6 +676,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .help = "Maximum L2 table cache size",
         },
         {
+            .name = QCOW2_OPT_L2_CACHE_ENTRY_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Size of each entry in the L2 cache",
+        },
+        {
             .name = QCOW2_OPT_REFCOUNT_CACHE_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "Maximum refcount block cache size",
@@ -747,6 +752,7 @@ static void qcow2_attach_aio_context(BlockDriverState *bs,
 
 static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                              uint64_t *l2_cache_size,
+                             uint64_t *l2_cache_entry_size,
                              uint64_t *refcount_cache_size, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -761,6 +767,9 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     *l2_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_L2_CACHE_SIZE, 0);
     *refcount_cache_size = qemu_opt_get_size(opts,
                                              QCOW2_OPT_REFCOUNT_CACHE_SIZE, 0);
+
+    *l2_cache_entry_size = qemu_opt_get_size(
+        opts, QCOW2_OPT_L2_CACHE_ENTRY_SIZE, s->cluster_size);
 
     if (combined_cache_size_set) {
         if (l2_cache_size_set && refcount_cache_size_set) {
@@ -802,6 +811,15 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                                  / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
         }
     }
+
+    if (*l2_cache_entry_size < (1 << MIN_CLUSTER_BITS) ||
+        *l2_cache_entry_size > s->cluster_size ||
+        !is_power_of_2(*l2_cache_entry_size)) {
+        error_setg(errp, "L2 cache entry size must be a power of two "
+                   "between %d and the cluster size (%d)",
+                   1 << MIN_CLUSTER_BITS, s->cluster_size);
+        return;
+    }
 }
 
 typedef struct Qcow2ReopenState {
@@ -824,7 +842,7 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     QemuOpts *opts = NULL;
     const char *opt_overlap_check, *opt_overlap_check_template;
     int overlap_check_template = 0;
-    uint64_t l2_cache_size, refcount_cache_size;
+    uint64_t l2_cache_size, l2_cache_entry_size, refcount_cache_size;
     int i;
     const char *encryptfmt;
     QDict *encryptopts = NULL;
@@ -843,15 +861,15 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     }
 
     /* get L2 table/refcount block cache size from command line options */
-    read_cache_sizes(bs, opts, &l2_cache_size, &refcount_cache_size,
-                     &local_err);
+    read_cache_sizes(bs, opts, &l2_cache_size, &l2_cache_entry_size,
+                     &refcount_cache_size, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail;
     }
 
-    l2_cache_size /= s->cluster_size;
+    l2_cache_size /= l2_cache_entry_size;
     if (l2_cache_size < MIN_L2_CACHE_SIZE) {
         l2_cache_size = MIN_L2_CACHE_SIZE;
     }
@@ -889,9 +907,11 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
         }
     }
 
-    r->l2_slice_size = s->cluster_size / sizeof(uint64_t);
-    r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
-    r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
+    r->l2_slice_size = l2_cache_entry_size / sizeof(uint64_t);
+    r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size,
+                                           l2_cache_entry_size);
+    r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size,
+                                                 s->cluster_size);
     if (r->l2_table_cache == NULL || r->refcount_block_cache == NULL) {
         error_setg(errp, "Could not allocate metadata caches");
         ret = -ENOMEM;

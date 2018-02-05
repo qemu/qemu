@@ -120,14 +120,20 @@ void qcow2_cache_clean_unused(Qcow2Cache *c)
     c->cache_clean_lru_counter = c->lru_counter;
 }
 
-Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
+Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
+                               unsigned table_size)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2Cache *c;
 
+    assert(num_tables > 0);
+    assert(is_power_of_2(table_size));
+    assert(table_size >= (1 << MIN_CLUSTER_BITS));
+    assert(table_size <= s->cluster_size);
+
     c = g_new0(Qcow2Cache, 1);
     c->size = num_tables;
-    c->table_size = s->cluster_size;
+    c->table_size = table_size;
     c->entries = g_try_new0(Qcow2CachedTable, num_tables);
     c->table_array = qemu_try_blockalign(bs->file->bs,
                                          (size_t) num_tables * c->table_size);

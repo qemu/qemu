@@ -2521,6 +2521,11 @@
 # @l2-cache-size:         the maximum size of the L2 table cache in
 #                         bytes (since 2.2)
 #
+# @l2-cache-entry-size:   the size of each entry in the L2 cache in
+#                         bytes. It must be a power of two between 512
+#                         and the cluster size. The default value is
+#                         the cluster size (since 2.12)
+#
 # @refcount-cache-size:   the maximum size of the refcount block cache
 #                         in bytes (since 2.2)
 #
@@ -2542,6 +2547,7 @@
             '*overlap-check': 'Qcow2OverlapChecks',
             '*cache-size': 'int',
             '*l2-cache-size': 'int',
+            '*l2-cache-entry-size': 'int',
             '*refcount-cache-size': 'int',
             '*cache-clean-interval': 'int',
             '*encrypt': 'BlockdevQcow2Encryption' } }
