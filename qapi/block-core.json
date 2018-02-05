@@ -2553,6 +2553,63 @@
             '*encrypt': 'BlockdevQcow2Encryption' } }
 
 ##
+# @SshHostKeyCheckMode:
+#
+# @none             Don't check the host key at all
+# @hash             Compare the host key with a given hash
+# @known_hosts      Check the host key against the known_hosts file
+#
+# Since: 2.12
+##
+{ 'enum': 'SshHostKeyCheckMode',
+  'data': [ 'none', 'hash', 'known_hosts' ] }
+
+##
+# @SshHostKeyCheckHashType:
+#
+# @md5              The given hash is an md5 hash
+# @sha1             The given hash is an sha1 hash
+#
+# Since: 2.12
+##
+{ 'enum': 'SshHostKeyCheckHashType',
+  'data': [ 'md5', 'sha1' ] }
+
+##
+# @SshHostKeyHash:
+#
+# @type             The hash algorithm used for the hash
+# @hash             The expected hash value
+#
+# Since: 2.12
+##
+{ 'struct': 'SshHostKeyHash',
+  'data': { 'type': 'SshHostKeyCheckHashType',
+            'hash': 'str' }}
+
+##
+# @SshHostKeyDummy:
+#
+# For those union branches that don't need additional fields.
+#
+# Since: 2.12
+##
+{ 'struct': 'SshHostKeyDummy',
+  'data': {} }
+
+##
+# @SshHostKeyCheck:
+#
+# Since: 2.12
+##
+{ 'union': 'SshHostKeyCheck',
+  'base': { 'mode': 'SshHostKeyCheckMode' },
+  'discriminator': 'mode',
+  'data': { 'none': 'SshHostKeyDummy',
+            'hash': 'SshHostKeyHash',
+            'known_hosts': 'SshHostKeyDummy' } }
+
+##
 # @BlockdevOptionsSsh:
 #
 # @server:              host address
@@ -2562,14 +2619,16 @@
 # @user:                user as which to connect, defaults to current
 #                       local user name
 #
-# TODO: Expose the host_key_check option in QMP
+# @host-key-check:      Defines how and what to check the host key against
+#                       (default: known_hosts)
 #
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsSsh',
   'data': { 'server': 'InetSocketAddress',
             'path': 'str',
-            '*user': 'str' } }
+            '*user': 'str',
+            '*host-key-check': 'SshHostKeyCheck' } }
 
 
 ##

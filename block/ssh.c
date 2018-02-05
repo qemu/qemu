@@ -431,31 +431,35 @@ check_host_key_hash(BDRVSSHState *s, const char *hash,
 }
 
 static int check_host_key(BDRVSSHState *s, const char *host, int port,
-                          const char *host_key_check, Error **errp)
+                          SshHostKeyCheck *hkc, Error **errp)
 {
-    /* host_key_check=no */
-    if (strcmp(host_key_check, "no") == 0) {
+    SshHostKeyCheckMode mode;
+
+    if (hkc) {
+        mode = hkc->mode;
+    } else {
+        mode = SSH_HOST_KEY_CHECK_MODE_KNOWN_HOSTS;
+    }
+
+    switch (mode) {
+    case SSH_HOST_KEY_CHECK_MODE_NONE:
         return 0;
-    }
-
-    /* host_key_check=md5:xx:yy:zz:... */
-    if (strncmp(host_key_check, "md5:", 4) == 0) {
-        return check_host_key_hash(s, &host_key_check[4],
-                                   LIBSSH2_HOSTKEY_HASH_MD5, 16, errp);
-    }
-
-    /* host_key_check=sha1:xx:yy:zz:... */
-    if (strncmp(host_key_check, "sha1:", 5) == 0) {
-        return check_host_key_hash(s, &host_key_check[5],
-                                   LIBSSH2_HOSTKEY_HASH_SHA1, 20, errp);
-    }
-
-    /* host_key_check=yes */
-    if (strcmp(host_key_check, "yes") == 0) {
+    case SSH_HOST_KEY_CHECK_MODE_HASH:
+        if (hkc->u.hash.type == SSH_HOST_KEY_CHECK_HASH_TYPE_MD5) {
+            return check_host_key_hash(s, hkc->u.hash.hash,
+                                       LIBSSH2_HOSTKEY_HASH_MD5, 16, errp);
+        } else if (hkc->u.hash.type == SSH_HOST_KEY_CHECK_HASH_TYPE_SHA1) {
+            return check_host_key_hash(s, hkc->u.hash.hash,
+                                       LIBSSH2_HOSTKEY_HASH_SHA1, 20, errp);
+        }
+        g_assert_not_reached();
+        break;
+    case SSH_HOST_KEY_CHECK_MODE_KNOWN_HOSTS:
         return check_host_key_knownhosts(s, host, port, errp);
+    default:
+        g_assert_not_reached();
     }
 
-    error_setg(errp, "unknown host_key_check setting (%s)", host_key_check);
     return -EINVAL;
 }
 
@@ -544,16 +548,22 @@ static QemuOptsList ssh_runtime_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Port to connect to",
         },
+        {
+            .name = "host_key_check",
+            .type = QEMU_OPT_STRING,
+            .help = "Defines how and what to check the host key against",
+        },
         { /* end of list */ }
     },
 };
 
-static bool ssh_process_legacy_socket_options(QDict *output_opts,
-                                              QemuOpts *legacy_opts,
-                                              Error **errp)
+static bool ssh_process_legacy_options(QDict *output_opts,
+                                       QemuOpts *legacy_opts,
+                                       Error **errp)
 {
     const char *host = qemu_opt_get(legacy_opts, "host");
     const char *port = qemu_opt_get(legacy_opts, "port");
+    const char *host_key_check = qemu_opt_get(legacy_opts, "host_key_check");
 
     if (!host && port) {
         error_setg(errp, "port may not be used without host");
@@ -563,6 +573,28 @@ static bool ssh_process_legacy_socket_options(QDict *output_opts,
     if (host) {
         qdict_put_str(output_opts, "server.host", host);
         qdict_put_str(output_opts, "server.port", port ?: stringify(22));
+    }
+
+    if (host_key_check) {
+        if (strcmp(host_key_check, "no") == 0) {
+            qdict_put_str(output_opts, "host-key-check.mode", "none");
+        } else if (strncmp(host_key_check, "md5:", 4) == 0) {
+            qdict_put_str(output_opts, "host-key-check.mode", "hash");
+            qdict_put_str(output_opts, "host-key-check.type", "md5");
+            qdict_put_str(output_opts, "host-key-check.hash",
+                          &host_key_check[4]);
+        } else if (strncmp(host_key_check, "sha1:", 5) == 0) {
+            qdict_put_str(output_opts, "host-key-check.mode", "hash");
+            qdict_put_str(output_opts, "host-key-check.type", "sha1");
+            qdict_put_str(output_opts, "host-key-check.hash",
+                          &host_key_check[5]);
+        } else if (strcmp(host_key_check, "yes") == 0) {
+            qdict_put_str(output_opts, "host-key-check.mode", "known_hosts");
+        } else {
+            error_setg(errp, "unknown host_key_check setting (%s)",
+                       host_key_check);
+            return false;
+        }
     }
 
     return true;
@@ -585,7 +617,7 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
         goto fail;
     }
 
-    if (!ssh_process_legacy_socket_options(options, opts, errp)) {
+    if (!ssh_process_legacy_options(options, opts, errp)) {
         goto fail;
     }
 
@@ -629,15 +661,8 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
 {
     BlockdevOptionsSsh *opts;
     int r, ret;
-    const char *user, *host_key_check;
+    const char *user;
     long port = 0;
-
-    host_key_check = qdict_get_try_str(options, "host_key_check");
-    if (!host_key_check) {
-        host_key_check = "yes";
-    } else {
-        qdict_del(options, "host_key_check");
-    }
 
     opts = ssh_parse_options(options, errp);
     if (opts == NULL) {
@@ -692,8 +717,7 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
 
     /* Check the remote host's key against known_hosts. */
-    ret = check_host_key(s, s->inet->host, port, host_key_check,
-                         errp);
+    ret = check_host_key(s, s->inet->host, port, opts->host_key_check, errp);
     if (ret < 0) {
         goto err;
     }
