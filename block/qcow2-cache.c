@@ -421,8 +421,7 @@ void qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table)
     assert(c->entries[i].ref >= 0);
 }
 
-void qcow2_cache_entry_mark_dirty(BlockDriverState *bs, Qcow2Cache *c,
-     void *table)
+void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table)
 {
     int i = qcow2_cache_get_table_idx(c, table);
     assert(c->entries[i].offset != 0);
