@@ -807,6 +807,7 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
 typedef struct Qcow2ReopenState {
     Qcow2Cache *l2_table_cache;
     Qcow2Cache *refcount_block_cache;
+    int l2_slice_size; /* Number of entries in a slice of the L2 table */
     bool use_lazy_refcounts;
     int overlap_check;
     bool discard_passthrough[QCOW2_DISCARD_MAX];
@@ -888,6 +889,7 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
         }
     }
 
+    r->l2_slice_size = s->cluster_size / sizeof(uint64_t);
     r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
     r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
     if (r->l2_table_cache == NULL || r->refcount_block_cache == NULL) {
@@ -1051,6 +1053,7 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     }
     s->l2_table_cache = r->l2_table_cache;
     s->refcount_block_cache = r->refcount_block_cache;
+    s->l2_slice_size = r->l2_slice_size;
 
     s->overlap_check = r->overlap_check;
     s->use_lazy_refcounts = r->use_lazy_refcounts;
