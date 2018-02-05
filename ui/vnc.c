@@ -1579,8 +1579,8 @@ void vnc_write(VncState *vs, const void *data, size_t len)
      * handshake, or from the job thread's VncState clone
      */
     if (vs->throttle_output_offset != 0 &&
-        vs->output.offset > (vs->throttle_output_offset *
-                             VNC_THROTTLE_OUTPUT_LIMIT_SCALE)) {
+        (vs->output.offset / VNC_THROTTLE_OUTPUT_LIMIT_SCALE) >
+        vs->throttle_output_offset) {
         trace_vnc_client_output_limit(vs, vs->ioc, vs->output.offset,
                                       vs->throttle_output_offset);
         vnc_disconnect_start(vs);
