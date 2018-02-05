@@ -441,7 +441,7 @@ void *qcow2_cache_is_table_offset(BlockDriverState *bs, Qcow2Cache *c,
     return NULL;
 }
 
-void qcow2_cache_discard(BlockDriverState *bs, Qcow2Cache *c, void *table)
+void qcow2_cache_discard(Qcow2Cache *c, void *table)
 {
     int i = qcow2_cache_get_table_idx(c, table);
 
