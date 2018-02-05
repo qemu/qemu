@@ -1898,6 +1898,12 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
             goto fail;
         }
 
+        ret = qcow2_get_refcount(bs, l2_offset >> s->cluster_bits,
+                                 &l2_refcount);
+        if (ret < 0) {
+            goto fail;
+        }
+
         if (is_active_l1) {
             /* get active L2 tables from cache */
             ret = qcow2_cache_get(bs, s->l2_table_cache, l2_offset,
@@ -1907,12 +1913,6 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
             ret = bdrv_read(bs->file, l2_offset / BDRV_SECTOR_SIZE,
                             (void *)l2_table, s->cluster_sectors);
         }
-        if (ret < 0) {
-            goto fail;
-        }
-
-        ret = qcow2_get_refcount(bs, l2_offset >> s->cluster_bits,
-                                 &l2_refcount);
         if (ret < 0) {
             goto fail;
         }
