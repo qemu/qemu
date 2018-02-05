@@ -656,18 +656,12 @@ fail:
     return result;
 }
 
-static int connect_to_ssh(BDRVSSHState *s, QDict *options,
+static int connect_to_ssh(BDRVSSHState *s, BlockdevOptionsSsh *opts,
                           int ssh_flags, int creat_mode, Error **errp)
 {
-    BlockdevOptionsSsh *opts;
     int r, ret;
     const char *user;
     long port = 0;
-
-    opts = ssh_parse_options(options, errp);
-    if (opts == NULL) {
-        return -EINVAL;
-    }
 
     if (opts->has_user) {
         user = opts->user;
@@ -748,8 +742,6 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
         goto err;
     }
 
-    qapi_free_BlockdevOptionsSsh(opts);
-
     r = libssh2_sftp_fstat(s->sftp_handle, &s->attrs);
     if (r < 0) {
         sftp_error_setg(errp, s, "failed to read file attributes");
@@ -775,8 +767,6 @@ static int connect_to_ssh(BDRVSSHState *s, QDict *options,
     }
     s->session = NULL;
 
-    qapi_free_BlockdevOptionsSsh(opts);
-
     return ret;
 }
 
@@ -784,6 +774,7 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
                          Error **errp)
 {
     BDRVSSHState *s = bs->opaque;
+    BlockdevOptionsSsh *opts;
     int ret;
     int ssh_flags;
 
@@ -794,14 +785,21 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
         ssh_flags |= LIBSSH2_FXF_WRITE;
     }
 
+    opts = ssh_parse_options(options, errp);
+    if (opts == NULL) {
+        return -EINVAL;
+    }
+
     /* Start up SSH. */
-    ret = connect_to_ssh(s, options, ssh_flags, 0, errp);
+    ret = connect_to_ssh(s, opts, ssh_flags, 0, errp);
     if (ret < 0) {
         goto err;
     }
 
     /* Go non-blocking. */
     libssh2_session_set_blocking(s->session, 0);
+
+    qapi_free_BlockdevOptionsSsh(opts);
 
     return 0;
 
@@ -810,6 +808,8 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
         close(s->sock);
     }
     s->sock = -1;
+
+    qapi_free_BlockdevOptionsSsh(opts);
 
     return ret;
 }
@@ -860,6 +860,7 @@ static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
     int r, ret;
     int64_t total_size = 0;
     QDict *uri_options = NULL;
+    BlockdevOptionsSsh *ssh_opts = NULL;
     BDRVSSHState s;
 
     ssh_state_init(&s);
@@ -876,7 +877,13 @@ static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
         goto out;
     }
 
-    r = connect_to_ssh(&s, uri_options,
+    ssh_opts = ssh_parse_options(uri_options, errp);
+    if (ssh_opts == NULL) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    r = connect_to_ssh(&s, ssh_opts,
                        LIBSSH2_FXF_READ|LIBSSH2_FXF_WRITE|
                        LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
                        0644, errp);
@@ -899,6 +906,7 @@ static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
     if (uri_options != NULL) {
         QDECREF(uri_options);
     }
+    qapi_free_BlockdevOptionsSsh(ssh_opts);
     return ret;
 }
 
