@@ -854,59 +854,71 @@ static QemuOptsList ssh_create_opts = {
     }
 };
 
-static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
-                                           Error **errp)
+static int ssh_co_create(BlockdevCreateOptions *options, Error **errp)
 {
-    int r, ret;
-    int64_t total_size = 0;
-    QDict *uri_options = NULL;
-    BlockdevOptionsSsh *ssh_opts = NULL;
+    BlockdevCreateOptionsSsh *opts = &options->u.ssh;
     BDRVSSHState s;
+    int ret;
+
+    assert(options->driver == BLOCKDEV_DRIVER_SSH);
 
     ssh_state_init(&s);
 
-    /* Get desired file size. */
-    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                          BDRV_SECTOR_SIZE);
-    DPRINTF("total_size=%" PRIi64, total_size);
-
-    uri_options = qdict_new();
-    r = parse_uri(filename, uri_options, errp);
-    if (r < 0) {
-        ret = r;
-        goto out;
+    ret = connect_to_ssh(&s, opts->location,
+                         LIBSSH2_FXF_READ|LIBSSH2_FXF_WRITE|
+                         LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
+                         0644, errp);
+    if (ret < 0) {
+        goto fail;
     }
 
-    ssh_opts = ssh_parse_options(uri_options, errp);
-    if (ssh_opts == NULL) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    r = connect_to_ssh(&s, ssh_opts,
-                       LIBSSH2_FXF_READ|LIBSSH2_FXF_WRITE|
-                       LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
-                       0644, errp);
-    if (r < 0) {
-        ret = r;
-        goto out;
-    }
-
-    if (total_size > 0) {
-        ret = ssh_grow_file(&s, total_size, errp);
+    if (opts->size > 0) {
+        ret = ssh_grow_file(&s, opts->size, errp);
         if (ret < 0) {
-            goto out;
+            goto fail;
         }
     }
 
     ret = 0;
+fail:
+    ssh_state_free(&s);
+    return ret;
+}
+
+static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
+                                           Error **errp)
+{
+    BlockdevCreateOptions *create_options;
+    BlockdevCreateOptionsSsh *ssh_opts;
+    int ret;
+    QDict *uri_options = NULL;
+
+    create_options = g_new0(BlockdevCreateOptions, 1);
+    create_options->driver = BLOCKDEV_DRIVER_SSH;
+    ssh_opts = &create_options->u.ssh;
+
+    /* Get desired file size. */
+    ssh_opts->size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                              BDRV_SECTOR_SIZE);
+    DPRINTF("total_size=%" PRIi64, ssh_opts->size);
+
+    uri_options = qdict_new();
+    ret = parse_uri(filename, uri_options, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ssh_opts->location = ssh_parse_options(uri_options, errp);
+    if (ssh_opts->location == NULL) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = ssh_co_create(create_options, errp);
 
  out:
-    ssh_state_free(&s);
-    if (uri_options != NULL) {
-        QDECREF(uri_options);
-    }
-    qapi_free_BlockdevOptionsSsh(ssh_opts);
+    QDECREF(uri_options);
+    qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
 
@@ -1268,6 +1280,7 @@ static BlockDriver bdrv_ssh = {
     .instance_size                = sizeof(BDRVSSHState),
     .bdrv_parse_filename          = ssh_parse_filename,
     .bdrv_file_open               = ssh_file_open,
+    .bdrv_co_create               = ssh_co_create,
     .bdrv_co_create_opts          = ssh_co_create_opts,
     .bdrv_close                   = ssh_close,
     .bdrv_has_zero_init           = ssh_has_zero_init,
