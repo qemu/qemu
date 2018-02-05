@@ -694,15 +694,7 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         return -EIO;
     }
 
-    /* seek the l2 table of the given l2 offset */
-
-    if (s->l1_table[l1_index] & QCOW_OFLAG_COPIED) {
-        /* load the l2 table in memory */
-        ret = l2_load(bs, offset, l2_offset, &l2_table);
-        if (ret < 0) {
-            return ret;
-        }
-    } else {
+    if (!(s->l1_table[l1_index] & QCOW_OFLAG_COPIED)) {
         /* First allocate a new L2 table (and do COW if needed) */
         ret = l2_allocate(bs, l1_index);
         if (ret < 0) {
@@ -718,11 +710,12 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         /* Get the offset of the newly-allocated l2 table */
         l2_offset = s->l1_table[l1_index] & L1E_OFFSET_MASK;
         assert(offset_into_cluster(s, l2_offset) == 0);
-        /* Load the l2 table in memory */
-        ret = l2_load(bs, offset, l2_offset, &l2_table);
-        if (ret < 0) {
-            return ret;
-        }
+    }
+
+    /* load the l2 table in memory */
+    ret = l2_load(bs, offset, l2_offset, &l2_table);
+    if (ret < 0) {
+        return ret;
     }
 
     /* find the cluster offset for the given disk offset */
