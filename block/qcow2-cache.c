@@ -46,8 +46,7 @@ struct Qcow2Cache {
     uint64_t                cache_clean_lru_counter;
 };
 
-static inline void *qcow2_cache_get_table_addr(BlockDriverState *bs,
-                    Qcow2Cache *c, int table)
+static inline void *qcow2_cache_get_table_addr(Qcow2Cache *c, int table)
 {
     return (uint8_t *) c->table_array + (size_t) table * c->table_size;
 }
@@ -78,7 +77,7 @@ static void qcow2_cache_table_release(BlockDriverState *bs, Qcow2Cache *c,
 {
 /* Using MADV_DONTNEED to discard memory is a Linux-specific feature */
 #ifdef CONFIG_LINUX
-    void *t = qcow2_cache_get_table_addr(bs, c, i);
+    void *t = qcow2_cache_get_table_addr(c, i);
     int align = getpagesize();
     size_t mem_size = (size_t) c->table_size * num_tables;
     size_t offset = QEMU_ALIGN_UP((uintptr_t) t, align) - (uintptr_t) t;
@@ -222,7 +221,7 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
     }
 
     ret = bdrv_pwrite(bs->file, c->entries[i].offset,
-                      qcow2_cache_get_table_addr(bs, c, i), c->table_size);
+                      qcow2_cache_get_table_addr(c, i), c->table_size);
     if (ret < 0) {
         return ret;
     }
@@ -378,7 +377,7 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
         }
 
         ret = bdrv_pread(bs->file, offset,
-                         qcow2_cache_get_table_addr(bs, c, i),
+                         qcow2_cache_get_table_addr(c, i),
                          c->table_size);
         if (ret < 0) {
             return ret;
@@ -390,7 +389,7 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
     /* And return the right table */
 found:
     c->entries[i].ref++;
-    *table = qcow2_cache_get_table_addr(bs, c, i);
+    *table = qcow2_cache_get_table_addr(c, i);
 
     trace_qcow2_cache_get_done(qemu_coroutine_self(),
                                c == s->l2_table_cache, i);
@@ -439,7 +438,7 @@ void *qcow2_cache_is_table_offset(BlockDriverState *bs, Qcow2Cache *c,
 
     for (i = 0; i < c->size; i++) {
         if (c->entries[i].offset == offset) {
-            return qcow2_cache_get_table_addr(bs, c, i);
+            return qcow2_cache_get_table_addr(c, i);
         }
     }
     return NULL;
