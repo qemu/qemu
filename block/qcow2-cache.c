@@ -407,7 +407,7 @@ int qcow2_cache_get_empty(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
     return qcow2_cache_do_get(bs, c, offset, table, false);
 }
 
-void qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table)
+void qcow2_cache_put(Qcow2Cache *c, void **table)
 {
     int i = qcow2_cache_get_table_idx(c, *table);
 

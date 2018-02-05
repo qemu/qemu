@@ -317,7 +317,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
         memcpy(l2_table, old_table, s->cluster_size);
 
-        qcow2_cache_put(bs, s->l2_table_cache, (void **) &old_table);
+        qcow2_cache_put(s->l2_table_cache, (void **) &old_table);
     }
 
     /* write the l2 table to the file */
@@ -345,7 +345,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 fail:
     trace_qcow2_l2_allocate_done(bs, l1_index, ret);
     if (l2_table != NULL) {
-        qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
+        qcow2_cache_put(s->l2_table_cache, (void **) table);
     }
     s->l1_table[l1_index] = old_l2_offset;
     if (l2_offset > 0) {
@@ -619,7 +619,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
         abort();
     }
 
-    qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
 
     bytes_available = (int64_t)c * s->cluster_size;
 
@@ -637,7 +637,7 @@ out:
     return type;
 
 fail:
-    qcow2_cache_put(bs, s->l2_table_cache, (void **)&l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **)&l2_table);
     return ret;
 }
 
@@ -744,13 +744,13 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
      * allocated. */
     cluster_offset = be64_to_cpu(l2_table[l2_index]);
     if (cluster_offset & L2E_OFFSET_MASK) {
-        qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+        qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
         return 0;
     }
 
     cluster_offset = qcow2_alloc_bytes(bs, compressed_size);
     if (cluster_offset < 0) {
-        qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+        qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
         return 0;
     }
 
@@ -767,7 +767,7 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE_COMPRESSED);
     qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
     l2_table[l2_index] = cpu_to_be64(cluster_offset);
-    qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
 
     return cluster_offset;
 }
@@ -956,7 +956,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
      }
 
 
-    qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
 
     /*
      * If this was a COW, we need to decrease the refcount of the old cluster.
@@ -1174,7 +1174,7 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
 
     /* Cleanup */
 out:
-    qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
 
     /* Only return a host offset if we actually made progress. Otherwise we
      * would make requirements for handle_alloc() that it can't fulfill */
@@ -1333,7 +1333,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
         keep_old_clusters = true;
     }
 
-    qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
 
     if (!alloc_cluster_offset) {
         /* Allocate, if necessary at a given offset in the image file */
@@ -1689,7 +1689,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         qcow2_free_any_clusters(bs, old_l2_entry, 1, type);
     }
 
-    qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
 
     return nb_clusters;
 }
@@ -1783,7 +1783,7 @@ static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
         }
     }
 
-    qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+    qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
 
     return nb_clusters;
 }
@@ -1986,7 +1986,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
                 qcow2_cache_depends_on_flush(s->l2_table_cache);
             }
-            qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+            qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
         } else {
             if (l2_dirty) {
                 ret = qcow2_pre_write_overlap_check(bs,
@@ -2017,7 +2017,7 @@ fail:
         if (!is_active_l1) {
             qemu_vfree(l2_table);
         } else {
-            qcow2_cache_put(bs, s->l2_table_cache, (void **) &l2_table);
+            qcow2_cache_put(s->l2_table_cache, (void **) &l2_table);
         }
     }
     return ret;
