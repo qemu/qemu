@@ -79,12 +79,23 @@ size_t vnc_client_write_sasl(VncState *vs)
 
     vs->sasl.encodedOffset += ret;
     if (vs->sasl.encodedOffset == vs->sasl.encodedLength) {
+        bool throttled = vs->force_update_offset != 0;
+        size_t offset;
         if (vs->sasl.encodedRawLength >= vs->force_update_offset) {
             vs->force_update_offset = 0;
         } else {
             vs->force_update_offset -= vs->sasl.encodedRawLength;
         }
+        if (throttled && vs->force_update_offset == 0) {
+            trace_vnc_client_unthrottle_forced(vs, vs->ioc);
+        }
+        offset = vs->output.offset;
         buffer_advance(&vs->output, vs->sasl.encodedRawLength);
+        if (offset >= vs->throttle_output_offset &&
+            vs->output.offset < vs->throttle_output_offset) {
+            trace_vnc_client_unthrottle_incremental(vs, vs->ioc,
+                                                    vs->output.offset);
+        }
         vs->sasl.encoded = NULL;
         vs->sasl.encodedOffset = vs->sasl.encodedLength = 0;
     }
