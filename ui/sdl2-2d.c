@@ -36,6 +36,8 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     DisplaySurface *surf = qemu_console_surface(dcl->con);
     SDL_Rect rect;
+    size_t surface_data_offset = surface_bytes_per_pixel(surf) * x +
+                                 surface_stride(surf) * y;
 
     assert(!scon->opengl);
 
@@ -46,27 +48,16 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
         return;
     }
 
-    /*
-     * SDL2 seems to do some double-buffering, and trying to only
-     * update the changed areas results in only one of the two buffers
-     * being updated.  Which flickers alot.  So lets not try to be
-     * clever do a full update every time ...
-     */
-#if 0
     rect.x = x;
     rect.y = y;
     rect.w = w;
     rect.h = h;
-#else
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = surface_width(surf);
-    rect.h = surface_height(surf);
-#endif
 
-    SDL_UpdateTexture(scon->texture, NULL, surface_data(surf),
+    SDL_UpdateTexture(scon->texture, &rect,
+                      surface_data(surf) + surface_data_offset,
                       surface_stride(surf));
-    SDL_RenderCopy(scon->real_renderer, scon->texture, &rect, &rect);
+    SDL_RenderClear(scon->real_renderer);
+    SDL_RenderCopy(scon->real_renderer, scon->texture, NULL, NULL);
     SDL_RenderPresent(scon->real_renderer);
 }
 
