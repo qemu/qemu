@@ -1036,7 +1036,7 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
 
     cfg->uri = uri = uri_parse(filename);
     if (!uri) {
-        error_setg(&err, "invalid URI");
+        error_setg(&err, "invalid URI '%s'", filename);
         goto out;
     }
 

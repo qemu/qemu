@@ -665,7 +665,7 @@ static int qemu_gluster_parse(BlockdevOptionsGluster *gconf,
     if (filename) {
         ret = qemu_gluster_parse_uri(gconf, filename);
         if (ret < 0) {
-            error_setg(errp, "invalid URI");
+            error_setg(errp, "invalid URI %s", filename);
             error_append_hint(errp, "Usage: file=gluster[+transport]://"
                                     "[host[:port]]volume/path[?socket=...]"
                                     "[,file.debug=N]"
