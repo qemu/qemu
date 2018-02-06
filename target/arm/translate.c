@@ -9925,6 +9925,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                         tcg_temp_free_i32(addr);
                         tcg_temp_free_i32(op);
                         store_reg(s, rd, ttresp);
+                        break;
                     }
                     goto illegal_op;
                 }
