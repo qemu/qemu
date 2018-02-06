@@ -1356,6 +1356,98 @@ static void vfio_pci_fixup_msix_region(VFIOPCIDevice *vdev)
     }
 }
 
+static void vfio_pci_relocate_msix(VFIOPCIDevice *vdev, Error **errp)
+{
+    int target_bar = -1;
+    size_t msix_sz;
+
+    if (!vdev->msix || vdev->msix_relo == OFF_AUTOPCIBAR_OFF) {
+        return;
+    }
+
+    /* The actual minimum size of MSI-X structures */
+    msix_sz = (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE) +
+              (QEMU_ALIGN_UP(vdev->msix->entries, 64) / 8);
+    /* Round up to host pages, we don't want to share a page */
+    msix_sz = REAL_HOST_PAGE_ALIGN(msix_sz);
+    /* PCI BARs must be a power of 2 */
+    msix_sz = pow2ceil(msix_sz);
+
+    if (vdev->msix_relo == OFF_AUTOPCIBAR_AUTO) {
+        /*
+         * TODO: Lookup table for known devices.
+         *
+         * Logically we might use an algorithm here to select the BAR adding
+         * the least additional MMIO space, but we cannot programatically
+         * predict the driver dependency on BAR ordering or sizing, therefore
+         * 'auto' becomes a lookup for combinations reported to work.
+         */
+        if (target_bar < 0) {
+            error_setg(errp, "No automatic MSI-X relocation available for "
+                       "device %04x:%04x", vdev->vendor_id, vdev->device_id);
+            return;
+        }
+    } else {
+        target_bar = (int)(vdev->msix_relo - OFF_AUTOPCIBAR_BAR0);
+    }
+
+    /* I/O port BARs cannot host MSI-X structures */
+    if (vdev->bars[target_bar].ioport) {
+        error_setg(errp, "Invalid MSI-X relocation BAR %d, "
+                   "I/O port BAR", target_bar);
+        return;
+    }
+
+    /* Cannot use a BAR in the "shadow" of a 64-bit BAR */
+    if (!vdev->bars[target_bar].size &&
+         target_bar > 0 && vdev->bars[target_bar - 1].mem64) {
+        error_setg(errp, "Invalid MSI-X relocation BAR %d, "
+                   "consumed by 64-bit BAR %d", target_bar, target_bar - 1);
+        return;
+    }
+
+    /* 2GB max size for 32-bit BARs, cannot double if already > 1G */
+    if (vdev->bars[target_bar].size > (1 * 1024 * 1024 * 1024) &&
+        !vdev->bars[target_bar].mem64) {
+        error_setg(errp, "Invalid MSI-X relocation BAR %d, "
+                   "no space to extend 32-bit BAR", target_bar);
+        return;
+    }
+
+    /*
+     * If adding a new BAR, test if we can make it 64bit.  We make it
+     * prefetchable since QEMU MSI-X emulation has no read side effects
+     * and doing so makes mapping more flexible.
+     */
+    if (!vdev->bars[target_bar].size) {
+        if (target_bar < (PCI_ROM_SLOT - 1) &&
+            !vdev->bars[target_bar + 1].size) {
+            vdev->bars[target_bar].mem64 = true;
+            vdev->bars[target_bar].type = PCI_BASE_ADDRESS_MEM_TYPE_64;
+        }
+        vdev->bars[target_bar].type |= PCI_BASE_ADDRESS_MEM_PREFETCH;
+        vdev->bars[target_bar].size = msix_sz;
+        vdev->msix->table_offset = 0;
+    } else {
+        vdev->bars[target_bar].size = MAX(vdev->bars[target_bar].size * 2,
+                                          msix_sz * 2);
+        /*
+         * Due to above size calc, MSI-X always starts halfway into the BAR,
+         * which will always be a separate host page.
+         */
+        vdev->msix->table_offset = vdev->bars[target_bar].size / 2;
+    }
+
+    vdev->msix->table_bar = target_bar;
+    vdev->msix->pba_bar = target_bar;
+    /* Requires 8-byte alignment, but PCI_MSIX_ENTRY_SIZE guarantees that */
+    vdev->msix->pba_offset = vdev->msix->table_offset +
+                                  (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE);
+
+    trace_vfio_msix_relo(vdev->vbasedev.name,
+                         vdev->msix->table_bar, vdev->msix->table_offset);
+}
+
 /*
  * We don't have any control over how pci_add_capability() inserts
  * capabilities into the chain.  In order to setup MSI-X we need a
@@ -1434,6 +1526,8 @@ static void vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
     vdev->msix = msix;
 
     vfio_pci_fixup_msix_region(vdev);
+
+    vfio_pci_relocate_msix(vdev, errp);
 }
 
 static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
@@ -2849,13 +2943,14 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     vfio_pci_size_rom(vdev);
 
+    vfio_bars_prepare(vdev);
+
     vfio_msix_early_setup(vdev, &err);
     if (err) {
         error_propagate(errp, err);
         goto error;
     }
 
-    vfio_bars_prepare(vdev);
     vfio_bars_register(vdev);
 
     ret = vfio_add_capabilities(vdev, errp);
@@ -3045,6 +3140,8 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_UNSIGNED_NODEFAULT("x-nv-gpudirect-clique", VFIOPCIDevice,
                                    nv_gpudirect_clique,
                                    qdev_prop_nv_gpudirect_clique, uint8_t),
+    DEFINE_PROP_OFF_AUTO_PCIBAR("x-msix-relocation", VFIOPCIDevice, msix_relo,
+                                OFF_AUTOPCIBAR_OFF),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),
