@@ -137,7 +137,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
     cap_spapr_tce_64 = kvm_check_extension(s, KVM_CAP_SPAPR_TCE_64);
     cap_spapr_multitce = kvm_check_extension(s, KVM_CAP_SPAPR_MULTITCE);
-    cap_spapr_vfio = false;
+    cap_spapr_vfio = kvm_vm_check_extension(s, KVM_CAP_SPAPR_TCE_VFIO);
     cap_one_reg = kvm_check_extension(s, KVM_CAP_ONE_REG);
     cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
     cap_epr = kvm_check_extension(s, KVM_CAP_PPC_EPR);
@@ -2512,6 +2512,11 @@ int kvmppc_get_cap_safe_bounds_check(void)
 int kvmppc_get_cap_safe_indirect_branch(void)
 {
     return cap_ppc_safe_indirect_branch;
+}
+
+bool kvmppc_has_cap_spapr_vfio(void)
+{
+    return cap_spapr_vfio;
 }
 
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)

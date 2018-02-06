@@ -46,6 +46,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
 int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 int kvmppc_reset_htab(int shift_hint);
 uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
+bool kvmppc_has_cap_spapr_vfio(void);
 #endif /* !CONFIG_USER_ONLY */
 bool kvmppc_has_cap_epr(void);
 int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function);
@@ -230,6 +231,11 @@ static inline uint64_t kvmppc_rma_size(uint64_t current_size,
 static inline bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
 {
     return true;
+}
+
+static inline bool kvmppc_has_cap_spapr_vfio(void)
+{
+    return false;
 }
 
 #endif /* !CONFIG_USER_ONLY */
