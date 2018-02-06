@@ -87,6 +87,7 @@ static testdef_t tests[] = {
       sizeof(kernel_plml605), kernel_plml605 },
     { "moxie", "moxiesim", "", "TT", sizeof(bios_moxiesim), 0, bios_moxiesim },
     { "arm", "raspi2", "", "TT", sizeof(bios_raspi2), 0, bios_raspi2 },
+    { "hppa", "hppa", "", "SeaBIOS wants SYSTEM HALT" },
 
     { NULL }
 };
