@@ -1971,25 +1971,7 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                                         memory_region_get_dirty_log_mask(mr));
 }
 
-DirtyBitmapSnapshot *memory_region_snapshot_and_clear_dirty(MemoryRegion *mr,
-                                                            hwaddr addr,
-                                                            hwaddr size,
-                                                            unsigned client)
-{
-    assert(mr->ram_block);
-    return cpu_physical_memory_snapshot_and_clear_dirty(
-                memory_region_get_ram_addr(mr) + addr, size, client);
-}
-
-bool memory_region_snapshot_get_dirty(MemoryRegion *mr, DirtyBitmapSnapshot *snap,
-                                      hwaddr addr, hwaddr size)
-{
-    assert(mr->ram_block);
-    return cpu_physical_memory_snapshot_get_dirty(snap,
-                memory_region_get_ram_addr(mr) + addr, size);
-}
-
-void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
+static void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 {
     MemoryListener *listener;
     AddressSpace *as;
@@ -2015,6 +1997,25 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
         }
         flatview_unref(view);
     }
+}
+
+DirtyBitmapSnapshot *memory_region_snapshot_and_clear_dirty(MemoryRegion *mr,
+                                                            hwaddr addr,
+                                                            hwaddr size,
+                                                            unsigned client)
+{
+    assert(mr->ram_block);
+    memory_region_sync_dirty_bitmap(mr);
+    return cpu_physical_memory_snapshot_and_clear_dirty(
+                memory_region_get_ram_addr(mr) + addr, size, client);
+}
+
+bool memory_region_snapshot_get_dirty(MemoryRegion *mr, DirtyBitmapSnapshot *snap,
+                                      hwaddr addr, hwaddr size)
+{
+    assert(mr->ram_block);
+    return cpu_physical_memory_snapshot_get_dirty(snap,
+                memory_region_get_ram_addr(mr) + addr, size);
 }
 
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly)

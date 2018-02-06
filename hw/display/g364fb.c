@@ -246,7 +246,6 @@ static void g364fb_update_display(void *opaque)
         qemu_console_resize(s->con, s->width, s->height);
     }
 
-    memory_region_sync_dirty_bitmap(&s->mem_vram);
     if (s->ctla & CTLA_FORCE_BLANK) {
         g364fb_draw_blank(s);
     } else if (s->depth == 8) {

@@ -1289,7 +1289,6 @@ static void exynos4210_fimd_update(void *opaque)
             scrn_width = w->virtpage_width;
             /* Total width of virtual screen page in bytes */
             inc_size = scrn_width + w->virtpage_offsize;
-            memory_region_sync_dirty_bitmap(w->mem_section.mr);
             host_fb_addr = w->host_fb_addr;
             fb_line_addr = w->mem_section.offset_within_region;
             snap = memory_region_snapshot_and_clear_dirty(w->mem_section.mr,

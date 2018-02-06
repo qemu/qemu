@@ -83,7 +83,6 @@ void framebuffer_update_display(
     if (!mem) {
         return;
     }
-    memory_region_sync_dirty_bitmap(mem);
 
     addr = mem_section->offset_within_region;
     src = memory_region_get_ram_ptr(mem) + addr;

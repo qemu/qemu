@@ -1136,17 +1136,6 @@ bool memory_region_snapshot_get_dirty(MemoryRegion *mr,
                                       hwaddr addr, hwaddr size);
 
 /**
- * memory_region_sync_dirty_bitmap: Synchronize a region's dirty bitmap with
- *                                  any external TLBs (e.g. kvm)
- *
- * Flushes dirty information from accelerators such as kvm and vhost-net
- * and makes it available to users of the memory API.
- *
- * @mr: the region being flushed.
- */
-void memory_region_sync_dirty_bitmap(MemoryRegion *mr);
-
-/**
  * memory_region_reset_dirty: Mark a range of pages as clean, for a specified
  *                            client.
  *
