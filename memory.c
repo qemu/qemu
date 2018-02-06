@@ -1990,7 +1990,7 @@ static void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
         as = listener->address_space;
         view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
-            if (fr->mr == mr) {
+            if (fr->dirty_log_mask && (!mr || fr->mr == mr)) {
                 MemoryRegionSection mrs = section_from_flat_range(fr, view);
                 listener->log_sync(listener, &mrs);
             }
@@ -2506,26 +2506,7 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr)
 
 void memory_global_dirty_log_sync(void)
 {
-    MemoryListener *listener;
-    AddressSpace *as;
-    FlatView *view;
-    FlatRange *fr;
-
-    QTAILQ_FOREACH(listener, &memory_listeners, link) {
-        if (!listener->log_sync) {
-            continue;
-        }
-        as = listener->address_space;
-        view = address_space_get_flatview(as);
-        FOR_EACH_FLAT_RANGE(fr, view) {
-            if (fr->dirty_log_mask) {
-                MemoryRegionSection mrs = section_from_flat_range(fr, view);
-
-                listener->log_sync(listener, &mrs);
-            }
-        }
-        flatview_unref(view);
-    }
+    memory_region_sync_dirty_bitmap(NULL);
 }
 
 static VMChangeStateEntry *vmstate_change;
