@@ -33,6 +33,9 @@ typedef struct VFIOQuirk {
 
 typedef struct VFIOBAR {
     VFIORegion region;
+    MemoryRegion *mr;
+    size_t size;
+    uint8_t type;
     bool ioport;
     bool mem64;
     QLIST_HEAD(, VFIOQuirk) quirks;
