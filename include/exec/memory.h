@@ -190,6 +190,10 @@ struct MemoryRegionOps {
     const MemoryRegionMmio old_mmio;
 };
 
+enum IOMMUMemoryRegionAttr {
+    IOMMU_ATTR_SPAPR_TCE_FD
+};
+
 typedef struct IOMMUMemoryRegionClass {
     /* private */
     struct DeviceClass parent_class;
@@ -210,6 +214,10 @@ typedef struct IOMMUMemoryRegionClass {
                                 IOMMUNotifierFlag new_flags);
     /* Set this up to provide customized IOMMU replay function */
     void (*replay)(IOMMUMemoryRegion *iommu, IOMMUNotifier *notifier);
+
+    /* Get IOMMU misc attributes */
+    int (*get_attr)(IOMMUMemoryRegion *iommu, enum IOMMUMemoryRegionAttr,
+                    void *data);
 } IOMMUMemoryRegionClass;
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -925,6 +933,20 @@ void memory_region_iommu_replay_all(IOMMUMemoryRegion *iommu_mr);
  */
 void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
                                              IOMMUNotifier *n);
+
+/**
+ * memory_region_iommu_get_attr: return an IOMMU attr if get_attr() is
+ * defined on the IOMMU.
+ *
+ * Returns 0 if succeded, error code otherwise.
+ *
+ * @iommu_mr: the memory region
+ * @attr: the requested attribute
+ * @data: a pointer to the requested attribute data
+ */
+int memory_region_iommu_get_attr(IOMMUMemoryRegion *iommu_mr,
+                                 enum IOMMUMemoryRegionAttr attr,
+                                 void *data);
 
 /**
  * memory_region_name: get a memory region's name
