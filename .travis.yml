@@ -1,7 +1,7 @@
 sudo: false
 language: c
 python:
-  - "2.4"
+  - "2.6"
 compiler:
   - gcc
 cache: ccache
@@ -115,15 +115,17 @@ matrix:
         - sudo apt-get build-dep -qq qemu
         - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
         - git submodule update --init --recursive
-    # Trusty System build with latest stable clang
+    # Trusty System build with latest stable clang & python 3.0
     - sudo: required
       addons:
       dist: trusty
       language: generic
       compiler: none
+      python:
+        - "3.0"
       env:
         - COMPILER_NAME=clang CXX=clang++-3.9 CC=clang-3.9
-        - CONFIG="--disable-linux-user --cc=clang-3.9 --cxx=clang++-3.9"
+        - CONFIG="--disable-linux-user --cc=clang-3.9 --cxx=clang++-3.9 --python=/usr/bin/python3"
       before_install:
         - wget -nv -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
         - sudo apt-add-repository -y 'deb http://llvm.org/apt/trusty llvm-toolchain-trusty-3.9 main'
@@ -134,15 +136,17 @@ matrix:
         - git submodule update --init --recursive
       before_script:
         - ./configure ${CONFIG} || cat config.log
-    # Trusty Linux User build with latest stable clang
+    # Trusty Linux User build with latest stable clang & python 3.6
     - sudo: required
       addons:
       dist: trusty
       language: generic
       compiler: none
+      python:
+        - "3.6"
       env:
         - COMPILER_NAME=clang CXX=clang++-3.9 CC=clang-3.9
-        - CONFIG="--disable-system --cc=clang-3.9 --cxx=clang++-3.9"
+        - CONFIG="--disable-system --cc=clang-3.9 --cxx=clang++-3.9 --python=/usr/bin/python3"
       before_install:
         - wget -nv -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
         - sudo apt-add-repository -y 'deb http://llvm.org/apt/trusty llvm-toolchain-trusty-3.9 main'

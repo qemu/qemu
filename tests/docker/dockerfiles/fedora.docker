@@ -1,6 +1,6 @@
 FROM fedora:latest
 ENV PACKAGES \
-    ccache gettext git tar PyYAML sparse flex bison python2 bzip2 hostname \
+    ccache gettext git tar PyYAML sparse flex bison python3 bzip2 hostname \
     glib2-devel pixman-devel zlib-devel SDL-devel libfdt-devel \
     gcc gcc-c++ clang make perl which bc findutils libaio-devel \
     nettle-devel libasan libubsan \
@@ -12,6 +12,7 @@ ENV PACKAGES \
     mingw64-gtk2 mingw64-gtk3 mingw64-gnutls mingw64-nettle mingw64-libtasn1 \
     mingw64-libjpeg-turbo mingw64-libpng mingw64-curl mingw64-libssh2 \
     mingw64-bzip2
+ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3
 
 RUN dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
