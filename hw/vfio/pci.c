@@ -2777,6 +2777,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     /* QEMU can choose to expose the ROM or not */
     memset(vdev->emulated_config_bits + PCI_ROM_ADDRESS, 0xff, 4);
+    /* QEMU can also add or extend BARs */
+    memset(vdev->emulated_config_bits + PCI_BASE_ADDRESS_0, 0xff, 6 * 4);
 
     /*
      * The PCI spec reserves vendor ID 0xffff as an invalid value.  The
