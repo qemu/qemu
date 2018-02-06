@@ -86,7 +86,7 @@ enum {
     VFIO_INT_MSIX = 3,
 };
 
-/* Cache of MSI-X setup plus extra mmap and memory region for split BAR map */
+/* Cache of MSI-X setup */
 typedef struct VFIOMSIXInfo {
     uint8_t table_bar;
     uint8_t pba_bar;
