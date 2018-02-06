@@ -83,6 +83,7 @@ static void ioh3420_interrupts_uninit(PCIDevice *d)
 
 static const VMStateDescription vmstate_ioh3420 = {
     .name = "ioh-3240-express-root-port",
+    .priority = MIG_PRI_PCI_BUS,
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pcie_cap_slot_post_load,

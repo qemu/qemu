@@ -133,6 +133,7 @@ PCIEPort *xio3130_upstream_init(PCIBus *bus, int devfn, bool multifunction,
 
 static const VMStateDescription vmstate_xio3130_upstream = {
     .name = "xio3130-express-upstream-port",
+    .priority = MIG_PRI_PCI_BUS,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
