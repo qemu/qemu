@@ -2122,7 +2122,8 @@ fail_invalidate:
     /* If not doing postcopy, vm_start() will be called: let's regain
      * control on images.
      */
-    if (s->state == MIGRATION_STATUS_ACTIVE) {
+    if (s->state == MIGRATION_STATUS_ACTIVE ||
+        s->state == MIGRATION_STATUS_DEVICE) {
         Error *local_err = NULL;
 
         qemu_mutex_lock_iothread();
@@ -2169,7 +2170,6 @@ static void migration_update_counters(MigrationState *s,
                                       int64_t current_time)
 {
     uint64_t transferred, time_spent;
-    int64_t threshold_size;
     double bandwidth;
 
     if (current_time < s->iteration_start_time + BUFFER_DELAY) {
@@ -2179,7 +2179,7 @@ static void migration_update_counters(MigrationState *s,
     transferred = qemu_ftell(s->to_dst_file) - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
-    threshold_size = bandwidth * s->parameters.downtime_limit;
+    s->threshold_size = bandwidth * s->parameters.downtime_limit;
 
     s->mbps = (((double) transferred * 8.0) /
                ((double) time_spent / 1000.0)) / 1000.0 / 1000.0;
@@ -2199,7 +2199,7 @@ static void migration_update_counters(MigrationState *s,
     s->iteration_initial_bytes = qemu_ftell(s->to_dst_file);
 
     trace_migrate_transferred(transferred, time_spent,
-                              bandwidth, threshold_size);
+                              bandwidth, s->threshold_size);
 }
 
 /* Migration thread iteration status */
@@ -2378,10 +2378,15 @@ static void *migration_thread(void *opaque)
     return NULL;
 }
 
-void migrate_fd_connect(MigrationState *s)
+void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     s->expected_downtime = s->parameters.downtime_limit;
     s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
+    if (error_in) {
+        migrate_fd_error(s, error_in);
+        migrate_fd_cleanup(s);
+        return;
+    }
 
     qemu_file_set_blocking(s->to_dst_file, true);
     qemu_file_set_rate_limit(s->to_dst_file,

@@ -39,7 +39,7 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
     }
 
     qio_channel_set_name(QIO_CHANNEL(ioc), "migration-fd-outgoing");
-    migration_channel_connect(s, ioc, NULL);
+    migration_channel_connect(s, ioc, NULL, NULL);
     object_unref(OBJECT(ioc));
 }
 

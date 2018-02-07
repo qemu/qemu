@@ -190,7 +190,7 @@ uint64_t migrate_max_downtime(void);
 void migrate_set_error(MigrationState *s, const Error *error);
 void migrate_fd_error(MigrationState *s, const Error *error);
 
-void migrate_fd_connect(MigrationState *s);
+void migrate_fd_connect(MigrationState *s, Error *error_in);
 
 MigrationState *migrate_init(void);
 bool migration_is_blocked(Error **errp);
