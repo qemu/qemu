@@ -160,6 +160,19 @@ static uint64_t spapr_tce_get_min_page_size(IOMMUMemoryRegion *iommu)
     return 1ULL << tcet->page_shift;
 }
 
+static int spapr_tce_get_attr(IOMMUMemoryRegion *iommu,
+                              enum IOMMUMemoryRegionAttr attr, void *data)
+{
+    sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
+
+    if (attr == IOMMU_ATTR_SPAPR_TCE_FD && kvmppc_has_cap_spapr_vfio()) {
+        *(int *) data = tcet->fd;
+        return 0;
+    }
+
+    return -EINVAL;
+}
+
 static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                           IOMMUNotifierFlag old,
                                           IOMMUNotifierFlag new)
@@ -283,6 +296,10 @@ void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio)
     g_assert(need_vfio != tcet->need_vfio);
 
     tcet->need_vfio = need_vfio;
+
+    if (!need_vfio || (tcet->fd != -1 && kvmppc_has_cap_spapr_vfio())) {
+        return;
+    }
 
     oldtable = tcet->table;
 
@@ -643,6 +660,7 @@ static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
     imrc->translate = spapr_tce_translate_iommu;
     imrc->get_min_page_size = spapr_tce_get_min_page_size;
     imrc->notify_flag_changed = spapr_tce_notify_flag_changed;
+    imrc->get_attr = spapr_tce_get_attr;
 }
 
 static const TypeInfo spapr_iommu_memory_region_info = {

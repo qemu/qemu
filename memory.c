@@ -1922,6 +1922,19 @@ void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
     }
 }
 
+int memory_region_iommu_get_attr(IOMMUMemoryRegion *iommu_mr,
+                                 enum IOMMUMemoryRegionAttr attr,
+                                 void *data)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+
+    if (!imrc->get_attr) {
+        return -EINVAL;
+    }
+
+    return imrc->get_attr(iommu_mr, attr, data);
+}
+
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 {
     uint8_t mask = 1 << client;
