@@ -3719,6 +3719,11 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
         error_setg(errp, "No medium inserted");
         return -ENOMEDIUM;
     }
+    if (offset < 0) {
+        error_setg(errp, "Image size cannot be negative");
+        return -EINVAL;
+    }
+
     if (!drv->bdrv_truncate) {
         if (bs->file && drv->is_filter) {
             return bdrv_truncate(bs->file, offset, prealloc, errp);
