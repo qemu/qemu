@@ -327,8 +327,10 @@
 #          to speed up convergence of RAM migration. (since 1.6)
 #
 # @postcopy-ram: Start executing on the migration target before all of RAM has
-#          been migrated, pulling the remaining pages along as needed. NOTE: If
-#          the migration fails during postcopy the VM will fail.  (since 2.6)
+#          been migrated, pulling the remaining pages along as needed. The
+#          capacity must have the same setting on both source and target
+#          or migration will not even start. NOTE: If the migration fails during
+#          postcopy the VM will fail.  (since 2.6)
 #
 # @x-colo: If enabled, migration will never end, and the state of the VM on the
 #        primary side will be migrated continuously to the VM on secondary
@@ -742,8 +744,8 @@
 # @migrate-start-postcopy:
 #
 # Followup to a migration command to switch the migration to postcopy mode.
-# The postcopy-ram capability must be set before the original migration
-# command.
+# The postcopy-ram capability must be set on both source and destination
+# before the original migration command.
 #
 # Since: 2.5
 #

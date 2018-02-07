@@ -387,8 +387,8 @@ doesn't finish in a given time the switch is made to postcopy.
 Enabling postcopy
 -----------------
 
-To enable postcopy, issue this command on the monitor prior to the
-start of migration:
+To enable postcopy, issue this command on the monitor (both source and
+destination) prior to the start of migration:
 
 ``migrate_set_capability postcopy-ram on``
 
