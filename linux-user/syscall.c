@@ -36,10 +36,6 @@
 #include <linux/capability.h>
 #include <sched.h>
 #include <sys/timex.h>
-#ifdef __ia64__
-int __clone2(int (*fn)(void *), void *child_stack_base,
-             size_t stack_size, int flags, void *arg, ...);
-#endif
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/uio.h>
@@ -246,8 +242,7 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_inotify_add_watch __NR_inotify_add_watch
 #define __NR_sys_inotify_rm_watch __NR_inotify_rm_watch
 
-#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__) || \
-    defined(__s390x__)
+#if defined(__alpha__) || defined(__x86_64__) || defined(__s390x__)
 #define __NR__llseek __NR_lseek
 #endif
 

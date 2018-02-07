@@ -31,7 +31,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "-machine [type=]name[,prop[=value][,...]]\n"
     "                selects emulated machine ('-machine help' for list)\n"
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
-    "                supported accelerators are kvm, xen, hax, hvf or tcg (default: tcg)\n"
+    "                supported accelerators are kvm, xen, hax, hvf, whpx or tcg (default: tcg)\n"
     "                kernel_irqchip=on|off|split controls accelerated irqchip support (default=off)\n"
     "                vmport=on|off|auto controls emulation of vmport (default: auto)\n"
     "                kvm_shadow_mem=size of KVM shadow MMU in bytes\n"
@@ -66,7 +66,7 @@ Supported machine properties are:
 @table @option
 @item accel=@var{accels1}[:@var{accels2}[:...]]
 This is used to enable an accelerator. Depending on the target architecture,
-kvm, xen, hax, hvf or tcg can be available. By default, tcg is used. If there is
+kvm, xen, hax, hvf, whpx or tcg can be available. By default, tcg is used. If there is
 more than one accelerator specified, the next one is used if the previous one
 fails to initialize.
 @item kernel_irqchip=on|off
@@ -126,13 +126,13 @@ ETEXI
 
 DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "-accel [accel=]accelerator[,thread=single|multi]\n"
-    "                select accelerator (kvm, xen, hax, hvf or tcg; use 'help' for a list)\n"
+    "                select accelerator (kvm, xen, hax, hvf, whpx or tcg; use 'help' for a list)\n"
     "                thread=single|multi (enable multi-threaded TCG)", QEMU_ARCH_ALL)
 STEXI
 @item -accel @var{name}[,prop=@var{value}[,...]]
 @findex -accel
 This is used to enable an accelerator. Depending on the target architecture,
-kvm, xen, hax, hvf or tcg can be available. By default, tcg is used. If there is
+kvm, xen, hax, hvf, whpx or tcg can be available. By default, tcg is used. If there is
 more than one accelerator specified, the next one is used if the previous one
 fails to initialize.
 @table @option
@@ -4023,6 +4023,28 @@ Creates a memory backend object, which can be used to back the guest RAM.
 Memory backend objects offer more control than the @option{-m} option that is
 traditionally used to define guest RAM. Please refer to
 @option{memory-backend-file} for a description of the options.
+
+@item -object memory-backend-memfd,id=@var{id},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},size=@var{size},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},seal=@var{on|off},hugetlb=@var{on|off},hugetlbsize=@var{size}
+
+Creates an anonymous memory file backend object, which allows QEMU to
+share the memory with an external process (e.g. when using
+vhost-user). The memory is allocated with memfd and optional
+sealing. (Linux only)
+
+The @option{seal} option creates a sealed-file, that will block
+further resizing the memory ('on' by default).
+
+The @option{hugetlb} option specify the file to be created resides in
+the hugetlbfs filesystem (since Linux 4.14).  Used in conjunction with
+the @option{hugetlb} option, the @option{hugetlbsize} option specify
+the hugetlb page size on systems that support multiple hugetlb page
+sizes (it must be a power of 2 value supported by the system).
+
+In some versions of Linux, the @option{hugetlb} option is incompatible
+with the @option{seal} option (requires at least Linux 4.16).
+
+Please refer to @option{memory-backend-file} for a description of the
+other options.
 
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 

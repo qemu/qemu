@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
+#include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -329,6 +330,7 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
 
 static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
 {
+    Error *err = NULL;
     struct vhost_log *log;
     uint64_t logsize = size * sizeof(*(log->log));
     int fd = -1;
@@ -337,7 +339,12 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
     if (share) {
         log->log = qemu_memfd_alloc("vhost-log", logsize,
                                     F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
-                                    &fd);
+                                    &fd, &err);
+        if (err) {
+            error_report_err(err);
+            g_free(log);
+            return NULL;
+        }
         memset(log->log, 0, logsize);
     } else {
         log->log = g_malloc0(logsize);
@@ -687,6 +694,7 @@ static void vhost_region_add(MemoryListener *listener,
         return;
     }
 
+    trace_vhost_region_add(dev, section->mr->name ?: NULL);
     ++dev->n_mem_sections;
     dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
                                 dev->n_mem_sections);
@@ -706,6 +714,7 @@ static void vhost_region_del(MemoryListener *listener,
         return;
     }
 
+    trace_vhost_region_del(dev, section->mr->name ?: NULL);
     vhost_set_memory(listener, section, false);
     memory_region_unref(section->mr);
     for (i = 0; i < dev->n_mem_sections; ++i) {
@@ -743,6 +752,8 @@ static void vhost_iommu_region_add(MemoryListener *listener,
         return;
     }
 
+    trace_vhost_iommu_region_add(dev, section->mr->name ?: NULL);
+
     iommu = g_malloc0(sizeof(*iommu));
     end = int128_add(int128_make64(section->offset_within_region),
                      section->size);
@@ -770,6 +781,8 @@ static void vhost_iommu_region_del(MemoryListener *listener,
     if (!memory_region_is_iommu(section->mr)) {
         return;
     }
+
+    trace_vhost_iommu_region_del(dev, section->mr->name ?: NULL);
 
     QLIST_FOREACH(iommu, &dev->iommu_list, iommu_next) {
         if (iommu->mr == section->mr &&
@@ -1361,10 +1374,6 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     if (hdev->mem) {
         /* those are only safe after successful init */
         memory_listener_unregister(&hdev->memory_listener);
-        for (i = 0; i < hdev->n_mem_sections; ++i) {
-            MemoryRegionSection *section = &hdev->mem_sections[i];
-            memory_region_unref(section->mr);
-        }
         QLIST_REMOVE(hdev, entry);
     }
     if (hdev->migration_blocker) {

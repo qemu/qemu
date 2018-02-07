@@ -986,7 +986,7 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
     X86CPU *cpu = x86_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
 
-    if (kvm_enabled()) {
+    if (kvm_enabled() || whpx_enabled()) {
         env->tpr_access_type = access;
 
         cpu_interrupt(cs, CPU_INTERRUPT_TPR);

@@ -464,8 +464,8 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(scc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    scc->parent_realize = dc->realize;
-    dc->realize = s390_cpu_realizefn;
+    device_class_set_parent_realize(dc, s390_cpu_realizefn,
+                                    &scc->parent_realize);
     dc->props = s390x_cpu_properties;
     dc->user_creatable = true;
 

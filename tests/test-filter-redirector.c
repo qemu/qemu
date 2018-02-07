@@ -186,7 +186,6 @@ static void test_redirector_rx(void)
 
     ret = iov_send(send_sock, iov, 2, 0, sizeof(size) + sizeof(send_buf));
     g_assert_cmpint(ret, ==, sizeof(send_buf) + sizeof(size));
-    close(send_sock);
 
     ret = qemu_recv(backend_sock[0], &len, sizeof(len), 0);
     g_assert_cmpint(ret, ==, sizeof(len));
@@ -197,6 +196,7 @@ static void test_redirector_rx(void)
     ret = qemu_recv(backend_sock[0], recv_buf, len, 0);
     g_assert_cmpstr(recv_buf, ==, send_buf);
 
+    close(send_sock);
     g_free(recv_buf);
     unlink(sock_path0);
     unlink(sock_path1);

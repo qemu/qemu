@@ -168,8 +168,8 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     HPPACPUClass *acc = HPPA_CPU_CLASS(oc);
 
-    acc->parent_realize = dc->realize;
-    dc->realize = hppa_cpu_realizefn;
+    device_class_set_parent_realize(dc, hppa_cpu_realizefn,
+                                    &acc->parent_realize);
 
     cc->class_by_name = hppa_cpu_class_by_name;
     cc->has_work = hppa_cpu_has_work;

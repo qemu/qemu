@@ -76,6 +76,7 @@ typedef struct Peer {
 typedef struct MSIVector {
     PCIDevice *pdev;
     int virq;
+    bool unmasked;
 } MSIVector;
 
 typedef struct IVShmemState {
@@ -316,6 +317,11 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     int ret;
 
     IVSHMEM_DPRINTF("vector unmask %p %d\n", dev, vector);
+    if (!v->pdev) {
+        error_report("ivshmem: vector %d route does not exist", vector);
+        return -EINVAL;
+    }
+    assert(!v->unmasked);
 
     ret = kvm_irqchip_update_msi_route(kvm_state, v->virq, msg, dev);
     if (ret < 0) {
@@ -323,22 +329,35 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     }
     kvm_irqchip_commit_routes(kvm_state);
 
-    return kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
+    ret = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
+    if (ret < 0) {
+        return ret;
+    }
+    v->unmasked = true;
+
+    return 0;
 }
 
 static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    MSIVector *v = &s->msi_vectors[vector];
     int ret;
 
     IVSHMEM_DPRINTF("vector mask %p %d\n", dev, vector);
-
-    ret = kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n,
-                                                s->msi_vectors[vector].virq);
-    if (ret != 0) {
-        error_report("remove_irqfd_notifier_gsi failed");
+    if (!v->pdev) {
+        error_report("ivshmem: vector %d route does not exist", vector);
+        return;
     }
+    assert(v->unmasked);
+
+    ret = kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n, v->virq);
+    if (ret < 0) {
+        error_report("remove_irqfd_notifier_gsi failed");
+        return;
+    }
+    v->unmasked = false;
 }
 
 static void ivshmem_vector_poll(PCIDevice *dev,
@@ -738,9 +757,13 @@ static void ivshmem_msix_vector_use(IVShmemState *s)
     }
 }
 
+static void ivshmem_disable_irqfd(IVShmemState *s);
+
 static void ivshmem_reset(DeviceState *d)
 {
     IVShmemState *s = IVSHMEM_COMMON(d);
+
+    ivshmem_disable_irqfd(s);
 
     s->intrstatus = 0;
     s->intrmask = 0;
@@ -766,29 +789,6 @@ static int ivshmem_setup_interrupts(IVShmemState *s, Error **errp)
     return 0;
 }
 
-static void ivshmem_enable_irqfd(IVShmemState *s)
-{
-    PCIDevice *pdev = PCI_DEVICE(s);
-    int i;
-
-    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
-        Error *err = NULL;
-
-        ivshmem_add_kvm_msi_virq(s, i, &err);
-        if (err) {
-            error_report_err(err);
-            /* TODO do we need to handle the error? */
-        }
-    }
-
-    if (msix_set_vector_notifiers(pdev,
-                                  ivshmem_vector_unmask,
-                                  ivshmem_vector_mask,
-                                  ivshmem_vector_poll)) {
-        error_report("ivshmem: msix_set_vector_notifiers failed");
-    }
-}
-
 static void ivshmem_remove_kvm_msi_virq(IVShmemState *s, int vector)
 {
     IVSHMEM_DPRINTF("ivshmem_remove_kvm_msi_virq vector:%d\n", vector);
@@ -803,16 +803,59 @@ static void ivshmem_remove_kvm_msi_virq(IVShmemState *s, int vector)
     s->msi_vectors[vector].pdev = NULL;
 }
 
-static void ivshmem_disable_irqfd(IVShmemState *s)
+static void ivshmem_enable_irqfd(IVShmemState *s)
 {
     PCIDevice *pdev = PCI_DEVICE(s);
     int i;
 
     for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        Error *err = NULL;
+
+        ivshmem_add_kvm_msi_virq(s, i, &err);
+        if (err) {
+            error_report_err(err);
+            goto undo;
+        }
+    }
+
+    if (msix_set_vector_notifiers(pdev,
+                                  ivshmem_vector_unmask,
+                                  ivshmem_vector_mask,
+                                  ivshmem_vector_poll)) {
+        error_report("ivshmem: msix_set_vector_notifiers failed");
+        goto undo;
+    }
+    return;
+
+undo:
+    while (--i >= 0) {
         ivshmem_remove_kvm_msi_virq(s, i);
+    }
+}
+
+static void ivshmem_disable_irqfd(IVShmemState *s)
+{
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int i;
+
+    if (!pdev->msix_vector_use_notifier) {
+        return;
     }
 
     msix_unset_vector_notifiers(pdev);
+
+    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        /*
+         * MSI-X is already disabled here so msix_unset_vector_notifiers()
+         * didn't call our release notifier.  Do it now to keep our masks and
+         * unmasks balanced.
+         */
+        if (s->msi_vectors[i].unmasked) {
+            ivshmem_vector_mask(pdev, i);
+        }
+        ivshmem_remove_kvm_msi_virq(s, i);
+    }
+
 }
 
 static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,

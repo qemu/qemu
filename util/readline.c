@@ -510,9 +510,6 @@ void readline_free(ReadLineState *rs)
     for (i = 0; i < READLINE_MAX_CMDS; i++) {
         g_free(rs->history[i]);
     }
-    for (i = 0; i < READLINE_MAX_COMPLETIONS; i++) {
-        g_free(rs->completions[i]);
-    }
     g_free(rs);
 }
 

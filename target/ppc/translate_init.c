@@ -10556,12 +10556,12 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    pcc->parent_realize = dc->realize;
-    pcc->parent_unrealize = dc->unrealize;
+    device_class_set_parent_realize(dc, ppc_cpu_realizefn,
+                                    &pcc->parent_realize);
+    device_class_set_parent_unrealize(dc, ppc_cpu_unrealizefn,
+                                      &pcc->parent_unrealize);
     pcc->pvr_match = ppc_pvr_match_default;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_always;
-    dc->realize = ppc_cpu_realizefn;
-    dc->unrealize = ppc_cpu_unrealizefn;
     dc->props = ppc_cpu_properties;
 
     pcc->parent_reset = cc->reset;

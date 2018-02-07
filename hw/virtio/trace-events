@@ -25,3 +25,9 @@ virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s g
 virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
 virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
 virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: 0x%"PRIx64" num_pages: %d"
+
+# hw/virtio/vhost.c
+vhost_region_add(void *p, const char *mr) "dev %p mr %s"
+vhost_region_del(void *p, const char *mr) "dev %p mr %s"
+vhost_iommu_region_add(void *p, const char *mr) "dev %p mr %s"
+vhost_iommu_region_del(void *p, const char *mr) "dev %p mr %s"

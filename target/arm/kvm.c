@@ -266,7 +266,6 @@ static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
 {
     KVMDevice *kd, *tkd;
 
-    memory_listener_unregister(&devlistener);
     QSLIST_FOREACH_SAFE(kd, &kvm_devices_head, entries, tkd) {
         if (kd->kda.addr != -1) {
             kvm_arm_set_device_addr(kd);
@@ -274,6 +273,7 @@ static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
         memory_region_unref(kd->mr);
         g_free(kd);
     }
+    memory_listener_unregister(&devlistener);
 }
 
 static Notifier notify = {

@@ -153,8 +153,8 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
     CPUClass *cc = CPU_CLASS(c);
     DeviceClass *dc = DEVICE_CLASS(c);
 
-    mcc->parent_realize = dc->realize;
-    dc->realize = tricore_cpu_realizefn;
+    device_class_set_parent_realize(dc, tricore_cpu_realizefn,
+                                    &mcc->parent_realize);
 
     mcc->parent_reset = cc->reset;
     cc->reset = tricore_cpu_reset;

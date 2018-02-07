@@ -132,8 +132,8 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     UniCore32CPUClass *ucc = UNICORE32_CPU_CLASS(oc);
 
-    ucc->parent_realize = dc->realize;
-    dc->realize = uc32_cpu_realizefn;
+    device_class_set_parent_realize(dc, uc32_cpu_realizefn,
+                                    &ucc->parent_realize);
 
     cc->class_by_name = uc32_cpu_class_by_name;
     cc->has_work = uc32_cpu_has_work;
