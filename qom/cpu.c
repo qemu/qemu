@@ -286,19 +286,10 @@ static bool cpu_common_has_work(CPUState *cs)
 
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
 {
-    CPUClass *cc;
+    CPUClass *cc = CPU_CLASS(object_class_by_name(typename));
 
-    if (!cpu_model) {
-        return NULL;
-    }
-    cc = CPU_CLASS(object_class_by_name(typename));
-
+    assert(cpu_model && cc->class_by_name);
     return cc->class_by_name(cpu_model);
-}
-
-static ObjectClass *cpu_common_class_by_name(const char *cpu_model)
-{
-    return NULL;
 }
 
 static void cpu_common_parse_features(const char *typename, char *features,
@@ -418,7 +409,6 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     CPUClass *k = CPU_CLASS(klass);
 
-    k->class_by_name = cpu_common_class_by_name;
     k->parse_features = cpu_common_parse_features;
     k->reset = cpu_common_reset;
     k->get_arch_id = cpu_common_get_arch_id;
