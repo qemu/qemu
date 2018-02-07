@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
@@ -145,8 +146,7 @@ milkymist_init(MachineState *machine)
 
     /* if no kernel is given no valid bios rom is a fatal error */
     if (!kernel_filename && !dinfo && !bios_filename && !qtest_enabled()) {
-        fprintf(stderr, "qemu: could not load Milkymist One bios '%s'\n",
-                bios_name);
+        error_report("could not load Milkymist One bios '%s'", bios_name);
         exit(1);
     }
     g_free(bios_filename);
@@ -184,8 +184,7 @@ milkymist_init(MachineState *machine)
         }
 
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    kernel_filename);
+            error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
         }
     }

@@ -57,13 +57,13 @@ static void glue (audio_init_nb_voices_, TYPE) (struct audio_driver *drv)
         glue (s->nb_hw_voices_, TYPE) = max_voices;
     }
 
-    if (audio_bug (AUDIO_FUNC, !voice_size && max_voices)) {
+    if (audio_bug(__func__, !voice_size && max_voices)) {
         dolog ("drv=`%s' voice_size=0 max_voices=%d\n",
                drv->name, max_voices);
         glue (s->nb_hw_voices_, TYPE) = 0;
     }
 
-    if (audio_bug (AUDIO_FUNC, voice_size && !max_voices)) {
+    if (audio_bug(__func__, voice_size && !max_voices)) {
         dolog ("drv=`%s' voice_size=%d max_voices=0\n",
                drv->name, voice_size);
     }
@@ -77,7 +77,7 @@ static void glue (audio_pcm_hw_free_resources_, TYPE) (HW *hw)
 
 static int glue (audio_pcm_hw_alloc_resources_, TYPE) (HW *hw)
 {
-    HWBUF = audio_calloc (AUDIO_FUNC, hw->samples, sizeof (struct st_sample));
+    HWBUF = audio_calloc(__func__, hw->samples, sizeof(struct st_sample));
     if (!HWBUF) {
         dolog ("Could not allocate " NAME " buffer (%d samples)\n",
                hw->samples);
@@ -105,7 +105,7 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
 
     samples = ((int64_t) sw->hw->samples << 32) / sw->ratio;
 
-    sw->buf = audio_calloc (AUDIO_FUNC, samples, sizeof (struct st_sample));
+    sw->buf = audio_calloc(__func__, samples, sizeof(struct st_sample));
     if (!sw->buf) {
         dolog ("Could not allocate buffer for `%s' (%d samples)\n",
                SW_NAME (sw), samples);
@@ -238,17 +238,17 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (struct audsettings *as)
         return NULL;
     }
 
-    if (audio_bug (AUDIO_FUNC, !drv)) {
+    if (audio_bug(__func__, !drv)) {
         dolog ("No host audio driver\n");
         return NULL;
     }
 
-    if (audio_bug (AUDIO_FUNC, !drv->pcm_ops)) {
+    if (audio_bug(__func__, !drv->pcm_ops)) {
         dolog ("Host audio driver without pcm_ops\n");
         return NULL;
     }
 
-    hw = audio_calloc (AUDIO_FUNC, 1, glue (drv->voice_size_, TYPE));
+    hw = audio_calloc(__func__, 1, glue(drv->voice_size_, TYPE));
     if (!hw) {
         dolog ("Can not allocate voice `%s' size %d\n",
                drv->name, glue (drv->voice_size_, TYPE));
@@ -266,7 +266,7 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (struct audsettings *as)
         goto err0;
     }
 
-    if (audio_bug (AUDIO_FUNC, hw->samples <= 0)) {
+    if (audio_bug(__func__, hw->samples <= 0)) {
         dolog ("hw->samples=%d\n", hw->samples);
         goto err1;
     }
@@ -339,7 +339,7 @@ static SW *glue (audio_pcm_create_voice_pair_, TYPE) (
         hw_as = *as;
     }
 
-    sw = audio_calloc (AUDIO_FUNC, 1, sizeof (*sw));
+    sw = audio_calloc(__func__, 1, sizeof(*sw));
     if (!sw) {
         dolog ("Could not allocate soft voice `%s' (%zu bytes)\n",
                sw_name ? sw_name : "unknown", sizeof (*sw));
@@ -379,7 +379,7 @@ static void glue (audio_close_, TYPE) (SW *sw)
 void glue (AUD_close_, TYPE) (QEMUSoundCard *card, SW *sw)
 {
     if (sw) {
-        if (audio_bug (AUDIO_FUNC, !card)) {
+        if (audio_bug(__func__, !card)) {
             dolog ("card=%p\n", card);
             return;
         }
@@ -399,7 +399,7 @@ SW *glue (AUD_open_, TYPE) (
 {
     AudioState *s = &glob_audio_state;
 
-    if (audio_bug (AUDIO_FUNC, !card || !name || !callback_fn || !as)) {
+    if (audio_bug(__func__, !card || !name || !callback_fn || !as)) {
         dolog ("card=%p name=%p callback_fn=%p as=%p\n",
                card, name, callback_fn, as);
         goto fail;
@@ -408,12 +408,12 @@ SW *glue (AUD_open_, TYPE) (
     ldebug ("open %s, freq %d, nchannels %d, fmt %d\n",
             name, as->freq, as->nchannels, as->fmt);
 
-    if (audio_bug (AUDIO_FUNC, audio_validate_settings (as))) {
+    if (audio_bug(__func__, audio_validate_settings(as))) {
         audio_print_settings (as);
         goto fail;
     }
 
-    if (audio_bug (AUDIO_FUNC, !s->drv)) {
+    if (audio_bug(__func__, !s->drv)) {
         dolog ("Can not open `%s' (no host audio driver)\n", name);
         goto fail;
     }

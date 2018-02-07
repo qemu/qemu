@@ -223,8 +223,8 @@ static void virtex_init(MachineState *machine)
     env = &cpu->env;
 
     if (env->mmu_model != POWERPC_MMU_BOOKE) {
-        fprintf(stderr, "MMU model %i not supported by this machine.\n",
-            env->mmu_model);
+        error_report("MMU model %i not supported by this machine",
+                     env->mmu_model);
         exit(1);
     }
 
