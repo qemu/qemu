@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "sysemu/block-backend.h"
@@ -61,6 +62,92 @@
 static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
 {
     return 1 << (9 + FIELD_EX32(s->capareg, SDHC_CAPAB, MAXBLOCKLENGTH));
+}
+
+/* return true on error */
+static bool sdhci_check_capab_freq_range(SDHCIState *s, const char *desc,
+                                         uint8_t freq, Error **errp)
+{
+    switch (freq) {
+    case 0:
+    case 10 ... 63:
+        break;
+    default:
+        error_setg(errp, "SD %s clock frequency can have value"
+                   "in range 0-63 only", desc);
+        return true;
+    }
+    return false;
+}
+
+static void sdhci_check_capareg(SDHCIState *s, Error **errp)
+{
+    uint64_t msk = s->capareg;
+    uint32_t val;
+    bool y;
+
+    switch (s->sd_spec_version) {
+    case 2: /* default version */
+
+    /* fallthrough */
+    case 1:
+        y = FIELD_EX64(s->capareg, SDHC_CAPAB, TOUNIT);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, TOUNIT, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, TOCLKFREQ);
+        trace_sdhci_capareg(y ? "timeout (MHz)" : "Timeout (KHz)", val);
+        if (sdhci_check_capab_freq_range(s, "timeout", val, errp)) {
+            return;
+        }
+        msk = FIELD_DP64(msk, SDHC_CAPAB, TOCLKFREQ, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, BASECLKFREQ);
+        trace_sdhci_capareg(y ? "base (MHz)" : "Base (KHz)", val);
+        if (sdhci_check_capab_freq_range(s, "base", val, errp)) {
+            return;
+        }
+        msk = FIELD_DP64(msk, SDHC_CAPAB, BASECLKFREQ, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, MAXBLOCKLENGTH);
+        if (val >= 3) {
+            error_setg(errp, "block size can be 512, 1024 or 2048 only");
+            return;
+        }
+        trace_sdhci_capareg("max block length", sdhci_get_fifolen(s));
+        msk = FIELD_DP64(msk, SDHC_CAPAB, MAXBLOCKLENGTH, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, HIGHSPEED);
+        trace_sdhci_capareg("high speed", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, HIGHSPEED, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, SDMA);
+        trace_sdhci_capareg("SDMA", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, SDMA, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, SUSPRESUME);
+        trace_sdhci_capareg("suspend/resume", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, SUSPRESUME, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, V33);
+        trace_sdhci_capareg("3.3v", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, V33, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, V30);
+        trace_sdhci_capareg("3.0v", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, V30, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, V18);
+        trace_sdhci_capareg("1.8v", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, V18, 0);
+        break;
+
+    default:
+        error_setg(errp, "Unsupported spec version: %u", s->sd_spec_version);
+    }
+    if (msk) {
+        qemu_log_mask(LOG_UNIMP,
+                      "SDHCI: unknown CAPAB mask: 0x%016" PRIx64 "\n", msk);
+    }
 }
 
 static uint8_t sdhci_slotint(SDHCIState *s)
@@ -990,7 +1077,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
     case SDHC_TRNMOD:
         /* DMA can be enabled only if it is supported as indicated by
          * capabilities register */
-        if (!(s->capareg & SDHC_CAN_DO_DMA)) {
+        if (!(s->capareg & R_SDHC_CAPAB_SDMA_MASK)) {
             value &= ~SDHC_TRNS_DMA;
         }
         MASKED_WRITE(s->trnmod, mask, value & SDHC_TRNMOD_MASK);
@@ -1125,11 +1212,19 @@ static const MemoryRegionOps sdhci_mmio_ops = {
 
 static void sdhci_init_readonly_registers(SDHCIState *s, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (s->sd_spec_version != 2) {
         error_setg(errp, "Only Spec v2 is supported");
         return;
     }
     s->version = (SDHC_HCVER_VENDOR << 8) | (s->sd_spec_version - 1);
+
+    sdhci_check_capareg(s, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 /* --- qdev common --- */
