@@ -15,6 +15,7 @@
 
 #define SDHC_CAPAB                      0x40
 FIELD(SDHC_CAPAB, BASECLKFREQ,               8, 8); /* since v2 */
+FIELD(SDHC_CAPAB, SDMA,                     22, 1);
 #define SDHC_HCVER                      0xFE
 
 static const struct sdhci_t {
@@ -109,6 +110,15 @@ static void check_capab_baseclock(QSDHCI *s, uint8_t expec_freq)
     g_assert_cmpuint(capab_freq, ==, expec_freq);
 }
 
+static void check_capab_sdma(QSDHCI *s, bool supported)
+{
+    uint64_t capab, capab_sdma;
+
+    capab = sdhci_readq(s, SDHC_CAPAB);
+    capab_sdma = FIELD_EX64(capab, SDHC_CAPAB, SDMA);
+    g_assert_cmpuint(capab_sdma, ==, supported);
+}
+
 static QSDHCI *machine_start(const struct sdhci_t *test)
 {
     QSDHCI *s = g_new0(QSDHCI, 1);
@@ -156,6 +166,7 @@ static void test_machine(const void *data)
 
     check_capab_capareg(s, test->sdhci.capab.reg);
     check_capab_readonly(s);
+    check_capab_sdma(s, test->sdhci.capab.sdma);
     check_capab_baseclock(s, test->sdhci.baseclock);
 
     machine_stop(s);
