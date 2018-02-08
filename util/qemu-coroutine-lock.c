@@ -89,7 +89,7 @@ void qemu_co_queue_run_restart(Coroutine *co)
      * invalid memory.  Therefore, use a temporary queue and do not touch
      * the "co" coroutine as soon as you enter another one.
      *
-     * In its turn resumed "co" can pupulate "co_queue_wakeup" queue with
+     * In its turn resumed "co" can populate "co_queue_wakeup" queue with
      * new coroutines to be woken up.  The caller, who has resumed "co",
      * will be responsible for traversing the same queue, which may cause
      * a different wakeup order but not any missing wakeups.
