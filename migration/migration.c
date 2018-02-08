@@ -1709,6 +1709,11 @@ static void *source_return_path_thread(void *opaque)
         header_type = qemu_get_be16(rp);
         header_len = qemu_get_be16(rp);
 
+        if (qemu_file_get_error(rp)) {
+            mark_source_rp_bad(ms);
+            goto out;
+        }
+
         if (header_type >= MIG_RP_MSG_MAX ||
             header_type == MIG_RP_MSG_INVALID) {
             error_report("RP: Received invalid message 0x%04x length 0x%04x",
