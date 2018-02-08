@@ -91,6 +91,20 @@ static void sdhci_check_capareg(SDHCIState *s, Error **errp)
     bool y;
 
     switch (s->sd_spec_version) {
+    case 4:
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, BUS64BIT_V4);
+        trace_sdhci_capareg("64-bit system bus (v4)", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, BUS64BIT_V4, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, UHS_II);
+        trace_sdhci_capareg("UHS-II", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, UHS_II, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, ADMA3);
+        trace_sdhci_capareg("ADMA3", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, ADMA3, 0);
+
+    /* fallthrough */
     case 3:
         val = FIELD_EX64(s->capareg, SDHC_CAPAB, ASYNC_INT);
         trace_sdhci_capareg("async interrupt", val);
@@ -145,7 +159,7 @@ static void sdhci_check_capareg(SDHCIState *s, Error **errp)
         msk = FIELD_DP64(msk, SDHC_CAPAB, ADMA1, 0);
 
         val = FIELD_EX64(s->capareg, SDHC_CAPAB, BUS64BIT);
-        trace_sdhci_capareg("64-bit system bus", val);
+        trace_sdhci_capareg("64-bit system bus (v3)", val);
         msk = FIELD_DP64(msk, SDHC_CAPAB, BUS64BIT, 0);
 
     /* fallthrough */

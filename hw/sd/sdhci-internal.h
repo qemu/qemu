@@ -197,6 +197,10 @@ FIELD(SDHC_HOSTCTL2, V18_ENA,          3, 1); /* UHS-I only */
 FIELD(SDHC_HOSTCTL2, DRIVER_STRENGTH,  4, 2); /* UHS-I only */
 FIELD(SDHC_HOSTCTL2, EXECUTE_TUNING,   6, 1); /* UHS-I only */
 FIELD(SDHC_HOSTCTL2, SAMPLING_CLKSEL,  7, 1); /* UHS-I only */
+FIELD(SDHC_HOSTCTL2, UHS_II_ENA,       8, 1); /* since v4 */
+FIELD(SDHC_HOSTCTL2, ADMA2_LENGTH,    10, 1); /* since v4 */
+FIELD(SDHC_HOSTCTL2, CMD23_ENA,       11, 1); /* since v4 */
+FIELD(SDHC_HOSTCTL2, VERSION4,        12, 1); /* since v4 */
 FIELD(SDHC_HOSTCTL2, ASYNC_INT,       14, 1);
 FIELD(SDHC_HOSTCTL2, PRESET_ENA,      15, 1);
 
@@ -215,10 +219,12 @@ FIELD(SDHC_CAPAB, SUSPRESUME,         23, 1);
 FIELD(SDHC_CAPAB, V33,                24, 1);
 FIELD(SDHC_CAPAB, V30,                25, 1);
 FIELD(SDHC_CAPAB, V18,                26, 1);
+FIELD(SDHC_CAPAB, BUS64BIT_V4,        27, 1); /* since v4.10 */
 FIELD(SDHC_CAPAB, BUS64BIT,           28, 1); /* since v2 */
 FIELD(SDHC_CAPAB, ASYNC_INT,          29, 1); /* since v3 */
 FIELD(SDHC_CAPAB, SLOT_TYPE,          30, 2); /* since v3 */
 FIELD(SDHC_CAPAB, BUS_SPEED,          32, 3); /* since v3 */
+FIELD(SDHC_CAPAB, UHS_II,             35, 8); /* since v4.20 */
 FIELD(SDHC_CAPAB, DRIVER_STRENGTH,    36, 3); /* since v3 */
 FIELD(SDHC_CAPAB, DRIVER_TYPE_A,      36, 1); /* since v3 */
 FIELD(SDHC_CAPAB, DRIVER_TYPE_C,      37, 1); /* since v3 */
@@ -227,12 +233,15 @@ FIELD(SDHC_CAPAB, TIMER_RETUNING,     40, 4); /* since v3 */
 FIELD(SDHC_CAPAB, SDR50_TUNING,       45, 1); /* since v3 */
 FIELD(SDHC_CAPAB, RETUNING_MODE,      46, 2); /* since v3 */
 FIELD(SDHC_CAPAB, CLOCK_MULT,         48, 8); /* since v3 */
+FIELD(SDHC_CAPAB, ADMA3,              59, 1); /* since v4.20 */
+FIELD(SDHC_CAPAB, V18_VDD2,           60, 1); /* since v4.20 */
 
 /* HWInit Maximum Current Capabilities Register 0x0 */
 #define SDHC_MAXCURR                   0x48
 FIELD(SDHC_MAXCURR, V33_VDD1,          0, 8);
 FIELD(SDHC_MAXCURR, V30_VDD1,          8, 8);
 FIELD(SDHC_MAXCURR, V18_VDD1,         16, 8);
+FIELD(SDHC_MAXCURR, V18_VDD2,         32, 8); /* since v4.20 */
 
 /* W Force Event Auto CMD12 Error Interrupt Register 0x0000 */
 #define SDHC_FEAER                     0x50
