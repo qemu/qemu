@@ -471,10 +471,8 @@ for opt do
   --cpu=*) cpu="$optarg"
   ;;
   --extra-cflags=*) QEMU_CFLAGS="$QEMU_CFLAGS $optarg"
-                    EXTRA_CFLAGS="$optarg"
   ;;
   --extra-cxxflags=*) QEMU_CXXFLAGS="$QEMU_CXXFLAGS $optarg"
-                      EXTRA_CXXFLAGS="$optarg"
   ;;
   --extra-ldflags=*) LDFLAGS="$LDFLAGS $optarg"
                      EXTRA_LDFLAGS="$optarg"
@@ -1424,7 +1422,6 @@ case "$cpu" in
 esac
 
 QEMU_CFLAGS="$CPU_CFLAGS $QEMU_CFLAGS"
-EXTRA_CFLAGS="$CPU_CFLAGS $EXTRA_CFLAGS"
 
 # For user-mode emulation the host arch has to be one we explicitly
 # support, even if we're using TCI.
@@ -5877,9 +5874,6 @@ if test "$mingw32" = "no" ; then
   echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
 fi
 echo "qemu_helperdir=$libexecdir" >> $config_host_mak
-echo "extra_cflags=$EXTRA_CFLAGS" >> $config_host_mak
-echo "extra_cxxflags=$EXTRA_CXXFLAGS" >> $config_host_mak
-echo "extra_ldflags=$EXTRA_LDFLAGS" >> $config_host_mak
 echo "qemu_localedir=$qemu_localedir" >> $config_host_mak
 echo "libs_softmmu=$libs_softmmu" >> $config_host_mak
 echo "GIT=$git" >> $config_host_mak
