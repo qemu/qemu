@@ -630,6 +630,7 @@ void hbitmap_deserialize_finish(HBitmap *bitmap)
     }
 
     bitmap->levels[0][0] |= 1UL << (BITS_PER_LONG - 1);
+    bitmap->count = hb_count_between(bitmap, 0, bitmap->size - 1);
 }
 
 void hbitmap_free(HBitmap *hb)
