@@ -65,12 +65,35 @@ static uint64_t sdhci_readq(QSDHCI *s, uint32_t reg)
     return val;
 }
 
+static void sdhci_writeq(QSDHCI *s, uint32_t reg, uint64_t val)
+{
+    if (s->pci.dev) {
+        qpci_io_writeq(s->pci.dev, s->mem_bar, reg, val);
+    } else {
+        qtest_writeq(global_qtest, s->addr + reg, val);
+    }
+}
+
 static void check_capab_capareg(QSDHCI *s, uint64_t expec_capab)
 {
     uint64_t capab;
 
     capab = sdhci_readq(s, SDHC_CAPAB);
     g_assert_cmphex(capab, ==, expec_capab);
+}
+
+static void check_capab_readonly(QSDHCI *s)
+{
+    const uint64_t vrand = 0x123456789abcdef;
+    uint64_t capab0, capab1;
+
+    capab0 = sdhci_readq(s, SDHC_CAPAB);
+    g_assert_cmpuint(capab0, !=, vrand);
+
+    sdhci_writeq(s, SDHC_CAPAB, vrand);
+    capab1 = sdhci_readq(s, SDHC_CAPAB);
+    g_assert_cmpuint(capab1, !=, vrand);
+    g_assert_cmpuint(capab1, ==, capab0);
 }
 
 static QSDHCI *machine_start(const struct sdhci_t *test)
@@ -119,6 +142,7 @@ static void test_machine(const void *data)
     s = machine_start(test);
 
     check_capab_capareg(s, test->sdhci.capab.reg);
+    check_capab_readonly(s);
 
     machine_stop(s);
 }
