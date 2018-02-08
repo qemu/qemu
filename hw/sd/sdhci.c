@@ -69,6 +69,9 @@ static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
 static bool sdhci_check_capab_freq_range(SDHCIState *s, const char *desc,
                                          uint8_t freq, Error **errp)
 {
+    if (s->sd_spec_version >= 3) {
+        return false;
+    }
     switch (freq) {
     case 0:
     case 10 ... 63:
@@ -88,6 +91,50 @@ static void sdhci_check_capareg(SDHCIState *s, Error **errp)
     bool y;
 
     switch (s->sd_spec_version) {
+    case 3:
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, ASYNC_INT);
+        trace_sdhci_capareg("async interrupt", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, ASYNC_INT, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, SLOT_TYPE);
+        if (val) {
+            error_setg(errp, "slot-type not supported");
+            return;
+        }
+        trace_sdhci_capareg("slot type", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, SLOT_TYPE, 0);
+
+        if (val != 2) {
+            val = FIELD_EX64(s->capareg, SDHC_CAPAB, EMBEDDED_8BIT);
+            trace_sdhci_capareg("8-bit bus", val);
+        }
+        msk = FIELD_DP64(msk, SDHC_CAPAB, EMBEDDED_8BIT, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, BUS_SPEED);
+        trace_sdhci_capareg("bus speed mask", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, BUS_SPEED, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, DRIVER_STRENGTH);
+        trace_sdhci_capareg("driver strength mask", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, DRIVER_STRENGTH, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, TIMER_RETUNING);
+        trace_sdhci_capareg("timer re-tuning", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, TIMER_RETUNING, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, SDR50_TUNING);
+        trace_sdhci_capareg("use SDR50 tuning", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, SDR50_TUNING, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, RETUNING_MODE);
+        trace_sdhci_capareg("re-tuning mode", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, RETUNING_MODE, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, CLOCK_MULT);
+        trace_sdhci_capareg("clock multiplier", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, CLOCK_MULT, 0);
+
+    /* fallthrough */
     case 2: /* default version */
         val = FIELD_EX64(s->capareg, SDHC_CAPAB, ADMA2);
         trace_sdhci_capareg("ADMA2", val);
@@ -1227,8 +1274,11 @@ static void sdhci_init_readonly_registers(SDHCIState *s, Error **errp)
 {
     Error *local_err = NULL;
 
-    if (s->sd_spec_version != 2) {
-        error_setg(errp, "Only Spec v2 is supported");
+    switch (s->sd_spec_version) {
+    case 2 ... 3:
+        break;
+    default:
+        error_setg(errp, "Only Spec v2/v3 are supported");
         return;
     }
     s->version = (SDHC_HCVER_VENDOR << 8) | (s->sd_spec_version - 1);
