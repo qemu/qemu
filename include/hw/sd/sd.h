@@ -56,6 +56,20 @@
 #define OCR_CCS_BITN        30
 
 typedef enum {
+    SD_VOLTAGE_0_4V     = 400,  /* currently not supported */
+    SD_VOLTAGE_1_8V     = 1800,
+    SD_VOLTAGE_3_0V     = 3000,
+    SD_VOLTAGE_3_3V     = 3300,
+} sd_voltage_mv_t;
+
+typedef enum  {
+    UHS_NOT_SUPPORTED   = 0,
+    UHS_I               = 1,
+    UHS_II              = 2,    /* currently not supported */
+    UHS_III             = 3,    /* currently not supported */
+} sd_uhs_mode_t;
+
+typedef enum {
     sd_none = -1,
     sd_bc = 0,	/* broadcast -- no response */
     sd_bcr,	/* broadcast with response */
@@ -88,6 +102,7 @@ typedef struct {
     void (*write_data)(SDState *sd, uint8_t value);
     uint8_t (*read_data)(SDState *sd);
     bool (*data_ready)(SDState *sd);
+    void (*set_voltage)(SDState *sd, uint16_t millivolts);
     void (*enable)(SDState *sd, bool enable);
     bool (*get_inserted)(SDState *sd);
     bool (*get_readonly)(SDState *sd);
@@ -134,6 +149,7 @@ void sd_enable(SDState *sd, bool enable);
 /* Functions to be used by qdevified callers (working via
  * an SDBus rather than directly with SDState)
  */
+void sdbus_set_voltage(SDBus *sdbus, uint16_t millivolts);
 int sdbus_do_command(SDBus *sd, SDRequest *req, uint8_t *response);
 void sdbus_write_data(SDBus *sd, uint8_t value);
 uint8_t sdbus_read_data(SDBus *sd);

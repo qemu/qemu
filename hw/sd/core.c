@@ -41,6 +41,19 @@ static SDState *get_card(SDBus *sdbus)
     return SD_CARD(kid->child);
 }
 
+void sdbus_set_voltage(SDBus *sdbus, uint16_t millivolts)
+{
+    SDState *card = get_card(sdbus);
+
+    trace_sdbus_set_voltage(sdbus_name(sdbus), millivolts);
+    if (card) {
+        SDCardClass *sc = SD_CARD_GET_CLASS(card);
+
+        assert(sc->set_voltage);
+        sc->set_voltage(card, millivolts);
+    }
+}
+
 int sdbus_do_command(SDBus *sdbus, SDRequest *req, uint8_t *response)
 {
     SDState *card = get_card(sdbus);

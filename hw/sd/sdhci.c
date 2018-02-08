@@ -1255,7 +1255,16 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         sdhci_update_irq(s);
         break;
     case SDHC_ACMD12ERRSTS:
-        MASKED_WRITE(s->acmd12errsts, mask, value);
+        MASKED_WRITE(s->acmd12errsts, mask, value & UINT16_MAX);
+        if (s->uhs_mode >= UHS_I) {
+            MASKED_WRITE(s->hostctl2, mask >> 16, value >> 16);
+
+            if (FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, V18_ENA)) {
+                sdbus_set_voltage(&s->sdbus, SD_VOLTAGE_1_8V);
+            } else {
+                sdbus_set_voltage(&s->sdbus, SD_VOLTAGE_3_3V);
+            }
+        }
         break;
 
     case SDHC_CAPAB:
@@ -1310,6 +1319,7 @@ static void sdhci_init_readonly_registers(SDHCIState *s, Error **errp)
 
 #define DEFINE_SDHCI_COMMON_PROPERTIES(_state) \
     DEFINE_PROP_UINT8("sd-spec-version", _state, sd_spec_version, 2), \
+    DEFINE_PROP_UINT8("uhs", _state, uhs_mode, UHS_NOT_SUPPORTED), \
     \
     /* Capabilities registers provide information on supported
      * features of this specific host controller implementation */ \

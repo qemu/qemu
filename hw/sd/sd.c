@@ -128,6 +128,18 @@ struct SDState {
     bool enable;
 };
 
+static void sd_set_voltage(SDState *sd, uint16_t millivolts)
+{
+    switch (millivolts) {
+    case 3001 ... 3600: /* SD_VOLTAGE_3_3V */
+    case 2001 ... 3000: /* SD_VOLTAGE_3_0V */
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "SD card voltage not supported: %.3fV",
+                      millivolts / 1000.f);
+    }
+}
+
 static void sd_set_mode(SDState *sd)
 {
     switch (sd->state) {
@@ -1926,6 +1938,7 @@ static void sd_class_init(ObjectClass *klass, void *data)
     dc->reset = sd_reset;
     dc->bus_type = TYPE_SD_BUS;
 
+    sc->set_voltage = sd_set_voltage;
     sc->do_command = sd_do_command;
     sc->write_data = sd_write_data;
     sc->read_data = sd_read_data;
