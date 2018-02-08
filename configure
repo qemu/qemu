@@ -5306,7 +5306,15 @@ fi
 ##########################################
 # checks for sanitizers
 
-write_c_skeleton
+# we could use a simple skeleton for flags checks, but this also
+# detect the static linking issue of ubsan, see also:
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
+cat > $TMPC << EOF
+#include <stdint.h>
+int main(void) {
+  return INT32_MIN / -1;
+}
+EOF
 
 have_asan=no
 have_ubsan=no
