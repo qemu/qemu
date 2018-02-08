@@ -34,6 +34,7 @@
 #include "hw/sd/sdhci.h"
 #include "sdhci-internal.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 #include "trace.h"
 
 #define TYPE_SDHCI_BUS "sdhci-bus"
@@ -343,6 +344,7 @@ static void sdhci_end_transfer(SDHCIState *s)
 /*
  * Programmed i/o data transfer
  */
+#define BLOCK_SIZE_MASK (4 * K_BYTE - 1)
 
 /* Fill host controller's read buffer with BLKSIZE bytes of data from card */
 static void sdhci_read_block_from_card(SDHCIState *s)
@@ -354,7 +356,7 @@ static void sdhci_read_block_from_card(SDHCIState *s)
         return;
     }
 
-    for (index = 0; index < (s->blksize & 0x0fff); index++) {
+    for (index = 0; index < (s->blksize & BLOCK_SIZE_MASK); index++) {
         s->fifo_buffer[index] = sdbus_read_data(&s->sdbus);
     }
 
@@ -399,7 +401,7 @@ static uint32_t sdhci_read_dataport(SDHCIState *s, unsigned size)
         value |= s->fifo_buffer[s->data_count] << i * 8;
         s->data_count++;
         /* check if we've read all valid data (blksize bytes) from buffer */
-        if ((s->data_count) >= (s->blksize & 0x0fff)) {
+        if ((s->data_count) >= (s->blksize & BLOCK_SIZE_MASK)) {
             trace_sdhci_read_dataport(s->data_count);
             s->prnsts &= ~SDHC_DATA_AVAILABLE; /* no more data in a buffer */
             s->data_count = 0;  /* next buff read must start at position [0] */
@@ -446,7 +448,7 @@ static void sdhci_write_block_to_card(SDHCIState *s)
         }
     }
 
-    for (index = 0; index < (s->blksize & 0x0fff); index++) {
+    for (index = 0; index < (s->blksize & BLOCK_SIZE_MASK); index++) {
         sdbus_write_data(&s->sdbus, s->fifo_buffer[index]);
     }
 
@@ -491,7 +493,7 @@ static void sdhci_write_dataport(SDHCIState *s, uint32_t value, unsigned size)
         s->fifo_buffer[s->data_count] = value & 0xFF;
         s->data_count++;
         value >>= 8;
-        if (s->data_count >= (s->blksize & 0x0fff)) {
+        if (s->data_count >= (s->blksize & BLOCK_SIZE_MASK)) {
             trace_sdhci_write_dataport(s->data_count);
             s->data_count = 0;
             s->prnsts &= ~SDHC_SPACE_AVAILABLE;
@@ -511,8 +513,8 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
 {
     bool page_aligned = false;
     unsigned int n, begin;
-    const uint16_t block_size = s->blksize & 0x0fff;
-    uint32_t boundary_chk = 1 << (((s->blksize & 0xf000) >> 12) + 12);
+    const uint16_t block_size = s->blksize & BLOCK_SIZE_MASK;
+    uint32_t boundary_chk = 1 << (((s->blksize & ~BLOCK_SIZE_MASK) >> 12) + 12);
     uint32_t boundary_count = boundary_chk - (s->sdmasysad % boundary_chk);
 
     if (!(s->trnmod & SDHC_TRNS_BLK_CNT_EN) || !s->blkcnt) {
@@ -601,7 +603,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
 static void sdhci_sdma_transfer_single_block(SDHCIState *s)
 {
     int n;
-    uint32_t datacnt = s->blksize & 0x0fff;
+    uint32_t datacnt = s->blksize & BLOCK_SIZE_MASK;
 
     if (s->trnmod & SDHC_TRNS_READ) {
         for (n = 0; n < datacnt; n++) {
@@ -677,7 +679,7 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
 static void sdhci_do_adma(SDHCIState *s)
 {
     unsigned int n, begin, length;
-    const uint16_t block_size = s->blksize & 0x0fff;
+    const uint16_t block_size = s->blksize & BLOCK_SIZE_MASK;
     ADMADescr dscr = {};
     int i;
 
