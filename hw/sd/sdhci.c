@@ -89,6 +89,17 @@ static void sdhci_check_capareg(SDHCIState *s, Error **errp)
 
     switch (s->sd_spec_version) {
     case 2: /* default version */
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, ADMA2);
+        trace_sdhci_capareg("ADMA2", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, ADMA2, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, ADMA1);
+        trace_sdhci_capareg("ADMA1", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, ADMA1, 0);
+
+        val = FIELD_EX64(s->capareg, SDHC_CAPAB, BUS64BIT);
+        trace_sdhci_capareg("64-bit system bus", val);
+        msk = FIELD_DP64(msk, SDHC_CAPAB, BUS64BIT, 0);
 
     /* fallthrough */
     case 1:
@@ -832,7 +843,7 @@ static void sdhci_data_transfer(void *opaque)
 
             break;
         case SDHC_CTRL_ADMA1_32:
-            if (!(s->capareg & SDHC_CAN_DO_ADMA1)) {
+            if (!(s->capareg & R_SDHC_CAPAB_ADMA1_MASK)) {
                 trace_sdhci_error("ADMA1 not supported");
                 break;
             }
@@ -840,7 +851,7 @@ static void sdhci_data_transfer(void *opaque)
             sdhci_do_adma(s);
             break;
         case SDHC_CTRL_ADMA2_32:
-            if (!(s->capareg & SDHC_CAN_DO_ADMA2)) {
+            if (!(s->capareg & R_SDHC_CAPAB_ADMA2_MASK)) {
                 trace_sdhci_error("ADMA2 not supported");
                 break;
             }
@@ -848,8 +859,8 @@ static void sdhci_data_transfer(void *opaque)
             sdhci_do_adma(s);
             break;
         case SDHC_CTRL_ADMA2_64:
-            if (!(s->capareg & SDHC_CAN_DO_ADMA2) ||
-                    !(s->capareg & SDHC_64_BIT_BUS_SUPPORT)) {
+            if (!(s->capareg & R_SDHC_CAPAB_ADMA2_MASK) ||
+                    !(s->capareg & R_SDHC_CAPAB_BUS64BIT_MASK)) {
                 trace_sdhci_error("64 bit ADMA not supported");
                 break;
             }
