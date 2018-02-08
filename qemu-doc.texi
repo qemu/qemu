@@ -621,6 +621,7 @@ encrypted disk images.
 * disk_images_iscsi::         iSCSI LUNs
 * disk_images_gluster::       GlusterFS disk images
 * disk_images_ssh::           Secure Shell (ssh) disk images
+* disk_images_nvme::          NVMe userspace driver
 * disk_image_locking::        Disk image file locking
 @end menu
 

@@ -2096,3 +2096,13 @@ static void blk_root_drained_end(BdrvChild *child)
         }
     }
 }
+
+void blk_register_buf(BlockBackend *blk, void *host, size_t size)
+{
+    bdrv_register_buf(blk_bs(blk), host, size);
+}
+
+void blk_unregister_buf(BlockBackend *blk, void *host)
+{
+    bdrv_unregister_buf(blk_bs(blk), host);
+}

@@ -631,5 +631,14 @@ void bdrv_del_child(BlockDriverState *parent, BdrvChild *child, Error **errp);
 
 bool bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
                                      uint32_t granularity, Error **errp);
-
+/**
+ *
+ * bdrv_register_buf/bdrv_unregister_buf:
+ *
+ * Register/unregister a buffer for I/O. For example, VFIO drivers are
+ * interested to know the memory areas that would later be used for I/O, so
+ * that they can prepare IOMMU mapping etc., to get better performance.
+ */
+void bdrv_register_buf(BlockDriverState *bs, void *host, size_t size);
+void bdrv_unregister_buf(BlockDriverState *bs, void *host);
 #endif

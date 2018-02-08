@@ -121,7 +121,7 @@ bool qemu_coroutine_entered(Coroutine *co);
  * Provides a mutex that can be used to synchronise coroutines
  */
 struct CoWaitRecord;
-typedef struct CoMutex {
+struct CoMutex {
     /* Count of pending lockers; 0 for a free mutex, 1 for an
      * uncontended mutex.
      */
@@ -142,7 +142,7 @@ typedef struct CoMutex {
     unsigned handoff, sequence;
 
     Coroutine *holder;
-} CoMutex;
+};
 
 /**
  * Initialises a CoMutex. This must be called before any other operation is used
@@ -183,24 +183,33 @@ void qemu_co_queue_init(CoQueue *queue);
  * caller of the coroutine.  The mutex is unlocked during the wait and
  * locked again afterwards.
  */
-void coroutine_fn qemu_co_queue_wait(CoQueue *queue, CoMutex *mutex);
+#define qemu_co_queue_wait(queue, lock) \
+    qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock))
+void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock);
 
 /**
- * Restarts the next coroutine in the CoQueue and removes it from the queue.
- *
- * Returns true if a coroutine was restarted, false if the queue is empty.
+ * Removes the next coroutine from the CoQueue, and wake it up.
+ * Returns true if a coroutine was removed, false if the queue is empty.
  */
 bool coroutine_fn qemu_co_queue_next(CoQueue *queue);
 
 /**
- * Restarts all coroutines in the CoQueue and leaves the queue empty.
+ * Empties the CoQueue; all coroutines are woken up.
  */
 void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue);
 
 /**
- * Enter the next coroutine in the queue
+ * Removes the next coroutine from the CoQueue, and wake it up.  Unlike
+ * qemu_co_queue_next, this function releases the lock during aio_co_wake
+ * because it is meant to be used outside coroutine context; in that case, the
+ * coroutine is entered immediately, before qemu_co_enter_next returns.
+ *
+ * If used in coroutine context, qemu_co_enter_next is equivalent to
+ * qemu_co_queue_next.
  */
-bool qemu_co_enter_next(CoQueue *queue);
+#define qemu_co_enter_next(queue, lock) \
+    qemu_co_enter_next_impl(queue, QEMU_MAKE_LOCKABLE(lock))
+bool qemu_co_enter_next_impl(CoQueue *queue, QemuLockable *lock);
 
 /**
  * Checks if the CoQueue is empty.
@@ -270,5 +279,7 @@ void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns);
  * Note that this function clobbers the handlers for the file descriptor.
  */
 void coroutine_fn yield_until_fd_readable(int fd);
+
+#include "qemu/lockable.h"
 
 #endif /* QEMU_COROUTINE_H */
