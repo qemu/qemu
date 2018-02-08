@@ -16,6 +16,8 @@
 #define SDHC_CAPAB                      0x40
 FIELD(SDHC_CAPAB, BASECLKFREQ,               8, 8); /* since v2 */
 FIELD(SDHC_CAPAB, SDMA,                     22, 1);
+FIELD(SDHC_CAPAB, SDR,                      32, 3); /* since v3 */
+FIELD(SDHC_CAPAB, DRIVER,                   36, 3); /* since v3 */
 #define SDHC_HCVER                      0xFE
 
 static const struct sdhci_t {
@@ -159,6 +161,20 @@ static void check_capab_sdma(QSDHCI *s, bool supported)
     g_assert_cmpuint(capab_sdma, ==, supported);
 }
 
+static void check_capab_v3(QSDHCI *s, uint8_t version)
+{
+    uint64_t capab, capab_v3;
+
+    if (version < 3) {
+        /* before v3 those fields are RESERVED */
+        capab = sdhci_readq(s, SDHC_CAPAB);
+        capab_v3 = FIELD_EX64(capab, SDHC_CAPAB, SDR);
+        g_assert_cmpuint(capab_v3, ==, 0);
+        capab_v3 = FIELD_EX64(capab, SDHC_CAPAB, DRIVER);
+        g_assert_cmpuint(capab_v3, ==, 0);
+    }
+}
+
 static QSDHCI *machine_start(const struct sdhci_t *test)
 {
     QSDHCI *s = g_new0(QSDHCI, 1);
@@ -207,6 +223,7 @@ static void test_machine(const void *data)
     check_specs_version(s, test->sdhci.version);
     check_capab_capareg(s, test->sdhci.capab.reg);
     check_capab_readonly(s);
+    check_capab_v3(s, test->sdhci.version);
     check_capab_sdma(s, test->sdhci.capab.sdma);
     check_capab_baseclock(s, test->sdhci.baseclock);
 
