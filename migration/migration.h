@@ -35,6 +35,8 @@ struct MigrationIncomingState {
     bool           have_fault_thread;
     QemuThread     fault_thread;
     QemuSemaphore  fault_thread_sem;
+    /* Set this when we want the fault thread to quit */
+    bool           fault_thread_quit;
 
     bool           have_listen_thread;
     QemuThread     listen_thread;
@@ -42,8 +44,8 @@ struct MigrationIncomingState {
 
     /* For the kernel to send us notifications */
     int       userfault_fd;
-    /* To tell the fault_thread to quit */
-    int       userfault_quit_fd;
+    /* To notify the fault_thread to wake, e.g., when need to quit */
+    int       userfault_event_fd;
     QEMUFile *to_src_file;
     QemuMutex rp_mutex;    /* We send replies from multiple threads */
     void     *postcopy_tmp_page;

@@ -387,17 +387,18 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
          * currently be at 0, we're going to increment it to 1
          */
         tmp64 = 1;
-        if (write(mis->userfault_quit_fd, &tmp64, 8) == 8) {
+        atomic_set(&mis->fault_thread_quit, 1);
+        if (write(mis->userfault_event_fd, &tmp64, 8) == 8) {
             trace_postcopy_ram_incoming_cleanup_join();
             qemu_thread_join(&mis->fault_thread);
         } else {
             /* Not much we can do here, but may as well report it */
-            error_report("%s: incrementing userfault_quit_fd: %s", __func__,
+            error_report("%s: incrementing userfault_event_fd: %s", __func__,
                          strerror(errno));
         }
         trace_postcopy_ram_incoming_cleanup_closeuf();
         close(mis->userfault_fd);
-        close(mis->userfault_quit_fd);
+        close(mis->userfault_event_fd);
         mis->have_fault_thread = false;
     }
 
@@ -520,7 +521,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
         pfd[0].fd = mis->userfault_fd;
         pfd[0].events = POLLIN;
         pfd[0].revents = 0;
-        pfd[1].fd = mis->userfault_quit_fd;
+        pfd[1].fd = mis->userfault_event_fd;
         pfd[1].events = POLLIN; /* Waiting for eventfd to go positive */
         pfd[1].revents = 0;
 
@@ -530,8 +531,18 @@ static void *postcopy_ram_fault_thread(void *opaque)
         }
 
         if (pfd[1].revents) {
-            trace_postcopy_ram_fault_thread_quit();
-            break;
+            uint64_t tmp64 = 0;
+
+            /* Consume the signal */
+            if (read(mis->userfault_event_fd, &tmp64, 8) != 8) {
+                /* Nothing obviously nicer than posting this error. */
+                error_report("%s: read() failed", __func__);
+            }
+
+            if (atomic_read(&mis->fault_thread_quit)) {
+                trace_postcopy_ram_fault_thread_quit();
+                break;
+            }
         }
 
         ret = read(mis->userfault_fd, &msg, sizeof(msg));
@@ -610,9 +621,9 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     }
 
     /* Now an eventfd we use to tell the fault-thread to quit */
-    mis->userfault_quit_fd = eventfd(0, EFD_CLOEXEC);
-    if (mis->userfault_quit_fd == -1) {
-        error_report("%s: Opening userfault_quit_fd: %s", __func__,
+    mis->userfault_event_fd = eventfd(0, EFD_CLOEXEC);
+    if (mis->userfault_event_fd == -1) {
+        error_report("%s: Opening userfault_event_fd: %s", __func__,
                      strerror(errno));
         close(mis->userfault_fd);
         return -1;
