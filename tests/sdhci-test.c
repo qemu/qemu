@@ -14,6 +14,7 @@
 #include "hw/pci/pci.h"
 
 #define SDHC_CAPAB                      0x40
+FIELD(SDHC_CAPAB, BASECLKFREQ,               8, 8); /* since v2 */
 #define SDHC_HCVER                      0xFE
 
 static const struct sdhci_t {
@@ -96,6 +97,18 @@ static void check_capab_readonly(QSDHCI *s)
     g_assert_cmpuint(capab1, ==, capab0);
 }
 
+static void check_capab_baseclock(QSDHCI *s, uint8_t expec_freq)
+{
+    uint64_t capab, capab_freq;
+
+    if (!expec_freq) {
+        return;
+    }
+    capab = sdhci_readq(s, SDHC_CAPAB);
+    capab_freq = FIELD_EX64(capab, SDHC_CAPAB, BASECLKFREQ);
+    g_assert_cmpuint(capab_freq, ==, expec_freq);
+}
+
 static QSDHCI *machine_start(const struct sdhci_t *test)
 {
     QSDHCI *s = g_new0(QSDHCI, 1);
@@ -143,6 +156,7 @@ static void test_machine(const void *data)
 
     check_capab_capareg(s, test->sdhci.capab.reg);
     check_capab_readonly(s);
+    check_capab_baseclock(s, test->sdhci.baseclock);
 
     machine_stop(s);
 }
