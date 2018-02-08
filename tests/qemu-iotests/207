@@ -1,0 +1,261 @@
+#!/bin/bash
+#
+# Test ssh image creation
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto ssh
+_supported_os Linux
+
+function do_run_qemu()
+{
+    echo Testing: "$@"
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp \
+                          | _filter_qemu | _filter_imgfmt \
+                          | _filter_actual_image_size
+}
+
+echo
+echo "=== Successful image creation (defaults) ==="
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          }
+      },
+      "size": 4194304
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info | _filter_img_info
+echo
+TEST_IMG=$TEST_IMG_FILE _img_info | _filter_img_info
+
+echo
+echo "=== Test host-key-check options ==="
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          },
+          "host-key-check": {
+              "mode": "none"
+          }
+      },
+      "size": 8388608
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info | _filter_img_info
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          },
+          "host-key-check": {
+              "mode": "known_hosts"
+          }
+      },
+      "size": 4194304
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info | _filter_img_info
+
+
+key=$(ssh-keyscan -t rsa 127.0.0.1 2>/dev/null | grep -v "\\^#" |
+      cut -d" " -f3 | base64 -d | md5sum -b | cut -d" " -f1)
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          },
+          "host-key-check": {
+              "mode": "hash",
+              "type": "md5",
+              "hash": "wrong"
+          }
+      },
+      "size": 8388608
+  }
+}
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          },
+          "host-key-check": {
+              "mode": "hash",
+              "type": "md5",
+              "hash": "$key"
+          }
+      },
+      "size": 8388608
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info | _filter_img_info
+
+
+key=$(ssh-keyscan -t rsa 127.0.0.1 2>/dev/null | grep -v "\\^#" |
+      cut -d" " -f3 | base64 -d | sha1sum -b | cut -d" " -f1)
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          },
+          "host-key-check": {
+              "mode": "hash",
+              "type": "sha1",
+              "hash": "wrong"
+          }
+      },
+      "size": 4194304
+  }
+}
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          },
+          "host-key-check": {
+              "mode": "hash",
+              "type": "sha1",
+              "hash": "$key"
+          }
+      },
+      "size": 4194304
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info | _filter_img_info
+
+echo
+echo "=== Invalid path and user ==="
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "/this/is/not/an/existing/path",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          }
+      },
+      "size": 4194304
+  }
+}
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "ssh",
+      "location": {
+          "path": "$TEST_IMG_FILE",
+          "user": "invalid user",
+          "server": {
+              "host": "127.0.0.1",
+              "port": "22"
+          }
+      },
+      "size": 4194304
+  }
+}
+{ "execute": "quit" }
+EOF
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
