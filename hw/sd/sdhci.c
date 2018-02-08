@@ -58,6 +58,11 @@
  */
 #define SDHC_CAPAB_REG_DEFAULT 0x057834b4
 
+static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
+{
+    return 1 << (9 + FIELD_EX32(s->capareg, SDHC_CAPAB, MAXBLOCKLENGTH));
+}
+
 static uint8_t sdhci_slotint(SDHCIState *s)
 {
     return (s->norintsts & s->norintsigen) || (s->errintsts & s->errintsigen) ||
@@ -1117,21 +1122,6 @@ static const MemoryRegionOps sdhci_mmio_ops = {
     },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
-
-static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
-{
-    switch (SDHC_CAPAB_BLOCKSIZE(s->capareg)) {
-    case 0:
-        return 512;
-    case 1:
-        return 1024;
-    case 2:
-        return 2048;
-    default:
-        hw_error("SDHC: unsupported value for maximum block size\n");
-        return 0;
-    }
-}
 
 static void sdhci_init_readonly_registers(SDHCIState *s, Error **errp)
 {
