@@ -503,6 +503,92 @@ of the memory access.
 For a 32-bit host, qemu_ld/st_i64 is guaranteed to only be used with a
 64-bit memory access specified in flags.
 
+********* Host vector operations
+
+All of the vector ops have two parameters, TCGOP_VECL & TCGOP_VECE.
+The former specifies the length of the vector in log2 64-bit units; the
+later specifies the length of the element (if applicable) in log2 8-bit units.
+E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
+
+* mov_vec   v0, v1
+* ld_vec    v0, t1
+* st_vec    v0, t1
+
+  Move, load and store.
+
+* dup_vec  v0, r1
+
+  Duplicate the low N bits of R1 into VECL/VECE copies across V0.
+
+* dupi_vec v0, c
+
+  Similarly, for a constant.
+  Smaller values will be replicated to host register size by the expanders.
+
+* dup2_vec v0, r1, r2
+
+  Duplicate r2:r1 into VECL/64 copies across V0.  This opcode is
+  only present for 32-bit hosts.
+
+* add_vec   v0, v1, v2
+
+  v0 = v1 + v2, in elements across the vector.
+
+* sub_vec   v0, v1, v2
+
+  Similarly, v0 = v1 - v2.
+
+* mul_vec   v0, v1, v2
+
+  Similarly, v0 = v1 * v2.
+
+* neg_vec   v0, v1
+
+  Similarly, v0 = -v1.
+
+* and_vec   v0, v1, v2
+* or_vec    v0, v1, v2
+* xor_vec   v0, v1, v2
+* andc_vec  v0, v1, v2
+* orc_vec   v0, v1, v2
+* not_vec   v0, v1
+
+  Similarly, logical operations with and without compliment.
+  Note that VECE is unused.
+
+* shli_vec   v0, v1, i2
+* shls_vec   v0, v1, s2
+
+  Shift all elements from v1 by a scalar i2/s2.  I.e.
+
+    for (i = 0; i < VECL/VECE; ++i) {
+      v0[i] = v1[i] << s2;
+    }
+
+* shri_vec   v0, v1, i2
+* sari_vec   v0, v1, i2
+* shrs_vec   v0, v1, s2
+* sars_vec   v0, v1, s2
+
+  Similarly for logical and arithmetic right shift.
+
+* shlv_vec   v0, v1, v2
+
+  Shift elements from v1 by elements from v2.  I.e.
+
+    for (i = 0; i < VECL/VECE; ++i) {
+      v0[i] = v1[i] << v2[i];
+    }
+
+* shrv_vec   v0, v1, v2
+* sarv_vec   v0, v1, v2
+
+  Similarly for logical and arithmetic right shift.
+
+* cmp_vec  v0, v1, v2, cond
+
+  Compare vectors by element, storing -1 for true and 0 for false.
+
 *********
 
 Note 1: Some shortcuts are defined when the last operand is known to be

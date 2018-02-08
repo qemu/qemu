@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
+#include "tcg-op-gvec.h"
 #include "qemu/log.h"
 #include "arm_ldst.h"
 #include "translate.h"
@@ -83,6 +84,13 @@ typedef void NeonGenOneOpFn(TCGv_i64, TCGv_i64);
 typedef void CryptoTwoOpFn(TCGv_ptr, TCGv_ptr);
 typedef void CryptoThreeOpIntFn(TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void CryptoThreeOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr);
+
+/* Note that the gvec expanders operate on offsets + sizes.  */
+typedef void GVecGen2Fn(unsigned, uint32_t, uint32_t, uint32_t, uint32_t);
+typedef void GVecGen2iFn(unsigned, uint32_t, uint32_t, int64_t,
+                         uint32_t, uint32_t);
+typedef void GVecGen3Fn(unsigned, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t);
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -548,6 +556,14 @@ static TCGv_ptr vec_full_reg_ptr(DisasContext *s, int regno)
     return ret;
 }
 
+/* Return the byte size of the "whole" vector register, VL / 8.  */
+static inline int vec_full_reg_size(DisasContext *s)
+{
+    /* FIXME SVE: We should put the composite ZCR_EL* value into tb->flags.
+       In the meantime this is just the AdvSIMD length of 128.  */
+    return 128 / 8;
+}
+
 /* Return the offset into CPUARMState of a slice (from
  * the least significant end) of FP register Qn (ie
  * Dn, Sn, Hn or Bn).
@@ -616,6 +632,51 @@ static TCGv_ptr get_fpstatus_ptr(void)
     offset = offsetof(CPUARMState, vfp.fp_status);
     tcg_gen_addi_ptr(statusptr, cpu_env, offset);
     return statusptr;
+}
+
+/* Expand a 2-operand AdvSIMD vector operation using an expander function.  */
+static void gen_gvec_fn2(DisasContext *s, bool is_q, int rd, int rn,
+                         GVecGen2Fn *gvec_fn, int vece)
+{
+    gvec_fn(vece, vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
+            is_q ? 16 : 8, vec_full_reg_size(s));
+}
+
+/* Expand a 2-operand + immediate AdvSIMD vector operation using
+ * an expander function.
+ */
+static void gen_gvec_fn2i(DisasContext *s, bool is_q, int rd, int rn,
+                          int64_t imm, GVecGen2iFn *gvec_fn, int vece)
+{
+    gvec_fn(vece, vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
+            imm, is_q ? 16 : 8, vec_full_reg_size(s));
+}
+
+/* Expand a 3-operand AdvSIMD vector operation using an expander function.  */
+static void gen_gvec_fn3(DisasContext *s, bool is_q, int rd, int rn, int rm,
+                         GVecGen3Fn *gvec_fn, int vece)
+{
+    gvec_fn(vece, vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
+            vec_full_reg_offset(s, rm), is_q ? 16 : 8, vec_full_reg_size(s));
+}
+
+/* Expand a 2-operand + immediate AdvSIMD vector operation using
+ * an op descriptor.
+ */
+static void gen_gvec_op2i(DisasContext *s, bool is_q, int rd,
+                          int rn, int64_t imm, const GVecGen2i *gvec_op)
+{
+    tcg_gen_gvec_2i(vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
+                    is_q ? 16 : 8, vec_full_reg_size(s), imm, gvec_op);
+}
+
+/* Expand a 3-operand AdvSIMD vector operation using an op descriptor.  */
+static void gen_gvec_op3(DisasContext *s, bool is_q, int rd,
+                         int rn, int rm, const GVecGen3 *gvec_op)
+{
+    tcg_gen_gvec_3(vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
+                   vec_full_reg_offset(s, rm), is_q ? 16 : 8,
+                   vec_full_reg_size(s), gvec_op);
 }
 
 /* Set ZF and NF based on a 64 bit result. This is alas fiddlier
@@ -4566,14 +4627,17 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
     TCGv_i64 tcg_op;
     TCGv_i64 tcg_res;
 
+    switch (opcode) {
+    case 0x0: /* FMOV */
+        gen_gvec_fn2(s, false, rd, rn, tcg_gen_gvec_mov, 0);
+        return;
+    }
+
     fpst = get_fpstatus_ptr();
     tcg_op = read_fp_dreg(s, rn);
     tcg_res = tcg_temp_new_i64();
 
     switch (opcode) {
-    case 0x0: /* FMOV */
-        tcg_gen_mov_i64(tcg_res, tcg_op);
-        break;
     case 0x1: /* FABS */
         gen_helper_vfp_absd(tcg_res, tcg_op);
         break;
@@ -5848,10 +5912,7 @@ static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
                              int imm5)
 {
     int size = ctz32(imm5);
-    int esize = 8 << size;
-    int elements = (is_q ? 128 : 64) / esize;
-    int index, i;
-    TCGv_i64 tmp;
+    int index = imm5 >> (size + 1);
 
     if (size > 3 || (size == 3 && !is_q)) {
         unallocated_encoding(s);
@@ -5862,20 +5923,9 @@ static void handle_simd_dupe(DisasContext *s, int is_q, int rd, int rn,
         return;
     }
 
-    index = imm5 >> (size + 1);
-
-    tmp = tcg_temp_new_i64();
-    read_vec_element(s, tmp, rn, index, size);
-
-    for (i = 0; i < elements; i++) {
-        write_vec_element(s, tmp, rd, i, size);
-    }
-
-    if (!is_q) {
-        clear_vec_high(s, rd);
-    }
-
-    tcg_temp_free_i64(tmp);
+    tcg_gen_gvec_dup_mem(size, vec_full_reg_offset(s, rd),
+                         vec_reg_offset(s, rn, index, size),
+                         is_q ? 16 : 8, vec_full_reg_size(s));
 }
 
 /* DUP (element, scalar)
@@ -5924,9 +5974,7 @@ static void handle_simd_dupg(DisasContext *s, int is_q, int rd, int rn,
                              int imm5)
 {
     int size = ctz32(imm5);
-    int esize = 8 << size;
-    int elements = (is_q ? 128 : 64)/esize;
-    int i = 0;
+    uint32_t dofs, oprsz, maxsz;
 
     if (size > 3 || ((size == 3) && !is_q)) {
         unallocated_encoding(s);
@@ -5937,12 +5985,11 @@ static void handle_simd_dupg(DisasContext *s, int is_q, int rd, int rn,
         return;
     }
 
-    for (i = 0; i < elements; i++) {
-        write_vec_element(s, cpu_reg(s, rn), rd, i, size);
-    }
-    if (!is_q) {
-        clear_vec_high(s, rd);
-    }
+    dofs = vec_full_reg_offset(s, rd);
+    oprsz = is_q ? 16 : 8;
+    maxsz = vec_full_reg_size(s);
+
+    tcg_gen_gvec_dup_i64(size, dofs, oprsz, maxsz, cpu_reg(s, rn));
 }
 
 /* INS (Element)
@@ -6133,8 +6180,6 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
     bool is_neg = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
     uint64_t imm = 0;
-    TCGv_i64 tcg_rd, tcg_imm;
-    int i;
 
     if (o2 != 0 || ((cmode == 0xf) && is_neg && !is_q)) {
         unallocated_encoding(s);
@@ -6215,32 +6260,18 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
         imm = ~imm;
     }
 
-    tcg_imm = tcg_const_i64(imm);
-    tcg_rd = new_tmp_a64(s);
-
-    for (i = 0; i < 2; i++) {
-        int foffs = i ? fp_reg_hi_offset(s, rd) : fp_reg_offset(s, rd, MO_64);
-
-        if (i == 1 && !is_q) {
-            /* non-quad ops clear high half of vector */
-            tcg_gen_movi_i64(tcg_rd, 0);
-        } else if ((cmode & 0x9) == 0x1 || (cmode & 0xd) == 0x9) {
-            tcg_gen_ld_i64(tcg_rd, cpu_env, foffs);
-            if (is_neg) {
-                /* AND (BIC) */
-                tcg_gen_and_i64(tcg_rd, tcg_rd, tcg_imm);
-            } else {
-                /* ORR */
-                tcg_gen_or_i64(tcg_rd, tcg_rd, tcg_imm);
-            }
+    if (!((cmode & 0x9) == 0x1 || (cmode & 0xd) == 0x9)) {
+        /* MOVI or MVNI, with MVNI negation handled above.  */
+        tcg_gen_gvec_dup64i(vec_full_reg_offset(s, rd), is_q ? 16 : 8,
+                            vec_full_reg_size(s), imm);
+    } else {
+        /* ORR or BIC, with BIC negation to AND handled above.  */
+        if (is_neg) {
+            gen_gvec_fn2i(s, is_q, rd, rd, imm, tcg_gen_gvec_andi, MO_64);
         } else {
-            /* MOVI */
-            tcg_gen_mov_i64(tcg_rd, tcg_imm);
+            gen_gvec_fn2i(s, is_q, rd, rd, imm, tcg_gen_gvec_ori, MO_64);
         }
-        tcg_gen_st_i64(tcg_rd, cpu_env, foffs);
     }
-
-    tcg_temp_free_i64(tcg_imm);
 }
 
 /* AdvSIMD scalar copy
@@ -6485,32 +6516,6 @@ static void handle_shri_with_rndacc(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
     }
 }
 
-/* Common SHL/SLI - Shift left with an optional insert */
-static void handle_shli_with_ins(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
-                                 bool insert, int shift)
-{
-    if (insert) { /* SLI */
-        tcg_gen_deposit_i64(tcg_res, tcg_res, tcg_src, shift, 64 - shift);
-    } else { /* SHL */
-        tcg_gen_shli_i64(tcg_res, tcg_src, shift);
-    }
-}
-
-/* SRI: shift right with insert */
-static void handle_shri_with_ins(TCGv_i64 tcg_res, TCGv_i64 tcg_src,
-                                 int size, int shift)
-{
-    int esize = 8 << size;
-
-    /* shift count same as element size is valid but does nothing;
-     * special case to avoid potential shift by 64.
-     */
-    if (shift != esize) {
-        tcg_gen_shri_i64(tcg_src, tcg_src, shift);
-        tcg_gen_deposit_i64(tcg_res, tcg_res, tcg_src, 0, esize - shift);
-    }
-}
-
 /* SSHR[RA]/USHR[RA] - Scalar shift right (optional rounding/accumulate) */
 static void handle_scalar_simd_shri(DisasContext *s,
                                     bool is_u, int immh, int immb,
@@ -6561,7 +6566,14 @@ static void handle_scalar_simd_shri(DisasContext *s,
     tcg_rd = (accumulate || insert) ? read_fp_dreg(s, rd) : tcg_temp_new_i64();
 
     if (insert) {
-        handle_shri_with_ins(tcg_rd, tcg_rn, size, shift);
+        /* shift count same as element size is valid but does nothing;
+         * special case to avoid potential shift by 64.
+         */
+        int esize = 8 << size;
+        if (shift != esize) {
+            tcg_gen_shri_i64(tcg_rn, tcg_rn, shift);
+            tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_rn, 0, esize - shift);
+        }
     } else {
         handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
                                 accumulate, is_u, size, shift);
@@ -6599,7 +6611,11 @@ static void handle_scalar_simd_shli(DisasContext *s, bool insert,
     tcg_rn = read_fp_dreg(s, rn);
     tcg_rd = insert ? read_fp_dreg(s, rd) : tcg_temp_new_i64();
 
-    handle_shli_with_ins(tcg_rd, tcg_rn, insert, shift);
+    if (insert) {
+        tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_rn, shift, 64 - shift);
+    } else {
+        tcg_gen_shli_i64(tcg_rd, tcg_rn, shift);
+    }
 
     write_fp_dreg(s, rd, tcg_rd);
 
@@ -7175,6 +7191,28 @@ static void disas_simd_scalar_three_reg_diff(DisasContext *s, uint32_t insn)
     }
 }
 
+/* CMTST : test is "if (X & Y != 0)". */
+static void gen_cmtst_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    tcg_gen_and_i32(d, a, b);
+    tcg_gen_setcondi_i32(TCG_COND_NE, d, d, 0);
+    tcg_gen_neg_i32(d, d);
+}
+
+static void gen_cmtst_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_and_i64(d, a, b);
+    tcg_gen_setcondi_i64(TCG_COND_NE, d, d, 0);
+    tcg_gen_neg_i64(d, d);
+}
+
+static void gen_cmtst_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_and_vec(vece, d, a, b);
+    tcg_gen_dupi_vec(vece, a, 0);
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, d, d, a);
+}
+
 static void handle_3same_64(DisasContext *s, int opcode, bool u,
                             TCGv_i64 tcg_rd, TCGv_i64 tcg_rn, TCGv_i64 tcg_rm)
 {
@@ -7218,10 +7256,7 @@ static void handle_3same_64(DisasContext *s, int opcode, bool u,
             cond = TCG_COND_EQ;
             goto do_cmop;
         }
-        /* CMTST : test is "if (X & Y != 0)". */
-        tcg_gen_and_i64(tcg_rd, tcg_rn, tcg_rm);
-        tcg_gen_setcondi_i64(TCG_COND_NE, tcg_rd, tcg_rd, 0);
-        tcg_gen_neg_i64(tcg_rd, tcg_rd);
+        gen_cmtst_i64(tcg_rd, tcg_rn, tcg_rm);
         break;
     case 0x8: /* SSHL, USHL */
         if (u) {
@@ -8329,16 +8364,195 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 }
 
+static void gen_ssra8_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_sar8i_i64(a, a, shift);
+    tcg_gen_vec_add8_i64(d, d, a);
+}
+
+static void gen_ssra16_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_sar16i_i64(a, a, shift);
+    tcg_gen_vec_add16_i64(d, d, a);
+}
+
+static void gen_ssra32_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
+{
+    tcg_gen_sari_i32(a, a, shift);
+    tcg_gen_add_i32(d, d, a);
+}
+
+static void gen_ssra64_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_sari_i64(a, a, shift);
+    tcg_gen_add_i64(d, d, a);
+}
+
+static void gen_ssra_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
+{
+    tcg_gen_sari_vec(vece, a, a, sh);
+    tcg_gen_add_vec(vece, d, d, a);
+}
+
+static void gen_usra8_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_shr8i_i64(a, a, shift);
+    tcg_gen_vec_add8_i64(d, d, a);
+}
+
+static void gen_usra16_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_shr16i_i64(a, a, shift);
+    tcg_gen_vec_add16_i64(d, d, a);
+}
+
+static void gen_usra32_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
+{
+    tcg_gen_shri_i32(a, a, shift);
+    tcg_gen_add_i32(d, d, a);
+}
+
+static void gen_usra64_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_shri_i64(a, a, shift);
+    tcg_gen_add_i64(d, d, a);
+}
+
+static void gen_usra_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
+{
+    tcg_gen_shri_vec(vece, a, a, sh);
+    tcg_gen_add_vec(vece, d, d, a);
+}
+
+static void gen_shr8_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    uint64_t mask = dup_const(MO_8, 0xff >> shift);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_shri_i64(t, a, shift);
+    tcg_gen_andi_i64(t, t, mask);
+    tcg_gen_andi_i64(d, d, ~mask);
+    tcg_gen_or_i64(d, d, t);
+    tcg_temp_free_i64(t);
+}
+
+static void gen_shr16_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    uint64_t mask = dup_const(MO_16, 0xffff >> shift);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_shri_i64(t, a, shift);
+    tcg_gen_andi_i64(t, t, mask);
+    tcg_gen_andi_i64(d, d, ~mask);
+    tcg_gen_or_i64(d, d, t);
+    tcg_temp_free_i64(t);
+}
+
+static void gen_shr32_ins_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
+{
+    tcg_gen_shri_i32(a, a, shift);
+    tcg_gen_deposit_i32(d, d, a, 0, 32 - shift);
+}
+
+static void gen_shr64_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_shri_i64(a, a, shift);
+    tcg_gen_deposit_i64(d, d, a, 0, 64 - shift);
+}
+
+static void gen_shr_ins_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
+{
+    uint64_t mask = (2ull << ((8 << vece) - 1)) - 1;
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    TCGv_vec m = tcg_temp_new_vec_matching(d);
+
+    tcg_gen_dupi_vec(vece, m, mask ^ (mask >> sh));
+    tcg_gen_shri_vec(vece, t, a, sh);
+    tcg_gen_and_vec(vece, d, d, m);
+    tcg_gen_or_vec(vece, d, d, t);
+
+    tcg_temp_free_vec(t);
+    tcg_temp_free_vec(m);
+}
+
 /* SSHR[RA]/USHR[RA] - Vector shift right (optional rounding/accumulate) */
 static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
                                  int immh, int immb, int opcode, int rn, int rd)
 {
+    static const GVecGen2i ssra_op[4] = {
+        { .fni8 = gen_ssra8_i64,
+          .fniv = gen_ssra_vec,
+          .load_dest = true,
+          .opc = INDEX_op_sari_vec,
+          .vece = MO_8 },
+        { .fni8 = gen_ssra16_i64,
+          .fniv = gen_ssra_vec,
+          .load_dest = true,
+          .opc = INDEX_op_sari_vec,
+          .vece = MO_16 },
+        { .fni4 = gen_ssra32_i32,
+          .fniv = gen_ssra_vec,
+          .load_dest = true,
+          .opc = INDEX_op_sari_vec,
+          .vece = MO_32 },
+        { .fni8 = gen_ssra64_i64,
+          .fniv = gen_ssra_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .opc = INDEX_op_sari_vec,
+          .vece = MO_64 },
+    };
+    static const GVecGen2i usra_op[4] = {
+        { .fni8 = gen_usra8_i64,
+          .fniv = gen_usra_vec,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_8, },
+        { .fni8 = gen_usra16_i64,
+          .fniv = gen_usra_vec,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_16, },
+        { .fni4 = gen_usra32_i32,
+          .fniv = gen_usra_vec,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_32, },
+        { .fni8 = gen_usra64_i64,
+          .fniv = gen_usra_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_64, },
+    };
+    static const GVecGen2i sri_op[4] = {
+        { .fni8 = gen_shr8_ins_i64,
+          .fniv = gen_shr_ins_vec,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_8 },
+        { .fni8 = gen_shr16_ins_i64,
+          .fniv = gen_shr_ins_vec,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_16 },
+        { .fni4 = gen_shr32_ins_i32,
+          .fniv = gen_shr_ins_vec,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_32 },
+        { .fni8 = gen_shr64_ins_i64,
+          .fniv = gen_shr_ins_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .opc = INDEX_op_shri_vec,
+          .vece = MO_64 },
+    };
+
     int size = 32 - clz32(immh) - 1;
     int immhb = immh << 3 | immb;
     int shift = 2 * (8 << size) - immhb;
     bool accumulate = false;
-    bool round = false;
-    bool insert = false;
     int dsize = is_q ? 128 : 64;
     int esize = 8 << size;
     int elements = dsize/esize;
@@ -8346,6 +8560,7 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
     TCGv_i64 tcg_rn = new_tmp_a64(s);
     TCGv_i64 tcg_rd = new_tmp_a64(s);
     TCGv_i64 tcg_round;
+    uint64_t round_const;
     int i;
 
     if (extract32(immh, 3, 1) && !is_q) {
@@ -8364,64 +8579,159 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
 
     switch (opcode) {
     case 0x02: /* SSRA / USRA (accumulate) */
-        accumulate = true;
-        break;
+        if (is_u) {
+            /* Shift count same as element size produces zero to add.  */
+            if (shift == 8 << size) {
+                goto done;
+            }
+            gen_gvec_op2i(s, is_q, rd, rn, shift, &usra_op[size]);
+        } else {
+            /* Shift count same as element size produces all sign to add.  */
+            if (shift == 8 << size) {
+                shift -= 1;
+            }
+            gen_gvec_op2i(s, is_q, rd, rn, shift, &ssra_op[size]);
+        }
+        return;
+    case 0x08: /* SRI */
+        /* Shift count same as element size is valid but does nothing.  */
+        if (shift == 8 << size) {
+            goto done;
+        }
+        gen_gvec_op2i(s, is_q, rd, rn, shift, &sri_op[size]);
+        return;
+
+    case 0x00: /* SSHR / USHR */
+        if (is_u) {
+            if (shift == 8 << size) {
+                /* Shift count the same size as element size produces zero.  */
+                tcg_gen_gvec_dup8i(vec_full_reg_offset(s, rd),
+                                   is_q ? 16 : 8, vec_full_reg_size(s), 0);
+            } else {
+                gen_gvec_fn2i(s, is_q, rd, rn, shift, tcg_gen_gvec_shri, size);
+            }
+        } else {
+            /* Shift count the same size as element size produces all sign.  */
+            if (shift == 8 << size) {
+                shift -= 1;
+            }
+            gen_gvec_fn2i(s, is_q, rd, rn, shift, tcg_gen_gvec_sari, size);
+        }
+        return;
+
     case 0x04: /* SRSHR / URSHR (rounding) */
-        round = true;
         break;
     case 0x06: /* SRSRA / URSRA (accum + rounding) */
-        accumulate = round = true;
+        accumulate = true;
         break;
-    case 0x08: /* SRI */
-        insert = true;
-        break;
+    default:
+        g_assert_not_reached();
     }
 
-    if (round) {
-        uint64_t round_const = 1ULL << (shift - 1);
-        tcg_round = tcg_const_i64(round_const);
-    } else {
-        tcg_round = NULL;
-    }
+    round_const = 1ULL << (shift - 1);
+    tcg_round = tcg_const_i64(round_const);
 
     for (i = 0; i < elements; i++) {
         read_vec_element(s, tcg_rn, rn, i, memop);
-        if (accumulate || insert) {
+        if (accumulate) {
             read_vec_element(s, tcg_rd, rd, i, memop);
         }
 
-        if (insert) {
-            handle_shri_with_ins(tcg_rd, tcg_rn, size, shift);
-        } else {
-            handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
-                                    accumulate, is_u, size, shift);
-        }
+        handle_shri_with_rndacc(tcg_rd, tcg_rn, tcg_round,
+                                accumulate, is_u, size, shift);
 
         write_vec_element(s, tcg_rd, rd, i, size);
     }
+    tcg_temp_free_i64(tcg_round);
 
+ done:
     if (!is_q) {
         clear_vec_high(s, rd);
     }
+}
 
-    if (round) {
-        tcg_temp_free_i64(tcg_round);
-    }
+static void gen_shl8_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    uint64_t mask = dup_const(MO_8, 0xff << shift);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_shli_i64(t, a, shift);
+    tcg_gen_andi_i64(t, t, mask);
+    tcg_gen_andi_i64(d, d, ~mask);
+    tcg_gen_or_i64(d, d, t);
+    tcg_temp_free_i64(t);
+}
+
+static void gen_shl16_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    uint64_t mask = dup_const(MO_16, 0xffff << shift);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_shli_i64(t, a, shift);
+    tcg_gen_andi_i64(t, t, mask);
+    tcg_gen_andi_i64(d, d, ~mask);
+    tcg_gen_or_i64(d, d, t);
+    tcg_temp_free_i64(t);
+}
+
+static void gen_shl32_ins_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
+{
+    tcg_gen_deposit_i32(d, d, a, shift, 32 - shift);
+}
+
+static void gen_shl64_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_deposit_i64(d, d, a, shift, 64 - shift);
+}
+
+static void gen_shl_ins_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
+{
+    uint64_t mask = (1ull << sh) - 1;
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    TCGv_vec m = tcg_temp_new_vec_matching(d);
+
+    tcg_gen_dupi_vec(vece, m, mask);
+    tcg_gen_shli_vec(vece, t, a, sh);
+    tcg_gen_and_vec(vece, d, d, m);
+    tcg_gen_or_vec(vece, d, d, t);
+
+    tcg_temp_free_vec(t);
+    tcg_temp_free_vec(m);
 }
 
 /* SHL/SLI - Vector shift left */
 static void handle_vec_simd_shli(DisasContext *s, bool is_q, bool insert,
-                                int immh, int immb, int opcode, int rn, int rd)
+                                 int immh, int immb, int opcode, int rn, int rd)
 {
+    static const GVecGen2i shi_op[4] = {
+        { .fni8 = gen_shl8_ins_i64,
+          .fniv = gen_shl_ins_vec,
+          .opc = INDEX_op_shli_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .vece = MO_8 },
+        { .fni8 = gen_shl16_ins_i64,
+          .fniv = gen_shl_ins_vec,
+          .opc = INDEX_op_shli_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .vece = MO_16 },
+        { .fni4 = gen_shl32_ins_i32,
+          .fniv = gen_shl_ins_vec,
+          .opc = INDEX_op_shli_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .vece = MO_32 },
+        { .fni8 = gen_shl64_ins_i64,
+          .fniv = gen_shl_ins_vec,
+          .opc = INDEX_op_shli_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .vece = MO_64 },
+    };
     int size = 32 - clz32(immh) - 1;
     int immhb = immh << 3 | immb;
     int shift = immhb - (8 << size);
-    int dsize = is_q ? 128 : 64;
-    int esize = 8 << size;
-    int elements = dsize/esize;
-    TCGv_i64 tcg_rn = new_tmp_a64(s);
-    TCGv_i64 tcg_rd = new_tmp_a64(s);
-    int i;
 
     if (extract32(immh, 3, 1) && !is_q) {
         unallocated_encoding(s);
@@ -8437,19 +8747,10 @@ static void handle_vec_simd_shli(DisasContext *s, bool is_q, bool insert,
         return;
     }
 
-    for (i = 0; i < elements; i++) {
-        read_vec_element(s, tcg_rn, rn, i, size);
-        if (insert) {
-            read_vec_element(s, tcg_rd, rd, i, size);
-        }
-
-        handle_shli_with_ins(tcg_rd, tcg_rn, insert, shift);
-
-        write_vec_element(s, tcg_rd, rd, i, size);
-    }
-
-    if (!is_q) {
-        clear_vec_high(s, rd);
+    if (insert) {
+        gen_gvec_op2i(s, is_q, rd, rn, shift, &shi_op[size]);
+    } else {
+        gen_gvec_fn2i(s, is_q, rd, rn, shift, tcg_gen_gvec_shli, size);
     }
 }
 
@@ -9072,85 +9373,115 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
     }
 }
 
+static void gen_bsl_i64(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    tcg_gen_xor_i64(rn, rn, rm);
+    tcg_gen_and_i64(rn, rn, rd);
+    tcg_gen_xor_i64(rd, rm, rn);
+}
+
+static void gen_bit_i64(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    tcg_gen_xor_i64(rn, rn, rd);
+    tcg_gen_and_i64(rn, rn, rm);
+    tcg_gen_xor_i64(rd, rd, rn);
+}
+
+static void gen_bif_i64(TCGv_i64 rd, TCGv_i64 rn, TCGv_i64 rm)
+{
+    tcg_gen_xor_i64(rn, rn, rd);
+    tcg_gen_andc_i64(rn, rn, rm);
+    tcg_gen_xor_i64(rd, rd, rn);
+}
+
+static void gen_bsl_vec(unsigned vece, TCGv_vec rd, TCGv_vec rn, TCGv_vec rm)
+{
+    tcg_gen_xor_vec(vece, rn, rn, rm);
+    tcg_gen_and_vec(vece, rn, rn, rd);
+    tcg_gen_xor_vec(vece, rd, rm, rn);
+}
+
+static void gen_bit_vec(unsigned vece, TCGv_vec rd, TCGv_vec rn, TCGv_vec rm)
+{
+    tcg_gen_xor_vec(vece, rn, rn, rd);
+    tcg_gen_and_vec(vece, rn, rn, rm);
+    tcg_gen_xor_vec(vece, rd, rd, rn);
+}
+
+static void gen_bif_vec(unsigned vece, TCGv_vec rd, TCGv_vec rn, TCGv_vec rm)
+{
+    tcg_gen_xor_vec(vece, rn, rn, rd);
+    tcg_gen_andc_vec(vece, rn, rn, rm);
+    tcg_gen_xor_vec(vece, rd, rd, rn);
+}
+
 /* Logic op (opcode == 3) subgroup of C3.6.16. */
 static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
 {
+    static const GVecGen3 bsl_op = {
+        .fni8 = gen_bsl_i64,
+        .fniv = gen_bsl_vec,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .load_dest = true
+    };
+    static const GVecGen3 bit_op = {
+        .fni8 = gen_bit_i64,
+        .fniv = gen_bit_vec,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .load_dest = true
+    };
+    static const GVecGen3 bif_op = {
+        .fni8 = gen_bif_i64,
+        .fniv = gen_bif_vec,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .load_dest = true
+    };
+
     int rd = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int rm = extract32(insn, 16, 5);
     int size = extract32(insn, 22, 2);
     bool is_u = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
-    TCGv_i64 tcg_op1, tcg_op2, tcg_res[2];
-    int pass;
 
     if (!fp_access_check(s)) {
         return;
     }
 
-    tcg_op1 = tcg_temp_new_i64();
-    tcg_op2 = tcg_temp_new_i64();
-    tcg_res[0] = tcg_temp_new_i64();
-    tcg_res[1] = tcg_temp_new_i64();
-
-    for (pass = 0; pass < (is_q ? 2 : 1); pass++) {
-        read_vec_element(s, tcg_op1, rn, pass, MO_64);
-        read_vec_element(s, tcg_op2, rm, pass, MO_64);
-
-        if (!is_u) {
-            switch (size) {
-            case 0: /* AND */
-                tcg_gen_and_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 1: /* BIC */
-                tcg_gen_andc_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 2: /* ORR */
-                tcg_gen_or_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 3: /* ORN */
-                tcg_gen_orc_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            }
+    switch (size + 4 * is_u) {
+    case 0: /* AND */
+        gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_and, 0);
+        return;
+    case 1: /* BIC */
+        gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_andc, 0);
+        return;
+    case 2: /* ORR */
+        if (rn == rm) { /* MOV */
+            gen_gvec_fn2(s, is_q, rd, rn, tcg_gen_gvec_mov, 0);
         } else {
-            if (size != 0) {
-                /* B* ops need res loaded to operate on */
-                read_vec_element(s, tcg_res[pass], rd, pass, MO_64);
-            }
-
-            switch (size) {
-            case 0: /* EOR */
-                tcg_gen_xor_i64(tcg_res[pass], tcg_op1, tcg_op2);
-                break;
-            case 1: /* BSL bitwise select */
-                tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_op2);
-                tcg_gen_and_i64(tcg_op1, tcg_op1, tcg_res[pass]);
-                tcg_gen_xor_i64(tcg_res[pass], tcg_op2, tcg_op1);
-                break;
-            case 2: /* BIT, bitwise insert if true */
-                tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_res[pass]);
-                tcg_gen_and_i64(tcg_op1, tcg_op1, tcg_op2);
-                tcg_gen_xor_i64(tcg_res[pass], tcg_res[pass], tcg_op1);
-                break;
-            case 3: /* BIF, bitwise insert if false */
-                tcg_gen_xor_i64(tcg_op1, tcg_op1, tcg_res[pass]);
-                tcg_gen_andc_i64(tcg_op1, tcg_op1, tcg_op2);
-                tcg_gen_xor_i64(tcg_res[pass], tcg_res[pass], tcg_op1);
-                break;
-            }
+            gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_or, 0);
         }
-    }
+        return;
+    case 3: /* ORN */
+        gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_orc, 0);
+        return;
+    case 4: /* EOR */
+        gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_xor, 0);
+        return;
 
-    write_vec_element(s, tcg_res[0], rd, 0, MO_64);
-    if (!is_q) {
-        tcg_gen_movi_i64(tcg_res[1], 0);
-    }
-    write_vec_element(s, tcg_res[1], rd, 1, MO_64);
+    case 5: /* BSL bitwise select */
+        gen_gvec_op3(s, is_q, rd, rn, rm, &bsl_op);
+        return;
+    case 6: /* BIT, bitwise insert if true */
+        gen_gvec_op3(s, is_q, rd, rn, rm, &bit_op);
+        return;
+    case 7: /* BIF, bitwise insert if false */
+        gen_gvec_op3(s, is_q, rd, rn, rm, &bif_op);
+        return;
 
-    tcg_temp_free_i64(tcg_op1);
-    tcg_temp_free_i64(tcg_op2);
-    tcg_temp_free_i64(tcg_res[0]);
-    tcg_temp_free_i64(tcg_res[1]);
+    default:
+        g_assert_not_reached();
+    }
 }
 
 /* Helper functions for 32 bit comparisons */
@@ -9400,9 +9731,131 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
     }
 }
 
+static void gen_mla8_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    gen_helper_neon_mul_u8(a, a, b);
+    gen_helper_neon_add_u8(d, d, a);
+}
+
+static void gen_mla16_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    gen_helper_neon_mul_u16(a, a, b);
+    gen_helper_neon_add_u16(d, d, a);
+}
+
+static void gen_mla32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    tcg_gen_mul_i32(a, a, b);
+    tcg_gen_add_i32(d, d, a);
+}
+
+static void gen_mla64_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_mul_i64(a, a, b);
+    tcg_gen_add_i64(d, d, a);
+}
+
+static void gen_mla_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_mul_vec(vece, a, a, b);
+    tcg_gen_add_vec(vece, d, d, a);
+}
+
+static void gen_mls8_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    gen_helper_neon_mul_u8(a, a, b);
+    gen_helper_neon_sub_u8(d, d, a);
+}
+
+static void gen_mls16_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    gen_helper_neon_mul_u16(a, a, b);
+    gen_helper_neon_sub_u16(d, d, a);
+}
+
+static void gen_mls32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    tcg_gen_mul_i32(a, a, b);
+    tcg_gen_sub_i32(d, d, a);
+}
+
+static void gen_mls64_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_mul_i64(a, a, b);
+    tcg_gen_sub_i64(d, d, a);
+}
+
+static void gen_mls_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_mul_vec(vece, a, a, b);
+    tcg_gen_sub_vec(vece, d, d, a);
+}
+
 /* Integer op subgroup of C3.6.16. */
 static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
 {
+    static const GVecGen3 cmtst_op[4] = {
+        { .fni4 = gen_helper_neon_tst_u8,
+          .fniv = gen_cmtst_vec,
+          .vece = MO_8 },
+        { .fni4 = gen_helper_neon_tst_u16,
+          .fniv = gen_cmtst_vec,
+          .vece = MO_16 },
+        { .fni4 = gen_cmtst_i32,
+          .fniv = gen_cmtst_vec,
+          .vece = MO_32 },
+        { .fni8 = gen_cmtst_i64,
+          .fniv = gen_cmtst_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64 },
+    };
+    static const GVecGen3 mla_op[4] = {
+        { .fni4 = gen_mla8_i32,
+          .fniv = gen_mla_vec,
+          .opc = INDEX_op_mul_vec,
+          .load_dest = true,
+          .vece = MO_8 },
+        { .fni4 = gen_mla16_i32,
+          .fniv = gen_mla_vec,
+          .opc = INDEX_op_mul_vec,
+          .load_dest = true,
+          .vece = MO_16 },
+        { .fni4 = gen_mla32_i32,
+          .fniv = gen_mla_vec,
+          .opc = INDEX_op_mul_vec,
+          .load_dest = true,
+          .vece = MO_32 },
+        { .fni8 = gen_mla64_i64,
+          .fniv = gen_mla_vec,
+          .opc = INDEX_op_mul_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .vece = MO_64 },
+    };
+    static const GVecGen3 mls_op[4] = {
+        { .fni4 = gen_mls8_i32,
+          .fniv = gen_mls_vec,
+          .opc = INDEX_op_mul_vec,
+          .load_dest = true,
+          .vece = MO_8 },
+        { .fni4 = gen_mls16_i32,
+          .fniv = gen_mls_vec,
+          .opc = INDEX_op_mul_vec,
+          .load_dest = true,
+          .vece = MO_16 },
+        { .fni4 = gen_mls32_i32,
+          .fniv = gen_mls_vec,
+          .opc = INDEX_op_mul_vec,
+          .load_dest = true,
+          .vece = MO_32 },
+        { .fni8 = gen_mls64_i64,
+          .fniv = gen_mls_vec,
+          .opc = INDEX_op_mul_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .load_dest = true,
+          .vece = MO_64 },
+    };
+
     int is_q = extract32(insn, 30, 1);
     int u = extract32(insn, 29, 1);
     int size = extract32(insn, 22, 2);
@@ -9411,6 +9864,7 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     int pass;
+    TCGCond cond;
 
     switch (opcode) {
     case 0x13: /* MUL, PMUL */
@@ -9447,6 +9901,48 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     }
 
     if (!fp_access_check(s)) {
+        return;
+    }
+
+    switch (opcode) {
+    case 0x10: /* ADD, SUB */
+        if (u) {
+            gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_sub, size);
+        } else {
+            gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_add, size);
+        }
+        return;
+    case 0x13: /* MUL, PMUL */
+        if (!u) { /* MUL */
+            gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_mul, size);
+            return;
+        }
+        break;
+    case 0x12: /* MLA, MLS */
+        if (u) {
+            gen_gvec_op3(s, is_q, rd, rn, rm, &mls_op[size]);
+        } else {
+            gen_gvec_op3(s, is_q, rd, rn, rm, &mla_op[size]);
+        }
+        return;
+    case 0x11:
+        if (!u) { /* CMTST */
+            gen_gvec_op3(s, is_q, rd, rn, rm, &cmtst_op[size]);
+            return;
+        }
+        /* else CMEQ */
+        cond = TCG_COND_EQ;
+        goto do_gvec_cmp;
+    case 0x06: /* CMGT, CMHI */
+        cond = u ? TCG_COND_GTU : TCG_COND_GT;
+        goto do_gvec_cmp;
+    case 0x07: /* CMGE, CMHS */
+        cond = u ? TCG_COND_GEU : TCG_COND_GE;
+    do_gvec_cmp:
+        tcg_gen_gvec_cmp(cond, size, vec_full_reg_offset(s, rd),
+                         vec_full_reg_offset(s, rn),
+                         vec_full_reg_offset(s, rm),
+                         is_q ? 16 : 8, vec_full_reg_size(s));
         return;
     }
 
@@ -9530,26 +10026,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genenvfn = fns[size][u];
                 break;
             }
-            case 0x6: /* CMGT, CMHI */
-            {
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_cgt_s8, gen_helper_neon_cgt_u8 },
-                    { gen_helper_neon_cgt_s16, gen_helper_neon_cgt_u16 },
-                    { gen_helper_neon_cgt_s32, gen_helper_neon_cgt_u32 },
-                };
-                genfn = fns[size][u];
-                break;
-            }
-            case 0x7: /* CMGE, CMHS */
-            {
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_cge_s8, gen_helper_neon_cge_u8 },
-                    { gen_helper_neon_cge_s16, gen_helper_neon_cge_u16 },
-                    { gen_helper_neon_cge_s32, gen_helper_neon_cge_u32 },
-                };
-                genfn = fns[size][u];
-                break;
-            }
             case 0x8: /* SSHL, USHL */
             {
                 static NeonGenTwoOpFn * const fns[3][2] = {
@@ -9622,44 +10098,11 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genfn = fns[size][u];
                 break;
             }
-            case 0x10: /* ADD, SUB */
-            {
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_add_u8, gen_helper_neon_sub_u8 },
-                    { gen_helper_neon_add_u16, gen_helper_neon_sub_u16 },
-                    { tcg_gen_add_i32, tcg_gen_sub_i32 },
-                };
-                genfn = fns[size][u];
-                break;
-            }
-            case 0x11: /* CMTST, CMEQ */
-            {
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_tst_u8, gen_helper_neon_ceq_u8 },
-                    { gen_helper_neon_tst_u16, gen_helper_neon_ceq_u16 },
-                    { gen_helper_neon_tst_u32, gen_helper_neon_ceq_u32 },
-                };
-                genfn = fns[size][u];
-                break;
-            }
             case 0x13: /* MUL, PMUL */
-                if (u) {
-                    /* PMUL */
-                    assert(size == 0);
-                    genfn = gen_helper_neon_mul_p8;
-                    break;
-                }
-                /* fall through : MUL */
-            case 0x12: /* MLA, MLS */
-            {
-                static NeonGenTwoOpFn * const fns[3] = {
-                    gen_helper_neon_mul_u8,
-                    gen_helper_neon_mul_u16,
-                    tcg_gen_mul_i32,
-                };
-                genfn = fns[size];
+                assert(u); /* PMUL */
+                assert(size == 0);
+                genfn = gen_helper_neon_mul_p8;
                 break;
-            }
             case 0x16: /* SQDMULH, SQRDMULH */
             {
                 static NeonGenTwoOpEnvFn * const fns[2][2] = {
@@ -9680,18 +10123,16 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genfn(tcg_res, tcg_op1, tcg_op2);
             }
 
-            if (opcode == 0xf || opcode == 0x12) {
-                /* SABA, UABA, MLA, MLS: accumulating ops */
-                static NeonGenTwoOpFn * const fns[3][2] = {
-                    { gen_helper_neon_add_u8, gen_helper_neon_sub_u8 },
-                    { gen_helper_neon_add_u16, gen_helper_neon_sub_u16 },
-                    { tcg_gen_add_i32, tcg_gen_sub_i32 },
+            if (opcode == 0xf) {
+                /* SABA, UABA: accumulating ops */
+                static NeonGenTwoOpFn * const fns[3] = {
+                    gen_helper_neon_add_u8,
+                    gen_helper_neon_add_u16,
+                    tcg_gen_add_i32,
                 };
-                bool is_sub = (opcode == 0x12 && u); /* MLS */
 
-                genfn = fns[size][is_sub];
                 read_vec_element_i32(s, tcg_op1, rd, pass, MO_32);
-                genfn(tcg_res, tcg_op1, tcg_res);
+                fns[size](tcg_res, tcg_op1, tcg_res);
             }
 
             write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
@@ -10003,8 +10444,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         return;
     case 0x5: /* CNT, NOT, RBIT */
         if (u && size == 0) {
-            /* NOT: adjust size so we can use the 64-bits-at-a-time loop. */
-            size = 3;
+            /* NOT */
             break;
         } else if (u && size == 1) {
             /* RBIT */
@@ -10254,6 +10694,21 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
     } else {
         tcg_rmode = NULL;
+    }
+
+    switch (opcode) {
+    case 0x5:
+        if (u && size == 0) { /* NOT */
+            gen_gvec_fn2(s, is_q, rd, rn, tcg_gen_gvec_not, 0);
+            return;
+        }
+        break;
+    case 0xb:
+        if (u) { /* NEG */
+            gen_gvec_fn2(s, is_q, rd, rn, tcg_gen_gvec_neg, size);
+            return;
+        }
+        break;
     }
 
     if (size == 3) {

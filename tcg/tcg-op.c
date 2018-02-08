@@ -140,7 +140,7 @@ void tcg_gen_subi_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
     }
 }
 
-void tcg_gen_andi_i32(TCGv_i32 ret, TCGv_i32 arg1, uint32_t arg2)
+void tcg_gen_andi_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 {
     TCGv_i32 t0;
     /* Some cases can be optimized here.  */
@@ -148,17 +148,17 @@ void tcg_gen_andi_i32(TCGv_i32 ret, TCGv_i32 arg1, uint32_t arg2)
     case 0:
         tcg_gen_movi_i32(ret, 0);
         return;
-    case 0xffffffffu:
+    case -1:
         tcg_gen_mov_i32(ret, arg1);
         return;
-    case 0xffu:
+    case 0xff:
         /* Don't recurse with tcg_gen_ext8u_i32.  */
         if (TCG_TARGET_HAS_ext8u_i32) {
             tcg_gen_op2_i32(INDEX_op_ext8u_i32, ret, arg1);
             return;
         }
         break;
-    case 0xffffu:
+    case 0xffff:
         if (TCG_TARGET_HAS_ext16u_i32) {
             tcg_gen_op2_i32(INDEX_op_ext16u_i32, ret, arg1);
             return;
@@ -199,9 +199,9 @@ void tcg_gen_xori_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
     }
 }
 
-void tcg_gen_shli_i32(TCGv_i32 ret, TCGv_i32 arg1, unsigned arg2)
+void tcg_gen_shli_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 {
-    tcg_debug_assert(arg2 < 32);
+    tcg_debug_assert(arg2 >= 0 && arg2 < 32);
     if (arg2 == 0) {
         tcg_gen_mov_i32(ret, arg1);
     } else {
@@ -211,9 +211,9 @@ void tcg_gen_shli_i32(TCGv_i32 ret, TCGv_i32 arg1, unsigned arg2)
     }
 }
 
-void tcg_gen_shri_i32(TCGv_i32 ret, TCGv_i32 arg1, unsigned arg2)
+void tcg_gen_shri_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 {
-    tcg_debug_assert(arg2 < 32);
+    tcg_debug_assert(arg2 >= 0 && arg2 < 32);
     if (arg2 == 0) {
         tcg_gen_mov_i32(ret, arg1);
     } else {
@@ -223,9 +223,9 @@ void tcg_gen_shri_i32(TCGv_i32 ret, TCGv_i32 arg1, unsigned arg2)
     }
 }
 
-void tcg_gen_sari_i32(TCGv_i32 ret, TCGv_i32 arg1, unsigned arg2)
+void tcg_gen_sari_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 {
-    tcg_debug_assert(arg2 < 32);
+    tcg_debug_assert(arg2 >= 0 && arg2 < 32);
     if (arg2 == 0) {
         tcg_gen_mov_i32(ret, arg1);
     } else {
@@ -1201,7 +1201,7 @@ void tcg_gen_subi_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
     }
 }
 
-void tcg_gen_andi_i64(TCGv_i64 ret, TCGv_i64 arg1, uint64_t arg2)
+void tcg_gen_andi_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 {
     TCGv_i64 t0;
 
@@ -1216,23 +1216,23 @@ void tcg_gen_andi_i64(TCGv_i64 ret, TCGv_i64 arg1, uint64_t arg2)
     case 0:
         tcg_gen_movi_i64(ret, 0);
         return;
-    case 0xffffffffffffffffull:
+    case -1:
         tcg_gen_mov_i64(ret, arg1);
         return;
-    case 0xffull:
+    case 0xff:
         /* Don't recurse with tcg_gen_ext8u_i64.  */
         if (TCG_TARGET_HAS_ext8u_i64) {
             tcg_gen_op2_i64(INDEX_op_ext8u_i64, ret, arg1);
             return;
         }
         break;
-    case 0xffffu:
+    case 0xffff:
         if (TCG_TARGET_HAS_ext16u_i64) {
             tcg_gen_op2_i64(INDEX_op_ext16u_i64, ret, arg1);
             return;
         }
         break;
-    case 0xffffffffull:
+    case 0xffffffffu:
         if (TCG_TARGET_HAS_ext32u_i64) {
             tcg_gen_op2_i64(INDEX_op_ext32u_i64, ret, arg1);
             return;
@@ -1332,9 +1332,9 @@ static inline void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
     }
 }
 
-void tcg_gen_shli_i64(TCGv_i64 ret, TCGv_i64 arg1, unsigned arg2)
+void tcg_gen_shli_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 {
-    tcg_debug_assert(arg2 < 64);
+    tcg_debug_assert(arg2 >= 0 && arg2 < 64);
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_shifti_i64(ret, arg1, arg2, 0, 0);
     } else if (arg2 == 0) {
@@ -1346,9 +1346,9 @@ void tcg_gen_shli_i64(TCGv_i64 ret, TCGv_i64 arg1, unsigned arg2)
     }
 }
 
-void tcg_gen_shri_i64(TCGv_i64 ret, TCGv_i64 arg1, unsigned arg2)
+void tcg_gen_shri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 {
-    tcg_debug_assert(arg2 < 64);
+    tcg_debug_assert(arg2 >= 0 && arg2 < 64);
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_shifti_i64(ret, arg1, arg2, 1, 0);
     } else if (arg2 == 0) {
@@ -1360,9 +1360,9 @@ void tcg_gen_shri_i64(TCGv_i64 ret, TCGv_i64 arg1, unsigned arg2)
     }
 }
 
-void tcg_gen_sari_i64(TCGv_i64 ret, TCGv_i64 arg1, unsigned arg2)
+void tcg_gen_sari_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 {
-    tcg_debug_assert(arg2 < 64);
+    tcg_debug_assert(arg2 >= 0 && arg2 < 64);
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_shifti_i64(ret, arg1, arg2, 1, 1);
     } else if (arg2 == 0) {
