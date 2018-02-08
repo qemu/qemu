@@ -691,7 +691,7 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
     uint32_t adma1 = 0;
     uint64_t adma2 = 0;
     hwaddr entry_addr = (hwaddr)s->admasysaddr;
-    switch (SDHC_DMA_TYPE(s->hostctl)) {
+    switch (SDHC_DMA_TYPE(s->hostctl1)) {
     case SDHC_CTRL_ADMA2_32:
         dma_memory_read(s->dma_as, entry_addr, (uint8_t *)&adma2,
                         sizeof(adma2));
@@ -880,7 +880,7 @@ static void sdhci_data_transfer(void *opaque)
     SDHCIState *s = (SDHCIState *)opaque;
 
     if (s->trnmod & SDHC_TRNS_DMA) {
-        switch (SDHC_DMA_TYPE(s->hostctl)) {
+        switch (SDHC_DMA_TYPE(s->hostctl1)) {
         case SDHC_CTRL_SDMA:
             if ((s->blkcnt == 1) || !(s->trnmod & SDHC_TRNS_MULTI)) {
                 sdhci_sdma_transfer_single_block(s);
@@ -989,7 +989,7 @@ static uint64_t sdhci_read(void *opaque, hwaddr offset, unsigned size)
         ret = s->prnsts;
         break;
     case SDHC_HOSTCTL:
-        ret = s->hostctl | (s->pwrcon << 8) | (s->blkgap << 16) |
+        ret = s->hostctl1 | (s->pwrcon << 8) | (s->blkgap << 16) |
               (s->wakcon << 24);
         break;
     case SDHC_CLKCON:
@@ -1107,7 +1107,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         MASKED_WRITE(s->sdmasysad, mask, value);
         /* Writing to last byte of sdmasysad might trigger transfer */
         if (!(mask & 0xFF000000) && TRANSFERRING_DATA(s->prnsts) && s->blkcnt &&
-                s->blksize && SDHC_DMA_TYPE(s->hostctl) == SDHC_CTRL_SDMA) {
+                s->blksize && SDHC_DMA_TYPE(s->hostctl1) == SDHC_CTRL_SDMA) {
             if (s->trnmod & SDHC_TRNS_MULTI) {
                 sdhci_sdma_transfer_multi_blocks(s);
             } else {
@@ -1159,7 +1159,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         if (!(mask & 0xFF0000)) {
             sdhci_blkgap_write(s, value >> 16);
         }
-        MASKED_WRITE(s->hostctl, mask, value);
+        MASKED_WRITE(s->hostctl1, mask, value);
         MASKED_WRITE(s->pwrcon, mask >> 8, value >> 8);
         MASKED_WRITE(s->wakcon, mask >> 24, value >> 24);
         if (!(s->prnsts & SDHC_CARD_PRESENT) || ((s->pwrcon >> 1) & 0x7) < 5 ||
@@ -1380,7 +1380,7 @@ const VMStateDescription sdhci_vmstate = {
         VMSTATE_UINT16(cmdreg, SDHCIState),
         VMSTATE_UINT32_ARRAY(rspreg, SDHCIState, 4),
         VMSTATE_UINT32(prnsts, SDHCIState),
-        VMSTATE_UINT8(hostctl, SDHCIState),
+        VMSTATE_UINT8(hostctl1, SDHCIState),
         VMSTATE_UINT8(pwrcon, SDHCIState),
         VMSTATE_UINT8(blkgap, SDHCIState),
         VMSTATE_UINT8(wakcon, SDHCIState),
@@ -1586,7 +1586,7 @@ static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
 {
     SDHCIState *s = SYSBUS_SDHCI(opaque);
     uint32_t ret;
-    uint16_t hostctl;
+    uint16_t hostctl1;
 
     switch (offset) {
     default:
@@ -1598,17 +1598,17 @@ static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
          * manipulation code see comments in a similar part of
          * usdhc_write()
          */
-        hostctl = SDHC_DMA_TYPE(s->hostctl) << (8 - 3);
+        hostctl1 = SDHC_DMA_TYPE(s->hostctl1) << (8 - 3);
 
-        if (s->hostctl & SDHC_CTRL_8BITBUS) {
-            hostctl |= ESDHC_CTRL_8BITBUS;
+        if (s->hostctl1 & SDHC_CTRL_8BITBUS) {
+            hostctl1 |= ESDHC_CTRL_8BITBUS;
         }
 
-        if (s->hostctl & SDHC_CTRL_4BITBUS) {
-            hostctl |= ESDHC_CTRL_4BITBUS;
+        if (s->hostctl1 & SDHC_CTRL_4BITBUS) {
+            hostctl1 |= ESDHC_CTRL_4BITBUS;
         }
 
-        ret  = hostctl;
+        ret  = hostctl1;
         ret |= (uint32_t)s->blkgap << 16;
         ret |= (uint32_t)s->wakcon << 24;
 
@@ -1632,7 +1632,7 @@ static void
 usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 {
     SDHCIState *s = SYSBUS_SDHCI(opaque);
-    uint8_t hostctl;
+    uint8_t hostctl1;
     uint32_t value = (uint32_t)val;
 
     switch (offset) {
@@ -1695,25 +1695,25 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         /*
          * First, save bits 7 6 and 0 since they are identical
          */
-        hostctl = value & (SDHC_CTRL_LED |
-                           SDHC_CTRL_CDTEST_INS |
-                           SDHC_CTRL_CDTEST_EN);
+        hostctl1 = value & (SDHC_CTRL_LED |
+                            SDHC_CTRL_CDTEST_INS |
+                            SDHC_CTRL_CDTEST_EN);
         /*
          * Second, split "Data Transfer Width" from bits 2 and 1 in to
          * bits 5 and 1
          */
         if (value & ESDHC_CTRL_8BITBUS) {
-            hostctl |= SDHC_CTRL_8BITBUS;
+            hostctl1 |= SDHC_CTRL_8BITBUS;
         }
 
         if (value & ESDHC_CTRL_4BITBUS) {
-            hostctl |= ESDHC_CTRL_4BITBUS;
+            hostctl1 |= ESDHC_CTRL_4BITBUS;
         }
 
         /*
          * Third, move DMA select from bits 9 and 8 to bits 4 and 3
          */
-        hostctl |= SDHC_DMA_TYPE(value >> (8 - 3));
+        hostctl1 |= SDHC_DMA_TYPE(value >> (8 - 3));
 
         /*
          * Now place the corrected value into low 16-bit of the value
@@ -1724,7 +1724,7 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
          * kernel
          */
         value &= ~UINT16_MAX;
-        value |= hostctl;
+        value |= hostctl1;
         value |= (uint16_t)s->pwrcon << 8;
 
         sdhci_write(opaque, offset, value, size);
