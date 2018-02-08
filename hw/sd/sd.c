@@ -126,7 +126,19 @@ struct SDState {
     BlockBackend *blk;
 
     bool enable;
+    uint8_t dat_lines;
+    bool cmd_line;
 };
+
+static uint8_t sd_get_dat_lines(SDState *sd)
+{
+    return sd->enable ? sd->dat_lines : 0;
+}
+
+static bool sd_get_cmd_line(SDState *sd)
+{
+    return sd->enable ? sd->cmd_line : false;
+}
 
 static void sd_set_voltage(SDState *sd, uint16_t millivolts)
 {
@@ -457,6 +469,8 @@ static void sd_reset(DeviceState *dev)
     sd->blk_len = 0x200;
     sd->pwd_len = 0;
     sd->expecting_acmd = false;
+    sd->dat_lines = 0xf;
+    sd->cmd_line = true;
     sd->multi_blk_cnt = 0;
 }
 
@@ -1939,6 +1953,8 @@ static void sd_class_init(ObjectClass *klass, void *data)
     dc->bus_type = TYPE_SD_BUS;
 
     sc->set_voltage = sd_set_voltage;
+    sc->get_dat_lines = sd_get_dat_lines;
+    sc->get_cmd_line = sd_get_cmd_line;
     sc->do_command = sd_do_command;
     sc->write_data = sd_write_data;
     sc->read_data = sd_read_data;

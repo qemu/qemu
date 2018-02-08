@@ -1003,6 +1003,10 @@ static uint64_t sdhci_read(void *opaque, hwaddr offset, unsigned size)
         break;
     case SDHC_PRNSTS:
         ret = s->prnsts;
+        ret = FIELD_DP32(ret, SDHC_PRNSTS, DAT_LVL,
+                         sdbus_get_dat_lines(&s->sdbus));
+        ret = FIELD_DP32(ret, SDHC_PRNSTS, CMD_LVL,
+                         sdbus_get_cmd_line(&s->sdbus));
         break;
     case SDHC_HOSTCTL:
         ret = s->hostctl1 | (s->pwrcon << 8) | (s->blkgap << 16) |

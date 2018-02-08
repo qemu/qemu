@@ -41,6 +41,40 @@ static SDState *get_card(SDBus *sdbus)
     return SD_CARD(kid->child);
 }
 
+uint8_t sdbus_get_dat_lines(SDBus *sdbus)
+{
+    SDState *slave = get_card(sdbus);
+    uint8_t dat_lines = 0b1111; /* 4 bit bus width */
+
+    if (slave) {
+        SDCardClass *sc = SD_CARD_GET_CLASS(slave);
+
+        if (sc->get_dat_lines) {
+            dat_lines = sc->get_dat_lines(slave);
+        }
+    }
+    trace_sdbus_get_dat_lines(sdbus_name(sdbus), dat_lines);
+
+    return dat_lines;
+}
+
+bool sdbus_get_cmd_line(SDBus *sdbus)
+{
+    SDState *slave = get_card(sdbus);
+    bool cmd_line = true;
+
+    if (slave) {
+        SDCardClass *sc = SD_CARD_GET_CLASS(slave);
+
+        if (sc->get_cmd_line) {
+            cmd_line = sc->get_cmd_line(slave);
+        }
+    }
+    trace_sdbus_get_cmd_line(sdbus_name(sdbus), cmd_line);
+
+    return cmd_line;
+}
+
 void sdbus_set_voltage(SDBus *sdbus, uint16_t millivolts)
 {
     SDState *card = get_card(sdbus);
