@@ -27,6 +27,7 @@
 #include "hw/ppc/mac.h"
 #include "hw/input/adb.h"
 #include "hw/misc/mos6522.h"
+#include "hw/misc/macio/cuda.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
