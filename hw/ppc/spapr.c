@@ -2310,7 +2310,7 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
          * the value that we'd get with KVM on POWER8, the
          * overwhelmingly common case in production systems.
          */
-        spapr->vsmt = 8;
+        spapr->vsmt = MAX(8, smp_threads);
     }
 
     /* KVM: If necessary, set the SMT mode: */
