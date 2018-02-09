@@ -1506,6 +1506,19 @@ static inline bool armv7m_nvic_can_take_pending_exception(void *opaque)
  */
 void armv7m_nvic_set_pending(void *opaque, int irq, bool secure);
 /**
+ * armv7m_nvic_set_pending_derived: mark this derived exception as pending
+ * @opaque: the NVIC
+ * @irq: the exception number to mark pending
+ * @secure: false for non-banked exceptions or for the nonsecure
+ * version of a banked exception, true for the secure version of a banked
+ * exception.
+ *
+ * Similar to armv7m_nvic_set_pending(), but specifically for derived
+ * exceptions (exceptions generated in the course of trying to take
+ * a different exception).
+ */
+void armv7m_nvic_set_pending_derived(void *opaque, int irq, bool secure);
+/**
  * armv7m_nvic_acknowledge_irq: make highest priority pending exception active
  * @opaque: the NVIC
  *

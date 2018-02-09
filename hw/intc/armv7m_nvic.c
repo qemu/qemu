@@ -503,8 +503,25 @@ static void armv7m_nvic_clear_pending(void *opaque, int irq, bool secure)
     }
 }
 
-void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
+static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
+                                       bool derived)
 {
+    /* Pend an exception, including possibly escalating it to HardFault.
+     *
+     * This function handles both "normal" pending of interrupts and
+     * exceptions, and also derived exceptions (ones which occur as
+     * a result of trying to take some other exception).
+     *
+     * If derived == true, the caller guarantees that we are part way through
+     * trying to take an exception (but have not yet called
+     * armv7m_nvic_acknowledge_irq() to make it active), and so:
+     *  - s->vectpending is the "original exception" we were trying to take
+     *  - irq is the "derived exception"
+     *  - nvic_exec_prio(s) gives the priority before exception entry
+     * Here we handle the prioritization logic which the pseudocode puts
+     * in the DerivedLateArrival() function.
+     */
+
     NVICState *s = (NVICState *)opaque;
     bool banked = exc_is_banked(irq);
     VecInfo *vec;
@@ -514,7 +531,44 @@ void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
 
     vec = (banked && secure) ? &s->sec_vectors[irq] : &s->vectors[irq];
 
-    trace_nvic_set_pending(irq, secure, vec->enabled, vec->prio);
+    trace_nvic_set_pending(irq, secure, derived, vec->enabled, vec->prio);
+
+    if (derived) {
+        /* Derived exceptions are always synchronous. */
+        assert(irq >= ARMV7M_EXCP_HARD && irq < ARMV7M_EXCP_PENDSV);
+
+        if (irq == ARMV7M_EXCP_DEBUG &&
+            exc_group_prio(s, vec->prio, secure) >= nvic_exec_prio(s)) {
+            /* DebugMonitorFault, but its priority is lower than the
+             * preempted exception priority: just ignore it.
+             */
+            return;
+        }
+
+        if (irq == ARMV7M_EXCP_HARD && vec->prio >= s->vectpending_prio) {
+            /* If this is a terminal exception (one which means we cannot
+             * take the original exception, like a failure to read its
+             * vector table entry), then we must take the derived exception.
+             * If the derived exception can't take priority over the
+             * original exception, then we go into Lockup.
+             *
+             * For QEMU, we rely on the fact that a derived exception is
+             * terminal if and only if it's reported to us as HardFault,
+             * which saves having to have an extra argument is_terminal
+             * that we'd only use in one place.
+             */
+            cpu_abort(&s->cpu->parent_obj,
+                      "Lockup: can't take terminal derived exception "
+                      "(original exception priority %d)\n",
+                      s->vectpending_prio);
+        }
+        /* We now continue with the same code as for a normal pending
+         * exception, which will cause us to pend the derived exception.
+         * We'll then take either the original or the derived exception
+         * based on which is higher priority by the usual mechanism
+         * for selecting the highest priority pending interrupt.
+         */
+    }
 
     if (irq >= ARMV7M_EXCP_HARD && irq < ARMV7M_EXCP_PENDSV) {
         /* If a synchronous exception is pending then it may be
@@ -583,6 +637,16 @@ void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
         vec->pending = 1;
         nvic_irq_update(s);
     }
+}
+
+void armv7m_nvic_set_pending(void *opaque, int irq, bool secure)
+{
+    do_armv7m_nvic_set_pending(opaque, irq, secure, false);
+}
+
+void armv7m_nvic_set_pending_derived(void *opaque, int irq, bool secure)
+{
+    do_armv7m_nvic_set_pending(opaque, irq, secure, true);
 }
 
 /* Make pending IRQ active.  */
