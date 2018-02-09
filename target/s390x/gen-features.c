@@ -59,6 +59,12 @@
     S390_FEAT_PTFF_QTOU, \
     S390_FEAT_PTFF_STOU
 
+#define S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF \
+    S390_FEAT_PTFF_QSIE, \
+    S390_FEAT_PTFF_QTOUE, \
+    S390_FEAT_PTFF_STOE, \
+    S390_FEAT_PTFF_STOUE
+
 #define S390_FEAT_GROUP_MSA \
     S390_FEAT_MSA, \
     S390_FEAT_KMAC_DEA, \
@@ -218,6 +224,9 @@ static uint16_t group_TOD_CLOCK_STEERING[] = {
 };
 static uint16_t group_GEN13_PTFF[] = {
     S390_FEAT_GROUP_GEN13_PTFF,
+};
+static uint16_t group_MULTIPLE_EPOCH_PTFF[] = {
+    S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF,
 };
 static uint16_t group_MSA[] = {
     S390_FEAT_GROUP_MSA,
@@ -466,6 +475,7 @@ static uint16_t full_GEN14_GA1[] = {
     S390_FEAT_CMM_NT,
     S390_FEAT_HPMA2,
     S390_FEAT_SIE_KSS,
+    S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF,
 };
 
 /* Default features (in order of release)
@@ -572,8 +582,10 @@ static uint16_t qemu_LATEST[] = {
     S390_FEAT_STFLE_49,
     S390_FEAT_LOCAL_TLB_CLEARING,
     S390_FEAT_INTERLOCKED_ACCESS_2,
-    S390_FEAT_MSA_EXT_4,
+    S390_FEAT_ADAPTER_EVENT_NOTIFICATION,
+    S390_FEAT_ADAPTER_INT_SUPPRESSION,
     S390_FEAT_MSA_EXT_3,
+    S390_FEAT_MSA_EXT_4,
 };
 
 /* add all new definitions before this point */
@@ -582,6 +594,8 @@ static uint16_t qemu_MAX[] = {
     S390_FEAT_STFLE_53,
     /* generates a dependency warning, leave it out for now */
     S390_FEAT_MSA_EXT_5,
+    /* only with CONFIG_PCI */
+    S390_FEAT_ZPCI,
 };
 
 /****** END FEATURE DEFS ******/
@@ -664,6 +678,7 @@ static FeatGroupDefSpec FeatGroupDef[] = {
     FEAT_GROUP_INITIALIZER(PLO),
     FEAT_GROUP_INITIALIZER(TOD_CLOCK_STEERING),
     FEAT_GROUP_INITIALIZER(GEN13_PTFF),
+    FEAT_GROUP_INITIALIZER(MULTIPLE_EPOCH_PTFF),
     FEAT_GROUP_INITIALIZER(MSA),
     FEAT_GROUP_INITIALIZER(MSA_EXT_1),
     FEAT_GROUP_INITIALIZER(MSA_EXT_2),

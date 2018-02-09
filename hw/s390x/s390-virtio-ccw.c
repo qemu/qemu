@@ -78,10 +78,6 @@ static void s390_init_cpus(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     int i;
 
-    if (tcg_enabled() && max_cpus > 1) {
-        error_report("WARNING: SMP support on s390x is experimental!");
-    }
-
     /* initialize possible_cpus */
     mc->possible_cpu_arch_ids(machine);
 
