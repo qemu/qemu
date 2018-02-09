@@ -11632,6 +11632,10 @@ static void disas_crypto_three_reg_sha512(DisasContext *s, uint32_t insn)
             feature = ARM_FEATURE_V8_SM3;
             genfn = gen_helper_crypto_sm3partw2;
             break;
+        case 2: /* SM4EKEY */
+            feature = ARM_FEATURE_V8_SM4;
+            genfn = gen_helper_crypto_sm4ekey;
+            break;
         default:
             unallocated_encoding(s);
             return;
@@ -11704,6 +11708,10 @@ static void disas_crypto_two_reg_sha512(DisasContext *s, uint32_t insn)
     case 0: /* SHA512SU0 */
         feature = ARM_FEATURE_V8_SHA512;
         genfn = gen_helper_crypto_sha512su0;
+        break;
+    case 1: /* SM4E */
+        feature = ARM_FEATURE_V8_SM4;
+        genfn = gen_helper_crypto_sm4e;
         break;
     default:
         unallocated_encoding(s);
