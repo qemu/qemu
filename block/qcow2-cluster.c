@@ -2070,7 +2070,15 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
         int l1_sectors = DIV_ROUND_UP(s->snapshots[i].l1_size *
                                       sizeof(uint64_t), BDRV_SECTOR_SIZE);
 
-        l1_table = g_realloc(l1_table, l1_sectors * BDRV_SECTOR_SIZE);
+        uint64_t *new_l1_table =
+            g_try_realloc(l1_table, l1_sectors * BDRV_SECTOR_SIZE);
+
+        if (!new_l1_table) {
+            ret = -ENOMEM;
+            goto fail;
+        }
+
+        l1_table = new_l1_table;
 
         ret = bdrv_read(bs->file,
                         s->snapshots[i].l1_table_offset / BDRV_SECTOR_SIZE,
