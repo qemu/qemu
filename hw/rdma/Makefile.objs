@@ -1,0 +1,3 @@
+ifeq ($(CONFIG_RDMA),y)
+obj-$(CONFIG_PCI) += rdma_utils.o
+endif
