@@ -145,21 +145,29 @@ static void cuda_update_irq(CUDAState *s)
     }
 }
 
-static uint64_t get_tb(uint64_t time, uint64_t freq)
+static uint64_t get_counter_value(CUDAState *s, CUDATimer *ti)
 {
-    return muldiv64(time, freq, NANOSECONDS_PER_SECOND);
+    /* Reverse of the tb calculation algorithm that Mac OS X uses on bootup */
+    uint64_t tb_diff = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                                s->tb_frequency, NANOSECONDS_PER_SECOND) -
+                           ti->load_time;
+
+    return (tb_diff * 0xBF401675E5DULL) / (s->tb_frequency << 24);
+}
+
+static uint64_t get_counter_load_time(CUDAState *s, CUDATimer *ti)
+{
+    uint64_t load_time = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                                  s->tb_frequency, NANOSECONDS_PER_SECOND);
+    return load_time;
 }
 
 static unsigned int get_counter(CUDAState *s, CUDATimer *ti)
 {
     int64_t d;
     unsigned int counter;
-    uint64_t tb_diff;
-    uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    /* Reverse of the tb calculation algorithm that Mac OS X uses on bootup. */
-    tb_diff = get_tb(current_time, s->tb_frequency) - ti->load_time;
-    d = (tb_diff * 0xBF401675E5DULL) / (s->tb_frequency << 24);
+    d = get_counter_value(s, ti);
 
     if (ti->index == 0) {
         /* the timer goes down from latch to -1 (period of latch + 2) */
@@ -178,8 +186,7 @@ static unsigned int get_counter(CUDAState *s, CUDATimer *ti)
 static void set_counter(CUDAState *s, CUDATimer *ti, unsigned int val)
 {
     CUDA_DPRINTF("T%d.counter=%d\n", 1 + ti->index, val);
-    ti->load_time = get_tb(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
-                           s->tb_frequency);
+    ti->load_time = get_counter_load_time(s, ti);
     ti->counter_value = val;
     cuda_timer_update(s, ti, ti->load_time);
 }
