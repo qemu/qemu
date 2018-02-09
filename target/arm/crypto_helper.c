@@ -1,7 +1,7 @@
 /*
  * crypto_helper.c - emulate v8 Crypto Extensions instructions
  *
- * Copyright (C) 2013 - 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2018 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -418,4 +418,92 @@ void HELPER(crypto_sha256su1)(void *vd, void *vn, void *vm)
 
     rd[0] = d.l[0];
     rd[1] = d.l[1];
+}
+
+/*
+ * The SHA-512 logical functions (same as above but using 64-bit operands)
+ */
+
+static uint64_t cho512(uint64_t x, uint64_t y, uint64_t z)
+{
+    return (x & (y ^ z)) ^ z;
+}
+
+static uint64_t maj512(uint64_t x, uint64_t y, uint64_t z)
+{
+    return (x & y) | ((x | y) & z);
+}
+
+static uint64_t S0_512(uint64_t x)
+{
+    return ror64(x, 28) ^ ror64(x, 34) ^ ror64(x, 39);
+}
+
+static uint64_t S1_512(uint64_t x)
+{
+    return ror64(x, 14) ^ ror64(x, 18) ^ ror64(x, 41);
+}
+
+static uint64_t s0_512(uint64_t x)
+{
+    return ror64(x, 1) ^ ror64(x, 8) ^ (x >> 7);
+}
+
+static uint64_t s1_512(uint64_t x)
+{
+    return ror64(x, 19) ^ ror64(x, 61) ^ (x >> 6);
+}
+
+void HELPER(crypto_sha512h)(void *vd, void *vn, void *vm)
+{
+    uint64_t *rd = vd;
+    uint64_t *rn = vn;
+    uint64_t *rm = vm;
+    uint64_t d0 = rd[0];
+    uint64_t d1 = rd[1];
+
+    d1 += S1_512(rm[1]) + cho512(rm[1], rn[0], rn[1]);
+    d0 += S1_512(d1 + rm[0]) + cho512(d1 + rm[0], rm[1], rn[0]);
+
+    rd[0] = d0;
+    rd[1] = d1;
+}
+
+void HELPER(crypto_sha512h2)(void *vd, void *vn, void *vm)
+{
+    uint64_t *rd = vd;
+    uint64_t *rn = vn;
+    uint64_t *rm = vm;
+    uint64_t d0 = rd[0];
+    uint64_t d1 = rd[1];
+
+    d1 += S0_512(rm[0]) + maj512(rn[0], rm[1], rm[0]);
+    d0 += S0_512(d1) + maj512(d1, rm[0], rm[1]);
+
+    rd[0] = d0;
+    rd[1] = d1;
+}
+
+void HELPER(crypto_sha512su0)(void *vd, void *vn)
+{
+    uint64_t *rd = vd;
+    uint64_t *rn = vn;
+    uint64_t d0 = rd[0];
+    uint64_t d1 = rd[1];
+
+    d0 += s0_512(rd[1]);
+    d1 += s0_512(rn[0]);
+
+    rd[0] = d0;
+    rd[1] = d1;
+}
+
+void HELPER(crypto_sha512su1)(void *vd, void *vn, void *vm)
+{
+    uint64_t *rd = vd;
+    uint64_t *rn = vn;
+    uint64_t *rm = vm;
+
+    rd[0] += s1_512(rn[0]) + rm[0];
+    rd[1] += s1_512(rn[1]) + rm[1];
 }
