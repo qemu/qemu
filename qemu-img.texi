@@ -33,37 +33,13 @@ The following commands are supported:
 
 Command parameters:
 @table @var
+
 @item filename
- is a disk image filename
-
-@item --object @var{objectdef}
-
-is a QEMU user creatable object definition. See the @code{qemu(1)} manual
-page for a description of the object properties. The most common object
-type is a @code{secret}, which is used to supply passwords and/or encryption
-keys.
-
-@item --image-opts
-
-Indicates that the source @var{filename} parameter is to be interpreted as a
-full option string, not a plain filename. This parameter is mutually
-exclusive with the @var{-f} parameter.
-
-@item --target-image-opts
-
-Indicates that the @var{output_filename} parameter(s) are to be interpreted as
-a full option string, not a plain filename. This parameter is mutually
-exclusive with the @var{-O} parameters. It is currently required to also use
-the @var{-n} parameter to skip image creation. This restriction may be relaxed
-in a future release.
+is a disk image filename
 
 @item fmt
 is the disk image format. It is guessed automatically in most cases. See below
 for a description of the supported disk formats.
-
-@item --backing-chain
-will enumerate information about backing files in a disk image chain. Refer
-below for further description.
 
 @item size
 is the disk image size in bytes. Optional suffixes @code{k} or @code{K}
@@ -74,42 +50,78 @@ and T (terabyte, 1024G) are supported.  @code{b} is ignored.
 is the destination disk image filename
 
 @item output_fmt
- is the destination format
+is the destination format
+
 @item options
 is a comma separated list of format specific options in a
 name=value format. Use @code{-o ?} for an overview of the options supported
 by the used format or see the format descriptions below for details.
+
 @item snapshot_param
 is param used for internal snapshot, format is
 'snapshot.id=[ID],snapshot.name=[NAME]' or '[ID_OR_NAME]'
+
 @item snapshot_id_or_name
 is deprecated, use snapshot_param instead
 
+@end table
+
+@table @option
+
+@item --object @var{objectdef}
+is a QEMU user creatable object definition. See the @code{qemu(1)} manual
+page for a description of the object properties. The most common object
+type is a @code{secret}, which is used to supply passwords and/or encryption
+keys.
+
+@item --image-opts
+Indicates that the source @var{filename} parameter is to be interpreted as a
+full option string, not a plain filename. This parameter is mutually
+exclusive with the @var{-f} parameter.
+
+@item --target-image-opts
+Indicates that the @var{output_filename} parameter(s) are to be interpreted as
+a full option string, not a plain filename. This parameter is mutually
+exclusive with the @var{-O} parameters. It is currently required to also use
+the @var{-n} parameter to skip image creation. This restriction may be relaxed
+in a future release.
+
+@item --backing-chain
+will enumerate information about backing files in a disk image chain. Refer
+below for further description.
+
 @item -c
 indicates that target image must be compressed (qcow format only)
+
 @item -h
 with or without a command shows help and lists the supported formats
+
 @item -p
 display progress bar (compare, convert and rebase commands only).
 If the @var{-p} option is not used for a command that supports it, the
 progress is reported when the process receives a @code{SIGUSR1} or
 @code{SIGINFO} signal.
+
 @item -q
 Quiet mode - do not print any output (except errors). There's no progress bar
 in case both @var{-q} and @var{-p} options are used.
+
 @item -S @var{size}
 indicates the consecutive number of bytes that must contain only zeros
 for qemu-img to create a sparse image during conversion. This value is rounded
 down to the nearest 512 bytes. You may use the common size suffixes like
 @code{k} for kilobytes.
+
 @item -t @var{cache}
 specifies the cache mode that should be used with the (destination) file. See
 the documentation of the emulator's @code{-drive cache=...} option for allowed
 values.
+
 @item -T @var{src_cache}
 specifies the cache mode that should be used with the source file(s). See
 the documentation of the emulator's @code{-drive cache=...} option for allowed
 values.
+
 @end table
 
 Parameters to snapshot subcommand:
