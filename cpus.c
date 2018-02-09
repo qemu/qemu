@@ -1383,11 +1383,9 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
     qemu_mutex_lock_iothread();
     qemu_thread_get_self(cpu->thread);
 
-    CPU_FOREACH(cpu) {
-        cpu->thread_id = qemu_get_thread_id();
-        cpu->created = true;
-        cpu->can_do_io = 1;
-    }
+    cpu->thread_id = qemu_get_thread_id();
+    cpu->created = true;
+    cpu->can_do_io = 1;
     qemu_cond_signal(&qemu_cpu_cond);
 
     /* wait for initial kick-off after machine start */
