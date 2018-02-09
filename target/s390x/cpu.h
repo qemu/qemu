@@ -83,6 +83,8 @@ struct CPUS390XState {
 
     PSW psw;
 
+    S390CrashReason crash_reason;
+
     uint64_t cc_src;
     uint64_t cc_dst;
     uint64_t cc_vr;

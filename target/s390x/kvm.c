@@ -1541,15 +1541,14 @@ static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
     return r;
 }
 
-static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
+static void unmanageable_intercept(S390CPU *cpu, S390CrashReason reason,
+                                   int pswoffset)
 {
     CPUState *cs = CPU(cpu);
 
-    error_report("Unmanageable %s! CPU%i new PSW: 0x%016lx:%016lx",
-                 str, cs->cpu_index, ldq_phys(cs->as, cpu->env.psa + pswoffset),
-                 ldq_phys(cs->as, cpu->env.psa + pswoffset + 8));
     s390_cpu_halt(cpu);
-    qemu_system_guest_panicked(NULL);
+    cpu->env.crash_reason = reason;
+    qemu_system_guest_panicked(cpu_get_crash_info(cs));
 }
 
 /* try to detect pgm check loops */
@@ -1579,7 +1578,7 @@ static int handle_oper_loop(S390CPU *cpu, struct kvm_run *run)
         !(oldpsw.mask & PSW_MASK_PSTATE) &&
         (newpsw.mask & PSW_MASK_ASC) == (oldpsw.mask & PSW_MASK_ASC) &&
         (newpsw.mask & PSW_MASK_DAT) == (oldpsw.mask & PSW_MASK_DAT)) {
-        unmanageable_intercept(cpu, "operation exception loop",
+        unmanageable_intercept(cpu, S390_CRASH_REASON_OPINT_LOOP,
                                offsetof(LowCore, program_new_psw));
         return EXCP_HALTED;
     }
@@ -1600,12 +1599,12 @@ static int handle_intercept(S390CPU *cpu)
             r = handle_instruction(cpu, run);
             break;
         case ICPT_PROGRAM:
-            unmanageable_intercept(cpu, "program interrupt",
+            unmanageable_intercept(cpu, S390_CRASH_REASON_PGMINT_LOOP,
                                    offsetof(LowCore, program_new_psw));
             r = EXCP_HALTED;
             break;
         case ICPT_EXT_INT:
-            unmanageable_intercept(cpu, "external interrupt",
+            unmanageable_intercept(cpu, S390_CRASH_REASON_EXTINT_LOOP,
                                    offsetof(LowCore, external_new_psw));
             r = EXCP_HALTED;
             break;
