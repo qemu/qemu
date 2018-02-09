@@ -86,6 +86,14 @@ exclusive with the @var{-O} parameters. It is currently required to also use
 the @var{-n} parameter to skip image creation. This restriction may be relaxed
 in a future release.
 
+@item --force-share (-U)
+If specified, @code{qemu-img} will open the image in shared mode, allowing
+other QEMU processes to open it in write mode. For example, this can be used to
+get the image information (with 'info' subcommand) when the image is used by a
+running guest.  Note that this could produce inconsistent results because of
+concurrent metadata changes, etc. This option is only allowed when opening
+images in read-only mode.
+
 @item --backing-chain
 will enumerate information about backing files in a disk image chain. Refer
 below for further description.
