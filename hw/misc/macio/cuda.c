@@ -150,7 +150,7 @@ static uint64_t get_tb(uint64_t time, uint64_t freq)
     return muldiv64(time, freq, NANOSECONDS_PER_SECOND);
 }
 
-static unsigned int get_counter(CUDATimer *ti)
+static unsigned int get_counter(CUDAState *s, CUDATimer *ti)
 {
     int64_t d;
     unsigned int counter;
@@ -295,12 +295,12 @@ static uint64_t cuda_read(void *opaque, hwaddr addr, unsigned size)
         val = s->dira;
         break;
     case CUDA_REG_T1CL:
-        val = get_counter(&s->timers[0]) & 0xff;
+        val = get_counter(s, &s->timers[0]) & 0xff;
         s->ifr &= ~T1_INT;
         cuda_update_irq(s);
         break;
     case CUDA_REG_T1CH:
-        val = get_counter(&s->timers[0]) >> 8;
+        val = get_counter(s, &s->timers[0]) >> 8;
         cuda_update_irq(s);
         break;
     case CUDA_REG_T1LL:
@@ -311,12 +311,12 @@ static uint64_t cuda_read(void *opaque, hwaddr addr, unsigned size)
         val = (s->timers[0].latch >> 8) & 0xff;
         break;
     case CUDA_REG_T2CL:
-        val = get_counter(&s->timers[1]) & 0xff;
+        val = get_counter(s, &s->timers[1]) & 0xff;
         s->ifr &= ~T2_INT;
         cuda_update_irq(s);
         break;
     case CUDA_REG_T2CH:
-        val = get_counter(&s->timers[1]) >> 8;
+        val = get_counter(s, &s->timers[1]) >> 8;
         break;
     case CUDA_REG_SR:
         val = s->sr;
