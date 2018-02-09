@@ -184,36 +184,37 @@ static void set_counter(CUDAState *s, CUDATimer *ti, unsigned int val)
     cuda_timer_update(s, ti, ti->load_time);
 }
 
-static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
+static int64_t get_next_irq_time(CUDATimer *ti, int64_t current_time)
 {
     int64_t d, next_time;
     unsigned int counter;
 
     /* current counter value */
-    d = muldiv64(current_time - s->load_time,
+    d = muldiv64(current_time - ti->load_time,
                  CUDA_TIMER_FREQ, NANOSECONDS_PER_SECOND);
     /* the timer goes down from latch to -1 (period of latch + 2) */
-    if (d <= (s->counter_value + 1)) {
-        counter = (s->counter_value - d) & 0xffff;
+    if (d <= (ti->counter_value + 1)) {
+        counter = (ti->counter_value - d) & 0xffff;
     } else {
-        counter = (d - (s->counter_value + 1)) % (s->latch + 2);
-        counter = (s->latch - counter) & 0xffff;
+        counter = (d - (ti->counter_value + 1)) % (ti->latch + 2);
+        counter = (ti->latch - counter) & 0xffff;
     }
 
     /* Note: we consider the irq is raised on 0 */
     if (counter == 0xffff) {
-        next_time = d + s->latch + 1;
+        next_time = d + ti->latch + 1;
     } else if (counter == 0) {
-        next_time = d + s->latch + 2;
+        next_time = d + ti->latch + 2;
     } else {
         next_time = d + counter;
     }
     CUDA_DPRINTF("latch=%d counter=%" PRId64 " delta_next=%" PRId64 "\n",
-                 s->latch, d, next_time - d);
+                 ti->latch, d, next_time - d);
     next_time = muldiv64(next_time, NANOSECONDS_PER_SECOND, CUDA_TIMER_FREQ) +
-        s->load_time;
-    if (next_time <= current_time)
+                         ti->load_time;
+    if (next_time <= current_time) {
         next_time = current_time + 1;
+    }
     return next_time;
 }
 
