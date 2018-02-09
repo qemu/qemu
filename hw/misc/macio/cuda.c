@@ -407,7 +407,6 @@ static void cuda_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     case CUDA_REG_ACR:
         s->acr = val;
         cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-        cuda_update(s);
         break;
     case CUDA_REG_PCR:
         s->pcr = val;
