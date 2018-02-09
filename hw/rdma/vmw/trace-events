@@ -1,0 +1,5 @@
+# See docs/tracing.txt for syntax documentation.
+
+# hw/rdma/vmw/pvrdma_main.c
+pvrdma_regs_read(uint64_t addr, uint64_t val) "regs[0x%"PRIx64"] = 0x%"PRIx64
+pvrdma_regs_write(uint64_t addr, uint64_t val) "regs[0x%"PRIx64"] = 0x%"PRIx64

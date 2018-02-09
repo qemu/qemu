@@ -266,4 +266,7 @@
 #define PCI_VENDOR_ID_TEWS               0x1498
 #define PCI_DEVICE_ID_TEWS_TPCI200       0x30C8
 
+#define PCI_VENDOR_ID_VMWARE             0x15ad
+#define PCI_DEVICE_ID_VMWARE_PVRDMA      0x0820
+
 #endif

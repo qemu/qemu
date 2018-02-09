@@ -131,6 +131,7 @@ trace-events-subdirs += hw/char
 trace-events-subdirs += hw/intc
 trace-events-subdirs += hw/net
 trace-events-subdirs += hw/rdma
+trace-events-subdirs += hw/rdma/vmw
 trace-events-subdirs += hw/virtio
 trace-events-subdirs += hw/audio
 trace-events-subdirs += hw/misc
