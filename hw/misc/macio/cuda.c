@@ -179,7 +179,7 @@ static void set_counter(CUDAState *s, CUDATimer *ti, unsigned int val)
 {
     CUDA_DPRINTF("T%d.counter=%d\n", 1 + ti->index, val);
     ti->load_time = get_tb(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
-                           s->frequency);
+                           s->tb_frequency);
     ti->counter_value = val;
     cuda_timer_update(s, ti, ti->load_time);
 }
@@ -879,7 +879,7 @@ static void cuda_realizefn(DeviceState *dev, Error **errp)
     struct tm tm;
 
     s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_timer1, s);
-    s->timers[0].frequency = s->frequency;
+    s->timers[0].frequency = s->tb_frequency;
     s->timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_timer2, s);
     s->timers[1].frequency = (SCALE_US * 6000) / 4700;
 
@@ -910,7 +910,7 @@ static void cuda_initfn(Object *obj)
 }
 
 static Property cuda_properties[] = {
-    DEFINE_PROP_UINT64("frequency", CUDAState, frequency, 0),
+    DEFINE_PROP_UINT64("timebase-frequency", CUDAState, tb_frequency, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 

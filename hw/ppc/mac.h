@@ -99,7 +99,7 @@ typedef struct CUDAState {
     CUDATimer timers[2];
 
     uint32_t tick_offset;
-    uint64_t frequency;
+    uint64_t tb_frequency;
 
     uint8_t last_b;
     uint8_t last_acr;
