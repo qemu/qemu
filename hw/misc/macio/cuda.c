@@ -275,7 +275,7 @@ static void cuda_delay_set_sr_int(CUDAState *s)
     timer_mod(s->sr_delay_timer, expire);
 }
 
-static uint32_t cuda_readb(void *opaque, hwaddr addr)
+static uint64_t cuda_read(void *opaque, hwaddr addr, unsigned size)
 {
     CUDAState *s = opaque;
     uint32_t val;
@@ -350,7 +350,7 @@ static uint32_t cuda_readb(void *opaque, hwaddr addr)
     return val;
 }
 
-static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
+static void cuda_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     CUDAState *s = opaque;
 
@@ -780,38 +780,14 @@ static void cuda_receive_packet_from_host(CUDAState *s,
     }
 }
 
-static void cuda_writew (void *opaque, hwaddr addr, uint32_t value)
-{
-}
-
-static void cuda_writel (void *opaque, hwaddr addr, uint32_t value)
-{
-}
-
-static uint32_t cuda_readw (void *opaque, hwaddr addr)
-{
-    return 0;
-}
-
-static uint32_t cuda_readl (void *opaque, hwaddr addr)
-{
-    return 0;
-}
-
 static const MemoryRegionOps cuda_ops = {
-    .old_mmio = {
-        .write = {
-            cuda_writeb,
-            cuda_writew,
-            cuda_writel,
-        },
-        .read = {
-            cuda_readb,
-            cuda_readw,
-            cuda_readl,
-        },
+    .read = cuda_read,
+    .write = cuda_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static bool cuda_timer_exist(void *opaque, int version_id)
