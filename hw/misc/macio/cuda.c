@@ -32,19 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
-
-/* debug CUDA packets */
-//#define DEBUG_CUDA_PACKET
-
-/* debug CUDA packets */
-//#define DEBUG_CUDA_PACKET
-
-#ifdef DEBUG_CUDA
-#define CUDA_DPRINTF(fmt, ...)                                  \
-    do { printf("CUDA: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define CUDA_DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 /* Bits in B data register: all active low */
 #define TREQ            0x08    /* Transfer request (input) */
@@ -120,7 +108,7 @@ static void cuda_delay_set_sr_int(CUDAState *s)
         return;
     }
 
-    CUDA_DPRINTF("CUDA: %s:%d\n", __func__, __LINE__);
+    trace_cuda_delay_set_sr_int();
 
     expire = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->sr_delay_ns;
     timer_mod(s->sr_delay_timer, expire);
@@ -141,7 +129,7 @@ static void cuda_update(CUDAState *s)
             /* data output */
             if ((ms->b & (TACK | TIP)) != (s->last_b & (TACK | TIP))) {
                 if (s->data_out_index < sizeof(s->data_out)) {
-                    CUDA_DPRINTF("send: %02x\n", ms->sr);
+                    trace_cuda_data_send(ms->sr);
                     s->data_out[s->data_out_index++] = ms->sr;
                     cuda_delay_set_sr_int(s);
                 }
@@ -151,7 +139,7 @@ static void cuda_update(CUDAState *s)
                 /* data input */
                 if ((ms->b & (TACK | TIP)) != (s->last_b & (TACK | TIP))) {
                     ms->sr = s->data_in[s->data_in_index++];
-                    CUDA_DPRINTF("recv: %02x\n", ms->sr);
+                    trace_cuda_data_recv(ms->sr);
                     /* indicate end of transfer */
                     if (s->data_in_index >= s->data_in_size) {
                         ms->b = (ms->b | TREQ);
@@ -199,15 +187,13 @@ static void cuda_update(CUDAState *s)
 static void cuda_send_packet_to_host(CUDAState *s,
                                      const uint8_t *data, int len)
 {
-#ifdef DEBUG_CUDA_PACKET
-    {
-        int i;
-        printf("cuda_send_packet_to_host:\n");
-        for(i = 0; i < len; i++)
-            printf(" %02x", data[i]);
-        printf("\n");
+    int i;
+
+    trace_cuda_packet_send(len);
+    for (i = 0; i < len; i++) {
+        trace_cuda_packet_send_data(i, data[i]);
     }
-#endif
+
     memcpy(s->data_in, data, len);
     s->data_in_size = len;
     s->data_in_index = 0;
@@ -411,7 +397,7 @@ static void cuda_receive_packet(CUDAState *s,
     for (i = 0; i < ARRAY_SIZE(handlers); i++) {
         const CudaCommand *desc = &handlers[i];
         if (desc->command == data[0]) {
-            CUDA_DPRINTF("handling command %s\n", desc->name);
+            trace_cuda_receive_packet_cmd(desc->name);
             out_len = 0;
             if (desc->handler(s, data + 1, len - 1, obuf + 3, &out_len)) {
                 cuda_send_packet_to_host(s, obuf, 3 + out_len);
@@ -440,15 +426,13 @@ static void cuda_receive_packet(CUDAState *s,
 static void cuda_receive_packet_from_host(CUDAState *s,
                                           const uint8_t *data, int len)
 {
-#ifdef DEBUG_CUDA_PACKET
-    {
-        int i;
-        printf("cuda_receive_packet_from_host:\n");
-        for(i = 0; i < len; i++)
-            printf(" %02x", data[i]);
-        printf("\n");
+    int i;
+
+    trace_cuda_packet_receive(len);
+    for (i = 0; i < len; i++) {
+        trace_cuda_packet_receive_data(i, data[i]);
     }
-#endif
+
     switch(data[0]) {
     case ADB_PACKET:
         {
