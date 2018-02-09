@@ -6161,12 +6161,66 @@ uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
     return target_el;
 }
 
-static void v7m_push(CPUARMState *env, uint32_t val)
+static bool v7m_stack_write(ARMCPU *cpu, uint32_t addr, uint32_t value,
+                            ARMMMUIdx mmu_idx, bool ignfault)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
+    CPUState *cs = CPU(cpu);
+    CPUARMState *env = &cpu->env;
+    MemTxAttrs attrs = {};
+    MemTxResult txres;
+    target_ulong page_size;
+    hwaddr physaddr;
+    int prot;
+    ARMMMUFaultInfo fi;
+    bool secure = mmu_idx & ARM_MMU_IDX_M_S;
+    int exc;
+    bool exc_secure;
 
-    env->regs[13] -= 4;
-    stl_phys(cs->as, env->regs[13], val);
+    if (get_phys_addr(env, addr, MMU_DATA_STORE, mmu_idx, &physaddr,
+                      &attrs, &prot, &page_size, &fi, NULL)) {
+        /* MPU/SAU lookup failed */
+        if (fi.type == ARMFault_QEMU_SFault) {
+            qemu_log_mask(CPU_LOG_INT,
+                          "...SecureFault with SFSR.AUVIOL during stacking\n");
+            env->v7m.sfsr |= R_V7M_SFSR_AUVIOL_MASK | R_V7M_SFSR_SFARVALID_MASK;
+            env->v7m.sfar = addr;
+            exc = ARMV7M_EXCP_SECURE;
+            exc_secure = false;
+        } else {
+            qemu_log_mask(CPU_LOG_INT, "...MemManageFault with CFSR.MSTKERR\n");
+            env->v7m.cfsr[secure] |= R_V7M_CFSR_MSTKERR_MASK;
+            exc = ARMV7M_EXCP_MEM;
+            exc_secure = secure;
+        }
+        goto pend_fault;
+    }
+    address_space_stl_le(arm_addressspace(cs, attrs), physaddr, value,
+                         attrs, &txres);
+    if (txres != MEMTX_OK) {
+        /* BusFault trying to write the data */
+        qemu_log_mask(CPU_LOG_INT, "...BusFault with BFSR.STKERR\n");
+        env->v7m.cfsr[M_REG_NS] |= R_V7M_CFSR_STKERR_MASK;
+        exc = ARMV7M_EXCP_BUS;
+        exc_secure = false;
+        goto pend_fault;
+    }
+    return true;
+
+pend_fault:
+    /* By pending the exception at this point we are making
+     * the IMPDEF choice "overridden exceptions pended" (see the
+     * MergeExcInfo() pseudocode). The other choice would be to not
+     * pend them now and then make a choice about which to throw away
+     * later if we have two derived exceptions.
+     * The only case when we must not pend the exception but instead
+     * throw it away is if we are doing the push of the callee registers
+     * and we've already generated a derived exception. Even in this
+     * case we will still update the fault status registers.
+     */
+    if (!ignfault) {
+        armv7m_nvic_set_pending_derived(env->nvic, exc, exc_secure);
+    }
+    return false;
 }
 
 /* Return true if we're using the process stack pointer (not the MSP) */
@@ -6562,26 +6616,43 @@ static bool v7m_push_stack(ARMCPU *cpu)
      * should ignore further stack faults trying to process
      * that derived exception.)
      */
+    bool stacked_ok;
     CPUARMState *env = &cpu->env;
     uint32_t xpsr = xpsr_read(env);
+    uint32_t frameptr = env->regs[13];
+    ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
 
     /* Align stack pointer if the guest wants that */
-    if ((env->regs[13] & 4) &&
+    if ((frameptr & 4) &&
         (env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_STKALIGN_MASK)) {
-        env->regs[13] -= 4;
+        frameptr -= 4;
         xpsr |= XPSR_SPREALIGN;
     }
-    /* Switch to the handler mode.  */
-    v7m_push(env, xpsr);
-    v7m_push(env, env->regs[15]);
-    v7m_push(env, env->regs[14]);
-    v7m_push(env, env->regs[12]);
-    v7m_push(env, env->regs[3]);
-    v7m_push(env, env->regs[2]);
-    v7m_push(env, env->regs[1]);
-    v7m_push(env, env->regs[0]);
 
-    return false;
+    frameptr -= 0x20;
+
+    /* Write as much of the stack frame as we can. If we fail a stack
+     * write this will result in a derived exception being pended
+     * (which may be taken in preference to the one we started with
+     * if it has higher priority).
+     */
+    stacked_ok =
+        v7m_stack_write(cpu, frameptr, env->regs[0], mmu_idx, false) &&
+        v7m_stack_write(cpu, frameptr + 4, env->regs[1], mmu_idx, false) &&
+        v7m_stack_write(cpu, frameptr + 8, env->regs[2], mmu_idx, false) &&
+        v7m_stack_write(cpu, frameptr + 12, env->regs[3], mmu_idx, false) &&
+        v7m_stack_write(cpu, frameptr + 16, env->regs[12], mmu_idx, false) &&
+        v7m_stack_write(cpu, frameptr + 20, env->regs[14], mmu_idx, false) &&
+        v7m_stack_write(cpu, frameptr + 24, env->regs[15], mmu_idx, false) &&
+        v7m_stack_write(cpu, frameptr + 28, xpsr, mmu_idx, false);
+
+    /* Update SP regardless of whether any of the stack accesses failed.
+     * When we implement v8M stack limit checking then this attempt to
+     * update SP might also fail and result in a derived exception.
+     */
+    env->regs[13] = frameptr;
+
+    return !stacked_ok;
 }
 
 static void do_v7m_exception_exit(ARMCPU *cpu)
