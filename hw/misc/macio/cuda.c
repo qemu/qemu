@@ -359,11 +359,11 @@ static void cuda_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 
     switch(addr) {
     case CUDA_REG_B:
-        s->b = val;
+        s->b = (s->b & ~s->dirb) | (val & s->dirb);
         cuda_update(s);
         break;
     case CUDA_REG_A:
-        s->a = val;
+        s->a = (s->a & ~s->dira) | (val & s->dira);
         break;
     case CUDA_REG_DIRB:
         s->dirb = val;
