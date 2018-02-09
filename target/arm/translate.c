@@ -1512,13 +1512,12 @@ static inline void gen_vfp_st(DisasContext *s, int dp, TCGv_i32 addr)
     }
 }
 
-static inline long
-vfp_reg_offset (int dp, int reg)
+static inline long vfp_reg_offset(bool dp, unsigned reg)
 {
     if (dp) {
-        return offsetof(CPUARMState, vfp.regs[reg]);
+        return offsetof(CPUARMState, vfp.zregs[reg >> 1].d[reg & 1]);
     } else {
-        long ofs = offsetof(CPUARMState, vfp.regs[reg >> 1]);
+        long ofs = offsetof(CPUARMState, vfp.zregs[reg >> 2].d[(reg >> 1) & 1]);
         if (reg & 1) {
             ofs += offsetof(CPU_DoubleU, l.upper);
         } else {

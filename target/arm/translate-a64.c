@@ -525,8 +525,8 @@ static inline int vec_reg_offset(DisasContext *s, int regno,
 {
     int offs = 0;
 #ifdef HOST_WORDS_BIGENDIAN
-    /* This is complicated slightly because vfp.regs[2n] is
-     * still the low half and  vfp.regs[2n+1] the high half
+    /* This is complicated slightly because vfp.zregs[n].d[0] is
+     * still the low half and vfp.zregs[n].d[1] the high half
      * of the 128 bit vector, even on big endian systems.
      * Calculate the offset assuming a fully bigendian 128 bits,
      * then XOR to account for the order of the two 64 bit halves.
@@ -536,7 +536,7 @@ static inline int vec_reg_offset(DisasContext *s, int regno,
 #else
     offs += element * (1 << size);
 #endif
-    offs += offsetof(CPUARMState, vfp.regs[regno * 2]);
+    offs += offsetof(CPUARMState, vfp.zregs[regno]);
     assert_fp_access_checked(s);
     return offs;
 }
@@ -545,7 +545,7 @@ static inline int vec_reg_offset(DisasContext *s, int regno,
 static inline int vec_full_reg_offset(DisasContext *s, int regno)
 {
     assert_fp_access_checked(s);
-    return offsetof(CPUARMState, vfp.regs[regno * 2]);
+    return offsetof(CPUARMState, vfp.zregs[regno]);
 }
 
 /* Return a newly allocated pointer to the vector register.  */

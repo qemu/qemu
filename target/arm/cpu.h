@@ -153,6 +153,42 @@ typedef struct {
     uint32_t base_mask;
 } TCR;
 
+/* Define a maximum sized vector register.
+ * For 32-bit, this is a 128-bit NEON/AdvSIMD register.
+ * For 64-bit, this is a 2048-bit SVE register.
+ *
+ * Note that the mapping between S, D, and Q views of the register bank
+ * differs between AArch64 and AArch32.
+ * In AArch32:
+ *  Qn = regs[n].d[1]:regs[n].d[0]
+ *  Dn = regs[n / 2].d[n & 1]
+ *  Sn = regs[n / 4].d[n % 4 / 2],
+ *       bits 31..0 for even n, and bits 63..32 for odd n
+ *       (and regs[16] to regs[31] are inaccessible)
+ * In AArch64:
+ *  Zn = regs[n].d[*]
+ *  Qn = regs[n].d[1]:regs[n].d[0]
+ *  Dn = regs[n].d[0]
+ *  Sn = regs[n].d[0] bits 31..0
+ *
+ * This corresponds to the architecturally defined mapping between
+ * the two execution states, and means we do not need to explicitly
+ * map these registers when changing states.
+ *
+ * Align the data for use with TCG host vector operations.
+ */
+
+#ifdef TARGET_AARCH64
+# define ARM_MAX_VQ    16
+#else
+# define ARM_MAX_VQ    1
+#endif
+
+typedef struct ARMVectorReg {
+    uint64_t d[2 * ARM_MAX_VQ] QEMU_ALIGNED(16);
+} ARMVectorReg;
+
+
 typedef struct CPUARMState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -477,22 +513,7 @@ typedef struct CPUARMState {
 
     /* VFP coprocessor state.  */
     struct {
-        /* VFP/Neon register state. Note that the mapping between S, D and Q
-         * views of the register bank differs between AArch64 and AArch32:
-         * In AArch32:
-         *  Qn = regs[2n+1]:regs[2n]
-         *  Dn = regs[n]
-         *  Sn = regs[n/2] bits 31..0 for even n, and bits 63..32 for odd n
-         * (and regs[32] to regs[63] are inaccessible)
-         * In AArch64:
-         *  Qn = regs[2n+1]:regs[2n]
-         *  Dn = regs[2n]
-         *  Sn = regs[2n] bits 31..0
-         * This corresponds to the architecturally defined mapping between
-         * the two execution states, and means we do not need to explicitly
-         * map these registers when changing states.
-         */
-        uint64_t regs[64] QEMU_ALIGNED(16);
+        ARMVectorReg zregs[32];
 
         uint32_t xregs[16];
         /* We store these fpcsr fields separately for convenience.  */
@@ -2799,7 +2820,7 @@ static inline void *arm_get_el_change_hook_opaque(ARMCPU *cpu)
  */
 static inline uint64_t *aa32_vfp_dreg(CPUARMState *env, unsigned regno)
 {
-    return &env->vfp.regs[regno];
+    return &env->vfp.zregs[regno >> 1].d[regno & 1];
 }
 
 /**
@@ -2808,7 +2829,7 @@ static inline uint64_t *aa32_vfp_dreg(CPUARMState *env, unsigned regno)
  */
 static inline uint64_t *aa32_vfp_qreg(CPUARMState *env, unsigned regno)
 {
-    return &env->vfp.regs[2 * regno];
+    return &env->vfp.zregs[regno].d[0];
 }
 
 /**
@@ -2817,7 +2838,7 @@ static inline uint64_t *aa32_vfp_qreg(CPUARMState *env, unsigned regno)
  */
 static inline uint64_t *aa64_vfp_qreg(CPUARMState *env, unsigned regno)
 {
-    return &env->vfp.regs[2 * regno];
+    return &env->vfp.zregs[regno].d[0];
 }
 
 #endif
