@@ -6395,12 +6395,12 @@ static uint32_t *get_v7m_sp_ptr(CPUARMState *env, bool secure, bool threadmode,
     }
 }
 
-static uint32_t arm_v7m_load_vector(ARMCPU *cpu, bool targets_secure)
+static uint32_t arm_v7m_load_vector(ARMCPU *cpu, int exc, bool targets_secure)
 {
     CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
     MemTxResult result;
-    hwaddr vec = env->v7m.vecbase[targets_secure] + env->v7m.exception * 4;
+    hwaddr vec = env->v7m.vecbase[targets_secure] + exc * 4;
     uint32_t addr;
 
     addr = address_space_ldl(cs->as, vec,
@@ -6462,8 +6462,9 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain)
     CPUARMState *env = &cpu->env;
     uint32_t addr;
     bool targets_secure;
+    int exc;
 
-    targets_secure = armv7m_nvic_acknowledge_irq(env->nvic);
+    armv7m_nvic_get_pending_irq_info(env->nvic, &exc, &targets_secure);
 
     if (arm_feature(env, ARM_FEATURE_V8)) {
         if (arm_feature(env, ARM_FEATURE_M_SECURITY) &&
@@ -6531,6 +6532,14 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain)
         }
     }
 
+    addr = arm_v7m_load_vector(cpu, exc, targets_secure);
+
+    /* Now we've done everything that might cause a derived exception
+     * we can go ahead and activate whichever exception we're going to
+     * take (which might now be the derived exception).
+     */
+    armv7m_nvic_acknowledge_irq(env->nvic);
+
     /* Switch to target security state -- must do this before writing SPSEL */
     switch_v7m_security_state(env, targets_secure);
     write_v7m_control_spsel(env, 0);
@@ -6538,7 +6547,6 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain)
     /* Clear IT bits */
     env->condexec_bits = 0;
     env->regs[14] = lr;
-    addr = arm_v7m_load_vector(cpu, targets_secure);
     env->regs[15] = addr & 0xfffffffe;
     env->thumb = addr & 1;
 }

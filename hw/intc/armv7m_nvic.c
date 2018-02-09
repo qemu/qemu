@@ -650,24 +650,20 @@ void armv7m_nvic_set_pending_derived(void *opaque, int irq, bool secure)
 }
 
 /* Make pending IRQ active.  */
-bool armv7m_nvic_acknowledge_irq(void *opaque)
+void armv7m_nvic_acknowledge_irq(void *opaque)
 {
     NVICState *s = (NVICState *)opaque;
     CPUARMState *env = &s->cpu->env;
     const int pending = s->vectpending;
     const int running = nvic_exec_prio(s);
     VecInfo *vec;
-    bool targets_secure;
 
     assert(pending > ARMV7M_EXCP_RESET && pending < s->num_irq);
 
     if (s->vectpending_is_s_banked) {
         vec = &s->sec_vectors[pending];
-        targets_secure = true;
     } else {
         vec = &s->vectors[pending];
-        targets_secure = !exc_is_banked(s->vectpending) &&
-            exc_targets_secure(s, s->vectpending);
     }
 
     assert(vec->enabled);
@@ -675,7 +671,7 @@ bool armv7m_nvic_acknowledge_irq(void *opaque)
 
     assert(s->vectpending_prio < running);
 
-    trace_nvic_acknowledge_irq(pending, s->vectpending_prio, targets_secure);
+    trace_nvic_acknowledge_irq(pending, s->vectpending_prio);
 
     vec->active = 1;
     vec->pending = 0;
@@ -683,8 +679,28 @@ bool armv7m_nvic_acknowledge_irq(void *opaque)
     write_v7m_exception(env, s->vectpending);
 
     nvic_irq_update(s);
+}
 
-    return targets_secure;
+void armv7m_nvic_get_pending_irq_info(void *opaque,
+                                      int *pirq, bool *ptargets_secure)
+{
+    NVICState *s = (NVICState *)opaque;
+    const int pending = s->vectpending;
+    bool targets_secure;
+
+    assert(pending > ARMV7M_EXCP_RESET && pending < s->num_irq);
+
+    if (s->vectpending_is_s_banked) {
+        targets_secure = true;
+    } else {
+        targets_secure = !exc_is_banked(pending) &&
+            exc_targets_secure(s, pending);
+    }
+
+    trace_nvic_get_pending_irq_info(pending, targets_secure);
+
+    *ptargets_secure = targets_secure;
+    *pirq = pending;
 }
 
 int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure)
