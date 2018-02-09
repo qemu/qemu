@@ -27,7 +27,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
@@ -43,6 +42,7 @@
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "bootparam.h"
 #include "xtensa_memory.h"
 

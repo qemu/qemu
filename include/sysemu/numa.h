@@ -2,7 +2,6 @@
 #define SYSEMU_NUMA_H
 
 #include "qemu/bitmap.h"
-#include "qemu/option.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hostmem.h"
 #include "hw/boards.h"

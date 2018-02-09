@@ -32,11 +32,11 @@
 #include "qemu/uri.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
 #include "qapi-visit.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 

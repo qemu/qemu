@@ -12,8 +12,8 @@
  * http://wiki.osdev.org/User:Quok/Silicon_Image_Datasheets
  */
 
-#include <qemu/osdep.h>
-#include <hw/ide/pci.h>
+#include "qemu/osdep.h"
+#include "hw/ide/pci.h"
 #include "trace.h"
 
 #define TYPE_SII3112_PCI "sii3112"

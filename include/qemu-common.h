@@ -16,8 +16,6 @@
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
-#include "qemu/option.h"
-
 /* Copyright string for -version arguments, About dialogs, etc */
 #define QEMU_COPYRIGHT "Copyright (c) 2003-2017 " \
     "Fabrice Bellard and the QEMU Project developers"

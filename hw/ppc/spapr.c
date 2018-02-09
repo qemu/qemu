@@ -74,7 +74,6 @@
 #include "hw/compat.h"
 #include "qemu/cutils.h"
 #include "hw/ppc/spapr_cpu_core.h"
-#include "qmp-commands.h"
 
 #include <libfdt.h>
 

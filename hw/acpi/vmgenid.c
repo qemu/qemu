@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qmp-commands.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"

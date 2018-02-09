@@ -14,7 +14,6 @@
  *
  */
 
-#include "qemu/option.h"
 
 #define SMBIOS_MAX_TYPE 127
 

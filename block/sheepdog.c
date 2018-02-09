@@ -19,6 +19,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"

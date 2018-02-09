@@ -14,7 +14,6 @@
 #define OPTS_VISITOR_H
 
 #include "qapi/visitor.h"
-#include "qemu/option.h"
 
 /* Inclusive upper bound on the size of any flattened range. This is a safety
  * (= anti-annoyance) measure; wrong ranges should not cause long startup

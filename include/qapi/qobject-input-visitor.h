@@ -16,7 +16,6 @@
 #define QOBJECT_INPUT_VISITOR_H
 
 #include "qapi/visitor.h"
-#include "qapi/qmp/qobject.h"
 
 typedef struct QObjectInputVisitor QObjectInputVisitor;
 

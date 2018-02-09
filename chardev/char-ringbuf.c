@@ -21,10 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "chardev/char.h"
 #include "qmp-commands.h"
+#include "qapi/error.h"
 #include "qemu/base64.h"
+#include "qemu/option.h"
 
 /* Ring buffer chardev */
 

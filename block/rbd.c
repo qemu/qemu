@@ -16,11 +16,14 @@
 #include <rbd/librbd.h>
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "block/block_int.h"
 #include "crypto/secret.h"
 #include "qemu/cutils.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlist.h"
 
 /*
  * When specifying the image filename use:

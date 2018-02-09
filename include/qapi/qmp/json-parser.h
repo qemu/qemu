@@ -15,7 +15,6 @@
 #define QEMU_JSON_PARSER_H
 
 #include "qemu-common.h"
-#include "qapi/qmp/qlist.h"
 
 QObject *json_parser_parse(GQueue *tokens, va_list *ap);
 QObject *json_parser_parse_err(GQueue *tokens, va_list *ap, Error **errp);

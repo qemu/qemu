@@ -38,7 +38,6 @@
 
 #include "sysemu/dump-arch.h"
 #include "sysemu/memory_mapping.h"
-#include "qapi-types.h"
 
 typedef struct QEMU_PACKED MakedumpfileHeader {
     char signature[16];     /* = "makedumpfile" */

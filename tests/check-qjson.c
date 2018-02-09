@@ -14,9 +14,12 @@
 #include "qemu/osdep.h"
 
 #include "qapi/error.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlit.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu-common.h"
 
 static void escaped_string(void)

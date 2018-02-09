@@ -17,10 +17,10 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
 #include "qemu/crc32c.h"
 #include "qemu/bswap.h"
 #include "block/vhdx.h"

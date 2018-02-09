@@ -14,6 +14,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
+#include "qemu/option.h"
 
 typedef struct {
     BdrvChild *test_file;

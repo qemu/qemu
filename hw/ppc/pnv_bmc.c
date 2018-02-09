@@ -20,7 +20,6 @@
 #include "hw/hw.h"
 #include "sysemu/sysemu.h"
 #include "target/ppc/cpu.h"
-#include "qapi/error.h"
 #include "qemu/log.h"
 #include "hw/ipmi/ipmi.h"
 #include "hw/ppc/fdt.h"

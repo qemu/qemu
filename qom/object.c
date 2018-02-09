@@ -25,8 +25,8 @@
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
  * of the QOM core on QObject?  */
 #include "qom/qom-qobject.h"
-#include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 
 #define MAX_INTERFACES 32

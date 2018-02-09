@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/timer.h"
 
 static void qmp_check_no_event(void)

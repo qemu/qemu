@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include <windows.h>
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"

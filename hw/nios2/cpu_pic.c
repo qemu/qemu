@@ -19,7 +19,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
 

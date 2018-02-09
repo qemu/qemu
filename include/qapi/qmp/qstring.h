@@ -15,12 +15,12 @@
 
 #include "qapi/qmp/qobject.h"
 
-typedef struct QString {
+struct QString {
     QObject base;
     char *string;
     size_t length;
     size_t capacity;
-} QString;
+};
 
 QString *qstring_new(void);
 QString *qstring_from_str(const char *str);

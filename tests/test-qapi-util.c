@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "test-qapi-types.h"
 
 static void test_qapi_enum_parse(void)
 {

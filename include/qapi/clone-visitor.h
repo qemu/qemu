@@ -11,7 +11,6 @@
 #ifndef QAPI_CLONE_VISITOR_H
 #define QAPI_CLONE_VISITOR_H
 
-#include "qemu/typedefs.h"
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
 

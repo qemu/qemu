@@ -32,7 +32,6 @@
 #include "qemu/bitops.h"
 #include "hw/sd/sdhci.h"
 #include "sdhci-internal.h"
-#include "qapi/error.h"
 #include "qemu/log.h"
 #include "trace.h"
 

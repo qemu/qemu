@@ -24,7 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
 #include "hw/pci/pci_bridge.h"
 
 

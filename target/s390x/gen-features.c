@@ -9,12 +9,10 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
  * your option) any later version. See the COPYING file in the top-level
  * directory.
- *
  */
 
-
-#include "inttypes.h"
-#include "stdio.h"
+#include <inttypes.h>
+#include <stdio.h>
 #include "cpu_features_def.h"
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))

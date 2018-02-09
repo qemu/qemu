@@ -12,6 +12,7 @@
 #define HW_BLOCK_H
 
 #include "qemu-common.h"
+#include "qapi-types.h"
 
 /* Configuration */
 

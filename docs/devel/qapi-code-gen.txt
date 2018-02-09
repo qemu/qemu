@@ -1170,7 +1170,6 @@ Example:
     #include "example-qapi-types.h"
     #include "qapi/qmp/qdict.h"
     #include "qapi/qmp/dispatch.h"
-    #include "qapi/error.h"
 
     void example_qmp_init_marshal(QmpCommandList *cmds);
     UserDefOne *qmp_my_command(UserDefOneList *arg1, Error **errp);
@@ -1263,7 +1262,6 @@ Example:
     #ifndef EXAMPLE_QAPI_EVENT_H
     #define EXAMPLE_QAPI_EVENT_H
 
-    #include "qapi/error.h"
     #include "qapi/qmp/qdict.h"
     #include "example-qapi-types.h"
 

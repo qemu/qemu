@@ -21,7 +21,6 @@
  */
 
 #include "qemu/notify.h"
-#include "qemu/option.h"
 #include "exec/memory.h"
 #include "hw/irq.h"
 #include "hw/acpi/acpi_dev_interface.h"

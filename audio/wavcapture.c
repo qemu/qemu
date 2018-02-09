@@ -1,6 +1,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "monitor/monitor.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "audio.h"
 

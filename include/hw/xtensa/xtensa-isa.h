@@ -25,8 +25,6 @@
 #ifndef XTENSA_LIBISA_H
 #define XTENSA_LIBISA_H
 
-#include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

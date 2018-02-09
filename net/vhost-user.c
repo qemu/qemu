@@ -13,8 +13,10 @@
 #include "net/vhost_net.h"
 #include "net/vhost-user.h"
 #include "chardev/char-fe.h"
+#include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qmp-commands.h"
 #include "trace.h"
 

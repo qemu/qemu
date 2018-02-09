@@ -3,12 +3,8 @@
 
 #include "ui/qemu-pixman.h"
 #include "qom/object.h"
-#include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
-#include "qemu/typedefs.h"
-#include "qapi-types.h"
 #include "qemu/error-report.h"
-#include "qapi/error.h"
 
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>
@@ -468,31 +464,10 @@ static inline void cocoa_display_init(DisplayState *ds, int full_screen)
 void vnc_display_init(const char *id);
 void vnc_display_open(const char *id, Error **errp);
 void vnc_display_add_client(const char *id, int csock, bool skipauth);
-#ifdef CONFIG_VNC
 int vnc_display_password(const char *id, const char *password);
 int vnc_display_pw_expire(const char *id, time_t expires);
 QemuOpts *vnc_parse(const char *str, Error **errp);
 int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
-#else
-static inline int vnc_display_password(const char *id, const char *password)
-{
-    return -ENODEV;
-}
-static inline int vnc_display_pw_expire(const char *id, time_t expires)
-{
-    return -ENODEV;
-};
-static inline QemuOpts *vnc_parse(const char *str, Error **errp)
-{
-    error_setg(errp, "VNC support is disabled");
-    return NULL;
-}
-static inline int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
-{
-    error_setg(errp, "VNC support is disabled");
-    return -1;
-}
-#endif
 
 /* curses.c */
 #ifdef CONFIG_CURSES

@@ -10,9 +10,10 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 #include "qemu/cutils.h"
 #include "libqtest.h"
-#include "qapi/qmp/types.h"
 
 static const char *blacklist_x86[] = {
     "xenfv", "xenpv", NULL

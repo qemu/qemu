@@ -21,7 +21,6 @@
 #include "qemu-common.h"
 #include "panic.h"
 #include "x86_decode.h"
-#include "string.h"
 #include "vmx.h"
 #include "x86_mmu.h"
 #include "x86_descr.h"

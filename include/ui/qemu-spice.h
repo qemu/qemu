@@ -23,7 +23,6 @@
 #ifdef CONFIG_SPICE
 
 #include <spice.h>
-#include "qemu/option.h"
 #include "qemu/config-file.h"
 
 extern int using_spice;

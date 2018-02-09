@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 
 #include "net/net.h"
@@ -31,8 +32,8 @@
 #include "util.h"
 
 #include "monitor/monitor.h"
-#include "qemu-common.h"
 #include "qemu/help_option.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
@@ -42,7 +43,9 @@
 #include "hw/qdev.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
+#include "qemu/option.h"
 #include "qapi-visit.h"
+#include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"

@@ -4,6 +4,7 @@
 #include "libqtest.h"
 #include "libqos/libqos.h"
 #include "libqos/pci.h"
+#include "qapi/qmp/qdict.h"
 
 /*** Test Setup & Teardown ***/
 

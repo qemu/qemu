@@ -47,6 +47,7 @@
 #include "exec/address-spaces.h"
 #include "hw/acpi/acpi.h"
 #include "cpu.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #ifdef CONFIG_XEN
 #include <xen/hvm/hvm_info_table.h>

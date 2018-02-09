@@ -25,8 +25,6 @@
 #ifndef SNAPSHOT_H
 #define SNAPSHOT_H
 
-#include "qemu-common.h"
-#include "qemu/option.h"
 
 
 #define SNAPSHOT_OPT_BASE       "snapshot."

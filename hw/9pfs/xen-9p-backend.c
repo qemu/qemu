@@ -15,6 +15,7 @@
 #include "hw/xen/xen_backend.h"
 #include "hw/9pfs/xen-9pfs.h"
 #include "qemu/config-file.h"
+#include "qemu/option.h"
 #include "fsdev/qemu-fsdev.h"
 
 #define VERSIONS "1"

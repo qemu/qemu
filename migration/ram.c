@@ -25,6 +25,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include <zlib.h>
@@ -42,6 +43,7 @@
 #include "postcopy-ram.h"
 #include "migration/page_cache.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "trace.h"
 #include "exec/ram_addr.h"

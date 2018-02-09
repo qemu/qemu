@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qmp-commands.h"
 #include "trace/control.h"
 

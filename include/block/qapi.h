@@ -25,7 +25,6 @@
 #ifndef BLOCK_QAPI_H
 #define BLOCK_QAPI_H
 
-#include "qapi-types.h"
 #include "block/block.h"
 #include "block/snapshot.h"
 

@@ -23,6 +23,7 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qapi-event.h"
 #include "trace.h"

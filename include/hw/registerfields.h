@@ -11,7 +11,7 @@
 #ifndef REGISTERFIELDS_H
 #define REGISTERFIELDS_H
 
-#include <qemu/bitops.h>
+#include "qemu/bitops.h"
 
 /* Define constants for a 32 bit register */
 

@@ -34,7 +34,6 @@
 #include "hw/pci-host/sabre.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
-#include "qapi/error.h"
 #include "qemu/log.h"
 #include "trace.h"
 

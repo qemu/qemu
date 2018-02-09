@@ -2,12 +2,9 @@
 #define QEMU_NET_H
 
 #include "qemu/queue.h"
-#include "qemu-common.h"
-#include "qapi/qmp/qdict.h"
-#include "qemu/option.h"
+#include "qapi-types.h"
 #include "net/queue.h"
 #include "migration/vmstate.h"
-#include "qapi-types.h"
 
 #define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
 #define MAC_ARG(x) ((uint8_t *)(x))[0], ((uint8_t *)(x))[1], \

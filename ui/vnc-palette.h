@@ -29,7 +29,6 @@
 #ifndef VNC_PALETTE_H
 #define VNC_PALETTE_H
 
-#include "qapi/qmp/qlist.h"
 #include "qemu/queue.h"
 
 #define VNC_PALETTE_HASH_SIZE 256

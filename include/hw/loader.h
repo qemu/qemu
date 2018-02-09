@@ -1,6 +1,5 @@
 #ifndef LOADER_H
 #define LOADER_H
-#include "qapi/qmp/qdict.h"
 #include "hw/nvram/fw_cfg.h"
 
 /* loader.c */

@@ -25,7 +25,6 @@
 #ifndef VMX_H
 #define VMX_H
 
-#include <stdint.h>
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
 #include "vmcs.h"

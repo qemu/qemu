@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
-
+#include "qemu/option.h"
 #include "ivshmem-server.h"
 
 #define IVSHMEM_SERVER_DEFAULT_VERBOSE        0

@@ -23,14 +23,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- *
  */
+
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/ppc/spapr.h"
 #include "qapi-event.h"
+#include "qapi/error.h"
 #include "qemu/cutils.h"
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns)

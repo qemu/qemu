@@ -27,8 +27,6 @@
 #define QCRYPTO_XTS_H
 
 #include "qemu-common.h"
-#include "qapi/error.h"
-
 
 #define XTS_BLOCK_SIZE 16
 

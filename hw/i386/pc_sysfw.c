@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"

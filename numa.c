@@ -30,6 +30,7 @@
 #include "qom/cpu.h"
 #include "qemu/error-report.h"
 #include "qapi-visit.h"
+#include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "hw/boards.h"
 #include "sysemu/hostmem.h"

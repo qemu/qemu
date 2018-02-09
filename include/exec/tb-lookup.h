@@ -7,8 +7,6 @@
 #ifndef EXEC_TB_LOOKUP_H
 #define EXEC_TB_LOOKUP_H
 
-#include "qemu/osdep.h"
-
 #ifdef NEED_CPU_H
 #include "cpu.h"
 #else

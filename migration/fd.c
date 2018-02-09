@@ -15,7 +15,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "channel.h"
 #include "fd.h"
 #include "monitor/monitor.h"

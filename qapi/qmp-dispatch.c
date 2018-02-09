@@ -13,12 +13,10 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qapi/qmp/types.h"
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi-types.h"
-#include "qapi/qmp/qerror.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {

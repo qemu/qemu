@@ -6,11 +6,13 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
+#include "qapi/qmp/qdict.h"
 #include "hw/pci/pci_regs.h"
 #include "hw/i386/ich9.h"
 #include "hw/acpi/ich9.h"

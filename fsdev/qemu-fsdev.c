@@ -8,14 +8,15 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
- *
  */
+
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-fsdev.h"
 #include "qemu/queue.h"
-#include "qemu-common.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 
 static QTAILQ_HEAD(FsDriverEntry_head, FsDriverListEntry) fsdriver_entries =
     QTAILQ_HEAD_INITIALIZER(fsdriver_entries);

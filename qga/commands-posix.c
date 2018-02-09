@@ -18,6 +18,7 @@
 #include <dirent.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/queue.h"
 #include "qemu/host-utils.h"

@@ -13,7 +13,6 @@
 #define QEMU_TPM_H
 
 #include "qom/object.h"
-#include "qapi-types.h"
 
 int tpm_config_parse(QemuOptsList *opts_list, const char *optarg);
 int tpm_init(void);

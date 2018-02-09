@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include <zlib.h>
 
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/queue.h"

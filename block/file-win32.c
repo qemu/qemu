@@ -21,15 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
 #include "block/raw-aio.h"
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/iov.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include <windows.h>
 #include <winioctl.h>

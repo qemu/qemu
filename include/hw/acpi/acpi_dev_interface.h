@@ -2,7 +2,6 @@
 #define ACPI_DEV_INTERFACE_H
 
 #include "qom/object.h"
-#include "qapi-types.h"
 #include "hw/boards.h"
 
 /* These values are part of guest ABI, and can not be changed */

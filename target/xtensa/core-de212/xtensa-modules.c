@@ -21,7 +21,8 @@
    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
-#include <xtensa-isa.h>
+#include "qemu/osdep.h"
+#include "xtensa-isa.h"
 #include "xtensa-isa-internal.h"
 
 

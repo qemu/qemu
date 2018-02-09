@@ -15,7 +15,6 @@
 #include "qemu/osdep.h"
 
 #include "qapi/qmp/qnum.h"
-#include "qapi/error.h"
 #include "qemu-common.h"
 
 /*

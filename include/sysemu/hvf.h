@@ -12,8 +12,6 @@
 #ifndef _HVF_H
 #define _HVF_H
 
-#include "config-host.h"
-#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/bitops.h"
 #include "exec/memory.h"

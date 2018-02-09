@@ -8,7 +8,6 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
- *
  */
 
 #include "qemu/osdep.h"
@@ -23,8 +22,10 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include "qemu/xattr.h"
+#include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include <libgen.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H

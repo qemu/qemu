@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "channel.h"
 #include "exec.h"
 #include "io/channel-command.h"

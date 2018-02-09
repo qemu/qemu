@@ -26,6 +26,7 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_bridge.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"

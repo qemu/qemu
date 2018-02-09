@@ -12,7 +12,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/block/block.h"
 #include "scsi/constants.h"
-#include "qapi/error.h"
 
 /* debug IDE devices */
 #define USE_DMA_CDROM

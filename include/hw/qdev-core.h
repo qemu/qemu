@@ -2,7 +2,6 @@
 #define QDEV_CORE_H
 
 #include "qemu/queue.h"
-#include "qemu/option.h"
 #include "qemu/bitmap.h"
 #include "qom/object.h"
 #include "hw/irq.h"

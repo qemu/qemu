@@ -18,8 +18,8 @@
 #endif
 
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qemu/bswap.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"

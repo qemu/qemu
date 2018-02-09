@@ -21,9 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include <dirent.h>
-#include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "monitor/qdev.h"
@@ -51,8 +51,10 @@
 #include "sysemu/hw_accel.h"
 #include "qemu/acl.h"
 #include "sysemu/tpm.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
@@ -66,17 +68,18 @@
 #include "exec/memory.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
+#include "qemu/option.h"
 #include "qmp-commands.h"
 #include "hmp.h"
 #include "qemu/thread.h"
 #include "block/qapi.h"
+#include "qapi/error.h"
 #include "qapi/qmp-event.h"
 #include "qapi-event.h"
 #include "qmp-introspect.h"
 #include "sysemu/qtest.h"
 #include "sysemu/cpus.h"
 #include "qemu/cutils.h"
-#include "qapi/qmp/dispatch.h"
 
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"

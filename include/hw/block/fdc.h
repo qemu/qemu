@@ -2,6 +2,7 @@
 #define HW_FDC_H
 
 #include "qemu-common.h"
+#include "qapi-types.h"
 
 /* fdc.c */
 #define MAX_FD 2

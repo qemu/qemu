@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include <getopt.h>
 
@@ -28,9 +29,9 @@
 #include "qapi/error.h"
 #include "qapi-visit.h"
 #include "qapi/qobject-output-visitor.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"

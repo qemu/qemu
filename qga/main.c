@@ -10,6 +10,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include <getopt.h>
 #include <glib/gstdio.h>
@@ -19,11 +20,14 @@
 #endif
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qstring.h"
 #include "qga/guest-agent-core.h"
 #include "qemu/module.h"
+#include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/qmp/dispatch.h"
+#include "qapi/error.h"
 #include "qga/channel.h"
 #include "qemu/bswap.h"
 #include "qemu/help_option.h"

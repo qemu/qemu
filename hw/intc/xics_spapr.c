@@ -34,7 +34,6 @@
 #include "hw/ppc/xics.h"
 #include "hw/ppc/fdt.h"
 #include "qapi/visitor.h"
-#include "qapi/error.h"
 
 /*
  * Guest interfaces

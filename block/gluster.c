@@ -7,13 +7,16 @@
  * See the COPYING file in the top-level directory.
  *
  */
+
 #include "qemu/osdep.h"
 #include <glusterfs/api/glfs.h>
 #include "block/block_int.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "qemu/cutils.h"
 
 #define GLUSTER_OPT_FILENAME        "filename"

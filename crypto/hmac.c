@@ -10,7 +10,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "crypto/hmac.h"
 #include "hmacpriv.h"
 

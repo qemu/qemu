@@ -1,13 +1,14 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
-#include "qemu-common.h"
 #include "qemu/config-file.h"
+#include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-mux.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qom/qom-qobject.h"
 #include "qmp-commands.h"
 

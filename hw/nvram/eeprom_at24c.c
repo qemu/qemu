@@ -7,9 +7,8 @@
  * the LICENSE file in the top-level directory.
  */
 
-#include <string.h>
-
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"

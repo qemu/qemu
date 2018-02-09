@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/bcd.h"
@@ -29,6 +30,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/replay.h"
 #include "hw/timer/mc146818rtc.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qapi-event.h"
 #include "qmp-commands.h"

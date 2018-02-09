@@ -26,7 +26,6 @@
 #include "qemu/osdep.h"
 #include "sysemu/accel.h"
 #include "hw/boards.h"
-#include "qemu-common.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
@@ -34,6 +33,7 @@
 #include "hw/xen/xen.h"
 #include "qom/object.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 
 static const TypeInfo accel_type = {
     .name = TYPE_ACCEL,

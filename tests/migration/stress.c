@@ -17,21 +17,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
+#include "qemu/osdep.h"
 #include <getopt.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
 #include <sys/reboot.h>
 #include <sys/syscall.h>
 #include <linux/random.h>
-#include <sys/time.h>
 #include <pthread.h>
-#include <fcntl.h>
 #include <sys/mount.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 
 const char *argv0;
 

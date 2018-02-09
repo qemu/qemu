@@ -2,6 +2,7 @@
 #include "hw/hw.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
 #include "hw/qdev.h"

@@ -21,8 +21,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
-#include "qmp-commands.h"
 #include "hw/smbios/smbios.h"
 
 void smbios_entry_add(QemuOpts *opts, Error **errp)

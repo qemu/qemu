@@ -44,7 +44,7 @@ typedef enum {
  * in range: qnum_get_try_int() / qnum_get_try_uint() check range and
  * convert under the hood.
  */
-typedef struct QNum {
+struct QNum {
     QObject base;
     QNumKind kind;
     union {
@@ -52,7 +52,7 @@ typedef struct QNum {
         uint64_t u64;
         double dbl;
     } u;
-} QNum;
+};
 
 QNum *qnum_from_int(int64_t value);
 QNum *qnum_from_uint(uint64_t value);

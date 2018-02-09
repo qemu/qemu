@@ -26,8 +26,6 @@
 #ifndef QEMU_PR_HELPER_H
 #define QEMU_PR_HELPER_H 1
 
-#include <stdint.h>
-
 #define PR_HELPER_CDB_SIZE     16
 #define PR_HELPER_SENSE_SIZE   96
 #define PR_HELPER_DATA_SIZE    8192

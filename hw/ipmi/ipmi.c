@@ -28,6 +28,7 @@
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "qom/object_interfaces.h"
+#include "qapi/error.h"
 #include "qapi/visitor.h"
 
 static uint32_t ipmi_current_uuid = 1;
