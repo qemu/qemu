@@ -194,7 +194,9 @@ struct tcp_hdr {
 #define PKT_GET_IP_HDR(p)         \
     ((struct ip_header *)(((uint8_t *)(p)) + eth_get_l2_hdr_length(p)))
 #define IP_HDR_GET_LEN(p)         \
-    ((((struct ip_header *)(p))->ip_ver_len & 0x0F) << 2)
+    ((ldub_p(p + offsetof(struct ip_header, ip_ver_len)) & 0x0F) << 2)
+#define IP_HDR_GET_P(p)                                           \
+    (ldub_p(p + offsetof(struct ip_header, ip_p)))
 #define PKT_GET_IP_HDR_LEN(p)     \
     (IP_HDR_GET_LEN(PKT_GET_IP_HDR(p)))
 #define PKT_GET_IP6_HDR(p)        \

@@ -205,7 +205,7 @@ static bool net_tx_pkt_parse_headers(struct NetTxPkt *pkt)
             return false;
         }
 
-        pkt->l4proto = ((struct ip_header *) l3_hdr->iov_base)->ip_p;
+        pkt->l4proto = IP_HDR_GET_P(l3_hdr->iov_base);
 
         if (IP_HDR_GET_LEN(l3_hdr->iov_base) != sizeof(struct ip_header)) {
             /* copy optional IPv4 header data if any*/
