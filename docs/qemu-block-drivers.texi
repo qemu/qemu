@@ -845,6 +845,16 @@ QEMU transparently handles lock handover during shared storage migration.  For
 shared virtual disk images between multiple VMs, the "share-rw" device option
 should be used.
 
+By default, the guest has exclusive write access to its disk image. If the
+guest can safely share the disk image with other writers the @code{-device
+...,share-rw=on} parameter can be used.  This is only safe if the guest is
+running software, such as a cluster file system, that coordinates disk accesses
+to avoid corruption.
+
+Note that share-rw=on only declares the guest's ability to share the disk.
+Some QEMU features, such as image file formats, require exclusive write access
+to the disk image and this is unaffected by the share-rw=on option.
+
 Alternatively, locking can be fully disabled by "locking=off" block device
 option. In the command line, the option is usually in the form of
 "file.locking=off" as the protocol driver is normally placed as a "file" child
