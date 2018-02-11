@@ -165,24 +165,26 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
         return basename
 
     def _begin_module(self, name):
+        types = self._module_basename('qapi-types', name)
+        visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "%(prefix)sqapi-event.h"
-#include "%(prefix)sqapi-visit.h"
+#include "%(visit)s.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp-event.h"
 
 ''',
-                             prefix=self._prefix))
+                             visit=visit, prefix=self._prefix))
         self._genh.add(mcgen('''
 #include "qapi/util.h"
-#include "%(prefix)sqapi-types.h"
+#include "%(types)s.h"
 
 ''',
-                             prefix=self._prefix))
+                             types=types))
 
     def visit_end(self):
         self._genh.add(gen_enum(self._enum_name, self._event_names))

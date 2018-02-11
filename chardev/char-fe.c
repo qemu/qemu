@@ -25,7 +25,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi-visit.h"
 #include "sysemu/replay.h"
 
 #include "chardev/char-fe.h"

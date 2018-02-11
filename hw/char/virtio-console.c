@@ -15,8 +15,8 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/virtio/virtio-serial.h"
-#include "qapi-event.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-char.h"
 
 #define TYPE_VIRTIO_CONSOLE_SERIAL_PORT "virtserialport"
 #define VIRTIO_CONSOLE(obj) \

@@ -9,12 +9,13 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include "sysemu/hostmem.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
+#include "qapi-builtin-visit.h"
 #include "qapi/visitor.h"
-#include "qapi-visit.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
 

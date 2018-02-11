@@ -24,8 +24,8 @@
 
 #include "qemu/osdep.h"
 #include "chardev/char.h"
-#include "qmp-commands.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-char.h"
 #include "qemu/base64.h"
 #include "qemu/option.h"
 

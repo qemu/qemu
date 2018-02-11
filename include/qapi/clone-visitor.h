@@ -12,7 +12,6 @@
 #define QAPI_CLONE_VISITOR_H
 
 #include "qapi/visitor.h"
-#include "qapi-visit.h"
 
 /*
  * The clone visitor is for direct use only by the QAPI_CLONE() macro;

@@ -14,7 +14,7 @@
 #define QEMU_COLO_H
 
 #include "qemu-common.h"
-#include "qapi-types.h"
+#include "qapi/qapi-types-migration.h"
 
 void colo_info_init(void);
 

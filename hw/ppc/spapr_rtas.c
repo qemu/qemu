@@ -38,7 +38,6 @@
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/spapr_rtas.h"
 #include "hw/ppc/ppc.h"
-#include "qapi-event.h"
 #include "hw/boards.h"
 
 #include <libfdt.h>

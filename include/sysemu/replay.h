@@ -13,6 +13,7 @@
  */
 
 #include "sysemu.h"
+#include "qapi-types.h"
 
 /* replay clock kinds */
 enum ReplayClockKind {

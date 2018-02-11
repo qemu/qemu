@@ -284,20 +284,22 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
                                       prefix=prefix))
 
     def _begin_module(self, name):
+        types = self._module_basename('qapi-types', name)
+        visit = self._module_basename('qapi-visit', name)
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
-#include "%(prefix)sqapi-visit.h"
+#include "%(visit)s.h"
 ''',
-                                      prefix=self._prefix))
+                                      visit=visit, prefix=self._prefix))
         self._genh.preamble_add(mcgen('''
 #include "qapi-builtin-visit.h"
-#include "%(prefix)sqapi-types.h"
+#include "%(types)s.h"
 
 ''',
-                                      prefix=self._prefix))
+                                      types=types))
 
     def visit_enum_type(self, name, info, values, prefix):
         self._genh.add(gen_visit_decl(name, scalar=True))

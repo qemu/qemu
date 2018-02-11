@@ -21,6 +21,7 @@
 #ifndef QCRYPTO_TLSCREDS_H
 #define QCRYPTO_TLSCREDS_H
 
+#include "qapi/qapi-types-crypto.h"
 #include "qom/object.h"
 
 #ifdef CONFIG_GNUTLS

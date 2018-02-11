@@ -27,8 +27,8 @@
 #include "qemu/config-file.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
+#include "qapi/qapi-events-run-state.h"
 #include "qapi-visit.h"
-#include "qapi-event.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 

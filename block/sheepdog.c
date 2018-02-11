@@ -13,8 +13,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi-visit.h"
 #include "qapi/error.h"
+#include "qapi/qapi-visit-sockets.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qemu/uri.h"

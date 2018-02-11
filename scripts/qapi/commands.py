@@ -241,6 +241,9 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 
     def _begin_module(self, name):
         self._visited_ret_types[self._genc] = set()
+        commands = self._module_basename('qapi-commands', name)
+        types = self._module_basename('qapi-types', name)
+        visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
@@ -251,18 +254,17 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/error.h"
-#include "%(prefix)sqapi-types.h"
-#include "%(prefix)sqapi-visit.h"
-#include "%(prefix)sqmp-commands.h"
+#include "%(visit)s.h"
+#include "%(commands)s.h"
 
 ''',
-                             prefix=self._prefix))
+                             commands=commands, visit=visit))
         self._genh.add(mcgen('''
-#include "%(prefix)sqapi-types.h"
+#include "%(types)s.h"
 #include "qapi/qmp/dispatch.h"
 
 ''',
-                             prefix=self._prefix))
+                             types=types))
 
     def visit_end(self):
         (genc, genh) = self._module[self._main_module]

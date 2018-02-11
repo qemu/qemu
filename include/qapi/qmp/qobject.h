@@ -32,7 +32,7 @@
 #ifndef QOBJECT_H
 #define QOBJECT_H
 
-#include "qapi-types.h"
+#include "qapi-builtin-types.h"
 
 struct QObject {
     QType type;

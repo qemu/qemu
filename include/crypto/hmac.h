@@ -12,7 +12,7 @@
 #ifndef QCRYPTO_HMAC_H
 #define QCRYPTO_HMAC_H
 
-#include "qapi-types.h"
+#include "qapi/qapi-types-crypto.h"
 
 typedef struct QCryptoHmac QCryptoHmac;
 struct QCryptoHmac {

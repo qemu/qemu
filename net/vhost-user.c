@@ -14,10 +14,10 @@
 #include "net/vhost-user.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-net.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
-#include "qmp-commands.h"
 #include "trace.h"
 
 typedef struct VhostUserState {

@@ -30,7 +30,7 @@
 #define QEMU_MIGRATION_RAM_H
 
 #include "qemu-common.h"
-#include "qapi-types.h"
+#include "qapi/qapi-types-migration.h"
 #include "exec/cpu-common.h"
 
 extern MigrationStats ram_counters;

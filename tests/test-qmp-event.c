@@ -14,7 +14,6 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
-#include "test-qapi-visit.h"
 #include "test-qapi-event.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qbool.h"

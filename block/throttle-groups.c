@@ -30,7 +30,7 @@
 #include "qemu/thread.h"
 #include "sysemu/qtest.h"
 #include "qapi/error.h"
-#include "qapi-visit.h"
+#include "qapi/qapi-visit-block-core.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 

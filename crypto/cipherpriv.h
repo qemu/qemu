@@ -15,7 +15,7 @@
 #ifndef QCRYPTO_CIPHERPRIV_H
 #define QCRYPTO_CIPHERPRIV_H
 
-#include "qapi-types.h"
+#include "qapi/qapi-types-crypto.h"
 
 typedef struct QCryptoCipherDriver QCryptoCipherDriver;
 
