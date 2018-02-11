@@ -1,16 +1,17 @@
-#
-# QAPI command marshaller generator
-#
-# Copyright IBM, Corp. 2011
-# Copyright (C) 2014-2016 Red Hat, Inc.
-#
-# Authors:
-#  Anthony Liguori <aliguori@us.ibm.com>
-#  Michael Roth    <mdroth@linux.vnet.ibm.com>
-#  Markus Armbruster <armbru@redhat.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2.
-# See the COPYING file in the top-level directory.
+"""
+QAPI command marshaller generator
+
+Copyright IBM, Corp. 2011
+Copyright (C) 2014-2018 Red Hat, Inc.
+
+Authors:
+ Anthony Liguori <aliguori@us.ibm.com>
+ Michael Roth <mdroth@linux.vnet.ibm.com>
+ Markus Armbruster <armbru@redhat.com>
+
+This work is licensed under the terms of the GNU GPL, version 2.
+See the COPYING file in the top-level directory.
+"""
 
 from qapi import *
 
@@ -255,18 +256,11 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()
 
-blurb = '''
- * Schema-defined QAPI/QMP commands
- *
- * Copyright IBM, Corp. 2011
- *
- * Authors:
- *  Anthony Liguori   <aliguori@us.ibm.com>
-'''
+blurb = ' * Schema-defined QAPI/QMP commands'
 
 (fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
                             'qmp-marshal.c', 'qmp-commands.h',
-                            blurb)
+                            blurb, __doc__)
 
 fdef.write(mcgen('''
 

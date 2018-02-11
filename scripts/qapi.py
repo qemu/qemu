@@ -1985,21 +1985,24 @@ def parse_command_line(extra_options='', extra_long_options=[]):
 #
 
 
-def open_output(output_dir, do_c, do_h, prefix, c_file, h_file, blurb):
+def open_output(output_dir, do_c, do_h, prefix, c_file, h_file, blurb, doc):
     guard = guardname(prefix + h_file)
     c_file = output_dir + prefix + c_file
     h_file = output_dir + prefix + h_file
+    copyright = '\n * '.join(re.findall(r'^Copyright .*', doc, re.MULTILINE))
     comment = mcgen('''/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
 
 /*
 %(blurb)s
+ *
+ * %(copyright)s
  *
  * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
  * See the COPYING.LIB file in the top-level directory.
  */
 
 ''',
-                    blurb=blurb.strip('\n'))
+                    blurb=blurb, copyright=copyright)
 
     if output_dir:
         try:

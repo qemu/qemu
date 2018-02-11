@@ -1,15 +1,17 @@
-#
-# QAPI types generator
-#
-# Copyright IBM, Corp. 2011
-# Copyright (c) 2013-2016 Red Hat Inc.
-#
-# Authors:
-#  Anthony Liguori <aliguori@us.ibm.com>
-#  Markus Armbruster <armbru@redhat.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2.
+"""
+QAPI types generator
+
+Copyright IBM, Corp. 2011
+Copyright (c) 2013-2018 Red Hat Inc.
+
+Authors:
+ Anthony Liguori <aliguori@us.ibm.com>
+ Michael Roth <mdroth@linux.vnet.ibm.com>
+ Markus Armbruster <armbru@redhat.com>
+
+This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
+"""
 
 from qapi import *
 
@@ -250,19 +252,11 @@ for o, a in opts:
     if o in ('-b', '--builtins'):
         do_builtins = True
 
-blurb = '''
- * Schema-defined QAPI types
- *
- * Copyright IBM, Corp. 2011
- *
- * Authors:
- *  Anthony Liguori   <aliguori@us.ibm.com>
- *  Michael Roth      <mdroth@linux.vnet.ibm.com>
-'''
+blurb = ' * Schema-defined QAPI types'
 
 (fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
                             'qapi-types.c', 'qapi-types.h',
-                            blurb)
+                            blurb, __doc__)
 
 fdef.write(mcgen('''
 #include "qemu/osdep.h"

@@ -1,15 +1,16 @@
-#
-# QAPI event generator
-#
-# Copyright (c) 2014 Wenchao Xia
-# Copyright (c) 2015-2016 Red Hat Inc.
-#
-# Authors:
-#  Wenchao Xia <wenchaoqemu@gmail.com>
-#  Markus Armbruster <armbru@redhat.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2.
-# See the COPYING file in the top-level directory.
+"""
+QAPI event generator
+
+Copyright (c) 2014 Wenchao Xia
+Copyright (c) 2015-2018 Red Hat Inc.
+
+Authors:
+ Wenchao Xia <wenchaoqemu@gmail.com>
+ Markus Armbruster <armbru@redhat.com>
+
+This work is licensed under the terms of the GNU GPL, version 2.
+See the COPYING file in the top-level directory.
+"""
 
 from qapi import *
 
@@ -171,18 +172,11 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
 
 (input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
 
-blurb = '''
- * Schema-defined QAPI/QMP events
- *
- * Copyright (c) 2014 Wenchao Xia
- *
- * Authors:
- *  Wenchao Xia   <wenchaoqemu@gmail.com>
-'''
+blurb = ' * Schema-defined QAPI/QMP events'
 
 (fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
                             'qapi-event.c', 'qapi-event.h',
-                            blurb)
+                            blurb, __doc__)
 
 fdef.write(mcgen('''
 #include "qemu/osdep.h"

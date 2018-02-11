@@ -1,13 +1,14 @@
-#
-# QAPI introspection generator
-#
-# Copyright (C) 2015-2016 Red Hat, Inc.
-#
-# Authors:
-#  Markus Armbruster <armbru@redhat.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2.
-# See the COPYING file in the top-level directory.
+"""
+QAPI introspection generator
+
+Copyright (C) 2015-2018 Red Hat, Inc.
+
+Authors:
+ Markus Armbruster <armbru@redhat.com>
+
+This work is licensed under the terms of the GNU GPL, version 2.
+See the COPYING file in the top-level directory.
+"""
 
 from qapi import *
 
@@ -176,15 +177,11 @@ for o, a in opts:
     if o in ('-u', '--unmask-non-abi-names'):
         opt_unmask = True
 
-blurb = '''
- * QAPI/QMP schema introspection
- *
- * Copyright (C) 2015 Red Hat, Inc.
-'''
+blurb = ' * QAPI/QMP schema introspection'
 
 (fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
                             'qmp-introspect.c', 'qmp-introspect.h',
-                            blurb)
+                            blurb, __doc__)
 
 fdef.write(mcgen('''
 #include "qemu/osdep.h"
