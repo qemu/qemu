@@ -1,6 +1,7 @@
 object q_empty
 enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
+module qapi-schema-test.json
 object TestStruct
     member integer: int optional=False
     member boolean: bool optional=False

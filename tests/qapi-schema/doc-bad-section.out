@@ -1,6 +1,7 @@
 object q_empty
 enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
+module doc-bad-section.json
 enum Enum ['one', 'two']
 doc symbol=Enum
     body=

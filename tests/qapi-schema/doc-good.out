@@ -1,6 +1,7 @@
 object q_empty
 enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
+module doc-good.json
 enum Enum ['one', 'two']
 object Base
     member base1: Enum optional=False

@@ -1,4 +1,14 @@
 object q_empty
 enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
+module include-repetition.json
+include comments.json
+module comments.json
 enum Status ['good', 'bad', 'ugly']
+module include-repetition.json
+include include-repetition-sub.json
+module include-repetition-sub.json
+include comments.json
+include comments.json
+module include-repetition.json
+include comments.json

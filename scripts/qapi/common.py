@@ -984,8 +984,9 @@ def check_exprs(exprs):
 
 class QAPISchemaEntity(object):
     def __init__(self, name, info, doc):
-        assert isinstance(name, str)
+        assert name is None or isinstance(name, str)
         self.name = name
+        self.module = None
         # For explicitly defined entities, info points to the (explicit)
         # definition.  For builtins (and their arrays), info is None.
         # For implicitly defined entities, info points to a place that
@@ -1014,9 +1015,15 @@ class QAPISchemaVisitor(object):
     def visit_end(self):
         pass
 
+    def visit_module(self, fname):
+        pass
+
     def visit_needed(self, entity):
         # Default to visiting everything
         return True
+
+    def visit_include(self, fname, info):
+        pass
 
     def visit_builtin_type(self, name, info, json_type):
         pass
@@ -1042,6 +1049,16 @@ class QAPISchemaVisitor(object):
 
     def visit_event(self, name, info, arg_type, boxed):
         pass
+
+
+class QAPISchemaInclude(QAPISchemaEntity):
+
+    def __init__(self, fname, info):
+        QAPISchemaEntity.__init__(self, None, info, None)
+        self.fname = fname
+
+    def visit(self, visitor):
+        visitor.visit_include(self.fname, self.info)
 
 
 class QAPISchemaType(QAPISchemaEntity):
@@ -1471,6 +1488,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
 
 class QAPISchema(object):
     def __init__(self, fname):
+        self._fname = fname
         parser = QAPISchemaParser(open(fname, 'r'))
         exprs = check_exprs(parser.exprs)
         self.docs = parser.docs
@@ -1485,9 +1503,13 @@ class QAPISchema(object):
     def _def_entity(self, ent):
         # Only the predefined types are allowed to not have info
         assert ent.info or self._predefining
-        assert ent.name not in self._entity_dict
+        assert ent.name is None or ent.name not in self._entity_dict
         self._entity_list.append(ent)
-        self._entity_dict[ent.name] = ent
+        if ent.name is not None:
+            self._entity_dict[ent.name] = ent
+        if ent.info:
+            ent.module = os.path.relpath(ent.info['file'],
+                                         os.path.dirname(self._fname))
 
     def lookup_entity(self, name, typ=None):
         ent = self._entity_dict.get(name)
@@ -1497,6 +1519,15 @@ class QAPISchema(object):
 
     def lookup_type(self, name):
         return self.lookup_entity(name, QAPISchemaType)
+
+    def _def_include(self, expr, info, doc):
+        include = expr['include']
+        assert doc is None
+        main_info = info
+        while main_info['parent']:
+            main_info = main_info['parent']
+        fname = os.path.relpath(include, os.path.dirname(main_info['file']))
+        self._def_entity(QAPISchemaInclude(fname, info))
 
     def _def_builtin_type(self, name, json_type, c_type):
         self._def_entity(QAPISchemaBuiltinType(name, json_type, c_type))
@@ -1680,7 +1711,7 @@ class QAPISchema(object):
             elif 'event' in expr:
                 self._def_event(expr, info, doc)
             elif 'include' in expr:
-                pass
+                self._def_include(expr, info, doc)
             else:
                 assert False
 
@@ -1690,8 +1721,12 @@ class QAPISchema(object):
 
     def visit(self, visitor):
         visitor.visit_begin(self)
+        module = None
         for entity in self._entity_list:
             if visitor.visit_needed(entity):
+                if entity.module != module:
+                    module = entity.module
+                    visitor.visit_module(module)
                 entity.visit(visitor)
         visitor.visit_end()
 
