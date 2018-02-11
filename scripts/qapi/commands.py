@@ -223,14 +223,24 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
     return ret
 
 
-class QAPISchemaGenCommandVisitor(QAPISchemaMonolithicCVisitor):
+class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 
     def __init__(self, prefix):
-        QAPISchemaMonolithicCVisitor.__init__(
-            self, prefix, 'qmp-commands',
+        QAPISchemaModularCVisitor.__init__(
+            self, prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', __doc__)
         self._regy = ''
-        self._visited_ret_types = set()
+        self._visited_ret_types = {}
+
+    # Temporary HACK:
+    def _module_basename(self, what, name):
+        basename = QAPISchemaModularCVisitor._module_basename(self, what, name)
+        if name == self._main_module:
+            return re.sub(r'qapi-commands', 'qmp-commands', basename)
+        return basename
+
+    def _begin_module(self, name):
+        self._visited_ret_types[self._genc] = set()
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
@@ -246,26 +256,29 @@ class QAPISchemaGenCommandVisitor(QAPISchemaMonolithicCVisitor):
 #include "%(prefix)sqmp-commands.h"
 
 ''',
-                             prefix=prefix))
+                             prefix=self._prefix))
         self._genh.add(mcgen('''
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/dispatch.h"
 
-void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
-                             prefix=prefix,
-                             c_prefix=c_name(prefix, protect=False)))
+                             prefix=self._prefix))
 
     def visit_end(self):
-        self._genc.add(gen_registry(self._regy, self._prefix))
+        (genc, genh) = self._module[self._main_module]
+        genh.add(mcgen('''
+void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
+''',
+                       c_prefix=c_name(self._prefix, protect=False)))
+        genc.add(gen_registry(self._regy, self._prefix))
 
     def visit_command(self, name, info, arg_type, ret_type,
                       gen, success_response, boxed):
         if not gen:
             return
         self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
-        if ret_type and ret_type not in self._visited_ret_types:
-            self._visited_ret_types.add(ret_type)
+        if ret_type and ret_type not in self._visited_ret_types[self._genc]:
+            self._visited_ret_types[self._genc].add(ret_type)
             self._genc.add(gen_marshal_output(ret_type))
         self._genh.add(gen_marshal_decl(name))
         self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))

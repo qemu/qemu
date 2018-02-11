@@ -1775,10 +1775,11 @@ def c_enum_const(type_name, const_name, prefix=None):
         type_name = prefix
     return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
 
+# Temporary HACK for '/':
 if hasattr(str, 'maketrans'):
-    c_name_trans = str.maketrans('.-', '__')
+    c_name_trans = str.maketrans('.-/', '___')
 else:
-    c_name_trans = string.maketrans('.-', '__')
+    c_name_trans = string.maketrans('.-/', '___')
 
 
 # Map @name to a valid C identifier.
@@ -2035,6 +2036,13 @@ class QAPIGenC(QAPIGen):
 ''',
                      blurb=self._blurb, copyright=self._copyright)
 
+    def _bottom(self, fname):
+        return mcgen('''
+/* Dummy declaration to prevent empty .o file */
+char dummy_%(name)s;
+''',
+                     name=c_name(fname))
+
 
 class QAPIGenH(QAPIGenC):
 
@@ -2073,13 +2081,20 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._blurb = blurb
         self._pydoc = pydoc
         self._module = {}
+        self._main_module = None
 
     def _module_basename(self, what, name):
         if name is None:
             return re.sub(r'-', '-builtin-', what)
-        return self._prefix + what
+        basename = os.path.join(os.path.dirname(name),
+                                self._prefix + what)
+        if name == self._main_module:
+            return basename
+        return basename + '-' + os.path.splitext(os.path.basename(name))[0]
 
     def _add_module(self, name, blurb):
+        if self._main_module is None and name is not None:
+            self._main_module = name
         genc = QAPIGenC(blurb, self._pydoc)
         genh = QAPIGenH(blurb, self._pydoc)
         self._module[name] = (genc, genh)
@@ -2088,7 +2103,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def _set_module(self, name):
         self._genc, self._genh = self._module[name]
 
-    def write(self, output_dir, opt_builtins):
+    def write(self, output_dir, opt_builtins=False):
         for name in self._module:
             if name is None and not opt_builtins:
                 continue
@@ -2101,7 +2116,15 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         pass
 
     def visit_module(self, name):
-        if len(self._module) != 1:
+        if name in self._module:
+            self._set_module(name)
             return
         self._add_module(name, self._blurb)
         self._begin_module(name)
+
+    def visit_include(self, name, info):
+        basename = self._module_basename(self._what, name)
+        self._genh.preamble_add(mcgen('''
+#include "%(basename)s.h"
+''',
+                                      basename=basename))

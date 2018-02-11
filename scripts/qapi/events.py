@@ -148,14 +148,23 @@ out:
     return ret
 
 
-class QAPISchemaGenEventVisitor(QAPISchemaMonolithicCVisitor):
+class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 
     def __init__(self, prefix):
-        QAPISchemaMonolithicCVisitor.__init__(
-            self, prefix, 'qapi-event',
+        QAPISchemaModularCVisitor.__init__(
+            self, prefix, 'qapi-events',
             ' * Schema-defined QAPI/QMP events', __doc__)
         self._enum_name = c_name(prefix + 'QAPIEvent', protect=False)
         self._event_names = []
+
+    # Temporary HACK:
+    def _module_basename(self, what, name):
+        basename = QAPISchemaModularCVisitor._module_basename(self, what, name)
+        if name == self._main_module:
+            return re.sub(r'qapi-events', 'qapi-event', basename)
+        return basename
+
+    def _begin_module(self, name):
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
@@ -167,13 +176,13 @@ class QAPISchemaGenEventVisitor(QAPISchemaMonolithicCVisitor):
 #include "qapi/qmp-event.h"
 
 ''',
-                             prefix=prefix))
+                             prefix=self._prefix))
         self._genh.add(mcgen('''
 #include "qapi/util.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-                             prefix=prefix))
+                             prefix=self._prefix))
 
     def visit_end(self):
         self._genh.add(gen_enum(self._enum_name, self._event_names))
