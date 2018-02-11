@@ -289,9 +289,9 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
                   prefix=prefix, c_prefix=c_name(prefix, protect=False)))
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenCommandVisitor()
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+vis = QAPISchemaGenCommandVisitor()
+schema.visit(vis)
+fdef.write(vis.defn)
+fdecl.write(vis.decl)
 
 close_output(fdef, fdecl)

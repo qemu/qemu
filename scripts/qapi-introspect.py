@@ -191,9 +191,9 @@ fdef.write(mcgen('''
                  prefix=prefix))
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenIntrospectVisitor(opt_unmask)
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+vis = QAPISchemaGenIntrospectVisitor(opt_unmask)
+schema.visit(vis)
+fdef.write(vis.defn)
+fdecl.write(vis.decl)
 
 close_output(fdef, fdecl)

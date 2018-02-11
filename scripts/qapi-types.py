@@ -271,9 +271,9 @@ fdecl.write(mcgen('''
 '''))
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenTypeVisitor()
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+vis = QAPISchemaGenTypeVisitor()
+schema.visit(vis)
+fdef.write(vis.defn)
+fdecl.write(vis.decl)
 
 close_output(fdef, fdecl)

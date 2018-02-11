@@ -201,9 +201,9 @@ fdecl.write(mcgen('''
 event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenEventVisitor()
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+vis = QAPISchemaGenEventVisitor()
+schema.visit(vis)
+fdef.write(vis.defn)
+fdecl.write(vis.decl)
 
 close_output(fdef, fdecl)
