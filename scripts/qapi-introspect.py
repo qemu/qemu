@@ -176,32 +176,15 @@ for o, a in opts:
     if o in ('-u', '--unmask-non-abi-names'):
         opt_unmask = True
 
-c_comment = '''
-/*
+blurb = '''
  * QAPI/QMP schema introspection
  *
  * Copyright (C) 2015 Red Hat, Inc.
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-h_comment = '''
-/*
- * QAPI/QMP schema introspection
- *
- * Copyright (C) 2015 Red Hat, Inc.
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
 '''
 
 (fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
                             'qmp-introspect.c', 'qmp-introspect.h',
-                            c_comment, h_comment)
+                            blurb)
 
 fdef.write(mcgen('''
 #include "qemu/osdep.h"

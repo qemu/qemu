@@ -1985,11 +1985,21 @@ def parse_command_line(extra_options='', extra_long_options=[]):
 #
 
 
-def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
-                c_comment, h_comment):
+def open_output(output_dir, do_c, do_h, prefix, c_file, h_file, blurb):
     guard = guardname(prefix + h_file)
     c_file = output_dir + prefix + c_file
     h_file = output_dir + prefix + h_file
+    comment = mcgen('''/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+
+/*
+%(blurb)s
+ *
+ * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
+ * See the COPYING.LIB file in the top-level directory.
+ */
+
+''',
+                    blurb=blurb.strip('\n'))
 
     if output_dir:
         try:
@@ -2007,27 +2017,22 @@ def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
     fdef = maybe_open(do_c, c_file, 'w')
     fdecl = maybe_open(do_h, h_file, 'w')
 
-    fdef.write(mcgen('''
-/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
-%(comment)s
-''',
-                     comment=c_comment))
-
+    fdef.write(comment)
+    fdecl.write(comment)
     fdecl.write(mcgen('''
-/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
-%(comment)s
 #ifndef %(guard)s
 #define %(guard)s
 
 ''',
-                      comment=h_comment, guard=guard))
+                      guard=guard))
 
     return (fdef, fdecl)
 
 
 def close_output(fdef, fdecl):
-    fdecl.write('''
+    fdecl.write(mcgen('''
+
 #endif
-''')
+'''))
     fdecl.close()
     fdef.close()

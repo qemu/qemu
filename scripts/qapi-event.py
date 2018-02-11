@@ -171,38 +171,18 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
 
 (input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
 
-c_comment = '''
-/*
- * schema-defined QAPI event functions
+blurb = '''
+ * Schema-defined QAPI/QMP events
  *
  * Copyright (c) 2014 Wenchao Xia
  *
  * Authors:
  *  Wenchao Xia   <wenchaoqemu@gmail.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-h_comment = '''
-/*
- * schema-defined QAPI event functions
- *
- * Copyright (c) 2014 Wenchao Xia
- *
- * Authors:
- *  Wenchao Xia  <wenchaoqemu@gmail.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
 '''
 
 (fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
                             'qapi-event.c', 'qapi-event.h',
-                            c_comment, h_comment)
+                            blurb)
 
 fdef.write(mcgen('''
 #include "qemu/osdep.h"

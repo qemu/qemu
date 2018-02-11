@@ -250,39 +250,19 @@ for o, a in opts:
     if o in ('-b', '--builtins'):
         do_builtins = True
 
-c_comment = '''
-/*
- * deallocation functions for schema-defined QAPI types
+blurb = '''
+ * Schema-defined QAPI types
  *
  * Copyright IBM, Corp. 2011
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
  *  Michael Roth      <mdroth@linux.vnet.ibm.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-h_comment = '''
-/*
- * schema-defined QAPI types
- *
- * Copyright IBM, Corp. 2011
- *
- * Authors:
- *  Anthony Liguori   <aliguori@us.ibm.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
 '''
 
 (fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
                             'qapi-types.c', 'qapi-types.h',
-                            c_comment, h_comment)
+                            blurb)
 
 fdef.write(mcgen('''
 #include "qemu/osdep.h"

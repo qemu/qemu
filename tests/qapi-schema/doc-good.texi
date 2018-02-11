@@ -1,3 +1,5 @@
+@c AUTOMATICALLY GENERATED, DO NOT MODIFY
+
 @section Section
 
 @subsection Subsection
@@ -230,5 +232,4 @@ If you're bored enough to read this, go see a video of boxed cats
 @end example
 
 @end deftypefn
-
 
