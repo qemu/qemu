@@ -32,6 +32,7 @@
 #include "qmp-commands.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
 #include "qemu/option.h"
