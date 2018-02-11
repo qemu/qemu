@@ -27,7 +27,6 @@
 /libuser
 /linux-headers/asm
 /qga/qapi-generated
-/qapi-generated
 /qapi-gen-timestamp
 /qapi/qapi-builtin-types.[ch]
 /qapi/qapi-builtin-visit.[ch]
