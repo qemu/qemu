@@ -13,7 +13,6 @@
 
 from __future__ import print_function
 import errno
-import getopt
 import os
 import re
 import string
@@ -1921,48 +1920,6 @@ def build_params(arg_type, boxed, extra):
     if extra:
         ret += sep + extra
     return ret
-
-
-#
-# Common command line parsing
-#
-
-
-def parse_command_line(extra_options='', extra_long_options=[]):
-
-    try:
-        opts, args = getopt.gnu_getopt(sys.argv[1:],
-                                       'p:o:' + extra_options,
-                                       ['prefix=', 'output-dir=']
-                                       + extra_long_options)
-    except getopt.GetoptError as err:
-        print("%s: %s" % (sys.argv[0], str(err)), file=sys.stderr)
-        sys.exit(1)
-
-    output_dir = ''
-    prefix = ''
-    extra_opts = []
-
-    for oa in opts:
-        o, a = oa
-        if o in ('-p', '--prefix'):
-            match = re.match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
-            if match.end() != len(a):
-                print("%s: 'funny character '%s' in argument of --prefix" \
-                      % (sys.argv[0], a[match.end()]), file=sys.stderr)
-                sys.exit(1)
-            prefix = a
-        elif o in ('-o', '--output-dir'):
-            output_dir = a + '/'
-        else:
-            extra_opts.append(oa)
-
-    if len(args) != 1:
-        print("%s: need exactly one argument" % sys.argv[0], file=sys.stderr)
-        sys.exit(1)
-    fname = args[0]
-
-    return (fname, output_dir, prefix, extra_opts)
 
 
 #
