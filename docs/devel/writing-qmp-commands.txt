@@ -15,8 +15,8 @@ start with docs/interop/qmp-intro.txt.
 Generally speaking, the following steps should be taken in order to write a
 new QMP command.
 
-1. Write the command's and type(s) specification in the QAPI schema file
-   (qapi-schema.json in the root source directory)
+1. Define the command and any types it needs in the appropriate QAPI
+   schema module.
 
 2. Write the QMP command itself, which is a regular C function. Preferably,
    the command should be exported by some QEMU subsystem. But it can also be
@@ -88,8 +88,9 @@ command carries some meaningful action in QEMU but here it will just print
 Our command will be called "hello-world". It takes no arguments, nor does it
 return any data.
 
-The first step is to add the following line to the bottom of the
-qapi-schema.json file:
+The first step is defining the command in the appropriate QAPI schema
+module.  We pick module qapi/misc.json, and add the following line at
+the bottom:
 
 { 'command': 'hello-world' }
 
@@ -245,7 +246,7 @@ This is very important. No QMP command will be accepted in QEMU without proper
 documentation.
 
 There are many examples of such documentation in the schema file already, but
-here goes "hello-world"'s new entry for the qapi-schema.json file:
+here goes "hello-world"'s new entry for qapi/misc.json:
 
 ##
 # @hello-world
@@ -425,8 +426,7 @@ There are a number of things to be noticed:
    allocated by the implementation. This is so because the QAPI also generates
    a function to free its types and it cannot distinguish between dynamically
    or statically allocated strings
-6. You have to include the "qmp-commands.h" header file in qemu-timer.c,
-   otherwise qemu won't build
+6. You have to include "qapi/qmp-commands-misc.h" in qemu-timer.c
 
 Time to test the new command. Build qemu, run it as described in the "Testing"
 section and try this:
