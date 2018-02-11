@@ -1,7 +1,7 @@
+object q_empty
 enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
-command fooA q_obj_fooA-arg -> None
-   gen=True success_response=True boxed=False
-object q_empty
 object q_obj_fooA-arg
     member bar1: str optional=False
+command fooA q_obj_fooA-arg -> None
+   gen=True success_response=True boxed=False

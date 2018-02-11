@@ -1474,6 +1474,7 @@ class QAPISchema(object):
         parser = QAPISchemaParser(open(fname, 'r'))
         exprs = check_exprs(parser.exprs)
         self.docs = parser.docs
+        self._entity_list = []
         self._entity_dict = {}
         self._predefining = True
         self._def_predefineds()
@@ -1485,6 +1486,7 @@ class QAPISchema(object):
         # Only the predefined types are allowed to not have info
         assert ent.info or self._predefining
         assert ent.name not in self._entity_dict
+        self._entity_list.append(ent)
         self._entity_dict[ent.name] = ent
 
     def lookup_entity(self, name, typ=None):
@@ -1683,12 +1685,12 @@ class QAPISchema(object):
                 assert False
 
     def check(self):
-        for (name, ent) in sorted(self._entity_dict.items()):
+        for ent in self._entity_list:
             ent.check(self)
 
     def visit(self, visitor):
         visitor.visit_begin(self)
-        for (name, entity) in sorted(self._entity_dict.items()):
+        for entity in self._entity_list:
             if visitor.visit_needed(entity):
                 entity.visit(visitor)
         visitor.visit_end()

@@ -1,11 +1,84 @@
+object q_empty
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    prefix QTYPE
+object TestStruct
+    member integer: int optional=False
+    member boolean: bool optional=False
+    member string: str optional=False
+object NestedEnumsOne
+    member enum1: EnumOne optional=False
+    member enum2: EnumOne optional=True
+    member enum3: EnumOne optional=False
+    member enum4: EnumOne optional=True
+enum MyEnum []
+object Empty1
+object Empty2
+    base Empty1
+command user_def_cmd0 Empty2 -> Empty2
+   gen=True success_response=True boxed=False
+enum QEnumTwo ['value1', 'value2']
+    prefix QENUM_TWO
+object UserDefOne
+    base UserDefZero
+    member string: str optional=False
+    member enum1: EnumOne optional=True
+enum EnumOne ['value1', 'value2', 'value3']
+object UserDefZero
+    member integer: int optional=False
+object UserDefTwoDictDict
+    member userdef: UserDefOne optional=False
+    member string: str optional=False
+object UserDefTwoDict
+    member string1: str optional=False
+    member dict2: UserDefTwoDictDict optional=False
+    member dict3: UserDefTwoDictDict optional=True
+object UserDefTwo
+    member string0: str optional=False
+    member dict1: UserDefTwoDict optional=False
+object ForceArrays
+    member unused1: UserDefOneList optional=False
+    member unused2: UserDefTwoList optional=False
+    member unused3: TestStructList optional=False
+object UserDefA
+    member boolean: bool optional=False
+    member a_b: int optional=True
+object UserDefB
+    member intb: int optional=False
+    member a-b: bool optional=True
+object UserDefFlatUnion
+    base UserDefUnionBase
+    tag enum1
+    case value1: UserDefA
+    case value2: UserDefB
+    case value3: UserDefB
+object UserDefUnionBase
+    base UserDefZero
+    member string: str optional=False
+    member enum1: EnumOne optional=False
+object q_obj_UserDefFlatUnion2-base
+    member integer: int optional=True
+    member string: str optional=False
+    member enum1: QEnumTwo optional=False
+object UserDefFlatUnion2
+    base q_obj_UserDefFlatUnion2-base
+    tag enum1
+    case value1: UserDefC
+    case value2: UserDefB
+object WrapAlternate
+    member alt: UserDefAlternate optional=False
+alternate UserDefAlternate
+    tag type
+    case udfu: UserDefFlatUnion
+    case e: EnumOne
+    case i: int
+    case n: null
+object UserDefC
+    member string1: str optional=False
+    member string2: str optional=False
 alternate AltEnumBool
     tag type
     case e: EnumOne
     case b: bool
-alternate AltEnumInt
-    tag type
-    case e: EnumOne
-    case i: int
 alternate AltEnumNum
     tag type
     case e: EnumOne
@@ -14,74 +87,43 @@ alternate AltNumEnum
     tag type
     case n: number
     case e: EnumOne
+alternate AltEnumInt
+    tag type
+    case e: EnumOne
+    case i: int
 alternate AltStrObj
     tag type
     case s: str
     case o: TestStruct
-event EVENT_A None
-   boxed=False
-event EVENT_B None
-   boxed=False
-event EVENT_C q_obj_EVENT_C-arg
-   boxed=False
-event EVENT_D q_obj_EVENT_D-arg
-   boxed=False
-event EVENT_E UserDefZero
-   boxed=True
-event EVENT_F UserDefAlternate
-   boxed=True
-object Empty1
-object Empty2
-    base Empty1
-enum EnumOne ['value1', 'value2', 'value3']
-object EventStructOne
-    member struct1: UserDefOne optional=False
-    member string: str optional=False
-    member enum2: EnumOne optional=True
-object ForceArrays
-    member unused1: UserDefOneList optional=False
-    member unused2: UserDefTwoList optional=False
-    member unused3: TestStructList optional=False
-enum MyEnum []
-object NestedEnumsOne
-    member enum1: EnumOne optional=False
-    member enum2: EnumOne optional=True
-    member enum3: EnumOne optional=False
-    member enum4: EnumOne optional=True
-enum QEnumTwo ['value1', 'value2']
-    prefix QENUM_TWO
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
-    prefix QTYPE
-object TestStruct
-    member integer: int optional=False
-    member boolean: bool optional=False
-    member string: str optional=False
-object UserDefA
-    member boolean: bool optional=False
-    member a_b: int optional=True
-alternate UserDefAlternate
-    tag type
-    case udfu: UserDefFlatUnion
-    case e: EnumOne
-    case i: int
-    case n: null
-object UserDefB
-    member intb: int optional=False
-    member a-b: bool optional=True
-object UserDefC
-    member string1: str optional=False
-    member string2: str optional=False
-object UserDefFlatUnion
-    base UserDefUnionBase
-    tag enum1
-    case value1: UserDefA
-    case value2: UserDefB
-    case value3: UserDefB
-object UserDefFlatUnion2
-    base q_obj_UserDefFlatUnion2-base
-    tag enum1
-    case value1: UserDefC
-    case value2: UserDefB
+object q_obj_intList-wrapper
+    member data: intList optional=False
+object q_obj_int8List-wrapper
+    member data: int8List optional=False
+object q_obj_int16List-wrapper
+    member data: int16List optional=False
+object q_obj_int32List-wrapper
+    member data: int32List optional=False
+object q_obj_int64List-wrapper
+    member data: int64List optional=False
+object q_obj_uint8List-wrapper
+    member data: uint8List optional=False
+object q_obj_uint16List-wrapper
+    member data: uint16List optional=False
+object q_obj_uint32List-wrapper
+    member data: uint32List optional=False
+object q_obj_uint64List-wrapper
+    member data: uint64List optional=False
+object q_obj_numberList-wrapper
+    member data: numberList optional=False
+object q_obj_boolList-wrapper
+    member data: boolList optional=False
+object q_obj_strList-wrapper
+    member data: strList optional=False
+object q_obj_sizeList-wrapper
+    member data: sizeList optional=False
+object q_obj_anyList-wrapper
+    member data: anyList optional=False
+enum UserDefNativeListUnionKind ['integer', 's8', 's16', 's32', 's64', 'u8', 'u16', 'u32', 'u64', 'number', 'boolean', 'string', 'sizes', 'any']
 object UserDefNativeListUnion
     member type: UserDefNativeListUnionKind optional=False
     tag type
@@ -99,133 +141,91 @@ object UserDefNativeListUnion
     case string: q_obj_strList-wrapper
     case sizes: q_obj_sizeList-wrapper
     case any: q_obj_anyList-wrapper
-enum UserDefNativeListUnionKind ['integer', 's8', 's16', 's32', 's64', 'u8', 'u16', 'u32', 'u64', 'number', 'boolean', 'string', 'sizes', 'any']
-object UserDefOne
-    base UserDefZero
-    member string: str optional=False
-    member enum1: EnumOne optional=True
+command user_def_cmd None -> None
+   gen=True success_response=True boxed=False
+object q_obj_user_def_cmd1-arg
+    member ud1a: UserDefOne optional=False
+command user_def_cmd1 q_obj_user_def_cmd1-arg -> None
+   gen=True success_response=True boxed=False
+object q_obj_user_def_cmd2-arg
+    member ud1a: UserDefOne optional=False
+    member ud1b: UserDefOne optional=True
+command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
+   gen=True success_response=True boxed=False
+object q_obj_guest-get-time-arg
+    member a: int optional=False
+    member b: int optional=True
+command guest-get-time q_obj_guest-get-time-arg -> int
+   gen=True success_response=True boxed=False
+object q_obj_guest-sync-arg
+    member arg: any optional=False
+command guest-sync q_obj_guest-sync-arg -> any
+   gen=True success_response=True boxed=False
+command boxed-struct UserDefZero -> None
+   gen=True success_response=True boxed=True
+command boxed-union UserDefNativeListUnion -> None
+   gen=True success_response=True boxed=True
 object UserDefOptions
     member i64: intList optional=True
     member u64: uint64List optional=True
     member u16: uint16List optional=True
     member i64x: int optional=True
     member u64x: uint64 optional=True
-object UserDefTwo
-    member string0: str optional=False
-    member dict1: UserDefTwoDict optional=False
-object UserDefTwoDict
-    member string1: str optional=False
-    member dict2: UserDefTwoDictDict optional=False
-    member dict3: UserDefTwoDictDict optional=True
-object UserDefTwoDictDict
-    member userdef: UserDefOne optional=False
+object EventStructOne
+    member struct1: UserDefOne optional=False
     member string: str optional=False
-object UserDefUnionBase
-    base UserDefZero
-    member string: str optional=False
-    member enum1: EnumOne optional=False
-object UserDefZero
-    member integer: int optional=False
-object WrapAlternate
-    member alt: UserDefAlternate optional=False
-event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
+    member enum2: EnumOne optional=True
+event EVENT_A None
    boxed=False
-alternate __org.qemu_x-Alt
-    tag type
-    case __org.qemu_x-branch: str
-    case b: __org.qemu_x-Base
-object __org.qemu_x-Base
-    member __org.qemu_x-member1: __org.qemu_x-Enum optional=False
-enum __org.qemu_x-Enum ['__org.qemu_x-value']
-object __org.qemu_x-Struct
-    base __org.qemu_x-Base
-    member __org.qemu_x-member2: str optional=False
-    member wchar-t: int optional=True
-object __org.qemu_x-Struct2
-    member array: __org.qemu_x-Union1List optional=False
-object __org.qemu_x-Union1
-    member type: __org.qemu_x-Union1Kind optional=False
-    tag type
-    case __org.qemu_x-branch: q_obj_str-wrapper
-enum __org.qemu_x-Union1Kind ['__org.qemu_x-branch']
-object __org.qemu_x-Union2
-    base __org.qemu_x-Base
-    tag __org.qemu_x-member1
-    case __org.qemu_x-value: __org.qemu_x-Struct2
-command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
-   gen=True success_response=True boxed=False
-command boxed-struct UserDefZero -> None
-   gen=True success_response=True boxed=True
-command boxed-union UserDefNativeListUnion -> None
-   gen=True success_response=True boxed=True
-command guest-get-time q_obj_guest-get-time-arg -> int
-   gen=True success_response=True boxed=False
-command guest-sync q_obj_guest-sync-arg -> any
-   gen=True success_response=True boxed=False
-object q_empty
+event EVENT_B None
+   boxed=False
 object q_obj_EVENT_C-arg
     member a: int optional=True
     member b: UserDefOne optional=True
     member c: str optional=False
+event EVENT_C q_obj_EVENT_C-arg
+   boxed=False
 object q_obj_EVENT_D-arg
     member a: EventStructOne optional=False
     member b: str optional=False
     member c: str optional=True
     member enum3: EnumOne optional=True
-object q_obj_UserDefFlatUnion2-base
-    member integer: int optional=True
-    member string: str optional=False
-    member enum1: QEnumTwo optional=False
+event EVENT_D q_obj_EVENT_D-arg
+   boxed=False
+event EVENT_E UserDefZero
+   boxed=True
+event EVENT_F UserDefAlternate
+   boxed=True
+enum __org.qemu_x-Enum ['__org.qemu_x-value']
+object __org.qemu_x-Base
+    member __org.qemu_x-member1: __org.qemu_x-Enum optional=False
+object __org.qemu_x-Struct
+    base __org.qemu_x-Base
+    member __org.qemu_x-member2: str optional=False
+    member wchar-t: int optional=True
+object q_obj_str-wrapper
+    member data: str optional=False
+enum __org.qemu_x-Union1Kind ['__org.qemu_x-branch']
+object __org.qemu_x-Union1
+    member type: __org.qemu_x-Union1Kind optional=False
+    tag type
+    case __org.qemu_x-branch: q_obj_str-wrapper
+object __org.qemu_x-Struct2
+    member array: __org.qemu_x-Union1List optional=False
+object __org.qemu_x-Union2
+    base __org.qemu_x-Base
+    tag __org.qemu_x-member1
+    case __org.qemu_x-value: __org.qemu_x-Struct2
+alternate __org.qemu_x-Alt
+    tag type
+    case __org.qemu_x-branch: str
+    case b: __org.qemu_x-Base
+event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
+   boxed=False
 object q_obj___org.qemu_x-command-arg
     member a: __org.qemu_x-EnumList optional=False
     member b: __org.qemu_x-StructList optional=False
     member c: __org.qemu_x-Union2 optional=False
     member d: __org.qemu_x-Alt optional=False
-object q_obj_anyList-wrapper
-    member data: anyList optional=False
-object q_obj_boolList-wrapper
-    member data: boolList optional=False
-object q_obj_guest-get-time-arg
-    member a: int optional=False
-    member b: int optional=True
-object q_obj_guest-sync-arg
-    member arg: any optional=False
-object q_obj_int16List-wrapper
-    member data: int16List optional=False
-object q_obj_int32List-wrapper
-    member data: int32List optional=False
-object q_obj_int64List-wrapper
-    member data: int64List optional=False
-object q_obj_int8List-wrapper
-    member data: int8List optional=False
-object q_obj_intList-wrapper
-    member data: intList optional=False
-object q_obj_numberList-wrapper
-    member data: numberList optional=False
-object q_obj_sizeList-wrapper
-    member data: sizeList optional=False
-object q_obj_str-wrapper
-    member data: str optional=False
-object q_obj_strList-wrapper
-    member data: strList optional=False
-object q_obj_uint16List-wrapper
-    member data: uint16List optional=False
-object q_obj_uint32List-wrapper
-    member data: uint32List optional=False
-object q_obj_uint64List-wrapper
-    member data: uint64List optional=False
-object q_obj_uint8List-wrapper
-    member data: uint8List optional=False
-object q_obj_user_def_cmd1-arg
-    member ud1a: UserDefOne optional=False
-object q_obj_user_def_cmd2-arg
-    member ud1a: UserDefOne optional=False
-    member ud1b: UserDefOne optional=True
-command user_def_cmd None -> None
-   gen=True success_response=True boxed=False
-command user_def_cmd0 Empty2 -> Empty2
-   gen=True success_response=True boxed=False
-command user_def_cmd1 q_obj_user_def_cmd1-arg -> None
-   gen=True success_response=True boxed=False
-command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
+command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
    gen=True success_response=True boxed=False
