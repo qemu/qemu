@@ -78,7 +78,7 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 ######################################################################
 # qapi
 
-common-obj-y += qmp-marshal.o
+common-obj-y += qmp-commands.o
 common-obj-y += qmp-introspect.o
 common-obj-y += qmp.o hmp.o
 endif

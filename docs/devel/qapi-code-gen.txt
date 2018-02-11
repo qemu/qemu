@@ -1147,8 +1147,8 @@ declares qmp_COMMAND() that the user must implement.
 
 The following files are generated:
 
-$(prefix)qmp-marshal.c: Command marshal/dispatch functions for each
-                        QMP command defined in the schema
+$(prefix)qmp-commands.c: Command marshal/dispatch functions for each
+                         QMP command defined in the schema
 
 $(prefix)qmp-commands.h: Function prototypes for the QMP commands
                          specified in the schema
@@ -1170,7 +1170,7 @@ Example:
     void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp);
 
     #endif
-    $ cat qapi-generated/example-qmp-marshal.c
+    $ cat qapi-generated/example-qmp-commands.c
 [Uninteresting stuff omitted...]
 
     static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)

@@ -33,9 +33,8 @@
 /qapi-visit.[ch]
 /qapi-event.[ch]
 /qapi-doc.texi
-/qmp-commands.h
+/qmp-commands.[ch]
 /qmp-introspect.[ch]
-/qmp-marshal.c
 /qemu-doc.html
 /qemu-doc.info
 /qemu-doc.txt

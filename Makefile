@@ -91,7 +91,7 @@ include $(SRC_PATH)/rules.mak
 
 GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
 GENERATED_FILES += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
-GENERATED_FILES += qmp-marshal.c qapi-types.c qapi-visit.c qapi-event.c
+GENERATED_FILES += qmp-commands.c qapi-types.c qapi-visit.c qapi-event.c
 GENERATED_FILES += qmp-introspect.h
 GENERATED_FILES += qmp-introspect.c
 GENERATED_FILES += qapi-doc.texi
@@ -495,7 +495,7 @@ $(SRC_PATH)/scripts/qapi-gen.py
 
 qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h \
 qga/qapi-generated/qga-qapi-visit.c qga/qapi-generated/qga-qapi-visit.h \
-qga/qapi-generated/qga-qmp-commands.h qga/qapi-generated/qga-qmp-marshal.c \
+qga/qapi-generated/qga-qmp-commands.h qga/qapi-generated/qga-qmp-commands.c \
 qga/qapi-generated/qga-qapi-doc.texi: \
 qga/qapi-generated/qapi-gen-timestamp ;
 qga/qapi-generated/qapi-gen-timestamp: $(SRC_PATH)/qga/qapi-schema.json $(qapi-py)
@@ -521,7 +521,7 @@ qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
 
 qapi-types.c qapi-types.h \
 qapi-visit.c qapi-visit.h \
-qmp-commands.h qmp-marshal.c \
+qmp-commands.h qmp-commands.c \
 qapi-event.c qapi-event.h \
 qmp-introspect.h qmp-introspect.c \
 qapi-doc.texi: \

@@ -289,5 +289,5 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
     schema.visit(vis)
     genc.add(vis.defn)
     genh.add(vis.decl)
-    genc.write(output_dir, prefix + 'qmp-marshal.c')
+    genc.write(output_dir, prefix + 'qmp-commands.c')
     genh.write(output_dir, prefix + 'qmp-commands.h')

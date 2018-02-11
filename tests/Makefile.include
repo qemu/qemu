@@ -61,8 +61,8 @@ check-unit-y += tests/test-clone-visitor$(EXESUF)
 gcov-files-test-clone-visitor-y = qapi/qapi-clone-visitor.c
 check-unit-y += tests/test-qobject-input-visitor$(EXESUF)
 gcov-files-test-qobject-input-visitor-y = qapi/qobject-input-visitor.c
-check-unit-y += tests/test-qmp-commands$(EXESUF)
-gcov-files-test-qmp-commands-y = qapi/qmp-dispatch.c
+check-unit-y += tests/test-qmp-cmds$(EXESUF)
+gcov-files-test-qmp-cmds-y = qapi/qmp-dispatch.c
 check-unit-y += tests/test-string-input-visitor$(EXESUF)
 gcov-files-test-string-input-visitor-y = qapi/string-input-visitor.c
 check-unit-y += tests/test-string-output-visitor$(EXESUF)
@@ -580,7 +580,7 @@ test-obj-y = tests/check-qnum.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-string-input-visitor.o tests/test-qobject-output-visitor.o \
 	tests/test-clone-visitor.o \
 	tests/test-qobject-input-visitor.o \
-	tests/test-qmp-commands.o tests/test-visitor-serialization.o \
+	tests/test-qmp-cmds.o tests/test-visitor-serialization.o \
 	tests/test-x86-cpuid.o tests/test-mul64.o tests/test-int128.o \
 	tests/test-opts-visitor.o tests/test-qmp-event.o \
 	tests/rcutorture.o tests/test-rcu-list.o \
@@ -660,7 +660,7 @@ tests/test-replication$(EXESUF): tests/test-replication.o $(test-util-obj-y) \
 
 tests/test-qapi-types.c tests/test-qapi-types.h \
 tests/test-qapi-visit.c tests/test-qapi-visit.h \
-tests/test-qmp-commands.h tests/test-qmp-marshal.c \
+tests/test-qmp-commands.h tests/test-qmp-commands.c \
 tests/test-qapi-event.c tests/test-qapi-event.h \
 tests/test-qmp-introspect.c tests/test-qmp-introspect.h: \
 tests/test-qapi-gen-timestamp ;
@@ -683,7 +683,7 @@ tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y)
 tests/test-qobject-output-visitor$(EXESUF): tests/test-qobject-output-visitor.o $(test-qapi-obj-y)
 tests/test-clone-visitor$(EXESUF): tests/test-clone-visitor.o $(test-qapi-obj-y)
 tests/test-qobject-input-visitor$(EXESUF): tests/test-qobject-input-visitor.o $(test-qapi-obj-y)
-tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)
+tests/test-qmp-cmds$(EXESUF): tests/test-qmp-cmds.o tests/test-qmp-commands.o $(test-qapi-obj-y)
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y)
 tests/test-opts-visitor$(EXESUF): tests/test-opts-visitor.o $(test-qapi-obj-y)
 

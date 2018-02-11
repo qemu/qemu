@@ -70,13 +70,12 @@ test-qdist
 test-qga
 test-qht
 test-qht-par
-test-qmp-commands
-test-qmp-commands.h
+test-qmp-cmds
+test-qmp-commands.[ch]
 test-qmp-event
 test-qobject-input-strict
 test-qobject-input-visitor
 test-qmp-introspect.[ch]
-test-qmp-marshal.c
 test-qobject-output-visitor
 test-rcu-list
 test-replication
