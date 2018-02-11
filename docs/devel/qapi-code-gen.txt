@@ -647,7 +647,7 @@ name an event 'MAX', since the generator also produces a C enumeration
 of all event names with a generated _MAX value at the end.  When
 'data' is also specified, additional info will be included in the
 event, with similar semantics to a 'struct' expression.  Finally there
-will be C API generated in qapi-event.h; when called by QEMU code, a
+will be C API generated in qapi-events.h; when called by QEMU code, a
 message with timestamp will be emitted on the wire.
 
 An example event is:
@@ -1147,15 +1147,15 @@ declares qmp_COMMAND() that the user must implement.
 
 The following files are generated:
 
-$(prefix)qmp-commands.c: Command marshal/dispatch functions for each
-                         QMP command defined in the schema
+$(prefix)qapi-commands.c: Command marshal/dispatch functions for each
+                          QMP command defined in the schema
 
-$(prefix)qmp-commands.h: Function prototypes for the QMP commands
-                         specified in the schema
+$(prefix)qapi-commands.h: Function prototypes for the QMP commands
+                          specified in the schema
 
 Example:
 
-    $ cat qapi-generated/example-qmp-commands.h
+    $ cat qapi-generated/example-qapi-commands.h
 [Uninteresting stuff omitted...]
 
     #ifndef EXAMPLE_QMP_COMMANDS_H
@@ -1170,7 +1170,7 @@ Example:
     void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp);
 
     #endif
-    $ cat qapi-generated/example-qmp-commands.c
+    $ cat qapi-generated/example-qapi-commands.c
 [Uninteresting stuff omitted...]
 
     static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)
@@ -1243,14 +1243,14 @@ qapi_event_send_EVENT().
 
 The following files are created:
 
-$(prefix)qapi-event.h - Function prototypes for each event type, plus an
+$(prefix)qapi-events.h - Function prototypes for each event type, plus an
                         enumeration of all event names
 
-$(prefix)qapi-event.c - Implementation of functions to send an event
+$(prefix)qapi-events.c - Implementation of functions to send an event
 
 Example:
 
-    $ cat qapi-generated/example-qapi-event.h
+    $ cat qapi-generated/example-qapi-events.h
 [Uninteresting stuff omitted...]
 
     #ifndef EXAMPLE_QAPI_EVENT_H
@@ -1273,7 +1273,7 @@ Example:
     extern const char *const example_QAPIEvent_lookup[];
 
     #endif
-    $ cat qapi-generated/example-qapi-event.c
+    $ cat qapi-generated/example-qapi-events.c
 [Uninteresting stuff omitted...]
 
     void qapi_event_send_my_event(Error **errp)
@@ -1306,14 +1306,14 @@ Example:
 
 The following files are created:
 
-$(prefix)qmp-introspect.c - Defines a string holding a JSON
+$(prefix)qapi-introspect.c - Defines a string holding a JSON
                             description of the schema
 
-$(prefix)qmp-introspect.h - Declares the above string
+$(prefix)qapi-introspect.h - Declares the above string
 
 Example:
 
-    $ cat qapi-generated/example-qmp-introspect.h
+    $ cat qapi-generated/example-qapi-introspect.h
 [Uninteresting stuff omitted...]
 
     #ifndef EXAMPLE_QMP_INTROSPECT_H
@@ -1322,7 +1322,7 @@ Example:
     extern const char example_qmp_schema_json[];
 
     #endif
-    $ cat qapi-generated/example-qmp-introspect.c
+    $ cat qapi-generated/example-qapi-introspect.c
 [Uninteresting stuff omitted...]
 
     const char example_qmp_schema_json[] = "["

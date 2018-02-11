@@ -14,13 +14,13 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
-#include "test-qapi-event.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp-event.h"
+#include "test-qapi-events.h"
 
 typedef struct TestEventData {
     QDict *expect;

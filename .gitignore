@@ -29,8 +29,8 @@
 /qga/qapi-generated
 /qapi-generated
 /qapi-gen-timestamp
-/qapi-builtin-types.[ch]
-/qapi-builtin-visit.[ch]
+/qapi/qapi-builtin-types.[ch]
+/qapi/qapi-builtin-visit.[ch]
 /qapi/qapi-commands-block-core.[ch]
 /qapi/qapi-commands-block.[ch]
 /qapi/qapi-commands-char.[ch]
@@ -47,6 +47,7 @@
 /qapi/qapi-commands-trace.[ch]
 /qapi/qapi-commands-transaction.[ch]
 /qapi/qapi-commands-ui.[ch]
+/qapi/qapi-commands.[ch]
 /qapi/qapi-events-block-core.[ch]
 /qapi/qapi-events-block.[ch]
 /qapi/qapi-events-char.[ch]
@@ -63,6 +64,8 @@
 /qapi/qapi-events-trace.[ch]
 /qapi/qapi-events-transaction.[ch]
 /qapi/qapi-events-ui.[ch]
+/qapi/qapi-events.[ch]
+/qapi/qapi-introspect.[ch]
 /qapi/qapi-types-block-core.[ch]
 /qapi/qapi-types-block.[ch]
 /qapi/qapi-types-char.[ch]
@@ -79,7 +82,7 @@
 /qapi/qapi-types-trace.[ch]
 /qapi/qapi-types-transaction.[ch]
 /qapi/qapi-types-ui.[ch]
-/qapi-types.[ch]
+/qapi/qapi-types.[ch]
 /qapi/qapi-visit-block-core.[ch]
 /qapi/qapi-visit-block.[ch]
 /qapi/qapi-visit-char.[ch]
@@ -96,11 +99,8 @@
 /qapi/qapi-visit-trace.[ch]
 /qapi/qapi-visit-transaction.[ch]
 /qapi/qapi-visit-ui.[ch]
-/qapi-visit.[ch]
-/qapi-event.[ch]
-/qapi-doc.texi
-/qmp-commands.[ch]
-/qmp-introspect.[ch]
+/qapi/qapi-visit.[ch]
+/qapi/qapi-doc.texi
 /qemu-doc.html
 /qemu-doc.info
 /qemu-doc.txt

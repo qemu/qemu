@@ -2,8 +2,8 @@
 # Common libraries for tools and emulators
 stub-obj-y = stubs/ crypto/
 util-obj-y = util/ qobject/ qapi/
-util-obj-y += qapi-builtin-types.o
-util-obj-y += qapi-types.o
+util-obj-y += qapi/qapi-builtin-types.o
+util-obj-y += qapi/qapi-types.o
 util-obj-y += qapi/qapi-types-block-core.o
 util-obj-y += qapi/qapi-types-block.o
 util-obj-y += qapi/qapi-types-char.o
@@ -20,8 +20,8 @@ util-obj-y += qapi/qapi-types-tpm.o
 util-obj-y += qapi/qapi-types-trace.o
 util-obj-y += qapi/qapi-types-transaction.o
 util-obj-y += qapi/qapi-types-ui.o
-util-obj-y += qapi-builtin-visit.o
-util-obj-y += qapi-visit.o
+util-obj-y += qapi/qapi-builtin-visit.o
+util-obj-y += qapi/qapi-visit.o
 util-obj-y += qapi/qapi-visit-block-core.o
 util-obj-y += qapi/qapi-visit-block.o
 util-obj-y += qapi/qapi-visit-char.o
@@ -38,7 +38,7 @@ util-obj-y += qapi/qapi-visit-tpm.o
 util-obj-y += qapi/qapi-visit-trace.o
 util-obj-y += qapi/qapi-visit-transaction.o
 util-obj-y += qapi/qapi-visit-ui.o
-util-obj-y += qapi-event.o
+util-obj-y += qapi/qapi-events.o
 util-obj-y += qapi/qapi-events-block-core.o
 util-obj-y += qapi/qapi-events-block.o
 util-obj-y += qapi/qapi-events-char.o
@@ -55,7 +55,7 @@ util-obj-y += qapi/qapi-events-tpm.o
 util-obj-y += qapi/qapi-events-trace.o
 util-obj-y += qapi/qapi-events-transaction.o
 util-obj-y += qapi/qapi-events-ui.o
-util-obj-y += qmp-introspect.o
+util-obj-y += qapi/qapi-introspect.o
 
 chardev-obj-y = chardev/
 
@@ -131,7 +131,7 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 ######################################################################
 # qapi
 
-common-obj-y += qmp-commands.o
+common-obj-y += qapi/qapi-commands.o
 common-obj-y += qapi/qapi-commands-block-core.o
 common-obj-y += qapi/qapi-commands-block.o
 common-obj-y += qapi/qapi-commands-char.o
@@ -148,7 +148,7 @@ common-obj-y += qapi/qapi-commands-tpm.o
 common-obj-y += qapi/qapi-commands-trace.o
 common-obj-y += qapi/qapi-commands-transaction.o
 common-obj-y += qapi/qapi-commands-ui.o
-common-obj-y += qmp-introspect.o
+common-obj-y += qapi/qapi-introspect.o
 common-obj-y += qmp.o hmp.o
 endif
 
@@ -171,8 +171,9 @@ target-obj-y += trace/
 ######################################################################
 # guest agent
 
-# FIXME: a few definitions from qapi-types.o/qapi-visit.o are needed
-# by libqemuutil.a.  These should be moved to a separate .json schema.
+# FIXME: a few definitions from qapi/qapi-types.o and
+# qapi/qapi-visit.o are needed by libqemuutil.a.  These should be
+# extracted into a QAPI schema module, or perhaps a separate schema.
 qga-obj-y = qga/
 qga-vss-dll-obj-y = qga/
 

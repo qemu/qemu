@@ -181,8 +181,7 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
 }
 
 /*
- * Walk the list of active TPM backends and collect information about them
- * following the schema description in qapi-schema.json.
+ * Walk the list of active TPM backends and collect information about them.
  */
 TPMInfoList *qmp_query_tpm(Error **errp)
 {

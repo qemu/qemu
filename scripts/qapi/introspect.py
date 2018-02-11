@@ -44,7 +44,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
     def __init__(self, prefix, unmask):
         QAPISchemaMonolithicCVisitor.__init__(
-            self, prefix, 'qmp-introspect',
+            self, prefix, 'qapi-introspect',
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema = None
@@ -53,7 +53,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         self._name_map = {}
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
-#include "%(prefix)sqmp-introspect.h"
+#include "%(prefix)sqapi-introspect.h"
 
 ''',
                              prefix=prefix))

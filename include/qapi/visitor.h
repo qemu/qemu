@@ -15,7 +15,7 @@
 #ifndef QAPI_VISITOR_H
 #define QAPI_VISITOR_H
 
-#include "qapi-builtin-types.h"
+#include "qapi/qapi-builtin-types.h"
 
 /*
  * The QAPI schema defines both a set of C data types, and a QMP wire

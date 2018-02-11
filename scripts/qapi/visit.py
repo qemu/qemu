@@ -274,11 +274,11 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "qapi-builtin-visit.h"
+#include "qapi/qapi-builtin-visit.h"
 '''))
         self._genh.preamble_add(mcgen('''
 #include "qapi/visitor.h"
-#include "qapi-builtin-types.h"
+#include "qapi/qapi-builtin-types.h"
 
 ''',
                                       prefix=prefix))
@@ -295,7 +295,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 ''',
                                       visit=visit, prefix=self._prefix))
         self._genh.preamble_add(mcgen('''
-#include "qapi-builtin-visit.h"
+#include "qapi/qapi-builtin-visit.h"
 #include "%(types)s.h"
 
 ''',

@@ -177,8 +177,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
-#include "qapi-builtin-types.h"
-#include "qapi-builtin-visit.h"
+#include "qapi/qapi-builtin-types.h"
+#include "qapi/qapi-builtin-visit.h"
 '''))
         self._genh.preamble_add(mcgen('''
 #include "qapi/util.h"
@@ -195,7 +195,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 ''',
                                       types=types, visit=visit))
         self._genh.preamble_add(mcgen('''
-#include "qapi-builtin-types.h"
+#include "qapi/qapi-builtin-types.h"
 '''))
 
     def visit_begin(self, schema):

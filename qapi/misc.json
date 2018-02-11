@@ -1729,7 +1729,7 @@
 #
 # Emitted when background dump has completed
 #
-# @result: DumpQueryResult type described in qapi-schema.json.
+# @result: final dump status
 #
 # @error: human-readable error string that provides
 #         hint on why dump failed. Only presents on failure. The
@@ -2944,7 +2944,7 @@
 #
 # Emitted when guest executes ACPI _OST method.
 #
-# @info: ACPIOSTInfo type as described in qapi-schema.json
+# @info: OSPM Status Indication
 #
 # Since: 2.1
 #

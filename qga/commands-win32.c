@@ -34,7 +34,7 @@
 
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
-#include "qga-qmp-commands.h"
+#include "qga-qapi-commands.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/queue.h"

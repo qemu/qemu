@@ -419,7 +419,7 @@ There are a number of things to be noticed:
    allocated by the implementation. This is so because the QAPI also generates
    a function to free its types and it cannot distinguish between dynamically
    or statically allocated strings
-6. You have to include "qapi/qmp-commands-misc.h" in qemu-timer.c
+6. You have to include "qapi/qapi-commands-misc.h" in qemu-timer.c
 
 Time to test the new command. Build qemu, run it as described in the "Testing"
 section and try this:

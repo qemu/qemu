@@ -232,13 +232,6 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
         self._regy = ''
         self._visited_ret_types = {}
 
-    # Temporary HACK:
-    def _module_basename(self, what, name):
-        basename = QAPISchemaModularCVisitor._module_basename(self, what, name)
-        if name == self._main_module:
-            return re.sub(r'qapi-commands', 'qmp-commands', basename)
-        return basename
-
     def _begin_module(self, name):
         self._visited_ret_types[self._genc] = set()
         commands = self._module_basename('qapi-commands', name)

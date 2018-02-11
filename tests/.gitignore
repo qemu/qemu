@@ -60,7 +60,8 @@ test-keyval
 test-logging
 test-mul64
 test-opts-visitor
-test-qapi-event.[ch]
+test-qapi-commands.[ch]
+test-qapi-events.[ch]
 test-qapi-types.[ch]
 test-qapi-util
 test-qapi-visit.[ch]
@@ -71,11 +72,10 @@ test-qga
 test-qht
 test-qht-par
 test-qmp-cmds
-test-qmp-commands.[ch]
 test-qmp-event
 test-qobject-input-strict
 test-qobject-input-visitor
-test-qmp-introspect.[ch]
+test-qapi-introspect.[ch]
 test-qobject-output-visitor
 test-rcu-list
 test-replication

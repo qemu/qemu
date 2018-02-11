@@ -14,7 +14,7 @@
 #ifndef QEMU_OBJECT_H
 #define QEMU_OBJECT_H
 
-#include "qapi-builtin-types.h"
+#include "qapi/qapi-builtin-types.h"
 #include "qemu/queue.h"
 
 struct TypeImpl;

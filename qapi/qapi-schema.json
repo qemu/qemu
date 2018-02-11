@@ -76,20 +76,20 @@
 # included sub-schemas inserted at the first include directive
 # (subsequent include directives have no effect).  To get a sane and
 # stable order, it's best to include each sub-schema just once, or
-# include it first in qapi-schema.json.
+# include it first right here.
 
-{ 'include': 'qapi/common.json' }
-{ 'include': 'qapi/sockets.json' }
-{ 'include': 'qapi/run-state.json' }
-{ 'include': 'qapi/crypto.json' }
-{ 'include': 'qapi/block.json' }
-{ 'include': 'qapi/char.json' }
-{ 'include': 'qapi/net.json' }
-{ 'include': 'qapi/rocker.json' }
-{ 'include': 'qapi/tpm.json' }
-{ 'include': 'qapi/ui.json' }
-{ 'include': 'qapi/migration.json' }
-{ 'include': 'qapi/transaction.json' }
-{ 'include': 'qapi/trace.json' }
-{ 'include': 'qapi/introspect.json' }
-{ 'include': 'qapi/misc.json' }
+{ 'include': 'common.json' }
+{ 'include': 'sockets.json' }
+{ 'include': 'run-state.json' }
+{ 'include': 'crypto.json' }
+{ 'include': 'block.json' }
+{ 'include': 'char.json' }
+{ 'include': 'net.json' }
+{ 'include': 'rocker.json' }
+{ 'include': 'tpm.json' }
+{ 'include': 'ui.json' }
+{ 'include': 'migration.json' }
+{ 'include': 'transaction.json' }
+{ 'include': 'trace.json' }
+{ 'include': 'introspect.json' }
+{ 'include': 'misc.json' }
