@@ -168,7 +168,8 @@ void qapi_free_%(c_name)s(%(c_name)s *obj)
 
 
 class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
-    def __init__(self):
+    def __init__(self, opt_builtins):
+        self._opt_builtins = opt_builtins
         self.decl = None
         self.defn = None
         self._fwdecl = None
@@ -187,7 +188,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self._fwdecl = None
         # To avoid header dependency hell, we always generate
         # declarations for built-in types in our header files and
-        # simply guard them.  See also do_builtins (command line
+        # simply guard them.  See also opt_builtins (command line
         # option -b).
         self._btin += guardend('QAPI_TYPES_BUILTIN')
         self.decl = self._btin + self.decl
@@ -202,7 +203,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         # TODO use something cleaner than existence of info
         if not info:
             self._btin += gen_enum(name, values, prefix)
-            if do_builtins:
+            if self._opt_builtins:
                 self.defn += gen_enum_lookup(name, values, prefix)
         else:
             self._fwdecl += gen_enum(name, values, prefix)
@@ -213,7 +214,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._btin += gen_fwd_object_or_array(name)
             self._btin += gen_array(name, element_type)
             self._btin += gen_type_cleanup_decl(name)
-            if do_builtins:
+            if self._opt_builtins:
                 self.defn += gen_type_cleanup(name)
         else:
             self._fwdecl += gen_fwd_object_or_array(name)
@@ -241,16 +242,16 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
 
 # If you link code generated from multiple schemata, you want only one
 # instance of the code for built-in types.  Generate it only when
-# do_builtins, enabled by command line option -b.  See also
+# opt_builtins, enabled by command line option -b.  See also
 # QAPISchemaGenTypeVisitor.visit_end().
-do_builtins = False
+opt_builtins = False
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = \
     parse_command_line('b', ['builtins'])
 
 for o, a in opts:
     if o in ('-b', '--builtins'):
-        do_builtins = True
+        opt_builtins = True
 
 blurb = ' * Schema-defined QAPI types'
 
@@ -270,7 +271,7 @@ genh.add(mcgen('''
 '''))
 
 schema = QAPISchema(input_file)
-vis = QAPISchemaGenTypeVisitor()
+vis = QAPISchemaGenTypeVisitor(opt_builtins)
 schema.visit(vis)
 genc.add(vis.defn)
 genh.add(vis.decl)

@@ -264,7 +264,8 @@ out:
 
 
 class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
-    def __init__(self):
+    def __init__(self, opt_builtins):
+        self._opt_builtins = opt_builtins
         self.decl = None
         self.defn = None
         self._btin = None
@@ -277,7 +278,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
     def visit_end(self):
         # To avoid header dependency hell, we always generate
         # declarations for built-in types in our header files and
-        # simply guard them.  See also do_builtins (command line
+        # simply guard them.  See also opt_builtins (command line
         # option -b).
         self._btin += guardend('QAPI_VISIT_BUILTIN')
         self.decl = self._btin + self.decl
@@ -288,7 +289,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         # TODO use something cleaner than existence of info
         if not info:
             self._btin += gen_visit_decl(name, scalar=True)
-            if do_builtins:
+            if self._opt_builtins:
                 self.defn += gen_visit_enum(name)
         else:
             self.decl += gen_visit_decl(name, scalar=True)
@@ -299,7 +300,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         defn = gen_visit_list(name, element_type)
         if isinstance(element_type, QAPISchemaBuiltinType):
             self._btin += decl
-            if do_builtins:
+            if self._opt_builtins:
                 self.defn += defn
         else:
             self.decl += decl
@@ -324,16 +325,16 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
 
 # If you link code generated from multiple schemata, you want only one
 # instance of the code for built-in types.  Generate it only when
-# do_builtins, enabled by command line option -b.  See also
+# opt_builtins, enabled by command line option -b.  See also
 # QAPISchemaGenVisitVisitor.visit_end().
-do_builtins = False
+opt_builtins = False
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = \
     parse_command_line('b', ['builtins'])
 
 for o, a in opts:
     if o in ('-b', '--builtins'):
-        do_builtins = True
+        opt_builtins = True
 
 blurb = ' * Schema-defined QAPI visitors'
 
@@ -357,7 +358,7 @@ genh.add(mcgen('''
                prefix=prefix))
 
 schema = QAPISchema(input_file)
-vis = QAPISchemaGenVisitVisitor()
+vis = QAPISchemaGenVisitVisitor(opt_builtins)
 schema.visit(vis)
 genc.add(vis.defn)
 genh.add(vis.decl)

@@ -207,7 +207,7 @@ def gen_register_command(name, success_response):
     return ret
 
 
-def gen_registry(registry):
+def gen_registry(registry, prefix):
     ret = mcgen('''
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
@@ -224,7 +224,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 
 
 class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
-    def __init__(self):
+    def __init__(self, prefix):
+        self._prefix = prefix
         self.decl = None
         self.defn = None
         self._regy = None
@@ -237,7 +238,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = set()
 
     def visit_end(self):
-        self.defn += gen_registry(self._regy)
+        self.defn += gen_registry(self._regy, self._prefix)
         self._regy = None
         self._visited_ret_types = None
 
@@ -287,7 +288,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
                prefix=prefix, c_prefix=c_name(prefix, protect=False)))
 
 schema = QAPISchema(input_file)
-vis = QAPISchemaGenCommandVisitor()
+vis = QAPISchemaGenCommandVisitor(prefix)
 schema.visit(vis)
 genc.add(vis.defn)
 genh.add(vis.decl)

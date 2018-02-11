@@ -58,7 +58,7 @@ def gen_param_var(typ):
     return ret
 
 
-def gen_event_send(name, arg_type, boxed):
+def gen_event_send(name, arg_type, boxed, event_enum_name):
     # FIXME: Our declaration of local variables (and of 'errp' in the
     # parameter list) can collide with exploded members of the event's
     # data type passed in as parameters.  If this collision ever hits in
@@ -149,7 +149,8 @@ out:
 
 
 class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
-    def __init__(self):
+    def __init__(self, prefix):
+        self._enum_name = c_name(prefix + 'QAPIEvent', protect=False)
         self.decl = None
         self.defn = None
         self._event_names = None
@@ -160,13 +161,13 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self._event_names = []
 
     def visit_end(self):
-        self.decl += gen_enum(event_enum_name, self._event_names)
-        self.defn += gen_enum_lookup(event_enum_name, self._event_names)
+        self.decl += gen_enum(self._enum_name, self._event_names)
+        self.defn += gen_enum_lookup(self._enum_name, self._event_names)
         self._event_names = None
 
     def visit_event(self, name, info, arg_type, boxed):
         self.decl += gen_event_send_decl(name, arg_type, boxed)
-        self.defn += gen_event_send(name, arg_type, boxed)
+        self.defn += gen_event_send(name, arg_type, boxed, self._enum_name)
         self._event_names.append(name)
 
 
@@ -197,10 +198,8 @@ genh.add(mcgen('''
 ''',
                prefix=prefix))
 
-event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
-
 schema = QAPISchema(input_file)
-vis = QAPISchemaGenEventVisitor()
+vis = QAPISchemaGenEventVisitor(prefix)
 schema.visit(vis)
 genc.add(vis.defn)
 genh.add(vis.decl)

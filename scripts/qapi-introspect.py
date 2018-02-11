@@ -41,7 +41,8 @@ def to_c_string(string):
 
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
-    def __init__(self, unmask):
+    def __init__(self, prefix, unmask):
+        self._prefix = prefix
         self._unmask = unmask
         self.defn = None
         self.decl = None
@@ -65,7 +66,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
         # generate C
         # TODO can generate awfully long lines
         jsons.extend(self._jsons)
-        name = c_name(prefix, protect=False) + 'qmp_schema_json'
+        name = c_name(self._prefix, protect=False) + 'qmp_schema_json'
         self.decl = mcgen('''
 extern const char %(c_name)s[];
 ''',
@@ -190,7 +191,7 @@ genc.add(mcgen('''
                prefix=prefix))
 
 schema = QAPISchema(input_file)
-vis = QAPISchemaGenIntrospectVisitor(opt_unmask)
+vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
 schema.visit(vis)
 genc.add(vis.defn)
 genh.add(vis.decl)
