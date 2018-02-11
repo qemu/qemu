@@ -12,7 +12,7 @@
 
 from __future__ import print_function
 import sys
-from qapi.common import QAPISchema, QAPISchemaVisitor
+from qapi.common import QAPIError, QAPISchema, QAPISchemaVisitor
 
 
 class QAPISchemaTestVisitor(QAPISchemaVisitor):
@@ -52,7 +52,13 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             for v in variants.variants:
                 print('    case %s: %s' % (v.name, v.type.name))
 
-schema = QAPISchema(sys.argv[1])
+
+try:
+    schema = QAPISchema(sys.argv[1])
+except QAPIError as err:
+    print(err, file=sys.stderr)
+    exit(1)
+
 schema.visit(QAPISchemaTestVisitor())
 
 for doc in schema.docs:

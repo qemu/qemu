@@ -8,7 +8,7 @@ from __future__ import print_function
 import argparse
 import re
 import sys
-from qapi.common import QAPISchema
+from qapi.common import QAPIError, QAPISchema
 from qapi.types import gen_types
 from qapi.visit import gen_visit
 from qapi.commands import gen_commands
@@ -39,7 +39,11 @@ def main(argv):
               file=sys.stderr)
         sys.exit(1)
 
-    schema = QAPISchema(args.schema)
+    try:
+        schema = QAPISchema(args.schema)
+    except QAPIError as err:
+        print(err, file=sys.stderr)
+        exit(1)
 
     gen_types(schema, args.output_dir, args.prefix, args.builtins)
     gen_visit(schema, args.output_dir, args.prefix, args.builtins)
