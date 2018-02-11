@@ -1867,7 +1867,7 @@ def mcgen(code, **kwds):
 
 
 def guardname(filename):
-    return c_name(filename, protect=False).upper()
+    return re.sub(r'[^A-Za-z0-9_]', '_', filename).upper()
 
 
 def guardstart(name):
