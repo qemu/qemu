@@ -1951,9 +1951,16 @@ class QAPIGen(object):
             except os.error as e:
                 if e.errno != errno.EEXIST:
                     raise
-        f = open(os.path.join(output_dir, fname), 'w')
-        f.write(self._top(fname) + self._preamble + self._body
+        fd = os.open(os.path.join(output_dir, fname),
+                     os.O_RDWR | os.O_CREAT, 0o666)
+        f = os.fdopen(fd, 'r+')
+        text = (self._top(fname) + self._preamble + self._body
                 + self._bottom(fname))
+        oldtext = f.read(len(text) + 1)
+        if text != oldtext:
+            f.seek(0)
+            f.truncate(0)
+            f.write(text)
         f.close()
 
 
