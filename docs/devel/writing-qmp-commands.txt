@@ -36,9 +36,9 @@ very simple and get more complex as we progress.
 For all the examples in the next sections, the test setup is the same and is
 shown here.
 
-First, QEMU should be started as:
+First, QEMU should be started like this:
 
-# /path/to/your/source/qemu [...] \
+# qemu-system-TARGET [...] \
     -chardev socket,id=qmp,port=4444,host=localhost,server \
     -mon chardev=qmp,mode=control,pretty=on
 
@@ -179,7 +179,7 @@ described in the "Testing" section and then send two commands:
     }
 }
 
-You should see "Hello, world" and "we love qemu" in the terminal running qemu,
+You should see "Hello, world" and "We love qemu" in the terminal running qemu,
 if you don't see these strings, then something went wrong.
 
 === Errors ===
@@ -221,29 +221,22 @@ The QMP server's response should be:
     }
 }
 
-As a general rule, all QMP errors should use ERROR_CLASS_GENERIC_ERROR
-(done by default when using error_setg()). There are two exceptions to
-this rule:
+Note that error_setg() produces a "GenericError" class.  In general,
+all QMP errors should have that error class.  There are two exceptions
+to this rule:
 
- 1. A non-generic ErrorClass value exists* for the failure you want to report
-    (eg. DeviceNotFound)
+ 1. To support a management application's need to recognize a specific
+    error for special handling
 
- 2. Management applications have to take special action on the failure you
-    want to report, hence you have to add a new ErrorClass value so that they
-    can check for it
+ 2. Backward compatibility
 
 If the failure you want to report falls into one of the two cases above,
 use error_set() with a second argument of an ErrorClass value.
-
- * All existing ErrorClass values are defined in the qapi-schema.json file
 
 === Command Documentation ===
 
 There's only one step missing to make "hello-world"'s implementation complete,
 and that's its documentation in the schema file.
-
-This is very important. No QMP command will be accepted in QEMU without proper
-documentation.
 
 There are many examples of such documentation in the schema file already, but
 here goes "hello-world"'s new entry for qapi/misc.json:
