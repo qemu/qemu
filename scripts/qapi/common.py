@@ -290,8 +290,12 @@ class QAPISchemaParser(object):
                 if not isinstance(include, str):
                     raise QAPISemError(info,
                                        "Value of 'include' must be a string")
-                self._include(include, info, os.path.dirname(self.fname),
-                              previously_included)
+                exprs_include = self._include(include, info,
+                                              os.path.dirname(self.fname),
+                                              previously_included)
+                if exprs_include:
+                    self.exprs.extend(exprs_include.exprs)
+                    self.docs.extend(exprs_include.docs)
             elif "pragma" in expr:
                 self.reject_expr_doc(cur_doc)
                 if len(expr) != 1:
@@ -334,14 +338,13 @@ class QAPISchemaParser(object):
 
         # skip multiple include of the same file
         if incl_abs_fname in previously_included:
-            return
+            return None
+
         try:
             fobj = open(incl_fname, 'r')
         except IOError as e:
             raise QAPISemError(info, '%s: %s' % (e.strerror, incl_fname))
-        exprs_include = QAPISchemaParser(fobj, previously_included, info)
-        self.exprs.extend(exprs_include.exprs)
-        self.docs.extend(exprs_include.docs)
+        return QAPISchemaParser(fobj, previously_included, info)
 
     def _pragma(self, name, value, info):
         global doc_required, returns_whitelist, name_case_whitelist
