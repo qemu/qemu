@@ -27,17 +27,6 @@ typedef struct BlockDriverInfo {
      */
     bool unallocated_blocks_are_zero;
     /*
-     * True if the driver can optimize writing zeroes by unmapping
-     * sectors. This is equivalent to the BLKDISCARDZEROES ioctl in Linux
-     * with the difference that in qemu a discard is allowed to silently
-     * fail. Therefore we have to use bdrv_pwrite_zeroes with the
-     * BDRV_REQ_MAY_UNMAP flag for an optimized zero write with unmapping.
-     * After this call the driver has to guarantee that the contents read
-     * back as zero. It is additionally required that the block device is
-     * opened with BDRV_O_UNMAP flag for this to work.
-     */
-    bool can_write_zeroes_with_unmap;
-    /*
      * True if this block driver only supports compressed writes
      */
     bool needs_compressed_writes;

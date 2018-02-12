@@ -22,7 +22,7 @@ import os
 import sys
 import iotests
 import time
-from iotests import qemu_img, qemu_io, filter_qemu_io, QemuIoInteractive
+from iotests import qemu_img_create, qemu_io, filter_qemu_io, QemuIoInteractive
 
 nbd_sock = 'nbd_sock'
 nbd_uri = 'nbd+unix:///exp?socket=' + nbd_sock
@@ -31,7 +31,7 @@ disk = os.path.join(iotests.test_dir, 'disk')
 
 class TestNbdServerRemove(iotests.QMPTestCase):
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, disk, '1M')
+        qemu_img_create('-f', iotests.imgfmt, disk, '1M')
 
         self.vm = iotests.VM().add_drive(disk)
         self.vm.launch()

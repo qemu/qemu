@@ -1438,7 +1438,6 @@ static int bdrv_qed_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     bdi->cluster_size = s->header.cluster_size;
     bdi->is_dirty = s->header.features & QED_F_NEED_CHECK;
     bdi->unallocated_blocks_are_zero = true;
-    bdi->can_write_zeroes_with_unmap = true;
     return 0;
 }
 
