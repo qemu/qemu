@@ -28,6 +28,11 @@
 %assemble_17    0:s1 16:5 2:1 3:10   !function=expand_shl2
 %assemble_22    0:s1 16:10 2:1 3:10  !function=expand_shl2
 
+%assemble_21    0:s1 1:11 14:2 16:5 12:2  !function=expand_shl11
+
+%lowsign_11     0:s1 1:10
+%lowsign_14     0:s1 1:13
+
 %sm_imm         16:10 !function=expand_sm_imm
 
 %im5_0          0:s1 1:4
@@ -44,6 +49,7 @@
 &rr_cf          t r cf
 &rrr_cf         t r1 r2 cf
 &rrr_cf_sh      t r1 r2 cf sh
+&rri_cf         t r i cf
 
 &rrb_c_f        disp n c f r1 r2
 &rib_c_f        disp n c f r i
@@ -56,6 +62,7 @@
 @rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
 @rrr_cf_sh      ...... r2:5 r1:5 cf:4 .... sh:2 . t:5   &rrr_cf_sh
 @rrr_cf_sh0     ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf_sh sh=0
+@rri_cf         ...... r:5  t:5  cf:4 . ...........     &rri_cf i=%lowsign_11
 
 @rrb_cf         ...... r2:5 r1:5 c:3 ........... n:1 .  \
                 &rrb_c_f disp=%assemble_12
@@ -145,6 +152,20 @@ sub_tc          000010 ..... ..... .... 010011 0 .....  @rrr_cf
 sub_tsv_tc      000010 ..... ..... .... 110011 0 .....  @rrr_cf
 sub_b           000010 ..... ..... .... 010100 0 .....  @rrr_cf
 sub_b_tsv       000010 ..... ..... .... 110100 0 .....  @rrr_cf
+
+ldil            001000 t:5 .....................        i=%assemble_21
+addil           001010 r:5 .....................        i=%assemble_21
+ldo             001101 b:5 t:5 -- ..............        i=%lowsign_14
+
+addi            101101 ..... ..... .... 0 ...........   @rri_cf
+addi_tsv        101101 ..... ..... .... 1 ...........   @rri_cf
+addi_tc         101100 ..... ..... .... 0 ...........   @rri_cf
+addi_tc_tsv     101100 ..... ..... .... 1 ...........   @rri_cf
+
+subi            100101 ..... ..... .... 0 ...........   @rri_cf
+subi_tsv        100101 ..... ..... .... 1 ...........   @rri_cf
+
+cmpiclr         100100 ..... ..... .... 0 ...........   @rri_cf
 
 ####
 # Index Mem
