@@ -195,3 +195,18 @@ addb            101000 ..... ..... ... ........... . .  @rrb_cf f=0
 addb            101010 ..... ..... ... ........... . .  @rrb_cf f=1
 addbi           101001 ..... ..... ... ........... . .  @rib_cf f=0
 addbi           101011 ..... ..... ... ........... . .  @rib_cf f=1
+
+####
+# Shift, Extract, Deposit
+####
+
+shrpw_sar       110100 r2:5 r1:5 c:3 00 0    00000  t:5
+shrpw_imm       110100 r2:5 r1:5 c:3 01 0    cpos:5 t:5
+
+extrw_sar       110100 r:5  t:5  c:3 10 se:1 00000  clen:5
+extrw_imm       110100 r:5  t:5  c:3 11 se:1 pos:5  clen:5
+
+depw_sar        110101 t:5 r:5   c:3 00 nz:1 00000  clen:5
+depw_imm        110101 t:5 r:5   c:3 01 nz:1 cpos:5 clen:5
+depwi_sar       110101 t:5 ..... c:3 10 nz:1 00000  clen:5      i=%im5_16
+depwi_imm       110101 t:5 ..... c:3 11 nz:1 cpos:5 clen:5      i=%im5_16
