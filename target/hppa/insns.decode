@@ -33,6 +33,19 @@
 # All insns that need to form a virtual address should use this set.
 &ldst           t b x disp sp m scale size
 
+&rr_cf          t r cf
+&rrr_cf         t r1 r2 cf
+&rrr_cf_sh      t r1 r2 cf sh
+
+####
+# Format definitions
+####
+
+@rr_cf          ...... r:5 ..... cf:4 ....... t:5       &rr_cf
+@rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
+@rrr_cf_sh      ...... r2:5 r1:5 cf:4 .... sh:2 . t:5   &rrr_cf_sh
+@rrr_cf_sh0     ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf_sh sh=0
+
 ####
 # System
 ####
@@ -87,3 +100,32 @@ lpa             000001 b:5 x:5 sp:2 01001101 m:1 t:5    \
                 &ldst disp=0 scale=0 size=0
 
 lci             000001 ----- ----- -- 01001100 0 t:5
+
+####
+# Arith/Log
+####
+
+andcm           000010 ..... ..... .... 000000 0 .....  @rrr_cf
+and             000010 ..... ..... .... 001000 0 .....  @rrr_cf
+or              000010 ..... ..... .... 001001 0 .....  @rrr_cf
+xor             000010 ..... ..... .... 001010 0 .....  @rrr_cf
+uxor            000010 ..... ..... .... 001110 0 .....  @rrr_cf
+ds              000010 ..... ..... .... 010001 0 .....  @rrr_cf
+cmpclr          000010 ..... ..... .... 100010 0 .....  @rrr_cf
+uaddcm          000010 ..... ..... .... 100110 0 .....  @rrr_cf
+uaddcm_tc       000010 ..... ..... .... 100111 0 .....  @rrr_cf
+dcor            000010 ..... 00000 .... 101110 0 .....  @rr_cf
+dcor_i          000010 ..... 00000 .... 101111 0 .....  @rr_cf
+
+add             000010 ..... ..... .... 0110.. 0 .....  @rrr_cf_sh
+add_l           000010 ..... ..... .... 1010.. 0 .....  @rrr_cf_sh
+add_tsv         000010 ..... ..... .... 1110.. 0 .....  @rrr_cf_sh
+add_c           000010 ..... ..... .... 011100 0 .....  @rrr_cf_sh0
+add_c_tsv       000010 ..... ..... .... 111100 0 .....  @rrr_cf_sh0
+
+sub             000010 ..... ..... .... 010000 0 .....  @rrr_cf
+sub_tsv         000010 ..... ..... .... 110000 0 .....  @rrr_cf
+sub_tc          000010 ..... ..... .... 010011 0 .....  @rrr_cf
+sub_tsv_tc      000010 ..... ..... .... 110011 0 .....  @rrr_cf
+sub_b           000010 ..... ..... .... 010100 0 .....  @rrr_cf
+sub_b_tsv       000010 ..... ..... .... 110100 0 .....  @rrr_cf
