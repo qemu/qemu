@@ -895,15 +895,6 @@ static target_sreg assemble_16a(uint32_t insn)
     return x << 2;
 }
 
-static target_sreg assemble_17(uint32_t insn)
-{
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x <<  5) | extract32(insn, 16, 5);
-    x = (x <<  1) | extract32(insn, 2, 1);
-    x = (x << 10) | extract32(insn, 3, 10);
-    return x << 2;
-}
-
 static target_sreg assemble_21(uint32_t insn)
 {
     target_ureg x = -(target_ureg)(insn & 1);
@@ -912,15 +903,6 @@ static target_sreg assemble_21(uint32_t insn)
     x = (x <<  5) | extract32(insn, 16, 5);
     x = (x <<  2) | extract32(insn, 12, 2);
     return x << 11;
-}
-
-static target_sreg assemble_22(uint32_t insn)
-{
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x << 10) | extract32(insn, 16, 10);
-    x = (x <<  1) | extract32(insn, 2, 1);
-    x = (x << 10) | extract32(insn, 3, 10);
-    return x << 2;
 }
 
 /* The parisc documentation describes only the general interpretation of
@@ -3546,11 +3528,8 @@ static bool trans_depwi_sar(DisasContext *ctx, arg_depwi_sar *a)
     return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, load_const(ctx, a->i));
 }
 
-static bool trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
+static bool trans_be(DisasContext *ctx, arg_be *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned b = extract32(insn, 21, 5);
-    target_sreg disp = assemble_17(insn);
     TCGv_reg tmp;
 
 #ifdef CONFIG_USER_ONLY
@@ -3562,29 +3541,28 @@ static bool trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
     /* Since we don't implement spaces, just branch.  Do notice the special
        case of "be disp(*,r0)" using a direct branch to disp, so that we can
        goto_tb to the TB containing the syscall.  */
-    if (b == 0) {
-        return do_dbranch(ctx, disp, is_l ? 31 : 0, n);
+    if (a->b == 0) {
+        return do_dbranch(ctx, a->disp, a->l, a->n);
     }
 #else
-    int sp = assemble_sr3(insn);
     nullify_over(ctx);
 #endif
 
     tmp = get_temp(ctx);
-    tcg_gen_addi_reg(tmp, load_gpr(ctx, b), disp);
+    tcg_gen_addi_reg(tmp, load_gpr(ctx, a->b), a->disp);
     tmp = do_ibranch_priv(ctx, tmp);
 
 #ifdef CONFIG_USER_ONLY
-    return do_ibranch(ctx, tmp, is_l ? 31 : 0, n);
+    return do_ibranch(ctx, tmp, a->l, a->n);
 #else
     TCGv_i64 new_spc = tcg_temp_new_i64();
 
-    load_spr(ctx, new_spc, sp);
-    if (is_l) {
+    load_spr(ctx, new_spc, a->sp);
+    if (a->l) {
         copy_iaoq_entry(cpu_gr[31], ctx->iaoq_n, ctx->iaoq_n_var);
         tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_f);
     }
-    if (n && use_nullify_skip(ctx)) {
+    if (a->n && use_nullify_skip(ctx)) {
         tcg_gen_mov_reg(cpu_iaoq_f, tmp);
         tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
         tcg_gen_mov_i64(cpu_iasq_f, new_spc);
@@ -3596,7 +3574,7 @@ static bool trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
         }
         tcg_gen_mov_reg(cpu_iaoq_b, tmp);
         tcg_gen_mov_i64(cpu_iasq_b, new_spc);
-        nullify_set(ctx, n);
+        nullify_set(ctx, a->n);
     }
     tcg_temp_free_i64(new_spc);
     tcg_gen_lookup_and_goto_ptr();
@@ -3605,22 +3583,14 @@ static bool trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
 #endif
 }
 
-static bool trans_bl(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_bl(DisasContext *ctx, arg_bl *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned link = extract32(insn, 21, 5);
-    target_sreg disp = assemble_17(insn);
-
-    do_dbranch(ctx, iaoq_dest(ctx, disp), link, n);
-    return true;
+    return do_dbranch(ctx, iaoq_dest(ctx, a->disp), a->l, a->n);
 }
 
-static bool trans_b_gate(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned link = extract32(insn, 21, 5);
-    target_sreg disp = assemble_17(insn);
-    target_ureg dest = iaoq_dest(ctx, disp);
+    target_ureg dest = iaoq_dest(ctx, a->disp);
 
     /* Make sure the caller hasn't done something weird with the queue.
      * ??? This is not quite the same as the PSW[B] bit, which would be
@@ -3659,65 +3629,44 @@ static bool trans_b_gate(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     }
 #endif
 
-    do_dbranch(ctx, dest, link, n);
-    return true;
+    return do_dbranch(ctx, dest, a->l, a->n);
 }
 
-static bool trans_bl_long(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_blr(DisasContext *ctx, arg_blr *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    target_sreg disp = assemble_22(insn);
-
-    do_dbranch(ctx, iaoq_dest(ctx, disp), 2, n);
-    return true;
-}
-
-static bool trans_blr(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
-{
-    unsigned n = extract32(insn, 1, 1);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned link = extract32(insn, 21, 5);
     TCGv_reg tmp = get_temp(ctx);
 
-    tcg_gen_shli_reg(tmp, load_gpr(ctx, rx), 3);
+    tcg_gen_shli_reg(tmp, load_gpr(ctx, a->x), 3);
     tcg_gen_addi_reg(tmp, tmp, ctx->iaoq_f + 8);
     /* The computation here never changes privilege level.  */
-    do_ibranch(ctx, tmp, link, n);
-    return true;
+    return do_ibranch(ctx, tmp, a->l, a->n);
 }
 
-static bool trans_bv(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_bv(DisasContext *ctx, arg_bv *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
     TCGv_reg dest;
 
-    if (rx == 0) {
-        dest = load_gpr(ctx, rb);
+    if (a->x == 0) {
+        dest = load_gpr(ctx, a->b);
     } else {
         dest = get_temp(ctx);
-        tcg_gen_shli_reg(dest, load_gpr(ctx, rx), 3);
-        tcg_gen_add_reg(dest, dest, load_gpr(ctx, rb));
+        tcg_gen_shli_reg(dest, load_gpr(ctx, a->x), 3);
+        tcg_gen_add_reg(dest, dest, load_gpr(ctx, a->b));
     }
     dest = do_ibranch_priv(ctx, dest);
-    do_ibranch(ctx, dest, 0, n);
-    return true;
+    return do_ibranch(ctx, dest, 0, a->n);
 }
 
-static bool trans_bve(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_bve(DisasContext *ctx, arg_bve *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned link = extract32(insn, 13, 1) ? 2 : 0;
     TCGv_reg dest;
 
 #ifdef CONFIG_USER_ONLY
-    dest = do_ibranch_priv(ctx, load_gpr(ctx, rb));
-    do_ibranch(ctx, dest, link, n);
+    dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
+    return do_ibranch(ctx, dest, a->l, a->n);
 #else
     nullify_over(ctx);
-    dest = do_ibranch_priv(ctx, load_gpr(ctx, rb));
+    dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
 
     copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
     if (ctx->iaoq_b == -1) {
@@ -3725,25 +3674,15 @@ static bool trans_bve(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     }
     copy_iaoq_entry(cpu_iaoq_b, -1, dest);
     tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
-    if (link) {
-        copy_iaoq_entry(cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
+    if (a->l) {
+        copy_iaoq_entry(cpu_gr[a->l], ctx->iaoq_n, ctx->iaoq_n_var);
     }
-    nullify_set(ctx, n);
+    nullify_set(ctx, a->n);
     tcg_gen_lookup_and_goto_ptr();
     ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
 #endif
-    return true;
 }
-
-static const DisasInsn table_branch[] = {
-    { 0xe8000000u, 0xfc006000u, trans_bl }, /* B,L and B,L,PUSH */
-    { 0xe800a000u, 0xfc00e000u, trans_bl_long },
-    { 0xe8004000u, 0xfc00fffdu, trans_blr },
-    { 0xe800c000u, 0xfc00fffdu, trans_bv },
-    { 0xe800d000u, 0xfc00dffcu, trans_bve },
-    { 0xe8002000u, 0xfc00e000u, trans_b_gate },
-};
 
 static bool trans_fop_wew_0c(DisasContext *ctx, uint32_t insn,
                              const DisasInsn *di)
@@ -4420,16 +4359,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
         return;
     case 0x2E:
         translate_table(ctx, insn, table_fp_fused);
-        return;
-
-    case 0x38:
-        trans_be(ctx, insn, false);
-        return;
-    case 0x39:
-        trans_be(ctx, insn, true);
-        return;
-    case 0x3A:
-        translate_table(ctx, insn, table_branch);
         return;
 
     case 0x04: /* spopn */
