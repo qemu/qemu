@@ -28,6 +28,7 @@
 static uint32_t base;
 static uint16_t reg_base = 0x1ff0; /* 0x7f0 for m48t02 */
 static int base_year;
+static const char *base_machine;
 static bool use_mmio;
 
 static uint8_t cmos_read_mmio(QTestState *s, uint8_t reg)
@@ -145,7 +146,7 @@ static void cmos_get_date_time(QTestState *s, struct tm *date)
 
 static QTestState *m48t59_qtest_start(void)
 {
-    return qtest_init("-rtc clock=vm");
+    return qtest_startf("-M %s -rtc clock=vm", base_machine);
 }
 
 static void bcd_check_time(void)
@@ -241,6 +242,12 @@ static void base_setup(void)
         /* Note: For sparc64, we'd need to map-in the PCI bridge memory first */
         base = 0x71200000;
         base_year = 1968;
+        base_machine = "SS-5";
+        use_mmio = true;
+    } else if (g_str_equal(arch, "ppc") || g_str_equal(arch, "ppc64")) {
+        base = 0xF0000000;
+        base_year = 1968;
+        base_machine = "ref405ep";
         use_mmio = true;
     } else {
         g_assert_not_reached();
