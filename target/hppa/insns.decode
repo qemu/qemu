@@ -22,8 +22,16 @@
 ####
 
 %assemble_sr3   13:1 14:2
+%assemble_sr3x  13:1 14:2 !function=expand_sr3x
 
 %sm_imm         16:10 !function=expand_sm_imm
+
+####
+# Argument set definitions
+####
+
+# All insns that need to form a virtual address should use this set.
+&ldst           t b x disp sp m scale size
 
 ####
 # System
@@ -49,3 +57,33 @@ ssm             000000 ..........  000 01101011 t:5     i=%sm_imm
 
 rfi             000000 ----- ----- --- 01100000 00000
 rfi_r           000000 ----- ----- --- 01100101 00000
+
+####
+# Memory Management
+####
+
+@addrx          ...... b:5 x:5 .. ........ m:1 .....    \
+                &ldst disp=0 scale=0 t=0 sp=0 size=0
+
+nop             000001 ----- ----- -- 11001010 0 -----         # fdc, disp
+nop_addrx       000001 ..... ..... -- 01001010 . -----  @addrx # fdc, index
+nop_addrx       000001 ..... ..... -- 01001011 . -----  @addrx # fdce
+nop_addrx       000001 ..... ..... --- 0001010 . -----  @addrx # fic 0x0a
+nop_addrx       000001 ..... ..... -- 01001111 . 00000  @addrx # fic 0x4f
+nop_addrx       000001 ..... ..... --- 0001011 . -----  @addrx # fice
+nop_addrx       000001 ..... ..... -- 01001110 . 00000  @addrx # pdc
+
+probe           000001 b:5 ri:5 sp:2 imm:1 100011 write:1 0 t:5
+
+ixtlbx          000001 b:5 r:5 sp:2 0100000 addr:1 0 00000      data=1
+ixtlbx          000001 b:5 r:5 ... 000000 addr:1 0 00000        \
+                sp=%assemble_sr3x data=0
+
+pxtlbx          000001 b:5 x:5 sp:2 0100100 local:1 m:1 -----   data=1
+pxtlbx          000001 b:5 x:5 ... 000100 local:1 m:1 -----     \
+                sp=%assemble_sr3x data=0
+
+lpa             000001 b:5 x:5 sp:2 01001101 m:1 t:5    \
+                &ldst disp=0 scale=0 size=0
+
+lci             000001 ----- ----- -- 01001100 0 t:5
