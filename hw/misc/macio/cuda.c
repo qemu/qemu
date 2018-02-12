@@ -145,21 +145,29 @@ static void cuda_update_irq(CUDAState *s)
     }
 }
 
-static uint64_t get_tb(uint64_t time, uint64_t freq)
+static uint64_t get_counter_value(CUDAState *s, CUDATimer *ti)
 {
-    return muldiv64(time, freq, NANOSECONDS_PER_SECOND);
+    /* Reverse of the tb calculation algorithm that Mac OS X uses on bootup */
+    uint64_t tb_diff = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                                s->tb_frequency, NANOSECONDS_PER_SECOND) -
+                           ti->load_time;
+
+    return (tb_diff * 0xBF401675E5DULL) / (s->tb_frequency << 24);
 }
 
-static unsigned int get_counter(CUDATimer *ti)
+static uint64_t get_counter_load_time(CUDAState *s, CUDATimer *ti)
+{
+    uint64_t load_time = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                                  s->tb_frequency, NANOSECONDS_PER_SECOND);
+    return load_time;
+}
+
+static unsigned int get_counter(CUDAState *s, CUDATimer *ti)
 {
     int64_t d;
     unsigned int counter;
-    uint64_t tb_diff;
-    uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    /* Reverse of the tb calculation algorithm that Mac OS X uses on bootup. */
-    tb_diff = get_tb(current_time, ti->frequency) - ti->load_time;
-    d = (tb_diff * 0xBF401675E5DULL) / (ti->frequency << 24);
+    d = get_counter_value(s, ti);
 
     if (ti->index == 0) {
         /* the timer goes down from latch to -1 (period of latch + 2) */
@@ -178,42 +186,42 @@ static unsigned int get_counter(CUDATimer *ti)
 static void set_counter(CUDAState *s, CUDATimer *ti, unsigned int val)
 {
     CUDA_DPRINTF("T%d.counter=%d\n", 1 + ti->index, val);
-    ti->load_time = get_tb(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
-                           s->frequency);
+    ti->load_time = get_counter_load_time(s, ti);
     ti->counter_value = val;
     cuda_timer_update(s, ti, ti->load_time);
 }
 
-static int64_t get_next_irq_time(CUDATimer *s, int64_t current_time)
+static int64_t get_next_irq_time(CUDATimer *ti, int64_t current_time)
 {
     int64_t d, next_time;
     unsigned int counter;
 
     /* current counter value */
-    d = muldiv64(current_time - s->load_time,
-                 CUDA_TIMER_FREQ, NANOSECONDS_PER_SECOND);
+    d = muldiv64(current_time - ti->load_time,
+                 ti->frequency, NANOSECONDS_PER_SECOND);
     /* the timer goes down from latch to -1 (period of latch + 2) */
-    if (d <= (s->counter_value + 1)) {
-        counter = (s->counter_value - d) & 0xffff;
+    if (d <= (ti->counter_value + 1)) {
+        counter = (ti->counter_value - d) & 0xffff;
     } else {
-        counter = (d - (s->counter_value + 1)) % (s->latch + 2);
-        counter = (s->latch - counter) & 0xffff;
+        counter = (d - (ti->counter_value + 1)) % (ti->latch + 2);
+        counter = (ti->latch - counter) & 0xffff;
     }
 
     /* Note: we consider the irq is raised on 0 */
     if (counter == 0xffff) {
-        next_time = d + s->latch + 1;
+        next_time = d + ti->latch + 1;
     } else if (counter == 0) {
-        next_time = d + s->latch + 2;
+        next_time = d + ti->latch + 2;
     } else {
         next_time = d + counter;
     }
     CUDA_DPRINTF("latch=%d counter=%" PRId64 " delta_next=%" PRId64 "\n",
-                 s->latch, d, next_time - d);
-    next_time = muldiv64(next_time, NANOSECONDS_PER_SECOND, CUDA_TIMER_FREQ) +
-        s->load_time;
-    if (next_time <= current_time)
+                 ti->latch, d, next_time - d);
+    next_time = muldiv64(next_time, NANOSECONDS_PER_SECOND, ti->frequency) +
+                         ti->load_time;
+    if (next_time <= current_time) {
         next_time = current_time + 1;
+    }
     return next_time;
 }
 
@@ -275,7 +283,7 @@ static void cuda_delay_set_sr_int(CUDAState *s)
     timer_mod(s->sr_delay_timer, expire);
 }
 
-static uint32_t cuda_readb(void *opaque, hwaddr addr)
+static uint64_t cuda_read(void *opaque, hwaddr addr, unsigned size)
 {
     CUDAState *s = opaque;
     uint32_t val;
@@ -295,12 +303,12 @@ static uint32_t cuda_readb(void *opaque, hwaddr addr)
         val = s->dira;
         break;
     case CUDA_REG_T1CL:
-        val = get_counter(&s->timers[0]) & 0xff;
+        val = get_counter(s, &s->timers[0]) & 0xff;
         s->ifr &= ~T1_INT;
         cuda_update_irq(s);
         break;
     case CUDA_REG_T1CH:
-        val = get_counter(&s->timers[0]) >> 8;
+        val = get_counter(s, &s->timers[0]) >> 8;
         cuda_update_irq(s);
         break;
     case CUDA_REG_T1LL:
@@ -311,12 +319,12 @@ static uint32_t cuda_readb(void *opaque, hwaddr addr)
         val = (s->timers[0].latch >> 8) & 0xff;
         break;
     case CUDA_REG_T2CL:
-        val = get_counter(&s->timers[1]) & 0xff;
+        val = get_counter(s, &s->timers[1]) & 0xff;
         s->ifr &= ~T2_INT;
         cuda_update_irq(s);
         break;
     case CUDA_REG_T2CH:
-        val = get_counter(&s->timers[1]) >> 8;
+        val = get_counter(s, &s->timers[1]) >> 8;
         break;
     case CUDA_REG_SR:
         val = s->sr;
@@ -350,7 +358,7 @@ static uint32_t cuda_readb(void *opaque, hwaddr addr)
     return val;
 }
 
-static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
+static void cuda_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     CUDAState *s = opaque;
 
@@ -359,11 +367,11 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
 
     switch(addr) {
     case CUDA_REG_B:
-        s->b = val;
+        s->b = (s->b & ~s->dirb) | (val & s->dirb);
         cuda_update(s);
         break;
     case CUDA_REG_A:
-        s->a = val;
+        s->a = (s->a & ~s->dira) | (val & s->dira);
         break;
     case CUDA_REG_DIRB:
         s->dirb = val;
@@ -406,7 +414,6 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
     case CUDA_REG_ACR:
         s->acr = val;
         cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-        cuda_update(s);
         break;
     case CUDA_REG_PCR:
         s->pcr = val;
@@ -780,38 +787,14 @@ static void cuda_receive_packet_from_host(CUDAState *s,
     }
 }
 
-static void cuda_writew (void *opaque, hwaddr addr, uint32_t value)
-{
-}
-
-static void cuda_writel (void *opaque, hwaddr addr, uint32_t value)
-{
-}
-
-static uint32_t cuda_readw (void *opaque, hwaddr addr)
-{
-    return 0;
-}
-
-static uint32_t cuda_readl (void *opaque, hwaddr addr)
-{
-    return 0;
-}
-
 static const MemoryRegionOps cuda_ops = {
-    .old_mmio = {
-        .write = {
-            cuda_writeb,
-            cuda_writew,
-            cuda_writel,
-        },
-        .read = {
-            cuda_readb,
-            cuda_readw,
-            cuda_readl,
-        },
+    .read = cuda_read,
+    .write = cuda_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static bool cuda_timer_exist(void *opaque, int version_id)
@@ -903,7 +886,7 @@ static void cuda_realizefn(DeviceState *dev, Error **errp)
     struct tm tm;
 
     s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_timer1, s);
-    s->timers[0].frequency = s->frequency;
+    s->timers[0].frequency = CUDA_TIMER_FREQ;
     s->timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_timer2, s);
     s->timers[1].frequency = (SCALE_US * 6000) / 4700;
 
@@ -934,7 +917,7 @@ static void cuda_initfn(Object *obj)
 }
 
 static Property cuda_properties[] = {
-    DEFINE_PROP_UINT64("frequency", CUDAState, frequency, 0),
+    DEFINE_PROP_UINT64("timebase-frequency", CUDAState, tb_frequency, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 

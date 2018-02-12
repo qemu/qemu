@@ -464,7 +464,8 @@ static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
             }
         }
         if (!mem_start) {
-            /* ppc_spapr_init() checks for rma_size <= node0_size already */
+            /* spapr_machine_init() checks for rma_size <= node0_size
+             * already */
             spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
             mem_start += spapr->rma_size;
             node_size -= spapr->rma_size;
@@ -2309,7 +2310,7 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
          * the value that we'd get with KVM on POWER8, the
          * overwhelmingly common case in production systems.
          */
-        spapr->vsmt = 8;
+        spapr->vsmt = MAX(8, smp_threads);
     }
 
     /* KVM: If necessary, set the SMT mode: */

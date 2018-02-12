@@ -451,7 +451,7 @@ void macio_init(PCIDevice *d,
     macio_state->escc_mem = escc_mem;
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
-    qdev_prop_set_uint64(DEVICE(&macio_state->cuda), "frequency",
+    qdev_prop_set_uint64(DEVICE(&macio_state->cuda), "timebase-frequency",
                          macio_state->frequency);
 
     qdev_init_nofail(DEVICE(d));

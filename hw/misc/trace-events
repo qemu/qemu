@@ -70,3 +70,10 @@ msf2_sysreg_write_pll_status(void) "Invalid write to read only PLL status regist
 #hw/misc/imx7_gpr.c
 imx7_gpr_read(uint64_t offset) "addr 0x%08" HWADDR_PRIx
 imx7_gpr_write(uint64_t offset, uint64_t value) "addr 0x%08" HWADDR_PRIx "value 0x%08" HWADDR_PRIx
+
+# hw/misc/mos6522.c
+mos6522_set_counter(int index, unsigned int val) "T%d.counter=%d"
+mos6522_get_next_irq_time(uint16_t latch, int64_t d, int64_t delta) "latch=%d counter=0x%"PRId64 " delta_next=0x%"PRId64
+mos6522_set_sr_int(void) "set sr_int"
+mos6522_write(uint64_t addr, uint64_t val) "reg=0x%"PRIx64 " val=0x%"PRIx64
+mos6522_read(uint64_t addr, unsigned val) "reg=0x%"PRIx64 " val=0x%x"
