@@ -572,7 +572,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         boolList **list = &cvalue->u.boolean.data;
         for (i = 0; i < 32; i++) {
             *list = g_new0(boolList, 1);
-            (*list)->value = (i % 3 == 0);
+            (*list)->value = QEMU_IS_ALIGNED(i, 3);
             (*list)->next = NULL;
             list = &(*list)->next;
         }

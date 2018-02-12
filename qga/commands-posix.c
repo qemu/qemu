@@ -901,7 +901,7 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     if (p && sscanf(q, "%u", &host) == 1) {
         has_host = true;
         nhosts = build_hosts(syspath, p, has_ata, hosts,
-                             sizeof(hosts) / sizeof(hosts[0]), errp);
+                             ARRAY_SIZE(hosts), errp);
         if (nhosts < 0) {
             goto cleanup;
         }

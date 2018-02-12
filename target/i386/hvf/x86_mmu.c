@@ -17,7 +17,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <memory.h>
 #include "panic.h"
 #include "qemu-common.h"
 #include "cpu.h"

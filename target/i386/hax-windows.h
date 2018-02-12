@@ -20,8 +20,6 @@
 #ifndef TARGET_I386_HAX_WINDOWS_H
 #define TARGET_I386_HAX_WINDOWS_H
 
-#include <memory.h>
-#include <malloc.h>
 #include <winioctl.h>
 #include <windef.h>
 

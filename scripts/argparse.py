@@ -76,7 +76,7 @@ considered public as object names -- the API of the formatter objects is
 still considered an implementation detail.)
 """
 
-__version__ = '1.4.0'  # we use our own version number independant of the
+__version__ = '1.4.0'  # we use our own version number independent of the
                        # one in stdlib and we release this on pypi.
 
 __external_lib__ = True  # to make sure the tests really test THIS lib,

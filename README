@@ -68,6 +68,10 @@ the QEMU website
   https://qemu.org/Contribute/SubmitAPatch
   https://qemu.org/Contribute/TrivialPatches
 
+The QEMU website is also maintained under source control.
+
+  git clone git://git.qemu.org/qemu-web.git
+  https://www.qemu.org/2017/02/04/the-new-qemu-website-is-up/
 
 Bug reporting
 =============
