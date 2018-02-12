@@ -278,6 +278,9 @@ typedef struct DisasContext {
     bool psw_n_nonzero;
 } DisasContext;
 
+/* Include the auto-generated decoder.  */
+#include "decode.inc.c"
+
 /* We are not using a goto_tb (for whatever reason), but have updated
    the iaq (for whatever reason), so don't do it again on exit.  */
 #define DISAS_IAQ_N_UPDATED  DISAS_TARGET_0
@@ -661,7 +664,8 @@ static void nullify_set(DisasContext *ctx, bool x)
 }
 
 /* Mark the end of an instruction that may have been nullified.
-   This is the pair to nullify_over.  */
+   This is the pair to nullify_over.  Always returns true so that
+   it may be tail-called from a translate function.  */
 static bool nullify_end(DisasContext *ctx)
 {
     TCGLabel *null_lab = ctx->null_lab;
@@ -745,12 +749,17 @@ static bool gen_illegal(DisasContext *ctx)
     return gen_excp_iir(ctx, EXCP_ILL);
 }
 
-#define CHECK_MOST_PRIVILEGED(EXCP)          \
+#ifdef CONFIG_USER_ONLY
+#define CHECK_MOST_PRIVILEGED(EXCP) \
+    return gen_excp_iir(ctx, EXCP)
+#else
+#define CHECK_MOST_PRIVILEGED(EXCP) \
     do {                                     \
         if (ctx->privilege != 0) {           \
             return gen_excp_iir(ctx, EXCP);  \
         }                                    \
     } while (0)
+#endif
 
 static bool use_goto_tb(DisasContext *ctx, target_ureg dest)
 {
@@ -1982,7 +1991,7 @@ static bool trans_nop(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     return true;
 }
 
-static bool trans_break(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_break(DisasContext *ctx, arg_break *a)
 {
     return gen_excp_iir(ctx, EXCP_BREAK);
 }
@@ -2308,7 +2317,6 @@ static bool gen_hlt(DisasContext *ctx, int reset)
 #endif /* !CONFIG_USER_ONLY */
 
 static const DisasInsn table_system[] = {
-    { 0x00000000u, 0xfc001fe0u, trans_break },
     { 0x00001820u, 0xffe01fffu, trans_mtsp },
     { 0x00001840u, 0xfc00ffffu, trans_mtctl },
     { 0x016018c0u, 0xffe0ffffu, trans_mtsarcm },
@@ -4534,8 +4542,14 @@ static void translate_table_int(DisasContext *ctx, uint32_t insn,
 
 static void translate_one(DisasContext *ctx, uint32_t insn)
 {
-    uint32_t opc = extract32(insn, 26, 6);
+    uint32_t opc;
 
+    /* Transition to the auto-generated decoder.  */
+    if (decode(ctx, insn)) {
+        return;
+    }
+
+    opc = extract32(insn, 26, 6);
     switch (opc) {
     case 0x00: /* system op */
         translate_table(ctx, insn, table_system);

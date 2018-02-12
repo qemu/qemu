@@ -1,3 +1,11 @@
 obj-y += translate.o helper.o cpu.o op_helper.o gdbstub.o mem_helper.o
 obj-y += int_helper.o
 obj-$(CONFIG_SOFTMMU) += machine.o
+
+DECODETREE = $(SRC_PATH)/scripts/decodetree.py
+
+target/hppa/decode.inc.c: $(SRC_PATH)/target/hppa/insns.decode $(DECODETREE)
+	$(call quiet-command,\
+	  $(PYTHON) $(DECODETREE) -o $@ $<, "GEN", $(TARGET_DIR)$@)
+
+target/hppa/translate.o: target/hppa/decode.inc.c
