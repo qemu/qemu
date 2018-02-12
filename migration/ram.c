@@ -1602,11 +1602,13 @@ static void xbzrle_load_cleanup(void)
 
 static void ram_state_cleanup(RAMState **rsp)
 {
-    migration_page_queue_free(*rsp);
-    qemu_mutex_destroy(&(*rsp)->bitmap_mutex);
-    qemu_mutex_destroy(&(*rsp)->src_page_req_mutex);
-    g_free(*rsp);
-    *rsp = NULL;
+    if (*rsp) {
+        migration_page_queue_free(*rsp);
+        qemu_mutex_destroy(&(*rsp)->bitmap_mutex);
+        qemu_mutex_destroy(&(*rsp)->src_page_req_mutex);
+        g_free(*rsp);
+        *rsp = NULL;
+    }
 }
 
 static void xbzrle_cleanup(void)
