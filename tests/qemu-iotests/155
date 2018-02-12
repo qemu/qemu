@@ -64,7 +64,7 @@ class BaseClass(iotests.QMPTestCase):
                     'file': {'driver': 'file',
                              'filename': source_img}}
         self.vm.add_blockdev(self.qmp_to_opts(blockdev))
-        self.vm.add_device('floppy,id=qdev0,drive=source')
+        self.vm.add_device('virtio-blk,id=qdev0,drive=source')
         self.vm.launch()
 
         self.assertIntactSourceBackingChain()
@@ -173,21 +173,24 @@ class MirrorBaseClass(BaseClass):
     def testFull(self):
         self.runMirror('full')
 
-        node = self.findBlockNode('target', 'qdev0')
+        node = self.findBlockNode('target',
+                                  '/machine/peripheral/qdev0/virtio-backend')
         self.assertCorrectBackingImage(node, None)
         self.assertIntactSourceBackingChain()
 
     def testTop(self):
         self.runMirror('top')
 
-        node = self.findBlockNode('target', 'qdev0')
+        node = self.findBlockNode('target',
+                                  '/machine/peripheral/qdev0/virtio-backend')
         self.assertCorrectBackingImage(node, back2_img)
         self.assertIntactSourceBackingChain()
 
     def testNone(self):
         self.runMirror('none')
 
-        node = self.findBlockNode('target', 'qdev0')
+        node = self.findBlockNode('target',
+                                  '/machine/peripheral/qdev0/virtio-backend')
         self.assertCorrectBackingImage(node, source_img)
         self.assertIntactSourceBackingChain()
 
@@ -239,7 +242,8 @@ class TestCommit(BaseClass):
 
         self.vm.event_wait('BLOCK_JOB_COMPLETED')
 
-        node = self.findBlockNode(None, 'qdev0')
+        node = self.findBlockNode(None,
+                                  '/machine/peripheral/qdev0/virtio-backend')
         self.assert_qmp(node, 'image' + '/backing-image' * 0 + '/filename',
                         back1_img)
         self.assert_qmp(node, 'image' + '/backing-image' * 1 + '/filename',
