@@ -26,6 +26,10 @@
 
 %sm_imm         16:10 !function=expand_sm_imm
 
+%im5_0          0:s1 1:4
+%im5_16         16:s1 17:4
+%ma_to_m        5:1 13:1 !function=ma_to_m
+
 ####
 # Argument set definitions
 ####
@@ -129,3 +133,23 @@ sub_tc          000010 ..... ..... .... 010011 0 .....  @rrr_cf
 sub_tsv_tc      000010 ..... ..... .... 110011 0 .....  @rrr_cf
 sub_b           000010 ..... ..... .... 010100 0 .....  @rrr_cf
 sub_b_tsv       000010 ..... ..... .... 110100 0 .....  @rrr_cf
+
+####
+# Index Mem
+####
+
+@ldstx          ...... b:5 x:5 sp:2 scale:1 ....... m:1 t:5     &ldst disp=0
+@ldim5          ...... b:5 ..... sp:2 ......... t:5     \
+                &ldst disp=%im5_16 x=0 scale=0 m=%ma_to_m
+@stim5          ...... b:5 t:5 sp:2 ......... .....     \
+                &ldst disp=%im5_0 x=0 scale=0 m=%ma_to_m
+
+ld              000011 ..... ..... .. . 1 -- 00 size:2 ......   @ldim5
+ld              000011 ..... ..... .. . 0 -- 00 size:2 ......   @ldstx
+st              000011 ..... ..... .. . 1 -- 10 size:2 ......   @stim5
+ldc             000011 ..... ..... .. . 1 -- 0111      ......   @ldim5 size=2
+ldc             000011 ..... ..... .. . 0 -- 0111      ......   @ldstx size=2
+lda             000011 ..... ..... .. . 1 -- 0110      ......   @ldim5 size=2
+lda             000011 ..... ..... .. . 0 -- 0110      ......   @ldstx size=2
+sta             000011 ..... ..... .. . 1 -- 1110      ......   @stim5 size=2
+stby            000011 b:5 r:5 sp:2 a:1 1 -- 1100 m:1   .....   disp=%im5_0
