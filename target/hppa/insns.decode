@@ -24,6 +24,8 @@
 %assemble_sr3   13:1 14:2
 %assemble_sr3x  13:1 14:2 !function=expand_sr3x
 
+%assemble_12    0:s1 2:1 3:10  !function=expand_shl2
+
 %sm_imm         16:10 !function=expand_sm_imm
 
 %im5_0          0:s1 1:4
@@ -41,6 +43,9 @@
 &rrr_cf         t r1 r2 cf
 &rrr_cf_sh      t r1 r2 cf sh
 
+&rrb_c_f        disp n c f r1 r2
+&rib_c_f        disp n c f r i
+
 ####
 # Format definitions
 ####
@@ -49,6 +54,11 @@
 @rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
 @rrr_cf_sh      ...... r2:5 r1:5 cf:4 .... sh:2 . t:5   &rrr_cf_sh
 @rrr_cf_sh0     ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf_sh sh=0
+
+@rrb_cf         ...... r2:5 r1:5 c:3 ........... n:1 .  \
+                &rrb_c_f disp=%assemble_12
+@rib_cf         ...... r:5 ..... c:3 ........... n:1 .  \
+                &rib_c_f disp=%assemble_12 i=%im5_16
 
 ####
 # System
@@ -165,3 +175,23 @@ fmpyadd_f       000110 ..... ..... ..... ..... 0 .....  @mpyadd
 fmpyadd_d       000110 ..... ..... ..... ..... 1 .....  @mpyadd
 fmpysub_f       100110 ..... ..... ..... ..... 0 .....  @mpyadd
 fmpysub_d       100110 ..... ..... ..... ..... 1 .....  @mpyadd
+
+####
+# Conditional Branches
+####
+
+bb_sar          110000 00000 r:5 c:1 10 ........... n:1 .  disp=%assemble_12
+bb_imm          110001 p:5   r:5 c:1 10 ........... n:1 .  disp=%assemble_12
+
+movb            110010 ..... ..... ... ........... . .  @rrb_cf f=0
+movbi           110011 ..... ..... ... ........... . .  @rib_cf f=0
+
+cmpb            100000 ..... ..... ... ........... . .  @rrb_cf f=0
+cmpb            100010 ..... ..... ... ........... . .  @rrb_cf f=1
+cmpbi           100001 ..... ..... ... ........... . .  @rib_cf f=0
+cmpbi           100011 ..... ..... ... ........... . .  @rib_cf f=1
+
+addb            101000 ..... ..... ... ........... . .  @rrb_cf f=0
+addb            101010 ..... ..... ... ........... . .  @rrb_cf f=1
+addbi           101001 ..... ..... ... ........... . .  @rib_cf f=0
+addbi           101011 ..... ..... ... ........... . .  @rib_cf f=1
