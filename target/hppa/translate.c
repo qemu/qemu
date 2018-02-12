@@ -838,7 +838,7 @@ static unsigned assemble_rc64(uint32_t insn)
     return r2 * 32 + r1 * 4 + r0;
 }
 
-static unsigned assemble_sr3(uint32_t insn)
+static inline unsigned assemble_sr3(uint32_t insn)
 {
     unsigned s2 = extract32(insn, 13, 1);
     unsigned s0 = extract32(insn, 14, 2);
@@ -2005,9 +2005,9 @@ static bool trans_sync(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     return true;
 }
 
-static bool trans_mfia(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_mfia(DisasContext *ctx, arg_mfia *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
+    unsigned rt = a->t;
     TCGv_reg tmp = dest_gpr(ctx, rt);
     tcg_gen_movi_reg(tmp, ctx->iaoq_f);
     save_gpr(ctx, rt, tmp);
@@ -2016,10 +2016,10 @@ static bool trans_mfia(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     return true;
 }
 
-static bool trans_mfsp(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_mfsp(DisasContext *ctx, arg_mfsp *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned rs = assemble_sr3(insn);
+    unsigned rt = a->t;
+    unsigned rs = a->sp;
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_reg t1 = tcg_temp_new();
 
@@ -2035,16 +2035,16 @@ static bool trans_mfsp(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     return true;
 }
 
-static bool trans_mfctl(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned ctl = extract32(insn, 21, 5);
+    unsigned rt = a->t;
+    unsigned ctl = a->r;
     TCGv_reg tmp;
 
     switch (ctl) {
     case CR_SAR:
 #ifdef TARGET_HPPA64
-        if (extract32(insn, 14, 1) == 0) {
+        if (a->e == 0) {
             /* MFSAR without ,W masks low 5 bits.  */
             tmp = dest_gpr(ctx, rt);
             tcg_gen_andi_reg(tmp, cpu_sar, 31);
@@ -2086,10 +2086,10 @@ static bool trans_mfctl(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     return true;
 }
 
-static bool trans_mtsp(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_mtsp(DisasContext *ctx, arg_mtsp *a)
 {
-    unsigned rr = extract32(insn, 16, 5);
-    unsigned rs = assemble_sr3(insn);
+    unsigned rr = a->r;
+    unsigned rs = a->sp;
     TCGv_i64 t64;
 
     if (rs >= 5) {
@@ -2112,11 +2112,10 @@ static bool trans_mtsp(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     return nullify_end(ctx);
 }
 
-static bool trans_mtctl(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 {
-    unsigned rin = extract32(insn, 16, 5);
-    unsigned ctl = extract32(insn, 21, 5);
-    TCGv_reg reg = load_gpr(ctx, rin);
+    unsigned ctl = a->t;
+    TCGv_reg reg = load_gpr(ctx, a->r);
     TCGv_reg tmp;
 
     if (ctl == CR_SAR) {
@@ -2132,9 +2131,7 @@ static bool trans_mtctl(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     /* All other control registers are privileged or read-only.  */
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
 
-#ifdef CONFIG_USER_ONLY
-    g_assert_not_reached();
-#else
+#ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
     switch (ctl) {
     case CR_IT:
@@ -2168,12 +2165,11 @@ static bool trans_mtctl(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
 #endif
 }
 
-static bool trans_mtsarcm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a)
 {
-    unsigned rin = extract32(insn, 16, 5);
     TCGv_reg tmp = tcg_temp_new();
 
-    tcg_gen_not_reg(tmp, load_gpr(ctx, rin));
+    tcg_gen_not_reg(tmp, load_gpr(ctx, a->r));
     tcg_gen_andi_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
     save_or_nullify(ctx, cpu_sar, tmp);
     tcg_temp_free(tmp);
@@ -2261,24 +2257,26 @@ static bool trans_ssm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
     return nullify_end(ctx);
 }
+#endif /* !CONFIG_USER_ONLY */
 
-static bool trans_mtsm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static bool trans_mtsm(DisasContext *ctx, arg_mtsm *a)
 {
-    unsigned rr = extract32(insn, 16, 5);
-    TCGv_reg tmp, reg;
-
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    TCGv_reg tmp, reg;
     nullify_over(ctx);
 
-    reg = load_gpr(ctx, rr);
+    reg = load_gpr(ctx, a->r);
     tmp = get_temp(ctx);
     gen_helper_swap_system_mask(tmp, cpu_env, reg);
 
     /* Exit the TB to recognize new interrupts.  */
     ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
     return nullify_end(ctx);
+#endif
 }
 
+#ifndef CONFIG_USER_ONLY
 static bool trans_rfi(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
 {
     unsigned comp = extract32(insn, 5, 4);
@@ -2317,19 +2315,12 @@ static bool gen_hlt(DisasContext *ctx, int reset)
 #endif /* !CONFIG_USER_ONLY */
 
 static const DisasInsn table_system[] = {
-    { 0x00001820u, 0xffe01fffu, trans_mtsp },
-    { 0x00001840u, 0xfc00ffffu, trans_mtctl },
-    { 0x016018c0u, 0xffe0ffffu, trans_mtsarcm },
-    { 0x000014a0u, 0xffffffe0u, trans_mfia },
-    { 0x000004a0u, 0xffff1fe0u, trans_mfsp },
-    { 0x000008a0u, 0xfc1fbfe0u, trans_mfctl },
     { 0x00000400u, 0xffffffffu, trans_sync },  /* sync */
     { 0x00100400u, 0xffffffffu, trans_sync },  /* syncdma */
     { 0x000010a0u, 0xfc1f3fe0u, trans_ldsid },
 #ifndef CONFIG_USER_ONLY
     { 0x00000e60u, 0xfc00ffe0u, trans_rsm },
     { 0x00000d60u, 0xfc00ffe0u, trans_ssm },
-    { 0x00001860u, 0xffe0ffffu, trans_mtsm },
     { 0x00000c00u, 0xfffffe1fu, trans_rfi },
 #endif
 };
