@@ -303,10 +303,27 @@ static int ma_to_m(int val)
     return val & 2 ? (val & 1 ? -1 : 1) : 0;
 }
 
-/* Used for branch targets.  */
+/* Convert the sign of the displacement to a pre or post-modify.  */
+static int pos_to_m(int val)
+{
+    return val ? 1 : -1;
+}
+
+static int neg_to_m(int val)
+{
+    return val ? -1 : 1;
+}
+
+/* Used for branch targets and fp memory ops.  */
 static int expand_shl2(int val)
 {
     return val << 2;
+}
+
+/* Used for fp memory ops.  */
+static int expand_shl3(int val)
+{
+    return val << 3;
 }
 
 /* Used for assemble_21.  */
@@ -881,24 +898,6 @@ static inline unsigned assemble_sr3(uint32_t insn)
     unsigned s2 = extract32(insn, 13, 1);
     unsigned s0 = extract32(insn, 14, 2);
     return s2 * 4 + s0;
-}
-
-static target_sreg assemble_16(uint32_t insn)
-{
-    /* Take the name from PA2.0, which produces a 16-bit number
-       only with wide mode; otherwise a 14-bit number.  Since we don't
-       implement wide mode, this is always the 14-bit number.  */
-    return low_sextract(insn, 0, 14);
-}
-
-static target_sreg assemble_16a(uint32_t insn)
-{
-    /* Take the name from PA2.0, which produces a 14-bit shifted number
-       only with wide mode; otherwise a 12-bit shifted number.  Since we
-       don't implement wide mode, this is always the 12-bit number.  */
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x << 11) | extract32(insn, 2, 11);
-    return x << 2;
 }
 
 /* The parisc documentation describes only the general interpretation of
@@ -1594,7 +1593,7 @@ static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
     return nullify_end(ctx);
 }
 
-static void do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
+static bool do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
                       unsigned rx, int scale, target_sreg disp,
                       unsigned sp, int modify)
 {
@@ -1611,10 +1610,16 @@ static void do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
         gen_helper_loaded_fr0(cpu_env);
     }
 
-    nullify_end(ctx);
+    return nullify_end(ctx);
 }
 
-static void do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
+static bool trans_fldw(DisasContext *ctx, arg_ldst *a)
+{
+    return do_floadw(ctx, a->t, a->b, a->x, a->scale ? 2 : 0,
+                     a->disp, a->sp, a->m);
+}
+
+static bool do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
                       unsigned rx, int scale, target_sreg disp,
                       unsigned sp, int modify)
 {
@@ -1631,7 +1636,13 @@ static void do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
         gen_helper_loaded_fr0(cpu_env);
     }
 
-    nullify_end(ctx);
+    return nullify_end(ctx);
+}
+
+static bool trans_fldd(DisasContext *ctx, arg_ldst *a)
+{
+    return do_floadd(ctx, a->t, a->b, a->x, a->scale ? 3 : 0,
+                     a->disp, a->sp, a->m);
 }
 
 static bool do_store(DisasContext *ctx, unsigned rt, unsigned rb,
@@ -1643,7 +1654,7 @@ static bool do_store(DisasContext *ctx, unsigned rt, unsigned rb,
     return nullify_end(ctx);
 }
 
-static void do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
+static bool do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
                        unsigned rx, int scale, target_sreg disp,
                        unsigned sp, int modify)
 {
@@ -1655,10 +1666,16 @@ static void do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
     do_store_32(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEUL);
     tcg_temp_free_i32(tmp);
 
-    nullify_end(ctx);
+    return nullify_end(ctx);
 }
 
-static void do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
+static bool trans_fstw(DisasContext *ctx, arg_ldst *a)
+{
+    return do_fstorew(ctx, a->t, a->b, a->x, a->scale ? 2 : 0,
+                      a->disp, a->sp, a->m);
+}
+
+static bool do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
                        unsigned rx, int scale, target_sreg disp,
                        unsigned sp, int modify)
 {
@@ -1670,7 +1687,13 @@ static void do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
     do_store_64(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEQ);
     tcg_temp_free_i64(tmp);
 
-    nullify_end(ctx);
+    return nullify_end(ctx);
+}
+
+static bool trans_fstd(DisasContext *ctx, arg_ldst *a)
+{
+    return do_fstored(ctx, a->t, a->b, a->x, a->scale ? 3 : 0,
+                      a->disp, a->sp, a->m);
 }
 
 static void do_fop_wew(DisasContext *ctx, unsigned rt, unsigned ra,
@@ -2958,107 +2981,6 @@ static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
     return true;
 }
 
-static bool trans_load(DisasContext *ctx, uint32_t insn,
-                       bool is_mod, TCGMemOp mop)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16(insn);
-
-    do_load(ctx, rt, rb, 0, 0, i, sp, is_mod ? (i < 0 ? -1 : 1) : 0, mop);
-    return true;
-}
-
-static bool trans_load_w(DisasContext *ctx, uint32_t insn)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16a(insn);
-    unsigned ext2 = extract32(insn, 1, 2);
-
-    switch (ext2) {
-    case 0:
-    case 1:
-        /* FLDW without modification.  */
-        do_floadw(ctx, ext2 * 32 + rt, rb, 0, 0, i, sp, 0);
-        break;
-    case 2:
-        /* LDW with modification.  Note that the sign of I selects
-           post-dec vs pre-inc.  */
-        do_load(ctx, rt, rb, 0, 0, i, sp, (i < 0 ? 1 : -1), MO_TEUL);
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-    return true;
-}
-
-static bool trans_fload_mod(DisasContext *ctx, uint32_t insn)
-{
-    target_sreg i = assemble_16a(insn);
-    unsigned t1 = extract32(insn, 1, 1);
-    unsigned a = extract32(insn, 2, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned t0 = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-
-    /* FLDW with modification.  */
-    do_floadw(ctx, t1 * 32 + t0, rb, 0, 0, i, sp, (a ? -1 : 1));
-    return true;
-}
-
-static bool trans_store(DisasContext *ctx, uint32_t insn,
-                        bool is_mod, TCGMemOp mop)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16(insn);
-
-    do_store(ctx, rt, rb, i, sp, is_mod ? (i < 0 ? -1 : 1) : 0, mop);
-    return true;
-}
-
-static bool trans_store_w(DisasContext *ctx, uint32_t insn)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16a(insn);
-    unsigned ext2 = extract32(insn, 1, 2);
-
-    switch (ext2) {
-    case 0:
-    case 1:
-        /* FSTW without modification.  */
-        do_fstorew(ctx, ext2 * 32 + rt, rb, 0, 0, i, sp, 0);
-        break;
-    case 2:
-        /* STW with modification.  */
-        do_store(ctx, rt, rb, i, sp, (i < 0 ? 1 : -1), MO_TEUL);
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-    return true;
-}
-
-static bool trans_fstore_mod(DisasContext *ctx, uint32_t insn)
-{
-    target_sreg i = assemble_16a(insn);
-    unsigned t1 = extract32(insn, 1, 1);
-    unsigned a = extract32(insn, 2, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned t0 = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-
-    /* FSTW with modification.  */
-    do_fstorew(ctx, t1 * 32 + t0, rb, 0, 0, i, sp, (a ? -1 : 1));
-    return true;
-}
-
 static bool trans_copr_w(DisasContext *ctx, uint32_t insn)
 {
     unsigned t0 = extract32(insn, 0, 5);
@@ -4300,43 +4222,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
         return;
     case 0x0E:
         translate_table(ctx, insn, table_float_0e);
-        return;
-
-    case 0x10:
-        trans_load(ctx, insn, false, MO_UB);
-        return;
-    case 0x11:
-        trans_load(ctx, insn, false, MO_TEUW);
-        return;
-    case 0x12:
-        trans_load(ctx, insn, false, MO_TEUL);
-        return;
-    case 0x13:
-        trans_load(ctx, insn, true, MO_TEUL);
-        return;
-    case 0x16:
-        trans_fload_mod(ctx, insn);
-        return;
-    case 0x17:
-        trans_load_w(ctx, insn);
-        return;
-    case 0x18:
-        trans_store(ctx, insn, false, MO_UB);
-        return;
-    case 0x19:
-        trans_store(ctx, insn, false, MO_TEUW);
-        return;
-    case 0x1A:
-        trans_store(ctx, insn, false, MO_TEUL);
-        return;
-    case 0x1B:
-        trans_store(ctx, insn, true, MO_TEUL);
-        return;
-    case 0x1E:
-        trans_fstore_mod(ctx, insn);
-        return;
-    case 0x1F:
-        trans_store_w(ctx, insn);
         return;
 
     case 0x2E:
