@@ -351,13 +351,11 @@ check-qtest-sh4-y = tests/endianness-test$(EXESUF)
 check-qtest-sh4eb-y = tests/endianness-test$(EXESUF)
 
 check-qtest-sparc-y = tests/prom-env-test$(EXESUF)
-#check-qtest-sparc-y += tests/m48t59-test$(EXESUF)
-#gcov-files-sparc-y = hw/timer/m48t59.c
+check-qtest-sparc-y += tests/m48t59-test$(EXESUF)
+gcov-files-sparc-y = hw/timer/m48t59.c
 check-qtest-sparc-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-sparc64-y = tests/endianness-test$(EXESUF)
-#check-qtest-sparc64-y += tests/m48t59-test$(EXESUF)
-#gcov-files-sparc64-y += hw/timer/m48t59.c
 check-qtest-sparc64-y += tests/prom-env-test$(EXESUF)
 check-qtest-sparc64-y += tests/boot-serial-test$(EXESUF)
 

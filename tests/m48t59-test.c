@@ -143,11 +143,18 @@ static void cmos_get_date_time(struct tm *date)
     ts = mktime(date);
 }
 
-static void check_time(int wiggle)
+static QTestState *m48t59_qtest_start(void)
+{
+    return qtest_start("-rtc clock=vm");
+}
+
+static void bcd_check_time(void)
 {
     struct tm start, date[4], end;
     struct tm *datep;
     time_t ts;
+    const int wiggle = 2;
+    QTestState *s = m48t59_qtest_start();
 
     /*
      * This check assumes a few things.  First, we cannot guarantee that we get
@@ -198,30 +205,15 @@ static void check_time(int wiggle)
 
         g_assert_cmpint(ABS(t - s), <=, wiggle);
     }
-}
 
-static int wiggle = 2;
-
-static void bcd_check_time(void)
-{
-    if (strcmp(qtest_get_arch(), "sparc64") == 0) {
-        base = 0x74;
-        base_year = 1900;
-        use_mmio = false;
-    } else if (strcmp(qtest_get_arch(), "sparc") == 0) {
-        base = 0x71200000;
-        base_year = 1968;
-        use_mmio = true;
-    } else { /* PPC: need to map macio in PCI */
-        g_assert_not_reached();
-    }
-    check_time(wiggle);
+    qtest_quit(s);
 }
 
 /* success if no crash or abort */
 static void fuzz_registers(void)
 {
     unsigned int i;
+    QTestState *s = m48t59_qtest_start();
 
     for (i = 0; i < 1000; i++) {
         uint8_t reg, val;
@@ -237,24 +229,38 @@ static void fuzz_registers(void)
         cmos_write(reg, val);
         cmos_read(reg);
     }
+
+    qtest_quit(s);
+}
+
+static void base_setup(void)
+{
+    const char *arch = qtest_get_arch();
+
+    if (g_str_equal(arch, "sparc")) {
+        /* Note: For sparc64, we'd need to map-in the PCI bridge memory first */
+        base = 0x71200000;
+        base_year = 1968;
+        use_mmio = true;
+    } else {
+        g_assert_not_reached();
+    }
 }
 
 int main(int argc, char **argv)
 {
-    QTestState *s = NULL;
     int ret;
+
+    base_setup();
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_start("-rtc clock=vm");
-
-    qtest_add_func("/rtc/bcd/check-time", bcd_check_time);
+    if (g_test_slow()) {
+        /* Do not run this in timing-sensitive environments */
+        qtest_add_func("/rtc/bcd-check-time", bcd_check_time);
+    }
     qtest_add_func("/rtc/fuzz-registers", fuzz_registers);
     ret = g_test_run();
-
-    if (s) {
-        qtest_quit(s);
-    }
 
     return ret;
 }
