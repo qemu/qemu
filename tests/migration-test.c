@@ -434,28 +434,31 @@ static void test_migrate_start(QTestState **from, QTestState **to,
     g_free(cmd_dst);
 }
 
-static void test_migrate_end(QTestState *from, QTestState *to)
+static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
 {
     unsigned char dest_byte_a, dest_byte_b, dest_byte_c, dest_byte_d;
 
     qtest_quit(from);
 
-    qtest_memread(to, start_address, &dest_byte_a, 1);
+    if (test_dest) {
+        qtest_memread(to, start_address, &dest_byte_a, 1);
 
-    /* Destination still running, wait for a byte to change */
-    do {
-        qtest_memread(to, start_address, &dest_byte_b, 1);
-        usleep(1000 * 10);
-    } while (dest_byte_a == dest_byte_b);
+        /* Destination still running, wait for a byte to change */
+        do {
+            qtest_memread(to, start_address, &dest_byte_b, 1);
+            usleep(1000 * 10);
+        } while (dest_byte_a == dest_byte_b);
 
-    qtest_qmp_discard_response(to, "{ 'execute' : 'stop'}");
-    /* With it stopped, check nothing changes */
-    qtest_memread(to, start_address, &dest_byte_c, 1);
-    usleep(1000 * 200);
-    qtest_memread(to, start_address, &dest_byte_d, 1);
-    g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
+        qtest_qmp_discard_response(to, "{ 'execute' : 'stop'}");
 
-    check_guests_ram(to);
+        /* With it stopped, check nothing changes */
+        qtest_memread(to, start_address, &dest_byte_c, 1);
+        usleep(1000 * 200);
+        qtest_memread(to, start_address, &dest_byte_d, 1);
+        g_assert_cmpint(dest_byte_c, ==, dest_byte_d);
+
+        check_guests_ram(to);
+    }
 
     qtest_quit(to);
 
@@ -547,7 +550,38 @@ static void test_migrate(void)
 
     g_free(uri);
 
-    test_migrate_end(from, to);
+    test_migrate_end(from, to, true);
+}
+
+static void test_baddest(void)
+{
+    QTestState *from, *to;
+    QDict *rsp, *rsp_return;
+    const char *status;
+    bool failed;
+
+    test_migrate_start(&from, &to, "tcp:0:0");
+    migrate(from, "tcp:0:0");
+    do {
+        rsp = wait_command(from, "{ 'execute': 'query-migrate' }");
+        rsp_return = qdict_get_qdict(rsp, "return");
+
+        status = qdict_get_str(rsp_return, "status");
+
+        g_assert(!strcmp(status, "setup") || !(strcmp(status, "failed")));
+        failed = !strcmp(status, "failed");
+        QDECREF(rsp);
+    } while (!failed);
+
+    /* Is the machine currently running? */
+    rsp = wait_command(from, "{ 'execute': 'query-status' }");
+    g_assert(qdict_haskey(rsp, "return"));
+    rsp_return = qdict_get_qdict(rsp, "return");
+    g_assert(qdict_haskey(rsp_return, "running"));
+    g_assert(qdict_get_bool(rsp_return, "running"));
+    QDECREF(rsp);
+
+    test_migrate_end(from, to, false);
 }
 
 int main(int argc, char **argv)
@@ -571,6 +605,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/migration/postcopy/unix", test_migrate);
     qtest_add_func("/migration/deprecated", test_deprecated);
+    qtest_add_func("/migration/bad_dest", test_baddest);
 
     ret = g_test_run();
 
