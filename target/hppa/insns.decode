@@ -153,3 +153,15 @@ lda             000011 ..... ..... .. . 1 -- 0110      ......   @ldim5 size=2
 lda             000011 ..... ..... .. . 0 -- 0110      ......   @ldstx size=2
 sta             000011 ..... ..... .. . 1 -- 1110      ......   @stim5 size=2
 stby            000011 b:5 r:5 sp:2 a:1 1 -- 1100 m:1   .....   disp=%im5_0
+
+####
+# Floating-point Multiply Add
+####
+
+&mpyadd         rm1 rm2 ta ra tm
+@mpyadd         ...... rm1:5 rm2:5 ta:5 ra:5 . tm:5     &mpyadd
+
+fmpyadd_f       000110 ..... ..... ..... ..... 0 .....  @mpyadd
+fmpyadd_d       000110 ..... ..... ..... ..... 1 .....  @mpyadd
+fmpysub_f       100110 ..... ..... ..... ..... 0 .....  @mpyadd
+fmpysub_d       100110 ..... ..... ..... ..... 1 .....  @mpyadd
