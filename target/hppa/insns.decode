@@ -38,6 +38,7 @@
 %sm_imm         16:10 !function=expand_sm_imm
 
 %rm64           1:1 16:5
+%rt64           6:1 0:5
 
 %im5_0          0:s1 1:4
 %im5_16         16:s1 17:4
@@ -194,6 +195,26 @@ lda             000011 ..... ..... .. . 1 -- 0110      ......   @ldim5 size=2
 lda             000011 ..... ..... .. . 0 -- 0110      ......   @ldstx size=2
 sta             000011 ..... ..... .. . 1 -- 1110      ......   @stim5 size=2
 stby            000011 b:5 r:5 sp:2 a:1 1 -- 1100 m:1   .....   disp=%im5_0
+
+@fldstwx        ...... b:5 x:5   sp:2 scale:1 ....... m:1 ..... \
+                &ldst t=%rt64 disp=0 size=2
+@fldstwi        ...... b:5 ..... sp:2 .       ....... .   ..... \
+                &ldst t=%rt64 disp=%im5_16 m=%ma_to_m x=0 scale=0 size=2
+
+fldw            001001 ..... ..... .. . 0 -- 000 . . .....      @fldstwx
+fldw            001001 ..... ..... .. . 1 -- 000 . . .....      @fldstwi
+fstw            001001 ..... ..... .. . 0 -- 100 . . .....      @fldstwx
+fstw            001001 ..... ..... .. . 1 -- 100 . . .....      @fldstwi
+
+@fldstdx        ...... b:5 x:5   sp:2 scale:1 ....... m:1 t:5 \
+                &ldst disp=0 size=3
+@fldstdi        ...... b:5 ..... sp:2 .       ....... .   t:5 \
+                &ldst disp=%im5_16 m=%ma_to_m x=0 scale=0 size=3
+
+fldd            001011 ..... ..... .. . 0 -- 000 0 . .....      @fldstdx
+fldd            001011 ..... ..... .. . 1 -- 000 0 . .....      @fldstdi
+fstd            001011 ..... ..... .. . 0 -- 100 0 . .....      @fldstdx
+fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi
 
 ####
 # Offset Mem

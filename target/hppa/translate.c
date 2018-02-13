@@ -855,15 +855,6 @@ static void gen_goto_tb(DisasContext *ctx, int which,
     }
 }
 
-/* PA has a habit of taking the LSB of a field and using that as the sign,
-   with the rest of the field becoming the least significant bits.  */
-static target_sreg low_sextract(uint32_t val, int pos, int len)
-{
-    target_ureg x = -(target_ureg)extract32(val, pos, 1);
-    x = (x << (len - 1)) | extract32(val, pos + 1, len - 1);
-    return x;
-}
-
 static unsigned assemble_rt64(uint32_t insn)
 {
     unsigned r1 = extract32(insn, 6, 1);
@@ -2981,84 +2972,6 @@ static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
     return true;
 }
 
-static bool trans_copr_w(DisasContext *ctx, uint32_t insn)
-{
-    unsigned t0 = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned t1 = extract32(insn, 6, 1);
-    unsigned ext3 = extract32(insn, 7, 3);
-    /* unsigned cc = extract32(insn, 10, 2); */
-    unsigned i = extract32(insn, 12, 1);
-    unsigned ua = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = t1 * 32 + t0;
-    int modify = (m ? (ua ? -1 : 1) : 0);
-    int disp, scale;
-
-    if (i == 0) {
-        scale = (ua ? 2 : 0);
-        disp = 0;
-        modify = m;
-    } else {
-        disp = low_sextract(rx, 0, 5);
-        scale = 0;
-        rx = 0;
-        modify = (m ? (ua ? -1 : 1) : 0);
-    }
-
-    switch (ext3) {
-    case 0: /* FLDW */
-        do_floadw(ctx, rt, rb, rx, scale, disp, sp, modify);
-        break;
-    case 4: /* FSTW */
-        do_fstorew(ctx, rt, rb, rx, scale, disp, sp, modify);
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-    return true;
-}
-
-static bool trans_copr_dw(DisasContext *ctx, uint32_t insn)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned ext4 = extract32(insn, 6, 4);
-    /* unsigned cc = extract32(insn, 10, 2); */
-    unsigned i = extract32(insn, 12, 1);
-    unsigned ua = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    int modify = (m ? (ua ? -1 : 1) : 0);
-    int disp, scale;
-
-    if (i == 0) {
-        scale = (ua ? 3 : 0);
-        disp = 0;
-        modify = m;
-    } else {
-        disp = low_sextract(rx, 0, 5);
-        scale = 0;
-        rx = 0;
-        modify = (m ? (ua ? -1 : 1) : 0);
-    }
-
-    switch (ext4) {
-    case 0: /* FLDD */
-        do_floadd(ctx, rt, rb, rx, scale, disp, sp, modify);
-        break;
-    case 8: /* FSTD */
-        do_fstored(ctx, rt, rb, rx, scale, disp, sp, modify);
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-    return true;
-}
-
 static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
                     unsigned c, unsigned f, unsigned n, int disp)
 {
@@ -4211,12 +4124,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
 
     opc = extract32(insn, 26, 6);
     switch (opc) {
-    case 0x09:
-        trans_copr_w(ctx, insn);
-        return;
-    case 0x0B:
-        trans_copr_dw(ctx, insn);
-        return;
     case 0x0C:
         translate_table(ctx, insn, table_float_0c);
         return;
