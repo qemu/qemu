@@ -101,6 +101,7 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription vmstate_rp_dev = {
     .name = "pcie-root-port",
+    .priority = MIG_PRI_PCI_BUS,
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pcie_cap_slot_post_load,

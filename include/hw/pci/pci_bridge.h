@@ -135,8 +135,8 @@ typedef struct PCIBridgeQemuCap {
 
 int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
                               uint32_t bus_reserve, uint64_t io_reserve,
-                              uint32_t mem_non_pref_reserve,
-                              uint32_t mem_pref_32_reserve,
+                              uint64_t mem_non_pref_reserve,
+                              uint64_t mem_pref_32_reserve,
                               uint64_t mem_pref_64_reserve,
                               Error **errp);
 

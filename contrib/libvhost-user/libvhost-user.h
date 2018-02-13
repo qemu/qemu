@@ -327,11 +327,12 @@ bool vu_dispatch(VuDev *dev);
 /**
  * vu_gpa_to_va:
  * @dev: a VuDev context
+ * @plen: guest memory size
  * @guest_addr: guest address
  *
  * Translate a guest address to a pointer. Returns NULL on failure.
  */
-void *vu_gpa_to_va(VuDev *dev, uint64_t guest_addr);
+void *vu_gpa_to_va(VuDev *dev, uint64_t *plen, uint64_t guest_addr);
 
 /**
  * vu_get_queue:

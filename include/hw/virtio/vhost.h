@@ -60,6 +60,8 @@ struct vhost_dev {
     struct vhost_memory *mem;
     int n_mem_sections;
     MemoryRegionSection *mem_sections;
+    int n_tmp_sections;
+    MemoryRegionSection *tmp_sections;
     struct vhost_virtqueue *vqs;
     int nvqs;
     /* the first virtqueue which would be used by this vhost dev */
@@ -73,9 +75,6 @@ struct vhost_dev {
     bool log_enabled;
     uint64_t log_size;
     Error *migration_blocker;
-    bool memory_changed;
-    hwaddr mem_changed_start_addr;
-    hwaddr mem_changed_end_addr;
     const VhostOps *vhost_ops;
     void *opaque;
     struct vhost_log *log;

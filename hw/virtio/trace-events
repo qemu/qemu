@@ -1,5 +1,11 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
+# hw/virtio/vhost.c
+vhost_commit(bool started, bool changed) "Started: %d Changed: %d"
+vhost_region_add_section(const char *name, uint64_t gpa, uint64_t size, uint64_t host) "%s: 0x%"PRIx64"+0x%"PRIx64" @ 0x%"PRIx64
+vhost_region_add_section_abut(const char *name, uint64_t new_size) "%s: 0x%"PRIx64
+vhost_section(const char *name, int r) "%s:%d"
+
 # hw/virtio/virtio.c
 virtqueue_alloc_element(void *elem, size_t sz, unsigned in_num, unsigned out_num) "elem %p size %zd in_num %u out_num %u"
 virtqueue_fill(void *vq, const void *elem, unsigned int len, unsigned int idx) "vq %p elem %p len %u idx %u"
@@ -25,9 +31,3 @@ virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s g
 virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
 virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
 virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: 0x%"PRIx64" num_pages: %d"
-
-# hw/virtio/vhost.c
-vhost_region_add(void *p, const char *mr) "dev %p mr %s"
-vhost_region_del(void *p, const char *mr) "dev %p mr %s"
-vhost_iommu_region_add(void *p, const char *mr) "dev %p mr %s"
-vhost_iommu_region_del(void *p, const char *mr) "dev %p mr %s"

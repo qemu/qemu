@@ -6,6 +6,14 @@
         .driver   = "hpet",\
         .property = "hpet-offset-saved",\
         .value    = "false",\
+    },{\
+        .driver   = "virtio-blk-pci",\
+        .property = "vectors",\
+        .value    = "2",\
+    },{\
+        .driver   = "vhost-user-blk-pci",\
+        .property = "vectors",\
+        .value    = "2",\
     },
 
 #define HW_COMPAT_2_10 \
