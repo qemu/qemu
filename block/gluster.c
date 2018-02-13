@@ -965,6 +965,45 @@ static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
 }
 #endif
 
+static int qemu_gluster_do_truncate(struct glfs_fd *fd, int64_t offset,
+                                    PreallocMode prealloc, Error **errp)
+{
+    switch (prealloc) {
+#ifdef CONFIG_GLUSTERFS_FALLOCATE
+    case PREALLOC_MODE_FALLOC:
+        if (glfs_fallocate(fd, 0, 0, offset)) {
+            error_setg_errno(errp, errno, "Could not preallocate data");
+            return -errno;
+        }
+        break;
+#endif /* CONFIG_GLUSTERFS_FALLOCATE */
+#ifdef CONFIG_GLUSTERFS_ZEROFILL
+    case PREALLOC_MODE_FULL:
+        if (glfs_ftruncate(fd, offset)) {
+            error_setg_errno(errp, errno, "Could not resize file");
+            return -errno;
+        }
+        if (glfs_zerofill(fd, 0, offset)) {
+            error_setg_errno(errp, errno, "Could not zerofill the new area");
+            return -errno;
+        }
+        break;
+#endif /* CONFIG_GLUSTERFS_ZEROFILL */
+    case PREALLOC_MODE_OFF:
+        if (glfs_ftruncate(fd, offset)) {
+            error_setg_errno(errp, errno, "Could not resize file");
+            return -errno;
+        }
+        break;
+    default:
+        error_setg(errp, "Unsupported preallocation mode: %s",
+                   PreallocMode_str(prealloc));
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int qemu_gluster_create(const char *filename,
                                QemuOpts *opts, Error **errp)
 {
@@ -1019,40 +1058,7 @@ static int qemu_gluster_create(const char *filename,
         goto out;
     }
 
-    switch (prealloc) {
-#ifdef CONFIG_GLUSTERFS_FALLOCATE
-    case PREALLOC_MODE_FALLOC:
-        if (glfs_fallocate(fd, 0, 0, total_size)) {
-            error_setg(errp, "Could not preallocate data for the new file");
-            ret = -errno;
-        }
-        break;
-#endif /* CONFIG_GLUSTERFS_FALLOCATE */
-#ifdef CONFIG_GLUSTERFS_ZEROFILL
-    case PREALLOC_MODE_FULL:
-        if (!glfs_ftruncate(fd, total_size)) {
-            if (glfs_zerofill(fd, 0, total_size)) {
-                error_setg(errp, "Could not zerofill the new file");
-                ret = -errno;
-            }
-        } else {
-            error_setg(errp, "Could not resize file");
-            ret = -errno;
-        }
-        break;
-#endif /* CONFIG_GLUSTERFS_ZEROFILL */
-    case PREALLOC_MODE_OFF:
-        if (glfs_ftruncate(fd, total_size) != 0) {
-            ret = -errno;
-            error_setg(errp, "Could not resize file");
-        }
-        break;
-    default:
-        ret = -EINVAL;
-        error_setg(errp, "Unsupported preallocation mode: %s",
-                   PreallocMode_str(prealloc));
-        break;
-    }
+    ret = qemu_gluster_do_truncate(fd, total_size, prealloc, errp);
 
 out:
     if (fd) {
