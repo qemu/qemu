@@ -1072,18 +1072,6 @@ static int nvme_reopen_prepare(BDRVReopenState *reopen_state,
     return 0;
 }
 
-static int64_t coroutine_fn nvme_co_get_block_status(BlockDriverState *bs,
-                                                     int64_t sector_num,
-                                                     int nb_sectors, int *pnum,
-                                                     BlockDriverState **file)
-{
-    *pnum = nb_sectors;
-    *file = bs;
-
-    return BDRV_BLOCK_ALLOCATED | BDRV_BLOCK_OFFSET_VALID |
-           (sector_num << BDRV_SECTOR_BITS);
-}
-
 static void nvme_refresh_filename(BlockDriverState *bs, QDict *opts)
 {
     QINCREF(opts);
@@ -1182,8 +1170,6 @@ static BlockDriver bdrv_nvme = {
     .bdrv_co_pwritev          = nvme_co_pwritev,
     .bdrv_co_flush_to_disk    = nvme_co_flush,
     .bdrv_reopen_prepare      = nvme_reopen_prepare,
-
-    .bdrv_co_get_block_status = nvme_co_get_block_status,
 
     .bdrv_refresh_filename    = nvme_refresh_filename,
     .bdrv_refresh_limits      = nvme_refresh_limits,
