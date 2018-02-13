@@ -544,7 +544,7 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
 {
     const bool lowprot_enabled = env->cregs[0] & CR0_LOWPROT;
 
-    *flags = PAGE_READ | PAGE_WRITE;
+    *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     if (is_low_address(raddr & TARGET_PAGE_MASK) && lowprot_enabled) {
         /* see comment in mmu_translate() how this works */
         *flags |= PAGE_WRITE_INV;

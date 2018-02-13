@@ -252,13 +252,17 @@ static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
 
 static int get_mem_index(DisasContext *s)
 {
+    if (!(s->tb->flags & FLAG_MASK_DAT)) {
+        return MMU_REAL_IDX;
+    }
+
     switch (s->tb->flags & FLAG_MASK_ASC) {
     case PSW_ASC_PRIMARY >> FLAG_MASK_PSW_SHIFT:
-        return 0;
+        return MMU_PRIMARY_IDX;
     case PSW_ASC_SECONDARY >> FLAG_MASK_PSW_SHIFT:
-        return 1;
+        return MMU_SECONDARY_IDX;
     case PSW_ASC_HOME >> FLAG_MASK_PSW_SHIFT:
-        return 2;
+        return MMU_HOME_IDX;
     default:
         tcg_abort();
         break;
