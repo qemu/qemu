@@ -11,6 +11,9 @@
 #include "qemu/osdep.h"
 #include <getopt.h>
 #include <libgen.h>
+#ifndef _WIN32
+#include <termios.h>
+#endif
 
 #include "qapi/error.h"
 #include "qemu-io.h"
@@ -41,6 +44,26 @@ static char **cmdline;
 static bool imageOpts;
 
 static ReadLineState *readline_state;
+
+static int ttyEOF;
+
+static int get_eof_char(void)
+{
+#ifdef _WIN32
+    return 0x4; /* Ctrl-D */
+#else
+    struct termios tty;
+    if (tcgetattr(STDIN_FILENO, &tty) != 0) {
+        if (errno == ENOTTY) {
+            return 0x0; /* just expect read() == 0 */
+        } else {
+            return 0x4; /* Ctrl-D */
+        }
+    }
+
+    return tty.c_cc[VEOF];
+#endif
+}
 
 static int close_f(BlockBackend *blk, int argc, char **argv)
 {
@@ -323,7 +346,8 @@ static char *fetchline_readline(void)
     readline_start(readline_state, get_prompt(), 0, readline_func, &line);
     while (!line) {
         int ch = getchar();
-        if (ch == EOF) {
+        if (ttyEOF != 0x0 && ch == ttyEOF) {
+            printf("\n");
             break;
         }
         readline_handle_byte(readline_state, ch);
@@ -593,6 +617,7 @@ int main(int argc, char **argv)
     qemuio_add_command(&close_cmd);
 
     if (isatty(STDIN_FILENO)) {
+        ttyEOF = get_eof_char();
         readline_state = readline_init(readline_printf_func,
                                        readline_flush_func,
                                        NULL,

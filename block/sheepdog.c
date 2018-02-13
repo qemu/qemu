@@ -1826,40 +1826,34 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
     return 0;
 }
 
-static int sd_prealloc(const char *filename, Error **errp)
+static int sd_prealloc(BlockDriverState *bs, int64_t old_size, int64_t new_size,
+                       Error **errp)
 {
     BlockBackend *blk = NULL;
-    BDRVSheepdogState *base = NULL;
+    BDRVSheepdogState *base = bs->opaque;
     unsigned long buf_size;
     uint32_t idx, max_idx;
     uint32_t object_size;
-    int64_t vdi_size;
     void *buf = NULL;
     int ret;
 
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
-    if (blk == NULL) {
-        ret = -EIO;
+    blk = blk_new(BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
+                  BLK_PERM_ALL);
+
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
         goto out_with_err_set;
     }
 
     blk_set_allow_write_beyond_eof(blk, true);
 
-    vdi_size = blk_getlength(blk);
-    if (vdi_size < 0) {
-        ret = vdi_size;
-        goto out;
-    }
-
-    base = blk_bs(blk)->opaque;
     object_size = (UINT32_C(1) << base->inode.block_size_shift);
     buf_size = MIN(object_size, SD_DATA_OBJ_SIZE);
     buf = g_malloc0(buf_size);
 
-    max_idx = DIV_ROUND_UP(vdi_size, buf_size);
+    max_idx = DIV_ROUND_UP(new_size, buf_size);
 
-    for (idx = 0; idx < max_idx; idx++) {
+    for (idx = old_size / buf_size; idx < max_idx; idx++) {
         /*
          * The created image can be a cloned image, so we need to read
          * a data from the source image.
@@ -2108,7 +2102,20 @@ static int sd_create(const char *filename, QemuOpts *opts,
     }
 
     if (prealloc) {
-        ret = sd_prealloc(filename, errp);
+        BlockDriverState *bs;
+        QDict *opts;
+
+        opts = qdict_new();
+        qdict_put_str(opts, "driver", "sheepdog");
+        bs = bdrv_open(filename, NULL, opts, BDRV_O_PROTOCOL | BDRV_O_RDWR,
+                       errp);
+        if (!bs) {
+            goto out;
+        }
+
+        ret = sd_prealloc(bs, 0, s->inode.vdi_size, errp);
+
+        bdrv_unref(bs);
     }
 out:
     g_free(backing_file);
@@ -2173,15 +2180,16 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset,
     int ret, fd;
     unsigned int datalen;
     uint64_t max_vdi_size;
+    int64_t old_size = s->inode.vdi_size;
 
-    if (prealloc != PREALLOC_MODE_OFF) {
+    if (prealloc != PREALLOC_MODE_OFF && prealloc != PREALLOC_MODE_FULL) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
                    PreallocMode_str(prealloc));
         return -ENOTSUP;
     }
 
     max_vdi_size = (UINT64_C(1) << s->inode.block_size_shift) * MAX_DATA_OBJS;
-    if (offset < s->inode.vdi_size) {
+    if (offset < old_size) {
         error_setg(errp, "shrinking is not supported");
         return -EINVAL;
     } else if (offset > max_vdi_size) {
@@ -2204,9 +2212,17 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset,
 
     if (ret < 0) {
         error_setg_errno(errp, -ret, "failed to update an inode");
+        return ret;
     }
 
-    return ret;
+    if (prealloc == PREALLOC_MODE_FULL) {
+        ret = sd_prealloc(bs, old_size, offset, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
 }
 
 /*

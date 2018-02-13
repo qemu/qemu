@@ -965,12 +965,68 @@ static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
 }
 #endif
 
+static int qemu_gluster_do_truncate(struct glfs_fd *fd, int64_t offset,
+                                    PreallocMode prealloc, Error **errp)
+{
+    int64_t current_length;
+
+    current_length = glfs_lseek(fd, 0, SEEK_END);
+    if (current_length < 0) {
+        error_setg_errno(errp, errno, "Failed to determine current size");
+        return -errno;
+    }
+
+    if (current_length > offset && prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Cannot use preallocation for shrinking files");
+        return -ENOTSUP;
+    }
+
+    if (current_length == offset) {
+        return 0;
+    }
+
+    switch (prealloc) {
+#ifdef CONFIG_GLUSTERFS_FALLOCATE
+    case PREALLOC_MODE_FALLOC:
+        if (glfs_fallocate(fd, 0, current_length, offset - current_length)) {
+            error_setg_errno(errp, errno, "Could not preallocate data");
+            return -errno;
+        }
+        break;
+#endif /* CONFIG_GLUSTERFS_FALLOCATE */
+#ifdef CONFIG_GLUSTERFS_ZEROFILL
+    case PREALLOC_MODE_FULL:
+        if (glfs_ftruncate(fd, offset)) {
+            error_setg_errno(errp, errno, "Could not resize file");
+            return -errno;
+        }
+        if (glfs_zerofill(fd, current_length, offset - current_length)) {
+            error_setg_errno(errp, errno, "Could not zerofill the new area");
+            return -errno;
+        }
+        break;
+#endif /* CONFIG_GLUSTERFS_ZEROFILL */
+    case PREALLOC_MODE_OFF:
+        if (glfs_ftruncate(fd, offset)) {
+            error_setg_errno(errp, errno, "Could not resize file");
+            return -errno;
+        }
+        break;
+    default:
+        error_setg(errp, "Unsupported preallocation mode: %s",
+                   PreallocMode_str(prealloc));
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int qemu_gluster_create(const char *filename,
                                QemuOpts *opts, Error **errp)
 {
     BlockdevOptionsGluster *gconf;
     struct glfs *glfs;
-    struct glfs_fd *fd;
+    struct glfs_fd *fd = NULL;
     int ret = 0;
     PreallocMode prealloc;
     int64_t total_size = 0;
@@ -1019,45 +1075,14 @@ static int qemu_gluster_create(const char *filename,
         goto out;
     }
 
-    switch (prealloc) {
-#ifdef CONFIG_GLUSTERFS_FALLOCATE
-    case PREALLOC_MODE_FALLOC:
-        if (glfs_fallocate(fd, 0, 0, total_size)) {
-            error_setg(errp, "Could not preallocate data for the new file");
-            ret = -errno;
-        }
-        break;
-#endif /* CONFIG_GLUSTERFS_FALLOCATE */
-#ifdef CONFIG_GLUSTERFS_ZEROFILL
-    case PREALLOC_MODE_FULL:
-        if (!glfs_ftruncate(fd, total_size)) {
-            if (glfs_zerofill(fd, 0, total_size)) {
-                error_setg(errp, "Could not zerofill the new file");
-                ret = -errno;
-            }
-        } else {
-            error_setg(errp, "Could not resize file");
-            ret = -errno;
-        }
-        break;
-#endif /* CONFIG_GLUSTERFS_ZEROFILL */
-    case PREALLOC_MODE_OFF:
-        if (glfs_ftruncate(fd, total_size) != 0) {
-            ret = -errno;
-            error_setg(errp, "Could not resize file");
-        }
-        break;
-    default:
-        ret = -EINVAL;
-        error_setg(errp, "Unsupported preallocation mode: %s",
-                   PreallocMode_str(prealloc));
-        break;
-    }
+    ret = qemu_gluster_do_truncate(fd, total_size, prealloc, errp);
 
-    if (glfs_close(fd) != 0) {
-        ret = -errno;
-    }
 out:
+    if (fd) {
+        if (glfs_close(fd) != 0 && ret == 0) {
+            ret = -errno;
+        }
+    }
     qapi_free_BlockdevOptionsGluster(gconf);
     glfs_clear_preopened(glfs);
     return ret;
@@ -1097,23 +1122,8 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
 static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset,
                                  PreallocMode prealloc, Error **errp)
 {
-    int ret;
     BDRVGlusterState *s = bs->opaque;
-
-    if (prealloc != PREALLOC_MODE_OFF) {
-        error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_str(prealloc));
-        return -ENOTSUP;
-    }
-
-    ret = glfs_ftruncate(s->fd, offset);
-    if (ret < 0) {
-        ret = -errno;
-        error_setg_errno(errp, -ret, "Failed to truncate file");
-        return ret;
-    }
-
-    return 0;
+    return qemu_gluster_do_truncate(s->fd, offset, prealloc, errp);
 }
 
 static coroutine_fn int qemu_gluster_co_readv(BlockDriverState *bs,

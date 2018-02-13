@@ -2825,14 +2825,9 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     if (!has_persistent) {
         persistent = false;
     }
-    if (!has_autoload) {
-        autoload = false;
-    }
 
-    if (has_autoload && !persistent) {
-        error_setg(errp, "Autoload flag must be used only for persistent "
-                         "bitmaps");
-        return;
+    if (has_autoload) {
+        warn_report("Autoload option is deprecated and its value is ignored");
     }
 
     if (persistent &&
@@ -2847,7 +2842,6 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     }
 
     bdrv_dirty_bitmap_set_persistance(bitmap, persistent);
-    bdrv_dirty_bitmap_set_autoload(bitmap, autoload);
 }
 
 void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
@@ -3566,6 +3560,11 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     bs = qmp_get_root_bs(arg->device, errp);
     if (!bs) {
+        return;
+    }
+
+    /* Early check to avoid creating target */
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR_SOURCE, errp)) {
         return;
     }
 

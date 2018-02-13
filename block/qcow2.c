@@ -676,6 +676,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .help = "Maximum L2 table cache size",
         },
         {
+            .name = QCOW2_OPT_L2_CACHE_ENTRY_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Size of each entry in the L2 cache",
+        },
+        {
             .name = QCOW2_OPT_REFCOUNT_CACHE_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "Maximum refcount block cache size",
@@ -706,8 +711,8 @@ static void cache_clean_timer_cb(void *opaque)
 {
     BlockDriverState *bs = opaque;
     BDRVQcow2State *s = bs->opaque;
-    qcow2_cache_clean_unused(bs, s->l2_table_cache);
-    qcow2_cache_clean_unused(bs, s->refcount_block_cache);
+    qcow2_cache_clean_unused(s->l2_table_cache);
+    qcow2_cache_clean_unused(s->refcount_block_cache);
     timer_mod(s->cache_clean_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
               (int64_t) s->cache_clean_interval * 1000);
 }
@@ -747,6 +752,7 @@ static void qcow2_attach_aio_context(BlockDriverState *bs,
 
 static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                              uint64_t *l2_cache_size,
+                             uint64_t *l2_cache_entry_size,
                              uint64_t *refcount_cache_size, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -761,6 +767,9 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     *l2_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_L2_CACHE_SIZE, 0);
     *refcount_cache_size = qemu_opt_get_size(opts,
                                              QCOW2_OPT_REFCOUNT_CACHE_SIZE, 0);
+
+    *l2_cache_entry_size = qemu_opt_get_size(
+        opts, QCOW2_OPT_L2_CACHE_ENTRY_SIZE, s->cluster_size);
 
     if (combined_cache_size_set) {
         if (l2_cache_size_set && refcount_cache_size_set) {
@@ -802,11 +811,21 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                                  / DEFAULT_L2_REFCOUNT_SIZE_RATIO;
         }
     }
+
+    if (*l2_cache_entry_size < (1 << MIN_CLUSTER_BITS) ||
+        *l2_cache_entry_size > s->cluster_size ||
+        !is_power_of_2(*l2_cache_entry_size)) {
+        error_setg(errp, "L2 cache entry size must be a power of two "
+                   "between %d and the cluster size (%d)",
+                   1 << MIN_CLUSTER_BITS, s->cluster_size);
+        return;
+    }
 }
 
 typedef struct Qcow2ReopenState {
     Qcow2Cache *l2_table_cache;
     Qcow2Cache *refcount_block_cache;
+    int l2_slice_size; /* Number of entries in a slice of the L2 table */
     bool use_lazy_refcounts;
     int overlap_check;
     bool discard_passthrough[QCOW2_DISCARD_MAX];
@@ -823,7 +842,7 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     QemuOpts *opts = NULL;
     const char *opt_overlap_check, *opt_overlap_check_template;
     int overlap_check_template = 0;
-    uint64_t l2_cache_size, refcount_cache_size;
+    uint64_t l2_cache_size, l2_cache_entry_size, refcount_cache_size;
     int i;
     const char *encryptfmt;
     QDict *encryptopts = NULL;
@@ -842,15 +861,15 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     }
 
     /* get L2 table/refcount block cache size from command line options */
-    read_cache_sizes(bs, opts, &l2_cache_size, &refcount_cache_size,
-                     &local_err);
+    read_cache_sizes(bs, opts, &l2_cache_size, &l2_cache_entry_size,
+                     &refcount_cache_size, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail;
     }
 
-    l2_cache_size /= s->cluster_size;
+    l2_cache_size /= l2_cache_entry_size;
     if (l2_cache_size < MIN_L2_CACHE_SIZE) {
         l2_cache_size = MIN_L2_CACHE_SIZE;
     }
@@ -888,8 +907,11 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
         }
     }
 
-    r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size);
-    r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size);
+    r->l2_slice_size = l2_cache_entry_size / sizeof(uint64_t);
+    r->l2_table_cache = qcow2_cache_create(bs, l2_cache_size,
+                                           l2_cache_entry_size);
+    r->refcount_block_cache = qcow2_cache_create(bs, refcount_cache_size,
+                                                 s->cluster_size);
     if (r->l2_table_cache == NULL || r->refcount_block_cache == NULL) {
         error_setg(errp, "Could not allocate metadata caches");
         ret = -ENOMEM;
@@ -1044,13 +1066,14 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
     int i;
 
     if (s->l2_table_cache) {
-        qcow2_cache_destroy(bs, s->l2_table_cache);
+        qcow2_cache_destroy(s->l2_table_cache);
     }
     if (s->refcount_block_cache) {
-        qcow2_cache_destroy(bs, s->refcount_block_cache);
+        qcow2_cache_destroy(s->refcount_block_cache);
     }
     s->l2_table_cache = r->l2_table_cache;
     s->refcount_block_cache = r->refcount_block_cache;
+    s->l2_slice_size = r->l2_slice_size;
 
     s->overlap_check = r->overlap_check;
     s->use_lazy_refcounts = r->use_lazy_refcounts;
@@ -1073,10 +1096,10 @@ static void qcow2_update_options_abort(BlockDriverState *bs,
                                        Qcow2ReopenState *r)
 {
     if (r->l2_table_cache) {
-        qcow2_cache_destroy(bs, r->l2_table_cache);
+        qcow2_cache_destroy(r->l2_table_cache);
     }
     if (r->refcount_block_cache) {
-        qcow2_cache_destroy(bs, r->refcount_block_cache);
+        qcow2_cache_destroy(r->refcount_block_cache);
     }
     qapi_free_QCryptoBlockOpenOptions(r->crypto_opts);
 }
@@ -1460,7 +1483,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         s->autoclear_features &= QCOW2_AUTOCLEAR_MASK;
     }
 
-    if (qcow2_load_autoloading_dirty_bitmaps(bs, &local_err)) {
+    if (qcow2_load_dirty_bitmaps(bs, &local_err)) {
         update_header = false;
     }
     if (local_err != NULL) {
@@ -1514,10 +1537,10 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
     s->l1_table = NULL;
     cache_clean_timer_del(bs);
     if (s->l2_table_cache) {
-        qcow2_cache_destroy(bs, s->l2_table_cache);
+        qcow2_cache_destroy(s->l2_table_cache);
     }
     if (s->refcount_block_cache) {
-        qcow2_cache_destroy(bs, s->refcount_block_cache);
+        qcow2_cache_destroy(s->refcount_block_cache);
     }
     qcrypto_block_free(s->crypto);
     qapi_free_QCryptoBlockOpenOptions(s->crypto_opts);
@@ -2065,8 +2088,8 @@ static void qcow2_close(BlockDriverState *bs)
     }
 
     cache_clean_timer_del(bs);
-    qcow2_cache_destroy(bs, s->l2_table_cache);
-    qcow2_cache_destroy(bs, s->refcount_block_cache);
+    qcow2_cache_destroy(s->l2_table_cache);
+    qcow2_cache_destroy(s->refcount_block_cache);
 
     qcrypto_block_free(s->crypto);
     s->crypto = NULL;
@@ -3259,9 +3282,9 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         host_offset = allocation_start;
         guest_offset = old_length;
         while (nb_new_data_clusters) {
-            int64_t guest_cluster = guest_offset >> s->cluster_bits;
-            int64_t nb_clusters = MIN(nb_new_data_clusters,
-                                      s->l2_size - guest_cluster % s->l2_size);
+            int64_t nb_clusters = MIN(
+                nb_new_data_clusters,
+                s->l2_slice_size - offset_to_l2_slice_index(s, guest_offset));
             QCowL2Meta allocation = {
                 .offset       = guest_offset,
                 .alloc_offset = host_offset,

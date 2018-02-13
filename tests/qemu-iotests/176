@@ -95,7 +95,7 @@ case $reason in
      "file": { "driver": "file", "filename": "$TEST_IMG" } } }
 { "execute": "block-dirty-bitmap-add",
   "arguments": { "node": "drive0", "name": "bitmap0",
-     "persistent": true, "autoload": true } }
+     "persistent": true } }
 { "execute": "quit" }
 EOF
 	;;
