@@ -1826,14 +1826,14 @@ static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
     return 0;
 }
 
-static int sd_prealloc(BlockDriverState *bs, Error **errp)
+static int sd_prealloc(BlockDriverState *bs, int64_t old_size, int64_t new_size,
+                       Error **errp)
 {
     BlockBackend *blk = NULL;
     BDRVSheepdogState *base = bs->opaque;
     unsigned long buf_size;
     uint32_t idx, max_idx;
     uint32_t object_size;
-    int64_t vdi_size;
     void *buf = NULL;
     int ret;
 
@@ -1847,19 +1847,13 @@ static int sd_prealloc(BlockDriverState *bs, Error **errp)
 
     blk_set_allow_write_beyond_eof(blk, true);
 
-    vdi_size = blk_getlength(blk);
-    if (vdi_size < 0) {
-        ret = vdi_size;
-        goto out;
-    }
-
     object_size = (UINT32_C(1) << base->inode.block_size_shift);
     buf_size = MIN(object_size, SD_DATA_OBJ_SIZE);
     buf = g_malloc0(buf_size);
 
-    max_idx = DIV_ROUND_UP(vdi_size, buf_size);
+    max_idx = DIV_ROUND_UP(new_size, buf_size);
 
-    for (idx = 0; idx < max_idx; idx++) {
+    for (idx = old_size / buf_size; idx < max_idx; idx++) {
         /*
          * The created image can be a cloned image, so we need to read
          * a data from the source image.
@@ -2119,7 +2113,7 @@ static int sd_create(const char *filename, QemuOpts *opts,
             goto out;
         }
 
-        ret = sd_prealloc(bs, errp);
+        ret = sd_prealloc(bs, 0, s->inode.vdi_size, errp);
 
         bdrv_unref(bs);
     }
