@@ -1963,7 +1963,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
 
     /* Must be non-NULL or bdrv_getlength() would have failed */
     assert(bs->drv);
-    if (!bs->drv->bdrv_co_get_block_status && !bs->drv->bdrv_co_block_status) {
+    if (!bs->drv->bdrv_co_block_status) {
         *pnum = bytes;
         ret = BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED;
         if (offset + bytes == total_size) {
@@ -1981,53 +1981,23 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
 
     /* Round out to request_alignment boundaries */
     align = bs->bl.request_alignment;
-    if (bs->drv->bdrv_co_get_block_status && align < BDRV_SECTOR_SIZE) {
-        align = BDRV_SECTOR_SIZE;
-    }
     aligned_offset = QEMU_ALIGN_DOWN(offset, align);
     aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
 
-    if (bs->drv->bdrv_co_get_block_status) {
-        int count; /* sectors */
-        int64_t longret;
-
-        assert(QEMU_IS_ALIGNED(aligned_offset | aligned_bytes,
-                               BDRV_SECTOR_SIZE));
-        /*
-         * The contract allows us to return pnum smaller than bytes, even
-         * if the next query would see the same status; we truncate the
-         * request to avoid overflowing the driver's 32-bit interface.
-         */
-        longret = bs->drv->bdrv_co_get_block_status(
-            bs, aligned_offset >> BDRV_SECTOR_BITS,
-            MIN(INT_MAX, aligned_bytes) >> BDRV_SECTOR_BITS, &count,
-            &local_file);
-        if (longret < 0) {
-            assert(INT_MIN <= longret);
-            ret = longret;
-            goto out;
-        }
-        if (longret & BDRV_BLOCK_OFFSET_VALID) {
-            local_map = longret & BDRV_BLOCK_OFFSET_MASK;
-        }
-        ret = longret & ~BDRV_BLOCK_OFFSET_MASK;
-        *pnum = count * BDRV_SECTOR_SIZE;
-    } else {
-        ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
-                                            aligned_bytes, pnum, &local_map,
-                                            &local_file);
-        if (ret < 0) {
-            *pnum = 0;
-            goto out;
-        }
-        assert(*pnum); /* The block driver must make progress */
+    ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
+                                        aligned_bytes, pnum, &local_map,
+                                        &local_file);
+    if (ret < 0) {
+        *pnum = 0;
+        goto out;
     }
 
     /*
-     * The driver's result must be a multiple of request_alignment.
+     * The driver's result must be a non-zero multiple of request_alignment.
      * Clamp pnum and adjust map to original request.
      */
-    assert(QEMU_IS_ALIGNED(*pnum, align) && align > offset - aligned_offset);
+    assert(*pnum && QEMU_IS_ALIGNED(*pnum, align) &&
+           align > offset - aligned_offset);
     *pnum -= offset - aligned_offset;
     if (*pnum > bytes) {
         *pnum = bytes;
