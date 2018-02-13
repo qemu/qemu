@@ -87,11 +87,17 @@
 #define DEFAULT_CLUSTER_SIZE (1 * MiB)
 
 #if defined(CONFIG_VDI_DEBUG)
-#define logout(fmt, ...) \
-                fprintf(stderr, "vdi\t%-24s" fmt, __func__, ##__VA_ARGS__)
+#define VDI_DEBUG 1
 #else
-#define logout(fmt, ...) ((void)0)
+#define VDI_DEBUG 0
 #endif
+
+#define logout(fmt, ...) \
+    do {                                                                \
+        if (VDI_DEBUG) {                                                \
+            fprintf(stderr, "vdi\t%-24s" fmt, __func__, ##__VA_ARGS__); \
+        }                                                               \
+    } while (0)
 
 /* Image signature. */
 #define VDI_SIGNATURE 0xbeda107f
