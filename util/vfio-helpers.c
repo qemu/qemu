@@ -104,7 +104,7 @@ static char *sysfs_find_group_file(const char *device, Error **errp)
     char *path = NULL;
 
     sysfs_link = g_strdup_printf("/sys/bus/pci/devices/%s/iommu_group", device);
-    sysfs_group = g_malloc(PATH_MAX);
+    sysfs_group = g_malloc0(PATH_MAX);
     if (readlink(sysfs_link, sysfs_group, PATH_MAX - 1) == -1) {
         error_setg_errno(errp, errno, "Failed to find iommu group sysfs path");
         goto out;
