@@ -968,10 +968,27 @@ static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
 static int qemu_gluster_do_truncate(struct glfs_fd *fd, int64_t offset,
                                     PreallocMode prealloc, Error **errp)
 {
+    int64_t current_length;
+
+    current_length = glfs_lseek(fd, 0, SEEK_END);
+    if (current_length < 0) {
+        error_setg_errno(errp, errno, "Failed to determine current size");
+        return -errno;
+    }
+
+    if (current_length > offset && prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Cannot use preallocation for shrinking files");
+        return -ENOTSUP;
+    }
+
+    if (current_length == offset) {
+        return 0;
+    }
+
     switch (prealloc) {
 #ifdef CONFIG_GLUSTERFS_FALLOCATE
     case PREALLOC_MODE_FALLOC:
-        if (glfs_fallocate(fd, 0, 0, offset)) {
+        if (glfs_fallocate(fd, 0, current_length, offset - current_length)) {
             error_setg_errno(errp, errno, "Could not preallocate data");
             return -errno;
         }
@@ -983,7 +1000,7 @@ static int qemu_gluster_do_truncate(struct glfs_fd *fd, int64_t offset,
             error_setg_errno(errp, errno, "Could not resize file");
             return -errno;
         }
-        if (glfs_zerofill(fd, 0, offset)) {
+        if (glfs_zerofill(fd, current_length, offset - current_length)) {
             error_setg_errno(errp, errno, "Could not zerofill the new area");
             return -errno;
         }
