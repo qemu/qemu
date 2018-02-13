@@ -3088,15 +3088,13 @@ vvfat_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return ret;
 }
 
-static int64_t coroutine_fn vvfat_co_get_block_status(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *n, BlockDriverState **file)
+static int coroutine_fn vvfat_co_block_status(BlockDriverState *bs,
+                                              bool want_zero, int64_t offset,
+                                              int64_t bytes, int64_t *n,
+                                              int64_t *map,
+                                              BlockDriverState **file)
 {
-    *n = bs->total_sectors - sector_num;
-    if (*n > nb_sectors) {
-        *n = nb_sectors;
-    } else if (*n < 0) {
-        return 0;
-    }
+    *n = bytes;
     return BDRV_BLOCK_DATA;
 }
 
@@ -3257,7 +3255,7 @@ static BlockDriver bdrv_vvfat = {
 
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,
-    .bdrv_co_get_block_status = vvfat_co_get_block_status,
+    .bdrv_co_block_status   = vvfat_co_block_status,
 };
 
 static void bdrv_vvfat_init(void)
