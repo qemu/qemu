@@ -3696,7 +3696,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
 {
     const char *cmdname;
     int i;
-    const char *ptype, *str, *name;
+    const char *ptype, *old_ptype, *str, *name;
     const mon_cmd_t *cmd;
     BlockBackend *blk = NULL;
 
@@ -3741,7 +3741,9 @@ static void monitor_find_completion_by_table(Monitor *mon,
             }
         }
         str = args[nb_args - 1];
-        while (*ptype == '-' && ptype[1] != '\0') {
+        old_ptype = NULL;
+        while (*ptype == '-' && old_ptype != ptype) {
+            old_ptype = ptype;
             ptype = next_arg_type(ptype);
         }
         switch(*ptype) {
