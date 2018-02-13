@@ -2180,15 +2180,16 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset,
     int ret, fd;
     unsigned int datalen;
     uint64_t max_vdi_size;
+    int64_t old_size = s->inode.vdi_size;
 
-    if (prealloc != PREALLOC_MODE_OFF) {
+    if (prealloc != PREALLOC_MODE_OFF && prealloc != PREALLOC_MODE_FULL) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
                    PreallocMode_str(prealloc));
         return -ENOTSUP;
     }
 
     max_vdi_size = (UINT64_C(1) << s->inode.block_size_shift) * MAX_DATA_OBJS;
-    if (offset < s->inode.vdi_size) {
+    if (offset < old_size) {
         error_setg(errp, "shrinking is not supported");
         return -EINVAL;
     } else if (offset > max_vdi_size) {
@@ -2211,9 +2212,17 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset,
 
     if (ret < 0) {
         error_setg_errno(errp, -ret, "failed to update an inode");
+        return ret;
     }
 
-    return ret;
+    if (prealloc == PREALLOC_MODE_FULL) {
+        ret = sd_prealloc(bs, old_size, offset, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
 }
 
 /*
