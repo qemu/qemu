@@ -202,15 +202,25 @@ struct BlockDriver {
     /*
      * Building block for bdrv_block_status[_above] and
      * bdrv_is_allocated[_above].  The driver should answer only
-     * according to the current layer, and should not set
-     * BDRV_BLOCK_ALLOCATED, but may set BDRV_BLOCK_RAW.  See block.h
-     * for the meaning of _DATA, _ZERO, and _OFFSET_VALID.  The block
-     * layer guarantees input aligned to request_alignment, as well as
-     * non-NULL pnum and file.
+     * according to the current layer, and should only need to set
+     * BDRV_BLOCK_DATA, BDRV_BLOCK_ZERO, BDRV_BLOCK_OFFSET_VALID,
+     * and/or BDRV_BLOCK_RAW; if the current layer defers to a backing
+     * layer, the result should be 0 (and not BDRV_BLOCK_ZERO).  See
+     * block.h for the overall meaning of the bits.  As a hint, the
+     * flag want_zero is true if the caller cares more about precise
+     * mappings (favor accurate _OFFSET_VALID/_ZERO) or false for
+     * overall allocation (favor larger *pnum, perhaps by reporting
+     * _DATA instead of _ZERO).  The block layer guarantees input
+     * clamped to bdrv_getlength() and aligned to request_alignment,
+     * as well as non-NULL pnum, map, and file; in turn, the driver
+     * must return an error or set pnum to an aligned non-zero value.
      */
     int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum,
         BlockDriverState **file);
+    int coroutine_fn (*bdrv_co_block_status)(BlockDriverState *bs,
+        bool want_zero, int64_t offset, int64_t bytes, int64_t *pnum,
+        int64_t *map, BlockDriverState **file);
 
     /*
      * Invalidate any cached meta-data.
