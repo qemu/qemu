@@ -970,7 +970,7 @@ static int qemu_gluster_create(const char *filename,
 {
     BlockdevOptionsGluster *gconf;
     struct glfs *glfs;
-    struct glfs_fd *fd;
+    struct glfs_fd *fd = NULL;
     int ret = 0;
     PreallocMode prealloc;
     int64_t total_size = 0;
@@ -1054,10 +1054,12 @@ static int qemu_gluster_create(const char *filename,
         break;
     }
 
-    if (glfs_close(fd) != 0) {
-        ret = -errno;
-    }
 out:
+    if (fd) {
+        if (glfs_close(fd) != 0 && ret == 0) {
+            ret = -errno;
+        }
+    }
     qapi_free_BlockdevOptionsGluster(gconf);
     glfs_clear_preopened(glfs);
     return ret;
