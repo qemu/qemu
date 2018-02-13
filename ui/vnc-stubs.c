@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "ui/console.h"
+#include "qapi/error.h"
 
 int vnc_display_password(const char *id, const char *password)
 {
