@@ -54,6 +54,22 @@ $QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
 _check_test_img
 
 echo
+echo "=== Testing version downgrade with zero expansion and 4K cache entries ==="
+echo
+IMGOPTS="compat=1.1,lazy_refcounts=on" _make_test_img 64M
+$QEMU_IO -c "write -z 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 32M 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c map "$TEST_IMG" | _filter_qemu_io
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IMG amend -o "compat=0.10" --image-opts \
+          driver=qcow2,file.filename=$TEST_IMG,l2-cache-entry-size=4096
+$PYTHON qcow2.py "$TEST_IMG" dump-header
+$QEMU_IO -c "read -P 0 0 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0 32M 128k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c map "$TEST_IMG" | _filter_qemu_io
+_check_test_img
+
+echo
 echo "=== Testing dirty version downgrade ==="
 echo
 IMGOPTS="compat=1.1,lazy_refcounts=on" _make_test_img 64M

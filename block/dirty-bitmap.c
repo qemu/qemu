@@ -52,8 +52,6 @@ struct BdrvDirtyBitmap {
                                    Such operations must fail and both the image
                                    and this bitmap must remain unchanged while
                                    this flag is set. */
-    bool autoload;              /* For persistent bitmaps: bitmap must be
-                                   autoloaded on image opening */
     bool persistent;            /* bitmap must be saved to owner disk image */
     QLIST_ENTRY(BdrvDirtyBitmap) list;
 };
@@ -104,7 +102,6 @@ void bdrv_dirty_bitmap_make_anon(BdrvDirtyBitmap *bitmap)
     g_free(bitmap->name);
     bitmap->name = NULL;
     bitmap->persistent = false;
-    bitmap->autoload = false;
 }
 
 /* Called with BQL taken.  */
@@ -261,8 +258,6 @@ BdrvDirtyBitmap *bdrv_dirty_bitmap_abdicate(BlockDriverState *bs,
     bitmap->successor = NULL;
     successor->persistent = bitmap->persistent;
     bitmap->persistent = false;
-    successor->autoload = bitmap->autoload;
-    bitmap->autoload = false;
     bdrv_release_dirty_bitmap(bs, bitmap);
 
     return successor;
@@ -664,19 +659,6 @@ bool bdrv_has_readonly_bitmaps(BlockDriverState *bs)
     }
 
     return false;
-}
-
-/* Called with BQL taken. */
-void bdrv_dirty_bitmap_set_autoload(BdrvDirtyBitmap *bitmap, bool autoload)
-{
-    qemu_mutex_lock(bitmap->mutex);
-    bitmap->autoload = autoload;
-    qemu_mutex_unlock(bitmap->mutex);
-}
-
-bool bdrv_dirty_bitmap_get_autoload(const BdrvDirtyBitmap *bitmap)
-{
-    return bitmap->autoload;
 }
 
 /* Called with BQL taken. */
