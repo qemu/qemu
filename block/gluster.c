@@ -1122,23 +1122,8 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
 static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset,
                                  PreallocMode prealloc, Error **errp)
 {
-    int ret;
     BDRVGlusterState *s = bs->opaque;
-
-    if (prealloc != PREALLOC_MODE_OFF) {
-        error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_str(prealloc));
-        return -ENOTSUP;
-    }
-
-    ret = glfs_ftruncate(s->fd, offset);
-    if (ret < 0) {
-        ret = -errno;
-        error_setg_errno(errp, -ret, "Failed to truncate file");
-        return ret;
-    }
-
-    return 0;
+    return qemu_gluster_do_truncate(s->fd, offset, prealloc, errp);
 }
 
 static coroutine_fn int qemu_gluster_co_readv(BlockDriverState *bs,
