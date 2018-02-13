@@ -1508,7 +1508,6 @@ static void sm501_update_display(void *opaque)
     }
 
     /* draw each line according to conditions */
-    memory_region_sync_dirty_bitmap(&s->local_mem_region);
     snap = memory_region_snapshot_and_clear_dirty(&s->local_mem_region,
               offset, width * height * src_bpp, DIRTY_MEMORY_VGA);
     for (y = 0, offset = 0; y < height; y++, offset += width * src_bpp) {

@@ -108,7 +108,6 @@ static void cg3_update_display(void *opaque)
     data = (uint32_t *)surface_data(surface);
 
     if (!s->full_update) {
-        memory_region_sync_dirty_bitmap(&s->vram_mem);
         snap = memory_region_snapshot_and_clear_dirty(&s->vram_mem, 0x0,
                                               memory_region_size(&s->vram_mem),
                                               DIRTY_MEMORY_VGA);

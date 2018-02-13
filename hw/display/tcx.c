@@ -236,7 +236,6 @@ static void tcx_update_display(void *opaque)
     dd = surface_stride(surface);
     ds = 1024;
 
-    memory_region_sync_dirty_bitmap(&ts->vram_mem);
     snap = memory_region_snapshot_and_clear_dirty(&ts->vram_mem, 0x0,
                                              memory_region_size(&ts->vram_mem),
                                              DIRTY_MEMORY_VGA);
@@ -292,7 +291,6 @@ static void tcx24_update_display(void *opaque)
     dd = surface_stride(surface);
     ds = 1024;
 
-    memory_region_sync_dirty_bitmap(&ts->vram_mem);
     snap = memory_region_snapshot_and_clear_dirty(&ts->vram_mem, 0x0,
                                              memory_region_size(&ts->vram_mem),
                                              DIRTY_MEMORY_VGA);

@@ -1,0 +1,4 @@
+common-obj-$(CONFIG_CAN_SJA1000) += can_sja1000.o
+common-obj-$(CONFIG_CAN_PCI) += can_kvaser_pci.o
+common-obj-$(CONFIG_CAN_PCI) += can_pcm3680_pci.o
+common-obj-$(CONFIG_CAN_PCI) += can_mioe3680_pci.o

@@ -1971,33 +1971,7 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                                         memory_region_get_dirty_log_mask(mr));
 }
 
-bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
-                                        hwaddr size, unsigned client)
-{
-    assert(mr->ram_block);
-    return cpu_physical_memory_test_and_clear_dirty(
-                memory_region_get_ram_addr(mr) + addr, size, client);
-}
-
-DirtyBitmapSnapshot *memory_region_snapshot_and_clear_dirty(MemoryRegion *mr,
-                                                            hwaddr addr,
-                                                            hwaddr size,
-                                                            unsigned client)
-{
-    assert(mr->ram_block);
-    return cpu_physical_memory_snapshot_and_clear_dirty(
-                memory_region_get_ram_addr(mr) + addr, size, client);
-}
-
-bool memory_region_snapshot_get_dirty(MemoryRegion *mr, DirtyBitmapSnapshot *snap,
-                                      hwaddr addr, hwaddr size)
-{
-    assert(mr->ram_block);
-    return cpu_physical_memory_snapshot_get_dirty(snap,
-                memory_region_get_ram_addr(mr) + addr, size);
-}
-
-void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
+static void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 {
     MemoryListener *listener;
     AddressSpace *as;
@@ -2016,13 +1990,32 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
         as = listener->address_space;
         view = address_space_get_flatview(as);
         FOR_EACH_FLAT_RANGE(fr, view) {
-            if (fr->mr == mr) {
+            if (fr->dirty_log_mask && (!mr || fr->mr == mr)) {
                 MemoryRegionSection mrs = section_from_flat_range(fr, view);
                 listener->log_sync(listener, &mrs);
             }
         }
         flatview_unref(view);
     }
+}
+
+DirtyBitmapSnapshot *memory_region_snapshot_and_clear_dirty(MemoryRegion *mr,
+                                                            hwaddr addr,
+                                                            hwaddr size,
+                                                            unsigned client)
+{
+    assert(mr->ram_block);
+    memory_region_sync_dirty_bitmap(mr);
+    return cpu_physical_memory_snapshot_and_clear_dirty(
+                memory_region_get_ram_addr(mr) + addr, size, client);
+}
+
+bool memory_region_snapshot_get_dirty(MemoryRegion *mr, DirtyBitmapSnapshot *snap,
+                                      hwaddr addr, hwaddr size)
+{
+    assert(mr->ram_block);
+    return cpu_physical_memory_snapshot_get_dirty(snap,
+                memory_region_get_ram_addr(mr) + addr, size);
 }
 
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
@@ -2513,26 +2506,7 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr)
 
 void memory_global_dirty_log_sync(void)
 {
-    MemoryListener *listener;
-    AddressSpace *as;
-    FlatView *view;
-    FlatRange *fr;
-
-    QTAILQ_FOREACH(listener, &memory_listeners, link) {
-        if (!listener->log_sync) {
-            continue;
-        }
-        as = listener->address_space;
-        view = address_space_get_flatview(as);
-        FOR_EACH_FLAT_RANGE(fr, view) {
-            if (fr->dirty_log_mask) {
-                MemoryRegionSection mrs = section_from_flat_range(fr, view);
-
-                listener->log_sync(listener, &mrs);
-            }
-        }
-        flatview_unref(view);
-    }
+    memory_region_sync_dirty_bitmap(NULL);
 }
 
 static VMChangeStateEntry *vmstate_change;
