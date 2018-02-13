@@ -20,7 +20,7 @@ PUBLIC = True
 
 
 def generate_h_begin(events, group):
-    out('#include "qemu/log.h"',
+    out('#include "qemu/log-for-trace.h"',
         '')
 
 
@@ -35,14 +35,13 @@ def generate_h(event, group):
     else:
         cond = "trace_event_get_state(%s)" % ("TRACE_" + event.name.upper())
 
-    out('    if (%(cond)s) {',
+    out('    if (%(cond)s && qemu_loglevel_mask(LOG_TRACE)) {',
         '        struct timeval _now;',
         '        gettimeofday(&_now, NULL);',
-        '        qemu_log_mask(LOG_TRACE,',
-        '                      "%%d@%%zd.%%06zd:%(name)s " %(fmt)s "\\n",',
-        '                      getpid(),',
-        '                      (size_t)_now.tv_sec, (size_t)_now.tv_usec',
-        '                      %(argnames)s);',
+        '        qemu_log("%%d@%%zd.%%06zd:%(name)s " %(fmt)s "\\n",',
+        '                 getpid(),',
+        '                 (size_t)_now.tv_sec, (size_t)_now.tv_usec',
+        '                 %(argnames)s);',
         '    }',
         cond=cond,
         name=event.name,
