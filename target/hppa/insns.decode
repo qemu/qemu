@@ -103,6 +103,11 @@ ssm             000000 ..........  000 01101011 t:5     i=%sm_imm
 rfi             000000 ----- ----- --- 01100000 00000
 rfi_r           000000 ----- ----- --- 01100101 00000
 
+# These are artificial instructions used by QEMU firmware.
+# They are allocated from the unassigned instruction space.
+halt            1111 1111 1111 1101 1110 1010 1101 0000
+reset           1111 1111 1111 1101 1110 1010 1101 0001
+
 ####
 # Memory Management
 ####

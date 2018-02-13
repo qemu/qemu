@@ -2376,20 +2376,27 @@ static bool trans_rfi_r(DisasContext *ctx, arg_rfi_r *a)
     return do_rfi(ctx, true);
 }
 
-#ifndef CONFIG_USER_ONLY
-static bool gen_hlt(DisasContext *ctx, int reset)
+static bool trans_halt(DisasContext *ctx, arg_halt *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
-    if (reset) {
-        gen_helper_reset(cpu_env);
-    } else {
-        gen_helper_halt(cpu_env);
-    }
+    gen_helper_halt(cpu_env);
     ctx->base.is_jmp = DISAS_NORETURN;
     return nullify_end(ctx);
+#endif
 }
-#endif /* !CONFIG_USER_ONLY */
+
+static bool trans_reset(DisasContext *ctx, arg_reset *a)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+    gen_helper_reset(cpu_env);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return nullify_end(ctx);
+#endif
+}
 
 static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
 {
@@ -4134,32 +4141,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
     case 0x2E:
         translate_table(ctx, insn, table_fp_fused);
         return;
-
-    case 0x04: /* spopn */
-    case 0x05: /* diag */
-    case 0x0F: /* product specific */
-        break;
-
-    case 0x07: /* unassigned */
-    case 0x15: /* unassigned */
-    case 0x1D: /* unassigned */
-    case 0x37: /* unassigned */
-        break;
-    case 0x3F:
-#ifndef CONFIG_USER_ONLY
-        /* Unassigned, but use as system-halt.  */
-        if (insn == 0xfffdead0) {
-            gen_hlt(ctx, 0); /* halt system */
-            return;
-        }
-        if (insn == 0xfffdead1) {
-            gen_hlt(ctx, 1); /* reset system */
-            return;
-        }
-#endif
-        break;
-    default:
-        break;
     }
     gen_illegal(ctx);
 }
