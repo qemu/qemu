@@ -1670,32 +1670,34 @@ static void qcow2_join_options(QDict *options, QDict *old_options)
     }
 }
 
-static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *pnum, BlockDriverState **file)
+static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
+                                              bool want_zero,
+                                              int64_t offset, int64_t count,
+                                              int64_t *pnum, int64_t *map,
+                                              BlockDriverState **file)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t cluster_offset;
     int index_in_cluster, ret;
     unsigned int bytes;
-    int64_t status = 0;
+    int status = 0;
 
-    bytes = MIN(INT_MAX, nb_sectors * BDRV_SECTOR_SIZE);
+    bytes = MIN(INT_MAX, count);
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_get_cluster_offset(bs, sector_num << BDRV_SECTOR_BITS, &bytes,
-                                   &cluster_offset);
+    ret = qcow2_get_cluster_offset(bs, offset, &bytes, &cluster_offset);
     qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
         return ret;
     }
 
-    *pnum = bytes >> BDRV_SECTOR_BITS;
+    *pnum = bytes;
 
     if (cluster_offset != 0 && ret != QCOW2_CLUSTER_COMPRESSED &&
         !s->crypto) {
-        index_in_cluster = sector_num & (s->cluster_sectors - 1);
-        cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
+        index_in_cluster = offset & (s->cluster_size - 1);
+        *map = cluster_offset | index_in_cluster;
         *file = bs->file->bs;
-        status |= BDRV_BLOCK_OFFSET_VALID | cluster_offset;
+        status |= BDRV_BLOCK_OFFSET_VALID;
     }
     if (ret == QCOW2_CLUSTER_ZERO_PLAIN || ret == QCOW2_CLUSTER_ZERO_ALLOC) {
         status |= BDRV_BLOCK_ZERO;
@@ -4352,7 +4354,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_child_perm      = bdrv_format_default_perms,
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
-    .bdrv_co_get_block_status = qcow2_co_get_block_status,
+    .bdrv_co_block_status = qcow2_co_block_status,
 
     .bdrv_co_preadv         = qcow2_co_preadv,
     .bdrv_co_pwritev        = qcow2_co_pwritev,
