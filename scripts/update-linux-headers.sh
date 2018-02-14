@@ -38,6 +38,7 @@ cp_portable() {
                                      -e 'linux/if_ether' \
                                      -e 'input-event-codes' \
                                      -e 'sys/' \
+                                     -e 'pvrdma_verbs' \
                                      > /dev/null
     then
         echo "Unexpected #include in input file $f".
@@ -46,6 +47,7 @@ cp_portable() {
 
     header=$(basename "$f");
     sed -e 's/__u\([0-9][0-9]*\)/uint\1_t/g' \
+        -e 's/u\([0-9][0-9]*\)/uint\1_t/g' \
         -e 's/__s\([0-9][0-9]*\)/int\1_t/g' \
         -e 's/__le\([0-9][0-9]*\)/uint\1_t/g' \
         -e 's/__be\([0-9][0-9]*\)/uint\1_t/g' \
@@ -56,6 +58,7 @@ cp_portable() {
         -e 's/__inline__/inline/' \
         -e '/sys\/ioctl.h/d' \
         -e 's/SW_MAX/SW_MAX_/' \
+        -e 's/atomic_t/int/' \
         "$f" > "$to/$header";
 }
 
@@ -145,6 +148,33 @@ for i in "$tmpdir"/include/linux/*virtio*.h "$tmpdir/include/linux/input.h" \
          "$tmpdir/include/linux/input-event-codes.h" \
          "$tmpdir/include/linux/pci_regs.h"; do
     cp_portable "$i" "$output/include/standard-headers/linux"
+done
+
+rm -rf "$output/include/standard-headers/drivers/infiniband/hw/vmw_pvrdma"
+mkdir -p "$output/include/standard-headers/drivers/infiniband/hw/vmw_pvrdma"
+
+# Remove the unused functions from pvrdma_verbs.h avoiding the unnecessary
+# import of several infiniband/networking/other headers
+tmp_pvrdma_verbs="$tmpdir/pvrdma_verbs.h"
+# Parse the entire file instead of single lines to match
+# function declarations expanding over multiple lines
+# and strip the declarations starting with pvrdma prefix.
+sed  -e '1h;2,$H;$!d;g'  -e 's/[^};]*pvrdma[^(| ]*([^)]*);//g' \
+    "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_verbs.h" > \
+    "$tmp_pvrdma_verbs";
+
+for i in "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h" \
+         "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h" \
+         "$tmp_pvrdma_verbs"; do \
+    cp_portable "$i" \
+         "$output/include/standard-headers/drivers/infiniband/hw/vmw_pvrdma/"
+done
+
+rm -rf "$output/include/standard-headers/rdma/"
+mkdir -p "$output/include/standard-headers/rdma/"
+for i in "$tmpdir/include/rdma/vmw_pvrdma-abi.h"; do
+    cp_portable "$i" \
+         "$output/include/standard-headers/rdma/"
 done
 
 cat <<EOF >$output/include/standard-headers/linux/types.h
