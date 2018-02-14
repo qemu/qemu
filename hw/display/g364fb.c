@@ -207,6 +207,7 @@ done:
     if (xmax || ymax) {
         dpy_gfx_update(s->con, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
     }
+    g_free(snap);
 }
 
 static void g364fb_draw_blank(G364State *s)
