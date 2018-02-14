@@ -3647,6 +3647,25 @@ int spapr_vcpu_id(PowerPCCPU *cpu)
     }
 }
 
+void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    int vcpu_id;
+
+    vcpu_id =
+        (cpu_index / smp_threads) * spapr->vsmt + cpu_index % smp_threads;
+
+    if (kvm_enabled() && !kvm_vcpu_id_is_valid(vcpu_id)) {
+        error_setg(errp, "Can't create CPU with id %d in KVM", vcpu_id);
+        error_append_hint(errp, "Adjust the number of cpus to %d "
+                          "or try to raise the number of threads per core\n",
+                          vcpu_id * smp_threads / spapr->vsmt);
+        return;
+    }
+
+    cpu->vcpu_id = vcpu_id;
+}
+
 PowerPCCPU *spapr_find_cpu(int vcpu_id)
 {
     CPUState *cs;
