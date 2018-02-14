@@ -1220,6 +1220,29 @@ static int64_t ssh_getlength(BlockDriverState *bs)
     return length;
 }
 
+static int ssh_truncate(BlockDriverState *bs, int64_t offset,
+                        PreallocMode prealloc, Error **errp)
+{
+    BDRVSSHState *s = bs->opaque;
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Unsupported preallocation mode '%s'",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    if (offset < s->attrs.filesize) {
+        error_setg(errp, "ssh driver does not support shrinking files");
+        return -ENOTSUP;
+    }
+
+    if (offset == s->attrs.filesize) {
+        return 0;
+    }
+
+    return ssh_grow_file(s, offset, errp);
+}
+
 static BlockDriver bdrv_ssh = {
     .format_name                  = "ssh",
     .protocol_name                = "ssh",
@@ -1232,6 +1255,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_co_readv                = ssh_co_readv,
     .bdrv_co_writev               = ssh_co_writev,
     .bdrv_getlength               = ssh_getlength,
+    .bdrv_truncate                = ssh_truncate,
     .bdrv_co_flush_to_disk        = ssh_co_flush,
     .create_opts                  = &ssh_create_opts,
 };
