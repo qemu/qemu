@@ -803,17 +803,24 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
     return ret;
 }
 
+/* Note: This is a blocking operation */
 static int ssh_grow_file(BDRVSSHState *s, int64_t offset, Error **errp)
 {
     ssize_t ret;
     char c[1] = { '\0' };
+    int was_blocking = libssh2_session_get_blocking(s->session);
 
     /* offset must be strictly greater than the current size so we do
      * not overwrite anything */
     assert(offset > 0 && offset > s->attrs.filesize);
 
+    libssh2_session_set_blocking(s->session, 1);
+
     libssh2_sftp_seek64(s->sftp_handle, offset - 1);
     ret = libssh2_sftp_write(s->sftp_handle, c, 1);
+
+    libssh2_session_set_blocking(s->session, was_blocking);
+
     if (ret < 0) {
         sftp_error_setg(errp, s, "Failed to grow file");
         return -EIO;
