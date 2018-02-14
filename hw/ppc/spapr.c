@@ -161,9 +161,9 @@ static void pre_2_10_vmstate_unregister_dummy_icp(int i)
                        (void *)(uintptr_t) i);
 }
 
-static inline int xics_max_server_number(void)
+static int xics_max_server_number(sPAPRMachineState *spapr)
 {
-    return DIV_ROUND_UP(max_cpus * kvmppc_smt_threads(), smp_threads);
+    return DIV_ROUND_UP(max_cpus * spapr->vsmt, smp_threads);
 }
 
 static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
@@ -195,7 +195,7 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
     if (smc->pre_2_10_has_unused_icps) {
         int i;
 
-        for (i = 0; i < xics_max_server_number(); i++) {
+        for (i = 0; i < xics_max_server_number(spapr); i++) {
             /* Dummy entries get deregistered when real ICPState objects
              * are registered during CPU core hotplug.
              */
@@ -338,7 +338,6 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
     int ret = 0, offset, cpus_offset;
     CPUState *cs;
     char cpu_model[32];
-    int smt = kvmppc_smt_threads();
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
 
     CPU_FOREACH(cs) {
@@ -347,7 +346,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
         int index = spapr_vcpu_id(cpu);
         int compat_smt = MIN(smp_threads, ppc_compat_max_threads(cpu));
 
-        if ((index % smt) != 0) {
+        if (index % spapr->vsmt != 0) {
             continue;
         }
 
@@ -614,7 +613,6 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
     CPUState *cs;
     int cpus_offset;
     char *nodename;
-    int smt = kvmppc_smt_threads();
 
     cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
     _FDT(cpus_offset);
@@ -632,7 +630,7 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         int offset;
 
-        if ((index % smt) != 0) {
+        if (index % spapr->vsmt != 0) {
             continue;
         }
 
@@ -1105,7 +1103,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(xics_max_server_number(), fdt, PHANDLE_XICP);
+    spapr_dt_xics(xics_max_server_number(spapr), fdt, PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -2198,7 +2196,6 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *type = spapr_get_cpu_core_type(machine->cpu_type);
-    int smt = kvmppc_smt_threads();
     const CPUArchIdList *possible_cpus;
     int boot_cores_nr = smp_cpus / smp_threads;
     int i;
@@ -2233,7 +2230,7 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
 
         if (mc->has_hotpluggable_cpus) {
             spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_CPU,
-                                   (core_id / smp_threads) * smt);
+                                   (core_id / smp_threads) * spapr->vsmt);
         }
 
         if (i < boot_cores_nr) {
@@ -3262,10 +3259,10 @@ static
 void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
                                Error **errp)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     int index;
     sPAPRDRConnector *drc;
     CPUCore *cc = CPU_CORE(dev);
-    int smt = kvmppc_smt_threads();
 
     if (!spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index)) {
         error_setg(errp, "Unable to find CPU core with core-id: %d",
@@ -3277,7 +3274,7 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_CPU, index * smt);
+    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_CPU, index * spapr->vsmt);
     g_assert(drc);
 
     spapr_drc_detach(drc);
@@ -3296,7 +3293,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     CPUState *cs = CPU(core->threads);
     sPAPRDRConnector *drc;
     Error *local_err = NULL;
-    int smt = kvmppc_smt_threads();
     CPUArchId *core_slot;
     int index;
     bool hotplugged = spapr_drc_hotplugged(dev);
@@ -3307,7 +3303,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                    cc->core_id);
         return;
     }
-    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_CPU, index * smt);
+    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_CPU, index * spapr->vsmt);
 
     g_assert(drc || !mc->has_hotpluggable_cpus);
 
