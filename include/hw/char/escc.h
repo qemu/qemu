@@ -1,14 +1,58 @@
 #ifndef HW_ESCC_H
 #define HW_ESCC_H
 
+#include "chardev/char-fe.h"
+#include "chardev/char-serial.h"
+#include "ui/input.h"
+
 /* escc.c */
 #define TYPE_ESCC "escc"
 #define ESCC_SIZE 4
-MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
-              Chardev *chrA, Chardev *chrB,
-              int clock, int it_shift);
 
-void slavio_serial_ms_kbd_init(hwaddr base, qemu_irq irq,
-                               int disabled, int clock, int it_shift);
+#define ESCC(obj) OBJECT_CHECK(ESCCState, (obj), TYPE_ESCC)
+
+typedef enum {
+    escc_chn_a, escc_chn_b,
+} ESCCChnID;
+
+typedef enum {
+    escc_serial, escc_kbd, escc_mouse,
+} ESCCChnType;
+
+#define ESCC_SERIO_QUEUE_SIZE 256
+
+typedef struct {
+    uint8_t data[ESCC_SERIO_QUEUE_SIZE];
+    int rptr, wptr, count;
+} ESCCSERIOQueue;
+
+#define ESCC_SERIAL_REGS 16
+typedef struct ESCCChannelState {
+    qemu_irq irq;
+    uint32_t rxint, txint, rxint_under_svc, txint_under_svc;
+    struct ESCCChannelState *otherchn;
+    uint32_t reg;
+    uint8_t wregs[ESCC_SERIAL_REGS], rregs[ESCC_SERIAL_REGS];
+    ESCCSERIOQueue queue;
+    CharBackend chr;
+    int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
+    int disabled;
+    int clock;
+    uint32_t vmstate_dummy;
+    ESCCChnID chn; /* this channel, A (base+4) or B (base+0) */
+    ESCCChnType type;
+    uint8_t rx, tx;
+    QemuInputHandlerState *hs;
+} ESCCChannelState;
+
+typedef struct ESCCState {
+    SysBusDevice parent_obj;
+
+    struct ESCCChannelState chn[2];
+    uint32_t it_shift;
+    MemoryRegion mmio;
+    uint32_t disabled;
+    uint32_t frequency;
+} ESCCState;
 
 #endif

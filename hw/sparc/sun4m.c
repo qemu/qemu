@@ -818,6 +818,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     DriveInfo *fd[MAX_FD];
     FWCfgState *fw_cfg;
     unsigned int num_vsimms;
+    DeviceState *dev;
+    SysBusDevice *s;
 
     /* init CPUs */
     for(i = 0; i < smp_cpus; i++) {
@@ -925,12 +927,36 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 
     slavio_timer_init_all(hwdef->counter_base, slavio_irq[19], slavio_cpu_irq, smp_cpus);
 
-    slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[14],
-                              !machine->enable_graphics, ESCC_CLOCK, 1);
     /* Slavio TTYA (base+4, Linux ttyS0) is the first QEMU serial device
        Slavio TTYB (base+0, Linux ttyS1) is the second QEMU serial device */
-    escc_init(hwdef->serial_base, slavio_irq[15], slavio_irq[15],
-              serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
+    dev = qdev_create(NULL, TYPE_ESCC);
+    qdev_prop_set_uint32(dev, "disabled", !machine->enable_graphics);
+    qdev_prop_set_uint32(dev, "frequency", ESCC_CLOCK);
+    qdev_prop_set_uint32(dev, "it_shift", 1);
+    qdev_prop_set_chr(dev, "chrB", NULL);
+    qdev_prop_set_chr(dev, "chrA", NULL);
+    qdev_prop_set_uint32(dev, "chnBtype", escc_mouse);
+    qdev_prop_set_uint32(dev, "chnAtype", escc_kbd);
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(s, 0, slavio_irq[14]);
+    sysbus_connect_irq(s, 1, slavio_irq[14]);
+    sysbus_mmio_map(s, 0, hwdef->ms_kb_base);
+
+    dev = qdev_create(NULL, TYPE_ESCC);
+    qdev_prop_set_uint32(dev, "disabled", 0);
+    qdev_prop_set_uint32(dev, "frequency", ESCC_CLOCK);
+    qdev_prop_set_uint32(dev, "it_shift", 1);
+    qdev_prop_set_chr(dev, "chrB", serial_hds[1]);
+    qdev_prop_set_chr(dev, "chrA", serial_hds[0]);
+    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
+    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
+    qdev_init_nofail(dev);
+
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(s, 0, slavio_irq[15]);
+    sysbus_connect_irq(s, 1,  slavio_irq[15]);
+    sysbus_mmio_map(s, 0, hwdef->serial_base);
 
     if (hwdef->apc_base) {
         apc_init(hwdef->apc_base, qemu_allocate_irq(cpu_halt_signal, NULL, 0));
