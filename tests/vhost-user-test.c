@@ -494,6 +494,7 @@ static void test_server_create_chr(TestServer *server, const gchar *opt)
     chr = qemu_chr_new(server->chr_name, chr_path);
     g_free(chr_path);
 
+    g_assert_nonnull(chr);
     qemu_chr_fe_init(&server->chr, chr, &error_abort);
     qemu_chr_fe_set_handlers(&server->chr, chr_can_read, chr_read,
                              chr_event, NULL, server, NULL, true);
