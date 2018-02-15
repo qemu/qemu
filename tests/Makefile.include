@@ -714,7 +714,7 @@ tests/test-crypto-tlssession$(EXESUF): tests/test-crypto-tlssession.o \
 tests/test-io-task$(EXESUF): tests/test-io-task.o $(test-io-obj-y)
 tests/test-io-channel-socket$(EXESUF): tests/test-io-channel-socket.o \
         tests/io-channel-helpers.o $(test-io-obj-y)
-tests/tpm-crb-test$(EXESUF): tests/tpm-crb-test.o $(test-io-obj-y)
+tests/tpm-crb-test$(EXESUF): tests/tpm-crb-test.o tests/tpm-emu.o $(test-io-obj-y)
 tests/test-io-channel-file$(EXESUF): tests/test-io-channel-file.o \
         tests/io-channel-helpers.o $(test-io-obj-y)
 tests/test-io-channel-tls$(EXESUF): tests/test-io-channel-tls.o \
