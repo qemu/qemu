@@ -546,31 +546,16 @@ out:
     return rados_str;
 }
 
-static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
-                         Error **errp)
+static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
+                            char **s_snap, char **s_image_name,
+                            QDict *options, bool cache, Error **errp)
 {
-    BDRVRBDState *s = bs->opaque;
-    const char *pool, *snap, *conf, *user, *image_name, *keypairs;
-    const char *secretid, *filename;
     QemuOpts *opts;
-    Error *local_err = NULL;
     char *mon_host = NULL;
+    const char *pool, *snap, *conf, *user, *image_name, *keypairs;
+    const char *secretid;
+    Error *local_err = NULL;
     int r;
-
-    /* If we are given a filename, parse the filename, with precedence given to
-     * filename encoded options */
-    filename = qdict_get_try_str(options, "filename");
-    if (filename) {
-        warn_report("'filename' option specified. "
-                    "This is an unsupported option, and may be deprecated "
-                    "in the future");
-        qemu_rbd_parse_filename(filename, options, &local_err);
-        if (local_err) {
-            r = -EINVAL;
-            error_propagate(errp, local_err);
-            goto exit;
-        }
-    }
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -602,35 +587,35 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto failed_opts;
     }
 
-    r = rados_create(&s->cluster, user);
+    r = rados_create(cluster, user);
     if (r < 0) {
         error_setg_errno(errp, -r, "error initializing");
         goto failed_opts;
     }
 
-    s->snap = g_strdup(snap);
-    s->image_name = g_strdup(image_name);
+    *s_snap = g_strdup(snap);
+    *s_image_name = g_strdup(image_name);
 
     /* try default location when conf=NULL, but ignore failure */
-    r = rados_conf_read_file(s->cluster, conf);
+    r = rados_conf_read_file(*cluster, conf);
     if (conf && r < 0) {
         error_setg_errno(errp, -r, "error reading conf file %s", conf);
         goto failed_shutdown;
     }
 
-    r = qemu_rbd_set_keypairs(s->cluster, keypairs, errp);
+    r = qemu_rbd_set_keypairs(*cluster, keypairs, errp);
     if (r < 0) {
         goto failed_shutdown;
     }
 
     if (mon_host) {
-        r = rados_conf_set(s->cluster, "mon_host", mon_host);
+        r = rados_conf_set(*cluster, "mon_host", mon_host);
         if (r < 0) {
             goto failed_shutdown;
         }
     }
 
-    if (qemu_rbd_set_auth(s->cluster, secretid, errp) < 0) {
+    if (qemu_rbd_set_auth(*cluster, secretid, errp) < 0) {
         r = -EIO;
         goto failed_shutdown;
     }
@@ -642,22 +627,63 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
      * librbd defaults to no caching. If write through caching cannot
      * be set up, fall back to no caching.
      */
-    if (flags & BDRV_O_NOCACHE) {
-        rados_conf_set(s->cluster, "rbd_cache", "false");
+    if (cache) {
+        rados_conf_set(*cluster, "rbd_cache", "true");
     } else {
-        rados_conf_set(s->cluster, "rbd_cache", "true");
+        rados_conf_set(*cluster, "rbd_cache", "false");
     }
 
-    r = rados_connect(s->cluster);
+    r = rados_connect(*cluster);
     if (r < 0) {
         error_setg_errno(errp, -r, "error connecting");
         goto failed_shutdown;
     }
 
-    r = rados_ioctx_create(s->cluster, pool, &s->io_ctx);
+    r = rados_ioctx_create(*cluster, pool, io_ctx);
     if (r < 0) {
         error_setg_errno(errp, -r, "error opening pool %s", pool);
         goto failed_shutdown;
+    }
+
+    qemu_opts_del(opts);
+    return 0;
+
+failed_shutdown:
+    rados_shutdown(*cluster);
+    g_free(*s_snap);
+    g_free(*s_image_name);
+failed_opts:
+    qemu_opts_del(opts);
+    g_free(mon_host);
+    return r;
+}
+
+static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
+{
+    BDRVRBDState *s = bs->opaque;
+    Error *local_err = NULL;
+    const char *filename;
+    int r;
+
+    /* If we are given a filename, parse the filename, with precedence given to
+     * filename encoded options */
+    filename = qdict_get_try_str(options, "filename");
+    if (filename) {
+        warn_report("'filename' option specified. "
+                    "This is an unsupported option, and may be deprecated "
+                    "in the future");
+        qemu_rbd_parse_filename(filename, options, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -EINVAL;
+        }
+    }
+
+    r = qemu_rbd_connect(&s->cluster, &s->io_ctx, &s->snap, &s->image_name,
+                         options, !(flags & BDRV_O_NOCACHE), errp);
+    if (r < 0) {
+        return r;
     }
 
     /* rbd_open is always r/w */
@@ -684,19 +710,13 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    qemu_opts_del(opts);
     return 0;
 
 failed_open:
     rados_ioctx_destroy(s->io_ctx);
-failed_shutdown:
-    rados_shutdown(s->cluster);
     g_free(s->snap);
     g_free(s->image_name);
-failed_opts:
-    qemu_opts_del(opts);
-    g_free(mon_host);
-exit:
+    rados_shutdown(s->cluster);
     return r;
 }
 
