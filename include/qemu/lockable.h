@@ -28,7 +28,7 @@ struct QemuLockable {
  * to QEMU_MAKE_LOCKABLE.  For optimized builds, we can rely on dead-code elimination
  * from the compiler, and give the errors already at link time.
  */
-#ifdef __OPTIMIZE__
+#if defined(__OPTIMIZE__) && !defined(__SANITIZE_ADDRESS__)
 void unknown_lock_type(void *);
 #else
 static inline void unknown_lock_type(void *unused)
