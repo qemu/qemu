@@ -1724,7 +1724,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         /* fall through */
     case 0x180 ... 0x1bf: /* NVIC Clear enable */
         val = 0;
-        startvec = offset - 0x180 + NVIC_FIRST_IRQ; /* vector # */
+        startvec = 8 * (offset - 0x180) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
             if (s->vectors[startvec + i].enabled &&
@@ -1738,7 +1738,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         /* fall through */
     case 0x280 ... 0x2bf: /* NVIC Clear pend */
         val = 0;
-        startvec = offset - 0x280 + NVIC_FIRST_IRQ; /* vector # */
+        startvec = 8 * (offset - 0x280) + NVIC_FIRST_IRQ; /* vector # */
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
             if (s->vectors[startvec + i].pending &&
                 (attrs.secure || s->itns[startvec + i])) {
@@ -1748,7 +1748,7 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         break;
     case 0x300 ... 0x33f: /* NVIC Active */
         val = 0;
-        startvec = offset - 0x300 + NVIC_FIRST_IRQ; /* vector # */
+        startvec = 8 * (offset - 0x300) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
             if (s->vectors[startvec + i].active &&
@@ -1863,7 +1863,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
     case 0x300 ... 0x33f: /* NVIC Active */
         return MEMTX_OK; /* R/O */
     case 0x400 ... 0x5ef: /* NVIC Priority */
-        startvec = 8 * (offset - 0x400) + NVIC_FIRST_IRQ; /* vector # */
+        startvec = (offset - 0x400) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0; i < size && startvec + i < s->num_irq; i++) {
             if (attrs.secure || s->itns[startvec + i]) {
