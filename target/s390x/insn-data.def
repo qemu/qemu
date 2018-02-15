@@ -1000,13 +1000,13 @@
     /* ??? Not implemented - is it necessary? */
     C(0xb204, SCK,     S,     Z,   0, 0, 0, 0, 0, 0)
 /* SET CLOCK COMPARATOR */
-    C(0xb206, SCKC,    S,     Z,   0, m2_64, 0, 0, sckc, 0)
+    C(0xb206, SCKC,    S,     Z,   0, m2_64a, 0, 0, sckc, 0)
 /* SET CLOCK PROGRAMMABLE FIELD */
     C(0x0107, SCKPF,   E,     Z,   0, 0, 0, 0, sckpf, 0)
 /* SET CPU TIMER */
-    C(0xb208, SPT,     S,     Z,   0, m2_64, 0, 0, spt, 0)
+    C(0xb208, SPT,     S,     Z,   0, m2_64a, 0, 0, spt, 0)
 /* SET PREFIX */
-    C(0xb210, SPX,     S,     Z,   0, m2_32u, 0, 0, spx, 0)
+    C(0xb210, SPX,     S,     Z,   0, m2_32ua, 0, 0, spx, 0)
 /* SET PSW KEY FROM ADDRESS */
     C(0xb20a, SPKA,    S,     Z,   0, a2, 0, 0, spka, 0)
 /* SET STORAGE KEY EXTENDED */
@@ -1021,20 +1021,20 @@
 /* STORE CLOCK EXTENDED */
     C(0xb278, STCKE,   S,     Z,   0, a2, 0, 0, stcke, 0)
 /* STORE CLOCK COMPARATOR */
-    C(0xb207, STCKC,   S,     Z,   la2, 0, new, m1_64, stckc, 0)
+    C(0xb207, STCKC,   S,     Z,   la2, 0, new, m1_64a, stckc, 0)
 /* STORE CONTROL */
     C(0xb600, STCTL,   RS_a,  Z,   0, a2, 0, 0, stctl, 0)
     C(0xeb25, STCTG,   RSY_a, Z,   0, a2, 0, 0, stctg, 0)
 /* STORE CPU ADDRESS */
-    C(0xb212, STAP,    S,     Z,   la2, 0, new, m1_16, stap, 0)
+    C(0xb212, STAP,    S,     Z,   la2, 0, new, m1_16a, stap, 0)
 /* STORE CPU ID */
-    C(0xb202, STIDP,   S,     Z,   la2, 0, new, 0, stidp, 0)
+    C(0xb202, STIDP,   S,     Z,   la2, 0, new, m1_64a, stidp, 0)
 /* STORE CPU TIMER */
-    C(0xb209, STPT,    S,     Z,   la2, 0, new, m1_64, stpt, 0)
+    C(0xb209, STPT,    S,     Z,   la2, 0, new, m1_64a, stpt, 0)
 /* STORE FACILITY LIST */
     C(0xb2b1, STFL,    S,     Z,   0, 0, 0, 0, stfl, 0)
 /* STORE PREFIX */
-    C(0xb211, STPX,    S,     Z,   la2, 0, new, m1_32, stpx, 0)
+    C(0xb211, STPX,    S,     Z,   la2, 0, new, m1_32a, stpx, 0)
 /* STORE SYSTEM INFORMATION */
     C(0xb27d, STSI,    S,     Z,   0, a2, 0, 0, stsi, 0)
 /* STORE THEN AND SYSTEM MASK */
