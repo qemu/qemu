@@ -1182,6 +1182,19 @@ static inline bool fp_access_check(DisasContext *s)
     return false;
 }
 
+/* Check that SVE access is enabled.  If it is, return true.
+ * If not, emit code to generate an appropriate exception and return false.
+ */
+static inline bool sve_access_check(DisasContext *s)
+{
+    if (s->sve_excp_el) {
+        gen_exception_insn(s, 4, EXCP_UDEF, syn_sve_access_trap(),
+                           s->sve_excp_el);
+        return false;
+    }
+    return true;
+}
+
 /*
  * This utility function is for doing register extension with an
  * optional shift. You will likely want to pass a temporary for the
@@ -1630,6 +1643,9 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         return;
     default:
         break;
+    }
+    if ((ri->type & ARM_CP_SVE) && !sve_access_check(s)) {
+        return;
     }
     if ((ri->type & ARM_CP_FPU) && !fp_access_check(s)) {
         return;
