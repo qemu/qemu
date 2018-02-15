@@ -25,6 +25,7 @@ typedef struct BCM2836State {
     DeviceState parent_obj;
     /*< public >*/
 
+    char *cpu_type;
     uint32_t enabled_cpus;
 
     ARMCPU cpus[BCM2836_NCPUS];

@@ -26,14 +26,6 @@
 static void bcm2836_init(Object *obj)
 {
     BCM2836State *s = BCM2836(obj);
-    int n;
-
-    for (n = 0; n < BCM2836_NCPUS; n++) {
-        object_initialize(&s->cpus[n], sizeof(s->cpus[n]),
-                          "cortex-a15-" TYPE_ARM_CPU);
-        object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpus[n]),
-                                  &error_abort);
-    }
 
     object_initialize(&s->control, sizeof(s->control), TYPE_BCM2836_CONTROL);
     object_property_add_child(obj, "control", OBJECT(&s->control), NULL);
@@ -58,6 +50,14 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     int n;
 
     /* common peripherals from bcm2835 */
+
+    obj = OBJECT(dev);
+    for (n = 0; n < BCM2836_NCPUS; n++) {
+        object_initialize(&s->cpus[n], sizeof(s->cpus[n]),
+                          s->cpu_type);
+        object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpus[n]),
+                                  &error_abort);
+    }
 
     obj = object_property_get_link(OBJECT(dev), "ram", &err);
     if (obj == NULL) {
@@ -150,6 +150,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 }
 
 static Property bcm2836_props[] = {
+    DEFINE_PROP_STRING("cpu-type", BCM2836State, cpu_type),
     DEFINE_PROP_UINT32("enabled-cpus", BCM2836State, enabled_cpus, BCM2836_NCPUS),
     DEFINE_PROP_END_OF_LIST()
 };
