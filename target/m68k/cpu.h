@@ -492,6 +492,7 @@ enum m68k_features {
     M68K_FEATURE_RTD,
     M68K_FEATURE_CHK2,
     M68K_FEATURE_M68040, /* instructions specific to MC68040 */
+    M68K_FEATURE_MOVEP,
 };
 
 static inline int m68k_feature(CPUM68KState *env, int feature)
