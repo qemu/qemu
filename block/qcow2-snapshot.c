@@ -66,7 +66,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 
     for(i = 0; i < s->nb_snapshots; i++) {
         /* Read statically sized part of the snapshot header */
-        offset = align_offset(offset, 8);
+        offset = ROUND_UP(offset, 8);
         ret = bdrv_pread(bs->file, offset, &h, sizeof(h));
         if (ret < 0) {
             goto fail;
@@ -155,7 +155,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     offset = 0;
     for(i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
-        offset = align_offset(offset, 8);
+        offset = ROUND_UP(offset, 8);
         offset += sizeof(h);
         offset += sizeof(extra);
         offset += strlen(sn->id_str);
@@ -215,7 +215,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         assert(id_str_size <= UINT16_MAX && name_size <= UINT16_MAX);
         h.id_str_size = cpu_to_be16(id_str_size);
         h.name_size = cpu_to_be16(name_size);
-        offset = align_offset(offset, 8);
+        offset = ROUND_UP(offset, 8);
 
         ret = bdrv_pwrite(bs->file, offset, &h, sizeof(h));
         if (ret < 0) {
@@ -441,7 +441,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     /* The VM state isn't needed any more in the active L1 table; in fact, it
      * hurts by causing expensive COW for the next snapshot. */
     qcow2_cluster_discard(bs, qcow2_vm_state_offset(s),
-                          align_offset(sn->vm_state_size, s->cluster_size),
+                          ROUND_UP(sn->vm_state_size, s->cluster_size),
                           QCOW2_DISCARD_NEVER, false);
 
 #ifdef DEBUG_ALLOC
@@ -710,7 +710,7 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
     }
     new_l1_bytes = sn->l1_size * sizeof(uint64_t);
     new_l1_table = qemu_try_blockalign(bs->file->bs,
-                                       align_offset(new_l1_bytes, 512));
+                                       ROUND_UP(new_l1_bytes, 512));
     if (new_l1_table == NULL) {
         return -ENOMEM;
     }

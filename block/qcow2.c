@@ -1379,7 +1379,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (s->l1_size > 0) {
         s->l1_table = qemu_try_blockalign(bs->file->bs,
-            align_offset(s->l1_size * sizeof(uint64_t), 512));
+            ROUND_UP(s->l1_size * sizeof(uint64_t), 512));
         if (s->l1_table == NULL) {
             error_setg(errp, "Could not allocate L1 table");
             ret = -ENOMEM;
@@ -2642,19 +2642,19 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
 {
     int64_t meta_size = 0;
     uint64_t nl1e, nl2e;
-    int64_t aligned_total_size = align_offset(total_size, cluster_size);
+    int64_t aligned_total_size = ROUND_UP(total_size, cluster_size);
 
     /* header: 1 cluster */
     meta_size += cluster_size;
 
     /* total size of L2 tables */
     nl2e = aligned_total_size / cluster_size;
-    nl2e = align_offset(nl2e, cluster_size / sizeof(uint64_t));
+    nl2e = ROUND_UP(nl2e, cluster_size / sizeof(uint64_t));
     meta_size += nl2e * sizeof(uint64_t);
 
     /* total size of L1 tables */
     nl1e = nl2e * sizeof(uint64_t) / cluster_size;
-    nl1e = align_offset(nl1e, cluster_size / sizeof(uint64_t));
+    nl1e = ROUND_UP(nl1e, cluster_size / sizeof(uint64_t));
     meta_size += nl1e * sizeof(uint64_t);
 
     /* total size of refcount table and blocks */
@@ -3710,8 +3710,8 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     has_backing_file = !!optstr;
     g_free(optstr);
 
-    virtual_size = align_offset(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                                cluster_size);
+    virtual_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    virtual_size = ROUND_UP(virtual_size, cluster_size);
 
     /* Check that virtual disk size is valid */
     l2_tables = DIV_ROUND_UP(virtual_size / cluster_size,
@@ -3731,7 +3731,7 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
             goto err;
         }
 
-        virtual_size = align_offset(ssize, cluster_size);
+        virtual_size = ROUND_UP(ssize, cluster_size);
 
         if (has_backing_file) {
             /* We don't how much of the backing chain is shared by the input
