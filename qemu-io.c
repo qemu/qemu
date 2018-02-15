@@ -558,7 +558,7 @@ int main(int argc, char **argv)
             trace_file = trace_opt_parse(optarg);
             break;
         case 'V':
-            printf("%s version " QEMU_VERSION QEMU_PKGVERSION "\n"
+            printf("%s version " QEMU_FULL_VERSION "\n"
                    QEMU_COPYRIGHT "\n", progname);
             exit(0);
         case 'h':

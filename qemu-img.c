@@ -46,7 +46,7 @@
 #include "crypto/init.h"
 #include "trace/control.h"
 
-#define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION QEMU_PKGVERSION \
+#define QEMU_IMG_VERSION "qemu-img version " QEMU_FULL_VERSION \
                           "\n" QEMU_COPYRIGHT "\n"
 
 typedef struct img_cmd_t {
