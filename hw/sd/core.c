@@ -21,7 +21,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
-#include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
 #include "trace.h"
 

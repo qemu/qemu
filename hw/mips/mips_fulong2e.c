@@ -27,7 +27,6 @@
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/i2c/smbus.h"
-#include "sysemu/block-backend.h"
 #include "hw/block/flash.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"

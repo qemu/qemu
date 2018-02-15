@@ -44,7 +44,6 @@
 #include "hw/empty_slot.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "sysemu/block-backend.h"
 #include "trace.h"
 #include "qemu/cutils.h"
 

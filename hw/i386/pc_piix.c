@@ -40,7 +40,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "sysemu/arch_init.h"
-#include "sysemu/block-backend.h"
 #include "hw/i2c/smbus.h"
 #include "hw/xen/xen.h"
 #include "exec/memory.h"

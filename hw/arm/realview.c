@@ -20,7 +20,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/i2c/i2c.h"
-#include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"

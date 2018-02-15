@@ -44,7 +44,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 
