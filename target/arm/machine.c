@@ -236,6 +236,16 @@ static const VMStateDescription vmstate_m_scr = {
     }
 };
 
+static const VMStateDescription vmstate_m_other_sp = {
+    .name = "cpu/m/other-sp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.other_sp, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 4,
@@ -259,6 +269,7 @@ static const VMStateDescription vmstate_m = {
         &vmstate_m_faultmask_primask,
         &vmstate_m_csselr,
         &vmstate_m_scr,
+        &vmstate_m_other_sp,
         NULL
     }
 };
