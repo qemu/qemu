@@ -155,6 +155,13 @@ void *tpm_emu_ctrl_thread(void *data)
             qio_channel_write(ioc, (char *)&loc, sizeof(loc), &error_abort);
             break;
         }
+        case CMD_GET_TPMESTABLISHED: {
+            ptm_est est = {
+                .u.resp.bit = 0,
+            };
+            qio_channel_write(ioc, (char *)&est, sizeof(est), &error_abort);
+            break;
+        }
         default:
             g_debug("unimplemented %u", cmd);
             g_assert_not_reached();
