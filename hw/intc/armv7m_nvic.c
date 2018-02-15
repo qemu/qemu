@@ -990,31 +990,33 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
                       "Aux Fault status registers unimplemented\n");
         return 0;
     case 0xd40: /* PFR0.  */
-        return 0x00000030;
-    case 0xd44: /* PRF1.  */
-        return 0x00000200;
+        return cpu->id_pfr0;
+    case 0xd44: /* PFR1.  */
+        return cpu->id_pfr1;
     case 0xd48: /* DFR0.  */
-        return 0x00100000;
+        return cpu->id_dfr0;
     case 0xd4c: /* AFR0.  */
-        return 0x00000000;
+        return cpu->id_afr0;
     case 0xd50: /* MMFR0.  */
-        return 0x00000030;
+        return cpu->id_mmfr0;
     case 0xd54: /* MMFR1.  */
-        return 0x00000000;
+        return cpu->id_mmfr1;
     case 0xd58: /* MMFR2.  */
-        return 0x00000000;
+        return cpu->id_mmfr2;
     case 0xd5c: /* MMFR3.  */
-        return 0x00000000;
+        return cpu->id_mmfr3;
     case 0xd60: /* ISAR0.  */
-        return 0x01141110;
+        return cpu->id_isar0;
     case 0xd64: /* ISAR1.  */
-        return 0x02111000;
+        return cpu->id_isar1;
     case 0xd68: /* ISAR2.  */
-        return 0x21112231;
+        return cpu->id_isar2;
     case 0xd6c: /* ISAR3.  */
-        return 0x01111110;
+        return cpu->id_isar3;
     case 0xd70: /* ISAR4.  */
-        return 0x01310102;
+        return cpu->id_isar4;
+    case 0xd74: /* ISAR5.  */
+        return cpu->id_isar5;
     /* TODO: Implement debug registers.  */
     case 0xd90: /* MPU_TYPE */
         /* Unified MPU; if the MPU is not present this value is zero */

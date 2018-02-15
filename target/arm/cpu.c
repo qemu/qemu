@@ -1146,6 +1146,20 @@ static void cortex_m3_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_M);
     cpu->midr = 0x410fc231;
     cpu->pmsav7_dregion = 8;
+    cpu->id_pfr0 = 0x00000030;
+    cpu->id_pfr1 = 0x00000200;
+    cpu->id_dfr0 = 0x00100000;
+    cpu->id_afr0 = 0x00000000;
+    cpu->id_mmfr0 = 0x00000030;
+    cpu->id_mmfr1 = 0x00000000;
+    cpu->id_mmfr2 = 0x00000000;
+    cpu->id_mmfr3 = 0x00000000;
+    cpu->id_isar0 = 0x01141110;
+    cpu->id_isar1 = 0x02111000;
+    cpu->id_isar2 = 0x21112231;
+    cpu->id_isar3 = 0x01111110;
+    cpu->id_isar4 = 0x01310102;
+    cpu->id_isar5 = 0x00000000;
 }
 
 static void cortex_m4_initfn(Object *obj)
@@ -1157,6 +1171,20 @@ static void cortex_m4_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_THUMB_DSP);
     cpu->midr = 0x410fc240; /* r0p0 */
     cpu->pmsav7_dregion = 8;
+    cpu->id_pfr0 = 0x00000030;
+    cpu->id_pfr1 = 0x00000200;
+    cpu->id_dfr0 = 0x00100000;
+    cpu->id_afr0 = 0x00000000;
+    cpu->id_mmfr0 = 0x00000030;
+    cpu->id_mmfr1 = 0x00000000;
+    cpu->id_mmfr2 = 0x00000000;
+    cpu->id_mmfr3 = 0x00000000;
+    cpu->id_isar0 = 0x01141110;
+    cpu->id_isar1 = 0x02111000;
+    cpu->id_isar2 = 0x21112231;
+    cpu->id_isar3 = 0x01111110;
+    cpu->id_isar4 = 0x01310102;
+    cpu->id_isar5 = 0x00000000;
 }
 
 static void arm_v7m_class_init(ObjectClass *oc, void *data)
