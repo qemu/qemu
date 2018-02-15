@@ -2059,7 +2059,7 @@ static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
         /* FIXME: Respect PSW_S bit.  */
         nullify_over(ctx);
         tmp = dest_gpr(ctx, rt);
-        if (ctx->base.tb->cflags & CF_USE_ICOUNT) {
+        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
             gen_helper_read_interval_timer(tmp);
             gen_io_end();
