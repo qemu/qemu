@@ -423,6 +423,10 @@ static const VMStateDescription vmstate_m_security = {
         VMSTATE_VALIDATE("SAU_RNR is valid", sau_rnr_vmstate_validate),
         VMSTATE_UINT32(env.sau.ctrl, ARMCPU),
         VMSTATE_UINT32(env.v7m.scr[M_REG_S], ARMCPU),
+        /* AIRCR is not secure-only, but our implementation is R/O if the
+         * security extension is unimplemented, so we migrate it here.
+         */
+        VMSTATE_UINT32(env.v7m.aircr, ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
