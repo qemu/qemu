@@ -3152,7 +3152,6 @@ static void vnc_listen_io(QIONetListener *listener,
                          isWebsock ? "vnc-ws-server" : "vnc-server");
     qio_channel_set_delay(QIO_CHANNEL(cioc), false);
     vnc_connect(vd, cioc, false, isWebsock);
-    object_unref(OBJECT(cioc));
 }
 
 static const DisplayChangeListenerOps dcl_ops = {
