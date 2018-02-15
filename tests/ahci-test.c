@@ -1823,6 +1823,7 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
     if ((addr == ADDR_MODE_LBA48) && (offset == OFFSET_HIGH) &&
         (mb_to_sectors(test_image_size_mb) <= 0xFFFFFFF)) {
         g_test_message("%s: skipped; test image too small", name);
+        g_free(opts);
         g_free(name);
         return;
     }
