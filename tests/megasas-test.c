@@ -15,13 +15,16 @@
 
 static QOSState *qmegasas_start(const char *extra_opts)
 {
+    QOSState *qs;
     const char *arch = qtest_get_arch();
     const char *cmd = "-drive id=hd0,if=none,file=null-co://,format=raw "
                       "-device megasas,id=scsi0,addr=04.0 "
                       "-device scsi-hd,bus=scsi0.0,drive=hd0 %s";
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        return qtest_pc_boot(cmd, extra_opts ? : "");
+        qs = qtest_pc_boot(cmd, extra_opts ? : "");
+        global_qtest = qs->qts;
+        return qs;
     }
 
     g_printerr("virtio-scsi tests are only available on x86 or ppc64\n");

@@ -132,7 +132,7 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     va_end(ap);
 
     qtest_start(cmdline);
-    guest_malloc = pc_alloc_init();
+    guest_malloc = pc_alloc_init(global_qtest);
 
     g_free(cmdline);
 }
@@ -150,7 +150,7 @@ static QPCIDevice *get_pci_device(QPCIBar *bmdma_bar, QPCIBar *ide_bar)
     uint16_t vendor_id, device_id;
 
     if (!pcibus) {
-        pcibus = qpci_init_pc(NULL);
+        pcibus = qpci_init_pc(global_qtest, NULL);
     }
 
     /* Find PCI device and verify it's the right one */

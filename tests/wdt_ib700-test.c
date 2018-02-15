@@ -12,108 +12,98 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/timer.h"
 
-static void qmp_check_no_event(void)
+static void qmp_check_no_event(QTestState *s)
 {
-    QDict *resp = qmp("{'execute':'query-status'}");
+    QDict *resp = qtest_qmp(s, "{'execute':'query-status'}");
     g_assert(qdict_haskey(resp, "return"));
     QDECREF(resp);
 }
 
-static QDict *qmp_get_event(const char *name)
-{
-    QDict *event = qmp("");
-    QDict *data;
-    g_assert(qdict_haskey(event, "event"));
-    g_assert(!strcmp(qdict_get_str(event, "event"), name));
-
-    if (qdict_haskey(event, "data")) {
-        data = qdict_get_qdict(event, "data");
-        QINCREF(data);
-    } else {
-        data = NULL;
-    }
-
-    QDECREF(event);
-    return data;
-}
-
 static QDict *ib700_program_and_wait(QTestState *s)
 {
-    clock_step(NANOSECONDS_PER_SECOND * 40);
-    qmp_check_no_event();
+    QDict *event, *data;
+
+    qtest_clock_step(s, NANOSECONDS_PER_SECOND * 40);
+    qmp_check_no_event(s);
 
     /* 2 second limit */
-    outb(0x443, 14);
+    qtest_outb(s, 0x443, 14);
 
     /* Ping */
-    clock_step(NANOSECONDS_PER_SECOND);
-    qmp_check_no_event();
-    outb(0x443, 14);
+    qtest_clock_step(s, NANOSECONDS_PER_SECOND);
+    qmp_check_no_event(s);
+    qtest_outb(s, 0x443, 14);
 
     /* Disable */
-    clock_step(NANOSECONDS_PER_SECOND);
-    qmp_check_no_event();
-    outb(0x441, 1);
-    clock_step(3 * NANOSECONDS_PER_SECOND);
-    qmp_check_no_event();
+    qtest_clock_step(s, NANOSECONDS_PER_SECOND);
+    qmp_check_no_event(s);
+    qtest_outb(s, 0x441, 1);
+    qtest_clock_step(s, 3 * NANOSECONDS_PER_SECOND);
+    qmp_check_no_event(s);
 
     /* Enable and let it fire */
-    outb(0x443, 13);
-    clock_step(3 * NANOSECONDS_PER_SECOND);
-    qmp_check_no_event();
-    clock_step(2 * NANOSECONDS_PER_SECOND);
-    return qmp_get_event("WATCHDOG");
+    qtest_outb(s, 0x443, 13);
+    qtest_clock_step(s, 3 * NANOSECONDS_PER_SECOND);
+    qmp_check_no_event(s);
+    qtest_clock_step(s, 2 * NANOSECONDS_PER_SECOND);
+    event = qtest_qmp_eventwait_ref(s, "WATCHDOG");
+    data = qdict_get_qdict(event, "data");
+    QINCREF(data);
+    QDECREF(event);
+    return data;
 }
 
 
 static void ib700_pause(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action pause -device ib700");
+    QTestState *s = qtest_init("-watchdog-action pause -device ib700");
+
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "pause"));
     QDECREF(d);
-    d = qmp_get_event("STOP");
-    QDECREF(d);
-    qtest_end();
+    qtest_qmp_eventwait(s, "STOP");
+    qtest_quit(s);
 }
 
 static void ib700_reset(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action reset -device ib700");
+    QTestState *s = qtest_init("-watchdog-action reset -device ib700");
+
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
     QDECREF(d);
-    d = qmp_get_event("RESET");
-    QDECREF(d);
-    qtest_end();
+    qtest_qmp_eventwait(s, "RESET");
+    qtest_quit(s);
 }
 
 static void ib700_shutdown(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action reset -no-reboot -device ib700");
+    QTestState *s;
+
+    s = qtest_init("-watchdog-action reset -no-reboot -device ib700");
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
     QDECREF(d);
-    d = qmp_get_event("SHUTDOWN");
-    QDECREF(d);
-    qtest_end();
+    qtest_qmp_eventwait(s, "SHUTDOWN");
+    qtest_quit(s);
 }
 
 static void ib700_none(void)
 {
     QDict *d;
-    QTestState *s = qtest_start("-watchdog-action none -device ib700");
+    QTestState *s = qtest_init("-watchdog-action none -device ib700");
+
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "none"));
     QDECREF(d);
-    qtest_end();
+    qtest_quit(s);
 }
 
 int main(int argc, char **argv)

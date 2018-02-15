@@ -13,12 +13,14 @@
 #ifndef LIBQOS_FW_CFG_H
 #define LIBQOS_FW_CFG_H
 
+#include "libqtest.h"
 
 typedef struct QFWCFG QFWCFG;
 
 struct QFWCFG
 {
     uint64_t base;
+    QTestState *qts;
     void (*select)(QFWCFG *fw_cfg, uint16_t key);
     void (*read)(QFWCFG *fw_cfg, void *data, size_t len);
 };
@@ -30,12 +32,12 @@ uint16_t qfw_cfg_get_u16(QFWCFG *fw_cfg, uint16_t key);
 uint32_t qfw_cfg_get_u32(QFWCFG *fw_cfg, uint16_t key);
 uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key);
 
-QFWCFG *mm_fw_cfg_init(uint64_t base);
-QFWCFG *io_fw_cfg_init(uint16_t base);
+QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base);
+QFWCFG *io_fw_cfg_init(QTestState *qts, uint16_t base);
 
-static inline QFWCFG *pc_fw_cfg_init(void)
+static inline QFWCFG *pc_fw_cfg_init(QTestState *qts)
 {
-    return io_fw_cfg_init(0x510);
+    return io_fw_cfg_init(qts, 0x510);
 }
 
 #endif

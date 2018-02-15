@@ -8,9 +8,9 @@
 typedef struct QOSState QOSState;
 
 typedef struct QOSOps {
-    QGuestAllocator *(*init_allocator)(QAllocOpts);
+    QGuestAllocator *(*init_allocator)(QTestState *qts, QAllocOpts);
     void (*uninit_allocator)(QGuestAllocator *);
-    QPCIBus *(*qpci_init)(QGuestAllocator *alloc);
+    QPCIBus *(*qpci_init)(QTestState *qts, QGuestAllocator *alloc);
     void (*qpci_free)(QPCIBus *bus);
     void (*shutdown)(QOSState *);
 } QOSOps;

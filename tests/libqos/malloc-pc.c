@@ -29,11 +29,11 @@ void pc_alloc_uninit(QGuestAllocator *allocator)
     alloc_uninit(allocator);
 }
 
-QGuestAllocator *pc_alloc_init_flags(QAllocOpts flags)
+QGuestAllocator *pc_alloc_init_flags(QTestState *qts, QAllocOpts flags)
 {
     QGuestAllocator *s;
     uint64_t ram_size;
-    QFWCFG *fw_cfg = pc_fw_cfg_init();
+    QFWCFG *fw_cfg = pc_fw_cfg_init(qts);
 
     ram_size = qfw_cfg_get_u64(fw_cfg, FW_CFG_RAM_SIZE);
     s = alloc_init_flags(flags, 1 << 20, MIN(ram_size, 0xE0000000));
@@ -45,7 +45,7 @@ QGuestAllocator *pc_alloc_init_flags(QAllocOpts flags)
     return s;
 }
 
-inline QGuestAllocator *pc_alloc_init(void)
+inline QGuestAllocator *pc_alloc_init(QTestState *qts)
 {
-    return pc_alloc_init_flags(ALLOC_NO_FLAGS);
+    return pc_alloc_init_flags(qts, ALLOC_NO_FLAGS);
 }

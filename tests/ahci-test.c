@@ -158,10 +158,11 @@ static AHCIQState *ahci_vboot(const char *cli, va_list ap)
 
     s = g_new0(AHCIQState, 1);
     s->parent = qtest_pc_vboot(cli, ap);
+    global_qtest = s->parent->qts;
     alloc_set_flags(s->parent->alloc, ALLOC_LEAK_ASSERT);
 
     /* Verify that we have an AHCI device present. */
-    s->dev = get_ahci_device(&s->fingerprint);
+    s->dev = get_ahci_device(s->parent->qts, &s->fingerprint);
 
     return s;
 }

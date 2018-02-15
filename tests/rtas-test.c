@@ -14,9 +14,10 @@ static void test_rtas_get_time_of_day(void)
     time_t t1, t2;
 
     qs = qtest_spapr_boot("-machine pseries");
+    global_qtest = qs->qts;
 
     t1 = time(NULL);
-    ret = qrtas_get_time_of_day(qs->alloc, &tm, &ns);
+    ret = qrtas_get_time_of_day(qs->qts, qs->alloc, &tm, &ns);
     g_assert_cmpint(ret, ==, 0);
     t2 = mktimegm(&tm);
     g_assert(t2 - t1 < 5); /* 5 sec max to run the test */

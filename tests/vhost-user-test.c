@@ -180,7 +180,7 @@ static void init_virtio_dev(TestServer *s, uint32_t features_mask)
     uint32_t features;
     int i;
 
-    s->bus = qpci_init_pc(NULL);
+    s->bus = qpci_init_pc(global_qtest, NULL);
     g_assert_nonnull(s->bus);
 
     s->dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
@@ -191,7 +191,7 @@ static void init_virtio_dev(TestServer *s, uint32_t features_mask)
     qvirtio_set_acknowledge(&s->dev->vdev);
     qvirtio_set_driver(&s->dev->vdev);
 
-    s->alloc = pc_alloc_init();
+    s->alloc = pc_alloc_init(global_qtest);
 
     for (i = 0; i < s->queues * 2; i++) {
         s->vq[i] = qvirtqueue_setup(&s->dev->vdev, s->alloc, i);

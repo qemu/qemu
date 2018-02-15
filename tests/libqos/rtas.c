@@ -7,26 +7,28 @@
 #include "libqtest.h"
 #include "libqos/rtas.h"
 
-static void qrtas_copy_args(uint64_t target_args, uint32_t nargs,
-                            uint32_t *args)
+static void qrtas_copy_args(QTestState *qts, uint64_t target_args,
+                            uint32_t nargs, uint32_t *args)
 {
     int i;
 
     for (i = 0; i < nargs; i++) {
-        writel(target_args + i * sizeof(uint32_t), args[i]);
+        qtest_writel(qts, target_args + i * sizeof(uint32_t), args[i]);
     }
 }
 
-static void qrtas_copy_ret(uint64_t target_ret, uint32_t nret, uint32_t *ret)
+static void qrtas_copy_ret(QTestState *qts, uint64_t target_ret,
+                           uint32_t nret, uint32_t *ret)
 {
     int i;
 
     for (i = 0; i < nret; i++) {
-        ret[i] = readl(target_ret + i * sizeof(uint32_t));
+        ret[i] = qtest_readl(qts, target_ret + i * sizeof(uint32_t));
     }
 }
 
-static uint64_t qrtas_call(QGuestAllocator *alloc, const char *name,
+static uint64_t qrtas_call(QTestState *qts, QGuestAllocator *alloc,
+                           const char *name,
                            uint32_t nargs, uint32_t *args,
                            uint32_t nret, uint32_t *ret)
 {
@@ -36,10 +38,9 @@ static uint64_t qrtas_call(QGuestAllocator *alloc, const char *name,
     target_args = guest_alloc(alloc, nargs * sizeof(uint32_t));
     target_ret = guest_alloc(alloc, nret * sizeof(uint32_t));
 
-    qrtas_copy_args(target_args, nargs, args);
-    res = qtest_rtas_call(global_qtest, name,
-                          nargs, target_args, nret, target_ret);
-    qrtas_copy_ret(target_ret, nret, ret);
+    qrtas_copy_args(qts, target_args, nargs, args);
+    res = qtest_rtas_call(qts, name, nargs, target_args, nret, target_ret);
+    qrtas_copy_ret(qts, target_ret, nret, ret);
 
     guest_free(alloc, target_ret);
     guest_free(alloc, target_args);
@@ -47,12 +48,13 @@ static uint64_t qrtas_call(QGuestAllocator *alloc, const char *name,
     return res;
 }
 
-int qrtas_get_time_of_day(QGuestAllocator *alloc, struct tm *tm, uint32_t *ns)
+int qrtas_get_time_of_day(QTestState *qts, QGuestAllocator *alloc,
+                          struct tm *tm, uint32_t *ns)
 {
     int res;
     uint32_t ret[8];
 
-    res = qrtas_call(alloc, "get-time-of-day", 0, NULL, 8, ret);
+    res = qrtas_call(qts, alloc, "get-time-of-day", 0, NULL, 8, ret);
     if (res != 0) {
         return res;
     }
@@ -70,7 +72,8 @@ int qrtas_get_time_of_day(QGuestAllocator *alloc, struct tm *tm, uint32_t *ns)
     return res;
 }
 
-uint32_t qrtas_ibm_read_pci_config(QGuestAllocator *alloc, uint64_t buid,
+uint32_t qrtas_ibm_read_pci_config(QTestState *qts, QGuestAllocator *alloc,
+                                   uint64_t buid,
                                    uint32_t addr, uint32_t size)
 {
     int res;
@@ -80,7 +83,7 @@ uint32_t qrtas_ibm_read_pci_config(QGuestAllocator *alloc, uint64_t buid,
     args[1] = buid >> 32;
     args[2] = buid & 0xffffffff;
     args[3] = size;
-    res = qrtas_call(alloc, "ibm,read-pci-config", 4, args, 2, ret);
+    res = qrtas_call(qts, alloc, "ibm,read-pci-config", 4, args, 2, ret);
     if (res != 0) {
         return -1;
     }
@@ -92,7 +95,8 @@ uint32_t qrtas_ibm_read_pci_config(QGuestAllocator *alloc, uint64_t buid,
     return ret[1];
 }
 
-int qrtas_ibm_write_pci_config(QGuestAllocator *alloc, uint64_t buid,
+int qrtas_ibm_write_pci_config(QTestState *qts, QGuestAllocator *alloc,
+                               uint64_t buid,
                                uint32_t addr, uint32_t size, uint32_t val)
 {
     int res;
@@ -103,7 +107,7 @@ int qrtas_ibm_write_pci_config(QGuestAllocator *alloc, uint64_t buid,
     args[2] = buid & 0xffffffff;
     args[3] = size;
     args[4] = val;
-    res = qrtas_call(alloc, "ibm,write-pci-config", 5, args, 1, ret);
+    res = qrtas_call(qts, alloc, "ibm,write-pci-config", 5, args, 1, ret);
     if (res != 0) {
         return -1;
     }

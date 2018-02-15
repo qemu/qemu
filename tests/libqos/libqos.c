@@ -18,18 +18,14 @@ QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap)
 {
     char *cmdline;
 
-    struct QOSState *qs = g_new(QOSState, 1);
+    QOSState *qs = g_new0(QOSState, 1);
 
     cmdline = g_strdup_vprintf(cmdline_fmt, ap);
-    qs->qts = qtest_start(cmdline);
+    qs->qts = qtest_init(cmdline);
     qs->ops = ops;
     if (ops) {
-        if (ops->init_allocator) {
-            qs->alloc = ops->init_allocator(ALLOC_NO_FLAGS);
-        }
-        if (ops->qpci_init && qs->alloc) {
-            qs->pcibus = ops->qpci_init(qs->alloc);
-        }
+        qs->alloc = ops->init_allocator(qs->qts, ALLOC_NO_FLAGS);
+        qs->pcibus = ops->qpci_init(qs->qts, qs->alloc);
     }
 
     g_free(cmdline);
@@ -85,29 +81,21 @@ void set_context(QOSState *s)
     global_qtest = s->qts;
 }
 
-static QDict *qmp_execute(const char *command)
+static QDict *qmp_execute(QTestState *qts, const char *command)
 {
-    char *fmt;
-    QDict *rsp;
-
-    fmt = g_strdup_printf("{ 'execute': '%s' }", command);
-    rsp = qmp(fmt);
-    g_free(fmt);
-
-    return rsp;
+    return qtest_qmp(qts, "{ 'execute': %s }", command);
 }
 
 void migrate(QOSState *from, QOSState *to, const char *uri)
 {
     const char *st;
-    char *s;
     QDict *rsp, *sub;
     bool running;
 
     set_context(from);
 
     /* Is the machine currently running? */
-    rsp = qmp_execute("query-status");
+    rsp = qmp_execute(from->qts, "query-status");
     g_assert(qdict_haskey(rsp, "return"));
     sub = qdict_get_qdict(rsp, "return");
     g_assert(qdict_haskey(sub, "running"));
@@ -115,30 +103,28 @@ void migrate(QOSState *from, QOSState *to, const char *uri)
     QDECREF(rsp);
 
     /* Issue the migrate command. */
-    s = g_strdup_printf("{ 'execute': 'migrate',"
-                        "'arguments': { 'uri': '%s' } }",
-                        uri);
-    rsp = qmp(s);
-    g_free(s);
+    rsp = qtest_qmp(from->qts,
+                    "{ 'execute': 'migrate', 'arguments': { 'uri': %s }}",
+                    uri);
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
     /* Wait for STOP event, but only if we were running: */
     if (running) {
-        qmp_eventwait("STOP");
+        qtest_qmp_eventwait(from->qts, "STOP");
     }
 
     /* If we were running, we can wait for an event. */
     if (running) {
         migrate_allocator(from->alloc, to->alloc);
         set_context(to);
-        qmp_eventwait("RESUME");
+        qtest_qmp_eventwait(to->qts, "RESUME");
         return;
     }
 
     /* Otherwise, we need to wait: poll until migration is completed. */
     while (1) {
-        rsp = qmp_execute("query-migrate");
+        rsp = qmp_execute(from->qts, "query-migrate");
         g_assert(qdict_haskey(rsp, "return"));
         sub = qdict_get_qdict(rsp, "return");
         g_assert(qdict_haskey(sub, "status"));

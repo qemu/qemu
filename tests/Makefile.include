@@ -319,16 +319,15 @@ check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
 check-qtest-ppc-y += tests/prom-env-test$(EXESUF)
 check-qtest-ppc-y += tests/drive_del-test$(EXESUF)
 check-qtest-ppc-y += tests/boot-serial-test$(EXESUF)
+check-qtest-ppc-y += tests/m48t59-test$(EXESUF)
+gcov-files-ppc-y += hw/timer/m48t59.c
 
-check-qtest-ppc64-y = tests/spapr-phb-test$(EXESUF)
-gcov-files-ppc64-y = ppc64-softmmu/hw/ppc/spapr_pci.c
-check-qtest-ppc64-y += tests/endianness-test$(EXESUF)
-check-qtest-ppc64-y += tests/boot-order-test$(EXESUF)
-check-qtest-ppc64-y += tests/prom-env-test$(EXESUF)
+check-qtest-ppc64-y = $(check-qtest-ppc-y)
+gcov-files-ppc64-y = $(subst ppc-softmmu/,ppc64-softmmu/,$(gcov-files-ppc-y))
+check-qtest-ppc64-y += tests/spapr-phb-test$(EXESUF)
+gcov-files-ppc64-y += ppc64-softmmu/hw/ppc/spapr_pci.c
 check-qtest-ppc64-y += tests/pnv-xscom-test$(EXESUF)
-check-qtest-ppc64-y += tests/drive_del-test$(EXESUF)
 check-qtest-ppc64-y += tests/migration-test$(EXESUF)
-check-qtest-ppc64-y += tests/boot-serial-test$(EXESUF)
 check-qtest-ppc64-y += tests/rtas-test$(EXESUF)
 check-qtest-ppc64-$(CONFIG_SLIRP) += tests/pxe-test$(EXESUF)
 check-qtest-ppc64-y += tests/usb-hcd-ohci-test$(EXESUF)
@@ -351,13 +350,13 @@ check-qtest-sh4-y = tests/endianness-test$(EXESUF)
 check-qtest-sh4eb-y = tests/endianness-test$(EXESUF)
 
 check-qtest-sparc-y = tests/prom-env-test$(EXESUF)
-#check-qtest-sparc-y += tests/m48t59-test$(EXESUF)
-#gcov-files-sparc-y = hw/timer/m48t59.c
+check-qtest-sparc-y += tests/m48t59-test$(EXESUF)
+gcov-files-sparc-y = hw/timer/m48t59.c
+check-qtest-sparc-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-sparc64-y = tests/endianness-test$(EXESUF)
-#check-qtest-sparc64-y += tests/m48t59-test$(EXESUF)
-#gcov-files-sparc64-y += hw/timer/m48t59.c
 check-qtest-sparc64-y += tests/prom-env-test$(EXESUF)
+check-qtest-sparc64-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
 check-qtest-arm-y += tests/ds1338-test$(EXESUF)
@@ -372,6 +371,7 @@ check-qtest-arm-y += tests/sdhci-test$(EXESUF)
 
 check-qtest-aarch64-y = tests/numa-test$(EXESUF)
 check-qtest-aarch64-y += tests/sdhci-test$(EXESUF)
+check-qtest-aarch64-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
 
