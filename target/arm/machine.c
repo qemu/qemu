@@ -226,6 +226,16 @@ static const VMStateDescription vmstate_m_csselr = {
     }
 };
 
+static const VMStateDescription vmstate_m_scr = {
+    .name = "cpu/m/scr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.scr[M_REG_NS], ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 4,
@@ -248,6 +258,7 @@ static const VMStateDescription vmstate_m = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_m_faultmask_primask,
         &vmstate_m_csselr,
+        &vmstate_m_scr,
         NULL
     }
 };
@@ -411,6 +422,7 @@ static const VMStateDescription vmstate_m_security = {
         VMSTATE_UINT32(env.sau.rnr, ARMCPU),
         VMSTATE_VALIDATE("SAU_RNR is valid", sau_rnr_vmstate_validate),
         VMSTATE_UINT32(env.sau.ctrl, ARMCPU),
+        VMSTATE_UINT32(env.v7m.scr[M_REG_S], ARMCPU),
         VMSTATE_END_OF_LIST()
     }
 };
