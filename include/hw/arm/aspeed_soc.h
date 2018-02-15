@@ -31,7 +31,6 @@ typedef struct AspeedSoCState {
 
     /*< public >*/
     ARMCPU cpu;
-    MemoryRegion iomem;
     MemoryRegion sram;
     AspeedVICState vic;
     AspeedTimerCtrlState timerctrl;

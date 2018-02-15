@@ -15,6 +15,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "exec/address-spaces.h"
+#include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/char/serial.h"
 #include "qemu/log.h"
@@ -99,31 +100,6 @@ static const AspeedSoCInfo aspeed_socs[] = {
     },
 };
 
-/*
- * IO handlers: simply catch any reads/writes to IO addresses that aren't
- * handled by a device mapping.
- */
-
-static uint64_t aspeed_soc_io_read(void *p, hwaddr offset, unsigned size)
-{
-    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u]\n",
-                  __func__, offset, size);
-    return 0;
-}
-
-static void aspeed_soc_io_write(void *opaque, hwaddr offset, uint64_t value,
-                unsigned size)
-{
-    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
-                  __func__, offset, value, size);
-}
-
-static const MemoryRegionOps aspeed_soc_io_ops = {
-    .read = aspeed_soc_io_read,
-    .write = aspeed_soc_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static void aspeed_soc_init(Object *obj)
 {
     AspeedSoCState *s = ASPEED_SOC(obj);
@@ -199,10 +175,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     Error *err = NULL, *local_err = NULL;
 
     /* IO space */
-    memory_region_init_io(&s->iomem, NULL, &aspeed_soc_io_ops, NULL,
-            "aspeed_soc.io", ASPEED_SOC_IOMEM_SIZE);
-    memory_region_add_subregion_overlap(get_system_memory(),
-                                        ASPEED_SOC_IOMEM_BASE, &s->iomem, -1);
+    create_unimplemented_device("aspeed_soc.io",
+                                ASPEED_SOC_IOMEM_BASE, ASPEED_SOC_IOMEM_SIZE);
 
     /* CPU */
     object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
