@@ -128,21 +128,21 @@ typedef struct NBDStructuredError {
 #define NBD_FLAG_C_NO_ZEROES      (1 << 1) /* End handshake without zeroes. */
 
 /* Option requests. */
-#define NBD_OPT_EXPORT_NAME      (1)
-#define NBD_OPT_ABORT            (2)
-#define NBD_OPT_LIST             (3)
-/* #define NBD_OPT_PEEK_EXPORT   (4) not in use */
-#define NBD_OPT_STARTTLS         (5)
-#define NBD_OPT_INFO             (6)
-#define NBD_OPT_GO               (7)
-#define NBD_OPT_STRUCTURED_REPLY (8)
+#define NBD_OPT_EXPORT_NAME       (1)
+#define NBD_OPT_ABORT             (2)
+#define NBD_OPT_LIST              (3)
+/* #define NBD_OPT_PEEK_EXPORT    (4) not in use */
+#define NBD_OPT_STARTTLS          (5)
+#define NBD_OPT_INFO              (6)
+#define NBD_OPT_GO                (7)
+#define NBD_OPT_STRUCTURED_REPLY  (8)
 
 /* Option reply types. */
 #define NBD_REP_ERR(value) ((UINT32_C(1) << 31) | (value))
 
-#define NBD_REP_ACK             (1)             /* Data sending finished. */
-#define NBD_REP_SERVER          (2)             /* Export description. */
-#define NBD_REP_INFO            (3)             /* NBD_OPT_INFO/GO. */
+#define NBD_REP_ACK             (1)    /* Data sending finished. */
+#define NBD_REP_SERVER          (2)    /* Export description. */
+#define NBD_REP_INFO            (3)    /* NBD_OPT_INFO/GO. */
 
 #define NBD_REP_ERR_UNSUP           NBD_REP_ERR(1)  /* Unknown option */
 #define NBD_REP_ERR_POLICY          NBD_REP_ERR(2)  /* Server denied */
