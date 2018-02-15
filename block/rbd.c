@@ -326,28 +326,6 @@ static QemuOptsList runtime_opts = {
         /*
          * server.* extracted manually, see qemu_rbd_mon_host()
          */
-        {
-            .name = "password-secret",
-            .type = QEMU_OPT_STRING,
-            .help = "ID of secret providing the password",
-        },
-
-        /*
-         * Keys for qemu_rbd_parse_filename(), not in the QAPI schema
-         */
-        {
-            /*
-             * HACK: name starts with '=' so that qemu_opts_parse()
-             * can't set it
-             */
-            .name = "=keyvalue-pairs",
-            .type = QEMU_OPT_STRING,
-            .help = "Legacy rados key/value option parameters",
-        },
-        {
-            .name = "filename",
-            .type = QEMU_OPT_STRING,
-        },
         { /* end of list */ }
     },
 };
@@ -548,12 +526,13 @@ out:
 
 static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
                             char **s_snap, char **s_image_name,
-                            QDict *options, bool cache, Error **errp)
+                            QDict *options, bool cache,
+                            const char *keypairs, const char *secretid,
+                            Error **errp)
 {
     QemuOpts *opts;
     char *mon_host = NULL;
-    const char *pool, *snap, *conf, *user, *image_name, *keypairs;
-    const char *secretid;
+    const char *pool, *snap, *conf, *user, *image_name;
     Error *local_err = NULL;
     int r;
 
@@ -572,14 +551,11 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
         goto failed_opts;
     }
 
-    secretid = qemu_opt_get(opts, "password-secret");
-
     pool           = qemu_opt_get(opts, "pool");
     conf           = qemu_opt_get(opts, "conf");
     snap           = qemu_opt_get(opts, "snapshot");
     user           = qemu_opt_get(opts, "user");
     image_name     = qemu_opt_get(opts, "image");
-    keypairs       = qemu_opt_get(opts, "=keyvalue-pairs");
 
     if (!pool || !image_name) {
         error_setg(errp, "Parameters 'pool' and 'image' are required");
@@ -664,6 +640,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVRBDState *s = bs->opaque;
     Error *local_err = NULL;
     const char *filename;
+    char *keypairs, *secretid;
     int r;
 
     /* If we are given a filename, parse the filename, with precedence given to
@@ -674,16 +651,28 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
                     "This is an unsupported option, and may be deprecated "
                     "in the future");
         qemu_rbd_parse_filename(filename, options, &local_err);
+        qdict_del(options, "filename");
         if (local_err) {
             error_propagate(errp, local_err);
             return -EINVAL;
         }
     }
 
+    keypairs = g_strdup(qdict_get_try_str(options, "=keyvalue-pairs"));
+    if (keypairs) {
+        qdict_del(options, "=keyvalue-pairs");
+    }
+
+    secretid = g_strdup(qdict_get_try_str(options, "password-secret"));
+    if (secretid) {
+        qdict_del(options, "password-secret");
+    }
+
     r = qemu_rbd_connect(&s->cluster, &s->io_ctx, &s->snap, &s->image_name,
-                         options, !(flags & BDRV_O_NOCACHE), errp);
+                         options, !(flags & BDRV_O_NOCACHE), keypairs, secretid,
+                         errp);
     if (r < 0) {
-        return r;
+        goto out;
     }
 
     /* rbd_open is always r/w */
@@ -710,13 +699,17 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    return 0;
+    r = 0;
+    goto out;
 
 failed_open:
     rados_ioctx_destroy(s->io_ctx);
     g_free(s->snap);
     g_free(s->image_name);
     rados_shutdown(s->cluster);
+out:
+    g_free(keypairs);
+    g_free(secretid);
     return r;
 }
 
