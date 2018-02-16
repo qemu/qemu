@@ -205,7 +205,9 @@ static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
 static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
                                            uint8_t val, Error **errp)
 {
-    if (tcg_enabled() && val) {
+    if (val == SPAPR_CAP_WORKAROUND) { /* Can only be Broken or Fixed */
+        error_setg(errp, "Requested safe indirect branch capability level \"workaround\" not valid, try cap-ibs=fixed");
+    } else if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
         error_setg(errp, "Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
     } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_indirect_branch())) {
@@ -263,7 +265,7 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     },
     [SPAPR_CAP_IBS] = {
         .name = "ibs",
-        .description = "Indirect Branch Serialisation" VALUE_DESC_TRISTATE,
+        .description = "Indirect Branch Serialisation (broken, fixed)",
         .index = SPAPR_CAP_IBS,
         .get = spapr_cap_get_tristate,
         .set = spapr_cap_set_tristate,
