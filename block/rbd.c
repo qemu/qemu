@@ -265,13 +265,14 @@ static int qemu_rbd_set_keypairs(rados_t cluster, const char *keypairs_json,
         key = qstring_get_str(name);
 
         ret = rados_conf_set(cluster, key, qstring_get_str(value));
-        QDECREF(name);
         QDECREF(value);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "invalid conf option %s", key);
+            QDECREF(name);
             ret = -EINVAL;
             break;
         }
+        QDECREF(name);
     }
 
     QDECREF(keypairs);
