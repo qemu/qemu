@@ -103,6 +103,11 @@ typedef struct BDRVRBDState {
     char *snap;
 } BDRVRBDState;
 
+static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
+                            BlockdevOptionsRbd *opts, bool cache,
+                            const char *keypairs, const char *secretid,
+                            Error **errp);
+
 static char *qemu_rbd_next_tok(char *src, char delim, char **p)
 {
     char *end;
@@ -351,12 +356,6 @@ static int qemu_rbd_do_create(BlockdevCreateOptions *options,
         return -EINVAL;
     }
 
-    /* TODO Remove the limitation */
-    if (opts->location->has_server) {
-        error_setg(errp, "Can't specify server for image creation");
-        return -EINVAL;
-    }
-
     if (opts->has_cluster_size) {
         int64_t objsize = opts->cluster_size;
         if ((objsize - 1) & objsize) {    /* not a power of 2? */
@@ -370,54 +369,21 @@ static int qemu_rbd_do_create(BlockdevCreateOptions *options,
         obj_order = ctz32(objsize);
     }
 
-    ret = rados_create(&cluster, opts->location->user);
+    ret = qemu_rbd_connect(&cluster, &io_ctx, opts->location, false, keypairs,
+                           password_secret, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "error initializing");
         return ret;
-    }
-
-    /* try default location when conf=NULL, but ignore failure */
-    ret = rados_conf_read_file(cluster, opts->location->conf);
-    if (opts->location->conf && ret < 0) {
-        error_setg_errno(errp, -ret, "error reading conf file %s",
-                         opts->location->conf);
-        ret = -EIO;
-        goto shutdown;
-    }
-
-    ret = qemu_rbd_set_keypairs(cluster, keypairs, errp);
-    if (ret < 0) {
-        ret = -EIO;
-        goto shutdown;
-    }
-
-    if (qemu_rbd_set_auth(cluster, password_secret, errp) < 0) {
-        ret = -EIO;
-        goto shutdown;
-    }
-
-    ret = rados_connect(cluster);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "error connecting");
-        goto shutdown;
-    }
-
-    ret = rados_ioctx_create(cluster, opts->location->pool, &io_ctx);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "error opening pool %s",
-                         opts->location->pool);
-        goto shutdown;
     }
 
     ret = rbd_create(io_ctx, opts->location->image, opts->size, &obj_order);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "error rbd create");
+        goto out;
     }
 
-    rados_ioctx_destroy(io_ctx);
-
     ret = 0;
-shutdown:
+out:
+    rados_ioctx_destroy(io_ctx);
     rados_shutdown(cluster);
     return ret;
 }
