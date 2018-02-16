@@ -73,6 +73,14 @@ struct BlockBackend {
     int quiesce_counter;
     VMChangeStateEntry *vmsh;
     bool force_allow_inactivate;
+
+    /* Number of in-flight aio requests.  BlockDriverState also counts
+     * in-flight requests but aio requests can exist even when blk->root is
+     * NULL, so we cannot rely on its counter for that case.
+     * Accessed with atomic ops.
+     */
+    unsigned int in_flight;
+    AioWait wait;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -1225,11 +1233,22 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
     return bdrv_make_zero(blk->root, flags);
 }
 
+static void blk_inc_in_flight(BlockBackend *blk)
+{
+    atomic_inc(&blk->in_flight);
+}
+
+static void blk_dec_in_flight(BlockBackend *blk)
+{
+    atomic_dec(&blk->in_flight);
+    aio_wait_kick(&blk->wait);
+}
+
 static void error_callback_bh(void *opaque)
 {
     struct BlockBackendAIOCB *acb = opaque;
 
-    bdrv_dec_in_flight(acb->common.bs);
+    blk_dec_in_flight(acb->blk);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_unref(acb);
 }
@@ -1240,7 +1259,7 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
 {
     struct BlockBackendAIOCB *acb;
 
-    bdrv_inc_in_flight(blk_bs(blk));
+    blk_inc_in_flight(blk);
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
     acb->blk = blk;
     acb->ret = ret;
@@ -1263,7 +1282,7 @@ static const AIOCBInfo blk_aio_em_aiocb_info = {
 static void blk_aio_complete(BlkAioEmAIOCB *acb)
 {
     if (acb->has_returned) {
-        bdrv_dec_in_flight(acb->common.bs);
+        blk_dec_in_flight(acb->rwco.blk);
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
         qemu_aio_unref(acb);
     }
@@ -1284,7 +1303,7 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     BlkAioEmAIOCB *acb;
     Coroutine *co;
 
-    bdrv_inc_in_flight(blk_bs(blk));
+    blk_inc_in_flight(blk);
     acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
     acb->rwco = (BlkRwCo) {
         .blk    = blk,
@@ -1521,14 +1540,41 @@ int blk_flush(BlockBackend *blk)
 
 void blk_drain(BlockBackend *blk)
 {
-    if (blk_bs(blk)) {
-        bdrv_drain(blk_bs(blk));
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_drained_begin(bs);
+    }
+
+    /* We may have -ENOMEDIUM completions in flight */
+    AIO_WAIT_WHILE(&blk->wait,
+            blk_get_aio_context(blk),
+            atomic_mb_read(&blk->in_flight) > 0);
+
+    if (bs) {
+        bdrv_drained_end(bs);
     }
 }
 
 void blk_drain_all(void)
 {
-    bdrv_drain_all();
+    BlockBackend *blk = NULL;
+
+    bdrv_drain_all_begin();
+
+    while ((blk = blk_all_next(blk)) != NULL) {
+        AioContext *ctx = blk_get_aio_context(blk);
+
+        aio_context_acquire(ctx);
+
+        /* We may have -ENOMEDIUM completions in flight */
+        AIO_WAIT_WHILE(&blk->wait, ctx,
+                atomic_mb_read(&blk->in_flight) > 0);
+
+        aio_context_release(ctx);
+    }
+
+    bdrv_drain_all_end();
 }
 
 void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
