@@ -408,7 +408,7 @@
 # @CpuInfoArch:
 #
 # An enumeration of cpu types that enable additional information during
-# @query-cpus.
+# @query-cpus and @query-cpus-fast.
 #
 # @s390: since 2.12
 #
@@ -604,12 +604,24 @@
 # @props: properties describing to which node/socket/core/thread
 #         virtual CPU belongs to, provided if supported by board
 #
+# @arch: architecture of the cpu, which determines which additional fields
+#        will be listed
+#
 # Since: 2.12
 #
 ##
-{ 'struct': 'CpuInfoFast',
-  'data': {'cpu-index': 'int', 'qom-path': 'str',
-           'thread-id': 'int', '*props': 'CpuInstanceProperties' } }
+{ 'union': 'CpuInfoFast',
+  'base': {'cpu-index': 'int', 'qom-path': 'str',
+           'thread-id': 'int', '*props': 'CpuInstanceProperties',
+           'arch': 'CpuInfoArch' },
+  'discriminator': 'arch',
+  'data': { 'x86': 'CpuInfoOther',
+            'sparc': 'CpuInfoOther',
+            'ppc': 'CpuInfoOther',
+            'mips': 'CpuInfoOther',
+            'tricore': 'CpuInfoOther',
+            's390': 'CpuInfoS390',
+            'other': 'CpuInfoOther' } }
 
 ##
 # @query-cpus-fast:
@@ -619,9 +631,6 @@
 # instead of query-cpus.
 #
 # Returns: list of @CpuInfoFast
-#
-# Notes: The CPU architecture name is not returned by query-cpus-fast.
-#        Use query-target to retrieve that information.
 #
 # Since: 2.12
 #
@@ -637,6 +646,7 @@
 #                 "socket-id": 0
 #             },
 #             "qom-path": "/machine/unattached/device[0]",
+#             "arch":"x86",
 #             "cpu-index": 0
 #         },
 #         {
@@ -647,6 +657,7 @@
 #                 "socket-id": 1
 #             },
 #             "qom-path": "/machine/unattached/device[2]",
+#             "arch":"x86",
 #             "cpu-index": 1
 #         }
 #     ]
