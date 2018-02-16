@@ -410,10 +410,12 @@
 # An enumeration of cpu types that enable additional information during
 # @query-cpus.
 #
+# @s390: since 2.12
+#
 # Since: 2.6
 ##
 { 'enum': 'CpuInfoArch',
-  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 'other' ] }
+  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 's390', 'other' ] }
 
 ##
 # @CpuInfo:
@@ -452,6 +454,7 @@
             'ppc': 'CpuInfoPPC',
             'mips': 'CpuInfoMIPS',
             'tricore': 'CpuInfoTricore',
+            's390': 'CpuInfoS390',
             'other': 'CpuInfoOther' } }
 
 ##
@@ -520,6 +523,29 @@
 #
 ##
 { 'struct': 'CpuInfoOther', 'data': { } }
+
+##
+# @CpuS390State:
+#
+# An enumeration of cpu states that can be assumed by a virtual
+# S390 CPU
+#
+# Since: 2.12
+##
+{ 'enum': 'CpuS390State',
+  'prefix': 'S390_CPU_STATE',
+  'data': [ 'uninitialized', 'stopped', 'check-stop', 'operating', 'load' ] }
+
+##
+# @CpuInfoS390:
+#
+# Additional information about a virtual S390 CPU
+#
+# @cpu-state: the virtual CPU's state
+#
+# Since: 2.12
+##
+{ 'struct': 'CpuInfoS390', 'data': { 'cpu-state': 'CpuS390State' } }
 
 ##
 # @query-cpus:

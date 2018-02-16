@@ -192,8 +192,8 @@ static void qemu_s390_flic_notify(uint32_t type)
         cs->interrupt_request |= CPU_INTERRUPT_HARD;
 
         /* ignore CPUs that are not sleeping */
-        if (s390_cpu_get_state(cpu) != CPU_STATE_OPERATING &&
-            s390_cpu_get_state(cpu) != CPU_STATE_LOAD) {
+        if (s390_cpu_get_state(cpu) != S390_CPU_STATE_OPERATING &&
+            s390_cpu_get_state(cpu) != S390_CPU_STATE_LOAD) {
             continue;
         }
 

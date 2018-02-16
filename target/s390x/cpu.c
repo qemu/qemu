@@ -61,8 +61,8 @@ static bool s390_cpu_has_work(CPUState *cs)
     S390CPU *cpu = S390_CPU(cs);
 
     /* STOPPED cpus can never wake up */
-    if (s390_cpu_get_state(cpu) != CPU_STATE_LOAD &&
-        s390_cpu_get_state(cpu) != CPU_STATE_OPERATING) {
+    if (s390_cpu_get_state(cpu) != S390_CPU_STATE_LOAD &&
+        s390_cpu_get_state(cpu) != S390_CPU_STATE_OPERATING) {
         return false;
     }
 
@@ -80,7 +80,7 @@ static void s390_cpu_load_normal(CPUState *s)
     S390CPU *cpu = S390_CPU(s);
     cpu->env.psw.addr = ldl_phys(s->as, 4) & PSW_MASK_ESA_ADDR;
     cpu->env.psw.mask = PSW_MASK_32 | PSW_MASK_64;
-    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
 }
 #endif
 
@@ -95,7 +95,7 @@ static void s390_cpu_reset(CPUState *s)
     env->bpbc = false;
     scc->parent_reset(s);
     cpu->env.sigp_order = 0;
-    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 }
 
 /* S390CPUClass::initial_reset() */
@@ -138,7 +138,7 @@ static void s390_cpu_full_reset(CPUState *s)
 
     scc->parent_reset(s);
     cpu->env.sigp_order = 0;
-    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 
     memset(env, 0, offsetof(CPUS390XState, end_reset_fields));
 
@@ -292,7 +292,7 @@ static void s390_cpu_initfn(Object *obj)
     env->tod_basetime = 0;
     env->tod_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);
     env->cpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
-    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 #endif
 }
 
@@ -320,8 +320,8 @@ static unsigned s390_count_running_cpus(void)
 
     CPU_FOREACH(cpu) {
         uint8_t state = S390_CPU(cpu)->env.cpu_state;
-        if (state == CPU_STATE_OPERATING ||
-            state == CPU_STATE_LOAD) {
+        if (state == S390_CPU_STATE_OPERATING ||
+            state == S390_CPU_STATE_LOAD) {
             if (!disabled_wait(cpu)) {
                 nr_running++;
             }
@@ -360,13 +360,13 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
     trace_cpu_set_state(CPU(cpu)->cpu_index, cpu_state);
 
     switch (cpu_state) {
-    case CPU_STATE_STOPPED:
-    case CPU_STATE_CHECK_STOP:
+    case S390_CPU_STATE_STOPPED:
+    case S390_CPU_STATE_CHECK_STOP:
         /* halt the cpu for common infrastructure */
         s390_cpu_halt(cpu);
         break;
-    case CPU_STATE_OPERATING:
-    case CPU_STATE_LOAD:
+    case S390_CPU_STATE_OPERATING:
+    case S390_CPU_STATE_LOAD:
         /*
          * Starting a CPU with a PSW WAIT bit set:
          * KVM: handles this internally and triggers another WAIT exit.

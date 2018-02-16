@@ -368,7 +368,7 @@ static void s390_machine_reset(void)
 
     /* all cpus are stopped - configure and start the ipl cpu only */
     s390_ipl_prepare_cpu(ipl_cpu);
-    s390_cpu_set_state(CPU_STATE_OPERATING, ipl_cpu);
+    s390_cpu_set_state(S390_CPU_STATE_OPERATING, ipl_cpu);
 }
 
 static void s390_machine_device_plug(HotplugHandler *hotplug_dev,

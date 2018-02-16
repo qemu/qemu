@@ -1880,16 +1880,16 @@ int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
     }
 
     switch (cpu_state) {
-    case CPU_STATE_STOPPED:
+    case S390_CPU_STATE_STOPPED:
         mp_state.mp_state = KVM_MP_STATE_STOPPED;
         break;
-    case CPU_STATE_CHECK_STOP:
+    case S390_CPU_STATE_CHECK_STOP:
         mp_state.mp_state = KVM_MP_STATE_CHECK_STOP;
         break;
-    case CPU_STATE_OPERATING:
+    case S390_CPU_STATE_OPERATING:
         mp_state.mp_state = KVM_MP_STATE_OPERATING;
         break;
-    case CPU_STATE_LOAD:
+    case S390_CPU_STATE_LOAD:
         mp_state.mp_state = KVM_MP_STATE_LOAD;
         break;
     default:
