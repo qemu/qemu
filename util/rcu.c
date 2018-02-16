@@ -92,8 +92,9 @@ static void wait_for_readers(void)
             atomic_set(&index->waiting, true);
         }
 
-        /* Here, order the stores to index->waiting before the
-         * loads of index->ctr.
+        /* Here, order the stores to index->waiting before the loads of
+         * index->ctr.  Pairs with smp_mb() in rcu_read_unlock(),
+         * ensuring that the loads of index->ctr are sequentially consistent.
          */
         smp_mb();
 
@@ -142,8 +143,13 @@ static void wait_for_readers(void)
 void synchronize_rcu(void)
 {
     qemu_mutex_lock(&rcu_sync_lock);
-    qemu_mutex_lock(&rcu_registry_lock);
 
+    /* Write RCU-protected pointers before reading p_rcu_reader->ctr.
+     * Pairs with smp_mb() in rcu_read_lock().
+     */
+    smp_mb();
+
+    qemu_mutex_lock(&rcu_registry_lock);
     if (!QLIST_EMPTY(&registry)) {
         /* In either case, the atomic_mb_set below blocks stores that free
          * old RCU-protected pointers.
