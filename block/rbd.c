@@ -571,7 +571,6 @@ static char *qemu_rbd_mon_host(BlockdevOptionsRbd *opts, Error **errp)
 }
 
 static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
-                            char **s_snap, char **s_image_name,
                             BlockdevOptionsRbd *opts, bool cache,
                             const char *keypairs, const char *secretid,
                             Error **errp)
@@ -592,9 +591,6 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
         error_setg_errno(errp, -r, "error initializing");
         goto failed_opts;
     }
-
-    *s_snap = g_strdup(opts->snapshot);
-    *s_image_name = g_strdup(opts->image);
 
     /* try default location when conf=NULL, but ignore failure */
     r = rados_conf_read_file(*cluster, opts->conf);
@@ -649,8 +645,6 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
 
 failed_shutdown:
     rados_shutdown(*cluster);
-    g_free(*s_snap);
-    g_free(*s_image_name);
 failed_opts:
     g_free(mon_host);
     return r;
@@ -711,12 +705,14 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    r = qemu_rbd_connect(&s->cluster, &s->io_ctx, &s->snap, &s->image_name,
-                         opts, !(flags & BDRV_O_NOCACHE), keypairs, secretid,
-                         errp);
+    r = qemu_rbd_connect(&s->cluster, &s->io_ctx, opts,
+                         !(flags & BDRV_O_NOCACHE), keypairs, secretid, errp);
     if (r < 0) {
         goto out;
     }
+
+    s->snap = g_strdup(opts->snapshot);
+    s->image_name = g_strdup(opts->image);
 
     /* rbd_open is always r/w */
     r = rbd_open(s->io_ctx, s->image_name, &s->image, s->snap);
