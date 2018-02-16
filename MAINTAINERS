@@ -386,6 +386,12 @@ M: Kamil Rytarowski <kamil@netbsd.org>
 S: Maintained
 K: ^Subject:.*(?i)NetBSD
 
+OPENBSD
+L: qemu-devel@nongnu.org
+M: Brad Smith <brad@comstyle.com>
+S: Maintained
+K: ^Subject:.*(?i)OpenBSD
+
 W32, W64
 L: qemu-devel@nongnu.org
 M: Stefan Weil <sw@weilnetz.de>

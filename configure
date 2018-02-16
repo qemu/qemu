@@ -760,6 +760,7 @@ OpenBSD)
   audio_drv_list="sdl"
   audio_possible_drivers="sdl"
   HOST_VARIANT_DIR="openbsd"
+  supported_os="yes"
 ;;
 Darwin)
   bsd="yes"
