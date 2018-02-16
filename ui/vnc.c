@@ -982,14 +982,7 @@ static void vnc_update_throttle_offset(VncState *vs)
         vs->client_width * vs->client_height * vs->client_pf.bytes_per_pixel;
 
     if (vs->audio_cap) {
-        int freq = vs->as.freq;
-        /* We don't limit freq when reading settings from client, so
-         * it could be upto MAX_INT in size. 48khz is a sensible
-         * upper bound for trustworthy clients */
         int bps;
-        if (freq > 48000) {
-            freq = 48000;
-        }
         switch (vs->as.fmt) {
         default:
         case  AUD_FMT_U8:
@@ -1005,7 +998,7 @@ static void vnc_update_throttle_offset(VncState *vs)
             bps = 4;
             break;
         }
-        offset += freq * bps * vs->as.nchannels;
+        offset += vs->as.freq * bps * vs->as.nchannels;
     }
 
     /* Put a floor of 1MB on offset, so that if we have a large pending
@@ -1536,11 +1529,18 @@ gboolean vnc_client_io(QIOChannel *ioc G_GNUC_UNUSED,
     VncState *vs = opaque;
     if (condition & G_IO_IN) {
         if (vnc_client_read(vs) < 0) {
-            return TRUE;
+            goto end;
         }
     }
     if (condition & G_IO_OUT) {
         vnc_client_write(vs);
+    }
+end:
+    if (vs->disconnecting) {
+        if (vs->ioc_tag != 0) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = 0;
     }
     return TRUE;
 }
@@ -1572,8 +1572,8 @@ void vnc_write(VncState *vs, const void *data, size_t len)
      * handshake, or from the job thread's VncState clone
      */
     if (vs->throttle_output_offset != 0 &&
-        vs->output.offset > (vs->throttle_output_offset *
-                             VNC_THROTTLE_OUTPUT_LIMIT_SCALE)) {
+        (vs->output.offset / VNC_THROTTLE_OUTPUT_LIMIT_SCALE) >
+        vs->throttle_output_offset) {
         trace_vnc_client_output_limit(vs, vs->ioc, vs->output.offset,
                                       vs->throttle_output_offset);
         vnc_disconnect_start(vs);
@@ -1629,6 +1629,12 @@ void vnc_flush(VncState *vs)
     vnc_lock_output(vs);
     if (vs->ioc != NULL && vs->output.offset) {
         vnc_client_write_locked(vs);
+    }
+    if (vs->disconnecting) {
+        if (vs->ioc_tag != 0) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = 0;
     }
     vnc_unlock_output(vs);
 }
@@ -2279,6 +2285,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 {
     int i;
     uint16_t limit;
+    uint32_t freq;
     VncDisplay *vd = vs->vd;
 
     if (data[0] > 3) {
@@ -2398,7 +2405,17 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                     vnc_client_error(vs);
                     break;
                 }
-                vs->as.freq = read_u32(data, 6);
+                freq = read_u32(data, 6);
+                /* No official limit for protocol, but 48khz is a sensible
+                 * upper bound for trustworthy clients, and this limit
+                 * protects calculations involving 'vs->as.freq' later.
+                 */
+                if (freq > 48000) {
+                    VNC_DEBUG("Invalid audio frequency %u > 48000", freq);
+                    vnc_client_error(vs);
+                    break;
+                }
+                vs->as.freq = freq;
                 break;
             default:
                 VNC_DEBUG("Invalid audio message %d\n", read_u8(data, 4));
@@ -3152,7 +3169,6 @@ static void vnc_listen_io(QIONetListener *listener,
                          isWebsock ? "vnc-ws-server" : "vnc-server");
     qio_channel_set_delay(QIO_CHANNEL(cioc), false);
     vnc_connect(vd, cioc, false, isWebsock);
-    object_unref(OBJECT(cioc));
 }
 
 static const DisplayChangeListenerOps dcl_ops = {
