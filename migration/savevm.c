@@ -1257,8 +1257,11 @@ void qemu_savevm_state_cleanup(void)
 static int qemu_savevm_state(QEMUFile *f, Error **errp)
 {
     int ret;
-    MigrationState *ms = migrate_init();
+    MigrationState *ms = migrate_get_current();
     MigrationStatus status;
+
+    migrate_init(ms);
+
     ms->to_dst_file = f;
 
     if (migration_is_blocked(errp)) {
@@ -1781,6 +1784,11 @@ static int loadvm_process_command(QEMUFile *f)
     cmd = qemu_get_be16(f);
     len = qemu_get_be16(f);
 
+    /* Check validity before continue processing of cmds */
+    if (qemu_file_get_error(f)) {
+        return qemu_file_get_error(f);
+    }
+
     trace_loadvm_process_command(cmd, len);
     if (cmd >= MIG_CMD_MAX || cmd == MIG_CMD_INVALID) {
         error_report("MIG_CMD 0x%x unknown (len 0x%x)", cmd, len);
@@ -1846,6 +1854,7 @@ static int loadvm_process_command(QEMUFile *f)
  */
 static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
 {
+    int ret;
     uint8_t read_mark;
     uint32_t read_section_id;
 
@@ -1855,6 +1864,13 @@ static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
     }
 
     read_mark = qemu_get_byte(f);
+
+    ret = qemu_file_get_error(f);
+    if (ret) {
+        error_report("%s: Read section footer failed: %d",
+                     __func__, ret);
+        return false;
+    }
 
     if (read_mark != QEMU_VM_SECTION_FOOTER) {
         error_report("Missing section footer for %s", se->idstr);
@@ -1890,6 +1906,13 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
     }
     instance_id = qemu_get_be32(f);
     version_id = qemu_get_be32(f);
+
+    ret = qemu_file_get_error(f);
+    if (ret) {
+        error_report("%s: Failed to read instance/version ID: %d",
+                     __func__, ret);
+        return ret;
+    }
 
     trace_qemu_loadvm_state_section_startfull(section_id, idstr,
             instance_id, version_id);
@@ -1937,6 +1960,13 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
     int ret;
 
     section_id = qemu_get_be32(f);
+
+    ret = qemu_file_get_error(f);
+    if (ret) {
+        error_report("%s: Failed to read section ID: %d",
+                     __func__, ret);
+        return ret;
+    }
 
     trace_qemu_loadvm_state_section_partend(section_id);
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
@@ -2005,8 +2035,14 @@ static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
     uint8_t section_type;
     int ret = 0;
 
-    while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
-        ret = 0;
+    while (true) {
+        section_type = qemu_get_byte(f);
+
+        if (qemu_file_get_error(f)) {
+            ret = qemu_file_get_error(f);
+            break;
+        }
+
         trace_qemu_loadvm_state_section(section_type);
         switch (section_type) {
         case QEMU_VM_SECTION_START:
@@ -2030,6 +2066,9 @@ static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
                 goto out;
             }
             break;
+        case QEMU_VM_EOF:
+            /* This is the end of migration */
+            goto out;
         default:
             error_report("Unknown savevm section type %d", section_type);
             ret = -EINVAL;
@@ -2284,8 +2323,7 @@ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
     f = qemu_fopen_channel_output(QIO_CHANNEL(ioc));
     object_unref(OBJECT(ioc));
     ret = qemu_save_device_state(f);
-    qemu_fclose(f);
-    if (ret < 0) {
+    if (ret < 0 || qemu_fclose(f) < 0) {
         error_setg(errp, QERR_IO_ERROR);
     } else {
         /* libxl calls the QMP command "stop" before calling
