@@ -26,6 +26,7 @@
 
 #include "block/accounting.h"
 #include "block/block.h"
+#include "block/aio-wait.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
 #include "qemu/stats64.h"
@@ -716,10 +717,8 @@ struct BlockDriverState {
     unsigned int in_flight;
     unsigned int serialising_in_flight;
 
-    /* Internal to BDRV_POLL_WHILE and bdrv_wakeup.  Accessed with atomic
-     * ops.
-     */
-    bool wakeup;
+    /* Kicked to signal main loop when a request completes. */
+    AioWait wait;
 
     /* counter for nested bdrv_io_plug.
      * Accessed with atomic ops.

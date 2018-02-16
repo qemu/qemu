@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "trace.h"
 #include "sysemu/block-backend.h"
+#include "block/aio-wait.h"
 #include "block/blockjob.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
@@ -587,16 +588,9 @@ void bdrv_inc_in_flight(BlockDriverState *bs)
     atomic_inc(&bs->in_flight);
 }
 
-static void dummy_bh_cb(void *opaque)
-{
-}
-
 void bdrv_wakeup(BlockDriverState *bs)
 {
-    /* The barrier (or an atomic op) is in the caller.  */
-    if (atomic_read(&bs->wakeup)) {
-        aio_bh_schedule_oneshot(qemu_get_aio_context(), dummy_bh_cb, NULL);
-    }
+    aio_wait_kick(bdrv_get_aio_wait(bs));
 }
 
 void bdrv_dec_in_flight(BlockDriverState *bs)

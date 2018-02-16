@@ -2,6 +2,7 @@
 #define BLOCK_H
 
 #include "block/aio.h"
+#include "block/aio-wait.h"
 #include "qapi-types.h"
 #include "qemu/iov.h"
 #include "qemu/coroutine.h"
@@ -367,41 +368,14 @@ void bdrv_drain_all_begin(void);
 void bdrv_drain_all_end(void);
 void bdrv_drain_all(void);
 
+/* Returns NULL when bs == NULL */
+AioWait *bdrv_get_aio_wait(BlockDriverState *bs);
+
 #define BDRV_POLL_WHILE(bs, cond) ({                       \
-    bool waited_ = false;                                  \
-    bool busy_ = true;                                     \
     BlockDriverState *bs_ = (bs);                          \
-    AioContext *ctx_ = bdrv_get_aio_context(bs_);          \
-    if (in_aio_context_home_thread(ctx_)) {                \
-        while ((cond) || busy_) {                          \
-            busy_ = aio_poll(ctx_, (cond));                \
-            waited_ |= !!(cond) | busy_;                   \
-        }                                                  \
-    } else {                                               \
-        assert(qemu_get_current_aio_context() ==           \
-               qemu_get_aio_context());                    \
-        /* Ask bdrv_dec_in_flight to wake up the main      \
-         * QEMU AioContext.  Extra I/O threads never take  \
-         * other I/O threads' AioContexts (see for example \
-         * block_job_defer_to_main_loop for how to do it). \
-         */                                                \
-        assert(!bs_->wakeup);                              \
-        /* Set bs->wakeup before evaluating cond.  */      \
-        atomic_mb_set(&bs_->wakeup, true);                 \
-        while (busy_) {                                    \
-            if ((cond)) {                                  \
-                waited_ = busy_ = true;                    \
-                aio_context_release(ctx_);                 \
-                aio_poll(qemu_get_aio_context(), true);    \
-                aio_context_acquire(ctx_);                 \
-            } else {                                       \
-                busy_ = aio_poll(ctx_, false);             \
-                waited_ |= busy_;                          \
-            }                                              \
-        }                                                  \
-        atomic_set(&bs_->wakeup, false);                   \
-    }                                                      \
-    waited_; })
+    AIO_WAIT_WHILE(bdrv_get_aio_wait(bs_),                 \
+                   bdrv_get_aio_context(bs_),              \
+                   cond); })
 
 int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
 int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
