@@ -234,6 +234,7 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
     for (i = 0; i < listener->nsioc; i++) {
         g_source_unref(sources[i]);
     }
+    g_free(sources);
     g_main_loop_unref(loop);
     g_main_context_unref(ctxt);
 
