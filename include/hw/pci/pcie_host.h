@@ -65,7 +65,7 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
  * bit 12 - 14: function number
  * bit  0 - 11: offset in configuration space of a given device
  */
-#define PCIE_MMCFG_SIZE_MAX             (1ULL << 28)
+#define PCIE_MMCFG_SIZE_MAX             (1ULL << 29)
 #define PCIE_MMCFG_SIZE_MIN             (1ULL << 20)
 #define PCIE_MMCFG_BUS_BIT              20
 #define PCIE_MMCFG_BUS_MASK             0x1ff

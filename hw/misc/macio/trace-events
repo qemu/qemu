@@ -1,0 +1,11 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/misc/macio/cuda.c
+cuda_delay_set_sr_int(void) ""
+cuda_data_send(uint8_t data) "send: 0x%02x"
+cuda_data_recv(uint8_t data) "recv: 0x%02x"
+cuda_receive_packet_cmd(const char *cmd) "handling command %s"
+cuda_packet_receive(int len) "length %d"
+cuda_packet_receive_data(int i, const uint8_t data) "[%d] 0x%02x"
+cuda_packet_send(int len) "length %d"
+cuda_packet_send_data(int i, const uint8_t data) "[%d] 0x%02x"

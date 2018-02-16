@@ -15,7 +15,7 @@ static void gen_##name(DisasContext *ctx)        \
         gen_exception(ctx, POWERPC_EXCP_FPU);    \
         return;                                  \
     }                                            \
-    gen_update_nip(ctx, ctx->nip - 4);           \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);  \
     rd = gen_fprp_ptr(rD(ctx->opcode));          \
     ra = gen_fprp_ptr(rA(ctx->opcode));          \
     rb = gen_fprp_ptr(rB(ctx->opcode));          \
@@ -36,7 +36,7 @@ static void gen_##name(DisasContext *ctx)         \
         gen_exception(ctx, POWERPC_EXCP_FPU);     \
         return;                                   \
     }                                             \
-    gen_update_nip(ctx, ctx->nip - 4);            \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);            \
     ra = gen_fprp_ptr(rA(ctx->opcode));           \
     rb = gen_fprp_ptr(rB(ctx->opcode));           \
     gen_helper_##name(cpu_crf[crfD(ctx->opcode)], \
@@ -54,7 +54,7 @@ static void gen_##name(DisasContext *ctx)         \
         gen_exception(ctx, POWERPC_EXCP_FPU);     \
         return;                                   \
     }                                             \
-    gen_update_nip(ctx, ctx->nip - 4);            \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);            \
     uim = tcg_const_i32(UIMM5(ctx->opcode));      \
     rb = gen_fprp_ptr(rB(ctx->opcode));           \
     gen_helper_##name(cpu_crf[crfD(ctx->opcode)], \
@@ -72,7 +72,7 @@ static void gen_##name(DisasContext *ctx)         \
         gen_exception(ctx, POWERPC_EXCP_FPU);     \
         return;                                   \
     }                                             \
-    gen_update_nip(ctx, ctx->nip - 4);            \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);   \
     ra = gen_fprp_ptr(rA(ctx->opcode));           \
     dcm = tcg_const_i32(DCM(ctx->opcode));        \
     gen_helper_##name(cpu_crf[crfD(ctx->opcode)], \
@@ -90,7 +90,7 @@ static void gen_##name(DisasContext *ctx)             \
         gen_exception(ctx, POWERPC_EXCP_FPU);         \
         return;                                       \
     }                                                 \
-    gen_update_nip(ctx, ctx->nip - 4);                \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);       \
     rt = gen_fprp_ptr(rD(ctx->opcode));               \
     rb = gen_fprp_ptr(rB(ctx->opcode));               \
     u32_1 = tcg_const_i32(u32f1(ctx->opcode));        \
@@ -114,7 +114,7 @@ static void gen_##name(DisasContext *ctx)        \
         gen_exception(ctx, POWERPC_EXCP_FPU);    \
         return;                                  \
     }                                            \
-    gen_update_nip(ctx, ctx->nip - 4);           \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);  \
     rt = gen_fprp_ptr(rD(ctx->opcode));          \
     ra = gen_fprp_ptr(rA(ctx->opcode));          \
     rb = gen_fprp_ptr(rB(ctx->opcode));          \
@@ -137,7 +137,7 @@ static void gen_##name(DisasContext *ctx)        \
         gen_exception(ctx, POWERPC_EXCP_FPU);    \
         return;                                  \
     }                                            \
-    gen_update_nip(ctx, ctx->nip - 4);           \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);  \
     rt = gen_fprp_ptr(rD(ctx->opcode));          \
     rb = gen_fprp_ptr(rB(ctx->opcode));          \
     gen_helper_##name(cpu_env, rt, rb);          \
@@ -157,7 +157,7 @@ static void gen_##name(DisasContext *ctx)          \
         gen_exception(ctx, POWERPC_EXCP_FPU);      \
         return;                                    \
     }                                              \
-    gen_update_nip(ctx, ctx->nip - 4);             \
+    gen_update_nip(ctx, ctx->base.pc_next - 4);    \
     rt = gen_fprp_ptr(rD(ctx->opcode));            \
     rs = gen_fprp_ptr(fprfld(ctx->opcode));        \
     i32 = tcg_const_i32(i32fld(ctx->opcode));      \

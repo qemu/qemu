@@ -205,7 +205,9 @@ static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
 static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
                                            uint8_t val, Error **errp)
 {
-    if (tcg_enabled() && val) {
+    if (val == SPAPR_CAP_WORKAROUND) { /* Can only be Broken or Fixed */
+        error_setg(errp, "Requested safe indirect branch capability level \"workaround\" not valid, try cap-ibs=fixed");
+    } else if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
         error_setg(errp, "Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
     } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_indirect_branch())) {
@@ -263,7 +265,7 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     },
     [SPAPR_CAP_IBS] = {
         .name = "ibs",
-        .description = "Indirect Branch Serialisation" VALUE_DESC_TRISTATE,
+        .description = "Indirect Branch Serialisation (broken, fixed)",
         .index = SPAPR_CAP_IBS,
         .get = spapr_cap_get_tristate,
         .set = spapr_cap_set_tristate,
@@ -350,34 +352,34 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr)
 }
 
 /* Used to generate the migration field and needed function for a spapr cap */
-#define SPAPR_CAP_MIG_STATE(cap, ccap)                  \
-static bool spapr_cap_##cap##_needed(void *opaque)      \
+#define SPAPR_CAP_MIG_STATE(sname, cap)                 \
+static bool spapr_cap_##sname##_needed(void *opaque)    \
 {                                                       \
     sPAPRMachineState *spapr = opaque;                  \
                                                         \
-    return spapr->cmd_line_caps[SPAPR_CAP_##ccap] &&    \
-           (spapr->eff.caps[SPAPR_CAP_##ccap] !=        \
-            spapr->def.caps[SPAPR_CAP_##ccap]);         \
+    return spapr->cmd_line_caps[cap] &&                 \
+           (spapr->eff.caps[cap] !=                     \
+            spapr->def.caps[cap]);                      \
 }                                                       \
                                                         \
-const VMStateDescription vmstate_spapr_cap_##cap = {    \
-    .name = "spapr/cap/" #cap,                          \
+const VMStateDescription vmstate_spapr_cap_##sname = {  \
+    .name = "spapr/cap/" #sname,                        \
     .version_id = 1,                                    \
     .minimum_version_id = 1,                            \
-    .needed = spapr_cap_##cap##_needed,                 \
+    .needed = spapr_cap_##sname##_needed,               \
     .fields = (VMStateField[]) {                        \
-        VMSTATE_UINT8(mig.caps[SPAPR_CAP_##ccap],       \
+        VMSTATE_UINT8(mig.caps[cap],                    \
                       sPAPRMachineState),               \
         VMSTATE_END_OF_LIST()                           \
     },                                                  \
 }
 
-SPAPR_CAP_MIG_STATE(htm, HTM);
-SPAPR_CAP_MIG_STATE(vsx, VSX);
-SPAPR_CAP_MIG_STATE(dfp, DFP);
-SPAPR_CAP_MIG_STATE(cfpc, CFPC);
-SPAPR_CAP_MIG_STATE(sbbc, SBBC);
-SPAPR_CAP_MIG_STATE(ibs, IBS);
+SPAPR_CAP_MIG_STATE(htm, SPAPR_CAP_HTM);
+SPAPR_CAP_MIG_STATE(vsx, SPAPR_CAP_VSX);
+SPAPR_CAP_MIG_STATE(dfp, SPAPR_CAP_DFP);
+SPAPR_CAP_MIG_STATE(cfpc, SPAPR_CAP_CFPC);
+SPAPR_CAP_MIG_STATE(sbbc, SPAPR_CAP_SBBC);
+SPAPR_CAP_MIG_STATE(ibs, SPAPR_CAP_IBS);
 
 void spapr_caps_reset(sPAPRMachineState *spapr)
 {

@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "hw/ide/internal.h"
 #include "hw/input/adb.h"
+#include "hw/misc/mos6522.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -44,81 +45,6 @@
 
 #define ESCC_CLOCK 3686400
 
-/* Cuda */
-#define TYPE_CUDA "cuda"
-#define CUDA(obj) OBJECT_CHECK(CUDAState, (obj), TYPE_CUDA)
-
-/**
- * CUDATimer:
- * @counter_value: counter value at load time
- */
-typedef struct CUDATimer {
-    int index;
-    uint16_t latch;
-    uint16_t counter_value;
-    int64_t load_time;
-    int64_t next_irq_time;
-    uint64_t frequency;
-    QEMUTimer *timer;
-} CUDATimer;
-
-/**
- * CUDAState:
- * @b: B-side data
- * @a: A-side data
- * @dirb: B-side direction (1=output)
- * @dira: A-side direction (1=output)
- * @sr: Shift register
- * @acr: Auxiliary control register
- * @pcr: Peripheral control register
- * @ifr: Interrupt flag register
- * @ier: Interrupt enable register
- * @anh: A-side data, no handshake
- * @last_b: last value of B register
- * @last_acr: last value of ACR register
- */
-typedef struct CUDAState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    MemoryRegion mem;
-    /* cuda registers */
-    uint8_t b;
-    uint8_t a;
-    uint8_t dirb;
-    uint8_t dira;
-    uint8_t sr;
-    uint8_t acr;
-    uint8_t pcr;
-    uint8_t ifr;
-    uint8_t ier;
-    uint8_t anh;
-
-    ADBBusState adb_bus;
-    CUDATimer timers[2];
-
-    uint32_t tick_offset;
-    uint64_t tb_frequency;
-
-    uint8_t last_b;
-    uint8_t last_acr;
-
-    /* MacOS 9 is racy and requires a delay upon setting the SR_INT bit */
-    QEMUTimer *sr_delay_timer;
-
-    int data_in_size;
-    int data_in_index;
-    int data_out_index;
-
-    qemu_irq irq;
-    uint16_t adb_poll_mask;
-    uint8_t autopoll_rate_ms;
-    uint8_t autopoll;
-    uint8_t data_in[128];
-    uint8_t data_out[16];
-    QEMUTimer *adb_poll_timer;
-} CUDAState;
 
 /* MacIO */
 #define TYPE_OLDWORLD_MACIO "macio-oldworld"

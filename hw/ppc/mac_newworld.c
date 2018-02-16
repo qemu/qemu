@@ -369,8 +369,23 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    escc_mem = escc_init(0, pic[0x25], pic[0x24],
-                         serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
+
+    dev = qdev_create(NULL, TYPE_ESCC);
+    qdev_prop_set_uint32(dev, "disabled", 0);
+    qdev_prop_set_uint32(dev, "frequency", ESCC_CLOCK);
+    qdev_prop_set_uint32(dev, "it_shift", 4);
+    qdev_prop_set_chr(dev, "chrA", serial_hds[0]);
+    qdev_prop_set_chr(dev, "chrB", serial_hds[1]);
+    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
+    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
+    qdev_init_nofail(dev);
+
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(s, 0, pic[0x24]);
+    sysbus_connect_irq(s, 1, pic[0x25]);
+
+    escc_mem = &ESCC(s)->mmio;
+
     memory_region_init_alias(escc_bar, NULL, "escc-bar",
                              escc_mem, 0, memory_region_size(escc_mem));
 
