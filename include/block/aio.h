@@ -534,11 +534,14 @@ void aio_co_enter(AioContext *ctx, struct Coroutine *co);
 AioContext *qemu_get_current_aio_context(void);
 
 /**
+ * in_aio_context_home_thread:
  * @ctx: the aio context
  *
- * Return whether we are running in the I/O thread that manages @ctx.
+ * Return whether we are running in the thread that normally runs @ctx.  Note
+ * that acquiring/releasing ctx does not affect the outcome, each AioContext
+ * still only has one home thread that is responsible for running it.
  */
-static inline bool aio_context_in_iothread(AioContext *ctx)
+static inline bool in_aio_context_home_thread(AioContext *ctx)
 {
     return ctx == qemu_get_current_aio_context();
 }

@@ -372,7 +372,7 @@ void bdrv_drain_all(void);
     bool busy_ = true;                                     \
     BlockDriverState *bs_ = (bs);                          \
     AioContext *ctx_ = bdrv_get_aio_context(bs_);          \
-    if (aio_context_in_iothread(ctx_)) {                   \
+    if (in_aio_context_home_thread(ctx_)) {                \
         while ((cond) || busy_) {                          \
             busy_ = aio_poll(ctx_, (cond));                \
             waited_ |= !!(cond) | busy_;                   \
