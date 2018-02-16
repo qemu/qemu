@@ -587,6 +587,10 @@
 #       ]
 #    }
 #
+# Notes: This interface is deprecated (since 2.12.0), and it is strongly
+#        recommended that you avoid using it. Use @query-cpus-fast to
+#        obtain information about virtual CPUs.
+#
 ##
 { 'command': 'query-cpus', 'returns': ['CpuInfo'] }
 

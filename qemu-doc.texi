@@ -2762,6 +2762,10 @@ by the ``convert -l snapshot_param'' argument instead.
 "autoload" parameter is now ignored. All bitmaps are automatically loaded
 from qcow2 images.
 
+@subsection query-cpus (since 2.12.0)
+
+The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
+
 @section System emulator human monitor commands
 
 @subsection host_net_add (since 2.10.0)
