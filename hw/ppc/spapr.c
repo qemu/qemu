@@ -3810,13 +3810,7 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
 
 int spapr_get_vcpu_id(PowerPCCPU *cpu)
 {
-    CPUState *cs = CPU(cpu);
-
-    if (kvm_enabled()) {
-        return kvm_arch_vcpu_id(cs);
-    } else {
-        return cs->cpu_index;
-    }
+    return cpu->vcpu_id;
 }
 
 void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
