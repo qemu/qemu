@@ -2871,6 +2871,7 @@ DISAS_INSN(unlk)
     tcg_gen_mov_i32(reg, tmp);
     tcg_gen_addi_i32(QREG_SP, src, 4);
     tcg_temp_free(src);
+    tcg_temp_free(tmp);
 }
 
 #if defined(CONFIG_SOFTMMU)
@@ -3148,6 +3149,9 @@ DISAS_INSN(subx_mem)
     gen_subx(s, src, dest, opsize);
 
     gen_store(s, opsize, addr_dest, QREG_CC_N, IS_USER(s));
+
+    tcg_temp_free(dest);
+    tcg_temp_free(src);
 }
 
 DISAS_INSN(mov3q)
@@ -3354,6 +3358,9 @@ DISAS_INSN(addx_mem)
     gen_addx(s, src, dest, opsize);
 
     gen_store(s, opsize, addr_dest, QREG_CC_N, IS_USER(s));
+
+    tcg_temp_free(dest);
+    tcg_temp_free(src);
 }
 
 static inline void shift_im(DisasContext *s, uint16_t insn, int opsize)
@@ -4398,6 +4405,8 @@ DISAS_INSN(chk2)
     gen_flush_flags(s);
     gen_helper_chk2(cpu_env, reg, bound1, bound2);
     tcg_temp_free(reg);
+    tcg_temp_free(bound1);
+    tcg_temp_free(bound2);
 }
 
 static void m68k_copy_line(TCGv dst, TCGv src, int index)
@@ -4547,6 +4556,7 @@ DISAS_INSN(moves)
         } else {
             gen_partset_reg(opsize, reg, tmp);
         }
+        tcg_temp_free(tmp);
     }
     switch (extract32(insn, 3, 3)) {
     case 3: /* Indirect postincrement.  */
@@ -5537,6 +5547,7 @@ DISAS_INSN(mac)
         case 4: /* Pre-decrement.  */
             tcg_gen_mov_i32(AREG(insn, 0), addr);
         }
+        tcg_temp_free(loadval);
     }
 }
 
