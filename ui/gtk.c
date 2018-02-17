@@ -1952,8 +1952,8 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     scrollbar = gtk_vscrollbar_new(vadjustment);
 #endif
 
-    gtk_box_pack_start(GTK_BOX(box), vc->vte.terminal, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(box), scrollbar, FALSE, FALSE, 0);
+    gtk_box_pack_end(GTK_BOX(box), scrollbar, FALSE, FALSE, 0);
+    gtk_box_pack_end(GTK_BOX(box), vc->vte.terminal, TRUE, TRUE, 0);
 
     vc->vte.box = box;
     vc->vte.scrollbar = scrollbar;
