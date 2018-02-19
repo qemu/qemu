@@ -3,3 +3,12 @@ obj-y += cpu.o exception.o interrupt.o mmu.o translate.o
 obj-y += exception_helper.o fpu_helper.o \
          interrupt_helper.o mmu_helper.o sys_helper.o
 obj-y += gdbstub.o
+
+DECODETREE = $(SRC_PATH)/scripts/decodetree.py
+
+target/openrisc/decode.inc.c: \
+  $(SRC_PATH)/target/openrisc/insns.decode $(DECODETREE)
+	$(call quiet-command,\
+	  $(PYTHON) $(DECODETREE) -o $@ $<, "GEN", $(TARGET_DIR)$@)
+
+target/openrisc/translate.o: target/openrisc/decode.inc.c
