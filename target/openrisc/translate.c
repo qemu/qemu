@@ -193,52 +193,6 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     }
 }
 
-static void gen_jump(DisasContext *dc, int32_t n26, uint32_t reg, uint32_t op0)
-{
-    target_ulong tmp_pc = dc->base.pc_next + n26 * 4;
-
-    switch (op0) {
-    case 0x00:     /* l.j */
-        tcg_gen_movi_tl(jmp_pc, tmp_pc);
-        break;
-    case 0x01:     /* l.jal */
-        tcg_gen_movi_tl(cpu_R[9], dc->base.pc_next + 8);
-        /* Optimize jal being used to load the PC for PIC.  */
-        if (tmp_pc == dc->base.pc_next + 8) {
-            return;
-        }
-        tcg_gen_movi_tl(jmp_pc, tmp_pc);
-        break;
-    case 0x03:     /* l.bnf */
-    case 0x04:     /* l.bf  */
-        {
-            TCGv t_next = tcg_const_tl(dc->base.pc_next + 8);
-            TCGv t_true = tcg_const_tl(tmp_pc);
-            TCGv t_zero = tcg_const_tl(0);
-
-            tcg_gen_movcond_tl(op0 == 0x03 ? TCG_COND_EQ : TCG_COND_NE,
-                               jmp_pc, cpu_sr_f, t_zero, t_true, t_next);
-
-            tcg_temp_free(t_next);
-            tcg_temp_free(t_true);
-            tcg_temp_free(t_zero);
-        }
-        break;
-    case 0x11:     /* l.jr */
-        tcg_gen_mov_tl(jmp_pc, cpu_R[reg]);
-        break;
-    case 0x12:     /* l.jalr */
-        tcg_gen_movi_tl(cpu_R[9], (dc->base.pc_next + 8));
-        tcg_gen_mov_tl(jmp_pc, cpu_R[reg]);
-        break;
-    default:
-        gen_illegal_exception(dc);
-        break;
-    }
-
-    dc->delayed_branch = 2;
-}
-
 static void gen_ove_cy(DisasContext *dc)
 {
     if (dc->tb_flags & SR_OVE) {
@@ -713,12 +667,83 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
     gen_illegal_exception(dc);
 }
 
+static bool trans_l_j(DisasContext *dc, arg_l_j *a, uint32_t insn)
+{
+    target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
+
+    LOG_DIS("l.j %d\n", a->n);
+    tcg_gen_movi_tl(jmp_pc, tmp_pc);
+    dc->delayed_branch = 2;
+    return true;
+}
+
+static bool trans_l_jal(DisasContext *dc, arg_l_jal *a, uint32_t insn)
+{
+    target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
+    target_ulong ret_pc = dc->base.pc_next + 8;
+
+    LOG_DIS("l.jal %d\n", a->n);
+    tcg_gen_movi_tl(cpu_R[9], ret_pc);
+    /* Optimize jal being used to load the PC for PIC.  */
+    if (tmp_pc != ret_pc) {
+        tcg_gen_movi_tl(jmp_pc, tmp_pc);
+        dc->delayed_branch = 2;
+    }
+    return true;
+}
+
+static void do_bf(DisasContext *dc, arg_l_bf *a, TCGCond cond)
+{
+    target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
+    TCGv t_next = tcg_const_tl(dc->base.pc_next + 8);
+    TCGv t_true = tcg_const_tl(tmp_pc);
+    TCGv t_zero = tcg_const_tl(0);
+
+    tcg_gen_movcond_tl(cond, jmp_pc, cpu_sr_f, t_zero, t_true, t_next);
+
+    tcg_temp_free(t_next);
+    tcg_temp_free(t_true);
+    tcg_temp_free(t_zero);
+    dc->delayed_branch = 2;
+}
+
+static bool trans_l_bf(DisasContext *dc, arg_l_bf *a, uint32_t insn)
+{
+    LOG_DIS("l.bf %d\n", a->n);
+    do_bf(dc, a, TCG_COND_NE);
+    return true;
+}
+
+static bool trans_l_bnf(DisasContext *dc, arg_l_bf *a, uint32_t insn)
+{
+    LOG_DIS("l.bnf %d\n", a->n);
+    do_bf(dc, a, TCG_COND_EQ);
+    return true;
+}
+
+static bool trans_l_jr(DisasContext *dc, arg_l_jr *a, uint32_t insn)
+{
+    LOG_DIS("l.jr r%d\n", a->b);
+    tcg_gen_mov_tl(jmp_pc, cpu_R[a->b]);
+    dc->delayed_branch = 2;
+    return true;
+}
+
+static bool trans_l_jalr(DisasContext *dc, arg_l_jalr *a, uint32_t insn)
+{
+    LOG_DIS("l.jalr r%d\n", a->b);
+    tcg_gen_mov_tl(jmp_pc, cpu_R[a->b]);
+    tcg_gen_movi_tl(cpu_R[9], dc->base.pc_next + 8);
+    dc->delayed_branch = 2;
+    return true;
+}
+
 static void dec_misc(DisasContext *dc, uint32_t insn)
 {
     uint32_t op0, op1;
     uint32_t ra, rb, rd;
     uint32_t L6, K5, K16, K5_11;
-    int32_t I16, I5_11, N26;
+    int32_t I16, I5_11;
     TCGMemOp mop;
     TCGv t0;
 
@@ -731,31 +756,10 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
     K5 = extract32(insn, 0, 5);
     K16 = extract32(insn, 0, 16);
     I16 = (int16_t)K16;
-    N26 = sextract32(insn, 0, 26);
     K5_11 = (extract32(insn, 21, 5) << 11) | extract32(insn, 0, 11);
     I5_11 = (int16_t)K5_11;
 
     switch (op0) {
-    case 0x00:    /* l.j */
-        LOG_DIS("l.j %d\n", N26);
-        gen_jump(dc, N26, 0, op0);
-        break;
-
-    case 0x01:    /* l.jal */
-        LOG_DIS("l.jal %d\n", N26);
-        gen_jump(dc, N26, 0, op0);
-        break;
-
-    case 0x03:    /* l.bnf */
-        LOG_DIS("l.bnf %d\n", N26);
-        gen_jump(dc, N26, 0, op0);
-        break;
-
-    case 0x04:    /* l.bf */
-        LOG_DIS("l.bf %d\n", N26);
-        gen_jump(dc, N26, 0, op0);
-        break;
-
     case 0x05:
         switch (op1) {
         case 0x01:    /* l.nop */
@@ -766,16 +770,6 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
             gen_illegal_exception(dc);
             break;
         }
-        break;
-
-    case 0x11:    /* l.jr */
-        LOG_DIS("l.jr r%d\n", rb);
-         gen_jump(dc, 0, rb, op0);
-         break;
-
-    case 0x12:    /* l.jalr */
-        LOG_DIS("l.jalr r%d\n", rb);
-        gen_jump(dc, 0, rb, op0);
         break;
 
     case 0x13:    /* l.maci */
