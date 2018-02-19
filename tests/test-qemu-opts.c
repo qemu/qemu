@@ -23,6 +23,8 @@ static QemuOptsList opts_list_01 = {
         {
             .name = "str1",
             .type = QEMU_OPT_STRING,
+            .help = "Help texts are preserved in qemu_opts_append",
+            .def_value_str = "default",
         },{
             .name = "str2",
             .type = QEMU_OPT_STRING,
@@ -32,6 +34,7 @@ static QemuOptsList opts_list_01 = {
         },{
             .name = "number1",
             .type = QEMU_OPT_NUMBER,
+            .help = "Having help texts only for some options is okay",
         },{
             .name = "number2",
             .type = QEMU_OPT_NUMBER,
@@ -743,6 +746,129 @@ static void test_opts_parse_size(void)
     qemu_opts_reset(&opts_list_02);
 }
 
+static void append_verify_list_01(QemuOptDesc *desc, bool with_overlapping)
+{
+    int i = 0;
+
+    if (with_overlapping) {
+        g_assert_cmpstr(desc[i].name, ==, "str1");
+        g_assert_cmpint(desc[i].type, ==, QEMU_OPT_STRING);
+        g_assert_cmpstr(desc[i].help, ==,
+                        "Help texts are preserved in qemu_opts_append");
+        g_assert_cmpstr(desc[i].def_value_str, ==, "default");
+        i++;
+
+        g_assert_cmpstr(desc[i].name, ==, "str2");
+        g_assert_cmpint(desc[i].type, ==, QEMU_OPT_STRING);
+        g_assert_cmpstr(desc[i].help, ==, NULL);
+        g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+        i++;
+    }
+
+    g_assert_cmpstr(desc[i].name, ==, "str3");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_STRING);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "number1");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_NUMBER);
+    g_assert_cmpstr(desc[i].help, ==,
+                    "Having help texts only for some options is okay");
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "number2");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_NUMBER);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, NULL);
+}
+
+static void append_verify_list_02(QemuOptDesc *desc)
+{
+    int i = 0;
+
+    g_assert_cmpstr(desc[i].name, ==, "str1");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_STRING);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "str2");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_STRING);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "bool1");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_BOOL);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "bool2");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_BOOL);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "size1");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_SIZE);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "size2");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_SIZE);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+    i++;
+
+    g_assert_cmpstr(desc[i].name, ==, "size3");
+    g_assert_cmpint(desc[i].type, ==, QEMU_OPT_SIZE);
+    g_assert_cmpstr(desc[i].help, ==, NULL);
+    g_assert_cmpstr(desc[i].def_value_str, ==, NULL);
+}
+
+static void test_opts_append_to_null(void)
+{
+    QemuOptsList *merged;
+
+    merged = qemu_opts_append(NULL, &opts_list_01);
+    g_assert(merged != &opts_list_01);
+
+    g_assert_cmpstr(merged->name, ==, NULL);
+    g_assert_cmpstr(merged->implied_opt_name, ==, NULL);
+    g_assert_false(merged->merge_lists);
+
+    append_verify_list_01(merged->desc, true);
+
+    qemu_opts_free(merged);
+}
+
+static void test_opts_append(void)
+{
+    QemuOptsList *first, *merged;
+
+    first = qemu_opts_append(NULL, &opts_list_02);
+    merged = qemu_opts_append(first, &opts_list_01);
+    g_assert(first != &opts_list_02);
+    g_assert(merged != &opts_list_01);
+
+    g_assert_cmpstr(merged->name, ==, NULL);
+    g_assert_cmpstr(merged->implied_opt_name, ==, NULL);
+    g_assert_false(merged->merge_lists);
+
+    append_verify_list_02(&merged->desc[0]);
+    append_verify_list_01(&merged->desc[7], false);
+
+    qemu_opts_free(merged);
+}
+
+
 int main(int argc, char *argv[])
 {
     register_opts();
@@ -761,6 +887,8 @@ int main(int argc, char *argv[])
     g_test_add_func("/qemu-opts/opts_parse/bool", test_opts_parse_bool);
     g_test_add_func("/qemu-opts/opts_parse/number", test_opts_parse_number);
     g_test_add_func("/qemu-opts/opts_parse/size", test_opts_parse_size);
+    g_test_add_func("/qemu-opts/append_to_null", test_opts_append_to_null);
+    g_test_add_func("/qemu-opts/append", test_opts_append);
     g_test_run();
     return 0;
 }
