@@ -622,7 +622,6 @@ QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 #define SIGP_ORDER_MASK 0x000000ff
 
 /* from s390-virtio-ccw */
-#define MEM_SECTION_SIZE             0x10000000UL
 #define MAX_AVAIL_SLOTS              32
 
 /* machine check interruption code */
