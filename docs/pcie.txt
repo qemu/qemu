@@ -3,8 +3,13 @@ PCI EXPRESS GUIDELINES
 
 1. Introduction
 ================
-The doc proposes best practices on how to use PCI Express/PCI device
-in PCI Express based machines and explains the reasoning behind them.
+The doc proposes best practices on how to use PCI Express (PCIe) / PCI
+devices in PCI Express based machines and explains the reasoning behind
+them.
+
+Note that the PCIe features are available only when using the 'q35'
+machine type on x86 architecture and the 'virt' machine type on AArch64.
+Other machine types do not use PCIe at this time.
 
 The following presentations accompany this document:
  (1) Q35 overview.
