@@ -36,6 +36,7 @@
 #include "xbzrle.h"
 #include "ram.h"
 #include "migration.h"
+#include "socket.h"
 #include "migration/register.h"
 #include "migration/misc.h"
 #include "qemu-file.h"
@@ -652,6 +653,11 @@ int multifd_load_setup(void)
         multifd_recv_state->count++;
     }
     return 0;
+}
+
+void multifd_recv_new_channel(QIOChannel *ioc)
+{
+    /* nothing to do yet */
 }
 
 /**
