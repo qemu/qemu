@@ -31,7 +31,6 @@ typedef struct HostMemoryBackendFile HostMemoryBackendFile;
 struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;
 
-    bool share;
     bool discard_data;
     char *mem_path;
     uint64_t align;
@@ -59,7 +58,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         path = object_get_canonical_path(OBJECT(backend));
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  path,
-                                 backend->size, fb->align, fb->share,
+                                 backend->size, fb->align, backend->share,
                                  fb->mem_path, errp);
         g_free(path);
     }
@@ -84,25 +83,6 @@ static void set_mem_path(Object *o, const char *str, Error **errp)
     }
     g_free(fb->mem_path);
     fb->mem_path = g_strdup(str);
-}
-
-static bool file_memory_backend_get_share(Object *o, Error **errp)
-{
-    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
-
-    return fb->share;
-}
-
-static void file_memory_backend_set_share(Object *o, bool value, Error **errp)
-{
-    HostMemoryBackend *backend = MEMORY_BACKEND(o);
-    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
-
-    if (host_memory_backend_mr_inited(backend)) {
-        error_setg(errp, "cannot change property value");
-        return;
-    }
-    fb->share = value;
 }
 
 static bool file_memory_backend_get_discard_data(Object *o, Error **errp)
@@ -171,9 +151,6 @@ file_backend_class_init(ObjectClass *oc, void *data)
     bc->alloc = file_backend_memory_alloc;
     oc->unparent = file_backend_unparent;
 
-    object_class_property_add_bool(oc, "share",
-        file_memory_backend_get_share, file_memory_backend_set_share,
-        &error_abort);
     object_class_property_add_bool(oc, "discard-data",
         file_memory_backend_get_discard_data, file_memory_backend_set_discard_data,
         &error_abort);

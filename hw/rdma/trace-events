@@ -1,0 +1,5 @@
+# See docs/tracing.txt for syntax documentation.
+
+#hw/rdma/rdma_backend.c
+create_ah_cache_hit(uint64_t subnet, uint64_t net_id) "subnet = 0x%"PRIx64" net_id = 0x%"PRIx64
+create_ah_cache_miss(uint64_t subnet, uint64_t net_id) "subnet = 0x%"PRIx64" net_id = 0x%"PRIx64
