@@ -2606,13 +2606,6 @@ which is the default.
 
 @section System emulator command line arguments
 
-@subsection -tdf (since 1.3.0)
-
-The ``-tdf'' argument is ignored. The behaviour implemented
-by this argument is now the default when using the KVM PIT,
-but can be requested explicitly using
-``-global kvm-pit.lost_tick_policy=slew''.
-
 @subsection -no-kvm-pit-reinjection (since 1.3.0)
 
 The ``-no-kvm-pit-reinjection'' argument is now a
