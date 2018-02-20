@@ -998,42 +998,36 @@ static bool trans_l_msbu(DisasContext *dc, arg_ab *a, uint32_t insn)
     return true;
 }
 
-static void dec_logic(DisasContext *dc, uint32_t insn)
+static bool trans_l_slli(DisasContext *dc, arg_dal *a, uint32_t insn)
 {
-    uint32_t op0;
-    uint32_t rd, ra, L6, S6;
-    op0 = extract32(insn, 6, 2);
-    rd = extract32(insn, 21, 5);
-    ra = extract32(insn, 16, 5);
-    L6 = extract32(insn, 0, 6);
-    S6 = L6 & (TARGET_LONG_BITS - 1);
+    LOG_DIS("l.slli r%d, r%d, %d\n", a->d, a->a, a->l);
+    check_r0_write(a->d);
+    tcg_gen_shli_tl(cpu_R[a->d], cpu_R[a->a], a->l & (TARGET_LONG_BITS - 1));
+    return true;
+}
 
-    check_r0_write(rd);
-    switch (op0) {
-    case 0x00:    /* l.slli */
-        LOG_DIS("l.slli r%d, r%d, %d\n", rd, ra, L6);
-        tcg_gen_shli_tl(cpu_R[rd], cpu_R[ra], S6);
-        break;
+static bool trans_l_srli(DisasContext *dc, arg_dal *a, uint32_t insn)
+{
+    LOG_DIS("l.srli r%d, r%d, %d\n", a->d, a->a, a->l);
+    check_r0_write(a->d);
+    tcg_gen_shri_tl(cpu_R[a->d], cpu_R[a->a], a->l & (TARGET_LONG_BITS - 1));
+    return true;
+}
 
-    case 0x01:    /* l.srli */
-        LOG_DIS("l.srli r%d, r%d, %d\n", rd, ra, L6);
-        tcg_gen_shri_tl(cpu_R[rd], cpu_R[ra], S6);
-        break;
+static bool trans_l_srai(DisasContext *dc, arg_dal *a, uint32_t insn)
+{
+    LOG_DIS("l.srai r%d, r%d, %d\n", a->d, a->a, a->l);
+    check_r0_write(a->d);
+    tcg_gen_sari_tl(cpu_R[a->d], cpu_R[a->a], a->l & (TARGET_LONG_BITS - 1));
+    return true;
+}
 
-    case 0x02:    /* l.srai */
-        LOG_DIS("l.srai r%d, r%d, %d\n", rd, ra, L6);
-        tcg_gen_sari_tl(cpu_R[rd], cpu_R[ra], S6);
-        break;
-
-    case 0x03:    /* l.rori */
-        LOG_DIS("l.rori r%d, r%d, %d\n", rd, ra, L6);
-        tcg_gen_rotri_tl(cpu_R[rd], cpu_R[ra], S6);
-        break;
-
-    default:
-        gen_illegal_exception(dc);
-        break;
-    }
+static bool trans_l_rori(DisasContext *dc, arg_dal *a, uint32_t insn)
+{
+    LOG_DIS("l.rori r%d, r%d, %d\n", a->d, a->a, a->l);
+    check_r0_write(a->d);
+    tcg_gen_rotri_tl(cpu_R[a->d], cpu_R[a->a], a->l & (TARGET_LONG_BITS - 1));
+    return true;
 }
 
 static void dec_M(DisasContext *dc, uint32_t insn)
@@ -1488,10 +1482,6 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
     switch (op0) {
     case 0x06:
         dec_M(dc, insn);
-        break;
-
-    case 0x2e:
-        dec_logic(dc, insn);
         break;
 
     case 0x2f:
