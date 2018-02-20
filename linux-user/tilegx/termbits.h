@@ -242,6 +242,7 @@ struct target_termios2 {
 #define TARGET_TIOCGPKT                 TARGET_IOR('T', 0x38, int)
 #define TARGET_TIOCGPTLCK               TARGET_IOR('T', 0x39, int)
 #define TARGET_TIOCGEXCL                TARGET_IOR('T', 0x40, int)
+#define TARGET_TIOCGPTPEER              TARGET_IO('T', 0x41)
 
 #define TARGET_FIONCLEX                 0x5450
 #define TARGET_FIOCLEX                  0x5451

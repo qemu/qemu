@@ -186,6 +186,8 @@ struct target_termios {
         /* Get Pty Number (of pty-mux device) */
 #define TARGET_TIOCSPTLCK       TARGET_IOW('T', 0x31, int)
         /* Lock/unlock Pty */
+#define TARGET_TIOCGPTPEER      TARGET_IO('T', 0x41)
+        /* Safely open the slave */
 
 #define TARGET_FIONCLEX         0x5450  /* these numbers need to be adjusted. */
 #define TARGET_FIOCLEX          0x5451
