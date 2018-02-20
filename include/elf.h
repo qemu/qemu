@@ -537,6 +537,34 @@ typedef struct {
 #define HWCAP_S390_HIGH_GPRS    512
 #define HWCAP_S390_TE           1024
 
+/* M68K specific definitions. */
+/* We use the top 24 bits to encode information about the
+   architecture variant.  */
+#define EF_M68K_CPU32    0x00810000
+#define EF_M68K_M68000   0x01000000
+#define EF_M68K_CFV4E    0x00008000
+#define EF_M68K_FIDO     0x02000000
+#define EF_M68K_ARCH_MASK                                               \
+  (EF_M68K_M68000 | EF_M68K_CPU32 | EF_M68K_CFV4E | EF_M68K_FIDO)
+
+/* We use the bottom 8 bits to encode information about the
+   coldfire variant.  If we use any of these bits, the top 24 bits are
+   either 0 or EF_M68K_CFV4E.  */
+#define EF_M68K_CF_ISA_MASK     0x0F  /* Which ISA */
+#define EF_M68K_CF_ISA_A_NODIV  0x01  /* ISA A except for div */
+#define EF_M68K_CF_ISA_A        0x02
+#define EF_M68K_CF_ISA_A_PLUS   0x03
+#define EF_M68K_CF_ISA_B_NOUSP  0x04  /* ISA_B except for USP */
+#define EF_M68K_CF_ISA_B        0x05
+#define EF_M68K_CF_ISA_C        0x06
+#define EF_M68K_CF_ISA_C_NODIV  0x07  /* ISA C except for div */
+#define EF_M68K_CF_MAC_MASK     0x30
+#define EF_M68K_CF_MAC          0x10  /* MAC */
+#define EF_M68K_CF_EMAC         0x20  /* EMAC */
+#define EF_M68K_CF_EMAC_B       0x30  /* EMAC_B */
+#define EF_M68K_CF_FLOAT        0x40  /* Has float insns */
+#define EF_M68K_CF_MASK         0xFF
+
 /*
  * 68k ELF relocation types
  */
