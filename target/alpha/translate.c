@@ -2919,8 +2919,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-static int alpha_tr_init_disas_context(DisasContextBase *dcbase,
-                                       CPUState *cpu, int max_insns)
+static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUAlphaState *env = cpu->env_ptr;
@@ -2959,8 +2958,7 @@ static int alpha_tr_init_disas_context(DisasContextBase *dcbase,
         mask = TARGET_PAGE_MASK;
     }
     bound = -(ctx->base.pc_first | mask) / 4;
-
-    return MIN(max_insns, bound);
+    ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
 }
 
 static void alpha_tr_tb_start(DisasContextBase *db, CPUState *cpu)
