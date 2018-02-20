@@ -970,39 +970,32 @@ static bool trans_l_mtspr(DisasContext *dc, arg_l_mtspr *a, uint32_t insn)
     return true;
 }
 
-static void dec_mac(DisasContext *dc, uint32_t insn)
+static bool trans_l_mac(DisasContext *dc, arg_ab *a, uint32_t insn)
 {
-    uint32_t op0;
-    uint32_t ra, rb;
-    op0 = extract32(insn, 0, 4);
-    ra = extract32(insn, 16, 5);
-    rb = extract32(insn, 11, 5);
+    LOG_DIS("l.mac r%d, r%d\n", a->a, a->b);
+    gen_mac(dc, cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-    switch (op0) {
-    case 0x0001:    /* l.mac */
-        LOG_DIS("l.mac r%d, r%d\n", ra, rb);
-        gen_mac(dc, cpu_R[ra], cpu_R[rb]);
-        break;
+static bool trans_l_msb(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("l.msb r%d, r%d\n", a->a, a->b);
+    gen_msb(dc, cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-    case 0x0002:    /* l.msb */
-        LOG_DIS("l.msb r%d, r%d\n", ra, rb);
-        gen_msb(dc, cpu_R[ra], cpu_R[rb]);
-        break;
+static bool trans_l_macu(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("l.mac r%d, r%d\n", a->a, a->b);
+    gen_macu(dc, cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-    case 0x0003:    /* l.macu */
-        LOG_DIS("l.macu r%d, r%d\n", ra, rb);
-        gen_macu(dc, cpu_R[ra], cpu_R[rb]);
-        break;
-
-    case 0x0004:    /* l.msbu */
-        LOG_DIS("l.msbu r%d, r%d\n", ra, rb);
-        gen_msbu(dc, cpu_R[ra], cpu_R[rb]);
-        break;
-
-    default:
-        gen_illegal_exception(dc);
-        break;
-   }
+static bool trans_l_msbu(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("l.msb r%d, r%d\n", a->a, a->b);
+    gen_msbu(dc, cpu_R[a->a], cpu_R[a->b]);
+    return true;
 }
 
 static void dec_logic(DisasContext *dc, uint32_t insn)
@@ -1503,10 +1496,6 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
 
     case 0x2f:
         dec_compi(dc, insn);
-        break;
-
-    case 0x31:
-        dec_mac(dc, insn);
         break;
 
     case 0x32:
