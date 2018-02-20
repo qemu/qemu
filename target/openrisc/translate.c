@@ -1241,245 +1241,143 @@ static bool trans_l_rfe(DisasContext *dc, arg_l_rfe *a, uint32_t insn)
     return true;
 }
 
-static void dec_float(DisasContext *dc, uint32_t insn)
+static void do_fp2(DisasContext *dc, arg_da *a,
+                   void (*fn)(TCGv, TCGv_env, TCGv))
 {
-    uint32_t op0;
-    uint32_t ra, rb, rd;
-    op0 = extract32(insn, 0, 8);
-    ra = extract32(insn, 16, 5);
-    rb = extract32(insn, 11, 5);
-    rd = extract32(insn, 21, 5);
+    check_r0_write(a->d);
+    fn(cpu_R[a->d], cpu_env, cpu_R[a->a]);
+    gen_helper_update_fpcsr(cpu_env);
+}
 
-    switch (op0) {
-    case 0x00: /* lf.add.s */
-        LOG_DIS("lf.add.s r%d, r%d, r%d\n", rd, ra, rb);
-        check_r0_write(rd);
-        gen_helper_float_add_s(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
+static void do_fp3(DisasContext *dc, arg_dab *a,
+                   void (*fn)(TCGv, TCGv_env, TCGv, TCGv))
+{
+    check_r0_write(a->d);
+    fn(cpu_R[a->d], cpu_env, cpu_R[a->a], cpu_R[a->b]);
+    gen_helper_update_fpcsr(cpu_env);
+}
 
-    case 0x01: /* lf.sub.s */
-        LOG_DIS("lf.sub.s r%d, r%d, r%d\n", rd, ra, rb);
-        check_r0_write(rd);
-        gen_helper_float_sub_s(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x02:    /* lf.mul.s */
-        LOG_DIS("lf.mul.s r%d, r%d, r%d\n", rd, ra, rb);
-        check_r0_write(rd);
-        gen_helper_float_mul_s(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x03: /* lf.div.s */
-        LOG_DIS("lf.div.s r%d, r%d, r%d\n", rd, ra, rb);
-        check_r0_write(rd);
-        gen_helper_float_div_s(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x04: /* lf.itof.s */
-        LOG_DIS("lf.itof r%d, r%d\n", rd, ra);
-        check_r0_write(rd);
-        gen_helper_itofs(cpu_R[rd], cpu_env, cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x05: /* lf.ftoi.s */
-        LOG_DIS("lf.ftoi r%d, r%d\n", rd, ra);
-        check_r0_write(rd);
-        gen_helper_ftois(cpu_R[rd], cpu_env, cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x06: /* lf.rem.s */
-        LOG_DIS("lf.rem.s r%d, r%d, r%d\n", rd, ra, rb);
-        check_r0_write(rd);
-        gen_helper_float_rem_s(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x07: /* lf.madd.s */
-        LOG_DIS("lf.madd.s r%d, r%d, r%d\n", rd, ra, rb);
-        check_r0_write(rd);
-        gen_helper_float_madd_s(cpu_R[rd], cpu_env, cpu_R[rd],
-                                cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x08: /* lf.sfeq.s */
-        LOG_DIS("lf.sfeq.s r%d, r%d\n", ra, rb);
-        gen_helper_float_eq_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x09: /* lf.sfne.s */
-        LOG_DIS("lf.sfne.s r%d, r%d\n", ra, rb);
-        gen_helper_float_eq_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        tcg_gen_xori_tl(cpu_sr_f, cpu_sr_f, 1);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x0a: /* lf.sfgt.s */
-        LOG_DIS("lf.sfgt.s r%d, r%d\n", ra, rb);
-        gen_helper_float_lt_s(cpu_sr_f, cpu_env, cpu_R[rb], cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x0b: /* lf.sfge.s */
-        LOG_DIS("lf.sfge.s r%d, r%d\n", ra, rb);
-        gen_helper_float_le_s(cpu_sr_f, cpu_env, cpu_R[rb], cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x0c: /* lf.sflt.s */
-        LOG_DIS("lf.sflt.s r%d, r%d\n", ra, rb);
-        gen_helper_float_lt_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x0d: /* lf.sfle.s */
-        LOG_DIS("lf.sfle.s r%d, r%d\n", ra, rb);
-        gen_helper_float_le_s(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-#ifdef TARGET_OPENRISC64
-    case 0x10: /* lf.add.d */
-        LOG_DIS("lf.add.d r%d, r%d, r%d\n", rd, ra, rb);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_float_add_d(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x11: /* lf.sub.d */
-        LOG_DIS("lf.sub.d r%d, r%d, r%d\n", rd, ra, rb);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_float_sub_d(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x12: /* lf.mul.d */
-        LOG_DIS("lf.mul.d r%d, r%d, r%d\n", rd, ra, rb);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_float_mul_d(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x13: /* lf.div.d */
-        LOG_DIS("lf.div.d r%d, r%d, r%d\n", rd, ra, rb);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_float_div_d(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x14: /* lf.itof.d */
-        LOG_DIS("lf.itof r%d, r%d\n", rd, ra);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_itofd(cpu_R[rd], cpu_env, cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x15: /* lf.ftoi.d */
-        LOG_DIS("lf.ftoi r%d, r%d\n", rd, ra);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_ftoid(cpu_R[rd], cpu_env, cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x16: /* lf.rem.d */
-        LOG_DIS("lf.rem.d r%d, r%d, r%d\n", rd, ra, rb);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_float_rem_d(cpu_R[rd], cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x17: /* lf.madd.d */
-        LOG_DIS("lf.madd.d r%d, r%d, r%d\n", rd, ra, rb);
-        check_of64s(dc);
-        check_r0_write(rd);
-        gen_helper_float_madd_d(cpu_R[rd], cpu_env, cpu_R[rd],
-                                cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x18: /* lf.sfeq.d */
-        LOG_DIS("lf.sfeq.d r%d, r%d\n", ra, rb);
-        check_of64s(dc);
-        gen_helper_float_eq_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x1a: /* lf.sfgt.d */
-        LOG_DIS("lf.sfgt.d r%d, r%d\n", ra, rb);
-        check_of64s(dc);
-        gen_helper_float_lt_d(cpu_sr_f, cpu_env, cpu_R[rb], cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x1b: /* lf.sfge.d */
-        LOG_DIS("lf.sfge.d r%d, r%d\n", ra, rb);
-        check_of64s(dc);
-        gen_helper_float_le_d(cpu_sr_f, cpu_env, cpu_R[rb], cpu_R[ra]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x19: /* lf.sfne.d */
-        LOG_DIS("lf.sfne.d r%d, r%d\n", ra, rb);
-        check_of64s(dc);
-        gen_helper_float_eq_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        tcg_gen_xori_tl(cpu_sr_f, cpu_sr_f, 1);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x1c: /* lf.sflt.d */
-        LOG_DIS("lf.sflt.d r%d, r%d\n", ra, rb);
-        check_of64s(dc);
-        gen_helper_float_lt_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-
-    case 0x1d: /* lf.sfle.d */
-        LOG_DIS("lf.sfle.d r%d, r%d\n", ra, rb);
-        check_of64s(dc);
-        gen_helper_float_le_d(cpu_sr_f, cpu_env, cpu_R[ra], cpu_R[rb]);
-        gen_helper_update_fpcsr(cpu_env);
-        break;
-#endif
-
-    default:
-        gen_illegal_exception(dc);
-        break;
+static void do_fpcmp(DisasContext *dc, arg_ab *a,
+                     void (*fn)(TCGv, TCGv_env, TCGv, TCGv),
+                     bool inv, bool swap)
+{
+    if (swap) {
+        fn(cpu_sr_f, cpu_env, cpu_R[a->b], cpu_R[a->a]);
+    } else {
+        fn(cpu_sr_f, cpu_env, cpu_R[a->a], cpu_R[a->b]);
     }
+    if (inv) {
+        tcg_gen_xori_tl(cpu_sr_f, cpu_sr_f, 1);
+    }
+    gen_helper_update_fpcsr(cpu_env);
+}
+
+static bool trans_lf_add_s(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("lf.add.s r%d, r%d, r%d\n", a->d, a->a, a->b);
+    do_fp3(dc, a, gen_helper_float_add_s);
+    return true;
+}
+
+static bool trans_lf_sub_s(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("lf.sub.s r%d, r%d, r%d\n", a->d, a->a, a->b);
+    do_fp3(dc, a, gen_helper_float_sub_s);
+    return true;
+}
+
+static bool trans_lf_mul_s(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("lf.mul.s r%d, r%d, r%d\n", a->d, a->a, a->b);
+    do_fp3(dc, a, gen_helper_float_mul_s);
+    return true;
+}
+
+static bool trans_lf_div_s(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("lf.div.s r%d, r%d, r%d\n", a->d, a->a, a->b);
+    do_fp3(dc, a, gen_helper_float_div_s);
+    return true;
+}
+
+static bool trans_lf_rem_s(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("lf.rem.s r%d, r%d, r%d\n", a->d, a->a, a->b);
+    do_fp3(dc, a, gen_helper_float_rem_s);
+    return true;
+}
+
+static bool trans_lf_itof_s(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("lf.itof.s r%d, r%d\n", a->d, a->a);
+    do_fp2(dc, a, gen_helper_itofs);
+    return true;
+}
+
+static bool trans_lf_ftoi_s(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("lf.ftoi.s r%d, r%d\n", a->d, a->a);
+    do_fp2(dc, a, gen_helper_ftois);
+    return true;
+}
+
+static bool trans_lf_madd_s(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("lf.madd.s r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    gen_helper_float_madd_s(cpu_R[a->d], cpu_env, cpu_R[a->d],
+                            cpu_R[a->a], cpu_R[a->b]);
+    gen_helper_update_fpcsr(cpu_env);
+    return true;
+}
+
+static bool trans_lf_sfeq_s(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("lf.sfeq.s r%d, r%d\n", a->a, a->b);
+    do_fpcmp(dc, a, gen_helper_float_eq_s, false, false);
+    return true;
+}
+
+static bool trans_lf_sfne_s(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("lf.sfne.s r%d, r%d\n", a->a, a->b);
+    do_fpcmp(dc, a, gen_helper_float_eq_s, true, false);
+    return true;
+}
+
+static bool trans_lf_sfgt_s(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("lf.sfgt.s r%d, r%d\n", a->a, a->b);
+    do_fpcmp(dc, a, gen_helper_float_lt_s, false, true);
+    return true;
+}
+
+static bool trans_lf_sfge_s(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("lf.sfge.s r%d, r%d\n", a->a, a->b);
+    do_fpcmp(dc, a, gen_helper_float_le_s, false, true);
+    return true;
+}
+
+static bool trans_lf_sflt_s(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("lf.sflt.s r%d, r%d\n", a->a, a->b);
+    do_fpcmp(dc, a, gen_helper_float_lt_s, false, false);
+    return true;
+}
+
+static bool trans_lf_sfle_s(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("lf.sfle.s r%d, r%d\n", a->a, a->b);
+    do_fpcmp(dc, a, gen_helper_float_le_s, false, false);
+    return true;
 }
 
 static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
 {
-    uint32_t op0;
     uint32_t insn = cpu_ldl_code(&cpu->env, dc->base.pc_next);
-
-    /* Transition to the auto-generated decoder.  */
-    if (decode(dc, insn)) {
-        return;
-    }
-
-    op0 = extract32(insn, 26, 6);
-    switch (op0) {
-    case 0x32:
-        dec_float(dc, insn);
-        break;
-
-    default:
+    if (!decode(dc, insn)) {
         gen_illegal_exception(dc);
-        break;
     }
 }
 
