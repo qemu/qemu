@@ -89,13 +89,16 @@ static void egl_cursor_dmabuf(DisplayChangeListener *dcl,
 {
     egl_dpy *edpy = container_of(dcl, egl_dpy, dcl);
 
-    egl_dmabuf_import_texture(dmabuf);
-    if (!dmabuf->texture) {
-        return;
+    if (dmabuf) {
+        egl_dmabuf_import_texture(dmabuf);
+        if (!dmabuf->texture) {
+            return;
+        }
+        egl_fb_setup_for_tex(&edpy->cursor_fb, dmabuf->width, dmabuf->height,
+                             dmabuf->texture, false);
+    } else {
+        egl_fb_destroy(&edpy->cursor_fb);
     }
-
-    egl_fb_setup_for_tex(&edpy->cursor_fb, dmabuf->width, dmabuf->height,
-                         dmabuf->texture, false);
 }
 
 static void egl_cursor_position(DisplayChangeListener *dcl,
