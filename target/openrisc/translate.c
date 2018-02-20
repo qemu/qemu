@@ -1030,32 +1030,21 @@ static bool trans_l_rori(DisasContext *dc, arg_dal *a, uint32_t insn)
     return true;
 }
 
-static void dec_M(DisasContext *dc, uint32_t insn)
+static bool trans_l_movhi(DisasContext *dc, arg_l_movhi *a, uint32_t insn)
 {
-    uint32_t op0;
-    uint32_t rd;
-    uint32_t K16;
-    op0 = extract32(insn, 16, 1);
-    rd = extract32(insn, 21, 5);
-    K16 = extract32(insn, 0, 16);
+    LOG_DIS("l.movhi r%d, %d\n", a->d, a->k);
+    check_r0_write(a->d);
+    tcg_gen_movi_tl(cpu_R[a->d], a->k << 16);
+    return true;
+}
 
-    check_r0_write(rd);
-    switch (op0) {
-    case 0x0:    /* l.movhi */
-        LOG_DIS("l.movhi  r%d, %d\n", rd, K16);
-        tcg_gen_movi_tl(cpu_R[rd], (K16 << 16));
-        break;
-
-    case 0x1:    /* l.macrc */
-        LOG_DIS("l.macrc  r%d\n", rd);
-        tcg_gen_trunc_i64_tl(cpu_R[rd], cpu_mac);
-        tcg_gen_movi_i64(cpu_mac, 0);
-        break;
-
-    default:
-        gen_illegal_exception(dc);
-        break;
-    }
+static bool trans_l_macrc(DisasContext *dc, arg_l_macrc *a, uint32_t insn)
+{
+    LOG_DIS("l.macrc r%d\n", a->d);
+    check_r0_write(a->d);
+    tcg_gen_trunc_i64_tl(cpu_R[a->d], cpu_mac);
+    tcg_gen_movi_i64(cpu_mac, 0);
+    return true;
 }
 
 static void dec_comp(DisasContext *dc, uint32_t insn)
@@ -1480,10 +1469,6 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
 
     op0 = extract32(insn, 26, 6);
     switch (op0) {
-    case 0x06:
-        dec_M(dc, insn);
-        break;
-
     case 0x2f:
         dec_compi(dc, insn);
         break;
