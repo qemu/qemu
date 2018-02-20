@@ -2680,11 +2680,6 @@ The ``-net vlan=NN'' argument is partially replaced with the
 new ``-netdev'' argument. The remaining use cases will no
 longer be directly supported in QEMU.
 
-@subsection -drive if=scsi (since 2.9.0)
-
-The ``-drive if=scsi'' argument is replaced by the the
-``-device BUS-TYPE'' argument combined with ``-drive if=none''.
-
 @subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
 
 The drive geometry arguments are replaced by the the geometry arguments
