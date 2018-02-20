@@ -3406,6 +3406,8 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_localtime:
                 rtc_utc = 0;
+                warn_report("This option is deprecated, "
+                            "use '-rtc base=localtime' instead.");
                 break;
             case QEMU_OPTION_vga:
                 vga_model = optarg;
@@ -3665,6 +3667,8 @@ int main(int argc, char **argv, char **envp)
                 };
 
                 qdev_prop_register_global(&slew_lost_ticks);
+                warn_report("This option is deprecated, "
+                            "use '-rtc driftfix=slew' instead.");
                 break;
             }
             case QEMU_OPTION_acpitable:
@@ -3866,6 +3870,7 @@ int main(int argc, char **argv, char **envp)
                  */
                 break;
             case QEMU_OPTION_startdate:
+                warn_report("This option is deprecated, use '-rtc base=' instead.");
                 configure_rtc_date_offset(optarg, 1);
                 break;
             case QEMU_OPTION_rtc:
