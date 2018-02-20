@@ -455,171 +455,199 @@ static void gen_msbu(DisasContext *dc, TCGv srca, TCGv srcb)
     gen_ove_cy(dc);
 }
 
-static void dec_calc(DisasContext *dc, uint32_t insn)
+static bool trans_l_add(DisasContext *dc, arg_dab *a, uint32_t insn)
 {
-    uint32_t op0, op1, op2;
-    uint32_t ra, rb, rd;
-    op0 = extract32(insn, 0, 4);
-    op1 = extract32(insn, 8, 2);
-    op2 = extract32(insn, 6, 2);
-    ra = extract32(insn, 16, 5);
-    rb = extract32(insn, 11, 5);
-    rd = extract32(insn, 21, 5);
+    LOG_DIS("l.add r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    gen_add(dc, cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-    switch (op1) {
-    case 0:
-        switch (op0) {
-        case 0x0: /* l.add */
-            LOG_DIS("l.add r%d, r%d, r%d\n", rd, ra, rb);
-            gen_add(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_addc(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.addc r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    gen_addc(dc, cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0x1: /* l.addc */
-            LOG_DIS("l.addc r%d, r%d, r%d\n", rd, ra, rb);
-            gen_addc(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_sub(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.sub r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    gen_sub(dc, cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0x2: /* l.sub */
-            LOG_DIS("l.sub r%d, r%d, r%d\n", rd, ra, rb);
-            gen_sub(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_and(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.and r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    tcg_gen_and_tl(cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0x3: /* l.and */
-            LOG_DIS("l.and r%d, r%d, r%d\n", rd, ra, rb);
-            tcg_gen_and_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_or(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.or r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    tcg_gen_or_tl(cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0x4: /* l.or */
-            LOG_DIS("l.or r%d, r%d, r%d\n", rd, ra, rb);
-            tcg_gen_or_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_xor(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.xor r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    tcg_gen_xor_tl(cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0x5: /* l.xor */
-            LOG_DIS("l.xor r%d, r%d, r%d\n", rd, ra, rb);
-            tcg_gen_xor_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_sll(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.sll r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    tcg_gen_shl_tl(cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0x8:
-            switch (op2) {
-            case 0: /* l.sll */
-                LOG_DIS("l.sll r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_shl_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                return;
-            case 1: /* l.srl */
-                LOG_DIS("l.srl r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_shr_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                return;
-            case 2: /* l.sra */
-                LOG_DIS("l.sra r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_sar_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                return;
-            case 3: /* l.ror */
-                LOG_DIS("l.ror r%d, r%d, r%d\n", rd, ra, rb);
-                tcg_gen_rotr_tl(cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-                return;
-            }
-            break;
+static bool trans_l_srl(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.srl r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    tcg_gen_shr_tl(cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0xc:
-            switch (op2) {
-            case 0: /* l.exths */
-                LOG_DIS("l.exths r%d, r%d\n", rd, ra);
-                tcg_gen_ext16s_tl(cpu_R[rd], cpu_R[ra]);
-                return;
-            case 1: /* l.extbs */
-                LOG_DIS("l.extbs r%d, r%d\n", rd, ra);
-                tcg_gen_ext8s_tl(cpu_R[rd], cpu_R[ra]);
-                return;
-            case 2: /* l.exthz */
-                LOG_DIS("l.exthz r%d, r%d\n", rd, ra);
-                tcg_gen_ext16u_tl(cpu_R[rd], cpu_R[ra]);
-                return;
-            case 3: /* l.extbz */
-                LOG_DIS("l.extbz r%d, r%d\n", rd, ra);
-                tcg_gen_ext8u_tl(cpu_R[rd], cpu_R[ra]);
-                return;
-            }
-            break;
+static bool trans_l_sra(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.sra r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    tcg_gen_sar_tl(cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0xd:
-            switch (op2) {
-            case 0: /* l.extws */
-                LOG_DIS("l.extws r%d, r%d\n", rd, ra);
-                tcg_gen_ext32s_tl(cpu_R[rd], cpu_R[ra]);
-                return;
-            case 1: /* l.extwz */
-                LOG_DIS("l.extwz r%d, r%d\n", rd, ra);
-                tcg_gen_ext32u_tl(cpu_R[rd], cpu_R[ra]);
-                return;
-            }
-            break;
+static bool trans_l_ror(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.ror r%d, r%d, r%d\n", a->d, a->a, a->b);
+    check_r0_write(a->d);
+    tcg_gen_rotr_tl(cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
 
-        case 0xe: /* l.cmov */
-            LOG_DIS("l.cmov r%d, r%d, r%d\n", rd, ra, rb);
-            {
-                TCGv zero = tcg_const_tl(0);
-                tcg_gen_movcond_tl(TCG_COND_NE, cpu_R[rd], cpu_sr_f, zero,
-                                   cpu_R[ra], cpu_R[rb]);
-                tcg_temp_free(zero);
-            }
-            return;
+static bool trans_l_exths(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("l.exths r%d, r%d\n", a->d, a->a);
+    check_r0_write(a->d);
+    tcg_gen_ext16s_tl(cpu_R[a->d], cpu_R[a->a]);
+    return true;
+}
 
-        case 0xf: /* l.ff1 */
-            LOG_DIS("l.ff1 r%d, r%d, r%d\n", rd, ra, rb);
-            tcg_gen_ctzi_tl(cpu_R[rd], cpu_R[ra], -1);
-            tcg_gen_addi_tl(cpu_R[rd], cpu_R[rd], 1);
-            return;
-        }
-        break;
+static bool trans_l_extbs(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("l.extbs r%d, r%d\n", a->d, a->a);
+    check_r0_write(a->d);
+    tcg_gen_ext8s_tl(cpu_R[a->d], cpu_R[a->a]);
+    return true;
+}
 
-    case 1:
-        switch (op0) {
-        case 0xf: /* l.fl1 */
-            LOG_DIS("l.fl1 r%d, r%d, r%d\n", rd, ra, rb);
-            tcg_gen_clzi_tl(cpu_R[rd], cpu_R[ra], TARGET_LONG_BITS);
-            tcg_gen_subfi_tl(cpu_R[rd], TARGET_LONG_BITS, cpu_R[rd]);
-            return;
-        }
-        break;
+static bool trans_l_exthz(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("l.exthz r%d, r%d\n", a->d, a->a);
+    check_r0_write(a->d);
+    tcg_gen_ext16u_tl(cpu_R[a->d], cpu_R[a->a]);
+    return true;
+}
 
-    case 2:
-        break;
+static bool trans_l_extbz(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("l.extbz r%d, r%d\n", a->d, a->a);
+    check_r0_write(a->d);
+    tcg_gen_ext8u_tl(cpu_R[a->d], cpu_R[a->a]);
+    return true;
+}
 
-    case 3:
-        switch (op0) {
-        case 0x6: /* l.mul */
-            LOG_DIS("l.mul r%d, r%d, r%d\n", rd, ra, rb);
-            gen_mul(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_cmov(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    TCGv zero;
+    LOG_DIS("l.cmov r%d, r%d, r%d\n", a->d, a->a, a->b);
 
-        case 0x7: /* l.muld */
-            LOG_DIS("l.muld r%d, r%d\n", ra, rb);
-            gen_muld(dc, cpu_R[ra], cpu_R[rb]);
-            break;
+    check_r0_write(a->d);
+    zero = tcg_const_tl(0);
+    tcg_gen_movcond_tl(TCG_COND_NE, cpu_R[a->d], cpu_sr_f, zero,
+                       cpu_R[a->a], cpu_R[a->b]);
+    tcg_temp_free(zero);
+    return true;
+}
 
-        case 0x9: /* l.div */
-            LOG_DIS("l.div r%d, r%d, r%d\n", rd, ra, rb);
-            gen_div(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_ff1(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("l.ff1 r%d, r%d\n", a->d, a->a);
 
-        case 0xa: /* l.divu */
-            LOG_DIS("l.divu r%d, r%d, r%d\n", rd, ra, rb);
-            gen_divu(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+    check_r0_write(a->d);
+    tcg_gen_ctzi_tl(cpu_R[a->d], cpu_R[a->a], -1);
+    tcg_gen_addi_tl(cpu_R[a->d], cpu_R[a->d], 1);
+    return true;
+}
 
-        case 0xb: /* l.mulu */
-            LOG_DIS("l.mulu r%d, r%d, r%d\n", rd, ra, rb);
-            gen_mulu(dc, cpu_R[rd], cpu_R[ra], cpu_R[rb]);
-            return;
+static bool trans_l_fl1(DisasContext *dc, arg_da *a, uint32_t insn)
+{
+    LOG_DIS("l.fl1 r%d, r%d\n", a->d, a->a);
 
-        case 0xc: /* l.muldu */
-            LOG_DIS("l.muldu r%d, r%d\n", ra, rb);
-            gen_muldu(dc, cpu_R[ra], cpu_R[rb]);
-            return;
-        }
-        break;
-    }
-    gen_illegal_exception(dc);
+    check_r0_write(a->d);
+    tcg_gen_clzi_tl(cpu_R[a->d], cpu_R[a->a], TARGET_LONG_BITS);
+    tcg_gen_subfi_tl(cpu_R[a->d], TARGET_LONG_BITS, cpu_R[a->d]);
+    return true;
+}
+
+static bool trans_l_mul(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.mul r%d, r%d, r%d\n", a->d, a->a, a->b);
+
+    check_r0_write(a->d);
+    gen_mul(dc, cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
+
+static bool trans_l_mulu(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.mulu r%d, r%d, r%d\n", a->d, a->a, a->b);
+
+    check_r0_write(a->d);
+    gen_mulu(dc, cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
+
+static bool trans_l_div(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.div r%d, r%d, r%d\n", a->d, a->a, a->b);
+
+    check_r0_write(a->d);
+    gen_div(dc, cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
+
+static bool trans_l_divu(DisasContext *dc, arg_dab *a, uint32_t insn)
+{
+    LOG_DIS("l.divu r%d, r%d, r%d\n", a->d, a->a, a->b);
+
+    check_r0_write(a->d);
+    gen_divu(dc, cpu_R[a->d], cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
+
+static bool trans_l_muld(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("l.muld r%d, r%d\n", a->a, a->b);
+    gen_muld(dc, cpu_R[a->a], cpu_R[a->b]);
+    return true;
+}
+
+static bool trans_l_muldu(DisasContext *dc, arg_ab *a, uint32_t insn)
+{
+    LOG_DIS("l.muldu r%d, r%d\n", a->a, a->b);
+    gen_muldu(dc, cpu_R[a->a], cpu_R[a->b]);
+    return true;
 }
 
 static bool trans_l_j(DisasContext *dc, arg_l_j *a, uint32_t insn)
@@ -1483,10 +1511,6 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
 
     case 0x32:
         dec_float(dc, insn);
-        break;
-
-    case 0x38:
-        dec_calc(dc, insn);
         break;
 
     case 0x39:
