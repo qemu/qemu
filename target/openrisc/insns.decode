@@ -21,6 +21,7 @@
 &da             d a
 &ab             a b
 &dal            d a l
+&ai             a i
 
 ####
 # System Instructions
@@ -154,3 +155,14 @@ l_sfgts         111001 01010 a:5 b:5 -----------
 l_sfges         111001 01011 a:5 b:5 -----------
 l_sflts         111001 01100 a:5 b:5 -----------
 l_sfles         111001 01101 a:5 b:5 -----------
+
+l_sfeqi         101111 00000 a:5 i:s16
+l_sfnei         101111 00001 a:5 i:s16
+l_sfgtui        101111 00010 a:5 i:s16
+l_sfgeui        101111 00011 a:5 i:s16
+l_sfltui        101111 00100 a:5 i:s16
+l_sfleui        101111 00101 a:5 i:s16
+l_sfgtsi        101111 01010 a:5 i:s16
+l_sfgesi        101111 01011 a:5 i:s16
+l_sfltsi        101111 01100 a:5 i:s16
+l_sflesi        101111 01101 a:5 i:s16

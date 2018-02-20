@@ -1117,70 +1117,74 @@ static bool trans_l_sfles(DisasContext *dc, arg_ab *a, TCGCond cond)
     return true;
 }
 
-static void dec_compi(DisasContext *dc, uint32_t insn)
+static bool trans_l_sfeqi(DisasContext *dc, arg_ai *a, TCGCond cond)
 {
-    uint32_t op0, ra;
-    int32_t I16;
+    LOG_DIS("l.sfeqi r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    op0 = extract32(insn, 21, 5);
-    ra = extract32(insn, 16, 5);
-    I16 = sextract32(insn, 0, 16);
+static bool trans_l_sfnei(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfnei r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_NE, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    switch (op0) {
-    case 0x0:    /* l.sfeqi */
-        LOG_DIS("l.sfeqi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_EQ, cpu_sr_f, cpu_R[ra], I16);
-        break;
+static bool trans_l_sfgtui(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfgtui r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_GTU, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    case 0x1:    /* l.sfnei */
-        LOG_DIS("l.sfnei  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_NE, cpu_sr_f, cpu_R[ra], I16);
-        break;
+static bool trans_l_sfgeui(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfgeui r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_GEU, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    case 0x2:    /* l.sfgtui */
-        LOG_DIS("l.sfgtui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GTU, cpu_sr_f, cpu_R[ra], I16);
-        break;
+static bool trans_l_sfltui(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfltui r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_LTU, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    case 0x3:    /* l.sfgeui */
-        LOG_DIS("l.sfgeui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GEU, cpu_sr_f, cpu_R[ra], I16);
-        break;
+static bool trans_l_sfleui(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfleui r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_LEU, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    case 0x4:    /* l.sfltui */
-        LOG_DIS("l.sfltui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LTU, cpu_sr_f, cpu_R[ra], I16);
-        break;
+static bool trans_l_sfgtsi(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfgtsi r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_GT, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    case 0x5:    /* l.sfleui */
-        LOG_DIS("l.sfleui  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LEU, cpu_sr_f, cpu_R[ra], I16);
-        break;
+static bool trans_l_sfgesi(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfgesi r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_GE, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    case 0xa:    /* l.sfgtsi */
-        LOG_DIS("l.sfgtsi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GT, cpu_sr_f, cpu_R[ra], I16);
-        break;
+static bool trans_l_sfltsi(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sfltsi r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_LT, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
+}
 
-    case 0xb:    /* l.sfgesi */
-        LOG_DIS("l.sfgesi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_GE, cpu_sr_f, cpu_R[ra], I16);
-        break;
-
-    case 0xc:    /* l.sfltsi */
-        LOG_DIS("l.sfltsi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LT, cpu_sr_f, cpu_R[ra], I16);
-        break;
-
-    case 0xd:    /* l.sflesi */
-        LOG_DIS("l.sflesi  r%d, %d\n", ra, I16);
-        tcg_gen_setcondi_tl(TCG_COND_LE, cpu_sr_f, cpu_R[ra], I16);
-        break;
-
-    default:
-        gen_illegal_exception(dc);
-        break;
-    }
+static bool trans_l_sflesi(DisasContext *dc, arg_ai *a, TCGCond cond)
+{
+    LOG_DIS("l.sflesi r%d, %d\n", a->a, a->i);
+    tcg_gen_setcondi_tl(TCG_COND_LE, cpu_sr_f, cpu_R[a->a], a->i);
+    return true;
 }
 
 static bool trans_l_sys(DisasContext *dc, arg_l_sys *a, uint32_t insn)
@@ -1469,10 +1473,6 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
 
     op0 = extract32(insn, 26, 6);
     switch (op0) {
-    case 0x2f:
-        dec_compi(dc, insn);
-        break;
-
     case 0x32:
         dec_float(dc, insn);
         break;
