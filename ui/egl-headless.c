@@ -84,13 +84,10 @@ static void egl_scanout_dmabuf(DisplayChangeListener *dcl,
 }
 
 static void egl_cursor_dmabuf(DisplayChangeListener *dcl,
-                              QemuDmaBuf *dmabuf,
-                              uint32_t pos_x, uint32_t pos_y)
+                              QemuDmaBuf *dmabuf, bool have_hot,
+                              uint32_t hot_x, uint32_t hot_y)
 {
     egl_dpy *edpy = container_of(dcl, egl_dpy, dcl);
-
-    edpy->pos_x = pos_x;
-    edpy->pos_y = pos_y;
 
     egl_dmabuf_import_texture(dmabuf);
     if (!dmabuf->texture) {
@@ -99,6 +96,15 @@ static void egl_cursor_dmabuf(DisplayChangeListener *dcl,
 
     egl_fb_setup_for_tex(&edpy->cursor_fb, dmabuf->width, dmabuf->height,
                          dmabuf->texture, false);
+}
+
+static void egl_cursor_position(DisplayChangeListener *dcl,
+                                uint32_t pos_x, uint32_t pos_y)
+{
+    egl_dpy *edpy = container_of(dcl, egl_dpy, dcl);
+
+    edpy->pos_x = pos_x;
+    edpy->pos_y = pos_y;
 }
 
 static void egl_release_dmabuf(DisplayChangeListener *dcl,
@@ -150,6 +156,7 @@ static const DisplayChangeListenerOps egl_ops = {
     .dpy_gl_scanout_texture  = egl_scanout_texture,
     .dpy_gl_scanout_dmabuf   = egl_scanout_dmabuf,
     .dpy_gl_cursor_dmabuf    = egl_cursor_dmabuf,
+    .dpy_gl_cursor_position  = egl_cursor_position,
     .dpy_gl_release_dmabuf   = egl_release_dmabuf,
     .dpy_gl_update           = egl_scanout_flush,
 };
