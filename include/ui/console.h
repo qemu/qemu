@@ -431,16 +431,16 @@ void surface_gl_setup_viewport(QemuGLShader *gls,
 
 /* sdl.c */
 #ifdef CONFIG_SDL
-void sdl_display_early_init(int opengl);
-void sdl_display_init(DisplayState *ds, int full_screen);
+void sdl_display_early_init(DisplayOptions *opts);
+void sdl_display_init(DisplayState *ds, DisplayOptions *opts);
 #else
-static inline void sdl_display_early_init(int opengl)
+static inline void sdl_display_early_init(DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_SDL is disabled */
     error_report("SDL support is disabled");
     abort();
 }
-static inline void sdl_display_init(DisplayState *ds, int full_screen)
+static inline void sdl_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_SDL is disabled */
     error_report("SDL support is disabled");
@@ -450,9 +450,9 @@ static inline void sdl_display_init(DisplayState *ds, int full_screen)
 
 /* cocoa.m */
 #ifdef CONFIG_COCOA
-void cocoa_display_init(DisplayState *ds, int full_screen);
+void cocoa_display_init(DisplayState *ds, DisplayOptions *opts);
 #else
-static inline void cocoa_display_init(DisplayState *ds, int full_screen)
+static inline void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_COCOA is disabled */
     error_report("Cocoa support is disabled");
@@ -471,9 +471,9 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 
 /* curses.c */
 #ifdef CONFIG_CURSES
-void curses_display_init(DisplayState *ds, int full_screen);
+void curses_display_init(DisplayState *ds, DisplayOptions *opts);
 #else
-static inline void curses_display_init(DisplayState *ds, int full_screen)
+static inline void curses_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_CURSES is disabled */
     error_report("curses support is disabled");
@@ -486,18 +486,17 @@ int index_from_key(const char *key, size_t key_length);
 
 /* gtk.c */
 #ifdef CONFIG_GTK
-void early_gtk_display_init(int opengl);
-void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
+void early_gtk_display_init(DisplayOptions *opts);
+void gtk_display_init(DisplayState *ds, DisplayOptions *opts);
 #else
-static inline void gtk_display_init(DisplayState *ds, bool full_screen,
-                                    bool grab_on_hover)
+static inline void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_GTK is disabled */
     error_report("GTK support is disabled");
     abort();
 }
 
-static inline void early_gtk_display_init(int opengl)
+static inline void early_gtk_display_init(DisplayOptions *opts)
 {
     /* This must never be called if CONFIG_GTK is disabled */
     error_report("GTK support is disabled");
@@ -506,6 +505,6 @@ static inline void early_gtk_display_init(int opengl)
 #endif
 
 /* egl-headless.c */
-void egl_headless_init(void);
+void egl_headless_init(DisplayOptions *opts);
 
 #endif

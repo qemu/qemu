@@ -985,3 +985,67 @@
   'data': { '*device': 'str',
             '*head'  : 'int',
             'events' : [ 'InputEvent' ] } }
+
+
+##
+# @DisplayNoOpts:
+#
+# Empty struct for displays without config options.
+#
+# Since: 2.12
+#
+##
+{ 'struct'  : 'DisplayNoOpts',
+  'data'    : { } }
+
+##
+# @DisplayGTK:
+#
+# GTK display options.
+#
+# @grab-on-hover: Grab keyboard input on mouse hover.
+#
+# Since: 2.12
+#
+##
+{ 'struct'  : 'DisplayGTK',
+  'data'    : { '*grab-on-hover' : 'bool' } }
+
+##
+# @DisplayType:
+#
+# Display (user interface) type.
+#
+# Since: 2.12
+#
+##
+{ 'enum'    : 'DisplayType',
+  'data'    : [ 'default', 'none', 'gtk', 'sdl',
+                'egl-headless', 'curses', 'cocoa' ] }
+
+##
+# @DisplayOptions:
+#
+# Display (user interface) options.
+#
+# @type:          Which DisplayType qemu should use.
+# @full-screen:   Start user interface in fullscreen mode (default: off).
+# @window-close:  Allow to quit qemu with window close button (default: on).
+# @gl:            Enable OpenGL support (default: off).
+#
+# Since: 2.12
+#
+##
+{ 'union'   : 'DisplayOptions',
+  'base'    : { 'type'           : 'DisplayType',
+                '*full-screen'   : 'bool',
+                '*window-close'  : 'bool',
+                '*gl'            : 'bool' },
+  'discriminator' : 'type',
+  'data'    : { 'default'        : 'DisplayNoOpts',
+                'none'           : 'DisplayNoOpts',
+                'gtk'            : 'DisplayGTK',
+                'sdl'            : 'DisplayNoOpts',
+                'egl-headless'   : 'DisplayNoOpts',
+                'curses'         : 'DisplayNoOpts',
+                'cocoa'          : 'DisplayNoOpts' } }
