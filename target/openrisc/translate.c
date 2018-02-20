@@ -1373,14 +1373,6 @@ static bool trans_lf_sfle_s(DisasContext *dc, arg_ab *a, uint32_t insn)
     return true;
 }
 
-static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
-{
-    uint32_t insn = cpu_ldl_code(&cpu->env, dc->base.pc_next);
-    if (!decode(dc, insn)) {
-        gen_illegal_exception(dc);
-    }
-}
-
 static void openrisc_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
@@ -1435,8 +1427,11 @@ static void openrisc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+    uint32_t insn = cpu_ldl_code(&cpu->env, dc->base.pc_next);
 
-    disas_openrisc_insn(dc, cpu);
+    if (!decode(dc, insn)) {
+        gen_illegal_exception(dc);
+    }
     dc->base.pc_next += 4;
 
     /* delay slot */
