@@ -190,12 +190,11 @@ v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...)
     va_end(ap);
 }
 
-void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs)
+void v9fs_path_copy(V9fsPath *dst, const V9fsPath *src)
 {
-    v9fs_path_free(lhs);
-    lhs->data = g_malloc(rhs->size);
-    memcpy(lhs->data, rhs->data, rhs->size);
-    lhs->size = rhs->size;
+    v9fs_path_free(dst);
+    dst->size = src->size;
+    dst->data = g_memdup(src->data, src->size);
 }
 
 int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
