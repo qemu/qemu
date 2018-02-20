@@ -828,174 +828,118 @@ static bool trans_l_sh(DisasContext *dc, arg_store *a, uint32_t insn)
     return true;
 }
 
-static void dec_misc(DisasContext *dc, uint32_t insn)
+static bool trans_l_nop(DisasContext *dc, arg_l_nop *a, uint32_t insn)
 {
-    uint32_t op0, op1;
-    uint32_t ra, rb, rd;
-    uint32_t L6, K5, K16, K5_11;
-    int32_t I16;
+    LOG_DIS("l.nop %d\n", a->k);
+    return true;
+}
+
+static bool trans_l_addi(DisasContext *dc, arg_rri *a, uint32_t insn)
+{
     TCGv t0;
 
-    op0 = extract32(insn, 26, 6);
-    op1 = extract32(insn, 24, 2);
-    ra = extract32(insn, 16, 5);
-    rb = extract32(insn, 11, 5);
-    rd = extract32(insn, 21, 5);
-    L6 = extract32(insn, 5, 6);
-    K5 = extract32(insn, 0, 5);
-    K16 = extract32(insn, 0, 16);
-    I16 = (int16_t)K16;
-    K5_11 = (extract32(insn, 21, 5) << 11) | extract32(insn, 0, 11);
+    LOG_DIS("l.addi r%d, r%d, %d\n", a->d, a->a, a->i);
+    check_r0_write(a->d);
+    t0 = tcg_const_tl(a->i);
+    gen_add(dc, cpu_R[a->d], cpu_R[a->a], t0);
+    tcg_temp_free(t0);
+    return true;
+}
 
-    switch (op0) {
-    case 0x05:
-        switch (op1) {
-        case 0x01:    /* l.nop */
-            LOG_DIS("l.nop %d\n", I16);
-            break;
+static bool trans_l_addic(DisasContext *dc, arg_rri *a, uint32_t insn)
+{
+    TCGv t0;
 
-        default:
-            gen_illegal_exception(dc);
-            break;
-        }
-        break;
+    LOG_DIS("l.addic r%d, r%d, %d\n", a->d, a->a, a->i);
+    check_r0_write(a->d);
+    t0 = tcg_const_tl(a->i);
+    gen_addc(dc, cpu_R[a->d], cpu_R[a->a], t0);
+    tcg_temp_free(t0);
+    return true;
+}
 
-    case 0x13:    /* l.maci */
-        LOG_DIS("l.maci r%d, %d\n", ra, I16);
-        t0 = tcg_const_tl(I16);
-        gen_mac(dc, cpu_R[ra], t0);
-        tcg_temp_free(t0);
-        break;
+static bool trans_l_muli(DisasContext *dc, arg_rri *a, uint32_t insn)
+{
+    TCGv t0;
 
-    case 0x09:    /* l.rfe */
-        LOG_DIS("l.rfe\n");
-        {
-#if defined(CONFIG_USER_ONLY)
-            return;
+    LOG_DIS("l.muli r%d, r%d, %d\n", a->d, a->a, a->i);
+    check_r0_write(a->d);
+    t0 = tcg_const_tl(a->i);
+    gen_mul(dc, cpu_R[a->d], cpu_R[a->a], t0);
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_l_maci(DisasContext *dc, arg_l_maci *a, uint32_t insn)
+{
+    TCGv t0;
+
+    LOG_DIS("l.maci r%d, %d\n", a->a, a->i);
+    t0 = tcg_const_tl(a->i);
+    gen_mac(dc, cpu_R[a->a], t0);
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_l_andi(DisasContext *dc, arg_rrk *a, uint32_t insn)
+{
+    LOG_DIS("l.andi r%d, r%d, %d\n", a->d, a->a, a->k);
+    check_r0_write(a->d);
+    tcg_gen_andi_tl(cpu_R[a->d], cpu_R[a->a], a->k);
+    return true;
+}
+
+static bool trans_l_ori(DisasContext *dc, arg_rrk *a, uint32_t insn)
+{
+    LOG_DIS("l.ori r%d, r%d, %d\n", a->d, a->a, a->k);
+    check_r0_write(a->d);
+    tcg_gen_ori_tl(cpu_R[a->d], cpu_R[a->a], a->k);
+    return true;
+}
+
+static bool trans_l_xori(DisasContext *dc, arg_rri *a, uint32_t insn)
+{
+    LOG_DIS("l.xori r%d, r%d, %d\n", a->d, a->a, a->i);
+    check_r0_write(a->d);
+    tcg_gen_xori_tl(cpu_R[a->d], cpu_R[a->a], a->i);
+    return true;
+}
+
+static bool trans_l_mfspr(DisasContext *dc, arg_l_mfspr *a, uint32_t insn)
+{
+    LOG_DIS("l.mfspr r%d, r%d, %d\n", a->d, a->a, a->k);
+    check_r0_write(a->d);
+
+#ifdef CONFIG_USER_ONLY
+    gen_illegal_exception(dc);
 #else
-            if (dc->mem_idx == MMU_USER_IDX) {
-                gen_illegal_exception(dc);
-                return;
-            }
-            gen_helper_rfe(cpu_env);
-            dc->base.is_jmp = DISAS_UPDATE;
-#endif
-        }
-        break;
-
-    case 0x1c:    /* l.cust1 */
-        LOG_DIS("l.cust1\n");
-        break;
-
-    case 0x1d:    /* l.cust2 */
-        LOG_DIS("l.cust2\n");
-        break;
-
-    case 0x1e:    /* l.cust3 */
-        LOG_DIS("l.cust3\n");
-        break;
-
-    case 0x1f:    /* l.cust4 */
-        LOG_DIS("l.cust4\n");
-        break;
-
-    case 0x3c:    /* l.cust5 */
-        LOG_DIS("l.cust5 r%d, r%d, r%d, %d, %d\n", rd, ra, rb, L6, K5);
-        break;
-
-    case 0x3d:    /* l.cust6 */
-        LOG_DIS("l.cust6\n");
-        break;
-
-    case 0x3e:    /* l.cust7 */
-        LOG_DIS("l.cust7\n");
-        break;
-
-    case 0x3f:    /* l.cust8 */
-        LOG_DIS("l.cust8\n");
-        break;
-
-    case 0x27:    /* l.addi */
-        LOG_DIS("l.addi r%d, r%d, %d\n", rd, ra, I16);
-        check_r0_write(rd);
-        t0 = tcg_const_tl(I16);
-        gen_add(dc, cpu_R[rd], cpu_R[ra], t0);
-        tcg_temp_free(t0);
-        break;
-
-    case 0x28:    /* l.addic */
-        LOG_DIS("l.addic r%d, r%d, %d\n", rd, ra, I16);
-        check_r0_write(rd);
-        t0 = tcg_const_tl(I16);
-        gen_addc(dc, cpu_R[rd], cpu_R[ra], t0);
-        tcg_temp_free(t0);
-        break;
-
-    case 0x29:    /* l.andi */
-        LOG_DIS("l.andi r%d, r%d, %d\n", rd, ra, K16);
-        check_r0_write(rd);
-        tcg_gen_andi_tl(cpu_R[rd], cpu_R[ra], K16);
-        break;
-
-    case 0x2a:    /* l.ori */
-        LOG_DIS("l.ori r%d, r%d, %d\n", rd, ra, K16);
-        check_r0_write(rd);
-        tcg_gen_ori_tl(cpu_R[rd], cpu_R[ra], K16);
-        break;
-
-    case 0x2b:    /* l.xori */
-        LOG_DIS("l.xori r%d, r%d, %d\n", rd, ra, I16);
-        check_r0_write(rd);
-        tcg_gen_xori_tl(cpu_R[rd], cpu_R[ra], I16);
-        break;
-
-    case 0x2c:    /* l.muli */
-        LOG_DIS("l.muli r%d, r%d, %d\n", rd, ra, I16);
-        check_r0_write(rd);
-        t0 = tcg_const_tl(I16);
-        gen_mul(dc, cpu_R[rd], cpu_R[ra], t0);
-        tcg_temp_free(t0);
-        break;
-
-    case 0x2d:    /* l.mfspr */
-        LOG_DIS("l.mfspr r%d, r%d, %d\n", rd, ra, K16);
-        check_r0_write(rd);
-        {
-#if defined(CONFIG_USER_ONLY)
-            return;
-#else
-            TCGv_i32 ti = tcg_const_i32(K16);
-            if (dc->mem_idx == MMU_USER_IDX) {
-                gen_illegal_exception(dc);
-                return;
-            }
-            gen_helper_mfspr(cpu_R[rd], cpu_env, cpu_R[rd], cpu_R[ra], ti);
-            tcg_temp_free_i32(ti);
-#endif
-        }
-        break;
-
-    case 0x30:    /* l.mtspr */
-        LOG_DIS("l.mtspr r%d, r%d, %d\n", ra, rb, K5_11);
-        {
-#if defined(CONFIG_USER_ONLY)
-            return;
-#else
-            TCGv_i32 im = tcg_const_i32(K5_11);
-            if (dc->mem_idx == MMU_USER_IDX) {
-                gen_illegal_exception(dc);
-                return;
-            }
-            gen_helper_mtspr(cpu_env, cpu_R[ra], cpu_R[rb], im);
-            tcg_temp_free_i32(im);
-#endif
-        }
-        break;
-
-    default:
+    if (dc->mem_idx == MMU_USER_IDX) {
         gen_illegal_exception(dc);
-        break;
+    } else {
+        TCGv_i32 ti = tcg_const_i32(a->k);
+        gen_helper_mfspr(cpu_R[a->d], cpu_env, cpu_R[a->d], cpu_R[a->a], ti);
+        tcg_temp_free_i32(ti);
     }
+#endif
+    return true;
+}
+
+static bool trans_l_mtspr(DisasContext *dc, arg_l_mtspr *a, uint32_t insn)
+{
+    LOG_DIS("l.mtspr r%d, r%d, %d\n", a->a, a->b, a->k);
+
+#ifdef CONFIG_USER_ONLY
+    gen_illegal_exception(dc);
+#else
+    if (dc->mem_idx == MMU_USER_IDX) {
+        gen_illegal_exception(dc);
+    } else {
+        TCGv_i32 ti = tcg_const_i32(a->k);
+        gen_helper_mtspr(cpu_env, cpu_R[a->a], cpu_R[a->b], ti);
+        tcg_temp_free_i32(ti);
+    }
+#endif
+    return true;
 }
 
 static void dec_mac(DisasContext *dc, uint32_t insn)
@@ -1272,6 +1216,23 @@ static bool trans_l_csync(DisasContext *dc, arg_l_csync *a, uint32_t insn)
     return true;
 }
 
+static bool trans_l_rfe(DisasContext *dc, arg_l_rfe *a, uint32_t insn)
+{
+    LOG_DIS("l.rfe\n");
+
+#ifdef CONFIG_USER_ONLY
+    gen_illegal_exception(dc);
+#else
+    if (dc->mem_idx == MMU_USER_IDX) {
+        gen_illegal_exception(dc);
+    } else {
+        gen_helper_rfe(cpu_env);
+        dc->base.is_jmp = DISAS_UPDATE;
+    }
+#endif
+    return true;
+}
+
 static void dec_float(DisasContext *dc, uint32_t insn)
 {
     uint32_t op0;
@@ -1533,7 +1494,7 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
         break;
 
     default:
-        dec_misc(dc, insn);
+        gen_illegal_exception(dc);
         break;
     }
 }
