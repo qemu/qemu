@@ -1520,46 +1520,27 @@ void net_check_clients(void)
 
 static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
 {
-    Error *local_err = NULL;
-
-    net_client_init(opts, false, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        return -1;
-    }
-
-    return 0;
+    return net_client_init(opts, false, errp);
 }
 
 static int net_init_netdev(void *dummy, QemuOpts *opts, Error **errp)
 {
-    Error *local_err = NULL;
-    int ret;
-
-    ret = net_client_init(opts, true, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        return -1;
-    }
-
-    return ret;
+    return net_client_init(opts, true, errp);
 }
 
-int net_init_clients(void)
+int net_init_clients(Error **errp)
 {
-    QemuOptsList *net = qemu_find_opts("net");
-
     net_change_state_entry =
         qemu_add_vm_change_state_handler(net_vm_change_state_handler, NULL);
 
     QTAILQ_INIT(&net_clients);
 
     if (qemu_opts_foreach(qemu_find_opts("netdev"),
-                          net_init_netdev, NULL, NULL)) {
+                          net_init_netdev, NULL, errp)) {
         return -1;
     }
 
-    if (qemu_opts_foreach(net, net_init_client, NULL, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("net"), net_init_client, NULL, errp)) {
         return -1;
     }
 
