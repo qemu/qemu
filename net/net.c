@@ -1086,6 +1086,38 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
     return 0;
 }
 
+static void show_netdevs(void)
+{
+    int idx;
+    const char *available_netdevs[] = {
+        "socket",
+        "hubport",
+        "tap",
+#ifdef CONFIG_SLIRP
+        "user",
+#endif
+#ifdef CONFIG_L2TPV3
+        "l2tpv3",
+#endif
+#ifdef CONFIG_VDE
+        "vde",
+#endif
+#ifdef CONFIG_NET_BRIDGE
+        "bridge",
+#endif
+#ifdef CONFIG_NETMAP
+        "netmap",
+#endif
+#ifdef CONFIG_POSIX
+        "vhost-user",
+#endif
+    };
+
+    printf("Available netdev backend types:\n");
+    for (idx = 0; idx < ARRAY_SIZE(available_netdevs); idx++) {
+        puts(available_netdevs[idx]);
+    }
+}
 
 int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 {
@@ -1094,7 +1126,10 @@ int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     int ret = -1;
     Visitor *v = opts_visitor_new(opts);
 
-    {
+    if (is_netdev && is_help_option(qemu_opt_get(opts, "type"))) {
+        show_netdevs();
+        exit(0);
+    } else {
         /* Parse convenience option format ip6-net=fec0::0[/64] */
         const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
 
