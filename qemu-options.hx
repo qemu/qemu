@@ -2004,13 +2004,34 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #endif
     "-netdev hubport,id=str,hubid=n[,netdev=nd]\n"
     "                configure a hub port on QEMU VLAN 'n'\n", QEMU_ARCH_ALL)
+DEF("nic", HAS_ARG, QEMU_OPTION_nic,
+    "--nic [tap|bridge|"
+#ifdef CONFIG_SLIRP
+    "user|"
+#endif
+#ifdef __linux__
+    "l2tpv3|"
+#endif
+#ifdef CONFIG_VDE
+    "vde|"
+#endif
+#ifdef CONFIG_NETMAP
+    "netmap|"
+#endif
+#ifdef CONFIG_POSIX
+    "vhost-user|"
+#endif
+    "socket][,option][,...][mac=macaddr]\n"
+    "                initialize an on-board / default host NIC (using MAC address\n"
+    "                macaddr) and connect it to the given host network backend\n"
+    "--nic none      use it alone to have zero network devices (the default is to\n"
+    "                provided a 'user' network connection)\n",
+    QEMU_ARCH_ALL)
 DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,netdev=nd][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                configure or create an on-board (or machine default) NIC and\n"
     "                connect it either to VLAN 'n' or the netdev 'nd' (for pluggable\n"
     "                NICs please use '-device devtype,netdev=nd' instead)\n"
-    "-net none       use it alone to have zero network devices. If no -net option\n"
-    "                is provided, the default is '-net nic -net user'\n"
     "-net ["
 #ifdef CONFIG_SLIRP
     "user|"
@@ -2456,10 +2477,17 @@ qemu -m 512 -object memory-backend-file,id=mem,size=512M,mem-path=/hugetlbfs,sha
      -device virtio-net-pci,netdev=net0
 @end example
 
-@item -net none
-Indicate that no network devices should be configured. It is used to
-override the default configuration (@option{-net nic -net user}) which
-is activated if no @option{-net} options are provided.
+@item --nic [tap|bridge|user|l2tpv3|vde|netmap|vhost-user|socket][,...][,mac=macaddr]
+
+This option is a shortcut for setting both, the on-board (default) guest NIC
+hardware and the host network backend in one go. The host backend options are
+the same as with the corresponding @option{--netdev} option. The guest NIC
+hardware MAC address can be set with @option{mac=@var{macaddr}}.
+
+@item --nic none
+Indicate that no network devices should be configured. It is used to override
+the default configuration (default NIC with @option{--net user} backend) which
+is activated if no other networking options are provided.
 ETEXI
 
 STEXI
