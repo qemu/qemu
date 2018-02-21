@@ -60,25 +60,6 @@
 static VMChangeStateEntry *net_change_state_entry;
 static QTAILQ_HEAD(, NetClientState) net_clients;
 
-const char *host_net_devices[] = {
-    "tap",
-    "socket",
-#ifdef CONFIG_NET_BRIDGE
-    "bridge",
-#endif
-#ifdef CONFIG_NETMAP
-    "netmap",
-#endif
-#ifdef CONFIG_SLIRP
-    "user",
-#endif
-#ifdef CONFIG_VDE
-    "vde",
-#endif
-    "vhost-user",
-    NULL,
-};
-
 /***********************************************************/
 /* network device redirectors */
 
@@ -1172,81 +1153,6 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     error_propagate(errp, err);
     visit_free(v);
     return ret;
-}
-
-
-static int net_host_check_device(const char *device)
-{
-    int i;
-    for (i = 0; host_net_devices[i]; i++) {
-        if (!strncmp(host_net_devices[i], device,
-                     strlen(host_net_devices[i]))) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-void hmp_host_net_add(Monitor *mon, const QDict *qdict)
-{
-    const char *device = qdict_get_str(qdict, "device");
-    const char *opts_str = qdict_get_try_str(qdict, "opts");
-    Error *local_err = NULL;
-    QemuOpts *opts;
-    static bool warned;
-
-    if (!warned && !qtest_enabled()) {
-        error_report("host_net_add is deprecated, use netdev_add instead");
-        warned = true;
-    }
-
-    if (!net_host_check_device(device)) {
-        monitor_printf(mon, "invalid host network device %s\n", device);
-        return;
-    }
-
-    opts = qemu_opts_parse_noisily(qemu_find_opts("net"),
-                                   opts_str ? opts_str : "", false);
-    if (!opts) {
-        return;
-    }
-
-    qemu_opt_set(opts, "type", device, &error_abort);
-
-    net_client_init(opts, false, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        monitor_printf(mon, "adding host network device %s failed\n", device);
-    }
-}
-
-void hmp_host_net_remove(Monitor *mon, const QDict *qdict)
-{
-    NetClientState *nc;
-    int vlan_id = qdict_get_int(qdict, "vlan_id");
-    const char *device = qdict_get_str(qdict, "device");
-    static bool warned;
-
-    if (!warned && !qtest_enabled()) {
-        error_report("host_net_remove is deprecated, use netdev_del instead");
-        warned = true;
-    }
-
-    nc = net_hub_find_client_by_name(vlan_id, device);
-    if (!nc) {
-        error_report("Host network device '%s' on hub '%d' not found",
-                     device, vlan_id);
-        return;
-    }
-    if (nc->info->type == NET_CLIENT_DRIVER_NIC) {
-        error_report("invalid host network device '%s'", device);
-        return;
-    }
-
-    qemu_del_net_client(nc->peer);
-    qemu_del_net_client(nc);
-    qemu_opts_del(qemu_opts_find(qemu_find_opts("net"), device));
 }
 
 void netdev_add(QemuOpts *opts, Error **errp)

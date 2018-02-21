@@ -2760,16 +2760,6 @@ from qcow2 images.
 
 The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 
-@section System emulator human monitor commands
-
-@subsection host_net_add (since 2.10.0)
-
-The ``host_net_add'' command is replaced by the ``netdev_add'' command.
-
-@subsection host_net_remove (since 2.10.0)
-
-The ``host_net_remove'' command is replaced by the ``netdev_del'' command.
-
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)
