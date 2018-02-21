@@ -63,7 +63,6 @@ static QTAILQ_HEAD(, NetClientState) net_clients;
 const char *host_net_devices[] = {
     "tap",
     "socket",
-    "dump",
 #ifdef CONFIG_NET_BRIDGE
     "bridge",
 #endif
@@ -967,7 +966,6 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 #ifdef CONFIG_NETMAP
         [NET_CLIENT_DRIVER_NETMAP]    = net_init_netmap,
 #endif
-        [NET_CLIENT_DRIVER_DUMP]      = net_init_dump,
 #ifdef CONFIG_NET_BRIDGE
         [NET_CLIENT_DRIVER_BRIDGE]    = net_init_bridge,
 #endif
@@ -993,8 +991,7 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         netdev = object;
         name = netdev->id;
 
-        if (netdev->type == NET_CLIENT_DRIVER_DUMP ||
-            netdev->type == NET_CLIENT_DRIVER_NIC ||
+        if (netdev->type == NET_CLIENT_DRIVER_NIC ||
             !net_client_init_fun[netdev->type]) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
                        "a netdev backend type");
@@ -1035,10 +1032,6 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         case NET_LEGACY_OPTIONS_TYPE_VDE:
             legacy.type = NET_CLIENT_DRIVER_VDE;
             legacy.u.vde = opts->u.vde;
-            break;
-        case NET_LEGACY_OPTIONS_TYPE_DUMP:
-            legacy.type = NET_CLIENT_DRIVER_DUMP;
-            legacy.u.dump = opts->u.dump;
             break;
         case NET_LEGACY_OPTIONS_TYPE_BRIDGE:
             legacy.type = NET_CLIENT_DRIVER_BRIDGE;

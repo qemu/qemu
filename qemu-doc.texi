@@ -2707,12 +2707,6 @@ that can be specified with the ``-device'' parameter.
 The drive addr argument is replaced by the the addr argument
 that can be specified with the ``-device'' parameter.
 
-@subsection -net dump (since 2.10.0)
-
-The ``--net dump'' argument is now replaced with the
-``-object filter-dump'' argument which works in combination
-with the modern ``-netdev`` backends instead.
-
 @subsection -usbdevice (since 2.10.0)
 
 The ``-usbdevice DEV'' argument is now a synonym for setting
