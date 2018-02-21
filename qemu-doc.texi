@@ -2643,42 +2643,46 @@ combined with ``-vnc tls-creds=tls0'
 
 @subsection -tftp (since 2.6.0)
 
-The ``-tftp /some/dir'' argument is replaced by
-``-netdev user,id=x,tftp=/some/dir'', either accompanied with
-``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+The ``-tftp /some/dir'' argument is replaced by either
+``-netdev user,id=x,tftp=/some/dir '' (for pluggable NICs, accompanied
+with ``-device ...,netdev=x''), or ``-nic user,tftp=/some/dir''
 (for embedded NICs). The new syntax allows different settings to be
 provided per NIC.
 
 @subsection -bootp (since 2.6.0)
 
-The ``-bootp /some/file'' argument is replaced by
-``-netdev user,id=x,bootp=/some/file'', either accompanied with
-``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+The ``-bootp /some/file'' argument is replaced by either
+``-netdev user,id=x,bootp=/some/file '' (for pluggable NICs, accompanied
+with ``-device ...,netdev=x''), or ``-nic user,bootp=/some/file''
 (for embedded NICs). The new syntax allows different settings to be
 provided per NIC.
 
 @subsection -redir (since 2.6.0)
 
 The ``-redir [tcp|udp]:hostport:[guestaddr]:guestport'' argument is
-replaced by ``-netdev
-user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport'',
-either accompanied with ``-device ...,netdev=x'' (for pluggable NICs) or
-``-net nic,netdev=x'' (for embedded NICs). The new syntax allows different
-settings to be provided per NIC.
+replaced by either
+``-netdev user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport''
+(for pluggable NICs, accompanied with ``-device ...,netdev=x'') or
+``-nic user,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
 
 @subsection -smb (since 2.6.0)
 
-The ``-smb /some/dir'' argument is replaced by
-``-netdev user,id=x,smb=/some/dir'', either accompanied with
-``-device ...,netdev=x'' (for pluggable NICs) or ``-net nic,netdev=x''
+The ``-smb /some/dir'' argument is replaced by either
+``-netdev user,id=x,smb=/some/dir '' (for pluggable NICs, accompanied
+with ``-device ...,netdev=x''), or ``-nic user,smb=/some/dir''
 (for embedded NICs). The new syntax allows different settings to be
 provided per NIC.
 
 @subsection -net vlan (since 2.9.0)
 
-The ``-net vlan=NN'' argument is partially replaced with the
-new ``-netdev'' argument. The remaining use cases will no
-longer be directly supported in QEMU.
+The ``-net vlan=NN'' argument was mostly used to attach separate
+network backends to different virtual NICs.  This is the default
+behavior for ``-netdev'' and ``-nic''.  You can connect multiple
+``-netdev'' and ``-nic'' devices to the same network using the
+"hubport" network backend, created with ``-netdev hubport,hubid=NN,...''
+and ``-nic hubport,hubid=NN''.
 
 @subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
 
