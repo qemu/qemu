@@ -1119,7 +1119,7 @@ static void show_netdevs(void)
     }
 }
 
-int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
+static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 {
     void *object = NULL;
     Error *err = NULL;

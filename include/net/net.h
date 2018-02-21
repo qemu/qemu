@@ -204,7 +204,6 @@ extern const char *host_net_devices[];
 extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
 
-int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp);
 int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(Error **errp);
 void net_check_clients(void);
@@ -228,7 +227,6 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 #define POLYNOMIAL_LE 0xedb88320
 uint32_t net_crc32(const uint8_t *p, int len);
 uint32_t net_crc32_le(const uint8_t *p, int len);
-unsigned compute_mcast_idx(const uint8_t *ep);
 
 #define vmstate_offset_macaddr(_state, _field)                       \
     vmstate_offset_array(_state, _field.a, uint8_t,                \
