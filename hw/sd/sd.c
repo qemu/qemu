@@ -1179,8 +1179,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
     /* Block write commands (Class 4) */
     case 24:	/* CMD24:  WRITE_SINGLE_BLOCK */
-        if (sd->spi)
-            goto unimplemented_cmd;
+        if (sd->spi) {
+            goto unimplemented_spi_cmd;
+        }
         switch (sd->state) {
         case sd_transfer_state:
             /* Writing in SPI mode not implemented.  */
@@ -1205,8 +1206,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         break;
 
     case 25:	/* CMD25:  WRITE_MULTIPLE_BLOCK */
-        if (sd->spi)
-            goto unimplemented_cmd;
+        if (sd->spi) {
+            goto unimplemented_spi_cmd;
+        }
         switch (sd->state) {
         case sd_transfer_state:
             /* Writing in SPI mode not implemented.  */
@@ -1246,8 +1248,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         break;
 
     case 27:	/* CMD27:  PROGRAM_CSD */
-        if (sd->spi)
-            goto unimplemented_cmd;
+        if (sd->spi) {
+            goto unimplemented_spi_cmd;
+        }
         switch (sd->state) {
         case sd_transfer_state:
             sd->state = sd_receivingdata_state;
@@ -1357,8 +1360,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
     /* Lock card commands (Class 7) */
     case 42:	/* CMD42:  LOCK_UNLOCK */
-        if (sd->spi)
-            goto unimplemented_cmd;
+        if (sd->spi) {
+            goto unimplemented_spi_cmd;
+        }
         switch (sd->state) {
         case sd_transfer_state:
             sd->state = sd_receivingdata_state;
@@ -1409,7 +1413,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         qemu_log_mask(LOG_GUEST_ERROR, "SD: Unknown CMD%i\n", req.cmd);
         return sd_illegal;
 
-    unimplemented_cmd:
+    unimplemented_spi_cmd:
         /* Commands that are recognised but not yet implemented in SPI mode.  */
         qemu_log_mask(LOG_UNIMP, "SD: CMD%i not implemented in SPI mode\n",
                       req.cmd);
