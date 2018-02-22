@@ -28,6 +28,26 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 
+#define MAX_NORMAL_KEYCODE 512
+#define MAX_EXTRA_COUNT 256
+
+struct key_range {
+    int start;
+    int end;
+    struct key_range *next;
+};
+
+struct kbd_layout_t {
+    uint16_t keysym2keycode[MAX_NORMAL_KEYCODE];
+    struct {
+        int keysym;
+        uint16_t keycode;
+    } keysym2keycode_extra[MAX_EXTRA_COUNT];
+    int extra_count;
+    struct key_range *keypad_range;
+    struct key_range *numlock_range;
+};
+
 static int get_keysym(const name2keysym_t *table,
                       const char *name)
 {
@@ -186,15 +206,15 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 }
 
 
-void *init_keyboard_layout(const name2keysym_t *table, const char *language)
+kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
+                                   const char *language)
 {
     return parse_keyboard_layout(table, language, NULL);
 }
 
 
-int keysym2scancode(void *kbd_layout, int keysym)
+int keysym2scancode(kbd_layout_t *k, int keysym)
 {
-    kbd_layout_t *k = kbd_layout;
     if (keysym < MAX_NORMAL_KEYCODE) {
         if (k->keysym2keycode[keysym] == 0) {
             trace_keymap_unmapped(keysym);
@@ -217,9 +237,8 @@ int keysym2scancode(void *kbd_layout, int keysym)
     return 0;
 }
 
-int keycode_is_keypad(void *kbd_layout, int keycode)
+int keycode_is_keypad(kbd_layout_t *k, int keycode)
 {
-    kbd_layout_t *k = kbd_layout;
     struct key_range *kr;
 
     for (kr = k->keypad_range; kr; kr = kr->next) {
@@ -230,9 +249,8 @@ int keycode_is_keypad(void *kbd_layout, int keycode)
     return 0;
 }
 
-int keysym_is_numlock(void *kbd_layout, int keysym)
+int keysym_is_numlock(kbd_layout_t *k, int keysym)
 {
-    kbd_layout_t *k = kbd_layout;
     struct key_range *kr;
 
     for (kr = k->numlock_range; kr; kr = kr->next) {
