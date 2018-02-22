@@ -176,8 +176,12 @@ kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
 }
 
 
-int keysym2scancode(kbd_layout_t *k, int keysym)
+int keysym2scancode(kbd_layout_t *k, int keysym,
+                    bool shift, bool altgr, bool ctrl)
 {
+    static const uint32_t mask =
+        SCANCODE_SHIFT | SCANCODE_ALTGR | SCANCODE_CTRL;
+    uint32_t mods, i;
     struct keysym2code *keysym2code;
 
 #ifdef XK_ISO_Left_Tab
@@ -193,6 +197,33 @@ int keysym2scancode(kbd_layout_t *k, int keysym)
         return 0;
     }
 
+    if (keysym2code->count == 1) {
+        return keysym2code->keycodes[0];
+    }
+
+    /*
+     * We have multiple keysym -> keycode mappings.
+     *
+     * Check whenever we find one mapping where the modifier state of
+     * the mapping matches the current user interface modifier state.
+     * If so, prefer that one.
+     */
+    mods = 0;
+    if (shift) {
+        mods |= SCANCODE_SHIFT;
+    }
+    if (altgr) {
+        mods |= SCANCODE_ALTGR;
+    }
+    if (ctrl) {
+        mods |= SCANCODE_CTRL;
+    }
+
+    for (i = 0; i < keysym2code->count; i++) {
+        if ((keysym2code->keycodes[i] & mask) == mods) {
+            return keysym2code->keycodes[i];
+        }
+    }
     return keysym2code->keycodes[0];
 }
 

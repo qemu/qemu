@@ -1734,7 +1734,8 @@ static void reset_keys(VncState *vs)
 
 static void press_key(VncState *vs, int keysym)
 {
-    int keycode = keysym2scancode(vs->vd->kbd_layout, keysym) & SCANCODE_KEYMASK;
+    int keycode = keysym2scancode(vs->vd->kbd_layout, keysym,
+                                  false, false, false) & SCANCODE_KEYMASK;
     qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, true);
     qemu_input_event_send_key_delay(vs->vd->key_delay_ms);
     qemu_input_event_send_key_number(vs->vd->dcl.con, keycode, false);
@@ -1993,6 +1994,9 @@ static const char *code2name(int keycode)
 
 static void key_event(VncState *vs, int down, uint32_t sym)
 {
+    bool shift = vs->modifiers_state[0x2a] || vs->modifiers_state[0x36];
+    bool altgr = vs->modifiers_state[0xb8];
+    bool ctrl  = vs->modifiers_state[0x1d] || vs->modifiers_state[0x9d];
     int keycode;
     int lsym = sym;
 
@@ -2000,7 +2004,8 @@ static void key_event(VncState *vs, int down, uint32_t sym)
         lsym = lsym - 'A' + 'a';
     }
 
-    keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF) & SCANCODE_KEYMASK;
+    keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF,
+                              shift, altgr, ctrl) & SCANCODE_KEYMASK;
     trace_vnc_key_event_map(down, sym, keycode, code2name(keycode));
     do_key_event(vs, down, keycode, sym);
 }
