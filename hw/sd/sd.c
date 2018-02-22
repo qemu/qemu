@@ -1008,23 +1008,19 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
     case 8:	/* CMD8:   SEND_IF_COND */
         /* Physical Layer Specification Version 2.00 command */
-        switch (sd->state) {
-        case sd_idle_state:
-            sd->vhs = 0;
-
-            /* No response if not exactly one VHS bit is set.  */
-            if (!(req.arg >> 8) || (req.arg >> (ctz32(req.arg & ~0xff) + 1))) {
-                return sd->spi ? sd_r7 : sd_r0;
-            }
-
-            /* Accept.  */
-            sd->vhs = req.arg;
-            return sd_r7;
-
-        default:
+        if (sd->state != sd_idle_state) {
             break;
         }
-        break;
+        sd->vhs = 0;
+
+        /* No response if not exactly one VHS bit is set.  */
+        if (!(req.arg >> 8) || (req.arg >> (ctz32(req.arg & ~0xff) + 1))) {
+            return sd->spi ? sd_r7 : sd_r0;
+        }
+
+        /* Accept.  */
+        sd->vhs = req.arg;
+        return sd_r7;
 
     case 9:	/* CMD9:   SEND_CSD */
         switch (sd->state) {
