@@ -28,20 +28,12 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 
-struct key_range {
-    int start;
-    int end;
-    struct key_range *next;
-};
-
 struct keysym2code {
     uint16_t keycode;
 };
 
 struct kbd_layout_t {
     GHashTable *hash;
-    struct key_range *keypad_range;
-    struct key_range *numlock_range;
 };
 
 static int get_keysym(const name2keysym_t *table,
@@ -63,29 +55,6 @@ static int get_keysym(const name2keysym_t *table,
     return 0;
 }
 
-
-static void add_to_key_range(struct key_range **krp, int code) {
-    struct key_range *kr;
-    for (kr = *krp; kr; kr = kr->next) {
-        if (code >= kr->start && code <= kr->end) {
-            break;
-        }
-        if (code == kr->start - 1) {
-            kr->start--;
-            break;
-        }
-        if (code == kr->end + 1) {
-            kr->end++;
-            break;
-        }
-    }
-    if (kr == NULL) {
-        kr = g_malloc0(sizeof(*kr));
-        kr->start = kr->end = code;
-        kr->next = *krp;
-        *krp = kr;
-    }
-}
 
 static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k)
 {
@@ -160,13 +129,6 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
                     const char *rest = line + offset + 1;
                     int keycode = strtol(rest, NULL, 0);
 
-                    if (strstr(rest, "numlock")) {
-                        add_to_key_range(&k->keypad_range, keycode);
-                        add_to_key_range(&k->numlock_range, keysym);
-                        /* fprintf(stderr, "keypad keysym %04x keycode %d\n",
-                                   keysym, keycode); */
-                    }
-
                     if (strstr(rest, "shift")) {
                         keycode |= SCANCODE_SHIFT;
                     }
@@ -228,24 +190,19 @@ int keysym2scancode(kbd_layout_t *k, int keysym)
 
 int keycode_is_keypad(kbd_layout_t *k, int keycode)
 {
-    struct key_range *kr;
-
-    for (kr = k->keypad_range; kr; kr = kr->next) {
-        if (keycode >= kr->start && keycode <= kr->end) {
-            return 1;
-        }
+    if (keycode >= 0x47 && keycode <= 0x53) {
+        return true;
     }
-    return 0;
+    return false;
 }
 
 int keysym_is_numlock(kbd_layout_t *k, int keysym)
 {
-    struct key_range *kr;
-
-    for (kr = k->numlock_range; kr; kr = kr->next) {
-        if (keysym >= kr->start && keysym <= kr->end) {
-            return 1;
-        }
+    switch (keysym) {
+    case 0xffb0 ... 0xffb9:  /* KP_0 .. KP_9 */
+    case 0xffac:             /* KP_Separator */
+    case 0xffae:             /* KP_Decimal   */
+        return true;
     }
-    return 0;
+    return false;
 }
