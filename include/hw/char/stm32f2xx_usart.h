@@ -37,7 +37,12 @@
 #define USART_CR3  0x14
 #define USART_GTPR 0x18
 
-#define USART_SR_RESET 0x00C00000
+/*
+ * NB: The reset value mentioned in "24.6.1 Status register" seems bogus.
+ * Looking at "Table 98 USART register map and reset values", it seems it
+ * should be 0xc0, and that's how real hardware behaves.
+ */
+#define USART_SR_RESET (USART_SR_TXE | USART_SR_TC)
 
 #define USART_SR_TXE  (1 << 7)
 #define USART_SR_TC   (1 << 6)
