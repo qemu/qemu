@@ -29,7 +29,8 @@
 #include "qemu/error-report.h"
 
 struct keysym2code {
-    uint16_t keycode;
+    uint32_t count;
+    uint16_t keycodes[4];
 };
 
 struct kbd_layout_t {
@@ -62,11 +63,18 @@ static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k)
 
     keysym2code = g_hash_table_lookup(k->hash, GINT_TO_POINTER(keysym));
     if (keysym2code) {
+        if (keysym2code->count < ARRAY_SIZE(keysym2code->keycodes)) {
+            keysym2code->keycodes[keysym2code->count++] = keycode;
+        } else {
+            warn_report("more than %zd keycodes for keysym %d",
+                        ARRAY_SIZE(keysym2code->keycodes), keysym);
+        }
         return;
     }
 
     keysym2code = g_new0(struct keysym2code, 1);
-    keysym2code->keycode = keycode;
+    keysym2code->keycodes[0] = keycode;
+    keysym2code->count = 1;
     g_hash_table_replace(k->hash, GINT_TO_POINTER(keysym), keysym2code);
     trace_keymap_add(keysym, keycode, line);
 }
@@ -185,7 +193,7 @@ int keysym2scancode(kbd_layout_t *k, int keysym)
         return 0;
     }
 
-    return keysym2code->keycode;
+    return keysym2code->keycodes[0];
 }
 
 int keycode_is_keypad(kbd_layout_t *k, int keycode)
