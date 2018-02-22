@@ -450,7 +450,7 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
         len = s->max_size;
     }
     size = tcp_chr_recv(chr, (void *)buf, len);
-    if (size == 0 || size == -1) {
+    if (size == 0 || (size == -1 && errno != EAGAIN)) {
         /* connection closed */
         tcp_chr_disconnect(chr);
     } else if (size > 0) {
