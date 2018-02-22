@@ -39,8 +39,6 @@
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 
-#include "fpu/softfloat.h"
-
 #define EXCP_UDEF            1   /* undefined instruction */
 #define EXCP_SWI             2   /* software interrupt */
 #define EXCP_PREFETCH_ABORT  3

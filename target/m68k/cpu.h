@@ -28,7 +28,6 @@
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
-#include "fpu/softfloat.h"
 
 #define OS_BYTE     0
 #define OS_WORD     1

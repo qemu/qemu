@@ -24,7 +24,6 @@
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
-#include "fpu/softfloat.h"
 
 #define CPUArchState struct CPUTriCoreState
 

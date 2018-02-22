@@ -23,6 +23,7 @@
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 #include "crypto/aes.h"
+#include "fpu/softfloat.h"
 
 #include "helper_regs.h"
 /*****************************************************************************/

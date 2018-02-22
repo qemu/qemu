@@ -24,7 +24,7 @@
 #include "exec/cpu_ldst.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
-
+#include "fpu/softfloat.h"
 
 void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
 {

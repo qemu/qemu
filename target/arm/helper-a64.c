@@ -31,6 +31,7 @@
 #include "exec/cpu_ldst.h"
 #include "qemu/int128.h"
 #include "tcg.h"
+#include "fpu/softfloat.h"
 #include <zlib.h> /* For crc32 */
 
 /* C2.4.7 Multiply and divide */

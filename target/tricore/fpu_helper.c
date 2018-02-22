@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "fpu/softfloat.h"
 
 #define QUIET_NAN 0x7fc00000
 #define ADD_NAN   0x7fc00001

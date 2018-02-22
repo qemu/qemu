@@ -41,8 +41,6 @@
 
 #include "exec/cpu-all.h"
 
-#include "fpu/softfloat.h"
-
 #define NB_MMU_MODES 4
 #define TARGET_INSN_START_EXTRA_WORDS 1
 

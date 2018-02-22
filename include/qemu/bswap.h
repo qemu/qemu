@@ -1,7 +1,7 @@
 #ifndef BSWAP_H
 #define BSWAP_H
 
-#include "fpu/softfloat.h"
+#include "fpu/softfloat-types.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
 # include <sys/endian.h>

@@ -29,8 +29,6 @@
 
 #include "exec/cpu-defs.h"
 
-#include "fpu/softfloat.h"
-
 /*#define EXCP_INTERRUPT 0x100*/
 
 /* trap definitions */

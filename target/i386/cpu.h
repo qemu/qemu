@@ -52,10 +52,6 @@
 
 #define CPUArchState struct CPUX86State
 
-#ifdef CONFIG_TCG
-#include "fpu/softfloat.h"
-#endif
-
 enum {
     R_EAX = 0,
     R_ECX = 1,

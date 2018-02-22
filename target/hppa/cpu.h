@@ -51,7 +51,6 @@
 #define CPUArchState struct CPUHPPAState
 
 #include "exec/cpu-defs.h"
-#include "fpu/softfloat.h"
 
 #define TARGET_PAGE_BITS 12
 

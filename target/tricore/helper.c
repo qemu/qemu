@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "fpu/softfloat.h"
 
 enum {
     TLBRET_DIRTY = -4,

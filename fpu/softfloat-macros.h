@@ -625,6 +625,54 @@ static uint64_t estimateDiv128To64( uint64_t a0, uint64_t a1, uint64_t b )
 
 }
 
+/* From the GNU Multi Precision Library - longlong.h __udiv_qrnnd
+ * (https://gmplib.org/repo/gmp/file/tip/longlong.h)
+ *
+ * Licensed under the GPLv2/LGPLv3
+ */
+static uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
+{
+    uint64_t d0, d1, q0, q1, r1, r0, m;
+
+    d0 = (uint32_t)d;
+    d1 = d >> 32;
+
+    r1 = n1 % d1;
+    q1 = n1 / d1;
+    m = q1 * d0;
+    r1 = (r1 << 32) | (n0 >> 32);
+    if (r1 < m) {
+        q1 -= 1;
+        r1 += d;
+        if (r1 >= d) {
+            if (r1 < m) {
+                q1 -= 1;
+                r1 += d;
+            }
+        }
+    }
+    r1 -= m;
+
+    r0 = r1 % d1;
+    q0 = r1 / d1;
+    m = q0 * d0;
+    r0 = (r0 << 32) | (uint32_t)n0;
+    if (r0 < m) {
+        q0 -= 1;
+        r0 += d;
+        if (r0 >= d) {
+            if (r0 < m) {
+                q0 -= 1;
+                r0 += d;
+            }
+        }
+    }
+    r0 -= m;
+
+    /* Return remainder in LSB */
+    return (q1 << 32) | q0 | (r0 != 0);
+}
+
 /*----------------------------------------------------------------------------
 | Returns an approximation to the square root of the 32-bit significand given
 | by `a'.  Considered as an integer, `a' must be at least 2^31.  If bit 0 of
