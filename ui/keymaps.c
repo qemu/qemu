@@ -28,22 +28,18 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 
-#define MAX_NORMAL_KEYCODE 512
-#define MAX_EXTRA_COUNT 256
-
 struct key_range {
     int start;
     int end;
     struct key_range *next;
 };
 
+struct keysym2code {
+    uint16_t keycode;
+};
+
 struct kbd_layout_t {
-    uint16_t keysym2keycode[MAX_NORMAL_KEYCODE];
-    struct {
-        int keysym;
-        uint16_t keycode;
-    } keysym2keycode_extra[MAX_EXTRA_COUNT];
-    int extra_count;
+    GHashTable *hash;
     struct key_range *keypad_range;
     struct key_range *numlock_range;
 };
@@ -91,23 +87,19 @@ static void add_to_key_range(struct key_range **krp, int code) {
     }
 }
 
-static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k) {
-    if (keysym < MAX_NORMAL_KEYCODE) {
-        trace_keymap_add("normal", keysym, keycode, line);
-        k->keysym2keycode[keysym] = keycode;
-    } else {
-        if (k->extra_count >= MAX_EXTRA_COUNT) {
-            warn_report("Could not assign keysym %s (0x%x)"
-                        " because of memory constraints.", line, keysym);
-        } else {
-            trace_keymap_add("extra", keysym, keycode, line);
-            k->keysym2keycode_extra[k->extra_count].
-            keysym = keysym;
-            k->keysym2keycode_extra[k->extra_count].
-            keycode = keycode;
-            k->extra_count++;
-        }
+static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k)
+{
+    struct keysym2code *keysym2code;
+
+    keysym2code = g_hash_table_lookup(k->hash, GINT_TO_POINTER(keysym));
+    if (keysym2code) {
+        return;
     }
+
+    keysym2code = g_new0(struct keysym2code, 1);
+    keysym2code->keycode = keycode;
+    g_hash_table_replace(k->hash, GINT_TO_POINTER(keysym), keysym2code);
+    trace_keymap_add(keysym, keycode, line);
 }
 
 static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
@@ -131,6 +123,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 
     if (!k) {
         k = g_new0(kbd_layout_t, 1);
+        k->hash = g_hash_table_new(NULL, NULL);
     }
 
     for(;;) {
@@ -215,26 +208,22 @@ kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
 
 int keysym2scancode(kbd_layout_t *k, int keysym)
 {
-    if (keysym < MAX_NORMAL_KEYCODE) {
-        if (k->keysym2keycode[keysym] == 0) {
-            trace_keymap_unmapped(keysym);
-            warn_report("no scancode found for keysym %d", keysym);
-        }
-        return k->keysym2keycode[keysym];
-    } else {
-        int i;
+    struct keysym2code *keysym2code;
+
 #ifdef XK_ISO_Left_Tab
-        if (keysym == XK_ISO_Left_Tab) {
-            keysym = XK_Tab;
-        }
-#endif
-        for (i = 0; i < k->extra_count; i++) {
-            if (k->keysym2keycode_extra[i].keysym == keysym) {
-                return k->keysym2keycode_extra[i].keycode;
-            }
-        }
+    if (keysym == XK_ISO_Left_Tab) {
+        keysym = XK_Tab;
     }
-    return 0;
+#endif
+
+    keysym2code = g_hash_table_lookup(k->hash, GINT_TO_POINTER(keysym));
+    if (!keysym2code) {
+        trace_keymap_unmapped(keysym);
+        warn_report("no scancode found for keysym %d", keysym);
+        return 0;
+    }
+
+    return keysym2code->keycode;
 }
 
 int keycode_is_keypad(kbd_layout_t *k, int keycode)
