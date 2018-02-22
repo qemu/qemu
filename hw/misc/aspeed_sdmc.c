@@ -110,7 +110,12 @@ static void aspeed_sdmc_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     }
 
-    if (addr != R_PROT && s->regs[R_PROT] != PROT_KEY_UNLOCK) {
+    if (addr == R_PROT) {
+        s->regs[addr] = (data == PROT_KEY_UNLOCK) ? 1 : 0;
+        return;
+    }
+
+    if (!s->regs[R_PROT]) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: SDMC is locked!\n", __func__);
         return;
     }
@@ -123,6 +128,7 @@ static void aspeed_sdmc_write(void *opaque, hwaddr addr, uint64_t data,
             data &= ~ASPEED_SDMC_READONLY_MASK;
             break;
         case AST2500_A0_SILICON_REV:
+        case AST2500_A1_SILICON_REV:
             data &= ~ASPEED_SDMC_AST2500_READONLY_MASK;
             break;
         default:
