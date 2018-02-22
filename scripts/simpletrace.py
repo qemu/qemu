@@ -199,7 +199,7 @@ def process(events, log, analyzer, read_header=True):
         fn_argcount = len(inspect.getargspec(fn)[0]) - 1
         if fn_argcount == event_argcount + 1:
             # Include timestamp as first argument
-            return lambda _, rec: fn(*((rec[1:2],) + rec[3:3 + event_argcount]))
+            return lambda _, rec: fn(*(rec[1:2] + rec[3:3 + event_argcount]))
         elif fn_argcount == event_argcount + 2:
             # Include timestamp and pid
             return lambda _, rec: fn(*rec[1:3 + event_argcount])
