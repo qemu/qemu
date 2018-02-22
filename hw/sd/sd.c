@@ -357,7 +357,7 @@ static void sd_set_csd(SDState *sd, uint64_t size)
         sd->csd[0] = 0x00;	/* CSD structure */
         sd->csd[1] = 0x26;	/* Data read access-time-1 */
         sd->csd[2] = 0x00;	/* Data read access-time-2 */
-        sd->csd[3] = 0x5a;	/* Max. data transfer rate */
+        sd->csd[3] = 0x32;      /* Max. data transfer rate: 25 MHz */
         sd->csd[4] = 0x5f;	/* Card Command Classes */
         sd->csd[5] = 0x50 |	/* Max. read data block length */
             HWBLOCK_SHIFT;
