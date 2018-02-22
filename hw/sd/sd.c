@@ -1386,6 +1386,14 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
     /* Application specific commands (Class 8) */
     case 55:	/* CMD55:  APP_CMD */
+        switch (sd->state) {
+        case sd_ready_state:
+        case sd_identification_state:
+        case sd_inactive_state:
+            return sd_illegal;
+        default:
+            break;
+        }
         if (!sd->spi) {
             if (sd->rca != rca) {
                 return sd_r0;
