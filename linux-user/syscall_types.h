@@ -557,4 +557,248 @@ STRUCT(drm_i915_gem_context_param,
        TYPE_ULONGLONG,
        TYPE_ULONGLONG
 )
+
+STRUCT(drm_radeon_init_t,
+       TYPE_INT,
+       TYPE_ULONG,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+
+       TYPE_ULONG,
+       TYPE_ULONG,
+       TYPE_ULONG,
+       TYPE_ULONG,
+       TYPE_ULONG,
+       TYPE_ULONG
+)
+
+STRUCT(drm_radeon_cp_stop_t,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_fullscreen_t,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_clear_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_vertex_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_indices_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_vertex2_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_PTRVOID,
+       TYPE_INT,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_cmd_buffer_t,
+       TYPE_INT,
+       TYPE_PTRVOID,
+       TYPE_INT,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_texture_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_stipple_t,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_indirect_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_getparam_t,
+       TYPE_INT,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_mem_alloc_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_mem_free_t,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_mem_init_heap_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_irq_emit_t,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_radeon_irq_wait_t,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_setparam_t,
+       TYPE_INT,
+       TYPE_LONGLONG
+)
+
+STRUCT(drm_radeon_surface_alloc_t,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_surface_free_t,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_info,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_radeon_gem_create,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_userptr,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_set_tiling,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_get_tiling,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_mmap,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_radeon_gem_set_domain,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_wait_idle,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_busy,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_radeon_gem_pread,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_radeon_gem_pwrite,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_radeon_gem_op,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_radeon_gem_va,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_radeon_cs,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_radeon_info,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG
+)
+
 #endif

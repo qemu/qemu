@@ -113,6 +113,7 @@
 #ifdef CONFIG_LIBDRM
 #include <libdrm/drm.h>
 #include <libdrm/i915_drm.h>
+#include <libdrm/radeon_drm.h>
 #endif
 
 #include "qemu.h"

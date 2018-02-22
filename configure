@@ -5148,6 +5148,7 @@ have_libdrm=no
 cat > $TMPC << EOF
 #include <libdrm/drm.h>
 #include <libdrm/i915_drm.h>
+#include <libdrm/radeon_drm.h>
 int main(void) {
   return DRM_IOCTL_PRIME_FD_TO_HANDLE | DRM_IOCTL_I915_GET_RESET_STATS;
 }
@@ -5764,7 +5765,7 @@ echo "PIE               $pie"
 echo "vde support       $vde"
 echo "netmap support    $netmap"
 echo "Linux AIO support $linux_aio"
-echo "Linux drm support (i915) $have_libdrm"
+echo "Linux drm support (i915, radeon) $have_libdrm"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
