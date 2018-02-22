@@ -1546,6 +1546,18 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
         }
         break;
 
+    case 18:    /* Reserved for SD security applications */
+    case 25:
+    case 26:
+    case 38:
+    case 43 ... 49:
+        /* Refer to the "SD Specifications Part3 Security Specification" for
+         * information about the SD Security Features.
+         */
+        qemu_log_mask(LOG_UNIMP, "SD: CMD%i Security not implemented\n",
+                      req.cmd);
+        return sd_illegal;
+
     default:
         /* Fall back to standard commands.  */
         return sd_normal_command(sd, req);
