@@ -1371,9 +1371,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         }
         break;
 
-    case 52:
-    case 53:
-        /* CMD52, CMD53: reserved for SDIO cards
+    case 52 ... 54:
+        /* CMD52, CMD53, CMD54: reserved for SDIO cards
          * (see the SDIO Simplified Specification V2.0)
          * Handle as illegal command but do not complain
          * on stderr, as some OSes may use these in their
