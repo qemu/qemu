@@ -378,7 +378,6 @@ static void sd_set_csd(SDState *sd, uint64_t size)
         sd->csd[13] = 0x20 |	/* Max. write data block length */
             ((HWBLOCK_SHIFT << 6) & 0xc0);
         sd->csd[14] = 0x00;	/* File format group */
-        sd->csd[15] = (sd_crc7(sd->csd, 15) << 1) | 1;
     } else {			/* SDHC */
         size /= 512 * 1024;
         size -= 1;
@@ -397,8 +396,8 @@ static void sd_set_csd(SDState *sd, uint64_t size)
         sd->csd[12] = 0x0a;
         sd->csd[13] = 0x40;
         sd->csd[14] = 0x00;
-        sd->csd[15] = 0x00;
     }
+    sd->csd[15] = (sd_crc7(sd->csd, 15) << 1) | 1;
 }
 
 static void sd_set_rca(SDState *sd)
