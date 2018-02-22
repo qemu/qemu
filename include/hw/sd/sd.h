@@ -53,7 +53,6 @@
 #define READY_FOR_DATA		(1 << 8)
 #define APP_CMD			(1 << 5)
 #define AKE_SEQ_ERROR		(1 << 3)
-#define OCR_CCS_BITN        30
 
 typedef enum {
     SD_VOLTAGE_0_4V     = 400,  /* currently not supported */

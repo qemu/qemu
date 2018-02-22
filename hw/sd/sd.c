@@ -32,6 +32,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "hw/hw.h"
+#include "hw/registerfields.h"
 #include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
@@ -47,8 +48,6 @@
 //#define DEBUG_SD 1
 
 #define ACMD41_ENQUIRY_MASK     0x00ffffff
-#define OCR_POWER_UP            0x80000000
-#define OCR_POWER_DELAY_NS      500000 /* 0.5ms */
 
 typedef enum {
     sd_r0 = 0,    /* no response */
@@ -271,6 +270,11 @@ static uint16_t sd_crc16(void *message, size_t width)
     return shift_reg;
 }
 
+#define OCR_POWER_DELAY_NS      500000 /* 0.5ms */
+
+FIELD(OCR, CARD_CAPACITY,              30,  1) /* 0:SDSC, 1:SDHC/SDXC */
+FIELD(OCR, CARD_POWER_UP,              31,  1)
+
 static void sd_set_ocr(SDState *sd)
 {
     /* All voltages OK, Standard Capacity SD Memory Card, not yet powered up */
@@ -282,9 +286,10 @@ static void sd_ocr_powerup(void *opaque)
     SDState *sd = opaque;
 
     trace_sdcard_powerup();
-    /* Set powered up bit in OCR */
-    assert(!(sd->ocr & OCR_POWER_UP));
-    sd->ocr |= OCR_POWER_UP;
+    assert(!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP));
+
+    /* card power-up OK */
+    sd->ocr = FIELD_DP32(sd->ocr, OCR, CARD_POWER_UP, 1);
 }
 
 static void sd_set_scr(SDState *sd)
@@ -570,7 +575,7 @@ static bool sd_ocr_vmstate_needed(void *opaque)
     SDState *sd = opaque;
 
     /* Include the OCR state (and timer) if it is not yet powered up */
-    return !(sd->ocr & OCR_POWER_UP);
+    return !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
 }
 
 static const VMStateDescription sd_ocr_vmstate = {
@@ -680,7 +685,7 @@ static void sd_erase(SDState *sd)
         return;
     }
 
-    if (extract32(sd->ocr, OCR_CCS_BITN, 1)) {
+    if (FIELD_EX32(sd->ocr, OCR, CARD_CAPACITY)) {
         /* High capacity memory card: erase units are 512 byte blocks */
         erase_start *= 512;
         erase_end *= 512;
@@ -1468,7 +1473,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
              * UEFI, which sends an initial enquiry ACMD41, but
              * assumes that the card is in ready state as soon as it
              * sees the power up bit set. */
-            if (!(sd->ocr & OCR_POWER_UP)) {
+            if (!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP)) {
                 if ((req.arg & ACMD41_ENQUIRY_MASK) != 0) {
                     timer_del(sd->ocr_power_timer);
                     sd_ocr_powerup(sd);
