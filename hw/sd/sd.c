@@ -1037,24 +1037,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         }
         break;
 
-    case 11:	/* CMD11:  READ_DAT_UNTIL_STOP */
-        if (sd->spi)
-            goto bad_cmd;
-        switch (sd->state) {
-        case sd_transfer_state:
-            sd->state = sd_sendingdata_state;
-            sd->data_start = req.arg;
-            sd->data_offset = 0;
-
-            if (sd->data_start + sd->blk_len > sd->size)
-                sd->card_status |= ADDRESS_ERROR;
-            return sd_r0;
-
-        default:
-            break;
-        }
-        break;
-
     case 12:	/* CMD12:  STOP_TRANSMISSION */
         switch (sd->state) {
         case sd_sendingdata_state:
@@ -1860,21 +1842,6 @@ uint8_t sd_read_data(SDState *sd)
 
         if (sd->data_offset >= 16)
             sd->state = sd_transfer_state;
-        break;
-
-    case 11:	/* CMD11:  READ_DAT_UNTIL_STOP */
-        if (sd->data_offset == 0)
-            BLK_READ_BLOCK(sd->data_start, io_len);
-        ret = sd->data[sd->data_offset ++];
-
-        if (sd->data_offset >= io_len) {
-            sd->data_start += io_len;
-            sd->data_offset = 0;
-            if (sd->data_start + io_len > sd->size) {
-                sd->card_status |= ADDRESS_ERROR;
-                break;
-            }
-        }
         break;
 
     case 13:	/* ACMD13: SD_STATUS */
