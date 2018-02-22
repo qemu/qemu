@@ -88,16 +88,21 @@ enum SDCardStates {
 struct SDState {
     DeviceState parent_obj;
 
-    uint32_t mode;    /* current card mode, one of SDCardModes */
-    int32_t state;    /* current card state, one of SDCardStates */
+    /* SD Memory Card Registers */
     uint32_t ocr;
-    QEMUTimer *ocr_power_timer;
     uint8_t scr[8];
     uint8_t cid[16];
     uint8_t csd[16];
     uint16_t rca;
     uint32_t card_status;
     uint8_t sd_status[64];
+
+    /* Configurable properties */
+    BlockBackend *blk;
+    bool spi;
+
+    uint32_t mode;    /* current card mode, one of SDCardModes */
+    int32_t state;    /* current card state, one of SDCardStates */
     uint32_t vhs;
     bool wp_switch;
     unsigned long *wp_groups;
@@ -110,8 +115,6 @@ struct SDState {
     uint8_t pwd[16];
     uint32_t pwd_len;
     uint8_t function_group[6];
-
-    bool spi;
     uint8_t current_cmd;
     /* True if we will handle the next command as an ACMD. Note that this does
      * *not* track the APP_CMD status bit!
@@ -123,8 +126,7 @@ struct SDState {
     uint8_t data[512];
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
-    BlockBackend *blk;
-
+    QEMUTimer *ocr_power_timer;
     bool enable;
     uint8_t dat_lines;
     bool cmd_line;
