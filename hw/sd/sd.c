@@ -419,14 +419,56 @@ static void sd_set_rca(SDState *sd)
     sd->rca += 0x4567;
 }
 
+FIELD(CSR, AKE_SEQ_ERROR,               3,  1)
+FIELD(CSR, APP_CMD,                     5,  1)
+FIELD(CSR, FX_EVENT,                    6,  1)
+FIELD(CSR, READY_FOR_DATA,              8,  1)
+FIELD(CSR, CURRENT_STATE,               9,  4)
+FIELD(CSR, ERASE_RESET,                13,  1)
+FIELD(CSR, CARD_ECC_DISABLED,          14,  1)
+FIELD(CSR, WP_ERASE_SKIP,              15,  1)
+FIELD(CSR, CSD_OVERWRITE,              16,  1)
+FIELD(CSR, DEFERRED_RESPONSE,          17,  1)
+FIELD(CSR, ERROR,                      19,  1)
+FIELD(CSR, CC_ERROR,                   20,  1)
+FIELD(CSR, CARD_ECC_FAILED,            21,  1)
+FIELD(CSR, ILLEGAL_COMMAND,            22,  1)
+FIELD(CSR, COM_CRC_ERROR,              23,  1)
+FIELD(CSR, LOCK_UNLOCK_FAILED,         24,  1)
+FIELD(CSR, CARD_IS_LOCKED,             25,  1)
+FIELD(CSR, WP_VIOLATION,               26,  1)
+FIELD(CSR, ERASE_PARAM,                27,  1)
+FIELD(CSR, ERASE_SEQ_ERROR,            28,  1)
+FIELD(CSR, BLOCK_LEN_ERROR,            29,  1)
+FIELD(CSR, ADDRESS_ERROR,              30,  1)
+FIELD(CSR, OUT_OF_RANGE,               31,  1)
+
 /* Card status bits, split by clear condition:
  * A : According to the card current state
  * B : Always related to the previous command
  * C : Cleared by read
  */
-#define CARD_STATUS_A	0x02004100
-#define CARD_STATUS_B	0x00c01e00
-#define CARD_STATUS_C	0xfd39a028
+#define CARD_STATUS_A           (R_CSR_READY_FOR_DATA_MASK \
+                               | R_CSR_CARD_ECC_DISABLED_MASK \
+                               | R_CSR_CARD_IS_LOCKED_MASK)
+#define CARD_STATUS_B           (R_CSR_CURRENT_STATE_MASK \
+                               | R_CSR_ILLEGAL_COMMAND_MASK \
+                               | R_CSR_COM_CRC_ERROR_MASK)
+#define CARD_STATUS_C           (R_CSR_AKE_SEQ_ERROR_MASK \
+                               | R_CSR_APP_CMD_MASK \
+                               | R_CSR_ERASE_RESET_MASK \
+                               | R_CSR_WP_ERASE_SKIP_MASK \
+                               | R_CSR_CSD_OVERWRITE_MASK \
+                               | R_CSR_ERROR_MASK \
+                               | R_CSR_CC_ERROR_MASK \
+                               | R_CSR_CARD_ECC_FAILED_MASK \
+                               | R_CSR_LOCK_UNLOCK_FAILED_MASK \
+                               | R_CSR_WP_VIOLATION_MASK \
+                               | R_CSR_ERASE_PARAM_MASK \
+                               | R_CSR_ERASE_SEQ_ERROR_MASK \
+                               | R_CSR_BLOCK_LEN_ERROR_MASK \
+                               | R_CSR_ADDRESS_ERROR_MASK \
+                               | R_CSR_OUT_OF_RANGE_MASK)
 
 static void sd_set_cardstatus(SDState *sd)
 {
