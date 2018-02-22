@@ -1447,9 +1447,10 @@ sub process {
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /$SrcFile/);
 
-#90 column limit
+#90 column limit; exempt URLs, if no other words on line
 		if ($line =~ /^\+/ &&
 		    !($line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
+		    !($rawline =~ /^[^[:alnum:]]*https?:\S*$/) &&
 		    $length > 80)
 		{
 			if ($length > 90) {
