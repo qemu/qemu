@@ -47,7 +47,7 @@ typedef struct {
     int32_t arglen;
     int32_t response_pos;
     int32_t stopping;
-    SDState *sd;
+    SDBus sdbus;
 } ssi_sd_state;
 
 #define TYPE_SSI_SD "ssi-sd"
@@ -100,7 +100,7 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
             request.arg = (s->cmdarg[0] << 24) | (s->cmdarg[1] << 16)
                            | (s->cmdarg[2] << 8) | s->cmdarg[3];
             DPRINTF("CMD%d arg 0x%08x\n", s->cmd, request.arg);
-            s->arglen = sd_do_command(s->sd, &request, longresp);
+            s->arglen = sdbus_do_command(&s->sdbus, &request, longresp);
             if (s->arglen <= 0) {
                 s->arglen = 1;
                 s->response[0] = 4;
@@ -177,7 +177,7 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
             DPRINTF("Response 0x%02x\n", s->response[s->response_pos]);
             return s->response[s->response_pos++];
         }
-        if (sd_data_ready(s->sd)) {
+        if (sdbus_data_ready(&s->sdbus)) {
             DPRINTF("Data read\n");
             s->mode = SSI_SD_DATA_START;
         } else {
@@ -190,8 +190,8 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
         s->mode = SSI_SD_DATA_READ;
         return 0xfe;
     case SSI_SD_DATA_READ:
-        val = sd_read_data(s->sd);
-        if (!sd_data_ready(s->sd)) {
+        val = sdbus_read_data(&s->sdbus);
+        if (!sdbus_data_ready(&s->sdbus)) {
             DPRINTF("Data read end\n");
             s->mode = SSI_SD_CMD;
         }
@@ -242,13 +242,24 @@ static const VMStateDescription vmstate_ssi_sd = {
 static void ssi_sd_realize(SSISlave *d, Error **errp)
 {
     ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, d);
+    DeviceState *carddev;
     DriveInfo *dinfo;
+    Error *err = NULL;
 
+    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS,
+                        DEVICE(d), "sd-bus");
+
+    /* Create and plug in the sd card */
     /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_SD);
-    s->sd = sd_init(dinfo ? blk_by_legacy_dinfo(dinfo) : NULL, true);
-    if (s->sd == NULL) {
-        error_setg(errp, "Device initialization failed.");
+    carddev = qdev_create(&s->sdbus.qbus, TYPE_SD_CARD);
+    if (dinfo) {
+        qdev_prop_set_drive(carddev, "drive", blk_by_legacy_dinfo(dinfo), &err);
+    }
+    object_property_set_bool(OBJECT(carddev), true, "spi", &err);
+    object_property_set_bool(OBJECT(carddev), true, "realized", &err);
+    if (err) {
+        error_setg(errp, "failed to init SD card: %s", error_get_pretty(err));
         return;
     }
 }
@@ -264,11 +275,6 @@ static void ssi_sd_reset(DeviceState *dev)
     s->arglen = 0;
     s->response_pos = 0;
     s->stopping = 0;
-
-    /* Since we're still using the legacy SD API the card is not plugged
-     * into any bus, and we must reset it manually.
-     */
-    device_reset(DEVICE(s->sd));
 }
 
 static void ssi_sd_class_init(ObjectClass *klass, void *data)
