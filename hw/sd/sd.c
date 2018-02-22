@@ -153,6 +153,27 @@ static const char *sd_state_name(enum SDCardStates state)
     return state_name[state];
 }
 
+static const char *sd_response_name(sd_rsp_type_t rsp)
+{
+    static const char *response_name[] = {
+        [sd_r0]     = "RESP#0 (no response)",
+        [sd_r1]     = "RESP#1 (normal cmd)",
+        [sd_r2_i]   = "RESP#2 (CID reg)",
+        [sd_r2_s]   = "RESP#2 (CSD reg)",
+        [sd_r3]     = "RESP#3 (OCR reg)",
+        [sd_r6]     = "RESP#6 (RCA)",
+        [sd_r7]     = "RESP#7 (operating voltage)",
+    };
+    if (rsp == sd_illegal) {
+        return "ILLEGAL RESP";
+    }
+    if (rsp == sd_r1b) {
+        rsp = sd_r1;
+    }
+    assert(rsp <= ARRAY_SIZE(response_name));
+    return response_name[rsp];
+}
+
 static uint8_t sd_get_dat_lines(SDState *sd)
 {
     return sd->enable ? sd->dat_lines : 0;
@@ -1596,10 +1617,12 @@ send_response:
 
     case sd_r0:
     case sd_illegal:
-    default:
         rsplen = 0;
         break;
+    default:
+        g_assert_not_reached();
     }
+    trace_sdcard_response(sd_response_name(rtype), rsplen);
 
     if (rtype != sd_illegal) {
         /* Clear the "clear on valid command" status bits now we've
@@ -1616,8 +1639,6 @@ send_response:
             DPRINTF(" %02x", response[i]);
         }
         DPRINTF(" state %d\n", sd->state);
-    } else {
-        DPRINTF("No response %d\n", sd->state);
     }
 #endif
 
