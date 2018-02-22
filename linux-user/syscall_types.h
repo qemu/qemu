@@ -266,3 +266,295 @@ STRUCT(blkpg_ioctl_arg,
        TYPE_INT, /* flags */
        TYPE_INT, /* datalen */
        TYPE_PTRVOID) /* data */
+
+#if defined(CONFIG_LIBDRM) && HOST_LONG_BITS == TARGET_ABI_BITS && (defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN))
+STRUCT(drm_version,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONG,
+       TYPE_PTRVOID,
+       TYPE_ULONG,
+       TYPE_PTRVOID,
+       TYPE_ULONG,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_unique,
+       TYPE_ULONG,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_block,
+       TYPE_INT
+)
+
+STRUCT(drm_control,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_auth,
+       TYPE_INT
+)
+
+STRUCT(drm_irq_busid,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_map,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_PTRVOID,
+       TYPE_INT
+)
+
+STRUCT(drm_client,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_set_version,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_modeset_ctl,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_gem_close,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_gem_flink,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_gem_open,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_get_cap,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_set_client_cap,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_prime_handle,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_init_t,
+       TYPE_INT, /*func*/
+       TYPE_INT, /*mmio_offset*/
+       TYPE_INT, /*sarea_priv_offset*/
+       TYPE_INT, /*ring_start*/
+       TYPE_INT, /*ring_end*/
+       TYPE_INT, /*ring_size*/
+       TYPE_INT, /*front_offset*/
+       TYPE_INT, /*back_offset*/
+       TYPE_INT, /*depth_offset*/
+       TYPE_INT, /*w*/
+       TYPE_INT, /*h*/
+       TYPE_INT, /*pitch*/
+       TYPE_INT, /*pitch_bits*/
+       TYPE_INT, /*back_pitch*/
+       TYPE_INT, /*depth_pitch*/
+       TYPE_INT, /*cpp*/
+       TYPE_INT  /*chipset*/
+)
+
+STRUCT(drm_i915_gem_init,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_create,
+       TYPE_ULONGLONG,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_getparam_t,
+       TYPE_INT,
+       TYPE_PTRVOID
+)
+
+STRUCT(drm_i915_setparam_t,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_execbuffer,
+       TYPE_ULONGLONG,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_exec_object2,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_execbuffer2,
+       TYPE_ULONGLONG,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_busy,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_pread,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_pwrite,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_mmap,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_mmap_gtt,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_set_domain,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_sw_finish,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_caching,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_set_tiling,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_get_tiling,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_get_aperture,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_gem_madvise,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_context_create,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_context_destroy,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_reg_read,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+
+STRUCT(drm_i915_reset_stats,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_userptr,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG,
+       TYPE_INT,
+       TYPE_INT
+)
+
+STRUCT(drm_i915_gem_context_param,
+       TYPE_INT,
+       TYPE_INT,
+       TYPE_ULONGLONG,
+       TYPE_ULONGLONG
+)
+#endif
