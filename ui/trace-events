@@ -78,7 +78,7 @@ qemu_spice_create_update(uint32_t left, uint32_t right, uint32_t top, uint32_t b
 
 # ui/keymaps.c
 keymap_parse(const char *file) "file %s"
-keymap_add(const char *type, int sym, int code, const char *line) "%-6s sym=0x%04x code=0x%04x (line: %s)"
+keymap_add(int sym, int code, const char *line) "sym=0x%04x code=0x%04x (line: %s)"
 keymap_unmapped(int sym) "sym=0x%04x"
 
 # ui/x_keymap.c

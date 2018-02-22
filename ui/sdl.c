@@ -201,6 +201,9 @@ static kbd_layout_t *kbd_layout = NULL;
 
 static uint8_t sdl_keyevent_to_keycode_generic(const SDL_KeyboardEvent *ev)
 {
+    bool shift = modifiers_state[0x2a] || modifiers_state[0x36];
+    bool altgr = modifiers_state[0xb8];
+    bool ctrl  = modifiers_state[0x1d] || modifiers_state[0x9d];
     int keysym;
     /* workaround for X11+SDL bug with AltGR */
     keysym = ev->keysym.sym;
@@ -210,7 +213,8 @@ static uint8_t sdl_keyevent_to_keycode_generic(const SDL_KeyboardEvent *ev)
     if (keysym == 92 && ev->keysym.scancode == 133) {
         keysym = 0xa5;
     }
-    return keysym2scancode(kbd_layout, keysym) & SCANCODE_KEYMASK;
+    return keysym2scancode(kbd_layout, keysym,
+                           shift, altgr, ctrl) & SCANCODE_KEYMASK;
 }
 
 

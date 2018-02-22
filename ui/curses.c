@@ -271,7 +271,8 @@ static void curses_refresh(DisplayChangeListener *dcl)
                     keysym = chr;
             }
 
-            keycode = keysym2scancode(kbd_layout, keysym & KEYSYM_MASK);
+            keycode = keysym2scancode(kbd_layout, keysym & KEYSYM_MASK,
+                                      false, false, false);
             if (keycode == 0)
                 continue;
 
