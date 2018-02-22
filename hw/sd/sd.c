@@ -1512,45 +1512,41 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
             sd->state = sd_transfer_state;
             return sd_r1;
         }
-        switch (sd->state) {
-        case sd_idle_state:
-            /* If it's the first ACMD41 since reset, we need to decide
-             * whether to power up. If this is not an enquiry ACMD41,
-             * we immediately report power on and proceed below to the
-             * ready state, but if it is, we set a timer to model a
-             * delay for power up. This works around a bug in EDK2
-             * UEFI, which sends an initial enquiry ACMD41, but
-             * assumes that the card is in ready state as soon as it
-             * sees the power up bit set. */
-            if (!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP)) {
-                if ((req.arg & ACMD41_ENQUIRY_MASK) != 0) {
-                    timer_del(sd->ocr_power_timer);
-                    sd_ocr_powerup(sd);
-                } else {
-                    trace_sdcard_inquiry_cmd41();
-                    if (!timer_pending(sd->ocr_power_timer)) {
-                        timer_mod_ns(sd->ocr_power_timer,
-                                     (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
-                                      + OCR_POWER_DELAY_NS));
-                    }
+        if (sd->state != sd_idle_state) {
+            break;
+        }
+        /* If it's the first ACMD41 since reset, we need to decide
+         * whether to power up. If this is not an enquiry ACMD41,
+         * we immediately report power on and proceed below to the
+         * ready state, but if it is, we set a timer to model a
+         * delay for power up. This works around a bug in EDK2
+         * UEFI, which sends an initial enquiry ACMD41, but
+         * assumes that the card is in ready state as soon as it
+         * sees the power up bit set. */
+        if (!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP)) {
+            if ((req.arg & ACMD41_ENQUIRY_MASK) != 0) {
+                timer_del(sd->ocr_power_timer);
+                sd_ocr_powerup(sd);
+            } else {
+                trace_sdcard_inquiry_cmd41();
+                if (!timer_pending(sd->ocr_power_timer)) {
+                    timer_mod_ns(sd->ocr_power_timer,
+                                 (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
+                                  + OCR_POWER_DELAY_NS));
                 }
             }
+        }
 
+        if (FIELD_EX32(sd->ocr & req.arg, OCR, VDD_VOLTAGE_WINDOW)) {
             /* We accept any voltage.  10000 V is nothing.
              *
              * Once we're powered up, we advance straight to ready state
              * unless it's an enquiry ACMD41 (bits 23:0 == 0).
              */
-            if (req.arg & ACMD41_ENQUIRY_MASK) {
-                sd->state = sd_ready_state;
-            }
-
-            return sd_r3;
-
-        default:
-            break;
+            sd->state = sd_ready_state;
         }
-        break;
+
+        return sd_r3;
 
     case 42:	/* ACMD42: SET_CLR_CARD_DETECT */
         switch (sd->state) {
