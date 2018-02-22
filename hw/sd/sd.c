@@ -298,10 +298,13 @@ static void sd_ocr_powerup(void *opaque)
 
 static void sd_set_scr(SDState *sd)
 {
-    sd->scr[0] = 0x00;		/* SCR Structure */
-    sd->scr[1] = 0x2f;		/* SD Security Support */
-    sd->scr[2] = 0x00;
+    sd->scr[0] = (0 << 4)       /* SCR version 1.0 */
+                 | 0;           /* Spec Versions 1.0 and 1.01 */
+    sd->scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
+                 | 0b0101;      /* 1-bit or 4-bit width bus modes */
+    sd->scr[2] = 0x00;          /* Extended Security is not supported. */
     sd->scr[3] = 0x00;
+    /* reserved for manufacturer usage */
     sd->scr[4] = 0x00;
     sd->scr[5] = 0x00;
     sd->scr[6] = 0x00;
