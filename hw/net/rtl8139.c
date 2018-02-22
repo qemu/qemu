@@ -58,9 +58,7 @@
 #include "qemu/timer.h"
 #include "net/net.h"
 #include "net/eth.h"
-#include "hw/loader.h"
 #include "sysemu/sysemu.h"
-#include "qemu/iov.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1

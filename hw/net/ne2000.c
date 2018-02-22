@@ -23,10 +23,8 @@
  */
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
-#include "net/net.h"
 #include "net/eth.h"
 #include "ne2000.h"
-#include "hw/loader.h"
 #include "sysemu/sysemu.h"
 
 /* debug NE2000 card */
