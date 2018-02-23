@@ -27,6 +27,7 @@
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
+#include "hw/s390x/event-facility.h"
 #include "hw/compat.h"
 #include "ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
@@ -668,7 +669,12 @@ bool css_migration_enabled(void)
     type_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_11 \
-        HW_COMPAT_2_11
+        HW_COMPAT_2_11 \
+        {\
+            .driver   = TYPE_SCLP_EVENT_FACILITY,\
+            .property = "allow_all_mask_sizes",\
+            .value    = "off",\
+        },
 
 #define CCW_COMPAT_2_10 \
         HW_COMPAT_2_10
