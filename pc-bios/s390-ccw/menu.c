@@ -12,12 +12,159 @@
 #include "libc.h"
 #include "s390-ccw.h"
 
+#define KEYCODE_NO_INP '\0'
+#define KEYCODE_ESCAPE '\033'
+#define KEYCODE_BACKSP '\177'
+#define KEYCODE_ENTER  '\r'
+
+#define TOD_CLOCK_MILLISECOND   0x3e8000
+
+#define LOW_CORE_EXTERNAL_INT_ADDR   0x86
+#define CLOCK_COMPARATOR_INT         0X1004
+
 static uint8_t flag;
 static uint64_t timeout;
 
+static inline void enable_clock_int(void)
+{
+    uint64_t tmp = 0;
+
+    asm volatile(
+        "stctg      0,0,%0\n"
+        "oi         6+%0, 0x8\n"
+        "lctlg      0,0,%0"
+        : : "Q" (tmp) : "memory"
+    );
+}
+
+static inline void disable_clock_int(void)
+{
+    uint64_t tmp = 0;
+
+    asm volatile(
+        "stctg      0,0,%0\n"
+        "ni         6+%0, 0xf7\n"
+        "lctlg      0,0,%0"
+        : : "Q" (tmp) : "memory"
+    );
+}
+
+static inline void set_clock_comparator(uint64_t time)
+{
+    asm volatile("sckc %0" : : "Q" (time));
+}
+
+static inline bool check_clock_int(void)
+{
+    uint16_t *code = (uint16_t *)LOW_CORE_EXTERNAL_INT_ADDR;
+
+    consume_sclp_int();
+
+    return *code == CLOCK_COMPARATOR_INT;
+}
+
+static int read_prompt(char *buf, size_t len)
+{
+    char inp[2] = {};
+    uint8_t idx = 0;
+    uint64_t time;
+
+    if (timeout) {
+        time = get_clock() + timeout * TOD_CLOCK_MILLISECOND;
+        set_clock_comparator(time);
+        enable_clock_int();
+        timeout = 0;
+    }
+
+    while (!check_clock_int()) {
+
+        sclp_read(inp, 1); /* Process only one character at a time */
+
+        switch (inp[0]) {
+        case KEYCODE_NO_INP:
+        case KEYCODE_ESCAPE:
+            continue;
+        case KEYCODE_BACKSP:
+            if (idx > 0) {
+                buf[--idx] = 0;
+                sclp_print("\b \b");
+            }
+            continue;
+        case KEYCODE_ENTER:
+            disable_clock_int();
+            return idx;
+        default:
+            /* Echo input and add to buffer */
+            if (idx < len) {
+                buf[idx++] = inp[0];
+                sclp_print(inp);
+            }
+        }
+    }
+
+    disable_clock_int();
+    *buf = 0;
+
+    return 0;
+}
+
+static int get_index(void)
+{
+    char buf[11];
+    int len;
+    int i;
+
+    memset(buf, 0, sizeof(buf));
+
+    len = read_prompt(buf, sizeof(buf) - 1);
+
+    /* If no input, boot default */
+    if (len == 0) {
+        return 0;
+    }
+
+    /* Check for erroneous input */
+    for (i = 0; i < len; i++) {
+        if (!isdigit(buf[i])) {
+            return -1;
+        }
+    }
+
+    return atoui(buf);
+}
+
+static void boot_menu_prompt(bool retry)
+{
+    char tmp[11];
+
+    if (retry) {
+        sclp_print("\nError: undefined configuration"
+                   "\nPlease choose:\n");
+    } else if (timeout > 0) {
+        sclp_print("Please choose (default will boot in ");
+        sclp_print(uitoa(timeout / 1000, tmp, sizeof(tmp)));
+        sclp_print(" seconds):\n");
+    } else {
+        sclp_print("Please choose:\n");
+    }
+}
+
 static int get_boot_index(int entries)
 {
-    return 0; /* implemented next patch */
+    int boot_index;
+    bool retry = false;
+    char tmp[5];
+
+    do {
+        boot_menu_prompt(retry);
+        boot_index = get_index();
+        retry = true;
+    } while (boot_index < 0 || boot_index >= entries);
+
+    sclp_print("\nBooting entry #");
+    sclp_print(uitoa(boot_index, tmp, sizeof(tmp)));
+
+    return boot_index;
 }
 
 static void zipl_println(const char *data, size_t len)
