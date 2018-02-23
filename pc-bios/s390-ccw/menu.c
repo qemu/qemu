@@ -217,6 +217,21 @@ int menu_get_zipl_boot_index(const char *menu_data)
     return get_boot_index(entries - 1); /* subtract 1 to exclude banner */
 }
 
+
+int menu_get_enum_boot_index(int entries)
+{
+    char tmp[4];
+
+    sclp_print("s390x Enumerated Boot Menu.\n\n");
+
+    sclp_print(uitoa(entries, tmp, sizeof(tmp)));
+    sclp_print(" entries detected. Select from boot index 0 to ");
+    sclp_print(uitoa(entries - 1, tmp, sizeof(tmp)));
+    sclp_print(".\n\n");
+
+    return get_boot_index(entries);
+}
+
 void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout)
 {
     flag = boot_menu_flag;
@@ -226,4 +241,9 @@ void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout)
 bool menu_is_enabled_zipl(void)
 {
     return flag & (QIPL_FLAG_BM_OPTS_CMD | QIPL_FLAG_BM_OPTS_ZIPL);
+}
+
+bool menu_is_enabled_enum(void)
+{
+    return flag & QIPL_FLAG_BM_OPTS_CMD;
 }
