@@ -35,7 +35,6 @@
 #define SCLP_FC_ASSIGN_ATTACH_READ_STOR         0xE00000000000ULL
 #define SCLP_STARTING_SUBINCREMENT_ID           0x10001
 #define SCLP_INCREMENT_UNIT                     0x10000
-#define MAX_AVAIL_SLOTS                         32
 #define MAX_STORAGE_INCREMENTS                  1020
 
 /* CPU hotplug SCLP codes */

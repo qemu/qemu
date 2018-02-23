@@ -84,11 +84,6 @@ void kvm_s390_cmma_reset(void)
 {
 }
 
-int kvm_s390_get_memslot_count(void)
-{
-  return MAX_AVAIL_SLOTS;
-}
-
 void kvm_s390_reset_vcpu(S390CPU *cpu)
 {
 }

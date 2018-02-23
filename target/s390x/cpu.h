@@ -621,9 +621,6 @@ QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 /* SIGP order code mask corresponding to bit positions 56-63 */
 #define SIGP_ORDER_MASK 0x000000ff
 
-/* from s390-virtio-ccw */
-#define MAX_AVAIL_SLOTS              32
-
 /* machine check interruption code */
 
 /* subclasses */
@@ -695,7 +692,6 @@ int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low);
 int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low);
 void s390_crypto_reset(void);
 bool s390_get_squash_mcss(void);
-int s390_get_memslot_count(void);
 int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit);
 void s390_cmma_reset(void);
 void s390_enable_css_support(S390CPU *cpu);

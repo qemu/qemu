@@ -437,15 +437,6 @@ void s390_cmma_reset(void)
     }
 }
 
-int s390_get_memslot_count(void)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_get_memslot_count();
-    } else {
-        return MAX_AVAIL_SLOTS;
-    }
-}
-
 int s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch_id,
                                 int vq, bool assign)
 {
