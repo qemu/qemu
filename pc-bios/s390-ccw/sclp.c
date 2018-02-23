@@ -46,23 +46,21 @@ static int sclp_service_call(unsigned int command, void *sccb)
         return 0;
 }
 
-static void sclp_set_write_mask(void)
+void sclp_set_write_mask(uint32_t receive_mask, uint32_t send_mask)
 {
     WriteEventMask *sccb = (void *)_sccb;
 
     sccb->h.length = sizeof(WriteEventMask);
     sccb->mask_length = sizeof(unsigned int);
-    sccb->receive_mask = SCLP_EVENT_MASK_MSG_ASCII;
-    sccb->cp_receive_mask = SCLP_EVENT_MASK_MSG_ASCII;
-    sccb->send_mask = SCLP_EVENT_MASK_MSG_ASCII;
-    sccb->cp_send_mask = SCLP_EVENT_MASK_MSG_ASCII;
+    sccb->cp_receive_mask = receive_mask;
+    sccb->cp_send_mask = send_mask;
 
     sclp_service_call(SCLP_CMD_WRITE_EVENT_MASK, sccb);
 }
 
 void sclp_setup(void)
 {
-    sclp_set_write_mask();
+    sclp_set_write_mask(0, SCLP_EVENT_MASK_MSG_ASCII);
 }
 
 long write(int fd, const void *str, size_t len)

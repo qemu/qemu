@@ -11,6 +11,7 @@
 
 #include "libc.h"
 #include "s390-ccw.h"
+#include "sclp.h"
 
 #define KEYCODE_NO_INP '\0'
 #define KEYCODE_ESCAPE '\033'
@@ -116,7 +117,11 @@ static int get_index(void)
 
     memset(buf, 0, sizeof(buf));
 
+    sclp_set_write_mask(SCLP_EVENT_MASK_MSG_ASCII, SCLP_EVENT_MASK_MSG_ASCII);
+
     len = read_prompt(buf, sizeof(buf) - 1);
+
+    sclp_set_write_mask(0, SCLP_EVENT_MASK_MSG_ASCII);
 
     /* If no input, boot default */
     if (len == 0) {
