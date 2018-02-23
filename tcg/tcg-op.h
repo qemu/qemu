@@ -1137,25 +1137,74 @@ void tcg_gen_stl_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset, TCGType t);
 #endif
 
 #if UINTPTR_MAX == UINT32_MAX
-# define tcg_gen_ld_ptr(R, A, O) \
-    tcg_gen_ld_i32(TCGV_PTR_TO_NAT(R), (A), (O))
-# define tcg_gen_discard_ptr(A) \
-    tcg_gen_discard_i32(TCGV_PTR_TO_NAT(A))
-# define tcg_gen_add_ptr(R, A, B) \
-    tcg_gen_add_i32(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), TCGV_PTR_TO_NAT(B))
-# define tcg_gen_addi_ptr(R, A, B) \
-    tcg_gen_addi_i32(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
-# define tcg_gen_ext_i32_ptr(R, A) \
-    tcg_gen_mov_i32(TCGV_PTR_TO_NAT(R), (A))
+# define PTR  i32
+# define NAT  TCGv_i32
 #else
-# define tcg_gen_ld_ptr(R, A, O) \
-    tcg_gen_ld_i64(TCGV_PTR_TO_NAT(R), (A), (O))
-# define tcg_gen_discard_ptr(A) \
-    tcg_gen_discard_i64(TCGV_PTR_TO_NAT(A))
-# define tcg_gen_add_ptr(R, A, B) \
-    tcg_gen_add_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), TCGV_PTR_TO_NAT(B))
-# define tcg_gen_addi_ptr(R, A, B) \
-    tcg_gen_addi_i64(TCGV_PTR_TO_NAT(R), TCGV_PTR_TO_NAT(A), (B))
-# define tcg_gen_ext_i32_ptr(R, A) \
-    tcg_gen_ext_i32_i64(TCGV_PTR_TO_NAT(R), (A))
-#endif /* UINTPTR_MAX == UINT32_MAX */
+# define PTR  i64
+# define NAT  TCGv_i64
+#endif
+
+static inline void tcg_gen_ld_ptr(TCGv_ptr r, TCGv_ptr a, intptr_t o)
+{
+    glue(tcg_gen_ld_,PTR)((NAT)r, a, o);
+}
+
+static inline void tcg_gen_discard_ptr(TCGv_ptr a)
+{
+    glue(tcg_gen_discard_,PTR)((NAT)a);
+}
+
+static inline void tcg_gen_add_ptr(TCGv_ptr r, TCGv_ptr a, TCGv_ptr b)
+{
+    glue(tcg_gen_add_,PTR)((NAT)r, (NAT)a, (NAT)b);
+}
+
+static inline void tcg_gen_addi_ptr(TCGv_ptr r, TCGv_ptr a, intptr_t b)
+{
+    glue(tcg_gen_addi_,PTR)((NAT)r, (NAT)a, b);
+}
+
+static inline void tcg_gen_brcondi_ptr(TCGCond cond, TCGv_ptr a,
+                                       intptr_t b, TCGLabel *label)
+{
+    glue(tcg_gen_brcondi_,PTR)(cond, (NAT)a, b, label);
+}
+
+static inline void tcg_gen_ext_i32_ptr(TCGv_ptr r, TCGv_i32 a)
+{
+#if UINTPTR_MAX == UINT32_MAX
+    tcg_gen_mov_i32((NAT)r, a);
+#else
+    tcg_gen_ext_i32_i64((NAT)r, a);
+#endif
+}
+
+static inline void tcg_gen_trunc_i64_ptr(TCGv_ptr r, TCGv_i64 a)
+{
+#if UINTPTR_MAX == UINT32_MAX
+    tcg_gen_extrl_i64_i32((NAT)r, a);
+#else
+    tcg_gen_mov_i64((NAT)r, a);
+#endif
+}
+
+static inline void tcg_gen_extu_ptr_i64(TCGv_i64 r, TCGv_ptr a)
+{
+#if UINTPTR_MAX == UINT32_MAX
+    tcg_gen_extu_i32_i64(r, (NAT)a);
+#else
+    tcg_gen_mov_i64(r, (NAT)a);
+#endif
+}
+
+static inline void tcg_gen_trunc_ptr_i32(TCGv_i32 r, TCGv_ptr a)
+{
+#if UINTPTR_MAX == UINT32_MAX
+    tcg_gen_mov_i32(r, (NAT)a);
+#else
+    tcg_gen_extrl_i64_i32(r, (NAT)a);
+#endif
+}
+
+#undef PTR
+#undef NAT

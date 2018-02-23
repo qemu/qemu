@@ -151,13 +151,7 @@
 #define tcg_gen_qemu_ld_reg  tcg_gen_qemu_ld_i64
 #define tcg_gen_qemu_st_reg  tcg_gen_qemu_st_i64
 #define tcg_gen_atomic_xchg_reg tcg_gen_atomic_xchg_i64
-#if UINTPTR_MAX == UINT32_MAX
-# define tcg_gen_trunc_reg_ptr(p, r) \
-    tcg_gen_trunc_i64_i32(TCGV_PTR_TO_NAT(p), r)
-#else
-# define tcg_gen_trunc_reg_ptr(p, r) \
-    tcg_gen_mov_i64(TCGV_PTR_TO_NAT(p), r)
-#endif
+#define tcg_gen_trunc_reg_ptr   tcg_gen_trunc_i64_ptr
 #else
 #define TCGv_reg             TCGv_i32
 #define tcg_temp_new         tcg_temp_new_i32
@@ -251,13 +245,7 @@
 #define tcg_gen_qemu_ld_reg  tcg_gen_qemu_ld_i32
 #define tcg_gen_qemu_st_reg  tcg_gen_qemu_st_i32
 #define tcg_gen_atomic_xchg_reg tcg_gen_atomic_xchg_i32
-#if UINTPTR_MAX == UINT32_MAX
-# define tcg_gen_trunc_reg_ptr(p, r) \
-    tcg_gen_mov_i32(TCGV_PTR_TO_NAT(p), r)
-#else
-# define tcg_gen_trunc_reg_ptr(p, r) \
-    tcg_gen_extu_i32_i64(TCGV_PTR_TO_NAT(p), r)
-#endif
+#define tcg_gen_trunc_reg_ptr   tcg_gen_ext_i32_ptr
 #endif /* TARGET_REGISTER_BITS */
 
 typedef struct DisasCond {

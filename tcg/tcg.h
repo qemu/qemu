@@ -890,15 +890,30 @@ void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size);
 
 TCGTemp *tcg_global_mem_new_internal(TCGType, TCGv_ptr,
                                      intptr_t, const char *);
-
-TCGv_i32 tcg_temp_new_internal_i32(int temp_local);
-TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
+TCGTemp *tcg_temp_new_internal(TCGType, bool);
+void tcg_temp_free_internal(TCGTemp *);
 TCGv_vec tcg_temp_new_vec(TCGType type);
 TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match);
 
-void tcg_temp_free_i32(TCGv_i32 arg);
-void tcg_temp_free_i64(TCGv_i64 arg);
-void tcg_temp_free_vec(TCGv_vec arg);
+static inline void tcg_temp_free_i32(TCGv_i32 arg)
+{
+    tcg_temp_free_internal(tcgv_i32_temp(arg));
+}
+
+static inline void tcg_temp_free_i64(TCGv_i64 arg)
+{
+    tcg_temp_free_internal(tcgv_i64_temp(arg));
+}
+
+static inline void tcg_temp_free_ptr(TCGv_ptr arg)
+{
+    tcg_temp_free_internal(tcgv_ptr_temp(arg));
+}
+
+static inline void tcg_temp_free_vec(TCGv_vec arg)
+{
+    tcg_temp_free_internal(tcgv_vec_temp(arg));
+}
 
 static inline TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t offset,
                                               const char *name)
@@ -909,12 +924,14 @@ static inline TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t offset,
 
 static inline TCGv_i32 tcg_temp_new_i32(void)
 {
-    return tcg_temp_new_internal_i32(0);
+    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I32, false);
+    return temp_tcgv_i32(t);
 }
 
 static inline TCGv_i32 tcg_temp_local_new_i32(void)
 {
-    return tcg_temp_new_internal_i32(1);
+    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I32, true);
+    return temp_tcgv_i32(t);
 }
 
 static inline TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t offset,
@@ -926,12 +943,33 @@ static inline TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t offset,
 
 static inline TCGv_i64 tcg_temp_new_i64(void)
 {
-    return tcg_temp_new_internal_i64(0);
+    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I64, false);
+    return temp_tcgv_i64(t);
 }
 
 static inline TCGv_i64 tcg_temp_local_new_i64(void)
 {
-    return tcg_temp_new_internal_i64(1);
+    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I64, true);
+    return temp_tcgv_i64(t);
+}
+
+static inline TCGv_ptr tcg_global_mem_new_ptr(TCGv_ptr reg, intptr_t offset,
+                                              const char *name)
+{
+    TCGTemp *t = tcg_global_mem_new_internal(TCG_TYPE_PTR, reg, offset, name);
+    return temp_tcgv_ptr(t);
+}
+
+static inline TCGv_ptr tcg_temp_new_ptr(void)
+{
+    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_PTR, false);
+    return temp_tcgv_ptr(t);
+}
+
+static inline TCGv_ptr tcg_temp_local_new_ptr(void)
+{
+    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_PTR, true);
+    return temp_tcgv_ptr(t);
 }
 
 #if defined(CONFIG_DEBUG_TCG)
@@ -1009,26 +1047,6 @@ do {\
     abort();\
 } while (0)
 
-#if UINTPTR_MAX == UINT32_MAX
-static inline TCGv_ptr TCGV_NAT_TO_PTR(TCGv_i32 n) { return (TCGv_ptr)n; }
-static inline TCGv_i32 TCGV_PTR_TO_NAT(TCGv_ptr n) { return (TCGv_i32)n; }
-
-#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i32((intptr_t)(V)))
-#define tcg_global_mem_new_ptr(R, O, N) \
-    TCGV_NAT_TO_PTR(tcg_global_mem_new_i32((R), (O), (N)))
-#define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i32())
-#define tcg_temp_free_ptr(T) tcg_temp_free_i32(TCGV_PTR_TO_NAT(T))
-#else
-static inline TCGv_ptr TCGV_NAT_TO_PTR(TCGv_i64 n) { return (TCGv_ptr)n; }
-static inline TCGv_i64 TCGV_PTR_TO_NAT(TCGv_ptr n) { return (TCGv_i64)n; }
-
-#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i64((intptr_t)(V)))
-#define tcg_global_mem_new_ptr(R, O, N) \
-    TCGV_NAT_TO_PTR(tcg_global_mem_new_i64((R), (O), (N)))
-#define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i64())
-#define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
-#endif
-
 bool tcg_op_supported(TCGOpcode op);
 
 void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args);
@@ -1051,6 +1069,14 @@ TCGv_vec tcg_const_zeros_vec(TCGType);
 TCGv_vec tcg_const_ones_vec(TCGType);
 TCGv_vec tcg_const_zeros_vec_matching(TCGv_vec);
 TCGv_vec tcg_const_ones_vec_matching(TCGv_vec);
+
+#if UINTPTR_MAX == UINT32_MAX
+# define tcg_const_ptr(x)        ((TCGv_ptr)tcg_const_i32((intptr_t)(x)))
+# define tcg_const_local_ptr(x)  ((TCGv_ptr)tcg_const_local_i32((intptr_t)(x)))
+#else
+# define tcg_const_ptr(x)        ((TCGv_ptr)tcg_const_i64((intptr_t)(x)))
+# define tcg_const_local_ptr(x)  ((TCGv_ptr)tcg_const_local_i64((intptr_t)(x)))
+#endif
 
 TCGLabel *gen_new_label(void);
 
