@@ -37,10 +37,10 @@ static int ppc_gdb_register_len_apple(int n)
     case 65+32: /* msr */
     case 67+32: /* lr */
     case 68+32: /* ctr */
-    case 69+32: /* xer */
     case 70+32: /* fpscr */
         return 8;
     case 66+32: /* cr */
+    case 69+32: /* xer */
         return 4;
     default:
         return 0;
@@ -61,6 +61,8 @@ static int ppc_gdb_register_len(int n)
         return 8;
     case 66:
         /* cr */
+    case 69:
+        /* xer */
         return 4;
     case 64:
         /* nip */
@@ -70,8 +72,6 @@ static int ppc_gdb_register_len(int n)
         /* lr */
     case 68:
         /* ctr */
-    case 69:
-        /* xer */
         return sizeof(target_ulong);
     case 70:
         /* fpscr */
@@ -152,7 +152,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
             gdb_get_regl(mem_buf, env->ctr);
             break;
         case 69:
-            gdb_get_regl(mem_buf, env->xer);
+            gdb_get_reg32(mem_buf, env->xer);
             break;
         case 70:
             gdb_get_reg32(mem_buf, env->fpscr);
@@ -208,7 +208,7 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
             gdb_get_reg64(mem_buf, env->ctr);
             break;
         case 69 + 32:
-            gdb_get_reg64(mem_buf, env->xer);
+            gdb_get_reg32(mem_buf, env->xer);
             break;
         case 70 + 32:
             gdb_get_reg64(mem_buf, env->fpscr);
@@ -259,7 +259,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             env->ctr = ldtul_p(mem_buf);
             break;
         case 69:
-            env->xer = ldtul_p(mem_buf);
+            env->xer = ldl_p(mem_buf);
             break;
         case 70:
             /* fpscr */
@@ -309,7 +309,7 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
             env->ctr = ldq_p(mem_buf);
             break;
         case 69 + 32:
-            env->xer = ldq_p(mem_buf);
+            env->xer = ldl_p(mem_buf);
             break;
         case 70 + 32:
             /* fpscr */
