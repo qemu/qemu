@@ -84,6 +84,9 @@ ulong get_second(void);
 /* bootmap.c */
 void zipl_load(void);
 
+/* menu.c */
+void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout);
+
 static inline void fill_hex(char *out, unsigned char val)
 {
     const char hex[] = "0123456789abcdef";
