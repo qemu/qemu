@@ -658,6 +658,12 @@ do_assert_page_locked(const PageDesc *pd, const char *file, int line)
 
 #define assert_page_locked(pd) do_assert_page_locked(pd, __FILE__, __LINE__)
 
+void assert_no_pages_locked(void)
+{
+    ht_pages_locked_debug_init();
+    g_assert(g_hash_table_size(ht_pages_locked_debug) == 0);
+}
+
 #else /* !CONFIG_DEBUG_TCG */
 
 #define assert_page_locked(pd)
@@ -829,6 +835,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
     set->tree = g_tree_new_full(tb_page_addr_cmp, NULL, NULL,
                                 page_entry_destroy);
     set->max = NULL;
+    assert_no_pages_locked();
 
  retry:
     g_tree_foreach(set->tree, page_entry_lock, NULL);
