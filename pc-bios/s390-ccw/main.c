@@ -20,6 +20,7 @@ QemuIplParameters qipl;
 
 #define LOADPARM_PROMPT "PROMPT  "
 #define LOADPARM_EMPTY  "........"
+#define BOOT_MENU_FLAG_MASK (QIPL_FLAG_BM_OPTS_CMD | QIPL_FLAG_BM_OPTS_ZIPL)
 
 /*
  * Priniciples of Operations (SA22-7832-09) chapter 17 requires that
@@ -91,7 +92,7 @@ static void menu_setup(void)
 
     switch (iplb.pbt) {
     case S390_IPL_TYPE_CCW:
-        menu_set_parms(qipl.qipl_flags & QIPL_FLAG_BM_OPTS_CMD,
+        menu_set_parms(qipl.qipl_flags & BOOT_MENU_FLAG_MASK,
                        qipl.boot_menu_timeout);
         return;
     }

@@ -76,6 +76,7 @@ extern IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 
 /* Boot Menu flags */
 #define QIPL_FLAG_BM_OPTS_CMD   0x80
+#define QIPL_FLAG_BM_OPTS_ZIPL  0x40
 
 /*
  * This definition must be kept in sync with the defininition

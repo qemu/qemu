@@ -18,6 +18,10 @@
 #define KEYCODE_BACKSP '\177'
 #define KEYCODE_ENTER  '\r'
 
+/* Offsets from zipl fields to zipl banner start */
+#define ZIPL_TIMEOUT_OFFSET 138
+#define ZIPL_FLAG_OFFSET    140
+
 #define TOD_CLOCK_MILLISECOND   0x3e8000
 
 #define LOW_CORE_EXTERNAL_INT_ADDR   0x86
@@ -187,6 +191,16 @@ int menu_get_zipl_boot_index(const char *menu_data)
 {
     size_t len;
     int entries;
+    uint16_t zipl_flag = *(uint16_t *)(menu_data - ZIPL_FLAG_OFFSET);
+    uint16_t zipl_timeout = *(uint16_t *)(menu_data - ZIPL_TIMEOUT_OFFSET);
+
+    if (flag == QIPL_FLAG_BM_OPTS_ZIPL) {
+        if (!zipl_flag) {
+            return 0; /* Boot default */
+        }
+        /* zipl stores timeout as seconds */
+        timeout = zipl_timeout * 1000;
+    }
 
     /* Print and count all menu items, including the banner */
     for (entries = 0; *menu_data; entries++) {
@@ -211,5 +225,5 @@ void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout)
 
 bool menu_is_enabled_zipl(void)
 {
-    return flag & QIPL_FLAG_BM_OPTS_CMD;
+    return flag & (QIPL_FLAG_BM_OPTS_CMD | QIPL_FLAG_BM_OPTS_ZIPL);
 }

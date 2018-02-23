@@ -241,6 +241,11 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
 
     switch (ipl->iplb.pbt) {
     case S390_IPL_TYPE_CCW:
+        /* In the absence of -boot menu, use zipl parameters */
+        if (!qemu_opt_get(opts, "menu")) {
+            *flags |= QIPL_FLAG_BM_OPTS_ZIPL;
+            return;
+        }
         break;
     default:
         error_report("boot menu is not supported for this device type.");

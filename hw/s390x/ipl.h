@@ -93,6 +93,7 @@ void s390_reipl_request(void);
 
 /* Boot Menu flags */
 #define QIPL_FLAG_BM_OPTS_CMD   0x80
+#define QIPL_FLAG_BM_OPTS_ZIPL  0x40
 
 /*
  * The QEMU IPL Parameters will be stored at absolute address
