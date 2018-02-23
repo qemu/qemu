@@ -95,32 +95,32 @@ static inline void verify_boot_info(BootInfo *bip)
                "Bad block size in zIPL section of the 1st record.");
 }
 
-static block_number_t eckd_block_num(BootMapPointer *p)
+static block_number_t eckd_block_num(EckdCHS *chs)
 {
     const uint64_t sectors = virtio_get_sectors();
     const uint64_t heads = virtio_get_heads();
-    const uint64_t cylinder = p->eckd.cylinder
-                            + ((p->eckd.head & 0xfff0) << 12);
-    const uint64_t head = p->eckd.head & 0x000f;
+    const uint64_t cylinder = chs->cylinder
+                            + ((chs->head & 0xfff0) << 12);
+    const uint64_t head = chs->head & 0x000f;
     const block_number_t block = sectors * heads * cylinder
                                + sectors * head
-                               + p->eckd.sector
+                               + chs->sector
                                - 1; /* block nr starts with zero */
     return block;
 }
 
 static bool eckd_valid_address(BootMapPointer *p)
 {
-    const uint64_t head = p->eckd.head & 0x000f;
+    const uint64_t head = p->eckd.chs.head & 0x000f;
 
     if (head >= virtio_get_heads()
-        ||  p->eckd.sector > virtio_get_sectors()
-        ||  p->eckd.sector <= 0) {
+        ||  p->eckd.chs.sector > virtio_get_sectors()
+        ||  p->eckd.chs.sector <= 0) {
         return false;
     }
 
     if (!virtio_guessed_disk_nature() &&
-        eckd_block_num(p) >= virtio_get_blocks()) {
+        eckd_block_num(&p->eckd.chs) >= virtio_get_blocks()) {
         return false;
     }
 
@@ -140,7 +140,7 @@ static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
     do {
         more_data = false;
         for (j = 0;; j++) {
-            block_nr = eckd_block_num((void *)&(bprs[j].xeckd));
+            block_nr = eckd_block_num(&bprs[j].xeckd.bptr.chs);
             if (is_null_block_number(block_nr)) { /* end of chunk */
                 break;
             }
@@ -198,7 +198,7 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr)
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(bmt_block_nr, sec, "Cannot read Boot Map Table");
 
-    block_nr = eckd_block_num(&bmt->entry[loadparm]);
+    block_nr = eckd_block_num(&bmt->entry[loadparm].xeckd.bptr.chs);
     IPL_assert(block_nr != -1, "Cannot find Boot Map Table Entry");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -206,7 +206,7 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr)
 
     for (i = 0; bms->entry[i].type == BOOT_SCRIPT_LOAD; i++) {
         address = bms->entry[i].address.load_address;
-        block_nr = eckd_block_num(&(bms->entry[i].blkptr));
+        block_nr = eckd_block_num(&bms->entry[i].blkptr.xeckd.bptr.chs);
 
         do {
             block_nr = load_eckd_segments(block_nr, &address);
@@ -239,7 +239,7 @@ static void ipl_eckd_cdl(void)
                "Non-ECKD device type in zIPL section of IPL2 record.");
 
     /* save pointer to Boot Map Table */
-    bmt_block_nr = eckd_block_num(&mbr->blockptr);
+    bmt_block_nr = eckd_block_num(&mbr->blockptr.xeckd.bptr.chs);
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(2, vlbl, "Cannot read Volume Label at block 2");
@@ -300,7 +300,7 @@ static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
     verify_boot_info(bip);
 
     /* save pointer to Boot Map Table */
-    bmt_block_nr = eckd_block_num((void *)&bip->bp.ipl.bm_ptr.eckd.bptr);
+    bmt_block_nr = eckd_block_num(&bip->bp.ipl.bm_ptr.eckd.bptr.chs);
 
     run_eckd_boot_script(bmt_block_nr);
     /* no return */
