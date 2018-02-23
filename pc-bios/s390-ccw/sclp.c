@@ -65,14 +65,6 @@ void sclp_setup(void)
     sclp_set_write_mask();
 }
 
-static int _strlen(const char *str)
-{
-    int i;
-    for (i = 0; *str; i++)
-        str++;
-    return i;
-}
-
 long write(int fd, const void *str, size_t len)
 {
     WriteEventData *sccb = (void *)_sccb;
@@ -113,7 +105,7 @@ long write(int fd, const void *str, size_t len)
 
 void sclp_print(const char *str)
 {
-    write(1, str, _strlen(str));
+    write(1, str, strlen(str));
 }
 
 void sclp_get_loadparm_ascii(char *loadparm)
