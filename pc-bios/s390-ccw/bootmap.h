@@ -87,6 +87,7 @@ typedef struct ScsiMbr {
 } __attribute__ ((packed)) ScsiMbr;
 
 #define ZIPL_MAGIC              "zIPL"
+#define ZIPL_MAGIC_EBCDIC       "\xa9\xc9\xd7\xd3"
 #define IPL1_MAGIC "\xc9\xd7\xd3\xf1" /* == "IPL1" in EBCDIC */
 #define IPL2_MAGIC "\xc9\xd7\xd3\xf2" /* == "IPL2" in EBCDIC */
 #define VOL1_MAGIC "\xe5\xd6\xd3\xf1" /* == "VOL1" in EBCDIC */
@@ -249,15 +250,33 @@ typedef struct EckdCdlIpl1 {
     uint8_t data[24];
 } __attribute__((packed)) EckdCdlIpl1;
 
+typedef struct EckdSeekArg {
+    uint16_t pad;
+    EckdCHS chs;
+    uint8_t pad2;
+} __attribute__ ((packed)) EckdSeekArg;
+
+typedef struct EckdStage1b {
+    uint8_t reserved[32 * STAGE2_BLK_CNT_MAX];
+    struct EckdSeekArg seek[STAGE2_BLK_CNT_MAX];
+    uint8_t unused[64];
+} __attribute__ ((packed)) EckdStage1b;
+
+typedef struct EckdStage1 {
+    uint8_t reserved[72];
+    struct EckdSeekArg seek[2];
+} __attribute__ ((packed)) EckdStage1;
+
 typedef struct EckdCdlIpl2 {
     uint8_t key[4]; /* == "IPL2" */
-    uint8_t reserved0[88];
+    struct EckdStage1 stage1;
     XEckdMbr mbr;
     uint8_t reserved[24];
 } __attribute__((packed)) EckdCdlIpl2;
 
 typedef struct EckdLdlIpl1 {
-    uint8_t reserved[112];
+    uint8_t reserved[24];
+    struct EckdStage1 stage1;
     BootInfo bip; /* BootInfo is MBR for LDL */
 } __attribute__((packed)) EckdLdlIpl1;
 
