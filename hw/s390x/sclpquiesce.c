@@ -28,12 +28,12 @@ static bool can_handle_event(uint8_t type)
     return type == SCLP_EVENT_SIGNAL_QUIESCE;
 }
 
-static unsigned int send_mask(void)
+static sccb_mask_t send_mask(void)
 {
     return SCLP_EVENT_MASK_SIGNAL_QUIESCE;
 }
 
-static unsigned int receive_mask(void)
+static sccb_mask_t receive_mask(void)
 {
     return 0;
 }
