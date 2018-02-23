@@ -91,6 +91,9 @@ void s390_reipl_request(void);
 
 #define QIPL_ADDRESS  0xcc
 
+/* Boot Menu flags */
+#define QIPL_FLAG_BM_OPTS_CMD   0x80
+
 /*
  * The QEMU IPL Parameters will be stored at absolute address
  * 204 (0xcc) which means it is 32-bit word aligned but not
@@ -104,9 +107,11 @@ void s390_reipl_request(void);
  * in pc-bios/s390-ccw/iplb.h.
  */
 struct QemuIplParameters {
-    uint8_t  reserved1[4];
+    uint8_t  qipl_flags;
+    uint8_t  reserved1[3];
     uint64_t netboot_start_addr;
-    uint8_t  reserved2[16];
+    uint32_t boot_menu_timeout;
+    uint8_t  reserved2[12];
 } QEMU_PACKED;
 typedef struct QemuIplParameters QemuIplParameters;
 

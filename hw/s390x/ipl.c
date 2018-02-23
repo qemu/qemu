@@ -23,6 +23,9 @@
 #include "hw/s390x/ebcdic.h"
 #include "ipl.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
+#include "qemu/cutils.h"
+#include "qemu/option.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -218,6 +221,54 @@ static Property s390_ipl_properties[] = {
                      true),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void s390_ipl_set_boot_menu(S390IPLState *ipl)
+{
+    QemuOptsList *plist = qemu_find_opts("boot-opts");
+    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
+    uint8_t *flags = &ipl->qipl.qipl_flags;
+    uint32_t *timeout = &ipl->qipl.boot_menu_timeout;
+    const char *tmp;
+    unsigned long splash_time = 0;
+
+    if (!get_boot_device(0)) {
+        if (boot_menu) {
+            error_report("boot menu requires a bootindex to be specified for "
+                         "the IPL device.");
+        }
+        return;
+    }
+
+    switch (ipl->iplb.pbt) {
+    case S390_IPL_TYPE_CCW:
+        break;
+    default:
+        error_report("boot menu is not supported for this device type.");
+        return;
+    }
+
+    if (!boot_menu) {
+        return;
+    }
+
+    *flags |= QIPL_FLAG_BM_OPTS_CMD;
+
+    tmp = qemu_opt_get(opts, "splash-time");
+
+    if (tmp && qemu_strtoul(tmp, NULL, 10, &splash_time)) {
+        error_report("splash-time is invalid, forcing it to 0.");
+        *timeout = 0;
+        return;
+    }
+
+    if (splash_time > 0xffffffff) {
+        error_report("splash-time is too large, forcing it to max value.");
+        *timeout = 0xffffffff;
+        return;
+    }
+
+    *timeout = cpu_to_be32(splash_time);
+}
 
 static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
@@ -435,6 +486,7 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
         }
         ipl->qipl.netboot_start_addr = cpu_to_be64(ipl->start_addr);
     }
+    s390_ipl_set_boot_menu(ipl);
     s390_ipl_prepare_qipl(cpu);
 }
 
