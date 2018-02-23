@@ -13,8 +13,7 @@
 #define IPLB_H
 
 struct IplBlockCcw {
-    uint64_t netboot_start_addr;
-    uint8_t  reserved0[77];
+    uint8_t  reserved0[85];
     uint8_t  ssid;
     uint16_t devno;
     uint8_t  vm_flags;
@@ -72,6 +71,21 @@ struct IplParameterBlock {
 typedef struct IplParameterBlock IplParameterBlock;
 
 extern IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
+
+#define QIPL_ADDRESS  0xcc
+
+/*
+ * This definition must be kept in sync with the defininition
+ * in hw/s390x/ipl.h
+ */
+struct QemuIplParameters {
+    uint8_t  reserved1[4];
+    uint64_t netboot_start_addr;
+    uint8_t  reserved2[16];
+} __attribute__ ((packed));
+typedef struct QemuIplParameters QemuIplParameters;
+
+extern QemuIplParameters qipl;
 
 #define S390_IPL_TYPE_FCP 0x00
 #define S390_IPL_TYPE_CCW 0x02

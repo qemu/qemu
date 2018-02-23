@@ -399,6 +399,21 @@ void s390_reipl_request(void)
     qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
 }
 
+static void s390_ipl_prepare_qipl(S390CPU *cpu)
+{
+    S390IPLState *ipl = get_ipl_device();
+    uint8_t *addr;
+    uint64_t len = 4096;
+
+    addr = cpu_physical_memory_map(cpu->env.psa, &len, 1);
+    if (!addr || len < QIPL_ADDRESS + sizeof(QemuIplParameters)) {
+        error_report("Cannot set QEMU IPL parameters");
+        return;
+    }
+    memcpy(addr + QIPL_ADDRESS, &ipl->qipl, sizeof(QemuIplParameters));
+    cpu_physical_memory_unmap(addr, len, 1, len);
+}
+
 void s390_ipl_prepare_cpu(S390CPU *cpu)
 {
     S390IPLState *ipl = get_ipl_device();
@@ -418,8 +433,9 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
             error_report_err(err);
             vm_stop(RUN_STATE_INTERNAL_ERROR);
         }
-        ipl->iplb.ccw.netboot_start_addr = cpu_to_be64(ipl->start_addr);
+        ipl->qipl.netboot_start_addr = cpu_to_be64(ipl->start_addr);
     }
+    s390_ipl_prepare_qipl(cpu);
 }
 
 static void s390_ipl_reset(DeviceState *dev)

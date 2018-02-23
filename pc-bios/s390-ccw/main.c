@@ -16,6 +16,7 @@ char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 static char loadparm[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+QemuIplParameters qipl;
 
 /*
  * Priniciples of Operations (SA22-7832-09) chapter 17 requires that
@@ -81,6 +82,7 @@ static void virtio_setup(void)
     uint16_t dev_no;
     char ldp[] = "LOADPARM=[________]\n";
     VDev *vdev = virtio_get_device();
+    QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
 
     /*
      * We unconditionally enable mss support. In every sane configuration,
@@ -92,6 +94,8 @@ static void virtio_setup(void)
     sclp_get_loadparm_ascii(loadparm);
     memcpy(ldp + 10, loadparm, 8);
     sclp_print(ldp);
+
+    memcpy(&qipl, early_qipl, sizeof(QemuIplParameters));
 
     if (store_iplb(&iplb)) {
         switch (iplb.pbt) {
@@ -127,7 +131,7 @@ static void virtio_setup(void)
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
         sclp_print("Network boot device detected\n");
-        vdev->netboot_start_addr = iplb.ccw.netboot_start_addr;
+        vdev->netboot_start_addr = qipl.netboot_start_addr;
     } else {
         virtio_blk_setup_device(blk_schid);
 
