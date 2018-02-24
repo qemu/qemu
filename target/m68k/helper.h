@@ -63,6 +63,8 @@ DEF_HELPER_3(fmovemx_ld_postinc, i32, env, i32, i32)
 DEF_HELPER_3(fmovemd_st_predec, i32, env, i32, i32)
 DEF_HELPER_3(fmovemd_st_postinc, i32, env, i32, i32)
 DEF_HELPER_3(fmovemd_ld_postinc, i32, env, i32, i32)
+DEF_HELPER_4(fmod, void, env, fp, fp, fp)
+DEF_HELPER_4(frem, void, env, fp, fp, fp)
 
 DEF_HELPER_3(mac_move, void, env, i32, i32)
 DEF_HELPER_3(macmulf, i64, env, i32, i32)

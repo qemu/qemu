@@ -5081,6 +5081,9 @@ DISAS_INSN(fpu)
     case 0x64: /* fddiv */
         gen_helper_fddiv(cpu_env, cpu_dest, cpu_src, cpu_dest);
         break;
+    case 0x21: /* fmod */
+        gen_helper_fmod(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
     case 0x22: /* fadd */
         gen_helper_fadd(cpu_env, cpu_dest, cpu_src, cpu_dest);
         break;
@@ -5101,6 +5104,9 @@ DISAS_INSN(fpu)
         break;
     case 0x24: /* fsgldiv */
         gen_helper_fsgldiv(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x25: /* frem */
+        gen_helper_frem(cpu_env, cpu_dest, cpu_src, cpu_dest);
         break;
     case 0x27: /* fsglmul */
         gen_helper_fsglmul(cpu_env, cpu_dest, cpu_src, cpu_dest);

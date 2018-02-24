@@ -23,7 +23,7 @@
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
-#include "fpu/softfloat.h"
+#include "softfloat.h"
 
 /* Undefined offsets may be different on various FPU.
  * On 68040 they return 0.0 (floatx80_zero)
@@ -508,4 +508,37 @@ uint32_t HELPER(fmovemd_ld_postinc)(CPUM68KState *env, uint32_t addr,
                                     uint32_t mask)
 {
     return fmovem_postinc(env, addr, mask, cpu_ld_float64_ra);
+}
+
+static void make_quotient(CPUM68KState *env, floatx80 val)
+{
+    int32_t quotient;
+    int sign;
+
+    if (floatx80_is_any_nan(val)) {
+        return;
+    }
+
+    quotient = floatx80_to_int32(val, &env->fp_status);
+    sign = quotient < 0;
+    if (sign) {
+        quotient = -quotient;
+    }
+
+    quotient = (sign << 7) | (quotient & 0x7f);
+    env->fpsr = (env->fpsr & ~FPSR_QT_MASK) | (quotient << FPSR_QT_SHIFT);
+}
+
+void HELPER(fmod)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    res->d = floatx80_mod(val1->d, val0->d, &env->fp_status);
+
+    make_quotient(env, res->d);
+}
+
+void HELPER(frem)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
+{
+    res->d = floatx80_rem(val1->d, val0->d, &env->fp_status);
+
+    make_quotient(env, res->d);
 }
