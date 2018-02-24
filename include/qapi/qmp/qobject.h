@@ -50,6 +50,21 @@ struct QObject {
 #define QDECREF(obj)              \
     qobject_decref(obj ? QOBJECT(obj) : NULL)
 
+/* Required for qobject_to() */
+#define QTYPE_CAST_TO_QNull     QTYPE_QNULL
+#define QTYPE_CAST_TO_QNum      QTYPE_QNUM
+#define QTYPE_CAST_TO_QString   QTYPE_QSTRING
+#define QTYPE_CAST_TO_QDict     QTYPE_QDICT
+#define QTYPE_CAST_TO_QList     QTYPE_QLIST
+#define QTYPE_CAST_TO_QBool     QTYPE_QBOOL
+
+QEMU_BUILD_BUG_MSG(QTYPE__MAX != 7,
+                   "The QTYPE_CAST_TO_* list needs to be extended");
+
+#define qobject_to(type, obj) ({ \
+    QObject *_tmp = qobject_check_type(obj, glue(QTYPE_CAST_TO_, type)); \
+    _tmp ? container_of(_tmp, type, base) : (type *)NULL; })
+
 /* Initialize an object to default values */
 static inline void qobject_init(QObject *obj, QType type)
 {
@@ -100,6 +115,20 @@ static inline QType qobject_type(const QObject *obj)
 {
     assert(QTYPE_NONE < obj->type && obj->type < QTYPE__MAX);
     return obj->type;
+}
+
+/**
+ * qobject_check_type(): Helper function for the qobject_to() macro.
+ * Return @obj, but only if @obj is not NULL and @type is equal to
+ * @obj's type.  Return NULL otherwise.
+ */
+static inline QObject *qobject_check_type(const QObject *obj, QType type)
+{
+    if (obj && qobject_type(obj) == type) {
+        return (QObject *)obj;
+    } else {
+        return NULL;
+    }
 }
 
 #endif /* QOBJECT_H */
