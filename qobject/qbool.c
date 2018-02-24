@@ -55,7 +55,7 @@ QBool *qobject_to_qbool(const QObject *obj)
  */
 bool qbool_is_equal(const QObject *x, const QObject *y)
 {
-    return qobject_to_qbool(x)->value == qobject_to_qbool(y)->value;
+    return qobject_to(QBool, x)->value == qobject_to(QBool, y)->value;
 }
 
 /**
@@ -65,5 +65,5 @@ bool qbool_is_equal(const QObject *x, const QObject *y)
 void qbool_destroy_obj(QObject *obj)
 {
     assert(obj != NULL);
-    g_free(qobject_to_qbool(obj));
+    g_free(qobject_to(QBool, obj));
 }

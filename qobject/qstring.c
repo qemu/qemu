@@ -132,8 +132,8 @@ const char *qstring_get_str(const QString *qstring)
  */
 bool qstring_is_equal(const QObject *x, const QObject *y)
 {
-    return !strcmp(qobject_to_qstring(x)->string,
-                   qobject_to_qstring(y)->string);
+    return !strcmp(qobject_to(QString, x)->string,
+                   qobject_to(QString, y)->string);
 }
 
 /**
@@ -145,7 +145,7 @@ void qstring_destroy_obj(QObject *obj)
     QString *qs;
 
     assert(obj != NULL);
-    qs = qobject_to_qstring(obj);
+    qs = qobject_to(QString, obj);
     g_free(qs->string);
     g_free(qs);
 }

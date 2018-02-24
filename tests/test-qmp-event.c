@@ -60,22 +60,22 @@ void qdict_cmp_do_simple(const char *key, QObject *obj1, void *opaque)
 
     switch (qobject_type(obj1)) {
     case QTYPE_QBOOL:
-        d->result = (qbool_get_bool(qobject_to_qbool(obj1)) ==
-                     qbool_get_bool(qobject_to_qbool(obj2)));
+        d->result = (qbool_get_bool(qobject_to(QBool, obj1)) ==
+                     qbool_get_bool(qobject_to(QBool, obj2)));
         return;
     case QTYPE_QNUM:
-        g_assert(qnum_get_try_int(qobject_to_qnum(obj1), &val1));
-        g_assert(qnum_get_try_int(qobject_to_qnum(obj2), &val2));
+        g_assert(qnum_get_try_int(qobject_to(QNum, obj1), &val1));
+        g_assert(qnum_get_try_int(qobject_to(QNum, obj2), &val2));
         d->result = val1 == val2;
         return;
     case QTYPE_QSTRING:
-        d->result = g_strcmp0(qstring_get_str(qobject_to_qstring(obj1)),
-                              qstring_get_str(qobject_to_qstring(obj2))) == 0;
+        d->result = g_strcmp0(qstring_get_str(qobject_to(QString, obj1)),
+                              qstring_get_str(qobject_to(QString, obj2))) == 0;
         return;
     case QTYPE_QDICT:
-        d_new.expect = qobject_to_qdict(obj2);
+        d_new.expect = qobject_to(QDict, obj2);
         d_new.result = true;
-        qdict_iter(qobject_to_qdict(obj1), qdict_cmp_do_simple, &d_new);
+        qdict_iter(qobject_to(QDict, obj1), qdict_cmp_do_simple, &d_new);
         d->result = d_new.result;
         return;
     default:

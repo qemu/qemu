@@ -62,9 +62,9 @@ static void test_properties(const char *path, bool recurse)
     }
 
     g_assert(qdict_haskey(response, "return"));
-    list = qobject_to_qlist(qdict_get(response, "return"));
+    list = qobject_to(QList, qdict_get(response, "return"));
     QLIST_FOREACH_ENTRY(list, entry) {
-        tuple = qobject_to_qdict(qlist_entry_obj(entry));
+        tuple = qobject_to(QDict, qlist_entry_obj(entry));
         bool is_child = strstart(qdict_get_str(tuple, "type"), "child<", NULL);
         bool is_link = strstart(qdict_get_str(tuple, "type"), "link<", NULL);
 

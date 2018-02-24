@@ -51,7 +51,7 @@ static void qdict_put_obj_test(void)
 
     g_assert(qdict_size(qdict) == 1);
     ent = QLIST_FIRST(&qdict->table[12345 % QDICT_BUCKET_MAX]);
-    qn = qobject_to_qnum(ent->value);
+    qn = qobject_to(QNum, ent->value);
     g_assert_cmpint(qnum_get_int(qn), ==, num);
 
     QDECREF(qdict);
@@ -81,7 +81,7 @@ static void qdict_get_test(void)
     obj = qdict_get(tests_dict, key);
     g_assert(obj != NULL);
 
-    qn = qobject_to_qnum(obj);
+    qn = qobject_to(QNum, obj);
     g_assert_cmpint(qnum_get_int(qn), ==, value);
 
     QDECREF(tests_dict);
@@ -216,7 +216,7 @@ static void qdict_del_test(void)
 static void qobject_to_qdict_test(void)
 {
     QDict *tests_dict = qdict_new();
-    g_assert(qobject_to_qdict(QOBJECT(tests_dict)) == tests_dict);
+    g_assert(qobject_to(QDict, QOBJECT(tests_dict)) == tests_dict);
 
     QDECREF(tests_dict);
 }
@@ -381,9 +381,9 @@ static void qdict_array_split_test(void)
 
     qdict_array_split(test_dict, &test_list);
 
-    dict1 = qobject_to_qdict(qlist_pop(test_list));
-    dict2 = qobject_to_qdict(qlist_pop(test_list));
-    int1 = qobject_to_qnum(qlist_pop(test_list));
+    dict1 = qobject_to(QDict, qlist_pop(test_list));
+    dict2 = qobject_to(QDict, qlist_pop(test_list));
+    int1 = qobject_to(QNum, qlist_pop(test_list));
 
     g_assert(dict1);
     g_assert(dict2);
@@ -450,7 +450,7 @@ static void qdict_array_split_test(void)
 
     qdict_array_split(test_dict, &test_list);
 
-    int1 = qobject_to_qnum(qlist_pop(test_list));
+    int1 = qobject_to(QNum, qlist_pop(test_list));
 
     g_assert(int1);
     g_assert(qlist_empty(test_list));
@@ -607,7 +607,7 @@ static void qdict_crumple_test_recursive(void)
     qdict_put_str(src, "vnc.acl..name", "acl0");
     qdict_put_str(src, "vnc.acl.rule..name", "acl0");
 
-    dst = qobject_to_qdict(qdict_crumple(src, &error_abort));
+    dst = qobject_to(QDict, qdict_crumple(src, &error_abort));
     g_assert(dst);
     g_assert_cmpint(qdict_size(dst), ==, 1);
 
@@ -629,14 +629,14 @@ static void qdict_crumple_test_recursive(void)
     g_assert(rules);
     g_assert_cmpint(qlist_size(rules), ==, 2);
 
-    rule = qobject_to_qdict(qlist_pop(rules));
+    rule = qobject_to(QDict, qlist_pop(rules));
     g_assert(rule);
     g_assert_cmpint(qdict_size(rule), ==, 2);
     g_assert_cmpstr("fred", ==, qdict_get_str(rule, "match"));
     g_assert_cmpstr("allow", ==, qdict_get_str(rule, "policy"));
     QDECREF(rule);
 
-    rule = qobject_to_qdict(qlist_pop(rules));
+    rule = qobject_to(QDict, qlist_pop(rules));
     g_assert(rule);
     g_assert_cmpint(qdict_size(rule), ==, 2);
     g_assert_cmpstr("bob", ==, qdict_get_str(rule, "match"));

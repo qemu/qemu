@@ -447,7 +447,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
         /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
     } else {
-        QDict *data = qobject_to_qdict(qdict_get(qdict, "data"));
+        QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
         MonitorQAPIEventState key = { .event = event, .data = data };
 
         evstate = g_hash_table_lookup(monitor_qapi_event_state, &key);
@@ -3777,7 +3777,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err_out;
     }
 
-    qdict = qobject_to_qdict(req);
+    qdict = qobject_to(QDict, req);
     if (qdict) {
         id = qdict_get(qdict, "id");
         qobject_incref(id);
@@ -3793,7 +3793,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     rsp = qmp_dispatch(cur_mon->qmp.commands, req);
 
     if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-        qdict = qdict_get_qdict(qobject_to_qdict(rsp), "error");
+        qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
         if (qdict
             && !g_strcmp0(qdict_get_try_str(qdict, "class"),
                     QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
@@ -3814,7 +3814,7 @@ err_out:
 
     if (rsp) {
         if (id) {
-            qdict_put_obj(qobject_to_qdict(rsp), "id", id);
+            qdict_put_obj(qobject_to(QDict, rsp), "id", id);
             id = NULL;
         }
 

@@ -297,8 +297,8 @@ static void test_qga_get_vcpus(gconstpointer fix)
     /* check there is at least a cpu */
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "online"));
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "logical-id"));
+    g_assert(qdict_haskey(qobject_to(QDict, entry->value), "online"));
+    g_assert(qdict_haskey(qobject_to(QDict, entry->value), "logical-id"));
 
     QDECREF(ret);
 }
@@ -318,10 +318,10 @@ static void test_qga_get_fsinfo(gconstpointer fix)
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
     if (entry) {
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "name"));
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "mountpoint"));
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "type"));
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "disk"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "name"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "mountpoint"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "type"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "disk"));
     }
 
     QDECREF(ret);
@@ -363,8 +363,9 @@ static void test_qga_get_memory_blocks(gconstpointer fix)
         entry = qlist_first(list);
         /* newer versions of qga may return empty list without error */
         if (entry) {
-            g_assert(qdict_haskey(qobject_to_qdict(entry->value), "phys-index"));
-            g_assert(qdict_haskey(qobject_to_qdict(entry->value), "online"));
+            g_assert(qdict_haskey(qobject_to(QDict, entry->value),
+                                  "phys-index"));
+            g_assert(qdict_haskey(qobject_to(QDict, entry->value), "online"));
         }
     }
 
@@ -385,7 +386,7 @@ static void test_qga_network_get_interfaces(gconstpointer fix)
     /* check there is at least an interface */
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "name"));
+    g_assert(qdict_haskey(qobject_to(QDict, entry->value), "name"));
 
     QDECREF(ret);
 }

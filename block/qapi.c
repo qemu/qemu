@@ -647,29 +647,29 @@ static void dump_qobject(fprintf_function func_fprintf, void *f,
 {
     switch (qobject_type(obj)) {
         case QTYPE_QNUM: {
-            QNum *value = qobject_to_qnum(obj);
+            QNum *value = qobject_to(QNum, obj);
             char *tmp = qnum_to_string(value);
             func_fprintf(f, "%s", tmp);
             g_free(tmp);
             break;
         }
         case QTYPE_QSTRING: {
-            QString *value = qobject_to_qstring(obj);
+            QString *value = qobject_to(QString, obj);
             func_fprintf(f, "%s", qstring_get_str(value));
             break;
         }
         case QTYPE_QDICT: {
-            QDict *value = qobject_to_qdict(obj);
+            QDict *value = qobject_to(QDict, obj);
             dump_qdict(func_fprintf, f, comp_indent, value);
             break;
         }
         case QTYPE_QLIST: {
-            QList *value = qobject_to_qlist(obj);
+            QList *value = qobject_to(QList, obj);
             dump_qlist(func_fprintf, f, comp_indent, value);
             break;
         }
         case QTYPE_QBOOL: {
-            QBool *value = qobject_to_qbool(obj);
+            QBool *value = qobject_to(QBool, obj);
             func_fprintf(f, "%s", qbool_get_bool(value) ? "true" : "false");
             break;
         }
@@ -730,7 +730,7 @@ void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
 
     visit_type_ImageInfoSpecific(v, NULL, &info_spec, &error_abort);
     visit_complete(v, &obj);
-    data = qdict_get(qobject_to_qdict(obj), "data");
+    data = qdict_get(qobject_to(QDict, obj), "data");
     dump_qobject(func_fprintf, f, 1, data);
     qobject_decref(obj);
     visit_free(v);

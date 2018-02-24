@@ -221,8 +221,8 @@ QNum *qobject_to_qnum(const QObject *obj)
  */
 bool qnum_is_equal(const QObject *x, const QObject *y)
 {
-    QNum *num_x = qobject_to_qnum(x);
-    QNum *num_y = qobject_to_qnum(y);
+    QNum *num_x = qobject_to(QNum, x);
+    QNum *num_y = qobject_to(QNum, y);
 
     switch (num_x->kind) {
     case QNUM_I64:
@@ -271,5 +271,5 @@ bool qnum_is_equal(const QObject *x, const QObject *y)
 void qnum_destroy_obj(QObject *obj)
 {
     assert(obj != NULL);
-    g_free(qobject_to_qnum(obj));
+    g_free(qobject_to(QNum, obj));
 }

@@ -453,7 +453,7 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
     Object *obj;
 
     if (info->props) {
-        qdict = qobject_to_qdict(info->props);
+        qdict = qobject_to(QDict, info->props);
         if (!qdict) {
             error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
             return;

@@ -319,7 +319,7 @@ static void char_socket_test_common(Chardev *chr)
     g_assert(!object_property_get_bool(OBJECT(chr), "connected", &error_abort));
 
     addr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
-    qdict = qobject_to_qdict(addr);
+    qdict = qobject_to(QDict, addr);
     port = qdict_get_str(qdict, "port");
     tmp = g_strdup_printf("tcp:127.0.0.1:%s", port);
     QDECREF(qdict);

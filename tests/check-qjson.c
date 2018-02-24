@@ -60,7 +60,7 @@ static void escaped_string(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        str = qobject_to_qstring(obj);
+        str = qobject_to(QString, obj);
         g_assert(str);
         g_assert_cmpstr(qstring_get_str(str), ==, test_cases[i].decoded);
 
@@ -92,7 +92,7 @@ static void simple_string(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        str = qobject_to_qstring(obj);
+        str = qobject_to(QString, obj);
         g_assert(str);
         g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
@@ -123,7 +123,7 @@ static void single_quote_string(void)
         QString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        str = qobject_to_qstring(obj);
+        str = qobject_to(QString, obj);
         g_assert(str);
         g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
@@ -817,7 +817,7 @@ static void utf8_string(void)
 
         obj = qobject_from_json(json_in, utf8_out ? &error_abort : NULL);
         if (utf8_out) {
-            str = qobject_to_qstring(obj);
+            str = qobject_to(QString, obj);
             g_assert(str);
             g_assert_cmpstr(qstring_get_str(str), ==, utf8_out);
         } else {
@@ -843,7 +843,7 @@ static void utf8_string(void)
          */
         if (0 && json_out != json_in) {
             obj = qobject_from_json(json_out, &error_abort);
-            str = qobject_to_qstring(obj);
+            str = qobject_to(QString, obj);
             g_assert(str);
             g_assert_cmpstr(qstring_get_str(str), ==, utf8_out);
         }
@@ -864,8 +864,8 @@ static void vararg_string(void)
     for (i = 0; test_cases[i].decoded; i++) {
         QString *str;
 
-        str = qobject_to_qstring(qobject_from_jsonf("%s",
-                                                    test_cases[i].decoded));
+        str = qobject_to(QString,
+                         qobject_from_jsonf("%s", test_cases[i].decoded));
         g_assert(str);
         g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
@@ -893,8 +893,9 @@ static void simple_number(void)
         QNum *qnum;
         int64_t val;
 
-        qnum = qobject_to_qnum(qobject_from_json(test_cases[i].encoded,
-                                                 &error_abort));
+        qnum = qobject_to(QNum,
+                          qobject_from_json(test_cases[i].encoded,
+                                            &error_abort));
         g_assert(qnum);
         g_assert(qnum_get_try_int(qnum, &val));
         g_assert_cmpint(val, ==, test_cases[i].decoded);
@@ -920,7 +921,7 @@ static void large_number(void)
     uint64_t val;
     int64_t ival;
 
-    qnum = qobject_to_qnum(qobject_from_json(maxu64, &error_abort));
+    qnum = qobject_to(QNum, qobject_from_json(maxu64, &error_abort));
     g_assert(qnum);
     g_assert_cmpuint(qnum_get_uint(qnum), ==, 18446744073709551615U);
     g_assert(!qnum_get_try_int(qnum, &ival));
@@ -930,7 +931,7 @@ static void large_number(void)
     QDECREF(str);
     QDECREF(qnum);
 
-    qnum = qobject_to_qnum(qobject_from_json(gtu64, &error_abort));
+    qnum = qobject_to(QNum, qobject_from_json(gtu64, &error_abort));
     g_assert(qnum);
     g_assert_cmpfloat(qnum_get_double(qnum), ==, 18446744073709552e3);
     g_assert(!qnum_get_try_uint(qnum, &val));
@@ -941,7 +942,7 @@ static void large_number(void)
     QDECREF(str);
     QDECREF(qnum);
 
-    qnum = qobject_to_qnum(qobject_from_json(lti64, &error_abort));
+    qnum = qobject_to(QNum, qobject_from_json(lti64, &error_abort));
     g_assert(qnum);
     g_assert_cmpfloat(qnum_get_double(qnum), ==, -92233720368547758e2);
     g_assert(!qnum_get_try_uint(qnum, &val));
@@ -973,7 +974,7 @@ static void float_number(void)
         QNum *qnum;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        qnum = qobject_to_qnum(obj);
+        qnum = qobject_to(QNum, obj);
         g_assert(qnum);
         g_assert(qnum_get_double(qnum) == test_cases[i].decoded);
 
@@ -997,17 +998,17 @@ static void vararg_number(void)
     double valuef = 2.323423423;
     int64_t val;
 
-    qnum = qobject_to_qnum(qobject_from_jsonf("%d", value));
+    qnum = qobject_to(QNum, qobject_from_jsonf("%d", value));
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, value);
     QDECREF(qnum);
 
-    qnum = qobject_to_qnum(qobject_from_jsonf("%lld", value_ll));
+    qnum = qobject_to(QNum, qobject_from_jsonf("%lld", value_ll));
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, value_ll);
     QDECREF(qnum);
 
-    qnum = qobject_to_qnum(qobject_from_jsonf("%f", valuef));
+    qnum = qobject_to(QNum, qobject_from_jsonf("%f", valuef));
     g_assert(qnum_get_double(qnum) == valuef);
     QDECREF(qnum);
 }
@@ -1020,7 +1021,7 @@ static void keyword_literal(void)
     QString *str;
 
     obj = qobject_from_json("true", &error_abort);
-    qbool = qobject_to_qbool(obj);
+    qbool = qobject_to(QBool, obj);
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
 
@@ -1031,7 +1032,7 @@ static void keyword_literal(void)
     QDECREF(qbool);
 
     obj = qobject_from_json("false", &error_abort);
-    qbool = qobject_to_qbool(obj);
+    qbool = qobject_to(QBool, obj);
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == false);
 
@@ -1041,13 +1042,13 @@ static void keyword_literal(void)
 
     QDECREF(qbool);
 
-    qbool = qobject_to_qbool(qobject_from_jsonf("%i", false));
+    qbool = qobject_to(QBool, qobject_from_jsonf("%i", false));
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == false);
     QDECREF(qbool);
 
     /* Test that non-zero values other than 1 get collapsed to true */
-    qbool = qobject_to_qbool(qobject_from_jsonf("%i", 2));
+    qbool = qobject_to(QBool, qobject_from_jsonf("%i", 2));
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
     QDECREF(qbool);

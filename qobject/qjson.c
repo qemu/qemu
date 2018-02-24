@@ -137,14 +137,14 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         qstring_append(str, "null");
         break;
     case QTYPE_QNUM: {
-        QNum *val = qobject_to_qnum(obj);
+        QNum *val = qobject_to(QNum, obj);
         char *buffer = qnum_to_string(val);
         qstring_append(str, buffer);
         g_free(buffer);
         break;
     }
     case QTYPE_QSTRING: {
-        QString *val = qobject_to_qstring(obj);
+        QString *val = qobject_to(QString, obj);
         const char *ptr;
         int cp;
         char buf[16];
@@ -201,7 +201,7 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
     }
     case QTYPE_QDICT: {
         ToJsonIterState s;
-        QDict *val = qobject_to_qdict(obj);
+        QDict *val = qobject_to(QDict, obj);
 
         s.count = 0;
         s.str = str;
@@ -220,7 +220,7 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
     }
     case QTYPE_QLIST: {
         ToJsonIterState s;
-        QList *val = qobject_to_qlist(obj);
+        QList *val = qobject_to(QList, obj);
 
         s.count = 0;
         s.str = str;
@@ -238,7 +238,7 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
         break;
     }
     case QTYPE_QBOOL: {
-        QBool *val = qobject_to_qbool(obj);
+        QBool *val = qobject_to(QBool, obj);
 
         if (qbool_get_bool(val)) {
             qstring_append(str, "true");

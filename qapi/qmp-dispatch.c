@@ -26,7 +26,7 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
     bool has_exec_key = false;
     QDict *dict = NULL;
 
-    dict = qobject_to_qdict(request);
+    dict = qobject_to(QDict, request);
     if (!dict) {
         error_setg(errp, "QMP input must be a JSON object");
         return NULL;

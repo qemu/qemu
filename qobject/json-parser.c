@@ -308,7 +308,7 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict, va_list *ap)
         goto out;
     }
 
-    qdict_put_obj(dict, qstring_get_str(qobject_to_qstring(key)), value);
+    qdict_put_obj(dict, qstring_get_str(qobject_to(QString, key)), value);
 
     qobject_decref(key);
 

@@ -173,8 +173,8 @@ QList *qobject_to_qlist(const QObject *obj)
  */
 bool qlist_is_equal(const QObject *x, const QObject *y)
 {
-    const QList *list_x = qobject_to_qlist(x);
-    const QList *list_y = qobject_to_qlist(y);
+    const QList *list_x = qobject_to(QList, x);
+    const QList *list_y = qobject_to(QList, y);
     const QListEntry *entry_x, *entry_y;
 
     entry_x = qlist_first(list_x);
@@ -203,7 +203,7 @@ void qlist_destroy_obj(QObject *obj)
     QListEntry *entry, *next_entry;
 
     assert(obj != NULL);
-    qlist = qobject_to_qlist(obj);
+    qlist = qobject_to(QList, obj);
 
     QTAILQ_FOREACH_SAFE(entry, &qlist->head, next, next_entry) {
         QTAILQ_REMOVE(&qlist->head, entry, next);

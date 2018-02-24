@@ -69,16 +69,16 @@ bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
 
     switch (lhs->type) {
     case QTYPE_QBOOL:
-        return lhs->value.qbool == qbool_get_bool(qobject_to_qbool(rhs));
+        return lhs->value.qbool == qbool_get_bool(qobject_to(QBool, rhs));
     case QTYPE_QNUM:
-        return lhs->value.qnum ==  qnum_get_int(qobject_to_qnum(rhs));
+        return lhs->value.qnum ==  qnum_get_int(qobject_to(QNum, rhs));
     case QTYPE_QSTRING:
         return (strcmp(lhs->value.qstr,
-                       qstring_get_str(qobject_to_qstring(rhs))) == 0);
+                       qstring_get_str(qobject_to(QString, rhs))) == 0);
     case QTYPE_QDICT:
-        return qlit_equal_qdict(lhs, qobject_to_qdict(rhs));
+        return qlit_equal_qdict(lhs, qobject_to(QDict, rhs));
     case QTYPE_QLIST:
-        return qlit_equal_qlist(lhs, qobject_to_qlist(rhs));
+        return qlit_equal_qlist(lhs, qobject_to(QList, rhs));
     case QTYPE_QNULL:
         return true;
     default:

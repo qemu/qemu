@@ -1457,7 +1457,7 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
         return NULL;
     }
 
-    options = qobject_to_qdict(options_obj);
+    options = qobject_to(QDict, options_obj);
     if (!options) {
         qobject_decref(options_obj);
         error_setg(errp, "Invalid JSON object given");
@@ -2433,7 +2433,7 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
         }
         visit_complete(v, &obj);
 
-        qdict = qobject_to_qdict(obj);
+        qdict = qobject_to(QDict, obj);
         qdict_flatten(qdict);
 
         /* bdrv_open_inherit() defaults to the values in bdrv_flags (for

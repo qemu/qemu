@@ -100,7 +100,7 @@ static void test_dispatch_cmd(void)
 
     resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
     assert(resp != NULL);
-    assert(!qdict_haskey(qobject_to_qdict(resp), "error"));
+    assert(!qdict_haskey(qobject_to(QDict, resp), "error"));
 
     qobject_decref(resp);
     QDECREF(req);
@@ -117,7 +117,7 @@ static void test_dispatch_cmd_failure(void)
 
     resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
     assert(resp != NULL);
-    assert(qdict_haskey(qobject_to_qdict(resp), "error"));
+    assert(qdict_haskey(qobject_to(QDict, resp), "error"));
 
     qobject_decref(resp);
     QDECREF(req);
@@ -131,7 +131,7 @@ static void test_dispatch_cmd_failure(void)
 
     resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
     assert(resp != NULL);
-    assert(qdict_haskey(qobject_to_qdict(resp), "error"));
+    assert(qdict_haskey(qobject_to(QDict, resp), "error"));
 
     qobject_decref(resp);
     QDECREF(req);
@@ -145,7 +145,7 @@ static QObject *test_qmp_dispatch(QDict *req)
 
     resp_obj = qmp_dispatch(&qmp_commands, QOBJECT(req));
     assert(resp_obj);
-    resp = qobject_to_qdict(resp_obj);
+    resp = qobject_to(QDict, resp_obj);
     assert(resp && !qdict_haskey(resp, "error"));
     ret = qdict_get(resp, "return");
     assert(ret);
@@ -176,7 +176,7 @@ static void test_dispatch_cmd_io(void)
     qdict_put(req, "arguments", args);
     qdict_put_str(req, "execute", "user_def_cmd2");
 
-    ret = qobject_to_qdict(test_qmp_dispatch(req));
+    ret = qobject_to(QDict, test_qmp_dispatch(req));
 
     assert(!strcmp(qdict_get_str(ret, "string0"), "blah1"));
     ret_dict = qdict_get_qdict(ret, "dict1");
@@ -197,7 +197,7 @@ static void test_dispatch_cmd_io(void)
     qdict_put(req, "arguments", args3);
     qdict_put_str(req, "execute", "guest-get-time");
 
-    ret3 = qobject_to_qnum(test_qmp_dispatch(req));
+    ret3 = qobject_to(QNum, test_qmp_dispatch(req));
     g_assert(qnum_get_try_int(ret3, &val));
     g_assert_cmpint(val, ==, 66);
     QDECREF(ret3);

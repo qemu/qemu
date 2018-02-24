@@ -59,7 +59,7 @@ static void qlit_equal_qobject_test(void)
 
     g_assert(!qlit_equal_qobject(&qlit_foo, qobj));
 
-    qdict_put(qobject_to_qdict(qobj), "bee", qlist_new());
+    qdict_put(qobject_to(QDict, qobj), "bee", qlist_new());
     g_assert(!qlit_equal_qobject(&qlit, qobj));
 
     qobject_decref(qobj);
@@ -71,20 +71,20 @@ static void qobject_from_qlit_test(void)
     QDict *qdict;
     QList *bee;
 
-    qdict = qobject_to_qdict(qobj);
+    qdict = qobject_to(QDict, qobj);
     g_assert_cmpint(qdict_get_int(qdict, "foo"), ==, 42);
     g_assert_cmpstr(qdict_get_str(qdict, "bar"), ==, "hello world");
     g_assert(qobject_type(qdict_get(qdict, "baz")) == QTYPE_QNULL);
 
     bee = qdict_get_qlist(qdict, "bee");
     obj = qlist_pop(bee);
-    g_assert_cmpint(qnum_get_int(qobject_to_qnum(obj)), ==, 43);
+    g_assert_cmpint(qnum_get_int(qobject_to(QNum, obj)), ==, 43);
     qobject_decref(obj);
     obj = qlist_pop(bee);
-    g_assert_cmpint(qnum_get_int(qobject_to_qnum(obj)), ==, 44);
+    g_assert_cmpint(qnum_get_int(qobject_to(QNum, obj)), ==, 44);
     qobject_decref(obj);
     obj = qlist_pop(bee);
-    g_assert(qbool_get_bool(qobject_to_qbool(obj)));
+    g_assert(qbool_get_bool(qobject_to(QBool, obj)));
     qobject_decref(obj);
 
     qobject_decref(qobj);
