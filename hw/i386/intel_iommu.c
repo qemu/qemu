@@ -2129,8 +2129,15 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
 
     /* Fault Event Address Register, 32-bit */
     case DMAR_FEADDR_REG:
-        assert(size == 4);
-        vtd_set_long(s, addr, val);
+        if (size == 4) {
+            vtd_set_long(s, addr, val);
+        } else {
+            /*
+             * While the register is 32-bit only, some guests (Xen...) write to
+             * it with 64-bit.
+             */
+            vtd_set_quad(s, addr, val);
+        }
         break;
 
     /* Fault Event Upper Address Register, 32-bit */
