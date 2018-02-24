@@ -93,7 +93,7 @@ this code that are retained.
 | division and square root approximations.  (Can be specialized to target if
 | desired.)
 *----------------------------------------------------------------------------*/
-#include "softfloat-macros.h"
+#include "fpu/softfloat-macros.h"
 
 /*----------------------------------------------------------------------------
 | Functions and definitions to determine:  (1) whether tininess for underflow
@@ -2193,25 +2193,6 @@ static void
 }
 
 /*----------------------------------------------------------------------------
-| Packs the sign `zSign', exponent `zExp', and significand `zSig' into a
-| single-precision floating-point value, returning the result.  After being
-| shifted into the proper positions, the three fields are simply added
-| together to form the result.  This means that any integer portion of `zSig'
-| will be added into the exponent.  Since a properly normalized significand
-| will have an integer portion equal to 1, the `zExp' input should be 1 less
-| than the desired result exponent whenever `zSig' is a complete, normalized
-| significand.
-*----------------------------------------------------------------------------*/
-
-static inline float32 packFloat32(flag zSign, int zExp, uint32_t zSig)
-{
-
-    return make_float32(
-          ( ( (uint32_t) zSign )<<31 ) + ( ( (uint32_t) zExp )<<23 ) + zSig);
-
-}
-
-/*----------------------------------------------------------------------------
 | Takes an abstract floating-point value having sign `zSign', exponent `zExp',
 | and significand `zSig', and returns the proper single-precision floating-
 | point value corresponding to the abstract input.  Ordinarily, the abstract
@@ -2491,72 +2472,20 @@ static float64
 }
 
 /*----------------------------------------------------------------------------
-| Returns the fraction bits of the extended double-precision floating-point
-| value `a'.
-*----------------------------------------------------------------------------*/
-
-static inline uint64_t extractFloatx80Frac( floatx80 a )
-{
-
-    return a.low;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the exponent bits of the extended double-precision floating-point
-| value `a'.
-*----------------------------------------------------------------------------*/
-
-static inline int32_t extractFloatx80Exp( floatx80 a )
-{
-
-    return a.high & 0x7FFF;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the sign bit of the extended double-precision floating-point value
-| `a'.
-*----------------------------------------------------------------------------*/
-
-static inline flag extractFloatx80Sign( floatx80 a )
-{
-
-    return a.high>>15;
-
-}
-
-/*----------------------------------------------------------------------------
 | Normalizes the subnormal extended double-precision floating-point value
 | represented by the denormalized significand `aSig'.  The normalized exponent
 | and significand are stored at the locations pointed to by `zExpPtr' and
 | `zSigPtr', respectively.
 *----------------------------------------------------------------------------*/
 
-static void
- normalizeFloatx80Subnormal( uint64_t aSig, int32_t *zExpPtr, uint64_t *zSigPtr )
+void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
+                                uint64_t *zSigPtr)
 {
     int8_t shiftCount;
 
     shiftCount = countLeadingZeros64( aSig );
     *zSigPtr = aSig<<shiftCount;
     *zExpPtr = 1 - shiftCount;
-
-}
-
-/*----------------------------------------------------------------------------
-| Packs the sign `zSign', exponent `zExp', and significand `zSig' into an
-| extended double-precision floating-point value, returning the result.
-*----------------------------------------------------------------------------*/
-
-static inline floatx80 packFloatx80( flag zSign, int32_t zExp, uint64_t zSig )
-{
-    floatx80 z;
-
-    z.low = zSig;
-    z.high = ( ( (uint16_t) zSign )<<15 ) + zExp;
-    return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -2583,9 +2512,9 @@ static inline floatx80 packFloatx80( flag zSign, int32_t zExp, uint64_t zSig )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
-                                     int32_t zExp, uint64_t zSig0, uint64_t zSig1,
-                                     float_status *status)
+floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
+                              int32_t zExp, uint64_t zSig0, uint64_t zSig1,
+                              float_status *status)
 {
     int8_t roundingMode;
     flag roundNearestEven, increment, isTiny;
@@ -2779,10 +2708,10 @@ static floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
 | normalized.
 *----------------------------------------------------------------------------*/
 
-static floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
-                                              flag zSign, int32_t zExp,
-                                              uint64_t zSig0, uint64_t zSig1,
-                                              float_status *status)
+floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
+                                       flag zSign, int32_t zExp,
+                                       uint64_t zSig0, uint64_t zSig1,
+                                       float_status *status)
 {
     int8_t shiftCount;
 
