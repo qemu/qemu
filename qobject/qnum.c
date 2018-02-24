@@ -200,17 +200,6 @@ char *qnum_to_string(QNum *qn)
 }
 
 /**
- * qobject_to_qnum(): Convert a QObject into a QNum
- */
-QNum *qobject_to_qnum(const QObject *obj)
-{
-    if (!obj || qobject_type(obj) != QTYPE_QNUM) {
-        return NULL;
-    }
-    return container_of(obj, QNum, base);
-}
-
-/**
  * qnum_is_equal(): Test whether the two QNums are equal
  *
  * Negative integers are never considered equal to unsigned integers,

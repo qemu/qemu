@@ -106,17 +106,6 @@ void qstring_append_chr(QString *qstring, int c)
 }
 
 /**
- * qobject_to_qstring(): Convert a QObject to a QString
- */
-QString *qobject_to_qstring(const QObject *obj)
-{
-    if (!obj || qobject_type(obj) != QTYPE_QSTRING) {
-        return NULL;
-    }
-    return container_of(obj, QString, base);
-}
-
-/**
  * qstring_get_str(): Return a pointer to the stored string
  *
  * NOTE: Should be used with caution, if the object is deallocated

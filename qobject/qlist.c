@@ -152,17 +152,6 @@ size_t qlist_size(const QList *qlist)
 }
 
 /**
- * qobject_to_qlist(): Convert a QObject into a QList
- */
-QList *qobject_to_qlist(const QObject *obj)
-{
-    if (!obj || qobject_type(obj) != QTYPE_QLIST) {
-        return NULL;
-    }
-    return container_of(obj, QList, base);
-}
-
-/**
  * qlist_is_equal(): Test whether the two QLists are equal
  *
  * In order to be considered equal, the respective two objects at each

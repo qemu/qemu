@@ -23,7 +23,6 @@ struct QBool {
 
 QBool *qbool_from_bool(bool value);
 bool qbool_get_bool(const QBool *qb);
-QBool *qobject_to_qbool(const QObject *obj);
 bool qbool_is_equal(const QObject *x, const QObject *y);
 void qbool_destroy_obj(QObject *obj);
 

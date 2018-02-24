@@ -38,17 +38,6 @@ QDict *qdict_new(void)
 }
 
 /**
- * qobject_to_qdict(): Convert a QObject into a QDict
- */
-QDict *qobject_to_qdict(const QObject *obj)
-{
-    if (!obj || qobject_type(obj) != QTYPE_QDICT) {
-        return NULL;
-    }
-    return container_of(obj, QDict, base);
-}
-
-/**
  * tdb_hash(): based on the hash agorithm from gdbm, via tdb
  * (from module-init-tools)
  */

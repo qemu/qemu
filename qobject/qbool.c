@@ -40,17 +40,6 @@ bool qbool_get_bool(const QBool *qb)
 }
 
 /**
- * qobject_to_qbool(): Convert a QObject into a QBool
- */
-QBool *qobject_to_qbool(const QObject *obj)
-{
-    if (!obj || qobject_type(obj) != QTYPE_QBOOL) {
-        return NULL;
-    }
-    return container_of(obj, QBool, base);
-}
-
-/**
  * qbool_is_equal(): Test whether the two QBools are equal
  */
 bool qbool_is_equal(const QObject *x, const QObject *y)
