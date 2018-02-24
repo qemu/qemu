@@ -178,6 +178,20 @@ floatx80 floatx80_default_nan(float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| The pattern for a default generated extended double-precision inf.
+*----------------------------------------------------------------------------*/
+
+#define floatx80_infinity_high 0x7FFF
+#if defined(TARGET_M68K)
+#define floatx80_infinity_low  LIT64(0x0000000000000000)
+#else
+#define floatx80_infinity_low  LIT64(0x8000000000000000)
+#endif
+
+const floatx80 floatx80_infinity
+    = make_floatx80_init(floatx80_infinity_high, floatx80_infinity_low);
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated quadruple-precision NaN.
 *----------------------------------------------------------------------------*/
 float128 float128_default_nan(float_status *status)

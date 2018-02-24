@@ -573,6 +573,11 @@ float64 floatx80_to_float64(floatx80, float_status *status);
 float128 floatx80_to_float128(floatx80, float_status *status);
 
 /*----------------------------------------------------------------------------
+| The pattern for an extended double-precision inf.
+*----------------------------------------------------------------------------*/
+extern const floatx80 floatx80_infinity;
+
+/*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
 *----------------------------------------------------------------------------*/
 floatx80 floatx80_round(floatx80 a, float_status *status);
@@ -612,7 +617,12 @@ static inline floatx80 floatx80_chs(floatx80 a)
 
 static inline int floatx80_is_infinity(floatx80 a)
 {
-    return (a.high & 0x7fff) == 0x7fff && a.low == 0x8000000000000000LL;
+#if defined(TARGET_M68K)
+    return (a.high & 0x7fff) == floatx80_infinity.high && !(a.low << 1);
+#else
+    return (a.high & 0x7fff) == floatx80_infinity.high &&
+                       a.low == floatx80_infinity.low;
+#endif
 }
 
 static inline int floatx80_is_neg(floatx80 a)
@@ -655,7 +665,6 @@ static inline bool floatx80_invalid_encoding(floatx80 a)
 #define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
 #define floatx80_pi make_floatx80(0x4000, 0xc90fdaa22168c235LL)
 #define floatx80_half make_floatx80(0x3ffe, 0x8000000000000000LL)
-#define floatx80_infinity make_floatx80(0x7fff, 0x8000000000000000LL)
 
 /*----------------------------------------------------------------------------
 | Returns the fraction bits of the extended double-precision floating-point
