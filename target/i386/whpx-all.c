@@ -756,12 +756,11 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     }
 
     /* Update the state of the interrupt delivery notification */
-    if (cpu->interrupt_request & CPU_INTERRUPT_HARD) {
+    if (!vcpu->window_registered &&
+        cpu->interrupt_request & CPU_INTERRUPT_HARD) {
         reg_values[reg_count].DeliverabilityNotifications.InterruptNotification
             = 1;
-        if (vcpu->window_registered != 1) {
-            vcpu->window_registered = 1;
-        }
+        vcpu->window_registered = 1;
         reg_names[reg_count] = WHvX64RegisterDeliverabilityNotifications;
         reg_count += 1;
     }
