@@ -167,36 +167,42 @@ const char %(c_name)s[] = %(c_string)s;
         arg_type = arg_type or self._schema.the_empty_object_type
         self._gen_json(name, 'event', {'arg-type': self._use_type(arg_type)})
 
-# Debugging aid: unmask QAPI schema's type names
-# We normally mask them, because they're not QMP wire ABI
-opt_unmask = False
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line('u', ['unmask-non-abi-names'])
+def main(argv):
+    # Debugging aid: unmask QAPI schema's type names
+    # We normally mask them, because they're not QMP wire ABI
+    opt_unmask = False
 
-for o, a in opts:
-    if o in ('-u', '--unmask-non-abi-names'):
-        opt_unmask = True
+    (input_file, output_dir, do_c, do_h, prefix, opts) = \
+        parse_command_line('u', ['unmask-non-abi-names'])
 
-blurb = ' * QAPI/QMP schema introspection'
+    for o, a in opts:
+        if o in ('-u', '--unmask-non-abi-names'):
+            opt_unmask = True
 
-genc = QAPIGenC(blurb, __doc__)
-genh = QAPIGenH(blurb, __doc__)
+    blurb = ' * QAPI/QMP schema introspection'
 
-genc.add(mcgen('''
+    genc = QAPIGenC(blurb, __doc__)
+    genh = QAPIGenH(blurb, __doc__)
+
+    genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqmp-introspect.h"
 
 ''',
-               prefix=prefix))
+                   prefix=prefix))
 
-schema = QAPISchema(input_file)
-vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
-schema.visit(vis)
-genc.add(vis.defn)
-genh.add(vis.decl)
+    schema = QAPISchema(input_file)
+    vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
+    schema.visit(vis)
+    genc.add(vis.defn)
+    genh.add(vis.decl)
 
-if do_c:
-    genc.write(output_dir, prefix + 'qmp-introspect.c')
-if do_h:
-    genh.write(output_dir, prefix + 'qmp-introspect.h')
+    if do_c:
+        genc.write(output_dir, prefix + 'qmp-introspect.c')
+    if do_h:
+        genh.write(output_dir, prefix + 'qmp-introspect.h')
+
+
+if __name__ == '__main__':
+    main(sys.argv)

@@ -240,43 +240,49 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.decl += gen_object(name, None, [variants.tag_member], variants)
         self._gen_type_cleanup(name)
 
-# If you link code generated from multiple schemata, you want only one
-# instance of the code for built-in types.  Generate it only when
-# opt_builtins, enabled by command line option -b.  See also
-# QAPISchemaGenTypeVisitor.visit_end().
-opt_builtins = False
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line('b', ['builtins'])
+def main(argv):
+    # If you link code generated from multiple schemata, you want only one
+    # instance of the code for built-in types.  Generate it only when
+    # opt_builtins, enabled by command line option -b.  See also
+    # QAPISchemaGenTypeVisitor.visit_end().
+    opt_builtins = False
 
-for o, a in opts:
-    if o in ('-b', '--builtins'):
-        opt_builtins = True
+    (input_file, output_dir, do_c, do_h, prefix, opts) = \
+        parse_command_line('b', ['builtins'])
 
-blurb = ' * Schema-defined QAPI types'
+    for o, a in opts:
+        if o in ('-b', '--builtins'):
+            opt_builtins = True
 
-genc = QAPIGenC(blurb, __doc__)
-genh = QAPIGenH(blurb, __doc__)
+    blurb = ' * Schema-defined QAPI types'
 
-genc.add(mcgen('''
+    genc = QAPIGenC(blurb, __doc__)
+    genh = QAPIGenH(blurb, __doc__)
+
+    genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-               prefix=prefix))
+                   prefix=prefix))
 
-genh.add(mcgen('''
+    genh.add(mcgen('''
 #include "qapi/util.h"
 '''))
 
-schema = QAPISchema(input_file)
-vis = QAPISchemaGenTypeVisitor(opt_builtins)
-schema.visit(vis)
-genc.add(vis.defn)
-genh.add(vis.decl)
+    schema = QAPISchema(input_file)
+    vis = QAPISchemaGenTypeVisitor(opt_builtins)
+    schema.visit(vis)
+    genc.add(vis.defn)
+    genh.add(vis.decl)
 
-if do_c:
-    genc.write(output_dir, prefix + 'qapi-types.c')
-if do_h:
-    genh.write(output_dir, prefix + 'qapi-types.h')
+    if do_c:
+        genc.write(output_dir, prefix + 'qapi-types.c')
+    if do_h:
+        genh.write(output_dir, prefix + 'qapi-types.h')
+
+
+if __name__ == '__main__':
+    main(sys.argv)

@@ -323,47 +323,53 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self.decl += gen_visit_decl(name)
         self.defn += gen_visit_alternate(name, variants)
 
-# If you link code generated from multiple schemata, you want only one
-# instance of the code for built-in types.  Generate it only when
-# opt_builtins, enabled by command line option -b.  See also
-# QAPISchemaGenVisitVisitor.visit_end().
-opt_builtins = False
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line('b', ['builtins'])
+def main(argv):
+    # If you link code generated from multiple schemata, you want only one
+    # instance of the code for built-in types.  Generate it only when
+    # opt_builtins, enabled by command line option -b.  See also
+    # QAPISchemaGenVisitVisitor.visit_end().
+    opt_builtins = False
 
-for o, a in opts:
-    if o in ('-b', '--builtins'):
-        opt_builtins = True
+    (input_file, output_dir, do_c, do_h, prefix, opts) = \
+        parse_command_line('b', ['builtins'])
 
-blurb = ' * Schema-defined QAPI visitors'
+    for o, a in opts:
+        if o in ('-b', '--builtins'):
+            opt_builtins = True
 
-genc = QAPIGenC(blurb, __doc__)
-genh = QAPIGenH(blurb, __doc__)
+    blurb = ' * Schema-defined QAPI visitors'
 
-genc.add(mcgen('''
+    genc = QAPIGenC(blurb, __doc__)
+    genh = QAPIGenH(blurb, __doc__)
+
+    genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-               prefix=prefix))
+                   prefix=prefix))
 
-genh.add(mcgen('''
+    genh.add(mcgen('''
 #include "qapi/visitor.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-               prefix=prefix))
+                   prefix=prefix))
 
-schema = QAPISchema(input_file)
-vis = QAPISchemaGenVisitVisitor(opt_builtins)
-schema.visit(vis)
-genc.add(vis.defn)
-genh.add(vis.decl)
+    schema = QAPISchema(input_file)
+    vis = QAPISchemaGenVisitVisitor(opt_builtins)
+    schema.visit(vis)
+    genc.add(vis.defn)
+    genh.add(vis.decl)
 
-if do_c:
-    genc.write(output_dir, prefix + 'qapi-visit.c')
-if do_h:
-    genh.write(output_dir, prefix + 'qapi-visit.h')
+    if do_c:
+        genc.write(output_dir, prefix + 'qapi-visit.c')
+    if do_h:
+        genh.write(output_dir, prefix + 'qapi-visit.h')
+
+
+if __name__ == '__main__':
+    main(sys.argv)

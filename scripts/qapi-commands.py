@@ -255,14 +255,15 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._regy += gen_register_command(name, success_response)
 
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()
+def main(argv):
+    (input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()
 
-blurb = ' * Schema-defined QAPI/QMP commands'
+    blurb = ' * Schema-defined QAPI/QMP commands'
 
-genc = QAPIGenC(blurb, __doc__)
-genh = QAPIGenH(blurb, __doc__)
+    genc = QAPIGenC(blurb, __doc__)
+    genh = QAPIGenH(blurb, __doc__)
 
-genc.add(mcgen('''
+    genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/module.h"
@@ -277,23 +278,27 @@ genc.add(mcgen('''
 #include "%(prefix)sqmp-commands.h"
 
 ''',
-               prefix=prefix))
+                   prefix=prefix))
 
-genh.add(mcgen('''
+    genh.add(mcgen('''
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/dispatch.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
-               prefix=prefix, c_prefix=c_name(prefix, protect=False)))
+                   prefix=prefix, c_prefix=c_name(prefix, protect=False)))
 
-schema = QAPISchema(input_file)
-vis = QAPISchemaGenCommandVisitor(prefix)
-schema.visit(vis)
-genc.add(vis.defn)
-genh.add(vis.decl)
+    schema = QAPISchema(input_file)
+    vis = QAPISchemaGenCommandVisitor(prefix)
+    schema.visit(vis)
+    genc.add(vis.defn)
+    genh.add(vis.decl)
 
-if do_c:
-    genc.write(output_dir, prefix + 'qmp-marshal.c')
-if do_h:
-    genh.write(output_dir, prefix + 'qmp-commands.h')
+    if do_c:
+        genc.write(output_dir, prefix + 'qmp-marshal.c')
+    if do_h:
+        genh.write(output_dir, prefix + 'qmp-commands.h')
+
+
+if __name__ == '__main__':
+    main(sys.argv)
