@@ -364,7 +364,6 @@ static void whpx_set_registers(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set virtual processor context, hr=%08lx",
                      hr);
-        __debugbreak();
     }
 
     return;
@@ -391,7 +390,6 @@ static void whpx_get_registers(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to get virtual processor context, hr=%08lx",
                      hr);
-        __debugbreak();
     }
 
     /* Indexes for first 16 registers match between HV and QEMU definitions */
@@ -554,7 +552,6 @@ static HRESULT CALLBACK whpx_emu_getreg_callback(
     if (FAILED(hr)) {
         error_report("WHPX: Failed to get virtual processor registers,"
                      " hr=%08lx", hr);
-        __debugbreak();
     }
 
     return hr;
@@ -576,7 +573,6 @@ static HRESULT CALLBACK whpx_emu_setreg_callback(
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set virtual processor registers,"
                      " hr=%08lx", hr);
-        __debugbreak();
     }
 
     /*
@@ -604,7 +600,6 @@ static HRESULT CALLBACK whpx_emu_translate_callback(
                          Gva, TranslateFlags, &res, Gpa);
     if (FAILED(hr)) {
         error_report("WHPX: Failed to translate GVA, hr=%08lx", hr);
-        __debugbreak();
     } else {
         *TranslationResult = res.ResultCode;
     }
@@ -631,13 +626,11 @@ static int whpx_handle_mmio(CPUState *cpu, WHV_MEMORY_ACCESS_CONTEXT *ctx)
                                      &vcpu->exit_ctx.VpContext, ctx,
                                      &emu_status);
     if (FAILED(hr)) {
-        __debugbreak();
         error_report("WHPX: Failed to parse MMIO access, hr=%08lx", hr);
         return -1;
     }
 
     if (!emu_status.EmulationSuccessful) {
-        __debugbreak();
         error_report("WHPX: Failed to emulate MMIO access");
         return -1;
     }
@@ -656,13 +649,11 @@ static int whpx_handle_portio(CPUState *cpu,
                                    &vcpu->exit_ctx.VpContext, ctx,
                                    &emu_status);
     if (FAILED(hr)) {
-        __debugbreak();
         error_report("WHPX: Failed to parse PortIO access, hr=%08lx", hr);
         return -1;
     }
 
     if (!emu_status.EmulationSuccessful) {
-        __debugbreak();
         error_report("WHPX: Failed to emulate PortMMIO access");
         return -1;
     }
@@ -716,7 +707,6 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
         if (cpu->interrupt_request & CPU_INTERRUPT_SMI) {
             qemu_mutex_lock_iothread();
             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-            __debugbreak();
             qemu_mutex_unlock_iothread();
         }
     }
@@ -785,7 +775,6 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
         if (FAILED(hr)) {
             error_report("WHPX: Failed to set interrupt state registers,"
                          " hr=%08lx", hr);
-            __debugbreak();
         }
     }
 
@@ -812,7 +801,6 @@ static void whpx_vcpu_post_run(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to get interrupt state regusters,"
                      " hr=%08lx", hr);
-        __debugbreak();
         vcpu->interruptable = false;
         return;
     }
