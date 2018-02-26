@@ -29,6 +29,7 @@
 #include "hw/qdev.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-misc.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
@@ -36,7 +37,6 @@
 #include "hw/hotplug.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
-#include "qapi-event.h"
 
 bool qdev_hotplug = false;
 static bool qdev_hot_added = false;

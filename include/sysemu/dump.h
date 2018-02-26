@@ -14,7 +14,7 @@
 #ifndef DUMP_H
 #define DUMP_H
 
-#include "qapi-types.h"
+#include "qapi/qapi-types-misc.h"
 
 #define MAKEDUMPFILE_SIGNATURE      "makedumpfile"
 #define MAX_SIZE_MDF_HEADER         (4096) /* max size of makedumpfile_header */

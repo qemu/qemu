@@ -19,10 +19,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
-#include "qmp-commands.h"
 #include "hw/boards.h"
 #include "kvm_arm.h"
+#include "qapi/qapi-commands-misc.h"
 
 static GICCapability *gic_cap_new(int version)
 {

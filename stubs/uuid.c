@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qapi/qapi-commands-misc.h"
 #include "qemu/uuid.h"
-#include "qmp-commands.h"
 
 UuidInfo *qmp_query_uuid(Error **errp)
 {

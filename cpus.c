@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -39,7 +40,6 @@
 #include "sysemu/hax.h"
 #include "sysemu/hvf.h"
 #include "sysemu/whpx.h"
-#include "qmp-commands.h"
 #include "exec/exec-all.h"
 
 #include "qemu/thread.h"

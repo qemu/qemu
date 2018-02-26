@@ -23,9 +23,9 @@
 #include "sysemu/memory_mapping.h"
 #include "sysemu/cpus.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
+#include "qapi/qapi-events-misc.h"
 #include "qapi/qmp/qerror.h"
-#include "qmp-commands.h"
-#include "qapi-event.h"
 #include "qemu/error-report.h"
 #include "hw/misc/vmcoreinfo.h"
 
