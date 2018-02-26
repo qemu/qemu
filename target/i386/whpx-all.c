@@ -26,8 +26,8 @@
 #include "qapi/error.h"
 #include "migration/blocker.h"
 
-#include <winhvplatform.h>
-#include <winhvemulation.h>
+#include <WinHvPlatform.h>
+#include <WinHvEmulation.h>
 
 struct whpx_state {
     uint64_t mem_quota;
