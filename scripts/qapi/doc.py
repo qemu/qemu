@@ -197,33 +197,35 @@ def texi_entity(doc, what, base=None, variants=None,
 
 
 class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
-    def __init__(self):
-        self.out = None
+    def __init__(self, prefix):
+        self._prefix = prefix
+        self._gen = qapi.common.QAPIGenDoc()
         self.cur_doc = None
 
-    def visit_begin(self, schema):
-        self.out = ''
+    def write(self, output_dir):
+        self._gen.write(output_dir, self._prefix + 'qapi-doc.texi')
 
     def visit_enum_type(self, name, info, values, prefix):
         doc = self.cur_doc
-        self.out += TYPE_FMT(type='Enum',
-                             name=doc.symbol,
-                             body=texi_entity(doc, 'Values',
-                                              member_func=texi_enum_value))
+        self._gen.add(TYPE_FMT(type='Enum',
+                               name=doc.symbol,
+                               body=texi_entity(doc, 'Values',
+                                                member_func=texi_enum_value)))
 
     def visit_object_type(self, name, info, base, members, variants):
         doc = self.cur_doc
         if base and base.is_implicit():
             base = None
-        self.out += TYPE_FMT(type='Object',
-                             name=doc.symbol,
-                             body=texi_entity(doc, 'Members', base, variants))
+        self._gen.add(TYPE_FMT(type='Object',
+                               name=doc.symbol,
+                               body=texi_entity(doc, 'Members',
+                                                base, variants)))
 
     def visit_alternate_type(self, name, info, variants):
         doc = self.cur_doc
-        self.out += TYPE_FMT(type='Alternate',
-                             name=doc.symbol,
-                             body=texi_entity(doc, 'Members'))
+        self._gen.add(TYPE_FMT(type='Alternate',
+                               name=doc.symbol,
+                               body=texi_entity(doc, 'Members')))
 
     def visit_command(self, name, info, arg_type, ret_type,
                       gen, success_response, boxed):
@@ -235,44 +237,38 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
             body += texi_sections(doc)
         else:
             body = texi_entity(doc, 'Arguments')
-        self.out += MSG_FMT(type='Command',
-                            name=doc.symbol,
-                            body=body)
+        self._gen.add(MSG_FMT(type='Command',
+                              name=doc.symbol,
+                              body=body))
 
     def visit_event(self, name, info, arg_type, boxed):
         doc = self.cur_doc
-        self.out += MSG_FMT(type='Event',
-                            name=doc.symbol,
-                            body=texi_entity(doc, 'Arguments'))
+        self._gen.add(MSG_FMT(type='Event',
+                              name=doc.symbol,
+                              body=texi_entity(doc, 'Arguments')))
 
     def symbol(self, doc, entity):
-        if self.out:
-            self.out += '\n'
+        if self._gen._body:
+            self._gen.add('\n')
         self.cur_doc = doc
         entity.visit(self)
         self.cur_doc = None
 
     def freeform(self, doc):
         assert not doc.args
-        if self.out:
-            self.out += '\n'
-        self.out += texi_body(doc) + texi_sections(doc)
-
-
-def texi_schema(schema):
-    """Convert QAPI schema documentation to Texinfo"""
-    gen = QAPISchemaGenDocVisitor()
-    gen.visit_begin(schema)
-    for doc in schema.docs:
-        if doc.symbol:
-            gen.symbol(doc, schema.lookup_entity(doc.symbol))
-        else:
-            gen.freeform(doc)
-    return gen.out
+        if self._gen._body:
+            self._gen.add('\n')
+        self._gen.add(texi_body(doc) + texi_sections(doc))
 
 
 def gen_doc(schema, output_dir, prefix):
-    if qapi.common.doc_required:
-        gen = qapi.common.QAPIGenDoc()
-        gen.add(texi_schema(schema))
-        gen.write(output_dir, prefix + 'qapi-doc.texi')
+    if not qapi.common.doc_required:
+        return
+    vis = QAPISchemaGenDocVisitor(prefix)
+    vis.visit_begin(schema)
+    for doc in schema.docs:
+        if doc.symbol:
+            vis.symbol(doc, schema.lookup_entity(doc.symbol))
+        else:
+            vis.freeform(doc)
+    vis.write(output_dir)

@@ -263,17 +263,28 @@ out:
                  c_name=c_name(name))
 
 
-class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
-    def __init__(self, opt_builtins):
-        self._opt_builtins = opt_builtins
-        self.decl = None
-        self.defn = None
-        self._btin = None
+class QAPISchemaGenVisitVisitor(QAPISchemaMonolithicCVisitor):
 
-    def visit_begin(self, schema):
-        self.decl = ''
-        self.defn = ''
-        self._btin = '\n' + guardstart('QAPI_VISIT_BUILTIN')
+    def __init__(self, prefix, opt_builtins):
+        QAPISchemaMonolithicCVisitor.__init__(
+            self, prefix, 'qapi-visit', ' * Schema-defined QAPI visitors',
+            __doc__)
+        self._opt_builtins = opt_builtins
+        self._genc.preamble_add(mcgen('''
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
+#include "%(prefix)sqapi-visit.h"
+''',
+                                      prefix=prefix))
+        self._genh.preamble_add(mcgen('''
+#include "qapi/visitor.h"
+#include "%(prefix)sqapi-types.h"
+
+''',
+                                      prefix=prefix))
+        self._btin = guardstart('QAPI_VISIT_BUILTIN')
 
     def visit_end(self):
         # To avoid header dependency hell, we always generate
@@ -281,7 +292,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         # simply guard them.  See also opt_builtins (command line
         # option -b).
         self._btin += guardend('QAPI_VISIT_BUILTIN')
-        self.decl = self._btin + self.decl
+        self._genh.preamble_add(self._btin)
         self._btin = None
 
     def visit_enum_type(self, name, info, values, prefix):
@@ -290,10 +301,10 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         if not info:
             self._btin += gen_visit_decl(name, scalar=True)
             if self._opt_builtins:
-                self.defn += gen_visit_enum(name)
+                self._genc.add(gen_visit_enum(name))
         else:
-            self.decl += gen_visit_decl(name, scalar=True)
-            self.defn += gen_visit_enum(name)
+            self._genh.add(gen_visit_decl(name, scalar=True))
+            self._genc.add(gen_visit_enum(name))
 
     def visit_array_type(self, name, info, element_type):
         decl = gen_visit_decl(name)
@@ -301,53 +312,30 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         if isinstance(element_type, QAPISchemaBuiltinType):
             self._btin += decl
             if self._opt_builtins:
-                self.defn += defn
+                self._genc.add(defn)
         else:
-            self.decl += decl
-            self.defn += defn
+            self._genh.add(decl)
+            self._genc.add(defn)
 
     def visit_object_type(self, name, info, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
-        self.decl += gen_visit_members_decl(name)
-        self.defn += gen_visit_object_members(name, base, members, variants)
+        self._genh.add(gen_visit_members_decl(name))
+        self._genc.add(gen_visit_object_members(name, base, members, variants))
         # TODO Worth changing the visitor signature, so we could
         # directly use rather than repeat type.is_implicit()?
         if not name.startswith('q_'):
             # only explicit types need an allocating visit
-            self.decl += gen_visit_decl(name)
-            self.defn += gen_visit_object(name, base, members, variants)
+            self._genh.add(gen_visit_decl(name))
+            self._genc.add(gen_visit_object(name, base, members, variants))
 
     def visit_alternate_type(self, name, info, variants):
-        self.decl += gen_visit_decl(name)
-        self.defn += gen_visit_alternate(name, variants)
+        self._genh.add(gen_visit_decl(name))
+        self._genc.add(gen_visit_alternate(name, variants))
 
 
 def gen_visit(schema, output_dir, prefix, opt_builtins):
-    blurb = ' * Schema-defined QAPI visitors'
-    genc = QAPIGenC(blurb, __doc__)
-    genh = QAPIGenH(blurb, __doc__)
-
-    genc.add(mcgen('''
-#include "qemu/osdep.h"
-#include "qemu-common.h"
-#include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
-#include "%(prefix)sqapi-visit.h"
-''',
-                   prefix=prefix))
-
-    genh.add(mcgen('''
-#include "qapi/visitor.h"
-#include "%(prefix)sqapi-types.h"
-
-''',
-                   prefix=prefix))
-
-    vis = QAPISchemaGenVisitVisitor(opt_builtins)
+    vis = QAPISchemaGenVisitVisitor(prefix, opt_builtins)
     schema.visit(vis)
-    genc.add(vis.defn)
-    genh.add(vis.decl)
-    genc.write(output_dir, prefix + 'qapi-visit.c')
-    genh.write(output_dir, prefix + 'qapi-visit.h')
+    vis.write(output_dir)

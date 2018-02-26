@@ -148,35 +148,15 @@ out:
     return ret
 
 
-class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
+class QAPISchemaGenEventVisitor(QAPISchemaMonolithicCVisitor):
+
     def __init__(self, prefix):
+        QAPISchemaMonolithicCVisitor.__init__(
+            self, prefix, 'qapi-event',
+            ' * Schema-defined QAPI/QMP events', __doc__)
         self._enum_name = c_name(prefix + 'QAPIEvent', protect=False)
-        self.decl = None
-        self.defn = None
-        self._event_names = None
-
-    def visit_begin(self, schema):
-        self.decl = ''
-        self.defn = ''
         self._event_names = []
-
-    def visit_end(self):
-        self.decl += gen_enum(self._enum_name, self._event_names)
-        self.defn += gen_enum_lookup(self._enum_name, self._event_names)
-        self._event_names = None
-
-    def visit_event(self, name, info, arg_type, boxed):
-        self.decl += gen_event_send_decl(name, arg_type, boxed)
-        self.defn += gen_event_send(name, arg_type, boxed, self._enum_name)
-        self._event_names.append(name)
-
-
-def gen_events(schema, output_dir, prefix):
-    blurb = ' * Schema-defined QAPI/QMP events'
-    genc = QAPIGenC(blurb, __doc__)
-    genh = QAPIGenH(blurb, __doc__)
-
-    genc.add(mcgen('''
+        self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "%(prefix)sqapi-event.h"
@@ -187,18 +167,25 @@ def gen_events(schema, output_dir, prefix):
 #include "qapi/qmp-event.h"
 
 ''',
-                   prefix=prefix))
-
-    genh.add(mcgen('''
+                             prefix=prefix))
+        self._genh.add(mcgen('''
 #include "qapi/util.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-                   prefix=prefix))
+                             prefix=prefix))
 
+    def visit_end(self):
+        self._genh.add(gen_enum(self._enum_name, self._event_names))
+        self._genc.add(gen_enum_lookup(self._enum_name, self._event_names))
+
+    def visit_event(self, name, info, arg_type, boxed):
+        self._genh.add(gen_event_send_decl(name, arg_type, boxed))
+        self._genc.add(gen_event_send(name, arg_type, boxed, self._enum_name))
+        self._event_names.append(name)
+
+
+def gen_events(schema, output_dir, prefix):
     vis = QAPISchemaGenEventVisitor(prefix)
     schema.visit(vis)
-    genc.add(vis.defn)
-    genh.add(vis.decl)
-    genc.write(output_dir, prefix + 'qapi-event.c')
-    genh.write(output_dir, prefix + 'qapi-event.h')
+    vis.write(output_dir)

@@ -2050,3 +2050,16 @@ class QAPIGenDoc(QAPIGen):
     def _top(self, fname):
         return (QAPIGen._top(self, fname)
                 + '@c AUTOMATICALLY GENERATED, DO NOT MODIFY\n\n')
+
+
+class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
+
+    def __init__(self, prefix, what, blurb, pydoc):
+        self._prefix = prefix
+        self._what = what
+        self._genc = QAPIGenC(blurb, pydoc)
+        self._genh = QAPIGenH(blurb, pydoc)
+
+    def write(self, output_dir):
+        self._genc.write(output_dir, self._prefix + self._what + '.c')
+        self._genh.write(output_dir, self._prefix + self._what + '.h')

@@ -40,22 +40,26 @@ def to_c_string(string):
     return '"' + string.replace('\\', r'\\').replace('"', r'\"') + '"'
 
 
-class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
-    def __init__(self, prefix, unmask):
-        self._prefix = prefix
-        self._unmask = unmask
-        self.defn = None
-        self.decl = None
-        self._schema = None
-        self._jsons = None
-        self._used_types = None
-        self._name_map = None
+class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
-    def visit_begin(self, schema):
-        self._schema = schema
+    def __init__(self, prefix, unmask):
+        QAPISchemaMonolithicCVisitor.__init__(
+            self, prefix, 'qmp-introspect',
+            ' * QAPI/QMP schema introspection', __doc__)
+        self._unmask = unmask
+        self._schema = None
         self._jsons = []
         self._used_types = []
         self._name_map = {}
+        self._genc.add(mcgen('''
+#include "qemu/osdep.h"
+#include "%(prefix)sqmp-introspect.h"
+
+''',
+                             prefix=prefix))
+
+    def visit_begin(self, schema):
+        self._schema = schema
 
     def visit_end(self):
         # visit the types that are actually used
@@ -67,21 +71,21 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
         # TODO can generate awfully long lines
         jsons.extend(self._jsons)
         name = c_name(self._prefix, protect=False) + 'qmp_schema_json'
-        self.decl = mcgen('''
+        self._genh.add(mcgen('''
 extern const char %(c_name)s[];
 ''',
-                          c_name=c_name(name))
+                             c_name=c_name(name)))
         lines = to_json(jsons).split('\n')
         c_string = '\n    '.join([to_c_string(line) for line in lines])
-        self.defn = mcgen('''
+        self._genc.add(mcgen('''
 const char %(c_name)s[] = %(c_string)s;
 ''',
-                          c_name=c_name(name),
-                          c_string=c_string)
+                             c_name=c_name(name),
+                             c_string=c_string))
         self._schema = None
-        self._jsons = None
-        self._used_types = None
-        self._name_map = None
+        self._jsons = []
+        self._used_types = []
+        self._name_map = {}
 
     def visit_needed(self, entity):
         # Ignore types on first pass; visit_end() will pick up used types
@@ -169,20 +173,6 @@ const char %(c_name)s[] = %(c_string)s;
 
 
 def gen_introspect(schema, output_dir, prefix, opt_unmask):
-    blurb = ' * QAPI/QMP schema introspection'
-    genc = QAPIGenC(blurb, __doc__)
-    genh = QAPIGenH(blurb, __doc__)
-
-    genc.add(mcgen('''
-#include "qemu/osdep.h"
-#include "%(prefix)sqmp-introspect.h"
-
-''',
-                   prefix=prefix))
-
     vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
     schema.visit(vis)
-    genc.add(vis.defn)
-    genh.add(vis.decl)
-    genc.write(output_dir, prefix + 'qmp-introspect.c')
-    genh.write(output_dir, prefix + 'qmp-introspect.h')
+    vis.write(output_dir)

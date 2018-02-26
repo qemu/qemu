@@ -167,36 +167,41 @@ void qapi_free_%(c_name)s(%(c_name)s *obj)
     return ret
 
 
-class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
-    def __init__(self, opt_builtins):
+class QAPISchemaGenTypeVisitor(QAPISchemaMonolithicCVisitor):
+
+    def __init__(self, prefix, opt_builtins):
+        QAPISchemaMonolithicCVisitor.__init__(
+            self, prefix, 'qapi-types', ' * Schema-defined QAPI types',
+            __doc__)
         self._opt_builtins = opt_builtins
-        self.decl = None
-        self.defn = None
-        self._fwdecl = None
-        self._btin = None
+        self._genc.preamble_add(mcgen('''
+#include "qemu/osdep.h"
+#include "qapi/dealloc-visitor.h"
+#include "%(prefix)sqapi-types.h"
+#include "%(prefix)sqapi-visit.h"
+''',
+                                      prefix=prefix))
+        self._genh.preamble_add(mcgen('''
+#include "qapi/util.h"
+'''))
+        self._btin = '\n' + guardstart('QAPI_TYPES_BUILTIN')
 
     def visit_begin(self, schema):
         # gen_object() is recursive, ensure it doesn't visit the empty type
         objects_seen.add(schema.the_empty_object_type.name)
-        self.decl = ''
-        self.defn = ''
-        self._fwdecl = ''
-        self._btin = '\n' + guardstart('QAPI_TYPES_BUILTIN')
 
     def visit_end(self):
-        self.decl = self._fwdecl + self.decl
-        self._fwdecl = None
         # To avoid header dependency hell, we always generate
         # declarations for built-in types in our header files and
         # simply guard them.  See also opt_builtins (command line
         # option -b).
         self._btin += guardend('QAPI_TYPES_BUILTIN')
-        self.decl = self._btin + self.decl
+        self._genh.preamble_add(self._btin)
         self._btin = None
 
     def _gen_type_cleanup(self, name):
-        self.decl += gen_type_cleanup_decl(name)
-        self.defn += gen_type_cleanup(name)
+        self._genh.add(gen_type_cleanup_decl(name))
+        self._genc.add(gen_type_cleanup(name))
 
     def visit_enum_type(self, name, info, values, prefix):
         # Special case for our lone builtin enum type
@@ -204,10 +209,10 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         if not info:
             self._btin += gen_enum(name, values, prefix)
             if self._opt_builtins:
-                self.defn += gen_enum_lookup(name, values, prefix)
+                self._genc.add(gen_enum_lookup(name, values, prefix))
         else:
-            self._fwdecl += gen_enum(name, values, prefix)
-            self.defn += gen_enum_lookup(name, values, prefix)
+            self._genh.preamble_add(gen_enum(name, values, prefix))
+            self._genc.add(gen_enum_lookup(name, values, prefix))
 
     def visit_array_type(self, name, info, element_type):
         if isinstance(element_type, QAPISchemaBuiltinType):
@@ -215,20 +220,20 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._btin += gen_array(name, element_type)
             self._btin += gen_type_cleanup_decl(name)
             if self._opt_builtins:
-                self.defn += gen_type_cleanup(name)
+                self._genc.add(gen_type_cleanup(name))
         else:
-            self._fwdecl += gen_fwd_object_or_array(name)
-            self.decl += gen_array(name, element_type)
+            self._genh.preamble_add(gen_fwd_object_or_array(name))
+            self._genh.add(gen_array(name, element_type))
             self._gen_type_cleanup(name)
 
     def visit_object_type(self, name, info, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
-        self._fwdecl += gen_fwd_object_or_array(name)
-        self.decl += gen_object(name, base, members, variants)
+        self._genh.preamble_add(gen_fwd_object_or_array(name))
+        self._genh.add(gen_object(name, base, members, variants))
         if base and not base.is_implicit():
-            self.decl += gen_upcast(name, base)
+            self._genh.add(gen_upcast(name, base))
         # TODO Worth changing the visitor signature, so we could
         # directly use rather than repeat type.is_implicit()?
         if not name.startswith('q_'):
@@ -236,31 +241,13 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._gen_type_cleanup(name)
 
     def visit_alternate_type(self, name, info, variants):
-        self._fwdecl += gen_fwd_object_or_array(name)
-        self.decl += gen_object(name, None, [variants.tag_member], variants)
+        self._genh.preamble_add(gen_fwd_object_or_array(name))
+        self._genh.add(gen_object(name, None,
+                                  [variants.tag_member], variants))
         self._gen_type_cleanup(name)
 
 
 def gen_types(schema, output_dir, prefix, opt_builtins):
-    blurb = ' * Schema-defined QAPI types'
-    genc = QAPIGenC(blurb, __doc__)
-    genh = QAPIGenH(blurb, __doc__)
-
-    genc.add(mcgen('''
-#include "qemu/osdep.h"
-#include "qapi/dealloc-visitor.h"
-#include "%(prefix)sqapi-types.h"
-#include "%(prefix)sqapi-visit.h"
-''',
-                   prefix=prefix))
-
-    genh.add(mcgen('''
-#include "qapi/util.h"
-'''))
-
-    vis = QAPISchemaGenTypeVisitor(opt_builtins)
+    vis = QAPISchemaGenTypeVisitor(prefix, opt_builtins)
     schema.visit(vis)
-    genc.add(vis.defn)
-    genh.add(vis.decl)
-    genc.write(output_dir, prefix + 'qapi-types.c')
-    genh.write(output_dir, prefix + 'qapi-types.h')
+    vis.write(output_dir)

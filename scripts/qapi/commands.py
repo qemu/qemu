@@ -223,44 +223,15 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
     return ret
 
 
-class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
-    def __init__(self, prefix):
-        self._prefix = prefix
-        self.decl = None
-        self.defn = None
-        self._regy = None
-        self._visited_ret_types = None
+class QAPISchemaGenCommandVisitor(QAPISchemaMonolithicCVisitor):
 
-    def visit_begin(self, schema):
-        self.decl = ''
-        self.defn = ''
+    def __init__(self, prefix):
+        QAPISchemaMonolithicCVisitor.__init__(
+            self, prefix, 'qmp-commands',
+            ' * Schema-defined QAPI/QMP commands', __doc__)
         self._regy = ''
         self._visited_ret_types = set()
-
-    def visit_end(self):
-        self.defn += gen_registry(self._regy, self._prefix)
-        self._regy = None
-        self._visited_ret_types = None
-
-    def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
-        if not gen:
-            return
-        self.decl += gen_command_decl(name, arg_type, boxed, ret_type)
-        if ret_type and ret_type not in self._visited_ret_types:
-            self._visited_ret_types.add(ret_type)
-            self.defn += gen_marshal_output(ret_type)
-        self.decl += gen_marshal_decl(name)
-        self.defn += gen_marshal(name, arg_type, boxed, ret_type)
-        self._regy += gen_register_command(name, success_response)
-
-
-def gen_commands(schema, output_dir, prefix):
-    blurb = ' * Schema-defined QAPI/QMP commands'
-    genc = QAPIGenC(blurb, __doc__)
-    genh = QAPIGenH(blurb, __doc__)
-
-    genc.add(mcgen('''
+        self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/module.h"
@@ -275,19 +246,33 @@ def gen_commands(schema, output_dir, prefix):
 #include "%(prefix)sqmp-commands.h"
 
 ''',
-                   prefix=prefix))
-
-    genh.add(mcgen('''
+                             prefix=prefix))
+        self._genh.add(mcgen('''
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/dispatch.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
-                   prefix=prefix, c_prefix=c_name(prefix, protect=False)))
+                             prefix=prefix,
+                             c_prefix=c_name(prefix, protect=False)))
 
+    def visit_end(self):
+        self._genc.add(gen_registry(self._regy, self._prefix))
+
+    def visit_command(self, name, info, arg_type, ret_type,
+                      gen, success_response, boxed):
+        if not gen:
+            return
+        self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
+        if ret_type and ret_type not in self._visited_ret_types:
+            self._visited_ret_types.add(ret_type)
+            self._genc.add(gen_marshal_output(ret_type))
+        self._genh.add(gen_marshal_decl(name))
+        self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
+        self._regy += gen_register_command(name, success_response)
+
+
+def gen_commands(schema, output_dir, prefix):
     vis = QAPISchemaGenCommandVisitor(prefix)
     schema.visit(vis)
-    genc.add(vis.defn)
-    genh.add(vis.decl)
-    genc.write(output_dir, prefix + 'qmp-commands.c')
-    genh.write(output_dir, prefix + 'qmp-commands.h')
+    vis.write(output_dir)
