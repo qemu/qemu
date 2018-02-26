@@ -613,6 +613,7 @@ static HRESULT CALLBACK whpx_emu_translate_callback(
 }
 
 static const WHV_EMULATOR_CALLBACKS whpx_emu_callbacks = {
+    .Size = sizeof(WHV_EMULATOR_CALLBACKS),
     .WHvEmulatorIoPortCallback = whpx_emu_ioport_callback,
     .WHvEmulatorMemoryCallback = whpx_emu_memio_callback,
     .WHvEmulatorGetVirtualProcessorRegisters = whpx_emu_getreg_callback,
@@ -626,7 +627,9 @@ static int whpx_handle_mmio(CPUState *cpu, WHV_MEMORY_ACCESS_CONTEXT *ctx)
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
     WHV_EMULATOR_STATUS emu_status;
 
-    hr = WHvEmulatorTryMmioEmulation(vcpu->emulator, cpu, ctx, &emu_status);
+    hr = WHvEmulatorTryMmioEmulation(vcpu->emulator, cpu,
+                                     &vcpu->exit_ctx.VpContext, ctx,
+                                     &emu_status);
     if (FAILED(hr)) {
         __debugbreak();
         error_report("WHPX: Failed to parse MMIO access, hr=%08lx", hr);
@@ -649,7 +652,9 @@ static int whpx_handle_portio(CPUState *cpu,
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
     WHV_EMULATOR_STATUS emu_status;
 
-    hr = WHvEmulatorTryIoEmulation(vcpu->emulator, cpu, ctx, &emu_status);
+    hr = WHvEmulatorTryIoEmulation(vcpu->emulator, cpu,
+                                   &vcpu->exit_ctx.VpContext, ctx,
+                                   &emu_status);
     if (FAILED(hr)) {
         __debugbreak();
         error_report("WHPX: Failed to parse PortIO access, hr=%08lx", hr);
@@ -905,18 +910,8 @@ static int whpx_vcpu_run(CPUState *cpu)
             whpx_vcpu_kick(cpu);
         }
 
-        for (;;) {
-            hr = WHvRunVirtualProcessor(whpx->partition, cpu->cpu_index,
-                                        &vcpu->exit_ctx, whpx->exit_ctx_size);
-
-            if (SUCCEEDED(hr) && (vcpu->exit_ctx.ExitReason ==
-                                  WHvRunVpExitReasonAlerted)) {
-                WHvCancelRunVirtualProcessor(whpx->partition, cpu->cpu_index,
-                                             0);
-            } else {
-                break;
-            }
-        }
+        hr = WHvRunVirtualProcessor(whpx->partition, cpu->cpu_index,
+                                    &vcpu->exit_ctx, whpx->exit_ctx_size);
 
         if (FAILED(hr)) {
             error_report("WHPX: Failed to exec a virtual processor,"
@@ -956,7 +951,6 @@ static int whpx_vcpu_run(CPUState *cpu)
         case WHvRunVpExitReasonX64MsrAccess:
         case WHvRunVpExitReasonX64Cpuid:
         case WHvRunVpExitReasonException:
-        case WHvRunVpExitReasonAlerted:
         default:
             error_report("WHPX: Unexpected VP exit code %d",
                          vcpu->exit_ctx.ExitReason);
@@ -1068,7 +1062,7 @@ int whpx_init_vcpu(CPUState *cpu)
         return -ENOMEM;
     }
 
-    hr = WHvEmulatorCreateEmulator(whpx_emu_callbacks, &vcpu->emulator);
+    hr = WHvEmulatorCreateEmulator(&whpx_emu_callbacks, &vcpu->emulator);
     if (FAILED(hr)) {
         error_report("WHPX: Failed to setup instruction completion support,"
                      " hr=%08lx", hr);
