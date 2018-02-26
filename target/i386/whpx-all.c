@@ -687,6 +687,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
     X86CPU *x86_cpu = X86_CPU(cpu);
     int irq;
+    uint8_t tpr;
     WHV_X64_PENDING_INTERRUPTION_REGISTER new_int = {0};
     UINT32 reg_count = 0;
     WHV_REGISTER_VALUE reg_values[3] = {0};
@@ -746,9 +747,10 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     }
 
     /* Sync the TPR to the CR8 if was modified during the intercept */
-    reg_values[reg_count].Reg64 = cpu_get_apic_tpr(x86_cpu->apic_state);
-    if (reg_values[reg_count].Reg64 != vcpu->tpr) {
-        vcpu->tpr = reg_values[reg_count].Reg64;
+    tpr = cpu_get_apic_tpr(x86_cpu->apic_state);
+    if (tpr != vcpu->tpr) {
+        vcpu->tpr = tpr;
+        reg_values[reg_count].Reg64 = tpr;
         cpu->exit_request = 1;
         reg_names[reg_count] = WHvX64RegisterCr8;
         reg_count += 1;
