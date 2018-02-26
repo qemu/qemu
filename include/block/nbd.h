@@ -41,6 +41,12 @@ struct NBDOptionReply {
 } QEMU_PACKED;
 typedef struct NBDOptionReply NBDOptionReply;
 
+typedef struct NBDOptionReplyMetaContext {
+    NBDOptionReply h; /* h.type = NBD_REP_META_CONTEXT, h.length > 4 */
+    uint32_t context_id;
+    /* meta context name follows */
+} QEMU_PACKED NBDOptionReplyMetaContext;
+
 /* Transmission phase structs
  *
  * Note: these are _NOT_ the same as the network representation of an NBD
@@ -105,6 +111,19 @@ typedef struct NBDStructuredError {
     uint16_t message_length;
 } QEMU_PACKED NBDStructuredError;
 
+/* Header of NBD_REPLY_TYPE_BLOCK_STATUS */
+typedef struct NBDStructuredMeta {
+    NBDStructuredReplyChunk h; /* h.length >= 12 (at least one extent) */
+    uint32_t context_id;
+    /* extents follows */
+} QEMU_PACKED NBDStructuredMeta;
+
+/* Extent chunk for NBD_REPLY_TYPE_BLOCK_STATUS */
+typedef struct NBDExtent {
+    uint32_t length;
+    uint32_t flags; /* NBD_STATE_* */
+} QEMU_PACKED NBDExtent;
+
 /* Transmission (export) flags: sent from server to client during handshake,
    but describe what will happen during transmission */
 #define NBD_FLAG_HAS_FLAGS         (1 << 0) /* Flags are there */
@@ -136,6 +155,8 @@ typedef struct NBDStructuredError {
 #define NBD_OPT_INFO              (6)
 #define NBD_OPT_GO                (7)
 #define NBD_OPT_STRUCTURED_REPLY  (8)
+#define NBD_OPT_LIST_META_CONTEXT (9)
+#define NBD_OPT_SET_META_CONTEXT  (10)
 
 /* Option reply types. */
 #define NBD_REP_ERR(value) ((UINT32_C(1) << 31) | (value))
@@ -143,6 +164,7 @@ typedef struct NBDStructuredError {
 #define NBD_REP_ACK             (1)    /* Data sending finished. */
 #define NBD_REP_SERVER          (2)    /* Export description. */
 #define NBD_REP_INFO            (3)    /* NBD_OPT_INFO/GO. */
+#define NBD_REP_META_CONTEXT    (4)    /* NBD_OPT_{LIST,SET}_META_CONTEXT */
 
 #define NBD_REP_ERR_UNSUP           NBD_REP_ERR(1)  /* Unknown option */
 #define NBD_REP_ERR_POLICY          NBD_REP_ERR(2)  /* Server denied */
@@ -163,6 +185,8 @@ typedef struct NBDStructuredError {
 #define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
 #define NBD_CMD_FLAG_NO_HOLE    (1 << 1) /* don't punch hole on zero run */
 #define NBD_CMD_FLAG_DF         (1 << 2) /* don't fragment structured read */
+#define NBD_CMD_FLAG_REQ_ONE    (1 << 3) /* only one extent in BLOCK_STATUS
+                                          * reply chunk */
 
 /* Supported request types */
 enum {
@@ -173,6 +197,7 @@ enum {
     NBD_CMD_TRIM = 4,
     /* 5 reserved for failed experiment NBD_CMD_CACHE */
     NBD_CMD_WRITE_ZEROES = 6,
+    NBD_CMD_BLOCK_STATUS = 7,
 };
 
 #define NBD_DEFAULT_PORT	10809
@@ -200,8 +225,14 @@ enum {
 #define NBD_REPLY_TYPE_NONE          0
 #define NBD_REPLY_TYPE_OFFSET_DATA   1
 #define NBD_REPLY_TYPE_OFFSET_HOLE   2
+#define NBD_REPLY_TYPE_BLOCK_STATUS  5
 #define NBD_REPLY_TYPE_ERROR         NBD_REPLY_ERR(1)
 #define NBD_REPLY_TYPE_ERROR_OFFSET  NBD_REPLY_ERR(2)
+
+/* Flags for extents (NBDExtent.flags) of NBD_REPLY_TYPE_BLOCK_STATUS,
+ * for base:allocation meta context */
+#define NBD_STATE_HOLE (1 << 0)
+#define NBD_STATE_ZERO (1 << 1)
 
 static inline bool nbd_reply_type_is_error(int type)
 {
