@@ -167,64 +167,51 @@ void qapi_free_%(c_name)s(%(c_name)s *obj)
     return ret
 
 
-class QAPISchemaGenTypeVisitor(QAPISchemaMonolithicCVisitor):
+class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 
-    def __init__(self, prefix, opt_builtins):
-        QAPISchemaMonolithicCVisitor.__init__(
+    def __init__(self, prefix):
+        QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-types', ' * Schema-defined QAPI types',
             __doc__)
-        self._opt_builtins = opt_builtins
+        self._add_module(None, ' * Built-in QAPI types')
+        self._genc.preamble_add(mcgen('''
+#include "qemu/osdep.h"
+#include "qapi/dealloc-visitor.h"
+#include "qapi-builtin-types.h"
+#include "qapi-builtin-visit.h"
+'''))
+        self._genh.preamble_add(mcgen('''
+#include "qapi/util.h"
+'''))
+
+    def _begin_module(self, name):
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-                                      prefix=prefix))
+                                      prefix=self._prefix))
         self._genh.preamble_add(mcgen('''
-#include "qapi/util.h"
+#include "qapi-builtin-types.h"
 '''))
-        self._btin = '\n' + guardstart('QAPI_TYPES_BUILTIN')
 
     def visit_begin(self, schema):
         # gen_object() is recursive, ensure it doesn't visit the empty type
         objects_seen.add(schema.the_empty_object_type.name)
-
-    def visit_end(self):
-        # To avoid header dependency hell, we always generate
-        # declarations for built-in types in our header files and
-        # simply guard them.  See also opt_builtins (command line
-        # option -b).
-        self._btin += guardend('QAPI_TYPES_BUILTIN')
-        self._genh.preamble_add(self._btin)
-        self._btin = None
 
     def _gen_type_cleanup(self, name):
         self._genh.add(gen_type_cleanup_decl(name))
         self._genc.add(gen_type_cleanup(name))
 
     def visit_enum_type(self, name, info, values, prefix):
-        # Special case for our lone builtin enum type
-        # TODO use something cleaner than existence of info
-        if not info:
-            self._btin += gen_enum(name, values, prefix)
-            if self._opt_builtins:
-                self._genc.add(gen_enum_lookup(name, values, prefix))
-        else:
-            self._genh.preamble_add(gen_enum(name, values, prefix))
-            self._genc.add(gen_enum_lookup(name, values, prefix))
+        self._genh.preamble_add(gen_enum(name, values, prefix))
+        self._genc.add(gen_enum_lookup(name, values, prefix))
 
     def visit_array_type(self, name, info, element_type):
-        if isinstance(element_type, QAPISchemaBuiltinType):
-            self._btin += gen_fwd_object_or_array(name)
-            self._btin += gen_array(name, element_type)
-            self._btin += gen_type_cleanup_decl(name)
-            if self._opt_builtins:
-                self._genc.add(gen_type_cleanup(name))
-        else:
-            self._genh.preamble_add(gen_fwd_object_or_array(name))
-            self._genh.add(gen_array(name, element_type))
-            self._gen_type_cleanup(name)
+        self._genh.preamble_add(gen_fwd_object_or_array(name))
+        self._genh.add(gen_array(name, element_type))
+        self._gen_type_cleanup(name)
 
     def visit_object_type(self, name, info, base, members, variants):
         # Nothing to do for the special empty builtin
@@ -248,6 +235,6 @@ class QAPISchemaGenTypeVisitor(QAPISchemaMonolithicCVisitor):
 
 
 def gen_types(schema, output_dir, prefix, opt_builtins):
-    vis = QAPISchemaGenTypeVisitor(prefix, opt_builtins)
+    vis = QAPISchemaGenTypeVisitor(prefix)
     schema.visit(vis)
-    vis.write(output_dir)
+    vis.write(output_dir, opt_builtins)

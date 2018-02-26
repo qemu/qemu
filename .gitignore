@@ -29,6 +29,8 @@
 /qga/qapi-generated
 /qapi-generated
 /qapi-gen-timestamp
+/qapi-builtin-types.[ch]
+/qapi-builtin-visit.[ch]
 /qapi-types.[ch]
 /qapi-visit.[ch]
 /qapi-event.[ch]

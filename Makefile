@@ -90,10 +90,13 @@ endif
 include $(SRC_PATH)/rules.mak
 
 GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
-GENERATED_FILES += qmp-commands.h qapi-types.h qapi-visit.h qapi-event.h
-GENERATED_FILES += qmp-commands.c qapi-types.c qapi-visit.c qapi-event.c
-GENERATED_FILES += qmp-introspect.h
-GENERATED_FILES += qmp-introspect.c
+GENERATED_FILES += qapi-builtin-types.h qapi-builtin-types.c
+GENERATED_FILES += qapi-types.h qapi-types.c
+GENERATED_FILES += qapi-builtin-visit.h qapi-builtin-visit.c
+GENERATED_FILES += qapi-visit.h qapi-visit.c
+GENERATED_FILES += qmp-commands.h qmp-commands.c
+GENERATED_FILES += qapi-event.h qapi-event.c
+GENERATED_FILES += qmp-introspect.c qmp-introspect.h
 GENERATED_FILES += qapi-doc.texi
 
 GENERATED_FILES += trace/generated-tcg-tracers.h
@@ -519,7 +522,9 @@ qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
                $(SRC_PATH)/qapi/transaction.json \
                $(SRC_PATH)/qapi/ui.json
 
+qapi-builtin-types.c qapi-builtin-types.h \
 qapi-types.c qapi-types.h \
+qapi-builtin-visit.c qapi-builtin-visit.h \
 qapi-visit.c qapi-visit.h \
 qmp-commands.h qmp-commands.c \
 qapi-event.c qapi-event.h \

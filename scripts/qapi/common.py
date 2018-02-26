@@ -1531,11 +1531,10 @@ class QAPISchema(object):
 
     def _def_builtin_type(self, name, json_type, c_type):
         self._def_entity(QAPISchemaBuiltinType(name, json_type, c_type))
-        # TODO As long as we have QAPI_TYPES_BUILTIN to share multiple
-        # qapi-types.h from a single .c, all arrays of builtins must be
-        # declared in the first file whether or not they are used.  Nicer
-        # would be to use lazy instantiation, while figuring out how to
-        # avoid compilation issues with multiple qapi-types.h.
+        # Instantiating only the arrays that are actually used would
+        # be nice, but we can't as long as their generated code
+        # (qapi-builtin-types.[ch]) may be shared by some other
+        # schema.
         self._make_array_type(name, None)
 
     def _def_predefineds(self):
@@ -1992,14 +1991,15 @@ class QAPIGen(object):
         return ''
 
     def write(self, output_dir, fname):
-        if output_dir:
+        pathname = os.path.join(output_dir, fname)
+        dir = os.path.dirname(pathname)
+        if dir:
             try:
-                os.makedirs(output_dir)
+                os.makedirs(dir)
             except os.error as e:
                 if e.errno != errno.EEXIST:
                     raise
-        fd = os.open(os.path.join(output_dir, fname),
-                     os.O_RDWR | os.O_CREAT, 0o666)
+        fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
         f = os.fdopen(fd, 'r+')
         text = (self._top(fname) + self._preamble + self._body
                 + self._bottom(fname))
@@ -2063,3 +2063,45 @@ class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
     def write(self, output_dir):
         self._genc.write(output_dir, self._prefix + self._what + '.c')
         self._genh.write(output_dir, self._prefix + self._what + '.h')
+
+
+class QAPISchemaModularCVisitor(QAPISchemaVisitor):
+
+    def __init__(self, prefix, what, blurb, pydoc):
+        self._prefix = prefix
+        self._what = what
+        self._blurb = blurb
+        self._pydoc = pydoc
+        self._module = {}
+
+    def _module_basename(self, what, name):
+        if name is None:
+            return re.sub(r'-', '-builtin-', what)
+        return self._prefix + what
+
+    def _add_module(self, name, blurb):
+        genc = QAPIGenC(blurb, self._pydoc)
+        genh = QAPIGenH(blurb, self._pydoc)
+        self._module[name] = (genc, genh)
+        self._set_module(name)
+
+    def _set_module(self, name):
+        self._genc, self._genh = self._module[name]
+
+    def write(self, output_dir, opt_builtins):
+        for name in self._module:
+            if name is None and not opt_builtins:
+                continue
+            basename = self._module_basename(self._what, name)
+            (genc, genh) = self._module[name]
+            genc.write(output_dir, basename + '.c')
+            genh.write(output_dir, basename + '.h')
+
+    def _begin_module(self, name):
+        pass
+
+    def visit_module(self, name):
+        if len(self._module) != 1:
+            return
+        self._add_module(name, self._blurb)
+        self._begin_module(name)

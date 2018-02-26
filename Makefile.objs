@@ -2,6 +2,8 @@
 # Common libraries for tools and emulators
 stub-obj-y = stubs/ crypto/
 util-obj-y = util/ qobject/ qapi/
+util-obj-y += qapi-builtin-types.o
+util-obj-y += qapi-builtin-visit.o
 util-obj-y += qmp-introspect.o qapi-types.o qapi-visit.o qapi-event.o
 
 chardev-obj-y = chardev/
