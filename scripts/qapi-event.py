@@ -174,11 +174,10 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
 
 blurb = ' * Schema-defined QAPI/QMP events'
 
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qapi-event.c', 'qapi-event.h',
-                            blurb, __doc__)
+genc = QAPIGenC(blurb, __doc__)
+genh = QAPIGenH(blurb, __doc__)
 
-fdef.write(mcgen('''
+genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "%(prefix)sqapi-event.h"
@@ -189,21 +188,24 @@ fdef.write(mcgen('''
 #include "qapi/qmp-event.h"
 
 ''',
-                 prefix=prefix))
+               prefix=prefix))
 
-fdecl.write(mcgen('''
+genh.add(mcgen('''
 #include "qapi/util.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-                  prefix=prefix))
+               prefix=prefix))
 
 event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
 
 schema = QAPISchema(input_file)
 vis = QAPISchemaGenEventVisitor()
 schema.visit(vis)
-fdef.write(vis.defn)
-fdecl.write(vis.decl)
+genc.add(vis.defn)
+genh.add(vis.decl)
 
-close_output(fdef, fdecl)
+if do_c:
+    genc.write(output_dir, prefix + 'qapi-event.c')
+if do_h:
+    genh.write(output_dir, prefix + 'qapi-event.h')

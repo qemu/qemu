@@ -2,7 +2,7 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013-2016 Red Hat Inc.
+# Copyright (c) 2013-2018 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -22,10 +22,6 @@ try:
     from collections import OrderedDict
 except:
     from ordereddict import OrderedDict
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 builtin_types = {
     'null':     'QTYPE_QNULL',
@@ -1831,7 +1827,6 @@ def guardname(filename):
 
 def guardstart(name):
     return mcgen('''
-
 #ifndef %(name)s
 #define %(name)s
 
@@ -1843,7 +1838,6 @@ def guardend(name):
     return mcgen('''
 
 #endif /* %(name)s */
-
 ''',
                  name=guardname(name))
 
@@ -1980,17 +1974,53 @@ def parse_command_line(extra_options='', extra_long_options=[]):
 
     return (fname, output_dir, do_c, do_h, prefix, extra_opts)
 
+
 #
-# Generate output files with boilerplate
+# Accumulate and write output
 #
 
+class QAPIGen(object):
 
-def open_output(output_dir, do_c, do_h, prefix, c_file, h_file, blurb, doc):
-    guard = guardname(prefix + h_file)
-    c_file = output_dir + prefix + c_file
-    h_file = output_dir + prefix + h_file
-    copyright = '\n * '.join(re.findall(r'^Copyright .*', doc, re.MULTILINE))
-    comment = mcgen('''/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+    def __init__(self):
+        self._preamble = ''
+        self._body = ''
+
+    def preamble_add(self, text):
+        self._preamble += text
+
+    def add(self, text):
+        self._body += text
+
+    def _top(self, fname):
+        return ''
+
+    def _bottom(self, fname):
+        return ''
+
+    def write(self, output_dir, fname):
+        if output_dir:
+            try:
+                os.makedirs(output_dir)
+            except os.error as e:
+                if e.errno != errno.EEXIST:
+                    raise
+        f = open(os.path.join(output_dir, fname), 'w')
+        f.write(self._top(fname) + self._preamble + self._body
+                + self._bottom(fname))
+        f.close()
+
+
+class QAPIGenC(QAPIGen):
+
+    def __init__(self, blurb, pydoc):
+        QAPIGen.__init__(self)
+        self._blurb = blurb
+        self._copyright = '\n * '.join(re.findall(r'^Copyright .*', pydoc,
+                                                  re.MULTILINE))
+
+    def _top(self, fname):
+        return mcgen('''
+/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
 
 /*
 %(blurb)s
@@ -2002,40 +2032,20 @@ def open_output(output_dir, do_c, do_h, prefix, c_file, h_file, blurb, doc):
  */
 
 ''',
-                    blurb=blurb, copyright=copyright)
-
-    if output_dir:
-        try:
-            os.makedirs(output_dir)
-        except os.error as e:
-            if e.errno != errno.EEXIST:
-                raise
-
-    def maybe_open(really, name, opt):
-        if really:
-            return open(name, opt)
-        else:
-            return StringIO()
-
-    fdef = maybe_open(do_c, c_file, 'w')
-    fdecl = maybe_open(do_h, h_file, 'w')
-
-    fdef.write(comment)
-    fdecl.write(comment)
-    fdecl.write(mcgen('''
-#ifndef %(guard)s
-#define %(guard)s
-
-''',
-                      guard=guard))
-
-    return (fdef, fdecl)
+                     blurb=self._blurb, copyright=self._copyright)
 
 
-def close_output(fdef, fdecl):
-    fdecl.write(mcgen('''
+class QAPIGenH(QAPIGenC):
 
-#endif
-'''))
-    fdecl.close()
-    fdef.close()
+    def _top(self, fname):
+        return QAPIGenC._top(self, fname) + guardstart(fname)
+
+    def _bottom(self, fname):
+        return guardend(fname)
+
+
+class QAPIGenDoc(QAPIGen):
+
+    def _top(self, fname):
+        return (QAPIGen._top(self, fname)
+                + '@c AUTOMATICALLY GENERATED, DO NOT MODIFY\n\n')

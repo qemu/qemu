@@ -179,21 +179,23 @@ for o, a in opts:
 
 blurb = ' * QAPI/QMP schema introspection'
 
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qmp-introspect.c', 'qmp-introspect.h',
-                            blurb, __doc__)
+genc = QAPIGenC(blurb, __doc__)
+genh = QAPIGenH(blurb, __doc__)
 
-fdef.write(mcgen('''
+genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqmp-introspect.h"
 
 ''',
-                 prefix=prefix))
+               prefix=prefix))
 
 schema = QAPISchema(input_file)
 vis = QAPISchemaGenIntrospectVisitor(opt_unmask)
 schema.visit(vis)
-fdef.write(vis.defn)
-fdecl.write(vis.decl)
+genc.add(vis.defn)
+genh.add(vis.decl)
 
-close_output(fdef, fdecl)
+if do_c:
+    genc.write(output_dir, prefix + 'qmp-introspect.c')
+if do_h:
+    genh.write(output_dir, prefix + 'qmp-introspect.h')

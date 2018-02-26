@@ -272,7 +272,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
     def visit_begin(self, schema):
         self.decl = ''
         self.defn = ''
-        self._btin = guardstart('QAPI_VISIT_BUILTIN')
+        self._btin = '\n' + guardstart('QAPI_VISIT_BUILTIN')
 
     def visit_end(self):
         # To avoid header dependency hell, we always generate
@@ -337,30 +337,32 @@ for o, a in opts:
 
 blurb = ' * Schema-defined QAPI visitors'
 
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qapi-visit.c', 'qapi-visit.h',
-                            blurb, __doc__)
+genc = QAPIGenC(blurb, __doc__)
+genh = QAPIGenH(blurb, __doc__)
 
-fdef.write(mcgen('''
+genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-                 prefix=prefix))
+               prefix=prefix))
 
-fdecl.write(mcgen('''
+genh.add(mcgen('''
 #include "qapi/visitor.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',
-                  prefix=prefix))
+               prefix=prefix))
 
 schema = QAPISchema(input_file)
 vis = QAPISchemaGenVisitVisitor()
 schema.visit(vis)
-fdef.write(vis.defn)
-fdecl.write(vis.decl)
+genc.add(vis.defn)
+genh.add(vis.decl)
 
-close_output(fdef, fdecl)
+if do_c:
+    genc.write(output_dir, prefix + 'qapi-visit.c')
+if do_h:
+    genh.write(output_dir, prefix + 'qapi-visit.h')
