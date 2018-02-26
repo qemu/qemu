@@ -10,7 +10,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from qapi import *
+from qapi.common import *
 
 
 # Caveman's json.dumps() replacement (we're stuck at Python 2.4)
@@ -168,20 +168,8 @@ const char %(c_name)s[] = %(c_string)s;
         self._gen_json(name, 'event', {'arg-type': self._use_type(arg_type)})
 
 
-def main(argv):
-    # Debugging aid: unmask QAPI schema's type names
-    # We normally mask them, because they're not QMP wire ABI
-    opt_unmask = False
-
-    (input_file, output_dir, do_c, do_h, prefix, opts) = \
-        parse_command_line('u', ['unmask-non-abi-names'])
-
-    for o, a in opts:
-        if o in ('-u', '--unmask-non-abi-names'):
-            opt_unmask = True
-
+def gen_introspect(schema, output_dir, prefix, opt_unmask):
     blurb = ' * QAPI/QMP schema introspection'
-
     genc = QAPIGenC(blurb, __doc__)
     genh = QAPIGenH(blurb, __doc__)
 
@@ -192,17 +180,9 @@ def main(argv):
 ''',
                    prefix=prefix))
 
-    schema = QAPISchema(input_file)
     vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
     schema.visit(vis)
     genc.add(vis.defn)
     genh.add(vis.decl)
-
-    if do_c:
-        genc.write(output_dir, prefix + 'qmp-introspect.c')
-    if do_h:
-        genh.write(output_dir, prefix + 'qmp-introspect.h')
-
-
-if __name__ == '__main__':
-    main(sys.argv)
+    genc.write(output_dir, prefix + 'qmp-introspect.c')
+    genh.write(output_dir, prefix + 'qmp-introspect.h')

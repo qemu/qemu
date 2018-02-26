@@ -13,7 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 """
 
-from qapi import *
+from qapi.common import *
 
 
 # variants must be emitted before their container; track what has already
@@ -241,22 +241,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self._gen_type_cleanup(name)
 
 
-def main(argv):
-    # If you link code generated from multiple schemata, you want only one
-    # instance of the code for built-in types.  Generate it only when
-    # opt_builtins, enabled by command line option -b.  See also
-    # QAPISchemaGenTypeVisitor.visit_end().
-    opt_builtins = False
-
-    (input_file, output_dir, do_c, do_h, prefix, opts) = \
-        parse_command_line('b', ['builtins'])
-
-    for o, a in opts:
-        if o in ('-b', '--builtins'):
-            opt_builtins = True
-
+def gen_types(schema, output_dir, prefix, opt_builtins):
     blurb = ' * Schema-defined QAPI types'
-
     genc = QAPIGenC(blurb, __doc__)
     genh = QAPIGenH(blurb, __doc__)
 
@@ -272,17 +258,9 @@ def main(argv):
 #include "qapi/util.h"
 '''))
 
-    schema = QAPISchema(input_file)
     vis = QAPISchemaGenTypeVisitor(opt_builtins)
     schema.visit(vis)
     genc.add(vis.defn)
     genh.add(vis.decl)
-
-    if do_c:
-        genc.write(output_dir, prefix + 'qapi-types.c')
-    if do_h:
-        genh.write(output_dir, prefix + 'qapi-types.h')
-
-
-if __name__ == '__main__':
-    main(sys.argv)
+    genc.write(output_dir, prefix + 'qapi-types.c')
+    genh.write(output_dir, prefix + 'qapi-types.h')

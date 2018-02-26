@@ -72,7 +72,7 @@
         'q_obj_CpuInfo-base'    # CPU, visible through query-cpu
     ] } }
 
-# Documentation generated with qapi2texi.py is in source order, with
+# Documentation generated with qapi-gen.py is in source order, with
 # included sub-schemas inserted at the first include directive
 # (subsequent include directives have no effect).  To get a sane and
 # stable order, it's best to include each sub-schema just once, or

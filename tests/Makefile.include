@@ -23,7 +23,16 @@ check-help:
 ifneq ($(wildcard config-host.mak),)
 export SRC_PATH
 
-qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
+# TODO don't duplicate $(SRC_PATH)/Makefile's qapi-py here
+qapi-py = $(SRC_PATH)/scripts/qapi/commands.py \
+$(SRC_PATH)/scripts/qapi/events.py \
+$(SRC_PATH)/scripts/qapi/introspect.py \
+$(SRC_PATH)/scripts/qapi/types.py \
+$(SRC_PATH)/scripts/qapi/visit.py \
+$(SRC_PATH)/scripts/qapi/common.py \
+$(SRC_PATH)/scripts/qapi/doc.py \
+$(SRC_PATH)/scripts/ordereddict.py \
+$(SRC_PATH)/scripts/qapi-gen.py
 
 # Get the list of all supported sysemu targets
 SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
@@ -649,34 +658,24 @@ tests/test-logging$(EXESUF): tests/test-logging.o $(test-util-obj-y)
 tests/test-replication$(EXESUF): tests/test-replication.o $(test-util-obj-y) \
 	$(test-block-obj-y)
 
-tests/test-qapi-types.c tests/test-qapi-types.h :\
-$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py \
-		$(gen-out-type) -o tests -p "test-" $<, \
-		"GEN","$@")
-tests/test-qapi-visit.c tests/test-qapi-visit.h :\
-$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-visit.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py \
-		$(gen-out-type) -o tests -p "test-" $<, \
-		"GEN","$@")
-tests/test-qmp-commands.h tests/test-qmp-marshal.c :\
-$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py \
-		$(gen-out-type) -o tests -p "test-" $<, \
-		"GEN","$@")
-tests/test-qapi-event.c tests/test-qapi-event.h :\
-$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-event.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
-		$(gen-out-type) -o tests -p "test-" $<, \
-		"GEN","$@")
-tests/test-qmp-introspect.c tests/test-qmp-introspect.h :\
-$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-introspect.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-introspect.py \
-		$(gen-out-type) -o tests -p "test-" $<, \
-		"GEN","$@")
+tests/test-qapi-types.c tests/test-qapi-types.h \
+tests/test-qapi-visit.c tests/test-qapi-visit.h \
+tests/test-qmp-commands.h tests/test-qmp-marshal.c \
+tests/test-qapi-event.c tests/test-qapi-event.h \
+tests/test-qmp-introspect.c tests/test-qmp-introspect.h: \
+tests/test-qapi-gen-timestamp ;
+tests/test-qapi-gen-timestamp: $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
+		-o tests -p "test-" $<, \
+		"GEN","$(@:%-timestamp=%)")
+	@>$@
 
-tests/qapi-schema/doc-good.test.texi: $(SRC_PATH)/tests/qapi-schema/doc-good.json $(SRC_PATH)/scripts/qapi2texi.py $(qapi-py)
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi2texi.py $< > $@,"GEN","$@")
+tests/qapi-schema/doc-good.test.texi: $(SRC_PATH)/tests/qapi-schema/doc-good.json $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
+		-o tests/qapi-schema -p "doc-good-" $<, \
+		"GEN","$@")
+	@mv tests/qapi-schema/doc-good-qapi-doc.texi $@
+	@rm -f tests/qapi-schema/doc-good-qapi-*.[ch] tests/qapi-schema/doc-good-qmp-*.[ch]
 
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y)
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
@@ -954,6 +953,7 @@ check-clean:
 	$(MAKE) -C tests/tcg clean
 	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
 	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y)) $(check-qtest-generic-y))
+	rm -f tests/test-qapi-gen-timestamp
 
 clean: check-clean
 

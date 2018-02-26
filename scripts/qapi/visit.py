@@ -13,7 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from qapi import *
+from qapi.common import *
 
 
 def gen_visit_decl(name, scalar=False):
@@ -324,22 +324,8 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self.defn += gen_visit_alternate(name, variants)
 
 
-def main(argv):
-    # If you link code generated from multiple schemata, you want only one
-    # instance of the code for built-in types.  Generate it only when
-    # opt_builtins, enabled by command line option -b.  See also
-    # QAPISchemaGenVisitVisitor.visit_end().
-    opt_builtins = False
-
-    (input_file, output_dir, do_c, do_h, prefix, opts) = \
-        parse_command_line('b', ['builtins'])
-
-    for o, a in opts:
-        if o in ('-b', '--builtins'):
-            opt_builtins = True
-
+def gen_visit(schema, output_dir, prefix, opt_builtins):
     blurb = ' * Schema-defined QAPI visitors'
-
     genc = QAPIGenC(blurb, __doc__)
     genh = QAPIGenH(blurb, __doc__)
 
@@ -359,17 +345,9 @@ def main(argv):
 ''',
                    prefix=prefix))
 
-    schema = QAPISchema(input_file)
     vis = QAPISchemaGenVisitVisitor(opt_builtins)
     schema.visit(vis)
     genc.add(vis.defn)
     genh.add(vis.decl)
-
-    if do_c:
-        genc.write(output_dir, prefix + 'qapi-visit.c')
-    if do_h:
-        genh.write(output_dir, prefix + 'qapi-visit.h')
-
-
-if __name__ == '__main__':
-    main(sys.argv)
+    genc.write(output_dir, prefix + 'qapi-visit.c')
+    genh.write(output_dir, prefix + 'qapi-visit.h')

@@ -28,9 +28,11 @@
 /linux-headers/asm
 /qga/qapi-generated
 /qapi-generated
+/qapi-gen-timestamp
 /qapi-types.[ch]
 /qapi-visit.[ch]
 /qapi-event.[ch]
+/qapi-doc.texi
 /qmp-commands.h
 /qmp-introspect.[ch]
 /qmp-marshal.c

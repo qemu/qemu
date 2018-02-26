@@ -1932,17 +1932,15 @@ def parse_command_line(extra_options='', extra_long_options=[]):
 
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:],
-                                       'chp:o:' + extra_options,
-                                       ['source', 'header', 'prefix=',
-                                        'output-dir='] + extra_long_options)
+                                       'p:o:' + extra_options,
+                                       ['prefix=', 'output-dir=']
+                                       + extra_long_options)
     except getopt.GetoptError as err:
         print("%s: %s" % (sys.argv[0], str(err)), file=sys.stderr)
         sys.exit(1)
 
     output_dir = ''
     prefix = ''
-    do_c = False
-    do_h = False
     extra_opts = []
 
     for oa in opts:
@@ -1956,23 +1954,15 @@ def parse_command_line(extra_options='', extra_long_options=[]):
             prefix = a
         elif o in ('-o', '--output-dir'):
             output_dir = a + '/'
-        elif o in ('-c', '--source'):
-            do_c = True
-        elif o in ('-h', '--header'):
-            do_h = True
         else:
             extra_opts.append(oa)
-
-    if not do_c and not do_h:
-        do_c = True
-        do_h = True
 
     if len(args) != 1:
         print("%s: need exactly one argument" % sys.argv[0], file=sys.stderr)
         sys.exit(1)
     fname = args[0]
 
-    return (fname, output_dir, do_c, do_h, prefix, extra_opts)
+    return (fname, output_dir, prefix, extra_opts)
 
 
 #

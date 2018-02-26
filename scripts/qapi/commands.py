@@ -13,7 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from qapi import *
+from qapi.common import *
 
 
 def gen_command_decl(name, arg_type, boxed, ret_type):
@@ -255,11 +255,8 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._regy += gen_register_command(name, success_response)
 
 
-def main(argv):
-    (input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()
-
+def gen_commands(schema, output_dir, prefix):
     blurb = ' * Schema-defined QAPI/QMP commands'
-
     genc = QAPIGenC(blurb, __doc__)
     genh = QAPIGenH(blurb, __doc__)
 
@@ -288,17 +285,9 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
                    prefix=prefix, c_prefix=c_name(prefix, protect=False)))
 
-    schema = QAPISchema(input_file)
     vis = QAPISchemaGenCommandVisitor(prefix)
     schema.visit(vis)
     genc.add(vis.defn)
     genh.add(vis.decl)
-
-    if do_c:
-        genc.write(output_dir, prefix + 'qmp-marshal.c')
-    if do_h:
-        genh.write(output_dir, prefix + 'qmp-commands.h')
-
-
-if __name__ == '__main__':
-    main(sys.argv)
+    genc.write(output_dir, prefix + 'qmp-marshal.c')
+    genh.write(output_dir, prefix + 'qmp-commands.h')

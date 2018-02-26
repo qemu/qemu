@@ -11,10 +11,8 @@
 #
 
 from __future__ import print_function
-from qapi import *
-from pprint import pprint
-import os
 import sys
+from qapi.common import QAPISchema, QAPISchemaVisitor
 
 
 class QAPISchemaTestVisitor(QAPISchemaVisitor):
