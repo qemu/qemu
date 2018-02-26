@@ -32,7 +32,6 @@
 struct whpx_state {
     uint64_t mem_quota;
     WHV_PARTITION_HANDLE partition;
-    uint32_t exit_ctx_size;
 };
 
 static const WHV_REGISTER_NAME whpx_register_names[] = {
@@ -899,7 +898,7 @@ static int whpx_vcpu_run(CPUState *cpu)
         }
 
         hr = WHvRunVirtualProcessor(whpx->partition, cpu->cpu_index,
-                                    &vcpu->exit_ctx, whpx->exit_ctx_size);
+                                    &vcpu->exit_ctx, sizeof(vcpu->exit_ctx));
 
         if (FAILED(hr)) {
             error_report("WHPX: Failed to exec a virtual processor,"
@@ -1042,8 +1041,7 @@ int whpx_init_vcpu(CPUState *cpu)
         }
     }
 
-    vcpu = g_malloc0(FIELD_OFFSET(struct whpx_vcpu, exit_ctx) +
-                     whpx->exit_ctx_size);
+    vcpu = g_malloc0(sizeof(struct whpx_vcpu));
 
     if (!vcpu) {
         error_report("WHPX: Failed to allocte VCPU context.");
@@ -1299,9 +1297,6 @@ static int whpx_accel_init(MachineState *ms)
         ret = -EINVAL;
         goto error;
     }
-
-    whpx->exit_ctx_size = WHvGetRunExitContextSize();
-    assert(whpx->exit_ctx_size);
 
     whpx_memory_init();
 
