@@ -527,7 +527,7 @@ static HRESULT CALLBACK whpx_emu_ioport_callback(
     return S_OK;
 }
 
-static HRESULT CALLBACK whpx_emu_memio_callback(
+static HRESULT CALLBACK whpx_emu_mmio_callback(
     void *ctx,
     WHV_EMULATOR_MEMORY_ACCESS_INFO *ma)
 {
@@ -610,7 +610,7 @@ static HRESULT CALLBACK whpx_emu_translate_callback(
 static const WHV_EMULATOR_CALLBACKS whpx_emu_callbacks = {
     .Size = sizeof(WHV_EMULATOR_CALLBACKS),
     .WHvEmulatorIoPortCallback = whpx_emu_ioport_callback,
-    .WHvEmulatorMemoryCallback = whpx_emu_memio_callback,
+    .WHvEmulatorMemoryCallback = whpx_emu_mmio_callback,
     .WHvEmulatorGetVirtualProcessorRegisters = whpx_emu_getreg_callback,
     .WHvEmulatorSetVirtualProcessorRegisters = whpx_emu_setreg_callback,
     .WHvEmulatorTranslateGvaPage = whpx_emu_translate_callback,
