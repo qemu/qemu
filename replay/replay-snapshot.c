@@ -83,3 +83,9 @@ void replay_vmstate_init(void)
         }
     }
 }
+
+bool replay_can_snapshot(void)
+{
+    return replay_mode == REPLAY_MODE_NONE
+        || !replay_has_events();
+}
