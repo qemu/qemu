@@ -24,12 +24,23 @@
 static QemuMutex lock;
 
 /* File for replay writing */
+static bool write_error;
 FILE *replay_file;
+
+static void replay_write_error(void)
+{
+    if (!write_error) {
+        error_report("replay write error");
+        write_error = true;
+    }
+}
 
 void replay_put_byte(uint8_t byte)
 {
     if (replay_file) {
-        putc(byte, replay_file);
+        if (putc(byte, replay_file) == EOF) {
+            replay_write_error();
+        }
     }
 }
 
@@ -62,7 +73,9 @@ void replay_put_array(const uint8_t *buf, size_t size)
 {
     if (replay_file) {
         replay_put_dword(size);
-        fwrite(buf, 1, size, replay_file);
+        if (fwrite(buf, 1, size, replay_file) != size) {
+            replay_write_error();
+        }
     }
 }
 
