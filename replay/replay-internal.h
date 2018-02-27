@@ -104,7 +104,6 @@ void replay_get_array_alloc(uint8_t **buf, size_t *size);
  * synchronisation between vCPU and main-loop threads. */
 
 void replay_mutex_init(void);
-void replay_mutex_destroy(void);
 bool replay_mutex_locked(void);
 
 /*! Checks error status of the file. */
