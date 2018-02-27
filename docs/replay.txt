@@ -49,6 +49,28 @@ Modifications of qemu include:
  * recording/replaying user input (mouse and keyboard)
  * adding internal checkpoints for cpu and io synchronization
 
+Locking and thread synchronisation
+----------------------------------
+
+Previously the synchronisation of the main thread and the vCPU thread
+was ensured by the holding of the BQL. However the trend has been to
+reduce the time the BQL was held across the system including under TCG
+system emulation. As it is important that batches of events are kept
+in sequence (e.g. expiring timers and checkpoints in the main thread
+while instruction checkpoints are written by the vCPU thread) we need
+another lock to keep things in lock-step. This role is now handled by
+the replay_mutex_lock. It used to be held only for each event being
+written but now it is held for a whole execution period. This results
+in a deterministic ping-pong between the two main threads.
+
+As the BQL is now a finer grained lock than the replay_lock it is almost
+certainly a bug, and a source of deadlocks, to take the
+replay_mutex_lock while the BQL is held. This is enforced by an assert.
+While the unlocks are usually in the reverse order, this is not
+necessary; you can drop the replay_lock while holding the BQL, without
+doing a more complicated unlock_iothread/replay_unlock/lock_iothread
+sequence.
+
 Non-deterministic events
 ------------------------
 
