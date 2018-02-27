@@ -1,3 +1,4 @@
+
 /*
  * i386 virtual CPU header
  *
@@ -359,6 +360,7 @@ typedef enum X86Seg {
 #define MSR_P6_PERFCTR0                 0xc1
 
 #define MSR_IA32_SMBASE                 0x9e
+#define MSR_SMI_COUNT                   0x34
 #define MSR_MTRRcap                     0xfe
 #define MSR_MTRRcap_VCNT                8
 #define MSR_MTRRcap_FIXRANGE_SUPPORT    (1 << 8)
@@ -1123,6 +1125,7 @@ typedef struct CPUX86State {
 
     uint64_t pat;
     uint32_t smbase;
+    uint64_t msr_smi_count;
 
     uint32_t pkru;
 

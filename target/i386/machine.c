@@ -395,6 +395,25 @@ static const VMStateDescription vmstate_msr_tsc_adjust = {
     }
 };
 
+static bool msr_smi_count_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_smi_count != 0;
+}
+
+static const VMStateDescription vmstate_msr_smi_count = {
+    .name = "cpu/msr_smi_count",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = msr_smi_count_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.msr_smi_count, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool tscdeadline_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -952,6 +971,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_avx512,
         &vmstate_xss,
         &vmstate_tsc_khz,
+        &vmstate_msr_smi_count,
 #ifdef TARGET_X86_64
         &vmstate_pkru,
 #endif

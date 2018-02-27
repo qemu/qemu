@@ -3645,6 +3645,7 @@ static void x86_cpu_reset(CPUState *s)
     cpu_x86_update_cr0(env, 0x60000010);
     env->a20_mask = ~0x0;
     env->smbase = 0x30000;
+    env->msr_smi_count = 0;
 
     env->idt.limit = 0xffff;
     env->gdt.limit = 0xffff;

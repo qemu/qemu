@@ -92,6 +92,7 @@ static bool has_msr_hv_stimer;
 static bool has_msr_hv_frequencies;
 static bool has_msr_xss;
 static bool has_msr_spec_ctrl;
+static bool has_msr_smi_count;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -1124,6 +1125,9 @@ static int kvm_get_supported_msrs(KVMState *s)
                 case MSR_IA32_SMBASE:
                     has_msr_smbase = true;
                     break;
+                case MSR_SMI_COUNT:
+                    has_msr_smi_count = true;
+                    break;
                 case MSR_IA32_MISC_ENABLE:
                     has_msr_misc_enable = true;
                     break;
@@ -1633,6 +1637,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     if (has_msr_smbase) {
         kvm_msr_entry_add(cpu, MSR_IA32_SMBASE, env->smbase);
     }
+    if (has_msr_smi_count) {
+        kvm_msr_entry_add(cpu, MSR_SMI_COUNT, env->msr_smi_count);
+    }
     if (has_msr_bndcfgs) {
         kvm_msr_entry_add(cpu, MSR_IA32_BNDCFGS, env->msr_bndcfgs);
     }
@@ -1979,6 +1986,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_smbase) {
         kvm_msr_entry_add(cpu, MSR_IA32_SMBASE, 0);
     }
+    if (has_msr_smi_count) {
+        kvm_msr_entry_add(cpu, MSR_SMI_COUNT, 0);
+    }
     if (has_msr_feature_control) {
         kvm_msr_entry_add(cpu, MSR_IA32_FEATURE_CONTROL, 0);
     }
@@ -2204,6 +2214,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_SMBASE:
             env->smbase = msrs[i].data;
+            break;
+        case MSR_SMI_COUNT:
+            env->msr_smi_count = msrs[i].data;
             break;
         case MSR_IA32_FEATURE_CONTROL:
             env->msr_ia32_feature_control = msrs[i].data;
