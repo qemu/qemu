@@ -390,12 +390,14 @@ static void s390_machine_device_unplug_request(HotplugHandler *hotplug_dev,
     }
 }
 
-static CpuInstanceProperties s390_cpu_index_to_props(MachineState *machine,
+static CpuInstanceProperties s390_cpu_index_to_props(MachineState *ms,
                                                      unsigned cpu_index)
 {
-    g_assert(machine->possible_cpus && cpu_index < machine->possible_cpus->len);
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(ms);
 
-    return machine->possible_cpus->cpus[cpu_index].props;
+    assert(cpu_index < possible_cpus->len);
+    return possible_cpus->cpus[cpu_index].props;
 }
 
 static const CPUArchIdList *s390_possible_cpu_arch_ids(MachineState *ms)
