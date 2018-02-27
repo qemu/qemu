@@ -176,7 +176,7 @@ void vring_send_buf(VRing *vr, void *p, int len, int flags)
     }
 }
 
-static u64 get_clock(void)
+u64 get_clock(void)
 {
     u64 r;
 

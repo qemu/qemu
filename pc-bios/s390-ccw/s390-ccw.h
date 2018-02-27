@@ -69,8 +69,10 @@ unsigned int get_loadparm_index(void);
 
 /* sclp.c */
 void sclp_print(const char *string);
+void sclp_set_write_mask(uint32_t receive_mask, uint32_t send_mask);
 void sclp_setup(void);
 void sclp_get_loadparm_ascii(char *loadparm);
+int sclp_read(char *str, size_t count);
 
 /* virtio.c */
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
@@ -79,10 +81,18 @@ bool virtio_is_supported(SubChannelId schid);
 void virtio_blk_setup_device(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
+u64 get_clock(void);
 ulong get_second(void);
 
 /* bootmap.c */
 void zipl_load(void);
+
+/* menu.c */
+void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout);
+int menu_get_zipl_boot_index(const char *menu_data);
+bool menu_is_enabled_zipl(void);
+int menu_get_enum_boot_index(int entries);
+bool menu_is_enabled_enum(void);
 
 static inline void fill_hex(char *out, unsigned char val)
 {

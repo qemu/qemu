@@ -16,8 +16,7 @@
 #include "cpu.h"
 
 struct IplBlockCcw {
-    uint64_t netboot_start_addr;
-    uint8_t  reserved0[77];
+    uint8_t  reserved0[85];
     uint8_t  ssid;
     uint16_t devno;
     uint8_t  vm_flags;
@@ -90,6 +89,33 @@ void s390_ipl_prepare_cpu(S390CPU *cpu);
 IplParameterBlock *s390_ipl_get_iplb(void);
 void s390_reipl_request(void);
 
+#define QIPL_ADDRESS  0xcc
+
+/* Boot Menu flags */
+#define QIPL_FLAG_BM_OPTS_CMD   0x80
+#define QIPL_FLAG_BM_OPTS_ZIPL  0x40
+
+/*
+ * The QEMU IPL Parameters will be stored at absolute address
+ * 204 (0xcc) which means it is 32-bit word aligned but not
+ * double-word aligned.
+ * Placement of data fields in this area must account for
+ * their alignment needs. E.g., netboot_start_address must
+ * have an offset of 4 + n * 8 bytes within the struct in order
+ * to keep it double-word aligned.
+ * The total size of the struct must never exceed 28 bytes.
+ * This definition must be kept in sync with the defininition
+ * in pc-bios/s390-ccw/iplb.h.
+ */
+struct QemuIplParameters {
+    uint8_t  qipl_flags;
+    uint8_t  reserved1[3];
+    uint64_t netboot_start_addr;
+    uint32_t boot_menu_timeout;
+    uint8_t  reserved2[12];
+} QEMU_PACKED;
+typedef struct QemuIplParameters QemuIplParameters;
+
 #define TYPE_S390_IPL "s390-ipl"
 #define S390_IPL(obj) OBJECT_CHECK(S390IPLState, (obj), TYPE_S390_IPL)
 
@@ -105,6 +131,7 @@ struct S390IPLState {
     bool iplb_valid;
     bool reipl_requested;
     bool netboot;
+    QemuIplParameters qipl;
 
     /*< public >*/
     char *kernel;

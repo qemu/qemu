@@ -23,6 +23,9 @@
 #include "hw/s390x/ebcdic.h"
 #include "ipl.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
+#include "qemu/cutils.h"
+#include "qemu/option.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -219,6 +222,61 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void s390_ipl_set_boot_menu(S390IPLState *ipl)
+{
+    QemuOptsList *plist = qemu_find_opts("boot-opts");
+    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
+    uint8_t *flags = &ipl->qipl.qipl_flags;
+    uint32_t *timeout = &ipl->qipl.boot_menu_timeout;
+    const char *tmp;
+    unsigned long splash_time = 0;
+
+    if (!get_boot_device(0)) {
+        if (boot_menu) {
+            error_report("boot menu requires a bootindex to be specified for "
+                         "the IPL device.");
+        }
+        return;
+    }
+
+    switch (ipl->iplb.pbt) {
+    case S390_IPL_TYPE_CCW:
+        /* In the absence of -boot menu, use zipl parameters */
+        if (!qemu_opt_get(opts, "menu")) {
+            *flags |= QIPL_FLAG_BM_OPTS_ZIPL;
+            return;
+        }
+        break;
+    case S390_IPL_TYPE_QEMU_SCSI:
+        break;
+    default:
+        error_report("boot menu is not supported for this device type.");
+        return;
+    }
+
+    if (!boot_menu) {
+        return;
+    }
+
+    *flags |= QIPL_FLAG_BM_OPTS_CMD;
+
+    tmp = qemu_opt_get(opts, "splash-time");
+
+    if (tmp && qemu_strtoul(tmp, NULL, 10, &splash_time)) {
+        error_report("splash-time is invalid, forcing it to 0.");
+        *timeout = 0;
+        return;
+    }
+
+    if (splash_time > 0xffffffff) {
+        error_report("splash-time is too large, forcing it to max value.");
+        *timeout = 0xffffffff;
+        return;
+    }
+
+    *timeout = cpu_to_be32(splash_time);
+}
+
 static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
     DeviceState *dev_st;
@@ -399,6 +457,21 @@ void s390_reipl_request(void)
     qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
 }
 
+static void s390_ipl_prepare_qipl(S390CPU *cpu)
+{
+    S390IPLState *ipl = get_ipl_device();
+    uint8_t *addr;
+    uint64_t len = 4096;
+
+    addr = cpu_physical_memory_map(cpu->env.psa, &len, 1);
+    if (!addr || len < QIPL_ADDRESS + sizeof(QemuIplParameters)) {
+        error_report("Cannot set QEMU IPL parameters");
+        return;
+    }
+    memcpy(addr + QIPL_ADDRESS, &ipl->qipl, sizeof(QemuIplParameters));
+    cpu_physical_memory_unmap(addr, len, 1, len);
+}
+
 void s390_ipl_prepare_cpu(S390CPU *cpu)
 {
     S390IPLState *ipl = get_ipl_device();
@@ -418,8 +491,10 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
             error_report_err(err);
             vm_stop(RUN_STATE_INTERNAL_ERROR);
         }
-        ipl->iplb.ccw.netboot_start_addr = cpu_to_be64(ipl->start_addr);
+        ipl->qipl.netboot_start_addr = cpu_to_be64(ipl->start_addr);
     }
+    s390_ipl_set_boot_menu(ipl);
+    s390_ipl_prepare_qipl(cpu);
 }
 
 static void s390_ipl_reset(DeviceState *dev)
