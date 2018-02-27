@@ -181,7 +181,7 @@ void replay_mutex_destroy(void)
     qemu_mutex_destroy(&lock);
 }
 
-static bool replay_mutex_locked(void)
+bool replay_mutex_locked(void)
 {
     return replay_locked;
 }
