@@ -78,6 +78,8 @@ typedef struct ReplayState {
         This counter is global, because requests from different
         block devices should not get overlapping ids. */
     uint64_t block_request_id;
+    /*! Prior value of the host clock */
+    uint64_t host_clock_last;
 } ReplayState;
 extern ReplayState replay_state;
 
