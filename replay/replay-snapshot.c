@@ -57,6 +57,9 @@ static const VMStateDescription vmstate_replay = {
         VMSTATE_UINT64(file_offset, ReplayState),
         VMSTATE_UINT64(block_request_id, ReplayState),
         VMSTATE_UINT64(host_clock_last, ReplayState),
+        VMSTATE_INT32(read_event_kind, ReplayState),
+        VMSTATE_UINT64(read_event_id, ReplayState),
+        VMSTATE_INT32(read_event_checkpoint, ReplayState),
         VMSTATE_END_OF_LIST()
     },
 };

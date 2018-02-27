@@ -27,10 +27,6 @@ typedef struct Event {
 } Event;
 
 static QTAILQ_HEAD(, Event) events_list = QTAILQ_HEAD_INITIALIZER(events_list);
-static unsigned int read_event_kind = -1;
-static uint64_t read_id = -1;
-static int read_checkpoint = -1;
-
 static bool events_enabled;
 
 /* Functions */
@@ -218,58 +214,60 @@ void replay_save_events(int checkpoint)
 static Event *replay_read_event(int checkpoint)
 {
     Event *event;
-    if (read_event_kind == -1) {
-        read_checkpoint = replay_get_byte();
-        read_event_kind = replay_get_byte();
-        read_id = -1;
+    if (replay_state.read_event_kind == -1) {
+        replay_state.read_event_checkpoint = replay_get_byte();
+        replay_state.read_event_kind = replay_get_byte();
+        replay_state.read_event_id = -1;
         replay_check_error();
     }
 
-    if (checkpoint != read_checkpoint) {
+    if (checkpoint != replay_state.read_event_checkpoint) {
         return NULL;
     }
 
     /* Events that has not to be in the queue */
-    switch (read_event_kind) {
+    switch (replay_state.read_event_kind) {
     case REPLAY_ASYNC_EVENT_BH:
-        if (read_id == -1) {
-            read_id = replay_get_qword();
+        if (replay_state.read_event_id == -1) {
+            replay_state.read_event_id = replay_get_qword();
         }
         break;
     case REPLAY_ASYNC_EVENT_INPUT:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = replay_read_input_event();
         return event;
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = 0;
         return event;
     case REPLAY_ASYNC_EVENT_CHAR_READ:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = replay_event_char_read_load();
         return event;
     case REPLAY_ASYNC_EVENT_BLOCK:
-        if (read_id == -1) {
-            read_id = replay_get_qword();
+        if (replay_state.read_event_id == -1) {
+            replay_state.read_event_id = replay_get_qword();
         }
         break;
     case REPLAY_ASYNC_EVENT_NET:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = replay_event_net_load();
         return event;
     default:
-        error_report("Unknown ID %d of replay event", read_event_kind);
+        error_report("Unknown ID %d of replay event",
+            replay_state.read_event_kind);
         exit(1);
         break;
     }
 
     QTAILQ_FOREACH(event, &events_list, events) {
-        if (event->event_kind == read_event_kind
-            && (read_id == -1 || read_id == event->id)) {
+        if (event->event_kind == replay_state.read_event_kind
+            && (replay_state.read_event_id == -1
+                || replay_state.read_event_id == event->id)) {
             break;
         }
     }
@@ -295,7 +293,7 @@ void replay_read_events(int checkpoint)
             break;
         }
         replay_finish_event();
-        read_event_kind = -1;
+        replay_state.read_event_kind = -1;
         replay_run_event(event);
 
         g_free(event);
@@ -304,7 +302,7 @@ void replay_read_events(int checkpoint)
 
 void replay_init_events(void)
 {
-    read_event_kind = -1;
+    replay_state.read_event_kind = -1;
 }
 
 void replay_finish_events(void)
