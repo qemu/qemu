@@ -33,6 +33,9 @@ typedef int64_t  Elf64_Sxword;
 
 /* Flags in the e_flags field of the header */
 /* MIPS architecture level. */
+#define EF_MIPS_ARCH            0xf0000000
+
+/* Legal values for MIPS architecture level.  */
 #define EF_MIPS_ARCH_1		0x00000000	/* -mips1 code.  */
 #define EF_MIPS_ARCH_2		0x10000000	/* -mips2 code.  */
 #define EF_MIPS_ARCH_3		0x20000000	/* -mips3 code.  */
@@ -40,6 +43,10 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_ARCH_5		0x40000000	/* -mips5 code.  */
 #define EF_MIPS_ARCH_32		0x50000000	/* MIPS32 code.  */
 #define EF_MIPS_ARCH_64		0x60000000	/* MIPS64 code.  */
+#define EF_MIPS_ARCH_32R2       0x70000000      /* MIPS32r2 code.  */
+#define EF_MIPS_ARCH_64R2       0x80000000      /* MIPS64r2 code.  */
+#define EF_MIPS_ARCH_32R6       0x90000000      /* MIPS32r6 code.  */
+#define EF_MIPS_ARCH_64R6       0xa0000000      /* MIPS64r6 code.  */
 
 /* The ABI of a file. */
 #define EF_MIPS_ABI_O32		0x00001000	/* O32 ABI.  */
@@ -536,6 +543,34 @@ typedef struct {
 #define HWCAP_S390_ETF3EH       256
 #define HWCAP_S390_HIGH_GPRS    512
 #define HWCAP_S390_TE           1024
+
+/* M68K specific definitions. */
+/* We use the top 24 bits to encode information about the
+   architecture variant.  */
+#define EF_M68K_CPU32    0x00810000
+#define EF_M68K_M68000   0x01000000
+#define EF_M68K_CFV4E    0x00008000
+#define EF_M68K_FIDO     0x02000000
+#define EF_M68K_ARCH_MASK                                               \
+  (EF_M68K_M68000 | EF_M68K_CPU32 | EF_M68K_CFV4E | EF_M68K_FIDO)
+
+/* We use the bottom 8 bits to encode information about the
+   coldfire variant.  If we use any of these bits, the top 24 bits are
+   either 0 or EF_M68K_CFV4E.  */
+#define EF_M68K_CF_ISA_MASK     0x0F  /* Which ISA */
+#define EF_M68K_CF_ISA_A_NODIV  0x01  /* ISA A except for div */
+#define EF_M68K_CF_ISA_A        0x02
+#define EF_M68K_CF_ISA_A_PLUS   0x03
+#define EF_M68K_CF_ISA_B_NOUSP  0x04  /* ISA_B except for USP */
+#define EF_M68K_CF_ISA_B        0x05
+#define EF_M68K_CF_ISA_C        0x06
+#define EF_M68K_CF_ISA_C_NODIV  0x07  /* ISA C except for div */
+#define EF_M68K_CF_MAC_MASK     0x30
+#define EF_M68K_CF_MAC          0x10  /* MAC */
+#define EF_M68K_CF_EMAC         0x20  /* EMAC */
+#define EF_M68K_CF_EMAC_B       0x30  /* EMAC_B */
+#define EF_M68K_CF_FLOAT        0x40  /* Has float insns */
+#define EF_M68K_CF_MASK         0xFF
 
 /*
  * 68k ELF relocation types
