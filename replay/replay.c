@@ -176,13 +176,24 @@ void replay_shutdown_request(ShutdownCause cause)
 bool replay_checkpoint(ReplayCheckpoint checkpoint)
 {
     bool res = false;
+    static bool in_checkpoint;
     assert(EVENT_CHECKPOINT + checkpoint <= EVENT_CHECKPOINT_LAST);
-    replay_save_instructions();
 
     if (!replay_file) {
         return true;
     }
 
+    if (in_checkpoint) {
+        /* If we are already in checkpoint, then there is no need
+           for additional synchronization.
+           Recursion occurs when HW event modifies timers.
+           Timer modification may invoke the checkpoint and
+           proceed to recursion. */
+        return true;
+    }
+    in_checkpoint = true;
+
+    replay_save_instructions();
 
     if (replay_mode == REPLAY_MODE_PLAY) {
         g_assert(replay_mutex_locked());
@@ -204,6 +215,7 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
         res = true;
     }
 out:
+    in_checkpoint = false;
     return res;
 }
 
