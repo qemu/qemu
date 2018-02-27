@@ -205,6 +205,7 @@ static void replay_save_event(Event *event, int checkpoint)
 void replay_save_events(int checkpoint)
 {
     g_assert(replay_mutex_locked());
+    g_assert(checkpoint != CHECKPOINT_CLOCK_WARP_START);
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
         replay_save_event(event, checkpoint);
