@@ -1728,7 +1728,8 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     CPUArchState *env = cpu->env_ptr;
 #endif
     TranslationBlock *tb;
-    uint32_t n;
+    uint32_t n, flags;
+    target_ulong pc, cs_base;
 
     tb_lock();
     tb = tb_find_pc(retaddr);
@@ -1766,8 +1767,14 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
         cpu_abort(cpu, "TB too big during recompile");
     }
 
-    /* Adjust the execution state of the next TB.  */
-    cpu->cflags_next_tb = curr_cflags() | CF_LAST_IO | n;
+    pc = tb->pc;
+    cs_base = tb->cs_base;
+    flags = tb->flags;
+    tb_phys_invalidate(tb, -1);
+
+    /* Execute one IO instruction without caching
+       instead of creating large TB. */
+    cpu->cflags_next_tb = curr_cflags() | CF_LAST_IO | CF_NOCACHE | 1;
 
     if (tb->cflags & CF_NOCACHE) {
         if (tb->orig_tb) {
@@ -1777,6 +1784,11 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
         }
         tb_remove(tb);
     }
+
+    /* Generate new TB instead of the current one. */
+    /* FIXME: In theory this could raise an exception.  In practice
+       we have already translated the block once so it's probably ok.  */
+    tb_gen_code(cpu, pc, cs_base, flags, curr_cflags() | CF_LAST_IO | n);
 
     /* TODO: If env->pc != tb->pc (i.e. the faulting instruction was not
      * the first in the TB) then we end up generating a whole new TB and
