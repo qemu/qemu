@@ -42,7 +42,7 @@ typedef struct MacIOState
 
     MemoryRegion bar;
     CUDAState cuda;
-    DBDMAState *dbdma;
+    DBDMAState dbdma;
     MemoryRegion *pic_mem;
     MemoryRegion *escc_mem;
     uint64_t frequency;
@@ -129,12 +129,12 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     SysBusDevice *sysbus_dev;
     Error *err = NULL;
 
-    object_property_set_bool(OBJECT(s->dbdma), true, "realized", &err);
+    object_property_set_bool(OBJECT(&s->dbdma), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
-    sysbus_dev = SYS_BUS_DEVICE(s->dbdma);
+    sysbus_dev = SYS_BUS_DEVICE(&s->dbdma);
     memory_region_add_subregion(&s->bar, 0x08000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
 
@@ -161,7 +161,7 @@ static void macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
     sysbus_connect_irq(sysbus_dev, 0, irq0);
     sysbus_connect_irq(sysbus_dev, 1, irq1);
     qdev_prop_set_uint32(DEVICE(ide), "channel", dmaid);
-    object_property_set_link(OBJECT(ide), OBJECT(s->dbdma), "dbdma", errp);
+    object_property_set_link(OBJECT(ide), OBJECT(&s->dbdma), "dbdma", errp);
     macio_ide_register_dma(ide);
 
     object_property_set_bool(OBJECT(ide), true, "realized", errp);
@@ -344,8 +344,9 @@ static void macio_instance_init(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->cuda), sysbus_get_default());
     object_property_add_child(obj, "cuda", OBJECT(&s->cuda), NULL);
 
-    s->dbdma = MAC_DBDMA(object_new(TYPE_MAC_DBDMA));
-    object_property_add_child(obj, "dbdma", OBJECT(s->dbdma), NULL);
+    object_initialize(&s->dbdma, sizeof(s->dbdma), TYPE_MAC_DBDMA);
+    qdev_set_parent_bus(DEVICE(&s->dbdma), sysbus_get_default());
+    object_property_add_child(obj, "dbdma", OBJECT(&s->dbdma), NULL);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
