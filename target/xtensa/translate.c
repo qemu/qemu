@@ -3288,6 +3288,7 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
                 (i % 4) == 3 ? '\n' : ' ');
     }
 
+    xtensa_sync_phys_from_window(env);
     cpu_fprintf(f, "\n");
 
     for (i = 0; i < env->config->nareg; ++i) {
