@@ -160,7 +160,6 @@ static void ppc_core99_init(MachineState *machine)
     MacIONVRAMState *nvr;
     int bios_size, ndrv_size;
     uint8_t *ndrv_file;
-    MemoryRegion *pic_mem;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -337,7 +336,6 @@ static void ppc_core99_init(MachineState *machine)
     qdev_prop_set_uint32(pic_dev, "model", OPENPIC_MODEL_KEYLARGO);
     qdev_init_nofail(pic_dev);
     s = SYS_BUS_DEVICE(pic_dev);
-    pic_mem = s->mmio[0].memory;
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
@@ -381,7 +379,7 @@ static void ppc_core99_init(MachineState *machine)
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
                              &error_abort);
-    macio_init(PCI_DEVICE(macio), pic_mem);
+    qdev_init_nofail(dev);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));

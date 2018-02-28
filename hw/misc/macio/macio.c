@@ -33,6 +33,9 @@
 #include "hw/misc/macio/macio.h"
 #include "hw/intc/heathrow_pic.h"
 
+/* Note: this code is strongly inspirated from the corresponding code
+ * in PearPC */
+
 /*
  * The mac-io has two interfaces to the ESCC. One is called "escc-legacy",
  * while the other one is the normal, current ESCC interface.
@@ -442,11 +445,3 @@ static void macio_register_types(void)
 }
 
 type_init(macio_register_types)
-
-void macio_init(PCIDevice *d,
-                MemoryRegion *pic_mem)
-{
-    /* Note: this code is strongly inspirated from the corresponding code
-       in PearPC */
-    qdev_init_nofail(DEVICE(d));
-}

@@ -96,7 +96,6 @@ static void ppc_heathrow_init(MachineState *machine)
     OldWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
     DeviceState *dev, *pic_dev;
-    SysBusDevice *sbd;
     BusState *adb_bus;
     int bios_size, ndrv_size;
     uint8_t *ndrv_file;
@@ -283,8 +282,7 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
                              &error_abort);
-    sbd = SYS_BUS_DEVICE(pic_dev);
-    macio_init(PCI_DEVICE(macio), sysbus_mmio_get_region(sbd, 0));
+    qdev_init_nofail(dev);
 
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
                                                         "ide[0]"));
