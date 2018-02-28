@@ -26,16 +26,7 @@
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/intc/heathrow_pic.h"
-
-/* debug PIC */
-//#define DEBUG_PIC
-
-#ifdef DEBUG_PIC
-#define PIC_DPRINTF(fmt, ...)                                   \
-    do { printf("PIC: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define PIC_DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 static inline int heathrow_check_irq(HeathrowPICState *pic)
 {
@@ -61,7 +52,7 @@ static void heathrow_write(void *opaque, hwaddr addr,
     unsigned int n;
 
     n = ((addr & 0xfff) - 0x10) >> 4;
-    PIC_DPRINTF("writel: " TARGET_FMT_plx " %u: %08x\n", addr, n, value);
+    trace_heathrow_write(addr, n, value);
     if (n >= 2)
         return;
     pic = &s->pics[n];
@@ -109,7 +100,7 @@ static uint64_t heathrow_read(void *opaque, hwaddr addr,
             break;
         }
     }
-    PIC_DPRINTF("readl: " TARGET_FMT_plx " %u: %08x\n", addr, n, value);
+    trace_heathrow_read(addr, n, value);
     return value;
 }
 
@@ -124,24 +115,23 @@ static void heathrow_set_irq(void *opaque, int num, int level)
     HeathrowState *s = opaque;
     HeathrowPICState *pic;
     unsigned int irq_bit;
+    int last_level;
 
-#if defined(DEBUG)
-    {
-        static int last_level[64];
-        if (last_level[num] != level) {
-            PIC_DPRINTF("set_irq: num=0x%02x level=%d\n", num, level);
-            last_level[num] = level;
-        }
-    }
-#endif
     pic = &s->pics[1 - (num >> 5)];
     irq_bit = 1 << (num & 0x1f);
+    last_level = (pic->levels & irq_bit) ? 1 : 0;
+
     if (level) {
         pic->events |= irq_bit & ~pic->level_triggered;
         pic->levels |= irq_bit;
     } else {
         pic->levels &= ~irq_bit;
     }
+
+    if (last_level != level) {
+        trace_heathrow_set_irq(num, level);
+    }
+
     heathrow_update_irq(s);
 }
 
