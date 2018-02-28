@@ -170,13 +170,15 @@ static void heathrow_reset(DeviceState *d)
 static void heathrow_init(Object *obj)
 {
     HeathrowState *s = HEATHROW(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     memory_region_init_io(&s->mem, OBJECT(s), &heathrow_ops, s,
                           "heathrow-pic", 0x1000);
+    sysbus_init_mmio(sbd, &s->mem);
 }
 
-qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
-                            int nb_cpus, qemu_irq **irqs)
+DeviceState *heathrow_pic_init(int nb_cpus, qemu_irq **irqs,
+                               qemu_irq **pic_irqs)
 {
     DeviceState *d;
     HeathrowState *s;
@@ -188,9 +190,9 @@ qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
     /* only 1 CPU */
     s->irqs = irqs[0];
 
-    *pmem = &s->mem;
+    *pic_irqs = qemu_allocate_irqs(heathrow_set_irq, s, HEATHROW_NUM_IRQS);
 
-    return qemu_allocate_irqs(heathrow_set_irq, s, HEATHROW_NUM_IRQS);
+    return d;
 }
 
 static void heathrow_class_init(ObjectClass *oc, void *data)

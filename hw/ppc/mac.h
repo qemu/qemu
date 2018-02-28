@@ -79,8 +79,8 @@ void macio_init(PCIDevice *dev,
                 MemoryRegion *pic_mem);
 
 /* Heathrow PIC */
-qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
-                            int nb_cpus, qemu_irq **irqs);
+DeviceState *heathrow_pic_init(int nb_cpus, qemu_irq **irqs,
+                               qemu_irq **pic_irqs);
 
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"

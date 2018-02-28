@@ -94,11 +94,11 @@ static void ppc_heathrow_init(MachineState *machine)
     PCIBus *pci_bus;
     PCIDevice *macio;
     MACIOIDEState *macio_ide;
-    DeviceState *dev;
+    DeviceState *dev, *pic_dev;
+    SysBusDevice *sbd;
     BusState *adb_bus;
     int bios_size, ndrv_size;
     uint8_t *ndrv_file;
-    MemoryRegion *pic_mem;
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -257,7 +257,7 @@ static void ppc_heathrow_init(MachineState *machine)
         error_report("Only 6xx bus is supported on heathrow machine");
         exit(1);
     }
-    pic = heathrow_pic_init(&pic_mem, 1, heathrow_irqs);
+    pic_dev = heathrow_pic_init(1, heathrow_irqs, &pic);
     pci_bus = pci_grackle_init(0xfec00000, pic,
                                get_system_memory(),
                                get_system_io());
@@ -280,7 +280,8 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 5, pic[0x0E]); /* IDE-1 */
     qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE-1 DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
-    macio_init(macio, pic_mem);
+    sbd = SYS_BUS_DEVICE(pic_dev);
+    macio_init(macio, sysbus_mmio_get_region(sbd, 0));
 
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
                                                         "ide[0]"));
