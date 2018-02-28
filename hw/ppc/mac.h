@@ -76,8 +76,7 @@ void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
 void macio_ide_register_dma(MACIOIDEState *ide);
 
 void macio_init(PCIDevice *dev,
-                MemoryRegion *pic_mem,
-                MemoryRegion *escc_mem);
+                MemoryRegion *pic_mem);
 
 /* Heathrow PIC */
 qemu_irq *heathrow_pic_init(MemoryRegion **pmem,

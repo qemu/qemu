@@ -43,8 +43,8 @@ typedef struct MacIOState
     MemoryRegion bar;
     CUDAState cuda;
     DBDMAState dbdma;
+    ESCCState escc;
     MemoryRegion *pic_mem;
-    MemoryRegion *escc_mem;
     uint64_t frequency;
 } MacIOState;
 
@@ -56,7 +56,7 @@ typedef struct OldWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
-    qemu_irq irqs[5];
+    qemu_irq irqs[7];
 
     MacIONVRAMState nvram;
     MACIOIDEState ide[2];
@@ -69,7 +69,7 @@ typedef struct NewWorldMacIOState {
     /*< private >*/
     MacIOState parent_obj;
     /*< public >*/
-    qemu_irq irqs[5];
+    qemu_irq irqs[7];
     MACIOIDEState ide[2];
 } NewWorldMacIOState;
 
@@ -84,10 +84,12 @@ typedef struct NewWorldMacIOState {
  *
  * Reference: ftp://ftp.software.ibm.com/rs6000/technology/spec/chrp/inwork/CHRP_IORef_1.0.pdf
  */
-static void macio_escc_legacy_setup(MacIOState *macio_state)
+static void macio_escc_legacy_setup(MacIOState *s)
 {
+    ESCCState *escc = ESCC(&s->escc);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(escc);
     MemoryRegion *escc_legacy = g_new(MemoryRegion, 1);
-    MemoryRegion *bar = &macio_state->bar;
+    MemoryRegion *bar = &s->bar;
     int i;
     static const int maps[] = {
         0x00, 0x00, /* Command B */
@@ -102,25 +104,26 @@ static void macio_escc_legacy_setup(MacIOState *macio_state)
         0xb0, 0xb0, /* Detect AB */
     };
 
-    memory_region_init(escc_legacy, OBJECT(macio_state), "escc-legacy", 256);
+    memory_region_init(escc_legacy, OBJECT(s), "escc-legacy", 256);
     for (i = 0; i < ARRAY_SIZE(maps); i += 2) {
         MemoryRegion *port = g_new(MemoryRegion, 1);
-        memory_region_init_alias(port, OBJECT(macio_state), "escc-legacy-port",
-                                 macio_state->escc_mem, maps[i+1], 0x2);
+        memory_region_init_alias(port, OBJECT(s), "escc-legacy-port",
+                                 sysbus_mmio_get_region(sbd, 0),
+                                 maps[i + 1], 0x2);
         memory_region_add_subregion(escc_legacy, maps[i], port);
     }
 
     memory_region_add_subregion(bar, 0x12000, escc_legacy);
 }
 
-static void macio_bar_setup(MacIOState *macio_state)
+static void macio_bar_setup(MacIOState *s)
 {
-    MemoryRegion *bar = &macio_state->bar;
+    ESCCState *escc = ESCC(&s->escc);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(escc);
+    MemoryRegion *bar = &s->bar;
 
-    if (macio_state->escc_mem) {
-        memory_region_add_subregion(bar, 0x13000, macio_state->escc_mem);
-        macio_escc_legacy_setup(macio_state);
-    }
+    memory_region_add_subregion(bar, 0x13000, sysbus_mmio_get_region(sbd, 0));
+    macio_escc_legacy_setup(s);
 }
 
 static void macio_common_realize(PCIDevice *d, Error **errp)
@@ -146,6 +149,12 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
     memory_region_add_subregion(&s->bar, 0x16000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
+
+    object_property_set_bool(OBJECT(&s->escc), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
     macio_bar_setup(s);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
@@ -184,6 +193,10 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
 
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
     sysbus_connect_irq(sysbus_dev, 0, os->irqs[cur_irq++]);
+
+    sysbus_dev = SYS_BUS_DEVICE(&s->escc);
+    sysbus_connect_irq(sysbus_dev, 0, os->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 1, os->irqs[cur_irq++]);
 
     object_property_set_bool(OBJECT(&os->nvram), true, "realized", &err);
     if (err) {
@@ -297,6 +310,10 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
     sysbus_connect_irq(sysbus_dev, 0, ns->irqs[cur_irq++]);
 
+    sysbus_dev = SYS_BUS_DEVICE(&s->escc);
+    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[cur_irq++]);
+
     if (s->pic_mem) {
         /* OpenPIC */
         memory_region_add_subregion(&s->bar, 0x40000, s->pic_mem);
@@ -347,6 +364,17 @@ static void macio_instance_init(Object *obj)
     object_initialize(&s->dbdma, sizeof(s->dbdma), TYPE_MAC_DBDMA);
     qdev_set_parent_bus(DEVICE(&s->dbdma), sysbus_get_default());
     object_property_add_child(obj, "dbdma", OBJECT(&s->dbdma), NULL);
+
+    object_initialize(&s->escc, sizeof(s->escc), TYPE_ESCC);
+    qdev_prop_set_uint32(DEVICE(&s->escc), "disabled", 0);
+    qdev_prop_set_uint32(DEVICE(&s->escc), "frequency", ESCC_CLOCK);
+    qdev_prop_set_uint32(DEVICE(&s->escc), "it_shift", 4);
+    qdev_prop_set_chr(DEVICE(&s->escc), "chrA", serial_hds[0]);
+    qdev_prop_set_chr(DEVICE(&s->escc), "chrB", serial_hds[1]);
+    qdev_prop_set_uint32(DEVICE(&s->escc), "chnBtype", escc_serial);
+    qdev_prop_set_uint32(DEVICE(&s->escc), "chnAtype", escc_serial);
+    qdev_set_parent_bus(DEVICE(&s->escc), sysbus_get_default());
+    object_property_add_child(obj, "escc", OBJECT(&s->escc), NULL);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
@@ -444,13 +472,11 @@ static void macio_register_types(void)
 type_init(macio_register_types)
 
 void macio_init(PCIDevice *d,
-                MemoryRegion *pic_mem,
-                MemoryRegion *escc_mem)
+                MemoryRegion *pic_mem)
 {
     MacIOState *macio_state = MACIO(d);
 
     macio_state->pic_mem = pic_mem;
-    macio_state->escc_mem = escc_mem;
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
     qdev_prop_set_uint64(DEVICE(&macio_state->cuda), "timebase-frequency",

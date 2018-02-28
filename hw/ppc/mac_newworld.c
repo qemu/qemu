@@ -159,8 +159,7 @@ static void ppc_core99_init(MachineState *machine)
     MacIONVRAMState *nvr;
     int bios_size, ndrv_size;
     uint8_t *ndrv_file;
-    MemoryRegion *pic_mem, *escc_mem;
-    MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
+    MemoryRegion *pic_mem;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -368,36 +367,18 @@ static void ppc_core99_init(MachineState *machine)
         tbfreq = TBFREQ;
     }
 
-    /* init basic PC hardware */
-
-    dev = qdev_create(NULL, TYPE_ESCC);
-    qdev_prop_set_uint32(dev, "disabled", 0);
-    qdev_prop_set_uint32(dev, "frequency", ESCC_CLOCK);
-    qdev_prop_set_uint32(dev, "it_shift", 4);
-    qdev_prop_set_chr(dev, "chrA", serial_hds[0]);
-    qdev_prop_set_chr(dev, "chrB", serial_hds[1]);
-    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
-    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
-    qdev_init_nofail(dev);
-
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(s, 0, pic[0x24]);
-    sysbus_connect_irq(s, 1, pic[0x25]);
-
-    escc_mem = &ESCC(s)->mmio;
-
-    memory_region_init_alias(escc_bar, NULL, "escc-bar",
-                             escc_mem, 0, memory_region_size(escc_mem));
-
+    /* MacIO */
     macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
     dev = DEVICE(macio);
     qdev_connect_gpio_out(dev, 0, pic[0x19]); /* CUDA */
-    qdev_connect_gpio_out(dev, 1, pic[0x0d]); /* IDE */
-    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
-    qdev_connect_gpio_out(dev, 3, pic[0x0e]); /* IDE */
-    qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 1, pic[0x24]); /* ESCC-B */
+    qdev_connect_gpio_out(dev, 2, pic[0x25]); /* ESCC-A */
+    qdev_connect_gpio_out(dev, 3, pic[0x0d]); /* IDE */
+    qdev_connect_gpio_out(dev, 4, pic[0x02]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 5, pic[0x0e]); /* IDE */
+    qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
-    macio_init(macio, pic_mem, escc_bar);
+    macio_init(macio, pic_mem);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));
