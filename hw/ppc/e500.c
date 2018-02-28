@@ -29,6 +29,7 @@
 #include "kvm_ppc.h"
 #include "sysemu/device_tree.h"
 #include "hw/ppc/openpic.h"
+#include "hw/ppc/openpic_kvm.h"
 #include "hw/ppc/ppc.h"
 #include "hw/loader.h"
 #include "elf.h"
