@@ -17,6 +17,7 @@
 #include "io/channel.h"
 #include "io/channel-socket.h"
 #include "pr-helper.h"
+#include "qapi/qapi-events-block.h"
 
 #include <scsi/sg.h>
 
@@ -38,6 +39,16 @@ typedef struct PRManagerHelper {
     QIOChannel *ioc;
 } PRManagerHelper;
 
+static void pr_manager_send_status_changed_event(PRManagerHelper *pr_mgr)
+{
+    char *id = object_get_canonical_path_component(OBJECT(pr_mgr));
+
+    if (id) {
+        qapi_event_send_pr_manager_status_changed(id, !!pr_mgr->ioc,
+                                                  &error_abort);
+    }
+}
+
 /* Called with lock held.  */
 static int pr_manager_helper_read(PRManagerHelper *pr_mgr,
                                   void *buf, int sz, Error **errp)
@@ -47,6 +58,7 @@ static int pr_manager_helper_read(PRManagerHelper *pr_mgr,
     if (r < 0) {
         object_unref(OBJECT(pr_mgr->ioc));
         pr_mgr->ioc = NULL;
+        pr_manager_send_status_changed_event(pr_mgr);
         return -EINVAL;
     }
 
@@ -72,6 +84,7 @@ static int pr_manager_helper_write(PRManagerHelper *pr_mgr,
             assert(n_written != QIO_CHANNEL_ERR_BLOCK);
             object_unref(OBJECT(pr_mgr->ioc));
             pr_mgr->ioc = NULL;
+            pr_manager_send_status_changed_event(pr_mgr);
             return n_written < 0 ? -EINVAL : 0;
         }
 
@@ -127,6 +140,7 @@ static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
         goto out_close;
     }
 
+    pr_manager_send_status_changed_event(pr_mgr);
     return 0;
 
 out_close:
