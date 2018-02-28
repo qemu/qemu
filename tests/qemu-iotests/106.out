@@ -47,4 +47,14 @@ qemu-img: Preallocation can only be used for growing images
 
 --- growth_mode=off ---
 Image resized.
+
+=== Testing image growth on 2G empty image ===
+
+--- growth_mode=falloc ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
+Image resized.
+
+--- growth_mode=full ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
+Image resized.
 *** done
