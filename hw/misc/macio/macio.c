@@ -31,6 +31,7 @@
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/char/escc.h"
 #include "hw/misc/macio/macio.h"
+#include "hw/intc/heathrow_pic.h"
 
 /*
  * The mac-io has two interfaces to the ESCC. One is called "escc-legacy",
@@ -167,10 +168,10 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
                                 sysbus_mmio_get_region(sysbus_dev, 0));
     pmac_format_nvram_partition(&os->nvram, os->nvram.size);
 
-    if (s->pic_mem) {
-        /* Heathrow PIC */
-        memory_region_add_subregion(&s->bar, 0x00000, s->pic_mem);
-    }
+    /* Heathrow PIC */
+    sysbus_dev = SYS_BUS_DEVICE(os->pic);
+    memory_region_add_subregion(&s->bar, 0x0,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
 
     /* IDE buses */
     for (i = 0; i < ARRAY_SIZE(os->ide); i++) {
@@ -207,6 +208,11 @@ static void macio_oldworld_init(Object *obj)
     int i;
 
     qdev_init_gpio_out(DEVICE(obj), os->irqs, ARRAY_SIZE(os->irqs));
+
+    object_property_add_link(obj, "pic", TYPE_HEATHROW,
+                             (Object **) &os->pic,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, NULL);
 
     object_initialize(&os->nvram, sizeof(os->nvram), TYPE_MACIO_NVRAM);
     dev = DEVICE(&os->nvram);

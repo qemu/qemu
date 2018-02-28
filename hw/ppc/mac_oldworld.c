@@ -93,7 +93,7 @@ static void ppc_heathrow_init(MachineState *machine)
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
-    PCIDevice *macio;
+    OldWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
     DeviceState *dev, *pic_dev;
     SysBusDevice *sbd;
@@ -271,7 +271,7 @@ static void ppc_heathrow_init(MachineState *machine)
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
     /* MacIO */
-    macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
+    macio = OLDWORLD_MACIO(pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO));
     dev = DEVICE(macio);
     qdev_connect_gpio_out(dev, 0, pic[0x12]); /* CUDA */
     qdev_connect_gpio_out(dev, 1, pic[0x10]); /* ESCC-B */
@@ -281,8 +281,10 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 5, pic[0x0E]); /* IDE-1 */
     qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE-1 DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
+    object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
+                             &error_abort);
     sbd = SYS_BUS_DEVICE(pic_dev);
-    macio_init(macio, sysbus_mmio_get_region(sbd, 0));
+    macio_init(PCI_DEVICE(macio), sysbus_mmio_get_region(sbd, 0));
 
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
                                                         "ide[0]"));

@@ -26,6 +26,7 @@
 #ifndef MACIO_H
 #define MACIO_H
 
+#include "hw/intc/heathrow_pic.h"
 #include "hw/misc/macio/cuda.h"
 #include "hw/ppc/mac_dbdma.h"
 
@@ -54,6 +55,7 @@ typedef struct OldWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
+    HeathrowState *pic;
     qemu_irq irqs[7];
 
     MacIONVRAMState nvram;
