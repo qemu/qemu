@@ -2707,6 +2707,11 @@ enabled via the ``-machine usb=on'' argument.
 
 The ``-nodefconfig`` argument is a synonym for ``-no-user-config``.
 
+@subsection -balloon (since 2.12.0)
+
+The @option{--balloon virtio} argument has been superseded by
+@option{--device virtio-balloon}.
+
 @subsection -machine s390-squash-mcss=on|off (since 2.12.0)
 
 The ``s390-squash-mcss=on`` property has been obsoleted by allowing the
