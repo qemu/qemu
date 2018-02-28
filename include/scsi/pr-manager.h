@@ -33,8 +33,10 @@ typedef struct PRManagerClass {
 
     /* <public> */
     int (*run)(PRManager *pr_mgr, int fd, struct sg_io_hdr *hdr);
+    bool (*is_connected)(PRManager *pr_mgr);
 } PRManagerClass;
 
+bool pr_manager_is_connected(PRManager *pr_mgr);
 BlockAIOCB *pr_manager_execute(PRManager *pr_mgr,
                                AioContext *ctx, int fd,
                                struct sg_io_hdr *hdr,

@@ -78,6 +78,34 @@
   'data': { 'device': 'str', 'name': 'str' } }
 
 ##
+# @PRManagerInfo:
+#
+# Information about a persistent reservation manager
+#
+# @id: the identifier of the persistent reservation manager
+#
+# @connected: true if the persistent reservation manager is connected to
+#             the underlying storage or helper
+#
+# Since: 3.0
+##
+{ 'struct': 'PRManagerInfo',
+  'data': {'id': 'str', 'connected': 'bool'} }
+
+##
+# @query-pr-managers:
+#
+# Returns a list of information about each persistent reservation manager.
+#
+# Returns: a list of @PRManagerInfo for each persistent reservation manager
+#
+# Since: 3.0
+##
+{ 'command': 'query-pr-managers', 'returns': ['PRManagerInfo'],
+  'allow-preconfig': true }
+
+
+##
 # @blockdev-snapshot-internal-sync:
 #
 # Synchronously take an internal snapshot of a block device, when the

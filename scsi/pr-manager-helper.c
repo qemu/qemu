@@ -235,6 +235,18 @@ out:
     return ret;
 }
 
+static bool pr_manager_helper_is_connected(PRManager *p)
+{
+    PRManagerHelper *pr_mgr = PR_MANAGER_HELPER(p);
+    bool result;
+
+    qemu_mutex_lock(&pr_mgr->lock);
+    result = (pr_mgr->ioc != NULL);
+    qemu_mutex_unlock(&pr_mgr->lock);
+
+    return result;
+}
+
 static void pr_manager_helper_complete(UserCreatable *uc, Error **errp)
 {
     PRManagerHelper *pr_mgr = PR_MANAGER_HELPER(uc);
@@ -284,6 +296,7 @@ static void pr_manager_helper_class_init(ObjectClass *klass,
                                   &error_abort);
     uc_klass->complete = pr_manager_helper_complete;
     prmgr_klass->run = pr_manager_helper_run;
+    prmgr_klass->is_connected = pr_manager_helper_is_connected;
 }
 
 static const TypeInfo pr_manager_helper_info = {

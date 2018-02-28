@@ -22,3 +22,9 @@ PRManager *pr_manager_lookup(const char *id, Error **errp)
     error_setg(errp, "No persistent reservation manager with id '%s'", id);
         return NULL;
 }
+
+
+PRManagerInfoList *qmp_query_pr_managers(Error **errp)
+{
+    return NULL;
+}
