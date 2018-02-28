@@ -154,7 +154,7 @@ static void ppc_core99_init(MachineState *machine)
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
-    PCIDevice *macio;
+    NewWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
     BusState *adb_bus;
     MacIONVRAMState *nvr;
@@ -166,7 +166,7 @@ static void ppc_core99_init(MachineState *machine)
     void *fw_cfg;
     int machine_arch;
     SysBusDevice *s;
-    DeviceState *dev;
+    DeviceState *dev, *pic_dev;
     int *token = g_new(int, 1);
     hwaddr nvram_addr = 0xFFF04000;
     uint64_t tbfreq;
@@ -333,10 +333,10 @@ static void ppc_core99_init(MachineState *machine)
 
     pic = g_new0(qemu_irq, 64);
 
-    dev = qdev_create(NULL, TYPE_OPENPIC);
-    qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_KEYLARGO);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
+    pic_dev = qdev_create(NULL, TYPE_OPENPIC);
+    qdev_prop_set_uint32(pic_dev, "model", OPENPIC_MODEL_KEYLARGO);
+    qdev_init_nofail(pic_dev);
+    s = SYS_BUS_DEVICE(pic_dev);
     pic_mem = s->mmio[0].memory;
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
@@ -346,7 +346,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     for (i = 0; i < 64; i++) {
-        pic[i] = qdev_get_gpio_in(dev, i);
+        pic[i] = qdev_get_gpio_in(pic_dev, i);
     }
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
@@ -369,7 +369,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* MacIO */
-    macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
+    macio = NEWWORLD_MACIO(pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO));
     dev = DEVICE(macio);
     qdev_connect_gpio_out(dev, 0, pic[0x19]); /* CUDA */
     qdev_connect_gpio_out(dev, 1, pic[0x24]); /* ESCC-B */
@@ -379,7 +379,9 @@ static void ppc_core99_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 5, pic[0x0e]); /* IDE */
     qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
-    macio_init(macio, pic_mem);
+    object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
+                             &error_abort);
+    macio_init(PCI_DEVICE(macio), pic_mem);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));

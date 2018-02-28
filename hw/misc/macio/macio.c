@@ -279,10 +279,10 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     sysbus_connect_irq(sysbus_dev, 0, ns->irqs[cur_irq++]);
     sysbus_connect_irq(sysbus_dev, 1, ns->irqs[cur_irq++]);
 
-    if (s->pic_mem) {
-        /* OpenPIC */
-        memory_region_add_subregion(&s->bar, 0x40000, s->pic_mem);
-    }
+    /* OpenPIC */
+    sysbus_dev = SYS_BUS_DEVICE(ns->pic);
+    memory_region_add_subregion(&s->bar, 0x40000,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
 
     /* IDE buses */
     for (i = 0; i < ARRAY_SIZE(ns->ide); i++) {
@@ -310,6 +310,11 @@ static void macio_newworld_init(Object *obj)
     int i;
 
     qdev_init_gpio_out(DEVICE(obj), ns->irqs, ARRAY_SIZE(ns->irqs));
+
+    object_property_add_link(obj, "pic", TYPE_OPENPIC,
+                             (Object **) &ns->pic,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, NULL);
 
     for (i = 0; i < 2; i++) {
         macio_init_ide(s, &ns->ide[i], sizeof(ns->ide[i]), i);
@@ -441,7 +446,6 @@ void macio_init(PCIDevice *d,
 {
     MacIOState *macio_state = MACIO(d);
 
-    macio_state->pic_mem = pic_mem;
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
     qdev_prop_set_uint64(DEVICE(&macio_state->cuda), "timebase-frequency",

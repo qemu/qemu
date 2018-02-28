@@ -29,6 +29,7 @@
 #include "hw/intc/heathrow_pic.h"
 #include "hw/misc/macio/cuda.h"
 #include "hw/ppc/mac_dbdma.h"
+#include "hw/ppc/openpic.h"
 
 #define TYPE_MACIO "macio"
 #define MACIO(obj) OBJECT_CHECK(MacIOState, (obj), TYPE_MACIO)
@@ -42,7 +43,6 @@ typedef struct MacIOState {
     CUDAState cuda;
     DBDMAState dbdma;
     ESCCState escc;
-    MemoryRegion *pic_mem;
     uint64_t frequency;
 } MacIOState;
 
@@ -70,6 +70,8 @@ typedef struct NewWorldMacIOState {
     /*< private >*/
     MacIOState parent_obj;
     /*< public >*/
+
+    OpenPICState *pic;
     qemu_irq irqs[7];
     MACIOIDEState ide[2];
 } NewWorldMacIOState;
