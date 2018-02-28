@@ -75,82 +75,6 @@ struct AcpiTableHeader {
 } QEMU_PACKED;
 typedef struct AcpiTableHeader AcpiTableHeader;
 
-/*
- * ACPI Fixed ACPI Description Table (FADT)
- */
-#define ACPI_FADT_COMMON_DEF /* FADT common definition */ \
-    ACPI_TABLE_HEADER_DEF    /* ACPI common table header */ \
-    uint32_t firmware_ctrl;  /* Physical address of FACS */ \
-    uint32_t dsdt;         /* Physical address of DSDT */ \
-    uint8_t  model;        /* System Interrupt Model */ \
-    uint8_t  reserved1;    /* Reserved */ \
-    uint16_t sci_int;      /* System vector of SCI interrupt */ \
-    uint32_t smi_cmd;      /* Port address of SMI command port */ \
-    uint8_t  acpi_enable;  /* Value to write to smi_cmd to enable ACPI */ \
-    uint8_t  acpi_disable; /* Value to write to smi_cmd to disable ACPI */ \
-    /* Value to write to SMI CMD to enter S4BIOS state */ \
-    uint8_t  S4bios_req; \
-    uint8_t  reserved2;    /* Reserved - must be zero */ \
-    /* Port address of Power Mgt 1a acpi_event Reg Blk */ \
-    uint32_t pm1a_evt_blk; \
-    /* Port address of Power Mgt 1b acpi_event Reg Blk */ \
-    uint32_t pm1b_evt_blk; \
-    uint32_t pm1a_cnt_blk; /* Port address of Power Mgt 1a Control Reg Blk */ \
-    uint32_t pm1b_cnt_blk; /* Port address of Power Mgt 1b Control Reg Blk */ \
-    uint32_t pm2_cnt_blk;  /* Port address of Power Mgt 2 Control Reg Blk */ \
-    uint32_t pm_tmr_blk;   /* Port address of Power Mgt Timer Ctrl Reg Blk */ \
-    /* Port addr of General Purpose acpi_event 0 Reg Blk */ \
-    uint32_t gpe0_blk; \
-    /* Port addr of General Purpose acpi_event 1 Reg Blk */ \
-    uint32_t gpe1_blk; \
-    uint8_t  pm1_evt_len;  /* Byte length of ports at pm1_x_evt_blk */ \
-    uint8_t  pm1_cnt_len;  /* Byte length of ports at pm1_x_cnt_blk */ \
-    uint8_t  pm2_cnt_len;  /* Byte Length of ports at pm2_cnt_blk */ \
-    uint8_t  pm_tmr_len;   /* Byte Length of ports at pm_tm_blk */ \
-    uint8_t  gpe0_blk_len; /* Byte Length of ports at gpe0_blk */ \
-    uint8_t  gpe1_blk_len; /* Byte Length of ports at gpe1_blk */ \
-    uint8_t  gpe1_base;    /* Offset in gpe model where gpe1 events start */ \
-    uint8_t  reserved3;    /* Reserved */ \
-    uint16_t plvl2_lat;    /* Worst case HW latency to enter/exit C2 state */ \
-    uint16_t plvl3_lat;    /* Worst case HW latency to enter/exit C3 state */ \
-    uint16_t flush_size;   /* Size of area read to flush caches */ \
-    uint16_t flush_stride; /* Stride used in flushing caches */ \
-    uint8_t  duty_offset;  /* Bit location of duty cycle field in p_cnt reg */ \
-    uint8_t  duty_width;   /* Bit width of duty cycle field in p_cnt reg */ \
-    uint8_t  day_alrm;     /* Index to day-of-month alarm in RTC CMOS RAM */ \
-    uint8_t  mon_alrm;     /* Index to month-of-year alarm in RTC CMOS RAM */ \
-    uint8_t  century;      /* Index to century in RTC CMOS RAM */ \
-    /* IA-PC Boot Architecture Flags (see below for individual flags) */ \
-    uint16_t boot_flags; \
-    uint8_t reserved;    /* Reserved, must be zero */ \
-    /* Miscellaneous flag bits (see below for individual flags) */ \
-    uint32_t flags; \
-    /* 64-bit address of the Reset register */ \
-    struct AcpiGenericAddress reset_register; \
-    /* Value to write to the reset_register port to reset the system */ \
-    uint8_t reset_value; \
-    /* ARM-Specific Boot Flags (see below for individual flags) (ACPI 5.1) */ \
-    uint16_t arm_boot_flags; \
-    uint8_t minor_revision;  /* FADT Minor Revision (ACPI 5.1) */ \
-    uint64_t x_facs;          /* 64-bit physical address of FACS */ \
-    uint64_t x_dsdt;          /* 64-bit physical address of DSDT */ \
-    /* 64-bit Extended Power Mgt 1a Event Reg Blk address */ \
-    struct AcpiGenericAddress xpm1a_event_block; \
-    /* 64-bit Extended Power Mgt 1b Event Reg Blk address */ \
-    struct AcpiGenericAddress xpm1b_event_block; \
-    /* 64-bit Extended Power Mgt 1a Control Reg Blk address */ \
-    struct AcpiGenericAddress xpm1a_control_block; \
-    /* 64-bit Extended Power Mgt 1b Control Reg Blk address */ \
-    struct AcpiGenericAddress xpm1b_control_block; \
-    /* 64-bit Extended Power Mgt 2 Control Reg Blk address */ \
-    struct AcpiGenericAddress xpm2_control_block; \
-    /* 64-bit Extended Power Mgt Timer Ctrl Reg Blk address */ \
-    struct AcpiGenericAddress xpm_timer_block; \
-    /* 64-bit Extended General Purpose Event 0 Reg Blk address */ \
-    struct AcpiGenericAddress xgpe0_block; \
-    /* 64-bit Extended General Purpose Event 1 Reg Blk address */ \
-    struct AcpiGenericAddress xgpe1_block; \
-
 struct AcpiGenericAddress {
     uint8_t space_id;        /* Address space where struct or register exists */
     uint8_t bit_width;       /* Size in bits of given register */
@@ -159,11 +83,6 @@ struct AcpiGenericAddress {
                                 ACPI 2.0: Reserved, Table 5-1 */
     uint64_t address;        /* 64-bit address of struct or register */
 } QEMU_PACKED;
-
-struct AcpiFadtDescriptorRev3 {
-    ACPI_FADT_COMMON_DEF
-} QEMU_PACKED;
-typedef struct AcpiFadtDescriptorRev3 AcpiFadtDescriptorRev3;
 
 typedef struct AcpiFadtData {
     struct AcpiGenericAddress pm1a_cnt;   /* PM1a_CNT_BLK */
