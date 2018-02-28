@@ -30,48 +30,7 @@
 #include "hw/pci/pci.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/char/escc.h"
-
-#define TYPE_MACIO "macio"
-#define MACIO(obj) OBJECT_CHECK(MacIOState, (obj), TYPE_MACIO)
-
-typedef struct MacIOState
-{
-    /*< private >*/
-    PCIDevice parent;
-    /*< public >*/
-
-    MemoryRegion bar;
-    CUDAState cuda;
-    DBDMAState dbdma;
-    ESCCState escc;
-    MemoryRegion *pic_mem;
-    uint64_t frequency;
-} MacIOState;
-
-#define OLDWORLD_MACIO(obj) \
-    OBJECT_CHECK(OldWorldMacIOState, (obj), TYPE_OLDWORLD_MACIO)
-
-typedef struct OldWorldMacIOState {
-    /*< private >*/
-    MacIOState parent_obj;
-    /*< public >*/
-
-    qemu_irq irqs[7];
-
-    MacIONVRAMState nvram;
-    MACIOIDEState ide[2];
-} OldWorldMacIOState;
-
-#define NEWWORLD_MACIO(obj) \
-    OBJECT_CHECK(NewWorldMacIOState, (obj), TYPE_NEWWORLD_MACIO)
-
-typedef struct NewWorldMacIOState {
-    /*< private >*/
-    MacIOState parent_obj;
-    /*< public >*/
-    qemu_irq irqs[7];
-    MACIOIDEState ide[2];
-} NewWorldMacIOState;
+#include "hw/misc/macio/macio.h"
 
 /*
  * The mac-io has two interfaces to the ESCC. One is called "escc-legacy",

@@ -37,6 +37,7 @@
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
+#include "hw/misc/macio/macio.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "elf.h"

@@ -47,9 +47,6 @@
 
 
 /* MacIO */
-#define TYPE_OLDWORLD_MACIO "macio-oldworld"
-#define TYPE_NEWWORLD_MACIO "macio-newworld"
-
 #define TYPE_MACIO_IDE "macio-ide"
 #define MACIO_IDE(obj) OBJECT_CHECK(MACIOIDEState, (obj), TYPE_MACIO_IDE)
 
