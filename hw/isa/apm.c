@@ -34,7 +34,6 @@
 #endif
 
 /* fixed I/O location */
-#define APM_CNT_IOPORT  0xb2
 #define APM_STS_IOPORT  0xb3
 
 static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
