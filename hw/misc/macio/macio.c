@@ -101,6 +101,8 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     memory_region_add_subregion(&s->bar, 0x08000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
 
+    qdev_prop_set_uint64(DEVICE(&s->cuda), "timebase-frequency",
+                         s->frequency);
     object_property_set_bool(OBJECT(&s->cuda), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -444,12 +446,7 @@ type_init(macio_register_types)
 void macio_init(PCIDevice *d,
                 MemoryRegion *pic_mem)
 {
-    MacIOState *macio_state = MACIO(d);
-
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
-    qdev_prop_set_uint64(DEVICE(&macio_state->cuda), "timebase-frequency",
-                         macio_state->frequency);
-
     qdev_init_nofail(DEVICE(d));
 }
