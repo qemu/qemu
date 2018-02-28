@@ -175,6 +175,34 @@ struct AcpiFadtDescriptorRev5_1 {
 
 typedef struct AcpiFadtDescriptorRev5_1 AcpiFadtDescriptorRev5_1;
 
+typedef struct AcpiFadtData {
+    struct AcpiGenericAddress pm1a_cnt;   /* PM1a_CNT_BLK */
+    struct AcpiGenericAddress pm1a_evt;   /* PM1a_EVT_BLK */
+    struct AcpiGenericAddress pm_tmr;    /* PM_TMR_BLK */
+    struct AcpiGenericAddress gpe0_blk;  /* GPE0_BLK */
+    struct AcpiGenericAddress reset_reg; /* RESET_REG */
+    uint8_t reset_val;         /* RESET_VALUE */
+    uint8_t  rev;              /* Revision */
+    uint32_t flags;            /* Flags */
+    uint32_t smi_cmd;          /* SMI_CMD */
+    uint16_t sci_int;          /* SCI_INT */
+    uint8_t  int_model;        /* INT_MODEL */
+    uint8_t  acpi_enable_cmd;  /* ACPI_ENABLE */
+    uint8_t  acpi_disable_cmd; /* ACPI_DISABLE */
+    uint8_t  rtc_century;      /* CENTURY */
+    uint16_t plvl2_lat;        /* P_LVL2_LAT */
+    uint16_t plvl3_lat;        /* P_LVL3_LAT */
+
+    /*
+     * respective tables offsets within ACPI_BUILD_TABLE_FILE,
+     * NULL if table doesn't exist (in that case field's value
+     * won't be patched by linker and will be kept set to 0)
+     */
+    unsigned *facs_tbl_offset; /* FACS offset in */
+    unsigned *dsdt_tbl_offset;
+    unsigned *xdsdt_tbl_offset;
+} AcpiFadtData;
+
 #define ACPI_FADT_ARM_PSCI_COMPLIANT  (1 << 0)
 #define ACPI_FADT_ARM_PSCI_USE_HVC    (1 << 1)
 
