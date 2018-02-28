@@ -1694,6 +1694,7 @@ static int raw_regular_truncate(int fd, int64_t offset, PreallocMode prealloc,
     case PREALLOC_MODE_FULL:
     {
         int64_t num = 0, left = offset - current_length;
+        off_t seek_result;
 
         /*
          * Knowing the final size from the beginning could allow the file
@@ -1708,8 +1709,8 @@ static int raw_regular_truncate(int fd, int64_t offset, PreallocMode prealloc,
 
         buf = g_malloc0(65536);
 
-        result = lseek(fd, current_length, SEEK_SET);
-        if (result < 0) {
+        seek_result = lseek(fd, current_length, SEEK_SET);
+        if (seek_result < 0) {
             result = -errno;
             error_setg_errno(errp, -result,
                              "Failed to seek to the old end of file");
