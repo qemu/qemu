@@ -11103,6 +11103,7 @@ uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
             | (env->vfp.vec_stride << 20);
     i = get_float_exception_flags(&env->vfp.fp_status);
     i |= get_float_exception_flags(&env->vfp.standard_fp_status);
+    i |= get_float_exception_flags(&env->vfp.fp_status_f16);
     fpscr |= vfp_exceptbits_from_host(i);
     return fpscr;
 }
@@ -11160,16 +11161,31 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
             break;
         }
         set_float_rounding_mode(i, &env->vfp.fp_status);
+        set_float_rounding_mode(i, &env->vfp.fp_status_f16);
     }
-    if (changed & (1 << 24)) {
-        set_flush_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
-        set_flush_inputs_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
+    if (changed & FPCR_FZ16) {
+        bool ftz_enabled = val & FPCR_FZ16;
+        set_flush_to_zero(ftz_enabled, &env->vfp.fp_status_f16);
+        set_flush_inputs_to_zero(ftz_enabled, &env->vfp.fp_status_f16);
     }
-    if (changed & (1 << 25))
-        set_default_nan_mode((val & (1 << 25)) != 0, &env->vfp.fp_status);
+    if (changed & FPCR_FZ) {
+        bool ftz_enabled = val & FPCR_FZ;
+        set_flush_to_zero(ftz_enabled, &env->vfp.fp_status);
+        set_flush_inputs_to_zero(ftz_enabled, &env->vfp.fp_status);
+    }
+    if (changed & FPCR_DN) {
+        bool dnan_enabled = val & FPCR_DN;
+        set_default_nan_mode(dnan_enabled, &env->vfp.fp_status);
+        set_default_nan_mode(dnan_enabled, &env->vfp.fp_status_f16);
+    }
 
+    /* The exception flags are ORed together when we read fpscr so we
+     * only need to preserve the current state in one of our
+     * float_status values.
+     */
     i = vfp_exceptbits_to_host(val);
     set_float_exception_flags(i, &env->vfp.fp_status);
+    set_float_exception_flags(0, &env->vfp.fp_status_f16);
     set_float_exception_flags(0, &env->vfp.standard_fp_status);
 }
 

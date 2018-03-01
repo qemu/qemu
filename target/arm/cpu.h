@@ -538,19 +538,29 @@ typedef struct CPUARMState {
         /* scratch space when Tn are not sufficient.  */
         uint32_t scratch[8];
 
-        /* fp_status is the "normal" fp status. standard_fp_status retains
-         * values corresponding to the ARM "Standard FPSCR Value", ie
-         * default-NaN, flush-to-zero, round-to-nearest and is used by
-         * any operations (generally Neon) which the architecture defines
-         * as controlled by the standard FPSCR value rather than the FPSCR.
+        /* There are a number of distinct float control structures:
+         *
+         *  fp_status: is the "normal" fp status.
+         *  fp_status_fp16: used for half-precision calculations
+         *  standard_fp_status : the ARM "Standard FPSCR Value"
+         *
+         * Half-precision operations are governed by a separate
+         * flush-to-zero control bit in FPSCR:FZ16. We pass a separate
+         * status structure to control this.
+         *
+         * The "Standard FPSCR", ie default-NaN, flush-to-zero,
+         * round-to-nearest and is used by any operations (generally
+         * Neon) which the architecture defines as controlled by the
+         * standard FPSCR value rather than the FPSCR.
          *
          * To avoid having to transfer exception bits around, we simply
          * say that the FPSCR cumulative exception flags are the logical
-         * OR of the flags in the two fp statuses. This relies on the
+         * OR of the flags in the three fp statuses. This relies on the
          * only thing which needs to read the exception flags being
          * an explicit FPSCR read.
          */
         float_status fp_status;
+        float_status fp_status_f16;
         float_status standard_fp_status;
 
         /* ZCR_EL[1-3] */
@@ -1190,12 +1200,20 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 uint32_t vfp_get_fpscr(CPUARMState *env);
 void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 
-/* For A64 the FPSCR is split into two logically distinct registers,
+/* FPCR, Floating Point Control Register
+ * FPSR, Floating Poiht Status Register
+ *
+ * For A64 the FPSCR is split into two logically distinct registers,
  * FPCR and FPSR. However since they still use non-overlapping bits
  * we store the underlying state in fpscr and just mask on read/write.
  */
 #define FPSR_MASK 0xf800009f
 #define FPCR_MASK 0x07f79f00
+
+#define FPCR_FZ16   (1 << 19)   /* ARMv8.2+, FP16 flush-to-zero */
+#define FPCR_FZ     (1 << 24)   /* Flush-to-zero enable bit */
+#define FPCR_DN     (1 << 25)   /* Default NaN enable bit */
+
 static inline uint32_t vfp_get_fpsr(CPUARMState *env)
 {
     return vfp_get_fpscr(env) & FPSR_MASK;

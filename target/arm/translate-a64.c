@@ -637,16 +637,21 @@ static void write_fp_sreg(DisasContext *s, int reg, TCGv_i32 v)
     tcg_temp_free_i64(tmp);
 }
 
-static TCGv_ptr get_fpstatus_ptr(void)
+static TCGv_ptr get_fpstatus_ptr(bool is_f16)
 {
     TCGv_ptr statusptr = tcg_temp_new_ptr();
     int offset;
 
-    /* In A64 all instructions (both FP and Neon) use the FPCR;
-     * there is no equivalent of the A32 Neon "standard FPSCR value"
-     * and all operations use vfp.fp_status.
+    /* In A64 all instructions (both FP and Neon) use the FPCR; there
+     * is no equivalent of the A32 Neon "standard FPSCR value".
+     * However half-precision operations operate under a different
+     * FZ16 flag and use vfp.fp_status_f16 instead of vfp.fp_status.
      */
-    offset = offsetof(CPUARMState, vfp.fp_status);
+    if (is_f16) {
+        offset = offsetof(CPUARMState, vfp.fp_status_f16);
+    } else {
+        offset = offsetof(CPUARMState, vfp.fp_status);
+    }
     tcg_gen_addi_ptr(statusptr, cpu_env, offset);
     return statusptr;
 }
@@ -4423,7 +4428,7 @@ static void handle_fp_compare(DisasContext *s, bool is_double,
                               bool cmp_with_zero, bool signal_all_nans)
 {
     TCGv_i64 tcg_flags = tcg_temp_new_i64();
-    TCGv_ptr fpst = get_fpstatus_ptr();
+    TCGv_ptr fpst = get_fpstatus_ptr(false);
 
     if (is_double) {
         TCGv_i64 tcg_vn, tcg_vm;
@@ -4598,7 +4603,7 @@ static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
     TCGv_i32 tcg_op;
     TCGv_i32 tcg_res;
 
-    fpst = get_fpstatus_ptr();
+    fpst = get_fpstatus_ptr(false);
     tcg_op = read_fp_sreg(s, rn);
     tcg_res = tcg_temp_new_i32();
 
@@ -4660,7 +4665,7 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
         return;
     }
 
-    fpst = get_fpstatus_ptr();
+    fpst = get_fpstatus_ptr(false);
     tcg_op = read_fp_dreg(s, rn);
     tcg_res = tcg_temp_new_i64();
 
@@ -4840,7 +4845,7 @@ static void handle_fp_2src_single(DisasContext *s, int opcode,
     TCGv_ptr fpst;
 
     tcg_res = tcg_temp_new_i32();
-    fpst = get_fpstatus_ptr();
+    fpst = get_fpstatus_ptr(false);
     tcg_op1 = read_fp_sreg(s, rn);
     tcg_op2 = read_fp_sreg(s, rm);
 
@@ -4893,7 +4898,7 @@ static void handle_fp_2src_double(DisasContext *s, int opcode,
     TCGv_ptr fpst;
 
     tcg_res = tcg_temp_new_i64();
-    fpst = get_fpstatus_ptr();
+    fpst = get_fpstatus_ptr(false);
     tcg_op1 = read_fp_dreg(s, rn);
     tcg_op2 = read_fp_dreg(s, rm);
 
@@ -4979,7 +4984,7 @@ static void handle_fp_3src_single(DisasContext *s, bool o0, bool o1,
 {
     TCGv_i32 tcg_op1, tcg_op2, tcg_op3;
     TCGv_i32 tcg_res = tcg_temp_new_i32();
-    TCGv_ptr fpst = get_fpstatus_ptr();
+    TCGv_ptr fpst = get_fpstatus_ptr(false);
 
     tcg_op1 = read_fp_sreg(s, rn);
     tcg_op2 = read_fp_sreg(s, rm);
@@ -5017,7 +5022,7 @@ static void handle_fp_3src_double(DisasContext *s, bool o0, bool o1,
 {
     TCGv_i64 tcg_op1, tcg_op2, tcg_op3;
     TCGv_i64 tcg_res = tcg_temp_new_i64();
-    TCGv_ptr fpst = get_fpstatus_ptr();
+    TCGv_ptr fpst = get_fpstatus_ptr(false);
 
     tcg_op1 = read_fp_dreg(s, rn);
     tcg_op2 = read_fp_dreg(s, rm);
@@ -5158,7 +5163,7 @@ static void handle_fpfpcvt(DisasContext *s, int rd, int rn, int opcode,
     TCGv_ptr tcg_fpstatus;
     TCGv_i32 tcg_shift;
 
-    tcg_fpstatus = get_fpstatus_ptr();
+    tcg_fpstatus = get_fpstatus_ptr(false);
 
     tcg_shift = tcg_const_i32(64 - scale);
 
@@ -5870,7 +5875,7 @@ static void disas_simd_across_lanes(DisasContext *s, uint32_t insn)
         TCGv_i32 tcg_elt1 = tcg_temp_new_i32();
         TCGv_i32 tcg_elt2 = tcg_temp_new_i32();
         TCGv_i32 tcg_elt3 = tcg_temp_new_i32();
-        TCGv_ptr fpst = get_fpstatus_ptr();
+        TCGv_ptr fpst = get_fpstatus_ptr(false);
 
         assert(esize == 32);
         assert(elements == 4);
@@ -6372,7 +6377,7 @@ static void disas_simd_scalar_pairwise(DisasContext *s, uint32_t insn)
         }
 
         size = extract32(size, 0, 1) ? 3 : 2;
-        fpst = get_fpstatus_ptr();
+        fpst = get_fpstatus_ptr(false);
         break;
     default:
         unallocated_encoding(s);
@@ -6864,7 +6869,7 @@ static void handle_simd_intfp_conv(DisasContext *s, int rd, int rn,
                                    int fracbits, int size)
 {
     bool is_double = size == 3 ? true : false;
-    TCGv_ptr tcg_fpst = get_fpstatus_ptr();
+    TCGv_ptr tcg_fpst = get_fpstatus_ptr(false);
     TCGv_i32 tcg_shift = tcg_const_i32(fracbits);
     TCGv_i64 tcg_int = tcg_temp_new_i64();
     TCGMemOp mop = size | (is_signed ? MO_SIGN : 0);
@@ -6980,7 +6985,7 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
 
     tcg_rmode = tcg_const_i32(arm_rmode_to_sf(FPROUNDING_ZERO));
     gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
-    tcg_fpstatus = get_fpstatus_ptr();
+    tcg_fpstatus = get_fpstatus_ptr(false);
     tcg_shift = tcg_const_i32(fracbits);
 
     if (is_double) {
@@ -7326,7 +7331,7 @@ static void handle_3same_float(DisasContext *s, int size, int elements,
                                int fpopcode, int rd, int rn, int rm)
 {
     int pass;
-    TCGv_ptr fpst = get_fpstatus_ptr();
+    TCGv_ptr fpst = get_fpstatus_ptr(false);
 
     for (pass = 0; pass < elements; pass++) {
         if (size) {
@@ -7790,7 +7795,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
         return;
     }
 
-    fpst = get_fpstatus_ptr();
+    fpst = get_fpstatus_ptr(false);
 
     if (is_double) {
         TCGv_i64 tcg_op = tcg_temp_new_i64();
@@ -7897,7 +7902,7 @@ static void handle_2misc_reciprocal(DisasContext *s, int opcode,
                                     int size, int rn, int rd)
 {
     bool is_double = (size == 3);
-    TCGv_ptr fpst = get_fpstatus_ptr();
+    TCGv_ptr fpst = get_fpstatus_ptr(false);
 
     if (is_double) {
         TCGv_i64 tcg_op = tcg_temp_new_i64();
@@ -8296,7 +8301,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     if (is_fcvt) {
         tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
         gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
-        tcg_fpstatus = get_fpstatus_ptr();
+        tcg_fpstatus = get_fpstatus_ptr(false);
     } else {
         tcg_rmode = NULL;
         tcg_fpstatus = NULL;
@@ -9516,7 +9521,7 @@ static void handle_simd_3same_pair(DisasContext *s, int is_q, int u, int opcode,
 
     /* Floating point operations need fpst */
     if (opcode >= 0x58) {
-        fpst = get_fpstatus_ptr();
+        fpst = get_fpstatus_ptr(false);
     } else {
         fpst = NULL;
     }
@@ -10676,7 +10681,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 
     if (need_fpstatus) {
-        tcg_fpstatus = get_fpstatus_ptr();
+        tcg_fpstatus = get_fpstatus_ptr(false);
     } else {
         tcg_fpstatus = NULL;
     }
@@ -11056,7 +11061,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     }
 
     if (is_fp) {
-        fpst = get_fpstatus_ptr();
+        fpst = get_fpstatus_ptr(false);
     } else {
         fpst = NULL;
     }
