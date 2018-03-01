@@ -556,7 +556,7 @@ F: hw/misc/arm_sysctl.c
 
 Xilinx Zynq
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
-M: Alistair Francis <alistair.francis@xilinx.com>
+M: Alistair Francis <alistair@alistair23.me>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/xilinx_*
@@ -566,7 +566,7 @@ F: include/hw/misc/zynq*
 X: hw/ssi/xilinx_*
 
 Xilinx ZynqMP
-M: Alistair Francis <alistair.francis@xilinx.com>
+M: Alistair Francis <alistair@alistair23.me>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-arm@nongnu.org
 S: Maintained
@@ -1075,7 +1075,7 @@ T: git git://github.com/bonzini/qemu.git scsi-next
 
 SSI
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
-M: Alistair Francis <alistair.francis@xilinx.com>
+M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
 F: hw/ssi/*
 F: hw/block/m25p80.c
@@ -1084,7 +1084,7 @@ X: hw/ssi/xilinx_*
 F: tests/m25p80-test.c
 
 Xilinx SPI
-M: Alistair Francis <alistair.francis@xilinx.com>
+M: Alistair Francis <alistair@alistair23.me>
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 S: Maintained
 F: hw/ssi/xilinx_*
@@ -1254,7 +1254,7 @@ S: Maintained
 F: hw/net/eepro100.c
 
 Generic Loader
-M: Alistair Francis <alistair.francis@xilinx.com>
+M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
 F: hw/core/generic-loader.c
 F: include/hw/core/generic-loader.h
@@ -1600,7 +1600,7 @@ F: tests/qmp-test.c
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 Register API
-M: Alistair Francis <alistair.francis@xilinx.com>
+M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
 F: hw/core/register.c
 F: include/hw/register.h
