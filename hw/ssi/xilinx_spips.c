@@ -577,7 +577,7 @@ static int xilinx_spips_num_dummies(XilinxQSPIPS *qs, uint8_t command)
         return 2;
     case QIOR:
     case QIOR_4:
-        return 5;
+        return 4;
     default:
         return -1;
     }
