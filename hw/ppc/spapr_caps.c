@@ -89,65 +89,6 @@ static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
     spapr->eff.caps[cap->index] = value ? SPAPR_CAP_ON : SPAPR_CAP_OFF;
 }
 
-static void spapr_cap_get_tristate(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
-    char *val = NULL;
-    uint8_t value = spapr_get_cap(spapr, cap->index);
-
-    switch (value) {
-    case SPAPR_CAP_BROKEN:
-        val = g_strdup("broken");
-        break;
-    case SPAPR_CAP_WORKAROUND:
-        val = g_strdup("workaround");
-        break;
-    case SPAPR_CAP_FIXED:
-        val = g_strdup("fixed");
-        break;
-    default:
-        error_setg(errp, "Invalid value (%d) for cap-%s", value, cap->name);
-        return;
-    }
-
-    visit_type_str(v, name, &val, errp);
-    g_free(val);
-}
-
-static void spapr_cap_set_tristate(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
-    char *val;
-    Error *local_err = NULL;
-    uint8_t value;
-
-    visit_type_str(v, name, &val, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    if (!strcasecmp(val, "broken")) {
-        value = SPAPR_CAP_BROKEN;
-    } else if (!strcasecmp(val, "workaround")) {
-        value = SPAPR_CAP_WORKAROUND;
-    } else if (!strcasecmp(val, "fixed")) {
-        value = SPAPR_CAP_FIXED;
-    } else {
-        error_setg(errp, "Invalid capability mode \"%s\" for cap-%s", val,
-                   cap->name);
-        goto out;
-    }
-
-    spapr->cmd_line_caps[cap->index] = true;
-    spapr->eff.caps[cap->index] = value;
-out:
-    g_free(val);
-}
 
 static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -294,16 +235,31 @@ static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
     }
 }
 
+sPAPRCapPossible cap_ibs_possible = {
+    .num = 4,
+    /* Note workaround only maintained for compatibility */
+    .vals = {"broken", "workaround", "fixed-ibs", "fixed-ccd"},
+    .help = "broken - no protection, fixed-ibs - indirect branch serialisation,"
+            " fixed-ccd - cache count disabled",
+};
+
 static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
                                            uint8_t val, Error **errp)
 {
+    uint8_t kvm_val = kvmppc_get_cap_safe_indirect_branch();
+
     if (val == SPAPR_CAP_WORKAROUND) { /* Can only be Broken or Fixed */
-        error_setg(errp, "Requested safe indirect branch capability level \"workaround\" not valid, try cap-ibs=fixed");
+        error_setg(errp,
+"Requested safe indirect branch capability level \"workaround\" not valid, try cap-ibs=%s",
+                   cap_ibs_possible.vals[kvm_val]);
     } else if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
-        error_setg(errp, "Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
-    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_indirect_branch())) {
-        error_setg(errp, "Requested safe indirect branch capability level not supported by kvm, try a different value for cap-ibs");
+        error_setg(errp,
+"Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
+    } else if (kvm_enabled() && val && (val != kvm_val)) {
+        error_setg(errp,
+"Requested safe indirect branch capability level not supported by kvm, try cap-ibs=%s",
+                   cap_ibs_possible.vals[kvm_val]);
     }
 }
 
@@ -359,11 +315,13 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     },
     [SPAPR_CAP_IBS] = {
         .name = "ibs",
-        .description = "Indirect Branch Serialisation (broken, fixed)",
+        .description =
+            "Indirect Branch Speculation (broken, fixed-ibs, fixed-ccd)",
         .index = SPAPR_CAP_IBS,
-        .get = spapr_cap_get_tristate,
-        .set = spapr_cap_set_tristate,
+        .get = spapr_cap_get_string,
+        .set = spapr_cap_set_string,
         .type = "string",
+        .possible = &cap_ibs_possible,
         .apply = cap_safe_indirect_branch_apply,
     },
 };

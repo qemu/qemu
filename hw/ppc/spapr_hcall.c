@@ -1705,7 +1705,10 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
     }
 
     switch (safe_indirect_branch) {
-    case SPAPR_CAP_FIXED:
+    case SPAPR_CAP_FIXED_CCD:
+        characteristics |= H_CPU_CHAR_CACHE_COUNT_DIS;
+        break;
+    case SPAPR_CAP_FIXED_IBS:
         characteristics |= H_CPU_CHAR_BCCTRL_SERIALISED;
         break;
     default: /* broken */
