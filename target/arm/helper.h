@@ -192,6 +192,7 @@ DEF_HELPER_4(vfp_muladds, f32, f32, f32, f32, ptr)
 
 DEF_HELPER_3(recps_f32, f32, f32, f32, env)
 DEF_HELPER_3(rsqrts_f32, f32, f32, f32, env)
+DEF_HELPER_FLAGS_2(recpe_f16, TCG_CALL_NO_RWG, f16, f16, ptr)
 DEF_HELPER_FLAGS_2(recpe_f32, TCG_CALL_NO_RWG, f32, f32, ptr)
 DEF_HELPER_FLAGS_2(recpe_f64, TCG_CALL_NO_RWG, f64, f64, ptr)
 DEF_HELPER_FLAGS_2(rsqrte_f32, TCG_CALL_NO_RWG, f32, f32, ptr)
