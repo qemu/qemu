@@ -120,7 +120,14 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     qemu_fdt_setprop_string(fdt, "/aliases", alias, ser);
 
     if (defcon) {
+        /*
+         * "linux,stdout-path" and "stdout" properties are deprecated by linux
+         * kernel. New platforms should only use the "stdout-path" property. Set
+         * the new property and continue using older property to remain
+         * compatible with the existing firmware.
+         */
         qemu_fdt_setprop_string(fdt, "/chosen", "linux,stdout-path", ser);
+        qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", ser);
     }
 }
 
