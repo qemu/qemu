@@ -2092,7 +2092,6 @@ static void parse_display(const char *p)
     const char *opts;
 
     if (strstart(p, "sdl", &opts)) {
-#ifdef CONFIG_SDL
         dpy.type = DISPLAY_TYPE_SDL;
         while (*opts) {
             const char *nextopt;
@@ -2153,10 +2152,6 @@ static void parse_display(const char *p)
             }
             opts = nextopt;
         }
-#else
-        error_report("SDL support is disabled");
-        exit(1);
-#endif
     } else if (strstart(p, "vnc", &opts)) {
         if (*opts == '=') {
             vnc_parse(opts + 1, &error_fatal);
@@ -4340,12 +4335,7 @@ int main(int argc, char **argv, char **envp)
                      "ignoring option");
     }
 
-    if (dpy.type == DISPLAY_TYPE_SDL) {
-        sdl_display_early_init(&dpy);
-    } else {
-        qemu_display_early_init(&dpy);
-    }
-
+    qemu_display_early_init(&dpy);
     qemu_console_early_init();
 
     if (dpy.has_gl && dpy.gl && display_opengl == 0) {
@@ -4676,9 +4666,6 @@ int main(int argc, char **argv, char **envp)
     switch (dpy.type) {
     case DISPLAY_TYPE_CURSES:
         curses_display_init(ds, &dpy);
-        break;
-    case DISPLAY_TYPE_SDL:
-        sdl_display_init(ds, &dpy);
         break;
     case DISPLAY_TYPE_COCOA:
         cocoa_display_init(ds, &dpy);
