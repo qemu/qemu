@@ -271,14 +271,26 @@ static void cap_safe_cache_apply(sPAPRMachineState *spapr, uint8_t val,
     }
 }
 
+sPAPRCapPossible cap_sbbc_possible = {
+    .num = 3,
+    .vals = {"broken", "workaround", "fixed"},
+    .help = "broken - no protection, workaround - workaround available,"
+            " fixed - fixed in hardware",
+};
+
 static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
                                         Error **errp)
 {
+    uint8_t kvm_val =  kvmppc_get_cap_safe_bounds_check();
+
     if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
-        error_setg(errp, "Requested safe bounds check capability level not supported by tcg, try a different value for cap-sbbc");
-    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_bounds_check())) {
-        error_setg(errp, "Requested safe bounds check capability level not supported by kvm, try a different value for cap-sbbc");
+        error_setg(errp,
+"Requested safe bounds check capability level not supported by tcg, try a different value for cap-sbbc");
+    } else if (kvm_enabled() && (val > kvm_val)) {
+        error_setg(errp,
+"Requested safe bounds check capability level not supported by kvm, try cap-sbbc=%s",
+                   cap_sbbc_possible.vals[kvm_val]);
     }
 }
 
@@ -339,9 +351,10 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .name = "sbbc",
         .description = "Speculation Barrier Bounds Checking" VALUE_DESC_TRISTATE,
         .index = SPAPR_CAP_SBBC,
-        .get = spapr_cap_get_tristate,
-        .set = spapr_cap_set_tristate,
+        .get = spapr_cap_get_string,
+        .set = spapr_cap_set_string,
         .type = "string",
+        .possible = &cap_sbbc_possible,
         .apply = cap_safe_bounds_check_apply,
     },
     [SPAPR_CAP_IBS] = {
