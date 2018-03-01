@@ -4667,9 +4667,6 @@ int main(int argc, char **argv, char **envp)
     case DISPLAY_TYPE_CURSES:
         curses_display_init(ds, &dpy);
         break;
-    case DISPLAY_TYPE_COCOA:
-        cocoa_display_init(ds, &dpy);
-        break;
     default:
         qemu_display_init(ds, &dpy);
         break;

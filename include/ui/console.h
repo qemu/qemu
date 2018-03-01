@@ -444,18 +444,6 @@ void qemu_display_register(QemuDisplay *ui);
 void qemu_display_early_init(DisplayOptions *opts);
 void qemu_display_init(DisplayState *ds, DisplayOptions *opts);
 
-/* cocoa.m */
-#ifdef CONFIG_COCOA
-void cocoa_display_init(DisplayState *ds, DisplayOptions *opts);
-#else
-static inline void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
-{
-    /* This must never be called if CONFIG_COCOA is disabled */
-    error_report("Cocoa support is disabled");
-    abort();
-}
-#endif
-
 /* vnc.c */
 void vnc_display_init(const char *id);
 void vnc_display_open(const char *id, Error **errp);

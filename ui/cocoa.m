@@ -1683,7 +1683,7 @@ static void addRemovableDevicesMenuItems(void)
     qapi_free_BlockInfoList(pointerToFree);
 }
 
-void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
+static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
 
@@ -1713,3 +1713,15 @@ void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
      */
     addRemovableDevicesMenuItems();
 }
+
+static QemuDisplay qemu_display_cocoa = {
+    .type       = DISPLAY_TYPE_COCOA,
+    .init       = cocoa_display_init,
+};
+
+static void register_cocoa(void)
+{
+    qemu_display_register(&qemu_display_cocoa);
+}
+
+type_init(register_cocoa);
