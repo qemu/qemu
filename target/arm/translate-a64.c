@@ -11262,6 +11262,7 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
     TCGv_i32 tcg_rmode = NULL;
     TCGv_ptr tcg_fpstatus = NULL;
     bool need_rmode = false;
+    bool need_fpst = true;
     int rmode;
 
     if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
@@ -11380,6 +11381,10 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         need_rmode = true;
         rmode = FPROUNDING_ZERO;
         break;
+    case 0x2f: /* FABS */
+    case 0x6f: /* FNEG */
+        need_fpst = false;
+        break;
     default:
         fprintf(stderr, "%s: insn %#04x fpop %#2x\n", __func__, insn, fpop);
         g_assert_not_reached();
@@ -11403,7 +11408,7 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         return;
     }
 
-    if (need_rmode) {
+    if (need_rmode || need_fpst) {
         tcg_fpstatus = get_fpstatus_ptr(true);
     }
 
@@ -11432,6 +11437,9 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         case 0x7a: /* FCVTPU */
         case 0x7b: /* FCVTZU */
             gen_helper_advsimd_f16touinth(tcg_res, tcg_op, tcg_fpstatus);
+            break;
+        case 0x6f: /* FNEG */
+            tcg_gen_xori_i32(tcg_res, tcg_op, 0x8000);
             break;
         default:
             g_assert_not_reached();
@@ -11475,6 +11483,12 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
                 break;
             case 0x59: /* FRINTX */
                 gen_helper_advsimd_rinth_exact(tcg_res, tcg_op, tcg_fpstatus);
+                break;
+            case 0x2f: /* FABS */
+                tcg_gen_andi_i32(tcg_res, tcg_op, 0x7fff);
+                break;
+            case 0x6f: /* FNEG */
+                tcg_gen_xori_i32(tcg_res, tcg_op, 0x8000);
                 break;
             default:
                 g_assert_not_reached();
