@@ -58,6 +58,7 @@ struct CPUTriCoreState {
     uint32_t PC;
     uint32_t SYSCON;
     uint32_t CPU_ID;
+    uint32_t CORE_ID;
     uint32_t BIV;
     uint32_t BTV;
     uint32_t ISP;
