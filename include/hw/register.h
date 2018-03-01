@@ -34,7 +34,7 @@ typedef struct RegisterInfoArray RegisterInfoArray;
  * immediately before the actual write. The returned value is what is written,
  * giving the handler a chance to modify the written value.
  * @post_write: Post write callback. Passed the written value. Most write side
- * effects should be implemented here.
+ * effects should be implemented here. This is called during device reset.
  *
  * @post_read: Post read callback. Passes the value that is about to be returned
  * for a read. The return value from this function is what is ultimately read,
@@ -135,8 +135,8 @@ uint64_t register_read(RegisterInfo *reg, uint64_t re, const char* prefix,
                        bool debug);
 
 /**
- * reset a register
- * @reg: register to reset
+ * Resets a register. This will also call the post_write hook if it exists.
+ * @reg: The register to reset.
  */
 
 void register_reset(RegisterInfo *reg);
