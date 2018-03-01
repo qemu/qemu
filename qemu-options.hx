@@ -4233,6 +4233,27 @@ which specify the queue number of cryptodev backend, the default of
    [...]
 @end example
 
+@item -object cryptodev-vhost-user,id=@var{id},chardev=@var{chardevid}[,queues=@var{queues}]
+
+Creates a vhost-user cryptodev backend, backed by a chardev @var{chardevid}.
+The @var{id} parameter is a unique ID that will be used to reference this
+cryptodev backend from the @option{virtio-crypto} device.
+The chardev should be a unix domain socket backed one. The vhost-user uses
+a specifically defined protocol to pass vhost ioctl replacement messages
+to an application on the other end of the socket.
+The @var{queues} parameter is optional, which specify the queue number
+of cryptodev backend for multiqueue vhost-user, the default of @var{queues} is 1.
+
+@example
+
+ # qemu-system-x86_64 \
+   [...] \
+       -chardev socket,id=chardev0,path=/path/to/socket \
+       -object cryptodev-vhost-user,id=cryptodev0,chardev=chardev0 \
+       -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \
+   [...]
+@end example
+
 @item -object secret,id=@var{id},data=@var{string},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
 @item -object secret,id=@var{id},file=@var{filename},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
 

@@ -2838,6 +2838,12 @@ static bool object_create_initial(const char *type)
         return false;
     }
 
+#if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
+    if (g_str_equal(type, "cryptodev-vhost-user")) {
+        return false;
+    }
+#endif
+
     /*
      * return false for concrete netfilters since
      * they depend on netdevs already existing
