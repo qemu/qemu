@@ -876,8 +876,8 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
 }
 
 #ifdef LIBNFS_FEATURE_PAGECACHE
-static void nfs_invalidate_cache(BlockDriverState *bs,
-                                 Error **errp)
+static void coroutine_fn nfs_co_invalidate_cache(BlockDriverState *bs,
+                                                 Error **errp)
 {
     NFSClient *client = bs->opaque;
     nfs_pagecache_invalidate(client->context, client->fh);
@@ -910,7 +910,7 @@ static BlockDriver bdrv_nfs = {
     .bdrv_refresh_filename          = nfs_refresh_filename,
 
 #ifdef LIBNFS_FEATURE_PAGECACHE
-    .bdrv_invalidate_cache          = nfs_invalidate_cache,
+    .bdrv_co_invalidate_cache       = nfs_co_invalidate_cache,
 #endif
 };
 
