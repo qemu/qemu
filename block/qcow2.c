@@ -541,8 +541,9 @@ int qcow2_mark_consistent(BlockDriverState *bs)
     return 0;
 }
 
-static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
-                       BdrvCheckMode fix)
+static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
+                                              BdrvCheckResult *result,
+                                              BdrvCheckMode fix)
 {
     int ret = qcow2_check_refcounts(bs, result, fix);
     if (ret < 0) {
@@ -556,6 +557,19 @@ static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
         }
         return qcow2_mark_consistent(bs);
     }
+    return ret;
+}
+
+static int coroutine_fn qcow2_co_check(BlockDriverState *bs,
+                                       BdrvCheckResult *result,
+                                       BdrvCheckMode fix)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret;
+
+    qemu_co_mutex_lock(&s->lock);
+    ret = qcow2_co_check_locked(bs, result, fix);
+    qemu_co_mutex_unlock(&s->lock);
     return ret;
 }
 
@@ -1506,7 +1520,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
-        ret = qcow2_check(bs, &result, BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
+        ret = qcow2_co_check_locked(bs, &result,
+                                    BDRV_FIX_ERRORS | BDRV_FIX_LEAKS);
         if (ret < 0 || result.check_errors) {
             if (ret >= 0) {
                 ret = -EIO;
@@ -4413,7 +4428,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_inactivate            = qcow2_inactivate,
 
     .create_opts         = &qcow2_create_opts,
-    .bdrv_check          = qcow2_check,
+    .bdrv_co_check       = qcow2_co_check,
     .bdrv_amend_options  = qcow2_amend_options,
 
     .bdrv_detach_aio_context  = qcow2_detach_aio_context,

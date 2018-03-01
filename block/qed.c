@@ -1544,12 +1544,17 @@ static void coroutine_fn bdrv_qed_co_invalidate_cache(BlockDriverState *bs,
     }
 }
 
-static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result,
-                          BdrvCheckMode fix)
+static int bdrv_qed_co_check(BlockDriverState *bs, BdrvCheckResult *result,
+                             BdrvCheckMode fix)
 {
     BDRVQEDState *s = bs->opaque;
+    int ret;
 
-    return qed_check(s, result, !!fix);
+    qemu_co_mutex_lock(&s->table_lock);
+    ret = qed_check(s, result, !!fix);
+    qemu_co_mutex_unlock(&s->table_lock);
+
+    return ret;
 }
 
 static QemuOptsList qed_create_opts = {
@@ -1609,7 +1614,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_refresh_limits      = bdrv_qed_refresh_limits,
     .bdrv_change_backing_file = bdrv_qed_change_backing_file,
     .bdrv_co_invalidate_cache = bdrv_qed_co_invalidate_cache,
-    .bdrv_check               = bdrv_qed_check,
+    .bdrv_co_check            = bdrv_qed_co_check,
     .bdrv_detach_aio_context  = bdrv_qed_detach_aio_context,
     .bdrv_attach_aio_context  = bdrv_qed_attach_aio_context,
     .bdrv_co_drain_begin      = bdrv_qed_co_drain_begin,

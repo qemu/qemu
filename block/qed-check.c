@@ -217,6 +217,7 @@ static void qed_check_mark_clean(BDRVQEDState *s, BdrvCheckResult *result)
     qed_write_header_sync(s);
 }
 
+/* Called with table_lock held.  */
 int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
 {
     QEDCheck check = {

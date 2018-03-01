@@ -263,8 +263,8 @@ static void vdi_header_print(VdiHeader *header)
 }
 #endif
 
-static int vdi_check(BlockDriverState *bs, BdrvCheckResult *res,
-                     BdrvCheckMode fix)
+static int coroutine_fn vdi_co_check(BlockDriverState *bs, BdrvCheckResult *res,
+                                     BdrvCheckMode fix)
 {
     /* TODO: additional checks possible. */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
@@ -908,7 +908,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_get_info = vdi_get_info,
 
     .create_opts = &vdi_create_opts,
-    .bdrv_check = vdi_check,
+    .bdrv_co_check = vdi_co_check,
 };
 
 static void bdrv_vdi_init(void)
