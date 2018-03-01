@@ -2761,11 +2761,11 @@ static uint64_t qcow2_opt_get_refcount_bits_del(QemuOpts *opts, int version,
 }
 
 static int coroutine_fn
-qcow2_co_create2(const char *filename, int64_t total_size,
-                 const char *backing_file, const char *backing_format,
-                 int flags, size_t cluster_size, PreallocMode prealloc,
-                 QemuOpts *opts, int version, int refcount_order,
-                 const char *encryptfmt, Error **errp)
+qcow2_co_create(const char *filename, int64_t total_size,
+                const char *backing_file, const char *backing_format,
+                int flags, size_t cluster_size, PreallocMode prealloc,
+                QemuOpts *opts, int version, int refcount_order,
+                const char *encryptfmt, Error **errp)
 {
     QDict *options;
 
@@ -3034,9 +3034,9 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
 
     refcount_order = ctz32(refcount_bits);
 
-    ret = qcow2_co_create2(filename, size, backing_file, backing_fmt, flags,
-                           cluster_size, prealloc, opts, version, refcount_order,
-                           encryptfmt, &local_err);
+    ret = qcow2_co_create(filename, size, backing_file, backing_fmt, flags,
+                          cluster_size, prealloc, opts, version, refcount_order,
+                          encryptfmt, &local_err);
     error_propagate(errp, local_err);
 
 finish:
