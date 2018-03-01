@@ -231,7 +231,25 @@ static int64_t cryptodev_vhost_user_sym_create_session(
            CryptoDevBackendSymSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
-    return 0;
+    CryptoDevBackendClient *cc =
+                   backend->conf.peers.ccs[queue_index];
+    CryptoDevBackendVhost *vhost_crypto;
+    uint64_t session_id = 0;
+    int ret;
+
+    vhost_crypto = cryptodev_vhost_user_get_vhost(cc, backend, queue_index);
+    if (vhost_crypto) {
+        struct vhost_dev *dev = &(vhost_crypto->dev);
+        ret = dev->vhost_ops->vhost_crypto_create_session(dev,
+                                                          sess_info,
+                                                          &session_id);
+        if (ret < 0) {
+            return -1;
+        } else {
+            return session_id;
+        }
+    }
+    return -1;
 }
 
 static int cryptodev_vhost_user_sym_close_session(
@@ -239,15 +257,23 @@ static int cryptodev_vhost_user_sym_close_session(
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
 {
-    return 0;
-}
+    CryptoDevBackendClient *cc =
+                  backend->conf.peers.ccs[queue_index];
+    CryptoDevBackendVhost *vhost_crypto;
+    int ret;
 
-static int cryptodev_vhost_user_sym_operation(
-                 CryptoDevBackend *backend,
-                 CryptoDevBackendSymOpInfo *op_info,
-                 uint32_t queue_index, Error **errp)
-{
-    return VIRTIO_CRYPTO_OK;
+    vhost_crypto = cryptodev_vhost_user_get_vhost(cc, backend, queue_index);
+    if (vhost_crypto) {
+        struct vhost_dev *dev = &(vhost_crypto->dev);
+        ret = dev->vhost_ops->vhost_crypto_close_session(dev,
+                                                         session_id);
+        if (ret < 0) {
+            return -1;
+        } else {
+            return 0;
+        }
+    }
+    return -1;
 }
 
 static void cryptodev_vhost_user_cleanup(
@@ -326,7 +352,7 @@ cryptodev_vhost_user_class_init(ObjectClass *oc, void *data)
     bc->cleanup = cryptodev_vhost_user_cleanup;
     bc->create_session = cryptodev_vhost_user_sym_create_session;
     bc->close_session = cryptodev_vhost_user_sym_close_session;
-    bc->do_sym_op = cryptodev_vhost_user_sym_operation;
+    bc->do_sym_op = NULL;
 }
 
 static const TypeInfo cryptodev_vhost_user_info = {

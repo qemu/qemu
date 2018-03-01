@@ -368,6 +368,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_MTU            4
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
+#define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION 7
 
 Master message types
 --------------------
@@ -662,6 +663,31 @@ Master message types
       on the destination host. The vhost-user slave must check the flags
       field, and slaves MUST NOT accept SET_CONFIG for read-only
       configuration space fields unless the live migration bit is set.
+
+* VHOST_USER_CREATE_CRYPTO_SESSION
+
+     Id: 26
+     Equivalent ioctl: N/A
+     Master payload: crypto session description
+     Slave payload: crypto session description
+
+     Create a session for crypto operation. The server side must return the
+     session id, 0 or positive for success, negative for failure.
+     This request should be sent only when VHOST_USER_PROTOCOL_F_CRYPTO_SESSION
+     feature has been successfully negotiated.
+     It's a required feature for crypto devices.
+
+* VHOST_USER_CLOSE_CRYPTO_SESSION
+
+     Id: 27
+     Equivalent ioctl: N/A
+     Master payload: u64
+
+     Close a session for crypto operation which was previously
+     created by VHOST_USER_CREATE_CRYPTO_SESSION.
+     This request should be sent only when VHOST_USER_PROTOCOL_F_CRYPTO_SESSION
+     feature has been successfully negotiated.
+     It's a required feature for crypto devices.
 
 Slave message types
 -------------------
