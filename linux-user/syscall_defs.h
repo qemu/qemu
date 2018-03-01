@@ -352,19 +352,6 @@ typedef struct {
         int     val[2];
 } kernel_fsid_t;
 
-struct kernel_statfs {
-	int f_type;
-	int f_bsize;
-	int f_blocks;
-	int f_bfree;
-	int f_bavail;
-	int f_files;
-	int f_ffree;
-        kernel_fsid_t f_fsid;
-	int f_namelen;
-	int f_spare[6];
-};
-
 struct target_dirent {
         abi_long        d_ino;
         abi_long        d_off;
@@ -2226,7 +2213,8 @@ struct target_statfs {
 	/* Linux specials */
 	target_fsid_t		f_fsid;
 	int32_t			f_namelen;
-	int32_t			f_spare[6];
+	int32_t			f_flags;
+	int32_t			f_spare[5];
 };
 #else
 struct target_statfs {
@@ -2242,7 +2230,8 @@ struct target_statfs {
 	/* Linux specials */
 	target_fsid_t		f_fsid;
 	abi_long		f_namelen;
-	abi_long		f_spare[6];
+	abi_long		f_flags;
+	abi_long		f_spare[5];
 };
 #endif
 
@@ -2258,7 +2247,8 @@ struct target_statfs64 {
 	uint64_t	f_bavail;
 	target_fsid_t	f_fsid;
 	uint32_t	f_namelen;
-	uint32_t	f_spare[6];
+	uint32_t	f_flags;
+	uint32_t	f_spare[5];
 };
 #elif (defined(TARGET_PPC64) || defined(TARGET_X86_64) || \
        defined(TARGET_SPARC64) || defined(TARGET_AARCH64) || \
@@ -2274,7 +2264,8 @@ struct target_statfs {
 	target_fsid_t f_fsid;
 	abi_long f_namelen;
 	abi_long f_frsize;
-	abi_long f_spare[5];
+	abi_long f_flags;
+	abi_long f_spare[4];
 };
 
 struct target_statfs64 {
@@ -2288,7 +2279,8 @@ struct target_statfs64 {
 	target_fsid_t f_fsid;
 	abi_long f_namelen;
 	abi_long f_frsize;
-	abi_long f_spare[5];
+	abi_long f_flags;
+	abi_long f_spare[4];
 };
 #elif defined(TARGET_S390X)
 struct target_statfs {
@@ -2302,7 +2294,9 @@ struct target_statfs {
     kernel_fsid_t f_fsid;
     int32_t  f_namelen;
     int32_t  f_frsize;
-    int32_t  f_spare[5];
+    int32_t  f_flags;
+    int32_t  f_spare[4];
+
 };
 
 struct target_statfs64 {
@@ -2316,7 +2310,8 @@ struct target_statfs64 {
     kernel_fsid_t f_fsid;
     int32_t  f_namelen;
     int32_t  f_frsize;
-    int32_t  f_spare[5];
+    int32_t  f_flags;
+    int32_t  f_spare[4];
 };
 #else
 struct target_statfs {
@@ -2330,7 +2325,8 @@ struct target_statfs {
 	target_fsid_t f_fsid;
 	uint32_t f_namelen;
 	uint32_t f_frsize;
-	uint32_t f_spare[5];
+	uint32_t f_flags;
+	uint32_t f_spare[4];
 };
 
 struct target_statfs64 {
@@ -2344,7 +2340,8 @@ struct target_statfs64 {
 	target_fsid_t f_fsid;
         uint32_t f_namelen;
 	uint32_t f_frsize;
-	uint32_t f_spare[5];
+	uint32_t f_flags;
+	uint32_t f_spare[4];
 };
 #endif
 
