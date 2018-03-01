@@ -110,7 +110,7 @@ static int update_header_sync(BlockDriverState *bs)
         return ret;
     }
 
-    return bdrv_flush(bs);
+    return bdrv_flush(bs->file->bs);
 }
 
 static inline void bitmap_table_to_be(uint64_t *bitmap_table, size_t size)
@@ -882,7 +882,7 @@ static int update_ext_header_and_dir(BlockDriverState *bs,
             return ret;
         }
 
-        ret = bdrv_flush(bs->file->bs);
+        ret = qcow2_flush_caches(bs);
         if (ret < 0) {
             goto fail;
         }
