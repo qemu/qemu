@@ -2199,6 +2199,9 @@ bool qemu_display_find_default(DisplayOptions *opts)
 
     for (i = 0; i < ARRAY_SIZE(prio); i++) {
         if (dpys[prio[i]] == NULL) {
+            ui_module_load_one(DisplayType_lookup.array[prio[i]]);
+        }
+        if (dpys[prio[i]] == NULL) {
             continue;
         }
         opts->type = prio[i];
@@ -2212,6 +2215,9 @@ void qemu_display_early_init(DisplayOptions *opts)
     assert(opts->type < DISPLAY_TYPE__MAX);
     if (opts->type == DISPLAY_TYPE_NONE) {
         return;
+    }
+    if (dpys[opts->type] == NULL) {
+        ui_module_load_one(DisplayType_lookup.array[opts->type]);
     }
     if (dpys[opts->type] == NULL) {
         error_report("Display '%s' is not available.",

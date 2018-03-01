@@ -56,6 +56,7 @@ common-obj-y += hw/
 common-obj-y += replay/
 
 common-obj-y += ui/
+common-obj-m += ui/
 common-obj-y += bt-host.o bt-vhci.o
 bt-host.o-cflags := $(BLUEZ_CFLAGS)
 
