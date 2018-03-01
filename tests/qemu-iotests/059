@@ -152,9 +152,8 @@ done
 echo
 echo "=== Testing afl image with a very large capacity ==="
 _use_sample_img afl9.vmdk.bz2
-# The sed makes this test pass on machines with little RAM
-# (and also with 32 bit builds)
-_img_info | sed -e 's/Cannot allocate memory/Invalid argument/'
+_img_info | grep -q 'Cannot allocate memory' && _notrun "Insufficent memory, skipped test"
+_img_info
 _cleanup_test_img
 
 # success, all done
