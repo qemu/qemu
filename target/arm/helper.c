@@ -11302,8 +11302,10 @@ CONV_ITOF(vfp_##name##to##p, fsz, sign) \
 CONV_FTOI(vfp_to##name##p, fsz, sign, ) \
 CONV_FTOI(vfp_to##name##z##p, fsz, sign, _round_to_zero)
 
+FLOAT_CONVS(si, h, 16, )
 FLOAT_CONVS(si, s, 32, )
 FLOAT_CONVS(si, d, 64, )
+FLOAT_CONVS(ui, h, 16, u)
 FLOAT_CONVS(ui, s, 32, u)
 FLOAT_CONVS(ui, d, 64, u)
 
@@ -11386,6 +11388,8 @@ VFP_CONV_FIX_A64(sq, s, 32, 64, int64)
 VFP_CONV_FIX(uh, s, 32, 32, uint16)
 VFP_CONV_FIX(ul, s, 32, 32, uint32)
 VFP_CONV_FIX_A64(uq, s, 32, 64, uint64)
+VFP_CONV_FIX_A64(sl, h, 16, 32, int32)
+VFP_CONV_FIX_A64(ul, h, 16, 32, uint32)
 #undef VFP_CONV_FIX
 #undef VFP_CONV_FIX_FLOAT
 #undef VFP_CONV_FLOAT_FIX_ROUND
