@@ -306,8 +306,11 @@ static inline float16 float16_set_sign(float16 a, int sign)
 }
 
 #define float16_zero make_float16(0)
-#define float16_one make_float16(0x3c00)
 #define float16_half make_float16(0x3800)
+#define float16_one make_float16(0x3c00)
+#define float16_one_point_five make_float16(0x3e00)
+#define float16_two make_float16(0x4000)
+#define float16_three make_float16(0x4200)
 #define float16_infinity make_float16(0x7c00)
 
 /*----------------------------------------------------------------------------
@@ -415,10 +418,12 @@ static inline float32 float32_set_sign(float32 a, int sign)
 }
 
 #define float32_zero make_float32(0)
-#define float32_one make_float32(0x3f800000)
 #define float32_half make_float32(0x3f000000)
+#define float32_one make_float32(0x3f800000)
+#define float32_one_point_five make_float32(0x3fc00000)
+#define float32_two make_float32(0x40000000)
+#define float32_three make_float32(0x40400000)
 #define float32_infinity make_float32(0x7f800000)
-
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
@@ -526,9 +531,12 @@ static inline float64 float64_set_sign(float64 a, int sign)
 }
 
 #define float64_zero make_float64(0)
-#define float64_one make_float64(0x3ff0000000000000LL)
-#define float64_ln2 make_float64(0x3fe62e42fefa39efLL)
 #define float64_half make_float64(0x3fe0000000000000LL)
+#define float64_one make_float64(0x3ff0000000000000LL)
+#define float64_one_point_five make_float64(0x3FF8000000000000ULL)
+#define float64_two make_float64(0x4000000000000000ULL)
+#define float64_three make_float64(0x4008000000000000ULL)
+#define float64_ln2 make_float64(0x3fe62e42fefa39efLL)
 #define float64_infinity make_float64(0x7ff0000000000000LL)
 
 /*----------------------------------------------------------------------------

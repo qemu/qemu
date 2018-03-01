@@ -192,6 +192,10 @@ uint64_t HELPER(neon_cgt_f64)(float64 a, float64 b, void *fpstp)
  * versions, these do a fully fused multiply-add or
  * multiply-add-and-halve.
  */
+#define float16_two make_float16(0x4000)
+#define float16_three make_float16(0x4200)
+#define float16_one_point_five make_float16(0x3e00)
+
 #define float32_two make_float32(0x40000000)
 #define float32_three make_float32(0x40400000)
 #define float32_one_point_five make_float32(0x3fc00000)
@@ -199,6 +203,21 @@ uint64_t HELPER(neon_cgt_f64)(float64 a, float64 b, void *fpstp)
 #define float64_two make_float64(0x4000000000000000ULL)
 #define float64_three make_float64(0x4008000000000000ULL)
 #define float64_one_point_five make_float64(0x3FF8000000000000ULL)
+
+float16 HELPER(recpsf_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float16_squash_input_denormal(a, fpst);
+    b = float16_squash_input_denormal(b, fpst);
+
+    a = float16_chs(a);
+    if ((float16_is_infinity(a) && float16_is_zero(b)) ||
+        (float16_is_infinity(b) && float16_is_zero(a))) {
+        return float16_two;
+    }
+    return float16_muladd(a, b, float16_two, 0, fpst);
+}
 
 float32 HELPER(recpsf_f32)(float32 a, float32 b, void *fpstp)
 {
@@ -228,6 +247,21 @@ float64 HELPER(recpsf_f64)(float64 a, float64 b, void *fpstp)
         return float64_two;
     }
     return float64_muladd(a, b, float64_two, 0, fpst);
+}
+
+float16 HELPER(rsqrtsf_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float16_squash_input_denormal(a, fpst);
+    b = float16_squash_input_denormal(b, fpst);
+
+    a = float16_chs(a);
+    if ((float16_is_infinity(a) && float16_is_zero(b)) ||
+        (float16_is_infinity(b) && float16_is_zero(a))) {
+        return float16_one_point_five;
+    }
+    return float16_muladd(a, b, float16_three, float_muladd_halve_result, fpst);
 }
 
 float32 HELPER(rsqrtsf_f32)(float32 a, float32 b, void *fpstp)
