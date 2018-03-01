@@ -192,6 +192,10 @@ uint64_t HELPER(neon_cgt_f64)(float64 a, float64 b, void *fpstp)
  * versions, these do a fully fused multiply-add or
  * multiply-add-and-halve.
  */
+#define float16_two make_float16(0x4000)
+#define float16_three make_float16(0x4200)
+#define float16_one_point_five make_float16(0x3e00)
+
 #define float32_two make_float32(0x40000000)
 #define float32_three make_float32(0x40400000)
 #define float32_one_point_five make_float32(0x3fc00000)
@@ -199,6 +203,21 @@ uint64_t HELPER(neon_cgt_f64)(float64 a, float64 b, void *fpstp)
 #define float64_two make_float64(0x4000000000000000ULL)
 #define float64_three make_float64(0x4008000000000000ULL)
 #define float64_one_point_five make_float64(0x3FF8000000000000ULL)
+
+float16 HELPER(recpsf_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float16_squash_input_denormal(a, fpst);
+    b = float16_squash_input_denormal(b, fpst);
+
+    a = float16_chs(a);
+    if ((float16_is_infinity(a) && float16_is_zero(b)) ||
+        (float16_is_infinity(b) && float16_is_zero(a))) {
+        return float16_two;
+    }
+    return float16_muladd(a, b, float16_two, 0, fpst);
+}
 
 float32 HELPER(recpsf_f32)(float32 a, float32 b, void *fpstp)
 {
@@ -228,6 +247,21 @@ float64 HELPER(recpsf_f64)(float64 a, float64 b, void *fpstp)
         return float64_two;
     }
     return float64_muladd(a, b, float64_two, 0, fpst);
+}
+
+float16 HELPER(rsqrtsf_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float16_squash_input_denormal(a, fpst);
+    b = float16_squash_input_denormal(b, fpst);
+
+    a = float16_chs(a);
+    if ((float16_is_infinity(a) && float16_is_zero(b)) ||
+        (float16_is_infinity(b) && float16_is_zero(a))) {
+        return float16_one_point_five;
+    }
+    return float16_muladd(a, b, float16_three, float_muladd_halve_result, fpst);
 }
 
 float32 HELPER(rsqrtsf_f32)(float32 a, float32 b, void *fpstp)
@@ -322,6 +356,35 @@ uint64_t HELPER(neon_addlp_u16)(uint64_t a)
 }
 
 /* Floating-point reciprocal exponent - see FPRecpX in ARM ARM */
+float16 HELPER(frecpx_f16)(float16 a, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    uint16_t val16, sbit;
+    int16_t exp;
+
+    if (float16_is_any_nan(a)) {
+        float16 nan = a;
+        if (float16_is_signaling_nan(a, fpst)) {
+            float_raise(float_flag_invalid, fpst);
+            nan = float16_maybe_silence_nan(a, fpst);
+        }
+        if (fpst->default_nan_mode) {
+            nan = float16_default_nan(fpst);
+        }
+        return nan;
+    }
+
+    val16 = float16_val(a);
+    sbit = 0x8000 & val16;
+    exp = extract32(val16, 10, 5);
+
+    if (exp == 0) {
+        return make_float16(deposit32(sbit, 10, 5, 0x1e));
+    } else {
+        return make_float16(deposit32(sbit, 10, 5, ~exp));
+    }
+}
+
 float32 HELPER(frecpx_f32)(float32 a, void *fpstp)
 {
     float_status *fpst = fpstp;
@@ -572,3 +635,209 @@ uint64_t HELPER(paired_cmpxchg64_be_parallel)(CPUARMState *env, uint64_t addr,
 {
     return do_paired_cmpxchg64_be(env, addr, new_lo, new_hi, true, GETPC());
 }
+
+/*
+ * AdvSIMD half-precision
+ */
+
+#define ADVSIMD_HELPER(name, suffix) HELPER(glue(glue(advsimd_, name), suffix))
+
+#define ADVSIMD_HALFOP(name) \
+float16 ADVSIMD_HELPER(name, h)(float16 a, float16 b, void *fpstp) \
+{ \
+    float_status *fpst = fpstp; \
+    return float16_ ## name(a, b, fpst);    \
+}
+
+ADVSIMD_HALFOP(add)
+ADVSIMD_HALFOP(sub)
+ADVSIMD_HALFOP(mul)
+ADVSIMD_HALFOP(div)
+ADVSIMD_HALFOP(min)
+ADVSIMD_HALFOP(max)
+ADVSIMD_HALFOP(minnum)
+ADVSIMD_HALFOP(maxnum)
+
+#define ADVSIMD_TWOHALFOP(name)                                         \
+uint32_t ADVSIMD_HELPER(name, 2h)(uint32_t two_a, uint32_t two_b, void *fpstp) \
+{ \
+    float16  a1, a2, b1, b2;                        \
+    uint32_t r1, r2;                                \
+    float_status *fpst = fpstp;                     \
+    a1 = extract32(two_a, 0, 16);                   \
+    a2 = extract32(two_a, 16, 16);                  \
+    b1 = extract32(two_b, 0, 16);                   \
+    b2 = extract32(two_b, 16, 16);                  \
+    r1 = float16_ ## name(a1, b1, fpst);            \
+    r2 = float16_ ## name(a2, b2, fpst);            \
+    return deposit32(r1, 16, 16, r2);               \
+}
+
+ADVSIMD_TWOHALFOP(add)
+ADVSIMD_TWOHALFOP(sub)
+ADVSIMD_TWOHALFOP(mul)
+ADVSIMD_TWOHALFOP(div)
+ADVSIMD_TWOHALFOP(min)
+ADVSIMD_TWOHALFOP(max)
+ADVSIMD_TWOHALFOP(minnum)
+ADVSIMD_TWOHALFOP(maxnum)
+
+/* Data processing - scalar floating-point and advanced SIMD */
+static float16 float16_mulx(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    a = float16_squash_input_denormal(a, fpst);
+    b = float16_squash_input_denormal(b, fpst);
+
+    if ((float16_is_zero(a) && float16_is_infinity(b)) ||
+        (float16_is_infinity(a) && float16_is_zero(b))) {
+        /* 2.0 with the sign bit set to sign(A) XOR sign(B) */
+        return make_float16((1U << 14) |
+                            ((float16_val(a) ^ float16_val(b)) & (1U << 15)));
+    }
+    return float16_mul(a, b, fpst);
+}
+
+ADVSIMD_HALFOP(mulx)
+ADVSIMD_TWOHALFOP(mulx)
+
+/* fused multiply-accumulate */
+float16 HELPER(advsimd_muladdh)(float16 a, float16 b, float16 c, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float16_muladd(a, b, c, 0, fpst);
+}
+
+uint32_t HELPER(advsimd_muladd2h)(uint32_t two_a, uint32_t two_b,
+                                  uint32_t two_c, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float16  a1, a2, b1, b2, c1, c2;
+    uint32_t r1, r2;
+    a1 = extract32(two_a, 0, 16);
+    a2 = extract32(two_a, 16, 16);
+    b1 = extract32(two_b, 0, 16);
+    b2 = extract32(two_b, 16, 16);
+    c1 = extract32(two_c, 0, 16);
+    c2 = extract32(two_c, 16, 16);
+    r1 = float16_muladd(a1, b1, c1, 0, fpst);
+    r2 = float16_muladd(a2, b2, c2, 0, fpst);
+    return deposit32(r1, 16, 16, r2);
+}
+
+/*
+ * Floating point comparisons produce an integer result. Softfloat
+ * routines return float_relation types which we convert to the 0/-1
+ * Neon requires.
+ */
+
+#define ADVSIMD_CMPRES(test) (test) ? 0xffff : 0
+
+uint32_t HELPER(advsimd_ceq_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    int compare = float16_compare_quiet(a, b, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_equal);
+}
+
+uint32_t HELPER(advsimd_cge_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    int compare = float16_compare(a, b, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater ||
+                          compare == float_relation_equal);
+}
+
+uint32_t HELPER(advsimd_cgt_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    int compare = float16_compare(a, b, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater);
+}
+
+uint32_t HELPER(advsimd_acge_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float16 f0 = float16_abs(a);
+    float16 f1 = float16_abs(b);
+    int compare = float16_compare(f0, f1, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater ||
+                          compare == float_relation_equal);
+}
+
+uint32_t HELPER(advsimd_acgt_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float16 f0 = float16_abs(a);
+    float16 f1 = float16_abs(b);
+    int compare = float16_compare(f0, f1, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater);
+}
+
+/* round to integral */
+float16 HELPER(advsimd_rinth_exact)(float16 x, void *fp_status)
+{
+    return float16_round_to_int(x, fp_status);
+}
+
+float16 HELPER(advsimd_rinth)(float16 x, void *fp_status)
+{
+    int old_flags = get_float_exception_flags(fp_status), new_flags;
+    float16 ret;
+
+    ret = float16_round_to_int(x, fp_status);
+
+    /* Suppress any inexact exceptions the conversion produced */
+    if (!(old_flags & float_flag_inexact)) {
+        new_flags = get_float_exception_flags(fp_status);
+        set_float_exception_flags(new_flags & ~float_flag_inexact, fp_status);
+    }
+
+    return ret;
+}
+
+/*
+ * Half-precision floating point conversion functions
+ *
+ * There are a multitude of conversion functions with various
+ * different rounding modes. This is dealt with by the calling code
+ * setting the mode appropriately before calling the helper.
+ */
+
+uint32_t HELPER(advsimd_f16tosinth)(float16 a, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    /* Invalid if we are passed a NaN */
+    if (float16_is_any_nan(a)) {
+        float_raise(float_flag_invalid, fpst);
+        return 0;
+    }
+    return float16_to_int16(a, fpst);
+}
+
+uint32_t HELPER(advsimd_f16touinth)(float16 a, void *fpstp)
+{
+    float_status *fpst = fpstp;
+
+    /* Invalid if we are passed a NaN */
+    if (float16_is_any_nan(a)) {
+        float_raise(float_flag_invalid, fpst);
+        return 0;
+    }
+    return float16_to_uint16(a, fpst);
+}
+
+/*
+ * Square Root and Reciprocal square root
+ */
+
+float16 HELPER(sqrt_f16)(float16 a, void *fpstp)
+{
+    float_status *s = fpstp;
+
+    return float16_sqrt(a, s);
+}
+
+
