@@ -10289,6 +10289,9 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
         case 0x2: /* FADD */
             gen_helper_advsimd_addh(tcg_res, tcg_op1, tcg_op2, fpst);
             break;
+        case 0x4: /* FCMEQ */
+            gen_helper_advsimd_ceq_f16(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
         case 0x6: /* FMAX */
             gen_helper_advsimd_maxh(tcg_res, tcg_op1, tcg_op2, fpst);
             break;
@@ -10304,12 +10307,24 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
         case 0x13: /* FMUL */
             gen_helper_advsimd_mulh(tcg_res, tcg_op1, tcg_op2, fpst);
             break;
+        case 0x14: /* FCMGE */
+            gen_helper_advsimd_cge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0x15: /* FACGE */
+            gen_helper_advsimd_acge_f16(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
         case 0x17: /* FDIV */
             gen_helper_advsimd_divh(tcg_res, tcg_op1, tcg_op2, fpst);
             break;
         case 0x1a: /* FABD */
             gen_helper_advsimd_subh(tcg_res, tcg_op1, tcg_op2, fpst);
             tcg_gen_andi_i32(tcg_res, tcg_res, 0x7fff);
+            break;
+        case 0x1c: /* FCMGT */
+            gen_helper_advsimd_cgt_f16(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
+        case 0x1d: /* FACGT */
+            gen_helper_advsimd_acgt_f16(tcg_res, tcg_op1, tcg_op2, fpst);
             break;
         default:
             fprintf(stderr, "%s: insn %#04x, fpop %#2x @ %#" PRIx64 "\n",

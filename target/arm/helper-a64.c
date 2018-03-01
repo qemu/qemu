@@ -594,3 +594,52 @@ ADVSIMD_HALFOP(min)
 ADVSIMD_HALFOP(max)
 ADVSIMD_HALFOP(minnum)
 ADVSIMD_HALFOP(maxnum)
+
+/*
+ * Floating point comparisons produce an integer result. Softfloat
+ * routines return float_relation types which we convert to the 0/-1
+ * Neon requires.
+ */
+
+#define ADVSIMD_CMPRES(test) (test) ? 0xffff : 0
+
+uint32_t HELPER(advsimd_ceq_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    int compare = float16_compare_quiet(a, b, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_equal);
+}
+
+uint32_t HELPER(advsimd_cge_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    int compare = float16_compare(a, b, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater ||
+                          compare == float_relation_equal);
+}
+
+uint32_t HELPER(advsimd_cgt_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    int compare = float16_compare(a, b, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater);
+}
+
+uint32_t HELPER(advsimd_acge_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float16 f0 = float16_abs(a);
+    float16 f1 = float16_abs(b);
+    int compare = float16_compare(f0, f1, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater ||
+                          compare == float_relation_equal);
+}
+
+uint32_t HELPER(advsimd_acgt_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float16 f0 = float16_abs(a);
+    float16 f1 = float16_abs(b);
+    int compare = float16_compare(f0, f1, fpst);
+    return ADVSIMD_CMPRES(compare == float_relation_greater);
+}
