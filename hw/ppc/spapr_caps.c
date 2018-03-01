@@ -32,6 +32,20 @@
 
 #include "hw/ppc/spapr.h"
 
+typedef struct sPAPRCapPossible {
+    int num;            /* size of vals array below */
+    const char *help;   /* help text for vals */
+    /*
+     * Note:
+     * - because of the way compatibility is determined vals MUST be ordered
+     *   such that later options are a superset of all preceding options.
+     * - the order of vals must be preserved, that is their index is important,
+     *   however vals may be added to the end of the list so long as the above
+     *   point is observed
+     */
+    const char *vals[];
+} sPAPRCapPossible;
+
 typedef struct sPAPRCapabilityInfo {
     const char *name;
     const char *description;
@@ -41,6 +55,8 @@ typedef struct sPAPRCapabilityInfo {
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
     const char *type;
+    /* Possible values if this is a custom string type */
+    sPAPRCapPossible *possible;
     /* Make sure the virtual hardware can support this capability */
     void (*apply)(sPAPRMachineState *spapr, uint8_t val, Error **errp);
 } sPAPRCapabilityInfo;
@@ -129,6 +145,60 @@ static void spapr_cap_set_tristate(Object *obj, Visitor *v, const char *name,
 
     spapr->cmd_line_caps[cap->index] = true;
     spapr->eff.caps[cap->index] = value;
+out:
+    g_free(val);
+}
+
+static void ATTRIBUTE_UNUSED spapr_cap_get_string(Object *obj, Visitor *v,
+                                                  const char *name,
+                                                  void *opaque, Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    char *val = NULL;
+    uint8_t value = spapr_get_cap(spapr, cap->index);
+
+    if (value >= cap->possible->num) {
+        error_setg(errp, "Invalid value (%d) for cap-%s", value, cap->name);
+        return;
+    }
+
+    val = g_strdup(cap->possible->vals[value]);
+
+    visit_type_str(v, name, &val, errp);
+    g_free(val);
+}
+
+static void ATTRIBUTE_UNUSED spapr_cap_set_string(Object *obj, Visitor *v,
+                                                  const char *name,
+                                                  void *opaque, Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    Error *local_err = NULL;
+    uint8_t i;
+    char *val;
+
+    visit_type_str(v, name, &val, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (!strcmp(val, "?")) {
+        error_setg(errp, "%s", cap->possible->help);
+        goto out;
+    }
+    for (i = 0; i < cap->possible->num; i++) {
+        if (!strcasecmp(val, cap->possible->vals[i])) {
+            spapr->cmd_line_caps[cap->index] = true;
+            spapr->eff.caps[cap->index] = i;
+            goto out;
+        }
+    }
+
+    error_setg(errp, "Invalid capability mode \"%s\" for cap-%s", val,
+               cap->name);
 out:
     g_free(val);
 }
