@@ -345,6 +345,10 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
     for (i = 0; i < dev->nvqs; ++i) {
         struct vhost_virtqueue *vq = dev->vqs + i;
 
+        if (vq->desc_phys == 0) {
+            continue;
+        }
+
         j = 0;
         r = vhost_verify_ring_part_mapping(
                 vq->desc, vq->desc_phys, vq->desc_size,
@@ -355,7 +359,7 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
 
         j++;
         r = vhost_verify_ring_part_mapping(
-                vq->desc, vq->desc_phys, vq->desc_size,
+                vq->avail, vq->avail_phys, vq->avail_size,
                 reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
@@ -363,7 +367,7 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
 
         j++;
         r = vhost_verify_ring_part_mapping(
-                vq->desc, vq->desc_phys, vq->desc_size,
+                vq->used, vq->used_phys, vq->used_size,
                 reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
@@ -881,6 +885,11 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     };
     struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
 
+    a = virtio_queue_get_desc_addr(vdev, idx);
+    if (a == 0) {
+        /* Queue might not be ready for start */
+        return 0;
+    }
 
     vq->num = state.num = virtio_queue_get_num(vdev, idx);
     r = dev->vhost_ops->vhost_set_vring_num(dev, &state);
@@ -906,7 +915,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     }
 
     vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
-    vq->desc_phys = a = virtio_queue_get_desc_addr(vdev, idx);
+    vq->desc_phys = a;
     vq->desc = vhost_memory_map(dev, a, &l, 0);
     if (!vq->desc || l != s) {
         r = -ENOMEM;
@@ -989,6 +998,13 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
         .index = vhost_vq_index,
     };
     int r;
+    int a;
+
+    a = virtio_queue_get_desc_addr(vdev, idx);
+    if (a == 0) {
+        /* Don't stop the virtqueue which might have not been started */
+        return;
+    }
 
     r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
     if (r < 0) {
@@ -1106,13 +1122,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
-        error_report("vhost backend memory slots limit is less"
-                " than current number of present memory slots");
-        r = -1;
-        goto fail;
-    }
-
     r = hdev->vhost_ops->vhost_set_owner(hdev);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_owner failed");
@@ -1192,6 +1201,18 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->started = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
+
+    if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
+        error_report("vhost backend memory slots limit is less"
+                " than current number of present memory slots");
+        r = -1;
+        if (busyloop_timeout) {
+            goto fail_busyloop;
+        } else {
+            goto fail;
+        }
+    }
+
     return 0;
 
 fail_busyloop:

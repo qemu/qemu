@@ -29,6 +29,10 @@ processing of entry values.
 A write of 0 in guest_format will disable further processing of
 vmcoreinfo entry values & content.
 
+You may write a guest_format that is not supported by the host, in
+which case the entry data can be ignored by qemu (but you may still
+access it through a debugger, via vmcoreinfo_realize::vmcoreinfo_state).
+
 Format & content
 ****************
 
