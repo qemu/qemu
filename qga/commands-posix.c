@@ -808,7 +808,7 @@ static char *get_pci_driver(char const *syspath, int pathlen, Error **errp)
     len = readlink(dpath, buf, sizeof(buf) - 1);
     if (len != -1) {
         buf[len] = 0;
-        driver = g_strdup(basename(buf));
+        driver = g_path_get_basename(buf);
     }
     g_free(dpath);
     g_free(path);
@@ -1053,7 +1053,7 @@ static void build_guest_fsinfo_for_device(char const *devpath,
     }
 
     if (!fs->name) {
-        fs->name = g_strdup(basename(syspath));
+        fs->name = g_path_get_basename(syspath);
     }
 
     g_debug("  parse sysfs path '%s'", syspath);

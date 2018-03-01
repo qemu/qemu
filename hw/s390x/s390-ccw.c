@@ -48,7 +48,7 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
         return;
     }
 
-    cdev->mdevid = g_strdup(basename(dev_path));
+    cdev->mdevid = g_path_get_basename(dev_path);
 
     tmp = basename(dirname(dev_path));
     if (sscanf(tmp, "%2x.%1x.%4x", &cssid, &ssid, &devid) != 3) {

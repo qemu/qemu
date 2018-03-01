@@ -504,7 +504,7 @@ int main(int argc, char **argv)
 #endif
 
     module_call_init(MODULE_INIT_TRACE);
-    progname = basename(argv[0]);
+    progname = g_path_get_basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
     qcrypto_init(&error_fatal);
