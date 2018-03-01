@@ -83,6 +83,8 @@ struct CPUS390XState {
 
     PSW psw;
 
+    S390CrashReason crash_reason;
+
     uint64_t cc_src;
     uint64_t cc_dst;
     uint64_t cc_vr;
@@ -139,12 +141,9 @@ struct CPUS390XState {
      * architectures, there is a difference between a halt and a stop on s390.
      * If all cpus are either stopped (including check stop) or in the disabled
      * wait state, the vm can be shut down.
+     * The acceptable cpu_state values are defined in the CpuInfoS390State
+     * enum.
      */
-#define CPU_STATE_UNINITIALIZED        0x00
-#define CPU_STATE_STOPPED              0x01
-#define CPU_STATE_CHECK_STOP           0x02
-#define CPU_STATE_OPERATING            0x03
-#define CPU_STATE_LOAD                 0x04
     uint8_t cpu_state;
 
     /* currently processed sigp order */
@@ -310,11 +309,12 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 
 #define FLAG_MASK_PSW_SHIFT     31
 #define FLAG_MASK_PER           (PSW_MASK_PER    >> FLAG_MASK_PSW_SHIFT)
+#define FLAG_MASK_DAT           (PSW_MASK_DAT    >> FLAG_MASK_PSW_SHIFT)
 #define FLAG_MASK_PSTATE        (PSW_MASK_PSTATE >> FLAG_MASK_PSW_SHIFT)
 #define FLAG_MASK_ASC           (PSW_MASK_ASC    >> FLAG_MASK_PSW_SHIFT)
 #define FLAG_MASK_64            (PSW_MASK_64     >> FLAG_MASK_PSW_SHIFT)
 #define FLAG_MASK_32            (PSW_MASK_32     >> FLAG_MASK_PSW_SHIFT)
-#define FLAG_MASK_PSW		(FLAG_MASK_PER | FLAG_MASK_PSTATE \
+#define FLAG_MASK_PSW           (FLAG_MASK_PER | FLAG_MASK_DAT | FLAG_MASK_PSTATE \
                                 | FLAG_MASK_ASC | FLAG_MASK_64 | FLAG_MASK_32)
 
 /* Control register 0 bits */
@@ -338,6 +338,10 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 
 static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 {
+    if (!(env->psw.mask & PSW_MASK_DAT)) {
+        return MMU_REAL_IDX;
+    }
+
     switch (env->psw.mask & PSW_MASK_ASC) {
     case PSW_ASC_PRIMARY:
         return MMU_PRIMARY_IDX;
@@ -617,10 +621,6 @@ QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 /* SIGP order code mask corresponding to bit positions 56-63 */
 #define SIGP_ORDER_MASK 0x000000ff
 
-/* from s390-virtio-ccw */
-#define MEM_SECTION_SIZE             0x10000000UL
-#define MAX_AVAIL_SLOTS              32
-
 /* machine check interruption code */
 
 /* subclasses */
@@ -692,7 +692,6 @@ int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low);
 int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low);
 void s390_crypto_reset(void);
 bool s390_get_squash_mcss(void);
-int s390_get_memslot_count(void);
 int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit);
 void s390_cmma_reset(void);
 void s390_enable_css_support(S390CPU *cpu);

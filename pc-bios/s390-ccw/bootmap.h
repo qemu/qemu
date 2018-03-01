@@ -32,10 +32,14 @@ typedef struct FbaBlockPtr {
     uint16_t blockct;
 } __attribute__ ((packed)) FbaBlockPtr;
 
-typedef struct EckdBlockPtr {
-    uint16_t cylinder; /* cylinder/head/sector is an address of the block */
+typedef struct EckdCHS {
+    uint16_t cylinder;
     uint16_t head;
     uint8_t sector;
+} __attribute__ ((packed)) EckdCHS;
+
+typedef struct EckdBlockPtr {
+    EckdCHS chs; /* cylinder/head/sector is an address of the block */
     uint16_t size;
     uint8_t count; /* (size_in_blocks-1);
                     * it's 0 for TablePtr, ScriptPtr, and SectionPtr */
@@ -52,6 +56,15 @@ typedef union BootMapPointer {
     EckdBlockPtr eckd;
     ExtEckdBlockPtr xeckd;
 } __attribute__ ((packed)) BootMapPointer;
+
+#define MAX_TABLE_ENTRIES  30
+
+/* aka Program Table */
+typedef struct BootMapTable {
+    uint8_t magic[4];
+    uint8_t reserved[12];
+    BootMapPointer entry[];
+} __attribute__ ((packed)) BootMapTable;
 
 typedef struct ComponentEntry {
     ScsiBlockPtr data;
@@ -70,10 +83,11 @@ typedef struct ScsiMbr {
     uint8_t magic[4];
     uint32_t version_id;
     uint8_t reserved[8];
-    ScsiBlockPtr blockptr[];
+    ScsiBlockPtr pt;   /* block pointer to program table */
 } __attribute__ ((packed)) ScsiMbr;
 
 #define ZIPL_MAGIC              "zIPL"
+#define ZIPL_MAGIC_EBCDIC       "\xa9\xc9\xd7\xd3"
 #define IPL1_MAGIC "\xc9\xd7\xd3\xf1" /* == "IPL1" in EBCDIC */
 #define IPL2_MAGIC "\xc9\xd7\xd3\xf2" /* == "IPL2" in EBCDIC */
 #define VOL1_MAGIC "\xe5\xd6\xd3\xf1" /* == "VOL1" in EBCDIC */
@@ -226,22 +240,45 @@ typedef struct BootInfo {          /* @ 0x70, record #0    */
     } bp;
 } __attribute__ ((packed)) BootInfo; /* see also XEckdMbr   */
 
-typedef struct Ipl1 {
-    unsigned char key[4]; /* == "IPL1" */
-    unsigned char data[24];
-} __attribute__((packed)) Ipl1;
+/*
+ * Structs for IPL
+ */
+#define STAGE2_BLK_CNT_MAX  24 /* Stage 1b can load up to 24 blocks */
 
-typedef struct Ipl2 {
-    unsigned char key[4]; /* == "IPL2" */
-    union {
-        unsigned char data[144];
-        struct {
-            unsigned char reserved1[92-4];
-            XEckdMbr mbr;
-            unsigned char reserved2[144-(92-4)-sizeof(XEckdMbr)];
-        } x;
-    } u;
-} __attribute__((packed)) Ipl2;
+typedef struct EckdCdlIpl1 {
+    uint8_t key[4]; /* == "IPL1" */
+    uint8_t data[24];
+} __attribute__((packed)) EckdCdlIpl1;
+
+typedef struct EckdSeekArg {
+    uint16_t pad;
+    EckdCHS chs;
+    uint8_t pad2;
+} __attribute__ ((packed)) EckdSeekArg;
+
+typedef struct EckdStage1b {
+    uint8_t reserved[32 * STAGE2_BLK_CNT_MAX];
+    struct EckdSeekArg seek[STAGE2_BLK_CNT_MAX];
+    uint8_t unused[64];
+} __attribute__ ((packed)) EckdStage1b;
+
+typedef struct EckdStage1 {
+    uint8_t reserved[72];
+    struct EckdSeekArg seek[2];
+} __attribute__ ((packed)) EckdStage1;
+
+typedef struct EckdCdlIpl2 {
+    uint8_t key[4]; /* == "IPL2" */
+    struct EckdStage1 stage1;
+    XEckdMbr mbr;
+    uint8_t reserved[24];
+} __attribute__((packed)) EckdCdlIpl2;
+
+typedef struct EckdLdlIpl1 {
+    uint8_t reserved[24];
+    struct EckdStage1 stage1;
+    BootInfo bip; /* BootInfo is MBR for LDL */
+} __attribute__((packed)) EckdLdlIpl1;
 
 typedef struct IplVolumeLabel {
     unsigned char key[4]; /* == "VOL1" */
@@ -308,20 +345,6 @@ static inline bool block_size_ok(uint32_t block_size)
 static inline bool magic_match(const void *data, const void *magic)
 {
     return *((uint32_t *)data) == *((uint32_t *)magic);
-}
-
-static inline int _memcmp(const void *s1, const void *s2, size_t n)
-{
-    int i;
-    const uint8_t *p1 = s1, *p2 = s2;
-
-    for (i = 0; i < n; i++) {
-        if (p1[i] != p2[i]) {
-            return p1[i] > p2[i] ? 1 : -1;
-        }
-    }
-
-    return 0;
 }
 
 static inline uint32_t iso_733_to_u32(uint64_t x)
@@ -416,7 +439,7 @@ const uint8_t vol_desc_magic[] = "CD001";
 
 static inline bool is_iso_vd_valid(IsoVolDesc *vd)
 {
-    return !_memcmp(&vd->ident[0], vol_desc_magic, 5) &&
+    return !memcmp(&vd->ident[0], vol_desc_magic, 5) &&
            vd->version == 0x1 &&
            vd->type <= VOL_DESC_TYPE_PARTITION;
 }

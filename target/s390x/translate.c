@@ -252,13 +252,17 @@ static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
 
 static int get_mem_index(DisasContext *s)
 {
+    if (!(s->tb->flags & FLAG_MASK_DAT)) {
+        return MMU_REAL_IDX;
+    }
+
     switch (s->tb->flags & FLAG_MASK_ASC) {
     case PSW_ASC_PRIMARY >> FLAG_MASK_PSW_SHIFT:
-        return 0;
+        return MMU_PRIMARY_IDX;
     case PSW_ASC_SECONDARY >> FLAG_MASK_PSW_SHIFT:
-        return 1;
+        return MMU_SECONDARY_IDX;
     case PSW_ASC_HOME >> FLAG_MASK_PSW_SHIFT:
-        return 2;
+        return MMU_HOME_IDX;
     default:
         tcg_abort();
         break;
@@ -4058,7 +4062,6 @@ static ExitStatus op_stidp(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_ld_i64(o->out, cpu_env, offsetof(CPUS390XState, cpuid));
-    tcg_gen_qemu_st_i64(o->out, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);
     return NO_EXIT;
 }
 
@@ -5216,17 +5219,41 @@ static void wout_m1_16(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_wout_m1_16 0
 
+#ifndef CONFIG_USER_ONLY
+static void wout_m1_16a(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), MO_TEUW | MO_ALIGN);
+}
+#define SPEC_wout_m1_16a 0
+#endif
+
 static void wout_m1_32(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     tcg_gen_qemu_st32(o->out, o->addr1, get_mem_index(s));
 }
 #define SPEC_wout_m1_32 0
 
+#ifndef CONFIG_USER_ONLY
+static void wout_m1_32a(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), MO_TEUL | MO_ALIGN);
+}
+#define SPEC_wout_m1_32a 0
+#endif
+
 static void wout_m1_64(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     tcg_gen_qemu_st64(o->out, o->addr1, get_mem_index(s));
 }
 #define SPEC_wout_m1_64 0
+
+#ifndef CONFIG_USER_ONLY
+static void wout_m1_64a(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st_i64(o->out, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);
+}
+#define SPEC_wout_m1_64a 0
+#endif
 
 static void wout_m2_32(DisasContext *s, DisasFields *f, DisasOps *o)
 {
@@ -5653,12 +5680,30 @@ static void in2_m2_32u(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_in2_m2_32u 0
 
+#ifndef CONFIG_USER_ONLY
+static void in2_m2_32ua(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in2_a2(s, f, o);
+    tcg_gen_qemu_ld_tl(o->in2, o->in2, get_mem_index(s), MO_TEUL | MO_ALIGN);
+}
+#define SPEC_in2_m2_32ua 0
+#endif
+
 static void in2_m2_64(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     in2_a2(s, f, o);
     tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
 }
 #define SPEC_in2_m2_64 0
+
+#ifndef CONFIG_USER_ONLY
+static void in2_m2_64a(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in2_a2(s, f, o);
+    tcg_gen_qemu_ld_i64(o->in2, o->in2, get_mem_index(s), MO_TEQ | MO_ALIGN);
+}
+#define SPEC_in2_m2_64a 0
+#endif
 
 static void in2_mri2_16u(DisasContext *s, DisasFields *f, DisasOps *o)
 {

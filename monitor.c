@@ -1055,7 +1055,7 @@ int monitor_set_cpu(int cpu_index)
     return 0;
 }
 
-CPUState *mon_get_cpu(void)
+static CPUState *mon_get_cpu_sync(bool synchronize)
 {
     CPUState *cpu;
 
@@ -1074,8 +1074,15 @@ CPUState *mon_get_cpu(void)
         monitor_set_cpu(first_cpu->cpu_index);
         cpu = first_cpu;
     }
-    cpu_synchronize_state(cpu);
+    if (synchronize) {
+        cpu_synchronize_state(cpu);
+    }
     return cpu;
+}
+
+CPUState *mon_get_cpu(void)
+{
+    return mon_get_cpu_sync(true);
 }
 
 CPUArchState *mon_get_cpu_env(void)
@@ -1087,7 +1094,7 @@ CPUArchState *mon_get_cpu_env(void)
 
 int monitor_get_cpu_index(void)
 {
-    CPUState *cs = mon_get_cpu();
+    CPUState *cs = mon_get_cpu_sync(false);
 
     return cs ? cs->cpu_index : UNASSIGNED_CPU_INDEX;
 }

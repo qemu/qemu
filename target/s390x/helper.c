@@ -83,12 +83,15 @@ static inline bool is_special_wait_psw(uint64_t psw_addr)
 
 void s390_handle_wait(S390CPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
+
     if (s390_cpu_halt(cpu) == 0) {
 #ifndef CONFIG_USER_ONLY
         if (is_special_wait_psw(cpu->env.psw.addr)) {
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         } else {
-            qemu_system_guest_panicked(NULL);
+            cpu->env.crash_reason = S390_CRASH_REASON_DISABLED_WAIT;
+            qemu_system_guest_panicked(cpu_get_crash_info(cs));
         }
 #endif
     }

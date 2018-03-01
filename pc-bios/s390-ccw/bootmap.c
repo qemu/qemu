@@ -83,6 +83,10 @@ static void jump_to_IPL_code(uint64_t address)
 
 static unsigned char _bprs[8*1024]; /* guessed "max" ECKD sector size */
 static const int max_bprs_entries = sizeof(_bprs) / sizeof(ExtEckdBlockPtr);
+static uint8_t _s2[MAX_SECTOR_SIZE * 3] __attribute__((__aligned__(PAGE_SIZE)));
+static void *s2_prev_blk = _s2;
+static void *s2_cur_blk = _s2 + MAX_SECTOR_SIZE;
+static void *s2_next_blk = _s2 + MAX_SECTOR_SIZE * 2;
 
 static inline void verify_boot_info(BootInfo *bip)
 {
@@ -95,32 +99,32 @@ static inline void verify_boot_info(BootInfo *bip)
                "Bad block size in zIPL section of the 1st record.");
 }
 
-static block_number_t eckd_block_num(BootMapPointer *p)
+static block_number_t eckd_block_num(EckdCHS *chs)
 {
     const uint64_t sectors = virtio_get_sectors();
     const uint64_t heads = virtio_get_heads();
-    const uint64_t cylinder = p->eckd.cylinder
-                            + ((p->eckd.head & 0xfff0) << 12);
-    const uint64_t head = p->eckd.head & 0x000f;
+    const uint64_t cylinder = chs->cylinder
+                            + ((chs->head & 0xfff0) << 12);
+    const uint64_t head = chs->head & 0x000f;
     const block_number_t block = sectors * heads * cylinder
                                + sectors * head
-                               + p->eckd.sector
+                               + chs->sector
                                - 1; /* block nr starts with zero */
     return block;
 }
 
 static bool eckd_valid_address(BootMapPointer *p)
 {
-    const uint64_t head = p->eckd.head & 0x000f;
+    const uint64_t head = p->eckd.chs.head & 0x000f;
 
     if (head >= virtio_get_heads()
-        ||  p->eckd.sector > virtio_get_sectors()
-        ||  p->eckd.sector <= 0) {
+        ||  p->eckd.chs.sector > virtio_get_sectors()
+        ||  p->eckd.chs.sector <= 0) {
         return false;
     }
 
     if (!virtio_guessed_disk_nature() &&
-        eckd_block_num(p) >= virtio_get_blocks()) {
+        eckd_block_num(&p->eckd.chs) >= virtio_get_blocks()) {
         return false;
     }
 
@@ -140,7 +144,7 @@ static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
     do {
         more_data = false;
         for (j = 0;; j++) {
-            block_nr = eckd_block_num((void *)&(bprs[j].xeckd));
+            block_nr = eckd_block_num(&bprs[j].xeckd.bptr.chs);
             if (is_null_block_number(block_nr)) { /* end of chunk */
                 break;
             }
@@ -182,31 +186,105 @@ static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
     return block_nr;
 }
 
-static void run_eckd_boot_script(block_number_t mbr_block_nr)
+static bool find_zipl_boot_menu_banner(int *offset)
+{
+    int i;
+
+    /* Menu banner starts with "zIPL" */
+    for (i = 0; i < virtio_get_block_size() - 4; i++) {
+        if (magic_match(s2_cur_blk + i, ZIPL_MAGIC_EBCDIC)) {
+            *offset = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int eckd_get_boot_menu_index(block_number_t s1b_block_nr)
+{
+    block_number_t cur_block_nr;
+    block_number_t prev_block_nr = 0;
+    block_number_t next_block_nr = 0;
+    EckdStage1b *s1b = (void *)sec;
+    int banner_offset;
+    int i;
+
+    /* Get Stage1b data */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(s1b_block_nr, s1b, "Cannot read stage1b boot loader");
+
+    memset(_s2, FREE_SPACE_FILLER, sizeof(_s2));
+
+    /* Get Stage2 data */
+    for (i = 0; i < STAGE2_BLK_CNT_MAX; i++) {
+        cur_block_nr = eckd_block_num(&s1b->seek[i].chs);
+
+        if (!cur_block_nr) {
+            break;
+        }
+
+        read_block(cur_block_nr, s2_cur_blk, "Cannot read stage2 boot loader");
+
+        if (find_zipl_boot_menu_banner(&banner_offset)) {
+            /*
+             * Load the adjacent blocks to account for the
+             * possibility of menu data spanning multiple blocks.
+             */
+            if (prev_block_nr) {
+                read_block(prev_block_nr, s2_prev_blk,
+                           "Cannot read stage2 boot loader");
+            }
+
+            if (i + 1 < STAGE2_BLK_CNT_MAX) {
+                next_block_nr = eckd_block_num(&s1b->seek[i + 1].chs);
+            }
+
+            if (next_block_nr) {
+                read_block(next_block_nr, s2_next_blk,
+                           "Cannot read stage2 boot loader");
+            }
+
+            return menu_get_zipl_boot_index(s2_cur_blk + banner_offset);
+        }
+
+        prev_block_nr = cur_block_nr;
+    }
+
+    sclp_print("No zipl boot menu data found. Booting default entry.");
+    return 0;
+}
+
+static void run_eckd_boot_script(block_number_t bmt_block_nr,
+                                 block_number_t s1b_block_nr)
 {
     int i;
     unsigned int loadparm = get_loadparm_index();
     block_number_t block_nr;
     uint64_t address;
-    ScsiMbr *bte = (void *)sec; /* Eckd bootmap table entry */
+    BootMapTable *bmt = (void *)sec;
     BootMapScript *bms = (void *)sec;
 
+    if (menu_is_enabled_zipl()) {
+        loadparm = eckd_get_boot_menu_index(s1b_block_nr);
+    }
+
     debug_print_int("loadparm", loadparm);
-    IPL_assert(loadparm < 31, "loadparm value greater than"
+    IPL_assert(loadparm <= MAX_TABLE_ENTRIES, "loadparm value greater than"
                " maximum number of boot entries allowed");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
-    read_block(mbr_block_nr, sec, "Cannot read MBR");
+    read_block(bmt_block_nr, sec, "Cannot read Boot Map Table");
 
-    block_nr = eckd_block_num((void *)&(bte->blockptr[loadparm]));
-    IPL_assert(block_nr != -1, "No Boot Map");
+    block_nr = eckd_block_num(&bmt->entry[loadparm].xeckd.bptr.chs);
+    IPL_assert(block_nr != -1, "Cannot find Boot Map Table Entry");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(block_nr, sec, "Cannot read Boot Map Script");
 
     for (i = 0; bms->entry[i].type == BOOT_SCRIPT_LOAD; i++) {
         address = bms->entry[i].address.load_address;
-        block_nr = eckd_block_num(&(bms->entry[i].blkptr));
+        block_nr = eckd_block_num(&bms->entry[i].blkptr.xeckd.bptr.chs);
 
         do {
             block_nr = load_eckd_segments(block_nr, &address);
@@ -221,9 +299,9 @@ static void run_eckd_boot_script(block_number_t mbr_block_nr)
 static void ipl_eckd_cdl(void)
 {
     XEckdMbr *mbr;
-    Ipl2 *ipl2 = (void *)sec;
+    EckdCdlIpl2 *ipl2 = (void *)sec;
     IplVolumeLabel *vlbl = (void *)sec;
-    block_number_t block_nr;
+    block_number_t bmt_block_nr, s1b_block_nr;
 
     /* we have just read the block #0 and recognized it as "IPL1" */
     sclp_print("CDL\n");
@@ -231,15 +309,18 @@ static void ipl_eckd_cdl(void)
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(1, ipl2, "Cannot read IPL2 record at block 1");
 
-    mbr = &ipl2->u.x.mbr;
+    mbr = &ipl2->mbr;
     IPL_assert(magic_match(mbr, ZIPL_MAGIC), "No zIPL section in IPL2 record.");
     IPL_assert(block_size_ok(mbr->blockptr.xeckd.bptr.size),
                "Bad block size in zIPL section of IPL2 record.");
     IPL_assert(mbr->dev_type == DEV_TYPE_ECKD,
                "Non-ECKD device type in zIPL section of IPL2 record.");
 
-    /* save pointer to Boot Script */
-    block_nr = eckd_block_num((void *)&(mbr->blockptr));
+    /* save pointer to Boot Map Table */
+    bmt_block_nr = eckd_block_num(&mbr->blockptr.xeckd.bptr.chs);
+
+    /* save pointer to Stage1b Data */
+    s1b_block_nr = eckd_block_num(&ipl2->stage1.seek[0].chs);
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(2, vlbl, "Cannot read Volume Label at block 2");
@@ -249,7 +330,7 @@ static void ipl_eckd_cdl(void)
                "Invalid magic of volser block");
     print_volser(vlbl->f.volser);
 
-    run_eckd_boot_script(block_nr);
+    run_eckd_boot_script(bmt_block_nr, s1b_block_nr);
     /* no return */
 }
 
@@ -280,8 +361,8 @@ static void print_eckd_ldl_msg(ECKD_IPL_mode_t mode)
 
 static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
 {
-    block_number_t block_nr;
-    BootInfo *bip = (void *)(sec + 0x70); /* BootInfo is MBR for LDL */
+    block_number_t bmt_block_nr, s1b_block_nr;
+    EckdLdlIpl1 *ipl1 = (void *)sec;
 
     if (mode != ECKD_LDL_UNLABELED) {
         print_eckd_ldl_msg(mode);
@@ -292,15 +373,20 @@ static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(0, sec, "Cannot read block 0 to grab boot info.");
     if (mode == ECKD_LDL_UNLABELED) {
-        if (!magic_match(bip->magic, ZIPL_MAGIC)) {
+        if (!magic_match(ipl1->bip.magic, ZIPL_MAGIC)) {
             return; /* not applicable layout */
         }
         sclp_print("unlabeled LDL.\n");
     }
-    verify_boot_info(bip);
+    verify_boot_info(&ipl1->bip);
 
-    block_nr = eckd_block_num((void *)&(bip->bp.ipl.bm_ptr.eckd.bptr));
-    run_eckd_boot_script(block_nr);
+    /* save pointer to Boot Map Table */
+    bmt_block_nr = eckd_block_num(&ipl1->bip.bp.ipl.bm_ptr.eckd.bptr.chs);
+
+    /* save pointer to Stage1b Data */
+    s1b_block_nr = eckd_block_num(&ipl1->stage1.seek[0].chs);
+
+    run_eckd_boot_script(bmt_block_nr, s1b_block_nr);
     /* no return */
 }
 
@@ -325,7 +411,7 @@ static void print_eckd_msg(void)
 
 static void ipl_eckd(void)
 {
-    ScsiMbr *mbr = (void *)sec;
+    XEckdMbr *mbr = (void *)sec;
     LDL_VTOC *vlbl = (void *)sec;
 
     print_eckd_msg();
@@ -449,10 +535,8 @@ static void zipl_run(ScsiBlockPtr *pte)
 static void ipl_scsi(void)
 {
     ScsiMbr *mbr = (void *)sec;
-    uint8_t *ns, *ns_end;
     int program_table_entries = 0;
-    const int pte_len = sizeof(ScsiBlockPtr);
-    ScsiBlockPtr *prog_table_entry = NULL;
+    BootMapTable *prog_table = (void *)sec;
     unsigned int loadparm = get_loadparm_index();
 
     /* Grab the MBR */
@@ -467,34 +551,32 @@ static void ipl_scsi(void)
     debug_print_int("MBR Version", mbr->version_id);
     IPL_check(mbr->version_id == 1,
               "Unknown MBR layout version, assuming version 1");
-    debug_print_int("program table", mbr->blockptr[0].blockno);
-    IPL_assert(mbr->blockptr[0].blockno, "No Program Table");
+    debug_print_int("program table", mbr->pt.blockno);
+    IPL_assert(mbr->pt.blockno, "No Program Table");
 
     /* Parse the program table */
-    read_block(mbr->blockptr[0].blockno, sec,
-               "Error reading Program Table");
-
+    read_block(mbr->pt.blockno, sec, "Error reading Program Table");
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
 
-    debug_print_int("loadparm index", loadparm);
-    ns_end = sec + virtio_get_block_size();
-    for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns += pte_len) {
-        prog_table_entry = (ScsiBlockPtr *)ns;
-        if (!prog_table_entry->blockno) {
+    while (program_table_entries <= MAX_TABLE_ENTRIES) {
+        if (!prog_table->entry[program_table_entries].scsi.blockno) {
             break;
         }
-
         program_table_entries++;
-        if (program_table_entries == loadparm + 1) {
-            break; /* selected entry found */
-        }
     }
 
     debug_print_int("program table entries", program_table_entries);
-
     IPL_assert(program_table_entries != 0, "Empty Program Table");
 
-    zipl_run(prog_table_entry); /* no return */
+    if (menu_is_enabled_enum()) {
+        loadparm = menu_get_enum_boot_index(program_table_entries);
+    }
+
+    debug_print_int("loadparm", loadparm);
+    IPL_assert(loadparm <= MAX_TABLE_ENTRIES, "loadparm value greater than"
+               " maximum number of boot entries allowed");
+
+    zipl_run(&prog_table->entry[loadparm].scsi); /* no return */
 }
 
 /***********************************************************************
@@ -512,7 +594,7 @@ static bool is_iso_bc_entry_compatible(IsoBcSection *s)
                     "Failed to read image sector 0");
 
     /* Checking bytes 8 - 32 for S390 Linux magic */
-    return !_memcmp(magic_sec + 8, linux_s390_magic, 24);
+    return !memcmp(magic_sec + 8, linux_s390_magic, 24);
 }
 
 /* Location of the current sector of the directory */
@@ -641,7 +723,7 @@ static uint32_t find_iso_bc(void)
         if (vd->type == VOL_DESC_TYPE_BOOT) {
             IsoVdElTorito *et = &vd->vd.boot;
 
-            if (!_memcmp(&et->el_torito[0], el_torito_magic, 32)) {
+            if (!memcmp(&et->el_torito[0], el_torito_magic, 32)) {
                 return bswap32(et->bc_offset);
             }
         }

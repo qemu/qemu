@@ -107,6 +107,10 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr, int size,
             return 1;
         }
     } else if (mmu_idx == MMU_REAL_IDX) {
+        /* 31-Bit mode */
+        if (!(env->psw.mask & PSW_MASK_64)) {
+            vaddr &= 0x7fffffff;
+        }
         if (mmu_translate_real(env, vaddr, rw, &raddr, &prot)) {
             return 1;
         }

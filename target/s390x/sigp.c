@@ -46,13 +46,13 @@ static void sigp_sense(S390CPU *dst_cpu, SigpInfo *si)
     }
 
     /* sensing without locks is racy, but it's the same for real hw */
-    if (state != CPU_STATE_STOPPED && !ext_call) {
+    if (state != S390_CPU_STATE_STOPPED && !ext_call) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
     } else {
         if (ext_call) {
             status |= SIGP_STAT_EXT_CALL_PENDING;
         }
-        if (state == CPU_STATE_STOPPED) {
+        if (state == S390_CPU_STATE_STOPPED) {
             status |= SIGP_STAT_STOPPED;
         }
         set_sigp_status(si, status);
@@ -94,12 +94,12 @@ static void sigp_start(CPUState *cs, run_on_cpu_data arg)
     S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg.host_ptr;
 
-    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         return;
     }
 
-    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
@@ -108,14 +108,14 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
     S390CPU *cpu = S390_CPU(cs);
     SigpInfo *si = arg.host_ptr;
 
-    if (s390_cpu_get_state(cpu) != CPU_STATE_OPERATING) {
+    if (s390_cpu_get_state(cpu) != S390_CPU_STATE_OPERATING) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
         return;
     }
 
     /* disabled wait - sleeping in user space */
     if (cs->halted) {
-        s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+        s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
     } else {
         /* execute the stop function */
         cpu->env.sigp_order = SIGP_STOP;
@@ -130,17 +130,17 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
     SigpInfo *si = arg.host_ptr;
 
     /* disabled wait - sleeping in user space */
-    if (s390_cpu_get_state(cpu) == CPU_STATE_OPERATING && cs->halted) {
-        s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+    if (s390_cpu_get_state(cpu) == S390_CPU_STATE_OPERATING && cs->halted) {
+        s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
     }
 
     switch (s390_cpu_get_state(cpu)) {
-    case CPU_STATE_OPERATING:
+    case S390_CPU_STATE_OPERATING:
         cpu->env.sigp_order = SIGP_STOP_STORE_STATUS;
         cpu_inject_stop(cpu);
         /* store will be performed in do_stop_interrup() */
         break;
-    case CPU_STATE_STOPPED:
+    case S390_CPU_STATE_STOPPED:
         /* already stopped, just store the status */
         cpu_synchronize_state(cs);
         s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
@@ -156,7 +156,7 @@ static void sigp_store_status_at_address(CPUState *cs, run_on_cpu_data arg)
     uint32_t address = si->param & 0x7ffffe00u;
 
     /* cpu has to be stopped */
-    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
         return;
     }
@@ -186,7 +186,7 @@ static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
     }
 
     /* cpu has to be stopped */
-    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
         return;
     }
@@ -229,17 +229,17 @@ static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
     SigpInfo *si = arg.host_ptr;
 
     switch (s390_cpu_get_state(cpu)) {
-    case CPU_STATE_STOPPED:
+    case S390_CPU_STATE_STOPPED:
         /* the restart irq has to be delivered prior to any other pending irq */
         cpu_synchronize_state(cs);
         /*
          * Set OPERATING (and unhalting) before loading the restart PSW.
          * load_psw() will then properly halt the CPU again if necessary (TCG).
          */
-        s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
+        s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
         do_restart_interrupt(&cpu->env);
         break;
-    case CPU_STATE_OPERATING:
+    case S390_CPU_STATE_OPERATING:
         cpu_inject_restart(cpu);
         break;
     }
@@ -285,7 +285,7 @@ static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
     }
 
     /* cpu has to be stopped */
-    if (s390_cpu_get_state(cpu) != CPU_STATE_STOPPED) {
+    if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
         return;
     }
@@ -318,7 +318,7 @@ static void sigp_cond_emergency(S390CPU *src_cpu, S390CPU *dst_cpu,
     p_asn = dst_cpu->env.cregs[4] & 0xffff;  /* Primary ASN */
     s_asn = dst_cpu->env.cregs[3] & 0xffff;  /* Secondary ASN */
 
-    if (s390_cpu_get_state(dst_cpu) != CPU_STATE_STOPPED ||
+    if (s390_cpu_get_state(dst_cpu) != S390_CPU_STATE_STOPPED ||
         (psw_mask & psw_int_mask) != psw_int_mask ||
         (idle && psw_addr != 0) ||
         (!idle && (asn == p_asn || asn == s_asn))) {
@@ -435,7 +435,7 @@ static int sigp_set_architecture(S390CPU *cpu, uint32_t param,
         if (cur_cpu == cpu) {
             continue;
         }
-        if (s390_cpu_get_state(cur_cpu) != CPU_STATE_STOPPED) {
+        if (s390_cpu_get_state(cur_cpu) != S390_CPU_STATE_STOPPED) {
             all_stopped = false;
         }
     }
@@ -492,7 +492,7 @@ void do_stop_interrupt(CPUS390XState *env)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
 
-    if (s390_cpu_set_state(CPU_STATE_STOPPED, cpu) == 0) {
+    if (s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu) == 0) {
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     }
     if (cpu->env.sigp_order == SIGP_STOP_STORE_STATUS) {

@@ -408,12 +408,14 @@
 # @CpuInfoArch:
 #
 # An enumeration of cpu types that enable additional information during
-# @query-cpus.
+# @query-cpus and @query-cpus-fast.
+#
+# @s390: since 2.12
 #
 # Since: 2.6
 ##
 { 'enum': 'CpuInfoArch',
-  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 'other' ] }
+  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 's390', 'other' ] }
 
 ##
 # @CpuInfo:
@@ -452,6 +454,7 @@
             'ppc': 'CpuInfoPPC',
             'mips': 'CpuInfoMIPS',
             'tricore': 'CpuInfoTricore',
+            's390': 'CpuInfoS390',
             'other': 'CpuInfoOther' } }
 
 ##
@@ -522,9 +525,38 @@
 { 'struct': 'CpuInfoOther', 'data': { } }
 
 ##
+# @CpuS390State:
+#
+# An enumeration of cpu states that can be assumed by a virtual
+# S390 CPU
+#
+# Since: 2.12
+##
+{ 'enum': 'CpuS390State',
+  'prefix': 'S390_CPU_STATE',
+  'data': [ 'uninitialized', 'stopped', 'check-stop', 'operating', 'load' ] }
+
+##
+# @CpuInfoS390:
+#
+# Additional information about a virtual S390 CPU
+#
+# @cpu-state: the virtual CPU's state
+#
+# Since: 2.12
+##
+{ 'struct': 'CpuInfoS390', 'data': { 'cpu-state': 'CpuS390State' } }
+
+##
 # @query-cpus:
 #
 # Returns a list of information about each virtual CPU.
+#
+# This command causes vCPU threads to exit to userspace, which causes
+# a small interruption to guest CPU execution. This will have a negative
+# impact on realtime guests and other latency sensitive guest workloads.
+# It is recommended to use @query-cpus-fast instead of this command to
+# avoid the vCPU interruption.
 #
 # Returns: a list of @CpuInfo for each virtual CPU
 #
@@ -555,8 +587,87 @@
 #       ]
 #    }
 #
+# Notes: This interface is deprecated (since 2.12.0), and it is strongly
+#        recommended that you avoid using it. Use @query-cpus-fast to
+#        obtain information about virtual CPUs.
+#
 ##
 { 'command': 'query-cpus', 'returns': ['CpuInfo'] }
+
+##
+# @CpuInfoFast:
+#
+# Information about a virtual CPU
+#
+# @cpu-index: index of the virtual CPU
+#
+# @qom-path: path to the CPU object in the QOM tree
+#
+# @thread-id: ID of the underlying host thread
+#
+# @props: properties describing to which node/socket/core/thread
+#         virtual CPU belongs to, provided if supported by board
+#
+# @arch: architecture of the cpu, which determines which additional fields
+#        will be listed
+#
+# Since: 2.12
+#
+##
+{ 'union': 'CpuInfoFast',
+  'base': {'cpu-index': 'int', 'qom-path': 'str',
+           'thread-id': 'int', '*props': 'CpuInstanceProperties',
+           'arch': 'CpuInfoArch' },
+  'discriminator': 'arch',
+  'data': { 'x86': 'CpuInfoOther',
+            'sparc': 'CpuInfoOther',
+            'ppc': 'CpuInfoOther',
+            'mips': 'CpuInfoOther',
+            'tricore': 'CpuInfoOther',
+            's390': 'CpuInfoS390',
+            'other': 'CpuInfoOther' } }
+
+##
+# @query-cpus-fast:
+#
+# Returns information about all virtual CPUs. This command does not
+# incur a performance penalty and should be used in production
+# instead of query-cpus.
+#
+# Returns: list of @CpuInfoFast
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "query-cpus-fast" }
+# <- { "return": [
+#         {
+#             "thread-id": 25627,
+#             "props": {
+#                 "core-id": 0,
+#                 "thread-id": 0,
+#                 "socket-id": 0
+#             },
+#             "qom-path": "/machine/unattached/device[0]",
+#             "arch":"x86",
+#             "cpu-index": 0
+#         },
+#         {
+#             "thread-id": 25628,
+#             "props": {
+#                 "core-id": 0,
+#                 "thread-id": 0,
+#                 "socket-id": 1
+#             },
+#             "qom-path": "/machine/unattached/device[2]",
+#             "arch":"x86",
+#             "cpu-index": 1
+#         }
+#     ]
+# }
+##
+{ 'command': 'query-cpus-fast', 'returns': [ 'CpuInfoFast' ] }
 
 ##
 # @IOThreadInfo:

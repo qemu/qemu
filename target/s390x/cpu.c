@@ -35,6 +35,8 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "qapi/visitor.h"
+#include "qapi-visit.h"
+#include "sysemu/hw_accel.h"
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #ifndef CONFIG_USER_ONLY
@@ -59,8 +61,8 @@ static bool s390_cpu_has_work(CPUState *cs)
     S390CPU *cpu = S390_CPU(cs);
 
     /* STOPPED cpus can never wake up */
-    if (s390_cpu_get_state(cpu) != CPU_STATE_LOAD &&
-        s390_cpu_get_state(cpu) != CPU_STATE_OPERATING) {
+    if (s390_cpu_get_state(cpu) != S390_CPU_STATE_LOAD &&
+        s390_cpu_get_state(cpu) != S390_CPU_STATE_OPERATING) {
         return false;
     }
 
@@ -78,7 +80,7 @@ static void s390_cpu_load_normal(CPUState *s)
     S390CPU *cpu = S390_CPU(s);
     cpu->env.psw.addr = ldl_phys(s->as, 4) & PSW_MASK_ESA_ADDR;
     cpu->env.psw.mask = PSW_MASK_32 | PSW_MASK_64;
-    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
 }
 #endif
 
@@ -93,7 +95,7 @@ static void s390_cpu_reset(CPUState *s)
     env->bpbc = false;
     scc->parent_reset(s);
     cpu->env.sigp_order = 0;
-    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 }
 
 /* S390CPUClass::initial_reset() */
@@ -136,7 +138,7 @@ static void s390_cpu_full_reset(CPUState *s)
 
     scc->parent_reset(s);
     cpu->env.sigp_order = 0;
-    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 
     memset(env, 0, offsetof(CPUS390XState, end_reset_fields));
 
@@ -228,6 +230,46 @@ out:
     error_propagate(errp, err);
 }
 
+static GuestPanicInformation *s390_cpu_get_crash_info(CPUState *cs)
+{
+    GuestPanicInformation *panic_info;
+    S390CPU *cpu = S390_CPU(cs);
+
+    cpu_synchronize_state(cs);
+    panic_info = g_malloc0(sizeof(GuestPanicInformation));
+
+    panic_info->type = GUEST_PANIC_INFORMATION_TYPE_S390;
+#if !defined(CONFIG_USER_ONLY)
+    panic_info->u.s390.core = cpu->env.core_id;
+#else
+    panic_info->u.s390.core = 0; /* sane default for non system emulation */
+#endif
+    panic_info->u.s390.psw_mask = cpu->env.psw.mask;
+    panic_info->u.s390.psw_addr = cpu->env.psw.addr;
+    panic_info->u.s390.reason = cpu->env.crash_reason;
+
+    return panic_info;
+}
+
+static void s390_cpu_get_crash_info_qom(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    CPUState *cs = CPU(obj);
+    GuestPanicInformation *panic_info;
+
+    if (!cs->crash_occurred) {
+        error_setg(errp, "No crash occurred");
+        return;
+    }
+
+    panic_info = s390_cpu_get_crash_info(cs);
+
+    visit_type_GuestPanicInformation(v, "crash-information", &panic_info,
+                                     errp);
+    qapi_free_GuestPanicInformation(panic_info);
+}
+
 static void s390_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -240,6 +282,8 @@ static void s390_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
+    object_property_add(obj, "crash-information", "GuestPanicInformation",
+                        s390_cpu_get_crash_info_qom, NULL, NULL, NULL, NULL);
     s390_cpu_model_register_props(obj);
 #if !defined(CONFIG_USER_ONLY)
     qemu_get_timedate(&tm, 0);
@@ -248,7 +292,7 @@ static void s390_cpu_initfn(Object *obj)
     env->tod_basetime = 0;
     env->tod_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);
     env->cpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
-    s390_cpu_set_state(CPU_STATE_STOPPED, cpu);
+    s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 #endif
 }
 
@@ -276,8 +320,8 @@ static unsigned s390_count_running_cpus(void)
 
     CPU_FOREACH(cpu) {
         uint8_t state = S390_CPU(cpu)->env.cpu_state;
-        if (state == CPU_STATE_OPERATING ||
-            state == CPU_STATE_LOAD) {
+        if (state == S390_CPU_STATE_OPERATING ||
+            state == S390_CPU_STATE_LOAD) {
             if (!disabled_wait(cpu)) {
                 nr_running++;
             }
@@ -316,13 +360,13 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
     trace_cpu_set_state(CPU(cpu)->cpu_index, cpu_state);
 
     switch (cpu_state) {
-    case CPU_STATE_STOPPED:
-    case CPU_STATE_CHECK_STOP:
+    case S390_CPU_STATE_STOPPED:
+    case S390_CPU_STATE_CHECK_STOP:
         /* halt the cpu for common infrastructure */
         s390_cpu_halt(cpu);
         break;
-    case CPU_STATE_OPERATING:
-    case CPU_STATE_LOAD:
+    case S390_CPU_STATE_OPERATING:
+    case S390_CPU_STATE_LOAD:
         /*
          * Starting a CPU with a PSW WAIT bit set:
          * KVM: handles this internally and triggers another WAIT exit.
@@ -390,15 +434,6 @@ void s390_cmma_reset(void)
 {
     if (kvm_enabled()) {
         kvm_s390_cmma_reset();
-    }
-}
-
-int s390_get_memslot_count(void)
-{
-    if (kvm_enabled()) {
-        return kvm_s390_get_memslot_count();
-    } else {
-        return MAX_AVAIL_SLOTS;
     }
 }
 
@@ -473,6 +508,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_interrupt = s390_cpu_do_interrupt;
 #endif
     cc->dump_state = s390_cpu_dump_state;
+    cc->get_crash_info = s390_cpu_get_crash_info;
     cc->set_pc = s390_cpu_set_pc;
     cc->gdb_read_register = s390_cpu_gdb_read_register;
     cc->gdb_write_register = s390_cpu_gdb_write_register;

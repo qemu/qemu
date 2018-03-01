@@ -16,6 +16,11 @@ char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 static char loadparm[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+QemuIplParameters qipl;
+
+#define LOADPARM_PROMPT "PROMPT  "
+#define LOADPARM_EMPTY  "........"
+#define BOOT_MENU_FLAG_MASK (QIPL_FLAG_BM_OPTS_CMD | QIPL_FLAG_BM_OPTS_ZIPL)
 
 /*
  * Priniciples of Operations (SA22-7832-09) chapter 17 requires that
@@ -40,22 +45,7 @@ void panic(const char *string)
 
 unsigned int get_loadparm_index(void)
 {
-    const char *lp = loadparm;
-    int i;
-    unsigned int idx = 0;
-
-    for (i = 0; i < 8; i++) {
-        char c = lp[i];
-
-        if (c < '0' || c > '9') {
-            break;
-        }
-
-        idx *= 10;
-        idx += c - '0';
-    }
-
-    return idx;
+    return atoui(loadparm);
 }
 
 static bool find_dev(Schib *schib, int dev_no)
@@ -88,6 +78,27 @@ static bool find_dev(Schib *schib, int dev_no)
     return false;
 }
 
+static void menu_setup(void)
+{
+    if (memcmp(loadparm, LOADPARM_PROMPT, 8) == 0) {
+        menu_set_parms(QIPL_FLAG_BM_OPTS_CMD, 0);
+        return;
+    }
+
+    /* If loadparm was set to any other value, then do not enable menu */
+    if (memcmp(loadparm, LOADPARM_EMPTY, 8) != 0) {
+        return;
+    }
+
+    switch (iplb.pbt) {
+    case S390_IPL_TYPE_CCW:
+    case S390_IPL_TYPE_QEMU_SCSI:
+        menu_set_parms(qipl.qipl_flags & BOOT_MENU_FLAG_MASK,
+                       qipl.boot_menu_timeout);
+        return;
+    }
+}
+
 static void virtio_setup(void)
 {
     Schib schib;
@@ -96,6 +107,7 @@ static void virtio_setup(void)
     uint16_t dev_no;
     char ldp[] = "LOADPARM=[________]\n";
     VDev *vdev = virtio_get_device();
+    QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
 
     /*
      * We unconditionally enable mss support. In every sane configuration,
@@ -107,6 +119,8 @@ static void virtio_setup(void)
     sclp_get_loadparm_ascii(loadparm);
     memcpy(ldp + 10, loadparm, 8);
     sclp_print(ldp);
+
+    memcpy(&qipl, early_qipl, sizeof(QemuIplParameters));
 
     if (store_iplb(&iplb)) {
         switch (iplb.pbt) {
@@ -128,6 +142,7 @@ static void virtio_setup(void)
         default:
             panic("List-directed IPL not supported yet!\n");
         }
+        menu_setup();
     } else {
         for (ssid = 0; ssid < 0x3; ssid++) {
             blk_schid.ssid = ssid;
@@ -142,7 +157,7 @@ static void virtio_setup(void)
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {
         sclp_print("Network boot device detected\n");
-        vdev->netboot_start_addr = iplb.ccw.netboot_start_addr;
+        vdev->netboot_start_addr = qipl.netboot_start_addr;
     } else {
         virtio_blk_setup_device(blk_schid);
 

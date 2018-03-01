@@ -23,6 +23,10 @@
         .desc = _desc,                               \
     }
 
+/* S390FeatDef.bit is not applicable as there is no feature block. */
+#define FEAT_INIT_MISC(_name, _desc)                 \
+            FEAT_INIT(_name, S390_FEAT_TYPE_MISC, 0, _desc)
+
 /* indexed by feature number for easy lookup */
 static const S390FeatDef s390_features[] = {
     FEAT_INIT("esan3", S390_FEAT_TYPE_STFL, 0, "Instructions marked as n3"),
@@ -123,8 +127,8 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("ib", S390_FEAT_TYPE_SCLP_CPU, 42, "SIE: Intervention bypass facility"),
     FEAT_INIT("cei", S390_FEAT_TYPE_SCLP_CPU, 43, "SIE: Conditional-external-interception facility"),
 
-    FEAT_INIT("dateh2", S390_FEAT_TYPE_MISC, 0, "DAT-enhancement facility 2"),
-    FEAT_INIT("cmm", S390_FEAT_TYPE_MISC, 0, "Collaborative-memory-management facility"),
+    FEAT_INIT_MISC("dateh2", "DAT-enhancement facility 2"),
+    FEAT_INIT_MISC("cmm", "Collaborative-memory-management facility"),
 
     FEAT_INIT("plo-cl", S390_FEAT_TYPE_PLO, 0, "PLO Compare and load (32 bit in general registers)"),
     FEAT_INIT("plo-clg", S390_FEAT_TYPE_PLO, 1, "PLO Compare and load (64 bit in parameter list)"),
