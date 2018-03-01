@@ -84,7 +84,7 @@ raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin,
       ICR.IE and ICR.CCPN are saved */
 
     /* PCXI.PIE = ICR.IE */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
                 ((env->ICR & MASK_ICR_IE_1_3) << 15));
     /* PCXI.PCPN = ICR.CCPN */
     env->PCXI = (env->PCXI & 0xffffff) +
@@ -2464,7 +2464,7 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     env->PCXI = (env->PCXI & 0xffffff) +
                 ((env->ICR & MASK_ICR_CCPN) << 24);
     /* PCXI.PIE = ICR.IE; */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
                 ((env->ICR & MASK_ICR_IE_1_3) << 15));
     /* PCXI.UL = 1; */
     env->PCXI |= MASK_PCXI_UL;
@@ -2562,7 +2562,7 @@ void helper_bisr(CPUTriCoreState *env, uint32_t const9)
     env->PCXI = (env->PCXI & 0xffffff) +
                  ((env->ICR & MASK_ICR_CCPN) << 24);
     /* PCXI.PIE  = ICR.IE */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
                  ((env->ICR & MASK_ICR_IE_1_3) << 15));
     /* PCXI.UL = 0 */
     env->PCXI &= ~(MASK_PCXI_UL);
@@ -2604,7 +2604,7 @@ void helper_rfe(CPUTriCoreState *env)
     env->PC = env->gpr_a[11] & ~0x1;
     /* ICR.IE = PCXI.PIE; */
     env->ICR = (env->ICR & ~MASK_ICR_IE_1_3)
-            + ((env->PCXI & MASK_PCXI_PIE) >> 15);
+            + ((env->PCXI & MASK_PCXI_PIE_1_3) >> 15);
     /* ICR.CCPN = PCXI.PCPN; */
     env->ICR = (env->ICR & ~MASK_ICR_CCPN) +
                ((env->PCXI & MASK_PCXI_PCPN) >> 24);
@@ -2628,8 +2628,8 @@ void helper_rfm(CPUTriCoreState *env)
 {
     env->PC = (env->gpr_a[11] & ~0x1);
     /* ICR.IE = PCXI.PIE; */
-    env->ICR = (env->ICR & ~MASK_ICR_IE_1_3) |
-               ((env->PCXI & MASK_PCXI_PIE) >> 15);
+    env->ICR = (env->ICR & ~MASK_ICR_IE_1_3)
+            | ((env->PCXI & MASK_PCXI_PIE_1_3) >> 15);
     /* ICR.CCPN = PCXI.PCPN; */
     env->ICR = (env->ICR & ~MASK_ICR_CCPN) |
                ((env->PCXI & MASK_PCXI_PCPN) >> 24);
@@ -2694,7 +2694,7 @@ void helper_svlcx(CPUTriCoreState *env)
     env->PCXI = (env->PCXI & 0xffffff) +
                 ((env->ICR & MASK_ICR_CCPN) << 24);
     /* PCXI.PIE = ICR.IE; */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
                 ((env->ICR & MASK_ICR_IE_1_3) << 15));
     /* PCXI.UL = 0; */
     env->PCXI &= ~MASK_PCXI_UL;
@@ -2737,7 +2737,7 @@ void helper_svucx(CPUTriCoreState *env)
     env->PCXI = (env->PCXI & 0xffffff) +
                 ((env->ICR & MASK_ICR_CCPN) << 24);
     /* PCXI.PIE = ICR.IE; */
-    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE) +
+    env->PCXI = ((env->PCXI & ~MASK_PCXI_PIE_1_3) +
                 ((env->ICR & MASK_ICR_IE_1_3) << 15));
     /* PCXI.UL = 1; */
     env->PCXI |= MASK_PCXI_UL;

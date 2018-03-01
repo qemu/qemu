@@ -229,7 +229,8 @@ void tricore_cpu_dump_state(CPUState *cpu, FILE *f,
 
 
 #define MASK_PCXI_PCPN 0xff000000
-#define MASK_PCXI_PIE  0x00800000
+#define MASK_PCXI_PIE_1_3  0x00800000
+#define MASK_PCXI_PIE_1_6  0x00200000
 #define MASK_PCXI_UL   0x00400000
 #define MASK_PCXI_PCXS 0x000f0000
 #define MASK_PCXI_PCXO 0x0000ffff
