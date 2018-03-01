@@ -6039,7 +6039,7 @@ if test "$have_x11" = "yes" -a "$need_x11" = "yes"; then
   echo "X11_LIBS=$x11_libs" >> $config_host_mak
 fi
 if test "$sdl" = "yes" ; then
-  echo "CONFIG_SDL=y" >> $config_host_mak
+  echo "CONFIG_SDL=m" >> $config_host_mak
   echo "CONFIG_SDLABI=$sdlabi" >> $config_host_mak
   echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
   echo "SDL_LIBS=$sdl_libs" >> $config_host_mak
