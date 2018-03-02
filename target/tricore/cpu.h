@@ -58,6 +58,7 @@ struct CPUTriCoreState {
     uint32_t PC;
     uint32_t SYSCON;
     uint32_t CPU_ID;
+    uint32_t CORE_ID;
     uint32_t BIV;
     uint32_t BTV;
     uint32_t ISP;
@@ -228,7 +229,8 @@ void tricore_cpu_dump_state(CPUState *cpu, FILE *f,
 
 
 #define MASK_PCXI_PCPN 0xff000000
-#define MASK_PCXI_PIE  0x00800000
+#define MASK_PCXI_PIE_1_3  0x00800000
+#define MASK_PCXI_PIE_1_6  0x00200000
 #define MASK_PCXI_UL   0x00400000
 #define MASK_PCXI_PCXS 0x000f0000
 #define MASK_PCXI_PCXO 0x0000ffff
@@ -255,7 +257,8 @@ void tricore_cpu_dump_state(CPUState *cpu, FILE *f,
 #define MASK_CPUID_REV     0x000000ff
 
 #define MASK_ICR_PIPN 0x00ff0000
-#define MASK_ICR_IE   0x00000100
+#define MASK_ICR_IE_1_3   0x00000100
+#define MASK_ICR_IE_1_6   0x00008000
 #define MASK_ICR_CCPN 0x000000ff
 
 #define MASK_FCX_FCXS 0x000f0000

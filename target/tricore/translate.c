@@ -3389,9 +3389,17 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         gen_branch_cond(ctx, TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15],
                         offset);
         break;
+    case OPC1_16_SBR_JEQ2:
+        gen_branch_cond(ctx, TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15],
+                        offset + 16);
+        break;
     case OPC1_16_SBR_JNE:
         gen_branch_cond(ctx, TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15],
                         offset);
+        break;
+    case OPC1_16_SBR_JNE2:
+        gen_branch_cond(ctx, TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15],
+                        offset + 16);
         break;
     case OPC1_16_SBR_JNZ:
         gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[r1], 0, offset);
@@ -4121,6 +4129,16 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         gen_compute_branch(ctx, op1, 0, 0, const16, address);
         break;
 /* SBR-format */
+    case OPC1_16_SBR_JEQ2:
+    case OPC1_16_SBR_JNE2:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            r1 = MASK_OP_SBR_S2(ctx->opcode);
+            address = MASK_OP_SBR_DISP4(ctx->opcode);
+            gen_compute_branch(ctx, op1, r1, 0, 0, address);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
     case OPC1_16_SBR_JEQ:
     case OPC1_16_SBR_JGEZ:
     case OPC1_16_SBR_JGTZ:
@@ -6256,6 +6274,15 @@ static void decode_rr_accumulator(CPUTriCoreState *env, DisasContext *ctx)
             generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
         }
         break;
+    case OPC2_32_RR_MOVS_64:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            CHECK_REG_PAIR(r3);
+            tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_d[r2]);
+            tcg_gen_sari_tl(cpu_gpr_d[r3 + 1], cpu_gpr_d[r2], 31);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
     case OPC2_32_RR_NE:
         tcg_gen_setcond_tl(TCG_COND_NE, cpu_gpr_d[r3], cpu_gpr_d[r1],
                            cpu_gpr_d[r2]);
@@ -8352,12 +8379,12 @@ static void decode_sys_interrupts(CPUTriCoreState *env, DisasContext *ctx)
         /* raise EXCP_DEBUG */
         break;
     case OPC2_32_SYS_DISABLE:
-        tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~MASK_ICR_IE);
+        tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~MASK_ICR_IE_1_3);
         break;
     case OPC2_32_SYS_DSYNC:
         break;
     case OPC2_32_SYS_ENABLE:
-        tcg_gen_ori_tl(cpu_ICR, cpu_ICR, MASK_ICR_IE);
+        tcg_gen_ori_tl(cpu_ICR, cpu_ICR, MASK_ICR_IE_1_3);
         break;
     case OPC2_32_SYS_ISYNC:
         break;
