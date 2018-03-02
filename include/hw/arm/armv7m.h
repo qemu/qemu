@@ -42,6 +42,7 @@ typedef struct {
  *   that CPU accesses see. (The NVIC, bitbanding and other CPU-internal
  *   devices will be automatically layered on top of this view.)
  * + Property "idau": IDAU interface (forwarded to CPU object)
+ * + Property "init-svtor": secure VTOR reset value (forwarded to CPU object)
  */
 typedef struct ARMv7MState {
     /*< private >*/
@@ -61,6 +62,7 @@ typedef struct ARMv7MState {
     /* MemoryRegion the board provides to us (with its devices, RAM, etc) */
     MemoryRegion *board_memory;
     Object *idau;
+    uint32_t init_svtor;
 } ARMv7MState;
 
 #endif
