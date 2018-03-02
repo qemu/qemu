@@ -162,15 +162,25 @@ int load_uimage(const char *filename, hwaddr *ep,
                 void *translate_opaque);
 
 /**
- * load_ramdisk:
+ * load_ramdisk_as:
  * @filename: Path to the ramdisk image
  * @addr: Memory address to load the ramdisk to
  * @max_sz: Maximum allowed ramdisk size (for non-u-boot ramdisks)
+ * @as: The AddressSpace to load the ELF to. The value of address_space_memory
+ *      is used if nothing is supplied here.
  *
  * Load a ramdisk image with U-Boot header to the specified memory
  * address.
  *
  * Returns the size of the loaded image on success, -1 otherwise.
+ */
+int load_ramdisk_as(const char *filename, hwaddr addr, uint64_t max_sz,
+                    AddressSpace *as);
+
+/**
+ * load_ramdisk:
+ * Same as load_ramdisk_as(), but doesn't allow the caller to specify
+ * an AddressSpace.
  */
 int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz);
 

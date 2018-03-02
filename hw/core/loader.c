@@ -730,8 +730,14 @@ int load_uimage_as(const char *filename, hwaddr *ep, hwaddr *loadaddr,
 /* Load a ramdisk.  */
 int load_ramdisk(const char *filename, hwaddr addr, uint64_t max_sz)
 {
+    return load_ramdisk_as(filename, addr, max_sz, NULL);
+}
+
+int load_ramdisk_as(const char *filename, hwaddr addr, uint64_t max_sz,
+                    AddressSpace *as)
+{
     return load_uboot_image(filename, NULL, &addr, NULL, IH_TYPE_RAMDISK,
-                            NULL, NULL, NULL);
+                            NULL, NULL, as);
 }
 
 /* Load a gzip-compressed kernel to a dynamically allocated buffer. */
