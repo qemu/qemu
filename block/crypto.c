@@ -306,43 +306,29 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
 }
 
 
-static int block_crypto_create_generic(QCryptoBlockFormat format,
-                                       const char *filename,
-                                       QemuOpts *opts,
-                                       Error **errp)
+static int block_crypto_co_create_generic(BlockDriverState *bs,
+                                          int64_t size,
+                                          QCryptoBlockCreateOptions *opts,
+                                          Error **errp)
 {
-    int ret = -EINVAL;
-    QCryptoBlockCreateOptions *create_opts = NULL;
+    int ret;
+    BlockBackend *blk;
     QCryptoBlock *crypto = NULL;
-    struct BlockCryptoCreateData data = {
-        .size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                         BDRV_SECTOR_SIZE),
-    };
-    QDict *cryptoopts;
+    struct BlockCryptoCreateData data;
 
-    /* Parse options */
-    cryptoopts = qemu_opts_to_qdict(opts, NULL);
+    blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
 
-    create_opts = block_crypto_create_opts_init(format, cryptoopts, errp);
-    if (!create_opts) {
-        return -1;
-    }
-
-    /* Create protocol layer */
-    ret = bdrv_create_file(filename, opts, errp);
+    ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
-        return ret;
+        goto cleanup;
     }
 
-    data.blk = blk_new_open(filename, NULL, NULL,
-                            BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                            errp);
-    if (!data.blk) {
-        return -EINVAL;
-    }
+    data = (struct BlockCryptoCreateData) {
+        .blk = blk,
+        .size = size,
+    };
 
-    /* Create format layer */
-    crypto = qcrypto_block_create(create_opts, NULL,
+    crypto = qcrypto_block_create(opts, NULL,
                                   block_crypto_init_func,
                                   block_crypto_write_func,
                                   &data,
@@ -355,10 +341,8 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
 
     ret = 0;
  cleanup:
-    QDECREF(cryptoopts);
     qcrypto_block_free(crypto);
-    blk_unref(data.blk);
-    qapi_free_QCryptoBlockCreateOptions(create_opts);
+    blk_unref(blk);
     return ret;
 }
 
@@ -563,8 +547,51 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
                                                          QemuOpts *opts,
                                                          Error **errp)
 {
-    return block_crypto_create_generic(Q_CRYPTO_BLOCK_FORMAT_LUKS,
-                                       filename, opts, errp);
+    QCryptoBlockCreateOptions *create_opts = NULL;
+    BlockDriverState *bs = NULL;
+    QDict *cryptoopts;
+    int64_t size;
+    int ret;
+
+    /* Parse options */
+    size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+
+    cryptoopts = qemu_opts_to_qdict_filtered(opts, NULL,
+                                             &block_crypto_create_opts_luks,
+                                             true);
+
+    create_opts = block_crypto_create_opts_init(Q_CRYPTO_BLOCK_FORMAT_LUKS,
+                                                cryptoopts, errp);
+    if (!create_opts) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Create protocol layer */
+    ret = bdrv_create_file(filename, opts, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    bs = bdrv_open(filename, NULL, NULL,
+                   BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (!bs) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Create format layer */
+    ret = block_crypto_co_create_generic(bs, size, create_opts, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    ret = 0;
+fail:
+    bdrv_unref(bs);
+    qapi_free_QCryptoBlockCreateOptions(create_opts);
+    QDECREF(cryptoopts);
+    return ret;
 }
 
 static int block_crypto_get_info_luks(BlockDriverState *bs,
