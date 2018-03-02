@@ -784,7 +784,7 @@ multiboot.bin linuxboot.bin linuxboot_dma.bin kvmvapic.bin \
 s390-ccw.img s390-netboot.img \
 spapr-rtas.bin slof.bin skiboot.lid \
 palcode-clipper \
-u-boot.e500 \
+u-boot.e500 u-boot-sam460-20100605.bin \
 qemu_vga.ndrv \
 hppa-firmware.img
 else
