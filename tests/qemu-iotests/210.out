@@ -1,0 +1,136 @@
+QA output created by 210
+
+=== Successful image creation (defaults) ===
+
+Testing: -object secret,id=keysec0,data=foo
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "key-secret": "keysec0"}
+file format: IMGFMT
+virtual size: 128M (134217728 bytes)
+Format specific information:
+    ivgen alg: plain64
+    hash alg: sha256
+    cipher alg: aes-256
+    uuid: 00000000-0000-0000-0000-000000000000
+    cipher mode: xts
+    slots:
+        [0]:
+            active: true
+            iters: 1024
+            key offset: 4096
+            stripes: 4000
+        [1]:
+            active: false
+            key offset: 262144
+        [2]:
+            active: false
+            key offset: 520192
+        [3]:
+            active: false
+            key offset: 778240
+        [4]:
+            active: false
+            key offset: 1036288
+        [5]:
+            active: false
+            key offset: 1294336
+        [6]:
+            active: false
+            key offset: 1552384
+        [7]:
+            active: false
+            key offset: 1810432
+    payload offset: 2068480
+    master key iters: 1024
+
+=== Successful image creation (with non-default options) ===
+
+Testing: -object secret,id=keysec0,data=foo
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "key-secret": "keysec0"}
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+Format specific information:
+    ivgen alg: plain64
+    hash alg: sha1
+    cipher alg: twofish-128
+    uuid: 00000000-0000-0000-0000-000000000000
+    cipher mode: ctr
+    slots:
+        [0]:
+            active: true
+            iters: 1024
+            key offset: 4096
+            stripes: 4000
+        [1]:
+            active: false
+            key offset: 69632
+        [2]:
+            active: false
+            key offset: 135168
+        [3]:
+            active: false
+            key offset: 200704
+        [4]:
+            active: false
+            key offset: 266240
+        [5]:
+            active: false
+            key offset: 331776
+        [6]:
+            active: false
+            key offset: 397312
+        [7]:
+            active: false
+            key offset: 462848
+    payload offset: 528384
+    master key iters: 1024
+
+=== Invalid BlockdevRef ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Cannot find device=this doesn't exist nor node_name=this doesn't exist"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Zero size ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0 -object secret,id=keysec0,data=foo
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "key-secret": "keysec0"}
+file format: IMGFMT
+virtual size: 0 (0 bytes)
+
+=== Invalid sizes ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0 -object secret,id=keysec0,data=foo
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "The requested file size is too large"}}
+{"error": {"class": "GenericError", "desc": "The requested file size is too large"}}
+{"error": {"class": "GenericError", "desc": "The requested file size is too large"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+*** done
