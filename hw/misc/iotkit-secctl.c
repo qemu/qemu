@@ -136,11 +136,23 @@ static MemTxResult iotkit_secctl_s_read(void *opaque, hwaddr addr,
     case A_SECRESPCFG:
         r = s->secrespcfg;
         break;
+    case A_NSCCFG:
+        r = s->nsccfg;
+        break;
     case A_SECPPCINTSTAT:
         r = s->secppcintstat;
         break;
     case A_SECPPCINTEN:
         r = s->secppcinten;
+        break;
+    case A_BRGINTSTAT:
+        /* QEMU's bus fabric can never report errors as it doesn't buffer
+         * writes, so we never report bridge interrupts.
+         */
+        r = 0;
+        break;
+    case A_BRGINTEN:
+        r = s->brginten;
         break;
     case A_AHBNSPPCEXP0:
     case A_AHBNSPPCEXP1:
@@ -174,12 +186,9 @@ static MemTxResult iotkit_secctl_s_read(void *opaque, hwaddr addr,
     case A_APBSPPPCEXP3:
         r = s->apbexp[offset_to_ppc_idx(offset)].sp;
         break;
-    case A_NSCCFG:
     case A_SECMPCINTSTATUS:
     case A_SECMSCINTSTAT:
     case A_SECMSCINTEN:
-    case A_BRGINTSTAT:
-    case A_BRGINTEN:
     case A_NSMSCEXP:
         qemu_log_mask(LOG_UNIMP,
                       "IoTKit SecCtl S block read: "
@@ -298,6 +307,10 @@ static MemTxResult iotkit_secctl_s_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
+    case A_NSCCFG:
+        s->nsccfg = value & 3;
+        qemu_set_irq(s->nsc_cfg_irq, s->nsccfg);
+        break;
     case A_SECRESPCFG:
         value &= 1;
         s->secrespcfg = value;
@@ -310,6 +323,11 @@ static MemTxResult iotkit_secctl_s_write(void *opaque, hwaddr addr,
     case A_SECPPCINTEN:
         s->secppcinten = value & 0x00f000f3;
         foreach_ppc(s, iotkit_secctl_ppc_update_irq_enable);
+        break;
+    case A_BRGINTCLR:
+        break;
+    case A_BRGINTEN:
+        s->brginten = value & 0xffff0000;
         break;
     case A_AHBNSPPCEXP0:
     case A_AHBNSPPCEXP1:
@@ -349,11 +367,8 @@ static MemTxResult iotkit_secctl_s_write(void *opaque, hwaddr addr,
         ppc = &s->apbexp[offset_to_ppc_idx(offset)];
         iotkit_secctl_ppc_sp_write(ppc, value);
         break;
-    case A_NSCCFG:
     case A_SECMSCINTCLR:
     case A_SECMSCINTEN:
-    case A_BRGINTCLR:
-    case A_BRGINTEN:
         qemu_log_mask(LOG_UNIMP,
                       "IoTKit SecCtl S block write: "
                       "unimplemented offset 0x%x\n", offset);
@@ -551,6 +566,8 @@ static void iotkit_secctl_reset(DeviceState *dev)
     s->secppcintstat = 0;
     s->secppcinten = 0;
     s->secrespcfg = 0;
+    s->nsccfg = 0;
+    s->brginten = 0;
 
     foreach_ppc(s, iotkit_secctl_reset_ppc);
 }
@@ -621,6 +638,7 @@ static void iotkit_secctl_init(Object *obj)
     }
 
     qdev_init_gpio_out_named(dev, &s->sec_resp_cfg, "sec_resp_cfg", 1);
+    qdev_init_gpio_out_named(dev, &s->nsc_cfg_irq, "nsc_cfg", 1);
 
     memory_region_init_io(&s->s_regs, obj, &iotkit_secctl_s_ops,
                           s, "iotkit-secctl-s-regs", 0x1000);
@@ -650,6 +668,8 @@ static const VMStateDescription iotkit_secctl_vmstate = {
         VMSTATE_UINT32(secppcintstat, IoTKitSecCtl),
         VMSTATE_UINT32(secppcinten, IoTKitSecCtl),
         VMSTATE_UINT32(secrespcfg, IoTKitSecCtl),
+        VMSTATE_UINT32(nsccfg, IoTKitSecCtl),
+        VMSTATE_UINT32(brginten, IoTKitSecCtl),
         VMSTATE_STRUCT_ARRAY(apb, IoTKitSecCtl, IOTS_NUM_APB_PPC, 1,
                              iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
         VMSTATE_STRUCT_ARRAY(apbexp, IoTKitSecCtl, IOTS_NUM_APB_EXP_PPC, 1,

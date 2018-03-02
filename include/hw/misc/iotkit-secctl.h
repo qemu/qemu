@@ -18,6 +18,7 @@
  *  + sysbus MMIO region 1 is the "non-secure privilege control block" registers
  *  + named GPIO output "sec_resp_cfg" indicating whether blocked accesses
  *    should RAZ/WI or bus error
+ *  + named GPIO output "nsc_cfg" whose value tracks the NSCCFG register value
  * Controlling the 2 APB PPCs in the IoTKit:
  *  + named GPIO outputs apb_ppc0_nonsec[0..2] and apb_ppc1_nonsec
  *  + named GPIO outputs apb_ppc0_ap[0..2] and apb_ppc1_ap
@@ -83,6 +84,7 @@ struct IoTKitSecCtl {
 
     /*< public >*/
     qemu_irq sec_resp_cfg;
+    qemu_irq nsc_cfg_irq;
 
     MemoryRegion s_regs;
     MemoryRegion ns_regs;
@@ -90,6 +92,8 @@ struct IoTKitSecCtl {
     uint32_t secppcintstat;
     uint32_t secppcinten;
     uint32_t secrespcfg;
+    uint32_t nsccfg;
+    uint32_t brginten;
 
     IoTKitSecCtlPPC apb[IOTS_NUM_APB_PPC];
     IoTKitSecCtlPPC apbexp[IOTS_NUM_APB_EXP_PPC];
