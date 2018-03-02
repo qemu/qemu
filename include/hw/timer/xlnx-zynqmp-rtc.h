@@ -79,6 +79,8 @@ typedef struct XlnxZynqMPRTC {
     qemu_irq irq_rtc_int;
     qemu_irq irq_addr_error_int;
 
+    uint32_t tick_offset;
+
     uint32_t regs[XLNX_ZYNQMP_RTC_R_MAX];
     RegisterInfo regs_info[XLNX_ZYNQMP_RTC_R_MAX];
 } XlnxZynqMPRTC;

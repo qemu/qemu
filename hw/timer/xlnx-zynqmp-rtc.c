@@ -29,6 +29,10 @@
 #include "hw/register.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "hw/ptimer.h"
+#include "qemu/cutils.h"
+#include "sysemu/sysemu.h"
+#include "trace.h"
 #include "hw/timer/xlnx-zynqmp-rtc.h"
 
 #ifndef XLNX_ZYNQMP_RTC_ERR_DEBUG
@@ -45,6 +49,19 @@ static void addr_error_int_update_irq(XlnxZynqMPRTC *s)
 {
     bool pending = s->regs[R_ADDR_ERROR] & ~s->regs[R_ADDR_ERROR_INT_MASK];
     qemu_set_irq(s->irq_addr_error_int, pending);
+}
+
+static uint32_t rtc_get_count(XlnxZynqMPRTC *s)
+{
+    int64_t now = qemu_clock_get_ns(rtc_clock);
+    return s->tick_offset + now / NANOSECONDS_PER_SECOND;
+}
+
+static uint64_t current_time_postr(RegisterInfo *reg, uint64_t val64)
+{
+    XlnxZynqMPRTC *s = XLNX_ZYNQMP_RTC(reg->opaque);
+
+    return rtc_get_count(s);
 }
 
 static void rtc_int_status_postw(RegisterInfo *reg, uint64_t val64)
@@ -97,13 +114,17 @@ static uint64_t addr_error_int_dis_prew(RegisterInfo *reg, uint64_t val64)
 
 static const RegisterAccessInfo rtc_regs_info[] = {
     {   .name = "SET_TIME_WRITE",  .addr = A_SET_TIME_WRITE,
+        .unimp = MAKE_64BIT_MASK(0, 32),
     },{ .name = "SET_TIME_READ",  .addr = A_SET_TIME_READ,
         .ro = 0xffffffff,
+        .post_read = current_time_postr,
     },{ .name = "CALIB_WRITE",  .addr = A_CALIB_WRITE,
+        .unimp = MAKE_64BIT_MASK(0, 32),
     },{ .name = "CALIB_READ",  .addr = A_CALIB_READ,
         .ro = 0x1fffff,
     },{ .name = "CURRENT_TIME",  .addr = A_CURRENT_TIME,
         .ro = 0xffffffff,
+        .post_read = current_time_postr,
     },{ .name = "CURRENT_TICK",  .addr = A_CURRENT_TICK,
         .ro = 0xffff,
     },{ .name = "ALARM",  .addr = A_ALARM,
@@ -162,6 +183,7 @@ static void rtc_init(Object *obj)
     XlnxZynqMPRTC *s = XLNX_ZYNQMP_RTC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     RegisterInfoArray *reg_array;
+    struct tm current_tm;
 
     memory_region_init(&s->iomem, obj, TYPE_XLNX_ZYNQMP_RTC,
                        XLNX_ZYNQMP_RTC_R_MAX * 4);
@@ -178,14 +200,50 @@ static void rtc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq_rtc_int);
     sysbus_init_irq(sbd, &s->irq_addr_error_int);
+
+    qemu_get_timedate(&current_tm, 0);
+    s->tick_offset = mktimegm(&current_tm) -
+        qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
+
+    trace_xlnx_zynqmp_rtc_gettime(current_tm.tm_year, current_tm.tm_mon,
+                                  current_tm.tm_mday, current_tm.tm_hour,
+                                  current_tm.tm_min, current_tm.tm_sec);
+}
+
+static int rtc_pre_save(void *opaque)
+{
+    XlnxZynqMPRTC *s = opaque;
+    int64_t now = qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
+
+    /* Add the time at migration */
+    s->tick_offset = s->tick_offset + now;
+
+    return 0;
+}
+
+static int rtc_post_load(void *opaque, int version_id)
+{
+    XlnxZynqMPRTC *s = opaque;
+    int64_t now = qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
+
+    /* Subtract the time after migration. This combined with the pre_save
+     * action results in us having subtracted the time that the guest was
+     * stopped to the offset.
+     */
+    s->tick_offset = s->tick_offset - now;
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_rtc = {
     .name = TYPE_XLNX_ZYNQMP_RTC,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = rtc_pre_save,
+    .post_load = rtc_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPRTC, XLNX_ZYNQMP_RTC_R_MAX),
+        VMSTATE_UINT32(tick_offset, XlnxZynqMPRTC),
         VMSTATE_END_OF_LIST(),
     }
 };
