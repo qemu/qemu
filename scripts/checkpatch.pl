@@ -2584,6 +2584,11 @@ sub process {
 			ERROR("__func__ should be used instead of gcc specific __FUNCTION__\n"  . $herecurr);
 		}
 
+# recommend g_path_get_* over g_strdup(basename/dirname(...))
+		if ($line =~ /\bg_strdup\s*\(\s*(basename|dirname)\s*\(/) {
+			WARN("consider using g_path_get_$1() in preference to g_strdup($1())\n" . $herecurr);
+		}
+
 # recommend qemu_strto* over strto* for numeric conversions
 		if ($line =~ /\b(strto[^kd].*?)\s*\(/) {
 			ERROR("consider using qemu_$1 in preference to $1\n" . $herecurr);
