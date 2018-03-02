@@ -10774,7 +10774,19 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                                default_exception_el(s));
             break;
         }
-        if (((insn >> 24) & 3) == 3) {
+        if ((insn & 0xfe000a00) == 0xfc000800
+            && arm_dc_feature(s, ARM_FEATURE_V8)) {
+            /* The Thumb2 and ARM encodings are identical.  */
+            if (disas_neon_insn_3same_ext(s, insn)) {
+                goto illegal_op;
+            }
+        } else if ((insn & 0xff000a00) == 0xfe000800
+                   && arm_dc_feature(s, ARM_FEATURE_V8)) {
+            /* The Thumb2 and ARM encodings are identical.  */
+            if (disas_neon_insn_2reg_scalar_ext(s, insn)) {
+                goto illegal_op;
+            }
+        } else if (((insn >> 24) & 3) == 3) {
             /* Translate into the equivalent ARM encoding.  */
             insn = (insn & 0xe2ffffff) | ((insn & (1 << 28)) >> 4) | (1 << 28);
             if (disas_neon_data_insn(s, insn)) {
