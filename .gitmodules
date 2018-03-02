@@ -43,3 +43,6 @@
 [submodule "roms/seabios-hppa"]
 	path = roms/seabios-hppa
 	url = git://github.com/hdeller/seabios-hppa.git
+[submodule "roms/u-boot-sam460ex"]
+	path = roms/u-boot-sam460ex
+	url = git://github.com/zbalaton/u-boot-sam460ex

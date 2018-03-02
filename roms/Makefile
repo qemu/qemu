@@ -65,6 +65,7 @@ default:
 	@echo "  slof           -- update slof.bin"
 	@echo "  skiboot        -- update skiboot.lid"
 	@echo "  u-boot.e500    -- update u-boot.e500"
+	@echo "  u-boot.sam460  -- update u-boot.sam460"
 
 bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
 	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
@@ -147,6 +148,11 @@ u-boot.e500:
 	$(powerpc_cross_prefix)strip u-boot/build.e500/u-boot -o \
 		../pc-bios/u-boot.e500
 
+u-boot.sam460:
+	$(MAKE) -C u-boot-sam460ex Sam460ex_config
+	$(MAKE) -C u-boot-sam460ex CROSS_COMPILE=$(powerpc_cross_prefix)
+	cp u-boot-sam460ex/u-boot.bin ../pc-bios/u-boot-sam460-20100605.bin
+
 skiboot:
 	$(MAKE) -C skiboot CROSS=$(powerpc64_cross_prefix)
 	cp skiboot/skiboot.lid ../pc-bios/skiboot.lid
@@ -160,4 +166,5 @@ clean:
 	$(MAKE) -C ipxe/src veryclean
 	$(MAKE) -C SLOF clean
 	rm -rf u-boot/build.e500
+	$(MAKE) -C u-boot-sam460ex distclean
 	$(MAKE) -C skiboot clean
