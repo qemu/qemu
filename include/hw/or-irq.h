@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+#ifndef HW_OR_IRQ_H
+#define HW_OR_IRQ_H
+
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
@@ -41,3 +44,5 @@ struct OrIRQState {
     bool levels[MAX_OR_LINES];
     uint16_t num_lines;
 };
+
+#endif
