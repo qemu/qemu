@@ -10842,6 +10842,10 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
         }
         feature = ARM_FEATURE_V8_RDM;
         break;
+    case 0x8: /* FCMLA, #0 */
+    case 0x9: /* FCMLA, #90 */
+    case 0xa: /* FCMLA, #180 */
+    case 0xb: /* FCMLA, #270 */
     case 0xc: /* FCADD, #90 */
     case 0xe: /* FCADD, #270 */
         if (size == 0
@@ -10885,6 +10889,29 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
             break;
         case 2:
             gen_gvec_op3_env(s, is_q, rd, rn, rm, gen_helper_gvec_qrdmlsh_s32);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        return;
+
+    case 0x8: /* FCMLA, #0 */
+    case 0x9: /* FCMLA, #90 */
+    case 0xa: /* FCMLA, #180 */
+    case 0xb: /* FCMLA, #270 */
+        rot = extract32(opcode, 0, 2);
+        switch (size) {
+        case 1:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, true, rot,
+                              gen_helper_gvec_fcmlah);
+            break;
+        case 2:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, false, rot,
+                              gen_helper_gvec_fcmlas);
+            break;
+        case 3:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, false, rot,
+                              gen_helper_gvec_fcmlad);
             break;
         default:
             g_assert_not_reached();
@@ -11993,7 +12020,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     bool is_long = false;
-    bool is_fp = false;
+    int is_fp = 0;
     bool is_fp16 = false;
     int index;
     TCGv_ptr fpst;
@@ -12031,7 +12058,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x05: /* FMLS */
     case 0x09: /* FMUL */
     case 0x19: /* FMULX */
-        is_fp = true;
+        is_fp = 1;
         break;
     case 0x1d: /* SQRDMLAH */
     case 0x1f: /* SQRDMLSH */
@@ -12040,20 +12067,28 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             return;
         }
         break;
+    case 0x11: /* FCMLA #0 */
+    case 0x13: /* FCMLA #90 */
+    case 0x15: /* FCMLA #180 */
+    case 0x17: /* FCMLA #270 */
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)) {
+            unallocated_encoding(s);
+            return;
+        }
+        is_fp = 2;
+        break;
     default:
         unallocated_encoding(s);
         return;
     }
 
-    if (is_fp) {
+    switch (is_fp) {
+    case 1: /* normal fp */
         /* convert insn encoded size to TCGMemOp size */
         switch (size) {
         case 0: /* half-precision */
-            if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
-                unallocated_encoding(s);
-                return;
-            }
             size = MO_16;
+            is_fp16 = true;
             break;
         case MO_32: /* single precision */
         case MO_64: /* double precision */
@@ -12062,13 +12097,39 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-    } else {
+        break;
+
+    case 2: /* complex fp */
+        /* Each indexable element is a complex pair.  */
+        size <<= 1;
+        switch (size) {
+        case MO_32:
+            if (h && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            is_fp16 = true;
+            break;
+        case MO_64:
+            break;
+        default:
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+
+    default: /* integer */
         switch (size) {
         case MO_8:
         case MO_64:
             unallocated_encoding(s);
             return;
         }
+        break;
+    }
+    if (is_fp16 && !arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
+        unallocated_encoding(s);
+        return;
     }
 
     /* Given TCGMemOp size, adjust register and indexing.  */
@@ -12100,6 +12161,23 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         fpst = get_fpstatus_ptr(is_fp16);
     } else {
         fpst = NULL;
+    }
+
+    switch (16 * u + opcode) {
+    case 0x11: /* FCMLA #0 */
+    case 0x13: /* FCMLA #90 */
+    case 0x15: /* FCMLA #180 */
+    case 0x17: /* FCMLA #270 */
+        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_reg_offset(s, rm, index, size), fpst,
+                           is_q ? 16 : 8, vec_full_reg_size(s),
+                           extract32(insn, 13, 2), /* rot */
+                           size == MO_64
+                           ? gen_helper_gvec_fcmlas_idx
+                           : gen_helper_gvec_fcmlah_idx);
+        tcg_temp_free_ptr(fpst);
+        return;
     }
 
     if (size == 3) {
