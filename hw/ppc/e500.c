@@ -792,8 +792,10 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     int initrd_size = 0;
     hwaddr cur_base = 0;
     char *filename;
+    const char *payload_name;
+    bool kernel_as_payload;
     hwaddr bios_entry = 0;
-    target_long bios_size;
+    target_long payload_size;
     struct boot_info *boot_info;
     int dt_size;
     int i;
@@ -921,11 +923,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     /* Register spinning region */
     sysbus_create_simple("e500-spin", params->spin_base, NULL);
 
-    if (cur_base < (32 * 1024 * 1024)) {
-        /* u-boot occupies memory up to 32MB, so load blobs above */
-        cur_base = (32 * 1024 * 1024);
-    }
-
     if (params->has_mpc8xxx_gpio) {
         qemu_irq poweroff_irq;
 
@@ -960,8 +957,61 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
                                     sysbus_mmio_get_region(s, 0));
     }
 
-    /* Load kernel. */
-    if (machine->kernel_filename) {
+    /*
+     * Smart firmware defaults ahead!
+     *
+     * We follow the following table to select which payload we execute.
+     *
+     *  -kernel | -bios | payload
+     * ---------+-------+---------
+     *     N    |   Y   | u-boot
+     *     N    |   N   | u-boot
+     *     Y    |   Y   | u-boot
+     *     Y    |   N   | kernel
+     *
+     * This ensures backwards compatibility with how we used to expose
+     * -kernel to users but allows them to run through u-boot as well.
+     */
+    kernel_as_payload = false;
+    if (bios_name == NULL) {
+        if (machine->kernel_filename) {
+            payload_name = machine->kernel_filename;
+            kernel_as_payload = true;
+        } else {
+            payload_name = "u-boot.e500";
+        }
+    } else {
+        payload_name = bios_name;
+    }
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, payload_name);
+
+    payload_size = load_elf(filename, NULL, NULL, &bios_entry, &loadaddr, NULL,
+                            1, PPC_ELF_MACHINE, 0, 0);
+    if (payload_size < 0) {
+        /*
+         * Hrm. No ELF image? Try a uImage, maybe someone is giving us an
+         * ePAPR compliant kernel
+         */
+        payload_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
+                                   NULL, NULL);
+        if (payload_size < 0) {
+            error_report("qemu: could not load firmware '%s'", filename);
+            exit(1);
+        }
+    }
+
+    g_free(filename);
+
+    if (kernel_as_payload) {
+        kernel_base = loadaddr;
+        kernel_size = payload_size;
+    }
+
+    cur_base = loadaddr + payload_size;
+
+    /* Load bare kernel only if no bios/u-boot has been provided */
+    if (machine->kernel_filename && !kernel_as_payload) {
         kernel_base = cur_base;
         kernel_size = load_image_targphys(machine->kernel_filename,
                                           cur_base,
@@ -973,6 +1023,11 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         }
 
         cur_base += kernel_size;
+    }
+
+    if (cur_base < (32 * 1024 * 1024)) {
+        /* u-boot occupies memory up to 32MB, so load blobs above */
+        cur_base = (32 * 1024 * 1024);
     }
 
     /* Load initrd. */
@@ -991,47 +1046,16 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     }
 
     /*
-     * Smart firmware defaults ahead!
-     *
-     * We follow the following table to select which payload we execute.
-     *
-     *  -kernel | -bios | payload
-     * ---------+-------+---------
-     *     N    |   Y   | u-boot
-     *     N    |   N   | u-boot
-     *     Y    |   Y   | u-boot
-     *     Y    |   N   | kernel
-     *
-     * This ensures backwards compatibility with how we used to expose
-     * -kernel to users but allows them to run through u-boot as well.
+     * Reserve space for dtb behind the kernel image because Linux has a bug
+     * where it can only handle the dtb if it's within the first 64MB of where
+     * <kernel> starts. dtb cannot not reach initrd_base because INITRD_LOAD_PAD
+     * ensures enough space between kernel and initrd.
      */
-    if (bios_name == NULL) {
-        if (machine->kernel_filename) {
-            bios_name = machine->kernel_filename;
-        } else {
-            bios_name = "u-boot.e500";
-        }
-    }
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-
-    bios_size = load_elf(filename, NULL, NULL, &bios_entry, &loadaddr, NULL,
-                         1, PPC_ELF_MACHINE, 0, 0);
-    if (bios_size < 0) {
-        /*
-         * Hrm. No ELF image? Try a uImage, maybe someone is giving us an
-         * ePAPR compliant kernel
-         */
-        kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
-                                  NULL, NULL);
-        if (kernel_size < 0) {
-            error_report("could not load firmware '%s'", filename);
+    dt_base = (loadaddr + payload_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+    if (dt_base + DTB_MAX_SIZE > ram_size) {
+            error_report("qemu: not enough memory for device tree");
             exit(1);
-        }
     }
-    g_free(filename);
-
-    /* Reserve space for dtb */
-    dt_base = (loadaddr + bios_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
 
     dt_size = ppce500_prep_device_tree(machine, params, dt_base,
                                        initrd_base, initrd_size,
