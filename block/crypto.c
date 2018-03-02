@@ -543,6 +543,39 @@ static int block_crypto_open_luks(BlockDriverState *bs,
                                      bs, options, flags, errp);
 }
 
+static int coroutine_fn
+block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
+{
+    BlockdevCreateOptionsLUKS *luks_opts;
+    BlockDriverState *bs = NULL;
+    QCryptoBlockCreateOptions create_opts;
+    int ret;
+
+    assert(create_options->driver == BLOCKDEV_DRIVER_LUKS);
+    luks_opts = &create_options->u.luks;
+
+    bs = bdrv_open_blockdev_ref(luks_opts->file, errp);
+    if (bs == NULL) {
+        return -EIO;
+    }
+
+    create_opts = (QCryptoBlockCreateOptions) {
+        .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
+        .u.luks = *qapi_BlockdevCreateOptionsLUKS_base(luks_opts),
+    };
+
+    ret = block_crypto_co_create_generic(bs, luks_opts->size, &create_opts,
+                                         errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    ret = 0;
+fail:
+    bdrv_unref(bs);
+    return ret;
+}
+
 static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
                                                          QemuOpts *opts,
                                                          Error **errp)
@@ -647,6 +680,7 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_open          = block_crypto_open_luks,
     .bdrv_close         = block_crypto_close,
     .bdrv_child_perm    = bdrv_format_default_perms,
+    .bdrv_co_create     = block_crypto_co_create_luks,
     .bdrv_co_create_opts = block_crypto_co_create_opts_luks,
     .bdrv_truncate      = block_crypto_truncate,
     .create_opts        = &block_crypto_create_opts_luks,
