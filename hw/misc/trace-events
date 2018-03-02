@@ -83,3 +83,14 @@ mos6522_get_next_irq_time(uint16_t latch, int64_t d, int64_t delta) "latch=%d co
 mos6522_set_sr_int(void) "set sr_int"
 mos6522_write(uint64_t addr, uint64_t val) "reg=0x%"PRIx64 " val=0x%"PRIx64
 mos6522_read(uint64_t addr, unsigned val) "reg=0x%"PRIx64 " val=0x%x"
+
+# hw/misc/tz-ppc.c
+tz_ppc_reset(void) "TZ PPC: reset"
+tz_ppc_cfg_nonsec(int n, int level) "TZ PPC: cfg_nonsec[%d] = %d"
+tz_ppc_cfg_ap(int n, int level) "TZ PPC: cfg_ap[%d] = %d"
+tz_ppc_cfg_sec_resp(int level) "TZ PPC: cfg_sec_resp = %d"
+tz_ppc_irq_enable(int level) "TZ PPC: int_enable = %d"
+tz_ppc_irq_clear(int level) "TZ PPC: int_clear = %d"
+tz_ppc_update_irq(int level) "TZ PPC: setting irq line to %d"
+tz_ppc_read_blocked(int n, hwaddr offset, bool secure, bool user) "TZ PPC: port %d offset 0x%" HWADDR_PRIx " read (secure %d user %d) blocked"
+tz_ppc_write_blocked(int n, hwaddr offset, bool secure, bool user) "TZ PPC: port %d offset 0x%" HWADDR_PRIx " write (secure %d user %d) blocked"
