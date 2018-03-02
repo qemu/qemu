@@ -7680,6 +7680,68 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
     return 0;
 }
 
+/* Advanced SIMD three registers of the same length extension.
+ *  31           25    23  22    20   16   12  11   10   9    8        3     0
+ * +---------------+-----+---+-----+----+----+---+----+---+----+---------+----+
+ * | 1 1 1 1 1 1 0 | op1 | D | op2 | Vn | Vd | 1 | o3 | 0 | o4 | N Q M U | Vm |
+ * +---------------+-----+---+-----+----+----+---+----+---+----+---------+----+
+ */
+static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
+{
+    gen_helper_gvec_3_ptr *fn_gvec_ptr;
+    int rd, rn, rm, rot, size, opr_sz;
+    TCGv_ptr fpst;
+    bool q;
+
+    q = extract32(insn, 6, 1);
+    VFP_DREG_D(rd, insn);
+    VFP_DREG_N(rn, insn);
+    VFP_DREG_M(rm, insn);
+    if ((rd | rn | rm) & q) {
+        return 1;
+    }
+
+    if ((insn & 0xfe200f10) == 0xfc200800) {
+        /* VCMLA -- 1111 110R R.1S .... .... 1000 ...0 .... */
+        size = extract32(insn, 20, 1);
+        rot = extract32(insn, 23, 2);
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)
+            || (!size && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))) {
+            return 1;
+        }
+        fn_gvec_ptr = size ? gen_helper_gvec_fcmlas : gen_helper_gvec_fcmlah;
+    } else if ((insn & 0xfea00f10) == 0xfc800800) {
+        /* VCADD -- 1111 110R 1.0S .... .... 1000 ...0 .... */
+        size = extract32(insn, 20, 1);
+        rot = extract32(insn, 24, 1);
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)
+            || (!size && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))) {
+            return 1;
+        }
+        fn_gvec_ptr = size ? gen_helper_gvec_fcadds : gen_helper_gvec_fcaddh;
+    } else {
+        return 1;
+    }
+
+    if (s->fp_excp_el) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
+        return 0;
+    }
+    if (!s->vfp_enabled) {
+        return 1;
+    }
+
+    opr_sz = (1 + q) * 8;
+    fpst = get_fpstatus_ptr(1);
+    tcg_gen_gvec_3_ptr(vfp_reg_offset(1, rd),
+                       vfp_reg_offset(1, rn),
+                       vfp_reg_offset(1, rm), fpst,
+                       opr_sz, opr_sz, rot, fn_gvec_ptr);
+    tcg_temp_free_ptr(fpst);
+    return 0;
+}
+
 static int disas_coproc_insn(DisasContext *s, uint32_t insn)
 {
     int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
@@ -8424,6 +8486,12 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                     }
                 }
             }
+        } else if ((insn & 0x0e000a00) == 0x0c000800
+                   && arm_dc_feature(s, ARM_FEATURE_V8)) {
+            if (disas_neon_insn_3same_ext(s, insn)) {
+                goto illegal_op;
+            }
+            return;
         } else if ((insn & 0x0fe00000) == 0x0c400000) {
             /* Coprocessor double register transfer.  */
             ARCH(5TE);
