@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "target/arm/idau.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "cpu.h"
@@ -186,6 +187,7 @@ static void arm_cpu_reset(CPUState *s)
         uint32_t initial_msp; /* Loaded from 0x0 */
         uint32_t initial_pc; /* Loaded from 0x4 */
         uint8_t *rom;
+        uint32_t vecbase;
 
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
             env->v7m.secure = true;
@@ -213,8 +215,11 @@ static void arm_cpu_reset(CPUState *s)
         /* Unlike A/R profile, M profile defines the reset LR value */
         env->regs[14] = 0xffffffff;
 
-        /* Load the initial SP and PC from the vector table at address 0 */
-        rom = rom_ptr(0);
+        env->v7m.vecbase[M_REG_S] = cpu->init_svtor & 0xffffff80;
+
+        /* Load the initial SP and PC from offset 0 and 4 in the vector table */
+        vecbase = env->v7m.vecbase[env->v7m.secure];
+        rom = rom_ptr(vecbase);
         if (rom) {
             /* Address zero is covered by ROM which hasn't yet been
              * copied into physical memory.
@@ -227,8 +232,8 @@ static void arm_cpu_reset(CPUState *s)
              * it got copied into memory. In the latter case, rom_ptr
              * will return a NULL pointer and we should use ldl_phys instead.
              */
-            initial_msp = ldl_phys(s->as, 0);
-            initial_pc = ldl_phys(s->as, 4);
+            initial_msp = ldl_phys(s->as, vecbase);
+            initial_pc = ldl_phys(s->as, vecbase + 4);
         }
 
         env->regs[13] = initial_msp & 0xFFFFFFFC;
@@ -623,6 +628,10 @@ static Property arm_cpu_pmsav7_dregion_property =
                                            pmsav7_dregion,
                                            qdev_prop_uint32, uint32_t);
 
+/* M profile: initial value of the Secure VTOR */
+static Property arm_cpu_initsvtor_property =
+            DEFINE_PROP_UINT32("init-svtor", ARMCPU, init_svtor, 0);
+
 static void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -686,6 +695,15 @@ static void arm_cpu_post_init(Object *obj)
                                      &arm_cpu_pmsav7_dregion_property,
                                      &error_abort);
         }
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_M_SECURITY)) {
+        object_property_add_link(obj, "idau", TYPE_IDAU_INTERFACE, &cpu->idau,
+                                 qdev_prop_allow_set_link_before_realize,
+                                 OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                                 &error_abort);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_initsvtor_property,
+                                 &error_abort);
     }
 
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property,
@@ -1188,6 +1206,35 @@ static void cortex_m4_initfn(Object *obj)
     cpu->id_isar5 = 0x00000000;
 }
 
+static void cortex_m33_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    set_feature(&cpu->env, ARM_FEATURE_V8);
+    set_feature(&cpu->env, ARM_FEATURE_M);
+    set_feature(&cpu->env, ARM_FEATURE_M_SECURITY);
+    set_feature(&cpu->env, ARM_FEATURE_THUMB_DSP);
+    cpu->midr = 0x410fd213; /* r0p3 */
+    cpu->pmsav7_dregion = 16;
+    cpu->sau_sregion = 8;
+    cpu->id_pfr0 = 0x00000030;
+    cpu->id_pfr1 = 0x00000210;
+    cpu->id_dfr0 = 0x00200000;
+    cpu->id_afr0 = 0x00000000;
+    cpu->id_mmfr0 = 0x00101F40;
+    cpu->id_mmfr1 = 0x00000000;
+    cpu->id_mmfr2 = 0x01000000;
+    cpu->id_mmfr3 = 0x00000000;
+    cpu->id_isar0 = 0x01101110;
+    cpu->id_isar1 = 0x02212000;
+    cpu->id_isar2 = 0x20232232;
+    cpu->id_isar3 = 0x01111131;
+    cpu->id_isar4 = 0x01310132;
+    cpu->id_isar5 = 0x00000000;
+    cpu->clidr = 0x00000000;
+    cpu->ctr = 0x8000c000;
+}
+
 static void arm_v7m_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -1650,6 +1697,8 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
     set_feature(&cpu->env, ARM_FEATURE_V8_PMULL);
     set_feature(&cpu->env, ARM_FEATURE_CRC);
+    set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
+    set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
     cpu->midr = 0xffffffff;
 }
 #endif
@@ -1678,6 +1727,8 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "cortex-m3",   .initfn = cortex_m3_initfn,
                              .class_init = arm_v7m_class_init },
     { .name = "cortex-m4",   .initfn = cortex_m4_initfn,
+                             .class_init = arm_v7m_class_init },
+    { .name = "cortex-m33",  .initfn = cortex_m33_initfn,
                              .class_init = arm_v7m_class_init },
     { .name = "cortex-r5",   .initfn = cortex_r5_initfn },
     { .name = "cortex-a7",   .initfn = cortex_a7_initfn },
@@ -1821,11 +1872,18 @@ static const TypeInfo arm_cpu_type_info = {
     .class_init = arm_cpu_class_init,
 };
 
+static const TypeInfo idau_interface_type_info = {
+    .name = TYPE_IDAU_INTERFACE,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(IDAUInterfaceClass),
+};
+
 static void arm_cpu_register_types(void)
 {
     const ARMCPUInfo *info = arm_cpus;
 
     type_register_static(&arm_cpu_type_info);
+    type_register_static(&idau_interface_type_info);
 
     while (info->name) {
         cpu_register(info);

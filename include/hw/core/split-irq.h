@@ -1,7 +1,8 @@
 /*
- * QEMU IRQ/GPIO common code.
+ * IRQ splitter device.
  *
- * Copyright (c) 2016 Alistair Francis <alistair@alistair23.me>.
+ * Copyright (c) 2018 Linaro Limited.
+ * Written by Peter Maydell
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,26 +23,34 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_OR_IRQ_H
-#define HW_OR_IRQ_H
+/* This is a simple device which has one GPIO input line and multiple
+ * GPIO output lines. Any change on the input line is forwarded to all
+ * of the outputs.
+ *
+ * QEMU interface:
+ *  + one unnamed GPIO input: the input line
+ *  + N unnamed GPIO outputs: the output lines
+ *  + QOM property "num-lines": sets the number of output lines
+ */
+#ifndef HW_SPLIT_IRQ_H
+#define HW_SPLIT_IRQ_H
 
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
-#define TYPE_OR_IRQ "or-irq"
+#define TYPE_SPLIT_IRQ "split-irq"
 
-#define MAX_OR_LINES      16
+#define MAX_SPLIT_LINES 16
 
-typedef struct OrIRQState qemu_or_irq;
+typedef struct SplitIRQ SplitIRQ;
 
-#define OR_IRQ(obj) OBJECT_CHECK(qemu_or_irq, (obj), TYPE_OR_IRQ)
+#define SPLIT_IRQ(obj) OBJECT_CHECK(SplitIRQ, (obj), TYPE_SPLIT_IRQ)
 
-struct OrIRQState {
+struct SplitIRQ {
     DeviceState parent_obj;
 
-    qemu_irq out_irq;
-    bool levels[MAX_OR_LINES];
+    qemu_irq out_irq[MAX_SPLIT_LINES];
     uint16_t num_lines;
 };
 

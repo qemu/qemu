@@ -62,6 +62,12 @@ mps2_scc_leds(char led7, char led6, char led5, char led4, char led3, char led2, 
 mps2_scc_cfg_write(unsigned function, unsigned device, uint32_t value) "MPS2 SCC config write: function %d device %d data 0x%" PRIx32
 mps2_scc_cfg_read(unsigned function, unsigned device, uint32_t value) "MPS2 SCC config read: function %d device %d data 0x%" PRIx32
 
+# hw/misc/mps2_fpgaio.c
+mps2_fpgaio_read(uint64_t offset, uint64_t data, unsigned size) "MPS2 FPGAIO read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+mps2_fpgaio_write(uint64_t offset, uint64_t data, unsigned size) "MPS2 FPGAIO write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+mps2_fpgaio_reset(void) "MPS2 FPGAIO: reset"
+mps2_fpgaio_leds(char led1, char led0) "MPS2 FPGAIO LEDs: %c%c"
+
 # hw/misc/msf2-sysreg.c
 msf2_sysreg_write(uint64_t offset, uint32_t val, uint32_t prev) "msf2-sysreg write: addr 0x%08" HWADDR_PRIx " data 0x%" PRIx32 " prev 0x%" PRIx32
 msf2_sysreg_read(uint64_t offset, uint32_t val) "msf2-sysreg read: addr 0x%08" HWADDR_PRIx " data 0x%08" PRIx32
@@ -77,3 +83,21 @@ mos6522_get_next_irq_time(uint16_t latch, int64_t d, int64_t delta) "latch=%d co
 mos6522_set_sr_int(void) "set sr_int"
 mos6522_write(uint64_t addr, uint64_t val) "reg=0x%"PRIx64 " val=0x%"PRIx64
 mos6522_read(uint64_t addr, unsigned val) "reg=0x%"PRIx64 " val=0x%x"
+
+# hw/misc/tz-ppc.c
+tz_ppc_reset(void) "TZ PPC: reset"
+tz_ppc_cfg_nonsec(int n, int level) "TZ PPC: cfg_nonsec[%d] = %d"
+tz_ppc_cfg_ap(int n, int level) "TZ PPC: cfg_ap[%d] = %d"
+tz_ppc_cfg_sec_resp(int level) "TZ PPC: cfg_sec_resp = %d"
+tz_ppc_irq_enable(int level) "TZ PPC: int_enable = %d"
+tz_ppc_irq_clear(int level) "TZ PPC: int_clear = %d"
+tz_ppc_update_irq(int level) "TZ PPC: setting irq line to %d"
+tz_ppc_read_blocked(int n, hwaddr offset, bool secure, bool user) "TZ PPC: port %d offset 0x%" HWADDR_PRIx " read (secure %d user %d) blocked"
+tz_ppc_write_blocked(int n, hwaddr offset, bool secure, bool user) "TZ PPC: port %d offset 0x%" HWADDR_PRIx " write (secure %d user %d) blocked"
+
+# hw/misc/iotkit-secctl.c
+iotkit_secctl_s_read(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl S regs read: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_s_write(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl S regs write: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_ns_read(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl NS regs read: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_ns_write(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl NS regs write: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_reset(void) "IoTKit SecCtl: reset"

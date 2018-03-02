@@ -701,6 +701,33 @@ static void gen_gvec_op3(DisasContext *s, bool is_q, int rd,
                    vec_full_reg_size(s), gvec_op);
 }
 
+/* Expand a 3-operand + env pointer operation using
+ * an out-of-line helper.
+ */
+static void gen_gvec_op3_env(DisasContext *s, bool is_q, int rd,
+                             int rn, int rm, gen_helper_gvec_3_ptr *fn)
+{
+    tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm), cpu_env,
+                       is_q ? 16 : 8, vec_full_reg_size(s), 0, fn);
+}
+
+/* Expand a 3-operand + fpstatus pointer + simd data value operation using
+ * an out-of-line helper.
+ */
+static void gen_gvec_op3_fpst(DisasContext *s, bool is_q, int rd, int rn,
+                              int rm, bool is_fp16, int data,
+                              gen_helper_gvec_3_ptr *fn)
+{
+    TCGv_ptr fpst = get_fpstatus_ptr(is_fp16);
+    tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm), fpst,
+                       is_q ? 16 : 8, vec_full_reg_size(s), data, fn);
+    tcg_temp_free_ptr(fpst);
+}
+
 /* Set ZF and NF based on a 64 bit result. This is alas fiddlier
  * than the 32 bit equivalent.
  */
@@ -7971,6 +7998,89 @@ static void disas_simd_scalar_three_reg_same_fp16(DisasContext *s,
     tcg_temp_free_ptr(fpst);
 }
 
+/* AdvSIMD scalar three same extra
+ *  31 30  29 28       24 23  22  21 20  16  15 14    11  10 9  5 4  0
+ * +-----+---+-----------+------+---+------+---+--------+---+----+----+
+ * | 0 1 | U | 1 1 1 1 0 | size | 0 |  Rm  | 1 | opcode | 1 | Rn | Rd |
+ * +-----+---+-----------+------+---+------+---+--------+---+----+----+
+ */
+static void disas_simd_scalar_three_reg_same_extra(DisasContext *s,
+                                                   uint32_t insn)
+{
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int opcode = extract32(insn, 11, 4);
+    int rm = extract32(insn, 16, 5);
+    int size = extract32(insn, 22, 2);
+    bool u = extract32(insn, 29, 1);
+    TCGv_i32 ele1, ele2, ele3;
+    TCGv_i64 res;
+    int feature;
+
+    switch (u * 16 + opcode) {
+    case 0x10: /* SQRDMLAH (vector) */
+    case 0x11: /* SQRDMLSH (vector) */
+        if (size != 1 && size != 2) {
+            unallocated_encoding(s);
+            return;
+        }
+        feature = ARM_FEATURE_V8_RDM;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+    if (!arm_dc_feature(s, feature)) {
+        unallocated_encoding(s);
+        return;
+    }
+    if (!fp_access_check(s)) {
+        return;
+    }
+
+    /* Do a single operation on the lowest element in the vector.
+     * We use the standard Neon helpers and rely on 0 OP 0 == 0
+     * with no side effects for all these operations.
+     * OPTME: special-purpose helpers would avoid doing some
+     * unnecessary work in the helper for the 16 bit cases.
+     */
+    ele1 = tcg_temp_new_i32();
+    ele2 = tcg_temp_new_i32();
+    ele3 = tcg_temp_new_i32();
+
+    read_vec_element_i32(s, ele1, rn, 0, size);
+    read_vec_element_i32(s, ele2, rm, 0, size);
+    read_vec_element_i32(s, ele3, rd, 0, size);
+
+    switch (opcode) {
+    case 0x0: /* SQRDMLAH */
+        if (size == 1) {
+            gen_helper_neon_qrdmlah_s16(ele3, cpu_env, ele1, ele2, ele3);
+        } else {
+            gen_helper_neon_qrdmlah_s32(ele3, cpu_env, ele1, ele2, ele3);
+        }
+        break;
+    case 0x1: /* SQRDMLSH */
+        if (size == 1) {
+            gen_helper_neon_qrdmlsh_s16(ele3, cpu_env, ele1, ele2, ele3);
+        } else {
+            gen_helper_neon_qrdmlsh_s32(ele3, cpu_env, ele1, ele2, ele3);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_temp_free_i32(ele1);
+    tcg_temp_free_i32(ele2);
+
+    res = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(res, ele3);
+    tcg_temp_free_i32(ele3);
+
+    write_fp_dreg(s, rd, res);
+    tcg_temp_free_i64(res);
+}
+
 static void handle_2misc_64(DisasContext *s, int opcode, bool u,
                             TCGv_i64 tcg_rd, TCGv_i64 tcg_rn,
                             TCGv_i32 tcg_rmode, TCGv_ptr tcg_fpstatus)
@@ -10706,6 +10816,134 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
     clear_vec_high(s, is_q, rd);
 }
 
+/* AdvSIMD three same extra
+ *  31   30  29 28       24 23  22  21 20  16  15 14    11  10 9  5 4  0
+ * +---+---+---+-----------+------+---+------+---+--------+---+----+----+
+ * | 0 | Q | U | 0 1 1 1 0 | size | 0 |  Rm  | 1 | opcode | 1 | Rn | Rd |
+ * +---+---+---+-----------+------+---+------+---+--------+---+----+----+
+ */
+static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
+{
+    int rd = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int opcode = extract32(insn, 11, 4);
+    int rm = extract32(insn, 16, 5);
+    int size = extract32(insn, 22, 2);
+    bool u = extract32(insn, 29, 1);
+    bool is_q = extract32(insn, 30, 1);
+    int feature, rot;
+
+    switch (u * 16 + opcode) {
+    case 0x10: /* SQRDMLAH (vector) */
+    case 0x11: /* SQRDMLSH (vector) */
+        if (size != 1 && size != 2) {
+            unallocated_encoding(s);
+            return;
+        }
+        feature = ARM_FEATURE_V8_RDM;
+        break;
+    case 0x8: /* FCMLA, #0 */
+    case 0x9: /* FCMLA, #90 */
+    case 0xa: /* FCMLA, #180 */
+    case 0xb: /* FCMLA, #270 */
+    case 0xc: /* FCADD, #90 */
+    case 0xe: /* FCADD, #270 */
+        if (size == 0
+            || (size == 1 && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))
+            || (size == 3 && !is_q)) {
+            unallocated_encoding(s);
+            return;
+        }
+        feature = ARM_FEATURE_V8_FCMA;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+    if (!arm_dc_feature(s, feature)) {
+        unallocated_encoding(s);
+        return;
+    }
+    if (!fp_access_check(s)) {
+        return;
+    }
+
+    switch (opcode) {
+    case 0x0: /* SQRDMLAH (vector) */
+        switch (size) {
+        case 1:
+            gen_gvec_op3_env(s, is_q, rd, rn, rm, gen_helper_gvec_qrdmlah_s16);
+            break;
+        case 2:
+            gen_gvec_op3_env(s, is_q, rd, rn, rm, gen_helper_gvec_qrdmlah_s32);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        return;
+
+    case 0x1: /* SQRDMLSH (vector) */
+        switch (size) {
+        case 1:
+            gen_gvec_op3_env(s, is_q, rd, rn, rm, gen_helper_gvec_qrdmlsh_s16);
+            break;
+        case 2:
+            gen_gvec_op3_env(s, is_q, rd, rn, rm, gen_helper_gvec_qrdmlsh_s32);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        return;
+
+    case 0x8: /* FCMLA, #0 */
+    case 0x9: /* FCMLA, #90 */
+    case 0xa: /* FCMLA, #180 */
+    case 0xb: /* FCMLA, #270 */
+        rot = extract32(opcode, 0, 2);
+        switch (size) {
+        case 1:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, true, rot,
+                              gen_helper_gvec_fcmlah);
+            break;
+        case 2:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, false, rot,
+                              gen_helper_gvec_fcmlas);
+            break;
+        case 3:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, false, rot,
+                              gen_helper_gvec_fcmlad);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        return;
+
+    case 0xc: /* FCADD, #90 */
+    case 0xe: /* FCADD, #270 */
+        rot = extract32(opcode, 1, 1);
+        switch (size) {
+        case 1:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, size == 1, rot,
+                              gen_helper_gvec_fcaddh);
+            break;
+        case 2:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, size == 1, rot,
+                              gen_helper_gvec_fcadds);
+            break;
+        case 3:
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, size == 1, rot,
+                              gen_helper_gvec_fcaddd);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        return;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void handle_2misc_widening(DisasContext *s, int opcode, bool is_q,
                                   int size, int rn, int rd)
 {
@@ -11782,107 +12020,137 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     bool is_long = false;
-    bool is_fp = false;
+    int is_fp = 0;
     bool is_fp16 = false;
     int index;
     TCGv_ptr fpst;
 
-    switch (opcode) {
-    case 0x0: /* MLA */
-    case 0x4: /* MLS */
-        if (!u || is_scalar) {
+    switch (16 * u + opcode) {
+    case 0x08: /* MUL */
+    case 0x10: /* MLA */
+    case 0x14: /* MLS */
+        if (is_scalar) {
             unallocated_encoding(s);
             return;
         }
         break;
-    case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
-    case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
-    case 0xa: /* SMULL, SMULL2, UMULL, UMULL2 */
+    case 0x02: /* SMLAL, SMLAL2 */
+    case 0x12: /* UMLAL, UMLAL2 */
+    case 0x06: /* SMLSL, SMLSL2 */
+    case 0x16: /* UMLSL, UMLSL2 */
+    case 0x0a: /* SMULL, SMULL2 */
+    case 0x1a: /* UMULL, UMULL2 */
         if (is_scalar) {
             unallocated_encoding(s);
             return;
         }
         is_long = true;
         break;
-    case 0x3: /* SQDMLAL, SQDMLAL2 */
-    case 0x7: /* SQDMLSL, SQDMLSL2 */
-    case 0xb: /* SQDMULL, SQDMULL2 */
+    case 0x03: /* SQDMLAL, SQDMLAL2 */
+    case 0x07: /* SQDMLSL, SQDMLSL2 */
+    case 0x0b: /* SQDMULL, SQDMULL2 */
         is_long = true;
-        /* fall through */
-    case 0xc: /* SQDMULH */
-    case 0xd: /* SQRDMULH */
-        if (u) {
+        break;
+    case 0x0c: /* SQDMULH */
+    case 0x0d: /* SQRDMULH */
+        break;
+    case 0x01: /* FMLA */
+    case 0x05: /* FMLS */
+    case 0x09: /* FMUL */
+    case 0x19: /* FMULX */
+        is_fp = 1;
+        break;
+    case 0x1d: /* SQRDMLAH */
+    case 0x1f: /* SQRDMLSH */
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_RDM)) {
             unallocated_encoding(s);
             return;
         }
         break;
-    case 0x8: /* MUL */
-        if (u || is_scalar) {
+    case 0x11: /* FCMLA #0 */
+    case 0x13: /* FCMLA #90 */
+    case 0x15: /* FCMLA #180 */
+    case 0x17: /* FCMLA #270 */
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)) {
             unallocated_encoding(s);
             return;
         }
-        break;
-    case 0x1: /* FMLA */
-    case 0x5: /* FMLS */
-        if (u) {
-            unallocated_encoding(s);
-            return;
-        }
-        /* fall through */
-    case 0x9: /* FMUL, FMULX */
-        if (size == 1) {
-            unallocated_encoding(s);
-            return;
-        }
-        is_fp = true;
+        is_fp = 2;
         break;
     default:
         unallocated_encoding(s);
         return;
     }
 
-    if (is_fp) {
+    switch (is_fp) {
+    case 1: /* normal fp */
         /* convert insn encoded size to TCGMemOp size */
         switch (size) {
-        case 2: /* single precision */
-            size = MO_32;
-            index = h << 1 | l;
-            rm |= (m << 4);
-            break;
-        case 3: /* double precision */
-            size = MO_64;
-            if (l || !is_q) {
-                unallocated_encoding(s);
-                return;
-            }
-            index = h;
-            rm |= (m << 4);
-            break;
-        case 0: /* half precision */
+        case 0: /* half-precision */
             size = MO_16;
-            index = h << 2 | l << 1 | m;
             is_fp16 = true;
-            if (arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
-                break;
-            }
-            /* fallthru */
-        default: /* unallocated */
-            unallocated_encoding(s);
-            return;
-        }
-    } else {
-        switch (size) {
-        case 1:
-            index = h << 2 | l << 1 | m;
             break;
-        case 2:
-            index = h << 1 | l;
-            rm |= (m << 4);
+        case MO_32: /* single precision */
+        case MO_64: /* double precision */
             break;
         default:
             unallocated_encoding(s);
             return;
         }
+        break;
+
+    case 2: /* complex fp */
+        /* Each indexable element is a complex pair.  */
+        size <<= 1;
+        switch (size) {
+        case MO_32:
+            if (h && !is_q) {
+                unallocated_encoding(s);
+                return;
+            }
+            is_fp16 = true;
+            break;
+        case MO_64:
+            break;
+        default:
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+
+    default: /* integer */
+        switch (size) {
+        case MO_8:
+        case MO_64:
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    }
+    if (is_fp16 && !arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    /* Given TCGMemOp size, adjust register and indexing.  */
+    switch (size) {
+    case MO_16:
+        index = h << 2 | l << 1 | m;
+        break;
+    case MO_32:
+        index = h << 1 | l;
+        rm |= m << 4;
+        break;
+    case MO_64:
+        if (l || !is_q) {
+            unallocated_encoding(s);
+            return;
+        }
+        index = h;
+        rm |= m << 4;
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     if (!fp_access_check(s)) {
@@ -11893,6 +12161,23 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         fpst = get_fpstatus_ptr(is_fp16);
     } else {
         fpst = NULL;
+    }
+
+    switch (16 * u + opcode) {
+    case 0x11: /* FCMLA #0 */
+    case 0x13: /* FCMLA #90 */
+    case 0x15: /* FCMLA #180 */
+    case 0x17: /* FCMLA #270 */
+        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_reg_offset(s, rm, index, size), fpst,
+                           is_q ? 16 : 8, vec_full_reg_size(s),
+                           extract32(insn, 13, 2), /* rot */
+                           size == MO_64
+                           ? gen_helper_gvec_fcmlas_idx
+                           : gen_helper_gvec_fcmlah_idx);
+        tcg_temp_free_ptr(fpst);
+        return;
     }
 
     if (size == 3) {
@@ -11909,21 +12194,20 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
 
             read_vec_element(s, tcg_op, rn, pass, MO_64);
 
-            switch (opcode) {
-            case 0x5: /* FMLS */
+            switch (16 * u + opcode) {
+            case 0x05: /* FMLS */
                 /* As usual for ARM, separate negation for fused multiply-add */
                 gen_helper_vfp_negd(tcg_op, tcg_op);
                 /* fall through */
-            case 0x1: /* FMLA */
+            case 0x01: /* FMLA */
                 read_vec_element(s, tcg_res, rd, pass, MO_64);
                 gen_helper_vfp_muladdd(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
                 break;
-            case 0x9: /* FMUL, FMULX */
-                if (u) {
-                    gen_helper_vfp_mulxd(tcg_res, tcg_op, tcg_idx, fpst);
-                } else {
-                    gen_helper_vfp_muld(tcg_res, tcg_op, tcg_idx, fpst);
-                }
+            case 0x09: /* FMUL */
+                gen_helper_vfp_muld(tcg_res, tcg_op, tcg_idx, fpst);
+                break;
+            case 0x19: /* FMULX */
+                gen_helper_vfp_mulxd(tcg_res, tcg_op, tcg_idx, fpst);
                 break;
             default:
                 g_assert_not_reached();
@@ -11966,10 +12250,10 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
 
             read_vec_element_i32(s, tcg_op, rn, pass, is_scalar ? size : MO_32);
 
-            switch (opcode) {
-            case 0x0: /* MLA */
-            case 0x4: /* MLS */
-            case 0x8: /* MUL */
+            switch (16 * u + opcode) {
+            case 0x08: /* MUL */
+            case 0x10: /* MLA */
+            case 0x14: /* MLS */
             {
                 static NeonGenTwoOpFn * const fns[2][2] = {
                     { gen_helper_neon_add_u16, gen_helper_neon_sub_u16 },
@@ -11991,8 +12275,8 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 genfn(tcg_res, tcg_op, tcg_res);
                 break;
             }
-            case 0x5: /* FMLS */
-            case 0x1: /* FMLA */
+            case 0x05: /* FMLS */
+            case 0x01: /* FMLA */
                 read_vec_element_i32(s, tcg_res, rd, pass,
                                      is_scalar ? size : MO_32);
                 switch (size) {
@@ -12023,39 +12307,43 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                     g_assert_not_reached();
                 }
                 break;
-            case 0x9: /* FMUL, FMULX */
+            case 0x09: /* FMUL */
                 switch (size) {
                 case 1:
-                    if (u) {
-                        if (is_scalar) {
-                            gen_helper_advsimd_mulxh(tcg_res, tcg_op,
-                                                     tcg_idx, fpst);
-                        } else {
-                            gen_helper_advsimd_mulx2h(tcg_res, tcg_op,
-                                                      tcg_idx, fpst);
-                        }
+                    if (is_scalar) {
+                        gen_helper_advsimd_mulh(tcg_res, tcg_op,
+                                                tcg_idx, fpst);
                     } else {
-                        if (is_scalar) {
-                            gen_helper_advsimd_mulh(tcg_res, tcg_op,
-                                                    tcg_idx, fpst);
-                        } else {
-                            gen_helper_advsimd_mul2h(tcg_res, tcg_op,
-                                                     tcg_idx, fpst);
-                        }
+                        gen_helper_advsimd_mul2h(tcg_res, tcg_op,
+                                                 tcg_idx, fpst);
                     }
                     break;
                 case 2:
-                    if (u) {
-                        gen_helper_vfp_mulxs(tcg_res, tcg_op, tcg_idx, fpst);
-                    } else {
-                        gen_helper_vfp_muls(tcg_res, tcg_op, tcg_idx, fpst);
-                    }
+                    gen_helper_vfp_muls(tcg_res, tcg_op, tcg_idx, fpst);
                     break;
                 default:
                     g_assert_not_reached();
                 }
                 break;
-            case 0xc: /* SQDMULH */
+            case 0x19: /* FMULX */
+                switch (size) {
+                case 1:
+                    if (is_scalar) {
+                        gen_helper_advsimd_mulxh(tcg_res, tcg_op,
+                                                 tcg_idx, fpst);
+                    } else {
+                        gen_helper_advsimd_mulx2h(tcg_res, tcg_op,
+                                                  tcg_idx, fpst);
+                    }
+                    break;
+                case 2:
+                    gen_helper_vfp_mulxs(tcg_res, tcg_op, tcg_idx, fpst);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+                break;
+            case 0x0c: /* SQDMULH */
                 if (size == 1) {
                     gen_helper_neon_qdmulh_s16(tcg_res, cpu_env,
                                                tcg_op, tcg_idx);
@@ -12064,13 +12352,35 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                                                tcg_op, tcg_idx);
                 }
                 break;
-            case 0xd: /* SQRDMULH */
+            case 0x0d: /* SQRDMULH */
                 if (size == 1) {
                     gen_helper_neon_qrdmulh_s16(tcg_res, cpu_env,
                                                 tcg_op, tcg_idx);
                 } else {
                     gen_helper_neon_qrdmulh_s32(tcg_res, cpu_env,
                                                 tcg_op, tcg_idx);
+                }
+                break;
+            case 0x1d: /* SQRDMLAH */
+                read_vec_element_i32(s, tcg_res, rd, pass,
+                                     is_scalar ? size : MO_32);
+                if (size == 1) {
+                    gen_helper_neon_qrdmlah_s16(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx, tcg_res);
+                } else {
+                    gen_helper_neon_qrdmlah_s32(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx, tcg_res);
+                }
+                break;
+            case 0x1f: /* SQRDMLSH */
+                read_vec_element_i32(s, tcg_res, rd, pass,
+                                     is_scalar ? size : MO_32);
+                if (size == 1) {
+                    gen_helper_neon_qrdmlsh_s16(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx, tcg_res);
+                } else {
+                    gen_helper_neon_qrdmlsh_s32(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx, tcg_res);
                 }
                 break;
             default:
@@ -12794,6 +13104,7 @@ static void disas_crypto_three_reg_imm2(DisasContext *s, uint32_t insn)
 static const AArch64DecodeTable data_proc_simd[] = {
     /* pattern  ,  mask     ,  fn                        */
     { 0x0e200400, 0x9f200400, disas_simd_three_reg_same },
+    { 0x0e008400, 0x9f208400, disas_simd_three_reg_same_extra },
     { 0x0e200000, 0x9f200c00, disas_simd_three_reg_diff },
     { 0x0e200800, 0x9f3e0c00, disas_simd_two_reg_misc },
     { 0x0e300800, 0x9f3e0c00, disas_simd_across_lanes },
@@ -12806,6 +13117,7 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x0e000800, 0xbf208c00, disas_simd_zip_trn },
     { 0x2e000000, 0xbf208400, disas_simd_ext },
     { 0x5e200400, 0xdf200400, disas_simd_scalar_three_reg_same },
+    { 0x5e008400, 0xdf208400, disas_simd_scalar_three_reg_same_extra },
     { 0x5e200000, 0xdf200c00, disas_simd_scalar_three_reg_diff },
     { 0x5e200800, 0xdf3e0c00, disas_simd_scalar_two_reg_misc },
     { 0x5e300800, 0xdf3e0c00, disas_simd_scalar_pairwise },

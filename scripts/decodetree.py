@@ -461,7 +461,7 @@ class Pattern(General):
         global translate_prefix
         output('typedef ', self.base.base.struct_name(),
                ' arg_', self.name, ';\n')
-        output(translate_scope, 'void ', translate_prefix, '_', self.name,
+        output(translate_scope, 'bool ', translate_prefix, '_', self.name,
                '(DisasContext *ctx, arg_', self.name,
                ' *a, ', insntype, ' insn);\n')
 
@@ -474,9 +474,8 @@ class Pattern(General):
             output(ind, self.base.extract_name(), '(&u.f_', arg, ', insn);\n')
         for n, f in self.fields.items():
             output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
-        output(ind, translate_prefix, '_', self.name,
+        output(ind, 'return ', translate_prefix, '_', self.name,
                '(ctx, &u.f_', arg, ', insn);\n')
-        output(ind, 'return true;\n')
 # end Pattern
 
 
