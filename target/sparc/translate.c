@@ -2093,6 +2093,11 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
             type = GET_ASI_BFILL;
             break;
         }
+
+        /* MMU_PHYS_IDX is used when the MMU is disabled to passthrough the
+         * permissions check in get_physical_address(..).
+         */
+        mem_idx = (dc->mem_idx == MMU_PHYS_IDX) ? MMU_PHYS_IDX : mem_idx;
     } else {
         gen_exception(dc, TT_PRIV_INSN);
         type = GET_ASI_EXCP;
