@@ -474,8 +474,10 @@ static int nbd_co_flush(BlockDriverState *bs)
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     NBDClientSession *s = nbd_get_client_session(bs);
+    uint32_t min = s->info.min_block;
     uint32_t max = MIN_NON_ZERO(NBD_MAX_BUFFER_SIZE, s->info.max_block);
 
+    bs->bl.request_alignment = min ? min : BDRV_SECTOR_SIZE;
     bs->bl.max_pdiscard = max;
     bs->bl.max_pwrite_zeroes = max;
     bs->bl.max_transfer = max;

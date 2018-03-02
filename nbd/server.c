@@ -806,7 +806,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
 
             default:
                 ret = nbd_opt_drop(client, NBD_REP_ERR_UNSUP, errp,
-                                   "Unsupported option 0x%" PRIx32 " (%s)",
+                                   "Unsupported option %" PRIu32 " (%s)",
                                    option, nbd_opt_lookup(option));
                 break;
             }
@@ -822,7 +822,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                                                         errp);
 
             default:
-                error_setg(errp, "Unsupported option 0x%" PRIx32 " (%s)",
+                error_setg(errp, "Unsupported option %" PRIu32 " (%s)",
                            option, nbd_opt_lookup(option));
                 return -EINVAL;
             }
