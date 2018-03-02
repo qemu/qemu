@@ -105,7 +105,7 @@ static int glue(symcmp, SZ)(const void *s0, const void *s1)
 }
 
 static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
-                                  int clear_lsb)
+                                  int clear_lsb, symbol_fn_t sym_cb)
 {
     struct elf_shdr *symtab, *strtab, *shdr_table = NULL;
     struct elf_sym *syms = NULL;
@@ -133,10 +133,26 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
 
     nsyms = symtab->sh_size / sizeof(struct elf_sym);
 
+    /* String table */
+    if (symtab->sh_link >= ehdr->e_shnum) {
+        goto fail;
+    }
+    strtab = &shdr_table[symtab->sh_link];
+
+    str = load_at(fd, strtab->sh_offset, strtab->sh_size);
+    if (!str) {
+        goto fail;
+    }
+
     i = 0;
     while (i < nsyms) {
-        if (must_swab)
+        if (must_swab) {
             glue(bswap_sym, SZ)(&syms[i]);
+        }
+        if (sym_cb) {
+            sym_cb(str + syms[i].st_name, syms[i].st_info,
+                   syms[i].st_value, syms[i].st_size);
+        }
         /* We are only interested in function symbols.
            Throw everything else away.  */
         if (syms[i].st_shndx == SHN_UNDEF ||
@@ -162,15 +178,6 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
             syms[i].st_size = syms[i + 1].st_value - syms[i].st_value;
         }
     }
-
-    /* String table */
-    if (symtab->sh_link >= ehdr->e_shnum)
-        goto fail;
-    strtab = &shdr_table[symtab->sh_link];
-
-    str = load_at(fd, strtab->sh_offset, strtab->sh_size);
-    if (!str)
-        goto fail;
 
     /* Commit */
     s = g_malloc0(sizeof(*s));
@@ -264,7 +271,8 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr,
                               int elf_machine, int clear_lsb, int data_swab,
-                              AddressSpace *as, bool load_rom)
+                              AddressSpace *as, bool load_rom,
+                              symbol_fn_t sym_cb)
 {
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
@@ -329,7 +337,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     if (pentry)
    	*pentry = (uint64_t)(elf_sword)ehdr.e_entry;
 
-    glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb);
+    glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb, sym_cb);
 
     size = ehdr.e_phnum * sizeof(phdr[0]);
     if (lseek(fd, ehdr.e_phoff, SEEK_SET) != ehdr.e_phoff) {

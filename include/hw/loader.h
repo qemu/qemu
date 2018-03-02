@@ -64,7 +64,7 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 #define ELF_LOAD_WRONG_ENDIAN -4
 const char *load_elf_strerror(int error);
 
-/** load_elf_ram:
+/** load_elf_ram_sym:
  * @filename: Path of ELF file
  * @translate_fn: optional function to translate load addresses
  * @translate_opaque: opaque data passed to @translate_fn
@@ -81,6 +81,7 @@ const char *load_elf_strerror(int error);
  * @as: The AddressSpace to load the ELF to. The value of address_space_memory
  *      is used if nothing is supplied here.
  * @load_rom : Load ELF binary as ROM
+ * @sym_cb: Callback function for symbol table entries
  *
  * Load an ELF file's contents to the emulated system's address space.
  * Clients may optionally specify a callback to perform address
@@ -92,6 +93,20 @@ const char *load_elf_strerror(int error);
  * their particular values for @elf_machine are set.
  * If @elf_machine is EM_NONE then the machine type will be read from the
  * ELF header and no checks will be carried out against the machine type.
+ */
+typedef void (*symbol_fn_t)(const char *st_name, int st_info,
+                            uint64_t st_value, uint64_t st_size);
+
+int load_elf_ram_sym(const char *filename,
+                     uint64_t (*translate_fn)(void *, uint64_t),
+                     void *translate_opaque, uint64_t *pentry,
+                     uint64_t *lowaddr, uint64_t *highaddr, int big_endian,
+                     int elf_machine, int clear_lsb, int data_swab,
+                     AddressSpace *as, bool load_rom, symbol_fn_t sym_cb);
+
+/** load_elf_ram:
+ * Same as load_elf_ram_sym(), but doesn't allow the caller to specify a
+ * symbol callback function
  */
 int load_elf_ram(const char *filename,
                  uint64_t (*translate_fn)(void *, uint64_t),
