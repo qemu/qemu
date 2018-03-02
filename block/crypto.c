@@ -71,8 +71,6 @@ static ssize_t block_crypto_read_func(QCryptoBlock *block,
 
 
 struct BlockCryptoCreateData {
-    const char *filename;
-    QemuOpts *opts;
     BlockBackend *blk;
     uint64_t size;
 };
@@ -103,27 +101,13 @@ static ssize_t block_crypto_init_func(QCryptoBlock *block,
                                       Error **errp)
 {
     struct BlockCryptoCreateData *data = opaque;
-    int ret;
 
     /* User provided size should reflect amount of space made
      * available to the guest, so we must take account of that
      * which will be used by the crypto header
      */
-    data->size += headerlen;
-
-    qemu_opt_set_number(data->opts, BLOCK_OPT_SIZE, data->size, &error_abort);
-    ret = bdrv_create_file(data->filename, data->opts, errp);
-    if (ret < 0) {
-        return -1;
-    }
-
-    data->blk = blk_new_open(data->filename, NULL, NULL,
-                             BDRV_O_RDWR | BDRV_O_PROTOCOL, errp);
-    if (!data->blk) {
-        return -1;
-    }
-
-    return 0;
+    return blk_truncate(data->blk, data->size + headerlen, PREALLOC_MODE_OFF,
+                        errp);
 }
 
 
@@ -333,11 +317,10 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
     struct BlockCryptoCreateData data = {
         .size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
                          BDRV_SECTOR_SIZE),
-        .opts = opts,
-        .filename = filename,
     };
     QDict *cryptoopts;
 
+    /* Parse options */
     cryptoopts = qemu_opts_to_qdict(opts, NULL);
 
     create_opts = block_crypto_create_opts_init(format, cryptoopts, errp);
@@ -345,6 +328,20 @@ static int block_crypto_create_generic(QCryptoBlockFormat format,
         return -1;
     }
 
+    /* Create protocol layer */
+    ret = bdrv_create_file(filename, opts, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    data.blk = blk_new_open(filename, NULL, NULL,
+                            BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                            errp);
+    if (!data.blk) {
+        return -EINVAL;
+    }
+
+    /* Create format layer */
     crypto = qcrypto_block_create(create_opts, NULL,
                                   block_crypto_init_func,
                                   block_crypto_write_func,
