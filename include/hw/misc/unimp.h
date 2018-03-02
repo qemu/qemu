@@ -12,6 +12,16 @@
 
 #define TYPE_UNIMPLEMENTED_DEVICE "unimplemented-device"
 
+#define UNIMPLEMENTED_DEVICE(obj) \
+    OBJECT_CHECK(UnimplementedDeviceState, (obj), TYPE_UNIMPLEMENTED_DEVICE)
+
+typedef struct {
+    SysBusDevice parent_obj;
+    MemoryRegion iomem;
+    char *name;
+    uint64_t size;
+} UnimplementedDeviceState;
+
 /**
  * create_unimplemented_device: create and map a dummy device
  * @name: name of the device for debug logging
