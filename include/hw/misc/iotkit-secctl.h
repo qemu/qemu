@@ -16,6 +16,28 @@
  * QEMU interface:
  *  + sysbus MMIO region 0 is the "secure privilege control block" registers
  *  + sysbus MMIO region 1 is the "non-secure privilege control block" registers
+ *  + named GPIO output "sec_resp_cfg" indicating whether blocked accesses
+ *    should RAZ/WI or bus error
+ * Controlling the 2 APB PPCs in the IoTKit:
+ *  + named GPIO outputs apb_ppc0_nonsec[0..2] and apb_ppc1_nonsec
+ *  + named GPIO outputs apb_ppc0_ap[0..2] and apb_ppc1_ap
+ *  + named GPIO outputs apb_ppc{0,1}_irq_enable
+ *  + named GPIO outputs apb_ppc{0,1}_irq_clear
+ *  + named GPIO inputs apb_ppc{0,1}_irq_status
+ * Controlling each of the 4 expansion APB PPCs which a system using the IoTKit
+ * might provide:
+ *  + named GPIO outputs apb_ppcexp{0,1,2,3}_nonsec[0..15]
+ *  + named GPIO outputs apb_ppcexp{0,1,2,3}_ap[0..15]
+ *  + named GPIO outputs apb_ppcexp{0,1,2,3}_irq_enable
+ *  + named GPIO outputs apb_ppcexp{0,1,2,3}_irq_clear
+ *  + named GPIO inputs apb_ppcexp{0,1,2,3}_irq_status
+ * Controlling each of the 4 expansion AHB PPCs which a system using the IoTKit
+ * might provide:
+ *  + named GPIO outputs ahb_ppcexp{0,1,2,3}_nonsec[0..15]
+ *  + named GPIO outputs ahb_ppcexp{0,1,2,3}_ap[0..15]
+ *  + named GPIO outputs ahb_ppcexp{0,1,2,3}_irq_enable
+ *  + named GPIO outputs ahb_ppcexp{0,1,2,3}_irq_clear
+ *  + named GPIO inputs ahb_ppcexp{0,1,2,3}_irq_status
  */
 
 #ifndef IOTKIT_SECCTL_H
@@ -26,14 +48,52 @@
 #define TYPE_IOTKIT_SECCTL "iotkit-secctl"
 #define IOTKIT_SECCTL(obj) OBJECT_CHECK(IoTKitSecCtl, (obj), TYPE_IOTKIT_SECCTL)
 
-typedef struct IoTKitSecCtl {
+#define IOTS_APB_PPC0_NUM_PORTS 3
+#define IOTS_APB_PPC1_NUM_PORTS 1
+#define IOTS_PPC_NUM_PORTS 16
+#define IOTS_NUM_APB_PPC 2
+#define IOTS_NUM_APB_EXP_PPC 4
+#define IOTS_NUM_AHB_EXP_PPC 4
+
+typedef struct IoTKitSecCtl IoTKitSecCtl;
+
+/* State and IRQ lines relating to a PPC. For the
+ * PPCs in the IoTKit not all the IRQ lines are used.
+ */
+typedef struct IoTKitSecCtlPPC {
+    qemu_irq nonsec[IOTS_PPC_NUM_PORTS];
+    qemu_irq ap[IOTS_PPC_NUM_PORTS];
+    qemu_irq irq_enable;
+    qemu_irq irq_clear;
+
+    uint32_t ns;
+    uint32_t sp;
+    uint32_t nsp;
+
+    /* Number of ports actually present */
+    int numports;
+    /* Offset of this PPC's interrupt bits in SECPPCINTSTAT */
+    int irq_bit_offset;
+    IoTKitSecCtl *parent;
+} IoTKitSecCtlPPC;
+
+struct IoTKitSecCtl {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
+    qemu_irq sec_resp_cfg;
 
     MemoryRegion s_regs;
     MemoryRegion ns_regs;
-} IoTKitSecCtl;
+
+    uint32_t secppcintstat;
+    uint32_t secppcinten;
+    uint32_t secrespcfg;
+
+    IoTKitSecCtlPPC apb[IOTS_NUM_APB_PPC];
+    IoTKitSecCtlPPC apbexp[IOTS_NUM_APB_EXP_PPC];
+    IoTKitSecCtlPPC ahbexp[IOTS_NUM_APB_EXP_PPC];
+};
 
 #endif
