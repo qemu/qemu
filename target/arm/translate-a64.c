@@ -11820,10 +11820,6 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x05: /* FMLS */
     case 0x09: /* FMUL */
     case 0x19: /* FMULX */
-        if (size == 1) {
-            unallocated_encoding(s);
-            return;
-        }
         is_fp = true;
         break;
     default:
@@ -11834,45 +11830,48 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     if (is_fp) {
         /* convert insn encoded size to TCGMemOp size */
         switch (size) {
-        case 2: /* single precision */
-            size = MO_32;
-            index = h << 1 | l;
-            rm |= (m << 4);
-            break;
-        case 3: /* double precision */
-            size = MO_64;
-            if (l || !is_q) {
+        case 0: /* half-precision */
+            if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
                 unallocated_encoding(s);
                 return;
             }
-            index = h;
-            rm |= (m << 4);
-            break;
-        case 0: /* half precision */
             size = MO_16;
-            index = h << 2 | l << 1 | m;
-            is_fp16 = true;
-            if (arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
-                break;
-            }
-            /* fallthru */
-        default: /* unallocated */
-            unallocated_encoding(s);
-            return;
-        }
-    } else {
-        switch (size) {
-        case 1:
-            index = h << 2 | l << 1 | m;
             break;
-        case 2:
-            index = h << 1 | l;
-            rm |= (m << 4);
+        case MO_32: /* single precision */
+        case MO_64: /* double precision */
             break;
         default:
             unallocated_encoding(s);
             return;
         }
+    } else {
+        switch (size) {
+        case MO_8:
+        case MO_64:
+            unallocated_encoding(s);
+            return;
+        }
+    }
+
+    /* Given TCGMemOp size, adjust register and indexing.  */
+    switch (size) {
+    case MO_16:
+        index = h << 2 | l << 1 | m;
+        break;
+    case MO_32:
+        index = h << 1 | l;
+        rm |= m << 4;
+        break;
+    case MO_64:
+        if (l || !is_q) {
+            unallocated_encoding(s);
+            return;
+        }
+        index = h;
+        rm |= m << 4;
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     if (!fp_access_check(s)) {
