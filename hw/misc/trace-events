@@ -94,3 +94,10 @@ tz_ppc_irq_clear(int level) "TZ PPC: int_clear = %d"
 tz_ppc_update_irq(int level) "TZ PPC: setting irq line to %d"
 tz_ppc_read_blocked(int n, hwaddr offset, bool secure, bool user) "TZ PPC: port %d offset 0x%" HWADDR_PRIx " read (secure %d user %d) blocked"
 tz_ppc_write_blocked(int n, hwaddr offset, bool secure, bool user) "TZ PPC: port %d offset 0x%" HWADDR_PRIx " write (secure %d user %d) blocked"
+
+# hw/misc/iotkit-secctl.c
+iotkit_secctl_s_read(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl S regs read: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_s_write(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl S regs write: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_ns_read(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl NS regs read: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_ns_write(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl NS regs write: offset 0x%x data 0x%" PRIx64 " size %u"
+iotkit_secctl_reset(void) "IoTKit SecCtl: reset"
