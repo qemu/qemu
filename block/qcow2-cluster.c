@@ -126,11 +126,11 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
 
     new_l1_size2 = sizeof(uint64_t) * new_l1_size;
     new_l1_table = qemu_try_blockalign(bs->file->bs,
-                                       align_offset(new_l1_size2, 512));
+                                       ROUND_UP(new_l1_size2, 512));
     if (new_l1_table == NULL) {
         return -ENOMEM;
     }
-    memset(new_l1_table, 0, align_offset(new_l1_size2, 512));
+    memset(new_l1_table, 0, ROUND_UP(new_l1_size2, 512));
 
     if (s->l1_size) {
         memcpy(new_l1_table, s->l1_table, s->l1_size * sizeof(uint64_t));

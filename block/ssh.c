@@ -803,6 +803,33 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
     return ret;
 }
 
+/* Note: This is a blocking operation */
+static int ssh_grow_file(BDRVSSHState *s, int64_t offset, Error **errp)
+{
+    ssize_t ret;
+    char c[1] = { '\0' };
+    int was_blocking = libssh2_session_get_blocking(s->session);
+
+    /* offset must be strictly greater than the current size so we do
+     * not overwrite anything */
+    assert(offset > 0 && offset > s->attrs.filesize);
+
+    libssh2_session_set_blocking(s->session, 1);
+
+    libssh2_sftp_seek64(s->sftp_handle, offset - 1);
+    ret = libssh2_sftp_write(s->sftp_handle, c, 1);
+
+    libssh2_session_set_blocking(s->session, was_blocking);
+
+    if (ret < 0) {
+        sftp_error_setg(errp, s, "Failed to grow file");
+        return -EIO;
+    }
+
+    s->attrs.filesize = offset;
+    return 0;
+}
+
 static QemuOptsList ssh_create_opts = {
     .name = "ssh-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(ssh_create_opts.head),
@@ -823,8 +850,6 @@ static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
     int64_t total_size = 0;
     QDict *uri_options = NULL;
     BDRVSSHState s;
-    ssize_t r2;
-    char c[1] = { '\0' };
 
     ssh_state_init(&s);
 
@@ -850,14 +875,10 @@ static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
     }
 
     if (total_size > 0) {
-        libssh2_sftp_seek64(s.sftp_handle, total_size-1);
-        r2 = libssh2_sftp_write(s.sftp_handle, c, 1);
-        if (r2 < 0) {
-            sftp_error_setg(errp, &s, "truncate failed");
-            ret = -EINVAL;
+        ret = ssh_grow_file(&s, total_size, errp);
+        if (ret < 0) {
             goto out;
         }
-        s.attrs.filesize = total_size;
     }
 
     ret = 0;
@@ -1199,6 +1220,29 @@ static int64_t ssh_getlength(BlockDriverState *bs)
     return length;
 }
 
+static int ssh_truncate(BlockDriverState *bs, int64_t offset,
+                        PreallocMode prealloc, Error **errp)
+{
+    BDRVSSHState *s = bs->opaque;
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Unsupported preallocation mode '%s'",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    if (offset < s->attrs.filesize) {
+        error_setg(errp, "ssh driver does not support shrinking files");
+        return -ENOTSUP;
+    }
+
+    if (offset == s->attrs.filesize) {
+        return 0;
+    }
+
+    return ssh_grow_file(s, offset, errp);
+}
+
 static BlockDriver bdrv_ssh = {
     .format_name                  = "ssh",
     .protocol_name                = "ssh",
@@ -1211,6 +1255,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_co_readv                = ssh_co_readv,
     .bdrv_co_writev               = ssh_co_writev,
     .bdrv_getlength               = ssh_getlength,
+    .bdrv_truncate                = ssh_truncate,
     .bdrv_co_flush_to_disk        = ssh_co_flush,
     .create_opts                  = &ssh_create_opts,
 };
