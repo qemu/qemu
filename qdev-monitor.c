@@ -122,12 +122,6 @@ static void qdev_print_devinfo(DeviceClass *dc)
     error_printf("\n");
 }
 
-static gint devinfo_cmp(gconstpointer a, gconstpointer b)
-{
-    return strcasecmp(object_class_get_name((ObjectClass *)a),
-                      object_class_get_name((ObjectClass *)b));
-}
-
 static void qdev_print_devinfos(bool show_no_user)
 {
     static const char *cat_name[DEVICE_CATEGORY_MAX + 1] = {
@@ -146,8 +140,7 @@ static void qdev_print_devinfos(bool show_no_user)
     int i;
     bool cat_printed;
 
-    list = g_slist_sort(object_class_get_list(TYPE_DEVICE, false),
-                        devinfo_cmp);
+    list = object_class_get_list_sorted(TYPE_DEVICE, false);
 
     for (i = 0; i <= DEVICE_CATEGORY_MAX; i++) {
         cat_printed = false;

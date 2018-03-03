@@ -101,7 +101,7 @@ void tricore_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     };
     GSList *list;
 
-    list = object_class_get_list(TYPE_TRICORE_CPU, false);
+    list = object_class_get_list_sorted(TYPE_TRICORE_CPU, false);
     (*cpu_fprintf)(f, "Available CPUs:\n");
     g_slist_foreach(list, tricore_cpu_list_entry, &s);
     g_slist_free(list);
