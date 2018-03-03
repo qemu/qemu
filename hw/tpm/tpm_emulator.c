@@ -39,14 +39,7 @@
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 #include "chardev/char-fe.h"
-
-#define DEBUG_TPM 0
-
-#define DPRINTF(fmt, ...) do { \
-    if (DEBUG_TPM) { \
-        fprintf(stderr, "tpm-emulator:"fmt"\n", ## __VA_ARGS__); \
-    } \
-} while (0)
+#include "trace.h"
 
 #define TYPE_TPM_EMULATOR "tpm-emulator"
 #define TPM_EMULATOR(obj) \
@@ -151,13 +144,12 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number,
 {
     ptm_loc loc;
 
-    DPRINTF("%s : locality: 0x%x", __func__, locty_number);
-
     if (tpm_emu->cur_locty_number == locty_number) {
         return 0;
     }
 
-    DPRINTF("setting locality : 0x%x", locty_number);
+    trace_tpm_emulator_set_locality(locty_number);
+
     loc.u.req.loc = locty_number;
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SET_LOCALITY, &loc,
                              sizeof(loc), sizeof(loc)) < 0) {
@@ -183,7 +175,7 @@ static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
 
-    DPRINTF("processing TPM command");
+    trace_tpm_emulator_handle_request();
 
     if (tpm_emulator_set_locality(tpm_emu, cmd->locty, errp) < 0 ||
         tpm_emulator_unix_tx_bufs(tpm_emu, cmd->in, cmd->in_len,
@@ -195,7 +187,6 @@ static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
 
 static int tpm_emulator_probe_caps(TPMEmulator *tpm_emu)
 {
-    DPRINTF("%s", __func__);
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_GET_CAPABILITY,
                              &tpm_emu->caps, 0, sizeof(tpm_emu->caps)) < 0) {
         error_report("tpm-emulator: probing failed : %s", strerror(errno));
@@ -204,7 +195,7 @@ static int tpm_emulator_probe_caps(TPMEmulator *tpm_emu)
 
     tpm_emu->caps = be64_to_cpu(tpm_emu->caps);
 
-    DPRINTF("capabilities : 0x%"PRIx64, tpm_emu->caps);
+    trace_tpm_emulator_probe_caps(tpm_emu->caps);
 
     return 0;
 }
@@ -293,7 +284,7 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
         *actual_size = be32_to_cpu(psbs.u.resp.buffersize);
     }
 
-    DPRINTF("buffer size: %u, min: %u, max: %u\n",
+    trace_tpm_emulator_set_buffer_size(
             be32_to_cpu(psbs.u.resp.buffersize),
             be32_to_cpu(psbs.u.resp.minsize),
             be32_to_cpu(psbs.u.resp.maxsize));
@@ -314,7 +305,7 @@ static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
         goto err_exit;
     }
 
-    DPRINTF("%s", __func__);
+    trace_tpm_emulator_startup_tpm();
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_INIT, &init, sizeof(init),
                              sizeof(init)) < 0) {
         error_report("tpm-emulator: could not send INIT: %s",
@@ -348,7 +339,7 @@ static bool tpm_emulator_get_tpm_established_flag(TPMBackend *tb)
                      strerror(errno));
         return false;
     }
-    DPRINTF("got established flag: %0x", est.u.resp.bit);
+    trace_tpm_emulator_get_tpm_established_flag(est.u.resp.bit);
 
     tpm_emu->established_flag_cached = 1;
     tpm_emu->established_flag = (est.u.resp.bit != 0);
@@ -395,7 +386,7 @@ static void tpm_emulator_cancel_cmd(TPMBackend *tb)
     ptm_res res;
 
     if (!TPM_EMULATOR_IMPLEMENTS_ALL_CAPS(tpm_emu, PTM_CAP_CANCEL_TPM_CMD)) {
-        DPRINTF("Backend does not support CANCEL_TPM_CMD");
+        trace_tpm_emulator_cancel_cmd_not_supt();
         return;
     }
 
@@ -521,8 +512,16 @@ static int tpm_emulator_handle_device_opts(TPMEmulator *tpm_emu, QemuOpts *opts)
         goto err;
     }
 
-    DPRINTF("TPM Version %s", tpm_emu->tpm_version == TPM_VERSION_1_2 ? "1.2" :
-            (tpm_emu->tpm_version == TPM_VERSION_2_0 ?  "2.0" : "Unspecified"));
+    switch (tpm_emu->tpm_version) {
+    case TPM_VERSION_1_2:
+        trace_tpm_emulator_handle_device_opts_tpm12();
+        break;
+    case TPM_VERSION_2_0:
+        trace_tpm_emulator_handle_device_opts_tpm2();
+        break;
+    default:
+        trace_tpm_emulator_handle_device_opts_unspec();
+    }
 
     if (tpm_emulator_probe_caps(tpm_emu) ||
         tpm_emulator_check_caps(tpm_emu)) {
@@ -532,7 +531,8 @@ static int tpm_emulator_handle_device_opts(TPMEmulator *tpm_emu, QemuOpts *opts)
     return tpm_emulator_block_migration(tpm_emu);
 
 err:
-    DPRINTF("Startup error");
+    trace_tpm_emulator_handle_device_opts_startup_error();
+
     return -1;
 }
 
@@ -573,7 +573,8 @@ static void tpm_emulator_inst_init(Object *obj)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(obj);
 
-    DPRINTF("%s", __func__);
+    trace_tpm_emulator_inst_init();
+
     tpm_emu->options = g_new0(TPMEmulatorOptions, 1);
     tpm_emu->cur_locty_number = ~0;
     qemu_mutex_init(&tpm_emu->mutex);
