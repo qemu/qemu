@@ -40,27 +40,21 @@
 #include "exec/address-spaces.h"
 #include "elf.h"
 
+#include <libfdt.h>
+
 static const struct MemmapEntry {
     hwaddr base;
     hwaddr size;
 } virt_memmap[] = {
     [VIRT_DEBUG] =    {        0x0,      0x100 },
-    [VIRT_MROM] =     {     0x1000,     0x2000 },
-    [VIRT_TEST] =     {     0x4000,     0x1000 },
+    [VIRT_MROM] =     {     0x1000,    0x11000 },
+    [VIRT_TEST] =     {   0x100000,     0x1000 },
     [VIRT_CLINT] =    {  0x2000000,    0x10000 },
     [VIRT_PLIC] =     {  0xc000000,  0x4000000 },
     [VIRT_UART0] =    { 0x10000000,      0x100 },
     [VIRT_VIRTIO] =   { 0x10001000,     0x1000 },
     [VIRT_DRAM] =     { 0x80000000,        0x0 },
 };
-
-static void copy_le32_to_phys(hwaddr pa, uint32_t *rom, size_t len)
-{
-    int i;
-    for (i = 0; i < (len >> 2); i++) {
-        stl_phys(&address_space_memory, pa + (i << 2), rom[i]);
-    }
-}
 
 static uint64_t load_kernel(const char *kernel_filename)
 {
@@ -272,7 +266,7 @@ static void riscv_virt_board_init(MachineState *machine)
     RISCVVirtState *s = g_new0(RISCVVirtState, 1);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
-    MemoryRegion *boot_rom = g_new(MemoryRegion, 1);
+    MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
     char *plic_hart_config;
     size_t plic_hart_config_len;
     int i;
@@ -299,9 +293,10 @@ static void riscv_virt_board_init(MachineState *machine)
     fdt = create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline);
 
     /* boot rom */
-    memory_region_init_ram(boot_rom, NULL, "riscv_virt_board.bootrom",
-                           s->fdt_size + 0x2000, &error_fatal);
-    memory_region_add_subregion(system_memory, 0x0, boot_rom);
+    memory_region_init_rom(mask_rom, NULL, "riscv_virt_board.mrom",
+                           memmap[VIRT_MROM].size, &error_fatal);
+    memory_region_add_subregion(system_memory, memmap[VIRT_MROM].base,
+                                mask_rom);
 
     if (machine->kernel_filename) {
         uint64_t kernel_entry = load_kernel(machine->kernel_filename);
@@ -335,13 +330,23 @@ static void riscv_virt_board_init(MachineState *machine)
                                      /* dtb: */
     };
 
-    /* copy in the reset vector */
-    copy_le32_to_phys(memmap[VIRT_MROM].base, reset_vec, sizeof(reset_vec));
+    /* copy in the reset vector in little_endian byte order */
+    for (i = 0; i < sizeof(reset_vec) >> 2; i++) {
+        reset_vec[i] = cpu_to_le32(reset_vec[i]);
+    }
+    rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
+                          memmap[VIRT_MROM].base, &address_space_memory);
 
     /* copy in the device tree */
-    qemu_fdt_dumpdtb(s->fdt, s->fdt_size);
-    cpu_physical_memory_write(memmap[VIRT_MROM].base + sizeof(reset_vec),
-        s->fdt, s->fdt_size);
+    if (fdt_pack(s->fdt) || fdt_totalsize(s->fdt) >
+            memmap[VIRT_MROM].size - sizeof(reset_vec)) {
+        error_report("not enough space to store device-tree");
+        exit(1);
+    }
+    qemu_fdt_dumpdtb(s->fdt, fdt_totalsize(s->fdt));
+    rom_add_blob_fixed_as("mrom.fdt", s->fdt, fdt_totalsize(s->fdt),
+                          memmap[VIRT_MROM].base + sizeof(reset_vec),
+                          &address_space_memory);
 
     /* create PLIC hart topology configuration string */
     plic_hart_config_len = (strlen(VIRT_PLIC_HART_CONFIG) + 1) * smp_cpus;
