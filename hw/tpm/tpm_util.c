@@ -28,14 +28,7 @@
 #include "exec/memory.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/qdev.h"
-
-#define DEBUG_TPM 0
-
-#define DPRINTF(fmt, ...) do { \
-    if (DEBUG_TPM) { \
-        fprintf(stderr, "tpm-util:"fmt"\n", ## __VA_ARGS__); \
-    } \
-} while (0)
+#include "trace.h"
 
 /* tpm backend property */
 
@@ -279,10 +272,11 @@ int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
 
         if (be32_to_cpu(tpm_resp.hdr.len) != sizeof(tpm_resp) ||
             be32_to_cpu(tpm_resp.len) != sizeof(uint32_t)) {
-            DPRINTF("tpm_resp->hdr.len = %u, expected = %zu\n",
-                    be32_to_cpu(tpm_resp.hdr.len), sizeof(tpm_resp));
-            DPRINTF("tpm_resp->len = %u, expected = %zu\n",
-                    be32_to_cpu(tpm_resp.len), sizeof(uint32_t));
+            trace_tpm_util_get_buffer_size_hdr_len(
+                be32_to_cpu(tpm_resp.hdr.len),
+                sizeof(tpm_resp));
+            trace_tpm_util_get_buffer_size_len(be32_to_cpu(tpm_resp.len),
+                                               sizeof(uint32_t));
             error_report("tpm_util: Got unexpected response to "
                          "TPM_GetCapability; errcode: 0x%x",
                          be32_to_cpu(tpm_resp.hdr.errcode));
@@ -327,10 +321,11 @@ int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
 
         if (be32_to_cpu(tpm2_resp.hdr.len) != sizeof(tpm2_resp) ||
             be32_to_cpu(tpm2_resp.count) != 2) {
-            DPRINTF("tpm2_resp->hdr.len = %u, expected = %zu\n",
-                    be32_to_cpu(tpm2_resp.hdr.len), sizeof(tpm2_resp));
-            DPRINTF("tpm2_resp->len = %u, expected = %u\n",
-                    be32_to_cpu(tpm2_resp.count), 2);
+            trace_tpm_util_get_buffer_size_hdr_len2(
+                be32_to_cpu(tpm2_resp.hdr.len),
+                sizeof(tpm2_resp));
+            trace_tpm_util_get_buffer_size_len2(
+                be32_to_cpu(tpm2_resp.count), 2);
             error_report("tpm_util: Got unexpected response to "
                          "TPM2_GetCapability; errcode: 0x%x",
                          be32_to_cpu(tpm2_resp.hdr.errcode));
@@ -344,7 +339,7 @@ int tpm_util_get_buffer_size(int tpm_fd, TPMVersion tpm_version,
         return -EFAULT;
     }
 
-    DPRINTF("buffersize of device: %zu\n", *buffersize);
+    trace_tpm_util_get_buffer_size(*buffersize);
 
     return 0;
 }
