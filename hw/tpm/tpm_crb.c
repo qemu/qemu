@@ -29,6 +29,7 @@
 #include "sysemu/reset.h"
 #include "tpm_int.h"
 #include "tpm_util.h"
+#include "trace.h"
 
 typedef struct CRBState {
     DeviceState parent_obj;
@@ -43,14 +44,6 @@ typedef struct CRBState {
 } CRBState;
 
 #define CRB(obj) OBJECT_CHECK(CRBState, (obj), TYPE_TPM_CRB)
-
-#define DEBUG_CRB 0
-
-#define DPRINTF(fmt, ...) do {                  \
-        if (DEBUG_CRB) {                        \
-            printf(fmt, ## __VA_ARGS__);        \
-        }                                       \
-    } while (0)
 
 #define CRB_INTF_TYPE_CRB_ACTIVE 0b1
 #define CRB_INTF_VERSION_CRB 0b1
@@ -91,8 +84,8 @@ static uint64_t tpm_crb_mmio_read(void *opaque, hwaddr addr,
     unsigned offset = addr & 3;
     uint32_t val = *(uint32_t *)regs >> (8 * offset);
 
-    DPRINTF("CRB read 0x" TARGET_FMT_plx " len:%u val: 0x%" PRIx32 "\n",
-            addr, size, val);
+    trace_tpm_crb_mmio_read(addr, size, val);
+
     return val;
 }
 
@@ -100,8 +93,8 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     CRBState *s = CRB(opaque);
-    DPRINTF("CRB write 0x" TARGET_FMT_plx " len:%u val: 0x%" PRIx64 "\n",
-            addr, size, val);
+
+    trace_tpm_crb_mmio_write(addr, size, val);
 
     switch (addr) {
     case A_CRB_CTRL_REQ:
