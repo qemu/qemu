@@ -47,4 +47,8 @@ enum {
     SIFIVE_TIME_BASE    = 0xBFF8
 };
 
+enum {
+    SIFIVE_CLINT_TIMEBASE_FREQ = 10000000
+};
+
 #endif
