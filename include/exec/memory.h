@@ -326,7 +326,27 @@ struct AddressSpace {
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 };
 
-FlatView *address_space_to_flatview(AddressSpace *as);
+typedef struct AddressSpaceDispatch AddressSpaceDispatch;
+typedef struct FlatRange FlatRange;
+
+/* Flattened global view of current active memory hierarchy.  Kept in sorted
+ * order.
+ */
+struct FlatView {
+    struct rcu_head rcu;
+    unsigned ref;
+    FlatRange *ranges;
+    unsigned nr;
+    unsigned nr_allocated;
+    struct AddressSpaceDispatch *dispatch;
+    MemoryRegion *root;
+};
+
+static inline FlatView *address_space_to_flatview(AddressSpace *as)
+{
+    return atomic_rcu_read(&as->current_map);
+}
+
 
 /**
  * MemoryRegionSection: describes a fragment of a #MemoryRegion
