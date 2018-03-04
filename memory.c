@@ -210,8 +210,6 @@ static bool memory_region_ioeventfd_equal(MemoryRegionIoeventfd a,
         && !memory_region_ioeventfd_before(b, a);
 }
 
-typedef struct FlatRange FlatRange;
-
 /* Range of memory in the global map.  Addresses are absolute. */
 struct FlatRange {
     MemoryRegion *mr;
@@ -220,19 +218,6 @@ struct FlatRange {
     uint8_t dirty_log_mask;
     bool romd_mode;
     bool readonly;
-};
-
-/* Flattened global view of current active memory hierarchy.  Kept in sorted
- * order.
- */
-struct FlatView {
-    struct rcu_head rcu;
-    unsigned ref;
-    FlatRange *ranges;
-    unsigned nr;
-    unsigned nr_allocated;
-    struct AddressSpaceDispatch *dispatch;
-    MemoryRegion *root;
 };
 
 typedef struct AddressSpaceOps AddressSpaceOps;
@@ -320,21 +305,6 @@ static void flatview_unref(FlatView *view)
         assert(view->root);
         call_rcu(view, flatview_destroy, rcu);
     }
-}
-
-FlatView *address_space_to_flatview(AddressSpace *as)
-{
-    return atomic_rcu_read(&as->current_map);
-}
-
-AddressSpaceDispatch *flatview_to_dispatch(FlatView *fv)
-{
-    return fv->dispatch;
-}
-
-AddressSpaceDispatch *address_space_to_dispatch(AddressSpace *as)
-{
-    return flatview_to_dispatch(address_space_to_flatview(as));
 }
 
 static bool can_merge(FlatRange *r1, FlatRange *r2)
