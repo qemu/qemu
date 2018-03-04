@@ -301,31 +301,6 @@ static void riscv_sifive_u_init(MachineState *machine)
         SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE);
 }
 
-static int riscv_sifive_u_sysbus_device_init(SysBusDevice *sysbusdev)
-{
-    return 0;
-}
-
-static void riscv_sifive_u_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    k->init = riscv_sifive_u_sysbus_device_init;
-}
-
-static const TypeInfo riscv_sifive_u_device = {
-    .name          = TYPE_SIFIVE_U,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFiveUState),
-    .class_init    = riscv_sifive_u_class_init,
-};
-
-static void riscv_sifive_u_register_types(void)
-{
-    type_register_static(&riscv_sifive_u_device);
-}
-
-type_init(riscv_sifive_u_register_types);
-
 static void riscv_sifive_u_machine_init(MachineClass *mc)
 {
     mc->desc = "RISC-V Board compatible with SiFive U SDK";

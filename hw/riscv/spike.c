@@ -334,18 +334,6 @@ static void spike_v1_09_1_board_init(MachineState *machine)
         smp_cpus, SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE);
 }
 
-static const TypeInfo spike_v_1_09_1_device = {
-    .name          = TYPE_RISCV_SPIKE_V1_09_1_BOARD,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SpikeState),
-};
-
-static const TypeInfo spike_v_1_10_0_device = {
-    .name          = TYPE_RISCV_SPIKE_V1_10_0_BOARD,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SpikeState),
-};
-
 static void spike_v1_09_1_machine_init(MachineClass *mc)
 {
     mc->desc = "RISC-V Spike Board (Privileged ISA v1.9.1)";
@@ -363,11 +351,3 @@ static void spike_v1_10_0_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE("spike_v1.9.1", spike_v1_09_1_machine_init)
 DEFINE_MACHINE("spike_v1.10", spike_v1_10_0_machine_init)
-
-static void riscv_spike_board_register_types(void)
-{
-    type_register_static(&spike_v_1_09_1_device);
-    type_register_static(&spike_v_1_10_0_device);
-}
-
-type_init(riscv_spike_board_register_types);

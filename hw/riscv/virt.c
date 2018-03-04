@@ -382,24 +382,6 @@ static void riscv_virt_board_init(MachineState *machine)
         serial_hd(0), DEVICE_LITTLE_ENDIAN);
 }
 
-static int riscv_virt_board_sysbus_device_init(SysBusDevice *sysbusdev)
-{
-    return 0;
-}
-
-static void riscv_virt_board_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    k->init = riscv_virt_board_sysbus_device_init;
-}
-
-static const TypeInfo riscv_virt_board_device = {
-    .name          = TYPE_RISCV_VIRT_BOARD,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVVirtState),
-    .class_init    = riscv_virt_board_class_init,
-};
-
 static void riscv_virt_board_machine_init(MachineClass *mc)
 {
     mc->desc = "RISC-V VirtIO Board (Privileged ISA v1.10)";
@@ -408,10 +390,3 @@ static void riscv_virt_board_machine_init(MachineClass *mc)
 }
 
 DEFINE_MACHINE("virt", riscv_virt_board_machine_init)
-
-static void riscv_virt_board_register_types(void)
-{
-    type_register_static(&riscv_virt_board_device);
-}
-
-type_init(riscv_virt_board_register_types);

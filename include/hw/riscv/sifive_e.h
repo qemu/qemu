@@ -19,11 +19,6 @@
 #ifndef HW_SIFIVE_E_H
 #define HW_SIFIVE_E_H
 
-#define TYPE_SIFIVE_E "riscv.sifive_e"
-
-#define SIFIVE_E(obj) \
-    OBJECT_CHECK(SiFiveEState, (obj), TYPE_SIFIVE_E)
-
 typedef struct SiFiveEState {
     /*< private >*/
     SysBusDevice parent_obj;
