@@ -3395,7 +3395,7 @@ void *address_space_map(AddressSpace *as,
     hwaddr l, xlat;
     MemoryRegion *mr;
     void *ptr;
-    FlatView *fv = address_space_to_flatview(as);
+    FlatView *fv;
 
     if (len == 0) {
         return NULL;
@@ -3403,6 +3403,7 @@ void *address_space_map(AddressSpace *as,
 
     l = len;
     rcu_read_lock();
+    fv = address_space_to_flatview(as);
     mr = flatview_translate(fv, addr, &xlat, &l, is_write);
 
     if (!memory_access_is_direct(mr, is_write)) {
