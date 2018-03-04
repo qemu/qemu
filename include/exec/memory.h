@@ -1907,13 +1907,12 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 
 
 /* Internal functions, part of the implementation of address_space_read.  */
+MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+                                    MemTxAttrs attrs, uint8_t *buf, int len);
 MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemTxAttrs attrs, uint8_t *buf,
                                    int len, hwaddr addr1, hwaddr l,
                                    MemoryRegion *mr);
-
-MemTxResult flatview_read_full(FlatView *fv, hwaddr addr,
-                               MemTxAttrs attrs, uint8_t *buf, int len);
 void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
@@ -1932,7 +1931,7 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
  *
  * Return a MemTxResult indicating whether the operation succeeded
  * or failed (eg unassigned memory, device rejected the transaction,
- * IOMMU fault).
+ * IOMMU fault).  Called within RCU critical section.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -1940,17 +1939,20 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
  * @buf: buffer with the data transferred
  */
 static inline __attribute__((__always_inline__))
-MemTxResult flatview_read(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
-                          uint8_t *buf, int len)
+MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
+                               MemTxAttrs attrs, uint8_t *buf,
+                               int len)
 {
     MemTxResult result = MEMTX_OK;
     hwaddr l, addr1;
     void *ptr;
     MemoryRegion *mr;
+    FlatView *fv;
 
     if (__builtin_constant_p(len)) {
         if (len) {
             rcu_read_lock();
+            fv = address_space_to_flatview(as);
             l = len;
             mr = flatview_translate(fv, addr, &addr1, &l, false);
             if (len == l && memory_access_is_direct(mr, false)) {
@@ -1963,16 +1965,9 @@ MemTxResult flatview_read(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
             rcu_read_unlock();
         }
     } else {
-        result = flatview_read_full(fv, addr, attrs, buf, len);
+        result = address_space_read_full(as, addr, attrs, buf, len);
     }
     return result;
-}
-
-static inline MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
-                                             MemTxAttrs attrs, uint8_t *buf,
-                                             int len)
-{
-    return flatview_read(address_space_to_flatview(as), addr, attrs, buf, len);
 }
 
 /**
