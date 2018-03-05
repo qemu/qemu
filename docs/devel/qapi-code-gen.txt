@@ -1319,18 +1319,27 @@ Example:
     #ifndef EXAMPLE_QMP_INTROSPECT_H
     #define EXAMPLE_QMP_INTROSPECT_H
 
-    extern const char example_qmp_schema_json[];
+    extern const QLitObject qmp_schema_qlit;
 
     #endif
     $ cat qapi-generated/example-qapi-introspect.c
 [Uninteresting stuff omitted...]
 
-    const char example_qmp_schema_json[] = "["
-        "{\"arg-type\": \"0\", \"meta-type\": \"event\", \"name\": \"MY_EVENT\"}, "
-        "{\"arg-type\": \"1\", \"meta-type\": \"command\", \"name\": \"my-command\", \"ret-type\": \"2\"}, "
-        "{\"members\": [], \"meta-type\": \"object\", \"name\": \"0\"}, "
-        "{\"members\": [{\"name\": \"arg1\", \"type\": \"[2]\"}], \"meta-type\": \"object\", \"name\": \"1\"}, "
-        "{\"members\": [{\"name\": \"integer\", \"type\": \"int\"}, {\"default\": null, \"name\": \"string\", \"type\": \"str\"}], \"meta-type\": \"object\", \"name\": \"2\"}, "
-        "{\"element-type\": \"2\", \"meta-type\": \"array\", \"name\": \"[2]\"}, "
-        "{\"json-type\": \"int\", \"meta-type\": \"builtin\", \"name\": \"int\"}, "
-        "{\"json-type\": \"string\", \"meta-type\": \"builtin\", \"name\": \"str\"}]";
+    const QLitObject example_qmp_schema_qlit = QLIT_QLIST(((QLitObject[]) {
+        QLIT_QDICT(((QLitDictEntry[]) {
+            { "arg-type", QLIT_QSTR("0") },
+            { "meta-type", QLIT_QSTR("event") },
+            { "name", QLIT_QSTR("Event") },
+            { }
+        })),
+        QLIT_QDICT(((QLitDictEntry[]) {
+            { "members", QLIT_QLIST(((QLitObject[]) {
+                { }
+            })) },
+            { "meta-type", QLIT_QSTR("object") },
+            { "name", QLIT_QSTR("0") },
+            { }
+        })),
+        ...
+        { }
+    }));

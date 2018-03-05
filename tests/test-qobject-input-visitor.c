@@ -1250,24 +1250,27 @@ static void test_visitor_in_fail_alternate(TestInputVisitorData *data,
 }
 
 static void do_test_visitor_in_qmp_introspect(TestInputVisitorData *data,
-                                              const char *schema_json)
+                                              const QLitObject *qlit)
 {
     SchemaInfoList *schema = NULL;
+    QObject *obj = qobject_from_qlit(qlit);
     Visitor *v;
 
-    v = visitor_input_test_init_raw(data, schema_json);
+    v = qobject_input_visitor_new(obj);
 
     visit_type_SchemaInfoList(v, NULL, &schema, &error_abort);
     g_assert(schema);
 
     qapi_free_SchemaInfoList(schema);
+    qobject_decref(obj);
+    visit_free(v);
 }
 
 static void test_visitor_in_qmp_introspect(TestInputVisitorData *data,
                                            const void *unused)
 {
-    do_test_visitor_in_qmp_introspect(data, test_qmp_schema_json);
-    do_test_visitor_in_qmp_introspect(data, qmp_schema_json);
+    do_test_visitor_in_qmp_introspect(data, &test_qmp_schema_qlit);
+    do_test_visitor_in_qmp_introspect(data, &qmp_schema_qlit);
 }
 
 int main(int argc, char **argv)
