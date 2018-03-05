@@ -80,7 +80,7 @@ struct QIOTaskThreadData {
 };
 
 
-static gboolean gio_task_thread_result(gpointer opaque)
+static gboolean qio_task_thread_result(gpointer opaque)
 {
     struct QIOTaskThreadData *data = opaque;
 
@@ -110,7 +110,7 @@ static gpointer qio_task_thread_worker(gpointer opaque)
      * the worker results
      */
     trace_qio_task_thread_exit(data->task);
-    g_idle_add(gio_task_thread_result, data);
+    g_idle_add(qio_task_thread_result, data);
     return NULL;
 }
 
