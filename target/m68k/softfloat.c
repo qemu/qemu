@@ -658,3 +658,60 @@ floatx80 floatx80_logn(floatx80 a, float_status *status)
         return a;
     }
 }
+
+/*----------------------------------------------------------------------------
+ | Log base 10
+ *----------------------------------------------------------------------------*/
+
+floatx80 floatx80_log10(floatx80 a, float_status *status)
+{
+    flag aSign;
+    int32_t aExp;
+    uint64_t aSig;
+
+    int8_t user_rnd_mode, user_rnd_prec;
+
+    floatx80 fp0, fp1;
+
+    aSig = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig << 1)) {
+            propagateFloatx80NaNOneArg(a, status);
+        }
+        if (aSign == 0) {
+            return packFloatx80(0, floatx80_infinity.high,
+                                floatx80_infinity.low);
+        }
+    }
+
+    if (aExp == 0 && aSig == 0) {
+        float_raise(float_flag_divbyzero, status);
+        return packFloatx80(1, floatx80_infinity.high,
+                            floatx80_infinity.low);
+    }
+
+    if (aSign) {
+        float_raise(float_flag_invalid, status);
+        return floatx80_default_nan(status);
+    }
+
+    user_rnd_mode = status->float_rounding_mode;
+    user_rnd_prec = status->floatx80_rounding_precision;
+    status->float_rounding_mode = float_round_nearest_even;
+    status->floatx80_rounding_precision = 80;
+
+    fp0 = floatx80_logn(a, status);
+    fp1 = packFloatx80(0, 0x3FFD, LIT64(0xDE5BD8A937287195)); /* INV_L10 */
+
+    status->float_rounding_mode = user_rnd_mode;
+    status->floatx80_rounding_precision = user_rnd_prec;
+
+    a = floatx80_mul(fp0, fp1, status); /* LOGN(X)*INV_L10 */
+
+    float_raise(float_flag_inexact, status);
+
+    return a;
+}
