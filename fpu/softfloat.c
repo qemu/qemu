@@ -93,7 +93,7 @@ this code that are retained.
 | division and square root approximations.  (Can be specialized to target if
 | desired.)
 *----------------------------------------------------------------------------*/
-#include "softfloat-macros.h"
+#include "fpu/softfloat-macros.h"
 
 /*----------------------------------------------------------------------------
 | Functions and definitions to determine:  (1) whether tininess for underflow
@@ -2193,25 +2193,6 @@ static void
 }
 
 /*----------------------------------------------------------------------------
-| Packs the sign `zSign', exponent `zExp', and significand `zSig' into a
-| single-precision floating-point value, returning the result.  After being
-| shifted into the proper positions, the three fields are simply added
-| together to form the result.  This means that any integer portion of `zSig'
-| will be added into the exponent.  Since a properly normalized significand
-| will have an integer portion equal to 1, the `zExp' input should be 1 less
-| than the desired result exponent whenever `zSig' is a complete, normalized
-| significand.
-*----------------------------------------------------------------------------*/
-
-static inline float32 packFloat32(flag zSign, int zExp, uint32_t zSig)
-{
-
-    return make_float32(
-          ( ( (uint32_t) zSign )<<31 ) + ( ( (uint32_t) zExp )<<23 ) + zSig);
-
-}
-
-/*----------------------------------------------------------------------------
 | Takes an abstract floating-point value having sign `zSign', exponent `zExp',
 | and significand `zSig', and returns the proper single-precision floating-
 | point value corresponding to the abstract input.  Ordinarily, the abstract
@@ -2491,72 +2472,20 @@ static float64
 }
 
 /*----------------------------------------------------------------------------
-| Returns the fraction bits of the extended double-precision floating-point
-| value `a'.
-*----------------------------------------------------------------------------*/
-
-static inline uint64_t extractFloatx80Frac( floatx80 a )
-{
-
-    return a.low;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the exponent bits of the extended double-precision floating-point
-| value `a'.
-*----------------------------------------------------------------------------*/
-
-static inline int32_t extractFloatx80Exp( floatx80 a )
-{
-
-    return a.high & 0x7FFF;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the sign bit of the extended double-precision floating-point value
-| `a'.
-*----------------------------------------------------------------------------*/
-
-static inline flag extractFloatx80Sign( floatx80 a )
-{
-
-    return a.high>>15;
-
-}
-
-/*----------------------------------------------------------------------------
 | Normalizes the subnormal extended double-precision floating-point value
 | represented by the denormalized significand `aSig'.  The normalized exponent
 | and significand are stored at the locations pointed to by `zExpPtr' and
 | `zSigPtr', respectively.
 *----------------------------------------------------------------------------*/
 
-static void
- normalizeFloatx80Subnormal( uint64_t aSig, int32_t *zExpPtr, uint64_t *zSigPtr )
+void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
+                                uint64_t *zSigPtr)
 {
     int8_t shiftCount;
 
     shiftCount = countLeadingZeros64( aSig );
     *zSigPtr = aSig<<shiftCount;
     *zExpPtr = 1 - shiftCount;
-
-}
-
-/*----------------------------------------------------------------------------
-| Packs the sign `zSign', exponent `zExp', and significand `zSig' into an
-| extended double-precision floating-point value, returning the result.
-*----------------------------------------------------------------------------*/
-
-static inline floatx80 packFloatx80( flag zSign, int32_t zExp, uint64_t zSig )
-{
-    floatx80 z;
-
-    z.low = zSig;
-    z.high = ( ( (uint16_t) zSign )<<15 ) + zExp;
-    return z;
-
 }
 
 /*----------------------------------------------------------------------------
@@ -2583,9 +2512,9 @@ static inline floatx80 packFloatx80( flag zSign, int32_t zExp, uint64_t zSig )
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-static floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
-                                     int32_t zExp, uint64_t zSig0, uint64_t zSig1,
-                                     float_status *status)
+floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
+                              int32_t zExp, uint64_t zSig0, uint64_t zSig1,
+                              float_status *status)
 {
     int8_t roundingMode;
     flag roundNearestEven, increment, isTiny;
@@ -2707,7 +2636,9 @@ static floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
                ) {
                 return packFloatx80( zSign, 0x7FFE, ~ roundMask );
             }
-            return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+            return packFloatx80(zSign,
+                                floatx80_infinity_high,
+                                floatx80_infinity_low);
         }
         if ( zExp <= 0 ) {
             isTiny =
@@ -2779,10 +2710,10 @@ static floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
 | normalized.
 *----------------------------------------------------------------------------*/
 
-static floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
-                                              flag zSign, int32_t zExp,
-                                              uint64_t zSig0, uint64_t zSig1,
-                                              float_status *status)
+floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
+                                       flag zSign, int32_t zExp,
+                                       uint64_t zSig0, uint64_t zSig1,
+                                       float_status *status)
 {
     int8_t shiftCount;
 
@@ -3253,7 +3184,9 @@ floatx80 float32_to_floatx80(float32 a, float_status *status)
         if (aSig) {
             return commonNaNToFloatx80(float32ToCommonNaN(a, status), status);
         }
-        return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80(aSign,
+                            floatx80_infinity_high,
+                            floatx80_infinity_low);
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
@@ -4108,7 +4041,9 @@ floatx80 float64_to_floatx80(float64 a, float_status *status)
         if (aSig) {
             return commonNaNToFloatx80(float64ToCommonNaN(a, status), status);
         }
-        return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80(aSign,
+                            floatx80_infinity_high,
+                            floatx80_infinity_low);
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
@@ -4620,10 +4555,7 @@ int64_t floatx80_to_int64(floatx80 a, float_status *status)
     if ( shiftCount <= 0 ) {
         if ( shiftCount ) {
             float_raise(float_flag_invalid, status);
-            if (    ! aSign
-                 || (    ( aExp == 0x7FFF )
-                      && ( aSig != LIT64( 0x8000000000000000 ) ) )
-               ) {
+            if (!aSign || floatx80_is_any_nan(a)) {
                 return LIT64( 0x7FFFFFFFFFFFFFFF );
             }
             return (int64_t) LIT64( 0x8000000000000000 );
@@ -4929,7 +4861,9 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
             if ((uint64_t)(bSig << 1)) {
                 return propagateFloatx80NaN(a, b, status);
             }
-            return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+            return packFloatx80(zSign,
+                                floatx80_infinity_high,
+                                floatx80_infinity_low);
         }
         if ( aExp == 0 ) ++expDiff;
         shift64ExtraRightJamming( aSig, 0, - expDiff, &aSig, &zSig1 );
@@ -5004,7 +4938,8 @@ static floatx80 subFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
         if ((uint64_t)(bSig << 1)) {
             return propagateFloatx80NaN(a, b, status);
         }
-        return packFloatx80( zSign ^ 1, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80(zSign ^ 1, floatx80_infinity_high,
+                            floatx80_infinity_low);
     }
     if ( aExp == 0 ) ++expDiff;
     shift128RightJamming( aSig, 0, - expDiff, &aSig, &zSig1 );
@@ -5109,7 +5044,8 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
             return propagateFloatx80NaN(a, b, status);
         }
         if ( ( bExp | bSig ) == 0 ) goto invalid;
-        return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80(zSign, floatx80_infinity_high,
+                                   floatx80_infinity_low);
     }
     if ( bExp == 0x7FFF ) {
         if ((uint64_t)(bSig << 1)) {
@@ -5120,7 +5056,8 @@ floatx80 floatx80_mul(floatx80 a, floatx80 b, float_status *status)
             float_raise(float_flag_invalid, status);
             return floatx80_default_nan(status);
         }
-        return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80(zSign, floatx80_infinity_high,
+                                   floatx80_infinity_low);
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( zSign, 0, 0 );
@@ -5174,7 +5111,8 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
             }
             goto invalid;
         }
-        return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80(zSign, floatx80_infinity_high,
+                                   floatx80_infinity_low);
     }
     if ( bExp == 0x7FFF ) {
         if ((uint64_t)(bSig << 1)) {
@@ -5190,7 +5128,8 @@ floatx80 floatx80_div(floatx80 a, floatx80 b, float_status *status)
                 return floatx80_default_nan(status);
             }
             float_raise(float_flag_divbyzero, status);
-            return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+            return packFloatx80(zSign, floatx80_infinity_high,
+                                       floatx80_infinity_low);
         }
         normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
     }
@@ -6013,7 +5952,8 @@ floatx80 float128_to_floatx80(float128 a, float_status *status)
         if ( aSig0 | aSig1 ) {
             return commonNaNToFloatx80(float128ToCommonNaN(a, status), status);
         }
-        return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
+        return packFloatx80(aSign, floatx80_infinity_high,
+                                   floatx80_infinity_low);
     }
     if ( aExp == 0 ) {
         if ( ( aSig0 | aSig1 ) == 0 ) return packFloatx80( aSign, 0, 0 );

@@ -426,6 +426,23 @@ static inline float32 float32_set_sign(float32 a, int sign)
 #define float32_infinity make_float32(0x7f800000)
 
 /*----------------------------------------------------------------------------
+| Packs the sign `zSign', exponent `zExp', and significand `zSig' into a
+| single-precision floating-point value, returning the result.  After being
+| shifted into the proper positions, the three fields are simply added
+| together to form the result.  This means that any integer portion of `zSig'
+| will be added into the exponent.  Since a properly normalized significand
+| will have an integer portion equal to 1, the `zExp' input should be 1 less
+| than the desired result exponent whenever `zSig' is a complete, normalized
+| significand.
+*----------------------------------------------------------------------------*/
+
+static inline float32 packFloat32(flag zSign, int zExp, uint32_t zSig)
+{
+    return make_float32(
+          (((uint32_t)zSign) << 31) + (((uint32_t)zExp) << 23) + zSig);
+}
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
 *----------------------------------------------------------------------------*/
 float32 float32_default_nan(float_status *status);
@@ -556,6 +573,11 @@ float64 floatx80_to_float64(floatx80, float_status *status);
 float128 floatx80_to_float128(floatx80, float_status *status);
 
 /*----------------------------------------------------------------------------
+| The pattern for an extended double-precision inf.
+*----------------------------------------------------------------------------*/
+extern const floatx80 floatx80_infinity;
+
+/*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
 *----------------------------------------------------------------------------*/
 floatx80 floatx80_round(floatx80 a, float_status *status);
@@ -595,7 +617,12 @@ static inline floatx80 floatx80_chs(floatx80 a)
 
 static inline int floatx80_is_infinity(floatx80 a)
 {
-    return (a.high & 0x7fff) == 0x7fff && a.low == 0x8000000000000000LL;
+#if defined(TARGET_M68K)
+    return (a.high & 0x7fff) == floatx80_infinity.high && !(a.low << 1);
+#else
+    return (a.high & 0x7fff) == floatx80_infinity.high &&
+                       a.low == floatx80_infinity.low;
+#endif
 }
 
 static inline int floatx80_is_neg(floatx80 a)
@@ -638,7 +665,110 @@ static inline bool floatx80_invalid_encoding(floatx80 a)
 #define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
 #define floatx80_pi make_floatx80(0x4000, 0xc90fdaa22168c235LL)
 #define floatx80_half make_floatx80(0x3ffe, 0x8000000000000000LL)
-#define floatx80_infinity make_floatx80(0x7fff, 0x8000000000000000LL)
+
+/*----------------------------------------------------------------------------
+| Returns the fraction bits of the extended double-precision floating-point
+| value `a'.
+*----------------------------------------------------------------------------*/
+
+static inline uint64_t extractFloatx80Frac(floatx80 a)
+{
+    return a.low;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the exponent bits of the extended double-precision floating-point
+| value `a'.
+*----------------------------------------------------------------------------*/
+
+static inline int32_t extractFloatx80Exp(floatx80 a)
+{
+    return a.high & 0x7FFF;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the sign bit of the extended double-precision floating-point value
+| `a'.
+*----------------------------------------------------------------------------*/
+
+static inline flag extractFloatx80Sign(floatx80 a)
+{
+    return a.high >> 15;
+}
+
+/*----------------------------------------------------------------------------
+| Packs the sign `zSign', exponent `zExp', and significand `zSig' into an
+| extended double-precision floating-point value, returning the result.
+*----------------------------------------------------------------------------*/
+
+static inline floatx80 packFloatx80(flag zSign, int32_t zExp, uint64_t zSig)
+{
+    floatx80 z;
+
+    z.low = zSig;
+    z.high = (((uint16_t)zSign) << 15) + zExp;
+    return z;
+}
+
+/*----------------------------------------------------------------------------
+| Normalizes the subnormal extended double-precision floating-point value
+| represented by the denormalized significand `aSig'.  The normalized exponent
+| and significand are stored at the locations pointed to by `zExpPtr' and
+| `zSigPtr', respectively.
+*----------------------------------------------------------------------------*/
+
+void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
+                                uint64_t *zSigPtr);
+
+/*----------------------------------------------------------------------------
+| Takes two extended double-precision floating-point values `a' and `b', one
+| of which is a NaN, and returns the appropriate NaN result.  If either `a' or
+| `b' is a signaling NaN, the invalid exception is raised.
+*----------------------------------------------------------------------------*/
+
+floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status);
+
+/*----------------------------------------------------------------------------
+| Takes an abstract floating-point value having sign `zSign', exponent `zExp',
+| and extended significand formed by the concatenation of `zSig0' and `zSig1',
+| and returns the proper extended double-precision floating-point value
+| corresponding to the abstract input.  Ordinarily, the abstract value is
+| rounded and packed into the extended double-precision format, with the
+| inexact exception raised if the abstract input cannot be represented
+| exactly.  However, if the abstract value is too large, the overflow and
+| inexact exceptions are raised and an infinity or maximal finite value is
+| returned.  If the abstract value is too small, the input value is rounded to
+| a subnormal number, and the underflow and inexact exceptions are raised if
+| the abstract input cannot be represented exactly as a subnormal extended
+| double-precision floating-point number.
+|     If `roundingPrecision' is 32 or 64, the result is rounded to the same
+| number of bits as single or double precision, respectively.  Otherwise, the
+| result is rounded to the full precision of the extended double-precision
+| format.
+|     The input significand must be normalized or smaller.  If the input
+| significand is not normalized, `zExp' must be 0; in that case, the result
+| returned is a subnormal number, and it must not require rounding.  The
+| handling of underflow and overflow follows the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+floatx80 roundAndPackFloatx80(int8_t roundingPrecision, flag zSign,
+                              int32_t zExp, uint64_t zSig0, uint64_t zSig1,
+                              float_status *status);
+
+/*----------------------------------------------------------------------------
+| Takes an abstract floating-point value having sign `zSign', exponent
+| `zExp', and significand formed by the concatenation of `zSig0' and `zSig1',
+| and returns the proper extended double-precision floating-point value
+| corresponding to the abstract input.  This routine is just like
+| `roundAndPackFloatx80' except that the input significand does not have to be
+| normalized.
+*----------------------------------------------------------------------------*/
+
+floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
+                                       flag zSign, int32_t zExp,
+                                       uint64_t zSig0, uint64_t zSig1,
+                                       float_status *status);
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.

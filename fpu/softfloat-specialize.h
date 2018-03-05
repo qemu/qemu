@@ -178,6 +178,20 @@ floatx80 floatx80_default_nan(float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| The pattern for a default generated extended double-precision inf.
+*----------------------------------------------------------------------------*/
+
+#define floatx80_infinity_high 0x7FFF
+#if defined(TARGET_M68K)
+#define floatx80_infinity_low  LIT64(0x0000000000000000)
+#else
+#define floatx80_infinity_low  LIT64(0x8000000000000000)
+#endif
+
+const floatx80 floatx80_infinity
+    = make_floatx80_init(floatx80_infinity_high, floatx80_infinity_low);
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated quadruple-precision NaN.
 *----------------------------------------------------------------------------*/
 float128 float128_default_nan(float_status *status)
@@ -1011,8 +1025,7 @@ static floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
 | `b' is a signaling NaN, the invalid exception is raised.
 *----------------------------------------------------------------------------*/
 
-static floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b,
-                                     float_status *status)
+floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
     flag aIsLargerSignificand;

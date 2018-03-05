@@ -603,7 +603,7 @@ static inline void
 | unsigned integer is returned.
 *----------------------------------------------------------------------------*/
 
-static uint64_t estimateDiv128To64( uint64_t a0, uint64_t a1, uint64_t b )
+static inline uint64_t estimateDiv128To64(uint64_t a0, uint64_t a1, uint64_t b)
 {
     uint64_t b0, b1;
     uint64_t rem0, rem1, term0, term1;
@@ -630,7 +630,7 @@ static uint64_t estimateDiv128To64( uint64_t a0, uint64_t a1, uint64_t b )
  *
  * Licensed under the GPLv2/LGPLv3
  */
-static uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
+static inline uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
 {
     uint64_t d0, d1, q0, q1, r1, r0, m;
 
@@ -683,7 +683,7 @@ static uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
 | value.
 *----------------------------------------------------------------------------*/
 
-static uint32_t estimateSqrt32(int aExp, uint32_t a)
+static inline uint32_t estimateSqrt32(int aExp, uint32_t a)
 {
     static const uint16_t sqrtOddAdjustments[] = {
         0x0004, 0x0022, 0x005D, 0x00B1, 0x011D, 0x019F, 0x0236, 0x02E0,
@@ -717,7 +717,7 @@ static uint32_t estimateSqrt32(int aExp, uint32_t a)
 | `a'.  If `a' is zero, 32 is returned.
 *----------------------------------------------------------------------------*/
 
-static int8_t countLeadingZeros32( uint32_t a )
+static inline int8_t countLeadingZeros32(uint32_t a)
 {
 #if SOFTFLOAT_GNUC_PREREQ(3, 4)
     if (a) {
@@ -765,7 +765,7 @@ static int8_t countLeadingZeros32( uint32_t a )
 | `a'.  If `a' is zero, 64 is returned.
 *----------------------------------------------------------------------------*/
 
-static int8_t countLeadingZeros64( uint64_t a )
+static inline int8_t countLeadingZeros64(uint64_t a)
 {
 #if SOFTFLOAT_GNUC_PREREQ(3, 4)
     if (a) {
