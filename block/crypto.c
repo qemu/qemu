@@ -518,7 +518,10 @@ static int64_t block_crypto_getlength(BlockDriverState *bs)
 
     uint64_t offset = qcrypto_block_get_payload_offset(crypto->block);
     assert(offset < INT64_MAX);
-    assert(offset < len);
+
+    if (offset > len) {
+        return -EIO;
+    }
 
     len -= offset;
 
