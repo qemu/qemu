@@ -49,11 +49,18 @@ with iotests.FilePath('disk0.img') as disk0_img_path, \
                        node_name='drive1-node', iothread='iothread0',
                        force=True))
 
+    iotests.log('Enabling migration QMP events...')
+    iotests.log(vm.qmp('migrate-set-capabilities', capabilities=[
+        {
+            'capability': 'events',
+            'state': True
+        }
+    ]))
+
     iotests.log('Starting migration...')
     iotests.log(vm.qmp('migrate', uri='exec:cat >/dev/null'))
     while True:
-        vm.get_qmp_event(wait=60.0)
-        result = vm.qmp('query-migrate')
-        status = result.get('return', {}).get('status', None)
-        if status == 'completed':
+        event = vm.event_wait('MIGRATION')
+        iotests.log(event, filters=[iotests.filter_qmp_event])
+        if event['data']['status'] == 'completed':
             break
