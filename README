@@ -56,7 +56,7 @@ The QEMU source code is maintained under the GIT version control system.
 
    git clone git://git.qemu.org/qemu.git
 
-When submitting patches, the preferred approach is to use 'git
+When submitting patches, one common approach is to use 'git
 format-patch' and/or 'git send-email' to format & send the mail to the
 qemu-devel@nongnu.org mailing list. All patches submitted must contain
 a 'Signed-off-by' line from the author. Patches should follow the
@@ -72,6 +72,35 @@ The QEMU website is also maintained under source control.
 
   git clone git://git.qemu.org/qemu-web.git
   https://www.qemu.org/2017/02/04/the-new-qemu-website-is-up/
+
+A 'git-profile' utility was created to make above process less
+cumbersome, and is highly recommended for making regular contributions,
+or even just for sending consecutive patch series revisions. It also
+requires a working 'git send-email' setup, and by default doesn't
+automate everything, so you may want to go through the above steps
+manually for once.
+
+For installation instructions, please go to
+
+  https://github.com/stefanha/git-publish
+
+The workflow with 'git-publish' is:
+
+  $ git checkout master -b my-feature
+  $ # work on new commits, add your 'Signed-off-by' lines to each
+  $ git publish
+
+Your patch series will be sent and tagged as my-feature-v1 if you need to refer
+back to it in the future.
+
+Sending v2:
+
+  $ git checkout my-feature # same topic branch
+  $ # making changes to the commits (using 'git rebase', for example)
+  $ git publish
+
+Your patch series will be sent with 'v2' tag in the subject and the git tip
+will be tagged as my-feature-v2.
 
 Bug reporting
 =============
