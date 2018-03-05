@@ -3181,24 +3181,6 @@ static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
                                   addr1, l, mr);
 }
 
-static MemTxResult flatview_rw(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len, bool is_write)
-{
-    if (is_write) {
-        return flatview_write(fv, addr, attrs, (uint8_t *)buf, len);
-    } else {
-        return flatview_read(fv, addr, attrs, (uint8_t *)buf, len);
-    }
-}
-
-MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
-                             MemTxAttrs attrs, uint8_t *buf,
-                             int len, bool is_write)
-{
-    return flatview_rw(address_space_to_flatview(as),
-                       addr, attrs, buf, len, is_write);
-}
-
 MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs, uint8_t *buf, int len)
 {
@@ -3230,6 +3212,16 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
     }
 
     return result;
+}
+
+MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                             uint8_t *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write(as, addr, attrs, buf, len);
+    } else {
+        return address_space_read_full(as, addr, attrs, buf, len);
+    }
 }
 
 void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
