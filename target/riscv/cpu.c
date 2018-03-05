@@ -74,8 +74,10 @@ const char * const riscv_intr_names[] = {
     "s_external",
     "h_external",
     "m_external",
-    "coprocessor",
-    "host"
+    "reserved",
+    "reserved",
+    "reserved",
+    "reserved"
 };
 
 typedef struct RISCVCPUInfo {
