@@ -4,6 +4,9 @@
 #include "net/net.h"
 #include "hw/virtio/vhost-backend.h"
 
+#define VHOST_NET_INIT_FAILED \
+    "vhost-net requested but could not be initialized"
+
 struct vhost_net;
 typedef struct vhost_net VHostNetState;
 

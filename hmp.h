@@ -132,9 +132,6 @@ void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
                                        const char *str);
 void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
                                       const char *str);
-void host_net_add_completion(ReadLineState *rs, int nb_args, const char *str);
-void host_net_remove_completion(ReadLineState *rs, int nb_args,
-                                const char *str);
 void delvm_completion(ReadLineState *rs, int nb_args, const char *str);
 void loadvm_completion(ReadLineState *rs, int nb_args, const char *str);
 void hmp_rocker(Monitor *mon, const QDict *qdict);

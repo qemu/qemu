@@ -40,7 +40,6 @@
 #include "net/net.h"
 #include "net/eth.h"
 #include "qemu/timer.h"
-#include "qemu/sockets.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 

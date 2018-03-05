@@ -2707,12 +2707,6 @@ that can be specified with the ``-device'' parameter.
 The drive addr argument is replaced by the the addr argument
 that can be specified with the ``-device'' parameter.
 
-@subsection -net dump (since 2.10.0)
-
-The ``--net dump'' argument is now replaced with the
-``-object filter-dump'' argument which works in combination
-with the modern ``-netdev`` backends instead.
-
 @subsection -usbdevice (since 2.10.0)
 
 The ``-usbdevice DEV'' argument is now a synonym for setting
@@ -2765,16 +2759,6 @@ from qcow2 images.
 @subsection query-cpus (since 2.12.0)
 
 The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
-
-@section System emulator human monitor commands
-
-@subsection host_net_add (since 2.10.0)
-
-The ``host_net_add'' command is replaced by the ``netdev_add'' command.
-
-@subsection host_net_remove (since 2.10.0)
-
-The ``host_net_remove'' command is replaced by the ``netdev_del'' command.
 
 @section System emulator devices
 

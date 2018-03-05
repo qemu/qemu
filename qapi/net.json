@@ -39,8 +39,8 @@
 #
 # Add a network backend.
 #
-# @type: the type of network backend.  Current valid values are 'user', 'tap',
-#        'vde', 'socket', 'dump' and 'bridge'
+# @type: the type of network backend. Possible values are listed in
+#        NetClientDriver (excluding 'none' and 'nic')
 #
 # @id: the name of the new network backend
 #
@@ -372,23 +372,6 @@
     '*mode':  'uint16' } }
 
 ##
-# @NetdevDumpOptions:
-#
-# Dump VLAN network traffic to a file.
-#
-# @len: per-packet size limit (64k default). Understands [TGMKkb]
-# suffixes.
-#
-# @file: dump file path (default is qemu-vlan0.pcap)
-#
-# Since: 1.2
-##
-{ 'struct': 'NetdevDumpOptions',
-  'data': {
-    '*len':  'size',
-    '*file': 'str' } }
-
-##
 # @NetdevBridgeOptions:
 #
 # Connect a host TAP network interface to a host bridge device.
@@ -466,9 +449,11 @@
 # Available netdev drivers.
 #
 # Since: 2.7
+#
+# 'dump' - removed with 2.12
 ##
 { 'enum': 'NetClientDriver',
-  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde', 'dump',
+  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
             'bridge', 'hubport', 'netmap', 'vhost-user' ] }
 
 ##
@@ -495,7 +480,6 @@
     'l2tpv3':   'NetdevL2TPv3Options',
     'socket':   'NetdevSocketOptions',
     'vde':      'NetdevVdeOptions',
-    'dump':     'NetdevDumpOptions',
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
@@ -530,7 +514,7 @@
 ##
 { 'enum': 'NetLegacyOptionsType',
   'data': ['none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-           'dump', 'bridge', 'netmap', 'vhost-user'] }
+           'bridge', 'netmap', 'vhost-user'] }
 
 ##
 # @NetLegacyOptions:
@@ -550,7 +534,6 @@
     'l2tpv3':   'NetdevL2TPv3Options',
     'socket':   'NetdevSocketOptions',
     'vde':      'NetdevVdeOptions',
-    'dump':     'NetdevDumpOptions',
     'bridge':   'NetdevBridgeOptions',
     'netmap':   'NetdevNetmapOptions',
     'vhost-user': 'NetdevVhostUserOptions' } }
