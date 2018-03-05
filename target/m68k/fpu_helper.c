@@ -557,3 +557,8 @@ void HELPER(fscale)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
     res->d = floatx80_scale(val1->d, val0->d, &env->fp_status);
 }
+
+void HELPER(flognp1)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_lognp1(val->d, &env->fp_status);
+}
