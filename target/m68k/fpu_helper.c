@@ -562,3 +562,8 @@ void HELPER(flognp1)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_lognp1(val->d, &env->fp_status);
 }
+
+void HELPER(flogn)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_logn(val->d, &env->fp_status);
+}

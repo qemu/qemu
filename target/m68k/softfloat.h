@@ -28,4 +28,5 @@ floatx80 floatx80_getexp(floatx80 a, float_status *status);
 floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status);
 floatx80 floatx80_move(floatx80 a, float_status *status);
 floatx80 floatx80_lognp1(floatx80 a, float_status *status);
+floatx80 floatx80_logn(floatx80 a, float_status *status);
 #endif
