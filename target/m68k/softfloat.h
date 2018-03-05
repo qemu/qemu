@@ -32,4 +32,5 @@ floatx80 floatx80_logn(floatx80 a, float_status *status);
 floatx80 floatx80_log10(floatx80 a, float_status *status);
 floatx80 floatx80_log2(floatx80 a, float_status *status);
 floatx80 floatx80_etox(floatx80 a, float_status *status);
+floatx80 floatx80_twotox(floatx80 a, float_status *status);
 #endif
