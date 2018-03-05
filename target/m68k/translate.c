@@ -5057,6 +5057,9 @@ DISAS_INSN(fpu)
     case 0x06: /* flognp1 */
         gen_helper_flognp1(cpu_env, cpu_dest, cpu_src);
         break;
+    case 0x10: /* fetox */
+        gen_helper_fetox(cpu_env, cpu_dest, cpu_src);
+        break;
     case 0x14: /* flogn */
         gen_helper_flogn(cpu_env, cpu_dest, cpu_src);
         break;
