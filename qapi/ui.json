@@ -77,6 +77,13 @@
 #
 # @filename: the path of a new PPM file to store the image
 #
+# @device: ID of the display device that should be dumped. If this parameter
+#          is missing, the primary display will be used. (Since 2.12)
+#
+# @head: head to use in case the device supports multiple heads. If this
+#        parameter is missing, head #0 will be used. Also note that the head
+#        can only be specified in conjunction with the device ID. (Since 2.12)
+#
 # Returns: Nothing on success
 #
 # Since: 0.14.0
@@ -88,7 +95,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'screendump', 'data': {'filename': 'str'} }
+{ 'command': 'screendump',
+  'data': {'filename': 'str', '*device': 'str', '*head': 'int'} }
 
 ##
 # == Spice
