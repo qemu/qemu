@@ -3005,6 +3005,7 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
     return result;
 }
 
+/* Called from RCU critical section.  */
 static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
                                   const uint8_t *buf, int len)
 {
@@ -3013,23 +3014,12 @@ static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
     MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
 
-    if (len > 0) {
-        rcu_read_lock();
-        l = len;
-        mr = flatview_translate(fv, addr, &addr1, &l, true);
-        result = flatview_write_continue(fv, addr, attrs, buf, len,
-                                         addr1, l, mr);
-        rcu_read_unlock();
-    }
+    l = len;
+    mr = flatview_translate(fv, addr, &addr1, &l, true);
+    result = flatview_write_continue(fv, addr, attrs, buf, len,
+                                     addr1, l, mr);
 
     return result;
-}
-
-MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
-                                              MemTxAttrs attrs,
-                                              const uint8_t *buf, int len)
-{
-    return flatview_write(address_space_to_flatview(as), addr, attrs, buf, len);
 }
 
 /* Called within RCU critical section.  */
@@ -3138,6 +3128,23 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
 {
     return flatview_rw(address_space_to_flatview(as),
                        addr, attrs, buf, len, is_write);
+}
+
+MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
+                                MemTxAttrs attrs,
+                                const uint8_t *buf, int len)
+{
+    MemTxResult result = MEMTX_OK;
+    FlatView *fv;
+
+    if (len > 0) {
+        rcu_read_lock();
+        fv = address_space_to_flatview(as);
+        result = flatview_write(fv, addr, attrs, buf, len);
+        rcu_read_unlock();
+    }
+
+    return result;
 }
 
 void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
