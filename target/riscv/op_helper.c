@@ -287,11 +287,12 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         env->sepc = val_to_write;
         break;
     case CSR_STVEC:
-        if (val_to_write & 1) {
+        /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+        if ((val_to_write & 3) == 0) {
+            env->stvec = val_to_write >> 2 << 2;
+        } else {
             qemu_log_mask(LOG_UNIMP, "CSR_STVEC: vectored traps not supported");
-            goto do_illegal;
         }
-        env->stvec = val_to_write >> 2 << 2;
         break;
     case CSR_SCOUNTEREN:
         if (env->priv_ver >= PRIV_VERSION_1_10_0) {
@@ -313,11 +314,12 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         env->mepc = val_to_write;
         break;
     case CSR_MTVEC:
-        if (val_to_write & 1) {
+        /* bits [1:0] indicate mode; 0 = direct, 1 = vectored, 2 >= reserved */
+        if ((val_to_write & 3) == 0) {
+            env->mtvec = val_to_write >> 2 << 2;
+        } else {
             qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: vectored traps not supported");
-            goto do_illegal;
         }
-        env->mtvec = val_to_write >> 2 << 2;
         break;
     case CSR_MCOUNTEREN:
         if (env->priv_ver >= PRIV_VERSION_1_10_0) {
