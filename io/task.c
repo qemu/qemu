@@ -77,6 +77,7 @@ struct QIOTaskThreadData {
     QIOTaskWorker worker;
     gpointer opaque;
     GDestroyNotify destroy;
+    GMainContext *context;
 };
 
 
@@ -91,6 +92,10 @@ static gboolean qio_task_thread_result(gpointer opaque)
         data->destroy(data->opaque);
     }
 
+    if (data->context) {
+        g_main_context_unref(data->context);
+    }
+
     g_free(data);
 
     return FALSE;
@@ -100,6 +105,7 @@ static gboolean qio_task_thread_result(gpointer opaque)
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
     struct QIOTaskThreadData *data = opaque;
+    GSource *idle;
 
     trace_qio_task_thread_run(data->task);
     data->worker(data->task, data->opaque);
@@ -110,7 +116,11 @@ static gpointer qio_task_thread_worker(gpointer opaque)
      * the worker results
      */
     trace_qio_task_thread_exit(data->task);
-    g_idle_add(qio_task_thread_result, data);
+
+    idle = g_idle_source_new();
+    g_source_set_callback(idle, qio_task_thread_result, data, NULL);
+    g_source_attach(idle, data->context);
+
     return NULL;
 }
 
@@ -118,15 +128,21 @@ static gpointer qio_task_thread_worker(gpointer opaque)
 void qio_task_run_in_thread(QIOTask *task,
                             QIOTaskWorker worker,
                             gpointer opaque,
-                            GDestroyNotify destroy)
+                            GDestroyNotify destroy,
+                            GMainContext *context)
 {
     struct QIOTaskThreadData *data = g_new0(struct QIOTaskThreadData, 1);
     QemuThread thread;
+
+    if (context) {
+        g_main_context_ref(context);
+    }
 
     data->task = task;
     data->worker = worker;
     data->opaque = opaque;
     data->destroy = destroy;
+    data->context = context;
 
     trace_qio_task_thread_start(task, worker, opaque);
     qemu_thread_create(&thread,

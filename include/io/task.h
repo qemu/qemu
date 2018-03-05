@@ -227,15 +227,18 @@ QIOTask *qio_task_new(Object *source,
  * @worker: the function to invoke in a thread
  * @opaque: opaque data to pass to @worker
  * @destroy: function to free @opaque
+ * @context: the context to run the complete hook. If %NULL, the
+ *           default context will be used.
  *
  * Run a task in a background thread. When @worker
  * returns it will call qio_task_complete() in
- * the main event thread context.
+ * the event thread context that provided.
  */
 void qio_task_run_in_thread(QIOTask *task,
                             QIOTaskWorker worker,
                             gpointer opaque,
-                            GDestroyNotify destroy);
+                            GDestroyNotify destroy,
+                            GMainContext *context);
 
 /**
  * qio_task_complete:
