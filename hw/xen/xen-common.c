@@ -101,7 +101,12 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
     }
 
     snprintf(path, sizeof (path), "device-model/%u/state", xen_domid);
-    if (!xs_write(xs, XBT_NULL, path, state, strlen(state))) {
+    /*
+     * This call may fail when running restricted so don't make it fatal in
+     * that case. Toolstacks should instead use QMP to listen for state changes.
+     */
+    if (!xs_write(xs, XBT_NULL, path, state, strlen(state)) &&
+            !xen_domid_restrict) {
         error_report("error recording dm state");
         exit(1);
     }
