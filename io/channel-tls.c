@@ -140,13 +140,19 @@ qio_channel_tls_new_client(QIOChannel *master,
     return NULL;
 }
 
+struct QIOChannelTLSData {
+    QIOTask *task;
+    GMainContext *context;
+};
+typedef struct QIOChannelTLSData QIOChannelTLSData;
 
 static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
                                              GIOCondition condition,
                                              gpointer user_data);
 
 static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
-                                           QIOTask *task)
+                                           QIOTask *task,
+                                           GMainContext *context)
 {
     Error *err = NULL;
     QCryptoTLSSessionHandshakeStatus status;
@@ -171,6 +177,15 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
         qio_task_complete(task);
     } else {
         GIOCondition condition;
+        QIOChannelTLSData *data = g_new0(typeof(*data), 1);
+
+        data->task = task;
+        data->context = context;
+
+        if (context) {
+            g_main_context_ref(context);
+        }
+
         if (status == QCRYPTO_TLS_HANDSHAKE_SENDING) {
             condition = G_IO_OUT;
         } else {
@@ -178,11 +193,12 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
         }
 
         trace_qio_channel_tls_handshake_pending(ioc, status);
-        qio_channel_add_watch(ioc->master,
-                              condition,
-                              qio_channel_tls_handshake_io,
-                              task,
-                              NULL);
+        qio_channel_add_watch_full(ioc->master,
+                                   condition,
+                                   qio_channel_tls_handshake_io,
+                                   data,
+                                   NULL,
+                                   context);
     }
 }
 
@@ -191,12 +207,18 @@ static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
                                              GIOCondition condition,
                                              gpointer user_data)
 {
-    QIOTask *task = user_data;
+    QIOChannelTLSData *data = user_data;
+    QIOTask *task = data->task;
+    GMainContext *context = data->context;
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(
         qio_task_get_source(task));
 
-    qio_channel_tls_handshake_task(
-       tioc, task);
+    g_free(data);
+    qio_channel_tls_handshake_task(tioc, task, context);
+
+    if (context) {
+        g_main_context_unref(context);
+    }
 
     return FALSE;
 }
@@ -204,7 +226,8 @@ static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
 void qio_channel_tls_handshake(QIOChannelTLS *ioc,
                                QIOTaskFunc func,
                                gpointer opaque,
-                               GDestroyNotify destroy)
+                               GDestroyNotify destroy,
+                               GMainContext *context)
 {
     QIOTask *task;
 
@@ -212,7 +235,7 @@ void qio_channel_tls_handshake(QIOChannelTLS *ioc,
                         func, opaque, destroy);
 
     trace_qio_channel_tls_handshake_start(ioc);
-    qio_channel_tls_handshake_task(ioc, task);
+    qio_channel_tls_handshake_task(ioc, task, context);
 }
 
 

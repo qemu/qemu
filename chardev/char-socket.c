@@ -703,6 +703,7 @@ static void tcp_chr_tls_init(Chardev *chr)
     qio_channel_tls_handshake(tioc,
                               tcp_chr_tls_handshake,
                               chr,
+                              NULL,
                               NULL);
 }
 

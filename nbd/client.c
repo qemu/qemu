@@ -579,6 +579,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     qio_channel_tls_handshake(tioc,
                               nbd_tls_handshake,
                               &data,
+                              NULL,
                               NULL);
 
     if (!data.complete) {

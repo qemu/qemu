@@ -128,6 +128,7 @@ static int protocol_client_vencrypt_auth(VncState *vs, uint8_t *data, size_t len
         qio_channel_tls_handshake(tls,
                                   vnc_tls_handshake_done,
                                   vs,
+                                  NULL,
                                   NULL);
     }
     return 0;

@@ -81,6 +81,7 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
     qio_channel_tls_handshake(tls,
                               vncws_tls_handshake_done,
                               vs,
+                              NULL,
                               NULL);
 
     return TRUE;
