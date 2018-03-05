@@ -128,11 +128,11 @@ static bool lowprot_enabled(const CPUS390XState *env, uint64_t asc)
     /* Check the private-space control bit */
     switch (asc) {
     case PSW_ASC_PRIMARY:
-        return !(env->cregs[1] & _ASCE_PRIVATE_SPACE);
+        return !(env->cregs[1] & ASCE_PRIVATE_SPACE);
     case PSW_ASC_SECONDARY:
-        return !(env->cregs[7] & _ASCE_PRIVATE_SPACE);
+        return !(env->cregs[7] & ASCE_PRIVATE_SPACE);
     case PSW_ASC_HOME:
-        return !(env->cregs[13] & _ASCE_PRIVATE_SPACE);
+        return !(env->cregs[13] & ASCE_PRIVATE_SPACE);
     default:
         /* We don't support access register mode */
         error_report("unsupported addressing mode");
@@ -159,20 +159,20 @@ static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
                              uint64_t asc, uint64_t pt_entry,
                              target_ulong *raddr, int *flags, int rw, bool exc)
 {
-    if (pt_entry & _PAGE_INVALID) {
+    if (pt_entry & PAGE_INVALID) {
         DPRINTF("%s: PTE=0x%" PRIx64 " invalid\n", __func__, pt_entry);
         trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw, exc);
         return -1;
     }
-    if (pt_entry & _PAGE_RES0) {
+    if (pt_entry & PAGE_RES0) {
         trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
         return -1;
     }
-    if (pt_entry & _PAGE_RO) {
+    if (pt_entry & PAGE_RO) {
         *flags &= ~PAGE_WRITE;
     }
 
-    *raddr = pt_entry & _ASCE_ORIGIN;
+    *raddr = pt_entry & ASCE_ORIGIN;
 
     PTE_DPRINTF("%s: PTE=0x%" PRIx64 "\n", __func__, pt_entry);
 
@@ -188,11 +188,11 @@ static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
     CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t origin, offs, pt_entry;
 
-    if (st_entry & _SEGMENT_ENTRY_RO) {
+    if (st_entry & SEGMENT_ENTRY_RO) {
         *flags &= ~PAGE_WRITE;
     }
 
-    if ((st_entry & _SEGMENT_ENTRY_FC) && (env->cregs[0] & CR0_EDAT)) {
+    if ((st_entry & SEGMENT_ENTRY_FC) && (env->cregs[0] & CR0_EDAT)) {
         /* Decode EDAT1 segment frame absolute address (1MB page) */
         *raddr = (st_entry & 0xfffffffffff00000ULL) | (vaddr & 0xfffff);
         PTE_DPRINTF("%s: SEG=0x%" PRIx64 "\n", __func__, st_entry);
@@ -200,7 +200,7 @@ static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
     }
 
     /* Look up 4KB page entry */
-    origin = st_entry & _SEGMENT_ENTRY_ORIGIN;
+    origin = st_entry & SEGMENT_ENTRY_ORIGIN;
     offs  = (vaddr & VADDR_PX) >> 9;
     pt_entry = ldq_phys(cs->as, origin + offs);
     PTE_DPRINTF("%s: 0x%" PRIx64 " + 0x%" PRIx64 " => 0x%016" PRIx64 "\n",
@@ -223,39 +223,39 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
 
     PTE_DPRINTF("%s: 0x%" PRIx64 "\n", __func__, entry);
 
-    origin = entry & _REGION_ENTRY_ORIGIN;
+    origin = entry & REGION_ENTRY_ORIGIN;
     offs = (vaddr >> (17 + 11 * level / 4)) & 0x3ff8;
 
     new_entry = ldq_phys(cs->as, origin + offs);
     PTE_DPRINTF("%s: 0x%" PRIx64 " + 0x%" PRIx64 " => 0x%016" PRIx64 "\n",
                 __func__, origin, offs, new_entry);
 
-    if ((new_entry & _REGION_ENTRY_INV) != 0) {
+    if ((new_entry & REGION_ENTRY_INV) != 0) {
         DPRINTF("%s: invalid region\n", __func__);
         trigger_page_fault(env, vaddr, pchks[level / 4], asc, rw, exc);
         return -1;
     }
 
-    if ((new_entry & _REGION_ENTRY_TYPE_MASK) != level) {
+    if ((new_entry & REGION_ENTRY_TYPE_MASK) != level) {
         trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
         return -1;
     }
 
-    if (level == _ASCE_TYPE_SEGMENT) {
+    if (level == ASCE_TYPE_SEGMENT) {
         return mmu_translate_segment(env, vaddr, asc, new_entry, raddr, flags,
                                      rw, exc);
     }
 
     /* Check region table offset and length */
     offs = (vaddr >> (28 + 11 * (level - 4) / 4)) & 3;
-    if (offs < ((new_entry & _REGION_ENTRY_TF) >> 6)
-        || offs > (new_entry & _REGION_ENTRY_LENGTH)) {
+    if (offs < ((new_entry & REGION_ENTRY_TF) >> 6)
+        || offs > (new_entry & REGION_ENTRY_LENGTH)) {
         DPRINTF("%s: invalid offset or len (%lx)\n", __func__, new_entry);
         trigger_page_fault(env, vaddr, pchks[level / 4 - 1], asc, rw, exc);
         return -1;
     }
 
-    if ((env->cregs[0] & CR0_EDAT) && (new_entry & _REGION_ENTRY_RO)) {
+    if ((env->cregs[0] & CR0_EDAT) && (new_entry & REGION_ENTRY_RO)) {
         *flags &= ~PAGE_WRITE;
     }
 
@@ -271,52 +271,52 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     int level;
     int r;
 
-    if (asce & _ASCE_REAL_SPACE) {
+    if (asce & ASCE_REAL_SPACE) {
         /* direct mapping */
         *raddr = vaddr;
         return 0;
     }
 
-    level = asce & _ASCE_TYPE_MASK;
+    level = asce & ASCE_TYPE_MASK;
     switch (level) {
-    case _ASCE_TYPE_REGION1:
-        if ((vaddr >> 62) > (asce & _ASCE_TABLE_LENGTH)) {
+    case ASCE_TYPE_REGION1:
+        if ((vaddr >> 62) > (asce & ASCE_TABLE_LENGTH)) {
             trigger_page_fault(env, vaddr, PGM_REG_FIRST_TRANS, asc, rw, exc);
             return -1;
         }
         break;
-    case _ASCE_TYPE_REGION2:
+    case ASCE_TYPE_REGION2:
         if (vaddr & 0xffe0000000000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xffe0000000000000ULL\n", __func__, vaddr);
             trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
             return -1;
         }
-        if ((vaddr >> 51 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
+        if ((vaddr >> 51 & 3) > (asce & ASCE_TABLE_LENGTH)) {
             trigger_page_fault(env, vaddr, PGM_REG_SEC_TRANS, asc, rw, exc);
             return -1;
         }
         break;
-    case _ASCE_TYPE_REGION3:
+    case ASCE_TYPE_REGION3:
         if (vaddr & 0xfffffc0000000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xfffffc0000000000ULL\n", __func__, vaddr);
             trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
             return -1;
         }
-        if ((vaddr >> 40 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
+        if ((vaddr >> 40 & 3) > (asce & ASCE_TABLE_LENGTH)) {
             trigger_page_fault(env, vaddr, PGM_REG_THIRD_TRANS, asc, rw, exc);
             return -1;
         }
         break;
-    case _ASCE_TYPE_SEGMENT:
+    case ASCE_TYPE_SEGMENT:
         if (vaddr & 0xffffffff80000000ULL) {
             DPRINTF("%s: vaddr doesn't fit 0x%16" PRIx64
                     " 0xffffffff80000000ULL\n", __func__, vaddr);
             trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
             return -1;
         }
-        if ((vaddr >> 29 & 3) > (asce & _ASCE_TABLE_LENGTH)) {
+        if ((vaddr >> 29 & 3) > (asce & ASCE_TABLE_LENGTH)) {
             trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw, exc);
             return -1;
         }

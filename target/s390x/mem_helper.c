@@ -1924,20 +1924,20 @@ void HELPER(idte)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint32_t m4)
 
     if (!(r2 & 0x800)) {
         /* invalidation-and-clearing operation */
-        table = r1 & _ASCE_ORIGIN;
+        table = r1 & ASCE_ORIGIN;
         entries = (r2 & 0x7ff) + 1;
 
-        switch (r1 & _ASCE_TYPE_MASK) {
-        case _ASCE_TYPE_REGION1:
+        switch (r1 & ASCE_TYPE_MASK) {
+        case ASCE_TYPE_REGION1:
             index = (r2 >> 53) & 0x7ff;
             break;
-        case _ASCE_TYPE_REGION2:
+        case ASCE_TYPE_REGION2:
             index = (r2 >> 42) & 0x7ff;
             break;
-        case _ASCE_TYPE_REGION3:
+        case ASCE_TYPE_REGION3:
             index = (r2 >> 31) & 0x7ff;
             break;
-        case _ASCE_TYPE_SEGMENT:
+        case ASCE_TYPE_SEGMENT:
             index = (r2 >> 20) & 0x7ff;
             break;
         }
@@ -1945,9 +1945,9 @@ void HELPER(idte)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint32_t m4)
             /* addresses are not wrapped in 24/31bit mode but table index is */
             raddr = table + ((index + i) & 0x7ff) * sizeof(entry);
             entry = cpu_ldq_real_ra(env, raddr, ra);
-            if (!(entry & _REGION_ENTRY_INV)) {
+            if (!(entry & REGION_ENTRY_INV)) {
                 /* we are allowed to not store if already invalid */
-                entry |= _REGION_ENTRY_INV;
+                entry |= REGION_ENTRY_INV;
                 cpu_stq_real_ra(env, raddr, entry, ra);
             }
         }
@@ -1971,12 +1971,12 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
     uint64_t pte_addr, pte;
 
     /* Compute the page table entry address */
-    pte_addr = (pto & _SEGMENT_ENTRY_ORIGIN);
+    pte_addr = (pto & SEGMENT_ENTRY_ORIGIN);
     pte_addr += (vaddr & VADDR_PX) >> 9;
 
     /* Mark the page table entry as invalid */
     pte = cpu_ldq_real_ra(env, pte_addr, ra);
-    pte |= _PAGE_INVALID;
+    pte |= PAGE_INVALID;
     cpu_stq_real_ra(env, pte_addr, pte, ra);
 
     /* XXX we exploit the fact that Linux passes the exact virtual

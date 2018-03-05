@@ -538,39 +538,39 @@ typedef union SysIB {
 QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 
 /* MMU defines */
-#define _ASCE_ORIGIN            ~0xfffULL /* segment table origin             */
-#define _ASCE_SUBSPACE          0x200     /* subspace group control           */
-#define _ASCE_PRIVATE_SPACE     0x100     /* private space control            */
-#define _ASCE_ALT_EVENT         0x80      /* storage alteration event control */
-#define _ASCE_SPACE_SWITCH      0x40      /* space switch event               */
-#define _ASCE_REAL_SPACE        0x20      /* real space control               */
-#define _ASCE_TYPE_MASK         0x0c      /* asce table type mask             */
-#define _ASCE_TYPE_REGION1      0x0c      /* region first table type          */
-#define _ASCE_TYPE_REGION2      0x08      /* region second table type         */
-#define _ASCE_TYPE_REGION3      0x04      /* region third table type          */
-#define _ASCE_TYPE_SEGMENT      0x00      /* segment table type               */
-#define _ASCE_TABLE_LENGTH      0x03      /* region table length              */
+#define ASCE_ORIGIN           (~0xfffULL) /* segment table origin             */
+#define ASCE_SUBSPACE         0x200       /* subspace group control           */
+#define ASCE_PRIVATE_SPACE    0x100       /* private space control            */
+#define ASCE_ALT_EVENT        0x80        /* storage alteration event control */
+#define ASCE_SPACE_SWITCH     0x40        /* space switch event               */
+#define ASCE_REAL_SPACE       0x20        /* real space control               */
+#define ASCE_TYPE_MASK        0x0c        /* asce table type mask             */
+#define ASCE_TYPE_REGION1     0x0c        /* region first table type          */
+#define ASCE_TYPE_REGION2     0x08        /* region second table type         */
+#define ASCE_TYPE_REGION3     0x04        /* region third table type          */
+#define ASCE_TYPE_SEGMENT     0x00        /* segment table type               */
+#define ASCE_TABLE_LENGTH     0x03        /* region table length              */
 
-#define _REGION_ENTRY_ORIGIN    ~0xfffULL /* region/segment table origin      */
-#define _REGION_ENTRY_RO        0x200     /* region/segment protection bit    */
-#define _REGION_ENTRY_TF        0xc0      /* region/segment table offset      */
-#define _REGION_ENTRY_INV       0x20      /* invalid region table entry       */
-#define _REGION_ENTRY_TYPE_MASK 0x0c      /* region/segment table type mask   */
-#define _REGION_ENTRY_TYPE_R1   0x0c      /* region first table type          */
-#define _REGION_ENTRY_TYPE_R2   0x08      /* region second table type         */
-#define _REGION_ENTRY_TYPE_R3   0x04      /* region third table type          */
-#define _REGION_ENTRY_LENGTH    0x03      /* region third length              */
+#define REGION_ENTRY_ORIGIN   (~0xfffULL) /* region/segment table origin    */
+#define REGION_ENTRY_RO       0x200       /* region/segment protection bit  */
+#define REGION_ENTRY_TF       0xc0        /* region/segment table offset    */
+#define REGION_ENTRY_INV      0x20        /* invalid region table entry     */
+#define REGION_ENTRY_TYPE_MASK 0x0c       /* region/segment table type mask */
+#define REGION_ENTRY_TYPE_R1  0x0c        /* region first table type        */
+#define REGION_ENTRY_TYPE_R2  0x08        /* region second table type       */
+#define REGION_ENTRY_TYPE_R3  0x04        /* region third table type        */
+#define REGION_ENTRY_LENGTH   0x03        /* region third length            */
 
-#define _SEGMENT_ENTRY_ORIGIN   ~0x7ffULL /* segment table origin             */
-#define _SEGMENT_ENTRY_FC       0x400     /* format control                   */
-#define _SEGMENT_ENTRY_RO       0x200     /* page protection bit              */
-#define _SEGMENT_ENTRY_INV      0x20      /* invalid segment table entry      */
+#define SEGMENT_ENTRY_ORIGIN  (~0x7ffULL) /* segment table origin        */
+#define SEGMENT_ENTRY_FC      0x400       /* format control              */
+#define SEGMENT_ENTRY_RO      0x200       /* page protection bit         */
+#define SEGMENT_ENTRY_INV     0x20        /* invalid segment table entry */
 
-#define VADDR_PX                0xff000   /* page index bits                  */
+#define VADDR_PX              0xff000     /* page index bits   */
 
-#define _PAGE_RO        0x200            /* HW read-only bit  */
-#define _PAGE_INVALID   0x400            /* HW invalid bit    */
-#define _PAGE_RES0      0x800            /* bit must be zero  */
+#define PAGE_RO               0x200       /* HW read-only bit  */
+#define PAGE_INVALID          0x400       /* HW invalid bit    */
+#define PAGE_RES0             0x800       /* bit must be zero  */
 
 #define SK_C                    (0x1 << 1)
 #define SK_R                    (0x1 << 2)
