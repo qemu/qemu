@@ -23,9 +23,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/qapi-commands-ui.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
-#include "qmp-commands.h"
 #include "ui/keymaps.h"
 #include "ui/input.h"
 

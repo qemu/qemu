@@ -20,7 +20,7 @@
 #ifndef NBD_H
 #define NBD_H
 
-
+#include "qapi/qapi-types-block.h"
 #include "io/channel-socket.h"
 #include "crypto/tlscreds.h"
 

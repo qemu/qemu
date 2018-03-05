@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "io/dns-resolver.h"
 #include "qapi/clone-visitor.h"
+#include "qapi/qapi-visit-sockets.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"

@@ -23,7 +23,6 @@
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
-#include "qapi-visit.h"
 #include "qapi/dealloc-visitor.h"
 
 enum PrimitiveTypeKind {

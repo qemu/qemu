@@ -21,7 +21,6 @@
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"
 #include "qemu/uuid.h"
-#include "qmp-commands.h"
 #include "chardev/char.h"
 #include "ui/qemu-spice.h"
 #include "ui/vnc.h"
@@ -32,6 +31,9 @@
 #include "sysemu/block-backend.h"
 #include "qom/qom-qobject.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-block-core.h"
+#include "qapi/qapi-commands-misc.h"
+#include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
@@ -145,13 +147,13 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
 
 #ifndef CONFIG_SPICE
 /*
- * qmp-commands.hx ensures that QMP command query-spice exists only
- * #ifdef CONFIG_SPICE.  Necessary for an accurate query-commands
- * result.  However, the QAPI schema is blissfully unaware of that,
- * and the QAPI code generator happily generates a dead
- * qmp_marshal_query_spice() that calls qmp_query_spice().  Provide it
- * one, or else linking fails.  FIXME Educate the QAPI schema on
- * CONFIG_SPICE.
+ * qmp_unregister_commands_hack() ensures that QMP command query-spice
+ * exists only #ifdef CONFIG_SPICE.  Necessary for an accurate
+ * query-commands result.  However, the QAPI schema is blissfully
+ * unaware of that, and the QAPI code generator happily generates a
+ * dead qmp_marshal_query_spice() that calls qmp_query_spice().
+ * Provide it one, or else linking fails.  FIXME Educate the QAPI
+ * schema on CONFIG_SPICE.
  */
 SpiceInfo *qmp_query_spice(Error **errp)
 {

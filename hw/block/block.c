@@ -12,6 +12,7 @@
 #include "sysemu/block-backend.h"
 #include "hw/block/block.h"
 #include "qapi/error.h"
+#include "qapi/qapi-types-block.h"
 #include "qemu/error-report.h"
 
 void blkconf_serial(BlockConf *conf, char **serial)

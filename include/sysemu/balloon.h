@@ -14,7 +14,7 @@
 #ifndef QEMU_BALLOON_H
 #define QEMU_BALLOON_H
 
-#include "qapi-types.h"
+#include "qapi/qapi-types-misc.h"
 
 typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
 typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);

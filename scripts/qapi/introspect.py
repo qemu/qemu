@@ -1,15 +1,16 @@
-#
-# QAPI introspection generator
-#
-# Copyright (C) 2015-2016 Red Hat, Inc.
-#
-# Authors:
-#  Markus Armbruster <armbru@redhat.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2.
-# See the COPYING file in the top-level directory.
+"""
+QAPI introspection generator
 
-from qapi import *
+Copyright (C) 2015-2018 Red Hat, Inc.
+
+Authors:
+ Markus Armbruster <armbru@redhat.com>
+
+This work is licensed under the terms of the GNU GPL, version 2.
+See the COPYING file in the top-level directory.
+"""
+
+from qapi.common import *
 
 
 # Caveman's json.dumps() replacement (we're stuck at Python 2.4)
@@ -39,21 +40,26 @@ def to_c_string(string):
     return '"' + string.replace('\\', r'\\').replace('"', r'\"') + '"'
 
 
-class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
-    def __init__(self, unmask):
-        self._unmask = unmask
-        self.defn = None
-        self.decl = None
-        self._schema = None
-        self._jsons = None
-        self._used_types = None
-        self._name_map = None
+class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
-    def visit_begin(self, schema):
-        self._schema = schema
+    def __init__(self, prefix, unmask):
+        QAPISchemaMonolithicCVisitor.__init__(
+            self, prefix, 'qapi-introspect',
+            ' * QAPI/QMP schema introspection', __doc__)
+        self._unmask = unmask
+        self._schema = None
         self._jsons = []
         self._used_types = []
         self._name_map = {}
+        self._genc.add(mcgen('''
+#include "qemu/osdep.h"
+#include "%(prefix)sqapi-introspect.h"
+
+''',
+                             prefix=prefix))
+
+    def visit_begin(self, schema):
+        self._schema = schema
 
     def visit_end(self):
         # visit the types that are actually used
@@ -64,22 +70,22 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
         # generate C
         # TODO can generate awfully long lines
         jsons.extend(self._jsons)
-        name = c_name(prefix, protect=False) + 'qmp_schema_json'
-        self.decl = mcgen('''
+        name = c_name(self._prefix, protect=False) + 'qmp_schema_json'
+        self._genh.add(mcgen('''
 extern const char %(c_name)s[];
 ''',
-                          c_name=c_name(name))
+                             c_name=c_name(name)))
         lines = to_json(jsons).split('\n')
         c_string = '\n    '.join([to_c_string(line) for line in lines])
-        self.defn = mcgen('''
+        self._genc.add(mcgen('''
 const char %(c_name)s[] = %(c_string)s;
 ''',
-                          c_name=c_name(name),
-                          c_string=c_string)
+                             c_name=c_name(name),
+                             c_string=c_string))
         self._schema = None
-        self._jsons = None
-        self._used_types = None
-        self._name_map = None
+        self._jsons = []
+        self._used_types = []
+        self._name_map = {}
 
     def visit_needed(self, entity):
         # Ignore types on first pass; visit_end() will pick up used types
@@ -165,55 +171,8 @@ const char %(c_name)s[] = %(c_string)s;
         arg_type = arg_type or self._schema.the_empty_object_type
         self._gen_json(name, 'event', {'arg-type': self._use_type(arg_type)})
 
-# Debugging aid: unmask QAPI schema's type names
-# We normally mask them, because they're not QMP wire ABI
-opt_unmask = False
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line('u', ['unmask-non-abi-names'])
-
-for o, a in opts:
-    if o in ('-u', '--unmask-non-abi-names'):
-        opt_unmask = True
-
-c_comment = '''
-/*
- * QAPI/QMP schema introspection
- *
- * Copyright (C) 2015 Red Hat, Inc.
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-h_comment = '''
-/*
- * QAPI/QMP schema introspection
- *
- * Copyright (C) 2015 Red Hat, Inc.
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qmp-introspect.c', 'qmp-introspect.h',
-                            c_comment, h_comment)
-
-fdef.write(mcgen('''
-#include "qemu/osdep.h"
-#include "%(prefix)sqmp-introspect.h"
-
-''',
-                 prefix=prefix))
-
-schema = QAPISchema(input_file)
-gen = QAPISchemaGenIntrospectVisitor(opt_unmask)
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
-
-close_output(fdef, fdecl)
+def gen_introspect(schema, output_dir, prefix, opt_unmask):
+    vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
+    schema.visit(vis)
+    vis.write(output_dir)

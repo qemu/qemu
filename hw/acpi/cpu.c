@@ -2,7 +2,7 @@
 #include "hw/boards.h"
 #include "hw/acpi/cpu.h"
 #include "qapi/error.h"
-#include "qapi-event.h"
+#include "qapi/qapi-events-misc.h"
 #include "trace.h"
 #include "sysemu/numa.h"
 

@@ -15,9 +15,9 @@
 #include "qemu/coroutine.h"
 #include "block/write-threshold.h"
 #include "qemu/notify.h"
-#include "qapi-event.h"
 #include "qapi/error.h"
-#include "qmp-commands.h"
+#include "qapi/qapi-commands-block-core.h"
+#include "qapi/qapi-events-block-core.h"
 
 uint64_t bdrv_write_threshold_get(const BlockDriverState *bs)
 {

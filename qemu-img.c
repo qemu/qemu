@@ -27,7 +27,7 @@
 
 #include "qemu-version.h"
 #include "qapi/error.h"
-#include "qapi-visit.h"
+#include "qapi/qapi-visit-block-core.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qdict.h"

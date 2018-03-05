@@ -15,12 +15,12 @@
 #include "qemu/osdep.h"
 
 #include "qapi/error.h"
+#include "qapi/qapi-commands-tpm.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm_backend.h"
 #include "sysemu/tpm.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "qmp-commands.h"
 
 static QLIST_HEAD(, TPMBackend) tpm_backends =
     QLIST_HEAD_INITIALIZER(tpm_backends);
@@ -181,8 +181,7 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
 }
 
 /*
- * Walk the list of active TPM backends and collect information about them
- * following the schema description in qapi-schema.json.
+ * Walk the list of active TPM backends and collect information about them.
  */
 TPMInfoList *qmp_query_tpm(Error **errp)
 {

@@ -28,6 +28,7 @@
 #define QEMU_VNC_H
 
 #include "qemu-common.h"
+#include "qapi/qapi-types-ui.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "ui/console.h"

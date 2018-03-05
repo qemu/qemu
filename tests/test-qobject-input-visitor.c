@@ -15,6 +15,7 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
+#include "qapi/qapi-visit-introspect.h"
 #include "qapi/qobject-input-visitor.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/qbool.h"
@@ -23,9 +24,8 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
-#include "test-qmp-introspect.h"
-#include "qmp-introspect.h"
-#include "qapi-visit.h"
+#include "test-qapi-introspect.h"
+#include "qapi/qapi-introspect.h"
 
 typedef struct TestInputVisitorData {
     QObject *obj;
@@ -1376,7 +1376,7 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_fail_alternate);
     input_visitor_test_add("/visitor/input/fail/union-native-list",
                            NULL, test_visitor_in_fail_union_native_list);
-    input_visitor_test_add("/visitor/input/qmp-introspect",
+    input_visitor_test_add("/visitor/input/qapi-introspect",
                            NULL, test_visitor_in_qmp_introspect);
 
     g_test_run();

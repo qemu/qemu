@@ -21,7 +21,7 @@
 #ifndef QCRYPTO_HASH_H
 #define QCRYPTO_HASH_H
 
-#include "qapi-types.h"
+#include "qapi/qapi-types-crypto.h"
 
 /* See also "QCryptoHashAlgorithm" defined in qapi/crypto.json */
 

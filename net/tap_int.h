@@ -27,7 +27,7 @@
 #define NET_TAP_INT_H
 
 #include "qemu-common.h"
-#include "qapi-types.h"
+#include "qapi/qapi-types-net.h"
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
              int vnet_hdr_required, int mq_required, Error **errp);

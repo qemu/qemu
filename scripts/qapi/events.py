@@ -1,17 +1,18 @@
-#
-# QAPI event generator
-#
-# Copyright (c) 2014 Wenchao Xia
-# Copyright (c) 2015-2016 Red Hat Inc.
-#
-# Authors:
-#  Wenchao Xia <wenchaoqemu@gmail.com>
-#  Markus Armbruster <armbru@redhat.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2.
-# See the COPYING file in the top-level directory.
+"""
+QAPI event generator
 
-from qapi import *
+Copyright (c) 2014 Wenchao Xia
+Copyright (c) 2015-2018 Red Hat Inc.
+
+Authors:
+ Wenchao Xia <wenchaoqemu@gmail.com>
+ Markus Armbruster <armbru@redhat.com>
+
+This work is licensed under the terms of the GNU GPL, version 2.
+See the COPYING file in the top-level directory.
+"""
+
+from qapi.common import *
 
 
 def build_event_send_proto(name, arg_type, boxed):
@@ -57,7 +58,7 @@ def gen_param_var(typ):
     return ret
 
 
-def gen_event_send(name, arg_type, boxed):
+def gen_event_send(name, arg_type, boxed, event_enum_name):
     # FIXME: Our declaration of local variables (and of 'errp' in the
     # parameter list) can collide with exploded members of the event's
     # data type passed in as parameters.  If this collision ever hits in
@@ -147,89 +148,48 @@ out:
     return ret
 
 
-class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
-    def __init__(self):
-        self.decl = None
-        self.defn = None
-        self._event_names = None
+class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 
-    def visit_begin(self, schema):
-        self.decl = ''
-        self.defn = ''
+    def __init__(self, prefix):
+        QAPISchemaModularCVisitor.__init__(
+            self, prefix, 'qapi-events',
+            ' * Schema-defined QAPI/QMP events', __doc__)
+        self._enum_name = c_name(prefix + 'QAPIEvent', protect=False)
         self._event_names = []
 
-    def visit_end(self):
-        self.decl += gen_enum(event_enum_name, self._event_names)
-        self.defn += gen_enum_lookup(event_enum_name, self._event_names)
-        self._event_names = None
-
-    def visit_event(self, name, info, arg_type, boxed):
-        self.decl += gen_event_send_decl(name, arg_type, boxed)
-        self.defn += gen_event_send(name, arg_type, boxed)
-        self._event_names.append(name)
-
-
-(input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
-
-c_comment = '''
-/*
- * schema-defined QAPI event functions
- *
- * Copyright (c) 2014 Wenchao Xia
- *
- * Authors:
- *  Wenchao Xia   <wenchaoqemu@gmail.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-h_comment = '''
-/*
- * schema-defined QAPI event functions
- *
- * Copyright (c) 2014 Wenchao Xia
- *
- * Authors:
- *  Wenchao Xia  <wenchaoqemu@gmail.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qapi-event.c', 'qapi-event.h',
-                            c_comment, h_comment)
-
-fdef.write(mcgen('''
+    def _begin_module(self, name):
+        types = self._module_basename('qapi-types', name)
+        visit = self._module_basename('qapi-visit', name)
+        self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "%(prefix)sqapi-event.h"
-#include "%(prefix)sqapi-visit.h"
+#include "%(prefix)sqapi-events.h"
+#include "%(visit)s.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp-event.h"
 
 ''',
-                 prefix=prefix))
-
-fdecl.write(mcgen('''
+                             visit=visit, prefix=self._prefix))
+        self._genh.add(mcgen('''
 #include "qapi/util.h"
-#include "%(prefix)sqapi-types.h"
+#include "%(types)s.h"
 
 ''',
-                  prefix=prefix))
+                             types=types))
 
-event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
+    def visit_end(self):
+        self._genh.add(gen_enum(self._enum_name, self._event_names))
+        self._genc.add(gen_enum_lookup(self._enum_name, self._event_names))
 
-schema = QAPISchema(input_file)
-gen = QAPISchemaGenEventVisitor()
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+    def visit_event(self, name, info, arg_type, boxed):
+        self._genh.add(gen_event_send_decl(name, arg_type, boxed))
+        self._genc.add(gen_event_send(name, arg_type, boxed, self._enum_name))
+        self._event_names.append(name)
 
-close_output(fdef, fdecl)
+
+def gen_events(schema, output_dir, prefix):
+    vis = QAPISchemaGenEventVisitor(prefix)
+    schema.visit(vis)
+    vis.write(output_dir)

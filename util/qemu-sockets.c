@@ -24,11 +24,11 @@
 #include "monitor/monitor.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/error.h"
+#include "qapi/qapi-visit-sockets.h"
 #include "qemu/sockets.h"
 #include "qemu/main-loop.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
-#include "qapi-visit.h"
 #include "qemu/cutils.h"
 
 #ifndef AI_ADDRCONFIG

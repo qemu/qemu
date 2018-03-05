@@ -38,6 +38,7 @@
 #include "migration/blocker.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
+#include "qapi/qapi-visit-tpm.h"
 #include "chardev/char-fe.h"
 
 #define DEBUG_TPM 0

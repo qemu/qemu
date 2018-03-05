@@ -25,7 +25,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qga/guest-agent-core.h"
 #include "qemu/module.h"
-#include "qga-qmp-commands.h"
+#include "qga-qapi-commands.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "qga/channel.h"

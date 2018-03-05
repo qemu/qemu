@@ -16,6 +16,7 @@
 #include "qemu/notify.h"
 #include "ui/input.h"
 #include "qapi/clone-visitor.h"
+#include "qapi/qapi-visit-ui.h"
 
 void replay_save_input_event(InputEvent *evt)
 {

@@ -28,9 +28,9 @@
 #include "sysemu/arch_init.h"
 #include "hw/pci/pci.h"
 #include "hw/audio/soundhw.h"
+#include "qapi/qapi-commands-misc.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "qmp-commands.h"
 #include "hw/acpi/acpi.h"
 #include "qemu/help_option.h"
 

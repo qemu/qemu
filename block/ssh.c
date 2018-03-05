@@ -34,7 +34,7 @@
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
 #include "qemu/uri.h"
-#include "qapi-visit.h"
+#include "qapi/qapi-visit-sockets.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"

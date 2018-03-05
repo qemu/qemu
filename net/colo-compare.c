@@ -25,7 +25,6 @@
 #include "net/queue.h"
 #include "chardev/char-fe.h"
 #include "qemu/sockets.h"
-#include "qapi-visit.h"
 #include "net/colo.h"
 #include "sysemu/iothread.h"
 

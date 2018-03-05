@@ -28,14 +28,14 @@
 #include "qemu/queue.h"
 #include "qemu-x509.h"
 #include "qemu/sockets.h"
-#include "qmp-commands.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-ui.h"
+#include "qapi/qapi-events-ui.h"
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "migration/misc.h"
 #include "hw/hw.h"
 #include "ui/spice-display.h"
-#include "qapi-event.h"
 
 /* core bits */
 

@@ -22,6 +22,7 @@
 #define QIO_DNS_RESOLVER_H
 
 #include "qemu-common.h"
+#include "qapi/qapi-types-sockets.h"
 #include "qom/object.h"
 #include "io/task.h"
 

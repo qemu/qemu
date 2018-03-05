@@ -17,8 +17,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qmp-commands.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-rocker.h"
 #include "qapi/qmp/qerror.h"
 
 RockerSwitch *qmp_query_rocker(const char *name, Error **errp)

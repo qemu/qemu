@@ -11,13 +11,18 @@
 #
 
 from __future__ import print_function
-from qapi import *
-from pprint import pprint
-import os
 import sys
+from qapi.common import QAPIError, QAPISchema, QAPISchemaVisitor
 
 
 class QAPISchemaTestVisitor(QAPISchemaVisitor):
+
+    def visit_module(self, name):
+        print('module %s' % name)
+
+    def visit_include(self, name, info):
+        print('include %s' % name)
+
     def visit_enum_type(self, name, info, values, prefix):
         print('enum %s %s' % (name, values))
         if prefix:
@@ -54,7 +59,13 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             for v in variants.variants:
                 print('    case %s: %s' % (v.name, v.type.name))
 
-schema = QAPISchema(sys.argv[1])
+
+try:
+    schema = QAPISchema(sys.argv[1])
+except QAPIError as err:
+    print(err, file=sys.stderr)
+    exit(1)
+
 schema.visit(QAPISchemaTestVisitor())
 
 for doc in schema.docs:

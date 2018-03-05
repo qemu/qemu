@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "qapi-visit.h"
 #include "hw/mem/nvdimm.h"
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,

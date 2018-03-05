@@ -8,8 +8,7 @@ These operations are normally used with migration (see migration.txt),
 however it is also possible to save the state of all devices to file,
 without saving the RAM or the block devices of the VM.
 
-This operation is called "xen-save-devices-state" (see
-qmp-commands.txt)
+The save operation is available as QMP command xen-save-devices-state.
 
 
 The binary format used in the file is the following:

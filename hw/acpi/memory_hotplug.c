@@ -5,8 +5,8 @@
 #include "hw/boards.h"
 #include "hw/qdev-core.h"
 #include "trace.h"
-#include "qapi-event.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-misc.h"
 
 #define MEMORY_SLOTS_NUMBER          "MDNR"
 #define MEMORY_HOTPLUG_IO_REGION     "HPMR"

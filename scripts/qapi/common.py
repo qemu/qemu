@@ -2,7 +2,7 @@
 # QAPI helper library
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013-2016 Red Hat Inc.
+# Copyright (c) 2013-2018 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
@@ -13,19 +13,13 @@
 
 from __future__ import print_function
 import errno
-import getopt
 import os
 import re
 import string
-import sys
 try:
     from collections import OrderedDict
 except:
     from ordereddict import OrderedDict
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 builtin_types = {
     'null':     'QTYPE_QNULL',
@@ -264,9 +258,8 @@ class QAPIDoc(object):
 class QAPISchemaParser(object):
 
     def __init__(self, fp, previously_included=[], incl_info=None):
-        abs_fname = os.path.abspath(fp.name)
         self.fname = fp.name
-        previously_included.append(abs_fname)
+        previously_included.append(os.path.abspath(fp.name))
         self.incl_info = incl_info
         self.src = fp.read()
         if self.src == '' or self.src[-1] != '\n':
@@ -297,8 +290,15 @@ class QAPISchemaParser(object):
                 if not isinstance(include, str):
                     raise QAPISemError(info,
                                        "Value of 'include' must be a string")
-                self._include(include, info, os.path.dirname(abs_fname),
-                              previously_included)
+                incl_fname = os.path.join(os.path.dirname(self.fname),
+                                          include)
+                self.exprs.append({'expr': {'include': incl_fname},
+                                   'info': info})
+                exprs_include = self._include(include, info, incl_fname,
+                                              previously_included)
+                if exprs_include:
+                    self.exprs.extend(exprs_include.exprs)
+                    self.docs.extend(exprs_include.docs)
             elif "pragma" in expr:
                 self.reject_expr_doc(cur_doc)
                 if len(expr) != 1:
@@ -329,8 +329,8 @@ class QAPISchemaParser(object):
                 "Documentation for '%s' is not followed by the definition"
                 % doc.symbol)
 
-    def _include(self, include, info, base_dir, previously_included):
-        incl_abs_fname = os.path.join(base_dir, include)
+    def _include(self, include, info, incl_fname, previously_included):
+        incl_abs_fname = os.path.abspath(incl_fname)
         # catch inclusion cycle
         inf = info
         while inf:
@@ -340,14 +340,13 @@ class QAPISchemaParser(object):
 
         # skip multiple include of the same file
         if incl_abs_fname in previously_included:
-            return
+            return None
+
         try:
-            fobj = open(incl_abs_fname, 'r')
+            fobj = open(incl_fname, 'r')
         except IOError as e:
-            raise QAPISemError(info, '%s: %s' % (e.strerror, include))
-        exprs_include = QAPISchemaParser(fobj, previously_included, info)
-        self.exprs.extend(exprs_include.exprs)
-        self.docs.extend(exprs_include.docs)
+            raise QAPISemError(info, '%s: %s' % (e.strerror, incl_fname))
+        return QAPISchemaParser(fobj, previously_included, info)
 
     def _pragma(self, name, value, info):
         global doc_required, returns_whitelist, name_case_whitelist
@@ -896,6 +895,9 @@ def check_exprs(exprs):
         info = expr_elem['info']
         doc = expr_elem.get('doc')
 
+        if 'include' in expr:
+            continue
+
         if not doc and doc_required:
             raise QAPISemError(info,
                                "Expression missing documentation comment")
@@ -935,6 +937,9 @@ def check_exprs(exprs):
     # Try again for hidden UnionKind enum
     for expr_elem in exprs:
         expr = expr_elem['expr']
+
+        if 'include' in expr:
+            continue
         if 'union' in expr and not discriminator_find_enum_define(expr):
             name = '%sKind' % expr['union']
         elif 'alternate' in expr:
@@ -950,6 +955,8 @@ def check_exprs(exprs):
         info = expr_elem['info']
         doc = expr_elem.get('doc')
 
+        if 'include' in expr:
+            continue
         if 'enum' in expr:
             check_enum(expr, info)
         elif 'union' in expr:
@@ -977,8 +984,9 @@ def check_exprs(exprs):
 
 class QAPISchemaEntity(object):
     def __init__(self, name, info, doc):
-        assert isinstance(name, str)
+        assert name is None or isinstance(name, str)
         self.name = name
+        self.module = None
         # For explicitly defined entities, info points to the (explicit)
         # definition.  For builtins (and their arrays), info is None.
         # For implicitly defined entities, info points to a place that
@@ -1007,9 +1015,15 @@ class QAPISchemaVisitor(object):
     def visit_end(self):
         pass
 
+    def visit_module(self, fname):
+        pass
+
     def visit_needed(self, entity):
         # Default to visiting everything
         return True
+
+    def visit_include(self, fname, info):
+        pass
 
     def visit_builtin_type(self, name, info, json_type):
         pass
@@ -1035,6 +1049,16 @@ class QAPISchemaVisitor(object):
 
     def visit_event(self, name, info, arg_type, boxed):
         pass
+
+
+class QAPISchemaInclude(QAPISchemaEntity):
+
+    def __init__(self, fname, info):
+        QAPISchemaEntity.__init__(self, None, info, None)
+        self.fname = fname
+
+    def visit(self, visitor):
+        visitor.visit_include(self.fname, self.info)
 
 
 class QAPISchemaType(QAPISchemaEntity):
@@ -1464,25 +1488,28 @@ class QAPISchemaEvent(QAPISchemaEntity):
 
 class QAPISchema(object):
     def __init__(self, fname):
-        try:
-            parser = QAPISchemaParser(open(fname, 'r'))
-            self.exprs = check_exprs(parser.exprs)
-            self.docs = parser.docs
-            self._entity_dict = {}
-            self._predefining = True
-            self._def_predefineds()
-            self._predefining = False
-            self._def_exprs()
-            self.check()
-        except QAPIError as err:
-            print(err, file=sys.stderr)
-            exit(1)
+        self._fname = fname
+        parser = QAPISchemaParser(open(fname, 'r'))
+        exprs = check_exprs(parser.exprs)
+        self.docs = parser.docs
+        self._entity_list = []
+        self._entity_dict = {}
+        self._predefining = True
+        self._def_predefineds()
+        self._predefining = False
+        self._def_exprs(exprs)
+        self.check()
 
     def _def_entity(self, ent):
         # Only the predefined types are allowed to not have info
         assert ent.info or self._predefining
-        assert ent.name not in self._entity_dict
-        self._entity_dict[ent.name] = ent
+        assert ent.name is None or ent.name not in self._entity_dict
+        self._entity_list.append(ent)
+        if ent.name is not None:
+            self._entity_dict[ent.name] = ent
+        if ent.info:
+            ent.module = os.path.relpath(ent.info['file'],
+                                         os.path.dirname(self._fname))
 
     def lookup_entity(self, name, typ=None):
         ent = self._entity_dict.get(name)
@@ -1493,13 +1520,21 @@ class QAPISchema(object):
     def lookup_type(self, name):
         return self.lookup_entity(name, QAPISchemaType)
 
+    def _def_include(self, expr, info, doc):
+        include = expr['include']
+        assert doc is None
+        main_info = info
+        while main_info['parent']:
+            main_info = main_info['parent']
+        fname = os.path.relpath(include, os.path.dirname(main_info['file']))
+        self._def_entity(QAPISchemaInclude(fname, info))
+
     def _def_builtin_type(self, name, json_type, c_type):
         self._def_entity(QAPISchemaBuiltinType(name, json_type, c_type))
-        # TODO As long as we have QAPI_TYPES_BUILTIN to share multiple
-        # qapi-types.h from a single .c, all arrays of builtins must be
-        # declared in the first file whether or not they are used.  Nicer
-        # would be to use lazy instantiation, while figuring out how to
-        # avoid compilation issues with multiple qapi-types.h.
+        # Instantiating only the arrays that are actually used would
+        # be nice, but we can't as long as their generated code
+        # (qapi-builtin-types.[ch]) may be shared by some other
+        # schema.
         self._make_array_type(name, None)
 
     def _def_predefineds(self):
@@ -1657,8 +1692,8 @@ class QAPISchema(object):
                 name, info, doc, 'arg', self._make_members(data, info))
         self._def_entity(QAPISchemaEvent(name, info, doc, data, boxed))
 
-    def _def_exprs(self):
-        for expr_elem in self.exprs:
+    def _def_exprs(self, exprs):
+        for expr_elem in exprs:
             expr = expr_elem['expr']
             info = expr_elem['info']
             doc = expr_elem.get('doc')
@@ -1674,17 +1709,23 @@ class QAPISchema(object):
                 self._def_command(expr, info, doc)
             elif 'event' in expr:
                 self._def_event(expr, info, doc)
+            elif 'include' in expr:
+                self._def_include(expr, info, doc)
             else:
                 assert False
 
     def check(self):
-        for (name, ent) in sorted(self._entity_dict.items()):
+        for ent in self._entity_list:
             ent.check(self)
 
     def visit(self, visitor):
         visitor.visit_begin(self)
-        for (name, entity) in sorted(self._entity_dict.items()):
+        module = None
+        for entity in self._entity_list:
             if visitor.visit_needed(entity):
+                if entity.module != module:
+                    module = entity.module
+                    visitor.visit_module(module)
                 entity.visit(visitor)
         visitor.visit_end()
 
@@ -1826,12 +1867,11 @@ def mcgen(code, **kwds):
 
 
 def guardname(filename):
-    return c_name(filename, protect=False).upper()
+    return re.sub(r'[^A-Za-z0-9_]', '_', filename).upper()
 
 
 def guardstart(name):
     return mcgen('''
-
 #ifndef %(name)s
 #define %(name)s
 
@@ -1843,7 +1883,6 @@ def guardend(name):
     return mcgen('''
 
 #endif /* %(name)s */
-
 ''',
                  name=guardname(name))
 
@@ -1930,104 +1969,161 @@ def build_params(arg_type, boxed, extra):
 
 
 #
-# Common command line parsing
+# Accumulate and write output
 #
 
+class QAPIGen(object):
 
-def parse_command_line(extra_options='', extra_long_options=[]):
+    def __init__(self):
+        self._preamble = ''
+        self._body = ''
 
-    try:
-        opts, args = getopt.gnu_getopt(sys.argv[1:],
-                                       'chp:o:' + extra_options,
-                                       ['source', 'header', 'prefix=',
-                                        'output-dir='] + extra_long_options)
-    except getopt.GetoptError as err:
-        print("%s: %s" % (sys.argv[0], str(err)), file=sys.stderr)
-        sys.exit(1)
+    def preamble_add(self, text):
+        self._preamble += text
 
-    output_dir = ''
-    prefix = ''
-    do_c = False
-    do_h = False
-    extra_opts = []
+    def add(self, text):
+        self._body += text
 
-    for oa in opts:
-        o, a = oa
-        if o in ('-p', '--prefix'):
-            match = re.match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
-            if match.end() != len(a):
-                print("%s: 'funny character '%s' in argument of --prefix" \
-                      % (sys.argv[0], a[match.end()]), file=sys.stderr)
-                sys.exit(1)
-            prefix = a
-        elif o in ('-o', '--output-dir'):
-            output_dir = a + '/'
-        elif o in ('-c', '--source'):
-            do_c = True
-        elif o in ('-h', '--header'):
-            do_h = True
-        else:
-            extra_opts.append(oa)
+    def _top(self, fname):
+        return ''
 
-    if not do_c and not do_h:
-        do_c = True
-        do_h = True
+    def _bottom(self, fname):
+        return ''
 
-    if len(args) != 1:
-        print("%s: need exactly one argument" % sys.argv[0], file=sys.stderr)
-        sys.exit(1)
-    fname = args[0]
-
-    return (fname, output_dir, do_c, do_h, prefix, extra_opts)
-
-#
-# Generate output files with boilerplate
-#
+    def write(self, output_dir, fname):
+        pathname = os.path.join(output_dir, fname)
+        dir = os.path.dirname(pathname)
+        if dir:
+            try:
+                os.makedirs(dir)
+            except os.error as e:
+                if e.errno != errno.EEXIST:
+                    raise
+        fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
+        f = os.fdopen(fd, 'r+')
+        text = (self._top(fname) + self._preamble + self._body
+                + self._bottom(fname))
+        oldtext = f.read(len(text) + 1)
+        if text != oldtext:
+            f.seek(0)
+            f.truncate(0)
+            f.write(text)
+        f.close()
 
 
-def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
-                c_comment, h_comment):
-    guard = guardname(prefix + h_file)
-    c_file = output_dir + prefix + c_file
-    h_file = output_dir + prefix + h_file
+class QAPIGenC(QAPIGen):
 
-    if output_dir:
-        try:
-            os.makedirs(output_dir)
-        except os.error as e:
-            if e.errno != errno.EEXIST:
-                raise
+    def __init__(self, blurb, pydoc):
+        QAPIGen.__init__(self)
+        self._blurb = blurb
+        self._copyright = '\n * '.join(re.findall(r'^Copyright .*', pydoc,
+                                                  re.MULTILINE))
 
-    def maybe_open(really, name, opt):
-        if really:
-            return open(name, opt)
-        else:
-            return StringIO()
-
-    fdef = maybe_open(do_c, c_file, 'w')
-    fdecl = maybe_open(do_h, h_file, 'w')
-
-    fdef.write(mcgen('''
+    def _top(self, fname):
+        return mcgen('''
 /* AUTOMATICALLY GENERATED, DO NOT MODIFY */
-%(comment)s
-''',
-                     comment=c_comment))
 
-    fdecl.write(mcgen('''
-/* AUTOMATICALLY GENERATED, DO NOT MODIFY */
-%(comment)s
-#ifndef %(guard)s
-#define %(guard)s
+/*
+%(blurb)s
+ *
+ * %(copyright)s
+ *
+ * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
+ * See the COPYING.LIB file in the top-level directory.
+ */
 
 ''',
-                      comment=h_comment, guard=guard))
+                     blurb=self._blurb, copyright=self._copyright)
 
-    return (fdef, fdecl)
+    def _bottom(self, fname):
+        return mcgen('''
+/* Dummy declaration to prevent empty .o file */
+char dummy_%(name)s;
+''',
+                     name=c_name(fname))
 
 
-def close_output(fdef, fdecl):
-    fdecl.write('''
-#endif
-''')
-    fdecl.close()
-    fdef.close()
+class QAPIGenH(QAPIGenC):
+
+    def _top(self, fname):
+        return QAPIGenC._top(self, fname) + guardstart(fname)
+
+    def _bottom(self, fname):
+        return guardend(fname)
+
+
+class QAPIGenDoc(QAPIGen):
+
+    def _top(self, fname):
+        return (QAPIGen._top(self, fname)
+                + '@c AUTOMATICALLY GENERATED, DO NOT MODIFY\n\n')
+
+
+class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
+
+    def __init__(self, prefix, what, blurb, pydoc):
+        self._prefix = prefix
+        self._what = what
+        self._genc = QAPIGenC(blurb, pydoc)
+        self._genh = QAPIGenH(blurb, pydoc)
+
+    def write(self, output_dir):
+        self._genc.write(output_dir, self._prefix + self._what + '.c')
+        self._genh.write(output_dir, self._prefix + self._what + '.h')
+
+
+class QAPISchemaModularCVisitor(QAPISchemaVisitor):
+
+    def __init__(self, prefix, what, blurb, pydoc):
+        self._prefix = prefix
+        self._what = what
+        self._blurb = blurb
+        self._pydoc = pydoc
+        self._module = {}
+        self._main_module = None
+
+    def _module_basename(self, what, name):
+        if name is None:
+            return re.sub(r'-', '-builtin-', what)
+        basename = os.path.join(os.path.dirname(name),
+                                self._prefix + what)
+        if name == self._main_module:
+            return basename
+        return basename + '-' + os.path.splitext(os.path.basename(name))[0]
+
+    def _add_module(self, name, blurb):
+        if self._main_module is None and name is not None:
+            self._main_module = name
+        genc = QAPIGenC(blurb, self._pydoc)
+        genh = QAPIGenH(blurb, self._pydoc)
+        self._module[name] = (genc, genh)
+        self._set_module(name)
+
+    def _set_module(self, name):
+        self._genc, self._genh = self._module[name]
+
+    def write(self, output_dir, opt_builtins=False):
+        for name in self._module:
+            if name is None and not opt_builtins:
+                continue
+            basename = self._module_basename(self._what, name)
+            (genc, genh) = self._module[name]
+            genc.write(output_dir, basename + '.c')
+            genh.write(output_dir, basename + '.h')
+
+    def _begin_module(self, name):
+        pass
+
+    def visit_module(self, name):
+        if name in self._module:
+            self._set_module(name)
+            return
+        self._add_module(name, self._blurb)
+        self._begin_module(name)
+
+    def visit_include(self, name, info):
+        basename = self._module_basename(self._what, name)
+        self._genh.preamble_add(mcgen('''
+#include "%(basename)s.h"
+''',
+                                      basename=basename))

@@ -24,6 +24,7 @@
 #include "disas/bfd.h"
 #include "exec/hwaddr.h"
 #include "exec/memattrs.h"
+#include "qapi/qapi-types-run-state.h"
 #include "qemu/bitmap.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"

@@ -32,7 +32,6 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qstring.h"
 #include "sysemu/block-backend.h"
@@ -42,7 +41,6 @@
 #include "qemu/coroutine.h"
 #include "block/qapi.h"
 #include "qemu/timer.h"
-#include "qapi-event.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"
 

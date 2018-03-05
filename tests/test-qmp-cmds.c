@@ -3,12 +3,12 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
-#include "test-qmp-commands.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qapi/qobject-input-visitor.h"
 #include "tests/test-qapi-types.h"
 #include "tests/test-qapi-visit.h"
+#include "test-qapi-commands.h"
 
 static QmpCommandList qmp_commands;
 

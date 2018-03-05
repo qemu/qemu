@@ -3,6 +3,7 @@
 
 #include "qemu-common.h"
 #include "block/block.h"
+#include "qapi/qapi-types-misc.h"
 #include "qemu/readline.h"
 
 extern Monitor *cur_mon;

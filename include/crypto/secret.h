@@ -21,6 +21,7 @@
 #ifndef QCRYPTO_SECRET_H
 #define QCRYPTO_SECRET_H
 
+#include "qapi/qapi-types-crypto.h"
 #include "qom/object.h"
 
 #define TYPE_QCRYPTO_SECRET "secret"

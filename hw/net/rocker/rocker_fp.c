@@ -16,7 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "net/clients.h"
-
+#include "qapi/qapi-types-rocker.h"
 #include "rocker.h"
 #include "rocker_hw.h"
 #include "rocker_fp.h"

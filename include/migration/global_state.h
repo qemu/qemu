@@ -13,6 +13,7 @@
 #ifndef QEMU_MIGRATION_GLOBAL_STATE_H
 #define QEMU_MIGRATION_GLOBAL_STATE_H
 
+#include "qapi/qapi-types-run-state.h"
 #include "sysemu/sysemu.h"
 
 void register_global_state(void);

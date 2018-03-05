@@ -37,6 +37,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
 #include "qemu/cutils.h"
 
 #include "ui/console.h"
@@ -52,7 +53,6 @@
 #include "trace.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
-#include "qmp-commands.h"
 #include "keymaps.h"
 #include "chardev/char.h"
 #include "qom/object.h"

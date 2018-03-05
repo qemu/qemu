@@ -17,6 +17,7 @@
 #include "exec/exec-all.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "qapi/qapi-types-misc.h"
 
 QemuMutex qemu_sigp_mutex;
 

@@ -1,10 +1,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qerror.h"
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
-#include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
 

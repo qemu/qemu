@@ -78,7 +78,8 @@ Escape character is '^]'.
     }
 }
 
-Please, refer to the qapi-schema.json file for a complete command reference.
+Please refer to docs/interop/qemu-qmp-ref.* for a complete command
+reference, generated from qapi/qapi-schema.json.
 
 QMP wiki page
 -------------

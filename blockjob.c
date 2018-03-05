@@ -30,11 +30,11 @@
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-block-core.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/coroutine.h"
 #include "qemu/id.h"
 #include "qemu/timer.h"
-#include "qapi-event.h"
 
 /* Right now, this mutex is only needed to synchronize accesses to job->busy
  * and job->sleep_timer, such as concurrent calls to block_job_do_yield and

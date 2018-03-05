@@ -1,18 +1,19 @@
-#
-# QAPI visitor generator
-#
-# Copyright IBM, Corp. 2011
-# Copyright (C) 2014-2016 Red Hat, Inc.
-#
-# Authors:
-#  Anthony Liguori <aliguori@us.ibm.com>
-#  Michael Roth    <mdroth@linux.vnet.ibm.com>
-#  Markus Armbruster <armbru@redhat.com>
-#
-# This work is licensed under the terms of the GNU GPL, version 2.
-# See the COPYING file in the top-level directory.
+"""
+QAPI visitor generator
 
-from qapi import *
+Copyright IBM, Corp. 2011
+Copyright (C) 2014-2018 Red Hat, Inc.
+
+Authors:
+ Anthony Liguori <aliguori@us.ibm.com>
+ Michael Roth    <mdroth@linux.vnet.ibm.com>
+ Markus Armbruster <armbru@redhat.com>
+
+This work is licensed under the terms of the GNU GPL, version 2.
+See the COPYING file in the top-level directory.
+"""
+
+from qapi.common import *
 
 
 def gen_visit_decl(name, scalar=False):
@@ -262,131 +263,71 @@ out:
                  c_name=c_name(name))
 
 
-class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
-    def __init__(self):
-        self.decl = None
-        self.defn = None
-        self._btin = None
+class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 
-    def visit_begin(self, schema):
-        self.decl = ''
-        self.defn = ''
-        self._btin = guardstart('QAPI_VISIT_BUILTIN')
+    def __init__(self, prefix):
+        QAPISchemaModularCVisitor.__init__(
+            self, prefix, 'qapi-visit', ' * Schema-defined QAPI visitors',
+            __doc__)
+        self._add_module(None, ' * Built-in QAPI visitors')
+        self._genc.preamble_add(mcgen('''
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "qapi/error.h"
+#include "qapi/qapi-builtin-visit.h"
+'''))
+        self._genh.preamble_add(mcgen('''
+#include "qapi/visitor.h"
+#include "qapi/qapi-builtin-types.h"
 
-    def visit_end(self):
-        # To avoid header dependency hell, we always generate
-        # declarations for built-in types in our header files and
-        # simply guard them.  See also do_builtins (command line
-        # option -b).
-        self._btin += guardend('QAPI_VISIT_BUILTIN')
-        self.decl = self._btin + self.decl
-        self._btin = None
+''',
+                                      prefix=prefix))
+
+    def _begin_module(self, name):
+        types = self._module_basename('qapi-types', name)
+        visit = self._module_basename('qapi-visit', name)
+        self._genc.preamble_add(mcgen('''
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
+#include "%(visit)s.h"
+''',
+                                      visit=visit, prefix=self._prefix))
+        self._genh.preamble_add(mcgen('''
+#include "qapi/qapi-builtin-visit.h"
+#include "%(types)s.h"
+
+''',
+                                      types=types))
 
     def visit_enum_type(self, name, info, values, prefix):
-        # Special case for our lone builtin enum type
-        # TODO use something cleaner than existence of info
-        if not info:
-            self._btin += gen_visit_decl(name, scalar=True)
-            if do_builtins:
-                self.defn += gen_visit_enum(name)
-        else:
-            self.decl += gen_visit_decl(name, scalar=True)
-            self.defn += gen_visit_enum(name)
+        self._genh.add(gen_visit_decl(name, scalar=True))
+        self._genc.add(gen_visit_enum(name))
 
     def visit_array_type(self, name, info, element_type):
-        decl = gen_visit_decl(name)
-        defn = gen_visit_list(name, element_type)
-        if isinstance(element_type, QAPISchemaBuiltinType):
-            self._btin += decl
-            if do_builtins:
-                self.defn += defn
-        else:
-            self.decl += decl
-            self.defn += defn
+        self._genh.add(gen_visit_decl(name))
+        self._genc.add(gen_visit_list(name, element_type))
 
     def visit_object_type(self, name, info, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
-        self.decl += gen_visit_members_decl(name)
-        self.defn += gen_visit_object_members(name, base, members, variants)
+        self._genh.add(gen_visit_members_decl(name))
+        self._genc.add(gen_visit_object_members(name, base, members, variants))
         # TODO Worth changing the visitor signature, so we could
         # directly use rather than repeat type.is_implicit()?
         if not name.startswith('q_'):
             # only explicit types need an allocating visit
-            self.decl += gen_visit_decl(name)
-            self.defn += gen_visit_object(name, base, members, variants)
+            self._genh.add(gen_visit_decl(name))
+            self._genc.add(gen_visit_object(name, base, members, variants))
 
     def visit_alternate_type(self, name, info, variants):
-        self.decl += gen_visit_decl(name)
-        self.defn += gen_visit_alternate(name, variants)
+        self._genh.add(gen_visit_decl(name))
+        self._genc.add(gen_visit_alternate(name, variants))
 
-# If you link code generated from multiple schemata, you want only one
-# instance of the code for built-in types.  Generate it only when
-# do_builtins, enabled by command line option -b.  See also
-# QAPISchemaGenVisitVisitor.visit_end().
-do_builtins = False
 
-(input_file, output_dir, do_c, do_h, prefix, opts) = \
-    parse_command_line('b', ['builtins'])
-
-for o, a in opts:
-    if o in ('-b', '--builtins'):
-        do_builtins = True
-
-c_comment = '''
-/*
- * schema-defined QAPI visitor functions
- *
- * Copyright IBM, Corp. 2011
- *
- * Authors:
- *  Anthony Liguori   <aliguori@us.ibm.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-h_comment = '''
-/*
- * schema-defined QAPI visitor functions
- *
- * Copyright IBM, Corp. 2011
- *
- * Authors:
- *  Anthony Liguori   <aliguori@us.ibm.com>
- *
- * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
- * See the COPYING.LIB file in the top-level directory.
- *
- */
-'''
-
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qapi-visit.c', 'qapi-visit.h',
-                            c_comment, h_comment)
-
-fdef.write(mcgen('''
-#include "qemu/osdep.h"
-#include "qemu-common.h"
-#include "qapi/error.h"
-#include "%(prefix)sqapi-visit.h"
-''',
-                 prefix=prefix))
-
-fdecl.write(mcgen('''
-#include "qapi/visitor.h"
-#include "qapi/qmp/qerror.h"
-#include "%(prefix)sqapi-types.h"
-
-''',
-                  prefix=prefix))
-
-schema = QAPISchema(input_file)
-gen = QAPISchemaGenVisitVisitor()
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
-
-close_output(fdef, fdecl)
+def gen_visit(schema, output_dir, prefix, opt_builtins):
+    vis = QAPISchemaGenVisitVisitor(prefix)
+    schema.visit(vis)
+    vis.write(output_dir, opt_builtins)

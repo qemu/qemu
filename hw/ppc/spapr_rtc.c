@@ -30,8 +30,8 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/ppc/spapr.h"
-#include "qapi-event.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-misc.h"
 #include "qemu/cutils.h"
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns)

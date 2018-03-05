@@ -23,7 +23,7 @@
 #define QEMU_WATCHDOG_H
 
 #include "qemu/queue.h"
-#include "qapi-types.h"
+#include "qapi/qapi-types-run-state.h"
 
 struct WatchdogTimerModel {
     QLIST_ENTRY(WatchdogTimerModel) entry;

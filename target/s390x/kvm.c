@@ -41,7 +41,6 @@
 #include "exec/gdbstub.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
-#include "qapi-event.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"

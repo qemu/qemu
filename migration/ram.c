@@ -29,7 +29,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include <zlib.h>
-#include "qapi-event.h"
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
@@ -44,6 +43,7 @@
 #include "migration/page_cache.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "trace.h"
 #include "exec/ram_addr.h"

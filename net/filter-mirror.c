@@ -14,7 +14,6 @@
 #include "net/net.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "qapi-visit.h"
 #include "qom/object.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
