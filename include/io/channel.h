@@ -648,6 +648,50 @@ guint qio_channel_add_watch(QIOChannel *ioc,
                             gpointer user_data,
                             GDestroyNotify notify);
 
+/**
+ * qio_channel_add_watch_full:
+ * @ioc: the channel object
+ * @condition: the I/O condition to monitor
+ * @func: callback to invoke when the source becomes ready
+ * @user_data: opaque data to pass to @func
+ * @notify: callback to free @user_data
+ * @context: the context to run the watch source
+ *
+ * Similar as qio_channel_add_watch(), but allows to specify context
+ * to run the watch source.
+ *
+ * Returns: the source ID
+ */
+guint qio_channel_add_watch_full(QIOChannel *ioc,
+                                 GIOCondition condition,
+                                 QIOChannelFunc func,
+                                 gpointer user_data,
+                                 GDestroyNotify notify,
+                                 GMainContext *context);
+
+/**
+ * qio_channel_add_watch_source:
+ * @ioc: the channel object
+ * @condition: the I/O condition to monitor
+ * @func: callback to invoke when the source becomes ready
+ * @user_data: opaque data to pass to @func
+ * @notify: callback to free @user_data
+ * @context: gcontext to bind the source to
+ *
+ * Similar as qio_channel_add_watch(), but allows to specify context
+ * to run the watch source, meanwhile return the GSource object
+ * instead of tag ID, with the GSource referenced already.
+ *
+ * Note: callers is responsible to unref the source when not needed.
+ *
+ * Returns: the source pointer
+ */
+GSource *qio_channel_add_watch_source(QIOChannel *ioc,
+                                      GIOCondition condition,
+                                      QIOChannelFunc func,
+                                      gpointer user_data,
+                                      GDestroyNotify notify,
+                                      GMainContext *context);
 
 /**
  * qio_channel_attach_aio_context:
