@@ -71,6 +71,7 @@ DEF_HELPER_4(fscale, void, env, fp, fp, fp)
 DEF_HELPER_3(flognp1, void, env, fp, fp)
 DEF_HELPER_3(flogn, void, env, fp, fp)
 DEF_HELPER_3(flog10, void, env, fp, fp)
+DEF_HELPER_3(flog2, void, env, fp, fp)
 
 DEF_HELPER_3(mac_move, void, env, i32, i32)
 DEF_HELPER_3(macmulf, i64, env, i32, i32)
