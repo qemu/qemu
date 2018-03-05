@@ -247,3 +247,30 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
     return roundAndPackFloatx80(status->floatx80_rounding_precision,
                                 aSign, aExp, aSig, 0, status);
 }
+
+floatx80 floatx80_move(floatx80 a, float_status *status)
+{
+    flag aSign;
+    int32_t aExp;
+    uint64_t aSig;
+
+    aSig = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t)(aSig << 1)) {
+            return propagateFloatx80NaNOneArg(a, status);
+        }
+        return a;
+    }
+    if (aExp == 0) {
+        if (aSig == 0) {
+            return a;
+        }
+        normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
+                                      aSign, aExp, aSig, 0, status);
+    }
+    return roundAndPackFloatx80(status->floatx80_rounding_precision, aSign,
+                                aExp, aSig, 0, status);
+}
