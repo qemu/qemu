@@ -53,7 +53,7 @@ struct QIONetListener {
 
     char *name;
     QIOChannelSocket **sioc;
-    gulong *io_tag;
+    GSource **io_source;
     size_t nsioc;
 
     bool connected;
@@ -120,16 +120,34 @@ void qio_net_listener_add(QIONetListener *listener,
                           QIOChannelSocket *sioc);
 
 /**
+ * qio_net_listener_set_client_func_full:
+ * @listener: the network listener object
+ * @func: the callback function
+ * @data: opaque data to pass to @func
+ * @notify: callback to free @data
+ * @context: the context that the sources will be bound to.  If %NULL,
+ *           the default context will be used.
+ *
+ * Register @func to be invoked whenever a new client
+ * connects to the listener. @func will be invoked
+ * passing in the QIOChannelSocket instance for the
+ * client.
+ */
+void qio_net_listener_set_client_func_full(QIONetListener *listener,
+                                           QIONetListenerClientFunc func,
+                                           gpointer data,
+                                           GDestroyNotify notify,
+                                           GMainContext *context);
+
+/**
  * qio_net_listener_set_client_func:
  * @listener: the network listener object
  * @func: the callback function
  * @data: opaque data to pass to @func
  * @notify: callback to free @data
  *
- * Register @func to be invoked whenever a new client
- * connects to the listener. @func will be invoked
- * passing in the QIOChannelSocket instance for the
- * client.
+ * Wrapper of qio_net_listener_set_client_func_full(), only that the
+ * sources will always be bound to default main context.
  */
 void qio_net_listener_set_client_func(QIONetListener *listener,
                                       QIONetListenerClientFunc func,
