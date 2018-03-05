@@ -561,7 +561,7 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 * orc_vec   v0, v1, v2
 * not_vec   v0, v1
 
-  Similarly, logical operations with and without compliment.
+  Similarly, logical operations with and without complement.
   Note that VECE is unused.
 
 * shli_vec   v0, v1, i2
