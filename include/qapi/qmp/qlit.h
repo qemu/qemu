@@ -20,7 +20,7 @@ typedef struct QLitDictEntry QLitDictEntry;
 typedef struct QLitObject QLitObject;
 
 struct QLitObject {
-    int type;
+    QType type;
     union {
         bool qbool;
         int64_t qnum;
