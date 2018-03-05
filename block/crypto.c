@@ -102,6 +102,11 @@ static ssize_t block_crypto_init_func(QCryptoBlock *block,
 {
     struct BlockCryptoCreateData *data = opaque;
 
+    if (data->size > INT64_MAX || headerlen > INT64_MAX - data->size) {
+        error_setg(errp, "The requested file size is too large");
+        return -EFBIG;
+    }
+
     /* User provided size should reflect amount of space made
      * available to the guest, so we must take account of that
      * which will be used by the crypto header
