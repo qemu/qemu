@@ -272,7 +272,6 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     UNINState *d;
 
     /* Uninorth AGP bus */
-
     dev = qdev_create(NULL, TYPE_U3_AGP_HOST_BRIDGE);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
@@ -302,16 +301,23 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
 
 static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)
 {
-    d->config[0x0C] = 0x08; // cache_line_size
-    d->config[0x0D] = 0x10; // latency_timer
-    d->config[0x34] = 0x00; // capabilities_pointer
+    /* cache_line_size */
+    d->config[0x0C] = 0x08;
+    /* latency_timer */
+    d->config[0x0D] = 0x10;
+    /* capabilities_pointer */
+    d->config[0x34] = 0x00;
 }
 
 static void unin_agp_pci_host_realize(PCIDevice *d, Error **errp)
 {
-    d->config[0x0C] = 0x08; // cache_line_size
-    d->config[0x0D] = 0x10; // latency_timer
-    //    d->config[0x34] = 0x80; // capabilities_pointer
+    /* cache_line_size */
+    d->config[0x0C] = 0x08;
+    /* latency_timer */
+    d->config[0x0D] = 0x10;
+    /* capabilities_pointer
+    d->config[0x34] = 0x80; */
+
     /*
      * Set kMacRISCPCIAddressSelect (0x48) register to indicate PCI
      * memory space with base 0x80000000, size 0x10000000 for Apple's
@@ -333,9 +339,12 @@ static void u3_agp_pci_host_realize(PCIDevice *d, Error **errp)
 
 static void unin_internal_pci_host_realize(PCIDevice *d, Error **errp)
 {
-    d->config[0x0C] = 0x08; // cache_line_size
-    d->config[0x0D] = 0x10; // latency_timer
-    d->config[0x34] = 0x00; // capabilities_pointer
+    /* cache_line_size */
+    d->config[0x0C] = 0x08;
+    /* latency_timer */
+    d->config[0x0D] = 0x10;
+    /* capabilities_pointer */
+    d->config[0x34] = 0x00;
 }
 
 static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
