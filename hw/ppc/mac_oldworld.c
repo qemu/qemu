@@ -281,20 +281,6 @@ static void ppc_heathrow_init(MachineState *machine)
     /* MacIO */
     macio = OLDWORLD_MACIO(pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO));
     dev = DEVICE(macio);
-    qdev_connect_gpio_out(dev, 0,
-        qdev_get_gpio_in(pic_dev, OLDWORLD_CUDA_IRQ));
-    qdev_connect_gpio_out(dev, 1,
-        qdev_get_gpio_in(pic_dev, OLDWORLD_ESCCB_IRQ));
-    qdev_connect_gpio_out(dev, 2,
-        qdev_get_gpio_in(pic_dev, OLDWORLD_ESCCA_IRQ));
-    qdev_connect_gpio_out(dev, 3,
-        qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_IRQ));
-    qdev_connect_gpio_out(dev, 4,
-        qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_DMA_IRQ));
-    qdev_connect_gpio_out(dev, 5,
-        qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_IRQ));
-    qdev_connect_gpio_out(dev, 6,
-        qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_DMA_IRQ));
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
                              &error_abort);
