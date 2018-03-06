@@ -291,13 +291,15 @@ class Event(object):
                      self)
 
 
-def read_events(fobj):
+def read_events(fobj, fname):
     """Generate the output for the given (format, backends) pair.
 
     Parameters
     ----------
     fobj : file
         Event description file.
+    fname : str
+        Name of event file
 
     Returns a list of Event objects
     """
@@ -312,7 +314,7 @@ def read_events(fobj):
         try:
             event = Event.build(line)
         except ValueError as e:
-            arg0 = 'Error on line %d: %s' % (lineno, e.args[0])
+            arg0 = 'Error at %s:%d: %s' % (fname, lineno, e.args[0])
             e.args = (arg0,) + e.args[1:]
             raise
 

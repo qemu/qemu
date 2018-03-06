@@ -168,7 +168,7 @@ class Analyzer(object):
 def process(events, log, analyzer, read_header=True):
     """Invoke an analyzer on each event in a log."""
     if isinstance(events, str):
-        events = read_events(open(events, 'r'))
+        events = read_events(open(events, 'r'), events)
     if isinstance(log, str):
         log = open(log, 'rb')
 
@@ -233,7 +233,7 @@ def run(analyzer):
                          '<trace-file>\n' % sys.argv[0])
         sys.exit(1)
 
-    events = read_events(open(sys.argv[1], 'r'))
+    events = read_events(open(sys.argv[1], 'r'), sys.argv[1])
     process(events, sys.argv[2], analyzer, read_header=read_header)
 
 if __name__ == '__main__':
