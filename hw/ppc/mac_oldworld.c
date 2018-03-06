@@ -261,7 +261,7 @@ static void ppc_heathrow_init(MachineState *machine)
         exit(1);
     }
 
-    pci_bus = pci_grackle_init(0xfec00000, pic,
+    pci_bus = pci_grackle_init(0xfec00000, pic_dev,
                                get_system_memory(),
                                get_system_io());
     pci_vga_init(pci_bus);
