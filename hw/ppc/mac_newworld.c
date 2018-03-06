@@ -348,7 +348,35 @@ static void ppc_core99_init(MachineState *machine)
         uninorth_pci = pci_pmac_u3_init(pic, get_system_memory());
         machine_arch = ARCH_MAC99_U3;
     } else {
-        uninorth_pci = pci_pmac_init(pic, get_system_memory());
+        /* Use values found on a real PowerMac */
+        /* Uninorth AGP bus */
+        dev = qdev_create(NULL, TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
+        qdev_prop_set_ptr(dev, "pic-irqs", pic);
+        qdev_init_nofail(dev);
+        s = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(s, 0, 0xf0800000);
+        sysbus_mmio_map(s, 1, 0xf0c00000);
+
+        /* Uninorth internal bus */
+        dev = qdev_create(NULL, TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
+        qdev_prop_set_ptr(dev, "pic-irqs", pic);
+        qdev_init_nofail(dev);
+        s = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(s, 0, 0xf4800000);
+        sysbus_mmio_map(s, 1, 0xf4c00000);
+
+        /* Uninorth main bus */
+        dev = qdev_create(NULL, TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
+        qdev_prop_set_ptr(dev, "pic-irqs", pic);
+        qdev_init_nofail(dev);
+        uninorth_pci = UNI_NORTH_PCI_HOST_BRIDGE(dev);
+        s = SYS_BUS_DEVICE(dev);
+        /* PCI hole */
+        memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
+                                    sysbus_mmio_get_region(s, 2));
+        sysbus_mmio_map(s, 0, 0xf2800000);
+        sysbus_mmio_map(s, 1, 0xf2c00000);
+
         machine_arch = ARCH_MAC99;
     }
 
