@@ -27,6 +27,7 @@
 #include "qemu/option.h"
 #include "chardev/char.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/sysemu.h"
 #include "chardev/char-mux.h"
 
 /* MUX driver for serial I/O splitting */
@@ -230,14 +231,12 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
         }
 }
 
-bool muxes_realized;
-
 void mux_chr_send_all_event(Chardev *chr, int event)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
     int i;
 
-    if (!muxes_realized) {
+    if (!machine_init_done) {
         return;
     }
 
@@ -327,7 +326,7 @@ static void qemu_chr_open_mux(Chardev *chr,
     /* only default to opened state if we've realized the initial
      * set of muxes
      */
-    *be_opened = muxes_realized;
+    *be_opened = machine_init_done;
     qemu_chr_fe_init(&d->chr, drv, errp);
 }
 
@@ -347,6 +346,31 @@ static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
     mux->chardev = g_strdup(chardev);
 }
 
+/**
+ * Called after processing of default and command-line-specified
+ * chardevs to deliver CHR_EVENT_OPENED events to any FEs attached
+ * to a mux chardev. This is done here to ensure that
+ * output/prompts/banners are only displayed for the FE that has
+ * focus when initial command-line processing/machine init is
+ * completed.
+ *
+ * After this point, any new FE attached to any new or existing
+ * mux will receive CHR_EVENT_OPENED notifications for the BE
+ * immediately.
+ */
+static int open_muxes(Chardev *chr)
+{
+    /* send OPENED to all already-attached FEs */
+    mux_chr_send_all_event(chr, CHR_EVENT_OPENED);
+    /*
+     * mark mux as OPENED so any new FEs will immediately receive
+     * OPENED event
+     */
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+
+    return 0;
+}
+
 static void char_mux_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -357,6 +381,7 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
     cc->chr_accept_input = mux_chr_accept_input;
     cc->chr_add_watch = mux_chr_add_watch;
     cc->chr_be_event = mux_chr_be_event;
+    cc->chr_machine_done = open_muxes;
 }
 
 static const TypeInfo char_mux_type_info = {

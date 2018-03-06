@@ -27,8 +27,6 @@
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 
-extern bool muxes_realized;
-
 #define MAX_MUX 4
 #define MUX_BUFFER_SIZE 32 /* Must be a power of 2.  */
 #define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
