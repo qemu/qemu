@@ -51,14 +51,14 @@ curses.mo-objs := curses.o
 curses.mo-cflags := $(CURSES_CFLAGS)
 curses.mo-libs := $(CURSES_LIBS)
 
-ifeq ($(CONFIG_OPENGL),y)
-common-obj-y += shader.o
-common-obj-y += console-gl.o
-common-obj-y += egl-helpers.o
-common-obj-y += egl-context.o
+common-obj-$(CONFIG_OPENGL) += shader.o
+common-obj-$(CONFIG_OPENGL) += console-gl.o
+common-obj-$(CONFIG_OPENGL) += egl-helpers.o
+common-obj-$(CONFIG_OPENGL) += egl-context.o
 common-obj-$(CONFIG_OPENGL_DMABUF) += egl-headless.o
-endif
 
 shader.o-libs += $(OPENGL_LIBS)
 console-gl.o-libs += $(OPENGL_LIBS)
 egl-helpers.o-libs += $(OPENGL_LIBS)
+egl-context.o-libs += $(OPENGL_LIBS)
+egl-headless.o-libs += $(OPENGL_LIBS)
