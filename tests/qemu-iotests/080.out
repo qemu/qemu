@@ -66,6 +66,8 @@ wrote 512/512 bytes at offset 0
 qemu-img: Failed to load snapshot: Snapshot L1 table offset invalid
 qemu-img: Snapshot L1 table offset invalid
 qemu-img: Error while amending options: Invalid argument
+Failed to flush the refcount block cache: Invalid argument
+write failed: Invalid argument
 
 == Invalid snapshot L1 table size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -74,4 +76,6 @@ wrote 512/512 bytes at offset 0
 qemu-img: Failed to load snapshot: Snapshot L1 table too large
 qemu-img: Snapshot L1 table too large
 qemu-img: Error while amending options: File too large
+Failed to flush the refcount block cache: File too large
+write failed: File too large
 *** done

@@ -2642,8 +2642,16 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
             uint64_t l1_ofs = s->snapshots[i].l1_table_offset;
             uint32_t l1_sz  = s->snapshots[i].l1_size;
             uint64_t l1_sz2 = l1_sz * sizeof(uint64_t);
-            uint64_t *l1 = g_try_malloc(l1_sz2);
+            uint64_t *l1;
             int ret;
+
+            ret = qcow2_validate_table(bs, l1_ofs, l1_sz, sizeof(uint64_t),
+                                       QCOW_MAX_L1_SIZE, "", NULL);
+            if (ret < 0) {
+                return ret;
+            }
+
+            l1 = g_try_malloc(l1_sz2);
 
             if (l1_sz2 && l1 == NULL) {
                 return -ENOMEM;
