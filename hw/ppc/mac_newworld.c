@@ -345,12 +345,10 @@ static void ppc_core99_init(MachineState *machine)
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
-        uninorth_pci = pci_pmac_u3_init(pic, get_system_memory(),
-                                        get_system_io());
+        uninorth_pci = pci_pmac_u3_init(pic, get_system_memory());
         machine_arch = ARCH_MAC99_U3;
     } else {
-        uninorth_pci = pci_pmac_init(pic, get_system_memory(),
-                                     get_system_io());
+        uninorth_pci = pci_pmac_init(pic, get_system_memory());
         machine_arch = ARCH_MAC99;
     }
 
