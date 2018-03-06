@@ -127,7 +127,7 @@ static void pci_unin_main_realize(DeviceState *dev, Error **errp)
                                    pci_unin_set_irq, pci_unin_map_irq,
                                    s,
                                    &s->pci_mmio,
-                                   get_system_io(),
+                                   &s->pci_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-pci");
@@ -155,6 +155,8 @@ static void pci_unin_main_init(Object *obj)
 
     memory_region_init(&s->pci_mmio, OBJECT(s), "unin-pci-mmio",
                        0x100000000ULL);
+    memory_region_init_io(&s->pci_io, OBJECT(s), &unassigned_io_ops, obj,
+                          "unin-pci-isa-mmio", 0x00800000);
 
     memory_region_init_alias(&s->pci_hole, OBJECT(s),
                              "unin-pci-hole", &s->pci_mmio,
@@ -168,6 +170,7 @@ static void pci_unin_main_init(Object *obj)
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
     sysbus_init_mmio(sbd, &s->pci_hole);
+    sysbus_init_mmio(sbd, &s->pci_io);
 }
 
 static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
@@ -179,7 +182,7 @@ static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
                                    pci_unin_set_irq, pci_unin_map_irq,
                                    s,
                                    &s->pci_mmio,
-                                   get_system_io(),
+                                   &s->pci_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "u3-agp");
@@ -200,6 +203,8 @@ static void pci_u3_agp_init(Object *obj)
 
     memory_region_init(&s->pci_mmio, OBJECT(s), "unin-pci-mmio",
                        0x100000000ULL);
+    memory_region_init_io(&s->pci_io, OBJECT(s), &unassigned_io_ops, obj,
+                          "unin-pci-isa-mmio", 0x00800000);
 
     memory_region_init_alias(&s->pci_hole, OBJECT(s),
                              "unin-pci-hole", &s->pci_mmio,
@@ -213,6 +218,7 @@ static void pci_u3_agp_init(Object *obj)
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
     sysbus_init_mmio(sbd, &s->pci_hole);
+    sysbus_init_mmio(sbd, &s->pci_io);
 }
 
 static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
@@ -224,7 +230,7 @@ static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
                                    pci_unin_set_irq, pci_unin_map_irq,
                                    s,
                                    &s->pci_mmio,
-                                   get_system_io(),
+                                   &s->pci_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-agp");
@@ -261,7 +267,7 @@ static void pci_unin_internal_realize(DeviceState *dev, Error **errp)
                                    pci_unin_set_irq, pci_unin_map_irq,
                                    s,
                                    &s->pci_mmio,
-                                   get_system_io(),
+                                   &s->pci_io,
                                    PCI_DEVFN(14, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(14, 0), "uni-north-internal-pci");

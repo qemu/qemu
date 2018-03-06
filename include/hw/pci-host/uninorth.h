@@ -50,6 +50,7 @@ typedef struct UNINState {
     qemu_irq irqs[4];
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
+    MemoryRegion pci_io;
 } UNINState;
 
 #endif /* UNINORTH_H */
