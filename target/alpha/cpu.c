@@ -108,21 +108,18 @@ void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 }
 
 /* Models */
-
-#define TYPE(model) model "-" TYPE_ALPHA_CPU
-
 typedef struct AlphaCPUAlias {
     const char *alias;
     const char *typename;
 } AlphaCPUAlias;
 
 static const AlphaCPUAlias alpha_cpu_aliases[] = {
-    { "21064",   TYPE("ev4") },
-    { "21164",   TYPE("ev5") },
-    { "21164a",  TYPE("ev56") },
-    { "21164pc", TYPE("pca56") },
-    { "21264",   TYPE("ev6") },
-    { "21264a",  TYPE("ev67") },
+    { "21064",   ALPHA_CPU_TYPE_NAME("ev4") },
+    { "21164",   ALPHA_CPU_TYPE_NAME("ev5") },
+    { "21164a",  ALPHA_CPU_TYPE_NAME("ev56") },
+    { "21164pc", ALPHA_CPU_TYPE_NAME("pca56") },
+    { "21264",   ALPHA_CPU_TYPE_NAME("ev6") },
+    { "21264a",  ALPHA_CPU_TYPE_NAME("ev67") },
 };
 
 static ObjectClass *alpha_cpu_class_by_name(const char *cpu_model)
@@ -145,7 +142,7 @@ static ObjectClass *alpha_cpu_class_by_name(const char *cpu_model)
         }
     }
 
-    typename = g_strdup_printf("%s-" TYPE_ALPHA_CPU, cpu_model);
+    typename = g_strdup_printf(ALPHA_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
     if (oc != NULL && object_class_is_abstract(oc)) {
@@ -155,7 +152,7 @@ static ObjectClass *alpha_cpu_class_by_name(const char *cpu_model)
     /* TODO: remove match everything nonsense */
     /* Default to ev67; no reason not to emulate insns by default. */
     if (!oc) {
-        oc = object_class_by_name(TYPE("ev67"));
+        oc = object_class_by_name(ALPHA_CPU_TYPE_NAME("ev67"));
     }
 
     return oc;
@@ -169,12 +166,6 @@ static void ev4_cpu_initfn(Object *obj)
     env->implver = IMPLVER_2106x;
 }
 
-static const TypeInfo ev4_cpu_type_info = {
-    .name = TYPE("ev4"),
-    .parent = TYPE_ALPHA_CPU,
-    .instance_init = ev4_cpu_initfn,
-};
-
 static void ev5_cpu_initfn(Object *obj)
 {
     AlphaCPU *cpu = ALPHA_CPU(obj);
@@ -182,12 +173,6 @@ static void ev5_cpu_initfn(Object *obj)
 
     env->implver = IMPLVER_21164;
 }
-
-static const TypeInfo ev5_cpu_type_info = {
-    .name = TYPE("ev5"),
-    .parent = TYPE_ALPHA_CPU,
-    .instance_init = ev5_cpu_initfn,
-};
 
 static void ev56_cpu_initfn(Object *obj)
 {
@@ -197,12 +182,6 @@ static void ev56_cpu_initfn(Object *obj)
     env->amask |= AMASK_BWX;
 }
 
-static const TypeInfo ev56_cpu_type_info = {
-    .name = TYPE("ev56"),
-    .parent = TYPE("ev5"),
-    .instance_init = ev56_cpu_initfn,
-};
-
 static void pca56_cpu_initfn(Object *obj)
 {
     AlphaCPU *cpu = ALPHA_CPU(obj);
@@ -210,12 +189,6 @@ static void pca56_cpu_initfn(Object *obj)
 
     env->amask |= AMASK_MVI;
 }
-
-static const TypeInfo pca56_cpu_type_info = {
-    .name = TYPE("pca56"),
-    .parent = TYPE("ev56"),
-    .instance_init = pca56_cpu_initfn,
-};
 
 static void ev6_cpu_initfn(Object *obj)
 {
@@ -226,12 +199,6 @@ static void ev6_cpu_initfn(Object *obj)
     env->amask = AMASK_BWX | AMASK_FIX | AMASK_MVI | AMASK_TRAP;
 }
 
-static const TypeInfo ev6_cpu_type_info = {
-    .name = TYPE("ev6"),
-    .parent = TYPE_ALPHA_CPU,
-    .instance_init = ev6_cpu_initfn,
-};
-
 static void ev67_cpu_initfn(Object *obj)
 {
     AlphaCPU *cpu = ALPHA_CPU(obj);
@@ -239,17 +206,6 @@ static void ev67_cpu_initfn(Object *obj)
 
     env->amask |= AMASK_CIX | AMASK_PREFETCH;
 }
-
-static const TypeInfo ev67_cpu_type_info = {
-    .name = TYPE("ev67"),
-    .parent = TYPE("ev6"),
-    .instance_init = ev67_cpu_initfn,
-};
-
-static const TypeInfo ev68_cpu_type_info = {
-    .name = TYPE("ev68"),
-    .parent = TYPE("ev67"),
-};
 
 static void alpha_cpu_initfn(Object *obj)
 {
@@ -259,8 +215,6 @@ static void alpha_cpu_initfn(Object *obj)
 
     cs->env_ptr = env;
     tlb_flush(cs);
-
-    alpha_translate_init();
 
     env->lock_addr = -1;
 #if defined(CONFIG_USER_ONLY)
@@ -299,30 +253,36 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_alpha_cpu;
 #endif
     cc->disas_set_info = alpha_cpu_disas_set_info;
+    cc->tcg_initialize = alpha_translate_init;
 
     cc->gdb_num_core_regs = 67;
 }
 
-static const TypeInfo alpha_cpu_type_info = {
-    .name = TYPE_ALPHA_CPU,
-    .parent = TYPE_CPU,
-    .instance_size = sizeof(AlphaCPU),
-    .instance_init = alpha_cpu_initfn,
-    .abstract = true,
-    .class_size = sizeof(AlphaCPUClass),
-    .class_init = alpha_cpu_class_init,
+#define DEFINE_ALPHA_CPU_TYPE(base_type, cpu_model, initfn) \
+     {                                                      \
+         .parent = base_type,                               \
+         .instance_init = initfn,                           \
+         .name = ALPHA_CPU_TYPE_NAME(cpu_model),            \
+     }
+
+static const TypeInfo alpha_cpu_type_infos[] = {
+    {
+        .name = TYPE_ALPHA_CPU,
+        .parent = TYPE_CPU,
+        .instance_size = sizeof(AlphaCPU),
+        .instance_init = alpha_cpu_initfn,
+        .abstract = true,
+        .class_size = sizeof(AlphaCPUClass),
+        .class_init = alpha_cpu_class_init,
+    },
+    DEFINE_ALPHA_CPU_TYPE(TYPE_ALPHA_CPU, "ev4", ev4_cpu_initfn),
+    DEFINE_ALPHA_CPU_TYPE(TYPE_ALPHA_CPU, "ev5", ev5_cpu_initfn),
+    DEFINE_ALPHA_CPU_TYPE(ALPHA_CPU_TYPE_NAME("ev5"), "ev56", ev56_cpu_initfn),
+    DEFINE_ALPHA_CPU_TYPE(ALPHA_CPU_TYPE_NAME("ev56"), "pca56",
+                          pca56_cpu_initfn),
+    DEFINE_ALPHA_CPU_TYPE(TYPE_ALPHA_CPU, "ev6", ev6_cpu_initfn),
+    DEFINE_ALPHA_CPU_TYPE(ALPHA_CPU_TYPE_NAME("ev6"), "ev67", ev67_cpu_initfn),
+    DEFINE_ALPHA_CPU_TYPE(ALPHA_CPU_TYPE_NAME("ev67"), "ev68", NULL),
 };
 
-static void alpha_cpu_register_types(void)
-{
-    type_register_static(&alpha_cpu_type_info);
-    type_register_static(&ev4_cpu_type_info);
-    type_register_static(&ev5_cpu_type_info);
-    type_register_static(&ev56_cpu_type_info);
-    type_register_static(&pca56_cpu_type_info);
-    type_register_static(&ev6_cpu_type_info);
-    type_register_static(&ev67_cpu_type_info);
-    type_register_static(&ev68_cpu_type_info);
-}
-
-type_init(alpha_cpu_register_types)
+DEFINE_TYPES(alpha_cpu_type_infos)

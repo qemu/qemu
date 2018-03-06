@@ -518,7 +518,7 @@ _net_rx_pkt_calc_l4_csum(struct NetRxPkt *pkt)
     cntr += net_checksum_add_iov(pkt->vec, pkt->vec_len,
                                  pkt->l4hdr_off, csl, cso);
 
-    csum = net_checksum_finish(cntr);
+    csum = net_checksum_finish_nozero(cntr);
 
     trace_net_rx_pkt_l4_csum_calc_csum(pkt->l4hdr_off, csl, cntr, csum);
 

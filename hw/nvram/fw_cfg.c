@@ -56,6 +56,7 @@ struct FWCfgEntry {
     uint8_t *data;
     void *callback_opaque;
     FWCfgCallback select_cb;
+    FWCfgWriteCallback write_cb;
 };
 
 #define JPG_FILE 0
@@ -370,6 +371,8 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
                     dma_memory_read(s->dma_as, dma.address,
                                     &e->data[s->cur_offset], len)) {
                     dma.control |= FW_CFG_DMA_CTL_ERROR;
+                } else if (e->write_cb) {
+                    e->write_cb(e->callback_opaque, s->cur_offset, len);
                 }
             }
 
@@ -570,6 +573,7 @@ static const VMStateDescription vmstate_fw_cfg = {
 
 static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
                                       FWCfgCallback select_cb,
+                                      FWCfgWriteCallback write_cb,
                                       void *callback_opaque,
                                       void *data, size_t len,
                                       bool read_only)
@@ -584,6 +588,7 @@ static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
     s->entries[arch][key].data = data;
     s->entries[arch][key].len = (uint32_t)len;
     s->entries[arch][key].select_cb = select_cb;
+    s->entries[arch][key].write_cb = write_cb;
     s->entries[arch][key].callback_opaque = callback_opaque;
     s->entries[arch][key].allow_write = !read_only;
 }
@@ -610,7 +615,7 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
 
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
-    fw_cfg_add_bytes_callback(s, key, NULL, NULL, data, len, true);
+    fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, true);
 }
 
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
@@ -737,6 +742,7 @@ static int get_fw_cfg_order(FWCfgState *s, const char *name)
 
 void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
                               FWCfgCallback select_cb,
+                              FWCfgWriteCallback write_cb,
                               void *callback_opaque,
                               void *data, size_t len, bool read_only)
 {
@@ -778,7 +784,7 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
      * index and "i - 1" is the one being copied from, thus the
      * unusual start and end in the for statement.
      */
-    for (i = count + 1; i > index; i--) {
+    for (i = count; i > index; i--) {
         s->files->f[i] = s->files->f[i - 1];
         s->files->f[i].select = cpu_to_be16(FW_CFG_FILE_FIRST + i);
         s->entries[0][FW_CFG_FILE_FIRST + i] =
@@ -800,7 +806,7 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
     }
 
     fw_cfg_add_bytes_callback(s, FW_CFG_FILE_FIRST + index,
-                              select_cb,
+                              select_cb, write_cb,
                               callback_opaque, data, len,
                               read_only);
 
@@ -815,7 +821,7 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
 void fw_cfg_add_file(FWCfgState *s,  const char *filename,
                      void *data, size_t len)
 {
-    fw_cfg_add_file_callback(s, filename, NULL, NULL, data, len, true);
+    fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
 }
 
 void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
@@ -827,7 +833,6 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
     assert(s->files);
 
     index = be32_to_cpu(s->files->count);
-    assert(index < fw_cfg_file_slots(s));
 
     for (i = 0; i < index; i++) {
         if (strcmp(filename, s->files->f[i].name) == 0) {
@@ -837,8 +842,11 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
             return ptr;
         }
     }
+
+    assert(index < fw_cfg_file_slots(s));
+
     /* add new one */
-    fw_cfg_add_file_callback(s, filename, NULL, NULL, data, len, true);
+    fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
     return NULL;
 }
 

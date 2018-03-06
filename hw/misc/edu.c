@@ -408,12 +408,17 @@ static void edu_class_init(ObjectClass *class, void *data)
 
 static void pci_edu_register_types(void)
 {
+    static InterfaceInfo interfaces[] = {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    };
     static const TypeInfo edu_info = {
         .name          = "edu",
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(EduState),
         .instance_init = edu_instance_init,
         .class_init    = edu_class_init,
+        .interfaces = interfaces,
     };
 
     type_register_static(&edu_info);

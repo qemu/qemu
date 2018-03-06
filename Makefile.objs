@@ -62,7 +62,7 @@ bt-host.o-cflags := $(BLUEZ_CFLAGS)
 common-obj-y += dma-helpers.o
 common-obj-y += vl.o
 vl.o-cflags := $(GPROF_CFLAGS) $(SDL_CFLAGS)
-common-obj-y += tpm.o
+common-obj-$(CONFIG_TPM) += tpm.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
 
@@ -115,6 +115,7 @@ libvhost-user-obj-y = contrib/libvhost-user/
 vhost-user-scsi.o-cflags := $(LIBISCSI_CFLAGS)
 vhost-user-scsi.o-libs := $(LIBISCSI_LIBS)
 vhost-user-scsi-obj-y = contrib/vhost-user-scsi/
+vhost-user-blk-obj-y = contrib/vhost-user-blk/
 
 ######################################################################
 trace-events-subdirs =
@@ -140,6 +141,7 @@ trace-events-subdirs += hw/input
 trace-events-subdirs += hw/timer
 trace-events-subdirs += hw/dma
 trace-events-subdirs += hw/sparc
+trace-events-subdirs += hw/sparc64
 trace-events-subdirs += hw/sd
 trace-events-subdirs += hw/isa
 trace-events-subdirs += hw/mem

@@ -53,7 +53,17 @@
 #define FW_MAX_SIZE             0x00400000
 
 #define KERNEL_LOAD_ADDR        0x20000000
-#define INITRD_LOAD_ADDR        0x40000000
+#define INITRD_LOAD_ADDR        0x60000000
+
+static const char *pnv_chip_core_typename(const PnvChip *o)
+{
+    const char *chip_type = object_class_get_name(object_get_class(OBJECT(o)));
+    int len = strlen(chip_type) - strlen(PNV_CHIP_TYPE_SUFFIX);
+    char *s = g_strdup_printf(PNV_CORE_TYPE_NAME("%.*s"), len, chip_type);
+    const char *core_type = object_class_get_name(object_class_by_name(s));
+    g_free(s);
+    return core_type;
+}
 
 /*
  * On Power Systems E880 (POWER8), the max cpus (threads) should be :
@@ -67,8 +77,7 @@
  * that has a different "affinity". In practice, it means one range
  * per chip.
  */
-static void powernv_populate_memory_node(void *fdt, int chip_id, hwaddr start,
-                                         hwaddr size)
+static void pnv_dt_memory(void *fdt, int chip_id, hwaddr start, hwaddr size)
 {
     char *mem_name;
     uint64_t mem_reg_property[2];
@@ -92,8 +101,7 @@ static int get_cpus_node(void *fdt)
     int cpus_offset = fdt_path_offset(fdt, "/cpus");
 
     if (cpus_offset < 0) {
-        cpus_offset = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"),
-                                      "cpus");
+        cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
         if (cpus_offset) {
             _FDT((fdt_setprop_cell(fdt, cpus_offset, "#address-cells", 0x1)));
             _FDT((fdt_setprop_cell(fdt, cpus_offset, "#size-cells", 0x0)));
@@ -110,7 +118,7 @@ static int get_cpus_node(void *fdt)
  * device tree, used in XSCOM to address cores and in interrupt
  * servers.
  */
-static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
+static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
 {
     CPUState *cs = CPU(DEVICE(pc->threads));
     DeviceClass *dc = DEVICE_GET_CLASS(cs);
@@ -219,8 +227,8 @@ static void powernv_create_core_node(PnvChip *chip, PnvCore *pc, void *fdt)
                        servers_prop, sizeof(servers_prop))));
 }
 
-static void powernv_populate_icp(PnvChip *chip, void *fdt, uint32_t pir,
-                                 uint32_t nr_threads)
+static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
+                       uint32_t nr_threads)
 {
     uint64_t addr = PNV_ICP_BASE(chip) | (pir << 12);
     char *name;
@@ -268,14 +276,13 @@ static int pnv_chip_lpc_offset(PnvChip *chip, void *fdt)
     return offset;
 }
 
-static void powernv_populate_chip(PnvChip *chip, void *fdt)
+static void pnv_dt_chip(PnvChip *chip, void *fdt)
 {
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i;
 
-    pnv_xscom_populate(chip, fdt, 0);
+    pnv_dt_xscom(chip, fdt, 0);
 
     /* The default LPC bus of a multichip system is on chip 0. It's
      * recognized by the firmware (skiboot) using a "primary"
@@ -290,21 +297,18 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
 
-        powernv_create_core_node(chip, pnv_core, fdt);
+        pnv_dt_core(chip, pnv_core, fdt);
 
         /* Interrupt Control Presenters (ICP). One per core. */
-        powernv_populate_icp(chip, fdt, pnv_core->pir,
-                             CPU_CORE(pnv_core)->nr_threads);
+        pnv_dt_icp(chip, fdt, pnv_core->pir, CPU_CORE(pnv_core)->nr_threads);
     }
 
     if (chip->ram_size) {
-        powernv_populate_memory_node(fdt, chip->chip_id, chip->ram_start,
-                                     chip->ram_size);
+        pnv_dt_memory(fdt, chip->chip_id, chip->ram_start, chip->ram_size);
     }
-    g_free(typename);
 }
 
-static void powernv_populate_rtc(ISADevice *d, void *fdt, int lpc_off)
+static void pnv_dt_rtc(ISADevice *d, void *fdt, int lpc_off)
 {
     uint32_t io_base = d->ioport_id;
     uint32_t io_regs[] = {
@@ -324,7 +328,7 @@ static void powernv_populate_rtc(ISADevice *d, void *fdt, int lpc_off)
     _FDT((fdt_setprop_string(fdt, node, "compatible", "pnpPNP,b00")));
 }
 
-static void powernv_populate_serial(ISADevice *d, void *fdt, int lpc_off)
+static void pnv_dt_serial(ISADevice *d, void *fdt, int lpc_off)
 {
     const char compatible[] = "ns16550\0pnpPNP,501";
     uint32_t io_base = d->ioport_id;
@@ -355,7 +359,7 @@ static void powernv_populate_serial(ISADevice *d, void *fdt, int lpc_off)
     _FDT((fdt_setprop_string(fdt, node, "device_type", "serial")));
 }
 
-static void powernv_populate_ipmi_bt(ISADevice *d, void *fdt, int lpc_off)
+static void pnv_dt_ipmi_bt(ISADevice *d, void *fdt, int lpc_off)
 {
     const char compatible[] = "bt\0ipmi-bt";
     uint32_t io_base;
@@ -394,17 +398,17 @@ typedef struct ForeachPopulateArgs {
     int offset;
 } ForeachPopulateArgs;
 
-static int powernv_populate_isa_device(DeviceState *dev, void *opaque)
+static int pnv_dt_isa_device(DeviceState *dev, void *opaque)
 {
     ForeachPopulateArgs *args = opaque;
     ISADevice *d = ISA_DEVICE(dev);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_MC146818_RTC)) {
-        powernv_populate_rtc(d, args->fdt, args->offset);
+        pnv_dt_rtc(d, args->fdt, args->offset);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_ISA_SERIAL)) {
-        powernv_populate_serial(d, args->fdt, args->offset);
+        pnv_dt_serial(d, args->fdt, args->offset);
     } else if (object_dynamic_cast(OBJECT(dev), "isa-ipmi-bt")) {
-        powernv_populate_ipmi_bt(d, args->fdt, args->offset);
+        pnv_dt_ipmi_bt(d, args->fdt, args->offset);
     } else {
         error_report("unknown isa device %s@i%x", qdev_fw_name(dev),
                      d->ioport_id);
@@ -413,7 +417,7 @@ static int powernv_populate_isa_device(DeviceState *dev, void *opaque)
     return 0;
 }
 
-static void powernv_populate_isa(ISABus *bus, void *fdt, int lpc_offset)
+static void pnv_dt_isa(ISABus *bus, void *fdt, int lpc_offset)
 {
     ForeachPopulateArgs args = {
         .fdt = fdt,
@@ -422,14 +426,13 @@ static void powernv_populate_isa(ISABus *bus, void *fdt, int lpc_offset)
 
     /* ISA devices are not necessarily parented to the ISA bus so we
      * can not use object_child_foreach() */
-    qbus_walk_children(BUS(bus), powernv_populate_isa_device,
-                       NULL, NULL, NULL, &args);
+    qbus_walk_children(BUS(bus), pnv_dt_isa_device, NULL, NULL, NULL, &args);
 }
 
-static void *powernv_create_fdt(MachineState *machine)
+static void *pnv_dt_create(MachineState *machine)
 {
     const char plat_compat[] = "qemu,powernv\0ibm,powernv";
-    PnvMachineState *pnv = POWERNV_MACHINE(machine);
+    PnvMachineState *pnv = PNV_MACHINE(machine);
     void *fdt;
     char *buf;
     int off;
@@ -472,15 +475,15 @@ static void *powernv_create_fdt(MachineState *machine)
 
     /* Populate device tree for each chip */
     for (i = 0; i < pnv->num_chips; i++) {
-        powernv_populate_chip(pnv->chips[i], fdt);
+        pnv_dt_chip(pnv->chips[i], fdt);
     }
 
     /* Populate ISA devices on chip 0 */
     lpc_offset = pnv_chip_lpc_offset(pnv->chips[0], fdt);
-    powernv_populate_isa(pnv->isa_bus, fdt, lpc_offset);
+    pnv_dt_isa(pnv->isa_bus, fdt, lpc_offset);
 
     if (pnv->bmc) {
-        pnv_bmc_populate_sensors(pnv->bmc, fdt);
+        pnv_dt_bmc_sensors(pnv->bmc, fdt);
     }
 
     return fdt;
@@ -488,17 +491,17 @@ static void *powernv_create_fdt(MachineState *machine)
 
 static void pnv_powerdown_notify(Notifier *n, void *opaque)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
 
     if (pnv->bmc) {
         pnv_bmc_powerdown(pnv->bmc);
     }
 }
 
-static void ppc_powernv_reset(void)
+static void pnv_reset(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
-    PnvMachineState *pnv = POWERNV_MACHINE(machine);
+    PnvMachineState *pnv = PNV_MACHINE(machine);
     void *fdt;
     Object *obj;
 
@@ -517,7 +520,7 @@ static void ppc_powernv_reset(void)
         pnv->bmc = IPMI_BMC(obj);
     }
 
-    fdt = powernv_create_fdt(machine);
+    fdt = pnv_dt_create(machine);
 
     /* Pack resulting tree */
     _FDT((fdt_pack(fdt)));
@@ -545,9 +548,9 @@ static ISABus *pnv_isa_create(PnvChip *chip)
     return isa_bus;
 }
 
-static void ppc_powernv_init(MachineState *machine)
+static void pnv_init(MachineState *machine)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(machine);
+    PnvMachineState *pnv = PNV_MACHINE(machine);
     MemoryRegion *ram;
     char *fw_filename;
     long fw_size;
@@ -560,7 +563,7 @@ static void ppc_powernv_init(MachineState *machine)
     }
 
     ram = g_new(MemoryRegion, 1);
-    memory_region_allocate_system_memory(ram, NULL, "ppc_powernv.ram",
+    memory_region_allocate_system_memory(ram, NULL, "pnv.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
@@ -607,16 +610,13 @@ static void ppc_powernv_init(MachineState *machine)
         }
     }
 
-    /* We need some cpu model to instantiate the PnvChip class */
-    if (machine->cpu_model == NULL) {
-        machine->cpu_model = "POWER8";
-    }
-
     /* Create the processor chips */
-    chip_typename = g_strdup_printf(TYPE_PNV_CHIP "-%s", machine->cpu_model);
+    i = strlen(machine->cpu_type) - strlen(POWERPC_CPU_TYPE_SUFFIX);
+    chip_typename = g_strdup_printf(PNV_CHIP_TYPE_NAME("%.*s"),
+                                    i, machine->cpu_type);
     if (!object_class_by_name(chip_typename)) {
-        error_report("invalid CPU model '%s' for %s machine",
-                     machine->cpu_model, MACHINE_GET_CLASS(machine)->name);
+        error_report("invalid CPU model '%.*s' for %s machine",
+                     i, machine->cpu_type, MACHINE_GET_CLASS(machine)->name);
         exit(1);
     }
 
@@ -651,7 +651,7 @@ static void ppc_powernv_init(MachineState *machine)
     serial_hds_isa_init(pnv->isa_bus, 0, MAX_SERIAL_PORTS);
 
     /* Create an RTC ISA device too */
-    rtc_init(pnv->isa_bus, 2000, NULL);
+    mc146818_rtc_init(pnv->isa_bus, 2000, NULL);
 
     /* OpenPOWER systems use a IPMI SEL Event message to notify the
      * host to powerdown */
@@ -707,97 +707,61 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
 #define POWER8_CORE_MASK   (0x7e7eull)
 
 /*
- * POWER9 has 24 cores, ids starting at 0x20
+ * POWER9 has 24 cores, ids starting at 0x0
  */
-#define POWER9_CORE_MASK   (0xffffff00000000ull)
+#define POWER9_CORE_MASK   (0xffffffffffffffull)
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8E";
     k->chip_type = PNV_CHIP_POWER8E;
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
-    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 }
-
-static const TypeInfo pnv_chip_power8e_info = {
-    .name          = TYPE_PNV_CHIP_POWER8E,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8e_class_init,
-};
 
 static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8";
     k->chip_type = PNV_CHIP_POWER8;
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
-    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8";
 }
-
-static const TypeInfo pnv_chip_power8_info = {
-    .name          = TYPE_PNV_CHIP_POWER8,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8_class_init,
-};
 
 static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER8NVL";
     k->chip_type = PNV_CHIP_POWER8NVL;
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->xscom_base = 0x003fc0000000000ull;
-    k->xscom_core_base = 0x10000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
-
-static const TypeInfo pnv_chip_power8nvl_info = {
-    .name          = TYPE_PNV_CHIP_POWER8NVL,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power8nvl_class_init,
-};
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "POWER9";
     k->chip_type = PNV_CHIP_POWER9;
-    k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
+    k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
     k->xscom_base = 0x00603fc00000000ull;
-    k->xscom_core_base = 0x0ull;
     dc->desc = "PowerNV Chip POWER9";
 }
-
-static const TypeInfo pnv_chip_power9_info = {
-    .name          = TYPE_PNV_CHIP_POWER9,
-    .parent        = TYPE_PNV_CHIP,
-    .instance_size = sizeof(PnvChip),
-    .class_init    = pnv_chip_power9_class_init,
-};
 
 static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 {
@@ -857,7 +821,7 @@ static void pnv_chip_init(Object *obj)
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i, j;
     char *name;
@@ -882,8 +846,6 @@ static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
             memory_region_add_subregion(&chip->icp_mmio, pir << 12, &icp->mmio);
         }
     }
-
-    g_free(typename);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -891,7 +853,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i, core_hwid;
 
@@ -921,6 +883,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
              && (i < chip->nr_cores); core_hwid++) {
         char core_name[32];
         void *pnv_core = chip->cores + i * typesize;
+        uint64_t xscom_core_base;
 
         if (!(chip->cores_mask & (1ull << core_hwid))) {
             continue;
@@ -944,13 +907,16 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         object_unref(OBJECT(pnv_core));
 
         /* Each core has an XSCOM MMIO region */
-        pnv_xscom_add_subregion(chip,
-                                PNV_XSCOM_EX_CORE_BASE(pcc->xscom_core_base,
-                                                       core_hwid),
+        if (!pnv_chip_is_power9(chip)) {
+            xscom_core_base = PNV_XSCOM_EX_BASE(core_hwid);
+        } else {
+            xscom_core_base = PNV_XSCOM_P9_EC_BASE(core_hwid);
+        }
+
+        pnv_xscom_add_subregion(chip, xscom_core_base,
                                 &PNV_CORE(pnv_core)->xscom_regs);
         i++;
     }
-    g_free(typename);
 
     /* Create LPC controller */
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
@@ -1003,18 +969,9 @@ static void pnv_chip_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV Chip";
 }
 
-static const TypeInfo pnv_chip_info = {
-    .name          = TYPE_PNV_CHIP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .class_init    = pnv_chip_class_init,
-    .instance_init = pnv_chip_init,
-    .class_size    = sizeof(PnvChipClass),
-    .abstract      = true,
-};
-
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    PnvMachineState *pnv = PNV_MACHINE(xi);
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
@@ -1027,7 +984,7 @@ static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 
 static void pnv_ics_resend(XICSFabric *xi)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    PnvMachineState *pnv = PNV_MACHINE(xi);
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
@@ -1061,7 +1018,7 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
 static void pnv_pic_print_info(InterruptStatsProvider *obj,
                                Monitor *mon)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(obj);
+    PnvMachineState *pnv = PNV_MACHINE(obj);
     int i;
     CPUState *cs;
 
@@ -1079,13 +1036,13 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
 static void pnv_get_num_chips(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
-    visit_type_uint32(v, name, &POWERNV_MACHINE(obj)->num_chips, errp);
+    visit_type_uint32(v, name, &PNV_MACHINE(obj)->num_chips, errp);
 }
 
 static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(obj);
+    PnvMachineState *pnv = PNV_MACHINE(obj);
     uint32_t num_chips;
     Error *local_err = NULL;
 
@@ -1107,13 +1064,13 @@ static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
     pnv->num_chips = num_chips;
 }
 
-static void powernv_machine_initfn(Object *obj)
+static void pnv_machine_initfn(Object *obj)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(obj);
+    PnvMachineState *pnv = PNV_MACHINE(obj);
     pnv->num_chips = 1;
 }
 
-static void powernv_machine_class_props_init(ObjectClass *oc)
+static void pnv_machine_class_props_init(ObjectClass *oc)
 {
     object_class_property_add(oc, "num-chips", "uint32",
                               pnv_get_num_chips, pnv_set_num_chips,
@@ -1123,16 +1080,17 @@ static void powernv_machine_class_props_init(ObjectClass *oc)
                               NULL);
 }
 
-static void powernv_machine_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
     InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     mc->desc = "IBM PowerNV (Non-Virtualized)";
-    mc->init = ppc_powernv_init;
-    mc->reset = ppc_powernv_reset;
+    mc->init = pnv_init;
+    mc->reset = pnv_reset;
     mc->max_cpus = MAX_CPUS;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
     mc->block_default_type = IF_IDE; /* Pnv provides a AHCI device for
                                       * storage */
     mc->no_parallel = 1;
@@ -1143,30 +1101,43 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_resend = pnv_ics_resend;
     ispc->print_info = pnv_pic_print_info;
 
-    powernv_machine_class_props_init(oc);
+    pnv_machine_class_props_init(oc);
 }
 
-static const TypeInfo powernv_machine_info = {
-    .name          = TYPE_POWERNV_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(PnvMachineState),
-    .instance_init = powernv_machine_initfn,
-    .class_init    = powernv_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_XICS_FABRIC },
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { },
+#define DEFINE_PNV_CHIP_TYPE(type, class_initfn) \
+    {                                            \
+        .name          = type,                   \
+        .class_init    = class_initfn,           \
+        .parent        = TYPE_PNV_CHIP,          \
+    }
+
+static const TypeInfo types[] = {
+    {
+        .name          = TYPE_PNV_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .instance_size = sizeof(PnvMachineState),
+        .instance_init = pnv_machine_initfn,
+        .class_init    = pnv_machine_class_init,
+        .interfaces = (InterfaceInfo[]) {
+            { TYPE_XICS_FABRIC },
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { },
+        },
     },
+    {
+        .name          = TYPE_PNV_CHIP,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .class_init    = pnv_chip_class_init,
+        .instance_init = pnv_chip_init,
+        .instance_size = sizeof(PnvChip),
+        .class_size    = sizeof(PnvChipClass),
+        .abstract      = true,
+    },
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER9, pnv_chip_power9_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8, pnv_chip_power8_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8E, pnv_chip_power8e_class_init),
+    DEFINE_PNV_CHIP_TYPE(TYPE_PNV_CHIP_POWER8NVL,
+                         pnv_chip_power8nvl_class_init),
 };
 
-static void powernv_machine_register_types(void)
-{
-    type_register_static(&powernv_machine_info);
-    type_register_static(&pnv_chip_info);
-    type_register_static(&pnv_chip_power8e_info);
-    type_register_static(&pnv_chip_power8_info);
-    type_register_static(&pnv_chip_power8nvl_info);
-    type_register_static(&pnv_chip_power9_info);
-}
-
-type_init(powernv_machine_register_types)
+DEFINE_TYPES(types)

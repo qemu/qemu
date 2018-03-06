@@ -91,7 +91,7 @@ bool stat64_min_slow(Stat64 *s, uint64_t value)
     low = atomic_read(&s->low);
 
     orig = ((uint64_t)high << 32) | low;
-    if (orig < value) {
+    if (value < orig) {
         /* We have to set low before high, just like stat64_min reads
          * high before low.  The value may become higher temporarily, but
          * stat64_get does not notice (it takes the lock) and the only ill
@@ -120,7 +120,7 @@ bool stat64_max_slow(Stat64 *s, uint64_t value)
     low = atomic_read(&s->low);
 
     orig = ((uint64_t)high << 32) | low;
-    if (orig > value) {
+    if (value > orig) {
         /* We have to set low before high, just like stat64_max reads
          * high before low.  The value may become lower temporarily, but
          * stat64_get does not notice (it takes the lock) and the only ill

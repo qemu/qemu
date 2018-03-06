@@ -20,3 +20,11 @@
 void tb_flush(CPUState *cpu)
 {
 }
+
+void tb_unlock(void)
+{
+}
+
+void tlb_set_dirty(CPUState *cpu, target_ulong vaddr)
+{
+}

@@ -155,7 +155,7 @@ static AHCIQState *ahci_vboot(const char *cli, va_list ap)
 {
     AHCIQState *s;
 
-    s = g_malloc0(sizeof(AHCIQState));
+    s = g_new0(AHCIQState, 1);
     s->parent = qtest_pc_vboot(cli, ap);
     alloc_set_flags(s->parent->alloc, ALLOC_LEAK_ASSERT);
 
@@ -1806,7 +1806,7 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
     char *name;
     AHCIIOTestOptions *opts;
 
-    opts = g_malloc(sizeof(AHCIIOTestOptions));
+    opts = g_new(AHCIIOTestOptions, 1);
     opts->length = len;
     opts->address_type = addr;
     opts->io_type = type;

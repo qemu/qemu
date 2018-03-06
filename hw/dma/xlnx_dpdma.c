@@ -34,7 +34,7 @@
     if (DEBUG_DPDMA) {                                                         \
         qemu_log("xlnx_dpdma: " fmt , ## __VA_ARGS__);                         \
     }                                                                          \
-} while (0);
+} while (0)
 
 /*
  * Registers offset for DPDMA.

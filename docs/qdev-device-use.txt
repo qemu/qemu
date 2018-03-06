@@ -366,17 +366,9 @@ bus=PCI-BUS,addr=DEVFN to control the PCI device address, as usual.
 === Host Device Assignment ===
 
 QEMU supports assigning host PCI devices (qemu-kvm only at this time)
-and host USB devices.
+and host USB devices.  PCI devices can only be assigned with -device:
 
-The old way to assign a host PCI device is
-
-    -pcidevice host=ADDR,dma=none,id=ID
-
-The new way is
-
-    -device pci-assign,host=ADDR,iommu=IOMMU,id=ID
-
-The old dma=none becomes iommu=off with -device.
+    -device vfio-pci,host=ADDR,id=ID
 
 The old way to assign a host USB device is
 

@@ -14,6 +14,8 @@
 /trace/generated-tcg-tracers.h
 /ui/shader/texture-blit-frag.h
 /ui/shader/texture-blit-vert.h
+/ui/shader/texture-blit-flip-vert.h
+/ui/input-keymap-*.c
 *-timestamp
 /*-softmmu
 /*-darwin-user
@@ -44,14 +46,15 @@
 /qemu-io
 /qemu-ga
 /qemu-bridge-helper
+/qemu-keymap
 /qemu-monitor.texi
 /qemu-monitor-info.texi
 /qemu-version.h
 /qemu-version.h.tmp
 /module_block.h
 /scsi/qemu-pr-helper
-/vscclient
 /vhost-user-scsi
+/vhost-user-blk
 /fsdev/virtfs-proxy-helper
 *.tmp
 *.[1-9]
@@ -113,6 +116,7 @@
 /docs/version.texi
 *.tps
 .stgit-*
+.git-submodule-status
 cscope.*
 tags
 TAGS

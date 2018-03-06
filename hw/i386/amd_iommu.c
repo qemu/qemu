@@ -20,7 +20,10 @@
  * Cache implementation inspired by hw/i386/intel_iommu.c
  */
 #include "qemu/osdep.h"
-#include "hw/i386/amd_iommu.h"
+#include "hw/i386/pc.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/pci_bus.h"
+#include "amd_iommu.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "trace.h"
@@ -1141,18 +1144,9 @@ static void amdvi_realize(DeviceState *dev, Error **err)
     AMDVIState *s = AMD_IOMMU_DEVICE(dev);
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
     MachineState *ms = MACHINE(qdev_get_machine());
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-    PCMachineState *pcms =
-        PC_MACHINE(object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE));
-    PCIBus *bus;
+    PCMachineState *pcms = PC_MACHINE(ms);
+    PCIBus *bus = pcms->bus;
 
-    if (!pcms) {
-        error_setg(err, "Machine-type '%s' not supported by amd-iommu",
-                   mc->name);
-        return;
-    }
-
-    bus = pcms->bus;
     s->iotlb = g_hash_table_new_full(amdvi_uint64_hash,
                                      amdvi_uint64_equal, g_free, g_free);
 
@@ -1227,6 +1221,10 @@ static const TypeInfo amdviPCI = {
     .name = "AMDVI-PCI",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AMDVIPCIState),
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass, void *data)

@@ -68,6 +68,15 @@ static inline void qobject_incref(QObject *obj)
 }
 
 /**
+ * qobject_is_equal(): Return whether the two objects are equal.
+ *
+ * Any of the pointers may be NULL; return true if both are.  Always
+ * return false if only one is (therefore a QNull object is not
+ * considered equal to a NULL pointer).
+ */
+bool qobject_is_equal(const QObject *x, const QObject *y);
+
+/**
  * qobject_destroy(): Free resources used by the object
  */
 void qobject_destroy(QObject *obj);
@@ -91,18 +100,6 @@ static inline QType qobject_type(const QObject *obj)
 {
     assert(QTYPE_NONE < obj->type && obj->type < QTYPE__MAX);
     return obj->type;
-}
-
-struct QNull {
-    QObject base;
-};
-
-extern QNull qnull_;
-
-static inline QNull *qnull(void)
-{
-    QINCREF(&qnull_);
-    return &qnull_;
 }
 
 #endif /* QOBJECT_H */

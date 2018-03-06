@@ -24,6 +24,7 @@
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
+#include "sysemu/qtest.h"
 
 typedef struct XlnxZCU102 {
     MachineState parent_obj;
@@ -150,6 +151,29 @@ static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi[i]), 1, cs_line);
     }
 
+    for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_FLASH; i++) {
+        SSIBus *spi_bus;
+        DeviceState *flash_dev;
+        qemu_irq cs_line;
+        DriveInfo *dinfo = drive_get_next(IF_MTD);
+        int bus = i / XLNX_ZYNQMP_NUM_QSPI_BUS_CS;
+        gchar *bus_name = g_strdup_printf("qspi%d", bus);
+
+        spi_bus = (SSIBus *)qdev_get_child_bus(DEVICE(&s->soc), bus_name);
+        g_free(bus_name);
+
+        flash_dev = ssi_create_slave_no_init(spi_bus, "n25q512a11");
+        if (dinfo) {
+            qdev_prop_set_drive(flash_dev, "drive", blk_by_legacy_dinfo(dinfo),
+                                &error_fatal);
+        }
+        qdev_init_nofail(flash_dev);
+
+        cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.qspi), i + 1, cs_line);
+    }
+
     /* TODO create and connect IDE devices for ide_drive_get() */
 
     xlnx_zcu102_binfo.ram_size = ram_size;
@@ -163,6 +187,11 @@ static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
 static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxZCU102 *s = EP108_MACHINE(machine);
+
+    if (!qtest_enabled()) {
+        info_report("The Xilinx EP108 machine is deprecated, please use the "
+                    "ZCU102 machine (which has the same features) instead.");
+    }
 
     xlnx_zynqmp_init(s, machine);
 }
@@ -185,6 +214,8 @@ static void xlnx_ep108_machine_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
+    mc->max_cpus = XLNX_ZYNQMP_NUM_APU_CPUS + XLNX_ZYNQMP_NUM_RPU_CPUS;
+    mc->default_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
 }
 
 static const TypeInfo xlnx_ep108_machine_init_typeinfo = {
@@ -235,11 +266,14 @@ static void xlnx_zcu102_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Xilinx ZynqMP ZCU102 board";
+    mc->desc = "Xilinx ZynqMP ZCU102 board with 4xA53s and 2xR5s based on " \
+               "the value of smp";
     mc->init = xlnx_zcu102_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
+    mc->max_cpus = XLNX_ZYNQMP_NUM_APU_CPUS + XLNX_ZYNQMP_NUM_RPU_CPUS;
+    mc->default_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
 }
 
 static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {

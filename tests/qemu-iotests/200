@@ -1,0 +1,99 @@
+#!/bin/bash
+#
+# Block job co-routine race condition test.
+#
+# See: https://bugzilla.redhat.com/show_bug.cgi?id=1508708
+#
+# Copyright (C) 2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1    # failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    rm -f "${TEST_IMG}" "${BACKING_IMG}"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2 qed
+_supported_proto file
+_supported_os Linux
+
+BACKING_IMG="${TEST_DIR}/backing.img"
+TEST_IMG="${TEST_DIR}/test.img"
+
+${QEMU_IMG} create -f $IMGFMT "${BACKING_IMG}" 512M | _filter_img_create
+${QEMU_IMG} create -f $IMGFMT -F $IMGFMT "${TEST_IMG}" -b "${BACKING_IMG}" 512M | _filter_img_create
+
+${QEMU_IO} -c "write -P 0xa5 512 300M" "${BACKING_IMG}" | _filter_qemu_io
+
+echo
+echo === Starting QEMU VM ===
+echo
+qemu_comm_method="qmp"
+_launch_qemu -device pci-bridge,id=bridge1,chassis_nr=1,bus=pci.0 \
+             -object iothread,id=iothread0 \
+             -device virtio-scsi-pci,bus=bridge1,addr=0x1f,id=scsi0,iothread=iothread0 \
+             -drive file="${TEST_IMG}",media=disk,if=none,cache=none,id=drive_sysdisk,aio=native,format=$IMGFMT \
+             -device scsi-hd,drive=drive_sysdisk,bus=scsi0.0,id=sysdisk,bootindex=0
+h1=$QEMU_HANDLE
+
+_send_qemu_cmd $h1 "{ 'execute': 'qmp_capabilities' }" 'return'
+
+echo
+echo === Sending stream/cancel, checking for SIGSEGV only  ===
+echo
+for (( i=1;i<500;i++ ))
+do
+    mismatch_only='y' qemu_error_no_exit='n' _send_qemu_cmd $h1 \
+                       "{
+                            'execute': 'block-stream',
+                            'arguments': {
+                                'device': 'drive_sysdisk',
+                                'speed': 10000000,
+                                'on-error': 'report',
+                                'job-id': 'job-$i'
+                             }
+                        }
+                        {
+                            'execute': 'block-job-cancel',
+                            'arguments': {
+                                'device': 'job-$i'
+                             }
+                        }" \
+                       "{.*{.*}.*}"  # should match all well-formed QMP responses
+done
+
+silent='y' _send_qemu_cmd $h1  "{ 'execute': 'quit' }" 'return'
+
+echo "$i iterations performed"
+
+echo "*** done"
+rm -f $seq.full
+status=0

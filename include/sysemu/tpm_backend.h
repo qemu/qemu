@@ -30,69 +30,63 @@
 typedef struct TPMBackendClass TPMBackendClass;
 typedef struct TPMBackend TPMBackend;
 
-typedef struct TPMDriverOps TPMDriverOps;
-
-struct TPMBackendClass {
-    ObjectClass parent_class;
-
-    const TPMDriverOps *ops;
-
-    void (*opened)(TPMBackend *s, Error **errp);
-};
+typedef struct TPMBackendCmd {
+    uint8_t locty;
+    const uint8_t *in;
+    uint32_t in_len;
+    uint8_t *out;
+    uint32_t out_len;
+    bool selftest_done;
+} TPMBackendCmd;
 
 struct TPMBackend {
     Object parent;
 
     /*< protected >*/
+    TPMIf *tpmif;
     bool opened;
+    GThreadPool *thread_pool;
+    bool had_startup_error;
+    QEMUBH *bh;
 
+    /* <public> */
     char *id;
-    enum TpmModel fe_model;
-    char *path;
-    char *cancel_path;
-    const TPMDriverOps *ops;
 
     QLIST_ENTRY(TPMBackend) list;
 };
 
-typedef void (TPMRecvDataCB)(TPMState *, uint8_t locty, bool selftest_done);
+struct TPMBackendClass {
+    ObjectClass parent_class;
 
-typedef struct TPMSizedBuffer {
-    uint32_t size;
-    uint8_t  *buffer;
-} TPMSizedBuffer;
-
-struct TPMDriverOps {
     enum TpmType type;
     const QemuOptDesc *opts;
     /* get a descriptive text of the backend to display to the user */
-    const char *(*desc)(void);
+    const char *desc;
 
-    TPMBackend *(*create)(QemuOpts *opts, const char *id);
-    void (*destroy)(TPMBackend *t);
+    TPMBackend *(*create)(QemuOpts *opts);
 
-    /* initialize the backend */
-    int (*init)(TPMBackend *t, TPMState *s, TPMRecvDataCB *datacb);
-    /* start up the TPM on the backend */
-    int (*startup_tpm)(TPMBackend *t);
-    /* returns true if nothing will ever answer TPM requests */
-    bool (*had_startup_error)(TPMBackend *t);
+    /* start up the TPM on the backend - optional */
+    int (*startup_tpm)(TPMBackend *t, size_t buffersize);
 
-    size_t (*realloc_buffer)(TPMSizedBuffer *sb);
-
-    void (*deliver_request)(TPMBackend *t);
-
+    /* optional */
     void (*reset)(TPMBackend *t);
 
     void (*cancel_cmd)(TPMBackend *t);
 
+    /* optional */
     bool (*get_tpm_established_flag)(TPMBackend *t);
 
+    /* optional */
     int (*reset_tpm_established_flag)(TPMBackend *t, uint8_t locty);
 
     TPMVersion (*get_tpm_version)(TPMBackend *t);
-};
 
+    size_t (*get_buffer_size)(TPMBackend *t);
+
+    TpmTypeOptions *(*get_tpm_options)(TPMBackend *t);
+
+    void (*handle_request)(TPMBackend *s, TPMBackendCmd *cmd);
+};
 
 /**
  * tpm_backend_get_type:
@@ -103,39 +97,27 @@ struct TPMDriverOps {
 enum TpmType tpm_backend_get_type(TPMBackend *s);
 
 /**
- * tpm_backend_get_desc:
- * @s: the backend
- *
- * Returns a human readable description of the backend.
- */
-const char *tpm_backend_get_desc(TPMBackend *s);
-
-/**
- * tpm_backend_destroy:
- * @s: the backend to destroy
- */
-void tpm_backend_destroy(TPMBackend *s);
-
-/**
  * tpm_backend_init:
  * @s: the backend to initialized
- * @state: TPMState
+ * @tpmif: TPM interface
  * @datacb: callback for sending data to frontend
+ * @errp: a pointer to return the #Error object if an error occurs.
  *
  * Initialize the backend with the given variables.
  *
  * Returns 0 on success.
  */
-int tpm_backend_init(TPMBackend *s, TPMState *state,
-                     TPMRecvDataCB *datacb);
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp);
 
 /**
  * tpm_backend_startup_tpm:
  * @s: the backend whose TPM support is to be started
+ * @buffersize: the buffer size the TPM is supposed to use,
+ *              0 to leave it as-is
  *
  * Returns 0 on success.
  */
-int tpm_backend_startup_tpm(TPMBackend *s);
+int tpm_backend_startup_tpm(TPMBackend *s, size_t buffersize);
 
 /**
  * tpm_backend_had_startup_error:
@@ -148,23 +130,14 @@ int tpm_backend_startup_tpm(TPMBackend *s);
 bool tpm_backend_had_startup_error(TPMBackend *s);
 
 /**
- * tpm_backend_realloc_buffer:
- * @s: the backend
- * @sb: the TPMSizedBuffer to re-allocated to the size suitable for the
- *      backend.
- *
- * This function returns the size of the allocated buffer
- */
-size_t tpm_backend_realloc_buffer(TPMBackend *s, TPMSizedBuffer *sb);
-
-/**
  * tpm_backend_deliver_request:
  * @s: the backend to send the request to
+ * @cmd: the command to deliver
  *
  * Send a request to the backend. The backend will then send the request
  * to the TPM implementation.
  */
-void tpm_backend_deliver_request(TPMBackend *s);
+void tpm_backend_deliver_request(TPMBackend *s, TPMBackendCmd *cmd);
 
 /**
  * tpm_backend_reset:
@@ -204,16 +177,6 @@ bool tpm_backend_get_tpm_established_flag(TPMBackend *s);
 int tpm_backend_reset_tpm_established_flag(TPMBackend *s, uint8_t locty);
 
 /**
- * tpm_backend_open:
- * @s: the backend to open
- * @errp: a pointer to return the #Error object if an error occurs.
- *
- * This function will open the backend if it is not already open.  Calling this
- * function on an already opened backend will not result in an error.
- */
-void tpm_backend_open(TPMBackend *s, Error **errp);
-
-/**
  * tpm_backend_get_tpm_version:
  * @s: the backend to call into
  *
@@ -223,10 +186,26 @@ void tpm_backend_open(TPMBackend *s, Error **errp);
  */
 TPMVersion tpm_backend_get_tpm_version(TPMBackend *s);
 
-TPMBackend *qemu_find_tpm(const char *id);
+/**
+ * tpm_backend_get_buffer_size:
+ * @s: the backend to call into
+ *
+ * Get the TPM's buffer size.
+ *
+ * Returns buffer size.
+ */
+size_t tpm_backend_get_buffer_size(TPMBackend *s);
 
-const TPMDriverOps *tpm_get_backend_driver(const char *type);
-void tpm_register_model(enum TpmModel model);
-void tpm_register_driver(const TPMDriverOps *tdo);
+/**
+ * tpm_backend_query_tpm:
+ * @s: the backend
+ *
+ * Query backend tpm info
+ *
+ * Returns newly allocated TPMInfo
+ */
+TPMInfo *tpm_backend_query_tpm(TPMBackend *s);
+
+TPMBackend *qemu_find_tpm_be(const char *id);
 
 #endif

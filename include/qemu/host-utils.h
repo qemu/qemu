@@ -400,6 +400,16 @@ static inline uint64_t pow2ceil(uint64_t value)
     return 0x8000000000000000ull >> (n - 1);
 }
 
+static inline uint32_t pow2roundup32(uint32_t x)
+{
+    x |= (x >> 1);
+    x |= (x >> 2);
+    x |= (x >> 4);
+    x |= (x >> 8);
+    x |= (x >> 16);
+    return x + 1;
+}
+
 /**
  * urshift - 128-bit Unsigned Right Shift.
  * @plow: in/out - lower 64-bit integer.

@@ -536,6 +536,52 @@ static uint16_t default_GEN14_GA1[] = {
     S390_FEAT_GROUP_MSA_EXT_8,
 };
 
+/* QEMU (CPU model) features */
+
+static uint16_t qemu_V2_11[] = {
+    S390_FEAT_GROUP_PLO,
+    S390_FEAT_ESAN3,
+    S390_FEAT_ZARCH,
+};
+
+static uint16_t qemu_LATEST[] = {
+    S390_FEAT_DAT_ENH,
+    S390_FEAT_IDTE_SEGMENT,
+    S390_FEAT_STFLE,
+    S390_FEAT_SENSE_RUNNING_STATUS,
+    S390_FEAT_EXTENDED_TRANSLATION_2,
+    S390_FEAT_MSA,
+    S390_FEAT_LONG_DISPLACEMENT,
+    S390_FEAT_LONG_DISPLACEMENT_FAST,
+    S390_FEAT_EXTENDED_IMMEDIATE,
+    S390_FEAT_EXTENDED_TRANSLATION_3,
+    S390_FEAT_ETF2_ENH,
+    S390_FEAT_STORE_CLOCK_FAST,
+    S390_FEAT_MOVE_WITH_OPTIONAL_SPEC,
+    S390_FEAT_ETF3_ENH,
+    S390_FEAT_EXTRACT_CPU_TIME,
+    S390_FEAT_COMPARE_AND_SWAP_AND_STORE,
+    S390_FEAT_COMPARE_AND_SWAP_AND_STORE_2,
+    S390_FEAT_GENERAL_INSTRUCTIONS_EXT,
+    S390_FEAT_EXECUTE_EXT,
+    S390_FEAT_SET_PROGRAM_PARAMETERS,
+    S390_FEAT_FLOATING_POINT_SUPPPORT_ENH,
+    S390_FEAT_STFLE_45,
+    S390_FEAT_STFLE_49,
+    S390_FEAT_LOCAL_TLB_CLEARING,
+    S390_FEAT_INTERLOCKED_ACCESS_2,
+    S390_FEAT_MSA_EXT_4,
+    S390_FEAT_MSA_EXT_3,
+};
+
+/* add all new definitions before this point */
+static uint16_t qemu_MAX[] = {
+    /* z13+ features */
+    S390_FEAT_STFLE_53,
+    /* generates a dependency warning, leave it out for now */
+    S390_FEAT_MSA_EXT_5,
+};
+
 /****** END FEATURE DEFS ******/
 
 #define _YEARS  "2016"
@@ -627,6 +673,24 @@ static FeatGroupDefSpec FeatGroupDef[] = {
     FEAT_GROUP_INITIALIZER(MSA_EXT_8),
 };
 
+#define QEMU_FEAT_INITIALIZER(_name)                   \
+    {                                                  \
+        .name = "S390_FEAT_LIST_QEMU_" #_name,         \
+        .bits =                                        \
+            { .data = qemu_##_name,                    \
+              .len = ARRAY_SIZE(qemu_##_name) },       \
+    }
+
+/*******************************
+ * QEMU (CPU model) features
+ *******************************/
+static FeatGroupDefSpec QemuFeatDef[] = {
+    QEMU_FEAT_INITIALIZER(V2_11),
+    QEMU_FEAT_INITIALIZER(LATEST),
+    QEMU_FEAT_INITIALIZER(MAX),
+};
+
+
 static void set_bits(uint64_t list[], BitSpec bits)
 {
     uint32_t i;
@@ -684,6 +748,29 @@ static void print_feature_defs(void)
     }
 }
 
+static void print_qemu_feature_defs(void)
+{
+    uint64_t feat[S390_FEAT_MAX / 64 + 1] = {};
+    int i, j;
+
+    printf("\n/* QEMU (CPU model) feature list data */\n");
+
+    /* for now we assume that we only add new features */
+    for (i = 0; i < ARRAY_SIZE(QemuFeatDef); i++) {
+        set_bits(feat, QemuFeatDef[i].bits);
+
+        printf("#define %s\t", QemuFeatDef[i].name);
+        for (j = 0; j < ARRAY_SIZE(feat); j++) {
+            printf("0x%016"PRIx64"ULL", feat[j]);
+            if (j < ARRAY_SIZE(feat) - 1) {
+                printf(",");
+            } else {
+                printf("\n");
+            }
+        }
+    }
+}
+
 static void print_feature_group_defs(void)
 {
     int i, j;
@@ -721,6 +808,7 @@ int main(int argc, char *argv[])
            "#ifndef %s\n#define %s\n", __FILE__, _YEARS, _NAME_H, _NAME_H);
     print_feature_defs();
     print_feature_group_defs();
+    print_qemu_feature_defs();
     printf("\n#endif\n");
     return 0;
 }

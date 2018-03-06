@@ -141,7 +141,6 @@ static void
 mips_mipssim_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -156,14 +155,7 @@ mips_mipssim_init(MachineState *machine)
     int bios_size;
 
     /* Init CPUs. */
-    if (cpu_model == NULL) {
-#ifdef TARGET_MIPS64
-        cpu_model = "5Kf";
-#else
-        cpu_model = "24Kf";
-#endif
-    }
-    cpu = MIPS_CPU(cpu_generic_init(TYPE_MIPS_CPU, cpu_model));
+    cpu = MIPS_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));
@@ -235,6 +227,11 @@ static void mips_mipssim_machine_init(MachineClass *mc)
 {
     mc->desc = "MIPS MIPSsim platform";
     mc->init = mips_mipssim_init;
+#ifdef TARGET_MIPS64
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("5Kf");
+#else
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
+#endif
 }
 
 DEFINE_MACHINE("mipssim", mips_mipssim_machine_init)

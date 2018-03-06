@@ -259,23 +259,46 @@ out:
     return;
 }
 
+/* copy up to dst_len bytes and fill the rest of dst with zeroes */
+static void copy_mask(uint8_t *dst, uint8_t *src, uint16_t dst_len,
+                      uint16_t src_len)
+{
+    int i;
+
+    for (i = 0; i < dst_len; i++) {
+        dst[i] = i < src_len ? src[i] : 0;
+    }
+}
+
 static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
 {
     WriteEventMask *we_mask = (WriteEventMask *) sccb;
+    uint16_t mask_length = be16_to_cpu(we_mask->mask_length);
+    uint32_t tmp_mask;
 
-    /* Attention: We assume that Linux uses 4-byte masks, what it actually
-       does. Architecture allows for masks of variable size, though */
-    if (be16_to_cpu(we_mask->mask_length) != 4) {
+    if (!mask_length || (mask_length > SCLP_EVENT_MASK_LEN_MAX)) {
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_MASK_LENGTH);
         goto out;
     }
 
+    /*
+     * Note: We currently only support masks up to 4 byte length;
+     *       the remainder is filled up with zeroes. Linux uses
+     *       a 4 byte mask length.
+     */
+
     /* keep track of the guest's capability masks */
-    ef->receive_mask = be32_to_cpu(we_mask->cp_receive_mask);
+    copy_mask((uint8_t *)&tmp_mask, WEM_CP_RECEIVE_MASK(we_mask, mask_length),
+              sizeof(tmp_mask), mask_length);
+    ef->receive_mask = be32_to_cpu(tmp_mask);
 
     /* return the SCLP's capability masks to the guest */
-    we_mask->send_mask = cpu_to_be32(get_host_send_mask(ef));
-    we_mask->receive_mask = cpu_to_be32(get_host_receive_mask(ef));
+    tmp_mask = cpu_to_be32(get_host_send_mask(ef));
+    copy_mask(WEM_RECEIVE_MASK(we_mask, mask_length), (uint8_t *)&tmp_mask,
+              mask_length, sizeof(tmp_mask));
+    tmp_mask = cpu_to_be32(get_host_receive_mask(ef));
+    copy_mask(WEM_SEND_MASK(we_mask, mask_length), (uint8_t *)&tmp_mask,
+              mask_length, sizeof(tmp_mask));
 
     sccb->h.response_code = cpu_to_be16(SCLP_RC_NORMAL_COMPLETION);
 

@@ -430,17 +430,17 @@ uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
 }
 
 /* Returns 0 on success; 1 otherwise.  */
-uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
-                                     uint64_t new_lo, uint64_t new_hi)
+static uint64_t do_paired_cmpxchg64_le(CPUARMState *env, uint64_t addr,
+                                       uint64_t new_lo, uint64_t new_hi,
+                                       bool parallel, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     Int128 oldv, cmpv, newv;
     bool success;
 
     cmpv = int128_make128(env->exclusive_val, env->exclusive_high);
     newv = int128_make128(new_lo, new_hi);
 
-    if (parallel_cpus) {
+    if (parallel) {
 #ifndef CONFIG_ATOMIC128
         cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
 #else
@@ -455,6 +455,8 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
 #ifdef CONFIG_USER_ONLY
         /* ??? Enforce alignment.  */
         uint64_t *haddr = g2h(addr);
+
+        helper_retaddr = ra;
         o0 = ldq_le_p(haddr + 0);
         o1 = ldq_le_p(haddr + 1);
         oldv = int128_make128(o0, o1);
@@ -464,6 +466,7 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
             stq_le_p(haddr + 0, int128_getlo(newv));
             stq_le_p(haddr + 1, int128_gethi(newv));
         }
+        helper_retaddr = 0;
 #else
         int mem_idx = cpu_mmu_index(env, false);
         TCGMemOpIdx oi0 = make_memop_idx(MO_LEQ | MO_ALIGN_16, mem_idx);
@@ -484,17 +487,32 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
     return !success;
 }
 
-uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
-                                     uint64_t new_lo, uint64_t new_hi)
+uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
+                                              uint64_t new_lo, uint64_t new_hi)
 {
-    uintptr_t ra = GETPC();
+    return do_paired_cmpxchg64_le(env, addr, new_lo, new_hi, false, GETPC());
+}
+
+uint64_t HELPER(paired_cmpxchg64_le_parallel)(CPUARMState *env, uint64_t addr,
+                                              uint64_t new_lo, uint64_t new_hi)
+{
+    return do_paired_cmpxchg64_le(env, addr, new_lo, new_hi, true, GETPC());
+}
+
+static uint64_t do_paired_cmpxchg64_be(CPUARMState *env, uint64_t addr,
+                                       uint64_t new_lo, uint64_t new_hi,
+                                       bool parallel, uintptr_t ra)
+{
     Int128 oldv, cmpv, newv;
     bool success;
 
-    cmpv = int128_make128(env->exclusive_val, env->exclusive_high);
-    newv = int128_make128(new_lo, new_hi);
+    /* high and low need to be switched here because this is not actually a
+     * 128bit store but two doublewords stored consecutively
+     */
+    cmpv = int128_make128(env->exclusive_high, env->exclusive_val);
+    newv = int128_make128(new_hi, new_lo);
 
-    if (parallel_cpus) {
+    if (parallel) {
 #ifndef CONFIG_ATOMIC128
         cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
 #else
@@ -509,6 +527,8 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
 #ifdef CONFIG_USER_ONLY
         /* ??? Enforce alignment.  */
         uint64_t *haddr = g2h(addr);
+
+        helper_retaddr = ra;
         o1 = ldq_be_p(haddr + 0);
         o0 = ldq_be_p(haddr + 1);
         oldv = int128_make128(o0, o1);
@@ -518,6 +538,7 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
             stq_be_p(haddr + 0, int128_gethi(newv));
             stq_be_p(haddr + 1, int128_getlo(newv));
         }
+        helper_retaddr = 0;
 #else
         int mem_idx = cpu_mmu_index(env, false);
         TCGMemOpIdx oi0 = make_memop_idx(MO_BEQ | MO_ALIGN_16, mem_idx);
@@ -536,4 +557,16 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
     }
 
     return !success;
+}
+
+uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
+                                     uint64_t new_lo, uint64_t new_hi)
+{
+    return do_paired_cmpxchg64_be(env, addr, new_lo, new_hi, false, GETPC());
+}
+
+uint64_t HELPER(paired_cmpxchg64_be_parallel)(CPUARMState *env, uint64_t addr,
+                                     uint64_t new_lo, uint64_t new_hi)
+{
+    return do_paired_cmpxchg64_be(env, addr, new_lo, new_hi, true, GETPC());
 }

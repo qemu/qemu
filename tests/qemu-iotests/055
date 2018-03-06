@@ -48,7 +48,7 @@ class TestSingleDrive(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
         self.vm.add_drive(blockdev_target_img, interface="none")
         if iotests.qemu_default_machine == 'pc':
             self.vm.add_drive(None, 'media=cdrom', 'ide')
@@ -65,10 +65,11 @@ class TestSingleDrive(iotests.QMPTestCase):
     def do_test_cancel(self, cmd, target):
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp(cmd, device='drive0', target=target, sync='full')
         self.assert_qmp(result, 'return', {})
 
-        event = self.cancel_and_wait()
+        event = self.cancel_and_wait(resume=True)
         self.assert_qmp(event, 'data/type', 'backup')
 
     def test_cancel_drive_backup(self):
@@ -166,7 +167,7 @@ class TestSetSpeed(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
         self.vm.add_drive(blockdev_target_img, interface="none")
         self.vm.launch()
 
@@ -246,6 +247,8 @@ class TestSetSpeed(iotests.QMPTestCase):
     def test_set_speed_invalid_blockdev_backup(self):
         self.do_test_set_speed_invalid('blockdev-backup',  'drive1')
 
+# Note: We cannot use pause_drive() here, or the transaction command
+#       would stall.  Instead, we limit the block job speed here.
 class TestSingleTransaction(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
@@ -271,7 +274,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
                 'type': cmd,
                 'data': { 'device': 'drive0',
                           'target': target,
-                          'sync': 'full' },
+                          'sync': 'full',
+                          'speed': 64 * 1024 },
             }
         ])
 
@@ -289,12 +293,12 @@ class TestSingleTransaction(iotests.QMPTestCase):
     def do_test_pause(self, cmd, target, image):
         self.assert_no_active_block_jobs()
 
-        self.vm.pause_drive('drive0')
         result = self.vm.qmp('transaction', actions=[{
                 'type': cmd,
                 'data': { 'device': 'drive0',
                           'target': target,
-                          'sync': 'full' },
+                          'sync': 'full',
+                          'speed': 64 * 1024 },
             }
         ])
         self.assert_qmp(result, 'return', {})
@@ -302,7 +306,9 @@ class TestSingleTransaction(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-pause', device='drive0')
         self.assert_qmp(result, 'return', {})
 
-        self.vm.resume_drive('drive0')
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
+
         self.pause_job('drive0')
 
         result = self.vm.qmp('query-block-jobs')
@@ -461,7 +467,7 @@ class TestDriveCompression(iotests.QMPTestCase):
             pass
 
     def do_prepare_drives(self, fmt, args, attach_target):
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM().add_drive('blkdebug::' + test_img)
 
         qemu_img('create', '-f', fmt, blockdev_target_img,
                  str(TestDriveCompression.image_len), *args)
@@ -500,10 +506,11 @@ class TestDriveCompression(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
 
+        self.vm.pause_drive('drive0')
         result = self.vm.qmp(cmd, device='drive0', sync='full', compress=True, **args)
         self.assert_qmp(result, 'return', {})
 
-        event = self.cancel_and_wait()
+        event = self.cancel_and_wait(resume=True)
         self.assert_qmp(event, 'data/type', 'backup')
 
         self.vm.shutdown()

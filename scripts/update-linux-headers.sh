@@ -95,7 +95,6 @@ for arch in $ARCHLIST; do
     rm -rf "$output/include/standard-headers/asm-$arch"
     mkdir -p "$output/include/standard-headers/asm-$arch"
     if [ $arch = s390 ]; then
-        cp_portable "$tmpdir/include/asm/kvm_virtio.h" "$output/include/standard-headers/asm-s390/"
         cp_portable "$tmpdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
     fi
     if [ $arch = arm ]; then
@@ -106,7 +105,7 @@ for arch in $ARCHLIST; do
     if [ $arch = x86 ]; then
         cat <<-EOF >"$output/include/standard-headers/asm-x86/hyperv.h"
         /* this is a temporary placeholder until kvm_para.h stops including it */
-        EOF
+EOF
         cp "$tmpdir/include/asm/unistd_32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"

@@ -401,7 +401,6 @@ static void open_socket(void)
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
-    char *cmdline;
     int ret;
 
     /* Check architecture */
@@ -415,12 +414,10 @@ int main(int argc, char **argv)
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    cmdline = g_strdup_printf(
-          " -chardev socket,id=ipmi0,host=localhost,port=%d,reconnect=10"
-          " -device ipmi-bmc-extern,chardev=ipmi0,id=bmc0"
-          " -device isa-ipmi-bt,bmc=bmc0", emu_port);
-    qtest_start(cmdline);
-    g_free(cmdline);
+    global_qtest = qtest_startf(
+        " -chardev socket,id=ipmi0,host=localhost,port=%d,reconnect=10"
+        " -device ipmi-bmc-extern,chardev=ipmi0,id=bmc0"
+        " -device isa-ipmi-bt,bmc=bmc0", emu_port);
     qtest_irq_intercept_in(global_qtest, "ioapic");
     qtest_add_func("/ipmi/extern/connect", test_connect);
     qtest_add_func("/ipmi/extern/bt_base", test_bt_base);

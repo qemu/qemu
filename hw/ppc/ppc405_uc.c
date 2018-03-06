@@ -1629,7 +1629,8 @@ CPUPPCState *ppc405cr_init(MemoryRegion *address_space_mem,
     qemu_irq *pic, *irqs;
 
     memset(clk_setup, 0, sizeof(clk_setup));
-    cpu = ppc4xx_init("405cr", &clk_setup[PPC405CR_CPU_CLK],
+    cpu = ppc4xx_init(POWERPC_CPU_TYPE_NAME("405crc"),
+                      &clk_setup[PPC405CR_CPU_CLK],
                       &clk_setup[PPC405CR_TMR_CLK], sysclk);
     env = &cpu->env;
     /* Memory mapped devices registers */
@@ -1981,7 +1982,8 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
 
     memset(clk_setup, 0, sizeof(clk_setup));
     /* init CPUs */
-    cpu = ppc4xx_init("405ep", &clk_setup[PPC405EP_CPU_CLK],
+    cpu = ppc4xx_init(POWERPC_CPU_TYPE_NAME("405ep"),
+                      &clk_setup[PPC405EP_CPU_CLK],
                       &tlb_clk_setup, sysclk);
     env = &cpu->env;
     clk_setup[PPC405EP_CPU_CLK].cb = tlb_clk_setup.cb;

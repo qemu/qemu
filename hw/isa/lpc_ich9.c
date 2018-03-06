@@ -162,7 +162,7 @@ static void ich9_cc_write(void *opaque, hwaddr addr,
 
     ich9_cc_addr_len(&addr, &len);
     memcpy(lpc->chip_config + addr, &val, len);
-    pci_bus_fire_intx_routing_notifier(lpc->d.bus);
+    pci_bus_fire_intx_routing_notifier(pci_get_bus(&lpc->d));
     ich9_cc_update(lpc);
 }
 
@@ -218,7 +218,7 @@ static void ich9_lpc_update_pic(ICH9LPCState *lpc, int gsi)
         int tmp_dis;
         ich9_lpc_pic_irq(lpc, i, &tmp_irq, &tmp_dis);
         if (!tmp_dis && tmp_irq == gsi) {
-            pic_level |= pci_bus_get_irq_level(lpc->d.bus, i);
+            pic_level |= pci_bus_get_irq_level(pci_get_bus(&lpc->d), i);
         }
     }
     if (gsi == lpc->sci_gsi) {
@@ -246,7 +246,7 @@ static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
 
     assert(gsi >= ICH9_LPC_PIC_NUM_PINS);
 
-    level |= pci_bus_get_irq_level(lpc->d.bus, ich9_gsi_to_pirq(gsi));
+    level |= pci_bus_get_irq_level(pci_get_bus(&lpc->d), ich9_gsi_to_pirq(gsi));
     if (gsi == lpc->sci_gsi) {
         level |= lpc->sci_level;
     }
@@ -402,12 +402,12 @@ void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
          * just link them into fw_cfg here.
          */
         fw_cfg_add_file_callback(fw_cfg, "etc/smi/requested-features",
-                                 NULL, NULL,
+                                 NULL, NULL, NULL,
                                  lpc->smi_guest_features_le,
                                  sizeof lpc->smi_guest_features_le,
                                  false);
         fw_cfg_add_file_callback(fw_cfg, "etc/smi/features-ok",
-                                 smi_features_ok_callback, lpc,
+                                 smi_features_ok_callback, NULL, lpc,
                                  &lpc->smi_features_ok,
                                  sizeof lpc->smi_features_ok,
                                  true);
@@ -524,10 +524,10 @@ static void ich9_lpc_config_write(PCIDevice *d,
         ich9_lpc_rcba_update(lpc, rcba_old);
     }
     if (ranges_overlap(addr, len, ICH9_LPC_PIRQA_ROUT, 4)) {
-        pci_bus_fire_intx_routing_notifier(lpc->d.bus);
+        pci_bus_fire_intx_routing_notifier(pci_get_bus(&lpc->d));
     }
     if (ranges_overlap(addr, len, ICH9_LPC_PIRQE_ROUT, 4)) {
-        pci_bus_fire_intx_routing_notifier(lpc->d.bus);
+        pci_bus_fire_intx_routing_notifier(pci_get_bus(&lpc->d));
     }
     if (ranges_overlap(addr, len, ICH9_LPC_GEN_PMCON_1, 8)) {
         ich9_lpc_pmcon_update(lpc);
@@ -823,6 +823,7 @@ static const TypeInfo ich9_lpc_info = {
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_ACPI_DEVICE_IF },
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }
     }
 };

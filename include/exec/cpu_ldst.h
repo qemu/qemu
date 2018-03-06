@@ -76,6 +76,8 @@
 
 #if defined(CONFIG_USER_ONLY)
 
+extern __thread uintptr_t helper_retaddr;
+
 /* In user-only mode we provide only the _code and _data accessors. */
 
 #define MEMSUFFIX _data

@@ -228,7 +228,7 @@
 #define TARGET_NR_lookup_dcookie    223
 #define TARGET_NR_epoll_create      224
 #define TARGET_NR_epoll_ctl         225
-#define TARGET_NR_epill_wait        226
+#define TARGET_NR_epoll_wait        226
 #define TARGET_NR_remap_file_pages  227
 #define TARGET_NR_semtimedop        228
 #define TARGET_NR_mq_open           229

@@ -25,12 +25,12 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
@@ -41,6 +41,8 @@
 #include "elf.h"
 
 #define PHYS_MEM_BASE 0x80000000
+#define FIRMWARE_BASE 0x1000
+#define FIRMWARE_SIZE (128 * 0x1000)
 
 typedef struct {
     uint64_t ram_size;
@@ -103,7 +105,6 @@ static void moxiesim_init(MachineState *machine)
 {
     MoxieCPU *cpu = NULL;
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -115,10 +116,7 @@ static void moxiesim_init(MachineState *machine)
     LoaderParams loader_params;
 
     /* Init CPUs. */
-    if (cpu_model == NULL) {
-        cpu_model = "MoxieLite-moxie-cpu";
-    }
-    cpu = MOXIE_CPU(cpu_generic_init(TYPE_MOXIE_CPU, cpu_model));
+    cpu = MOXIE_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, cpu);
@@ -127,8 +125,8 @@ static void moxiesim_init(MachineState *machine)
     memory_region_init_ram(ram, NULL, "moxiesim.ram", ram_size, &error_fatal);
     memory_region_add_subregion(address_space_mem, ram_base, ram);
 
-    memory_region_init_ram(rom, NULL, "moxie.rom", 128 * 0x1000, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), 0x1000, rom);
+    memory_region_init_ram(rom, NULL, "moxie.rom", FIRMWARE_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), FIRMWARE_BASE, rom);
 
     if (kernel_filename) {
         loader_params.ram_size = ram_size;
@@ -136,6 +134,11 @@ static void moxiesim_init(MachineState *machine)
         loader_params.kernel_cmdline = kernel_cmdline;
         loader_params.initrd_filename = initrd_filename;
         load_kernel(cpu, &loader_params);
+    }
+    if (bios_name) {
+        if (load_image_targphys(bios_name, FIRMWARE_BASE, FIRMWARE_SIZE) < 0) {
+            error_report("Failed to load firmware '%s'", bios_name);
+        }
     }
 
     /* A single 16450 sits at offset 0x3f8.  */
@@ -150,6 +153,7 @@ static void moxiesim_machine_init(MachineClass *mc)
     mc->desc = "Moxie simulator platform";
     mc->init = moxiesim_init;
     mc->is_default = 1;
+    mc->default_cpu_type = MOXIE_CPU_TYPE_NAME("MoxieLite");
 }
 
 DEFINE_MACHINE("moxiesim", moxiesim_machine_init)

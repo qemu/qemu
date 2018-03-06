@@ -68,6 +68,7 @@ typedef struct Q35PCIHost {
     PCIExpressHost parent_obj;
     /*< public >*/
 
+    bool pci_hole64_fix;
     MCHPCIState mch;
 } Q35PCIHost;
 

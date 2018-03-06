@@ -1,0 +1,202 @@
+QEMU TPM Device
+===============
+
+= Guest-side Hardware Interface =
+
+The QEMU TPM emulation implements a TPM TIS hardware interface following the
+Trusted Computing Group's specification "TCG PC Client Specific TPM Interface
+Specification (TIS)", Specification Version 1.3, 21 March 2013. This
+specification, or a later version of it, can be accessed from the following
+URL:
+
+https://trustedcomputinggroup.org/pc-client-work-group-pc-client-specific-tpm-interface-specification-tis/
+
+The TIS interface makes a memory mapped IO region in the area 0xfed40000 -
+0xfed44fff available to the guest operating system.
+
+
+QEMU files related to TPM TIS interface:
+ - hw/tpm/tpm_tis.c
+ - hw/tpm/tpm_tis.h
+
+
+= ACPI Interface =
+
+The TPM device is defined with ACPI ID "PNP0C31". QEMU builds a SSDT and passes
+it into the guest through the fw_cfg device. The device description contains
+the base address of the TIS interface 0xfed40000 and the size of the MMIO area
+(0x5000). In case a TPM2 is used by QEMU, a TPM2 ACPI table is also provided.
+The device is described to be used in polling mode rather than interrupt mode
+primarily because no unused IRQ could be found.
+
+To support measurement logs to be written by the firmware, e.g. SeaBIOS, a TCPA
+table is implemented. This table provides a 64kb buffer where the firmware can
+write its log into. For TPM 2 only a more recent version of the TPM2 table
+provides support for measurements logs and a TCPA table does not need to be
+created.
+
+The TCPA and TPM2 ACPI tables follow the Trusted Computing Group specification
+"TCG ACPI Specification" Family "1.2" and "2.0", Level 00 Revision 00.37. This
+specification, or a later version of it, can be accessed from the following
+URL:
+
+https://trustedcomputinggroup.org/tcg-acpi-specification/
+
+
+QEMU files related to TPM ACPI tables:
+ - hw/i386/acpi-build.c
+ - include/hw/acpi/tpm.h
+
+
+= TPM backend devices =
+
+The TPM implementation is split into two parts, frontend and backend. The
+frontend part is the hardware interface, such as the TPM TIS interface
+described earlier, and the other part is the TPM backend interface. The backend
+interfaces implement the interaction with a TPM device, which may be a physical
+or an emulated device. The split between the front- and backend devices allows
+a frontend to be connected with any available backend. This enables the TIS
+interface to be used with the passthrough backend or the (future) swtpm backend.
+
+
+QEMU files related to TPM backends:
+ - backends/tpm.c
+ - include/sysemu/tpm_backend.h
+ - include/sysemu/tpm_backend_int.h
+
+
+== The QEMU TPM passthrough device ==
+
+In case QEMU is run on Linux as the host operating system it is possible to
+make the hardware TPM device available to a single QEMU guest. In this case the
+user must make sure that no other program is using the device, e.g., /dev/tpm0,
+before trying to start QEMU with it.
+
+The passthrough driver uses the host's TPM device for sending TPM commands
+and receiving responses from. Besides that it accesses the TPM device's sysfs
+entry for support of command cancellation. Since none of the state of a
+hardware TPM can be migrated between hosts, virtual machine migration is
+disabled when the TPM passthrough driver is used.
+
+Since the host's TPM device will already be initialized by the host's firmware,
+certain commands, e.g. TPM_Startup(), sent by the virtual firmware for device
+initialization, will fail. In this case the firmware should not use the TPM.
+
+Sharing the device with the host is generally not a recommended usage scenario
+for a TPM device. The primary reason for this is that two operating systems can
+then access the device's single set of resources, such as platform configuration
+registers (PCRs). Applications or kernel security subsystems, such as the
+Linux Integrity Measurement Architecture (IMA), are not expecting to share PCRs.
+
+
+QEMU files related to the TPM passthrough device:
+ - hw/tpm/tpm_passthrough.c
+ - hw/tpm/tpm_util.c
+ - hw/tpm/tpm_util.h
+
+
+Command line to start QEMU with the TPM passthrough device using the host's
+hardware TPM /dev/tpm0:
+
+qemu-system-x86_64 -display sdl -enable-kvm \
+  -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
+  -tpmdev passthrough,id=tpm0,path=/dev/tpm0 \
+  -device tpm-tis,tpmdev=tpm0 test.img
+
+The following commands should result in similar output inside the VM with a
+Linux kernel that either has the TPM TIS driver built-in or available as a
+module:
+
+#> dmesg | grep -i tpm
+[    0.711310] tpm_tis 00:06: 1.2 TPM (device=id 0x1, rev-id 1)
+
+#> dmesg | grep TCPA
+[    0.000000] ACPI: TCPA 0x0000000003FFD191C 000032 (v02 BOCHS  \
+    BXPCTCPA 0000001 BXPC 00000001)
+
+#> ls -l /dev/tpm*
+crw-------. 1 root root 10, 224 Jul 11 10:11 /dev/tpm0
+
+#> find /sys/devices/ | grep pcrs$ | xargs cat
+PCR-00: 35 4E 3B CE 23 9F 38 59 ...
+...
+PCR-23: 00 00 00 00 00 00 00 00 ...
+
+
+== The QEMU TPM emulator device ==
+
+The TPM emulator device uses an external TPM emulator called 'swtpm' for
+sending TPM commands to and receiving responses from. The swtpm program
+must have been started before trying to access it through the TPM emulator
+with QEMU.
+
+The TPM emulator implements a command channel for transferring TPM commands
+and responses as well as a control channel over which control commands can
+be sent. The specification for the control channel can be found here:
+
+https://github.com/stefanberger/swtpm/blob/master/man/man3/swtpm_ioctls.pod
+
+
+The control channel serves the purpose of resetting, initializing, and
+migrating the TPM state, among other things.
+
+The swtpm program behaves like a hardware TPM and therefore needs to be
+initialized by the firmware running inside the QEMU virtual machine.
+One necessary step for initializing the device is to send the TPM_Startup
+command to it. SeaBIOS, for example, has been instrumented to initialize
+a TPM 1.2 or TPM 2 device using this command.
+
+
+QEMU files related to the TPM emulator device:
+ - hw/tpm/tpm_emulator.c
+ - hw/tpm/tpm_util.c
+ - hw/tpm/tpm_util.h
+
+
+The following commands start the swtpm with a UnixIO control channel over
+a socket interface. They do not need to be run as root.
+
+mkdir /tmp/mytpm1
+swtpm socket --tpmstate dir=/tmp/mytpm1 \
+  --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
+  --log level=20
+
+Command line to start QEMU with the TPM emulator device communicating with
+the swtpm:
+
+qemu-system-x86_64 -display sdl -enable-kvm \
+  -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
+  -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+  -tpmdev emulator,id=tpm0,chardev=chrtpm \
+  -device tpm-tis,tpmdev=tpm0 test.img
+
+
+In case SeaBIOS is used as firmware, it should show the TPM menu item
+after entering the menu with 'ESC'.
+
+Select boot device:
+1. DVD/CD [ata1-0: QEMU DVD-ROM ATAPI-4 DVD/CD]
+[...]
+5. Legacy option rom
+
+t. TPM Configuration
+
+
+The following commands should result in similar output inside the VM with a
+Linux kernel that either has the TPM TIS driver built-in or available as a
+module:
+
+#> dmesg | grep -i tpm
+[    0.711310] tpm_tis 00:06: 1.2 TPM (device=id 0x1, rev-id 1)
+
+#> dmesg | grep TCPA
+[    0.000000] ACPI: TCPA 0x0000000003FFD191C 000032 (v02 BOCHS  \
+    BXPCTCPA 0000001 BXPC 00000001)
+
+#> ls -l /dev/tpm*
+crw-------. 1 root root 10, 224 Jul 11 10:11 /dev/tpm0
+
+#> find /sys/devices/ | grep pcrs$ | xargs cat
+PCR-00: 35 4E 3B CE 23 9F 38 59 ...
+...
+PCR-23: 00 00 00 00 00 00 00 00 ...

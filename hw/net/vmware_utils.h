@@ -83,6 +83,7 @@ vmw_shmem_ld16(PCIDevice *d, hwaddr addr)
 {
     uint16_t res;
     pci_dma_read(d, addr, &res, 2);
+    res = le16_to_cpu(res);
     VMW_SHPRN("SHMEM load16: %" PRIx64 " (value 0x%X)", addr, res);
     return res;
 }
@@ -91,6 +92,7 @@ static inline void
 vmw_shmem_st16(PCIDevice *d, hwaddr addr, uint16_t value)
 {
     VMW_SHPRN("SHMEM store16: %" PRIx64 " (value 0x%X)", addr, value);
+    value = cpu_to_le16(value);
     pci_dma_write(d, addr, &value, 2);
 }
 
@@ -99,6 +101,7 @@ vmw_shmem_ld32(PCIDevice *d, hwaddr addr)
 {
     uint32_t res;
     pci_dma_read(d, addr, &res, 4);
+    res = le32_to_cpu(res);
     VMW_SHPRN("SHMEM load32: %" PRIx64 " (value 0x%X)", addr, res);
     return res;
 }
@@ -107,6 +110,7 @@ static inline void
 vmw_shmem_st32(PCIDevice *d, hwaddr addr, uint32_t value)
 {
     VMW_SHPRN("SHMEM store32: %" PRIx64 " (value 0x%X)", addr, value);
+    value = cpu_to_le32(value);
     pci_dma_write(d, addr, &value, 4);
 }
 
@@ -115,6 +119,7 @@ vmw_shmem_ld64(PCIDevice *d, hwaddr addr)
 {
     uint64_t res;
     pci_dma_read(d, addr, &res, 8);
+    res = le64_to_cpu(res);
     VMW_SHPRN("SHMEM load64: %" PRIx64 " (value %" PRIx64 ")", addr, res);
     return res;
 }
@@ -123,6 +128,7 @@ static inline void
 vmw_shmem_st64(PCIDevice *d, hwaddr addr, uint64_t value)
 {
     VMW_SHPRN("SHMEM store64: %" PRIx64 " (value %" PRIx64 ")", addr, value);
+    value = cpu_to_le64(value);
     pci_dma_write(d, addr, &value, 8);
 }
 

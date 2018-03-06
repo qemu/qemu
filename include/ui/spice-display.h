@@ -86,7 +86,6 @@ struct SimpleSpiceDisplay {
     DisplayChangeListener dcl;
     void *buf;
     int bufsize;
-    QXLWorker *worker;
     QXLInstance qxl;
     uint32_t unique;
     pixman_image_t *surface;
@@ -119,7 +118,7 @@ struct SimpleSpiceDisplay {
     /* opengl rendering */
     QEMUBH *gl_unblock_bh;
     QEMUTimer *gl_unblock_timer;
-    ConsoleGLState *gls;
+    QemuGLShader *gls;
     int gl_updates;
     bool have_scanout;
     bool have_surface;

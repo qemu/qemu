@@ -46,14 +46,21 @@ struct Coroutine {
 
     size_t locks_held;
 
+    /* Only used when the coroutine has yielded.  */
+    AioContext *ctx;
+
+    /* Used to catch and abort on illegal co-routine entry.
+     * Will contain the name of the function that had first
+     * scheduled the coroutine. */
+    const char *scheduled;
+
+    QSIMPLEQ_ENTRY(Coroutine) co_queue_next;
+
     /* Coroutines that should be woken up when we yield or terminate.
      * Only used when the coroutine is running.
      */
     QSIMPLEQ_HEAD(, Coroutine) co_queue_wakeup;
 
-    /* Only used when the coroutine has yielded.  */
-    AioContext *ctx;
-    QSIMPLEQ_ENTRY(Coroutine) co_queue_next;
     QSLIST_ENTRY(Coroutine) co_scheduled_next;
 };
 

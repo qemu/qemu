@@ -53,7 +53,6 @@ typedef struct DisasContext {
     bool singlestep_enabled;
 } DisasContext;
 
-static TCGv_env cpu_env;
 static TCGv cpu_sr;
 static TCGv cpu_R[32];
 static TCGv cpu_R0;
@@ -80,8 +79,6 @@ void openrisc_translate_init(void)
     };
     int i;
 
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
     cpu_sr = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUOpenRISCState, sr), "sr");
     cpu_dflag = tcg_global_mem_new_i32(cpu_env,
@@ -1546,7 +1543,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
 
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
@@ -1589,7 +1586,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
             break;
         }
 
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
         disas_openrisc_insn(dc, cpu);
@@ -1612,7 +1609,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
              && (dc->pc < next_page_start)
              && num_insns < max_insns);
 
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 
@@ -1653,7 +1650,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(pc_start)) {
-        log_target_disas(cs, pc_start, tb->size, 0);
+        log_target_disas(cs, pc_start, tb->size);
         qemu_log("\n");
         qemu_log_unlock();
     }

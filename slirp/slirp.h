@@ -1,7 +1,6 @@
 #ifndef SLIRP_H
 #define SLIRP_H
 
-#include "qemu/host-utils.h"
 #include "slirp_config.h"
 
 #ifdef _WIN32

@@ -19,7 +19,6 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "hw/i2c/pm_smbus.h"
 #include "hw/i2c/smbus.h"
 
@@ -62,6 +61,9 @@ static void smb_transaction(PMSMBus *s)
     uint8_t addr = s->smb_addr >> 1;
     I2CBus *bus = s->smbus;
     int ret;
+
+    assert(s->smb_stat & STS_HOST_BUSY);
+    s->smb_stat &= ~STS_HOST_BUSY;
 
     SMBUS_DPRINTF("SMBus trans addr=0x%02x prot=0x%02x\n", addr, prot);
     /* Transaction isn't exec if STS_DEV_ERR bit set */
@@ -135,6 +137,13 @@ error:
 
 }
 
+static void smb_transaction_start(PMSMBus *s)
+{
+    /* Do not execute immediately the command ; it will be
+     * executed when guest will read SMB_STAT register */
+    s->smb_stat |= STS_HOST_BUSY;
+}
+
 static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
@@ -150,7 +159,7 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
     case SMBHSTCNT:
         s->smb_ctl = val;
         if (val & 0x40)
-            smb_transaction(s);
+            smb_transaction_start(s);
         break;
     case SMBHSTCMD:
         s->smb_cmd = val;
@@ -182,6 +191,10 @@ static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
     switch(addr) {
     case SMBHSTSTS:
         val = s->smb_stat;
+        if (s->smb_stat & STS_HOST_BUSY) {
+            /* execute command now */
+            smb_transaction(s);
+        }
         break;
     case SMBHSTCNT:
         s->smb_index = 0;

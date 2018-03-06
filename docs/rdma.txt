@@ -1,7 +1,7 @@
 (RDMA: Remote Direct Memory Access)
 RDMA Live Migration Specification, Version # 1
 ==============================================
-Wiki: http://wiki.qemu-project.org/Features/RDMALiveMigration
+Wiki: https://wiki.qemu.org/Features/RDMALiveMigration
 Github: git@github.com:hinesmr/qemu.git, 'rdma' branch
 
 Copyright (C) 2013 Michael R. Hines <mrhines@us.ibm.com>

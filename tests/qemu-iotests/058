@@ -117,15 +117,15 @@ _export_nbd_snapshot sn1
 
 echo
 echo "== verifying the exported snapshot with patterns, method 1 =="
-$QEMU_IO_NBD -c 'read -P 0xa 0x1000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
-$QEMU_IO_NBD -c 'read -P 0xb 0x2000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
+$QEMU_IO_NBD -r -c 'read -P 0xa 0x1000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
+$QEMU_IO_NBD -r -c 'read -P 0xb 0x2000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
 
 _export_nbd_snapshot1 sn1
 
 echo
 echo "== verifying the exported snapshot with patterns, method 2 =="
-$QEMU_IO_NBD -c 'read -P 0xa 0x1000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
-$QEMU_IO_NBD -c 'read -P 0xb 0x2000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
+$QEMU_IO_NBD -r -c 'read -P 0xa 0x1000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
+$QEMU_IO_NBD -r -c 'read -P 0xb 0x2000 0x1000' "$nbd_snapshot_img" | _filter_qemu_io
 
 $QEMU_IMG convert "$TEST_IMG" -l sn1 -O qcow2 "$converted_image"
 

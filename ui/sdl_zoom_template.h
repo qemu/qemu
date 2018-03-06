@@ -34,22 +34,22 @@
 #define setRed(r, pcolor) do { \
     *pcolor = ((*pcolor) & (~(dpf->Rmask))) + \
               (((r) & (dpf->Rmask >> dpf->Rshift)) << dpf->Rshift); \
-} while (0);
+} while (0)
 
 #define setGreen(g, pcolor) do { \
     *pcolor = ((*pcolor) & (~(dpf->Gmask))) + \
               (((g) & (dpf->Gmask >> dpf->Gshift)) << dpf->Gshift); \
-} while (0);
+} while (0)
 
 #define setBlue(b, pcolor) do { \
     *pcolor = ((*pcolor) & (~(dpf->Bmask))) + \
               (((b) & (dpf->Bmask >> dpf->Bshift)) << dpf->Bshift); \
-} while (0);
+} while (0)
 
 #define setAlpha(a, pcolor) do { \
     *pcolor = ((*pcolor) & (~(dpf->Amask))) + \
               (((a) & (dpf->Amask >> dpf->Ashift)) << dpf->Ashift); \
-} while (0);
+} while (0)
 
 static void glue(sdl_zoom_rgb, BPP)(SDL_Surface *src, SDL_Surface *dst, int smooth,
                                    SDL_Rect *dst_rect)

@@ -10,3 +10,5 @@ common-obj-$(CONFIG_IDE_VIA) += via.o
 common-obj-$(CONFIG_MICRODRIVE) += microdrive.o
 common-obj-$(CONFIG_AHCI) += ahci.o
 common-obj-$(CONFIG_AHCI) += ich.o
+common-obj-$(CONFIG_ALLWINNER_A10) += ahci-allwinner.o
+common-obj-$(CONFIG_IDE_SII3112) += sii3112.o

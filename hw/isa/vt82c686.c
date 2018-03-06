@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "hw/isa/vt82c686.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/smbus.h"
@@ -301,6 +300,10 @@ static const TypeInfo via_ac97_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686AC97State),
     .class_init    = via_ac97_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void vt82c686b_mc97_realize(PCIDevice *dev, Error **errp)
@@ -341,6 +344,10 @@ static const TypeInfo via_mc97_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686MC97State),
     .class_init    = via_mc97_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 /* vt82c686 pm init */
@@ -419,6 +426,10 @@ static const TypeInfo via_pm_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT686PMState),
     .class_init    = via_pm_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static const VMStateDescription vmstate_via = {
@@ -502,6 +513,10 @@ static const TypeInfo via_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT82C686BState),
     .class_init    = via_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void vt82c686b_register_types(void)

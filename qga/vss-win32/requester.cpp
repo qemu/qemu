@@ -419,6 +419,16 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
             break;
         }
     }
+
+    if (wait_status == WAIT_TIMEOUT) {
+        err_set(errset, E_FAIL,
+                "timeout when try to receive Frozen event from VSS provider");
+        /* If we are here, VSS had timeout.
+         * Don't call AbortBackup, just return directly.
+         */
+        goto out1;
+    }
+
     if (wait_status != WAIT_OBJECT_0) {
         err_set(errset, E_FAIL,
                 "couldn't receive Frozen event from VSS provider");
@@ -432,6 +442,8 @@ out:
     if (vss_ctx.pVssbc) {
         vss_ctx.pVssbc->AbortBackup();
     }
+
+out1:
     requester_cleanup();
     CoUninitialize();
 }

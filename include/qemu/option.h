@@ -31,11 +31,6 @@
 
 const char *get_opt_name(char *buf, int buf_size, const char *p, char delim);
 const char *get_opt_value(char *buf, int buf_size, const char *p);
-int get_next_param_value(char *buf, int buf_size,
-                         const char *tag, const char **pstr);
-int get_param_value(char *buf, int buf_size,
-                    const char *tag, const char *str);
-
 
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp);

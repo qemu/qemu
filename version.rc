@@ -13,7 +13,7 @@ FILESUBTYPE VFT2_UNKNOWN
   {
     BLOCK "040904E4"
     {
-      VALUE "CompanyName", "http://www.qemu-project.org"
+      VALUE "CompanyName", "https://www.qemu.org"
       VALUE "FileDescription", "QEMU machine emulators and tools"
       VALUE "FileVersion", QEMU_VERSION
       VALUE "LegalCopyright", "Copyright various authors. Released under the GNU General Public License."

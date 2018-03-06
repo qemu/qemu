@@ -1,0 +1,26 @@
+#!/bin/bash -e
+#
+# Compile and check with clang & --enable-debug.
+#
+# Copyright (c) 2016-2018 Red Hat Inc.
+#
+# Authors:
+#  Fam Zheng <famz@redhat.com>
+#  Marc-André Lureau <marcandre.lureau@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2
+# or (at your option) any later version. See the COPYING file in
+# the top-level directory.
+
+. common.rc
+
+requires clang asan
+
+cd "$BUILD_DIR"
+
+OPTS="--cxx=clang++ --cc=clang --host-cc=clang"
+OPTS="--enable-debug $OPTS"
+
+build_qemu $OPTS
+make $MAKEFLAGS check
+install_qemu

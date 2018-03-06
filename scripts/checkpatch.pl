@@ -11,6 +11,8 @@ use warnings;
 my $P = $0;
 $P =~ s@.*/@@g;
 
+our $SrcFile    = qr{\.(?:h|c|cpp|s|S|pl|py|sh)$};
+
 my $V = '0.31';
 
 use Getopt::Long qw(:config no_auto_abbrev);
@@ -101,30 +103,29 @@ if ($#ARGV < 0) {
 }
 
 if (!defined $chk_branch && !defined $chk_patch && !defined $file) {
-	$chk_branch = $ARGV[0] =~ /\.\./ ? 1 : 0;
-	$chk_patch = $chk_branch ? 0 :
-		$ARGV[0] =~ /\.patch$/ || $ARGV[0] eq "-" ? 1 : 0;
-	$file = $chk_branch || $chk_patch ? 0 : 1;
+	$chk_branch = $ARGV[0] =~ /.\.\./ ? 1 : 0;
+	$file = $ARGV[0] =~ /$SrcFile/ ? 1 : 0;
+	$chk_patch = $chk_branch || $file ? 0 : 1;
 } elsif (!defined $chk_branch && !defined $chk_patch) {
 	if ($file) {
 		$chk_branch = $chk_patch = 0;
 	} else {
-		$chk_branch = $ARGV[0] =~ /\.\./ ? 1 : 0;
+		$chk_branch = $ARGV[0] =~ /.\.\./ ? 1 : 0;
 		$chk_patch = $chk_branch ? 0 : 1;
 	}
 } elsif (!defined $chk_branch && !defined $file) {
 	if ($chk_patch) {
 		$chk_branch = $file = 0;
 	} else {
-		$chk_branch = $ARGV[0] =~ /\.\./ ? 1 : 0;
+		$chk_branch = $ARGV[0] =~ /.\.\./ ? 1 : 0;
 		$file = $chk_branch ? 0 : 1;
 	}
 } elsif (!defined $chk_patch && !defined $file) {
 	if ($chk_branch) {
 		$chk_patch = $file = 0;
 	} else {
-		$chk_patch = $ARGV[0] =~ /\.patch$/ || $ARGV[0] eq "-" ? 1 : 0;
-		$file = $chk_patch ? 0 : 1;
+		$file = $ARGV[0] =~ /$SrcFile/ ? 1 : 0;
+		$chk_patch = $file ? 0 : 1;
 	}
 } elsif (!defined $chk_branch) {
 	$chk_branch = $chk_patch || $file ? 0 : 1;
@@ -1443,7 +1444,7 @@ sub process {
 		}
 
 # check we are in a valid source file if not then ignore this hunk
-		next if ($realfile !~ /\.(h|c|cpp|s|S|pl|py|sh)$/);
+		next if ($realfile !~ /$SrcFile/);
 
 #90 column limit
 		if ($line =~ /^\+/ &&
@@ -1619,6 +1620,11 @@ sub process {
 						"$here\n$ctx\n$rawlines[$ctx_ln - 1]\n");
 				}
 			}
+		}
+
+# 'do ... while (0/false)' only makes sense in macros, without trailing ';'
+		if ($line =~ /while\s*\((0|false)\);/) {
+			ERROR("suspicious ; after while (0)\n" . $herecurr);
 		}
 
 # Check relative indent for conditionals and blocks.
@@ -2474,8 +2480,11 @@ sub process {
 
 # no volatiles please
 		my $asm_volatile = qr{\b(__asm__|asm)\s+(__volatile__|volatile)\b};
-		if ($line =~ /\bvolatile\b/ && $line !~ /$asm_volatile/) {
-			ERROR("Use of volatile is usually wrong: see Documentation/volatile-considered-harmful.txt\n" . $herecurr);
+		if ($line =~ /\bvolatile\b/ && $line !~ /$asm_volatile/ &&
+                    $line !~ /sig_atomic_t/ &&
+                    !ctx_has_comment($first_line, $linenr)) {
+			my $msg = "Use of volatile is usually wrong, please add a comment\n" . $herecurr;
+                        ERROR($msg);
 		}
 
 # warn about #if 0
@@ -2602,7 +2611,6 @@ sub process {
 				SCSIBusInfo|
 				SCSIReqOps|
 				Spice[A-Z][a-zA-Z0-9]*Interface|
-				TPMDriverOps|
 				USBDesc[A-Z][a-zA-Z0-9]*|
 				VhostOps|
 				VMStateDescription|

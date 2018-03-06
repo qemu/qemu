@@ -238,6 +238,18 @@ sector = "%d"
         for i in range(failed_wr_ops):
             ops.append("aio_write %d 512" % bad_offset)
 
+        # We need an extra aio_flush to settle all outstanding AIO
+        # operations before we can advance the virtual clock, so that
+        # the last access happens before clock_step and idle_time_ns
+        # will be greater than 0
+        extra_flush = 0
+        if rd_ops + wr_ops + invalid_rd_ops + invalid_wr_ops + \
+                failed_rd_ops + failed_wr_ops > 0:
+            extra_flush = 1
+
+        if extra_flush > 0:
+            ops.append("aio_flush")
+
         if failed_wr_ops > 0:
             highest_offset = max(highest_offset, bad_offset + 512)
 
@@ -251,7 +263,7 @@ sector = "%d"
         self.total_wr_bytes += wr_ops * wr_size
         self.total_wr_ops += wr_ops
         self.total_wr_merged += wr_merged
-        self.total_flush_ops += flush_ops
+        self.total_flush_ops += flush_ops + extra_flush
         self.invalid_rd_ops += invalid_rd_ops
         self.invalid_wr_ops += invalid_wr_ops
         self.failed_rd_ops += failed_rd_ops

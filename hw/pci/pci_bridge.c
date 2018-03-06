@@ -183,7 +183,7 @@ static void pci_bridge_init_vga_aliases(PCIBridge *br, PCIBus *parent,
 static PCIBridgeWindows *pci_bridge_region_init(PCIBridge *br)
 {
     PCIDevice *pd = PCI_DEVICE(br);
-    PCIBus *parent = pd->bus;
+    PCIBus *parent = pci_get_bus(pd);
     PCIBridgeWindows *w = g_new(PCIBridgeWindows, 1);
     uint16_t cmd = pci_get_word(pd->config + PCI_COMMAND);
 
@@ -214,7 +214,7 @@ static PCIBridgeWindows *pci_bridge_region_init(PCIBridge *br)
 static void pci_bridge_region_del(PCIBridge *br, PCIBridgeWindows *w)
 {
     PCIDevice *pd = PCI_DEVICE(br);
-    PCIBus *parent = pd->bus;
+    PCIBus *parent = pci_get_bus(pd);
 
     memory_region_del_subregion(parent->address_space_io, &w->alias_io);
     memory_region_del_subregion(parent->address_space_mem, &w->alias_mem);
@@ -339,7 +339,7 @@ void pci_bridge_reset(DeviceState *qdev)
 /* default qdev initialization function for PCI-to-PCI bridge */
 void pci_bridge_initfn(PCIDevice *dev, const char *typename)
 {
-    PCIBus *parent = dev->bus;
+    PCIBus *parent = pci_get_bus(dev);
     PCIBridge *br = PCI_BRIDGE(dev);
     PCIBus *sec_bus = &br->sec_bus;
 
@@ -379,7 +379,8 @@ void pci_bridge_initfn(PCIDevice *dev, const char *typename)
     sec_bus->address_space_mem = &br->address_space_mem;
     memory_region_init(&br->address_space_mem, OBJECT(br), "pci_bridge_pci", UINT64_MAX);
     sec_bus->address_space_io = &br->address_space_io;
-    memory_region_init(&br->address_space_io, OBJECT(br), "pci_bridge_io", 65536);
+    memory_region_init(&br->address_space_io, OBJECT(br), "pci_bridge_io",
+                       UINT32_MAX);
     br->windows = pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);

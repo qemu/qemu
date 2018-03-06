@@ -79,6 +79,10 @@ static const TypeInfo dec_21154_pci_bridge_info = {
     .parent        = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIBridge),
     .class_init    = dec_21154_pci_bridge_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
@@ -138,6 +142,10 @@ static const TypeInfo dec_21154_pci_host_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = dec_21154_pci_host_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pci_dec_21154_device_class_init(ObjectClass *klass, void *data)

@@ -25,7 +25,6 @@
 
 #include "qemu/osdep.h"
 #include <sys/wait.h>
-/*needed for MAP_POPULATE before including qemu-options.h */
 #include <pwd.h>
 #include <grp.h>
 #include <libgen.h>

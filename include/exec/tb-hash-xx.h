@@ -48,8 +48,8 @@
  * xxhash32, customized for input variables that are not guaranteed to be
  * contiguous in memory.
  */
-static inline
-uint32_t tb_hash_func6(uint64_t a0, uint64_t b0, uint32_t e, uint32_t f)
+static inline uint32_t
+tb_hash_func7(uint64_t a0, uint64_t b0, uint32_t e, uint32_t f, uint32_t g)
 {
     uint32_t v1 = TB_HASH_XX_SEED + PRIME32_1 + PRIME32_2;
     uint32_t v2 = TB_HASH_XX_SEED + PRIME32_2;
@@ -78,12 +78,15 @@ uint32_t tb_hash_func6(uint64_t a0, uint64_t b0, uint32_t e, uint32_t f)
     v4 *= PRIME32_1;
 
     h32 = rol32(v1, 1) + rol32(v2, 7) + rol32(v3, 12) + rol32(v4, 18);
-    h32 += 24;
+    h32 += 28;
 
     h32 += e * PRIME32_3;
     h32  = rol32(h32, 17) * PRIME32_4;
 
     h32 += f * PRIME32_3;
+    h32  = rol32(h32, 17) * PRIME32_4;
+
+    h32 += g * PRIME32_3;
     h32  = rol32(h32, 17) * PRIME32_4;
 
     h32 ^= h32 >> 15;

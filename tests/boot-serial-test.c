@@ -7,19 +7,62 @@
  * or later. See the COPYING file in the top-level directory.
  *
  * This test is used to check that the serial output of the firmware
- * (that we provide for some machines) contains an expected string.
- * Thus we check that the firmware still boots at least to a certain
- * point and so we know that the machine is not completely broken.
+ * (that we provide for some machines) or some small mini-kernels that
+ * we provide here contains an expected string. Thus we check that the
+ * firmware/kernel still boots at least to a certain point and so we
+ * know that the machine is not completely broken.
  */
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+
+static const uint8_t kernel_mcf5208[] = {
+    0x41, 0xf9, 0xfc, 0x06, 0x00, 0x00,     /* lea 0xfc060000,%a0 */
+    0x10, 0x3c, 0x00, 0x54,                 /* move.b #'T',%d0 */
+    0x11, 0x7c, 0x00, 0x04, 0x00, 0x08,     /* move.b #4,8(%a0)     Enable TX */
+    0x11, 0x40, 0x00, 0x0c,                 /* move.b %d0,12(%a0)   Print 'T' */
+    0x60, 0xfa                              /* bra.s  loop */
+};
+
+static const uint8_t kernel_pls3adsp1800[] = {
+    0xb0, 0x00, 0x84, 0x00,                 /* imm   0x8400 */
+    0x30, 0x60, 0x00, 0x04,                 /* addik r3,r0,4 */
+    0x30, 0x80, 0x00, 0x54,                 /* addik r4,r0,'T' */
+    0xf0, 0x83, 0x00, 0x00,                 /* sbi   r4,r3,0 */
+    0xb8, 0x00, 0xff, 0xfc                  /* bri   -4  loop */
+};
+
+static const uint8_t kernel_plml605[] = {
+    0xe0, 0x83, 0x00, 0xb0,                 /* imm   0x83e0 */
+    0x00, 0x10, 0x60, 0x30,                 /* addik r3,r0,0x1000 */
+    0x54, 0x00, 0x80, 0x30,                 /* addik r4,r0,'T' */
+    0x00, 0x00, 0x83, 0xf0,                 /* sbi   r4,r3,0 */
+    0xfc, 0xff, 0x00, 0xb8                  /* bri   -4  loop */
+};
+
+static const uint8_t bios_moxiesim[] = {
+    0x20, 0x10, 0x00, 0x00, 0x03, 0xf8,     /* ldi.s r1,0x3f8 */
+    0x1b, 0x20, 0x00, 0x00, 0x00, 0x54,     /* ldi.b r2,'T' */
+    0x1e, 0x12,                             /* st.b  r1,r2 */
+    0x1a, 0x00, 0x00, 0x00, 0x10, 0x00      /* jmpa  0x1000 */
+};
+
+static const uint8_t bios_raspi2[] = {
+    0x08, 0x30, 0x9f, 0xe5,                 /* ldr   r3,[pc,#8]    Get base */
+    0x54, 0x20, 0xa0, 0xe3,                 /* mov     r2,#'T' */
+    0x00, 0x20, 0xc3, 0xe5,                 /* strb    r2,[r3] */
+    0xfb, 0xff, 0xff, 0xea,                 /* b       loop */
+    0x00, 0x10, 0x20, 0x3f,                 /* 0x3f201000 = UART0 base addr */
+};
 
 typedef struct testdef {
     const char *arch;       /* Target architecture */
     const char *machine;    /* Name of the machine */
     const char *extra;      /* Additional parameters */
     const char *expect;     /* Expected string in the serial output */
+    size_t codesize;        /* Size of the kernel or bios data */
+    const uint8_t *kernel;  /* Set in case we use our own mini kernel */
+    const uint8_t *bios;    /* Set in case we use our own mini bios */
 } testdef_t;
 
 static testdef_t tests[] = {
@@ -29,7 +72,7 @@ static testdef_t tests[] = {
     { "ppc64", "ppce500", "", "U-Boot" },
     { "ppc64", "prep", "", "Open Hack'Ware BIOS" },
     { "ppc64", "pseries", "", "Open Firmware" },
-    { "ppc64", "powernv", "-cpu POWER8", "SkiBoot" },
+    { "ppc64", "powernv", "-cpu POWER8", "OPAL" },
     { "i386", "isapc", "-cpu qemu32 -device sga", "SGABIOS" },
     { "i386", "pc", "-device sga", "SGABIOS" },
     { "i386", "q35", "-device sga", "SGABIOS" },
@@ -37,18 +80,27 @@ static testdef_t tests[] = {
     { "x86_64", "q35", "-device sga", "SGABIOS" },
     { "s390x", "s390-ccw-virtio",
       "-nodefaults -device sclpconsole,chardev=serial0", "virtio device" },
+    { "m68k", "mcf5208evb", "", "TT", sizeof(kernel_mcf5208), kernel_mcf5208 },
+    { "microblaze", "petalogix-s3adsp1800", "", "TT",
+      sizeof(kernel_pls3adsp1800), kernel_pls3adsp1800 },
+    { "microblazeel", "petalogix-ml605", "", "TT",
+      sizeof(kernel_plml605), kernel_plml605 },
+    { "moxie", "moxiesim", "", "TT", sizeof(bios_moxiesim), 0, bios_moxiesim },
+    { "arm", "raspi2", "", "TT", sizeof(bios_raspi2), 0, bios_raspi2 },
+
     { NULL }
 };
 
 static void check_guest_output(const testdef_t *test, int fd)
 {
     bool output_ok = false;
-    int i, nbr, pos = 0;
+    int i, nbr, pos = 0, ccnt;
     char ch;
 
     /* Poll serial output... Wait at most 60 seconds */
     for (i = 0; i < 6000; ++i) {
-        while ((nbr = read(fd, &ch, 1)) == 1) {
+        ccnt = 0;
+        while ((nbr = read(fd, &ch, 1)) == 1 && ccnt++ < 512) {
             if (ch == test->expect[pos]) {
                 pos += 1;
                 if (test->expect[pos] == '\0') {
@@ -71,30 +123,52 @@ done:
 static void test_machine(const void *data)
 {
     const testdef_t *test = data;
-    char *args;
-    char tmpname[] = "/tmp/qtest-boot-serial-XXXXXX";
-    int fd;
+    char serialtmp[] = "/tmp/qtest-boot-serial-sXXXXXX";
+    char codetmp[] = "/tmp/qtest-boot-serial-cXXXXXX";
+    const char *codeparam = "";
+    const uint8_t *code = NULL;
+    int ser_fd;
 
-    fd = mkstemp(tmpname);
-    g_assert(fd != -1);
+    ser_fd = mkstemp(serialtmp);
+    g_assert(ser_fd != -1);
+
+    if (test->kernel) {
+        code = test->kernel;
+        codeparam = "-kernel";
+    } else if (test->bios) {
+        code = test->bios;
+        codeparam = "-bios";
+    }
+
+    if (code) {
+        ssize_t wlen;
+        int code_fd;
+
+        code_fd = mkstemp(codetmp);
+        g_assert(code_fd != -1);
+        wlen = write(code_fd, code, test->codesize);
+        g_assert(wlen == test->codesize);
+        close(code_fd);
+    }
 
     /*
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    args = g_strdup_printf("-M %s,accel=tcg:kvm "
-                           "-chardev file,id=serial0,path=%s "
-                           "-no-shutdown -serial chardev:serial0 %s",
-                           test->machine, tmpname, test->extra);
+    global_qtest = qtest_startf("%s %s -M %s,accel=tcg:kvm "
+                                "-chardev file,id=serial0,path=%s "
+                                "-no-shutdown -serial chardev:serial0 %s",
+                                codeparam, code ? codetmp : "",
+                                test->machine, serialtmp, test->extra);
+    unlink(serialtmp);
+    if (code) {
+        unlink(codetmp);
+    }
 
-    qtest_start(args);
-    unlink(tmpname);
-
-    check_guest_output(test, fd);
+    check_guest_output(test, ser_fd);
     qtest_quit(global_qtest);
 
-    g_free(args);
-    close(fd);
+    close(ser_fd);
 }
 
 int main(int argc, char *argv[])

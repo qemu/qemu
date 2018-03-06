@@ -160,7 +160,6 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
-    Error *err = NULL;
     int ret;
 
     if (!dev->conf.blk) {
@@ -191,16 +190,13 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 
     blkconf_serial(&dev->conf, &dev->serial);
     if (kind != IDE_CD) {
-        blkconf_geometry(&dev->conf, &dev->chs_trans, 65535, 16, 255, &err);
-        if (err) {
-            error_propagate(errp, err);
+        if (!blkconf_geometry(&dev->conf, &dev->chs_trans, 65535, 16, 255,
+                              errp)) {
             return;
         }
     }
-    blkconf_apply_backend_options(&dev->conf, kind == IDE_CD, kind != IDE_CD,
-                                  &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!blkconf_apply_backend_options(&dev->conf, kind == IDE_CD,
+                                       kind != IDE_CD, errp)) {
         return;
     }
 
@@ -299,6 +295,7 @@ static Property ide_hd_properties[] = {
     DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
     DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
                 IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
+    DEFINE_PROP_UINT16("rotation_rate", IDEDrive, dev.rotation_rate, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

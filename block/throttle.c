@@ -197,6 +197,21 @@ static bool throttle_recurse_is_first_non_filter(BlockDriverState *bs,
     return bdrv_recurse_is_first_non_filter(bs->file->bs, candidate);
 }
 
+static void coroutine_fn throttle_co_drain_begin(BlockDriverState *bs)
+{
+    ThrottleGroupMember *tgm = bs->opaque;
+    if (atomic_fetch_inc(&tgm->io_limits_disabled) == 0) {
+        throttle_group_restart_tgm(tgm);
+    }
+}
+
+static void coroutine_fn throttle_co_drain_end(BlockDriverState *bs)
+{
+    ThrottleGroupMember *tgm = bs->opaque;
+    assert(tgm->io_limits_disabled);
+    atomic_dec(&tgm->io_limits_disabled);
+}
+
 static BlockDriver bdrv_throttle = {
     .format_name                        =   "throttle",
     .protocol_name                      =   "throttle",
@@ -225,6 +240,9 @@ static BlockDriver bdrv_throttle = {
     .bdrv_reopen_commit                 =   throttle_reopen_commit,
     .bdrv_reopen_abort                  =   throttle_reopen_abort,
     .bdrv_co_get_block_status           =   bdrv_co_get_block_status_from_file,
+
+    .bdrv_co_drain_begin                =   throttle_co_drain_begin,
+    .bdrv_co_drain_end                  =   throttle_co_drain_end,
 
     .is_filter                          =   true,
 };

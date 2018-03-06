@@ -748,6 +748,13 @@
 # @ac_bookmarks: since 2.10
 # altgr, altgr_r: dropped in 2.10
 #
+# 'sysrq' was mistakenly added to hack around the fact that
+# the ps2 driver was not generating correct scancodes sequences
+# when 'alt+print' was pressed. This flaw is now fixed and the
+# 'sysrq' key serves no further purpose. Any further use of
+# 'sysrq' will be transparently changed to 'print', so they
+# are effectively synonyms.
+#
 # Since: 1.3.0
 #
 ##

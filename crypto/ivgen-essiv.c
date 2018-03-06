@@ -79,7 +79,7 @@ static int qcrypto_ivgen_essiv_calculate(QCryptoIVGen *ivgen,
     uint8_t *data = g_new(uint8_t, ndata);
 
     sector = cpu_to_le64(sector);
-    memcpy(data, (uint8_t *)&sector, ndata);
+    memcpy(data, (uint8_t *)&sector, MIN(sizeof(sector), ndata));
     if (sizeof(sector) < ndata) {
         memset(data + sizeof(sector), 0, ndata - sizeof(sector));
     }

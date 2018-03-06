@@ -96,12 +96,18 @@
 # @colo: VM is in the process of fault tolerance, VM can not get into this
 #        state unless colo capability is enabled for migration. (since 2.8)
 #
+# @pre-switchover: Paused before device serialisation. (since 2.11)
+#
+# @device: During device serialisation when pause-before-switchover is enabled
+#        (since 2.11)
+#
 # Since: 2.3
 #
 ##
 { 'enum': 'MigrationStatus',
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
-            'active', 'postcopy-active', 'completed', 'failed', 'colo' ] }
+            'active', 'postcopy-active', 'completed', 'failed', 'colo',
+            'pre-switchover', 'device' ] }
 
 ##
 # @MigrationInfo:
@@ -150,6 +156,13 @@
 #              @status is 'failed'. Clients should not attempt to parse the
 #              error strings. (Since 2.7)
 #
+# @postcopy-blocktime: total time when all vCPU were blocked during postcopy
+#           live migration (Since 2.12)
+#
+# @postcopy-vcpu-blocktime: list of the postcopy blocktime per vCPU (Since 2.12)
+#
+
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -161,7 +174,9 @@
            '*downtime': 'int',
            '*setup-time': 'int',
            '*cpu-throttle-percentage': 'int',
-           '*error-desc': 'str'} }
+           '*error-desc': 'str',
+           '*postcopy-blocktime' : 'int64',
+           '*postcopy-vcpu-blocktime': ['int64']} }
 
 ##
 # @query-migrate:
@@ -341,14 +356,21 @@
 # @return-path: If enabled, migration will use the return path even
 #               for precopy. (since 2.10)
 #
+# @pause-before-switchover: Pause outgoing migration before serialising device
+#          state and before disabling block IO (since 2.11)
+#
 # @x-multifd: Use more than one fd for migration (since 2.11)
+#
+# @postcopy-blocktime: Calculate downtime for postcopy live migration
+#                     (since 2.12)
 #
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
-           'block', 'return-path', 'x-multifd' ] }
+           'block', 'return-path', 'pause-before-switchover', 'x-multifd',
+           'postcopy-blocktime' ] }
 
 ##
 # @MigrationCapabilityStatus:
@@ -471,8 +493,13 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread
+# @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
+#
+# @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
+#                     needs to be a multiple of the target page size
+#                     and a power of 2
+#                     (Since 2.11)
 #
 # Since: 2.4
 ##
@@ -481,7 +508,8 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
-           'x-multifd-channels', 'x-multifd-page-count' ] }
+           'x-multifd-channels', 'x-multifd-page-count',
+           'xbzrle-cache-size' ] }
 
 ##
 # @MigrateSetParameters:
@@ -542,9 +570,13 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread
+# @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
+# @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
+#                     needs to be a multiple of the target page size
+#                     and a power of 2
+#                     (Since 2.11)
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -562,7 +594,8 @@
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool',
             '*x-multifd-channels': 'int',
-            '*x-multifd-page-count': 'int' } }
+            '*x-multifd-page-count': 'int',
+            '*xbzrle-cache-size': 'size' } }
 
 ##
 # @migrate-set-parameters:
@@ -638,25 +671,30 @@
 #                     number of sockets used for migration.
 #                     The default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread
+# @x-multifd-page-count: Number of pages sent together to a thread.
 #                        The default value is 16 (since 2.11)
 #
+# @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
+#                     needs to be a multiple of the target page size
+#                     and a power of 2
+#                     (Since 2.11)
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
-  'data': { '*compress-level': 'int',
-            '*compress-threads': 'int',
-            '*decompress-threads': 'int',
-            '*cpu-throttle-initial': 'int',
-            '*cpu-throttle-increment': 'int',
+  'data': { '*compress-level': 'uint8',
+            '*compress-threads': 'uint8',
+            '*decompress-threads': 'uint8',
+            '*cpu-throttle-initial': 'uint8',
+            '*cpu-throttle-increment': 'uint8',
             '*tls-creds': 'str',
             '*tls-hostname': 'str',
-            '*max-bandwidth': 'int',
-            '*downtime-limit': 'int',
-            '*x-checkpoint-delay': 'int',
+            '*max-bandwidth': 'size',
+            '*downtime-limit': 'uint64',
+            '*x-checkpoint-delay': 'uint32',
             '*block-incremental': 'bool' ,
-            '*x-multifd-channels': 'int',
-            '*x-multifd-page-count': 'int' } }
+            '*x-multifd-channels': 'uint8',
+            '*x-multifd-page-count': 'uint32',
+            '*xbzrle-cache-size': 'size' } }
 
 ##
 # @query-migrate-parameters:
@@ -868,6 +906,23 @@
 { 'command': 'migrate_cancel' }
 
 ##
+# @migrate-continue:
+#
+# Continue migration when it's in a paused state.
+#
+# @state: The state the migration is currently expected to be in
+#
+# Returns: nothing on success
+# Since: 2.11
+# Example:
+#
+# -> { "execute": "migrate-continue" , "arguments":
+#      { "state": "pre-switchover" } }
+# <- { "return": {} }
+##
+{ 'command': 'migrate-continue', 'data': {'state': 'MigrationStatus'} }
+
+##
 # @migrate_set_downtime:
 #
 # Set maximum tolerated downtime for migration.
@@ -921,6 +976,8 @@
 #
 # Returns: nothing on success
 #
+# Notes: This command is deprecated in favor of 'migrate-set-parameters'
+#
 # Since: 1.2
 #
 # Example:
@@ -938,6 +995,8 @@
 # Query migration XBZRLE cache size
 #
 # Returns: XBZRLE cache size in bytes
+#
+# Notes: This command is deprecated in favor of 'query-migrate-parameters'
 #
 # Since: 1.2
 #
@@ -1029,6 +1088,9 @@
 # data. See xen-save-devices-state.txt for a description of the binary
 # format.
 #
+# @live: Optional argument to ask QEMU to treat this command as part of a live
+# migration. Default to true. (since 2.11)
+#
 # Returns: Nothing on success
 #
 # Since: 1.1
@@ -1040,7 +1102,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
+{ 'command': 'xen-save-devices-state',
+  'data': {'filename': 'str', '*live':'bool' } }
 
 ##
 # @xen-set-replication:

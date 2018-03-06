@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "trace.h"
 #include "nbd-internal.h"
 
 /* Discard length bytes from channel.  Return -errno on failure and 0 on
@@ -147,4 +148,87 @@ const char *nbd_cmd_lookup(uint16_t cmd)
     default:
         return "<unknown>";
     }
+}
+
+
+const char *nbd_reply_type_lookup(uint16_t type)
+{
+    switch (type) {
+    case NBD_REPLY_TYPE_NONE:
+        return "none";
+    case NBD_REPLY_TYPE_OFFSET_DATA:
+        return "data";
+    case NBD_REPLY_TYPE_OFFSET_HOLE:
+        return "hole";
+    case NBD_REPLY_TYPE_ERROR:
+        return "generic error";
+    case NBD_REPLY_TYPE_ERROR_OFFSET:
+        return "error at offset";
+    default:
+        if (type & (1 << 15)) {
+            return "<unknown error>";
+        }
+        return "<unknown>";
+    }
+}
+
+
+const char *nbd_err_lookup(int err)
+{
+    switch (err) {
+    case NBD_SUCCESS:
+        return "success";
+    case NBD_EPERM:
+        return "EPERM";
+    case NBD_EIO:
+        return "EIO";
+    case NBD_ENOMEM:
+        return "ENOMEM";
+    case NBD_EINVAL:
+        return "EINVAL";
+    case NBD_ENOSPC:
+        return "ENOSPC";
+    case NBD_EOVERFLOW:
+        return "EOVERFLOW";
+    case NBD_ESHUTDOWN:
+        return "ESHUTDOWN";
+    default:
+        return "<unknown>";
+    }
+}
+
+
+int nbd_errno_to_system_errno(int err)
+{
+    int ret;
+    switch (err) {
+    case NBD_SUCCESS:
+        ret = 0;
+        break;
+    case NBD_EPERM:
+        ret = EPERM;
+        break;
+    case NBD_EIO:
+        ret = EIO;
+        break;
+    case NBD_ENOMEM:
+        ret = ENOMEM;
+        break;
+    case NBD_ENOSPC:
+        ret = ENOSPC;
+        break;
+    case NBD_EOVERFLOW:
+        ret = EOVERFLOW;
+        break;
+    case NBD_ESHUTDOWN:
+        ret = ESHUTDOWN;
+        break;
+    default:
+        trace_nbd_unknown_error(err);
+        /* fallthrough */
+    case NBD_EINVAL:
+        ret = EINVAL;
+        break;
+    }
+    return ret;
 }

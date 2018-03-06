@@ -73,7 +73,7 @@ void xen_pt_log(const PCIDevice *d, const char *f, ...)
 
     va_start(ap, f);
     if (d) {
-        fprintf(stderr, "[%02x:%02x.%d] ", pci_bus_num(d->bus),
+        fprintf(stderr, "[%02x:%02x.%d] ", pci_dev_bus_num(d),
                 PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
     }
     vfprintf(stderr, f, ap);
@@ -602,7 +602,7 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     }
 
     args.type = d->io_regions[bar].type;
-    pci_for_each_device(d->bus, pci_bus_num(d->bus),
+    pci_for_each_device(pci_get_bus(d), pci_dev_bus_num(d),
                         xen_pt_check_bar_overlap, &args);
     if (args.rc) {
         XEN_PT_WARN(d, "Region: %d (addr: %#"FMT_PCIBUS
@@ -695,7 +695,7 @@ xen_igd_passthrough_isa_bridge_create(XenPCIPassthroughState *s,
     PCIDevice *d = &s->dev;
 
     gpu_dev_id = dev->device_id;
-    igd_passthrough_isa_bridge_create(d->bus, gpu_dev_id);
+    igd_passthrough_isa_bridge_create(pci_get_bus(d), gpu_dev_id);
 }
 
 /* destroy. */
@@ -711,7 +711,7 @@ static void xen_pt_destroy(PCIDevice *d) {
         intx = xen_pt_pci_intx(s);
         rc = xc_domain_unbind_pt_irq(xen_xc, xen_domid, machine_irq,
                                      PT_IRQ_TYPE_PCI,
-                                     pci_bus_num(d->bus),
+                                     pci_dev_bus_num(d),
                                      PCI_SLOT(s->dev.devfn),
                                      intx,
                                      0 /* isa_irq */);
@@ -867,7 +867,7 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
         uint8_t e_intx = xen_pt_pci_intx(s);
 
         rc = xc_domain_bind_pt_pci_irq(xen_xc, xen_domid, machine_irq,
-                                       pci_bus_num(d->bus),
+                                       pci_dev_bus_num(d),
                                        PCI_SLOT(d->devfn),
                                        e_intx);
         if (rc < 0) {
@@ -946,6 +946,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
     k->exit = xen_pt_unregister_device;
     k->config_read = xen_pt_pci_read_config;
     k->config_write = xen_pt_pci_write_config;
+    k->is_express = 1; /* We might be */
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "Assign an host PCI device with Xen";
     dc->props = xen_pci_passthrough_properties;
@@ -964,6 +965,11 @@ static const TypeInfo xen_pci_passthrough_info = {
     .instance_size = sizeof(XenPCIPassthroughState),
     .instance_finalize = xen_pci_passthrough_finalize,
     .class_init = xen_pci_passthrough_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { INTERFACE_PCIE_DEVICE },
+        { },
+    },
 };
 
 static void xen_pci_passthrough_register_types(void)

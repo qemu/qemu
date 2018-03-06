@@ -22,7 +22,7 @@ QEMU_PROG_BUILD = $(QEMU_PROG)
 else
 # system emulator name
 QEMU_PROG=qemu-system-$(TARGET_NAME)$(EXESUF)
-ifneq (,$(findstring -mwindows,$(libs_softmmu)))
+ifneq (,$(findstring -mwindows,$(SDL_LIBS)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
 QEMU_PROGW=qemu-system-$(TARGET_NAME)w$(EXESUF)
 $(QEMU_PROG): $(QEMU_PROGW)
@@ -101,12 +101,6 @@ obj-y += fpu/softfloat.o
 obj-y += target/$(TARGET_BASE_ARCH)/
 obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
-
-obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decContext.o
-obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/decNumber.o
-obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal32.o
-obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal64.o
-obj-$(CONFIG_LIBDECNUMBER) += libdecnumber/dpd/decimal128.o
 
 #########################################################
 # Linux user emulator target

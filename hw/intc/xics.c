@@ -40,11 +40,17 @@
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
+    ICPStateClass *icpc = ICP_GET_CLASS(icp);
     int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
 
     if (!icp->output) {
         return;
     }
+
+    if (icpc->synchronize_state) {
+        icpc->synchronize_state(icp);
+    }
+
     monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
                    cpu_index, icp->xirr, icp->xirr_owner,
                    icp->pending_priority, icp->mfrr);
@@ -52,6 +58,7 @@ void icp_pic_print_info(ICPState *icp, Monitor *mon)
 
 void ics_pic_print_info(ICSState *ics, Monitor *mon)
 {
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
     uint32_t i;
 
     monitor_printf(mon, "ICS %4x..%4x %p\n",
@@ -59,6 +66,10 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
 
     if (!ics->irqs) {
         return;
+    }
+
+    if (icsc->synchronize_state) {
+        icsc->synchronize_state(ics);
     }
 
     for (i = 0; i < ics->nr_irqs; i++) {
@@ -323,7 +334,6 @@ static void icp_realize(DeviceState *dev, Error **errp)
     }
 
     cpu = POWERPC_CPU(obj);
-    cpu->intc = OBJECT(icp);
     icp->cs = CPU(obj);
 
     env = &cpu->env;
@@ -372,6 +382,27 @@ static const TypeInfo icp_info = {
     .class_init = icp_class_init,
     .class_size = sizeof(ICPStateClass),
 };
+
+Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_new(type);
+    object_property_add_child(cpu, type, obj, &error_abort);
+    object_unref(obj);
+    object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
+                                   &error_abort);
+    object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        object_unparent(obj);
+        error_propagate(errp, local_err);
+        obj = NULL;
+    }
+
+    return obj;
+}
 
 /*
  * ICS: Source layer
@@ -682,18 +713,6 @@ static const TypeInfo xics_fabric_info = {
 /*
  * Exported functions
  */
-qemu_irq xics_get_qirq(XICSFabric *xi, int irq)
-{
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
-    ICSState *ics = xic->ics_get(xi, irq);
-
-    if (ics) {
-        return ics->qirqs[irq - ics->offset];
-    }
-
-    return NULL;
-}
-
 ICPState *xics_icp_get(XICSFabric *xi, int server)
 {
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);

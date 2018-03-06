@@ -1,6 +1,13 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
+#define HW_COMPAT_2_11 \
+    {\
+        .driver   = "hpet",\
+        .property = "hpet-offset-saved",\
+        .value    = "false",\
+    },
+
 #define HW_COMPAT_2_10 \
     {\
         .driver   = "virtio-mouse-device",\

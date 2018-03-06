@@ -27,3 +27,32 @@ void qobject_destroy(QObject *obj)
     assert(QTYPE_QNULL < obj->type && obj->type < QTYPE__MAX);
     qdestroy[obj->type](obj);
 }
+
+
+static bool (*qis_equal[QTYPE__MAX])(const QObject *, const QObject *) = {
+    [QTYPE_NONE] = NULL,               /* No such object exists */
+    [QTYPE_QNULL] = qnull_is_equal,
+    [QTYPE_QNUM] = qnum_is_equal,
+    [QTYPE_QSTRING] = qstring_is_equal,
+    [QTYPE_QDICT] = qdict_is_equal,
+    [QTYPE_QLIST] = qlist_is_equal,
+    [QTYPE_QBOOL] = qbool_is_equal,
+};
+
+bool qobject_is_equal(const QObject *x, const QObject *y)
+{
+    /* We cannot test x == y because an object does not need to be
+     * equal to itself (e.g. NaN floats are not). */
+
+    if (!x && !y) {
+        return true;
+    }
+
+    if (!x || !y || x->type != y->type) {
+        return false;
+    }
+
+    assert(QTYPE_NONE < x->type && x->type < QTYPE__MAX);
+
+    return qis_equal[x->type](x, y);
+}

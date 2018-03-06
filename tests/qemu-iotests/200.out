@@ -1,0 +1,14 @@
+QA output created by 200
+Formatting 'TEST_DIR/backing.img', fmt=IMGFMT size=536870912
+Formatting 'TEST_DIR/test.img', fmt=IMGFMT size=536870912 backing_file=TEST_DIR/backing.img backing_fmt=IMGFMT
+wrote 314572800/314572800 bytes at offset 512
+300 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Starting QEMU VM ===
+
+{"return": {}}
+
+=== Sending stream/cancel, checking for SIGSEGV only ===
+
+500 iterations performed
+*** done

@@ -314,7 +314,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
             return;
         }
 
-        spapr_ics_free(spapr->ics, msi->first_irq, msi->num);
+        spapr_irq_free(spapr, msi->first_irq, msi->num);
         if (msi_present(pdev)) {
             spapr_msi_setmsg(pdev, 0, false, 0, 0);
         }
@@ -352,7 +352,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     /* Allocate MSIs */
-    irq = spapr_ics_alloc_block(spapr->ics, req_num, false,
+    irq = spapr_irq_alloc_block(spapr, req_num, false,
                            ret_intr_type == RTAS_TYPE_MSI, &err);
     if (err) {
         error_reportf_err(err, "Can't allocate MSIs for device %x: ",
@@ -363,7 +363,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     /* Release previous MSIs */
     if (msi) {
-        spapr_ics_free(spapr->ics, msi->first_irq, msi->num);
+        spapr_irq_free(spapr, msi->first_irq, msi->num);
         g_hash_table_remove(phb->msi, &config_addr);
     }
 
@@ -505,7 +505,7 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
             goto param_error_exit;
         }
 
-        rtas_st(rets, 1, (pci_bus_num(pdev->bus) << 16) + 1);
+        rtas_st(rets, 1, (pci_bus_num(pci_get_bus(pdev)) << 16) + 1);
         break;
     case RTAS_GET_PE_MODE:
         rtas_st(rets, 1, RTAS_PE_MODE_SHARED);
@@ -723,7 +723,7 @@ static void spapr_msi_write(void *opaque, hwaddr addr,
 
     trace_spapr_pci_msi_write(addr, data, irq);
 
-    qemu_irq_pulse(xics_get_qirq(XICS_FABRIC(spapr), irq));
+    qemu_irq_pulse(spapr_qirq(spapr, irq));
 }
 
 static const MemoryRegionOps spapr_msi_ops = {
@@ -1507,7 +1507,12 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
 
 static void spapr_phb_realize(DeviceState *dev, Error **errp)
 {
-    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    /* We don't use SPAPR_MACHINE() in order to exit gracefully if the user
+     * tries to add a sPAPR PHB to a non-pseries machine.
+     */
+    sPAPRMachineState *spapr =
+        (sPAPRMachineState *) object_dynamic_cast(qdev_get_machine(),
+                                                  TYPE_SPAPR_MACHINE);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
@@ -1518,6 +1523,11 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     sPAPRTCETable *tcet;
     const unsigned windows_supported =
         sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
+
+    if (!spapr) {
+        error_setg(errp, TYPE_SPAPR_PCI_HOST_BRIDGE " needs a pseries machine");
+        return;
+    }
 
     if (sphb->index != (uint32_t)-1) {
         sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
@@ -1611,10 +1621,10 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
 
-    bus = pci_register_bus(dev, NULL,
-                           pci_spapr_set_irq, pci_spapr_map_irq, sphb,
-                           &sphb->memspace, &sphb->iospace,
-                           PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
+    bus = pci_register_root_bus(dev, NULL,
+                                pci_spapr_set_irq, pci_spapr_map_irq, sphb,
+                                &sphb->memspace, &sphb->iospace,
+                                PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
     phb->bus = bus;
     qbus_set_hotplug_handler(BUS(phb->bus), DEVICE(sphb), NULL);
 
@@ -1665,7 +1675,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         uint32_t irq;
         Error *local_err = NULL;
 
-        irq = spapr_ics_alloc_block(spapr->ics, 1, true, false, &local_err);
+        irq = spapr_irq_alloc_block(spapr, 1, true, false, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             error_prepend(errp, "can't allocate LSIs: ");
@@ -1686,9 +1696,9 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     /* DMA setup */
     if (((sphb->page_size_mask & qemu_getrampagesize()) == 0)
         && kvm_enabled()) {
-        error_report("System page size 0x%lx is not enabled in page_size_mask "
-                     "(0x%"PRIx64"). Performance may be slow",
-                     qemu_getrampagesize(), sphb->page_size_mask);
+        warn_report("System page size 0x%lx is not enabled in page_size_mask "
+                    "(0x%"PRIx64"). Performance may be slow",
+                    qemu_getrampagesize(), sphb->page_size_mask);
     }
 
     for (i = 0; i < windows_supported; ++i) {
@@ -2111,8 +2121,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
             irqmap[2] = 0;
             irqmap[3] = cpu_to_be32(j+1);
             irqmap[4] = cpu_to_be32(xics_phandle);
-            irqmap[5] = cpu_to_be32(phb->lsi_table[lsi_num].irq);
-            irqmap[6] = cpu_to_be32(0x8);
+            spapr_dt_xics_irq(&irqmap[5], phb->lsi_table[lsi_num].irq, true);
         }
     }
     /* Write interrupt map */

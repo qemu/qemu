@@ -51,6 +51,31 @@ typedef enum {
 } sPAPRResizeHPT;
 
 /**
+ * Capabilities
+ */
+
+/* Hardware Transactional Memory */
+#define SPAPR_CAP_HTM                   0x00
+/* Vector Scalar Extensions */
+#define SPAPR_CAP_VSX                   0x01
+/* Decimal Floating Point */
+#define SPAPR_CAP_DFP                   0x02
+/* Num Caps */
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_DFP + 1)
+
+/*
+ * Capability Values
+ */
+/* Bool Caps */
+#define SPAPR_CAP_OFF                   0x00
+#define SPAPR_CAP_ON                    0x01
+
+typedef struct sPAPRCapabilities sPAPRCapabilities;
+struct sPAPRCapabilities {
+    uint8_t caps[SPAPR_CAP_NUM];
+};
+
+/**
  * sPAPRMachineClass:
  */
 struct sPAPRMachineClass {
@@ -60,13 +85,13 @@ struct sPAPRMachineClass {
     /*< public >*/
     bool dr_lmb_enabled;       /* enable dynamic-reconfig/hotplug of LMBs */
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
-    const char *tcg_default_cpu; /* which (TCG) CPU to simulate by default */
     bool pre_2_10_has_unused_icps;
     void (*phb_placement)(sPAPRMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
                           hwaddr *mmio32, hwaddr *mmio64,
                           unsigned n_dma, uint32_t *liobns, Error **errp);
     sPAPRResizeHPT resize_hpt_default;
+    sPAPRCapabilities default_caps;
 };
 
 /**
@@ -128,6 +153,9 @@ struct sPAPRMachineState {
     MemoryHotplugState hotplug_memory;
 
     const char *icp_type;
+
+    bool cmd_line_caps[SPAPR_CAP_NUM];
+    sPAPRCapabilities def, eff, mig;
 };
 
 #define H_SUCCESS         0
@@ -591,6 +619,16 @@ void spapr_load_rtas(sPAPRMachineState *spapr, void *fdt, hwaddr addr);
 
 #define RTAS_EVENT_SCAN_RATE    1
 
+/* This helper should be used to encode interrupt specifiers when the related
+ * "interrupt-controller" node has its "#interrupt-cells" property set to 2 (ie,
+ * VIO devices, RTAS event sources and PHBs).
+ */
+static inline void spapr_dt_xics_irq(uint32_t *intspec, int irq, bool is_lsi)
+{
+    intspec[0] = cpu_to_be32(irq);
+    intspec[1] = is_lsi ? cpu_to_be32(1) : 0;
+}
+
 typedef struct sPAPRTCETable sPAPRTCETable;
 
 #define TYPE_SPAPR_TCE_TABLE "spapr-tce-table"
@@ -659,7 +697,6 @@ void spapr_hotplug_req_add_by_count_indexed(sPAPRDRConnectorType drc_type,
                                             uint32_t count, uint32_t index);
 void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
                                                uint32_t count, uint32_t index);
-void spapr_cpu_parse_features(sPAPRMachineState *spapr);
 int spapr_hpt_shift_for_ramsize(uint64_t ramsize);
 void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
                           Error **errp);
@@ -708,5 +745,32 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 
 int spapr_vcpu_id(PowerPCCPU *cpu);
 PowerPCCPU *spapr_find_cpu(int vcpu_id);
+
+int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
+                    Error **errp);
+int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
+                          bool align, Error **errp);
+void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
+qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq);
+
+
+int spapr_caps_pre_load(void *opaque);
+int spapr_caps_pre_save(void *opaque);
+
+/*
+ * Handling of optional capabilities
+ */
+extern const VMStateDescription vmstate_spapr_cap_htm;
+extern const VMStateDescription vmstate_spapr_cap_vsx;
+extern const VMStateDescription vmstate_spapr_cap_dfp;
+
+static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
+{
+    return spapr->eff.caps[cap];
+}
+
+void spapr_caps_reset(sPAPRMachineState *spapr);
+void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp);
+int spapr_caps_post_migration(sPAPRMachineState *spapr);
 
 #endif /* HW_SPAPR_H */

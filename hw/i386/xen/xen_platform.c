@@ -26,7 +26,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "hw/ide.h"
 #include "hw/pci/pci.h"
 #include "hw/irq.h"
@@ -186,11 +185,11 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
         if (val & (UNPLUG_IDE_SCSI_DISKS | UNPLUG_AUX_IDE_DISKS |
                    UNPLUG_NVME_DISKS)) {
             DPRINTF("unplug disks\n");
-            pci_unplug_disks(pci_dev->bus, val);
+            pci_unplug_disks(pci_get_bus(pci_dev), val);
         }
         if (val & UNPLUG_ALL_NICS) {
             DPRINTF("unplug nics\n");
-            pci_unplug_nics(pci_dev->bus);
+            pci_unplug_nics(pci_get_bus(pci_dev));
         }
         break;
     }
@@ -372,17 +371,17 @@ static void xen_platform_ioport_writeb(void *opaque, hwaddr addr,
              * If VMDP was to control both disk and LAN it would use 4.
              * If it controlled just disk or just LAN, it would use 8 below.
              */
-            pci_unplug_disks(pci_dev->bus, UNPLUG_IDE_SCSI_DISKS);
-            pci_unplug_nics(pci_dev->bus);
+            pci_unplug_disks(pci_get_bus(pci_dev), UNPLUG_IDE_SCSI_DISKS);
+            pci_unplug_nics(pci_get_bus(pci_dev));
         }
         break;
     case 8:
         switch (val) {
         case 1:
-            pci_unplug_disks(pci_dev->bus, UNPLUG_IDE_SCSI_DISKS);
+            pci_unplug_disks(pci_get_bus(pci_dev), UNPLUG_IDE_SCSI_DISKS);
             break;
         case 2:
-            pci_unplug_nics(pci_dev->bus);
+            pci_unplug_nics(pci_get_bus(pci_dev));
             break;
         default:
             log_writeb(s, (uint32_t)val);
@@ -517,6 +516,10 @@ static const TypeInfo xen_platform_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIXenPlatformState),
     .class_init    = xen_platform_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void xen_platform_register_types(void)

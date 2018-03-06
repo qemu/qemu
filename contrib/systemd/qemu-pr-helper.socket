@@ -1,0 +1,9 @@
+[Unit]
+Description=Persistent Reservation Daemon for QEMU
+
+[Socket]
+ListenStream=/run/qemu-pr-helper.sock
+SocketMode=0600
+
+[Install]
+WantedBy=multi-user.target

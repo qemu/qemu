@@ -108,11 +108,8 @@ static void ppc_heathrow_init(MachineState *machine)
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
-    if (machine->cpu_model == NULL)
-        machine->cpu_model = "G3";
     for (i = 0; i < smp_cpus; i++) {
-        cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU,
-                                           machine->cpu_model));
+        cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
         env = &cpu->env;
 
         /* Set time-base frequency to 16.6 Mhz */
@@ -285,6 +282,9 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE-0 DMA */
     qdev_connect_gpio_out(dev, 3, pic[0x0E]); /* IDE-1 */
     qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE-1 DMA */
+    qdev_connect_gpio_out(dev, 5, pic[0x11]); /* Screamer */
+    qdev_connect_gpio_out(dev, 6, pic[0x08]); /* Screamer TX DMA */
+    qdev_connect_gpio_out(dev, 7, pic[0x09]); /* Screamer RX DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     macio_init(macio, pic_mem, escc_bar);
 
@@ -385,6 +385,7 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
     /* TOFIX "cad" when Mac floppy is implemented */
     mc->default_boot_order = "cd";
     mc->kvm_type = heathrow_kvm_type;
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750_v3.1");
 }
 
 static const TypeInfo ppc_heathrow_machine_info = {

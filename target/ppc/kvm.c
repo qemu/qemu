@@ -47,9 +47,6 @@
 #include "sysemu/hostmem.h"
 #include "qemu/cutils.h"
 #include "qemu/mmap-alloc.h"
-#if defined(TARGET_PPC64)
-#include "hw/ppc/spapr_cpu_core.h"
-#endif
 #include "elf.h"
 #include "sysemu/kvm_int.h"
 
@@ -123,7 +120,7 @@ static bool kvmppc_is_pr(KVMState *ks)
     return kvm_vm_check_extension(ks, KVM_CAP_PPC_GET_PVINFO) != 0;
 }
 
-static int kvm_ppc_register_host_cpu_type(void);
+static int kvm_ppc_register_host_cpu_type(MachineState *ms);
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
@@ -163,7 +160,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
                         "VM to stall at times!\n");
     }
 
-    kvm_ppc_register_host_cpu_type();
+    kvm_ppc_register_host_cpu_type(ms);
 
     return 0;
 }
@@ -2014,16 +2011,6 @@ uint64_t kvmppc_get_clockfreq(void)
     return kvmppc_read_int_cpu_dt("clock-frequency");
 }
 
-uint32_t kvmppc_get_vmx(void)
-{
-    return kvmppc_read_int_cpu_dt("ibm,vmx");
-}
-
-uint32_t kvmppc_get_dfp(void)
-{
-    return kvmppc_read_int_cpu_dt("ibm,dfp");
-}
-
 static int kvmppc_get_pvinfo(CPUPPCState *env, struct kvm_ppc_pvinfo *pvinfo)
  {
      PowerPCCPU *cpu = ppc_env_get_cpu(env);
@@ -2407,23 +2394,18 @@ static void alter_insns(uint64_t *word, uint64_t flags, bool on)
 static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-    uint32_t vmx = kvmppc_get_vmx();
-    uint32_t dfp = kvmppc_get_dfp();
     uint32_t dcache_size = kvmppc_read_int_cpu_dt("d-cache-size");
     uint32_t icache_size = kvmppc_read_int_cpu_dt("i-cache-size");
 
     /* Now fix up the class with information we can query from the host */
     pcc->pvr = mfpvr();
 
-    if (vmx != -1) {
-        /* Only override when we know what the host supports */
-        alter_insns(&pcc->insns_flags, PPC_ALTIVEC, vmx > 0);
-        alter_insns(&pcc->insns_flags2, PPC2_VSX, vmx > 1);
-    }
-    if (dfp != -1) {
-        /* Only override when we know what the host supports */
-        alter_insns(&pcc->insns_flags2, PPC2_DFP, dfp);
-    }
+    alter_insns(&pcc->insns_flags, PPC_ALTIVEC,
+                qemu_getauxval(AT_HWCAP) & PPC_FEATURE_HAS_ALTIVEC);
+    alter_insns(&pcc->insns_flags2, PPC2_VSX,
+                qemu_getauxval(AT_HWCAP) & PPC_FEATURE_HAS_VSX);
+    alter_insns(&pcc->insns_flags2, PPC2_DFP,
+                qemu_getauxval(AT_HWCAP) & PPC_FEATURE_HAS_DFP);
 
     if (dcache_size != -1) {
         pcc->l1_dcache_size = dcache_size;
@@ -2487,12 +2469,13 @@ PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
     return pvr_pcc;
 }
 
-static int kvm_ppc_register_host_cpu_type(void)
+static int kvm_ppc_register_host_cpu_type(MachineState *ms)
 {
     TypeInfo type_info = {
         .name = TYPE_HOST_POWERPC_CPU,
         .class_init = kvmppc_host_cpu_class_init,
     };
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     PowerPCCPUClass *pvr_pcc;
     ObjectClass *oc;
     DeviceClass *dc;
@@ -2504,20 +2487,13 @@ static int kvm_ppc_register_host_cpu_type(void)
     }
     type_info.parent = object_class_get_name(OBJECT_CLASS(pvr_pcc));
     type_register(&type_info);
+    if (object_dynamic_cast(OBJECT(ms), TYPE_SPAPR_MACHINE)) {
+        /* override TCG default cpu type with 'host' cpu model */
+        mc->default_cpu_type = TYPE_HOST_POWERPC_CPU;
+    }
 
     oc = object_class_by_name(type_info.name);
     g_assert(oc);
-
-#if defined(TARGET_PPC64)
-    type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, "host");
-    type_info.parent = TYPE_SPAPR_CPU_CORE,
-    type_info.instance_size = sizeof(sPAPRCPUCore);
-    type_info.instance_init = NULL;
-    type_info.class_init = spapr_cpu_core_class_init;
-    type_info.class_data = (void *) "host";
-    type_register(&type_info);
-    g_free((void *)type_info.name);
-#endif
 
     /*
      * Update generic CPU family class alias (e.g. on a POWER8NVL host,
@@ -2676,21 +2652,24 @@ void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n)
 
         hdr = (struct kvm_get_htab_header *)buf;
         while ((i < n) && ((char *)hdr < (buf + rc))) {
-            int invalid = hdr->n_invalid;
+            int invalid = hdr->n_invalid, valid = hdr->n_valid;
 
             if (hdr->index != (ptex + i)) {
                 hw_error("kvmppc_read_hptes: Unexpected HPTE index %"PRIu32
                          " != (%"HWADDR_PRIu" + %d", hdr->index, ptex, i);
             }
 
-            memcpy(hptes + i, hdr + 1, HASH_PTE_SIZE_64 * hdr->n_valid);
-            i += hdr->n_valid;
+            if (n - i < valid) {
+                valid = n - i;
+            }
+            memcpy(hptes + i, hdr + 1, HASH_PTE_SIZE_64 * valid);
+            i += valid;
 
             if ((n - i) < invalid) {
                 invalid = n - i;
             }
             memset(hptes + i, 0, invalid * HASH_PTE_SIZE_64);
-            i += hdr->n_invalid;
+            i += invalid;
 
             hdr = (struct kvm_get_htab_header *)
                 ((char *)(hdr + 1) + HASH_PTE_SIZE_64 * hdr->n_valid);

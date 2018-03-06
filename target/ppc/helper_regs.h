@@ -20,6 +20,8 @@
 #ifndef HELPER_REGS_H
 #define HELPER_REGS_H
 
+#include "qemu/main-loop.h"
+
 /* Swap temporary saved registers with GPRs */
 static inline void hreg_swap_gpr_tgpr(CPUPPCState *env)
 {
@@ -96,6 +98,17 @@ static inline void hreg_compute_hflags(CPUPPCState *env)
     env->hflags |= env->hflags_nmsr;
 }
 
+static inline void cpu_interrupt_exittb(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        qemu_mutex_lock_iothread();
+        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+        qemu_mutex_unlock_iothread();
+    } else {
+        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+    }
+}
+
 static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
                                  int alter_hv)
 {
@@ -114,11 +127,11 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
     }
     if (((value >> MSR_IR) & 1) != msr_ir ||
         ((value >> MSR_DR) & 1) != msr_dr) {
-        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        cpu_interrupt_exittb(cs);
     }
     if ((env->mmu_model & POWERPC_MMU_BOOKE) &&
         ((value >> MSR_GS) & 1) != msr_gs) {
-        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        cpu_interrupt_exittb(cs);
     }
     if (unlikely((env->flags & POWERPC_FLAG_TGPR) &&
                  ((value ^ env->msr) & (1 << MSR_TGPR)))) {

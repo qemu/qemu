@@ -79,8 +79,8 @@ static void test_fw_cfg_numa(void)
 
     g_assert_cmpint(qfw_cfg_get_u64(fw_cfg, FW_CFG_NUMA), ==, nb_nodes);
 
-    cpu_mask = g_malloc0(sizeof(uint64_t) * max_cpus);
-    node_mask = g_malloc0(sizeof(uint64_t) * nb_nodes);
+    cpu_mask = g_new0(uint64_t, max_cpus);
+    node_mask = g_new0(uint64_t, nb_nodes);
 
     qfw_cfg_read_data(fw_cfg, cpu_mask, sizeof(uint64_t) * max_cpus);
     qfw_cfg_read_data(fw_cfg, node_mask, sizeof(uint64_t) * nb_nodes);

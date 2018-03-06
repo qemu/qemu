@@ -28,7 +28,6 @@
 static void an5206_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     M68kCPU *cpu;
     CPUM68KState *env;
@@ -39,10 +38,7 @@ static void an5206_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
-    if (!cpu_model) {
-        cpu_model = "m5206";
-    }
-    cpu = M68K_CPU(cpu_generic_init(TYPE_M68K_CPU, cpu_model));
+    cpu = M68K_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     /* Initialize CPU registers.  */
@@ -66,7 +62,7 @@ static void an5206_init(MachineState *machine)
         if (qtest_enabled()) {
             return;
         }
-        fprintf(stderr, "Kernel image must be specified\n");
+        error_report("Kernel image must be specified");
         exit(1);
     }
 
@@ -83,7 +79,7 @@ static void an5206_init(MachineState *machine)
         entry = KERNEL_LOAD_ADDR;
     }
     if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+        error_report("Could not load kernel '%s'", kernel_filename);
         exit(1);
     }
 
@@ -94,6 +90,7 @@ static void an5206_machine_init(MachineClass *mc)
 {
     mc->desc = "Arnewsh 5206";
     mc->init = an5206_init;
+    mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5206");
 }
 
 DEFINE_MACHINE("an5206", an5206_machine_init)

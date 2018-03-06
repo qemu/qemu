@@ -1,7 +1,7 @@
 /*
  * QEMU Baum Braille Device
  *
- * Copyright (c) 2008, 2010-2011, 2016 Samuel Thibault
+ * Copyright (c) 2008, 2010-2011, 2016-2017 Samuel Thibault
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -238,6 +238,12 @@ static int baum_deferred_init(BaumChardev *baum)
     if (brlapi__getDisplaySize(baum->brlapi, &baum->x, &baum->y) == -1) {
         brlapi_perror("baum: brlapi__getDisplaySize");
         return 0;
+    }
+    if (baum->y > 1) {
+        baum->y = 1;
+    }
+    if (baum->x > 84) {
+        baum->x = 84;
     }
 
     con = qemu_console_lookup_by_index(0);

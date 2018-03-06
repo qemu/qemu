@@ -8,9 +8,9 @@ in PCI Express based machines and explains the reasoning behind them.
 
 The following presentations accompany this document:
  (1) Q35 overview.
-     http://wiki.qemu.org/images/4/4e/Q35.pdf
+     https://wiki.qemu.org/images/4/4e/Q35.pdf
  (2) A comparison between PCI and PCI Express technologies.
-     http://wiki.qemu.org/images/f/f6/PCIvsPCIe.pdf
+     https://wiki.qemu.org/images/f/f6/PCIvsPCIe.pdf
 
 Note: The usage examples are not intended to replace the full
 documentation, please use QEMU help to retrieve all options.

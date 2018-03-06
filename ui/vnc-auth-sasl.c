@@ -48,9 +48,9 @@ void vnc_sasl_client_cleanup(VncState *vs)
 }
 
 
-long vnc_client_write_sasl(VncState *vs)
+size_t vnc_client_write_sasl(VncState *vs)
 {
-    long ret;
+    size_t ret;
 
     VNC_DEBUG("Write SASL: Pending output %p size %zd offset %zd "
               "Encoded: %p size %d offset %d\n",
@@ -67,6 +67,7 @@ long vnc_client_write_sasl(VncState *vs)
         if (err != SASL_OK)
             return vnc_client_io_error(vs, -1, NULL);
 
+        vs->sasl.encodedRawLength = vs->output.offset;
         vs->sasl.encodedOffset = 0;
     }
 
@@ -78,7 +79,12 @@ long vnc_client_write_sasl(VncState *vs)
 
     vs->sasl.encodedOffset += ret;
     if (vs->sasl.encodedOffset == vs->sasl.encodedLength) {
-        vs->output.offset = 0;
+        if (vs->sasl.encodedRawLength >= vs->force_update_offset) {
+            vs->force_update_offset = 0;
+        } else {
+            vs->force_update_offset -= vs->sasl.encodedRawLength;
+        }
+        vs->output.offset -= vs->sasl.encodedRawLength;
         vs->sasl.encoded = NULL;
         vs->sasl.encodedOffset = vs->sasl.encodedLength = 0;
     }
@@ -100,9 +106,9 @@ long vnc_client_write_sasl(VncState *vs)
 }
 
 
-long vnc_client_read_sasl(VncState *vs)
+size_t vnc_client_read_sasl(VncState *vs)
 {
-    long ret;
+    size_t ret;
     uint8_t encoded[4096];
     const char *decoded;
     unsigned int decodedLen;

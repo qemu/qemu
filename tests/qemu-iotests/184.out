@@ -32,7 +32,7 @@ Testing:
                 "filename": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"driver\": \"qcow2\", \"file\": {\"driver\": \"file\", \"filename\": \"TEST_DIR/t.qcow2\"}}}",
                 "cluster-size": 65536,
                 "format": "throttle",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -62,7 +62,7 @@ Testing:
                 "filename": "TEST_DIR/t.qcow2",
                 "cluster-size": 65536,
                 "format": "qcow2",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "format-specific": {
                     "type": "qcow2",
                     "data": {
@@ -100,7 +100,7 @@ Testing:
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.qcow2",
                 "format": "file",
-                "actual-size": 200704,
+                "actual-size": SIZE,
                 "dirty-flag": false
             },
             "iops_wr": 0,

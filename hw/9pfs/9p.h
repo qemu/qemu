@@ -94,10 +94,10 @@ enum {
     P9_QTFILE = 0x00,
 };
 
-enum p9_proto_version {
+typedef enum P9ProtoVersion {
     V9FS_PROTO_2000U = 0x01,
     V9FS_PROTO_2000L = 0x02,
-};
+} P9ProtoVersion;
 
 #define P9_NOTAG    UINT16_MAX
 #define P9_NOFID    UINT32_MAX
@@ -117,7 +117,8 @@ static inline char *rpath(FsContext *ctx, const char *path)
 #define P9_IOHDRSZ 24
 
 typedef struct V9fsPDU V9fsPDU;
-struct V9fsState;
+typedef struct V9fsState V9fsState;
+typedef struct V9fsTransport V9fsTransport;
 
 typedef struct {
     uint32_t size_le;
@@ -137,7 +138,7 @@ struct V9fsPDU
     uint8_t id;
     uint8_t cancelled;
     CoQueue complete;
-    struct V9fsState *s;
+    V9fsState *s;
     QLIST_ENTRY(V9fsPDU) next;
     uint32_t idx;
 };
@@ -230,7 +231,7 @@ struct V9fsFidState
     V9fsFidState *rclm_lst;
 };
 
-typedef struct V9fsState
+struct V9fsState
 {
     QLIST_HEAD(, V9fsPDU) free_list;
     QLIST_HEAD(, V9fsPDU) active_list;
@@ -238,10 +239,10 @@ typedef struct V9fsState
     FileOperations *ops;
     FsContext ctx;
     char *tag;
-    enum p9_proto_version proto_version;
+    P9ProtoVersion proto_version;
     int32_t msize;
     V9fsPDU pdus[MAX_REQ];
-    const struct V9fsTransport *transport;
+    const V9fsTransport *transport;
     /*
      * lock ensuring atomic path update
      * on rename.
@@ -251,7 +252,7 @@ typedef struct V9fsState
     Error *migration_blocker;
     V9fsConf fsconf;
     V9fsQID root_qid;
-} V9fsState;
+};
 
 /* 9p2000.L open flags */
 #define P9_DOTL_RDONLY        00000000
@@ -348,8 +349,6 @@ int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
 int v9fs_device_realize_common(V9fsState *s, Error **errp);
 void v9fs_device_unrealize_common(V9fsState *s, Error **errp);
 
-ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
-ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 V9fsPDU *pdu_alloc(V9fsState *s);
 void pdu_free(V9fsPDU *pdu);
 void pdu_submit(V9fsPDU *pdu, P9MsgHeader *hdr);
@@ -367,8 +366,7 @@ struct V9fsTransport {
     void        (*push_and_notify)(V9fsPDU *pdu);
 };
 
-static inline int v9fs_register_transport(V9fsState *s,
-        const struct V9fsTransport *t)
+static inline int v9fs_register_transport(V9fsState *s, const V9fsTransport *t)
 {
     assert(!s->transport);
     s->transport = t;

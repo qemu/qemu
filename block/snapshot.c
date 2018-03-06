@@ -177,22 +177,35 @@ int bdrv_snapshot_create(BlockDriverState *bs,
 }
 
 int bdrv_snapshot_goto(BlockDriverState *bs,
-                       const char *snapshot_id)
+                       const char *snapshot_id,
+                       Error **errp)
 {
     BlockDriver *drv = bs->drv;
     int ret, open_ret;
 
     if (!drv) {
+        error_setg(errp, "Block driver is closed");
         return -ENOMEDIUM;
     }
+
+    if (!QLIST_EMPTY(&bs->dirty_bitmaps)) {
+        error_setg(errp, "Device has active dirty bitmaps");
+        return -EBUSY;
+    }
+
     if (drv->bdrv_snapshot_goto) {
-        return drv->bdrv_snapshot_goto(bs, snapshot_id);
+        ret = drv->bdrv_snapshot_goto(bs, snapshot_id);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to load snapshot");
+        }
+        return ret;
     }
 
     if (bs->file) {
         BlockDriverState *file;
         QDict *options = qdict_clone_shallow(bs->options);
         QDict *file_options;
+        Error *local_err = NULL;
 
         file = bs->file->bs;
         /* Prevent it from getting deleted when detached from bs */
@@ -206,13 +219,15 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
         bdrv_unref_child(bs, bs->file);
         bs->file = NULL;
 
-        ret = bdrv_snapshot_goto(file, snapshot_id);
-        open_ret = drv->bdrv_open(bs, options, bs->open_flags, NULL);
+        ret = bdrv_snapshot_goto(file, snapshot_id, errp);
+        open_ret = drv->bdrv_open(bs, options, bs->open_flags, &local_err);
         QDECREF(options);
         if (open_ret < 0) {
             bdrv_unref(file);
             bs->drv = NULL;
-            return open_ret;
+            /* A bdrv_snapshot_goto() error takes precedence */
+            error_propagate(errp, local_err);
+            return ret < 0 ? ret : open_ret;
         }
 
         assert(bs->file->bs == file);
@@ -220,6 +235,7 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
         return ret;
     }
 
+    error_setg(errp, "Block driver does not support snapshots");
     return -ENOTSUP;
 }
 
@@ -403,6 +419,7 @@ bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
         }
         aio_context_release(ctx);
         if (!ok) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -430,6 +447,7 @@ int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bad_bs,
         }
         aio_context_release(ctx);
         if (ret < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -440,9 +458,10 @@ fail:
 }
 
 
-int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
+int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs,
+                           Error **errp)
 {
-    int err = 0;
+    int ret = 0;
     BlockDriverState *bs;
     BdrvNextIterator it;
 
@@ -451,17 +470,18 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs)
 
         aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs)) {
-            err = bdrv_snapshot_goto(bs, name);
+            ret = bdrv_snapshot_goto(bs, name, errp);
         }
         aio_context_release(ctx);
-        if (err < 0) {
+        if (ret < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
 
 fail:
     *first_bad_bs = bs;
-    return err;
+    return ret;
 }
 
 int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
@@ -480,6 +500,7 @@ int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
         }
         aio_context_release(ctx);
         if (err < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -511,6 +532,7 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
         }
         aio_context_release(ctx);
         if (err < 0) {
+            bdrv_next_cleanup(&it);
             goto fail;
         }
     }
@@ -534,6 +556,7 @@ BlockDriverState *bdrv_all_find_vmstate_bs(void)
         aio_context_release(ctx);
 
         if (found) {
+            bdrv_next_cleanup(&it);
             break;
         }
     }

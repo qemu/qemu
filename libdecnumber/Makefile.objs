@@ -1,0 +1,5 @@
+obj-y += decContext.o
+obj-y += decNumber.o
+obj-y += dpd/decimal32.o
+obj-y += dpd/decimal64.o
+obj-y += dpd/decimal128.o

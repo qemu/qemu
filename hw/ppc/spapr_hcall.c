@@ -13,7 +13,6 @@
 #include "trace.h"
 #include "kvm_ppc.h"
 #include "hw/ppc/spapr_ovec.h"
-#include "qemu/error-report.h"
 #include "mmu-book3s-v3.h"
 
 struct SPRSyncState {
@@ -472,7 +471,7 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
     target_ulong flags = args[0];
     int shift = args[1];
     sPAPRPendingHPT *pending = spapr->pending_hpt;
-    uint64_t current_ram_size = MACHINE(spapr)->ram_size;
+    uint64_t current_ram_size;
     int rc;
 
     if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DISABLED) {
@@ -494,7 +493,7 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
         return H_PARAMETER;
     }
 
-    current_ram_size = pc_existing_dimms_capacity(&error_fatal);
+    current_ram_size = MACHINE(spapr)->ram_size + get_plugged_memory_size();
 
     /* We only allow the guest to allocate an HPT one order above what
      * we'd normally give them (to stop a small guest claiming a huge
@@ -1636,6 +1635,12 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     spapr->cas_legacy_guest_workaround = !spapr_ovec_test(ov1_guest,
                                                           OV1_PPC_3_00);
     if (!spapr->cas_reboot) {
+        /* If ppc_spapr_reset() did not set up a HPT but one is necessary
+         * (because the guest isn't going to use radix) then set it up here. */
+        if ((spapr->patb_entry & PATBE1_GR) && !guest_radix) {
+            /* legacy hash or new hash: */
+            spapr_setup_hpt_and_vrma(spapr);
+        }
         spapr->cas_reboot =
             (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
@@ -1644,13 +1649,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 
     if (spapr->cas_reboot) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-    } else {
-        /* If ppc_spapr_reset() did not set up a HPT but one is necessary
-         * (because the guest isn't going to use radix) then set it up here. */
-        if ((spapr->patb_entry & PATBE1_GR) && !guest_radix) {
-            /* legacy hash or new hash: */
-            spapr_setup_hpt_and_vrma(spapr);
-        }
     }
 
     return H_SUCCESS;

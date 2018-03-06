@@ -105,6 +105,12 @@ _filter_block_job_len()
     sed -e 's/, "len": [0-9]\+,/, "len": LEN,/g'
 }
 
+# replace actual image size (depends on the host filesystem)
+_filter_actual_image_size()
+{
+    sed -s 's/\("actual-size":\s*\)[0-9]\+/\1SIZE/g'
+}
+
 # replace driver-specific options in the "Formatting..." line
 _filter_img_create()
 {
@@ -128,7 +134,8 @@ _filter_img_create()
         -e "s# log_size=[0-9]\\+##g" \
         -e "s# refcount_bits=[0-9]\\+##g" \
         -e "s# key-secret=[a-zA-Z0-9]\\+##g" \
-        -e "s# iter-time=[0-9]\\+##g"
+        -e "s# iter-time=[0-9]\\+##g" \
+        -e "s# force_size=\\(on\\|off\\)##g"
 }
 
 _filter_img_info()
@@ -151,7 +158,9 @@ _filter_img_info()
         -e "/lazy_refcounts: \\(on\\|off\\)/d" \
         -e "/block_size: [0-9]\\+/d" \
         -e "/block_state_zero: \\(on\\|off\\)/d" \
-        -e "/log_size: [0-9]\\+/d"
+        -e "/log_size: [0-9]\\+/d" \
+        -e "s/iters: [0-9]\\+/iters: 1024/" \
+        -e "s/uuid: [-a-f0-9]\\+/uuid: 00000000-0000-0000-0000-000000000000/"
 }
 
 # filter out offsets and file names from qemu-img map; good for both

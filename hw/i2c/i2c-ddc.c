@@ -30,7 +30,7 @@
     if (DEBUG_I2CDDC) {                                                        \
         qemu_log("i2c-ddc: " fmt , ## __VA_ARGS__);                            \
     }                                                                          \
-} while (0);
+} while (0)
 
 /* Structure defining a monitor's characteristics in a
  * readable format: this should be passed to build_edid_blob()

@@ -896,13 +896,6 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             val |= (1 << 8);
         }
         return val;
-    case 0xd28: /* Configurable Fault Status.  */
-        /* The BFSR bits [15:8] are shared between security states
-         * and we store them in the NS copy
-         */
-        val = cpu->env.v7m.cfsr[attrs.secure];
-        val |= cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
-        return val;
     case 0xd2c: /* Hard Fault Status.  */
         return cpu->env.v7m.hfsr;
     case 0xd30: /* Debug Fault Status.  */
@@ -977,7 +970,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         if (region >= cpu->pmsav7_dregion) {
             return 0;
         }
-        return (cpu->env.pmsav7.drbar[region] & 0x1f) | (region & 0xf);
+        return (cpu->env.pmsav7.drbar[region] & ~0x1f) | (region & 0xf);
     }
     case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
     case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
@@ -1279,15 +1272,6 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         /* TODO: this is RAZ/WI from NS if DEMCR.SDME is set */
         s->vectors[ARMV7M_EXCP_DEBUG].active = (value & (1 << 8)) != 0;
         nvic_irq_update(s);
-        break;
-    case 0xd28: /* Configurable Fault Status.  */
-        cpu->env.v7m.cfsr[attrs.secure] &= ~value; /* W1C */
-        if (attrs.secure) {
-            /* The BFSR bits [15:8] are shared between security states
-             * and we store them in the NS copy.
-             */
-            cpu->env.v7m.cfsr[M_REG_NS] &= ~(value & R_V7M_CFSR_BFSR_MASK);
-        }
         break;
     case 0xd2c: /* Hard Fault Status.  */
         cpu->env.v7m.hfsr &= ~value; /* W1C */
@@ -1667,6 +1651,14 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
             val = deposit32(val, i * 8, 8, get_prio(s, hdlidx, sbank));
         }
         break;
+    case 0xd28 ... 0xd2b: /* Configurable Fault Status (CFSR) */
+        /* The BFSR bits [15:8] are shared between security states
+         * and we store them in the NS copy
+         */
+        val = s->cpu->env.v7m.cfsr[attrs.secure];
+        val |= s->cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
+        val = extract32(val, (offset - 0xd28) * 8, size * 8);
+        break;
     case 0xfe0 ... 0xfff: /* ID.  */
         if (offset & 3) {
             val = 0;
@@ -1765,6 +1757,20 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         }
         nvic_irq_update(s);
         return MEMTX_OK;
+    case 0xd28 ... 0xd2b: /* Configurable Fault Status (CFSR) */
+        /* All bits are W1C, so construct 32 bit value with 0s in
+         * the parts not written by the access size
+         */
+        value <<= ((offset - 0xd28) * 8);
+
+        s->cpu->env.v7m.cfsr[attrs.secure] &= ~value;
+        if (attrs.secure) {
+            /* The BFSR bits [15:8] are shared between security states
+             * and we store them in the NS copy.
+             */
+            s->cpu->env.v7m.cfsr[M_REG_NS] &= ~(value & R_V7M_CFSR_BFSR_MASK);
+        }
+        return MEMTX_OK;
     }
     if (size == 4) {
         nvic_writel(s, offset, value, attrs);
@@ -1786,10 +1792,12 @@ static MemTxResult nvic_sysreg_ns_write(void *opaque, hwaddr addr,
                                         uint64_t value, unsigned size,
                                         MemTxAttrs attrs)
 {
+    MemoryRegion *mr = opaque;
+
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
-        return nvic_sysreg_write(opaque, addr, value, size, attrs);
+        return memory_region_dispatch_write(mr, addr, value, size, attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -1803,10 +1811,12 @@ static MemTxResult nvic_sysreg_ns_read(void *opaque, hwaddr addr,
                                        uint64_t *data, unsigned size,
                                        MemTxAttrs attrs)
 {
+    MemoryRegion *mr = opaque;
+
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
-        return nvic_sysreg_read(opaque, addr, data, size, attrs);
+        return memory_region_dispatch_read(mr, addr, data, size, attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -1820,6 +1830,36 @@ static MemTxResult nvic_sysreg_ns_read(void *opaque, hwaddr addr,
 static const MemoryRegionOps nvic_sysreg_ns_ops = {
     .read_with_attrs = nvic_sysreg_ns_read,
     .write_with_attrs = nvic_sysreg_ns_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static MemTxResult nvic_systick_write(void *opaque, hwaddr addr,
+                                      uint64_t value, unsigned size,
+                                      MemTxAttrs attrs)
+{
+    NVICState *s = opaque;
+    MemoryRegion *mr;
+
+    /* Direct the access to the correct systick */
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
+    return memory_region_dispatch_write(mr, addr, value, size, attrs);
+}
+
+static MemTxResult nvic_systick_read(void *opaque, hwaddr addr,
+                                     uint64_t *data, unsigned size,
+                                     MemTxAttrs attrs)
+{
+    NVICState *s = opaque;
+    MemoryRegion *mr;
+
+    /* Direct the access to the correct systick */
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
+    return memory_region_dispatch_read(mr, addr, data, size, attrs);
+}
+
+static const MemoryRegionOps nvic_systick_ops = {
+    .read_with_attrs = nvic_systick_read,
+    .write_with_attrs = nvic_systick_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -2001,17 +2041,16 @@ static void nvic_systick_trigger(void *opaque, int n, int level)
         /* SysTick just asked us to pend its exception.
          * (This is different from an external interrupt line's
          * behaviour.)
-         * TODO: when we implement the banked systicks we must make
-         * this pend the correct banked exception.
+         * n == 0 : NonSecure systick
+         * n == 1 : Secure systick
          */
-        armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK, false);
+        armv7m_nvic_set_pending(s, ARMV7M_EXCP_SYSTICK, n);
     }
 }
 
 static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 {
     NVICState *s = NVIC(dev);
-    SysBusDevice *systick_sbd;
     Error *err = NULL;
     int regionlen;
 
@@ -2028,14 +2067,35 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     /* include space for internal exception vectors */
     s->num_irq += NVIC_FIRST_IRQ;
 
-    object_property_set_bool(OBJECT(&s->systick), true, "realized", &err);
+    object_property_set_bool(OBJECT(&s->systick[M_REG_NS]), true,
+                             "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
-    systick_sbd = SYS_BUS_DEVICE(&s->systick);
-    sysbus_connect_irq(systick_sbd, 0,
-                       qdev_get_gpio_in_named(dev, "systick-trigger", 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), 0,
+                       qdev_get_gpio_in_named(dev, "systick-trigger",
+                                              M_REG_NS));
+
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY)) {
+        /* We couldn't init the secure systick device in instance_init
+         * as we didn't know then if the CPU had the security extensions;
+         * so we have to do it here.
+         */
+        object_initialize(&s->systick[M_REG_S], sizeof(s->systick[M_REG_S]),
+                          TYPE_SYSTICK);
+        qdev_set_parent_bus(DEVICE(&s->systick[M_REG_S]), sysbus_get_default());
+
+        object_property_set_bool(OBJECT(&s->systick[M_REG_S]), true,
+                                 "realized", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->systick[M_REG_S]), 0,
+                           qdev_get_gpio_in_named(dev, "systick-trigger",
+                                                  M_REG_S));
+    }
 
     /* The NVIC and System Control Space (SCS) starts at 0xe000e000
      * and looks like this:
@@ -2069,15 +2129,24 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->sysregmem, OBJECT(s), &nvic_sysreg_ops, s,
                           "nvic_sysregs", 0x1000);
     memory_region_add_subregion(&s->container, 0, &s->sysregmem);
+
+    memory_region_init_io(&s->systickmem, OBJECT(s),
+                          &nvic_systick_ops, s,
+                          "nvic_systick", 0xe0);
+
     memory_region_add_subregion_overlap(&s->container, 0x10,
-                                        sysbus_mmio_get_region(systick_sbd, 0),
-                                        1);
+                                        &s->systickmem, 1);
 
     if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
         memory_region_init_io(&s->sysreg_ns_mem, OBJECT(s),
-                              &nvic_sysreg_ns_ops, s,
+                              &nvic_sysreg_ns_ops, &s->sysregmem,
                               "nvic_sysregs_ns", 0x1000);
         memory_region_add_subregion(&s->container, 0x20000, &s->sysreg_ns_mem);
+        memory_region_init_io(&s->systick_ns_mem, OBJECT(s),
+                              &nvic_sysreg_ns_ops, &s->systickmem,
+                              "nvic_systick_ns", 0xe0);
+        memory_region_add_subregion_overlap(&s->container, 0x20010,
+                                            &s->systick_ns_mem, 1);
     }
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->container);
@@ -2095,12 +2164,17 @@ static void armv7m_nvic_instance_init(Object *obj)
     NVICState *nvic = NVIC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    object_initialize(&nvic->systick, sizeof(nvic->systick), TYPE_SYSTICK);
-    qdev_set_parent_bus(DEVICE(&nvic->systick), sysbus_get_default());
+    object_initialize(&nvic->systick[M_REG_NS],
+                      sizeof(nvic->systick[M_REG_NS]), TYPE_SYSTICK);
+    qdev_set_parent_bus(DEVICE(&nvic->systick[M_REG_NS]), sysbus_get_default());
+    /* We can't initialize the secure systick here, as we don't know
+     * yet if we need it.
+     */
 
     sysbus_init_irq(sbd, &nvic->excpout);
     qdev_init_gpio_out_named(dev, &nvic->sysresetreq, "SYSRESETREQ", 1);
-    qdev_init_gpio_in_named(dev, nvic_systick_trigger, "systick-trigger", 1);
+    qdev_init_gpio_in_named(dev, nvic_systick_trigger, "systick-trigger",
+                            M_REG_NUM_BANKS);
 }
 
 static void armv7m_nvic_class_init(ObjectClass *klass, void *data)

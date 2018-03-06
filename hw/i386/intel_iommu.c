@@ -186,7 +186,7 @@ static void vtd_reset_context_cache(IntelIOMMUState *s)
     g_hash_table_iter_init(&bus_it, s->vtd_as_by_busptr);
 
     while (g_hash_table_iter_next (&bus_it, NULL, (void**)&vtd_bus)) {
-        for (devfn_it = 0; devfn_it < X86_IOMMU_PCI_DEVFN_MAX; ++devfn_it) {
+        for (devfn_it = 0; devfn_it < PCI_DEVFN_MAX; ++devfn_it) {
             vtd_as = vtd_bus->dev_as[devfn_it];
             if (!vtd_as) {
                 continue;
@@ -521,9 +521,9 @@ static inline dma_addr_t vtd_ce_get_slpt_base(VTDContextEntry *ce)
     return ce->lo & VTD_CONTEXT_ENTRY_SLPTPTR;
 }
 
-static inline uint64_t vtd_get_slpte_addr(uint64_t slpte)
+static inline uint64_t vtd_get_slpte_addr(uint64_t slpte, uint8_t aw)
 {
-    return slpte & VTD_SL_PT_BASE_ADDR_MASK;
+    return slpte & VTD_SL_PT_BASE_ADDR_MASK(aw);
 }
 
 /* Whether the pte indicates the address of the page frame */
@@ -608,35 +608,29 @@ static inline bool vtd_ce_type_check(X86IOMMUState *x86_iommu,
     return true;
 }
 
-static inline uint64_t vtd_iova_limit(VTDContextEntry *ce)
+static inline uint64_t vtd_iova_limit(VTDContextEntry *ce, uint8_t aw)
 {
     uint32_t ce_agaw = vtd_ce_get_agaw(ce);
-    return 1ULL << MIN(ce_agaw, VTD_MGAW);
+    return 1ULL << MIN(ce_agaw, aw);
 }
 
 /* Return true if IOVA passes range check, otherwise false. */
-static inline bool vtd_iova_range_check(uint64_t iova, VTDContextEntry *ce)
+static inline bool vtd_iova_range_check(uint64_t iova, VTDContextEntry *ce,
+                                        uint8_t aw)
 {
     /*
      * Check if @iova is above 2^X-1, where X is the minimum of MGAW
      * in CAP_REG and AW in context-entry.
      */
-    return !(iova & ~(vtd_iova_limit(ce) - 1));
+    return !(iova & ~(vtd_iova_limit(ce, aw) - 1));
 }
 
-static const uint64_t vtd_paging_entry_rsvd_field[] = {
-    [0] = ~0ULL,
-    /* For not large page */
-    [1] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [2] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [3] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [4] = 0x880ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    /* For large page */
-    [5] = 0x800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [6] = 0x1ff800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [7] = 0x3ffff800ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-    [8] = 0x880ULL | ~(VTD_HAW_MASK | VTD_SL_IGN_COM),
-};
+/*
+ * Rsvd field masks for spte:
+ *     Index [1] to [4] 4k pages
+ *     Index [5] to [8] large pages
+ */
+static uint64_t vtd_paging_entry_rsvd_field[9];
 
 static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
 {
@@ -676,7 +670,7 @@ static VTDBus *vtd_find_as_from_bus_num(IntelIOMMUState *s, uint8_t bus_num)
  */
 static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
                              uint64_t *slptep, uint32_t *slpte_level,
-                             bool *reads, bool *writes)
+                             bool *reads, bool *writes, uint8_t aw_bits)
 {
     dma_addr_t addr = vtd_ce_get_slpt_base(ce);
     uint32_t level = vtd_ce_get_level(ce);
@@ -684,7 +678,7 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
     uint64_t slpte;
     uint64_t access_right_check;
 
-    if (!vtd_iova_range_check(iova, ce)) {
+    if (!vtd_iova_range_check(iova, ce, aw_bits)) {
         trace_vtd_err_dmar_iova_overflow(iova);
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
@@ -721,7 +715,7 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
             *slpte_level = level;
             return 0;
         }
-        addr = vtd_get_slpte_addr(slpte);
+        addr = vtd_get_slpte_addr(slpte, aw_bits);
         level--;
     }
 }
@@ -739,11 +733,12 @@ typedef int (*vtd_page_walk_hook)(IOMMUTLBEntry *entry, void *private);
  * @read: whether parent level has read permission
  * @write: whether parent level has write permission
  * @notify_unmap: whether we should notify invalid entries
+ * @aw: maximum address width
  */
 static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
                                uint64_t end, vtd_page_walk_hook hook_fn,
-                               void *private, uint32_t level,
-                               bool read, bool write, bool notify_unmap)
+                               void *private, uint32_t level, bool read,
+                               bool write, bool notify_unmap, uint8_t aw)
 {
     bool read_cur, write_cur, entry_valid;
     uint32_t offset;
@@ -790,7 +785,7 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
             entry.target_as = &address_space_memory;
             entry.iova = iova & subpage_mask;
             /* NOTE: this is only meaningful if entry_valid == true */
-            entry.translated_addr = vtd_get_slpte_addr(slpte);
+            entry.translated_addr = vtd_get_slpte_addr(slpte, aw);
             entry.addr_mask = ~subpage_mask;
             entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
             if (!entry_valid && !notify_unmap) {
@@ -810,10 +805,10 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
                 trace_vtd_page_walk_skip_perm(iova, iova_next);
                 goto next;
             }
-            ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte), iova,
+            ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, aw), iova,
                                       MIN(iova_next, end), hook_fn, private,
                                       level - 1, read_cur, write_cur,
-                                      notify_unmap);
+                                      notify_unmap, aw);
             if (ret < 0) {
                 return ret;
             }
@@ -834,25 +829,26 @@ next:
  * @end: IOVA range end address (start <= addr < end)
  * @hook_fn: the hook that to be called for each detected area
  * @private: private data for the hook function
+ * @aw: maximum address width
  */
 static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
                          vtd_page_walk_hook hook_fn, void *private,
-                         bool notify_unmap)
+                         bool notify_unmap, uint8_t aw)
 {
     dma_addr_t addr = vtd_ce_get_slpt_base(ce);
     uint32_t level = vtd_ce_get_level(ce);
 
-    if (!vtd_iova_range_check(start, ce)) {
+    if (!vtd_iova_range_check(start, ce, aw)) {
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
 
-    if (!vtd_iova_range_check(end, ce)) {
+    if (!vtd_iova_range_check(end, ce, aw)) {
         /* Fix end so that it reaches the maximum */
-        end = vtd_iova_limit(ce);
+        end = vtd_iova_limit(ce, aw);
     }
 
     return vtd_page_walk_level(addr, start, end, hook_fn, private,
-                               level, true, true, notify_unmap);
+                               level, true, true, notify_unmap, aw);
 }
 
 /* Map a device to its corresponding domain (context-entry) */
@@ -874,7 +870,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         return -VTD_FR_ROOT_ENTRY_P;
     }
 
-    if (re.rsvd || (re.val & VTD_ROOT_ENTRY_RSVD)) {
+    if (re.rsvd || (re.val & VTD_ROOT_ENTRY_RSVD(s->aw_bits))) {
         trace_vtd_re_invalid(re.rsvd, re.val);
         return -VTD_FR_ROOT_ENTRY_RSVD;
     }
@@ -891,7 +887,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     }
 
     if ((ce->hi & VTD_CONTEXT_ENTRY_RSVD_HI) ||
-        (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO)) {
+               (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO(s->aw_bits))) {
         trace_vtd_ce_invalid(ce->hi, ce->lo);
         return -VTD_FR_CONTEXT_ENTRY_RSVD;
     }
@@ -1002,7 +998,7 @@ static void vtd_switch_address_space_all(IntelIOMMUState *s)
 
     g_hash_table_iter_init(&iter, s->vtd_as_by_busptr);
     while (g_hash_table_iter_next(&iter, NULL, (void **)&vtd_bus)) {
-        for (i = 0; i < X86_IOMMU_PCI_DEVFN_MAX; i++) {
+        for (i = 0; i < PCI_DEVFN_MAX; i++) {
             if (!vtd_bus->dev_as[i]) {
                 continue;
             }
@@ -1173,7 +1169,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     }
 
     ret_fr = vtd_iova_to_slpte(&ce, addr, is_write, &slpte, &level,
-                               &reads, &writes);
+                               &reads, &writes, s->aw_bits);
     if (ret_fr) {
         ret_fr = -ret_fr;
         if (is_fpd_set && vtd_is_qualified_fault(ret_fr)) {
@@ -1190,7 +1186,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
                      access_flags, level);
 out:
     entry->iova = addr & page_mask;
-    entry->translated_addr = vtd_get_slpte_addr(slpte) & page_mask;
+    entry->translated_addr = vtd_get_slpte_addr(slpte, s->aw_bits) & page_mask;
     entry->addr_mask = ~page_mask;
     entry->perm = access_flags;
     return true;
@@ -1207,7 +1203,7 @@ static void vtd_root_table_setup(IntelIOMMUState *s)
 {
     s->root = vtd_get_quad_raw(s, DMAR_RTADDR_REG);
     s->root_extended = s->root & VTD_RTADDR_RTT;
-    s->root &= VTD_RTADDR_ADDR_MASK;
+    s->root &= VTD_RTADDR_ADDR_MASK(s->aw_bits);
 
     trace_vtd_reg_dmar_root(s->root, s->root_extended);
 }
@@ -1223,7 +1219,7 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
     uint64_t value = 0;
     value = vtd_get_quad_raw(s, DMAR_IRTA_REG);
     s->intr_size = 1UL << ((value & VTD_IRTA_SIZE_MASK) + 1);
-    s->intr_root = value & VTD_IRTA_ADDR_MASK;
+    s->intr_root = value & VTD_IRTA_ADDR_MASK(s->aw_bits);
     s->intr_eime = value & VTD_IRTA_EIME;
 
     /* Notify global invalidation */
@@ -1294,7 +1290,7 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
     vtd_bus = vtd_find_as_from_bus_num(s, bus_n);
     if (vtd_bus) {
         devfn = VTD_SID_TO_DEVFN(source_id);
-        for (devfn_it = 0; devfn_it < X86_IOMMU_PCI_DEVFN_MAX; ++devfn_it) {
+        for (devfn_it = 0; devfn_it < PCI_DEVFN_MAX; ++devfn_it) {
             vtd_as = vtd_bus->dev_as[devfn_it];
             if (vtd_as && ((devfn_it & mask) == (devfn & mask))) {
                 trace_vtd_inv_desc_cc_device(bus_n, VTD_PCI_SLOT(devfn_it),
@@ -1399,7 +1395,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
         if (!ret && domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
             vtd_page_walk(&ce, addr, addr + (1 << am) * VTD_PAGE_SIZE,
                           vtd_page_invalidate_notify_hook,
-                          (void *)&vtd_as->iommu, true);
+                          (void *)&vtd_as->iommu, true, s->aw_bits);
         }
     }
 }
@@ -1479,7 +1475,7 @@ static void vtd_handle_gcmd_qie(IntelIOMMUState *s, bool en)
     trace_vtd_inv_qi_enable(en);
 
     if (en) {
-        s->iq = iqa_val & VTD_IQA_IQA_MASK;
+        s->iq = iqa_val & VTD_IQA_IQA_MASK(s->aw_bits);
         /* 2^(x+8) entries */
         s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8);
         s->qi_enabled = true;
@@ -2327,7 +2323,7 @@ static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     IntelIOMMUNotifierNode *next_node = NULL;
 
     if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
-        error_report("We need to set cache_mode=1 for intel-iommu to enable "
+        error_report("We need to set caching-mode=1 for intel-iommu to enable "
                      "device assignment with IOMMU protection.");
         exit(1);
     }
@@ -2410,6 +2406,8 @@ static Property vtd_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("eim", IntelIOMMUState, intr_eim,
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("x-buggy-eim", IntelIOMMUState, buggy_eim, false),
+    DEFINE_PROP_UINT8("x-aw-bits", IntelIOMMUState, aw_bits,
+                      VTD_HOST_ADDRESS_WIDTH),
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -2699,7 +2697,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         *new_key = (uintptr_t)bus;
         /* No corresponding free() */
         vtd_bus = g_malloc0(sizeof(VTDBus) + sizeof(VTDAddressSpace *) * \
-                            X86_IOMMU_PCI_DEVFN_MAX);
+                            PCI_DEVFN_MAX);
         vtd_bus->bus = bus;
         g_hash_table_insert(s->vtd_as_by_busptr, new_key, vtd_bus);
     }
@@ -2765,6 +2763,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     hwaddr size;
     hwaddr start = n->start;
     hwaddr end = n->end;
+    IntelIOMMUState *s = as->iommu_state;
 
     /*
      * Note: all the codes in this function has a assumption that IOVA
@@ -2772,12 +2771,12 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
      * VT-d spec), otherwise we need to consider overflow of 64 bits.
      */
 
-    if (end > VTD_ADDRESS_SIZE) {
+    if (end > VTD_ADDRESS_SIZE(s->aw_bits)) {
         /*
          * Don't need to unmap regions that is bigger than the whole
          * VT-d supported address space size
          */
-        end = VTD_ADDRESS_SIZE;
+        end = VTD_ADDRESS_SIZE(s->aw_bits);
     }
 
     assert(start <= end);
@@ -2789,9 +2788,9 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
          * suite the minimum available mask.
          */
         int n = 64 - clz64(size);
-        if (n > VTD_MGAW) {
+        if (n > s->aw_bits) {
             /* should not happen, but in case it happens, limit it */
-            n = VTD_MGAW;
+            n = s->aw_bits;
         }
         size = 1ULL << n;
     }
@@ -2851,7 +2850,8 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                                   PCI_FUNC(vtd_as->devfn),
                                   VTD_CONTEXT_ENTRY_DID(ce.hi),
                                   ce.hi, ce.lo);
-        vtd_page_walk(&ce, 0, ~0ULL, vtd_replay_hook, (void *)n, false);
+        vtd_page_walk(&ce, 0, ~0ULL, vtd_replay_hook, (void *)n, false,
+                      s->aw_bits);
     } else {
         trace_vtd_replay_ce_invalid(bus_n, PCI_SLOT(vtd_as->devfn),
                                     PCI_FUNC(vtd_as->devfn));
@@ -2882,9 +2882,26 @@ static void vtd_init(IntelIOMMUState *s)
     s->qi_enabled = false;
     s->iq_last_desc_type = VTD_INV_DESC_NONE;
     s->next_frcd_reg = 0;
-    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_CAP_MGAW |
-             VTD_CAP_SAGAW | VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS;
+    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
+             VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS |
+             VTD_CAP_SAGAW_39bit | VTD_CAP_MGAW(s->aw_bits);
+    if (s->aw_bits == VTD_HOST_AW_48BIT) {
+        s->cap |= VTD_CAP_SAGAW_48bit;
+    }
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
+
+    /*
+     * Rsvd field masks for spte
+     */
+    vtd_paging_entry_rsvd_field[0] = ~0ULL;
+    vtd_paging_entry_rsvd_field[1] = VTD_SPTE_PAGE_L1_RSVD_MASK(s->aw_bits);
+    vtd_paging_entry_rsvd_field[2] = VTD_SPTE_PAGE_L2_RSVD_MASK(s->aw_bits);
+    vtd_paging_entry_rsvd_field[3] = VTD_SPTE_PAGE_L3_RSVD_MASK(s->aw_bits);
+    vtd_paging_entry_rsvd_field[4] = VTD_SPTE_PAGE_L4_RSVD_MASK(s->aw_bits);
+    vtd_paging_entry_rsvd_field[5] = VTD_SPTE_LPAGE_L1_RSVD_MASK(s->aw_bits);
+    vtd_paging_entry_rsvd_field[6] = VTD_SPTE_LPAGE_L2_RSVD_MASK(s->aw_bits);
+    vtd_paging_entry_rsvd_field[7] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->aw_bits);
+    vtd_paging_entry_rsvd_field[8] = VTD_SPTE_LPAGE_L4_RSVD_MASK(s->aw_bits);
 
     if (x86_iommu->intr_supported) {
         s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
@@ -2982,7 +2999,7 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     IntelIOMMUState *s = opaque;
     VTDAddressSpace *vtd_as;
 
-    assert(0 <= devfn && devfn < X86_IOMMU_PCI_DEVFN_MAX);
+    assert(0 <= devfn && devfn < PCI_DEVFN_MAX);
 
     vtd_as = vtd_find_add_as(s, bus, devfn);
     return &vtd_as->as;
@@ -3021,26 +3038,25 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
         }
     }
 
+    /* Currently only address widths supported are 39 and 48 bits */
+    if ((s->aw_bits != VTD_HOST_AW_39BIT) &&
+        (s->aw_bits != VTD_HOST_AW_48BIT)) {
+        error_setg(errp, "Supported values for x-aw-bits are: %d, %d",
+                   VTD_HOST_AW_39BIT, VTD_HOST_AW_48BIT);
+        return false;
+    }
+
     return true;
 }
 
 static void vtd_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-    PCMachineState *pcms =
-        PC_MACHINE(object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE));
-    PCIBus *bus;
+    PCMachineState *pcms = PC_MACHINE(ms);
+    PCIBus *bus = pcms->bus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
 
-    if (!pcms) {
-        error_setg(errp, "Machine-type '%s' not supported by intel-iommu",
-                   mc->name);
-        return;
-    }
-
-    bus = pcms->bus;
     x86_iommu->type = TYPE_INTEL;
 
     if (!vtd_decide_config(s, errp)) {

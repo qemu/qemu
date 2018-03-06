@@ -71,10 +71,7 @@ static void tricore_testboard_init(MachineState *machine, int board_id)
     MemoryRegion *pcp_data = g_new(MemoryRegion, 1);
     MemoryRegion *pcp_text = g_new(MemoryRegion, 1);
 
-    if (!machine->cpu_model) {
-        machine->cpu_model = "tc1796";
-    }
-    cpu = TRICORE_CPU(cpu_generic_init(TYPE_TRICORE_CPU, machine->cpu_model));
+    cpu = TRICORE_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
     memory_region_init_ram(ext_cram, NULL, "powerlink_ext_c.ram",
                            2 * 1024 * 1024, &error_fatal);
@@ -114,6 +111,7 @@ static void ttb_machine_init(MachineClass *mc)
     mc->desc = "a minimal TriCore board";
     mc->init = tricoreboard_init;
     mc->is_default = 0;
+    mc->default_cpu_type = TRICORE_CPU_TYPE_NAME("tc1796");
 }
 
 DEFINE_MACHINE("tricore_testboard", ttb_machine_init)

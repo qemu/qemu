@@ -233,12 +233,12 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    h->bus = pci_register_bus(dev, NULL,
-                              pci_unin_set_irq, pci_unin_map_irq,
-                              pic,
-                              &d->pci_mmio,
-                              address_space_io,
-                              PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
+    h->bus = pci_register_root_bus(dev, NULL,
+                                   pci_unin_set_irq, pci_unin_map_irq,
+                                   pic,
+                                   &d->pci_mmio,
+                                   address_space_io,
+                                   PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
 #if 0
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north");
@@ -299,12 +299,12 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    h->bus = pci_register_bus(dev, NULL,
-                              pci_unin_set_irq, pci_unin_map_irq,
-                              pic,
-                              &d->pci_mmio,
-                              address_space_io,
-                              PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
+    h->bus = pci_register_root_bus(dev, NULL,
+                                   pci_unin_set_irq, pci_unin_map_irq,
+                                   pic,
+                                   &d->pci_mmio,
+                                   address_space_io,
+                                   PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     sysbus_mmio_map(s, 0, 0xf0800000);
     sysbus_mmio_map(s, 1, 0xf0c00000);
@@ -374,6 +374,10 @@ static const TypeInfo unin_main_pci_host_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = unin_main_pci_host_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
@@ -398,6 +402,10 @@ static const TypeInfo u3_agp_pci_host_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = u3_agp_pci_host_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
@@ -422,6 +430,10 @@ static const TypeInfo unin_agp_pci_host_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = unin_agp_pci_host_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
@@ -446,6 +458,10 @@ static const TypeInfo unin_internal_pci_host_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = unin_internal_pci_host_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pci_unin_main_class_init(ObjectClass *klass, void *data)

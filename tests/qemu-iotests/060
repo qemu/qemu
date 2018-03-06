@@ -242,6 +242,203 @@ poke_file "$TEST_IMG" "$(($l2_offset+8))" "\x80\x00\x00\x00\x00\x06\x2a\x00"
 # Should emit two error messages
 $QEMU_IO -c "discard 0 64k" -c "read 64k 64k" "$TEST_IMG" | _filter_qemu_io
 
+echo
+echo "=== Testing empty refcount table ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing empty refcount table with valid L1 and L2 tables ==="
+echo
+_make_test_img 64M
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+# Since the first data cluster is already allocated this triggers an
+# allocation with an explicit offset (using qcow2_alloc_clusters_at())
+# causing a refcount block to be allocated at offset 0
+$QEMU_IO -c "write 0 128k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing empty refcount block ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "$rb_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing empty refcount block with compressed write ==="
+echo
+_make_test_img 64M
+$QEMU_IO -c "write 64k 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$rb_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+# The previous write already allocated an L2 table, so now this new
+# write will try to allocate a compressed data cluster at offset 0.
+$QEMU_IO -c "write -c 0k 64k" "$TEST_IMG" | _filter_qemu_io
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing zero refcount table size ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "56"                "\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" 2>&1 | _filter_testdir | _filter_imgfmt
+# Repair the image
+_check_test_img -r all
+
+echo
+echo "=== Testing incorrect refcount table offset ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "48"                "\x00\x00\x00\x00\x00\x00\x00\x00"
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Testing dirty corrupt image ==="
+echo
+
+_make_test_img 64M
+
+# Let the refblock appear unaligned
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\xff\xff\x2a\x00"
+# Mark the image dirty, thus forcing an automatic check when opening it
+poke_file "$TEST_IMG" 72 "\x00\x00\x00\x00\x00\x00\x00\x01"
+# Open the image (qemu should refuse to do so)
+$QEMU_IO -c close "$TEST_IMG" 2>&1 | _filter_testdir | _filter_imgfmt
+
+echo '--- Repairing ---'
+
+# The actual repair should have happened (because of the dirty bit),
+# but some cleanup may have failed (like freeing the old reftable)
+# because the image was already marked corrupt by that point
+_check_test_img -r all
+
+echo
+echo "=== Writing to an unaligned preallocated zero cluster ==="
+echo
+
+_make_test_img 64M
+
+# Allocate the L2 table
+$QEMU_IO -c "write 0 64k" -c "discard 0 64k" "$TEST_IMG" | _filter_qemu_io
+# Pretend there is a preallocated zero cluster somewhere inside the
+# image header
+poke_file "$TEST_IMG" "$l2_offset" "\x80\x00\x00\x00\x00\x00\x2a\x01"
+# Let's write to it!
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+
+# Can't repair this yet (TODO: We can just deallocate the cluster)
+
+echo
+echo '=== Discarding with an unaligned refblock ==='
+echo
+
+_make_test_img 64M
+
+$QEMU_IO -c "write 0 128k" "$TEST_IMG" | _filter_qemu_io
+# Make our refblock unaligned
+poke_file "$TEST_IMG" "$(($rt_offset))" "\x00\x00\x00\x00\x00\x00\x2a\x00"
+# Now try to discard something that will be submitted as two requests
+# (main part + tail)
+$QEMU_IO -c "discard 0 65537" "$TEST_IMG"
+
+echo '--- Repairing ---'
+# Fails the first repair because the corruption prevents the check
+# function from double-checking
+# (Using -q for the first invocation, because otherwise the
+#  double-check error message appears above the summary for some
+#  reason -- so let's just hide the summary)
+_check_test_img -q -r all
+_check_test_img -r all
+
+echo
+echo "=== Discarding an out-of-bounds refblock ==="
+echo
+
+_make_test_img 64M
+
+# Pretend there's a refblock really up high
+poke_file "$TEST_IMG" "$(($rt_offset+8))" "\x00\xff\xff\xff\x00\x00\x00\x00"
+# Let's try to shrink the qcow2 image so that the block driver tries
+# to discard that refblock (and see what happens!)
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+
+echo '--- Checking and retrying ---'
+# Image should not be resized
+_img_info | grep 'virtual size'
+# But it should pass this check, because the "partial" resize has
+# already overwritten refblocks past the end
+_check_test_img -r all
+# So let's try again
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+_img_info | grep 'virtual size'
+
+echo
+echo "=== Discarding a non-covered in-bounds refblock ==="
+echo
+
+IMGOPTS='refcount_bits=1' _make_test_img 64M
+
+# Pretend there's a refblock somewhere where there is no refblock to
+# cover it (but the covering refblock has a valid index in the
+# reftable)
+# Every refblock covers 65536 * 8 * 65536 = 32 GB, so we have to point
+# to 0x10_0000_0000 (64G) to point to the third refblock
+poke_file "$TEST_IMG" "$(($rt_offset+8))" "\x00\x00\x00\x10\x00\x00\x00\x00"
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+
+echo '--- Checking and retrying ---'
+# Image should not be resized
+_img_info | grep 'virtual size'
+# But it should pass this check, because the "partial" resize has
+# already overwritten refblocks past the end
+_check_test_img -r all
+# So let's try again
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+_img_info | grep 'virtual size'
+
+echo
+echo "=== Discarding a refblock covered by an unaligned refblock ==="
+echo
+
+IMGOPTS='refcount_bits=1' _make_test_img 64M
+
+# Same as above
+poke_file "$TEST_IMG" "$(($rt_offset+8))" "\x00\x00\x00\x10\x00\x00\x00\x00"
+# But now we actually "create" an unaligned third refblock
+poke_file "$TEST_IMG" "$(($rt_offset+16))" "\x00\x00\x00\x00\x00\x00\x02\x00"
+$QEMU_IMG resize --shrink "$TEST_IMG" 32M
+
+echo '--- Repairing ---'
+# Fails the first repair because the corruption prevents the check
+# function from double-checking
+# (Using -q for the first invocation, because otherwise the
+#  double-check error message appears above the summary for some
+#  reason -- so let's just hide the summary)
+_check_test_img -q -r all
+_check_test_img -r all
+
+echo
+echo "=== Testing the QEMU shutdown with a corrupted image ==="
+echo
+_make_test_img 64M
+poke_file "$TEST_IMG" "$rt_offset"        "\x00\x00\x00\x00\x00\x00\x00\x00"
+echo "{'execute': 'qmp_capabilities'}
+      {'execute': 'human-monitor-command',
+       'arguments': {'command-line': 'qemu-io drive \"write 0 512\"'}}
+      {'execute': 'quit'}" \
+    | $QEMU -qmp stdio -nographic -nodefaults \
+            -drive if=none,node-name=drive,file="$TEST_IMG",driver=qcow2 \
+    | _filter_qmp | _filter_qemu_io
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

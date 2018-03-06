@@ -207,7 +207,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                         "Entering checkstop state\n");
             }
             cs->halted = 1;
-            cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+            cpu_interrupt_exittb(cs);
         }
         if (env->msr_mask & MSR_HVB) {
             /* ISA specifies HV, but can be delivered to guest with HV clear
@@ -417,6 +417,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     case POWERPC_EXCP_HISI:      /* Hypervisor instruction storage exception */
     case POWERPC_EXCP_HDSEG:     /* Hypervisor data segment exception        */
     case POWERPC_EXCP_HISEG:     /* Hypervisor instruction segment exception */
+    case POWERPC_EXCP_SDOOR_HV:  /* Hypervisor Doorbell interrupt            */
     case POWERPC_EXCP_HV_EMU:
         srr0 = SPR_HSRR0;
         srr1 = SPR_HSRR1;
@@ -654,7 +655,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
     } else if (excp_model == POWERPC_EXCP_POWER8) {
         if (new_msr & MSR_HVB) {
-            if (env->spr[SPR_HID0] & HID0_HILE) {
+            if (env->spr[SPR_HID0] & (HID0_HILE | HID0_POWER9_HILE)) {
                 new_msr |= (target_ulong)1 << MSR_LE;
             }
         } else if (env->spr[SPR_LPCR] & LPCR_ILE) {
@@ -846,6 +847,11 @@ static void ppc_hw_interrupt(CPUPPCState *env)
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DOORI);
             return;
         }
+        if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDOORBELL)) {
+            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDOORBELL);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_SDOOR_HV);
+            return;
+        }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_PERFM)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_PERFM);
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_PERFM);
@@ -940,7 +946,7 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
 
     if (excp != 0) {
         CPUState *cs = CPU(ppc_env_get_cpu(env));
-        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        cpu_interrupt_exittb(cs);
         raise_exception(env, excp);
     }
 }
@@ -995,8 +1001,7 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
     /* No need to raise an exception here,
      * as rfi is always the last insn of a TB
      */
-    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
-
+    cpu_interrupt_exittb(cs);
     /* Reset the reservation */
     env->reserve_addr = -1;
 
@@ -1140,6 +1145,52 @@ void helper_msgsnd(target_ulong rb)
         CPUPPCState *cenv = &cpu->env;
 
         if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
+            cenv->pending_interrupts |= 1 << irq;
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+    }
+    qemu_mutex_unlock_iothread();
+}
+
+/* Server Processor Control */
+static int book3s_dbell2irq(target_ulong rb)
+{
+    int msg = rb & DBELL_TYPE_MASK;
+
+    /* A Directed Hypervisor Doorbell message is sent only if the
+     * message type is 5. All other types are reserved and the
+     * instruction is a no-op */
+    return msg == DBELL_TYPE_DBELL_SERVER ? PPC_INTERRUPT_HDOORBELL : -1;
+}
+
+void helper_book3s_msgclr(CPUPPCState *env, target_ulong rb)
+{
+    int irq = book3s_dbell2irq(rb);
+
+    if (irq < 0) {
+        return;
+    }
+
+    env->pending_interrupts &= ~(1 << irq);
+}
+
+void helper_book3s_msgsnd(target_ulong rb)
+{
+    int irq = book3s_dbell2irq(rb);
+    int pir = rb & DBELL_PROCIDTAG_MASK;
+    CPUState *cs;
+
+    if (irq < 0) {
+        return;
+    }
+
+    qemu_mutex_lock_iothread();
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        CPUPPCState *cenv = &cpu->env;
+
+        /* TODO: broadcast message to all threads of the same  processor */
+        if (cenv->spr_cb[SPR_PIR].default_value == pir) {
             cenv->pending_interrupts |= 1 << irq;
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         }

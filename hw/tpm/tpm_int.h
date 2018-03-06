@@ -12,27 +12,7 @@
 #ifndef TPM_TPM_INT_H
 #define TPM_TPM_INT_H
 
-#include "exec/memory.h"
-#include "tpm_tis.h"
-
-/* overall state of the TPM interface */
-struct TPMState {
-    ISADevice busdev;
-    MemoryRegion mmio;
-
-    union {
-        TPMTISEmuState tis;
-    } s;
-
-    uint8_t     locty_number;
-    TPMLocality *locty_data;
-
-    char *backend;
-    TPMBackend *be_driver;
-    TPMVersion be_tpm_version;
-};
-
-#define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
+#include "qemu/osdep.h"
 
 #define TPM_STANDARD_CMDLINE_OPTS \
     { \
@@ -65,11 +45,20 @@ struct tpm_resp_hdr {
 
 #define TPM_ORD_ContinueSelfTest  0x53
 #define TPM_ORD_GetTicks          0xf1
+#define TPM_ORD_GetCapability     0x65
 
+#define TPM_CAP_PROPERTY          0x05
+
+#define TPM_CAP_PROP_INPUT_BUFFER 0x124
 
 /* TPM2 defines */
 #define TPM2_ST_NO_SESSIONS       0x8001
 
 #define TPM2_CC_ReadClock         0x00000181
+#define TPM2_CC_GetCapability     0x0000017a
+
+#define TPM2_CAP_TPM_PROPERTIES   0x6
+
+#define TPM2_PT_MAX_COMMAND_SIZE  0x11e
 
 #endif /* TPM_TPM_INT_H */

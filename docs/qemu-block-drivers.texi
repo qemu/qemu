@@ -785,6 +785,42 @@ warning: ssh server @code{ssh.example.com:22} does not support fsync
 With sufficiently new versions of libssh2 and OpenSSH, @code{fsync} is
 supported.
 
+@node disk_image_locking
+@subsection Disk image file locking
+
+By default, QEMU tries to protect image files from unexpected concurrent
+access, as long as it's supported by the block protocol driver and host
+operating system. If multiple QEMU processes (including QEMU emulators and
+utilities) try to open the same image with conflicting accessing modes, all but
+the first one will get an error.
+
+This feature is currently supported by the file protocol on Linux with the Open
+File Descriptor (OFD) locking API, and can be configured to fall back to POSIX
+locking if the POSIX host doesn't support Linux OFD locking.
+
+To explicitly enable image locking, specify "locking=on" in the file protocol
+driver options. If OFD locking is not possible, a warning will be printed and
+the POSIX locking API will be used. In this case there is a risk that the lock
+will get silently lost when doing hot plugging and block jobs, due to the
+shortcomings of the POSIX locking API.
+
+QEMU transparently handles lock handover during shared storage migration.  For
+shared virtual disk images between multiple VMs, the "share-rw" device option
+should be used.
+
+Alternatively, locking can be fully disabled by "locking=off" block device
+option. In the command line, the option is usually in the form of
+"file.locking=off" as the protocol driver is normally placed as a "file" child
+under a format driver. For example:
+
+@code{-blockdev driver=qcow2,file.filename=/path/to/image,file.locking=off,file.driver=file}
+
+To check if image locking is active, check the output of the "lslocks" command
+on host and see if there are locks held by the QEMU process on the image file.
+More than one byte could be locked by the QEMU instance, each byte of which
+reflects a particular permission that is acquired or protected by the running
+block driver.
+
 @c man end
 
 @ignore

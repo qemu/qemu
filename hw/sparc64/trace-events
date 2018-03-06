@@ -1,0 +1,9 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/sparc64/sun4u.c
+ebus_isa_irq_handler(int n, int level) "Set ISA IRQ %d level %d"
+
+# hw/sparc64/sun4u_iommu.c
+sun4u_iommu_mem_read(uint64_t addr, uint64_t val, int size) "addr: 0x%"PRIx64" val: 0x%"PRIx64" size: %d"
+sun4u_iommu_mem_write(uint64_t addr, uint64_t val, int size) "addr: 0x%"PRIx64" val: 0x%"PRIx64" size: %d"
+sun4u_iommu_translate(uint64_t addr, uint64_t trans_addr, uint64_t tte) "xlate 0x%"PRIx64" => pa 0x%"PRIx64" tte: 0x%"PRIx64

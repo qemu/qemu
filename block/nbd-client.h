@@ -19,6 +19,7 @@
 
 typedef struct {
     Coroutine *coroutine;
+    uint64_t offset;        /* original offset of the request */
     bool receiving;         /* waiting for read_reply_co? */
 } NBDClientRequest;
 

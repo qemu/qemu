@@ -58,6 +58,24 @@ static int vty_getchars(VIOsPAPRDevice *sdev, uint8_t *buf, int max)
 
     while ((n < max) && (dev->out != dev->in)) {
         buf[n++] = dev->buf[dev->out++ % VTERM_BUFSIZE];
+
+        /* PowerVM's vty implementation has a bug where it inserts a
+         * \0 after every \r going to the guest.  Existing guests have
+         * a workaround for this which removes every \0 immediately
+         * following a \r, so here we make ourselves bug-for-bug
+         * compatible, so that the guest won't drop a real \0-after-\r
+         * that happens to occur in a binary stream. */
+        if (buf[n - 1] == '\r') {
+            if (n < max) {
+                buf[n++] = '\0';
+            } else {
+                /* No room for the extra \0, roll back and try again
+                 * next time */
+                dev->out--;
+                n--;
+                break;
+            }
+        }
     }
 
     qemu_chr_fe_accept_input(&dev->chardev);

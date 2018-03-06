@@ -28,8 +28,8 @@
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "qom/cpu.h"
-#include "hw/i386/pc.h"
 #include "target/i386/cpu.h"
+#include "hw/misc/pvpanic.h"
 #include "hw/timer/hpet.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
@@ -208,7 +208,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     }
 
     info->has_hpet = hpet_find();
-    info->tpm_version = tpm_get_version();
+    info->tpm_version = tpm_get_version(tpm_find());
     info->pvpanic_port = pvpanic_port();
     info->applesmc_io_base = applesmc_port();
 }
@@ -2038,7 +2038,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         }
     }
 
-    if (misc->tpm_version != TPM_VERSION_UNSPEC) {
+    if (TPM_IS_TIS(tpm_find())) {
         aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
                    TPM_TIS_ADDR_SIZE, AML_READ_WRITE));
     }
@@ -2204,7 +2204,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             /* Scan all PCI buses. Generate tables to support hotplug. */
             build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
 
-            if (misc->tpm_version != TPM_VERSION_UNSPEC) {
+            if (TPM_IS_TIS(tpm_find())) {
                 dev = aml_device("ISA.TPM");
                 aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
                 aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
@@ -2274,15 +2274,28 @@ build_tpm_tcpa(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
 }
 
 static void
-build_tpm2(GArray *table_data, BIOSLinker *linker)
+build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
 {
-    Acpi20TPM2 *tpm2_ptr;
-
-    tpm2_ptr = acpi_data_push(table_data, sizeof *tpm2_ptr);
+    Acpi20TPM2 *tpm2_ptr = acpi_data_push(table_data, sizeof *tpm2_ptr);
+    unsigned log_addr_size = sizeof(tpm2_ptr->log_area_start_address);
+    unsigned log_addr_offset =
+        (char *)&tpm2_ptr->log_area_start_address - table_data->data;
 
     tpm2_ptr->platform_class = cpu_to_le16(TPM2_ACPI_CLASS_CLIENT);
-    tpm2_ptr->control_area_address = cpu_to_le64(0);
-    tpm2_ptr->start_method = cpu_to_le32(TPM2_START_METHOD_MMIO);
+    if (TPM_IS_TIS(tpm_find())) {
+        tpm2_ptr->control_area_address = cpu_to_le64(0);
+        tpm2_ptr->start_method = cpu_to_le32(TPM2_START_METHOD_MMIO);
+
+        tpm2_ptr->log_area_minimum_length =
+            cpu_to_le32(TPM_LOG_AREA_MINIMUM_SIZE);
+
+        /* log area start address to be filled by Guest linker */
+        bios_linker_loader_add_pointer(linker,
+            ACPI_BUILD_TABLE_FILE, log_addr_offset, log_addr_size,
+            ACPI_BUILD_TPMLOG_FILE, 0);
+    } else {
+        g_warn_if_reached();
+    }
 
     build_header(linker, table_data,
                  (void *)tpm2_ptr, "TPM2", sizeof(*tpm2_ptr), 4, NULL, NULL);
@@ -2381,7 +2394,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
             }
             mem_base = 1ULL << 32;
             mem_len = next_base - pcms->below_4g_mem_size;
-            next_base += (1ULL << 32) - pcms->below_4g_mem_size;
+            next_base = mem_base + mem_len;
         }
         numamem = acpi_data_push(table_data, sizeof *numamem);
         build_srat_memory(numamem, mem_base, mem_len, i - 1,
@@ -2460,6 +2473,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     AcpiDmarDeviceScope *scope = NULL;
     /* Root complex IOAPIC use one path[0] only */
     size_t ioapic_scope_size = sizeof(*scope) + sizeof(scope->path[0]);
+    IntelIOMMUState *intel_iommu = INTEL_IOMMU_DEVICE(iommu);
 
     assert(iommu);
     if (iommu->intr_supported) {
@@ -2467,7 +2481,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     }
 
     dmar = acpi_data_push(table_data, sizeof(*dmar));
-    dmar->host_address_width = VTD_HOST_ADDRESS_WIDTH - 1;
+    dmar->host_address_width = intel_iommu->aw_bits - 1;
     dmar->flags = dmar_flags;
 
     /* DMAR Remapping Hardware Unit Definition structure */
@@ -2691,7 +2705,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
         if (misc.tpm_version == TPM_VERSION_2_0) {
             acpi_add_table(table_offsets, tables_blob);
-            build_tpm2(tables_blob, tables->linker);
+            build_tpm2(tables_blob, tables->linker, tables->tcpalog);
         }
     }
     if (pcms->numa_nodes) {
@@ -2911,7 +2925,7 @@ void acpi_setup(void)
 
         build_state->rsdp = g_memdup(tables.rsdp->data, rsdp_size);
         fw_cfg_add_file_callback(pcms->fw_cfg, ACPI_BUILD_RSDP_FILE,
-                                 acpi_build_update, build_state,
+                                 acpi_build_update, NULL, build_state,
                                  build_state->rsdp, rsdp_size, true);
         build_state->rsdp_mr = NULL;
     } else {

@@ -90,11 +90,10 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
 {
     QCryptoHmac *hmac;
     void *ctx = NULL;
-    Error *err2 = NULL;
     QCryptoHmacDriver *drv = NULL;
 
 #ifdef CONFIG_AF_ALG
-    ctx = qcrypto_afalg_hmac_ctx_new(alg, key, nkey, &err2);
+    ctx = qcrypto_afalg_hmac_ctx_new(alg, key, nkey, NULL);
     if (ctx) {
         drv = &qcrypto_hmac_afalg_driver;
     }
@@ -107,7 +106,6 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
         }
 
         drv = &qcrypto_hmac_lib_driver;
-        error_free(err2);
     }
 
     hmac = g_new0(QCryptoHmac, 1);

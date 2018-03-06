@@ -24,11 +24,12 @@
 #include "io/channel-websock.h"
 #include "crypto/hash.h"
 #include "trace.h"
+#include "qemu/iov.h"
 
 #include <time.h>
 
 
-/* Max amount to allow in rawinput/rawoutput buffers */
+/* Max amount to allow in rawinput/encoutput buffers */
 #define QIO_CHANNEL_WEBSOCK_MAX_BUFFER 8192
 
 #define QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN 24
@@ -151,9 +152,10 @@ enum {
     QIO_CHANNEL_WEBSOCK_OPCODE_PONG = 0xA
 };
 
-static void qio_channel_websock_handshake_send_res(QIOChannelWebsock *ioc,
-                                                   const char *resmsg,
-                                                   ...)
+static void GCC_FMT_ATTR(2, 3)
+qio_channel_websock_handshake_send_res(QIOChannelWebsock *ioc,
+                                       const char *resmsg,
+                                       ...)
 {
     va_list vargs;
     char *response;
@@ -223,6 +225,7 @@ qio_channel_websock_extract_headers(QIOChannelWebsock *ioc,
         goto bad_request;
     }
     *nl = '\0';
+    trace_qio_channel_websock_http_greeting(ioc, buffer);
 
     tmp = strchr(buffer, ' ');
     if (!tmp) {
@@ -339,7 +342,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
     char combined_key[QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN +
                       QIO_CHANNEL_WEBSOCK_GUID_LEN + 1];
     char *accept = NULL;
-    char *date = qio_channel_websock_date_str();
+    char *date = NULL;
 
     g_strlcpy(combined_key, key, QIO_CHANNEL_WEBSOCK_CLIENT_KEY_LEN + 1);
     g_strlcat(combined_key, QIO_CHANNEL_WEBSOCK_GUID,
@@ -358,6 +361,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
         return;
     }
 
+    date = qio_channel_websock_date_str();
     qio_channel_websock_handshake_send_res(
         ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_OK, date, accept);
 
@@ -373,6 +377,9 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
     size_t nhdrs = G_N_ELEMENTS(hdrs);
     const char *protocols = NULL, *version = NULL, *key = NULL,
         *host = NULL, *connection = NULL, *upgrade = NULL;
+    char **connectionv;
+    bool upgraded = false;
+    size_t i;
 
     nhdrs = qio_channel_websock_extract_headers(ioc, buffer, hdrs, nhdrs, errp);
     if (!nhdrs) {
@@ -421,6 +428,9 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
         goto bad_request;
     }
 
+    trace_qio_channel_websock_http_request(ioc, protocols, version,
+                                           host, connection, upgrade, key);
+
     if (!g_strrstr(protocols, QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY)) {
         error_setg(errp, "No '%s' protocol is supported by client '%s'",
                    QIO_CHANNEL_WEBSOCK_PROTOCOL_BINARY, protocols);
@@ -439,7 +449,16 @@ static void qio_channel_websock_handshake_process(QIOChannelWebsock *ioc,
         goto bad_request;
     }
 
-    if (strcasecmp(connection, QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE) != 0) {
+    connectionv = g_strsplit(connection, ",", 0);
+    for (i = 0; connectionv != NULL && connectionv[i] != NULL; i++) {
+        g_strstrip(connectionv[i]);
+        if (strcasecmp(connectionv[i],
+                       QIO_CHANNEL_WEBSOCK_CONNECTION_UPGRADE) == 0) {
+            upgraded = true;
+        }
+    }
+    g_strfreev(connectionv);
+    if (!upgraded) {
         error_setg(errp, "No connection upgrade requested '%s'", connection);
         goto bad_request;
     }
@@ -582,49 +601,48 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
 }
 
 
-static void qio_channel_websock_encode_buffer(QIOChannelWebsock *ioc,
-                                              Buffer *output,
-                                              uint8_t opcode, Buffer *buffer)
+static void qio_channel_websock_encode(QIOChannelWebsock *ioc,
+                                       uint8_t opcode,
+                                       const struct iovec *iov,
+                                       size_t niov,
+                                       size_t size)
 {
     size_t header_size;
+    size_t i;
     union {
         char buf[QIO_CHANNEL_WEBSOCK_HEADER_LEN_64_BIT];
         QIOChannelWebsockHeader ws;
     } header;
 
+    assert(size <= iov_size(iov, niov));
+
     header.ws.b0 = QIO_CHANNEL_WEBSOCK_HEADER_FIELD_FIN |
         (opcode & QIO_CHANNEL_WEBSOCK_HEADER_FIELD_OPCODE);
-    if (buffer->offset < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
-        header.ws.b1 = (uint8_t)buffer->offset;
+    if (size < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_7_BIT) {
+        header.ws.b1 = (uint8_t)size;
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_7_BIT;
-    } else if (buffer->offset <
-               QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_16_BIT) {
+    } else if (size < QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_THRESHOLD_16_BIT) {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_16_BIT;
-        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)buffer->offset);
+        header.ws.u.s16.l16 = cpu_to_be16((uint16_t)size);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_16_BIT;
     } else {
         header.ws.b1 = QIO_CHANNEL_WEBSOCK_PAYLOAD_LEN_MAGIC_64_BIT;
-        header.ws.u.s64.l64 = cpu_to_be64(buffer->offset);
+        header.ws.u.s64.l64 = cpu_to_be64(size);
         header_size = QIO_CHANNEL_WEBSOCK_HEADER_LEN_64_BIT;
     }
     header_size -= QIO_CHANNEL_WEBSOCK_HEADER_LEN_MASK;
 
-    trace_qio_channel_websock_encode(ioc, opcode, header_size, buffer->offset);
-    buffer_reserve(output, header_size + buffer->offset);
-    buffer_append(output, header.buf, header_size);
-    buffer_append(output, buffer->buffer, buffer->offset);
-}
-
-
-static void qio_channel_websock_encode(QIOChannelWebsock *ioc)
-{
-    if (!ioc->rawoutput.offset) {
-        return;
+    trace_qio_channel_websock_encode(ioc, opcode, header_size, size);
+    buffer_reserve(&ioc->encoutput, header_size + size);
+    buffer_append(&ioc->encoutput, header.buf, header_size);
+    for (i = 0; i < niov && size != 0; i++) {
+        size_t want = iov[i].iov_len;
+        if (want > size) {
+            want = size;
+        }
+        buffer_append(&ioc->encoutput, iov[i].iov_base, want);
+        size -= want;
     }
-    qio_channel_websock_encode_buffer(
-        ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
-        &ioc->rawoutput);
-    buffer_reset(&ioc->rawoutput);
 }
 
 
@@ -634,17 +652,22 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *, Error **);
 static void qio_channel_websock_write_close(QIOChannelWebsock *ioc,
                                             uint16_t code, const char *reason)
 {
-    buffer_reserve(&ioc->rawoutput, 2 + (reason ? strlen(reason) : 0));
-    *(uint16_t *)(ioc->rawoutput.buffer + ioc->rawoutput.offset) =
-        cpu_to_be16(code);
-    ioc->rawoutput.offset += 2;
+    struct iovec iov[2] = {
+        { .iov_base = &code, .iov_len = sizeof(code) },
+    };
+    size_t niov = 1;
+    size_t size = iov[0].iov_len;
+
+    cpu_to_be16s(&code);
+
     if (reason) {
-        buffer_append(&ioc->rawoutput, reason, strlen(reason));
+        iov[1].iov_base = (void *)reason;
+        iov[1].iov_len = strlen(reason);
+        size += iov[1].iov_len;
+        niov++;
     }
-    qio_channel_websock_encode_buffer(
-        ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
-        &ioc->rawoutput);
-    buffer_reset(&ioc->rawoutput);
+    qio_channel_websock_encode(ioc, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
+                               iov, niov, size);
     qio_channel_websock_write_wire(ioc, NULL);
     qio_channel_shutdown(ioc->master, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
 }
@@ -813,9 +836,10 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
         error_setg(errp, "websocket closed by peer");
         if (payload_len) {
             /* echo client status */
-            qio_channel_websock_encode_buffer(
-                ioc, &ioc->encoutput, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
-                &ioc->encinput);
+            struct iovec iov = { .iov_base = ioc->encinput.buffer,
+                                 .iov_len = ioc->encinput.offset };
+            qio_channel_websock_encode(ioc, QIO_CHANNEL_WEBSOCK_OPCODE_CLOSE,
+                                       &iov, 1, iov.iov_len);
             qio_channel_websock_write_wire(ioc, NULL);
             qio_channel_shutdown(ioc->master, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
         } else {
@@ -825,11 +849,15 @@ static int qio_channel_websock_decode_payload(QIOChannelWebsock *ioc,
         }
         return -1;
     } else if (ioc->opcode == QIO_CHANNEL_WEBSOCK_OPCODE_PING) {
-        /* ping frames produce an immediate reply */
-        buffer_reset(&ioc->ping_reply);
-        qio_channel_websock_encode_buffer(
-            ioc, &ioc->ping_reply, QIO_CHANNEL_WEBSOCK_OPCODE_PONG,
-            &ioc->encinput);
+        /* ping frames produce an immediate reply, as long as we've not still
+         * got a previous pong queued, in which case we drop the new pong */
+        if (ioc->pong_remain == 0) {
+            struct iovec iov = { .iov_base = ioc->encinput.buffer,
+                                 .iov_len = ioc->encinput.offset };
+            qio_channel_websock_encode(ioc, QIO_CHANNEL_WEBSOCK_OPCODE_PONG,
+                                       &iov, 1, iov.iov_len);
+            ioc->pong_remain = ioc->encoutput.offset;
+        }
     }   /* pong frames are ignored */
 
     if (payload_len) {
@@ -887,8 +915,6 @@ static void qio_channel_websock_finalize(Object *obj)
     buffer_free(&ioc->encinput);
     buffer_free(&ioc->encoutput);
     buffer_free(&ioc->rawinput);
-    buffer_free(&ioc->rawoutput);
-    buffer_free(&ioc->ping_reply);
     object_unref(OBJECT(ioc->master));
     if (ioc->io_tag) {
         g_source_remove(ioc->io_tag);
@@ -946,13 +972,6 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
     ssize_t ret;
     ssize_t done = 0;
 
-    /* ping replies take priority over binary data */
-    if (!ioc->ping_reply.offset) {
-        qio_channel_websock_encode(ioc);
-    } else if (!ioc->encoutput.offset) {
-        buffer_move_empty(&ioc->encoutput, &ioc->ping_reply);
-    }
-
     while (ioc->encoutput.offset > 0) {
         ret = qio_channel_write(ioc->master,
                                 (char *)ioc->encoutput.buffer,
@@ -968,6 +987,11 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
         }
         buffer_advance(&ioc->encoutput, ret);
         done += ret;
+        if (ioc->pong_remain < ret) {
+            ioc->pong_remain = 0;
+        } else {
+            ioc->pong_remain -= ret;
+        }
     }
     return done;
 }
@@ -1026,7 +1050,7 @@ static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
         return;
     }
 
-    if (ioc->encoutput.offset || ioc->ping_reply.offset) {
+    if (ioc->encoutput.offset) {
         cond |= G_IO_OUT;
     }
     if (ioc->encinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER &&
@@ -1100,8 +1124,8 @@ static ssize_t qio_channel_websock_writev(QIOChannel *ioc,
                                           Error **errp)
 {
     QIOChannelWebsock *wioc = QIO_CHANNEL_WEBSOCK(ioc);
-    size_t i;
-    ssize_t done = 0;
+    ssize_t want = iov_size(iov, niov);
+    ssize_t avail;
     ssize_t ret;
 
     if (wioc->io_err) {
@@ -1114,24 +1138,21 @@ static ssize_t qio_channel_websock_writev(QIOChannel *ioc,
         return -1;
     }
 
-    for (i = 0; i < niov; i++) {
-        size_t want = iov[i].iov_len;
-        if ((want + wioc->rawoutput.offset) > QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
-            want = (QIO_CHANNEL_WEBSOCK_MAX_BUFFER - wioc->rawoutput.offset);
-        }
-        if (want == 0) {
-            goto done;
-        }
-
-        buffer_reserve(&wioc->rawoutput, want);
-        buffer_append(&wioc->rawoutput, iov[i].iov_base, want);
-        done += want;
-        if (want < iov[i].iov_len) {
-            break;
-        }
+    avail = wioc->encoutput.offset >= QIO_CHANNEL_WEBSOCK_MAX_BUFFER ?
+        0 : (QIO_CHANNEL_WEBSOCK_MAX_BUFFER - wioc->encoutput.offset);
+    if (want > avail) {
+        want = avail;
     }
 
- done:
+    if (want) {
+        qio_channel_websock_encode(wioc,
+                                   QIO_CHANNEL_WEBSOCK_OPCODE_BINARY_FRAME,
+                                   iov, niov, want);
+    }
+
+    /* Even if want == 0, we'll try write_wire in case there's
+     * pending data we could usefully flush out
+     */
     ret = qio_channel_websock_write_wire(wioc, errp);
     if (ret < 0 &&
         ret != QIO_CHANNEL_ERR_BLOCK) {
@@ -1141,11 +1162,11 @@ static ssize_t qio_channel_websock_writev(QIOChannel *ioc,
 
     qio_channel_websock_set_watch(wioc);
 
-    if (done == 0) {
+    if (want == 0) {
         return QIO_CHANNEL_ERR_BLOCK;
     }
 
-    return done;
+    return want;
 }
 
 static int qio_channel_websock_set_blocking(QIOChannel *ioc,
@@ -1208,7 +1229,7 @@ qio_channel_websock_source_check(GSource *source)
     if (wsource->wioc->rawinput.offset || wsource->wioc->io_eof) {
         cond |= G_IO_IN;
     }
-    if (wsource->wioc->rawoutput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
+    if (wsource->wioc->encoutput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
         cond |= G_IO_OUT;
     }
 

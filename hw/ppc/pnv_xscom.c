@@ -51,10 +51,9 @@ static void xscom_complete(CPUState *cs, uint64_t hmer_bits)
 
 static uint32_t pnv_xscom_pcba(PnvChip *chip, uint64_t addr)
 {
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-
     addr &= (PNV_XSCOM_SIZE - 1);
-    if (pcc->chip_type == PNV_CHIP_POWER9) {
+
+    if (pnv_chip_is_power9(chip)) {
         return addr >> 3;
     } else {
         return ((addr >> 4) & ~0xfull) | ((addr >> 3) & 0xf);
@@ -207,15 +206,15 @@ typedef struct ForeachPopulateArgs {
     int xscom_offset;
 } ForeachPopulateArgs;
 
-static int xscom_populate_child(Object *child, void *opaque)
+static int xscom_dt_child(Object *child, void *opaque)
 {
     if (object_dynamic_cast(child, TYPE_PNV_XSCOM_INTERFACE)) {
         ForeachPopulateArgs *args = opaque;
         PnvXScomInterface *xd = PNV_XSCOM_INTERFACE(child);
         PnvXScomInterfaceClass *xc = PNV_XSCOM_INTERFACE_GET_CLASS(xd);
 
-        if (xc->populate) {
-            _FDT((xc->populate(xd, args->fdt, args->xscom_offset)));
+        if (xc->dt_xscom) {
+            _FDT((xc->dt_xscom(xd, args->fdt, args->xscom_offset)));
         }
     }
     return 0;
@@ -224,14 +223,13 @@ static int xscom_populate_child(Object *child, void *opaque)
 static const char compat_p8[] = "ibm,power8-xscom\0ibm,xscom";
 static const char compat_p9[] = "ibm,power9-xscom\0ibm,xscom";
 
-int pnv_xscom_populate(PnvChip *chip, void *fdt, int root_offset)
+int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
 {
     uint64_t reg[] = { cpu_to_be64(PNV_XSCOM_BASE(chip)),
                        cpu_to_be64(PNV_XSCOM_SIZE) };
     int xscom_offset;
     ForeachPopulateArgs args;
     char *name;
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
     name = g_strdup_printf("xscom@%" PRIx64, be64_to_cpu(reg[0]));
     xscom_offset = fdt_add_subnode(fdt, root_offset, name);
@@ -242,7 +240,7 @@ int pnv_xscom_populate(PnvChip *chip, void *fdt, int root_offset)
     _FDT((fdt_setprop_cell(fdt, xscom_offset, "#size-cells", 1)));
     _FDT((fdt_setprop(fdt, xscom_offset, "reg", reg, sizeof(reg))));
 
-    if (pcc->chip_type == PNV_CHIP_POWER9) {
+    if (pnv_chip_is_power9(chip)) {
         _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat_p9,
                           sizeof(compat_p9))));
     } else {
@@ -255,7 +253,7 @@ int pnv_xscom_populate(PnvChip *chip, void *fdt, int root_offset)
     args.fdt = fdt;
     args.xscom_offset = xscom_offset;
 
-    object_child_foreach(OBJECT(chip), xscom_populate_child, &args);
+    object_child_foreach(OBJECT(chip), xscom_dt_child, &args);
     return 0;
 }
 

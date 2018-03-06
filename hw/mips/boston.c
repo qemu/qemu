@@ -248,16 +248,6 @@ static const MemoryRegionOps boston_platreg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void boston_flash_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
-{
-}
-
-static const MemoryRegionOps boston_flash_ops = {
-    .write = boston_flash_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 static const TypeInfo boston_device = {
     .name          = TYPE_MIPS_BOSTON,
     .parent        = TYPE_SYS_BUS_DEVICE,
@@ -437,7 +427,6 @@ static void boston_mach_init(MachineState *machine)
     DeviceState *dev;
     BostonState *s;
     Error *err = NULL;
-    const char *cpu_model;
     MemoryRegion *flash, *ddr, *ddr_low_alias, *lcd, *platreg;
     MemoryRegion *sys_mem = get_system_memory();
     XilinxPCIEHost *pcie2;
@@ -453,26 +442,24 @@ static void boston_mach_init(MachineState *machine)
         exit(1);
     }
 
-    cpu_model = machine->cpu_model ?: "I6400";
-
     dev = qdev_create(NULL, TYPE_MIPS_BOSTON);
     qdev_init_nofail(dev);
 
     s = BOSTON(dev);
     s->mach = machine;
-    s->cps = g_new0(MIPSCPSState, 1);
 
-    if (!cpu_supports_cps_smp(cpu_model)) {
+    if (!cpu_supports_cps_smp(machine->cpu_type)) {
         error_report("Boston requires CPUs which support CPS");
         exit(1);
     }
 
-    is_64b = cpu_supports_isa(cpu_model, ISA_MIPS64);
+    is_64b = cpu_supports_isa(machine->cpu_type, ISA_MIPS64);
 
-    object_initialize(s->cps, sizeof(MIPSCPSState), TYPE_MIPS_CPS);
+    s->cps = MIPS_CPS(object_new(TYPE_MIPS_CPS));
     qdev_set_parent_bus(DEVICE(s->cps), sysbus_get_default());
 
-    object_property_set_str(OBJECT(s->cps), cpu_model, "cpu-model", &err);
+    object_property_set_str(OBJECT(s->cps), machine->cpu_type, "cpu-type",
+                            &err);
     object_property_set_int(OBJECT(s->cps), smp_cpus, "num-vp", &err);
     object_property_set_bool(OBJECT(s->cps), true, "realized", &err);
 
@@ -484,8 +471,8 @@ static void boston_mach_init(MachineState *machine)
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->cps), 0, 0, 1);
 
     flash =  g_new(MemoryRegion, 1);
-    memory_region_init_rom_device_nomigrate(flash, NULL, &boston_flash_ops, s,
-                                  "boston.flash", 128 * M_BYTE, &err);
+    memory_region_init_rom_nomigrate(flash, NULL,
+                                     "boston.flash", 128 * M_BYTE, &err);
     memory_region_add_subregion_overlap(sys_mem, 0x18000000, flash, 0);
 
     ddr = g_new(MemoryRegion, 1);
@@ -572,6 +559,7 @@ static void boston_mach_class_init(MachineClass *mc)
     mc->block_default_type = IF_IDE;
     mc->default_ram_size = 1 * G_BYTE;
     mc->max_cpus = 16;
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("I6400");
 }
 
 DEFINE_MACHINE("boston", boston_mach_class_init)

@@ -29,31 +29,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 
-#define TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE "spapr-pci-vfio-host-bridge"
-
-#define SPAPR_PCI_VFIO_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(sPAPRPHBVFIOState, (obj), TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE)
-
-typedef struct sPAPRPHBVFIOState sPAPRPHBVFIOState;
-
-struct sPAPRPHBVFIOState {
-    sPAPRPHBState phb;
-
-    int32_t iommugroupid;
-};
-
-static Property spapr_phb_vfio_properties[] = {
-    DEFINE_PROP_INT32("iommu", sPAPRPHBVFIOState, iommugroupid, -1),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void spapr_phb_vfio_instance_init(Object *obj)
-{
-    if (!qtest_enabled()) {
-        error_report("spapr-pci-vfio-host-bridge is deprecated");
-    }
-}
-
 bool spapr_phb_eeh_available(sPAPRPHBState *sphb)
 {
     return vfio_eeh_as_ok(&sphb->iommu_as);
@@ -218,25 +193,3 @@ int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
 
     return RTAS_OUT_SUCCESS;
 }
-
-static void spapr_phb_vfio_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->props = spapr_phb_vfio_properties;
-}
-
-static const TypeInfo spapr_phb_vfio_info = {
-    .name          = TYPE_SPAPR_PCI_VFIO_HOST_BRIDGE,
-    .parent        = TYPE_SPAPR_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(sPAPRPHBVFIOState),
-    .instance_init = spapr_phb_vfio_instance_init,
-    .class_init    = spapr_phb_vfio_class_init,
-};
-
-static void spapr_pci_vfio_register_types(void)
-{
-    type_register_static(&spapr_phb_vfio_info);
-}
-
-type_init(spapr_pci_vfio_register_types)

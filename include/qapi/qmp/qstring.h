@@ -31,6 +31,7 @@ void qstring_append_int(QString *qstring, int64_t value);
 void qstring_append(QString *qstring, const char *str);
 void qstring_append_chr(QString *qstring, int c);
 QString *qobject_to_qstring(const QObject *obj);
+bool qstring_is_equal(const QObject *x, const QObject *y);
 void qstring_destroy_obj(QObject *obj);
 
 #endif /* QSTRING_H */

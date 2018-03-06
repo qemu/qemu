@@ -96,7 +96,7 @@ void gd_gl_area_refresh(DisplayChangeListener *dcl)
             return;
         }
         gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
-        vc->gfx.gls = console_gl_init_context();
+        vc->gfx.gls = qemu_gl_init_shader();
         if (vc->gfx.ds) {
             surface_gl_create_texture(vc->gfx.gls, vc->gfx.ds);
         }
@@ -178,8 +178,7 @@ void gd_gl_area_scanout_texture(DisplayChangeListener *dcl,
 
     gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
 
-    if (vc->gfx.guest_fb.framebuffer  == 0 ||
-        vc->gfx.w == 0 || vc->gfx.h == 0) {
+    if (backing_id == 0 || vc->gfx.w == 0 || vc->gfx.h == 0) {
         gtk_gl_area_set_scanout_mode(vc, false);
         return;
     }

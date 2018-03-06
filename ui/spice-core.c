@@ -55,9 +55,7 @@ static QemuThread me;
 
 struct SpiceTimer {
     QEMUTimer *timer;
-    QTAILQ_ENTRY(SpiceTimer) next;
 };
-static QTAILQ_HEAD(, SpiceTimer) timers = QTAILQ_HEAD_INITIALIZER(timers);
 
 static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 {
@@ -65,7 +63,6 @@ static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 
     timer = g_malloc0(sizeof(*timer));
     timer->timer = timer_new_ms(QEMU_CLOCK_REALTIME, func, opaque);
-    QTAILQ_INSERT_TAIL(&timers, timer, next);
     return timer;
 }
 
@@ -83,18 +80,14 @@ static void timer_remove(SpiceTimer *timer)
 {
     timer_del(timer->timer);
     timer_free(timer->timer);
-    QTAILQ_REMOVE(&timers, timer, next);
     g_free(timer);
 }
 
 struct SpiceWatch {
     int fd;
-    int event_mask;
     SpiceWatchFunc func;
     void *opaque;
-    QTAILQ_ENTRY(SpiceWatch) next;
 };
-static QTAILQ_HEAD(, SpiceWatch) watches = QTAILQ_HEAD_INITIALIZER(watches);
 
 static void watch_read(void *opaque)
 {
@@ -113,11 +106,10 @@ static void watch_update_mask(SpiceWatch *watch, int event_mask)
     IOHandler *on_read = NULL;
     IOHandler *on_write = NULL;
 
-    watch->event_mask = event_mask;
-    if (watch->event_mask & SPICE_WATCH_EVENT_READ) {
+    if (event_mask & SPICE_WATCH_EVENT_READ) {
         on_read = watch_read;
     }
-    if (watch->event_mask & SPICE_WATCH_EVENT_WRITE) {
+    if (event_mask & SPICE_WATCH_EVENT_WRITE) {
         on_write = watch_write;
     }
     qemu_set_fd_handler(watch->fd, on_read, on_write, watch);
@@ -131,7 +123,6 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
     watch->fd     = fd;
     watch->func   = func;
     watch->opaque = opaque;
-    QTAILQ_INSERT_TAIL(&watches, watch, next);
 
     watch_update_mask(watch, event_mask);
     return watch;
@@ -140,7 +131,6 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 static void watch_remove(SpiceWatch *watch)
 {
     qemu_set_fd_handler(watch->fd, NULL, NULL, NULL);
-    QTAILQ_REMOVE(&watches, watch, next);
     g_free(watch);
 }
 

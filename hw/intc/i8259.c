@@ -25,24 +25,15 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
-#include "monitor/monitor.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "hw/isa/i8259_internal.h"
-#include "hw/intc/intc.h"
+#include "trace.h"
 
 /* debug PIC */
 //#define DEBUG_PIC
 
-#ifdef DEBUG_PIC
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("pic: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
-
 //#define DEBUG_IRQ_LATENCY
-//#define DEBUG_IRQ_COUNT
 
 #define TYPE_I8259 "isa-i8259"
 #define PIC_CLASS(class) OBJECT_CLASS_CHECK(PICClass, (class), TYPE_I8259)
@@ -58,12 +49,6 @@ typedef struct PICClass {
     DeviceRealize parent_realize;
 } PICClass;
 
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
-static int irq_level[16];
-#endif
-#ifdef DEBUG_IRQ_COUNT
-static uint64_t irq_count[16];
-#endif
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];
 #endif
@@ -122,8 +107,7 @@ static void pic_update_irq(PICCommonState *s)
 
     irq = pic_get_irq(s);
     if (irq >= 0) {
-        DPRINTF("pic%d: imr=%x irr=%x padd=%d\n",
-                s->master ? 0 : 1, s->imr, s->irr, s->priority_add);
+        trace_pic_update_irq(s->master, s->imr, s->irr, s->priority_add);
         qemu_irq_raise(s->int_out[0]);
     } else {
         qemu_irq_lower(s->int_out[0]);
@@ -135,22 +119,11 @@ static void pic_set_irq(void *opaque, int irq, int level)
 {
     PICCommonState *s = opaque;
     int mask = 1 << irq;
-
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT) || \
-    defined(DEBUG_IRQ_LATENCY)
     int irq_index = s->master ? irq : irq + 8;
-#endif
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
-    if (level != irq_level[irq_index]) {
-        DPRINTF("pic_set_irq: irq=%d level=%d\n", irq_index, level);
-        irq_level[irq_index] = level;
-#ifdef DEBUG_IRQ_COUNT
-        if (level == 1) {
-            irq_count[irq_index]++;
-        }
-#endif
-    }
-#endif
+
+    trace_pic_set_irq(s->master, irq, level);
+    pic_stat_update_irq(irq_index, level);
+
 #ifdef DEBUG_IRQ_LATENCY
     if (level) {
         irq_time[irq_index] = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -223,18 +196,18 @@ int pic_read_irq(DeviceState *d)
         intno = s->irq_base + irq;
     }
 
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_LATENCY)
     if (irq == 2) {
         irq = irq2 + 8;
     }
-#endif
+
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%0.3fus\n",
            irq,
            (double)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
                     irq_time[irq]) * 1000000.0 / NANOSECONDS_PER_SECOND);
 #endif
-    DPRINTF("pic_interrupt: irq=%d\n", irq);
+
+    trace_pic_interrupt(irq, intno);
     return intno;
 }
 
@@ -252,35 +225,6 @@ static void pic_reset(DeviceState *dev)
     pic_init_reset(s);
 }
 
-static bool pic_get_statistics(InterruptStatsProvider *obj,
-                               uint64_t **irq_counts, unsigned int *nb_irqs)
-{
-    PICCommonState *s = PIC_COMMON(obj);
-
-    if (s->master) {
-#ifdef DEBUG_IRQ_COUNT
-        *irq_counts = irq_count;
-        *nb_irqs = ARRAY_SIZE(irq_count);
-#else
-        return false;
-#endif
-    } else {
-        *irq_counts = NULL;
-        *nb_irqs = 0;
-    }
-    return true;
-}
-
-static void pic_print_info(InterruptStatsProvider *obj, Monitor *mon)
-{
-    PICCommonState *s = PIC_COMMON(obj);
-    monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
-                   "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
-                   s->master ? 0 : 1, s->irr, s->imr, s->isr, s->priority_add,
-                   s->irq_base, s->read_reg_select, s->elcr,
-                   s->special_fully_nested_mode);
-}
-
 static void pic_ioport_write(void *opaque, hwaddr addr64,
                              uint64_t val64, unsigned size)
 {
@@ -289,7 +233,8 @@ static void pic_ioport_write(void *opaque, hwaddr addr64,
     uint32_t val = val64;
     int priority, cmd, irq;
 
-    DPRINTF("write: addr=0x%02x val=0x%02x\n", addr, val);
+    trace_pic_ioport_write(s->master, addr, val);
+
     if (addr == 0) {
         if (val & 0x10) {
             pic_init_reset(s);
@@ -402,7 +347,7 @@ static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
             ret = s->imr;
         }
     }
-    DPRINTF("read: addr=0x%02" HWADDR_PRIx " val=0x%02x\n", addr, ret);
+    trace_pic_ioport_read(s->master, addr, ret);
     return ret;
 }
 
@@ -497,13 +442,10 @@ static void i8259_class_init(ObjectClass *klass, void *data)
 {
     PICClass *k = PIC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
-    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     k->parent_realize = dc->realize;
     dc->realize = pic_realize;
     dc->reset = pic_reset;
-    ic->get_statistics = pic_get_statistics;
-    ic->print_info = pic_print_info;
 }
 
 static const TypeInfo i8259_info = {
@@ -512,10 +454,6 @@ static const TypeInfo i8259_info = {
     .parent     = TYPE_PIC_COMMON,
     .class_init = i8259_class_init,
     .class_size = sizeof(PICClass),
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
-    },
 };
 
 static void pic_register_types(void)

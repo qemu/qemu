@@ -63,6 +63,18 @@ extern unsigned smbios_table_cnt;
         }                                                                 \
     } while (0)
 
+#define SMBIOS_TABLE_SET_STR_LIST(tbl_type, value)                        \
+    do {                                                                  \
+        int len = (value != NULL) ? strlen(value) + 1 : 0;                \
+        if (len > 1) {                                                    \
+            smbios_tables = g_realloc(smbios_tables,                      \
+                                      smbios_tables_len + len);           \
+            memcpy(smbios_tables + smbios_tables_len, value, len);        \
+            smbios_tables_len += len;                                     \
+            ++str_index;                                                  \
+        }                                                                 \
+    } while (0)
+
 #define SMBIOS_BUILD_TABLE_POST                                           \
     do {                                                                  \
         size_t term_cnt, t_size;                                          \

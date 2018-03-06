@@ -122,3 +122,34 @@ Note:
      M >= size of RAM devices +
           size of statically plugged vNVDIMM devices +
           size of hotplugged vNVDIMM devices
+
+Alignment
+---------
+
+QEMU uses mmap(2) to maps vNVDIMM backends and aligns the mapping
+address to the page size (getpagesize(2)) by default. However, some
+types of backends may require an alignment different than the page
+size. In that case, QEMU v2.12.0 and later provide 'align' option to
+memory-backend-file to allow users to specify the proper alignment.
+
+For example, device dax require the 2 MB alignment, so we can use
+following QEMU command line options to use it (/dev/dax0.0) as the
+backend of vNVDIMM:
+
+ -object memory-backend-file,id=mem1,share=on,mem-path=/dev/dax0.0,size=4G,align=2M
+ -device nvdimm,id=nvdimm1,memdev=mem1
+
+Guest Data Persistence
+----------------------
+
+Though QEMU supports multiple types of vNVDIMM backends on Linux,
+currently the only one that can guarantee the guest write persistence
+is the device DAX on the real NVDIMM device (e.g., /dev/dax0.0), to
+which all guest access do not involve any host-side kernel cache.
+
+When using other types of backends, it's suggested to set 'unarmed'
+option of '-device nvdimm' to 'on', which sets the unarmed flag of the
+guest NVDIMM region mapping structure.  This unarmed flag indicates
+guest software that this vNVDIMM device contains a region that cannot
+accept persistent writes. In result, for example, the guest Linux
+NVDIMM driver, marks such vNVDIMM device as read-only.

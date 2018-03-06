@@ -1,5 +1,23 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
+# hw/sd/sdhci.c
+sdhci_set_inserted(const char *level) "card state changed: %s"
+sdhci_send_command(uint8_t cmd, uint32_t arg) "CMD%02u ARG[0x%08x]"
+sdhci_error(const char *msg) "%s"
+sdhci_response4(uint32_t r0) "RSPREG[31..0]=0x%08x"
+sdhci_response16(uint32_t r3, uint32_t r2, uint32_t r1, uint32_t r0) "RSPREG[127..96]=0x%08x, RSPREG[95..64]=0x%08x, RSPREG[63..32]=0x%08x, RSPREG[31..0]=0x%08x"
+sdhci_end_transfer(uint8_t cmd, uint32_t arg) "Automatically issue CMD%02u 0x%08x"
+sdhci_adma(const char *desc, uint32_t sysad) "%s: admasysaddr=0x%" PRIx32
+sdhci_adma_loop(uint64_t addr, uint16_t length, uint8_t attr) "addr=0x%08" PRIx64 ", len=%d, attr=0x%x"
+sdhci_adma_transfer_completed(void) ""
+sdhci_access(const char *access, unsigned int size, uint64_t offset, const char *dir, uint64_t val, uint64_t val2) "%s%u: addr[0x%04" PRIx64 "] %s 0x%08" PRIx64 " (%" PRIu64 ")"
+sdhci_read_dataport(uint16_t data_count) "all %u bytes of data have been read from input buffer"
+sdhci_write_dataport(uint16_t data_count) "write buffer filled with %u bytes of data"
+
 # hw/sd/milkymist-memcard.c
 milkymist_memcard_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 milkymist_memcard_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+
+# hw/sd/pxa2xx_mmci.c
+pxa2xx_mmci_read(uint8_t size, uint32_t addr, uint32_t value) "size %d addr 0x%02x value 0x%08x"
+pxa2xx_mmci_write(uint8_t size, uint32_t addr, uint32_t value) "size %d addr 0x%02x value 0x%08x"

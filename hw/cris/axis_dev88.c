@@ -251,7 +251,6 @@ static
 void axisdev88_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     CRISCPU *cpu;
@@ -268,10 +267,7 @@ void axisdev88_init(MachineState *machine)
     MemoryRegion *phys_intmem = g_new(MemoryRegion, 1);
 
     /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "crisv32";
-    }
-    cpu = CRIS_CPU(cpu_generic_init(TYPE_CRIS_CPU, cpu_model));
+    cpu = CRIS_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     /* allocate RAM */
@@ -359,6 +355,7 @@ static void axisdev88_machine_init(MachineClass *mc)
     mc->desc = "AXIS devboard 88";
     mc->init = axisdev88_init;
     mc->is_default = 1;
+    mc->default_cpu_type = CRIS_CPU_TYPE_NAME("crisv32");
 }
 
 DEFINE_MACHINE("axis-dev88", axisdev88_machine_init)

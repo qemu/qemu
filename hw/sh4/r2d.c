@@ -225,7 +225,6 @@ static struct QEMU_PACKED
 
 static void r2d_init(MachineState *machine)
 {
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -242,11 +241,7 @@ static void r2d_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     PCIBus *pci_bus;
 
-    if (cpu_model == NULL) {
-        cpu_model = "SH7751R";
-    }
-
-    cpu = SUPERH_CPU(cpu_generic_init(TYPE_SUPERH_CPU, cpu_model));
+    cpu = SUPERH_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));
@@ -365,6 +360,7 @@ static void r2d_machine_init(MachineClass *mc)
     mc->desc = "r2d-plus board";
     mc->init = r2d_init;
     mc->block_default_type = IF_IDE;
+    mc->default_cpu_type = TYPE_SH7751R_CPU;
 }
 
 DEFINE_MACHINE("r2d", r2d_machine_init)

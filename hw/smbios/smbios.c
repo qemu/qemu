@@ -96,6 +96,11 @@ static struct {
 } type4;
 
 static struct {
+    size_t nvalues;
+    const char **values;
+} type11;
+
+static struct {
     const char *loc_pfx, *bank, *manufacturer, *serial, *asset, *part;
     uint16_t speed;
 } type17;
@@ -280,6 +285,14 @@ static const QemuOptDesc qemu_smbios_type4_opts[] = {
         .help = "part number",
     },
     { /* end of list */ }
+};
+
+static const QemuOptDesc qemu_smbios_type11_opts[] = {
+    {
+        .name = "value",
+        .type = QEMU_OPT_STRING,
+        .help = "OEM string data",
+    },
 };
 
 static const QemuOptDesc qemu_smbios_type17_opts[] = {
@@ -590,6 +603,27 @@ static void smbios_build_type_4_table(unsigned instance)
     smbios_type4_count++;
 }
 
+static void smbios_build_type_11_table(void)
+{
+    char count_str[128];
+    size_t i;
+
+    if (type11.nvalues == 0) {
+        return;
+    }
+
+    SMBIOS_BUILD_TABLE_PRE(11, 0xe00, true); /* required */
+
+    snprintf(count_str, sizeof(count_str), "%zu", type11.nvalues);
+    t->count = type11.nvalues;
+
+    for (i = 0; i < type11.nvalues; i++) {
+        SMBIOS_TABLE_SET_STR_LIST(11, type11.values[i]);
+    }
+
+    SMBIOS_BUILD_TABLE_POST;
+}
+
 #define ONE_KB ((ram_addr_t)1 << 10)
 #define ONE_MB ((ram_addr_t)1 << 20)
 #define ONE_GB ((ram_addr_t)1 << 30)
@@ -832,6 +866,8 @@ void smbios_get_tables(const struct smbios_phys_mem_area *mem_array,
             smbios_build_type_4_table(i);
         }
 
+        smbios_build_type_11_table();
+
 #define MAX_DIMM_SZ (16ll * ONE_GB)
 #define GET_DIMM_SZ ((i < dimm_cnt - 1) ? MAX_DIMM_SZ \
                                         : ((ram_size - 1) % MAX_DIMM_SZ) + 1)
@@ -880,6 +916,38 @@ static void save_opt(const char **dest, QemuOpts *opts, const char *name)
     if (val) {
         *dest = val;
     }
+}
+
+
+struct opt_list {
+    const char *name;
+    size_t *ndest;
+    const char ***dest;
+};
+
+static int save_opt_one(void *opaque,
+                        const char *name, const char *value,
+                        Error **errp)
+{
+    struct opt_list *opt = opaque;
+
+    if (!g_str_equal(name, opt->name)) {
+        return 0;
+    }
+
+    *opt->dest = g_renew(const char *, *opt->dest, (*opt->ndest) + 1);
+    (*opt->dest)[*opt->ndest] = value;
+    (*opt->ndest)++;
+    return 0;
+}
+
+static void save_opt_list(size_t *ndest, const char ***dest,
+                          QemuOpts *opts, const char *name)
+{
+    struct opt_list opt = {
+        name, ndest, dest,
+    };
+    qemu_opt_foreach(opts, save_opt_one, &opt, NULL);
 }
 
 void smbios_entry_add(QemuOpts *opts, Error **errp)
@@ -1034,6 +1102,10 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type4.serial, opts, "serial");
             save_opt(&type4.asset, opts, "asset");
             save_opt(&type4.part, opts, "part");
+            return;
+        case 11:
+            qemu_opts_validate(opts, qemu_smbios_type11_opts, &error_fatal);
+            save_opt_list(&type11.nvalues, &type11.values, opts, "value");
             return;
         case 17:
             qemu_opts_validate(opts, qemu_smbios_type17_opts, &error_fatal);

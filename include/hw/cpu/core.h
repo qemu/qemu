@@ -9,7 +9,6 @@
 #ifndef HW_CPU_CORE_H
 #define HW_CPU_CORE_H
 
-#include "qemu/osdep.h"
 #include "hw/qdev.h"
 
 #define TYPE_CPU_CORE "cpu-core"

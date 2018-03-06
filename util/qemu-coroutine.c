@@ -107,7 +107,21 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
     Coroutine *self = qemu_coroutine_self();
     CoroutineAction ret;
 
+    /* Cannot rely on the read barrier for co in aio_co_wake(), as there are
+     * callers outside of aio_co_wake() */
+    const char *scheduled = atomic_mb_read(&co->scheduled);
+
     trace_qemu_aio_coroutine_enter(ctx, self, co, co->entry_arg);
+
+    /* if the Coroutine has already been scheduled, entering it again will
+     * cause us to enter it twice, potentially even after the coroutine has
+     * been deleted */
+    if (scheduled) {
+        fprintf(stderr,
+                "%s: Co-routine was already scheduled in '%s'\n",
+                __func__, scheduled);
+        abort();
+    }
 
     if (co->caller) {
         fprintf(stderr, "Co-routine re-entered recursively\n");

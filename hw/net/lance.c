@@ -40,20 +40,11 @@
 #include "net/net.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
-#include "hw/sparc/sun4m.h"
-#include "pcnet.h"
+#include "hw/sparc/sparc32_dma.h"
+#include "hw/net/lance.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
 
-#define TYPE_LANCE "lance"
-#define SYSBUS_PCNET(obj) \
-    OBJECT_CHECK(SysBusPCNetState, (obj), TYPE_LANCE)
-
-typedef struct {
-    SysBusDevice parent_obj;
-
-    PCNetState state;
-} SysBusPCNetState;
 
 static void parent_lance_reset(void *opaque, int irq, int level)
 {

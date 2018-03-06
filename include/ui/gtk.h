@@ -47,7 +47,7 @@ typedef struct VirtualGfxConsole {
     double scale_x;
     double scale_y;
 #if defined(CONFIG_OPENGL)
-    ConsoleGLState *gls;
+    QemuGLShader *gls;
     EGLContext ectx;
     EGLSurface esurface;
     int glupdates;

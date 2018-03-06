@@ -33,7 +33,6 @@
 
 #define FMT64X                          "%016" PRIx64
 
-static TCGv_env cpu_env;
 static TCGv cpu_pc;
 static TCGv cpu_regs[TILEGX_R_COUNT];
 
@@ -144,7 +143,7 @@ static bool check_gr(DisasContext *dc, uint8_t reg)
 
 static TCGv load_zero(DisasContext *dc)
 {
-    if (TCGV_IS_UNUSED_I64(dc->zero)) {
+    if (!dc->zero) {
         dc->zero = tcg_const_i64(0);
     }
     return dc->zero;
@@ -2325,7 +2324,7 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     for (i = 0; i < ARRAY_SIZE(dc->wb); i++) {
         DisasContextTemp *wb = &dc->wb[i];
         wb->reg = TILEGX_R_NOREG;
-        TCGV_UNUSED_I64(wb->val);
+        wb->val = NULL;
     }
     dc->num_wb = 0;
 
@@ -2378,16 +2377,16 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     uint64_t pc_start = tb->pc;
     uint64_t next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     int num_insns = 0;
-    int max_insns = tb->cflags & CF_COUNT_MASK;
+    int max_insns = tb_cflags(tb) & CF_COUNT_MASK;
 
     dc->pc = pc_start;
     dc->mmuidx = 0;
     dc->exit_tb = false;
     dc->atomic_excp = TILEGX_EXCP_NONE;
     dc->jmp.cond = TCG_COND_NEVER;
-    TCGV_UNUSED_I64(dc->jmp.dest);
-    TCGV_UNUSED_I64(dc->jmp.val1);
-    TCGV_UNUSED_I64(dc->zero);
+    dc->jmp.dest = NULL;
+    dc->jmp.val1 = NULL;
+    dc->zero = NULL;
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log_lock();
@@ -2445,8 +2444,6 @@ void tilegx_tcg_init(void)
 {
     int i;
 
-    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    tcg_ctx.tcg_env = cpu_env;
     cpu_pc = tcg_global_mem_new_i64(cpu_env, offsetof(CPUTLGState, pc), "pc");
     for (i = 0; i < TILEGX_R_COUNT; i++) {
         cpu_regs[i] = tcg_global_mem_new_i64(cpu_env,

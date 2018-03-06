@@ -21,7 +21,6 @@
 #include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
 #include "libqos/virtio-pci.h"
-#include "qapi/error.h"
 
 #include "libqos/malloc-pc.h"
 #include "hw/virtio/virtio-net.h"
@@ -56,6 +55,7 @@
 /*********** FROM hw/virtio/vhost-user.c *************************************/
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
+#define VHOST_MAX_VIRTQUEUES    0x100
 
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 #define VHOST_USER_PROTOCOL_F_MQ 0
@@ -142,6 +142,8 @@ enum {
 
 typedef struct TestServer {
     QPCIBus *bus;
+    QVirtioPCIDevice *dev;
+    QVirtQueue *vq[VHOST_MAX_VIRTQUEUES];
     gchar *socket_path;
     gchar *mig_path;
     gchar *chr_name;
@@ -156,33 +158,51 @@ typedef struct TestServer {
     bool test_fail;
     int test_flags;
     int queues;
+    QGuestAllocator *alloc;
 } TestServer;
 
 static const char *tmpfs;
 static const char *root;
 
-static void init_virtio_dev(TestServer *s)
+static void init_virtio_dev(TestServer *s, uint32_t features_mask)
 {
-    QVirtioPCIDevice *dev;
     uint32_t features;
+    int i;
 
     s->bus = qpci_init_pc(NULL);
     g_assert_nonnull(s->bus);
 
-    dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
-    g_assert_nonnull(dev);
+    s->dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);
+    g_assert_nonnull(s->dev);
 
-    qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&dev->vdev);
-    qvirtio_set_acknowledge(&dev->vdev);
-    qvirtio_set_driver(&dev->vdev);
+    qvirtio_pci_device_enable(s->dev);
+    qvirtio_reset(&s->dev->vdev);
+    qvirtio_set_acknowledge(&s->dev->vdev);
+    qvirtio_set_driver(&s->dev->vdev);
 
-    features = qvirtio_get_features(&dev->vdev);
-    features = features & VIRTIO_NET_F_MAC;
-    qvirtio_set_features(&dev->vdev, features);
+    s->alloc = pc_alloc_init();
 
-    qvirtio_set_driver_ok(&dev->vdev);
-    qvirtio_pci_device_free(dev);
+    for (i = 0; i < s->queues * 2; i++) {
+        s->vq[i] = qvirtqueue_setup(&s->dev->vdev, s->alloc, i);
+    }
+
+    features = qvirtio_get_features(&s->dev->vdev);
+    features = features & features_mask;
+    qvirtio_set_features(&s->dev->vdev, features);
+
+    qvirtio_set_driver_ok(&s->dev->vdev);
+}
+
+static void uninit_virtio_dev(TestServer *s)
+{
+    int i;
+
+    for (i = 0; i < s->queues * 2; i++) {
+        qvirtqueue_cleanup(s->dev->vdev.bus, s->vq[i], s->alloc);
+    }
+    pc_alloc_uninit(s->alloc);
+
+    qvirtio_pci_device_free(s->dev);
 }
 
 static void wait_for_fds(TestServer *s)
@@ -618,6 +638,30 @@ GSourceFuncs test_migrate_source_funcs = {
     .check = test_migrate_source_check,
 };
 
+static void test_read_guest_mem(void)
+{
+    TestServer *server = NULL;
+    char *qemu_cmd = NULL;
+    QTestState *s = NULL;
+
+    server = test_server_new("test");
+    test_server_listen(server);
+
+    qemu_cmd = GET_QEMU_CMD(server);
+
+    s = qtest_start(qemu_cmd);
+    g_free(qemu_cmd);
+
+    init_virtio_dev(server, 1u << VIRTIO_NET_F_MAC);
+
+    read_guest_mem(server);
+
+    uninit_virtio_dev(server);
+
+    qtest_quit(s);
+    test_server_free(server);
+}
+
 static void test_migrate(void)
 {
     TestServer *s = test_server_new("src");
@@ -637,7 +681,7 @@ static void test_migrate(void)
     from = qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     size = get_log_size(s);
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
@@ -689,6 +733,8 @@ static void test_migrate(void)
     qmp_eventwait("RESUME");
 
     read_guest_mem(dest);
+
+    uninit_virtio_dev(s);
 
     g_source_destroy(source);
     g_source_unref(source);
@@ -757,7 +803,7 @@ static void test_reconnect_subprocess(void)
     qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
@@ -767,6 +813,8 @@ static void test_reconnect_subprocess(void)
     g_idle_add(reconnect_cb, s);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
+
+    uninit_virtio_dev(s);
 
     qtest_end();
     test_server_free(s);
@@ -793,9 +841,11 @@ static void test_connect_fail_subprocess(void)
     qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
+
+    uninit_virtio_dev(s);
 
     qtest_end();
     test_server_free(s);
@@ -821,9 +871,11 @@ static void test_flags_mismatch_subprocess(void)
     qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
+
+    uninit_virtio_dev(s);
 
     qtest_end();
     test_server_free(s);
@@ -840,79 +892,30 @@ static void test_flags_mismatch(void)
 
 #endif
 
-static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
-{
-    QVirtioPCIDevice *dev;
-
-    dev = qvirtio_pci_device_find(bus, VIRTIO_ID_NET);
-    g_assert(dev != NULL);
-    g_assert_cmphex(dev->vdev.device_type, ==, VIRTIO_ID_NET);
-
-    qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&dev->vdev);
-    qvirtio_set_acknowledge(&dev->vdev);
-    qvirtio_set_driver(&dev->vdev);
-
-    return dev;
-}
-
-static void driver_init(QVirtioDevice *dev)
-{
-    uint32_t features;
-
-    features = qvirtio_get_features(dev);
-    features = features & ~(QVIRTIO_F_BAD_FEATURE |
-                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
-                            (1u << VIRTIO_RING_F_EVENT_IDX));
-    qvirtio_set_features(dev, features);
-
-    qvirtio_set_driver_ok(dev);
-}
-
-#define PCI_SLOT                0x04
-
 static void test_multiqueue(void)
 {
-    const int queues = 2;
     TestServer *s = test_server_new("mq");
-    QVirtioPCIDevice *dev;
-    QPCIBus *bus;
-    QVirtQueuePCI *vq[queues * 2];
-    QGuestAllocator *alloc;
     char *cmd;
-    int i;
-
-    s->queues = queues;
+    uint32_t features_mask = ~(QVIRTIO_F_BAD_FEATURE |
+                            (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+                            (1u << VIRTIO_RING_F_EVENT_IDX));
+    s->queues = 2;
     test_server_listen(s);
 
     cmd = g_strdup_printf(QEMU_CMD_MEM QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
                           "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
                           512, 512, root, s->chr_name,
                           s->socket_path, "", s->chr_name,
-                          queues, queues * 2 + 2);
+                          s->queues, s->queues * 2 + 2);
     qtest_start(cmd);
     g_free(cmd);
 
-    bus = qpci_init_pc(NULL);
-    dev = virtio_net_pci_init(bus, PCI_SLOT);
+    init_virtio_dev(s, features_mask);
 
-    alloc = pc_alloc_init();
-    for (i = 0; i < queues * 2; i++) {
-        vq[i] = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, alloc, i);
-    }
+    wait_for_rings_started(s, s->queues * 2);
 
-    driver_init(&dev->vdev);
-    wait_for_rings_started(s, queues * 2);
+    uninit_virtio_dev(s);
 
-    /* End test */
-    for (i = 0; i < queues * 2; i++) {
-        qvirtqueue_cleanup(dev->vdev.bus, &vq[i]->vq, alloc);
-    }
-    pc_alloc_uninit(alloc);
-    qvirtio_pci_device_disable(dev);
-    g_free(dev->pdev);
-    g_free(dev);
-    qpci_free_pc(bus);
     qtest_end();
 
     test_server_free(s);
@@ -920,10 +923,7 @@ static void test_multiqueue(void)
 
 int main(int argc, char **argv)
 {
-    QTestState *s = NULL;
-    TestServer *server = NULL;
     const char *hugefs;
-    char *qemu_cmd = NULL;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
     GMainLoop *loop;
@@ -948,20 +948,11 @@ int main(int argc, char **argv)
         root = tmpfs;
     }
 
-    server = test_server_new("test");
-    test_server_listen(server);
-
     loop = g_main_loop_new(NULL, FALSE);
     /* run the main loop thread so the chardev may operate */
     thread = g_thread_new(NULL, thread_function, loop);
 
-    qemu_cmd = GET_QEMU_CMD(server);
-
-    s = qtest_start(qemu_cmd);
-    g_free(qemu_cmd);
-    init_virtio_dev(server);
-
-    qtest_add_data_func("/vhost-user/read-guest-mem", server, read_guest_mem);
+    qtest_add_func("/vhost-user/read-guest-mem", test_read_guest_mem);
     qtest_add_func("/vhost-user/migrate", test_migrate);
     qtest_add_func("/vhost-user/multiqueue", test_multiqueue);
 
@@ -979,12 +970,7 @@ int main(int argc, char **argv)
 
     ret = g_test_run();
 
-    if (s) {
-        qtest_quit(s);
-    }
-
     /* cleanup */
-    test_server_free(server);
 
     /* finish the helper thread and dispatch pending sources */
     g_main_loop_quit(loop);

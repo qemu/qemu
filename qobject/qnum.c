@@ -213,6 +213,60 @@ QNum *qobject_to_qnum(const QObject *obj)
 }
 
 /**
+ * qnum_is_equal(): Test whether the two QNums are equal
+ *
+ * Negative integers are never considered equal to unsigned integers,
+ * but positive integers in the range [0, INT64_MAX] are considered
+ * equal independently of whether the QNum's kind is i64 or u64.
+ *
+ * Doubles are never considered equal to integers.
+ */
+bool qnum_is_equal(const QObject *x, const QObject *y)
+{
+    QNum *num_x = qobject_to_qnum(x);
+    QNum *num_y = qobject_to_qnum(y);
+
+    switch (num_x->kind) {
+    case QNUM_I64:
+        switch (num_y->kind) {
+        case QNUM_I64:
+            /* Comparison in native int64_t type */
+            return num_x->u.i64 == num_y->u.i64;
+        case QNUM_U64:
+            /* Implicit conversion of x to uin64_t, so we have to
+             * check its sign before */
+            return num_x->u.i64 >= 0 && num_x->u.i64 == num_y->u.u64;
+        case QNUM_DOUBLE:
+            return false;
+        }
+        abort();
+    case QNUM_U64:
+        switch (num_y->kind) {
+        case QNUM_I64:
+            return qnum_is_equal(y, x);
+        case QNUM_U64:
+            /* Comparison in native uint64_t type */
+            return num_x->u.u64 == num_y->u.u64;
+        case QNUM_DOUBLE:
+            return false;
+        }
+        abort();
+    case QNUM_DOUBLE:
+        switch (num_y->kind) {
+        case QNUM_I64:
+        case QNUM_U64:
+            return false;
+        case QNUM_DOUBLE:
+            /* Comparison in native double type */
+            return num_x->u.dbl == num_y->u.dbl;
+        }
+        abort();
+    }
+
+    abort();
+}
+
+/**
  * qnum_destroy_obj(): Free all memory allocated by a
  * QNum object
  */

@@ -93,11 +93,6 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
     return -ENOSYS;
 }
 
-int kvm_s390_cpu_restart(S390CPU *cpu)
-{
-    return -ENOSYS;
-}
-
 void kvm_s390_cmma_reset(void)
 {
 }
@@ -117,5 +112,13 @@ int kvm_s390_set_mem_limit(uint64_t new_limit, uint64_t *hw_limit)
 }
 
 void kvm_s390_crypto_reset(void)
+{
+}
+
+void kvm_s390_stop_interrupt(S390CPU *cpu)
+{
+}
+
+void kvm_s390_restart_interrupt(S390CPU *cpu)
 {
 }

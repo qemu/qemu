@@ -77,7 +77,7 @@ typedef struct BlockJob {
     /**
      * Set to false by the job while the coroutine has yielded and may be
      * re-entered by block_job_enter().  There may still be I/O or event loop
-     * activity pending.
+     * activity pending.  Accessed under block_job_mutex (in blockjob.c).
      */
     bool busy;
 
@@ -134,6 +134,12 @@ typedef struct BlockJob {
     /* ret code passed to block_job_completed.
      */
     int ret;
+
+    /**
+     * Timer that is used by @block_job_sleep_ns. Accessed under
+     * block_job_mutex (in blockjob.c).
+     */
+    QEMUTimer sleep_timer;
 
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;

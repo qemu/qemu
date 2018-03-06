@@ -510,7 +510,7 @@ static void pnv_psi_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static int pnv_psi_populate(PnvXScomInterface *dev, void *fdt, int xscom_offset)
+static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 {
     const char compat[] = "ibm,power8-psihb-x\0ibm,psihb-x";
     char *name;
@@ -546,7 +546,7 @@ static void pnv_psi_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
 
-    xdc->populate = pnv_psi_populate;
+    xdc->dt_xscom = pnv_psi_dt_xscom;
 
     dc->realize = pnv_psi_realize;
     dc->props = pnv_psi_properties;

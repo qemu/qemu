@@ -52,7 +52,7 @@
     if (DEBUG_DBDMA) { \
         printf("DBDMA: " fmt , ## __VA_ARGS__); \
     } \
-} while (0);
+} while (0)
 
 #define DBDMA_DPRINTFCH(ch, fmt, ...) do { \
     if (DEBUG_DBDMA) { \
@@ -60,7 +60,7 @@
             printf("DBDMA[%02x]: " fmt , (ch)->channel, ## __VA_ARGS__); \
         } \
     } \
-} while (0);
+} while (0)
 
 /*
  */

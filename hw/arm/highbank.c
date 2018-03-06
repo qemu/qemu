@@ -34,6 +34,7 @@
 #include "hw/ide/ahci.h"
 #include "hw/cpu/a9mpcore.h"
 #include "hw/cpu/a15mpcore.h"
+#include "qemu/log.h"
 
 #define SMP_BOOT_ADDR           0x100
 #define SMP_BOOT_REG            0x40
@@ -117,14 +118,26 @@ static void hb_regs_write(void *opaque, hwaddr offset,
         }
     }
 
-    regs[offset/4] = value;
+    if (offset / 4 >= NUM_REGS) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                  "highbank: bad write offset 0x%" HWADDR_PRIx "\n", offset);
+        return;
+    }
+    regs[offset / 4] = value;
 }
 
 static uint64_t hb_regs_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
+    uint32_t value;
     uint32_t *regs = opaque;
-    uint32_t value = regs[offset/4];
+
+    if (offset / 4 >= NUM_REGS) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                  "highbank: bad read offset 0x%" HWADDR_PRIx "\n", offset);
+        return 0;
+    }
+    value = regs[offset / 4];
 
     if ((offset == 0x100) || (offset == 0x108) || (offset == 0x10C)) {
         value |= 0x30000000;

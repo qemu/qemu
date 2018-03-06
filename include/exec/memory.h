@@ -465,6 +465,8 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  * @name: Region name, becomes part of RAMBlock name used in migration stream
  *        must be unique within any device
  * @size: size of the region.
+ * @align: alignment of the region base address; if 0, the default alignment
+ *         (getpagesize()) will be used.
  * @share: %true if memory must be mmaped with the MAP_SHARED flag
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
@@ -476,6 +478,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       struct Object *owner,
                                       const char *name,
                                       uint64_t size,
+                                      uint64_t align,
                                       bool share,
                                       const char *path,
                                       Error **errp);
@@ -1239,18 +1242,6 @@ void memory_region_set_flush_coalesced(MemoryRegion *mr);
  * @mr: the memory region to be updated.
  */
 void memory_region_clear_flush_coalesced(MemoryRegion *mr);
-
-/**
- * memory_region_set_global_locking: Declares the access processing requires
- *                                   QEMU's global lock.
- *
- * When this is invoked, accesses to the memory region will be processed while
- * holding the global lock of QEMU. This is the default behavior of memory
- * regions.
- *
- * @mr: the memory region to be updated.
- */
-void memory_region_set_global_locking(MemoryRegion *mr);
 
 /**
  * memory_region_clear_global_locking: Declares that access processing does

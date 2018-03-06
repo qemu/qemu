@@ -61,7 +61,6 @@ static void openrisc_cpu_reset(CPUState *s)
     cpu->env.picsr = 0x00000000;
 
     cpu->env.ttmr = 0x00000000;
-    cpu->env.ttcr = 0x00000000;
 #endif
 }
 
@@ -87,18 +86,12 @@ static void openrisc_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
     OpenRISCCPU *cpu = OPENRISC_CPU(obj);
-    static int inited;
 
     cs->env_ptr = &cpu->env;
 
 #ifndef CONFIG_USER_ONLY
     cpu_openrisc_mmu_init(cpu);
 #endif
-
-    if (tcg_enabled() && !inited) {
-        inited = 1;
-        openrisc_translate_init();
-    }
 }
 
 /* CPU models */
@@ -108,7 +101,7 @@ static ObjectClass *openrisc_cpu_class_by_name(const char *cpu_model)
     ObjectClass *oc;
     char *typename;
 
-    typename = g_strdup_printf("%s-" TYPE_OPENRISC_CPU, cpu_model);
+    typename = g_strdup_printf(OPENRISC_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     g_free(typename);
     if (oc != NULL && (!object_class_dynamic_cast(oc, TYPE_OPENRISC_CPU) ||
@@ -132,16 +125,6 @@ static void openrisc_any_initfn(Object *obj)
 
     cpu->env.cpucfgr = CPUCFGR_NSGF | CPUCFGR_OB32S | CPUCFGR_EVBARP;
 }
-
-typedef struct OpenRISCCPUInfo {
-    const char *name;
-    void (*initfn)(Object *obj);
-} OpenRISCCPUInfo;
-
-static const OpenRISCCPUInfo openrisc_cpus[] = {
-    { .name = "or1200",      .initfn = or1200_initfn },
-    { .name = "any",         .initfn = openrisc_any_initfn },
-};
 
 static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
 {
@@ -170,40 +153,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_openrisc_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 3;
-}
-
-static void cpu_register(const OpenRISCCPUInfo *info)
-{
-    TypeInfo type_info = {
-        .parent = TYPE_OPENRISC_CPU,
-        .instance_size = sizeof(OpenRISCCPU),
-        .instance_init = info->initfn,
-        .class_size = sizeof(OpenRISCCPUClass),
-    };
-
-    type_info.name = g_strdup_printf("%s-" TYPE_OPENRISC_CPU, info->name);
-    type_register(&type_info);
-    g_free((void *)type_info.name);
-}
-
-static const TypeInfo openrisc_cpu_type_info = {
-    .name = TYPE_OPENRISC_CPU,
-    .parent = TYPE_CPU,
-    .instance_size = sizeof(OpenRISCCPU),
-    .instance_init = openrisc_cpu_initfn,
-    .abstract = true,
-    .class_size = sizeof(OpenRISCCPUClass),
-    .class_init = openrisc_cpu_class_init,
-};
-
-static void openrisc_cpu_register_types(void)
-{
-    int i;
-
-    type_register_static(&openrisc_cpu_type_info);
-    for (i = 0; i < ARRAY_SIZE(openrisc_cpus); i++) {
-        cpu_register(&openrisc_cpus[i]);
-    }
+    cc->tcg_initialize = openrisc_translate_init;
 }
 
 /* Sort alphabetically by type name, except for "any". */
@@ -254,4 +204,25 @@ void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf)
     g_slist_free(list);
 }
 
-type_init(openrisc_cpu_register_types)
+#define DEFINE_OPENRISC_CPU_TYPE(cpu_model, initfn) \
+    {                                               \
+        .parent = TYPE_OPENRISC_CPU,                \
+        .instance_init = initfn,                    \
+        .name = OPENRISC_CPU_TYPE_NAME(cpu_model),  \
+    }
+
+static const TypeInfo openrisc_cpus_type_infos[] = {
+    { /* base class should be registered first */
+        .name = TYPE_OPENRISC_CPU,
+        .parent = TYPE_CPU,
+        .instance_size = sizeof(OpenRISCCPU),
+        .instance_init = openrisc_cpu_initfn,
+        .abstract = true,
+        .class_size = sizeof(OpenRISCCPUClass),
+        .class_init = openrisc_cpu_class_init,
+    },
+    DEFINE_OPENRISC_CPU_TYPE("or1200", or1200_initfn),
+    DEFINE_OPENRISC_CPU_TYPE("any", openrisc_any_initfn),
+};
+
+DEFINE_TYPES(openrisc_cpus_type_infos)

@@ -69,13 +69,15 @@ fi
 # in B
 CREATION_SIZE=$((2 * 1024 * 1024 - 48 * 1024))
 
+# 512 is the actual test -- but it's good to test 64k as well, just to be sure.
+for cluster_size in 512 64k; do
 # in kB
 for GROWTH_SIZE in 16 48 80; do
     for create_mode in off metadata falloc full; do
         for growth_mode in off metadata falloc full; do
-            echo "--- growth_size=$GROWTH_SIZE create_mode=$create_mode growth_mode=$growth_mode ---"
+            echo "--- cluster_size=$cluster_size growth_size=$GROWTH_SIZE create_mode=$create_mode growth_mode=$growth_mode ---"
 
-            IMGOPTS="preallocation=$create_mode,cluster_size=512" _make_test_img ${CREATION_SIZE}
+            IMGOPTS="preallocation=$create_mode,cluster_size=$cluster_size" _make_test_img ${CREATION_SIZE}
             $QEMU_IMG resize -f "$IMGFMT" --preallocation=$growth_mode "$TEST_IMG" +${GROWTH_SIZE}K
 
             host_size_0=$(get_image_size_on_host)
@@ -122,6 +124,7 @@ for GROWTH_SIZE in 16 48 80; do
             echo
         done
     done
+done
 done
 
 # success, all done

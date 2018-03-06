@@ -277,12 +277,13 @@ vubr_backend_recv_cb(int sock, void *ctx)
     DPRINT("    hdrlen = %d\n", hdrlen);
 
     if (!vu_queue_enabled(dev, vq) ||
+        !vu_queue_started(dev, vq) ||
         !vu_queue_avail_bytes(dev, vq, hdrlen, 0)) {
         DPRINT("Got UDP packet, but no available descriptors on RX virtq.\n");
         return;
     }
 
-    do {
+    while (1) {
         struct iovec *sg;
         ssize_t ret, total = 0;
         unsigned int num;
@@ -342,7 +343,9 @@ vubr_backend_recv_cb(int sock, void *ctx)
 
         free(elem);
         elem = NULL;
-    } while (false); /* could loop if DONTWAIT worked? */
+
+        break;        /* could loop if DONTWAIT worked? */
+    }
 
     if (mhdr_cnt) {
         mhdr.num_buffers = i;

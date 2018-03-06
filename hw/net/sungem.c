@@ -11,12 +11,11 @@
 #include "hw/pci/pci.h"
 #include "qemu/log.h"
 #include "net/net.h"
+#include "net/eth.h"
 #include "net/checksum.h"
 #include "hw/net/mii.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
-/* For crc32 */
-#include <zlib.h>
 
 #define TYPE_SUNGEM "sungem"
 
@@ -595,7 +594,7 @@ static ssize_t sungem_receive(NetClientState *nc, const uint8_t *buf,
     }
 
     /* Get MAC crc */
-    mac_crc = crc32(~0, buf, 6);
+    mac_crc = net_crc32_le(buf, ETH_ALEN);
 
     /* Packet isn't for me ? */
     rx_cond = sungem_check_rx_mac(s, buf, mac_crc);
@@ -1437,6 +1436,10 @@ static const TypeInfo sungem_info = {
     .instance_size = sizeof(SunGEMState),
     .class_init    = sungem_class_init,
     .instance_init = sungem_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { }
+    }
 };
 
 static void sungem_register_types(void)

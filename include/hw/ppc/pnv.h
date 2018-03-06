@@ -26,7 +26,7 @@
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
 
-#define TYPE_PNV_CHIP "powernv-chip"
+#define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
 #define PNV_CHIP_CLASS(klass) \
      OBJECT_CLASS_CHECK(PnvChipClass, (klass), TYPE_PNV_CHIP)
@@ -69,30 +69,31 @@ typedef struct PnvChipClass {
     SysBusDeviceClass parent_class;
 
     /*< public >*/
-    const char *cpu_model;
     PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
 
     hwaddr       xscom_base;
-    hwaddr       xscom_core_base;
 
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
 } PnvChipClass;
 
-#define TYPE_PNV_CHIP_POWER8E TYPE_PNV_CHIP "-POWER8E"
+#define PNV_CHIP_TYPE_SUFFIX "-" TYPE_PNV_CHIP
+#define PNV_CHIP_TYPE_NAME(cpu_model) cpu_model PNV_CHIP_TYPE_SUFFIX
+
+#define TYPE_PNV_CHIP_POWER8E PNV_CHIP_TYPE_NAME("power8e_v2.1")
 #define PNV_CHIP_POWER8E(obj) \
     OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER8E)
 
-#define TYPE_PNV_CHIP_POWER8 TYPE_PNV_CHIP "-POWER8"
+#define TYPE_PNV_CHIP_POWER8 PNV_CHIP_TYPE_NAME("power8_v2.0")
 #define PNV_CHIP_POWER8(obj) \
     OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER8)
 
-#define TYPE_PNV_CHIP_POWER8NVL TYPE_PNV_CHIP "-POWER8NVL"
+#define TYPE_PNV_CHIP_POWER8NVL PNV_CHIP_TYPE_NAME("power8nvl_v1.0")
 #define PNV_CHIP_POWER8NVL(obj) \
     OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER8NVL)
 
-#define TYPE_PNV_CHIP_POWER9 TYPE_PNV_CHIP "-POWER9"
+#define TYPE_PNV_CHIP_POWER9 PNV_CHIP_TYPE_NAME("power9_v2.0")
 #define PNV_CHIP_POWER9(obj) \
     OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP_POWER9)
 
@@ -115,9 +116,9 @@ typedef struct PnvChipClass {
 #define PNV_CHIP_INDEX(chip)                                    \
     (((chip)->chip_id >> 2) * 2 + ((chip)->chip_id & 0x3))
 
-#define TYPE_POWERNV_MACHINE       MACHINE_TYPE_NAME("powernv")
-#define POWERNV_MACHINE(obj) \
-    OBJECT_CHECK(PnvMachineState, (obj), TYPE_POWERNV_MACHINE)
+#define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
+#define PNV_MACHINE(obj) \
+    OBJECT_CHECK(PnvMachineState, (obj), TYPE_PNV_MACHINE)
 
 typedef struct PnvMachineState {
     /*< private >*/
@@ -136,13 +137,23 @@ typedef struct PnvMachineState {
     Notifier     powerdown_notifier;
 } PnvMachineState;
 
+static inline bool pnv_chip_is_power9(const PnvChip *chip)
+{
+    return PNV_CHIP_GET_CLASS(chip)->chip_type == PNV_CHIP_POWER9;
+}
+
+static inline bool pnv_is_power9(PnvMachineState *pnv)
+{
+    return pnv_chip_is_power9(pnv->chips[0]);
+}
+
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
 
 /*
  * BMC helpers
  */
-void pnv_bmc_populate_sensors(IPMIBmc *bmc, void *fdt);
+void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
 void pnv_bmc_powerdown(IPMIBmc *bmc);
 
 /*

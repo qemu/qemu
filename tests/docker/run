@@ -18,7 +18,7 @@ fi
 BASE="$(dirname $(readlink -e $0))"
 
 # Prepare the environment
-export PATH=/usr/lib/ccache:$PATH
+export PATH=/usr/lib/ccache:/usr/lib64/ccache:$PATH
 
 if test -n "$J"; then
     export MAKEFLAGS="$MAKEFLAGS -j$J"

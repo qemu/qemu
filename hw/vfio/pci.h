@@ -93,8 +93,6 @@ typedef struct VFIOMSIXInfo {
     uint16_t entries;
     uint32_t table_offset;
     uint32_t pba_offset;
-    MemoryRegion mmap_mem;
-    void *mmap;
     unsigned long *pending;
 } VFIOMSIXInfo;
 

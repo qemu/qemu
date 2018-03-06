@@ -22,7 +22,6 @@ for prefix in x86_64-w64-mingw32- i686-w64-mingw32-; do
     TARGET_LIST=${TARGET_LIST:-$DEF_TARGET_LIST} \
         build_qemu --cross-prefix=$prefix \
         --enable-trace-backends=simple \
-        --enable-debug \
         --enable-gnutls \
         --enable-nettle \
         --enable-curl \
@@ -35,4 +34,3 @@ for prefix in x86_64-w64-mingw32- i686-w64-mingw32-; do
     make clean
 
 done
-

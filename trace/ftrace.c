@@ -15,10 +15,11 @@
 
 int trace_marker_fd;
 
-static int find_debugfs(char *debugfs)
+static int find_mount(char *mount_point, const char *fstype)
 {
     char type[100];
     FILE *fp;
+    int ret = 0;
 
     fp = fopen("/proc/mounts", "r");
     if (fp == NULL) {
@@ -26,29 +27,33 @@ static int find_debugfs(char *debugfs)
     }
 
     while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
-                  debugfs, type) == 2) {
-        if (strcmp(type, "debugfs") == 0) {
+                  mount_point, type) == 2) {
+        if (strcmp(type, fstype) == 0) {
+            ret = 1;
             break;
         }
     }
     fclose(fp);
 
-    if (strcmp(type, "debugfs") != 0) {
-        return 0;
-    }
-    return 1;
+    return ret;
 }
 
 bool ftrace_init(void)
 {
-    char debugfs[PATH_MAX];
+    char mount_point[PATH_MAX];
     char path[PATH_MAX];
-    int debugfs_found;
+    int tracefs_found;
     int trace_fd = -1;
+    const char *subdir = "";
 
-    debugfs_found = find_debugfs(debugfs);
-    if (debugfs_found) {
-        snprintf(path, PATH_MAX, "%s/tracing/tracing_on", debugfs);
+    tracefs_found = find_mount(mount_point, "tracefs");
+    if (!tracefs_found) {
+        tracefs_found = find_mount(mount_point, "debugfs");
+        subdir = "/tracing";
+    }
+
+    if (tracefs_found) {
+        snprintf(path, PATH_MAX, "%s%s/tracing_on", mount_point, subdir);
         trace_fd = open(path, O_WRONLY);
         if (trace_fd < 0) {
             if (errno == EACCES) {
@@ -67,14 +72,14 @@ bool ftrace_init(void)
             }
             close(trace_fd);
         }
-        snprintf(path, PATH_MAX, "%s/tracing/trace_marker", debugfs);
+        snprintf(path, PATH_MAX, "%s%s/trace_marker", mount_point, subdir);
         trace_marker_fd = open(path, O_WRONLY);
         if (trace_marker_fd < 0) {
             perror("Could not open ftrace 'trace_marker' file");
             return false;
         }
     } else {
-        fprintf(stderr, "debugfs is not mounted\n");
+        fprintf(stderr, "tracefs is not mounted\n");
         return false;
     }
 

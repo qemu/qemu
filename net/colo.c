@@ -82,6 +82,14 @@ int parse_packet_early(Packet *pkt)
     return 0;
 }
 
+void extract_ip_and_port(uint32_t tmp_ports, ConnectionKey *key, Packet *pkt)
+{
+        key->src = pkt->ip->ip_src;
+        key->dst = pkt->ip->ip_dst;
+        key->src_port = ntohs(tmp_ports >> 16);
+        key->dst_port = ntohs(tmp_ports & 0xffff);
+}
+
 void fill_connection_key(Packet *pkt, ConnectionKey *key)
 {
     uint32_t tmp_ports;
@@ -97,17 +105,11 @@ void fill_connection_key(Packet *pkt, ConnectionKey *key)
     case IPPROTO_SCTP:
     case IPPROTO_UDPLITE:
         tmp_ports = *(uint32_t *)(pkt->transport_header);
-        key->src = pkt->ip->ip_src;
-        key->dst = pkt->ip->ip_dst;
-        key->src_port = ntohs(tmp_ports & 0xffff);
-        key->dst_port = ntohs(tmp_ports >> 16);
+        extract_ip_and_port(tmp_ports, key, pkt);
         break;
     case IPPROTO_AH:
         tmp_ports = *(uint32_t *)(pkt->transport_header + 4);
-        key->src = pkt->ip->ip_src;
-        key->dst = pkt->ip->ip_dst;
-        key->src_port = ntohs(tmp_ports & 0xffff);
-        key->dst_port = ntohs(tmp_ports >> 16);
+        extract_ip_and_port(tmp_ports, key, pkt);
         break;
     default:
         break;

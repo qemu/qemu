@@ -540,20 +540,8 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
         if (req->lun != 0) {
             const struct SCSISense sense = SENSE_CODE(LUN_NOT_SUPPORTED);
 
-            if (fixed_sense) {
-                r->buf[0] = 0x70;
-                r->buf[2] = sense.key;
-                r->buf[10] = 10;
-                r->buf[12] = sense.asc;
-                r->buf[13] = sense.ascq;
-                r->len = MIN(req->cmd.xfer, SCSI_SENSE_LEN);
-            } else {
-                r->buf[0] = 0x72;
-                r->buf[1] = sense.key;
-                r->buf[2] = sense.asc;
-                r->buf[3] = sense.ascq;
-                r->len = 8;
-            }
+            r->len = scsi_build_sense_buf(r->buf, req->cmd.xfer,
+                                          sense, fixed_sense);
         } else {
             r->len = scsi_device_get_sense(r->req.dev, r->buf,
                                            MIN(req->cmd.xfer, r->buf_len),

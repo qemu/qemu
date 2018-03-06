@@ -59,5 +59,6 @@ ReadLineState *readline_init(ReadLinePrintfFunc *printf_func,
                              ReadLineFlushFunc *flush_func,
                              void *opaque,
                              ReadLineCompletionFunc *completion_finder);
+void readline_free(ReadLineState *rs);
 
 #endif /* READLINE_H */

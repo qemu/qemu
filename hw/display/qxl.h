@@ -3,7 +3,6 @@
 
 #include "qemu-common.h"
 
-#include "ui/console.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "vga_int.h"

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2017 Red Hat, Inc.
+ *  Copyright (C) 2016-2018 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Server Side
@@ -40,6 +40,8 @@ static int system_errno_to_nbd_errno(int err)
     case EFBIG:
     case ENOSPC:
         return NBD_ENOSPC;
+    case EOVERFLOW:
+        return NBD_EOVERFLOW;
     case ESHUTDOWN:
         return NBD_ESHUTDOWN;
     case EINVAL:
@@ -98,9 +100,13 @@ struct NBDClient {
     QTAILQ_ENTRY(NBDClient) next;
     int nb_requests;
     bool closing;
-};
 
-/* That's all folks */
+    bool structured_reply;
+
+    uint32_t opt; /* Current option being negotiated */
+    uint32_t optlen; /* remaining length of data in ioc for the option being
+                        negotiated now */
+};
 
 static void nbd_client_receive_next_request(NBDClient *client);
 
@@ -131,73 +137,58 @@ static void nbd_client_receive_next_request(NBDClient *client);
 
 */
 
+static inline void set_be_option_rep(NBDOptionReply *rep, uint32_t option,
+                                     uint32_t type, uint32_t length)
+{
+    stq_be_p(&rep->magic, NBD_REP_MAGIC);
+    stl_be_p(&rep->option, option);
+    stl_be_p(&rep->type, type);
+    stl_be_p(&rep->length, length);
+}
+
 /* Send a reply header, including length, but no payload.
  * Return -errno on error, 0 on success. */
-static int nbd_negotiate_send_rep_len(QIOChannel *ioc, uint32_t type,
-                                      uint32_t opt, uint32_t len, Error **errp)
+static int nbd_negotiate_send_rep_len(NBDClient *client, uint32_t type,
+                                      uint32_t len, Error **errp)
 {
-    uint64_t magic;
+    NBDOptionReply rep;
 
-    trace_nbd_negotiate_send_rep_len(opt, nbd_opt_lookup(opt),
+    trace_nbd_negotiate_send_rep_len(client->opt, nbd_opt_lookup(client->opt),
                                      type, nbd_rep_lookup(type), len);
 
     assert(len < NBD_MAX_BUFFER_SIZE);
-    magic = cpu_to_be64(NBD_REP_MAGIC);
-    if (nbd_write(ioc, &magic, sizeof(magic), errp) < 0) {
-        error_prepend(errp, "write failed (rep magic): ");
-        return -EINVAL;
-    }
 
-    opt = cpu_to_be32(opt);
-    if (nbd_write(ioc, &opt, sizeof(opt), errp) < 0) {
-        error_prepend(errp, "write failed (rep opt): ");
-        return -EINVAL;
-    }
-
-    type = cpu_to_be32(type);
-    if (nbd_write(ioc, &type, sizeof(type), errp) < 0) {
-        error_prepend(errp, "write failed (rep type): ");
-        return -EINVAL;
-    }
-
-    len = cpu_to_be32(len);
-    if (nbd_write(ioc, &len, sizeof(len), errp) < 0) {
-        error_prepend(errp, "write failed (rep data length): ");
-        return -EINVAL;
-    }
-    return 0;
+    set_be_option_rep(&rep, client->opt, type, len);
+    return nbd_write(client->ioc, &rep, sizeof(rep), errp);
 }
 
 /* Send a reply header with default 0 length.
  * Return -errno on error, 0 on success. */
-static int nbd_negotiate_send_rep(QIOChannel *ioc, uint32_t type, uint32_t opt,
+static int nbd_negotiate_send_rep(NBDClient *client, uint32_t type,
                                   Error **errp)
 {
-    return nbd_negotiate_send_rep_len(ioc, type, opt, 0, errp);
+    return nbd_negotiate_send_rep_len(client, type, 0, errp);
 }
 
 /* Send an error reply.
  * Return -errno on error, 0 on success. */
-static int GCC_FMT_ATTR(5, 6)
-nbd_negotiate_send_rep_err(QIOChannel *ioc, uint32_t type,
-                           uint32_t opt, Error **errp, const char *fmt, ...)
+static int GCC_FMT_ATTR(4, 0)
+nbd_negotiate_send_rep_verr(NBDClient *client, uint32_t type,
+                            Error **errp, const char *fmt, va_list va)
 {
-    va_list va;
     char *msg;
     int ret;
     size_t len;
 
-    va_start(va, fmt);
     msg = g_strdup_vprintf(fmt, va);
-    va_end(va);
     len = strlen(msg);
     assert(len < 4096);
     trace_nbd_negotiate_send_rep_err(msg);
-    ret = nbd_negotiate_send_rep_len(ioc, type, opt, len, errp);
+    ret = nbd_negotiate_send_rep_len(client, type, len, errp);
     if (ret < 0) {
         goto out;
     }
-    if (nbd_write(ioc, msg, len, errp) < 0) {
+    if (nbd_write(client->ioc, msg, len, errp) < 0) {
         error_prepend(errp, "write failed (error message): ");
         ret = -EIO;
     } else {
@@ -209,23 +200,72 @@ out:
     return ret;
 }
 
+/* Send an error reply.
+ * Return -errno on error, 0 on success. */
+static int GCC_FMT_ATTR(4, 5)
+nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
+                           Error **errp, const char *fmt, ...)
+{
+    va_list va;
+    int ret;
+
+    va_start(va, fmt);
+    ret = nbd_negotiate_send_rep_verr(client, type, errp, fmt, va);
+    va_end(va);
+    return ret;
+}
+
+/* Drop remainder of the current option, and send a reply with the
+ * given error type and message. Return -errno on read or write
+ * failure; or 0 if connection is still live. */
+static int GCC_FMT_ATTR(4, 5)
+nbd_opt_drop(NBDClient *client, uint32_t type, Error **errp,
+             const char *fmt, ...)
+{
+    int ret = nbd_drop(client->ioc, client->optlen, errp);
+    va_list va;
+
+    client->optlen = 0;
+    if (!ret) {
+        va_start(va, fmt);
+        ret = nbd_negotiate_send_rep_verr(client, type, errp, fmt, va);
+        va_end(va);
+    }
+    return ret;
+}
+
+/* Read size bytes from the unparsed payload of the current option.
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success. */
+static int nbd_opt_read(NBDClient *client, void *buffer, size_t size,
+                        Error **errp)
+{
+    if (size > client->optlen) {
+        return nbd_opt_drop(client, NBD_REP_ERR_INVALID, errp,
+                            "Inconsistent lengths in option %s",
+                            nbd_opt_lookup(client->opt));
+    }
+    client->optlen -= size;
+    return qio_channel_read_all(client->ioc, buffer, size, errp) < 0 ? -EIO : 1;
+}
+
 /* Send a single NBD_REP_SERVER reply to NBD_OPT_LIST, including payload.
  * Return -errno on error, 0 on success. */
-static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp,
+static int nbd_negotiate_send_rep_list(NBDClient *client, NBDExport *exp,
                                        Error **errp)
 {
     size_t name_len, desc_len;
     uint32_t len;
     const char *name = exp->name ? exp->name : "";
     const char *desc = exp->description ? exp->description : "";
+    QIOChannel *ioc = client->ioc;
     int ret;
 
     trace_nbd_negotiate_send_rep_list(name, desc);
     name_len = strlen(name);
     desc_len = strlen(desc);
     len = name_len + desc_len + sizeof(len);
-    ret = nbd_negotiate_send_rep_len(ioc, NBD_REP_SERVER, NBD_OPT_LIST, len,
-                                     errp);
+    ret = nbd_negotiate_send_rep_len(client, NBD_REP_SERVER, len, errp);
     if (ret < 0) {
         return ret;
     }
@@ -251,34 +291,24 @@ static int nbd_negotiate_send_rep_list(QIOChannel *ioc, NBDExport *exp,
 
 /* Process the NBD_OPT_LIST command, with a potential series of replies.
  * Return -errno on error, 0 on success. */
-static int nbd_negotiate_handle_list(NBDClient *client, uint32_t length,
-                                     Error **errp)
+static int nbd_negotiate_handle_list(NBDClient *client, Error **errp)
 {
     NBDExport *exp;
-
-    if (length) {
-        if (nbd_drop(client->ioc, length, errp) < 0) {
-            return -EIO;
-        }
-        return nbd_negotiate_send_rep_err(client->ioc,
-                                          NBD_REP_ERR_INVALID, NBD_OPT_LIST,
-                                          errp,
-                                          "OPT_LIST should not have length");
-    }
+    assert(client->opt == NBD_OPT_LIST);
 
     /* For each export, send a NBD_REP_SERVER reply. */
     QTAILQ_FOREACH(exp, &exports, next) {
-        if (nbd_negotiate_send_rep_list(client->ioc, exp, errp)) {
+        if (nbd_negotiate_send_rep_list(client, exp, errp)) {
             return -EINVAL;
         }
     }
     /* Finish with a NBD_REP_ACK. */
-    return nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, NBD_OPT_LIST, errp);
+    return nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
 }
 
 /* Send a reply to NBD_OPT_EXPORT_NAME.
  * Return -errno on error, 0 on success. */
-static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
+static int nbd_negotiate_handle_export_name(NBDClient *client,
                                             uint16_t myflags, bool no_zeroes,
                                             Error **errp)
 {
@@ -295,15 +325,16 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
         [10 .. 133]   reserved     (0) [unless no_zeroes]
      */
     trace_nbd_negotiate_handle_export_name();
-    if (length >= sizeof(name)) {
+    if (client->optlen >= sizeof(name)) {
         error_setg(errp, "Bad length received");
         return -EINVAL;
     }
-    if (nbd_read(client->ioc, name, length, errp) < 0) {
+    if (nbd_read(client->ioc, name, client->optlen, errp) < 0) {
         error_prepend(errp, "read failed: ");
-        return -EINVAL;
+        return -EIO;
     }
-    name[length] = '\0';
+    name[client->optlen] = '\0';
+    client->optlen = 0;
 
     trace_nbd_negotiate_handle_export_name_request(name);
 
@@ -333,14 +364,14 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
 /* Send a single NBD_REP_INFO, with a buffer @buf of @length bytes.
  * The buffer does NOT include the info type prefix.
  * Return -errno on error, 0 if ready to send more. */
-static int nbd_negotiate_send_info(NBDClient *client, uint32_t opt,
+static int nbd_negotiate_send_info(NBDClient *client,
                                    uint16_t info, uint32_t length, void *buf,
                                    Error **errp)
 {
     int rc;
 
     trace_nbd_negotiate_send_info(info, nbd_info_lookup(info), length);
-    rc = nbd_negotiate_send_rep_len(client->ioc, NBD_REP_INFO, opt,
+    rc = nbd_negotiate_send_rep_len(client, NBD_REP_INFO,
                                     sizeof(info) + length, errp);
     if (rc < 0) {
         return rc;
@@ -355,11 +386,33 @@ static int nbd_negotiate_send_info(NBDClient *client, uint32_t opt,
     return 0;
 }
 
+/* nbd_reject_length: Handle any unexpected payload.
+ * @fatal requests that we quit talking to the client, even if we are able
+ * to successfully send an error reply.
+ * Return:
+ * -errno  transmission error occurred or @fatal was requested, errp is set
+ * 0       error message successfully sent to client, errp is not set
+ */
+static int nbd_reject_length(NBDClient *client, bool fatal, Error **errp)
+{
+    int ret;
+
+    assert(client->optlen);
+    ret = nbd_opt_drop(client, NBD_REP_ERR_INVALID, errp,
+                       "option '%s' has unexpected length",
+                       nbd_opt_lookup(client->opt));
+    if (fatal && !ret) {
+        error_setg(errp, "option '%s' has unexpected length",
+                   nbd_opt_lookup(client->opt));
+        return -EINVAL;
+    }
+    return ret;
+}
+
 /* Handle NBD_OPT_INFO and NBD_OPT_GO.
  * Return -errno on error, 0 if ready for next option, and 1 to move
  * into transmission phase.  */
-static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
-                                     uint32_t opt, uint16_t myflags,
+static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
                                      Error **errp)
 {
     int rc;
@@ -372,7 +425,6 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
     bool blocksize = false;
     uint32_t sizes[3];
     char buf[sizeof(uint64_t) + sizeof(uint16_t)];
-    const char *msg;
 
     /* Client sends:
         4 bytes: L, name length (can be 0)
@@ -380,42 +432,34 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
         2 bytes: N, number of requests (can be 0)
         N * 2 bytes: N requests
     */
-    if (length < sizeof(namelen) + sizeof(requests)) {
-        msg = "overall request too short";
-        goto invalid;
-    }
-    if (nbd_read(client->ioc, &namelen, sizeof(namelen), errp) < 0) {
-        return -EIO;
+    rc = nbd_opt_read(client, &namelen, sizeof(namelen), errp);
+    if (rc <= 0) {
+        return rc;
     }
     be32_to_cpus(&namelen);
-    length -= sizeof(namelen);
-    if (namelen > length - sizeof(requests) || (length - namelen) % 2) {
-        msg = "name length is incorrect";
-        goto invalid;
+    if (namelen >= sizeof(name)) {
+        return nbd_opt_drop(client, NBD_REP_ERR_INVALID, errp,
+                            "name too long for qemu");
     }
-    if (nbd_read(client->ioc, name, namelen, errp) < 0) {
-        return -EIO;
+    rc = nbd_opt_read(client, name, namelen, errp);
+    if (rc <= 0) {
+        return rc;
     }
     name[namelen] = '\0';
-    length -= namelen;
     trace_nbd_negotiate_handle_export_name_request(name);
 
-    if (nbd_read(client->ioc, &requests, sizeof(requests), errp) < 0) {
-        return -EIO;
+    rc = nbd_opt_read(client, &requests, sizeof(requests), errp);
+    if (rc <= 0) {
+        return rc;
     }
     be16_to_cpus(&requests);
-    length -= sizeof(requests);
     trace_nbd_negotiate_handle_info_requests(requests);
-    if (requests != length / sizeof(request)) {
-        msg = "incorrect number of  requests for overall length";
-        goto invalid;
-    }
     while (requests--) {
-        if (nbd_read(client->ioc, &request, sizeof(request), errp) < 0) {
-            return -EIO;
+        rc = nbd_opt_read(client, &request, sizeof(request), errp);
+        if (rc <= 0) {
+            return rc;
         }
         be16_to_cpus(&request);
-        length -= sizeof(request);
         trace_nbd_negotiate_handle_info_request(request,
                                                 nbd_info_lookup(request));
         /* We care about NBD_INFO_NAME and NBD_INFO_BLOCK_SIZE;
@@ -430,17 +474,20 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
             break;
         }
     }
+    if (client->optlen) {
+        return nbd_reject_length(client, false, errp);
+    }
 
     exp = nbd_export_find(name);
     if (!exp) {
-        return nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_UNKNOWN,
-                                          opt, errp, "export '%s' not present",
+        return nbd_negotiate_send_rep_err(client, NBD_REP_ERR_UNKNOWN,
+                                          errp, "export '%s' not present",
                                           name);
     }
 
     /* Don't bother sending NBD_INFO_NAME unless client requested it */
     if (sendname) {
-        rc = nbd_negotiate_send_info(client, opt, NBD_INFO_NAME, length, name,
+        rc = nbd_negotiate_send_info(client, NBD_INFO_NAME, namelen, name,
                                      errp);
         if (rc < 0) {
             return rc;
@@ -452,7 +499,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
     if (exp->description) {
         size_t len = strlen(exp->description);
 
-        rc = nbd_negotiate_send_info(client, opt, NBD_INFO_DESCRIPTION,
+        rc = nbd_negotiate_send_info(client, NBD_INFO_DESCRIPTION,
                                      len, exp->description, errp);
         if (rc < 0) {
             return rc;
@@ -464,7 +511,8 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
      * whether this is OPT_INFO or OPT_GO. */
     /* minimum - 1 for back-compat, or 512 if client is new enough.
      * TODO: consult blk_bs(blk)->bl.request_alignment? */
-    sizes[0] = (opt == NBD_OPT_INFO || blocksize) ? BDRV_SECTOR_SIZE : 1;
+    sizes[0] =
+            (client->opt == NBD_OPT_INFO || blocksize) ? BDRV_SECTOR_SIZE : 1;
     /* preferred - Hard-code to 4096 for now.
      * TODO: is blk_bs(blk)->bl.opt_transfer appropriate? */
     sizes[1] = 4096;
@@ -474,7 +522,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
     cpu_to_be32s(&sizes[0]);
     cpu_to_be32s(&sizes[1]);
     cpu_to_be32s(&sizes[2]);
-    rc = nbd_negotiate_send_info(client, opt, NBD_INFO_BLOCK_SIZE,
+    rc = nbd_negotiate_send_info(client, NBD_INFO_BLOCK_SIZE,
                                  sizeof(sizes), sizes, errp);
     if (rc < 0) {
         return rc;
@@ -485,7 +533,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
                                              exp->nbdflags | myflags);
     stq_be_p(buf, exp->size);
     stw_be_p(buf + 8, exp->nbdflags | myflags);
-    rc = nbd_negotiate_send_info(client, opt, NBD_INFO_EXPORT,
+    rc = nbd_negotiate_send_info(client, NBD_INFO_EXPORT,
                                  sizeof(buf), buf, errp);
     if (rc < 0) {
         return rc;
@@ -495,61 +543,45 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
      * request block sizes, return an error.
      * TODO: consult blk_bs(blk)->request_align, and only error if it
      * is not 1? */
-    if (opt == NBD_OPT_INFO && !blocksize) {
-        return nbd_negotiate_send_rep_err(client->ioc,
-                                          NBD_REP_ERR_BLOCK_SIZE_REQD, opt,
+    if (client->opt == NBD_OPT_INFO && !blocksize) {
+        return nbd_negotiate_send_rep_err(client,
+                                          NBD_REP_ERR_BLOCK_SIZE_REQD,
                                           errp,
                                           "request NBD_INFO_BLOCK_SIZE to "
                                           "use this export");
     }
 
     /* Final reply */
-    rc = nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, opt, errp);
+    rc = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
     if (rc < 0) {
         return rc;
     }
 
-    if (opt == NBD_OPT_GO) {
+    if (client->opt == NBD_OPT_GO) {
         client->exp = exp;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
         nbd_export_get(client->exp);
         rc = 1;
     }
     return rc;
-
- invalid:
-    if (nbd_drop(client->ioc, length, errp) < 0) {
-        return -EIO;
-    }
-    return nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_INVALID, opt,
-                                      errp, "%s", msg);
 }
 
 
 /* Handle NBD_OPT_STARTTLS. Return NULL to drop connection, or else the
  * new channel for all further (now-encrypted) communication. */
 static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
-                                                 uint32_t length,
                                                  Error **errp)
 {
     QIOChannel *ioc;
     QIOChannelTLS *tioc;
     struct NBDTLSHandshakeData data = { 0 };
 
+    assert(client->opt == NBD_OPT_STARTTLS);
+
     trace_nbd_negotiate_handle_starttls();
     ioc = client->ioc;
-    if (length) {
-        if (nbd_drop(ioc, length, errp) < 0) {
-            return NULL;
-        }
-        nbd_negotiate_send_rep_err(ioc, NBD_REP_ERR_INVALID, NBD_OPT_STARTTLS,
-                                   errp,
-                                   "OPT_STARTTLS should not have length");
-        return NULL;
-    }
 
-    if (nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK,
-                               NBD_OPT_STARTTLS, errp) < 0) {
+    if (nbd_negotiate_send_rep(client, NBD_REP_ACK, errp) < 0) {
         return NULL;
     }
 
@@ -654,12 +686,21 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
             return -EINVAL;
         }
         option = be32_to_cpu(option);
+        client->opt = option;
 
         if (nbd_read(client->ioc, &length, sizeof(length), errp) < 0) {
             error_prepend(errp, "read failed: ");
             return -EINVAL;
         }
         length = be32_to_cpu(length);
+        assert(!client->optlen);
+        client->optlen = length;
+
+        if (length > NBD_MAX_BUFFER_SIZE) {
+            error_setg(errp, "len (%" PRIu32" ) is larger than max len (%u)",
+                       length, NBD_MAX_BUFFER_SIZE);
+            return -EINVAL;
+        }
 
         trace_nbd_negotiate_options_check_option(option,
                                                  nbd_opt_lookup(option));
@@ -672,10 +713,16 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
             }
             switch (option) {
             case NBD_OPT_STARTTLS:
-                tioc = nbd_negotiate_handle_starttls(client, length, errp);
+                if (length) {
+                    /* Unconditionally drop the connection if the client
+                     * can't start a TLS negotiation correctly */
+                    return nbd_reject_length(client, true, errp);
+                }
+                tioc = nbd_negotiate_handle_starttls(client, errp);
                 if (!tioc) {
                     return -EIO;
                 }
+                ret = 0;
                 object_unref(OBJECT(client->ioc));
                 client->ioc = QIO_CHANNEL(tioc);
                 break;
@@ -687,18 +734,9 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                 return -EINVAL;
 
             default:
-                if (nbd_drop(client->ioc, length, errp) < 0) {
-                    return -EIO;
-                }
-                ret = nbd_negotiate_send_rep_err(client->ioc,
-                                                 NBD_REP_ERR_TLS_REQD,
-                                                 option, errp,
-                                                 "Option 0x%" PRIx32
-                                                 "not permitted before TLS",
-                                                 option);
-                if (ret < 0) {
-                    return ret;
-                }
+                ret = nbd_opt_drop(client, NBD_REP_ERR_TLS_REQD, errp,
+                                   "Option 0x%" PRIx32
+                                   "not permitted before TLS", option);
                 /* Let the client keep trying, unless they asked to
                  * quit. In this mode, we've already sent an error, so
                  * we can't ack the abort.  */
@@ -710,9 +748,10 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         } else if (fixedNewstyle) {
             switch (option) {
             case NBD_OPT_LIST:
-                ret = nbd_negotiate_handle_list(client, length, errp);
-                if (ret < 0) {
-                    return ret;
+                if (length) {
+                    ret = nbd_reject_length(client, false, errp);
+                } else {
+                    ret = nbd_negotiate_handle_list(client, errp);
                 }
                 break;
 
@@ -720,59 +759,55 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                 /* NBD spec says we must try to reply before
                  * disconnecting, but that we must also tolerate
                  * guests that don't wait for our reply. */
-                nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, option, NULL);
+                nbd_negotiate_send_rep(client, NBD_REP_ACK, NULL);
                 return 1;
 
             case NBD_OPT_EXPORT_NAME:
-                return nbd_negotiate_handle_export_name(client, length,
+                return nbd_negotiate_handle_export_name(client,
                                                         myflags, no_zeroes,
                                                         errp);
 
             case NBD_OPT_INFO:
             case NBD_OPT_GO:
-                ret = nbd_negotiate_handle_info(client, length, option,
-                                                myflags, errp);
+                ret = nbd_negotiate_handle_info(client, myflags, errp);
                 if (ret == 1) {
                     assert(option == NBD_OPT_GO);
                     return 0;
                 }
-                if (ret) {
-                    return ret;
-                }
                 break;
 
             case NBD_OPT_STARTTLS:
-                if (nbd_drop(client->ioc, length, errp) < 0) {
-                    return -EIO;
-                }
-                if (client->tlscreds) {
-                    ret = nbd_negotiate_send_rep_err(client->ioc,
-                                                     NBD_REP_ERR_INVALID,
-                                                     option, errp,
+                if (length) {
+                    ret = nbd_reject_length(client, false, errp);
+                } else if (client->tlscreds) {
+                    ret = nbd_negotiate_send_rep_err(client,
+                                                     NBD_REP_ERR_INVALID, errp,
                                                      "TLS already enabled");
                 } else {
-                    ret = nbd_negotiate_send_rep_err(client->ioc,
-                                                     NBD_REP_ERR_POLICY,
-                                                     option, errp,
+                    ret = nbd_negotiate_send_rep_err(client,
+                                                     NBD_REP_ERR_POLICY, errp,
                                                      "TLS not configured");
                 }
-                if (ret < 0) {
-                    return ret;
+                break;
+
+            case NBD_OPT_STRUCTURED_REPLY:
+                if (length) {
+                    ret = nbd_reject_length(client, false, errp);
+                } else if (client->structured_reply) {
+                    ret = nbd_negotiate_send_rep_err(
+                        client, NBD_REP_ERR_INVALID, errp,
+                        "structured reply already negotiated");
+                } else {
+                    ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
+                    client->structured_reply = true;
+                    myflags |= NBD_FLAG_SEND_DF;
                 }
                 break;
+
             default:
-                if (nbd_drop(client->ioc, length, errp) < 0) {
-                    return -EIO;
-                }
-                ret = nbd_negotiate_send_rep_err(client->ioc,
-                                                 NBD_REP_ERR_UNSUP,
-                                                 option, errp,
-                                                 "Unsupported option 0x%"
-                                                 PRIx32 " (%s)", option,
-                                                 nbd_opt_lookup(option));
-                if (ret < 0) {
-                    return ret;
-                }
+                ret = nbd_opt_drop(client, NBD_REP_ERR_UNSUP, errp,
+                                   "Unsupported option 0x%" PRIx32 " (%s)",
+                                   option, nbd_opt_lookup(option));
                 break;
             }
         } else {
@@ -782,7 +817,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
              */
             switch (option) {
             case NBD_OPT_EXPORT_NAME:
-                return nbd_negotiate_handle_export_name(client, length,
+                return nbd_negotiate_handle_export_name(client,
                                                         myflags, no_zeroes,
                                                         errp);
 
@@ -791,6 +826,9 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                            option, nbd_opt_lookup(option));
                 return -EINVAL;
             }
+        }
+        if (ret < 0) {
+            return ret;
         }
     }
 }
@@ -859,6 +897,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
         }
     }
 
+    assert(!client->optlen);
     trace_nbd_negotiate_success();
 
     return 0;
@@ -900,26 +939,6 @@ static int nbd_receive_request(QIOChannel *ioc, NBDRequest *request,
         return -EINVAL;
     }
     return 0;
-}
-
-static int nbd_send_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
-{
-    uint8_t buf[NBD_REPLY_SIZE];
-
-    reply->error = system_errno_to_nbd_errno(reply->error);
-
-    trace_nbd_send_reply(reply->error, reply->handle);
-
-    /* Reply
-       [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
-       [ 4 ..  7]    error   (0 == no error)
-       [ 7 .. 15]    handle
-     */
-    stl_be_p(buf, NBD_REPLY_MAGIC);
-    stl_be_p(buf + 4, reply->error);
-    stq_be_p(buf + 8, reply->handle);
-
-    return nbd_write(ioc, buf, sizeof(buf), errp);
 }
 
 #define MAX_NBD_REQUESTS 16
@@ -1047,7 +1066,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
 {
     AioContext *ctx;
     BlockBackend *blk;
-    NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    NBDExport *exp = g_new0(NBDExport, 1);
     uint64_t perm;
     int ret;
 
@@ -1171,6 +1190,12 @@ void nbd_export_put(NBDExport *exp)
         nbd_export_close(exp);
     }
 
+    /* nbd_export_close() may theoretically reduce refcount to 0. It may happen
+     * if someone calls nbd_export_put() on named export not through
+     * nbd_export_set_name() when refcount is 1. So, let's assert that
+     * it is > 0.
+     */
+    assert(exp->refcount > 0);
     if (--exp->refcount == 0) {
         assert(exp->name == NULL);
         assert(exp->description == NULL);
@@ -1208,36 +1233,182 @@ void nbd_export_close_all(void)
     }
 }
 
-static int nbd_co_send_reply(NBDRequestData *req, NBDReply *reply, int len,
-                             Error **errp)
+static int coroutine_fn nbd_co_send_iov(NBDClient *client, struct iovec *iov,
+                                        unsigned niov, Error **errp)
 {
-    NBDClient *client = req->client;
     int ret;
 
     g_assert(qemu_in_coroutine());
-
-    trace_nbd_co_send_reply(reply->handle, reply->error, len);
-
     qemu_co_mutex_lock(&client->send_lock);
     client->send_coroutine = qemu_coroutine_self();
 
-    if (!len) {
-        ret = nbd_send_reply(client->ioc, reply, errp);
-    } else {
-        qio_channel_set_cork(client->ioc, true);
-        ret = nbd_send_reply(client->ioc, reply, errp);
-        if (ret == 0) {
-            ret = nbd_write(client->ioc, req->data, len, errp);
-            if (ret < 0) {
-                ret = -EIO;
-            }
-        }
-        qio_channel_set_cork(client->ioc, false);
-    }
+    ret = qio_channel_writev_all(client->ioc, iov, niov, errp) < 0 ? -EIO : 0;
 
     client->send_coroutine = NULL;
     qemu_co_mutex_unlock(&client->send_lock);
+
     return ret;
+}
+
+static inline void set_be_simple_reply(NBDSimpleReply *reply, uint64_t error,
+                                       uint64_t handle)
+{
+    stl_be_p(&reply->magic, NBD_SIMPLE_REPLY_MAGIC);
+    stl_be_p(&reply->error, error);
+    stq_be_p(&reply->handle, handle);
+}
+
+static int nbd_co_send_simple_reply(NBDClient *client,
+                                    uint64_t handle,
+                                    uint32_t error,
+                                    void *data,
+                                    size_t len,
+                                    Error **errp)
+{
+    NBDSimpleReply reply;
+    int nbd_err = system_errno_to_nbd_errno(error);
+    struct iovec iov[] = {
+        {.iov_base = &reply, .iov_len = sizeof(reply)},
+        {.iov_base = data, .iov_len = len}
+    };
+
+    trace_nbd_co_send_simple_reply(handle, nbd_err, nbd_err_lookup(nbd_err),
+                                   len);
+    set_be_simple_reply(&reply, nbd_err, handle);
+
+    return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);
+}
+
+static inline void set_be_chunk(NBDStructuredReplyChunk *chunk, uint16_t flags,
+                                uint16_t type, uint64_t handle, uint32_t length)
+{
+    stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
+    stw_be_p(&chunk->flags, flags);
+    stw_be_p(&chunk->type, type);
+    stq_be_p(&chunk->handle, handle);
+    stl_be_p(&chunk->length, length);
+}
+
+static int coroutine_fn nbd_co_send_structured_done(NBDClient *client,
+                                                    uint64_t handle,
+                                                    Error **errp)
+{
+    NBDStructuredReplyChunk chunk;
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+    };
+
+    trace_nbd_co_send_structured_done(handle);
+    set_be_chunk(&chunk, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_NONE, handle, 0);
+
+    return nbd_co_send_iov(client, iov, 1, errp);
+}
+
+static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
+                                                    uint64_t handle,
+                                                    uint64_t offset,
+                                                    void *data,
+                                                    size_t size,
+                                                    bool final,
+                                                    Error **errp)
+{
+    NBDStructuredReadData chunk;
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = data, .iov_len = size}
+    };
+
+    assert(size);
+    trace_nbd_co_send_structured_read(handle, offset, data, size);
+    set_be_chunk(&chunk.h, final ? NBD_REPLY_FLAG_DONE : 0,
+                 NBD_REPLY_TYPE_OFFSET_DATA, handle,
+                 sizeof(chunk) - sizeof(chunk.h) + size);
+    stq_be_p(&chunk.offset, offset);
+
+    return nbd_co_send_iov(client, iov, 2, errp);
+}
+
+static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
+                                                uint64_t handle,
+                                                uint64_t offset,
+                                                uint8_t *data,
+                                                size_t size,
+                                                Error **errp)
+{
+    int ret = 0;
+    NBDExport *exp = client->exp;
+    size_t progress = 0;
+
+    while (progress < size) {
+        int64_t pnum;
+        int status = bdrv_block_status_above(blk_bs(exp->blk), NULL,
+                                             offset + progress,
+                                             size - progress, &pnum, NULL,
+                                             NULL);
+        bool final;
+
+        if (status < 0) {
+            error_setg_errno(errp, -status, "unable to check for holes");
+            return status;
+        }
+        assert(pnum && pnum <= size - progress);
+        final = progress + pnum == size;
+        if (status & BDRV_BLOCK_ZERO) {
+            NBDStructuredReadHole chunk;
+            struct iovec iov[] = {
+                {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+            };
+
+            trace_nbd_co_send_structured_read_hole(handle, offset + progress,
+                                                   pnum);
+            set_be_chunk(&chunk.h, final ? NBD_REPLY_FLAG_DONE : 0,
+                         NBD_REPLY_TYPE_OFFSET_HOLE,
+                         handle, sizeof(chunk) - sizeof(chunk.h));
+            stq_be_p(&chunk.offset, offset + progress);
+            stl_be_p(&chunk.length, pnum);
+            ret = nbd_co_send_iov(client, iov, 1, errp);
+        } else {
+            ret = blk_pread(exp->blk, offset + progress + exp->dev_offset,
+                            data + progress, pnum);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "reading from file failed");
+                break;
+            }
+            ret = nbd_co_send_structured_read(client, handle, offset + progress,
+                                              data + progress, pnum, final,
+                                              errp);
+        }
+
+        if (ret < 0) {
+            break;
+        }
+        progress += pnum;
+    }
+    return ret;
+}
+
+static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
+                                                     uint64_t handle,
+                                                     uint32_t error,
+                                                     const char *msg,
+                                                     Error **errp)
+{
+    NBDStructuredError chunk;
+    int nbd_err = system_errno_to_nbd_errno(error);
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
+    };
+
+    assert(nbd_err);
+    trace_nbd_co_send_structured_error(handle, nbd_err,
+                                       nbd_err_lookup(nbd_err), msg ? msg : "");
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
+                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    stl_be_p(&chunk.error, nbd_err);
+    stw_be_p(&chunk.message_length, iov[1].iov_len);
+
+    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
 }
 
 /* nbd_co_receive_request
@@ -1250,6 +1421,7 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                                   Error **errp)
 {
     NBDClient *client = req->client;
+    int valid_flags;
 
     g_assert(qemu_in_coroutine());
     assert(client->recv_coroutine == qemu_coroutine_self());
@@ -1269,15 +1441,6 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         /* Special case: we're going to disconnect without a reply,
          * whether or not flags, from, or len are bogus */
         return -EIO;
-    }
-
-    /* Check for sanity in the parameters, part 1.  Defer as many
-     * checks as possible until after reading any NBD_CMD_WRITE
-     * payload, so we can try and keep the connection alive.  */
-    if ((request->from + request->len) < request->from) {
-        error_setg(errp,
-                   "integer overflow detected, you're probably being attacked");
-        return -EINVAL;
     }
 
     if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE) {
@@ -1304,20 +1467,31 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                                                       request->len);
     }
 
-    /* Sanity checks, part 2. */
-    if (request->from + request->len > client->exp->size) {
+    /* Sanity checks. */
+    if (client->exp->nbdflags & NBD_FLAG_READ_ONLY &&
+        (request->type == NBD_CMD_WRITE ||
+         request->type == NBD_CMD_WRITE_ZEROES ||
+         request->type == NBD_CMD_TRIM)) {
+        error_setg(errp, "Export is read-only");
+        return -EROFS;
+    }
+    if (request->from > client->exp->size ||
+        request->from + request->len > client->exp->size) {
         error_setg(errp, "operation past EOF; From: %" PRIu64 ", Len: %" PRIu32
                    ", Size: %" PRIu64, request->from, request->len,
                    (uint64_t)client->exp->size);
-        return request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
+        return (request->type == NBD_CMD_WRITE ||
+                request->type == NBD_CMD_WRITE_ZEROES) ? -ENOSPC : -EINVAL;
     }
-    if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE)) {
-        error_setg(errp, "unsupported flags (got 0x%x)", request->flags);
-        return -EINVAL;
+    valid_flags = NBD_CMD_FLAG_FUA;
+    if (request->type == NBD_CMD_READ && client->structured_reply) {
+        valid_flags |= NBD_CMD_FLAG_DF;
+    } else if (request->type == NBD_CMD_WRITE_ZEROES) {
+        valid_flags |= NBD_CMD_FLAG_NO_HOLE;
     }
-    if (request->type != NBD_CMD_WRITE_ZEROES &&
-        (request->flags & NBD_CMD_FLAG_NO_HOLE)) {
-        error_setg(errp, "unexpected flags (got 0x%x)", request->flags);
+    if (request->flags & ~valid_flags) {
+        error_setg(errp, "unsupported flags for command %s (got 0x%x)",
+                   nbd_cmd_lookup(request->type), request->flags);
         return -EINVAL;
     }
 
@@ -1331,11 +1505,11 @@ static coroutine_fn void nbd_trip(void *opaque)
     NBDExport *exp = client->exp;
     NBDRequestData *req;
     NBDRequest request = { 0 };    /* GCC thinks it can be used uninitialized */
-    NBDReply reply;
     int ret;
     int flags;
     int reply_data_len = 0;
     Error *local_err = NULL;
+    char *msg = NULL;
 
     trace_nbd_trip();
     if (client->closing) {
@@ -1351,11 +1525,7 @@ static coroutine_fn void nbd_trip(void *opaque)
         goto disconnect;
     }
 
-    reply.handle = request.handle;
-    reply.error = 0;
-
     if (ret < 0) {
-        reply.error = -ret;
         goto reply;
     }
 
@@ -1374,16 +1544,25 @@ static coroutine_fn void nbd_trip(void *opaque)
             ret = blk_co_flush(exp->blk);
             if (ret < 0) {
                 error_setg_errno(&local_err, -ret, "flush failed");
-                reply.error = -ret;
                 break;
             }
+        }
+
+        if (client->structured_reply && !(request.flags & NBD_CMD_FLAG_DF) &&
+            request.len) {
+            ret = nbd_co_send_sparse_read(req->client, request.handle,
+                                          request.from, req->data, request.len,
+                                          &local_err);
+            if (ret < 0) {
+                goto reply;
+            }
+            goto done;
         }
 
         ret = blk_pread(exp->blk, request.from + exp->dev_offset,
                         req->data, request.len);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "reading from file failed");
-            reply.error = -ret;
             break;
         }
 
@@ -1391,11 +1570,6 @@ static coroutine_fn void nbd_trip(void *opaque)
 
         break;
     case NBD_CMD_WRITE:
-        if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            reply.error = EROFS;
-            break;
-        }
-
         flags = 0;
         if (request.flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
@@ -1404,17 +1578,10 @@ static coroutine_fn void nbd_trip(void *opaque)
                          req->data, request.len, flags);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "writing to file failed");
-            reply.error = -ret;
         }
 
         break;
     case NBD_CMD_WRITE_ZEROES:
-        if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
-            error_setg(&local_err, "Server is read-only, return error");
-            reply.error = EROFS;
-            break;
-        }
-
         flags = 0;
         if (request.flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
@@ -1426,7 +1593,6 @@ static coroutine_fn void nbd_trip(void *opaque)
                                 request.len, flags);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "writing to file failed");
-            reply.error = -ret;
         }
 
         break;
@@ -1438,7 +1604,6 @@ static coroutine_fn void nbd_trip(void *opaque)
         ret = blk_co_flush(exp->blk);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "flush failed");
-            reply.error = -ret;
         }
 
         break;
@@ -1447,25 +1612,46 @@ static coroutine_fn void nbd_trip(void *opaque)
                               request.len);
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "discard failed");
-            reply.error = -ret;
         }
 
         break;
     default:
         error_setg(&local_err, "invalid request type (%" PRIu32 ") received",
                    request.type);
-        reply.error = EINVAL;
+        ret = -EINVAL;
     }
 
 reply:
     if (local_err) {
-        /* If we are here local_err is not fatal error, already stored in
-         * reply.error */
+        /* If we get here, local_err was not a fatal error, and should be sent
+         * to the client. */
+        assert(ret < 0);
+        msg = g_strdup(error_get_pretty(local_err));
         error_report_err(local_err);
         local_err = NULL;
     }
 
-    if (nbd_co_send_reply(req, &reply, reply_data_len, &local_err) < 0) {
+    if (client->structured_reply &&
+        (ret < 0 || request.type == NBD_CMD_READ)) {
+        if (ret < 0) {
+            ret = nbd_co_send_structured_error(req->client, request.handle,
+                                               -ret, msg, &local_err);
+        } else if (reply_data_len) {
+            ret = nbd_co_send_structured_read(req->client, request.handle,
+                                              request.from, req->data,
+                                              reply_data_len, true,
+                                              &local_err);
+        } else {
+            ret = nbd_co_send_structured_done(req->client, request.handle,
+                                              &local_err);
+        }
+    } else {
+        ret = nbd_co_send_simple_reply(req->client, request.handle,
+                                       ret < 0 ? -ret : 0,
+                                       req->data, reply_data_len, &local_err);
+    }
+    g_free(msg);
+    if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
     }
@@ -1539,7 +1725,7 @@ void nbd_client_new(NBDExport *exp,
     NBDClient *client;
     Coroutine *co;
 
-    client = g_malloc0(sizeof(NBDClient));
+    client = g_new0(NBDClient, 1);
     client->refcount = 1;
     client->exp = exp;
     client->tlscreds = tlscreds;

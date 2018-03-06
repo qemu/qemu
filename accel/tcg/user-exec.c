@@ -39,6 +39,8 @@
 #include <sys/ucontext.h>
 #endif
 
+__thread uintptr_t helper_retaddr;
+
 //#define DEBUG_SIGNAL
 
 /* exit the current TB from a signal handler. The host registers are
@@ -62,6 +64,27 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
     CPUClass *cc;
     int ret;
 
+    /* We must handle PC addresses from two different sources:
+     * a call return address and a signal frame address.
+     *
+     * Within cpu_restore_state_from_tb we assume the former and adjust
+     * the address by -GETPC_ADJ so that the address is within the call
+     * insn so that addr does not accidentally match the beginning of the
+     * next guest insn.
+     *
+     * However, when the PC comes from the signal frame, it points to
+     * the actual faulting host insn and not a call insn.  Subtracting
+     * GETPC_ADJ in that case may accidentally match the previous guest insn.
+     *
+     * So for the later case, adjust forward to compensate for what
+     * will be done later by cpu_restore_state_from_tb.
+     */
+    if (helper_retaddr) {
+        pc = helper_retaddr;
+    } else {
+        pc += GETPC_ADJ;
+    }
+
     /* For synchronous signals we expect to be coming from the vCPU
      * thread (so current_cpu should be valid) and either from running
      * code or during translation which can fault as we cross pages.
@@ -84,21 +107,24 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
         switch (page_unprotect(h2g(address), pc)) {
         case 0:
             /* Fault not caused by a page marked unwritable to protect
-             * cached translations, must be the guest binary's problem
+             * cached translations, must be the guest binary's problem.
              */
             break;
         case 1:
             /* Fault caused by protection of cached translation; TBs
-             * invalidated, so resume execution
+             * invalidated, so resume execution.  Retain helper_retaddr
+             * for a possible second fault.
              */
             return 1;
         case 2:
             /* Fault caused by protection of cached translation, and the
              * currently executing TB was modified and must be exited
-             * immediately.
+             * immediately.  Clear helper_retaddr for next execution.
              */
+            helper_retaddr = 0;
             cpu_exit_tb_from_sighandler(cpu, old_set);
-            g_assert_not_reached();
+            /* NORETURN */
+
         default:
             g_assert_not_reached();
         }
@@ -112,17 +138,25 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
     /* see if it is an MMU fault */
     g_assert(cc->handle_mmu_fault);
     ret = cc->handle_mmu_fault(cpu, address, is_write, MMU_USER_IDX);
+
+    if (ret == 0) {
+        /* The MMU fault was handled without causing real CPU fault.
+         *  Retain helper_retaddr for a possible second fault.
+         */
+        return 1;
+    }
+
+    /* All other paths lead to cpu_exit; clear helper_retaddr
+     * for next execution.
+     */
+    helper_retaddr = 0;
+
     if (ret < 0) {
         return 0; /* not an MMU fault */
     }
-    if (ret == 0) {
-        return 1; /* the MMU fault was handled without causing real CPU fault */
-    }
 
-    /* Now we have a real cpu fault.  Since this is the exact location of
-     * the exception, we must undo the adjustment done by cpu_restore_state
-     * for handling call return addresses.  */
-    cpu_restore_state(cpu, pc + GETPC_ADJ);
+    /* Now we have a real cpu fault.  */
+    cpu_restore_state(cpu, pc);
 
     sigprocmask(SIG_SETMASK, old_set, NULL);
     cpu_loop_exit(cpu);
@@ -585,11 +619,14 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     if (unlikely(addr & (size - 1))) {
         cpu_loop_exit_atomic(ENV_GET_CPU(env), retaddr);
     }
+    helper_retaddr = retaddr;
     return g2h(addr);
 }
 
 /* Macro to call the above, with local variables from the use context.  */
+#define ATOMIC_MMU_DECLS do {} while (0)
 #define ATOMIC_MMU_LOOKUP  atomic_mmu_lookup(env, addr, DATA_SIZE, GETPC())
+#define ATOMIC_MMU_CLEANUP do { helper_retaddr = 0; } while (0)
 
 #define ATOMIC_NAME(X)   HELPER(glue(glue(atomic_ ## X, SUFFIX), END))
 #define EXTRA_ARGS

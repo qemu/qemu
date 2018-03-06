@@ -486,7 +486,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         } else {
             address_space_stb(&address_space_memory, ccw.cda, vdev->status,
                                         MEMTXATTRS_UNSPECIFIED, NULL);
-            sch->curr_status.scsw.count = ccw.count - sizeof(vdev->status);;
+            sch->curr_status.scsw.count = ccw.count - sizeof(vdev->status);
             ret = 0;
         }
         break;
@@ -701,7 +701,7 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     SubchDev *sch;
     Error *err = NULL;
 
-    sch = css_create_sch(ccw_dev->devno, true, cbus->squash_mcss, errp);
+    sch = css_create_sch(ccw_dev->devno, cbus->squash_mcss, errp);
     if (!sch) {
         return;
     }
@@ -947,6 +947,15 @@ static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 static void virtio_ccw_gpu_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {
     VirtIOGPUCcw *dev = VIRTIO_GPU_CCW(ccw_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+
+    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
+}
+
+static void virtio_ccw_input_realize(VirtioCcwDevice *ccw_dev, Error **errp)
+{
+    VirtIOInputCcw *dev = VIRTIO_INPUT_CCW(ccw_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
     qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
@@ -1601,6 +1610,92 @@ static const TypeInfo virtio_ccw_gpu = {
     .class_init    = virtio_ccw_gpu_class_init,
 };
 
+static Property virtio_ccw_input_properties[] = {
+    DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
+                    VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_ccw_input_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
+
+    k->realize = virtio_ccw_input_realize;
+    k->exit = virtio_ccw_exit;
+    dc->reset = virtio_ccw_reset;
+    dc->props = virtio_ccw_input_properties;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+}
+
+static void virtio_ccw_keyboard_instance_init(Object *obj)
+{
+    VirtIOInputHIDCcw *dev = VIRTIO_INPUT_HID_CCW(obj);
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+
+    ccw_dev->force_revision_1 = true;
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_KEYBOARD);
+}
+
+static void virtio_ccw_mouse_instance_init(Object *obj)
+{
+    VirtIOInputHIDCcw *dev = VIRTIO_INPUT_HID_CCW(obj);
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+
+    ccw_dev->force_revision_1 = true;
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_MOUSE);
+}
+
+static void virtio_ccw_tablet_instance_init(Object *obj)
+{
+    VirtIOInputHIDCcw *dev = VIRTIO_INPUT_HID_CCW(obj);
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+
+    ccw_dev->force_revision_1 = true;
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_TABLET);
+}
+
+static const TypeInfo virtio_ccw_input = {
+    .name          = TYPE_VIRTIO_INPUT_CCW,
+    .parent        = TYPE_VIRTIO_CCW_DEVICE,
+    .instance_size = sizeof(VirtIOInputCcw),
+    .class_init    = virtio_ccw_input_class_init,
+    .abstract = true,
+};
+
+static const TypeInfo virtio_ccw_input_hid = {
+    .name          = TYPE_VIRTIO_INPUT_HID_CCW,
+    .parent        = TYPE_VIRTIO_INPUT_CCW,
+    .instance_size = sizeof(VirtIOInputHIDCcw),
+    .abstract = true,
+};
+
+static const TypeInfo virtio_ccw_keyboard = {
+    .name          = TYPE_VIRTIO_KEYBOARD_CCW,
+    .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
+    .instance_size = sizeof(VirtIOInputHIDCcw),
+    .instance_init = virtio_ccw_keyboard_instance_init,
+};
+
+static const TypeInfo virtio_ccw_mouse = {
+    .name          = TYPE_VIRTIO_MOUSE_CCW,
+    .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
+    .instance_size = sizeof(VirtIOInputHIDCcw),
+    .instance_init = virtio_ccw_mouse_instance_init,
+};
+
+static const TypeInfo virtio_ccw_tablet = {
+    .name          = TYPE_VIRTIO_TABLET_CCW,
+    .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
+    .instance_size = sizeof(VirtIOInputHIDCcw),
+    .instance_init = virtio_ccw_tablet_instance_init,
+};
+
 static void virtio_ccw_busdev_realize(DeviceState *dev, Error **errp)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
@@ -1801,6 +1896,11 @@ static void virtio_ccw_register(void)
 #endif
     type_register_static(&virtio_ccw_crypto);
     type_register_static(&virtio_ccw_gpu);
+    type_register_static(&virtio_ccw_input);
+    type_register_static(&virtio_ccw_input_hid);
+    type_register_static(&virtio_ccw_keyboard);
+    type_register_static(&virtio_ccw_mouse);
+    type_register_static(&virtio_ccw_tablet);
 }
 
 type_init(virtio_ccw_register)

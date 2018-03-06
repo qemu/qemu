@@ -256,6 +256,15 @@ bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus)
     return k->ioeventfd_assign && k->ioeventfd_enabled(proxy);
 }
 
+static void virtio_bus_cleanup_event_notifier(EventNotifier *notifier)
+{
+    /* Test and clear notifier after disabling event,
+     * in case poll callback didn't have time to run.
+     */
+    virtio_queue_host_notifier_read(notifier);
+    event_notifier_cleanup(notifier);
+}
+
 /*
  * This function switches ioeventfd on/off in the device.
  * The caller must set or clear the handlers for the EventNotifier.
@@ -283,19 +292,13 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
         r = k->ioeventfd_assign(proxy, notifier, n, true);
         if (r < 0) {
             error_report("%s: unable to assign ioeventfd: %d", __func__, r);
-            goto cleanup_event_notifier;
+            virtio_bus_cleanup_event_notifier(notifier);
         }
-        return 0;
     } else {
+        notifier->cleanup = virtio_bus_cleanup_event_notifier;
         k->ioeventfd_assign(proxy, notifier, n, false);
     }
 
-cleanup_event_notifier:
-    /* Test and clear notifier after disabling event,
-     * in case poll callback didn't have time to run.
-     */
-    virtio_queue_host_notifier_read(notifier);
-    event_notifier_cleanup(notifier);
     return r;
 }
 

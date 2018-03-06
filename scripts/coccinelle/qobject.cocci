@@ -41,4 +41,7 @@ expression Obj, E;
 |
 - qlist_append(Obj, qstring_from_str(E));
 + qlist_append_str(Obj, E);
+|
+- qlist_append(Obj, qnull());
++ qlist_append_null(Obj);
 )

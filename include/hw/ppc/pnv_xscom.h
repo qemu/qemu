@@ -21,6 +21,8 @@
 
 #include "qom/object.h"
 
+typedef struct PnvChip PnvChip;
+
 typedef struct PnvXScomInterface {
     Object parent;
 } PnvXScomInterface;
@@ -36,7 +38,7 @@ typedef struct PnvXScomInterface {
 
 typedef struct PnvXScomInterfaceClass {
     InterfaceClass parent;
-    int (*populate)(PnvXScomInterface *dev, void *fdt, int offset);
+    int (*dt_xscom)(PnvXScomInterface *dev, void *fdt, int offset);
 } PnvXScomInterfaceClass;
 
 /*
@@ -54,8 +56,15 @@ typedef struct PnvXScomInterfaceClass {
  *   PCB SLAVE   0x110Fxxxx
  */
 
-#define PNV_XSCOM_EX_CORE_BASE(base, i) ((base) | ((uint64_t)(i) << 24))
-#define PNV_XSCOM_EX_CORE_SIZE    0x100000
+#define PNV_XSCOM_EX_CORE_BASE    0x10000000ull
+
+#define PNV_XSCOM_EX_BASE(core) \
+    (PNV_XSCOM_EX_CORE_BASE | ((uint64_t)(core) << 24))
+#define PNV_XSCOM_EX_SIZE         0x100000
+
+#define PNV_XSCOM_P9_EC_BASE(core) \
+    ((uint64_t)(((core) & 0x1F) + 0x20) << 24)
+#define PNV_XSCOM_P9_EC_SIZE      0x100000
 
 #define PNV_XSCOM_LPC_BASE        0xb0020
 #define PNV_XSCOM_LPC_SIZE        0x4
@@ -67,7 +76,7 @@ typedef struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_OCC_SIZE        0x6000
 
 extern void pnv_xscom_realize(PnvChip *chip, Error **errp);
-extern int pnv_xscom_populate(PnvChip *chip, void *fdt, int offset);
+extern int pnv_dt_xscom(PnvChip *chip, void *fdt, int offset);
 
 extern void pnv_xscom_add_subregion(PnvChip *chip, hwaddr offset,
                                     MemoryRegion *mr);

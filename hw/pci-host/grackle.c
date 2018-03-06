@@ -82,13 +82,13 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    phb->bus = pci_register_bus(dev, NULL,
-                                pci_grackle_set_irq,
-                                pci_grackle_map_irq,
-                                pic,
-                                &d->pci_mmio,
-                                address_space_io,
-                                0, 4, TYPE_PCI_BUS);
+    phb->bus = pci_register_root_bus(dev, NULL,
+                                     pci_grackle_set_irq,
+                                     pci_grackle_map_irq,
+                                     pic,
+                                     &d->pci_mmio,
+                                     address_space_io,
+                                     0, 4, TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, 0, "grackle");
     qdev_init_nofail(dev);
@@ -142,6 +142,10 @@ static const TypeInfo grackle_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = grackle_pci_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void pci_grackle_class_init(ObjectClass *klass, void *data)

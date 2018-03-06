@@ -81,6 +81,18 @@ static void icp_get_kvm_state(ICPState *icp)
         & KVM_REG_PPC_ICP_PPRI_MASK;
 }
 
+static void do_icp_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
+{
+    icp_get_kvm_state(arg.host_ptr);
+}
+
+static void icp_synchronize_state(ICPState *icp)
+{
+    if (icp->cs) {
+        run_on_cpu(icp->cs, do_icp_synchronize_state, RUN_ON_CPU_HOST_PTR(icp));
+    }
+}
+
 static int icp_set_kvm_state(ICPState *icp, int version_id)
 {
     uint64_t state;
@@ -156,6 +168,7 @@ static void icp_kvm_class_init(ObjectClass *klass, void *data)
     icpc->post_load = icp_set_kvm_state;
     icpc->realize = icp_kvm_realize;
     icpc->reset = icp_kvm_reset;
+    icpc->synchronize_state = icp_synchronize_state;
 }
 
 static const TypeInfo icp_kvm_info = {
@@ -232,6 +245,11 @@ static void ics_get_kvm_state(ICSState *ics)
                 irq->status |= XICS_STATUS_QUEUED;
         }
     }
+}
+
+static void ics_synchronize_state(ICSState *ics)
+{
+    ics_get_kvm_state(ics);
 }
 
 static int ics_set_kvm_state(ICSState *ics, int version_id)
@@ -347,6 +365,7 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
     icsc->realize = ics_kvm_realize;
     icsc->pre_save = ics_get_kvm_state;
     icsc->post_load = ics_set_kvm_state;
+    icsc->synchronize_state = ics_synchronize_state;
 }
 
 static const TypeInfo ics_kvm_info = {

@@ -31,6 +31,9 @@ typedef struct SCSISense {
 } SCSISense;
 
 int scsi_build_sense(uint8_t *buf, SCSISense sense);
+SCSISense scsi_parse_sense_buf(const uint8_t *in_buf, int in_len);
+int scsi_build_sense_buf(uint8_t *buf, size_t max_size, SCSISense sense,
+                         bool fixed_sense);
 
 /*
  * Predefined sense codes
@@ -76,7 +79,11 @@ extern const struct SCSISense sense_code_LUN_FAILURE;
 extern const struct SCSISense sense_code_LUN_COMM_FAILURE;
 /* Command aborted, Overlapped Commands Attempted */
 extern const struct SCSISense sense_code_OVERLAPPED_COMMANDS;
-/* LUN not ready, Capacity data has changed */
+/* Medium error, Unrecovered read error */
+extern const struct SCSISense sense_code_READ_ERROR;
+/* LUN not ready, Cause not reportable */
+extern const struct SCSISense sense_code_NOT_READY;
+/* Unit attention, Capacity data has changed */
 extern const struct SCSISense sense_code_CAPACITY_CHANGED;
 /* Unit attention, SCSI bus reset */
 extern const struct SCSISense sense_code_SCSI_BUS_RESET;

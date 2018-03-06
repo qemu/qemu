@@ -174,16 +174,8 @@ static void ppc_core99_init(MachineState *machine)
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
-    if (machine->cpu_model == NULL) {
-#ifdef TARGET_PPC64
-        machine->cpu_model = "970fx";
-#else
-        machine->cpu_model = "G4";
-#endif
-    }
     for (i = 0; i < smp_cpus; i++) {
-        cpu = POWERPC_CPU(cpu_generic_init(TYPE_POWERPC_CPU,
-                                           machine->cpu_model));
+        cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
         env = &cpu->env;
 
         /* Set time-base frequency to 100 Mhz */
@@ -389,6 +381,9 @@ static void ppc_core99_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
     qdev_connect_gpio_out(dev, 3, pic[0x0e]); /* IDE */
     qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 5, pic[0x18]); /* Screamer */
+    qdev_connect_gpio_out(dev, 6, pic[0x09]); /* Screamer TX DMA */
+    qdev_connect_gpio_out(dev, 7, pic[0x0a]); /* Screamer RX DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     macio_init(macio, pic_mem, escc_bar);
 
@@ -520,6 +515,11 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
     mc->default_boot_order = "cd";
     mc->kvm_type = core99_kvm_type;
+#ifdef TARGET_PPC64
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("970fx_v3.1");
+#else
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("7400_v2.9");
+#endif
 }
 
 static const TypeInfo core99_machine_info = {

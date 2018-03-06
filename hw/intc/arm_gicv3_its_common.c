@@ -67,7 +67,8 @@ static MemTxResult gicv3_its_trans_read(void *opaque, hwaddr offset,
                                         MemTxAttrs attrs)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "ITS read at offset 0x%"PRIx64"\n", offset);
-    return MEMTX_ERROR;
+    *data = 0;
+    return MEMTX_OK;
 }
 
 static MemTxResult gicv3_its_trans_write(void *opaque, hwaddr offset,
@@ -82,15 +83,12 @@ static MemTxResult gicv3_its_trans_write(void *opaque, hwaddr offset,
         if (ret <= 0) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "ITS: Error sending MSI: %s\n", strerror(-ret));
-            return MEMTX_DECODE_ERROR;
         }
-
-        return MEMTX_OK;
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ITS write at bad offset 0x%"PRIx64"\n", offset);
-        return MEMTX_DECODE_ERROR;
     }
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps gicv3_its_trans_ops = {
@@ -131,8 +129,6 @@ static void gicv3_its_common_reset(DeviceState *dev)
     s->creadr = 0;
     s->iidr = 0;
     memset(&s->baser, 0, sizeof(s->baser));
-
-    gicv3_its_post_load(s, 0);
 }
 
 static void gicv3_its_common_class_init(ObjectClass *klass, void *data)

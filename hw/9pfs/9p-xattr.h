@@ -16,8 +16,7 @@
 
 #include "qemu/xattr.h"
 
-typedef struct xattr_operations
-{
+struct XattrOperations {
     const char *name;
     ssize_t (*getxattr)(FsContext *ctx, const char *path,
                         const char *name, void *value, size_t size);
@@ -27,7 +26,7 @@ typedef struct xattr_operations
                     void *value, size_t size, int flags);
     int (*removexattr)(FsContext *ctx,
                        const char *path, const char *name);
-} XattrOperations;
+};
 
 ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size);

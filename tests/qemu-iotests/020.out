@@ -1075,4 +1075,21 @@ read 65536/65536 bytes at offset 4295098368
 read 65536/65536 bytes at offset 4295294976
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
+
+Testing failing commit
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 backing_file=json:{'driver': 'raw',,
+                         'file': {
+                             'driver': 'blkdebug',,
+                             'inject-error': [{
+                                 'event': 'write_aio',,
+                                 'errno': 28,,
+                                 'once': true
+                             }],,
+                             'image': {
+                                 'driver': 'null-co'
+                             }}}
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Block job failed: No space left on device
 *** done

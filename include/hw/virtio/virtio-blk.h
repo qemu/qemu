@@ -39,6 +39,7 @@ struct VirtIOBlkConf
     uint32_t config_wce;
     uint32_t request_merging;
     uint16_t num_queues;
+    uint16_t queue_size;
 };
 
 struct VirtIOBlockDataPlane;
