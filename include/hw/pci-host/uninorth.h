@@ -27,6 +27,8 @@
 
 #include "hw/hw.h"
 
+#include "hw/ppc/openpic.h"
+
 #define TYPE_UNI_NORTH_PCI_HOST_BRIDGE "uni-north-pci-pcihost"
 #define TYPE_UNI_NORTH_AGP_HOST_BRIDGE "uni-north-agp-pcihost"
 #define TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE "uni-north-internal-pci-pcihost"
@@ -44,7 +46,8 @@
 typedef struct UNINState {
     PCIHostState parent_obj;
 
-    void *pic_irqs;
+    OpenPICState *pic;
+    qemu_irq irqs[4];
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
 } UNINState;

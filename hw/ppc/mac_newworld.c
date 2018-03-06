@@ -347,7 +347,8 @@ static void ppc_core99_init(MachineState *machine)
         /* 970 gets a U3 bus */
         /* Uninorth AGP bus */
         dev = qdev_create(NULL, TYPE_U3_AGP_HOST_BRIDGE);
-        qdev_prop_set_ptr(dev, "pic-irqs", pic);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
         qdev_init_nofail(dev);
         uninorth_pci = U3_AGP_HOST_BRIDGE(dev);
         s = SYS_BUS_DEVICE(dev);
@@ -362,7 +363,8 @@ static void ppc_core99_init(MachineState *machine)
         /* Use values found on a real PowerMac */
         /* Uninorth AGP bus */
         dev = qdev_create(NULL, TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
-        qdev_prop_set_ptr(dev, "pic-irqs", pic);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
         qdev_init_nofail(dev);
         s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, 0xf0800000);
@@ -370,7 +372,8 @@ static void ppc_core99_init(MachineState *machine)
 
         /* Uninorth internal bus */
         dev = qdev_create(NULL, TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
-        qdev_prop_set_ptr(dev, "pic-irqs", pic);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
         qdev_init_nofail(dev);
         s = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(s, 0, 0xf4800000);
@@ -378,7 +381,8 @@ static void ppc_core99_init(MachineState *machine)
 
         /* Uninorth main bus */
         dev = qdev_create(NULL, TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
-        qdev_prop_set_ptr(dev, "pic-irqs", pic);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
         qdev_init_nofail(dev);
         uninorth_pci = UNI_NORTH_PCI_HOST_BRIDGE(dev);
         s = SYS_BUS_DEVICE(dev);
