@@ -3628,6 +3628,22 @@
             'size':             'size' } }
 
 ##
+# @BlockdevCreateOptionsParallels:
+#
+# Driver specific image creation options for parallels.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @cluster-size     Cluster size in bytes (default: 1 MB)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsParallels',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size',
+            '*cluster-size':    'size' } }
+
+##
 # @BlockdevQcow2Version:
 #
 # @v2:  The original QCOW2 format as introduced in qemu 0.10 (version 2)
@@ -3829,7 +3845,7 @@
       'null-aio':       'BlockdevCreateNotSupported',
       'null-co':        'BlockdevCreateNotSupported',
       'nvme':           'BlockdevCreateNotSupported',
-      'parallels':      'BlockdevCreateNotSupported',
+      'parallels':      'BlockdevCreateOptionsParallels',
       'qcow2':          'BlockdevCreateOptionsQcow2',
       'qcow':           'BlockdevCreateNotSupported',
       'qed':            'BlockdevCreateNotSupported',
