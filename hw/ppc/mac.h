@@ -31,6 +31,8 @@
 #include "hw/ide/internal.h"
 #include "hw/input/adb.h"
 #include "hw/misc/mos6522.h"
+#include "hw/pci/pci_host.h"
+#include "hw/pci-host/uninorth.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -86,12 +88,12 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
                          MemoryRegion *address_space_io);
 
 /* UniNorth PCI */
-PCIBus *pci_pmac_init(qemu_irq *pic,
-                      MemoryRegion *address_space_mem,
-                      MemoryRegion *address_space_io);
-PCIBus *pci_pmac_u3_init(qemu_irq *pic,
+UNINState *pci_pmac_init(qemu_irq *pic,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io);
+UNINState *pci_pmac_u3_init(qemu_irq *pic,
+                            MemoryRegion *address_space_mem,
+                            MemoryRegion *address_space_io);
 
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"

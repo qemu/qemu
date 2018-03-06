@@ -166,9 +166,9 @@ static void pci_unin_internal_init(Object *obj)
     sysbus_init_mmio(sbd, &h->data_mem);
 }
 
-PCIBus *pci_pmac_init(qemu_irq *pic,
-                      MemoryRegion *address_space_mem,
-                      MemoryRegion *address_space_io)
+UNINState *pci_pmac_init(qemu_irq *pic,
+                         MemoryRegion *address_space_mem,
+                         MemoryRegion *address_space_io)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -228,12 +228,12 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     sysbus_mmio_map(s, 1, 0xf4c00000);
 #endif
 
-    return h->bus;
+    return d;
 }
 
-PCIBus *pci_pmac_u3_init(qemu_irq *pic,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io)
+UNINState *pci_pmac_u3_init(qemu_irq *pic,
+                            MemoryRegion *address_space_mem,
+                            MemoryRegion *address_space_io)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -265,7 +265,7 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
 
     pci_create_simple(h->bus, 11 << 3, "u3-agp");
 
-    return h->bus;
+    return d;
 }
 
 static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)

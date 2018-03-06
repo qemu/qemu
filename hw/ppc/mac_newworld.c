@@ -151,6 +151,7 @@ static void ppc_core99_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
+    UNINState *uninorth_pci;
     PCIBus *pci_bus;
     NewWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
@@ -344,10 +345,12 @@ static void ppc_core99_init(MachineState *machine)
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
-        pci_bus = pci_pmac_u3_init(pic, get_system_memory(), get_system_io());
+        uninorth_pci = pci_pmac_u3_init(pic, get_system_memory(),
+                                        get_system_io());
         machine_arch = ARCH_MAC99_U3;
     } else {
-        pci_bus = pci_pmac_init(pic, get_system_memory(), get_system_io());
+        uninorth_pci = pci_pmac_init(pic, get_system_memory(),
+                                     get_system_io());
         machine_arch = ARCH_MAC99;
     }
 
@@ -359,6 +362,9 @@ static void ppc_core99_init(MachineState *machine)
     } else {
         tbfreq = TBFREQ;
     }
+
+    /* init basic PC hardware */
+    pci_bus = PCI_HOST_BRIDGE(uninorth_pci)->bus;
 
     /* MacIO */
     macio = NEWWORLD_MACIO(pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO));
