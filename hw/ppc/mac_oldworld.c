@@ -34,6 +34,7 @@
 #include "net/net.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
@@ -54,6 +55,8 @@
 #define BUSFREQ 66000000UL
 
 #define NDRV_VGA_FILENAME "qemu_vga.ndrv"
+
+#define GRACKLE_BASE 0xfec00000
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
@@ -94,6 +97,7 @@ static void ppc_heathrow_init(MachineState *machine)
     PCIBus *pci_bus;
     OldWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
+    SysBusDevice *s;
     DeviceState *dev, *pic_dev;
     BusState *adb_bus;
     int bios_size, ndrv_size;
@@ -261,9 +265,20 @@ static void ppc_heathrow_init(MachineState *machine)
         exit(1);
     }
 
-    pci_bus = pci_grackle_init(0xfec00000, pic_dev,
-                               get_system_memory(),
-                               get_system_io());
+    /* Grackle PCI host bridge */
+    dev = qdev_create(NULL, TYPE_GRACKLE_PCI_HOST_BRIDGE);
+    object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                             &error_abort);
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(s, 0, GRACKLE_BASE);
+    sysbus_mmio_map(s, 1, GRACKLE_BASE + 0x200000);
+    /* PCI hole */
+    memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
+                                sysbus_mmio_get_region(s, 2));
+
+    pci_bus = PCI_HOST_BRIDGE(dev)->bus;
+
     pci_vga_init(pci_bus);
 
     for (i = 0; i < nb_nics; i++) {

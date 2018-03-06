@@ -79,9 +79,6 @@ void macio_init(PCIDevice *dev,
 
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
-PCIBus *pci_grackle_init(uint32_t base, DeviceState *pic_dev,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io);
 
 /* UniNorth PCI */
 UNINState *pci_pmac_init(qemu_irq *pic,
