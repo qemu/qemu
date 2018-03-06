@@ -2047,6 +2047,20 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     /* snapshots */
     for (i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
+        if (offset_into_cluster(s, sn->l1_table_offset)) {
+            fprintf(stderr, "ERROR snapshot %s (%s) l1_offset=%#" PRIx64 ": "
+                    "L1 table is not cluster aligned; snapshot table entry "
+                    "corrupted\n", sn->id_str, sn->name, sn->l1_table_offset);
+            res->corruptions++;
+            continue;
+        }
+        if (sn->l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
+            fprintf(stderr, "ERROR snapshot %s (%s) l1_size=%#" PRIx32 ": "
+                    "L1 table is too large; snapshot table entry corrupted\n",
+                    sn->id_str, sn->name, sn->l1_size);
+            res->corruptions++;
+            continue;
+        }
         ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
                                  sn->l1_table_offset, sn->l1_size, 0, fix);
         if (ret < 0) {
