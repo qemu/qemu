@@ -188,6 +188,7 @@ UNINState *pci_pmac_init(qemu_irq *pic,
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
     dev = qdev_create(NULL, TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
+    qdev_prop_set_ptr(dev, "pic-irqs", pic);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     h = PCI_HOST_BRIDGE(s);
@@ -199,7 +200,7 @@ UNINState *pci_pmac_init(qemu_irq *pic,
 
     h->bus = pci_register_root_bus(dev, NULL,
                                    pci_unin_set_irq, pci_unin_map_irq,
-                                   pic,
+                                   d->pic_irqs,
                                    &d->pci_mmio,
                                    address_space_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
@@ -220,6 +221,7 @@ UNINState *pci_pmac_init(qemu_irq *pic,
     /* Uninorth AGP bus */
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-agp");
     dev = qdev_create(NULL, TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
+    qdev_prop_set_ptr(dev, "pic-irqs", pic);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, 0xf0800000);
@@ -251,6 +253,7 @@ UNINState *pci_pmac_u3_init(qemu_irq *pic,
 
     /* Uninorth AGP bus */
     dev = qdev_create(NULL, TYPE_U3_AGP_HOST_BRIDGE);
+    qdev_prop_set_ptr(dev, "pic-irqs", pic);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     h = PCI_HOST_BRIDGE(dev);
@@ -263,7 +266,7 @@ UNINState *pci_pmac_u3_init(qemu_irq *pic,
 
     h->bus = pci_register_root_bus(dev, NULL,
                                    pci_unin_set_irq, pci_unin_map_irq,
-                                   pic,
+                                   d->pic_irqs,
                                    &d->pci_mmio,
                                    address_space_io,
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
@@ -436,10 +439,16 @@ static const TypeInfo unin_internal_pci_host_info = {
     },
 };
 
+static Property pci_unin_main_properties[] = {
+    DEFINE_PROP_PTR("pic-irqs", UNINState, pic_irqs),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pci_unin_main_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->props = pci_unin_main_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
@@ -451,10 +460,16 @@ static const TypeInfo pci_unin_main_info = {
     .class_init    = pci_unin_main_class_init,
 };
 
+static Property pci_u3_agp_properties[] = {
+    DEFINE_PROP_PTR("pic-irqs", UNINState, pic_irqs),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->props = pci_u3_agp_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
@@ -466,10 +481,16 @@ static const TypeInfo pci_u3_agp_info = {
     .class_init    = pci_u3_agp_class_init,
 };
 
+static Property pci_unin_agp_class_properties[] = {
+    DEFINE_PROP_PTR("pic-irqs", UNINState, pic_irqs),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->props = pci_unin_agp_class_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
