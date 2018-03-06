@@ -391,7 +391,7 @@ static struct audio_pcm_ops audio_callbacks = {
     .ctl_in   = line_in_ctl,
 };
 
-struct audio_driver spice_audio_driver = {
+static struct audio_driver spice_audio_driver = {
     .name           = "spice",
     .descr          = "spice audio driver",
     .options        = audio_options,
@@ -411,3 +411,9 @@ void qemu_spice_audio_init (void)
 {
     spice_audio_driver.can_be_default = 1;
 }
+
+static void register_audio_spice(void)
+{
+    audio_driver_register(&spice_audio_driver);
+}
+type_init(register_audio_spice);

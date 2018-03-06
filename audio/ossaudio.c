@@ -922,7 +922,7 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .ctl_in   = oss_ctl_in
 };
 
-struct audio_driver oss_audio_driver = {
+static struct audio_driver oss_audio_driver = {
     .name           = "oss",
     .descr          = "OSS http://www.opensound.com",
     .options        = oss_options,
@@ -935,3 +935,9 @@ struct audio_driver oss_audio_driver = {
     .voice_size_out = sizeof (OSSVoiceOut),
     .voice_size_in  = sizeof (OSSVoiceIn)
 };
+
+static void register_audio_oss(void)
+{
+    audio_driver_register(&oss_audio_driver);
+}
+type_init(register_audio_oss);

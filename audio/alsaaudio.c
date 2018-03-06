@@ -1213,7 +1213,7 @@ static struct audio_pcm_ops alsa_pcm_ops = {
     .ctl_in   = alsa_ctl_in,
 };
 
-struct audio_driver alsa_audio_driver = {
+static struct audio_driver alsa_audio_driver = {
     .name           = "alsa",
     .descr          = "ALSA http://www.alsa-project.org",
     .options        = alsa_options,
@@ -1226,3 +1226,9 @@ struct audio_driver alsa_audio_driver = {
     .voice_size_out = sizeof (ALSAVoiceOut),
     .voice_size_in  = sizeof (ALSAVoiceIn)
 };
+
+static void register_audio_alsa(void)
+{
+    audio_driver_register(&alsa_audio_driver);
+}
+type_init(register_audio_alsa);

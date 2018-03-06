@@ -722,7 +722,7 @@ static struct audio_pcm_ops coreaudio_pcm_ops = {
     .ctl_out  = coreaudio_ctl_out
 };
 
-struct audio_driver coreaudio_audio_driver = {
+static struct audio_driver coreaudio_audio_driver = {
     .name           = "coreaudio",
     .descr          = "CoreAudio http://developer.apple.com/audio/coreaudio.html",
     .options        = coreaudio_options,
@@ -735,3 +735,9 @@ struct audio_driver coreaudio_audio_driver = {
     .voice_size_out = sizeof (coreaudioVoiceOut),
     .voice_size_in  = 0
 };
+
+static void register_audio_coreaudio(void)
+{
+    audio_driver_register(&coreaudio_audio_driver);
+}
+type_init(register_audio_coreaudio);

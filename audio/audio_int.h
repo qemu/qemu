@@ -141,6 +141,7 @@ struct SWVoiceIn {
     QLIST_ENTRY (SWVoiceIn) entries;
 };
 
+typedef struct audio_driver audio_driver;
 struct audio_driver {
     const char *name;
     const char *descr;
@@ -154,6 +155,7 @@ struct audio_driver {
     int voice_size_out;
     int voice_size_in;
     int ctl_caps;
+    QLIST_ENTRY(audio_driver) next;
 };
 
 struct audio_pcm_ops {
@@ -203,16 +205,10 @@ struct AudioState {
     int vm_running;
 };
 
-extern struct audio_driver no_audio_driver;
-extern struct audio_driver oss_audio_driver;
-extern struct audio_driver sdl_audio_driver;
-extern struct audio_driver wav_audio_driver;
-extern struct audio_driver alsa_audio_driver;
-extern struct audio_driver coreaudio_audio_driver;
-extern struct audio_driver dsound_audio_driver;
-extern struct audio_driver pa_audio_driver;
-extern struct audio_driver spice_audio_driver;
 extern const struct mixeng_volume nominal_volume;
+
+void audio_driver_register(audio_driver *drv);
+audio_driver *audio_driver_lookup(const char *name);
 
 void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);

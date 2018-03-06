@@ -500,7 +500,7 @@ static struct audio_pcm_ops sdl_pcm_ops = {
     .ctl_out  = sdl_ctl_out,
 };
 
-struct audio_driver sdl_audio_driver = {
+static struct audio_driver sdl_audio_driver = {
     .name           = "sdl",
     .descr          = "SDL http://www.libsdl.org",
     .options        = sdl_options,
@@ -513,3 +513,9 @@ struct audio_driver sdl_audio_driver = {
     .voice_size_out = sizeof (SDLVoiceOut),
     .voice_size_in  = 0
 };
+
+static void register_audio_sdl(void)
+{
+    audio_driver_register(&sdl_audio_driver);
+}
+type_init(register_audio_sdl);

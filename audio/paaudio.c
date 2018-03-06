@@ -937,7 +937,7 @@ static struct audio_pcm_ops qpa_pcm_ops = {
     .ctl_in   = qpa_ctl_in
 };
 
-struct audio_driver pa_audio_driver = {
+static struct audio_driver pa_audio_driver = {
     .name           = "pa",
     .descr          = "http://www.pulseaudio.org/",
     .options        = qpa_options,
@@ -951,3 +951,9 @@ struct audio_driver pa_audio_driver = {
     .voice_size_in  = sizeof (PAVoiceIn),
     .ctl_caps       = VOICE_VOLUME_CAP
 };
+
+static void register_audio_pa(void)
+{
+    audio_driver_register(&pa_audio_driver);
+}
+type_init(register_audio_pa);
