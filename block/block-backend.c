@@ -31,6 +31,13 @@
 
 static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 
+typedef struct BlockBackendAioNotifier {
+    void (*attached_aio_context)(AioContext *new_context, void *opaque);
+    void (*detach_aio_context)(void *opaque);
+    void *opaque;
+    QLIST_ENTRY(BlockBackendAioNotifier) list;
+} BlockBackendAioNotifier;
+
 struct BlockBackend {
     char *name;
     int refcnt;
@@ -69,6 +76,7 @@ struct BlockBackend {
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
+    QLIST_HEAD(, BlockBackendAioNotifier) aio_notifiers;
 
     int quiesce_counter;
     VMChangeStateEntry *vmsh;
@@ -247,6 +255,36 @@ static int blk_root_inactivate(BdrvChild *child)
     return 0;
 }
 
+static void blk_root_attach(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+    BlockBackendAioNotifier *notifier;
+
+    trace_blk_root_attach(child, blk, child->bs);
+
+    QLIST_FOREACH(notifier, &blk->aio_notifiers, list) {
+        bdrv_add_aio_context_notifier(child->bs,
+                notifier->attached_aio_context,
+                notifier->detach_aio_context,
+                notifier->opaque);
+    }
+}
+
+static void blk_root_detach(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+    BlockBackendAioNotifier *notifier;
+
+    trace_blk_root_detach(child, blk, child->bs);
+
+    QLIST_FOREACH(notifier, &blk->aio_notifiers, list) {
+        bdrv_remove_aio_context_notifier(child->bs,
+                notifier->attached_aio_context,
+                notifier->detach_aio_context,
+                notifier->opaque);
+    }
+}
+
 static const BdrvChildRole child_root = {
     .inherit_options    = blk_root_inherit_options,
 
@@ -260,6 +298,9 @@ static const BdrvChildRole child_root = {
 
     .activate           = blk_root_activate,
     .inactivate         = blk_root_inactivate,
+
+    .attach             = blk_root_attach,
+    .detach             = blk_root_detach,
 };
 
 /*
@@ -287,6 +328,7 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
 
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
+    QLIST_INIT(&blk->aio_notifiers);
 
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
     return blk;
@@ -364,6 +406,7 @@ static void blk_delete(BlockBackend *blk)
     }
     assert(QLIST_EMPTY(&blk->remove_bs_notifiers.notifiers));
     assert(QLIST_EMPTY(&blk->insert_bs_notifiers.notifiers));
+    assert(QLIST_EMPTY(&blk->aio_notifiers));
     QTAILQ_REMOVE(&block_backends, blk, link);
     drive_info_del(blk->legacy_dinfo);
     block_acct_cleanup(&blk->stats);
@@ -1857,7 +1900,14 @@ void blk_add_aio_context_notifier(BlockBackend *blk,
         void (*attached_aio_context)(AioContext *new_context, void *opaque),
         void (*detach_aio_context)(void *opaque), void *opaque)
 {
+    BlockBackendAioNotifier *notifier;
     BlockDriverState *bs = blk_bs(blk);
+
+    notifier = g_new(BlockBackendAioNotifier, 1);
+    notifier->attached_aio_context = attached_aio_context;
+    notifier->detach_aio_context = detach_aio_context;
+    notifier->opaque = opaque;
+    QLIST_INSERT_HEAD(&blk->aio_notifiers, notifier, list);
 
     if (bs) {
         bdrv_add_aio_context_notifier(bs, attached_aio_context,
@@ -1871,12 +1921,25 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      void (*detach_aio_context)(void *),
                                      void *opaque)
 {
+    BlockBackendAioNotifier *notifier;
     BlockDriverState *bs = blk_bs(blk);
 
     if (bs) {
         bdrv_remove_aio_context_notifier(bs, attached_aio_context,
                                          detach_aio_context, opaque);
     }
+
+    QLIST_FOREACH(notifier, &blk->aio_notifiers, list) {
+        if (notifier->attached_aio_context == attached_aio_context &&
+            notifier->detach_aio_context == detach_aio_context &&
+            notifier->opaque == opaque) {
+            QLIST_REMOVE(notifier, list);
+            g_free(notifier);
+            return;
+        }
+    }
+
+    abort();
 }
 
 void blk_add_remove_bs_notifier(BlockBackend *blk, Notifier *notify)
