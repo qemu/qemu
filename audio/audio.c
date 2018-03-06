@@ -68,7 +68,24 @@ audio_driver *audio_driver_lookup(const char *name)
             return d;
         }
     }
+
+    audio_module_load_one(name);
+    QLIST_FOREACH(d, &audio_drivers, next) {
+        if (strcmp(name, d->name) == 0) {
+            return d;
+        }
+    }
+
     return NULL;
+}
+
+static void audio_module_load_all(void)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(audio_prio_list); i++) {
+        audio_driver_lookup(audio_prio_list[i]);
+    }
 }
 
 struct fixed_settings {
@@ -1674,6 +1691,9 @@ static void audio_pp_nb_voices (const char *typ, int nb)
 void AUD_help (void)
 {
     struct audio_driver *d;
+
+    /* make sure we print the help text for modular drivers too */
+    audio_module_load_all();
 
     audio_process_options ("AUDIO", audio_options);
     QLIST_FOREACH(d, &audio_drivers, next) {
