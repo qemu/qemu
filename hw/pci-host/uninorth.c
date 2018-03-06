@@ -38,7 +38,7 @@ static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pci_unin_set_irq(void *opaque, int irq_num, int level)
 {
-    UNINState *s = opaque;
+    UNINHostState *s = opaque;
 
     trace_unin_set_irq(unin_irq_line[irq_num], level);
     qemu_set_irq(s->irqs[irq_num], level);
@@ -81,7 +81,7 @@ static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
 static void unin_data_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned len)
 {
-    UNINState *s = opaque;
+    UNINHostState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     trace_unin_data_write(addr, len, val);
     pci_data_write(phb->bus,
@@ -92,7 +92,7 @@ static void unin_data_write(void *opaque, hwaddr addr,
 static uint64_t unin_data_read(void *opaque, hwaddr addr,
                                unsigned len)
 {
-    UNINState *s = opaque;
+    UNINHostState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t val;
 
@@ -109,7 +109,7 @@ static const MemoryRegionOps unin_data_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void pci_unin_init_irqs(UNINState *s)
+static void pci_unin_init_irqs(UNINHostState *s)
 {
     int i;
 
@@ -120,7 +120,7 @@ static void pci_unin_init_irqs(UNINState *s)
 
 static void pci_unin_main_realize(DeviceState *dev, Error **errp)
 {
-    UNINState *s = UNI_NORTH_PCI_HOST_BRIDGE(dev);
+    UNINHostState *s = UNI_NORTH_PCI_HOST_BRIDGE(dev);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
 
     h->bus = pci_register_root_bus(dev, NULL,
@@ -142,7 +142,7 @@ static void pci_unin_main_realize(DeviceState *dev, Error **errp)
 
 static void pci_unin_main_init(Object *obj)
 {
-    UNINState *s = UNI_NORTH_PCI_HOST_BRIDGE(obj);
+    UNINHostState *s = UNI_NORTH_PCI_HOST_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
 
@@ -175,7 +175,7 @@ static void pci_unin_main_init(Object *obj)
 
 static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
 {
-    UNINState *s = U3_AGP_HOST_BRIDGE(dev);
+    UNINHostState *s = U3_AGP_HOST_BRIDGE(dev);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
 
     h->bus = pci_register_root_bus(dev, NULL,
@@ -191,7 +191,7 @@ static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
 
 static void pci_u3_agp_init(Object *obj)
 {
-    UNINState *s = U3_AGP_HOST_BRIDGE(obj);
+    UNINHostState *s = U3_AGP_HOST_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
 
@@ -223,7 +223,7 @@ static void pci_u3_agp_init(Object *obj)
 
 static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
 {
-    UNINState *s = UNI_NORTH_AGP_HOST_BRIDGE(dev);
+    UNINHostState *s = UNI_NORTH_AGP_HOST_BRIDGE(dev);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
 
     h->bus = pci_register_root_bus(dev, NULL,
@@ -239,7 +239,7 @@ static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
 
 static void pci_unin_agp_init(Object *obj)
 {
-    UNINState *s = UNI_NORTH_AGP_HOST_BRIDGE(obj);
+    UNINHostState *s = UNI_NORTH_AGP_HOST_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
 
@@ -260,7 +260,7 @@ static void pci_unin_agp_init(Object *obj)
 
 static void pci_unin_internal_realize(DeviceState *dev, Error **errp)
 {
-    UNINState *s = UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE(dev);
+    UNINHostState *s = UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE(dev);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
 
     h->bus = pci_register_root_bus(dev, NULL,
@@ -276,7 +276,7 @@ static void pci_unin_internal_realize(DeviceState *dev, Error **errp)
 
 static void pci_unin_internal_init(Object *obj)
 {
-    UNINState *s = UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE(obj);
+    UNINHostState *s = UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
 
@@ -466,7 +466,7 @@ static void pci_unin_main_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pci_unin_main_info = {
     .name          = TYPE_UNI_NORTH_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINState),
+    .instance_size = sizeof(UNINHostState),
     .instance_init = pci_unin_main_init,
     .class_init    = pci_unin_main_class_init,
 };
@@ -482,7 +482,7 @@ static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pci_u3_agp_info = {
     .name          = TYPE_U3_AGP_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINState),
+    .instance_size = sizeof(UNINHostState),
     .instance_init = pci_u3_agp_init,
     .class_init    = pci_u3_agp_class_init,
 };
@@ -498,7 +498,7 @@ static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pci_unin_agp_info = {
     .name          = TYPE_UNI_NORTH_AGP_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINState),
+    .instance_size = sizeof(UNINHostState),
     .instance_init = pci_unin_agp_init,
     .class_init    = pci_unin_agp_class_init,
 };
@@ -514,7 +514,7 @@ static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pci_unin_internal_info = {
     .name          = TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINState),
+    .instance_size = sizeof(UNINHostState),
     .instance_init = pci_unin_internal_init,
     .class_init    = pci_unin_internal_class_init,
 };
