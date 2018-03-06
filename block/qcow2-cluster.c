@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include <zlib.h>
 
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "block/qcow2.h"
@@ -2092,11 +2093,21 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
     }
 
     for (i = 0; i < s->nb_snapshots; i++) {
-        int l1_sectors = DIV_ROUND_UP(s->snapshots[i].l1_size *
-                                      sizeof(uint64_t), BDRV_SECTOR_SIZE);
+        int l1_size2;
+        uint64_t *new_l1_table;
+        Error *local_err = NULL;
 
-        uint64_t *new_l1_table =
-            g_try_realloc(l1_table, l1_sectors * BDRV_SECTOR_SIZE);
+        ret = qcow2_validate_table(bs, s->snapshots[i].l1_table_offset,
+                                   s->snapshots[i].l1_size, sizeof(uint64_t),
+                                   QCOW_MAX_L1_SIZE, "Snapshot L1 table",
+                                   &local_err);
+        if (ret < 0) {
+            error_report_err(local_err);
+            goto fail;
+        }
+
+        l1_size2 = s->snapshots[i].l1_size * sizeof(uint64_t);
+        new_l1_table = g_try_realloc(l1_table, l1_size2);
 
         if (!new_l1_table) {
             ret = -ENOMEM;
@@ -2105,9 +2116,8 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
 
         l1_table = new_l1_table;
 
-        ret = bdrv_read(bs->file,
-                        s->snapshots[i].l1_table_offset / BDRV_SECTOR_SIZE,
-                        (void *)l1_table, l1_sectors);
+        ret = bdrv_pread(bs->file, s->snapshots[i].l1_table_offset,
+                         l1_table, l1_size2);
         if (ret < 0) {
             goto fail;
         }

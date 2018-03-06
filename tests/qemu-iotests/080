@@ -177,6 +177,7 @@ _make_test_img 64M
 { $QEMU_IMG snapshot -c test $TEST_IMG; } 2>&1 | _filter_testdir
 poke_file "$TEST_IMG" "$offset_snap1_l1_offset" "\x00\x00\x00\x00\x00\x40\x02\x00"
 { $QEMU_IMG convert -s test $TEST_IMG $TEST_IMG.snap; } 2>&1 | _filter_testdir
+{ $QEMU_IMG amend -o compat=0.10 $TEST_IMG; } 2>&1 | _filter_testdir
 
 echo
 echo "== Invalid snapshot L1 table size =="
@@ -185,6 +186,7 @@ _make_test_img 64M
 { $QEMU_IMG snapshot -c test $TEST_IMG; } 2>&1 | _filter_testdir
 poke_file "$TEST_IMG" "$offset_snap1_l1_size" "\x10\x00\x00\x00"
 { $QEMU_IMG convert -s test $TEST_IMG $TEST_IMG.snap; } 2>&1 | _filter_testdir
+{ $QEMU_IMG amend -o compat=0.10 $TEST_IMG; } 2>&1 | _filter_testdir
 
 # success, all done
 echo "*** done"
