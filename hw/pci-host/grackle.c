@@ -41,6 +41,7 @@ typedef struct GrackleState {
     qemu_irq irqs[4];
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
+    MemoryRegion pci_io;
 } GrackleState;
 
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
@@ -76,7 +77,7 @@ static void grackle_realize(DeviceState *dev, Error **errp)
                                      pci_grackle_map_irq,
                                      s,
                                      &s->pci_mmio,
-                                     get_system_io(),
+                                     &s->pci_io,
                                      0, 4, TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, 0, "grackle");
@@ -90,6 +91,9 @@ static void grackle_init(Object *obj)
     PCIHostState *phb = PCI_HOST_BRIDGE(obj);
 
     memory_region_init(&s->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
+    memory_region_init_io(&s->pci_io, OBJECT(s), &unassigned_io_ops, obj,
+                          "pci-isa-mmio", 0x00200000);
+
     memory_region_init_alias(&s->pci_hole, OBJECT(s), "pci-hole", &s->pci_mmio,
                              0x80000000ULL, 0x7e000000ULL);
 
@@ -106,6 +110,7 @@ static void grackle_init(Object *obj)
     sysbus_init_mmio(sbd, &phb->conf_mem);
     sysbus_init_mmio(sbd, &phb->data_mem);
     sysbus_init_mmio(sbd, &s->pci_hole);
+    sysbus_init_mmio(sbd, &s->pci_io);
 }
 
 static void grackle_pci_realize(PCIDevice *d, Error **errp)
