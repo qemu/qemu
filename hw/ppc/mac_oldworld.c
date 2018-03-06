@@ -84,7 +84,7 @@ static void ppc_heathrow_init(MachineState *machine)
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
-    qemu_irq *pic, **heathrow_irqs;
+    qemu_irq *pic;
     int linux_boot, i;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
@@ -227,21 +227,25 @@ static void ppc_heathrow_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0xfe000000, isa);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
-    heathrow_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
-    heathrow_irqs[0] =
-        g_malloc0(smp_cpus * sizeof(qemu_irq) * 1);
+    pic_dev = qdev_create(NULL, TYPE_HEATHROW);
+    qdev_init_nofail(pic_dev);
+
     /* Connect the heathrow PIC outputs to the 6xx bus */
     for (i = 0; i < smp_cpus; i++) {
         switch (PPC_INPUT(env)) {
         case PPC_FLAGS_INPUT_6xx:
-            heathrow_irqs[i] = heathrow_irqs[0] + (i * 1);
-            heathrow_irqs[i][0] =
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
+            qdev_connect_gpio_out(pic_dev, 0,
+                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT]);
             break;
         default:
             error_report("Bus model not supported on OldWorld Mac machine");
             exit(1);
         }
+    }
+
+    pic = g_new0(qemu_irq, HEATHROW_NUM_IRQS);
+    for (i = 0; i < HEATHROW_NUM_IRQS; i++) {
+        pic[i] = qdev_get_gpio_in(pic_dev, i);
     }
 
     /* Timebase Frequency */
@@ -256,7 +260,7 @@ static void ppc_heathrow_init(MachineState *machine)
         error_report("Only 6xx bus is supported on heathrow machine");
         exit(1);
     }
-    pic_dev = heathrow_pic_init(1, heathrow_irqs, &pic);
+
     pci_bus = pci_grackle_init(0xfec00000, pic,
                                get_system_memory(),
                                get_system_io());
