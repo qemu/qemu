@@ -185,8 +185,13 @@ static void pci_u3_agp_init(Object *obj)
     memory_region_init(&s->pci_mmio, OBJECT(s), "unin-pci-mmio",
                        0x100000000ULL);
 
+    memory_region_init_alias(&s->pci_hole, OBJECT(s),
+                             "unin-pci-hole", &s->pci_mmio,
+                             0x80000000ULL, 0x70000000ULL);
+
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
+    sysbus_init_mmio(sbd, &s->pci_hole);
 }
 
 static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
@@ -245,31 +250,6 @@ static void pci_unin_internal_init(Object *obj)
                           obj, "unin-pci-conf-data", 0x1000);
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
-}
-
-UNINState *pci_pmac_u3_init(qemu_irq *pic,
-                            MemoryRegion *address_space_mem)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    UNINState *d;
-
-    /* Uninorth AGP bus */
-    dev = qdev_create(NULL, TYPE_U3_AGP_HOST_BRIDGE);
-    qdev_prop_set_ptr(dev, "pic-irqs", pic);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    d = U3_AGP_HOST_BRIDGE(dev);
-
-    memory_region_init_alias(&d->pci_hole, OBJECT(d), "pci-hole", &d->pci_mmio,
-                             0x80000000ULL, 0x70000000ULL);
-    memory_region_add_subregion(address_space_mem, 0x80000000ULL,
-                                &d->pci_hole);
-
-    sysbus_mmio_map(s, 0, 0xf0800000);
-    sysbus_mmio_map(s, 1, 0xf0c00000);
-
-    return d;
 }
 
 static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)
