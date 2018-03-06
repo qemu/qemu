@@ -2440,12 +2440,15 @@ static void early_gtk_display_init(DisplayOptions *opts)
     assert(opts->type == DISPLAY_TYPE_GTK);
     if (opts->has_gl && opts->gl) {
 #if defined(CONFIG_OPENGL)
-#if defined(CONFIG_GTK_GL)
-        gtk_use_gl_area = true;
-        gtk_gl_area_init();
-#else
-        gtk_egl_init();
+#if defined(CONFIG_GTK_GL) && defined(GDK_WINDOWING_WAYLAND)
+        if (GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default())) {
+            gtk_use_gl_area = true;
+            gtk_gl_area_init();
+        }
 #endif
+        {
+            gtk_egl_init();
+        }
 #endif
     }
 
