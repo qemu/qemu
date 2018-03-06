@@ -121,7 +121,7 @@ static void pci_unin_main_realize(DeviceState *dev, Error **errp)
                                    get_system_io(),
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
-    pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-agp");
+    pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-pci");
 
     /* DEC 21154 bridge */
 #if 0
@@ -195,6 +195,8 @@ static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
                                    &s->pci_mmio,
                                    get_system_io(),
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
+
+    pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-agp");
 }
 
 static void pci_unin_agp_init(Object *obj)
@@ -303,16 +305,6 @@ static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)
     d->config[0x0D] = 0x10;
     /* capabilities_pointer */
     d->config[0x34] = 0x00;
-}
-
-static void unin_agp_pci_host_realize(PCIDevice *d, Error **errp)
-{
-    /* cache_line_size */
-    d->config[0x0C] = 0x08;
-    /* latency_timer */
-    d->config[0x0D] = 0x10;
-    /* capabilities_pointer
-    d->config[0x34] = 0x80; */
 
     /*
      * Set kMacRISCPCIAddressSelect (0x48) register to indicate PCI
@@ -323,6 +315,16 @@ static void unin_agp_pci_host_realize(PCIDevice *d, Error **errp)
     d->config[0x49] = 0x0;
     d->config[0x4a] = 0x0;
     d->config[0x4b] = 0x1;
+}
+
+static void unin_agp_pci_host_realize(PCIDevice *d, Error **errp)
+{
+    /* cache_line_size */
+    d->config[0x0C] = 0x08;
+    /* latency_timer */
+    d->config[0x0D] = 0x10;
+    /* capabilities_pointer
+    d->config[0x34] = 0x80; */
 }
 
 static void u3_agp_pci_host_realize(PCIDevice *d, Error **errp)
