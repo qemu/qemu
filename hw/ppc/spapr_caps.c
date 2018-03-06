@@ -32,6 +32,20 @@
 
 #include "hw/ppc/spapr.h"
 
+typedef struct sPAPRCapPossible {
+    int num;            /* size of vals array below */
+    const char *help;   /* help text for vals */
+    /*
+     * Note:
+     * - because of the way compatibility is determined vals MUST be ordered
+     *   such that later options are a superset of all preceding options.
+     * - the order of vals must be preserved, that is their index is important,
+     *   however vals may be added to the end of the list so long as the above
+     *   point is observed
+     */
+    const char *vals[];
+} sPAPRCapPossible;
+
 typedef struct sPAPRCapabilityInfo {
     const char *name;
     const char *description;
@@ -41,6 +55,8 @@ typedef struct sPAPRCapabilityInfo {
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
     const char *type;
+    /* Possible values if this is a custom string type */
+    sPAPRCapPossible *possible;
     /* Make sure the virtual hardware can support this capability */
     void (*apply)(sPAPRMachineState *spapr, uint8_t val, Error **errp);
 } sPAPRCapabilityInfo;
@@ -73,41 +89,34 @@ static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
     spapr->eff.caps[cap->index] = value ? SPAPR_CAP_ON : SPAPR_CAP_OFF;
 }
 
-static void spapr_cap_get_tristate(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+
+static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     sPAPRCapabilityInfo *cap = opaque;
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
     char *val = NULL;
     uint8_t value = spapr_get_cap(spapr, cap->index);
 
-    switch (value) {
-    case SPAPR_CAP_BROKEN:
-        val = g_strdup("broken");
-        break;
-    case SPAPR_CAP_WORKAROUND:
-        val = g_strdup("workaround");
-        break;
-    case SPAPR_CAP_FIXED:
-        val = g_strdup("fixed");
-        break;
-    default:
+    if (value >= cap->possible->num) {
         error_setg(errp, "Invalid value (%d) for cap-%s", value, cap->name);
         return;
     }
+
+    val = g_strdup(cap->possible->vals[value]);
 
     visit_type_str(v, name, &val, errp);
     g_free(val);
 }
 
-static void spapr_cap_set_tristate(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
+                                 void *opaque, Error **errp)
 {
     sPAPRCapabilityInfo *cap = opaque;
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
-    char *val;
     Error *local_err = NULL;
-    uint8_t value;
+    uint8_t i;
+    char *val;
 
     visit_type_str(v, name, &val, &local_err);
     if (local_err) {
@@ -115,20 +124,20 @@ static void spapr_cap_set_tristate(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!strcasecmp(val, "broken")) {
-        value = SPAPR_CAP_BROKEN;
-    } else if (!strcasecmp(val, "workaround")) {
-        value = SPAPR_CAP_WORKAROUND;
-    } else if (!strcasecmp(val, "fixed")) {
-        value = SPAPR_CAP_FIXED;
-    } else {
-        error_setg(errp, "Invalid capability mode \"%s\" for cap-%s", val,
-                   cap->name);
+    if (!strcmp(val, "?")) {
+        error_setg(errp, "%s", cap->possible->help);
         goto out;
     }
+    for (i = 0; i < cap->possible->num; i++) {
+        if (!strcasecmp(val, cap->possible->vals[i])) {
+            spapr->cmd_line_caps[cap->index] = true;
+            spapr->eff.caps[cap->index] = i;
+            goto out;
+        }
+    }
 
-    spapr->cmd_line_caps[cap->index] = true;
-    spapr->eff.caps[cap->index] = value;
+    error_setg(errp, "Invalid capability mode \"%s\" for cap-%s", val,
+               cap->name);
 out:
     g_free(val);
 }
@@ -180,38 +189,77 @@ static void cap_dfp_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
     }
 }
 
+sPAPRCapPossible cap_cfpc_possible = {
+    .num = 3,
+    .vals = {"broken", "workaround", "fixed"},
+    .help = "broken - no protection, workaround - workaround available,"
+            " fixed - fixed in hardware",
+};
+
 static void cap_safe_cache_apply(sPAPRMachineState *spapr, uint8_t val,
                                  Error **errp)
 {
+    uint8_t kvm_val =  kvmppc_get_cap_safe_cache();
+
     if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
-        error_setg(errp, "Requested safe cache capability level not supported by tcg, try a different value for cap-cfpc");
-    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_cache())) {
-        error_setg(errp, "Requested safe cache capability level not supported by kvm, try a different value for cap-cfpc");
+        error_setg(errp,
+"Requested safe cache capability level not supported by tcg, try a different value for cap-cfpc");
+    } else if (kvm_enabled() && (val > kvm_val)) {
+        error_setg(errp,
+"Requested safe cache capability level not supported by kvm, try cap-cfpc=%s",
+                   cap_cfpc_possible.vals[kvm_val]);
     }
 }
+
+sPAPRCapPossible cap_sbbc_possible = {
+    .num = 3,
+    .vals = {"broken", "workaround", "fixed"},
+    .help = "broken - no protection, workaround - workaround available,"
+            " fixed - fixed in hardware",
+};
 
 static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
                                         Error **errp)
 {
+    uint8_t kvm_val =  kvmppc_get_cap_safe_bounds_check();
+
     if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
-        error_setg(errp, "Requested safe bounds check capability level not supported by tcg, try a different value for cap-sbbc");
-    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_bounds_check())) {
-        error_setg(errp, "Requested safe bounds check capability level not supported by kvm, try a different value for cap-sbbc");
+        error_setg(errp,
+"Requested safe bounds check capability level not supported by tcg, try a different value for cap-sbbc");
+    } else if (kvm_enabled() && (val > kvm_val)) {
+        error_setg(errp,
+"Requested safe bounds check capability level not supported by kvm, try cap-sbbc=%s",
+                   cap_sbbc_possible.vals[kvm_val]);
     }
 }
+
+sPAPRCapPossible cap_ibs_possible = {
+    .num = 4,
+    /* Note workaround only maintained for compatibility */
+    .vals = {"broken", "workaround", "fixed-ibs", "fixed-ccd"},
+    .help = "broken - no protection, fixed-ibs - indirect branch serialisation,"
+            " fixed-ccd - cache count disabled",
+};
 
 static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
                                            uint8_t val, Error **errp)
 {
+    uint8_t kvm_val = kvmppc_get_cap_safe_indirect_branch();
+
     if (val == SPAPR_CAP_WORKAROUND) { /* Can only be Broken or Fixed */
-        error_setg(errp, "Requested safe indirect branch capability level \"workaround\" not valid, try cap-ibs=fixed");
+        error_setg(errp,
+"Requested safe indirect branch capability level \"workaround\" not valid, try cap-ibs=%s",
+                   cap_ibs_possible.vals[kvm_val]);
     } else if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
-        error_setg(errp, "Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
-    } else if (kvm_enabled() && (val > kvmppc_get_cap_safe_indirect_branch())) {
-        error_setg(errp, "Requested safe indirect branch capability level not supported by kvm, try a different value for cap-ibs");
+        error_setg(errp,
+"Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
+    } else if (kvm_enabled() && val && (val != kvm_val)) {
+        error_setg(errp,
+"Requested safe indirect branch capability level not supported by kvm, try cap-ibs=%s",
+                   cap_ibs_possible.vals[kvm_val]);
     }
 }
 
@@ -249,27 +297,31 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .name = "cfpc",
         .description = "Cache Flush on Privilege Change" VALUE_DESC_TRISTATE,
         .index = SPAPR_CAP_CFPC,
-        .get = spapr_cap_get_tristate,
-        .set = spapr_cap_set_tristate,
+        .get = spapr_cap_get_string,
+        .set = spapr_cap_set_string,
         .type = "string",
+        .possible = &cap_cfpc_possible,
         .apply = cap_safe_cache_apply,
     },
     [SPAPR_CAP_SBBC] = {
         .name = "sbbc",
         .description = "Speculation Barrier Bounds Checking" VALUE_DESC_TRISTATE,
         .index = SPAPR_CAP_SBBC,
-        .get = spapr_cap_get_tristate,
-        .set = spapr_cap_set_tristate,
+        .get = spapr_cap_get_string,
+        .set = spapr_cap_set_string,
         .type = "string",
+        .possible = &cap_sbbc_possible,
         .apply = cap_safe_bounds_check_apply,
     },
     [SPAPR_CAP_IBS] = {
         .name = "ibs",
-        .description = "Indirect Branch Serialisation (broken, fixed)",
+        .description =
+            "Indirect Branch Speculation (broken, fixed-ibs, fixed-ccd)",
         .index = SPAPR_CAP_IBS,
-        .get = spapr_cap_get_tristate,
-        .set = spapr_cap_set_tristate,
+        .get = spapr_cap_get_string,
+        .set = spapr_cap_set_string,
         .type = "string",
+        .possible = &cap_ibs_possible,
         .apply = cap_safe_indirect_branch_apply,
     },
 };
@@ -283,15 +335,26 @@ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
 
     caps = smc->default_caps;
 
+    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00,
+                          0, spapr->max_compat_pvr)) {
+        caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
+    }
+
     if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_07,
                           0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_OFF;
+    }
+
+    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06_PLUS,
+                          0, spapr->max_compat_pvr)) {
+        caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
     }
 
     if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06,
                           0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_VSX] = SPAPR_CAP_OFF;
         caps.caps[SPAPR_CAP_DFP] = SPAPR_CAP_OFF;
+        caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
     }
 
     return caps;

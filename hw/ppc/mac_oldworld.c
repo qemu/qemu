@@ -37,6 +37,7 @@
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
+#include "hw/misc/macio/macio.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -92,19 +93,16 @@ static void ppc_heathrow_init(MachineState *machine)
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
-    PCIDevice *macio;
+    OldWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
-    DeviceState *dev;
+    DeviceState *dev, *pic_dev;
     BusState *adb_bus;
     int bios_size, ndrv_size;
     uint8_t *ndrv_file;
-    MemoryRegion *pic_mem;
-    MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1);
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     uint64_t tbfreq;
-    SysBusDevice *s;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -259,46 +257,32 @@ static void ppc_heathrow_init(MachineState *machine)
         error_report("Only 6xx bus is supported on heathrow machine");
         exit(1);
     }
-    pic = heathrow_pic_init(&pic_mem, 1, heathrow_irqs);
+    pic_dev = heathrow_pic_init(1, heathrow_irqs, &pic);
     pci_bus = pci_grackle_init(0xfec00000, pic,
                                get_system_memory(),
                                get_system_io());
     pci_vga_init(pci_bus);
 
-    dev = qdev_create(NULL, TYPE_ESCC);
-    qdev_prop_set_uint32(dev, "disabled", 0);
-    qdev_prop_set_uint32(dev, "frequency", ESCC_CLOCK);
-    qdev_prop_set_uint32(dev, "it_shift", 4);
-    qdev_prop_set_chr(dev, "chrA", serial_hds[0]);
-    qdev_prop_set_chr(dev, "chrB", serial_hds[1]);
-    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
-    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
-    qdev_init_nofail(dev);
-
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(s, 0, pic[0x10]);
-    sysbus_connect_irq(s, 1, pic[0x0f]);
-
-    escc_mem = &ESCC(s)->mmio;
-
-    memory_region_init_alias(escc_bar, NULL, "escc-bar",
-                             escc_mem, 0, memory_region_size(escc_mem));
-
-    for(i = 0; i < nb_nics; i++)
+    for (i = 0; i < nb_nics; i++) {
         pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
-
+    }
 
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
-    macio = pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO);
+    /* MacIO */
+    macio = OLDWORLD_MACIO(pci_create(pci_bus, -1, TYPE_OLDWORLD_MACIO));
     dev = DEVICE(macio);
     qdev_connect_gpio_out(dev, 0, pic[0x12]); /* CUDA */
-    qdev_connect_gpio_out(dev, 1, pic[0x0D]); /* IDE-0 */
-    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE-0 DMA */
-    qdev_connect_gpio_out(dev, 3, pic[0x0E]); /* IDE-1 */
-    qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE-1 DMA */
+    qdev_connect_gpio_out(dev, 1, pic[0x10]); /* ESCC-B */
+    qdev_connect_gpio_out(dev, 2, pic[0x0F]); /* ESCC-A */
+    qdev_connect_gpio_out(dev, 3, pic[0x0D]); /* IDE-0 */
+    qdev_connect_gpio_out(dev, 4, pic[0x02]); /* IDE-0 DMA */
+    qdev_connect_gpio_out(dev, 5, pic[0x0E]); /* IDE-1 */
+    qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE-1 DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
-    macio_init(macio, pic_mem, escc_bar);
+    object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
+                             &error_abort);
+    qdev_init_nofail(dev);
 
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
                                                         "ide[0]"));

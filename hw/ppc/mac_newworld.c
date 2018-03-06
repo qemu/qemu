@@ -60,6 +60,7 @@
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
+#include "hw/misc/macio/macio.h"
 #include "hw/ppc/openpic.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
@@ -153,20 +154,18 @@ static void ppc_core99_init(MachineState *machine)
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
-    PCIDevice *macio;
+    NewWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
     BusState *adb_bus;
     MacIONVRAMState *nvr;
     int bios_size, ndrv_size;
     uint8_t *ndrv_file;
-    MemoryRegion *pic_mem, *escc_mem;
-    MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     int machine_arch;
     SysBusDevice *s;
-    DeviceState *dev;
+    DeviceState *dev, *pic_dev;
     int *token = g_new(int, 1);
     hwaddr nvram_addr = 0xFFF04000;
     uint64_t tbfreq;
@@ -333,11 +332,10 @@ static void ppc_core99_init(MachineState *machine)
 
     pic = g_new0(qemu_irq, 64);
 
-    dev = qdev_create(NULL, TYPE_OPENPIC);
-    qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_KEYLARGO);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    pic_mem = s->mmio[0].memory;
+    pic_dev = qdev_create(NULL, TYPE_OPENPIC);
+    qdev_prop_set_uint32(pic_dev, "model", OPENPIC_MODEL_KEYLARGO);
+    qdev_init_nofail(pic_dev);
+    s = SYS_BUS_DEVICE(pic_dev);
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
@@ -346,7 +344,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     for (i = 0; i < 64; i++) {
-        pic[i] = qdev_get_gpio_in(dev, i);
+        pic[i] = qdev_get_gpio_in(pic_dev, i);
     }
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
@@ -368,36 +366,20 @@ static void ppc_core99_init(MachineState *machine)
         tbfreq = TBFREQ;
     }
 
-    /* init basic PC hardware */
-
-    dev = qdev_create(NULL, TYPE_ESCC);
-    qdev_prop_set_uint32(dev, "disabled", 0);
-    qdev_prop_set_uint32(dev, "frequency", ESCC_CLOCK);
-    qdev_prop_set_uint32(dev, "it_shift", 4);
-    qdev_prop_set_chr(dev, "chrA", serial_hds[0]);
-    qdev_prop_set_chr(dev, "chrB", serial_hds[1]);
-    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
-    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
-    qdev_init_nofail(dev);
-
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_connect_irq(s, 0, pic[0x24]);
-    sysbus_connect_irq(s, 1, pic[0x25]);
-
-    escc_mem = &ESCC(s)->mmio;
-
-    memory_region_init_alias(escc_bar, NULL, "escc-bar",
-                             escc_mem, 0, memory_region_size(escc_mem));
-
-    macio = pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO);
+    /* MacIO */
+    macio = NEWWORLD_MACIO(pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO));
     dev = DEVICE(macio);
     qdev_connect_gpio_out(dev, 0, pic[0x19]); /* CUDA */
-    qdev_connect_gpio_out(dev, 1, pic[0x0d]); /* IDE */
-    qdev_connect_gpio_out(dev, 2, pic[0x02]); /* IDE DMA */
-    qdev_connect_gpio_out(dev, 3, pic[0x0e]); /* IDE */
-    qdev_connect_gpio_out(dev, 4, pic[0x03]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 1, pic[0x24]); /* ESCC-B */
+    qdev_connect_gpio_out(dev, 2, pic[0x25]); /* ESCC-A */
+    qdev_connect_gpio_out(dev, 3, pic[0x0d]); /* IDE */
+    qdev_connect_gpio_out(dev, 4, pic[0x02]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 5, pic[0x0e]); /* IDE */
+    qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
-    macio_init(macio, pic_mem, escc_bar);
+    object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
+                             &error_abort);
+    qdev_init_nofail(dev);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));

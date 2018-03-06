@@ -2494,8 +2494,10 @@ static void kvmppc_get_cpu_characteristics(KVMState *s)
         cap_ppc_safe_bounds_check = 1;
     }
     /* Parse and set cap_ppc_safe_indirect_branch */
-    if (c.character & H_CPU_CHAR_BCCTRL_SERIALISED) {
-        cap_ppc_safe_indirect_branch = 2;
+    if (c.character & c.character_mask & H_CPU_CHAR_CACHE_COUNT_DIS) {
+        cap_ppc_safe_indirect_branch = SPAPR_CAP_FIXED_CCD;
+    } else if (c.character & c.character_mask & H_CPU_CHAR_BCCTRL_SERIALISED) {
+        cap_ppc_safe_indirect_branch = SPAPR_CAP_FIXED_IBS;
     }
 }
 

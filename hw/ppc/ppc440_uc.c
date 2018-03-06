@@ -1050,6 +1050,9 @@ static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
     case DCRN_PCIE1_BASE:
         id = 1;
         break;
+    default:
+        error_setg(errp, "invalid PCIe DCRN base");
+        return;
     }
     snprintf(buf, sizeof(buf), "pcie%d-io", id);
     memory_region_init(&s->iomem, OBJECT(s), buf, UINT64_MAX);
