@@ -611,6 +611,13 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
     }
     sn = s->snapshots[snapshot_index];
 
+    ret = qcow2_validate_table(bs, sn.l1_table_offset, sn.l1_size,
+                               sizeof(uint64_t), QCOW_MAX_L1_SIZE,
+                               "Snapshot L1 table", errp);
+    if (ret < 0) {
+        return ret;
+    }
+
     /* Remove it from the snapshot list */
     memmove(s->snapshots + snapshot_index,
             s->snapshots + snapshot_index + 1,
