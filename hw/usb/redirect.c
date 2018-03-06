@@ -106,10 +106,10 @@ struct USBRedirDevice {
     USBDevice dev;
     /* Properties */
     CharBackend cs;
-    uint8_t debug;
-    char *filter_str;
-    int32_t bootindex;
     bool enable_streams;
+    uint8_t debug;
+    int32_t bootindex;
+    char *filter_str;
     /* Data passed from chardev the fd_read cb to the usbredirparser read cb */
     const uint8_t *read_buf;
     int read_buf_size;
