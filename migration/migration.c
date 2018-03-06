@@ -2541,6 +2541,7 @@ static void migration_instance_finalize(Object *obj)
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
     qemu_sem_destroy(&ms->pause_sem);
+    error_free(ms->error);
 }
 
 static void migration_instance_init(Object *obj)
