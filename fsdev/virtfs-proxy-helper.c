@@ -55,6 +55,7 @@ static struct option helper_opts[] = {
 
 static bool is_daemon;
 static bool get_version; /* IOC getversion IOCTL supported */
+static char *prog_name;
 
 static void GCC_FMT_ATTR(2, 3) do_log(int loglevel, const char *format, ...)
 {
@@ -785,7 +786,7 @@ error:
     return -1;
 }
 
-static void usage(char *prog)
+static void usage(void)
 {
     fprintf(stderr, "usage: %s\n"
             " -p|--path <path> 9p path to export\n"
@@ -795,7 +796,7 @@ static void usage(char *prog)
             " access to this socket\n"
             " \tNote: -s & -f can not be used together\n"
             " [-n|--nodaemon] Run as a normal program\n",
-            basename(prog));
+            prog_name);
 }
 
 static int process_reply(int sock, int type,
@@ -1045,6 +1046,8 @@ int main(int argc, char **argv)
     struct statfs st_fs;
 #endif
 
+    prog_name = g_path_get_basename(argv[0]);
+
     is_daemon = true;
     sock = -1;
     own_u = own_g = -1;
@@ -1077,7 +1080,7 @@ int main(int argc, char **argv)
         case '?':
         case 'h':
         default:
-            usage(argv[0]);
+            usage();
             exit(EXIT_FAILURE);
         }
     }
@@ -1085,13 +1088,13 @@ int main(int argc, char **argv)
     /* Parameter validation */
     if ((sock_name == NULL && sock == -1) || rpath == NULL) {
         fprintf(stderr, "socket, socket descriptor or path not specified\n");
-        usage(argv[0]);
+        usage();
         return -1;
     }
 
     if (sock_name && sock != -1) {
         fprintf(stderr, "both named socket and socket descriptor specified\n");
-        usage(argv[0]);
+        usage();
         exit(EXIT_FAILURE);
     }
 
@@ -1099,7 +1102,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "owner uid:gid not specified, ");
         fprintf(stderr,
                 "owner uid:gid specifies who can access the socket file\n");
-        usage(argv[0]);
+        usage();
         exit(EXIT_FAILURE);
     }
 

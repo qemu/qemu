@@ -271,7 +271,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     return SCSI_DEVICE(dev);
 }
 
-void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
+void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
 {
     Location loc;
     DriveInfo *dinfo;
@@ -284,57 +284,10 @@ void scsi_bus_legacy_handle_cmdline(SCSIBus *bus, bool deprecated)
             continue;
         }
         qemu_opts_loc_restore(dinfo->opts);
-        if (deprecated) {
-            /* Handling -drive not claimed by machine initialization */
-            if (blk_get_attached_dev(blk_by_legacy_dinfo(dinfo))) {
-                continue;       /* claimed */
-            }
-            if (!dinfo->is_default) {
-                warn_report("bus=%d,unit=%d is deprecated with this"
-                            " machine type",
-                            bus->busnr, unit);
-            }
-        }
         scsi_bus_legacy_add_drive(bus, blk_by_legacy_dinfo(dinfo),
                                   unit, false, -1, false, NULL, &error_fatal);
     }
     loc_pop(&loc);
-}
-
-static bool is_scsi_hba_with_legacy_magic(Object *obj)
-{
-    static const char *magic[] = {
-        "am53c974", "dc390", "esp", "lsi53c810", "lsi53c895a",
-        "megasas", "megasas-gen2", "mptsas1068", "spapr-vscsi",
-        "virtio-scsi-device",
-        NULL
-    };
-    const char *typename = object_get_typename(obj);
-    int i;
-
-    for (i = 0; magic[i]; i++)
-        if (!strcmp(typename, magic[i])) {
-            return true;
-    }
-
-    return false;
-}
-
-static int scsi_legacy_handle_cmdline_cb(Object *obj, void *opaque)
-{
-    SCSIBus *bus = (SCSIBus *)object_dynamic_cast(obj, TYPE_SCSI_BUS);
-
-    if (bus && is_scsi_hba_with_legacy_magic(OBJECT(bus->qbus.parent))) {
-        scsi_bus_legacy_handle_cmdline(bus, true);
-    }
-
-    return 0;
-}
-
-void scsi_legacy_handle_cmdline(void)
-{
-    object_child_foreach_recursive(object_get_root(),
-                                   scsi_legacy_handle_cmdline_cb, NULL);
 }
 
 static int32_t scsi_invalid_field(SCSIRequest *req, uint8_t *buf)

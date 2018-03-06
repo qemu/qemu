@@ -157,9 +157,7 @@ case "$QEMU_DEFAULT_MACHINE" in
     pc)
         run_qemu -drive if=floppy
         run_qemu -drive if=ide,media=cdrom
-        run_qemu -drive if=scsi,media=cdrom
         run_qemu -drive if=ide
-        run_qemu -drive if=scsi
         ;;
      *)
         ;;
@@ -188,9 +186,7 @@ case "$QEMU_DEFAULT_MACHINE" in
     pc)
         run_qemu -drive file="$TEST_IMG",if=floppy,readonly=on
         run_qemu -drive file="$TEST_IMG",if=ide,media=cdrom,readonly=on
-        run_qemu -drive file="$TEST_IMG",if=scsi,media=cdrom,readonly=on
         run_qemu -drive file="$TEST_IMG",if=ide,readonly=on
-        run_qemu -drive file="$TEST_IMG",if=scsi,readonly=on
         ;;
      *)
         ;;

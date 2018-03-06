@@ -26,13 +26,12 @@
 #include "qapi/error.h"
 #include "migration/blocker.h"
 
-#include <winhvplatform.h>
-#include <winhvemulation.h>
+#include <WinHvPlatform.h>
+#include <WinHvEmulation.h>
 
 struct whpx_state {
     uint64_t mem_quota;
     WHV_PARTITION_HANDLE partition;
-    uint32_t exit_ctx_size;
 };
 
 static const WHV_REGISTER_NAME whpx_register_names[] = {
@@ -364,7 +363,6 @@ static void whpx_set_registers(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set virtual processor context, hr=%08lx",
                      hr);
-        __debugbreak();
     }
 
     return;
@@ -391,7 +389,6 @@ static void whpx_get_registers(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to get virtual processor context, hr=%08lx",
                      hr);
-        __debugbreak();
     }
 
     /* Indexes for first 16 registers match between HV and QEMU definitions */
@@ -529,7 +526,7 @@ static HRESULT CALLBACK whpx_emu_ioport_callback(
     return S_OK;
 }
 
-static HRESULT CALLBACK whpx_emu_memio_callback(
+static HRESULT CALLBACK whpx_emu_mmio_callback(
     void *ctx,
     WHV_EMULATOR_MEMORY_ACCESS_INFO *ma)
 {
@@ -554,7 +551,6 @@ static HRESULT CALLBACK whpx_emu_getreg_callback(
     if (FAILED(hr)) {
         error_report("WHPX: Failed to get virtual processor registers,"
                      " hr=%08lx", hr);
-        __debugbreak();
     }
 
     return hr;
@@ -576,7 +572,6 @@ static HRESULT CALLBACK whpx_emu_setreg_callback(
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set virtual processor registers,"
                      " hr=%08lx", hr);
-        __debugbreak();
     }
 
     /*
@@ -604,7 +599,6 @@ static HRESULT CALLBACK whpx_emu_translate_callback(
                          Gva, TranslateFlags, &res, Gpa);
     if (FAILED(hr)) {
         error_report("WHPX: Failed to translate GVA, hr=%08lx", hr);
-        __debugbreak();
     } else {
         *TranslationResult = res.ResultCode;
     }
@@ -613,8 +607,9 @@ static HRESULT CALLBACK whpx_emu_translate_callback(
 }
 
 static const WHV_EMULATOR_CALLBACKS whpx_emu_callbacks = {
+    .Size = sizeof(WHV_EMULATOR_CALLBACKS),
     .WHvEmulatorIoPortCallback = whpx_emu_ioport_callback,
-    .WHvEmulatorMemoryCallback = whpx_emu_memio_callback,
+    .WHvEmulatorMemoryCallback = whpx_emu_mmio_callback,
     .WHvEmulatorGetVirtualProcessorRegisters = whpx_emu_getreg_callback,
     .WHvEmulatorSetVirtualProcessorRegisters = whpx_emu_setreg_callback,
     .WHvEmulatorTranslateGvaPage = whpx_emu_translate_callback,
@@ -626,15 +621,15 @@ static int whpx_handle_mmio(CPUState *cpu, WHV_MEMORY_ACCESS_CONTEXT *ctx)
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
     WHV_EMULATOR_STATUS emu_status;
 
-    hr = WHvEmulatorTryMmioEmulation(vcpu->emulator, cpu, ctx, &emu_status);
+    hr = WHvEmulatorTryMmioEmulation(vcpu->emulator, cpu,
+                                     &vcpu->exit_ctx.VpContext, ctx,
+                                     &emu_status);
     if (FAILED(hr)) {
-        __debugbreak();
         error_report("WHPX: Failed to parse MMIO access, hr=%08lx", hr);
         return -1;
     }
 
     if (!emu_status.EmulationSuccessful) {
-        __debugbreak();
         error_report("WHPX: Failed to emulate MMIO access");
         return -1;
     }
@@ -649,15 +644,15 @@ static int whpx_handle_portio(CPUState *cpu,
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
     WHV_EMULATOR_STATUS emu_status;
 
-    hr = WHvEmulatorTryIoEmulation(vcpu->emulator, cpu, ctx, &emu_status);
+    hr = WHvEmulatorTryIoEmulation(vcpu->emulator, cpu,
+                                   &vcpu->exit_ctx.VpContext, ctx,
+                                   &emu_status);
     if (FAILED(hr)) {
-        __debugbreak();
         error_report("WHPX: Failed to parse PortIO access, hr=%08lx", hr);
         return -1;
     }
 
     if (!emu_status.EmulationSuccessful) {
-        __debugbreak();
         error_report("WHPX: Failed to emulate PortMMIO access");
         return -1;
     }
@@ -691,6 +686,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
     X86CPU *x86_cpu = X86_CPU(cpu);
     int irq;
+    uint8_t tpr;
     WHV_X64_PENDING_INTERRUPTION_REGISTER new_int = {0};
     UINT32 reg_count = 0;
     WHV_REGISTER_VALUE reg_values[3] = {0};
@@ -709,10 +705,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
             new_int.InterruptionVector = 2;
         }
         if (cpu->interrupt_request & CPU_INTERRUPT_SMI) {
-            qemu_mutex_lock_iothread();
             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
-            __debugbreak();
-            qemu_mutex_unlock_iothread();
         }
     }
 
@@ -753,21 +746,21 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     }
 
     /* Sync the TPR to the CR8 if was modified during the intercept */
-    reg_values[reg_count].Reg64 = cpu_get_apic_tpr(x86_cpu->apic_state);
-    if (reg_values[reg_count].Reg64 != vcpu->tpr) {
-        vcpu->tpr = reg_values[reg_count].Reg64;
+    tpr = cpu_get_apic_tpr(x86_cpu->apic_state);
+    if (tpr != vcpu->tpr) {
+        vcpu->tpr = tpr;
+        reg_values[reg_count].Reg64 = tpr;
         cpu->exit_request = 1;
         reg_names[reg_count] = WHvX64RegisterCr8;
         reg_count += 1;
     }
 
     /* Update the state of the interrupt delivery notification */
-    if (cpu->interrupt_request & CPU_INTERRUPT_HARD) {
+    if (!vcpu->window_registered &&
+        cpu->interrupt_request & CPU_INTERRUPT_HARD) {
         reg_values[reg_count].DeliverabilityNotifications.InterruptNotification
             = 1;
-        if (vcpu->window_registered != 1) {
-            vcpu->window_registered = 1;
-        }
+        vcpu->window_registered = 1;
         reg_names[reg_count] = WHvX64RegisterDeliverabilityNotifications;
         reg_count += 1;
     }
@@ -780,7 +773,6 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
         if (FAILED(hr)) {
             error_report("WHPX: Failed to set interrupt state registers,"
                          " hr=%08lx", hr);
-            __debugbreak();
         }
     }
 
@@ -807,7 +799,6 @@ static void whpx_vcpu_post_run(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to get interrupt state regusters,"
                      " hr=%08lx", hr);
-        __debugbreak();
         vcpu->interruptable = false;
         return;
     }
@@ -905,18 +896,8 @@ static int whpx_vcpu_run(CPUState *cpu)
             whpx_vcpu_kick(cpu);
         }
 
-        for (;;) {
-            hr = WHvRunVirtualProcessor(whpx->partition, cpu->cpu_index,
-                                        &vcpu->exit_ctx, whpx->exit_ctx_size);
-
-            if (SUCCEEDED(hr) && (vcpu->exit_ctx.ExitReason ==
-                                  WHvRunVpExitReasonAlerted)) {
-                WHvCancelRunVirtualProcessor(whpx->partition, cpu->cpu_index,
-                                             0);
-            } else {
-                break;
-            }
-        }
+        hr = WHvRunVirtualProcessor(whpx->partition, cpu->cpu_index,
+                                    &vcpu->exit_ctx, sizeof(vcpu->exit_ctx));
 
         if (FAILED(hr)) {
             error_report("WHPX: Failed to exec a virtual processor,"
@@ -956,7 +937,6 @@ static int whpx_vcpu_run(CPUState *cpu)
         case WHvRunVpExitReasonX64MsrAccess:
         case WHvRunVpExitReasonX64Cpuid:
         case WHvRunVpExitReasonException:
-        case WHvRunVpExitReasonAlerted:
         default:
             error_report("WHPX: Unexpected VP exit code %d",
                          vcpu->exit_ctx.ExitReason);
@@ -1060,15 +1040,14 @@ int whpx_init_vcpu(CPUState *cpu)
         }
     }
 
-    vcpu = g_malloc0(FIELD_OFFSET(struct whpx_vcpu, exit_ctx) +
-                     whpx->exit_ctx_size);
+    vcpu = g_malloc0(sizeof(struct whpx_vcpu));
 
     if (!vcpu) {
         error_report("WHPX: Failed to allocte VCPU context.");
         return -ENOMEM;
     }
 
-    hr = WHvEmulatorCreateEmulator(whpx_emu_callbacks, &vcpu->emulator);
+    hr = WHvEmulatorCreateEmulator(&whpx_emu_callbacks, &vcpu->emulator);
     if (FAILED(hr)) {
         error_report("WHPX: Failed to setup instruction completion support,"
                      " hr=%08lx", hr);
@@ -1317,9 +1296,6 @@ static int whpx_accel_init(MachineState *ms)
         ret = -EINVAL;
         goto error;
     }
-
-    whpx->exit_ctx_size = WHvGetRunExitContextSize();
-    assert(whpx->exit_ctx_size);
 
     whpx_memory_init();
 

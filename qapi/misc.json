@@ -1285,10 +1285,12 @@
 #        3) A link type in the form 'link<subtype>' where subtype is a qdev
 #           device type name.  Link properties form the device model graph.
 #
+# @description: if specified, the description of the property.
+#
 # Since: 1.2
 ##
 { 'struct': 'ObjectPropertyInfo',
-  'data': { 'name': 'str', 'type': 'str' } }
+  'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
 
 ##
 # @qom-list:
@@ -1444,34 +1446,34 @@
   'returns': [ 'ObjectTypeInfo' ] }
 
 ##
-# @DevicePropertyInfo:
-#
-# Information about device properties.
-#
-# @name: the name of the property
-# @type: the typename of the property
-# @description: if specified, the description of the property.
-#               (since 2.2)
-#
-# Since: 1.2
-##
-{ 'struct': 'DevicePropertyInfo',
-  'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
-
-##
 # @device-list-properties:
 #
 # List properties associated with a device.
 #
 # @typename: the type name of a device
 #
-# Returns: a list of DevicePropertyInfo describing a devices properties
+# Returns: a list of ObjectPropertyInfo describing a devices properties
 #
 # Since: 1.2
 ##
 { 'command': 'device-list-properties',
   'data': { 'typename': 'str'},
-  'returns': [ 'DevicePropertyInfo' ] }
+  'returns': [ 'ObjectPropertyInfo' ] }
+
+##
+# @qom-list-properties:
+#
+# List properties associated with a QOM object.
+#
+# @typename: the type name of an object
+#
+# Returns: a list of ObjectPropertyInfo describing object properties
+#
+# Since: 2.12
+##
+{ 'command': 'qom-list-properties',
+  'data': { 'typename': 'str'},
+  'returns': [ 'ObjectPropertyInfo' ] }
 
 ##
 # @xen-set-global-dirty-log:

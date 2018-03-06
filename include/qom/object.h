@@ -1017,6 +1017,22 @@ void object_property_iter_init(ObjectPropertyIterator *iter,
                                Object *obj);
 
 /**
+ * object_class_property_iter_init:
+ * @klass: the class
+ *
+ * Initializes an iterator for traversing all properties
+ * registered against an object class and all parent classes.
+ *
+ * It is forbidden to modify the property list while iterating,
+ * whether removing or adding properties.
+ *
+ * This can be used on abstract classes as it does not create a temporary
+ * instance.
+ */
+void object_class_property_iter_init(ObjectPropertyIterator *iter,
+                                     ObjectClass *klass);
+
+/**
  * object_property_iter_next:
  * @iter: the iterator instance
  *

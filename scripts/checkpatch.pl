@@ -2352,8 +2352,9 @@ sub process {
 			}
 		}
 
-# check for missing bracing round if etc
-		if ($line =~ /(^.*)\bif\b/ && $line !~ /\#\s*if/) {
+# check for missing bracing around if etc
+		if ($line =~ /(^.*)\b(?:if|while|for)\b/ &&
+			$line !~ /\#\s*if/) {
 			my ($level, $endln, @chunks) =
 				ctx_statement_full($linenr, $realcnt, 1);
                         if ($dbg_adv_apw) {
@@ -2582,6 +2583,11 @@ sub process {
 # check for gcc specific __FUNCTION__
 		if ($line =~ /__FUNCTION__/) {
 			ERROR("__func__ should be used instead of gcc specific __FUNCTION__\n"  . $herecurr);
+		}
+
+# recommend g_path_get_* over g_strdup(basename/dirname(...))
+		if ($line =~ /\bg_strdup\s*\(\s*(basename|dirname)\s*\(/) {
+			WARN("consider using g_path_get_$1() in preference to g_strdup($1())\n" . $herecurr);
 		}
 
 # recommend qemu_strto* over strto* for numeric conversions

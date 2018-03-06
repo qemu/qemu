@@ -2486,20 +2486,20 @@ fi
 if test "$whpx" != "no" ; then
     cat > $TMPC << EOF
 #include <windows.h>
-#include <winhvplatform.h>
-#include <winhvemulation.h>
+#include <WinHvPlatform.h>
+#include <WinHvEmulation.h>
 int main(void) {
     WHV_CAPABILITY whpx_cap;
     WHvGetCapability(WHvCapabilityCodeFeatures, &whpx_cap, sizeof(whpx_cap));
     return 0;
 }
 EOF
-    if compile_prog "" "-lwinhvplatform -lwinhvemulation" ; then
-        libs_softmmu="$libs_softmmu -lwinhvplatform -lwinhvemulation"
+    if compile_prog "" "-lWinHvPlatform -lWinHvEmulation" ; then
+        libs_softmmu="$libs_softmmu -lWinHvPlatform -lWinHvEmulation"
         whpx="yes"
     else
         if test "$whpx" = "yes"; then
-            feature_not_found "winhvplatform" "winhvemulation is not installed"
+            feature_not_found "WinHvPlatform" "WinHvEmulation is not installed"
         fi
         whpx="no"
     fi
@@ -5316,25 +5316,27 @@ fi
 ##########################################
 # checks for sanitizers
 
-# we could use a simple skeleton for flags checks, but this also
-# detect the static linking issue of ubsan, see also:
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
-cat > $TMPC << EOF
-#include <stdint.h>
-int main(void) {
-  return INT32_MIN / -1;
-}
-EOF
-
 have_asan=no
 have_ubsan=no
 have_asan_iface_h=no
 have_asan_iface_fiber=no
 
 if test "$sanitizers" = "yes" ; then
+  write_c_skeleton
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" ""; then
       have_asan=yes
   fi
+
+  # we could use a simple skeleton for flags checks, but this also
+  # detect the static linking issue of ubsan, see also:
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
+  cat > $TMPC << EOF
+#include <stdlib.h>
+int main(void) {
+    void *tmp = malloc(10);
+    return *(int *)(tmp + 2);
+}
+EOF
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
       have_ubsan=yes
   fi
@@ -5366,19 +5368,8 @@ if test "$gcov" = "yes" ; then
   LDFLAGS="-fprofile-arcs -ftest-coverage $LDFLAGS"
 elif test "$fortify_source" = "yes" ; then
   CFLAGS="-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $CFLAGS"
-elif test "$debug" = "yes"; then
-  if compile_prog "-Og" ""; then
-      CFLAGS="-Og $CFLAGS"
-  elif compile_prog "-O1" ""; then
-      CFLAGS="-O1 $CFLAGS"
-  fi
-  # Workaround GCC false-positive Wuninitialized bugs with Og or O1:
-  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=24639
-  if cc_has_warning_flag "-Wno-maybe-uninitialized"; then
-      CFLAGS="-Wno-maybe-uninitialized $CFLAGS"
-  fi
-else
-    CFLAGS="-O2 $CFLAGS"
+elif test "$debug" = "no"; then
+  CFLAGS="-O2 $CFLAGS"
 fi
 
 if test "$have_asan" = "yes"; then
