@@ -1,6 +1,5 @@
 common-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 common-obj-$(CONFIG_AUDIO_SDL) += sdlaudio.o
-common-obj-$(CONFIG_AUDIO_OSS) += ossaudio.o
 common-obj-$(CONFIG_SPICE) += spiceaudio.o
 common-obj-$(CONFIG_AUDIO_COREAUDIO) += coreaudio.o
 common-obj-$(CONFIG_AUDIO_DSOUND) += dsoundaudio.o
@@ -14,9 +13,13 @@ sdlaudio.o-libs := $(SDL_LIBS)
 paaudio.o-libs := $(PULSE_LIBS)
 coreaudio.o-libs := $(COREAUDIO_LIBS)
 dsoundaudio.o-libs := $(DSOUND_LIBS)
-ossaudio.o-libs := $(OSS_LIBS)
 
 # alsa module
 common-obj-$(CONFIG_AUDIO_ALSA) += alsa.mo
 alsa.mo-objs = alsaaudio.o
 alsa.mo-libs := $(ALSA_LIBS)
+
+# oss module
+common-obj-$(CONFIG_AUDIO_OSS) += oss.mo
+oss.mo-objs = ossaudio.o
+oss.mo-libs := $(OSS_LIBS)
