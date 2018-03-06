@@ -111,29 +111,39 @@ static const MemoryRegionOps unin_data_ops = {
 
 static void pci_unin_main_init(Object *obj)
 {
+    UNINState *s = UNI_NORTH_PCI_HOST_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
 
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops,
-                          obj, "pci-conf-idx", 0x1000);
+                          obj, "unin-pci-conf-idx", 0x1000);
     memory_region_init_io(&h->data_mem, OBJECT(h), &unin_data_ops, obj,
-                          "pci-conf-data", 0x1000);
+                          "unin-pci-conf-data", 0x1000);
+
+    memory_region_init(&s->pci_mmio, OBJECT(s), "unin-pci-mmio",
+                       0x100000000ULL);
+
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
 }
 
 static void pci_u3_agp_init(Object *obj)
 {
+    UNINState *s = U3_AGP_HOST_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
 
     /* Uninorth U3 AGP bus */
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops,
-                          obj, "pci-conf-idx", 0x1000);
+                          obj, "unin-pci-conf-idx", 0x1000);
     memory_region_init_io(&h->data_mem, OBJECT(h), &unin_data_ops, obj,
-                          "pci-conf-data", 0x1000);
+                          "unin-pci-conf-data", 0x1000);
+
+    memory_region_init(&s->pci_mmio, OBJECT(s), "unin-pci-mmio",
+                       0x100000000ULL);
+
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
 }
@@ -145,9 +155,9 @@ static void pci_unin_agp_init(Object *obj)
 
     /* Uninorth AGP bus */
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops,
-                          obj, "pci-conf-idx", 0x1000);
+                          obj, "unin-agp-conf-idx", 0x1000);
     memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops,
-                          obj, "pci-conf-data", 0x1000);
+                          obj, "unin-agp-conf-data", 0x1000);
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
 }
@@ -159,9 +169,9 @@ static void pci_unin_internal_init(Object *obj)
 
     /* Uninorth internal bus */
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops,
-                          obj, "pci-conf-idx", 0x1000);
+                          obj, "unin-pci-conf-idx", 0x1000);
     memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops,
-                          obj, "pci-conf-data", 0x1000);
+                          obj, "unin-pci-conf-data", 0x1000);
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
 }
@@ -182,7 +192,6 @@ UNINState *pci_pmac_init(qemu_irq *pic,
     s = SYS_BUS_DEVICE(dev);
     h = PCI_HOST_BRIDGE(s);
     d = UNI_NORTH_PCI_HOST_BRIDGE(dev);
-    memory_region_init(&d->pci_mmio, OBJECT(d), "pci-mmio", 0x100000000ULL);
     memory_region_init_alias(&d->pci_hole, OBJECT(d), "pci-hole", &d->pci_mmio,
                              0x80000000ULL, 0x10000000ULL);
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
@@ -247,7 +256,6 @@ UNINState *pci_pmac_u3_init(qemu_irq *pic,
     h = PCI_HOST_BRIDGE(dev);
     d = U3_AGP_HOST_BRIDGE(dev);
 
-    memory_region_init(&d->pci_mmio, OBJECT(d), "pci-mmio", 0x100000000ULL);
     memory_region_init_alias(&d->pci_hole, OBJECT(d), "pci-hole", &d->pci_mmio,
                              0x80000000ULL, 0x70000000ULL);
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
