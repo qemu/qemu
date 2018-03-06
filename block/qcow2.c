@@ -1377,7 +1377,7 @@ static int qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (s->l1_size > 0) {
         s->l1_table = qemu_try_blockalign(bs->file->bs,
-            align_offset(s->l1_size * sizeof(uint64_t), 512));
+            ROUND_UP(s->l1_size * sizeof(uint64_t), 512));
         if (s->l1_table == NULL) {
             error_setg(errp, "Could not allocate L1 table");
             ret = -ENOMEM;
@@ -1668,32 +1668,34 @@ static void qcow2_join_options(QDict *options, QDict *old_options)
     }
 }
 
-static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, int *pnum, BlockDriverState **file)
+static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
+                                              bool want_zero,
+                                              int64_t offset, int64_t count,
+                                              int64_t *pnum, int64_t *map,
+                                              BlockDriverState **file)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t cluster_offset;
     int index_in_cluster, ret;
     unsigned int bytes;
-    int64_t status = 0;
+    int status = 0;
 
-    bytes = MIN(INT_MAX, nb_sectors * BDRV_SECTOR_SIZE);
+    bytes = MIN(INT_MAX, count);
     qemu_co_mutex_lock(&s->lock);
-    ret = qcow2_get_cluster_offset(bs, sector_num << BDRV_SECTOR_BITS, &bytes,
-                                   &cluster_offset);
+    ret = qcow2_get_cluster_offset(bs, offset, &bytes, &cluster_offset);
     qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
         return ret;
     }
 
-    *pnum = bytes >> BDRV_SECTOR_BITS;
+    *pnum = bytes;
 
     if (cluster_offset != 0 && ret != QCOW2_CLUSTER_COMPRESSED &&
         !s->crypto) {
-        index_in_cluster = sector_num & (s->cluster_sectors - 1);
-        cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
+        index_in_cluster = offset & (s->cluster_size - 1);
+        *map = cluster_offset | index_in_cluster;
         *file = bs->file->bs;
-        status |= BDRV_BLOCK_OFFSET_VALID | cluster_offset;
+        status |= BDRV_BLOCK_OFFSET_VALID;
     }
     if (ret == QCOW2_CLUSTER_ZERO_PLAIN || ret == QCOW2_CLUSTER_ZERO_ALLOC) {
         status |= BDRV_BLOCK_ZERO;
@@ -2638,19 +2640,19 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
 {
     int64_t meta_size = 0;
     uint64_t nl1e, nl2e;
-    int64_t aligned_total_size = align_offset(total_size, cluster_size);
+    int64_t aligned_total_size = ROUND_UP(total_size, cluster_size);
 
     /* header: 1 cluster */
     meta_size += cluster_size;
 
     /* total size of L2 tables */
     nl2e = aligned_total_size / cluster_size;
-    nl2e = align_offset(nl2e, cluster_size / sizeof(uint64_t));
+    nl2e = ROUND_UP(nl2e, cluster_size / sizeof(uint64_t));
     meta_size += nl2e * sizeof(uint64_t);
 
     /* total size of L1 tables */
     nl1e = nl2e * sizeof(uint64_t) / cluster_size;
-    nl1e = align_offset(nl1e, cluster_size / sizeof(uint64_t));
+    nl1e = ROUND_UP(nl1e, cluster_size / sizeof(uint64_t));
     meta_size += nl1e * sizeof(uint64_t);
 
     /* total size of refcount table and blocks */
@@ -2721,11 +2723,12 @@ static uint64_t qcow2_opt_get_refcount_bits_del(QemuOpts *opts, int version,
     return refcount_bits;
 }
 
-static int qcow2_create2(const char *filename, int64_t total_size,
-                         const char *backing_file, const char *backing_format,
-                         int flags, size_t cluster_size, PreallocMode prealloc,
-                         QemuOpts *opts, int version, int refcount_order,
-                         const char *encryptfmt, Error **errp)
+static int coroutine_fn
+qcow2_co_create2(const char *filename, int64_t total_size,
+                 const char *backing_file, const char *backing_format,
+                 int flags, size_t cluster_size, PreallocMode prealloc,
+                 QemuOpts *opts, int version, int refcount_order,
+                 const char *encryptfmt, Error **errp)
 {
     QDict *options;
 
@@ -2912,7 +2915,8 @@ out:
     return ret;
 }
 
-static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opts,
+                                             Error **errp)
 {
     char *backing_file = NULL;
     char *backing_fmt = NULL;
@@ -2993,9 +2997,9 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
 
     refcount_order = ctz32(refcount_bits);
 
-    ret = qcow2_create2(filename, size, backing_file, backing_fmt, flags,
-                        cluster_size, prealloc, opts, version, refcount_order,
-                        encryptfmt, &local_err);
+    ret = qcow2_co_create2(filename, size, backing_file, backing_fmt, flags,
+                           cluster_size, prealloc, opts, version, refcount_order,
+                           encryptfmt, &local_err);
     error_propagate(errp, local_err);
 
 finish:
@@ -3704,8 +3708,8 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     has_backing_file = !!optstr;
     g_free(optstr);
 
-    virtual_size = align_offset(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                                cluster_size);
+    virtual_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    virtual_size = ROUND_UP(virtual_size, cluster_size);
 
     /* Check that virtual disk size is valid */
     l2_tables = DIV_ROUND_UP(virtual_size / cluster_size,
@@ -3725,7 +3729,7 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
             goto err;
         }
 
-        virtual_size = align_offset(ssize, cluster_size);
+        virtual_size = ROUND_UP(ssize, cluster_size);
 
         if (has_backing_file) {
             /* We don't how much of the backing chain is shared by the input
@@ -4348,9 +4352,9 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_abort    = qcow2_reopen_abort,
     .bdrv_join_options    = qcow2_join_options,
     .bdrv_child_perm      = bdrv_format_default_perms,
-    .bdrv_create        = qcow2_create,
+    .bdrv_co_create_opts  = qcow2_co_create_opts,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
-    .bdrv_co_get_block_status = qcow2_co_get_block_status,
+    .bdrv_co_block_status = qcow2_co_block_status,
 
     .bdrv_co_preadv         = qcow2_co_preadv,
     .bdrv_co_pwritev        = qcow2_co_pwritev,

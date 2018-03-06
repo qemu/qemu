@@ -3,6 +3,7 @@
 
 #include "block/aio.h"
 #include "qapi/qapi-types-block-core.h"
+#include "block/aio-wait.h"
 #include "qemu/iov.h"
 #include "qemu/coroutine.h"
 #include "block/accounting.h"
@@ -115,19 +116,19 @@ typedef struct HDGeometry {
  * BDRV_BLOCK_ZERO: offset reads as zero
  * BDRV_BLOCK_OFFSET_VALID: an associated offset exists for accessing raw data
  * BDRV_BLOCK_ALLOCATED: the content of the block is determined by this
- *                       layer (short for DATA || ZERO), set by block layer
- * BDRV_BLOCK_EOF: the returned pnum covers through end of file for this layer
+ *                       layer rather than any backing, set by block layer
+ * BDRV_BLOCK_EOF: the returned pnum covers through end of file for this
+ *                 layer, set by block layer
  *
  * Internal flag:
  * BDRV_BLOCK_RAW: for use by passthrough drivers, such as raw, to request
  *                 that the block layer recompute the answer from the returned
  *                 BDS; must be accompanied by just BDRV_BLOCK_OFFSET_VALID.
  *
- * If BDRV_BLOCK_OFFSET_VALID is set, bits 9-62 (BDRV_BLOCK_OFFSET_MASK) of
- * the return value (old interface) or the entire map parameter (new
- * interface) represent the offset in the returned BDS that is allocated for
- * the corresponding raw data.  However, whether that offset actually
- * contains data also depends on BDRV_BLOCK_DATA, as follows:
+ * If BDRV_BLOCK_OFFSET_VALID is set, the map parameter represents the
+ * host offset within the returned BDS that is allocated for the
+ * corresponding raw guest data.  However, whether that offset
+ * actually contains data also depends on BDRV_BLOCK_DATA, as follows:
  *
  * DATA ZERO OFFSET_VALID
  *  t    t        t       sectors read as zero, returned file is zero at offset
@@ -367,41 +368,14 @@ void bdrv_drain_all_begin(void);
 void bdrv_drain_all_end(void);
 void bdrv_drain_all(void);
 
+/* Returns NULL when bs == NULL */
+AioWait *bdrv_get_aio_wait(BlockDriverState *bs);
+
 #define BDRV_POLL_WHILE(bs, cond) ({                       \
-    bool waited_ = false;                                  \
-    bool busy_ = true;                                     \
     BlockDriverState *bs_ = (bs);                          \
-    AioContext *ctx_ = bdrv_get_aio_context(bs_);          \
-    if (aio_context_in_iothread(ctx_)) {                   \
-        while ((cond) || busy_) {                          \
-            busy_ = aio_poll(ctx_, (cond));                \
-            waited_ |= !!(cond) | busy_;                   \
-        }                                                  \
-    } else {                                               \
-        assert(qemu_get_current_aio_context() ==           \
-               qemu_get_aio_context());                    \
-        /* Ask bdrv_dec_in_flight to wake up the main      \
-         * QEMU AioContext.  Extra I/O threads never take  \
-         * other I/O threads' AioContexts (see for example \
-         * block_job_defer_to_main_loop for how to do it). \
-         */                                                \
-        assert(!bs_->wakeup);                              \
-        /* Set bs->wakeup before evaluating cond.  */      \
-        atomic_mb_set(&bs_->wakeup, true);                 \
-        while (busy_) {                                    \
-            if ((cond)) {                                  \
-                waited_ = busy_ = true;                    \
-                aio_context_release(ctx_);                 \
-                aio_poll(qemu_get_aio_context(), true);    \
-                aio_context_acquire(ctx_);                 \
-            } else {                                       \
-                busy_ = aio_poll(ctx_, false);             \
-                waited_ |= busy_;                          \
-            }                                              \
-        }                                                  \
-        atomic_set(&bs_->wakeup, false);                   \
-    }                                                      \
-    waited_; })
+    AIO_WAIT_WHILE(bdrv_get_aio_wait(bs_),                 \
+                   bdrv_get_aio_context(bs_),              \
+                   cond); })
 
 int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
 int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);

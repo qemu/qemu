@@ -3676,7 +3676,8 @@
 #
 # @node-name: node name. Note that errors may be reported for the root node
 #             that is directly attached to a guest device rather than for the
-#             node where the error occurred. (Since: 2.8)
+#             node where the error occurred. The node name is not present if
+#             the drive is empty. (Since: 2.8)
 #
 # @operation: I/O operation
 #
@@ -3707,7 +3708,8 @@
 #
 ##
 { 'event': 'BLOCK_IO_ERROR',
-  'data': { 'device': 'str', 'node-name': 'str', 'operation': 'IoOperationType',
+  'data': { 'device': 'str', '*node-name': 'str',
+            'operation': 'IoOperationType',
             'action': 'BlockErrorAction', '*nospace': 'bool',
             'reason': 'str' } }
 

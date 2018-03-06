@@ -64,6 +64,9 @@ do_test()
 	} | $QEMU_IO $IO_EXTRA_ARGS
 }
 
+echo
+echo "=== Test aligned and misaligned write zeroes operations ==="
+
 for write_zero_cmd in "write -z" "aio_write -z"; do
 for align in 512 4k; do
 	echo
@@ -102,7 +105,33 @@ for align in 512 4k; do
 done
 done
 
+
+# Trigger truncate that would shrink qcow2 L1 table, which is done by
+#   clearing one entry (8 bytes) with bdrv_co_pwrite_zeroes()
+
+echo
+echo "=== Test misaligned write zeroes via truncate ==="
+echo
+
+# any size will do, but the smaller the size the smaller the required image
+CLUSTER_SIZE=$((4 * 1024))
+L2_COVERAGE=$(($CLUSTER_SIZE * $CLUSTER_SIZE / 8))
+_make_test_img $(($L2_COVERAGE * 2))
+
+do_test 512 "write -P 1 0 0x200" "$TEST_IMG" | _filter_qemu_io
+# next L2 table
+do_test 512 "write -P 1 $L2_COVERAGE 0x200" "$TEST_IMG" | _filter_qemu_io
+
+# only interested in qcow2 here; also other formats might respond with
+#  "not supported" error message
+if [ $IMGFMT = "qcow2" ]; then
+    do_test 512 "truncate $L2_COVERAGE" "$TEST_IMG" | _filter_qemu_io
+fi
+
+do_test 512 "read -P 1 0 0x200" "$TEST_IMG" | _filter_qemu_io
+
 # success, all done
+echo
 echo "*** done"
 rm -f $seq.full
 status=0

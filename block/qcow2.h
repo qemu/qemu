@@ -480,12 +480,6 @@ static inline int offset_to_l2_slice_index(BDRVQcow2State *s, int64_t offset)
     return (offset >> s->cluster_bits) & (s->l2_slice_size - 1);
 }
 
-static inline int64_t align_offset(int64_t offset, int n)
-{
-    offset = (offset + n - 1) & ~(n - 1);
-    return offset;
-}
-
 static inline int64_t qcow2_vm_state_offset(BDRVQcow2State *s)
 {
     return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);

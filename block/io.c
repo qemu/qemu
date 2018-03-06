@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "trace.h"
 #include "sysemu/block-backend.h"
+#include "block/aio-wait.h"
 #include "block/blockjob.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
@@ -587,16 +588,9 @@ void bdrv_inc_in_flight(BlockDriverState *bs)
     atomic_inc(&bs->in_flight);
 }
 
-static void dummy_bh_cb(void *opaque)
-{
-}
-
 void bdrv_wakeup(BlockDriverState *bs)
 {
-    /* The barrier (or an atomic op) is in the caller.  */
-    if (atomic_read(&bs->wakeup)) {
-        aio_bh_schedule_oneshot(qemu_get_aio_context(), dummy_bh_cb, NULL);
-    }
+    aio_wait_kick(bdrv_get_aio_wait(bs));
 }
 
 void bdrv_dec_in_flight(BlockDriverState *bs)
@@ -1701,7 +1695,7 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
      */
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_WRITE);
 
-    if (!qiov) {
+    if (flags & BDRV_REQ_ZERO_WRITE) {
         ret = bdrv_co_do_zero_pwritev(child, offset, bytes, flags, &req);
         goto out;
     }
@@ -1868,30 +1862,34 @@ typedef struct BdrvCoBlockStatusData {
     bool done;
 } BdrvCoBlockStatusData;
 
-int64_t coroutine_fn bdrv_co_get_block_status_from_file(BlockDriverState *bs,
-                                                        int64_t sector_num,
-                                                        int nb_sectors,
-                                                        int *pnum,
-                                                        BlockDriverState **file)
+int coroutine_fn bdrv_co_block_status_from_file(BlockDriverState *bs,
+                                                bool want_zero,
+                                                int64_t offset,
+                                                int64_t bytes,
+                                                int64_t *pnum,
+                                                int64_t *map,
+                                                BlockDriverState **file)
 {
     assert(bs->file && bs->file->bs);
-    *pnum = nb_sectors;
+    *pnum = bytes;
+    *map = offset;
     *file = bs->file->bs;
-    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID |
-           (sector_num << BDRV_SECTOR_BITS);
+    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID;
 }
 
-int64_t coroutine_fn bdrv_co_get_block_status_from_backing(BlockDriverState *bs,
-                                                           int64_t sector_num,
-                                                           int nb_sectors,
-                                                           int *pnum,
-                                                           BlockDriverState **file)
+int coroutine_fn bdrv_co_block_status_from_backing(BlockDriverState *bs,
+                                                   bool want_zero,
+                                                   int64_t offset,
+                                                   int64_t bytes,
+                                                   int64_t *pnum,
+                                                   int64_t *map,
+                                                   BlockDriverState **file)
 {
     assert(bs->backing && bs->backing->bs);
-    *pnum = nb_sectors;
+    *pnum = bytes;
+    *map = offset;
     *file = bs->backing->bs;
-    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID |
-           (sector_num << BDRV_SECTOR_BITS);
+    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID;
 }
 
 /*
@@ -1899,10 +1897,10 @@ int64_t coroutine_fn bdrv_co_get_block_status_from_backing(BlockDriverState *bs,
  * Drivers not implementing the functionality are assumed to not support
  * backing files, hence all their sectors are reported as allocated.
  *
- * If 'want_zero' is true, the caller is querying for mapping purposes,
- * and the result should include BDRV_BLOCK_OFFSET_VALID and
- * BDRV_BLOCK_ZERO where possible; otherwise, the result may omit those
- * bits particularly if it allows for a larger value in 'pnum'.
+ * If 'want_zero' is true, the caller is querying for mapping
+ * purposes, with a focus on valid BDRV_BLOCK_OFFSET_VALID, _DATA, and
+ * _ZERO where possible; otherwise, the result favors larger 'pnum',
+ * with a focus on accurate BDRV_BLOCK_ALLOCATED.
  *
  * If 'offset' is beyond the end of the disk image the return value is
  * BDRV_BLOCK_EOF and 'pnum' is set to 0.
@@ -1959,7 +1957,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
 
     /* Must be non-NULL or bdrv_getlength() would have failed */
     assert(bs->drv);
-    if (!bs->drv->bdrv_co_get_block_status) {
+    if (!bs->drv->bdrv_co_block_status) {
         *pnum = bytes;
         ret = BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED;
         if (offset + bytes == total_size) {
@@ -1976,44 +1974,24 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     bdrv_inc_in_flight(bs);
 
     /* Round out to request_alignment boundaries */
-    /* TODO: until we have a byte-based driver callback, we also have to
-     * round out to sectors, even if that is bigger than request_alignment */
-    align = MAX(bs->bl.request_alignment, BDRV_SECTOR_SIZE);
+    align = bs->bl.request_alignment;
     aligned_offset = QEMU_ALIGN_DOWN(offset, align);
     aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
 
-    {
-        int count; /* sectors */
-        int64_t longret;
-
-        assert(QEMU_IS_ALIGNED(aligned_offset | aligned_bytes,
-                               BDRV_SECTOR_SIZE));
-        /*
-         * The contract allows us to return pnum smaller than bytes, even
-         * if the next query would see the same status; we truncate the
-         * request to avoid overflowing the driver's 32-bit interface.
-         */
-        longret = bs->drv->bdrv_co_get_block_status(
-            bs, aligned_offset >> BDRV_SECTOR_BITS,
-            MIN(INT_MAX, aligned_bytes) >> BDRV_SECTOR_BITS, &count,
-            &local_file);
-        if (longret < 0) {
-            assert(INT_MIN <= longret);
-            ret = longret;
-            goto out;
-        }
-        if (longret & BDRV_BLOCK_OFFSET_VALID) {
-            local_map = longret & BDRV_BLOCK_OFFSET_MASK;
-        }
-        ret = longret & ~BDRV_BLOCK_OFFSET_MASK;
-        *pnum = count * BDRV_SECTOR_SIZE;
+    ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
+                                        aligned_bytes, pnum, &local_map,
+                                        &local_file);
+    if (ret < 0) {
+        *pnum = 0;
+        goto out;
     }
 
     /*
-     * The driver's result must be a multiple of request_alignment.
+     * The driver's result must be a non-zero multiple of request_alignment.
      * Clamp pnum and adjust map to original request.
      */
-    assert(QEMU_IS_ALIGNED(*pnum, align) && align > offset - aligned_offset);
+    assert(*pnum && QEMU_IS_ALIGNED(*pnum, align) &&
+           align > offset - aligned_offset);
     *pnum -= offset - aligned_offset;
     if (*pnum > bytes) {
         *pnum = bytes;
