@@ -18,18 +18,18 @@ can't open device TEST_DIR/t.qcow2: Reference count table too large
 
 == Misaligned refcount table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
+can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
 
 == Huge refcount offset ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
+can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
 
 == Invalid snapshot table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Too many snapshots
-can't open device TEST_DIR/t.qcow2: Too many snapshots
-can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
-can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
+can't open device TEST_DIR/t.qcow2: Snapshot table too large
+can't open device TEST_DIR/t.qcow2: Snapshot table too large
+can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
+can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
 
 == Hitting snapshot table size limit ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -41,8 +41,8 @@ read 512/512 bytes at offset 0
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 can't open device TEST_DIR/t.qcow2: Active L1 table too large
 can't open device TEST_DIR/t.qcow2: Active L1 table too large
-can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
-can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
+can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
+can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
 
 == Invalid L1 table (with internal snapshot in the image) ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864

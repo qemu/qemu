@@ -485,11 +485,6 @@ static inline int64_t qcow2_vm_state_offset(BDRVQcow2State *s)
     return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);
 }
 
-static inline uint64_t qcow2_max_refcount_clusters(BDRVQcow2State *s)
-{
-    return QCOW_MAX_REFTABLE_SIZE >> s->cluster_bits;
-}
-
 static inline QCow2ClusterType qcow2_get_cluster_type(uint64_t l2_entry)
 {
     if (l2_entry & QCOW_OFLAG_COMPRESSED) {
@@ -546,6 +541,11 @@ int qcow2_update_header(BlockDriverState *bs);
 void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                              int64_t size, const char *message_format, ...)
                              GCC_FMT_ATTR(5, 6);
+
+int qcow2_validate_table(BlockDriverState *bs, uint64_t offset,
+                         uint64_t entries, size_t entry_len,
+                         int64_t max_size_bytes, const char *table_name,
+                         Error **errp);
 
 /* qcow2-refcount.c functions */
 int qcow2_refcount_init(BlockDriverState *bs);

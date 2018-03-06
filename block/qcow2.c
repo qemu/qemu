@@ -573,26 +573,23 @@ static int coroutine_fn qcow2_co_check(BlockDriverState *bs,
     return ret;
 }
 
-static int validate_table_offset(BlockDriverState *bs, uint64_t offset,
-                                 uint64_t entries, size_t entry_len)
+int qcow2_validate_table(BlockDriverState *bs, uint64_t offset,
+                         uint64_t entries, size_t entry_len,
+                         int64_t max_size_bytes, const char *table_name,
+                         Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t size;
+
+    if (entries > max_size_bytes / entry_len) {
+        error_setg(errp, "%s too large", table_name);
+        return -EFBIG;
+    }
 
     /* Use signed INT64_MAX as the maximum even for uint64_t header fields,
      * because values will be passed to qemu functions taking int64_t. */
-    if (entries > INT64_MAX / entry_len) {
-        return -EINVAL;
-    }
-
-    size = entries * entry_len;
-
-    if (INT64_MAX - size < offset) {
-        return -EINVAL;
-    }
-
-    /* Tables must be cluster aligned */
-    if (offset_into_cluster(s, offset) != 0) {
+    if ((INT64_MAX - entries * entry_len < offset) ||
+        (offset_into_cluster(s, offset) != 0)) {
+        error_setg(errp, "%s offset invalid", table_name);
         return -EINVAL;
     }
 
@@ -1323,47 +1320,42 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     s->refcount_table_size =
         header.refcount_table_clusters << (s->cluster_bits - 3);
 
-    if (header.refcount_table_clusters > qcow2_max_refcount_clusters(s)) {
-        error_setg(errp, "Reference count table too large");
-        ret = -EINVAL;
-        goto fail;
-    }
-
     if (header.refcount_table_clusters == 0 && !(flags & BDRV_O_CHECK)) {
         error_setg(errp, "Image does not contain a reference count table");
         ret = -EINVAL;
         goto fail;
     }
 
-    ret = validate_table_offset(bs, s->refcount_table_offset,
-                                s->refcount_table_size, sizeof(uint64_t));
+    ret = qcow2_validate_table(bs, s->refcount_table_offset,
+                               header.refcount_table_clusters,
+                               s->cluster_size, QCOW_MAX_REFTABLE_SIZE,
+                               "Reference count table", errp);
     if (ret < 0) {
-        error_setg(errp, "Invalid reference count table offset");
         goto fail;
     }
 
-    /* Snapshot table offset/length */
-    if (header.nb_snapshots > QCOW_MAX_SNAPSHOTS) {
-        error_setg(errp, "Too many snapshots");
-        ret = -EINVAL;
-        goto fail;
-    }
-
-    ret = validate_table_offset(bs, header.snapshots_offset,
-                                header.nb_snapshots,
-                                sizeof(QCowSnapshotHeader));
+    /* The total size in bytes of the snapshot table is checked in
+     * qcow2_read_snapshots() because the size of each snapshot is
+     * variable and we don't know it yet.
+     * Here we only check the offset and number of snapshots. */
+    ret = qcow2_validate_table(bs, header.snapshots_offset,
+                               header.nb_snapshots,
+                               sizeof(QCowSnapshotHeader),
+                               sizeof(QCowSnapshotHeader) * QCOW_MAX_SNAPSHOTS,
+                               "Snapshot table", errp);
     if (ret < 0) {
-        error_setg(errp, "Invalid snapshot table offset");
         goto fail;
     }
 
     /* read the level 1 table */
-    if (header.l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
-        error_setg(errp, "Active L1 table too large");
-        ret = -EFBIG;
+    ret = qcow2_validate_table(bs, header.l1_table_offset,
+                               header.l1_size, sizeof(uint64_t),
+                               QCOW_MAX_L1_SIZE, "Active L1 table", errp);
+    if (ret < 0) {
         goto fail;
     }
     s->l1_size = header.l1_size;
+    s->l1_table_offset = header.l1_table_offset;
 
     l1_vm_state_index = size_to_l1(s, header.size);
     if (l1_vm_state_index > INT_MAX) {
@@ -1380,15 +1372,6 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         ret = -EINVAL;
         goto fail;
     }
-
-    ret = validate_table_offset(bs, header.l1_table_offset,
-                                header.l1_size, sizeof(uint64_t));
-    if (ret < 0) {
-        error_setg(errp, "Invalid L1 table offset");
-        goto fail;
-    }
-    s->l1_table_offset = header.l1_table_offset;
-
 
     if (s->l1_size > 0) {
         s->l1_table = qemu_try_blockalign(bs->file->bs,
