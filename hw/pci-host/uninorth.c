@@ -26,30 +26,10 @@
 #include "hw/ppc/mac.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
+#include "hw/pci-host/uninorth.h"
 #include "trace.h"
 
 static const int unin_irq_line[] = { 0x1b, 0x1c, 0x1d, 0x1e };
-
-#define TYPE_UNI_NORTH_PCI_HOST_BRIDGE "uni-north-pci-pcihost"
-#define TYPE_UNI_NORTH_AGP_HOST_BRIDGE "uni-north-agp-pcihost"
-#define TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE "uni-north-internal-pci-pcihost"
-#define TYPE_U3_AGP_HOST_BRIDGE "u3-agp-pcihost"
-
-#define UNI_NORTH_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(UNINState, (obj), TYPE_UNI_NORTH_PCI_HOST_BRIDGE)
-#define UNI_NORTH_AGP_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(UNINState, (obj), TYPE_UNI_NORTH_AGP_HOST_BRIDGE)
-#define UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(UNINState, (obj), TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE)
-#define U3_AGP_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(UNINState, (obj), TYPE_U3_AGP_HOST_BRIDGE)
-
-typedef struct UNINState {
-    PCIHostState parent_obj;
-
-    MemoryRegion pci_mmio;
-    MemoryRegion pci_hole;
-} UNINState;
 
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 {
