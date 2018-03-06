@@ -52,10 +52,9 @@ common-obj-y += egl-context.o
 common-obj-$(CONFIG_OPENGL_DMABUF) += egl-headless.o
 ifeq ($(CONFIG_GTK_GL),y)
 gtk.mo-objs += gtk-gl-area.o
-else
+endif
 gtk.mo-objs += gtk-egl.o
 gtk.mo-libs += $(OPENGL_LIBS)
-endif
 endif
 
 shader.o-libs += $(OPENGL_LIBS)

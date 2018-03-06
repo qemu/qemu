@@ -243,6 +243,8 @@ typedef struct VCChardev {
 #define TYPE_CHARDEV_VC "chardev-vc"
 #define VC_CHARDEV(obj) OBJECT_CHECK(VCChardev, (obj), TYPE_CHARDEV_VC)
 
+bool gtk_use_gl_area;
+
 static void gd_grab_pointer(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_pointer(GtkDisplayState *s);
 static void gd_grab_keyboard(VirtualConsole *vc, const char *reason);
@@ -453,7 +455,7 @@ static void gd_update_full_redraw(VirtualConsole *vc)
     int ww, wh;
     gdk_drawable_get_size(gtk_widget_get_window(area), &ww, &wh);
 #if defined(CONFIG_GTK_GL)
-    if (vc->gfx.gls) {
+    if (vc->gfx.gls && gtk_use_gl_area) {
         gtk_gl_area_queue_render(GTK_GL_AREA(vc->gfx.drawing_area));
         return;
     }
@@ -725,7 +727,7 @@ static const DisplayChangeListenerOps dcl_gl_area_ops = {
     .dpy_gl_update           = gd_gl_area_scanout_flush,
 };
 
-#else
+#endif /* CONFIG_GTK_GL */
 
 static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_name             = "gtk-egl",
@@ -745,7 +747,6 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_gl_update           = gd_egl_scanout_flush,
 };
 
-#endif /* CONFIG_GTK_GL */
 #endif /* CONFIG_OPENGL */
 
 /** QEMU Events **/
@@ -844,13 +845,13 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
 
 #if defined(CONFIG_OPENGL)
     if (vc->gfx.gls) {
-#if defined(CONFIG_GTK_GL)
-        /* invoke render callback please */
-        return FALSE;
-#else
-        gd_egl_draw(vc);
-        return TRUE;
-#endif
+        if (gtk_use_gl_area) {
+            /* invoke render callback please */
+            return FALSE;
+        } else {
+            gd_egl_draw(vc);
+            return TRUE;
+        }
     }
 #endif
 
@@ -1993,7 +1994,7 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
     g_signal_connect(vc->gfx.drawing_area, "draw",
                      G_CALLBACK(gd_draw_event), vc);
 #if defined(CONFIG_GTK_GL)
-    if (display_opengl) {
+    if (gtk_use_gl_area) {
         /* wire up GtkGlArea events */
         g_signal_connect(vc->gfx.drawing_area, "render",
                          G_CALLBACK(gd_render_event), vc);
@@ -2116,26 +2117,29 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 #if defined(CONFIG_OPENGL)
     if (display_opengl) {
 #if defined(CONFIG_GTK_GL)
-        vc->gfx.drawing_area = gtk_gl_area_new();
-        vc->gfx.dcl.ops = &dcl_gl_area_ops;
-#else
-        vc->gfx.drawing_area = gtk_drawing_area_new();
-        /*
-         * gtk_widget_set_double_buffered() was deprecated in 3.14.
-         * It is required for opengl rendering on X11 though.  A
-         * proper replacement (native opengl support) is only
-         * available in 3.16+.  Silence the warning if possible.
-         */
+        if (gtk_use_gl_area) {
+            vc->gfx.drawing_area = gtk_gl_area_new();
+            vc->gfx.dcl.ops = &dcl_gl_area_ops;
+        } else
+#endif /* CONFIG_GTK_GL */
+        {
+            vc->gfx.drawing_area = gtk_drawing_area_new();
+            /*
+             * gtk_widget_set_double_buffered() was deprecated in 3.14.
+             * It is required for opengl rendering on X11 though.  A
+             * proper replacement (native opengl support) is only
+             * available in 3.16+.  Silence the warning if possible.
+             */
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
-        gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
+            gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 #pragma GCC diagnostic pop
 #endif
-        vc->gfx.dcl.ops = &dcl_egl_ops;
-#endif /* CONFIG_GTK_GL */
+            vc->gfx.dcl.ops = &dcl_egl_ops;
+        }
     } else
 #endif
     {
@@ -2437,6 +2441,7 @@ static void early_gtk_display_init(DisplayOptions *opts)
     if (opts->has_gl && opts->gl) {
 #if defined(CONFIG_OPENGL)
 #if defined(CONFIG_GTK_GL)
+        gtk_use_gl_area = true;
         gtk_gl_area_init();
 #else
         gtk_egl_init();

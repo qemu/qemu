@@ -90,6 +90,8 @@ typedef struct VirtualConsole {
     };
 } VirtualConsole;
 
+extern bool gtk_use_gl_area;
+
 /* ui/gtk.c */
 void gd_update_windowsize(VirtualConsole *vc);
 
