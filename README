@@ -73,7 +73,7 @@ The QEMU website is also maintained under source control.
   git clone git://git.qemu.org/qemu-web.git
   https://www.qemu.org/2017/02/04/the-new-qemu-website-is-up/
 
-A 'git-profile' utility was created to make above process less
+A 'git-publish' utility was created to make above process less
 cumbersome, and is highly recommended for making regular contributions,
 or even just for sending consecutive patch series revisions. It also
 requires a working 'git send-email' setup, and by default doesn't
