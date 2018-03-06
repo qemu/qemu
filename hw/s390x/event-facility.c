@@ -431,26 +431,12 @@ static void event_realize(DeviceState *qdev, Error **errp)
     }
 }
 
-static void event_unrealize(DeviceState *qdev, Error **errp)
-{
-    SCLPEvent *event = SCLP_EVENT(qdev);
-    SCLPEventClass *child = SCLP_EVENT_GET_CLASS(event);
-    if (child->exit) {
-        int rc = child->exit(event);
-        if (rc < 0) {
-            error_setg(errp, "SCLP event exit failed.");
-            return;
-        }
-    }
-}
-
 static void event_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->bus_type = TYPE_SCLP_EVENTS_BUS;
     dc->realize = event_realize;
-    dc->unrealize = event_unrealize;
 }
 
 static const TypeInfo sclp_event_type_info = {
