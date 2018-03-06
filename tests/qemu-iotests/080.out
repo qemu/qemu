@@ -59,7 +59,13 @@ wrote 512/512 bytes at offset 0
 qemu-img: Could not create snapshot 'test': -27 (File too large)
 qemu-img: Could not create snapshot 'test': -11 (Resource temporarily unavailable)
 
-== Invalid snapshot L1 table ==
+== Invalid snapshot L1 table offset ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Failed to load snapshot: Snapshot L1 table offset invalid
+
+== Invalid snapshot L1 table size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
