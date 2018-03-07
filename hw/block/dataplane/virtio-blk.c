@@ -240,6 +240,22 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     return -ENOSYS;
 }
 
+/* Stop notifications for new requests from guest.
+ *
+ * Context: BH in IOThread
+ */
+static void virtio_blk_data_plane_stop_bh(void *opaque)
+{
+    VirtIOBlockDataPlane *s = opaque;
+    unsigned i;
+
+    for (i = 0; i < s->conf->num_queues; i++) {
+        VirtQueue *vq = virtio_get_queue(s->vdev, i);
+
+        virtio_queue_aio_set_host_notifier_handler(vq, s->ctx, NULL);
+    }
+}
+
 /* Context: QEMU global mutex held */
 void virtio_blk_data_plane_stop(VirtIODevice *vdev)
 {
@@ -264,13 +280,7 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     trace_virtio_blk_data_plane_stop(s);
 
     aio_context_acquire(s->ctx);
-
-    /* Stop notifications for new requests from guest */
-    for (i = 0; i < nvqs; i++) {
-        VirtQueue *vq = virtio_get_queue(s->vdev, i);
-
-        virtio_queue_aio_set_host_notifier_handler(vq, s->ctx, NULL);
-    }
+    aio_wait_bh_oneshot(s->ctx, virtio_blk_data_plane_stop_bh, s);
 
     /* Drain and switch bs back to the QEMU main loop */
     blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context());
