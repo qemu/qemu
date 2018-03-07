@@ -406,6 +406,8 @@ static void macio_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_OTHERS << 8;
     dc->props = macio_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    /* Reason: Uses serial_hds in macio_instance_init */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo macio_oldworld_type_info = {
