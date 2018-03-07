@@ -754,6 +754,8 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 		return NULL;
 	}
 	qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+	opt = 1;
+	qemu_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(int));
 
 	getsockname(s,(struct sockaddr *)&addr,&addrlen);
 	so->so_ffamily = AF_INET;
