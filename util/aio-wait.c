@@ -38,3 +38,34 @@ void aio_wait_kick(AioWait *wait)
         aio_bh_schedule_oneshot(qemu_get_aio_context(), dummy_bh_cb, NULL);
     }
 }
+
+typedef struct {
+    AioWait wait;
+    bool done;
+    QEMUBHFunc *cb;
+    void *opaque;
+} AioWaitBHData;
+
+/* Context: BH in IOThread */
+static void aio_wait_bh(void *opaque)
+{
+    AioWaitBHData *data = opaque;
+
+    data->cb(data->opaque);
+
+    data->done = true;
+    aio_wait_kick(&data->wait);
+}
+
+void aio_wait_bh_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
+{
+    AioWaitBHData data = {
+        .cb = cb,
+        .opaque = opaque,
+    };
+
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+
+    aio_bh_schedule_oneshot(ctx, aio_wait_bh, &data);
+    AIO_WAIT_WHILE(&data.wait, ctx, !data.done);
+}
