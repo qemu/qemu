@@ -101,18 +101,6 @@ void iothread_stop(IOThread *iothread)
     qemu_thread_join(&iothread->thread);
 }
 
-static int iothread_stop_iter(Object *object, void *opaque)
-{
-    IOThread *iothread;
-
-    iothread = (IOThread *)object_dynamic_cast(object, TYPE_IOTHREAD);
-    if (!iothread) {
-        return 0;
-    }
-    iothread_stop(iothread);
-    return 0;
-}
-
 static void iothread_instance_init(Object *obj)
 {
     IOThread *iothread = IOTHREAD(obj);
@@ -331,25 +319,6 @@ IOThreadInfoList *qmp_query_iothreads(Error **errp)
 
     object_child_foreach(container, query_one_iothread, &prev);
     return head;
-}
-
-void iothread_stop_all(void)
-{
-    Object *container = object_get_objects_root();
-    BlockDriverState *bs;
-    BdrvNextIterator it;
-
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-        if (ctx == qemu_get_aio_context()) {
-            continue;
-        }
-        aio_context_acquire(ctx);
-        bdrv_set_aio_context(bs, qemu_get_aio_context());
-        aio_context_release(ctx);
-    }
-
-    object_child_foreach(container, iothread_stop_iter, NULL);
 }
 
 static gpointer iothread_g_main_context_init(gpointer opaque)
