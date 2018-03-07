@@ -146,6 +146,7 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     MemoryRegion *bios2 = g_new(MemoryRegion, 1);
+    ESPState *esp;
 
     /* init CPUs */
     cpu = MIPS_CPU(cpu_create(machine->cpu_type));
@@ -277,9 +278,9 @@ static void mips_jazz_init(MachineState *machine,
     }
 
     /* SCSI adapter */
-    esp_init(0x80002000, 0,
-             rc4030_dma_read, rc4030_dma_write, dmas[0],
-             qdev_get_gpio_in(rc4030, 5), &esp_reset, &dma_enable);
+    esp = esp_init(0x80002000, 0, rc4030_dma_read, rc4030_dma_write, dmas[0],
+                   qdev_get_gpio_in(rc4030, 5), &esp_reset, &dma_enable);
+    scsi_bus_legacy_handle_cmdline(&esp->bus);
 
     /* Floppy */
     for (n = 0; n < MAX_FD; n++) {
