@@ -170,6 +170,10 @@ static void socket_accept_incoming_migration(QIONetListener *listener,
         qio_net_listener_disconnect(listener);
 
         object_unref(OBJECT(listener));
+
+        if (!migrate_use_multifd()) {
+            migration_incoming_process();
+        }
     }
 }
 
