@@ -787,7 +787,7 @@ static void ibm_40p_init(MachineState *machine)
         qdev_prop_set_uint32(dev, "equipment", 0xc0);
         qdev_init_nofail(dev);
 
-        pci_create_simple(pci_bus, PCI_DEVFN(1, 0), "lsi53c810");
+        lsi53c810_create(pci_bus, PCI_DEVFN(1, 0));
 
         /* XXX: s3-trio at PCI_DEVFN(2, 0) */
         pci_vga_init(pci_bus);
