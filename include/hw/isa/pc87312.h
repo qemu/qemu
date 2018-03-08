@@ -25,14 +25,16 @@
 #ifndef QEMU_PC87312_H
 #define QEMU_PC87312_H
 
-#include "hw/isa/isa.h"
+#include "hw/isa/superio.h"
 
 
 #define TYPE_PC87312_SUPERIO "pc87312"
 #define PC87312(obj) OBJECT_CHECK(PC87312State, (obj), TYPE_PC87312_SUPERIO)
 
 typedef struct PC87312State {
-    ISADevice dev;
+    /*< private >*/
+    ISASuperIODevice parent_dev;
+    /*< public >*/
 
     uint16_t iobase;
     uint8_t config; /* initial configuration */

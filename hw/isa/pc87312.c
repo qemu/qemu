@@ -270,6 +270,7 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     ISABus *bus;
     Chardev *chr;
     DriveInfo *drive;
+    Error *local_err = NULL;
     char name[5];
     int i;
 
@@ -278,6 +279,12 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     bus = isa_bus_from_device(isa);
     isa_register_ioport(isa, &s->io, s->iobase);
     pc87312_hard_reset(s);
+
+    ISA_SUPERIO_GET_CLASS(dev)->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     if (is_parallel_enabled(s)) {
         /* FIXME use a qdev chardev prop instead of parallel_hds[] */
@@ -381,7 +388,9 @@ static Property pc87312_properties[] = {
 static void pc87312_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
+    sc->parent_realize = dc->realize;
     dc->realize = pc87312_realize;
     dc->reset = pc87312_reset;
     dc->vmsd = &vmstate_pc87312;
@@ -392,7 +401,7 @@ static void pc87312_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pc87312_type_info = {
     .name          = TYPE_PC87312_SUPERIO,
-    .parent        = TYPE_ISA_DEVICE,
+    .parent        = TYPE_ISA_SUPERIO,
     .instance_size = sizeof(PC87312State),
     .instance_init = pc87312_initfn,
     .class_init    = pc87312_class_init,
