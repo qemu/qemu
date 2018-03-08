@@ -39,3 +39,8 @@ uint32_t sev_get_reduced_phys_bits(void)
 {
     return 0;
 }
+
+char *sev_get_launch_measurement(void)
+{
+    return NULL;
+}

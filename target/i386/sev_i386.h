@@ -37,6 +37,7 @@ extern uint64_t sev_get_me_mask(void);
 extern SevInfo *sev_get_info(void);
 extern uint32_t sev_get_cbit_position(void);
 extern uint32_t sev_get_reduced_phys_bits(void);
+extern char *sev_get_launch_measurement(void);
 
 typedef struct QSevGuestInfo QSevGuestInfo;
 typedef struct QSevGuestInfoClass QSevGuestInfoClass;
@@ -78,6 +79,7 @@ struct SEVState {
     uint32_t handle;
     int sev_fd;
     SevState state;
+    gchar *measurement;
 };
 
 typedef struct SEVState SEVState;
