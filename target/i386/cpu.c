@@ -26,6 +26,7 @@
 #include "sysemu/hvf.h"
 #include "sysemu/cpus.h"
 #include "kvm_i386.h"
+#include "sev_i386.h"
 
 #include "qemu/error-report.h"
 #include "qemu/option.h"
@@ -3612,6 +3613,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = 0;
         *edx = 0;
         break;
+    case 0x8000001F:
+        *eax = sev_enabled() ? 0x2 : 0;
+        *ebx = sev_get_cbit_position();
+        *ebx |= sev_get_reduced_phys_bits() << 6;
+        *ecx = 0;
+        *edx = 0;
+        break;
     default:
         /* reserved values: zero */
         *eax = 0;
@@ -4041,6 +4049,11 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         /* SVM requires CPUID[0x8000000A] */
         if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) {
             x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000000A);
+        }
+
+        /* SEV requires CPUID[0x8000001F] */
+        if (sev_enabled()) {
+            x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000001F);
         }
     }
 
