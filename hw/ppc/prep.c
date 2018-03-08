@@ -612,7 +612,7 @@ static void ppc_prep_init(MachineState *machine)
     isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(pci), "isa.0"));
 
     /* Super I/O (parallel + serial ports) */
-    isa = isa_create(isa_bus, TYPE_PC87312);
+    isa = isa_create(isa_bus, TYPE_PC87312_SUPERIO);
     dev = DEVICE(isa);
     qdev_prop_set_uint8(dev, "config", 13); /* fdc, ser0, ser1, par0 */
     qdev_init_nofail(dev);

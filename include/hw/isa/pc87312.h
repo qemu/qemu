@@ -28,8 +28,8 @@
 #include "hw/isa/isa.h"
 
 
-#define TYPE_PC87312 "pc87312"
-#define PC87312(obj) OBJECT_CHECK(PC87312State, (obj), TYPE_PC87312)
+#define TYPE_PC87312_SUPERIO "pc87312"
+#define PC87312(obj) OBJECT_CHECK(PC87312State, (obj), TYPE_PC87312_SUPERIO)
 
 typedef struct PC87312State {
     ISADevice dev;
