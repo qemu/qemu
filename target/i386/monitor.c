@@ -30,6 +30,8 @@
 #include "hw/i386/pc.h"
 #include "sysemu/kvm.h"
 #include "hmp.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
 
 
 static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
@@ -660,4 +662,10 @@ void hmp_info_io_apic(Monitor *mon, const QDict *qdict)
     } else {
         ioapic_dump_state(mon, qdict);
     }
+}
+
+SevInfo *qmp_query_sev(Error **errp)
+{
+    error_setg(errp, "SEV feature is not available");
+    return NULL;
 }
