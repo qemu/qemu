@@ -17,6 +17,7 @@
 #include "sysemu/blockdev.h"
 #include "chardev/char.h"
 #include "hw/isa/superio.h"
+#include "hw/input/i8042.h"
 #include "hw/char/serial.h"
 #include "trace.h"
 
@@ -143,6 +144,8 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                                     k->floppy.get_irq(sio, 0) : -1);
     }
 
+    /* Keyboard, mouse */
+    sio->kbc = isa_create_simple(bus, TYPE_I8042);
 }
 
 static void isa_superio_class_init(ObjectClass *oc, void *data)
