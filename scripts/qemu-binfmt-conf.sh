@@ -154,7 +154,8 @@ Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
                      instead generate update-binfmts templates
        --systemd:    don't write into /proc,
                      instead generate file for systemd-binfmt.service
-                     for the given CPU
+                     for the given CPU. If CPU is "ALL", generate a
+                     file for all known cpus
        --exportdir:  define where to write configuration files
                      (default: $SYSTEMDDIR or $DEBIANDIR)
        --credential: if yes, credential and security tokens are
@@ -301,18 +302,20 @@ while true ; do
         EXPORTDIR=${EXPORTDIR:-$SYSTEMDDIR}
         shift
         # check given cpu is in the supported CPU list
-        for cpu in ${qemu_target_list} ; do
-            if [ "$cpu" = "$1" ] ; then
-                break
-            fi
-        done
+        if [ "$1" != "ALL" ] ; then
+            for cpu in ${qemu_target_list} ; do
+                if [ "$cpu" = "$1" ] ; then
+                    break
+                fi
+            done
 
-        if [ "$cpu" = "$1" ] ; then
-            qemu_target_list="$1"
-        else
-            echo "ERROR: unknown CPU \"$1\"" 1>&2
-            usage
-            exit 1
+            if [ "$cpu" = "$1" ] ; then
+                qemu_target_list="$1"
+            else
+                echo "ERROR: unknown CPU \"$1\"" 1>&2
+                usage
+                exit 1
+            fi
         fi
         ;;
     -Q|--qemu-path)
