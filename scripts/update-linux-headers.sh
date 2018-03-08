@@ -39,6 +39,9 @@ cp_portable() {
                                      -e 'input-event-codes' \
                                      -e 'sys/' \
                                      -e 'pvrdma_verbs' \
+                                     -e 'limits' \
+                                     -e 'linux/kernel' \
+                                     -e 'linux/sysinfo' \
                                      > /dev/null
     then
         echo "Unexpected #include in input file $f".
@@ -59,6 +62,10 @@ cp_portable() {
         -e '/sys\/ioctl.h/d' \
         -e 's/SW_MAX/SW_MAX_/' \
         -e 's/atomic_t/int/' \
+        -e 's/__kernel_long_t/long/' \
+        -e 's/__kernel_ulong_t/unsigned long/' \
+        -e 's/struct ethhdr/struct eth_header/' \
+        -e '/\#define _LINUX_ETHTOOL_H/a \\n\#include "net/eth.h"' \
         "$f" > "$to/$header";
 }
 
@@ -146,7 +153,9 @@ rm -rf "$output/include/standard-headers/linux"
 mkdir -p "$output/include/standard-headers/linux"
 for i in "$tmpdir"/include/linux/*virtio*.h "$tmpdir/include/linux/input.h" \
          "$tmpdir/include/linux/input-event-codes.h" \
-         "$tmpdir/include/linux/pci_regs.h"; do
+         "$tmpdir/include/linux/pci_regs.h" \
+         "$tmpdir/include/linux/ethtool.h" "$tmpdir/include/linux/kernel.h" \
+         "$tmpdir/include/linux/sysinfo.h"; do
     cp_portable "$i" "$output/include/standard-headers/linux"
 done
 
