@@ -41,6 +41,7 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "hw/timer/mc146818rtc.h"
+#include "hw/dma/i8257.h"
 #include "hw/timer/i8254.h"
 #include "hw/audio/pcspk.h"
 #include "hw/pci/msi.h"
@@ -1607,7 +1608,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     port92_init(port92, a20_line[1]);
     g_free(a20_line);
 
-    DMA_init(isa_bus, 0);
+    i8257_dma_init(isa_bus, 0);
 
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
