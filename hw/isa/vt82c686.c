@@ -478,7 +478,7 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
     qemu_register_reset(vt82c686b_reset, d);
 }
 
-ISABus *vt82c686b_init(PCIBus *bus, int devfn)
+ISABus *vt82c686b_isa_init(PCIBus *bus, int devfn)
 {
     PCIDevice *d;
 

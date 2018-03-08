@@ -236,7 +236,7 @@ static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
     ISABus *isa_bus;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
 
-    isa_bus = vt82c686b_init(pci_bus, PCI_DEVFN(slot, 0));
+    isa_bus = vt82c686b_isa_init(pci_bus, PCI_DEVFN(slot, 0));
     if (!isa_bus) {
         fprintf(stderr, "vt82c686b_init error\n");
         exit(1);
