@@ -1039,8 +1039,10 @@ void console_select(unsigned int index)
                     dcl->ops->dpy_gfx_switch(dcl, s->surface);
                 }
             }
-            dpy_gfx_update(s, 0, 0, surface_width(s->surface),
-                           surface_height(s->surface));
+            if (s->surface) {
+                dpy_gfx_update(s, 0, 0, surface_width(s->surface),
+                               surface_height(s->surface));
+            }
         }
         if (ds->have_text) {
             dpy_text_resize(s, s->width, s->height);
@@ -1370,8 +1372,8 @@ DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
     return surface;
 }
 
-static DisplaySurface *qemu_create_message_surface(int w, int h,
-                                                   const char *msg)
+DisplaySurface *qemu_create_message_surface(int w, int h,
+                                            const char *msg)
 {
     DisplaySurface *surface = qemu_create_displaysurface(w, h);
     pixman_color_t bg = color_table_rgb[0][QEMU_COLOR_BLACK];
