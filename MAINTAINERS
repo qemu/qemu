@@ -127,7 +127,6 @@ Alpha
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: target/alpha/
-F: hw/alpha/
 F: tests/tcg/alpha/
 F: disas/alpha.c
 
@@ -412,6 +411,11 @@ F: */*win32*
 F: include/*/*win32*
 X: qga/*win32*
 F: qemu.nsi
+
+Alpha Machines
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
+F: hw/alpha/
 
 ARM Machines
 ------------
