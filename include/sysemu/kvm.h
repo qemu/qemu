@@ -231,6 +231,15 @@ int kvm_destroy_vcpu(CPUState *cpu);
  */
 bool kvm_arm_supports_user_irq(void);
 
+/**
+ * kvm_memcrypt_enabled - return boolean indicating whether memory encryption
+ *                        is enabled
+ * Returns: 1 memory encryption is enabled
+ *          0 memory encryption is disabled
+ */
+bool kvm_memcrypt_enabled(void);
+
+
 #ifdef NEED_CPU_H
 #include "cpu.h"
 
