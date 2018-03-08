@@ -69,7 +69,7 @@
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_CRIS) \
-    || defined(TARGET_UNICORE32) || defined(TARGET_S390X) \
+    || defined(TARGET_S390X) \
     || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX) \
     || defined(TARGET_NIOS2) || defined(TARGET_RISCV)
 
@@ -433,7 +433,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) \
     || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) \
-    || defined(TARGET_MICROBLAZE) || defined(TARGET_UNICORE32) \
+    || defined(TARGET_MICROBLAZE) \
     || defined(TARGET_S390X) || defined(TARGET_OPENRISC) \
     || defined(TARGET_TILEGX) || defined(TARGET_HPPA) || defined(TARGET_NIOS2) \
     || defined(TARGET_RISCV)
@@ -1409,7 +1409,7 @@ struct target_winsize {
 
 #if (defined(TARGET_I386) && defined(TARGET_ABI32)) \
     || (defined(TARGET_ARM) && defined(TARGET_ABI32)) \
-    || defined(TARGET_CRIS) || defined(TARGET_UNICORE32)
+    || defined(TARGET_CRIS)
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;

@@ -100,9 +100,6 @@ typedef struct TaskState {
 # endif
     int swi_errno;
 #endif
-#ifdef TARGET_UNICORE32
-    int swi_errno;
-#endif
 #if defined(TARGET_I386) && !defined(TARGET_X86_64)
     abi_ulong target_v86;
     struct vm86_saved_state vm86_saved_regs;
@@ -115,7 +112,7 @@ typedef struct TaskState {
     int sim_syscalls;
     abi_ulong tp_value;
 #endif
-#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
     /* Extra fields for semihosted binaries.  */
     abi_ulong heap_base;
     abi_ulong heap_limit;

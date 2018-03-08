@@ -884,95 +884,6 @@ void cpu_loop(CPUARMState *env)
 
 #endif
 
-#ifdef TARGET_UNICORE32
-
-void cpu_loop(CPUUniCore32State *env)
-{
-    CPUState *cs = CPU(uc32_env_get_cpu(env));
-    int trapnr;
-    unsigned int n, insn;
-    target_siginfo_t info;
-
-    for (;;) {
-        cpu_exec_start(cs);
-        trapnr = cpu_exec(cs);
-        cpu_exec_end(cs);
-        process_queued_cpu_work(cs);
-
-        switch (trapnr) {
-        case UC32_EXCP_PRIV:
-            {
-                /* system call */
-                get_user_u32(insn, env->regs[31] - 4);
-                n = insn & 0xffffff;
-
-                if (n >= UC32_SYSCALL_BASE) {
-                    /* linux syscall */
-                    n -= UC32_SYSCALL_BASE;
-                    if (n == UC32_SYSCALL_NR_set_tls) {
-                            cpu_set_tls(env, env->regs[0]);
-                            env->regs[0] = 0;
-                    } else {
-                        abi_long ret = do_syscall(env,
-                                                  n,
-                                                  env->regs[0],
-                                                  env->regs[1],
-                                                  env->regs[2],
-                                                  env->regs[3],
-                                                  env->regs[4],
-                                                  env->regs[5],
-                                                  0, 0);
-                        if (ret == -TARGET_ERESTARTSYS) {
-                            env->regs[31] -= 4;
-                        } else if (ret != -TARGET_QEMU_ESIGRETURN) {
-                            env->regs[0] = ret;
-                        }
-                    }
-                } else {
-                    goto error;
-                }
-            }
-            break;
-        case UC32_EXCP_DTRAP:
-        case UC32_EXCP_ITRAP:
-            info.si_signo = TARGET_SIGSEGV;
-            info.si_errno = 0;
-            /* XXX: check env->error_code */
-            info.si_code = TARGET_SEGV_MAPERR;
-            info._sifields._sigfault._addr = env->cp0.c4_faultaddr;
-            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            break;
-        case EXCP_INTERRUPT:
-            /* just indicate that signals should be handled asap */
-            break;
-        case EXCP_DEBUG:
-            {
-                int sig;
-
-                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig) {
-                    info.si_signo = sig;
-                    info.si_errno = 0;
-                    info.si_code = TARGET_TRAP_BRKPT;
-                    queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-                }
-            }
-            break;
-        case EXCP_ATOMIC:
-            cpu_exec_step_atomic(cs);
-            break;
-        default:
-            goto error;
-        }
-        process_pending_signals(env);
-    }
-
-error:
-    EXCP_DUMP(env, "qemu: unhandled CPU exception 0x%x - aborting\n", trapnr);
-    abort();
-}
-#endif
-
 #ifdef TARGET_SPARC
 #define SPARC64_STACK_BIAS 2047
 
@@ -4737,14 +4648,6 @@ int main(int argc, char **argv, char **envp)
         }
 #endif
     }
-#elif defined(TARGET_UNICORE32)
-    {
-        int i;
-        cpu_asr_write(env, regs->uregs[32], 0xffffffff);
-        for (i = 0; i < 32; i++) {
-            env->regs[i] = regs->uregs[i];
-        }
-    }
 #elif defined(TARGET_SPARC)
     {
         int i;
@@ -4974,7 +4877,7 @@ int main(int argc, char **argv, char **envp)
 #error unsupported target CPU
 #endif
 
-#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
     ts->stack_base = info->start_stack;
     ts->heap_base = info->brk;
     /* This will be filled in on the first SYS_HEAPINFO call.  */

@@ -253,8 +253,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
     return 0;
 }
 
-#if !defined(TARGET_OPENRISC) && !defined(TARGET_UNICORE32) && \
-    !defined(TARGET_NIOS2)
+#if !defined(TARGET_OPENRISC) && !defined(TARGET_NIOS2)
 /* Just set the guest's signal mask to the specified value; the
  * caller is assumed to have called block_signals() already.
  */
@@ -512,7 +511,6 @@ void signal_init(void)
     }
 }
 
-#ifndef TARGET_UNICORE32
 /* Force a synchronously taken signal. The kernel force_sig() function
  * also forces the signal to "not blocked, not ignored", but for QEMU
  * that work is done in process_pending_signals().
@@ -546,7 +544,6 @@ static void force_sigsegv(int oldsig)
     }
     force_sig(TARGET_SIGSEGV);
 }
-#endif
 
 #endif
 
