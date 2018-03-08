@@ -146,6 +146,28 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
 
     /* Keyboard, mouse */
     sio->kbc = isa_create_simple(bus, TYPE_I8042);
+
+    /* IDE */
+    if (k->ide.count && (!k->ide.is_enabled || k->ide.is_enabled(sio, 0))) {
+        isa = isa_create(bus, "isa-ide");
+        d = DEVICE(isa);
+        if (k->ide.get_iobase) {
+            qdev_prop_set_uint32(d, "iobase", k->ide.get_iobase(sio, 0));
+        }
+        if (k->ide.get_iobase) {
+            qdev_prop_set_uint32(d, "iobase2", k->ide.get_iobase(sio, 1));
+        }
+        if (k->ide.get_irq) {
+            qdev_prop_set_uint32(d, "irq", k->ide.get_irq(sio, 0));
+        }
+        qdev_init_nofail(d);
+        sio->ide = isa;
+        trace_superio_create_ide(0,
+                                 k->ide.get_iobase ?
+                                 k->ide.get_iobase(sio, 0) : -1,
+                                 k->ide.get_irq ?
+                                 k->ide.get_irq(sio, 0) : -1);
+    }
 }
 
 static void isa_superio_class_init(ObjectClass *oc, void *data)

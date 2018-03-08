@@ -150,16 +150,28 @@ static unsigned int get_fdc_irq(ISASuperIODevice *sio, uint8_t index)
 
 /* IDE controller */
 
-static inline bool is_ide_enabled(PC87312State *s)
+static bool is_ide_enabled(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+
     return s->regs[REG_FER] & FER_IDE_EN;
 }
 
-static inline uint16_t get_ide_iobase(PC87312State *s)
+static uint16_t get_ide_iobase(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+
+    if (index == 1) {
+        return get_ide_iobase(sio, 0) + 0x206;
+    }
     return (s->regs[REG_FER] & FER_IDE_ADDR) ? 0x170 : 0x1f0;
 }
 
+static unsigned int get_ide_irq(ISASuperIODevice *sio, uint8_t index)
+{
+    assert(index == 0);
+    return 14;
+}
 
 static void reconfigure_devices(PC87312State *s)
 {
@@ -277,14 +289,11 @@ static void pc87312_reset(DeviceState *d)
 static void pc87312_realize(DeviceState *dev, Error **errp)
 {
     PC87312State *s;
-    DeviceState *d;
     ISADevice *isa;
-    ISABus *bus;
     Error *local_err = NULL;
 
     s = PC87312(dev);
     isa = ISA_DEVICE(dev);
-    bus = isa_bus_from_device(isa);
     isa_register_ioport(isa, &s->io, s->iobase);
     pc87312_hard_reset(s);
 
@@ -292,17 +301,6 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     if (local_err) {
         error_propagate(errp, local_err);
         return;
-    }
-
-    if (is_ide_enabled(s)) {
-        isa = isa_create(bus, "isa-ide");
-        d = DEVICE(isa);
-        qdev_prop_set_uint32(d, "iobase", get_ide_iobase(s));
-        qdev_prop_set_uint32(d, "iobase2", get_ide_iobase(s) + 0x206);
-        qdev_prop_set_uint32(d, "irq", 14);
-        qdev_init_nofail(d);
-        s->ide.dev = isa;
-        trace_pc87312_info_ide(get_ide_iobase(s));
     }
 }
 
@@ -360,6 +358,12 @@ static void pc87312_class_init(ObjectClass *klass, void *data)
         .is_enabled = is_fdc_enabled,
         .get_iobase = get_fdc_iobase,
         .get_irq    = get_fdc_irq,
+    };
+    sc->ide = (ISASuperIOFuncs){
+        .count = 1,
+        .is_enabled = is_ide_enabled,
+        .get_iobase = get_ide_iobase,
+        .get_irq    = get_ide_irq,
     };
 }
 

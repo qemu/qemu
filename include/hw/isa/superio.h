@@ -31,6 +31,7 @@ typedef struct ISASuperIODevice {
     ISADevice *serial[MAX_SERIAL_PORTS];
     ISADevice *floppy;
     ISADevice *kbc;
+    ISADevice *ide;
 } ISASuperIODevice;
 
 typedef struct ISASuperIOFuncs {
@@ -50,6 +51,7 @@ typedef struct ISASuperIOClass {
     ISASuperIOFuncs parallel;
     ISASuperIOFuncs serial;
     ISASuperIOFuncs floppy;
+    ISASuperIOFuncs ide;
 } ISASuperIOClass;
 
 #endif /* HW_ISA_SUPERIO_H */
