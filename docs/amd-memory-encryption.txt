@@ -35,9 +35,20 @@ in bad measurement). The guest policy is a 4-byte data structure containing
 several flags that restricts what can be done on running SEV guest.
 See KM Spec section 3 and 6.2 for more details.
 
+The guest policy can be provided via the 'policy' property (see below)
+
+# ${QEMU} \
+   sev-guest,id=sev0,policy=0x1...\
+
 Guest owners provided DH certificate and session parameters will be used to
 establish a cryptographic session with the guest owner to negotiate keys used
 for the attestation.
+
+The DH certificate and session blob can be provided via 'dh-cert-file' and
+'session-file' property (see below
+
+# ${QEMU} \
+     sev-guest,id=sev0,dh-cert-file=<file1>,session-file=<file2>
 
 LAUNCH_UPDATE_DATA encrypts the memory region using the cryptographic context
 created via LAUNCH_START command. If required, this command can be called
@@ -58,6 +69,12 @@ context.
 
 See SEV KM API Spec [1] 'Launching a guest' usage flow (Appendix A) for the
 complete flow chart.
+
+To launch a SEV guest
+
+# ${QEMU} \
+    -machine ...,memory-encryption=sev0 \
+    -object sev-guest,id=sev0,cbitpos=47,reduced-phys-bits=1
 
 Debugging
 -----------
