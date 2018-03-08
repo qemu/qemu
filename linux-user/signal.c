@@ -6772,32 +6772,7 @@ long do_rt_sigreturn(CPUArchState *env)
 }
 
 #else
-
-static void setup_frame(int sig, struct target_sigaction *ka,
-                        target_sigset_t *set, CPUArchState *env)
-{
-    fprintf(stderr, "setup_frame: not implemented\n");
-}
-
-static void setup_rt_frame(int sig, struct target_sigaction *ka,
-                           target_siginfo_t *info,
-                           target_sigset_t *set, CPUArchState *env)
-{
-    fprintf(stderr, "setup_rt_frame: not implemented\n");
-}
-
-long do_sigreturn(CPUArchState *env)
-{
-    fprintf(stderr, "do_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
-}
-
-long do_rt_sigreturn(CPUArchState *env)
-{
-    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
-}
-
+#error Target needs to add support for signal handling
 #endif
 
 static void handle_pending_signal(CPUArchState *cpu_env, int sig,
