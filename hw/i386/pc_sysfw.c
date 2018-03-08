@@ -113,6 +113,8 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
     pflash_t *system_flash;
     MemoryRegion *flash_mem;
     char name[64];
+    void *flash_ptr;
+    int ret, flash_size;
 
     sector_bits = 12;
     sector_size = 1 << sector_bits;
@@ -169,6 +171,17 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
         if (unit == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
             pc_isa_bios_init(rom_memory, flash_mem, size);
+
+            /* Encrypt the pflash boot ROM */
+            if (kvm_memcrypt_enabled()) {
+                flash_ptr = memory_region_get_ram_ptr(flash_mem);
+                flash_size = memory_region_size(flash_mem);
+                ret = kvm_memcrypt_encrypt_data(flash_ptr, flash_size);
+                if (ret) {
+                    error_report("failed to encrypt pflash rom");
+                    exit(1);
+                }
+            }
         }
     }
 }
