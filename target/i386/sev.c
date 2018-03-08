@@ -427,6 +427,89 @@ sev_get_info(void)
 }
 
 static int
+sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,
+                 size_t *cert_chain_len)
+{
+    guchar *pdh_data, *cert_chain_data;
+    struct sev_user_data_pdh_cert_export export = {};
+    int err, r;
+
+    /* query the certificate length */
+    r = sev_platform_ioctl(fd, SEV_PDH_CERT_EXPORT, &export, &err);
+    if (r < 0) {
+        if (err != SEV_RET_INVALID_LEN) {
+            error_report("failed to export PDH cert ret=%d fw_err=%d (%s)",
+                         r, err, fw_error_to_str(err));
+            return 1;
+        }
+    }
+
+    pdh_data = g_new(guchar, export.pdh_cert_len);
+    cert_chain_data = g_new(guchar, export.cert_chain_len);
+    export.pdh_cert_address = (unsigned long)pdh_data;
+    export.cert_chain_address = (unsigned long)cert_chain_data;
+
+    r = sev_platform_ioctl(fd, SEV_PDH_CERT_EXPORT, &export, &err);
+    if (r < 0) {
+        error_report("failed to export PDH cert ret=%d fw_err=%d (%s)",
+                     r, err, fw_error_to_str(err));
+        goto e_free;
+    }
+
+    *pdh = pdh_data;
+    *pdh_len = export.pdh_cert_len;
+    *cert_chain = cert_chain_data;
+    *cert_chain_len = export.cert_chain_len;
+    return 0;
+
+e_free:
+    g_free(pdh_data);
+    g_free(cert_chain_data);
+    return 1;
+}
+
+SevCapability *
+sev_get_capabilities(void)
+{
+    SevCapability *cap;
+    guchar *pdh_data, *cert_chain_data;
+    size_t pdh_len = 0, cert_chain_len = 0;
+    uint32_t ebx;
+    int fd;
+
+    fd = open(DEFAULT_SEV_DEVICE, O_RDWR);
+    if (fd < 0) {
+        error_report("%s: Failed to open %s '%s'", __func__,
+                     DEFAULT_SEV_DEVICE, strerror(errno));
+        return NULL;
+    }
+
+    if (sev_get_pdh_info(fd, &pdh_data, &pdh_len,
+                         &cert_chain_data, &cert_chain_len)) {
+        return NULL;
+    }
+
+    cap = g_new0(SevCapability, 1);
+    cap->pdh = g_base64_encode(pdh_data, pdh_len);
+    cap->cert_chain = g_base64_encode(cert_chain_data, cert_chain_len);
+
+    host_cpuid(0x8000001F, 0, NULL, &ebx, NULL, NULL);
+    cap->cbitpos = ebx & 0x3f;
+
+    /*
+     * When SEV feature is enabled, we loose one bit in guest physical
+     * addressing.
+     */
+    cap->reduced_phys_bits = 1;
+
+    g_free(pdh_data);
+    g_free(cert_chain_data);
+
+    close(fd);
+    return cap;
+}
+
+static int
 sev_read_file_base64(const char *filename, guchar **data, gsize *len)
 {
     gsize sz;

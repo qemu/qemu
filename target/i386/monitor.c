@@ -717,6 +717,13 @@ SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
 
 SevCapability *qmp_query_sev_capabilities(Error **errp)
 {
-    error_setg(errp, "SEV feature is not available");
-    return NULL;
+    SevCapability *data;
+
+    data = sev_get_capabilities();
+    if (!data) {
+        error_setg(errp, "SEV feature is not available");
+        return NULL;
+    }
+
+    return data;
 }

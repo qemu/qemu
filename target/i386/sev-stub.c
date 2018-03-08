@@ -44,3 +44,8 @@ char *sev_get_launch_measurement(void)
 {
     return NULL;
 }
+
+SevCapability *sev_get_capabilities(void)
+{
+    return NULL;
+}
