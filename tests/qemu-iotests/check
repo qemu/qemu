@@ -284,7 +284,6 @@ testlist options
 
         -parallels)
             IMGFMT=parallels
-            IMGFMT_GENERIC=false
             xpand=false
             ;;
 
