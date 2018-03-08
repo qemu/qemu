@@ -21,6 +21,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/input/i8042.h"
 #include "hw/char/serial.h"
+#include "hw/dma/i8257.h"
 #include "qemu/cutils.h"
 
 #define MAX_IDE_BUS 2
@@ -94,6 +95,9 @@ static void clipper_init(MachineState *machine)
     for (i = 0; i < nb_nics; i++) {
         pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
     }
+
+    /* 2 82C37 (dma) */
+    isa_create_simple(isa_bus, "i82374");
 
     /* IDE disk setup.  */
     {
