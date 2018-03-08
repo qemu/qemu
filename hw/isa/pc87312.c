@@ -27,8 +27,6 @@
 #include "hw/isa/pc87312.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "trace.h"
 
 
@@ -129,14 +127,24 @@ static bool is_uart_enabled(ISASuperIODevice *sio, uint8_t i)
 
 /* Floppy controller */
 
-static inline bool is_fdc_enabled(PC87312State *s)
+static bool is_fdc_enabled(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+    assert(!index);
     return s->regs[REG_FER] & FER_FDC_EN;
 }
 
-static inline uint16_t get_fdc_iobase(PC87312State *s)
+static uint16_t get_fdc_iobase(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+    assert(!index);
     return (s->regs[REG_FER] & FER_FDC_ADDR) ? 0x370 : 0x3f0;
+}
+
+static unsigned int get_fdc_irq(ISASuperIODevice *sio, uint8_t index)
+{
+    assert(!index);
+    return 6;
 }
 
 
@@ -272,7 +280,6 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     DeviceState *d;
     ISADevice *isa;
     ISABus *bus;
-    DriveInfo *drive;
     Error *local_err = NULL;
 
     s = PC87312(dev);
@@ -285,28 +292,6 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     if (local_err) {
         error_propagate(errp, local_err);
         return;
-    }
-
-    if (is_fdc_enabled(s)) {
-        isa = isa_create(bus, "isa-fdc");
-        d = DEVICE(isa);
-        qdev_prop_set_uint32(d, "iobase", get_fdc_iobase(s));
-        qdev_prop_set_uint32(d, "irq", 6);
-        /* FIXME use a qdev drive property instead of drive_get() */
-        drive = drive_get(IF_FLOPPY, 0, 0);
-        if (drive != NULL) {
-            qdev_prop_set_drive(d, "driveA", blk_by_legacy_dinfo(drive),
-                                &error_fatal);
-        }
-        /* FIXME use a qdev drive property instead of drive_get() */
-        drive = drive_get(IF_FLOPPY, 0, 1);
-        if (drive != NULL) {
-            qdev_prop_set_drive(d, "driveB", blk_by_legacy_dinfo(drive),
-                                &error_fatal);
-        }
-        qdev_init_nofail(d);
-        s->fdc.dev = isa;
-        trace_pc87312_info_floppy(get_fdc_iobase(s));
     }
 
     if (is_ide_enabled(s)) {
@@ -370,6 +355,12 @@ static void pc87312_class_init(ObjectClass *klass, void *data)
         .get_iobase = get_uart_iobase,
         .get_irq    = get_uart_irq,
     };
+    sc->floppy = (ISASuperIOFuncs){
+        .count = 1,
+        .is_enabled = is_fdc_enabled,
+        .get_iobase = get_fdc_iobase,
+        .get_irq    = get_fdc_irq,
+    };
 }
 
 static const TypeInfo pc87312_type_info = {
@@ -378,6 +369,7 @@ static const TypeInfo pc87312_type_info = {
     .instance_size = sizeof(PC87312State),
     .instance_init = pc87312_initfn,
     .class_init    = pc87312_class_init,
+    /* FIXME use a qdev drive property instead of drive_get() */
 };
 
 static void pc87312_register_types(void)

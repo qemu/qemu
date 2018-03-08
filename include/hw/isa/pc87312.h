@@ -41,10 +41,6 @@ typedef struct PC87312State {
 
     struct {
         ISADevice *dev;
-    } fdc;
-
-    struct {
-        ISADevice *dev;
     } ide;
 
     MemoryRegion io;
