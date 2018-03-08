@@ -54,4 +54,6 @@ typedef struct ISASuperIOClass {
     ISASuperIOFuncs ide;
 } ISASuperIOClass;
 
+#define TYPE_FDC37M81X_SUPERIO  "fdc37m81x-superio"
+
 #endif /* HW_ISA_SUPERIO_H */
