@@ -20,6 +20,7 @@
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
+#include "hw/input/i8042.h"
 
 #define KERNEL_LOAD_ADDR        0x03000000
 #define KERNEL_MAX_SIZE         0x00800000 /* Just a guess */

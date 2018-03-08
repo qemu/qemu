@@ -43,6 +43,7 @@
 #include "hw/isa/vt82c686.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/timer/i8254.h"
+#include "hw/input/i8042.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
@@ -363,7 +364,7 @@ static void mips_fulong2e_init(MachineState *machine)
     i8257_dma_init(isa_bus, 0);
 
     /* Super I/O */
-    isa_create_simple(isa_bus, "i8042");
+    isa_create_simple(isa_bus, TYPE_I8042);
 
     mc146818_rtc_init(isa_bus, 2000, NULL);
 

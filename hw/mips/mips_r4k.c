@@ -28,6 +28,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/timer/mc146818rtc.h"
+#include "hw/input/i8042.h"
 #include "hw/timer/i8254.h"
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
@@ -286,7 +287,7 @@ void mips_r4k_init(MachineState *machine)
                      hd[MAX_IDE_DEVS * i],
 		     hd[MAX_IDE_DEVS * i + 1]);
 
-    isa_create_simple(isa_bus, "i8042");
+    isa_create_simple(isa_bus, TYPE_I8042);
 }
 
 static void mips_machine_init(MachineClass *mc)
