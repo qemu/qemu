@@ -375,9 +375,6 @@ static inline void read_iso_boot_image(uint32_t block_offset, void *load_addr,
                "Failed to read boot image!");
 }
 
-const uint8_t el_torito_magic[] = "EL TORITO SPECIFICATION"
-                                  "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-
 #define ISO9660_MAX_DIR_DEPTH 8
 
 typedef struct IsoDirHdr {
@@ -430,19 +427,11 @@ typedef struct IsoVolDesc {
     } vd;
 } __attribute__((packed)) IsoVolDesc;
 
-const uint8_t vol_desc_magic[] = "CD001";
 #define VOL_DESC_TYPE_BOOT 0
 #define VOL_DESC_TYPE_PRIMARY 1
 #define VOL_DESC_TYPE_SUPPLEMENT 2
 #define VOL_DESC_TYPE_PARTITION 3
 #define VOL_DESC_TERMINATOR 255
-
-static inline bool is_iso_vd_valid(IsoVolDesc *vd)
-{
-    return !memcmp(&vd->ident[0], vol_desc_magic, 5) &&
-           vd->version == 0x1 &&
-           vd->type <= VOL_DESC_TYPE_PARTITION;
-}
 
 typedef struct IsoBcValid {
     uint8_t platform_id;
@@ -467,14 +456,6 @@ typedef struct IsoBcHdr {
     uint16_t sect_num;
     uint8_t id[28];
 } __attribute__((packed)) IsoBcHdr;
-
-/*
- * Match two CCWs located after PSW and eight filler bytes.
- * From libmagic and arch/s390/kernel/head.S.
- */
-const uint8_t linux_s390_magic[] = "\x02\x00\x00\x18\x60\x00\x00\x50\x02\x00"
-                                   "\x00\x68\x60\x00\x00\x50\x40\x40\x40\x40"
-                                   "\x40\x40\x40\x40";
 
 typedef struct IsoBcEntry {
     uint8_t id;

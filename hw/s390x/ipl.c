@@ -234,7 +234,7 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     if (!get_boot_device(0)) {
         if (boot_menu) {
             error_report("boot menu requires a bootindex to be specified for "
-                         "the IPL device.");
+                         "the IPL device");
         }
         return;
     }
@@ -250,7 +250,9 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     case S390_IPL_TYPE_QEMU_SCSI:
         break;
     default:
-        error_report("boot menu is not supported for this device type.");
+        if (boot_menu) {
+            error_report("boot menu is not supported for this device type");
+        }
         return;
     }
 
@@ -263,13 +265,13 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     tmp = qemu_opt_get(opts, "splash-time");
 
     if (tmp && qemu_strtoul(tmp, NULL, 10, &splash_time)) {
-        error_report("splash-time is invalid, forcing it to 0.");
+        error_report("splash-time is invalid, forcing it to 0");
         *timeout = 0;
         return;
     }
 
     if (splash_time > 0xffffffff) {
-        error_report("splash-time is too large, forcing it to max value.");
+        error_report("splash-time is too large, forcing it to max value");
         *timeout = 0xffffffff;
         return;
     }
@@ -380,7 +382,8 @@ static int load_netboot_image(Error **errp)
 
     netboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, ipl->netboot_fw);
     if (netboot_filename == NULL) {
-        error_setg(errp, "Could not find network bootloader");
+        error_setg(errp, "Could not find network bootloader '%s'",
+                   ipl->netboot_fw);
         goto unref_mr;
     }
 
@@ -489,7 +492,7 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
     if (ipl->netboot) {
         if (load_netboot_image(&err) < 0) {
             error_report_err(err);
-            vm_stop(RUN_STATE_INTERNAL_ERROR);
+            exit(1);
         }
         ipl->qipl.netboot_start_addr = cpu_to_be64(ipl->start_addr);
     }

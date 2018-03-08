@@ -37,6 +37,26 @@ typedef struct ResetInfo {
 
 static ResetInfo save;
 
+const uint8_t el_torito_magic[] = "EL TORITO SPECIFICATION"
+                                  "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+/*
+ * Match two CCWs located after PSW and eight filler bytes.
+ * From libmagic and arch/s390/kernel/head.S.
+ */
+const uint8_t linux_s390_magic[] = "\x02\x00\x00\x18\x60\x00\x00\x50\x02\x00"
+                                   "\x00\x68\x60\x00\x00\x50\x40\x40\x40\x40"
+                                   "\x40\x40\x40\x40";
+
+static inline bool is_iso_vd_valid(IsoVolDesc *vd)
+{
+    const uint8_t vol_desc_magic[] = "CD001";
+
+    return !memcmp(&vd->ident[0], vol_desc_magic, 5) &&
+           vd->version == 0x1 &&
+           vd->type <= VOL_DESC_TYPE_PARTITION;
+}
+
 static void jump_to_IPL_2(void)
 {
     ResetInfo *current = 0;

@@ -80,7 +80,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         return;
     }
 
-    if (!mc->cpu_index_to_instance_props) {
+    if (!mc->cpu_index_to_instance_props || !mc->get_default_cpu_node_id) {
         error_report("NUMA is not supported by this machine-type");
         exit(1);
     }

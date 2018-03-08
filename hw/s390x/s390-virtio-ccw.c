@@ -27,6 +27,7 @@
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
+#include "hw/s390x/event-facility.h"
 #include "hw/compat.h"
 #include "ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
@@ -254,8 +255,10 @@ static void s390_init_ipl_dev(const char *kernel_filename,
     }
     qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
     qdev_prop_set_string(dev, "firmware", firmware);
-    qdev_prop_set_string(dev, "netboot_fw", netboot_fw);
     qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
+    if (!strlen(object_property_get_str(new, "netboot_fw", &error_abort))) {
+        qdev_prop_set_string(dev, "netboot_fw", netboot_fw);
+    }
     object_property_add_child(qdev_get_machine(), TYPE_S390_IPL,
                               new, NULL);
     object_unref(new);
@@ -388,12 +391,14 @@ static void s390_machine_device_unplug_request(HotplugHandler *hotplug_dev,
     }
 }
 
-static CpuInstanceProperties s390_cpu_index_to_props(MachineState *machine,
+static CpuInstanceProperties s390_cpu_index_to_props(MachineState *ms,
                                                      unsigned cpu_index)
 {
-    g_assert(machine->possible_cpus && cpu_index < machine->possible_cpus->len);
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(ms);
 
-    return machine->possible_cpus->cpus[cpu_index].props;
+    assert(cpu_index < possible_cpus->len);
+    return possible_cpus->cpus[cpu_index].props;
 }
 
 static const CPUArchIdList *s390_possible_cpu_arch_ids(MachineState *ms)
@@ -664,7 +669,12 @@ bool css_migration_enabled(void)
     type_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_11 \
-        HW_COMPAT_2_11
+        HW_COMPAT_2_11 \
+        {\
+            .driver   = TYPE_SCLP_EVENT_FACILITY,\
+            .property = "allow_all_mask_sizes",\
+            .value    = "off",\
+        },
 
 #define CCW_COMPAT_2_10 \
         HW_COMPAT_2_10

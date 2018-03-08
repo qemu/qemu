@@ -28,12 +28,14 @@
 #define SCLP_EVENT_SIGNAL_QUIESCE               0x1d
 
 /* SCLP event masks */
-#define SCLP_EVENT_MASK_SIGNAL_QUIESCE          0x00000008
-#define SCLP_EVENT_MASK_MSG_ASCII               0x00000040
-#define SCLP_EVENT_MASK_CONFIG_MGT_DATA         0x10000000
-#define SCLP_EVENT_MASK_OP_CMD                  0x80000000
-#define SCLP_EVENT_MASK_MSG                     0x40000000
-#define SCLP_EVENT_MASK_PMSGCMD                 0x00800000
+#define SCLP_EVMASK(T)  (1ULL << (sizeof(sccb_mask_t) * 8 - (T)))
+
+#define SCLP_EVENT_MASK_OP_CMD          SCLP_EVMASK(SCLP_EVENT_OPRTNS_COMMAND)
+#define SCLP_EVENT_MASK_MSG             SCLP_EVMASK(SCLP_EVENT_MESSAGE)
+#define SCLP_EVENT_MASK_CONFIG_MGT_DATA SCLP_EVMASK(SCLP_EVENT_CONFIG_MGT_DATA)
+#define SCLP_EVENT_MASK_PMSGCMD         SCLP_EVMASK(SCLP_EVENT_PMSGCMD)
+#define SCLP_EVENT_MASK_MSG_ASCII       SCLP_EVMASK(SCLP_EVENT_ASCII_CONSOLE_DATA)
+#define SCLP_EVENT_MASK_SIGNAL_QUIESCE  SCLP_EVMASK(SCLP_EVENT_SIGNAL_QUIESCE)
 
 #define SCLP_UNCONDITIONAL_READ                 0x00
 #define SCLP_SELECTIVE_READ                     0x01
@@ -70,6 +72,8 @@ typedef struct WriteEventMask {
 #define WEM_CP_SEND_MASK(wem, mask_len) ((wem)->masks + (mask_len))
 #define WEM_RECEIVE_MASK(wem, mask_len) ((wem)->masks + 2 * (mask_len))
 #define WEM_SEND_MASK(wem, mask_len) ((wem)->masks + 3 * (mask_len))
+
+typedef uint32_t sccb_mask_t;
 
 typedef struct EventBufferHeader {
     uint16_t length;
@@ -160,7 +164,7 @@ typedef struct WriteEventData {
 typedef struct ReadEventData {
     SCCBHeader h;
     union {
-        uint32_t mask;
+        sccb_mask_t mask;
         EventBufferHeader ebh;
     };
 } QEMU_PACKED ReadEventData;
@@ -174,13 +178,12 @@ typedef struct SCLPEvent {
 typedef struct SCLPEventClass {
     DeviceClass parent_class;
     int (*init)(SCLPEvent *event);
-    int (*exit)(SCLPEvent *event);
 
     /* get SCLP's send mask */
-    unsigned int (*get_send_mask)(void);
+    sccb_mask_t (*get_send_mask)(void);
 
     /* get SCLP's receive mask */
-    unsigned int (*get_receive_mask)(void);
+    sccb_mask_t (*get_receive_mask)(void);
 
     int (*read_event_data)(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
                            int *slen);
