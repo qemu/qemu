@@ -76,9 +76,9 @@ static inline uint16_t get_parallel_iobase(PC87312State *s)
     return parallel_base[s->regs[REG_FAR] & FAR_PARALLEL_ADDR];
 }
 
-static const uint32_t parallel_irq[] = { 5, 7, 5, 0 };
+static const unsigned int parallel_irq[] = { 5, 7, 5, 0 };
 
-static inline uint32_t get_parallel_irq(PC87312State *s)
+static inline unsigned int get_parallel_irq(PC87312State *s)
 {
     int idx;
     idx = (s->regs[REG_FAR] & FAR_PARALLEL_ADDR);
@@ -110,7 +110,7 @@ static inline uint16_t get_uart_iobase(PC87312State *s, int i)
     }
 }
 
-static inline uint32_t get_uart_irq(PC87312State *s, int i)
+static inline unsigned int get_uart_irq(PC87312State *s, int i)
 {
     int idx;
     idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
