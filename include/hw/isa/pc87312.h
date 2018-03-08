@@ -34,7 +34,7 @@
 typedef struct PC87312State {
     ISADevice dev;
 
-    uint32_t iobase;
+    uint16_t iobase;
     uint8_t config; /* initial configuration */
 
     struct {

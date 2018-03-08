@@ -69,9 +69,9 @@ static inline bool is_parallel_enabled(PC87312State *s)
     return s->regs[REG_FER] & FER_PARALLEL_EN;
 }
 
-static const uint32_t parallel_base[] = { 0x378, 0x3bc, 0x278, 0x00 };
+static const uint16_t parallel_base[] = { 0x378, 0x3bc, 0x278, 0x00 };
 
-static inline uint32_t get_parallel_iobase(PC87312State *s)
+static inline uint16_t get_parallel_iobase(PC87312State *s)
 {
     return parallel_base[s->regs[REG_FAR] & FAR_PARALLEL_ADDR];
 }
@@ -92,12 +92,12 @@ static inline uint32_t get_parallel_irq(PC87312State *s)
 
 /* UARTs */
 
-static const uint32_t uart_base[2][4] = {
+static const uint16_t uart_base[2][4] = {
     { 0x3e8, 0x338, 0x2e8, 0x220 },
     { 0x2e8, 0x238, 0x2e0, 0x228 }
 };
 
-static inline uint32_t get_uart_iobase(PC87312State *s, int i)
+static inline uint16_t get_uart_iobase(PC87312State *s, int i)
 {
     int idx;
     idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
@@ -130,7 +130,7 @@ static inline bool is_fdc_enabled(PC87312State *s)
     return s->regs[REG_FER] & FER_FDC_EN;
 }
 
-static inline uint32_t get_fdc_iobase(PC87312State *s)
+static inline uint16_t get_fdc_iobase(PC87312State *s)
 {
     return (s->regs[REG_FER] & FER_FDC_ADDR) ? 0x370 : 0x3f0;
 }
@@ -143,7 +143,7 @@ static inline bool is_ide_enabled(PC87312State *s)
     return s->regs[REG_FER] & FER_IDE_EN;
 }
 
-static inline uint32_t get_ide_iobase(PC87312State *s)
+static inline uint16_t get_ide_iobase(PC87312State *s)
 {
     return (s->regs[REG_FER] & FER_IDE_ADDR) ? 0x170 : 0x1f0;
 }
@@ -373,7 +373,7 @@ static const VMStateDescription vmstate_pc87312 = {
 };
 
 static Property pc87312_properties[] = {
-    DEFINE_PROP_UINT32("iobase", PC87312State, iobase, 0x398),
+    DEFINE_PROP_UINT16("iobase", PC87312State, iobase, 0x398),
     DEFINE_PROP_UINT8("config", PC87312State, config, 1),
     DEFINE_PROP_END_OF_LIST()
 };
