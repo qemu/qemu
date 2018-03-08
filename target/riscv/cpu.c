@@ -115,6 +115,8 @@ static void riscv_any_cpu_init(Object *obj)
     set_resetvec(env, DEFAULT_RSTVEC);
 }
 
+#if defined(TARGET_RISCV32)
+
 static void rv32gcsu_priv1_09_1_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
@@ -140,6 +142,8 @@ static void rv32imacu_nommu_cpu_init(Object *obj)
     set_versions(env, USER_VERSION_2_02_0, PRIV_VERSION_1_10_0);
     set_resetvec(env, DEFAULT_RSTVEC);
 }
+
+#elif defined(TARGET_RISCV64)
 
 static void rv64gcsu_priv1_09_1_cpu_init(Object *obj)
 {
@@ -167,20 +171,7 @@ static void rv64imacu_nommu_cpu_init(Object *obj)
     set_resetvec(env, DEFAULT_RSTVEC);
 }
 
-static const RISCVCPUInfo riscv_cpus[] = {
-    { 96, TYPE_RISCV_CPU_ANY,              riscv_any_cpu_init },
-    { 32, TYPE_RISCV_CPU_RV32GCSU_V1_09_1, rv32gcsu_priv1_09_1_cpu_init },
-    { 32, TYPE_RISCV_CPU_RV32GCSU_V1_10_0, rv32gcsu_priv1_10_0_cpu_init },
-    { 32, TYPE_RISCV_CPU_RV32IMACU_NOMMU,  rv32imacu_nommu_cpu_init },
-    { 32, TYPE_RISCV_CPU_SIFIVE_E31,       rv32imacu_nommu_cpu_init },
-    { 32, TYPE_RISCV_CPU_SIFIVE_U34,       rv32gcsu_priv1_10_0_cpu_init },
-    { 64, TYPE_RISCV_CPU_RV64GCSU_V1_09_1, rv64gcsu_priv1_09_1_cpu_init },
-    { 64, TYPE_RISCV_CPU_RV64GCSU_V1_10_0, rv64gcsu_priv1_10_0_cpu_init },
-    { 64, TYPE_RISCV_CPU_RV64IMACU_NOMMU,  rv64imacu_nommu_cpu_init },
-    { 64, TYPE_RISCV_CPU_SIFIVE_E51,       rv64imacu_nommu_cpu_init },
-    { 64, TYPE_RISCV_CPU_SIFIVE_U54,       rv64gcsu_priv1_10_0_cpu_init },
-    { 0, NULL, NULL }
-};
+#endif
 
 static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
 {
@@ -366,28 +357,6 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     cc->vmsd = &vmstate_riscv_cpu;
 }
 
-static void cpu_register(const RISCVCPUInfo *info)
-{
-    TypeInfo type_info = {
-        .name = info->name,
-        .parent = TYPE_RISCV_CPU,
-        .instance_size = sizeof(RISCVCPU),
-        .instance_init = info->initfn,
-    };
-
-    type_register(&type_info);
-}
-
-static const TypeInfo riscv_cpu_type_info = {
-    .name = TYPE_RISCV_CPU,
-    .parent = TYPE_CPU,
-    .instance_size = sizeof(RISCVCPU),
-    .instance_init = riscv_cpu_init,
-    .abstract = false,
-    .class_size = sizeof(RISCVCPUClass),
-    .class_init = riscv_cpu_class_init,
-};
-
 char *riscv_isa_string(RISCVCPU *cpu)
 {
     int i;
@@ -403,30 +372,76 @@ char *riscv_isa_string(RISCVCPU *cpu)
     return isa_str;
 }
 
+typedef struct RISCVCPUListState {
+    fprintf_function cpu_fprintf;
+    FILE *file;
+} RISCVCPUListState;
+
+static gint riscv_cpu_list_compare(gconstpointer a, gconstpointer b)
+{
+    ObjectClass *class_a = (ObjectClass *)a;
+    ObjectClass *class_b = (ObjectClass *)b;
+    const char *name_a, *name_b;
+
+    name_a = object_class_get_name(class_a);
+    name_b = object_class_get_name(class_b);
+    return strcmp(name_a, name_b);
+}
+
+static void riscv_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    RISCVCPUListState *s = user_data;
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    int len = strlen(typename) - strlen(RISCV_CPU_TYPE_SUFFIX);
+
+    (*s->cpu_fprintf)(s->file, "%.*s\n", len, typename);
+}
+
 void riscv_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    const RISCVCPUInfo *info = riscv_cpus;
+    RISCVCPUListState s = {
+        .cpu_fprintf = cpu_fprintf,
+        .file = f,
+    };
+    GSList *list;
 
-    while (info->name) {
-        if (info->bit_widths & TARGET_LONG_BITS) {
-            (*cpu_fprintf)(f, "%s\n", info->name);
-        }
-        info++;
-    }
+    list = object_class_get_list(TYPE_RISCV_CPU, false);
+    list = g_slist_sort(list, riscv_cpu_list_compare);
+    g_slist_foreach(list, riscv_cpu_list_entry, &s);
+    g_slist_free(list);
 }
 
-static void riscv_cpu_register_types(void)
-{
-    const RISCVCPUInfo *info = riscv_cpus;
-
-    type_register_static(&riscv_cpu_type_info);
-
-    while (info->name) {
-        if (info->bit_widths & TARGET_LONG_BITS) {
-            cpu_register(info);
-        }
-        info++;
+#define DEFINE_CPU(type_name, initfn)      \
+    {                                      \
+        .name = type_name,                 \
+        .parent = TYPE_RISCV_CPU,          \
+        .instance_init = initfn            \
     }
-}
 
-type_init(riscv_cpu_register_types)
+static const TypeInfo riscv_cpu_type_infos[] = {
+    {
+        .name = TYPE_RISCV_CPU,
+        .parent = TYPE_CPU,
+        .instance_size = sizeof(RISCVCPU),
+        .instance_init = riscv_cpu_init,
+        .abstract = true,
+        .class_size = sizeof(RISCVCPUClass),
+        .class_init = riscv_cpu_class_init,
+    },
+    DEFINE_CPU(TYPE_RISCV_CPU_ANY,              riscv_any_cpu_init),
+#if defined(TARGET_RISCV32)
+    DEFINE_CPU(TYPE_RISCV_CPU_RV32GCSU_V1_09_1, rv32gcsu_priv1_09_1_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_RV32GCSU_V1_10_0, rv32gcsu_priv1_10_0_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_RV32IMACU_NOMMU,  rv32imacu_nommu_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E31,       rv32imacu_nommu_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U34,       rv32gcsu_priv1_10_0_cpu_init)
+#elif defined(TARGET_RISCV64)
+    DEFINE_CPU(TYPE_RISCV_CPU_RV64GCSU_V1_09_1, rv64gcsu_priv1_09_1_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_RV64GCSU_V1_10_0, rv64gcsu_priv1_10_0_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_RV64IMACU_NOMMU,  rv64imacu_nommu_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E51,       rv64imacu_nommu_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U54,       rv64gcsu_priv1_10_0_cpu_init)
+#endif
+};
+
+DEFINE_TYPES(riscv_cpu_type_infos)
