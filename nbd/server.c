@@ -1543,14 +1543,6 @@ static coroutine_fn void nbd_trip(void *opaque)
     req = nbd_request_get(client);
     ret = nbd_co_receive_request(req, &request, &local_err);
     client->recv_coroutine = NULL;
-    nbd_client_receive_next_request(client);
-    if (ret == -EIO) {
-        goto disconnect;
-    }
-
-    if (ret < 0) {
-        goto reply;
-    }
 
     if (client->closing) {
         /*
@@ -1558,6 +1550,15 @@ static coroutine_fn void nbd_trip(void *opaque)
          * nbd_co_receive_request()
          */
         goto done;
+    }
+
+    nbd_client_receive_next_request(client);
+    if (ret == -EIO) {
+        goto disconnect;
+    }
+
+    if (ret < 0) {
+        goto reply;
     }
 
     switch (request.type) {
