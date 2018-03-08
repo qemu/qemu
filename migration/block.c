@@ -331,11 +331,10 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
      */
     qemu_mutex_lock_iothread();
     aio_context_acquire(blk_get_aio_context(bmds->blk));
-    blk->aiocb = blk_aio_preadv(bb, cur_sector * BDRV_SECTOR_SIZE, &blk->qiov,
-                                0, blk_mig_read_cb, blk);
-
     bdrv_reset_dirty_bitmap(bmds->dirty_bitmap, cur_sector * BDRV_SECTOR_SIZE,
                             nr_sectors * BDRV_SECTOR_SIZE);
+    blk->aiocb = blk_aio_preadv(bb, cur_sector * BDRV_SECTOR_SIZE, &blk->qiov,
+                                0, blk_mig_read_cb, blk);
     aio_context_release(blk_get_aio_context(bmds->blk));
     qemu_mutex_unlock_iothread();
 
