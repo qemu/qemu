@@ -985,6 +985,7 @@ static void qmp_unregister_commands_hack(void)
     qmp_unregister_command(&qmp_commands, "rtc-reset-reinjection");
     qmp_unregister_command(&qmp_commands, "query-sev");
     qmp_unregister_command(&qmp_commands, "query-sev-launch-measure");
+    qmp_unregister_command(&qmp_commands, "query-sev-capabilities");
 #endif
 #ifndef TARGET_S390X
     qmp_unregister_command(&qmp_commands, "dump-skeys");
@@ -4115,6 +4116,12 @@ SevInfo *qmp_query_sev(Error **errp)
 SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
 {
     error_setg(errp, QERR_FEATURE_DISABLED, "query-sev-launch-measure");
+    return NULL;
+}
+
+SevCapability *qmp_query_sev_capabilities(Error **errp)
+{
+    error_setg(errp, QERR_FEATURE_DISABLED, "query-sev-capabilities");
     return NULL;
 }
 #endif
