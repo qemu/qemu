@@ -83,6 +83,9 @@ qemu_spice_ui_info(int qid, uint32_t width, uint32_t height) "%d %dx%d"
 qemu_spice_gl_surface(int qid, uint32_t w, uint32_t h, uint32_t fourcc) "%d %dx%d, fourcc 0x%x"
 qemu_spice_gl_scanout_disable(int qid) "%d"
 qemu_spice_gl_scanout_texture(int qid, uint32_t w, uint32_t h, uint32_t fourcc) "%d %dx%d, fourcc 0x%x"
+qemu_spice_gl_cursor(int qid, bool enabled, bool hotspot) "%d enabled %d, hotspot %d"
+qemu_spice_gl_forward_dmabuf(int qid, uint32_t width, uint32_t height) "%d %dx%d"
+qemu_spice_gl_render_dmabuf(int qid, uint32_t width, uint32_t height) "%d %dx%d"
 qemu_spice_gl_update(int qid, uint32_t x, uint32_t y, uint32_t w, uint32_t h) "%d +%d+%d %dx%d"
 
 # ui/keymaps.c

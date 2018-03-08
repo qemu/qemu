@@ -941,25 +941,126 @@ static void qemu_spice_gl_scanout_dmabuf(DisplayChangeListener *dcl,
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
 
-    /* note: spice server will close the fd, so hand over a dup */
-    spice_qxl_gl_scanout(&ssd->qxl, dup(dmabuf->fd),
-                         dmabuf->width, dmabuf->height,
-                         dmabuf->stride, dmabuf->fourcc, false);
-    qemu_spice_gl_monitor_config(ssd, 0, 0, dmabuf->width, dmabuf->height);
+    ssd->guest_dmabuf = dmabuf;
+    ssd->guest_dmabuf_refresh = true;
+
     ssd->have_surface = false;
     ssd->have_scanout = true;
+}
+
+static void qemu_spice_gl_cursor_dmabuf(DisplayChangeListener *dcl,
+                                        QemuDmaBuf *dmabuf, bool have_hot,
+                                        uint32_t hot_x, uint32_t hot_y)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+
+    ssd->have_hot = have_hot;
+    ssd->hot_x = hot_x;
+    ssd->hot_y = hot_y;
+
+    trace_qemu_spice_gl_cursor(ssd->qxl.id, dmabuf != NULL, have_hot);
+    if (dmabuf) {
+        egl_dmabuf_import_texture(dmabuf);
+        if (!dmabuf->texture) {
+            return;
+        }
+        egl_fb_setup_for_tex(&ssd->cursor_fb, dmabuf->width, dmabuf->height,
+                             dmabuf->texture, false);
+    } else {
+        egl_fb_destroy(&ssd->cursor_fb);
+    }
+}
+
+static void qemu_spice_gl_cursor_position(DisplayChangeListener *dcl,
+                                          uint32_t pos_x, uint32_t pos_y)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+
+    ssd->ptr_x = pos_x;
+    ssd->ptr_y = pos_y;
+}
+
+static void qemu_spice_gl_release_dmabuf(DisplayChangeListener *dcl,
+                                         QemuDmaBuf *dmabuf)
+{
+    SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+
+    if (ssd->guest_dmabuf == dmabuf) {
+        ssd->guest_dmabuf = NULL;
+        ssd->guest_dmabuf_refresh = false;
+    }
+    egl_dmabuf_release_texture(dmabuf);
 }
 
 static void qemu_spice_gl_update(DisplayChangeListener *dcl,
                                  uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    EGLint stride = 0, fourcc = 0;
+    bool render_cursor = false;
+    bool y_0_top = false; /* FIXME */
     uint64_t cookie;
+    int fd;
 
     if (!ssd->have_scanout) {
         return;
     }
 
+    if (ssd->cursor_fb.texture) {
+        render_cursor = true;
+    }
+    if (ssd->render_cursor != render_cursor) {
+        ssd->render_cursor = render_cursor;
+        ssd->guest_dmabuf_refresh = true;
+        egl_fb_destroy(&ssd->blit_fb);
+    }
+
+    if (ssd->guest_dmabuf_refresh) {
+        QemuDmaBuf *dmabuf = ssd->guest_dmabuf;
+        if (render_cursor) {
+            egl_dmabuf_import_texture(dmabuf);
+            if (!dmabuf->texture) {
+                return;
+            }
+
+            /* source framebuffer */
+            egl_fb_setup_for_tex(&ssd->guest_fb,
+                                 dmabuf->width, dmabuf->height,
+                                 dmabuf->texture, false);
+
+            /* dest framebuffer */
+            if (ssd->blit_fb.width  != dmabuf->width ||
+                ssd->blit_fb.height != dmabuf->height) {
+                trace_qemu_spice_gl_render_dmabuf(ssd->qxl.id, dmabuf->width,
+                                                  dmabuf->height);
+                egl_fb_destroy(&ssd->blit_fb);
+                egl_fb_setup_new_tex(&ssd->blit_fb,
+                                     dmabuf->width, dmabuf->height);
+                fd = egl_get_fd_for_texture(ssd->blit_fb.texture,
+                                            &stride, &fourcc);
+                spice_qxl_gl_scanout(&ssd->qxl, fd,
+                                     dmabuf->width, dmabuf->height,
+                                     stride, fourcc, false);
+            }
+        } else {
+            trace_qemu_spice_gl_forward_dmabuf(ssd->qxl.id,
+                                               dmabuf->width, dmabuf->height);
+            /* note: spice server will close the fd, so hand over a dup */
+            spice_qxl_gl_scanout(&ssd->qxl, dup(dmabuf->fd),
+                                 dmabuf->width, dmabuf->height,
+                                 dmabuf->stride, dmabuf->fourcc, false);
+        }
+        qemu_spice_gl_monitor_config(ssd, 0, 0, dmabuf->width, dmabuf->height);
+        ssd->guest_dmabuf_refresh = false;
+    }
+
+    if (render_cursor) {
+        egl_texture_blit(ssd->gls, &ssd->blit_fb, &ssd->guest_fb,
+                         !y_0_top);
+        egl_texture_blend(ssd->gls, &ssd->blit_fb, &ssd->cursor_fb,
+                          !y_0_top, ssd->ptr_x, ssd->ptr_y);
+        glFlush();
+    }
 
     trace_qemu_spice_gl_update(ssd->qxl.id, w, h, x, y);
     qemu_spice_gl_block(ssd, true);
@@ -984,6 +1085,9 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_gl_scanout_disable  = qemu_spice_gl_scanout_disable,
     .dpy_gl_scanout_texture  = qemu_spice_gl_scanout_texture,
     .dpy_gl_scanout_dmabuf   = qemu_spice_gl_scanout_dmabuf,
+    .dpy_gl_cursor_dmabuf    = qemu_spice_gl_cursor_dmabuf,
+    .dpy_gl_cursor_position  = qemu_spice_gl_cursor_position,
+    .dpy_gl_release_dmabuf   = qemu_spice_gl_release_dmabuf,
     .dpy_gl_update           = qemu_spice_gl_update,
 };
 
