@@ -32,14 +32,7 @@
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-tpm.h"
 #include "tpm_util.h"
-
-#define DEBUG_TPM 0
-
-#define DPRINTF(fmt, ...) do { \
-    if (DEBUG_TPM) { \
-        fprintf(stderr, fmt, ## __VA_ARGS__); \
-    } \
-} while (0)
+#include "trace.h"
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
 #define TPM_PASSTHROUGH(obj) \
@@ -138,7 +131,7 @@ static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(tb);
 
-    DPRINTF("tpm_passthrough: processing command %p\n", cmd);
+    trace_tpm_passthrough_handle_request(cmd);
 
     tpm_passthrough_unix_tx_bufs(tpm_pt, cmd->in, cmd->in_len,
                                  cmd->out, cmd->out_len, &cmd->selftest_done,
@@ -147,7 +140,7 @@ static void tpm_passthrough_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
 
 static void tpm_passthrough_reset(TPMBackend *tb)
 {
-    DPRINTF("tpm_passthrough: CALL TO TPM_RESET!\n");
+    trace_tpm_passthrough_reset();
 
     tpm_passthrough_cancel_cmd(tb);
 }

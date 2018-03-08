@@ -1,0 +1,46 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/tpm/tpm_crb.c
+tpm_crb_mmio_read(uint64_t addr, unsigned size, uint32_t val) "CRB read 0x" TARGET_FMT_plx " len:%u val: 0x%" PRIx32
+tpm_crb_mmio_write(uint64_t addr, unsigned size, uint32_t val) "CRB write 0x" TARGET_FMT_plx " len:%u val: 0x%" PRIx32
+
+# hw/tpm/tpm_passthrough.c
+tpm_passthrough_handle_request(void *cmd) "processing command %p"
+tpm_passthrough_reset(void) "reset"
+
+# hw/tpm/tpm_util.c
+tpm_util_get_buffer_size_hdr_len(uint32_t len, size_t expected) "tpm_resp->hdr.len = %u, expected = %zu"
+tpm_util_get_buffer_size_len(uint32_t len, size_t expected) "tpm_resp->len = %u, expected = %zu"
+tpm_util_get_buffer_size_hdr_len2(uint32_t len, size_t expected) "tpm2_resp->hdr.len = %u, expected = %zu"
+tpm_util_get_buffer_size_len2(uint32_t len, size_t expected) "tpm2_resp->len = %u, expected = %zu"
+tpm_util_get_buffer_size(size_t len) "buffersize of device: %zu"
+
+# hw/tpm/tpm_emulator.c
+tpm_emulator_set_locality(uint8_t locty) "setting locality to %d"
+tpm_emulator_handle_request(void) "processing TPM command"
+tpm_emulator_probe_caps(uint64_t caps) "capabilities: 0x%"PRIx64
+tpm_emulator_set_buffer_size(uint32_t buffersize, uint32_t minsize, uint32_t maxsize) "buffer size: %u, min: %u, max: %u"
+tpm_emulator_startup_tpm(void) "startup"
+tpm_emulator_get_tpm_established_flag(uint8_t flag) "got established flag: %d"
+tpm_emulator_cancel_cmd_not_supt(void) "Backend does not support CANCEL_TPM_CMD"
+tpm_emulator_handle_device_opts_tpm12(void) "TPM Version 1.2"
+tpm_emulator_handle_device_opts_tpm2(void) "TPM Version 2"
+tpm_emulator_handle_device_opts_unspec(void) "TPM Version Unspecified"
+tpm_emulator_handle_device_opts_startup_error(void) "Startup error"
+tpm_emulator_inst_init(void) ""
+
+# hw/tpm/tpm_tis.c
+tpm_tis_raise_irq(uint32_t irqmask) "Raising IRQ for flag 0x%08x"
+tpm_tis_new_active_locality(uint8_t locty) "Active locality is now %d"
+tpm_tis_abort(uint8_t locty) "New active locality is %d"
+tpm_tis_data_read(uint32_t value, uint32_t off) "byte 0x%02x   [%d]"
+tpm_tis_mmio_read(unsigned size, uint32_t addr, uint32_t val)  " read.%u(0x%08x) = 0x%08x"
+tpm_tis_mmio_write(unsigned size, uint32_t addr, uint32_t val) "write.%u(0x%08x) = 0x%08x"
+tpm_tis_mmio_write_locty4(void) "Access to locality 4 only allowed from hardware"
+tpm_tis_mmio_write_release_locty(uint8_t locty) "Releasing locality %d"
+tpm_tis_mmio_write_locty_req_use(uint8_t locty) "Locality %d requests use"
+tpm_tis_mmio_write_next_locty(uint8_t locty) "Next active locality is %d"
+tpm_tis_mmio_write_locty_seized(uint8_t locty, uint8_t active) "Locality %d seized from locality %d"
+tpm_tis_mmio_write_init_abort(void) "Initiating abort"
+tpm_tis_mmio_write_lowering_irq(void) "Lowering IRQ"
+tpm_tis_mmio_write_data2send(uint32_t value, unsigned size) "Data to send to TPM: 0x%08x (size=%d)"
