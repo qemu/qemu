@@ -118,29 +118,32 @@ void qio_net_listener_add(QIONetListener *listener,
 
     listener->sioc = g_renew(QIOChannelSocket *, listener->sioc,
                              listener->nsioc + 1);
-    listener->io_tag = g_renew(gulong, listener->io_tag, listener->nsioc + 1);
+    listener->io_source = g_renew(typeof(listener->io_source[0]),
+                                  listener->io_source,
+                                  listener->nsioc + 1);
     listener->sioc[listener->nsioc] = sioc;
-    listener->io_tag[listener->nsioc] = 0;
+    listener->io_source[listener->nsioc] = NULL;
 
     object_ref(OBJECT(sioc));
     listener->connected = true;
 
     if (listener->io_func != NULL) {
         object_ref(OBJECT(listener));
-        listener->io_tag[listener->nsioc] = qio_channel_add_watch(
+        listener->io_source[listener->nsioc] = qio_channel_add_watch_source(
             QIO_CHANNEL(listener->sioc[listener->nsioc]), G_IO_IN,
             qio_net_listener_channel_func,
-            listener, (GDestroyNotify)object_unref);
+            listener, (GDestroyNotify)object_unref, NULL);
     }
 
     listener->nsioc++;
 }
 
 
-void qio_net_listener_set_client_func(QIONetListener *listener,
-                                      QIONetListenerClientFunc func,
-                                      gpointer data,
-                                      GDestroyNotify notify)
+void qio_net_listener_set_client_func_full(QIONetListener *listener,
+                                           QIONetListenerClientFunc func,
+                                           gpointer data,
+                                           GDestroyNotify notify,
+                                           GMainContext *context)
 {
     size_t i;
 
@@ -152,23 +155,32 @@ void qio_net_listener_set_client_func(QIONetListener *listener,
     listener->io_notify = notify;
 
     for (i = 0; i < listener->nsioc; i++) {
-        if (listener->io_tag[i]) {
-            g_source_remove(listener->io_tag[i]);
-            listener->io_tag[i] = 0;
+        if (listener->io_source[i]) {
+            g_source_destroy(listener->io_source[i]);
+            g_source_unref(listener->io_source[i]);
+            listener->io_source[i] = NULL;
         }
     }
 
     if (listener->io_func != NULL) {
         for (i = 0; i < listener->nsioc; i++) {
             object_ref(OBJECT(listener));
-            listener->io_tag[i] = qio_channel_add_watch(
+            listener->io_source[i] = qio_channel_add_watch_source(
                 QIO_CHANNEL(listener->sioc[i]), G_IO_IN,
                 qio_net_listener_channel_func,
-                listener, (GDestroyNotify)object_unref);
+                listener, (GDestroyNotify)object_unref, context);
         }
     }
 }
 
+void qio_net_listener_set_client_func(QIONetListener *listener,
+                                      QIONetListenerClientFunc func,
+                                      gpointer data,
+                                      GDestroyNotify notify)
+{
+    qio_net_listener_set_client_func_full(listener, func, data,
+                                          notify, NULL);
+}
 
 struct QIONetListenerClientWaitData {
     QIOChannelSocket *sioc;
@@ -211,9 +223,10 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
     size_t i;
 
     for (i = 0; i < listener->nsioc; i++) {
-        if (listener->io_tag[i]) {
-            g_source_remove(listener->io_tag[i]);
-            listener->io_tag[i] = 0;
+        if (listener->io_source[i]) {
+            g_source_destroy(listener->io_source[i]);
+            g_source_unref(listener->io_source[i]);
+            listener->io_source[i] = NULL;
         }
     }
 
@@ -241,10 +254,10 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
     if (listener->io_func != NULL) {
         for (i = 0; i < listener->nsioc; i++) {
             object_ref(OBJECT(listener));
-            listener->io_tag[i] = qio_channel_add_watch(
+            listener->io_source[i] = qio_channel_add_watch_source(
                 QIO_CHANNEL(listener->sioc[i]), G_IO_IN,
                 qio_net_listener_channel_func,
-                listener, (GDestroyNotify)object_unref);
+                listener, (GDestroyNotify)object_unref, NULL);
         }
     }
 
@@ -260,9 +273,10 @@ void qio_net_listener_disconnect(QIONetListener *listener)
     }
 
     for (i = 0; i < listener->nsioc; i++) {
-        if (listener->io_tag[i]) {
-            g_source_remove(listener->io_tag[i]);
-            listener->io_tag[i] = 0;
+        if (listener->io_source[i]) {
+            g_source_destroy(listener->io_source[i]);
+            g_source_unref(listener->io_source[i]);
+            listener->io_source[i] = NULL;
         }
         qio_channel_close(QIO_CHANNEL(listener->sioc[i]), NULL);
     }
@@ -285,7 +299,7 @@ static void qio_net_listener_finalize(Object *obj)
     for (i = 0; i < listener->nsioc; i++) {
         object_unref(OBJECT(listener->sioc[i]));
     }
-    g_free(listener->io_tag);
+    g_free(listener->io_source);
     g_free(listener->sioc);
     g_free(listener->name);
 }

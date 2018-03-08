@@ -105,6 +105,7 @@ void migration_tls_channel_process_incoming(MigrationState *s,
     qio_channel_tls_handshake(tioc,
                               migration_tls_incoming_handshake,
                               NULL,
+                              NULL,
                               NULL);
 }
 
@@ -159,5 +160,6 @@ void migration_tls_channel_connect(MigrationState *s,
     qio_channel_tls_handshake(tioc,
                               migration_tls_outgoing_handshake,
                               s,
+                              NULL,
                               NULL);
 }

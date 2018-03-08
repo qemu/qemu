@@ -179,7 +179,7 @@ static void test_io_channel_setup_async(SocketAddress *listen_addr,
     lioc = qio_channel_socket_new();
     qio_channel_socket_listen_async(
         lioc, listen_addr,
-        test_io_channel_complete, &data, NULL);
+        test_io_channel_complete, &data, NULL, NULL);
 
     g_main_loop_run(data.loop);
     g_main_context_iteration(g_main_context_default(), FALSE);
@@ -200,7 +200,7 @@ static void test_io_channel_setup_async(SocketAddress *listen_addr,
 
     qio_channel_socket_connect_async(
         QIO_CHANNEL_SOCKET(*src), connect_addr,
-        test_io_channel_complete, &data, NULL);
+        test_io_channel_complete, &data, NULL, NULL);
 
     g_main_loop_run(data.loop);
     g_main_context_iteration(g_main_context_default(), FALSE);
