@@ -11,6 +11,11 @@
  *
  */
 
+#include <linux/kvm.h>
+#include <linux/psp-sev.h>
+
+#include <sys/ioctl.h>
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
@@ -18,9 +23,87 @@
 #include "sysemu/kvm.h"
 #include "sev_i386.h"
 #include "sysemu/sysemu.h"
+#include "trace.h"
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
+
+static SEVState *sev_state;
+
+static const char *const sev_fw_errlist[] = {
+    "",
+    "Platform state is invalid",
+    "Guest state is invalid",
+    "Platform configuration is invalid",
+    "Buffer too small",
+    "Platform is already owned",
+    "Certificate is invalid",
+    "Policy is not allowed",
+    "Guest is not active",
+    "Invalid address",
+    "Bad signature",
+    "Bad measurement",
+    "Asid is already owned",
+    "Invalid ASID",
+    "WBINVD is required",
+    "DF_FLUSH is required",
+    "Guest handle is invalid",
+    "Invalid command",
+    "Guest is active",
+    "Hardware error",
+    "Hardware unsafe",
+    "Feature not supported",
+    "Invalid parameter"
+};
+
+#define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
+
+static int
+sev_ioctl(int fd, int cmd, void *data, int *error)
+{
+    int r;
+    struct kvm_sev_cmd input;
+
+    memset(&input, 0x0, sizeof(input));
+
+    input.id = cmd;
+    input.sev_fd = fd;
+    input.data = (__u64)(unsigned long)data;
+
+    r = kvm_vm_ioctl(kvm_state, KVM_MEMORY_ENCRYPT_OP, &input);
+
+    if (error) {
+        *error = input.error;
+    }
+
+    return r;
+}
+
+static int
+sev_platform_ioctl(int fd, int cmd, void *data, int *error)
+{
+    int r;
+    struct sev_issue_cmd arg;
+
+    arg.cmd = cmd;
+    arg.data = (unsigned long)data;
+    r = ioctl(fd, SEV_ISSUE_CMD, &arg);
+    if (error) {
+        *error = arg.error;
+    }
+
+    return r;
+}
+
+static const char *
+fw_error_to_str(int code)
+{
+    if (code < 0 || code >= SEV_FW_MAX_ERROR) {
+        return "unknown error";
+    }
+
+    return sev_fw_errlist[code];
+}
 
 static void
 qsev_guest_finalize(Object *obj)
@@ -218,6 +301,147 @@ static const TypeInfo qsev_guest_info = {
         { }
     }
 };
+
+static QSevGuestInfo *
+lookup_sev_guest_info(const char *id)
+{
+    Object *obj;
+    QSevGuestInfo *info;
+
+    obj = object_resolve_path_component(object_get_objects_root(), id);
+    if (!obj) {
+        return NULL;
+    }
+
+    info = (QSevGuestInfo *)
+            object_dynamic_cast(obj, TYPE_QSEV_GUEST_INFO);
+    if (!info) {
+        return NULL;
+    }
+
+    return info;
+}
+
+bool
+sev_enabled(void)
+{
+    return sev_state ? true : false;
+}
+
+uint64_t
+sev_get_me_mask(void)
+{
+    return sev_state ? sev_state->me_mask : ~0;
+}
+
+uint32_t
+sev_get_cbit_position(void)
+{
+    return sev_state ? sev_state->cbitpos : 0;
+}
+
+uint32_t
+sev_get_reduced_phys_bits(void)
+{
+    return sev_state ? sev_state->reduced_phys_bits : 0;
+}
+
+SevInfo *
+sev_get_info(void)
+{
+    SevInfo *info;
+
+    info = g_new0(SevInfo, 1);
+    info->enabled = sev_state ? true : false;
+
+    if (info->enabled) {
+        info->api_major = sev_state->api_major;
+        info->api_minor = sev_state->api_minor;
+        info->build_id = sev_state->build_id;
+        info->policy = sev_state->policy;
+        info->state = sev_state->state;
+        info->handle = sev_state->handle;
+    }
+
+    return info;
+}
+
+void *
+sev_guest_init(const char *id)
+{
+    SEVState *s;
+    char *devname;
+    int ret, fw_error;
+    uint32_t ebx;
+    uint32_t host_cbitpos;
+    struct sev_user_data_status status = {};
+
+    s = g_new0(SEVState, 1);
+    s->sev_info = lookup_sev_guest_info(id);
+    if (!s->sev_info) {
+        error_report("%s: '%s' is not a valid '%s' object",
+                     __func__, id, TYPE_QSEV_GUEST_INFO);
+        goto err;
+    }
+
+    sev_state = s;
+    s->state = SEV_STATE_UNINIT;
+
+    host_cpuid(0x8000001F, 0, NULL, &ebx, NULL, NULL);
+    host_cbitpos = ebx & 0x3f;
+
+    s->cbitpos = object_property_get_int(OBJECT(s->sev_info), "cbitpos", NULL);
+    if (host_cbitpos != s->cbitpos) {
+        error_report("%s: cbitpos check failed, host '%d' requested '%d'",
+                     __func__, host_cbitpos, s->cbitpos);
+        goto err;
+    }
+
+    s->reduced_phys_bits = object_property_get_int(OBJECT(s->sev_info),
+                                        "reduced-phys-bits", NULL);
+    if (s->reduced_phys_bits < 1) {
+        error_report("%s: reduced_phys_bits check failed, it should be >=1,"
+                     "' requested '%d'", __func__, s->reduced_phys_bits);
+        goto err;
+    }
+
+    s->me_mask = ~(1UL << s->cbitpos);
+
+    devname = object_property_get_str(OBJECT(s->sev_info), "sev-device", NULL);
+    s->sev_fd = open(devname, O_RDWR);
+    if (s->sev_fd < 0) {
+        error_report("%s: Failed to open %s '%s'", __func__,
+                     devname, strerror(errno));
+        goto err;
+    }
+    g_free(devname);
+
+    ret = sev_platform_ioctl(s->sev_fd, SEV_PLATFORM_STATUS, &status,
+                             &fw_error);
+    if (ret) {
+        error_report("%s: failed to get platform status ret=%d"
+                     "fw_error='%d: %s'", __func__, ret, fw_error,
+                     fw_error_to_str(fw_error));
+        goto err;
+    }
+    s->build_id = status.build;
+    s->api_major = status.api_major;
+    s->api_minor = status.api_minor;
+
+    trace_kvm_sev_init();
+    ret = sev_ioctl(s->sev_fd, KVM_SEV_INIT, NULL, &fw_error);
+    if (ret) {
+        error_report("%s: failed to initialize ret=%d fw_error=%d '%s'",
+                     __func__, ret, fw_error, fw_error_to_str(fw_error));
+        goto err;
+    }
+
+    return s;
+err:
+    g_free(sev_state);
+    sev_state = NULL;
+    return NULL;
+}
 
 static void
 sev_register_types(void)

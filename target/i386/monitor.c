@@ -31,6 +31,7 @@
 #include "sysemu/kvm.h"
 #include "hmp.h"
 #include "qapi/error.h"
+#include "sev_i386.h"
 #include "qapi/qapi-commands-misc.h"
 
 
@@ -666,6 +667,13 @@ void hmp_info_io_apic(Monitor *mon, const QDict *qdict)
 
 SevInfo *qmp_query_sev(Error **errp)
 {
-    error_setg(errp, "SEV feature is not available");
-    return NULL;
+    SevInfo *info;
+
+    info = sev_get_info();
+    if (!info) {
+        error_setg(errp, "SEV feature is not available");
+        return NULL;
+    }
+
+    return info;
 }
