@@ -2258,6 +2258,13 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int64_t t0;
     int done = 0;
 
+    if (blk_mig_bulk_active()) {
+        /* Avoid transferring ram during bulk phase of block migration as
+         * the bulk phase will usually take a long time and transferring
+         * ram updates during that time is pointless. */
+        goto out;
+    }
+
     rcu_read_lock();
     if (ram_list.version != rs->last_version) {
         ram_state_reset(rs);
@@ -2304,6 +2311,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
      */
     ram_control_after_iterate(f, RAM_CONTROL_ROUND);
 
+out:
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     ram_counters.transferred += 8;
 
