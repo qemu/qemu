@@ -29,8 +29,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
-#include "chardev/char.h"
 #include "trace.h"
 
 
@@ -100,8 +98,9 @@ static const uint16_t uart_base[2][4] = {
     { 0x2e8, 0x238, 0x2e0, 0x228 }
 };
 
-static inline uint16_t get_uart_iobase(PC87312State *s, int i)
+static uint16_t get_uart_iobase(ISASuperIODevice *sio, uint8_t i)
 {
+    PC87312State *s = PC87312(sio);
     int idx;
     idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
     if (idx == 0) {
@@ -113,15 +112,17 @@ static inline uint16_t get_uart_iobase(PC87312State *s, int i)
     }
 }
 
-static inline unsigned int get_uart_irq(PC87312State *s, int i)
+static unsigned int get_uart_irq(ISASuperIODevice *sio, uint8_t i)
 {
+    PC87312State *s = PC87312(sio);
     int idx;
     idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
     return (idx & 1) ? 3 : 4;
 }
 
-static inline bool is_uart_enabled(PC87312State *s, int i)
+static bool is_uart_enabled(ISASuperIODevice *sio, uint8_t i)
 {
+    PC87312State *s = PC87312(sio);
     return s->regs[REG_FER] & (FER_UART1_EN << i);
 }
 
@@ -271,11 +272,8 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     DeviceState *d;
     ISADevice *isa;
     ISABus *bus;
-    Chardev *chr;
     DriveInfo *drive;
     Error *local_err = NULL;
-    char name[5];
-    int i;
 
     s = PC87312(dev);
     isa = ISA_DEVICE(dev);
@@ -287,27 +285,6 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     if (local_err) {
         error_propagate(errp, local_err);
         return;
-    }
-
-    for (i = 0; i < 2; i++) {
-        if (is_uart_enabled(s, i)) {
-            /* FIXME use a qdev chardev prop instead of serial_hds[] */
-            chr = serial_hds[i];
-            if (chr == NULL) {
-                snprintf(name, sizeof(name), "ser%d", i);
-                chr = qemu_chr_new(name, "null");
-            }
-            isa = isa_create(bus, "isa-serial");
-            d = DEVICE(isa);
-            qdev_prop_set_uint32(d, "index", i);
-            qdev_prop_set_uint32(d, "iobase", get_uart_iobase(s, i));
-            qdev_prop_set_uint32(d, "irq", get_uart_irq(s, i));
-            qdev_prop_set_chr(d, "chardev", chr);
-            qdev_init_nofail(d);
-            s->uart[i].dev = isa;
-            trace_pc87312_info_serial(i, get_uart_iobase(s, i),
-                                      get_uart_irq(s, i));
-        }
     }
 
     if (is_fdc_enabled(s)) {
@@ -380,14 +357,18 @@ static void pc87312_class_init(ObjectClass *klass, void *data)
     dc->reset = pc87312_reset;
     dc->vmsd = &vmstate_pc87312;
     dc->props = pc87312_properties;
-    /* Reason: Uses serial_hds[0] in realize(), so it can't be used twice */
-    dc->user_creatable = false;
 
     sc->parallel = (ISASuperIOFuncs){
         .count = 1,
         .is_enabled = is_parallel_enabled,
         .get_iobase = get_parallel_iobase,
         .get_irq    = get_parallel_irq,
+    };
+    sc->serial = (ISASuperIOFuncs){
+        .count = 2,
+        .is_enabled = is_uart_enabled,
+        .get_iobase = get_uart_iobase,
+        .get_irq    = get_uart_irq,
     };
 }
 

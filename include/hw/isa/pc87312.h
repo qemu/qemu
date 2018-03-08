@@ -41,10 +41,6 @@ typedef struct PC87312State {
 
     struct {
         ISADevice *dev;
-    } uart[2];
-
-    struct {
-        ISADevice *dev;
     } fdc;
 
     struct {

@@ -14,6 +14,7 @@
 #include "sysemu/sysemu.h"
 #include "chardev/char.h"
 #include "hw/isa/superio.h"
+#include "hw/char/serial.h"
 #include "trace.h"
 
 static void isa_superio_realize(DeviceState *dev, Error **errp)
@@ -63,6 +64,46 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                                           k->parallel.get_irq(sio, i) : -1);
             object_property_add_child(OBJECT(dev), name,
                                       OBJECT(sio->parallel[i]), NULL);
+            g_free(name);
+        }
+    }
+
+    /* Serial */
+    for (i = 0; i < k->serial.count; i++) {
+        if (i >= ARRAY_SIZE(sio->serial)) {
+            warn_report("superio: ignoring %td serial controllers",
+                        k->serial.count - ARRAY_SIZE(sio->serial));
+            break;
+        }
+        if (!k->serial.is_enabled || k->serial.is_enabled(sio, i)) {
+            /* FIXME use a qdev chardev prop instead of serial_hds[] */
+            chr = serial_hds[i];
+            if (chr == NULL || chr->be) {
+                name = g_strdup_printf("discarding-serial%d", i);
+                chr = qemu_chr_new(name, "null");
+            } else {
+                name = g_strdup_printf("serial%d", i);
+            }
+            isa = isa_create(bus, TYPE_ISA_SERIAL);
+            d = DEVICE(isa);
+            qdev_prop_set_uint32(d, "index", i);
+            if (k->serial.get_iobase) {
+                qdev_prop_set_uint32(d, "iobase",
+                                     k->serial.get_iobase(sio, i));
+            }
+            if (k->serial.get_irq) {
+                qdev_prop_set_uint32(d, "irq", k->serial.get_irq(sio, i));
+            }
+            qdev_prop_set_chr(d, "chardev", chr);
+            qdev_init_nofail(d);
+            sio->serial[i] = isa;
+            trace_superio_create_serial(i,
+                                        k->serial.get_iobase ?
+                                        k->serial.get_iobase(sio, i) : -1,
+                                        k->serial.get_irq ?
+                                        k->serial.get_irq(sio, i) : -1);
+            object_property_add_child(OBJECT(dev), name,
+                                      OBJECT(sio->serial[0]), NULL);
             g_free(name);
         }
     }
