@@ -152,14 +152,6 @@ struct PCMachineClass {
 #define PC_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
 
-/* parallel.c */
-
-void parallel_hds_isa_init(ISABus *bus, int n);
-
-bool parallel_mm_init(MemoryRegion *address_space,
-                      hwaddr base, int it_shift, qemu_irq irq,
-                      Chardev *chr);
-
 /* i8259.c */
 
 extern DeviceState *isa_pic;

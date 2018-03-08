@@ -28,6 +28,7 @@
 #include "hw/mips/cpudevs.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
+#include "hw/char/parallel.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "sysemu/sysemu.h"

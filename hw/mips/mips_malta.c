@@ -28,6 +28,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
+#include "hw/char/parallel.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
 #include "hw/boards.h"
