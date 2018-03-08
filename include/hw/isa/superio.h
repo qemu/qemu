@@ -23,7 +23,11 @@
     OBJECT_CLASS_CHECK(ISASuperIOClass, (klass), TYPE_ISA_SUPERIO)
 
 typedef struct ISASuperIODevice {
+    /*< private >*/
     ISADevice parent_obj;
+    /*< public >*/
+
+    ISADevice *parallel[MAX_PARALLEL_PORTS];
 } ISASuperIODevice;
 
 typedef struct ISASuperIOFuncs {
@@ -39,6 +43,8 @@ typedef struct ISASuperIOClass {
     ISADeviceClass parent_class;
     /*< public >*/
     DeviceRealize parent_realize;
+
+    ISASuperIOFuncs parallel;
 } ISASuperIOClass;
 
 #endif /* HW_ISA_SUPERIO_H */

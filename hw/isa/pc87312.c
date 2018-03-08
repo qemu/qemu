@@ -64,22 +64,25 @@
 
 /* Parallel port */
 
-static inline bool is_parallel_enabled(PC87312State *s)
+static bool is_parallel_enabled(ISASuperIODevice *sio, uint8_t index)
 {
-    return s->regs[REG_FER] & FER_PARALLEL_EN;
+    PC87312State *s = PC87312(sio);
+    return index ? false : s->regs[REG_FER] & FER_PARALLEL_EN;
 }
 
 static const uint16_t parallel_base[] = { 0x378, 0x3bc, 0x278, 0x00 };
 
-static inline uint16_t get_parallel_iobase(PC87312State *s)
+static uint16_t get_parallel_iobase(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
     return parallel_base[s->regs[REG_FAR] & FAR_PARALLEL_ADDR];
 }
 
 static const unsigned int parallel_irq[] = { 5, 7, 5, 0 };
 
-static inline unsigned int get_parallel_irq(PC87312State *s)
+static unsigned int get_parallel_irq(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
     int idx;
     idx = (s->regs[REG_FAR] & FAR_PARALLEL_ADDR);
     if (idx == 0) {
@@ -286,24 +289,6 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (is_parallel_enabled(s)) {
-        /* FIXME use a qdev chardev prop instead of parallel_hds[] */
-        chr = parallel_hds[0];
-        if (chr == NULL) {
-            chr = qemu_chr_new("par0", "null");
-        }
-        isa = isa_create(bus, "isa-parallel");
-        d = DEVICE(isa);
-        qdev_prop_set_uint32(d, "index", 0);
-        qdev_prop_set_uint32(d, "iobase", get_parallel_iobase(s));
-        qdev_prop_set_uint32(d, "irq", get_parallel_irq(s));
-        qdev_prop_set_chr(d, "chardev", chr);
-        qdev_init_nofail(d);
-        s->parallel.dev = isa;
-        trace_pc87312_info_parallel(get_parallel_iobase(s),
-                                    get_parallel_irq(s));
-    }
-
     for (i = 0; i < 2; i++) {
         if (is_uart_enabled(s, i)) {
             /* FIXME use a qdev chardev prop instead of serial_hds[] */
@@ -395,8 +380,15 @@ static void pc87312_class_init(ObjectClass *klass, void *data)
     dc->reset = pc87312_reset;
     dc->vmsd = &vmstate_pc87312;
     dc->props = pc87312_properties;
-    /* Reason: Uses parallel_hds[0] in realize(), so it can't be used twice */
+    /* Reason: Uses serial_hds[0] in realize(), so it can't be used twice */
     dc->user_creatable = false;
+
+    sc->parallel = (ISASuperIOFuncs){
+        .count = 1,
+        .is_enabled = is_parallel_enabled,
+        .get_iobase = get_parallel_iobase,
+        .get_irq    = get_parallel_irq,
+    };
 }
 
 static const TypeInfo pc87312_type_info = {
