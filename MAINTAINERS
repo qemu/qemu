@@ -416,6 +416,7 @@ Alpha Machines
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: hw/alpha/
+F: hw/isa/smc37c669-superio.c
 
 ARM Machines
 ------------
