@@ -697,3 +697,20 @@ void hmp_info_sev(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "SEV is not enabled\n");
     }
 }
+
+SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
+{
+    char *data;
+    SevLaunchMeasureInfo *info;
+
+    data = sev_get_launch_measurement();
+    if (!data) {
+        error_setg(errp, "Measurement is not available");
+        return NULL;
+    }
+
+    info = g_malloc0(sizeof(*info));
+    info->data = data;
+
+    return info;
+}
