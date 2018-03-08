@@ -1342,6 +1342,30 @@ static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
     return nbd_co_send_iov(client, iov, 2, errp);
 }
 
+static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
+                                                     uint64_t handle,
+                                                     uint32_t error,
+                                                     const char *msg,
+                                                     Error **errp)
+{
+    NBDStructuredError chunk;
+    int nbd_err = system_errno_to_nbd_errno(error);
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
+    };
+
+    assert(nbd_err);
+    trace_nbd_co_send_structured_error(handle, nbd_err,
+                                       nbd_err_lookup(nbd_err), msg ? msg : "");
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
+                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    stl_be_p(&chunk.error, nbd_err);
+    stw_be_p(&chunk.message_length, iov[1].iov_len);
+
+    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
+}
+
 static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                                                 uint64_t handle,
                                                 uint64_t offset,
@@ -1399,30 +1423,6 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
         progress += pnum;
     }
     return ret;
-}
-
-static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
-                                                     uint64_t handle,
-                                                     uint32_t error,
-                                                     const char *msg,
-                                                     Error **errp)
-{
-    NBDStructuredError chunk;
-    int nbd_err = system_errno_to_nbd_errno(error);
-    struct iovec iov[] = {
-        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
-        {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
-    };
-
-    assert(nbd_err);
-    trace_nbd_co_send_structured_error(handle, nbd_err,
-                                       nbd_err_lookup(nbd_err), msg ? msg : "");
-    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
-                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
-    stl_be_p(&chunk.error, nbd_err);
-    stw_be_p(&chunk.message_length, iov[1].iov_len);
-
-    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
 }
 
 /* nbd_co_receive_request
