@@ -891,7 +891,8 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
     }
 
     /* check the arm64 magic header value -- very old kernels may not have it */
-    if (memcmp(buffer + ARM64_MAGIC_OFFSET, "ARM\x64", 4) == 0) {
+    if (size > ARM64_MAGIC_OFFSET + 4 &&
+        memcmp(buffer + ARM64_MAGIC_OFFSET, "ARM\x64", 4) == 0) {
         uint64_t hdrvals[2];
 
         /* The arm64 Image header has text_offset and image_size fields at 8 and
