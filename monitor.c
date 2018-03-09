@@ -4010,6 +4010,8 @@ static void monitor_qmp_bh_dispatcher(void *data)
     }
 }
 
+#define  QMP_REQ_QUEUE_LEN_MAX  (8)
+
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 {
     QObject *req, *id = NULL;
@@ -4043,6 +4045,9 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     req_obj->req = req;
     req_obj->need_resume = false;
 
+    /* Protect qmp_requests and fetching its length. */
+    qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
+
     /*
      * If OOB is not enabled on the current monitor, we'll emulate the
      * old behavior that we won't process the current monitor any more
@@ -4052,6 +4057,18 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     if (!qmp_oob_enabled(mon)) {
         monitor_suspend(mon);
         req_obj->need_resume = true;
+    } else {
+        /* Drop the request if queue is full. */
+        if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
+            qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
+            qapi_event_send_command_dropped(id,
+                                            COMMAND_DROP_REASON_QUEUE_FULL,
+                                            &error_abort);
+            qobject_decref(id);
+            qobject_decref(req);
+            g_free(req_obj);
+            return;
+        }
     }
 
     /*
@@ -4059,7 +4076,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
      * handled in time order.  Ownership for req_obj, req, id,
      * etc. will be delivered to the handler side.
      */
-    qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
     g_queue_push_tail(mon->qmp.qmp_requests, req_obj);
     qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
 
