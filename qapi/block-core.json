@@ -3883,6 +3883,37 @@
             '*block-state-zero':    'bool' } }
 
 ##
+# @BlockdevVpcSubformat:
+#
+# @dynamic: Growing image file
+# @fixed:   Preallocated fixed-size image file
+#
+# Since: 2.12
+##
+{ 'enum': 'BlockdevVpcSubformat',
+  'data': [ 'dynamic', 'fixed' ] }
+
+##
+# @BlockdevCreateOptionsVpc:
+#
+# Driver specific image creation options for vpc (VHD).
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @subformat        vhdx subformat (default: dynamic)
+# @force-size       Force use of the exact byte size instead of rounding to the
+#                   next size that can be represented in CHS geometry
+#                   (default: false)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsVpc',
+  'data': { 'file':                 'BlockdevRef',
+            'size':                 'size',
+            '*subformat':           'BlockdevVpcSubformat',
+            '*force-size':          'bool' } }
+
+##
 # @BlockdevCreateNotSupported:
 #
 # This is used for all drivers that don't support creating images.
@@ -3939,7 +3970,7 @@
       'vdi':            'BlockdevCreateOptionsVdi',
       'vhdx':           'BlockdevCreateOptionsVhdx',
       'vmdk':           'BlockdevCreateNotSupported',
-      'vpc':            'BlockdevCreateNotSupported',
+      'vpc':            'BlockdevCreateOptionsVpc',
       'vvfat':          'BlockdevCreateNotSupported',
       'vxhs':           'BlockdevCreateNotSupported'
   } }
