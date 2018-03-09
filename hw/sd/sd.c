@@ -866,13 +866,18 @@ static void sd_lock_command(SDState *sd)
         sd->card_status &= ~CARD_IS_LOCKED;
 }
 
-static sd_rsp_type_t sd_normal_command(SDState *sd,
-                                       SDRequest req)
+static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
     uint32_t rca = 0x0000;
     uint64_t addr = (sd->ocr & (1 << 30)) ? (uint64_t) req.arg << 9 : req.arg;
 
-    trace_sdcard_normal_command(req.cmd, req.arg, sd_state_name(sd->state));
+    /* CMD55 precedes an ACMD, so we are not interested in tracing it.
+     * However there is no ACMD55, so we want to trace this particular case.
+     */
+    if (req.cmd != 55 || sd->expecting_acmd) {
+        trace_sdcard_normal_command(req.cmd, req.arg,
+                                    sd_state_name(sd->state));
+    }
 
     /* Not interpreting this as an app command */
     sd->card_status &= ~APP_CMD;
