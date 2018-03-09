@@ -1169,6 +1169,14 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         }
         break;
 
+    case 19:    /* CMD19: SEND_TUNING_BLOCK (SD) */
+        if (sd->state == sd_transfer_state) {
+            sd->state = sd_sendingdata_state;
+            sd->data_offset = 0;
+            return sd_r1;
+        }
+        break;
+
     case 23:    /* CMD23: SET_BLOCK_COUNT */
         switch (sd->state) {
         case sd_transfer_state:
@@ -1893,6 +1901,20 @@ void sd_write_data(SDState *sd, uint8_t value)
     }
 }
 
+#define SD_TUNING_BLOCK_SIZE    64
+
+static const uint8_t sd_tuning_block_pattern[SD_TUNING_BLOCK_SIZE] = {
+    /* See: Physical Layer Simplified Specification Version 3.01, Table 4-2 */
+    0xff, 0x0f, 0xff, 0x00,         0x0f, 0xfc, 0xc3, 0xcc,
+    0xc3, 0x3c, 0xcc, 0xff,         0xfe, 0xff, 0xfe, 0xef,
+    0xff, 0xdf, 0xff, 0xdd,         0xff, 0xfb, 0xff, 0xfb,
+    0xbf, 0xff, 0x7f, 0xff,         0x77, 0xf7, 0xbd, 0xef,
+    0xff, 0xf0, 0xff, 0xf0,         0x0f, 0xfc, 0xcc, 0x3c,
+    0xcc, 0x33, 0xcc, 0xcf,         0xff, 0xef, 0xff, 0xee,
+    0xff, 0xfd, 0xff, 0xfd,         0xdf, 0xff, 0xbf, 0xff,
+    0xbb, 0xff, 0xf7, 0xff,         0xf7, 0x7f, 0x7b, 0xde,
+};
+
 uint8_t sd_read_data(SDState *sd)
 {
     /* TODO: Append CRCs */
@@ -1970,6 +1992,13 @@ uint8_t sd_read_data(SDState *sd)
                 }
             }
         }
+        break;
+
+    case 19:    /* CMD19:  SEND_TUNING_BLOCK (SD) */
+        if (sd->data_offset >= SD_TUNING_BLOCK_SIZE - 1) {
+            sd->state = sd_transfer_state;
+        }
+        ret = sd_tuning_block_pattern[sd->data_offset++];
         break;
 
     case 22:	/* ACMD22: SEND_NUM_WR_BLOCKS */
