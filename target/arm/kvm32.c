@@ -28,7 +28,7 @@ static inline void set_feature(uint64_t *features, int feature)
     *features |= 1ULL << feature;
 }
 
-bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
+bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 {
     /* Identify the feature bits corresponding to the host CPU, and
      * fill out the ARMHostCPUClass fields accordingly. To do this
@@ -74,13 +74,13 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
         return false;
     }
 
-    ahcc->target = init.target;
+    ahcf->target = init.target;
 
     /* This is not strictly blessed by the device tree binding docs yet,
      * but in practice the kernel does not care about this string so
      * there is no point maintaining an KVM_ARM_TARGET_* -> string table.
      */
-    ahcc->dtb_compatible = "arm,arm-v7";
+    ahcf->dtb_compatible = "arm,arm-v7";
 
     for (i = 0; i < ARRAY_SIZE(idregs); i++) {
         ret = ioctl(fdarray[2], KVM_GET_ONE_REG, &idregs[i]);
@@ -132,7 +132,7 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
         set_feature(&features, ARM_FEATURE_VFP4);
     }
 
-    ahcc->features = features;
+    ahcf->features = features;
 
     return true;
 }

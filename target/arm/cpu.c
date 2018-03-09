@@ -725,6 +725,19 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     int pagebits;
     Error *local_err = NULL;
 
+    /* If we needed to query the host kernel for the CPU features
+     * then it's possible that might have failed in the initfn, but
+     * this is the first point where we can report it.
+     */
+    if (cpu->host_cpu_probe_failed) {
+        if (!kvm_enabled()) {
+            error_setg(errp, "The 'host' CPU type can only be used with KVM");
+        } else {
+            error_setg(errp, "Failed to retrieve host CPU features");
+        }
+        return;
+    }
+
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
