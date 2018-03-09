@@ -269,4 +269,6 @@
 #define PCI_VENDOR_ID_VMWARE             0x15ad
 #define PCI_DEVICE_ID_VMWARE_PVRDMA      0x0820
 
+#define PCI_VENDOR_ID_SYNOPSYS           0x16C3
+
 #endif
