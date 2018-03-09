@@ -1446,20 +1446,12 @@ struct target_fpsimd_context {
     uint64_t vregs[32 * 2]; /* really uint128_t vregs[32] */
 };
 
-/*
- * Auxiliary context saved in the sigcontext.__reserved array. Not exported to
- * user space as it will change with the addition of new context. User space
- * should check the magic/size information.
- */
-struct target_aux_context {
-    struct target_fpsimd_context fpsimd;
-    /* additional context to be added before "end" */
-    struct target_aarch64_ctx end;
-};
-
 struct target_rt_sigframe {
     struct target_siginfo info;
     struct target_ucontext uc;
+};
+
+struct target_rt_frame_record {
     uint64_t fp;
     uint64_t lr;
     uint32_t tramp[2];
@@ -1565,20 +1557,47 @@ static void target_restore_fpsimd_record(CPUARMState *env,
 static int target_restore_sigframe(CPUARMState *env,
                                    struct target_rt_sigframe *sf)
 {
-    struct target_aux_context *aux
-        = (struct target_aux_context *)sf->uc.tuc_mcontext.__reserved;
-    uint32_t magic, size;
+    struct target_aarch64_ctx *ctx;
+    struct target_fpsimd_context *fpsimd = NULL;
 
     target_restore_general_frame(env, sf);
 
-    __get_user(magic, &aux->fpsimd.head.magic);
-    __get_user(size, &aux->fpsimd.head.size);
-    if (magic == TARGET_FPSIMD_MAGIC
-        && size == sizeof(struct target_fpsimd_context)) {
-        target_restore_fpsimd_record(env, &aux->fpsimd);
-    } else {
+    ctx = (struct target_aarch64_ctx *)sf->uc.tuc_mcontext.__reserved;
+    while (ctx) {
+        uint32_t magic, size;
+
+        __get_user(magic, &ctx->magic);
+        __get_user(size, &ctx->size);
+        switch (magic) {
+        case 0:
+            if (size != 0) {
+                return 1;
+            }
+            ctx = NULL;
+            continue;
+
+        case TARGET_FPSIMD_MAGIC:
+            if (fpsimd || size != sizeof(struct target_fpsimd_context)) {
+                return 1;
+            }
+            fpsimd = (struct target_fpsimd_context *)ctx;
+            break;
+
+        default:
+            /* Unknown record -- we certainly didn't generate it.
+             * Did we in fact get out of sync?
+             */
+            return 1;
+        }
+        ctx = (void *)ctx + size;
+    }
+
+    /* Require FPSIMD always.  */
+    if (!fpsimd) {
         return 1;
     }
+    target_restore_fpsimd_record(env, fpsimd);
+
     return 0;
 }
 
@@ -1604,20 +1623,33 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
                                target_siginfo_t *info, target_sigset_t *set,
                                CPUARMState *env)
 {
+    int size = offsetof(struct target_rt_sigframe, uc.tuc_mcontext.__reserved);
+    int fpsimd_ofs, end1_ofs, fr_ofs;
     struct target_rt_sigframe *frame;
-    struct target_aux_context *aux;
+    struct target_rt_frame_record *fr;
     abi_ulong frame_addr, return_addr;
+
+    fpsimd_ofs = size;
+    size += sizeof(struct target_fpsimd_context);
+    end1_ofs = size;
+    size += sizeof(struct target_aarch64_ctx);
+    fr_ofs = size;
+    size += sizeof(struct target_rt_frame_record);
 
     frame_addr = get_sigframe(ka, env);
     trace_user_setup_frame(env, frame_addr);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
         goto give_sigsegv;
     }
-    aux = (struct target_aux_context *)frame->uc.tuc_mcontext.__reserved;
 
     target_setup_general_frame(frame, env, set);
-    target_setup_fpsimd_record(&aux->fpsimd, env);
-    target_setup_end_record(&aux->end);
+    target_setup_fpsimd_record((void *)frame + fpsimd_ofs, env);
+    target_setup_end_record((void *)frame + end1_ofs);
+
+    /* Set up the stack frame for unwinding.  */
+    fr = (void *)frame + fr_ofs;
+    __put_user(env->xregs[29], &fr->fp);
+    __put_user(env->xregs[30], &fr->lr);
 
     if (ka->sa_flags & TARGET_SA_RESTORER) {
         return_addr = ka->sa_restorer;
@@ -1627,13 +1659,14 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
          * Since these are instructions they need to be put as little-endian
          * regardless of target default or current CPU endianness.
          */
-        __put_user_e(0xd2801168, &frame->tramp[0], le);
-        __put_user_e(0xd4000001, &frame->tramp[1], le);
-        return_addr = frame_addr + offsetof(struct target_rt_sigframe, tramp);
+        __put_user_e(0xd2801168, &fr->tramp[0], le);
+        __put_user_e(0xd4000001, &fr->tramp[1], le);
+        return_addr = frame_addr + fr_ofs
+            + offsetof(struct target_rt_frame_record, tramp);
     }
     env->xregs[0] = usig;
     env->xregs[31] = frame_addr;
-    env->xregs[29] = env->xregs[31] + offsetof(struct target_rt_sigframe, fp);
+    env->xregs[29] = frame_addr + fr_ofs;
     env->pc = ka->_sa_handler;
     env->xregs[30] = return_addr;
     if (info) {
