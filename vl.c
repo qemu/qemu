@@ -4722,17 +4722,10 @@ int main(int argc, char **argv, char **envp)
     os_setup_post();
 
     main_loop();
-    replay_disable_events();
 
-    /* The ordering of the following is delicate.  Stop vcpus to prevent new
-     * I/O requests being queued by the guest.  Then stop IOThreads (this
-     * includes a drain operation and completes all request processing).  At
-     * this point emulated devices are still associated with their IOThreads
-     * (if any) but no longer have any work to do.  Only then can we close
-     * block devices safely because we know there is no more I/O coming.
-     */
-    pause_all_vcpus();
-    iothread_stop_all();
+    /* No more vcpu or device emulation activity beyond this point */
+    vm_shutdown();
+
     bdrv_close_all();
 
     res_free();

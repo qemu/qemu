@@ -45,7 +45,6 @@ typedef struct {
 char *iothread_get_id(IOThread *iothread);
 IOThread *iothread_by_id(const char *id);
 AioContext *iothread_get_aio_context(IOThread *iothread);
-void iothread_stop_all(void);
 GMainContext *iothread_get_g_main_context(IOThread *iothread);
 
 /*
