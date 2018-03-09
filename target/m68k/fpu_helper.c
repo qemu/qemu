@@ -557,3 +557,38 @@ void HELPER(fscale)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
     res->d = floatx80_scale(val1->d, val0->d, &env->fp_status);
 }
+
+void HELPER(flognp1)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_lognp1(val->d, &env->fp_status);
+}
+
+void HELPER(flogn)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_logn(val->d, &env->fp_status);
+}
+
+void HELPER(flog10)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_log10(val->d, &env->fp_status);
+}
+
+void HELPER(flog2)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_log2(val->d, &env->fp_status);
+}
+
+void HELPER(fetox)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_etox(val->d, &env->fp_status);
+}
+
+void HELPER(ftwotox)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_twotox(val->d, &env->fp_status);
+}
+
+void HELPER(ftentox)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_tentox(val->d, &env->fp_status);
+}

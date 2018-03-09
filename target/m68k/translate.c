@@ -5054,6 +5054,27 @@ DISAS_INSN(fpu)
     case 0x45: /* fdsqrt */
         gen_helper_fdsqrt(cpu_env, cpu_dest, cpu_src);
         break;
+    case 0x06: /* flognp1 */
+        gen_helper_flognp1(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x10: /* fetox */
+        gen_helper_fetox(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x11: /* ftwotox */
+        gen_helper_ftwotox(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x12: /* ftentox */
+        gen_helper_ftentox(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x14: /* flogn */
+        gen_helper_flogn(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x15: /* flog10 */
+        gen_helper_flog10(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x16: /* flog2 */
+        gen_helper_flog2(cpu_env, cpu_dest, cpu_src);
+        break;
     case 0x18: /* fabs */
         gen_helper_fabs(cpu_env, cpu_dest, cpu_src);
         break;
