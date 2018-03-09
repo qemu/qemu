@@ -320,10 +320,12 @@
 #
 # @s390: since 2.12
 #
+# @riscv: since 2.12
+#
 # Since: 2.6
 ##
 { 'enum': 'CpuInfoArch',
-  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 's390', 'other' ] }
+  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 's390', 'riscv', 'other' ] }
 
 ##
 # @CpuInfo:
@@ -363,6 +365,7 @@
             'mips': 'CpuInfoMIPS',
             'tricore': 'CpuInfoTricore',
             's390': 'CpuInfoS390',
+            'riscv': 'CpuInfoRISCV',
             'other': 'CpuInfoOther' } }
 
 ##
@@ -421,6 +424,17 @@
 # Since: 2.6
 ##
 { 'struct': 'CpuInfoTricore', 'data': { 'PC': 'int' } }
+
+##
+# @CpuInfoRISCV:
+#
+# Additional information about a virtual RISCV CPU
+#
+# @pc: the instruction pointer
+#
+# Since 2.12
+##
+{ 'struct': 'CpuInfoRISCV', 'data': { 'pc': 'int' } }
 
 ##
 # @CpuInfoOther:
@@ -533,6 +547,7 @@
             'mips': 'CpuInfoOther',
             'tricore': 'CpuInfoOther',
             's390': 'CpuInfoS390',
+            'riscv': 'CpuInfoRISCV',
             'other': 'CpuInfoOther' } }
 
 ##

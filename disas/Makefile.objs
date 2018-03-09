@@ -17,6 +17,7 @@ common-obj-$(CONFIG_MIPS_DIS) += mips.o
 common-obj-$(CONFIG_NIOS2_DIS) += nios2.o
 common-obj-$(CONFIG_MOXIE_DIS) += moxie.o
 common-obj-$(CONFIG_PPC_DIS) += ppc.o
+common-obj-$(CONFIG_RISCV_DIS) += riscv.o
 common-obj-$(CONFIG_S390_DIS) += s390.o
 common-obj-$(CONFIG_SH4_DIS) += sh4.o
 common-obj-$(CONFIG_SPARC_DIS) += sparc.o

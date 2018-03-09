@@ -522,6 +522,8 @@ void disas(FILE *out, void *code, unsigned long size)
 # ifdef _ARCH_PPC64
     s.info.cap_mode = CS_MODE_64;
 # endif
+#elif defined(__riscv__)
+    print_insn = print_insn_riscv;
 #elif defined(__aarch64__) && defined(CONFIG_ARM_A64_DIS)
     print_insn = print_insn_arm_a64;
     s.info.cap_arch = CS_ARCH_ARM64;

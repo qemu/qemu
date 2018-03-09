@@ -8555,9 +8555,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_ioctl:
         ret = do_ioctl(arg1, arg2, arg3);
         break;
+#ifdef TARGET_NR_fcntl
     case TARGET_NR_fcntl:
         ret = do_fcntl(arg1, arg2, arg3);
         break;
+#endif
 #ifdef TARGET_NR_mpx
     case TARGET_NR_mpx:
         goto unimplemented;

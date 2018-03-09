@@ -1,0 +1,11 @@
+obj-y += riscv_htif.o
+obj-y += riscv_hart.o
+obj-y += sifive_e.o
+obj-y += sifive_clint.o
+obj-y += sifive_prci.o
+obj-y += sifive_plic.o
+obj-y += sifive_test.o
+obj-y += sifive_u.o
+obj-y += sifive_uart.o
+obj-y += spike.o
+obj-y += virt.o
