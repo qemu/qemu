@@ -83,16 +83,27 @@ The greeting message format is:
 2.2.1 Capabilities
 ------------------
 
-As of the date this document was last revised, no server or client
-capability strings have been defined.
+Currently supported capabilities are:
 
+- "oob": the QMP server supports "Out-Of-Band" (OOB) command
+  execution.  For more details, please see the "run-oob" parameter in
+  the "Issuing Commands" section below.  Not all commands allow this
+  "oob" execution.  The "query-qmp-schema" command can be used to
+  inspect which commands support "oob" execution.
+
+QMP clients can get a list of supported QMP capabilities of the QMP
+server in the greeting message mentioned above.  By default, all the
+capabilities are off.  To enable any QMP capabilities, the QMP client
+needs to send the "qmp_capabilities" command with an extra parameter
+for the requested capabilities.
 
 2.3 Issuing Commands
 --------------------
 
 The format for command execution is:
 
-{ "execute": json-string, "arguments": json-object, "id": json-value }
+{ "execute": json-string, "arguments": json-object, "id": json-value,
+  "control": json-object }
 
  Where,
 
@@ -102,16 +113,27 @@ The format for command execution is:
   required. Each command documents what contents will be considered
   valid when handling the json-argument
 - The "id" member is a transaction identification associated with the
-  command execution, it is optional and will be part of the response if
-  provided. The "id" member can be any json-value, although most
-  clients merely use a json-number incremented for each successive
-  command
+  command execution.  It is required for all commands if the OOB -
+  capability was enabled at startup, and optional otherwise.  The same
+  "id" field will be part of the response if provided. The "id" member
+  can be any json-value, although most clients merely use a
+  json-number incremented for each successive command
+- The "control" member is optional, and currently only used for
+  out-of-band execution. The handling or response of an "oob" command
+  can overtake prior in-band commands.  To enable "oob" handling of a
+  particular command, just provide a control field with: { "control":
+  { "run-oob": true } }
 
 2.4 Commands Responses
 ----------------------
 
 There are two possible responses which the Server will issue as the result
 of a command execution: success or error.
+
+As long as the commands were issued with a proper "id" field, then the
+same "id" field will be attached in the corresponding response message
+so that requests and responses can match.  Clients should drop all the
+responses that have an unknown "id" field.
 
 2.4.1 success
 -------------
