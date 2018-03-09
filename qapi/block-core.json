@@ -3644,6 +3644,25 @@
             '*cluster-size':    'size' } }
 
 ##
+# @BlockdevCreateOptionsQcow:
+#
+# Driver specific image creation options for qcow.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @backing-file     File name of the backing file if a backing file
+#                   should be used
+# @encrypt          Encryption options if the image should be encrypted
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsQcow',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size',
+            '*backing-file':    'str',
+            '*encrypt':         'QCryptoBlockCreateOptions' } }
+
+##
 # @BlockdevQcow2Version:
 #
 # @v2:  The original QCOW2 format as introduced in qemu 0.10 (version 2)
@@ -3846,8 +3865,8 @@
       'null-co':        'BlockdevCreateNotSupported',
       'nvme':           'BlockdevCreateNotSupported',
       'parallels':      'BlockdevCreateOptionsParallels',
+      'qcow':           'BlockdevCreateOptionsQcow',
       'qcow2':          'BlockdevCreateOptionsQcow2',
-      'qcow':           'BlockdevCreateNotSupported',
       'qed':            'BlockdevCreateNotSupported',
       'quorum':         'BlockdevCreateNotSupported',
       'raw':            'BlockdevCreateNotSupported',
