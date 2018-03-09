@@ -970,9 +970,19 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     ObjectClass *oc;
     char *typename;
     char **cpuname;
+    const char *cpunamestr;
 
     cpuname = g_strsplit(cpu_model, ",", 1);
-    typename = g_strdup_printf(ARM_CPU_TYPE_NAME("%s"), cpuname[0]);
+    cpunamestr = cpuname[0];
+#ifdef CONFIG_USER_ONLY
+    /* For backwards compatibility usermode emulation allows "-cpu any",
+     * which has the same semantics as "-cpu max".
+     */
+    if (!strcmp(cpunamestr, "any")) {
+        cpunamestr = "max";
+    }
+#endif
+    typename = g_strdup_printf(ARM_CPU_TYPE_NAME("%s"), cpunamestr);
     oc = object_class_by_name(typename);
     g_strfreev(cpuname);
     g_free(typename);
@@ -1716,29 +1726,23 @@ static void arm_max_initfn(Object *obj)
         kvm_arm_set_cpu_features_from_host(cpu);
     } else {
         cortex_a15_initfn(obj);
-        /* In future we might add feature bits here even if the
-         * real-world A15 doesn't implement them.
-         */
-    }
-}
-#endif
-
 #ifdef CONFIG_USER_ONLY
-static void arm_any_initfn(Object *obj)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_VFP4);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
-    set_feature(&cpu->env, ARM_FEATURE_V8_AES);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
-    set_feature(&cpu->env, ARM_FEATURE_V8_PMULL);
-    set_feature(&cpu->env, ARM_FEATURE_CRC);
-    set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
-    set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
-    cpu->midr = 0xffffffff;
+        /* We don't set these in system emulation mode for the moment,
+         * since we don't correctly set the ID registers to advertise them,
+         */
+        set_feature(&cpu->env, ARM_FEATURE_V8);
+        set_feature(&cpu->env, ARM_FEATURE_VFP4);
+        set_feature(&cpu->env, ARM_FEATURE_NEON);
+        set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+        set_feature(&cpu->env, ARM_FEATURE_V8_AES);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
+        set_feature(&cpu->env, ARM_FEATURE_V8_PMULL);
+        set_feature(&cpu->env, ARM_FEATURE_CRC);
+        set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
+        set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
+#endif
+    }
 }
 #endif
 
@@ -1794,7 +1798,7 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "max",         .initfn = arm_max_initfn },
 #endif
 #ifdef CONFIG_USER_ONLY
-    { .name = "any",         .initfn = arm_any_initfn },
+    { .name = "any",         .initfn = arm_max_initfn },
 #endif
 #endif
     { .name = NULL }

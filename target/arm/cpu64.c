@@ -228,37 +228,37 @@ static void aarch64_max_initfn(Object *obj)
         kvm_arm_set_cpu_features_from_host(cpu);
     } else {
         aarch64_a57_initfn(obj);
-        /* In future we might add feature bits here even if the
-         * real-world A57 doesn't implement them.
+#ifdef CONFIG_USER_ONLY
+        /* We don't set these in system emulation mode for the moment,
+         * since we don't correctly set the ID registers to advertise them,
+         * and in some cases they're only available in AArch64 and not AArch32,
+         * whereas the architecture requires them to be present in both if
+         * present in either.
          */
+        set_feature(&cpu->env, ARM_FEATURE_V8);
+        set_feature(&cpu->env, ARM_FEATURE_VFP4);
+        set_feature(&cpu->env, ARM_FEATURE_NEON);
+        set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+        set_feature(&cpu->env, ARM_FEATURE_V8_AES);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA512);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA3);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SM3);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SM4);
+        set_feature(&cpu->env, ARM_FEATURE_V8_PMULL);
+        set_feature(&cpu->env, ARM_FEATURE_CRC);
+        set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
+        set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
+        set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
+        /* For usermode -cpu max we can use a larger and more efficient DCZ
+         * blocksize since we don't have to follow what the hardware does.
+         */
+        cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
+        cpu->dcz_blocksize = 7; /*  512 bytes */
+#endif
     }
 }
-
-#ifdef CONFIG_USER_ONLY
-static void aarch64_any_initfn(Object *obj)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_VFP4);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_V8_AES);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SHA512);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SHA3);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SM3);
-    set_feature(&cpu->env, ARM_FEATURE_V8_SM4);
-    set_feature(&cpu->env, ARM_FEATURE_V8_PMULL);
-    set_feature(&cpu->env, ARM_FEATURE_CRC);
-    set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
-    set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
-    set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
-    cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
-    cpu->dcz_blocksize = 7; /*  512 bytes */
-}
-#endif
 
 typedef struct ARMCPUInfo {
     const char *name;
@@ -270,9 +270,6 @@ static const ARMCPUInfo aarch64_cpus[] = {
     { .name = "cortex-a57",         .initfn = aarch64_a57_initfn },
     { .name = "cortex-a53",         .initfn = aarch64_a53_initfn },
     { .name = "max",                .initfn = aarch64_max_initfn },
-#ifdef CONFIG_USER_ONLY
-    { .name = "any",         .initfn = aarch64_any_initfn },
-#endif
     { .name = NULL }
 };
 
