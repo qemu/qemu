@@ -742,7 +742,7 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
 
     logout("\n");
 
-    /* Read out options. */
+    /* Validate options and set default values */
     bytes = vdi_opts->size;
     if (vdi_opts->q_static) {
         image_type = VDI_TYPE_STATIC;
@@ -772,6 +772,7 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
         goto exit;
     }
 
+    /* Create BlockBackend to write to the image */
     bs_file = bdrv_open_blockdev_ref(vdi_opts->file, errp);
     if (!bs_file) {
         ret = -EIO;
@@ -877,7 +878,9 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
     Error *local_err = NULL;
     int ret;
 
-    /* Since CONFIG_VDI_BLOCK_SIZE is disabled by default,
+    /* Parse options and convert legacy syntax.
+     *
+     * Since CONFIG_VDI_BLOCK_SIZE is disabled by default,
      * cluster-size is not part of the QAPI schema; therefore we have
      * to parse it before creating the QAPI object. */
 #if defined(CONFIG_VDI_BLOCK_SIZE)
@@ -895,6 +898,7 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
 
     qdict = qemu_opts_to_qdict_filtered(opts, NULL, &vdi_create_opts, true);
 
+    /* Create and open the file (protocol layer) */
     ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
         goto done;
@@ -921,10 +925,12 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         goto done;
     }
 
+    /* Silently round up size */
     assert(create_options->driver == BLOCKDEV_DRIVER_VDI);
     create_options->u.vdi.size = ROUND_UP(create_options->u.vdi.size,
                                           BDRV_SECTOR_SIZE);
 
+    /* Create the vdi image (format layer) */
     ret = vdi_co_do_create(create_options, block_size, errp);
 done:
     QDECREF(qdict);
@@ -981,8 +987,8 @@ static BlockDriver bdrv_vdi = {
     .bdrv_close = vdi_close,
     .bdrv_reopen_prepare = vdi_reopen_prepare,
     .bdrv_child_perm          = bdrv_format_default_perms,
-    .bdrv_co_create_opts = vdi_co_create_opts,
     .bdrv_co_create      = vdi_co_create,
+    .bdrv_co_create_opts = vdi_co_create_opts,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_block_status = vdi_co_block_status,
     .bdrv_make_empty = vdi_make_empty,
