@@ -3706,6 +3706,29 @@
             '*refcount-bits':   'int' } }
 
 ##
+# @BlockdevCreateOptionsQed:
+#
+# Driver specific image creation options for qed.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @backing-file     File name of the backing file if a backing file
+#                   should be used
+# @backing-fmt      Name of the block driver to use for the backing file
+# @cluster-size     Cluster size in bytes (default: 65536)
+# @table-size       L1/L2 table size (in clusters)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsQed',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size',
+            '*backing-file':    'str',
+            '*backing-fmt':     'BlockdevDriver',
+            '*cluster-size':    'size',
+            '*table-size':      'int' } }
+
+##
 # @BlockdevCreateOptionsRbd:
 #
 # Driver specific image creation options for rbd/Ceph.
@@ -3867,7 +3890,7 @@
       'parallels':      'BlockdevCreateOptionsParallels',
       'qcow':           'BlockdevCreateOptionsQcow',
       'qcow2':          'BlockdevCreateOptionsQcow2',
-      'qed':            'BlockdevCreateNotSupported',
+      'qed':            'BlockdevCreateOptionsQed',
       'quorum':         'BlockdevCreateNotSupported',
       'raw':            'BlockdevCreateNotSupported',
       'rbd':            'BlockdevCreateOptionsRbd',
