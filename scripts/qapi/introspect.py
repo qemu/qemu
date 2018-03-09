@@ -41,6 +41,8 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
         ret += 'QLIT_QDICT(((QLitDictEntry[]) {\n'
         ret += ',\n'.join(elts) + '\n'
         ret += indent(level) + '}))'
+    elif isinstance(obj, bool):
+        ret += 'QLIT_QBOOL(%s)' % ('true' if obj else 'false')
     else:
         assert False                # not implemented
     return ret
@@ -170,12 +172,13 @@ const QLitObject %(c_name)s = %(c_string)s;
                                     for m in variants.variants]})
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, allow_oob):
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
         self._gen_qlit(name, 'command',
                        {'arg-type': self._use_type(arg_type),
-                        'ret-type': self._use_type(ret_type)})
+                        'ret-type': self._use_type(ret_type),
+                        'allow-oob': allow_oob})
 
     def visit_event(self, name, info, arg_type, boxed):
         arg_type = arg_type or self._schema.the_empty_object_type
