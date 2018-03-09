@@ -3845,6 +3845,44 @@
             '*static':          'bool' } }
 
 ##
+# @BlockdevVhdxSubformat:
+#
+# @dynamic: Growing image file
+# @fixed:   Preallocated fixed-size image file
+#
+# Since: 2.12
+##
+{ 'enum': 'BlockdevVhdxSubformat',
+  'data': [ 'dynamic', 'fixed' ] }
+
+##
+# @BlockdevCreateOptionsVhdx:
+#
+# Driver specific image creation options for vhdx.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @log-size         Log size in bytes, must be a multiple of 1 MB
+#                   (default: 1 MB)
+# @block-size       Block size in bytes, must be a multiple of 1 MB and not
+#                   larger than 256 MB (default: automatically choose a block
+#                   size depending on the image size)
+# @subformat        vhdx subformat (default: dynamic)
+# @block-state-zero Force use of payload blocks of type 'ZERO'. Non-standard,
+#                   but default.  Do not set to 'off' when using 'qemu-img
+#                   convert' with subformat=dynamic.
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsVhdx',
+  'data': { 'file':                 'BlockdevRef',
+            'size':                 'size',
+            '*log-size':            'size',
+            '*block-size':          'size',
+            '*subformat':           'BlockdevVhdxSubformat',
+            '*block-state-zero':    'bool' } }
+
+##
 # @BlockdevCreateNotSupported:
 #
 # This is used for all drivers that don't support creating images.
@@ -3899,7 +3937,7 @@
       'ssh':            'BlockdevCreateOptionsSsh',
       'throttle':       'BlockdevCreateNotSupported',
       'vdi':            'BlockdevCreateOptionsVdi',
-      'vhdx':           'BlockdevCreateNotSupported',
+      'vhdx':           'BlockdevCreateOptionsVhdx',
       'vmdk':           'BlockdevCreateNotSupported',
       'vpc':            'BlockdevCreateNotSupported',
       'vvfat':          'BlockdevCreateNotSupported',
