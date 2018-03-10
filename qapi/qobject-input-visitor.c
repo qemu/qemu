@@ -339,7 +339,7 @@ static GenericList *qobject_input_next_list(Visitor *v, GenericList *tail,
     QObjectInputVisitor *qiv = to_qiv(v);
     StackObject *tos = QSLIST_FIRST(&qiv->stack);
 
-    assert(tos && tos->obj && qobject_type(tos->obj) == QTYPE_QLIST);
+    assert(tos && qobject_to(QList, tos->obj));
 
     if (!tos->entry) {
         return NULL;
@@ -353,7 +353,7 @@ static void qobject_input_check_list(Visitor *v, Error **errp)
     QObjectInputVisitor *qiv = to_qiv(v);
     StackObject *tos = QSLIST_FIRST(&qiv->stack);
 
-    assert(tos && tos->obj && qobject_type(tos->obj) == QTYPE_QLIST);
+    assert(tos && qobject_to(QList, tos->obj));
 
     if (tos->entry) {
         error_setg(errp, "Only %u list elements expected in %s",

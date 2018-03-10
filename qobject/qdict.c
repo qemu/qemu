@@ -882,18 +882,20 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
 
         child = qdict_get(two_level, prefix);
         if (suffix) {
-            if (child) {
-                if (qobject_type(child) != QTYPE_QDICT) {
+            QDict *child_dict = qobject_to(QDict, child);
+            if (!child_dict) {
+                if (child) {
                     error_setg(errp, "Key %s prefix is already set as a scalar",
                                prefix);
                     goto error;
                 }
-            } else {
-                child = QOBJECT(qdict_new());
-                qdict_put_obj(two_level, prefix, child);
+
+                child_dict = qdict_new();
+                qdict_put_obj(two_level, prefix, QOBJECT(child_dict));
             }
+
             qobject_incref(ent->value);
-            qdict_put_obj(qobject_to(QDict, child), suffix, ent->value);
+            qdict_put_obj(child_dict, suffix, ent->value);
         } else {
             if (child) {
                 error_setg(errp, "Key %s prefix is already set as a dict",
@@ -913,9 +915,9 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
     multi_level = qdict_new();
     for (ent = qdict_first(two_level); ent != NULL;
          ent = qdict_next(two_level, ent)) {
-
-        if (qobject_type(ent->value) == QTYPE_QDICT) {
-            child = qdict_crumple(qobject_to(QDict, ent->value), errp);
+        QDict *dict = qobject_to(QDict, ent->value);
+        if (dict) {
+            child = qdict_crumple(dict, errp);
             if (!child) {
                 goto error;
             }
