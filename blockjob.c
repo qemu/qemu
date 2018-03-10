@@ -415,6 +415,29 @@ static void block_job_update_rc(BlockJob *job)
     }
 }
 
+static void block_job_commit(BlockJob *job)
+{
+    assert(!job->ret);
+    if (job->driver->commit) {
+        job->driver->commit(job);
+    }
+}
+
+static void block_job_abort(BlockJob *job)
+{
+    assert(job->ret);
+    if (job->driver->abort) {
+        job->driver->abort(job);
+    }
+}
+
+static void block_job_clean(BlockJob *job)
+{
+    if (job->driver->clean) {
+        job->driver->clean(job);
+    }
+}
+
 static void block_job_completed_single(BlockJob *job)
 {
     assert(job->completed);
@@ -423,17 +446,11 @@ static void block_job_completed_single(BlockJob *job)
     block_job_update_rc(job);
 
     if (!job->ret) {
-        if (job->driver->commit) {
-            job->driver->commit(job);
-        }
+        block_job_commit(job);
     } else {
-        if (job->driver->abort) {
-            job->driver->abort(job);
-        }
+        block_job_abort(job);
     }
-    if (job->driver->clean) {
-        job->driver->clean(job);
-    }
+    block_job_clean(job);
 
     if (job->cb) {
         job->cb(job->opaque, job->ret);
