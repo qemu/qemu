@@ -499,7 +499,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     job->speed = speed;
-    if (speed <= old_speed) {
+    if (speed && speed <= old_speed) {
         return;
     }
 
