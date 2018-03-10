@@ -999,10 +999,15 @@
 # @standby: The job is ready, but paused. This is nearly identical to @paused.
 #           The job may return to @ready or otherwise be canceled.
 #
+# @aborting: The job is in the process of being aborted, and will finish with
+#            an error.
+#            This status may not be visible to the management process.
+#
 # Since: 2.12
 ##
 { 'enum': 'BlockJobStatus',
-  'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby'] }
+  'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
+           'aborting' ] }
 
 ##
 # @BlockJobInfo:
