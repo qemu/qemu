@@ -244,6 +244,23 @@ void block_job_cancel(BlockJob *job);
  */
 void block_job_complete(BlockJob *job, Error **errp);
 
+
+/**
+ * block_job_finalize:
+ * @job: The job to fully commit and finish.
+ * @errp: Error object.
+ *
+ * For jobs that have finished their work and are pending
+ * awaiting explicit acknowledgement to commit their work,
+ * This will commit that work.
+ *
+ * FIXME: Make the below statement universally true:
+ * For jobs that support the manual workflow mode, all graph
+ * changes that occur as a result will occur after this command
+ * and before a successful reply.
+ */
+void block_job_finalize(BlockJob *job, Error **errp);
+
 /**
  * block_job_dismiss:
  * @job: The job to be dismissed.

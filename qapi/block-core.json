@@ -975,10 +975,13 @@
 #
 # @dismiss: see @block-job-dismiss
 #
+# @finalize: see @block-job-finalize
+#
 # Since: 2.12
 ##
 { 'enum': 'BlockJobVerb',
-  'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete', 'dismiss' ] }
+  'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete', 'dismiss',
+           'finalize' ] }
 
 ##
 # @BlockJobStatus:
@@ -2276,6 +2279,24 @@
 # Since: 2.12
 ##
 { 'command': 'block-job-dismiss', 'data': { 'id': 'str' } }
+
+##
+# @block-job-finalize:
+#
+# Once a job that has manual=true reaches the pending state, it can be
+# instructed to finalize any graph changes and do any necessary cleanup
+# via this command.
+# For jobs in a transaction, instructing one job to finalize will force
+# ALL jobs in the transaction to finalize, so it is only necessary to instruct
+# a single member job to finalize.
+#
+# @id: The job identifier.
+#
+# Returns: Nothing on success
+#
+# Since: 2.12
+##
+{ 'command': 'block-job-finalize', 'data': { 'id': 'str' } }
 
 ##
 # @BlockdevDiscardOptions:

@@ -65,6 +65,7 @@ bool BlockJobVerbTable[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
     [BLOCK_JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
     [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
     [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_FINALIZE]             = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
     [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
 };
 
@@ -449,7 +450,7 @@ static void block_job_clean(BlockJob *job)
     }
 }
 
-static int block_job_completed_single(BlockJob *job)
+static int block_job_finalize_single(BlockJob *job)
 {
     assert(job->completed);
 
@@ -590,18 +591,36 @@ static void block_job_completed_txn_abort(BlockJob *job)
             assert(other_job->cancelled);
             block_job_finish_sync(other_job, NULL, NULL);
         }
-        block_job_completed_single(other_job);
+        block_job_finalize_single(other_job);
         aio_context_release(ctx);
     }
 
     block_job_txn_unref(txn);
 }
 
+static int block_job_needs_finalize(BlockJob *job)
+{
+    return !job->auto_finalize;
+}
+
+static void block_job_do_finalize(BlockJob *job)
+{
+    int rc;
+    assert(job && job->txn);
+
+    /* prepare the transaction to complete */
+    rc = block_job_txn_apply(job->txn, block_job_prepare, true);
+    if (rc) {
+        block_job_completed_txn_abort(job);
+    } else {
+        block_job_txn_apply(job->txn, block_job_finalize_single, true);
+    }
+}
+
 static void block_job_completed_txn_success(BlockJob *job)
 {
     BlockJobTxn *txn = job->txn;
     BlockJob *other_job;
-    int rc = 0;
 
     block_job_state_transition(job, BLOCK_JOB_STATUS_WAITING);
 
@@ -616,16 +635,12 @@ static void block_job_completed_txn_success(BlockJob *job)
         assert(other_job->ret == 0);
     }
 
-    /* Jobs may require some prep-work to complete without failure */
-    rc = block_job_txn_apply(txn, block_job_prepare, true);
-    if (rc) {
-        block_job_completed_txn_abort(job);
-        return;
-    }
-
-    /* We are the last completed job, commit the transaction. */
     block_job_txn_apply(txn, block_job_event_pending, false);
-    block_job_txn_apply(txn, block_job_completed_single, true);
+
+    /* If no jobs need manual finalization, automatically do so */
+    if (block_job_txn_apply(txn, block_job_needs_finalize, false) == 0) {
+        block_job_do_finalize(job);
+    }
 }
 
 /* Assumes the block_job_mutex is held */
@@ -675,6 +690,15 @@ void block_job_complete(BlockJob *job, Error **errp)
     }
 
     job->driver->complete(job, errp);
+}
+
+void block_job_finalize(BlockJob *job, Error **errp)
+{
+    assert(job && job->id && job->txn);
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_FINALIZE, errp)) {
+        return;
+    }
+    block_job_do_finalize(job);
 }
 
 void block_job_dismiss(BlockJob **jobptr, Error **errp)
@@ -727,11 +751,15 @@ void block_job_cancel(BlockJob *job)
 {
     if (job->status == BLOCK_JOB_STATUS_CONCLUDED) {
         block_job_do_dismiss(job);
-    } else if (block_job_started(job)) {
-        block_job_cancel_async(job);
-        block_job_enter(job);
-    } else {
+        return;
+    }
+    block_job_cancel_async(job);
+    if (!block_job_started(job)) {
         block_job_completed(job, -ECANCELED);
+    } else if (job->deferred_to_main_loop) {
+        block_job_completed_txn_abort(job);
+    } else {
+        block_job_enter(job);
     }
 }
 
