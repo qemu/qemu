@@ -415,6 +415,14 @@ static void block_job_update_rc(BlockJob *job)
     }
 }
 
+static int block_job_prepare(BlockJob *job)
+{
+    if (job->ret == 0 && job->driver->prepare) {
+        job->ret = job->driver->prepare(job);
+    }
+    return job->ret;
+}
+
 static void block_job_commit(BlockJob *job)
 {
     assert(!job->ret);
@@ -438,7 +446,7 @@ static void block_job_clean(BlockJob *job)
     }
 }
 
-static void block_job_completed_single(BlockJob *job)
+static int block_job_completed_single(BlockJob *job)
 {
     assert(job->completed);
 
@@ -472,6 +480,7 @@ static void block_job_completed_single(BlockJob *job)
     QLIST_REMOVE(job, txn_list);
     block_job_txn_unref(job->txn);
     block_job_conclude(job);
+    return 0;
 }
 
 static void block_job_cancel_async(BlockJob *job)
@@ -487,17 +496,22 @@ static void block_job_cancel_async(BlockJob *job)
     job->cancelled = true;
 }
 
-static void block_job_txn_apply(BlockJobTxn *txn, void fn(BlockJob *))
+static int block_job_txn_apply(BlockJobTxn *txn, int fn(BlockJob *))
 {
     AioContext *ctx;
     BlockJob *job, *next;
+    int rc = 0;
 
     QLIST_FOREACH_SAFE(job, &txn->jobs, txn_list, next) {
         ctx = blk_get_aio_context(job->blk);
         aio_context_acquire(ctx);
-        fn(job);
+        rc = fn(job);
         aio_context_release(ctx);
+        if (rc) {
+            break;
+        }
     }
+    return rc;
 }
 
 static int block_job_finish_sync(BlockJob *job,
@@ -580,6 +594,8 @@ static void block_job_completed_txn_success(BlockJob *job)
 {
     BlockJobTxn *txn = job->txn;
     BlockJob *other_job;
+    int rc = 0;
+
     /*
      * Successful completion, see if there are other running jobs in this
      * txn.
@@ -590,6 +606,14 @@ static void block_job_completed_txn_success(BlockJob *job)
         }
         assert(other_job->ret == 0);
     }
+
+    /* Jobs may require some prep-work to complete without failure */
+    rc = block_job_txn_apply(txn, block_job_prepare);
+    if (rc) {
+        block_job_completed_txn_abort(job);
+        return;
+    }
+
     /* We are the last completed job, commit the transaction. */
     block_job_txn_apply(txn, block_job_completed_single);
 }

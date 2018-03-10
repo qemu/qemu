@@ -54,6 +54,16 @@ struct BlockJobDriver {
     void (*complete)(BlockJob *job, Error **errp);
 
     /**
+     * If the callback is not NULL, prepare will be invoked when all the jobs
+     * belonging to the same transaction complete; or upon this job's completion
+     * if it is not in a transaction.
+     *
+     * This callback will not be invoked if the job has already failed.
+     * If it fails, abort and then clean will be called.
+     */
+    int (*prepare)(BlockJob *job);
+
+    /**
      * If the callback is not NULL, it will be invoked when all the jobs
      * belonging to the same transaction complete; or upon this job's
      * completion if it is not in a transaction. Skipped if NULL.
