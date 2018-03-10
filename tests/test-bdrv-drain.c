@@ -541,8 +541,8 @@ static void test_blockjob_common(enum drain_type drain_type)
     blk_target = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk_target, target, &error_abort);
 
-    job = block_job_create("job0", &test_job_driver, src, 0, BLK_PERM_ALL, 0,
-                           0, NULL, NULL, &error_abort);
+    job = block_job_create("job0", &test_job_driver, NULL, src, 0, BLK_PERM_ALL,
+                           0, 0, NULL, NULL, &error_abort);
     block_job_add_bdrv(job, "target", target, 0, BLK_PERM_ALL, &error_abort);
     block_job_start(job);
 

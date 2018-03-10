@@ -1166,7 +1166,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     }
 
     /* Make sure that the source is not resized while the job is running */
-    s = block_job_create(job_id, driver, mirror_top_bs,
+    s = block_job_create(job_id, driver, NULL, mirror_top_bs,
                          BLK_PERM_CONSISTENT_READ,
                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
                          BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD, speed,

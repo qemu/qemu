@@ -357,10 +357,8 @@ static void block_job_completed_single(BlockJob *job)
         }
     }
 
-    if (job->txn) {
-        QLIST_REMOVE(job, txn_list);
-        block_job_txn_unref(job->txn);
-    }
+    QLIST_REMOVE(job, txn_list);
+    block_job_txn_unref(job->txn);
     block_job_unref(job);
 }
 
@@ -647,7 +645,7 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
  */
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, uint64_t perm,
+                       BlockJobTxn *txn, BlockDriverState *bs, uint64_t perm,
                        uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
@@ -729,6 +727,17 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
             return NULL;
         }
     }
+
+    /* Single jobs are modeled as single-job transactions for sake of
+     * consolidating the job management logic */
+    if (!txn) {
+        txn = block_job_txn_new();
+        block_job_txn_add_job(txn, job);
+        block_job_txn_unref(txn);
+    } else {
+        block_job_txn_add_job(txn, job);
+    }
+
     return job;
 }
 
@@ -752,13 +761,11 @@ void block_job_early_fail(BlockJob *job)
 
 void block_job_completed(BlockJob *job, int ret)
 {
+    assert(job && job->txn && !job->completed);
     assert(blk_bs(job->blk)->job == job);
-    assert(!job->completed);
     job->completed = true;
     job->ret = ret;
-    if (!job->txn) {
-        block_job_completed_single(job);
-    } else if (ret < 0 || block_job_is_cancelled(job)) {
+    if (ret < 0 || block_job_is_cancelled(job)) {
         block_job_completed_txn_abort(job);
     } else {
         block_job_completed_txn_success(job);
