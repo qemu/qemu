@@ -53,6 +53,15 @@ bool BlockJobSTT[BLOCK_JOB_STATUS__MAX][BLOCK_JOB_STATUS__MAX] = {
     /* S: */ [BLOCK_JOB_STATUS_STANDBY]   = {0, 0, 0, 0, 1, 0},
 };
 
+bool BlockJobVerbTable[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
+                                          /* U, C, R, P, Y, S */
+    [BLOCK_JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1, 1},
+    [BLOCK_JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1, 1},
+    [BLOCK_JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1},
+    [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1},
+    [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0},
+};
+
 static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
 {
     BlockJobStatus s0 = job->status;
@@ -65,6 +74,23 @@ static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
                                                       s1));
     assert(BlockJobSTT[s0][s1]);
     job->status = s1;
+}
+
+static int block_job_apply_verb(BlockJob *job, BlockJobVerb bv, Error **errp)
+{
+    assert(bv >= 0 && bv <= BLOCK_JOB_VERB__MAX);
+    trace_block_job_apply_verb(job, qapi_enum_lookup(&BlockJobStatus_lookup,
+                                                     job->status),
+                               qapi_enum_lookup(&BlockJobVerb_lookup, bv),
+                               BlockJobVerbTable[bv][job->status] ?
+                               "allowed" : "prohibited");
+    if (BlockJobVerbTable[bv][job->status]) {
+        return 0;
+    }
+    error_setg(errp, "Job '%s' in state '%s' cannot accept command verb '%s'",
+               job->id, qapi_enum_lookup(&BlockJobStatus_lookup, job->status),
+               qapi_enum_lookup(&BlockJobVerb_lookup, bv));
+    return -EPERM;
 }
 
 static void block_job_lock(void)
@@ -517,6 +543,9 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_UNSUPPORTED);
         return;
     }
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_SET_SPEED, errp)) {
+        return;
+    }
     job->driver->set_speed(job, speed, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -536,8 +565,10 @@ void block_job_complete(BlockJob *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */
     assert(job->id);
-    if (job->pause_count || job->cancelled ||
-        !block_job_started(job) || !job->driver->complete) {
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_COMPLETE, errp)) {
+        return;
+    }
+    if (job->pause_count || job->cancelled || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->id);
         return;
@@ -546,8 +577,15 @@ void block_job_complete(BlockJob *job, Error **errp)
     job->driver->complete(job, errp);
 }
 
-void block_job_user_pause(BlockJob *job)
+void block_job_user_pause(BlockJob *job, Error **errp)
 {
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_PAUSE, errp)) {
+        return;
+    }
+    if (job->user_paused) {
+        error_setg(errp, "Job is already paused");
+        return;
+    }
     job->user_paused = true;
     block_job_pause(job);
 }
@@ -557,13 +595,19 @@ bool block_job_user_paused(BlockJob *job)
     return job->user_paused;
 }
 
-void block_job_user_resume(BlockJob *job)
+void block_job_user_resume(BlockJob *job, Error **errp)
 {
-    if (job && job->user_paused && job->pause_count > 0) {
-        block_job_iostatus_reset(job);
-        job->user_paused = false;
-        block_job_resume(job);
+    assert(job);
+    if (!job->user_paused || job->pause_count <= 0) {
+        error_setg(errp, "Can't resume a job that was not paused");
+        return;
     }
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_RESUME, errp)) {
+        return;
+    }
+    block_job_iostatus_reset(job);
+    job->user_paused = false;
+    block_job_resume(job);
 }
 
 void block_job_cancel(BlockJob *job)
@@ -574,6 +618,14 @@ void block_job_cancel(BlockJob *job)
     } else {
         block_job_completed(job, -ECANCELED);
     }
+}
+
+void block_job_user_cancel(BlockJob *job, Error **errp)
+{
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_CANCEL, errp)) {
+        return;
+    }
+    block_job_cancel(job);
 }
 
 /* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
@@ -999,8 +1051,9 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         action, &error_abort);
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
+        block_job_pause(job);
         /* make the pause user visible, which will be resumed from QMP. */
-        block_job_user_pause(job);
+        job->user_paused = true;
         block_job_iostatus_set_err(job, error);
     }
     return action;

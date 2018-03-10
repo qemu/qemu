@@ -249,7 +249,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
  * Asynchronously pause the specified job.
  * Do not allow a resume until a matching call to block_job_user_resume.
  */
-void block_job_user_pause(BlockJob *job);
+void block_job_user_pause(BlockJob *job, Error **errp);
 
 /**
  * block_job_paused:
@@ -266,7 +266,16 @@ bool block_job_user_paused(BlockJob *job);
  * Resume the specified job.
  * Must be paired with a preceding block_job_user_pause.
  */
-void block_job_user_resume(BlockJob *job);
+void block_job_user_resume(BlockJob *job, Error **errp);
+
+/**
+ * block_job_user_cancel:
+ * @job: The job to be cancelled.
+ *
+ * Cancels the specified job, but may refuse to do so if the
+ * operation isn't currently meaningful.
+ */
+void block_job_user_cancel(BlockJob *job, Error **errp);
 
 /**
  * block_job_cancel_sync:

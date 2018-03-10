@@ -3825,7 +3825,7 @@ void qmp_block_job_cancel(const char *device,
     }
 
     trace_qmp_block_job_cancel(job);
-    block_job_cancel(job);
+    block_job_user_cancel(job, errp);
 out:
     aio_context_release(aio_context);
 }
@@ -3835,12 +3835,12 @@ void qmp_block_job_pause(const char *device, Error **errp)
     AioContext *aio_context;
     BlockJob *job = find_block_job(device, &aio_context, errp);
 
-    if (!job || block_job_user_paused(job)) {
+    if (!job) {
         return;
     }
 
     trace_qmp_block_job_pause(job);
-    block_job_user_pause(job);
+    block_job_user_pause(job, errp);
     aio_context_release(aio_context);
 }
 
@@ -3849,12 +3849,12 @@ void qmp_block_job_resume(const char *device, Error **errp)
     AioContext *aio_context;
     BlockJob *job = find_block_job(device, &aio_context, errp);
 
-    if (!job || !block_job_user_paused(job)) {
+    if (!job) {
         return;
     }
 
     trace_qmp_block_job_resume(job);
-    block_job_user_resume(job);
+    block_job_user_resume(job, errp);
     aio_context_release(aio_context);
 }
 

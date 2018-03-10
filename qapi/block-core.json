@@ -959,6 +959,26 @@
   'data': ['commit', 'stream', 'mirror', 'backup'] }
 
 ##
+# @BlockJobVerb:
+#
+# Represents command verbs that can be applied to a blockjob.
+#
+# @cancel: see @block-job-cancel
+#
+# @pause: see @block-job-pause
+#
+# @resume: see @block-job-resume
+#
+# @set-speed: see @block-job-set-speed
+#
+# @complete: see @block-job-complete
+#
+# Since: 2.12
+##
+{ 'enum': 'BlockJobVerb',
+  'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete' ] }
+
+##
 # @BlockJobStatus:
 #
 # Indicates the present state of a given blockjob in its lifetime.
