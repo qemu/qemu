@@ -1005,6 +1005,11 @@
 #           to the waiting state. This status will likely not be visible for
 #           the last job in a transaction.
 #
+# @pending: The job has finished its work, but has finalization steps that it
+#           needs to make prior to completing. These changes may require
+#           manual intervention by the management process if manual was set
+#           to true. These changes may still fail.
+#
 # @aborting: The job is in the process of being aborted, and will finish with
 #            an error. The job will afterwards report that it is @concluded.
 #            This status may not be visible to the management process.
@@ -1019,7 +1024,7 @@
 ##
 { 'enum': 'BlockJobStatus',
   'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
-           'waiting', 'aborting', 'concluded', 'null' ] }
+           'waiting', 'pending', 'aborting', 'concluded', 'null' ] }
 
 ##
 # @BlockJobInfo:
@@ -4264,6 +4269,30 @@
             'len'   : 'int',
             'offset': 'int',
             'speed' : 'int' } }
+
+##
+# @BLOCK_JOB_PENDING:
+#
+# Emitted when a block job is awaiting explicit authorization to finalize graph
+# changes via @block-job-finalize. If this job is part of a transaction, it will
+# not emit this event until the transaction has converged first.
+#
+# @type: job type
+#
+# @id: The job identifier.
+#
+# Since: 2.12
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_WAITING",
+#      "data": { "device": "drive0", "type": "mirror" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'BLOCK_JOB_PENDING',
+  'data': { 'type'  : 'BlockJobType',
+            'id'    : 'str' } }
 
 ##
 # @PreallocMode:

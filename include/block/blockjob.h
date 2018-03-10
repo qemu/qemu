@@ -142,6 +142,9 @@ typedef struct BlockJob {
     /** Current state; See @BlockJobStatus for details. */
     BlockJobStatus status;
 
+    /** True if this job should automatically finalize itself */
+    bool auto_finalize;
+
     /** True if this job should automatically dismiss itself */
     bool auto_dismiss;
 
@@ -154,6 +157,8 @@ typedef enum BlockJobCreateFlags {
     BLOCK_JOB_DEFAULT = 0x00,
     /* BlockJob is not QMP-created and should not send QMP events */
     BLOCK_JOB_INTERNAL = 0x01,
+    /* BlockJob requires manual finalize step */
+    BLOCK_JOB_MANUAL_FINALIZE = 0x02,
     /* BlockJob requires manual dismiss step */
     BLOCK_JOB_MANUAL_DISMISS = 0x04,
 } BlockJobCreateFlags;
