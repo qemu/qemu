@@ -142,6 +142,9 @@ typedef struct BlockJob {
     /** Current state; See @BlockJobStatus for details. */
     BlockJobStatus status;
 
+    /** True if this job should automatically dismiss itself */
+    bool auto_dismiss;
+
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;
 } BlockJob;
@@ -151,6 +154,8 @@ typedef enum BlockJobCreateFlags {
     BLOCK_JOB_DEFAULT = 0x00,
     /* BlockJob is not QMP-created and should not send QMP events */
     BLOCK_JOB_INTERNAL = 0x01,
+    /* BlockJob requires manual dismiss step */
+    BLOCK_JOB_MANUAL_DISMISS = 0x04,
 } BlockJobCreateFlags;
 
 /**
@@ -233,6 +238,15 @@ void block_job_cancel(BlockJob *job);
  * Asynchronously complete the specified job.
  */
 void block_job_complete(BlockJob *job, Error **errp);
+
+/**
+ * block_job_dismiss:
+ * @job: The job to be dismissed.
+ * @errp: Error object.
+ *
+ * Remove a concluded job from the query list.
+ */
+void block_job_dismiss(BlockJob **job, Error **errp);
 
 /**
  * block_job_query:

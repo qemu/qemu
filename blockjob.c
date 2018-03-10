@@ -63,6 +63,7 @@ bool BlockJobVerbTable[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
     [BLOCK_JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1, 0, 0, 0},
     [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1, 0, 0, 0},
     [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 1, 0},
 };
 
 static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
@@ -391,9 +392,17 @@ static void block_job_decommission(BlockJob *job)
     block_job_unref(job);
 }
 
+static void block_job_do_dismiss(BlockJob *job)
+{
+    block_job_decommission(job);
+}
+
 static void block_job_conclude(BlockJob *job)
 {
     block_job_state_transition(job, BLOCK_JOB_STATUS_CONCLUDED);
+    if (job->auto_dismiss || !block_job_started(job)) {
+        block_job_do_dismiss(job);
+    }
 }
 
 static void block_job_completed_single(BlockJob *job)
@@ -437,7 +446,6 @@ static void block_job_completed_single(BlockJob *job)
     QLIST_REMOVE(job, txn_list);
     block_job_txn_unref(job->txn);
     block_job_conclude(job);
-    block_job_decommission(job);
 }
 
 static void block_job_cancel_async(BlockJob *job)
@@ -602,6 +610,19 @@ void block_job_complete(BlockJob *job, Error **errp)
     job->driver->complete(job, errp);
 }
 
+void block_job_dismiss(BlockJob **jobptr, Error **errp)
+{
+    BlockJob *job = *jobptr;
+    /* similarly to _complete, this is QMP-interface only. */
+    assert(job->id);
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_DISMISS, errp)) {
+        return;
+    }
+
+    block_job_do_dismiss(job);
+    *jobptr = NULL;
+}
+
 void block_job_user_pause(BlockJob *job, Error **errp)
 {
     if (block_job_apply_verb(job, BLOCK_JOB_VERB_PAUSE, errp)) {
@@ -638,7 +659,7 @@ void block_job_user_resume(BlockJob *job, Error **errp)
 void block_job_cancel(BlockJob *job)
 {
     if (job->status == BLOCK_JOB_STATUS_CONCLUDED) {
-        return;
+        block_job_do_dismiss(job);
     } else if (block_job_started(job)) {
         block_job_cancel_async(job);
         block_job_enter(job);
@@ -807,6 +828,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
+    job->auto_dismiss  = !(flags & BLOCK_JOB_MANUAL_DISMISS);
     block_job_state_transition(job, BLOCK_JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
                    QEMU_CLOCK_REALTIME, SCALE_NS,

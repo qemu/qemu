@@ -973,10 +973,12 @@
 #
 # @complete: see @block-job-complete
 #
+# @dismiss: see @block-job-dismiss
+#
 # Since: 2.12
 ##
 { 'enum': 'BlockJobVerb',
-  'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete' ] }
+  'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete', 'dismiss' ] }
 
 ##
 # @BlockJobStatus:
@@ -2245,6 +2247,26 @@
 # Since: 1.3
 ##
 { 'command': 'block-job-complete', 'data': { 'device': 'str' } }
+
+##
+# @block-job-dismiss:
+#
+# For jobs that have already concluded, remove them from the block-job-query
+# list. This command only needs to be run for jobs which were started with
+# QEMU 2.12+ job lifetime management semantics.
+#
+# This command will refuse to operate on any job that has not yet reached
+# its terminal state, BLOCK_JOB_STATUS_CONCLUDED. For jobs that make use of
+# BLOCK_JOB_READY event, block-job-cancel or block-job-complete will still need
+# to be used as appropriate.
+#
+# @id: The job identifier.
+#
+# Returns: Nothing on success
+#
+# Since: 2.12
+##
+{ 'command': 'block-job-dismiss', 'data': { 'id': 'str' } }
 
 ##
 # @BlockdevDiscardOptions:
