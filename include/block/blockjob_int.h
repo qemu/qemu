@@ -114,11 +114,13 @@ struct BlockJobDriver {
  * block_job_create:
  * @job_id: The id of the newly-created job, or %NULL to have one
  * generated automatically.
- * @job_type: The class object for the newly-created job.
+ * @driver: The class object for the newly-created job.
  * @txn: The transaction this job belongs to, if any. %NULL otherwise.
  * @bs: The block
  * @perm, @shared_perm: Permissions to request for @bs
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @flags: Creation flags for the Block Job.
+ *         See @BlockJobCreateFlags
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.

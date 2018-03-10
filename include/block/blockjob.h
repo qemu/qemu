@@ -127,12 +127,10 @@ typedef struct BlockJob {
     /** Reference count of the block job */
     int refcnt;
 
-    /* True if this job has reported completion by calling block_job_completed.
-     */
+    /** True when job has reported completion by calling block_job_completed. */
     bool completed;
 
-    /* ret code passed to block_job_completed.
-     */
+    /** ret code passed to block_job_completed. */
     int ret;
 
     /**
@@ -146,7 +144,9 @@ typedef struct BlockJob {
 } BlockJob;
 
 typedef enum BlockJobCreateFlags {
+    /* Default behavior */
     BLOCK_JOB_DEFAULT = 0x00,
+    /* BlockJob is not QMP-created and should not send QMP events */
     BLOCK_JOB_INTERNAL = 0x01,
 } BlockJobCreateFlags;
 
