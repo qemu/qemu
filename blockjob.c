@@ -28,6 +28,7 @@
 #include "block/block.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
+#include "block/trace.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-block-core.h"
@@ -40,6 +41,31 @@
  * and job->sleep_timer, such as concurrent calls to block_job_do_yield and
  * block_job_enter. */
 static QemuMutex block_job_mutex;
+
+/* BlockJob State Transition Table */
+bool BlockJobSTT[BLOCK_JOB_STATUS__MAX][BLOCK_JOB_STATUS__MAX] = {
+                                          /* U, C, R, P, Y, S */
+    /* U: */ [BLOCK_JOB_STATUS_UNDEFINED] = {0, 1, 0, 0, 0, 0},
+    /* C: */ [BLOCK_JOB_STATUS_CREATED]   = {0, 0, 1, 0, 0, 0},
+    /* R: */ [BLOCK_JOB_STATUS_RUNNING]   = {0, 0, 0, 1, 1, 0},
+    /* P: */ [BLOCK_JOB_STATUS_PAUSED]    = {0, 0, 1, 0, 0, 0},
+    /* Y: */ [BLOCK_JOB_STATUS_READY]     = {0, 0, 0, 0, 0, 1},
+    /* S: */ [BLOCK_JOB_STATUS_STANDBY]   = {0, 0, 0, 0, 1, 0},
+};
+
+static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
+{
+    BlockJobStatus s0 = job->status;
+    assert(s1 >= 0 && s1 <= BLOCK_JOB_STATUS__MAX);
+    trace_block_job_state_transition(job, job->ret, BlockJobSTT[s0][s1] ?
+                                     "allowed" : "disallowed",
+                                     qapi_enum_lookup(&BlockJobStatus_lookup,
+                                                      s0),
+                                     qapi_enum_lookup(&BlockJobStatus_lookup,
+                                                      s1));
+    assert(BlockJobSTT[s0][s1]);
+    job->status = s1;
+}
 
 static void block_job_lock(void)
 {
@@ -320,7 +346,7 @@ void block_job_start(BlockJob *job)
     job->pause_count--;
     job->busy = true;
     job->paused = false;
-    job->status = BLOCK_JOB_STATUS_RUNNING;
+    block_job_state_transition(job, BLOCK_JOB_STATUS_RUNNING);
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
@@ -702,7 +728,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
-    job->status        = BLOCK_JOB_STATUS_CREATED;
+    block_job_state_transition(job, BLOCK_JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
                    QEMU_CLOCK_REALTIME, SCALE_NS,
                    block_job_sleep_timer_cb, job);
@@ -817,13 +843,13 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
 
     if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
         BlockJobStatus status = job->status;
-        job->status = status == BLOCK_JOB_STATUS_READY ? \
-                                BLOCK_JOB_STATUS_STANDBY : \
-                                BLOCK_JOB_STATUS_PAUSED;
+        block_job_state_transition(job, status == BLOCK_JOB_STATUS_READY ? \
+                                   BLOCK_JOB_STATUS_STANDBY :           \
+                                   BLOCK_JOB_STATUS_PAUSED);
         job->paused = true;
         block_job_do_yield(job, -1);
         job->paused = false;
-        job->status = status;
+        block_job_state_transition(job, status);
     }
 
     if (job->driver->resume) {
@@ -929,7 +955,7 @@ void block_job_iostatus_reset(BlockJob *job)
 
 void block_job_event_ready(BlockJob *job)
 {
-    job->status = BLOCK_JOB_STATUS_READY;
+    block_job_state_transition(job, BLOCK_JOB_STATUS_READY);
     job->ready = true;
 
     if (block_job_is_internal(job)) {
