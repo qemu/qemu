@@ -417,7 +417,33 @@ static void imx_enet_write_bd(IMXENETBufDesc *bd, dma_addr_t addr)
 
 static void imx_eth_update(IMXFECState *s)
 {
-    if (s->regs[ENET_EIR] & s->regs[ENET_EIMR] & ENET_INT_TS_TIMER) {
+    /*
+     * Previous versions of qemu had the ENET_INT_MAC and ENET_INT_TS_TIMER
+     * interrupts swapped. This worked with older versions of Linux (4.14
+     * and older) since Linux associated both interrupt lines with Ethernet
+     * MAC interrupts. Specifically,
+     * - Linux 4.15 and later have separate interrupt handlers for the MAC and
+     *   timer interrupts. Those versions of Linux fail with versions of QEMU
+     *   with swapped interrupt assignments.
+     * - In linux 4.14, both interrupt lines were registered with the Ethernet
+     *   MAC interrupt handler. As a result, all versions of qemu happen to
+     *   work, though that is accidental.
+     * - In Linux 4.9 and older, the timer interrupt was registered directly
+     *   with the Ethernet MAC interrupt handler. The MAC interrupt was
+     *   redirected to a GPIO interrupt to work around erratum ERR006687.
+     *   This was implemented using the SOC's IOMUX block. In qemu, this GPIO
+     *   interrupt never fired since IOMUX is currently not supported in qemu.
+     *   Linux instead received MAC interrupts on the timer interrupt.
+     *   As a result, qemu versions with the swapped interrupt assignment work,
+     *   albeit accidentally, but qemu versions with the correct interrupt
+     *   assignment fail.
+     *
+     * To ensure that all versions of Linux work, generate ENET_INT_MAC
+     * interrrupts on both interrupt lines. This should be changed if and when
+     * qemu supports IOMUX.
+     */
+    if (s->regs[ENET_EIR] & s->regs[ENET_EIMR] &
+        (ENET_INT_MAC | ENET_INT_TS_TIMER)) {
         qemu_set_irq(s->irq[1], 1);
     } else {
         qemu_set_irq(s->irq[1], 0);
