@@ -1000,14 +1000,17 @@
 #           The job may return to @ready or otherwise be canceled.
 #
 # @aborting: The job is in the process of being aborted, and will finish with
-#            an error.
+#            an error. The job will afterwards report that it is @concluded.
 #            This status may not be visible to the management process.
+#
+# @concluded: The job has finished all work. If manual was set to true, the job
+#             will remain in the query list until it is dismissed.
 #
 # Since: 2.12
 ##
 { 'enum': 'BlockJobStatus',
   'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
-           'aborting' ] }
+           'aborting', 'concluded' ] }
 
 ##
 # @BlockJobInfo:
