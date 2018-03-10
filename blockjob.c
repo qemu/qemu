@@ -320,6 +320,7 @@ void block_job_start(BlockJob *job)
     job->pause_count--;
     job->busy = true;
     job->paused = false;
+    job->status = BLOCK_JOB_STATUS_RUNNING;
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
@@ -598,6 +599,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->speed     = job->speed;
     info->io_status = job->iostatus;
     info->ready     = job->ready;
+    info->status    = job->status;
     return info;
 }
 
@@ -700,6 +702,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
+    job->status        = BLOCK_JOB_STATUS_CREATED;
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
                    QEMU_CLOCK_REALTIME, SCALE_NS,
                    block_job_sleep_timer_cb, job);
@@ -813,9 +816,14 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
     }
 
     if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
+        BlockJobStatus status = job->status;
+        job->status = status == BLOCK_JOB_STATUS_READY ? \
+                                BLOCK_JOB_STATUS_STANDBY : \
+                                BLOCK_JOB_STATUS_PAUSED;
         job->paused = true;
         block_job_do_yield(job, -1);
         job->paused = false;
+        job->status = status;
     }
 
     if (job->driver->resume) {
@@ -921,6 +929,7 @@ void block_job_iostatus_reset(BlockJob *job)
 
 void block_job_event_ready(BlockJob *job)
 {
+    job->status = BLOCK_JOB_STATUS_READY;
     job->ready = true;
 
     if (block_job_is_internal(job)) {

@@ -959,6 +959,32 @@
   'data': ['commit', 'stream', 'mirror', 'backup'] }
 
 ##
+# @BlockJobStatus:
+#
+# Indicates the present state of a given blockjob in its lifetime.
+#
+# @undefined: Erroneous, default state. Should not ever be visible.
+#
+# @created: The job has been created, but not yet started.
+#
+# @running: The job is currently running.
+#
+# @paused: The job is running, but paused. The pause may be requested by
+#          either the QMP user or by internal processes.
+#
+# @ready: The job is running, but is ready for the user to signal completion.
+#         This is used for long-running jobs like mirror that are designed to
+#         run indefinitely.
+#
+# @standby: The job is ready, but paused. This is nearly identical to @paused.
+#           The job may return to @ready or otherwise be canceled.
+#
+# Since: 2.12
+##
+{ 'enum': 'BlockJobStatus',
+  'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby'] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
@@ -984,12 +1010,15 @@
 #
 # @ready: true if the job may be completed (since 2.2)
 #
+# @status: Current job state/status (since 2.12)
+#
 # Since: 1.1
 ##
 { 'struct': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
-           'io-status': 'BlockDeviceIoStatus', 'ready': 'bool'} }
+           'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
+           'status': 'BlockJobStatus' } }
 
 ##
 # @query-block-jobs:

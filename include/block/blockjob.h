@@ -139,6 +139,9 @@ typedef struct BlockJob {
      */
     QEMUTimer sleep_timer;
 
+    /** Current state; See @BlockJobStatus for details. */
+    BlockJobStatus status;
+
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;
 } BlockJob;
