@@ -506,16 +506,20 @@ class QMPTestCase(unittest.TestCase):
         event = self.wait_until_completed(drive=drive)
         self.assert_qmp(event, 'data/type', 'mirror')
 
-    def pause_job(self, job_id='job0'):
-        result = self.vm.qmp('block-job-pause', device=job_id)
-        self.assert_qmp(result, 'return', {})
-
+    def pause_wait(self, job_id='job0'):
         with Timeout(1, "Timeout waiting for job to pause"):
             while True:
                 result = self.vm.qmp('query-block-jobs')
                 for job in result['return']:
                     if job['device'] == job_id and job['paused'] == True and job['busy'] == False:
                         return job
+
+    def pause_job(self, job_id='job0', wait=True):
+        result = self.vm.qmp('block-job-pause', device=job_id)
+        self.assert_qmp(result, 'return', {})
+        if wait:
+            return self.pause_wait(job_id)
+        return result
 
 
 def notrun(reason):
