@@ -1057,13 +1057,20 @@
 #
 # @status: Current job state/status (since 2.12)
 #
+# @auto-finalize: Job will finalize itself when PENDING, moving to
+#                 the CONCLUDED state. (since 2.12)
+#
+# @auto-dismiss: Job will dismiss itself when CONCLUDED, moving to the NULL
+#                state and disappearing from the query list. (since 2.12)
+#
 # Since: 1.1
 ##
 { 'struct': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
-           'status': 'BlockJobStatus' } }
+           'status': 'BlockJobStatus',
+           'auto-finalize': 'bool', 'auto-dismiss': 'bool' } }
 
 ##
 # @query-block-jobs:
@@ -1213,6 +1220,18 @@
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
 #
+# @auto-finalize: When false, this job will wait in a PENDING state after it has
+#                 finished its work, waiting for @block-job-finalize.
+#                 When true, this job will automatically perform its abort or
+#                 commit actions.
+#                 Defaults to true. (Since 2.12)
+#
+# @auto-dismiss: When false, this job will wait in a CONCLUDED state after it
+#                has completed ceased all work, and wait for @block-job-dismiss.
+#                When true, this job will automatically disappear from the query
+#                list without user intervention.
+#                Defaults to true. (Since 2.12)
+#
 # Note: @on-source-error and @on-target-error only affect background
 # I/O.  If an error occurs during a guest write request, the device's
 # rerror/werror actions will be used.
@@ -1221,10 +1240,12 @@
 ##
 { 'struct': 'DriveBackup',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
-            '*format': 'str', 'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*bitmap': 'str', '*compress': 'bool',
+            '*format': 'str', 'sync': 'MirrorSyncMode',
+            '*mode': 'NewImageMode', '*speed': 'int',
+            '*bitmap': 'str', '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError' } }
+            '*on-target-error': 'BlockdevOnError',
+            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
 
 ##
 # @BlockdevBackup:
@@ -1254,6 +1275,18 @@
 #                   default 'report' (no limitations, since this applies to
 #                   a different block device than @device).
 #
+# @auto-finalize: When false, this job will wait in a PENDING state after it has
+#                 finished its work, waiting for @block-job-finalize.
+#                 When true, this job will automatically perform its abort or
+#                 commit actions.
+#                 Defaults to true. (Since 2.12)
+#
+# @auto-dismiss: When false, this job will wait in a CONCLUDED state after it
+#                has completed ceased all work, and wait for @block-job-dismiss.
+#                When true, this job will automatically disappear from the query
+#                list without user intervention.
+#                Defaults to true. (Since 2.12)
+#
 # Note: @on-source-error and @on-target-error only affect background
 # I/O.  If an error occurs during a guest write request, the device's
 # rerror/werror actions will be used.
@@ -1262,11 +1295,10 @@
 ##
 { 'struct': 'BlockdevBackup',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
-            'sync': 'MirrorSyncMode',
-            '*speed': 'int',
-            '*compress': 'bool',
+            'sync': 'MirrorSyncMode', '*speed': 'int', '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError' } }
+            '*on-target-error': 'BlockdevOnError',
+            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
 
 ##
 # @blockdev-snapshot-sync:

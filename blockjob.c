@@ -821,6 +821,8 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->io_status = job->iostatus;
     info->ready     = job->ready;
     info->status    = job->status;
+    info->auto_finalize = job->auto_finalize;
+    info->auto_dismiss  = job->auto_dismiss;
     return info;
 }
 
