@@ -1006,11 +1006,14 @@
 # @concluded: The job has finished all work. If manual was set to true, the job
 #             will remain in the query list until it is dismissed.
 #
+# @null: The job is in the process of being dismantled. This state should not
+#        ever be visible externally.
+#
 # Since: 2.12
 ##
 { 'enum': 'BlockJobStatus',
   'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
-           'aborting', 'concluded' ] }
+           'aborting', 'concluded', 'null' ] }
 
 ##
 # @BlockJobInfo:
