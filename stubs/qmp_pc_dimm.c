@@ -2,9 +2,9 @@
 #include "qom/object.h"
 #include "hw/mem/pc-dimm.h"
 
-int qmp_pc_dimm_device_list(Object *obj, void *opaque)
+MemoryDeviceInfoList *qmp_pc_dimm_device_list(void)
 {
-   return 0;
+   return NULL;
 }
 
 uint64_t get_plugged_memory_size(void)
