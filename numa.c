@@ -529,18 +529,25 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
 
         if (value) {
             switch (value->type) {
-            case MEMORY_DEVICE_INFO_KIND_DIMM: {
+            case MEMORY_DEVICE_INFO_KIND_DIMM:
                 pcdimm_info = value->u.dimm.data;
+                break;
+
+            case MEMORY_DEVICE_INFO_KIND_NVDIMM:
+                pcdimm_info = value->u.nvdimm.data;
+                break;
+
+            default:
+                pcdimm_info = NULL;
+                break;
+            }
+
+            if (pcdimm_info) {
                 node_mem[pcdimm_info->node].node_mem += pcdimm_info->size;
                 if (pcdimm_info->hotpluggable && pcdimm_info->hotplugged) {
                     node_mem[pcdimm_info->node].node_plugged_mem +=
                         pcdimm_info->size;
                 }
-                break;
-            }
-
-            default:
-                break;
             }
         }
     }
