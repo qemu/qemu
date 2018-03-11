@@ -1113,6 +1113,44 @@ static void qmp_caps_apply(Monitor *mon, QMPCapabilityList *list)
     }
 }
 
+/*
+ * Return true if check successful, or false otherwise.  When false is
+ * returned, detailed error will be in errp if provided.
+ */
+static bool qmp_cmd_oob_check(Monitor *mon, QDict *req, Error **errp)
+{
+    const char *command;
+    QmpCommand *cmd;
+
+    command = qdict_get_try_str(req, "execute");
+    if (!command) {
+        error_setg(errp, "Command field 'execute' missing");
+        return false;
+    }
+
+    cmd = qmp_find_command(mon->qmp.commands, command);
+    if (!cmd) {
+        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                  "The command %s has not been found", command);
+        return false;
+    }
+
+    if (qmp_is_oob(req)) {
+        if (!qmp_oob_enabled(mon)) {
+            error_setg(errp, "Please enable Out-Of-Band first "
+                       "for the session during capabilities negotiation");
+            return false;
+        }
+        if (!(cmd->options & QCO_ALLOW_OOB)) {
+            error_setg(errp, "The command %s does not support OOB",
+                       command);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
                           Error **errp)
 {
@@ -4004,6 +4042,7 @@ static void monitor_qmp_bh_dispatcher(void *data)
     QMPRequest *req_obj = monitor_qmp_requests_pop_one();
 
     if (req_obj) {
+        trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
         monitor_qmp_dispatch_one(req_obj);
         /* Reschedule instead of looping so the main loop stays responsive */
         qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
@@ -4027,23 +4066,45 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         error_setg(&err, QERR_JSON_PARSING);
     }
     if (err) {
-        monitor_qmp_respond(mon, NULL, err, NULL);
-        qobject_decref(req);
-        return;
+        goto err;
     }
 
-    qdict = qobject_to(QDict, req);
-    if (qdict) {
-        id = qdict_get(qdict, "id");
-        qobject_incref(id);
-        qdict_del(qdict, "id");
-    } /* else will fail qmp_dispatch() */
+    /* Check against the request in general layout */
+    qdict = qmp_dispatch_check_obj(req, &err);
+    if (!qdict) {
+        goto err;
+    }
+
+    /* Check against OOB specific */
+    if (!qmp_cmd_oob_check(mon, qdict, &err)) {
+        goto err;
+    }
+
+    id = qdict_get(qdict, "id");
+
+    /* When OOB is enabled, the "id" field is mandatory. */
+    if (qmp_oob_enabled(mon) && !id) {
+        error_setg(&err, "Out-Of-Band capability requires that "
+                   "every command contains an 'id' field");
+        goto err;
+    }
+
+    qobject_incref(id);
+    qdict_del(qdict, "id");
 
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
     req_obj->id = id;
     req_obj->req = req;
     req_obj->need_resume = false;
+
+    if (qmp_is_oob(qdict)) {
+        /* Out-Of-Band (OOB) requests are executed directly in parser. */
+        trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(req_obj->id)
+                                          ?: "");
+        monitor_qmp_dispatch_one(req_obj);
+        return;
+    }
 
     /* Protect qmp_requests and fetching its length. */
     qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
@@ -4081,6 +4142,11 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     /* Kick the dispatcher routine */
     qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
+    return;
+
+err:
+    monitor_qmp_respond(mon, NULL, err, NULL);
+    qobject_decref(req);
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
