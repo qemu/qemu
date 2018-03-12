@@ -122,6 +122,15 @@ struct SimpleSpiceDisplay {
     int gl_updates;
     bool have_scanout;
     bool have_surface;
+
+    QemuDmaBuf *guest_dmabuf;
+    bool guest_dmabuf_refresh;
+    bool render_cursor;
+
+    egl_fb guest_fb;
+    egl_fb blit_fb;
+    egl_fb cursor_fb;
+    bool have_hot;
 #endif
 };
 

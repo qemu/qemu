@@ -344,14 +344,28 @@ write_err:
     goto out;
 }
 
-void qmp_screendump(const char *filename, Error **errp)
+void qmp_screendump(const char *filename, bool has_device, const char *device,
+                    bool has_head, int64_t head, Error **errp)
 {
-    QemuConsole *con = qemu_console_lookup_by_index(0);
+    QemuConsole *con;
     DisplaySurface *surface;
 
-    if (con == NULL) {
-        error_setg(errp, "There is no QemuConsole I can screendump from.");
-        return;
+    if (has_device) {
+        con = qemu_console_lookup_by_device_name(device, has_head ? head : 0,
+                                                 errp);
+        if (!con) {
+            return;
+        }
+    } else {
+        if (has_head) {
+            error_setg(errp, "'head' must be specified together with 'device'");
+            return;
+        }
+        con = qemu_console_lookup_by_index(0);
+        if (!con) {
+            error_setg(errp, "There is no console to take a screendump from");
+            return;
+        }
     }
 
     graphic_hw_update(con);
@@ -1039,8 +1053,10 @@ void console_select(unsigned int index)
                     dcl->ops->dpy_gfx_switch(dcl, s->surface);
                 }
             }
-            dpy_gfx_update(s, 0, 0, surface_width(s->surface),
-                           surface_height(s->surface));
+            if (s->surface) {
+                dpy_gfx_update(s, 0, 0, surface_width(s->surface),
+                               surface_height(s->surface));
+            }
         }
         if (ds->have_text) {
             dpy_text_resize(s, s->width, s->height);
@@ -1370,8 +1386,8 @@ DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
     return surface;
 }
 
-static DisplaySurface *qemu_create_message_surface(int w, int h,
-                                                   const char *msg)
+DisplaySurface *qemu_create_message_surface(int w, int h,
+                                            const char *msg)
 {
     DisplaySurface *surface = qemu_create_displaysurface(w, h);
     pixman_color_t bg = color_table_rgb[0][QEMU_COLOR_BLACK];
