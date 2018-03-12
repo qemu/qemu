@@ -129,10 +129,9 @@ static int coroutine_fn blkreplay_co_flush(BlockDriverState *bs)
 
 static BlockDriver bdrv_blkreplay = {
     .format_name            = "blkreplay",
-    .protocol_name          = "blkreplay",
     .instance_size          = 0,
 
-    .bdrv_file_open         = blkreplay_open,
+    .bdrv_open              = blkreplay_open,
     .bdrv_close             = blkreplay_close,
     .bdrv_child_perm        = bdrv_filter_default_perms,
     .bdrv_getlength         = blkreplay_getlength,
