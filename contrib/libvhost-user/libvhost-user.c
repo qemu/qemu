@@ -246,6 +246,31 @@ vu_message_write(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
 {
     int rc;
     uint8_t *p = (uint8_t *)vmsg;
+    char control[CMSG_SPACE(VHOST_MEMORY_MAX_NREGIONS * sizeof(int))] = { };
+    struct iovec iov = {
+        .iov_base = (char *)vmsg,
+        .iov_len = VHOST_USER_HDR_SIZE,
+    };
+    struct msghdr msg = {
+        .msg_iov = &iov,
+        .msg_iovlen = 1,
+        .msg_control = control,
+    };
+    struct cmsghdr *cmsg;
+
+    memset(control, 0, sizeof(control));
+    assert(vmsg->fd_num <= VHOST_MEMORY_MAX_NREGIONS);
+    if (vmsg->fd_num > 0) {
+        size_t fdsize = vmsg->fd_num * sizeof(int);
+        msg.msg_controllen = CMSG_SPACE(fdsize);
+        cmsg = CMSG_FIRSTHDR(&msg);
+        cmsg->cmsg_len = CMSG_LEN(fdsize);
+        cmsg->cmsg_level = SOL_SOCKET;
+        cmsg->cmsg_type = SCM_RIGHTS;
+        memcpy(CMSG_DATA(cmsg), vmsg->fds, fdsize);
+    } else {
+        msg.msg_controllen = 0;
+    }
 
     /* Set the version in the flags when sending the reply */
     vmsg->flags &= ~VHOST_USER_VERSION_MASK;
@@ -253,7 +278,7 @@ vu_message_write(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
     vmsg->flags |= VHOST_USER_REPLY_MASK;
 
     do {
-        rc = write(conn_fd, p, VHOST_USER_HDR_SIZE);
+        rc = sendmsg(conn_fd, &msg, 0);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
 
     do {
@@ -346,6 +371,7 @@ vu_get_features_exec(VuDev *dev, VhostUserMsg *vmsg)
     }
 
     vmsg->size = sizeof(vmsg->payload.u64);
+    vmsg->fd_num = 0;
 
     DPRINT("Sending back to guest u64: 0x%016"PRIx64"\n", vmsg->payload.u64);
 
@@ -501,6 +527,7 @@ vu_set_log_base_exec(VuDev *dev, VhostUserMsg *vmsg)
     dev->log_size = log_mmap_size;
 
     vmsg->size = sizeof(vmsg->payload.u64);
+    vmsg->fd_num = 0;
 
     return true;
 }
@@ -759,6 +786,7 @@ vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     vmsg->payload.u64 = features;
     vmsg->size = sizeof(vmsg->payload.u64);
+    vmsg->fd_num = 0;
 
     return true;
 }
