@@ -481,6 +481,7 @@ static coroutine_fn int nbd_co_receive_one_chunk(
 
 typedef struct NBDReplyChunkIter {
     int ret;
+    bool fatal;
     Error *err;
     bool done, only_structured;
 } NBDReplyChunkIter;
@@ -490,11 +491,12 @@ static void nbd_iter_error(NBDReplyChunkIter *iter, bool fatal,
 {
     assert(ret < 0);
 
-    if (fatal || iter->ret == 0) {
+    if ((fatal && !iter->fatal) || iter->ret == 0) {
         if (iter->ret != 0) {
             error_free(iter->err);
             iter->err = NULL;
         }
+        iter->fatal = fatal;
         iter->ret = ret;
         error_propagate(&iter->err, *local_err);
     } else {
