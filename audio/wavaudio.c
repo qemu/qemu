@@ -278,7 +278,7 @@ static struct audio_pcm_ops wav_pcm_ops = {
     .ctl_out  = wav_ctl_out,
 };
 
-struct audio_driver wav_audio_driver = {
+static struct audio_driver wav_audio_driver = {
     .name           = "wav",
     .descr          = "WAV renderer http://wikipedia.org/wiki/WAV",
     .options        = wav_options,
@@ -291,3 +291,9 @@ struct audio_driver wav_audio_driver = {
     .voice_size_out = sizeof (WAVVoiceOut),
     .voice_size_in  = 0
 };
+
+static void register_audio_wav(void)
+{
+    audio_driver_register(&wav_audio_driver);
+}
+type_init(register_audio_wav);

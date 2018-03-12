@@ -160,7 +160,7 @@ static struct audio_pcm_ops no_pcm_ops = {
     .ctl_in   = no_ctl_in
 };
 
-struct audio_driver no_audio_driver = {
+static struct audio_driver no_audio_driver = {
     .name           = "none",
     .descr          = "Timer based audio emulation",
     .options        = NULL,
@@ -173,3 +173,9 @@ struct audio_driver no_audio_driver = {
     .voice_size_out = sizeof (NoVoiceOut),
     .voice_size_in  = sizeof (NoVoiceIn)
 };
+
+static void register_audio_none(void)
+{
+    audio_driver_register(&no_audio_driver);
+}
+type_init(register_audio_none);

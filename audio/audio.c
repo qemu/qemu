@@ -45,14 +45,48 @@
    The 1st one is the one used by default, that is the reason
     that we generate the list.
 */
-static struct audio_driver *drvtab[] = {
-#ifdef CONFIG_SPICE
-    &spice_audio_driver,
-#endif
+static const char *audio_prio_list[] = {
+    "spice",
     CONFIG_AUDIO_DRIVERS
-    &no_audio_driver,
-    &wav_audio_driver
+    "none",
+    "wav",
 };
+
+static QLIST_HEAD(, audio_driver) audio_drivers;
+
+void audio_driver_register(audio_driver *drv)
+{
+    QLIST_INSERT_HEAD(&audio_drivers, drv, next);
+}
+
+audio_driver *audio_driver_lookup(const char *name)
+{
+    struct audio_driver *d;
+
+    QLIST_FOREACH(d, &audio_drivers, next) {
+        if (strcmp(name, d->name) == 0) {
+            return d;
+        }
+    }
+
+    audio_module_load_one(name);
+    QLIST_FOREACH(d, &audio_drivers, next) {
+        if (strcmp(name, d->name) == 0) {
+            return d;
+        }
+    }
+
+    return NULL;
+}
+
+static void audio_module_load_all(void)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(audio_prio_list); i++) {
+        audio_driver_lookup(audio_prio_list[i]);
+    }
+}
 
 struct fixed_settings {
     int enabled;
@@ -1656,11 +1690,13 @@ static void audio_pp_nb_voices (const char *typ, int nb)
 
 void AUD_help (void)
 {
-    size_t i;
+    struct audio_driver *d;
+
+    /* make sure we print the help text for modular drivers too */
+    audio_module_load_all();
 
     audio_process_options ("AUDIO", audio_options);
-    for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
-        struct audio_driver *d = drvtab[i];
+    QLIST_FOREACH(d, &audio_drivers, next) {
         if (d->options) {
             audio_process_options (d->name, d->options);
         }
@@ -1672,8 +1708,7 @@ void AUD_help (void)
 
     printf ("Available drivers:\n");
 
-    for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
-        struct audio_driver *d = drvtab[i];
+    QLIST_FOREACH(d, &audio_drivers, next) {
 
         printf ("Name: %s\n", d->name);
         printf ("Description: %s\n", d->descr);
@@ -1807,6 +1842,7 @@ static void audio_init (void)
     const char *drvname;
     VMChangeStateEntry *e;
     AudioState *s = &glob_audio_state;
+    struct audio_driver *driver;
 
     if (s->drv) {
         return;
@@ -1842,32 +1878,27 @@ static void audio_init (void)
     }
 
     if (drvname) {
-        int found = 0;
-
-        for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
-            if (!strcmp (drvname, drvtab[i]->name)) {
-                done = !audio_driver_init (s, drvtab[i]);
-                found = 1;
-                break;
-            }
-        }
-
-        if (!found) {
+        driver = audio_driver_lookup(drvname);
+        if (driver) {
+            done = !audio_driver_init(s, driver);
+        } else {
             dolog ("Unknown audio driver `%s'\n", drvname);
             dolog ("Run with -audio-help to list available drivers\n");
         }
     }
 
     if (!done) {
-        for (i = 0; !done && i < ARRAY_SIZE (drvtab); i++) {
-            if (drvtab[i]->can_be_default) {
-                done = !audio_driver_init (s, drvtab[i]);
+        for (i = 0; !done && i < ARRAY_SIZE(audio_prio_list); i++) {
+            driver = audio_driver_lookup(audio_prio_list[i]);
+            if (driver && driver->can_be_default) {
+                done = !audio_driver_init(s, driver);
             }
         }
     }
 
     if (!done) {
-        done = !audio_driver_init (s, &no_audio_driver);
+        driver = audio_driver_lookup("none");
+        done = !audio_driver_init(s, driver);
         assert(done);
         dolog("warning: Using timer based audio emulation\n");
     }

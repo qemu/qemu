@@ -3354,7 +3354,7 @@ else
 fi
 glib_modules=gthread-2.0
 if test "$modules" = yes; then
-    glib_modules="$glib_modules gmodule-2.0"
+    glib_modules="$glib_modules gmodule-export-2.0"
 fi
 
 # This workaround is required due to a bug in pkg-config file for glib as it
@@ -5974,7 +5974,12 @@ fi
 echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
     def=CONFIG_AUDIO_$(echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]')
-    echo "$def=y" >> $config_host_mak
+    case "$drv" in
+	alsa | oss | pa | sdl)
+	    echo "$def=m" >> $config_host_mak ;;
+	*)
+	    echo "$def=y" >> $config_host_mak ;;
+    esac
 done
 echo "ALSA_LIBS=$alsa_libs" >> $config_host_mak
 echo "PULSE_LIBS=$pulse_libs" >> $config_host_mak
