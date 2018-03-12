@@ -3769,6 +3769,24 @@
             'size':             'size' } }
 
 ##
+# @BlockdevCreateOptionsVdi:
+#
+# Driver specific image creation options for VDI.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @static           Whether to create a statically (true) or
+#                   dynamically (false) allocated image
+#                   (default: false, i.e. dynamic)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsVdi',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size',
+            '*static':          'bool' } }
+
+##
 # @BlockdevCreateNotSupported:
 #
 # This is used for all drivers that don't support creating images.
