@@ -2167,3 +2167,68 @@ floatx80 floatx80_atan(floatx80 a, float_status *status)
         return a;
     }
 }
+
+/*----------------------------------------------------------------------------
+ | Arc sine
+ *----------------------------------------------------------------------------*/
+
+floatx80 floatx80_asin(floatx80 a, float_status *status)
+{
+    flag aSign;
+    int32_t aExp;
+    uint64_t aSig;
+
+    int8_t user_rnd_mode, user_rnd_prec;
+
+    int32_t compact;
+    floatx80 fp0, fp1, fp2, one;
+
+    aSig = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+
+    if (aExp == 0x7FFF && (uint64_t) (aSig << 1)) {
+        return propagateFloatx80NaNOneArg(a, status);
+    }
+
+    if (aExp == 0 && aSig == 0) {
+        return packFloatx80(aSign, 0, 0);
+    }
+
+    compact = floatx80_make_compact(aExp, aSig);
+
+    if (compact >= 0x3FFF8000) { /* |X| >= 1 */
+        if (aExp == one_exp && aSig == one_sig) { /* |X| == 1 */
+            float_raise(float_flag_inexact, status);
+            a = packFloatx80(aSign, piby2_exp, pi_sig);
+            return floatx80_move(a, status);
+        } else { /* |X| > 1 */
+            float_raise(float_flag_invalid, status);
+            return floatx80_default_nan(status);
+        }
+
+    } /* |X| < 1 */
+
+    user_rnd_mode = status->float_rounding_mode;
+    user_rnd_prec = status->floatx80_rounding_precision;
+    status->float_rounding_mode = float_round_nearest_even;
+    status->floatx80_rounding_precision = 80;
+
+    one = packFloatx80(0, one_exp, one_sig);
+    fp0 = a;
+
+    fp1 = floatx80_sub(one, fp0, status);   /* 1 - X */
+    fp2 = floatx80_add(one, fp0, status);   /* 1 + X */
+    fp1 = floatx80_mul(fp2, fp1, status);   /* (1+X)*(1-X) */
+    fp1 = floatx80_sqrt(fp1, status);       /* SQRT((1+X)*(1-X)) */
+    fp0 = floatx80_div(fp0, fp1, status);   /* X/SQRT((1+X)*(1-X)) */
+
+    status->float_rounding_mode = user_rnd_mode;
+    status->floatx80_rounding_precision = user_rnd_prec;
+
+    a = floatx80_atan(fp0, status);         /* ATAN(X/SQRT((1+X)*(1-X))) */
+
+    float_raise(float_flag_inexact, status);
+
+    return a;
+}
