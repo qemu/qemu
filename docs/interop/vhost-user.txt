@@ -290,6 +290,15 @@ Once the source has finished migration, rings will be stopped by
 the source. No further update must be done before rings are
 restarted.
 
+In postcopy migration the slave is started before all the memory has been
+received from the source host, and care must be taken to avoid accessing pages
+that have yet to be received.  The slave opens a 'userfault'-fd and registers
+the memory with it; this fd is then passed back over to the master.
+The master services requests on the userfaultfd for pages that are accessed
+and when the page is available it performs WAKE ioctl's on the userfaultfd
+to wake the stalled slave.  The client indicates support for this via the
+VHOST_USER_PROTOCOL_F_PAGEFAULT feature.
+
 Memory access
 -------------
 
@@ -369,6 +378,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
 #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION 7
+#define VHOST_USER_PROTOCOL_F_PAGEFAULT      8
 
 Master message types
 --------------------
