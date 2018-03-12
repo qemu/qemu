@@ -5105,6 +5105,9 @@ DISAS_INSN(fpu)
     case 0x5e: /* fdneg */
         gen_helper_fdneg(cpu_env, cpu_dest, cpu_src);
         break;
+    case 0x1c: /* facos */
+        gen_helper_facos(cpu_env, cpu_dest, cpu_src);
+        break;
     case 0x1d: /* fcos */
         gen_helper_fcos(cpu_env, cpu_dest, cpu_src);
         break;
