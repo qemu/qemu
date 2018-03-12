@@ -23,12 +23,13 @@ import subprocess
 import string
 import unittest
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
-import qtest
 import struct
 import json
 import signal
 import logging
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
+import qtest
 
 
 # This will not work if arguments contain spaces but is necessary if we
