@@ -607,3 +607,14 @@ void HELPER(fcos)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_cos(val->d, &env->fp_status);
 }
+
+void HELPER(fsincos)(CPUM68KState *env, FPReg *res0, FPReg *res1, FPReg *val)
+{
+    floatx80 a = val->d;
+    /* If res0 and res1 specify the same floating-point data register,
+     * the sine result is stored in the register, and the cosine
+     * result is discarded.
+     */
+    res1->d = floatx80_cos(a, &env->fp_status);
+    res0->d = floatx80_sin(a, &env->fp_status);
+}
