@@ -413,6 +413,13 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
     trace_postcopy_ram_incoming_cleanup_entry();
 
     if (mis->have_fault_thread) {
+        Error *local_err = NULL;
+
+        if (postcopy_notify(POSTCOPY_NOTIFY_INBOUND_END, &local_err)) {
+            error_report_err(local_err);
+            return -1;
+        }
+
         if (qemu_ram_foreach_block(cleanup_range, mis)) {
             return -1;
         }
