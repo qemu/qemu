@@ -164,6 +164,16 @@ struct PostCopyFD {
  */
 void postcopy_register_shared_ufd(struct PostCopyFD *pcfd);
 void postcopy_unregister_shared_ufd(struct PostCopyFD *pcfd);
+/* postcopy_wake_shared: Notify a client ufd that a page is available
+ *
+ * Returns 0 on success
+ *
+ * @pcfd: Structure with fd, handler and name as above
+ * @client_addr: Address in the client program, not QEMU
+ * @rb: The RAMBlock the page is in
+ */
+int postcopy_wake_shared(struct PostCopyFD *pcfd, uint64_t client_addr,
+                         RAMBlock *rb);
 /* Callback from shared fault handlers to ask for a page */
 int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
                                  uint64_t client_addr, uint64_t offset);

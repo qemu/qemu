@@ -525,6 +525,25 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
     return 0;
 }
 
+int postcopy_wake_shared(struct PostCopyFD *pcfd,
+                         uint64_t client_addr,
+                         RAMBlock *rb)
+{
+    size_t pagesize = qemu_ram_pagesize(rb);
+    struct uffdio_range range;
+    int ret;
+    trace_postcopy_wake_shared(client_addr, qemu_ram_get_idstr(rb));
+    range.start = client_addr & ~(pagesize - 1);
+    range.len = pagesize;
+    ret = ioctl(pcfd->fd, UFFDIO_WAKE, &range);
+    if (ret) {
+        error_report("%s: Failed to wake: %zx in %s (%s)",
+                     __func__, (size_t)client_addr, qemu_ram_get_idstr(rb),
+                     strerror(errno));
+    }
+    return ret;
+}
+
 /*
  * Callback from shared fault handlers to ask for a page,
  * the page must be specified by a RAMBlock and an offset in that rb
@@ -961,6 +980,13 @@ void *postcopy_get_tmp_page(MigrationIncomingState *mis)
     return NULL;
 }
 
+int postcopy_wake_shared(struct PostCopyFD *pcfd,
+                         uint64_t client_addr,
+                         RAMBlock *rb)
+{
+    assert(0);
+    return -1;
+}
 #endif
 
 /* ------------------------------------------------------------------------- */
