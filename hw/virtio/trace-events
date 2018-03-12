@@ -8,6 +8,7 @@ vhost_section(const char *name, int r) "%s:%d"
 
 # hw/virtio/vhost-user.c
 vhost_user_postcopy_listen(void) ""
+vhost_user_set_mem_table_postcopy(uint64_t client_addr, uint64_t qhva, int reply_i, int region_i) "client:0x%"PRIx64" for hva: 0x%"PRIx64" reply %d region %d"
 
 # hw/virtio/virtio.c
 virtqueue_alloc_element(void *elem, size_t sz, unsigned in_num, unsigned out_num) "elem %p size %zd in_num %u out_num %u"

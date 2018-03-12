@@ -455,11 +455,20 @@ Master message types
       Id: 5
       Equivalent ioctl: VHOST_SET_MEM_TABLE
       Master payload: memory regions description
+      Slave payload: (postcopy only) memory regions description
 
       Sets the memory map regions on the slave so it can translate the vring
       addresses. In the ancillary data there is an array of file descriptors
       for each memory mapped region. The size and ordering of the fds matches
       the number and ordering of memory regions.
+
+      When VHOST_USER_POSTCOPY_LISTEN has been received, SET_MEM_TABLE replies with
+      the bases of the memory mapped regions to the master.  The slave must
+      have mmap'd the regions but not yet accessed them and should not yet generate
+      a userfault event. Note NEED_REPLY_MASK is not set in this case.
+      QEMU will then reply back to the list of mappings with an empty
+      VHOST_USER_SET_MEM_TABLE as an acknowledgment; only upon reception of this
+      message may the guest start accessing the memory and generating faults.
 
  * VHOST_USER_SET_LOG_BASE
 

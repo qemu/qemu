@@ -491,10 +491,32 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
                    dev_region->mmap_addr);
         }
 
+        /* Return the address to QEMU so that it can translate the ufd
+         * fault addresses back.
+         */
+        msg_region->userspace_addr = (uintptr_t)(mmap_addr +
+                                                 dev_region->mmap_offset);
         close(vmsg->fds[i]);
     }
 
-    /* TODO: Get address back to QEMU */
+    /* Send the message back to qemu with the addresses filled in */
+    vmsg->fd_num = 0;
+    if (!vu_message_write(dev, dev->sock, vmsg)) {
+        vu_panic(dev, "failed to respond to set-mem-table for postcopy");
+        return false;
+    }
+
+    /* Wait for QEMU to confirm that it's registered the handler for the
+     * faults.
+     */
+    if (!vu_message_read(dev, dev->sock, vmsg) ||
+        vmsg->size != sizeof(vmsg->payload.u64) ||
+        vmsg->payload.u64 != 0) {
+        vu_panic(dev, "failed to receive valid ack for postcopy set-mem-table");
+        return false;
+    }
+
+    /* OK, now we can go and register the memory and generate faults */
     for (i = 0; i < dev->nregions; i++) {
         VuDevRegion *dev_region = &dev->regions[i];
 #ifdef UFFDIO_REGISTER
