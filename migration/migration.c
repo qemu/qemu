@@ -155,6 +155,8 @@ MigrationIncomingState *migration_incoming_get_current(void)
     if (!once) {
         mis_current.state = MIGRATION_STATUS_NONE;
         memset(&mis_current, 0, sizeof(MigrationIncomingState));
+        mis_current.postcopy_remote_fds = g_array_new(FALSE, TRUE,
+                                                   sizeof(struct PostCopyFD));
         qemu_mutex_init(&mis_current.rp_mutex);
         qemu_event_init(&mis_current.main_thread_load_event, false);
         once = true;
@@ -176,6 +178,10 @@ void migration_incoming_state_destroy(void)
     if (mis->from_src_file) {
         qemu_fclose(mis->from_src_file);
         mis->from_src_file = NULL;
+    }
+    if (mis->postcopy_remote_fds) {
+        g_array_free(mis->postcopy_remote_fds, TRUE);
+        mis->postcopy_remote_fds = NULL;
     }
 
     qemu_event_reset(&mis->main_thread_load_event);

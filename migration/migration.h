@@ -51,6 +51,8 @@ struct MigrationIncomingState {
     QemuMutex rp_mutex;    /* We send replies from multiple threads */
     void     *postcopy_tmp_page;
     void     *postcopy_tmp_zero_page;
+    /* PostCopyFD's for external userfaultfds & handlers of shared memory */
+    GArray   *postcopy_remote_fds;
 
     QEMUBH *bh;
 

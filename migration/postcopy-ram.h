@@ -143,4 +143,25 @@ void postcopy_remove_notifier(NotifierWithReturn *n);
 /* Call the notifier list set by postcopy_add_start_notifier */
 int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp);
 
+struct PostCopyFD;
+
+/* ufd is a pointer to the struct uffd_msg *TODO: more Portable! */
+typedef int (*pcfdhandler)(struct PostCopyFD *pcfd, void *ufd);
+
+struct PostCopyFD {
+    int fd;
+    /* Data to pass to handler */
+    void *data;
+    /* Handler to be called whenever we get a poll event */
+    pcfdhandler handler;
+    /* A string to use in error messages */
+    const char *idstr;
+};
+
+/* Register a userfaultfd owned by an external process for
+ * shared memory.
+ */
+void postcopy_register_shared_ufd(struct PostCopyFD *pcfd);
+void postcopy_unregister_shared_ufd(struct PostCopyFD *pcfd);
+
 #endif
