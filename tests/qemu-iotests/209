@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+#
+# Tests for NBD BLOCK_STATUS extension
+#
+# Copyright (c) 2018 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import qemu_img_create, qemu_io, qemu_img_verbose, qemu_nbd, \
+                    file_path
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+disk, nbd_sock = file_path('disk', 'nbd-sock')
+nbd_uri = 'nbd+unix:///exp?socket=' + nbd_sock
+
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+qemu_io('-f', iotests.imgfmt, '-c', 'write 0 512K', disk)
+
+qemu_nbd('-k', nbd_sock, '-x', 'exp', '-f', iotests.imgfmt, disk)
+qemu_img_verbose('map', '-f', 'raw', '--output=json', nbd_uri)
