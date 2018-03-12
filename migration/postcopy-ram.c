@@ -215,12 +215,6 @@ static int test_ramblock_postcopiable(const char *block_name, void *host_addr,
     RAMBlock *rb = qemu_ram_block_by_name(block_name);
     size_t pagesize = qemu_ram_pagesize(rb);
 
-    if (qemu_ram_is_shared(rb)) {
-        error_report("Postcopy on shared RAM (%s) is not yet supported",
-                     block_name);
-        return 1;
-    }
-
     if (length % pagesize) {
         error_report("Postcopy requires RAM blocks to be a page size multiple,"
                      " block %s is 0x" RAM_ADDR_FMT " bytes with a "
