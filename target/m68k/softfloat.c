@@ -23,6 +23,9 @@
 #include "fpu/softfloat-macros.h"
 #include "softfloat_fpsp_tables.h"
 
+#define piby2_exp   0x3FFF
+#define pi_sig      LIT64(0xc90fdaa22168c235)
+
 static floatx80 propagateFloatx80NaNOneArg(floatx80 a, float_status *status)
 {
     if (floatx80_is_signaling_nan(a, status)) {
@@ -1965,5 +1968,202 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
 
             return a;
         }
+    }
+}
+
+/*----------------------------------------------------------------------------
+ | Arc tangent
+ *----------------------------------------------------------------------------*/
+
+floatx80 floatx80_atan(floatx80 a, float_status *status)
+{
+    flag aSign;
+    int32_t aExp;
+    uint64_t aSig;
+
+    int8_t user_rnd_mode, user_rnd_prec;
+
+    int32_t compact, tbl_index;
+    floatx80 fp0, fp1, fp2, fp3, xsave;
+
+    aSig = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t) (aSig << 1)) {
+            return propagateFloatx80NaNOneArg(a, status);
+        }
+        a = packFloatx80(aSign, piby2_exp, pi_sig);
+        float_raise(float_flag_inexact, status);
+        return floatx80_move(a, status);
+    }
+
+    if (aExp == 0 && aSig == 0) {
+        return packFloatx80(aSign, 0, 0);
+    }
+
+    compact = floatx80_make_compact(aExp, aSig);
+
+    user_rnd_mode = status->float_rounding_mode;
+    user_rnd_prec = status->floatx80_rounding_precision;
+    status->float_rounding_mode = float_round_nearest_even;
+    status->floatx80_rounding_precision = 80;
+
+    if (compact < 0x3FFB8000 || compact > 0x4002FFFF) {
+        /* |X| >= 16 or |X| < 1/16 */
+        if (compact > 0x3FFF8000) { /* |X| >= 16 */
+            if (compact > 0x40638000) { /* |X| > 2^(100) */
+                fp0 = packFloatx80(aSign, piby2_exp, pi_sig);
+                fp1 = packFloatx80(aSign, 0x0001, one_sig);
+
+                status->float_rounding_mode = user_rnd_mode;
+                status->floatx80_rounding_precision = user_rnd_prec;
+
+                a = floatx80_sub(fp0, fp1, status);
+
+                float_raise(float_flag_inexact, status);
+
+                return a;
+            } else {
+                fp0 = a;
+                fp1 = packFloatx80(1, one_exp, one_sig); /* -1 */
+                fp1 = floatx80_div(fp1, fp0, status); /* X' = -1/X */
+                xsave = fp1;
+                fp0 = floatx80_mul(fp1, fp1, status); /* Y = X'*X' */
+                fp1 = floatx80_mul(fp0, fp0, status); /* Z = Y*Y */
+                fp3 = float64_to_floatx80(make_float64(0xBFB70BF398539E6A),
+                                          status); /* C5 */
+                fp2 = float64_to_floatx80(make_float64(0x3FBC7187962D1D7D),
+                                          status); /* C4 */
+                fp3 = floatx80_mul(fp3, fp1, status); /* Z*C5 */
+                fp2 = floatx80_mul(fp2, fp1, status); /* Z*C4 */
+                fp3 = floatx80_add(fp3, float64_to_floatx80(
+                                   make_float64(0xBFC24924827107B8), status),
+                                   status); /* C3+Z*C5 */
+                fp2 = floatx80_add(fp2, float64_to_floatx80(
+                                   make_float64(0x3FC999999996263E), status),
+                                   status); /* C2+Z*C4 */
+                fp1 = floatx80_mul(fp1, fp3, status); /* Z*(C3+Z*C5) */
+                fp2 = floatx80_mul(fp2, fp0, status); /* Y*(C2+Z*C4) */
+                fp1 = floatx80_add(fp1, float64_to_floatx80(
+                                   make_float64(0xBFD5555555555536), status),
+                                   status); /* C1+Z*(C3+Z*C5) */
+                fp0 = floatx80_mul(fp0, xsave, status); /* X'*Y */
+                /* [Y*(C2+Z*C4)]+[C1+Z*(C3+Z*C5)] */
+                fp1 = floatx80_add(fp1, fp2, status);
+                /* X'*Y*([B1+Z*(B3+Z*B5)]+[Y*(B2+Z*(B4+Z*B6))]) ?? */
+                fp0 = floatx80_mul(fp0, fp1, status);
+                fp0 = floatx80_add(fp0, xsave, status);
+                fp1 = packFloatx80(aSign, piby2_exp, pi_sig);
+
+                status->float_rounding_mode = user_rnd_mode;
+                status->floatx80_rounding_precision = user_rnd_prec;
+
+                a = floatx80_add(fp0, fp1, status);
+
+                float_raise(float_flag_inexact, status);
+
+                return a;
+            }
+        } else { /* |X| < 1/16 */
+            if (compact < 0x3FD78000) { /* |X| < 2^(-40) */
+                status->float_rounding_mode = user_rnd_mode;
+                status->floatx80_rounding_precision = user_rnd_prec;
+
+                a = floatx80_move(a, status);
+
+                float_raise(float_flag_inexact, status);
+
+                return a;
+            } else {
+                fp0 = a;
+                xsave = a;
+                fp0 = floatx80_mul(fp0, fp0, status); /* Y = X*X */
+                fp1 = floatx80_mul(fp0, fp0, status); /* Z = Y*Y */
+                fp2 = float64_to_floatx80(make_float64(0x3FB344447F876989),
+                                          status); /* B6 */
+                fp3 = float64_to_floatx80(make_float64(0xBFB744EE7FAF45DB),
+                                          status); /* B5 */
+                fp2 = floatx80_mul(fp2, fp1, status); /* Z*B6 */
+                fp3 = floatx80_mul(fp3, fp1, status); /* Z*B5 */
+                fp2 = floatx80_add(fp2, float64_to_floatx80(
+                                   make_float64(0x3FBC71C646940220), status),
+                                   status); /* B4+Z*B6 */
+                fp3 = floatx80_add(fp3, float64_to_floatx80(
+                                   make_float64(0xBFC24924921872F9),
+                                   status), status); /* B3+Z*B5 */
+                fp2 = floatx80_mul(fp2, fp1, status); /* Z*(B4+Z*B6) */
+                fp1 = floatx80_mul(fp1, fp3, status); /* Z*(B3+Z*B5) */
+                fp2 = floatx80_add(fp2, float64_to_floatx80(
+                                   make_float64(0x3FC9999999998FA9), status),
+                                   status); /* B2+Z*(B4+Z*B6) */
+                fp1 = floatx80_add(fp1, float64_to_floatx80(
+                                   make_float64(0xBFD5555555555555), status),
+                                   status); /* B1+Z*(B3+Z*B5) */
+                fp2 = floatx80_mul(fp2, fp0, status); /* Y*(B2+Z*(B4+Z*B6)) */
+                fp0 = floatx80_mul(fp0, xsave, status); /* X*Y */
+                /* [B1+Z*(B3+Z*B5)]+[Y*(B2+Z*(B4+Z*B6))] */
+                fp1 = floatx80_add(fp1, fp2, status);
+                /* X*Y*([B1+Z*(B3+Z*B5)]+[Y*(B2+Z*(B4+Z*B6))]) */
+                fp0 = floatx80_mul(fp0, fp1, status);
+
+                status->float_rounding_mode = user_rnd_mode;
+                status->floatx80_rounding_precision = user_rnd_prec;
+
+                a = floatx80_add(fp0, xsave, status);
+
+                float_raise(float_flag_inexact, status);
+
+                return a;
+            }
+        }
+    } else {
+        aSig &= LIT64(0xF800000000000000);
+        aSig |= LIT64(0x0400000000000000);
+        xsave = packFloatx80(aSign, aExp, aSig); /* F */
+        fp0 = a;
+        fp1 = a; /* X */
+        fp2 = packFloatx80(0, one_exp, one_sig); /* 1 */
+        fp1 = floatx80_mul(fp1, xsave, status); /* X*F */
+        fp0 = floatx80_sub(fp0, xsave, status); /* X-F */
+        fp1 = floatx80_add(fp1, fp2, status); /* 1 + X*F */
+        fp0 = floatx80_div(fp0, fp1, status); /* U = (X-F)/(1+X*F) */
+
+        tbl_index = compact;
+
+        tbl_index &= 0x7FFF0000;
+        tbl_index -= 0x3FFB0000;
+        tbl_index >>= 1;
+        tbl_index += compact & 0x00007800;
+        tbl_index >>= 11;
+
+        fp3 = atan_tbl[tbl_index];
+
+        fp3.high |= aSign ? 0x8000 : 0; /* ATAN(F) */
+
+        fp1 = floatx80_mul(fp0, fp0, status); /* V = U*U */
+        fp2 = float64_to_floatx80(make_float64(0xBFF6687E314987D8),
+                                  status); /* A3 */
+        fp2 = floatx80_add(fp2, fp1, status); /* A3+V */
+        fp2 = floatx80_mul(fp2, fp1, status); /* V*(A3+V) */
+        fp1 = floatx80_mul(fp1, fp0, status); /* U*V */
+        fp2 = floatx80_add(fp2, float64_to_floatx80(
+                           make_float64(0x4002AC6934A26DB3), status),
+                           status); /* A2+V*(A3+V) */
+        fp1 = floatx80_mul(fp1, float64_to_floatx80(
+                           make_float64(0xBFC2476F4E1DA28E), status),
+                           status); /* A1+U*V */
+        fp1 = floatx80_mul(fp1, fp2, status); /* A1*U*V*(A2+V*(A3+V)) */
+        fp0 = floatx80_add(fp0, fp1, status); /* ATAN(U) */
+
+        status->float_rounding_mode = user_rnd_mode;
+        status->floatx80_rounding_precision = user_rnd_prec;
+
+        a = floatx80_add(fp0, fp3, status); /* ATAN(X) */
+
+        float_raise(float_flag_inexact, status);
+
+        return a;
     }
 }
