@@ -602,3 +602,8 @@ void HELPER(fsin)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_sin(val->d, &env->fp_status);
 }
+
+void HELPER(fcos)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_cos(val->d, &env->fp_status);
+}
