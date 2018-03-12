@@ -1386,6 +1386,7 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis,
 {
     PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_ADVISE);
     uint64_t remote_pagesize_summary, local_pagesize_summary, remote_tps;
+    Error *local_err = NULL;
 
     trace_loadvm_postcopy_handle_advise();
     if (ps != POSTCOPY_INCOMING_NONE) {
@@ -1448,6 +1449,11 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis,
          */
         error_report("Postcopy needs matching target page sizes (s=%d d=%zd)",
                      (int)remote_tps, qemu_target_page_size());
+        return -1;
+    }
+
+    if (postcopy_notify(POSTCOPY_NOTIFY_INBOUND_ADVISE, &local_err)) {
+        error_report_err(local_err);
         return -1;
     }
 

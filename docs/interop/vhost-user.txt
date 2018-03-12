@@ -699,6 +699,16 @@ Master message types
      feature has been successfully negotiated.
      It's a required feature for crypto devices.
 
+ * VHOST_USER_POSTCOPY_ADVISE
+      Id: 28
+      Master payload: N/A
+      Slave payload: userfault fd
+
+      When VHOST_USER_PROTOCOL_F_PAGEFAULT is supported, the
+      master advises slave that a migration with postcopy enabled is underway,
+      the slave must open a userfaultfd for later use.
+      Note that at this stage the migration is still in precopy mode.
+
 Slave message types
 -------------------
 
