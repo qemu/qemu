@@ -592,3 +592,8 @@ void HELPER(ftentox)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_tentox(val->d, &env->fp_status);
 }
+
+void HELPER(ftan)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_tan(val->d, &env->fp_status);
+}
