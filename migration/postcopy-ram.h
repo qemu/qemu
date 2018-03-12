@@ -116,4 +116,30 @@ PostcopyState postcopy_state_set(PostcopyState new_state);
 
 void postcopy_fault_thread_notify(MigrationIncomingState *mis);
 
+/*
+ * To be called once at the start before any device initialisation
+ */
+void postcopy_infrastructure_init(void);
+
+/* Add a notifier to a list to be called when checking whether the devices
+ * can support postcopy.
+ * It's data is a *PostcopyNotifyData
+ * It should return 0 if OK, or a negative value on failure.
+ * On failure it must set the data->errp to an error.
+ *
+ */
+enum PostcopyNotifyReason {
+    POSTCOPY_NOTIFY_PROBE = 0,
+};
+
+struct PostcopyNotifyData {
+    enum PostcopyNotifyReason reason;
+    Error **errp;
+};
+
+void postcopy_add_notifier(NotifierWithReturn *nn);
+void postcopy_remove_notifier(NotifierWithReturn *n);
+/* Call the notifier list set by postcopy_add_start_notifier */
+int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp);
+
 #endif
