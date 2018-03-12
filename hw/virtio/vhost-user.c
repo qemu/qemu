@@ -1006,6 +1006,35 @@ static int vhost_user_postcopy_fault_handler(struct PostCopyFD *pcfd,
     return -1;
 }
 
+static int vhost_user_postcopy_waker(struct PostCopyFD *pcfd, RAMBlock *rb,
+                                     uint64_t offset)
+{
+    struct vhost_dev *dev = pcfd->data;
+    struct vhost_user *u = dev->opaque;
+    int i;
+
+    trace_vhost_user_postcopy_waker(qemu_ram_get_idstr(rb), offset);
+
+    if (!u) {
+        return 0;
+    }
+    /* Translate the offset into an address in the clients address space */
+    for (i = 0; i < MIN(dev->mem->nregions, u->region_rb_len); i++) {
+        if (u->region_rb[i] == rb &&
+            offset >= u->region_rb_offset[i] &&
+            offset < (u->region_rb_offset[i] +
+                      dev->mem->regions[i].memory_size)) {
+            uint64_t client_addr = (offset - u->region_rb_offset[i]) +
+                                   u->postcopy_client_bases[i];
+            trace_vhost_user_postcopy_waker_found(client_addr);
+            return postcopy_wake_shared(pcfd, client_addr, rb);
+        }
+    }
+
+    trace_vhost_user_postcopy_waker_nomatch(qemu_ram_get_idstr(rb), offset);
+    return 0;
+}
+
 /*
  * Called at the start of an inbound postcopy on reception of the
  * 'advise' command.
@@ -1051,6 +1080,7 @@ static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
     u->postcopy_fd.fd = ufd;
     u->postcopy_fd.data = dev;
     u->postcopy_fd.handler = vhost_user_postcopy_fault_handler;
+    u->postcopy_fd.waker = vhost_user_postcopy_waker;
     u->postcopy_fd.idstr = "vhost-user"; /* Need to find unique name */
     postcopy_register_shared_ufd(&u->postcopy_fd);
     return 0;
