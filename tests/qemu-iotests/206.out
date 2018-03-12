@@ -1,0 +1,209 @@
+QA output created by 206
+
+=== Successful image creation (defaults) ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 128M (134217728 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    corrupt: false
+
+=== Successful image creation (inline blockdev-add, explicit defaults) ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    corrupt: false
+
+=== Successful image creation (v3 non-default options) ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 32M (33554432 bytes)
+cluster_size: 2097152
+Format specific information:
+    compat: 1.1
+    lazy refcounts: true
+    refcount bits: 1
+    corrupt: false
+
+=== Successful image creation (v2 non-default options) ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 32M (33554432 bytes)
+cluster_size: 512
+backing file: TEST_DIR/t.IMGFMT.base
+backing file format: IMGFMT
+Format specific information:
+    compat: 0.10
+    refcount bits: 16
+
+=== Successful image creation (encrypted) ===
+
+Testing: -object secret,id=keysec0,data=foo
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 32M (33554432 bytes)
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    encrypt:
+        ivgen alg: plain64
+        hash alg: sha1
+        cipher alg: twofish-128
+        uuid: 00000000-0000-0000-0000-000000000000
+        format: luks
+        cipher mode: ctr
+        slots:
+            [0]:
+                active: true
+                iters: 1024
+                key offset: 4096
+                stripes: 4000
+            [1]:
+                active: false
+                key offset: 69632
+            [2]:
+                active: false
+                key offset: 135168
+            [3]:
+                active: false
+                key offset: 200704
+            [4]:
+                active: false
+                key offset: 266240
+            [5]:
+                active: false
+                key offset: 331776
+            [6]:
+                active: false
+                key offset: 397312
+            [7]:
+                active: false
+                key offset: 462848
+        payload offset: 528384
+        master key iters: 1024
+    corrupt: false
+
+=== Invalid BlockdevRef ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Cannot find device=this doesn't exist nor node_name=this doesn't exist"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Invalid sizes ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Image size must be a multiple of 512 bytes"}}
+{"error": {"class": "GenericError", "desc": "Could not resize image: Image size cannot be negative"}}
+{"error": {"class": "GenericError", "desc": "Could not resize image: Image size cannot be negative"}}
+{"error": {"class": "GenericError", "desc": "Could not resize image: Failed to grow the L1 table: File too large"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Invalid version ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter 'v1'"}}
+{"error": {"class": "GenericError", "desc": "Lazy refcounts only supported with compatibility level 1.1 and above (use version=v3 or greater)"}}
+{"error": {"class": "GenericError", "desc": "Different refcount widths than 16 bits require compatibility level 1.1 or above (use version=v3 or greater)"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Invalid backing file options ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Backing file and preallocation cannot be used at the same time"}}
+{"error": {"class": "GenericError", "desc": "Backing format cannot be used without backing file"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Invalid cluster size ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Cluster size must be a power of two between 512 and 2048k"}}
+{"error": {"class": "GenericError", "desc": "Cluster size must be a power of two between 512 and 2048k"}}
+{"error": {"class": "GenericError", "desc": "Cluster size must be a power of two between 512 and 2048k"}}
+{"error": {"class": "GenericError", "desc": "Cluster size must be a power of two between 512 and 2048k"}}
+{"error": {"class": "GenericError", "desc": "Could not resize image: Failed to grow the L1 table: File too large"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Invalid refcount width ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Refcount width must be a power of two and may not exceed 64 bits"}}
+{"error": {"class": "GenericError", "desc": "Refcount width must be a power of two and may not exceed 64 bits"}}
+{"error": {"class": "GenericError", "desc": "Refcount width must be a power of two and may not exceed 64 bits"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+*** done

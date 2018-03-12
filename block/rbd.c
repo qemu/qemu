@@ -24,6 +24,8 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qapi-visit-block-core.h"
 
 /*
  * When specifying the image filename use:
@@ -100,6 +102,11 @@ typedef struct BDRVRBDState {
     char *image_name;
     char *snap;
 } BDRVRBDState;
+
+static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
+                            BlockdevOptionsRbd *opts, bool cache,
+                            const char *keypairs, const char *secretid,
+                            Error **errp);
 
 static char *qemu_rbd_next_tok(char *src, char delim, char **p)
 {
@@ -268,13 +275,14 @@ static int qemu_rbd_set_keypairs(rados_t cluster, const char *keypairs_json,
         key = qstring_get_str(name);
 
         ret = rados_conf_set(cluster, key, qstring_get_str(value));
-        QDECREF(name);
         QDECREF(value);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "invalid conf option %s", key);
+            QDECREF(name);
             ret = -EINVAL;
             break;
         }
+        QDECREF(name);
     }
 
     QDECREF(keypairs);
@@ -325,66 +333,92 @@ static QemuOptsList runtime_opts = {
         /*
          * server.* extracted manually, see qemu_rbd_mon_host()
          */
-        {
-            .name = "password-secret",
-            .type = QEMU_OPT_STRING,
-            .help = "ID of secret providing the password",
-        },
-
-        /*
-         * Keys for qemu_rbd_parse_filename(), not in the QAPI schema
-         */
-        {
-            /*
-             * HACK: name starts with '=' so that qemu_opts_parse()
-             * can't set it
-             */
-            .name = "=keyvalue-pairs",
-            .type = QEMU_OPT_STRING,
-            .help = "Legacy rados key/value option parameters",
-        },
-        {
-            .name = "filename",
-            .type = QEMU_OPT_STRING,
-        },
         { /* end of list */ }
     },
 };
+
+/* FIXME Deprecate and remove keypairs or make it available in QMP.
+ * password_secret should eventually be configurable in opts->location. Support
+ * for it in .bdrv_open will make it work here as well. */
+static int qemu_rbd_do_create(BlockdevCreateOptions *options,
+                              const char *keypairs, const char *password_secret,
+                              Error **errp)
+{
+    BlockdevCreateOptionsRbd *opts = &options->u.rbd;
+    rados_t cluster;
+    rados_ioctx_t io_ctx;
+    int obj_order = 0;
+    int ret;
+
+    assert(options->driver == BLOCKDEV_DRIVER_RBD);
+    if (opts->location->has_snapshot) {
+        error_setg(errp, "Can't use snapshot name for image creation");
+        return -EINVAL;
+    }
+
+    if (opts->has_cluster_size) {
+        int64_t objsize = opts->cluster_size;
+        if ((objsize - 1) & objsize) {    /* not a power of 2? */
+            error_setg(errp, "obj size needs to be power of 2");
+            return -EINVAL;
+        }
+        if (objsize < 4096) {
+            error_setg(errp, "obj size too small");
+            return -EINVAL;
+        }
+        obj_order = ctz32(objsize);
+    }
+
+    ret = qemu_rbd_connect(&cluster, &io_ctx, opts->location, false, keypairs,
+                           password_secret, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = rbd_create(io_ctx, opts->location->image, opts->size, &obj_order);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "error rbd create");
+        goto out;
+    }
+
+    ret = 0;
+out:
+    rados_ioctx_destroy(io_ctx);
+    rados_shutdown(cluster);
+    return ret;
+}
+
+static int qemu_rbd_co_create(BlockdevCreateOptions *options, Error **errp)
+{
+    return qemu_rbd_do_create(options, NULL, NULL, errp);
+}
 
 static int coroutine_fn qemu_rbd_co_create_opts(const char *filename,
                                                 QemuOpts *opts,
                                                 Error **errp)
 {
+    BlockdevCreateOptions *create_options;
+    BlockdevCreateOptionsRbd *rbd_opts;
+    BlockdevOptionsRbd *loc;
     Error *local_err = NULL;
-    int64_t bytes = 0;
-    int64_t objsize;
-    int obj_order = 0;
-    const char *pool, *image_name, *conf, *user, *keypairs;
-    const char *secretid;
-    rados_t cluster;
-    rados_ioctx_t io_ctx;
+    const char *keypairs, *password_secret;
     QDict *options = NULL;
     int ret = 0;
 
-    secretid = qemu_opt_get(opts, "password-secret");
+    create_options = g_new0(BlockdevCreateOptions, 1);
+    create_options->driver = BLOCKDEV_DRIVER_RBD;
+    rbd_opts = &create_options->u.rbd;
+
+    rbd_opts->location = g_new0(BlockdevOptionsRbd, 1);
+
+    password_secret = qemu_opt_get(opts, "password-secret");
 
     /* Read out options */
-    bytes = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                     BDRV_SECTOR_SIZE);
-    objsize = qemu_opt_get_size_del(opts, BLOCK_OPT_CLUSTER_SIZE, 0);
-    if (objsize) {
-        if ((objsize - 1) & objsize) {    /* not a power of 2? */
-            error_setg(errp, "obj size needs to be power of 2");
-            ret = -EINVAL;
-            goto exit;
-        }
-        if (objsize < 4096) {
-            error_setg(errp, "obj size too small");
-            ret = -EINVAL;
-            goto exit;
-        }
-        obj_order = ctz32(objsize);
-    }
+    rbd_opts->size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                              BDRV_SECTOR_SIZE);
+    rbd_opts->cluster_size = qemu_opt_get_size_del(opts,
+                                                   BLOCK_OPT_CLUSTER_SIZE, 0);
+    rbd_opts->has_cluster_size = (rbd_opts->cluster_size != 0);
 
     options = qdict_new();
     qemu_rbd_parse_filename(filename, options, &local_err);
@@ -400,61 +434,23 @@ static int coroutine_fn qemu_rbd_co_create_opts(const char *filename,
      * or blockdev_add, its members are typed according to the QAPI
      * schema, but when they come from -drive, they're all QString.
      */
-    pool       = qdict_get_try_str(options, "pool");
-    conf       = qdict_get_try_str(options, "conf");
-    user       = qdict_get_try_str(options, "user");
-    image_name = qdict_get_try_str(options, "image");
-    keypairs   = qdict_get_try_str(options, "=keyvalue-pairs");
+    loc = rbd_opts->location;
+    loc->pool     = g_strdup(qdict_get_try_str(options, "pool"));
+    loc->conf     = g_strdup(qdict_get_try_str(options, "conf"));
+    loc->has_conf = !!loc->conf;
+    loc->user     = g_strdup(qdict_get_try_str(options, "user"));
+    loc->has_user = !!loc->user;
+    loc->image    = g_strdup(qdict_get_try_str(options, "image"));
+    keypairs      = qdict_get_try_str(options, "=keyvalue-pairs");
 
-    ret = rados_create(&cluster, user);
+    ret = qemu_rbd_do_create(create_options, keypairs, password_secret, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "error initializing");
         goto exit;
     }
 
-    /* try default location when conf=NULL, but ignore failure */
-    ret = rados_conf_read_file(cluster, conf);
-    if (conf && ret < 0) {
-        error_setg_errno(errp, -ret, "error reading conf file %s", conf);
-        ret = -EIO;
-        goto shutdown;
-    }
-
-    ret = qemu_rbd_set_keypairs(cluster, keypairs, errp);
-    if (ret < 0) {
-        ret = -EIO;
-        goto shutdown;
-    }
-
-    if (qemu_rbd_set_auth(cluster, secretid, errp) < 0) {
-        ret = -EIO;
-        goto shutdown;
-    }
-
-    ret = rados_connect(cluster);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "error connecting");
-        goto shutdown;
-    }
-
-    ret = rados_ioctx_create(cluster, pool, &io_ctx);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "error opening pool %s", pool);
-        goto shutdown;
-    }
-
-    ret = rbd_create(io_ctx, image_name, bytes, &obj_order);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "error rbd create");
-    }
-
-    rados_ioctx_destroy(io_ctx);
-
-shutdown:
-    rados_shutdown(cluster);
-
 exit:
     QDECREF(options);
+    qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
 
@@ -505,131 +501,83 @@ static void qemu_rbd_complete_aio(RADOSCB *rcb)
     qemu_aio_unref(acb);
 }
 
-static char *qemu_rbd_mon_host(QDict *options, Error **errp)
+static char *qemu_rbd_mon_host(BlockdevOptionsRbd *opts, Error **errp)
 {
-    const char **vals = g_new(const char *, qdict_size(options) + 1);
-    char keybuf[32];
+    const char **vals;
     const char *host, *port;
     char *rados_str;
-    int i;
+    InetSocketAddressBaseList *p;
+    int i, cnt;
 
-    for (i = 0;; i++) {
-        sprintf(keybuf, "server.%d.host", i);
-        host = qdict_get_try_str(options, keybuf);
-        qdict_del(options, keybuf);
-        sprintf(keybuf, "server.%d.port", i);
-        port = qdict_get_try_str(options, keybuf);
-        qdict_del(options, keybuf);
-        if (!host && !port) {
-            break;
-        }
-        if (!host) {
-            error_setg(errp, "Parameter server.%d.host is missing", i);
-            rados_str = NULL;
-            goto out;
-        }
+    if (!opts->has_server) {
+        return NULL;
+    }
+
+    for (cnt = 0, p = opts->server; p; p = p->next) {
+        cnt++;
+    }
+
+    vals = g_new(const char *, cnt + 1);
+
+    for (i = 0, p = opts->server; p; p = p->next, i++) {
+        host = p->value->host;
+        port = p->value->port;
 
         if (strchr(host, ':')) {
-            vals[i] = port ? g_strdup_printf("[%s]:%s", host, port)
-                : g_strdup_printf("[%s]", host);
+            vals[i] = g_strdup_printf("[%s]:%s", host, port);
         } else {
-            vals[i] = port ? g_strdup_printf("%s:%s", host, port)
-                : g_strdup(host);
+            vals[i] = g_strdup_printf("%s:%s", host, port);
         }
     }
     vals[i] = NULL;
 
     rados_str = i ? g_strjoinv(";", (char **)vals) : NULL;
-out:
     g_strfreev((char **)vals);
     return rados_str;
 }
 
-static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
-                         Error **errp)
+static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
+                            BlockdevOptionsRbd *opts, bool cache,
+                            const char *keypairs, const char *secretid,
+                            Error **errp)
 {
-    BDRVRBDState *s = bs->opaque;
-    const char *pool, *snap, *conf, *user, *image_name, *keypairs;
-    const char *secretid, *filename;
-    QemuOpts *opts;
-    Error *local_err = NULL;
     char *mon_host = NULL;
+    Error *local_err = NULL;
     int r;
 
-    /* If we are given a filename, parse the filename, with precedence given to
-     * filename encoded options */
-    filename = qdict_get_try_str(options, "filename");
-    if (filename) {
-        warn_report("'filename' option specified. "
-                    "This is an unsupported option, and may be deprecated "
-                    "in the future");
-        qemu_rbd_parse_filename(filename, options, &local_err);
-        if (local_err) {
-            r = -EINVAL;
-            error_propagate(errp, local_err);
-            goto exit;
-        }
-    }
-
-    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
+    mon_host = qemu_rbd_mon_host(opts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         r = -EINVAL;
         goto failed_opts;
     }
 
-    mon_host = qemu_rbd_mon_host(options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        r = -EINVAL;
-        goto failed_opts;
-    }
-
-    secretid = qemu_opt_get(opts, "password-secret");
-
-    pool           = qemu_opt_get(opts, "pool");
-    conf           = qemu_opt_get(opts, "conf");
-    snap           = qemu_opt_get(opts, "snapshot");
-    user           = qemu_opt_get(opts, "user");
-    image_name     = qemu_opt_get(opts, "image");
-    keypairs       = qemu_opt_get(opts, "=keyvalue-pairs");
-
-    if (!pool || !image_name) {
-        error_setg(errp, "Parameters 'pool' and 'image' are required");
-        r = -EINVAL;
-        goto failed_opts;
-    }
-
-    r = rados_create(&s->cluster, user);
+    r = rados_create(cluster, opts->user);
     if (r < 0) {
         error_setg_errno(errp, -r, "error initializing");
         goto failed_opts;
     }
 
-    s->snap = g_strdup(snap);
-    s->image_name = g_strdup(image_name);
-
     /* try default location when conf=NULL, but ignore failure */
-    r = rados_conf_read_file(s->cluster, conf);
-    if (conf && r < 0) {
-        error_setg_errno(errp, -r, "error reading conf file %s", conf);
+    r = rados_conf_read_file(*cluster, opts->conf);
+    if (opts->has_conf && r < 0) {
+        error_setg_errno(errp, -r, "error reading conf file %s", opts->conf);
         goto failed_shutdown;
     }
 
-    r = qemu_rbd_set_keypairs(s->cluster, keypairs, errp);
+    r = qemu_rbd_set_keypairs(*cluster, keypairs, errp);
     if (r < 0) {
         goto failed_shutdown;
     }
 
     if (mon_host) {
-        r = rados_conf_set(s->cluster, "mon_host", mon_host);
+        r = rados_conf_set(*cluster, "mon_host", mon_host);
         if (r < 0) {
             goto failed_shutdown;
         }
     }
 
-    if (qemu_rbd_set_auth(s->cluster, secretid, errp) < 0) {
+    if (qemu_rbd_set_auth(*cluster, secretid, errp) < 0) {
         r = -EIO;
         goto failed_shutdown;
     }
@@ -641,23 +589,96 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
      * librbd defaults to no caching. If write through caching cannot
      * be set up, fall back to no caching.
      */
-    if (flags & BDRV_O_NOCACHE) {
-        rados_conf_set(s->cluster, "rbd_cache", "false");
+    if (cache) {
+        rados_conf_set(*cluster, "rbd_cache", "true");
     } else {
-        rados_conf_set(s->cluster, "rbd_cache", "true");
+        rados_conf_set(*cluster, "rbd_cache", "false");
     }
 
-    r = rados_connect(s->cluster);
+    r = rados_connect(*cluster);
     if (r < 0) {
         error_setg_errno(errp, -r, "error connecting");
         goto failed_shutdown;
     }
 
-    r = rados_ioctx_create(s->cluster, pool, &s->io_ctx);
+    r = rados_ioctx_create(*cluster, opts->pool, io_ctx);
     if (r < 0) {
-        error_setg_errno(errp, -r, "error opening pool %s", pool);
+        error_setg_errno(errp, -r, "error opening pool %s", opts->pool);
         goto failed_shutdown;
     }
+
+    return 0;
+
+failed_shutdown:
+    rados_shutdown(*cluster);
+failed_opts:
+    g_free(mon_host);
+    return r;
+}
+
+static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
+                         Error **errp)
+{
+    BDRVRBDState *s = bs->opaque;
+    BlockdevOptionsRbd *opts = NULL;
+    Visitor *v;
+    QObject *crumpled = NULL;
+    Error *local_err = NULL;
+    const char *filename;
+    char *keypairs, *secretid;
+    int r;
+
+    /* If we are given a filename, parse the filename, with precedence given to
+     * filename encoded options */
+    filename = qdict_get_try_str(options, "filename");
+    if (filename) {
+        warn_report("'filename' option specified. "
+                    "This is an unsupported option, and may be deprecated "
+                    "in the future");
+        qemu_rbd_parse_filename(filename, options, &local_err);
+        qdict_del(options, "filename");
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -EINVAL;
+        }
+    }
+
+    keypairs = g_strdup(qdict_get_try_str(options, "=keyvalue-pairs"));
+    if (keypairs) {
+        qdict_del(options, "=keyvalue-pairs");
+    }
+
+    secretid = g_strdup(qdict_get_try_str(options, "password-secret"));
+    if (secretid) {
+        qdict_del(options, "password-secret");
+    }
+
+    /* Convert the remaining options into a QAPI object */
+    crumpled = qdict_crumple(options, errp);
+    if (crumpled == NULL) {
+        r = -EINVAL;
+        goto out;
+    }
+
+    v = qobject_input_visitor_new_keyval(crumpled);
+    visit_type_BlockdevOptionsRbd(v, NULL, &opts, &local_err);
+    visit_free(v);
+    qobject_decref(crumpled);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        r = -EINVAL;
+        goto out;
+    }
+
+    r = qemu_rbd_connect(&s->cluster, &s->io_ctx, opts,
+                         !(flags & BDRV_O_NOCACHE), keypairs, secretid, errp);
+    if (r < 0) {
+        goto out;
+    }
+
+    s->snap = g_strdup(opts->snapshot);
+    s->image_name = g_strdup(opts->image);
 
     /* rbd_open is always r/w */
     r = rbd_open(s->io_ctx, s->image_name, &s->image, s->snap);
@@ -683,19 +704,18 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    qemu_opts_del(opts);
-    return 0;
+    r = 0;
+    goto out;
 
 failed_open:
     rados_ioctx_destroy(s->io_ctx);
-failed_shutdown:
-    rados_shutdown(s->cluster);
     g_free(s->snap);
     g_free(s->image_name);
-failed_opts:
-    qemu_opts_del(opts);
-    g_free(mon_host);
-exit:
+    rados_shutdown(s->cluster);
+out:
+    qapi_free_BlockdevOptionsRbd(opts);
+    g_free(keypairs);
+    g_free(secretid);
     return r;
 }
 
@@ -1093,8 +1113,8 @@ static BlockAIOCB *qemu_rbd_aio_pdiscard(BlockDriverState *bs,
 #endif
 
 #ifdef LIBRBD_SUPPORTS_INVALIDATE
-static void qemu_rbd_invalidate_cache(BlockDriverState *bs,
-                                      Error **errp)
+static void coroutine_fn qemu_rbd_co_invalidate_cache(BlockDriverState *bs,
+                                                      Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
     int r = rbd_invalidate_cache(s->image);
@@ -1134,6 +1154,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_file_open         = qemu_rbd_open,
     .bdrv_close             = qemu_rbd_close,
     .bdrv_reopen_prepare    = qemu_rbd_reopen_prepare,
+    .bdrv_co_create         = qemu_rbd_co_create,
     .bdrv_co_create_opts    = qemu_rbd_co_create_opts,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
     .bdrv_get_info          = qemu_rbd_getinfo,
@@ -1160,7 +1181,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_snapshot_list     = qemu_rbd_snap_list,
     .bdrv_snapshot_goto     = qemu_rbd_snap_rollback,
 #ifdef LIBRBD_SUPPORTS_INVALIDATE
-    .bdrv_invalidate_cache  = qemu_rbd_invalidate_cache,
+    .bdrv_co_invalidate_cache = qemu_rbd_co_invalidate_cache,
 #endif
 };
 

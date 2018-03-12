@@ -32,6 +32,7 @@ _cleanup()
 {
     _cleanup_test_img
     rm -f "${TEST_IMG}.base"
+    rm -f "${TEST_IMG}.overlay"
     rm -f "${TEST_IMG}.convert"
     rm -f "${TEST_IMG}.a"
     rm -f "${TEST_IMG}.b"
@@ -177,8 +178,6 @@ rm -f "${TEST_IMG}.lnk" &>/dev/null
 ln -s ${TEST_IMG} "${TEST_IMG}.lnk" || echo "Failed to create link"
 _run_qemu_with_images "${TEST_IMG}.lnk" "${TEST_IMG}"
 
-echo
-echo "== Closing an image should unlock it =="
 _launch_qemu
 
 _send_qemu_cmd $QEMU_HANDLE \
@@ -193,7 +192,10 @@ _send_qemu_cmd $QEMU_HANDLE \
 
 _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
 
-echo "Closing drive"
+echo "Creating overlay with qemu-img when the guest is running should be allowed"
+_run_cmd $QEMU_IMG create -f $IMGFMT -b "${TEST_IMG}" "${TEST_IMG}.overlay"
+
+echo "== Closing an image should unlock it =="
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'human-monitor-command',
        'arguments': { 'command-line': 'drive_del d0' } }" \

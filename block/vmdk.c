@@ -2221,8 +2221,9 @@ static ImageInfo *vmdk_get_extent_info(VmdkExtent *extent)
     return info;
 }
 
-static int vmdk_check(BlockDriverState *bs, BdrvCheckResult *result,
-                      BdrvCheckMode fix)
+static int coroutine_fn vmdk_co_check(BlockDriverState *bs,
+                                      BdrvCheckResult *result,
+                                      BdrvCheckMode fix)
 {
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
@@ -2391,7 +2392,7 @@ static BlockDriver bdrv_vmdk = {
     .instance_size                = sizeof(BDRVVmdkState),
     .bdrv_probe                   = vmdk_probe,
     .bdrv_open                    = vmdk_open,
-    .bdrv_check                   = vmdk_check,
+    .bdrv_co_check                = vmdk_co_check,
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
     .bdrv_child_perm              = bdrv_format_default_perms,
     .bdrv_co_preadv               = vmdk_co_preadv,

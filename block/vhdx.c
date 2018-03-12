@@ -1944,8 +1944,9 @@ exit:
  * r/w and any log has already been replayed, so there is nothing (currently)
  * for us to do here
  */
-static int vhdx_check(BlockDriverState *bs, BdrvCheckResult *result,
-                       BdrvCheckMode fix)
+static int coroutine_fn vhdx_co_check(BlockDriverState *bs,
+                                      BdrvCheckResult *result,
+                                      BdrvCheckMode fix)
 {
     BDRVVHDXState *s = bs->opaque;
 
@@ -2006,7 +2007,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_co_writev         = vhdx_co_writev,
     .bdrv_co_create_opts    = vhdx_co_create_opts,
     .bdrv_get_info          = vhdx_get_info,
-    .bdrv_check             = vhdx_check,
+    .bdrv_co_check          = vhdx_co_check,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
 
     .create_opts            = &vhdx_create_opts,

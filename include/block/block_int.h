@@ -129,8 +129,11 @@ struct BlockDriver {
     int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp);
     void (*bdrv_close)(BlockDriverState *bs);
-    int coroutine_fn (*bdrv_co_create_opts)(const char *filename, QemuOpts *opts,
+    int coroutine_fn (*bdrv_co_create)(BlockdevCreateOptions *opts,
                                        Error **errp);
+    int coroutine_fn (*bdrv_co_create_opts)(const char *filename,
+                                            QemuOpts *opts,
+                                            Error **errp);
     int (*bdrv_make_empty)(BlockDriverState *bs);
 
     void (*bdrv_refresh_filename)(BlockDriverState *bs, QDict *options);
@@ -224,7 +227,8 @@ struct BlockDriver {
     /*
      * Invalidate any cached meta-data.
      */
-    void (*bdrv_invalidate_cache)(BlockDriverState *bs, Error **errp);
+    void coroutine_fn (*bdrv_co_invalidate_cache)(BlockDriverState *bs,
+                                                  Error **errp);
     int (*bdrv_inactivate)(BlockDriverState *bs);
 
     /*
@@ -306,8 +310,9 @@ struct BlockDriver {
      * Returns 0 for completed check, -errno for internal errors.
      * The check results are stored in result.
      */
-    int (*bdrv_check)(BlockDriverState *bs, BdrvCheckResult *result,
-        BdrvCheckMode fix);
+    int coroutine_fn (*bdrv_co_check)(BlockDriverState *bs,
+                                      BdrvCheckResult *result,
+                                      BdrvCheckMode fix);
 
     int (*bdrv_amend_options)(BlockDriverState *bs, QemuOpts *opts,
                               BlockDriverAmendStatusCB *status_cb,

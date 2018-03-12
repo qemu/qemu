@@ -18,18 +18,18 @@ can't open device TEST_DIR/t.qcow2: Reference count table too large
 
 == Misaligned refcount table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
+can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
 
 == Huge refcount offset ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
+can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
 
 == Invalid snapshot table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Too many snapshots
-can't open device TEST_DIR/t.qcow2: Too many snapshots
-can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
-can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
+can't open device TEST_DIR/t.qcow2: Snapshot table too large
+can't open device TEST_DIR/t.qcow2: Snapshot table too large
+can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
+can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
 
 == Hitting snapshot table size limit ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -41,8 +41,8 @@ read 512/512 bytes at offset 0
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 can't open device TEST_DIR/t.qcow2: Active L1 table too large
 can't open device TEST_DIR/t.qcow2: Active L1 table too large
-can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
-can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
+can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
+can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
 
 == Invalid L1 table (with internal snapshot in the image) ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -59,9 +59,49 @@ wrote 512/512 bytes at offset 0
 qemu-img: Could not create snapshot 'test': -27 (File too large)
 qemu-img: Could not create snapshot 'test': -11 (Resource temporarily unavailable)
 
-== Invalid snapshot L1 table ==
+== Invalid snapshot L1 table offset ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Failed to load snapshot: Snapshot L1 table offset invalid
+qemu-img: Snapshot L1 table offset invalid
+qemu-img: Error while amending options: Invalid argument
+Failed to flush the refcount block cache: Invalid argument
+write failed: Invalid argument
+qemu-img: Snapshot L1 table offset invalid
+qemu-img: Could not apply snapshot 'test': Failed to load snapshot: Invalid argument
+qemu-img: Could not delete snapshot 'test': Snapshot L1 table offset invalid
+ERROR snapshot 1 (test) l1_offset=0x400200: L1 table is not cluster aligned; snapshot table entry corrupted
+Leaked cluster 4 refcount=2 reference=1
+Leaked cluster 5 refcount=2 reference=1
+Leaked cluster 6 refcount=1 reference=0
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+
+3 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+
+== Invalid snapshot L1 table size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-img: Failed to load snapshot: Snapshot L1 table too large
+qemu-img: Snapshot L1 table too large
+qemu-img: Error while amending options: File too large
+Failed to flush the refcount block cache: File too large
+write failed: File too large
+qemu-img: Snapshot L1 table too large
+qemu-img: Could not apply snapshot 'test': Failed to load snapshot: File too large
+qemu-img: Could not delete snapshot 'test': Snapshot L1 table too large
+ERROR snapshot 1 (test) l1_size=0x10000000: L1 table is too large; snapshot table entry corrupted
+Leaked cluster 4 refcount=2 reference=1
+Leaked cluster 5 refcount=2 reference=1
+Leaked cluster 6 refcount=1 reference=0
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+
+3 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
 *** done

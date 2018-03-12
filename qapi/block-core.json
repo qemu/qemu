@@ -2553,6 +2553,63 @@
             '*encrypt': 'BlockdevQcow2Encryption' } }
 
 ##
+# @SshHostKeyCheckMode:
+#
+# @none             Don't check the host key at all
+# @hash             Compare the host key with a given hash
+# @known_hosts      Check the host key against the known_hosts file
+#
+# Since: 2.12
+##
+{ 'enum': 'SshHostKeyCheckMode',
+  'data': [ 'none', 'hash', 'known_hosts' ] }
+
+##
+# @SshHostKeyCheckHashType:
+#
+# @md5              The given hash is an md5 hash
+# @sha1             The given hash is an sha1 hash
+#
+# Since: 2.12
+##
+{ 'enum': 'SshHostKeyCheckHashType',
+  'data': [ 'md5', 'sha1' ] }
+
+##
+# @SshHostKeyHash:
+#
+# @type             The hash algorithm used for the hash
+# @hash             The expected hash value
+#
+# Since: 2.12
+##
+{ 'struct': 'SshHostKeyHash',
+  'data': { 'type': 'SshHostKeyCheckHashType',
+            'hash': 'str' }}
+
+##
+# @SshHostKeyDummy:
+#
+# For those union branches that don't need additional fields.
+#
+# Since: 2.12
+##
+{ 'struct': 'SshHostKeyDummy',
+  'data': {} }
+
+##
+# @SshHostKeyCheck:
+#
+# Since: 2.12
+##
+{ 'union': 'SshHostKeyCheck',
+  'base': { 'mode': 'SshHostKeyCheckMode' },
+  'discriminator': 'mode',
+  'data': { 'none': 'SshHostKeyDummy',
+            'hash': 'SshHostKeyHash',
+            'known_hosts': 'SshHostKeyDummy' } }
+
+##
 # @BlockdevOptionsSsh:
 #
 # @server:              host address
@@ -2562,14 +2619,16 @@
 # @user:                user as which to connect, defaults to current
 #                       local user name
 #
-# TODO: Expose the host_key_check option in QMP
+# @host-key-check:      Defines how and what to check the host key against
+#                       (default: known_hosts)
 #
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsSsh',
   'data': { 'server': 'InetSocketAddress',
             'path': 'str',
-            '*user': 'str' } }
+            '*user': 'str',
+            '*host-key-check': 'SshHostKeyCheck' } }
 
 
 ##
@@ -3357,6 +3416,269 @@
 #
 ##
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
+
+##
+# @BlockdevCreateOptionsFile:
+#
+# Driver specific image creation options for file.
+#
+# @filename         Filename for the new image file
+# @size             Size of the virtual disk in bytes
+# @preallocation    Preallocation mode for the new image (default: off)
+# @nocow            Turn off copy-on-write (valid only on btrfs; default: off)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsFile',
+  'data': { 'filename':         'str',
+            'size':             'size',
+            '*preallocation':   'PreallocMode',
+            '*nocow':           'bool' } }
+
+##
+# @BlockdevCreateOptionsGluster:
+#
+# Driver specific image creation options for gluster.
+#
+# @location         Where to store the new image file
+# @size             Size of the virtual disk in bytes
+# @preallocation    Preallocation mode for the new image (default: off)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsGluster',
+  'data': { 'location':         'BlockdevOptionsGluster',
+            'size':             'size',
+            '*preallocation':   'PreallocMode' } }
+
+##
+# @BlockdevCreateOptionsNfs:
+#
+# Driver specific image creation options for NFS.
+#
+# @location         Where to store the new image file
+# @size             Size of the virtual disk in bytes
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsNfs',
+  'data': { 'location':         'BlockdevOptionsNfs',
+            'size':             'size' } }
+
+##
+# @BlockdevQcow2Version:
+#
+# @v2:  The original QCOW2 format as introduced in qemu 0.10 (version 2)
+# @v3:  The extended QCOW2 format as introduced in qemu 1.1 (version 3)
+#
+# Since: 2.12
+##
+{ 'enum': 'BlockdevQcow2Version',
+  'data': [ 'v2', 'v3' ] }
+
+
+##
+# @BlockdevCreateOptionsQcow2:
+#
+# Driver specific image creation options for qcow2.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @version          Compatibility level (default: v3)
+# @backing-file     File name of the backing file if a backing file
+#                   should be used
+# @backing-fmt      Name of the block driver to use for the backing file
+# @encrypt          Encryption options if the image should be encrypted
+# @cluster-size     qcow2 cluster size in bytes (default: 65536)
+# @preallocation    Preallocation mode for the new image (default: off)
+# @lazy-refcounts   True if refcounts may be updated lazily (default: off)
+# @refcount-bits    Width of reference counts in bits (default: 16)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsQcow2',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size',
+            '*version':         'BlockdevQcow2Version',
+            '*backing-file':    'str',
+            '*backing-fmt':     'BlockdevDriver',
+            '*encrypt':         'QCryptoBlockCreateOptions',
+            '*cluster-size':    'size',
+            '*preallocation':   'PreallocMode',
+            '*lazy-refcounts':  'bool',
+            '*refcount-bits':   'int' } }
+
+##
+# @BlockdevCreateOptionsRbd:
+#
+# Driver specific image creation options for rbd/Ceph.
+#
+# @location         Where to store the new image file. This location cannot
+#                   point to a snapshot.
+# @size             Size of the virtual disk in bytes
+# @cluster-size     RBD object size
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsRbd',
+  'data': { 'location':         'BlockdevOptionsRbd',
+            'size':             'size',
+            '*cluster-size' :   'size' } }
+
+##
+# @SheepdogRedundancyType:
+#
+# @full             Create a fully replicated vdi with x copies
+# @erasure-coded    Create an erasure coded vdi with x data strips and
+#                   y parity strips
+#
+# Since: 2.12
+##
+{ 'enum': 'SheepdogRedundancyType',
+  'data': [ 'full', 'erasure-coded' ] }
+
+##
+# @SheepdogRedundancyFull:
+#
+# @copies           Number of copies to use (between 1 and 31)
+#
+# Since: 2.12
+##
+{ 'struct': 'SheepdogRedundancyFull',
+  'data': { 'copies': 'int' }}
+
+##
+# @SheepdogRedundancyErasureCoded:
+#
+# @data-strips      Number of data strips to use (one of {2,4,8,16})
+# @parity-strips    Number of parity strips to use (between 1 and 15)
+#
+# Since: 2.12
+##
+{ 'struct': 'SheepdogRedundancyErasureCoded',
+  'data': { 'data-strips': 'int',
+            'parity-strips': 'int' }}
+
+##
+# @SheepdogRedundancy:
+#
+# Since: 2.12
+##
+{ 'union': 'SheepdogRedundancy',
+  'base': { 'type': 'SheepdogRedundancyType' },
+  'discriminator': 'type',
+  'data': { 'full': 'SheepdogRedundancyFull',
+            'erasure-coded': 'SheepdogRedundancyErasureCoded' } }
+
+##
+# @BlockdevCreateOptionsSheepdog:
+#
+# Driver specific image creation options for Sheepdog.
+#
+# @location         Where to store the new image file
+# @size             Size of the virtual disk in bytes
+# @backing-file     File name of a base image
+# @preallocation    Preallocation mode (allowed values: off, full)
+# @redundancy       Redundancy of the image
+# @object-size      Object size of the image
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsSheepdog',
+  'data': { 'location':         'BlockdevOptionsSheepdog',
+            'size':             'size',
+            '*backing-file':    'str',
+            '*preallocation':   'PreallocMode',
+            '*redundancy':      'SheepdogRedundancy',
+            '*object-size':     'size' } }
+
+##
+# @BlockdevCreateOptionsSsh:
+#
+# Driver specific image creation options for SSH.
+#
+# @location         Where to store the new image file
+# @size             Size of the virtual disk in bytes
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsSsh',
+  'data': { 'location':         'BlockdevOptionsSsh',
+            'size':             'size' } }
+
+##
+# @BlockdevCreateNotSupported:
+#
+# This is used for all drivers that don't support creating images.
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateNotSupported', 'data': {}}
+
+##
+# @BlockdevCreateOptions:
+#
+# Options for creating an image format on a given node.
+#
+# @driver           block driver to create the image format
+#
+# Since: 2.12
+##
+{ 'union': 'BlockdevCreateOptions',
+  'base': {
+      'driver':         'BlockdevDriver' },
+  'discriminator': 'driver',
+  'data': {
+      'blkdebug':       'BlockdevCreateNotSupported',
+      'blkverify':      'BlockdevCreateNotSupported',
+      'bochs':          'BlockdevCreateNotSupported',
+      'cloop':          'BlockdevCreateNotSupported',
+      'dmg':            'BlockdevCreateNotSupported',
+      'file':           'BlockdevCreateOptionsFile',
+      'ftp':            'BlockdevCreateNotSupported',
+      'ftps':           'BlockdevCreateNotSupported',
+      'gluster':        'BlockdevCreateOptionsGluster',
+      'host_cdrom':     'BlockdevCreateNotSupported',
+      'host_device':    'BlockdevCreateNotSupported',
+      'http':           'BlockdevCreateNotSupported',
+      'https':          'BlockdevCreateNotSupported',
+      'iscsi':          'BlockdevCreateNotSupported',
+      'luks':           'BlockdevCreateNotSupported',
+      'nbd':            'BlockdevCreateNotSupported',
+      'nfs':            'BlockdevCreateOptionsNfs',
+      'null-aio':       'BlockdevCreateNotSupported',
+      'null-co':        'BlockdevCreateNotSupported',
+      'nvme':           'BlockdevCreateNotSupported',
+      'parallels':      'BlockdevCreateNotSupported',
+      'qcow2':          'BlockdevCreateOptionsQcow2',
+      'qcow':           'BlockdevCreateNotSupported',
+      'qed':            'BlockdevCreateNotSupported',
+      'quorum':         'BlockdevCreateNotSupported',
+      'raw':            'BlockdevCreateNotSupported',
+      'rbd':            'BlockdevCreateOptionsRbd',
+      'replication':    'BlockdevCreateNotSupported',
+      'sheepdog':       'BlockdevCreateOptionsSheepdog',
+      'ssh':            'BlockdevCreateOptionsSsh',
+      'throttle':       'BlockdevCreateNotSupported',
+      'vdi':            'BlockdevCreateNotSupported',
+      'vhdx':           'BlockdevCreateNotSupported',
+      'vmdk':           'BlockdevCreateNotSupported',
+      'vpc':            'BlockdevCreateNotSupported',
+      'vvfat':          'BlockdevCreateNotSupported',
+      'vxhs':           'BlockdevCreateNotSupported'
+  } }
+
+##
+# @x-blockdev-create:
+#
+# Create an image format on a given node.
+# TODO Replace with something asynchronous (block job?)
+#
+# Since: 2.12
+##
+{ 'command': 'x-blockdev-create',
+  'data': 'BlockdevCreateOptions',
+  'boxed': true }
 
 ##
 # @blockdev-open-tray:

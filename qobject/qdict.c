@@ -1072,3 +1072,37 @@ void qdict_join(QDict *dest, QDict *src, bool overwrite)
         entry = next;
     }
 }
+
+/**
+ * qdict_rename_keys(): Rename keys in qdict according to the replacements
+ * specified in the array renames. The array must be terminated by an entry
+ * with from = NULL.
+ *
+ * The renames are performed individually in the order of the array, so entries
+ * may be renamed multiple times and may or may not conflict depending on the
+ * order of the renames array.
+ *
+ * Returns true for success, false in error cases.
+ */
+bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp)
+{
+    QObject *qobj;
+
+    while (renames->from) {
+        if (qdict_haskey(qdict, renames->from)) {
+            if (qdict_haskey(qdict, renames->to)) {
+                error_setg(errp, "'%s' and its alias '%s' can't be used at the "
+                           "same time", renames->to, renames->from);
+                return false;
+            }
+
+            qobj = qdict_get(qdict, renames->from);
+            qobject_incref(qobj);
+            qdict_put_obj(qdict, renames->to, qobj);
+            qdict_del(qdict, renames->from);
+        }
+
+        renames++;
+    }
+    return true;
+}

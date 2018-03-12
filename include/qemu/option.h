@@ -124,6 +124,8 @@ void qemu_opts_set_defaults(QemuOptsList *list, const char *params,
                             int permit_abbrev);
 QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
                                Error **errp);
+QDict *qemu_opts_to_qdict_filtered(QemuOpts *opts, QDict *qdict,
+                                   QemuOptsList *list, bool del);
 QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict);
 void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp);
 

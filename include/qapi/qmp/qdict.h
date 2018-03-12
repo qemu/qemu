@@ -81,4 +81,10 @@ QObject *qdict_crumple(const QDict *src, Error **errp);
 
 void qdict_join(QDict *dest, QDict *src, bool overwrite);
 
+typedef struct QDictRenames {
+    const char *from;
+    const char *to;
+} QDictRenames;
+bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp);
+
 #endif /* QDICT_H */

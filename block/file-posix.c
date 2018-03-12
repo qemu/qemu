@@ -1686,11 +1686,15 @@ static int raw_regular_truncate(int fd, int64_t offset, PreallocMode prealloc,
          * file systems that do not support fallocate(), trying to check if a
          * block is allocated before allocating it, so don't do that here.
          */
-        result = -posix_fallocate(fd, current_length, offset - current_length);
-        if (result != 0) {
-            /* posix_fallocate() doesn't set errno. */
-            error_setg_errno(errp, -result,
-                             "Could not preallocate new data");
+        if (offset != current_length) {
+            result = -posix_fallocate(fd, current_length, offset - current_length);
+            if (result != 0) {
+                /* posix_fallocate() doesn't set errno. */
+                error_setg_errno(errp, -result,
+                                 "Could not preallocate new data");
+            }
+        } else {
+            result = 0;
         }
         goto out;
 #endif
@@ -1982,34 +1986,25 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
     return (int64_t)st.st_blocks * 512;
 }
 
-static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
-                                           Error **errp)
+static int raw_co_create(BlockdevCreateOptions *options, Error **errp)
 {
+    BlockdevCreateOptionsFile *file_opts;
     int fd;
     int result = 0;
-    int64_t total_size = 0;
-    bool nocow = false;
-    PreallocMode prealloc;
-    char *buf = NULL;
-    Error *local_err = NULL;
 
-    strstart(filename, "file:", &filename);
+    /* Validate options and set default values */
+    assert(options->driver == BLOCKDEV_DRIVER_FILE);
+    file_opts = &options->u.file;
 
-    /* Read out options */
-    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                          BDRV_SECTOR_SIZE);
-    nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
-    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
-    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
-                               PREALLOC_MODE_OFF, &local_err);
-    g_free(buf);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        result = -EINVAL;
-        goto out;
+    if (!file_opts->has_nocow) {
+        file_opts->nocow = false;
+    }
+    if (!file_opts->has_preallocation) {
+        file_opts->preallocation = PREALLOC_MODE_OFF;
     }
 
-    fd = qemu_open(filename, O_RDWR | O_CREAT | O_TRUNC | O_BINARY,
+    /* Create file */
+    fd = qemu_open(file_opts->filename, O_RDWR | O_CREAT | O_TRUNC | O_BINARY,
                    0644);
     if (fd < 0) {
         result = -errno;
@@ -2017,7 +2012,7 @@ static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
         goto out;
     }
 
-    if (nocow) {
+    if (file_opts->nocow) {
 #ifdef __linux__
         /* Set NOCOW flag to solve performance issue on fs like btrfs.
          * This is an optimisation. The FS_IOC_SETFLAGS ioctl return value
@@ -2032,7 +2027,8 @@ static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
 #endif
     }
 
-    result = raw_regular_truncate(fd, total_size, prealloc, errp);
+    result = raw_regular_truncate(fd, file_opts->size, file_opts->preallocation,
+                                  errp);
     if (result < 0) {
         goto out_close;
     }
@@ -2044,6 +2040,46 @@ out_close:
     }
 out:
     return result;
+}
+
+static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
+                                           Error **errp)
+{
+    BlockdevCreateOptions options;
+    int64_t total_size = 0;
+    bool nocow = false;
+    PreallocMode prealloc;
+    char *buf = NULL;
+    Error *local_err = NULL;
+
+    /* Skip file: protocol prefix */
+    strstart(filename, "file:", &filename);
+
+    /* Read out options */
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                          BDRV_SECTOR_SIZE);
+    nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
+                               PREALLOC_MODE_OFF, &local_err);
+    g_free(buf);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -EINVAL;
+    }
+
+    options = (BlockdevCreateOptions) {
+        .driver     = BLOCKDEV_DRIVER_FILE,
+        .u.file     = {
+            .filename           = (char *) filename,
+            .size               = total_size,
+            .has_preallocation  = true,
+            .preallocation      = prealloc,
+            .has_nocow          = true,
+            .nocow              = nocow,
+        },
+    };
+    return raw_co_create(&options, errp);
 }
 
 /*
@@ -2277,6 +2313,7 @@ BlockDriver bdrv_file = {
     .bdrv_reopen_commit = raw_reopen_commit,
     .bdrv_reopen_abort = raw_reopen_abort,
     .bdrv_close = raw_close,
+    .bdrv_co_create = raw_co_create,
     .bdrv_co_create_opts = raw_co_create_opts,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_block_status = raw_co_block_status,

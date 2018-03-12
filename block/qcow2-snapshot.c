@@ -465,6 +465,7 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowSnapshot *sn;
+    Error *local_err = NULL;
     int i, snapshot_index;
     int cur_l1_bytes, sn_l1_bytes;
     int ret;
@@ -476,6 +477,14 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         return -ENOENT;
     }
     sn = &s->snapshots[snapshot_index];
+
+    ret = qcow2_validate_table(bs, sn->l1_table_offset, sn->l1_size,
+                               sizeof(uint64_t), QCOW_MAX_L1_SIZE,
+                               "Snapshot L1 table", &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+        goto fail;
+    }
 
     if (sn->disk_size != bs->total_sectors * BDRV_SECTOR_SIZE) {
         error_report("qcow2: Loading snapshots with different disk "
@@ -602,6 +611,13 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
     }
     sn = s->snapshots[snapshot_index];
 
+    ret = qcow2_validate_table(bs, sn.l1_table_offset, sn.l1_size,
+                               sizeof(uint64_t), QCOW_MAX_L1_SIZE,
+                               "Snapshot L1 table", errp);
+    if (ret < 0) {
+        return ret;
+    }
+
     /* Remove it from the snapshot list */
     memmove(s->snapshots + snapshot_index,
             s->snapshots + snapshot_index + 1,
@@ -704,9 +720,11 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
     sn = &s->snapshots[snapshot_index];
 
     /* Allocate and read in the snapshot's L1 table */
-    if (sn->l1_size > QCOW_MAX_L1_SIZE / sizeof(uint64_t)) {
-        error_setg(errp, "Snapshot L1 table too large");
-        return -EFBIG;
+    ret = qcow2_validate_table(bs, sn->l1_table_offset, sn->l1_size,
+                               sizeof(uint64_t), QCOW_MAX_L1_SIZE,
+                               "Snapshot L1 table", errp);
+    if (ret < 0) {
+        return ret;
     }
     new_l1_bytes = sn->l1_size * sizeof(uint64_t);
     new_l1_table = qemu_try_blockalign(bs->file->bs,
