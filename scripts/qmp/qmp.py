@@ -166,7 +166,7 @@ class QEMUMonitorProtocol(object):
         """
         self.logger.debug(">>> %s", qmp_cmd)
         try:
-            self.__sock.sendall(json.dumps(qmp_cmd))
+            self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
         except socket.error as err:
             if err[0] == errno.EPIPE:
                 return
