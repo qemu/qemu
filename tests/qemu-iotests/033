@@ -105,6 +105,7 @@ for align in 512 4k; do
 done
 done
 
+_cleanup_test_img
 
 # Trigger truncate that would shrink qcow2 L1 table, which is done by
 #   clearing one entry (8 bytes) with bdrv_co_pwrite_zeroes()
