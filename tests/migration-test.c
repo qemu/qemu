@@ -382,7 +382,7 @@ static void migrate_start_postcopy(QTestState *who)
 }
 
 static void test_migrate_start(QTestState **from, QTestState **to,
-                               const char *uri)
+                               const char *uri, bool hide_stderr)
 {
     gchar *cmd_src, *cmd_dst;
     char *bootpath = g_strdup_printf("%s/bootsect", tmpfs);
@@ -426,6 +426,17 @@ static void test_migrate_start(QTestState **from, QTestState **to,
     }
 
     g_free(bootpath);
+
+    if (hide_stderr) {
+        gchar *tmp;
+        tmp = g_strdup_printf("%s 2>/dev/null", cmd_src);
+        g_free(cmd_src);
+        cmd_src = tmp;
+
+        tmp = g_strdup_printf("%s 2>/dev/null", cmd_dst);
+        g_free(cmd_dst);
+        cmd_dst = tmp;
+    }
 
     *from = qtest_start(cmd_src);
     g_free(cmd_src);
@@ -518,7 +529,7 @@ static void test_migrate(void)
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    test_migrate_start(&from, &to, uri);
+    test_migrate_start(&from, &to, uri, false);
 
     migrate_set_capability(from, "postcopy-ram", "true");
     migrate_set_capability(to, "postcopy-ram", "true");
@@ -560,7 +571,7 @@ static void test_baddest(void)
     const char *status;
     bool failed;
 
-    test_migrate_start(&from, &to, "tcp:0:0");
+    test_migrate_start(&from, &to, "tcp:0:0", true);
     migrate(from, "tcp:0:0");
     do {
         rsp = wait_command(from, "{ 'execute': 'query-migrate' }");

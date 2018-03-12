@@ -747,13 +747,15 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 {
     MigrationState *s = migrate_get_current();
     MigrationCapabilityStatusList *cap;
+    bool cap_list[MIGRATION_CAPABILITY__MAX];
 
     if (migration_is_setup_or_active(s->state)) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
 
-    if (!migrate_caps_check(s->enabled_capabilities, params, errp)) {
+    memcpy(cap_list, s->enabled_capabilities, sizeof(cap_list));
+    if (!migrate_caps_check(cap_list, params, errp)) {
         return;
     }
 
@@ -2541,6 +2543,7 @@ static void migration_instance_finalize(Object *obj)
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
     qemu_sem_destroy(&ms->pause_sem);
+    error_free(ms->error);
 }
 
 static void migration_instance_init(Object *obj)
