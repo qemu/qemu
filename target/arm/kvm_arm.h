@@ -152,20 +152,16 @@ bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
 void kvm_arm_destroy_scratch_host_vcpu(int *fdarray);
 
 #define TYPE_ARM_HOST_CPU "host-" TYPE_ARM_CPU
-#define ARM_HOST_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(ARMHostCPUClass, (klass), TYPE_ARM_HOST_CPU)
-#define ARM_HOST_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ARMHostCPUClass, (obj), TYPE_ARM_HOST_CPU)
 
-typedef struct ARMHostCPUClass {
-    /*< private >*/
-    ARMCPUClass parent_class;
-    /*< public >*/
-
+/**
+ * ARMHostCPUFeatures: information about the host CPU (identified
+ * by asking the host kernel)
+ */
+typedef struct ARMHostCPUFeatures {
     uint64_t features;
     uint32_t target;
     const char *dtb_compatible;
-} ARMHostCPUClass;
+} ARMHostCPUFeatures;
 
 /**
  * kvm_arm_get_host_cpu_features:
@@ -174,8 +170,16 @@ typedef struct ARMHostCPUClass {
  * Probe the capabilities of the host kernel's preferred CPU and fill
  * in the ARMHostCPUClass struct accordingly.
  */
-bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc);
+bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf);
 
+/**
+ * kvm_arm_set_cpu_features_from_host:
+ * @cpu: ARMCPU to set the features for
+ *
+ * Set up the ARMCPU struct fields up to match the information probed
+ * from the host CPU.
+ */
+void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu);
 
 /**
  * kvm_arm_sync_mpstate_to_kvm
@@ -199,6 +203,15 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
 void kvm_arm_pmu_init(CPUState *cs);
 
 #else
+
+static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
+{
+    /* This should never actually be called in the "not KVM" case,
+     * but set up the fields to indicate an error anyway.
+     */
+    cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
+    cpu->host_cpu_probe_failed = true;
+}
 
 static inline int kvm_arm_vgic_probe(void)
 {

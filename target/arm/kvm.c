@@ -33,6 +33,8 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static bool cap_has_mp_state;
 
+static ARMHostCPUFeatures arm_host_cpu_features;
+
 int kvm_arm_vcpu_init(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -129,43 +131,26 @@ void kvm_arm_destroy_scratch_host_vcpu(int *fdarray)
     }
 }
 
-static void kvm_arm_host_cpu_class_init(ObjectClass *oc, void *data)
+void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
 {
-    ARMHostCPUClass *ahcc = ARM_HOST_CPU_CLASS(oc);
-
-    /* All we really need to set up for the 'host' CPU
-     * is the feature bits -- we rely on the fact that the
-     * various ID register values in ARMCPU are only used for
-     * TCG CPUs.
-     */
-    if (!kvm_arm_get_host_cpu_features(ahcc)) {
-        fprintf(stderr, "Failed to retrieve host CPU features!\n");
-        abort();
-    }
-}
-
-static void kvm_arm_host_cpu_initfn(Object *obj)
-{
-    ARMHostCPUClass *ahcc = ARM_HOST_CPU_GET_CLASS(obj);
-    ARMCPU *cpu = ARM_CPU(obj);
     CPUARMState *env = &cpu->env;
 
-    cpu->kvm_target = ahcc->target;
-    cpu->dtb_compatible = ahcc->dtb_compatible;
-    env->features = ahcc->features;
-}
+    if (!arm_host_cpu_features.dtb_compatible) {
+        if (!kvm_enabled() ||
+            !kvm_arm_get_host_cpu_features(&arm_host_cpu_features)) {
+            /* We can't report this error yet, so flag that we need to
+             * in arm_cpu_realizefn().
+             */
+            cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
+            cpu->host_cpu_probe_failed = true;
+            return;
+        }
+    }
 
-static const TypeInfo host_arm_cpu_type_info = {
-    .name = TYPE_ARM_HOST_CPU,
-#ifdef TARGET_AARCH64
-    .parent = TYPE_AARCH64_CPU,
-#else
-    .parent = TYPE_ARM_CPU,
-#endif
-    .instance_init = kvm_arm_host_cpu_initfn,
-    .class_init = kvm_arm_host_cpu_class_init,
-    .class_size = sizeof(ARMHostCPUClass),
-};
+    cpu->kvm_target = arm_host_cpu_features.target;
+    cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
+    env->features = arm_host_cpu_features.features;
+}
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
@@ -181,8 +166,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_halt_in_kernel_allowed = true;
 
     cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
-
-    type_register_static(&host_arm_cpu_type_info);
 
     return 0;
 }

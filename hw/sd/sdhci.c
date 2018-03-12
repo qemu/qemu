@@ -433,13 +433,13 @@ static void sdhci_read_block_from_card(SDHCIState *s)
     for (index = 0; index < blk_size; index++) {
         data = sdbus_read_data(&s->sdbus);
         if (!FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, EXECUTE_TUNING)) {
-            /* Device is not in tunning */
+            /* Device is not in tuning */
             s->fifo_buffer[index] = data;
         }
     }
 
     if (FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, EXECUTE_TUNING)) {
-        /* Device is in tunning */
+        /* Device is in tuning */
         s->hostctl2 &= ~R_SDHC_HOSTCTL2_EXECUTE_TUNING_MASK;
         s->hostctl2 |= R_SDHC_HOSTCTL2_SAMPLING_CLKSEL_MASK;
         s->prnsts &= ~(SDHC_DAT_LINE_ACTIVE | SDHC_DOING_READ |
