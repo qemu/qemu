@@ -481,6 +481,10 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
         error_report("%s userfault: Region doesn't support COPY", __func__);
         return -1;
     }
+    if (reg_struct.ioctls & ((__u64)1 << _UFFDIO_ZEROPAGE)) {
+        RAMBlock *rb = qemu_ram_block_by_name(block_name);
+        qemu_ram_set_uf_zeroable(rb);
+    }
 
     return 0;
 }
@@ -700,11 +704,14 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
 int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
                              RAMBlock *rb)
 {
+    size_t pagesize = qemu_ram_pagesize(rb);
     trace_postcopy_place_page_zero(host);
 
-    if (qemu_ram_pagesize(rb) == getpagesize()) {
-        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, getpagesize(),
-                                rb)) {
+    /* Normal RAMBlocks can zero a page using UFFDIO_ZEROPAGE
+     * but it's not available for everything (e.g. hugetlbpages)
+     */
+    if (qemu_ram_is_uf_zeroable(rb)) {
+        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, pagesize, rb)) {
             int e = errno;
             error_report("%s: %s zero host: %p",
                          __func__, strerror(e), host);

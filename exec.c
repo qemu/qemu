@@ -99,6 +99,11 @@ static MemoryRegion io_mem_unassigned;
  */
 #define RAM_RESIZEABLE (1 << 2)
 
+/* UFFDIO_ZEROPAGE is available on this RAMBlock to atomically
+ * zero the page and wake waiting processes.
+ * (Set during postcopy)
+ */
+#define RAM_UF_ZEROPAGE (1 << 3)
 #endif
 
 #ifdef TARGET_PAGE_BITS_VARY
@@ -1765,6 +1770,17 @@ const char *qemu_ram_get_idstr(RAMBlock *rb)
 bool qemu_ram_is_shared(RAMBlock *rb)
 {
     return rb->flags & RAM_SHARED;
+}
+
+/* Note: Only set at the start of postcopy */
+bool qemu_ram_is_uf_zeroable(RAMBlock *rb)
+{
+    return rb->flags & RAM_UF_ZEROPAGE;
+}
+
+void qemu_ram_set_uf_zeroable(RAMBlock *rb)
+{
+    rb->flags |= RAM_UF_ZEROPAGE;
 }
 
 /* Called with iothread lock held.  */
