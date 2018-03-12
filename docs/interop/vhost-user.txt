@@ -729,6 +729,18 @@ Master message types
       This is always sent sometime after a VHOST_USER_POSTCOPY_ADVISE, and
       thus only when VHOST_USER_PROTOCOL_F_PAGEFAULT is supported.
 
+ * VHOST_USER_POSTCOPY_END
+      Id: 30
+      Slave payload: u64
+
+      Master advises that postcopy migration has now completed.  The
+      slave must disable the userfaultfd. The response is an acknowledgement
+      only.
+      When VHOST_USER_PROTOCOL_F_PAGEFAULT is supported, this message
+      is sent at the end of the migration, after VHOST_USER_POSTCOPY_LISTEN
+      was previously sent.
+      The value returned is an error indication; 0 is success.
+
 Slave message types
 -------------------
 
