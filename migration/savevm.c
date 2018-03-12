@@ -1618,6 +1618,8 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
 {
     PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_LISTENING);
     trace_loadvm_postcopy_handle_listen();
+    Error *local_err = NULL;
+
     if (ps != POSTCOPY_INCOMING_ADVISE && ps != POSTCOPY_INCOMING_DISCARD) {
         error_report("CMD_POSTCOPY_LISTEN in wrong postcopy state (%d)", ps);
         return -1;
@@ -1641,6 +1643,11 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
         if (postcopy_ram_enable_notify(mis)) {
             return -1;
         }
+    }
+
+    if (postcopy_notify(POSTCOPY_NOTIFY_INBOUND_LISTEN, &local_err)) {
+        error_report_err(local_err);
+        return -1;
     }
 
     if (mis->have_listen_thread) {

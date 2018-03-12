@@ -86,6 +86,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_CREATE_CRYPTO_SESSION = 26,
     VHOST_USER_CLOSE_CRYPTO_SESSION = 27,
     VHOST_USER_POSTCOPY_ADVISE  = 28,
+    VHOST_USER_POSTCOPY_LISTEN  = 29,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -285,6 +286,7 @@ struct VuDev {
 
     /* Postcopy data */
     int postcopy_ufd;
+    bool postcopy_listening;
 };
 
 typedef struct VuVirtqElement {

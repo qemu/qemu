@@ -131,6 +131,7 @@ void postcopy_infrastructure_init(void);
 enum PostcopyNotifyReason {
     POSTCOPY_NOTIFY_PROBE = 0,
     POSTCOPY_NOTIFY_INBOUND_ADVISE,
+    POSTCOPY_NOTIFY_INBOUND_LISTEN,
 };
 
 struct PostcopyNotifyData {

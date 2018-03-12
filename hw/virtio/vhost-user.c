@@ -20,6 +20,7 @@
 #include "sysemu/cryptodev.h"
 #include "migration/migration.h"
 #include "migration/postcopy-ram.h"
+#include "trace.h"
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -79,6 +80,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_CREATE_CRYPTO_SESSION = 26,
     VHOST_USER_CLOSE_CRYPTO_SESSION = 27,
     VHOST_USER_POSTCOPY_ADVISE  = 28,
+    VHOST_USER_POSTCOPY_LISTEN  = 29,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -172,6 +174,8 @@ struct vhost_user {
     int slave_fd;
     NotifierWithReturn postcopy_notifier;
     struct PostCopyFD  postcopy_fd;
+    /* True once we've entered postcopy_listen */
+    bool               postcopy_listen;
 };
 
 static bool ioeventfd_enabled(void)
@@ -858,6 +862,33 @@ static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
     return 0;
 }
 
+/*
+ * Called at the switch to postcopy on reception of the 'listen' command.
+ */
+static int vhost_user_postcopy_listen(struct vhost_dev *dev, Error **errp)
+{
+    struct vhost_user *u = dev->opaque;
+    int ret;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_POSTCOPY_LISTEN,
+        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+    };
+    u->postcopy_listen = true;
+    trace_vhost_user_postcopy_listen();
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_setg(errp, "Failed to send postcopy_listen to vhost");
+        return -1;
+    }
+
+    ret = process_message_reply(dev, &msg);
+    if (ret) {
+        error_setg(errp, "Failed to receive reply to postcopy_listen");
+        return ret;
+    }
+
+    return 0;
+}
+
 static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
                                         void *opaque)
 {
@@ -879,6 +910,9 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
 
     case POSTCOPY_NOTIFY_INBOUND_ADVISE:
         return vhost_user_postcopy_advise(dev, pnd->errp);
+
+    case POSTCOPY_NOTIFY_INBOUND_LISTEN:
+        return vhost_user_postcopy_listen(dev, pnd->errp);
 
     default:
         /* We ignore notifications we don't know */
