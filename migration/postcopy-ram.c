@@ -526,6 +526,32 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
 }
 
 /*
+ * Callback from shared fault handlers to ask for a page,
+ * the page must be specified by a RAMBlock and an offset in that rb
+ * Note: Only for use by shared fault handlers (in fault thread)
+ */
+int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
+                                 uint64_t client_addr, uint64_t rb_offset)
+{
+    size_t pagesize = qemu_ram_pagesize(rb);
+    uint64_t aligned_rbo = rb_offset & ~(pagesize - 1);
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    trace_postcopy_request_shared_page(pcfd->idstr, qemu_ram_get_idstr(rb),
+                                       rb_offset);
+    /* TODO: Check bitmap to see if we already have the page */
+    if (rb != mis->last_rb) {
+        mis->last_rb = rb;
+        migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
+                                  aligned_rbo, pagesize);
+    } else {
+        /* Save some space */
+        migrate_send_rp_req_pages(mis, NULL, aligned_rbo, pagesize);
+    }
+    return 0;
+}
+
+/*
  * Handle faults detected by the USERFAULT markings
  */
 static void *postcopy_ram_fault_thread(void *opaque)
@@ -535,9 +561,9 @@ static void *postcopy_ram_fault_thread(void *opaque)
     int ret;
     size_t index;
     RAMBlock *rb = NULL;
-    RAMBlock *last_rb = NULL; /* last RAMBlock we sent part of */
 
     trace_postcopy_ram_fault_thread_entry();
+    mis->last_rb = NULL; /* last RAMBlock we sent part of */
     qemu_sem_post(&mis->fault_thread_sem);
 
     struct pollfd *pfd;
@@ -636,8 +662,8 @@ static void *postcopy_ram_fault_thread(void *opaque)
              * Send the request to the source - we want to request one
              * of our host page sizes (which is >= TPS)
              */
-            if (rb != last_rb) {
-                last_rb = rb;
+            if (rb != mis->last_rb) {
+                mis->last_rb = rb;
                 migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
                                          rb_offset, qemu_ram_pagesize(rb));
             } else {
