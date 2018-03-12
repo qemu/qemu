@@ -721,9 +721,10 @@ nonallocating_write:
     return ret;
 }
 
-static int coroutine_fn vdi_co_do_create(BlockdevCreateOptionsVdi *vdi_opts,
+static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
                                          size_t block_size, Error **errp)
 {
+    BlockdevCreateOptionsVdi *vdi_opts;
     int ret = 0;
     uint64_t bytes = 0;
     uint32_t blocks;
@@ -735,6 +736,9 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptionsVdi *vdi_opts,
     BlockDriverState *bs_file = NULL;
     BlockBackend *blk = NULL;
     uint32_t *bmap = NULL;
+
+    assert(create_options->driver == BLOCKDEV_DRIVER_VDI);
+    vdi_opts = &create_options->u.vdi;
 
     logout("\n");
 
@@ -856,11 +860,17 @@ exit:
     return ret;
 }
 
+static int coroutine_fn vdi_co_create(BlockdevCreateOptions *create_options,
+                                      Error **errp)
+{
+    return vdi_co_do_create(create_options, DEFAULT_CLUSTER_SIZE, errp);
+}
+
 static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
                                            Error **errp)
 {
     QDict *qdict = NULL;
-    BlockdevCreateOptionsVdi *create_options = NULL;
+    BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs_file = NULL;
     uint64_t block_size = DEFAULT_CLUSTER_SIZE;
     Visitor *v;
@@ -897,11 +907,12 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         goto done;
     }
 
+    qdict_put_str(qdict, "driver", "vdi");
     qdict_put_str(qdict, "file", bs_file->node_name);
 
     /* Get the QAPI object */
     v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
-    visit_type_BlockdevCreateOptionsVdi(v, NULL, &create_options, &local_err);
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
     visit_free(v);
 
     if (local_err) {
@@ -910,12 +921,14 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         goto done;
     }
 
-    create_options->size = ROUND_UP(create_options->size, BDRV_SECTOR_SIZE);
+    assert(create_options->driver == BLOCKDEV_DRIVER_VDI);
+    create_options->u.vdi.size = ROUND_UP(create_options->u.vdi.size,
+                                          BDRV_SECTOR_SIZE);
 
     ret = vdi_co_do_create(create_options, block_size, errp);
 done:
     QDECREF(qdict);
-    qapi_free_BlockdevCreateOptionsVdi(create_options);
+    qapi_free_BlockdevCreateOptions(create_options);
     bdrv_unref(bs_file);
     return ret;
 }
@@ -969,6 +982,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_reopen_prepare = vdi_reopen_prepare,
     .bdrv_child_perm          = bdrv_format_default_perms,
     .bdrv_co_create_opts = vdi_co_create_opts,
+    .bdrv_co_create      = vdi_co_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_block_status = vdi_co_block_status,
     .bdrv_make_empty = vdi_make_empty,
