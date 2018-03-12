@@ -5042,6 +5042,9 @@ DISAS_INSN(fpu)
     case 1: /* fint */
         gen_helper_firound(cpu_env, cpu_dest, cpu_src);
         break;
+    case 2: /* fsinh */
+        gen_helper_fsinh(cpu_env, cpu_dest, cpu_src);
+        break;
     case 3: /* fintrz */
         gen_helper_fitrunc(cpu_env, cpu_dest, cpu_src);
         break;

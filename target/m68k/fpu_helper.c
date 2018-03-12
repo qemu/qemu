@@ -643,3 +643,8 @@ void HELPER(ftanh)(CPUM68KState *env, FPReg *res, FPReg *val)
 {
     res->d = floatx80_tanh(val->d, &env->fp_status);
 }
+
+void HELPER(fsinh)(CPUM68KState *env, FPReg *res, FPReg *val)
+{
+    res->d = floatx80_sinh(val->d, &env->fp_status);
+}

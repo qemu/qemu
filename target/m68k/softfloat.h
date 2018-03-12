@@ -43,4 +43,5 @@ floatx80 floatx80_acos(floatx80 a, float_status *status);
 floatx80 floatx80_atanh(floatx80 a, float_status *status);
 floatx80 floatx80_etoxm1(floatx80 a, float_status *status);
 floatx80 floatx80_tanh(floatx80 a, float_status *status);
+floatx80 floatx80_sinh(floatx80 a, float_status *status);
 #endif
