@@ -3721,6 +3721,7 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
     }
 
     if ((start + length) <= rb->used_length) {
+        bool need_madvise, need_fallocate;
         uint8_t *host_endaddr = host_startaddr + length;
         if ((uintptr_t)host_endaddr & (rb->page_size - 1)) {
             error_report("ram_block_discard_range: Unaligned end address: %p",
@@ -3730,29 +3731,60 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
 
         errno = ENOTSUP; /* If we are missing MADVISE etc */
 
-        if (rb->page_size == qemu_host_page_size) {
-#if defined(CONFIG_MADVISE)
-            /* Note: We need the madvise MADV_DONTNEED behaviour of definitely
-             * freeing the page.
-             */
-            ret = madvise(host_startaddr, length, MADV_DONTNEED);
-#endif
-        } else {
-            /* Huge page case  - unfortunately it can't do DONTNEED, but
-             * it can do the equivalent by FALLOC_FL_PUNCH_HOLE in the
-             * huge page file.
+        /* The logic here is messy;
+         *    madvise DONTNEED fails for hugepages
+         *    fallocate works on hugepages and shmem
+         */
+        need_madvise = (rb->page_size == qemu_host_page_size);
+        need_fallocate = rb->fd != -1;
+        if (need_fallocate) {
+            /* For a file, this causes the area of the file to be zero'd
+             * if read, and for hugetlbfs also causes it to be unmapped
+             * so a userfault will trigger.
              */
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
             ret = fallocate(rb->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                             start, length);
-#endif
-        }
-        if (ret) {
-            ret = -errno;
-            error_report("ram_block_discard_range: Failed to discard range "
+            if (ret) {
+                ret = -errno;
+                error_report("ram_block_discard_range: Failed to fallocate "
+                             "%s:%" PRIx64 " +%zx (%d)",
+                             rb->idstr, start, length, ret);
+                goto err;
+            }
+#else
+            ret = -ENOSYS;
+            error_report("ram_block_discard_range: fallocate not available/file"
                          "%s:%" PRIx64 " +%zx (%d)",
                          rb->idstr, start, length, ret);
+            goto err;
+#endif
         }
+        if (need_madvise) {
+            /* For normal RAM this causes it to be unmapped,
+             * for shared memory it causes the local mapping to disappear
+             * and to fall back on the file contents (which we just
+             * fallocate'd away).
+             */
+#if defined(CONFIG_MADVISE)
+            ret =  madvise(host_startaddr, length, MADV_DONTNEED);
+            if (ret) {
+                ret = -errno;
+                error_report("ram_block_discard_range: Failed to discard range "
+                             "%s:%" PRIx64 " +%zx (%d)",
+                             rb->idstr, start, length, ret);
+                goto err;
+            }
+#else
+            ret = -ENOSYS;
+            error_report("ram_block_discard_range: MADVISE not available"
+                         "%s:%" PRIx64 " +%zx (%d)",
+                         rb->idstr, start, length, ret);
+            goto err;
+#endif
+        }
+        trace_ram_block_discard_range(rb->idstr, host_startaddr, length,
+                                      need_madvise, need_fallocate, ret);
     } else {
         error_report("ram_block_discard_range: Overrun block '%s' (%" PRIu64
                      "/%zx/" RAM_ADDR_FMT")",
