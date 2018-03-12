@@ -218,19 +218,43 @@ nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
 /* Drop remainder of the current option, and send a reply with the
  * given error type and message. Return -errno on read or write
  * failure; or 0 if connection is still live. */
+static int GCC_FMT_ATTR(4, 0)
+nbd_opt_vdrop(NBDClient *client, uint32_t type, Error **errp,
+              const char *fmt, va_list va)
+{
+    int ret = nbd_drop(client->ioc, client->optlen, errp);
+
+    client->optlen = 0;
+    if (!ret) {
+        ret = nbd_negotiate_send_rep_verr(client, type, errp, fmt, va);
+    }
+    return ret;
+}
+
 static int GCC_FMT_ATTR(4, 5)
 nbd_opt_drop(NBDClient *client, uint32_t type, Error **errp,
              const char *fmt, ...)
 {
-    int ret = nbd_drop(client->ioc, client->optlen, errp);
+    int ret;
     va_list va;
 
-    client->optlen = 0;
-    if (!ret) {
-        va_start(va, fmt);
-        ret = nbd_negotiate_send_rep_verr(client, type, errp, fmt, va);
-        va_end(va);
-    }
+    va_start(va, fmt);
+    ret = nbd_opt_vdrop(client, type, errp, fmt, va);
+    va_end(va);
+
+    return ret;
+}
+
+static int GCC_FMT_ATTR(3, 4)
+nbd_opt_invalid(NBDClient *client, Error **errp, const char *fmt, ...)
+{
+    int ret;
+    va_list va;
+
+    va_start(va, fmt);
+    ret = nbd_opt_vdrop(client, NBD_REP_ERR_INVALID, errp, fmt, va);
+    va_end(va);
+
     return ret;
 }
 
@@ -241,9 +265,9 @@ static int nbd_opt_read(NBDClient *client, void *buffer, size_t size,
                         Error **errp)
 {
     if (size > client->optlen) {
-        return nbd_opt_drop(client, NBD_REP_ERR_INVALID, errp,
-                            "Inconsistent lengths in option %s",
-                            nbd_opt_lookup(client->opt));
+        return nbd_opt_invalid(client, errp,
+                               "Inconsistent lengths in option %s",
+                               nbd_opt_lookup(client->opt));
     }
     client->optlen -= size;
     return qio_channel_read_all(client->ioc, buffer, size, errp) < 0 ? -EIO : 1;
@@ -398,9 +422,8 @@ static int nbd_reject_length(NBDClient *client, bool fatal, Error **errp)
     int ret;
 
     assert(client->optlen);
-    ret = nbd_opt_drop(client, NBD_REP_ERR_INVALID, errp,
-                       "option '%s' has unexpected length",
-                       nbd_opt_lookup(client->opt));
+    ret = nbd_opt_invalid(client, errp, "option '%s' has unexpected length",
+                          nbd_opt_lookup(client->opt));
     if (fatal && !ret) {
         error_setg(errp, "option '%s' has unexpected length",
                    nbd_opt_lookup(client->opt));
@@ -438,8 +461,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     }
     be32_to_cpus(&namelen);
     if (namelen >= sizeof(name)) {
-        return nbd_opt_drop(client, NBD_REP_ERR_INVALID, errp,
-                            "name too long for qemu");
+        return nbd_opt_invalid(client, errp, "name too long for qemu");
     }
     rc = nbd_opt_read(client, name, namelen, errp);
     if (rc <= 0) {
